@@ -27,42 +27,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef NET_HTTP_HTTP_NETWORK_LAYER_H_
-#define NET_HTTP_HTTP_NETWORK_LAYER_H_
+#ifndef NET_PROXY_PROXY_RESOLVER_WINHTTP_H_
+#define NET_PROXY_PROXY_RESOLVER_WINHTTP_H_
 
-#include "base/ref_counted.h"
-#include "net/http/http_transaction_factory.h"
+#include "net/proxy/proxy_service.h"
+
+typedef LPVOID HINTERNET;  // From winhttp.h
 
 namespace net {
 
-class HttpNetworkSession;
-class ProxyInfo;
-
-class HttpNetworkLayer : public HttpTransactionFactory {
+// An implementation of ProxyResolver that uses WinHTTP and the system
+// proxy settings.
+class ProxyResolverWinHttp : public ProxyResolver {
  public:
-  explicit HttpNetworkLayer(const ProxyInfo* pi);
-  ~HttpNetworkLayer();
+  ProxyResolverWinHttp();
+  ~ProxyResolverWinHttp();
 
-  // This function hides the details of how a network layer gets instantiated
-  // and allows other implementations to be substituted.
-  static HttpTransactionFactory* CreateFactory(const ProxyInfo* pi);
-
-  // If value is true, then WinHTTP will be used.
-  static void UseWinHttp(bool value);
-
-  // HttpTransactionFactory methods:
-  virtual HttpTransaction* CreateTransaction();
-  virtual HttpCache* GetCache();
-  virtual AuthCache* GetAuthCache();
-  virtual void Suspend(bool suspend);
+  // ProxyResolver implementation:
+  virtual int GetProxyConfig(ProxyConfig* config);
+  virtual int GetProxyForURL(const std::wstring& query_url,
+                             const std::wstring& pac_url,
+                             ProxyInfo* results);
 
  private:
-  static bool use_winhttp_;
+   bool OpenWinHttpSession();
+   void CloseWinHttpSession();
 
-  scoped_refptr<HttpNetworkSession> session_;
-  bool suspended_;
+  // Proxy configuration is cached on the session handle.
+  HINTERNET session_handle_;
+
+  DISALLOW_COPY_AND_ASSIGN(ProxyResolverWinHttp);
 };
 
 }  // namespace net
 
-#endif  // NET_HTTP_HTTP_NETWORK_LAYER_H_
+#endif  // NET_PROXY_PROXY_RESOLVER_WINHTTP_H_
