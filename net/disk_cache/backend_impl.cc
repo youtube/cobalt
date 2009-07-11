@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/backend_impl.h"
 
+#include "base/field_trial.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/histogram.h"
@@ -169,6 +170,27 @@ bool InitExperiment(int* current_group) {
   return true;
 }
 
+// Initializes the field trial structures to allow performance measurements
+// for the current cache configuration.
+void SetFieldTrialInfo(int experiment_group, int size_group) {
+  static bool first = true;
+  if (!first)
+    return;
+
+  // Field trials involve static objects so we have to do this only once.
+  first = false;
+  scoped_refptr<FieldTrial> trial1 = new FieldTrial("CacheSize", 10);
+  std::string group1 = StringPrintf("CacheSizeGroup_%d", size_group);
+  trial1->AppendGroup(group1, FieldTrial::kAllRemainingProbability);
+
+  if (experiment_group < 6 || experiment_group > 8)
+    return;
+
+  scoped_refptr<FieldTrial> trial2 = new FieldTrial("NewEviction", 10);
+  std::string group2 = StringPrintf("NewEvictionGroup_%d", experiment_group);
+  trial2->AppendGroup(group2, FieldTrial::kAllRemainingProbability);
+}
+
 }  // namespace
 
 // ------------------------------------------------------------------------
@@ -302,6 +324,10 @@ bool BackendImpl::Init() {
 
   disabled_ = !rankings_.Init(this, new_eviction_);
   eviction_.Init(this);
+
+  // Setup experiment data only for the main cache.
+  if (cache_type() == net::DISK_CACHE)
+    SetFieldTrialInfo(data_->header.experiment, GetSizeGroup());
 
   return !disabled_;
 }
