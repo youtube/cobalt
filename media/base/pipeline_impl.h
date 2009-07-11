@@ -73,7 +73,6 @@ class PipelineImpl : public Pipeline {
   void SetBufferedBytes(int64 buffered_bytes);
   void SetVideoSize(size_t width, size_t height);
   void SetTime(base::TimeDelta time);
-  void InternalSetPlaybackRate(float rate);
 
   // Sets the error to the new error code only if the current error state is
   // PIPELINE_OK. Returns true if error set, otherwise leaves current error
@@ -121,17 +120,14 @@ class PipelineImpl : public Pipeline {
   size_t video_width_;
   size_t video_height_;
 
-  // Current volume level (from 0.0f to 1.0f).  The volume reflects the last
-  // value the audio filter was called with SetVolume, so there will be a short
-  // period of time between the client calling SetVolume on the pipeline and
-  // this value being updated.  Set by the PipelineInternal just prior to
-  // calling the audio renderer.
+  // Current volume level (from 0.0f to 1.0f).  This value is set immediately
+  // via SetVolume() and a task is dispatched on the message loop to notify the
+  // filters.
   float volume_;
 
-  // Current playback rate (>= 0.0f).  This member reflects the last value
-  // that the filters in the pipeline were called with, so there will be a short
-  // period of time between the client calling SetPlaybackRate and this value
-  // being updated.  Set by the PipelineInternal just prior to calling filters.
+  // Current playback rate (>= 0.0f).  This value is set immediately via
+  // SetPlaybackRate() and a task is dispatched on the message loop to notify
+  // the filters.
   float playback_rate_;
 
   // Current playback time.  Set by a FilterHostImpl object on behalf of the
@@ -187,8 +183,10 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
              PipelineCallback* start_callback);
   void Stop(PipelineCallback* stop_callback);
   void Seek(base::TimeDelta time, PipelineCallback* seek_callback);
-  void SetPlaybackRate(float rate);
-  void SetVolume(float volume);
+
+  // Notifies that the client has changed the playback rate/volume.
+  void PlaybackRateChanged(float playback_rate);
+  void VolumeChanged(float volume);
 
   // Methods called by a FilterHostImpl object.  These methods may be called
   // on any thread, either the pipeline's thread or any other.
@@ -270,9 +268,12 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
   void StopTask(PipelineCallback* stop_callback);
   void ErrorTask(PipelineError error);
 
-  void SetPlaybackRateTask(float rate);
+  // Carries out notifying filters that the playback rate/volume has changed,
+  void PlaybackRateChangedTask(float playback_rate);
+  void VolumeChangedTask(float volume);
+
+  // Carries out notifying filters that we are seeking to a new timestamp.
   void SeekTask(base::TimeDelta time, PipelineCallback* seek_callback);
-  void SetVolumeTask(float volume);
 
   // Internal methods used in the implementation of the pipeline thread.  All
   // of these methods are only called on the pipeline thread.

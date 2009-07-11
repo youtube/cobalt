@@ -78,8 +78,8 @@ PipelineImpl::~PipelineImpl() {
 bool PipelineImpl::Start(FilterFactory* factory,
                          const std::string& url,
                          PipelineCallback* start_callback) {
-  DCHECK(!pipeline_internal_);
-  DCHECK(factory);
+  DCHECK(!pipeline_internal_) << "PipelineInternal already exists";
+  scoped_ptr<PipelineCallback> callback(start_callback);
   if (pipeline_internal_ || !factory) {
     return false;
   }
@@ -90,29 +90,29 @@ bool PipelineImpl::Start(FilterFactory* factory,
     NOTREACHED() << "Could not create PipelineInternal";
     return false;
   }
-  pipeline_internal_->Start(factory, url, start_callback);
+  pipeline_internal_->Start(factory, url, callback.release());
   return true;
 }
 
 // Stop the PipelineInternal who will NULL our reference to it and reset our
 // state to a newly created PipelineImpl object.
 void PipelineImpl::Stop(PipelineCallback* stop_callback) {
+  scoped_ptr<PipelineCallback> callback(stop_callback);
   if (pipeline_internal_) {
-    pipeline_internal_->Stop(stop_callback);
+    pipeline_internal_->Stop(callback.release());
   }
 }
 
 void PipelineImpl::Seek(base::TimeDelta time,
                         PipelineCallback* seek_callback) {
-  if (IsPipelineOk()) {
-    pipeline_internal_->Seek(time, seek_callback);
-  } else {
-    NOTREACHED();
+  scoped_ptr<PipelineCallback> callback(seek_callback);
+  if (pipeline_internal_) {
+    pipeline_internal_->Seek(time, callback.release());
   }
 }
 
 bool PipelineImpl::IsRunning() const {
-  AutoLock auto_lock(const_cast<Lock&>(lock_));
+  AutoLock auto_lock(lock_);
   return pipeline_internal_ != NULL;
 }
 
@@ -133,12 +133,15 @@ float PipelineImpl::GetPlaybackRate() const {
   return playback_rate_;
 }
 
-void PipelineImpl::SetPlaybackRate(float rate) {
-  if (IsPipelineOk() && rate >= 0.0f) {
-    pipeline_internal_->SetPlaybackRate(rate);
-  } else {
-    // It's OK for a client to call SetPlaybackRate(0.0f) if we're stopped.
-    DCHECK(rate == 0.0f && playback_rate_ == 0.0f);
+void PipelineImpl::SetPlaybackRate(float playback_rate) {
+  if (playback_rate < 0.0f) {
+    return;
+  }
+
+  AutoLock auto_lock(lock_);
+  playback_rate_ = playback_rate;
+  if (pipeline_internal_) {
+    pipeline_internal_->PlaybackRateChanged(playback_rate);
   }
 }
 
@@ -148,10 +151,14 @@ float PipelineImpl::GetVolume() const {
 }
 
 void PipelineImpl::SetVolume(float volume) {
-  if (IsPipelineOk() && volume >= 0.0f && volume <= 1.0f) {
-    pipeline_internal_->SetVolume(volume);
-  } else {
-    NOTREACHED();
+  if (volume < 0.0f || volume > 1.0f) {
+    return;
+  }
+
+  AutoLock auto_lock(lock_);
+  volume_ = volume;
+  if (pipeline_internal_) {
+    pipeline_internal_->VolumeChanged(volume);
   }
 }
 
@@ -244,11 +251,6 @@ void PipelineImpl::SetTime(base::TimeDelta time) {
   time_ = time;
 }
 
-void PipelineImpl::InternalSetPlaybackRate(float rate) {
-  AutoLock auto_lock(lock_);
-  playback_rate_ = rate;
-}
-
 bool PipelineImpl::InternalSetError(PipelineError error) {
   // Don't want callers to set an error of "OK".  STOPPING is a special value
   // that should only be used internally by the StopTask() method.
@@ -306,15 +308,16 @@ void PipelineInternal::Seek(base::TimeDelta time,
 }
 
 // Called on client's thread.
-void PipelineInternal::SetPlaybackRate(float rate) {
+void PipelineInternal::PlaybackRateChanged(float playback_rate) {
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineInternal::SetPlaybackRateTask, rate));
+      NewRunnableMethod(this, &PipelineInternal::PlaybackRateChangedTask,
+                        playback_rate));
 }
 
 // Called on client's thread.
-void PipelineInternal::SetVolume(float volume) {
+void PipelineInternal::VolumeChanged(float volume) {
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineInternal::SetVolumeTask, volume));
+      NewRunnableMethod(this, &PipelineInternal::VolumeChangedTask, volume));
 }
 
 // Called from any thread.
@@ -436,6 +439,10 @@ void PipelineInternal::InitializeTask() {
       return;
     }
 
+    // Initialization was successful, set the volume and playback rate.
+    PlaybackRateChangedTask(pipeline_->GetPlaybackRate());
+    VolumeChangedTask(pipeline_->GetVolume());
+
     state_ = kStarted;
     filter_factory_ = NULL;
     if (start_callback_.get()) {
@@ -506,14 +513,23 @@ void PipelineInternal::ErrorTask(PipelineError error) {
   DestroyFilters();
 }
 
-void PipelineInternal::SetPlaybackRateTask(float rate) {
+void PipelineInternal::PlaybackRateChangedTask(float playback_rate) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  pipeline_->InternalSetPlaybackRate(rate);
   for (FilterHostVector::iterator iter = filter_hosts_.begin();
        iter != filter_hosts_.end();
        ++iter) {
-    (*iter)->media_filter()->SetPlaybackRate(rate);
+    (*iter)->media_filter()->SetPlaybackRate(playback_rate);
+  }
+}
+
+void PipelineInternal::VolumeChangedTask(float volume) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  scoped_refptr<AudioRenderer> audio_renderer;
+  GetFilter(&audio_renderer);
+  if (audio_renderer) {
+    audio_renderer->SetVolume(volume);
   }
 }
 
@@ -521,6 +537,11 @@ void PipelineInternal::SeekTask(base::TimeDelta time,
                                 PipelineCallback* seek_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   seek_callback_.reset(seek_callback);
+
+  // Supress seeking if we haven't fully started.
+  if (state_ != kStarted) {
+    return;
+  }
 
   for (FilterHostVector::iterator iter = filter_hosts_.begin();
        iter != filter_hosts_.end();
@@ -539,17 +560,6 @@ void PipelineInternal::SeekTask(base::TimeDelta time,
   if (seek_callback_.get()) {
     seek_callback_->Run(true);
     seek_callback_.reset();
-  }
-}
-
-void PipelineInternal::SetVolumeTask(float volume) {
-  DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  pipeline_->volume_ = volume;
-  scoped_refptr<AudioRenderer> audio_renderer;
-  GetFilter(&audio_renderer);
-  if (audio_renderer) {
-    audio_renderer->SetVolume(volume);
   }
 }
 
