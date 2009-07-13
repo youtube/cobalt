@@ -26,9 +26,17 @@ bool SupportsSetMessageLoop() {
     case FILTER_AUDIO_DECODER:
     case FILTER_VIDEO_DECODER:
       return true;
-    default:
+
+    case FILTER_DATA_SOURCE:
+    case FILTER_AUDIO_RENDERER:
+    case FILTER_VIDEO_RENDERER:
       return false;
+
+    // Skipping default case so compiler will warn on a missed enumeration.
   }
+
+  NOTREACHED() << "Unexpected filter type " << Filter::filter_type();
+  return false;
 }
 
 // Small helper function to help us name filter threads for debugging.
