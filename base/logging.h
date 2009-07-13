@@ -280,7 +280,11 @@ std::string* MakeCheckOpString(const int& v1,
 //     foo.CheckThatFoo();
 //   #endif
 
-#ifdef OFFICIAL_BUILD
+// http://crbug.com/16512 is open for a real fix for this.  For now, Windows
+// uses OFFICIAL_BUILD and !Windows uses the branding flag when NDEBUG is
+// defined.
+#if ( defined(OS_WIN) && defined(OFFICIAL_BUILD)) || \
+    (!defined(OS_WIN) && defined(NDEBUG) && defined(GOOGLE_CHROME_BUILD))
 // We want to have optimized code for an official build so we remove DLOGS and
 // DCHECK from the executable.
 
