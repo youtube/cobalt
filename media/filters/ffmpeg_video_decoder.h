@@ -26,6 +26,7 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
 
   static bool IsMediaFormatSupported(const MediaFormat& media_format);
 
+ protected:
   virtual bool OnInitialize(DemuxerStream* demuxer_stream);
 
   virtual void OnSeek(base::TimeDelta time);
