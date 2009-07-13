@@ -9,6 +9,11 @@
 // interfaces to open an audio device.  Although it cannot be used in the
 // sandbox, it serves as a reference implementation and can be used in other
 // applications such as the test player.
+//
+// Note: THIS IS NOT THE AUDIO RENDERER USED IN CHROME.
+//
+// See src/chrome/renderer/media/audio_renderer_impl.h for chrome's
+// implementation.
 
 #include <deque>
 

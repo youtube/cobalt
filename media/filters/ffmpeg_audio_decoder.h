@@ -23,6 +23,7 @@ class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
 
   static bool IsMediaFormatSupported(const MediaFormat& media_format);
 
+ protected:
   virtual bool OnInitialize(DemuxerStream* demuxer_stream);
 
   virtual void OnStop();
