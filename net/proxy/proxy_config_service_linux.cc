@@ -205,9 +205,25 @@ class GConfSettingGetterImpl
   GConfSettingGetterImpl() : client_(NULL), loop_(NULL) {}
 
   virtual ~GConfSettingGetterImpl() {
-    LOG(INFO) << "~GConfSettingGetterImpl called";
     // client_ should have been released before now, from
-    // Delegate::OnDestroy(), while running on the UI thread.
+    // Delegate::OnDestroy(), while running on the UI thread. However
+    // on exiting the process, it may happen that
+    // Delegate::OnDestroy() task is left pending on the glib loop
+    // after the loop was quit, and pending tasks may then be deleted
+    // without being run.
+    if (client_) {
+      // gconf client was not cleaned up.
+      if (MessageLoop::current() == loop_) {
+        // We are on the UI thread so we can clean it safely. This is
+        // the case at least for ui_tests running under Valgrind in
+        // bug 16076.
+        LOG(INFO) << "~GConfSettingGetterImpl: releasing gconf client";
+        Release();
+      } else {
+        LOG(WARNING) << "~GConfSettingGetterImpl: leaking gconf client";
+        client_ = NULL;
+      }
+    }
     DCHECK(!client_);
   }
 
