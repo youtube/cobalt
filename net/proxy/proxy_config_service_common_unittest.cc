@@ -16,19 +16,26 @@ ProxyConfig::ProxyRules MakeProxyRules(
     const char* single_proxy,
     const char* proxy_for_http,
     const char* proxy_for_https,
-    const char* proxy_for_ftp) {
+    const char* proxy_for_ftp,
+    const char* socks_proxy) {
   ProxyConfig::ProxyRules rules;
   rules.type = type;
-  rules.single_proxy = ProxyServer::FromURI(single_proxy);
-  rules.proxy_for_http = ProxyServer::FromURI(proxy_for_http);
-  rules.proxy_for_https = ProxyServer::FromURI(proxy_for_https);
-  rules.proxy_for_ftp = ProxyServer::FromURI(proxy_for_ftp);
+  rules.single_proxy = ProxyServer::FromURI(single_proxy,
+                                            ProxyServer::SCHEME_HTTP);
+  rules.proxy_for_http = ProxyServer::FromURI(proxy_for_http,
+                                              ProxyServer::SCHEME_HTTP);
+  rules.proxy_for_https = ProxyServer::FromURI(proxy_for_https,
+                                               ProxyServer::SCHEME_HTTP);
+  rules.proxy_for_ftp = ProxyServer::FromURI(proxy_for_ftp,
+                                             ProxyServer::SCHEME_HTTP);
+  rules.socks_proxy = ProxyServer::FromURI(socks_proxy,
+                                           ProxyServer::SCHEME_SOCKS4);
   return rules;
 }
 
 ProxyConfig::ProxyRules MakeSingleProxyRules(const char* single_proxy) {
   return MakeProxyRules(ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
-                        single_proxy, "", "", "");
+                        single_proxy, "", "", "", "");
 }
 
 ProxyConfig::ProxyRules MakeProxyPerSchemeRules(
@@ -36,7 +43,15 @@ ProxyConfig::ProxyRules MakeProxyPerSchemeRules(
     const char* proxy_https,
     const char* proxy_ftp) {
   return MakeProxyRules(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
-                        "", proxy_http, proxy_https, proxy_ftp);
+                        "", proxy_http, proxy_https, proxy_ftp, "");
+}
+ProxyConfig::ProxyRules MakeProxyPerSchemeRules(
+    const char* proxy_http,
+    const char* proxy_https,
+    const char* proxy_ftp,
+    const char* socks_proxy) {
+  return MakeProxyRules(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+                        "", proxy_http, proxy_https, proxy_ftp, socks_proxy);
 }
 
 std::string FlattenProxyBypass(const BypassList& proxy_bypass) {

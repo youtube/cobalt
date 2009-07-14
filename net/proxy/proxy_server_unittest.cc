@@ -148,7 +148,9 @@ TEST(ProxyServerTest, FromURI) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    net::ProxyServer uri = net::ProxyServer::FromURI(tests[i].input_uri);
+    net::ProxyServer uri =
+        net::ProxyServer::FromURI(tests[i].input_uri,
+                                  net::ProxyServer::SCHEME_HTTP);
     EXPECT_TRUE(uri.is_valid());
     EXPECT_FALSE(uri.is_direct());
     EXPECT_EQ(tests[i].expected_uri, uri.ToURI());
@@ -168,7 +170,8 @@ TEST(ProxyServerTest, DefaultConstructor) {
 // Test parsing of the special URI form "direct://". Analagous to the "DIRECT"
 // entry in a PAC result.
 TEST(ProxyServerTest, Direct) {
-  net::ProxyServer uri = net::ProxyServer::FromURI("direct://");
+  net::ProxyServer uri =
+      net::ProxyServer::FromURI("direct://", net::ProxyServer::SCHEME_HTTP);
   EXPECT_TRUE(uri.is_valid());
   EXPECT_TRUE(uri.is_direct());
   EXPECT_EQ("direct://", uri.ToURI());
@@ -190,7 +193,8 @@ TEST(ProxyServerTest, Invalid) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    net::ProxyServer uri = net::ProxyServer::FromURI(tests[i]);
+    net::ProxyServer uri =
+        net::ProxyServer::FromURI(tests[i], net::ProxyServer::SCHEME_HTTP);
     EXPECT_FALSE(uri.is_valid());
     EXPECT_FALSE(uri.is_direct());
     EXPECT_FALSE(uri.is_http());
@@ -207,7 +211,8 @@ TEST(ProxyServerTest, Whitespace) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    net::ProxyServer uri = net::ProxyServer::FromURI(tests[i]);
+    net::ProxyServer uri =
+        net::ProxyServer::FromURI(tests[i], net::ProxyServer::SCHEME_HTTP);
     EXPECT_EQ("foopy:80", uri.ToURI());
   }
 }

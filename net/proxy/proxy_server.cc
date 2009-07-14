@@ -85,15 +85,17 @@ std::string ProxyServer::host_and_port() const {
 }
 
 // static
-ProxyServer ProxyServer::FromURI(const std::string& uri) {
-  return FromURI(uri.begin(), uri.end());
+ProxyServer ProxyServer::FromURI(const std::string& uri,
+                                 Scheme default_scheme) {
+  return FromURI(uri.begin(), uri.end(), default_scheme);
 }
 
 // static
 ProxyServer ProxyServer::FromURI(std::string::const_iterator begin,
-                                 std::string::const_iterator end) {
-  // We will default to HTTP if no scheme specifier was given.
-  Scheme scheme = SCHEME_HTTP;
+                                 std::string::const_iterator end,
+                                 Scheme default_scheme) {
+  // We will default to |default_scheme| if no scheme specifier was given.
+  Scheme scheme = default_scheme;
 
   // Trim the leading/trailing whitespace.
   HttpUtil::TrimLWS(&begin, &end);

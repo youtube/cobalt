@@ -19,7 +19,8 @@ ProxyConfig::ProxyRules MakeProxyRules(
     const char* single_proxy,
     const char* proxy_for_http,
     const char* proxy_for_https,
-    const char* proxy_for_ftp);
+    const char* proxy_for_ftp,
+    const char* socks_proxy);
 
 ProxyConfig::ProxyRules MakeSingleProxyRules(const char* single_proxy);
 
@@ -27,6 +28,12 @@ ProxyConfig::ProxyRules MakeProxyPerSchemeRules(
     const char* proxy_http,
     const char* proxy_https,
     const char* proxy_ftp);
+
+ProxyConfig::ProxyRules MakeProxyPerSchemeRules(
+    const char* proxy_http,
+    const char* proxy_https,
+    const char* proxy_ftp,
+    const char* socks_proxy);
 
 typedef std::vector<std::string> BypassList;
 
