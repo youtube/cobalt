@@ -7,6 +7,7 @@
 *.xcodeproj
 /Makefile
 /breakpad/src/
+/build/util/support/
 /chrome/Debug
 /chrome/Hammer
 /chrome/Release
@@ -15,6 +16,7 @@
 /chrome/test/data/
 /data/
 /googleurl/
+/native_client/
 /out/
 /rlz/binaries/
 /sconsbuild
@@ -27,11 +29,14 @@
 /third_party/googlemac/
 /third_party/icu38/
 /third_party/pdfsqueeze/
+/third_party/protobuf/
 /third_party/skia/
 /third_party/tcmalloc/tcmalloc/
+/third_party/xdg-utils/
 /tools/distcc/
 /tools/grit/grit/test/data/
 /tools/gyp/
+/tools/page_cycler/acid3/
 /tools/tryserver/
 /v8/
 /webkit/Debug/
