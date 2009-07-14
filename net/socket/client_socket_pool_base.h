@@ -149,6 +149,10 @@ class ClientSocketPoolBase
     return idle_socket_count_;
   }
 
+  int max_sockets_per_group() const {
+    return max_sockets_per_group_;
+  }
+
   int IdleSocketCountInGroup(const std::string& group_name) const;
 
   LoadState GetLoadState(const std::string& group_name,
