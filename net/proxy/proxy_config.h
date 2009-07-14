@@ -68,17 +68,20 @@ class ProxyConfig {
     //                                  URLs.
     void ParseFromString(const std::string& proxy_rules);
 
-    // Returns one of {&proxy_for_http, &proxy_for_https, &proxy_for_ftp},
-    // or NULL if it is a scheme that we don't have a mapping for. Should only
-    // call this if the type is TYPE_PROXY_PER_SCHEME.
-    const ProxyServer* MapSchemeToProxy(const std::string& scheme) const;
+    // Returns one of {&proxy_for_http, &proxy_for_https, &proxy_for_ftp,
+    // &socks_proxy}, or NULL if it is a scheme that we don't have a mapping
+    // for. If the scheme mapping is not present and socks_proxy is defined,
+    // we fall back to using socks_proxy.
+    // Should only call this if the type is TYPE_PROXY_PER_SCHEME.
+    const ProxyServer* MapUrlSchemeToProxy(const std::string& url_scheme) const;
 
     bool operator==(const ProxyRules& other) const {
       return type == other.type &&
              single_proxy == other.single_proxy &&
              proxy_for_http == other.proxy_for_http &&
              proxy_for_https == other.proxy_for_https &&
-             proxy_for_ftp == other.proxy_for_ftp;
+             proxy_for_ftp == other.proxy_for_ftp &&
+             socks_proxy == other.socks_proxy;
     }
 
     Type type;
@@ -90,6 +93,14 @@ class ProxyConfig {
     ProxyServer proxy_for_http;
     ProxyServer proxy_for_https;
     ProxyServer proxy_for_ftp;
+
+    // Set if configuration has SOCKS proxy.
+    ProxyServer socks_proxy;
+   private:
+    // Returns one of {&proxy_for_http, &proxy_for_https, &proxy_for_ftp,
+    // &socks_proxy}, or NULL if it is a scheme that we don't have a mapping
+    // for. Should only call this if the type is TYPE_PROXY_PER_SCHEME.
+    ProxyServer* MapSchemeToProxy(const std::string& scheme);
   };
 
   ProxyRules proxy_rules;

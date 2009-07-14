@@ -36,6 +36,7 @@ void ProxyConfig::ProxyRules::ParseFromString(const std::string& proxy_rules) {
   proxy_for_http = ProxyServer();
   proxy_for_https = ProxyServer();
   proxy_for_ftp = ProxyServer();
+  socks_proxy = ProxyServer();
 
   StringTokenizer proxy_server_list(proxy_rules, ";");
   while (proxy_server_list.GetNext()) {
@@ -51,18 +52,8 @@ void ProxyConfig::ProxyRules::ParseFromString(const std::string& proxy_rules) {
       if (!proxy_server_for_scheme.GetNext()) {
         if (type == TYPE_PROXY_PER_SCHEME)
           continue;  // Unexpected.
-        single_proxy = ProxyServer::FromURI(url_scheme);
-        type = TYPE_SINGLE_PROXY;
-        return;
-      }
-
-      // If the proxy settings has only socks and others blank,
-      // make that the default for all the proxies
-      // This gets hit only on windows when using IE settings.
-      if (url_scheme == "socks") {
-        std::string proxy_server_string = "socks://";
-        proxy_server_string.append(proxy_server_for_scheme.token());
-        single_proxy = ProxyServer::FromURI(proxy_server_string);
+        single_proxy = ProxyServer::FromURI(url_scheme,
+                                            ProxyServer::SCHEME_HTTP);
         type = TYPE_SINGLE_PROXY;
         return;
       }
@@ -72,15 +63,29 @@ void ProxyConfig::ProxyRules::ParseFromString(const std::string& proxy_rules) {
 
       // Add it to the per-scheme mappings (if supported scheme).
       type = TYPE_PROXY_PER_SCHEME;
-      if (const ProxyServer* entry = MapSchemeToProxy(url_scheme))
-        *const_cast<ProxyServer*>(entry) =
-            ProxyServer::FromURI(proxy_server_for_scheme.token());
+      if (ProxyServer* entry = MapSchemeToProxy(url_scheme)) {
+        std::string proxy_server_token = proxy_server_for_scheme.token();
+        ProxyServer::Scheme scheme = (entry == &socks_proxy) ?
+            ProxyServer::SCHEME_SOCKS4 : ProxyServer::SCHEME_HTTP;
+        *entry = ProxyServer::FromURI(proxy_server_token, scheme);
+      }
     }
   }
 }
 
-const ProxyServer* ProxyConfig::ProxyRules::MapSchemeToProxy(
-    const std::string& scheme) const {
+const ProxyServer* ProxyConfig::ProxyRules::MapUrlSchemeToProxy(
+    const std::string& url_scheme) const {
+  const ProxyServer* proxy_server =
+      const_cast<ProxyRules*>(this)->MapSchemeToProxy(url_scheme);
+  if (proxy_server && proxy_server->is_valid())
+    return proxy_server;
+  if (socks_proxy.is_valid())
+    return &socks_proxy;
+  return NULL;  // No mapping for this scheme. Use direct.
+}
+
+ProxyServer* ProxyConfig::ProxyRules::MapSchemeToProxy(
+    const std::string& scheme) {
   DCHECK(type == TYPE_PROXY_PER_SCHEME);
   if (scheme == "http")
     return &proxy_for_http;
@@ -88,6 +93,8 @@ const ProxyServer* ProxyConfig::ProxyRules::MapSchemeToProxy(
     return &proxy_for_https;
   if (scheme == "ftp")
     return &proxy_for_ftp;
+  if (scheme == "socks")
+    return &socks_proxy;
   return NULL;  // No mapping for this scheme.
 }
 
@@ -194,6 +201,7 @@ std::ostream& operator<<(std::ostream& out,
              << "    proxy_for_http: " << rules.proxy_for_http << "\n"
              << "    proxy_for_https: " << rules.proxy_for_https << "\n"
              << "    proxy_for_ftp: " << rules.proxy_for_ftp << "\n"
+             << "    socks_proxy: " << rules.socks_proxy << "\n"
              << "  }";
 }
 

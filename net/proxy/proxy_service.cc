@@ -333,7 +333,7 @@ void ProxyService::ApplyProxyRules(const GURL& url,
       result->UseProxyServer(proxy_rules.single_proxy);
       break;
     case ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME: {
-      const ProxyServer* entry = proxy_rules.MapSchemeToProxy(url.scheme());
+      const ProxyServer* entry = proxy_rules.MapUrlSchemeToProxy(url.scheme());
       if (entry) {
         result->UseProxyServer(*entry);
       } else {
