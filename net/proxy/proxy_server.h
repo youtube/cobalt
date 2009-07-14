@@ -64,22 +64,23 @@ class ProxyServer {
   // Parse from an input with format:
   //   [<scheme>"://"]<server>[":"<port>]
   //
-  // Both <scheme> and <port> are optional. If <scheme> is omitted, it will
-  // be assumed as "http". If <port> is omitted, it will be assumed as
+  // Both <scheme> and <port> are optional. If <scheme> is omitted, it will be
+  // assumed as |default_scheme|. If <port> is omitted, it will be assumed as
   // the default port for the chosen scheme (80 for "http", 1080 for "socks").
   //
   // If parsing fails the instance will be set to invalid.
   //
-  // Examples:
+  // Examples (for |default_scheme| = SCHEME_HTTP ):
   //   "foopy"            {scheme=HTTP, host="foopy", port=80}
   //   "socks4://foopy"   {scheme=SOCKS4, host="foopy", port=1080}
   //   "socks5://foopy"   {scheme=SOCKS5, host="foopy", port=1080}
   //   "http://foopy:17"  {scheme=HTTP, host="foopy", port=17}
   //   "direct://"        {scheme=DIRECT}
   //   "foopy:X"          INVALID -- bad port.
-  static ProxyServer FromURI(const std::string& uri);
+  static ProxyServer FromURI(const std::string& uri, Scheme default_scheme);
   static ProxyServer FromURI(std::string::const_iterator uri_begin,
-                             std::string::const_iterator uri_end);
+                             std::string::const_iterator uri_end,
+                             Scheme default_scheme);
 
   // Format as a URI string. This does the reverse of FromURI.
   std::string ToURI() const;
