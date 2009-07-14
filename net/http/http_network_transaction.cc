@@ -26,7 +26,6 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
-#include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
 #include "net/socket/ssl_client_socket.h"
 
@@ -337,7 +336,7 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
                                  CompletionCallback* callback) {
   DCHECK(response_.headers);
   DCHECK(buf);
-  DCHECK_LT(0, buf_len);
+  DCHECK(buf_len > 0);
 
   if (!connection_.is_initialized())
     return 0;  // connection_ has been reset.  Treat like EOF.
@@ -350,7 +349,7 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
     // network attacker can already control HTTP sessions.
     // We reach this case when the user cancels a 407 proxy auth prompt.
     // See http://crbug.com/8473
-    DCHECK_EQ(407, response_.headers->response_code());
+    DCHECK(response_.headers->response_code() == 407);
     LogBlockedTunnelResponse(response_.headers->response_code());
     return ERR_TUNNEL_CONNECTION_FAILED;
   }
@@ -546,10 +545,10 @@ int HttpNetworkTransaction::DoResolveProxy() {
 int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
   next_state_ = STATE_INIT_CONNECTION;
 
-  // Remove unsupported proxies from the list.
+  // Remove unsupported proxies (like SOCKS5) from the list.
   proxy_info_.RemoveProxiesWithoutScheme(
       ProxyServer::SCHEME_DIRECT | ProxyServer::SCHEME_HTTP |
-      ProxyServer::SCHEME_SOCKS4 | ProxyServer::SCHEME_SOCKS5);
+      ProxyServer::SCHEME_SOCKS4);
 
   pac_request_ = NULL;
 
@@ -663,10 +662,7 @@ int HttpNetworkTransaction::DoSOCKSConnect() {
                                      request_->url.EffectiveIntPort());
   req_info.set_referrer(request_->referrer);
 
-  if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_SOCKS5)
-    s = new SOCKS5ClientSocket(s, req_info, session_->host_resolver());
-  else
-    s = new SOCKSClientSocket(s, req_info, session_->host_resolver());
+  s = new SOCKSClientSocket(s, req_info, session_->host_resolver());
   connection_.set_socket(s);
   return connection_.socket()->Connect(&io_callback_);
 }
