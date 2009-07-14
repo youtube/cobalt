@@ -191,6 +191,10 @@
           [ 'OS=="mac"', {
             'xcode_settings': {
               'DEAD_CODE_STRIPPING': 'YES',
+              'conditions': [
+                ['mac_release_optimization != "UNSET"',
+                  {'GCC_OPTIMIZATION_LEVEL': '<(mac_release_optimization)'}],
+              ],
             }
           }],
           [ 'OS=="win" and msvs_use_common_release', {
@@ -399,6 +403,9 @@
           # with % in variables that are intended to be set to different
           # values in different targets, like this one.
           'mac_real_dsym': 0,  # Fake .dSYMs are fine in most cases.
+          # Release defaults to the Xcode optimization default, this var
+          # lets you force the value.
+          'mac_release_optimization%': 'UNSET'
         },
         'mac_bundle': 0,
         'xcode_settings': {
