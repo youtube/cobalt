@@ -943,6 +943,52 @@ TEST(ProxyServiceTest, PerProtocolProxyTests) {
   EXPECT_EQ("foopy1:8080", info4.proxy_server().ToURI());
 }
 
+// If only HTTP and a SOCKS proxy are specified, check if ftp/https queries
+// fall back to the SOCKS proxy.
+TEST(ProxyServiceTest, DefaultProxyFallbackToSOCKS) {
+  net::ProxyConfig config;
+  config.proxy_rules.ParseFromString("http=foopy1:8080;socks=foopy2:1080");
+  config.auto_detect = false;
+  EXPECT_EQ(net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+            config.proxy_rules.type);
+
+  SyncProxyService service1(new MockProxyConfigService(config),
+                            new MockProxyResolver);
+  GURL test_url1("http://www.msn.com");
+  net::ProxyInfo info1;
+  int rv = service1.ResolveProxy(test_url1, &info1);
+  EXPECT_EQ(net::OK, rv);
+  EXPECT_FALSE(info1.is_direct());
+  EXPECT_EQ("foopy1:8080", info1.proxy_server().ToURI());
+
+  SyncProxyService service2(new MockProxyConfigService(config),
+                            new MockProxyResolver);
+  GURL test_url2("ftp://ftp.google.com");
+  net::ProxyInfo info2;
+  rv = service2.ResolveProxy(test_url2, &info2);
+  EXPECT_EQ(net::OK, rv);
+  EXPECT_FALSE(info2.is_direct());
+  EXPECT_EQ("socks4://foopy2:1080", info2.proxy_server().ToURI());
+
+  SyncProxyService service3(new MockProxyConfigService(config),
+                            new MockProxyResolver);
+  GURL test_url3("https://webbranch.techcu.com");
+  net::ProxyInfo info3;
+  rv = service3.ResolveProxy(test_url3, &info3);
+  EXPECT_EQ(net::OK, rv);
+  EXPECT_FALSE(info3.is_direct());
+  EXPECT_EQ("socks4://foopy2:1080", info3.proxy_server().ToURI());
+
+  SyncProxyService service4(new MockProxyConfigService(config),
+                            new MockProxyResolver);
+  GURL test_url4("www.microsoft.com");
+  net::ProxyInfo info4;
+  rv = service4.ResolveProxy(test_url4, &info4);
+  EXPECT_EQ(net::OK, rv);
+  EXPECT_FALSE(info4.is_direct());
+  EXPECT_EQ("socks4://foopy2:1080", info4.proxy_server().ToURI());
+}
+
 // Test cancellation of a queued request.
 TEST(ProxyServiceTest, CancelQueuedRequest) {
   MockProxyConfigService* config_service =

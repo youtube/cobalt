@@ -49,18 +49,21 @@ TEST(ProxyConfigTest, Equals) {
   // Test |ProxyConfig::proxy_rules|.
 
   config2.proxy_rules.type = net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
-  config2.proxy_rules.single_proxy = net::ProxyServer::FromURI("myproxy:80");
+  config2.proxy_rules.single_proxy =
+      net::ProxyServer::FromURI("myproxy:80", net::ProxyServer::SCHEME_HTTP);
 
   EXPECT_FALSE(config1.Equals(config2));
   EXPECT_FALSE(config2.Equals(config1));
 
   config1.proxy_rules.type = net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
-  config1.proxy_rules.single_proxy = net::ProxyServer::FromURI("myproxy:100");
+  config1.proxy_rules.single_proxy =
+      net::ProxyServer::FromURI("myproxy:100", net::ProxyServer::SCHEME_HTTP);
 
   EXPECT_FALSE(config1.Equals(config2));
   EXPECT_FALSE(config2.Equals(config1));
 
-  config1.proxy_rules.single_proxy = net::ProxyServer::FromURI("myproxy");
+  config1.proxy_rules.single_proxy =
+      net::ProxyServer::FromURI("myproxy", net::ProxyServer::SCHEME_HTTP);
 
   EXPECT_TRUE(config1.Equals(config2));
   EXPECT_TRUE(config2.Equals(config1));
@@ -99,6 +102,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     const char* proxy_for_http;
     const char* proxy_for_https;
     const char* proxy_for_ftp;
+    const char* socks_proxy;
   } tests[] = {
     // One HTTP proxy for all schemes.
     {
@@ -106,6 +110,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
 
       net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
       "myproxy:80",
+      NULL,
       NULL,
       NULL,
       NULL,
@@ -120,6 +125,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
       "myproxy:80",
       NULL,
       NULL,
+      NULL,
     },
 
     // Specify an HTTP proxy for "ftp://" and a SOCKS proxy for "https://" urls.
@@ -131,6 +137,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
       NULL,
       "socks4://foopy:1080",
       "ftp-proxy:80",
+      NULL,
     },
 
     // Give a scheme-specific proxy as well as a non-scheme specific.
@@ -141,6 +148,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
 
       net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
       "foopy:80",
+      NULL,
       NULL,
       NULL,
       NULL,
@@ -157,6 +165,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
       NULL,
       NULL,
       "ftp-proxy:80",
+      NULL,
     },
 
     // Include duplicate entries -- last one wins.
@@ -168,18 +177,45 @@ TEST(ProxyConfigTest, ParseProxyRules) {
       NULL,
       NULL,
       "ftp3:80",
+      NULL,
     },
 
-    // Only socks proxy present, others being blank.
-    {  // NOLINT
+    // Only SOCKS proxy present, others being blank.
+    {
       "socks=foopy",
 
-      net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
+      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      NULL,
+      NULL,
+      NULL,
+      NULL,
       "socks4://foopy:1080",
+      },
+
+    // SOCKS proxy present along with other proxies too
+    {
+      "http=httpproxy ; https=httpsproxy ; ftp=ftpproxy ; socks=foopy ",
+
+      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
       NULL,
-      NULL,
-      NULL,
+      "httpproxy:80",
+      "httpsproxy:80",
+      "ftpproxy:80",
+      "socks4://foopy:1080",
     },
+
+    // SOCKS proxy (with modifier) present along with some proxies
+    // (FTP being blank)
+    {
+      "http=httpproxy ; https=httpsproxy ; socks=socks5://foopy ",
+
+      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      NULL,
+      "httpproxy:80",
+      "httpsproxy:80",
+      NULL,
+      "socks5://foopy:1080",
+      },
 
     // Include unsupported schemes -- they are discarded.
     {
@@ -189,6 +225,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
       NULL,
       NULL,
       "myhttpsproxy:80",
+      NULL,
       NULL,
     },
   };
@@ -207,6 +244,8 @@ TEST(ProxyConfigTest, ParseProxyRules) {
                             config.proxy_rules.proxy_for_https);
     ExpectProxyServerEquals(tests[i].proxy_for_ftp,
                             config.proxy_rules.proxy_for_ftp);
+    ExpectProxyServerEquals(tests[i].socks_proxy,
+                            config.proxy_rules.socks_proxy);
   }
 }
 

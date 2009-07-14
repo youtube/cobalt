@@ -55,6 +55,7 @@ class EnvironmentVariableGetterImpl
 // an appropriate proxy server scheme prefix.
 // scheme indicates the desired proxy scheme: usually http, with
 // socks 4 or 5 as special cases.
+// TODO(arindam): Remove URI string manipulation by using MapUrlSchemeToProxy.
 std::string FixupProxyHostScheme(ProxyServer::Scheme scheme,
                                  std::string host) {
   if (scheme == ProxyServer::SCHEME_SOCKS4 &&
@@ -94,7 +95,8 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromEnvVarForScheme(
   if (env_var_getter_->Getenv(variable, &env_value)) {
     if (!env_value.empty()) {
       env_value = FixupProxyHostScheme(scheme, env_value);
-      ProxyServer proxy_server = ProxyServer::FromURI(env_value);
+      ProxyServer proxy_server =
+          ProxyServer::FromURI(env_value, ProxyServer::SCHEME_HTTP);
       if (proxy_server.is_valid() && !proxy_server.is_direct()) {
         *result_server = proxy_server;
         return true;
@@ -402,7 +404,8 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromGConf(
   host = FixupProxyHostScheme(
       is_socks ? ProxyServer::SCHEME_SOCKS4 : ProxyServer::SCHEME_HTTP,
       host);
-  ProxyServer proxy_server = ProxyServer::FromURI(host);
+  ProxyServer proxy_server = ProxyServer::FromURI(host,
+                                                  ProxyServer::SCHEME_HTTP);
   if (proxy_server.is_valid()) {
     *result_server = proxy_server;
     return true;

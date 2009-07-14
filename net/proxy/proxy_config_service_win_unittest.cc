@@ -108,6 +108,25 @@ TEST(ProxyConfigServiceWinTest, SetFromIEConfig) {
       false,                                   // bypass_local_names
     },
 
+    // SOCKS proxy configuration
+    {
+      { // Input.
+        FALSE,                                            // fAutoDetect
+        NULL,                                             // lpszAutoConfigUrl
+        L"http=www.google.com:80;https=www.foo.com:110;"
+        L"ftp=ftpproxy:20;socks=foopy:130",               // lpszProxy
+        NULL,                                             // lpszProxy_bypass
+      },
+
+      // Expected result.
+      false,                                   // auto_detect
+      GURL(),                                  // pac_url
+      MakeProxyPerSchemeRules("www.google.com:80", "www.foo.com:110",
+                              "ftpproxy:20", "foopy:130"),
+      "",                                      // proxy_bypass_list
+      false,                                   // bypass_local_names
+    },
+
     // Bypass local names.
     {
       { // Input.
