@@ -83,7 +83,7 @@ PipelineImpl::~PipelineImpl() {
 }
 
 // Creates the PipelineInternal and calls it's start method.
-bool PipelineImpl::Start(FilterFactory* factory,
+    bool PipelineImpl::Start(FilterFactory* factory,
                          const std::string& url,
                          PipelineCallback* start_callback) {
   DCHECK(!pipeline_internal_) << "PipelineInternal already exists";
@@ -217,7 +217,7 @@ void PipelineImpl::ResetState() {
   total_bytes_      = 0;
   video_width_      = 0;
   video_height_     = 0;
-  volume_           = 0.0f;
+  volume_           = 1.0f;
   playback_rate_    = 0.0f;
   error_            = PIPELINE_OK;
   time_             = base::TimeDelta();

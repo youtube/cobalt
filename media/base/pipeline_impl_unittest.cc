@@ -122,7 +122,7 @@ class PipelineImplTest : public ::testing::Test {
         .WillOnce(DoAll(InitializationComplete(mocks_->audio_renderer()),
                         Return(true)));
     EXPECT_CALL(*mocks_->audio_renderer(), SetPlaybackRate(0.0f));
-    EXPECT_CALL(*mocks_->audio_renderer(), SetVolume(0.0f));
+    EXPECT_CALL(*mocks_->audio_renderer(), SetVolume(1.0f));
     EXPECT_CALL(*mocks_->audio_renderer(), Stop());
   }
 
@@ -177,9 +177,9 @@ TEST_F(PipelineImplTest, NotStarted) {
   EXPECT_EQ(1.0f, pipeline_.GetPlaybackRate());
 
   // Setting should still work.
-  EXPECT_EQ(0.0f, pipeline_.GetVolume());
+  EXPECT_EQ(1.0f, pipeline_.GetVolume());
   pipeline_.SetVolume(-1.0f);
-  EXPECT_EQ(0.0f, pipeline_.GetVolume());
+  EXPECT_EQ(1.0f, pipeline_.GetVolume());
   pipeline_.SetVolume(1.0f);
   EXPECT_EQ(1.0f, pipeline_.GetVolume());
 
