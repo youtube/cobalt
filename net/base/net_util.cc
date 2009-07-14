@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <map>
 #include <unicode/ucnv.h>
 #include <unicode/uidna.h>
 #include <unicode/ulocdata.h>
@@ -29,7 +30,10 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "base/path_service.h"
+#include "base/singleton.h"
+#include "base/stl_util-inl.h"
 #include "base/string_escape.h"
 #include "base/string_piece.h"
 #include "base/string_tokenizer.h"
@@ -489,6 +493,39 @@ bool IsCompatibleWithASCIILetters(const std::string& lang) {
          !lang.substr(0, 2).compare("ko");
 }
 
+typedef std::map<std::string, UnicodeSet*> LangToExemplarSetMap;
+
+class LangToExemplarSet {
+ private:
+  LangToExemplarSetMap map;
+  LangToExemplarSet() { }
+  ~LangToExemplarSet() {
+    STLDeleteContainerPairSecondPointers(map.begin(), map.end());
+  }
+
+  friend class Singleton<LangToExemplarSet>;
+  friend struct DefaultSingletonTraits<LangToExemplarSet>;
+  friend bool GetExemplarSetForLang(const std::string&, UnicodeSet**);
+  friend void SetExemplarSetForLang(const std::string&, UnicodeSet*);
+
+  DISALLOW_COPY_AND_ASSIGN(LangToExemplarSet);
+};
+
+bool GetExemplarSetForLang(const std::string& lang, UnicodeSet** lang_set) {
+  const LangToExemplarSetMap& map = Singleton<LangToExemplarSet>()->map;
+  LangToExemplarSetMap::const_iterator pos = map.find(lang);
+  if (pos != map.end()) {
+    *lang_set = pos->second;
+    return true;
+  }
+  return false;
+}
+
+void SetExemplarSetForLang(const std::string& lang, UnicodeSet* lang_set) {
+  LangToExemplarSetMap& map = Singleton<LangToExemplarSet>()->map;
+  map.insert(std::make_pair(lang, lang_set));
+}
+
 // Returns true if the given Unicode host component is safe to display to the
 // user.
 bool IsIDNComponentSafe(const char16* str,
@@ -557,41 +594,48 @@ bool IsIDNComponentSafe(const char16* str,
   // the remainder.
   component_characters.removeAll(common_characters);
 
-  USet *lang_set = uset_open(1, 0);  // create an empty set
   UnicodeSet ascii_letters(0x61, 0x7a);  // [a-z]
   bool safe = false;
   std::string languages_list(WideToASCII(languages));
   StringTokenizer t(languages_list, ",");
   while (t.GetNext()) {
+    // Locking here may not be that bad, For now, probably
+    // we're called only in the UI thread.
+    // TODO(jungshik): Add locking if we use it in another
+    // thread and DCHECK is triggered.
+    static MessageLoop* loop = MessageLoop::current();
+    DCHECK(loop == MessageLoop::current());
     std::string lang = t.token();
-    status = U_ZERO_ERROR;
-    // TODO(jungshik) Cache exemplar sets for locales.
-    ULocaleData* uld = ulocdata_open(lang.c_str(), &status);
-    // TODO(jungshik) Turn this check on when the ICU data file is
-    // rebuilt with the minimal subset of locale data for languages
-    // to which Chrome is not localized but which we offer in the list
-    // of languages selectable for Accept-Languages. With the rebuilt ICU
-    // data, ulocdata_open never should fall back to the default locale.
-    // (issue 2078)
-    // DCHECK(U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING);
-    if (U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING) {
-      // Should we use auxiliary set, instead?
-      ulocdata_getExemplarSet(uld, lang_set, 0, ULOCDATA_ES_STANDARD, &status);
-      ulocdata_close(uld);
-      if (U_SUCCESS(status)) {
-        UnicodeSet* allowed_characters =
-            reinterpret_cast<UnicodeSet*>(lang_set);
+    UnicodeSet* lang_set;
+    if (!GetExemplarSetForLang(lang, &lang_set)) {
+      status = U_ZERO_ERROR;
+      ULocaleData* uld = ulocdata_open(lang.c_str(), &status);
+      // TODO(jungshik) Turn this check on when the ICU data file is
+      // rebuilt with the minimal subset of locale data for languages
+      // to which Chrome is not localized but which we offer in the list
+      // of languages selectable for Accept-Languages. With the rebuilt ICU
+      // data, ulocdata_open never should fall back to the default locale.
+      // (issue 2078)
+      // DCHECK(U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING);
+      if (U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING) {
+        lang_set = reinterpret_cast<UnicodeSet *>(
+            ulocdata_getExemplarSet(uld, NULL, 0,
+                                    ULOCDATA_ES_STANDARD, &status));
         // If |lang| is compatible with ASCII Latin letters, add them.
         if (IsCompatibleWithASCIILetters(lang))
-          allowed_characters->addAll(ascii_letters);
-        if (allowed_characters->containsAll(component_characters)) {
-          safe = true;
-          break;
-        }
+          lang_set->addAll(ascii_letters);
+      } else {
+        lang_set = new UnicodeSet(1, 0);
       }
+      lang_set->freeze();
+      SetExemplarSetForLang(lang, lang_set);
+      ulocdata_close(uld);
+    }
+    if (!lang_set->isEmpty() && lang_set->containsAll(component_characters)) {
+      safe = true;
+      break;
     }
   }
-  uset_close(lang_set);
   return safe;
 }
 
