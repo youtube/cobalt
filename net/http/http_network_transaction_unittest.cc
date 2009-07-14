@@ -3065,14 +3065,14 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
   char read_buffer[] = { 0x00, 0x5A, 0x00, 0x00, 0, 0, 0, 0 };
 
   MockWrite data_writes[] = {
-    MockWrite(true, write_buffer, arraysize(write_buffer)),
+    MockWrite(true, write_buffer, 9),
     MockWrite("GET / HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Connection: keep-alive\r\n\r\n")
   };
 
   MockRead data_reads[] = {
-    MockWrite(true, read_buffer, arraysize(read_buffer)),
+    MockWrite(true, read_buffer, 8),
     MockRead("HTTP/1.0 200 OK\r\n"),
     MockRead("Content-Type: text/html; charset=iso-8859-1\r\n\r\n"),
     MockRead("Payload"),
@@ -3118,138 +3118,14 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_SSL_GET) {
   unsigned char read_buffer[] = { 0x00, 0x5A, 0x00, 0x00, 0, 0, 0, 0 };
 
   MockWrite data_writes[] = {
-    MockWrite(true, reinterpret_cast<char*>(write_buffer),
-              arraysize(write_buffer)),
+    MockWrite(true, reinterpret_cast<char*>(write_buffer), 9),
     MockWrite("GET / HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Connection: keep-alive\r\n\r\n")
   };
 
   MockRead data_reads[] = {
-    MockWrite(true, reinterpret_cast<char*>(read_buffer),
-              arraysize(read_buffer)),
-    MockRead("HTTP/1.0 200 OK\r\n"),
-    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n\r\n"),
-    MockRead("Payload"),
-    MockRead(false, OK)
-  };
-
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
-
-  MockSSLSocket ssl(true, OK);
-  session_deps.socket_factory.AddMockSSLSocket(&ssl);
-
-  TestCompletionCallback callback;
-
-  int rv = trans->Start(&request, &callback);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  rv = callback.WaitForResult();
-  EXPECT_EQ(OK, rv);
-
-  const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  std::string response_text;
-  rv = ReadTransaction(trans.get(), &response_text);
-  EXPECT_EQ(OK, rv);
-  EXPECT_EQ("Payload", response_text);
-}
-
-TEST_F(HttpNetworkTransactionTest, SOCKS5_HTTP_GET) {
-  SessionDependencies session_deps;
-  session_deps.proxy_service.reset(CreateFixedProxyService(
-      "socks5://myproxy:1080"));
-
-  scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
-
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
-
-  const char kSOCKS5GreetRequest[] = { 0x05, 0x01, 0x00 };
-  const char kSOCKS5GreetResponse[] = { 0x05, 0x00 };
-  const char kSOCKS5OkRequest[] =
-      { 0x05, 0x01, 0x00, 0x01, 127, 0, 0, 1, 0x00, 0x50 };
-  const char kSOCKS5OkResponse[] =
-      { 0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x00, 0x50 };
-
-  MockWrite data_writes[] = {
-    MockWrite(true, kSOCKS5GreetRequest, arraysize(kSOCKS5GreetRequest)),
-    MockWrite(true, kSOCKS5OkRequest, arraysize(kSOCKS5OkRequest)),
-    MockWrite("GET / HTTP/1.1\r\n"
-              "Host: www.google.com\r\n"
-              "Connection: keep-alive\r\n\r\n")
-  };
-
-  MockRead data_reads[] = {
-    MockWrite(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
-    MockWrite(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)),
-    MockRead("HTTP/1.0 200 OK\r\n"),
-    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n\r\n"),
-    MockRead("Payload"),
-    MockRead(false, OK)
-  };
-
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
-
-  TestCompletionCallback callback;
-
-  int rv = trans->Start(&request, &callback);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  rv = callback.WaitForResult();
-  EXPECT_EQ(OK, rv);
-
-  const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
-
-  std::string response_text;
-  rv = ReadTransaction(trans.get(), &response_text);
-  EXPECT_EQ(OK, rv);
-  EXPECT_EQ("Payload", response_text);
-}
-
-TEST_F(HttpNetworkTransactionTest, SOCKS5_SSL_GET) {
-  SessionDependencies session_deps;
-  session_deps.proxy_service.reset(CreateFixedProxyService(
-      "socks5://myproxy:1080"));
-
-  scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
-
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("https://www.google.com/");
-  request.load_flags = 0;
-
-  const char kSOCKS5GreetRequest[] = { 0x05, 0x01, 0x00 };
-  const char kSOCKS5GreetResponse[] = { 0x05, 0x00 };
-  const unsigned char kSOCKS5OkRequest[] =
-      { 0x05, 0x01, 0x00, 0x01, 127, 0, 0, 1, 0x01, 0xBB };
-  const char kSOCKS5OkResponse[] =
-      { 0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0x00, 0x00 };
-
-  MockWrite data_writes[] = {
-    MockWrite(true, kSOCKS5GreetRequest, arraysize(kSOCKS5GreetRequest)),
-    MockWrite(true, reinterpret_cast<const char*>(kSOCKS5OkRequest),
-              arraysize(kSOCKS5OkRequest)),
-    MockWrite("GET / HTTP/1.1\r\n"
-              "Host: www.google.com\r\n"
-              "Connection: keep-alive\r\n\r\n")
-  };
-
-  MockRead data_reads[] = {
-    MockWrite(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
-    MockWrite(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)),
+    MockWrite(true, reinterpret_cast<char*>(read_buffer), 8),
     MockRead("HTTP/1.0 200 OK\r\n"),
     MockRead("Content-Type: text/html; charset=iso-8859-1\r\n\r\n"),
     MockRead("Payload"),
