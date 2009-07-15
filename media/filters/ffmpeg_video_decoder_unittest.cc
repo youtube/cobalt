@@ -118,7 +118,6 @@ class FFmpegVideoDecoderTest : public testing::Test {
   scoped_refptr<DataBuffer> buffer_;
   scoped_refptr<DataBuffer> end_of_stream_buffer_;
   StrictMock<MockFilterHost> host_;
-  StrictMock<MockFilterCallback> callback_;
   MessageLoop message_loop_;
 
   // FFmpeg fixtures.
@@ -163,10 +162,8 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_QueryInterfaceFails) {
   EXPECT_CALL(*demuxer_, QueryInterface(AVStreamProvider::interface_id()))
       .WillOnce(ReturnNull());
   EXPECT_CALL(host_, Error(PIPELINE_ERROR_DECODE));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  decoder_->Initialize(demuxer_, callback_.NewCallback());
+  EXPECT_TRUE(decoder_->Initialize(demuxer_));
   message_loop_.RunAllPending();
 }
 
@@ -180,10 +177,8 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_FindDecoderFails) {
   EXPECT_CALL(*MockFFmpeg::get(), AVCodecFindDecoder(CODEC_ID_NONE))
       .WillOnce(ReturnNull());
   EXPECT_CALL(host_, Error(PIPELINE_ERROR_DECODE));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  decoder_->Initialize(demuxer_, callback_.NewCallback());
+  EXPECT_TRUE(decoder_->Initialize(demuxer_));
   message_loop_.RunAllPending();
 }
 
@@ -199,10 +194,8 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_InitThreadFails) {
   EXPECT_CALL(*MockFFmpeg::get(), AVCodecThreadInit(&codec_context_, 2))
       .WillOnce(Return(-1));
   EXPECT_CALL(host_, Error(PIPELINE_ERROR_DECODE));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  decoder_->Initialize(demuxer_, callback_.NewCallback());
+  EXPECT_TRUE(decoder_->Initialize(demuxer_));
   message_loop_.RunAllPending();
 }
 
@@ -220,10 +213,8 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_OpenDecoderFails) {
   EXPECT_CALL(*MockFFmpeg::get(), AVCodecOpen(&codec_context_, &codec_))
       .WillOnce(Return(-1));
   EXPECT_CALL(host_, Error(PIPELINE_ERROR_DECODE));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  decoder_->Initialize(demuxer_, callback_.NewCallback());
+  EXPECT_TRUE(decoder_->Initialize(demuxer_));
   message_loop_.RunAllPending();
 }
 
@@ -240,10 +231,9 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_Successful) {
       .WillOnce(Return(0));
   EXPECT_CALL(*MockFFmpeg::get(), AVCodecOpen(&codec_context_, &codec_))
       .WillOnce(Return(0));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
+  EXPECT_CALL(host_, InitializationComplete());
 
-  decoder_->Initialize(demuxer_, callback_.NewCallback());
+  EXPECT_TRUE(decoder_->Initialize(demuxer_));
   message_loop_.RunAllPending();
 
   // Test that the output media format is an uncompressed video surface that

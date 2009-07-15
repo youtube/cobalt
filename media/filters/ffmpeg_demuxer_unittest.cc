@@ -133,8 +133,7 @@ class FFmpegDemuxerTest : public testing::Test {
     InitializeDemuxerMocks();
 
     // We expect a successful initialization.
-    EXPECT_CALL(callback_, OnFilterCallback());
-    EXPECT_CALL(callback_, OnCallbackDestroyed());
+    EXPECT_CALL(host_, InitializationComplete());
 
     // Since we ignore data streams, the duration should be equal to the longest
     // supported stream's duration (audio, in this case).
@@ -142,7 +141,7 @@ class FFmpegDemuxerTest : public testing::Test {
         base::TimeDelta::FromMicroseconds(kDurations[AV_STREAM_AUDIO]);
     EXPECT_CALL(host_, SetDuration(expected_duration));
 
-    demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+    EXPECT_TRUE(demuxer_->Initialize(data_source_.get()));
     message_loop_.RunAllPending();
   }
 
@@ -151,7 +150,6 @@ class FFmpegDemuxerTest : public testing::Test {
   scoped_refptr<FFmpegDemuxer> demuxer_;
   scoped_refptr<StrictMock<MockDataSource> > data_source_;
   StrictMock<MockFilterHost> host_;
-  StrictMock<MockFilterCallback> callback_;
   MessageLoop message_loop_;
 
   // FFmpeg fixtures.
@@ -198,10 +196,8 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   EXPECT_CALL(*MockFFmpeg::get(), AVOpenInputFile(_, _, NULL, 0, NULL))
       .WillOnce(Return(-1));
   EXPECT_CALL(host_, Error(DEMUXER_ERROR_COULD_NOT_OPEN));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+  EXPECT_TRUE(demuxer_->Initialize(data_source_.get()));
   message_loop_.RunAllPending();
 }
 
@@ -213,10 +209,8 @@ TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
       .WillOnce(Return(AVERROR_IO));
   EXPECT_CALL(*MockFFmpeg::get(), AVCloseInputFile(&format_context_));
   EXPECT_CALL(host_, Error(DEMUXER_ERROR_COULD_NOT_PARSE));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+  EXPECT_TRUE(demuxer_->Initialize(data_source_.get()));
   message_loop_.RunAllPending();
 }
 
@@ -227,11 +221,9 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
     InitializeDemuxerMocks();
   }
   EXPECT_CALL(host_, Error(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
   format_context_.nb_streams = 0;
 
-  demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+  EXPECT_TRUE(demuxer_->Initialize(data_source_.get()));
   message_loop_.RunAllPending();
 }
 
@@ -242,12 +234,10 @@ TEST_F(FFmpegDemuxerTest, Initialize_DataStreamOnly) {
     InitializeDemuxerMocks();
   }
   EXPECT_CALL(host_, Error(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
   EXPECT_EQ(format_context_.streams[0], &streams_[AV_STREAM_DATA]);
   format_context_.nb_streams = 1;
 
-  demuxer_->Initialize(data_source_.get(), callback_.NewCallback());
+  EXPECT_TRUE(demuxer_->Initialize(data_source_.get()));
   message_loop_.RunAllPending();
 }
 
@@ -456,11 +446,6 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   EXPECT_CALL(*MockFFmpeg::get(),
       AVSeekFrame(&format_context_, -1, kExpectedTimestamp, kExpectedFlags))
       .WillOnce(Return(0));
-
-  // ...then our callback will be executed...
-  StrictMock<MockFilterCallback> seek_callback;
-  EXPECT_CALL(seek_callback, OnFilterCallback());
-  EXPECT_CALL(seek_callback, OnCallbackDestroyed());
   EXPECT_CALL(*MockFFmpeg::get(), CheckPoint(2));
 
   // ...followed by two audio packet reads we'll trigger...
@@ -498,8 +483,7 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   MockFFmpeg::get()->CheckPoint(1);
 
   // Now issue a simple forward seek, which should discard queued packets.
-  demuxer_->Seek(base::TimeDelta::FromMicroseconds(kExpectedTimestamp),
-                 seek_callback.NewCallback());
+  demuxer_->Seek(base::TimeDelta::FromMicroseconds(kExpectedTimestamp));
   message_loop_.RunAllPending();
   MockFFmpeg::get()->CheckPoint(2);
 

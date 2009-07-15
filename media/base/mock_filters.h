@@ -40,52 +40,6 @@ class Destroyable : public MockClass {
   DISALLOW_COPY_AND_ASSIGN(Destroyable);
 };
 
-// Helper class used to test that callbacks are executed.  It is recommend you
-// combine this class with StrictMock<> to verify that the callback is executed.
-// You can reuse the same instance of a MockFilterCallback many times since
-// gmock will track the number of times the methods are executed.
-class MockFilterCallback {
- public:
-  MockFilterCallback() {}
-  virtual ~MockFilterCallback() {}
-
-  MOCK_METHOD0(OnCallbackDestroyed, void());
-  MOCK_METHOD0(OnFilterCallback, void());
-
-  // Helper method to create a new callback for this mock.  The callback will
-  // call OnFilterCallback() when executed and OnCallbackDestroyed() when
-  // destroyed.  Clients should use NiceMock<> or StrictMock<> depending on the
-  // test.
-  FilterCallback* NewCallback() {
-    return new CallbackImpl(this);
-  }
-
- private:
-  // Private implementation of CallbackRunner used to trigger expectations on
-  // MockFilterCallback.
-  class CallbackImpl : public CallbackRunner<Tuple0> {
-   public:
-    CallbackImpl(MockFilterCallback* mock_callback)
-        : mock_callback_(mock_callback) {
-    }
-
-    virtual ~CallbackImpl() {
-      mock_callback_->OnCallbackDestroyed();
-    }
-
-    virtual void RunWithParams(const Tuple0& params) {
-      mock_callback_->OnFilterCallback();
-    }
-
-   private:
-    MockFilterCallback* mock_callback_;
-
-    DISALLOW_COPY_AND_ASSIGN(CallbackImpl);
-  };
-
-  DISALLOW_COPY_AND_ASSIGN(MockFilterCallback);
-};
-
 class MockDataSource : public DataSource {
  public:
   MockDataSource() {}
@@ -93,11 +47,10 @@ class MockDataSource : public DataSource {
   // MediaFilter implementation.
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(Seek, void(base::TimeDelta time));
 
   // DataSource implementation.
-  MOCK_METHOD2(Initialize, void(const std::string& url,
-                                FilterCallback* callback));
+  MOCK_METHOD1(Initialize, bool(const std::string& url));
   const MediaFormat& media_format() { return media_format_; }
   MOCK_METHOD2(Read, size_t(uint8* data, size_t size));
   MOCK_METHOD1(GetPosition, bool(int64* position_out));
@@ -121,11 +74,10 @@ class MockDemuxer : public Demuxer {
   // MediaFilter implementation.
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(Seek, void(base::TimeDelta time));
 
   // Demuxer implementation.
-  MOCK_METHOD2(Initialize, void(DataSource* data_source,
-                                FilterCallback* callback));
+  MOCK_METHOD1(Initialize, bool(DataSource* data_source));
   MOCK_METHOD0(GetNumberOfStreams, size_t());
   MOCK_METHOD1(GetStream, scoped_refptr<DemuxerStream>(int stream_id));
 
@@ -164,21 +116,13 @@ class MockVideoDecoder : public VideoDecoder {
  public:
   MockVideoDecoder() {}
 
-  // Sets the essential media format keys for this decoder.
-  MockVideoDecoder(const std::string& mime_type, int width, int height) {
-    media_format_.SetAsString(MediaFormat::kMimeType, mime_type);
-    media_format_.SetAsInteger(MediaFormat::kWidth, width);
-    media_format_.SetAsInteger(MediaFormat::kHeight, height);
-  }
-
   // MediaFilter implementation.
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(Seek, void(base::TimeDelta time));
 
   // VideoDecoder implementation.
-  MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
-                                FilterCallback* callback));
+  MOCK_METHOD1(Initialize, bool(DemuxerStream* demuxer_stream));
   const MediaFormat& media_format() { return media_format_; }
   MOCK_METHOD1(Read, void(Callback1<VideoFrame*>::Type* read_callback));
 
@@ -198,11 +142,10 @@ class MockAudioDecoder : public AudioDecoder {
   // MediaFilter implementation.
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(Seek, void(base::TimeDelta time));
 
   // AudioDecoder implementation.
-  MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
-                                FilterCallback* callback));
+  MOCK_METHOD1(Initialize, bool(DemuxerStream* demuxer_stream));
   const MediaFormat& media_format() { return media_format_; }
   MOCK_METHOD1(Read, void(Callback1<Buffer*>::Type* read_callback));
 
@@ -222,11 +165,10 @@ class MockVideoRenderer : public VideoRenderer {
   // MediaFilter implementation.
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(Seek, void(base::TimeDelta time));
 
   // VideoRenderer implementation.
-  MOCK_METHOD2(Initialize, void(VideoDecoder* decoder,
-                                FilterCallback* callback));
+  MOCK_METHOD1(Initialize, bool(VideoDecoder* decoder));
 
  protected:
   virtual ~MockVideoRenderer() {}
@@ -242,11 +184,10 @@ class MockAudioRenderer : public AudioRenderer {
   // MediaFilter implementation.
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
-  MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(Seek, void(base::TimeDelta time));
 
   // AudioRenderer implementation.
-  MOCK_METHOD2(Initialize, void(AudioDecoder* decoder,
-                                FilterCallback* callback));
+  MOCK_METHOD1(Initialize, bool(AudioDecoder* decoder));
   MOCK_METHOD1(SetVolume, void(float volume));
 
  protected:
@@ -322,15 +263,11 @@ class MockFilterFactory : public FilterFactory {
   DISALLOW_COPY_AND_ASSIGN(MockFilterFactory);
 };
 
-// Helper gmock function that immediately executes and destroys the
-// FilterCallback on behalf of the provided filter.  Can be used when mocking
-// the Initialize() and Seek() methods.
-void RunFilterCallback(::testing::Unused, FilterCallback* callback);
-
-// Helper gmock function that immediately destroys the FilterCallback on behalf
-// of the provided filter.  Can be used when mocking the Initialize() and Seek()
-// methods.
-void DestroyFilterCallback(::testing::Unused, FilterCallback* callback);
+// Helper gmock action that calls InitializationComplete() on behalf of the
+// provided filter.
+ACTION_P(InitializationComplete, filter) {
+  filter->host()->InitializationComplete();
+}
 
 // Helper gmock action that calls Error() on behalf of the provided filter.
 ACTION_P2(Error, filter, error) {
