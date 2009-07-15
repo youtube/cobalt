@@ -23,7 +23,10 @@ namespace base {
 // Must be called on the run loop thread.
 MessagePumpCFRunLoopBase::MessagePumpCFRunLoopBase()
     : nesting_level_(0),
-      delegate_(NULL)
+      delegate_(NULL),
+      delegateless_work_(false),
+      delegateless_delayed_work_(false),
+      delegateless_idle_work_(false)
  {
   run_loop_ = CFRunLoopGetCurrent();
   CFRetain(run_loop_);
@@ -125,6 +128,21 @@ void MessagePumpCFRunLoopBase::Run(Delegate* delegate) {
   Delegate* last_delegate = delegate_;
   delegate_ = delegate;
 
+  // If any work showed up but could not be dispatched for want of a delegate,
+  // set it up for dispatch again now that a delegate is available.
+  if (delegateless_work_) {
+    CFRunLoopSourceSignal(work_source_);
+    delegateless_work_ = false;
+  }
+  if (delegateless_delayed_work_) {
+    CFRunLoopSourceSignal(delayed_work_source_);
+    delegateless_delayed_work_ = false;
+  }
+  if (delegateless_idle_work_) {
+    CFRunLoopSourceSignal(idle_work_source_);
+    delegateless_idle_work_ = false;
+  }
+
   DoRun(delegate);
 
   delegate_ = last_delegate;
@@ -183,16 +201,9 @@ void MessagePumpCFRunLoopBase::RunWorkSource(void* info) {
 bool MessagePumpCFRunLoopBase::RunWork() {
   if (!delegate_) {
     // This point can be reached with a NULL delegate_ if Run is not on the
-    // stack but foreign code is spinning the CFRunLoop.
-
-    // TODO(???): we get here while looping in our temporary 1st run
-    // dialog.  If we simply return false, we choke rather brutally
-    // (we no longer do work ever again).  For now, we simply
-    // re-signal ourself so we come around again.  The problem only
-    // happens in a branded build if
-    // ~/Library/Preferences/com.google.Chrome.plist does not exist.
-    CFRunLoopSourceSignal(work_source_);
-
+    // stack but foreign code is spinning the CFRunLoop.  Arrange to come back
+    // here when a delegate is available.
+    delegateless_work_ = true;
     return false;
   }
 
@@ -222,7 +233,9 @@ void MessagePumpCFRunLoopBase::RunDelayedWorkSource(void* info) {
 bool MessagePumpCFRunLoopBase::RunDelayedWork() {
   if (!delegate_) {
     // This point can be reached with a NULL delegate_ if Run is not on the
-    // stack but foreign code is spinning the CFRunLoop.
+    // stack but foreign code is spinning the CFRunLoop.  Arrange to come back
+    // here when a delegate is available.
+    delegateless_delayed_work_ = true;
     return false;
   }
 
@@ -262,7 +275,9 @@ void MessagePumpCFRunLoopBase::RunIdleWorkSource(void* info) {
 bool MessagePumpCFRunLoopBase::RunIdleWork() {
   if (!delegate_) {
     // This point can be reached with a NULL delegate_ if Run is not on the
-    // stack but foreign code is spinning the CFRunLoop.
+    // stack but foreign code is spinning the CFRunLoop.  Arrange to come back
+    // here when a delegate is available.
+    delegateless_idle_work_ = true;
     return false;
   }
 
