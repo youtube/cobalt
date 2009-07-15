@@ -12,7 +12,7 @@
 #include <netdb.h>
 #endif
 #include "net/base/address_list.h"
-#include "net/base/host_resolver_unittest.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
 #include "net/socket/client_socket_factory.h"
@@ -41,10 +41,8 @@ class SOCKS5ClientSocketTest : public PlatformTest {
   scoped_ptr<SOCKS5ClientSocket> user_sock_;
   AddressList address_list_;
   ClientSocket* tcp_sock_;
-  ScopedHostMapper host_mapper_;
   TestCompletionCallback callback_;
-  scoped_refptr<RuleBasedHostMapper> mapper_;
-  scoped_refptr<HostResolver> host_resolver_;
+  scoped_refptr<MockHostResolver> host_resolver_;
   scoped_ptr<MockSocket> mock_socket_;
 
  private:
@@ -52,7 +50,7 @@ class SOCKS5ClientSocketTest : public PlatformTest {
 };
 
 SOCKS5ClientSocketTest::SOCKS5ClientSocketTest()
-  : kNwPort(htons(80)), host_resolver_(new HostResolver(0, 0)) {
+  : kNwPort(htons(80)), host_resolver_(new MockHostResolver) {
 }
 
 // Set up platform before every test case
@@ -60,14 +58,9 @@ void SOCKS5ClientSocketTest::SetUp() {
   PlatformTest::SetUp();
 
   // Resolve the "localhost" AddressList used by the TCP connection to connect.
-  scoped_refptr<HostResolver> resolver = new HostResolver();
   HostResolver::RequestInfo info("www.socks-proxy.com", 1080);
-  int rv = resolver->Resolve(info, &address_list_, NULL, NULL);
+  int rv = host_resolver_->Resolve(info, &address_list_, NULL, NULL);
   ASSERT_EQ(OK, rv);
-
-  // Create a new host mapping for the duration of this test case only.
-  mapper_ = new RuleBasedHostMapper();
-  host_mapper_.Init(mapper_);
 }
 
 SOCKS5ClientSocket* SOCKS5ClientSocketTest::BuildMockSocket(
@@ -153,7 +146,7 @@ TEST_F(SOCKS5ClientSocketTest, FailedDNS) {
   const std::string hostname = "unresolved.ipv4.address";
   const char kSOCKS5DomainRequest[] = { 0x05, 0x01, 0x00, 0x03 };
 
-  mapper_->AddSimulatedFailure(hostname.c_str());
+  host_resolver_->rules()->AddSimulatedFailure(hostname.c_str());
 
   std::string request(kSOCKS5DomainRequest,
                       arraysize(kSOCKS5DomainRequest));
@@ -186,12 +179,11 @@ TEST_F(SOCKS5ClientSocketTest, IPv6Domain) {
   const uint8 ipv6_addr[] = { 0x20, 0x01, 0x0d, 0xb8, 0x87, 0x14, 0x3a, 0x90,
                               0x00, 0x00, 0x00, 0x00, 0x00, 0x000, 0x00, 0x12 };
 
-  mapper_->AddRule(hostname.c_str(), "2001:db8:8714:3a90::12");
+  host_resolver_->rules()->AddRule(hostname, "2001:db8:8714:3a90::12");
 
   AddressList address_list;
-  scoped_refptr<HostResolver> resolver = new HostResolver();
   HostResolver::RequestInfo info(hostname, 80);
-  int rv = resolver->Resolve(info, &address_list, NULL, NULL);
+  int rv = host_resolver_->Resolve(info, &address_list, NULL, NULL);
   if (rv != OK || !address_list.head()) {
     // This machine does not support IPv6. We skip this test altogether.
     // TODO(arindam): create a MockIPv6HostResolver to manually

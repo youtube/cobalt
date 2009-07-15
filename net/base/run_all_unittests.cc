@@ -30,7 +30,7 @@
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
 #include "base/test_suite.h"
-#include "net/base/host_resolver_unittest.h"
+#include "net/base/mock_host_resolver.h"
 
 class NetTestSuite : public TestSuite {
  public:
@@ -40,12 +40,12 @@ class NetTestSuite : public TestSuite {
   virtual void Initialize() {
     TestSuite::Initialize();
 
-    host_mapper_ = new net::RuleBasedHostMapper();
-    scoped_host_mapper_.Init(host_mapper_.get());
+    host_resolver_proc_ = new net::RuleBasedHostResolverProc(NULL);
+    scoped_host_resolver_proc_.Init(host_resolver_proc_.get());
     // In case any attempts are made to resolve host names, force them all to
     // be mapped to localhost.  This prevents DNS queries from being sent in
     // the process of running these unit tests.
-    host_mapper_->AddRule("*", "127.0.0.1");
+    host_resolver_proc_->AddRule("*", "127.0.0.1");
 
     message_loop_.reset(new MessageLoopForIO());
   }
@@ -60,8 +60,8 @@ class NetTestSuite : public TestSuite {
 
  private:
   scoped_ptr<MessageLoop> message_loop_;
-  scoped_refptr<net::RuleBasedHostMapper> host_mapper_;
-  net::ScopedHostMapper scoped_host_mapper_;
+  scoped_refptr<net::RuleBasedHostResolverProc> host_resolver_proc_;
+  net::ScopedDefaultHostResolverProc scoped_host_resolver_proc_;
 };
 
 int main(int argc, char** argv) {

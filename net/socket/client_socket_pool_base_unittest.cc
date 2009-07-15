@@ -7,7 +7,6 @@
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/scoped_vector.h"
-#include "net/base/host_resolver_unittest.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/client_socket.h"
@@ -793,7 +792,7 @@ TEST_F(ClientSocketPoolBaseTest, ReleaseSockets) {
   ClientSocketPoolBase::EnableLateBindingOfSockets(false);
 
   // Start job 1 (async OK)
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob); 
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
 
   TestSocketRequest req1(pool_.get(), &request_order_);
   int rv = req1.handle.Init("a", ignored_request_info_, 5, &req1);
@@ -1135,7 +1134,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, ReleaseSockets) {
   CreatePool(kDefaultMaxSocketsPerGroup);
 
   // Start job 1 (async OK)
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob); 
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
 
   TestSocketRequest req1(pool_.get(), &request_order_);
   int rv = req1.handle.Init("a", ignored_request_info_, 5, &req1);
@@ -1178,7 +1177,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, ReleaseSockets) {
 TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingJobCompletionOrder) {
   CreatePool(kDefaultMaxSocketsPerGroup);
   // First two jobs are async.
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob); 
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
 
   TestSocketRequest req1(pool_.get(), &request_order_);
   int rv = req1.handle.Init("a", ignored_request_info_, 5, &req1);
@@ -1189,7 +1188,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingJobCompletionOrder) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // The pending job is sync.
-  connect_job_factory_->set_job_type(TestConnectJob::kMockJob); 
+  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
 
   TestSocketRequest req3(pool_.get(), &request_order_);
   rv = req3.handle.Init("a", ignored_request_info_, 5, &req3);
@@ -1208,7 +1207,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingJobCompletionOrder) {
 TEST_F(ClientSocketPoolBaseTest_LateBinding, LoadState) {
   CreatePool(kDefaultMaxSocketsPerGroup);
   connect_job_factory_->set_job_type(
-      TestConnectJob::kMockAdvancingLoadStateJob); 
+      TestConnectJob::kMockAdvancingLoadStateJob);
 
   TestSocketRequest req1(pool_.get(), &request_order_);
   int rv = req1.handle.Init("a", ignored_request_info_, 5, &req1);

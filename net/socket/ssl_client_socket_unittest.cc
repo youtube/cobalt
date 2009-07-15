@@ -23,7 +23,8 @@ const net::SSLConfig kDefaultSSLConfig;
 class SSLClientSocketTest : public PlatformTest {
  public:
   SSLClientSocketTest()
-      : socket_factory_(net::ClientSocketFactory::GetDefaultFactory()) {
+    : resolver_(net::CreateSystemHostResolver()),
+        socket_factory_(net::ClientSocketFactory::GetDefaultFactory()) {
   }
 
   void StartOKServer() {
@@ -48,6 +49,7 @@ class SSLClientSocketTest : public PlatformTest {
   }
 
  protected:
+  scoped_refptr<net::HostResolver> resolver_;
   net::ClientSocketFactory* socket_factory_;
   net::TestServerLauncher server_;
 };
@@ -86,11 +88,10 @@ TEST_F(SSLClientSocketTest, MAYBE_Connect) {
   StartOKServer();
 
   net::AddressList addr;
-  scoped_refptr<net::HostResolver> resolver(new net::HostResolver);
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
-  int rv = resolver->Resolve(info, &addr, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
   net::ClientSocket *transport = new net::TCPClientSocket(addr);
@@ -124,11 +125,10 @@ TEST_F(SSLClientSocketTest, MAYBE_ConnectExpired) {
   StartExpiredServer();
 
   net::AddressList addr;
-  scoped_refptr<net::HostResolver> resolver(new net::HostResolver);
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kBadHTTPSPort);
-  int rv = resolver->Resolve(info, &addr, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
   net::ClientSocket *transport = new net::TCPClientSocket(addr);
@@ -161,12 +161,11 @@ TEST_F(SSLClientSocketTest, MAYBE_ConnectMismatched) {
   StartMismatchedServer();
 
   net::AddressList addr;
-  scoped_refptr<net::HostResolver> resolver(new net::HostResolver);
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kMismatchedHostName,
                                       server_.kOKHTTPSPort);
-  int rv = resolver->Resolve(info, &addr, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
   net::ClientSocket *transport = new net::TCPClientSocket(addr);
@@ -204,11 +203,10 @@ TEST_F(SSLClientSocketTest, MAYBE_Read) {
   StartOKServer();
 
   net::AddressList addr;
-  scoped_refptr<net::HostResolver> resolver(new net::HostResolver);
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
-  int rv = resolver->Resolve(info, &addr, &callback, NULL);
+  int rv = resolver_->Resolve(info, &addr, &callback, NULL);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -265,11 +263,10 @@ TEST_F(SSLClientSocketTest, MAYBE_Read_SmallChunks) {
   StartOKServer();
 
   net::AddressList addr;
-  scoped_refptr<net::HostResolver> resolver(new net::HostResolver);
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
-  int rv = resolver->Resolve(info, &addr, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
   net::ClientSocket *transport = new net::TCPClientSocket(addr);
@@ -321,11 +318,10 @@ TEST_F(SSLClientSocketTest, MAYBE_Read_Interrupted) {
   StartOKServer();
 
   net::AddressList addr;
-  scoped_refptr<net::HostResolver> resolver(new net::HostResolver);
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
-  int rv = resolver->Resolve(info, &addr, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
   net::ClientSocket *transport = new net::TCPClientSocket(addr);

@@ -5,8 +5,8 @@
 #include "net/socket/socks_client_socket.h"
 
 #include "net/base/address_list.h"
-#include "net/base/host_resolver_unittest.h"
 #include "net/base/listen_socket.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
 #include "net/socket/client_socket_factory.h"
@@ -36,10 +36,8 @@ class SOCKSClientSocketTest : public PlatformTest {
   scoped_ptr<SOCKSClientSocket> user_sock_;
   AddressList address_list_;
   ClientSocket* tcp_sock_;
-  ScopedHostMapper host_mapper_;
   TestCompletionCallback callback_;
-  scoped_refptr<RuleBasedHostMapper> mapper_;
-  scoped_refptr<HostResolver> host_resolver_;
+  scoped_refptr<MockHostResolver> host_resolver_;
   scoped_ptr<MockSocket> mock_socket_;
 
  private:
@@ -47,23 +45,12 @@ class SOCKSClientSocketTest : public PlatformTest {
 };
 
 SOCKSClientSocketTest::SOCKSClientSocketTest()
-  : host_resolver_(new HostResolver(0, 0)) {
+  : host_resolver_(new MockHostResolver) {
 }
 
 // Set up platform before every test case
 void SOCKSClientSocketTest::SetUp() {
   PlatformTest::SetUp();
-
-  // Resolve the "localhost" AddressList used by the tcp_connection to connect.
-  scoped_refptr<HostResolver> resolver = new HostResolver();
-  HostResolver::RequestInfo info("localhost", 1080);
-  int rv = resolver->Resolve(info, &address_list_, NULL, NULL);
-  ASSERT_EQ(OK, rv);
-
-  // Create a new host mapping for the duration of this test case only.
-  mapper_ = new RuleBasedHostMapper();
-  host_mapper_.Init(mapper_);
-  mapper_->AddRule("www.google.com", "127.0.0.1");
 }
 
 SOCKSClientSocket* SOCKSClientSocketTest::BuildMockSocket(
@@ -240,7 +227,7 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
 TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
   const char hostname[] = "unresolved.ipv4.address";
 
-  mapper_->AddSimulatedFailure(hostname);
+  host_resolver_->rules()->AddSimulatedFailure(hostname);
 
   std::string request(kSOCKS4aInitialRequest,
                       arraysize(kSOCKS4aInitialRequest));
@@ -266,7 +253,7 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
 TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
   const char hostname[] = "an.ipv6.address";
 
-  mapper_->AddRule(hostname, "2001:db8:8714:3a90::12");
+  host_resolver_->rules()->AddRule(hostname, "2001:db8:8714:3a90::12");
 
   std::string request(kSOCKS4aInitialRequest,
                       arraysize(kSOCKS4aInitialRequest));

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/base/host_resolver.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/http/http_network_layer.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/proxy/proxy_service.h"
@@ -16,7 +16,7 @@ class HttpNetworkLayerTest : public PlatformTest {
 TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
   scoped_ptr<net::ProxyService> proxy_service(net::ProxyService::CreateNull());
   net::HttpNetworkLayer factory(
-      NULL, new net::HostResolver, proxy_service.get());
+      NULL, new net::MockHostResolver, proxy_service.get());
 
   scoped_ptr<net::HttpTransaction> trans(factory.CreateTransaction());
 }
@@ -24,7 +24,7 @@ TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
 TEST_F(HttpNetworkLayerTest, Suspend) {
   scoped_ptr<net::ProxyService> proxy_service(net::ProxyService::CreateNull());
   net::HttpNetworkLayer factory(
-      NULL, new net::HostResolver, proxy_service.get());
+      NULL, new net::MockHostResolver, proxy_service.get());
 
   scoped_ptr<net::HttpTransaction> trans(factory.CreateTransaction());
   trans.reset();
@@ -56,7 +56,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
   mock_socket_factory.AddMockSocket(&data);
 
   scoped_ptr<net::ProxyService> proxy_service(net::ProxyService::CreateNull());
-  net::HttpNetworkLayer factory(&mock_socket_factory, new net::HostResolver,
+  net::HttpNetworkLayer factory(&mock_socket_factory, new net::MockHostResolver,
                                 proxy_service.get());
 
   TestCompletionCallback callback;
