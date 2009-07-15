@@ -128,6 +128,15 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   // (weak) Delegate passed as an argument to the innermost Run call.
   Delegate* delegate_;
 
+  // "Delegateless" work flags are set when work is ready to be performed but
+  // must wait until a delegate is available to process it.  This can happen
+  // when a MessagePumpCFRunLoopBase is instantiated and work arrives without
+  // any call to Run on the stack.  The Run method will check for delegateless
+  // work on entry and redispatch it as needed once a delegate is available.
+  bool delegateless_work_;
+  bool delegateless_delayed_work_;
+  bool delegateless_idle_work_;
+
   DISALLOW_COPY_AND_ASSIGN(MessagePumpCFRunLoopBase);
 };
 
