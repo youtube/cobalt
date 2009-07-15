@@ -261,19 +261,20 @@ void FFmpegDemuxer::Stop() {
       NewRunnableMethod(this, &FFmpegDemuxer::StopTask));
 }
 
-void FFmpegDemuxer::Seek(base::TimeDelta time) {
+void FFmpegDemuxer::Seek(base::TimeDelta time, FilterCallback* callback) {
   // TODO(hclam): by returning from this method, it is assumed that the seek
   // operation is completed and filters behind the demuxer is good to issue
   // more reads, but we are posting a task here, which makes the seek operation
   // asynchronous, should change how seek works to make it fully asynchronous.
   message_loop()->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time));
+      NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time, callback));
 }
 
-bool FFmpegDemuxer::Initialize(DataSource* data_source) {
+void FFmpegDemuxer::Initialize(DataSource* data_source,
+                               FilterCallback* callback) {
   message_loop()->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::InititalizeTask, data_source));
-  return true;
+      NewRunnableMethod(this, &FFmpegDemuxer::InititalizeTask, data_source,
+                        callback));
 }
 
 size_t FFmpegDemuxer::GetNumberOfStreams() {
@@ -286,8 +287,10 @@ scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(int stream) {
   return streams_[stream].get();
 }
 
-void FFmpegDemuxer::InititalizeTask(DataSource* data_source) {
+void FFmpegDemuxer::InititalizeTask(DataSource* data_source,
+                                    FilterCallback* callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop());
+  scoped_ptr<FilterCallback> c(callback);
 
   // In order to get FFmpeg to use |data_source| for file IO we must transfer
   // ownership via FFmpegGlue.  We'll add |data_source| to FFmpegGlue and pass
@@ -311,6 +314,7 @@ void FFmpegDemuxer::InititalizeTask(DataSource* data_source) {
 
   if (result < 0) {
     host()->Error(DEMUXER_ERROR_COULD_NOT_OPEN);
+    callback->Run();
     return;
   }
 
@@ -325,6 +329,7 @@ void FFmpegDemuxer::InititalizeTask(DataSource* data_source) {
     result = av_find_stream_info(format_context_);
     if (result < 0) {
       host()->Error(DEMUXER_ERROR_COULD_NOT_PARSE);
+      callback->Run();
       return;
     }
   }
@@ -347,16 +352,18 @@ void FFmpegDemuxer::InititalizeTask(DataSource* data_source) {
   }
   if (streams_.empty()) {
     host()->Error(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+    callback->Run();
     return;
   }
 
   // Good to go: set the duration and notify we're done initializing.
   host()->SetDuration(max_duration);
-  host()->InitializationComplete();
+  callback->Run();
 }
 
-void FFmpegDemuxer::SeekTask(base::TimeDelta time) {
+void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop());
+  scoped_ptr<FilterCallback> c(callback);
 
   // Tell streams to flush buffers due to seeking.
   StreamVector::iterator iter;
@@ -375,6 +382,9 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time) {
     // TODO(scherkus): signal error.
     NOTIMPLEMENTED();
   }
+
+  // Notify we're finished seeking.
+  callback->Run();
 }
 
 void FFmpegDemuxer::DemuxTask() {

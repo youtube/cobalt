@@ -26,7 +26,7 @@ class FileDataSource : public DataSource {
   virtual void Stop();
 
   // Implementation of DataSource.
-  virtual bool Initialize(const std::string& url);
+  virtual void Initialize(const std::string& url, FilterCallback* callback);
   virtual const MediaFormat& media_format();
   virtual size_t Read(uint8* data, size_t size);
   virtual bool GetPosition(int64* position_out);
@@ -41,6 +41,7 @@ class FileDataSource : public DataSource {
   // of my tests!!!
   FRIEND_TEST(FileDataSourceTest, OpenFile);
   FRIEND_TEST(FileDataSourceTest, ReadData);
+  FRIEND_TEST(FileDataSourceTest, Seek);
   friend class FilterFactoryImpl0<FileDataSource>;
   FileDataSource();
   virtual ~FileDataSource();
