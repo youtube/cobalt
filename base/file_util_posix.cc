@@ -24,9 +24,14 @@
 #include "base/basictypes.h"
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
+#include "base/lock.h"
 #include "base/logging.h"
+#include "base/scoped_ptr.h"
+#include "base/singleton.h"
 #include "base/string_util.h"
+#include "base/sys_string_conversions.h"
 #include "base/time.h"
+#include "unicode/coll.h"
 
 namespace {
 
@@ -41,6 +46,68 @@ bool IsDirectory(const FTSENT* file) {
     default:
       return false;
   }
+}
+
+class LocaleAwareComparator {
+ public:
+  LocaleAwareComparator() {
+    UErrorCode error_code = U_ZERO_ERROR;
+    // Use the default collator. The default locale should have been properly
+    // set by the time this constructor is called.
+    collator_.reset(Collator::createInstance(error_code));
+    DCHECK(U_SUCCESS(error_code));
+    // Make it case-sensitive.
+    collator_->setStrength(Collator::TERTIARY);
+    // Note: We do not set UCOL_NORMALIZATION_MODE attribute. In other words, we
+    // do not pay performance penalty to guarantee sort order correctness for
+    // non-FCD (http://unicode.org/notes/tn5/#FCD) file names. This should be a
+    // reasonable tradeoff because such file names should be rare and the sort
+    // order doesn't change much anyway.
+  }
+
+  // Note: A similar function is available in l10n_util.
+  // We cannot use it because base should not depend on l10n_util.
+  // TODO(yuzo): Move some of l10n_util to base.
+  int Compare(const string16& a, const string16& b) {
+    // We are not sure if Collator::compare is thread-safe.
+    // Use an AutoLock just in case.
+    AutoLock auto_lock(lock_);
+
+    UErrorCode error_code = U_ZERO_ERROR;
+    UCollationResult result = collator_->compare(
+        static_cast<const UChar*>(a.c_str()),
+        static_cast<int>(a.length()),
+        static_cast<const UChar*>(b.c_str()),
+        static_cast<int>(b.length()),
+        error_code);
+    DCHECK(U_SUCCESS(error_code));
+    return result;
+  }
+
+ private:
+  scoped_ptr<Collator> collator_;
+  Lock lock_;
+  friend struct DefaultSingletonTraits<LocaleAwareComparator>;
+
+  DISALLOW_COPY_AND_ASSIGN(LocaleAwareComparator);
+};
+
+int CompareFiles(const FTSENT** a, const FTSENT** b) {
+  // Order lexicographically with directories before other files.
+  const bool a_is_dir = IsDirectory(*a);
+  const bool b_is_dir = IsDirectory(*b);
+  if (a_is_dir != b_is_dir)
+    return a_is_dir ? -1 : 1;
+
+  // On linux, the file system encoding is not defined. We assume
+  // SysNativeMBToWide takes care of it.
+  //
+  // ICU's collator can take strings in OS native encoding. But we convert the
+  // strings to UTF-16 ourselves to ensure conversion consistency.
+  // TODO(yuzo): Perhaps we should define SysNativeMBToUTF16?
+  return Singleton<LocaleAwareComparator>()->Compare(
+      WideToUTF16(base::SysNativeMBToWide((*a)->fts_name)),
+      WideToUTF16(base::SysNativeMBToWide((*b)->fts_name)));
 }
 
 }  // namespace
@@ -574,18 +641,6 @@ void FileEnumerator::GetFindInfo(FindInfo* info) {
 
   memcpy(&(info->stat), fts_ent_->fts_statp, sizeof(info->stat));
   info->filename.assign(fts_ent_->fts_name);
-}
-
-int CompareFiles(const FTSENT** a, const FTSENT** b) {
-  // Order lexicographically with directories before other files.
-  const bool a_is_dir = IsDirectory(*a);
-  const bool b_is_dir = IsDirectory(*b);
-  if (a_is_dir != b_is_dir)
-    return a_is_dir ? -1 : 1;
-
-  // TODO(yuzo): make this internationalized when encoding detection function
-  // becomes available.
-  return base::strcasecmp((*a)->fts_name, (*b)->fts_name);
 }
 
 // As it stands, this method calls itself recursively when the next item of
