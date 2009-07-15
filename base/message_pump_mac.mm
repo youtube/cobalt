@@ -184,6 +184,15 @@ bool MessagePumpCFRunLoopBase::RunWork() {
   if (!delegate_) {
     // This point can be reached with a NULL delegate_ if Run is not on the
     // stack but foreign code is spinning the CFRunLoop.
+
+    // TODO(???): we get here while looping in our temporary 1st run
+    // dialog.  If we simply return false, we choke rather brutally
+    // (we no longer do work ever again).  For now, we simply
+    // re-signal ourself so we come around again.  The problem only
+    // happens in a branded build if
+    // ~/Library/Preferences/com.google.Chrome.plist does not exist.
+    CFRunLoopSourceSignal(work_source_);
+
     return false;
   }
 
