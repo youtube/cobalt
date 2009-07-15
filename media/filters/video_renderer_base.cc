@@ -81,7 +81,7 @@ void VideoRendererBase::SetPlaybackRate(float playback_rate) {
   playback_rate_ = playback_rate;
 }
 
-void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
+void VideoRendererBase::Seek(base::TimeDelta time) {
   AutoLock auto_lock(lock_);
   // We need the first frame in |frames_| to run the VideoRendererBase main
   // loop, but we don't need decoded frames after the first frame since we are
@@ -93,44 +93,29 @@ void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
   }
 }
 
-void VideoRendererBase::Initialize(VideoDecoder* decoder,
-                                   FilterCallback* callback) {
+bool VideoRendererBase::Initialize(VideoDecoder* decoder) {
   AutoLock auto_lock(lock_);
-  DCHECK(decoder);
-  DCHECK(callback);
   DCHECK_EQ(state_, UNINITIALIZED);
   state_ = INITIALIZING;
   decoder_ = decoder;
-  initialize_callback_.reset(callback);
 
   // Notify the pipeline of the video dimensions.
   int width = 0;
   int height = 0;
-  if (!ParseMediaFormat(decoder->media_format(), &width, &height)) {
-    host()->Error(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    initialize_callback_->Run();
-    initialize_callback_.reset();
-    return;
-  }
+  if (!ParseMediaFormat(decoder->media_format(), &width, &height))
+    return false;
   host()->SetVideoSize(width, height);
 
   // Initialize the subclass.
   // TODO(scherkus): do we trust subclasses not to do something silly while
   // we're holding the lock?
-  if (!OnInitialize(decoder)) {
-    host()->Error(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    initialize_callback_->Run();
-    initialize_callback_.reset();
-    return;
-  }
+  if (!OnInitialize(decoder))
+    return false;
 
   // Create our video thread.
   if (!PlatformThread::Create(0, this, &thread_)) {
     NOTREACHED() << "Video thread creation failed";
-    host()->Error(PIPELINE_ERROR_INITIALIZATION_FAILED);
-    initialize_callback_->Run();
-    initialize_callback_.reset();
-    return;
+    return false;
   }
 
 #if defined(OS_WIN)
@@ -143,6 +128,8 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   for (size_t i = 0; i < kMaxFrames; ++i) {
     ScheduleRead();
   }
+
+  return true;
 }
 
 // PlatformThread::Delegate implementation.
@@ -261,15 +248,11 @@ void VideoRendererBase::OnReadComplete(VideoFrame* frame) {
     if (frames_.empty()) {
       // We should have initialized but there's no decoded frames in the queue.
       // Raise an error.
-      state_ = ERRORED;
       host()->Error(PIPELINE_ERROR_NO_DATA);
-      initialize_callback_->Run();
-      initialize_callback_.reset();
     } else {
       state_ = INITIALIZED;
       current_frame_ = frames_.front();
-      initialize_callback_->Run();
-      initialize_callback_.reset();
+      host()->InitializationComplete();
     }
   }
 }
@@ -283,11 +266,12 @@ bool VideoRendererBase::WaitForInitialized() {
   // initialized so we can call OnFrameAvailable() to provide subclasses with
   // the first frame.
   AutoLock auto_lock(lock_);
+  DCHECK_EQ(state_, INITIALIZING);
   while (state_ == INITIALIZING) {
     frame_available_.Wait();
-  }
-  if (state_ == STOPPED || state_ == ERRORED) {
-    return false;
+    if (state_ == STOPPED) {
+      return false;
+    }
   }
   DCHECK_EQ(state_, INITIALIZED);
   DCHECK(current_frame_);
