@@ -19,18 +19,23 @@ namespace media {
 
 namespace {
 
+#if defined(OS_MACOSX)
+#define DSO_NAME(MODULE, VERSION) ("lib" MODULE "." #VERSION ".dylib")
+#elif defined(OS_LINUX)
+#define DSO_NAME(MODULE, VERSION) ("lib" MODULE ".so." #VERSION)
+#else
+#error "Do not know how to construct DSO name for this OS."
+#endif
+
 // Retrieves the DSOName for the given key.
 std::string GetDSOName(tp_ffmpeg::StubModules stub_key) {
-  // TODO(ajwong): Do we want to lock to a specific ffmpeg version?
-  // TODO(port): These library names are incorrect for mac.  We need .dynlib
-  // suffixes.
   switch (stub_key) {
     case tp_ffmpeg::kModuleAvcodec52:
-      return FILE_PATH_LITERAL("libavcodec.so.52");
+      return FILE_PATH_LITERAL(DSO_NAME("avcodec", 52));
     case tp_ffmpeg::kModuleAvformat52:
-      return FILE_PATH_LITERAL("libavformat.so.52");
+      return FILE_PATH_LITERAL(DSO_NAME("avformat", 52));
     case tp_ffmpeg::kModuleAvutil50:
-      return FILE_PATH_LITERAL("libavutil.so.50");
+      return FILE_PATH_LITERAL(DSO_NAME("avutil", 50));
     default:
       LOG(DFATAL) << "Invalid stub module requested: " << stub_key;
       return FILE_PATH_LITERAL("");
