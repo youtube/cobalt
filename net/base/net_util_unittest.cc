@@ -48,7 +48,7 @@ const wchar_t* kLanguages[] = {
   L"",      L"en",    L"zh-CN",       L"ja",    L"ko",
   L"he",    L"ar",    L"ru",          L"el",    L"fr",
   L"de",    L"pt",    L"sv",          L"th",    L"hi",
-  L"de,en", L"el,en", L"zh,zh-TW,en", L"ko,ja", L"he,ru,en",
+  L"de,en", L"el,en", L"zh-TW,en",    L"ko,ja", L"he,ru,en",
   L"zh,ru,en"
 };
 
@@ -88,12 +88,19 @@ const IDNTestCase idn_cases[] = {
     true,  true,  true,  true,  true,
     true}},
   // IDN
-  // Hanzi (Chinese)
-  {"xn--1lq90i.cn", L"\x5317\x4eac.cn",
+  // Hanzi (Traditional Chinese)
+  {"xn--1lq90ic7f1rc.cn", L"\x5317\x4eac\x5927\x5b78.cn",
    {true,  false, true,  true,  false,
     false, false, false, false, false,
     false, false, false, false, false,
     false, false, true,  true,  false,
+    true}},
+  // Hanzi ('video' in Simplified Chinese : will pass only in zh-CN,zh)
+  {"xn--cy2a840a.com", L"\x89c6\x9891.com",
+   {true,  false, true,  false,  false,
+    false, false, false, false, false,
+    false, false, false, false, false,
+    false, false, false, false,  false,
     true}},
   // Hanzi + '123'
   {"www.xn--123-p18d.com", L"www.\x4e00" L"123.com",
@@ -102,12 +109,13 @@ const IDNTestCase idn_cases[] = {
     false, false, false, false, false,
     false, false, true,  true,  false,
     true}},
-  // Hanzi + Latin
+  // Hanzi + Latin : U+56FD is simplified and is regarded
+  // as not supported in zh-TW.
   {"www.xn--hello-9n1hm04c.com", L"www.hello\x4e2d\x56fd.com",
    {false, false, true,  true,  false,
     false, false, false, false, false,
     false, false, false, false, false,
-    false, false, true,  true,  false,
+    false, false, false, true,  false,
     true}},
   // Kanji + Kana (Japanese)
   {"xn--l8jvb1ey91xtjb.jp", L"\x671d\x65e5\x3042\x3055\x3072.jp",
@@ -116,17 +124,23 @@ const IDNTestCase idn_cases[] = {
     false, false, false, false, false,
     false, false, false, true,  false,
     false}},
-  #if 0
-  // U+30FC is not a part of the Japanese exemplar set.
-  // Enable this after 'fixing' ICU data or locally working around it.
-  // Katakana + Latin (Japanese)
-  {"xn--e-efusa1mzf.jp", L"e\x30b3\x30de\x30fc\x30b9.jp",
-   {true,   false, false, false, false,
+  // Katakana including U+30FC
+  {"xn--tckm4i2e.jp", L"\x30b3\x30de\x30fc\x30b9.jp",
+   {true, false, false, true,  false,
     false, false, false, false, false,
     false, false, false, false, false,
-    false, false, false, false, false,
+    false, false, false, true, false,
     }},
-  #endif
+  // Katakana + Latin (Japanese)
+  // TODO(jungshik): Change 'false' in the first element to 'true'
+  // after upgrading to ICU 4.2.1 to use new uspoof_* APIs instead
+  // of our IsIDNComponentInSingleScript().
+  {"xn--e-efusa1mzf.jp", L"e\x30b3\x30de\x30fc\x30b9.jp",
+   {false, false, false, true,  false,
+    false, false, false, false, false,
+    false, false, false, false, false,
+    false, false, false, true, false,
+    }},
   // Hangul (Korean)
   {"www.xn--or3b17p6jjc.kr", L"www.\xc804\xc790\xc815\xbd80.kr",
    {true,  false, false, false, true,
@@ -394,6 +408,19 @@ const struct addrinfo* GetIPv6Address(const uint8* bytes) {
 
   ai->ai_addr = (sockaddr*)addr6;
   return ai;
+}
+
+
+// A helper for IDN*{Fast,Slow}.
+// Append "::<language list>" to |expected| and |actual| to make it
+// easy to tell which sub-case fails without debugging.
+void AppendLanguagesToOutputs(const wchar_t* languages,
+                              std::wstring* expected,
+                              std::wstring* actual) {
+  expected->append(L"::");
+  expected->append(languages);
+  actual->append(L"::");
+  actual->append(languages);
 }
 
 }  // anonymous namespace
@@ -681,7 +708,7 @@ TEST(NetUtilTest, GetFileNameFromCD) {
 TEST(NetUtilTest, IDNToUnicodeFast) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(idn_cases); i++) {
     for (size_t j = 0; j < arraysize(kLanguages); j++) {
-      // ja || zh,zh-TW,en || ko,ja -> IDNToUnicodeSlow
+      // ja || zh-TW,en || ko,ja -> IDNToUnicodeSlow
       if (j == 3 || j == 17 || j == 18)
         continue;
       std::wstring output;
@@ -692,6 +719,7 @@ TEST(NetUtilTest, IDNToUnicodeFast) {
       std::wstring expected(idn_cases[i].unicode_allowed[j] ?
                             idn_cases[i].unicode_output :
                             ASCIIToWide(idn_cases[i].input));
+      AppendLanguagesToOutputs(kLanguages[j], &expected, &output);
       EXPECT_EQ(expected, output);
     }
   }
@@ -700,7 +728,7 @@ TEST(NetUtilTest, IDNToUnicodeFast) {
 TEST(NetUtilTest, IDNToUnicodeSlow) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(idn_cases); i++) {
     for (size_t j = 0; j < arraysize(kLanguages); j++) {
-      // !(ja || zh,zh-TW,en || ko,ja) -> IDNToUnicodeFast
+      // !(ja || zh-TW,en || ko,ja) -> IDNToUnicodeFast
       if (!(j == 3 || j == 17 || j == 18))
         continue;
       std::wstring output;
@@ -711,6 +739,7 @@ TEST(NetUtilTest, IDNToUnicodeSlow) {
       std::wstring expected(idn_cases[i].unicode_allowed[j] ?
                             idn_cases[i].unicode_output :
                             ASCIIToWide(idn_cases[i].input));
+      AppendLanguagesToOutputs(kLanguages[j], &expected, &output);
       EXPECT_EQ(expected, output);
     }
   }
