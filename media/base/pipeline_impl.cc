@@ -377,9 +377,6 @@ void PipelineInternal::StartTask(FilterFactory* filter_factory,
 // FilterHost's InitializationComplete() method, the pipeline will update its
 // state to kStarted and |init_callback_|, will be executed.
 //
-// If initialization fails, the client's callback will still be called, but
-// the bool parameter passed to it will be false.
-//
 // TODO(hclam): InitializeTask() is now starting the pipeline asynchronously. It
 // works like a big state change table. If we no longer need to start filters
 // in order, we need to get rid of all the state change.
@@ -454,7 +451,7 @@ void PipelineInternal::InitializeTask() {
     state_ = kStarted;
     filter_factory_ = NULL;
     if (start_callback_.get()) {
-      start_callback_->Run(true);
+      start_callback_->Run();
       start_callback_.reset();
     }
   }
@@ -490,7 +487,7 @@ void PipelineInternal::StopTask(PipelineCallback* stop_callback) {
 
   // Notify the client that stopping has finished.
   if (stop_callback_.get()) {
-    stop_callback_->Run(true);
+    stop_callback_->Run();
     stop_callback_.reset();
   }
 }
@@ -509,7 +506,7 @@ void PipelineInternal::ErrorTask(PipelineError error) {
 
   // Notify the client that starting did not complete, if necessary.
   if (IsPipelineInitializing() && start_callback_.get()) {
-    start_callback_->Run(false);
+    start_callback_->Run();
   }
   start_callback_.reset();
   filter_factory_ = NULL;
@@ -566,7 +563,7 @@ void PipelineInternal::SeekTask(base::TimeDelta time,
   // frames/packets.
   SetTime(time);
   if (seek_callback_.get()) {
-    seek_callback_->Run(true);
+    seek_callback_->Run();
     seek_callback_.reset();
   }
 }

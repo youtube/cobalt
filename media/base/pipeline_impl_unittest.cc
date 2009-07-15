@@ -27,9 +27,9 @@ class CallbackHelper {
   CallbackHelper() {}
   virtual ~CallbackHelper() {}
 
-  MOCK_METHOD1(OnStart, void(bool result));
-  MOCK_METHOD1(OnSeek, void(bool result));
-  MOCK_METHOD1(OnStop, void(bool result));
+  MOCK_METHOD0(OnStart, void());
+  MOCK_METHOD0(OnSeek, void());
+  MOCK_METHOD0(OnStop, void());
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CallbackHelper);
@@ -54,7 +54,7 @@ class PipelineImplTest : public ::testing::Test {
     }
 
     // Expect a stop callback if we were started.
-    EXPECT_CALL(callbacks_, OnStop(true));
+    EXPECT_CALL(callbacks_, OnStop());
     pipeline_.Stop(NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                &CallbackHelper::OnStop));
     message_loop_.RunAllPending();
@@ -127,10 +127,10 @@ class PipelineImplTest : public ::testing::Test {
   }
 
   // Sets up expectations on the callback and initializes the pipeline.  Called
-  // afters tests have set expectations any filters they wish to use.
-  void InitializePipeline(bool callback_result) {
+  // after tests have set expectations any filters they wish to use.
+  void InitializePipeline() {
     // Expect an initialization callback.
-    EXPECT_CALL(callbacks_, OnStart(callback_result));
+    EXPECT_CALL(callbacks_, OnStart());
     pipeline_.Start(mocks_, "",
                     NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                                 &CallbackHelper::OnStart));
@@ -220,13 +220,13 @@ TEST_F(PipelineImplTest, NeverInitializes) {
   // verify that nothing has been called, then set our expectation for the call
   // made during tear down.
   Mock::VerifyAndClear(&callbacks_);
-  EXPECT_CALL(callbacks_, OnStart(false));
+  EXPECT_CALL(callbacks_, OnStart());
 }
 
 TEST_F(PipelineImplTest, RequiredFilterMissing) {
   mocks_->set_creation_successful(false);
 
-  InitializePipeline(false);
+  InitializePipeline();
   EXPECT_FALSE(pipeline_.IsInitialized());
   EXPECT_EQ(PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
             pipeline_.GetError());
@@ -239,7 +239,7 @@ TEST_F(PipelineImplTest, URLNotFound) {
                       Return(false)));
   EXPECT_CALL(*mocks_->data_source(), Stop());
 
-  InitializePipeline(false);
+  InitializePipeline();
   EXPECT_FALSE(pipeline_.IsInitialized());
   EXPECT_EQ(PIPELINE_ERROR_URL_NOT_FOUND, pipeline_.GetError());
 }
@@ -259,7 +259,7 @@ TEST_F(PipelineImplTest, NoStreams) {
       .WillRepeatedly(Return(0));
   EXPECT_CALL(*mocks_->demuxer(), Stop());
 
-  InitializePipeline(false);
+  InitializePipeline();
   EXPECT_FALSE(pipeline_.IsInitialized());
   EXPECT_EQ(PIPELINE_ERROR_COULD_NOT_RENDER, pipeline_.GetError());
 }
@@ -275,7 +275,7 @@ TEST_F(PipelineImplTest, AudioStream) {
   InitializeAudioDecoder(stream);
   InitializeAudioRenderer();
 
-  InitializePipeline(true);
+  InitializePipeline();
   EXPECT_TRUE(pipeline_.IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_.GetError());
   EXPECT_TRUE(pipeline_.IsRendered(media::mime_type::kMajorTypeAudio));
@@ -293,7 +293,7 @@ TEST_F(PipelineImplTest, VideoStream) {
   InitializeVideoDecoder(stream);
   InitializeVideoRenderer();
 
-  InitializePipeline(true);
+  InitializePipeline();
   EXPECT_TRUE(pipeline_.IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_.GetError());
   EXPECT_FALSE(pipeline_.IsRendered(media::mime_type::kMajorTypeAudio));
@@ -316,7 +316,7 @@ TEST_F(PipelineImplTest, AudioVideoStream) {
   InitializeVideoDecoder(video_stream);
   InitializeVideoRenderer();
 
-  InitializePipeline(true);
+  InitializePipeline();
   EXPECT_TRUE(pipeline_.IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_.GetError());
   EXPECT_TRUE(pipeline_.IsRendered(media::mime_type::kMajorTypeAudio));
@@ -349,10 +349,10 @@ TEST_F(PipelineImplTest, Seek) {
   EXPECT_CALL(*mocks_->video_renderer(), Seek(expected));
 
   // We expect a successful seek callback.
-  EXPECT_CALL(callbacks_, OnSeek(true));
+  EXPECT_CALL(callbacks_, OnSeek());
 
   // Initialize then seek!
-  InitializePipeline(true);
+  InitializePipeline();
   pipeline_.Seek(expected,
                  NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                              &CallbackHelper::OnSeek));
@@ -375,7 +375,7 @@ TEST_F(PipelineImplTest, SetVolume) {
   EXPECT_CALL(*mocks_->audio_renderer(), SetVolume(expected));
 
   // Initialize then set volume!
-  InitializePipeline(true);
+  InitializePipeline();
   pipeline_.SetVolume(expected);
 }
 
