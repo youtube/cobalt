@@ -83,6 +83,14 @@
     'chromeos%': 0,
 
     'chrome_personalization%': 0,
+
+    # Set the restrictions on the SUID sandbox binary.
+    #  Path: only exec the hard coded chrome binary path
+    #  User: only exec binaries owned by the running user.
+    #
+    # Developers should read
+    #  http://code.google.com/p/chromium/wiki/LinuxSUIDSandboxDevelopment
+    'linux_suid_sandbox_restrictions': 'Path',
   },
   'target_defaults': {
     'conditions': [
