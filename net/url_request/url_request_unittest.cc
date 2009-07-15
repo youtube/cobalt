@@ -45,7 +45,7 @@ namespace {
 class URLRequestHttpCacheContext : public URLRequestContext {
  public:
   URLRequestHttpCacheContext() {
-    host_resolver_ = new net::HostResolver;
+    host_resolver_ = net::CreateSystemHostResolver();
     proxy_service_ = net::ProxyService::CreateNull();
     http_transaction_factory_ =
         new net::HttpCache(

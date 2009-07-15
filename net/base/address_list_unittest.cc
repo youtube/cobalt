@@ -4,15 +4,8 @@
 
 #include "net/base/address_list.h"
 
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#include <wspiapi.h>  // Needed for Win2k compat.
-#elif defined(OS_POSIX)
-#include <netdb.h>
-#include <sys/socket.h>
-#endif
-
 #include "base/string_util.h"
+#include "net/base/host_resolver_proc.h"
 #include "net/base/net_util.h"
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
@@ -26,17 +19,9 @@ void CreateAddressList(net::AddressList* addrlist, int port) {
 #if defined(OS_WIN)
   net::EnsureWinsockInit();
 #endif
-  std::string portstr = IntToString(port);
-
-  struct addrinfo* result = NULL;
-  struct addrinfo hints = {0};
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_flags = AI_NUMERICHOST;
-  hints.ai_socktype = SOCK_STREAM;
-
-  int err = getaddrinfo("192.168.1.1", portstr.c_str(), &hints, &result);
-  EXPECT_EQ(0, err);
-  addrlist->Adopt(result);
+  int rv = SystemHostResolverProc("192.168.1.1", addrlist);
+  EXPECT_EQ(0, rv);
+  addrlist->SetPort(port);
 }
 
 TEST(AddressListTest, GetPort) {

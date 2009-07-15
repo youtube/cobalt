@@ -6,7 +6,7 @@
 #include "base/string_util.h"
 #include "base/path_service.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/host_resolver.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_resolver_v8.h"
 #include "net/proxy/proxy_info.h"
@@ -379,7 +379,8 @@ TEST(ProxyResolverV8Test, V8Bindings) {
 TEST(ProxyResolverV8DefaultBindingsTest, DnsResolve) {
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<net::ProxyResolverV8::JSBindings> bindings(
-      net::ProxyResolverV8::CreateDefaultBindings(new net::HostResolver, NULL));
+      net::ProxyResolverV8::CreateDefaultBindings(
+          new net::MockHostResolver, NULL));
 
   // Considered an error.
   EXPECT_EQ("", bindings->DnsResolve(""));
@@ -411,7 +412,7 @@ TEST(ProxyResolverV8DefaultBindingsTest, DnsResolve) {
     // THIS TEST IS CURRENTLY FLAWED.
     //
     // Since we are running in unit-test mode, the HostResolve is using a
-    // mock HostMapper, which will always return 127.0.0.1, without going
+    // mock HostResolverProc, which will always return 127.0.0.1, without going
     // through the real codepaths.
     //
     // It is important that these tests be run with the real thing, since we
@@ -430,10 +431,11 @@ TEST(ProxyResolverV8DefaultBindingsTest, DnsResolve) {
 TEST(ProxyResolverV8DefaultBindingsTest, MyIpAddress) {
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<net::ProxyResolverV8::JSBindings> bindings(
-      net::ProxyResolverV8::CreateDefaultBindings(new net::HostResolver, NULL));
+      net::ProxyResolverV8::CreateDefaultBindings(
+          new net::MockHostResolver, NULL));
 
-  // Our ip address is always going to be 127.0.0.1, since we are using a
-  // mock host mapper when running in unit-test mode.
+  // Our IP address is always going to be 127.0.0.1, since we are using a
+  // mock host resolver.
   std::string my_ip_address = bindings->MyIpAddress();
 
   EXPECT_EQ("127.0.0.1", my_ip_address);
