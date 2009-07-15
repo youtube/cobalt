@@ -30,6 +30,8 @@ const int kIdleTimeout = 300;  // 5 minutes.
 
 namespace net {
 
+bool ClientSocketPoolBase::g_late_binding = false;
+
 ConnectJob::ConnectJob(const std::string& group_name,
                        const ClientSocketHandle* key_handle,
                        Delegate* delegate)
@@ -52,6 +54,8 @@ ClientSocketPoolBase::ClientSocketPoolBase(
       connect_job_factory_(connect_job_factory) {}
 
 ClientSocketPoolBase::~ClientSocketPoolBase() {
+  if (g_late_binding)
+    CancelAllConnectJobs();
   // Clean up any idle sockets.  Assert that we have no remaining active
   // sockets or pending requests.  They should have all been cleaned up prior
   // to the manager being destroyed.
@@ -98,7 +102,7 @@ int ClientSocketPoolBase::RequestSocket(
     DecrementIdleCount();
     if (idle_socket.socket->IsConnectedAndIdle()) {
       // We found one we can reuse!
-      HandOutSocket(idle_socket.socket, true /* reuse */, handle, &group);
+      HandOutSocket(idle_socket.socket, idle_socket.used, handle, &group);
       return OK;
     }
     delete idle_socket.socket;
@@ -116,9 +120,16 @@ int ClientSocketPoolBase::RequestSocket(
     HandOutSocket(connect_job->ReleaseSocket(), false /* not reused */,
                   handle, &group);
   } else if (rv == ERR_IO_PENDING) {
-    group.connecting_requests[handle] = r;
-    CHECK(!ContainsKey(connect_job_map_, handle));
-    connect_job_map_[handle] = connect_job.release();
+    ConnectJob* job = connect_job.release();
+    if (g_late_binding) {
+      CHECK(!ContainsKey(connect_job_map_, handle));
+      InsertRequestIntoQueue(r, &group.pending_requests);
+    } else {
+      group.connecting_requests[handle] = r;
+      CHECK(!ContainsKey(connect_job_map_, handle));
+      connect_job_map_[handle] = job;
+    }
+    group.jobs.insert(job);
   } else {
     if (group.IsEmpty())
       group_map_.erase(group_name);
@@ -142,14 +153,15 @@ void ClientSocketPoolBase::CancelRequest(const std::string& group_name,
     }
   }
 
-  // It's invalid to cancel a non-existent request.
-  CHECK(ContainsKey(group.connecting_requests, handle));
+  if (!g_late_binding) {
+    // It's invalid to cancel a non-existent request.
+    CHECK(ContainsKey(group.connecting_requests, handle));
 
-  RequestMap::iterator map_it = group.connecting_requests.find(handle);
-  if (map_it != group.connecting_requests.end()) {
-    RemoveConnectJob(handle);
-    group.connecting_requests.erase(map_it);
-    OnAvailableSocketSlot(group_name, &group);
+    RequestMap::iterator map_it = group.connecting_requests.find(handle);
+    if (map_it != group.connecting_requests.end()) {
+      RemoveConnectJob(handle, NULL, &group);
+      OnAvailableSocketSlot(group_name, &group);
+    }
   }
 }
 
@@ -199,11 +211,20 @@ LoadState ClientSocketPoolBase::GetLoadState(
 
   // Search pending_requests for matching handle.
   RequestQueue::const_iterator it = group.pending_requests.begin();
-  for (; it != group.pending_requests.end(); ++it) {
+  for (size_t i = 0; it != group.pending_requests.end(); ++it, ++i) {
     if (it->handle == handle) {
-      // TODO(wtc): Add a state for being on the wait list.
-      // See http://www.crbug.com/5077.
-      return LOAD_STATE_IDLE;
+      if (g_late_binding && i < group.jobs.size()) {
+        LoadState max_state = LOAD_STATE_IDLE;
+        for (ConnectJobSet::const_iterator job_it = group.jobs.begin();
+             job_it != group.jobs.end(); ++job_it) {
+          max_state = std::max(max_state, (*job_it)->load_state());
+        }
+        return max_state;
+      } else {
+        // TODO(wtc): Add a state for being on the wait list.
+        // See http://www.crbug.com/5077.
+        return LOAD_STATE_IDLE;
+      }
     }
   }
 
@@ -215,7 +236,8 @@ bool ClientSocketPoolBase::IdleSocket::ShouldCleanup(
     base::TimeTicks now) const {
   bool timed_out = (now - start_time) >=
       base::TimeDelta::FromSeconds(kIdleTimeout);
-  return timed_out || !socket->IsConnectedAndIdle();
+  return timed_out ||
+      !(used ? socket->IsConnectedAndIdle() : socket->IsConnected());
 }
 
 void ClientSocketPoolBase::CleanupIdleSockets(bool force) {
@@ -274,12 +296,7 @@ void ClientSocketPoolBase::DoReleaseSocket(const std::string& group_name,
 
   const bool can_reuse = socket->IsConnectedAndIdle();
   if (can_reuse) {
-    IdleSocket idle_socket;
-    idle_socket.socket = socket;
-    idle_socket.start_time = base::TimeTicks::Now();
-
-    group.idle_sockets.push_back(idle_socket);
-    IncrementIdleCount();
+    AddIdleSocket(socket, true /* used socket */, &group);
   } else {
     delete socket;
   }
@@ -294,17 +311,44 @@ void ClientSocketPoolBase::OnConnectJobComplete(int result, ConnectJob* job) {
   CHECK(group_it != group_map_.end());
   Group& group = group_it->second;
 
-  RequestMap* request_map = &group.connecting_requests;
+  const ClientSocketHandle* const key_handle = job->key_handle();
+  scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
 
-  RequestMap::iterator it = request_map->find(job->key_handle());
+  if (g_late_binding) {
+    RemoveConnectJob(key_handle, job, &group);
+
+    if (result == OK) {
+      DCHECK(socket.get());
+      if (!group.pending_requests.empty()) {
+        Request r = group.pending_requests.front();
+        group.pending_requests.pop_front();
+        HandOutSocket(
+            socket.release(), false /* unused socket */, r.handle, &group);
+        r.callback->Run(result);
+      } else {
+        AddIdleSocket(socket.release(), false /* unused socket */, &group);
+        OnAvailableSocketSlot(group_name, &group);
+      }
+    } else {
+      DCHECK(!socket.get());
+      if (!group.pending_requests.empty()) {
+        Request r = group.pending_requests.front();
+        group.pending_requests.pop_front();
+        r.callback->Run(result);
+      }
+      MaybeOnAvailableSocketSlot(group_name);
+    }
+
+    return;
+  }
+
+  RequestMap* request_map = &group.connecting_requests;
+  RequestMap::iterator it = request_map->find(key_handle);
   CHECK(it != request_map->end());
   ClientSocketHandle* const handle = it->second.handle;
   CompletionCallback* const callback = it->second.callback;
-  request_map->erase(it);
-  DCHECK_EQ(handle, job->key_handle());
 
-  scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
-  RemoveConnectJob(job->key_handle());
+  RemoveConnectJob(key_handle, job, &group);
 
   if (result != OK) {
     DCHECK(!socket.get());
@@ -313,17 +357,34 @@ void ClientSocketPoolBase::OnConnectJobComplete(int result, ConnectJob* job) {
     // |group_map_| again.
     MaybeOnAvailableSocketSlot(group_name);
   } else {
+    DCHECK(socket.get());
     HandOutSocket(socket.release(), false /* not reused */, handle, &group);
     callback->Run(result);
   }
 }
 
+void ClientSocketPoolBase::EnableLateBindingOfSockets(bool enabled) {
+  g_late_binding = enabled;
+}
+
 void ClientSocketPoolBase::RemoveConnectJob(
-    const ClientSocketHandle* handle) {
-  ConnectJobMap::iterator it = connect_job_map_.find(handle);
-  CHECK(it != connect_job_map_.end());
-  delete it->second;
-  connect_job_map_.erase(it);
+    const ClientSocketHandle* handle, ConnectJob *job, Group* group) {
+  if (g_late_binding) {
+    DCHECK(job);
+    delete job;
+  } else {
+    ConnectJobMap::iterator it = connect_job_map_.find(handle);
+    CHECK(it != connect_job_map_.end());
+    job = it->second;
+    delete job;
+    connect_job_map_.erase(it);
+    group->connecting_requests.erase(handle);
+  }
+
+  if (group) {
+    DCHECK(ContainsKey(group->jobs, job));
+    group->jobs.erase(job);
+  }
 }
 
 void ClientSocketPoolBase::MaybeOnAvailableSocketSlot(
@@ -375,6 +436,33 @@ void ClientSocketPoolBase::HandOutSocket(
   handle->set_socket(socket);
   handle->set_is_reused(reused);
   group->active_socket_count++;
+}
+
+void ClientSocketPoolBase::AddIdleSocket(
+    ClientSocket* socket, bool used, Group* group) {
+  DCHECK(socket);
+  IdleSocket idle_socket;
+  idle_socket.socket = socket;
+  idle_socket.start_time = base::TimeTicks::Now();
+  idle_socket.used = used;
+
+  group->idle_sockets.push_back(idle_socket);
+  IncrementIdleCount();
+}
+
+void ClientSocketPoolBase::CancelAllConnectJobs() {
+  for (GroupMap::iterator i = group_map_.begin(); i != group_map_.end();) {
+    Group& group = i->second;
+    STLDeleteElements(&group.jobs);
+
+    // Delete group if no longer needed.
+    if (group.IsEmpty()) {
+      CHECK(group.pending_requests.empty());
+      group_map_.erase(i++);
+    } else {
+      ++i;
+    }
+  }
 }
 
 }  // namespace net
