@@ -7,6 +7,7 @@
 
 #include <deque>
 #include <map>
+#include <set>
 #include <string>
 
 #include "base/basictypes.h"
@@ -160,11 +161,21 @@ class ClientSocketPoolBase
 
   virtual void OnConnectJobComplete(int result, ConnectJob* job);
 
+  // Enables late binding of sockets.  In this mode, socket requests are
+  // decoupled from socket connection jobs.  A socket request may initiate a
+  // socket connection job, but there is no guarantee that that socket
+  // connection will service the request (for example, a released socket may
+  // service the request sooner, or a higher priority request may come in
+  // afterward and receive the socket from the job).
+  static void EnableLateBindingOfSockets(bool enabled);
+
  private:
   // Entry for a persistent socket which became idle at time |start_time|.
   struct IdleSocket {
+    IdleSocket() : socket(NULL), used(false) {}
     ClientSocket* socket;
     base::TimeTicks start_time;
+    bool used;  // Indicates whether or not the socket has been used yet.
 
     // An idle socket should be removed if it can't be reused, or has been idle
     // for too long. |now| is the current time value (TimeTicks::Now()).
@@ -185,17 +196,16 @@ class ClientSocketPoolBase
     Group() : active_socket_count(0) {}
 
     bool IsEmpty() const {
-      return active_socket_count == 0 && idle_sockets.empty() &&
-          connecting_requests.empty();
+      return active_socket_count == 0 && idle_sockets.empty() && jobs.empty();
     }
 
     bool HasAvailableSocketSlot(int max_sockets_per_group) const {
-      return active_socket_count +
-          static_cast<int>(connecting_requests.size()) <
+      return active_socket_count + static_cast<int>(jobs.size()) <
           max_sockets_per_group;
     }
 
     std::deque<IdleSocket> idle_sockets;
+    std::set<const ConnectJob*> jobs;
     RequestQueue pending_requests;
     RequestMap connecting_requests;
     int active_socket_count;  // number of active sockets used by clients
@@ -204,6 +214,7 @@ class ClientSocketPoolBase
   typedef std::map<std::string, Group> GroupMap;
 
   typedef std::map<const ClientSocketHandle*, ConnectJob*> ConnectJobMap;
+  typedef std::set<const ConnectJob*> ConnectJobSet;
 
   static void InsertRequestIntoQueue(const Request& r,
                                      RequestQueue* pending_requests);
@@ -226,8 +237,12 @@ class ClientSocketPoolBase
   }
 
   // Removes the ConnectJob corresponding to |handle| from the
-  // |connect_job_map_|.
-  void RemoveConnectJob(const ClientSocketHandle* handle);
+  // |connect_job_map_| or |connect_job_set_| depending on whether or not late
+  // binding is enabled.  |job| must be non-NULL when late binding is
+  // enabled.  Also updates |group| if non-NULL.
+  void RemoveConnectJob(const ClientSocketHandle* handle,
+                        ConnectJob* job,
+                        Group* group);
 
   // Same as OnAvailableSocketSlot except it looks up the Group first to see if
   // it's there.
@@ -245,6 +260,15 @@ class ClientSocketPoolBase
                      ClientSocketHandle* handle,
                      Group* group);
 
+  // Adds |socket| to the list of idle sockets for |group|.  |used| indicates
+  // whether or not the socket has previously been used.
+  void AddIdleSocket(ClientSocket* socket, bool used, Group* group);
+
+  // Iterates through |connect_job_map_|, canceling all ConnectJobs.
+  // Afterwards, it iterates through all groups and deletes them if they are no
+  // longer needed.
+  void CancelAllConnectJobs();
+
   GroupMap group_map_;
 
   ConnectJobMap connect_job_map_;
@@ -260,6 +284,9 @@ class ClientSocketPoolBase
   const int max_sockets_per_group_;
 
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
+
+  // Controls whether or not we use late binding of sockets.
+  static bool g_late_binding;
 
   DISALLOW_COPY_AND_ASSIGN(ClientSocketPoolBase);
 };
