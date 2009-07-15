@@ -8,7 +8,6 @@
 #include "base/file_path.h"
 #include "base/string_util.h"
 #include "media/base/mock_filter_host.h"
-#include "media/base/mock_filters.h"
 #include "media/filters/file_data_source.h"
 
 using ::testing::NiceMock;
@@ -39,15 +38,13 @@ std::string TestFileURL() {
 // Test that FileDataSource call the appropriate methods on its filter host.
 TEST(FileDataSourceTest, OpenFile) {
   StrictMock<MockFilterHost> host;
-  StrictMock<MockFilterCallback> callback;
   EXPECT_CALL(host, SetTotalBytes(10));
   EXPECT_CALL(host, SetBufferedBytes(10));
-  EXPECT_CALL(callback, OnFilterCallback());
-  EXPECT_CALL(callback, OnCallbackDestroyed());
+  EXPECT_CALL(host, InitializationComplete());
 
   scoped_refptr<FileDataSource> filter = new FileDataSource();
   filter->set_host(&host);
-  filter->Initialize(TestFileURL(), callback.NewCallback());
+  EXPECT_TRUE(filter->Initialize(TestFileURL()));
 }
 
 // Use the mock filter host to directly call the Read and GetPosition methods.
@@ -58,10 +55,9 @@ TEST(FileDataSourceTest, ReadData) {
 
   // Create our mock filter host and initialize the data source.
   NiceMock<MockFilterHost> host;
-  NiceMock<MockFilterCallback> callback;
   scoped_refptr<FileDataSource> filter = new FileDataSource();
   filter->set_host(&host);
-  filter->Initialize(TestFileURL(), callback.NewCallback());
+  EXPECT_TRUE(filter->Initialize(TestFileURL()));
 
   EXPECT_TRUE(filter->GetSize(&size));
   EXPECT_EQ(10, size);
@@ -82,17 +78,6 @@ TEST(FileDataSourceTest, ReadData) {
   EXPECT_EQ('5', ten_bytes[0]);
   EXPECT_TRUE(filter->GetPosition(&position));
   EXPECT_EQ(10, position);
-}
-
-// Test that FileDataSource does nothing on Seek().
-TEST(FileDataSourceTest, Seek) {
-  StrictMock<MockFilterCallback> callback;
-  EXPECT_CALL(callback, OnFilterCallback());
-  EXPECT_CALL(callback, OnCallbackDestroyed());
-  const base::TimeDelta kZero;
-
-  scoped_refptr<FileDataSource> filter = new FileDataSource();
-  filter->Seek(kZero, callback.NewCallback());
 }
 
 }  // namespace media

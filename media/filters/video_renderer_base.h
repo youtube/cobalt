@@ -39,10 +39,10 @@ class VideoRendererBase : public VideoRenderer,
   // MediaFilter implementation.
   virtual void Stop();
   virtual void SetPlaybackRate(float playback_rate);
-  virtual void Seek(base::TimeDelta time, FilterCallback* callback);
+  virtual void Seek(base::TimeDelta time);
 
   // VideoRenderer implementation.
-  virtual void Initialize(VideoDecoder* decoder, FilterCallback* callback);
+  virtual bool Initialize(VideoDecoder* decoder);
 
   // PlatformThread::Delegate implementation.
   virtual void ThreadMain();
@@ -106,7 +106,6 @@ class VideoRendererBase : public VideoRenderer,
     INITIALIZING,
     INITIALIZED,
     STOPPED,
-    ERRORED,
   };
   State state_;
 
@@ -117,9 +116,6 @@ class VideoRendererBase : public VideoRenderer,
   base::TimeDelta previous_time_;
 
   float playback_rate_;
-
-  // Filter callbacks.
-  scoped_ptr<FilterCallback> initialize_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
 };

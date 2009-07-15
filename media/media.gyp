@@ -155,7 +155,6 @@
         'base/mock_ffmpeg.cc',
         'base/mock_ffmpeg.h',
         'base/mock_filter_host.h',
-        'base/mock_filters.cc',
         'base/mock_filters.h',
         'base/mock_reader.h',
         'base/pipeline_impl_unittest.cc',
@@ -163,12 +162,10 @@
         'base/seekable_buffer_unittest.cc',
         'base/video_frame_impl_unittest.cc',
         'base/yuv_convert_unittest.cc',
-        'filters/audio_renderer_base_unittest.cc',
         'filters/ffmpeg_demuxer_unittest.cc',
         'filters/ffmpeg_glue_unittest.cc',
         'filters/ffmpeg_video_decoder_unittest.cc',
         'filters/file_data_source_unittest.cc',
-        'filters/video_renderer_base_unittest.cc',
       ],
       'conditions': [
         ['OS=="linux"', {

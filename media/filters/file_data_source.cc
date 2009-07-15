@@ -20,10 +20,8 @@ FileDataSource::~FileDataSource() {
   Stop();
 }
 
-void FileDataSource::Initialize(const std::string& url,
-                                FilterCallback* callback) {
+bool FileDataSource::Initialize(const std::string& url) {
   DCHECK(!file_);
-  scoped_ptr<FilterCallback> c(callback);
 #if defined(OS_WIN)
   FilePath file_path(UTF8ToWide(url));
 #else
@@ -35,15 +33,15 @@ void FileDataSource::Initialize(const std::string& url,
   if (!file_) {
     file_size_ = 0;
     host()->Error(PIPELINE_ERROR_URL_NOT_FOUND);
-    callback->Run();
-    return;
+    return false;
   }
   media_format_.SetAsString(MediaFormat::kMimeType,
                             mime_type::kApplicationOctetStream);
   media_format_.SetAsString(MediaFormat::kURL, url);
   host()->SetTotalBytes(file_size_);
   host()->SetBufferedBytes(file_size_);
-  callback->Run();
+  host()->InitializationComplete();
+  return true;
 }
 
 void FileDataSource::Stop() {
