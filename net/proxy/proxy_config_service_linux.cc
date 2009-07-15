@@ -72,8 +72,10 @@ std::string FixupProxyHostScheme(ProxyServer::Scheme scheme,
   std::string::size_type at_sign = host.find("@");
   // Should this be supported?
   if (at_sign != std::string::npos) {
-    LOG(ERROR) << "Proxy authentication not supported";
-    // Disregard the authentication parameters and continue with this hostname.
+    // ProxyConfig does not support authentication parameters, but Chrome
+    // will prompt for the password later. Disregard the
+    // authentication parameters and continue with this hostname.
+    LOG(WARNING) << "Proxy authentication parameters ignored, see bug 16709";
     host = host.substr(at_sign + 1);
   }
   // If this is a socks proxy, prepend a scheme so as to tell
@@ -509,8 +511,12 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   bool use_auth;
   gconf_getter_->GetBoolean("/system/http_proxy/use_authentication",
                             &use_auth);
-  if (use_auth)
-    LOG(ERROR) << "Proxy authentication not supported";
+  if (use_auth) {
+    // ProxyConfig does not support authentication parameters, but
+    // Chrome will prompt for the password later. So we ignore
+    // /system/http_proxy/*auth* settings.
+    LOG(WARNING) << "Proxy authentication parameters ignored, see bug 16709";
+  }
 
   // Now the bypass list.
   gconf_getter_->GetStringList("/system/http_proxy/ignore_hosts",
