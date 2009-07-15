@@ -56,7 +56,7 @@ class ProxyResolverV8 : public ProxyResolver {
   // Creates a default javascript bindings implementation that will:
   //   - Send script error messages to LOG(INFO)
   //   - Send script alert()s to LOG(INFO)
-  //   - Use the provided host mapper to service dnsResolve().
+  //   - Use the provided host resolver to service dnsResolve().
   //
   // For clients that need more control (for example, sending the script output
   // to a UI widget), use the ProxyResolverV8(JSBindings*) and specify your

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/perftimer.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/proxy/proxy_resolver_v8.h"
 #include "net/url_request/url_request_unittest.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -186,7 +187,8 @@ TEST(ProxyResolverPerfTest, ProxyResolverMac) {
 
 TEST(ProxyResolverPerfTest, ProxyResolverV8) {
   net::ProxyResolverV8::JSBindings* js_bindings =
-      net::ProxyResolverV8::CreateDefaultBindings(new net::HostResolver, NULL);
+      net::ProxyResolverV8::CreateDefaultBindings(
+          new net::MockHostResolver, NULL);
 
   net::ProxyResolverV8 resolver(js_bindings);
   PacPerfSuiteRunner runner(&resolver, "ProxyResolverV8");
