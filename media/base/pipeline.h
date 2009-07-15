@@ -44,11 +44,9 @@ enum PipelineError {
   DEMUXER_ERROR_COULD_NOT_CREATE_THREAD,
 };
 
-// Client-provided callbacks for various pipeline operations.
-//
-// TODO(scherkus): consider returning a PipelineError instead of a bool, or
-// perhaps a client callback interface.
-typedef Callback1<bool>::Type PipelineCallback;
+// Client-provided callbacks for various pipeline operations.  Clients should
+// inspect the Pipeline for errors.
+typedef Callback0::Type PipelineCallback;
 
 class Pipeline {
  public:
@@ -62,10 +60,8 @@ class Pipeline {
   //
   // This method is asynchronous and can execute a callback when completed.
   // If the caller provides a |start_callback|, it will be called when the
-  // pipeline initialization completes.  If successful, the callback's bool
-  // parameter will be true.  If the callback is called with false, then the
-  // client can use GetError() to obtain more information about the reason
-  // initialization failed.
+  // pipeline initialization completes.  Clients are expected to call GetError()
+  // to check whether initialization succeeded.
   virtual bool Start(FilterFactory* filter_factory,
                      const std::string& url,
                      PipelineCallback* start_callback) = 0;
@@ -84,8 +80,8 @@ class Pipeline {
 
   // Attempt to seek to the position specified by time.  |seek_callback| will be
   // executed when the all filters in the pipeline have processed the seek.
-  // The callback will return true if the seek was carried out, false otherwise
-  // (i.e., streaming media).
+  //
+  // Clients are expected to call GetTime() to check whether the seek succeeded.
   virtual void Seek(base::TimeDelta time, PipelineCallback* seek_callback) = 0;
 
   // Returns true if the pipeline has been started via Start().  If IsRunning()
