@@ -86,7 +86,7 @@ void TCPClientSocketTest::SetUp() {
   listen_port_ = port;
 
   AddressList addr;
-  scoped_refptr<HostResolver> resolver(new HostResolver);
+  scoped_refptr<HostResolver> resolver(CreateSystemHostResolver());
   HostResolver::RequestInfo info("localhost", listen_port_);
   int rv = resolver->Resolve(info, &addr, NULL, NULL);
   CHECK(rv == OK);

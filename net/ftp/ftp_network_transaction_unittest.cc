@@ -5,9 +5,8 @@
 #include "net/ftp/ftp_network_transaction.h"
 
 #include "base/ref_counted.h"
-#include "net/base/host_resolver.h"
-#include "net/base/host_resolver_unittest.h"
 #include "net/base/io_buffer.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/base/test_completion_callback.h"
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
@@ -237,7 +236,8 @@ class FtpMockControlSocketFileDownloadRetrFail
 class FtpNetworkTransactionTest : public PlatformTest {
  public:
   FtpNetworkTransactionTest()
-      : session_(new FtpNetworkSession(new HostResolver)),
+      : host_resolver_(new MockHostResolver),
+        session_(new FtpNetworkSession(host_resolver_)),
         transaction_(session_.get(), &mock_socket_factory_) {
   }
 
@@ -286,6 +286,7 @@ class FtpNetworkTransactionTest : public PlatformTest {
     ExecuteTransaction(ctrl_socket, request, expected_result);
   }
 
+  scoped_refptr<MockHostResolver> host_resolver_;
   scoped_refptr<FtpNetworkSession> session_;
   MockClientSocketFactory mock_socket_factory_;
   FtpNetworkTransaction transaction_;
@@ -294,9 +295,7 @@ class FtpNetworkTransactionTest : public PlatformTest {
 
 TEST_F(FtpNetworkTransactionTest, FailedLookup) {
   FtpRequestInfo request_info = GetRequestInfo("ftp://badhost");
-  scoped_refptr<RuleBasedHostMapper> mapper(new RuleBasedHostMapper());
-  mapper->AddSimulatedFailure("badhost");
-  ScopedHostMapper scoped_mapper(mapper.get());
+  host_resolver_->rules()->AddSimulatedFailure("badhost");
   ASSERT_EQ(ERR_IO_PENDING, transaction_.Start(&request_info, &callback_));
   EXPECT_EQ(ERR_FAILED, callback_.WaitForResult());
 }

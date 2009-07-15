@@ -6,7 +6,7 @@
 
 #include "base/compiler_specific.h"
 #include "net/base/completion_callback.h"
-#include "net/base/host_resolver_unittest.h"
+#include "net/base/mock_host_resolver.h"
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/upload_data.h"
@@ -35,14 +35,14 @@ ProxyService* CreateNullProxyService() {
 class SessionDependencies {
  public:
   // Default set of dependencies -- "null" proxy service.
-  SessionDependencies() : host_resolver(new HostResolver),
+  SessionDependencies() : host_resolver(new MockHostResolver),
       proxy_service(CreateNullProxyService()) {}
 
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
-      : host_resolver(new HostResolver), proxy_service(proxy_service) {}
+      : host_resolver(new MockHostResolver), proxy_service(proxy_service) {}
 
-  scoped_refptr<HostResolver> host_resolver;
+  scoped_refptr<MockHostResolver> host_resolver;
   scoped_ptr<ProxyService> proxy_service;
   MockClientSocketFactory socket_factory;
 };
@@ -3351,12 +3351,11 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
 }
 
 TEST_F(HttpNetworkTransactionTest, ReconsiderProxyAfterFailedConnection) {
-  scoped_refptr<RuleBasedHostMapper> host_mapper(new RuleBasedHostMapper());
-  ScopedHostMapper scoped_host_mapper(host_mapper.get());
-  host_mapper->AddSimulatedFailure("*");
-
   SessionDependencies session_deps(
       CreateFixedProxyService("myproxy:70;foobar:80"));
+
+  session_deps.host_resolver->rules()->AddSimulatedFailure("*");
+
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(
           CreateSession(&session_deps),
@@ -3457,6 +3456,10 @@ TEST_F(HttpNetworkTransactionTest, ResolveMadeWithReferrer) {
 // host cache is bypassed.
 TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   SessionDependencies session_deps;
+
+  // Enable caching in the mock host resolver (it is off by default).
+  session_deps.host_resolver->Reset(NULL, 100, 60000);
+
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
       CreateSession(&session_deps), &session_deps.socket_factory));
 
@@ -3473,14 +3476,12 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   rv = session_deps.host_resolver->Resolve(
       HostResolver::RequestInfo("www.google.com", 80), &addrlist,
       &resolve_callback, NULL);
-  EXPECT_EQ(OK, rv);
+  ASSERT_EQ(OK, rv);
 
   // Inject a failure the next time that "www.google.com" is resolved. This way
   // we can tell if the next lookup hit the cache, or the "network".
   // (cache --> success, "network" --> failure).
-  scoped_refptr<RuleBasedHostMapper> host_mapper(new RuleBasedHostMapper());
-  ScopedHostMapper scoped_host_mapper(host_mapper.get());
-  host_mapper->AddSimulatedFailure("www.google.com");
+  session_deps.host_resolver->rules()->AddSimulatedFailure("www.google.com");
 
   // Connect up a mock socket which will fail with ERR_UNEXPECTED during the
   // first read -- this won't be reached as the host resolution will fail first.
