@@ -107,9 +107,9 @@ void FFmpegAudioDecoder::OnDecode(Buffer* input) {
 
   // If we have decoded something, enqueue the result.
   if (output_buffer_size) {
-    DataBuffer* result_buffer = new DataBuffer();
-    memcpy(result_buffer->GetWritableData(output_buffer_size),
-           output_buffer, output_buffer_size);
+    DataBuffer* result_buffer = new DataBuffer(output_buffer_size);
+    uint8* data = result_buffer->GetWritableData();
+    memcpy(data, output_buffer, output_buffer_size);
 
     // Determine the duration if the demuxer couldn't figure it out, otherwise
     // copy it over.
@@ -131,7 +131,7 @@ void FFmpegAudioDecoder::OnDecode(Buffer* input) {
   // 2. FFmpeg didn't output anything.
   // 3. An end of stream buffer is received.
   if (result == 0 && output_buffer_size == 0 && input->IsEndOfStream()) {
-    DataBuffer* result_buffer = new DataBuffer();
+    DataBuffer* result_buffer = new DataBuffer(0);
     result_buffer->SetTimestamp(input->GetTimestamp());
     result_buffer->SetDuration(input->GetDuration());
     EnqueueResult(result_buffer);

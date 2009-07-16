@@ -7,42 +7,46 @@
 
 namespace media {
 
-DataBuffer::DataBuffer()
-    : data_(NULL),
-      buffer_size_(0),
+DataBuffer::DataBuffer(uint8* buffer, size_t buffer_size)
+    : data_(buffer),
+      buffer_size_(buffer_size),
+      data_size_(buffer_size) {
+}
+
+DataBuffer::DataBuffer(size_t buffer_size)
+    : data_(new uint8[buffer_size]),
+      buffer_size_(buffer_size),
       data_size_(0) {
+  CHECK(data_.get()) << "DataBuffer ctor failed to allocate memory";
+
+  // Prevent arbitrary pointers.
+  if (buffer_size == 0)
+    data_.reset(NULL);
 }
 
 DataBuffer::~DataBuffer() {
-  delete [] data_;
 }
 
 const uint8* DataBuffer::GetData() const {
-  return data_;
+  return data_.get();
 }
 
 size_t DataBuffer::GetDataSize() const {
   return data_size_;
 }
 
-uint8* DataBuffer::GetWritableData(size_t buffer_size) {
-  if (buffer_size > buffer_size_) {
-    delete [] data_;
-    data_ = new uint8[buffer_size];
-    if (!data_) {
-      NOTREACHED();
-      buffer_size = 0;
-    }
-    buffer_size_ = buffer_size;
-  }
-  data_size_ = buffer_size;
-  return data_;
+uint8* DataBuffer::GetWritableData() {
+  return data_.get();
 }
 
 
 void DataBuffer::SetDataSize(size_t data_size) {
   DCHECK(data_size <= buffer_size_);
   data_size_ = data_size;
+}
+
+size_t DataBuffer::GetBufferSize() const {
+  return buffer_size_;
 }
 
 }  // namespace media

@@ -102,18 +102,15 @@ class Buffer : public StreamSample {
 
 class WritableBuffer : public Buffer  {
  public:
-  // Returns a read-write pointer to the buffer data.  When this method is
-  // called, any pointers previously returned from this method are invalid, and
-  // any data previously written to the buffer is invalid.  The buffer size
-  // is guaranteed to be at least the size of |buffer_size|.  The size
-  // that the GetDataSize() method will return is set to |buffer_size|.
-  // If, after filling the buffer, the caller wants to set the size to a smaller
-  // value then they can call the SetDataSize() method.
-  virtual uint8* GetWritableData(size_t buffer_size) = 0;
+  // Returns a read-write pointer to the buffer data.
+  virtual uint8* GetWritableData() = 0;
 
   // Updates the size of valid data in bytes, which must be less than or equal
-  // to the |buffer_size| passed to GetWritableData().
+  // to GetBufferSize().
   virtual void SetDataSize(size_t data_size) = 0;
+
+  // Returns the size of the underlying buffer.
+  virtual size_t GetBufferSize() const = 0;
 };
 
 
