@@ -68,7 +68,7 @@ Scott Hess <shess@google.com>, December 11, 2007
 
 --------------------------------------------
 
-As of September 12, 2008, these are our changes from sqlite_vendor:
+As of July 10, 2009, these are our changes from sqlite_vendor:
 
  - fts2.c disables fts2_tokenizer().
  - sqlite3Poison() in src/btree.c.
@@ -103,3 +103,6 @@ Changes from Chrome:
    allows much faster performance by reading the file in one contiguous
    operation rather than bringing it in organically, which involves a lot of
    seeking.
+ - Added a new function chromium_sqlite3_initialize_win_sqlite3_file
+   at the end of os_win.c. It allows the Windows-specific Chromium VFS
+   to reuse most of the win32 SQLite VFS.
