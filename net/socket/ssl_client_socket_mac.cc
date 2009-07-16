@@ -716,8 +716,10 @@ OSStatus SSLClientSocketMac::SSLReadCallback(SSLConnectionRef connection,
 
   if (rv < 0)
     return OSStatusFromNetError(rv);
-
-  return noErr;
+  else if (rv == 0) // stream closed
+    return errSSLClosedGraceful;
+  else
+    return noErr;
 }
 
 // static
