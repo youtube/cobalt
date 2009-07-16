@@ -120,10 +120,10 @@ class FFmpegDemuxer : public Demuxer {
 
   // MediaFilter implementation.
   virtual void Stop();
-  virtual void Seek(base::TimeDelta time);
+  virtual void Seek(base::TimeDelta time, FilterCallback* callback);
 
   // Demuxer implementation.
-  virtual bool Initialize(DataSource* data_source);
+  virtual void Initialize(DataSource* data_source, FilterCallback* callback);
   virtual size_t GetNumberOfStreams();
   virtual scoped_refptr<DemuxerStream> GetStream(int stream_id);
 
@@ -134,10 +134,10 @@ class FFmpegDemuxer : public Demuxer {
   virtual ~FFmpegDemuxer();
 
   // Carries out initialization on the demuxer thread.
-  void InititalizeTask(DataSource* data_source);
+  void InititalizeTask(DataSource* data_source, FilterCallback* callback);
 
   // Carries out a seek on the demuxer thread.
-  void SeekTask(base::TimeDelta time);
+  void SeekTask(base::TimeDelta time, FilterCallback* callback);
 
   // Carries out demuxing and satisfying stream reads on the demuxer thread.
   void DemuxTask();

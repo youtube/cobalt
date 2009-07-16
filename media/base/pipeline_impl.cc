@@ -328,15 +328,6 @@ void PipelineInternal::VolumeChanged(float volume) {
       NewRunnableMethod(this, &PipelineInternal::VolumeChangedTask, volume));
 }
 
-// Called from any thread.
-void PipelineInternal::InitializationComplete(FilterHostImpl* host) {
-  if (IsPipelineOk()) {
-    // Continue the initialize task by proceeding to the next stage.
-    message_loop_->PostTask(FROM_HERE,
-        NewRunnableMethod(this, &PipelineInternal::InitializeTask));
-  }
-}
-
 // Called from any thread.  Updates the pipeline time.
 void PipelineInternal::SetTime(base::TimeDelta time) {
   // TODO(scherkus): why not post a task?
@@ -348,6 +339,19 @@ void PipelineInternal::SetTime(base::TimeDelta time) {
 void PipelineInternal::Error(PipelineError error) {
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &PipelineInternal::ErrorTask, error));
+}
+
+// Called from any thread.
+void PipelineInternal::OnFilterInitialize() {
+  // Continue the initialize task by proceeding to the next stage.
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineInternal::InitializeTask));
+}
+
+// Called from any thread.
+void PipelineInternal::OnFilterSeek() {
+  // TODO(scherkus): have PipelineInternal wait to receive replies from every
+  // filter before calling the client's |seek_callback_|.
 }
 
 void PipelineInternal::StartTask(FilterFactory* filter_factory,
@@ -383,8 +387,8 @@ void PipelineInternal::StartTask(FilterFactory* filter_factory,
 void PipelineInternal::InitializeTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  // If we have received the stop signal, return immediately.
-  if (state_ == kStopped)
+  // If we have received the stop or error signal, return immediately.
+  if (state_ == kStopped || state_ == kError)
     return;
 
   DCHECK(state_ == kCreated || IsPipelineInitializing());
@@ -551,7 +555,8 @@ void PipelineInternal::SeekTask(base::TimeDelta time,
   for (FilterHostVector::iterator iter = filter_hosts_.begin();
        iter != filter_hosts_.end();
        ++iter) {
-    (*iter)->media_filter()->Seek(time);
+    (*iter)->media_filter()->Seek(time,
+        NewCallback(this, &PipelineInternal::OnFilterSeek));
   }
 
   // TODO(hclam): we should set the time when the above seek operations were all
@@ -602,9 +607,8 @@ void PipelineInternal::CreateFilter(FilterFactory* filter_factory,
   filter_hosts_.push_back(host.release());
 
   // Now initialize the filter.
-  if (!filter->Initialize(source)) {
-    Error(PIPELINE_ERROR_INITIALIZATION_FAILED);
-  }
+  filter->Initialize(source,
+      NewCallback(this, &PipelineInternal::OnFilterInitialize));
 }
 
 void PipelineInternal::CreateDataSource() {
