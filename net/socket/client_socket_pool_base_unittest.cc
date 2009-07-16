@@ -1204,7 +1204,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingJobCompletionOrder) {
   EXPECT_EQ(&req3, request_order_[2]);
 }
 
-TEST_F(ClientSocketPoolBaseTest_LateBinding, LoadState) {
+TEST_F(ClientSocketPoolBaseTest_LateBinding, DISABLED_LoadState) {
   CreatePool(kDefaultMaxSocketsPerGroup);
   connect_job_factory_->set_job_type(
       TestConnectJob::kMockAdvancingLoadStateJob);
