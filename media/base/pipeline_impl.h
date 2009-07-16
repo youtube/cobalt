@@ -191,11 +191,6 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
   // Methods called by a FilterHostImpl object.  These methods may be called
   // on any thread, either the pipeline's thread or any other.
 
-  // When a filter calls it's FilterHost, the filter host calls back to the
-  // pipeline thread.  If the pipeline thread is running a nested message loop
-  // then it will be exited.
-  void InitializationComplete(FilterHostImpl* host);
-
   // Sets the pipeline time and schedules a task to call back to any filters
   // that have registered a time update callback.
   void SetTime(base::TimeDelta time);
@@ -244,6 +239,10 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
            state_ == kInitVideoDecoder ||
            state_ == kInitVideoRenderer;
   }
+
+  // Callback executed by filters upon completing initialization and seeking.
+  void OnFilterInitialize();
+  void OnFilterSeek();
 
   // The following "task" methods correspond to the public methods, but these
   // methods are run as the result of posting a task to the PipelineInternal's
