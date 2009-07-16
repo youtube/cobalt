@@ -23,7 +23,8 @@ void Process::Terminate(int result_code) {
 }
 
 bool Process::IsProcessBackgrounded() const {
-  DCHECK(process_);
+  if (!process_)
+    return false;  // Failure case.
   DWORD priority = GetPriorityClass(process_);
   if (priority == 0)
     return false;  // Failure case.
@@ -31,7 +32,8 @@ bool Process::IsProcessBackgrounded() const {
 }
 
 bool Process::SetProcessBackgrounded(bool value) {
-  DCHECK(process_);
+  if (!process_)
+    return false;
   DWORD priority = value ? BELOW_NORMAL_PRIORITY_CLASS : NORMAL_PRIORITY_CLASS;
   return (SetPriorityClass(process_, priority) != 0);
 }
