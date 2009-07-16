@@ -92,9 +92,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
     stream_.codec = &codec_context_;
     codec_context_.width = kWidth;
     codec_context_.height = kHeight;
-    buffer_ = new DataBuffer();
-    buffer_->GetWritableData(1);
-    end_of_stream_buffer_ = new DataBuffer();
+    buffer_ = new DataBuffer(1);
+    end_of_stream_buffer_ = new DataBuffer(0);
 
     // Initialize MockFFmpeg.
     MockFFmpeg::set(&mock_ffmpeg_);
@@ -352,7 +351,7 @@ TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
   EXPECT_EQ(116, result_pts.timestamp.InMicroseconds());
   EXPECT_EQ(500000, result_pts.duration.InMicroseconds());
 
-  // Test that having pts == 0 in the frame also behaves like the pts is not 
+  // Test that having pts == 0 in the frame also behaves like the pts is not
   // provided.  This is because FFmpeg set the pts to zero when there is no
   // data for the frame, which means that value is useless to us.
   yuv_frame_.pts = 0;
@@ -499,7 +498,6 @@ TEST_F(FFmpegVideoDecoderTest, OnDecode_EnqueueVideoFrameError) {
   EXPECT_CALL(mock_ffmpeg_, AVFree(&yuv_frame_));
 
   // Attempt the decode.
-  buffer_->GetWritableData(1);
   mock_decoder->codec_context_ = &codec_context_;
   mock_decoder->OnDecode(buffer_);
 }
