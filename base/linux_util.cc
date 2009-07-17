@@ -59,4 +59,14 @@ std::string GetLinuxDistro() {
   return linux_distro;
 }
 
+bool UseGnomeForSettings() {
+  // GNOME_DESKTOP_SESSION_ID being defined is a good indication that
+  // we are probably running under GNOME.
+  // Note: KDE_FULL_SESSION is a corresponding env var to recognize KDE.
+  char* desktop_session;
+  return (getenv("GNOME_DESKTOP_SESSION_ID") ||
+          ((desktop_session = getenv("DESKTOP_SESSION")) &&
+           std::string(desktop_session) == "gnome"));
+}
+
 }  // namespace base

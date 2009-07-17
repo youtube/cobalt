@@ -20,6 +20,12 @@ uint8_t* BGRAToRGBA(const uint8_t* pixels, int width, int height, int stride);
 // GetWinVersion() in base/win_util.h.
 std::string GetLinuxDistro();
 
+// Return true if we appear to be running under Gnome and should attempt to use
+// some prefrences from the desktop environment (eg proxy settings),
+// If someone adds support for other environments, this function could be
+// replaced with one that returns an enum so we an specify Gnome, KDE, etc.
+bool UseGnomeForSettings();
+
 }  // namespace base
 
 #endif  // BASE_LINUX_UTIL_H__
