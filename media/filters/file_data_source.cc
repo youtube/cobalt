@@ -34,7 +34,7 @@ void FileDataSource::Initialize(const std::string& url,
   }
   if (!file_) {
     file_size_ = 0;
-    host()->Error(PIPELINE_ERROR_URL_NOT_FOUND);
+    host()->SetError(PIPELINE_ERROR_URL_NOT_FOUND);
     callback->Run();
     return;
   }

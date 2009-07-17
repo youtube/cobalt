@@ -179,10 +179,10 @@ TEST_F(PipelineImplTest, NotStarted) {
   EXPECT_EQ(1.0f, pipeline_.GetVolume());
   pipeline_.SetVolume(-1.0f);
   EXPECT_EQ(1.0f, pipeline_.GetVolume());
-  pipeline_.SetVolume(1.0f);
-  EXPECT_EQ(1.0f, pipeline_.GetVolume());
+  pipeline_.SetVolume(0.0f);
+  EXPECT_EQ(0.0f, pipeline_.GetVolume());
 
-  EXPECT_TRUE(kZero == pipeline_.GetTime());
+  EXPECT_TRUE(kZero == pipeline_.GetCurrentTime());
   EXPECT_TRUE(kZero == pipeline_.GetBufferedTime());
   EXPECT_TRUE(kZero == pipeline_.GetDuration());
 
@@ -233,8 +233,8 @@ TEST_F(PipelineImplTest, RequiredFilterMissing) {
 
 TEST_F(PipelineImplTest, URLNotFound) {
   EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
-      .WillOnce(DoAll(Error(mocks_->data_source(),
-                            PIPELINE_ERROR_URL_NOT_FOUND),
+      .WillOnce(DoAll(SetError(mocks_->data_source(),
+                               PIPELINE_ERROR_URL_NOT_FOUND),
                       Invoke(&RunFilterCallback)));
   EXPECT_CALL(*mocks_->data_source(), Stop());
 

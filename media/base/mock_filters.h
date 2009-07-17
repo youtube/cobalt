@@ -332,9 +332,9 @@ void RunFilterCallback(::testing::Unused, FilterCallback* callback);
 // methods.
 void DestroyFilterCallback(::testing::Unused, FilterCallback* callback);
 
-// Helper gmock action that calls Error() on behalf of the provided filter.
-ACTION_P2(Error, filter, error) {
-  filter->host()->Error(error);
+// Helper gmock action that calls SetError() on behalf of the provided filter.
+ACTION_P2(SetError, filter, error) {
+  filter->host()->SetError(error);
 }
 
 }  // namespace media
