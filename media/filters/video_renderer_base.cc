@@ -107,7 +107,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   int width = 0;
   int height = 0;
   if (!ParseMediaFormat(decoder->media_format(), &width, &height)) {
-    host()->Error(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
     initialize_callback_->Run();
     initialize_callback_.reset();
     return;
@@ -118,7 +118,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // TODO(scherkus): do we trust subclasses not to do something silly while
   // we're holding the lock?
   if (!OnInitialize(decoder)) {
-    host()->Error(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
     initialize_callback_->Run();
     initialize_callback_.reset();
     return;
@@ -127,7 +127,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   // Create our video thread.
   if (!PlatformThread::Create(0, this, &thread_)) {
     NOTREACHED() << "Video thread creation failed";
-    host()->Error(PIPELINE_ERROR_INITIALIZATION_FAILED);
+    host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
     initialize_callback_->Run();
     initialize_callback_.reset();
     return;
@@ -262,7 +262,7 @@ void VideoRendererBase::OnReadComplete(VideoFrame* frame) {
       // We should have initialized but there's no decoded frames in the queue.
       // Raise an error.
       state_ = ERRORED;
-      host()->Error(PIPELINE_ERROR_NO_DATA);
+      host()->SetError(PIPELINE_ERROR_NO_DATA);
       initialize_callback_->Run();
       initialize_callback_.reset();
     } else {

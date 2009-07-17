@@ -91,7 +91,7 @@ TEST_F(VideoRendererBaseTest, Initialize_BadMediaFormat) {
   scoped_refptr<MockVideoDecoder> bad_decoder = new MockVideoDecoder();
 
   // We expect to receive an error.
-  EXPECT_CALL(host_, Error(PIPELINE_ERROR_INITIALIZATION_FAILED));
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_INITIALIZATION_FAILED));
 
   // We expect our callback to be executed.
   EXPECT_CALL(callback_, OnFilterCallback());
@@ -114,7 +114,7 @@ TEST_F(VideoRendererBaseTest, Initialize_Failed) {
       .WillOnce(Return(false));
 
   // We expect to receive an error.
-  EXPECT_CALL(host_, Error(PIPELINE_ERROR_INITIALIZATION_FAILED));
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_INITIALIZATION_FAILED));
 
   // We expect our callback to be executed.
   EXPECT_CALL(callback_, OnFilterCallback());
@@ -141,7 +141,7 @@ TEST_F(VideoRendererBaseTest, Initialize_NoData) {
   EXPECT_CALL(*renderer_, CheckPoint(0));
 
   // We'll provide end-of-stream immediately, which results in an error.
-  EXPECT_CALL(host_, Error(PIPELINE_ERROR_NO_DATA));
+  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_NO_DATA));
 
   // Then we expect our callback to be executed.
   EXPECT_CALL(callback_, OnFilterCallback());

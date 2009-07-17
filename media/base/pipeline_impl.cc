@@ -170,7 +170,7 @@ void PipelineImpl::SetVolume(float volume) {
   }
 }
 
-base::TimeDelta PipelineImpl::GetTime() const {
+base::TimeDelta PipelineImpl::GetCurrentTime() const {
   AutoLock auto_lock(lock_);
   return time_;
 }
@@ -336,7 +336,7 @@ void PipelineInternal::SetTime(base::TimeDelta time) {
 
 // Called from any thread.  Sets the pipeline |error_| member and destroys all
 // filters.
-void PipelineInternal::Error(PipelineError error) {
+void PipelineInternal::SetError(PipelineError error) {
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &PipelineInternal::ErrorTask, error));
 }
@@ -444,7 +444,7 @@ void PipelineInternal::InitializeTask() {
 
   if (state_ == kInitVideoRenderer) {
     if (!IsPipelineOk() || pipeline_->rendered_mime_types_.empty()) {
-      Error(PIPELINE_ERROR_COULD_NOT_RENDER);
+      SetError(PIPELINE_ERROR_COULD_NOT_RENDER);
       return;
     }
 
@@ -583,7 +583,7 @@ void PipelineInternal::CreateFilter(FilterFactory* filter_factory,
   // Create the filter.
   scoped_refptr<Filter> filter = filter_factory->Create<Filter>(media_format);
   if (!filter) {
-    Error(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
+    SetError(PIPELINE_ERROR_REQUIRED_FILTER_MISSING);
     return;
   }
 
@@ -592,7 +592,7 @@ void PipelineInternal::CreateFilter(FilterFactory* filter_factory,
     scoped_ptr<base::Thread> thread(new base::Thread(GetThreadName<Filter>()));
     if (!thread.get() || !thread->Start()) {
       NOTREACHED() << "Could not start filter thread";
-      Error(PIPELINE_ERROR_INITIALIZATION_FAILED);
+      SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
       return;
     }
 
