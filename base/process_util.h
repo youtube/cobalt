@@ -135,8 +135,8 @@ bool LaunchApp(const std::wstring& cmdline,
 // As above, if wait is true, execute synchronously. The pid will be stored
 // in process_handle if that pointer is non-null.
 //
-// Note that the first argument in argv must point to the filename,
-// and must be fully specified.
+// Note that the first argument in argv must point to the executable filename.
+// If the filename is not fully specified, PATH will be searched.
 typedef std::vector<std::pair<int, int> > file_handle_mapping_vector;
 bool LaunchApp(const std::vector<std::string>& argv,
                const file_handle_mapping_vector& fds_to_remap,
