@@ -7,6 +7,7 @@
 #include <gconf/gconf-client.h>
 #include <stdlib.h>
 
+#include "base/linux_util.h"
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
@@ -535,13 +536,6 @@ ProxyConfigServiceLinux::Delegate::Delegate(
 }
 
 bool ProxyConfigServiceLinux::Delegate::ShouldTryGConf() {
-  // GNOME_DESKTOP_SESSION_ID being defined is a good indication that
-  // we are probably running under GNOME.
-  // Note: KDE_FULL_SESSION is a corresponding env var to recognize KDE.
-  std::string dummy, desktop_session;
-  return env_var_getter_->Getenv("GNOME_DESKTOP_SESSION_ID", &dummy)
-      || (env_var_getter_->Getenv("DESKTOP_SESSION", &desktop_session)
-          && desktop_session == "gnome");
   // I (sdoyon) would have liked to prioritize environment variables
   // and only fallback to gconf if env vars were unset. But
   // gnome-terminal "helpfully" sets http_proxy and no_proxy, and it
@@ -549,6 +543,7 @@ bool ProxyConfigServiceLinux::Delegate::ShouldTryGConf() {
   // mislead us.
   //
   // We could introduce a CHROME_PROXY_OBEY_ENV_VARS variable...??
+  return base::UseGnomeForSettings();
 }
 
 void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
