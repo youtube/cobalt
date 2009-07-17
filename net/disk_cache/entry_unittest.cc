@@ -39,6 +39,7 @@ class DiskCacheEntryTest : public DiskCacheTestWithCache {
   void HugeSparseIO(bool async);
   void GetAvailableRange();
   void DoomSparseEntry();
+  void PartialSparseEntry();
 };
 
 void DiskCacheEntryTest::InternalSyncIO() {
@@ -1184,4 +1185,120 @@ TEST_F(DiskCacheEntryTest, DISABLED_MemoryOnlyDoomSparseEntry) {
   SetMemoryOnlyMode();
   InitCache();
   DoomSparseEntry();
+}
+
+void DiskCacheEntryTest::PartialSparseEntry() {
+  std::string key("the first key");
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache_->CreateEntry(key, &entry));
+
+  // We should be able to deal with IO that is not aligned to the block size
+  // of a sparse entry, at least to write a big range without leaving holes.
+  const int kSize = 4 * 1024;
+  scoped_refptr<net::IOBuffer> buf1 = new net::IOBuffer(kSize);
+  CacheTestFillBuffer(buf1->data(), kSize, false);
+
+  // The first write is just to extend the entry.
+  EXPECT_EQ(kSize, entry->WriteSparseData(20000, buf1, kSize, NULL));
+  EXPECT_EQ(kSize, entry->WriteSparseData(500, buf1, kSize, NULL));
+  entry->Close();
+  ASSERT_TRUE(cache_->OpenEntry(key, &entry));
+
+  scoped_refptr<net::IOBuffer> buf2 = new net::IOBuffer(kSize);
+  memset(buf2->data(), 0, kSize);
+  EXPECT_EQ(0, entry->ReadSparseData(8000, buf2, kSize, NULL));
+
+  EXPECT_EQ(500, entry->ReadSparseData(kSize, buf2, kSize, NULL));
+  EXPECT_EQ(0, memcmp(buf2->data(), buf1->data() + kSize - 500, 500));
+  EXPECT_EQ(0, entry->ReadSparseData(0, buf2, kSize, NULL));
+
+  // This read should not change anything.
+  EXPECT_EQ(96, entry->ReadSparseData(24000, buf2, kSize, NULL));
+  EXPECT_EQ(500, entry->ReadSparseData(kSize, buf2, kSize, NULL));
+  EXPECT_EQ(0, entry->ReadSparseData(499, buf2, kSize, NULL));
+
+  int64 start;
+  if (memory_only_) {
+    EXPECT_EQ(100, entry->GetAvailableRange(0, 600, &start));
+    EXPECT_EQ(500, start);
+  } else {
+    EXPECT_EQ(1024, entry->GetAvailableRange(0, 2048, &start));
+    EXPECT_EQ(1024, start);
+  }
+  EXPECT_EQ(500, entry->GetAvailableRange(kSize, kSize, &start));
+  EXPECT_EQ(kSize, start);
+  EXPECT_EQ(3616, entry->GetAvailableRange(20 * 1024, 10000, &start));
+  EXPECT_EQ(20 * 1024, start);
+
+  // Now make another write and verify that there is no hole in between.
+  EXPECT_EQ(kSize, entry->WriteSparseData(500 + kSize, buf1, kSize, NULL));
+  EXPECT_EQ(7 * 1024 + 500, entry->GetAvailableRange(1024, 10000, &start));
+  EXPECT_EQ(1024, start);
+  EXPECT_EQ(kSize, entry->ReadSparseData(kSize, buf2, kSize, NULL));
+  EXPECT_EQ(0, memcmp(buf2->data(), buf1->data() + kSize - 500, 500));
+  EXPECT_EQ(0, memcmp(buf2->data() + 500, buf1->data(), kSize - 500));
+
+  entry->Close();
+}
+
+TEST_F(DiskCacheEntryTest, PartialSparseEntry) {
+  InitCache();
+  PartialSparseEntry();
+}
+
+TEST_F(DiskCacheEntryTest, MemoryPartialSparseEntry) {
+  SetMemoryOnlyMode();
+  InitCache();
+  PartialSparseEntry();
+}
+
+TEST_F(DiskCacheEntryTest, CleanupSparseEntry) {
+  InitCache();
+  std::string key("the first key");
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache_->CreateEntry(key, &entry));
+
+  // Corrupt sparse children should be removed automatically.
+  const int kSize = 4 * 1024;
+  scoped_refptr<net::IOBuffer> buf1 = new net::IOBuffer(kSize);
+  CacheTestFillBuffer(buf1->data(), kSize, false);
+
+  const int k1Meg = 1024 * 1024;
+  EXPECT_EQ(kSize, entry->WriteSparseData(8192, buf1, kSize, NULL));
+  EXPECT_EQ(kSize, entry->WriteSparseData(k1Meg + 8192, buf1, kSize, NULL));
+  EXPECT_EQ(kSize, entry->WriteSparseData(2 * k1Meg + 8192, buf1, kSize, NULL));
+  entry->Close();
+  EXPECT_EQ(4, cache_->GetEntryCount());
+
+  void* iter = NULL;
+  int count = 0;
+  std::string child_key[2];
+  while (cache_->OpenNextEntry(&iter, &entry)) {
+    ASSERT_TRUE(entry != NULL);
+    // Writing to an entry will alter the LRU list and invalidate the iterator.
+    if (entry->GetKey() != key && count < 2)
+      child_key[count++] = entry->GetKey();
+    entry->Close();
+  }
+  for (int i = 0; i < 2; i++) {
+    ASSERT_TRUE(cache_->OpenEntry(child_key[i], &entry));
+    // Overwrite the header's magic and signature.
+    EXPECT_EQ(12, entry->WriteData(2, 0, buf1, 12, NULL, false));
+    entry->Close();
+  }
+
+  EXPECT_EQ(4, cache_->GetEntryCount());
+  ASSERT_TRUE(cache_->OpenEntry(key, &entry));
+
+  // Two children should be gone. One while reading and one while writing.
+  EXPECT_EQ(0, entry->ReadSparseData(2 * k1Meg + 8192, buf1, kSize, NULL));
+  EXPECT_EQ(kSize, entry->WriteSparseData(k1Meg + 16384, buf1, kSize, NULL));
+  EXPECT_EQ(0, entry->ReadSparseData(k1Meg + 8192, buf1, kSize, NULL));
+
+  // We never touched this one.
+  EXPECT_EQ(kSize, entry->ReadSparseData(8192, buf1, kSize, NULL));
+  entry->Close();
+
+  // We re-created one of the corrupt children.
+  EXPECT_EQ(3, cache_->GetEntryCount());
 }

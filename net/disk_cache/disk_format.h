@@ -233,11 +233,16 @@ COMPILE_ASSERT(sizeof(BlockFileHeader) == kBlockHeaderSize, bad_header);
 
 // This structure contains the control information for parent and child entries.
 // It is stored at offset 0 of the data stream with index 2.
+// It is possible to write to a child entry in a way that causes the last block
+// to be only partialy filled. In that case, last_block and last_block_len will
+// keep track of that block.
 struct SparseHeader {
   int64 signature;          // The parent and children signature.
   uint32 magic;             // Structure identifier (equal to kIndexMagic).
   int32 parent_key_len;     // Key length for the parent entry.
-  int32 dummy[4];
+  int32 last_block;         // Index of the last written block.
+  int32 last_block_len;     // Lenght of the last written block.
+  int32 dummy[10];
 };
 
 // The SparseHeader will be followed by a bitmap, as described by this
