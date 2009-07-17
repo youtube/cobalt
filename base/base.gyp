@@ -655,6 +655,7 @@
         'sys_info_unittest.cc',
         'sys_string_conversions_unittest.cc',
         'system_monitor_unittest.cc',
+        'task_unittest.cc',
         'thread_collision_warner_unittest.cc',
         'thread_local_storage_unittest.cc',
         'thread_local_unittest.cc',
