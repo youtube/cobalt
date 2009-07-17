@@ -30,6 +30,10 @@ const wchar_t kProcessType[]                   = L"type";
 // Enable DCHECKs in release mode.
 const wchar_t kEnableDCHECK[]                  = L"enable-dcheck";
 
+// Disable win_util::MessageBox.  This is useful when running as part of
+// scripts that do not have a user interface.
+const wchar_t kNoMessageBox[]                  = L"no-message-box";
+
 // Refuse to make HTTP connections and refuse to accept certificate errors.
 // For more information about the design of this feature, please see
 //
