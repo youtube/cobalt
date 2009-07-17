@@ -394,6 +394,7 @@ void Rankings::Remove(CacheRankingsBlock* node, List list) {
 // entry. Otherwise we'll need reentrant transactions, which is an overkill.
 void Rankings::UpdateRank(CacheRankingsBlock* node, bool modified, List list) {
   Time start = Time::Now();
+  NotAnIterator(node);
   Remove(node, list);
   Insert(node, modified, list);
   CACHE_UMA(AGE_MS, "UpdateRank", 0, start);
@@ -751,6 +752,19 @@ void Rankings::UpdateIterators(CacheRankingsBlock* node) {
       other->Data()->next = node->Data()->next;
       other->Data()->prev = node->Data()->prev;
     }
+  }
+}
+
+void Rankings::NotAnIterator(CacheRankingsBlock* node) {
+#ifdef NDEBUG
+  // This method is only enabled for debug builds.
+  return;
+#endif
+  CacheAddr address = node->address().value();
+  for (IteratorList::iterator it = iterators_.begin(); it != iterators_.end();
+       ++it) {
+    if (it->first == address)
+      NOTREACHED();
   }
 }
 

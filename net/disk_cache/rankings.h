@@ -95,7 +95,7 @@ class Rankings {
     List list;                     // Which entry was returned to the user.
     CacheRankingsBlock* nodes[3];  // Nodes on the first three lists.
     Rankings* my_rankings;
-    Iterator(Rankings* rankings) {
+    explicit Iterator(Rankings* rankings) {
       memset(this, 0, sizeof(Iterator));
       my_rankings = rankings;
     }
@@ -176,6 +176,9 @@ class Rankings {
 
   // Updates the iterators whenever node is being changed.
   void UpdateIterators(CacheRankingsBlock* node);
+
+  // Verifies that no iterator gets invalidated by changing a node.
+  void NotAnIterator(CacheRankingsBlock* node);
 
   // Keeps track of the number of entries on a list.
   void IncrementCounter(List list);
