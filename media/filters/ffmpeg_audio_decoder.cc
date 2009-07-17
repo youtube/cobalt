@@ -108,6 +108,7 @@ void FFmpegAudioDecoder::OnDecode(Buffer* input) {
   // If we have decoded something, enqueue the result.
   if (output_buffer_size) {
     DataBuffer* result_buffer = new DataBuffer(output_buffer_size);
+    result_buffer->SetDataSize(output_buffer_size);
     uint8* data = result_buffer->GetWritableData();
     memcpy(data, output_buffer, output_buffer_size);
 
