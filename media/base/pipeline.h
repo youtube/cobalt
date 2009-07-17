@@ -81,7 +81,8 @@ class Pipeline {
   // Attempt to seek to the position specified by time.  |seek_callback| will be
   // executed when the all filters in the pipeline have processed the seek.
   //
-  // Clients are expected to call GetTime() to check whether the seek succeeded.
+  // Clients are expected to call GetCurrentTime() to check whether the seek
+  // succeeded.
   virtual void Seek(base::TimeDelta time, PipelineCallback* seek_callback) = 0;
 
   // Returns true if the pipeline has been started via Start().  If IsRunning()
@@ -125,7 +126,7 @@ class Pipeline {
 
   // Gets the current pipeline time. For a pipeline "time" progresses from 0 to
   // the end of the media.
-  virtual base::TimeDelta GetTime() const = 0;
+  virtual base::TimeDelta GetCurrentTime() const = 0;
 
   // Get the approximate amount of playable data buffered so far in micro-
   // seconds.

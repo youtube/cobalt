@@ -313,7 +313,7 @@ void FFmpegDemuxer::InititalizeTask(DataSource* data_source,
   FFmpegGlue::get()->RemoveDataSource(data_source);
 
   if (result < 0) {
-    host()->Error(DEMUXER_ERROR_COULD_NOT_OPEN);
+    host()->SetError(DEMUXER_ERROR_COULD_NOT_OPEN);
     callback->Run();
     return;
   }
@@ -328,7 +328,7 @@ void FFmpegDemuxer::InititalizeTask(DataSource* data_source,
     // Fully initialize AVFormatContext by parsing the stream a little.
     result = av_find_stream_info(format_context_);
     if (result < 0) {
-      host()->Error(DEMUXER_ERROR_COULD_NOT_PARSE);
+      host()->SetError(DEMUXER_ERROR_COULD_NOT_PARSE);
       callback->Run();
       return;
     }
@@ -351,7 +351,7 @@ void FFmpegDemuxer::InititalizeTask(DataSource* data_source,
     }
   }
   if (streams_.empty()) {
-    host()->Error(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+    host()->SetError(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     callback->Run();
     return;
   }

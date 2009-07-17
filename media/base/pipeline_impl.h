@@ -45,7 +45,7 @@ class PipelineImpl : public Pipeline {
   virtual void SetPlaybackRate(float playback_rate);
   virtual float GetVolume() const;
   virtual void SetVolume(float volume);
-  virtual base::TimeDelta GetTime() const;
+  virtual base::TimeDelta GetCurrentTime() const;
   virtual base::TimeDelta GetBufferedTime() const;
   virtual base::TimeDelta GetDuration() const;
   virtual int64 GetBufferedBytes() const;
@@ -195,9 +195,10 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
   // that have registered a time update callback.
   void SetTime(base::TimeDelta time);
 
-  // Called by a FilterHostImpl on behalf of a filter calling FilterHost::Error.
-  // If the pipeline is running a nested message loop, it will be exited.
-  void Error(PipelineError error);
+  // Called by a FilterHostImpl on behalf of a filter calling
+  // FilterHost::SetError().  If the pipeline is running a nested message loop,
+  // it will be exited.
+  void SetError(PipelineError error);
 
   // Simple accessor used by the FilterHostImpl class to get access to the
   // pipeline object.
@@ -263,7 +264,7 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
   //   - StopTask() resets the pipeline to a fresh state, where as ErrorTask()
   //     leaves the pipeline as is for client inspection.
   //   - StopTask() can be scheduled by the client calling Stop(), where as
-  //     ErrorTask() is scheduled as a result of a filter calling Error().
+  //     ErrorTask() is scheduled as a result of a filter calling SetError().
   void StopTask(PipelineCallback* stop_callback);
   void ErrorTask(PipelineError error);
 

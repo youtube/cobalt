@@ -197,7 +197,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_OpenFails) {
   // Simulate av_open_input_file() failing.
   EXPECT_CALL(*MockFFmpeg::get(), AVOpenInputFile(_, _, NULL, 0, NULL))
       .WillOnce(Return(-1));
-  EXPECT_CALL(host_, Error(DEMUXER_ERROR_COULD_NOT_OPEN));
+  EXPECT_CALL(host_, SetError(DEMUXER_ERROR_COULD_NOT_OPEN));
   EXPECT_CALL(callback_, OnFilterCallback());
   EXPECT_CALL(callback_, OnCallbackDestroyed());
 
@@ -212,7 +212,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_ParseFails) {
   EXPECT_CALL(*MockFFmpeg::get(), AVFindStreamInfo(&format_context_))
       .WillOnce(Return(AVERROR_IO));
   EXPECT_CALL(*MockFFmpeg::get(), AVCloseInputFile(&format_context_));
-  EXPECT_CALL(host_, Error(DEMUXER_ERROR_COULD_NOT_PARSE));
+  EXPECT_CALL(host_, SetError(DEMUXER_ERROR_COULD_NOT_PARSE));
   EXPECT_CALL(callback_, OnFilterCallback());
   EXPECT_CALL(callback_, OnCallbackDestroyed());
 
@@ -226,7 +226,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_NoStreams) {
     SCOPED_TRACE("");
     InitializeDemuxerMocks();
   }
-  EXPECT_CALL(host_, Error(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
+  EXPECT_CALL(host_, SetError(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   EXPECT_CALL(callback_, OnFilterCallback());
   EXPECT_CALL(callback_, OnCallbackDestroyed());
   format_context_.nb_streams = 0;
@@ -241,7 +241,7 @@ TEST_F(FFmpegDemuxerTest, Initialize_DataStreamOnly) {
     SCOPED_TRACE("");
     InitializeDemuxerMocks();
   }
-  EXPECT_CALL(host_, Error(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
+  EXPECT_CALL(host_, SetError(DEMUXER_ERROR_NO_SUPPORTED_STREAMS));
   EXPECT_CALL(callback_, OnFilterCallback());
   EXPECT_CALL(callback_, OnCallbackDestroyed());
   EXPECT_EQ(format_context_.streams[0], &streams_[AV_STREAM_DATA]);
