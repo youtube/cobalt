@@ -37,6 +37,9 @@ class MimeUtil : public PlatformMimeUtil {
   bool MatchesMimeType(const std::string &mime_type_pattern,
                        const std::string &mime_type) const;
 
+  void ParseCodecString(const std::string& codecs,
+                        std::vector<std::string>* codecs_out);
+
  private:
   friend struct DefaultSingletonTraits<MimeUtil>;
   MimeUtil() {
@@ -337,6 +340,22 @@ bool MimeUtil::MatchesMimeType(const std::string &mime_type_pattern,
   return true;
 }
 
+void MimeUtil::ParseCodecString(const std::string& codecs,
+                                std::vector<std::string>* codecs_out) {
+  std::string no_quote_codecs;
+  TrimString(codecs, "\"", &no_quote_codecs);
+  SplitString(no_quote_codecs, ',', codecs_out);
+
+  // Truncate each string at the '.'
+  for (std::vector<std::string>::iterator it = codecs_out->begin();
+       it != codecs_out->end();
+       ++it) {
+    size_t found = it->find_first_of('.');
+    if (found != std::string::npos)
+      it->resize(found);
+  }
+}
+
 //----------------------------------------------------------------------------
 // Wrappers for the singleton
 //----------------------------------------------------------------------------
@@ -386,6 +405,11 @@ bool IsSupportedMimeType(const std::string& mime_type) {
 bool MatchesMimeType(const std::string &mime_type_pattern,
                      const std::string &mime_type) {
   return GetMimeUtil()->MatchesMimeType(mime_type_pattern, mime_type);
+}
+
+void ParseCodecString(const std::string& codecs,
+                      std::vector<std::string>* codecs_out) {
+  GetMimeUtil()->ParseCodecString(codecs, codecs_out);
 }
 
 }  // namespace net
