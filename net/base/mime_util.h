@@ -6,6 +6,7 @@
 #define NET_BASE_MIME_UTIL_H__
 
 #include <string>
+#include <vector>
 
 #include "base/file_path.h"
 
@@ -44,6 +45,13 @@ bool IsSupportedMimeType(const std::string& mime_type);
 // lower case.
 bool MatchesMimeType(const std::string &mime_type_pattern,
                      const std::string &mime_type);
+
+// Parses a codec string, populating |codecs_out| with the prefix of each codec
+// in the string |codecs_in|. For example, passed "aaa.b.c,dd.eee", |codecs_out|
+// will contain {"aaa", "dd"}.
+// See http://www.ietf.org/rfc/rfc4281.txt.
+void ParseCodecString(const std::string& codecs,
+                      std::vector<std::string>* codecs_out);
 
 }  // namespace net
 
