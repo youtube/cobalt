@@ -27,6 +27,12 @@ const int kSparseData = 1;
 // We can have up to 64k children.
 const int kMaxMapSize = 8 * 1024;
 
+// The maximum number of bytes that a child can store.
+const int kMaxEntrySize = 0x100000;
+
+// The size of each data block (tracked by the child allocation bitmap).
+const int kBlockSize = 1024;
+
 // Returns the name of of a child entry given the base_name and signature of the
 // parent and the child_id.
 // If the entry is called entry_name, child entries will be named something
@@ -124,7 +130,7 @@ void ChildrenDeleter::DeleteChildren() {
       this, &ChildrenDeleter::DeleteChildren));
 }
 
-}
+}  // namespace.
 
 namespace disk_cache {
 
@@ -336,44 +342,32 @@ bool SparseControl::OpenChild() {
 
   // Se if we are tracking this child.
   bool child_present = ChildPresent();
-  if (!child_present) {
-    if (kReadOperation == operation_)
-      return false;
-    if (kGetRangeOperation == operation_)
-      return true;
-  }
-
-  if (!child_present || !entry_->backend_->OpenEntry(key, &child_)) {
-    if (!entry_->backend_->CreateEntry(key, &child_)) {
-      child_ = NULL;
-      result_ = net::ERR_CACHE_READ_FAILURE;
-      return false;
-    }
-    // Write signature.
-    InitChildData();
-    return true;
-  }
+  if (!child_present || !entry_->backend_->OpenEntry(key, &child_))
+    return ContinueWithoutChild(key);
 
   EntryImpl* child = static_cast<EntryImpl*>(child_);
-  if (!(CHILD_ENTRY & child->GetEntryFlags())) {
-    result_ = net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
-    return false;
-  }
+  if (!(CHILD_ENTRY & child->GetEntryFlags()) ||
+      child->GetDataSize(kSparseIndex) <
+          static_cast<int>(sizeof(child_data_)))
+    return KillChildAndContinue(key, false);
 
   scoped_refptr<net::WrappedIOBuffer> buf =
       new net::WrappedIOBuffer(reinterpret_cast<char*>(&child_data_));
 
   // Read signature.
   int rv = child_->ReadData(kSparseIndex, 0, buf, sizeof(child_data_), NULL);
-  if (rv != sizeof(child_data_)) {
-    result_ = net::ERR_CACHE_READ_FAILURE;
-    return false;
-  }
+  if (rv != sizeof(child_data_))
+    return KillChildAndContinue(key, true);  // This is a fatal failure.
 
-  // TODO(rvargas): Proper error handling and check magic etc.
-  if (child_data_.header.signature != sparse_header_.signature) {
-    result_ = net::ERR_CACHE_READ_FAILURE;
-    return false;
+  if (child_data_.header.signature != sparse_header_.signature ||
+      child_data_.header.magic != kIndexMagic)
+    return KillChildAndContinue(key, false);
+
+  if (child_data_.header.last_block_len < 0 ||
+      child_data_.header.last_block_len > kBlockSize) {
+    // Make sure this values are always within range.
+    child_data_.header.last_block_len = 0;
+    child_data_.header.last_block = -1;
   }
 
   return true;
@@ -397,6 +391,36 @@ std::string SparseControl::GenerateChildKey() {
                            offset_ >> 20);
 }
 
+// We are deleting the child because something went wrong.
+bool SparseControl::KillChildAndContinue(const std::string& key, bool fatal) {
+  SetChildBit(false);
+  child_->Doom();
+  child_->Close();
+  child_ = NULL;
+  if (fatal) {
+    result_ = net::ERR_CACHE_READ_FAILURE;
+    return false;
+  }
+  return ContinueWithoutChild(key);
+}
+
+// We were not able to open this child; see what we can do.
+bool SparseControl::ContinueWithoutChild(const std::string& key) {
+  if (kReadOperation == operation_)
+    return false;
+  if (kGetRangeOperation == operation_)
+    return true;
+
+  if (!entry_->backend_->CreateEntry(key, &child_)) {
+    child_ = NULL;
+    result_ = net::ERR_CACHE_READ_FAILURE;
+    return false;
+  }
+  // Write signature.
+  InitChildData();
+  return true;
+}
+
 bool SparseControl::ChildPresent() {
   int child_bit = static_cast<int>(offset_ >> 20);
   if (children_map_.Size() <= child_bit)
@@ -405,14 +429,14 @@ bool SparseControl::ChildPresent() {
   return children_map_.Get(child_bit);
 }
 
-void SparseControl::SetChildBit() {
+void SparseControl::SetChildBit(bool value) {
   int child_bit = static_cast<int>(offset_ >> 20);
 
   // We may have to increase the bitmap of child entries.
   if (children_map_.Size() <= child_bit)
     children_map_.Resize(Bitmap::RequiredArraySize(child_bit + 1) * 32, true);
 
-  children_map_.Set(child_bit, true);
+  children_map_.Set(child_bit, value);
 }
 
 void SparseControl::WriteSparseData() {
@@ -430,8 +454,8 @@ void SparseControl::WriteSparseData() {
 bool SparseControl::VerifyRange() {
   DCHECK_GE(result_, 0);
 
-  child_offset_ = static_cast<int>(offset_) & 0xfffff;
-  child_len_ = std::min(buf_len_, 0x100000 - child_offset_);
+  child_offset_ = static_cast<int>(offset_) & (kMaxEntrySize - 1);
+  child_len_ = std::min(buf_len_, kMaxEntrySize - child_offset_);
 
   // We can write to (or get info from) anywhere in this child.
   if (operation_ != kReadOperation)
@@ -442,12 +466,23 @@ bool SparseControl::VerifyRange() {
   int start = child_offset_ >> 10;
   if (child_map_.FindNextBit(&start, last_bit, false)) {
     // Something is not here.
-    if (start == child_offset_ >> 10)
-      return false;
+    DCHECK_GE(child_data_.header.last_block_len, 0);
+    DCHECK_LT(child_data_.header.last_block_len, kMaxEntrySize);
+    int partial_block_len = PartialBlockLength(start);
+    if (start == child_offset_ >> 10) {
+      // It looks like we don't have anything.
+      if (partial_block_len <= (child_offset_ & (kBlockSize - 1)))
+        return false;
+    }
 
     // We have the first part.
-    // TODO(rvargas): Avoid coming back here again after the actual read.
     child_len_ = (start << 10) - child_offset_;
+    if (partial_block_len) {
+      // We may have a few extra bytes.
+      child_len_ = std::min(child_len_ + partial_block_len, buf_len_);
+    }
+    // There is no need to read more after this one.
+    buf_len_ = child_len_;
   }
   return true;
 }
@@ -456,12 +491,43 @@ void SparseControl::UpdateRange(int result) {
   if (result <= 0 || operation_ != kWriteOperation)
     return;
 
-  // Write the bitmap.
-  int last_bit = (child_offset_ + result + 1023) >> 10;
-  child_map_.SetRange(child_offset_ >> 10, last_bit, true);
+  DCHECK_GE(child_data_.header.last_block_len, 0);
+  DCHECK_LT(child_data_.header.last_block_len, kMaxEntrySize);
 
-  // TODO(rvargas): Keep track of partial writes so that we don't consider the
-  // whole block to be present.
+  // Write the bitmap.
+  int first_bit = child_offset_ >> 10;
+  int block_offset = child_offset_ & (kBlockSize - 1);
+  if (block_offset && (child_data_.header.last_block != first_bit ||
+                       child_data_.header.last_block_len < block_offset)) {
+    // The first block is not completely filled; ignore it.
+    first_bit++;
+  }
+
+  int last_bit = (child_offset_ + result) >> 10;
+  block_offset = (child_offset_ + result) & (kBlockSize - 1);
+
+  if (block_offset && !child_map_.Get(last_bit)) {
+    // The last block is not completely filled; save it for later.
+    child_data_.header.last_block = last_bit;
+    child_data_.header.last_block_len = block_offset;
+  } else {
+    child_data_.header.last_block = -1;
+  }
+
+  child_map_.SetRange(first_bit, last_bit, true);
+}
+
+int SparseControl::PartialBlockLength(int block_index) const {
+  if (block_index == child_data_.header.last_block)
+    return child_data_.header.last_block_len;
+
+  // This may be the last stored index.
+  int entry_len = child_->GetDataSize(kSparseData);
+  if (block_index == entry_len >> 10)
+    return entry_len & (kBlockSize - 1);
+
+  // This is really empty.
+  return 0;
 }
 
 void SparseControl::InitChildData() {
@@ -479,7 +545,7 @@ void SparseControl::InitChildData() {
                              NULL, false);
   if (rv != sizeof(child_data_))
     DLOG(ERROR) << "Failed to save child data";
-  SetChildBit();
+  SetChildBit(true);
 }
 
 void SparseControl::DoChildrenIO() {
@@ -532,6 +598,8 @@ bool SparseControl::DoChildIO() {
     }
     return false;
   }
+  if (!rv)
+    return false;
 
   DoChildIOCompleted(rv);
   return true;
@@ -544,9 +612,12 @@ int SparseControl::DoGetAvailableRange() {
   // Check that there are no holes in this range.
   int last_bit = (child_offset_ + child_len_ + 1023) >> 10;
   int start = child_offset_ >> 10;
+  int partial_start_bytes = PartialBlockLength(start);
   int bits_found = child_map_.FindBits(&start, last_bit, true);
 
-  if (!bits_found)
+  // We don't care if there is a partial block in the middle of the range.
+  int block_offset = child_offset_ & (kBlockSize - 1);
+  if (!bits_found && partial_start_bytes <= block_offset)
     return child_len_;
 
   // We are done. Just break the loop and reset result_ to our real result.
@@ -555,10 +626,18 @@ int SparseControl::DoGetAvailableRange() {
   // start now points to the first 1. Lets see if we have zeros before it.
   int empty_start = (start << 10) - child_offset_;
 
+  int bytes_found = bits_found << 10;
+  bytes_found += PartialBlockLength(start + bits_found);
+
   // If the user is searching past the end of this child, bits_found is the
   // right result; otherwise, we have some empty space at the start of this
   // query that we have to substarct from the range that we searched.
-  result_ = std::min(bits_found << 10, child_len_ - empty_start);
+  result_ = std::min(bytes_found, child_len_ - empty_start);
+
+  if (!bits_found) {
+    result_ = std::min(partial_start_bytes - block_offset, child_len_);
+    empty_start = 0;
+  }
 
   // Only update offset_ when this query found zeros at the start.
   if (empty_start)

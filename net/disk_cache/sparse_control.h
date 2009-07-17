@@ -81,13 +81,19 @@ class SparseControl {
   void CloseChild();
   std::string GenerateChildKey();
 
+  // Deletes the current child and continues the current operation (open).
+  bool KillChildAndContinue(const std::string& key, bool fatal);
+
+  // Continues the current operation (open) without a current child.
+  bool ContinueWithoutChild(const std::string& key);
+
   // Returns true if the required child is tracked by the parent entry, i.e. it
   // was already created.
   bool ChildPresent();
 
-  // Starts tracking this child. A new child entry was created so we must set
-  // the corresponding bit on the bitmap of children.
-  void SetChildBit();
+  // Sets the bit for the current child to the provided |value|. In other words,
+  // starts or stops tracking this child.
+  void SetChildBit(bool value);
 
   // Writes to disk the tracking information for this entry.
   void WriteSparseData();
@@ -101,6 +107,10 @@ class SparseControl {
   // Updates the contents bitmap for the current range, based on the result of
   // the current operation.
   void UpdateRange(int result);
+
+  // Returns the number of bytes stored at |block_index|, if its allocation-bit
+  // is off (because it is not completely filled).
+  int PartialBlockLength(int block_index) const;
 
   // Initializes the sparse info for the current child.
   void InitChildData();
