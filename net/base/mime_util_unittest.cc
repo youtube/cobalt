@@ -96,3 +96,32 @@ TEST(MimeUtilTest, MatchesMimeType) {
   EXPECT_EQ(false, net::MatchesMimeType("aaa*aaa",
                                               "aaaaa"));
 }
+
+// Note: codecs should only be a list of 2 or fewer; hence the restriction of
+// results' length to 2.
+TEST(MimeUtilTest, ParseCodecString) {
+  const struct {
+    const char* original;
+    size_t expected_size;
+    const char* results[2];
+  } tests[] = {
+    { "\"bogus\"",                  1, { "bogus" }            },
+    { "0",                          1, { "0" }                },
+    { "avc1.42E01E, mp4a.40.2",     2, { "avc1",   "mp4a" }   },
+    { "\"mp4v.20.240, mp4a.40.2\"", 2, { "mp4v",   "mp4a" }   },
+    { "mp4v.20.8, samr",            2, { "mp4v",   "samr" }   },
+    { "\"theora, vorbis\"",         2, { "theora", "vorbis" } },
+    { "",                           1, { "" }                 },
+    { "\"\"",                       1, { "" }                 },
+    { ",",                          2, { "", "" }             },
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    std::vector<std::string> codecs_out;
+    net::ParseCodecString(tests[i].original, &codecs_out);
+    EXPECT_EQ(tests[i].expected_size, codecs_out.size());
+    for (size_t j = 0; j < tests[i].expected_size; ++j) {
+      EXPECT_EQ(tests[i].results[j], codecs_out[j]);
+    }
+  }
+}
