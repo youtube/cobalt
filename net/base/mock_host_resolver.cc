@@ -11,36 +11,41 @@
 
 namespace net {
 
-MockHostResolver::MockHostResolver() {
-  Reset(NULL, 0, 0);
+MockHostResolverBase::MockHostResolverBase(bool use_caching)
+    : use_caching_(use_caching) {
+  Reset(NULL);
 }
 
-int MockHostResolver::Resolve(const RequestInfo& info,
-                              AddressList* addresses,
-                              CompletionCallback* callback,
-                              RequestHandle* out_req) {
+int MockHostResolverBase::Resolve(const RequestInfo& info,
+                                  AddressList* addresses,
+                                  CompletionCallback* callback,
+                                  RequestHandle* out_req) {
+  if (synchronous_mode_) {
+    callback = NULL;
+    out_req = NULL;
+  }
   return impl_->Resolve(info, addresses, callback, out_req);
 }
 
-void MockHostResolver::CancelRequest(RequestHandle req) {
+void MockHostResolverBase::CancelRequest(RequestHandle req) {
   impl_->CancelRequest(req);
 }
 
-void MockHostResolver::AddObserver(Observer* observer) {
+void MockHostResolverBase::AddObserver(Observer* observer) {
   impl_->AddObserver(observer);
 }
 
-void MockHostResolver::RemoveObserver(Observer* observer) {
+void MockHostResolverBase::RemoveObserver(Observer* observer) {
   impl_->RemoveObserver(observer);
 }
 
-void MockHostResolver::Shutdown() {
+void MockHostResolverBase::Shutdown() {
   impl_->Shutdown();
 }
 
-void MockHostResolver::Reset(HostResolverProc* interceptor,
-                             int max_cache_entries,
-                             int max_cache_age_ms) {
+void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
+  synchronous_mode_ = false;
+
   // At the root of the chain, map everything to localhost.
   scoped_refptr<RuleBasedHostResolverProc> catchall =
       new RuleBasedHostResolverProc(NULL);
@@ -56,6 +61,9 @@ void MockHostResolver::Reset(HostResolverProc* interceptor,
     interceptor->set_previous_proc(proc);
     proc = interceptor;
   }
+
+  int max_cache_entries = use_caching_ ? 100 : 0;
+  int max_cache_age_ms = use_caching_ ? 60000 : 0;
 
   impl_ = new HostResolverImpl(proc, max_cache_entries, max_cache_age_ms);
 }

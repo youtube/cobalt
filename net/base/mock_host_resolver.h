@@ -34,14 +34,11 @@ class RuleBasedHostResolverProc;
 //
 // Replacement doesn't have to be string representing an IP address. It can
 // re-map one hostname to another as well.
-class MockHostResolver : public HostResolver {
- public:
-  // Creates a MockHostResolver that does NOT cache entries
-  // (the HostResolverProc will be called for every lookup). If you need
-  // caching behavior, call Reset() with non-zero cache size.
-  MockHostResolver();
 
-  virtual ~MockHostResolver() {}
+// Base class shared by MockHostResolver and MockCachingHostResolver.
+class MockHostResolverBase : public HostResolver {
+ public:
+  virtual ~MockHostResolverBase() {}
 
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info, AddressList* addresses,
@@ -54,14 +51,37 @@ class MockHostResolver : public HostResolver {
 
   RuleBasedHostResolverProc* rules() { return rules_; }
 
+  // Controls whether resolutions complete synchronously or asynchronously.
+  void set_synchronous_mode(bool is_synchronous) {
+    synchronous_mode_ = is_synchronous;
+  }
+
   // Resets the mock.
-  void Reset(HostResolverProc* interceptor,
-             int max_cache_entries,
-             int max_cache_age_ms);
+  void Reset(HostResolverProc* interceptor);
+
+ protected:
+  MockHostResolverBase(bool use_caching);
 
  private:
   scoped_refptr<HostResolverImpl> impl_;
   scoped_refptr<RuleBasedHostResolverProc> rules_;
+  bool synchronous_mode_;
+  bool use_caching_;
+};
+
+class MockHostResolver : public MockHostResolverBase {
+ public:
+  MockHostResolver() : MockHostResolverBase(false /*use_caching*/) {}
+};
+
+// Same as MockHostResolver, except internally it uses a host-cache.
+//
+// Note that tests are advised to use MockHostResolver instead, since it is
+// more predictable. (MockHostResolver also can be put into synchronous
+// operation mode in case that is what you needed from the caching version).
+class MockCachingHostResolver : public MockHostResolverBase {
+ public:
+  MockCachingHostResolver() : MockHostResolverBase(true /*use_caching*/) {}
 };
 
 // RuleBasedHostResolverProc applies a set of rules to map a host string to
