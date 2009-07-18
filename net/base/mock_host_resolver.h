@@ -98,6 +98,13 @@ class RuleBasedHostResolverProc : public HostResolverProc {
   void AddRule(const std::string& host_pattern,
                const std::string& replacement);
 
+  // Same as AddRule(), but the replacement is expected to be an IPV6 literal.
+  // You should use this in place of AddRule(), since the system's host resolver
+  // may not support IPv6 literals on all systems. Whereas this variant
+  // constructs the socket address directly so it will always work.
+  void AddIPv6Rule(const std::string& host_pattern,
+                   const std::string& ipv6_literal);
+
   void AddRuleWithLatency(const std::string& host_pattern,
                           const std::string& replacement,
                           int latency_ms);
@@ -115,6 +122,7 @@ class RuleBasedHostResolverProc : public HostResolverProc {
  private:
   struct Rule;
   typedef std::list<Rule> RuleList;
+
   RuleList rules_;
 };
 

@@ -15,6 +15,9 @@ namespace net {
 // class is designed to be copied around by value.
 class AddressList {
  public:
+  // Constructs an empty address list.
+  AddressList() {}
+
   // Adopt the given addrinfo list in place of the existing one if any.  This
   // hands over responsibility for freeing the addrinfo list to the AddressList
   // object.
@@ -41,6 +44,9 @@ class AddressList {
   // empty state as when first constructed.
   void Reset();
 
+  // Used by unit-tests to manually set the TCP socket address.
+  static AddressList CreateIPv6Address(unsigned char data[16]);
+
   // Get access to the head of the addrinfo list.
   const struct addrinfo* head() const { return data_->head; }
 
@@ -54,6 +60,9 @@ class AddressList {
     // Indicates which free function to use for |head|.
     bool is_system_created;
   };
+
+  explicit AddressList(Data* data) : data_(data) {}
+
   scoped_refptr<Data> data_;
 };
 

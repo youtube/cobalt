@@ -7,9 +7,35 @@
 #include "base/string_util.h"
 #include "base/platform_thread.h"
 #include "base/ref_counted.h"
+#include "googleurl/src/url_canon_ip.h"
 #include "net/base/net_errors.h"
 
 namespace net {
+
+namespace {
+// Fills |addrlist| with a socket address for |host| which should be an
+// IPv6 literal. Returns OK on success.
+int ResolveIPV6LiteralUsingGURL(const std::string& host,
+                                AddressList* addrlist) {
+  // GURL expects the hostname to be surrounded with brackets.
+  std::string host_brackets = "[" + host + "]";
+  url_parse::Component host_comp(0, host_brackets.size());
+
+  // Try parsing the hostname as an IPv6 literal.
+  unsigned char ipv6_addr[16];  // 128 bits.
+  bool ok = url_canon::IPv6AddressToNumber(host_brackets.data(),
+                                           host_comp,
+                                           ipv6_addr);
+  if (!ok) {
+    LOG(WARNING) << "Not an IPv6 literal: " << host;
+    return ERR_UNEXPECTED;
+  }
+
+  *addrlist = AddressList::CreateIPv6Address(ipv6_addr);
+  return OK;
+}
+
+}  // namespace
 
 MockHostResolverBase::MockHostResolverBase(bool use_caching)
     : use_caching_(use_caching) {
@@ -71,27 +97,25 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
 //-----------------------------------------------------------------------------
 
 struct RuleBasedHostResolverProc::Rule {
+  enum ResolverType {
+    kResolverTypeFail,
+    kResolverTypeSystem,
+    kResolverTypeIPV6Literal,
+  };
+
+  ResolverType resolver_type;
   std::string host_pattern;
   std::string replacement;
   int latency_ms;  // In milliseconds.
-  bool direct;     // if true, don't mangle hostname and ignore replacement
-  Rule(const std::string& host_pattern, const std::string& replacement)
-      : host_pattern(host_pattern),
+
+  Rule(ResolverType resolver_type,
+       const std::string& host_pattern,
+       const std::string& replacement,
+       int latency_ms)
+      : resolver_type(resolver_type),
+        host_pattern(host_pattern),
         replacement(replacement),
-        latency_ms(0),
-        direct(false) {}
-  Rule(const std::string& host_pattern, const std::string& replacement,
-       const int latency_ms)
-      : host_pattern(host_pattern),
-        replacement(replacement),
-        latency_ms(latency_ms),
-        direct(false) {}
-  Rule(const std::string& host_pattern, const std::string& replacement,
-       const bool direct)
-      : host_pattern(host_pattern),
-        replacement(replacement),
-        latency_ms(0),
-        direct(direct) {}
+        latency_ms(latency_ms) {}
 };
 
 RuleBasedHostResolverProc::RuleBasedHostResolverProc(HostResolverProc* previous)
@@ -103,21 +127,36 @@ RuleBasedHostResolverProc::~RuleBasedHostResolverProc() {
 
 void RuleBasedHostResolverProc::AddRule(const std::string& host_pattern,
                                         const std::string& replacement) {
-  rules_.push_back(Rule(host_pattern, replacement));
+  DCHECK(!replacement.empty());
+  Rule rule(Rule::kResolverTypeSystem, host_pattern, replacement, 0);
+  rules_.push_back(rule);
+}
+
+void RuleBasedHostResolverProc::AddIPv6Rule(const std::string& host_pattern,
+                                            const std::string& ipv6_literal) {
+  Rule rule(Rule::kResolverTypeIPV6Literal, host_pattern, ipv6_literal, 0);
+  rules_.push_back(rule);
 }
 
 void RuleBasedHostResolverProc::AddRuleWithLatency(
     const std::string& host_pattern,
-    const std::string& replacement, int latency_ms) {
-  rules_.push_back(Rule(host_pattern, replacement, latency_ms));
+    const std::string& replacement,
+    int latency_ms) {
+  DCHECK(!replacement.empty());
+  Rule rule(Rule::kResolverTypeSystem, host_pattern, replacement, latency_ms);
+  rules_.push_back(rule);
 }
 
-void RuleBasedHostResolverProc::AllowDirectLookup(const std::string& host) {
-  rules_.push_back(Rule(host, "", true));
+void RuleBasedHostResolverProc::AllowDirectLookup(
+    const std::string& host_pattern) {
+  Rule rule(Rule::kResolverTypeSystem, host_pattern, "", 0);
+  rules_.push_back(rule);
 }
 
-void RuleBasedHostResolverProc::AddSimulatedFailure(const std::string& host) {
-  AddRule(host, "");
+void RuleBasedHostResolverProc::AddSimulatedFailure(
+    const std::string& host_pattern) {
+  Rule rule(Rule::kResolverTypeFail, host_pattern, "", 0);
+  rules_.push_back(rule);
 }
 
 int RuleBasedHostResolverProc::Resolve(const std::string& host,
@@ -130,10 +169,23 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
         // Hmm, this seems unecessary.
         r->latency_ms = 1;
       }
-      const std::string& effective_host = r->direct ? host : r->replacement;
-      if (effective_host.empty())
-        return ERR_NAME_NOT_RESOLVED;
-      return SystemHostResolverProc(effective_host, addrlist);
+
+      // Remap to a new host.
+      const std::string& effective_host =
+          r->replacement.empty() ? host : r->replacement;
+
+      // Apply the resolving function to the remapped hostname.
+      switch (r->resolver_type) {
+        case Rule::kResolverTypeFail:
+          return ERR_NAME_NOT_RESOLVED;
+        case Rule::kResolverTypeSystem:
+          return SystemHostResolverProc(effective_host, addrlist);
+        case Rule::kResolverTypeIPV6Literal:
+          return ResolveIPV6LiteralUsingGURL(effective_host, addrlist);
+        default:
+          NOTREACHED();
+          return ERR_UNEXPECTED;
+      }
     }
   }
   return ResolveUsingPrevious(host, addrlist);
