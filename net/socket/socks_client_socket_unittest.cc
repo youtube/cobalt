@@ -253,7 +253,7 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
 TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
   const char hostname[] = "an.ipv6.address";
 
-  host_resolver_->rules()->AddRule(hostname, "2001:db8:8714:3a90::12");
+  host_resolver_->rules()->AddIPv6Rule(hostname, "2001:db8:8714:3a90::12");
 
   std::string request(kSOCKS4aInitialRequest,
                       arraysize(kSOCKS4aInitialRequest));
