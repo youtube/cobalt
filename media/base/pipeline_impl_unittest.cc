@@ -46,19 +46,19 @@ class CallbackHelper {
 class PipelineImplTest : public ::testing::Test {
  public:
   PipelineImplTest()
-      : pipeline_(&message_loop_),
+      : pipeline_(new PipelineImpl(&message_loop_)),
         mocks_(new MockFilterFactory()) {
   }
 
   virtual ~PipelineImplTest() {
-    if (!pipeline_.IsRunning()) {
+    if (!pipeline_->IsRunning()) {
       return;
     }
 
     // Expect a stop callback if we were started.
     EXPECT_CALL(callbacks_, OnStop());
-    pipeline_.Stop(NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                               &CallbackHelper::OnStop));
+    pipeline_->Stop(NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                                &CallbackHelper::OnStop));
     message_loop_.RunAllPending();
   }
 
@@ -130,16 +130,16 @@ class PipelineImplTest : public ::testing::Test {
   void InitializePipeline() {
     // Expect an initialization callback.
     EXPECT_CALL(callbacks_, OnStart());
-    pipeline_.Start(mocks_, "",
-                    NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                                &CallbackHelper::OnStart));
+    pipeline_->Start(mocks_, "",
+                     NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                                 &CallbackHelper::OnStart));
     message_loop_.RunAllPending();
   }
 
   // Fixture members.
   StrictMock<CallbackHelper> callbacks_;
   MessageLoop message_loop_;
-  PipelineImpl pipeline_;
+  scoped_refptr<PipelineImpl> pipeline_;
   scoped_refptr<media::MockFilterFactory> mocks_;
 
  private:
@@ -153,50 +153,50 @@ TEST_F(PipelineImplTest, NotStarted) {
 
   // StrictMock<> will ensure these never get called, and valgrind/purify will
   // make sure the callbacks are instantly deleted.
-  pipeline_.Start(NULL, "",
+  pipeline_->Start(NULL, "",
+                   NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                               &CallbackHelper::OnStart));
+  pipeline_->Stop(NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                              &CallbackHelper::OnStop));
+  pipeline_->Seek(kZero,
                   NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                              &CallbackHelper::OnStart));
-  pipeline_.Stop(NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                             &CallbackHelper::OnStop));
-  pipeline_.Seek(kZero,
-                 NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                             &CallbackHelper::OnSeek));
+                              &CallbackHelper::OnSeek));
 
-  EXPECT_FALSE(pipeline_.IsRunning());
-  EXPECT_FALSE(pipeline_.IsInitialized());
-  EXPECT_FALSE(pipeline_.IsRendered(""));
-  EXPECT_FALSE(pipeline_.IsRendered(AudioDecoder::major_mime_type()));
-  EXPECT_FALSE(pipeline_.IsRendered(VideoDecoder::major_mime_type()));
+  EXPECT_FALSE(pipeline_->IsRunning());
+  EXPECT_FALSE(pipeline_->IsInitialized());
+  EXPECT_FALSE(pipeline_->IsRendered(""));
+  EXPECT_FALSE(pipeline_->IsRendered(AudioDecoder::major_mime_type()));
+  EXPECT_FALSE(pipeline_->IsRendered(VideoDecoder::major_mime_type()));
 
   // Setting should still work.
-  EXPECT_EQ(0.0f, pipeline_.GetPlaybackRate());
-  pipeline_.SetPlaybackRate(-1.0f);
-  EXPECT_EQ(0.0f, pipeline_.GetPlaybackRate());
-  pipeline_.SetPlaybackRate(1.0f);
-  EXPECT_EQ(1.0f, pipeline_.GetPlaybackRate());
+  EXPECT_EQ(0.0f, pipeline_->GetPlaybackRate());
+  pipeline_->SetPlaybackRate(-1.0f);
+  EXPECT_EQ(0.0f, pipeline_->GetPlaybackRate());
+  pipeline_->SetPlaybackRate(1.0f);
+  EXPECT_EQ(1.0f, pipeline_->GetPlaybackRate());
 
   // Setting should still work.
-  EXPECT_EQ(1.0f, pipeline_.GetVolume());
-  pipeline_.SetVolume(-1.0f);
-  EXPECT_EQ(1.0f, pipeline_.GetVolume());
-  pipeline_.SetVolume(0.0f);
-  EXPECT_EQ(0.0f, pipeline_.GetVolume());
+  EXPECT_EQ(1.0f, pipeline_->GetVolume());
+  pipeline_->SetVolume(-1.0f);
+  EXPECT_EQ(1.0f, pipeline_->GetVolume());
+  pipeline_->SetVolume(0.0f);
+  EXPECT_EQ(0.0f, pipeline_->GetVolume());
 
-  EXPECT_TRUE(kZero == pipeline_.GetCurrentTime());
-  EXPECT_TRUE(kZero == pipeline_.GetBufferedTime());
-  EXPECT_TRUE(kZero == pipeline_.GetDuration());
+  EXPECT_TRUE(kZero == pipeline_->GetCurrentTime());
+  EXPECT_TRUE(kZero == pipeline_->GetBufferedTime());
+  EXPECT_TRUE(kZero == pipeline_->GetDuration());
 
-  EXPECT_EQ(0, pipeline_.GetBufferedBytes());
-  EXPECT_EQ(0, pipeline_.GetTotalBytes());
+  EXPECT_EQ(0, pipeline_->GetBufferedBytes());
+  EXPECT_EQ(0, pipeline_->GetTotalBytes());
 
   // Should always get set to zero.
   size_t width = 1u;
   size_t height = 1u;
-  pipeline_.GetVideoSize(&width, &height);
+  pipeline_->GetVideoSize(&width, &height);
   EXPECT_EQ(0u, width);
   EXPECT_EQ(0u, height);
 
-  EXPECT_EQ(PIPELINE_OK, pipeline_.GetError());
+  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
 }
 
 TEST_F(PipelineImplTest, NeverInitializes) {
@@ -207,13 +207,13 @@ TEST_F(PipelineImplTest, NeverInitializes) {
   // This test hangs during initialization by never calling
   // InitializationComplete().  StrictMock<> will ensure that the callback is
   // never executed.
-  pipeline_.Start(mocks_, "",
-                  NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                              &CallbackHelper::OnStart));
+  pipeline_->Start(mocks_, "",
+                   NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                               &CallbackHelper::OnStart));
   message_loop_.RunAllPending();
 
-  EXPECT_FALSE(pipeline_.IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_.GetError());
+  EXPECT_FALSE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
 
   // Because our callback will get executed when the test tears down, we'll
   // verify that nothing has been called, then set our expectation for the call
@@ -226,9 +226,9 @@ TEST_F(PipelineImplTest, RequiredFilterMissing) {
   mocks_->set_creation_successful(false);
 
   InitializePipeline();
-  EXPECT_FALSE(pipeline_.IsInitialized());
+  EXPECT_FALSE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_ERROR_REQUIRED_FILTER_MISSING,
-            pipeline_.GetError());
+            pipeline_->GetError());
 }
 
 TEST_F(PipelineImplTest, URLNotFound) {
@@ -239,8 +239,8 @@ TEST_F(PipelineImplTest, URLNotFound) {
   EXPECT_CALL(*mocks_->data_source(), Stop());
 
   InitializePipeline();
-  EXPECT_FALSE(pipeline_.IsInitialized());
-  EXPECT_EQ(PIPELINE_ERROR_URL_NOT_FOUND, pipeline_.GetError());
+  EXPECT_FALSE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_ERROR_URL_NOT_FOUND, pipeline_->GetError());
 }
 
 TEST_F(PipelineImplTest, NoStreams) {
@@ -257,8 +257,8 @@ TEST_F(PipelineImplTest, NoStreams) {
   EXPECT_CALL(*mocks_->demuxer(), Stop());
 
   InitializePipeline();
-  EXPECT_FALSE(pipeline_.IsInitialized());
-  EXPECT_EQ(PIPELINE_ERROR_COULD_NOT_RENDER, pipeline_.GetError());
+  EXPECT_FALSE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_ERROR_COULD_NOT_RENDER, pipeline_->GetError());
 }
 
 TEST_F(PipelineImplTest, AudioStream) {
@@ -273,10 +273,10 @@ TEST_F(PipelineImplTest, AudioStream) {
   InitializeAudioRenderer();
 
   InitializePipeline();
-  EXPECT_TRUE(pipeline_.IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_.GetError());
-  EXPECT_TRUE(pipeline_.IsRendered(media::mime_type::kMajorTypeAudio));
-  EXPECT_FALSE(pipeline_.IsRendered(media::mime_type::kMajorTypeVideo));
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
+  EXPECT_TRUE(pipeline_->IsRendered(media::mime_type::kMajorTypeAudio));
+  EXPECT_FALSE(pipeline_->IsRendered(media::mime_type::kMajorTypeVideo));
 }
 
 TEST_F(PipelineImplTest, VideoStream) {
@@ -291,10 +291,10 @@ TEST_F(PipelineImplTest, VideoStream) {
   InitializeVideoRenderer();
 
   InitializePipeline();
-  EXPECT_TRUE(pipeline_.IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_.GetError());
-  EXPECT_FALSE(pipeline_.IsRendered(media::mime_type::kMajorTypeAudio));
-  EXPECT_TRUE(pipeline_.IsRendered(media::mime_type::kMajorTypeVideo));
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
+  EXPECT_FALSE(pipeline_->IsRendered(media::mime_type::kMajorTypeAudio));
+  EXPECT_TRUE(pipeline_->IsRendered(media::mime_type::kMajorTypeVideo));
 }
 
 TEST_F(PipelineImplTest, AudioVideoStream) {
@@ -314,10 +314,10 @@ TEST_F(PipelineImplTest, AudioVideoStream) {
   InitializeVideoRenderer();
 
   InitializePipeline();
-  EXPECT_TRUE(pipeline_.IsInitialized());
-  EXPECT_EQ(PIPELINE_OK, pipeline_.GetError());
-  EXPECT_TRUE(pipeline_.IsRendered(media::mime_type::kMajorTypeAudio));
-  EXPECT_TRUE(pipeline_.IsRendered(media::mime_type::kMajorTypeVideo));
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
+  EXPECT_TRUE(pipeline_->IsRendered(media::mime_type::kMajorTypeAudio));
+  EXPECT_TRUE(pipeline_->IsRendered(media::mime_type::kMajorTypeVideo));
 }
 
 TEST_F(PipelineImplTest, Seek) {
@@ -356,9 +356,9 @@ TEST_F(PipelineImplTest, Seek) {
 
   // Initialize then seek!
   InitializePipeline();
-  pipeline_.Seek(expected,
-                 NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                             &CallbackHelper::OnSeek));
+  pipeline_->Seek(expected,
+                  NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                              &CallbackHelper::OnSeek));
   message_loop_.RunAllPending();
 }
 
@@ -379,7 +379,7 @@ TEST_F(PipelineImplTest, SetVolume) {
 
   // Initialize then set volume!
   InitializePipeline();
-  pipeline_.SetVolume(expected);
+  pipeline_->SetVolume(expected);
 }
 
 }  // namespace media

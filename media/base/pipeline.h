@@ -48,7 +48,7 @@ enum PipelineError {
 // inspect the Pipeline for errors.
 typedef Callback0::Type PipelineCallback;
 
-class Pipeline {
+class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
  public:
   // Build a pipeline to render the given URL using the given filter factory to
   // construct a filter chain.  Returns true if successful, false otherwise
@@ -153,6 +153,8 @@ class Pipeline {
   virtual PipelineError GetError() const = 0;
 
  protected:
+  // Only allow ourselves to be deleted by reference counting.
+  friend class base::RefCountedThreadSafe<Pipeline>;
   virtual ~Pipeline() {}
 };
 
