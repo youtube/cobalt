@@ -36,7 +36,7 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
 
  private:
   friend class HostResolverImpl;
-  friend class MockHostResolver;
+  friend class MockHostResolverBase;
   friend class ScopedDefaultHostResolverProc;
 
   // Sets the previous procedure in the chain.
