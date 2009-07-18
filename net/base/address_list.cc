@@ -127,6 +127,25 @@ void AddressList::Reset() {
   data_ = NULL;
 }
 
+// static
+AddressList AddressList::CreateIPv6Address(unsigned char data[16]) {
+  struct addrinfo* ai = new struct addrinfo;
+  memset(ai, 0, sizeof(struct addrinfo));
+
+  ai->ai_family = AF_INET6;
+  ai->ai_socktype = SOCK_STREAM;
+  ai->ai_addrlen = sizeof(sockaddr_in6);
+
+  struct sockaddr_in6* addr6 = new sockaddr_in6;
+  memset(addr6, 0, sizeof(sockaddr_in6));
+
+  ai->ai_addr = reinterpret_cast<sockaddr*>(addr6);
+  addr6->sin6_family = AF_INET6;
+  memcpy(&addr6->sin6_addr, data, 16);
+
+  return AddressList(new Data(ai, false /*is_system_created*/));
+}
+
 AddressList::Data::~Data() {
   // Call either freeaddrinfo(head), or FreeMyAddrinfo(head), depending who
   // created the data.
