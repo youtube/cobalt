@@ -53,6 +53,7 @@
             '../third_party/harfbuzz/harfbuzz.gyp:*',
             '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
+            '../courgette/courgette.gyp:*',
           ],
         }],
         ['OS=="win"', {
