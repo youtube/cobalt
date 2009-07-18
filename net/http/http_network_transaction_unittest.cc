@@ -42,7 +42,7 @@ class SessionDependencies {
   explicit SessionDependencies(ProxyService* proxy_service)
       : host_resolver(new MockHostResolver), proxy_service(proxy_service) {}
 
-  scoped_refptr<MockHostResolver> host_resolver;
+  scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_ptr<ProxyService> proxy_service;
   MockClientSocketFactory socket_factory;
 };
@@ -3457,8 +3457,8 @@ TEST_F(HttpNetworkTransactionTest, ResolveMadeWithReferrer) {
 TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   SessionDependencies session_deps;
 
-  // Enable caching in the mock host resolver (it is off by default).
-  session_deps.host_resolver->Reset(NULL, 100, 60000);
+  // Select a host resolver that does caching.
+  session_deps.host_resolver = new MockCachingHostResolver;
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
       CreateSession(&session_deps), &session_deps.socket_factory));
