@@ -179,17 +179,7 @@ TEST_F(SOCKS5ClientSocketTest, IPv6Domain) {
   const uint8 ipv6_addr[] = { 0x20, 0x01, 0x0d, 0xb8, 0x87, 0x14, 0x3a, 0x90,
                               0x00, 0x00, 0x00, 0x00, 0x00, 0x000, 0x00, 0x12 };
 
-  host_resolver_->rules()->AddRule(hostname, "2001:db8:8714:3a90::12");
-
-  AddressList address_list;
-  HostResolver::RequestInfo info(hostname, 80);
-  int rv = host_resolver_->Resolve(info, &address_list, NULL, NULL);
-  if (rv != OK || !address_list.head()) {
-    // This machine does not support IPv6. We skip this test altogether.
-    // TODO(arindam): create a MockIPv6HostResolver to manually
-    // populate the |address_list| in case of a machine with no IPv6 suppport.
-    return;
-  }
+  host_resolver_->rules()->AddIPv6Rule(hostname, "2001:db8:8714:3a90::12");
 
   std::string request(kSOCKS5IPv6Request,
                       arraysize(kSOCKS5IPv6Request));
@@ -205,7 +195,7 @@ TEST_F(SOCKS5ClientSocketTest, IPv6Domain) {
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
 
-  rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(&callback_);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
