@@ -30,7 +30,6 @@ class PipelineInternal;
 class PipelineImpl : public Pipeline {
  public:
   PipelineImpl(MessageLoop* message_loop);
-  virtual ~PipelineImpl();
 
   // Pipeline implementation.
   virtual bool Start(FilterFactory* filter_factory,
@@ -56,6 +55,7 @@ class PipelineImpl : public Pipeline {
  private:
   friend class FilterHostImpl;
   friend class PipelineInternal;
+  virtual ~PipelineImpl();
 
   // Reset the state of the pipeline object to the initial state.  This method
   // is used by the constructor, and the Stop method.
