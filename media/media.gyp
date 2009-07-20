@@ -30,6 +30,8 @@
       'msvs_guid': '6AE76406-B03B-11DD-94B1-80B556D89593',
       'sources': [
         'audio/audio_output.h',
+        'audio/audio_util.cc',
+        'audio/audio_util.h',
         'audio/linux/audio_manager_linux.cc',
         'audio/linux/audio_manager_linux.h',
         'audio/linux/alsa_output.cc',
@@ -147,9 +149,10 @@
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
       ],
       'sources': [
-        'audio/win/audio_output_win_unittest.cc',
+        'audio/audio_util_unittest.cc',
         'audio/mac/audio_output_mac_unittest.cc',
         'audio/simple_sources_unittest.cc',
+        'audio/win/audio_output_win_unittest.cc',
         'base/buffer_queue_unittest.cc',
         'base/data_buffer_unittest.cc',
         'base/mock_ffmpeg.cc',
