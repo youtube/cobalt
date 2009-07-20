@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_AUDIO_WAVEOUT_OUTPUT_WIN_H_
-#define MEDIA_AUDIO_WAVEOUT_OUTPUT_WIN_H_
+#ifndef MEDIA_AUDIO_WIN_WAVEOUT_OUTPUT_WIN_H_
+#define MEDIA_AUDIO_WIN_WAVEOUT_OUTPUT_WIN_H_
 
 #include <windows.h>
 #include <mmsystem.h>
@@ -84,6 +84,9 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // The size in bytes of each audio buffer, we usually have two of these.
   size_t buffer_size_;
 
+  // Volume level from 0 to 1.
+  float volume_;
+
   // The id assigned by the operating system to the selected wave output
   // hardware device. Usually this is just -1 which means 'default device'.
   UINT device_id_;
@@ -103,4 +106,5 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   DISALLOW_COPY_AND_ASSIGN(PCMWaveOutAudioOutputStream);
 };
 
-#endif  // MEDIA_AUDIO_WAVEOUT_OUTPUT_WIN_H_
+#endif  // MEDIA_AUDIO_WIN_WAVEOUT_OUTPUT_WIN_H_
+

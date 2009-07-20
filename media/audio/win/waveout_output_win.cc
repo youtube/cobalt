@@ -11,6 +11,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "media/audio/audio_output.h"
+#include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
 
 // Some general thoughts about the waveOut API which is badly documented :
@@ -34,10 +35,6 @@ namespace {
 // between how fast data needs to be provided versus memory usage.
 const size_t kNumBuffers = 2;
 
-// The maximum volume for a PCM device on windows. Volume is logarithmic so the
-// perceived volume increase sounds linear.
-const double kMaxVolumeLevel = 65535.0;
-
 // Sixty four MB is the maximum buffer size per AudioOutputStream.
 const size_t kMaxOpenBufferSize = 1024 * 1024 * 64;
 
@@ -58,7 +55,8 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       waveout_(NULL),
       callback_(NULL),
       buffer_(NULL),
-      buffer_size_(0) {
+      buffer_size_(0),
+      volume_(1) {
   format_.wFormatTag = WAVE_FORMAT_PCM;
   format_.nChannels = channels;
   format_.nSamplesPerSec = sampling_rate;
@@ -143,10 +141,11 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   state_ = PCMA_PLAYING;
   WAVEHDR* buffer = buffer_;
   for (int ix = 0; ix != kNumBuffers; ++ix) {
-    QueueNextPacket(buffer);
+    QueueNextPacket(buffer);  // Read more data.
     buffer = GetNextBuffer(buffer);
   }
   buffer = buffer_;
+
   // Send the buffers to the audio driver.
   for (int ix = 0; ix != kNumBuffers; ++ix) {
     MMRESULT result = ::waveOutWrite(waveout_, buffer, sizeof(WAVEHDR));
@@ -202,31 +201,18 @@ void PCMWaveOutAudioOutputStream::Close() {
 }
 
 void PCMWaveOutAudioOutputStream::SetVolume(double left_level,
-                                            double right_level) {
+                                            double ) {
   if (!waveout_)
     return;
-  uint16 left = static_cast<uint16>(left_level * kMaxVolumeLevel);
-  uint16 right = static_cast<uint16>(right_level * kMaxVolumeLevel);
-  DWORD volume_packed = MAKELONG(left, right);
-  MMRESULT res = ::waveOutSetVolume(waveout_, volume_packed);
-  if (res != MMSYSERR_NOERROR) {
-    HandleError(res);
-    return;
-  }
+  volume_ = static_cast<float>(left_level);
 }
 
 void PCMWaveOutAudioOutputStream::GetVolume(double* left_level,
                                             double* right_level) {
   if (!waveout_)
     return;
-  DWORD volume_packed = 0;
-  MMRESULT res = ::waveOutGetVolume(waveout_, &volume_packed);
-  if (res != MMSYSERR_NOERROR) {
-    HandleError(res);
-    return;
-  }
-  *left_level = static_cast<double>(LOWORD(volume_packed)) / kMaxVolumeLevel;
-  *right_level = static_cast<double>(HIWORD(volume_packed)) / kMaxVolumeLevel;
+  *left_level = volume_;
+  *right_level = volume_;
 }
 
 size_t PCMWaveOutAudioOutputStream::GetNumBuffers() {
@@ -245,6 +231,9 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
   size_t used = callback_->OnMoreData(this, buffer->lpData, buffer_size_);
   if (used <= buffer_size_) {
     buffer->dwBufferLength = used;
+    media::AdjustVolume(buffer->lpData, buffer->dwBufferLength,
+                        format_.nChannels, format_.wBitsPerSample >> 3,
+                        volume_);
   } else {
     HandleError(0);
     return;
@@ -279,6 +268,7 @@ void PCMWaveOutAudioOutputStream::WaveCallback(HWAVEOUT hwo, UINT msg,
       return;
     }
     obj->QueueNextPacket(buffer);
+
     // Time to send the buffer to the audio driver. Since we are reusing
     // the same buffers we can get away without calling waveOutPrepareHeader.
     MMRESULT result = ::waveOutWrite(hwo, buffer, sizeof(WAVEHDR));
