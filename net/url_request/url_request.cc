@@ -402,6 +402,9 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     return net::ERR_TOO_MANY_REDIRECTS;
   }
 
+  if (!location.is_valid())
+    return net::ERR_INVALID_URL;
+
   if (!job_->IsSafeRedirect(location)) {
     DLOG(INFO) << "disallowing redirect: unsafe protocol";
     return net::ERR_UNSAFE_REDIRECT;
