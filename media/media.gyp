@@ -210,13 +210,6 @@
         'tools/wav_ola_test.cc'
       ],
     },
-    {
-      'target_name': 'qt_faststart',
-      'type': 'executable',
-      'sources': [
-        'tools/qt-faststart.c'
-      ],
-    },
   ],
   'conditions': [
     ['OS=="win"', {
