@@ -215,6 +215,10 @@ void PCMWaveOutAudioOutputStream::GetVolume(double* left_level,
   *right_level = volume_;
 }
 
+size_t PCMWaveOutAudioOutputStream::GetNumBuffers() {
+  return kNumBuffers;
+}
+
 void PCMWaveOutAudioOutputStream::HandleError(MMRESULT error) {
   DLOG(WARNING) << "PCMWaveOutAudio error " << error;
   callback_->OnError(this, error);

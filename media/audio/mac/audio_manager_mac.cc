@@ -5,7 +5,6 @@
 #include <CoreAudio/AudioHardware.h>
 
 #include "base/at_exit.h"
-#include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/mac/audio_manager_mac.h"
 #include "media/audio/mac/audio_output_mac.h"
 
@@ -20,9 +19,8 @@ bool AudioManagerMac::HasAudioDevices() {
 AudioOutputStream* AudioManagerMac::MakeAudioStream(Format format, int channels,
                                                     int sample_rate,
                                                     char bits_per_sample) {
-  if (format == AUDIO_MOCK)
-    return FakeAudioOutputStream::MakeFakeStream();
-  else if (format != AUDIO_PCM_LINEAR)
+  // TODO(cpu): add mock format.
+  if (format != AUDIO_PCM_LINEAR)
     return NULL;
   return new PCMQueueOutAudioOutputStream(this, channels, sample_rate,
                                           bits_per_sample);
@@ -36,15 +34,19 @@ void AudioManagerMac::UnMuteAll() {
   // TODO(cpu): implement.
 }
 
+const void* AudioManagerMac::GetLastMockBuffer() {
+  // TODO(cpu): implement.
+  return NULL;
+}
+
 // Called by the stream when it has been released by calling Close().
 void AudioManagerMac::ReleaseStream(PCMQueueOutAudioOutputStream* stream) {
   delete stream;
 }
 
 namespace {
-
-AudioManagerMac* g_audio_manager = NULL;
-
+  AudioManagerMac* g_audio_manager = NULL;
+  
 }  // namespace.
 
 void DestroyAudioManagerMac(void* param) {

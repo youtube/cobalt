@@ -19,6 +19,7 @@ class AudioManagerLinux : public AudioManager {
                                              char bits_per_sample);
   virtual void MuteAll();
   virtual void UnMuteAll();
+  virtual const void* GetLastMockBuffer();
 
  private:
   // Friend function for invoking the private destructor at exit.
