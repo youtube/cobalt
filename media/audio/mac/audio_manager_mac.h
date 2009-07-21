@@ -24,7 +24,6 @@ class AudioManagerMac : public AudioManager {
                                              char bits_per_sample);
   virtual void MuteAll();
   virtual void UnMuteAll();
-  virtual const void* GetLastMockBuffer();
 
   // Mac-only method to free a stream created in MakeAudioStream.
   // It is called internally by the audio stream when it has been closed.
