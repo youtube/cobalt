@@ -20,6 +20,7 @@
 #endif
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "base/command_line.h"
@@ -141,7 +142,16 @@ typedef std::vector<std::pair<int, int> > file_handle_mapping_vector;
 bool LaunchApp(const std::vector<std::string>& argv,
                const file_handle_mapping_vector& fds_to_remap,
                bool wait, ProcessHandle* process_handle);
-#endif
+#if defined(OS_LINUX)
+// Similar to above, but also (un)set environment variables in child process
+// through |environ|.
+typedef std::vector<std::pair<const char*, const char*> > environment_vector;
+bool LaunchApp(const std::vector<std::string>& argv,
+               const environment_vector& environ,
+               const file_handle_mapping_vector& fds_to_remap,
+               bool wait, ProcessHandle* process_handle);
+#endif  // defined(OS_LINUX)
+#endif  // defined(OS_POSIX)
 
 // Executes the application specified by cl. This function delegates to one
 // of the above two platform-specific functions.
