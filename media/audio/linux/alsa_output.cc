@@ -527,3 +527,7 @@ void AlsaPCMOutputStream::SetVolume(double left_level, double right_level) {
 void AlsaPCMOutputStream::GetVolume(double* left_level, double* right_level) {
   NOTIMPLEMENTED();
 }
+
+size_t AlsaPCMOutputStream::GetNumBuffers() {
+  return 0;
+}
