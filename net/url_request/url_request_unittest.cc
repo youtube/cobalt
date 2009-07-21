@@ -1023,6 +1023,21 @@ TEST_F(URLRequestTest, RestrictRedirects) {
   EXPECT_EQ(net::ERR_UNSAFE_REDIRECT, req.status().os_error());
 }
 
+TEST_F(URLRequestTest, RedirectToInvalidURL) {
+  scoped_refptr<HTTPTestServer> server =
+      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
+  ASSERT_TRUE(NULL != server.get());
+
+  TestDelegate d;
+  TestURLRequest req(server->TestServerPage(
+      "files/redirect-to-invalid-url.html"), &d);
+  req.Start();
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(URLRequestStatus::FAILED, req.status().status());
+  EXPECT_EQ(net::ERR_INVALID_URL, req.status().os_error());
+}
+
 TEST_F(URLRequestTest, NoUserPassInReferrer) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
