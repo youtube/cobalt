@@ -83,7 +83,6 @@ bool AudioRendererImpl::OnInitialize(const MediaFormat& media_format) {
   // Create our audio stream.
   stream_ = AudioManager::GetAudioManager()->MakeAudioStream(
       AudioManager::AUDIO_PCM_LINEAR, channels, sample_rate, sample_bits);
-  DCHECK(stream_);
   if (!stream_)
     return false;
 
@@ -98,8 +97,8 @@ bool AudioRendererImpl::OnInitialize(const MediaFormat& media_format) {
 }
 
 void AudioRendererImpl::OnStop() {
-  DCHECK(stream_);
-  stream_->Stop();
+  if (stream_)
+    stream_->Stop();
 }
 
 }  // namespace media
