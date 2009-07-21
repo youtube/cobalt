@@ -35,6 +35,7 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   virtual void Stop();
   virtual void SetVolume(double left_level, double right_level);
   virtual void GetVolume(double* left_level, double* right_level);
+  virtual size_t GetNumBuffers();
 
  private:
   // The audio is double buffered.

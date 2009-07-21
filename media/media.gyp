@@ -30,8 +30,6 @@
       'msvs_guid': '6AE76406-B03B-11DD-94B1-80B556D89593',
       'sources': [
         'audio/audio_output.h',
-        'audio/fake_audio_output_stream.cc',
-        'audio/fake_audio_output_stream.h',
         'audio/audio_util.cc',
         'audio/audio_util.h',
         'audio/linux/audio_manager_linux.cc',

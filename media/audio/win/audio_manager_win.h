@@ -11,6 +11,7 @@
 #include "media/audio/audio_output.h"
 
 class PCMWaveOutAudioOutputStream;
+class AudioOutputStreamMockWin;
 
 // Windows implementation of the AudioManager singleton. This class is internal
 // to the audio output and only internal users can call methods not exposed by
@@ -25,10 +26,12 @@ class AudioManagerWin : public AudioManager {
                                              char bits_per_sample);
   virtual void MuteAll();
   virtual void UnMuteAll();
+  virtual const void* GetLastMockBuffer();
 
   // Windows-only methods to free a stream created in MakeAudioStream. These
   // are called internally by the audio stream when it has been closed.
   void ReleaseStream(PCMWaveOutAudioOutputStream* stream);
+  void ReleaseStream(AudioOutputStreamMockWin* stream);
 
  private:
   friend void DestroyAudioManagerWin(void *);
