@@ -145,10 +145,6 @@ void PCMQueueOutAudioOutputStream::GetVolume(double* left_level,
   // TODO(cpu): Implement.
 }
 
-size_t PCMQueueOutAudioOutputStream::GetNumBuffers() {
-  return kNumBuffers;
-}
-
 // Note to future hackers of this function: Do not add locks here because we
 // call out to third party source that might do crazy things including adquire
 // external locks or somehow re-enter here because its legal for them to call

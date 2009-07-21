@@ -40,7 +40,6 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   virtual void Stop();
   virtual void SetVolume(double left_level, double right_level);
   virtual void GetVolume(double* left_level, double* right_level);
-  virtual size_t GetNumBuffers();
 
   // Sends a buffer to the audio driver for playback.
   void QueueNextPacket(WAVEHDR* buffer);

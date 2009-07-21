@@ -6,6 +6,7 @@
 
 #include "base/at_exit.h"
 #include "base/logging.h"
+#include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/linux/alsa_output.h"
 
 namespace {
@@ -27,11 +28,15 @@ AudioOutputStream* AudioManagerLinux::MakeAudioStream(Format format,
   // surround40, surround51, etc.
   //
   // http://0pointer.de/blog/projects/guide-to-sound-apis.html
-  AlsaPCMOutputStream* stream =
-      new AlsaPCMOutputStream(AlsaPCMOutputStream::kDefaultDevice,
-                              100 /* 100ms minimal buffer */,
-                              format, channels, sample_rate, bits_per_sample);
-  return stream;
+  if (format == AudioManager::AUDIO_MOCK) {
+    return FakeAudioOutputStream::MakeFakeStream();
+  } else {
+    AlsaPCMOutputStream* stream =
+        new AlsaPCMOutputStream(AlsaPCMOutputStream::kDefaultDevice,
+                                100 /* 100ms minimal buffer */,
+                                format, channels, sample_rate, bits_per_sample);
+    return stream;
+  }
 }
 
 AudioManagerLinux::AudioManagerLinux() {
@@ -48,12 +53,6 @@ void AudioManagerLinux::MuteAll() {
 void AudioManagerLinux::UnMuteAll() {
   // TODO(ajwong): Implement.
   NOTIMPLEMENTED();
-}
-
-const void* AudioManagerLinux::GetLastMockBuffer() {
-  // TODO(ajwong): Implement.
-  NOTIMPLEMENTED();
-  return NULL;
 }
 
 // TODO(ajwong): Collapse this with the windows version.
