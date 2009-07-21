@@ -7,10 +7,11 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include <string>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include <string>
 
 #include "base/eintr_wrapper.h"
 #include "base/file_util.h"
@@ -86,6 +87,7 @@ FilePath GetProcessExecutablePath(ProcessHandle process) {
 }
 
 bool LaunchApp(const std::vector<std::string>& argv,
+               const environment_vector& environ,
                const file_handle_mapping_vector& fds_to_remap,
                bool wait, ProcessHandle* process_handle) {
   pid_t pid = fork();
@@ -93,10 +95,22 @@ bool LaunchApp(const std::vector<std::string>& argv,
     return false;
 
   if (pid == 0) {
+    // Child process
     InjectiveMultimap fd_shuffle;
     for (file_handle_mapping_vector::const_iterator
         it = fds_to_remap.begin(); it != fds_to_remap.end(); ++it) {
       fd_shuffle.push_back(InjectionArc(it->first, it->second, false));
+    }
+
+    for (environment_vector::const_iterator it = environ.begin();
+         it != environ.end(); ++it) {
+      if (it->first) {
+        if (it->second) {
+          setenv(it->first, it->second, 1);
+        } else {
+          unsetenv(it->first);
+        }
+      }
     }
 
     if (!ShuffleFileDescriptors(fd_shuffle))
@@ -118,6 +132,7 @@ bool LaunchApp(const std::vector<std::string>& argv,
         << ", errno " << errno;
     exit(127);
   } else {
+    // Parent process
     if (wait)
       HANDLE_EINTR(waitpid(pid, 0, 0));
 
@@ -126,6 +141,13 @@ bool LaunchApp(const std::vector<std::string>& argv,
   }
 
   return true;
+}
+
+bool LaunchApp(const std::vector<std::string>& argv,
+               const file_handle_mapping_vector& fds_to_remap,
+               bool wait, ProcessHandle* process_handle) {
+  base::environment_vector no_env;
+  return LaunchApp(argv, no_env, fds_to_remap, wait, process_handle);
 }
 
 bool LaunchApp(const CommandLine& cl,
