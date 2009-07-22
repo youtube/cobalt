@@ -32,6 +32,8 @@
         'audio/audio_output.h',
         'audio/audio_util.cc',
         'audio/audio_util.h',
+        'audio/fake_audio_output_stream.cc',
+        'audio/fake_audio_output_stream.h',
         'audio/linux/audio_manager_linux.cc',
         'audio/linux/audio_manager_linux.h',
         'audio/linux/alsa_output.cc',
