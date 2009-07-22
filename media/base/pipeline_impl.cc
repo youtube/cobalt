@@ -8,7 +8,6 @@
 #include "base/compiler_specific.h"
 #include "base/condition_variable.h"
 #include "base/stl_util-inl.h"
-#include "media/base/filter_host_impl.h"
 #include "media/base/media_format.h"
 #include "media/base/pipeline_impl.h"
 
@@ -228,6 +227,20 @@ bool PipelineImpl::IsPipelineOk() const {
   return pipeline_internal_ && PIPELINE_OK == error_;
 }
 
+void PipelineImpl::SetError(PipelineError error) {
+  AutoLock auto_lock(lock_);
+  error_ = error;
+}
+
+base::TimeDelta PipelineImpl::GetTime() const {
+  return GetCurrentTime();
+}
+
+void PipelineImpl::SetTime(base::TimeDelta time) {
+  AutoLock auto_lock(lock_);
+  time_ = time;
+}
+
 void PipelineImpl::SetDuration(base::TimeDelta duration) {
   AutoLock auto_lock(lock_);
   duration_ = duration;
@@ -252,24 +265,6 @@ void PipelineImpl::SetVideoSize(size_t width, size_t height) {
   AutoLock auto_lock(lock_);
   video_width_ = width;
   video_height_ = height;
-}
-
-void PipelineImpl::SetTime(base::TimeDelta time) {
-  AutoLock auto_lock(lock_);
-  time_ = time;
-}
-
-bool PipelineImpl::InternalSetError(PipelineError error) {
-  // Don't want callers to set an error of "OK".  STOPPING is a special value
-  // that should only be used internally by the StopTask() method.
-  DCHECK(PIPELINE_OK != error && PIPELINE_STOPPING != error);
-  AutoLock auto_lock(lock_);
-  bool changed_error = false;
-  if (PIPELINE_OK == error_) {
-    error_ = error;
-    changed_error = true;
-  }
-  return changed_error;
 }
 
 void PipelineImpl::InsertRenderedMimeType(const std::string& major_mime_type) {
@@ -328,17 +323,45 @@ void PipelineInternal::VolumeChanged(float volume) {
       NewRunnableMethod(this, &PipelineInternal::VolumeChangedTask, volume));
 }
 
-// Called from any thread.  Updates the pipeline time.
-void PipelineInternal::SetTime(base::TimeDelta time) {
-  // TODO(scherkus): why not post a task?
-  pipeline_->SetTime(time);
-}
-
-// Called from any thread.  Sets the pipeline |error_| member and destroys all
-// filters.
+// Called from any thread.
 void PipelineInternal::SetError(PipelineError error) {
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &PipelineInternal::ErrorTask, error));
+}
+
+// Called from any thread.
+base::TimeDelta PipelineInternal::GetTime() const {
+  return pipeline_->GetCurrentTime();
+}
+
+// Called from any thread.
+void PipelineInternal::SetTime(base::TimeDelta time) {
+  pipeline_->SetTime(time);
+}
+
+// Called from any thread.
+void PipelineInternal::SetDuration(base::TimeDelta duration) {
+  pipeline_->SetDuration(duration);
+}
+
+// Called from any thread.
+void PipelineInternal::SetBufferedTime(base::TimeDelta buffered_time) {
+  pipeline_->SetBufferedTime(buffered_time);
+}
+
+// Called from any thread.
+void PipelineInternal::SetTotalBytes(int64 total_bytes) {
+  pipeline_->SetTotalBytes(total_bytes);
+}
+
+// Called from any thread.
+void PipelineInternal::SetBufferedBytes(int64 buffered_bytes) {
+  pipeline_->SetBufferedBytes(buffered_bytes);
+}
+
+// Called from any thread.
+void PipelineInternal::SetVideoSize(size_t width, size_t height) {
+  pipeline_->SetVideoSize(width, height);
 }
 
 // Called from any thread.
@@ -506,7 +529,7 @@ void PipelineInternal::ErrorTask(PipelineError error) {
   }
 
   // Update our error code first in case we execute the start callback.
-  pipeline_->error_ = error;
+  pipeline_->SetError(error);
 
   // Notify the client that starting did not complete, if necessary.
   if (IsPipelineInitializing() && start_callback_.get()) {
@@ -524,11 +547,10 @@ void PipelineInternal::ErrorTask(PipelineError error) {
 
 void PipelineInternal::PlaybackRateChangedTask(float playback_rate) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  for (FilterHostVector::iterator iter = filter_hosts_.begin();
-       iter != filter_hosts_.end();
+  for (FilterVector::iterator iter = filters_.begin();
+       iter != filters_.end();
        ++iter) {
-    (*iter)->media_filter()->SetPlaybackRate(playback_rate);
+    (*iter)->SetPlaybackRate(playback_rate);
   }
 }
 
@@ -552,11 +574,10 @@ void PipelineInternal::SeekTask(base::TimeDelta time,
     return;
   }
 
-  for (FilterHostVector::iterator iter = filter_hosts_.begin();
-       iter != filter_hosts_.end();
+  for (FilterVector::iterator iter = filters_.begin();
+       iter != filters_.end();
        ++iter) {
-    (*iter)->media_filter()->Seek(time,
-        NewCallback(this, &PipelineInternal::OnFilterSeek));
+    (*iter)->Seek(time, NewCallback(this, &PipelineInternal::OnFilterSeek));
   }
 
   // TODO(hclam): we should set the time when the above seek operations were all
@@ -600,11 +621,13 @@ void PipelineInternal::CreateFilter(FilterFactory* filter_factory,
     filter_threads_.push_back(thread.release());
   }
 
-  // Create the filter's host.
+  // Register ourselves as the filter's host.
   DCHECK(IsPipelineOk());
-  scoped_ptr<FilterHostImpl> host(new FilterHostImpl(this, filter.get()));
-  filter->set_host(host.get());
-  filter_hosts_.push_back(host.release());
+  DCHECK(filter_types_.find(Filter::filter_type()) == filter_types_.end())
+      << "Filter type " << Filter::filter_type() << " already exists";
+  filter->set_host(this);
+  filters_.push_back(filter.get());
+  filter_types_[Filter::filter_type()] = filter.get();
 
   // Now initialize the filter.
   filter->Initialize(source,
@@ -675,18 +698,18 @@ template <class Filter>
 void PipelineInternal::GetFilter(scoped_refptr<Filter>* filter_out) const {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  *filter_out = NULL;
-  for (FilterHostVector::const_iterator iter = filter_hosts_.begin();
-       iter != filter_hosts_.end() && NULL == *filter_out;
-       iter++) {
-    (*iter)->GetFilter(filter_out);
+  FilterTypeMap::const_iterator ft = filter_types_.find(Filter::filter_type());
+  if (ft == filter_types_.end()) {
+    *filter_out = NULL;
+  } else {
+    *filter_out = reinterpret_cast<Filter*>(ft->second.get());
   }
 }
 
 void PipelineInternal::DestroyFilters() {
   // Stop every filter.
-  for (FilterHostVector::iterator iter = filter_hosts_.begin();
-       iter != filter_hosts_.end();
+  for (FilterVector::iterator iter = filters_.begin();
+       iter != filters_.end();
        ++iter) {
     (*iter)->Stop();
   }
@@ -728,7 +751,8 @@ void PipelineInternal::DestroyFilters() {
   // Reset the pipeline, which will decrement a reference to this object.
   // We will get destroyed as soon as the remaining tasks finish executing.
   // To be safe, we'll set our pipeline reference to NULL.
-  STLDeleteElements(&filter_hosts_);
+  filters_.clear();
+  filter_types_.clear();
   STLDeleteElements(&filter_threads_);
 }
 

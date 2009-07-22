@@ -15,11 +15,11 @@
 #include "base/ref_counted.h"
 #include "base/thread.h"
 #include "base/time.h"
+#include "media/base/filter_host.h"
 #include "media/base/pipeline.h"
 
 namespace media {
 
-class FilterHostImpl;
 class PipelineInternal;
 
 // Class which implements the Media::Pipeline contract.  The majority of the
@@ -53,7 +53,6 @@ class PipelineImpl : public Pipeline {
   virtual PipelineError GetError() const;
 
  private:
-  friend class FilterHostImpl;
   friend class PipelineInternal;
   virtual ~PipelineImpl();
 
@@ -66,18 +65,19 @@ class PipelineImpl : public Pipeline {
   // must not be an error.
   bool IsPipelineOk() const;
 
-  // Methods called by FilterHostImpl to update pipeline state.
+  // Methods called by |pipeline_internal_| to update global pipeline data.
+  //
+  // Although this is the exact same as the FilterHost interface, we need to
+  // let |pipeline_internal_| receive the call first so it can post tasks as
+  // necessary.
+  void SetError(PipelineError error);
+  base::TimeDelta GetTime() const;
+  void SetTime(base::TimeDelta time);
   void SetDuration(base::TimeDelta duration);
   void SetBufferedTime(base::TimeDelta buffered_time);
   void SetTotalBytes(int64 total_bytes);
   void SetBufferedBytes(int64 buffered_bytes);
   void SetVideoSize(size_t width, size_t height);
-  void SetTime(base::TimeDelta time);
-
-  // Sets the error to the new error code only if the current error state is
-  // PIPELINE_OK. Returns true if error set, otherwise leaves current error
-  // alone, and returns false.
-  bool InternalSetError(PipelineError error);
 
   // Method called by the |pipeline_internal_| to insert a mime type into
   // the |rendered_mime_types_| set.
@@ -95,28 +95,22 @@ class PipelineImpl : public Pipeline {
   // initialized, this member will be set to true by the pipeline thread.
   bool initialized_;
 
-  // Duration of the media in microseconds.  Set by a FilterHostImpl object on
-  // behalf of a filter.
+  // Duration of the media in microseconds.  Set by filters.
   base::TimeDelta duration_;
 
-  // Amount of available buffered data in microseconds.  Set by a
-  // FilterHostImpl object on behalf of a filter.
+  // Amount of available buffered data in microseconds.  Set by filters.
   base::TimeDelta buffered_time_;
 
-  // Amount of available buffered data.  Set by a FilterHostImpl object
-  // on behalf of a filter.
+  // Amount of available buffered data.  Set by filters.
   int64 buffered_bytes_;
 
-  // Total size of the media.  Set by a FilterHostImpl object on behalf
-  // of a filter.
+  // Total size of the media.  Set by filters.
   int64 total_bytes_;
 
   // Lock used to serialize access for getter/setter methods.
   mutable Lock lock_;
 
-  // Video width and height.  Set by a FilterHostImpl object on behalf
-  // of a filter.  The video_size_access_lock_ is used to make sure access
-  // to the pair of width and height are modified or read in thread safe way.
+  // Video width and height.  Set by filters.
   size_t video_width_;
   size_t video_height_;
 
@@ -130,8 +124,7 @@ class PipelineImpl : public Pipeline {
   // the filters.
   float playback_rate_;
 
-  // Current playback time.  Set by a FilterHostImpl object on behalf of the
-  // audio renderer filter.
+  // Current playback time.  Set by filters.
   base::TimeDelta time_;
 
   // Status of the pipeline.  Initialized to PIPELINE_OK which indicates that
@@ -168,12 +161,13 @@ class PipelineImpl : public Pipeline {
 // transition to the "Error" state from any state. If Stop() is called during
 // initialization, this object will transition to "Stopped" state.
 
-class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
+class PipelineInternal : public FilterHost,
+    public base::RefCountedThreadSafe<PipelineInternal> {
  public:
   // Methods called by PipelineImpl object on the client's thread.  These
   // methods post a task to call a corresponding xxxTask() method on the
   // message loop.  For example, Seek posts a task to call SeekTask.
-  explicit PipelineInternal(PipelineImpl* pipeline, MessageLoop* message_loop);
+  PipelineInternal(PipelineImpl* pipeline, MessageLoop* message_loop);
 
   // After Start() is called, a task of StartTask() is posted on the pipeline
   // thread to perform initialization. See StartTask() to learn more about
@@ -188,25 +182,6 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
   void PlaybackRateChanged(float playback_rate);
   void VolumeChanged(float volume);
 
-  // Methods called by a FilterHostImpl object.  These methods may be called
-  // on any thread, either the pipeline's thread or any other.
-
-  // Sets the pipeline time and schedules a task to call back to any filters
-  // that have registered a time update callback.
-  void SetTime(base::TimeDelta time);
-
-  // Called by a FilterHostImpl on behalf of a filter calling
-  // FilterHost::SetError().  If the pipeline is running a nested message loop,
-  // it will be exited.
-  void SetError(PipelineError error);
-
-  // Simple accessor used by the FilterHostImpl class to get access to the
-  // pipeline object.
-  //
-  // TODO(scherkus): I think FilterHostImpl should not be talking to
-  // PipelineImpl but rather PipelineInternal.
-  PipelineImpl* pipeline() const { return pipeline_; }
-
   // Returns true if the pipeline has fully initialized.
   bool IsInitialized() { return state_ == kStarted; }
 
@@ -214,6 +189,16 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
   // Only allow ourselves to be destroyed via ref-counting.
   friend class base::RefCountedThreadSafe<PipelineInternal>;
   virtual ~PipelineInternal();
+
+  // FilterHost implementation.
+  virtual void SetError(PipelineError error);
+  virtual base::TimeDelta GetTime() const;
+  virtual void SetTime(base::TimeDelta time);
+  virtual void SetDuration(base::TimeDelta duration);
+  virtual void SetBufferedTime(base::TimeDelta buffered_time);
+  virtual void SetTotalBytes(int64 total_bytes);
+  virtual void SetBufferedBytes(int64 buffered_bytes);
+  virtual void SetVideoSize(size_t width, size_t height);
 
   enum State {
     kCreated,
@@ -290,18 +275,11 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
   // or it could be a string in the case of a DataSource.
   //
   // The CreateFilter() method actually does much more than simply creating the
-  // filter.  It creates the FilterHostImpl object, creates the filter using
-  // the filter factory, calls the MediaFilter::SetHost() method on the filter,
-  // and then calls the filter's type-specific Initialize(source) method to
-  // initialize the filter.  If the required filter cannot be created,
+  // filter.  It also creates the filter's thread and injects a FilterHost and
+  // MessageLoop.  Finally, it calls the filter's type-specific Initialize()
+  // method to initialize the filter.  If the required filter cannot be created,
   // PIPELINE_ERROR_REQUIRED_FILTER_MISSING is raised, initialization is halted
   // and this object will remain in the "Error" state.
-  //
-  // Callers can optionally use the returned Filter for further processing,
-  // but since the call already placed the filter in the list of filter hosts,
-  // callers can ignore the return value.  In any case, if this function can
-  // not create and initializes the specified Filter, then this method will
-  // return with |pipeline_->error_| != PIPELINE_OK.
   template <class Filter, class Source>
   void CreateFilter(FilterFactory* filter_factory,
                     Source source,
@@ -368,10 +346,15 @@ class PipelineInternal : public base::RefCountedThreadSafe<PipelineInternal> {
   scoped_ptr<PipelineCallback> seek_callback_;
   scoped_ptr<PipelineCallback> stop_callback_;
 
-  // Vector of FilterHostImpl objects that contain the filters for the pipeline.
-  typedef std::vector<FilterHostImpl*> FilterHostVector;
-  FilterHostVector filter_hosts_;
+  // Vector of our filters and map maintaining the relationship between the
+  // FilterType and the filter itself.
+  typedef std::vector<scoped_refptr<MediaFilter> > FilterVector;
+  FilterVector filters_;
 
+  typedef std::map<FilterType, scoped_refptr<MediaFilter> > FilterTypeMap;
+  FilterTypeMap filter_types_;
+
+  // Vector of threads owned by the pipeline and being used by filters.
   typedef std::vector<base::Thread*> FilterThreadVector;
   FilterThreadVector filter_threads_;
 
