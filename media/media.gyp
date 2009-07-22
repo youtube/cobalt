@@ -55,8 +55,6 @@
         'base/data_buffer.h',
         'base/factory.h',
         'base/filter_host.h',
-        'base/filter_host_impl.cc',
-        'base/filter_host_impl.h',
         'base/filters.h',
         'base/media_posix.cc',
         'base/media_win.cc',
