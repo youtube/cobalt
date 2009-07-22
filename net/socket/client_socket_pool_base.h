@@ -127,7 +127,8 @@ class ClientSocketPoolBase
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
   };
 
-  ClientSocketPoolBase(int max_sockets_per_group,
+  ClientSocketPoolBase(int max_sockets,
+                       int max_sockets_per_group,
                        ConnectJobFactory* connect_job_factory);
 
   ~ClientSocketPoolBase();
@@ -150,10 +151,6 @@ class ClientSocketPoolBase
     return idle_socket_count_;
   }
 
-  int max_sockets_per_group() const {
-    return max_sockets_per_group_;
-  }
-
   int IdleSocketCountInGroup(const std::string& group_name) const;
 
   LoadState GetLoadState(const std::string& group_name,
@@ -168,6 +165,9 @@ class ClientSocketPoolBase
   // service the request sooner, or a higher priority request may come in
   // afterward and receive the socket from the job).
   static void EnableLateBindingOfSockets(bool enabled);
+
+  // For testing.
+  bool may_have_stalled_group() const { return may_have_stalled_group_; }
 
  private:
   // Entry for a persistent socket which became idle at time |start_time|.
@@ -204,6 +204,10 @@ class ClientSocketPoolBase
           max_sockets_per_group;
     }
 
+    int TopPendingPriority() const {
+      return pending_requests.front().priority;
+    }
+
     std::deque<IdleSocket> idle_sockets;
     std::set<const ConnectJob*> jobs;
     RequestQueue pending_requests;
@@ -229,6 +233,12 @@ class ClientSocketPoolBase
 
   // Called via PostTask by ReleaseSocket.
   void DoReleaseSocket(const std::string& group_name, ClientSocket* socket);
+
+  // Scans the group map for groups which have an available socket slot and
+  // at least one pending request. Returns number of groups found, and if found
+  // at least one, fills |group| and |group_name| with data of the stalled group
+  // having highest priority.
+  int FindTopStalledGroup(Group** group, std::string* group_name);
 
   // Called when timer_ fires.  This method scans the idle sockets removing
   // sockets that timed out or can't be reused.
@@ -269,6 +279,10 @@ class ClientSocketPoolBase
   // longer needed.
   void CancelAllConnectJobs();
 
+  // Returns true if we can't create any more sockets due to the total limit.
+  // TODO(phajdan.jr): Also take idle sockets into account.
+  bool ReachedMaxSocketsLimit() const;
+
   GroupMap group_map_;
 
   ConnectJobMap connect_job_map_;
@@ -280,8 +294,33 @@ class ClientSocketPoolBase
   // The total number of idle sockets in the system.
   int idle_socket_count_;
 
+  // Number of connecting sockets across all groups.
+  int connecting_socket_count_;
+
+  // Number of connected sockets we handed out across all groups.
+  int handed_out_socket_count_;
+
+  // The maximum total number of sockets. See ReachedMaxSocketsLimit.
+  const int max_sockets_;
+
   // The maximum number of sockets kept per group.
   const int max_sockets_per_group_;
+
+  // Until the maximum number of sockets limit is reached, a group can only
+  // have pending requests if it exceeds the "max sockets per group" limit.
+  //
+  // This means when a socket is released, the only pending requests that can
+  // be started next belong to the same group.
+  //
+  // However once the |max_sockets_| limit is reached, this stops being true:
+  // groups can now have pending requests without having first reached the
+  // |max_sockets_per_group_| limit. So choosing the next request involves
+  // selecting the highest priority request across *all* groups.
+  //
+  // Since reaching the maximum number of sockets is an edge case, we make note
+  // of when it happens, and thus avoid doing the slower "scan all groups"
+  // in the common case.
+  bool may_have_stalled_group_;
 
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
 

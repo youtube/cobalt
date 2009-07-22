@@ -47,11 +47,19 @@ ConnectJob::ConnectJob(const std::string& group_name,
 ConnectJob::~ConnectJob() {}
 
 ClientSocketPoolBase::ClientSocketPoolBase(
+    int max_sockets,
     int max_sockets_per_group,
     ConnectJobFactory* connect_job_factory)
     : idle_socket_count_(0),
+      connecting_socket_count_(0),
+      handed_out_socket_count_(0),
+      max_sockets_(max_sockets),
       max_sockets_per_group_(max_sockets_per_group),
-      connect_job_factory_(connect_job_factory) {}
+      may_have_stalled_group_(false),
+      connect_job_factory_(connect_job_factory) {
+  DCHECK_LE(0, max_sockets_per_group);
+  DCHECK_LE(max_sockets_per_group, max_sockets);
+}
 
 ClientSocketPoolBase::~ClientSocketPoolBase() {
   if (g_late_binding)
@@ -89,7 +97,13 @@ int ClientSocketPoolBase::RequestSocket(
   Group& group = group_map_[group_name];
 
   // Can we make another active socket now?
-  if (!group.HasAvailableSocketSlot(max_sockets_per_group_)) {
+  if (ReachedMaxSocketsLimit() ||
+      !group.HasAvailableSocketSlot(max_sockets_per_group_)) {
+    if (ReachedMaxSocketsLimit()) {
+      // We could check if we really have a stalled group here, but it requires
+      // a scan of all groups, so just flip a flag here, and do the check later.
+      may_have_stalled_group_ = true;
+    }
     CHECK(callback);
     Request r(handle, callback, priority, resolve_info);
     InsertRequestIntoQueue(r, &group.pending_requests);
@@ -120,6 +134,8 @@ int ClientSocketPoolBase::RequestSocket(
     HandOutSocket(connect_job->ReleaseSocket(), false /* not reused */,
                   handle, &group);
   } else if (rv == ERR_IO_PENDING) {
+    connecting_socket_count_++;
+
     ConnectJob* job = connect_job.release();
     if (g_late_binding) {
       CHECK(!ContainsKey(connect_job_map_, handle));
@@ -291,6 +307,9 @@ void ClientSocketPoolBase::DoReleaseSocket(const std::string& group_name,
 
   Group& group = i->second;
 
+  CHECK(handed_out_socket_count_ > 0);
+  handed_out_socket_count_--;
+
   CHECK(group.active_socket_count > 0);
   group.active_socket_count--;
 
@@ -302,6 +321,38 @@ void ClientSocketPoolBase::DoReleaseSocket(const std::string& group_name,
   }
 
   OnAvailableSocketSlot(group_name, &group);
+}
+
+// Search for the highest priority pending request, amongst the groups that
+// are not at the |max_sockets_per_group_| limit. Note: for requests with
+// the same priority, the winner is based on group hash ordering (and not
+// insertion order).
+int ClientSocketPoolBase::FindTopStalledGroup(Group** group,
+                                              std::string* group_name) {
+  Group* top_group = NULL;
+  const std::string* top_group_name = NULL;
+  int stalled_group_count = 0;
+  for (GroupMap::iterator i = group_map_.begin();
+       i != group_map_.end(); ++i) {
+    Group& group = i->second;
+    const RequestQueue& queue = group.pending_requests;
+    if (queue.empty())
+      continue;
+    bool has_slot = group.HasAvailableSocketSlot(max_sockets_per_group_);
+    if (has_slot)
+      stalled_group_count++;
+    bool has_higher_priority = !top_group ||
+        group.TopPendingPriority() > top_group->TopPendingPriority();
+    if (has_slot && has_higher_priority) {
+      top_group = &group;
+      top_group_name = &i->first;
+    }
+  }
+  if (top_group) {
+    *group = top_group;
+    *group_name = *top_group_name;
+  }
+  return stalled_group_count;
 }
 
 void ClientSocketPoolBase::OnConnectJobComplete(int result, ConnectJob* job) {
@@ -369,6 +420,9 @@ void ClientSocketPoolBase::EnableLateBindingOfSockets(bool enabled) {
 
 void ClientSocketPoolBase::RemoveConnectJob(
     const ClientSocketHandle* handle, ConnectJob *job, Group* group) {
+  CHECK(connecting_socket_count_ > 0);
+  connecting_socket_count_--;
+
   if (g_late_binding) {
     DCHECK(job);
     delete job;
@@ -399,7 +453,15 @@ void ClientSocketPoolBase::MaybeOnAvailableSocketSlot(
 
 void ClientSocketPoolBase::OnAvailableSocketSlot(const std::string& group_name,
                                                  Group* group) {
-  if (!group->pending_requests.empty()) {
+  if (may_have_stalled_group_) {
+    std::string top_group_name;
+    Group* top_group;
+    int stalled_group_count = FindTopStalledGroup(&top_group, &top_group_name);
+    if (stalled_group_count <= 1)
+      may_have_stalled_group_ = false;
+    if (stalled_group_count >= 1)
+      ProcessPendingRequest(top_group_name, top_group);
+  } else if (!group->pending_requests.empty()) {
     ProcessPendingRequest(group_name, group);
     // |group| may no longer be valid after this point.  Be careful not to
     // access it again.
@@ -435,6 +497,8 @@ void ClientSocketPoolBase::HandOutSocket(
   DCHECK(socket);
   handle->set_socket(socket);
   handle->set_is_reused(reused);
+
+  handed_out_socket_count_++;
   group->active_socket_count++;
 }
 
@@ -463,6 +527,13 @@ void ClientSocketPoolBase::CancelAllConnectJobs() {
       ++i;
     }
   }
+}
+
+bool ClientSocketPoolBase::ReachedMaxSocketsLimit() const {
+  // Each connecting socket will eventually connect and be handed out.
+  int total = handed_out_socket_count_ + connecting_socket_count_;
+  DCHECK_LE(total, max_sockets_);
+  return total == max_sockets_;
 }
 
 }  // namespace net
