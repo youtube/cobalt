@@ -65,10 +65,11 @@ void FileDataSource::Read(int64 position, size_t size, uint8* data,
                           ReadCallback* read_callback) {
   DCHECK(file_);
   AutoLock l(lock_);
+  scoped_ptr<ReadCallback> callback(read_callback);
   if (file_) {
 #if defined(OS_WIN)
     if (_fseeki64(file_, position, SEEK_SET)) {
-      read_callback->RunWithParams(
+      callback->RunWithParams(
           Tuple1<size_t>(static_cast<size_t>(DataSource::kReadError)));
       return;
     }
@@ -76,20 +77,20 @@ void FileDataSource::Read(int64 position, size_t size, uint8* data,
     CHECK(position <= std::numeric_limits<int32>::max());
     // TODO(hclam): Change fseek() to support 64-bit position.
     if (fseek(file_, static_cast<int32>(position), SEEK_SET)) {
-      read_callback->RunWithParams(
+      callback->RunWithParams(
           Tuple1<size_t>(static_cast<size_t>(DataSource::kReadError)));
       return;
     }
 #endif
     size_t size_read = fread(data, 1, size, file_);
     if (size_read == size || !ferror(file_)) {
-      read_callback->RunWithParams(
+      callback->RunWithParams(
           Tuple1<size_t>(static_cast<size_t>(size_read)));
       return;
     }
   }
 
-  read_callback->RunWithParams(Tuple1<size_t>(static_cast<size_t>(kReadError)));
+  callback->RunWithParams(Tuple1<size_t>(static_cast<size_t>(kReadError)));
 }
 
 bool FileDataSource::GetSize(int64* size_out) {
