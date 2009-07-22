@@ -74,8 +74,7 @@ struct SettingsTable {
   map_type settings;
 };
 
-class MockEnvironmentVariableGetter
-    : public ProxyConfigServiceLinux::EnvironmentVariableGetter {
+class MockEnvironmentVariableGetter : public base::EnvironmentVariableGetter {
  public:
   MockEnvironmentVariableGetter() {
 #define ENTRY(x) table.settings[#x] = &values.x

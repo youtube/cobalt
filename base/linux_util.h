@@ -20,6 +20,24 @@ uint8_t* BGRAToRGBA(const uint8_t* pixels, int width, int height, int stride);
 // GetWinVersion() in base/win_util.h.
 std::string GetLinuxDistro();
 
+// These are used to derive mocks for unittests.
+class EnvironmentVariableGetter {
+ public:
+  virtual ~EnvironmentVariableGetter() {}
+  // Gets an environment variable's value and stores it in
+  // result. Returns false if the key is unset.
+  virtual bool Getenv(const char* variable_name, std::string* result) = 0;
+
+  // Create an instance of EnvironmentVariableGetter
+  static EnvironmentVariableGetter* Create();
+};
+
+// Return true if we appear to be running under Gnome and should attempt to use
+// some prefrences from the desktop environment (eg proxy settings),
+// If someone adds support for other environments, this function could be
+// replaced with one that returns an enum so we an specify Gnome, KDE, etc.
+bool UseGnomeForSettings(EnvironmentVariableGetter* env_var_getter);
+
 }  // namespace base
 
 #endif  // BASE_LINUX_UTIL_H__
