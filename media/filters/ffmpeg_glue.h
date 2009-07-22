@@ -38,22 +38,50 @@ typedef int64 offset_t;
 
 namespace media {
 
-class DataSource;
+class FFmpegURLProtocol {
+ public:
+  FFmpegURLProtocol() {
+  }
+
+  virtual ~FFmpegURLProtocol() {
+  }
+
+  // Read the given amount of bytes into data, returns the number of bytes read
+  // if successful, kReadError otherwise.
+  virtual int Read(int size, uint8* data) = 0;
+
+  // Returns true and the current file position for this file, false if the
+  // file position could not be retrieved.
+  virtual bool GetPosition(int64* position_out) = 0;
+
+  // Returns true if the file position could be set, false otherwise.
+  virtual bool SetPosition(int64 position) = 0;
+
+  // Returns true and the file size, false if the file size could not be
+  // retrieved.
+  virtual bool GetSize(int64* size_out) = 0;
+
+  // Returns false if this protocol supports random seeking.
+  virtual bool IsStreamed() = 0;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FFmpegURLProtocol);
+};
 
 class FFmpegGlue : public Singleton<FFmpegGlue> {
  public:
-  // Adds a DataSource to the FFmpeg glue layer and returns a unique string that
-  // can be passed to FFmpeg to identify the data source.
-  std::string AddDataSource(DataSource* data_source);
+  // Adds a FFmpegProtocol to the FFmpeg glue layer and returns a unique string
+  // that can be passed to FFmpeg to identify the data source.
+  std::string AddProtocol(FFmpegURLProtocol* protocol);
 
-  // Removes a DataSource from the FFmpeg glue layer.  Using strings from
-  // previously added DataSources will no longer work.
-  void RemoveDataSource(DataSource* data_source);
+  // Removes a FFmpegProtocol from the FFmpeg glue layer.  Using strings from
+  // previously added FFmpegProtocols will no longer work.
+  void RemoveProtocol(FFmpegURLProtocol* protocol);
 
-  // Assigns the DataSource identified with by the given key to |data_source|,
-  // or assigns NULL if no such DataSource could be found.
-  void GetDataSource(const std::string& key,
-                     scoped_refptr<DataSource>* data_source);
+  // Assigns the FFmpegProtocol identified with by the given key to
+  // |protocol|, or assigns NULL if no such FFmpegProtocol could be found.
+  void GetProtocol(const std::string& key,
+                   FFmpegURLProtocol** protocol);
 
  private:
   // Only allow Singleton to create and delete FFmpegGlue.
@@ -63,14 +91,14 @@ class FFmpegGlue : public Singleton<FFmpegGlue> {
 
   // Returns the unique key for this data source, which can be passed to
   // av_open_input_file as the filename.
-  std::string GetDataSourceKey(DataSource* data_source);
+  std::string GetProtocolKey(FFmpegURLProtocol* protocol);
 
   // Mutual exclusion while adding/removing items from the map.
   Lock lock_;
 
-  // Map between keys and DataSource references.
-  typedef std::map< std::string, scoped_refptr<DataSource> > DataSourceMap;
-  DataSourceMap data_sources_;
+  // Map between keys and FFmpegProtocol references.
+  typedef std::map<std::string, FFmpegURLProtocol*> ProtocolMap;
+  ProtocolMap protocols_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegGlue);
 };

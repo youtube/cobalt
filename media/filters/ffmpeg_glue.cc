@@ -9,24 +9,26 @@
 
 namespace {
 
+media::FFmpegURLProtocol* ToProtocol(void* data) {
+  return reinterpret_cast<media::FFmpegURLProtocol*>(data);
+}
+
 // FFmpeg protocol interface.
 int OpenContext(URLContext* h, const char* filename, int flags) {
-  scoped_refptr<media::DataSource> data_source;
-  media::FFmpegGlue::get()->GetDataSource(filename, &data_source);
-  if (!data_source)
+  media::FFmpegURLProtocol* protocol;
+  media::FFmpegGlue::get()->GetProtocol(filename, &protocol);
+  if (!protocol)
     return AVERROR_IO;
 
-  data_source->AddRef();
-  h->priv_data = data_source;
+  h->priv_data = protocol;
   h->flags = URL_RDONLY;
-  h->is_streamed = !data_source->IsSeekable();
+  h->is_streamed = protocol->IsStreamed();
   return 0;
 }
 
 int ReadContext(URLContext* h, unsigned char* buf, int size) {
-  media::DataSource* data_source =
-      reinterpret_cast<media::DataSource*>(h->priv_data);
-  int result = data_source->Read(buf, size);
+  media::FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
+  int result = protocol->Read(size, buf);
   if (result < 0)
     result = AVERROR_IO;
   return result;
@@ -38,33 +40,32 @@ int WriteContext(URLContext* h, unsigned char* buf, int size) {
 }
 
 offset_t SeekContext(URLContext* h, offset_t offset, int whence) {
-  media::DataSource* data_source =
-      reinterpret_cast<media::DataSource*>(h->priv_data);
+  media::FFmpegURLProtocol* protocol = ToProtocol(h->priv_data);
   offset_t new_offset = AVERROR_IO;
   switch (whence) {
     case SEEK_SET:
-      if (data_source->SetPosition(offset))
-        data_source->GetPosition(&new_offset);
+      if (protocol->SetPosition(offset))
+        protocol->GetPosition(&new_offset);
       break;
 
     case SEEK_CUR:
       int64 pos;
-      if (!data_source->GetPosition(&pos))
+      if (!protocol->GetPosition(&pos))
         break;
-      if (data_source->SetPosition(pos + offset))
-        data_source->GetPosition(&new_offset);
+      if (protocol->SetPosition(pos + offset))
+        protocol->GetPosition(&new_offset);
       break;
 
     case SEEK_END:
       int64 size;
-      if (!data_source->GetSize(&size))
+      if (!protocol->GetSize(&size))
         break;
-      if (data_source->SetPosition(size + offset))
-        data_source->GetPosition(&new_offset);
+      if (protocol->SetPosition(size + offset))
+        protocol->GetPosition(&new_offset);
       break;
 
     case AVSEEK_SIZE:
-      data_source->GetSize(&new_offset);
+      protocol->GetSize(&new_offset);
       break;
 
     default:
@@ -76,9 +77,6 @@ offset_t SeekContext(URLContext* h, offset_t offset, int whence) {
 }
 
 int CloseContext(URLContext* h) {
-  media::DataSource* data_source =
-      reinterpret_cast<media::DataSource*>(h->priv_data);
-  data_source->Release();
   h->priv_data = NULL;
   return 0;
 }
@@ -93,7 +91,7 @@ namespace media {
 static const char kProtocol[] = "http";
 
 // Fill out our FFmpeg protocol definition.
-static URLProtocol kFFmpegProtocol = {
+static URLProtocol kFFmpegURLProtocol = {
   kProtocol,
   &OpenContext,
   &ReadContext,
@@ -105,7 +103,7 @@ static URLProtocol kFFmpegProtocol = {
 FFmpegGlue::FFmpegGlue() {
   // Register our protocol glue code with FFmpeg.
   avcodec_init();
-  av_register_protocol(&kFFmpegProtocol);
+  av_register_protocol(&kFFmpegURLProtocol);
 
   // Now register the rest of FFmpeg.
   av_register_all();
@@ -114,43 +112,43 @@ FFmpegGlue::FFmpegGlue() {
 FFmpegGlue::~FFmpegGlue() {
 }
 
-std::string FFmpegGlue::AddDataSource(DataSource* data_source) {
+std::string FFmpegGlue::AddProtocol(FFmpegURLProtocol* protocol) {
   AutoLock auto_lock(lock_);
-  std::string key = GetDataSourceKey(data_source);
-  if (data_sources_.find(key) == data_sources_.end()) {
-    data_sources_[key] = data_source;
+  std::string key = GetProtocolKey(protocol);
+  if (protocols_.find(key) == protocols_.end()) {
+    protocols_[key] = protocol;
   }
   return key;
 }
 
-void FFmpegGlue::RemoveDataSource(DataSource* data_source) {
+void FFmpegGlue::RemoveProtocol(FFmpegURLProtocol* protocol) {
   AutoLock auto_lock(lock_);
-  for (DataSourceMap::iterator cur, iter = data_sources_.begin();
-       iter != data_sources_.end();) {
+  for (ProtocolMap::iterator cur, iter = protocols_.begin();
+       iter != protocols_.end();) {
     cur = iter;
     iter++;
 
-    if (cur->second == data_source)
-      data_sources_.erase(cur);
+    if (cur->second == protocol)
+      protocols_.erase(cur);
   }
 }
 
-void FFmpegGlue::GetDataSource(const std::string& key,
-                               scoped_refptr<DataSource>* data_source) {
+void FFmpegGlue::GetProtocol(const std::string& key,
+                             FFmpegURLProtocol** protocol) {
   AutoLock auto_lock(lock_);
-  DataSourceMap::iterator iter = data_sources_.find(key);
-  if (iter == data_sources_.end()) {
-    *data_source = NULL;
+  ProtocolMap::iterator iter = protocols_.find(key);
+  if (iter == protocols_.end()) {
+    *protocol = NULL;
     return;
   }
-  *data_source = iter->second;
+  *protocol = iter->second;
 }
 
-std::string FFmpegGlue::GetDataSourceKey(DataSource* data_source) {
-  // Use the DataSource's memory address to generate the unique string.  This
-  // also has the nice property that adding the same DataSource reference will
-  // not generate duplicate entries.
-  return StringPrintf("%s://0x%lx", kProtocol, static_cast<void*>(data_source));
+std::string FFmpegGlue::GetProtocolKey(FFmpegURLProtocol* protocol) {
+  // Use the FFmpegURLProtocol's memory address to generate the unique string.
+  // This also has the nice property that adding the same FFmpegURLProtocol
+  // reference will not generate duplicate entries.
+  return StringPrintf("%s://0x%lx", kProtocol, static_cast<void*>(protocol));
 }
 
 }  // namespace media
