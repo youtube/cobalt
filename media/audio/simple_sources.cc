@@ -118,7 +118,7 @@ void PushSource::CleanUp() {
   AutoLock auto_lock(lock_);
   PacketList::const_iterator it;
   for (it = packets_.begin(); it != packets_.end(); ++it) {
-    delete it->buffer;
+    delete [] it->buffer;
     buffered_bytes_ -= it->size;
   }
   packets_.clear();
