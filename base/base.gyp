@@ -285,6 +285,7 @@
         'string_util_icu.cc',
         'string_util_win.h',
         'sys_info.h',
+        'sys_info_chromeos.cc',
         'sys_info_mac.cc',
         'sys_info_posix.cc',
         'sys_info_win.cc',
@@ -415,13 +416,19 @@
             'include_dirs': [
               '<(SHARED_INTERMEDIATE_DIR)',
             ],
-            'sources/': [ ['exclude', '_(mac|win)\\.cc$'],
+            'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
             'sources!': [
               # Linux has an implementation of idle_timer that depends
               # on XScreenSaver, but it's unclear if we want it yet,
               # so use idle_timer_none.cc instead.
               'idle_timer.cc',
+            ],
+            'conditions': [
+              [ 'chromeos==1', {
+                  'sources/': [ ['include', '_chromeos\\.cc$'] ]
+                },
+              ],
             ],
             'dependencies': [
               '../build/util/build_util.gyp:lastchange',
@@ -471,7 +478,7 @@
           },
         ],
         [ 'OS == "mac"', {
-            'sources/': [ ['exclude', '_(linux|win)\\.cc$'] ],
+            'sources/': [ ['exclude', '_(linux|win|chromeos)\\.cc$'] ],
             'sources!': [
             ],
             'link_settings': {
@@ -492,7 +499,7 @@
           }
         ],
         [ 'OS == "win"', {
-            'sources/': [ ['exclude', '_(linux|mac|posix)\\.cc$'],
+            'sources/': [ ['exclude', '_(linux|mac|posix|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
             'sources!': [
               'data_pack.cc',
