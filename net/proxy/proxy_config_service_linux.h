@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/linux_util.h"
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
@@ -22,15 +23,6 @@ namespace net {
 // settings from environment variables or gconf.
 class ProxyConfigServiceLinux : public ProxyConfigService {
  public:
-
-  // These are used to derive mocks for unittests.
-  class EnvironmentVariableGetter {
-   public:
-    virtual ~EnvironmentVariableGetter() {}
-    // Gets an environment variable's value and stores it in
-    // result. Returns false if the key is unset.
-    virtual bool Getenv(const char* variable_name, std::string* result) = 0;
-  };
 
   class GConfSettingGetter {
    public:
@@ -89,7 +81,7 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
    public:
     // Constructor receives gconf and env var getter implementations
     // to use, and takes ownership of them.
-    Delegate(EnvironmentVariableGetter* env_var_getter,
+    Delegate(base::EnvironmentVariableGetter* env_var_getter,
              GConfSettingGetter* gconf_getter);
     // Synchronously obtains the proxy configuration. If gconf is
     // used, also enables gconf notification for setting
@@ -151,7 +143,7 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     // carry the new config information.
     void SetNewProxyConfig(const ProxyConfig& new_config);
 
-    scoped_ptr<EnvironmentVariableGetter> env_var_getter_;
+    scoped_ptr<base::EnvironmentVariableGetter> env_var_getter_;
     scoped_ptr<GConfSettingGetter> gconf_getter_;
 
     // Cached proxy configuration, to be returned by
@@ -186,7 +178,7 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
   // Usual constructor
   ProxyConfigServiceLinux();
   // For testing: takes alternate gconf and env var getter implementations.
-  ProxyConfigServiceLinux(EnvironmentVariableGetter* env_var_getter,
+  ProxyConfigServiceLinux(base::EnvironmentVariableGetter* env_var_getter,
                           GConfSettingGetter* gconf_getter);
 
   virtual ~ProxyConfigServiceLinux() {

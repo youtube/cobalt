@@ -21,36 +21,6 @@ namespace net {
 
 namespace {
 
-class EnvironmentVariableGetterImpl
-    : public ProxyConfigServiceLinux::EnvironmentVariableGetter {
- public:
-  virtual bool Getenv(const char* variable_name, std::string* result) {
-    const char* env_value = ::getenv(variable_name);
-    if (env_value) {
-      // Note that the variable may be defined but empty.
-      *result = env_value;
-      return true;
-    }
-    // Some commonly used variable names are uppercase while others
-    // are lowercase, which is inconsistent. Let's try to be helpful
-    // and look for a variable name with the reverse case.
-    char first_char = variable_name[0];
-    std::string alternate_case_var;
-    if (first_char >= 'a' && first_char <= 'z')
-      alternate_case_var = StringToUpperASCII(std::string(variable_name));
-    else if (first_char >= 'A' && first_char <= 'Z')
-      alternate_case_var = StringToLowerASCII(std::string(variable_name));
-    else
-      return false;
-    env_value = ::getenv(alternate_case_var.c_str());
-    if (env_value) {
-      *result = env_value;
-      return true;
-    }
-    return false;
-  }
-};
-
 // Given a proxy hostname from a setting, returns that hostname with
 // an appropriate proxy server scheme prefix.
 // scheme indicates the desired proxy scheme: usually http, with
@@ -528,20 +498,13 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
 }
 
 ProxyConfigServiceLinux::Delegate::Delegate(
-    EnvironmentVariableGetter* env_var_getter,
+    base::EnvironmentVariableGetter* env_var_getter,
     GConfSettingGetter* gconf_getter)
     : env_var_getter_(env_var_getter), gconf_getter_(gconf_getter),
       glib_default_loop_(NULL), io_loop_(NULL) {
 }
 
 bool ProxyConfigServiceLinux::Delegate::ShouldTryGConf() {
-  // GNOME_DESKTOP_SESSION_ID being defined is a good indication that
-  // we are probably running under GNOME.
-  // Note: KDE_FULL_SESSION is a corresponding env var to recognize KDE.
-  std::string dummy, desktop_session;
-  return env_var_getter_->Getenv("GNOME_DESKTOP_SESSION_ID", &dummy)
-      || (env_var_getter_->Getenv("DESKTOP_SESSION", &desktop_session)
-          && desktop_session == "gnome");
   // I (sdoyon) would have liked to prioritize environment variables
   // and only fallback to gconf if env vars were unset. But
   // gnome-terminal "helpfully" sets http_proxy and no_proxy, and it
@@ -549,6 +512,7 @@ bool ProxyConfigServiceLinux::Delegate::ShouldTryGConf() {
   // mislead us.
   //
   // We could introduce a CHROME_PROXY_OBEY_ENV_VARS variable...??
+  return base::UseGnomeForSettings(env_var_getter_.get());
 }
 
 void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
@@ -673,12 +637,12 @@ void ProxyConfigServiceLinux::Delegate::OnDestroy() {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux()
-    : delegate_(new Delegate(new EnvironmentVariableGetterImpl(),
+    : delegate_(new Delegate(base::EnvironmentVariableGetter::Create(),
                              new GConfSettingGetterImpl())) {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
-    EnvironmentVariableGetter* env_var_getter,
+    base::EnvironmentVariableGetter* env_var_getter,
     GConfSettingGetter* gconf_getter)
     : delegate_(new Delegate(env_var_getter, gconf_getter)) {
 }
