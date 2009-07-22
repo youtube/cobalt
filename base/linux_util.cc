@@ -10,6 +10,41 @@
 
 #include "base/command_line.h"
 #include "base/process_util.h"
+#include "base/string_util.h"
+
+namespace {
+
+class EnvironmentVariableGetterImpl
+    : public base::EnvironmentVariableGetter {
+ public:
+  virtual bool Getenv(const char* variable_name, std::string* result) {
+    const char* env_value = ::getenv(variable_name);
+    if (env_value) {
+      // Note that the variable may be defined but empty.
+      *result = env_value;
+      return true;
+    }
+    // Some commonly used variable names are uppercase while others
+    // are lowercase, which is inconsistent. Let's try to be helpful
+    // and look for a variable name with the reverse case.
+    char first_char = variable_name[0];
+    std::string alternate_case_var;
+    if (first_char >= 'a' && first_char <= 'z')
+      alternate_case_var = StringToUpperASCII(std::string(variable_name));
+    else if (first_char >= 'A' && first_char <= 'Z')
+      alternate_case_var = StringToLowerASCII(std::string(variable_name));
+    else
+      return false;
+    env_value = ::getenv(alternate_case_var.c_str());
+    if (env_value) {
+      *result = env_value;
+      return true;
+    }
+    return false;
+  }
+};
+
+} // anonymous namespace
 
 namespace base {
 
@@ -57,6 +92,21 @@ std::string GetLinuxDistro() {
     checked_distro = true;
   }
   return linux_distro;
+}
+
+// static
+EnvironmentVariableGetter* EnvironmentVariableGetter::Create() {
+  return new EnvironmentVariableGetterImpl();
+}
+
+bool UseGnomeForSettings(EnvironmentVariableGetter* env_var_getter) {
+  // GNOME_DESKTOP_SESSION_ID being defined is a good indication that
+  // we are probably running under GNOME.
+  // Note: KDE_FULL_SESSION is a corresponding env var to recognize KDE.
+  std::string dummy, desktop_session;
+  return env_var_getter->Getenv("GNOME_DESKTOP_SESSION_ID", &dummy)
+      || (env_var_getter->Getenv("DESKTOP_SESSION", &desktop_session)
+          && desktop_session == "gnome");
 }
 
 }  // namespace base
