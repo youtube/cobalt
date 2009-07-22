@@ -69,9 +69,11 @@ static const MimeInfo primary_mappings[] = {
   { "image/gif", "gif" },
   { "image/jpeg", "jpeg,jpg" },
   { "image/png", "png" },
+#if defined(GOOGLE_CHROME_BUILD)
   { "video/mp4", "mp4,m4v" },
   { "audio/x-m4a", "m4a" },
   { "audio/mp3", "mp3" },
+#endif
   { "video/ogg", "ogv,ogm" },
   { "audio/ogg", "ogg,oga" },
   { "application/xhtml+xml", "xhtml,xht" }
@@ -184,6 +186,7 @@ static const char* const supported_media_types[] = {
   "video/ogg",
   "audio/ogg",
 
+  // TODO(fbarchard): Remove these for Chromium when layout tests dont use mp4
   // MPEG-4.
   "video/mp4",
   "video/x-m4v",
