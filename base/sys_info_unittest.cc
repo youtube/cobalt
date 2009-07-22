@@ -37,9 +37,7 @@ TEST_F(SysInfoTest, HasEnvVar) {
   EXPECT_TRUE(base::SysInfo::HasEnvVar(L"PATH"));
 }
 
-// TODO(port): If and when there's a LINUX version of this method, enable this
-// unit test.
-#if defined(OS_WIN) || defined(OS_MACOSX)
+#if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_CHROMEOS)
 TEST_F(SysInfoTest, OperatingSystemVersionNumbers) {
   int32 os_major_version = -1;
   int32 os_minor_version = -1;
@@ -51,4 +49,53 @@ TEST_F(SysInfoTest, OperatingSystemVersionNumbers) {
   EXPECT_GT(os_minor_version, -1);
   EXPECT_GT(os_bugfix_version, -1);
 }
-#endif  // OS_WIN || OS_MACOSX
+#endif
+
+#if defined(OS_CHROMEOS)
+TEST_F(SysInfoTest, GoogleChromeOSVersionNumbers) {
+  int32 os_major_version = -1;
+  int32 os_minor_version = -1;
+  int32 os_bugfix_version = -1;
+  std::string lsb_release("FOO=1234123.34.5\n");
+  lsb_release.append(base::SysInfo::GetLinuxStandardBaseVersionKey());
+  lsb_release.append("=1.2.3.4\n");
+  base::SysInfo::ParseLsbRelease(lsb_release,
+                                 &os_major_version,
+                                 &os_minor_version,
+                                 &os_bugfix_version);
+  EXPECT_EQ(os_major_version, 1);
+  EXPECT_EQ(os_minor_version, 2);
+  EXPECT_EQ(os_bugfix_version, 3);
+}
+
+TEST_F(SysInfoTest, GoogleChromeOSVersionNumbersFirst) {
+  int32 os_major_version = -1;
+  int32 os_minor_version = -1;
+  int32 os_bugfix_version = -1;
+  std::string lsb_release(base::SysInfo::GetLinuxStandardBaseVersionKey());
+  lsb_release.append("=1.2.3.4\n");
+  lsb_release.append("FOO=1234123.34.5\n");
+  base::SysInfo::ParseLsbRelease(lsb_release,
+                                 &os_major_version,
+                                 &os_minor_version,
+                                 &os_bugfix_version);
+  EXPECT_EQ(os_major_version, 1);
+  EXPECT_EQ(os_minor_version, 2);
+  EXPECT_EQ(os_bugfix_version, 3);
+}
+
+TEST_F(SysInfoTest, GoogleChromeOSNoVersionNumbers) {
+  int32 os_major_version = -1;
+  int32 os_minor_version = -1;
+  int32 os_bugfix_version = -1;
+  std::string lsb_release("FOO=1234123.34.5\n");
+  base::SysInfo::ParseLsbRelease(lsb_release,
+                                 &os_major_version,
+                                 &os_minor_version,
+                                 &os_bugfix_version);
+  EXPECT_EQ(os_major_version, -1);
+  EXPECT_EQ(os_minor_version, -1);
+  EXPECT_EQ(os_bugfix_version, -1);
+}
+
+#endif  // OS_CHROMEOS
