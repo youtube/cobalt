@@ -64,6 +64,19 @@ class SysInfo {
   // Return the smallest amount of memory (in bytes) which the VM system will
   // allocate.
   static size_t VMAllocationGranularity();
+
+#if defined(OS_CHROMEOS)
+  // Returns the name of the version entry we wish to look up in the
+  // Linux Standard Base release information file.
+  static std::string GetLinuxStandardBaseVersionKey();
+
+  // Parses /etc/lsb-release to get version information for Google Chrome OS.
+  // Declared here so it can be exposed for unit testing.
+  static void ParseLsbRelease(const std::string& lsb_release,
+                              int32 *major_version,
+                              int32 *minor_version,
+                              int32 *bugfix_version);
+#endif
 };
 
 }  // namespace base
