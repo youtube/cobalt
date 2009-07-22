@@ -9,7 +9,22 @@
 namespace net {
 
 // static
+int HttpNetworkSession::max_sockets_ = 100;
+
+// static
 int HttpNetworkSession::max_sockets_per_group_ = 6;
+
+HttpNetworkSession::HttpNetworkSession(
+    HostResolver* host_resolver,
+    ProxyService* proxy_service,
+    ClientSocketFactory* client_socket_factory)
+    : connection_pool_(new TCPClientSocketPool(
+          max_sockets_, max_sockets_per_group_, host_resolver,
+          client_socket_factory)),
+      host_resolver_(host_resolver),
+      proxy_service_(proxy_service) {
+  DCHECK(proxy_service);
+}
 
 // static
 void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
