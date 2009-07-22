@@ -215,7 +215,11 @@ base::TimeDelta FFmpegDemuxerStream::ConvertTimestamp(int64 timestamp) {
 // FFmpegDemuxer
 //
 FFmpegDemuxer::FFmpegDemuxer()
-    : format_context_(NULL) {
+    : format_context_(NULL),
+      read_event_(false, false),
+      read_has_failed_(false),
+      last_read_bytes_(0),
+      read_position_(0) {
 }
 
 FFmpegDemuxer::~FFmpegDemuxer() {
@@ -259,6 +263,9 @@ void FFmpegDemuxer::Stop() {
   // Post a task to notify the streams to stop as well.
   message_loop()->PostTask(FROM_HERE,
       NewRunnableMethod(this, &FFmpegDemuxer::StopTask));
+
+  // Then wakes up the thread from reading.
+  SignalReadCompleted(DataSource::kReadError);
 }
 
 void FFmpegDemuxer::Seek(base::TimeDelta time, FilterCallback* callback) {
@@ -273,7 +280,7 @@ void FFmpegDemuxer::Seek(base::TimeDelta time, FilterCallback* callback) {
 void FFmpegDemuxer::Initialize(DataSource* data_source,
                                FilterCallback* callback) {
   message_loop()->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::InititalizeTask, data_source,
+      NewRunnableMethod(this, &FFmpegDemuxer::InitializeTask, data_source,
                         callback));
 }
 
@@ -287,30 +294,76 @@ scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(int stream) {
   return streams_[stream].get();
 }
 
-void FFmpegDemuxer::InititalizeTask(DataSource* data_source,
-                                    FilterCallback* callback) {
+int FFmpegDemuxer::Read(int size, uint8* data) {
+  DCHECK(data_source_);
+
+  // If read has ever failed, return with an error.
+  // TODO(hclam): use a more meaningful constant as error.
+  if (read_has_failed_)
+    return AVERROR_IO;
+
+  // Asynchronous read from data source.
+  data_source_->Read(read_position_, size, data,
+                     NewCallback(this, &FFmpegDemuxer::OnReadCompleted));
+
+  // TODO(hclam): The method is called on the demuxer thread and this method
+  // call will block the thread. We need to implemented an additional thread to
+  // let FFmpeg demuxer methods to run on.
+  size_t last_read_bytes = WaitForRead();
+  if (last_read_bytes == DataSource::kReadError) {
+    host()->SetError(PIPELINE_ERROR_READ);
+
+    // Returns with a negative number to signal an error to FFmpeg.
+    read_has_failed_ = true;
+    return AVERROR_IO;
+  }
+  read_position_ += last_read_bytes;
+  return last_read_bytes;
+}
+
+bool FFmpegDemuxer::GetPosition(int64* position_out) {
+  *position_out = read_position_;
+  return true;
+}
+
+bool FFmpegDemuxer::SetPosition(int64 position) {
+  DCHECK(data_source_);
+
+  int64 file_size;
+  if (!data_source_->GetSize(&file_size) || position >= file_size)
+    return false;
+
+  read_position_ = position;
+  return true;
+}
+
+bool FFmpegDemuxer::GetSize(int64* size_out) {
+  DCHECK(data_source_);
+
+  return data_source_->GetSize(size_out);
+}
+
+bool FFmpegDemuxer::IsStreamed() {
+  return false;
+}
+
+void FFmpegDemuxer::InitializeTask(DataSource* data_source,
+                                   FilterCallback* callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop());
   scoped_ptr<FilterCallback> c(callback);
 
-  // In order to get FFmpeg to use |data_source| for file IO we must transfer
-  // ownership via FFmpegGlue.  We'll add |data_source| to FFmpegGlue and pass
-  // the resulting key to FFmpeg.  FFmpeg will pass the key to FFmpegGlue which
-  // will take care of attaching |data_source| to an FFmpeg context.  After
-  // we finish initializing the FFmpeg context we can remove |data_source| from
-  // FFmpegGlue.
-  //
-  // Refer to media/filters/ffmpeg_glue.h for details.
+  data_source_ = data_source;
 
-  // Add our data source and get our unique key.
-  std::string key = FFmpegGlue::get()->AddDataSource(data_source);
+  // Add ourself to Protocol list and get our unique key.
+  std::string key = FFmpegGlue::get()->AddProtocol(this);
 
   // Open FFmpeg AVFormatContext.
   DCHECK(!format_context_);
   AVFormatContext* context = NULL;
   int result = av_open_input_file(&context, key.c_str(), NULL, 0, NULL);
 
-  // Remove our data source.
-  FFmpegGlue::get()->RemoveDataSource(data_source);
+  // Remove ourself from protocol list.
+  FFmpegGlue::get()->RemoveProtocol(this);
 
   if (result < 0) {
     host()->SetError(DEMUXER_ERROR_COULD_NOT_OPEN);
@@ -471,6 +524,20 @@ void FFmpegDemuxer::StreamHasEnded() {
     memset(packet, 0, sizeof(*packet));
     (*iter)->EnqueuePacket(packet);
   }
+}
+
+void FFmpegDemuxer::OnReadCompleted(size_t size) {
+  SignalReadCompleted(size);
+}
+
+size_t FFmpegDemuxer::WaitForRead() {
+  read_event_.Wait();
+  return last_read_bytes_;
+}
+
+void FFmpegDemuxer::SignalReadCompleted(size_t size) {
+  last_read_bytes_ = size;
+  read_event_.Signal();
 }
 
 }  // namespace media

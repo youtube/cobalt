@@ -524,7 +524,11 @@ void PipelineInternal::ErrorTask(PipelineError error) {
   DCHECK_NE(PIPELINE_OK, error) << "PIPELINE_OK isn't an error!";
 
   // Suppress executing additional error logic.
-  if (state_ == kError) {
+  // TODO(hclam): Remove the condition for kStopped. It is there only because
+  // FFmpegDemuxer submits a read error while reading after it is called to
+  // stop. After FFmpegDemuxer is cleaned up we should remove this condition
+  // and add an extra assert.
+  if (state_ == kError || state_ == kStopped) {
     return;
   }
 
