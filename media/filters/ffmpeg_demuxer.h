@@ -25,11 +25,14 @@
 #include <deque>
 #include <vector>
 
+#include "base/waitable_event.h"
 #include "media/base/buffers.h"
 #include "media/base/factory.h"
 #include "media/base/filters.h"
 #include "media/base/media_format.h"
+#include "media/filters/ffmpeg_glue.h"
 #include "media/filters/ffmpeg_interfaces.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 // FFmpeg forward declarations.
 struct AVCodecContext;
@@ -108,7 +111,8 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerStream);
 };
 
-class FFmpegDemuxer : public Demuxer {
+class FFmpegDemuxer : public Demuxer,
+                      public FFmpegURLProtocol {
  public:
   // FilterFactory provider.
   static FilterFactory* CreateFilterFactory() {
@@ -127,14 +131,24 @@ class FFmpegDemuxer : public Demuxer {
   virtual size_t GetNumberOfStreams();
   virtual scoped_refptr<DemuxerStream> GetStream(int stream_id);
 
+  // FFmpegProtocol implementation.
+  virtual int Read(int size, uint8* data);
+  virtual bool GetPosition(int64* position_out);
+  virtual bool SetPosition(int64 position);
+  virtual bool GetSize(int64* size_out);
+  virtual bool IsStreamed();
+
  private:
   // Only allow a factory to create this class.
   friend class FilterFactoryImpl0<FFmpegDemuxer>;
+  friend class MockFFmpegDemuxer;
+  FRIEND_TEST(FFmpegDemuxerTest, ProtocolRead);
+
   FFmpegDemuxer();
   virtual ~FFmpegDemuxer();
 
   // Carries out initialization on the demuxer thread.
-  void InititalizeTask(DataSource* data_source, FilterCallback* callback);
+  void InitializeTask(DataSource* data_source, FilterCallback* callback);
 
   // Carries out a seek on the demuxer thread.
   void SeekTask(base::TimeDelta time, FilterCallback* callback);
@@ -157,6 +171,17 @@ class FFmpegDemuxer : public Demuxer {
   // Must be called on the demuxer thread.
   void StreamHasEnded();
 
+  // Read callback method to be passed to DataSource. When the asynchronous
+  // read has completed, this method will be called from DataSource with
+  // number of bytes read or kDataSource in case of error.
+  void OnReadCompleted(size_t size);
+
+  // Wait for asynchronous read to complete and return number of bytes read.
+  virtual size_t WaitForRead();
+
+  // Signal that read has completed, and |size| bytes have been read.
+  virtual void SignalReadCompleted(size_t size);
+
   // FFmpeg context handle.
   AVFormatContext* format_context_;
 
@@ -177,6 +202,22 @@ class FFmpegDemuxer : public Demuxer {
   typedef std::vector< scoped_refptr<FFmpegDemuxerStream> > StreamVector;
   StreamVector streams_;
   StreamVector packet_streams_;
+
+  // Reference to the data source. Asynchronous read requests are submitted to
+  // this object.
+  scoped_refptr<DataSource> data_source_;
+
+  // This member is used to block on read method calls from FFmpeg and wait
+  // until the asynchronous reads in the data source to complete. It is also
+  // signaled when the demuxer is being stopped.
+  base::WaitableEvent read_event_;
+
+  // Flag to indicate if read has ever failed. Once set to true, it will
+  // never be reset. This flag is set true and accessed in Read().
+  bool read_has_failed_;
+
+  size_t last_read_bytes_;
+  int64 read_position_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxer);
 };

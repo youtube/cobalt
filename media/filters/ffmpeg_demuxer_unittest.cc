@@ -4,6 +4,7 @@
 
 #include <deque>
 
+#include "base/thread.h"
 #include "media/base/filters.h"
 #include "media/base/mock_ffmpeg.h"
 #include "media/base/mock_filter_host.h"
@@ -16,9 +17,12 @@
 using ::testing::_;
 using ::testing::DoAll;
 using ::testing::InSequence;
+using ::testing::Invoke;
+using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::SetArgumentPointee;
 using ::testing::StrictMock;
+using ::testing::WithArgs;
 
 namespace media {
 
@@ -76,7 +80,7 @@ class FFmpegDemuxerTest : public testing::Test {
     memset(&streams_, 0, sizeof(streams_));
     memset(&codecs_, 0, sizeof(codecs_));
 
-    // Initialize AVCodexContext structures.
+    // Initialize AVCodecContext structures.
     codecs_[AV_STREAM_DATA].codec_type = CODEC_TYPE_DATA;
     codecs_[AV_STREAM_DATA].codec_id = CODEC_ID_NONE;
 
@@ -660,6 +664,111 @@ TEST_F(FFmpegDemuxerTest, Stop) {
 
   // ...and verify that |callback| was deleted.
   MockFFmpeg::get()->CheckPoint(1);
+}
+
+class MockFFmpegDemuxer : public FFmpegDemuxer {
+ public:
+  MockFFmpegDemuxer() {}
+  virtual ~MockFFmpegDemuxer() {}
+
+  MOCK_METHOD0(WaitForRead, size_t());
+  MOCK_METHOD1(SignalReadCompleted, void(size_t size));
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(MockFFmpegDemuxer);
+};
+
+// A gmock helper method to execute the callback and deletes it.
+void RunCallback(size_t size, DataSource::ReadCallback* callback) {
+  DCHECK(callback);
+  callback->RunWithParams(Tuple1<size_t>(size));
+  delete callback;
+}
+
+TEST_F(FFmpegDemuxerTest, ProtocolRead) {
+  // Creates a demuxer.
+  scoped_refptr<MockFFmpegDemuxer> demuxer = new MockFFmpegDemuxer();
+  ASSERT_TRUE(demuxer);
+  demuxer->set_host(&host_);
+  demuxer->set_message_loop(&message_loop_);
+  demuxer->data_source_ = data_source_;
+
+  uint8 kBuffer[1];
+  InSequence s;
+  // Actions taken in the first read.
+  EXPECT_CALL(*data_source_, Read(0, 512, kBuffer, NotNull()))
+      .WillOnce(WithArgs<1, 3>(Invoke(&RunCallback)));
+  EXPECT_CALL(*demuxer, SignalReadCompleted(512));
+  EXPECT_CALL(*demuxer, WaitForRead())
+      .WillOnce(Return(512));
+
+  // Second read.
+  EXPECT_CALL(*data_source_, Read(512, 512, kBuffer, NotNull()))
+      .WillOnce(WithArgs<1, 3>(Invoke(&RunCallback)));
+  EXPECT_CALL(*demuxer, SignalReadCompleted(512));
+  EXPECT_CALL(*demuxer, WaitForRead())
+      .WillOnce(Return(512));
+
+  // Called during SetPosition().
+  EXPECT_CALL(*data_source_, GetSize(_))
+      .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
+
+  // This read complete signal is generated when demuxer is stopped.
+  EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
+
+  EXPECT_EQ(512, demuxer->Read(512, kBuffer));
+  int64 position;
+  EXPECT_TRUE(demuxer->GetPosition(&position));
+  EXPECT_EQ(512, position);
+  EXPECT_EQ(512, demuxer->Read(512, kBuffer));
+  EXPECT_FALSE(demuxer->SetPosition(1024));
+
+  demuxer->Stop();
+}
+
+TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {
+  {
+    SCOPED_TRACE("");
+    InitializeDemuxer();
+  }
+
+  InSequence s;
+
+  EXPECT_CALL(*data_source_, GetSize(_))
+      .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
+  EXPECT_CALL(*data_source_, GetSize(_))
+      .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
+
+  int64 position;
+  EXPECT_TRUE(demuxer_->GetPosition(&position));
+  EXPECT_EQ(0, position);
+
+  EXPECT_TRUE(demuxer_->SetPosition(512));
+  EXPECT_FALSE(demuxer_->SetPosition(2048));
+  EXPECT_TRUE(demuxer_->GetPosition(&position));
+  EXPECT_EQ(512, position);
+}
+
+TEST_F(FFmpegDemuxerTest, ProtocolGetSize) {
+  {
+    SCOPED_TRACE("");
+    InitializeDemuxer();
+  }
+
+  EXPECT_CALL(*data_source_, GetSize(_))
+      .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
+
+  int64 size;
+  EXPECT_TRUE(demuxer_->GetSize(&size));
+  EXPECT_EQ(1024, size);
+}
+
+TEST_F(FFmpegDemuxerTest, ProtocolIsStreamed) {
+  {
+    SCOPED_TRACE("");
+    InitializeDemuxer();
+  }
+  EXPECT_FALSE(demuxer_->IsStreamed());
 }
 
 }  // namespace media

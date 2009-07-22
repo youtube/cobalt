@@ -14,6 +14,21 @@
 using ::testing::NiceMock;
 using ::testing::StrictMock;
 
+namespace {
+
+class ReadCallbackHandler {
+ public:
+  ReadCallbackHandler() {
+  }
+
+  MOCK_METHOD1(ReadCallback, void(size_t size));
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ReadCallbackHandler);
+};
+
+}  // namespace
+
 namespace media {
 
 // Returns a path to the test file which contains the string "0123456789"
@@ -52,7 +67,6 @@ TEST(FileDataSourceTest, OpenFile) {
 
 // Use the mock filter host to directly call the Read and GetPosition methods.
 TEST(FileDataSourceTest, ReadData) {
-  int64 position;
   int64 size;
   uint8 ten_bytes[10];
 
@@ -60,28 +74,29 @@ TEST(FileDataSourceTest, ReadData) {
   NiceMock<MockFilterHost> host;
   NiceMock<MockFilterCallback> callback;
   scoped_refptr<FileDataSource> filter = new FileDataSource();
+
   filter->set_host(&host);
   filter->Initialize(TestFileURL(), callback.NewCallback());
 
   EXPECT_TRUE(filter->GetSize(&size));
   EXPECT_EQ(10, size);
 
-  EXPECT_TRUE(filter->GetPosition(&position));
-  EXPECT_EQ(0, position);
-
-  EXPECT_EQ(10u, filter->Read(ten_bytes, sizeof(ten_bytes)));
+  ReadCallbackHandler handler;
+  EXPECT_CALL(handler, ReadCallback(10));
+  filter->Read(0, 10, ten_bytes,
+               NewCallback(&handler, &ReadCallbackHandler::ReadCallback));
   EXPECT_EQ('0', ten_bytes[0]);
   EXPECT_EQ('5', ten_bytes[5]);
   EXPECT_EQ('9', ten_bytes[9]);
-  EXPECT_TRUE(filter->GetPosition(&position));
-  EXPECT_EQ(10, position);
-  EXPECT_EQ(0u, filter->Read(ten_bytes, sizeof(ten_bytes)));
 
-  EXPECT_TRUE(filter->SetPosition(5));
-  EXPECT_EQ(5u, filter->Read(ten_bytes, sizeof(ten_bytes)));
+  EXPECT_CALL(handler, ReadCallback(0));
+  filter->Read(10, 10, ten_bytes,
+               NewCallback(&handler, &ReadCallbackHandler::ReadCallback));
+
+  EXPECT_CALL(handler, ReadCallback(5));
+  filter->Read(5, 10, ten_bytes,
+               NewCallback(&handler, &ReadCallbackHandler::ReadCallback));
   EXPECT_EQ('5', ten_bytes[0]);
-  EXPECT_TRUE(filter->GetPosition(&position));
-  EXPECT_EQ(10, position);
 }
 
 // Test that FileDataSource does nothing on Seek().
