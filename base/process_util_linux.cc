@@ -282,8 +282,13 @@ size_t ProcessMetrics::GetPagefileUsage() const {
   return 0;
 }
 
+// On linux, we return the high water mark of vsize.
 size_t ProcessMetrics::GetPeakPagefileUsage() const {
-  // http://crbug.com/16251
+  std::vector<std::string> proc_stats;
+  GetProcStats(process_, &proc_stats);
+  const size_t kVmPeak = 21;
+  if (proc_stats.size() > kVmPeak)
+    return static_cast<size_t>(StringToInt(proc_stats[kVmPeak]));
   return 0;
 }
 
@@ -299,8 +304,15 @@ size_t ProcessMetrics::GetWorkingSetSize() const {
   return 0;
 }
 
+// On linux, we return the high water mark of RSS.
 size_t ProcessMetrics::GetPeakWorkingSetSize() const {
-  // http://crbug.com/16251
+  std::vector<std::string> proc_stats;
+  GetProcStats(process_, &proc_stats);
+  const size_t kVmHwm = 23;
+  if (proc_stats.size() > kVmHwm) {
+    size_t num_pages = static_cast<size_t>(StringToInt(proc_stats[kVmHwm]));
+    return num_pages * getpagesize();
+  }
   return 0;
 }
 
@@ -309,9 +321,55 @@ size_t ProcessMetrics::GetPrivateBytes() const {
   return 0;
 }
 
+// Private and Shared working set sizes are obtained from /proc/<pid>/smaps,
+// as in http://www.pixelbeat.org/scripts/ps_mem.py
 bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
-  // http://crbug.com/16251
-  return false;
+  FilePath stat_file =
+    FilePath("/proc").Append(IntToString(process_)).Append("smaps");
+  std::string smaps;
+  int shared_kb = 0;
+  int private_kb = 0;
+  int pss_kb = 0;
+  bool have_pss = false;
+  const int kPssAdjust = 0.5;
+  if (!file_util::ReadFileToString(stat_file, &smaps))
+    return false;
+
+  StringTokenizer tokenizer(smaps, ":\n");
+  ParsingState state = KEY_NAME;
+  std::string last_key_name;
+  while (tokenizer.GetNext()) {
+    switch (state) {
+      case KEY_NAME:
+        last_key_name = tokenizer.token();
+        state = KEY_VALUE;
+        break;
+      case KEY_VALUE:
+        if (last_key_name.empty()) {
+          NOTREACHED();
+          return false;
+        }
+        if (StartsWithASCII(last_key_name, "Shared_", 1)) {
+            shared_kb += StringToInt(tokenizer.token());
+        } else if (StartsWithASCII(last_key_name, "Private_", 1)) {
+            private_kb += StringToInt(tokenizer.token());
+        } else if (StartsWithASCII(last_key_name, "Pss", 1)) {
+            have_pss = true;
+            pss_kb += StringToInt(tokenizer.token()) + kPssAdjust;
+        }
+        state = KEY_NAME;
+        break;
+    }
+  }
+  ws_usage->priv = private_kb;
+  // Sharable is not calculated, as it does not provide interesting data.
+  ws_usage->shareable = 0;
+  if (have_pss) {
+   ws_usage->shared = pss_kb - private_kb;
+  } else {
+    ws_usage->shared = shared_kb;
+  }
+  return true;
 }
 
 // To have /proc/self/io file you must enable CONFIG_TASK_IO_ACCOUNTING
