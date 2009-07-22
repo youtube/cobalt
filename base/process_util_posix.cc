@@ -443,7 +443,7 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
       {
         int dev_null = open("/dev/null", O_WRONLY);
         if (dev_null < 0)
-          exit(127);
+          _exit(127);
 
         InjectiveMultimap fd_shuffle;
         fd_shuffle.push_back(InjectionArc(pipe_fd[1], STDOUT_FILENO, true));
@@ -451,7 +451,7 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
         fd_shuffle.push_back(InjectionArc(dev_null, STDIN_FILENO, true));
 
         if (!ShuffleFileDescriptors(fd_shuffle))
-          exit(127);
+          _exit(127);
 
         CloseSuperfluousFds(fd_shuffle);
 
@@ -461,7 +461,7 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
           argv_cstr[i] = const_cast<char*>(argv[i].c_str());
         argv_cstr[argv.size()] = NULL;
         execvp(argv_cstr[0], argv_cstr.get());
-        exit(127);
+        _exit(127);
       }
     default:  // parent
       {
