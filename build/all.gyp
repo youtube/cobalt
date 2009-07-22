@@ -15,6 +15,7 @@
         '../app/app.gyp:*',
         '../base/base.gyp:*',
         '../chrome/chrome.gyp:*',
+        '../ipc/ipc.gyp:*',
         '../media/media.gyp:*',
         '../net/net.gyp:*',
         '../printing/printing.gyp:*',
