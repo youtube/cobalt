@@ -33,7 +33,7 @@ class MockDiskEntry : public disk_cache::Entry,
       : test_mode_(0), doomed_(false), sparse_(false) {
   }
 
-  MockDiskEntry(const std::string& key)
+  explicit MockDiskEntry(const std::string& key)
       : key_(key), doomed_(false), sparse_(false) {
     //
     // 'key' is prefixed with an identifier if it corresponds to a cached POST.
@@ -1175,7 +1175,7 @@ TEST(HttpCache, DISABLED_ConditionalizedRequestUpdatesCache) {
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
-  // Request |kUrl| a second first time. Now |kNetResponse1| it is in the HTTP
+  // Request |kUrl| a second time. Now |kNetResponse1| it is in the HTTP
   // cache, so we don't hit the network.
 
   kUnexpectedResponse.AssignTo(&mock_network_response);  // Network mock.
@@ -1227,6 +1227,30 @@ TEST(HttpCache, DISABLED_ConditionalizedRequestUpdatesCache) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   RemoveMockTransaction(&mock_network_response);
+}
+
+TEST(HttpCache, UrlContainingHash) {
+  MockHttpCache cache;
+
+  // Do a typical GET request -- should write an entry into our cache.
+  MockTransaction trans(kTypicalGET_Transaction);
+  RunTransactionTest(cache.http_cache(), trans);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Request the same URL, but this time with a reference section (hash).
+  // Since the cache key strips the hash sections, this should be a cache hit.
+  std::string url_with_hash = std::string(trans.url) + "#multiple#hashes";
+  trans.url = url_with_hash.c_str();
+  trans.load_flags = net::LOAD_ONLY_FROM_CACHE;
+
+  RunTransactionTest(cache.http_cache(), trans);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
 
 TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Miss) {
