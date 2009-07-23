@@ -11,6 +11,7 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
+#include "googleurl/src/gurl.h"
 #include "net/base/filter.h"
 #include "net/base/load_states.h"
 
@@ -22,7 +23,6 @@ class UploadData;
 class X509Certificate;
 }
 
-class GURL;
 class URLRequest;
 class URLRequestStatus;
 class URLRequestJobMetrics;
@@ -181,6 +181,8 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
 
   // Continue processing the request ignoring the last error.
   virtual void ContinueDespiteLastError();
+
+  void FollowDeferredRedirect();
 
   // Returns true if the Job is done producing response data and has called
   // NotifyDone on the request.
@@ -347,6 +349,10 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
 
   // Expected content size
   int64 expected_content_size_;
+
+  // Set when a redirect is deferred.
+  GURL deferred_redirect_url_;
+  int deferred_redirect_status_code_;
 
   //----------------------------------------------------------------------------
   // Data used for statistics gathering in some instances.  This data is only
