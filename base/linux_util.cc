@@ -99,14 +99,25 @@ EnvironmentVariableGetter* EnvironmentVariableGetter::Create() {
   return new EnvironmentVariableGetterImpl();
 }
 
-bool UseGnomeForSettings(EnvironmentVariableGetter* env_var_getter) {
-  // GNOME_DESKTOP_SESSION_ID being defined is a good indication that
-  // we are probably running under GNOME.
-  // Note: KDE_FULL_SESSION is a corresponding env var to recognize KDE.
-  std::string dummy, desktop_session;
-  return env_var_getter->Getenv("GNOME_DESKTOP_SESSION_ID", &dummy)
-      || (env_var_getter->Getenv("DESKTOP_SESSION", &desktop_session)
-          && desktop_session == "gnome");
+DesktopEnvironment GetDesktopEnvironment(EnvironmentVariableGetter* env) {
+  std::string desktop_session;
+  if (env->Getenv("DESKTOP_SESSION", &desktop_session)) {
+    if (desktop_session == "gnome")
+      return DESKTOP_ENVIRONMENT_GNOME;
+    else if (desktop_session.substr(3) == "kde")  // kde3 or kde4
+      return DESKTOP_ENVIRONMENT_KDE;
+  }
+
+  // Fall back on some older environment variables.
+  // Useful particularly in the DESKTOP_SESSION=default case.
+  std::string dummy;
+  if (env->Getenv("GNOME_DESKTOP_SESSION_ID", &dummy)) {
+    return DESKTOP_ENVIRONMENT_GNOME;
+  } else if (env->Getenv("KDE_FULL_SESSION", &dummy)) {
+    return DESKTOP_ENVIRONMENT_KDE;
+  }
+
+  return DESKTOP_ENVIRONMENT_OTHER;
 }
 
 }  // namespace base
