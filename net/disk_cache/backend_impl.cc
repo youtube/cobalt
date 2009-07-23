@@ -147,6 +147,12 @@ bool InitExperiment(int* current_group) {
   }
 
   if (*current_group <= 5) {
+#if defined(UNIT_TEST)
+    // The unit test controls directly what to test.
+    *current_group = 0;
+    return true;
+#endif
+
     // Re-load the two groups.
     int option = base::RandInt(0, 9);
 
@@ -1177,7 +1183,7 @@ EntryImpl* BackendImpl::MatchEntry(const std::string& key, uint32 hash,
       if (!error) {
         // It is important to call DestroyInvalidEntry after removing this
         // entry from the table.
-        DestroyInvalidEntry(address, cache_entry);
+        DestroyInvalidEntry(cache_entry);
         cache_entry = NULL;
       } else {
         Trace("NewEntry failed on MatchEntry 0x%x", address.value());
@@ -1252,7 +1258,7 @@ bool BackendImpl::OpenFollowingEntry(bool forward, void** iter,
           OpenFollowingEntryFromList(forward, iterator->list,
                                      &iterator->nodes[i], &temp);
       } else {
-        temp = GetEnumeratedEntry(iterator->nodes[i]);
+        temp = GetEnumeratedEntry(iterator->nodes[i], false);
       }
 
       entries[i].swap(&temp);  // The entry was already addref'd.
@@ -1308,7 +1314,7 @@ bool BackendImpl::OpenFollowingEntryFromList(bool forward, Rankings::List list,
   Rankings::ScopedRankingsBlock next(&rankings_, next_block);
   *from_entry = NULL;
 
-  *next_entry = GetEnumeratedEntry(next.get());
+  *next_entry = GetEnumeratedEntry(next.get(), false);
   if (!*next_entry)
     return false;
 
@@ -1316,41 +1322,29 @@ bool BackendImpl::OpenFollowingEntryFromList(bool forward, Rankings::List list,
   return true;
 }
 
-EntryImpl* BackendImpl::GetEnumeratedEntry(CacheRankingsBlock* next) {
+EntryImpl* BackendImpl::GetEnumeratedEntry(CacheRankingsBlock* next,
+                                           bool to_evict) {
   if (!next)
     return NULL;
 
-  scoped_refptr<EntryImpl> entry;
-  EntryImpl* temp = NULL;
-
-  if (next->Data()->pointer) {
-    entry = reinterpret_cast<EntryImpl*>(next->Data()->pointer);
-    entry.swap(&temp);
-    return temp;
-  }
-
+  EntryImpl* entry;
   bool dirty;
-  if (NewEntry(Addr(next->Data()->contents), &temp, &dirty))
+  if (NewEntry(Addr(next->Data()->contents), &entry, &dirty))
     return NULL;
-  entry.swap(&temp);
 
   if (dirty) {
-    // We cannot trust this entry. Call MatchEntry to go through the regular
-    // path and take the appropriate action.
-    std::string key = entry->GetKey();
-    uint32 hash = entry->GetHash();
-    entry = NULL;  // Release the entry.
-    temp = MatchEntry(key, hash, false);
-    if (temp)
-      temp->Release();
-
+    // We cannot trust this entry. This code also releases the reference.
+    DestroyInvalidEntryFromEnumeration(entry);
     return NULL;
   }
-  if (!entry->Update())
-    return NULL;
 
-  entry.swap(&temp);
-  return temp;
+  // There is no need to store the entry to disk if we want to delete it.
+  if (!to_evict && !entry->Update()) {
+    entry->Release();
+    return NULL;
+  }
+
+  return entry;
 }
 
 bool BackendImpl::ResurrectEntry(EntryImpl* deleted_entry, Entry** entry) {
@@ -1372,7 +1366,7 @@ bool BackendImpl::ResurrectEntry(EntryImpl* deleted_entry, Entry** entry) {
   return true;
 }
 
-void BackendImpl::DestroyInvalidEntry(Addr address, EntryImpl* entry) {
+void BackendImpl::DestroyInvalidEntry(EntryImpl* entry) {
   LOG(WARNING) << "Destroying invalid entry.";
   Trace("Destroying invalid entry 0x%p", entry);
 
@@ -1384,6 +1378,42 @@ void BackendImpl::DestroyInvalidEntry(Addr address, EntryImpl* entry) {
   if (!new_eviction_)
     DecreaseNumEntries();
   stats_.OnEvent(Stats::INVALID_ENTRY);
+}
+
+// This is kind of ugly. The entry may or may not be part of the cache index
+// table, and it may even have corrupt fields. If we just doom it, we may end up
+// deleting it twice (if all fields are right, and when looking up the parent of
+// chained entries wee see this one... and we delete it because it is dirty). If
+// we ignore it, we may leave it here forever. So we're going to attempt to
+// delete it through the provided object, without touching the index table
+// (because we cannot jus call MatchEntry()), and also attempt to delete it from
+// the table through the key: this may find a new entry (too bad), or an entry
+// that was just deleted and consider it a very corrupt entry.
+void BackendImpl::DestroyInvalidEntryFromEnumeration(EntryImpl* entry) {
+  std::string key = entry->GetKey();
+  entry->SetPointerForInvalidEntry(GetCurrentEntryId());
+  CacheAddr next_entry = entry->entry()->Data()->next;
+  if (!next_entry) {
+    DestroyInvalidEntry(entry);
+    entry->Release();
+  }
+  DoomEntry(key);
+
+  if (!next_entry)
+    return;
+
+  // We have a chained entry so instead of destroying first this entry and then
+  // anything with this key, we just called DoomEntry() first. If that call
+  // deleted everything, |entry| has invalid data. Let's see if there is
+  // something else to do. We started with just a rankings node (we come from
+  // an enumeration), so that one may still be there.
+  CacheRankingsBlock* rankings = entry->rankings();
+  rankings->Load();
+  if (rankings->Data()->contents) {
+    // We still have something. Clean this up.
+    DestroyInvalidEntry(entry);
+  }
+  entry->Release();
 }
 
 void BackendImpl::AddStorageSize(int32 bytes) {

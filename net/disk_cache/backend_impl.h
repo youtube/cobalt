@@ -208,13 +208,15 @@ class BackendImpl : public Backend {
                                   CacheRankingsBlock** from_entry,
                                   EntryImpl** next_entry);
 
-  // Returns the entry that is pointed by |next|.
-  EntryImpl* GetEnumeratedEntry(CacheRankingsBlock* next);
+  // Returns the entry that is pointed by |next|. If we are trimming the cache,
+  // |to_evict| should be true so that we don't perform extra disk writes.
+  EntryImpl* GetEnumeratedEntry(CacheRankingsBlock* next, bool to_evict);
 
   // Re-opens an entry that was previously deleted.
   bool ResurrectEntry(EntryImpl* deleted_entry, Entry** entry);
 
-  void DestroyInvalidEntry(Addr address, EntryImpl* entry);
+  void DestroyInvalidEntry(EntryImpl* entry);
+  void DestroyInvalidEntryFromEnumeration(EntryImpl* entry);
 
   // Handles the used storage count.
   void AddStorageSize(int32 bytes);

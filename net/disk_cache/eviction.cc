@@ -73,25 +73,29 @@ void Eviction::TrimCache(bool empty) {
   if (new_eviction_)
     return TrimCacheV2(empty);
 
-  Trace("*** Trim Cache ***");
   if (backend_->disabled_ || trimming_)
     return;
 
   if (!empty && backend_->IsLoaded())
     return PostDelayedTrim();
 
+  Trace("*** Trim Cache ***");
   trimming_ = true;
   Time start = Time::Now();
   Rankings::ScopedRankingsBlock node(rankings_);
   Rankings::ScopedRankingsBlock next(rankings_,
       rankings_->GetPrev(node.get(), Rankings::NO_USE));
-  DCHECK(next.get());
   int target_size = empty ? 0 : max_size_;
   while (header_->num_bytes > target_size && next.get()) {
+    // The iterator could be invalidated within EvictEntry().
+    if (!next->HasData())
+      break;
     node.reset(next.release());
     next.reset(rankings_->GetPrev(node.get(), Rankings::NO_USE));
     if (!node->Data()->pointer || empty) {
       // This entry is not being used by anybody.
+      // Do NOT use node as an iterator after this point.
+      rankings_->TrackRankingsBlock(node.get(), false);
       if (!EvictEntry(node.get(), empty))
         continue;
 
@@ -191,17 +195,12 @@ Rankings::List Eviction::GetListForEntry(EntryImpl* entry) {
 }
 
 bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
-  EntryImpl* entry;
-  bool dirty;
-  if (backend_->NewEntry(Addr(node->Data()->contents), &entry, &dirty)) {
+  EntryImpl* entry = backend_->GetEnumeratedEntry(node, true);
+  if (!entry) {
     Trace("NewEntry failed on Trim 0x%x", node->address().value());
     return false;
   }
 
-  if (node->Data()->pointer) {
-    // We ignore the failure; we're removing the entry anyway.
-    entry->Update();
-  }
   ReportTrimTimes(entry);
   if (empty || !new_eviction_) {
     entry->Doom();
@@ -224,13 +223,13 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
 // -----------------------------------------------------------------------
 
 void Eviction::TrimCacheV2(bool empty) {
-  Trace("*** Trim Cache ***");
   if (backend_->disabled_ || trimming_)
     return;
 
   if (!empty && backend_->IsLoaded())
     return PostDelayedTrim();
 
+  Trace("*** Trim Cache ***");
   trimming_ = true;
   Time start = Time::Now();
 
@@ -270,11 +269,16 @@ void Eviction::TrimCacheV2(bool empty) {
   int target_size = empty ? 0 : max_size_;
   for (; list < kListsToSearch; list++) {
     while (header_->num_bytes > target_size && next[list].get()) {
+      // The iterator could be invalidated within EvictEntry().
+      if (!next[list]->HasData())
+        break;
       node.reset(next[list].release());
       next[list].reset(rankings_->GetPrev(node.get(),
                                           static_cast<Rankings::List>(list)));
       if (!node->Data()->pointer || empty) {
         // This entry is not being used by anybody.
+        // Do NOT use node as an iterator after this point.
+        rankings_->TrackRankingsBlock(node.get(), false);
         if (!EvictEntry(node.get(), empty))
           continue;
 
@@ -419,6 +423,8 @@ bool Eviction::RemoveDeletedNode(CacheRankingsBlock* node) {
     return false;
   }
 
+  // TODO(rvargas): figure out how to deal with corruption at this point (dirty
+  // entries that live in this list).
   if (node->Data()->pointer) {
     // We ignore the failure; we're removing the entry anyway.
     entry->Update();

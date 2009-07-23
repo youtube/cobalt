@@ -48,6 +48,7 @@ class DiskCacheBackendTest : public DiskCacheTestWithCache {
   void BackendInvalidEntryRead();
   void BackendInvalidEntryWithLoad();
   void BackendTrimInvalidEntry();
+  void BackendTrimInvalidEntry2();
   void BackendEnumerations();
   void BackendInvalidEntryEnumeration();
   void BackendFixEnumerators();
@@ -493,8 +494,8 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry() {
   // Use the implementation directly... we need to simulate a crash.
   SetDirectMode();
 
-  const int cache_size = 0x4000;  // 16 kB
-  SetMaxSize(cache_size * 10);
+  const int kSize = 0x3000;  // 12 kB
+  SetMaxSize(kSize * 10);
   InitCache();
 
   std::string first("some key");
@@ -502,21 +503,26 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry() {
   disk_cache::Entry* entry;
   ASSERT_TRUE(cache_->CreateEntry(first, &entry));
 
-  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(cache_size);
-  memset(buffer->data(), 0, cache_size);
-  EXPECT_EQ(cache_size * 19 / 20, entry->WriteData(0, 0, buffer,
-                cache_size * 19 / 20, NULL, false));
+  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  memset(buffer->data(), 0, kSize);
+  EXPECT_EQ(kSize, entry->WriteData(0, 0, buffer, kSize, NULL, false));
 
   // Simulate a crash.
   SimulateCrash();
 
   ASSERT_TRUE(cache_->CreateEntry(second, &entry));
-  EXPECT_EQ(cache_size / 10, entry->WriteData(0, 0, buffer, cache_size / 10,
-                                              NULL, false)) << "trim the cache";
-  entry->Close();
+  EXPECT_EQ(kSize, entry->WriteData(0, 0, buffer, kSize, NULL, false));
 
+  EXPECT_EQ(2, cache_->GetEntryCount());
+  SetMaxSize(kSize);
+  entry->Close();  // Trim the cache.
+
+  // If we evicted the entry in less than 20mS, we have one entry in the cache;
+  // if it took more than that, we posted a task and we'll delete the second
+  // entry too.
+  MessageLoop::current()->RunAllPending();
+  EXPECT_GE(1, cache_->GetEntryCount());
   EXPECT_FALSE(cache_->OpenEntry(first, &entry));
-  EXPECT_EQ(1, cache_->GetEntryCount());
 }
 
 // We'll be leaking memory from this test.
@@ -528,6 +534,62 @@ TEST_F(DiskCacheBackendTest, TrimInvalidEntry) {
 TEST_F(DiskCacheBackendTest, NewEvictionTrimInvalidEntry) {
   SetNewEviction();
   BackendTrimInvalidEntry();
+}
+
+// We'll be leaking memory from this test.
+void DiskCacheBackendTest::BackendTrimInvalidEntry2() {
+  // Use the implementation directly... we need to simulate a crash.
+  SetDirectMode();
+  SetMask(0xf);  // 16-entry table.
+
+  const int kSize = 0x3000;  // 12 kB
+  SetMaxSize(kSize * 40);
+  InitCache();
+
+  scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
+  memset(buffer->data(), 0, kSize);
+  disk_cache::Entry* entry;
+
+  // Writing 32 entries to this cache chains most of them.
+  for (int i = 0; i < 32; i++) {
+    std::string key(StringPrintf("some key %d", i));
+    ASSERT_TRUE(cache_->CreateEntry(key, &entry));
+    EXPECT_EQ(kSize, entry->WriteData(0, 0, buffer, kSize, NULL, false));
+    entry->Close();
+    ASSERT_TRUE(cache_->OpenEntry(key, &entry));
+    // Note that we are not closing the entries.
+  }
+
+  // Simulate a crash.
+  SimulateCrash();
+
+  ASSERT_TRUE(cache_->CreateEntry("Something else", &entry));
+  EXPECT_EQ(kSize, entry->WriteData(0, 0, buffer, kSize, NULL, false));
+
+  EXPECT_EQ(33, cache_->GetEntryCount());
+  SetMaxSize(kSize);
+
+  // For the new eviction code, all corrupt entries are on the second list so
+  // they are not going away that easy.
+  if (new_eviction_)
+    cache_->DoomAllEntries();
+
+  entry->Close();  // Trim the cache.
+
+  // We may abort the eviction before cleaning up everything.
+  MessageLoop::current()->RunAllPending();
+  EXPECT_GE(30, cache_->GetEntryCount());
+}
+
+// We'll be leaking memory from this test.
+TEST_F(DiskCacheBackendTest, TrimInvalidEntry2) {
+  BackendTrimInvalidEntry2();
+}
+
+// We'll be leaking memory from this test.
+TEST_F(DiskCacheBackendTest, NewEvictionTrimInvalidEntry2) {
+  SetNewEviction();
+  BackendTrimInvalidEntry2();
 }
 
 void DiskCacheBackendTest::BackendEnumerations() {
