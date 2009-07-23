@@ -1470,9 +1470,8 @@ bool HttpCache::WriteResponseInfo(disk_cache::Entry* disk_entry,
 
 // Generate a key that can be used inside the cache.
 std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
-  std::string url = request->url.spec();
-  if (request->url.has_ref())
-    url.erase(url.find_last_of('#'));
+  // Strip out the reference, username, and password sections of the URL.
+  std::string url = HttpUtil::SpecForRequest(request->url);
 
   DCHECK(mode_ != DISABLE);
   if (mode_ == NORMAL) {
