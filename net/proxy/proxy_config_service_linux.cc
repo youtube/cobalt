@@ -504,17 +504,6 @@ ProxyConfigServiceLinux::Delegate::Delegate(
       glib_default_loop_(NULL), io_loop_(NULL) {
 }
 
-bool ProxyConfigServiceLinux::Delegate::ShouldTryGConf() {
-  // I (sdoyon) would have liked to prioritize environment variables
-  // and only fallback to gconf if env vars were unset. But
-  // gnome-terminal "helpfully" sets http_proxy and no_proxy, and it
-  // does so even if the proxy mode is set to auto, which would
-  // mislead us.
-  //
-  // We could introduce a CHROME_PROXY_OBEY_ENV_VARS variable...??
-  return base::UseGnomeForSettings(env_var_getter_.get());
-}
-
 void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
     MessageLoop* glib_default_loop, MessageLoop* io_loop) {
   // We should be running on the default glib main loop thread right
@@ -534,29 +523,47 @@ void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
   // will expect to find it. This is safe to do because we return
   // before this ProxyConfigServiceLinux is passed on to
   // the ProxyService.
+
+  // Note: It would be nice to prioritize environment variables
+  // and only fallback to gconf if env vars were unset. But
+  // gnome-terminal "helpfully" sets http_proxy and no_proxy, and it
+  // does so even if the proxy mode is set to auto, which would
+  // mislead us.
+
   bool got_config = false;
-  if (ShouldTryGConf() &&
-      gconf_getter_->Init() &&
-      (!io_loop || gconf_getter_->SetupNotification(this))) {
-    if (GetConfigFromGConf(&cached_config_)) {
-      cached_config_.set_id(1);  // mark it as valid
-      got_config = true;
-      LOG(INFO) << "Obtained proxy setting from gconf";
-      // If gconf proxy mode is "none", meaning direct, then we take
-      // that to be a valid config and will not check environment
-      // variables.  The alternative would have been to look for a proxy
-      // where ever we can find one.
-      //
-      // Keep a copy of the config for use from this thread for
-      // comparison with updated settings when we get notifications.
-      reference_config_ = cached_config_;
-      reference_config_.set_id(1);  // mark it as valid
-    } else {
-      gconf_getter_->Release();  // Stop notifications
-    }
+  switch (base::GetDesktopEnvironment(env_var_getter_.get())) {
+    case base::DESKTOP_ENVIRONMENT_GNOME:
+      if (gconf_getter_->Init() &&
+          (!io_loop || gconf_getter_->SetupNotification(this))) {
+        if (GetConfigFromGConf(&cached_config_)) {
+          cached_config_.set_id(1);  // mark it as valid
+          got_config = true;
+          LOG(INFO) << "Obtained proxy setting from gconf";
+          // If gconf proxy mode is "none", meaning direct, then we take
+          // that to be a valid config and will not check environment
+          // variables.  The alternative would have been to look for a proxy
+          // where ever we can find one.
+          //
+          // Keep a copy of the config for use from this thread for
+          // comparison with updated settings when we get notifications.
+          reference_config_ = cached_config_;
+          reference_config_.set_id(1);  // mark it as valid
+        } else {
+          gconf_getter_->Release();  // Stop notifications
+        }
+      }
+      break;
+
+    case base::DESKTOP_ENVIRONMENT_KDE:
+      NOTIMPLEMENTED() << "Bug 17363: obey KDE proxy settings.";
+      break;
+
+    case base::DESKTOP_ENVIRONMENT_OTHER:
+      break;
   }
+
   if (!got_config) {
-    // An implementation for KDE settings would be welcome here.
+    // We fall back on environment variables.
     //
     // Consulting environment variables doesn't need to be done from
     // the default glib main loop, but it's a tiny enough amount of

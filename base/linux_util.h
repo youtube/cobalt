@@ -32,11 +32,17 @@ class EnvironmentVariableGetter {
   static EnvironmentVariableGetter* Create();
 };
 
-// Return true if we appear to be running under Gnome and should attempt to use
-// some prefrences from the desktop environment (eg proxy settings),
-// If someone adds support for other environments, this function could be
-// replaced with one that returns an enum so we an specify Gnome, KDE, etc.
-bool UseGnomeForSettings(EnvironmentVariableGetter* env_var_getter);
+enum DesktopEnvironment {
+  DESKTOP_ENVIRONMENT_OTHER,
+  DESKTOP_ENVIRONMENT_GNOME,
+  DESKTOP_ENVIRONMENT_KDE,
+};
+
+// Return an entry from the DesktopEnvironment enum with a best guess
+// of which desktop environment we're using.  We use this to know when
+// to attempt to use preferences from the desktop environment --
+// proxy settings, password manager, etc.
+DesktopEnvironment GetDesktopEnvironment(EnvironmentVariableGetter* env);
 
 }  // namespace base
 
