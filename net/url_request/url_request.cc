@@ -252,6 +252,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
     job_->SetUpload(upload_.get());
 
   is_pending_ = true;
+
   response_info_.request_time = Time::Now();
   response_info_.was_cached = false;
 
@@ -270,6 +271,7 @@ void URLRequest::Restart() {
 
 void URLRequest::RestartWithJob(URLRequestJob *job) {
   DCHECK(job->request() == this);
+  job_->Kill();
   OrphanJob();
   status_ = URLRequestStatus();
   is_pending_ = false;
@@ -335,12 +337,12 @@ bool URLRequest::Read(net::IOBuffer* dest, int dest_size, int *bytes_read) {
   return job_->Read(dest, dest_size, bytes_read);
 }
 
-void URLRequest::ReceivedRedirect(const GURL& location) {
+void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
   URLRequestJob* job = GetJobManager()->MaybeInterceptRedirect(this, location);
   if (job) {
     RestartWithJob(job);
   } else if (delegate_) {
-    delegate_->OnReceivedRedirect(this, location);
+    delegate_->OnReceivedRedirect(this, location, defer_redirect);
   }
 }
 
@@ -351,6 +353,12 @@ void URLRequest::ResponseStarted() {
   } else if (delegate_) {
     delegate_->OnResponseStarted(this);
   }
+}
+
+void URLRequest::FollowDeferredRedirect() {
+  DCHECK(job_);
+
+  job_->FollowDeferredRedirect();
 }
 
 void URLRequest::SetAuth(const wstring& username, const wstring& password) {
@@ -380,6 +388,7 @@ void URLRequest::ContinueDespiteLastError() {
 }
 
 void URLRequest::OrphanJob() {
+  job_->Kill();
   job_->DetachRequest();  // ensures that the job will not call us again
   job_ = NULL;
 }
@@ -423,7 +432,6 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
   }
   url_ = location;
   upload_ = NULL;
-  status_ = URLRequestStatus();
   --redirect_limit_;
 
   if (strip_post_specific_headers) {
@@ -442,8 +450,10 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     final_upload_progress_ = job_->GetUploadProgress();
   }
 
+  job_->Kill();
   OrphanJob();
 
+  status_ = URLRequestStatus();
   is_pending_ = false;
   Start();
   return net::OK;
