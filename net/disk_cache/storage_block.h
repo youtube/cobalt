@@ -43,8 +43,12 @@ class StorageBlock : public FileBlock {
   // Allows the overide of dummy values passed on the constructor.
   bool LazyInit(MappedFile* file, Addr address);
 
-  // Sets the internal storage to share the momory provided by other instance.
+  // Sets the internal storage to share the memory provided by other instance.
   void SetData(T* other);
+
+  // Deletes the data, even if it was modified and not saved. This object must
+  // own the memory buffer (it cannot be shared).
+  void Discard();
 
   // Sets the object to lazily save the in-memory data on destruction.
   void set_modified();

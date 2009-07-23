@@ -127,6 +127,9 @@ class Rankings {
   CacheRankingsBlock* GetPrev(CacheRankingsBlock* node, List list);
   void FreeRankingsBlock(CacheRankingsBlock* node);
 
+  // Controls tracking of nodes used for enumerations.
+  void TrackRankingsBlock(CacheRankingsBlock* node, bool start_tracking);
+
   // Peforms a simple self-check of the lists, and returns the number of items
   // or an error code (negative value).
   int SelfCheck();
@@ -171,14 +174,11 @@ class Rankings {
   bool IsHead(CacheAddr addr);
   bool IsTail(CacheAddr addr);
 
-  // Controls tracking of nodes used for enumerations.
-  void TrackRankingsBlock(CacheRankingsBlock* node, bool start_tracking);
-
   // Updates the iterators whenever node is being changed.
   void UpdateIterators(CacheRankingsBlock* node);
 
-  // Verifies that no iterator gets invalidated by changing a node.
-  void NotAnIterator(CacheRankingsBlock* node);
+  // Invalidates the iterators pointing to this node.
+  void InvalidateIterators(CacheRankingsBlock* node);
 
   // Keeps track of the number of entries on a list.
   void IncrementCounter(List list);

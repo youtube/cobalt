@@ -62,6 +62,20 @@ template<typename T> void StorageBlock<T>::SetData(T* other) {
   data_ = other;
 }
 
+template<typename T> void  StorageBlock<T>::Discard() {
+  if (!data_)
+    return;
+  if (!own_data_) {
+    NOTREACHED();
+    return;
+  }
+  DeleteData();
+  data_ = NULL;
+  modified_ = false;
+  own_data_ = false;
+  extended_ = false;
+}
+
 template<typename T> void StorageBlock<T>::set_modified() {
   DCHECK(data_);
   modified_ = true;
@@ -97,7 +111,7 @@ template<typename T> bool StorageBlock<T>::Load() {
 }
 
 template<typename T> bool StorageBlock<T>::Store() {
-  if (file_) {
+  if (file_ && data_) {
     if (file_->Store(this)) {
       modified_ = false;
       return true;
