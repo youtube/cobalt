@@ -320,6 +320,7 @@ void Rankings::Remove(CacheRankingsBlock* node, List list) {
   Trace("Remove 0x%x (0x%x 0x%x)", node->address().value(), node->Data()->next,
         node->Data()->prev);
   DCHECK(node->HasData());
+  InvalidateIterators(node);
   Addr next_addr(node->Data()->next);
   Addr prev_addr(node->Data()->prev);
   if (!next_addr.is_initialized() || next_addr.is_separate_file() ||
@@ -394,7 +395,6 @@ void Rankings::Remove(CacheRankingsBlock* node, List list) {
 // entry. Otherwise we'll need reentrant transactions, which is an overkill.
 void Rankings::UpdateRank(CacheRankingsBlock* node, bool modified, List list) {
   Time start = Time::Now();
-  NotAnIterator(node);
   Remove(node, list);
   Insert(node, modified, list);
   CACHE_UMA(AGE_MS, "UpdateRank", 0, start);
@@ -574,6 +574,19 @@ void Rankings::FreeRankingsBlock(CacheRankingsBlock* node) {
   TrackRankingsBlock(node, false);
 }
 
+void Rankings::TrackRankingsBlock(CacheRankingsBlock* node,
+                                  bool start_tracking) {
+  if (!node)
+    return;
+
+  IteratorPair current(node->address().value(), node);
+
+  if (start_tracking)
+    iterators_.push_back(current);
+  else
+    iterators_.remove(current);
+}
+
 int Rankings::SelfCheck() {
   int total = 0;
   for (int i = 0; i < LAST_ELEMENT; i++) {
@@ -727,19 +740,6 @@ bool Rankings::IsTail(CacheAddr addr) {
   return false;
 }
 
-void Rankings::TrackRankingsBlock(CacheRankingsBlock* node,
-                                  bool start_tracking) {
-  if (!node)
-    return;
-
-  IteratorPair current(node->address().value(), node);
-
-  if (start_tracking)
-    iterators_.push_back(current);
-  else
-    iterators_.remove(current);
-}
-
 // We expect to have just a few iterators at any given time, maybe two or three,
 // But we could have more than one pointing at the same mode. We walk the list
 // of cache iterators and update all that are pointing to the given node.
@@ -747,7 +747,7 @@ void Rankings::UpdateIterators(CacheRankingsBlock* node) {
   CacheAddr address = node->address().value();
   for (IteratorList::iterator it = iterators_.begin(); it != iterators_.end();
        ++it) {
-    if (it->first == address) {
+    if (it->first == address && it->second->HasData()) {
       CacheRankingsBlock* other = it->second;
       other->Data()->next = node->Data()->next;
       other->Data()->prev = node->Data()->prev;
@@ -755,16 +755,14 @@ void Rankings::UpdateIterators(CacheRankingsBlock* node) {
   }
 }
 
-void Rankings::NotAnIterator(CacheRankingsBlock* node) {
-#ifdef NDEBUG
-  // This method is only enabled for debug builds.
-  return;
-#endif
+void Rankings::InvalidateIterators(CacheRankingsBlock* node) {
   CacheAddr address = node->address().value();
   for (IteratorList::iterator it = iterators_.begin(); it != iterators_.end();
        ++it) {
-    if (it->first == address)
-      NOTREACHED();
+    if (it->first == address) {
+      LOG(WARNING) << "Invalidating iterator at 0x" << std::hex << address;
+      it->second->Discard();
+    }
   }
 }
 
