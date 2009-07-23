@@ -372,10 +372,8 @@ bool MessageLoop::DeletePendingTasks() {
       // TODO(darin): Delete all tasks once it is safe to do so.
       // Until it is totally safe, just do it when running Purify or
       // Valgrind.
-#if defined(OS_WIN)
-#ifdef PURIFY
+#if defined(PURIFY)
       delete pending_task.task;
-#endif  // PURIFY
 #elif defined(OS_POSIX)
       if (RUNNING_ON_VALGRIND)
         delete pending_task.task;
@@ -385,13 +383,19 @@ bool MessageLoop::DeletePendingTasks() {
   did_work |= !deferred_non_nestable_work_queue_.empty();
   while (!deferred_non_nestable_work_queue_.empty()) {
     // TODO(darin): Delete all tasks once it is safe to do so.
-    // Until it is totaly safe, just delete them to keep purify happy.
-#ifdef PURIFY
+    // Until it is totaly safe, only delete them under Purify and Valgrind.
+#if defined(PURIFY)
     Task* task = deferred_non_nestable_work_queue_.front().task;
+#elif defined(OS_POSIX)
+    if (RUNNING_ON_VALGRIND)
+      Task* task = deferred_non_nestable_work_queue_.front().task;
 #endif
     deferred_non_nestable_work_queue_.pop();
-#ifdef PURIFY
+#if defined(PURIFY)
     delete task;
+#elif defined(OS_POSIX)
+    if (RUNNING_ON_VALGRIND)
+      delete task;
 #endif
   }
   did_work |= !delayed_work_queue_.empty();
