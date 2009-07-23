@@ -135,10 +135,6 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     // and the configuration is valid.
     bool GetConfigFromGConf(ProxyConfig* config);
 
-    // Returns true if environment variables indicate that we are
-    // running GNOME (and therefore we want to use gconf settings).
-    bool ShouldTryGConf();
-
     // This method is posted from the UI thread to the IO thread to
     // carry the new config information.
     void SetNewProxyConfig(const ProxyConfig& new_config);
