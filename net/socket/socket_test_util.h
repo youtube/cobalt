@@ -12,12 +12,16 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
+#include "base/scoped_vector.h"
 #include "net/base/address_list.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service.h"
+#include "net/base/test_completion_callback.h"
 #include "net/socket/client_socket_factory.h"
+#include "net/socket/client_socket_handle.h"
 #include "net/socket/ssl_client_socket.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
@@ -288,6 +292,71 @@ class MockSSLClientSocket : public MockClientSocket {
 
   scoped_ptr<ClientSocket> transport_;
   net::MockSSLSocket* data_;
+};
+
+class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
+ public:
+  TestSocketRequest(
+      ClientSocketPool* pool,
+      std::vector<TestSocketRequest*>* request_order,
+      size_t* completion_count)
+      : handle(pool),
+        request_order_(request_order),
+        completion_count_(completion_count) {
+    DCHECK(request_order);
+    DCHECK(completion_count);
+  }
+
+  ClientSocketHandle handle;
+
+  int WaitForResult();
+  virtual void RunWithParams(const Tuple1<int>& params);
+
+ private:
+  std::vector<TestSocketRequest*>* request_order_;
+  size_t* completion_count_;
+  TestCompletionCallback callback_;
+};
+
+class ClientSocketPoolTest : public testing::Test {
+ protected:
+  enum KeepAlive {
+    KEEP_ALIVE,
+
+    // A socket will be disconnected in addition to handle being reset.
+    NO_KEEP_ALIVE,
+  };
+
+  static const int kIndexOutOfBounds;
+  static const int kRequestNotFound;
+
+  ClientSocketPoolTest() : ignored_request_info_("ignored", 80) {
+  }
+
+  virtual void SetUp();
+  virtual void TearDown();
+
+  int StartRequestUsingPool(ClientSocketPool* socket_pool,
+                            const std::string& group_name,
+                            int priority);
+
+  // Provided there were n requests started, takes |index| in range 1..n
+  // and returns order in which that request completed, in range 1..n,
+  // or kIndexOutOfBounds if |index| is out of bounds, or kRequestNotFound
+  // if that request did not complete (for example was canceled).
+  int GetOrderOfRequest(size_t index);
+
+  // Resets first initialized socket handle from |requests_|. If found such
+  // a handle, returns true.
+  bool ReleaseOneConnection(KeepAlive keep_alive);
+
+  // Releases connections until there is nothing to release.
+  void ReleaseAllConnections(KeepAlive keep_alive);
+
+  HostResolver::RequestInfo ignored_request_info_;
+  ScopedVector<TestSocketRequest> requests_;
+  std::vector<TestSocketRequest*> request_order_;
+  size_t completion_count_;
 };
 
 }  // namespace net
