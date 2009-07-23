@@ -303,4 +303,78 @@ SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
                                  mock_ssl_sockets_.GetNext());
 }
 
+int TestSocketRequest::WaitForResult() {
+  return callback_.WaitForResult();
+}
+
+void TestSocketRequest::RunWithParams(const Tuple1<int>& params) {
+  callback_.RunWithParams(params);
+  (*completion_count_)++;
+  request_order_->push_back(this);
+}
+
+// static
+const int ClientSocketPoolTest::kIndexOutOfBounds = -1;
+
+// static
+const int ClientSocketPoolTest::kRequestNotFound = -2;
+
+void ClientSocketPoolTest::SetUp() {
+  completion_count_ = 0;
+}
+
+void ClientSocketPoolTest::TearDown() {
+  // The tests often call Reset() on handles at the end which may post
+  // DoReleaseSocket() tasks.
+  MessageLoop::current()->RunAllPending();
+}
+
+int ClientSocketPoolTest::StartRequestUsingPool(ClientSocketPool* socket_pool,
+                                                const std::string& group_name,
+                                                int priority) {
+  DCHECK(socket_pool);
+  TestSocketRequest* request = new TestSocketRequest(socket_pool,
+                                                     &request_order_,
+                                                     &completion_count_);
+  requests_.push_back(request);
+  int rv = request->handle.Init(group_name, ignored_request_info_, priority,
+                                request);
+  if (rv != ERR_IO_PENDING)
+    request_order_.push_back(request);
+  return rv;
+}
+
+int ClientSocketPoolTest::GetOrderOfRequest(size_t index) {
+  index--;
+  if (index >= requests_.size())
+    return kIndexOutOfBounds;
+
+  for (size_t i = 0; i < request_order_.size(); i++)
+    if (requests_[index] == request_order_[i])
+      return i + 1;
+
+  return kRequestNotFound;
+}
+
+bool ClientSocketPoolTest::ReleaseOneConnection(KeepAlive keep_alive) {
+  ScopedVector<TestSocketRequest>::iterator i;
+  for (i = requests_.begin(); i != requests_.end(); ++i) {
+    if ((*i)->handle.is_initialized()) {
+      if (keep_alive == NO_KEEP_ALIVE)
+        (*i)->handle.socket()->Disconnect();
+      (*i)->handle.Reset();
+      MessageLoop::current()->RunAllPending();
+      return true;
+    }
+  }
+  return false;
+}
+
+void ClientSocketPoolTest::ReleaseAllConnections(KeepAlive keep_alive) {
+  bool released_one;
+  do {
+    released_one = ReleaseOneConnection(keep_alive);
+  } while (released_one);
+}
+
 }  // namespace net
