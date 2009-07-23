@@ -20,16 +20,28 @@
 
 namespace media {
 
-class PipelineInternal;
 
-// Class which implements the Media::Pipeline contract.  The majority of the
-// actual code for this object lives in the PipelineInternal class, which is
-// responsible for actually building and running the pipeline.  This object
-// is basically a simple container for state information, and is responsible
-// for creating and communicating with the PipelineInternal object.
-class PipelineImpl : public Pipeline {
+// PipelineImpl runs the media pipeline.  Filters are created and called on the
+// message loop injected into this object. PipelineImpl works like a state
+// machine to perform asynchronous initialization. Initialization is done in
+// multiple passes by InitializeTask(). In each pass a different filter is
+// created and chained with a previously created filter.
+//
+// Here's a state diagram that describes the lifetime of this object.
+//
+// [ *Created ] -> [ InitDataSource ] -> [ InitDemuxer ] ->
+// [ InitAudioDecoder ] -> [ InitAudioRenderer ] ->
+// [ InitVideoDecoder ] -> [ InitVideoRenderer ] -> [ Started ]
+//        |                    |                         |
+//        .-> [ Error ]        .->      [ Stopped ]    <-.
+//
+// Initialization is a series of state transitions from "Created" to
+// "Started". If any error happens during initialization, this object will
+// transition to the "Error" state from any state. If Stop() is called during
+// initialization, this object will transition to "Stopped" state.
+class PipelineImpl : public Pipeline, public FilterHost {
  public:
-  PipelineImpl(MessageLoop* message_loop);
+  explicit PipelineImpl(MessageLoop* message_loop);
 
   // Pipeline implementation.
   virtual bool Start(FilterFactory* filter_factory,
@@ -53,142 +65,17 @@ class PipelineImpl : public Pipeline {
   virtual PipelineError GetError() const;
 
  private:
-  friend class PipelineInternal;
   virtual ~PipelineImpl();
 
   // Reset the state of the pipeline object to the initial state.  This method
-  // is used by the constructor, and the Stop method.
+  // is used by the constructor, and the Stop() method.
   void ResetState();
 
-  // Used internally to make sure that the thread is in a state that is
-  // acceptable to post a task to.  It must exist, be initialized, and there
-  // must not be an error.
-  bool IsPipelineOk() const;
+  // Simple method used to make sure the pipeline is running normally.
+  bool IsPipelineOk();
 
-  // Methods called by |pipeline_internal_| to update global pipeline data.
-  //
-  // Although this is the exact same as the FilterHost interface, we need to
-  // let |pipeline_internal_| receive the call first so it can post tasks as
-  // necessary.
-  void SetError(PipelineError error);
-  base::TimeDelta GetTime() const;
-  void SetTime(base::TimeDelta time);
-  void SetDuration(base::TimeDelta duration);
-  void SetBufferedTime(base::TimeDelta buffered_time);
-  void SetTotalBytes(int64 total_bytes);
-  void SetBufferedBytes(int64 buffered_bytes);
-  void SetVideoSize(size_t width, size_t height);
-
-  // Method called by the |pipeline_internal_| to insert a mime type into
-  // the |rendered_mime_types_| set.
-  void InsertRenderedMimeType(const std::string& major_mime_type);
-
-  // Message loop used to execute pipeline tasks.
-  MessageLoop* message_loop_;
-
-  // Holds a ref counted reference to the PipelineInternal object associated
-  // with this pipeline.  Prior to the call to the Start() method, this member
-  // will be NULL, since we are not running.
-  scoped_refptr<PipelineInternal> pipeline_internal_;
-
-  // After calling Start, if all of the required filters are created and
-  // initialized, this member will be set to true by the pipeline thread.
-  bool initialized_;
-
-  // Duration of the media in microseconds.  Set by filters.
-  base::TimeDelta duration_;
-
-  // Amount of available buffered data in microseconds.  Set by filters.
-  base::TimeDelta buffered_time_;
-
-  // Amount of available buffered data.  Set by filters.
-  int64 buffered_bytes_;
-
-  // Total size of the media.  Set by filters.
-  int64 total_bytes_;
-
-  // Lock used to serialize access for getter/setter methods.
-  mutable Lock lock_;
-
-  // Video width and height.  Set by filters.
-  size_t video_width_;
-  size_t video_height_;
-
-  // Current volume level (from 0.0f to 1.0f).  This value is set immediately
-  // via SetVolume() and a task is dispatched on the message loop to notify the
-  // filters.
-  float volume_;
-
-  // Current playback rate (>= 0.0f).  This value is set immediately via
-  // SetPlaybackRate() and a task is dispatched on the message loop to notify
-  // the filters.
-  float playback_rate_;
-
-  // Current playback time.  Set by filters.
-  base::TimeDelta time_;
-
-  // Status of the pipeline.  Initialized to PIPELINE_OK which indicates that
-  // the pipeline is operating correctly. Any other value indicates that the
-  // pipeline is stopped or is stopping.  Clients can call the Stop method to
-  // reset the pipeline state, and restore this to PIPELINE_OK.
-  PipelineError error_;
-
-  // Vector of major mime types that have been rendered by this pipeline.
-  typedef std::set<std::string> RenderedMimeTypesSet;
-  RenderedMimeTypesSet rendered_mime_types_;
-
-  DISALLOW_COPY_AND_ASSIGN(PipelineImpl);
-};
-
-
-// PipelineInternal contains most of the logic involved with running the
-// media pipeline. Filters are created and called on the message loop injected
-// into this object. PipelineInternal works like a state machine to perform
-// asynchronous initialization. Initialization is done in multiple passes by
-// InitializeTask(). In each pass a different filter is created and chained with
-// a previously created filter.
-//
-// Here's a state diagram that describes the lifetime of this object.
-//
-// [ *Created ] -> [ InitDataSource ] -> [ InitDemuxer ] ->
-// [ InitAudioDecoder ] -> [ InitAudioRenderer ] ->
-// [ InitVideoDecoder ] -> [ InitVideoRenderer ] -> [ Started ]
-//        |                    |                         |
-//        .-> [ Error ]        .->      [ Stopped ]    <-.
-//
-// Initialization is a series of state transitions from "Created" to
-// "Started". If any error happens during initialization, this object will
-// transition to the "Error" state from any state. If Stop() is called during
-// initialization, this object will transition to "Stopped" state.
-
-class PipelineInternal : public FilterHost,
-    public base::RefCountedThreadSafe<PipelineInternal> {
- public:
-  // Methods called by PipelineImpl object on the client's thread.  These
-  // methods post a task to call a corresponding xxxTask() method on the
-  // message loop.  For example, Seek posts a task to call SeekTask.
-  PipelineInternal(PipelineImpl* pipeline, MessageLoop* message_loop);
-
-  // After Start() is called, a task of StartTask() is posted on the pipeline
-  // thread to perform initialization. See StartTask() to learn more about
-  // initialization.
-  void Start(FilterFactory* filter_factory,
-             const std::string& url_media_source,
-             PipelineCallback* start_callback);
-  void Stop(PipelineCallback* stop_callback);
-  void Seek(base::TimeDelta time, PipelineCallback* seek_callback);
-
-  // Notifies that the client has changed the playback rate/volume.
-  void PlaybackRateChanged(float playback_rate);
-  void VolumeChanged(float volume);
-
-  // Returns true if the pipeline has fully initialized.
-  bool IsInitialized() { return state_ == kStarted; }
-
- private:
-  // Only allow ourselves to be destroyed via ref-counting.
-  friend class base::RefCountedThreadSafe<PipelineInternal>;
-  virtual ~PipelineInternal();
+  // Helper method to tell whether we are in the state of initializing.
+  bool IsPipelineInitializing();
 
   // FilterHost implementation.
   virtual void SetError(PipelineError error);
@@ -200,31 +87,12 @@ class PipelineInternal : public FilterHost,
   virtual void SetBufferedBytes(int64 buffered_bytes);
   virtual void SetVideoSize(size_t width, size_t height);
 
-  enum State {
-    kCreated,
-    kInitDataSource,
-    kInitDemuxer,
-    kInitAudioDecoder,
-    kInitAudioRenderer,
-    kInitVideoDecoder,
-    kInitVideoRenderer,
-    kStarted,
-    kStopped,
-    kError,
-  };
+  // Method called during initialization to insert a mime type into the
+  // |rendered_mime_types_| set.
+  void InsertRenderedMimeType(const std::string& major_mime_type);
 
-  // Simple method used to make sure the pipeline is running normally.
-  bool IsPipelineOk() { return PIPELINE_OK == pipeline_->error_; }
-
-  // Helper method to tell whether we are in the state of initializing.
-  bool IsPipelineInitializing() {
-    return state_ == kInitDataSource ||
-           state_ == kInitDemuxer ||
-           state_ == kInitAudioDecoder ||
-           state_ == kInitAudioRenderer ||
-           state_ == kInitVideoDecoder ||
-           state_ == kInitVideoRenderer;
-  }
+  // Method called during initialization to determine if we rendered anything.
+  bool HasRenderedMimeTypes() const;
 
   // Callback executed by filters upon completing initialization and seeking.
   void OnFilterInitialize();
@@ -243,18 +111,18 @@ class PipelineInternal : public FilterHost,
   // initialization.
   void InitializeTask();
 
-  // StopTask() and ErrorTask() are similar but serve different purposes:
-  //   - Both destroy the filter chain.
-  //   - Both will execute |start_callback| if the pipeline was initializing.
-  //   - StopTask() resets the pipeline to a fresh state, where as ErrorTask()
-  //     leaves the pipeline as is for client inspection.
-  //   - StopTask() can be scheduled by the client calling Stop(), where as
-  //     ErrorTask() is scheduled as a result of a filter calling SetError().
+  // Stops and destroys all filters, placing the pipeline in the kStopped state
+  // and setting the error code to PIPELINE_STOPPED.
   void StopTask(PipelineCallback* stop_callback);
-  void ErrorTask(PipelineError error);
 
-  // Carries out notifying filters that the playback rate/volume has changed,
+  // Carries out stopping and destroying all filters, placing the pipeline in
+  // the kError state.
+  void ErrorChangedTask(PipelineError error);
+
+  // Carries out notifying filters that the playback rate has changed.
   void PlaybackRateChangedTask(float playback_rate);
+
+  // Carries out notifying filters that the volume has changed.
   void VolumeChangedTask(float volume);
 
   // Carries out notifying filters that we are seeking to a new timestamp.
@@ -326,13 +194,70 @@ class PipelineInternal : public FilterHost,
   // references to them.
   void DestroyFilters();
 
-  // Pointer to the pipeline that owns this PipelineInternal.
-  PipelineImpl* pipeline_;
-
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;
 
+  // Lock used to serialize access for the following data members.
+  mutable Lock lock_;
+
+  // Whether or not the pipeline is running.
+  bool running_;
+
+  // Duration of the media in microseconds.  Set by filters.
+  base::TimeDelta duration_;
+
+  // Amount of available buffered data in microseconds.  Set by filters.
+  base::TimeDelta buffered_time_;
+
+  // Amount of available buffered data.  Set by filters.
+  int64 buffered_bytes_;
+
+  // Total size of the media.  Set by filters.
+  int64 total_bytes_;
+
+  // Video width and height.  Set by filters.
+  size_t video_width_;
+  size_t video_height_;
+
+  // Current volume level (from 0.0f to 1.0f).  This value is set immediately
+  // via SetVolume() and a task is dispatched on the message loop to notify the
+  // filters.
+  float volume_;
+
+  // Current playback rate (>= 0.0f).  This value is set immediately via
+  // SetPlaybackRate() and a task is dispatched on the message loop to notify
+  // the filters.
+  float playback_rate_;
+
+  // Current playback time.  Set by filters.
+  base::TimeDelta time_;
+
+  // Status of the pipeline.  Initialized to PIPELINE_OK which indicates that
+  // the pipeline is operating correctly. Any other value indicates that the
+  // pipeline is stopped or is stopping.  Clients can call the Stop() method to
+  // reset the pipeline state, and restore this to PIPELINE_OK.
+  PipelineError error_;
+
+  // Vector of major mime types that have been rendered by this pipeline.
+  typedef std::set<std::string> RenderedMimeTypesSet;
+  RenderedMimeTypesSet rendered_mime_types_;
+
+  // The following data members are only accessed by tasks posted to
+  // |message_loop_|.
+
   // Member that tracks the current state.
+  enum State {
+    kCreated,
+    kInitDataSource,
+    kInitDemuxer,
+    kInitAudioDecoder,
+    kInitAudioRenderer,
+    kInitVideoDecoder,
+    kInitVideoRenderer,
+    kStarted,
+    kStopped,
+    kError,
+  };
   State state_;
 
   // Filter factory as passed in by Start().
@@ -358,7 +283,7 @@ class PipelineInternal : public FilterHost,
   typedef std::vector<base::Thread*> FilterThreadVector;
   FilterThreadVector filter_threads_;
 
-  DISALLOW_COPY_AND_ASSIGN(PipelineInternal);
+  DISALLOW_COPY_AND_ASSIGN(PipelineImpl);
 };
 
 }  // namespace media

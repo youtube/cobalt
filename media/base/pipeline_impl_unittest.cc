@@ -153,9 +153,6 @@ TEST_F(PipelineImplTest, NotStarted) {
 
   // StrictMock<> will ensure these never get called, and valgrind/purify will
   // make sure the callbacks are instantly deleted.
-  pipeline_->Start(NULL, "",
-                   NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
-                               &CallbackHelper::OnStart));
   pipeline_->Stop(NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                               &CallbackHelper::OnStop));
   pipeline_->Seek(kZero,
@@ -244,7 +241,7 @@ TEST_F(PipelineImplTest, URLNotFound) {
 }
 
 TEST_F(PipelineImplTest, NoStreams) {
-  // Manually set these expecations because SetPlaybackRate() is not called if
+  // Manually set these expectations because SetPlaybackRate() is not called if
   // we cannot fully initialize the pipeline.
   EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
       .WillOnce(Invoke(&RunFilterCallback));
