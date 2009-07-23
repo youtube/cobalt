@@ -346,8 +346,8 @@ void ReadAndVerifyTransaction(net::HttpTransaction* trans,
   int rv = ReadTransaction(trans, &content);
 
   EXPECT_EQ(net::OK, rv);
-  EXPECT_EQ(strlen(trans_info.data), content.size());
-  EXPECT_EQ(0, memcmp(trans_info.data, content.data(), content.size()));
+  std::string expected(trans_info.data);
+  EXPECT_EQ(expected, content);
 }
 
 void RunTransactionTestWithRequest(net::HttpCache* cache,
@@ -525,6 +525,24 @@ bool Verify206Response(std::string response, int start, int end) {
 
   return true;
 }
+
+// Helper to represent a network HTTP response.
+struct Response {
+  // Set this response into |trans|.
+  void AssignTo(MockTransaction* trans) const {
+    trans->status = status;
+    trans->response_headers = headers;
+    trans->data = body;
+  }
+
+  std::string status_and_headers() const {
+    return std::string(status) + "\n" + std::string(headers);
+  }
+
+  const char* status;
+  const char* headers;
+  const char* body;
+};
 
 }  // namespace
 
@@ -735,7 +753,8 @@ struct Context {
   TestCompletionCallback callback;
   scoped_ptr<net::HttpTransaction> trans;
 
-  Context(net::HttpTransaction* t) : result(net::ERR_IO_PENDING), trans(t) {
+  explicit Context(net::HttpTransaction* t)
+      : result(net::ERR_IO_PENDING), trans(t) {
   }
 };
 
@@ -1098,6 +1117,116 @@ TEST(HttpCache, SimplePOST_SkipsCache) {
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(0, cache.disk_cache()->create_count());
+}
+
+// http://crbug.com/16199
+TEST(HttpCache, DISABLED_ConditionalizedRequestUpdatesCache) {
+  MockHttpCache cache;
+
+  // The URL we will be requesting.
+  const char* kUrl = "http://foobar.com/main.css";
+
+  // First network response for |kUrl|.
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 200 OK",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Last-Modified: Fri, 03 Jul 2009 02:14:27 GMT\n",
+    "body2"
+  };
+
+  // Junk network response.
+  static const Response kUnexpectedResponse = {
+    "HTTP/1.1 500 Unexpected",
+    "Server: unexpected_header",
+    "unexpected body"
+  };
+
+  // We will control the network layer's responses for |kUrl| using
+  // |mock_network_response|.
+  MockTransaction mock_network_response = { 0 };
+  mock_network_response.url = kUrl;
+  AddMockTransaction(&mock_network_response);
+
+  // Request |kUrl| for the first time. It should hit the network and
+  // receive |kNetResponse1|, which it saves into the HTTP cache.
+
+  MockTransaction request = { 0 };
+  request.url = kUrl;
+  request.method = "GET";
+  request.request_headers = "";
+
+  kNetResponse1.AssignTo(&mock_network_response);  // Network mock.
+  kNetResponse1.AssignTo(&request);                // Expected result.
+
+  std::string response_headers;
+  RunTransactionTestWithResponse(
+      cache.http_cache(), request, &response_headers);
+
+  EXPECT_EQ(kNetResponse1.status_and_headers(), response_headers);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Request |kUrl| a second first time. Now |kNetResponse1| it is in the HTTP
+  // cache, so we don't hit the network.
+
+  kUnexpectedResponse.AssignTo(&mock_network_response);  // Network mock.
+  kNetResponse1.AssignTo(&request);                      // Expected result.
+
+  RunTransactionTestWithResponse(
+      cache.http_cache(), request, &response_headers);
+
+  EXPECT_EQ(kNetResponse1.status_and_headers(), response_headers);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Request |kUrl| yet again, but this time give the request an
+  // "If-Modified-Since" header. This will cause the request to re-hit the
+  // network. However now the network response is going to be
+  // different -- this simulates a change made to the CSS file.
+
+  request.request_headers =
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+
+  kNetResponse2.AssignTo(&mock_network_response);  // Network mock.
+  kNetResponse2.AssignTo(&request);                // Expected result.
+
+  RunTransactionTestWithResponse(
+      cache.http_cache(), request, &response_headers);
+
+  EXPECT_EQ(kNetResponse2.status_and_headers(), response_headers);
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Finally, request |kUrl| again. This request should be serviced from
+  // the cache. Moreover, the value in the cache should be |kNetResponse2|
+  // and NOT |kNetResponse1|. The previous step should have replaced the
+  // value in the cache with the modified response.
+
+  request.request_headers = "";
+
+  kUnexpectedResponse.AssignTo(&mock_network_response);  // Network mock.
+  kNetResponse2.AssignTo(&request);                      // Expected result.
+
+  RunTransactionTestWithResponse(
+      cache.http_cache(), request, &response_headers);
+
+  EXPECT_EQ(kNetResponse2.status_and_headers(), response_headers);
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&mock_network_response);
 }
 
 TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Miss) {
