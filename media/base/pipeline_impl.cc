@@ -72,60 +72,77 @@ void DecrementCounter(Lock* lock, ConditionVariable* cond_var, int* count) {
 }  // namespace
 
 PipelineImpl::PipelineImpl(MessageLoop* message_loop)
-    : message_loop_(message_loop) {
+    : message_loop_(message_loop),
+      state_(kCreated) {
   ResetState();
 }
 
 PipelineImpl::~PipelineImpl() {
-  DCHECK(!pipeline_internal_)
-      << "Stop() must complete before destroying object";
+  AutoLock auto_lock(lock_);
+  DCHECK(!running_) << "Stop() must complete before destroying object";
 }
 
 // Creates the PipelineInternal and calls it's start method.
-    bool PipelineImpl::Start(FilterFactory* factory,
+bool PipelineImpl::Start(FilterFactory* factory,
                          const std::string& url,
                          PipelineCallback* start_callback) {
-  DCHECK(!pipeline_internal_) << "PipelineInternal already exists";
+  AutoLock auto_lock(lock_);
+  DCHECK(factory);
   scoped_ptr<PipelineCallback> callback(start_callback);
-  if (pipeline_internal_ || !factory) {
+  if (running_) {
+    LOG(INFO) << "Media pipeline is already running";
+    return false;
+  }
+  if (!factory) {
     return false;
   }
 
-  // Create and start the PipelineInternal.
-  pipeline_internal_ = new PipelineInternal(this, message_loop_);
-  if (!pipeline_internal_) {
-    NOTREACHED() << "Could not create PipelineInternal";
-    return false;
-  }
-  pipeline_internal_->Start(factory, url, callback.release());
+  // Kick off initialization!
+  running_ = true;
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::StartTask, factory, url,
+                        callback.release()));
   return true;
 }
 
-// Stop the PipelineInternal who will NULL our reference to it and reset our
-// state to a newly created PipelineImpl object.
 void PipelineImpl::Stop(PipelineCallback* stop_callback) {
+  AutoLock auto_lock(lock_);
   scoped_ptr<PipelineCallback> callback(stop_callback);
-  if (pipeline_internal_) {
-    pipeline_internal_->Stop(callback.release());
+  if (!running_) {
+    LOG(INFO) << "Media pipeline has already stopped";
+    return;
   }
+
+  // Stop the pipeline, which will set |running_| to false on behalf.
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::StopTask, callback.release()));
 }
 
 void PipelineImpl::Seek(base::TimeDelta time,
                         PipelineCallback* seek_callback) {
+  AutoLock auto_lock(lock_);
   scoped_ptr<PipelineCallback> callback(seek_callback);
-  if (pipeline_internal_) {
-    pipeline_internal_->Seek(time, callback.release());
+  if (!running_) {
+    LOG(INFO) << "Media pipeline must be running";
+    return;
   }
+
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::SeekTask, time,
+                        callback.release()));
 }
 
 bool PipelineImpl::IsRunning() const {
   AutoLock auto_lock(lock_);
-  return pipeline_internal_ != NULL;
+  return running_;
 }
 
 bool PipelineImpl::IsInitialized() const {
+  // TODO(scherkus): perhaps replace this with a bool that is set/get under the
+  // lock, because this is breaching the contract that |state_| is only accessed
+  // on |message_loop_|.
   AutoLock auto_lock(lock_);
-  return pipeline_internal_ && pipeline_internal_->IsInitialized();
+  return state_ == kStarted;
 }
 
 bool PipelineImpl::IsRendered(const std::string& major_mime_type) const {
@@ -147,8 +164,10 @@ void PipelineImpl::SetPlaybackRate(float playback_rate) {
 
   AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
-  if (pipeline_internal_) {
-    pipeline_internal_->PlaybackRateChanged(playback_rate);
+  if (running_) {
+    message_loop_->PostTask(FROM_HERE,
+        NewRunnableMethod(this, &PipelineImpl::PlaybackRateChangedTask,
+                          playback_rate));
   }
 }
 
@@ -164,8 +183,10 @@ void PipelineImpl::SetVolume(float volume) {
 
   AutoLock auto_lock(lock_);
   volume_ = volume;
-  if (pipeline_internal_) {
-    pipeline_internal_->VolumeChanged(volume);
+  if (running_) {
+    message_loop_->PostTask(FROM_HERE,
+        NewRunnableMethod(this, &PipelineImpl::VolumeChangedTask,
+                          volume));
   }
 }
 
@@ -209,7 +230,7 @@ PipelineError PipelineImpl::GetError() const {
 
 void PipelineImpl::ResetState() {
   AutoLock auto_lock(lock_);
-  pipeline_internal_  = NULL;
+  running_          = false;
   duration_         = base::TimeDelta();
   buffered_time_    = base::TimeDelta();
   buffered_bytes_   = 0;
@@ -223,163 +244,101 @@ void PipelineImpl::ResetState() {
   rendered_mime_types_.clear();
 }
 
-bool PipelineImpl::IsPipelineOk() const {
-  return pipeline_internal_ && PIPELINE_OK == error_;
+bool PipelineImpl::IsPipelineOk() {
+  return PIPELINE_OK == GetError();
+}
+
+bool PipelineImpl::IsPipelineInitializing() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  return state_ == kInitDataSource ||
+         state_ == kInitDemuxer ||
+         state_ == kInitAudioDecoder ||
+         state_ == kInitAudioRenderer ||
+         state_ == kInitVideoDecoder ||
+         state_ == kInitVideoRenderer;
 }
 
 void PipelineImpl::SetError(PipelineError error) {
+  DCHECK(IsRunning());
+  DCHECK(error != PIPELINE_OK) << "PIPELINE_OK isn't an error!";
+  LOG(INFO) << "Media pipeline error: " << error;
+
   AutoLock auto_lock(lock_);
   error_ = error;
+  message_loop_->PostTask(FROM_HERE,
+     NewRunnableMethod(this, &PipelineImpl::ErrorChangedTask, error));
 }
 
 base::TimeDelta PipelineImpl::GetTime() const {
+  DCHECK(IsRunning());
   return GetCurrentTime();
 }
 
 void PipelineImpl::SetTime(base::TimeDelta time) {
+  DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
   time_ = time;
 }
 
 void PipelineImpl::SetDuration(base::TimeDelta duration) {
+  DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
   duration_ = duration;
 }
 
 void PipelineImpl::SetBufferedTime(base::TimeDelta buffered_time) {
+  DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
   buffered_time_ = buffered_time;
 }
 
 void PipelineImpl::SetTotalBytes(int64 total_bytes) {
+  DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
   total_bytes_ = total_bytes;
 }
 
 void PipelineImpl::SetBufferedBytes(int64 buffered_bytes) {
+  DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
   buffered_bytes_ = buffered_bytes;
 }
 
 void PipelineImpl::SetVideoSize(size_t width, size_t height) {
+  DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
   video_width_ = width;
   video_height_ = height;
 }
 
 void PipelineImpl::InsertRenderedMimeType(const std::string& major_mime_type) {
+  DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
   rendered_mime_types_.insert(major_mime_type);
 }
 
-
-//-----------------------------------------------------------------------------
-
-PipelineInternal::PipelineInternal(PipelineImpl* pipeline,
-                                   MessageLoop* message_loop)
-    : pipeline_(pipeline),
-      message_loop_(message_loop),
-      state_(kCreated) {
-}
-
-PipelineInternal::~PipelineInternal() {
-  DCHECK(state_ == kCreated || state_ == kStopped);
-}
-
-// Called on client's thread.
-void PipelineInternal::Start(FilterFactory* filter_factory,
-                             const std::string& url,
-                             PipelineCallback* start_callback) {
-  DCHECK(filter_factory);
-  message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineInternal::StartTask, filter_factory, url,
-                        start_callback));
-}
-
-// Called on client's thread.
-void PipelineInternal::Stop(PipelineCallback* stop_callback) {
-  message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineInternal::StopTask, stop_callback));
-}
-
-// Called on client's thread.
-void PipelineInternal::Seek(base::TimeDelta time,
-                          PipelineCallback* seek_callback) {
-  message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineInternal::SeekTask, time,
-                        seek_callback));
-}
-
-// Called on client's thread.
-void PipelineInternal::PlaybackRateChanged(float playback_rate) {
-  message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineInternal::PlaybackRateChangedTask,
-                        playback_rate));
-}
-
-// Called on client's thread.
-void PipelineInternal::VolumeChanged(float volume) {
-  message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineInternal::VolumeChangedTask, volume));
+bool PipelineImpl::HasRenderedMimeTypes() const {
+  DCHECK(IsRunning());
+  AutoLock auto_lock(lock_);
+  return !rendered_mime_types_.empty();
 }
 
 // Called from any thread.
-void PipelineInternal::SetError(PipelineError error) {
-  message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineInternal::ErrorTask, error));
-}
-
-// Called from any thread.
-base::TimeDelta PipelineInternal::GetTime() const {
-  return pipeline_->GetCurrentTime();
-}
-
-// Called from any thread.
-void PipelineInternal::SetTime(base::TimeDelta time) {
-  pipeline_->SetTime(time);
-}
-
-// Called from any thread.
-void PipelineInternal::SetDuration(base::TimeDelta duration) {
-  pipeline_->SetDuration(duration);
-}
-
-// Called from any thread.
-void PipelineInternal::SetBufferedTime(base::TimeDelta buffered_time) {
-  pipeline_->SetBufferedTime(buffered_time);
-}
-
-// Called from any thread.
-void PipelineInternal::SetTotalBytes(int64 total_bytes) {
-  pipeline_->SetTotalBytes(total_bytes);
-}
-
-// Called from any thread.
-void PipelineInternal::SetBufferedBytes(int64 buffered_bytes) {
-  pipeline_->SetBufferedBytes(buffered_bytes);
-}
-
-// Called from any thread.
-void PipelineInternal::SetVideoSize(size_t width, size_t height) {
-  pipeline_->SetVideoSize(width, height);
-}
-
-// Called from any thread.
-void PipelineInternal::OnFilterInitialize() {
+void PipelineImpl::OnFilterInitialize() {
   // Continue the initialize task by proceeding to the next stage.
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineInternal::InitializeTask));
+      NewRunnableMethod(this, &PipelineImpl::InitializeTask));
 }
 
 // Called from any thread.
-void PipelineInternal::OnFilterSeek() {
+void PipelineImpl::OnFilterSeek() {
   // TODO(scherkus): have PipelineInternal wait to receive replies from every
   // filter before calling the client's |seek_callback_|.
 }
 
-void PipelineInternal::StartTask(FilterFactory* filter_factory,
-                                 const std::string& url,
-                                 PipelineCallback* start_callback) {
+void PipelineImpl::StartTask(FilterFactory* filter_factory,
+                             const std::string& url,
+                             PipelineCallback* start_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_EQ(kCreated, state_);
   filter_factory_ = filter_factory;
@@ -407,7 +366,7 @@ void PipelineInternal::StartTask(FilterFactory* filter_factory,
 // TODO(hclam): InitializeTask() is now starting the pipeline asynchronously. It
 // works like a big state change table. If we no longer need to start filters
 // in order, we need to get rid of all the state change.
-void PipelineInternal::InitializeTask() {
+void PipelineImpl::InitializeTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // If we have received the stop or error signal, return immediately.
@@ -443,7 +402,7 @@ void PipelineInternal::InitializeTask() {
     state_ = kInitAudioRenderer;
     // Returns false if there's no audio stream.
     if (CreateRenderer<AudioDecoder, AudioRenderer>()) {
-      pipeline_->InsertRenderedMimeType(AudioDecoder::major_mime_type());
+      InsertRenderedMimeType(AudioDecoder::major_mime_type());
       return;
     }
   }
@@ -460,20 +419,20 @@ void PipelineInternal::InitializeTask() {
   if (state_ == kInitVideoDecoder) {
     state_ = kInitVideoRenderer;
     if (CreateRenderer<VideoDecoder, VideoRenderer>()) {
-      pipeline_->InsertRenderedMimeType(VideoDecoder::major_mime_type());
+      InsertRenderedMimeType(VideoDecoder::major_mime_type());
       return;
     }
   }
 
   if (state_ == kInitVideoRenderer) {
-    if (!IsPipelineOk() || pipeline_->rendered_mime_types_.empty()) {
+    if (!IsPipelineOk() || !HasRenderedMimeTypes()) {
       SetError(PIPELINE_ERROR_COULD_NOT_RENDER);
       return;
     }
 
     // Initialization was successful, set the volume and playback rate.
-    PlaybackRateChangedTask(pipeline_->GetPlaybackRate());
-    VolumeChangedTask(pipeline_->GetVolume());
+    PlaybackRateChangedTask(GetPlaybackRate());
+    VolumeChangedTask(GetVolume());
 
     state_ = kStarted;
     filter_factory_ = NULL;
@@ -492,7 +451,7 @@ void PipelineInternal::InitializeTask() {
 // TODO(scherkus): beware!  this can get posted multiple times since we post
 // Stop() tasks even if we've already stopped.  Perhaps this should no-op for
 // additional calls, however most of this logic will be changing.
-void PipelineInternal::StopTask(PipelineCallback* stop_callback) {
+void PipelineImpl::StopTask(PipelineCallback* stop_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   stop_callback_.reset(stop_callback);
 
@@ -502,15 +461,13 @@ void PipelineInternal::StopTask(PipelineCallback* stop_callback) {
   }
 
   // Carry out setting the error, notifying the client and destroying filters.
-  ErrorTask(PIPELINE_STOPPING);
+  ErrorChangedTask(PIPELINE_STOPPING);
 
   // We no longer need to examine our previous state, set it to stopped.
   state_ = kStopped;
 
-  // Reset the pipeline and set our reference to NULL so we don't accidentally
-  // modify the pipeline.  Once remaining tasks execute we will be destroyed.
-  pipeline_->ResetState();
-  pipeline_ = NULL;
+  // Reset the pipeline.
+  ResetState();
 
   // Notify the client that stopping has finished.
   if (stop_callback_.get()) {
@@ -519,7 +476,7 @@ void PipelineInternal::StopTask(PipelineCallback* stop_callback) {
   }
 }
 
-void PipelineInternal::ErrorTask(PipelineError error) {
+void PipelineImpl::ErrorChangedTask(PipelineError error) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK_NE(PIPELINE_OK, error) << "PIPELINE_OK isn't an error!";
 
@@ -531,9 +488,6 @@ void PipelineInternal::ErrorTask(PipelineError error) {
   if (state_ == kError || state_ == kStopped) {
     return;
   }
-
-  // Update our error code first in case we execute the start callback.
-  pipeline_->SetError(error);
 
   // Notify the client that starting did not complete, if necessary.
   if (IsPipelineInitializing() && start_callback_.get()) {
@@ -549,7 +503,7 @@ void PipelineInternal::ErrorTask(PipelineError error) {
   DestroyFilters();
 }
 
-void PipelineInternal::PlaybackRateChangedTask(float playback_rate) {
+void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   for (FilterVector::iterator iter = filters_.begin();
        iter != filters_.end();
@@ -558,7 +512,7 @@ void PipelineInternal::PlaybackRateChangedTask(float playback_rate) {
   }
 }
 
-void PipelineInternal::VolumeChangedTask(float volume) {
+void PipelineImpl::VolumeChangedTask(float volume) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   scoped_refptr<AudioRenderer> audio_renderer;
@@ -568,8 +522,8 @@ void PipelineInternal::VolumeChangedTask(float volume) {
   }
 }
 
-void PipelineInternal::SeekTask(base::TimeDelta time,
-                                PipelineCallback* seek_callback) {
+void PipelineImpl::SeekTask(base::TimeDelta time,
+                            PipelineCallback* seek_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   seek_callback_.reset(seek_callback);
 
@@ -581,7 +535,7 @@ void PipelineInternal::SeekTask(base::TimeDelta time,
   for (FilterVector::iterator iter = filters_.begin();
        iter != filters_.end();
        ++iter) {
-    (*iter)->Seek(time, NewCallback(this, &PipelineInternal::OnFilterSeek));
+    (*iter)->Seek(time, NewCallback(this, &PipelineImpl::OnFilterSeek));
   }
 
   // TODO(hclam): we should set the time when the above seek operations were all
@@ -599,9 +553,9 @@ void PipelineInternal::SeekTask(base::TimeDelta time,
 }
 
 template <class Filter, class Source>
-void PipelineInternal::CreateFilter(FilterFactory* filter_factory,
-                                    Source source,
-                                    const MediaFormat& media_format) {
+void PipelineImpl::CreateFilter(FilterFactory* filter_factory,
+                                Source source,
+                                const MediaFormat& media_format) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
@@ -635,10 +589,10 @@ void PipelineInternal::CreateFilter(FilterFactory* filter_factory,
 
   // Now initialize the filter.
   filter->Initialize(source,
-      NewCallback(this, &PipelineInternal::OnFilterInitialize));
+      NewCallback(this, &PipelineImpl::OnFilterInitialize));
 }
 
-void PipelineInternal::CreateDataSource() {
+void PipelineImpl::CreateDataSource() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
@@ -648,7 +602,7 @@ void PipelineInternal::CreateDataSource() {
   CreateFilter<DataSource>(filter_factory_, url_, url_format);
 }
 
-void PipelineInternal::CreateDemuxer() {
+void PipelineImpl::CreateDemuxer() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
@@ -659,7 +613,7 @@ void PipelineInternal::CreateDemuxer() {
 }
 
 template <class Decoder>
-bool PipelineInternal::CreateDecoder() {
+bool PipelineImpl::CreateDecoder() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
@@ -682,7 +636,7 @@ bool PipelineInternal::CreateDecoder() {
 }
 
 template <class Decoder, class Renderer>
-bool PipelineInternal::CreateRenderer() {
+bool PipelineImpl::CreateRenderer() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
   DCHECK(IsPipelineOk());
 
@@ -699,7 +653,7 @@ bool PipelineInternal::CreateRenderer() {
 }
 
 template <class Filter>
-void PipelineInternal::GetFilter(scoped_refptr<Filter>* filter_out) const {
+void PipelineImpl::GetFilter(scoped_refptr<Filter>* filter_out) const {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   FilterTypeMap::const_iterator ft = filter_types_.find(Filter::filter_type());
@@ -710,7 +664,7 @@ void PipelineInternal::GetFilter(scoped_refptr<Filter>* filter_out) const {
   }
 }
 
-void PipelineInternal::DestroyFilters() {
+void PipelineImpl::DestroyFilters() {
   // Stop every filter.
   for (FilterVector::iterator iter = filters_.begin();
        iter != filters_.end();
