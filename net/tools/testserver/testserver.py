@@ -570,6 +570,10 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     if not self.path.startswith(prefix):
       return False
 
+    # Consume a request body if present.
+    if self.command == 'POST':
+      self.rfile.read(int(self.headers.getheader('content-length')))
+
     file = self.path[len(prefix):]
     entries = file.split('/');
     path = os.path.join(self.server.data_dir, *entries)

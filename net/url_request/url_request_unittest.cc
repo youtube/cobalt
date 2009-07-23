@@ -27,6 +27,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_module.h"
 #include "net/base/net_util.h"
+#include "net/base/upload_data.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
@@ -98,6 +99,12 @@ void FillBuffer(char* buffer, size_t len) {
     if (!buffer[i])
       buffer[i] = 'g';
   }
+}
+
+scoped_refptr<net::UploadData> CreateSimpleUploadData(const char* data) {
+  scoped_refptr<net::UploadData> upload = new net::UploadData;
+  upload->AppendBytes(data, strlen(data));
+  return upload;
 }
 
 }  // namespace
@@ -1071,6 +1078,64 @@ TEST_F(URLRequestTest, CancelRedirect) {
   }
 }
 
+TEST_F(URLRequestTest, DeferredRedirect) {
+  scoped_refptr<HTTPTestServer> server =
+      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
+  ASSERT_TRUE(NULL != server.get());
+  TestDelegate d;
+  {
+    d.set_quit_on_redirect(true);
+    TestURLRequest req(server->TestServerPage(
+        "files/redirect-test.html"), &d);
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(1, d.received_redirect_count());
+
+    req.FollowDeferredRedirect();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(1, d.response_started_count());
+    EXPECT_FALSE(d.received_data_before_response());
+    EXPECT_EQ(URLRequestStatus::SUCCESS, req.status().status());
+
+    FilePath path;
+    PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    path = path.Append(FILE_PATH_LITERAL("net"));
+    path = path.Append(FILE_PATH_LITERAL("data"));
+    path = path.Append(FILE_PATH_LITERAL("url_request_unittest"));
+    path = path.Append(FILE_PATH_LITERAL("with-headers.html"));
+
+    std::string contents;
+    EXPECT_TRUE(file_util::ReadFileToString(path, &contents));
+    EXPECT_EQ(contents, d.data_received());
+  }
+}
+
+TEST_F(URLRequestTest, CancelDeferredRedirect) {
+  scoped_refptr<HTTPTestServer> server =
+      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
+  ASSERT_TRUE(NULL != server.get());
+  TestDelegate d;
+  {
+    d.set_quit_on_redirect(true);
+    TestURLRequest req(server->TestServerPage(
+        "files/redirect-test.html"), &d);
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(1, d.received_redirect_count());
+
+    req.Cancel();
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(1, d.response_started_count());
+    EXPECT_EQ(0, d.bytes_received());
+    EXPECT_FALSE(d.received_data_before_response());
+    EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+  }
+}
+
 TEST_F(URLRequestTest, VaryHeader) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
@@ -1236,15 +1301,16 @@ TEST_F(URLRequestTest, BasicAuthWithCookies) {
 // Content-Type header.
 // http://code.google.com/p/chromium/issues/detail?id=843
 TEST_F(URLRequestTest, Post302RedirectGet) {
+  const char kData[] = "hello world";
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
   ASSERT_TRUE(NULL != server.get());
   TestDelegate d;
   TestURLRequest req(server->TestServerPage("files/redirect-to-echoall"), &d);
   req.set_method("POST");
+  req.set_upload(CreateSimpleUploadData(kData));
 
   // Set headers (some of which are specific to the POST).
-  // ("Content-Length: 10" is just a junk value to make sure it gets stripped).
   req.SetExtraRequestHeaders(
     "Content-Type: multipart/form-data; "
     "boundary=----WebKitFormBoundaryAADeAA+NAAWMAAwZ\r\n"
@@ -1252,7 +1318,7 @@ TEST_F(URLRequestTest, Post302RedirectGet) {
     "text/plain;q=0.8,image/png,*/*;q=0.5\r\n"
     "Accept-Language: en-US,en\r\n"
     "Accept-Charset: ISO-8859-1,*,utf-8\r\n"
-    "Content-Length: 10\r\n"
+    "Content-Length: 11\r\n"
     "Origin: http://localhost:1337/");
   req.Start();
   MessageLoop::current()->Run();
@@ -1274,17 +1340,23 @@ TEST_F(URLRequestTest, Post302RedirectGet) {
   EXPECT_TRUE(ContainsString(data, "Accept-Charset:"));
 }
 
-TEST_F(URLRequestTest, Post307RedirectPost) {
+// TODO(darin): Re-enable this test once bug 16832 is fixed.
+TEST_F(URLRequestTest, DISABLED_Post307RedirectPost) {
+  const char kData[] = "hello world";
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
   ASSERT_TRUE(NULL != server.get());
   TestDelegate d;
-  TestURLRequest req(server->TestServerPage("files/redirect307-to-echoall"),
+  TestURLRequest req(server->TestServerPage("files/redirect307-to-echo"),
       &d);
   req.set_method("POST");
+  req.set_upload(CreateSimpleUploadData(kData).get());
+  req.SetExtraRequestHeaders(
+      "Content-Length: " + UintToString(sizeof(kData) - 1));
   req.Start();
   MessageLoop::current()->Run();
-  EXPECT_EQ(req.method(), "POST");
+  EXPECT_EQ("POST", req.method());
+  EXPECT_EQ(kData, d.data_received());
 }
 
 // Custom URLRequestJobs for use with interceptor tests
