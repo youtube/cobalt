@@ -113,8 +113,13 @@ bool LaunchApp(const std::vector<std::string>& argv,
       }
     }
 
+    // Obscure fork() rule: in the child, if you don't end up doing exec*(),
+    // you call _exit() instead of exit(). This is because _exit() does not
+    // call any previously-registered (in the parent) exit handlers, which
+    // might do things like block waiting for threads that don't even exist
+    // in the child.
     if (!ShuffleFileDescriptors(fd_shuffle))
-      exit(127);
+      _exit(127);
 
     // If we are using the SUID sandbox, it sets a magic environment variable
     // ("SBX_D"), so we remove that variable from the environment here on the
@@ -130,7 +135,7 @@ bool LaunchApp(const std::vector<std::string>& argv,
     execvp(argv_cstr[0], argv_cstr.get());
     LOG(ERROR) << "LaunchApp: exec failed!, argv_cstr[0] " << argv_cstr[0]
         << ", errno " << errno;
-    exit(127);
+    _exit(127);
   } else {
     // Parent process
     if (wait)

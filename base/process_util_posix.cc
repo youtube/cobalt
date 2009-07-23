@@ -441,6 +441,11 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
       return false;
     case 0:  // child
       {
+        // Obscure fork() rule: in the child, if you don't end up doing exec*(),
+        // you call _exit() instead of exit(). This is because _exit() does not
+        // call any previously-registered (in the parent) exit handlers, which
+        // might do things like block waiting for threads that don't even exist
+        // in the child.
         int dev_null = open("/dev/null", O_WRONLY);
         if (dev_null < 0)
           _exit(127);
