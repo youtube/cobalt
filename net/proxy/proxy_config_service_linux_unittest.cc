@@ -26,7 +26,7 @@ namespace {
 struct EnvVarValues {
   // The strange capitalization is so that the field matches the
   // environment variable name exactly.
-  const char *GNOME_DESKTOP_SESSION_ID, *DESKTOP_SESSION,
+  const char *DESKTOP_SESSION, *GNOME_DESKTOP_SESSION_ID, *KDE_FULL_SESSION,
       *auto_proxy, *all_proxy,
       *http_proxy, *https_proxy, *ftp_proxy,
       *SOCKS_SERVER, *SOCKS_VERSION,
@@ -78,8 +78,9 @@ class MockEnvironmentVariableGetter : public base::EnvironmentVariableGetter {
  public:
   MockEnvironmentVariableGetter() {
 #define ENTRY(x) table.settings[#x] = &values.x
-    ENTRY(GNOME_DESKTOP_SESSION_ID);
     ENTRY(DESKTOP_SESSION);
+    ENTRY(GNOME_DESKTOP_SESSION_ID);
+    ENTRY(KDE_FULL_SESSION);
     ENTRY(auto_proxy);
     ENTRY(all_proxy);
     ENTRY(http_proxy);
@@ -588,7 +589,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("No proxying"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         NULL,  // auto_proxy
         NULL,  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -607,7 +608,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("Auto detect"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         "",  // auto_proxy
         NULL,  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -626,7 +627,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("Valid PAC url"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         "http://wpad/wpad.dat",  // auto_proxy
         NULL,  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -645,7 +646,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("Invalid PAC url"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         "wpad.dat",  // auto_proxy
         NULL,  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -664,7 +665,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("Single-host in proxy list"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         NULL,  // auto_proxy
         "www.google.com",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -683,7 +684,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("Single-host, different port"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         NULL,  // auto_proxy
         "www.google.com:99",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -702,7 +703,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("Tolerate a scheme"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         NULL,  // auto_proxy
         "http://www.google.com:99",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -721,7 +722,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("Per-scheme proxy rules"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         NULL,  // auto_proxy
         NULL,  // all_proxy
         "www.google.com:80", "www.foo.com:110", "ftpfoo.com:121",  // per-proto
@@ -741,7 +742,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("socks"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         NULL,  // auto_proxy
         "",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -760,7 +761,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("socks5"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         NULL,  // auto_proxy
         "",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -779,7 +780,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("socks default port"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         NULL,  // auto_proxy
         "",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -798,7 +799,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     {
       TEST_DESC("bypass"),
       { // Input.
-        NULL, NULL,  // *DESKTOP*
+        NULL, NULL, NULL,  // *DESKTOP*
         NULL,  // auto_proxy
         "www.google.com",  // all_proxy
         NULL, NULL, NULL,  // per-proto
