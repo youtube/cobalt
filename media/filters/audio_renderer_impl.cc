@@ -35,24 +35,24 @@ bool AudioRendererImpl::IsMediaFormatSupported(
 }
 
 void AudioRendererImpl::SetPlaybackRate(float rate) {
-  DCHECK(stream_);
-
   // TODO(fbarchard): limit rate to reasonable values
   playback_rate_ = rate;
 
   static bool started = false;
-  if (rate > 0.0f && !started)
+  if (rate > 0.0f && !started && stream_)
     stream_->Start(this);
 }
 
 void AudioRendererImpl::SetVolume(float volume) {
-  stream_->SetVolume(volume, volume);
+  if (stream_)
+    stream_->SetVolume(volume, volume);
 }
 
 size_t AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,
                                      size_t len) {
   // TODO(scherkus): handle end of stream.
-  DCHECK(stream_ == stream);
+  if (!stream_)
+    return 0;
 
   // TODO(scherkus): Maybe change OnMoreData to pass in char/uint8 or similar.
   // TODO(fbarchard): Waveout_output_win.h should handle zero length buffers
@@ -91,7 +91,6 @@ bool AudioRendererImpl::OnInitialize(const MediaFormat& media_format) {
   if (!stream_->Open(size)) {
     stream_->Close();
     stream_ = NULL;
-    return false;
   }
   return true;
 }
