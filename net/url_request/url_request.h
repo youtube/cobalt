@@ -212,8 +212,8 @@ class URLRequest {
   // Multiple user data values can be stored under different keys.
   // This request will TAKE OWNERSHIP of the given data pointer, and will
   // delete the object if it is changed or the request is destroyed.
-  UserData* GetUserData(void* key) const;
-  void SetUserData(void* key, UserData* data);
+  UserData* GetUserData(const void* key) const;
+  void SetUserData(const void* key, UserData* data);
 
   // Registers a new protocol handler for the given scheme. If the scheme is
   // already handled, this will overwrite the given factory. To delete the
@@ -570,7 +570,7 @@ class URLRequest {
   bool is_pending_;
 
   // Externally-defined data accessible by key
-  typedef std::map<void*, linked_ptr<UserData> > UserDataMap;
+  typedef std::map<const void*, linked_ptr<UserData> > UserDataMap;
   UserDataMap user_data_;
 
   // Whether to enable performance profiling on the job serving this request.
