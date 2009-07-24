@@ -95,7 +95,7 @@
           'target_name': 'build_for_layout_tests',
           'type': 'none',
           'dependencies': [
-            '../chrome/chrome.gyp:image_diff',
+            '../tools/imagediff/image_diff.gyp:image_diff',
             '../webkit/tools/test_shell/test_shell.gyp:test_shell',
             '../webkit/tools/test_shell/test_shell.gyp:test_shell_tests',
           ],
