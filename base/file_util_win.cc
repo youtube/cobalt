@@ -547,6 +547,8 @@ bool GetFileInfo(const FilePath& file_path, FileInfo* results) {
 
   results->is_directory =
       (attr.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+  results->last_modified = base::Time::FromFileTime(attr.ftLastWriteTime);
+
   return true;
 }
 
