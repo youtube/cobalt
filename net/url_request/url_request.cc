@@ -475,14 +475,14 @@ int64 URLRequest::GetExpectedContentSize() const {
   return expected_content_size;
 }
 
-URLRequest::UserData* URLRequest::GetUserData(void* key) const {
+URLRequest::UserData* URLRequest::GetUserData(const void* key) const {
   UserDataMap::const_iterator found = user_data_.find(key);
   if (found != user_data_.end())
     return found->second.get();
   return NULL;
 }
 
-void URLRequest::SetUserData(void* key, UserData* data) {
+void URLRequest::SetUserData(const void* key, UserData* data) {
   user_data_[key] = linked_ptr<UserData>(data);
 }
 
