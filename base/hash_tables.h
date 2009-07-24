@@ -17,6 +17,8 @@
 
 #include "build/build_config.h"
 
+#include "base/string16.h"
+
 #if defined(COMPILER_MSVC)
 #include <hash_map>
 #include <hash_set>
@@ -99,6 +101,32 @@ struct hash<long long> {
     return std::tr1::hash<long>()((long) i);
   }
 };
+
+#if defined(WCHAR_T_IS_UTF32)
+template<>
+struct hash<string16> {
+  size_t operator()(const string16& s) const {
+    // This comes from GNU libstdc++, but the types have been changed to
+    // make it compile.  The lib only defines the hash for string and wstring.
+    std::size_t result = 0;
+    for (string16::const_iterator i = s.begin(); i != s.end(); ++i)
+      result = (result * 131) + *i;
+    return result;
+  }
+};
+
+template<>
+struct hash<const string16> {
+  size_t operator()(const string16& s) const {
+    // This comes from GNU libstdc++, but the types have been changed to
+    // make it compile.  The lib only defines the hash for string and wstring.
+    std::size_t result = 0;
+    for (string16::const_iterator i = s.begin(); i != s.end(); ++i)
+      result = (result * 131) + *i;
+    return result;
+  }
+};
+#endif
 
 }
 
