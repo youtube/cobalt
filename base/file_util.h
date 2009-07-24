@@ -29,6 +29,7 @@
 #include "base/file_path.h"
 #include "base/scoped_ptr.h"
 #include "base/string16.h"
+#include "base/time.h"
 
 namespace base {
 class Time;
@@ -336,6 +337,9 @@ struct FileInfo {
 
   // True if the file corresponds to a directory.
   bool is_directory;
+
+  // The last modified time of a file.
+  base::Time last_modified;
 
   // Add additional fields here as needed.
 };
