@@ -881,7 +881,8 @@ void BackendImpl::CriticalError(int error) {
   disabled_ = true;
 
   if (!num_refs_)
-    RestartCache();
+    MessageLoop::current()->PostTask(FROM_HERE,
+        factory_.NewRunnableMethod(&BackendImpl::RestartCache));
 }
 
 void BackendImpl::ReportError(int error) {
@@ -1066,7 +1067,11 @@ void BackendImpl::AdjustMaxCacheSize(int table_len) {
     max_size_= current_max_size;
 }
 
+// We always execute this method from the message loop so that we can freely
+// release files, memory pointers etc.
 void BackendImpl::RestartCache() {
+  DCHECK(!num_refs_);
+  DCHECK(!open_entries_.size());
   PrepareForRestart();
   DelayedCacheCleanup(path_);
 
@@ -1324,7 +1329,7 @@ bool BackendImpl::OpenFollowingEntryFromList(bool forward, Rankings::List list,
 
 EntryImpl* BackendImpl::GetEnumeratedEntry(CacheRankingsBlock* next,
                                            bool to_evict) {
-  if (!next)
+  if (!next || disabled_)
     return NULL;
 
   EntryImpl* entry;
@@ -1440,7 +1445,8 @@ void BackendImpl::DecreaseNumRefs() {
   num_refs_--;
 
   if (!num_refs_ && disabled_)
-    RestartCache();
+    MessageLoop::current()->PostTask(FROM_HERE,
+        factory_.NewRunnableMethod(&BackendImpl::RestartCache));
 }
 
 void BackendImpl::IncreaseNumEntries() {

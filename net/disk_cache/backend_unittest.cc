@@ -1099,6 +1099,7 @@ void DiskCacheBackendTest::BackendInvalidRankings() {
   EXPECT_EQ(2, cache_->GetEntryCount());
 
   EXPECT_FALSE(cache_->OpenNextEntry(&iter, &entry));
+  MessageLoop::current()->RunAllPending();
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
 
@@ -1149,6 +1150,7 @@ void DiskCacheBackendTest::BackendDisable() {
   EXPECT_FALSE(cache_->CreateEntry("Something new", &entry2));
 
   entry1->Close();
+  MessageLoop::current()->RunAllPending();
 
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
@@ -1203,6 +1205,7 @@ void DiskCacheBackendTest::BackendDisable2() {
     ASSERT_LT(count, 9);
   };
 
+  MessageLoop::current()->RunAllPending();
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
 
@@ -1251,6 +1254,8 @@ void DiskCacheBackendTest::BackendDisable3() {
   entry1->Close();
 
   EXPECT_FALSE(cache_->OpenNextEntry(&iter, &entry2));
+  MessageLoop::current()->RunAllPending();
+
   ASSERT_TRUE(cache_->CreateEntry("Something new", &entry2));
   entry2->Close();
 
