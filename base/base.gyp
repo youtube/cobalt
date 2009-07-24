@@ -538,6 +538,8 @@
       'type': '<(library)',
       'msvs_guid': 'A508ADD3-CECE-4E0F-8448-2F5E454DF551',
       'sources': [
+        'gfx/blit.cc',
+        'gfx/blit.h',
         'gfx/gdi_util.cc',
         'gfx/gdi_util.h',
         'gfx/gtk_native_view_id_manager.cc',
