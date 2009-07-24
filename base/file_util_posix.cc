@@ -525,6 +525,7 @@ bool GetFileInfo(const FilePath& file_path, FileInfo* results) {
     return false;
   results->is_directory = S_ISDIR(file_info.st_mode);
   results->size = file_info.st_size;
+  results->last_modified = base::Time::FromTimeT(file_info.st_mtime);
   return true;
 }
 
