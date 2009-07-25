@@ -37,6 +37,8 @@ class VideoRendererBase : public VideoRenderer,
                                int* width_out, int* height_out);
 
   // MediaFilter implementation.
+  virtual void Play(FilterCallback* callback);
+  virtual void Pause(FilterCallback* callback);
   virtual void Stop();
   virtual void SetPlaybackRate(float playback_rate);
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
@@ -73,19 +75,34 @@ class VideoRendererBase : public VideoRenderer,
   virtual void OnFrameAvailable() = 0;
 
  private:
-  // Read complete callback from video decoder.
+  // Read complete callback from video decoder and decrements |pending_reads_|.
   void OnReadComplete(VideoFrame* frame);
 
-  // Helper method that schedules an asynchronous read from the decoder.
+  // Helper method that schedules an asynchronous read from the decoder and
+  // increments |pending_reads_|.
   //
   // Safe to call from any thread.
-  void ScheduleRead();
+  void ScheduleRead_Locked();
 
-  // Called by ThreadMain() to handle preroll.  Returns false if the thread
-  // should exit due to Stop() being called.
-  bool WaitForInitialized();
+  // Calculates the duration to sleep for based on |current_frame_|'s timestamp,
+  // the next frame timestamp (may be NULL), and the provided playback rate.
+  //
+  // We don't use |playback_rate_| to avoid locking.
+  base::TimeDelta CalculateSleepDuration(VideoFrame* next_frame,
+                                         float playback_rate);
+
+  // Allocates YV12 frame based on |width_| and |height_|, and sets its data to
+  // the YUV equivalent of RGB(0,0,0).
+  void CreateBlackFrame(scoped_refptr<VideoFrame>* frame_out);
+
+  // Used for accessing data members.
+  Lock lock_;
 
   scoped_refptr<VideoDecoder> decoder_;
+
+  // Video dimensions parsed from the decoder's media format.
+  int width_;
+  int height_;
 
   // Queue of incoming frames as well as the current frame since the last time
   // OnFrameAvailable() was called.
@@ -93,20 +110,18 @@ class VideoRendererBase : public VideoRenderer,
   VideoFrameQueue frames_;
   scoped_refptr<VideoFrame> current_frame_;
 
-  // Used for accessing |frames_|.
-  Lock lock_;
-
   // Used to signal |thread_| as frames are added to |frames_|.  Rule of thumb:
   // always check |state_| to see if it was set to STOPPED after waking up!
   ConditionVariable frame_available_;
 
   // Simple state tracking variable.
   enum State {
-    UNINITIALIZED,
-    INITIALIZING,
-    INITIALIZED,
-    STOPPED,
-    ERRORED,
+    kUninitialized,
+    kPaused,
+    kSeeking,
+    kPlaying,
+    kStopped,
+    kError,
   };
   State state_;
 
@@ -116,10 +131,18 @@ class VideoRendererBase : public VideoRenderer,
   // Previous time returned from the pipeline.
   base::TimeDelta previous_time_;
 
+  // Keeps track of our pending reads.  We *must* have no pending reads before
+  // executing the pause callback, otherwise we breach the contract that all
+  // filters are idling.
+  //
+  // We use size_t since we compare against std::deque::size().
+  size_t pending_reads_;
+
   float playback_rate_;
 
   // Filter callbacks.
-  scoped_ptr<FilterCallback> initialize_callback_;
+  scoped_ptr<FilterCallback> pause_callback_;
+  scoped_ptr<FilterCallback> seek_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
 };
