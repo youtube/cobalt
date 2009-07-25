@@ -29,6 +29,9 @@
 //   to make sure we are not executing inside the audio source's OnMoreData()
 //   or that we take locks inside WaveCallback() or QueueNextPacket().
 
+// Enable or disable software folding
+#define FOLDING 1
+
 namespace {
 
 // We settled for a double buffering scheme. It seems to strike a good balance
@@ -56,9 +59,14 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       callback_(NULL),
       buffer_(NULL),
       buffer_size_(0),
-      volume_(1) {
+      volume_(1),
+      channels_(channels) {
   format_.wFormatTag = WAVE_FORMAT_PCM;
+#ifdef FOLDING
+  format_.nChannels = channels > 2 ? 2 : channels;
+#else
   format_.nChannels = channels;
+#endif
   format_.nSamplesPerSec = sampling_rate;
   format_.wBitsPerSample = bits_per_sample;
   format_.cbSize = 0;
@@ -226,10 +234,17 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
   // TODO(fbarchard): Handle used 0 by queueing more.
   size_t used = callback_->OnMoreData(this, buffer->lpData, buffer_size_);
   if (used <= buffer_size_) {
-    buffer->dwBufferLength = used;
-    media::AdjustVolume(buffer->lpData, buffer->dwBufferLength,
-                        format_.nChannels, format_.wBitsPerSample >> 3,
-                        volume_);
+    buffer->dwBufferLength = used * format_.nChannels / channels_;
+    if (channels_ > 2 && format_.nChannels == 2) {
+      media::FoldChannels(buffer->lpData, used,
+                          channels_, format_.wBitsPerSample >> 3,
+                          volume_);
+    } else {
+      media::AdjustVolume(buffer->lpData, used,
+                          format_.nChannels, format_.wBitsPerSample >> 3,
+                          volume_);
+    }
+
   } else {
     HandleError(0);
     return;
