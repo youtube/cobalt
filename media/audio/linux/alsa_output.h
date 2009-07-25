@@ -159,6 +159,9 @@ class AlsaPCMOutputStream :
   // Flag indicating that the resources are already cleaned.
   bool resources_released_;
 
+  // Volume level from 0 to 1.
+  float volume_;
+
   DISALLOW_COPY_AND_ASSIGN(AlsaPCMOutputStream);
 };
 
