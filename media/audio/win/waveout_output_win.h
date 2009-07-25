@@ -86,6 +86,9 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // Volume level from 0 to 1.
   float volume_;
 
+  // Channels from 0 to 6.
+  int channels_;
+
   // The id assigned by the operating system to the selected wave output
   // hardware device. Usually this is just -1 which means 'default device'.
   UINT device_id_;
