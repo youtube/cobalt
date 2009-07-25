@@ -256,7 +256,7 @@ static bool CheckForMagicNumbers(const char* content, size_t size,
                                  Histogram* counter, std::string* result) {
   for (size_t i = 0; i < magic_len; ++i) {
     if (MatchMagicNumber(content, size, &(magic[i]), result)) {
-      counter->Add(static_cast<int>(i));
+      if (counter) counter->Add(static_cast<int>(i));
       return true;
     }
   }
@@ -438,6 +438,43 @@ static bool IsUnknownMimeType(const std::string& mime_type) {
   return false;
 }
 
+// Sniff a crx (chrome extension) file.
+static bool SniffCRX(const char* content, size_t content_size, const GURL& url,
+                     const std::string& type_hint, std::string* result) {
+  static SnifferHistogram counter("mime_sniffer.kSniffCRX", 3);
+
+  // Technically, the crx magic number is just Cr24, but the bytes after that
+  // are a version number which changes infrequently. Including it in the
+  // sniffing gives us less room for error. If the version number ever changes,
+  // we can just add an entry to this list.
+  //
+  // TODO(aa): If we ever have another magic number, we'll want to pass a
+  // histogram into CheckForMagicNumbers(), below, to see which one matched.
+  const struct MagicNumber kCRXMagicNumbers[] = {
+    MAGIC_NUMBER("application/x-chrome-extension", "Cr24\x02\x00\x00\x00")
+  };
+
+  // Only consider files that have the extension ".crx".
+  const char kCRXExtension[] = ".crx";
+  const int kExtensionLength = arraysize(kCRXExtension) - 1;  // ignore null
+  if (url.path().rfind(kCRXExtension, std::string::npos, kExtensionLength) ==
+      url.path().size() - kExtensionLength) {
+    counter.Add(1);
+  } else {
+    return false;
+  }
+
+  if (CheckForMagicNumbers(content, content_size,
+                           kCRXMagicNumbers, arraysize(kCRXMagicNumbers),
+                           NULL, result)) {
+    counter.Add(2);
+  } else {
+    return false;
+  }
+
+  return true;
+}
+
 bool ShouldSniffMimeType(const GURL& url, const std::string& mime_type) {
   static SnifferHistogram should_sniff_counter(
       "mime_sniffer.ShouldSniffMimeType2", 3);
@@ -534,6 +571,11 @@ bool SniffMimeType(const char* content, size_t content_size,
       return true;
     return content_size >= kMaxBytesToSniff;
   }
+
+  // CRX files (chrome extensions) have a special sniffing algorithm. It is
+  // tighter than the others because we don't have to match legacy behavior.
+  if (SniffCRX(content, content_size, url, type_hint, result))
+    return true;
 
   // Now we look in our large table of magic numbers to see if we can find
   // anything that matches the content.
