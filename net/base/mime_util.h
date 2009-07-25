@@ -46,6 +46,9 @@ bool IsSupportedMimeType(const std::string& mime_type);
 bool MatchesMimeType(const std::string &mime_type_pattern,
                      const std::string &mime_type);
 
+// Returns true if and only if all codecs are supported, false otherwise.
+bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs);
+
 // Parses a codec string, populating |codecs_out| with the prefix of each codec
 // in the string |codecs_in|. For example, passed "aaa.b.c,dd.eee", |codecs_out|
 // will contain {"aaa", "dd"}.
