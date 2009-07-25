@@ -90,6 +90,70 @@ TEST(MimeSnifferTest, BasicSniffingTest) {
   TestArray(tests, arraysize(tests));
 }
 
+TEST(MimeSnifferTest, ChromeExtensionsTest) {
+  SnifferTest tests[] = {
+    // schemes
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foo.crx",
+      "", "application/x-chrome-extension" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "https://www.example.com/foo.crx",
+      "", "application/x-chrome-extension" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "ftp://www.example.com/foo.crx",
+      "", "application/x-chrome-extension" },
+
+    // some other mimetypes that should get converted
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foo.crx",
+      "text/plain", "application/x-chrome-extension" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foo.crx",
+      "application/octet-stream", "application/x-chrome-extension" },
+
+    // success edge cases
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foo.crx?query=string",
+      "", "application/x-chrome-extension" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foo..crx",
+      "", "application/x-chrome-extension" },
+
+    // wrong file extension
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foo.bin",
+      "", "application/octet-stream" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foo.bin?monkey",
+      "", "application/octet-stream" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "invalid-url",
+      "", "application/octet-stream" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com",
+      "", "application/octet-stream" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/",
+      "", "application/octet-stream" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foo",
+      "", "application/octet-stream" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foocrx",
+      "", "application/octet-stream" },
+    { "Cr24\x02\x00\x00\x00", sizeof("Cr24\x02\x00\x00\x00")-1,
+      "http://www.example.com/foo.crx.blech",
+      "", "application/octet-stream" },
+
+    // wrong magic
+    { "Cr24\x02\x00\x00\x01", sizeof("Cr24\x02\x00\x00\x01")-1,
+      "http://www.example.com/foo.crx?monkey",
+      "", "application/octet-stream" },
+  };
+
+  TestArray(tests, arraysize(tests));
+}
+
 TEST(MimeSnifferTest, MozillaCompatibleTest) {
   SnifferTest tests[] = {
     { " \n <hTmL>\n <hea", sizeof(" \n <hTmL>\n <hea")-1,
