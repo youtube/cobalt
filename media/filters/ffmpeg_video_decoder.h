@@ -39,13 +39,13 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
   friend class FFmpegVideoDecoderTest;
   FRIEND_TEST(FFmpegVideoDecoderTest, DecodeFrame_0ByteFrame);
   FRIEND_TEST(FFmpegVideoDecoderTest, DecodeFrame_DecodeError);
-  FRIEND_TEST(FFmpegVideoDecoderTest, DecodeFrame_DiscontinuousBuffer);
   FRIEND_TEST(FFmpegVideoDecoderTest, DecodeFrame_Normal);
   FRIEND_TEST(FFmpegVideoDecoderTest, FindPtsAndDuration);
   FRIEND_TEST(FFmpegVideoDecoderTest, GetSurfaceFormat);
   FRIEND_TEST(FFmpegVideoDecoderTest, OnDecode_EnqueueVideoFrameError);
   FRIEND_TEST(FFmpegVideoDecoderTest, OnDecode_FinishEnqueuesEmptyFrames);
   FRIEND_TEST(FFmpegVideoDecoderTest, OnDecode_TestStateTransition);
+  FRIEND_TEST(FFmpegVideoDecoderTest, OnSeek);
   FRIEND_TEST(FFmpegVideoDecoderTest, TimeQueue_Ordering);
 
   // FFmpeg outputs packets in decode timestamp (dts) order, which may not

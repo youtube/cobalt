@@ -73,7 +73,8 @@ void DecrementCounter(Lock* lock, ConditionVariable* cond_var, int* count) {
 
 PipelineImpl::PipelineImpl(MessageLoop* message_loop)
     : message_loop_(message_loop),
-      state_(kCreated) {
+      state_(kCreated),
+      remaining_transitions_(0) {
   ResetState();
 }
 
@@ -142,7 +143,15 @@ bool PipelineImpl::IsInitialized() const {
   // lock, because this is breaching the contract that |state_| is only accessed
   // on |message_loop_|.
   AutoLock auto_lock(lock_);
-  return state_ == kStarted;
+  switch (state_) {
+    case kPausing:
+    case kSeeking:
+    case kStarting:
+    case kStarted:
+      return true;
+    default:
+      return false;
+  }
 }
 
 bool PipelineImpl::IsRendered(const std::string& major_mime_type) const {
@@ -258,6 +267,23 @@ bool PipelineImpl::IsPipelineInitializing() {
          state_ == kInitVideoRenderer;
 }
 
+// static
+bool PipelineImpl::StateTransitionsToStarted(State state) {
+  return state == kPausing || state == kSeeking || state == kStarting;
+}
+
+// static
+PipelineImpl::State PipelineImpl::FindNextState(State current) {
+  // TODO(scherkus): refactor InitializeTask() to make use of this function.
+  if (current == kPausing)
+    return kSeeking;
+  if (current == kSeeking)
+    return kStarting;
+  if (current == kStarting)
+    return kStarted;
+  return current;
+}
+
 void PipelineImpl::SetError(PipelineError error) {
   DCHECK(IsRunning());
   DCHECK(error != PIPELINE_OK) << "PIPELINE_OK isn't an error!";
@@ -331,9 +357,10 @@ void PipelineImpl::OnFilterInitialize() {
 }
 
 // Called from any thread.
-void PipelineImpl::OnFilterSeek() {
-  // TODO(scherkus): have PipelineInternal wait to receive replies from every
-  // filter before calling the client's |seek_callback_|.
+void PipelineImpl::OnFilterStateTransition() {
+  // Continue walking down the filters.
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::FilterStateTransitionTask));
 }
 
 void PipelineImpl::StartTask(FilterFactory* filter_factory,
@@ -343,7 +370,7 @@ void PipelineImpl::StartTask(FilterFactory* filter_factory,
   DCHECK_EQ(kCreated, state_);
   filter_factory_ = filter_factory;
   url_ = url;
-  start_callback_.reset(start_callback);
+  seek_callback_.reset(start_callback);
 
   // Kick off initialization.
   InitializeTask();
@@ -430,16 +457,21 @@ void PipelineImpl::InitializeTask() {
       return;
     }
 
-    // Initialization was successful, set the volume and playback rate.
+    // We've successfully created and initialized every filter, so we no longer
+    // need the filter factory.
+    filter_factory_ = NULL;
+
+    // Initialization was successful, we are now considered paused, so it's safe
+    // to set the initial playback rate and volume.
     PlaybackRateChangedTask(GetPlaybackRate());
     VolumeChangedTask(GetVolume());
 
-    state_ = kStarted;
-    filter_factory_ = NULL;
-    if (start_callback_.get()) {
-      start_callback_->Run();
-      start_callback_.reset();
-    }
+    // Fire the initial seek request to get the filters to preroll.
+    state_ = kSeeking;
+    remaining_transitions_ = filters_.size();
+    seek_timestamp_ = base::TimeDelta();
+    filters_.front()->Seek(seek_timestamp_,
+        NewCallback(this, &PipelineImpl::OnFilterStateTransition));
   }
 }
 
@@ -490,10 +522,10 @@ void PipelineImpl::ErrorChangedTask(PipelineError error) {
   }
 
   // Notify the client that starting did not complete, if necessary.
-  if (IsPipelineInitializing() && start_callback_.get()) {
-    start_callback_->Run();
+  if (IsPipelineInitializing() && seek_callback_.get()) {
+    seek_callback_->Run();
   }
-  start_callback_.reset();
+  seek_callback_.reset();
   filter_factory_ = NULL;
 
   // We no longer need to examine our previous state, set it to stopped.
@@ -525,30 +557,82 @@ void PipelineImpl::VolumeChangedTask(float volume) {
 void PipelineImpl::SeekTask(base::TimeDelta time,
                             PipelineCallback* seek_callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-  seek_callback_.reset(seek_callback);
 
-  // Supress seeking if we haven't fully started.
+  // Suppress seeking if we're not fully started.
   if (state_ != kStarted) {
+    // TODO(scherkus): should we run the callback?  I'm tempted to say the API
+    // will only execute the first Seek() request.
+    LOG(INFO) << "Media pipeline is not in started state, ignoring seek to "
+              << time.InMicroseconds();
+    delete seek_callback;
     return;
   }
 
-  for (FilterVector::iterator iter = filters_.begin();
-       iter != filters_.end();
-       ++iter) {
-    (*iter)->Seek(time, NewCallback(this, &PipelineImpl::OnFilterSeek));
+  // We'll need to pause every filter before seeking.  The state transition
+  // is as follows:
+  //   kStarted
+  //   kPausing (for each filter)
+  //   kSeeking (for each filter)
+  //   kStarting (for each filter)
+  //   kStarted
+  state_ = kPausing;
+  seek_timestamp_ = time;
+  seek_callback_.reset(seek_callback);
+  remaining_transitions_ = filters_.size();
+
+  // Kick off seeking!
+  filters_.front()->Pause(
+      NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+}
+
+void PipelineImpl::FilterStateTransitionTask() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  if (!StateTransitionsToStarted(state_)) {
+    NOTREACHED() << "Invalid current state: " << state_;
+    SetError(PIPELINE_ERROR_ABORT);
+    return;
   }
 
-  // TODO(hclam): we should set the time when the above seek operations were all
-  // successful and first frame/packet at the desired time is decoded. I'm
-  // setting the time here because once we do the callback the user can ask for
-  // current time immediately, which is the old time. In order to get rid this
-  // little glitch, we either assume the seek was successful and time is updated
-  // immediately here or we set time and do callback when we have new
-  // frames/packets.
-  SetTime(time);
-  if (seek_callback_.get()) {
-    seek_callback_->Run();
-    seek_callback_.reset();
+  // Decrement the number of remaining transitions, making sure to transition
+  // to the next state if needed.
+  CHECK(remaining_transitions_ <= filters_.size());
+  CHECK(remaining_transitions_ > 0u);
+  if (--remaining_transitions_ == 0) {
+    state_ = FindNextState(state_);
+    if (StateTransitionsToStarted(state_)) {
+      remaining_transitions_ = filters_.size();
+    }
+  }
+
+  // Carry out the action for the current state.
+  if (StateTransitionsToStarted(state_)) {
+    MediaFilter* filter = filters_[filters_.size() - remaining_transitions_];
+    if (state_ == kPausing) {
+      filter->Pause(NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+    } else if (state_ == kSeeking) {
+      filter->Seek(seek_timestamp_,
+          NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+    } else if (state_ == kStarting) {
+      filter->Play(NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+    } else {
+      NOTREACHED();
+    }
+  } else if (state_ == kStarted) {
+    // We've completed the seek, update the time.
+    SetTime(seek_timestamp_);
+
+    // Execute the seek callback, if present.  Note that this might be the
+    // initial callback passed into Start().
+    if (seek_callback_.get()) {
+      seek_callback_->Run();
+      seek_callback_.reset();
+    }
+
+    // Finally, reset our seeking timestamp back to zero.
+    seek_timestamp_ = base::TimeDelta();
+  } else {
+    NOTREACHED();
   }
 }
 

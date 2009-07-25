@@ -23,22 +23,40 @@ namespace media {
 
 // PipelineImpl runs the media pipeline.  Filters are created and called on the
 // message loop injected into this object. PipelineImpl works like a state
-// machine to perform asynchronous initialization. Initialization is done in
-// multiple passes by InitializeTask(). In each pass a different filter is
-// created and chained with a previously created filter.
+// machine to perform asynchronous initialization, pausing, seeking and playing.
 //
 // Here's a state diagram that describes the lifetime of this object.
 //
-// [ *Created ] -> [ InitDataSource ] -> [ InitDemuxer ] ->
-// [ InitAudioDecoder ] -> [ InitAudioRenderer ] ->
-// [ InitVideoDecoder ] -> [ InitVideoRenderer ] -> [ Started ]
-//        |                    |                         |
-//        .-> [ Error ]        .->      [ Stopped ]    <-.
+//   [ *Created ]
+//         | Start()
+//         V
+//   [ InitXXX (for each filter) ]
+//         |
+//         V
+//   [ Seeking (for each filter) ] <----------------------.
+//         |                                              |
+//         V                                              |
+//   [ Starting (for each filter) ]                       |
+//         |                                              |
+//         V      Seek()                                  |
+//   [ Started ] --------> [ Pausing (for each filter) ] -'
 //
-// Initialization is a series of state transitions from "Created" to
-// "Started". If any error happens during initialization, this object will
-// transition to the "Error" state from any state. If Stop() is called during
-// initialization, this object will transition to "Stopped" state.
+//
+//                  SetError()
+//   [ Any State ] -------------> [ Error ]
+//         |          Stop()
+//         '--------------------> [ Stopped ]
+//
+// Initialization is a series of state transitions from "Created" through each
+// filter initialization state.  When all filter initialization states have
+// completed, we are implicitly in a "Paused" state.  At that point we simulate
+// a Seek() to the beginning of the media to give filters a chance to preroll.
+// From then on the normal Seek() transitions are carried out and we start
+// playing the media.
+//
+// If any error ever happens, this object will transition to the "Error" state
+// from any state. If Stop() is ever called, this object will transition to
+// "Stopped" state.
 class PipelineImpl : public Pipeline, public FilterHost {
  public:
   explicit PipelineImpl(MessageLoop* message_loop);
@@ -65,6 +83,23 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual PipelineError GetError() const;
 
  private:
+  // Pipeline states, as described above.
+  enum State {
+    kCreated,
+    kInitDataSource,
+    kInitDemuxer,
+    kInitAudioDecoder,
+    kInitAudioRenderer,
+    kInitVideoDecoder,
+    kInitVideoRenderer,
+    kPausing,
+    kSeeking,
+    kStarting,
+    kStarted,
+    kStopped,
+    kError,
+  };
+
   virtual ~PipelineImpl();
 
   // Reset the state of the pipeline object to the initial state.  This method
@@ -76,6 +111,13 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Helper method to tell whether we are in the state of initializing.
   bool IsPipelineInitializing();
+
+  // Returns true if the given state is one that transitions to the started
+  // state.
+  static bool StateTransitionsToStarted(State state);
+
+  // Given the current state, returns the next state.
+  static State FindNextState(State current);
 
   // FilterHost implementation.
   virtual void SetError(PipelineError error);
@@ -94,9 +136,11 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Method called during initialization to determine if we rendered anything.
   bool HasRenderedMimeTypes() const;
 
-  // Callback executed by filters upon completing initialization and seeking.
+  // Callback executed by filters upon completing initialization.
   void OnFilterInitialize();
-  void OnFilterSeek();
+
+  // Callback executed by filters upon completing Play(), Pause() or Seek().
+  void OnFilterStateTransition();
 
   // The following "task" methods correspond to the public methods, but these
   // methods are run as the result of posting a task to the PipelineInternal's
@@ -127,6 +171,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Carries out notifying filters that we are seeking to a new timestamp.
   void SeekTask(base::TimeDelta time, PipelineCallback* seek_callback);
+
+  // Carries out advancing to the next filter during Play()/Pause()/Seek().
+  void FilterStateTransitionTask();
 
   // Internal methods used in the implementation of the pipeline thread.  All
   // of these methods are only called on the pipeline thread.
@@ -246,19 +293,17 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // |message_loop_|.
 
   // Member that tracks the current state.
-  enum State {
-    kCreated,
-    kInitDataSource,
-    kInitDemuxer,
-    kInitAudioDecoder,
-    kInitAudioRenderer,
-    kInitVideoDecoder,
-    kInitVideoRenderer,
-    kStarted,
-    kStopped,
-    kError,
-  };
   State state_;
+
+  // For kPausing, kSeeking and kStarting, we need to track how many filters
+  // have completed transitioning to the destination state.  When
+  // |remaining_transitions_| reaches 0 the pipeline can transition out
+  // of the current state.
+  size_t remaining_transitions_;
+
+  // For kSeeking we need to remember where we're seeking between filter
+  // replies.
+  base::TimeDelta seek_timestamp_;
 
   // Filter factory as passed in by Start().
   scoped_refptr<FilterFactory> filter_factory_;
@@ -267,7 +312,6 @@ class PipelineImpl : public Pipeline, public FilterHost {
   std::string url_;
 
   // Callbacks for various pipeline operations.
-  scoped_ptr<PipelineCallback> start_callback_;
   scoped_ptr<PipelineCallback> seek_callback_;
   scoped_ptr<PipelineCallback> stop_callback_;
 

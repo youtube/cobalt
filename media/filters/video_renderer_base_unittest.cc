@@ -125,51 +125,6 @@ TEST_F(VideoRendererBaseTest, Initialize_Failed) {
   EXPECT_EQ(0u, read_queue_.size());
 }
 
-// Tests successful initialization, but when we immediately return an end of
-// stream frame.
-TEST_F(VideoRendererBaseTest, Initialize_NoData) {
-  InSequence s;
-
-  // We expect the video size to be set.
-  EXPECT_CALL(host_, SetVideoSize(kWidth, kHeight));
-
-  // Then our subclass will be asked to initialize.
-  EXPECT_CALL(*renderer_, OnInitialize(_))
-      .WillOnce(Return(true));
-
-  // Set up a check point to verify that the callback hasn't been executed yet.
-  EXPECT_CALL(*renderer_, CheckPoint(0));
-
-  // We'll provide end-of-stream immediately, which results in an error.
-  EXPECT_CALL(host_, SetError(PIPELINE_ERROR_NO_DATA));
-
-  // Then we expect our callback to be executed.
-  EXPECT_CALL(callback_, OnFilterCallback());
-  EXPECT_CALL(callback_, OnCallbackDestroyed());
-
-  // Since the callbacks are on a separate thread, expect any number of calls.
-  EXPECT_CALL(*renderer_, OnFrameAvailable())
-      .Times(AnyNumber());
-
-  // Initialize, we should expect to get a bunch of read requests.
-  renderer_->Initialize(decoder_, callback_.NewCallback());
-  EXPECT_EQ(3u, read_queue_.size());
-
-  // Verify our callback hasn't been executed yet.
-  renderer_->CheckPoint(0);
-
-  // Now satisfy the read requests.  Our callback should be executed after
-  // exiting this loop.
-  while (!read_queue_.empty()) {
-    const base::TimeDelta kZero;
-    scoped_refptr<VideoFrame> frame;
-    VideoFrameImpl::CreateEmptyFrame(&frame);
-    read_queue_.front()->Run(frame);
-    delete read_queue_.front();
-    read_queue_.pop_front();
-  }
-}
-
 // Test successful initialization and preroll.
 TEST_F(VideoRendererBaseTest, Initialize_Successful) {
   InSequence s;
@@ -181,22 +136,29 @@ TEST_F(VideoRendererBaseTest, Initialize_Successful) {
   EXPECT_CALL(*renderer_, OnInitialize(_))
       .WillOnce(Return(true));
 
-  // Set up a check point to verify that the callback hasn't been executed yet.
-  EXPECT_CALL(*renderer_, CheckPoint(0));
-
-  // After finishing preroll, we expect our callback to be executed.
+  // After finishing initialization, we expect our callback to be executed.
   EXPECT_CALL(callback_, OnFilterCallback());
   EXPECT_CALL(callback_, OnCallbackDestroyed());
 
-  // Since the callbacks are on a separate thread, expect any number of calls.
-  EXPECT_CALL(*renderer_, OnFrameAvailable())
-      .Times(AnyNumber());
+  // Verify the following expectations haven't run until we complete the reads.
+  EXPECT_CALL(*renderer_, CheckPoint(0));
 
-  // Initialize, we should expect to get a bunch of read requests.
+  // We'll expect to get notified once due preroll completing.
+  EXPECT_CALL(*renderer_, OnFrameAvailable());
+
+  MockFilterCallback seek_callback;
+  EXPECT_CALL(seek_callback, OnFilterCallback());
+  EXPECT_CALL(seek_callback, OnCallbackDestroyed());
+
+  // Initialize, we shouldn't have any reads.
   renderer_->Initialize(decoder_, callback_.NewCallback());
-  EXPECT_EQ(3u, read_queue_.size());
+  EXPECT_EQ(0u, read_queue_.size());
 
-  // Verify our callback hasn't been executed yet.
+  // Now seek to trigger prerolling.
+  renderer_->Seek(base::TimeDelta(), seek_callback.NewCallback());
+  EXPECT_LT(0u, read_queue_.size());
+
+  // Verify our seek callback hasn't been executed yet.
   renderer_->CheckPoint(0);
 
   // Now satisfy the read requests.  Our callback should be executed after

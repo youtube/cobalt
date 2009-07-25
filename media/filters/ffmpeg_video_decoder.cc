@@ -95,11 +95,17 @@ void FFmpegVideoDecoder::OnSeek(base::TimeDelta time) {
   // Everything in the presentation time queue is invalid, clear the queue.
   while (!pts_queue_.empty())
     pts_queue_.pop();
+
+  // We're back where we started.  It should be completely safe to flush here
+  // since DecoderBase uses |expecting_discontinuous_| to verify that the next
+  // time OnDecode() is called we will have a discontinuous buffer.
+  state_ = kNormal;
+  avcodec_flush_buffers(codec_context_);
 }
 
 void FFmpegVideoDecoder::OnDecode(Buffer* buffer) {
   // During decode, because reads are issued asynchronously, it is possible to
-  // recieve multiple end of stream buffers since each read is acked. When the
+  // receive multiple end of stream buffers since each read is acked. When the
   // first end of stream buffer is read, FFmpeg may still have frames queued
   // up in the decoder so we need to go through the decode loop until it stops
   // giving sensible data.  After that, the decoder should output empty
@@ -120,6 +126,8 @@ void FFmpegVideoDecoder::OnDecode(Buffer* buffer) {
   //     A catastrophic failure occurs, and decoding needs to stop.
   // kFlushCodec -> kDecodeFinished:
   //     When avcodec_decode_video2() returns 0 data or errors out.
+  // (any state) -> kNormal:
+  //     Any time buffer->IsDiscontinuous() is true.
   //
   // If the decoding is finished, we just always return empty frames.
   if (state_ == kDecodeFinished) {
@@ -240,12 +248,6 @@ void FFmpegVideoDecoder::EnqueueEmptyFrame() {
 bool FFmpegVideoDecoder::DecodeFrame(const Buffer& buffer,
                                      AVCodecContext* codec_context,
                                      AVFrame* yuv_frame) {
-  // Check for discontinuous buffer. If we receive a discontinuous buffer here,
-  // flush the internal buffer of FFmpeg.
-  if (buffer.IsDiscontinuous()) {
-    avcodec_flush_buffers(codec_context);
-  }
-
   // Create a packet for input data.
   // Due to FFmpeg API changes we no longer have const read-only pointers.
   AVPacket packet;
