@@ -68,6 +68,8 @@ class PipelineImplTest : public ::testing::Test {
     EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->data_source(), SetPlaybackRate(0.0f));
+    EXPECT_CALL(*mocks_->data_source(), Seek(base::TimeDelta(), NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->data_source(), Stop());
   }
 
@@ -80,6 +82,8 @@ class PipelineImplTest : public ::testing::Test {
     EXPECT_CALL(*mocks_->demuxer(), GetNumberOfStreams())
         .WillRepeatedly(Return(streams->size()));
     EXPECT_CALL(*mocks_->demuxer(), SetPlaybackRate(0.0f));
+    EXPECT_CALL(*mocks_->demuxer(), Seek(base::TimeDelta(), NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->demuxer(), Stop());
 
     // Configure the demuxer to return the streams.
@@ -95,6 +99,8 @@ class PipelineImplTest : public ::testing::Test {
     EXPECT_CALL(*mocks_->video_decoder(), Initialize(stream, NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->video_decoder(), SetPlaybackRate(0.0f));
+    EXPECT_CALL(*mocks_->video_decoder(), Seek(base::TimeDelta(), NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->video_decoder(), Stop());
   }
 
@@ -103,6 +109,8 @@ class PipelineImplTest : public ::testing::Test {
     EXPECT_CALL(*mocks_->audio_decoder(), Initialize(stream, NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->audio_decoder(), SetPlaybackRate(0.0f));
+    EXPECT_CALL(*mocks_->audio_decoder(), Seek(base::TimeDelta(), NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->audio_decoder(), Stop());
   }
 
@@ -112,6 +120,8 @@ class PipelineImplTest : public ::testing::Test {
                 Initialize(mocks_->video_decoder(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->video_renderer(), SetPlaybackRate(0.0f));
+    EXPECT_CALL(*mocks_->video_renderer(), Seek(base::TimeDelta(), NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->video_renderer(), Stop());
   }
 
@@ -122,6 +132,8 @@ class PipelineImplTest : public ::testing::Test {
         .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->audio_renderer(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->audio_renderer(), SetVolume(1.0f));
+    EXPECT_CALL(*mocks_->audio_renderer(), Seek(base::TimeDelta(), NotNull()))
+        .WillOnce(Invoke(&RunFilterCallback));
     EXPECT_CALL(*mocks_->audio_renderer(), Stop());
   }
 
@@ -356,7 +368,11 @@ TEST_F(PipelineImplTest, Seek) {
   pipeline_->Seek(expected,
                   NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
                               &CallbackHelper::OnSeek));
+
+  // We expect the time to be updated only after the seek has completed.
+  EXPECT_TRUE(expected != pipeline_->GetCurrentTime());
   message_loop_.RunAllPending();
+  EXPECT_TRUE(expected == pipeline_->GetCurrentTime());
 }
 
 TEST_F(PipelineImplTest, SetVolume) {

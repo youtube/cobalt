@@ -271,21 +271,6 @@ TEST_F(FFmpegVideoDecoderTest, DecodeFrame_Normal) {
   EXPECT_TRUE(decoder->DecodeFrame(*buffer_, &codec_context_, &yuv_frame_));
 }
 
-TEST_F(FFmpegVideoDecoderTest, DecodeFrame_DiscontinuousBuffer) {
-  buffer_->SetDiscontinuous(true);
-
-  // Expect a bunch of avcodec calls.
-  EXPECT_CALL(mock_ffmpeg_, AVCodecFlushBuffers(&codec_context_));
-  EXPECT_CALL(mock_ffmpeg_, AVInitPacket(_));
-  EXPECT_CALL(mock_ffmpeg_,
-              AVCodecDecodeVideo2(&codec_context_, &yuv_frame_, _, _))
-      .WillOnce(DoAll(SetArgumentPointee<2>(1),  // Simulate 1 byte frame.
-                      Return(0)));
-
-  scoped_refptr<FFmpegVideoDecoder> decoder = new FFmpegVideoDecoder();
-  EXPECT_TRUE(decoder->DecodeFrame(*buffer_, &codec_context_, &yuv_frame_));
-}
-
 TEST_F(FFmpegVideoDecoderTest, DecodeFrame_0ByteFrame) {
   // Expect a bunch of avcodec calls.
   EXPECT_CALL(mock_ffmpeg_, AVInitPacket(_));
@@ -525,6 +510,38 @@ TEST_F(FFmpegVideoDecoderTest, OnDecode_FinishEnqueuesEmptyFrames) {
   mock_decoder->OnDecode(buffer_);
   mock_decoder->OnDecode(end_of_stream_buffer_);
   EXPECT_EQ(FFmpegVideoDecoder::kDecodeFinished, mock_decoder->state_);
+}
+
+TEST_F(FFmpegVideoDecoderTest, OnSeek) {
+  // Simulates receiving a call to OnSeek() while in every possible state.  In
+  // every case, it should clear the timestamp queue, flush the decoder and
+  // reset the state to kNormal.
+  scoped_refptr<DecoderPrivateMock> mock_decoder =
+      new StrictMock<DecoderPrivateMock>();
+  mock_decoder->codec_context_ = &codec_context_;
+
+  const base::TimeDelta kZero;
+  const FFmpegVideoDecoder::DecoderState kStates[] = {
+    FFmpegVideoDecoder::kNormal,
+    FFmpegVideoDecoder::kFlushCodec,
+    FFmpegVideoDecoder::kDecodeFinished,
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kStates); ++i) {
+    // Push in some timestamps.
+    mock_decoder->pts_queue_.push(kTestPts1.timestamp);
+    mock_decoder->pts_queue_.push(kTestPts2.timestamp);
+    mock_decoder->pts_queue_.push(kTestPts1.timestamp);
+
+    // Expect a flush.
+    mock_decoder->state_ = kStates[i];
+    EXPECT_CALL(mock_ffmpeg_, AVCodecFlushBuffers(&codec_context_));
+
+    // Seek and verify the results.
+    mock_decoder->OnSeek(kZero);
+    EXPECT_TRUE(mock_decoder->pts_queue_.empty());
+    EXPECT_EQ(FFmpegVideoDecoder::kNormal, mock_decoder->state_);
+  }
 }
 
 TEST_F(FFmpegVideoDecoderTest, TimeQueue_Ordering) {

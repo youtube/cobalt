@@ -139,6 +139,7 @@ base::TimeDelta FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
 
 void FFmpegDemuxerStream::FlushBuffers() {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
+  DCHECK(read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
   discontinuous_ = true;
 }
@@ -430,8 +431,10 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
     flags |= AVSEEK_FLAG_BACKWARD;
   }
 
-  if (av_seek_frame(format_context_, -1, time.InMicroseconds(),
-                    flags) < 0) {
+  // Passing -1 as our stream index lets FFmpeg pick a default stream.  FFmpeg
+  // will attempt to use the lowest-index video stream, if present, followed by
+  // the lowest-index audio stream.
+  if (av_seek_frame(format_context_, -1, time.InMicroseconds(), flags) < 0) {
     // TODO(scherkus): signal error.
     NOTIMPLEMENTED();
   }
