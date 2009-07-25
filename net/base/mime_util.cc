@@ -69,11 +69,9 @@ static const MimeInfo primary_mappings[] = {
   { "image/gif", "gif" },
   { "image/jpeg", "jpeg,jpg" },
   { "image/png", "png" },
-#if defined(GOOGLE_CHROME_BUILD)
   { "video/mp4", "mp4,m4v" },
   { "audio/x-m4a", "m4a" },
   { "audio/mp3", "mp3" },
-#endif
   { "video/ogg", "ogv,ogm" },
   { "audio/ogg", "ogg,oga" },
   { "application/xhtml+xml", "xhtml,xht" }
@@ -180,13 +178,12 @@ static const char* const supported_image_types[] = {
 
 // A list of media types: http://en.wikipedia.org/wiki/Internet_media_type
 // A comprehensive mime type list: http://plugindoc.mozdev.org/winmime.php
-
 static const char* const supported_media_types[] = {
   // Ogg.
   "video/ogg",
   "audio/ogg",
 
-  // TODO(fbarchard): Remove these for Chromium when layout tests dont use mp4
+#if defined(GOOGLE_CHROME_BUILD)
   // MPEG-4.
   "video/mp4",
   "video/x-m4v",
@@ -196,11 +193,7 @@ static const char* const supported_media_types[] = {
   // MP3.
   "audio/mp3",
   "audio/x-mp3",
-
-  // Generic MPEG mime-types.
-  // TODO(fbarchard): Remove these when layout tests stop using mpg.
-  "audio/mpeg",
-  "video/mpeg"
+#endif
 };
 
 // Note: does not include javascript types list (see supported_javascript_types)
