@@ -37,6 +37,8 @@ class MimeUtil : public PlatformMimeUtil {
   bool MatchesMimeType(const std::string &mime_type_pattern,
                        const std::string &mime_type) const;
 
+  bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs) const;
+
   void ParseCodecString(const std::string& codecs,
                         std::vector<std::string>* codecs_out);
 
@@ -55,6 +57,7 @@ class MimeUtil : public PlatformMimeUtil {
   MimeMappings non_image_map_;
   MimeMappings javascript_map_;
   MimeMappings view_source_map_;
+  MimeMappings codecs_map_;
 };  // class MimeUtil
 
 struct MimeInfo {
@@ -196,6 +199,19 @@ static const char* const supported_media_types[] = {
 #endif
 };
 
+// List of supported codecs when passed in with <source type="...">.
+//
+// Refer to http://wiki.whatwg.org/wiki/Video_type_parameters#Browser_Support
+// for more information.
+static const char* const supported_media_codecs[] = {
+#if defined(GOOGLE_CHROME_BUILD)
+  "avc1",
+  "mp4a",
+#endif
+  "theora",
+  "vorbis",
+};
+
 // Note: does not include javascript types list (see supported_javascript_types)
 static const char* const supported_non_image_types[] = {
   "text/html",
@@ -270,6 +286,9 @@ void MimeUtil::InitializeMimeTypeMaps() {
 
   for (size_t i = 0; i < arraysize(view_source_types); ++i)
     view_source_map_.insert(view_source_types[i]);
+
+  for (size_t i = 0; i < arraysize(supported_media_codecs); ++i)
+    codecs_map_.insert(supported_media_codecs[i]);
 }
 
 bool MimeUtil::IsSupportedImageMimeType(const char* mime_type) const {
@@ -333,6 +352,16 @@ bool MimeUtil::MatchesMimeType(const std::string &mime_type_pattern,
       mime_type.rfind(right) != mime_type.length() - right.length())
     return false;
 
+  return true;
+}
+
+bool MimeUtil::AreSupportedMediaCodecs(
+    const std::vector<std::string>& codecs) const {
+  for (size_t i = 0; i < codecs.size(); ++i) {
+    if (codecs_map_.find(codecs[i]) == codecs_map_.end()) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -401,6 +430,10 @@ bool IsSupportedMimeType(const std::string& mime_type) {
 bool MatchesMimeType(const std::string &mime_type_pattern,
                      const std::string &mime_type) {
   return GetMimeUtil()->MatchesMimeType(mime_type_pattern, mime_type);
+}
+
+bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs) {
+  return GetMimeUtil()->AreSupportedMediaCodecs(codecs);
 }
 
 void ParseCodecString(const std::string& codecs,
