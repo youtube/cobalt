@@ -55,6 +55,7 @@
 #include "base/logging.h"
 #include "base/stl_util-inl.h"
 #include "base/time.h"
+#include "media/audio/audio_util.h"
 
 // Require 10ms latency from the audio device.  Taken from ALSA documentation
 // example.
@@ -89,7 +90,8 @@ AlsaPCMOutputStream::AlsaPCMOutputStream(const std::string& device_name,
                          base::Time::kMillisecondsPerSecond),
       packet_size_(0),
       device_write_suspended_(true),  // Start suspended.
-      resources_released_(false) {
+      resources_released_(false),
+      volume_(1.0) {
   // Reference self to avoid accidental deletion before the message loop is
   // done.
   AddRef();
@@ -407,6 +409,9 @@ void AlsaPCMOutputStream::BufferPackets() {
                                                  packet->capacity);
       CHECK(used <= capacity) << "Data source overran buffer. Aborting.";
       packet->size = used;
+      media::AdjustVolume(packet->buffer.get(), packet->size,
+                          channels_, bits_per_sample_ >> 3,
+                          volume_);
       // TODO(ajwong): Do more buffer validation here, like checking that the
       // packet is correctly aligned to frames, etc.
     }
@@ -521,9 +526,12 @@ void AlsaPCMOutputStream::FillAlsaDeviceBuffer() {
 }
 
 void AlsaPCMOutputStream::SetVolume(double left_level, double right_level) {
-  NOTIMPLEMENTED();
+  AutoLock l(lock_);
+  volume_ = static_cast<float>(left_level);
 }
 
 void AlsaPCMOutputStream::GetVolume(double* left_level, double* right_level) {
-  NOTIMPLEMENTED();
+  AutoLock l(lock_);
+  *left_level = volume_;
+  *right_level = volume_;
 }
