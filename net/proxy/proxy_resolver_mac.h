@@ -5,6 +5,9 @@
 #ifndef NET_PROXY_PROXY_RESOLVER_MAC_H_
 #define NET_PROXY_PROXY_RESOLVER_MAC_H_
 
+#include <string>
+
+#include "googleurl/src/gurl.h"
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_resolver.h"
 
@@ -14,12 +17,24 @@ namespace net {
 // proxies.
 class ProxyResolverMac : public ProxyResolver {
  public:
-  ProxyResolverMac() : ProxyResolver(true) {}
+  ProxyResolverMac() : ProxyResolver(false /*expects_pac_bytes*/) {}
 
   // ProxyResolver methods:
-  virtual int GetProxyForURL(const GURL& query_url,
-                             const GURL& pac_url,
-                             ProxyInfo* results);
+  virtual int GetProxyForURL(const GURL& url,
+                             ProxyInfo* results,
+                             CompletionCallback* callback,
+                             RequestHandle* request);
+
+  virtual void CancelRequest(RequestHandle request) {
+    NOTREACHED();
+  }
+
+ private:
+  virtual void SetPacScriptByUrlInternal(const GURL& pac_url) {
+    pac_url_ = pac_url;
+  }
+
+  GURL pac_url_;
 };
 
 class ProxyConfigServiceMac : public ProxyConfigService {
