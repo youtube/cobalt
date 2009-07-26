@@ -344,16 +344,19 @@ class ProxyResolverV8::Context {
 
 ProxyResolverV8::ProxyResolverV8(
     ProxyResolverV8::JSBindings* custom_js_bindings)
-    : ProxyResolver(false), js_bindings_(custom_js_bindings) {
+    : ProxyResolver(true /*expects_pac_bytes*/),
+      js_bindings_(custom_js_bindings) {
 }
 
 ProxyResolverV8::~ProxyResolverV8() {}
 
 int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
-                                    const GURL& /*pac_url*/,
-                                    ProxyInfo* results) {
-  // If the V8 instance has not been initialized (either because SetPacScript()
-  // wasn't called yet, or because it was called with empty string).
+                                    ProxyInfo* results,
+                                    CompletionCallback* /*callback*/,
+                                    RequestHandle* /*request*/) {
+  // If the V8 instance has not been initialized (either because
+  // SetPacScriptByData() wasn't called yet, or because it was called with
+  // empty string).
   if (!context_.get())
     return ERR_FAILED;
 
@@ -361,16 +364,21 @@ int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
   return context_->ResolveProxy(query_url, results);
 }
 
-void ProxyResolverV8::SetPacScript(const std::string& data) {
-  context_.reset();
-  if (!data.empty())
-    context_.reset(new Context(js_bindings_.get(), data));
+void ProxyResolverV8::CancelRequest(RequestHandle request) {
+  // This is a synchronous ProxyResolver; no possibility for async requests.
+  NOTREACHED();
 }
 
 // static
 ProxyResolverV8::JSBindings* ProxyResolverV8::CreateDefaultBindings(
     HostResolver* host_resolver, MessageLoop* host_resolver_loop) {
   return new DefaultJSBindings(host_resolver, host_resolver_loop);
+}
+
+void ProxyResolverV8::SetPacScriptByDataInternal(const std::string& data) {
+  context_.reset();
+  if (!data.empty())
+    context_.reset(new Context(js_bindings_.get(), data));
 }
 
 }  // namespace net
