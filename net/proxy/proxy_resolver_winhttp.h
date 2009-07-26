@@ -5,6 +5,9 @@
 #ifndef NET_PROXY_PROXY_RESOLVER_WINHTTP_H_
 #define NET_PROXY_PROXY_RESOLVER_WINHTTP_H_
 
+#include <string>
+
+#include "googleurl/src/gurl.h"
 #include "net/proxy/proxy_resolver.h"
 
 typedef void* HINTERNET;  // From winhttp.h
@@ -16,19 +19,26 @@ namespace net {
 class ProxyResolverWinHttp : public ProxyResolver {
  public:
   ProxyResolverWinHttp();
-  ~ProxyResolverWinHttp();
+  virtual ~ProxyResolverWinHttp();
 
   // ProxyResolver implementation:
-  virtual int GetProxyForURL(const GURL& query_url,
-                             const GURL& pac_url,
-                             ProxyInfo* results);
+  virtual int GetProxyForURL(const GURL& url,
+                             ProxyInfo* results,
+                             CompletionCallback* /*callback*/,
+                             RequestHandle* /*request*/);
+  virtual void CancelRequest(RequestHandle request);
 
  private:
-   bool OpenWinHttpSession();
-   void CloseWinHttpSession();
+  // ProxyResolver implementation:
+  virtual void SetPacScriptByUrlInternal(const GURL& pac_url);
+
+  bool OpenWinHttpSession();
+  void CloseWinHttpSession();
 
   // Proxy configuration is cached on the session handle.
   HINTERNET session_handle_;
+
+  GURL pac_url_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyResolverWinHttp);
 };

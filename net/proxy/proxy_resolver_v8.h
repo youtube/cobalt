@@ -43,13 +43,14 @@ class ProxyResolverV8 : public ProxyResolver {
   // is destroyed.
   explicit ProxyResolverV8(JSBindings* custom_js_bindings);
 
-  ~ProxyResolverV8();
+  virtual ~ProxyResolverV8();
 
   // ProxyResolver implementation:
-  virtual int GetProxyForURL(const GURL& query_url,
-                             const GURL& /*pac_url*/,
-                             ProxyInfo* results);
-  virtual void SetPacScript(const std::string& bytes);
+  virtual int GetProxyForURL(const GURL& url,
+                             ProxyInfo* results,
+                             CompletionCallback* /*callback*/,
+                             RequestHandle* /*request*/);
+  virtual void CancelRequest(RequestHandle request);
 
   JSBindings* js_bindings() const { return js_bindings_.get(); }
 
@@ -71,8 +72,12 @@ class ProxyResolverV8 : public ProxyResolver {
  private:
   // Context holds the Javascript state for the most recently loaded PAC
   // script. It corresponds with the data from the last call to
-  // SetPacScript().
+  // SetPacScriptByDataInternal().
   class Context;
+
+  // ProxyResolver implementation:
+  virtual void SetPacScriptByDataInternal(const std::string& bytes);
+
   scoped_ptr<Context> context_;
 
   scoped_ptr<JSBindings> js_bindings_;

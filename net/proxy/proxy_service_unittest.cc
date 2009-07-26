@@ -9,6 +9,7 @@
 #include "net/proxy/proxy_resolver.h"
 #include "net/proxy/proxy_script_fetcher.h"
 #include "net/proxy/proxy_service.h"
+#include "net/proxy/single_threaded_proxy_resolver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -29,15 +30,17 @@ class MockProxyConfigService: public net::ProxyConfigService {
   net::ProxyConfig config;
 };
 
-class MockProxyResolver : public net::ProxyResolver {
+class SyncMockProxyResolver : public net::ProxyResolver {
  public:
-  MockProxyResolver() : net::ProxyResolver(true),
-                        fail_get_proxy_for_url(false) {
+  SyncMockProxyResolver() : net::ProxyResolver(false /*expects_pac_bytes*/),
+                            fail_get_proxy_for_url(false) {
   }
 
+  // ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& query_url,
-                             const GURL& pac_url,
-                             net::ProxyInfo* results) {
+                             net::ProxyInfo* results,
+                             net::CompletionCallback* callback,
+                             RequestHandle* request) {
     if (fail_get_proxy_for_url)
       return net::ERR_FAILED;
     if (GURL(query_url).host() == info_predicate_query_host) {
@@ -48,6 +51,13 @@ class MockProxyResolver : public net::ProxyResolver {
     return net::OK;
   }
 
+  virtual void CancelRequest(RequestHandle request) {
+    NOTREACHED();
+  }
+
+  virtual void SetPacScriptByUrlInternal(const GURL& pac_url) {}
+
+
   net::ProxyInfo info;
 
   // info is only returned if query_url in GetProxyForURL matches this:
@@ -56,6 +66,17 @@ class MockProxyResolver : public net::ProxyResolver {
   // If true, then GetProxyForURL will fail, which simulates failure to
   // download or execute the PAC file.
   bool fail_get_proxy_for_url;
+};
+
+class MockProxyResolver : public net::SingleThreadedProxyResolver {
+ public:
+  MockProxyResolver()
+      : net::SingleThreadedProxyResolver(new SyncMockProxyResolver) {
+    x = reinterpret_cast<SyncMockProxyResolver*>(resolver());
+  }
+
+  // TODO(eroman): cleanup.
+  SyncMockProxyResolver* x;
 };
 
 // ResultFuture is a handle to get at the result from
@@ -326,12 +347,13 @@ class SyncProxyService {
 };
 
 // A ProxyResolver which can be set to block upon reaching GetProxyForURL.
-class BlockableProxyResolver : public net::ProxyResolver {
+class SyncBlockableProxyResolver : public net::ProxyResolver {
  public:
-  BlockableProxyResolver() : net::ProxyResolver(true),
-                             should_block_(false),
-                             unblocked_(true, true),
-      blocked_(true, false) {
+  SyncBlockableProxyResolver()
+      : net::ProxyResolver(false /*expects_pac_bytes*/),
+        should_block_(false),
+        unblocked_(true, true),
+        blocked_(true, false) {
   }
 
   void Block() {
@@ -351,8 +373,9 @@ class BlockableProxyResolver : public net::ProxyResolver {
 
   // net::ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& query_url,
-                             const GURL& pac_url,
-                             net::ProxyInfo* results) {
+                             net::ProxyInfo* results,
+                             net::CompletionCallback* callback,
+                             RequestHandle* request) {
     if (should_block_) {
       blocked_.Signal();
       unblocked_.Wait();
@@ -362,35 +385,71 @@ class BlockableProxyResolver : public net::ProxyResolver {
     return net::OK;
   }
 
+  virtual void CancelRequest(RequestHandle request) {
+    NOTREACHED();
+  }
+
+  virtual void SetPacScriptByUrlInternal(const GURL& pac_url) {}
+
  private:
   bool should_block_;
   base::WaitableEvent unblocked_;
   base::WaitableEvent blocked_;
 };
 
+class BlockableProxyResolver : public net::SingleThreadedProxyResolver {
+ public:
+  BlockableProxyResolver()
+      : net::SingleThreadedProxyResolver(new SyncBlockableProxyResolver) {
+    x = reinterpret_cast<SyncBlockableProxyResolver*>(resolver());
+  }
+
+  // TODO(eroman): cleanup.
+  SyncBlockableProxyResolver* x;
+};
+
 // A mock ProxyResolverWithoutFetch which concatenates the query's host with
 // the last download PAC contents.  This way the result describes what the last
 // downloaded PAC script's contents were, in addition to the query url itself.
-class MockProxyResolverWithoutFetch : public net::ProxyResolver {
+class SyncMockProxyResolverWithoutFetch : public net::ProxyResolver {
  public:
-  MockProxyResolverWithoutFetch() : net::ProxyResolver(false),
-                                    last_pac_contents_("NONE") {}
+  SyncMockProxyResolverWithoutFetch()
+      : net::ProxyResolver(true /*expects_pac_bytes*/),
+        last_pac_contents_("NONE") {}
 
   // net::ProxyResolver implementation:
   virtual int GetProxyForURL(const GURL& query_url,
-                             const GURL& pac_url,
-                             net::ProxyInfo* results) {
+                             net::ProxyInfo* results,
+                             net::CompletionCallback* callback,
+                             RequestHandle* request) {
     results->UseNamedProxy(last_pac_contents_ + "." + query_url.host());
     return net::OK;
   }
 
-  virtual void SetPacScript(const std::string& bytes) {
+  virtual void SetPacScriptByDataInternal(const std::string& bytes) {
     last_pac_contents_ = bytes;
+  }
+
+  virtual void CancelRequest(RequestHandle request) {
+    NOTREACHED();
   }
 
  private:
   std::string last_pac_contents_;
 };
+
+class MockProxyResolverWithoutFetch : public net::SingleThreadedProxyResolver {
+ public:
+  MockProxyResolverWithoutFetch()
+      : net::SingleThreadedProxyResolver(
+            new SyncMockProxyResolverWithoutFetch) {
+    x = reinterpret_cast<SyncMockProxyResolverWithoutFetch*>(resolver());
+  }
+
+  // TODO(eroman): cleanup.
+  SyncMockProxyResolverWithoutFetch* x;
+};
+
 
 }  // namespace
 
@@ -465,8 +524,8 @@ TEST(ProxyServiceTest, PAC) {
       new MockProxyConfigService("http://foopy/proxy.pac");
 
   MockProxyResolver* resolver = new MockProxyResolver;
-  resolver->info.UseNamedProxy("foopy");
-  resolver->info_predicate_query_host = "www.google.com";
+  resolver->x->info.UseNamedProxy("foopy");
+  resolver->x->info_predicate_query_host = "www.google.com";
 
   SyncProxyService service(config_service, resolver);
 
@@ -484,8 +543,8 @@ TEST(ProxyServiceTest, PAC_FailoverToDirect) {
       new MockProxyConfigService("http://foopy/proxy.pac");
 
   MockProxyResolver* resolver = new MockProxyResolver;
-  resolver->info.UseNamedProxy("foopy:8080");
-  resolver->info_predicate_query_host = "www.google.com";
+  resolver->x->info.UseNamedProxy("foopy:8080");
+  resolver->x->info_predicate_query_host = "www.google.com";
 
   SyncProxyService service(config_service, resolver);
 
@@ -510,9 +569,9 @@ TEST(ProxyServiceTest, PAC_FailsToDownload) {
       new MockProxyConfigService("http://foopy/proxy.pac");
 
   MockProxyResolver* resolver = new MockProxyResolver;
-  resolver->info.UseNamedProxy("foopy:8080");
-  resolver->info_predicate_query_host = "www.google.com";
-  resolver->fail_get_proxy_for_url = true;
+  resolver->x->info.UseNamedProxy("foopy:8080");
+  resolver->x->info_predicate_query_host = "www.google.com";
+  resolver->x->fail_get_proxy_for_url = true;
 
   SyncProxyService service(config_service, resolver);
 
@@ -528,8 +587,8 @@ TEST(ProxyServiceTest, PAC_FailsToDownload) {
   EXPECT_EQ(rv, net::OK);
   EXPECT_TRUE(info.is_direct());
 
-  resolver->fail_get_proxy_for_url = false;
-  resolver->info.UseNamedProxy("foopy_valid:8080");
+  resolver->x->fail_get_proxy_for_url = false;
+  resolver->x->info.UseNamedProxy("foopy_valid:8080");
 
   // But, if that fails, then we should give the proxy config another shot
   // since we have never tried it with this URL before.
@@ -547,9 +606,9 @@ TEST(ProxyServiceTest, ProxyFallback) {
       new MockProxyConfigService("http://foopy/proxy.pac");
 
   MockProxyResolver* resolver = new MockProxyResolver;
-  resolver->info.UseNamedProxy("foopy1:8080;foopy2:9090");
-  resolver->info_predicate_query_host = "www.google.com";
-  resolver->fail_get_proxy_for_url = false;
+  resolver->x->info.UseNamedProxy("foopy1:8080;foopy2:9090");
+  resolver->x->info_predicate_query_host = "www.google.com";
+  resolver->x->fail_get_proxy_for_url = false;
 
   SyncProxyService service(config_service, resolver);
 
@@ -574,9 +633,9 @@ TEST(ProxyServiceTest, ProxyFallback) {
   // Create a new resolver that returns 3 proxies. The second one is already
   // known to be bad.
   config_service->config.pac_url = GURL("http://foopy/proxy.pac");
-  resolver->info.UseNamedProxy("foopy3:7070;foopy1:8080;foopy2:9090");
-  resolver->info_predicate_query_host = "www.google.com";
-  resolver->fail_get_proxy_for_url = false;
+  resolver->x->info.UseNamedProxy("foopy3:7070;foopy1:8080;foopy2:9090");
+  resolver->x->info_predicate_query_host = "www.google.com";
+  resolver->x->fail_get_proxy_for_url = false;
 
   rv = service.ResolveProxy(url, &info);
   EXPECT_EQ(rv, net::OK);
@@ -607,9 +666,9 @@ TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
       new MockProxyConfigService("http://foopy/proxy.pac");
 
   MockProxyResolver* resolver = new MockProxyResolver;
-  resolver->info.UseNamedProxy("foopy1:8080;foopy2:9090");
-  resolver->info_predicate_query_host = "www.google.com";
-  resolver->fail_get_proxy_for_url = false;
+  resolver->x->info.UseNamedProxy("foopy1:8080;foopy2:9090");
+  resolver->x->info_predicate_query_host = "www.google.com";
+  resolver->x->fail_get_proxy_for_url = false;
 
   SyncProxyService service(config_service, resolver);
 
@@ -656,9 +715,9 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
       new MockProxyConfigService("http://foopy/proxy.pac");
 
   MockProxyResolver* resolver = new MockProxyResolver;
-  resolver->info.UseNamedProxy("foopy1:8080;foopy2:9090");
-  resolver->info_predicate_query_host = "www.google.com";
-  resolver->fail_get_proxy_for_url = false;
+  resolver->x->info.UseNamedProxy("foopy1:8080;foopy2:9090");
+  resolver->x->info_predicate_query_host = "www.google.com";
+  resolver->x->fail_get_proxy_for_url = false;
 
   SyncProxyService service(config_service, resolver);
 
@@ -683,7 +742,7 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
 
   // Fake a PAC failure.
   net::ProxyInfo info2;
-  resolver->fail_get_proxy_for_url = true;
+  resolver->x->fail_get_proxy_for_url = true;
   rv = service.ResolveProxy(url, &info2);
   EXPECT_EQ(rv, net::ERR_FAILED);
 
@@ -692,7 +751,7 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
 
   // The PAC is now fixed and will return a proxy server.
   // It should also clear the list of bad proxies.
-  resolver->fail_get_proxy_for_url = false;
+  resolver->x->fail_get_proxy_for_url = false;
 
   // Try to resolve, it will still return "direct" because we have no reason
   // to check the config since everything works.
@@ -999,7 +1058,7 @@ TEST(ProxyServiceTest, CancelQueuedRequest) {
   ProxyServiceWithFutures service(config_service, resolver);
 
   // Cause requests to pile up, by having them block in the PAC thread.
-  resolver->Block();
+  resolver->x->Block();
 
   // Start 3 requests.
   scoped_refptr<ResultFuture> result1;
@@ -1012,13 +1071,13 @@ TEST(ProxyServiceTest, CancelQueuedRequest) {
   service.ResolveProxy(&result3, GURL("http://request3"));
 
   // Wait until the first request has become blocked in the PAC thread.
-  resolver->WaitUntilBlocked();
+  resolver->x->WaitUntilBlocked();
 
   // Cancel the second request
   result2->Cancel();
 
   // Unblock the PAC thread.
-  resolver->Unblock();
+  resolver->x->Unblock();
 
   // Wait for the final request to complete.
   result3->WaitUntilCompleted();
@@ -1046,7 +1105,7 @@ TEST(ProxyServiceTest, CancelInprogressRequest) {
   ProxyServiceWithFutures service(config_service, resolver);
 
   // Cause requests to pile up, by having them block in the PAC thread.
-  resolver->Block();
+  resolver->x->Block();
 
   // Start 3 requests.
   scoped_refptr<ResultFuture> result1;
@@ -1059,13 +1118,13 @@ TEST(ProxyServiceTest, CancelInprogressRequest) {
   service.ResolveProxy(&result3, GURL("http://request3"));
 
   // Wait until the first request has become blocked in the PAC thread.
-  resolver->WaitUntilBlocked();
+  resolver->x->WaitUntilBlocked();
 
   // Cancel the first request
   result1->Cancel();
 
   // Unblock the PAC thread.
-  resolver->Unblock();
+  resolver->x->Unblock();
 
   // Wait for the final request to complete.
   result3->WaitUntilCompleted();
