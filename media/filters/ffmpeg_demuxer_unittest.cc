@@ -456,6 +456,13 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
 
+  // ... then we'll call Seek() to get around the first seek hack...
+  //
+  // TODO(scherkus): fix the av_seek_frame() hackery!
+  StrictMock<MockFilterCallback> hack_callback;
+  EXPECT_CALL(hack_callback, OnFilterCallback());
+  EXPECT_CALL(hack_callback, OnCallbackDestroyed());
+
   // ...then we'll expect the actual seek call...
   EXPECT_CALL(*MockFFmpeg::get(),
       AVSeekFrame(&format_context_, -1, kExpectedTimestamp, kExpectedFlags))
@@ -500,6 +507,12 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   reader->Reset();
   message_loop_.RunAllPending();
   MockFFmpeg::get()->CheckPoint(1);
+
+  // Issue a preliminary seek to get around the "first seek" hack.
+  //
+  // TODO(scherkus): fix the av_seek_frame() hackery!
+  demuxer_->Seek(base::TimeDelta(), hack_callback.NewCallback());
+  message_loop_.RunAllPending();
 
   // Now issue a simple forward seek, which should discard queued packets.
   demuxer_->Seek(base::TimeDelta::FromMicroseconds(kExpectedTimestamp),
