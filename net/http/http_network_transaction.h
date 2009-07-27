@@ -153,7 +153,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoDrainBodyForAuthRestartComplete(int result);
 
   // Record histograms of latency until Connect() completes.
-  void LogTCPConnectedMetrics() const;
+  void LogTCPConnectedMetrics(bool reused_socket) const;
 
   // Record histogram of time until first byte of header is received.
   void LogTransactionConnectedMetrics() const;
@@ -394,8 +394,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   // The time the Connect() method was called (if it got called).
   base::Time connect_start_time_;
 
-  // The time the host resolution started (if it indeed got started).
-  base::Time host_resolution_start_time_;
+  // The time that we request the ClientSocketPool for a connected socket.
+  base::TimeTicks transport_socket_request_time_;
 
   // The next state in the state machine.
   State next_state_;
