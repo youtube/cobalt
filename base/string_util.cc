@@ -915,7 +915,7 @@ static void StringAppendVT(StringType* dst,
   typename StringType::value_type stack_buf[1024];
 
   va_list backup_ap;
-  base::va_copy(backup_ap, ap);
+  GG_VA_COPY(backup_ap, ap);
 
 #if !defined(OS_WIN)
   errno = 0;
@@ -962,7 +962,7 @@ static void StringAppendVT(StringType* dst,
     std::vector<typename StringType::value_type> mem_buf(mem_length);
 
     // Restore the va_list before we use it again.
-    base::va_copy(backup_ap, ap);
+    GG_VA_COPY(backup_ap, ap);
 
     result = vsnprintfT(&mem_buf[0], mem_length, format, ap);
     va_end(backup_ap);
