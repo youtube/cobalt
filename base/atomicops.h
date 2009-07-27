@@ -39,8 +39,10 @@ namespace subtle {
 #define __w64
 #endif
 typedef __w64 int32 Atomic32;
-#ifdef CPU_ARCH_64_BITS
-typedef int64 Atomic64;
+#ifdef ARCH_CPU_64_BITS
+// We need to be able to go between Atomic64 and AtomicWord implicitly.  This
+// means Atomic64 and AtomicWord should be the same type on 64-bit.
+typedef intptr_t Atomic64;
 #endif
 
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
@@ -98,7 +100,7 @@ Atomic32 Acquire_Load(volatile const Atomic32* ptr);
 Atomic32 Release_Load(volatile const Atomic32* ptr);
 
 // 64-bit atomic operations (only available on 64-bit processors).
-#ifdef CPU_ARCH_64_BITS
+#ifdef ARCH_CPU_64_BITS
 Atomic64 NoBarrier_CompareAndSwap(volatile Atomic64* ptr,
                                   Atomic64 old_value,
                                   Atomic64 new_value);
@@ -118,7 +120,7 @@ void Release_Store(volatile Atomic64* ptr, Atomic64 value);
 Atomic64 NoBarrier_Load(volatile const Atomic64* ptr);
 Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 Atomic64 Release_Load(volatile const Atomic64* ptr);
-#endif  // CPU_ARCH_64_BITS
+#endif  // ARCH_CPU_64_BITS
 
 }  // namespace base::subtle
 }  // namespace base

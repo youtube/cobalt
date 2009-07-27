@@ -25,7 +25,14 @@ typedef short               int16;
 #define _INT32
 typedef int                 int32;
 #endif
+
+// The NSPR system headers define 64-bit as |long| when possible.  In order to
+// not have typedef mismatches, we do the same on LP64.
+#if __LP64__
+typedef long                int64;
+#else
 typedef long long           int64;
+#endif
 
 // NOTE: unsigned types are DANGEROUS in loops and other arithmetical
 // places.  Use the signed types unless your variable represents a bit
@@ -41,7 +48,13 @@ typedef unsigned short     uint16;
 #define _UINT32
 typedef unsigned int       uint32;
 #endif
+
+// See the comment above about NSPR and 64-bit.
+#if __LP64__
+typedef unsigned long uint64;
+#else
 typedef unsigned long long uint64;
+#endif
 
 // A type to represent a Unicode code-point value. As of Unicode 4.0,
 // such values require up to 21 bits.
