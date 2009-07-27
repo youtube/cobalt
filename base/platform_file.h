@@ -31,7 +31,10 @@ enum PlatformFileFlags {
   PLATFORM_FILE_WRITE = 32,
   PLATFORM_FILE_EXCLUSIVE_READ = 64,  // EXCLUSIVE is opposite of Windows SHARE
   PLATFORM_FILE_EXCLUSIVE_WRITE = 128,
-  PLATFORM_FILE_ASYNC = 256
+  PLATFORM_FILE_ASYNC = 256,
+  PLATFORM_FILE_TEMPORARY = 512,        // Used on Windows only
+  PLATFORM_FILE_HIDDEN = 1024,          // Used on Windows only
+  PLATFORM_FILE_DELETE_ON_CLOSE = 2048  // Used on Windows only
 };
 
 // Creates or open the given file. If PLATFORM_FILE_OPEN_ALWAYS is used, and
