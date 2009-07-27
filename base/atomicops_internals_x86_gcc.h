@@ -238,6 +238,23 @@ inline Atomic64 Release_Load(volatile const Atomic64* ptr) {
   MemoryBarrier();
   return *ptr;
 }
+
+inline Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
+                                       Atomic64 old_value,
+                                       Atomic64 new_value) {
+  Atomic64 x = NoBarrier_CompareAndSwap(ptr, old_value, new_value);
+  if (AtomicOps_Internalx86CPUFeatures.has_amd_lock_mb_bug) {
+    __asm__ __volatile__("lfence" : : : "memory");
+  }
+  return x;
+}
+
+inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
+                                       Atomic64 old_value,
+                                       Atomic64 new_value) {
+  return NoBarrier_CompareAndSwap(ptr, old_value, new_value);
+}
+
 #endif  // defined(__x86_64__)
 
 } // namespace base::subtle
