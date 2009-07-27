@@ -617,6 +617,8 @@ int HttpNetworkTransaction::DoInitConnection() {
     resolve_info.set_allow_cached_response(false);
   }
 
+  transport_socket_request_time_ = base::TimeTicks::Now();
+
   int rv = connection_.Init(connection_group, resolve_info, request_->priority,
                             &io_callback_);
   return rv;
@@ -632,12 +634,12 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   // connection.  This flag is used to handle errors that occur while we are
   // trying to reuse a keep-alive connection.
   reused_socket_ = connection_.is_reused();
+  LogTCPConnectedMetrics(reused_socket_);
   if (reused_socket_) {
     next_state_ = STATE_WRITE_HEADERS;
   } else {
     // Now we have a TCP connected socket.  Perform other connection setup as
     // needed.
-    LogTCPConnectedMetrics();
     if (proxy_mode_ == kSOCKSProxy)
       next_state_ = STATE_SOCKS_CONNECT;
     else if (using_ssl_ && proxy_mode_ == kDirectConnection) {
@@ -1085,20 +1087,40 @@ int HttpNetworkTransaction::DoDrainBodyForAuthRestartComplete(int result) {
   return OK;
 }
 
-void HttpNetworkTransaction::LogTCPConnectedMetrics() const {
-  base::TimeDelta host_resolution_and_tcp_connection_latency =
-      base::Time::Now() - host_resolution_start_time_;
+void HttpNetworkTransaction::LogTCPConnectedMetrics(bool reused_socket) const {
+  base::TimeDelta time_to_obtain_connected_socket =
+      base::TimeTicks::Now() - transport_socket_request_time_;
+
+  if (!reused_socket) {
+    UMA_HISTOGRAM_CLIPPED_TIMES(
+        "Net.Dns_Resolution_And_TCP_Connection_Latency",
+        time_to_obtain_connected_socket,
+        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
+        100);
+
+    UMA_HISTOGRAM_COUNTS_100(
+        "Net.TCP_Connection_Idle_Sockets",
+        session_->connection_pool()->IdleSocketCountInGroup(
+            connection_.group_name()));
+  }
 
   UMA_HISTOGRAM_CLIPPED_TIMES(
-      "Net.Dns_Resolution_And_TCP_Connection_Latency",
-      host_resolution_and_tcp_connection_latency,
+      "Net.TransportSocketRequestTime",
+      time_to_obtain_connected_socket,
       base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
       100);
 
-  UMA_HISTOGRAM_COUNTS_100(
-      "Net.TCP_Connection_Idle_Sockets",
-      session_->connection_pool()->IdleSocketCountInGroup(
-          connection_.group_name()));
+  static const bool use_late_binding_histogram =
+      !FieldTrial::MakeName("", "SocketLateBinding").empty();
+
+  if (use_late_binding_histogram) {
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        FieldTrial::MakeName("Net.TransportSocketRequestTime",
+                             "SocketLateBinding").data(),
+        time_to_obtain_connected_socket,
+        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
+        100);
+  }
 }
 
 void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
@@ -1109,6 +1131,19 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
       total_duration,
       base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
       100);
+
+  static const bool use_late_binding_histogram =
+      !FieldTrial::MakeName("", "SocketLateBinding").empty();
+
+  if (use_late_binding_histogram) {
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        FieldTrial::MakeName("Net.Transaction_Connected_Under_10",
+                             "SocketLateBinding").data(),
+        total_duration,
+        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
+        100);
+  }
+
   if (!reused_socket_)
     UMA_HISTOGRAM_CLIPPED_TIMES(
         "Net.Transaction_Connected_New",
