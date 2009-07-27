@@ -47,6 +47,12 @@ PlatformFile CreatePlatformFile(const std::wstring& name,
   DWORD create_flags = 0;
   if (flags & PLATFORM_FILE_ASYNC)
     create_flags |= FILE_FLAG_OVERLAPPED;
+  if (flags & PLATFORM_FILE_TEMPORARY)
+    create_flags |= FILE_ATTRIBUTE_TEMPORARY;
+  if (flags & PLATFORM_FILE_HIDDEN)
+    create_flags |= FILE_ATTRIBUTE_HIDDEN;
+  if (flags & PLATFORM_FILE_DELETE_ON_CLOSE)
+    create_flags |= FILE_FLAG_DELETE_ON_CLOSE;
 
   HANDLE file = CreateFile(name.c_str(), access, sharing, NULL, disposition,
                            create_flags, NULL);
