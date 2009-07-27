@@ -220,7 +220,8 @@ FFmpegDemuxer::FFmpegDemuxer()
       read_event_(false, false),
       read_has_failed_(false),
       last_read_bytes_(0),
-      read_position_(0) {
+      read_position_(0),
+      first_seek_hack_(true) {
 }
 
 FFmpegDemuxer::~FFmpegDemuxer() {
@@ -423,6 +424,16 @@ void FFmpegDemuxer::SeekTask(base::TimeDelta time, FilterCallback* callback) {
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
     (*iter)->FlushBuffers();
+  }
+
+  // Do NOT call av_seek_frame() if we were just created.  For some reason it
+  // causes Ogg+Theora/Vorbis videos to become heavily out of sync.
+  //
+  // TODO(scherkus): fix the av_seek_frame() hackery!
+  if (first_seek_hack_) {
+    first_seek_hack_ = false;
+    callback->Run();
+    return;
   }
 
   // Seek backwards if requested timestamp is behind FFmpeg's current time.
