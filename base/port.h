@@ -32,23 +32,17 @@
 #define GG_UINT32_C(x)  (x ## U)
 #define GG_UINT64_C(x)  GG_ULONGLONG(x)
 
-namespace base {
-
 // It's possible for functions that use a va_list, such as StringPrintf, to
 // invalidate the data in it upon use.  The fix is to make a copy of the
 // structure before using it and use that copy instead.  va_copy is provided
 // for this purpose.  MSVC does not provide va_copy, so define an
 // implementation here.  It is not guaranteed that assignment is a copy, so the
 // StringUtil.VariableArgsFunc unit test tests this capability.
-inline void va_copy(va_list& a, va_list& b) {
 #if defined(COMPILER_GCC)
-  ::va_copy(a, b);
+#define GG_VA_COPY(a, b) (va_copy(a, b))
 #elif defined(COMPILER_MSVC)
-  a = b;
+#define GG_VA_COPY(a, b) (a = b)
 #endif
-}
-
-}  // namespace base
 
 // Define an OS-neutral wrapper for shared library entry points
 #if defined(OS_WIN)
