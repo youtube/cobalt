@@ -1302,7 +1302,7 @@ static void VariableArgsFunc(const char* format, ...) {
   va_start(org, format);
 
   va_list dup;
-  base::va_copy(dup, org);
+  GG_VA_COPY(dup, org);
   int i1 = va_arg(org, int);
   int j1 = va_arg(org, int);
   char* s1 = va_arg(org, char*);
