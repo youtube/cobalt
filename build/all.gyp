@@ -90,19 +90,17 @@
     ['OS=="mac"', {
       'targets': [
         {
-          # Target to build everything needed for layout tests to cut down
-          # on what the layout test bots have to build.
+          # This target is legacy and can go away when the bots have been
+          # updated to direclty build the test_shell targets.
           'target_name': 'build_for_layout_tests',
           'type': 'none',
           'dependencies': [
-            '../tools/imagediff/image_diff.gyp:image_diff',
-            '../webkit/tools/test_shell/test_shell.gyp:test_shell',
-            '../webkit/tools/test_shell/test_shell.gyp:test_shell_tests',
+            '../webkit/tools/test_shell/test_shell.gyp:*',
           ],
         },
         {
           # Target to build everything plus the dmg.  We don't put the dmg
-          # in the All target because developer really don't need it.
+          # in the All target because developers really don't need it.
           'target_name': 'all_and_dmg',
           'type': 'none',
           'dependencies': [
