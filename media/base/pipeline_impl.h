@@ -7,9 +7,10 @@
 #ifndef MEDIA_BASE_PIPELINE_IMPL_H_
 #define MEDIA_BASE_PIPELINE_IMPL_H_
 
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
 
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
@@ -81,6 +82,11 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual int64 GetTotalBytes() const;
   virtual void GetVideoSize(size_t* width_out, size_t* height_out) const;
   virtual PipelineError GetError() const;
+
+  // |error_callback_| will be executed upon an error in the pipeline. If
+  // |error_callback_| is NULL, it is ignored. The pipeline takes ownernship
+  // of |error_callback|.
+  virtual void SetPipelineErrorCallback(PipelineCallback* error_callback);
 
  private:
   // Pipeline states, as described above.
@@ -314,6 +320,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Callbacks for various pipeline operations.
   scoped_ptr<PipelineCallback> seek_callback_;
   scoped_ptr<PipelineCallback> stop_callback_;
+  scoped_ptr<PipelineCallback> error_callback_;
 
   // Vector of our filters and map maintaining the relationship between the
   // FilterType and the filter itself.
