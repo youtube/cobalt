@@ -13,3 +13,4 @@ List of changes made to original code:
   - added #define NO_HEX_FP to dtoa.cc
   - made some minor changes to allow clean compilation under g++ -Wall, see
     gcc_warnings.patch.
+  - made some minor changes to build on 64-bit, see gcc_64_bit.patch.
