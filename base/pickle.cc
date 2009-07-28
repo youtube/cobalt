@@ -322,15 +322,15 @@ bool Pickle::WriteString16(const string16& value) {
 }
 
 bool Pickle::WriteData(const char* data, int length) {
-  return WriteInt(length) && WriteBytes(data, length);
+  return length >= 0 && WriteInt(length) && WriteBytes(data, length);
 }
 
 char* Pickle::BeginWriteData(int length) {
   DCHECK_EQ(variable_buffer_offset_, 0U) <<
     "There can only be one variable buffer in a Pickle";
 
-  if (!WriteInt(length))
-    return false;
+  if (length < 0 || !WriteInt(length))
+    return NULL;
 
   char *data_ptr = BeginWrite(length);
   if (!data_ptr)
