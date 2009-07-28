@@ -13,11 +13,11 @@
 #include "base/ref_counted.h"
 #include "base/string_util.h"
 #include "net/base/cookie_policy.h"
+#include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
 #include "net/ftp/ftp_auth_cache.h"
 
 namespace net {
-class CookieMonster;
 class ForceTLSState;
 class FtpTransactionFactory;
 class HttpTransactionFactory;
@@ -60,7 +60,7 @@ class URLRequestContext :
   }
 
   // Gets the cookie store for this context.
-  net::CookieMonster* cookie_store() { return cookie_store_; }
+  net::CookieStore* cookie_store() { return cookie_store_; }
 
   // Gets the cookie policy for this context.
   net::CookiePolicy* cookie_policy() { return &cookie_policy_; }
@@ -96,13 +96,13 @@ class URLRequestContext :
   // Called for each cookie returning for the given request. A pointer to
   // the cookie is passed so that it can be modified. Returns true if the
   // cookie was not dropped (it could still be modified though).
-  virtual bool interceptCookie(const URLRequest* request, std::string* cookie) {
+  virtual bool InterceptCookie(const URLRequest* request, std::string* cookie) {
     return true;
   }
 
   // Called before adding cookies to sent requests. Allows overriding
   // requests to block sending of cookies.
-  virtual bool allowSendingCookies(const URLRequest* request) const {
+  virtual bool AllowSendingCookies(const URLRequest* request) const {
     return true;
   }
 
@@ -117,7 +117,7 @@ class URLRequestContext :
   net::ProxyService* proxy_service_;
   net::HttpTransactionFactory* http_transaction_factory_;
   net::FtpTransactionFactory* ftp_transaction_factory_;
-  net::CookieMonster* cookie_store_;
+  net::CookieStore* cookie_store_;
   net::CookiePolicy cookie_policy_;
   net::ForceTLSState* force_tls_state_;;
   net::FtpAuthCache ftp_auth_cache_;
