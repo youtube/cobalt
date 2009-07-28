@@ -703,7 +703,6 @@
           'dependencies': [
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:nss',
-            '../third_party/tcmalloc/tcmalloc.gyp:tcmalloc',
           ],
         }, {  # OS != "linux"
           'sources!': [
