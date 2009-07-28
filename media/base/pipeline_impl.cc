@@ -592,6 +592,11 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
 void PipelineImpl::FilterStateTransitionTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
+  // No reason transitioning if we've errored or have stopped.
+  if (state_ == kError || state_ == kStopped) {
+    return;
+  }
+
   if (!StateTransitionsToStarted(state_)) {
     NOTREACHED() << "Invalid current state: " << state_;
     SetError(PIPELINE_ERROR_ABORT);
