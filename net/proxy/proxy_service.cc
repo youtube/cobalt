@@ -629,10 +629,8 @@ bool ProxyService::ShouldBypassProxyForURL(const GURL& url) {
   std::string url_domain_and_port = url_domain + ":"
       + IntToString(url.EffectiveIntPort());
 
-  if (config_.proxy_bypass_local_names) {
-    if (url.host().find('.') == std::string::npos)
-      return true;
-  }
+  if (config_.proxy_bypass_local_names && IsLocalName(url))
+    return true;
 
   for(std::vector<std::string>::const_iterator i = config_.proxy_bypass.begin();
       i != config_.proxy_bypass.end(); ++i) {
@@ -687,6 +685,19 @@ bool ProxyService::ShouldBypassProxyForURL(const GURL& url) {
   }
 
   return false;
+}
+
+// This matches IE's interpretation of the
+// "Bypass proxy server for local addresses" settings checkbox. Fully
+// qualified domain names or IP addresses are considered non-local,
+// regardless of what they map to.
+//
+// static
+bool ProxyService::IsLocalName(const GURL& url) {
+  const std::string& host = url.host();
+  if (host == "127.0.0.1" || host == "[::1]")
+    return true;
+  return host.find('.') == std::string::npos;
 }
 
 SyncProxyServiceHelper::SyncProxyServiceHelper(MessageLoop* io_message_loop,
