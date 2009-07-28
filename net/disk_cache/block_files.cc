@@ -8,6 +8,7 @@
 #include "base/histogram.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/file_lock.h"
 
 using base::Time;
@@ -136,25 +137,24 @@ void FixAllocationCounters(disk_cache::BlockFileHeader* header) {
 }
 
 // Returns true if the current block file should not be used as-is to store more
-// records. |block_count| is the number of blocks to allocate, and
-// |use_next_file| is set to true on return if we should use the next file in
-// the chain, even though we could find empty space on the current file.
+// records. |block_count| is the number of blocks to allocate.
 bool NeedToGrowBlockFile(const disk_cache::BlockFileHeader* header,
-                         int block_count, bool* use_next_file) {
-  if ((header->max_entries > disk_cache::kMaxBlocks * 9 / 10) &&
-      header->next_file) {
+                         int block_count) {
+  bool have_space = false;
+  int empty_blocks = 0;
+  for (int i = 0; i < disk_cache::kMaxNumBlocks; i++) {
+    empty_blocks += header->empty[i] * (i + 1);
+    if (i >= block_count - 1 && header->empty[i])
+      have_space = true;
+  }
+
+  if (header->next_file && (empty_blocks < disk_cache::kMaxBlocks / 10)) {
     // This file is almost full but we already created another one, don't use
     // this file yet so that it is easier to find empty blocks when we start
     // using this file again.
-    *use_next_file = true;
     return true;
   }
-  *use_next_file = false;
-  for (int i = block_count; i <= disk_cache::kMaxNumBlocks; i++) {
-    if (header->empty[i - 1])
-      return false;
-  }
-  return true;
+  return !have_space;
 }
 
 }  // namespace
@@ -180,6 +180,9 @@ bool BlockFiles::Init(bool create_files) {
 
     if (!OpenBlockFile(i))
       return false;
+
+    // Walk this chain of files removing empty ones.
+    RemoveEmptyFile(static_cast<FileType>(i + 1));
   }
 
   init_ = true;
@@ -312,9 +315,8 @@ MappedFile* BlockFiles::FileForNewBlock(FileType block_type, int block_count) {
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
 
   Time start = Time::Now();
-  bool use_next_file;
-  while (NeedToGrowBlockFile(header, block_count, &use_next_file)) {
-    if (use_next_file || kMaxBlocks == header->max_entries) {
+  while (NeedToGrowBlockFile(header, block_count)) {
+    if (kMaxBlocks == header->max_entries) {
       file = NextFile(file);
       if (!file)
         return NULL;
@@ -359,6 +361,43 @@ int BlockFiles::CreateNextBlockFile(FileType block_type) {
       return i;
   }
   return 0;
+}
+
+// We walk the list of files for this particular block type, deleting the ones
+// that are empty.
+void BlockFiles::RemoveEmptyFile(FileType block_type) {
+  MappedFile* file = block_files_[block_type - 1];
+  BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
+
+  while (header->next_file) {
+    // Only the block_file argument is relevant for what we want.
+    Addr address(BLOCK_256, 1, header->next_file, 0);
+    MappedFile* next_file = GetFile(address);
+    if (!next_file)
+      return;
+
+    BlockFileHeader* next_header =
+        reinterpret_cast<BlockFileHeader*>(next_file->buffer());
+    if (!next_header->num_entries) {
+      DCHECK_EQ(next_header->entry_size, header->entry_size);
+      // Delete next_file and remove it from the chain.
+      int file_index = header->next_file;
+      header->next_file = next_header->next_file;
+      DCHECK(block_files_.size() >= static_cast<unsigned int>(file_index));
+      block_files_[file_index]->Release();
+      block_files_[file_index] = NULL;
+
+      std::wstring name = Name(file_index);
+      int failure = DeleteCacheFile(name) ? 0 : 1;
+      UMA_HISTOGRAM_COUNTS("DiskCache.DeleteFailed2", failure);
+      if (failure)
+        LOG(ERROR) << "Failed to delete " << name << " from the cache.";
+      continue;
+    }
+
+    header = next_header;
+    file = next_file;
+  }
 }
 
 bool BlockFiles::CreateBlock(FileType block_type, int block_count,
@@ -413,6 +452,13 @@ void BlockFiles::DeleteBlock(Addr address, bool deep) {
 
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
   DeleteMapBlock(address.start_block(), address.num_blocks(), header);
+  if (!header->num_entries) {
+    // This file is now empty. Let's try to delete it.
+    FileType type = Addr::RequiredFileType(header->entry_size);
+    if (Addr::BlockSizeForFileType(RANKINGS) == header->entry_size)
+      type = RANKINGS;
+    RemoveEmptyFile(type);
+  }
 }
 
 bool BlockFiles::FixBlockFileHeader(MappedFile* file) {

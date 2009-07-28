@@ -61,6 +61,9 @@ class BlockFiles {
   // Creates an empty block file and returns its index.
   int CreateNextBlockFile(FileType block_type);
 
+  // Removes a chained block file that is now empty.
+  void RemoveEmptyFile(FileType block_type);
+
   // Restores the header of a potentially inconsistent file.
   bool FixBlockFileHeader(MappedFile* file);
 
