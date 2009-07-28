@@ -8,11 +8,13 @@
 #include <string>
 #include <queue>
 #include <utility>
+#include <vector>
 
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/base/address_list.h"
 #include "net/base/host_resolver.h"
+#include "net/ftp/ftp_ctrl_response_buffer.h"
 #include "net/ftp/ftp_response_info.h"
 #include "net/ftp/ftp_transaction.h"
 
@@ -72,24 +74,12 @@ class FtpNetworkTransaction : public FtpTransaction {
                                 // the requested action did not take place.
   };
 
-  struct ResponseLine {
-    ResponseLine(int code, const std::string& text) : code(code), text(text) {
-    }
-
-    int code;  // Three-digit status code.
-    std::string text;  // Text after the code, without ending CRLF.
-  };
-
   void DoCallback(int result);
   void OnIOComplete(int result);
 
   // Executes correct ProcessResponse + command_name function based on last
   // issued command. Returns error code.
-  int ProcessCtrlResponses();
-
-  // Parses as much as possible from response_message_buf_. Puts index of the
-  // first unparsed character in cut_pos. Returns error code.
-  int ParseCtrlResponse(int* cut_pos);
+  int ProcessCtrlResponse();
 
   int SendFtpCommand(const std::string& command, Command cmd);
 
@@ -113,32 +103,34 @@ class FtpNetworkTransaction : public FtpTransaction {
   int DoCtrlConnectComplete(int result);
   int DoCtrlRead();
   int DoCtrlReadComplete(int result);
+  int DoCtrlWriteCommand();
+  int DoCtrlWriteCommandComplete(int result);
   int DoCtrlWriteUSER();
-  int ProcessResponseUSER(const ResponseLine& response);
+  int ProcessResponseUSER(const FtpCtrlResponse& response);
   int DoCtrlWritePASS();
-  int ProcessResponsePASS(const ResponseLine& response);
+  int ProcessResponsePASS(const FtpCtrlResponse& response);
   int DoCtrlWriteACCT();
-  int ProcessResponseACCT(const ResponseLine& response);
+  int ProcessResponseACCT(const FtpCtrlResponse& response);
   int DoCtrlWriteSYST();
-  int ProcessResponseSYST(const ResponseLine& response);
+  int ProcessResponseSYST(const FtpCtrlResponse& response);
   int DoCtrlWritePWD();
-  int ProcessResponsePWD(const ResponseLine& response);
+  int ProcessResponsePWD(const FtpCtrlResponse& response);
   int DoCtrlWriteTYPE();
-  int ProcessResponseTYPE(const ResponseLine& response);
+  int ProcessResponseTYPE(const FtpCtrlResponse& response);
   int DoCtrlWritePASV();
-  int ProcessResponsePASV(const ResponseLine& response);
+  int ProcessResponsePASV(const FtpCtrlResponse& response);
   int DoCtrlWriteRETR();
-  int ProcessResponseRETR(const ResponseLine& response);
+  int ProcessResponseRETR(const FtpCtrlResponse& response);
   int DoCtrlWriteSIZE();
-  int ProcessResponseSIZE(const ResponseLine& response);
+  int ProcessResponseSIZE(const FtpCtrlResponse& response);
   int DoCtrlWriteCWD();
-  int ProcessResponseCWD(const ResponseLine& response);
+  int ProcessResponseCWD(const FtpCtrlResponse& response);
   int DoCtrlWriteLIST();
-  int ProcessResponseLIST(const ResponseLine& response);
+  int ProcessResponseLIST(const FtpCtrlResponse& response);
   int DoCtrlWriteMDTM();
-  int ProcessResponseMDTM(const ResponseLine& response);
+  int ProcessResponseMDTM(const FtpCtrlResponse& response);
   int DoCtrlWriteQUIT();
-  int ProcessResponseQUIT(const ResponseLine& response);
+  int ProcessResponseQUIT(const FtpCtrlResponse& response);
 
   int DoDataResolveHost();
   int DoDataResolveHostComplete(int result);
@@ -161,22 +153,25 @@ class FtpNetworkTransaction : public FtpTransaction {
   SingleRequestHostResolver resolver_;
   AddressList addresses_;
 
-  // As we read full response lines, we parse them and add to the queue.
-  std::queue<ResponseLine> ctrl_responses_;
+  // User buffer passed to the Read method for control socket.
+  scoped_refptr<IOBuffer> read_ctrl_buf_;
 
-  // Buffer holding not-yet-parsed control socket responses.
-  scoped_refptr<IOBufferWithSize> response_message_buf_;
-  int response_message_buf_len_;
-
-  // User buffer passed to the Read method. It actually writes to the
-  // response_message_buf_ at correct offset.
-  scoped_refptr<ReusedIOBuffer> read_ctrl_buf_;
+  FtpCtrlResponseBuffer ctrl_response_buffer_;
 
   scoped_refptr<IOBuffer> read_data_buf_;
   int read_data_buf_len_;
   int file_data_len_;
 
-  scoped_refptr<IOBuffer> write_buf_;
+  // Buffer holding the command line to be written to the control socket.
+  scoped_refptr<IOBufferWithSize> write_command_buf_;
+
+  // Buffer passed to the Write method of control socket. It actually writes
+  // to the write_command_buf_ at correct offset.
+  scoped_refptr<ReusedIOBuffer> write_buf_;
+
+  // Number of bytes from write_command_buf_ that we've already sent to the
+  // server.
+  int write_buf_written_;
 
   int last_error_;
 
@@ -201,6 +196,8 @@ class FtpNetworkTransaction : public FtpTransaction {
     STATE_CTRL_CONNECT_COMPLETE,
     STATE_CTRL_READ,
     STATE_CTRL_READ_COMPLETE,
+    STATE_CTRL_WRITE_COMMAND,
+    STATE_CTRL_WRITE_COMMAND_COMPLETE,
     STATE_CTRL_WRITE_USER,
     STATE_CTRL_WRITE_PASS,
     STATE_CTRL_WRITE_ACCT,
