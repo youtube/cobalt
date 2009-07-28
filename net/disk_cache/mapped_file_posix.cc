@@ -23,8 +23,8 @@ void* MappedFile::Init(const std::wstring& name, size_t size) {
   buffer_ = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED,
                  platform_file(), 0);
   init_ = true;
-  DCHECK(reinterpret_cast<int>(buffer_) != -1);
-  if (reinterpret_cast<int>(buffer_) == -1)
+  DCHECK(reinterpret_cast<intptr_t>(buffer_) != -1);
+  if (reinterpret_cast<intptr_t>(buffer_) == -1)
     buffer_ = 0;
 
   view_size_ = size;
