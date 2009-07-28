@@ -23,7 +23,6 @@ class FtpTransactionFactory;
 class HttpTransactionFactory;
 class ProxyService;
 }
-class Blacklist;
 class URLRequest;
 
 // Subclass to provide application-specific context for URLRequest instances.
@@ -36,8 +35,7 @@ class URLRequestContext :
         http_transaction_factory_(NULL),
         ftp_transaction_factory_(NULL),
         cookie_store_(NULL),
-        force_tls_state_(NULL),
-        blacklist_(NULL) {
+        force_tls_state_(NULL) {
   }
 
   net::HostResolver* host_resolver() const {
@@ -69,9 +67,6 @@ class URLRequestContext :
 
   // Gets the FTP authentication cache for this context.
   net::FtpAuthCache* ftp_auth_cache() { return &ftp_auth_cache_; }
-
-  // Gets the Privacy Blacklist, if any for this context.
-  const Blacklist* blacklist() { return blacklist_; }
 
   // Gets the value of 'Accept-Charset' header field.
   const std::string& accept_charset() const { return accept_charset_; }
@@ -121,7 +116,6 @@ class URLRequestContext :
   net::CookiePolicy cookie_policy_;
   net::ForceTLSState* force_tls_state_;;
   net::FtpAuthCache ftp_auth_cache_;
-  const Blacklist* blacklist_;
   std::string accept_language_;
   std::string accept_charset_;
   // The charset of the referrer where this request comes from. It's not
