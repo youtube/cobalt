@@ -94,24 +94,53 @@ bool StringToNumber(const typename StringToNumberTraits::string_type& input,
          traits::valid_func(input);
 }
 
-class StringToLongTraits {
+static int strtoi(const char *nptr, char **endptr, int base) {
+  long res = strtol(nptr, endptr, base);
+#if __LP64__
+  // Long is 64-bits, we have to handle under/overflow ourselves.
+  if (res > kint32max) {
+    res = kint32max;
+    errno = ERANGE;
+  } else if (res < kint32min) {
+    res = kint32min;
+    errno = ERANGE;
+  }
+#endif
+  return static_cast<int>(res);
+}
+
+static unsigned int strtoui(const char *nptr, char **endptr, int base) {
+  unsigned long res = strtoul(nptr, endptr, base);
+#if __LP64__
+  // Long is 64-bits, we have to handle under/overflow ourselves.  Test to see
+  // if the result can fit into 32-bits (as signed or unsigned).
+  if (static_cast<int>(static_cast<long>(res)) != static_cast<long>(res) &&
+      static_cast<unsigned int>(res) != res) {
+    res = kuint32max;
+    errno = ERANGE;
+  }
+#endif
+  return static_cast<unsigned int>(res);
+}
+
+class StringToIntTraits {
  public:
   typedef std::string string_type;
-  typedef long value_type;
+  typedef int value_type;
   static const int kBase = 10;
   static inline value_type convert_func(const string_type::value_type* str,
                                         string_type::value_type** endptr) {
-    return strtol(str, endptr, kBase);
+    return strtoi(str, endptr, kBase);
   }
   static inline bool valid_func(const string_type& str) {
     return !str.empty() && !isspace(str[0]);
   }
 };
 
-class String16ToLongTraits {
+class String16ToIntTraits {
  public:
   typedef string16 string_type;
-  typedef long value_type;
+  typedef int value_type;
   static const int kBase = 10;
   static inline value_type convert_func(const string_type::value_type* str,
                                         string_type::value_type** endptr) {
@@ -120,7 +149,7 @@ class String16ToLongTraits {
 #elif defined(WCHAR_T_IS_UTF32)
     std::string ascii_string = UTF16ToASCII(string16(str));
     char* ascii_end = NULL;
-    value_type ret = strtol(ascii_string.c_str(), &ascii_end, kBase);
+    value_type ret = strtoi(ascii_string.c_str(), &ascii_end, kBase);
     if (ascii_string.c_str() + ascii_string.length() == ascii_end) {
       *endptr =
           const_cast<string_type::value_type*>(str) + ascii_string.length();
@@ -179,24 +208,24 @@ class String16ToInt64Traits {
 // For the HexString variants, use the unsigned variants like strtoul for
 // convert_func so that input like "0x80000000" doesn't result in an overflow.
 
-class HexStringToLongTraits {
+class HexStringToIntTraits {
  public:
   typedef std::string string_type;
-  typedef long value_type;
+  typedef int value_type;
   static const int kBase = 16;
   static inline value_type convert_func(const string_type::value_type* str,
                                         string_type::value_type** endptr) {
-    return strtoul(str, endptr, kBase);
+    return strtoui(str, endptr, kBase);
   }
   static inline bool valid_func(const string_type& str) {
     return !str.empty() && !isspace(str[0]);
   }
 };
 
-class HexString16ToLongTraits {
+class HexString16ToIntTraits {
  public:
   typedef string16 string_type;
-  typedef long value_type;
+  typedef int value_type;
   static const int kBase = 16;
   static inline value_type convert_func(const string_type::value_type* str,
                                         string_type::value_type** endptr) {
@@ -205,7 +234,7 @@ class HexString16ToLongTraits {
 #elif defined(WCHAR_T_IS_UTF32)
     std::string ascii_string = UTF16ToASCII(string16(str));
     char* ascii_end = NULL;
-    value_type ret = strtoul(ascii_string.c_str(), &ascii_end, kBase);
+    value_type ret = strtoui(ascii_string.c_str(), &ascii_end, kBase);
     if (ascii_string.c_str() + ascii_string.length() == ascii_end) {
       *endptr =
           const_cast<string_type::value_type*>(str) + ascii_string.length();
@@ -1440,21 +1469,12 @@ bool MatchPattern(const std::string& eval, const std::string& pattern) {
   return MatchPatternT(eval.c_str(), pattern.c_str());
 }
 
-// For the various *ToInt conversions, there are no *ToIntTraits classes to use
-// because there's no such thing as strtoi.  Use *ToLongTraits through a cast
-// instead, requiring that long and int are compatible and equal-width.  They
-// are on our target platforms.
-
 bool StringToInt(const std::string& input, int* output) {
-  COMPILE_ASSERT(sizeof(int) == sizeof(long), cannot_strtol_to_int);
-  return StringToNumber<StringToLongTraits>(input,
-                                            reinterpret_cast<long*>(output));
+  return StringToNumber<StringToIntTraits>(input, output);
 }
 
 bool StringToInt(const string16& input, int* output) {
-  COMPILE_ASSERT(sizeof(int) == sizeof(long), cannot_wcstol_to_int);
-  return StringToNumber<String16ToLongTraits>(input,
-                                              reinterpret_cast<long*>(output));
+  return StringToNumber<String16ToIntTraits>(input, output);
 }
 
 bool StringToInt64(const std::string& input, int64* output) {
@@ -1466,15 +1486,11 @@ bool StringToInt64(const string16& input, int64* output) {
 }
 
 bool HexStringToInt(const std::string& input, int* output) {
-  COMPILE_ASSERT(sizeof(int) == sizeof(long), cannot_strtol_to_int);
-  return StringToNumber<HexStringToLongTraits>(input,
-                                               reinterpret_cast<long*>(output));
+  return StringToNumber<HexStringToIntTraits>(input, output);
 }
 
 bool HexStringToInt(const string16& input, int* output) {
-  COMPILE_ASSERT(sizeof(int) == sizeof(long), cannot_wcstol_to_int);
-  return StringToNumber<HexString16ToLongTraits>(
-      input, reinterpret_cast<long*>(output));
+  return StringToNumber<HexString16ToIntTraits>(input, output);
 }
 
 namespace {
