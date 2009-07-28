@@ -16,6 +16,7 @@
 #include "net/base/completion_callback.h"
 #include "net/proxy/proxy_server.h"
 #include "net/proxy/proxy_info.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 class GURL;
 class MessageLoop;
@@ -129,6 +130,7 @@ class ProxyService {
   static ProxyService* CreateNull();
 
  private:
+  FRIEND_TEST(ProxyServiceTest, IsLocalName);
   friend class PacRequest;
   // TODO(eroman): change this to a std::set. Note that this requires updating
   // some tests in proxy_service_unittest.cc such as:
@@ -205,10 +207,13 @@ class ProxyService {
   void DidCompletePacRequest(int config_id, int result_code);
 
   // Returns true if the URL passed in should not go through the proxy server.
-  // 1. If the bypass proxy list contains the string <local> and the URL
-  //    passed in is a local URL, i.e. a URL without a DOT (.)
+  // 1. If the proxy settings say to bypass local names, and |IsLocalName(url)|.
   // 2. The URL matches one of the entities in the proxy bypass list.
   bool ShouldBypassProxyForURL(const GURL& url);
+
+  // Returns true if |url| is to an intranet site (using non-FQDN as the
+  // heuristic).
+  static bool IsLocalName(const GURL& url);
 
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;
