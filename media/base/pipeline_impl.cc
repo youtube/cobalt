@@ -238,10 +238,6 @@ PipelineError PipelineImpl::GetError() const {
   return error_;
 }
 
-void PipelineImpl::SetPipelineErrorCallback(PipelineCallback* error_callback) {
-  error_callback_.reset(error_callback);
-}
-
 void PipelineImpl::ResetState() {
   AutoLock auto_lock(lock_);
   const base::TimeDelta kZero;
@@ -539,12 +535,6 @@ void PipelineImpl::ErrorChangedTask(PipelineError error) {
 
   // Destroy every filter and reset the pipeline as well.
   DestroyFilters();
-
-  // If our owner has requested to be notified of an error, execute
-  // |error_callback_| unless we have a "good" error.
-  if (error_callback_.get() && error != PIPELINE_STOPPING) {
-    error_callback_->Run();
-  }
 }
 
 void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
