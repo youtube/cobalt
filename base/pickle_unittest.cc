@@ -13,7 +13,7 @@
 namespace {
 
 const int testint = 2093847192;
-const std::string teststr("Hello world"); // note non-aligned string length
+const std::string teststr("Hello world");  // note non-aligned string length
 const std::wstring testwstr(L"Hello, world");
 const char testdata[] = "AAA\0BBB\0";
 const int testdatalen = arraysize(testdata) - 1;
@@ -244,5 +244,18 @@ TEST(PickleTest, EvilLengths) {
   iter = NULL;
   std::wstring wstr;
   EXPECT_FALSE(big_len.ReadWString(&iter, &wstr));
+}
+
+// Check we can write zero bytes of data and 'data' can be NULL.
+TEST(PickleTest, ZeroLength) {
+  Pickle pickle;
+  EXPECT_TRUE(pickle.WriteData(NULL, 0));
+
+  void* iter = NULL;
+  const char* outdata;
+  int outdatalen;
+  EXPECT_TRUE(pickle.ReadData(&iter, &outdata, &outdatalen));
+  EXPECT_EQ(0, outdatalen);
+  // We can't assert that outdata is NULL.
 }
 
