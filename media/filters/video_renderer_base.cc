@@ -21,12 +21,15 @@ namespace media {
 // difficult sections in the movie and decoding slows down.
 static const size_t kMaxFrames = 3;
 
-// Sleeping for negative amounts actually hangs your thread on Windows!
-static const int64 kMinSleepMilliseconds = 0;
-
-// This equates to ~13.33 fps, which is just under the typical 15 fps that
-// lower quality cameras or shooting modes usually use for video encoding.
-static const int64 kMaxSleepMilliseconds = 75;
+// This equates to ~16.67 fps, which is just slow enough to be tolerable when
+// our video renderer is ahead of the audio playback.
+//
+// A higher value will be a slower frame rate, which looks worse but allows the
+// audio renderer to catch up faster.  A lower value will be a smoother frame
+// rate, but results in the video being out of sync for longer.
+//
+// TODO(scherkus): what if the native frame rate is 15 or 10 fps?
+static const int64 kMaxSleepMilliseconds = 60;
 
 VideoRendererBase::VideoRendererBase()
     : width_(0),
@@ -236,21 +239,26 @@ void VideoRendererBase::ThreadMain() {
       }
     }
 
-    // Notify subclass that |current_frame_| has been updated.
-    OnFrameAvailable();
-
     // Calculate our sleep duration.
     base::TimeDelta sleep = CalculateSleepDuration(next_frame, playback_rate);
+    int sleep_ms = static_cast<int>(sleep.InMilliseconds());
+
+    // If we're too far behind to catch up, simply drop the frame.
+    //
+    // This has the effect of potentially dropping a few frames when playback
+    // resumes after being paused.  The alternative (sleeping for 0 milliseconds
+    // and trying to catch up) looks worse.
+    if (sleep_ms < 0)
+      continue;
 
     // To be safe, limit our sleep duration.
-    // TODO(scherkus): handle seeking gracefully.. right now a seek backwards
-    // will hit kMinSleepMilliseconds whereas a seek forward will hit
-    // kMaxSleepMilliseconds.
-    int sleep_ms = static_cast<int>(sleep.InMilliseconds());
-    if (sleep_ms < kMinSleepMilliseconds)
-      sleep_ms = kMinSleepMilliseconds;
-    else if (sleep_ms > kMaxSleepMilliseconds)
+    // TODO(scherkus): handle seeking gracefully.. right now we tend to hit
+    // kMaxSleepMilliseconds a lot when we seek backwards.
+    if (sleep_ms > kMaxSleepMilliseconds)
       sleep_ms = kMaxSleepMilliseconds;
+
+    // Notify subclass that |current_frame_| has been updated.
+    OnFrameAvailable();
 
     PlatformThread::Sleep(sleep_ms);
   }
