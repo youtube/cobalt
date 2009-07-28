@@ -51,7 +51,7 @@ class FtpMockControlSocket : public DynamicMockSocket {
 
   virtual MockWriteResult OnWrite(const std::string& data) {
     if (InjectFault())
-      return MockWriteResult(true, OK);
+      return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_USER:
         return Verify("USER anonymous\r\n", data, PRE_PASSWD,
@@ -59,7 +59,7 @@ class FtpMockControlSocket : public DynamicMockSocket {
       case PRE_PASSWD:
         {
           const char* response_one = "230 Welcome\r\n";
-          const char* response_multi = "230 One\r\n230 Two\r\n230 Three\r\n";
+          const char* response_multi = "230- One\r\n230- Two\r\n230 Three\r\n";
           return Verify("PASS chrome@example.com\r\n", data, PRE_SYST,
                         multiline_welcome_ ? response_multi : response_one);
         }
@@ -128,7 +128,7 @@ class FtpMockControlSocket : public DynamicMockSocket {
     if (expected == data) {
       state_ = next_state;
       SimulateRead(next_read);
-      return MockWriteResult(true, OK);
+      return MockWriteResult(true, data.length());
     }
     return MockWriteResult(true, ERR_UNEXPECTED);
   }
@@ -152,7 +152,7 @@ class FtpMockControlSocketDirectoryListing : public FtpMockControlSocket {
 
   virtual MockWriteResult OnWrite(const std::string& data) {
     if (InjectFault())
-      return MockWriteResult(true, OK);
+      return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /\r\n", data, PRE_MDTM,
@@ -188,7 +188,7 @@ class FtpMockControlSocketFileDownload : public FtpMockControlSocket {
 
   virtual MockWriteResult OnWrite(const std::string& data) {
     if (InjectFault())
-      return MockWriteResult(true, OK);
+      return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_SIZE:
         return Verify("SIZE /file\r\n", data, PRE_MDTM,
@@ -216,7 +216,7 @@ class FtpMockControlSocketFileDownloadRetrFail
 
   virtual MockWriteResult OnWrite(const std::string& data) {
     if (InjectFault())
-      return MockWriteResult(true, OK);
+      return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_PASV2:
         return Verify("PASV\r\n", data, PRE_CWD,

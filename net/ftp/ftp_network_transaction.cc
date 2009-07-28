@@ -34,10 +34,7 @@ FtpNetworkTransaction::FtpNetworkTransaction(
       session_(session),
       request_(NULL),
       resolver_(session->host_resolver()),
-      response_message_buf_(new IOBufferWithSize(kCtrlBufLen)),
-      response_message_buf_len_(0),
-      read_ctrl_buf_(new ReusedIOBuffer(response_message_buf_,
-                                        response_message_buf_->size())),
+      read_ctrl_buf_(new IOBuffer(kCtrlBufLen)),
       read_data_buf_len_(0),
       file_data_len_(0),
       last_error_(OK),
@@ -119,163 +116,80 @@ uint64 FtpNetworkTransaction::GetUploadProgress() const {
   return 0;
 }
 
-int FtpNetworkTransaction::ParseCtrlResponse(int* cut_pos) {
-  enum {
-    CODE,     // Three-digit status code.
-    TEXT,     // The text after code, not including the space after code.
-    ENDLINE,  // We expect a CRLF at end of each line.
-  } scan_state = CODE;
-
-  *cut_pos = 0;  // Index of first unparsed character.
-
-  // Store parsed code and text for current line.
-  int status_code = 0;
-  std::string status_text;
-
-  const char* data = response_message_buf_->data();
-  for (int i = 0; i < response_message_buf_len_; i++) {
-    switch (scan_state) {
-      case CODE:
-        if (data[i] == ' ' || data[i] == '\t') {
-          if (status_code < 100 || status_code > 599)
-            return ERR_INVALID_RESPONSE;
-          scan_state = TEXT;
-          break;
-        }
-        if (data[i] < '0' || data[i] > '9')
-          return ERR_INVALID_RESPONSE;
-        status_code = 10 * status_code + (data[i] - '0');
-        break;
-      case TEXT:
-        if (data[i] == '\r') {
-          scan_state = ENDLINE;
-          break;
-        }
-        status_text.push_back(data[i]);
-        break;
-      case ENDLINE:
-        if (data[i] != '\n')
-          return ERR_INVALID_RESPONSE;
-        ctrl_responses_.push(ResponseLine(status_code, status_text));
-        *cut_pos = i + 1;
-
-        // Prepare to handle the next line.
-        scan_state = CODE;
-        status_code = 0;
-        status_text = "";
-        break;
-      default:
-        NOTREACHED();
-        return ERR_UNEXPECTED;
-    }
-  }
-
-  return OK;
-}
-
 // Used to prepare and send FTP commad.
 int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
                                           Command cmd) {
-  command_sent_ = cmd;
-  DLOG(INFO) << " >> " << command;
-  const char* buf = command.c_str();
-  int buf_len = command.size();
+  DCHECK(!write_command_buf_);
   DCHECK(!write_buf_);
-  write_buf_ = new IOBuffer(buf_len + 2);
-  memcpy(write_buf_->data(), buf, buf_len);
-  memcpy(write_buf_->data() + buf_len, kCRLF, 2);
-  buf_len += 2;
+  DLOG(INFO) << " >> " << command;
 
-  return ctrl_socket_->Write(write_buf_, buf_len, &io_callback_);
+  command_sent_ = cmd;
+  write_buf_written_ = 0;
+  write_command_buf_ = new IOBufferWithSize(command.length() + 2);
+  write_buf_ = new ReusedIOBuffer(write_command_buf_,
+                                  write_command_buf_->size());
+  memcpy(write_command_buf_->data(), command.data(), command.length());
+  memcpy(write_command_buf_->data() + command.length(), kCRLF, 2);
+
+  next_state_ = STATE_CTRL_WRITE_COMMAND;
+  return OK;
 }
 
-int FtpNetworkTransaction::ProcessCtrlResponses() {
+int FtpNetworkTransaction::ProcessCtrlResponse() {
+  FtpCtrlResponse response = ctrl_response_buffer_.PopResponse();
+
+  // We always expect only one response, even if it's multiline.
+  DCHECK(!ctrl_response_buffer_.ResponseAvailable());
+
   int rv = OK;
-  if (command_sent_ == COMMAND_NONE) {
-    while (!ctrl_responses_.empty()) {
-      ResponseLine line = ctrl_responses_.front();
-      ctrl_responses_.pop();
-      if (GetErrorClass(line.code) != ERROR_CLASS_OK)
-        return Stop(ERR_FAILED);
-    }
-    next_state_ = STATE_CTRL_WRITE_USER;
-    return rv;
-  }
-
-  // Eat multiple 230 lines after PASS.
-  if (command_sent_ == COMMAND_PASS) {
-    while (ctrl_responses_.size() > 1) {
-      if (ctrl_responses_.front().code != 230)
-        break;
-      ctrl_responses_.pop();
-    }
-  }
-
-  // Make sure there are no 230's when we want to process SYST response.
-  if (command_sent_ == COMMAND_SYST) {
-    while (!ctrl_responses_.empty()) {
-      if (ctrl_responses_.front().code != 230)
-        break;
-      ctrl_responses_.pop();
-    }
-    if (ctrl_responses_.empty()) {
-      // Read more from control socket.
-      next_state_ = STATE_CTRL_READ;
-      return rv;
-    }
-  }
-
-  if (ctrl_responses_.size() != 1)
-    return Stop(ERR_INVALID_RESPONSE);
-
-  ResponseLine response_line = ctrl_responses_.front();
-  ctrl_responses_.pop();
-
   switch (command_sent_) {
+    case COMMAND_NONE:
+      // TODO(phajdan.jr): Check for errors in the welcome message.
+      next_state_ = STATE_CTRL_WRITE_USER;
+      break;
     case COMMAND_USER:
-      rv = ProcessResponseUSER(response_line);
+      rv = ProcessResponseUSER(response);
       break;
     case COMMAND_PASS:
-      rv = ProcessResponsePASS(response_line);
+      rv = ProcessResponsePASS(response);
       break;
     case COMMAND_ACCT:
-      rv = ProcessResponseACCT(response_line);
+      rv = ProcessResponseACCT(response);
       break;
     case COMMAND_SYST:
-      rv = ProcessResponseSYST(response_line);
+      rv = ProcessResponseSYST(response);
       break;
     case COMMAND_PWD:
-      rv = ProcessResponsePWD(response_line);
+      rv = ProcessResponsePWD(response);
       break;
     case COMMAND_TYPE:
-      rv = ProcessResponseTYPE(response_line);
+      rv = ProcessResponseTYPE(response);
       break;
     case COMMAND_PASV:
-      rv = ProcessResponsePASV(response_line);
+      rv = ProcessResponsePASV(response);
       break;
     case COMMAND_SIZE:
-      rv = ProcessResponseSIZE(response_line);
+      rv = ProcessResponseSIZE(response);
       break;
     case COMMAND_RETR:
-      rv = ProcessResponseRETR(response_line);
+      rv = ProcessResponseRETR(response);
       break;
     case COMMAND_CWD:
-      rv = ProcessResponseCWD(response_line);
+      rv = ProcessResponseCWD(response);
       break;
     case COMMAND_LIST:
-      rv = ProcessResponseLIST(response_line);
+      rv = ProcessResponseLIST(response);
       break;
     case COMMAND_MDTM:
-      rv = ProcessResponseMDTM(response_line);
+      rv = ProcessResponseMDTM(response);
       break;
     case COMMAND_QUIT:
-      rv = ProcessResponseQUIT(response_line);
+      rv = ProcessResponseQUIT(response);
       break;
     default:
       DLOG(INFO) << "Missing Command response handling!";
       return ERR_FAILED;
   }
-  DCHECK(ctrl_responses_.empty());
   return rv;
 }
 
@@ -330,6 +244,13 @@ int FtpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_CTRL_READ_COMPLETE:
         rv = DoCtrlReadComplete(rv);
+        break;
+      case STATE_CTRL_WRITE_COMMAND:
+        DCHECK(rv == OK);
+        rv = DoCtrlWriteCommand();
+        break;
+      case STATE_CTRL_WRITE_COMMAND_COMPLETE:
+        rv = DoCtrlWriteCommandComplete(rv);
         break;
       case STATE_CTRL_WRITE_USER:
         DCHECK(rv == OK);
@@ -461,14 +382,15 @@ int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
 }
 
 int FtpNetworkTransaction::DoCtrlRead() {
-  if (write_buf_)  // Clear the write buffer
-    write_buf_ = NULL;
+  // Clear the write buffer.
+  write_command_buf_ = NULL;
+  write_buf_ = NULL;
 
   next_state_ = STATE_CTRL_READ_COMPLETE;
   read_ctrl_buf_->data()[0] = 0;
   return ctrl_socket_->Read(
       read_ctrl_buf_,
-      response_message_buf_->size() - response_message_buf_len_,
+      kCtrlBufLen,
       &io_callback_);
 }
 
@@ -476,31 +398,41 @@ int FtpNetworkTransaction::DoCtrlReadComplete(int result) {
   if (result < 0)
     return Stop(ERR_FAILED);
 
-  response_message_buf_len_ += result;
+  ctrl_response_buffer_.ConsumeData(read_ctrl_buf_->data(), result);
 
-  int cut_pos;
-  int rv = ParseCtrlResponse(&cut_pos);
-
-  if (rv != OK)
-    return Stop(rv);
-
-  if (cut_pos > 0) {
-    // Parsed at least one response line.
-    DCHECK_GE(response_message_buf_len_, cut_pos);
-    memmove(response_message_buf_->data(),
-            response_message_buf_->data() + cut_pos,
-            response_message_buf_len_ - cut_pos);
-    response_message_buf_len_ -= cut_pos;
-
-    rv = ProcessCtrlResponses();
-  } else {
-    // Incomplete response line. Read more.
+  if (!ctrl_response_buffer_.ResponseAvailable()) {
+    // Read more data from the control socket.
     next_state_ = STATE_CTRL_READ;
+    return OK;
   }
 
-  read_ctrl_buf_->SetOffset(response_message_buf_len_);
+  return ProcessCtrlResponse();
+}
 
-  return rv;
+int FtpNetworkTransaction::DoCtrlWriteCommand() {
+  write_buf_->SetOffset(write_buf_written_);
+  int rv = ctrl_socket_->Write(write_buf_,
+                               write_command_buf_->size() - write_buf_written_,
+                               &io_callback_);
+  if (rv == ERR_IO_PENDING) {
+    next_state_ = STATE_CTRL_WRITE_COMMAND_COMPLETE;
+    return rv;
+  } else {
+    return DoCtrlWriteCommandComplete(rv);
+  }
+}
+
+int FtpNetworkTransaction::DoCtrlWriteCommandComplete(int result) {
+  if (result < 0)
+    return result;
+
+  write_buf_written_ += result;
+  if (write_buf_written_ == write_command_buf_->size()) {
+    next_state_ = STATE_CTRL_READ;
+  } else {
+    next_state_ = STATE_CTRL_WRITE_COMMAND;
+  }
+  return OK;
 }
 
 // FTP Commands and responses
@@ -519,8 +451,9 @@ int FtpNetworkTransaction::DoCtrlWriteUSER() {
   return SendFtpCommand(command, COMMAND_USER);
 }
 
-int FtpNetworkTransaction::ProcessResponseUSER(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponseUSER(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_SYST;
       break;
@@ -528,7 +461,7 @@ int FtpNetworkTransaction::ProcessResponseUSER(const ResponseLine& response) {
       next_state_ = STATE_CTRL_WRITE_PASS;
       break;
     case ERROR_CLASS_ERROR_RETRY:
-      if (response.code == 421)
+      if (response.status_code == 421)
         return Stop(ERR_FAILED);
       break;
     case ERROR_CLASS_ERROR:
@@ -553,8 +486,9 @@ int FtpNetworkTransaction::DoCtrlWritePASS() {
   return SendFtpCommand(command, COMMAND_PASS);
 }
 
-int FtpNetworkTransaction::ProcessResponsePASS(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponsePASS(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_SYST;
       break;
@@ -562,12 +496,12 @@ int FtpNetworkTransaction::ProcessResponsePASS(const ResponseLine& response) {
       next_state_ = STATE_CTRL_WRITE_ACCT;
       break;
     case ERROR_CLASS_ERROR_RETRY:
-      if (response.code == 421) {
+      if (response.status_code == 421) {
         // TODO(ibrar): Retry here.
       }
       return Stop(ERR_FAILED);
     case ERROR_CLASS_ERROR:
-      if (response.code == 503) {
+      if (response.status_code == 503) {
         next_state_ = STATE_CTRL_WRITE_USER;
       } else {
         // TODO(ibrar): Retry here.
@@ -587,8 +521,9 @@ int FtpNetworkTransaction::DoCtrlWriteSYST() {
   return SendFtpCommand(command, COMMAND_SYST);
 }
 
-int FtpNetworkTransaction::ProcessResponseSYST(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponseSYST(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_OK:
@@ -616,8 +551,8 @@ int FtpNetworkTransaction::DoCtrlWritePWD() {
   return SendFtpCommand(command, COMMAND_PWD);
 }
 
-int FtpNetworkTransaction::ProcessResponsePWD(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponsePWD(const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_OK:
@@ -642,8 +577,9 @@ int FtpNetworkTransaction::DoCtrlWriteTYPE() {
   return SendFtpCommand(command, COMMAND_TYPE);
 }
 
-int FtpNetworkTransaction::ProcessResponseTYPE(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponseTYPE(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_OK:
@@ -668,8 +604,9 @@ int FtpNetworkTransaction::DoCtrlWriteACCT() {
   return SendFtpCommand(command, COMMAND_ACCT);
 }
 
-int FtpNetworkTransaction::ProcessResponseACCT(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponseACCT(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_OK:
@@ -697,20 +634,23 @@ int FtpNetworkTransaction::DoCtrlWritePASV() {
 // There are two way we can receive IP address and port.
 // (127,0,0,1,23,21) IP address and port encapsulate in ().
 // 127,0,0,1,23,21  IP address and port without ().
-int FtpNetworkTransaction::ProcessResponsePASV(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponsePASV(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_OK:
       const char* ptr;
       int i0, i1, i2, i3, p0, p1;
-      ptr = response.text.c_str();  // Try with bracket.
+      if (response.lines.size() != 1)
+        return Stop(ERR_INVALID_RESPONSE);
+      ptr = response.lines[0].c_str();  // Try with bracket.
       while (*ptr && *ptr != '(')
         ++ptr;
       if (*ptr) {
         ++ptr;
       } else {
-        ptr = response.text.c_str();  // Try without bracket.
+        ptr = response.lines[0].c_str();  // Try without bracket.
         while (*ptr && *ptr != ',')
           ++ptr;
         while (*ptr && *ptr != ' ')
@@ -748,12 +688,15 @@ int FtpNetworkTransaction::DoCtrlWriteSIZE() {
   return SendFtpCommand(command, COMMAND_SIZE);
 }
 
-int FtpNetworkTransaction::ProcessResponseSIZE(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponseSIZE(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       break;
     case ERROR_CLASS_OK:
-      if (!StringToInt(response.text, &file_data_len_))
+      if (response.lines.size() != 1)
+        return Stop(ERR_INVALID_RESPONSE);
+      if (!StringToInt(response.lines[0], &file_data_len_))
         return Stop(ERR_INVALID_RESPONSE);
       if (file_data_len_ < 0)
         return Stop(ERR_INVALID_RESPONSE);
@@ -784,8 +727,9 @@ int FtpNetworkTransaction::DoCtrlWriteRETR() {
   return SendFtpCommand(command, COMMAND_RETR);
 }
 
-int FtpNetworkTransaction::ProcessResponseRETR(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponseRETR(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       break;
     case ERROR_CLASS_OK:
@@ -795,7 +739,8 @@ int FtpNetworkTransaction::ProcessResponseRETR(const ResponseLine& response) {
       next_state_ = STATE_CTRL_WRITE_PASV;
       break;
     case ERROR_CLASS_ERROR_RETRY:
-      if (response.code == 421 || response.code == 425 || response.code == 426)
+      if (response.status_code == 421 || response.status_code == 425 ||
+          response.status_code == 426)
         return Stop(ERR_FAILED);
       return ERR_FAILED;  // TODO(ibrar): Retry here.
     case ERROR_CLASS_ERROR:
@@ -823,8 +768,9 @@ int FtpNetworkTransaction::DoCtrlWriteMDTM() {
   return SendFtpCommand(command, COMMAND_MDTM);
 }
 
-int FtpNetworkTransaction::ProcessResponseMDTM(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponseMDTM(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_OK:
@@ -857,8 +803,8 @@ int FtpNetworkTransaction::DoCtrlWriteCWD() {
   return SendFtpCommand(command, COMMAND_CWD);
 }
 
-int FtpNetworkTransaction::ProcessResponseCWD(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_OK:
@@ -883,10 +829,10 @@ int FtpNetworkTransaction::DoCtrlWriteLIST() {
   return SendFtpCommand(command, COMMAND_LIST);
 }
 
-int FtpNetworkTransaction::ProcessResponseLIST(const ResponseLine& response) {
-  switch (GetErrorClass(response.code)) {
+int FtpNetworkTransaction::ProcessResponseLIST(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
-      response_message_buf_len_ = 0;  // Clear the response buffer.
       next_state_ = STATE_CTRL_READ;
       break;
     case ERROR_CLASS_OK:
@@ -912,7 +858,8 @@ int FtpNetworkTransaction::DoCtrlWriteQUIT() {
   return SendFtpCommand(command, COMMAND_QUIT);
 }
 
-int FtpNetworkTransaction::ProcessResponseQUIT(const ResponseLine& response) {
+int FtpNetworkTransaction::ProcessResponseQUIT(
+    const FtpCtrlResponse& response) {
   ctrl_socket_->Disconnect();
   return last_error_;
 }
