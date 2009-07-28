@@ -73,6 +73,7 @@ void DecrementCounter(Lock* lock, ConditionVariable* cond_var, int* count) {
 
 PipelineImpl::PipelineImpl(MessageLoop* message_loop)
     : message_loop_(message_loop),
+      clock_(&base::Time::Now),
       state_(kCreated),
       remaining_transitions_(0) {
   ResetState();
@@ -201,7 +202,7 @@ void PipelineImpl::SetVolume(float volume) {
 
 base::TimeDelta PipelineImpl::GetCurrentTime() const {
   AutoLock auto_lock(lock_);
-  return time_;
+  return clock_.Elapsed();
 }
 
 base::TimeDelta PipelineImpl::GetBufferedTime() const {
@@ -243,9 +244,10 @@ void PipelineImpl::SetPipelineErrorCallback(PipelineCallback* error_callback) {
 
 void PipelineImpl::ResetState() {
   AutoLock auto_lock(lock_);
+  const base::TimeDelta kZero;
   running_          = false;
-  duration_         = base::TimeDelta();
-  buffered_time_    = base::TimeDelta();
+  duration_         = kZero;
+  buffered_time_    = kZero;
   buffered_bytes_   = 0;
   total_bytes_      = 0;
   video_width_      = 0;
@@ -253,7 +255,7 @@ void PipelineImpl::ResetState() {
   volume_           = 1.0f;
   playback_rate_    = 0.0f;
   error_            = PIPELINE_OK;
-  time_             = base::TimeDelta();
+  clock_.SetTime(kZero);
   rendered_mime_types_.clear();
 }
 
@@ -307,7 +309,7 @@ base::TimeDelta PipelineImpl::GetTime() const {
 void PipelineImpl::SetTime(base::TimeDelta time) {
   DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
-  time_ = time;
+  clock_.SetTime(time);
 }
 
 void PipelineImpl::SetDuration(base::TimeDelta duration) {
@@ -547,6 +549,7 @@ void PipelineImpl::ErrorChangedTask(PipelineError error) {
 
 void PipelineImpl::PlaybackRateChangedTask(float playback_rate) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
+  clock_.SetPlaybackRate(playback_rate);
   for (FilterVector::iterator iter = filters_.begin();
        iter != filters_.end();
        ++iter) {
@@ -591,6 +594,7 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
   remaining_transitions_ = filters_.size();
 
   // Kick off seeking!
+  clock_.Pause();
   filters_.front()->Pause(
       NewCallback(this, &PipelineImpl::OnFilterStateTransition));
 }
@@ -610,6 +614,12 @@ void PipelineImpl::FilterStateTransitionTask() {
   CHECK(remaining_transitions_ > 0u);
   if (--remaining_transitions_ == 0) {
     state_ = FindNextState(state_);
+    if (state_ == kSeeking) {
+      clock_.SetTime(seek_timestamp_);
+    } else if (state_ == kStarting) {
+      clock_.Play();
+    }
+
     if (StateTransitionsToStarted(state_)) {
       remaining_transitions_ = filters_.size();
     }
@@ -629,9 +639,6 @@ void PipelineImpl::FilterStateTransitionTask() {
       NOTREACHED();
     }
   } else if (state_ == kStarted) {
-    // We've completed the seek, update the time.
-    SetTime(seek_timestamp_);
-
     // Execute the seek callback, if present.  Note that this might be the
     // initial callback passed into Start().
     if (seek_callback_.get()) {

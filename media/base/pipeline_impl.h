@@ -16,6 +16,7 @@
 #include "base/ref_counted.h"
 #include "base/thread.h"
 #include "base/time.h"
+#include "media/base/clock_impl.h"
 #include "media/base/filter_host.h"
 #include "media/base/pipeline.h"
 
@@ -282,8 +283,10 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // the filters.
   float playback_rate_;
 
-  // Current playback time.  Set by filters.
-  base::TimeDelta time_;
+  // Reference clock.  Keeps track of current playback time.  Uses system
+  // clock and linear interpolation, but can have its time manually set
+  // by filters.
+  ClockImpl clock_;
 
   // Status of the pipeline.  Initialized to PIPELINE_OK which indicates that
   // the pipeline is operating correctly. Any other value indicates that the
