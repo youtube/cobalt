@@ -13,7 +13,6 @@
 #include "base/rand_util.h"
 #include "base/string_util.h"
 #include "net/base/cert_status_flags.h"
-#include "net/base/cookie_monster.h"
 #include "net/base/filter.h"
 #include "net/base/force_tls_state.h"
 #include "net/base/load_flags.h"
@@ -529,7 +528,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
         ctx->cookie_policy()->CanSetCookie(
             request_->url(), request_->first_party_for_cookies())) {
       FetchResponseCookies();
-      net::CookieMonster::CookieOptions options;
+      net::CookieOptions options;
       options.set_include_httponly();
       ctx->cookie_store()->SetCookiesWithOptions(request_->url(),
                                                  response_cookies_,
@@ -663,7 +662,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
 
   URLRequestContext* context = request_->context();
   if (context) {
-    if (context->allowSendingCookies(request_))
+    if (context->AllowSendingCookies(request_))
       request_info_.extra_headers += AssembleRequestCookies();
     if (!context->accept_language().empty())
       request_info_.extra_headers += "Accept-Language: " +
@@ -681,7 +680,7 @@ std::string URLRequestHttpJob::AssembleRequestCookies() {
     if (context->cookie_store() &&
         context->cookie_policy()->CanGetCookies(
             request_->url(), request_->first_party_for_cookies())) {
-      net::CookieMonster::CookieOptions options;
+      net::CookieOptions options;
       options.set_include_httponly();
       std::string cookies = request_->context()->cookie_store()->
           GetCookiesWithOptions(request_->url(), options);
@@ -701,7 +700,7 @@ void URLRequestHttpJob::FetchResponseCookies() {
 
   void* iter = NULL;
   while (response_info_->headers->EnumerateHeader(&iter, name, &value))
-    if (request_->context()->interceptCookie(request_, &value))
+    if (request_->context()->InterceptCookie(request_, &value))
       response_cookies_.push_back(value);
 }
 
