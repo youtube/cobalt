@@ -32,6 +32,7 @@ class CallbackHelper {
   MOCK_METHOD0(OnStart, void());
   MOCK_METHOD0(OnSeek, void());
   MOCK_METHOD0(OnStop, void());
+  MOCK_METHOD0(OnError, void());
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CallbackHelper);
@@ -48,6 +49,9 @@ class PipelineImplTest : public ::testing::Test {
   PipelineImplTest()
       : pipeline_(new PipelineImpl(&message_loop_)),
         mocks_(new MockFilterFactory()) {
+    pipeline_->SetPipelineErrorCallback(NewCallback(
+        reinterpret_cast<CallbackHelper*>(&callbacks_),
+        &CallbackHelper::OnError));
   }
 
   virtual ~PipelineImplTest() {
@@ -232,6 +236,7 @@ TEST_F(PipelineImplTest, NeverInitializes) {
 }
 
 TEST_F(PipelineImplTest, RequiredFilterMissing) {
+  EXPECT_CALL(callbacks_, OnError());
   mocks_->set_creation_successful(false);
 
   InitializePipeline();
@@ -245,6 +250,7 @@ TEST_F(PipelineImplTest, URLNotFound) {
       .WillOnce(DoAll(SetError(mocks_->data_source(),
                                PIPELINE_ERROR_URL_NOT_FOUND),
                       Invoke(&RunFilterCallback)));
+  EXPECT_CALL(callbacks_, OnError());
   EXPECT_CALL(*mocks_->data_source(), Stop());
 
   InitializePipeline();
@@ -264,6 +270,7 @@ TEST_F(PipelineImplTest, NoStreams) {
   EXPECT_CALL(*mocks_->demuxer(), GetNumberOfStreams())
       .WillRepeatedly(Return(0));
   EXPECT_CALL(*mocks_->demuxer(), Stop());
+  EXPECT_CALL(callbacks_, OnError());
 
   InitializePipeline();
   EXPECT_FALSE(pipeline_->IsInitialized());
