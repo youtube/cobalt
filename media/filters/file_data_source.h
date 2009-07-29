@@ -31,7 +31,7 @@ class FileDataSource : public DataSource {
   virtual void Read(int64 position, size_t size, uint8* data,
                     ReadCallback* read_callback);
   virtual bool GetSize(int64* size_out);
-  virtual bool IsSeekable();
+  virtual bool IsStreaming();
 
  private:
   // Only allow factories and tests to create this object.

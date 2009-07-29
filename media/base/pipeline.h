@@ -147,6 +147,10 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // or the video has not been rendered yet, the width and height will be 0.
   virtual void GetVideoSize(size_t* width_out, size_t* height_out) const = 0;
 
+  // If this method returns true, that means the data source is a streaming
+  // data source. Seeking may not be possible.
+  virtual bool IsStreaming() const = 0;
+
   // Gets the current error status for the pipeline.  If the pipeline is
   // operating correctly, this will return OK.
   virtual PipelineError GetError() const = 0;

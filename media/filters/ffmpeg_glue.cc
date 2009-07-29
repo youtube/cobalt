@@ -22,7 +22,7 @@ int OpenContext(URLContext* h, const char* filename, int flags) {
 
   h->priv_data = protocol;
   h->flags = URL_RDONLY;
-  h->is_streamed = protocol->IsStreamed();
+  h->is_streamed = protocol->IsStreaming();
   return 0;
 }
 

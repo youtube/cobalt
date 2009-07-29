@@ -237,6 +237,11 @@ void PipelineImpl::GetVideoSize(size_t* width_out, size_t* height_out) const {
   *height_out = video_height_;
 }
 
+bool PipelineImpl::IsStreaming() const {
+  AutoLock auto_lock(lock_);
+  return streaming_;
+}
+
 PipelineError PipelineImpl::GetError() const {
   AutoLock auto_lock(lock_);
   return error_;
@@ -249,6 +254,7 @@ void PipelineImpl::ResetState() {
   duration_         = kZero;
   buffered_time_    = kZero;
   buffered_bytes_   = 0;
+  streaming_        = false;
   total_bytes_      = 0;
   video_width_      = 0;
   video_height_     = 0;
@@ -341,6 +347,12 @@ void PipelineImpl::SetVideoSize(size_t width, size_t height) {
   AutoLock auto_lock(lock_);
   video_width_ = width;
   video_height_ = height;
+}
+
+void PipelineImpl::SetStreaming(bool streaming) {
+  DCHECK(IsRunning());
+  AutoLock auto_lock(lock_);
+  streaming_ = streaming;
 }
 
 void PipelineImpl::InsertRenderedMimeType(const std::string& major_mime_type) {
