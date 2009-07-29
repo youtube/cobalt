@@ -600,9 +600,17 @@ int HttpNetworkTransaction::DoInitConnection() {
 
   // TODO(willchan): Downgrade this back to a DCHECK after closing
   // http://crbug.com/15374.
-  CHECK(!connection_group.empty()) << "URL: " << request_->url.GetOrigin()
-                                   << ", Host: " << host
-                                   << ", Port: " << port;
+  if (connection_group.empty()) {
+    char url_debug[4096];
+    base::strlcpy(url_debug,
+                  request_->url.possibly_invalid_spec().c_str(),
+                  arraysize(url_debug));
+    char url_origin_debug[4096];
+    base::strlcpy(url_origin_debug,
+                  request_->url.GetOrigin().possibly_invalid_spec().c_str(),
+                  arraysize(url_origin_debug));
+    CHECK(false) << "URL: " << url_debug << ", Origin: " << url_origin_debug;
+  }
 
   HostResolver::RequestInfo resolve_info(host, port);
 
