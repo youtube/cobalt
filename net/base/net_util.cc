@@ -29,6 +29,7 @@
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/lock.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
@@ -526,6 +527,45 @@ void SetExemplarSetForLang(const std::string& lang, UnicodeSet* lang_set) {
   map.insert(std::make_pair(lang, lang_set));
 }
 
+static Lock lang_set_lock;
+
+// Returns true if all the characters in component_characters are used by
+// the language |lang|.
+bool IsComponentCoveredByLang(const UnicodeSet& component_characters,
+                              const std::string& lang) {
+  static const UnicodeSet kASCIILetters(0x61, 0x7a);  // [a-z]
+  UnicodeSet* lang_set;
+  // We're called from both the UI thread and the history thread.
+  {
+    AutoLock lock(lang_set_lock);
+    if (!GetExemplarSetForLang(lang, &lang_set)) {
+      UErrorCode status = U_ZERO_ERROR;
+      ULocaleData* uld = ulocdata_open(lang.c_str(), &status);
+      // TODO(jungshik) Turn this check on when the ICU data file is
+      // rebuilt with the minimal subset of locale data for languages
+      // to which Chrome is not localized but which we offer in the list
+      // of languages selectable for Accept-Languages. With the rebuilt ICU
+      // data, ulocdata_open never should fall back to the default locale.
+      // (issue 2078)
+      // DCHECK(U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING);
+      if (U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING) {
+        lang_set = reinterpret_cast<UnicodeSet *>(
+            ulocdata_getExemplarSet(uld, NULL, 0,
+                                    ULOCDATA_ES_STANDARD, &status));
+        // If |lang| is compatible with ASCII Latin letters, add them.
+        if (IsCompatibleWithASCIILetters(lang))
+          lang_set->addAll(kASCIILetters);
+      } else {
+        lang_set = new UnicodeSet(1, 0);
+      }
+      lang_set->freeze();
+      SetExemplarSetForLang(lang, lang_set);
+      ulocdata_close(uld);
+    }
+  }
+  return !lang_set->isEmpty() && lang_set->containsAll(component_characters);
+}
+
 // Returns true if the given Unicode host component is safe to display to the
 // user.
 bool IsIDNComponentSafe(const char16* str,
@@ -594,47 +634,12 @@ bool IsIDNComponentSafe(const char16* str,
   // the remainder.
   component_characters.removeAll(common_characters);
 
-  UnicodeSet ascii_letters(0x61, 0x7a);  // [a-z]
   bool safe = false;
   std::string languages_list(WideToASCII(languages));
   StringTokenizer t(languages_list, ",");
   while (t.GetNext()) {
-    // Locking here may not be that bad, For now, probably
-    // we're called only in the UI thread.
-    // TODO(jungshik): Add locking if we use it in another
-    // thread and DCHECK is triggered.
-    static MessageLoop* loop = MessageLoop::current();
-    DCHECK(loop == MessageLoop::current());
-    std::string lang = t.token();
-    UnicodeSet* lang_set;
-    if (!GetExemplarSetForLang(lang, &lang_set)) {
-      status = U_ZERO_ERROR;
-      ULocaleData* uld = ulocdata_open(lang.c_str(), &status);
-      // TODO(jungshik) Turn this check on when the ICU data file is
-      // rebuilt with the minimal subset of locale data for languages
-      // to which Chrome is not localized but which we offer in the list
-      // of languages selectable for Accept-Languages. With the rebuilt ICU
-      // data, ulocdata_open never should fall back to the default locale.
-      // (issue 2078)
-      // DCHECK(U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING);
-      if (U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING) {
-        lang_set = reinterpret_cast<UnicodeSet *>(
-            ulocdata_getExemplarSet(uld, NULL, 0,
-                                    ULOCDATA_ES_STANDARD, &status));
-        // If |lang| is compatible with ASCII Latin letters, add them.
-        if (IsCompatibleWithASCIILetters(lang))
-          lang_set->addAll(ascii_letters);
-      } else {
-        lang_set = new UnicodeSet(1, 0);
-      }
-      lang_set->freeze();
-      SetExemplarSetForLang(lang, lang_set);
-      ulocdata_close(uld);
-    }
-    if (!lang_set->isEmpty() && lang_set->containsAll(component_characters)) {
-      safe = true;
+    if (safe = IsComponentCoveredByLang(component_characters, t.token()))
       break;
-    }
   }
   return safe;
 }
