@@ -360,7 +360,7 @@
           },
         },
         'conditions': [
-          [ 'target_arch!="arm"', {
+          [ 'target_arch=="ia32"', {
             'asflags': [
               # Needed so that libs with .s files (e.g. libicudata.a)
               # are compatible with the general 32-bit-ness.
