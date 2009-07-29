@@ -81,6 +81,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual int64 GetBufferedBytes() const;
   virtual int64 GetTotalBytes() const;
   virtual void GetVideoSize(size_t* width_out, size_t* height_out) const;
+  virtual bool IsStreaming() const;
   virtual PipelineError GetError() const;
 
  private:
@@ -129,6 +130,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetTotalBytes(int64 total_bytes);
   virtual void SetBufferedBytes(int64 buffered_bytes);
   virtual void SetVideoSize(size_t width, size_t height);
+  virtual void SetStreaming(bool streamed);
 
   // Method called during initialization to insert a mime type into the
   // |rendered_mime_types_| set.
@@ -266,6 +268,10 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Video width and height.  Set by filters.
   size_t video_width_;
   size_t video_height_;
+
+  // Sets by the filters to indicate whether the data source is a streaming
+  // source.
+  bool streaming_;
 
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
   // via SetVolume() and a task is dispatched on the message loop to notify the

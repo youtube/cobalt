@@ -101,9 +101,8 @@ bool FileDataSource::GetSize(int64* size_out) {
   return (NULL != file_);
 }
 
-bool FileDataSource::IsSeekable() {
-  // A file data source is always seekable.
-  return true;
+bool FileDataSource::IsStreaming() {
+  return false;
 }
 
 }  // namespace media

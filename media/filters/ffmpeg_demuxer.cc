@@ -345,8 +345,10 @@ bool FFmpegDemuxer::GetSize(int64* size_out) {
   return data_source_->GetSize(size_out);
 }
 
-bool FFmpegDemuxer::IsStreamed() {
-  return false;
+bool FFmpegDemuxer::IsStreaming() {
+  DCHECK(data_source_);
+
+  return data_source_->IsStreaming();
 }
 
 void FFmpegDemuxer::InitializeTask(DataSource* data_source,

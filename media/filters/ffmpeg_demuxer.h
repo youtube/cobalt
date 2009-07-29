@@ -136,7 +136,7 @@ class FFmpegDemuxer : public Demuxer,
   virtual bool GetPosition(int64* position_out);
   virtual bool SetPosition(int64 position);
   virtual bool GetSize(int64* size_out);
-  virtual bool IsStreamed();
+  virtual bool IsStreaming();
 
  private:
   // Only allow a factory to create this class.
