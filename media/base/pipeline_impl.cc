@@ -202,7 +202,11 @@ void PipelineImpl::SetVolume(float volume) {
 
 base::TimeDelta PipelineImpl::GetCurrentTime() const {
   AutoLock auto_lock(lock_);
-  return clock_.Elapsed();
+  base::TimeDelta elapsed = clock_.Elapsed();
+  if (elapsed > duration_) {
+    return duration_;
+  }
+  return elapsed;
 }
 
 base::TimeDelta PipelineImpl::GetBufferedTime() const {
