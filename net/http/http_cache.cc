@@ -1588,6 +1588,7 @@ HttpCache::ActiveEntry* HttpCache::ActivateEntry(
 
 #if defined(OS_WIN)
 #pragma optimize("", off)
+#pragma warning(disable:4748)
 #endif
 // Avoid optimizing local_entry out of the code.
 void HttpCache::DeactivateEntry(ActiveEntry* entry) {
@@ -1597,16 +1598,20 @@ void HttpCache::DeactivateEntry(ActiveEntry* entry) {
   size_t readers_size = local_entry.readers.size();
   size_t pending_size = local_entry.pending_queue.size();
 
-  ActiveEntriesMap::iterator it =
-      active_entries_.find(entry->disk_entry->GetKey());
+  std::string key = entry->disk_entry->GetKey();
+  ActiveEntriesMap::iterator it = active_entries_.find(key);
   if (it == active_entries_.end() || it->second != entry ||
       local_entry.will_process_pending_queue || local_entry.doomed ||
       local_entry.writer || readers_size || pending_size || deleted_) {
     bool local_mem_flag = in_memory_cache_;
     ActiveEntriesSet::iterator it2 = doomed_entries_.find(entry);
+    char local_key[64];
+    int key_length = key.size();
+    base::strlcpy(local_key, key.c_str(), sizeof(local_key));
     CHECK(it2 == doomed_entries_.end());
     CHECK(!deleted_);
     CHECK(local_mem_flag);
+    CHECK(key_length);
     CHECK(false);
   }
 
@@ -1617,6 +1622,7 @@ void HttpCache::DeactivateEntry(ActiveEntry* entry) {
   local_entry.disk_entry = NULL;
 }
 #if defined(OS_WIN)
+#pragma warning(default:4748)
 #pragma optimize("", on)
 #endif
 
@@ -1676,6 +1682,9 @@ void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans) {
     // DeactivateEntry.
     char local_transaction[sizeof(*trans)];
     memcpy(local_transaction, trans, sizeof(*trans));
+
+    char local_key[64];
+    base::strlcpy(local_key, trans->key().c_str(), sizeof(local_key));
 
     // Assume that this is not a successful write.
     DoneWritingToEntry(entry, false);
