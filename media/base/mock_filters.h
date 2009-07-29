@@ -336,6 +336,12 @@ ACTION_P2(SetError, filter, error) {
   filter->host()->SetError(error);
 }
 
+// Helper gmock action that calls SetDuration() on behalf of the provided
+// filter.
+ACTION_P2(SetDuration, filter, duration) {
+  filter->host()->SetDuration(duration);
+}
+
 }  // namespace media
 
 #endif  // MEDIA_BASE_MOCK_FILTERS_H_
