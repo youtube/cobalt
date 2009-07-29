@@ -133,3 +133,89 @@ def RunCommand(command, verbose=True):
   """
   return RunCommandFull(command, verbose)[0]
 
+def RunCommandsInParallel(commands, verbose=True, collect_output=False,
+                          print_output=True):
+  """Runs a list of commands in parallel, waits for all commands to terminate
+  and returns their status. If specified, the ouput of commands can be
+  returned and/or printed.
+
+  Args:
+    commands: the list of commands to run, each as a list of one or more
+              strings.
+    verbose: if True, combines stdout and stderr into stdout.
+             Otherwise, prints only the command's stderr to stdout.
+    collect_output: if True, collects the output of the each command as a list
+                    of lines and returns it.
+    print_output: if True, prints the output of each command.
+
+  Returns:
+    A list of tuples consisting of each command's exit status and output.  If
+    collect_output is False, the output will be [].
+
+  Raises:
+    CommandNotFound if any of the command executables could not be found.
+  """
+
+  command_num = len(commands)
+  outputs = [[] for i in xrange(command_num)]
+  procs = [None for i in xrange(command_num)]
+  eofs = [False for i in xrange(command_num)]
+
+  for command in commands:
+    print '\n' + subprocess.list2cmdline(command).replace('\\', '/') + '\n',
+
+  if verbose:
+    out = subprocess.PIPE
+    err = subprocess.STDOUT
+  else:
+    out = file(os.devnull, 'w')
+    err = subprocess.PIPE
+
+  for i in xrange(command_num):
+    try:
+      command = commands[i]
+      procs[i] = subprocess.Popen(command, stdout=out, stderr=err, bufsize=1)
+    except OSError, e:
+      if e.errno == errno.ENOENT:
+        raise CommandNotFound('Unable to find "%s"' % command[0])
+      raise
+      # We could consider terminating the processes already started.
+      # But Popen.kill() is only available in version 2.6.
+      # For now the clean up is done by KillAll.
+
+  while True:
+    eof_all = True
+    for i in xrange(command_num):
+      if eofs[i]:
+        continue
+      if verbose:
+        read_from = procs[i].stdout
+      else:
+        read_from = procs[i].stderr
+      line = read_from.readline()
+      if line:
+        eof_all = False
+        line = line.rstrip()
+        outputs[i].append(line)
+        if print_output:
+          # Windows Python converts \n to \r\n automatically whenever it
+          # encounters it written to a text file (including stdout).  The only
+          # way around it is to write to a binary file, which isn't feasible
+          # for stdout. So we end up with \r\n here even though we explicitly
+          # write \n.  (We could write \r instead, which doesn't get converted
+          # to \r\n, but that's probably more troublesome for people trying to
+          # read the files.)
+          print line + '\n',
+      else:
+        eofs[i] = True
+    if eof_all:
+      break
+
+  # Make sure the process terminates.
+  for i in xrange(command_num):
+    procs[i].wait()
+
+  if not verbose:
+    out.close()
+
+  return [(procs[i].returncode, outputs[i]) for i in xrange(command_num)]
