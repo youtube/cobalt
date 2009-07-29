@@ -776,12 +776,14 @@ TEST_F(FFmpegDemuxerTest, ProtocolGetSize) {
   EXPECT_EQ(1024, size);
 }
 
-TEST_F(FFmpegDemuxerTest, ProtocolIsStreamed) {
+TEST_F(FFmpegDemuxerTest, ProtocolIsStreaming) {
   {
     SCOPED_TRACE("");
     InitializeDemuxer();
   }
-  EXPECT_FALSE(demuxer_->IsStreamed());
+  EXPECT_CALL(*data_source_, IsStreaming())
+      .WillOnce(Return(false));
+  EXPECT_FALSE(demuxer_->IsStreaming());
 }
 
 }  // namespace media

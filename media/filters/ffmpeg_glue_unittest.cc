@@ -26,7 +26,7 @@ class MockProtocol : public FFmpegURLProtocol {
   MOCK_METHOD1(GetPosition, bool(int64* position_out));
   MOCK_METHOD1(SetPosition, bool(int64 position));
   MOCK_METHOD1(GetSize, bool(int64* size_out));
-  MOCK_METHOD0(IsStreamed, bool());
+  MOCK_METHOD0(IsStreaming, bool());
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockProtocol);
@@ -45,8 +45,8 @@ class FFmpegGlueTest : public ::testing::Test {
   // Helper to open a URLContext pointing to the given mocked protocol.
   // Callers are expected to close the context at the end of their test.
   virtual void OpenContext(MockProtocol* protocol, URLContext* context) {
-    // IsStreamed() is called when opening.
-    EXPECT_CALL(*protocol, IsStreamed()).WillOnce(Return(true));
+    // IsStreaming() is called when opening.
+    EXPECT_CALL(*protocol, IsStreaming()).WillOnce(Return(true));
 
     // Add the protocol to the glue layer and open a context.
     std::string key = FFmpegGlue::get()->AddProtocol(protocol);
@@ -144,7 +144,7 @@ TEST_F(FFmpegGlueTest, OpenClose) {
   // Create our protocol and add them to the glue layer.
   scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol(
       new StrictMock<Destroyable<MockProtocol> >());
-  EXPECT_CALL(*protocol, IsStreamed()).WillOnce(Return(true));
+  EXPECT_CALL(*protocol, IsStreaming()).WillOnce(Return(true));
   std::string key = glue->AddProtocol(protocol.get());
 
   // Prepare FFmpeg URLContext structure.

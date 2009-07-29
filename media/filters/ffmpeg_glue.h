@@ -62,7 +62,7 @@ class FFmpegURLProtocol {
   virtual bool GetSize(int64* size_out) = 0;
 
   // Returns false if this protocol supports random seeking.
-  virtual bool IsStreamed() = 0;
+  virtual bool IsStreaming() = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FFmpegURLProtocol);

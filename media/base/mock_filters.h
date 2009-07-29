@@ -102,7 +102,7 @@ class MockDataSource : public DataSource {
   MOCK_METHOD4(Read, void(int64 position, size_t size, uint8* data,
                           DataSource::ReadCallback* callback));
   MOCK_METHOD1(GetSize, bool(int64* size_out));
-  MOCK_METHOD0(IsSeekable, bool());
+  MOCK_METHOD0(IsStreaming, bool());
 
  protected:
   virtual ~MockDataSource() {}
