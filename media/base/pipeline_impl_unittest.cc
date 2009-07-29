@@ -75,10 +75,12 @@ class PipelineImplTest : public ::testing::Test {
 
   // Sets up expectations to allow the demuxer to initialize.
   typedef std::vector<MockDemuxerStream*> MockDemuxerStreamVector;
-  void InitializeDemuxer(MockDemuxerStreamVector* streams) {
+  void InitializeDemuxer(MockDemuxerStreamVector* streams,
+                         const base::TimeDelta& duration) {
     EXPECT_CALL(*mocks_->demuxer(),
                 Initialize(mocks_->data_source(), NotNull()))
-        .WillOnce(Invoke(&RunFilterCallback));
+        .WillOnce(DoAll(SetDuration(mocks_->data_source(), duration),
+                        Invoke(&RunFilterCallback)));
     EXPECT_CALL(*mocks_->demuxer(), GetNumberOfStreams())
         .WillRepeatedly(Return(streams->size()));
     EXPECT_CALL(*mocks_->demuxer(), SetPlaybackRate(0.0f));
@@ -277,7 +279,7 @@ TEST_F(PipelineImplTest, AudioStream) {
   streams.push_back(stream);
 
   InitializeDataSource();
-  InitializeDemuxer(&streams);
+  InitializeDemuxer(&streams, base::TimeDelta());
   InitializeAudioDecoder(stream);
   InitializeAudioRenderer();
 
@@ -295,7 +297,7 @@ TEST_F(PipelineImplTest, VideoStream) {
   streams.push_back(stream);
 
   InitializeDataSource();
-  InitializeDemuxer(&streams);
+  InitializeDemuxer(&streams, base::TimeDelta());
   InitializeVideoDecoder(stream);
   InitializeVideoRenderer();
 
@@ -316,7 +318,7 @@ TEST_F(PipelineImplTest, AudioVideoStream) {
   streams.push_back(video_stream);
 
   InitializeDataSource();
-  InitializeDemuxer(&streams);
+  InitializeDemuxer(&streams, base::TimeDelta());
   InitializeAudioDecoder(audio_stream);
   InitializeAudioRenderer();
   InitializeVideoDecoder(video_stream);
@@ -339,7 +341,7 @@ TEST_F(PipelineImplTest, Seek) {
   streams.push_back(video_stream);
 
   InitializeDataSource();
-  InitializeDemuxer(&streams);
+  InitializeDemuxer(&streams, base::TimeDelta::FromSeconds(3000));
   InitializeAudioDecoder(audio_stream);
   InitializeAudioRenderer();
   InitializeVideoDecoder(video_stream);
@@ -382,7 +384,7 @@ TEST_F(PipelineImplTest, SetVolume) {
   streams.push_back(audio_stream);
 
   InitializeDataSource();
-  InitializeDemuxer(&streams);
+  InitializeDemuxer(&streams, base::TimeDelta());
   InitializeAudioDecoder(audio_stream);
   InitializeAudioRenderer();
 
