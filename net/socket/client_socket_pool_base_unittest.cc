@@ -974,6 +974,41 @@ TEST_F(ClientSocketPoolBaseTest, ReleaseSockets) {
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
 }
 
+// Regression test for http://crbug.com/17985.
+TEST_F(ClientSocketPoolBaseTest, GroupWithPendingRequestsIsNotEmpty) {
+  const int kMaxSockets = 3;
+  const int kMaxSocketsPerGroup = 2;
+  CreatePool(kMaxSockets, kMaxSocketsPerGroup);
+
+  const int kHighPriority = kDefaultPriority + 100;
+
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+
+  // This is going to be a pending request in an otherwise empty group.
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
+
+  // Reach the maximum socket limit.
+  EXPECT_EQ(OK, StartRequest("b", kDefaultPriority));
+
+  // Create a stalled group with high priorities.
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kHighPriority));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kHighPriority));
+  EXPECT_TRUE(pool_->base()->may_have_stalled_group());
+
+  // Release the first two sockets from "a", which will make room
+  // for requests from "c". After that "a" will have no active sockets
+  // and one pending request.
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
+
+  // Closing idle sockets should not get us into trouble, but in the bug
+  // we were hitting a CHECK here.
+  EXPECT_EQ(2, pool_->IdleSocketCountInGroup("a"));
+  pool_->CloseIdleSockets();
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+}
+
 class ClientSocketPoolBaseTest_LateBinding : public ClientSocketPoolBaseTest {
  protected:
   virtual void SetUp() {
@@ -1374,6 +1409,42 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, DISABLED_LoadState) {
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_WAITING_FOR_CACHE, req1.handle()->GetLoadState());
   EXPECT_EQ(LOAD_STATE_WAITING_FOR_CACHE, req2.handle()->GetLoadState());
+}
+
+// Regression test for http://crbug.com/17985.
+TEST_F(ClientSocketPoolBaseTest_LateBinding,
+       GroupWithPendingRequestsIsNotEmpty) {
+  const int kMaxSockets = 3;
+  const int kMaxSocketsPerGroup = 2;
+  CreatePool(kMaxSockets, kMaxSocketsPerGroup);
+
+  const int kHighPriority = kDefaultPriority + 100;
+
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+
+  // This is going to be a pending request in an otherwise empty group.
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
+
+  // Reach the maximum socket limit.
+  EXPECT_EQ(OK, StartRequest("b", kDefaultPriority));
+
+  // Create a stalled group with high priorities.
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kHighPriority));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kHighPriority));
+  EXPECT_TRUE(pool_->base()->may_have_stalled_group());
+
+  // Release the first two sockets from "a", which will make room
+  // for requests from "c". After that "a" will have no active sockets
+  // and one pending request.
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
+
+  // Closing idle sockets should not get us into trouble, but in the bug
+  // we were hitting a CHECK here.
+  EXPECT_EQ(2, pool_->IdleSocketCountInGroup("a"));
+  pool_->CloseIdleSockets();
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
 }
 
 }  // namespace
