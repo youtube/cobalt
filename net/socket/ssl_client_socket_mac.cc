@@ -736,10 +736,21 @@ OSStatus SSLClientSocketMac::SSLWriteCallback(SSLConnectionRef connection,
     return status;
   }
 
+  bool send_pending = !us->send_buffer_.empty();
+
   if (data)
     us->send_buffer_.insert(us->send_buffer_.end(),
                             static_cast<const char*>(data),
                             static_cast<const char*>(data) + *data_length);
+
+  if (send_pending) {
+    // If we have I/O in flight, just add the data to the end of the buffer and
+    // return to our caller. The existing callback will trigger the write of the
+    // new data when it sees that data remains in the buffer after removing the
+    // sent data. As always, lie to our caller.
+    return noErr;
+  }
+
   int rv;
   do {
     scoped_refptr<IOBuffer> buffer = new IOBuffer(us->send_buffer_.size());
