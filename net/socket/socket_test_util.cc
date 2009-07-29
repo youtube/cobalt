@@ -337,8 +337,8 @@ int ClientSocketPoolTest::StartRequestUsingPool(ClientSocketPool* socket_pool,
                                                      &request_order_,
                                                      &completion_count_);
   requests_.push_back(request);
-  int rv = request->handle.Init(group_name, ignored_request_info_, priority,
-                                request);
+  int rv = request->handle()->Init(group_name, ignored_request_info_, priority,
+                                   request);
   if (rv != ERR_IO_PENDING)
     request_order_.push_back(request);
   return rv;
@@ -346,7 +346,7 @@ int ClientSocketPoolTest::StartRequestUsingPool(ClientSocketPool* socket_pool,
 
 int ClientSocketPoolTest::GetOrderOfRequest(size_t index) {
   index--;
-  if (index >= requests_.size())
+  if (index < 0 || index >= requests_.size())
     return kIndexOutOfBounds;
 
   for (size_t i = 0; i < request_order_.size(); i++)
@@ -359,10 +359,10 @@ int ClientSocketPoolTest::GetOrderOfRequest(size_t index) {
 bool ClientSocketPoolTest::ReleaseOneConnection(KeepAlive keep_alive) {
   ScopedVector<TestSocketRequest>::iterator i;
   for (i = requests_.begin(); i != requests_.end(); ++i) {
-    if ((*i)->handle.is_initialized()) {
+    if ((*i)->handle()->is_initialized()) {
       if (keep_alive == NO_KEEP_ALIVE)
-        (*i)->handle.socket()->Disconnect();
-      (*i)->handle.Reset();
+        (*i)->handle()->socket()->Disconnect();
+      (*i)->handle()->Reset();
       MessageLoop::current()->RunAllPending();
       return true;
     }

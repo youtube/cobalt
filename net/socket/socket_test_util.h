@@ -300,19 +300,20 @@ class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
       ClientSocketPool* pool,
       std::vector<TestSocketRequest*>* request_order,
       size_t* completion_count)
-      : handle(pool),
+      : handle_(pool),
         request_order_(request_order),
         completion_count_(completion_count) {
     DCHECK(request_order);
     DCHECK(completion_count);
   }
 
-  ClientSocketHandle handle;
+  ClientSocketHandle* handle() { return &handle_; }
 
   int WaitForResult();
   virtual void RunWithParams(const Tuple1<int>& params);
 
  private:
+  ClientSocketHandle handle_;
   std::vector<TestSocketRequest*>* request_order_;
   size_t* completion_count_;
   TestCompletionCallback callback_;
