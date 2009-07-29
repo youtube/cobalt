@@ -242,6 +242,11 @@
         'cflags': [
            '<(werror)',  # See note above about the werror variable.
            '-pthread',
+           '-fno-exceptions',
+           '-Wall',
+        ],
+        'cflags_cc': [
+          '-fno-threadsafe-statics',
         ],
         'ldflags': [
           '-pthread',
@@ -355,15 +360,7 @@
           },
         },
         'conditions': [
-          [ 'target_arch=="arm"', {
-            'cflags': [
-              '-fno-exceptions',
-              '-Wall',
-            ],
-            'cflags_cc': [
-              '-fno-threadsafe-statics',
-            ],
-          }, { # else: target_arch != "arm"
+          [ 'target_arch!="arm"', {
             'asflags': [
               # Needed so that libs with .s files (e.g. libicudata.a)
               # are compatible with the general 32-bit-ness.
@@ -405,11 +402,6 @@
             ],
             'cflags': [
               '-m32',
-              '-fno-exceptions',
-              '-Wall',
-            ],
-            'cflags_cc': [
-              '-fno-threadsafe-statics',
             ],
             'ldflags': [
               '-m32',
