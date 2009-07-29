@@ -434,6 +434,7 @@
               '../build/util/build_util.gyp:lastchange',
               '../build/linux/system.gyp:gtk',
               '../build/linux/system.gyp:nss',
+              '../third_party/tcmalloc/tcmalloc.gyp:tcmalloc',
             ],
             'cflags': [
               '-Wno-write-strings',
