@@ -154,7 +154,7 @@ struct RankingsNode {
   CacheAddr   prev;             // LRU list.
   CacheAddr   contents;         // Address of the EntryStore.
   int32       dirty;            // The entry is being modifyied.
-  void*       pointer;          // Pointer to the in-memory entry.
+  int32       dummy;            // Old files may have a pointer here.
 };
 #pragma pack(pop)
 

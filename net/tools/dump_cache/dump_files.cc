@@ -243,7 +243,7 @@ void DumpRankings(const disk_cache::RankingsNode& rankings) {
   printf("prev: 0x%x\n", rankings.prev);
   printf("entry: 0x%x\n", rankings.contents);
   printf("dirty: %d\n", rankings.dirty);
-  printf("pointer: 0x%x\n", rankings.pointer);
+  printf("pointer: 0x%x\n", rankings.dummy);
   printf("----------\n\n");
 }
 
