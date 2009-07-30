@@ -10,6 +10,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
+#include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job_metrics.h"
 #include "net/url_request/url_request_job_tracker.h"
@@ -68,6 +69,22 @@ void URLRequestJob::SetupFilter() {
   if (GetContentEncodings(&encoding_types)) {
     filter_.reset(Filter::Factory(encoding_types, *this));
   }
+}
+
+bool URLRequestJob::IsRedirectResponse(GURL* location,
+                                       int* http_status_code) {
+  // For non-HTTP jobs, headers will be null.
+  net::HttpResponseHeaders* headers = request_->response_headers();
+  if (!headers)
+    return false;
+
+  std::string value;
+  if (!headers->IsRedirect(&value))
+    return false;
+
+  *location = request_->url().Resolve(value);
+  *http_status_code = headers->response_code();
+  return true;
 }
 
 void URLRequestJob::GetAuthChallengeInfo(

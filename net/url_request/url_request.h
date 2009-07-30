@@ -521,7 +521,11 @@ class URLRequest {
   friend class URLRequestJob;
 
   void StartJob(URLRequestJob* job);
+
+  // Restarting involves replacing the current job with a new one such as what
+  // happens when following a HTTP redirect.
   void RestartWithJob(URLRequestJob *job);
+  void PrepareToRestart();
 
   // Detaches the job from this request in preparation for this object going
   // away or the job being replaced. The job will not call us back when it has

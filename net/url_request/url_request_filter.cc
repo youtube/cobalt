@@ -105,6 +105,7 @@ void URLRequestFilter::ClearHandlers() {
 
   url_handler_map_.clear();
   hostname_handler_map_.clear();
+  hit_count_ = 0;
 }
 
 URLRequestJob* URLRequestFilter::FindRequestHandler(URLRequest* request,
@@ -126,6 +127,10 @@ URLRequestJob* URLRequestFilter::FindRequestHandler(URLRequest* request,
       if (i != url_handler_map_.end())
         job = i->second(request, scheme);
     }
+  }
+  if (job) {
+    DLOG(INFO) << "URLRequestFilter hit for " << request->url().spec();
+    hit_count_++;
   }
   return job;
 }
