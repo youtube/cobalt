@@ -333,6 +333,7 @@
           'Release': {
             'variables': {
               'release_optimize%': '2',
+              'release_extra_cflags%': '',
             },
             'cflags': [
               '-O<(release_optimize)',
@@ -343,6 +344,7 @@
               # can be removed at link time with --gc-sections.
               '-fdata-sections',
               '-ffunction-sections',
+              '<(release_extra_cflags)',
             ],
           },
         },
