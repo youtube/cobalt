@@ -1342,8 +1342,7 @@ TEST_F(URLRequestTest, Post302RedirectGet) {
   EXPECT_TRUE(ContainsString(data, "Accept-Charset:"));
 }
 
-// TODO(darin): Re-enable this test once bug 16832 is fixed.
-TEST_F(URLRequestTest, DISABLED_Post307RedirectPost) {
+TEST_F(URLRequestTest, Post307RedirectPost) {
   const char kData[] = "hello world";
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);

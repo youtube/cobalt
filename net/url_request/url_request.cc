@@ -438,9 +438,9 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     // prompt and so shall we.
     strip_post_specific_headers = method_ == "POST";
     method_ = "GET";
+    upload_ = NULL;
   }
   url_ = location;
-  upload_ = NULL;
   --redirect_limit_;
 
   if (strip_post_specific_headers) {
