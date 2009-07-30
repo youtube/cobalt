@@ -105,9 +105,10 @@ class BackendImpl : public Backend {
   // |address| is the cache address of the entry.
   void CacheEntryDestroyed(Addr address);
 
-  // Returns true if the data stored by the provided |rankings| points to an
-  // open entry, false otherwise.
-  bool IsOpen(CacheRankingsBlock* rankings) const;
+  // If the data stored by the provided |rankings| points to an open entry,
+  // returns a pointer to that entry, otherwise returns NULL. Note that this
+  // method does NOT increase the ref counter for the entry.
+  EntryImpl* GetOpenEntry(CacheRankingsBlock* rankings) const;
 
   // Returns the id being used on this run of the cache.
   int32 GetCurrentEntryId() const;
