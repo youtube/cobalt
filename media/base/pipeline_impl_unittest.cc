@@ -20,6 +20,16 @@ using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::StrictMock;
 
+namespace {
+
+// Total bytes of the data source.
+const int kTotalBytes = 1024;
+
+// Buffered bytes of the data source.
+const int kBufferedBytes = 1024;
+
+}  // namespace
+
 namespace media {
 
 // Used for setting expectations on pipeline callbacks.  Using a StrictMock
@@ -70,7 +80,9 @@ class PipelineImplTest : public ::testing::Test {
   // Sets up expectations to allow the data source to initialize.
   void InitializeDataSource() {
     EXPECT_CALL(*mocks_->data_source(), Initialize("", NotNull()))
-        .WillOnce(Invoke(&RunFilterCallback));
+        .WillOnce(DoAll(SetTotalBytes(mocks_->data_source(), kTotalBytes),
+                        SetBufferedBytes(mocks_->data_source(), kBufferedBytes),
+                        Invoke(&RunFilterCallback)));
     EXPECT_CALL(*mocks_->data_source(), SetPlaybackRate(0.0f));
     EXPECT_CALL(*mocks_->data_source(), Seek(base::TimeDelta(), NotNull()))
         .WillOnce(Invoke(&RunFilterCallback));
@@ -402,6 +414,29 @@ TEST_F(PipelineImplTest, SetVolume) {
   // Initialize then set volume!
   InitializePipeline();
   pipeline_->SetVolume(expected);
+}
+
+TEST_F(PipelineImplTest, Properties) { 
+  scoped_refptr<StrictMock<MockDemuxerStream> > stream =
+      new StrictMock<MockDemuxerStream>("video/x-foo");
+  MockDemuxerStreamVector streams;
+  streams.push_back(stream);
+
+  InitializeDataSource();
+  base::TimeDelta kDuration = base::TimeDelta::FromSeconds(100);
+  InitializeDemuxer(&streams, kDuration);
+  InitializeVideoDecoder(stream);
+  InitializeVideoRenderer();
+
+  InitializePipeline();
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
+  EXPECT_EQ(kDuration.ToInternalValue(),
+            pipeline_->GetDuration().ToInternalValue());
+  EXPECT_EQ(kTotalBytes, pipeline_->GetTotalBytes());
+  EXPECT_EQ(kBufferedBytes, pipeline_->GetBufferedBytes());
+  EXPECT_EQ(kDuration.ToInternalValue(),
+            pipeline_->GetBufferedTime().ToInternalValue());
 }
 
 }  // namespace media
