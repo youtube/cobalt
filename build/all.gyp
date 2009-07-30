@@ -56,6 +56,13 @@
             '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
             '../courgette/courgette.gyp:*',
           ],
+          'conditions': [
+            ['branding=="Chrome"', {
+              'dependencies': [
+                '../chrome/installer/installer.gyp:linux_packages',
+              ],
+            }],
+          ],
         }],
         ['OS=="win"', {
           'dependencies': [
