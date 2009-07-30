@@ -147,8 +147,13 @@ class Rankings {
   void WriteHead(List list);
   void WriteTail(List list);
 
-  // Gets the rankings information for a given rankings node.
+  // Gets the rankings information for a given rankings node. We may end up
+  // sharing the actual memory with a loaded entry, but we are not taking a
+  // reference to that entry, so |rankings| must be short lived.
   bool GetRanking(CacheRankingsBlock* rankings);
+
+  // Makes |rankings| suitable to live a long life.
+  void ConvertToLongLived(CacheRankingsBlock* rankings);
 
   // Finishes a list modification after a crash.
   void CompleteTransaction();

@@ -50,6 +50,7 @@ class DiskCacheBackendTest : public DiskCacheTestWithCache {
   void BackendTrimInvalidEntry();
   void BackendTrimInvalidEntry2();
   void BackendEnumerations();
+  void BackendEnumerations2();
   void BackendInvalidEntryEnumeration();
   void BackendFixEnumerators();
   void BackendDoomRecent();
@@ -655,6 +656,50 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyEnumerations) {
   SetMemoryOnlyMode();
   BackendEnumerations();
 }
+
+// Verifies enumerations while entries are open.
+void DiskCacheBackendTest::BackendEnumerations2() {
+  InitCache();
+  const std::string first("first");
+  const std::string second("second");
+  disk_cache::Entry *entry1, *entry2;
+  ASSERT_TRUE(cache_->CreateEntry(first, &entry1));
+  entry1->Close();
+  ASSERT_TRUE(cache_->CreateEntry(second, &entry2));
+  entry2->Close();
+
+  // Make sure that the timestamp is not the same.
+  PlatformThread::Sleep(20);
+  ASSERT_TRUE(cache_->OpenEntry(second, &entry1));
+  void* iter = NULL;
+  ASSERT_TRUE(cache_->OpenNextEntry(&iter, &entry2));
+  ASSERT_EQ(entry2->GetKey(), second);
+
+  // Two entries and the iterator pointing at "first".
+  entry1->Close();
+  entry2->Close();
+
+  // The iterator should still be valid, se we should not crash.
+  ASSERT_TRUE(cache_->OpenNextEntry(&iter, &entry2));
+  ASSERT_EQ(entry2->GetKey(), first);
+  entry2->Close();
+  cache_->EndEnumeration(&iter);
+}
+
+TEST_F(DiskCacheBackendTest, Enumerations2) {
+  BackendEnumerations2();
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionEnumerations2) {
+  SetNewEviction();
+  BackendEnumerations2();
+}
+
+TEST_F(DiskCacheBackendTest, MemoryOnlyEnumerations2) {
+  SetMemoryOnlyMode();
+  BackendEnumerations2();
+}
+
 
 // Verify handling of invalid entries while doing enumerations.
 // We'll be leaking memory from this test.
