@@ -29,6 +29,7 @@
 #include "net/base/net_util.h"
 #include "net/base/upload_data.h"
 #include "net/disk_cache/disk_cache.h"
+#include "net/ftp/ftp_network_layer.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
 #include "net/http/http_response_headers.h"
@@ -43,11 +44,12 @@ using base::Time;
 
 namespace {
 
-class URLRequestHttpCacheContext : public URLRequestContext {
+class URLRequestTestContext : public URLRequestContext {
  public:
-  URLRequestHttpCacheContext() {
+  URLRequestTestContext() {
     host_resolver_ = net::CreateSystemHostResolver();
     proxy_service_ = net::ProxyService::CreateNull();
+    ftp_transaction_factory_ = new net::FtpNetworkLayer(host_resolver_);
     http_transaction_factory_ =
         new net::HttpCache(
           net::HttpNetworkLayer::CreateFactory(host_resolver_, proxy_service_),
@@ -56,8 +58,9 @@ class URLRequestHttpCacheContext : public URLRequestContext {
     cookie_store_ = new net::CookieMonster();
   }
 
-  virtual ~URLRequestHttpCacheContext() {
+  virtual ~URLRequestTestContext() {
     delete cookie_store_;
+    delete ftp_transaction_factory_;
     delete http_transaction_factory_;
     delete proxy_service_;
   }
@@ -67,7 +70,7 @@ class TestURLRequest : public URLRequest {
  public:
   TestURLRequest(const GURL& url, Delegate* delegate)
       : URLRequest(url, delegate) {
-    set_context(new URLRequestHttpCacheContext());
+    set_context(new URLRequestTestContext());
   }
 };
 
@@ -454,7 +457,7 @@ TEST_F(URLRequestTest, CancelTest5) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestContext> context = new URLRequestHttpCacheContext();
+  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
 
   // populate cache
   {
@@ -507,8 +510,7 @@ TEST_F(URLRequestTest, PostTest) {
   }
   uploadBytes[kMsgSize] = '\0';
 
-  scoped_refptr<URLRequestContext> context =
-      new URLRequestHttpCacheContext();
+  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
 
   for (int i = 0; i < kIterations; ++i) {
     TestDelegate d;
@@ -1141,7 +1143,7 @@ TEST_F(URLRequestTest, VaryHeader) {
       HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
   ASSERT_TRUE(NULL != server.get());
 
-  scoped_refptr<URLRequestContext> context = new URLRequestHttpCacheContext();
+  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
 
   Time response_time;
 
@@ -1187,7 +1189,7 @@ TEST_F(URLRequestTest, VaryHeader) {
 }
 
 TEST_F(URLRequestTest, BasicAuth) {
-  scoped_refptr<URLRequestContext> context = new URLRequestHttpCacheContext();
+  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
@@ -1251,7 +1253,7 @@ TEST_F(URLRequestTest, BasicAuthWithCookies) {
   // Request a page that will give a 401 containing a Set-Cookie header.
   // Verify that when the transaction is restarted, it includes the new cookie.
   {
-    scoped_refptr<URLRequestContext> context = new URLRequestHttpCacheContext();
+    scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
     TestDelegate d;
     d.set_username(L"user");
     d.set_password(L"secret");
@@ -1272,7 +1274,7 @@ TEST_F(URLRequestTest, BasicAuthWithCookies) {
   // Same test as above, except this time the restart is initiated earlier
   // (without user intervention since identity is embedded in the URL).
   {
-    scoped_refptr<URLRequestContext> context = new URLRequestHttpCacheContext();
+    scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
     TestDelegate d;
 
     GURL::Replacements replacements;
@@ -1807,20 +1809,7 @@ TEST_F(URLRequestTest, InterceptRespectsCancelInRestart) {
   EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
 }
 
-// FTP tests appear to be hanging some of the time
-#if 1  // !defined(OS_WIN)
-  #define MAYBE_FTPGetTestAnonymous   DISABLED_FTPGetTestAnonymous
-  #define MAYBE_FTPGetTest            DISABLED_FTPGetTest
-  #define MAYBE_FTPCheckWrongUser     DISABLED_FTPCheckWrongUser
-  #define MAYBE_FTPCheckWrongPassword DISABLED_FTPCheckWrongPassword
-#else
-  #define MAYBE_FTPGetTestAnonymous   FTPGetTestAnonymous
-  #define MAYBE_FTPGetTest            FTPGetTest
-  #define MAYBE_FTPCheckWrongUser     FTPCheckWrongUser
-  #define MAYBE_FTPCheckWrongPassword FTPCheckWrongPassword
-#endif
-
-TEST_F(URLRequestTest, MAYBE_FTPGetTestAnonymous) {
+TEST_F(URLRequestTest, FTPGetTestAnonymous) {
   scoped_refptr<FTPTestServer> server = FTPTestServer::CreateServer(L"");
   ASSERT_TRUE(NULL != server.get());
   FilePath app_path;
@@ -1837,14 +1826,14 @@ TEST_F(URLRequestTest, MAYBE_FTPGetTestAnonymous) {
     int64 file_size = 0;
     file_util::GetFileSize(app_path, &file_size);
 
-    EXPECT_TRUE(!r.is_pending());
+    EXPECT_FALSE(r.is_pending());
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), static_cast<int>(file_size));
   }
 }
 
-TEST_F(URLRequestTest, MAYBE_FTPGetTest) {
+TEST_F(URLRequestTest, FTPGetTest) {
   scoped_refptr<FTPTestServer> server =
       FTPTestServer::CreateServer(L"", "chrome", "chrome");
   ASSERT_TRUE(NULL != server.get());
@@ -1862,14 +1851,15 @@ TEST_F(URLRequestTest, MAYBE_FTPGetTest) {
     int64 file_size = 0;
     file_util::GetFileSize(app_path, &file_size);
 
-    EXPECT_TRUE(!r.is_pending());
+    EXPECT_FALSE(r.is_pending());
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), static_cast<int>(file_size));
   }
 }
 
-TEST_F(URLRequestTest, MAYBE_FTPCheckWrongPassword) {
+// Needs more work, tracked in http://crbug.com/18036.
+TEST_F(URLRequestTest, DISABLED_FTPCheckWrongPassword) {
   scoped_refptr<FTPTestServer> server =
       FTPTestServer::CreateServer(L"", "chrome", "wrong_password");
   ASSERT_TRUE(NULL != server.get());
@@ -1887,14 +1877,15 @@ TEST_F(URLRequestTest, MAYBE_FTPCheckWrongPassword) {
     int64 file_size = 0;
     file_util::GetFileSize(app_path, &file_size);
 
-    EXPECT_TRUE(!r.is_pending());
+    EXPECT_FALSE(r.is_pending());
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), 0);
   }
 }
 
-TEST_F(URLRequestTest, MAYBE_FTPCheckWrongUser) {
+// Needs more work, tracked in http://crbug.com/18036.
+TEST_F(URLRequestTest, DISABLED_FTPCheckWrongUser) {
   scoped_refptr<FTPTestServer> server =
       FTPTestServer::CreateServer(L"", "wrong_user", "chrome");
   ASSERT_TRUE(NULL != server.get());
@@ -1912,7 +1903,7 @@ TEST_F(URLRequestTest, MAYBE_FTPCheckWrongUser) {
     int64 file_size = 0;
     file_util::GetFileSize(app_path, &file_size);
 
-    EXPECT_TRUE(!r.is_pending());
+    EXPECT_FALSE(r.is_pending());
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), 0);
