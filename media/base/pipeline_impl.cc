@@ -211,7 +211,22 @@ base::TimeDelta PipelineImpl::GetCurrentTime() const {
 
 base::TimeDelta PipelineImpl::GetBufferedTime() const {
   AutoLock auto_lock(lock_);
-  return buffered_time_;
+
+  // If buffered time was set, we report that value directly.
+  if (buffered_time_.ToInternalValue() > 0)
+    return buffered_time_;
+
+  // If buffered time was not set, we use duration and buffered bytes to
+  // estimate the buffered time.
+  // TODO(hclam): The estimation is based on linear interpolation which is
+  // not accurate enough. We should find a better way to estimate the value.
+  if (total_bytes_ == 0)
+    return base::TimeDelta();
+
+  double ratio = static_cast<double>(buffered_bytes_);
+  ratio /= total_bytes_;
+  return base::TimeDelta::FromMilliseconds(
+      static_cast<int64>(duration_.InMilliseconds() * ratio));
 }
 
 base::TimeDelta PipelineImpl::GetDuration() const {

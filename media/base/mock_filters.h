@@ -342,6 +342,18 @@ ACTION_P2(SetDuration, filter, duration) {
   filter->host()->SetDuration(duration);
 }
 
+// Helper gmock action that calls SetTotalBytes() on behalf of the provided
+// filter.
+ACTION_P2(SetTotalBytes, filter, bytes) {
+  filter->host()->SetTotalBytes(bytes);
+}
+
+// Helper gmock action that calls SetBufferedBytes() on behalf of the provided
+// filter.
+ACTION_P2(SetBufferedBytes, filter, bytes) {
+  filter->host()->SetBufferedBytes(bytes);
+}
+
 }  // namespace media
 
 #endif  // MEDIA_BASE_MOCK_FILTERS_H_
