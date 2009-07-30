@@ -54,11 +54,14 @@ class URLRequestFilter {
   void RemoveUrlHandler(const GURL& url);
 
   // Clear all the existing URL handlers and unregister with the
-  // ProtocolFactory.
+  // ProtocolFactory.  Resets the hit count.
   void ClearHandlers();
 
+  // Returns the number of times a handler was used to service a request.
+  int hit_count() const { return hit_count_; }
+
  protected:
-  URLRequestFilter() { }
+  URLRequestFilter() : hit_count_(0) { }
 
   // Helper method that looks up the request in the url_handler_map_.
   URLRequestJob* FindRequestHandler(URLRequest* request,
@@ -69,6 +72,8 @@ class URLRequestFilter {
 
   // Maps URLs to factories.
   UrlHandlerMap url_handler_map_;
+
+  int hit_count_;
 
  private:
   // Singleton instance.

@@ -239,20 +239,6 @@ bool URLRequestHttpJob::IsSdchResponse() const {
   return sdch_dictionary_advertised_;
 }
 
-bool URLRequestHttpJob::IsRedirectResponse(GURL* location,
-                                           int* http_status_code) {
-  if (!response_info_)
-    return false;
-
-  std::string value;
-  if (!response_info_->headers->IsRedirect(&value))
-    return false;
-
-  *location = request_->url().Resolve(value);
-  *http_status_code = response_info_->headers->response_code();
-  return true;
-}
-
 bool URLRequestHttpJob::IsSafeRedirect(const GURL& location) {
   // We only allow redirects to certain "safe" protocols.  This does not
   // restrict redirects to externally handled protocols.  Our consumer would

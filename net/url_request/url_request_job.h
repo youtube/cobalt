@@ -148,10 +148,9 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   // The caller is responsible for following the redirect by setting up an
   // appropriate replacement Job. Note that the redirected location may be
   // invalid, the caller should be sure it can handle this.
-  virtual bool IsRedirectResponse(GURL* location,
-                                  int* http_status_code) {
-    return false;
-  }
+  //
+  // The default implementation inspects the response_info_.
+  virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
 
   // Called to determine if it is okay to redirect this job to the specified
   // location.  This may be used to implement protocol-specific restrictions.
