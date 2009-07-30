@@ -638,7 +638,7 @@ bool IsIDNComponentSafe(const char16* str,
   std::string languages_list(WideToASCII(languages));
   StringTokenizer t(languages_list, ",");
   while (t.GetNext()) {
-    if (safe = IsComponentCoveredByLang(component_characters, t.token()))
+    if ((safe = IsComponentCoveredByLang(component_characters, t.token())))
       break;
   }
   return safe;
