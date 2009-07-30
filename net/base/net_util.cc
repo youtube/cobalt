@@ -634,14 +634,13 @@ bool IsIDNComponentSafe(const char16* str,
   // the remainder.
   component_characters.removeAll(common_characters);
 
-  bool safe = false;
   std::string languages_list(WideToASCII(languages));
   StringTokenizer t(languages_list, ",");
   while (t.GetNext()) {
-    if ((safe = IsComponentCoveredByLang(component_characters, t.token())))
-      break;
+    if (IsComponentCoveredByLang(component_characters, t.token()))
+      return true;
   }
-  return safe;
+  return false;
 }
 
 // Converts one component of a host (between dots) to IDN if safe. The result
