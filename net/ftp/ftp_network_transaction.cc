@@ -913,8 +913,6 @@ int FtpNetworkTransaction::DoDataRead() {
 }
 
 int FtpNetworkTransaction::DoDataReadComplete(int result) {
-  DLOG(INFO) << read_data_buf_->data();  // The read_data_buf_ is NULL
-                                         // terminated string.
   return result;
 }
 
