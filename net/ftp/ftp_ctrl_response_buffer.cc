@@ -8,6 +8,19 @@
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 
+namespace {
+
+// TODO(phajdan.jr): Remove when http://crbug.com/18036 is diagnosed.
+void LogResponse(const net::FtpCtrlResponse& response) {
+  DLOG(INFO) << "received response with code " << response.status_code;
+  for (std::vector<std::string>::const_iterator i = response.lines.begin();
+       i != response.lines.end(); ++i) {
+    DLOG(INFO) << "line [" << *i << "]";
+  }
+}
+
+}  // namespace
+
 namespace net {
 
 // static
@@ -31,6 +44,7 @@ int FtpCtrlResponseBuffer::ConsumeData(const char* data, int data_length) {
       } else {
         response_buf_.status_code = line.status_code;
         response_buf_.lines.push_back(line.status_text);
+        LogResponse(response_buf_);
         responses_.push(response_buf_);
 
         // Prepare to handle following lines.
@@ -50,6 +64,7 @@ int FtpCtrlResponseBuffer::ConsumeData(const char* data, int data_length) {
 
       if (!line.is_multiline) {
         response_buf_.lines.push_back(line_buf_);
+        LogResponse(response_buf_);
         responses_.push(response_buf_);
 
         // Prepare to handle following lines.

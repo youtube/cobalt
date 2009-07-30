@@ -138,6 +138,9 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
 int FtpNetworkTransaction::ProcessCtrlResponse() {
   FtpCtrlResponse response = ctrl_response_buffer_.PopResponse();
 
+  // TODO(phajdan.jr): Remove when http://crbug.com/18036 is diagnosed.
+  DLOG(INFO) << "Consumed one control response.";
+
   // We always expect only one response, even if it's multiline.
   DCHECK(!ctrl_response_buffer_.ResponseAvailable());
 
