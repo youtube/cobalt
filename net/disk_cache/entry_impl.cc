@@ -110,12 +110,6 @@ EntryImpl::~EntryImpl() {
             entry_.Data()->data_size[index]);
       }
     }
-    if (node_.HasData() && this == node_.Data()->pointer) {
-      // We have to do this after Flush because we may trigger a cache trim from
-      // there, and technically this entry should be "in use".
-      node_.Data()->pointer = NULL;
-      node_.set_modified();
-    }
 
     if (!ret) {
       // There was a failure writing the actual data. Mark the entry as dirty.
@@ -398,7 +392,6 @@ bool EntryImpl::CreateEntry(Addr node_address, const std::string& key,
 
   entry_store->rankings_node = node_address.value();
   node->contents = entry_.address().value();
-  node->pointer = this;
 
   entry_store->hash = hash;
   entry_store->creation_time = Time::Now().ToInternalValue();
@@ -515,12 +508,8 @@ bool EntryImpl::Update() {
   DCHECK(node_.HasData());
 
   RankingsNode* rankings = node_.Data();
-  if (rankings->pointer) {
-    // Nothing to do here, the entry was in memory.
-    DCHECK(rankings->pointer == this);
-  } else {
+  if (!rankings->dirty) {
     rankings->dirty = backend_->GetCurrentEntryId();
-    rankings->pointer = this;
     if (!node_.Store())
       return false;
   }
@@ -531,7 +520,7 @@ bool EntryImpl::IsDirty(int32 current_id) {
   DCHECK(node_.HasData());
   // We are checking if the entry is valid or not. If there is a pointer here,
   // we should not be checking the entry.
-  if (node_.Data()->pointer)
+  if (node_.Data()->dummy)
     return true;
 
   return node_.Data()->dirty && current_id != node_.Data()->dirty;
@@ -543,7 +532,7 @@ void EntryImpl::ClearDirtyFlag() {
 
 void EntryImpl::SetPointerForInvalidEntry(int32 new_id) {
   node_.Data()->dirty = new_id;
-  node_.Data()->pointer = this;
+  node_.Data()->dummy = 0;
   node_.Store();
 }
 
@@ -892,10 +881,8 @@ void EntryImpl::ReportIOTime(Operation op, const base::Time& start) {
 }
 
 void EntryImpl::Log(const char* msg) {
-  void* pointer = NULL;
   int dirty = 0;
   if (node_.HasData()) {
-    pointer = node_.Data()->pointer;
     dirty = node_.Data()->dirty;
   }
 
@@ -905,7 +892,7 @@ void EntryImpl::Log(const char* msg) {
   Trace("  data: 0x%x 0x%x 0x%x", entry_.Data()->data_addr[0],
         entry_.Data()->data_addr[1], entry_.Data()->long_key);
 
-  Trace("  doomed: %d 0x%p 0x%x", doomed_, pointer, dirty);
+  Trace("  doomed: %d 0x%x", doomed_, dirty);
 }
 
 }  // namespace disk_cache

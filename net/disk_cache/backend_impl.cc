@@ -762,16 +762,16 @@ void BackendImpl::CacheEntryDestroyed(Addr address) {
   DecreaseNumRefs();
 }
 
-bool BackendImpl::IsOpen(CacheRankingsBlock* rankings) const {
+EntryImpl* BackendImpl::GetOpenEntry(CacheRankingsBlock* rankings) const {
   DCHECK(rankings->HasData());
   EntriesMap::const_iterator it =
       open_entries_.find(rankings->Data()->contents);
   if (it != open_entries_.end()) {
     // We have this entry in memory.
-    return rankings->Data()->pointer == it->second;
+    return it->second;
   }
 
-  return false;
+  return NULL;
 }
 
 int32 BackendImpl::GetCurrentEntryId() const {
@@ -1641,7 +1641,7 @@ int BackendImpl::CheckAllEntries() {
 
 bool BackendImpl::CheckEntry(EntryImpl* cache_entry) {
   RankingsNode* rankings = cache_entry->rankings()->Data();
-  return !rankings->pointer;
+  return !rankings->dummy;
 }
 
 }  // namespace disk_cache

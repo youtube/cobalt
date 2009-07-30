@@ -204,10 +204,10 @@ void Rankings::Reset() {
 }
 
 bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
-  Time start = Time::Now();
   if (!rankings->address().is_initialized())
     return false;
 
+  Time start = Time::Now();
   if (!rankings->Load())
     return false;
 
@@ -216,31 +216,43 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
     return false;
   }
 
-  if (!rankings->Data()->pointer) {
-    backend_->OnEvent(Stats::GET_RANKINGS);
-    return true;
-  }
-
   backend_->OnEvent(Stats::OPEN_RANKINGS);
 
-  if (backend_->GetCurrentEntryId() != rankings->Data()->dirty ||
-      !backend_->IsOpen(rankings)) {
+  // "dummy" is the old "pointer" value, so it has to be 0.
+  if (!rankings->Data()->dirty && !rankings->Data()->dummy)
+    return true;
+
+  EntryImpl* entry = backend_->GetOpenEntry(rankings);
+  if (backend_->GetCurrentEntryId() != rankings->Data()->dirty || !entry) {
     // We cannot trust this entry, but we cannot initiate a cleanup from this
     // point (we may be in the middle of a cleanup already). Just get rid of
     // the invalid pointer and continue; the entry will be deleted when detected
     // from a regular open/create path.
-    rankings->Data()->pointer = NULL;
+    rankings->Data()->dummy = 0;
     rankings->Data()->dirty = backend_->GetCurrentEntryId() - 1;
     if (!rankings->Data()->dirty)
       rankings->Data()->dirty--;
     return true;
   }
 
-  EntryImpl* cache_entry =
-      reinterpret_cast<EntryImpl*>(rankings->Data()->pointer);
-  rankings->SetData(cache_entry->rankings()->Data());
+  // Note that we should not leave this module without deleting rankings first.
+  rankings->SetData(entry->rankings()->Data());
+
   CACHE_UMA(AGE_MS, "GetRankings", 0, start);
   return true;
+}
+
+void Rankings::ConvertToLongLived(CacheRankingsBlock* rankings) {
+  if (rankings->own_data())
+    return;
+
+  // We cannot return a shared node because we are not keeping a reference
+  // to the entry that owns the buffer. Make this node a copy of the one that
+  // we have, and let the iterator logic update it when the entry changes.
+  CacheRankingsBlock temp(NULL, Addr(0));
+  *temp.Data() = *rankings->Data();
+  rankings->StopSharingData();
+  *rankings->Data() = *temp.Data();
 }
 
 void Rankings::Insert(CacheRankingsBlock* node, bool modified, List list) {
@@ -414,7 +426,7 @@ void Rankings::CompleteTransaction() {
   if (!node.Load())
     return;
 
-  node.Data()->pointer = NULL;
+  node.Data()->dummy = 0;
   node.Store();
 
   Addr& my_head = heads_[control_data_->operation_list];
@@ -518,6 +530,8 @@ CacheRankingsBlock* Rankings::GetNext(CacheRankingsBlock* node, List list) {
       return NULL;
     next.reset(new CacheRankingsBlock(backend_->File(my_head), my_head));
   } else {
+    if (!node->HasData())
+      node->Load();
     Addr& my_tail = tails_[list];
     if (!my_tail.is_initialized())
       return NULL;
@@ -534,6 +548,7 @@ CacheRankingsBlock* Rankings::GetNext(CacheRankingsBlock* node, List list) {
   if (!GetRanking(next.get()))
     return NULL;
 
+  ConvertToLongLived(next.get());
   if (node && !CheckSingleLink(node, next.get()))
     return NULL;
 
@@ -548,6 +563,8 @@ CacheRankingsBlock* Rankings::GetPrev(CacheRankingsBlock* node, List list) {
       return NULL;
     prev.reset(new CacheRankingsBlock(backend_->File(my_tail), my_tail));
   } else {
+    if (!node->HasData())
+      node->Load();
     Addr& my_head = heads_[list];
     if (!my_head.is_initialized())
       return NULL;
@@ -564,6 +581,7 @@ CacheRankingsBlock* Rankings::GetPrev(CacheRankingsBlock* node, List list) {
   if (!GetRanking(prev.get()))
     return NULL;
 
+  ConvertToLongLived(prev.get());
   if (node && !CheckSingleLink(prev.get(), node))
     return NULL;
 
@@ -642,7 +660,7 @@ void Rankings::WriteTail(List list) {
 }
 
 bool Rankings::CheckEntry(CacheRankingsBlock* rankings) {
-  if (!rankings->Data()->pointer)
+  if (!rankings->Data()->dummy)
     return true;
 
   // If this entry is not dirty, it is a serious problem.
@@ -749,8 +767,7 @@ void Rankings::UpdateIterators(CacheRankingsBlock* node) {
        ++it) {
     if (it->first == address && it->second->HasData()) {
       CacheRankingsBlock* other = it->second;
-      other->Data()->next = node->Data()->next;
-      other->Data()->prev = node->Data()->prev;
+      *other->Data() = *node->Data();
     }
   }
 }

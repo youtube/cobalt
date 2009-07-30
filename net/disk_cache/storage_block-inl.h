@@ -72,8 +72,14 @@ template<typename T> void  StorageBlock<T>::Discard() {
   DeleteData();
   data_ = NULL;
   modified_ = false;
-  own_data_ = false;
   extended_ = false;
+}
+
+template<typename T> void  StorageBlock<T>::StopSharingData() {
+  if (!data_ || own_data_)
+    return;
+  DCHECK(!modified_);
+  data_ = NULL;
 }
 
 template<typename T> void StorageBlock<T>::set_modified() {
@@ -89,6 +95,10 @@ template<typename T> T* StorageBlock<T>::Data() {
 
 template<typename T> bool StorageBlock<T>::HasData() const {
   return (NULL != data_);
+}
+
+template<typename T> bool StorageBlock<T>::own_data() const {
+  return own_data_;
 }
 
 template<typename T> const Addr StorageBlock<T>::address() const {

@@ -50,6 +50,9 @@ class StorageBlock : public FileBlock {
   // own the memory buffer (it cannot be shared).
   void Discard();
 
+  // Stops sharing the data with another object.
+  void StopSharingData();
+
   // Sets the object to lazily save the in-memory data on destruction.
   void set_modified();
 
@@ -58,6 +61,9 @@ class StorageBlock : public FileBlock {
 
   // Returns true if there is data associated with this object.
   bool HasData() const;
+
+  // Returns true if this object owns the data buffer, false if it is shared.
+  bool own_data() const;
 
   const Addr address() const;
 
