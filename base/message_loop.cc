@@ -188,9 +188,10 @@ void MessageLoop::RunInternal() {
 
   StartHistogrammer();
 
-#if defined(OS_WIN)
-  if (state_->dispatcher) {
-    pump_win()->RunWithDispatcher(this, state_->dispatcher);
+#if defined(OS_WIN) || defined(OS_LINUX)
+  if (state_->dispatcher && type() == TYPE_UI) {
+    static_cast<base::MessagePumpForUI*>(pump_.get())->
+        RunWithDispatcher(this, state_->dispatcher);
     return;
   }
 #endif
@@ -480,7 +481,7 @@ MessageLoop::AutoRunState::AutoRunState(MessageLoop* loop) : loop_(loop) {
 
   // Initialize the other fields:
   quit_received = false;
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(OS_LINUX)
   dispatcher = NULL;
 #endif
 }
@@ -570,26 +571,7 @@ const LinearHistogram::DescriptionPair MessageLoop::event_descriptions_[] = {
 //------------------------------------------------------------------------------
 // MessageLoopForUI
 
-#if defined(OS_LINUX) || defined(OS_WIN)
-
-void MessageLoopForUI::AddObserver(Observer* observer) {
-  pump_ui()->AddObserver(observer);
-}
-
-void MessageLoopForUI::RemoveObserver(Observer* observer) {
-  pump_ui()->RemoveObserver(observer);
-}
-
-#endif
-
 #if defined(OS_WIN)
-
-void MessageLoopForUI::Run(Dispatcher* dispatcher) {
-  AutoRunState save_state(this);
-  state_->dispatcher = dispatcher;
-  RunHandler();
-}
-
 void MessageLoopForUI::WillProcessMessage(const MSG& message) {
   pump_win()->WillProcessMessage(message);
 }
@@ -601,6 +583,22 @@ void MessageLoopForUI::PumpOutPendingPaintMessages() {
 }
 
 #endif  // defined(OS_WIN)
+
+#if defined(OS_LINUX) || defined(OS_WIN)
+void MessageLoopForUI::AddObserver(Observer* observer) {
+  pump_ui()->AddObserver(observer);
+}
+
+void MessageLoopForUI::RemoveObserver(Observer* observer) {
+  pump_ui()->RemoveObserver(observer);
+}
+
+void MessageLoopForUI::Run(Dispatcher* dispatcher) {
+  AutoRunState save_state(this);
+  state_->dispatcher = dispatcher;
+  RunHandler();
+}
+#endif  // defined(OS_LINUX) || defined(OS_WIN)
 
 //------------------------------------------------------------------------------
 // MessageLoopForIO
