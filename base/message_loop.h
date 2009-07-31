@@ -234,6 +234,14 @@ class MessageLoop : public base::MessagePump::Delegate {
   // Returns true if we are currently running a nested message loop.
   bool IsNested();
 
+#if defined(OS_WIN)
+  typedef base::MessagePumpWin::Dispatcher Dispatcher;
+  typedef base::MessagePumpWin::Observer Observer;
+#elif defined(OS_LINUX)
+  typedef base::MessagePumpForUI::Dispatcher Dispatcher;
+  typedef base::MessagePumpForUI::Observer Observer;
+#endif
+
   //----------------------------------------------------------------------------
  protected:
   struct RunState {
@@ -244,8 +252,8 @@ class MessageLoop : public base::MessagePump::Delegate {
     // once it becomes idle.
     bool quit_received;
 
-#if defined(OS_WIN)
-    base::MessagePumpWin::Dispatcher* dispatcher;
+#if defined(OS_WIN) || defined(OS_LINUX)
+    Dispatcher* dispatcher;
 #endif
   };
 
@@ -416,34 +424,25 @@ class MessageLoopForUI : public MessageLoop {
     return static_cast<MessageLoopForUI*>(loop);
   }
 
-#if defined(OS_LINUX)
-  typedef base::MessagePumpForUI::Observer Observer;
-
-  // See message_pump_glib for definitions of these methods.
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
-#endif
-
 #if defined(OS_WIN)
-  typedef base::MessagePumpWin::Dispatcher Dispatcher;
-  typedef base::MessagePumpWin::Observer Observer;
-
-  // Please see MessagePumpWin for definitions of these methods.
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
-  void Run(Dispatcher* dispatcher);
   void WillProcessMessage(const MSG& message);
   void DidProcessMessage(const MSG& message);
   void PumpOutPendingPaintMessages();
 #endif
 
 #if defined(OS_WIN) || defined(OS_LINUX)
+  // Please see message_pump_win/message_pump_glib for definitions of these
+  // methods.
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
+  void Run(Dispatcher* dispatcher);
+
  protected:
   // TODO(rvargas): Make this platform independent.
   base::MessagePumpForUI* pump_ui() {
     return static_cast<base::MessagePumpForUI*>(pump_.get());
   }
-#endif  // defined(OS_WIN)
+#endif  // defined(OS_WIN) || defined(OS_LINUX)
 };
 
 // Do not add any member variables to MessageLoopForUI!  This is important b/c

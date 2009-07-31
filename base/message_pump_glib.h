@@ -31,10 +31,29 @@ class MessagePumpForUI : public MessagePump {
     virtual void DidProcessEvent(GdkEvent* event) = 0;
   };
 
-  MessagePumpForUI();
-  ~MessagePumpForUI();
+  // Dispatcher is used during a nested invocation of Run to dispatch events.
+  // If Run is invoked with a non-NULL Dispatcher, MessageLoop does not
+  // dispatch events (or invoke gtk_main_do_event), rather every event is
+  // passed to Dispatcher's Dispatch method for dispatch. It is up to the
+  // Dispatcher to dispatch, or not, the event.
+  //
+  // The nested loop is exited by either posting a quit, or returning false
+  // from Dispatch.
+  class Dispatcher {
+   public:
+    virtual ~Dispatcher() {}
+    // Dispatches the event. If true is returned processing continues as
+    // normal. If false is returned, the nested loop exits immediately.
+    virtual bool Dispatch(GdkEvent* event) = 0;
+  };
 
-  virtual void Run(Delegate* delegate);
+  MessagePumpForUI();
+  virtual ~MessagePumpForUI();
+
+  // Like MessagePump::Run, but GdkEvent objects are routed through dispatcher.
+  virtual void RunWithDispatcher(Delegate* delegate, Dispatcher* dispatcher);
+
+  virtual void Run(Delegate* delegate) { RunWithDispatcher(delegate, NULL); }
   virtual void Quit();
   virtual void ScheduleWork();
   virtual void ScheduleDelayedWork(const Time& delayed_work_time);
@@ -49,10 +68,10 @@ class MessagePumpForUI : public MessagePump {
   bool HandleCheck();
   void HandleDispatch();
 
-  // Add an Observer, which will start receiving notifications immediately.
+  // Adds an Observer, which will start receiving notifications immediately.
   void AddObserver(Observer* observer);
 
-  // Remove an Observer.  It is safe to call this method while an Observer is
+  // Removes an Observer.  It is safe to call this method while an Observer is
   // receiving a notification callback.
   void RemoveObserver(Observer* observer);
 
@@ -61,6 +80,7 @@ class MessagePumpForUI : public MessagePump {
   // separate between them in this structure type.
   struct RunState {
     Delegate* delegate;
+    Dispatcher* dispatcher;
 
     // Used to flag that the current Run() invocation should return ASAP.
     bool should_quit;
