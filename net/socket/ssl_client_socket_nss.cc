@@ -70,6 +70,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_info.h"
+#include "net/ocsp/nss_ocsp.h"
 
 static const int kRecvBufferSize = 4096;
 
@@ -214,8 +215,12 @@ SSLClientSocketNSS::~SSLClientSocketNSS() {
 
 int SSLClientSocketNSS::Init() {
   EnterFunction("");
-  // Call NSS_NoDB_Init() in a threadsafe way.
+  // Initialize NSS in a threadsafe way.
   base::EnsureNSSInit();
+  // We must call EnsureOCSPInit() here, on the IO thread, to get the IO loop
+  // by MessageLoopForIO::current().
+  // X509Certificate::Verify() runs on a worker thread of CertVerifier.
+  EnsureOCSPInit();
 
   LeaveFunction("");
   return OK;
