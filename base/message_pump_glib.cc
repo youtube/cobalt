@@ -153,7 +153,8 @@ MessagePumpForUI::~MessagePumpForUI() {
   close(wakeup_pipe_write_);
 }
 
-void MessagePumpForUI::Run(Delegate* delegate) {
+void MessagePumpForUI::RunWithDispatcher(Delegate* delegate,
+                                         Dispatcher* dispatcher) {
 #ifndef NDEBUG
   // Make sure we only run this on one thread.  GTK only has one message pump
   // so we can only have one UI loop per process.
@@ -165,6 +166,7 @@ void MessagePumpForUI::Run(Delegate* delegate) {
 
   RunState state;
   state.delegate = delegate;
+  state.dispatcher = dispatcher;
   state.should_quit = false;
   state.run_depth = state_ ? state_->run_depth + 1 : 1;
   state.has_work = false;
@@ -309,9 +311,16 @@ void MessagePumpForUI::ScheduleDelayedWork(const Time& delayed_work_time) {
 
 // static
 void MessagePumpForUI::EventDispatcher(GdkEvent* event, gpointer data) {
-  reinterpret_cast<MessagePumpForUI*>(data)->WillProcessEvent(event);
-  gtk_main_do_event(event);
-  reinterpret_cast<MessagePumpForUI*>(data)->DidProcessEvent(event);
+  MessagePumpForUI* message_pump = reinterpret_cast<MessagePumpForUI*>(data);
+
+  message_pump->WillProcessEvent(event);
+  if (message_pump->state_->dispatcher) {
+    if (!message_pump->state_->dispatcher->Dispatch(event))
+      message_pump->state_->should_quit = true;
+  } else {
+    gtk_main_do_event(event);
+  }
+  message_pump->DidProcessEvent(event);
 }
 
 }  // namespace base
