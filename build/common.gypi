@@ -72,10 +72,6 @@
     # but that doesn't work as we'd like.
     'msvs_debug_link_incremental%': '2',
 
-    # Whether to use multiple cores to compile with visual studio. This is
-    # optional because it sometimes causes corruption on VS 2005.
-    'msvs_multi_core_compile%': '',
-
     # The architecture that we're building on.
     'target_arch%': 'ia32',
 
@@ -106,6 +102,21 @@
     # path is set here. It should be the final location of the Chromium binary
     # on the system.
     'linux_sandbox_chrome_path%': '/opt/google/chrome/chrome',
+
+    'conditions': [
+      # Whether to use multiple cores to compile with visual studio. This is
+      # optional because it sometimes causes corruption on VS 2005.
+      # It is on by default on VS 2008 and off on VS 2005.
+      ['OS=="win"', {
+        'conditions': [
+          ['MSVS_VERSION=="2005"', {
+            'msvs_multi_core_compile%': 0,
+          },{
+            'msvs_multi_core_compile%': 1,
+          }],
+        ],
+      }],
+    ],
   },
   'target_defaults': {
     'conditions': [
@@ -527,8 +538,9 @@
             'WarnAsError': 'true',
             'DebugInformationFormat': '3',
             'conditions': [
-              [ 'msvs_multi_core_compile',
-                {'AdditionalOptions': '/MP'}, ],
+              [ 'msvs_multi_core_compile', {
+                'AdditionalOptions': '/MP',
+              }],
             ],
           },
           'VCLibrarianTool': {
