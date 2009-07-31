@@ -83,24 +83,15 @@ int FtpNetworkTransaction::Read(IOBuffer* buf,
                                 int buf_len,
                                 CompletionCallback* callback) {
   DCHECK(buf);
-  DCHECK(buf_len > 0);
-
-  if (data_socket_ == NULL)
-    return 0;  // Data socket closed, no more data left.
-
-  if (!data_socket_->IsConnected())
-    return 0;  // Data socket disconnected, no more data left.
+  DCHECK_GT(buf_len, 0);
 
   read_data_buf_ = buf;
   read_data_buf_len_ = buf_len;
 
   next_state_ = STATE_DATA_READ;
-
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
-  else if (rv == 0)
-    data_socket_->Disconnect();
   return rv;
 }
 
@@ -836,7 +827,7 @@ int FtpNetworkTransaction::ProcessResponseLIST(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
-      next_state_ = STATE_CTRL_READ;
+      response_.is_directory_listing = true;
       break;
     case ERROR_CLASS_OK:
       response_.is_directory_listing = true;
@@ -907,7 +898,12 @@ int FtpNetworkTransaction::DoDataConnectComplete(int result) {
 
 int FtpNetworkTransaction::DoDataRead() {
   DCHECK(read_data_buf_);
-  DCHECK(read_data_buf_len_ > 0);
+  DCHECK_GT(read_data_buf_len_, 0);
+
+  if (data_socket_ == NULL || !data_socket_->IsConnected()) {
+    // No more data so send QUIT Command now and wait for response.
+    return Stop(OK);
+  }
 
   next_state_ = STATE_DATA_READ_COMPLETE;
   read_data_buf_->data()[0] = 0;
