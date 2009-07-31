@@ -485,7 +485,12 @@ LogMessage::~LogMessage() {
 
 #if defined(OS_WIN)
       DWORD r = ::WaitForSingleObject(log_mutex, INFINITE);
-      DCHECK(r != WAIT_ABANDONED);
+      if (r == WAIT_ABANDONED) {
+        // Do not abort the process here. UI tests might be crashy sometimes,
+        // and aborting the test binary only makes the problem worse.
+        // For more info see http://crbug.com/18028.
+        LOG(ERROR) << "Thread owning the log mutex has crashed.";
+      }
 #elif defined(OS_POSIX)
       pthread_mutex_lock(&log_mutex);
 #endif
