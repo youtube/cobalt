@@ -1808,7 +1808,8 @@ TEST_F(URLRequestTest, InterceptRespectsCancelInRestart) {
   EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
 }
 
-TEST_F(URLRequestTest, FTPGetTestAnonymous) {
+// Needs more work, tracked in http://crbug.com/18036.
+TEST_F(URLRequestTest, DISABLED_FTPGetTestAnonymous) {
   scoped_refptr<FTPTestServer> server = FTPTestServer::CreateServer(L"");
   ASSERT_TRUE(NULL != server.get());
   FilePath app_path;
@@ -1832,7 +1833,8 @@ TEST_F(URLRequestTest, FTPGetTestAnonymous) {
   }
 }
 
-TEST_F(URLRequestTest, FTPGetTest) {
+// Needs more work, tracked in http://crbug.com/18036.
+TEST_F(URLRequestTest, DISABLED_FTPGetTest) {
   scoped_refptr<FTPTestServer> server =
       FTPTestServer::CreateServer(L"", "chrome", "chrome");
   ASSERT_TRUE(NULL != server.get());
