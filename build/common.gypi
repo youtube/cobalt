@@ -72,6 +72,10 @@
     # but that doesn't work as we'd like.
     'msvs_debug_link_incremental%': '2',
 
+    # Whether to use multiple cores to compile with visual studio. This is
+    # optional because it sometimes causes corruption on VS 2005.
+    'msvs_multi_core_compile%': '',
+
     # The architecture that we're building on.
     'target_arch%': 'ia32',
 
@@ -522,6 +526,10 @@
             'WarningLevel': '3',
             'WarnAsError': 'true',
             'DebugInformationFormat': '3',
+            'conditions': [
+              [ 'msvs_multi_core_compile',
+                {'AdditionalOptions': '/MP'}, ],
+            ],
           },
           'VCLibrarianTool': {
             'AdditionalOptions': '/ignore:4221',
