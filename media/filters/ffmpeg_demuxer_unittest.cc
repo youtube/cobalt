@@ -709,6 +709,8 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   uint8 kBuffer[1];
   InSequence s;
   // Actions taken in the first read.
+  EXPECT_CALL(*data_source_, GetSize(_))
+      .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
   EXPECT_CALL(*data_source_, Read(0, 512, kBuffer, NotNull()))
       .WillOnce(WithArgs<1, 3>(Invoke(&RunCallback)));
   EXPECT_CALL(*demuxer, SignalReadCompleted(512));
@@ -716,25 +718,34 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
       .WillOnce(Return(512));
 
   // Second read.
+  EXPECT_CALL(*data_source_, GetSize(_))
+      .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
   EXPECT_CALL(*data_source_, Read(512, 512, kBuffer, NotNull()))
       .WillOnce(WithArgs<1, 3>(Invoke(&RunCallback)));
   EXPECT_CALL(*demuxer, SignalReadCompleted(512));
   EXPECT_CALL(*demuxer, WaitForRead())
       .WillOnce(Return(512));
 
-  // Called during SetPosition().
+  // Third read will fail because it exceeds the file size.
   EXPECT_CALL(*data_source_, GetSize(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
 
   // This read complete signal is generated when demuxer is stopped.
   EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
 
+  // First read.
   EXPECT_EQ(512, demuxer->Read(512, kBuffer));
   int64 position;
   EXPECT_TRUE(demuxer->GetPosition(&position));
   EXPECT_EQ(512, position);
+
+  // Second read.
   EXPECT_EQ(512, demuxer->Read(512, kBuffer));
-  EXPECT_FALSE(demuxer->SetPosition(1024));
+  EXPECT_TRUE(demuxer->GetPosition(&position));
+  EXPECT_EQ(1024, position);
+
+  // Third read will get an end-of-file error.
+  EXPECT_EQ(AVERROR_EOF, demuxer->Read(512, kBuffer));
 
   demuxer->Stop();
 }
