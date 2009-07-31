@@ -13,7 +13,13 @@
 /chrome/Release
 /chrome/app/theme/google_chrome/
 /chrome/installer/linux/
-/chrome/test/data/
+/chrome/test/data/firefox2_profile/searchplugins/
+/chrome/test/data/firefox2_searchplugins/
+/chrome/test/data/firefox3_profile/searchplugins/
+/chrome/test/data/firefox3_searchplugins/
+/chrome/test/data/osdd/
+/chrome/test/data/plugin/
+/chrome/test/data/workers/LayoutTests/
 /data/
 /googleurl/
 /native_client/
