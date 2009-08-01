@@ -12,8 +12,7 @@ namespace media {
 static const size_t kSamplesPerBuffer = 8*1024;
 
 AudioRendererImpl::AudioRendererImpl()
-    : AudioRendererBase(kDefaultMaxQueueSize),
-      playback_rate_(0.0f),
+    : AudioRendererBase(),
       stream_(NULL) {
 }
 
@@ -36,7 +35,7 @@ bool AudioRendererImpl::IsMediaFormatSupported(
 
 void AudioRendererImpl::SetPlaybackRate(float rate) {
   // TODO(fbarchard): limit rate to reasonable values
-  playback_rate_ = rate;
+  AudioRendererBase::SetPlaybackRate(rate);
 
   static bool started = false;
   if (rate > 0.0f && !started && stream_)
@@ -57,8 +56,7 @@ size_t AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,
   // TODO(scherkus): Maybe change OnMoreData to pass in char/uint8 or similar.
   // TODO(fbarchard): Waveout_output_win.h should handle zero length buffers
   //                  without clicking.
-  return FillBuffer(static_cast<uint8*>(dest_void), len,
-                    playback_rate_, base::TimeDelta());
+  return FillBuffer(static_cast<uint8*>(dest_void), len, base::TimeDelta());
 }
 
 void AudioRendererImpl::OnClose(AudioOutputStream* stream) {
