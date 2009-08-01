@@ -16,6 +16,7 @@
 #endif
 
 #include "base/compiler_specific.h"
+#include "base/debug_util.h"
 #include "base/message_loop.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
@@ -367,6 +368,14 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
 // See OnJobComplete(Job*) for why it is important not to clean out
 // cancelled requests from Job::requests_.
 void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
+  if (shutdown_) {
+    // TODO(eroman): temp hack for: http://crbug.com/16972.
+    // Because we destroy outstanding requests during Shutdown() as part of
+    // hack http://crbug.com/15513, |req_handle| is already cancelled.
+    LOG(ERROR) << "Called HostResolverImpl::CancelRequest() after Shutdown().";
+    StackTrace().PrintBacktrace();
+    return;
+  }
   Request* req = reinterpret_cast<Request*>(req_handle);
   DCHECK(req);
   DCHECK(req->job());
