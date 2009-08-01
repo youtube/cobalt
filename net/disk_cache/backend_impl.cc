@@ -147,12 +147,6 @@ bool InitExperiment(int* current_group) {
   }
 
   if (*current_group <= 5) {
-#if defined(UNIT_TEST)
-    // The unit test controls directly what to test.
-    *current_group = 0;
-    return true;
-#endif
-
     // Re-load the two groups.
     int option = base::RandInt(0, 9);
 
@@ -294,8 +288,11 @@ bool BackendImpl::Init() {
   }
 
   init_ = true;
-  if (!InitExperiment(&data_->header.experiment))
-    return false;
+  if (!(user_flags_ & disk_cache::kNoRandom)) {
+    // The unit test controls directly what to test.
+    if (!InitExperiment(&data_->header.experiment))
+      return false;
+  }
 
   if (data_->header.experiment > 6 && data_->header.experiment < 9)
     new_eviction_ = true;
@@ -949,6 +946,10 @@ void BackendImpl::SetNewEviction() {
   new_eviction_ = true;
 }
 
+void BackendImpl::SetFlags(uint32 flags) {
+  user_flags_ |= flags;
+}
+
 void BackendImpl::ClearRefCountForTest() {
   num_refs_ = 0;
 }
@@ -986,6 +987,12 @@ bool BackendImpl::CreateBackingStore(disk_cache::File* file) {
 
   IndexHeader header;
   header.table_len = DesiredIndexTableLen(max_size_);
+
+  // All new profiles are going to use the new eviction.
+  if (!(user_flags_ & disk_cache::kNoRandom)) {
+    header.experiment = 8;
+    new_eviction_ = true;
+  }
 
   // We need file version 2.1 for the new eviction algorithm.
   if (new_eviction_)

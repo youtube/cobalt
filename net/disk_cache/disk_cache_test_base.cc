@@ -59,6 +59,10 @@ void DiskCacheTestWithCache::InitDiskCache() {
   if (!implementation_) {
     cache_ = disk_cache::CreateCacheBackend(path, force_creation_, size_,
                                             net::DISK_CACHE);
+    disk_cache::BackendImpl* impl =
+        static_cast<disk_cache::BackendImpl*>(cache_);
+    if (impl)
+      impl->SetFlags(disk_cache::kNoRandom);
     return;
   }
 
@@ -80,6 +84,7 @@ void DiskCacheTestWithCache::InitDiskCacheImpl(const std::wstring& path) {
   if (new_eviction_)
     cache_impl_->SetNewEviction();
 
+  cache_impl_->SetFlags(disk_cache::kNoRandom);
   ASSERT_TRUE(cache_impl_->Init());
 }
 

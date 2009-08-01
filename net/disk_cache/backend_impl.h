@@ -23,7 +23,8 @@ enum BackendFlags {
   kMaxSize = 1 << 1,
   kUnitTestMode = 1 << 2,
   kUpgradeMode = 1 << 3,
-  kNewEviction = 1 << 4
+  kNewEviction = 1 << 4,
+  kNoRandom = 1 << 5
 };
 
 // This class implements the Backend interface. An object of this
@@ -169,6 +170,9 @@ class BackendImpl : public Backend {
 
   // Sets the eviction algorithm to version 2.
   void SetNewEviction();
+
+  // Sets an explicit set of BackendFlags.
+  void SetFlags(uint32 flags);
 
   // Clears the counter of references to test handling of corruptions.
   void ClearRefCountForTest();
