@@ -13,6 +13,8 @@
 #ifndef MEDIA_BASE_MOCK_FILTERS_H_
 #define MEDIA_BASE_MOCK_FILTERS_H_
 
+#include <string>
+
 #include "media/base/factory.h"
 #include "media/base/filters.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -65,7 +67,7 @@ class MockFilterCallback {
   // MockFilterCallback.
   class CallbackImpl : public CallbackRunner<Tuple0> {
    public:
-    CallbackImpl(MockFilterCallback* mock_callback)
+    explicit CallbackImpl(MockFilterCallback* mock_callback)
         : mock_callback_(mock_callback) {
     }
 
@@ -193,6 +195,15 @@ class MockVideoDecoder : public VideoDecoder {
 class MockAudioDecoder : public AudioDecoder {
  public:
   MockAudioDecoder() {}
+
+  // Sets the essential media format keys for this decoder.
+  MockAudioDecoder(int channels, int sample_rate, int sample_bits) {
+    media_format_.SetAsString(MediaFormat::kMimeType,
+                              mime_type::kUncompressedAudio);
+    media_format_.SetAsInteger(MediaFormat::kChannels, channels);
+    media_format_.SetAsInteger(MediaFormat::kSampleRate, sample_rate);
+    media_format_.SetAsInteger(MediaFormat::kSampleBits, sample_bits);
+  }
 
   // MediaFilter implementation.
   MOCK_METHOD0(Stop, void());
