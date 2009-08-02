@@ -23,6 +23,7 @@
 #include "net/proxy/proxy_config_service_linux.h"
 #endif
 #include "net/proxy/proxy_resolver.h"
+#include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_v8.h"
 #include "net/proxy/single_threaded_proxy_resolver.h"
 #include "net/url_request/url_request_context.h"
@@ -210,8 +211,8 @@ ProxyService* ProxyService::Create(
   if (use_v8_resolver) {
     // Send javascript errors and alerts to LOG(INFO).
     HostResolver* host_resolver = url_request_context->host_resolver();
-    ProxyResolverV8::JSBindings* js_bindings =
-        ProxyResolverV8::CreateDefaultBindings(host_resolver, io_loop);
+    ProxyResolverJSBindings* js_bindings =
+        ProxyResolverJSBindings::CreateDefault(host_resolver, io_loop);
 
     proxy_resolver = new ProxyResolverV8(js_bindings);
   } else {

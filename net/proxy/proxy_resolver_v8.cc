@@ -4,20 +4,14 @@
 
 #include "net/proxy/proxy_resolver_v8.h"
 
-#include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/message_loop.h"
-#include "base/waitable_event.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/address_list.h"
-#include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_util.h"
 #include "net/proxy/proxy_info.h"
+#include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_script.h"
 #include "v8/include/v8.h"
-
 
 namespace net {
 
@@ -53,129 +47,13 @@ bool V8ObjectToString(v8::Handle<v8::Value> object, std::string* result) {
   return true;
 }
 
-// Wrapper around HostResolver to give a sync API while running the resolve
-// in async mode on |host_resolver_loop|. If |host_resolver_loop| is NULL,
-// runs sync on the current thread (this mode is just used by testing).
-class SyncHostResolverBridge
-    : public base::RefCountedThreadSafe<SyncHostResolverBridge> {
- public:
-  SyncHostResolverBridge(HostResolver* host_resolver,
-                         MessageLoop* host_resolver_loop)
-      : host_resolver_(host_resolver),
-        host_resolver_loop_(host_resolver_loop),
-        event_(false, false),
-        ALLOW_THIS_IN_INITIALIZER_LIST(
-            callback_(this, &SyncHostResolverBridge::OnResolveCompletion)) {
-  }
-
-  // Run the resolve on host_resolver_loop, and wait for result.
-  int Resolve(const std::string& hostname, net::AddressList* addresses) {
-    // Port number doesn't matter.
-    HostResolver::RequestInfo info(hostname, 80);
-
-    // Hack for tests -- run synchronously on current thread.
-    if (!host_resolver_loop_)
-      return host_resolver_->Resolve(info, addresses, NULL, NULL);
-
-    // Otherwise start an async resolve on the resolver's thread.
-    host_resolver_loop_->PostTask(FROM_HERE, NewRunnableMethod(this,
-        &SyncHostResolverBridge::StartResolve, info, addresses));
-
-    // Wait for the resolve to complete in the resolver's thread.
-    event_.Wait();
-    return err_;
-  }
-
- private:
-  // Called on host_resolver_loop_.
-  void StartResolve(const HostResolver::RequestInfo& info,
-                    net::AddressList* addresses) {
-    DCHECK_EQ(host_resolver_loop_, MessageLoop::current());
-    int error = host_resolver_->Resolve(info, addresses, &callback_, NULL);
-    if (error != ERR_IO_PENDING)
-      OnResolveCompletion(error);  // Completed synchronously.
-  }
-
-  // Called on host_resolver_loop_.
-  void OnResolveCompletion(int result) {
-    DCHECK_EQ(host_resolver_loop_, MessageLoop::current());
-    err_ = result;
-    event_.Signal();
-  }
-
-  scoped_refptr<HostResolver> host_resolver_;
-  MessageLoop* host_resolver_loop_;
-
-  // Event to notify completion of resolve request.
-  base::WaitableEvent event_;
-
-  // Callback for when the resolve completes on host_resolver_loop_.
-  net::CompletionCallbackImpl<SyncHostResolverBridge> callback_;
-
-  // The result from the result request (set by in host_resolver_loop_).
-  int err_;
-};
-
-// JSBIndings implementation.
-class DefaultJSBindings : public ProxyResolverV8::JSBindings {
- public:
-  DefaultJSBindings(HostResolver* host_resolver,
-                    MessageLoop* host_resolver_loop)
-      : host_resolver_(new SyncHostResolverBridge(
-          host_resolver, host_resolver_loop)) {}
-
-  // Handler for "alert(message)".
-  virtual void Alert(const std::string& message) {
-    LOG(INFO) << "PAC-alert: " << message;
-  }
-
-  // Handler for "myIpAddress()". Returns empty string on failure.
-  virtual std::string MyIpAddress() {
-    // DnsResolve("") returns "", so no need to check for failure.
-    return DnsResolve(GetHostName());
-  }
-
-  // Handler for "dnsResolve(host)". Returns empty string on failure.
-  virtual std::string DnsResolve(const std::string& host) {
-    // TODO(eroman): Should this return our IP address, or fail, or
-    // simply be unspecified (works differently on windows and mac os x).
-    if (host.empty())
-      return std::string();
-
-    // Do a sync resolve of the hostname.
-    net::AddressList address_list;
-    int result = host_resolver_->Resolve(host, &address_list);
-
-    if (result != OK)
-      return std::string();  // Failed.
-
-    if (!address_list.head())
-      return std::string();
-
-    // There may be multiple results; we will just use the first one.
-    // This returns empty string on failure.
-    return net::NetAddressToString(address_list.head());
-  }
-
-  // Handler for when an error is encountered. |line_number| may be -1.
-  virtual void OnError(int line_number, const std::string& message) {
-    if (line_number == -1)
-      LOG(INFO) << "PAC-error: " << message;
-    else
-      LOG(INFO) << "PAC-error: " << "line: " << line_number << ": " << message;
-  }
-
- private:
-  scoped_refptr<SyncHostResolverBridge> host_resolver_;
-};
-
 }  // namespace
 
 // ProxyResolverV8::Context ---------------------------------------------------
 
 class ProxyResolverV8::Context {
  public:
-  Context(JSBindings* js_bindings, const std::string& pac_data)
+  Context(ProxyResolverJSBindings* js_bindings, const std::string& pac_data)
       : js_bindings_(js_bindings) {
     DCHECK(js_bindings != NULL);
     InitV8(pac_data);
@@ -335,7 +213,7 @@ class ProxyResolverV8::Context {
     return result.empty() ? v8::Null() : StdStringToV8String(result);
   }
 
-  JSBindings* js_bindings_;
+  ProxyResolverJSBindings* js_bindings_;
   v8::Persistent<v8::External> v8_this_;
   v8::Persistent<v8::Context> v8_context_;
 };
@@ -343,7 +221,7 @@ class ProxyResolverV8::Context {
 // ProxyResolverV8 ------------------------------------------------------------
 
 ProxyResolverV8::ProxyResolverV8(
-    ProxyResolverV8::JSBindings* custom_js_bindings)
+    ProxyResolverJSBindings* custom_js_bindings)
     : ProxyResolver(true /*expects_pac_bytes*/),
       js_bindings_(custom_js_bindings) {
 }
@@ -367,12 +245,6 @@ int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
 void ProxyResolverV8::CancelRequest(RequestHandle request) {
   // This is a synchronous ProxyResolver; no possibility for async requests.
   NOTREACHED();
-}
-
-// static
-ProxyResolverV8::JSBindings* ProxyResolverV8::CreateDefaultBindings(
-    HostResolver* host_resolver, MessageLoop* host_resolver_loop) {
-  return new DefaultJSBindings(host_resolver, host_resolver_loop);
 }
 
 void ProxyResolverV8::SetPacScriptByDataInternal(const std::string& data) {
