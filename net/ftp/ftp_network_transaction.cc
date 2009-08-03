@@ -37,6 +37,7 @@ FtpNetworkTransaction::FtpNetworkTransaction(
       read_ctrl_buf_(new IOBuffer(kCtrlBufLen)),
       read_data_buf_len_(0),
       file_data_len_(0),
+      write_command_buf_written_(0),
       last_error_(OK),
       is_anonymous_(false),
       retr_failed_(false),
@@ -115,14 +116,14 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
   DLOG(INFO) << " >> " << command;
 
   command_sent_ = cmd;
-  write_buf_written_ = 0;
+
   write_command_buf_ = new IOBufferWithSize(command.length() + 2);
   write_buf_ = new ReusedIOBuffer(write_command_buf_,
                                   write_command_buf_->size());
   memcpy(write_command_buf_->data(), command.data(), command.length());
   memcpy(write_command_buf_->data() + command.length(), kCRLF, 2);
 
-  next_state_ = STATE_CTRL_WRITE_COMMAND;
+  next_state_ = STATE_CTRL_WRITE;
   return OK;
 }
 
@@ -239,12 +240,12 @@ int FtpNetworkTransaction::DoLoop(int result) {
       case STATE_CTRL_READ_COMPLETE:
         rv = DoCtrlReadComplete(rv);
         break;
-      case STATE_CTRL_WRITE_COMMAND:
+      case STATE_CTRL_WRITE:
         DCHECK(rv == OK);
-        rv = DoCtrlWriteCommand();
+        rv = DoCtrlWrite();
         break;
-      case STATE_CTRL_WRITE_COMMAND_COMPLETE:
-        rv = DoCtrlWriteCommandComplete(rv);
+      case STATE_CTRL_WRITE_COMPLETE:
+        rv = DoCtrlWriteComplete(rv);
         break;
       case STATE_CTRL_WRITE_USER:
         DCHECK(rv == OK);
@@ -376,12 +377,7 @@ int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
 }
 
 int FtpNetworkTransaction::DoCtrlRead() {
-  // Clear the write buffer.
-  write_command_buf_ = NULL;
-  write_buf_ = NULL;
-
   next_state_ = STATE_CTRL_READ_COMPLETE;
-  read_ctrl_buf_->data()[0] = 0;
   return ctrl_socket_->Read(
       read_ctrl_buf_,
       kCtrlBufLen,
@@ -403,28 +399,30 @@ int FtpNetworkTransaction::DoCtrlReadComplete(int result) {
   return ProcessCtrlResponse();
 }
 
-int FtpNetworkTransaction::DoCtrlWriteCommand() {
-  write_buf_->SetOffset(write_buf_written_);
-  int rv = ctrl_socket_->Write(write_buf_,
-                               write_command_buf_->size() - write_buf_written_,
-                               &io_callback_);
-  if (rv == ERR_IO_PENDING) {
-    next_state_ = STATE_CTRL_WRITE_COMMAND_COMPLETE;
-    return rv;
-  } else {
-    return DoCtrlWriteCommandComplete(rv);
-  }
+int FtpNetworkTransaction::DoCtrlWrite() {
+  next_state_ = STATE_CTRL_WRITE_COMPLETE;
+
+  write_buf_->SetOffset(write_command_buf_written_);
+  int bytes_to_write = write_command_buf_->size() - write_command_buf_written_;
+  return ctrl_socket_->Write(write_buf_,
+                             bytes_to_write,
+                             &io_callback_);
 }
 
-int FtpNetworkTransaction::DoCtrlWriteCommandComplete(int result) {
+int FtpNetworkTransaction::DoCtrlWriteComplete(int result) {
   if (result < 0)
     return result;
 
-  write_buf_written_ += result;
-  if (write_buf_written_ == write_command_buf_->size()) {
+  write_command_buf_written_ += result;
+  if (write_command_buf_written_ == write_command_buf_->size()) {
+    // Clear the write buffer.
+    write_buf_ = NULL;
+    write_command_buf_ = NULL;
+    write_command_buf_written_ = 0;
+
     next_state_ = STATE_CTRL_READ;
   } else {
-    next_state_ = STATE_CTRL_WRITE_COMMAND;
+    next_state_ = STATE_CTRL_WRITE;
   }
   return OK;
 }
