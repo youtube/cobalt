@@ -103,8 +103,8 @@ class FtpNetworkTransaction : public FtpTransaction {
   int DoCtrlConnectComplete(int result);
   int DoCtrlRead();
   int DoCtrlReadComplete(int result);
-  int DoCtrlWriteCommand();
-  int DoCtrlWriteCommandComplete(int result);
+  int DoCtrlWrite();
+  int DoCtrlWriteComplete(int result);
   int DoCtrlWriteUSER();
   int ProcessResponseUSER(const FtpCtrlResponse& response);
   int DoCtrlWritePASS();
@@ -171,7 +171,7 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   // Number of bytes from write_command_buf_ that we've already sent to the
   // server.
-  int write_buf_written_;
+  int write_command_buf_written_;
 
   int last_error_;
 
@@ -196,8 +196,8 @@ class FtpNetworkTransaction : public FtpTransaction {
     STATE_CTRL_CONNECT_COMPLETE,
     STATE_CTRL_READ,
     STATE_CTRL_READ_COMPLETE,
-    STATE_CTRL_WRITE_COMMAND,
-    STATE_CTRL_WRITE_COMMAND_COMPLETE,
+    STATE_CTRL_WRITE,
+    STATE_CTRL_WRITE_COMPLETE,
     STATE_CTRL_WRITE_USER,
     STATE_CTRL_WRITE_PASS,
     STATE_CTRL_WRITE_ACCT,
