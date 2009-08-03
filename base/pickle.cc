@@ -65,12 +65,16 @@ Pickle::~Pickle() {
 }
 
 Pickle& Pickle::operator=(const Pickle& other) {
-  if (header_size_ != other.header_size_ && capacity_ != kCapacityReadOnly) {
+  if (capacity_ == kCapacityReadOnly) {
+    header_ = NULL;
+    capacity_ = 0;
+  }
+  if (header_size_ != other.header_size_) {
     free(header_);
     header_ = NULL;
     header_size_ = other.header_size_;
   }
-  bool resized = Resize(other.header_size_ + other.header_->payload_size);
+  bool resized = Resize(header_size_ + other.header_->payload_size);
   CHECK(resized);  // Realloc failed.
   memcpy(header_, other.header_, header_size_ + other.header_->payload_size);
   variable_buffer_offset_ = other.variable_buffer_offset_;
@@ -365,6 +369,7 @@ void Pickle::TrimWriteData(int new_length) {
 bool Pickle::Resize(size_t new_capacity) {
   new_capacity = AlignInt(new_capacity, kPayloadUnit);
 
+  CHECK(capacity_ != kCapacityReadOnly);
   void* p = realloc(header_, new_capacity);
   if (!p)
     return false;
