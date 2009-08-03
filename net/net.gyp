@@ -562,6 +562,7 @@
         'net_test_support',
         '../base/base.gyp:base',
         '../base/base.gyp:test_support_base',
+        '../base/base.gyp:test_support_perf',
         '../testing/gtest.gyp:gtest',
       ],
       'msvs_guid': 'AAC78796-B9A2-4CD9-BF89-09B03E92BF73',
@@ -676,7 +677,7 @@
       'dependencies': [
         'net',
         '../base/base.gyp:base',
-        '../base/base.gyp:test_support_base',
+        '../base/base.gyp:test_support_perf',
         '../testing/gtest.gyp:gtest',
       ],
       'msvs_guid': 'DABB8796-B9A2-4CD9-BF89-09B03E92B123',
@@ -690,7 +691,7 @@
       'dependencies': [
         'net',
         '../base/base.gyp:base',
-        '../base/base.gyp:test_support_base',
+        '../base/base.gyp:test_support_perf',
         '../testing/gtest.gyp:gtest',
       ],
       'msvs_guid': 'DABB8796-B9A2-4CD9-BF89-09B03E92B124',

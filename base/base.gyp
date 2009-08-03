@@ -297,11 +297,6 @@
         'system_monitor_posix.cc',
         'system_monitor_win.cc',
         'task.h',
-        'test_file_util.h',
-        'test_file_util_linux.cc',
-        'test_file_util_mac.cc',
-        'test_file_util_posix.cc',
-        'test_file_util_win.cc',
         'thread.cc',
         'thread.h',
         'thread_collision_warner.cc',
@@ -696,6 +691,42 @@
     },
     {
       'target_name': 'test_support_base',
+      'type': '<(library)',
+      'dependencies': [
+        'base',
+      ],
+      'sources': [
+        'test_file_util.h',
+        'test_file_util_linux.cc',
+        'test_file_util_mac.cc',
+        'test_file_util_posix.cc',
+        'test_file_util_win.cc',
+      ],
+      'conditions': [
+        [ 'OS == "linux"', {
+            'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
+                          ['exclude', '\\.mm?$' ] ],
+            'conditions': [
+              [ 'chromeos==1', {
+                  'sources/': [ ['include', '_chromeos\\.cc$'] ]
+                },
+              ],
+            ],
+          },
+        ],
+        [ 'OS == "mac"', {
+            'sources/': [ ['exclude', '_(linux|win|chromeos)\\.cc$'] ],
+          },
+        ],
+        [ 'OS == "win"', {
+            'sources/': [ ['exclude', '_(linux|mac|posix|chromeos)\\.cc$'],
+                          ['exclude', '\\.mm?$' ] ],
+          },
+        ],
+      ],
+    },
+    {
+      'target_name': 'test_support_perf',
       'type': '<(library)',
       'dependencies': [
         'base',
