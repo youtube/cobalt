@@ -1119,28 +1119,23 @@ TEST(HttpCache, SimplePOST_SkipsCache) {
   EXPECT_EQ(0, cache.disk_cache()->create_count());
 }
 
-// http://crbug.com/16199
-TEST(HttpCache, DISABLED_ConditionalizedRequestUpdatesCache) {
+// Helper that does 4 requests using HttpCache:
+//
+// (1) loads |kUrl| -- expects |net_response_1| to be returned.
+// (2) loads |kUrl| from cache only -- expects |net_response_1| to be returned.
+// (3) loads |kUrl| using |extra_request_headers| -- expects |net_response_2| to
+//     be returned.
+// (4) loads |kUrl| from cache only -- expects |cached_response_2| to be
+//     returned.
+static void ConditionalizedRequestUpdatesCacheHelper(
+    const Response& net_response_1,
+    const Response& net_response_2,
+    const Response& cached_response_2,
+    const char* extra_request_headers) {
   MockHttpCache cache;
 
   // The URL we will be requesting.
   const char* kUrl = "http://foobar.com/main.css";
-
-  // First network response for |kUrl|.
-  static const Response kNetResponse1 = {
-    "HTTP/1.1 200 OK",
-    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
-    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
-    "body1"
-  };
-
-  // Second network response for |kUrl|.
-  static const Response kNetResponse2 = {
-    "HTTP/1.1 200 OK",
-    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
-    "Last-Modified: Fri, 03 Jul 2009 02:14:27 GMT\n",
-    "body2"
-  };
 
   // Junk network response.
   static const Response kUnexpectedResponse = {
@@ -1163,14 +1158,14 @@ TEST(HttpCache, DISABLED_ConditionalizedRequestUpdatesCache) {
   request.method = "GET";
   request.request_headers = "";
 
-  kNetResponse1.AssignTo(&mock_network_response);  // Network mock.
-  kNetResponse1.AssignTo(&request);                // Expected result.
+  net_response_1.AssignTo(&mock_network_response);  // Network mock.
+  net_response_1.AssignTo(&request);                // Expected result.
 
   std::string response_headers;
   RunTransactionTestWithResponse(
       cache.http_cache(), request, &response_headers);
 
-  EXPECT_EQ(kNetResponse1.status_and_headers(), response_headers);
+  EXPECT_EQ(net_response_1.status_and_headers(), response_headers);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -1178,13 +1173,15 @@ TEST(HttpCache, DISABLED_ConditionalizedRequestUpdatesCache) {
   // Request |kUrl| a second time. Now |kNetResponse1| it is in the HTTP
   // cache, so we don't hit the network.
 
+  request.load_flags = net::LOAD_ONLY_FROM_CACHE;
+
   kUnexpectedResponse.AssignTo(&mock_network_response);  // Network mock.
-  kNetResponse1.AssignTo(&request);                      // Expected result.
+  net_response_1.AssignTo(&request);                     // Expected result.
 
   RunTransactionTestWithResponse(
       cache.http_cache(), request, &response_headers);
 
-  EXPECT_EQ(kNetResponse1.status_and_headers(), response_headers);
+  EXPECT_EQ(net_response_1.status_and_headers(), response_headers);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -1194,16 +1191,16 @@ TEST(HttpCache, DISABLED_ConditionalizedRequestUpdatesCache) {
   // network. However now the network response is going to be
   // different -- this simulates a change made to the CSS file.
 
-  request.request_headers =
-      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+  request.request_headers = extra_request_headers;
+  request.load_flags = net::LOAD_NORMAL;
 
-  kNetResponse2.AssignTo(&mock_network_response);  // Network mock.
-  kNetResponse2.AssignTo(&request);                // Expected result.
+  net_response_2.AssignTo(&mock_network_response);  // Network mock.
+  net_response_2.AssignTo(&request);                // Expected result.
 
   RunTransactionTestWithResponse(
       cache.http_cache(), request, &response_headers);
 
-  EXPECT_EQ(kNetResponse2.status_and_headers(), response_headers);
+  EXPECT_EQ(net_response_2.status_and_headers(), response_headers);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -1214,19 +1211,257 @@ TEST(HttpCache, DISABLED_ConditionalizedRequestUpdatesCache) {
   // value in the cache with the modified response.
 
   request.request_headers = "";
+  request.load_flags = net::LOAD_ONLY_FROM_CACHE;
 
   kUnexpectedResponse.AssignTo(&mock_network_response);  // Network mock.
-  kNetResponse2.AssignTo(&request);                      // Expected result.
+  cached_response_2.AssignTo(&request);                  // Expected result.
 
   RunTransactionTestWithResponse(
       cache.http_cache(), request, &response_headers);
 
-  EXPECT_EQ(kNetResponse2.status_and_headers(), response_headers);
+  EXPECT_EQ(cached_response_2.status_and_headers(), response_headers);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(2, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   RemoveMockTransaction(&mock_network_response);
+}
+
+// Check that when an "if-modified-since" header is attached
+// to the request, the result still updates the cached entry.
+TEST(HttpCache, ConditionalizedRequestUpdatesCache1) {
+  // First network response for |kUrl|.
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 200 OK",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Last-Modified: Fri, 03 Jul 2009 02:14:27 GMT\n",
+    "body2"
+  };
+
+  const char* extra_headers =
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+
+  ConditionalizedRequestUpdatesCacheHelper(
+      kNetResponse1, kNetResponse2, kNetResponse2, extra_headers);
+}
+
+// Check that when an "if-none-match" header is attached
+// to the request, the result updates the cached entry.
+TEST(HttpCache, ConditionalizedRequestUpdatesCache2) {
+  // First network response for |kUrl|.
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Etag: \"ETAG1\"\n"
+    "Expires: Wed, 7 Sep 2033 21:46:42 GMT\n",  // Should never expire.
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 200 OK",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Etag: \"ETAG2\"\n"
+    "Expires: Wed, 7 Sep 2033 21:46:42 GMT\n",  // Should never expire.
+    "body2"
+  };
+
+  const char* extra_headers = "If-None-Match: \"ETAG1\"\n";
+
+  ConditionalizedRequestUpdatesCacheHelper(
+      kNetResponse1, kNetResponse2, kNetResponse2, extra_headers);
+}
+
+// Check that when an "if-modified-since" header is attached
+// to a request, the 304 (not modified result) result updates the cached
+// headers, and the 304 response is returned rather than the cached response.
+TEST(HttpCache, ConditionalizedRequestUpdatesCache3) {
+  // First network response for |kUrl|.
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Server: server1\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 304 Not Modified",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Server: server2\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    ""
+  };
+
+  static const Response kCachedResponse2 = {
+    "HTTP/1.1 200 OK",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Server: server2\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  const char* extra_headers =
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+
+  ConditionalizedRequestUpdatesCacheHelper(
+      kNetResponse1, kNetResponse2, kCachedResponse2, extra_headers);
+}
+
+// Test that when doing an externally conditionalized if-modified-since
+// and there is no corresponding cache entry, a new cache entry is NOT
+// created (304 response).
+TEST(HttpCache, ConditionalizedRequestUpdatesCache4) {
+  MockHttpCache cache;
+
+  const char* kUrl = "http://foobar.com/main.css";
+
+  static const Response kNetResponse = {
+    "HTTP/1.1 304 Not Modified",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    ""
+  };
+
+  const char* kExtraRequestHeaders =
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+
+  // We will control the network layer's responses for |kUrl| using
+  // |mock_network_response|.
+  MockTransaction mock_network_response = { 0 };
+  mock_network_response.url = kUrl;
+  AddMockTransaction(&mock_network_response);
+
+  MockTransaction request = { 0 };
+  request.url = kUrl;
+  request.method = "GET";
+  request.request_headers = kExtraRequestHeaders;
+
+  kNetResponse.AssignTo(&mock_network_response);  // Network mock.
+  kNetResponse.AssignTo(&request);                // Expected result.
+
+  std::string response_headers;
+  RunTransactionTestWithResponse(
+      cache.http_cache(), request, &response_headers);
+
+  EXPECT_EQ(kNetResponse.status_and_headers(), response_headers);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(0, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&mock_network_response);
+}
+
+// Test that when doing an externally conditionalized if-modified-since
+// and there is no corresponding cache entry, a new cache entry is NOT
+// created (200 response).
+TEST(HttpCache, ConditionalizedRequestUpdatesCache5) {
+  MockHttpCache cache;
+
+  const char* kUrl = "http://foobar.com/main.css";
+
+  static const Response kNetResponse = {
+    "HTTP/1.1 200 OK",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "foobar!!!"
+  };
+
+  const char* kExtraRequestHeaders =
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+
+  // We will control the network layer's responses for |kUrl| using
+  // |mock_network_response|.
+  MockTransaction mock_network_response = { 0 };
+  mock_network_response.url = kUrl;
+  AddMockTransaction(&mock_network_response);
+
+  MockTransaction request = { 0 };
+  request.url = kUrl;
+  request.method = "GET";
+  request.request_headers = kExtraRequestHeaders;
+
+  kNetResponse.AssignTo(&mock_network_response);  // Network mock.
+  kNetResponse.AssignTo(&request);                // Expected result.
+
+  std::string response_headers;
+  RunTransactionTestWithResponse(
+      cache.http_cache(), request, &response_headers);
+
+  EXPECT_EQ(kNetResponse.status_and_headers(), response_headers);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(0, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&mock_network_response);
+}
+
+// Test that when doing an externally conditionalized if-modified-since
+// if the date does not match the cache entry's last-modified date,
+// then we do NOT use the response (304) to update the cache.
+// (the if-modified-since date is 2 days AFTER the cache's modification date).
+TEST(HttpCache, ConditionalizedRequestUpdatesCache6) {
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Server: server1\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 304 Not Modified",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Server: server2\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    ""
+  };
+
+  // This is two days in the future from the original response's last-modified
+  // date!
+  const char* kExtraRequestHeaders =
+      "If-Modified-Since: Fri, 08 Feb 2008 22:38:21 GMT\n";
+
+  ConditionalizedRequestUpdatesCacheHelper(
+      kNetResponse1, kNetResponse2, kNetResponse1, kExtraRequestHeaders);
+}
+
+// Test that when doing an externally conditionalized if-none-match
+// if the etag does not match the cache entry's etag, then we do not use the
+// response (304) to update the cache.
+TEST(HttpCache, ConditionalizedRequestUpdatesCache7) {
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Etag: \"Foo1\"\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 304 Not Modified",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Etag: \"Foo2\"\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    ""
+  };
+
+  // Different etag from original response.
+  const char* kExtraRequestHeaders = "If-None-Match: \"Foo2\"\n";
+
+  ConditionalizedRequestUpdatesCacheHelper(
+      kNetResponse1, kNetResponse2, kNetResponse1, kExtraRequestHeaders);
 }
 
 TEST(HttpCache, UrlContainingHash) {
