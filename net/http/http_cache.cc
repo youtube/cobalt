@@ -81,11 +81,40 @@ struct HeaderNameAndValue {
 // If the request includes one of these request headers, then avoid caching
 // to avoid getting confused.
 static const HeaderNameAndValue kPassThroughHeaders[] = {
-  { "if-modified-since", NULL },    // causes unexpected 304s
-  { "if-none-match", NULL },        // causes unexpected 304s
   { "if-unmodified-since", NULL },  // causes unexpected 412s
   { "if-match", NULL },             // causes unexpected 412s
   { NULL, NULL }
+};
+
+struct ValidationHeaderInfo {
+  const char* request_header_name;
+  const char* related_response_header_name;
+};
+
+static const ValidationHeaderInfo kValidationHeaders[] = {
+  { "if-modified-since", "last-modified" },
+  { "if-none-match", "etag" },
+};
+
+// Helper struct to pair a header name with its value, for
+// headers used to validate cache entries.
+struct ValidationHeader {
+  enum {kInvalidIndex = -1};
+
+  ValidationHeader() : type_index(kInvalidIndex) {}
+
+  bool initialized() const {
+    return type_index != kInvalidIndex;
+  }
+
+  const ValidationHeaderInfo& type_info() {
+    DCHECK(initialized());
+    return kValidationHeaders[type_index];
+  }
+
+  // Index into |kValidationHeaders|.
+  int type_index;
+  std::string value;
 };
 
 // If the request includes one of these request headers, then avoid reusing
@@ -194,11 +223,17 @@ class HttpCache::Transaction
   //    optionally modify the cache entry (e.g., possibly corresponding to
   //    cache validation).
   //
+  //  o If the mode of the transaction is UPDATE, then the transaction may
+  //    update existing cache entries, but will never create a new entry or
+  //    respond using the entry read from the cache.
   enum Mode {
-    NONE       = 0x0,
-    READ       = 0x1,
-    WRITE      = 0x2,
-    READ_WRITE = READ | WRITE
+    NONE            = 0,
+    READ_META       = 1 << 0,
+    READ_DATA       = 1 << 1,
+    READ            = READ_META | READ_DATA,
+    WRITE           = 1 << 2,
+    READ_WRITE      = READ | WRITE,
+    UPDATE          = READ_META | WRITE,  // READ_WRITE & ~READ_DATA
   };
 
   Mode mode() const { return mode_; }
@@ -220,7 +255,7 @@ class HttpCache::Transaction
   // This will trigger the completion callback if appropriate.
   int HandleResult(int rv);
 
-  // Set request_ and fields derived from it.
+  // Sets request_ and fields derived from it.
   void SetRequest(const HttpRequestInfo* request);
 
   // Returns true if the request should be handled exclusively by the network
@@ -244,6 +279,12 @@ class HttpCache::Transaction
   // cache.  If this chunk is not currently stored, starts the network request
   // to fetch it.  Returns a network error code.
   int ContinuePartialCacheValidation();
+
+  // Called to start requests which were given an "if-modified-since" or
+  // "if-none-match" validation header by the caller (NOT when the request was
+  // conditionalized internally in response to LOAD_VALIDATE_CACHE).
+  // Returns a network error code.
+  int BeginExternallyConditionalizedRequest();
 
   // Called to begin a network transaction.  Returns network error code.
   int BeginNetworkRequest();
@@ -319,6 +360,9 @@ class HttpCache::Transaction
 
   const HttpRequestInfo* request_;
   scoped_ptr<HttpRequestInfo> custom_request_;
+  // If extra_headers specified a "if-modified-since" or "if-none-match",
+  // |external_validation_| contains the value of that header.
+  ValidationHeader external_validation_;
   HttpCache* cache_;
   HttpCache::ActiveEntry* entry_;
   scoped_ptr<HttpTransaction> network_trans_;
@@ -373,14 +417,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
 
   int rv;
 
-  if (ShouldPassThrough()) {
-    // if must use cache, then we must fail.  this can happen for back/forward
-    // navigations to a page generated via a form post.
-    if (effective_load_flags_ & LOAD_ONLY_FROM_CACHE)
-      return ERR_CACHE_MISS;
-
-    rv = BeginNetworkRequest();
-  } else {
+  if (!ShouldPassThrough()) {
     cache_key_ = cache_->GenerateCacheKey(request);
 
     // requested cache access mode
@@ -392,8 +429,26 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
       mode_ = READ_WRITE;
     }
 
-    rv = AddToEntry();
+    // Downgrade to UPDATE if the request has been externally conditionalized.
+    if (external_validation_.initialized()) {
+      if (mode_ & WRITE) {
+        // Strip off the READ_DATA bit.
+        mode_ = UPDATE;
+      } else {
+        mode_ = NONE;
+      }
+    }
   }
+
+  // if must use cache, then we must fail.  this can happen for back/forward
+  // navigations to a page generated via a form post.
+  if (!(mode_ & READ) && effective_load_flags_ & LOAD_ONLY_FROM_CACHE)
+    return ERR_CACHE_MISS;
+
+  if (mode_ == NONE)
+    rv = BeginNetworkRequest();
+  else
+    rv = AddToEntry();
 
   // setting this here allows us to check for the existance of a callback_ to
   // determine if we are still inside Start.
@@ -556,8 +611,12 @@ int HttpCache::Transaction::AddToEntry() {
     if (!entry) {
       entry = cache_->OpenEntry(cache_key_);
       if (!entry) {
-        if (mode_ & WRITE) {
+        if (mode_ == READ_WRITE) {
           mode_ = WRITE;
+        } else if (mode_ == UPDATE) {
+          // There is no cache entry to update; proceed without caching.
+          mode_ = NONE;
+          return BeginNetworkRequest();
         } else {
           if (cache_->mode() == PLAYBACK)
             DLOG(INFO) << "Playback Cache Miss: " << request_->url;
@@ -596,6 +655,11 @@ int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
   //    to be validated and then issue a network request if needed or just read
   //    from the cache if the cache entry is already valid.
   //
+  //  o if we are set to UPDATE, then we are handling an externally
+  //    conditionalized request (if-modified-since / if-none-match). We read
+  //    the cache entry, and check if the request headers define a validation
+  //    request.
+  //
   int rv;
   entry_ = entry;
   switch (mode_) {
@@ -609,6 +673,9 @@ int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
       break;
     case READ_WRITE:
       rv = BeginPartialCacheValidation();
+      break;
+    case UPDATE:
+      rv = BeginExternallyConditionalizedRequest();
       break;
     default:
       NOTREACHED();
@@ -677,6 +744,11 @@ void HttpCache::Transaction::SetRequest(const HttpRequestInfo* request) {
   std::string new_extra_headers;
   bool range_found = false;
 
+  // We will scan through the headers to see if any "if-modified-since" or
+  // "if-none-match" request headers were specified as part of extra_headers.
+  int num_validation_headers = 0;
+  ValidationHeader validation_header;
+
   // scan request headers to see if we have any that would impact our load flags
   HttpUtil::HeadersIterator it(request_->extra_headers.begin(),
                                request_->extra_headers.end(),
@@ -699,6 +771,19 @@ void HttpCache::Transaction::SetRequest(const HttpRequestInfo* request) {
         break;
       }
     }
+
+    // Check for conditionalization headers which may correspond with a
+    // cache validation request.
+    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kValidationHeaders); ++i) {
+      const ValidationHeaderInfo& info = kValidationHeaders[i];
+      if (LowerCaseEqualsASCII(it.name_begin(), it.name_end(),
+                               info.request_header_name)) {
+        num_validation_headers++;
+        validation_header.type_index = i;
+        validation_header.value = it.values();
+        break;
+      }
+    }
   }
 
   if (range_found && !(effective_load_flags_ & LOAD_DISABLE_CACHE)) {
@@ -713,6 +798,19 @@ void HttpCache::Transaction::SetRequest(const HttpRequestInfo* request) {
       // The range is invalid or we cannot handle it properly.
       effective_load_flags_ |= LOAD_DISABLE_CACHE;
     }
+  }
+
+  // If there is more than one validation header, we can't treat this request as
+  // a cache validation, since we don't know for sure which header the server
+  // will give us a response for (and they could be contradictory).
+  if (num_validation_headers > 1) {
+    LOG(WARNING) << "Multiple validation headers found.";
+    effective_load_flags_ |= LOAD_DISABLE_CACHE;
+  }
+
+  if (num_validation_headers == 1) {
+    DCHECK(validation_header.initialized());
+    external_validation_ = validation_header;
   }
 }
 
@@ -816,6 +914,36 @@ int HttpCache::Transaction::ContinuePartialCacheValidation() {
   }
 
   return BeginCacheValidation();
+}
+
+int HttpCache::Transaction::BeginExternallyConditionalizedRequest() {
+  DCHECK_EQ(UPDATE, mode_);
+  DCHECK(external_validation_.initialized());
+
+  // Read the cached response.
+  int rv = ReadResponseInfoFromEntry();
+  if (rv != OK) {
+    DCHECK(rv != ERR_IO_PENDING);
+    return HandleResult(rv);
+  }
+
+  // Retrieve either the cached response's "etag" or "last-modified" header,
+  // depending on which is applicable for the caller's request header.
+  std::string validator;
+  response_.headers->EnumerateHeader(
+      NULL,
+      external_validation_.type_info().related_response_header_name,
+      &validator);
+
+  if (response_.headers->response_code() != 200 ||
+      validator.empty() ||
+      validator != external_validation_.value) {
+    // The externally conditionalized request is not a validation request
+    // for our existing cache entry. Proceed with caching disabled.
+    DoneWritingToEntry(true);
+  }
+
+  return BeginNetworkRequest();
 }
 
 int HttpCache::Transaction::BeginNetworkRequest() {
@@ -1096,7 +1224,7 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
         }
       }
       // Are we expecting a response to a conditional query?
-      if (mode_ == READ_WRITE) {
+      if (mode_ == READ_WRITE || mode_ == UPDATE) {
         if (new_response->headers->response_code() == 304 || partial_content) {
           // Update cached response based on headers in new_response.
           // TODO(wtc): should we update cached certificate
@@ -1108,14 +1236,26 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
             WriteResponseInfoToEntry();
           }
 
-          if (entry_ && !partial_content) {
+          if (mode_ == UPDATE) {
+            DCHECK(!partial_content);
+            // We got a "not modified" response and already updated the
+            // corresponding cache entry above.
+            //
+            // By closing the cached entry now, we make sure that the
+            // 304 rather than the cached 200 response, is what will be
+            // returned to the user.
+            DoneWritingToEntry(true);
+          } else if (entry_ && !partial_content) {
+            DCHECK_EQ(READ_WRITE, mode_);
             if (!partial_.get() || partial_->IsLastRange())
               cache_->ConvertWriterToReader(entry_);
             // We no longer need the network transaction, so destroy it.
             final_upload_progress_ = network_trans_->GetUploadProgress();
             network_trans_.reset();
-            if (!partial_.get() || partial_->IsLastRange())
+            if (!partial_.get() || partial_->IsLastRange()) {
+              DCHECK_NE(UPDATE, mode_);
               mode_ = READ;
+            }
           }
         } else {
           mode_ = WRITE;
