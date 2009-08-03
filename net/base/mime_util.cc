@@ -185,6 +185,7 @@ static const char* const supported_media_types[] = {
   // Ogg.
   "video/ogg",
   "audio/ogg",
+  "application/ogg",
 
 #if defined(GOOGLE_CHROME_BUILD)
   // MPEG-4.
