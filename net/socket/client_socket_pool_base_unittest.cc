@@ -6,7 +6,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
-#include "base/platform_thread.h"
 #include "base/scoped_vector.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -108,22 +107,16 @@ class TestConnectJob : public ConnectJob {
   TestConnectJob(JobType job_type,
                  const std::string& group_name,
                  const ClientSocketPoolBase::Request& request,
-                 base::TimeDelta timeout_duration,
                  ConnectJob::Delegate* delegate,
                  MockClientSocketFactory* client_socket_factory)
-      : ConnectJob(group_name, request.handle, timeout_duration, delegate),
+      : ConnectJob(group_name, request.handle, delegate),
         job_type_(job_type),
         client_socket_factory_(client_socket_factory),
         method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {}
 
-  void Signal() {
-    DoConnect(waiting_success_, true /* async */);
-  }
-
- private:
   // ConnectJob methods:
 
-  virtual int ConnectInternal() {
+  virtual int Connect() {
     AddressList ignored;
     client_socket_factory_->CreateTCPClientSocket(ignored);
     switch (job_type_) {
@@ -165,6 +158,11 @@ class TestConnectJob : public ConnectJob {
     }
   }
 
+  void Signal() {
+    DoConnect(waiting_success_, true /* async */);
+  }
+
+ private:
   int DoConnect(bool succeed, bool was_async) {
     int result = ERR_CONNECTION_FAILED;
     if (succeed) {
@@ -209,10 +207,6 @@ class TestConnectJobFactory : public ClientSocketPoolBase::ConnectJobFactory {
 
   void set_job_type(TestConnectJob::JobType job_type) { job_type_ = job_type; }
 
-  void set_timeout_duration(base::TimeDelta timeout_duration) {
-    timeout_duration_ = timeout_duration;
-  }
-
   // ConnectJobFactory methods:
 
   virtual ConnectJob* NewConnectJob(
@@ -222,14 +216,12 @@ class TestConnectJobFactory : public ClientSocketPoolBase::ConnectJobFactory {
     return new TestConnectJob(job_type_,
                               group_name,
                               request,
-                              timeout_duration_,
                               delegate,
                               client_socket_factory_);
   }
 
  private:
   TestConnectJob::JobType job_type_;
-  base::TimeDelta timeout_duration_;
   MockClientSocketFactory* const client_socket_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(TestConnectJobFactory);
@@ -283,10 +275,6 @@ class TestClientSocketPool : public ClientSocketPool {
 
   const ClientSocketPoolBase* base() const { return base_.get(); }
 
-  int NumConnectJobsInGroup(const std::string& group_name) const {
-    return base_->NumConnectJobsInGroup(group_name);
-  }
-
  private:
   const scoped_refptr<ClientSocketPoolBase> base_;
 
@@ -300,37 +288,6 @@ void MockClientSocketFactory::SignalJobs() {
   }
   waiting_jobs_.clear();
 }
-
-class TestConnectJobDelegate : public ConnectJob::Delegate {
- public:
-  TestConnectJobDelegate()
-      : have_result_(false), waiting_for_result_(false), result_(OK) {}
-  virtual ~TestConnectJobDelegate() {}
-
-  virtual void OnConnectJobComplete(int result, ConnectJob* job) {
-    result_ = result;
-    delete job;
-    have_result_ = true;
-    if (waiting_for_result_)
-      MessageLoop::current()->Quit();
-  }
-
-  int WaitForResult() {
-    DCHECK(!waiting_for_result_);
-    while (!have_result_) {
-      waiting_for_result_ = true;
-      MessageLoop::current()->Run();
-      waiting_for_result_ = false;
-    }
-    have_result_ = false;  // auto-reset for next callback
-    return result_;
-  }
-
- private:
-  bool have_result_;
-  bool waiting_for_result_;
-  int result_;
-};
 
 class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
  protected:
@@ -366,34 +323,6 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
   TestConnectJobFactory* const connect_job_factory_;
   scoped_refptr<TestClientSocketPool> pool_;
 };
-
-// Even though a timeout is specified, it doesn't time out on a synchronous
-// completion.
-TEST(ConnectJobTest, NoTimeoutOnSynchronousCompletion) {
-  TestConnectJobDelegate delegate;
-  MockClientSocketFactory factory;
-  TestConnectJob job(TestConnectJob::kMockJob,
-                     "a", 
-                     ClientSocketPoolBase::Request(),
-                     base::TimeDelta::FromMicroseconds(1),
-                     &delegate,
-                     &factory);
-  EXPECT_EQ(OK, job.Connect());
-}
-
-TEST(ConnectJobTest, JobTimedOut) {
-  TestConnectJobDelegate delegate;
-  MockClientSocketFactory factory;
-  TestConnectJob job(TestConnectJob::kMockPendingJob,
-                     "a", 
-                     ClientSocketPoolBase::Request(),
-                     base::TimeDelta::FromMicroseconds(1),
-                     &delegate,
-                     &factory);
-  ASSERT_EQ(ERR_IO_PENDING, job.Connect());
-  PlatformThread::Sleep(1);
-  EXPECT_EQ(ERR_TIMED_OUT, delegate.WaitForResult());
-}
 
 TEST_F(ClientSocketPoolBaseTest, BasicSynchronous) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
@@ -1279,28 +1208,6 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequest) {
 
   // Make sure we test order of all requests made.
   EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(8));
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequestLimitsJobs) {
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 2));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 3));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 4));
-
-  EXPECT_EQ(kDefaultMaxSocketsPerGroup, pool_->NumConnectJobsInGroup("a"));
-  requests_[2]->handle()->Reset();
-  requests_[3]->handle()->Reset();
-  EXPECT_EQ(kDefaultMaxSocketsPerGroup, pool_->NumConnectJobsInGroup("a"));
-
-  requests_[1]->handle()->Reset();
-  EXPECT_EQ(kDefaultMaxSocketsPerGroup, pool_->NumConnectJobsInGroup("a"));
-
-  requests_[0]->handle()->Reset();
-  EXPECT_EQ(kDefaultMaxSocketsPerGroup - 1, pool_->NumConnectJobsInGroup("a"));
 }
 
 TEST_F(ClientSocketPoolBaseTest_LateBinding, RequestPendingJobTwice) {
