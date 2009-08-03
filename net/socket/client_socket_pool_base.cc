@@ -34,9 +34,11 @@ bool ClientSocketPoolBase::g_late_binding = false;
 
 ConnectJob::ConnectJob(const std::string& group_name,
                        const ClientSocketHandle* key_handle,
+                       base::TimeDelta timeout_duration,
                        Delegate* delegate)
     : group_name_(group_name),
       key_handle_(key_handle),
+      timeout_duration_(timeout_duration),
       delegate_(delegate),
       load_state_(LOAD_STATE_IDLE) {
   DCHECK(!group_name.empty());
@@ -45,6 +47,19 @@ ConnectJob::ConnectJob(const std::string& group_name,
 }
 
 ConnectJob::~ConnectJob() {}
+
+int ConnectJob::Connect() {
+  if (timeout_duration_ != base::TimeDelta())
+    timer_.Start(timeout_duration_, this, &ConnectJob::OnTimeout);
+  return ConnectInternal();
+}
+
+void ConnectJob::OnTimeout() {
+  // The delegate will delete |this|.
+  Delegate *delegate = delegate_;
+  delegate_ = NULL;
+  delegate->OnConnectJobComplete(ERR_TIMED_OUT, this);
+}
 
 ClientSocketPoolBase::ClientSocketPoolBase(
     int max_sockets,
@@ -164,6 +179,12 @@ void ClientSocketPoolBase::CancelRequest(const std::string& group_name,
   for (; it != group.pending_requests.end(); ++it) {
     if (it->handle == handle) {
       group.pending_requests.erase(it);
+      if (g_late_binding &&
+          group.jobs.size() > group.pending_requests.size() + 1) {
+        // TODO(willchan): Cancel the job in the earliest LoadState.
+        RemoveConnectJob(handle, *group.jobs.begin(), &group);
+        OnAvailableSocketSlot(group_name, &group);
+      }
       return;
     }
   }
@@ -417,7 +438,7 @@ void ClientSocketPoolBase::EnableLateBindingOfSockets(bool enabled) {
 }
 
 void ClientSocketPoolBase::RemoveConnectJob(
-    const ClientSocketHandle* handle, ConnectJob *job, Group* group) {
+    const ClientSocketHandle* handle, const ConnectJob *job, Group* group) {
   CHECK(connecting_socket_count_ > 0);
   connecting_socket_count_--;
 
