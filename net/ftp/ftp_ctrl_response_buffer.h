@@ -16,8 +16,7 @@ namespace net {
 struct FtpCtrlResponse {
   static const int kInvalidStatusCode;
 
-  FtpCtrlResponse() : status_code(kInvalidStatusCode) {
-  }
+  FtpCtrlResponse() : status_code(kInvalidStatusCode) {}
 
   int status_code;                 // Three-digit status code.
   std::vector<std::string> lines;  // Response lines, without CRLFs.
@@ -69,7 +68,7 @@ class FtpCtrlResponseBuffer {
     // Part of response parsed as status text.
     std::string status_text;
 
-    // Text before parsing, without ending CRLF.
+    // Text before parsing, without terminating CRLF.
     std::string raw_text;
   };
 

@@ -27,7 +27,7 @@ namespace net {
 const int FtpCtrlResponse::kInvalidStatusCode = -1;
 
 int FtpCtrlResponseBuffer::ConsumeData(const char* data, int data_length) {
-  buffer_.append(std::string(data, data_length));
+  buffer_.append(data, data_length);
   ExtractFullLinesFromBuffer();
 
   while (!lines_.empty()) {
@@ -38,11 +38,10 @@ int FtpCtrlResponseBuffer::ConsumeData(const char* data, int data_length) {
       if (!line.is_complete)
         return ERR_INVALID_RESPONSE;
 
+      response_buf_.status_code = line.status_code;
       if (line.is_multiline) {
         line_buf_ = line.status_text;
-        response_buf_.status_code = line.status_code;
       } else {
-        response_buf_.status_code = line.status_code;
         response_buf_.lines.push_back(line.status_text);
         LogResponse(response_buf_);
         responses_.push(response_buf_);
@@ -106,14 +105,11 @@ FtpCtrlResponseBuffer::ParsedLine FtpCtrlResponseBuffer::ParseLine(
 }
 
 void FtpCtrlResponseBuffer::ExtractFullLinesFromBuffer() {
-  std::string line_buf;
   int cut_pos = 0;
   for (size_t i = 0; i < buffer_.length(); i++) {
-    line_buf.push_back(buffer_[i]);
     if (i >= 1 && buffer_[i - 1] == '\r' && buffer_[i] == '\n') {
-      lines_.push(ParseLine(line_buf.substr(0, line_buf.length() - 2)));
+      lines_.push(ParseLine(buffer_.substr(cut_pos, i - cut_pos - 1)));
       cut_pos = i + 1;
-      line_buf.clear();
     }
   }
   buffer_.erase(0, cut_pos);
