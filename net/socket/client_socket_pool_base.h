@@ -43,10 +43,8 @@ class ConnectJob {
     DISALLOW_COPY_AND_ASSIGN(Delegate);
   };
 
-  // A |timeout_duration| of 0 corresponds to no timeout.
   ConnectJob(const std::string& group_name,
              const ClientSocketHandle* key_handle,
-             base::TimeDelta timeout_duration,
              Delegate* delegate);
   virtual ~ConnectJob();
 
@@ -65,7 +63,7 @@ class ConnectJob {
   // |delegate_| via OnConnectJobComplete.  In both asynchronous and synchronous
   // completion, ReleaseSocket() can be called to acquire the connected socket
   // if it succeeded.
-  int Connect();
+  virtual int Connect() = 0;
 
  protected:
   void set_load_state(LoadState load_state) { load_state_ = load_state; }
@@ -74,18 +72,10 @@ class ConnectJob {
   Delegate* delegate() { return delegate_; }
 
  private:
-  virtual int ConnectInternal() = 0;
-
-  // Alerts the delegate that the ConnectJob has timed out.
-  void OnTimeout();
-
   const std::string group_name_;
   // Temporarily needed until we switch to late binding.
   const ClientSocketHandle* const key_handle_;
-  const base::TimeDelta timeout_duration_;
-  // Timer to abort jobs that take too long.
-  base::OneShotTimer<ConnectJob> timer_;
-  Delegate* delegate_;
+  Delegate* const delegate_;
   LoadState load_state_;
   scoped_ptr<ClientSocket> socket_;
 
@@ -178,9 +168,6 @@ class ClientSocketPoolBase
 
   // For testing.
   bool may_have_stalled_group() const { return may_have_stalled_group_; }
-  int NumConnectJobsInGroup(const std::string& group_name) const {
-    return group_map_.find(group_name)->second.jobs.size();
-  }
 
  private:
   // Entry for a persistent socket which became idle at time |start_time|.
@@ -265,7 +252,7 @@ class ClientSocketPoolBase
   // binding is enabled.  |job| must be non-NULL when late binding is
   // enabled.  Also updates |group| if non-NULL.
   void RemoveConnectJob(const ClientSocketHandle* handle,
-                        const ConnectJob* job,
+                        ConnectJob* job,
                         Group* group);
 
   // Same as OnAvailableSocketSlot except it looks up the Group first to see if
