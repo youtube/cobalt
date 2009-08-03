@@ -369,9 +369,9 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
 // cancelled requests from Job::requests_.
 void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
   if (shutdown_) {
-    // TODO(eroman): temp hack for: http://crbug.com/16972.
-    // Because we destroy outstanding requests during Shutdown() as part of
-    // hack http://crbug.com/15513, |req_handle| is already cancelled.
+    // TODO(eroman): temp hack for: http://crbug.com/18373
+    // Because we destroy outstanding requests during Shutdown(),
+    // |req_handle| is already cancelled.
     LOG(ERROR) << "Called HostResolverImpl::CancelRequest() after Shutdown().";
     StackTrace().PrintBacktrace();
     return;
