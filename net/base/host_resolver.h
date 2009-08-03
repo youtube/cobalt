@@ -126,7 +126,7 @@ class HostResolver : public base::RefCounted<HostResolver> {
   // Unregisters an observer previously added by AddObserver().
   virtual void RemoveObserver(Observer* observer) = 0;
 
-  // TODO(eroman): temp hack for http://crbug.com/15513
+  // TODO(eroman): temp hack for http://crbug.com/18373
   virtual void Shutdown() = 0;
 
   DISALLOW_COPY_AND_ASSIGN(HostResolver);
