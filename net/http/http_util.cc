@@ -12,6 +12,7 @@
 #include "base/logging.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
+#include "net/base/net_util.h"
 
 using std::string;
 
@@ -63,11 +64,7 @@ std::string HttpUtil::PathForRequest(const GURL& url) {
 // static
 std::string HttpUtil::SpecForRequest(const GURL& url) {
   DCHECK(url.is_valid() && (url.SchemeIs("http") || url.SchemeIs("https")));
-  GURL::Replacements replacements;
-  replacements.ClearUsername();
-  replacements.ClearPassword();
-  replacements.ClearRef();
-  return url.ReplaceComponents(replacements).spec();
+  return SimplifyUrlForRequest(url).spec();
 }
 
 // static

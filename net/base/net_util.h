@@ -225,6 +225,11 @@ inline std::wstring FormatUrl(const GURL& url, const std::wstring& languages) {
   return FormatUrl(url, languages, true, UnescapeRule::SPACES, NULL, NULL);
 }
 
+// Strip the portions of |url| that aren't core to the network request.
+//   - user name / password
+//   - reference section
+GURL SimplifyUrlForRequest(const GURL& url);
+
 }  // namespace net
 
 #endif  // NET_BASE_NET_UTIL_H__
