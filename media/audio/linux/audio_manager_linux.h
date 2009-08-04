@@ -5,12 +5,22 @@
 #ifndef MEDIA_AUDIO_LINUX_AUDIO_MANAGER_LINUX_H_
 #define MEDIA_AUDIO_LINUX_AUDIO_MANAGER_LINUX_H_
 
+#include <map>
+
+#include "base/ref_counted.h"
+#include "base/scoped_ptr.h"
 #include "base/thread.h"
 #include "media/audio/audio_output.h"
+
+class AlsaPcmOutputStream;
+class AlsaWrapper;
 
 class AudioManagerLinux : public AudioManager {
  public:
   AudioManagerLinux();
+
+  // Call before using a newly created AudioManagerLinux instance.
+  void Init();
 
   // Implementation of AudioManager.
   virtual bool HasAudioDevices();
@@ -24,6 +34,16 @@ class AudioManagerLinux : public AudioManager {
   // Friend function for invoking the private destructor at exit.
   friend void DestroyAudioManagerLinux(void*);
   virtual ~AudioManagerLinux();
+
+  // Thread used to interact with AudioOutputStreams created by this
+  // audio manger.
+  base::Thread audio_thread_;
+  scoped_ptr<AlsaWrapper> wrapper_;
+
+  std::map<AlsaPcmOutputStream*, scoped_refptr<AlsaPcmOutputStream> >
+      active_streams_;
+
+  bool initialized_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioManagerLinux);
 };
