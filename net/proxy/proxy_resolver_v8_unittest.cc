@@ -68,7 +68,7 @@ class ProxyResolverV8WithMockBindings : public net::ProxyResolverV8 {
   }
 
   // Initialize with the PAC script data at |filename|.
-  void SetPacScriptFromDisk(const char* filename) {
+  int SetPacScriptFromDisk(const char* filename) {
     FilePath path;
     PathService::Get(base::DIR_SOURCE_ROOT, &path);
     path = path.AppendASCII("net");
@@ -81,11 +81,13 @@ class ProxyResolverV8WithMockBindings : public net::ProxyResolverV8 {
     bool ok = file_util::ReadFileToString(path, &file_contents);
 
     // If we can't load the file from disk, something is misconfigured.
-    LOG_IF(ERROR, !ok) << "Failed to read file: " << path.value();
-    ASSERT_TRUE(ok);
+    if (!ok) {
+      LOG(ERROR) << "Failed to read file: " << path.value();
+      return net::ERR_UNEXPECTED;
+    }
 
     // Load the PAC script into the ProxyResolver.
-    SetPacScriptByData(file_contents);
+    return SetPacScriptByData(file_contents, NULL);
   }
 };
 
@@ -97,10 +99,11 @@ const GURL kPacUrl;
 
 TEST(ProxyResolverV8Test, Direct) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("direct.js");
+  int result = resolver.SetPacScriptFromDisk("direct.js");
+  EXPECT_EQ(net::OK, result);
 
   net::ProxyInfo proxy_info;
-  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
 
   EXPECT_EQ(net::OK, result);
   EXPECT_TRUE(proxy_info.is_direct());
@@ -111,10 +114,11 @@ TEST(ProxyResolverV8Test, Direct) {
 
 TEST(ProxyResolverV8Test, ReturnEmptyString) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("return_empty_string.js");
+  int result = resolver.SetPacScriptFromDisk("return_empty_string.js");
+  EXPECT_EQ(net::OK, result);
 
   net::ProxyInfo proxy_info;
-  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
 
   EXPECT_EQ(net::OK, result);
   EXPECT_TRUE(proxy_info.is_direct());
@@ -125,14 +129,15 @@ TEST(ProxyResolverV8Test, ReturnEmptyString) {
 
 TEST(ProxyResolverV8Test, Basic) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("passthrough.js");
+  int result = resolver.SetPacScriptFromDisk("passthrough.js");
+  EXPECT_EQ(net::OK, result);
 
   // The "FindProxyForURL" of this PAC script simply concatenates all of the
   // arguments into a pseudo-host. The purpose of this test is to verify that
   // the correct arguments are being passed to FindProxyForURL().
   {
     net::ProxyInfo proxy_info;
-    int result = resolver.GetProxyForURL(GURL("http://query.com/path"),
+    result = resolver.GetProxyForURL(GURL("http://query.com/path"),
                                          &proxy_info, NULL, NULL);
     EXPECT_EQ(net::OK, result);
     EXPECT_EQ("http.query.com.path.query.com:80",
@@ -168,10 +173,11 @@ TEST(ProxyResolverV8Test, BadReturnType) {
 
   for (size_t i = 0; i < arraysize(filenames); ++i) {
     ProxyResolverV8WithMockBindings resolver;
-    resolver.SetPacScriptFromDisk(filenames[i]);
+    int result = resolver.SetPacScriptFromDisk(filenames[i]);
+    EXPECT_EQ(net::OK, result);
 
     net::ProxyInfo proxy_info;
-    int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+    result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
 
     EXPECT_EQ(net::ERR_PAC_SCRIPT_FAILED, result);
 
@@ -187,54 +193,46 @@ TEST(ProxyResolverV8Test, BadReturnType) {
 // Try using a PAC script which defines no "FindProxyForURL" function.
 TEST(ProxyResolverV8Test, NoEntryPoint) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("no_entrypoint.js");
-
-  net::ProxyInfo proxy_info;
-  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
-
+  int result = resolver.SetPacScriptFromDisk("no_entrypoint.js");
   EXPECT_EQ(net::ERR_PAC_SCRIPT_FAILED, result);
 
-  MockJSBindings* bindings = resolver.mock_js_bindings();
-  EXPECT_EQ(0U, bindings->alerts.size());
-  ASSERT_EQ(1U, bindings->errors.size());
-  EXPECT_EQ("FindProxyForURL() is undefined.", bindings->errors[0]);
-  EXPECT_EQ(-1, bindings->errors_line_number[0]);
+  net::ProxyInfo proxy_info;
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+
+  EXPECT_EQ(net::ERR_FAILED, result);
 }
 
 // Try loading a malformed PAC script.
 TEST(ProxyResolverV8Test, ParseError) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("missing_close_brace.js");
+  int result = resolver.SetPacScriptFromDisk("missing_close_brace.js");
+  EXPECT_EQ(net::ERR_PAC_SCRIPT_FAILED, result);
 
   net::ProxyInfo proxy_info;
-  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
 
-  EXPECT_EQ(net::ERR_PAC_SCRIPT_FAILED, result);
+  EXPECT_EQ(net::ERR_FAILED, result);
 
   MockJSBindings* bindings = resolver.mock_js_bindings();
   EXPECT_EQ(0U, bindings->alerts.size());
 
-  // We get two errors -- one during compilation, and then later when
-  // trying to run FindProxyForURL().
-  ASSERT_EQ(2U, bindings->errors.size());
+  // We get one error during compilation.
+  ASSERT_EQ(1U, bindings->errors.size());
 
   EXPECT_EQ("Uncaught SyntaxError: Unexpected end of input",
             bindings->errors[0]);
   EXPECT_EQ(-1, bindings->errors_line_number[0]);
-
-  EXPECT_EQ("FindProxyForURL() is undefined.", bindings->errors[1]);
-  EXPECT_EQ(-1, bindings->errors_line_number[1]);
 }
 
 // Run a PAC script several times, which has side-effects.
 TEST(ProxyResolverV8Test, SideEffects) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("side_effects.js");
+  int result = resolver.SetPacScriptFromDisk("side_effects.js");
 
   // The PAC script increments a counter each time we invoke it.
   for (int i = 0; i < 3; ++i) {
     net::ProxyInfo proxy_info;
-    int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+    result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
     EXPECT_EQ(net::OK, result);
     EXPECT_EQ(StringPrintf("sideffect_%d:80", i),
               proxy_info.proxy_server().ToURI());
@@ -242,11 +240,12 @@ TEST(ProxyResolverV8Test, SideEffects) {
 
   // Reload the script -- the javascript environment should be reset, hence
   // the counter starts over.
-  resolver.SetPacScriptFromDisk("side_effects.js");
+  result = resolver.SetPacScriptFromDisk("side_effects.js");
+  EXPECT_EQ(net::OK, result);
 
   for (int i = 0; i < 3; ++i) {
     net::ProxyInfo proxy_info;
-    int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+    result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
     EXPECT_EQ(net::OK, result);
     EXPECT_EQ(StringPrintf("sideffect_%d:80", i),
               proxy_info.proxy_server().ToURI());
@@ -256,10 +255,11 @@ TEST(ProxyResolverV8Test, SideEffects) {
 // Execute a PAC script which throws an exception in FindProxyForURL.
 TEST(ProxyResolverV8Test, UnhandledException) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("unhandled_exception.js");
+  int result = resolver.SetPacScriptFromDisk("unhandled_exception.js");
+  EXPECT_EQ(net::OK, result);
 
   net::ProxyInfo proxy_info;
-  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
 
   EXPECT_EQ(net::ERR_PAC_SCRIPT_FAILED, result);
 
@@ -275,10 +275,11 @@ TEST(ProxyResolverV8Test, UnhandledException) {
 // host/port doesn't check for non-ascii characters.
 TEST(ProxyResolverV8Test, DISABLED_ReturnUnicode) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("return_unicode.js");
+  int result = resolver.SetPacScriptFromDisk("return_unicode.js");
+  EXPECT_EQ(net::OK, result);
 
   net::ProxyInfo proxy_info;
-  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
 
   // The result from this resolve was unparseable, because it
   // wasn't ascii.
@@ -288,10 +289,11 @@ TEST(ProxyResolverV8Test, DISABLED_ReturnUnicode) {
 // Test the PAC library functions that we expose in the JS environmnet.
 TEST(ProxyResolverV8Test, JavascriptLibrary) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("pac_library_unittest.js");
+  int result = resolver.SetPacScriptFromDisk("pac_library_unittest.js");
+  EXPECT_EQ(net::OK, result);
 
   net::ProxyInfo proxy_info;
-  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
 
   // If the javascript side of this unit-test fails, it will throw a javascript
   // exception. Otherwise it will return "PROXY success:80".
@@ -313,21 +315,23 @@ TEST(ProxyResolverV8Test, NoSetPacScript) {
   EXPECT_EQ(net::ERR_FAILED, result);
 
   // Initialize it.
-  resolver.SetPacScriptFromDisk("direct.js");
+  result = resolver.SetPacScriptFromDisk("direct.js");
+  EXPECT_EQ(net::OK, result);
 
   // Resolve should now succeed.
   result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
   EXPECT_EQ(net::OK, result);
 
   // Clear it, by initializing with an empty string.
-  resolver.SetPacScriptByData(std::string());
+  resolver.SetPacScriptByData(std::string(), NULL);
 
   // Resolve should fail again now.
   result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
   EXPECT_EQ(net::ERR_FAILED, result);
 
   // Load a good script once more.
-  resolver.SetPacScriptFromDisk("direct.js");
+  result = resolver.SetPacScriptFromDisk("direct.js");
+  EXPECT_EQ(net::OK, result);
   result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
   EXPECT_EQ(net::OK, result);
 
@@ -338,10 +342,11 @@ TEST(ProxyResolverV8Test, NoSetPacScript) {
 // Test marshalling/un-marshalling of values between C++/V8.
 TEST(ProxyResolverV8Test, V8Bindings) {
   ProxyResolverV8WithMockBindings resolver;
-  resolver.SetPacScriptFromDisk("bindings.js");
+  int result = resolver.SetPacScriptFromDisk("bindings.js");
+  EXPECT_EQ(net::OK, result);
 
   net::ProxyInfo proxy_info;
-  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL);
 
   EXPECT_EQ(net::OK, result);
   EXPECT_TRUE(proxy_info.is_direct());

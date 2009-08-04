@@ -8,6 +8,7 @@
 #include <string>
 
 #include "googleurl/src/gurl.h"
+#include "net/base/net_errors.h"
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_resolver.h"
 
@@ -30,8 +31,11 @@ class ProxyResolverMac : public ProxyResolver {
   }
 
  private:
-  virtual void SetPacScriptByUrlInternal(const GURL& pac_url) {
+  virtual int SetPacScript(const GURL& pac_url,
+                           const std::string& /*pac_bytes*/,
+                           CompletionCallback* /*callback*/) {
     pac_url_ = pac_url;
+    return OK;
   }
 
   GURL pac_url_;

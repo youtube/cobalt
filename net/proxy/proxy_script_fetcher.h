@@ -9,6 +9,8 @@
 #ifndef NET_PROXY_PROXY_SCRIPT_FETCHER_H_
 #define NET_PROXY_PROXY_SCRIPT_FETCHER_H_
 
+#include <string>
+
 #include "net/base/completion_callback.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -37,8 +39,8 @@ class ProxyScriptFetcher {
   // deleting |this|), then no callback is invoked.
   //
   // Only one fetch is allowed to be outstanding at a time.
-  virtual void Fetch(const GURL& url, std::string* bytes,
-                     CompletionCallback* callback) = 0;
+  virtual int Fetch(const GURL& url, std::string* bytes,
+                    CompletionCallback* callback) = 0;
 
   // Aborts the in-progress fetch (if any).
   virtual void Cancel() = 0;
