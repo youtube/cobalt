@@ -56,12 +56,13 @@ class ProxyResolverV8 : public ProxyResolver {
  private:
   // Context holds the Javascript state for the most recently loaded PAC
   // script. It corresponds with the data from the last call to
-  // SetPacScriptByDataInternal().
+  // SetPacScript().
   class Context;
 
   // ProxyResolver implementation:
-  virtual void SetPacScriptByDataInternal(const std::string& bytes);
-
+  virtual int SetPacScript(const GURL& /*pac_url*/,
+                           const std::string& bytes,
+                           CompletionCallback* /*callback*/);
   scoped_ptr<Context> context_;
 
   scoped_ptr<ProxyResolverJSBindings> js_bindings_;

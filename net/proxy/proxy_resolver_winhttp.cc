@@ -70,8 +70,7 @@ int ProxyResolverWinHttp::GetProxyForURL(const GURL& query_url,
   options.fAutoLogonIfChallenged = FALSE;
   options.dwFlags = WINHTTP_AUTOPROXY_CONFIG_URL;
   std::wstring pac_url_wide = ASCIIToWide(pac_url_.spec());
-  options.lpszAutoConfigUrl =
-      pac_url_wide.empty() ? L"http://wpad/wpad.dat" : pac_url_wide.c_str();
+  options.lpszAutoConfigUrl = pac_url_wide.c_str();
 
   WINHTTP_PROXY_INFO info = {0};
   DCHECK(session_handle_);
@@ -140,8 +139,11 @@ void ProxyResolverWinHttp::CancelRequest(RequestHandle request) {
   NOTREACHED();
 }
 
-void ProxyResolverWinHttp::SetPacScriptByUrlInternal(const GURL& pac_url) {
-  pac_url_ = pac_url;
+int ProxyResolverWinHttp::SetPacScript(const GURL& pac_url,
+                                       const std::string& /*pac_bytes*/,
+                                       CompletionCallback* /*callback*/) {
+  pac_url_ = pac_url.is_valid() ? pac_url : GURL("http://wpad/wpad.dat");
+  return OK;
 }
 
 bool ProxyResolverWinHttp::OpenWinHttpSession() {

@@ -8,9 +8,8 @@
 #include <string>
 
 #include "base/logging.h"
+#include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
-
-class GURL;
 
 namespace net {
 
@@ -52,29 +51,32 @@ class ProxyResolver {
   bool expects_pac_bytes() const { return expects_pac_bytes_; }
 
   // Sets the PAC script backend to use for this proxy resolver (by URL).
-  void SetPacScriptByUrl(const GURL& pac_url) {
+  int SetPacScriptByUrl(const GURL& url, CompletionCallback* callback) {
     DCHECK(!expects_pac_bytes());
-    SetPacScriptByUrlInternal(pac_url);
+    return SetPacScript(url, std::string(), callback);
   }
 
   // Sets the PAC script backend to use for this proxy resolver (by contents).
-  void SetPacScriptByData(const std::string& bytes) {
+  int SetPacScriptByData(const std::string& bytes,
+                         CompletionCallback* callback) {
     DCHECK(expects_pac_bytes());
-    SetPacScriptByDataInternal(bytes);
+    return SetPacScript(GURL(), bytes, callback);
+  }
+
+  // TODO(eroman): Make this =0.
+  virtual void CancelSetPacScript() {
+    NOTREACHED();
   }
 
  private:
   // Called to set the PAC script backend to use. If |pac_url| is invalid,
-  // this is a request to use WPAD (auto detect).
-  virtual void SetPacScriptByUrlInternal(const GURL& pac_url) {
-    NOTREACHED();
-  }
-
-  // Called to set the PAC script backend to use. |bytes| may be empty if the
+  // this is a request to use WPAD (auto detect). |bytes| may be empty if the
   // fetch failed, or if the fetch returned no content.
-  virtual void SetPacScriptByDataInternal(const std::string& bytes) {
-    NOTREACHED();
-  }
+  // Returns ERR_IO_PENDING in the case of asynchronous completion, and notifies
+  // the result through |callback|.
+  virtual int SetPacScript(const GURL& pac_url,
+                           const std::string& bytes,
+                           CompletionCallback* callback) = 0;
 
   const bool expects_pac_bytes_;
 
