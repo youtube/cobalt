@@ -334,12 +334,11 @@ class TestConnectJobDelegate : public ConnectJob::Delegate {
 
 class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
  protected:
-  ClientSocketPoolBaseTest()
-      : connect_job_factory_(
-            new TestConnectJobFactory(&client_socket_factory_)) {}
+  ClientSocketPoolBaseTest() {}
 
   void CreatePool(int max_sockets, int max_sockets_per_group) {
     DCHECK(!pool_.get());
+    connect_job_factory_ = new TestConnectJobFactory(&client_socket_factory_);
     pool_ = new TestClientSocketPool(max_sockets,
                                      max_sockets_per_group,
                                      connect_job_factory_);
@@ -363,7 +362,7 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
   }
 
   MockClientSocketFactory client_socket_factory_;
-  TestConnectJobFactory* const connect_job_factory_;
+  TestConnectJobFactory* connect_job_factory_;
   scoped_refptr<TestClientSocketPool> pool_;
 };
 
@@ -1289,9 +1288,9 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequest) {
 }
 
 TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequestLimitsJobs) {
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
 
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 2));
