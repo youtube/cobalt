@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/file_util.h"
 #include "base/sys_info.h"
 #include "base/basictypes.h"
 
@@ -149,5 +150,22 @@ int SysInfo::DisplayCount() {
 size_t SysInfo::VMAllocationGranularity() {
   return getpagesize();
 }
+
+#if defined(OS_LINUX)
+// static
+size_t SysInfo::MaxSharedMemorySize() {
+  static size_t limit;
+  static bool limit_valid = false;
+
+  if (!limit_valid) {
+    std::string contents;
+    file_util::ReadFileToString(FilePath("/proc/sys/kernel/shmmax"), &contents);
+    limit = strtoul(contents.c_str(), NULL, 0);
+    limit_valid = true;
+  }
+
+  return limit;
+}
+#endif
 
 }  // namespace base
