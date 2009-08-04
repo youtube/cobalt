@@ -24,9 +24,10 @@ class URLRequestContext;
 
 namespace net {
 
-class ProxyScriptFetcher;
+class InitProxyResolver;
 class ProxyConfigService;
 class ProxyResolver;
+class ProxyScriptFetcher;
 
 // This class can be used to resolve the proxy server to use when loading a
 // HTTP(S) URL.  It uses the given ProxyResolver to handle the actual proxy
@@ -165,15 +166,16 @@ class ProxyService {
   // Tries to update the configuration if it hasn't been checked in a while.
   void UpdateConfigIfOld();
 
-  // Returns true if this ProxyService is downloading a PAC script on behalf
-  // of ProxyResolverWithoutFetch. Resolve requests will be frozen until
-  // the fetch has completed.
-  bool IsFetchingPacScript() const {
-    return in_progress_fetch_config_id_ != ProxyConfig::INVALID_ID;
+  // Returns true if the proxy resolver is being initialized for PAC
+  // (downloading PAC script(s) + testing).
+  // Resolve requests will be frozen until the initialization has completed.
+  bool IsInitializingProxyResolver() const {
+    return init_proxy_resolver_.get() != NULL;
   }
 
-  // Callback for when the PAC script has finished downloading.
-  void OnScriptFetchCompletion(int result);
+  // Callback for when the proxy resolver has been initialized with a
+  // PAC script.
+  void OnInitProxyResolverComplete(int result);
 
   // Returns ERR_IO_PENDING if the request cannot be completed synchronously.
   // Otherwise it fills |result| with the proxy information for |url|.
@@ -185,6 +187,10 @@ class ProxyService {
                        const ProxyConfig::ProxyRules& rules,
                        ProxyInfo* result);
 
+  // Cancel all of the requests sent to the ProxyResolver. These will be
+  // restarted when calling ResumeAllPendingRequests().
+  void SuspendAllPendingRequests();
+
   // Sends all the unstarted pending requests off to the resolver.
   void ResumeAllPendingRequests();
 
@@ -193,12 +199,6 @@ class ProxyService {
 
   // Removes |req| from the list of pending requests.
   void RemovePendingRequest(PacRequest* req);
-
-  // Returns true if the resolver is all set-up and ready to accept requests.
-  // Returns false if requests are blocked (because the PAC script is being
-  // downloaded). May have the side-effect of starting the PAC script
-  // download.
-  bool PrepareResolverForRequests();
 
   // Called to indicate that a PacRequest completed.  The |config_id| parameter
   // indicates the proxy configuration that was queried.  |result_code| is OK
@@ -214,6 +214,9 @@ class ProxyService {
   // Returns true if |url| is to an intranet site (using non-FQDN as the
   // heuristic).
   static bool IsLocalName(const GURL& url);
+
+  // Helper to download the PAC script (wpad + custom) and apply fallback rules.
+  scoped_ptr<InitProxyResolver> init_proxy_resolver_;
 
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;
@@ -242,23 +245,8 @@ class ProxyService {
   // external PAC script fetching.
   scoped_ptr<ProxyScriptFetcher> proxy_script_fetcher_;
 
-  // Callback for when |proxy_script_fetcher_| is done.
-  CompletionCallbackImpl<ProxyService> proxy_script_fetcher_callback_;
-
-  // The ID of the configuration for which we last downloaded a PAC script.
-  // If no PAC script has been fetched yet, will be ProxyConfig::INVALID_ID.
-  ProxyConfig::ID fetched_pac_config_id_;
-
-  // The error corresponding with |fetched_pac_config_id_|, or OK.
-  int fetched_pac_error_;
-
-  // The ID of the configuration for which we are currently downloading the
-  // PAC script. If no fetch is in progress, will be ProxyConfig::INVALID_ID.
-  ProxyConfig::ID in_progress_fetch_config_id_;
-
-  // The results of the current in progress fetch, or empty string.
-  std::string in_progress_fetch_bytes_;
-
+  // Callback for when |init_proxy_resolver_| is done.
+  CompletionCallbackImpl<ProxyService> init_proxy_resolver_callback_;
   DISALLOW_COPY_AND_ASSIGN(ProxyService);
 };
 

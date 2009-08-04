@@ -53,10 +53,9 @@ bool V8ObjectToString(v8::Handle<v8::Value> object, std::string* result) {
 
 class ProxyResolverV8::Context {
  public:
-  Context(ProxyResolverJSBindings* js_bindings, const std::string& pac_data)
+  explicit Context(ProxyResolverJSBindings* js_bindings)
       : js_bindings_(js_bindings) {
     DCHECK(js_bindings != NULL);
-    InitV8(pac_data);
   }
 
   ~Context() {
@@ -72,9 +71,8 @@ class ProxyResolverV8::Context {
 
     v8::Context::Scope function_scope(v8_context_);
 
-    v8::Local<v8::Value> function =
-        v8_context_->Global()->Get(v8::String::New("FindProxyForURL"));
-    if (!function->IsFunction()) {
+    v8::Local<v8::Value> function;
+    if (!GetFindProxyForURL(&function)) {
       js_bindings_->OnError(-1, "FindProxyForURL() is undefined.");
       return ERR_PAC_SCRIPT_FAILED;
     }
@@ -105,8 +103,7 @@ class ProxyResolverV8::Context {
     return OK;
   }
 
- private:
-  void InitV8(const std::string& pac_data) {
+  int InitV8(const std::string& pac_data) {
     v8::Locker locked;
     v8::HandleScope scope;
 
@@ -145,8 +142,24 @@ class ProxyResolverV8::Context {
     if (!code.IsEmpty())
       code->Run();
 
-    if (try_catch.HasCaught())
+    if (try_catch.HasCaught()) {
       HandleError(try_catch.Message());
+      return ERR_PAC_SCRIPT_FAILED;
+    }
+
+    // At a minimum, the FindProxyForURL() function must be defined for this
+    // to be a legitimiate PAC script.
+    v8::Local<v8::Value> function;
+    if (!GetFindProxyForURL(&function))
+      return ERR_PAC_SCRIPT_FAILED;
+
+    return OK;
+  }
+
+ private:
+  bool GetFindProxyForURL(v8::Local<v8::Value>* function) {
+    *function = v8_context_->Global()->Get(v8::String::New("FindProxyForURL"));
+    return (*function)->IsFunction();
   }
 
   // Handle an exception thrown by V8.
@@ -233,8 +246,7 @@ int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
                                     CompletionCallback* /*callback*/,
                                     RequestHandle* /*request*/) {
   // If the V8 instance has not been initialized (either because
-  // SetPacScriptByData() wasn't called yet, or because it was called with
-  // empty string).
+  // SetPacScript() wasn't called yet, or because it failed.
   if (!context_.get())
     return ERR_FAILED;
 
@@ -247,10 +259,19 @@ void ProxyResolverV8::CancelRequest(RequestHandle request) {
   NOTREACHED();
 }
 
-void ProxyResolverV8::SetPacScriptByDataInternal(const std::string& data) {
+int ProxyResolverV8::SetPacScript(const GURL& /*url*/,
+                                  const std::string& bytes,
+                                  CompletionCallback* /*callback*/) {
   context_.reset();
-  if (!data.empty())
-    context_.reset(new Context(js_bindings_.get(), data));
+  if (bytes.empty())
+    return ERR_PAC_SCRIPT_FAILED;
+
+  // Try parsing the PAC script.
+  scoped_ptr<Context> context(new Context(js_bindings_.get()));
+  int rv = context->InitV8(bytes);
+  if (rv == OK)
+    context_.reset(context.release());
+  return rv;
 }
 
 }  // namespace net

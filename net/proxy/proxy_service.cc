@@ -13,6 +13,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/proxy/init_proxy_resolver.h"
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/proxy/proxy_script_fetcher.h"
 #if defined(OS_WIN)
@@ -61,7 +62,11 @@ class ProxyResolverNull : public ProxyResolver {
   }
 
  private:
-  virtual void SetPacScriptByUrlInternal(const GURL& pac_url) {}
+  virtual int SetPacScript(const GURL& /*pac_url*/,
+                           const std::string& /*pac_bytes*/,
+                           CompletionCallback* /*callback*/) {
+    return ERR_NOT_IMPLEMENTED;
+  }
 };
 
 // ProxyService::PacRequest ---------------------------------------------------
@@ -100,18 +105,25 @@ class ProxyService::PacRequest
     return !!resolve_job_;
   }
 
-  void StartAndComplete() {
-    int rv = Start();
+  void StartAndCompleteCheckingForSynchronous() {
+    int rv = service_->TryToCompleteSynchronously(url_, results_);
+    if (rv == ERR_IO_PENDING)
+      rv = Start();
     if (rv != ERR_IO_PENDING)
       QueryComplete(rv);
   }
 
-  void Cancel() {
+  void CancelResolveJob() {
     // The request may already be running in the resolver.
     if (is_started()) {
       resolver()->CancelRequest(resolve_job_);
       resolve_job_ = NULL;
     }
+    DCHECK(!is_started());
+  }
+
+  void Cancel() {
+    CancelResolveJob();
 
     // Mark as cancelled, to prevent accessing this again later.
     service_ = NULL;
@@ -177,11 +189,8 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
       resolver_(resolver),
       next_config_id_(1),
       config_is_bad_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(proxy_script_fetcher_callback_(
-          this, &ProxyService::OnScriptFetchCompletion)),
-      fetched_pac_config_id_(ProxyConfig::INVALID_ID),
-      fetched_pac_error_(OK),
-      in_progress_fetch_config_id_(ProxyConfig::INVALID_ID) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(init_proxy_resolver_callback_(
+          this, &ProxyService::OnInitProxyResolverComplete)) {
 }
 
 // static
@@ -254,7 +263,7 @@ int ProxyService::ResolveProxy(const GURL& raw_url, ProxyInfo* result,
 
   scoped_refptr<PacRequest> req = new PacRequest(this, url, result, callback);
 
-  bool resolver_is_ready = PrepareResolverForRequests();
+  bool resolver_is_ready = !IsInitializingProxyResolver();
 
   if (resolver_is_ready) {
     // Start the resolve request.
@@ -290,21 +299,14 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
     // Remember that we are trying to use the current proxy configuration.
     result->config_was_tried_ = true;
 
+    if (config_.MayRequirePACResolver()) {
+      // Need to go through ProxyResolver for this.
+      return ERR_IO_PENDING;
+    }
+
     if (!config_.proxy_rules.empty()) {
       ApplyProxyRules(url, config_.proxy_rules, result);
       return OK;
-    }
-
-    if (config_.pac_url.is_valid() || config_.auto_detect) {
-      // If we failed to download the PAC script, return the network error
-      // from the failed download. This is only going to happen for the first
-      // request after the failed download -- after that |config_is_bad_| will
-      // be set to true, so we short-cuircuit sooner.
-      if (fetched_pac_error_ != OK && !IsFetchingPacScript()) {
-        DidCompletePacRequest(fetched_pac_config_id_, fetched_pac_error_);
-        return fetched_pac_error_;
-      }
-      return ERR_IO_PENDING;
     }
   }
 
@@ -354,7 +356,17 @@ ProxyService::~ProxyService() {
   }
 }
 
+void ProxyService::SuspendAllPendingRequests() {
+  for (PendingRequests::iterator it = pending_requests_.begin();
+       it != pending_requests_.end();
+       ++it) {
+    it->get()->CancelResolveJob();
+  }
+}
+
 void ProxyService::ResumeAllPendingRequests() {
+  DCHECK(!IsInitializingProxyResolver());
+
   // Make a copy in case |this| is deleted during the synchronous completion
   // of one of the requests. If |this| is deleted then all of the PacRequest
   // instances will be Cancel()-ed.
@@ -364,56 +376,26 @@ void ProxyService::ResumeAllPendingRequests() {
        it != pending_copy.end();
        ++it) {
     PacRequest* req = it->get();
-    if (!req->is_started() && !req->was_cancelled())
-      req->StartAndComplete();
+    if (!req->is_started() && !req->was_cancelled()) {
+      // Note that we re-check for synchronous completion, in case we are
+      // no longer using a ProxyResolver (can happen if we fell-back to manual).
+      req->StartAndCompleteCheckingForSynchronous();
+    }
   }
 }
 
-bool ProxyService::PrepareResolverForRequests() {
-  // While the PAC script is being downloaded, block requests.
-  if (IsFetchingPacScript())
-    return false;
+void ProxyService::OnInitProxyResolverComplete(int result) {
+  DCHECK(init_proxy_resolver_.get());
+  DCHECK(config_.MayRequirePACResolver());
+  init_proxy_resolver_.reset();
 
-  // Check if a new PAC script needs to be downloaded.
-  DCHECK(config_.id() != ProxyConfig::INVALID_ID);
-  if (resolver_->expects_pac_bytes() &&
-      config_.id() != fetched_pac_config_id_) {
-    // For auto-detect we use the well known WPAD url.
-    GURL pac_url = config_.auto_detect ?
-        GURL("http://wpad/wpad.dat") : config_.pac_url;
-
-    in_progress_fetch_config_id_ = config_.id();
-
-    LOG(INFO) << "Starting fetch of PAC script " << pac_url
-              << " for config_id=" << in_progress_fetch_config_id_;
-
-    proxy_script_fetcher_->Fetch(
-        pac_url, &in_progress_fetch_bytes_, &proxy_script_fetcher_callback_);
-    return false;
+  if (result != OK) {
+    LOG(INFO) << "Failed configuring with PAC script, falling-back to manual "
+                 "proxy servers.";
+    config_.auto_detect = false;
+    config_.pac_url = GURL();
+    DCHECK(!config_.MayRequirePACResolver());
   }
-
-  // We are good to go.
-  return true;
-}
-
-void ProxyService::OnScriptFetchCompletion(int result) {
-  DCHECK(IsFetchingPacScript());
-  DCHECK(resolver_->expects_pac_bytes());
-
-  LOG(INFO) << "Completed PAC script fetch for config_id="
-            << in_progress_fetch_config_id_
-            << " with error " << ErrorToString(result)
-            << ". Fetched a total of " << in_progress_fetch_bytes_.size()
-            << " bytes";
-
-  // Notify the ProxyResolver of the new script data (will be empty string if
-  // result != OK).
-  resolver_->SetPacScriptByData(in_progress_fetch_bytes_);
-
-  fetched_pac_config_id_ = in_progress_fetch_config_id_;
-  fetched_pac_error_ = result;
-  in_progress_fetch_config_id_ = ProxyConfig::INVALID_ID;
-  in_progress_fetch_bytes_.clear();
 
   // Resume any requests which we had to defer until the PAC script was
   // downloaded.
@@ -455,6 +437,8 @@ int ProxyService::ReconsiderProxyAfterError(const GURL& url,
   if (!was_direct && result->Fallback(&proxy_retry_info_))
     return OK;
 
+  // TODO(eroman): Hmm, this doesn't seem right. For starters just because
+  // auto_detect is true doesn't mean we are actually using it.
   if (!config_.auto_detect && !config_.proxy_rules.empty()) {
     // If auto detect is on, then we should try a DIRECT connection
     // as the attempt to reach the proxy failed.
@@ -587,13 +571,24 @@ void ProxyService::SetConfig(const ProxyConfig& config) {
   config_is_bad_ = false;
   proxy_retry_info_.clear();
 
-  // Tell the resolver to use the new PAC URL (for resolvers that fetch the
-  // PAC script internally).
-  // TODO(eroman): this isn't quite right. See http://crbug.com/9985
-  if ((config_.pac_url.is_valid() || config_.auto_detect) &&
-      !resolver_->expects_pac_bytes()) {
-    const GURL pac_url = config_.auto_detect ? GURL() : config_.pac_url;
-    resolver_->SetPacScriptByUrl(pac_url);
+  // Cancel any PAC fetching / ProxyResolver::SetPacScript() which was
+  // in progress for the previous configuration.
+  init_proxy_resolver_.reset();
+
+  // Start downloading + testing the PAC scripts for this new configuration.
+  if (config_.MayRequirePACResolver()) {
+    // Since InitProxyResolver will be playing around with the proxy resolver
+    // as it tests the parsing of various PAC scripts, make sure there is
+    // nothing in-flight in |resolver_|. These paused requests are resumed by
+    // OnInitProxyResolverComplete().
+    SuspendAllPendingRequests();
+
+    init_proxy_resolver_.reset(
+        new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get()));
+    int rv = init_proxy_resolver_->Init(
+        config_, &init_proxy_resolver_callback_);
+    if (rv != ERR_IO_PENDING)
+      OnInitProxyResolverComplete(rv);
   }
 }
 
