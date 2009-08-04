@@ -432,7 +432,8 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
     // Downgrade to UPDATE if the request has been externally conditionalized.
     if (external_validation_.initialized()) {
       if (mode_ & WRITE) {
-        // Strip off the READ_DATA bit.
+        // Strip off the READ_DATA bit (and maybe add back a READ_META bit
+        // in case READ was off).
         mode_ = UPDATE;
       } else {
         mode_ = NONE;
