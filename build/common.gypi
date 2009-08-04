@@ -244,6 +244,52 @@
           }],
         ],
       },
+      'conditions': [
+        [ 'OS=="win"', {
+          # TODO(bradnelson): add a gyp mechanism to make this more graceful.
+          'Purify': {
+            'defines': [
+              'NDEBUG',
+              'PURIFY',
+              'NO_TCMALLOC',
+            ],
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'Optimization': '0',
+                'RuntimeLibrary': '0',
+                'BufferSecurityCheck': 'false',
+              },
+              'VCLinkerTool': {
+                'EnableCOMDATFolding': '1',
+                'LinkIncremental': '1',
+              },
+            },
+            'conditions': [
+              [ 'msvs_use_common_release', {
+                'configuration_platform': 'Win32',
+                'msvs_props': ['release.vsprops'],
+              }],
+            ],
+          },
+          'Release - no tcmalloc': {
+            'defines': [
+              'NDEBUG',
+              'NO_TCMALLOC',
+            ],
+            'conditions': [
+              [ 'msvs_use_common_release', {
+                'configuration_platform': 'Win32',
+                'msvs_props': ['release.vsprops'],
+              }],
+            ],
+            'msvs_settings': {
+              'VCLinkerTool': {
+                'LinkIncremental': '1',
+              },
+            },
+          },
+        }],
+      ],
     },
   },
   'conditions': [
