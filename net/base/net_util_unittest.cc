@@ -1269,3 +1269,47 @@ TEST(NetUtilTest, FormatUrlParsed) {
   EXPECT_EQ(L"query", formatted.substr(parsed.query.begin, parsed.query.len));
   EXPECT_EQ(L"ref", formatted.substr(parsed.ref.begin, parsed.ref.len));
 }
+
+TEST(NetUtilTest, SimplifyUrlForRequest) {
+  struct {
+    const char* input_url;
+    const char* expected_simplified_url;
+  } tests[] = {
+    {
+      // Reference section should be stripped.
+      "http://www.google.com:78/foobar?query=1#hash",
+      "http://www.google.com:78/foobar?query=1",
+    },
+    {
+      // Reference section can itself contain #.
+      "http://192.168.0.1?query=1#hash#10#11#13#14",
+      "http://192.168.0.1?query=1",
+    },
+    { // Strip username/password.
+      "http://user:pass@google.com",
+      "http://google.com/",
+    },
+    { // Strip both the reference and the username/password.
+      "http://user:pass@google.com:80/sup?yo#X#X",
+      "http://google.com/sup?yo",
+    },
+    { // Try an HTTPS URL -- strip both the reference and the username/password.
+      "https://user:pass@google.com:80/sup?yo#X#X",
+      "https://google.com:80/sup?yo",
+    },
+    { // Try an FTP URL -- strip both the reference and the username/password.
+      "ftp://user:pass@google.com:80/sup?yo#X#X",
+      "ftp://google.com:80/sup?yo",
+    },
+    { // Try an standard URL with unknow scheme.
+      "foobar://user:pass@google.com:80/sup?yo#X#X",
+      "foobar://google.com:80/sup?yo",
+    },
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    SCOPED_TRACE(StringPrintf("Test[%d]: %s", i, tests[i].input_url));
+    GURL input_url(GURL(tests[i].input_url));
+    GURL expected_url(GURL(tests[i].expected_simplified_url));
+    EXPECT_EQ(expected_url, net::SimplifyUrlForRequest(input_url));
+  }
+}
