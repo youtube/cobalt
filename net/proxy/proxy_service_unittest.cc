@@ -236,6 +236,33 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
 }
 
+// Test that the proxy resolver does not see the URL's username/password
+// or its reference section.
+TEST(ProxyServiceTest, PAC_NoIdentityOrHash) {
+  MockProxyConfigService* config_service =
+      new MockProxyConfigService("http://foopy/proxy.pac");
+
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+
+  ProxyService service(config_service, resolver);
+
+  GURL url("http://username:password@www.google.com/?ref#hash#hash");
+
+  ProxyInfo info;
+  TestCompletionCallback callback;
+  int rv = service.ResolveProxy(url, &info, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"), resolver->pac_url());
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  // The URL should have been simplified, stripping the username/password/hash.
+  EXPECT_EQ(GURL("http://www.google.com/?ref"),
+                 resolver->pending_requests()[0]->url());
+
+  // We end here without ever completing the request -- destruction of
+  // ProxyService will cancel the outstanding request.
+}
+
 TEST(ProxyServiceTest, PAC_FailoverToDirect) {
   MockProxyConfigService* config_service =
       new MockProxyConfigService("http://foopy/proxy.pac");
@@ -589,7 +616,7 @@ TEST(ProxyServiceTest, ProxyBypassList) {
   {
     ProxyService service(new MockProxyConfigService(config),
                               new MockAsyncProxyResolver());
-    GURL test_url("local");
+    GURL test_url("http://local");
     TestCompletionCallback callback;
     int rv = service.ResolveProxy(test_url, &info, &callback, NULL);
     EXPECT_EQ(OK, rv);
@@ -811,7 +838,7 @@ TEST(ProxyServiceTest, PerProtocolProxyTests) {
     config.proxy_rules.ParseFromString("foopy1:8080");
     ProxyService service(new MockProxyConfigService(config),
                               new MockAsyncProxyResolver);
-    GURL test_url("www.microsoft.com");
+    GURL test_url("http://www.microsoft.com");
     ProxyInfo info;
     TestCompletionCallback callback;
     int rv = service.ResolveProxy(test_url, &info, &callback, NULL);
@@ -866,7 +893,7 @@ TEST(ProxyServiceTest, DefaultProxyFallbackToSOCKS) {
   {
     ProxyService service(new MockProxyConfigService(config),
                               new MockAsyncProxyResolver);
-    GURL test_url("www.microsoft.com");
+    GURL test_url("unknown://www.microsoft.com");
     ProxyInfo info;
     TestCompletionCallback callback;
     int rv = service.ResolveProxy(test_url, &info, &callback, NULL);

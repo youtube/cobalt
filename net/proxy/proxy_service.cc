@@ -12,6 +12,7 @@
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_util.h"
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/proxy/proxy_script_fetcher.h"
 #if defined(OS_WIN)
@@ -62,18 +63,6 @@ class ProxyResolverNull : public ProxyResolver {
  private:
   virtual void SetPacScriptByUrlInternal(const GURL& pac_url) {}
 };
-
-// Strip away any reference fragments and the username/password, as they
-// are not relevant to proxy resolution.
-static GURL SanitizeURLForProxyResolver(const GURL& url) {
-  // TODO(eroman): The following duplicates logic from
-  // HttpUtil::SpecForRequest. Should probably live in net_util.h
-  GURL::Replacements replacements;
-  replacements.ClearUsername();
-  replacements.ClearPassword();
-  replacements.ClearRef();
-  return url.ReplaceComponents(replacements);
-}
 
 // ProxyService::PacRequest ---------------------------------------------------
 
@@ -252,7 +241,9 @@ int ProxyService::ResolveProxy(const GURL& raw_url, ProxyInfo* result,
                                PacRequest** pac_request) {
   DCHECK(callback);
 
-  GURL url = SanitizeURLForProxyResolver(raw_url);
+  // Strip away any reference fragments and the username/password, as they
+  // are not relevant to proxy resolution.
+  GURL url = SimplifyUrlForRequest(raw_url);
 
   // Check if the request can be completed right away. This is the case when
   // using a direct connection, or when the config is bad.
