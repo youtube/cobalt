@@ -38,6 +38,8 @@
         'audio/linux/audio_manager_linux.h',
         'audio/linux/alsa_output.cc',
         'audio/linux/alsa_output.h',
+        'audio/linux/alsa_wrapper.cc',
+        'audio/linux/alsa_wrapper.h',
         'audio/mac/audio_manager_mac.cc',
         'audio/mac/audio_manager_mac.h',
         'audio/mac/audio_output_mac.cc',
@@ -153,6 +155,7 @@
       ],
       'sources': [
         'audio/audio_util_unittest.cc',
+        'audio/linux/alsa_output_unittest.cc',
         'audio/mac/audio_output_mac_unittest.cc',
         'audio/simple_sources_unittest.cc',
         'audio/win/audio_output_win_unittest.cc',

@@ -2,33 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Creates an output stream based on the ALSA PCM interface.  The current
-// implementation creates one thread per ALSA playback handle that is
-// responsible for synchronously pulling data from the audio data source.
+// Creates an output stream based on the ALSA PCM interface.
 //
-// This output stream buffers in two places:
-//   (1) In the ALSA device
-//   (2) In an in-memory buffer.
+// On device write failure, the stream will move itself to an invalid state.
+// No more data will be pulled from the data source, or written to the device.
+// All calls to public API functions will either no-op themselves, or return an
+// error if possible.  Specifically, If the stream is in an error state, Open()
+// will return false, and Start() will call OnError() immediately on the
+// provided callback.
 //
-// The ALSA device buffer is kept as full as possible.  The in-memory buffer
-// attempts to keep enough extra data so that |min_buffer_ms| worth of data
-// is available between the in-memory buffer and the device buffer.  Requests
-// to the audio data source are made if the total amount buffered falls below
-// |min_buffer_ms|.
-//
-// On device write failure, the stream will move into an invalid state.  No
-// more data will be pulled from the data source, and the playback thread will
-// be stopped.
+// TODO(ajwong): The OnClose() and OnError() calling needing fixing.
 //
 // If the stream is successfully opened, Close() must be called before the
-// stream is deleted.
+// stream is deleted as Close() is responsible for ensuring resource cleanup
+// occurs.
+//
+// This object's thread-safety is a little tricky.  This object's public API
+// can only be called from the thread that created the object.  Calling the
+// public APIs in any method that may cause concurrent execution will result in
+// a race condition.  When modifying the code in this class, please read the
+// threading assumptions at the top of the implementation file to avoid
+// introducing race conditions between tasks posted to the internal
+// message_loop, and the thread calling the public APIs.
 
 #ifndef MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
 #define MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
 
 #include <alsa/asoundlib.h>
 
-#include <deque>
 #include <string>
 
 #include "base/lock.h"
@@ -36,27 +37,34 @@
 #include "base/scoped_ptr.h"
 #include "base/thread.h"
 #include "media/audio/audio_output.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
-class Thread;
+class AlsaWrapper;
 
-class AlsaPCMOutputStream :
+class AlsaPcmOutputStream :
     public AudioOutputStream,
-    public base::RefCountedThreadSafe<AlsaPCMOutputStream> {
+    public base::RefCountedThreadSafe<AlsaPcmOutputStream> {
  public:
   // Set to "default" which should avoid locking the sound device and allow
   // ALSA to multiplex sound from different processes that want to write PCM
   // data.
-  static const char* kDefaultDevice;
+  static const char kDefaultDevice[];
 
   // Create a PCM Output stream for the ALSA device identified by
-  // |device_name|.  If unsure of hte device_name, use kDefaultDevice.
-  AlsaPCMOutputStream(const std::string& device_name,
-                      int min_buffer_ms,
+  // |device_name|.  The AlsaPcmOutputStream uses |wrapper| to communicate with
+  // the alsa libraries, allowing for dependency injection during testing.  All
+  // requesting of data, and writing to the alsa device will be done on
+  // |message_loop|.
+  //
+  // If unsure of what to use for |device_name|, use |kDefaultDevice|.
+  AlsaPcmOutputStream(const std::string& device_name,
                       AudioManager::Format format,
                       int channels,
                       int sample_rate,
-                      char bits_per_sample);
-  virtual ~AlsaPCMOutputStream();
+                      int bits_per_sample,
+                      AlsaWrapper* wrapper,
+                      MessageLoop* message_loop);
+  virtual ~AlsaPcmOutputStream();
 
   // Implementation of AudioOutputStream.
   virtual bool Open(size_t packet_size);
@@ -67,73 +75,24 @@ class AlsaPCMOutputStream :
   virtual void GetVolume(double* left_level, double* right_level);
 
  private:
-  // Closes the playback handle, reporting errors if any occur.  Returns true
-  // if the device was successfully closed.
-  bool CloseDevice_Locked();
-
-  // Stops playback, ignoring state checks.
-  void StopInternal_Locked();
-
-  // Moves the stream into the error state, setting the correct internal flags.
-  // Ensure that all resources are cleaned up before executing this function.
-  void EnterStateError_Locked();
-
-  // Releases all the resources in the audio stream.  This method will also
-  // terminate the playback thread itself.
-  //
-  // This method must be run in the |playback_thead_|.
-  void ReleaseResources();
-
-  // Retrieve the total number of frames buffered in both memory and in the
-  // audio device.  Use this to determine if more data should be requested from
-  // the audio source.
-  snd_pcm_sframes_t GetFramesOfDelay_Locked();
-
-  // Buffer more packets from data source if necessary.
-  //
-  // This function must be run in the |playback_thread_|.
-  void BufferPackets();
-
-  // Returns true if our buffer is underfull.
-  bool ShouldBufferMore_NoLock();
-
-  // Write as many buffered packets into the device as there is room in the
-  // device buffer.
-  //
-  // This function must be run in the |playback_thread_|.
-  void FillAlsaDeviceBuffer();
-
-  // State of the stream.
-  State state_;
-
-  // The ALSA device name to use.
-  std::string device_name_;
-
-  // Handle to the actual PCM playback device.
-  snd_pcm_t* playback_handle_;
-
-  // Period size for ALSA ring-buffer.  Basically, how long to wait between
-  // writes.
-  snd_pcm_sframes_t period_size_;
-
-  // Callback used to request more data from the data source.
-  AudioSourceCallback* source_callback_;
-
-  // Playback thread.
-  base::Thread playback_thread_;
-
-  // Lock for field access to this object.
-  Lock lock_;
-
-  // Sample format configuration.
-  snd_pcm_format_t pcm_format_;
-  const int channels_;
-  const int sample_rate_;
-  const char bits_per_sample_;
-  char bytes_per_frame_;
+  friend class AlsaPcmOutputStreamTest;
+  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_StopStream);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_UnfinishedPacket);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, ConstructedState);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, OpenClose);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, PcmOpenFailed);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, PcmSetParamsFailed);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, ScheduleNextWrite);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, ScheduleNextWrite_StopStream);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, StartStop);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_FinishedPacket);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_NormalPacket);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_StopStream);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_WriteFails);
 
   // In-memory buffer to hold sound samples before pushing to the sound device.
-  // TODO(ajwong): There are now about 3 buffer queue implementations. Factor
+  // TODO(ajwong): There are now about 3 buffer/packet implementations. Factor
   // them out.
   struct Packet {
     explicit Packet(int new_capacity)
@@ -147,22 +106,105 @@ class AlsaPCMOutputStream :
     size_t used;
     scoped_array<char> buffer;
   };
-  int min_buffer_frames_;
-  std::deque<Packet*> buffered_packets_;
-  size_t packet_size_;
 
-  // Flag indiciating the device write tasks have stopped scheduling
-  // themselves.  This should only be modified by the BufferPackets() and
-  // FillAlsaDeviceBuffer() methods.
-  bool device_write_suspended_;
+  // Flags indicating the state of the stream.
+  enum InternalState {
+    kInError = 0,
+    kCreated,
+    kIsOpened,
+    kIsPlaying,
+    kIsStopped,
+    kIsClosed
+  };
+  friend std::ostream& ::operator<<(std::ostream& os, InternalState);
 
-  // Flag indicating that the resources are already cleaned.
-  bool resources_released_;
+  // Various tasks that complete actions started in the public API.
+  void FinishOpen(snd_pcm_t* playback_handle, size_t packet_size);
+  void StartTask(AudioSourceCallback* callback);
+  void CloseTask();
 
-  // Volume level from 0 to 1.
-  float volume_;
+  // Functions to get another packet from the data source and write it into the
+  // ALSA device.
+  void BufferPacket(Packet* packet);
+  void WritePacket(Packet* packet);
+  void WriteTask();
+  void ScheduleNextWrite(Packet* current_packet);
 
-  DISALLOW_COPY_AND_ASSIGN(AlsaPCMOutputStream);
+  // Functions to safeguard state transitions and ensure that transitions are
+  // only allowed occuring on the thread that created the object.  All changes
+  // to the object state should go through these functions.
+  bool CanTransitionTo(InternalState to);
+  bool CanTransitionTo_Locked(InternalState to);
+  InternalState TransitionTo(InternalState to);
+
+  // Utility functions for talking with the ALSA API.
+  static snd_pcm_sframes_t FramesInPacket(const Packet& packet,
+                                          int bytes_per_frame);
+  static int64 FramesToMicros(int frames, int sample_rate);
+  static int64 FramesToMillis(int frames, int sample_rate);
+  bool CloseDevice(snd_pcm_t* handle);
+  snd_pcm_sframes_t GetAvailableFrames();
+
+  // Struct holding all mutable the data that must be shared by the
+  // message_loop() and the thread that created the object.
+  class SharedData {
+   public:
+    explicit SharedData(MessageLoop* state_transition_loop);
+
+    // Functions to safeguard state transitions and ensure that transitions are
+    // only allowed occuring on the thread that created the object.  All
+    // changes to the object state should go through these functions.
+    bool CanTransitionTo(InternalState to);
+    bool CanTransitionTo_Locked(InternalState to);
+    InternalState TransitionTo(InternalState to);
+    InternalState state();
+
+    float volume();
+    void set_volume(float v);
+
+   private:
+    Lock lock_;
+
+    InternalState state_;
+    float volume_;  // Volume level from 0.0 to 1.0.
+
+    MessageLoop* const state_transition_loop_;
+  } shared_data_;
+
+  // Configuration constants from the constructor.  Referenceable by all threads
+  // since they are constants.
+  const std::string device_name_;
+  const snd_pcm_format_t pcm_format_;
+  const int channels_;
+  const int sample_rate_;
+  const int bytes_per_sample_;
+  const int bytes_per_frame_;
+
+  // Flag indicating the code should stop reading from the data source or
+  // writing to the ALSA device.  This is set because the device has entered
+  // an unrecoverable error state, or the ClosedTask() has executed.
+  bool stop_stream_;
+
+  // Wrapper class to invoke all the ALSA functions.
+  AlsaWrapper* wrapper_;
+
+  // Handle to the actual PCM playback device.
+  snd_pcm_t* playback_handle_;
+
+  // Callback used to request more data from the data source.
+  AudioSourceCallback* source_callback_;
+
+  scoped_ptr<Packet> packet_;
+  int frames_per_packet_;
+
+  // Used to check which message loop is allowed to call the public APIs.
+  MessageLoop* client_thread_loop_;
+
+  // The message loop responsible for querying the data source, and writing to
+  // the output device.
+  MessageLoop* message_loop_;
+
+  DISALLOW_COPY_AND_ASSIGN(AlsaPcmOutputStream);
 };
 
 #endif  // MEDIA_AUDIO_LINUX_ALSA_OUTPUT_H_
