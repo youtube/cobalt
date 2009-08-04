@@ -65,6 +65,11 @@ class SysInfo {
   // allocate.
   static size_t VMAllocationGranularity();
 
+#if defined(OS_LINUX)
+  // Returns the maximum SysV shared memory segment size.
+  static size_t MaxSharedMemorySize();
+#endif
+
 #if defined(OS_CHROMEOS)
   // Returns the name of the version entry we wish to look up in the
   // Linux Standard Base release information file.
