@@ -132,6 +132,8 @@ class ProxyService {
 
  private:
   FRIEND_TEST(ProxyServiceTest, IsLocalName);
+  FRIEND_TEST(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
+  FRIEND_TEST(ProxyServiceTest, UpdateConfigFromPACToDirect);
   friend class PacRequest;
   // TODO(eroman): change this to a std::set. Note that this requires updating
   // some tests in proxy_service_unittest.cc such as:
@@ -230,6 +232,9 @@ class ProxyService {
 
   // Indicates that the configuration is bad and should be ignored.
   bool config_is_bad_;
+
+  // Indicates whether the ProxyResolver should be sent requests.
+  bool should_use_proxy_resolver_;
 
   // The time when the proxy configuration was last read from the system.
   base::TimeTicks config_last_update_time_;
