@@ -60,7 +60,7 @@ def git_fetch_id():
   return id
 
 
-def fetch_change():
+def fetch_change(default_lastchange):
   """
   Returns the last change, from some appropriate revision control system.
   """
@@ -68,7 +68,10 @@ def fetch_change():
   if not change and sys.platform in ('linux2',):
     change = git_fetch_id()
   if not change:
-    change = '0'
+    if default_lastchange and os.path.exists(default_lastchange):
+      change = open(default_lastchange, 'r').read().strip()
+    else:
+      change = '0'
   return change
 
 
@@ -93,6 +96,8 @@ def main(argv=None):
     argv = sys.argv
 
   parser = optparse.OptionParser(usage="lastchange.py [-h] [[-o] FILE]")
+  parser.add_option("-d", "--default-lastchange", metavar="FILE",
+                    help="default last change input FILE")
   parser.add_option("-o", "--output", metavar="FILE",
                     help="write last change to FILE")
   opts, args = parser.parse_args(argv[1:])
@@ -107,7 +112,7 @@ def main(argv=None):
     parser.print_help()
     sys.exit(2)
 
-  change = fetch_change()
+  change = fetch_change(opts.default_lastchange)
 
   contents = "LASTCHANGE=%s\n" % change
 
