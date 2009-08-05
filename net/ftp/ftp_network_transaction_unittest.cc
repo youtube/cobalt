@@ -208,6 +208,30 @@ class FtpMockControlSocketFileDownload : public FtpMockControlSocket {
   DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketFileDownload);
 };
 
+class FtpMockControlSocketFileDownloadTransferStarting
+    : public FtpMockControlSocketFileDownload {
+ public:
+  FtpMockControlSocketFileDownloadTransferStarting() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_RETR:
+        return Verify("RETR /file\r\n", data, PRE_QUIT,
+                      "125-Data connection already open.\r\n"
+                      "125  Transfer starting.\r\n"
+                      "226 Transfer complete.\r\n");
+      default:
+        return FtpMockControlSocketFileDownload::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketFileDownloadTransferStarting);
+};
+
 class FtpMockControlSocketFileDownloadRetrFail
     : public FtpMockControlSocketFileDownload {
  public:
@@ -355,6 +379,12 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionShortReads5) {
   ctrl_socket.set_short_read_limit(5);
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
 }
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionTransferStarting) {
+  FtpMockControlSocketFileDownloadTransferStarting ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
+}
+
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailUser) {
   FtpMockControlSocketDirectoryListing ctrl_socket;
