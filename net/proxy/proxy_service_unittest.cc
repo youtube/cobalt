@@ -1525,4 +1525,105 @@ TEST(ProxyServiceTest, IsLocalName) {
   }
 }
 
+// Check that after we have done the auto-detect test, and the configuration
+// is updated (with no change), we don't re-try the autodetect test.
+// Regression test for http://crbug.com/18526 -- the configuration was being
+// mutated to cancel out the automatic settings, which meant UpdateConfig()
+// thought it had received a new configuration.
+TEST(ProxyServiceTest, UpdateConfigAfterFailedAutodetect) {
+  ProxyConfig config;
+  config.auto_detect = true;
+
+  MockProxyConfigService* config_service = new MockProxyConfigService(config);
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+  ProxyService service(config_service, resolver);
+
+  // Start 1 requests.
+
+  ProxyInfo info1;
+  TestCompletionCallback callback1;
+  int rv = service.ResolveProxy(
+      GURL("http://www.google.com"), &info1, &callback1, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Check that nothing has been sent to the proxy resolver yet.
+  ASSERT_EQ(0u, resolver->pending_requests().size());
+
+  // Fail the setting of autodetect script.
+  EXPECT_EQ(GURL(), resolver->pending_set_pac_script_request()->pac_url());
+  resolver->pending_set_pac_script_request()->CompleteNow(ERR_FAILED);
+
+  // Verify that request ran as expected -- should have fallen back to direct.
+  EXPECT_EQ(OK, callback1.WaitForResult());
+  EXPECT_TRUE(info1.is_direct());
+
+  // Force the ProxyService to pull down a new proxy configuration.
+  // (Even though the configuration isn't old/bad).
+  service.UpdateConfig();
+
+  // Start another request -- the effective configuration has not
+  // changed, so we shouldn't re-run the autodetect step.
+  // Rather, it should complete synchronously as direct-connect.
+  ProxyInfo info2;
+  TestCompletionCallback callback2;
+  rv = service.ResolveProxy(
+      GURL("http://www.google.com"), &info2, &callback2, NULL);
+  EXPECT_EQ(OK, rv);
+
+  EXPECT_TRUE(info2.is_direct());
+}
+
+// Test that when going from a configuration that required PAC to one
+// that does NOT, we unset the variable |should_use_proxy_resolver_|.
+TEST(ProxyServiceTest, UpdateConfigFromPACToDirect) {
+  ProxyConfig config;
+  config.auto_detect = true;
+
+  MockProxyConfigService* config_service = new MockProxyConfigService(config);
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+  ProxyService service(config_service, resolver);
+
+  // Start 1 request.
+
+  ProxyInfo info1;
+  TestCompletionCallback callback1;
+  int rv = service.ResolveProxy(
+      GURL("http://www.google.com"), &info1, &callback1, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Check that nothing has been sent to the proxy resolver yet.
+  ASSERT_EQ(0u, resolver->pending_requests().size());
+
+  // Successfully set the autodetect script.
+  EXPECT_EQ(GURL(), resolver->pending_set_pac_script_request()->pac_url());
+  resolver->pending_set_pac_script_request()->CompleteNow(OK);
+
+  // Complete the pending request.
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  resolver->pending_requests()[0]->results()->UseNamedProxy("request1:80");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  // Verify that request ran as expected.
+  EXPECT_EQ(OK, callback1.WaitForResult());
+  EXPECT_EQ("request1:80", info1.proxy_server().ToURI());
+
+  // Force the ProxyService to pull down a new proxy configuration.
+  // (Even though the configuration isn't old/bad).
+  //
+  // This new configuration no longer has auto_detect set, so
+  // requests should complete synchronously now as direct-connect.
+  config.auto_detect = false;
+  config_service->config = config;
+  service.UpdateConfig();
+
+  // Start another request -- the effective configuration has changed.
+  ProxyInfo info2;
+  TestCompletionCallback callback2;
+  rv = service.ResolveProxy(
+      GURL("http://www.google.com"), &info2, &callback2, NULL);
+  EXPECT_EQ(OK, rv);
+
+  EXPECT_TRUE(info2.is_direct());
+}
+
 }  // namespace net
