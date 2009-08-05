@@ -189,6 +189,7 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
       resolver_(resolver),
       next_config_id_(1),
       config_is_bad_(false),
+      should_use_proxy_resolver_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(init_proxy_resolver_callback_(
           this, &ProxyService::OnInitProxyResolverComplete)) {
 }
@@ -299,8 +300,8 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
     // Remember that we are trying to use the current proxy configuration.
     result->config_was_tried_ = true;
 
-    if (config_.MayRequirePACResolver()) {
-      // Need to go through ProxyResolver for this.
+    if (should_use_proxy_resolver_ || IsInitializingProxyResolver()) {
+      // May need to go through ProxyResolver for this.
       return ERR_IO_PENDING;
     }
 
@@ -387,14 +388,14 @@ void ProxyService::ResumeAllPendingRequests() {
 void ProxyService::OnInitProxyResolverComplete(int result) {
   DCHECK(init_proxy_resolver_.get());
   DCHECK(config_.MayRequirePACResolver());
+  DCHECK(!should_use_proxy_resolver_);
   init_proxy_resolver_.reset();
+
+  should_use_proxy_resolver_ = result == OK;
 
   if (result != OK) {
     LOG(INFO) << "Failed configuring with PAC script, falling-back to manual "
                  "proxy servers.";
-    config_.auto_detect = false;
-    config_.pac_url = GURL();
-    DCHECK(!config_.MayRequirePACResolver());
   }
 
   // Resume any requests which we had to defer until the PAC script was
@@ -574,6 +575,7 @@ void ProxyService::SetConfig(const ProxyConfig& config) {
   // Cancel any PAC fetching / ProxyResolver::SetPacScript() which was
   // in progress for the previous configuration.
   init_proxy_resolver_.reset();
+  should_use_proxy_resolver_ = false;
 
   // Start downloading + testing the PAC scripts for this new configuration.
   if (config_.MayRequirePACResolver()) {
