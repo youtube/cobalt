@@ -43,13 +43,18 @@ import time
 # architecture.  On error, returns an empty list.  Determines the architecture
 # list by calling file.
 def macho_archs(macho):
+  macho_types = ["executable",
+                 "dynamically linked shared library",
+                 "bundle"]
+  macho_types_re = "Mach-O (?:64-bit )?(?:" + "|".join(macho_types) + ")"
+
   file_cmd = subprocess.Popen(["/usr/bin/file", "-b", "--", macho],
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                              stdout=subprocess.PIPE)
 
   archs = []
 
   type_line = file_cmd.stdout.readline()
-  type_match = re.match("^Mach-O executable (.*)$", type_line)
+  type_match = re.match("^%s (.*)$" % macho_types_re, type_line)
   if type_match:
     archs.append(type_match.group(1))
     return [type_match.group(1)]
@@ -60,13 +65,16 @@ def macho_archs(macho):
       for i in range(0, int(type_match.group(1))):
         arch_line = file_cmd.stdout.readline()
         arch_match = re.match(
-                     "^.* \(for architecture (.*)\):\tMach-O executable .*$",
+                     "^.* \(for architecture (.*)\):\t%s .*$" % macho_types_re,
                      arch_line)
         if arch_match:
           archs.append(arch_match.group(1))
 
   if file_cmd.wait() != 0:
     archs = []
+
+  if len(archs) == 0:
+    print >> sys.stderr, "No architectures in %s" % macho
 
   return archs
 
@@ -75,9 +83,11 @@ def macho_archs(macho):
 # Architectures with no LC_UUID load command are omitted from the dictionary.
 # Determines the UUID value by calling otool.
 def macho_uuids(macho):
-  archs = macho_archs(macho)
+  uuids = {}
 
-  uuids = {} 
+  archs = macho_archs(macho)
+  if len(archs) == 0:
+    return uuids
 
   for arch in archs:
     if arch == "":
@@ -85,7 +95,7 @@ def macho_uuids(macho):
 
     otool_cmd = subprocess.Popen(["/usr/bin/otool", "-arch", arch, "-l", "-",
                                   macho],
-                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                 stdout=subprocess.PIPE)
     # state 0 is when nothing UUID-related has been seen yet.  State 1 is
     # entered after a load command begins, but it may not be an LC_UUID load
     # command.  States 2, 3, and 4 are intermediate states while reading an
@@ -137,6 +147,9 @@ def macho_uuids(macho):
 
     if state == 5:
       uuids[arch] = uuid.upper()
+
+  if len(uuids) == 0:
+    print >> sys.stderr, "No UUIDs in %s" % macho
 
   return uuids
 
@@ -309,5 +322,5 @@ def main(argv=None):
 
   return 0
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   sys.exit(main(sys.argv))
