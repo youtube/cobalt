@@ -111,6 +111,11 @@ uint64 FtpNetworkTransaction::GetUploadProgress() const {
 // Used to prepare and send FTP commad.
 int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
                                           Command cmd) {
+  // If we send a new command when we still have unprocessed responses
+  // for previous commands, the response receiving code will have no way to know
+  // which responses are for which command.
+  DCHECK(!ctrl_response_buffer_.ResponseAvailable());
+
   DCHECK(!write_command_buf_);
   DCHECK(!write_buf_);
   DLOG(INFO) << " >> " << command;
@@ -129,12 +134,6 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
 
 int FtpNetworkTransaction::ProcessCtrlResponse() {
   FtpCtrlResponse response = ctrl_response_buffer_.PopResponse();
-
-  // TODO(phajdan.jr): Remove when http://crbug.com/18036 is diagnosed.
-  DLOG(INFO) << "Consumed one control response.";
-
-  // We always expect only one response, even if it's multiline.
-  DCHECK(!ctrl_response_buffer_.ResponseAvailable());
 
   int rv = OK;
   switch (command_sent_) {
@@ -185,6 +184,22 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
       DLOG(INFO) << "Missing Command response handling!";
       return ERR_FAILED;
   }
+
+  // We may get multiple responses for some commands,
+  // see http://crbug.com/18036.
+  while (ctrl_response_buffer_.ResponseAvailable() && rv == OK) {
+    response = ctrl_response_buffer_.PopResponse();
+
+    switch (command_sent_) {
+      case COMMAND_RETR:
+        rv = ProcessResponseRETR(response);
+        break;
+      default:
+        // Multiple responses for other commands are invalid.
+        return ERR_INVALID_RESPONSE;
+    }
+  }
+
   return rv;
 }
 
@@ -723,6 +738,7 @@ int FtpNetworkTransaction::ProcessResponseRETR(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
+      next_state_ = STATE_CTRL_READ;
       break;
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_QUIT;
