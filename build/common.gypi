@@ -13,6 +13,31 @@
     # Variables expected to be overriden on the GYP command line (-D) or by
     # ~/.gyp/include.gypi.
 
+    # Putting a variables dict inside another variables dict looks kind of
+    # weird.  This is done so that "branding" and "buildtype" are defined as
+    # variables within the outer variables dict here.  This is necessary
+    # to get these variables defined for the conditions within this variables
+    # dict that operate on these variables.
+    'variables': {
+      # Override branding to select the desired branding flavor.
+      'branding%': 'Chromium',
+
+      # Override buildtype to select the desired build flavor.
+      # Dev - everyday build for development/testing
+      # Official - release build (generally implies additional processing)
+      # TODO(mmoss) Once 'buildtype' is fully supported (e.g. Windows gyp
+      # conversion is done), some of the things which are now controlled by
+      # 'branding', such as symbol generation, will need to be refactored based
+      # on 'buildtype' (i.e. we don't care about saving symbols for non-Official
+      # builds).
+      'buildtype%': 'Dev',
+    },
+
+    # Define branding and buildtype on the basis of their settings within the
+    # variables sub-dict above, unless overridden.
+    'branding%': '<(branding)',
+    'buildtype%': '<(buildtype)',
+
     # Override chromium_mac_pch and set it to 0 to suppress the use of
     # precompiled headers on the Mac.  Prefix header injection may still be
     # used, but prefix headers will not be precompiled.  This is useful when
@@ -22,19 +47,6 @@
     # executable's image.  Setting this to 0 is needed to use an experimental
     # Linux-Mac cross compiler distcc farm.
     'chromium_mac_pch%': 1,
-
-    # Override branding to select the desired branding flavor.
-    'branding%': 'Chromium',
-
-    # Override buildtype to select the desired build flavor.
-    # Dev - everyday build for development/testing
-    # Official - release build (generally implies additional processing)
-    # TODO(mmoss) Once 'buildtype' is fully supported (e.g. Windows gyp
-    # conversion is done), some of the things which are now controlled by
-    # 'branding', such as symbol generation, will need to be refactored based
-    # on 'buildtype' (i.e. we don't care about saving symbols for non-Official
-    # builds).
-    'buildtype%': 'Dev',
 
     # Set to 1 to enable code coverage.  In addition to build changes
     # (e.g. extra CFLAGS), also creates a new target in the src/chrome
@@ -104,6 +116,31 @@
     'linux_sandbox_chrome_path%': '/opt/google/chrome/chrome',
 
     'conditions': [
+      ['OS=="mac"', {
+        'conditions': [
+          # mac_product_name is set to the name of the .app bundle as it should
+          # appear on disk.  This duplicates data from
+          # chrome/app/theme/chromium/BRANDING and
+          # chrome/app/theme/google_chrome/BRANDING, but is necessary to get
+          # these names into the build system.
+          ['branding=="Chrome"', {
+            'mac_product_name%': 'Google Chrome',
+          }, { # else: branding!="Chrome"
+            'mac_product_name%': 'Chromium',
+          }],
+
+          # Feature variables for enabling Mac Breakpad and Keystone auto-update
+          # support.  Both features are on by default in official builds with
+          # Chrome branding.
+          ['branding=="Chrome" and buildtype=="Official"', {
+            'mac_breakpad%': 1,
+            'mac_keystone%': 1,
+          }, { # else: branding!="Chrome" or buildtype!="Official"
+            'mac_breakpad%': 0,
+            'mac_keystone%': 0,
+          }],
+        ],
+      }],  # OS=="mac"
       # Whether to use multiple cores to compile with visual studio. This is
       # optional because it sometimes causes corruption on VS 2005.
       # It is on by default on VS 2008 and off on VS 2005.
@@ -514,7 +551,7 @@
           ['_mac_bundle', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
           }],
-          ['_type=="executable"', {
+          ['_type=="executable" or _type=="shared_library"', {
             'target_conditions': [
               ['mac_real_dsym == 1', {
                 # To get a real .dSYM bundle produced by dsymutil, set the
@@ -527,9 +564,19 @@
                       'DEBUG_INFORMATION_FORMAT': 'dwarf-with-dsym',
                       'DEPLOYMENT_POSTPROCESSING': 'YES',
                       'STRIP_INSTALLED_PRODUCT': 'YES',
-                    },
-                  },
-                },
+                      'target_conditions': [
+                        ['_type=="shared_library"', {
+                          # The Xcode default is to strip debugging symbols
+                          # only (-S).  Local symbols should be stripped as
+                          # well, which will be handled by -x.  Xcode will
+                          # continue to insert -S when stripping even when
+                          # additional flags are added with STRIPFLAGS.
+                          'STRIPFLAGS': '-x',
+                        }],  # _type=="shared_library"
+                      ],  # target_conditions
+                    },  # xcode_settings
+                  },  # configuration "Release"
+                },  # configurations
               }, {  # mac_real_dsym != 1
                 # To get a fast fake .dSYM bundle, use a post-build step to
                 # produce the .dSYM and strip the executable.  strip_from_xcode
@@ -545,13 +592,13 @@
                     'postbuild_name': 'Strip If Needed',
                     'action': ['<(strip_from_xcode_path)'],
                   },
-                ],
-              }],
-            ],
-          }],
-        ],
-      },
-    }],
+                ],  # postbuilds
+              }],  # mac_real_dsym
+            ],  # target_conditions
+          }],  # _type=="executable" or _type=="shared_library"
+        ],  # target_conditions
+      },  # target_defaults
+    }],  # OS=="mac"
     ['OS=="win"', {
       'target_defaults': {
         'defines': [
