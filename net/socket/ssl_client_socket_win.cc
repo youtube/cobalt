@@ -928,9 +928,9 @@ int SSLClientSocketWin::DoPayloadReadComplete(int result) {
   if (result == 0 && !ignore_ok_result_) {
     // TODO(wtc): Unless we have received the close_notify alert, we need to
     // return an error code indicating that the SSL connection ended
-    // uncleanly, a potential truncation attack.
+    // uncleanly, a potential truncation attack.  See http://crbug.com/18586.
     if (bytes_received_ != 0)
-      return ERR_FAILED;
+      return ERR_SSL_PROTOCOL_ERROR;
     return OK;
   }
 

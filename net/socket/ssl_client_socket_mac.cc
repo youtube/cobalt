@@ -538,7 +538,7 @@ void SSLClientSocketMac::OnWriteComplete(int result) {
 }
 
 int SSLClientSocketMac::DoPayloadRead() {
-  size_t processed;
+  size_t processed = 0;
   OSStatus status = SSLRead(ssl_context_,
                             user_buf_->data(),
                             user_buf_len_,
@@ -550,20 +550,24 @@ int SSLClientSocketMac::DoPayloadRead() {
   // along with partial data). So even though "would block" is returned, if we
   // have data, let's just return it.
 
-  if (processed > 0) {
-    next_state_ = STATE_NONE;
+  if (processed > 0)
     return processed;
+
+  if (status == errSSLClosedNoNotify) {
+    // TODO(wtc): Unless we have received the close_notify alert, we need to
+    // return an error code indicating that the SSL connection ended
+    // uncleanly, a potential truncation attack.  See http://crbug.com/18586.
+    return OK;
   }
 
-  if (status == errSSLWouldBlock) {
+  if (status == errSSLWouldBlock)
     next_state_ = STATE_PAYLOAD_READ;
-  }
 
   return NetErrorFromOSStatus(status);
 }
 
 int SSLClientSocketMac::DoPayloadWrite() {
-  size_t processed;
+  size_t processed = 0;
   OSStatus status = SSLWrite(ssl_context_,
                              user_buf_->data(),
                              user_buf_len_,
