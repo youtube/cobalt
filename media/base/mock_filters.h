@@ -96,6 +96,7 @@ class MockDataSource : public DataSource {
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(OnReceivedMessage, void(FilterMessage message));
 
   // DataSource implementation.
   MOCK_METHOD2(Initialize, void(const std::string& url,
@@ -123,6 +124,7 @@ class MockDemuxer : public Demuxer {
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(OnReceivedMessage, void(FilterMessage message));
 
   // Demuxer implementation.
   MOCK_METHOD2(Initialize, void(DataSource* data_source,
@@ -176,6 +178,7 @@ class MockVideoDecoder : public VideoDecoder {
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(OnReceivedMessage, void(FilterMessage message));
 
   // VideoDecoder implementation.
   MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
@@ -209,6 +212,7 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(OnReceivedMessage, void(FilterMessage message));
 
   // AudioDecoder implementation.
   MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
@@ -233,6 +237,7 @@ class MockVideoRenderer : public VideoRenderer {
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(OnReceivedMessage, void(FilterMessage message));
 
   // VideoRenderer implementation.
   MOCK_METHOD2(Initialize, void(VideoDecoder* decoder,
@@ -253,6 +258,7 @@ class MockAudioRenderer : public AudioRenderer {
   MOCK_METHOD0(Stop, void());
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
+  MOCK_METHOD1(OnReceivedMessage, void(FilterMessage message));
 
   // AudioRenderer implementation.
   MOCK_METHOD2(Initialize, void(AudioDecoder* decoder,
@@ -363,6 +369,12 @@ ACTION_P2(SetTotalBytes, filter, bytes) {
 // filter.
 ACTION_P2(SetBufferedBytes, filter, bytes) {
   filter->host()->SetBufferedBytes(bytes);
+}
+
+// Helper gmock action that calls BroadcastMessage() on behalf of the provided
+// filter.
+ACTION_P2(BroadcastMessage, filter, message) {
+  filter->host()->BroadcastMessage(message);
 }
 
 }  // namespace media

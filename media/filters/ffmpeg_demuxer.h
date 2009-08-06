@@ -125,6 +125,7 @@ class FFmpegDemuxer : public Demuxer,
   // MediaFilter implementation.
   virtual void Stop();
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
+  virtual void OnReceivedMessage(FilterMessage message);
 
   // Demuxer implementation.
   virtual void Initialize(DataSource* data_source, FilterCallback* callback);
@@ -158,6 +159,9 @@ class FFmpegDemuxer : public Demuxer,
 
   // Carries out stopping the demuxer streams on the demuxer thread.
   void StopTask();
+
+  // Carries out disabling the audio stream on the demuxer thread.
+  void DisableAudioStreamTask();
 
   // Returns true if any of the streams have pending reads.  Since we lazily
   // post a DemuxTask() for every read, we use this method to quickly terminate
