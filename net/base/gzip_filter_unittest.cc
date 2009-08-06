@@ -71,7 +71,7 @@ class GZipUnitTest : public PlatformTest {
     file_path = file_path.AppendASCII("google.txt");
 
     // Read data from the file into buffer.
-    file_util::ReadFileToString(file_path, &source_buffer_);
+    ASSERT_TRUE(file_util::ReadFileToString(file_path, &source_buffer_));
 
     // Encode the data with deflate
     deflate_encode_buffer_ = new char[kDefaultBufferSize];
