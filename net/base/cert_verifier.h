@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2008-2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,9 +20,6 @@ class X509Certificate;
 // verify a single certificate at a time, so if you need to verify multiple
 // certificates at the same time, you will need to allocate a CertVerifier
 // object for each certificate.
-//
-// TODO(wtc): This class is based on HostResolver.  We should create a base
-// class for the common code between the two classes.
 //
 class CertVerifier {
  public:
