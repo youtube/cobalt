@@ -809,6 +809,7 @@ void DiskCacheEntryTest::DoomedEntry() {
   EXPECT_EQ(2000, entry->WriteData(0, 0, buffer1, 2000, NULL, false));
   EXPECT_EQ(2000, entry->ReadData(0, 0, buffer2, 2000, NULL));
   EXPECT_EQ(0, memcmp(buffer1->data(), buffer2->data(), kSize1));
+  EXPECT_EQ(key, entry->GetKey());
   EXPECT_TRUE(initial < entry->GetLastModified());
   EXPECT_TRUE(initial < entry->GetLastUsed());
 

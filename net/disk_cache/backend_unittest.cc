@@ -67,6 +67,7 @@ class DiskCacheBackendTest : public DiskCacheTestWithCache {
   void BackendDisable();
   void BackendDisable2();
   void BackendDisable3();
+  void BackendDisable4();
 };
 
 void DiskCacheBackendTest::BackendBasics() {
@@ -1322,6 +1323,71 @@ TEST_F(DiskCacheBackendTest, NewEvictionDisableSuccess3) {
   SetNewEviction();
   InitCache();
   BackendDisable3();
+}
+
+// If we disable the cache, already open entries should work as far as possible.
+void DiskCacheBackendTest::BackendDisable4() {
+  disk_cache::Entry *entry1, *entry2, *entry3, *entry4;
+  void* iter = NULL;
+  ASSERT_TRUE(cache_->OpenNextEntry(&iter, &entry1));
+
+  char key2[2000];
+  char key3[20000];
+  CacheTestFillBuffer(key2, sizeof(key2), true);
+  CacheTestFillBuffer(key3, sizeof(key3), true);
+  key2[sizeof(key2) - 1] = '\0';
+  key3[sizeof(key3) - 1] = '\0';
+  ASSERT_TRUE(cache_->CreateEntry(key2, &entry2));
+  ASSERT_TRUE(cache_->CreateEntry(key3, &entry3));
+
+  const int kBufSize = 20000;
+  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kBufSize);
+  memset(buf->data(), 0, kBufSize);
+  EXPECT_EQ(100, entry2->WriteData(0, 0, buf, 100, NULL, false));
+  EXPECT_EQ(kBufSize, entry3->WriteData(0, 0, buf, kBufSize, NULL, false));
+
+  // This line should disable the cache but not delete it.
+  EXPECT_FALSE(cache_->OpenNextEntry(&iter, &entry4));
+  EXPECT_EQ(4, cache_->GetEntryCount());
+
+  EXPECT_FALSE(cache_->CreateEntry("cache is disabled", &entry4));
+
+  EXPECT_EQ(100, entry2->ReadData(0, 0, buf, 100, NULL));
+  EXPECT_EQ(100, entry2->WriteData(0, 0, buf, 100, NULL, false));
+  EXPECT_EQ(100, entry2->WriteData(1, 0, buf, 100, NULL, false));
+
+  EXPECT_EQ(kBufSize, entry3->ReadData(0, 0, buf, kBufSize, NULL));
+  EXPECT_EQ(kBufSize, entry3->WriteData(0, 0, buf, kBufSize, NULL, false));
+  EXPECT_EQ(kBufSize, entry3->WriteData(1, 0, buf, kBufSize, NULL, false));
+
+  std::string key = entry2->GetKey();
+  EXPECT_EQ(sizeof(key2) - 1, key.size());
+  key = entry3->GetKey();
+  EXPECT_EQ(sizeof(key3) - 1, key.size());
+
+  entry1->Close();
+  entry2->Close();
+  entry3->Close();
+  MessageLoop::current()->RunAllPending();
+
+  EXPECT_EQ(0, cache_->GetEntryCount());
+}
+
+TEST_F(DiskCacheBackendTest, DisableSuccess4) {
+  ASSERT_TRUE(CopyTestCache(L"bad_rankings"));
+  DisableFirstCleanup();
+  SetDirectMode();
+  InitCache();
+  BackendDisable4();
+}
+
+TEST_F(DiskCacheBackendTest, NewEvictionDisableSuccess4) {
+  ASSERT_TRUE(CopyTestCache(L"bad_rankings"));
+  DisableFirstCleanup();
+  SetDirectMode();
+  SetNewEviction();
+  InitCache();
+  BackendDisable4();
 }
 
 TEST_F(DiskCacheTest, Backend_UsageStats) {
