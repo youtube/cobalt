@@ -27,7 +27,7 @@ class MockVideoRendererBase : public VideoRendererBase {
   virtual ~MockVideoRendererBase() {}
 
   // VideoRendererBase implementation.
-  MOCK_METHOD1(OnInitialize, bool (VideoDecoder* decoder));
+  MOCK_METHOD1(OnInitialize, bool(VideoDecoder* decoder));
   MOCK_METHOD0(OnStop, void());
   MOCK_METHOD0(OnFrameAvailable, void());
 

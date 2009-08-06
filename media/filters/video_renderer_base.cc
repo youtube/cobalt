@@ -27,9 +27,12 @@ static const size_t kMaxFrames = 3;
 // A higher value will be a slower frame rate, which looks worse but allows the
 // audio renderer to catch up faster.  A lower value will be a smoother frame
 // rate, but results in the video being out of sync for longer.
-//
-// TODO(scherkus): what if the native frame rate is 15 or 10 fps?
 static const int64 kMaxSleepMilliseconds = 60;
+
+// The number of milliseconds to idle when we do not have anything to do.
+// Nothing special about the value, other than we're being more OS-friendly
+// than sleeping for 1 millisecond.
+static const int kIdleMilliseconds = 10;
 
 VideoRendererBase::VideoRendererBase()
     : width_(0),
@@ -193,10 +196,9 @@ void VideoRendererBase::ThreadMain() {
       return;
     }
 
-    // Sleep for 10 milliseconds while paused.  Nothing special about the value,
-    // other than we're being more OS-friendly than sleeping for 1 millisecond.
+    // Sleep while paused or seeking.
     if (state == kPaused || state == kSeeking || playback_rate == 0) {
-      PlatformThread::Sleep(10);
+      PlatformThread::Sleep(kIdleMilliseconds);
       continue;
     }
 
@@ -208,6 +210,13 @@ void VideoRendererBase::ThreadMain() {
       AutoLock auto_lock(lock_);
       // Check the actual state to see if we're trying to stop playing.
       if (state_ != kPlaying) {
+        continue;
+      }
+
+      // Idle if the next frame is too far ahead.
+      base::TimeDelta diff = current_frame_->GetTimestamp() - host()->GetTime();
+      if (diff.InMilliseconds() > kIdleMilliseconds) {
+        PlatformThread::Sleep(kIdleMilliseconds);
         continue;
       }
 
