@@ -136,6 +136,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetBufferedBytes(int64 buffered_bytes);
   virtual void SetVideoSize(size_t width, size_t height);
   virtual void SetStreaming(bool streamed);
+  virtual void BroadcastMessage(FilterMessage message);
 
   // Method called during initialization to insert a mime type into the
   // |rendered_mime_types_| set.
@@ -179,6 +180,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Carries out notifying filters that we are seeking to a new timestamp.
   void SeekTask(base::TimeDelta time, PipelineCallback* seek_callback);
+
+  // Carries out message broadcasting on the message loop.
+  void BroadcastMessageTask(FilterMessage message);
 
   // Carries out advancing to the next filter during Play()/Pause()/Seek().
   void FilterStateTransitionTask();
