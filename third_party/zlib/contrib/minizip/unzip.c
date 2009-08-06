@@ -38,9 +38,11 @@ woven in by Terry Thorsen 1/2003.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-/* NOTE(erikkay): this modification was needed to avoid picking up the system
- version of zlib.h on the Mac */
+#if defined(USE_SYSTEM_ZLIB)
+#include <zlib.h>
+#else
 #include "third_party/zlib/zlib.h"
+#endif
 #include "unzip.h"
 
 #ifdef STDC

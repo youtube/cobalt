@@ -10,12 +10,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* NOTE(erikkay): this modification was needed to avoid picking up the system
-   version of zlib.h on the Mac */
+#if defined(USE_SYSTEM_ZLIB)
+#include <zlib.h>
+#else
 #include "third_party/zlib/zlib.h"
+#endif
+
 #include "ioapi.h"
-
-
 
 /* I've found an old Unix (a SunOS 4.1.3_U1) without all SEEK_* defined.... */
 
