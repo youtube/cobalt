@@ -55,6 +55,8 @@ int ConnectJob::Connect() {
 }
 
 void ConnectJob::OnTimeout() {
+  // Make sure the socket is NULL before calling into |delegate|.
+  set_socket(NULL);
   // The delegate will delete |this|.
   Delegate *delegate = delegate_;
   delegate_ = NULL;

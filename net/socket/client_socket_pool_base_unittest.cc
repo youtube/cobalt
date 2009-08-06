@@ -126,6 +126,7 @@ class TestConnectJob : public ConnectJob {
   virtual int ConnectInternal() {
     AddressList ignored;
     client_socket_factory_->CreateTCPClientSocket(ignored);
+    set_socket(new MockClientSocket());
     switch (job_type_) {
       case kMockJob:
         return DoConnect(true /* successful */, false /* sync */);
@@ -161,6 +162,7 @@ class TestConnectJob : public ConnectJob {
         return ERR_IO_PENDING;
       default:
         NOTREACHED();
+        set_socket(NULL);
         return ERR_FAILED;
     }
   }
@@ -169,8 +171,9 @@ class TestConnectJob : public ConnectJob {
     int result = ERR_CONNECTION_FAILED;
     if (succeed) {
       result = OK;
-      set_socket(new MockClientSocket());
       socket()->Connect(NULL);
+    } else {
+      set_socket(NULL);
     }
 
     if (was_async)
@@ -309,6 +312,12 @@ class TestConnectJobDelegate : public ConnectJob::Delegate {
 
   virtual void OnConnectJobComplete(int result, ConnectJob* job) {
     result_ = result;
+    scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
+    if (result == OK) {
+      EXPECT_TRUE(socket.get() != NULL);
+    } else {
+      EXPECT_EQ(NULL, socket.get());
+    }
     delete job;
     have_result_ = true;
     if (waiting_for_result_)
@@ -1093,6 +1102,42 @@ class ClientSocketPoolBaseTest_LateBinding : public ClientSocketPoolBaseTest {
     ClientSocketPoolBase::EnableLateBindingOfSockets(true);
   }
 };
+
+// Even though a timeout is specified, it doesn't time out on a synchronous
+// completion.
+TEST_F(ClientSocketPoolBaseTest_LateBinding,
+       ConnectJob_NoTimeoutOnSynchronousCompletion) {
+  TestConnectJobDelegate delegate;
+  ClientSocketPoolBase::Request request;
+  ClientSocketHandle ignored(pool_.get());
+  request.handle = &ignored;
+  scoped_ptr<TestConnectJob> job(
+      new TestConnectJob(TestConnectJob::kMockJob,
+                         "a", 
+                         request,
+                         base::TimeDelta::FromMicroseconds(1),
+                         &delegate,
+                         &client_socket_factory_));
+  EXPECT_EQ(OK, job->Connect());
+}
+
+TEST_F(ClientSocketPoolBaseTest_LateBinding, ConnectJob_TimedOut) {
+  TestConnectJobDelegate delegate;
+  ClientSocketPoolBase::Request request;
+  ClientSocketHandle ignored(pool_.get());
+  request.handle = &ignored;
+  // Deleted by TestConnectJobDelegate.
+  TestConnectJob* job =
+      new TestConnectJob(TestConnectJob::kMockPendingJob,
+                         "a", 
+                         request,
+                         base::TimeDelta::FromMicroseconds(1),
+                         &delegate,
+                         &client_socket_factory_);
+  ASSERT_EQ(ERR_IO_PENDING, job->Connect());
+  PlatformThread::Sleep(1);
+  EXPECT_EQ(ERR_TIMED_OUT, delegate.WaitForResult());
+}
 
 TEST_F(ClientSocketPoolBaseTest_LateBinding, BasicSynchronous) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
