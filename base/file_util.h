@@ -13,10 +13,7 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #elif defined(OS_POSIX)
-// Keep the order as in fts(3): fts.h requires types defined in sys/types.h
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <fts.h>
 #endif
 
 #include <stdio.h>
@@ -421,6 +418,9 @@ class FileEnumerator {
     FILES                 = 1 << 0,
     DIRECTORIES           = 1 << 1,
     INCLUDE_DOT_DOT       = 1 << 2,
+#if defined(OS_POSIX)
+    SHOW_SYM_LINKS        = 1 << 4,
+#endif
   };
 
   // |root_path| is the starting directory to search for. It may or may not end
@@ -485,8 +485,24 @@ class FileEnumerator {
   WIN32_FIND_DATA find_data_;
   HANDLE find_handle_;
 #elif defined(OS_POSIX)
-  FTS* fts_;
-  FTSENT* fts_ent_;
+  typedef struct {
+    FilePath filename;
+    struct stat stat;
+  } DirectoryEntryInfo;
+
+  // Read the filenames in source into the vector of DirectoryEntryInfo's
+  static bool ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
+                            const FilePath& source, bool show_links);
+
+  // Comparison function to neatly sort directory entries
+  static bool CompareFiles(const DirectoryEntryInfo& a,
+                           const DirectoryEntryInfo& b);
+
+  // The files in the current directory
+  std::vector<DirectoryEntryInfo> directory_entries_;
+
+  // The next entry to use from the directory_entries_ vector
+  size_t current_directory_entry_;
 #endif
 
   DISALLOW_EVIL_CONSTRUCTORS(FileEnumerator);
