@@ -168,15 +168,36 @@ sudo apt-get update
 # without accidentally promoting any packages from "auto" to "manual".
 # We then re-run "apt-get" with just the list of missing packages.
 echo "Finding missing packages..."
-new_list="$(yes n |
-            LANG=C sudo apt-get install --reinstall \
-                         ${dev_list} ${lib_list} ${dbg_list} \
-                         $([ "$(uname -m)" = x86_64 ] && echo ${cmp_list}) \
-                         |
-            sed -e '1,/The following NEW packages will be installed:/d;s/^  //;t;d')"
+packages="${dev_list} ${lib_list} ${dbg_list}
+                  $([ "$(uname -m)" = x86_64 ] && echo ${cmp_list})"
+echo "Packages required: $packages"
+new_list_cmd="sudo apt-get install --reinstall $(echo $packages)"
+if new_list="$(yes n | LANG=C $new_list_cmd)"
+then
+  echo "No missing packages, and the packages are up-to-date."
+elif [ $? -eq 1 ]
+then
+  # We expect apt-get to have exit status of 1.
+  # This indicates that we canceled the install with "yes n|".
+  new_list=$(echo $new_list |
+    sed -e '1,/The following NEW packages will be installed:/d;s/^  //;t;d')
+  echo "Installing missing packages: $new_list."
+  sudo apt-get install ${new_list}
+else
+  # An apt-get exit status of 100 indicates that a real error has occurred.
 
-echo "Installing missing packages..."
-sudo apt-get install ${new_list}
+  # I am intentionally leaving out the '"'s around new_list_cmd,
+  # as this makes it easier to cut and paste the output
+  echo
+  echo "The following command failed: " ${new_list_cmd}
+  echo
+  echo "It produces the following output:"
+  yes n | $new_list_cmd || true
+  echo
+  echo "You will have to install the above packages yourself."
+  echo
+  exit 100
+fi
 
 # Some operating systems already ship gold
 # (on Debian, you can probably do "apt-get install binutils-gold" to get it),
@@ -222,12 +243,12 @@ if [ "$(uname -m)" = x86_64 ]; then
 
   [ -r /etc/apt/apt.conf ] && cp /etc/apt/apt.conf "${tmp}/apt/"
   cat >>"${tmp}/apt/apt.conf" <<-EOF
-	Apt::Architecture "i386";
-	Dir::Cache "${tmp}/cache";
-	Dir::Cache::Archives "${tmp}/";
-	Dir::State::Lists "${tmp}/apt/lists/";
-	Dir::State::status "${tmp}/status";
-	EOF
+        Apt::Architecture "i386";
+        Dir::Cache "${tmp}/cache";
+        Dir::Cache::Archives "${tmp}/";
+        Dir::State::Lists "${tmp}/apt/lists/";
+        Dir::State::status "${tmp}/status";
+        EOF
 
   # Download 32bit packages
   echo "Computing list of available 32bit packages..."
