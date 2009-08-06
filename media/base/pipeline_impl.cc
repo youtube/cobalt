@@ -374,6 +374,15 @@ void PipelineImpl::SetStreaming(bool streaming) {
   streaming_ = streaming;
 }
 
+void PipelineImpl::BroadcastMessage(FilterMessage message) {
+  DCHECK(IsRunning());
+
+  // Broadcast the message on the message loop.
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::BroadcastMessageTask,
+                        message));
+}
+
 void PipelineImpl::InsertRenderedMimeType(const std::string& major_mime_type) {
   DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
@@ -628,6 +637,17 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
   clock_.Pause();
   filters_.front()->Pause(
       NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+}
+
+void PipelineImpl::BroadcastMessageTask(FilterMessage message) {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  // Broadcast the message to all filters.
+  for (FilterVector::iterator iter = filters_.begin();
+       iter != filters_.end();
+       ++iter) {
+    (*iter)->OnReceivedMessage(message);
+  }
 }
 
 void PipelineImpl::FilterStateTransitionTask() {

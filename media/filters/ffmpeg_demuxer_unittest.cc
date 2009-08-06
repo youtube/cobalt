@@ -679,6 +679,44 @@ TEST_F(FFmpegDemuxerTest, Stop) {
   MockFFmpeg::get()->CheckPoint(1);
 }
 
+TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
+  // We are doing the following things here:
+  // 1. Initialize the demuxer with audio and video stream.
+  // 2. Send a "disable audio stream" message to the demuxer.
+  // 3. Demuxer will free audio packets even if audio stream was initialized.
+  {
+    SCOPED_TRACE("");
+    InitializeDemuxer();
+  }
+
+  // Submit a "disable audio stream" message to the demuxer.
+  demuxer_->OnReceivedMessage(kMsgDisableAudio);
+  message_loop_.RunAllPending();
+
+  // Expect all calls in sequence.
+  InSequence s;
+
+  // The demuxer will read an audio packet which will get immediately freed.
+  EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
+      .WillOnce(CreatePacket(AV_STREAM_AUDIO, kNullData, 0));
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+
+  // Then an end-of-stream packet is read.
+  EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
+      .WillOnce(Return(AVERROR_IO));
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_));
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_));
+
+  // Get our streams.
+  scoped_refptr<DemuxerStream> video = demuxer_->GetStream(DS_STREAM_VIDEO);
+  ASSERT_TRUE(video);
+
+  // Attempt a read from the video stream and run the message loop until done.
+  scoped_refptr<DemuxerStreamReader> reader(new DemuxerStreamReader());
+  reader->Read(video);
+  message_loop_.RunAllPending();
+}
+
 class MockFFmpegDemuxer : public FFmpegDemuxer {
  public:
   MockFFmpegDemuxer() {}

@@ -279,6 +279,13 @@ void FFmpegDemuxer::Seek(base::TimeDelta time, FilterCallback* callback) {
       NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time, callback));
 }
 
+void FFmpegDemuxer::OnReceivedMessage(FilterMessage message) {
+  if (message == kMsgDisableAudio) {
+    message_loop()->PostTask(FROM_HERE,
+        NewRunnableMethod(this, &FFmpegDemuxer::DisableAudioStreamTask));
+  }
+}
+
 void FFmpegDemuxer::Initialize(DataSource* data_source,
                                FilterCallback* callback) {
   message_loop()->PostTask(FROM_HERE,
@@ -524,6 +531,24 @@ void FFmpegDemuxer::StopTask() {
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
     (*iter)->Stop();
+  }
+}
+
+void FFmpegDemuxer::DisableAudioStreamTask() {
+  DCHECK_EQ(MessageLoop::current(), message_loop());
+
+  StreamVector::iterator iter;
+  for (size_t i = 0; i < packet_streams_.size(); ++i) {
+    if (!packet_streams_[i])
+      continue;
+
+    // If the codec type is audio, remove the reference. DemuxTask() will
+    // look for such reference, and this will result in deleting the
+    // audio packets after they are demuxed.
+    if (packet_streams_[i]->GetAVStream()->codec->codec_type ==
+        CODEC_TYPE_AUDIO) {
+      packet_streams_[i] = NULL;
+    }
   }
 }
 

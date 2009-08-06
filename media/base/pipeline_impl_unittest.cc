@@ -439,4 +439,45 @@ TEST_F(PipelineImplTest, Properties) {
             pipeline_->GetBufferedTime().ToInternalValue());
 }
 
+TEST_F(PipelineImplTest, BroadcastMessage) {
+  scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream =
+      new StrictMock<MockDemuxerStream>("audio/x-foo");
+  scoped_refptr<StrictMock<MockDemuxerStream> > video_stream =
+      new StrictMock<MockDemuxerStream>("video/x-foo");
+  MockDemuxerStreamVector streams;
+  streams.push_back(audio_stream);
+  streams.push_back(video_stream);
+
+  InitializeDataSource();
+  InitializeDemuxer(&streams, base::TimeDelta());
+  InitializeAudioDecoder(audio_stream);
+  InitializeAudioRenderer();
+  InitializeVideoDecoder(video_stream);
+  InitializeVideoRenderer();
+
+  InitializePipeline();
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
+  EXPECT_TRUE(pipeline_->IsRendered(mime_type::kMajorTypeAudio));
+  EXPECT_TRUE(pipeline_->IsRendered(mime_type::kMajorTypeVideo));
+
+  EXPECT_CALL(*mocks_->audio_renderer(), SetPlaybackRate(1.0f))
+      .WillOnce(BroadcastMessage(mocks_->audio_renderer(),
+                                 kMsgDisableAudio));
+  EXPECT_CALL(*mocks_->data_source(),
+              OnReceivedMessage(kMsgDisableAudio));
+  EXPECT_CALL(*mocks_->demuxer(),
+              OnReceivedMessage(kMsgDisableAudio));
+  EXPECT_CALL(*mocks_->audio_decoder(),
+              OnReceivedMessage(kMsgDisableAudio));
+  EXPECT_CALL(*mocks_->audio_renderer(),
+              OnReceivedMessage(kMsgDisableAudio));
+  EXPECT_CALL(*mocks_->video_decoder(),
+              OnReceivedMessage(kMsgDisableAudio));
+  EXPECT_CALL(*mocks_->video_renderer(),
+              OnReceivedMessage(kMsgDisableAudio));
+
+  mocks_->audio_renderer()->SetPlaybackRate(1.0f);
+}
+
 }  // namespace media
