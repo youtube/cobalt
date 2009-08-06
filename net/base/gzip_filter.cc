@@ -4,9 +4,20 @@
 
 #include "net/base/gzip_filter.h"
 
+#if defined(USE_SYSTEM_ZLIB)
+#include <zlib.h>
+#define MOZ_Z_inflate inflate
+#define MOZ_Z_inflateEnd inflateEnd
+#define MOZ_Z_inflateInit2_ inflateInit2_
+#define MOZ_Z_inflateInit_ inflateInit_
+#define MOZ_Z_inflateReset inflateReset
+#else
+#include "third_party/zlib/zlib.h"
+#endif
+
 #include "base/logging.h"
 #include "net/base/gzip_header.h"
-#include "third_party/zlib/zlib.h"
+
 
 GZipFilter::GZipFilter(const FilterContext& filter_context)
     : Filter(filter_context),
