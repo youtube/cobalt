@@ -119,7 +119,7 @@ TEST(AudioUtilTest, FoldChannels_s32) {
 
 // This mimics 1 second of audio at 48000 samples per second.
 // Running the unittest will produce timing.
-TEST(AudioUtilTest, FoldChannels_s16_benchmark) {
+TEST(AudioUtilTest, DISABLED_FoldChannels_s16_benchmark) {
   const int kBufferSize = 1024 * 6;
   // Test AdjustVolume() on 16 bit samples.
   for (int i = 0; i < 48000; ++i) {
@@ -134,4 +134,5 @@ TEST(AudioUtilTest, FoldChannels_s16_benchmark) {
     EXPECT_EQ(true, result_s16);
   }
 }
+
 }  // namespace media
