@@ -196,7 +196,7 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
         break;
       default:
         // Multiple responses for other commands are invalid.
-        return ERR_INVALID_RESPONSE;
+        return Stop(ERR_INVALID_RESPONSE);
     }
   }
 
