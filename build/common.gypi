@@ -342,6 +342,7 @@
            '-pthread',
            '-fno-exceptions',
            '-Wall',
+           '-D_FILE_OFFSET_BITS=64',
         ],
         'cflags_cc': [
           '-fno-threadsafe-statics',
