@@ -232,6 +232,29 @@ class FtpMockControlSocketFileDownloadTransferStarting
   DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketFileDownloadTransferStarting);
 };
 
+class FtpMockControlSocketFileDownloadInvalidResponse
+    : public FtpMockControlSocketFileDownload {
+ public:
+  FtpMockControlSocketFileDownloadInvalidResponse() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_SIZE:
+        return Verify("SIZE /file\r\n", data, PRE_QUIT,
+                      "500 Evil Response\r\n"
+                      "500 More Evil\r\n");
+      default:
+        return FtpMockControlSocketFileDownload::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketFileDownloadInvalidResponse);
+};
+
 class FtpMockControlSocketFileDownloadRetrFail
     : public FtpMockControlSocketFileDownload {
  public:
@@ -385,6 +408,10 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionTransferStarting) {
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
 }
 
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionInvalidResponse) {
+  FtpMockControlSocketFileDownloadInvalidResponse ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_INVALID_RESPONSE);
+}
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailUser) {
   FtpMockControlSocketDirectoryListing ctrl_socket;
