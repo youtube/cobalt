@@ -4,8 +4,13 @@
 
 #include "net/base/gzip_header.h"
 
-#include "base/logging.h"
+#if defined(USE_SYSTEM_ZLIB)
+#include <zlib.h>
+#else
 #include "third_party/zlib/zlib.h"  // for Z_DEFAULT_COMPRESSION
+#endif
+
+#include "base/logging.h"
 
 const uint8 GZipHeader::magic[] = { 0x1f, 0x8b };
 

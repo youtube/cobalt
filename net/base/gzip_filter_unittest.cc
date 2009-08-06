@@ -5,6 +5,12 @@
 #include <fstream>
 #include <iostream>
 
+#if defined(USE_SYSTEM_ZLIB)
+#include <zlib.h>
+#else
+#include "third_party/zlib/zlib.h"
+#endif
+
 #include "base/file_util.h"
 #include "base/path_service.h"
 #include "base/scoped_ptr.h"
@@ -13,7 +19,6 @@
 #include "net/base/io_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
-#include "third_party/zlib/zlib.h"
 
 namespace {
 
