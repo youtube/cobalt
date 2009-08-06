@@ -84,6 +84,7 @@ EntryImpl::EntryImpl(BackendImpl* backend, Addr address)
   for (int i = 0; i < kNumStreams; i++) {
     unreported_size_[i] = 0;
   }
+  key_file_ = NULL;
 }
 
 // When an entry is deleted from the cache, we clean up all the data associated
@@ -139,25 +140,29 @@ void EntryImpl::Close() {
 
 std::string EntryImpl::GetKey() const {
   CacheEntryBlock* entry = const_cast<CacheEntryBlock*>(&entry_);
-  if (entry->Data()->key_len > kMaxInternalKeyLength) {
-    Addr address(entry->Data()->long_key);
-    DCHECK(address.is_initialized());
-    COMPILE_ASSERT(kNumStreams == kKeyFileIndex, invalid_key_index);
-    File* file = const_cast<EntryImpl*>(this)->GetBackingFile(address,
-                                                              kKeyFileIndex);
-
-    size_t offset = 0;
-    if (address.is_block_file())
-      offset = address.start_block() * address.BlockSize() + kBlockHeaderSize;
-
-    std::string key;
-    if (!file || !file->Read(WriteInto(&key, entry->Data()->key_len + 1),
-                             entry->Data()->key_len + 1, offset))
-      key.clear();
-    return key;
-  } else {
+  if (entry->Data()->key_len <= kMaxInternalKeyLength)
     return std::string(entry->Data()->key);
+
+  Addr address(entry->Data()->long_key);
+  DCHECK(address.is_initialized());
+  size_t offset = 0;
+  if (address.is_block_file())
+    offset = address.start_block() * address.BlockSize() + kBlockHeaderSize;
+
+  if (!key_file_) {
+    // We keep a copy of the file needed to access the key so that we can
+    // always return this object's key, even if the backend is disabled.
+    COMPILE_ASSERT(kNumStreams == kKeyFileIndex, invalid_key_index);
+    key_file_ = const_cast<EntryImpl*>(this)->GetBackingFile(address,
+                                                             kKeyFileIndex);
   }
+
+  std::string key;
+  if (!key_file_ ||
+      !key_file_->Read(WriteInto(&key, entry->Data()->key_len + 1),
+                       entry->Data()->key_len + 1, offset))
+    key.clear();
+  return key;
 }
 
 Time EntryImpl::GetLastUsed() const {
@@ -402,19 +407,19 @@ bool EntryImpl::CreateEntry(Addr node_address, const std::string& key,
       return false;
 
     entry_store->long_key = address.value();
-    File* file = GetBackingFile(address, kKeyFileIndex);
+    key_file_ = GetBackingFile(address, kKeyFileIndex);
 
     size_t offset = 0;
     if (address.is_block_file())
       offset = address.start_block() * address.BlockSize() + kBlockHeaderSize;
 
-    if (!file || !file->Write(key.data(), key.size(), offset)) {
+    if (!key_file_ || !key_file_->Write(key.data(), key.size(), offset)) {
       DeleteData(address, kKeyFileIndex);
       return false;
     }
 
     if (address.is_separate_file())
-      file->SetLength(key.size() + 1);
+      key_file_->SetLength(key.size() + 1);
   } else {
     memcpy(entry_store->key, key.data(), key.size());
     entry_store->key[key.size()] = '\0';
