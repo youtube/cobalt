@@ -14,7 +14,7 @@ using base::Time;
 namespace {
 
 // Returns the number of files in this folder.
-int NumberOfFiles(const std::wstring path) {
+int NumberOfFiles(const std::wstring& path) {
   file_util::FileEnumerator iter(FilePath::FromWStringHack(path), false,
                                  file_util::FileEnumerator::FILES);
   int count = 0;
