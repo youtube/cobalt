@@ -176,8 +176,10 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   CacheRankingsBlock node_;   // Rankings related information for this entry.
   BackendImpl* backend_;      // Back pointer to the cache.
   scoped_array<char> user_buffers_[kNumStreams];  // Store user data.
-  scoped_refptr<File> files_[kNumStreams + 1];    // Files to store external
-                                                  // user data and key.
+  // Files to store external user data and key.
+  scoped_refptr<File> files_[kNumStreams + 1];
+  // Copy of the file used to store the key. We don't own this object.
+  mutable File* key_file_;
   int unreported_size_[kNumStreams];  // Bytes not reported yet to the backend.
   bool doomed_;               // True if this entry was removed from the cache.
   scoped_ptr<SparseControl> sparse_;  // Support for sparse entries.
