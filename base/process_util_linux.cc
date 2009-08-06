@@ -13,7 +13,6 @@
 
 #include <string>
 
-#include "base/eintr_wrapper.h"
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
@@ -84,82 +83,6 @@ FilePath GetProcessExecutablePath(ProcessHandle process) {
     return FilePath();
   }
   return FilePath(std::string(exename, len));
-}
-
-bool LaunchApp(const std::vector<std::string>& argv,
-               const environment_vector& environ,
-               const file_handle_mapping_vector& fds_to_remap,
-               bool wait, ProcessHandle* process_handle) {
-  pid_t pid = fork();
-  if (pid < 0)
-    return false;
-
-  if (pid == 0) {
-    // Child process
-    InjectiveMultimap fd_shuffle;
-    for (file_handle_mapping_vector::const_iterator
-        it = fds_to_remap.begin(); it != fds_to_remap.end(); ++it) {
-      fd_shuffle.push_back(InjectionArc(it->first, it->second, false));
-    }
-
-    for (environment_vector::const_iterator it = environ.begin();
-         it != environ.end(); ++it) {
-      if (it->first) {
-        if (it->second) {
-          setenv(it->first, it->second, 1);
-        } else {
-          unsetenv(it->first);
-        }
-      }
-    }
-
-    // Obscure fork() rule: in the child, if you don't end up doing exec*(),
-    // you call _exit() instead of exit(). This is because _exit() does not
-    // call any previously-registered (in the parent) exit handlers, which
-    // might do things like block waiting for threads that don't even exist
-    // in the child.
-    if (!ShuffleFileDescriptors(fd_shuffle))
-      _exit(127);
-
-    // If we are using the SUID sandbox, it sets a magic environment variable
-    // ("SBX_D"), so we remove that variable from the environment here on the
-    // off chance that it's already set.
-    unsetenv("SBX_D");
-
-    CloseSuperfluousFds(fd_shuffle);
-
-    scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
-    for (size_t i = 0; i < argv.size(); i++)
-      argv_cstr[i] = const_cast<char*>(argv[i].c_str());
-    argv_cstr[argv.size()] = NULL;
-    execvp(argv_cstr[0], argv_cstr.get());
-    LOG(ERROR) << "LaunchApp: exec failed!, argv_cstr[0] " << argv_cstr[0]
-        << ", errno " << errno;
-    _exit(127);
-  } else {
-    // Parent process
-    if (wait)
-      HANDLE_EINTR(waitpid(pid, 0, 0));
-
-    if (process_handle)
-      *process_handle = pid;
-  }
-
-  return true;
-}
-
-bool LaunchApp(const std::vector<std::string>& argv,
-               const file_handle_mapping_vector& fds_to_remap,
-               bool wait, ProcessHandle* process_handle) {
-  base::environment_vector no_env;
-  return LaunchApp(argv, no_env, fds_to_remap, wait, process_handle);
-}
-
-bool LaunchApp(const CommandLine& cl,
-               bool wait, bool start_hidden,
-               ProcessHandle* process_handle) {
-  file_handle_mapping_vector no_files;
-  return LaunchApp(cl.argv(), no_files, wait, process_handle);
 }
 
 NamedProcessIterator::NamedProcessIterator(const std::wstring& executable_name,
