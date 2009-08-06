@@ -90,7 +90,7 @@ fi
 dev_list="bison fakeroot flex g++ g++-multilib gperf libasound2-dev
           libcairo2-dev libgconf2-dev libglib2.0-dev libgtk2.0-dev libnspr4-dev
           libnss3-dev libsqlite3-dev lighttpd msttcorefonts patch perl php5-cgi
-          pkg-config python subversion wdiff"
+          pkg-config python rpm subversion wdiff"
 
 # Full list of required run-time libraries
 lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libexpat1 libfontconfig1
