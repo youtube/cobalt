@@ -8,7 +8,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "zlib.h"
+
+#if defined(USE_SYSTEM_ZLIB)
+#include <zlib.h>
+#else
+#include "third_party/zlib/zlib.h"
+#endif
 #include "unzip.h"
 
 #define READ_8(adr)  ((unsigned char)*(adr))

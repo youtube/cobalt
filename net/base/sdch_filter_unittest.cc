@@ -8,6 +8,12 @@
 #include <string>
 #include <vector>
 
+#if defined(USE_SYSTEM_ZLIB)
+#include <zlib.h>
+#else
+#include "third_party/zlib/zlib.h"
+#endif
+
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "net/base/filter.h"
@@ -16,7 +22,6 @@
 #include "net/base/sdch_filter.h"
 #include "net/url_request/url_request_http_job.cc"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/zlib/zlib.h"
 
 //------------------------------------------------------------------------------
 // Provide sample data and compression results with a sample VCDIFF dictionary.
