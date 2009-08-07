@@ -471,6 +471,10 @@ int X509Certificate::Verify(const std::string& hostname,
   verify_result->cert_status |= MapCertChainErrorStatusToCertStatus(
       chain_context->TrustStatus.dwErrorStatus);
 
+  // Treat certificate signatures using weak signature algorithms as invalid.
+  if (verify_result->has_md2 || verify_result->has_md4)
+    verify_result->cert_status |= CERT_STATUS_INVALID;
+
   std::wstring wstr_hostname = ASCIIToWide(hostname);
 
   SSL_EXTRA_CERT_CHAIN_POLICY_PARA extra_policy_para;
