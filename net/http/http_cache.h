@@ -146,6 +146,7 @@ class HttpCache : public HttpTransactionFactory {
   ActiveEntry* FindActiveEntry(const std::string& key);
   ActiveEntry* ActivateEntry(const std::string& key, disk_cache::Entry*);
   void DeactivateEntry(ActiveEntry* entry);
+  void SlowDeactivateEntry(ActiveEntry* entry);
   ActiveEntry* OpenEntry(const std::string& key);
   ActiveEntry* CreateEntry(const std::string& cache_key);
   void DestroyEntry(ActiveEntry* entry);
