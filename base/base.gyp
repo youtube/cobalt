@@ -446,8 +446,15 @@
           }
         ],
         [ 'OS == "win"', {
+            'include_dirs': [
+              '../chrome/third_party/wtl/include',
+            ],
             'sources/': [ ['exclude', '_(linux|mac|posix|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
+            'sources': [
+              'window_impl.cc',
+              'window_impl.h',
+            ],
             'sources!': [
               'data_pack.cc',
               'event_recorder_stubs.cc',
