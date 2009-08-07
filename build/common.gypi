@@ -151,6 +151,12 @@
           },{
             'msvs_multi_core_compile%': 1,
           }],
+          # Don't do incremental linking for large modules on 32-bit.
+          ['MSVS_OS_BITS==32', {
+            'msvs_large_module_debug_link_mode%': '1',  # No
+          },{
+            'msvs_large_module_debug_link_mode%': '2',  # Yes
+          }],
         ],
       }],
     ],
@@ -205,7 +211,7 @@
               'VCLinkerTool': {
                 'Profile': 'true',
               },
-	      'VCCLCompilerTool': {
+              'VCCLCompilerTool': {
                 # /Z7, not /Zi, so coverage is happyb
                 'DebugInformationFormat': '1',
                 'AdditionalOptions': '/Yd',
