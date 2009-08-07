@@ -319,7 +319,7 @@ void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
   PORT_Free(alt_name.data);
 }
 
-// TODO(ukai): make a Linux-only method of the EVRootCAMetadata.
+// TODO(ukai): this should be a Linux-only method of EVRootCAMetadata class.
 void GetPolicyOidTags(net::EVRootCAMetadata* metadata,
                       std::vector<SECOidTag>* policies) {
   const char* const* policy_oids = metadata->GetPolicyOIDs();
@@ -353,7 +353,8 @@ void GetPolicyOidTags(net::EVRootCAMetadata* metadata,
 
 // Call CERT_PKIXVerifyCert for the cert_handle.
 // Verification results are stored in an array of CERTValOutParam.
-// If metadata is not NULL, policies are also checked.
+// If policy_oids is not NULL and num_policy_oids is positive, policies
+// are also checked.
 // Caller must initialize cvout before calling this function.
 SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
                          const SECOidTag* policy_oids,
@@ -460,7 +461,7 @@ bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
   CERTPolicyInfo** policy_infos = policies->policyInfos;
   while (*policy_infos != NULL) {
     CERTPolicyInfo* policy_info = *policy_infos++;
-    SECOidTag oid_tag = SECOID_FindOIDTag(&policy_info->policyID);
+    SECOidTag oid_tag = policy_info->oid;
     if (oid_tag == SEC_OID_UNKNOWN)
       continue;
     if (oid_tag == ev_policy_tag)
@@ -560,15 +561,13 @@ int X509Certificate::Verify(const std::string& hostname,
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
 
-  if (flags & VERIFY_EV_CERT) {
-    if (VerifyEV())
-      verify_result->cert_status |= CERT_STATUS_IS_EV;
-  }
+  if ((flags & VERIFY_EV_CERT) && VerifyEV())
+    verify_result->cert_status |= CERT_STATUS_IS_EV;
   return OK;
 }
 
-// Studied Mozilla's code (esp. security/manager/ssl/src/nsNSSCertHelper.cpp)
-// to learn how to verify EV certificate.
+// Studied Mozilla's code (esp. security/manager/ssl/src/nsIdentityChecking.cpp
+// and nsNSSCertHelper.cpp) to learn how to verify EV certificate.
 // TODO(wtc): We may be able to request cert_po_policyOID and just
 // check if any of the returned policies is the EV policy of the trust anchor.
 // Another possible optimization is that we get the trust anchor from
@@ -601,7 +600,7 @@ bool X509Certificate::VerifyEV() const {
     return false;
   X509Certificate::Fingerprint fingerprint =
       X509Certificate::CalculateFingerprint(root_ca);
-  SECOidTag ev_policy_tag;
+  SECOidTag ev_policy_tag = SEC_OID_UNKNOWN;
   if (!GetEvPolicyOidTag(metadata, fingerprint, &ev_policy_tag))
     return false;
 
