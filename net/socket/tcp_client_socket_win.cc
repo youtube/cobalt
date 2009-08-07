@@ -76,6 +76,15 @@ int MapWinsockError(DWORD err) {
   }
 }
 
+int MapConnectError(DWORD err) {
+  switch (err) {
+    case WSAETIMEDOUT:
+      return ERR_CONNECTION_TIMED_OUT;
+    default:
+      return MapWinsockError(err);
+  }
+}
+
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -270,7 +279,7 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
     DWORD err = WSAGetLastError();
     if (err != WSAEWOULDBLOCK) {
       LOG(ERROR) << "connect failed: " << err;
-      return MapWinsockError(err);
+      return MapConnectError(err);
     }
   }
 
@@ -539,7 +548,7 @@ void TCPClientSocketWin::DidCompleteConnect() {
       current_ai_ = next;
       result = Connect(read_callback_);
     } else {
-      result = MapWinsockError(error_code);
+      result = MapConnectError(error_code);
     }
   } else {
     NOTREACHED();
