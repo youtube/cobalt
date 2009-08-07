@@ -67,6 +67,15 @@ int MapPosixError(int err) {
   }
 }
 
+int MapConnectError(int err) {
+  switch (err) {
+    case ETIMEDOUT:
+      return ERR_CONNECTION_TIMED_OUT;
+    default:
+      return MapPosixError(err);
+  }
+}
+
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -115,7 +124,7 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
     DLOG(INFO) << "connect failed: " << errno;
     close(socket_);
     socket_ = kInvalidSocket;
-    return MapPosixError(errno);
+    return MapConnectError(errno);
   }
 
   // Initialize write_socket_watcher_ and link it to our MessagePump.
@@ -309,7 +318,7 @@ void TCPClientSocketLibevent::DidCompleteConnect() {
     current_ai_ = next;
     result = Connect(write_callback_);
   } else {
-    result = MapPosixError(error_code);
+    result = MapConnectError(error_code);
     bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
     DCHECK(ok);
     waiting_connect_ = false;
