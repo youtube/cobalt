@@ -153,3 +153,23 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
   EXPECT_EQ(empty_3, header->empty[2]);
   EXPECT_EQ(empty_4, header->empty[3]);
 }
+
+// Handling of truncated files.
+TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
+  std::wstring path = GetCachePath();
+  ASSERT_TRUE(DeleteCache(path.c_str()));
+  ASSERT_TRUE(file_util::CreateDirectory(path));
+
+  disk_cache::BlockFiles files(path);
+  ASSERT_TRUE(files.Init(true));
+
+  // Truncate one of the files.
+  disk_cache::Addr address;
+  EXPECT_TRUE(files.CreateBlock(disk_cache::RANKINGS, 4, &address));
+  disk_cache::MappedFile* file = files.GetFile(address);
+  file->SetLength(0);
+  files.CloseFiles();
+
+  // Initializing should fail, not crash.
+  ASSERT_FALSE(files.Init(false));
+}
