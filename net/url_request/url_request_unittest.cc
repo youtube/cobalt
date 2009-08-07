@@ -1857,8 +1857,7 @@ TEST_F(URLRequestTest, FTPGetTest) {
   }
 }
 
-// Needs more work, tracked in http://crbug.com/18036.
-TEST_F(URLRequestTest, DISABLED_FTPCheckWrongPassword) {
+TEST_F(URLRequestTest, FTPCheckWrongPassword) {
   scoped_refptr<FTPTestServer> server =
       FTPTestServer::CreateServer(L"", "chrome", "wrong_password");
   ASSERT_TRUE(NULL != server.get());
@@ -1883,8 +1882,7 @@ TEST_F(URLRequestTest, DISABLED_FTPCheckWrongPassword) {
   }
 }
 
-// Needs more work, tracked in http://crbug.com/18036.
-TEST_F(URLRequestTest, DISABLED_FTPCheckWrongUser) {
+TEST_F(URLRequestTest, FTPCheckWrongUser) {
   scoped_refptr<FTPTestServer> server =
       FTPTestServer::CreateServer(L"", "wrong_user", "chrome");
   ASSERT_TRUE(NULL != server.get());
