@@ -65,6 +65,10 @@ Pickle::~Pickle() {
 }
 
 Pickle& Pickle::operator=(const Pickle& other) {
+  if (this == &other) {
+    NOTREACHED();
+    return *this;
+  }
   if (capacity_ == kCapacityReadOnly) {
     header_ = NULL;
     capacity_ = 0;
@@ -74,9 +78,10 @@ Pickle& Pickle::operator=(const Pickle& other) {
     header_ = NULL;
     header_size_ = other.header_size_;
   }
-  bool resized = Resize(header_size_ + other.header_->payload_size);
+  bool resized = Resize(other.header_size_ + other.header_->payload_size);
   CHECK(resized);  // Realloc failed.
-  memcpy(header_, other.header_, header_size_ + other.header_->payload_size);
+  memcpy(header_, other.header_,
+         other.header_size_ + other.header_->payload_size);
   variable_buffer_offset_ = other.variable_buffer_offset_;
   return *this;
 }
