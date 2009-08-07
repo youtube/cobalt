@@ -30,11 +30,11 @@ class MockDiskEntry : public disk_cache::Entry,
                       public base::RefCounted<MockDiskEntry> {
  public:
   MockDiskEntry()
-      : test_mode_(0), doomed_(false), sparse_(false) {
+      : test_mode_(0), doomed_(false), sparse_(false), fail_requests_(false) {
   }
 
   explicit MockDiskEntry(const std::string& key)
-      : key_(key), doomed_(false), sparse_(false) {
+      : key_(key), doomed_(false), sparse_(false), fail_requests_(false) {
     //
     // 'key' is prefixed with an identifier if it corresponds to a cached POST.
     // Skip past that to locate the actual URL.
@@ -70,6 +70,8 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual std::string GetKey() const {
+    if (fail_requests_)
+      return std::string();
     return key_;
   }
 
@@ -89,6 +91,9 @@ class MockDiskEntry : public disk_cache::Entry,
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
                        net::CompletionCallback* callback) {
     DCHECK(index >= 0 && index < 2);
+
+    if (fail_requests_)
+      return net::ERR_CACHE_READ_FAILURE;
 
     if (offset < 0 || offset > static_cast<int>(data_[index].size()))
       return net::ERR_FAILED;
@@ -110,6 +115,9 @@ class MockDiskEntry : public disk_cache::Entry,
     DCHECK(index >= 0 && index < 2);
     DCHECK(truncate);
 
+    if (fail_requests_)
+      return net::ERR_CACHE_READ_FAILURE;
+
     if (offset < 0 || offset > static_cast<int>(data_[index].size()))
       return net::ERR_FAILED;
 
@@ -125,6 +133,9 @@ class MockDiskEntry : public disk_cache::Entry,
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
     if (offset < 0)
       return net::ERR_FAILED;
+
+    if (fail_requests_)
+      return net::ERR_CACHE_READ_FAILURE;
 
     DCHECK(offset < kint32max);
     int real_offset = static_cast<int>(offset);
@@ -154,6 +165,9 @@ class MockDiskEntry : public disk_cache::Entry,
     if (!buf_len)
       return 0;
 
+    if (fail_requests_)
+      return net::ERR_CACHE_READ_FAILURE;
+
     DCHECK(offset < kint32max);
     int real_offset = static_cast<int>(offset);
 
@@ -169,6 +183,9 @@ class MockDiskEntry : public disk_cache::Entry,
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
     if (offset < 0)
       return net::ERR_FAILED;
+
+    if (fail_requests_)
+      return net::ERR_CACHE_READ_FAILURE;
 
     *start = offset;
     DCHECK(offset < kint32max);
@@ -193,6 +210,9 @@ class MockDiskEntry : public disk_cache::Entry,
     return count;
   }
 
+  // Fail most subsequent requests.
+  void set_fail_requests() { fail_requests_ = true; }
+
  private:
   // Unlike the callbacks for MockHttpTransaction, we want this one to run even
   // if the consumer called Close on the MockDiskEntry.  We achieve that by
@@ -210,11 +230,14 @@ class MockDiskEntry : public disk_cache::Entry,
   int test_mode_;
   bool doomed_;
   bool sparse_;
+  bool fail_requests_;
 };
 
 class MockDiskCache : public disk_cache::Backend {
  public:
-  MockDiskCache() : open_count_(0), create_count_(0), fail_requests_(0) {
+  MockDiskCache()
+      : open_count_(0), create_count_(0), fail_requests_(false),
+        soft_failures_(false) {
   }
 
   ~MockDiskCache() {
@@ -246,6 +269,9 @@ class MockDiskCache : public disk_cache::Backend {
     it->second->AddRef();
     *entry = it->second;
 
+    if (soft_failures_)
+      it->second->set_fail_requests();
+
     return true;
   }
 
@@ -265,6 +291,9 @@ class MockDiskCache : public disk_cache::Backend {
 
     new_entry->AddRef();
     *entry = new_entry;
+
+    if (soft_failures_)
+      new_entry->set_fail_requests();
 
     return true;
   }
@@ -310,12 +339,16 @@ class MockDiskCache : public disk_cache::Backend {
   // Fail any subsequent CreateEntry and OpenEntry.
   void set_fail_requests() { fail_requests_ = true; }
 
+  // Return entries that fail some of their requests.
+  void set_soft_failures(bool value) { soft_failures_ = value; }
+
  private:
   typedef base::hash_map<std::string, MockDiskEntry*> EntryMap;
   EntryMap entries_;
   int open_count_;
   int create_count_;
   bool fail_requests_;
+  bool soft_failures_;
 };
 
 class MockHttpCache {
@@ -583,6 +616,26 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
   EXPECT_EQ(0, cache.disk_cache()->create_count());
 }
 
+TEST(HttpCache, SimpleGETWithDiskFailures) {
+  MockHttpCache cache;
+
+  cache.disk_cache()->set_soft_failures(true);
+
+  // Read from the network, and fail to write to the cache.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // This one should see an empty cache again.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+}
+
 TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   MockHttpCache cache;
 
@@ -847,7 +900,8 @@ TEST(HttpCache, SimpleGET_RacingReaders) {
   c = context_list[1];
   ASSERT_EQ(net::ERR_IO_PENDING, c->result);
   c->result = c->callback.WaitForResult();
-  ReadAndVerifyTransaction(c->trans.get(), kSimpleGET_Transaction);
+  if (c->result == net::OK)
+    ReadAndVerifyTransaction(c->trans.get(), kSimpleGET_Transaction);
 
   // At this point we have one reader, two pending transactions and a task on
   // the queue to move to the next transaction. Now we cancel the request that
@@ -861,7 +915,8 @@ TEST(HttpCache, SimpleGET_RacingReaders) {
     Context* c = context_list[i];
     if (c->result == net::ERR_IO_PENDING)
       c->result = c->callback.WaitForResult();
-    ReadAndVerifyTransaction(c->trans.get(), kSimpleGET_Transaction);
+    if (c->result == net::OK)
+      ReadAndVerifyTransaction(c->trans.get(), kSimpleGET_Transaction);
   }
 
   // We should not have had to re-open the disk entry.

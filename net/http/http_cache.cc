@@ -1733,13 +1733,16 @@ HttpCache::ActiveEntry* HttpCache::ActivateEntry(
 #endif
 // Avoid optimizing local_entry out of the code.
 void HttpCache::DeactivateEntry(ActiveEntry* entry) {
+  std::string key = entry->disk_entry->GetKey();
+  if (key.empty())
+    return SlowDeactivateEntry(entry);
+
   // TODO(rvargas): remove this code and go back to DCHECKS once we find out
   // why are we crashing. I'm just trying to gather more info for bug 3931.
   ActiveEntry local_entry = *entry;
   size_t readers_size = local_entry.readers.size();
   size_t pending_size = local_entry.pending_queue.size();
 
-  std::string key = entry->disk_entry->GetKey();
   ActiveEntriesMap::iterator it = active_entries_.find(key);
   if (it == active_entries_.end() || it->second != entry ||
       local_entry.will_process_pending_queue || local_entry.doomed ||
@@ -1766,6 +1769,18 @@ void HttpCache::DeactivateEntry(ActiveEntry* entry) {
 #pragma warning(default:4748)
 #pragma optimize("", on)
 #endif
+
+// We don't know this entry's key so we have to find it without it.
+void HttpCache::SlowDeactivateEntry(ActiveEntry* entry) {
+  for (ActiveEntriesMap::iterator it = active_entries_.begin();
+       it != active_entries_.end(); ++it) {
+    if (it->second == entry) {
+      active_entries_.erase(it);
+      delete entry;
+      break;
+    }
+  }
+}
 
 int HttpCache::AddTransactionToEntry(ActiveEntry* entry, Transaction* trans) {
   DCHECK(entry);
