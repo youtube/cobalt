@@ -132,6 +132,29 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
   return OK;
 }
 
+// static
+FtpNetworkTransaction::ErrorClass FtpNetworkTransaction::GetErrorClass(
+    int response_code) {
+  if (response_code >= 100 && response_code <= 199)
+    return ERROR_CLASS_INITIATED;
+
+  if (response_code >= 200 && response_code <= 299)
+    return ERROR_CLASS_OK;
+
+  if (response_code >= 300 && response_code <= 399)
+    return ERROR_CLASS_INFO_NEEDED;
+
+  if (response_code >= 400 && response_code <= 499)
+    return ERROR_CLASS_TRANSIENT_ERROR;
+
+  if (response_code >= 500 && response_code <= 599)
+    return ERROR_CLASS_PERMANENT_ERROR;
+
+  // We should not be called on invalid error codes.
+  NOTREACHED();
+  return ERROR_CLASS_PERMANENT_ERROR;
+}
+
 int FtpNetworkTransaction::ProcessCtrlResponse() {
   FtpCtrlResponse response = ctrl_response_buffer_.PopResponse();
 
@@ -464,14 +487,14 @@ int FtpNetworkTransaction::ProcessResponseUSER(
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_SYST;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       next_state_ = STATE_CTRL_WRITE_PASS;
       break;
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       if (response.status_code == 421)
         return Stop(ERR_FAILED);
       break;
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
       return Stop(ERR_FAILED);
@@ -499,15 +522,15 @@ int FtpNetworkTransaction::ProcessResponsePASS(
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_SYST;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       next_state_ = STATE_CTRL_WRITE_ACCT;
       break;
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       if (response.status_code == 421) {
         // TODO(ibrar): Retry here.
       }
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       if (response.status_code == 503) {
         next_state_ = STATE_CTRL_WRITE_USER;
       } else {
@@ -537,11 +560,11 @@ int FtpNetworkTransaction::ProcessResponseSYST(
       // TODO(ibrar): Process SYST response properly.
       next_state_ = STATE_CTRL_WRITE_PWD;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       // Server does not recognize the SYST command so proceed.
       next_state_ = STATE_CTRL_WRITE_PWD;
       break;
@@ -565,11 +588,11 @@ int FtpNetworkTransaction::ProcessResponsePWD(const FtpCtrlResponse& response) {
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_TYPE;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
       return Stop(ERR_FAILED);
@@ -592,11 +615,11 @@ int FtpNetworkTransaction::ProcessResponseTYPE(
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_PASV;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
       return Stop(ERR_FAILED);
@@ -619,11 +642,11 @@ int FtpNetworkTransaction::ProcessResponseACCT(
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_SYST;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
       return Stop(ERR_FAILED);
@@ -672,11 +695,11 @@ int FtpNetworkTransaction::ProcessResponsePASV(
         return Stop(ERR_FAILED);
       }
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
       return Stop(ERR_FAILED);
@@ -708,11 +731,11 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
       if (file_data_len_ < 0)
         return Stop(ERR_INVALID_RESPONSE);
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       break;
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       break;
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       break;
     default:
       return Stop(ERR_FAILED);
@@ -743,15 +766,15 @@ int FtpNetworkTransaction::ProcessResponseRETR(
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_QUIT;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       next_state_ = STATE_CTRL_WRITE_PASV;
       break;
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       if (response.status_code == 421 || response.status_code == 425 ||
           response.status_code == 426)
         return Stop(ERR_FAILED);
       return ERR_FAILED;  // TODO(ibrar): Retry here.
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       if (retr_failed_)
         return Stop(ERR_FAILED);
       retr_failed_ = true;
@@ -784,11 +807,11 @@ int FtpNetworkTransaction::ProcessResponseMDTM(
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_RETR;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       next_state_ = STATE_CTRL_WRITE_RETR;
       break;
     default:
@@ -818,11 +841,11 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_LIST;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
       return Stop(ERR_FAILED);
@@ -847,11 +870,11 @@ int FtpNetworkTransaction::ProcessResponseLIST(
       response_.is_directory_listing = true;
       next_state_ = STATE_CTRL_WRITE_QUIT;
       break;
-    case ERROR_CLASS_PENDING:
+    case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR_RETRY:
+    case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
-    case ERROR_CLASS_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
       return Stop(ERR_FAILED);

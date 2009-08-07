@@ -62,16 +62,26 @@ class FtpNetworkTransaction : public FtpTransaction {
   };
 
   enum ErrorClass {
-    ERROR_CLASS_INITIATED = 1,  // The requested action was initiated.
-    ERROR_CLASS_OK,             // The requested action successfully completed.
-    ERROR_CLASS_PENDING,        // The command accepted, but the
-                                // request on hold.
-    ERROR_CLASS_ERROR_RETRY,    // The command was not accepted and the
-                                // requested action did not take place,
-                                // but the error condition is temporary and the
-                                // action may be requested again.
-    ERROR_CLASS_ERROR,          // The command was not accepted and
-                                // the requested action did not take place.
+    // The requested action was initiated. The client should expect another
+    // reply before issuing the next command.
+    ERROR_CLASS_INITIATED,
+
+    // The requested action has been successfully completed.
+    ERROR_CLASS_OK,
+
+    // The command has been accepted, but to complete the operation, more
+    // information must be sent by the client.
+    ERROR_CLASS_INFO_NEEDED,
+
+    // The command was not accepted and the requested action did not take place.
+    // This condition is temporary, and the client is encouraged to restart the
+    // command sequence.
+    ERROR_CLASS_TRANSIENT_ERROR,
+
+    // The command was not accepted and the requested action did not take place.
+    // This condition is rather permanent, and the client is discouraged from
+    // repeating the exact request.
+    ERROR_CLASS_PERMANENT_ERROR,
   };
 
   void DoCallback(int result);
@@ -83,10 +93,9 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   int SendFtpCommand(const std::string& command, Command cmd);
 
-  // TODO(ibrar): Use C++ static_cast.
-  ErrorClass GetErrorClass(int response_code) {
-    return (ErrorClass)(response_code / 100);
-  }
+  // Return the error class for given response code. You should validate the
+  // code to be in range 100-599.
+  static ErrorClass GetErrorClass(int response_code);
 
   // Runs the state transition loop.
   int DoLoop(int result);
