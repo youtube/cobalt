@@ -21,6 +21,7 @@
 #include "base/nss_init.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
+#include "net/base/ev_root_ca_metadata.h"
 #include "net/base/net_errors.h"
 
 namespace net {
@@ -201,7 +202,6 @@ base::Time PRTimeToBaseTime(PRTime prtime) {
 
 void ParsePrincipal(SECItem* der_name,
                     X509Certificate::Principal* principal) {
-
   CERTName name;
   PRArenaPool* arena = NULL;
 
@@ -286,7 +286,6 @@ void ParseDate(SECItem* der_date, base::Time* result) {
 void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
                                   CERTGeneralNameType name_type,
                                   std::vector<std::string>* result) {
-
   SECItem alt_name;
   SECStatus rv = CERT_FindCertExtension(cert_handle,
       SEC_OID_X509_SUBJECT_ALT_NAME, &alt_name);
@@ -320,7 +319,158 @@ void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
   PORT_Free(alt_name.data);
 }
 
-} // namespace
+// TODO(ukai): make a Linux-only method of the EVRootCAMetadata.
+void GetPolicyOidTags(net::EVRootCAMetadata* metadata,
+                      std::vector<SECOidTag>* policies) {
+  const char* const* policy_oids = metadata->GetPolicyOIDs();
+  for (int i = 0; i < metadata->NumPolicyOIDs(); i++) {
+    PRUint8 buf[1024];
+    SECItem oid_item;
+    oid_item.data = buf;
+    oid_item.len = sizeof(buf);
+    SECStatus status = SEC_StringToOID(NULL, &oid_item, policy_oids[i], 0);
+    if (status != SECSuccess) {
+      LOG(ERROR) << "Failed to convert to OID: " << policy_oids[i];
+      continue;
+    }
+    SECOidTag policy = SECOID_FindOIDTag(&oid_item);
+    if (policy == SEC_OID_UNKNOWN) {
+      // Register the OID.
+      SECOidData od;
+      od.oid.len = oid_item.len;
+      od.oid.data = oid_item.data;
+      od.offset = SEC_OID_UNKNOWN;
+      od.desc = policy_oids[i];
+      od.mechanism = CKM_INVALID_MECHANISM;
+      od.supportedExtension = INVALID_CERT_EXTENSION;
+      policy = SECOID_AddEntry(&od);
+      DCHECK(policy != SEC_OID_UNKNOWN);
+    }
+    policies->push_back(policy);
+  }
+  return;
+}
+
+// Call CERT_PKIXVerifyCert for the cert_handle.
+// Verification results are stored in an array of CERTValOutParam.
+// If metadata is not NULL, policies are also checked.
+// Caller must initialize cvout before calling this function.
+SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
+                         const SECOidTag* policy_oids,
+                         int num_policy_oids,
+                         CERTValOutParam* cvout) {
+  PRUint64 revocation_method_flags =
+      CERT_REV_M_TEST_USING_THIS_METHOD |
+      CERT_REV_M_ALLOW_NETWORK_FETCHING |
+      CERT_REV_M_ALLOW_IMPLICIT_DEFAULT_SOURCE |
+      CERT_REV_M_REQUIRE_INFO_ON_MISSING_SOURCE |
+      CERT_REV_M_STOP_TESTING_ON_FRESH_INFO;
+  PRUint64 revocation_method_independent_flags =
+      CERT_REV_MI_TEST_ALL_LOCAL_INFORMATION_FIRST |
+      CERT_REV_MI_REQUIRE_SOME_FRESH_INFO_AVAILABLE;
+  PRUint64 method_flags[2];
+  method_flags[cert_revocation_method_crl] = revocation_method_flags;
+  method_flags[cert_revocation_method_ocsp] = revocation_method_flags;
+
+  // TODO(ukai): need to find out if we need to call OCSP-related NSS functions,
+  // CERT_EnableOCSPChecking, CERT_DisableOCSPDefaultResponder and
+  // CERT_SetOCSPFailureMode.
+  CERTRevocationMethodIndex preferred_revocation_methods[1];
+  preferred_revocation_methods[0] = cert_revocation_method_ocsp;
+
+  CERTRevocationFlags revocation_flags;
+  revocation_flags.leafTests.number_of_defined_methods =
+      arraysize(method_flags);
+  revocation_flags.leafTests.cert_rev_flags_per_method = method_flags;
+  revocation_flags.leafTests.number_of_preferred_methods =
+      arraysize(preferred_revocation_methods);
+  revocation_flags.leafTests.preferred_methods = preferred_revocation_methods;
+  revocation_flags.leafTests.cert_rev_method_independent_flags =
+      revocation_method_independent_flags;
+
+  revocation_flags.chainTests.number_of_defined_methods =
+      arraysize(method_flags);
+  revocation_flags.chainTests.cert_rev_flags_per_method = method_flags;
+  revocation_flags.chainTests.number_of_preferred_methods =
+      arraysize(preferred_revocation_methods);
+  revocation_flags.chainTests.preferred_methods = preferred_revocation_methods;
+  revocation_flags.chainTests.cert_rev_method_independent_flags =
+      revocation_method_independent_flags;
+
+  CERTValInParam cvin[3];
+  int cvin_index = 0;
+  // No need to set cert_pi_trustAnchors here.
+  // TODO(ukai): use cert_pi_useAIACertFetch (new feature in NSS 3.12.1).
+  cvin[cvin_index].type = cert_pi_revocationFlags;
+  cvin[cvin_index].value.pointer.revocation = &revocation_flags;
+  cvin_index++;
+  std::vector<SECOidTag> policies;
+  if (policy_oids && num_policy_oids > 0) {
+    cvin[cvin_index].type = cert_pi_policyOID;
+    cvin[cvin_index].value.arraySize = num_policy_oids;
+    cvin[cvin_index].value.array.oids = policy_oids;
+    cvin_index++;
+  }
+  cvin[cvin_index].type = cert_pi_end;
+
+  return CERT_PKIXVerifyCert(cert_handle, certificateUsageSSLServer,
+                             cvin, cvout, NULL);
+}
+
+// TODO(ukai): make a Linux-only method of the EVRootCAMetadata.
+bool GetEvPolicyOidTag(net::EVRootCAMetadata* metadata,
+                       const X509Certificate::Fingerprint& fingerprint,
+                       SECOidTag* ev_policy_tag) {
+  std::string ev_policy_oid;
+  if (!metadata->GetPolicyOID(fingerprint, &ev_policy_oid)) {
+    LOG(ERROR) << "GetPolicyOID failed";
+    return false;
+  }
+  DCHECK(!ev_policy_oid.empty());
+
+  PRUint8 buf[1024];
+  SECItem oid_item;
+  oid_item.data = buf;
+  oid_item.len = sizeof(buf);
+  SECStatus status = SEC_StringToOID(NULL, &oid_item, ev_policy_oid.data(),
+                                     ev_policy_oid.length());
+  if (status != SECSuccess) {
+    LOG(ERROR) << "Failed to convert OID:" << ev_policy_oid;
+    return false;
+  }
+  *ev_policy_tag = SECOID_FindOIDTag(&oid_item);
+  return true;
+}
+
+bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
+                       SECOidTag ev_policy_tag) {
+  SECItem policy_ext;
+  SECStatus rv = CERT_FindCertExtension(
+      cert_handle, SEC_OID_X509_CERTIFICATE_POLICIES, &policy_ext);
+  if (rv != SECSuccess) {
+    LOG(ERROR) << "Cert has no policies extension.";
+    return false;
+  }
+  CERTCertificatePolicies* policies =
+      CERT_DecodeCertificatePoliciesExtension(&policy_ext);
+  if (!policies) {
+    LOG(ERROR) << "Failed to decode certificate policy.";
+    return false;
+  }
+  CERTPolicyInfo** policy_infos = policies->policyInfos;
+  while (*policy_infos != NULL) {
+    CERTPolicyInfo* policy_info = *policy_infos++;
+    SECOidTag oid_tag = SECOID_FindOIDTag(&policy_info->policyID);
+    if (oid_tag == SEC_OID_UNKNOWN)
+      continue;
+    if (oid_tag == ev_policy_tag)
+      return true;
+  }
+  LOG(ERROR) << "No EV Policy Tag";
+  return false;
+}
+
+}  // namespace
 
 void X509Certificate::Initialize() {
   ParsePrincipal(&cert_handle_->derSubject, &subject_);
@@ -365,11 +515,6 @@ void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
     dns_names->push_back(subject_.common_name);
 }
 
-// TODO(ukai): fix to use this method to verify certificate on SSL channel.
-// Note that it's not being used yet.  We need to fix SSLClientSocketNSS to
-// use this method to verify ssl certificate.
-// The problem is that we get segfault when unit tests is going to terminate
-// if PR_Cleanup is called in NSSInitSingleton destructor.
 int X509Certificate::Verify(const std::string& hostname,
                             int flags,
                             CertVerifyResult* verify_result) const {
@@ -386,75 +531,9 @@ int X509Certificate::Verify(const std::string& hostname,
   if (validity != secCertTimeValid)
     verify_result->cert_status |= CERT_STATUS_DATE_INVALID;
 
-  CERTRevocationFlags revocation_flags;
-  // TODO(ukai): Fix to use OCSP.
-  // OCSP mode would fail with SEC_ERROR_UNKNOWN_ISSUER.
-  // We need to set up OCSP and install an HTTP client for NSS.
-  bool use_ocsp = false;
-  // EV requires revocation checking.
-  if (!(flags & VERIFY_REV_CHECKING_ENABLED))
-    flags &= ~VERIFY_EV_CERT;
-
-  // TODO(wtc): Use CERT_REV_M_REQUIRE_INFO_ON_MISSING_SOURCE and
-  // CERT_REV_MI_REQUIRE_SOME_FRESH_INFO_AVAILABLE for EV certificate
-  // verification.
-  PRUint64 revocation_method_flags =
-      CERT_REV_M_TEST_USING_THIS_METHOD |
-      CERT_REV_M_ALLOW_NETWORK_FETCHING |
-      CERT_REV_M_ALLOW_IMPLICIT_DEFAULT_SOURCE |
-      CERT_REV_M_SKIP_TEST_ON_MISSING_SOURCE |
-      CERT_REV_M_STOP_TESTING_ON_FRESH_INFO;
-  PRUint64 revocation_method_independent_flags =
-      CERT_REV_MI_TEST_ALL_LOCAL_INFORMATION_FIRST |
-      CERT_REV_MI_NO_OVERALL_INFO_REQUIREMENT;
-  PRUint64 method_flags[2];
-  method_flags[cert_revocation_method_crl] = revocation_method_flags;
-  method_flags[cert_revocation_method_ocsp] = revocation_method_flags;
-
-  int number_of_defined_methods;
-  CERTRevocationMethodIndex preferred_revocation_methods[1];
-  if (use_ocsp) {
-    number_of_defined_methods = 2;
-    preferred_revocation_methods[0] = cert_revocation_method_ocsp;
-  } else {
-    number_of_defined_methods = 1;
-    preferred_revocation_methods[0] = cert_revocation_method_crl;
-  }
-
-  revocation_flags.leafTests.number_of_defined_methods =
-      number_of_defined_methods;
-  revocation_flags.leafTests.cert_rev_flags_per_method = method_flags;
-  revocation_flags.leafTests.number_of_preferred_methods =
-      arraysize(preferred_revocation_methods);
-  revocation_flags.leafTests.preferred_methods = preferred_revocation_methods;
-  revocation_flags.leafTests.cert_rev_method_independent_flags =
-      revocation_method_independent_flags;
-  revocation_flags.chainTests.number_of_defined_methods =
-      number_of_defined_methods;
-  revocation_flags.chainTests.cert_rev_flags_per_method = method_flags;
-  revocation_flags.chainTests.number_of_preferred_methods =
-      arraysize(preferred_revocation_methods);
-  revocation_flags.chainTests.preferred_methods = preferred_revocation_methods;
-  revocation_flags.chainTests.cert_rev_method_independent_flags =
-      revocation_method_independent_flags;
-
-  CERTValInParam cvin[2];
-  int cvin_index = 0;
-  // We can't use PK11_ListCerts(PK11CertListCA, NULL) for cert_pi_trustAnchors.
-  // We get SEC_ERROR_UNTRUSTED_ISSUER (-8172) for our test root CA cert with
-  // it by NSS 3.12.0.3.
-  // No need to set cert_pi_trustAnchors here.
-  // TODO(ukai): use cert_pi_useAIACertFetch (new feature in NSS 3.12.1).
-  cvin[cvin_index].type = cert_pi_revocationFlags;
-  cvin[cvin_index].value.pointer.revocation = &revocation_flags;
-  cvin_index++;
-  cvin[cvin_index].type = cert_pi_end;
-
   CERTValOutParam cvout[3];
   int cvout_index = 0;
-  cvout[cvout_index].type = cert_po_trustAnchor;
-  cvout[cvout_index].value.pointer.cert = NULL;
-  cvout_index++;
+  // We don't need the trust anchor for the first PKIXVerifyCert call.
   cvout[cvout_index].type = cert_po_certList;
   cvout[cvout_index].value.pointer.chain = NULL;
   int cvout_cert_list_index = cvout_index;
@@ -462,8 +541,8 @@ int X509Certificate::Verify(const std::string& hostname,
   cvout[cvout_index].type = cert_po_end;
   ScopedCERTValOutParam scoped_cvout(cvout);
 
-  status = CERT_PKIXVerifyCert(cert_handle_, certificateUsageSSLServer,
-                               cvin, cvout, NULL);
+  verify_result->cert_status |= net::CERT_STATUS_REV_CHECKING_ENABLED;
+  status = PKIXVerifyCert(cert_handle_, NULL, 0, cvout);
   if (status != SECSuccess) {
     int err = PORT_GetError();
     LOG(ERROR) << "CERT_PKIXVerifyCert failed err=" << err;
@@ -480,15 +559,56 @@ int X509Certificate::Verify(const std::string& hostname,
                    verify_result);
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
-  if ((flags & VERIFY_EV_CERT) && VerifyEV())
-    verify_result->cert_status |= CERT_STATUS_IS_EV;
+
+  if (flags & VERIFY_EV_CERT) {
+    if (VerifyEV())
+      verify_result->cert_status |= CERT_STATUS_IS_EV;
+  }
   return OK;
 }
 
-// TODO(port): Implement properly on Linux.
+// Studied Mozilla's code (esp. security/manager/ssl/src/nsNSSCertHelper.cpp)
+// to learn how to verify EV certificate.
+// TODO(wtc): We may be able to request cert_po_policyOID and just
+// check if any of the returned policies is the EV policy of the trust anchor.
+// Another possible optimization is that we get the trust anchor from
+// the first PKIXVerifyCert call.  We look up the EV policy for the trust
+// anchor.  If the trust anchor has no EV policy, we know the cert isn't EV.
+// Otherwise, we pass just that EV policy (as opposed to all the EV policies)
+// to the second PKIXVerifyCert call.
 bool X509Certificate::VerifyEV() const {
-  NOTIMPLEMENTED();
-  return false;
+  net::EVRootCAMetadata* metadata = net::EVRootCAMetadata::GetInstance();
+
+  CERTValOutParam cvout[3];
+  int cvout_index = 0;
+  cvout[cvout_index].type = cert_po_trustAnchor;
+  cvout[cvout_index].value.pointer.cert = NULL;
+  int cvout_trust_anchor_index = cvout_index;
+  cvout_index++;
+  cvout[cvout_index].type = cert_po_end;
+  ScopedCERTValOutParam scoped_cvout(cvout);
+
+  std::vector<SECOidTag> policies;
+  GetPolicyOidTags(metadata, &policies);
+  SECStatus status = PKIXVerifyCert(cert_handle_,
+                                    &policies[0], policies.size(), cvout);
+  if (status != SECSuccess)
+    return false;
+
+  CERTCertificate* root_ca =
+      cvout[cvout_trust_anchor_index].value.pointer.cert;
+  if (root_ca == NULL)
+    return false;
+  X509Certificate::Fingerprint fingerprint =
+      X509Certificate::CalculateFingerprint(root_ca);
+  SECOidTag ev_policy_tag;
+  if (!GetEvPolicyOidTag(metadata, fingerprint, &ev_policy_tag))
+    return false;
+
+  if (!CheckCertPolicies(cert_handle_, ev_policy_tag))
+    return false;
+
+  return true;
 }
 
 // static
