@@ -31,7 +31,7 @@
 //
 class Pickle {
  public:
-  ~Pickle();
+  virtual ~Pickle();
 
   // Initialize a Pickle object using the default header size.
   Pickle();
