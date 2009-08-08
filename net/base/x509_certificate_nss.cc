@@ -364,11 +364,22 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
       CERT_REV_M_TEST_USING_THIS_METHOD |
       CERT_REV_M_ALLOW_NETWORK_FETCHING |
       CERT_REV_M_ALLOW_IMPLICIT_DEFAULT_SOURCE |
-      CERT_REV_M_REQUIRE_INFO_ON_MISSING_SOURCE |
       CERT_REV_M_STOP_TESTING_ON_FRESH_INFO;
   PRUint64 revocation_method_independent_flags =
-      CERT_REV_MI_TEST_ALL_LOCAL_INFORMATION_FIRST |
-      CERT_REV_MI_REQUIRE_SOME_FRESH_INFO_AVAILABLE;
+      CERT_REV_MI_TEST_ALL_LOCAL_INFORMATION_FIRST;
+  if (policy_oids && num_policy_oids > 0) {
+    // EV verification requires revocation checking.  Consider the certificate
+    // revoked if we don't have revocation info.
+    // TODO(wtc): Add a bool parameter to expressly specify we're doing EV
+    // verification or we want strict revocation flags.
+    revocation_method_flags |= CERT_REV_M_REQUIRE_INFO_ON_MISSING_SOURCE;
+    revocation_method_independent_flags |=
+        CERT_REV_MI_REQUIRE_SOME_FRESH_INFO_AVAILABLE;
+  } else {
+    revocation_method_flags |= CERT_REV_M_SKIP_TEST_ON_MISSING_SOURCE;
+    revocation_method_independent_flags |=
+        CERT_REV_MI_NO_OVERALL_INFO_REQUIREMENT;
+  }
   PRUint64 method_flags[2];
   method_flags[cert_revocation_method_crl] = revocation_method_flags;
   method_flags[cert_revocation_method_ocsp] = revocation_method_flags;
