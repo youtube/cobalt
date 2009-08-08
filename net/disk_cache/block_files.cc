@@ -247,6 +247,12 @@ bool BlockFiles::OpenBlockFile(int index) {
     return false;
   }
 
+  if (file->GetLength() < static_cast<size_t>(kBlockHeaderSize)) {
+    LOG(ERROR) << "File too small " << name;
+    file->Release();
+    return false;
+  }
+
   block_files_[index] = file;
 
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
