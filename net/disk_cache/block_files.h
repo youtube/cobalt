@@ -11,6 +11,7 @@
 
 #include "net/disk_cache/addr.h"
 #include "net/disk_cache/mapped_file.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace disk_cache {
 
@@ -74,6 +75,8 @@ class BlockFiles {
   char* zero_buffer_;  // Buffer to speed-up cleaning deleted entries.
   std::wstring path_;  // Path to the backing folder.
   std::vector<MappedFile*> block_files_;  // The actual files.
+
+  FRIEND_TEST(DiskCacheTest, BlockFiles_ZeroSizeFile);
 
   DISALLOW_EVIL_CONSTRUCTORS(BlockFiles);
 };
