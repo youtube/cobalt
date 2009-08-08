@@ -26,20 +26,22 @@ int NumberOfFiles(const std::wstring& path) {
 
 }  // namespace;
 
+namespace disk_cache {
+
 TEST_F(DiskCacheTest, BlockFiles_Grow) {
   std::wstring path = GetCachePath();
   ASSERT_TRUE(DeleteCache(path.c_str()));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
-  disk_cache::BlockFiles files(path);
+  BlockFiles files(path);
   ASSERT_TRUE(files.Init(true));
 
   const int kMaxSize = 35000;
-  disk_cache::Addr address[kMaxSize];
+  Addr address[kMaxSize];
 
   // Fill up the 32-byte block file (use three files).
   for (int i = 0; i < kMaxSize; i++) {
-    EXPECT_TRUE(files.CreateBlock(disk_cache::RANKINGS, 4, &address[i]));
+    EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &address[i]));
   }
   EXPECT_EQ(6, NumberOfFiles(path));
 
@@ -47,7 +49,7 @@ TEST_F(DiskCacheTest, BlockFiles_Grow) {
   for (int i = 0; i < kMaxSize * 4; i += 2) {
     int target = i % kMaxSize;
     files.DeleteBlock(address[target], false);
-    EXPECT_TRUE(files.CreateBlock(disk_cache::RANKINGS, 4, &address[target]));
+    EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &address[target]));
   }
   EXPECT_EQ(6, NumberOfFiles(path));
 }
@@ -58,15 +60,15 @@ TEST_F(DiskCacheTest, BlockFiles_Shrink) {
   ASSERT_TRUE(DeleteCache(path.c_str()));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
-  disk_cache::BlockFiles files(path);
+  BlockFiles files(path);
   ASSERT_TRUE(files.Init(true));
 
   const int kMaxSize = 35000;
-  disk_cache::Addr address[kMaxSize];
+  Addr address[kMaxSize];
 
   // Fill up the 32-byte block file (use three files).
   for (int i = 0; i < kMaxSize; i++) {
-    EXPECT_TRUE(files.CreateBlock(disk_cache::RANKINGS, 4, &address[i]));
+    EXPECT_TRUE(files.CreateBlock(RANKINGS, 4, &address[i]));
   }
 
   // Now delete all the blocks, so that we can delete the two extra files.
@@ -82,43 +84,43 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
   ASSERT_TRUE(DeleteCache(path.c_str()));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
-  disk_cache::BlockFiles files(path);
+  BlockFiles files(path);
   ASSERT_TRUE(files.Init(true));
 
   const int kNumEntries = 2000;
-  disk_cache::CacheAddr entries[kNumEntries];
+  CacheAddr entries[kNumEntries];
 
   int seed = static_cast<int>(Time::Now().ToInternalValue());
   srand(seed);
   for (int i = 0; i < kNumEntries; i++) {
-    disk_cache::Addr address(0);
+    Addr address(0);
     int size = (rand() % 4) + 1;
-    EXPECT_TRUE(files.CreateBlock(disk_cache::RANKINGS, size, &address));
+    EXPECT_TRUE(files.CreateBlock(RANKINGS, size, &address));
     entries[i] = address.value();
   }
 
   for (int i = 0; i < kNumEntries; i++) {
     int source1 = rand() % kNumEntries;
     int source2 = rand() % kNumEntries;
-    disk_cache::CacheAddr temp = entries[source1];
+    CacheAddr temp = entries[source1];
     entries[source1] = entries[source2];
     entries[source2] = temp;
   }
 
   for (int i = 0; i < kNumEntries / 2; i++) {
-    disk_cache::Addr address(entries[i]);
+    Addr address(entries[i]);
     files.DeleteBlock(address, false);
   }
 
   // At this point, there are kNumEntries / 2 entries on the file, randomly
   // distributed both on location and size.
 
-  disk_cache::Addr address(entries[kNumEntries / 2]);
-  disk_cache::MappedFile* file = files.GetFile(address);
+  Addr address(entries[kNumEntries / 2]);
+  MappedFile* file = files.GetFile(address);
   ASSERT_TRUE(NULL != file);
 
-  disk_cache::BlockFileHeader* header =
-      reinterpret_cast<disk_cache::BlockFileHeader*>(file->buffer());
+  BlockFileHeader* header =
+      reinterpret_cast<BlockFileHeader*>(file->buffer());
   ASSERT_TRUE(NULL != header);
 
   ASSERT_EQ(0, header->updating);
@@ -142,7 +144,7 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
   file = files.GetFile(address);
   ASSERT_TRUE(NULL != file);
 
-  header = reinterpret_cast<disk_cache::BlockFileHeader*>(file->buffer());
+  header = reinterpret_cast<BlockFileHeader*>(file->buffer());
   ASSERT_TRUE(NULL != header);
 
   ASSERT_EQ(0, header->updating);
@@ -153,3 +155,27 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
   EXPECT_EQ(empty_3, header->empty[2]);
   EXPECT_EQ(empty_4, header->empty[3]);
 }
+
+// Handling of truncated files.
+TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
+  std::wstring path = GetCachePath();
+  ASSERT_TRUE(DeleteCache(path.c_str()));
+  ASSERT_TRUE(file_util::CreateDirectory(path));
+
+  BlockFiles files(path);
+  ASSERT_TRUE(files.Init(true));
+
+  std::wstring filename = files.Name(0);
+  files.CloseFiles();
+  // Truncate one of the files.
+  {
+    scoped_refptr<File> file(new File);
+    ASSERT_TRUE(file->Init(filename));
+    EXPECT_TRUE(file->SetLength(0));
+  }
+
+  // Initializing should fail, not crash.
+  ASSERT_FALSE(files.Init(false));
+}
+
+}  // namespace disk_cache
