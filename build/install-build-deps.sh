@@ -169,26 +169,34 @@ sudo apt-get update
 # We then re-run "apt-get" with just the list of missing packages.
 echo "Finding missing packages..."
 packages="${dev_list} ${lib_list} ${dbg_list}
-                  $([ "$(uname -m)" = x86_64 ] && echo ${cmp_list})"
-echo "Packages required: $packages"
+                  $([ "$(uname -m)" = "x86_64" ] && echo ${cmp_list})"
+# Intentially leaving $packages unquoted so it's more readable.
+echo "Packages required: " $packages
+echo
 new_list_cmd="sudo apt-get install --reinstall $(echo $packages)"
 if new_list="$(yes n | LANG=C $new_list_cmd)"
 then
+  # We probably never hit this following line.
   echo "No missing packages, and the packages are up-to-date."
 elif [ $? -eq 1 ]
 then
   # We expect apt-get to have exit status of 1.
   # This indicates that we canceled the install with "yes n|".
-  new_list=$(echo $new_list |
+  new_list=$(echo "$new_list" |
     sed -e '1,/The following NEW packages will be installed:/d;s/^  //;t;d')
-  echo "Installing missing packages: $new_list."
-  sudo apt-get install ${new_list}
+  new_list=$(echo "$new_list" | sed 's/ *$//')
+  if [ -z "$new_list" ] ; then
+    echo "No missing packages, and the packages are up-to-date."
+  else
+    echo "Installing missing packages: $new_list."
+    sudo apt-get install ${new_list}
+  fi
+  echo
 else
   # An apt-get exit status of 100 indicates that a real error has occurred.
 
   # I am intentionally leaving out the '"'s around new_list_cmd,
   # as this makes it easier to cut and paste the output
-  echo
   echo "The following command failed: " ${new_list_cmd}
   echo
   echo "It produces the following output:"
@@ -220,7 +228,7 @@ case `ld --version` in
 esac
 
 # Install 32bit backwards compatibility support for 64bit systems
-if [ "$(uname -m)" = x86_64 ]; then
+if [ "$(uname -m)" = "x86_64" ]; then
   echo "Installing 32bit libraries that are not already provided by the system"
   echo
   echo "While we only need to install a relatively small number of library"
@@ -242,13 +250,13 @@ if [ "$(uname -m)" = x86_64 ]; then
   touch "${tmp}/status"
 
   [ -r /etc/apt/apt.conf ] && cp /etc/apt/apt.conf "${tmp}/apt/"
-  cat >>"${tmp}/apt/apt.conf" <<-EOF
+  cat >>"${tmp}/apt/apt.conf" <<EOF
         Apt::Architecture "i386";
         Dir::Cache "${tmp}/cache";
         Dir::Cache::Archives "${tmp}/";
         Dir::State::Lists "${tmp}/apt/lists/";
         Dir::State::status "${tmp}/status";
-        EOF
+EOF
 
   # Download 32bit packages
   echo "Computing list of available 32bit packages..."
