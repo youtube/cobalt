@@ -722,6 +722,7 @@
   ],
   'scons_settings': {
     'sconsbuild_dir': '<(DEPTH)/sconsbuild',
+    'tools': ['ar', 'as', 'gcc', 'g++', 'gnulink', 'chromium_builders'],
   },
   'xcode_settings': {
     # The Xcode generator will look for an xcode_settings section at the root
