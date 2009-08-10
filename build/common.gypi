@@ -514,6 +514,18 @@
               '-m32',
             ],
           }],
+          ['target_arch=="arm"', {
+            'conditions': [
+              ['chromeos==1', {
+                'cflags': [
+                  '-march=armv7-a',
+                  '-mtune=cortex-a8',
+                  '-mfpu=vfp',
+                  '-mfloat-abi=softfp',
+                ],
+              }],
+            ],
+          }],
         ],
       },
     }],
