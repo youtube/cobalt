@@ -204,8 +204,8 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
       rv = ProcessResponseQUIT(response);
       break;
     default:
-      DLOG(INFO) << "Missing Command response handling!";
-      return ERR_FAILED;
+      LOG(DFATAL) << "Unexpected value of command_sent_: " << command_sent_;
+      return ERR_UNEXPECTED;
   }
 
   // We may get multiple responses for some commands,
@@ -361,7 +361,7 @@ int FtpNetworkTransaction::DoLoop(int result) {
         break;
       default:
         NOTREACHED() << "bad state";
-        rv = ERR_FAILED;
+        rv = ERR_UNEXPECTED;
         break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
@@ -394,12 +394,9 @@ int FtpNetworkTransaction::DoCtrlResolveHost() {
 }
 
 int FtpNetworkTransaction::DoCtrlResolveHostComplete(int result) {
-  bool ok = (result == OK);
-  if (ok) {
+  if (result == OK)
     next_state_ = STATE_CTRL_CONNECT;
-    return result;
-  }
-  return ERR_FAILED;
+  return result;
 }
 
 int FtpNetworkTransaction::DoCtrlConnect() {
@@ -424,7 +421,7 @@ int FtpNetworkTransaction::DoCtrlRead() {
 
 int FtpNetworkTransaction::DoCtrlReadComplete(int result) {
   if (result < 0)
-    return Stop(ERR_FAILED);
+    return Stop(result);
 
   ctrl_response_buffer_.ConsumeData(read_ctrl_buf_->data(), result);
 
@@ -497,7 +494,8 @@ int FtpNetworkTransaction::ProcessResponseUSER(
     case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -539,7 +537,8 @@ int FtpNetworkTransaction::ProcessResponsePASS(
       }
       break;
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -555,13 +554,13 @@ int FtpNetworkTransaction::ProcessResponseSYST(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
       // TODO(ibrar): Process SYST response properly.
       next_state_ = STATE_CTRL_WRITE_PWD;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
@@ -569,7 +568,8 @@ int FtpNetworkTransaction::ProcessResponseSYST(
       next_state_ = STATE_CTRL_WRITE_PWD;
       break;
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -584,18 +584,19 @@ int FtpNetworkTransaction::DoCtrlWritePWD() {
 int FtpNetworkTransaction::ProcessResponsePWD(const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_TYPE;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -611,18 +612,19 @@ int FtpNetworkTransaction::ProcessResponseTYPE(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_PASV;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -638,18 +640,19 @@ int FtpNetworkTransaction::ProcessResponseACCT(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_SYST;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -668,7 +671,7 @@ int FtpNetworkTransaction::ProcessResponsePASV(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
       const char* ptr;
       int i0, i1, i2, i3, p0, p1;
@@ -692,17 +695,18 @@ int FtpNetworkTransaction::ProcessResponsePASV(
         data_connection_port_ = (p0 << 8) + p1;
         next_state_ = STATE_DATA_RESOLVE_HOST;
       } else {
-        return Stop(ERR_FAILED);
+        return Stop(ERR_INVALID_RESPONSE);
       }
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -738,7 +742,8 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
     case ERROR_CLASS_PERMANENT_ERROR:
       break;
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   next_state_ = STATE_CTRL_WRITE_MDTM;
   return OK;
@@ -781,7 +786,8 @@ int FtpNetworkTransaction::ProcessResponseRETR(
       next_state_ = STATE_CTRL_WRITE_PASV;
       break;
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -815,7 +821,8 @@ int FtpNetworkTransaction::ProcessResponseMDTM(
       next_state_ = STATE_CTRL_WRITE_RETR;
       break;
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -837,18 +844,19 @@ int FtpNetworkTransaction::DoCtrlWriteCWD() {
 int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_LIST;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -871,13 +879,14 @@ int FtpNetworkTransaction::ProcessResponseLIST(
       next_state_ = STATE_CTRL_WRITE_QUIT;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
       return Stop(ERR_FAILED);
     default:
-      return Stop(ERR_FAILED);
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
   }
   return OK;
 }
@@ -910,12 +919,9 @@ int FtpNetworkTransaction::DoDataResolveHost() {
 }
 
 int FtpNetworkTransaction::DoDataResolveHostComplete(int result) {
-  bool ok = (result == OK);
-  if (ok) {
+  if (result == OK)
     next_state_ = STATE_DATA_CONNECT;
-    return result;
-  }
-  return ERR_FAILED;
+  return result;
 }
 
 int FtpNetworkTransaction::DoDataConnect() {
