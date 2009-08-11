@@ -5,12 +5,10 @@
 #ifndef NET_FTP_FTP_AUTH_CACHE_H_
 #define NET_FTP_FTP_AUTH_CACHE_H_
 
-#include <string>
-#include <map>
+#include <list>
 
 #include "net/base/auth.h"
-
-class GURL;
+#include "googleurl/src/gurl.h"
 
 namespace net {
 
@@ -27,6 +25,9 @@ class FtpAuthCache {
   FtpAuthCache() {}
   ~FtpAuthCache() {}
 
+  // Maximum number of entries we allow in the cache.
+  static const size_t kMaxEntries;
+
   // Check if we have authentication data for ftp server at |origin|.
   // Returns the address of corresponding AuthData object (if found) or NULL
   // (if not found).
@@ -34,22 +35,29 @@ class FtpAuthCache {
 
   // Add an entry for |origin| to the cache. If there is already an
   // entry for |origin|, it will be overwritten. Both parameters are IN only.
-  void Add(const GURL& origin, AuthData* value);
+  void Add(const GURL& origin, AuthData* auth_data);
 
   // Remove the entry for |origin| from the cache, if one exists.
   void Remove(const GURL& origin);
 
  private:
-  typedef std::string AuthCacheKey;
-  typedef scoped_refptr<AuthData> AuthCacheValue;
-  typedef std::map<AuthCacheKey, AuthCacheValue> AuthCacheMap;
+  struct Entry {
+    Entry(const GURL& origin, AuthData* auth_data)
+        : origin(origin),
+          auth_data(auth_data) {
+    }
 
-  // Get the key in hash table |cache_| where entries for ftp server |origin|
-  // should be saved.
-  static AuthCacheKey MakeKey(const GURL& origin);
+    const GURL origin;
+    scoped_refptr<AuthData> auth_data;
+  };
+  typedef std::list<Entry> EntryList;
 
-  // internal representation of cache, an STL map.
-  AuthCacheMap cache_;
+  // Return Entry corresponding to given |origin| or NULL if not found.
+  Entry* LookupByOrigin(const GURL& origin);
+
+  // Internal representation of cache, an STL list. This makes lookups O(n),
+  // but we expect n to be very low.
+  EntryList entries_;
 };
 
 }  // namespace net
