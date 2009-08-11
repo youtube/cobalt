@@ -178,4 +178,30 @@ TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
   ASSERT_FALSE(files.Init(false));
 }
 
+// An invalid file can be detected after init.
+TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
+  std::wstring path = GetCachePath();
+  ASSERT_TRUE(DeleteCache(path.c_str()));
+  ASSERT_TRUE(file_util::CreateDirectory(path));
+
+  BlockFiles files(path);
+  ASSERT_TRUE(files.Init(true));
+
+  // Let's access block 10 of file 5. (There is no file).
+  Addr addr(BLOCK_256, 1, 5, 10);
+  EXPECT_TRUE(NULL == files.GetFile(addr));
+
+  // Let's create an invalid file.
+  FilePath filename(FilePath::FromWStringHack(files.Name(5)));
+  char header[kBlockHeaderSize];
+  memset(header, 'a', kBlockHeaderSize);
+  EXPECT_EQ(kBlockHeaderSize,
+            file_util::WriteFile(filename, header, kBlockHeaderSize));
+
+  EXPECT_TRUE(NULL == files.GetFile(addr));
+
+  // The file should not have been cached (it is still invalid).
+  EXPECT_TRUE(NULL == files.GetFile(addr));
+}
+
 }  // namespace disk_cache
