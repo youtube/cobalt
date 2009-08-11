@@ -2,8 +2,9 @@
 // source code is governed by a BSD-style license that can be found in the
 // LICENSE file.
 
-#include "media/base/data_buffer.h"
 #include "media/filters/ffmpeg_audio_decoder.h"
+
+#include "media/base/data_buffer.h"
 #include "media/filters/ffmpeg_common.h"
 #include "media/filters/ffmpeg_demuxer.h"
 
@@ -73,16 +74,15 @@ bool FFmpegAudioDecoder::OnInitialize(DemuxerStream* demuxer_stream) {
   return true;
 }
 
+void FFmpegAudioDecoder::OnSeek(base::TimeDelta time) {
+  avcodec_flush_buffers(codec_context_);
+  estimated_next_timestamp_ = base::TimeDelta();
+}
+
 void FFmpegAudioDecoder::OnStop() {
 }
 
 void FFmpegAudioDecoder::OnDecode(Buffer* input) {
-  // Check for discontinuous buffer. If we receive a discontinuous buffer here,
-  // flush the internal buffer of FFmpeg.
-  if (input->IsDiscontinuous()) {
-    avcodec_flush_buffers(codec_context_);
-  }
-
   // Due to FFmpeg API changes we no longer have const read-only pointers.
   AVPacket packet;
   av_init_packet(&packet);
@@ -120,8 +120,17 @@ void FFmpegAudioDecoder::OnDecode(Buffer* input) {
       result_buffer->SetDuration(input->GetDuration());
     }
 
-    // Copy over the timestamp.
-    result_buffer->SetTimestamp(input->GetTimestamp());
+    // Use our estimate for the timestamp if |input| does not have one.
+    // Otherwise, copy over the timestamp.
+    if (input->GetTimestamp().InMicroseconds() == 0) {
+      result_buffer->SetTimestamp(estimated_next_timestamp_);
+    } else {
+      result_buffer->SetTimestamp(input->GetTimestamp());
+    }
+
+    // Update our estimated timestamp for the next packet.
+    estimated_next_timestamp_ = result_buffer->GetTimestamp() +
+        result_buffer->GetDuration();
 
     EnqueueResult(result_buffer);
     return;

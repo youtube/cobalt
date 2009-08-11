@@ -26,6 +26,8 @@ class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
  protected:
   virtual bool OnInitialize(DemuxerStream* demuxer_stream);
 
+  virtual void OnSeek(base::TimeDelta time);
+
   virtual void OnStop();
 
   virtual void OnDecode(Buffer* input);
@@ -42,6 +44,9 @@ class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
   // A FFmpeg defined structure that holds decoder information, this variable
   // is initialized in OnInitialize().
   AVCodecContext* codec_context_;
+
+  // Estimated timestamp for next packet. Useful for packets without timestamps.
+  base::TimeDelta estimated_next_timestamp_;
 
   // Data buffer to carry decoded raw PCM samples. This buffer is created by
   // av_malloc() and is used throughout the lifetime of this class.
