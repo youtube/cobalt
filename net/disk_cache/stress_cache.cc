@@ -25,6 +25,7 @@
 #include "base/string_util.h"
 #include "base/thread.h"
 #include "net/base/io_buffer.h"
+#include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/disk_cache_test_util.h"
 
@@ -77,10 +78,11 @@ void StressTheCache(int iteration) {
   int cache_size = 0x800000;  // 8MB
   std::wstring path = GetCachePath();
   path.append(L"_stress");
-  disk_cache::Backend* cache = disk_cache::CreateCacheBackend(path, false,
-                                                              cache_size,
-                                                              net::DISK_CACHE);
-  if (NULL == cache) {
+  disk_cache::BackendImpl* cache = new disk_cache::BackendImpl(path);
+  cache->SetFlags(disk_cache::kNoLoadProtection | disk_cache::kNoRandom);
+  cache->SetMaxSize(cache_size);
+  cache->SetType(net::DISK_CACHE);
+  if (!cache->Init()) {
     printf("Unable to initialize cache.\n");
     return;
   }
@@ -123,6 +125,7 @@ void StressTheCache(int iteration) {
 
     if (!(i % 100))
       printf("Entries: %d    \r", i);
+    MessageLoop::current()->RunAllPending();
   }
 }
 
