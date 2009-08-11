@@ -4,31 +4,51 @@
 
 #include "net/ftp/ftp_auth_cache.h"
 
-#include "base/string_util.h"
+#include "base/logging.h"
 #include "googleurl/src/gurl.h"
 
 namespace net {
 
+// static
+const size_t FtpAuthCache::kMaxEntries = 10;
+
 AuthData* FtpAuthCache::Lookup(const GURL& origin) {
-  AuthCacheMap::iterator iter = cache_.find(MakeKey(origin));
-  return (iter == cache_.end()) ? NULL : iter->second;
+  Entry* entry = LookupByOrigin(origin);
+  return (entry ? entry->auth_data : NULL);
 }
 
-void FtpAuthCache::Add(const GURL& origin, AuthData* value) {
-  cache_[MakeKey(origin)] = value;
+void FtpAuthCache::Add(const GURL& origin, AuthData* auth_data) {
+  DCHECK(origin.SchemeIs("ftp"));
+  DCHECK_EQ(origin.GetOrigin(), origin);
 
-  // TODO(eroman): enforce a maximum number of entries.
+  Entry* entry = LookupByOrigin(origin);
+  if (entry) {
+    entry->auth_data = auth_data;
+  } else {
+    entries_.push_front(Entry(origin, auth_data));
+
+    // Prevent unbound memory growth of the cache.
+    if (entries_.size() > kMaxEntries)
+      entries_.pop_back();
+  }
 }
 
 void FtpAuthCache::Remove(const GURL& origin) {
-  cache_.erase(MakeKey(origin));
+  for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
+    if (it->origin == origin) {
+      entries_.erase(it);
+      DCHECK(!LookupByOrigin(origin));
+      return;
+    }
+  }
 }
 
-// static
-FtpAuthCache::AuthCacheKey FtpAuthCache::MakeKey(const GURL& origin) {
-  DCHECK(origin.SchemeIs("ftp"));
-  DCHECK(origin.GetOrigin() == origin);
-  return origin.spec();
+FtpAuthCache::Entry* FtpAuthCache::LookupByOrigin(const GURL& origin) {
+  for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
+    if (it->origin == origin)
+      return &(*it);
+  }
+  return NULL;
 }
 
 }  // namespace net
