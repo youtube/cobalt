@@ -344,7 +344,7 @@ TEST_F(FtpNetworkTransactionTest, FailedLookup) {
   FtpRequestInfo request_info = GetRequestInfo("ftp://badhost");
   host_resolver_->rules()->AddSimulatedFailure("badhost");
   ASSERT_EQ(ERR_IO_PENDING, transaction_.Start(&request_info, &callback_));
-  EXPECT_EQ(ERR_FAILED, callback_.WaitForResult());
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, callback_.WaitForResult());
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransaction) {
