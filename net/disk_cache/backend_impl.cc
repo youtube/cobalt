@@ -797,7 +797,10 @@ void BackendImpl::TooMuchStorageRequested(int32 size) {
 
 bool BackendImpl::IsLoaded() const {
   CACHE_UMA(COUNTS, "PendingIO", GetSizeGroup(), num_pending_io_);
-  return num_pending_io_ > 10;
+  if (user_flags_ & kNoLoadProtection)
+    return false;
+
+  return num_pending_io_ > 5;
 }
 
 std::string BackendImpl::HistogramName(const char* name, int experiment) const {
@@ -1589,10 +1592,7 @@ bool BackendImpl::CheckIndex() {
 
   AdjustMaxCacheSize(data_->header.table_len);
 
-  // We need to avoid integer overflows.
-  DCHECK(max_size_ < kint32max - kint32max / 10);
-  if (data_->header.num_bytes < 0 ||
-      data_->header.num_bytes > max_size_ + max_size_ / 10) {
+  if (data_->header.num_bytes < 0) {
     LOG(ERROR) << "Invalid cache (current) size";
     return false;
   }
