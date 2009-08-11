@@ -168,8 +168,10 @@ sudo apt-get update
 # without accidentally promoting any packages from "auto" to "manual".
 # We then re-run "apt-get" with just the list of missing packages.
 echo "Finding missing packages..."
-packages="${dev_list} ${lib_list} ${dbg_list}
-                  $([ "$(uname -m)" = "x86_64" ] && echo ${cmp_list})"
+packages="${dev_list} ${lib_list} ${dbg_list}"
+if [ "$(uname -m)" = "x86_64" ]; then
+  packages+=" ${cmp_list})"
+fi
 # Intentially leaving $packages unquoted so it's more readable.
 echo "Packages required: " $packages
 echo
