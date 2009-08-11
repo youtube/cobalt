@@ -77,6 +77,7 @@ class BlockFiles {
   std::vector<MappedFile*> block_files_;  // The actual files.
 
   FRIEND_TEST(DiskCacheTest, BlockFiles_ZeroSizeFile);
+  FRIEND_TEST(DiskCacheTest, BlockFiles_InvalidFile);
 
   DISALLOW_EVIL_CONSTRUCTORS(BlockFiles);
 };
