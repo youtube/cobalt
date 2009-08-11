@@ -19,12 +19,13 @@
 namespace disk_cache {
 
 enum BackendFlags {
-  kMask = 1,
-  kMaxSize = 1 << 1,
-  kUnitTestMode = 1 << 2,
-  kUpgradeMode = 1 << 3,
-  kNewEviction = 1 << 4,
-  kNoRandom = 1 << 5
+  kMask = 1,                    // A mask (for the index table) was specified.
+  kMaxSize = 1 << 1,            // A maximum size was provided.
+  kUnitTestMode = 1 << 2,       // We are modifying the behavior for testing.
+  kUpgradeMode = 1 << 3,        // This is the upgrade tool (dump).
+  kNewEviction = 1 << 4,        // Use of new eviction was specified.
+  kNoRandom = 1 << 5,           // Don't add randomness to the behavior.
+  kNoLoadProtection = 1 << 6    // Don't act conservatively under load.
 };
 
 // This class implements the Backend interface. An object of this
