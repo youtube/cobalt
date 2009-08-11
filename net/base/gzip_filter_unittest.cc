@@ -6,6 +6,12 @@
 #include <iostream>
 
 #if defined(USE_SYSTEM_ZLIB)
+// The code below uses the MOZ_Z_ forms of these functions in order that things
+// should work on Windows. In order to make this code cross platform, we map
+// back to the normal functions here in the case that we are using the system
+// zlib.
+#define MOZ_Z_deflate deflate
+#define MOZ_Z_deflateEnd deflateEnd
 #include <zlib.h>
 #else
 #include "third_party/zlib/zlib.h"
