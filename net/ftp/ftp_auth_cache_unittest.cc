@@ -2,8 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "googleurl/src/gurl.h"
 #include "net/ftp/ftp_auth_cache.h"
+
+#include "base/string_util.h"
+#include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using net::AuthData;
@@ -92,4 +94,30 @@ TEST(FtpAuthCacheTest, NormalizedKey) {
   // Remove
   cache.Remove(GURL("ftp://HOsT"));
   EXPECT_EQ(NULL, cache.Lookup(GURL("ftp://host")));
+}
+
+TEST(FtpAuthCacheTest, EvictOldEntries) {
+  FtpAuthCache cache;
+
+  scoped_refptr<AuthData> auth_data(new AuthData());
+
+  for (size_t i = 0; i < FtpAuthCache::kMaxEntries; i++)
+    cache.Add(GURL("ftp://host" + IntToString(i)), auth_data.get());
+
+  // No entries should be evicted before reaching the limit.
+  for (size_t i = 0; i < FtpAuthCache::kMaxEntries; i++) {
+    EXPECT_EQ(auth_data.get(),
+              cache.Lookup(GURL("ftp://host" + IntToString(i))));
+  }
+
+  // Adding one entry should cause eviction of the first entry.
+  cache.Add(GURL("ftp://last_host"), auth_data.get());
+  EXPECT_EQ(NULL, cache.Lookup(GURL("ftp://host0")));
+
+  // Remaining entries should not get evicted.
+  for (size_t i = 1; i < FtpAuthCache::kMaxEntries; i++) {
+    EXPECT_EQ(auth_data.get(),
+              cache.Lookup(GURL("ftp://host" + IntToString(i))));
+  }
+  EXPECT_EQ(auth_data.get(), cache.Lookup(GURL("ftp://last_host")));
 }
