@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/leak_tracker.h"
 #include "base/linked_ptr.h"
 #include "base/logging.h"
 #include "base/ref_counted.h"
@@ -591,6 +592,8 @@ class URLRequest {
   // The priority level for this request.  Objects like ClientSocketPool use
   // this to determine which URLRequest to allocate sockets to first.
   int priority_;
+
+  base::LeakTracker<URLRequest> leak_tracker_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };
