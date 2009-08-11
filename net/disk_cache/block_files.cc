@@ -237,23 +237,17 @@ bool BlockFiles::OpenBlockFile(int index) {
   }
 
   std::wstring name = Name(index);
-  MappedFile* file = new MappedFile();
-  file->AddRef();
+  scoped_refptr<MappedFile> file(new MappedFile());
 
   if (!file->Init(name, kBlockHeaderSize)) {
-    NOTREACHED();
     LOG(ERROR) << "Failed to open " << name;
-    file->Release();
     return false;
   }
 
   if (file->GetLength() < static_cast<size_t>(kBlockHeaderSize)) {
     LOG(ERROR) << "File too small " << name;
-    file->Release();
     return false;
   }
-
-  block_files_[index] = file;
 
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
   if (kBlockMagic != header->magic || kCurrentVersion != header->version) {
@@ -266,6 +260,9 @@ bool BlockFiles::OpenBlockFile(int index) {
     if (!FixBlockFileHeader(file))
       return false;
   }
+
+  DCHECK(!block_files_[index]);
+  file.swap(&block_files_[index]);
   return true;
 }
 
