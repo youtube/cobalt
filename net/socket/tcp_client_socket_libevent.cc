@@ -43,6 +43,8 @@ int MapPosixError(int err) {
     case EWOULDBLOCK:
 #endif
       return ERR_IO_PENDING;
+    case EACCES:
+      return ERR_ACCESS_DENIED;
     case ENETDOWN:
       return ERR_INTERNET_DISCONNECTED;
     case ETIMEDOUT:
