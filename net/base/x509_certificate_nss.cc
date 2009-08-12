@@ -319,38 +319,6 @@ void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
   PORT_Free(alt_name.data);
 }
 
-// TODO(ukai): this should be a Linux-only method of EVRootCAMetadata class.
-void GetPolicyOidTags(net::EVRootCAMetadata* metadata,
-                      std::vector<SECOidTag>* policies) {
-  const char* const* policy_oids = metadata->GetPolicyOIDs();
-  for (int i = 0; i < metadata->NumPolicyOIDs(); i++) {
-    PRUint8 buf[1024];
-    SECItem oid_item;
-    oid_item.data = buf;
-    oid_item.len = sizeof(buf);
-    SECStatus status = SEC_StringToOID(NULL, &oid_item, policy_oids[i], 0);
-    if (status != SECSuccess) {
-      LOG(ERROR) << "Failed to convert to OID: " << policy_oids[i];
-      continue;
-    }
-    SECOidTag policy = SECOID_FindOIDTag(&oid_item);
-    if (policy == SEC_OID_UNKNOWN) {
-      // Register the OID.
-      SECOidData od;
-      od.oid.len = oid_item.len;
-      od.oid.data = oid_item.data;
-      od.offset = SEC_OID_UNKNOWN;
-      od.desc = policy_oids[i];
-      od.mechanism = CKM_INVALID_MECHANISM;
-      od.supportedExtension = INVALID_CERT_EXTENSION;
-      policy = SECOID_AddEntry(&od);
-      DCHECK(policy != SEC_OID_UNKNOWN);
-    }
-    policies->push_back(policy);
-  }
-  return;
-}
-
 // Call CERT_PKIXVerifyCert for the cert_handle.
 // Verification results are stored in an array of CERTValOutParam.
 // If policy_oids is not NULL and num_policy_oids is positive, policies
@@ -427,31 +395,6 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
 
   return CERT_PKIXVerifyCert(cert_handle, certificateUsageSSLServer,
                              cvin, cvout, NULL);
-}
-
-// TODO(ukai): make a Linux-only method of the EVRootCAMetadata.
-bool GetEvPolicyOidTag(net::EVRootCAMetadata* metadata,
-                       const X509Certificate::Fingerprint& fingerprint,
-                       SECOidTag* ev_policy_tag) {
-  std::string ev_policy_oid;
-  if (!metadata->GetPolicyOID(fingerprint, &ev_policy_oid)) {
-    LOG(ERROR) << "GetPolicyOID failed";
-    return false;
-  }
-  DCHECK(!ev_policy_oid.empty());
-
-  PRUint8 buf[1024];
-  SECItem oid_item;
-  oid_item.data = buf;
-  oid_item.len = sizeof(buf);
-  SECStatus status = SEC_StringToOID(NULL, &oid_item, ev_policy_oid.data(),
-                                     ev_policy_oid.length());
-  if (status != SECSuccess) {
-    LOG(ERROR) << "Failed to convert OID:" << ev_policy_oid;
-    return false;
-  }
-  *ev_policy_tag = SECOID_FindOIDTag(&oid_item);
-  return true;
 }
 
 bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
@@ -598,10 +541,10 @@ bool X509Certificate::VerifyEV() const {
   cvout[cvout_index].type = cert_po_end;
   ScopedCERTValOutParam scoped_cvout(cvout);
 
-  std::vector<SECOidTag> policies;
-  GetPolicyOidTags(metadata, &policies);
   SECStatus status = PKIXVerifyCert(cert_handle_,
-                                    &policies[0], policies.size(), cvout);
+                                    metadata->GetPolicyOIDs(),
+                                    metadata->NumPolicyOIDs(),
+                                    cvout);
   if (status != SECSuccess)
     return false;
 
@@ -612,7 +555,7 @@ bool X509Certificate::VerifyEV() const {
   X509Certificate::Fingerprint fingerprint =
       X509Certificate::CalculateFingerprint(root_ca);
   SECOidTag ev_policy_tag = SEC_OID_UNKNOWN;
-  if (!GetEvPolicyOidTag(metadata, fingerprint, &ev_policy_tag))
+  if (!metadata->GetPolicyOID(fingerprint, &ev_policy_tag))
     return false;
 
   if (!CheckCertPolicies(cert_handle_, ev_policy_tag))
