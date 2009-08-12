@@ -62,7 +62,8 @@ class PartialData {
 
   // Extracts info from headers already stored in the cache. Returns false if
   // there is any problem with the headers or the requested range.
-  bool UpdateFromStoredHeaders(const HttpResponseHeaders* headers);
+  bool UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
+                               disk_cache::Entry* entry);
 
   // Returns true if the response headers match what we expect, false otherwise.
   bool ResponseHeadersOK(const HttpResponseHeaders* headers);

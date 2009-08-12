@@ -71,6 +71,10 @@ class HttpResponseHeaders :
   // end of the list.
   void AddHeader(const std::string& header);
 
+  // Replaces the current status line with the provided one (|new_status| should
+  // not have any EOL).
+  void ReplaceStatusLine(const std::string& new_status);
+
   // Creates a normalized header string.  The output will be formatted exactly
   // like so:
   //     HTTP/<version> <status_code> <status_text>\n
