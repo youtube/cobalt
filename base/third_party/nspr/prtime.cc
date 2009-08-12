@@ -158,22 +158,22 @@ PR_ImplodeTime(const PRExplodedTime *exploded)
     exp_tm.tm_mon  = exploded->tm_month;
     exp_tm.tm_year = exploded->tm_year - 1900;
 
-    // We assume that time_t is defined as a long.
     time_t absolute_time = timegm(&exp_tm);
 
     // If timegm returned -1.  Since we don't pass it a time zone, the only
     // valid case of returning -1 is 1 second before Epoch (Dec 31, 1969).
     if (absolute_time == -1 &&
-        exploded->tm_year != 1969 && exploded->tm_month != 11 &&
-        exploded->tm_mday != 31 && exploded->tm_hour != 23 &&
-        exploded->tm_min != 59 && exploded->tm_sec != 59) {
+        !(exploded->tm_year == 1969 && exploded->tm_month == 11 &&
+        exploded->tm_mday == 31 && exploded->tm_hour == 23 &&
+        exploded->tm_min == 59 && exploded->tm_sec == 59)) {
+      // If we get here, time_t must be 32 bits.
       // Date was possibly too far in the future and would overflow.  Return
       // the most future date possible (year 2038).
       if (exploded->tm_year >= 1970)
-        return static_cast<PRTime>(LONG_MAX) * kSecondsToMicroseconds;
+        return INT_MAX * kSecondsToMicroseconds;
       // Date was possibly too far in the past and would underflow.  Return
       // the most past date possible (year 1901).
-      return static_cast<PRTime>(LONG_MIN) * kSecondsToMicroseconds;
+      return INT_MIN * kSecondsToMicroseconds;
     }
 
     PRTime result = static_cast<PRTime>(absolute_time);
