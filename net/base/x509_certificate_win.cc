@@ -601,10 +601,10 @@ bool X509Certificate::VerifyEV() const {
   // Look up the EV policy OID of the root CA.
   PCCERT_CONTEXT root_cert = element[num_elements - 1]->pCertContext;
   Fingerprint fingerprint = CalculateFingerprint(root_cert);
-  std::string ev_policy_oid;
+  const char* ev_policy_oid = NULL;
   if (!metadata->GetPolicyOID(fingerprint, &ev_policy_oid))
     return false;
-  DCHECK(!ev_policy_oid.empty());
+  DCHECK(ev_policy_oid);
 
   // Get the certificatePolicies extension of the end certificate.
   PCCERT_CONTEXT end_cert = element[0]->pCertContext;
@@ -613,7 +613,7 @@ bool X509Certificate::VerifyEV() const {
   if (!policies_info.get())
     return false;
 
-  return ContainsPolicy(policies_info.get(), ev_policy_oid.c_str());
+  return ContainsPolicy(policies_info.get(), ev_policy_oid);
 }
 
 // static
