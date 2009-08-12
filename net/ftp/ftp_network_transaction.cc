@@ -104,6 +104,23 @@ const FtpResponseInfo* FtpNetworkTransaction::GetResponseInfo() const {
 }
 
 LoadState FtpNetworkTransaction::GetLoadState() const {
+  if (next_state_ == STATE_CTRL_RESOLVE_HOST_COMPLETE ||
+      next_state_ == STATE_DATA_RESOLVE_HOST_COMPLETE)
+    return LOAD_STATE_RESOLVING_HOST;
+
+  if (next_state_ == STATE_CTRL_CONNECT_COMPLETE ||
+      next_state_ == STATE_DATA_CONNECT_COMPLETE)
+    return LOAD_STATE_CONNECTING;
+
+  if (next_state_ == STATE_DATA_READ_COMPLETE)
+    return LOAD_STATE_READING_RESPONSE;
+
+  if (command_sent_ == COMMAND_QUIT)
+    return LOAD_STATE_IDLE;
+
+  if (command_sent_ != COMMAND_NONE)
+    return LOAD_STATE_SENDING_REQUEST;
+
   return LOAD_STATE_IDLE;
 }
 
