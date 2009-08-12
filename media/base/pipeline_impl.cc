@@ -149,6 +149,7 @@ bool PipelineImpl::IsInitialized() const {
     case kSeeking:
     case kStarting:
     case kStarted:
+    case kEnded:
       return true;
     default:
       return false;
@@ -201,9 +202,12 @@ void PipelineImpl::SetVolume(float volume) {
 }
 
 base::TimeDelta PipelineImpl::GetCurrentTime() const {
+  // TODO(scherkus): perhaps replace checking state_ == kEnded with a bool that
+  // is set/get under the lock, because this is breaching the contract that
+  // |state_| is only accessed on |message_loop_|.
   AutoLock auto_lock(lock_);
   base::TimeDelta elapsed = clock_.Elapsed();
-  if (elapsed > duration_) {
+  if (state_ == kEnded || elapsed > duration_) {
     return duration_;
   }
   return elapsed;
@@ -262,7 +266,15 @@ PipelineError PipelineImpl::GetError() const {
   return error_;
 }
 
+void PipelineImpl::SetPipelineEndedCallback(PipelineCallback* ended_callback) {
+  DCHECK(!IsRunning())
+      << "Permanent callbacks should be set before the pipeline has started";
+  ended_callback_.reset(ended_callback);
+}
+
 void PipelineImpl::SetPipelineErrorCallback(PipelineCallback* error_callback) {
+  DCHECK(!IsRunning())
+      << "Permanent callbacks should be set before the pipeline has started";
   error_callback_.reset(error_callback);
 }
 
@@ -372,6 +384,12 @@ void PipelineImpl::SetStreaming(bool streaming) {
   DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
   streaming_ = streaming;
+}
+
+void PipelineImpl::NotifyEnded() {
+  DCHECK(IsRunning());
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::NotifyEndedTask));
 }
 
 void PipelineImpl::BroadcastMessage(FilterMessage message) {
@@ -612,10 +630,10 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // Suppress seeking if we're not fully started.
-  if (state_ != kStarted) {
+  if (state_ != kStarted && state_ != kEnded) {
     // TODO(scherkus): should we run the callback?  I'm tempted to say the API
     // will only execute the first Seek() request.
-    LOG(INFO) << "Media pipeline is not in started state, ignoring seek to "
+    LOG(INFO) << "Media pipeline has not started, ignoring seek to "
               << time.InMicroseconds();
     delete seek_callback;
     return;
@@ -623,7 +641,7 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
 
   // We'll need to pause every filter before seeking.  The state transition
   // is as follows:
-  //   kStarted
+  //   kStarted/kEnded
   //   kPausing (for each filter)
   //   kSeeking (for each filter)
   //   kStarting (for each filter)
@@ -637,6 +655,34 @@ void PipelineImpl::SeekTask(base::TimeDelta time,
   clock_.Pause();
   filters_.front()->Pause(
       NewCallback(this, &PipelineImpl::OnFilterStateTransition));
+}
+
+void PipelineImpl::NotifyEndedTask() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  // We can only end if we were actually playing.
+  if (state_ != kStarted) {
+    return;
+  }
+
+  // Grab the renderers, if they exist.
+  scoped_refptr<AudioRenderer> audio_renderer;
+  scoped_refptr<VideoRenderer> video_renderer;
+  GetFilter(&audio_renderer);
+  GetFilter(&video_renderer);
+  DCHECK(audio_renderer || video_renderer);
+
+  // Make sure every extant renderer has ended.
+  if ((audio_renderer && !audio_renderer->HasEnded()) ||
+      (video_renderer && !video_renderer->HasEnded())) {
+    return;
+  }
+
+  // Transition to ended, executing the callback if present.
+  state_ = kEnded;
+  if (ended_callback_.get()) {
+    ended_callback_->Run();
+  }
 }
 
 void PipelineImpl::BroadcastMessageTask(FilterMessage message) {

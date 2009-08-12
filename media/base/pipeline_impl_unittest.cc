@@ -14,6 +14,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::DoAll;
+using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::NotNull;
@@ -42,6 +43,7 @@ class CallbackHelper {
   MOCK_METHOD0(OnStart, void());
   MOCK_METHOD0(OnSeek, void());
   MOCK_METHOD0(OnStop, void());
+  MOCK_METHOD0(OnEnded, void());
   MOCK_METHOD0(OnError, void());
 
  private:
@@ -478,6 +480,51 @@ TEST_F(PipelineImplTest, BroadcastMessage) {
               OnReceivedMessage(kMsgDisableAudio));
 
   mocks_->audio_renderer()->SetPlaybackRate(1.0f);
+}
+
+TEST_F(PipelineImplTest, EndedCallback) {
+  scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream =
+      new StrictMock<MockDemuxerStream>("audio/x-foo");
+  scoped_refptr<StrictMock<MockDemuxerStream> > video_stream =
+      new StrictMock<MockDemuxerStream>("video/x-foo");
+  MockDemuxerStreamVector streams;
+  streams.push_back(audio_stream);
+  streams.push_back(video_stream);
+
+  // Set our ended callback.
+  pipeline_->SetPipelineEndedCallback(
+      NewCallback(reinterpret_cast<CallbackHelper*>(&callbacks_),
+                  &CallbackHelper::OnEnded));
+
+  InitializeDataSource();
+  InitializeDemuxer(&streams, base::TimeDelta());
+  InitializeAudioDecoder(audio_stream);
+  InitializeAudioRenderer();
+  InitializeVideoDecoder(video_stream);
+  InitializeVideoRenderer();
+  InitializePipeline();
+
+  // For convenience to simulate filters calling the methods.
+  FilterHost* host = pipeline_;
+
+  // Due to short circuit evaluation we only need to test a subset of cases.
+  InSequence s;
+  EXPECT_CALL(*mocks_->audio_renderer(), HasEnded())
+      .WillOnce(Return(false));
+  host->NotifyEnded();
+
+  EXPECT_CALL(*mocks_->audio_renderer(), HasEnded())
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
+      .WillOnce(Return(false));
+  host->NotifyEnded();
+
+  EXPECT_CALL(*mocks_->audio_renderer(), HasEnded())
+      .WillOnce(Return(true));
+  EXPECT_CALL(*mocks_->video_renderer(), HasEnded())
+      .WillOnce(Return(true));
+  EXPECT_CALL(callbacks_, OnEnded());
+  host->NotifyEnded();
 }
 
 }  // namespace media

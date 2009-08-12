@@ -127,6 +127,12 @@ TEST_F(VideoRendererBaseTest, Initialize_Failed) {
 
 // Test successful initialization and preroll.
 TEST_F(VideoRendererBaseTest, Initialize_Successful) {
+  // Who knows how many times ThreadMain() will execute!
+  //
+  // TODO(scherkus): really, really, really need to inject a thread into
+  // VideoRendererBase... it makes mocking much harder.
+  EXPECT_CALL(host_, GetTime()).WillRepeatedly(Return(base::TimeDelta()));
+
   InSequence s;
 
   // We expect the video size to be set.
