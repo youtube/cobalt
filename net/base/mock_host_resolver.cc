@@ -165,11 +165,8 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
   RuleList::iterator r;
   for (r = rules_.begin(); r != rules_.end(); ++r) {
     if (MatchPattern(host, r->host_pattern)) {
-      if (r->latency_ms != 0) {
+      if (r->latency_ms != 0)
         PlatformThread::Sleep(r->latency_ms);
-        // Hmm, this seems unecessary.
-        r->latency_ms = 1;
-      }
 
       // Remap to a new host.
       const std::string& effective_host =
