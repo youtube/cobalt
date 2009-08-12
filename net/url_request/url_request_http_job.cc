@@ -581,7 +581,8 @@ void URLRequestHttpJob::StartTransaction() {
 
   int rv;
   if (transaction_.get()) {
-    rv = transaction_->Start(&request_info_, &start_callback_);
+    rv = transaction_->Start(
+        request_->load_log(), &request_info_, &start_callback_);
     if (rv == net::ERR_IO_PENDING)
       return;
   } else {

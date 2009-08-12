@@ -15,6 +15,7 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/load_log.h"
 #include "net/base/load_states.h"
 #include "net/http/http_response_info.h"
 #include "net/url_request/url_request_status.h"
@@ -485,6 +486,8 @@ class URLRequest {
   URLRequestContext* context();
   void set_context(URLRequestContext* context);
 
+  net::LoadLog* load_log() { return load_log_; }
+
   // Returns the expected content size if available
   int64 GetExpectedContentSize() const;
 
@@ -541,8 +544,13 @@ class URLRequest {
   // Origin).
   static std::string StripPostSpecificHeaders(const std::string& headers);
 
-  // Contextual information used for this request (can be NULL).
+  // Contextual information used for this request (can be NULL). This contains
+  // most of the dependencies which are shared between requests (disk cache,
+  // cookie store, socket poool, etc.)
   scoped_refptr<URLRequestContext> context_;
+
+  // Tracks the time spent in various load states throughout this request.
+  scoped_refptr<net::LoadLog> load_log_;
 
   scoped_refptr<URLRequestJob> job_;
   scoped_refptr<net::UploadData> upload_;

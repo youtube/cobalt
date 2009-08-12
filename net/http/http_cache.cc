@@ -194,7 +194,7 @@ class HttpCache::Transaction
   virtual ~Transaction();
 
   // HttpTransaction methods:
-  virtual int Start(const HttpRequestInfo*, CompletionCallback*);
+  virtual int Start(LoadLog*, const HttpRequestInfo*, CompletionCallback*);
   virtual int RestartIgnoringLastError(CompletionCallback*);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
                                      CompletionCallback* callback);
@@ -256,7 +256,7 @@ class HttpCache::Transaction
   int HandleResult(int rv);
 
   // Sets request_ and fields derived from it.
-  void SetRequest(const HttpRequestInfo* request);
+  void SetRequest(LoadLog* load_log, const HttpRequestInfo* request);
 
   // Returns true if the request should be handled exclusively by the network
   // layer (skipping the cache entirely).
@@ -365,6 +365,7 @@ class HttpCache::Transaction
   // Called to signal completion of the cache's ReadData method:
   void OnCacheReadCompleted(int result);
 
+  scoped_refptr<LoadLog> load_log_;
   const HttpRequestInfo* request_;
   scoped_ptr<HttpRequestInfo> custom_request_;
   // If extra_headers specified a "if-modified-since" or "if-none-match",
@@ -409,7 +410,8 @@ HttpCache::Transaction::~Transaction() {
   cache_ = NULL;
 }
 
-int HttpCache::Transaction::Start(const HttpRequestInfo* request,
+int HttpCache::Transaction::Start(LoadLog* load_log,
+                                  const HttpRequestInfo* request,
                                   CompletionCallback* callback) {
   DCHECK(request);
   DCHECK(callback);
@@ -420,7 +422,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
   if (revoked())
     return ERR_UNEXPECTED;
 
-  SetRequest(request);
+  SetRequest(load_log, request);
 
   int rv;
 
@@ -709,7 +711,9 @@ int HttpCache::Transaction::HandleResult(int rv) {
   return rv;
 }
 
-void HttpCache::Transaction::SetRequest(const HttpRequestInfo* request) {
+void HttpCache::Transaction::SetRequest(LoadLog* load_log,
+                                        const HttpRequestInfo* request) {
+  load_log_ = load_log;
   request_ = request;
   effective_load_flags_ = request_->load_flags;
 
@@ -978,7 +982,7 @@ int HttpCache::Transaction::BeginNetworkRequest() {
   if (!network_trans_.get())
     return net::ERR_CACHE_CANNOT_CREATE_NETWORK_TRANSACTION;
 
-  int rv = network_trans_->Start(request_, &network_info_callback_);
+  int rv = network_trans_->Start(load_log_, request_, &network_info_callback_);
   if (rv != ERR_IO_PENDING)
     OnNetworkInfoAvailable(rv);
   return rv;

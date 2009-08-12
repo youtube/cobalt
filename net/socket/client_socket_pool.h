@@ -46,7 +46,9 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   // If ERR_IO_PENDING is returned, then the callback will be used to notify the
   // client of completion.
   //
-  virtual int RequestSocket(const std::string& group_name,
+  // Profiling information for the request is saved to |load_log| if non-NULL.
+  virtual int RequestSocket(LoadLog* load_log,
+                            const std::string& group_name,
                             const HostResolver::RequestInfo& resolve_info,
                             int priority,
                             ClientSocketHandle* handle,

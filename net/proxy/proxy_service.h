@@ -25,6 +25,7 @@ class URLRequestContext;
 namespace net {
 
 class InitProxyResolver;
+class LoadLog;
 class ProxyConfigService;
 class ProxyResolver;
 class ProxyScriptFetcher;
@@ -63,7 +64,10 @@ class ProxyService {
   //   3.  WPAD auto-detection
   //
   // TODO(eroman): see http://crbug.com/9985; the outline above is too simple.
-  int ResolveProxy(const GURL& url,
+  //
+  // Profiling information for the request is saved to |load_log| if non-NULL.
+  int ResolveProxy(LoadLog* load_log,
+                   const GURL& url,
                    ProxyInfo* results,
                    CompletionCallback* callback,
                    PacRequest** pac_request);
@@ -79,7 +83,9 @@ class ProxyService {
   //
   // Returns ERR_FAILED if there is not another proxy config to try.
   //
-  int ReconsiderProxyAfterError(const GURL& url,
+  // Profiling information for the request is saved to |load_log| if non-NULL.
+  int ReconsiderProxyAfterError(LoadLog* load_log,
+                                const GURL& url,
                                 ProxyInfo* results,
                                 CompletionCallback* callback,
                                 PacRequest** pac_request);
@@ -262,12 +268,14 @@ class SyncProxyServiceHelper
   SyncProxyServiceHelper(MessageLoop* io_message_loop,
                          ProxyService* proxy_service);
 
-  int ResolveProxy(const GURL& url, ProxyInfo* proxy_info);
-  int ReconsiderProxyAfterError(const GURL& url, ProxyInfo* proxy_info);
+  int ResolveProxy(LoadLog* load_log, const GURL& url, ProxyInfo* proxy_info);
+  int ReconsiderProxyAfterError(LoadLog* load_log,
+                                const GURL& url,
+                                ProxyInfo* proxy_info);
 
  private:
-  void StartAsyncResolve(const GURL& url);
-  void StartAsyncReconsider(const GURL& url);
+  void StartAsyncResolve(LoadLog* load_log, const GURL& url);
+  void StartAsyncReconsider(LoadLog* load_log, const GURL& url);
 
   void OnCompletion(int result);
 
