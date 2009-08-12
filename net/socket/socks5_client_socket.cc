@@ -176,7 +176,8 @@ int SOCKS5ClientSocket::DoResolveHost() {
   DCHECK_EQ(kEndPointUnresolved, address_type_);
 
   next_state_ = STATE_RESOLVE_HOST_COMPLETE;
-  return host_resolver_.Resolve(host_request_info_, &addresses_, &io_callback_);
+  return host_resolver_.Resolve(
+      NULL, host_request_info_, &addresses_, &io_callback_);
 }
 
 int SOCKS5ClientSocket::DoResolveHostComplete(int result) {

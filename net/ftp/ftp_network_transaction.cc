@@ -7,6 +7,7 @@
 #include "base/compiler_specific.h"
 #include "base/string_util.h"
 #include "net/base/connection_type_histograms.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
@@ -49,8 +50,10 @@ FtpNetworkTransaction::FtpNetworkTransaction(
 FtpNetworkTransaction::~FtpNetworkTransaction() {
 }
 
-int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
+int FtpNetworkTransaction::Start(LoadLog* load_log,
+                                 const FtpRequestInfo* request_info,
                                  CompletionCallback* callback) {
+  load_log_ = load_log;
   request_ = request_info;
 
   next_state_ = STATE_CTRL_INIT;
@@ -390,7 +393,7 @@ int FtpNetworkTransaction::DoCtrlResolveHost() {
 
   HostResolver::RequestInfo info(host, port);
   // No known referrer.
-  return resolver_.Resolve(info, &addresses_, &io_callback_);
+  return resolver_.Resolve(load_log_, info, &addresses_, &io_callback_);
 }
 
 int FtpNetworkTransaction::DoCtrlResolveHostComplete(int result) {
@@ -915,7 +918,7 @@ int FtpNetworkTransaction::DoDataResolveHost() {
   HostResolver::RequestInfo info(data_connection_ip_,
                                  data_connection_port_);
   // No known referrer.
-  return resolver_.Resolve(info, &addresses_, &io_callback_);
+  return resolver_.Resolve(load_log_, info, &addresses_, &io_callback_);
 }
 
 int FtpNetworkTransaction::DoDataResolveHostComplete(int result) {

@@ -13,6 +13,7 @@ namespace net {
 class HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
+class LoadLog;
 class X509Certificate;
 
 // Represents a single HTTP transaction (i.e., a single request/response pair).
@@ -36,7 +37,9 @@ class HttpTransaction {
   //
   // NOTE: The transaction is not responsible for deleting the callback object.
   //
-  virtual int Start(const HttpRequestInfo* request_info,
+  // Profiling information for the request is saved to |load_log| if non-NULL.
+  virtual int Start(LoadLog* load_log,
+                    const HttpRequestInfo* request_info,
                     CompletionCallback* callback) = 0;
 
   // Restarts the HTTP transaction, ignoring the last error.  This call can

@@ -5,7 +5,6 @@
 #include "net/socket/socks_client_socket.h"
 
 #include "net/base/address_list.h"
-#include "net/base/listen_socket.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"

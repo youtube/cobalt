@@ -23,7 +23,8 @@ ClientSocketHandle::~ClientSocketHandle() {
   Reset();
 }
 
-int ClientSocketHandle::Init(const std::string& group_name,
+int ClientSocketHandle::Init(LoadLog* load_log,
+                             const std::string& group_name,
                              const HostResolver::RequestInfo& resolve_info,
                              int priority,
                              CompletionCallback* callback) {
@@ -31,7 +32,7 @@ int ClientSocketHandle::Init(const std::string& group_name,
   ResetInternal(true);
   group_name_ = group_name;
   int rv = pool_->RequestSocket(
-      group_name, resolve_info, priority, this, &callback_);
+      load_log, group_name, resolve_info, priority, this, &callback_);
   if (rv == ERR_IO_PENDING) {
     user_callback_ = callback;
   } else {
