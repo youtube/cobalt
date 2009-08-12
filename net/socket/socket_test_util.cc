@@ -337,8 +337,8 @@ int ClientSocketPoolTest::StartRequestUsingPool(ClientSocketPool* socket_pool,
                                                      &request_order_,
                                                      &completion_count_);
   requests_.push_back(request);
-  int rv = request->handle()->Init(group_name, ignored_request_info_, priority,
-                                   request);
+  int rv = request->handle()->Init(NULL, group_name, ignored_request_info_,
+                                   priority, request);
   if (rv != ERR_IO_PENDING)
     request_order_.push_back(request);
   return rv;

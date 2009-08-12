@@ -246,7 +246,9 @@ ProxyService* ProxyService::CreateNull() {
   return new ProxyService(new ProxyConfigServiceNull, new ProxyResolverNull);
 }
 
-int ProxyService::ResolveProxy(const GURL& raw_url, ProxyInfo* result,
+int ProxyService::ResolveProxy(LoadLog* load_log,
+                               const GURL& raw_url,
+                               ProxyInfo* result,
                                CompletionCallback* callback,
                                PacRequest** pac_request) {
   DCHECK(callback);
@@ -403,7 +405,8 @@ void ProxyService::OnInitProxyResolverComplete(int result) {
   ResumeAllPendingRequests();
 }
 
-int ProxyService::ReconsiderProxyAfterError(const GURL& url,
+int ProxyService::ReconsiderProxyAfterError(LoadLog* load_log,
+                                            const GURL& url,
                                             ProxyInfo* result,
                                             CompletionCallback* callback,
                                             PacRequest** pac_request) {
@@ -429,7 +432,7 @@ int ProxyService::ReconsiderProxyAfterError(const GURL& url,
     // If we have a new config or the config was never tried, we delete the
     // list of bad proxies and we try again.
     proxy_retry_info_.clear();
-    return ResolveProxy(url, result, callback, pac_request);
+    return ResolveProxy(load_log, url, result, callback, pac_request);
   }
 
   // We don't have new proxy settings to try, fallback to the next proxy
@@ -699,12 +702,13 @@ SyncProxyServiceHelper::SyncProxyServiceHelper(MessageLoop* io_message_loop,
   DCHECK(io_message_loop_ != MessageLoop::current());
 }
 
-int SyncProxyServiceHelper::ResolveProxy(const GURL& url,
+int SyncProxyServiceHelper::ResolveProxy(LoadLog* load_log,
+                                         const GURL& url,
                                          ProxyInfo* proxy_info) {
   DCHECK(io_message_loop_ != MessageLoop::current());
 
   io_message_loop_->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &SyncProxyServiceHelper::StartAsyncResolve, url));
+      this, &SyncProxyServiceHelper::StartAsyncResolve, load_log, url));
 
   event_.Wait();
 
@@ -714,12 +718,12 @@ int SyncProxyServiceHelper::ResolveProxy(const GURL& url,
   return result_;
 }
 
-int SyncProxyServiceHelper::ReconsiderProxyAfterError(const GURL& url,
-                                                      ProxyInfo* proxy_info) {
+int SyncProxyServiceHelper::ReconsiderProxyAfterError(
+    LoadLog* load_log, const GURL& url, ProxyInfo* proxy_info) {
   DCHECK(io_message_loop_ != MessageLoop::current());
 
   io_message_loop_->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &SyncProxyServiceHelper::StartAsyncReconsider, url));
+      this, &SyncProxyServiceHelper::StartAsyncReconsider, load_log, url));
 
   event_.Wait();
 
@@ -729,16 +733,19 @@ int SyncProxyServiceHelper::ReconsiderProxyAfterError(const GURL& url,
   return result_;
 }
 
-void SyncProxyServiceHelper::StartAsyncResolve(const GURL& url) {
-  result_ = proxy_service_->ResolveProxy(url, &proxy_info_, &callback_, NULL);
+void SyncProxyServiceHelper::StartAsyncResolve(LoadLog* load_log,
+                                               const GURL& url) {
+  result_ = proxy_service_->ResolveProxy(
+      load_log, url, &proxy_info_, &callback_, NULL);
   if (result_ != net::ERR_IO_PENDING) {
     OnCompletion(result_);
   }
 }
 
-void SyncProxyServiceHelper::StartAsyncReconsider(const GURL& url) {
+void SyncProxyServiceHelper::StartAsyncReconsider(LoadLog* load_log,
+                                                  const GURL& url) {
   result_ = proxy_service_->ReconsiderProxyAfterError(
-      url, &proxy_info_, &callback_, NULL);
+      load_log, url, &proxy_info_, &callback_, NULL);
   if (result_ != net::ERR_IO_PENDING) {
     OnCompletion(result_);
   }

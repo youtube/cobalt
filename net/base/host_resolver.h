@@ -16,6 +16,7 @@ class MessageLoop;
 namespace net {
 
 class AddressList;
+class LoadLog;
 
 // This class represents the task of resolving hostnames (or IP address
 // literal) to an AddressList object.
@@ -111,8 +112,13 @@ class HostResolver : public base::RefCounted<HostResolver> {
   // result code will be passed to the completion callback. If |req| is
   // non-NULL, then |*req| will be filled with a handle to the async request.
   // This handle is not valid after the request has completed.
-  virtual int Resolve(const RequestInfo& info, AddressList* addresses,
-                      CompletionCallback* callback, RequestHandle* out_req) = 0;
+  //
+  // Profiling information for the request is saved to |load_log| if non-NULL.
+  virtual int Resolve(LoadLog* load_log,
+                      const RequestInfo& info,
+                      AddressList* addresses,
+                      CompletionCallback* callback,
+                      RequestHandle* out_req) = 0;
 
   // Cancels the specified request. |req| is the handle returned by Resolve().
   // After a request is cancelled, its completion callback will not be called.
@@ -146,8 +152,10 @@ class SingleRequestHostResolver {
 
   // Resolves the given hostname (or IP address literal), filling out the
   // |addresses| object upon success. See HostResolver::Resolve() for details.
-  int Resolve(const HostResolver::RequestInfo& info,
-              AddressList* addresses, CompletionCallback* callback);
+  int Resolve(LoadLog* load_log,
+              const HostResolver::RequestInfo& info,
+              AddressList* addresses,
+              CompletionCallback* callback);
 
  private:
   // Callback for when the request to |resolver_| completes, so we dispatch

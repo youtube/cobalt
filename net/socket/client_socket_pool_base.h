@@ -17,6 +17,7 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_resolver.h"
+#include "net/base/load_log.h"
 #include "net/base/load_states.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
@@ -109,14 +110,16 @@ class ClientSocketPoolBase
           priority(0),
           resolve_info(std::string(), 0) {}
 
-    Request(ClientSocketHandle* handle,
+    Request(LoadLog* load_log,
+            ClientSocketHandle* handle,
             CompletionCallback* callback,
             int priority,
             const HostResolver::RequestInfo& resolve_info)
-        : handle(handle), callback(callback), priority(priority),
-          resolve_info(resolve_info) {
+        : load_log(load_log), handle(handle), callback(callback),
+          priority(priority), resolve_info(resolve_info) {
     }
 
+    scoped_refptr<LoadLog> load_log;
     ClientSocketHandle* handle;
     CompletionCallback* callback;
     int priority;
@@ -143,7 +146,8 @@ class ClientSocketPoolBase
 
   ~ClientSocketPoolBase();
 
-  int RequestSocket(const std::string& group_name,
+  int RequestSocket(LoadLog* load_log,
+                    const std::string& group_name,
                     const HostResolver::RequestInfo& resolve_info,
                     int priority,
                     ClientSocketHandle* handle,

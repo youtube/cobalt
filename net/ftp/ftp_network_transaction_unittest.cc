@@ -309,7 +309,8 @@ class FtpNetworkTransactionTest : public PlatformTest {
     mock_socket_factory_.AddMockSocket(&data_socket1);
     mock_socket_factory_.AddMockSocket(&data_socket2);
     FtpRequestInfo request_info = GetRequestInfo(request);
-    ASSERT_EQ(ERR_IO_PENDING, transaction_.Start(&request_info, &callback_));
+    ASSERT_EQ(ERR_IO_PENDING,
+              transaction_.Start(NULL, &request_info, &callback_));
     EXPECT_EQ(expected_result, callback_.WaitForResult());
     EXPECT_EQ(FtpMockControlSocket::QUIT, ctrl_socket->state());
     if (expected_result == OK) {
@@ -343,7 +344,8 @@ class FtpNetworkTransactionTest : public PlatformTest {
 TEST_F(FtpNetworkTransactionTest, FailedLookup) {
   FtpRequestInfo request_info = GetRequestInfo("ftp://badhost");
   host_resolver_->rules()->AddSimulatedFailure("badhost");
-  ASSERT_EQ(ERR_IO_PENDING, transaction_.Start(&request_info, &callback_));
+  ASSERT_EQ(ERR_IO_PENDING,
+            transaction_.Start(NULL, &request_info, &callback_));
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, callback_.WaitForResult());
 }
 

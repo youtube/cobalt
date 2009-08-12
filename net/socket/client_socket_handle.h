@@ -46,7 +46,9 @@ class ClientSocketHandle {
   //
   // Init may be called multiple times.
   //
-  int Init(const std::string& group_name,
+  // Profiling information for the request is saved to |load_log| if non-NULL.
+  int Init(LoadLog* load_log,
+           const std::string& group_name,
            const HostResolver::RequestInfo& resolve_info,
            int priority,
            CompletionCallback* callback);
