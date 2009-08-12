@@ -205,6 +205,17 @@ TEST_F(PRTimeTest, ParseTimeTestEpochNeg1) {
   EXPECT_EQ(-1, parsed_time.ToTimeT());
 }
 
+// If time_t is 32 bits, a date after year 2038 will overflow time_t and
+// cause timegm() to return -1.  The parsed time should not be 1 second
+// before epoch.
+TEST_F(PRTimeTest, ParseTimeTestEpochNotNeg1) {
+  Time parsed_time;
+
+  EXPECT_EQ(true, Time::FromString(L"Wed Dec 31 23:59:59 GMT 2100",
+                                   &parsed_time));
+  EXPECT_NE(-1, parsed_time.ToTimeT());
+}
+
 TEST_F(PRTimeTest, ParseTimeTestEpochNeg2) {
   Time parsed_time;
 
