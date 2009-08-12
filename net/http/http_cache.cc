@@ -309,6 +309,9 @@ class HttpCache::Transaction
   // copy is valid).  Returns true if able to make the request conditional.
   bool ConditionalizeRequest();
 
+  // Makes sure that a 206 response is expected.  Returns a network error code.
+  bool ValidatePartialResponse(const HttpResponseHeaders* headers);
+
   // Reads data from the network.
   int ReadFromNetwork(IOBuffer* data, int data_len);
 
@@ -334,6 +337,10 @@ class HttpCache::Transaction
 
   // Called when we are done writing to the cache entry.
   void DoneWritingToEntry(bool success);
+
+  // Deletes the current partial cache entry (sparse), and optionally removes
+  // the control object (partial_).
+  void DoomPartialEntry(bool delete_object);
 
   // Performs the needed work after receiving data from the network.
   int DoNetworkReadCompleted(int result);
@@ -798,6 +805,7 @@ void HttpCache::Transaction::SetRequest(const HttpRequestInfo* request) {
     } else {
       // The range is invalid or we cannot handle it properly.
       effective_load_flags_ |= LOAD_DISABLE_CACHE;
+      partial_.reset(NULL);
     }
   }
 
@@ -883,15 +891,23 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
   return BeginCacheValidation();
 #endif
 
-  if (!partial_.get()) {
+  bool byte_range_requested = partial_.get() != NULL;
+  if (!byte_range_requested) {
     // The request is not for a range, but we have stored just ranges.
-    // TODO(rvargas): Add support for this case.
-    NOTREACHED();
+    partial_.reset(new PartialData());
+    if (!custom_request_.get()) {
+      custom_request_.reset(new HttpRequestInfo(*request_));
+      request_ = custom_request_.get();
+      DCHECK(custom_request_->extra_headers.empty());
+    }
   }
 
-  if (!partial_->UpdateFromStoredHeaders(response_.headers)) {
-    // TODO(rvargas): Handle this error.
-    NOTREACHED();
+  if (!partial_->UpdateFromStoredHeaders(response_.headers,
+                                         entry_->disk_entry)) {
+    // The stored data cannot be used. Get rid of it and restart this request.
+    DoomPartialEntry(!byte_range_requested);
+    mode_ = WRITE;
+    return AddToEntry();
   }
 
   return ContinuePartialCacheValidation();
@@ -899,8 +915,6 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
 
 int HttpCache::Transaction::ContinuePartialCacheValidation() {
   DCHECK(mode_ == READ_WRITE);
-  // TODO(rvargas): Avoid re-validation of each cached piece.
-
   int rv = partial_->PrepareCacheValidation(entry_->disk_entry,
                                             &custom_request_->extra_headers);
 
@@ -912,6 +926,15 @@ int HttpCache::Transaction::ContinuePartialCacheValidation() {
   if (rv < 0) {
     DCHECK(rv != ERR_IO_PENDING);
     return HandleResult(rv);
+  }
+
+  if (reading_ && partial_->IsCurrentRangeCached()) {
+    rv = ReadFromEntry(read_buf_, read_buf_len_);
+
+    // We are supposed to hanlde errors here.
+    if (rv < 0 && rv != ERR_IO_PENDING)
+      HandleResult(rv);
+    return rv;
   }
 
   return BeginCacheValidation();
@@ -1080,6 +1103,50 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
   return true;
 }
 
+bool HttpCache::Transaction::ValidatePartialResponse(
+    const HttpResponseHeaders* headers) {
+#ifdef ENABLE_RANGE_SUPPORT
+  bool partial_content = headers->response_code() == 206;
+#else
+  bool partial_content = false;
+#endif
+
+  bool failure = false;
+  if (!partial_content) {
+    if (!partial_.get())
+      return false;
+
+    // TODO(rvargas): Do we need to consider other results here?.
+    if (headers->response_code() == 200 || headers->response_code() == 416)
+      failure = true;
+
+    if (!reading_ && failure) {
+      // We are expecting 206 or 304 because we asked for a range. Given that
+      // the server is refusing the request we'll remove the sparse entry.
+      DoomPartialEntry(true);
+      mode_ = NONE;
+      return false;
+    }
+  }
+
+  if (!failure && partial_.get() && partial_->ResponseHeadersOK(headers))
+    return true;
+
+  // We have a problem. We may or may not be reading already (in which case we
+  // returned the headers), but we'll just pretend that this request is not
+  // using the cache and see what happens. Most likely this is the first
+  // response from the server (it's not changing its mind midway, right?).
+  if (mode_ & WRITE) {
+    DoneWritingToEntry(mode_ != WRITE);
+  } else if (mode_ & READ && entry_) {
+    cache_->DoneReadingFromEntry(entry_, this);
+  }
+
+  entry_ = NULL;
+  mode_ = NONE;
+  return false;
+}
+
 int HttpCache::Transaction::ReadFromNetwork(IOBuffer* data, int data_len) {
   int rv = network_trans_->Read(data, data_len, &network_read_callback_);
   read_buf_ = data;
@@ -1197,6 +1264,14 @@ void HttpCache::Transaction::DoneWritingToEntry(bool success) {
   mode_ = NONE;  // switch to 'pass through' mode
 }
 
+void HttpCache::Transaction::DoomPartialEntry(bool delete_object) {
+  cache_->DoneWithEntry(entry_, this);
+  cache_->DoomEntry(cache_key_);
+  entry_ = NULL;
+  if (delete_object)
+    partial_.reset(NULL);
+}
+
 void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
   DCHECK(result != ERR_IO_PENDING);
 
@@ -1211,19 +1286,8 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
         new_response->headers->response_code() == 407) {
       auth_response_ = *new_response;
     } else {
-#ifdef ENABLE_RANGE_SUPPORT
-      bool partial_content = new_response->headers->response_code() == 206;
-#else
-      bool partial_content = false;
-#endif
-      // TODO(rvargas): Validate partial_content vs partial_ and mode_
-      if (partial_content) {
-        DCHECK(partial_.get());
-        if (!partial_->ResponseHeadersOK(new_response->headers)) {
-          // TODO(rvargas): Handle this error.
-          NOTREACHED();
-        }
-      }
+      bool partial_content = ValidatePartialResponse(new_response->headers);
+
       // Are we expecting a response to a conditional query?
       if (mode_ == READ_WRITE || mode_ == UPDATE) {
         if (new_response->headers->response_code() == 304 || partial_content) {

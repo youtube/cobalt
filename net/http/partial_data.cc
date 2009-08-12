@@ -53,7 +53,7 @@ int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
 
   // Scan the disk cache for the first cached portion within this range.
   int64 range_len = byte_range_.HasLastBytePosition() ?
-      byte_range_.last_byte_position() - current_range_start_ + 1: kint32max;
+      byte_range_.last_byte_position() - current_range_start_ + 1 : kint32max;
   if (range_len > kint32max)
     range_len = kint32max;
   int len = static_cast<int32>(range_len);
@@ -100,20 +100,32 @@ bool PartialData::IsLastRange() const {
   return final_range_;
 }
 
-bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers) {
+bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
+                                          disk_cache::Entry* entry) {
   std::string length_value;
   resource_size_ = 0;
   if (!headers->GetNormalizedHeader(kLengthHeader, &length_value))
     return false;  // We must have stored the resource length.
 
-  if (!StringToInt64(length_value, &resource_size_))
+  if (!StringToInt64(length_value, &resource_size_) || !resource_size_)
     return false;
 
-  if (resource_size_ && !byte_range_.ComputeBounds(resource_size_))
-    return false;
+  if (byte_range_.IsValid()) {
+    if (!byte_range_.ComputeBounds(resource_size_))
+      return false;
 
-  if (current_range_start_ < 0)
-    current_range_start_ = byte_range_.first_byte_position();
+    if (current_range_start_ < 0)
+      current_range_start_ = byte_range_.first_byte_position();
+  } else {
+    // This is not a range request but we have partial data stored.
+    current_range_start_ = 0;
+    byte_range_.set_last_byte_position(resource_size_ - 1);
+  }
+
+  // Make sure that this is really a sparse entry.
+  int64 n;
+  if (ERR_CACHE_OPERATION_NOT_SUPPORTED == entry->GetAvailableRange(0, 5, &n))
+    return false;
 
   return current_range_start_ >= 0;
 }
@@ -141,7 +153,7 @@ bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
   if (start != current_range_start_)
     return false;
 
-  if (end > byte_range_.last_byte_position())
+  if (byte_range_.IsValid() && end > byte_range_.last_byte_position())
     return false;
 
   return true;
@@ -154,15 +166,23 @@ void PartialData::FixResponseHeaders(HttpResponseHeaders* headers) {
   headers->RemoveHeader(kLengthHeader);
   headers->RemoveHeader(kRangeHeader);
 
-  DCHECK(byte_range_.HasFirstBytePosition());
-  DCHECK(byte_range_.HasLastBytePosition());
-  headers->AddHeader(StringPrintf("%s: bytes %lld-%lld/%lld", kRangeHeader,
-                                  byte_range_.first_byte_position(),
-                                  byte_range_.last_byte_position(),
-                                  resource_size_));
+  int64 range_len;
+  if (byte_range_.IsValid()) {
+    DCHECK(byte_range_.HasFirstBytePosition());
+    DCHECK(byte_range_.HasLastBytePosition());
+    headers->AddHeader(StringPrintf("%s: bytes %lld-%lld/%lld", kRangeHeader,
+                                    byte_range_.first_byte_position(),
+                                    byte_range_.last_byte_position(),
+                                    resource_size_));
+    range_len = byte_range_.last_byte_position() -
+                byte_range_.first_byte_position() + 1;
+  } else {
+    // TODO(rvargas): Is it safe to change the protocol version?
+    headers->ReplaceStatusLine("HTTP/1.1 200 OK");
+    DCHECK_NE(resource_size_, 0);
+    range_len = resource_size_;
+  }
 
-  int64 range_len = byte_range_.last_byte_position() -
-                    byte_range_.first_byte_position() + 1;
   headers->AddHeader(StringPrintf("%s: %lld", kLengthHeader, range_len));
 }
 
@@ -213,6 +233,5 @@ void PartialData::AddRangeHeader(int64 start, int64 end, std::string* headers) {
   headers->append(StringPrintf("Range: bytes=%s-%s\r\n", my_start.c_str(),
                                my_end.c_str()));
 }
-
 
 }  // namespace net

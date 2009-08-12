@@ -1504,3 +1504,58 @@ TEST(HttpResponseHeadersTest, RemoveHeader) {
     EXPECT_EQ(string(tests[i].expected_headers), resulting_headers);
   }
 }
+
+TEST(HttpResponseHeadersTest, ReplaceStatus) {
+  const struct {
+    const char* orig_headers;
+    const char* new_status;
+    const char* expected_headers;
+  } tests[] = {
+    { "HTTP/1.1 206 Partial Content\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n"
+      "Content-Length: 450\n",
+
+      "HTTP/1.1 200 OK",
+
+      "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n"
+      "Cache-control: max-age=10000\n"
+      "Content-Length: 450\n"
+    },
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive\n",
+
+      "HTTP/1.1 304 Not Modified",
+
+      "HTTP/1.1 304 Not Modified\n"
+      "connection: keep-alive\n"
+    },
+    { "HTTP/1.1 200 OK\n"
+      "connection: keep-alive  \n"
+      "Content-Length  : 450   \n"
+      "Cache-control: max-age=10000\n",
+
+      "HTTP/1//1 304 Not Modified",
+
+      "HTTP/1.0 304 Not Modified\n"
+      "connection: keep-alive\n"
+      "Content-Length: 450\n"
+      "Cache-control: max-age=10000\n"
+    },
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    string orig_headers(tests[i].orig_headers);
+    HeadersToRaw(&orig_headers);
+    scoped_refptr<HttpResponseHeaders> parsed =
+        new HttpResponseHeaders(orig_headers);
+
+    string name(tests[i].new_status);
+    parsed->ReplaceStatusLine(name);
+
+    string resulting_headers;
+    parsed->GetNormalizedHeaders(&resulting_headers);
+    EXPECT_EQ(string(tests[i].expected_headers), resulting_headers);
+  }
+}
