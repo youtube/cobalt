@@ -256,6 +256,15 @@ void HttpResponseHeaders::AddHeader(const std::string& header) {
   Parse(new_raw_headers);
 }
 
+void HttpResponseHeaders::ReplaceStatusLine(const std::string& new_status) {
+  // Copy up to the null byte.  This just copies the status line.
+  std::string new_raw_headers(new_status);
+  new_raw_headers.push_back('\0');
+
+  HeaderSet empty_to_remove;
+  MergeWithHeaders(new_raw_headers, empty_to_remove);
+}
+
 void HttpResponseHeaders::Parse(const std::string& raw_input) {
   raw_headers_.reserve(raw_input.size());
 
