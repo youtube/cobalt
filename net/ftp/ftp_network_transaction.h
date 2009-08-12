@@ -31,7 +31,8 @@ class FtpNetworkTransaction : public FtpTransaction {
   virtual ~FtpNetworkTransaction();
 
   // FtpTransaction methods:
-  virtual int Start(const FtpRequestInfo* request_info,
+  virtual int Start(LoadLog* load_log,
+                    const FtpRequestInfo* request_info,
                     CompletionCallback* callback);
   virtual int Stop(int error);
   virtual int RestartWithAuth(const std::wstring& username,
@@ -155,6 +156,7 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   scoped_refptr<FtpNetworkSession> session_;
 
+  scoped_refptr<LoadLog> load_log_;
   const FtpRequestInfo* request_;
   FtpResponseInfo response_;
 

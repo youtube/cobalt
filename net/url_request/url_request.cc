@@ -10,6 +10,7 @@
 #include "base/stats_counters.h"
 #include "base/string_util.h"
 #include "net/base/load_flags.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/upload_data.h"
@@ -39,7 +40,8 @@ static URLRequestJobManager* GetJobManager() {
 // URLRequest
 
 URLRequest::URLRequest(const GURL& url, Delegate* delegate)
-    : url_(url),
+    : load_log_(new net::LoadLog),
+      url_(url),
       original_url_(url),
       method_("GET"),
       load_flags_(net::LOAD_NORMAL),

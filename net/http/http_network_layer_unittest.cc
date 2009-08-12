@@ -69,7 +69,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
   request_info.user_agent = "Foo/1.0";
   request_info.load_flags = net::LOAD_NORMAL;
 
-  int rv = trans->Start(&request_info, &callback);
+  int rv = trans->Start(NULL, &request_info, &callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::OK, rv);

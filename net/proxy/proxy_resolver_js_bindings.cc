@@ -38,7 +38,7 @@ class SyncHostResolverBridge
 
     // Hack for tests -- run synchronously on current thread.
     if (!host_resolver_loop_)
-      return host_resolver_->Resolve(info, addresses, NULL, NULL);
+      return host_resolver_->Resolve(NULL, info, addresses, NULL, NULL);
 
     // Otherwise start an async resolve on the resolver's thread.
     host_resolver_loop_->PostTask(FROM_HERE, NewRunnableMethod(this,
@@ -54,7 +54,8 @@ class SyncHostResolverBridge
   void StartResolve(const HostResolver::RequestInfo& info,
                     net::AddressList* addresses) {
     DCHECK_EQ(host_resolver_loop_, MessageLoop::current());
-    int error = host_resolver_->Resolve(info, addresses, &callback_, NULL);
+    int error = host_resolver_->Resolve(
+        NULL, info, addresses, &callback_, NULL);
     if (error != ERR_IO_PENDING)
       OnResolveCompletion(error);  // Completed synchronously.
   }
