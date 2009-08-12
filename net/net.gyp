@@ -435,6 +435,7 @@
         'net_test_support',
         '../base/base.gyp:base',
         '../testing/gtest.gyp:gtest',
+        '../third_party/zlib/zlib.gyp:zlib',
       ],
       'msvs_guid': 'E99DA267-BE90-4F45-88A1-6919DB2C7567',
       'sources': [
