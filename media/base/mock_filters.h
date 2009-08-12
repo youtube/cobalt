@@ -242,6 +242,7 @@ class MockVideoRenderer : public VideoRenderer {
   // VideoRenderer implementation.
   MOCK_METHOD2(Initialize, void(VideoDecoder* decoder,
                                 FilterCallback* callback));
+  MOCK_METHOD0(HasEnded, bool());
 
  protected:
   virtual ~MockVideoRenderer() {}
@@ -263,6 +264,7 @@ class MockAudioRenderer : public AudioRenderer {
   // AudioRenderer implementation.
   MOCK_METHOD2(Initialize, void(AudioDecoder* decoder,
                                 FilterCallback* callback));
+  MOCK_METHOD0(HasEnded, bool());
   MOCK_METHOD1(SetVolume, void(float volume));
 
  protected:

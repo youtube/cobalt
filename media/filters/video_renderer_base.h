@@ -45,6 +45,7 @@ class VideoRendererBase : public VideoRenderer,
 
   // VideoRenderer implementation.
   virtual void Initialize(VideoDecoder* decoder, FilterCallback* callback);
+  virtual bool HasEnded();
 
   // PlatformThread::Delegate implementation.
   virtual void ThreadMain();
@@ -91,10 +92,6 @@ class VideoRendererBase : public VideoRenderer,
   base::TimeDelta CalculateSleepDuration(VideoFrame* next_frame,
                                          float playback_rate);
 
-  // Allocates YV12 frame based on |width_| and |height_|, and sets its data to
-  // the YUV equivalent of RGB(0,0,0).
-  void CreateBlackFrame(scoped_refptr<VideoFrame>* frame_out);
-
   // Used for accessing data members.
   Lock lock_;
 
@@ -120,6 +117,7 @@ class VideoRendererBase : public VideoRenderer,
     kPaused,
     kSeeking,
     kPlaying,
+    kEnded,
     kStopped,
     kError,
   };

@@ -41,7 +41,9 @@ namespace media {
 //         |                                              |
 //         V      Seek()                                  |
 //   [ Started ] --------> [ Pausing (for each filter) ] -'
-//
+//         |                                              |
+//         |   NotifyEnded()                Seek()        |
+//         `-------------> [ Ended ] ---------------------'
 //
 //                  SetError()
 //   [ Any State ] -------------> [ Error ]
@@ -84,8 +86,12 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual bool IsStreaming() const;
   virtual PipelineError GetError() const;
 
+  // Sets a permanent callback owned by the pipeline that will be executed when
+  // the media reaches the end.
+  virtual void SetPipelineEndedCallback(PipelineCallback* ended_callback);
+
   // |error_callback_| will be executed upon an error in the pipeline. If
-  // |error_callback_| is NULL, it is ignored. The pipeline takes ownernship
+  // |error_callback_| is NULL, it is ignored. The pipeline takes ownership
   // of |error_callback|.
   virtual void SetPipelineErrorCallback(PipelineCallback* error_callback);
 
@@ -103,6 +109,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
     kSeeking,
     kStarting,
     kStarted,
+    kEnded,
     kStopped,
     kError,
   };
@@ -136,6 +143,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetBufferedBytes(int64 buffered_bytes);
   virtual void SetVideoSize(size_t width, size_t height);
   virtual void SetStreaming(bool streamed);
+  virtual void NotifyEnded();
   virtual void BroadcastMessage(FilterMessage message);
 
   // Method called during initialization to insert a mime type into the
@@ -180,6 +188,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Carries out notifying filters that we are seeking to a new timestamp.
   void SeekTask(base::TimeDelta time, PipelineCallback* seek_callback);
+
+  // Carries out handling a notification from a filter that it has ended.
+  void NotifyEndedTask();
 
   // Carries out message broadcasting on the message loop.
   void BroadcastMessageTask(FilterMessage message);
@@ -332,6 +343,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Callbacks for various pipeline operations.
   scoped_ptr<PipelineCallback> seek_callback_;
   scoped_ptr<PipelineCallback> stop_callback_;
+  scoped_ptr<PipelineCallback> ended_callback_;
   scoped_ptr<PipelineCallback> error_callback_;
 
   // Vector of our filters and map maintaining the relationship between the

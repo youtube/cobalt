@@ -74,7 +74,7 @@ void VideoRendererBase::Play(FilterCallback* callback) {
 
 void VideoRendererBase::Pause(FilterCallback* callback) {
   AutoLock auto_lock(lock_);
-  DCHECK_EQ(kPlaying, state_);
+  DCHECK(state_ == kPlaying || state_ == kEnded);
   pause_callback_.reset(callback);
   state_ = kPaused;
 
@@ -156,7 +156,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
 
   // Create a black frame so clients have something to render before we finish
   // prerolling.
-  CreateBlackFrame(&current_frame_);
+  VideoFrameImpl::CreateBlackFrame(width_, height_, &current_frame_);
 
   // We're all good!  Consider ourselves paused (ThreadMain() should never
   // see us in the kUninitialized state).
@@ -180,6 +180,11 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   callback->Run();
 }
 
+bool VideoRendererBase::HasEnded() {
+  AutoLock auto_lock(lock_);
+  return state_ == kEnded;
+}
+
 // PlatformThread::Delegate implementation.
 void VideoRendererBase::ThreadMain() {
   PlatformThread::SetName("VideoThread");
@@ -187,17 +192,25 @@ void VideoRendererBase::ThreadMain() {
     // State and playback rate to assume for this iteration of the loop.
     State state;
     float playback_rate;
+    base::TimeDelta remaining_time;
     {
       AutoLock auto_lock(lock_);
       state = state_;
       playback_rate = playback_rate_;
+
+      // Calculate how long until we should advance the frame, which is
+      // typically negative but for playback rates < 1.0f may be long enough
+      // that it makes more sense to idle and check again.
+      remaining_time = current_frame_->GetTimestamp() - host()->GetTime();
     }
     if (state == kStopped) {
       return;
     }
 
-    // Sleep while paused or seeking.
-    if (state == kPaused || state == kSeeking || playback_rate == 0) {
+    // Idle if we shouldn't be playing or advancing the frame yet.
+    if (state == kPaused || state == kSeeking || state == kEnded ||
+        remaining_time.InMilliseconds() > kIdleMilliseconds ||
+        playback_rate == 0) {
       PlatformThread::Sleep(kIdleMilliseconds);
       continue;
     }
@@ -213,17 +226,9 @@ void VideoRendererBase::ThreadMain() {
         continue;
       }
 
-      // Idle if the next frame is too far ahead.
-      base::TimeDelta diff = current_frame_->GetTimestamp() - host()->GetTime();
-      if (diff.InMilliseconds() > kIdleMilliseconds) {
-        PlatformThread::Sleep(kIdleMilliseconds);
-        continue;
-      }
-
       // Otherwise we're playing, so advance the frame and keep reading from the
-      // decoder.  |frames_| might be empty if we seeked to the very end of the
-      // media where no frames were available.
-      if (!frames_.empty()) {
+      // decoder if we haven't reach end of stream.
+      if (!frames_.empty() && !frames_.front()->IsEndOfStream()) {
         DCHECK_EQ(current_frame_, frames_.front());
         frames_.pop_front();
         ScheduleRead_Locked();
@@ -241,9 +246,16 @@ void VideoRendererBase::ThreadMain() {
         continue;
       }
 
+      // If the new front frame is end of stream, we've officially ended.
+      if (frames_.front()->IsEndOfStream()) {
+        state_ = kEnded;
+        host()->NotifyEnded();
+        continue;
+      }
+
       // Update our current frame and attempt to grab the next frame.
       current_frame_ = frames_.front();
-      if (frames_.size() >= 2) {
+      if (frames_.size() >= 2 && !frames_[1]->IsEndOfStream()) {
         next_frame = frames_[1];
       }
     }
@@ -276,41 +288,41 @@ void VideoRendererBase::ThreadMain() {
 void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
   AutoLock auto_lock(lock_);
   // We should have initialized and have the current frame.
-  DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying);
+  DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying ||
+         state_ == kEnded);
   DCHECK(current_frame_);
   *frame_out = current_frame_;
 }
 
 void VideoRendererBase::OnReadComplete(VideoFrame* frame) {
   AutoLock auto_lock(lock_);
-  DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying);
+  DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying ||
+         state_ == kEnded);
   DCHECK_GT(pending_reads_, 0u);
   --pending_reads_;
 
-  // If this is an end of stream frame, don't enqueue it since it has no data.
-  if (!frame->IsEndOfStream()) {
-    frames_.push_back(frame);
-    DCHECK_LE(frames_.size(), kMaxFrames);
-    frame_available_.Signal();
-  }
+  // Enqueue the frame.
+  frames_.push_back(frame);
+  DCHECK_LE(frames_.size(), kMaxFrames);
+  frame_available_.Signal();
 
   // Check for our preroll complete condition.
   if (state_ == kSeeking) {
     DCHECK(seek_callback_.get());
-    if (frames_.size() == kMaxFrames || frame->IsEndOfStream()) {
-      if (frames_.empty()) {
-        // Eeep.. we seeked to somewhere where there's no video data (most
-        // likely the very end of the file).  For user-friendliness, we'll
-        // create a black frame just in case |current_frame_| is old or garbage.
-        CreateBlackFrame(&current_frame_);
+    if (frames_.size() == kMaxFrames) {
+      // We're paused, so make sure we update |current_frame_| to represent
+      // our new location.
+      state_ = kPaused;
+      if (frames_.front()->IsEndOfStream()) {
+        VideoFrameImpl::CreateBlackFrame(width_, height_, &current_frame_);
       } else {
-        // Update our current frame.
         current_frame_ = frames_.front();
       }
-      // Because we might remain paused, we can't rely on ThreadMain() to
-      // notify the subclass the frame has been updated.
+
+      // Because we might remain paused (i.e., we were not playing before we
+      // received a seek), we can't rely on ThreadMain() to notify the subclass
+      // the frame has been updated.
       DCHECK(current_frame_);
-      state_ = kPaused;
       OnFrameAvailable();
 
       seek_callback_->Run();
@@ -327,6 +339,7 @@ void VideoRendererBase::OnReadComplete(VideoFrame* frame) {
 
 void VideoRendererBase::ScheduleRead_Locked() {
   lock_.AssertAcquired();
+  DCHECK_NE(kEnded, state_);
   DCHECK_LT(pending_reads_, kMaxFrames);
   ++pending_reads_;
   decoder_->Read(NewCallback(this, &VideoRendererBase::OnReadComplete));
@@ -359,45 +372,6 @@ base::TimeDelta VideoRendererBase::CalculateSleepDuration(
   // TODO(scherkus): floating point badness and degrade gracefully.
   return base::TimeDelta::FromMicroseconds(
       static_cast<int64>(sleep.InMicroseconds() / playback_rate));
-}
-
-void VideoRendererBase::CreateBlackFrame(scoped_refptr<VideoFrame>* frame_out) {
-  DCHECK_GT(width_, 0);
-  DCHECK_GT(height_, 0);
-  *frame_out = NULL;
-
-  // Create our frame.
-  scoped_refptr<VideoFrame> frame;
-  const base::TimeDelta kZero;
-  VideoFrameImpl::CreateFrame(VideoSurface::YV12, width_, height_, kZero, kZero,
-                              &frame);
-  DCHECK(frame);
-
-  // Now set the data to YUV(0,128,128).
-  VideoSurface surface;
-  frame->Lock(&surface);
-  DCHECK_EQ(VideoSurface::YV12, surface.format) << "Expected YV12 surface";
-
-  // Fill the Y plane.
-  for (size_t i = 0; i < surface.height; ++i) {
-    memset(surface.data[VideoSurface::kYPlane], 0x00, surface.width);
-    surface.data[VideoSurface::kYPlane]
-        += surface.strides[VideoSurface::kYPlane];
-  }
-
-  // Fill the U and V planes.
-  for (size_t i = 0; i < (surface.height / 2); ++i) {
-    memset(surface.data[VideoSurface::kUPlane], 0x80, surface.width / 2);
-    memset(surface.data[VideoSurface::kVPlane], 0x80, surface.width / 2);
-    surface.data[VideoSurface::kUPlane]
-        += surface.strides[VideoSurface::kUPlane];
-    surface.data[VideoSurface::kVPlane]
-        += surface.strides[VideoSurface::kVPlane];
-  }
-  frame->Unlock();
-
-  // Success!
-  *frame_out = frame;
 }
 
 }  // namespace media
