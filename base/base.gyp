@@ -147,7 +147,6 @@
         'iat_patch.h',
         'icu_util.cc',
         'icu_util.h',
-        'id_map.h',
         'idle_timer.cc',
         'idle_timer.h',
         'idle_timer_none.cc',
