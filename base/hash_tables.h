@@ -12,8 +12,8 @@
 //   base::hash_set<int> my_set;
 //
 
-#ifndef BASE_HASH_TABLES_H__
-#define BASE_HASH_TABLES_H__
+#ifndef BASE_HASH_TABLES_H_
+#define BASE_HASH_TABLES_H_
 
 #include "build/build_config.h"
 
@@ -37,99 +37,68 @@ using stdext::hash_set;
 
 #include <ext/hash_map>
 #include <ext/hash_set>
+#include <string>
 
 #ifdef CHROME_OLD__DEPRECATED
 #define __DEPRECATED CHROME_OLD__DEPRECATED
 #undef CHROME_OLD__DEPRECATED
 #endif
 
-#include <tr1/functional>
 namespace base {
 using __gnu_cxx::hash_map;
 using __gnu_cxx::hash_set;
-}
+}  // namespace base
 
-// Implement string hash functions so that strings of various flavors can
-// be used as keys in STL maps and sets.
 namespace __gnu_cxx {
 
-template<>
-struct hash<wchar_t*> {
-  size_t operator()(const wchar_t* s) const {
-    return std::tr1::hash<const wchar_t*>()(s);
-  }
-};
+// The GNU C++ library provides identiy hash functions for many integral types,
+// but not for |long long|.  This hash function will truncate if |size_t| is
+// narrower than |long long|.  This is probably good enough for what we will
+// use it for.
 
-template<>
-struct hash<const wchar_t*> {
-  size_t operator()(const wchar_t* s) const {
-    return std::tr1::hash<const wchar_t*>()(s);
-  }
-};
+#define DEFINE_TRIVIAL_HASH(integral_type) \
+    template<> \
+    struct hash<integral_type> { \
+      std::size_t operator()(integral_type value) const { \
+        return static_cast<std::size_t>(value); \
+      } \
+    }
 
-template<>
-struct hash<std::wstring> {
-  size_t operator()(const std::wstring& s) const {
-    return std::tr1::hash<std::wstring>()(s);
-  }
-};
+DEFINE_TRIVIAL_HASH(long long);
+DEFINE_TRIVIAL_HASH(unsigned long long);
 
-template<>
-struct hash<const std::wstring> {
-  size_t operator()(const std::wstring& s) const {
-    return std::tr1::hash<std::wstring>()(s);
-  }
-};
+#undef DEFINE_TRIVIAL_HASH
 
-template<>
-struct hash<std::string> {
-  size_t operator()(const std::string& s) const {
-    return std::tr1::hash<std::string>()(s);
-  }
-};
+// Implement string hash functions so that strings of various flavors can
+// be used as keys in STL maps and sets.  The hash algorithm comes from the
+// GNU C++ library, in <tr1/functional>.  It is duplicated here because GCC
+// versions prior to 4.3.2 are unable to compile <tr1/functional> when RTTI
+// is disabled, as it is in our build.
 
-template<>
-struct hash<const std::string> {
-  size_t operator()(const std::string& s) const {
-    return std::tr1::hash<std::string>()(s);
-  }
-};
+#define DEFINE_STRING_HASH(string_type) \
+    template<> \
+    struct hash<string_type> { \
+      std::size_t operator()(const string_type& s) const { \
+        std::size_t result = 0; \
+        for (string_type::const_iterator i = s.begin(); i != s.end(); ++i) \
+          result = (result * 131) + *i; \
+        return result; \
+      } \
+    }
 
-template<>
-struct hash<long long> {
-  size_t operator()(long long i) const {
-    return std::tr1::hash<long>()((long) i);
-  }
-};
+DEFINE_STRING_HASH(std::string);
+DEFINE_STRING_HASH(std::wstring);
 
 #if defined(WCHAR_T_IS_UTF32)
-template<>
-struct hash<string16> {
-  size_t operator()(const string16& s) const {
-    // This comes from GNU libstdc++, but the types have been changed to
-    // make it compile.  The lib only defines the hash for string and wstring.
-    std::size_t result = 0;
-    for (string16::const_iterator i = s.begin(); i != s.end(); ++i)
-      result = (result * 131) + *i;
-    return result;
-  }
-};
+// If string16 and std::wstring are not the same type, provide a
+// specialization for string16.
+DEFINE_STRING_HASH(string16);
+#endif  // WCHAR_T_IS_UTF32
 
-template<>
-struct hash<const string16> {
-  size_t operator()(const string16& s) const {
-    // This comes from GNU libstdc++, but the types have been changed to
-    // make it compile.  The lib only defines the hash for string and wstring.
-    std::size_t result = 0;
-    for (string16::const_iterator i = s.begin(); i != s.end(); ++i)
-      result = (result * 131) + *i;
-    return result;
-  }
-};
-#endif
+#undef DEFINE_STRING_HASH
 
-}
+}  // namespace __gnu_cxx
 
-#endif
+#endif  // COMPILER
 
-#endif  // BASE_HASH_TABLES_H__
+#endif  // BASE_HASH_TABLES_H_
