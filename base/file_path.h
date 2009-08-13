@@ -66,6 +66,7 @@
 #define BASE_FILE_PATH_H_
 
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -257,14 +258,15 @@ class FilePath {
 #define FILE_PATH_LITERAL(x) L ## x
 #endif  // OS_WIN
 
-// Implement hash function so that we can use FilePaths in hashsets and maps.
+// Provide a hash function so that hash_sets and maps can contain FilePath
+// objects.
 #if defined(COMPILER_GCC)
 namespace __gnu_cxx {
 
 template<>
 struct hash<FilePath> {
-  size_t operator()(const FilePath& f) const {
-    return std::tr1::hash<FilePath::StringType>()(f.value());
+  std::size_t operator()(const FilePath& f) const {
+    return hash<FilePath::StringType>()(f.value());
   }
 };
 
