@@ -52,7 +52,28 @@
         'gtest/include',
       ],
       'conditions': [
-        [ 'OS == "mac"', { 'sources': [ 'platform_test_mac.mm' ] } ],
+        ['OS == "mac"', {
+          'sources': [
+            'platform_test_mac.mm'
+          ],
+        }],
+        ['OS == "mac" or OS == "linux"', {
+          'defines': [
+            # gtest isn't able to figure out when RTTI is disabled for gcc
+            # versions older than 4.3.2, and assumes it's enabled.  Our Mac
+            # and Linux builds disable RTTI, and cannot guarantee that the
+            # compiler will be 4.3.2. or newer.  The Mac, for example, uses
+            # 4.2.1 as that is the latest available on that platform.  gtest
+            # must be instructed that RTTI is disabled here, and for any
+            # direct dependents that might include gtest headers.
+            'GTEST_HAS_RTTI=0',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'GTEST_HAS_RTTI=0',
+            ],
+          },
+        }],
       ],
       'direct_dependent_settings': {
         'defines': [

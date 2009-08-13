@@ -356,13 +356,14 @@
           'werror%': '-Werror',
         },
         'cflags': [
-           '<(werror)',  # See note above about the werror variable.
-           '-pthread',
-           '-fno-exceptions',
-           '-Wall',
-           '-D_FILE_OFFSET_BITS=64',
+          '<(werror)',  # See note above about the werror variable.
+          '-pthread',
+          '-fno-exceptions',
+          '-Wall',
+          '-D_FILE_OFFSET_BITS=64',
         ],
         'cflags_cc': [
+          '-fno-rtti',
           '-fno-threadsafe-statics',
         ],
         'ldflags': [
@@ -558,6 +559,8 @@
           'GCC_C_LANGUAGE_STANDARD': 'c99',
           'GCC_CW_ASM_SYNTAX': 'NO',
           'GCC_DYNAMIC_NO_PIC': 'NO',
+          'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',
+          'GCC_ENABLE_CPP_RTTI': 'NO',
           'GCC_ENABLE_PASCAL_STRINGS': 'NO',
           'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
           'GCC_OBJC_CALL_CXX_CDTORS': 'YES',
