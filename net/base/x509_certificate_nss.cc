@@ -60,6 +60,22 @@ class ScopedCERTCertList {
   DISALLOW_COPY_AND_ASSIGN(ScopedCERTCertList);
 };
 
+class ScopedCERTCertificatePolicies {
+ public:
+  explicit ScopedCERTCertificatePolicies(CERTCertificatePolicies* policies)
+      : policies_(policies) {}
+
+  ~ScopedCERTCertificatePolicies() {
+    if (policies_)
+      CERT_DestroyCertificatePoliciesExtension(policies_);
+  }
+
+ private:
+  CERTCertificatePolicies* policies_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedCERTCertificatePolicies);
+};
+
 // ScopedCERTValOutParam manages destruction of values in the CERTValOutParam
 // array that cvout points to.  cvout must be initialized as passed to
 // CERT_PKIXVerifyCert, so that the array must be terminated with
@@ -331,7 +347,8 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
   PRUint64 revocation_method_flags =
       CERT_REV_M_TEST_USING_THIS_METHOD |
       CERT_REV_M_ALLOW_NETWORK_FETCHING |
-      CERT_REV_M_ALLOW_IMPLICIT_DEFAULT_SOURCE |
+      CERT_REV_M_IGNORE_IMPLICIT_DEFAULT_SOURCE |
+      CERT_REV_M_IGNORE_MISSING_FRESH_INFO |
       CERT_REV_M_STOP_TESTING_ON_FRESH_INFO;
   PRUint64 revocation_method_independent_flags =
       CERT_REV_MI_TEST_ALL_LOCAL_INFORMATION_FIRST;
@@ -352,9 +369,6 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
   method_flags[cert_revocation_method_crl] = revocation_method_flags;
   method_flags[cert_revocation_method_ocsp] = revocation_method_flags;
 
-  // TODO(ukai): need to find out if we need to call OCSP-related NSS functions,
-  // CERT_EnableOCSPChecking, CERT_DisableOCSPDefaultResponder and
-  // CERT_SetOCSPFailureMode.
   CERTRevocationMethodIndex preferred_revocation_methods[1];
   preferred_revocation_methods[0] = cert_revocation_method_ocsp;
 
@@ -412,6 +426,7 @@ bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
     LOG(ERROR) << "Failed to decode certificate policy.";
     return false;
   }
+  ScopedCERTCertificatePolicies scoped_policies(policies);
   CERTPolicyInfo** policy_infos = policies->policyInfos;
   while (*policy_infos != NULL) {
     CERTPolicyInfo* policy_info = *policy_infos++;
@@ -522,9 +537,7 @@ int X509Certificate::Verify(const std::string& hostname,
 
 // Studied Mozilla's code (esp. security/manager/ssl/src/nsIdentityChecking.cpp
 // and nsNSSCertHelper.cpp) to learn how to verify EV certificate.
-// TODO(wtc): We may be able to request cert_po_policyOID and just
-// check if any of the returned policies is the EV policy of the trust anchor.
-// Another possible optimization is that we get the trust anchor from
+// TODO(wtc): A possible optimization is that we get the trust anchor from
 // the first PKIXVerifyCert call.  We look up the EV policy for the trust
 // anchor.  If the trust anchor has no EV policy, we know the cert isn't EV.
 // Otherwise, we pass just that EV policy (as opposed to all the EV policies)
