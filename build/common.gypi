@@ -94,12 +94,6 @@
 
     'chromeos%': 0,
 
-    # Whether or not browser sync code is built in.
-    'chrome_personalization%': 1,
-
-    # Used to build and statically link a stub (no-op) syncapi engine.
-    'use_syncapi_stub%' : 1,
-
     # Set the restrictions on the SUID sandbox binary.
     #  Path: only exec the hard coded chrome binary path
     #  User: only exec binaries owned by the running user.
@@ -183,17 +177,6 @@
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
       }],
-      ['chrome_personalization==1', {
-        'conditions': [
-         ['OS=="win"', {
-           # For now sync is only enabled on windows.
-           'defines': ['CHROME_PERSONALIZATION=1'],
-         }],  # OS==win
-        ],  # conditions for chrome_personalization
-      }],  # chrome_personalization==1
-      ['use_syncapi_stub==1', {
-       'defines': ['COMPILING_SYNCAPI_STUB'],
-      }],  # use_syncapi_stub==1
       ['coverage!=0', {
         'conditions': [
           ['OS=="mac"', {
