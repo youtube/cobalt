@@ -128,7 +128,7 @@ uint64 FtpNetworkTransaction::GetUploadProgress() const {
   return 0;
 }
 
-// Used to prepare and send FTP commad.
+// Used to prepare and send FTP command.
 int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
                                           Command cmd) {
   // If we send a new command when we still have unprocessed responses
@@ -911,7 +911,7 @@ int FtpNetworkTransaction::ProcessResponseLIST(
   return OK;
 }
 
-// Quit command
+// QUIT command
 int FtpNetworkTransaction::DoCtrlWriteQUIT() {
   std::string command = "QUIT";
   next_state_ = STATE_CTRL_READ;
@@ -939,9 +939,11 @@ int FtpNetworkTransaction::DoDataResolveHost() {
 }
 
 int FtpNetworkTransaction::DoDataResolveHostComplete(int result) {
-  if (result == OK)
+  if (result == OK) {
     next_state_ = STATE_DATA_CONNECT;
-  return result;
+    return result;
+  }
+  return Stop(result);
 }
 
 int FtpNetworkTransaction::DoDataConnect() {
