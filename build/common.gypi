@@ -198,8 +198,8 @@
         'conditions': [
           ['OS=="mac"', {
             'xcode_settings': {
-              'GCC_INSTRUMENT_PROGRAM_FLOW_ARCS': 'YES',
-              'GCC_GENERATE_TEST_COVERAGE_FILES': 'YES',
+              'GCC_INSTRUMENT_PROGRAM_FLOW_ARCS': 'YES',  # -fprofile-arcs
+              'GCC_GENERATE_TEST_COVERAGE_FILES': 'YES',  # -ftest-coverage
             },
             # Add -lgcov for executables, not for static_libraries.
             # This is a delayed conditional.
@@ -245,7 +245,7 @@
           [ 'OS=="mac"', {
             'xcode_settings': {
               'COPY_PHASE_STRIP': 'NO',
-              'GCC_OPTIMIZATION_LEVEL': '0',
+              'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
             }
           }],
           [ 'OS=="win"', {
@@ -279,7 +279,7 @@
         'conditions': [
           [ 'OS=="mac"', {
             'xcode_settings': {
-              'DEAD_CODE_STRIPPING': 'YES',
+              'DEAD_CODE_STRIPPING': 'YES',  # -Wl,-dead_strip
               'conditions': [
                 ['mac_release_optimization != "UNSET"',
                   {'GCC_OPTIMIZATION_LEVEL': '<(mac_release_optimization)'}],
@@ -556,21 +556,23 @@
         'mac_bundle': 0,
         'xcode_settings': {
           'ALWAYS_SEARCH_USER_PATHS': 'NO',
-          'GCC_C_LANGUAGE_STANDARD': 'c99',
-          'GCC_CW_ASM_SYNTAX': 'NO',
-          'GCC_DYNAMIC_NO_PIC': 'NO',
-          'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',
-          'GCC_ENABLE_CPP_RTTI': 'NO',
-          'GCC_ENABLE_PASCAL_STRINGS': 'NO',
-          'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
-          'GCC_OBJC_CALL_CXX_CDTORS': 'YES',
-          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',
-          'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',
+          'GCC_C_LANGUAGE_STANDARD': 'c99',         # -std=c99
+          'GCC_CW_ASM_SYNTAX': 'NO',                # No -fasm-blocks
+          'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
+                                                    # (Equivalent to -fPIC)
+          'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
+          'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
+          'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
+          'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',  # -fvisibility-inlines-hidden
+          'GCC_OBJC_CALL_CXX_CDTORS': 'YES',        # -fobjc-call-cxx-cdtors
+          'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
+          'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
+          'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
           'GCC_VERSION': '4.2',
-          'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',
-          'MACOSX_DEPLOYMENT_TARGET': '10.5',
-          'PREBINDING': 'NO',
-          'SDKROOT': 'macosx10.5',
+          'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
+          'MACOSX_DEPLOYMENT_TARGET': '10.5',       # -mmacosx-version-min=10.5
+          'PREBINDING': 'NO',                       # No -Wl,-prebind
+          'SDKROOT': 'macosx10.5',                  # -isysroot
           'USE_HEADERMAP': 'NO',
           'WARNING_CFLAGS': ['-Wall', '-Wendif-labels'],
           'conditions': [
