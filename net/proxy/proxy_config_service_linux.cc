@@ -512,7 +512,7 @@ void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
   glib_default_loop_ = glib_default_loop;
   io_loop_ = io_loop;
 
-  // If we are passed a NULL io_loop, then we don't setup gconf
+  // If we are passed a NULL io_loop, then we don't set up gconf
   // notifications. This should not be the usual case but is intended
   // to simplify test setups.
   if (!io_loop_)
@@ -612,6 +612,8 @@ void ProxyConfigServiceLinux::Delegate::OnCheckProxyConfigSettings() {
             this,
             &ProxyConfigServiceLinux::Delegate::SetNewProxyConfig,
             new_config));
+    // Update the thread-private copy in |reference_config_| as well.
+    reference_config_ = new_config;
   }
 }
 
