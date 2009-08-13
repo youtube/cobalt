@@ -1378,7 +1378,10 @@ int HttpNetworkTransaction::HandleCertificateError(int error) {
     // SSL info object. This data structure will be consulted after calling
     // RestartIgnoringLastError(). And the user will be asked interactively
     // before RestartIgnoringLastError() is ever called.
-    ssl_config_.allowed_bad_certs_.insert(response_.ssl_info.cert);
+    SSLConfig::CertAndStatus bad_cert;
+    bad_cert.cert = response_.ssl_info.cert;
+    bad_cert.cert_status = response_.ssl_info.cert_status;
+    ssl_config_.allowed_bad_certs.push_back(bad_cert);
   }
   return error;
 }

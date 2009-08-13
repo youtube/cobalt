@@ -241,6 +241,24 @@ int KeySizeOfCipherSuite(SSLCipherSuite suite) {
   }
 }
 
+// Returns the server's certificate.  The caller must release a reference
+// to the return value when done.  Returns NULL on failure.
+X509Certificate* GetServerCert(SSLContextRef ssl_context) {
+  CFArrayRef certs;
+  OSStatus status = SSLCopyPeerCertificates(ssl_context, &certs);
+  if (status != noErr)
+    return NULL;
+
+  DCHECK_GT(CFArrayGetCount(certs), 0);
+
+  SecCertificateRef server_cert = static_cast<SecCertificateRef>(
+      const_cast<void*>(CFArrayGetValueAtIndex(certs, 0)));
+  CFRetain(server_cert);
+  CFRelease(certs);
+  return X509Certificate::CreateFromHandle(
+      server_cert, X509Certificate::SOURCE_FROM_NETWORK);
+}
+
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -305,10 +323,23 @@ int SSLClientSocketMac::Connect(CompletionCallback* callback) {
   if (status)
     return NetErrorFromOSStatus(status);
 
-  status = SSLSetPeerDomainName(ssl_context_, hostname_.c_str(),
-                                hostname_.length());
-  if (status)
-    return NetErrorFromOSStatus(status);
+  if (ssl_config_.allowed_bad_certs.empty()) {
+    // We're going to use the default certificate verification that the system
+    // does, and accept its answer for the cert status.
+    status = SSLSetPeerDomainName(ssl_context_, hostname_.data(),
+                                  hostname_.length());
+    if (status)
+      return NetErrorFromOSStatus(status);
+
+    // TODO(wtc): for now, always check revocation.
+    server_cert_status_ = CERT_STATUS_REV_CHECKING_ENABLED;
+  } else {
+    // Disable certificate chain validation.  We will only allow the certs in
+    // ssl_config_.allowed_bad_certs.
+    status = SSLSetEnableCertVerify(ssl_context_, false);
+    if (status)
+      return NetErrorFromOSStatus(status);
+  }
 
   next_state_ = STATE_HANDSHAKE;
   int rv = DoLoop(OK);
@@ -394,26 +425,14 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
 
   // set cert
-  CFArrayRef certs;
-  OSStatus status = SSLCopyPeerCertificates(ssl_context_, &certs);
-  if (!status) {
-    DCHECK(CFArrayGetCount(certs) > 0);
-
-    SecCertificateRef client_cert =
-        static_cast<SecCertificateRef>(
-          const_cast<void*>(CFArrayGetValueAtIndex(certs, 0)));
-    CFRetain(client_cert);
-    ssl_info->cert = X509Certificate::CreateFromHandle(
-        client_cert, X509Certificate::SOURCE_FROM_NETWORK);
-    CFRelease(certs);
-  }
+  ssl_info->cert = server_cert_;
 
   // update status
   ssl_info->cert_status = server_cert_status_;
 
   // security info
   SSLCipherSuite suite;
-  status = SSLGetNegotiatedCipher(ssl_context_, &suite);
+  OSStatus status = SSLGetNegotiatedCipher(ssl_context_, &suite);
   if (!status)
     ssl_info->security_bits = KeySizeOfCipherSuite(suite);
 }
@@ -485,26 +504,36 @@ int SSLClientSocketMac::DoLoop(int last_io_result) {
 
 int SSLClientSocketMac::DoHandshake() {
   OSStatus status = SSLHandshake(ssl_context_);
-
-  if (status == errSSLWouldBlock)
-    next_state_ = STATE_HANDSHAKE;
-
-  if (status == noErr)
-    completed_handshake_ = true;
-
   int net_error = NetErrorFromOSStatus(status);
 
-  // At this point we have a connection. For now, we're going to use the default
-  // certificate verification that the system does, and accept its answer for
-  // the cert status. In the future, we'll need to call SSLSetEnableCertVerify
-  // to disable cert verification and do the verification ourselves. This allows
-  // very fine-grained control over what we'll accept for certification.
-  // TODO(avi): ditto
+  if (status == errSSLWouldBlock) {
+    next_state_ = STATE_HANDSHAKE;
+  } else if (status == noErr) {
+    completed_handshake_ = true;  // We have a connection.
 
-  // TODO(wtc): for now, always check revocation.
-  server_cert_status_ = CERT_STATUS_REV_CHECKING_ENABLED;
-  if (net_error)
+    server_cert_ = GetServerCert(ssl_context_);
+    DCHECK(server_cert_);
+    if (!ssl_config_.allowed_bad_certs.empty()) {
+      // Check server_cert_ because SecureTransport didn't verify it.
+      // TODO(wtc): If server_cert_ is not one of the allowed bad certificates,
+      // we should verify server_cert_ ourselves.  Since we don't know how to
+      // do that yet, treat it as an invalid certificate.
+      net_error = ERR_CERT_INVALID;
+      server_cert_status_ |= CERT_STATUS_INVALID;
+
+      for (size_t i = 0; i < ssl_config_.allowed_bad_certs.size(); ++i) {
+        if (server_cert_ == ssl_config_.allowed_bad_certs[i].cert) {
+          net_error = OK;
+          server_cert_status_ = ssl_config_.allowed_bad_certs[i].cert_status;
+          break;
+        }
+      }
+    }
+  } else if (IsCertStatusError(net_error)) {
+    server_cert_ = GetServerCert(ssl_context_);
+    DCHECK(server_cert_);
     server_cert_status_ |= MapNetErrorToCertStatus(net_error);
+  }
 
   return net_error;
 }

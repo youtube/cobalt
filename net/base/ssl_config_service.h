@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_BASE_SSL_CONFIG_SERVICE_H__
-#define NET_BASE_SSL_CONFIG_SERVICE_H__
+#ifndef NET_BASE_SSL_CONFIG_SERVICE_H_
+#define NET_BASE_SSL_CONFIG_SERVICE_H_
 
-#include <set>
+#include <vector>
 
 #include "base/time.h"
 #include "net/base/x509_certificate.h"
@@ -30,11 +30,27 @@ struct SSLConfig {
   // TODO(wtc): move the following members to a new SSLParams structure.  They
   // are not SSL configuration settings.
 
-  // Add any known-bad SSL certificates to allowed_bad_certs_ that should not
-  // trigger an ERR_CERT_*_INVALID error when calling SSLClientSocket::Connect.
-  // This would normally be done in response to the user explicitly accepting
-  // the bad certificate.
-  std::set<scoped_refptr<X509Certificate> > allowed_bad_certs_;
+  struct CertAndStatus {
+    scoped_refptr<X509Certificate> cert;
+    int cert_status;
+  };
+
+  // Returns true if |cert| is one of the certs in |allowed_bad_certs|.
+  // TODO(wtc): Move this to a .cc file.  ssl_config_service.cc is Windows
+  // only right now, so I can't move it there.
+  bool IsAllowedBadCert(X509Certificate* cert) const {
+    for (size_t i = 0; i < allowed_bad_certs.size(); ++i) {
+      if (cert == allowed_bad_certs[i].cert)
+        return true;
+    }
+    return false;
+  }
+
+  // Add any known-bad SSL certificate (with its cert status) to
+  // |allowed_bad_certs| that should not trigger an ERR_CERT_* error when
+  // calling SSLClientSocket::Connect.  This would normally be done in
+  // response to the user explicitly accepting the bad certificate.
+  std::vector<CertAndStatus> allowed_bad_certs;
 
   // True if we should send client_cert to the server.
   bool send_client_cert;
@@ -87,4 +103,4 @@ class SSLConfigService {
 
 }  // namespace net
 
-#endif  // NET_BASE_SSL_CONFIG_SERVICE_H__
+#endif  // NET_BASE_SSL_CONFIG_SERVICE_H_
