@@ -186,6 +186,7 @@ class FilePath {
   // path == "C:\pics\jojo"     suffix == " (1)", returns "C:\pics\jojo (1)"
   // path == "C:\pics.old\jojo" suffix == " (1)", returns "C:\pics.old\jojo (1)"
   FilePath InsertBeforeExtension(const StringType& suffix) const;
+  FilePath InsertBeforeExtensionASCII(const StringPiece& suffix) const;
 
   // Replaces the extension of |file_name| with |extension|.  If |file_name|
   // does not have an extension, them |extension| is added.  If |extension| is
