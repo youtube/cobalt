@@ -22,12 +22,18 @@
           'type': 'settings',
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(python ../../build/linux/pkg_config_wrapper.py --cflags libxml-2.0)',
+              '<!@(pkg-config --cflags libxml-2.0)',
+            ],
+            'defines': [
+              'USE_SYSTEM_LIBXML',
             ],
           },
           'link_settings': {
+            'ldflags': [
+              '<!@(pkg-config --libs-only-L --libs-only-other libxml-2.0)',
+            ],
             'libraries': [
-              '<!@(python ../../build/linux/pkg_config_wrapper.py --libs libxml-2.0)',
+              '<!@(pkg-config --libs-only-l libxml-2.0)',
             ],
           },
         }, { # else: OS != "linux" or ! use_system_libxml

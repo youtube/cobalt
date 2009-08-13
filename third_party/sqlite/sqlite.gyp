@@ -5,6 +5,7 @@
 {
   'variables': {
     'use_system_sqlite%': 0,
+    'required_sqlite_version': '3.6.1',
   },
   'includes': [
     '../../build/common.gypi',
@@ -27,12 +28,20 @@
           'type': 'settings',
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(python ../../build/linux/pkg_config_wrapper.py --cflags sqlite)',
+              '<!@(pkg-config --cflags --atleast-version=<(required_sqlite_version) sqlite3)',
+            ],
+          },
+          'direct_dependent_settings': {
+            'defines': [
+              'USE_SYSTEM_SQLITE',
             ],
           },
           'link_settings': {
+            'ldflags': [
+              '<!@(pkg-config --atleast-version=<(required_sqlite_version) --libs-only-L --libs-only-other sqlite3)',
+            ],
             'libraries': [
-              '<!@(python ../../build/linux/pkg_config_wrapper.py --libs sqlite)',
+              '<!@(pkg-config --atleast-version=<(required_sqlite_version) --libs-only-l sqlite3)',
             ],
           },
         }, { # else: OS != "linux" or ! use_system_sqlite
