@@ -310,6 +310,15 @@ FilePath FilePath::InsertBeforeExtension(const StringType& suffix) const {
   return FilePath(ret);
 }
 
+FilePath FilePath::InsertBeforeExtensionASCII(const StringPiece& suffix) const {
+  DCHECK(IsStringASCII(suffix));
+#if defined(OS_WIN)
+  return InsertBeforeExtension(ASCIIToWide(suffix));
+#elif defined(OS_POSIX)
+  return InsertBeforeExtension(suffix.as_string());
+#endif
+}
+
 FilePath FilePath::ReplaceExtension(const StringType& extension) const {
   if (path_.empty())
     return FilePath();
