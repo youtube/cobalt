@@ -873,10 +873,10 @@ int SSLClientSocketWin::DoVerifyCertComplete(int result) {
   // result of verifier_.Verify.
   // Eventually, we should cache the cert verification results so that we don't
   // need to call verifier_.Verify repeatedly. But for now we need to do this.
-  // Alternatively, we might be able to store the cert's status along with
-  // the cert in the allowed_bad_certs_ set.
+  // Alternatively, we could use the cert's status that we stored along with
+  // the cert in the allowed_bad_certs vector.
   if (IsCertificateError(result) &&
-      ssl_config_.allowed_bad_certs_.count(server_cert_))
+      ssl_config_.IsAllowedBadCert(server_cert_))
     result = OK;
 
   LogConnectionTypeMetrics();

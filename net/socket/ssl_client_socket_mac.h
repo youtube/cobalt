@@ -84,6 +84,8 @@ class SSLClientSocketMac : public SSLClientSocket {
   State next_state_;
   State next_io_state_;
 
+  // Set when handshake finishes.
+  scoped_refptr<X509Certificate> server_cert_;
   int server_cert_status_;
 
   bool completed_handshake_;
