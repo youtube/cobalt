@@ -688,6 +688,11 @@ void PipelineImpl::NotifyEndedTask() {
 void PipelineImpl::BroadcastMessageTask(FilterMessage message) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
+  // TODO(kylep): This is a horribly ugly hack, but we have no better way to log
+  // that audio is not and will not be working.
+  if (message == media::kMsgDisableAudio)
+    rendered_mime_types_.erase(mime_type::kMajorTypeAudio);
+
   // Broadcast the message to all filters.
   for (FilterVector::iterator iter = filters_.begin();
        iter != filters_.end();
