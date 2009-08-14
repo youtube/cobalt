@@ -38,9 +38,9 @@ class HttpTransaction {
   // NOTE: The transaction is not responsible for deleting the callback object.
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
-  virtual int Start(LoadLog* load_log,
-                    const HttpRequestInfo* request_info,
-                    CompletionCallback* callback) = 0;
+  virtual int Start(const HttpRequestInfo* request_info,
+                    CompletionCallback* callback,
+                    LoadLog* load_log) = 0;
 
   // Restarts the HTTP transaction, ignoring the last error.  This call can
   // only be made after a call to Start (or RestartIgnoringLastError) failed.
