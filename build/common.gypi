@@ -151,7 +151,7 @@
       ['OS=="win"', {
         'conditions': [
           ['MSVS_VERSION=="2005"', {
-            'msvs_multi_core_compile%': 0,
+            'msvs_multi_core_compile%': 1,
           },{
             'msvs_multi_core_compile%': 1,
           }],
