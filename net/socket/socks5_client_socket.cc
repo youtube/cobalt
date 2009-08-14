@@ -177,7 +177,7 @@ int SOCKS5ClientSocket::DoResolveHost() {
 
   next_state_ = STATE_RESOLVE_HOST_COMPLETE;
   return host_resolver_.Resolve(
-      NULL, host_request_info_, &addresses_, &io_callback_);
+      host_request_info_, &addresses_, &io_callback_, NULL);
 }
 
 int SOCKS5ClientSocket::DoResolveHostComplete(int result) {
@@ -428,4 +428,3 @@ int SOCKS5ClientSocket::GetPeerName(struct sockaddr* name,
 #endif
 
 }  // namespace net
-

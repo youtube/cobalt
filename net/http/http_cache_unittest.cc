@@ -394,7 +394,7 @@ void RunTransactionTestWithRequest(net::HttpCache* cache,
   scoped_ptr<net::HttpTransaction> trans(cache->CreateTransaction());
   ASSERT_TRUE(trans.get());
 
-  int rv = trans->Start(NULL, &request, &callback);
+  int rv = trans->Start(&request, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::OK, rv);
@@ -680,7 +680,7 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Miss) {
       cache.http_cache()->CreateTransaction());
   ASSERT_TRUE(trans.get());
 
-  int rv = trans->Start(NULL, &request, &callback);
+  int rv = trans->Start(&request, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::ERR_CACHE_MISS, rv);
@@ -837,7 +837,7 @@ TEST(HttpCache, SimpleGET_ManyReaders) {
         new Context(cache.http_cache()->CreateTransaction()));
 
     Context* c = context_list[i];
-    int rv = c->trans->Start(NULL, &request, &c->callback);
+    int rv = c->trans->Start(&request, &c->callback, NULL);
     if (rv != net::ERR_IO_PENDING)
       c->result = rv;
   }
@@ -891,7 +891,7 @@ TEST(HttpCache, SimpleGET_RacingReaders) {
     if (i == 1 || i == 2)
       this_request = &reader_request;
 
-    int rv = c->trans->Start(NULL, this_request, &c->callback);
+    int rv = c->trans->Start(this_request, &c->callback, NULL);
     if (rv != net::ERR_IO_PENDING)
       c->result = rv;
   }
@@ -963,7 +963,7 @@ TEST(HttpCache, FastNoStoreGET_DoneWithPending) {
         new Context(cache.http_cache()->CreateTransaction()));
 
     Context* c = context_list[i];
-    int rv = c->trans->Start(NULL, &request, &c->callback);
+    int rv = c->trans->Start(&request, &c->callback, NULL);
     if (rv != net::ERR_IO_PENDING)
       c->result = rv;
   }
@@ -1006,7 +1006,7 @@ TEST(HttpCache, SimpleGET_ManyWriters_CancelFirst) {
         new Context(cache.http_cache()->CreateTransaction()));
 
     Context* c = context_list[i];
-    int rv = c->trans->Start(NULL, &request, &c->callback);
+    int rv = c->trans->Start(&request, &c->callback, NULL);
     if (rv != net::ERR_IO_PENDING)
       c->result = rv;
   }
@@ -1058,7 +1058,7 @@ TEST(HttpCache, SimpleGET_AbandonedCacheRead) {
 
   scoped_ptr<net::HttpTransaction> trans(
       cache.http_cache()->CreateTransaction());
-  int rv = trans->Start(NULL, &request, &callback);
+  int rv = trans->Start(&request, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::OK, rv);
@@ -1573,7 +1573,7 @@ TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Miss) {
       cache.http_cache()->CreateTransaction());
   ASSERT_TRUE(trans.get());
 
-  int rv = trans->Start(NULL, &request, &callback);
+  int rv = trans->Start(&request, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::ERR_CACHE_MISS, rv);
@@ -1977,13 +1977,13 @@ TEST(HttpCache, SyncRead) {
                           c2(cache.http_cache()),
                           c3(cache.http_cache());
 
-  c1.Start(NULL, &r1);
+  c1.Start(&r1, NULL);
 
   r2.load_flags |= net::LOAD_ONLY_FROM_CACHE;
-  c2.Start(NULL, &r2);
+  c2.Start(&r2, NULL);
 
   r3.load_flags |= net::LOAD_ONLY_FROM_CACHE;
-  c3.Start(NULL, &r3);
+  c3.Start(&r3, NULL);
 
   MessageLoop::current()->Run();
 
@@ -2030,7 +2030,7 @@ TEST(HttpCache, CachedRedirect) {
         cache.http_cache()->CreateTransaction());
     ASSERT_TRUE(trans.get());
 
-    int rv = trans->Start(NULL, &request, &callback);
+    int rv = trans->Start(&request, &callback, NULL);
     if (rv == net::ERR_IO_PENDING)
       rv = callback.WaitForResult();
     ASSERT_EQ(net::OK, rv);
@@ -2057,7 +2057,7 @@ TEST(HttpCache, CachedRedirect) {
         cache.http_cache()->CreateTransaction());
     ASSERT_TRUE(trans.get());
 
-    int rv = trans->Start(NULL, &request, &callback);
+    int rv = trans->Start(&request, &callback, NULL);
     if (rv == net::ERR_IO_PENDING)
       rv = callback.WaitForResult();
     ASSERT_EQ(net::OK, rv);
@@ -2184,7 +2184,7 @@ TEST(HttpCache, SimpleGET_SSLError) {
       cache.http_cache()->CreateTransaction());
   ASSERT_TRUE(trans.get());
 
-  int rv = trans->Start(NULL, &request, &callback);
+  int rv = trans->Start(&request, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::ERR_CACHE_MISS, rv);

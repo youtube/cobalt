@@ -42,16 +42,16 @@ MockHostResolverBase::MockHostResolverBase(bool use_caching)
   Reset(NULL);
 }
 
-int MockHostResolverBase::Resolve(LoadLog* load_log,
-                                  const RequestInfo& info,
+int MockHostResolverBase::Resolve(const RequestInfo& info,
                                   AddressList* addresses,
                                   CompletionCallback* callback,
-                                  RequestHandle* out_req) {
+                                  RequestHandle* out_req,
+                                  LoadLog* load_log) {
   if (synchronous_mode_) {
     callback = NULL;
     out_req = NULL;
   }
-  return impl_->Resolve(load_log, info, addresses, callback, out_req);
+  return impl_->Resolve(info, addresses, callback, out_req, load_log);
 }
 
 void MockHostResolverBase::CancelRequest(RequestHandle req) {

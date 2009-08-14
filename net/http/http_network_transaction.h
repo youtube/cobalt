@@ -41,9 +41,9 @@ class HttpNetworkTransaction : public HttpTransaction {
   virtual ~HttpNetworkTransaction();
 
   // HttpTransaction methods:
-  virtual int Start(LoadLog* load_log,
-                    const HttpRequestInfo* request_info,
-                    CompletionCallback* callback);
+  virtual int Start(const HttpRequestInfo* request_info,
+                    CompletionCallback* callback,
+                    LoadLog* load_log);
   virtual int RestartIgnoringLastError(CompletionCallback* callback);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
                                      CompletionCallback* callback);

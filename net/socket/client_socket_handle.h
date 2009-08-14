@@ -47,11 +47,11 @@ class ClientSocketHandle {
   // Init may be called multiple times.
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
-  int Init(LoadLog* load_log,
-           const std::string& group_name,
+  int Init(const std::string& group_name,
            const HostResolver::RequestInfo& resolve_info,
            int priority,
-           CompletionCallback* callback);
+           CompletionCallback* callback,
+           LoadLog* load_log);
 
   // An initialized handle can be reset, which causes it to return to the
   // un-initialized state.  This releases the underlying socket, which in the

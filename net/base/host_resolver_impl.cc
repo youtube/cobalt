@@ -304,11 +304,11 @@ HostResolverImpl::~HostResolverImpl() {
 
 // TODO(eroman): Don't create cache entries for hostnames which are simply IP
 // address literals.
-int HostResolverImpl::Resolve(LoadLog* load_log,
-                              const RequestInfo& info,
+int HostResolverImpl::Resolve(const RequestInfo& info,
                               AddressList* addresses,
                               CompletionCallback* callback,
-                              RequestHandle* out_req) {
+                              RequestHandle* out_req,
+                              LoadLog* load_log) {
   if (shutdown_)
     return ERR_UNEXPECTED;
 

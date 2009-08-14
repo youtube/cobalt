@@ -50,9 +50,9 @@ FtpNetworkTransaction::FtpNetworkTransaction(
 FtpNetworkTransaction::~FtpNetworkTransaction() {
 }
 
-int FtpNetworkTransaction::Start(LoadLog* load_log,
-                                 const FtpRequestInfo* request_info,
-                                 CompletionCallback* callback) {
+int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
+                                 CompletionCallback* callback,
+                                 LoadLog* load_log) {
   load_log_ = load_log;
   request_ = request_info;
 
@@ -410,7 +410,7 @@ int FtpNetworkTransaction::DoCtrlResolveHost() {
 
   HostResolver::RequestInfo info(host, port);
   // No known referrer.
-  return resolver_.Resolve(load_log_, info, &addresses_, &io_callback_);
+  return resolver_.Resolve(info, &addresses_, &io_callback_, load_log_);
 }
 
 int FtpNetworkTransaction::DoCtrlResolveHostComplete(int result) {
@@ -935,7 +935,7 @@ int FtpNetworkTransaction::DoDataResolveHost() {
   HostResolver::RequestInfo info(data_connection_ip_,
                                  data_connection_port_);
   // No known referrer.
-  return resolver_.Resolve(load_log_, info, &addresses_, &io_callback_);
+  return resolver_.Resolve(info, &addresses_, &io_callback_, load_log_);
 }
 
 int FtpNetworkTransaction::DoDataResolveHostComplete(int result) {

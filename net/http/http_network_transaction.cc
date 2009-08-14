@@ -161,9 +161,9 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session,
 #endif
 }
 
-int HttpNetworkTransaction::Start(LoadLog* load_log,
-                                  const HttpRequestInfo* request_info,
-                                  CompletionCallback* callback) {
+int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
+                                  CompletionCallback* callback,
+                                  LoadLog* load_log) {
   UpdateConnectionTypeHistograms(CONNECTION_ANY);
 
   load_log_ = load_log;
@@ -542,7 +542,7 @@ int HttpNetworkTransaction::DoResolveProxy() {
   }
 
   return session_->proxy_service()->ResolveProxy(
-      load_log_, request_->url, &proxy_info_, &io_callback_, &pac_request_);
+      request_->url, &proxy_info_, &io_callback_, &pac_request_, load_log_);
 }
 
 int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
@@ -629,8 +629,8 @@ int HttpNetworkTransaction::DoInitConnection() {
 
   transport_socket_request_time_ = base::TimeTicks::Now();
 
-  int rv = connection_.Init(NULL, connection_group, resolve_info,
-                            request_->priority, &io_callback_);
+  int rv = connection_.Init(connection_group, resolve_info,
+                            request_->priority, &io_callback_, NULL);
   return rv;
 }
 
@@ -1549,7 +1549,7 @@ int HttpNetworkTransaction::ReconsiderProxyAfterError(int error) {
   }
 
   int rv = session_->proxy_service()->ReconsiderProxyAfterError(
-      load_log_, request_->url, &proxy_info_, &io_callback_, &pac_request_);
+      request_->url, &proxy_info_, &io_callback_, &pac_request_, load_log_);
   if (rv == OK || rv == ERR_IO_PENDING) {
     // If the error was during connection setup, there is no socket to
     // disconnect.
