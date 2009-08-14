@@ -21,10 +21,10 @@ namespace net {
 namespace {
 
 const int kDefaultMaxSockets = 4;
-
 const int kDefaultMaxSocketsPerGroup = 2;
-
 const int kDefaultPriority = 5;
+
+typedef ClientSocketPoolBase<const void*> TestClientSocketPoolBase;
 
 class MockClientSocket : public ClientSocket {
  public:
@@ -107,11 +107,11 @@ class TestConnectJob : public ConnectJob {
 
   TestConnectJob(JobType job_type,
                  const std::string& group_name,
-                 const ClientSocketPoolBase::Request& request,
+                 const TestClientSocketPoolBase::Request& request,
                  base::TimeDelta timeout_duration,
                  ConnectJob::Delegate* delegate,
                  MockClientSocketFactory* client_socket_factory)
-      : ConnectJob(group_name, request.handle, timeout_duration, delegate),
+      : ConnectJob(group_name, request.handle(), timeout_duration, delegate),
         job_type_(job_type),
         client_socket_factory_(client_socket_factory),
         method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {}
@@ -202,7 +202,8 @@ class TestConnectJob : public ConnectJob {
   DISALLOW_COPY_AND_ASSIGN(TestConnectJob);
 };
 
-class TestConnectJobFactory : public ClientSocketPoolBase::ConnectJobFactory {
+class TestConnectJobFactory
+    : public TestClientSocketPoolBase::ConnectJobFactory {
  public:
   explicit TestConnectJobFactory(MockClientSocketFactory* client_socket_factory)
       : job_type_(TestConnectJob::kMockJob),
@@ -220,7 +221,7 @@ class TestConnectJobFactory : public ClientSocketPoolBase::ConnectJobFactory {
 
   virtual ConnectJob* NewConnectJob(
       const std::string& group_name,
-      const ClientSocketPoolBase::Request& request,
+      const TestClientSocketPoolBase::Request& request,
       ConnectJob::Delegate* delegate) const {
     return new TestConnectJob(job_type_,
                               group_name,
@@ -243,56 +244,55 @@ class TestClientSocketPool : public ClientSocketPool {
   TestClientSocketPool(
       int max_sockets,
       int max_sockets_per_group,
-      ClientSocketPoolBase::ConnectJobFactory* connect_job_factory)
-      : base_(new ClientSocketPoolBase(
-          max_sockets, max_sockets_per_group, connect_job_factory)) {}
+      TestClientSocketPoolBase::ConnectJobFactory* connect_job_factory)
+      : base_(max_sockets, max_sockets_per_group, connect_job_factory) {}
 
   virtual int RequestSocket(
       const std::string& group_name,
-      const HostResolver::RequestInfo& resolve_info,
+      const void* params,
       int priority,
       ClientSocketHandle* handle,
       CompletionCallback* callback,
       LoadLog* load_log) {
-    return base_->RequestSocket(
-        group_name, resolve_info, priority, handle, callback, load_log);
+    return base_.RequestSocket(
+        group_name, params, priority, handle, callback, load_log);
   }
 
   virtual void CancelRequest(
       const std::string& group_name,
       const ClientSocketHandle* handle) {
-    base_->CancelRequest(group_name, handle);
+    base_.CancelRequest(group_name, handle);
   }
 
   virtual void ReleaseSocket(
       const std::string& group_name,
       ClientSocket* socket) {
-    base_->ReleaseSocket(group_name, socket);
+    base_.ReleaseSocket(group_name, socket);
   }
 
   virtual void CloseIdleSockets() {
-    base_->CloseIdleSockets();
+    base_.CloseIdleSockets();
   }
 
-  virtual int IdleSocketCount() const { return base_->idle_socket_count(); }
+  virtual int IdleSocketCount() const { return base_.idle_socket_count(); }
 
   virtual int IdleSocketCountInGroup(const std::string& group_name) const {
-    return base_->IdleSocketCountInGroup(group_name);
+    return base_.IdleSocketCountInGroup(group_name);
   }
 
   virtual LoadState GetLoadState(const std::string& group_name,
                                  const ClientSocketHandle* handle) const {
-    return base_->GetLoadState(group_name, handle);
+    return base_.GetLoadState(group_name, handle);
   }
 
-  const ClientSocketPoolBase* base() const { return base_.get(); }
+  const TestClientSocketPoolBase* base() const { return &base_; }
 
   int NumConnectJobsInGroup(const std::string& group_name) const {
-    return base_->NumConnectJobsInGroup(group_name);
+    return base_.NumConnectJobsInGroup(group_name);
   }
 
  private:
-  const scoped_refptr<ClientSocketPoolBase> base_;
+  TestClientSocketPoolBase base_;
 
   DISALLOW_COPY_AND_ASSIGN(TestClientSocketPool);
 };
@@ -366,7 +366,7 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
     pool_ = NULL;
     requests_.reset();
 
-    ClientSocketPoolBase::EnableLateBindingOfSockets(false);
+    EnableLateBindingOfSockets(false);
 
     ClientSocketPoolTest::TearDown();
   }
@@ -380,9 +380,9 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
 // completion.
 TEST_F(ClientSocketPoolBaseTest, ConnectJob_NoTimeoutOnSynchronousCompletion) {
   TestConnectJobDelegate delegate;
-  ClientSocketPoolBase::Request request;
-  ClientSocketHandle ignored(pool_.get());
-  request.handle = &ignored;
+  ClientSocketHandle ignored(NULL);
+  TestClientSocketPoolBase::Request request(
+      &ignored, NULL, kDefaultPriority, NULL, NULL);
   scoped_ptr<TestConnectJob> job(
       new TestConnectJob(TestConnectJob::kMockJob,
                          "a",
@@ -395,9 +395,9 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_NoTimeoutOnSynchronousCompletion) {
 
 TEST_F(ClientSocketPoolBaseTest, ConnectJob_TimedOut) {
   TestConnectJobDelegate delegate;
-  ClientSocketPoolBase::Request request;
-  ClientSocketHandle ignored(pool_.get());
-  request.handle = &ignored;
+  ClientSocketHandle ignored(NULL);
+  TestClientSocketPoolBase::Request request(
+      &ignored, NULL, kDefaultPriority, NULL, NULL);
   // Deleted by TestConnectJobDelegate.
   TestConnectJob* job =
       new TestConnectJob(TestConnectJob::kMockPendingJob,
@@ -1027,7 +1027,7 @@ TEST_F(ClientSocketPoolBaseTest, PendingJobCompletionOrder) {
 // available, the request will be serviced by the ConnectJob.
 TEST_F(ClientSocketPoolBaseTest, ReleaseSockets) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-  ClientSocketPoolBase::EnableLateBindingOfSockets(false);
+  EnableLateBindingOfSockets(false);
 
   // Start job 1 (async OK)
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
@@ -1105,7 +1105,7 @@ class ClientSocketPoolBaseTest_LateBinding : public ClientSocketPoolBaseTest {
  protected:
   virtual void SetUp() {
     ClientSocketPoolBaseTest::SetUp();
-    ClientSocketPoolBase::EnableLateBindingOfSockets(true);
+    EnableLateBindingOfSockets(true);
   }
 };
 
@@ -1114,9 +1114,8 @@ class ClientSocketPoolBaseTest_LateBinding : public ClientSocketPoolBaseTest {
 TEST_F(ClientSocketPoolBaseTest_LateBinding,
        ConnectJob_NoTimeoutOnSynchronousCompletion) {
   TestConnectJobDelegate delegate;
-  ClientSocketPoolBase::Request request;
   ClientSocketHandle ignored(pool_.get());
-  request.handle = &ignored;
+  TestClientSocketPoolBase::Request request(&ignored, NULL, 0, NULL, NULL);
   scoped_ptr<TestConnectJob> job(
       new TestConnectJob(TestConnectJob::kMockJob,
                          "a",
@@ -1129,9 +1128,8 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding,
 
 TEST_F(ClientSocketPoolBaseTest_LateBinding, ConnectJob_TimedOut) {
   TestConnectJobDelegate delegate;
-  ClientSocketPoolBase::Request request;
   ClientSocketHandle ignored(pool_.get());
-  request.handle = &ignored;
+  TestClientSocketPoolBase::Request request(&ignored, NULL, 0, NULL, NULL);
   // Deleted by TestConnectJobDelegate.
   TestConnectJob* job =
       new TestConnectJob(TestConnectJob::kMockPendingJob,

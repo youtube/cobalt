@@ -169,8 +169,12 @@ class CaptureGroupNameSocketPool : public ClientSocketPool {
  public:
   CaptureGroupNameSocketPool() {
   }
+  const std::string last_group_name_received() const {
+    return last_group_name_;
+  }
+
   virtual int RequestSocket(const std::string& group_name,
-                            const HostResolver::RequestInfo& resolve_info,
+                            const void* socket_params,
                             int priority,
                             ClientSocketHandle* handle,
                             CompletionCallback* callback,
@@ -178,11 +182,6 @@ class CaptureGroupNameSocketPool : public ClientSocketPool {
     last_group_name_ = group_name;
     return ERR_IO_PENDING;
   }
-
-  const std::string last_group_name_received() const {
-    return last_group_name_;
-  }
-
   virtual void CancelRequest(const std::string& group_name,
                              const ClientSocketHandle* handle) { }
   virtual void ReleaseSocket(const std::string& group_name,
@@ -201,7 +200,8 @@ class CaptureGroupNameSocketPool : public ClientSocketPool {
                                  const ClientSocketHandle* handle) const {
     return LOAD_STATE_IDLE;
   }
- protected:
+
+ private:
   std::string last_group_name_;
 };
 

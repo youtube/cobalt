@@ -7,16 +7,16 @@
 
 #include <string>
 
+#include "base/logging.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/base/completion_callback.h"
-#include "net/base/host_resolver.h"
 #include "net/base/load_states.h"
+#include "net/base/net_errors.h"
 #include "net/socket/client_socket.h"
+#include "net/socket/client_socket_pool.h"
 
 namespace net {
-
-class ClientSocketPool;
 
 // A container for a ClientSocket.
 //
@@ -39,7 +39,7 @@ class ClientSocketHandle {
   // otherwise it will be set to a new connected socket.  Consumers can then
   // call is_reused() to see if the socket was reused.  If not reusing an
   // existing socket, ClientSocketPool may need to establish a new
-  // connection to the |resolve_info.host| |resolve_info.port| pair.
+  // connection using |socket_params|.
   //
   // This method returns ERR_IO_PENDING if it cannot complete synchronously, in
   // which case the consumer will be notified of completion via |callback|.
@@ -47,8 +47,10 @@ class ClientSocketHandle {
   // Init may be called multiple times.
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
+  //
+  template <typename SocketParams>
   int Init(const std::string& group_name,
-           const HostResolver::RequestInfo& resolve_info,
+           const SocketParams& socket_params,
            int priority,
            CompletionCallback* callback,
            LoadLog* load_log);
@@ -101,6 +103,26 @@ class ClientSocketHandle {
 
   DISALLOW_COPY_AND_ASSIGN(ClientSocketHandle);
 };
+
+// Template function implementation:
+template <typename SocketParams>
+int ClientSocketHandle::Init(const std::string& group_name,
+                             const SocketParams& socket_params,
+                             int priority,
+                             CompletionCallback* callback,
+                             LoadLog* load_log) {
+  CHECK(!group_name.empty());
+  ResetInternal(true);
+  group_name_ = group_name;
+  int rv = pool_->RequestSocket(
+      group_name, &socket_params, priority, this, &callback_, load_log);
+  if (rv == ERR_IO_PENDING) {
+    user_callback_ = callback;
+  } else {
+    HandleInitCompletion(rv);
+  }
+  return rv;
+}
 
 }  // namespace net
 
