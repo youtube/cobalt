@@ -11,55 +11,26 @@
 namespace {
 
 TEST(ProxyResolverJSBindingsTest, DnsResolve) {
+  scoped_refptr<net::MockHostResolver> host_resolver(new net::MockHostResolver);
+
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<net::ProxyResolverJSBindings> bindings(
-      net::ProxyResolverJSBindings::CreateDefault(
-          new net::MockHostResolver, NULL));
+      net::ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
 
-  // Considered an error.
+  // Empty string is not considered a valid host (even though on some systems
+  // requesting this will resolve to localhost).
   EXPECT_EQ("", bindings->DnsResolve(""));
 
-  const struct {
-    const char* input;
-    const char* expected;
-  } tests[] = {
-    {"www.google.com", "127.0.0.1"},
-    {".", ""},
-    {"foo@google.com", ""},
-    {"@google.com", ""},
-    {"foo:pass@google.com", ""},
-    {"%", ""},
-    {"www.google.com:80", ""},
-    {"www.google.com:", ""},
-    {"www.google.com.", ""},
-    {"#", ""},
-    {"127.0.0.1", ""},
-    {"this has spaces", ""},
-  };
+  // Should call through to the HostResolver.
+  host_resolver->rules()->AddRule("google.com", "192.168.1.1");
+  EXPECT_EQ("192.168.1.1", bindings->DnsResolve("google.com"));
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    std::string actual = bindings->DnsResolve(tests[i].input);
+  // Resolve failures should give empty string.
+  host_resolver->rules()->AddSimulatedFailure("fail");
+  EXPECT_EQ("", bindings->DnsResolve("fail"));
 
-    // ########################################################################
-    // TODO(eroman)
-    // ########################################################################
-    // THIS TEST IS CURRENTLY FLAWED.
-    //
-    // Since we are running in unit-test mode, the HostResolve is using a
-    // mock HostResolverProc, which will always return 127.0.0.1, without going
-    // through the real codepaths.
-    //
-    // It is important that these tests be run with the real thing, since we
-    // need to verify that HostResolver doesn't blow up when you send it
-    // weird inputs. This is necessary since the data reach it is UNSANITIZED.
-    // It comes directly from the PAC javascript.
-    //
-    // For now we just check that it maps to 127.0.0.1.
-    std::string expected = tests[i].expected;
-    if (expected == "")
-      expected = "127.0.0.1";
-    EXPECT_EQ(expected, actual);
-  }
+  // TODO(eroman): would be nice to have an IPV6 test here too, but that
+  // won't work on all systems.
 }
 
 TEST(ProxyResolverV8DefaultBindingsTest, MyIpAddress) {
