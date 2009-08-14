@@ -194,13 +194,17 @@ NET_ERROR(CERT_REVOKED, -206)
 //
 NET_ERROR(CERT_INVALID, -207)
 
+// The server responded with a certificate that is signed using a weak
+// signature algorithm.
+NET_ERROR(CERT_WEAK_SIGNATURE_ALGORITHM, -208)
+
 // Add new certificate error codes here.
 //
 // Update the value of CERT_END whenever you add a new certificate error
 // code.
 
 // The value immediately past the last certificate error code.
-NET_ERROR(CERT_END, -208)
+NET_ERROR(CERT_END, -209)
 
 // The URL is invalid.
 NET_ERROR(INVALID_URL, -300)
