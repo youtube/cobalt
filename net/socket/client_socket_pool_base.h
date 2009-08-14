@@ -1,7 +1,24 @@
 // Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
+//
+// A ClientSocketPoolBase is used to restrict the number of sockets open at
+// a time.  It also maintains a list of idle persistent sockets for reuse.
+// Subclasses of ClientSocketPool should compose ClientSocketPoolBase to handle
+// the core logic of (1) restricting the number of active (connected or
+// connecting) sockets per "group" (generally speaking, the hostname), (2)
+// maintaining a per-group list of idle, persistent sockets for reuse, and (3)
+// limiting the total number of active sockets in the system.
+//
+// ClientSocketPoolBase abstracts socket connection details behind ConnectJob,
+// ConnectJobFactory, and SocketParams.  When a socket "slot" becomes available,
+// the ClientSocketPoolBase will ask the ConnectJobFactory to create a
+// ConnectJob with a SocketParams.  Subclasses of ClientSocketPool should
+// implement their socket specific connection by subclassing ConnectJob and
+// implementing ConnectJob::ConnectInternal().  They can control the parameters
+// passed to each new ConnectJob instance via their ConnectJobFactory subclass
+// and templated SocketParams parameter.
+//
 #ifndef NET_SOCKET_CLIENT_SOCKET_POOL_BASE_H_
 #define NET_SOCKET_CLIENT_SOCKET_POOL_BASE_H_
 
@@ -16,16 +33,15 @@
 #include "base/timer.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
-#include "net/base/host_resolver.h"
 #include "net/base/load_log.h"
 #include "net/base/load_states.h"
+#include "net/base/net_errors.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
 
 namespace net {
 
 class ClientSocketHandle;
-class ClientSocketPoolBase;
 
 // ConnectJob provides an abstract interface for "connecting" a socket.
 // The connection may involve host resolution, tcp connection, ssl connection,
@@ -93,37 +109,39 @@ class ConnectJob {
   DISALLOW_COPY_AND_ASSIGN(ConnectJob);
 };
 
-// A ClientSocketPoolBase is used to restrict the number of sockets open at
-// a time.  It also maintains a list of idle persistent sockets.
-//
-class ClientSocketPoolBase
-    : public base::RefCounted<ClientSocketPoolBase>,
+namespace internal {
+
+// ClientSocketPoolBaseHelper is an internal class that implements almost all
+// the functionality from ClientSocketPoolBase without using templates.
+// ClientSocketPoolBase adds templated definitions built on top of
+// ClientSocketPoolBaseHelper.  This class is not for external use, please use
+// ClientSocketPoolBase instead.
+class ClientSocketPoolBaseHelper
+    : public base::RefCounted<ClientSocketPoolBaseHelper>,
       public ConnectJob::Delegate {
  public:
-  // A Request is allocated per call to RequestSocket that results in
-  // ERR_IO_PENDING.
-  struct Request {
-    // HostResolver::RequestInfo has no default constructor, so fudge something.
-    Request()
-        : handle(NULL),
-          callback(NULL),
-          priority(0),
-          resolve_info(std::string(), 0) {}
-
+  class Request {
+   public:
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
             int priority,
-            const HostResolver::RequestInfo& resolve_info,
             LoadLog* load_log)
-        : load_log(load_log), handle(handle), callback(callback),
-          priority(priority), resolve_info(resolve_info) {
-    }
+        : handle_(handle), callback_(callback), priority_(priority) {}
 
-    scoped_refptr<LoadLog> load_log;
-    ClientSocketHandle* handle;
-    CompletionCallback* callback;
-    int priority;
-    HostResolver::RequestInfo resolve_info;
+    virtual ~Request() {}
+
+    ClientSocketHandle* handle() const { return handle_; }
+    CompletionCallback* callback() const { return callback_; }
+    int priority() const { return priority_; }
+    LoadLog* load_log() const { return load_log_.get(); }
+
+   private:
+    ClientSocketHandle* const handle_;
+    CompletionCallback* const callback_;
+    const int priority_;
+    const scoped_refptr<LoadLog> load_log_;
+
+    DISALLOW_COPY_AND_ASSIGN(Request);
   };
 
   class ConnectJobFactory {
@@ -140,36 +158,42 @@ class ClientSocketPoolBase
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
   };
 
-  ClientSocketPoolBase(int max_sockets,
-                       int max_sockets_per_group,
-                       ConnectJobFactory* connect_job_factory);
+  ClientSocketPoolBaseHelper(int max_sockets,
+                             int max_sockets_per_group,
+                             ConnectJobFactory* connect_job_factory);
 
-  ~ClientSocketPoolBase();
+  ~ClientSocketPoolBaseHelper();
 
-  int RequestSocket(const std::string& group_name,
-                    const HostResolver::RequestInfo& resolve_info,
-                    int priority,
-                    ClientSocketHandle* handle,
-                    CompletionCallback* callback,
-                    LoadLog* load_log);
+  // See ClientSocketPool::RequestSocket for documentation on this function.
+  // Note that |request| must be heap allocated.  If ERR_IO_PENDING is returned,
+  // then ClientSocketPoolBaseHelper takes ownership of |request|.
+  int RequestSocket(const std::string& group_name, const Request* request);
 
+  // See ClientSocketPool::CancelRequest for documentation on this function.
   void CancelRequest(const std::string& group_name,
                      const ClientSocketHandle* handle);
 
+  // See ClientSocketPool::ReleaseSocket for documentation on this function.
   void ReleaseSocket(const std::string& group_name,
                      ClientSocket* socket);
 
+  // See ClientSocketPool::CloseIdleSockets for documentation on this function.
   void CloseIdleSockets();
 
+  // See ClientSocketPool::IdleSocketCount() for documentation on this function.
   int idle_socket_count() const {
     return idle_socket_count_;
   }
 
+  // See ClientSocketPool::IdleSocketCountInGroup() for documentation on this
+  // function.
   int IdleSocketCountInGroup(const std::string& group_name) const;
 
+  // See ClientSocketPool::GetLoadState() for documentation on this function.
   LoadState GetLoadState(const std::string& group_name,
                          const ClientSocketHandle* handle) const;
 
+  // ConnectJob::Delegate methods:
   virtual void OnConnectJobComplete(int result, ConnectJob* job);
 
   // Enables late binding of sockets.  In this mode, socket requests are
@@ -182,6 +206,7 @@ class ClientSocketPoolBase
 
   // For testing.
   bool may_have_stalled_group() const { return may_have_stalled_group_; }
+
   int NumConnectJobsInGroup(const std::string& group_name) const {
     return group_map_.find(group_name)->second.jobs.size();
   }
@@ -204,8 +229,8 @@ class ClientSocketPoolBase
     bool ShouldCleanup(base::TimeTicks now) const;
   };
 
-  typedef std::deque<Request> RequestQueue;
-  typedef std::map<const ClientSocketHandle*, Request> RequestMap;
+  typedef std::deque<const Request*> RequestQueue;
+  typedef std::map<const ClientSocketHandle*, const Request*> RequestMap;
 
   // A Group is allocated per group_name when there are idle sockets or pending
   // requests.  Otherwise, the Group object is removed from the map.
@@ -223,7 +248,7 @@ class ClientSocketPoolBase
     }
 
     int TopPendingPriority() const {
-      return pending_requests.front().priority;
+      return pending_requests.front()->priority();
     }
 
     std::deque<IdleSocket> idle_sockets;
@@ -238,7 +263,7 @@ class ClientSocketPoolBase
   typedef std::map<const ClientSocketHandle*, ConnectJob*> ConnectJobMap;
   typedef std::set<const ConnectJob*> ConnectJobSet;
 
-  static void InsertRequestIntoQueue(const Request& r,
+  static void InsertRequestIntoQueue(const Request* r,
                                      RequestQueue* pending_requests);
 
   // Closes all idle sockets if |force| is true.  Else, only closes idle
@@ -267,7 +292,8 @@ class ClientSocketPoolBase
   // Removes the ConnectJob corresponding to |handle| from the
   // |connect_job_map_| or |connect_job_set_| depending on whether or not late
   // binding is enabled.  |job| must be non-NULL when late binding is
-  // enabled.  Also updates |group| if non-NULL.
+  // enabled.  Also updates |group| if non-NULL.  When late binding is disabled,
+  // this will also delete the Request from |group->connecting_requests|.
   void RemoveConnectJob(const ClientSocketHandle* handle,
                         const ConnectJob* job,
                         Group* group);
@@ -307,7 +333,7 @@ class ClientSocketPoolBase
 
   // Timer used to periodically prune idle sockets that timed out or can't be
   // reused.
-  base::RepeatingTimer<ClientSocketPoolBase> timer_;
+  base::RepeatingTimer<ClientSocketPoolBaseHelper> timer_;
 
   // The total number of idle sockets in the system.
   int idle_socket_count_;
@@ -345,8 +371,153 @@ class ClientSocketPoolBase
   // Controls whether or not we use late binding of sockets.
   static bool g_late_binding;
 
+};
+
+}  // namespace internal
+
+template <typename SocketParams>
+class ClientSocketPoolBase {
+ public:
+  class Request : public internal::ClientSocketPoolBaseHelper::Request {
+   public:
+    Request(ClientSocketHandle* handle,
+            CompletionCallback* callback,
+            int priority,
+            const SocketParams& params,
+            LoadLog* load_log)
+        : internal::ClientSocketPoolBaseHelper::Request(
+            handle, callback, priority, load_log),
+          params_(params) {}
+
+    const SocketParams& params() const { return params_; }
+
+   private:
+    SocketParams params_;
+  };
+
+  class ConnectJobFactory {
+   public:
+    ConnectJobFactory() {}
+    virtual ~ConnectJobFactory() {}
+
+    virtual ConnectJob* NewConnectJob(
+        const std::string& group_name,
+        const Request& request,
+        ConnectJob::Delegate* delegate) const = 0;
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
+  };
+
+  ClientSocketPoolBase(int max_sockets,
+                       int max_sockets_per_group,
+                       ConnectJobFactory* connect_job_factory)
+      : helper_(new internal::ClientSocketPoolBaseHelper(
+          max_sockets, max_sockets_per_group,
+          new ConnectJobFactoryAdaptor(connect_job_factory))) {}
+
+  ~ClientSocketPoolBase() {}
+
+  // These member functions simply forward to ClientSocketPoolBaseHelper.
+
+  // RequestSocket bundles up the parameters into a Request and then forwards to
+  // ClientSocketPoolBaseHelper::RequestSocket().  Note that the memory
+  // ownership is transferred in the asynchronous (ERR_IO_PENDING) case.
+  int RequestSocket(const std::string& group_name,
+                    const SocketParams& params,
+                    int priority,
+                    ClientSocketHandle* handle,
+                    CompletionCallback* callback,
+                    LoadLog* load_log) {
+    scoped_ptr<Request> request(
+        new Request(handle, callback, priority, params, load_log));
+    int rv = helper_->RequestSocket(group_name, request.get());
+    if (rv == ERR_IO_PENDING)
+      request.release();
+    return rv;
+  }
+
+  void CancelRequest(const std::string& group_name,
+                     const ClientSocketHandle* handle) {
+    return helper_->CancelRequest(group_name, handle);
+  }
+
+  void ReleaseSocket(const std::string& group_name, ClientSocket* socket) {
+    return helper_->ReleaseSocket(group_name, socket);
+  }
+
+  void CloseIdleSockets() { return helper_->CloseIdleSockets(); }
+
+  int idle_socket_count() const { return helper_->idle_socket_count(); }
+
+  int IdleSocketCountInGroup(const std::string& group_name) const {
+    return helper_->IdleSocketCountInGroup(group_name);
+  }
+
+  LoadState GetLoadState(const std::string& group_name,
+                         const ClientSocketHandle* handle) const {
+    return helper_->GetLoadState(group_name, handle);
+  }
+
+  virtual void OnConnectJobComplete(int result, ConnectJob* job) {
+    return helper_->OnConnectJobComplete(result, job);
+  }
+
+  // For testing.
+  bool may_have_stalled_group() const {
+    return helper_->may_have_stalled_group();
+  }
+
+  int NumConnectJobsInGroup(const std::string& group_name) const {
+    return helper_->NumConnectJobsInGroup(group_name);
+  }
+
+ private:
+  // This adaptor class exists to bridge the
+  // internal::ClientSocketPoolBaseHelper::ConnectJobFactory and
+  // ClientSocketPoolBase::ConnectJobFactory types, allowing clients to use the
+  // typesafe ClientSocketPoolBase::ConnectJobFactory, rather than having to
+  // static_cast themselves.
+  class ConnectJobFactoryAdaptor
+      : public internal::ClientSocketPoolBaseHelper::ConnectJobFactory {
+   public:
+    typedef typename ClientSocketPoolBase<SocketParams>::ConnectJobFactory
+        ConnectJobFactory;
+
+    explicit ConnectJobFactoryAdaptor(
+        ConnectJobFactory* connect_job_factory)
+        : connect_job_factory_(connect_job_factory) {}
+    virtual ~ConnectJobFactoryAdaptor() {}
+
+    virtual ConnectJob* NewConnectJob(
+        const std::string& group_name,
+        const internal::ClientSocketPoolBaseHelper::Request& request,
+        ConnectJob::Delegate* delegate) const {
+      const Request* casted_request = static_cast<const Request*>(&request);
+      return connect_job_factory_->NewConnectJob(
+          group_name, *casted_request, delegate);
+    }
+
+    const scoped_ptr<ConnectJobFactory> connect_job_factory_;
+  };
+
+  // One might ask why ClientSocketPoolBaseHelper is also refcounted if its
+  // containing ClientSocketPool is already refcounted.  The reason is because
+  // DoReleaseSocket() posts a task.  If ClientSocketPool gets deleted between
+  // the posting of the task and the execution, then we'll hit the DCHECK that
+  // |ClientSocketPoolBaseHelper::group_map_| is empty.
+  scoped_refptr<internal::ClientSocketPoolBaseHelper> helper_;
+
   DISALLOW_COPY_AND_ASSIGN(ClientSocketPoolBase);
 };
+
+// Enables late binding of sockets.  In this mode, socket requests are
+// decoupled from socket connection jobs.  A socket request may initiate a
+// socket connection job, but there is no guarantee that that socket
+// connection will service the request (for example, a released socket may
+// service the request sooner, or a higher priority request may come in
+// afterward and receive the socket from the job).
+void EnableLateBindingOfSockets(bool enabled);
 
 }  // namespace net
 
