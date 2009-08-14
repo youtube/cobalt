@@ -248,14 +248,14 @@ class TestClientSocketPool : public ClientSocketPool {
           max_sockets, max_sockets_per_group, connect_job_factory)) {}
 
   virtual int RequestSocket(
-      LoadLog* load_log,
       const std::string& group_name,
       const HostResolver::RequestInfo& resolve_info,
       int priority,
       ClientSocketHandle* handle,
-      CompletionCallback* callback) {
+      CompletionCallback* callback,
+      LoadLog* load_log) {
     return base_->RequestSocket(
-        NULL, group_name, resolve_info, priority, handle, callback);
+        group_name, resolve_info, priority, handle, callback, load_log);
   }
 
   virtual void CancelRequest(
@@ -416,8 +416,8 @@ TEST_F(ClientSocketPoolBaseTest, BasicSynchronous) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle(pool_.get());
-  EXPECT_EQ(OK, handle.Init(NULL, "a", ignored_request_info_,
-                            kDefaultPriority, &callback));
+  EXPECT_EQ(OK, handle.Init("a", ignored_request_info_,
+                            kDefaultPriority, &callback, NULL));
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
   handle.Reset();
@@ -428,7 +428,7 @@ TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
-  int rv = req.handle()->Init(NULL, "a", ignored_request_info_, 0, &req);
+  int rv = req.handle()->Init("a", ignored_request_info_, 0, &req, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(OK, req.WaitForResult());
@@ -443,8 +443,8 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockFailingJob);
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
   EXPECT_EQ(ERR_CONNECTION_FAILED,
-            req.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req));
+            req.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req, NULL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, InitConnectionAsynchronousFailure) {
@@ -453,8 +453,8 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionAsynchronousFailure) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
   EXPECT_EQ(ERR_IO_PENDING,
-            req.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req));
+            req.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req, NULL));
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 }
@@ -745,8 +745,8 @@ TEST_F(ClientSocketPoolBaseTest, CancelRequestClearGroup) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
   EXPECT_EQ(ERR_IO_PENDING,
-            req.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req));
+            req.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req, NULL));
   req.handle()->Reset();
 }
 
@@ -758,11 +758,11 @@ TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
   TestSocketRequest req2(pool_.get(), &request_order_, &completion_count_);
 
   EXPECT_EQ(ERR_IO_PENDING,
-            req.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req));
+            req.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req, NULL));
   EXPECT_EQ(ERR_IO_PENDING,
-            req2.handle()->Init(NULL, "a", ignored_request_info_,
-                                kDefaultPriority, &req2));
+            req2.handle()->Init("a", ignored_request_info_,
+                                kDefaultPriority, &req2, NULL));
 
   req.handle()->Reset();
 
@@ -779,15 +779,15 @@ TEST_F(ClientSocketPoolBaseTest, ConnectCancelConnect) {
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
 
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init(NULL, "a", ignored_request_info_,
-                        kDefaultPriority, &callback));
+            handle.Init("a", ignored_request_info_,
+                        kDefaultPriority, &callback, NULL));
 
   handle.Reset();
 
   TestCompletionCallback callback2;
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init(NULL, "a", ignored_request_info_,
-                        kDefaultPriority, &callback2));
+            handle.Init("a", ignored_request_info_,
+                        kDefaultPriority, &callback2, NULL));
 
   EXPECT_EQ(OK, callback2.WaitForResult());
   EXPECT_FALSE(callback.have_result());
@@ -849,8 +849,8 @@ class RequestSocketCallback : public CallbackRunner< Tuple1<int> > {
       handle_->Reset();
       within_callback_ = true;
       int rv = handle_->Init(
-          NULL, "a", HostResolver::RequestInfo("www.google.com", 80),
-          kDefaultPriority, this);
+          "a", HostResolver::RequestInfo("www.google.com", 80),
+          kDefaultPriority, this, NULL);
       switch (next_job_type_) {
         case TestConnectJob::kMockJob:
           EXPECT_EQ(OK, rv);
@@ -885,7 +885,7 @@ TEST_F(ClientSocketPoolBaseTest, RequestPendingJobTwice) {
   RequestSocketCallback callback(
       &handle, connect_job_factory_, TestConnectJob::kMockPendingJob);
   int rv = handle.Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &callback);
+      "a", ignored_request_info_, kDefaultPriority, &callback, NULL);
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(OK, callback.WaitForResult());
@@ -900,7 +900,7 @@ TEST_F(ClientSocketPoolBaseTest, RequestPendingJobThenSynchronous) {
   RequestSocketCallback callback(
       &handle, connect_job_factory_, TestConnectJob::kMockJob);
   int rv = handle.Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &callback);
+      "a", ignored_request_info_, kDefaultPriority, &callback, NULL);
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(OK, callback.WaitForResult());
@@ -963,14 +963,14 @@ TEST_F(ClientSocketPoolBaseTest, CancelActiveRequestThenRequestSocket) {
 
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
   int rv = req.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req);
+      "a", ignored_request_info_, kDefaultPriority, &req, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // Cancel the active request.
   req.handle()->Reset();
 
   rv = req.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req);
+      "a", ignored_request_info_, kDefaultPriority, &req, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, req.WaitForResult());
 
@@ -990,14 +990,14 @@ TEST_F(ClientSocketPoolBaseTest, PendingJobCompletionOrder) {
 
   // Start job 1 (async error).
   TestSocketRequest req1(pool_.get(), &request_order_, &completion_count_);
-  int rv = req1.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req1);
+  int rv = req1.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req1, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // Start job 2 (async error).
   TestSocketRequest req2(pool_.get(), &request_order_, &completion_count_);
   rv = req2.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req2);
+      "a", ignored_request_info_, kDefaultPriority, &req2, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // The pending job is sync.
@@ -1006,7 +1006,7 @@ TEST_F(ClientSocketPoolBaseTest, PendingJobCompletionOrder) {
   // Request 3 does not have a ConnectJob yet.  It's just pending.
   TestSocketRequest req3(pool_.get(), &request_order_, &completion_count_);
   rv = req3.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req3);
+      "a", ignored_request_info_, kDefaultPriority, &req3, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(ERR_CONNECTION_FAILED, req1.WaitForResult());
@@ -1033,8 +1033,8 @@ TEST_F(ClientSocketPoolBaseTest, ReleaseSockets) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
 
   TestSocketRequest req1(pool_.get(), &request_order_, &completion_count_);
-  int rv = req1.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req1);
+  int rv = req1.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req1, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, req1.WaitForResult());
 
@@ -1043,7 +1043,7 @@ TEST_F(ClientSocketPoolBaseTest, ReleaseSockets) {
 
   TestSocketRequest req2(pool_.get(), &request_order_, &completion_count_);
   rv = req2.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req2);
+      "a", ignored_request_info_, kDefaultPriority, &req2, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   req1.handle()->Reset();
   MessageLoop::current()->RunAllPending();  // Run the DoReleaseSocket()
@@ -1053,7 +1053,7 @@ TEST_F(ClientSocketPoolBaseTest, ReleaseSockets) {
 
   TestSocketRequest req3(pool_.get(), &request_order_, &completion_count_);
   rv = req3.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req3);
+      "a", ignored_request_info_, kDefaultPriority, &req3, NULL);
   EXPECT_EQ(OK, rv);
 
   EXPECT_FALSE(req2.handle()->socket());
@@ -1150,8 +1150,8 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, BasicSynchronous) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle(pool_.get());
-  EXPECT_EQ(OK, handle.Init(NULL, "a", ignored_request_info_, kDefaultPriority,
-                            &callback));
+  EXPECT_EQ(OK, handle.Init("a", ignored_request_info_, kDefaultPriority,
+                            &callback, NULL));
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
   handle.Reset();
@@ -1162,7 +1162,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, BasicAsynchronous) {
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
-  int rv = req.handle()->Init(NULL, "a", ignored_request_info_, 0, &req);
+  int rv = req.handle()->Init("a", ignored_request_info_, 0, &req, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(OK, req.WaitForResult());
@@ -1177,8 +1177,8 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, InitConnectionFailure) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockFailingJob);
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
   EXPECT_EQ(ERR_CONNECTION_FAILED,
-            req.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req));
+            req.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req, NULL));
 }
 
 TEST_F(ClientSocketPoolBaseTest_LateBinding,
@@ -1188,8 +1188,8 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding,
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
   EXPECT_EQ(ERR_IO_PENDING,
-            req.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req));
+            req.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req, NULL));
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 }
@@ -1253,8 +1253,8 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequestClearGroup) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
   EXPECT_EQ(ERR_IO_PENDING,
-            req.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req));
+            req.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req, NULL));
   req.handle()->Reset();
 }
 
@@ -1266,11 +1266,11 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, TwoRequestsCancelOne) {
   TestSocketRequest req2(pool_.get(), &request_order_, &completion_count_);
 
   EXPECT_EQ(ERR_IO_PENDING,
-            req.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req));
+            req.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req, NULL));
   EXPECT_EQ(ERR_IO_PENDING,
-            req2.handle()->Init(NULL, "a", ignored_request_info_,
-                                kDefaultPriority, &req2));
+            req2.handle()->Init("a", ignored_request_info_,
+                                kDefaultPriority, &req2, NULL));
 
   req.handle()->Reset();
 
@@ -1287,15 +1287,15 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, ConnectCancelConnect) {
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
 
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init(NULL, "a", ignored_request_info_,
-                        kDefaultPriority, &callback));
+            handle.Init("a", ignored_request_info_,
+                        kDefaultPriority, &callback, NULL));
 
   handle.Reset();
 
   TestCompletionCallback callback2;
   EXPECT_EQ(ERR_IO_PENDING,
-            handle.Init(NULL, "a", ignored_request_info_,
-                        kDefaultPriority, &callback2));
+            handle.Init("a", ignored_request_info_,
+                        kDefaultPriority, &callback2, NULL));
 
   EXPECT_EQ(OK, callback2.WaitForResult());
   EXPECT_FALSE(callback.have_result());
@@ -1368,7 +1368,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, RequestPendingJobTwice) {
   RequestSocketCallback callback(
       &handle, connect_job_factory_, TestConnectJob::kMockPendingJob);
   int rv = handle.Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &callback);
+      "a", ignored_request_info_, kDefaultPriority, &callback, NULL);
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(OK, callback.WaitForResult());
@@ -1383,7 +1383,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, RequestPendingJobThenSynchronous) {
   RequestSocketCallback callback(
       &handle, connect_job_factory_, TestConnectJob::kMockJob);
   int rv = handle.Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &callback);
+      "a", ignored_request_info_, kDefaultPriority, &callback, NULL);
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(OK, callback.WaitForResult());
@@ -1449,14 +1449,14 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding,
 
   TestSocketRequest req(pool_.get(), &request_order_, &completion_count_);
   int rv = req.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req);
+      "a", ignored_request_info_, kDefaultPriority, &req, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // Cancel the active request.
   req.handle()->Reset();
 
   rv = req.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req);
+      "a", ignored_request_info_, kDefaultPriority, &req, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, req.WaitForResult());
 
@@ -1474,8 +1474,8 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, ReleaseSockets) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
 
   TestSocketRequest req1(pool_.get(), &request_order_, &completion_count_);
-  int rv = req1.handle()->Init(NULL, "a", ignored_request_info_,
-                               kDefaultPriority, &req1);
+  int rv = req1.handle()->Init("a", ignored_request_info_,
+                               kDefaultPriority, &req1, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, req1.WaitForResult());
 
@@ -1485,11 +1485,11 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, ReleaseSockets) {
 
   TestSocketRequest req2(pool_.get(), &request_order_, &completion_count_);
   rv = req2.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req2);
+      "a", ignored_request_info_, kDefaultPriority, &req2, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   TestSocketRequest req3(pool_.get(), &request_order_, &completion_count_);
   rv = req3.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req3);
+      "a", ignored_request_info_, kDefaultPriority, &req3, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // Both Requests 2 and 3 are pending.  We release socket 1 which should
@@ -1521,12 +1521,12 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingJobCompletionOrder) {
 
   TestSocketRequest req1(pool_.get(), &request_order_, &completion_count_);
   int rv = req1.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req1);
+      "a", ignored_request_info_, kDefaultPriority, &req1, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   TestSocketRequest req2(pool_.get(), &request_order_, &completion_count_);
   rv = req2.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req2);
+      "a", ignored_request_info_, kDefaultPriority, &req2, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // The pending job is sync.
@@ -1534,7 +1534,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingJobCompletionOrder) {
 
   TestSocketRequest req3(pool_.get(), &request_order_, &completion_count_);
   rv = req3.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req3);
+      "a", ignored_request_info_, kDefaultPriority, &req3, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(ERR_CONNECTION_FAILED, req1.WaitForResult());
@@ -1554,7 +1554,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, DISABLED_LoadState) {
 
   TestSocketRequest req1(pool_.get(), &request_order_, &completion_count_);
   int rv = req1.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req1);
+      "a", ignored_request_info_, kDefaultPriority, &req1, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_IDLE, req1.handle()->GetLoadState());
 
@@ -1562,7 +1562,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, DISABLED_LoadState) {
 
   TestSocketRequest req2(pool_.get(), &request_order_, &completion_count_);
   rv = req2.handle()->Init(
-      NULL, "a", ignored_request_info_, kDefaultPriority, &req2);
+      "a", ignored_request_info_, kDefaultPriority, &req2, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_WAITING_FOR_CACHE, req1.handle()->GetLoadState());
   EXPECT_EQ(LOAD_STATE_WAITING_FOR_CACHE, req2.handle()->GetLoadState());

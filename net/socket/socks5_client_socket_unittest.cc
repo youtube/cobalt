@@ -59,7 +59,7 @@ void SOCKS5ClientSocketTest::SetUp() {
 
   // Resolve the "localhost" AddressList used by the TCP connection to connect.
   HostResolver::RequestInfo info("www.socks-proxy.com", 1080);
-  int rv = host_resolver_->Resolve(NULL, info, &address_list_, NULL, NULL);
+  int rv = host_resolver_->Resolve(info, &address_list_, NULL, NULL, NULL);
   ASSERT_EQ(OK, rv);
 }
 
@@ -285,4 +285,3 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
 }
 
 }  // namespace net
-

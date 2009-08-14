@@ -64,11 +64,11 @@ class ProxyService {
   //   3.  named proxy
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
-  int ResolveProxy(LoadLog* load_log,
-                   const GURL& url,
+  int ResolveProxy(const GURL& url,
                    ProxyInfo* results,
                    CompletionCallback* callback,
-                   PacRequest** pac_request);
+                   PacRequest** pac_request,
+                   LoadLog* load_log);
 
   // This method is called after a failure to connect or resolve a host name.
   // It gives the proxy service an opportunity to reconsider the proxy to use.
@@ -82,11 +82,11 @@ class ProxyService {
   // Returns ERR_FAILED if there is not another proxy config to try.
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
-  int ReconsiderProxyAfterError(LoadLog* load_log,
-                                const GURL& url,
+  int ReconsiderProxyAfterError(const GURL& url,
                                 ProxyInfo* results,
                                 CompletionCallback* callback,
-                                PacRequest** pac_request);
+                                PacRequest** pac_request,
+                                LoadLog* load_log);
 
   // Call this method with a non-null |pac_request| to cancel the PAC request.
   void CancelPacRequest(PacRequest* pac_request);
@@ -266,14 +266,13 @@ class SyncProxyServiceHelper
   SyncProxyServiceHelper(MessageLoop* io_message_loop,
                          ProxyService* proxy_service);
 
-  int ResolveProxy(LoadLog* load_log, const GURL& url, ProxyInfo* proxy_info);
-  int ReconsiderProxyAfterError(LoadLog* load_log,
-                                const GURL& url,
-                                ProxyInfo* proxy_info);
+  int ResolveProxy(const GURL& url, ProxyInfo* proxy_info, LoadLog* load_log);
+  int ReconsiderProxyAfterError(const GURL& url,
+                                ProxyInfo* proxy_info, LoadLog* load_log);
 
  private:
-  void StartAsyncResolve(LoadLog* load_log, const GURL& url);
-  void StartAsyncReconsider(LoadLog* load_log, const GURL& url);
+  void StartAsyncResolve(const GURL& url, LoadLog* load_log);
+  void StartAsyncReconsider(const GURL& url, LoadLog* load_log);
 
   void OnCompletion(int result);
 

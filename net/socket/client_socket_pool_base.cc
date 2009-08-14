@@ -103,12 +103,12 @@ void ClientSocketPoolBase::InsertRequestIntoQueue(
 }
 
 int ClientSocketPoolBase::RequestSocket(
-    LoadLog* load_log,
     const std::string& group_name,
     const HostResolver::RequestInfo& resolve_info,
     int priority,
     ClientSocketHandle* handle,
-    CompletionCallback* callback) {
+    CompletionCallback* callback,
+    LoadLog* load_log) {
   DCHECK(!resolve_info.hostname().empty());
   DCHECK_GE(priority, 0);
   DCHECK(callback);
@@ -123,7 +123,7 @@ int ClientSocketPoolBase::RequestSocket(
       may_have_stalled_group_ = true;
     }
     CHECK(callback);
-    Request r(load_log, handle, callback, priority, resolve_info);
+    Request r(handle, callback, priority, resolve_info, load_log);
     InsertRequestIntoQueue(r, &group.pending_requests);
     return ERR_IO_PENDING;
   }
@@ -143,7 +143,7 @@ int ClientSocketPoolBase::RequestSocket(
   // We couldn't find a socket to reuse, so allocate and connect a new one.
 
   CHECK(callback);
-  Request r(load_log, handle, callback, priority, resolve_info);
+  Request r(handle, callback, priority, resolve_info, load_log);
   scoped_ptr<ConnectJob> connect_job(
       connect_job_factory_->NewConnectJob(group_name, r, this));
 
@@ -499,7 +499,7 @@ void ClientSocketPoolBase::ProcessPendingRequest(const std::string& group_name,
   group->pending_requests.pop_front();
 
   int rv = RequestSocket(
-      r.load_log, group_name, r.resolve_info, r.priority, r.handle, r.callback);
+      group_name, r.resolve_info, r.priority, r.handle, r.callback, r.load_log);
 
   if (rv != ERR_IO_PENDING) {
     r.callback->Run(rv);

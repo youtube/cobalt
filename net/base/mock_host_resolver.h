@@ -41,11 +41,11 @@ class MockHostResolverBase : public HostResolver {
   virtual ~MockHostResolverBase() {}
 
   // HostResolver methods:
-  virtual int Resolve(LoadLog* load_log,
-                      const RequestInfo& info,
+  virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
                       CompletionCallback* callback,
-                      RequestHandle* out_req);
+                      RequestHandle* out_req,
+                      LoadLog* load_log);
   virtual void CancelRequest(RequestHandle req);
   virtual void AddObserver(Observer* observer);
   virtual void RemoveObserver(Observer* observer);
