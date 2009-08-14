@@ -56,14 +56,12 @@ class ProxyService {
   // callback is still pending. NULL can be passed for |pac_request| if
   // the caller will not need to cancel the request.
   //
-  // We use the three possible proxy access types in the following order, and
-  // we only use one of them (no falling back to other access types if the
-  // chosen one doesn't work).
-  //   1.  named proxy
+  // We use the three possible proxy access types in the following order,
+  // doing fallback if one doesn't work.  See "init_proxy_resolver.h"
+  // for the specifics.
+  //   1.  WPAD auto-detection
   //   2.  PAC URL
-  //   3.  WPAD auto-detection
-  //
-  // TODO(eroman): see http://crbug.com/9985; the outline above is too simple.
+  //   3.  named proxy
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
   int ResolveProxy(LoadLog* load_log,
