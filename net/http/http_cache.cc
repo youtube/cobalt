@@ -194,7 +194,7 @@ class HttpCache::Transaction
   virtual ~Transaction();
 
   // HttpTransaction methods:
-  virtual int Start(LoadLog*, const HttpRequestInfo*, CompletionCallback*);
+  virtual int Start(const HttpRequestInfo*, CompletionCallback*, LoadLog*);
   virtual int RestartIgnoringLastError(CompletionCallback*);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
                                      CompletionCallback* callback);
@@ -410,9 +410,9 @@ HttpCache::Transaction::~Transaction() {
   cache_ = NULL;
 }
 
-int HttpCache::Transaction::Start(LoadLog* load_log,
-                                  const HttpRequestInfo* request,
-                                  CompletionCallback* callback) {
+int HttpCache::Transaction::Start(const HttpRequestInfo* request,
+                                  CompletionCallback* callback,
+                                  LoadLog* load_log) {
   DCHECK(request);
   DCHECK(callback);
 
@@ -982,7 +982,7 @@ int HttpCache::Transaction::BeginNetworkRequest() {
   if (!network_trans_.get())
     return net::ERR_CACHE_CANNOT_CREATE_NETWORK_TRANSACTION;
 
-  int rv = network_trans_->Start(load_log_, request_, &network_info_callback_);
+  int rv = network_trans_->Start(request_, &network_info_callback_, load_log_);
   if (rv != ERR_IO_PENDING)
     OnNetworkInfoAvailable(rv);
   return rv;

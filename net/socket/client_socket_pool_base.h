@@ -110,11 +110,11 @@ class ClientSocketPoolBase
           priority(0),
           resolve_info(std::string(), 0) {}
 
-    Request(LoadLog* load_log,
-            ClientSocketHandle* handle,
+    Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
             int priority,
-            const HostResolver::RequestInfo& resolve_info)
+            const HostResolver::RequestInfo& resolve_info,
+            LoadLog* load_log)
         : load_log(load_log), handle(handle), callback(callback),
           priority(priority), resolve_info(resolve_info) {
     }
@@ -146,12 +146,12 @@ class ClientSocketPoolBase
 
   ~ClientSocketPoolBase();
 
-  int RequestSocket(LoadLog* load_log,
-                    const std::string& group_name,
+  int RequestSocket(const std::string& group_name,
                     const HostResolver::RequestInfo& resolve_info,
                     int priority,
                     ClientSocketHandle* handle,
-                    CompletionCallback* callback);
+                    CompletionCallback* callback,
+                    LoadLog* load_log);
 
   void CancelRequest(const std::string& group_name,
                      const ClientSocketHandle* handle);

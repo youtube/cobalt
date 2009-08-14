@@ -114,11 +114,11 @@ class HostResolver : public base::RefCounted<HostResolver> {
   // This handle is not valid after the request has completed.
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
-  virtual int Resolve(LoadLog* load_log,
-                      const RequestInfo& info,
+  virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
                       CompletionCallback* callback,
-                      RequestHandle* out_req) = 0;
+                      RequestHandle* out_req,
+                      LoadLog* load_log) = 0;
 
   // Cancels the specified request. |req| is the handle returned by Resolve().
   // After a request is cancelled, its completion callback will not be called.
@@ -152,10 +152,10 @@ class SingleRequestHostResolver {
 
   // Resolves the given hostname (or IP address literal), filling out the
   // |addresses| object upon success. See HostResolver::Resolve() for details.
-  int Resolve(LoadLog* load_log,
-              const HostResolver::RequestInfo& info,
+  int Resolve(const HostResolver::RequestInfo& info,
               AddressList* addresses,
-              CompletionCallback* callback);
+              CompletionCallback* callback,
+              LoadLog* load_log);
 
  private:
   // Callback for when the request to |resolver_| completes, so we dispatch

@@ -93,7 +93,7 @@ class ResolveRequest {
         ALLOW_THIS_IN_INITIALIZER_LIST(
             callback_(this, &ResolveRequest::OnLookupFinished)) {
     // Start the request.
-    int err = resolver->Resolve(NULL, info_, &addrlist_, &callback_, &req_);
+    int err = resolver->Resolve(info_, &addrlist_, &callback_, &req_, NULL);
     EXPECT_EQ(net::ERR_IO_PENDING, err);
   }
 
@@ -104,7 +104,7 @@ class ResolveRequest {
         ALLOW_THIS_IN_INITIALIZER_LIST(
             callback_(this, &ResolveRequest::OnLookupFinished)) {
     // Start the request.
-    int err = resolver->Resolve(NULL, info, &addrlist_, &callback_, &req_);
+    int err = resolver->Resolve(info, &addrlist_, &callback_, &req_, NULL);
     EXPECT_EQ(net::ERR_IO_PENDING, err);
   }
 
@@ -190,7 +190,7 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
 
   net::HostResolver::RequestInfo info("just.testing", kPortnum);
   scoped_refptr<LoadLog> log(new LoadLog);
-  int err = host_resolver->Resolve(log, info, &adrlist, NULL, NULL);
+  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, log);
   EXPECT_EQ(net::OK, err);
 
   EXPECT_EQ(2u, log->events().size());
@@ -222,7 +222,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
 
   net::HostResolver::RequestInfo info("just.testing", kPortnum);
   scoped_refptr<LoadLog> log(new LoadLog);
-  int err = host_resolver->Resolve(log, info, &adrlist, &callback_, NULL);
+  int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL, log);
   EXPECT_EQ(net::ERR_IO_PENDING, err);
 
   EXPECT_EQ(1u, log->events().size());
@@ -260,7 +260,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
     const int kPortnum = 80;
 
     net::HostResolver::RequestInfo info("just.testing", kPortnum);
-    int err = host_resolver->Resolve(log, info, &adrlist, &callback_, NULL);
+    int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL, log);
     EXPECT_EQ(net::ERR_IO_PENDING, err);
 
     // Make sure we will exit the queue even when callback is not called.
@@ -294,7 +294,7 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
   net::AddressList adrlist;
   const int kPortnum = 5555;
   net::HostResolver::RequestInfo info("127.1.2.3", kPortnum);
-  int err = host_resolver->Resolve(NULL, info, &adrlist, NULL, NULL);
+  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, NULL);
   EXPECT_EQ(net::OK, err);
 
   const struct addrinfo* ainfo = adrlist.head();
@@ -319,7 +319,7 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
   net::AddressList adrlist;
   const int kPortnum = 5555;
   net::HostResolver::RequestInfo info("2001:db8::1", kPortnum);
-  int err = host_resolver->Resolve(NULL, info, &adrlist, NULL, NULL);
+  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, NULL);
   // On computers without IPv6 support, getaddrinfo cannot convert IPv6
   // address literals to addresses (getaddrinfo returns EAI_NONAME).  So this
   // test has to allow host_resolver->Resolve to fail.
@@ -359,7 +359,7 @@ TEST_F(HostResolverImplTest, DISABLED_EmptyHost) {
   net::AddressList adrlist;
   const int kPortnum = 5555;
   net::HostResolver::RequestInfo info("", kPortnum);
-  int err = host_resolver->Resolve(NULL, info, &adrlist, NULL, NULL);
+  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, NULL);
   EXPECT_EQ(net::ERR_NAME_NOT_RESOLVED, err);
 }
 
@@ -710,7 +710,7 @@ class BypassCacheVerifier : public ResolveRequest::Delegate {
       net::AddressList addrlist;
 
       net::HostResolver::RequestInfo info("a", 70);
-      int error = resolver->Resolve(NULL, info, &addrlist, junk_callback, NULL);
+      int error = resolver->Resolve(info, &addrlist, junk_callback, NULL, NULL);
       EXPECT_EQ(net::OK, error);
 
       // Ok good. Now make sure that if we ask to bypass the cache, it can no
@@ -828,7 +828,7 @@ TEST_F(HostResolverImplTest, Observers) {
   // Resolve "host1".
   net::HostResolver::RequestInfo info1("host1", 70);
   scoped_refptr<LoadLog> log(new LoadLog);
-  int rv = host_resolver->Resolve(log, info1, &addrlist, NULL, NULL);
+  int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log);
   EXPECT_EQ(net::OK, rv);
 
   EXPECT_EQ(6u, log->events().size());
@@ -856,7 +856,7 @@ TEST_F(HostResolverImplTest, Observers) {
   // Resolve "host1" again -- this time it  will be served from cache, but it
   // should still notify of completion.
   TestCompletionCallback callback;
-  rv = host_resolver->Resolve(NULL, info1, &addrlist, &callback, NULL);
+  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
   ASSERT_EQ(net::OK, rv);  // Should complete synchronously.
 
   EXPECT_EQ(2U, observer.start_log.size());
@@ -870,7 +870,7 @@ TEST_F(HostResolverImplTest, Observers) {
   // Resolve "host2", setting referrer to "http://foobar.com"
   net::HostResolver::RequestInfo info2("host2", 70);
   info2.set_referrer(GURL("http://foobar.com"));
-  rv = host_resolver->Resolve(NULL, info2, &addrlist, NULL, NULL);
+  rv = host_resolver->Resolve(info2, &addrlist, NULL, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
   EXPECT_EQ(3U, observer.start_log.size());
@@ -886,7 +886,7 @@ TEST_F(HostResolverImplTest, Observers) {
 
   // Resolve "host3"
   net::HostResolver::RequestInfo info3("host3", 70);
-  host_resolver->Resolve(NULL, info3, &addrlist, NULL, NULL);
+  host_resolver->Resolve(info3, &addrlist, NULL, NULL, NULL);
 
   // No effect this time, since observer was removed.
   EXPECT_EQ(3U, observer.start_log.size());
@@ -916,7 +916,7 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
     net::HostResolver::RequestInfo info1("host1", 70);
     net::HostResolver::RequestHandle req = NULL;
     net::AddressList addrlist;
-    int rv = host_resolver->Resolve(NULL, info1, &addrlist, &callback, &req);
+    int rv = host_resolver->Resolve(info1, &addrlist, &callback, &req, NULL);
     EXPECT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_TRUE(NULL != req);
 
@@ -939,7 +939,7 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
 
     // Start an async request for (host2:60)
     net::HostResolver::RequestInfo info2("host2", 60);
-    rv = host_resolver->Resolve(NULL, info2, &addrlist, &callback, NULL);
+    rv = host_resolver->Resolve(info2, &addrlist, &callback, NULL, NULL);
     EXPECT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_TRUE(NULL != req);
 
