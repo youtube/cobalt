@@ -78,6 +78,16 @@ class HTTPSServer(tlslite.api.TLSSocketServerMixIn, StoppableHTTPServer):
       print "Handshake failure:", str(error)
       return False
 
+class ForkingHTTPServer(SocketServer.ForkingMixIn, StoppableHTTPServer):
+  """This is a specialization of of StoppableHTTPServer which serves each
+  request in a separate process"""
+  pass
+
+class ForkingHTTPSServer(SocketServer.ForkingMixIn, HTTPSServer):
+  """This is a specialization of of HTTPSServer which serves each
+  request in a separate process"""
+  pass
+
 class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
   def __init__(self, request, client_address, socket_server):
@@ -1047,10 +1057,18 @@ def main(options, args):
       if not os.path.isfile(options.cert):
         print 'specified cert file not found: ' + options.cert + ' exiting...'
         return
-      server = HTTPSServer(('127.0.0.1', port), TestPageHandler, options.cert)
+      if options.forking:
+        server_class = ForkingHTTPSServer
+      else:
+        server_class = HTTPSServer
+      server = server_class(('127.0.0.1', port), TestPageHandler, options.cert)
       print 'HTTPS server started on port %d...' % port
     else:
-      server = StoppableHTTPServer(('127.0.0.1', port), TestPageHandler)
+      if options.forking:
+        server_class = ForkingHTTPServer
+      else:
+        server_class = StoppableHTTPServer
+      server = server_class(('127.0.0.1', port), TestPageHandler)
       print 'HTTP server started on port %d...' % port
 
     server.data_dir = MakeDataDir()
@@ -1102,6 +1120,9 @@ if __name__ == '__main__':
                            const=SERVER_FTP, default=SERVER_HTTP,
                            dest='server_type',
                            help='FTP or HTTP server default HTTP')
+  option_parser.add_option('--forking', action='store_true', default=False,
+                           dest='forking',
+                           help='Serve each request in a separate process')
   option_parser.add_option('', '--port', default='8888', type='int',
                            help='Port used by the server')
   option_parser.add_option('', '--data-dir', dest='data_dir',
