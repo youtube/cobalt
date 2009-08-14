@@ -62,6 +62,8 @@ class HttpNetworkTransaction : public HttpTransaction {
 
  private:
   FRIEND_TEST(HttpNetworkTransactionTest, ResetStateForRestart);
+  FRIEND_TEST(HttpNetworkTransactionTest, GetIdentifyFromUrl);
+  FRIEND_TEST(HttpNetworkTransactionTest, GetIdentifyFromUrl_UTF8);
 
   // This version of IOBuffer lets us use a string as the real storage and
   // "move" the data pointer inside the string before using it to do actual IO.
@@ -258,6 +260,12 @@ class HttpNetworkTransaction : public HttpTransaction {
   // and the URL for a username:password. Returns true if an identity
   // was found.
   bool SelectNextAuthIdentityToTry(HttpAuth::Target target);
+
+  // Extract the unescaped username/password from |url|, saving the results
+  // into |*username| and |*password|.
+  static void GetIdentifyFromUrl(const GURL& url,
+                                 std::wstring* username,
+                                 std::wstring* password);
 
   // Searches the auth cache for an entry that encompasses the request's path.
   // If such an entry is found, updates auth_identity_[target] and
