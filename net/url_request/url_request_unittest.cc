@@ -116,14 +116,28 @@ scoped_refptr<net::UploadData> CreateSimpleUploadData(const char* data) {
 class URLRequestTest : public PlatformTest {
 };
 
-TEST_F(URLRequestTest, ProxyTunnelRedirectTest) {
+class URLRequestTestHTTP : public URLRequestTest {
+ protected:
+  static void SetUpTestCase() {
+    server_ = HTTPTestServer::CreateForkingServer(L"");
+  }
+
+  static void TearDownTestCase() {
+    server_ = NULL;
+  }
+
+  static scoped_refptr<HTTPTestServer> server_;
+};
+
+// static
+scoped_refptr<HTTPTestServer> URLRequestTestHTTP::server_;
+
+TEST_F(URLRequestTestHTTP, ProxyTunnelRedirectTest) {
   // In this unit test, we're using the HTTPTestServer as a proxy server and
   // issuing a CONNECT request with the magic host name "www.redirect.com".
   // The HTTPTestServer will return a 302 response, which we should not
   // follow.
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
     URLRequest r(GURL("https://www.redirect.com/"), &d);
@@ -144,13 +158,11 @@ TEST_F(URLRequestTest, ProxyTunnelRedirectTest) {
   }
 }
 
-TEST_F(URLRequestTest, UnexpectedServerAuthTest) {
+TEST_F(URLRequestTestHTTP, UnexpectedServerAuthTest) {
   // In this unit test, we're using the HTTPTestServer as a proxy server and
   // issuing a CONNECT request with the magic host name "www.server-auth.com".
   // The HTTPTestServer will return a 401 response, which we should balk at.
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
     URLRequest r(GURL("https://www.server-auth.com/"), &d);
@@ -168,13 +180,11 @@ TEST_F(URLRequestTest, UnexpectedServerAuthTest) {
   }
 }
 
-TEST_F(URLRequestTest, GetTest_NoCache) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, GetTest_NoCache) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage(""), &d);
+    TestURLRequest r(server_->TestServerPage(""), &d);
 
     r.Start();
     EXPECT_TRUE(r.is_pending());
@@ -190,13 +200,11 @@ TEST_F(URLRequestTest, GetTest_NoCache) {
 #endif
 }
 
-TEST_F(URLRequestTest, GetTest) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, GetTest) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage(""), &d);
+    TestURLRequest r(server_->TestServerPage(""), &d);
 
     r.Start();
     EXPECT_TRUE(r.is_pending());
@@ -213,6 +221,8 @@ TEST_F(URLRequestTest, GetTest) {
 }
 
 TEST_F(URLRequestTest, QuitTest) {
+  // Don't use shared server here because we order it to quit.
+  // It would impact other tests.
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
