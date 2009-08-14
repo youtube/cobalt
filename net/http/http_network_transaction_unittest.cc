@@ -2092,7 +2092,12 @@ TEST_F(HttpNetworkTransactionTest, AuthIdentityInUrl) {
   HttpRequestInfo request;
   request.method = "GET";
   // Note: the URL has a username:password in it.
-  request.url = GURL("http://foo:bar@www.google.com/");
+  request.url = GURL("http://foo:b@r@www.google.com/");
+
+  // The password contains an escaped character -- for this test to pass it
+  // will need to be unescaped by HttpNetworkTransaction.
+  EXPECT_EQ("b%40r", request.url.password());
+
   request.load_flags = 0;
 
   MockWrite data_writes1[] = {
@@ -2114,7 +2119,7 @@ TEST_F(HttpNetworkTransactionTest, AuthIdentityInUrl) {
     MockWrite("GET / HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Connection: keep-alive\r\n"
-              "Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+              "Authorization: Basic Zm9vOmJAcg==\r\n\r\n"),
   };
 
   MockRead data_reads2[] = {
@@ -3506,6 +3511,73 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   // If we bypassed the cache, we would have gotten a failure while resolving
   // "www.google.com".
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, rv);
+}
+
+TEST_F(HttpNetworkTransactionTest, GetIdentifyFromUrl) {
+  struct {
+    const char* input_url;
+    const wchar_t* expected_username;
+    const wchar_t* expected_password;
+  } tests[] = {
+    {
+      "http://username:password@google.com",
+      L"username",
+      L"password",
+    },
+    { // Test for http://crbug.com/19200
+      "http://username:p@ssword@google.com",
+      L"username",
+      L"p@ssword",
+    },
+    { // Username contains %20.
+      "http://use rname:password@google.com",
+      L"use rname",
+      L"password",
+    },
+    { // The URL canonicalizer for userinfo does not recognize non-ascii
+      // escapes it seems... So things like %00 will NOT be unescapable,
+      // since they are canonicalized by escaping the %...
+      "http://use%00rname:password@google.com",
+      L"use%2500rname",
+      L"password",
+    },
+    { // Use a '+' in the username.
+      "http://use+rname:password@google.com",
+      L"use+rname",
+      L"password",
+    },
+    { // Use a '&' in the password.
+      "http://username:p&ssword@google.com",
+      L"username",
+      L"p&ssword",
+    },
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    SCOPED_TRACE(StringPrintf("Test[%d]: %s", i, tests[i].input_url));
+    GURL url(tests[i].input_url);
+
+    std::wstring username, password;
+    HttpNetworkTransaction::GetIdentifyFromUrl(url, &username, &password);
+
+    EXPECT_EQ(tests[i].expected_username, username);
+    EXPECT_EQ(tests[i].expected_password, password);
+  }
+}
+
+// Try extracting a username which was encoded with UTF8.
+TEST_F(HttpNetworkTransactionTest, GetIdentifyFromUrl_UTF8) {
+  GURL url(WideToUTF16(L"http://foo:\x4f60\x597d@blah.com"));
+
+  EXPECT_EQ("foo", url.username());
+  EXPECT_EQ("%E4%BD%A0%E5%A5%BD", url.password());
+
+  // Extract the unescaped identity.
+  std::wstring username, password;
+  HttpNetworkTransaction::GetIdentifyFromUrl(url, &username, &password);
+
+  // Verify that it was decoded as UTF8.
+  EXPECT_EQ(L"foo", username);
+  EXPECT_EQ(L"\x4f60\x597d", password);
 }
 
 }  // namespace net
