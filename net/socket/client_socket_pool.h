@@ -48,7 +48,7 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
   virtual int RequestSocket(const std::string& group_name,
-                            const HostResolver::RequestInfo& resolve_info,
+                            const void* params,
                             int priority,
                             ClientSocketHandle* handle,
                             CompletionCallback* callback,
