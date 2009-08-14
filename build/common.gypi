@@ -354,6 +354,7 @@
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
         'variables': {
           'werror%': '-Werror',
+          'no_strict_aliasing%': 0,
         },
         'cflags': [
           '<(werror)',  # See note above about the werror variable.
@@ -537,6 +538,11 @@
                   '-mfloat-abi=softfp',
                 ],
               }],
+            ],
+          }],
+          ['no_strict_aliasing==1', {
+            'cflags': [
+              '-fno-strict-aliasing',
             ],
           }],
         ],
