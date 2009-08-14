@@ -19,6 +19,7 @@ enum {
   CERT_STATUS_UNABLE_TO_CHECK_REVOCATION = 1 << 5,
   CERT_STATUS_REVOKED                    = 1 << 6,
   CERT_STATUS_INVALID                    = 1 << 7,
+  CERT_STATUS_WEAK_SIGNATURE_ALGORITHM   = 1 << 8,
 
   // Bits 16 to 30 are for non-error statuses.
   CERT_STATUS_IS_EV                      = 1 << 16,
