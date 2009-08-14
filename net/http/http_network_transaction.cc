@@ -1670,11 +1670,10 @@ bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
       auth_identity_[target].source == HttpAuth::IDENT_SRC_NONE) {
     auth_identity_[target].source = HttpAuth::IDENT_SRC_URL;
     auth_identity_[target].invalid = false;
-    // TODO(wtc) It may be necessary to unescape the username and password
-    // after extracting them from the URL.  We should be careful about
-    // embedded nulls in that case.
-    auth_identity_[target].username = ASCIIToWide(request_->url.username());
-    auth_identity_[target].password = ASCIIToWide(request_->url.password());
+    // Extract the username:password from the URL.
+    GetIdentifyFromUrl(request_->url,
+                       &auth_identity_[target].username,
+                       &auth_identity_[target].password);
     // TODO(eroman): If the password is blank, should we also try combining
     // with a password from the cache?
     return true;
@@ -1709,6 +1708,15 @@ bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
     return true;
   }
   return false;
+}
+
+// static
+void HttpNetworkTransaction::GetIdentifyFromUrl(const GURL& url,
+                                                std::wstring* username,
+                                                std::wstring* password) {
+  UnescapeRule::Type flags = UnescapeRule::SPACES;
+  *username = UnescapeAndDecodeUTF8URLComponent(url.username(), flags);
+  *password = UnescapeAndDecodeUTF8URLComponent(url.password(), flags);
 }
 
 std::string HttpNetworkTransaction::AuthChallengeLogMessage() const {
