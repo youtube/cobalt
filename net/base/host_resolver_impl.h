@@ -94,18 +94,21 @@ class HostResolverImpl : public HostResolver {
   // Callback for when |job| has completed with |error| and |addrlist|.
   void OnJobComplete(Job* job, int error, const AddressList& addrlist);
 
-  // Notify all observers of the start of a resolve request.
-  void NotifyObserversStartRequest(int request_id,
-                                   const RequestInfo& info);
+  // Called when a request has just been started.
+  void OnStartRequest(LoadLog* load_log,
+                      int request_id,
+                      const RequestInfo& info);
 
-  // Notify all observers of the completion of a resolve request.
-  void NotifyObserversFinishRequest(int request_id,
-                                    const RequestInfo& info,
-                                    int error);
+  // Called when a request has just completed (before its callback is run).
+  void OnFinishRequest(LoadLog* load_log,
+                       int request_id,
+                       const RequestInfo& info,
+                       int error);
 
-  // Notify all observers of the cancellation of a resolve request.
-  void NotifyObserversCancelRequest(int request_id,
-                                    const RequestInfo& info);
+  // Called when a request has been cancelled.
+  void OnCancelRequest(LoadLog* load_log,
+                       int request_id,
+                       const RequestInfo& info);
 
   // Cache of host resolution results.
   HostCache cache_;
