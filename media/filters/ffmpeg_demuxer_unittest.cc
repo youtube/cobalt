@@ -320,6 +320,8 @@ TEST_F(FFmpegDemuxerTest, Read) {
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
+  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
 
   // ...then we'll free it with some sanity checkpoints...
   EXPECT_CALL(*MockFFmpeg::get(), CheckPoint(1));
@@ -329,6 +331,8 @@ TEST_F(FFmpegDemuxerTest, Read) {
   // ...then we'll read a video packet...
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_VIDEO, kVideoData, kDataSize));
+  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
 
   // ...then we'll free it with some sanity checkpoints...
   EXPECT_CALL(*MockFFmpeg::get(), CheckPoint(3));
@@ -353,8 +357,9 @@ TEST_F(FFmpegDemuxerTest, Read) {
   EXPECT_TRUE(reader->called());
   ASSERT_TRUE(reader->buffer());
   EXPECT_FALSE(reader->buffer()->IsDiscontinuous());
-  EXPECT_EQ(kAudioData, reader->buffer()->GetData());
-  EXPECT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(0, memcmp(kAudioData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
 
   // We shouldn't have freed the audio packet yet.
   MockFFmpeg::get()->CheckPoint(1);
@@ -370,8 +375,9 @@ TEST_F(FFmpegDemuxerTest, Read) {
   EXPECT_TRUE(reader->called());
   ASSERT_TRUE(reader->buffer());
   EXPECT_FALSE(reader->buffer()->IsDiscontinuous());
-  EXPECT_EQ(kVideoData, reader->buffer()->GetData());
-  EXPECT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(0, memcmp(kVideoData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
 
   // We shouldn't have freed the video packet yet.
   MockFFmpeg::get()->CheckPoint(3);
@@ -443,10 +449,16 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   // inside FFmpegDemuxer...
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
+  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
+  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_VIDEO, kVideoData, kDataSize));
+  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
 
   // ...then we'll release our video packet...
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
@@ -477,17 +489,25 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   // ...followed by two audio packet reads we'll trigger...
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
+  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
+  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
 
   // ...followed by two video packet reads...
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_VIDEO, kVideoData, kDataSize));
+  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_VIDEO, kVideoData, kDataSize));
+  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
 
   // ...and finally a sanity checkpoint to make sure everything was released.
@@ -500,8 +520,9 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   EXPECT_TRUE(reader->called());
   ASSERT_TRUE(reader->buffer());
   EXPECT_FALSE(reader->buffer()->IsDiscontinuous());
-  EXPECT_EQ(kVideoData, reader->buffer()->GetData());
-  EXPECT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(0, memcmp(kVideoData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
 
   // Release the video packet and verify the other packets are still queued.
   reader->Reset();
@@ -529,8 +550,9 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   EXPECT_TRUE(reader->called());
   ASSERT_TRUE(reader->buffer());
   EXPECT_TRUE(reader->buffer()->IsDiscontinuous());
-  EXPECT_EQ(kAudioData, reader->buffer()->GetData());
-  EXPECT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(0, memcmp(kAudioData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
 
   // Audio read #2, should not be discontinuous.
   reader->Reset();
@@ -539,8 +561,9 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   EXPECT_TRUE(reader->called());
   ASSERT_TRUE(reader->buffer());
   EXPECT_FALSE(reader->buffer()->IsDiscontinuous());
-  EXPECT_EQ(kAudioData, reader->buffer()->GetData());
-  EXPECT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(0, memcmp(kAudioData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
 
   // Video read #1, should be discontinuous.
   reader->Reset();
@@ -549,8 +572,9 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   EXPECT_TRUE(reader->called());
   ASSERT_TRUE(reader->buffer());
   EXPECT_TRUE(reader->buffer()->IsDiscontinuous());
-  EXPECT_EQ(kVideoData, reader->buffer()->GetData());
-  EXPECT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(0, memcmp(kVideoData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
 
   // Video read #2, should not be discontinuous.
   reader->Reset();
@@ -559,70 +583,14 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   EXPECT_TRUE(reader->called());
   ASSERT_TRUE(reader->buffer());
   EXPECT_FALSE(reader->buffer()->IsDiscontinuous());
-  EXPECT_EQ(kVideoData, reader->buffer()->GetData());
-  EXPECT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  ASSERT_EQ(kDataSize, reader->buffer()->GetDataSize());
+  EXPECT_EQ(0, memcmp(kVideoData, reader->buffer()->GetData(),
+                      reader->buffer()->GetDataSize()));
 
   // Manually release the last reference to the buffer and verify it was freed.
   reader->Reset();
   message_loop_.RunAllPending();
   MockFFmpeg::get()->CheckPoint(3);
-}
-
-TEST_F(FFmpegDemuxerTest, MP3Hack) {
-  // This tests our deep-copying workaround for FFmpeg's MP3 demuxer.  When we
-  // fix the root cause this test will fail and should be removed.
-  //
-  // TODO(scherkus): according to the documentation, deep-copying the packet is
-  // actually the correct action -- remove this test when we fix our demuxer.
-
-  // Simulate an MP3 stream.
-  codecs_[AV_STREAM_AUDIO].codec_id = CODEC_ID_MP3;
-  {
-    SCOPED_TRACE("");
-    InitializeDemuxer();
-  }
-
-  // Get our stream.
-  scoped_refptr<DemuxerStream> audio = demuxer_->GetStream(DS_STREAM_AUDIO);
-  ASSERT_TRUE(audio);
-
-  // Expect all calls in sequence.
-  InSequence s;
-
-  // We'll read an MP3 packet and allocate a new packet, then instantly free
-  // the original packet due to deep copying...
-  EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
-      .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
-
-  // ...then we'll have a sanity checkpoint...
-  EXPECT_CALL(*MockFFmpeg::get(), CheckPoint(1));
-
-  // ...then we'll free the deep copied packet.
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
-  EXPECT_CALL(*MockFFmpeg::get(), CheckPoint(2));
-
-  // Audio read should perform a deep copy on the packet and instantly release
-  // the original packet.  The data pointers should not be the same, but the
-  // contents should match.
-  scoped_refptr<DemuxerStreamReader> reader = new DemuxerStreamReader();
-  reader->Read(audio);
-  message_loop_.RunAllPending();
-  EXPECT_TRUE(reader->called());
-  ASSERT_TRUE(reader->buffer());
-  EXPECT_FALSE(reader->buffer()->IsDiscontinuous());
-  EXPECT_NE(kAudioData, reader->buffer()->GetData());
-  EXPECT_EQ(kDataSize, reader->buffer()->GetDataSize());
-  EXPECT_EQ(0, memcmp(kAudioData, reader->buffer()->GetData(), kDataSize));
-
-  // We shouldn't have freed the MP3 packet yet.
-  MockFFmpeg::get()->CheckPoint(1);
-
-  // Manually release the last reference to the buffer and verify it was freed.
-  reader->Reset();
-  message_loop_.RunAllPending();
-  MockFFmpeg::get()->CheckPoint(2);
 }
 
 // A mocked callback specialization for calling Read().  Since RunWithParams()
