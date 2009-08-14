@@ -495,22 +495,17 @@ void FFmpegDemuxer::DemuxTask() {
   DCHECK(packet->stream_index < static_cast<int>(packet_streams_.size()));
   FFmpegDemuxerStream* demuxer_stream = packet_streams_[packet->stream_index];
   if (demuxer_stream) {
-    // Duplicate the entire packet if we're dealing with MP3 due to an issue
-    // where previously demuxed packets can become corrupted by simply demuxing
-    // additional packets.
-    //
-    // TODO(scherkus): fix the MP3 packet copying hack.
-    if (demuxer_stream->GetAVStream()->codec->codec_id == CODEC_ID_MP3) {
-      scoped_ptr<AVPacket> clone(ClonePacket(packet.get()));
-      if (!clone.get()) {
-        NOTREACHED();
-        return;
-      }
-      // Free FFmpeg-allocated memory and swap original packet into |clone| so
-      // that it gets deleted as |clone| goes out of scope.
-      av_free_packet(packet.get());
-      packet.swap(clone);
+    // Duplicate the entire packet to avoid aliasing.
+    // Directly affects MP3, but do all formats to be safe.
+    scoped_ptr<AVPacket> clone(ClonePacket(packet.get()));
+    if (!clone.get()) {
+      NOTREACHED();
+      return;
     }
+    // Free FFmpeg-allocated memory and swap original packet into |clone| so
+    // that it gets deleted as |clone| goes out of scope.
+    av_free_packet(packet.get());
+    packet.swap(clone);
 
     // Queue the packet with the appropriate stream.  The stream takes
     // ownership of the AVPacket.
