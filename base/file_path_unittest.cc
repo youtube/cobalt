@@ -535,7 +535,6 @@ TEST_F(FilePathTest, EqualityTest) {
       b.value();
   }
 
-  
   for (size_t i = 0; i < arraysize(cases); ++i) {
     FilePath a(cases[i].inputs[0]);
     FilePath b(cases[i].inputs[1]);
@@ -734,3 +733,35 @@ TEST_F(FilePathTest, MatchesExtension) {
         "i: " << i << ", path: " << path.value() << ", ext: " << ext;
   }
 }
+
+TEST_F(FilePathTest, ReferencesParent) {
+  const struct UnaryBooleanTestData cases[] = {
+    { FPL("."),        false },
+    { FPL(".."),       true },
+    { FPL("a.."),      false },
+    { FPL("..a"),      false },
+    { FPL("../"),      true },
+    { FPL("/.."),      true },
+    { FPL("/../"),     true },
+    { FPL("/a../"),    false },
+    { FPL("/..a/"),    false },
+    { FPL("//.."),     true },
+    { FPL("..//"),     true },
+    { FPL("//..//"),   true },
+    { FPL("a//..//c"), true },
+    { FPL("../b/c"),   true },
+    { FPL("/../b/c"),  true },
+    { FPL("a/b/.."),   true },
+    { FPL("a/b/../"),  true },
+    { FPL("a/../c"),   true },
+    { FPL("a/b/c"),    false },
+  };
+
+  for (size_t i = 0; i < arraysize(cases); ++i) {
+    FilePath input(cases[i].input);
+    bool observed = input.ReferencesParent();
+    EXPECT_EQ(cases[i].expected, observed) <<
+              "i: " << i << ", input: " << input.value();
+  }
+}
+
