@@ -296,6 +296,13 @@ void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
 
 void VideoRendererBase::OnReadComplete(VideoFrame* frame) {
   AutoLock auto_lock(lock_);
+
+  // TODO(ajwong): Work around cause we don't synchronize on stop. Correct
+  // fix is to resolve http://crbug.com/16059.
+  if (state_ == kStopped) {
+    return;
+  }
+
   DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying ||
          state_ == kEnded);
   DCHECK_GT(pending_reads_, 0u);
