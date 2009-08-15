@@ -226,6 +226,10 @@ class FilePath {
   // separator.
   FilePath StripTrailingSeparators() const;
 
+  // Returns true if this FilePath contains any attempt to reference a parent
+  // directory (i.e. has a path component that is ".."
+  bool ReferencesParent() const;
+
   // Older Chromium code assumes that paths are always wstrings.
   // This function converts a wstring to a FilePath, and is useful to smooth
   // porting that old code to the FilePath API.
