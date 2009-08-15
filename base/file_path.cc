@@ -461,3 +461,17 @@ void FilePath::StripTrailingSeparatorsInternal() {
     }
   }
 }
+
+bool FilePath::ReferencesParent() const {
+  std::vector<FilePath::StringType> components;
+  GetComponents(&components);
+
+  std::vector<FilePath::StringType>::const_iterator it = components.begin();
+  for (; it != components.end(); ++it) {
+    const FilePath::StringType& component = *it;
+    if (component == kParentDirectory)
+      return true;
+  }
+  return false;
+}
+
