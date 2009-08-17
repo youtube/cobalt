@@ -132,8 +132,10 @@ int ClientSocketPoolBaseHelper::RequestSocket(
     DecrementIdleCount();
     if (idle_socket.socket->IsConnectedAndIdle()) {
       // We found one we can reuse!
+      base::TimeDelta idle_time =
+          base::TimeTicks::Now() - idle_socket.start_time;
       HandOutSocket(
-          idle_socket.socket, idle_socket.used, handle, &group);
+          idle_socket.socket, idle_socket.used, handle, idle_time, &group);
       return OK;
     }
     delete idle_socket.socket;
@@ -147,7 +149,7 @@ int ClientSocketPoolBaseHelper::RequestSocket(
   int rv = connect_job->Connect();
   if (rv == OK) {
     HandOutSocket(connect_job->ReleaseSocket(), false /* not reused */,
-                  handle, &group);
+                  handle, base::TimeDelta(), &group);
   } else if (rv == ERR_IO_PENDING) {
     connecting_socket_count_++;
 
@@ -395,7 +397,8 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
         scoped_ptr<const Request> r(group.pending_requests.front());
         group.pending_requests.pop_front();
         HandOutSocket(
-            socket.release(), false /* unused socket */, r->handle(), &group);
+            socket.release(), false /* unused socket */, r->handle(),
+            base::TimeDelta(), &group);
         r->callback()->Run(result);
       } else {
         AddIdleSocket(socket.release(), false /* unused socket */, &group);
@@ -431,7 +434,8 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
     MaybeOnAvailableSocketSlot(group_name);
   } else {
     DCHECK(socket.get());
-    HandOutSocket(socket.release(), false /* not reused */, handle, &group);
+    HandOutSocket(socket.release(), false /* not reused */, handle,
+                  base::TimeDelta(), &group);
     callback->Run(result);
   }
 }
@@ -520,10 +524,12 @@ void ClientSocketPoolBaseHelper::HandOutSocket(
     ClientSocket* socket,
     bool reused,
     ClientSocketHandle* handle,
+    base::TimeDelta idle_time,
     Group* group) {
   DCHECK(socket);
   handle->set_socket(socket);
   handle->set_is_reused(reused);
+  handle->set_idle_time(idle_time);
 
   handed_out_socket_count_++;
   group->active_socket_count++;

@@ -10,6 +10,7 @@
 #include "base/logging.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/time.h"
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
@@ -26,6 +27,13 @@ namespace net {
 //
 class ClientSocketHandle {
  public:
+  typedef enum {
+    UNUSED = 0,
+    UNUSED_IDLE,
+    REUSED_IDLE,
+    NUM_TYPES,
+  } SocketReuseType;
+
   explicit ClientSocketHandle(ClientSocketPool* pool);
   ~ClientSocketHandle();
 
@@ -72,15 +80,29 @@ class ClientSocketHandle {
   // Returns true when Init() has completed successfully.
   bool is_initialized() const { return socket_ != NULL; }
 
+  // Returns the time tick when Init() was called.
+  base::TimeTicks init_time() const { return init_time_; }
+
   // Used by ClientSocketPool to initialize the ClientSocketHandle.
   void set_is_reused(bool is_reused) { is_reused_ = is_reused; }
   void set_socket(ClientSocket* s) { socket_.reset(s); }
+  void set_idle_time(base::TimeDelta idle_time) { idle_time_ = idle_time; }
 
   // These may only be used if is_initialized() is true.
   const std::string& group_name() const { return group_name_; }
   ClientSocket* socket() { return socket_.get(); }
   ClientSocket* release_socket() { return socket_.release(); }
   bool is_reused() const { return is_reused_; }
+  base::TimeDelta idle_time() const { return idle_time_; }
+  SocketReuseType reuse_type() const {
+    if (is_reused()) {
+      return REUSED_IDLE;
+    } else if (idle_time() == base::TimeDelta()) {
+      return UNUSED;
+    } else {
+      return UNUSED_IDLE;
+    }
+  }
 
  private:
   // Called on asynchronous completion of an Init() request.
@@ -100,6 +122,8 @@ class ClientSocketHandle {
   bool is_reused_;
   CompletionCallbackImpl<ClientSocketHandle> callback_;
   CompletionCallback* user_callback_;
+  base::TimeDelta idle_time_;
+  base::TimeTicks init_time_;
 
   DISALLOW_COPY_AND_ASSIGN(ClientSocketHandle);
 };
@@ -114,6 +138,7 @@ int ClientSocketHandle::Init(const std::string& group_name,
   CHECK(!group_name.empty());
   ResetInternal(true);
   group_name_ = group_name;
+  init_time_ = base::TimeTicks::Now();
   int rv = pool_->RequestSocket(
       group_name, &socket_params, priority, this, &callback_, load_log);
   if (rv == ERR_IO_PENDING) {

@@ -41,6 +41,8 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
   group_name_.clear();
   is_reused_ = false;
   user_callback_ = NULL;
+  idle_time_ = base::TimeDelta();
+  init_time_ = base::TimeTicks();
 }
 
 LoadState ClientSocketHandle::GetLoadState() const {

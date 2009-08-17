@@ -312,6 +312,7 @@ class ClientSocketPoolBaseHelper
   void HandOutSocket(ClientSocket* socket,
                      bool reused,
                      ClientSocketHandle* handle,
+                     base::TimeDelta time_idle,
                      Group* group);
 
   // Adds |socket| to the list of idle sockets for |group|.  |used| indicates

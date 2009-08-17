@@ -156,7 +156,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoDrainBodyForAuthRestartComplete(int result);
 
   // Record histograms of latency until Connect() completes.
-  void LogTCPConnectedMetrics(bool reused_socket) const;
+  static void LogTCPConnectedMetrics(const ClientSocketHandle& handle);
 
   // Record histogram of time until first byte of header is received.
   void LogTransactionConnectedMetrics() const;
@@ -167,6 +167,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Writes a log message to help debugging in the field when we block a proxy
   // response to a CONNECT request.
   void LogBlockedTunnelResponse(int response_code) const;
+
+  static void LogIOErrorMetrics(const ClientSocketHandle& handle);
 
   // Called when header_buf_ contains the complete response headers.
   int DidReadResponseHeaders();
@@ -403,9 +405,6 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   // The time the Connect() method was called (if it got called).
   base::Time connect_start_time_;
-
-  // The time that we request the ClientSocketPool for a connected socket.
-  base::TimeTicks transport_socket_request_time_;
 
   // The next state in the state machine.
   State next_state_;
