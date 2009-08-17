@@ -103,6 +103,13 @@ class ProxyService {
   // |new_proxy_config_service|.
   void ResetConfigService(ProxyConfigService* new_proxy_config_service);
 
+  // Returns the log for the most recent WPAD + PAC initialization.
+  // (This shows how much time was spent downloading and parsing the
+  // PAC scripts for the current configuration).
+  LoadLog* init_proxy_resolver_log() const {
+    return init_proxy_resolver_log_;
+  }
+
   // Creates a proxy service using the specified settings. If |pc| is NULL then
   // the system's default proxy settings will be used (on Windows this will
   // use IE's settings).
@@ -223,6 +230,9 @@ class ProxyService {
 
   // Helper to download the PAC script (wpad + custom) and apply fallback rules.
   scoped_ptr<InitProxyResolver> init_proxy_resolver_;
+
+  // Log from the *last* time |init_proxy_resolver_.Init()| was called, or NULL.
+  scoped_refptr<LoadLog> init_proxy_resolver_log_;
 
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;
