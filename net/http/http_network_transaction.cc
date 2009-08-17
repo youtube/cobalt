@@ -627,8 +627,6 @@ int HttpNetworkTransaction::DoInitConnection() {
     resolve_info.set_allow_cached_response(false);
   }
 
-  transport_socket_request_time_ = base::TimeTicks::Now();
-
   int rv = connection_.Init(connection_group, resolve_info,
                             request_->priority, &io_callback_, NULL);
   return rv;
@@ -640,11 +638,12 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
 
   DCHECK(connection_.is_initialized());
 
+  LogTCPConnectedMetrics(connection_);
+
   // Set the reused_socket_ flag to indicate that we are using a keep-alive
   // connection.  This flag is used to handle errors that occur while we are
   // trying to reuse a keep-alive connection.
   reused_socket_ = connection_.is_reused();
-  LogTCPConnectedMetrics(reused_socket_);
   if (reused_socket_) {
     next_state_ = STATE_WRITE_HEADERS;
   } else {
@@ -1097,21 +1096,34 @@ int HttpNetworkTransaction::DoDrainBodyForAuthRestartComplete(int result) {
   return OK;
 }
 
-void HttpNetworkTransaction::LogTCPConnectedMetrics(bool reused_socket) const {
-  base::TimeDelta time_to_obtain_connected_socket =
-      base::TimeTicks::Now() - transport_socket_request_time_;
+void HttpNetworkTransaction::LogTCPConnectedMetrics(
+    const ClientSocketHandle& handle) {
+  const base::TimeDelta time_to_obtain_connected_socket =
+      base::TimeTicks::Now() - handle.init_time();
 
-  if (!reused_socket) {
+  static const bool use_late_binding_histogram =
+      !FieldTrial::MakeName("", "SocketLateBinding").empty();
+
+  if (handle.reuse_type() == ClientSocketHandle::UNUSED) {
     UMA_HISTOGRAM_CLIPPED_TIMES(
         "Net.Dns_Resolution_And_TCP_Connection_Latency",
         time_to_obtain_connected_socket,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
+  }
 
-    UMA_HISTOGRAM_COUNTS_100(
-        "Net.TCP_Connection_Idle_Sockets",
-        session_->connection_pool()->IdleSocketCountInGroup(
-            connection_.group_name()));
+  static LinearHistogram tcp_socket_type_counter(
+      "Net.TCPSocketType",
+      0, ClientSocketHandle::NUM_TYPES, ClientSocketHandle::NUM_TYPES + 1);
+  tcp_socket_type_counter.SetFlags(kUmaTargetedHistogramFlag);
+  tcp_socket_type_counter.Add(handle.reuse_type());
+
+  if (use_late_binding_histogram) {
+    static LinearHistogram tcp_socket_type_counter2(
+        FieldTrial::MakeName("Net.TCPSocketType", "SocketLateBinding").data(),
+        0, ClientSocketHandle::NUM_TYPES, ClientSocketHandle::NUM_TYPES + 1);
+    tcp_socket_type_counter2.SetFlags(kUmaTargetedHistogramFlag);
+    tcp_socket_type_counter2.Add(handle.reuse_type());
   }
 
   UMA_HISTOGRAM_CLIPPED_TIMES(
@@ -1120,9 +1132,6 @@ void HttpNetworkTransaction::LogTCPConnectedMetrics(bool reused_socket) const {
       base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
       100);
 
-  static const bool use_late_binding_histogram =
-      !FieldTrial::MakeName("", "SocketLateBinding").empty();
-
   if (use_late_binding_histogram) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
         FieldTrial::MakeName("Net.TransportSocketRequestTime",
@@ -1130,6 +1139,55 @@ void HttpNetworkTransaction::LogTCPConnectedMetrics(bool reused_socket) const {
         time_to_obtain_connected_socket,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
+  }
+}
+
+void HttpNetworkTransaction::LogIOErrorMetrics(
+    const ClientSocketHandle& handle) {
+  static const bool use_late_binding_histogram =
+      !FieldTrial::MakeName("", "SocketLateBinding").empty();
+
+  static LinearHistogram io_error_socket_type_counter(
+      "Net.IOError_SocketReuseType",
+      0, ClientSocketHandle::NUM_TYPES, ClientSocketHandle::NUM_TYPES + 1);
+  io_error_socket_type_counter.SetFlags(kUmaTargetedHistogramFlag);
+  io_error_socket_type_counter.Add(handle.reuse_type());
+
+  if (use_late_binding_histogram) {
+    static LinearHistogram io_error_socket_type_counter(
+        FieldTrial::MakeName("Net.IOError_SocketReuseType",
+                             "SocketLateBinding").data(),
+        0, ClientSocketHandle::NUM_TYPES, ClientSocketHandle::NUM_TYPES + 1);
+    io_error_socket_type_counter.SetFlags(kUmaTargetedHistogramFlag);
+    io_error_socket_type_counter.Add(handle.reuse_type());
+  }
+
+  switch (handle.reuse_type()) {
+    case ClientSocketHandle::UNUSED:
+      break;
+    case ClientSocketHandle::UNUSED_IDLE:
+      UMA_HISTOGRAM_TIMES("Net.SocketIdleTimeOnIOError_UnusedSocket",
+                          handle.idle_time());
+      if (use_late_binding_histogram) {
+        UMA_HISTOGRAM_TIMES(
+            FieldTrial::MakeName("Net.SocketIdleTimeOnIOError_UnusedSocket",
+                                 "SocketLateBinding").data(),
+            handle.idle_time());
+      }
+      break;
+    case ClientSocketHandle::REUSED_IDLE:
+      UMA_HISTOGRAM_TIMES("Net.SocketIdleTimeOnIOError_ReusedSocket",
+                          handle.idle_time());
+      if (use_late_binding_histogram) {
+        UMA_HISTOGRAM_TIMES(
+            FieldTrial::MakeName("Net.SocketIdleTimeOnIOError_ReusedSocket",
+                                 "SocketLateBinding").data(),
+            handle.idle_time());
+      }
+      break;
+    default:
+      NOTREACHED();
+      break;
   }
 }
 
@@ -1466,6 +1524,7 @@ int HttpNetworkTransaction::HandleIOError(int error) {
     case ERR_CONNECTION_RESET:
     case ERR_CONNECTION_CLOSED:
     case ERR_CONNECTION_ABORTED:
+      LogIOErrorMetrics(connection_);
       if (ShouldResendRequest()) {
         ResetConnectionAndRequestForResend();
         error = OK;
