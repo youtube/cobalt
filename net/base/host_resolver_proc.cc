@@ -157,6 +157,23 @@ int SystemHostResolverProc(const std::string& host, AddressList* addrlist) {
   //   address.
   // See http://crbug.com/5234.
   hints.ai_flags = 0;
+#elif defined(OS_MACOSX)
+  // We don't need to use AI_ADDRCONFIG on Mac OS X.  There are two evidences:
+  //
+  // 1. The getaddrinfo man page on Mac OS X documents only three flags:
+  // AI_CANONNAME, AI_NUMERICHOST, and AI_PASSIVE, and shows an example that
+  // sets hints.ai_flags to 0.
+  // 2. The <netdb.h> header lists only those three flags in the comment after
+  // the ai_flags field of struct addrinfo, and defines an AI_MASK macro as
+  // the bitwise-OR of those three flags with the comment "valid flags for
+  // addrinfo".
+  //
+  // But is it harmful to use AI_ADDRCONFIG?  Unfortunately I can't find a
+  // definitive answer by browsing the getaddrinfo source code in Darwin (in
+  // the Libinfo project).
+  //
+  // See http://crbug.com/12711.
+  hints.ai_flags = 0;
 #else
   hints.ai_flags = AI_ADDRCONFIG;
 #endif
