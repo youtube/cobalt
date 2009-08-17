@@ -11,6 +11,7 @@
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/proxy/init_proxy_resolver.h"
@@ -77,7 +78,8 @@ class ProxyService::PacRequest
   PacRequest(ProxyService* service,
              const GURL& url,
              ProxyInfo* results,
-             CompletionCallback* user_callback)
+             CompletionCallback* user_callback,
+             LoadLog* load_log)
       : service_(service),
         user_callback_(user_callback),
         ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
@@ -85,7 +87,8 @@ class ProxyService::PacRequest
         results_(results),
         url_(url),
         resolve_job_(NULL),
-        config_id_(ProxyConfig::INVALID_ID) {
+        config_id_(ProxyConfig::INVALID_ID),
+        load_log_(load_log) {
     DCHECK(user_callback);
   }
 
@@ -96,8 +99,11 @@ class ProxyService::PacRequest
 
     config_id_ = service_->config_.id();
 
+    // TODO(eroman): ProxyResolver::GetProxyForURL should take LoadLog*.
+    // Then we can pass in |load_log_| and understand how much time is
+    // spent in bindings like dnsResolve()!
     return resolver()->GetProxyForURL(
-        url_, results_, &io_callback_, &resolve_job_);
+        url_, results_, &io_callback_, &resolve_job_/*, load_log_*/);
   }
 
   bool is_started() const {
@@ -114,21 +120,25 @@ class ProxyService::PacRequest
   }
 
   void CancelResolveJob() {
+    DCHECK(is_started());
     // The request may already be running in the resolver.
-    if (is_started()) {
-      resolver()->CancelRequest(resolve_job_);
-      resolve_job_ = NULL;
-    }
+    resolver()->CancelRequest(resolve_job_);
+    resolve_job_ = NULL;
     DCHECK(!is_started());
   }
 
   void Cancel() {
-    CancelResolveJob();
+    LoadLog::AddEvent(load_log_, LoadLog::TYPE_CANCELLED);
+
+    if (is_started())
+      CancelResolveJob();
 
     // Mark as cancelled, to prevent accessing this again later.
     service_ = NULL;
     user_callback_ = NULL;
     results_ = NULL;
+
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_PROXY_SERVICE);
   }
 
   // Returns true if Cancel() has been called.
@@ -154,8 +164,12 @@ class ProxyService::PacRequest
     if (result_code == OK)
       results_->RemoveBadProxies(service_->proxy_retry_info_);
 
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_PROXY_SERVICE);
+
     return result_code;
   }
+
+  LoadLog* load_log() const { return load_log_; }
 
  private:
   // Callback for when the ProxyResolver request has completed.
@@ -179,6 +193,7 @@ class ProxyService::PacRequest
   GURL url_;
   ProxyResolver::RequestHandle resolve_job_;
   ProxyConfig::ID config_id_;  // The config id when the resolve was started.
+  scoped_refptr<LoadLog> load_log_;
 };
 
 // ProxyService ---------------------------------------------------------------
@@ -253,6 +268,8 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
                                LoadLog* load_log) {
   DCHECK(callback);
 
+  LoadLog::BeginEvent(load_log, LoadLog::TYPE_PROXY_SERVICE);
+
   // Strip away any reference fragments and the username/password, as they
   // are not relevant to proxy resolution.
   GURL url = SimplifyUrlForRequest(raw_url);
@@ -261,10 +278,13 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
   // using a direct connection, or when the config is bad.
   UpdateConfigIfOld();
   int rv = TryToCompleteSynchronously(url, result);
-  if (rv != ERR_IO_PENDING)
+  if (rv != ERR_IO_PENDING) {
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_PROXY_SERVICE);
     return rv;
+  }
 
-  scoped_refptr<PacRequest> req = new PacRequest(this, url, result, callback);
+  scoped_refptr<PacRequest> req =
+      new PacRequest(this, url, result, callback, load_log);
 
   bool resolver_is_ready = !IsInitializingProxyResolver();
 
@@ -273,6 +293,9 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
     rv = req->Start();
     if (rv != ERR_IO_PENDING)
       return req->QueryDidComplete(rv);
+  } else {
+    LoadLog::BeginEvent(req->load_log(),
+        LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
   }
 
   DCHECK_EQ(ERR_IO_PENDING, rv);
@@ -363,7 +386,13 @@ void ProxyService::SuspendAllPendingRequests() {
   for (PendingRequests::iterator it = pending_requests_.begin();
        it != pending_requests_.end();
        ++it) {
-    it->get()->CancelResolveJob();
+    PacRequest* req = it->get();
+    if (req->is_started()) {
+      req->CancelResolveJob();
+
+      LoadLog::BeginEvent(req->load_log(),
+          LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
+    }
   }
 }
 
@@ -380,6 +409,9 @@ void ProxyService::ResumeAllPendingRequests() {
        ++it) {
     PacRequest* req = it->get();
     if (!req->is_started() && !req->was_cancelled()) {
+      LoadLog::EndEvent(req->load_log(),
+          LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
+
       // Note that we re-check for synchronous completion, in case we are
       // no longer using a ProxyResolver (can happen if we fell-back to manual).
       req->StartAndCompleteCheckingForSynchronous();
@@ -590,8 +622,12 @@ void ProxyService::SetConfig(const ProxyConfig& config) {
 
     init_proxy_resolver_.reset(
         new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get()));
+
+    init_proxy_resolver_log_ = new LoadLog;
+
     int rv = init_proxy_resolver_->Init(
-        config_, &init_proxy_resolver_callback_);
+        config_, &init_proxy_resolver_callback_, init_proxy_resolver_log_);
+
     if (rv != ERR_IO_PENDING)
       OnInitProxyResolverComplete(rv);
   }
