@@ -70,12 +70,12 @@
           'dependencies': [
             '../zlib/zlib.gyp:zlib',
           ],
-          'defines': [
-            'USE_SYSTEM_LIBPNG',
-          ],
           'direct_dependent_settings': {
             'cflags': [
               '<!@(pkg-config --cflags libpng)',
+            ],
+            'defines': [
+              'USE_SYSTEM_LIBPNG',
             ],
           },
           'link_settings': {
