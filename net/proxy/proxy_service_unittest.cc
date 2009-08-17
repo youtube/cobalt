@@ -7,6 +7,8 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/load_log.h"
+#include "net/base/load_log_unittest.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/proxy/mock_proxy_resolver.h"
@@ -92,11 +94,18 @@ TEST(ProxyServiceTest, Direct) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  int rv = service.ResolveProxy(url, &info, &callback, NULL, NULL);
+  scoped_refptr<LoadLog> log(new LoadLog);
+  int rv = service.ResolveProxy(url, &info, &callback, NULL, log);
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(resolver->pending_requests().empty());
+  EXPECT_TRUE(NULL == service.init_proxy_resolver_log());
 
   EXPECT_TRUE(info.is_direct());
+
+  // Check the LoadLog was filled correctly.
+  EXPECT_EQ(2u, log->events().size());
+  ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log, 1, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
 
 TEST(ProxyServiceTest, PAC) {
@@ -111,11 +120,13 @@ TEST(ProxyServiceTest, PAC) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  int rv = service.ResolveProxy(url, &info, &callback, NULL, NULL);
+  scoped_refptr<LoadLog> log(new LoadLog);
+  int rv = service.ResolveProxy(url, &info, &callback, NULL, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
             resolver->pending_set_pac_script_request()->pac_url());
+  EXPECT_FALSE(NULL == service.init_proxy_resolver_log());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -128,6 +139,15 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_FALSE(info.is_direct());
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
+
+  // Check the LoadLog was filled correctly.
+  EXPECT_EQ(4u, log->events().size());
+  ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log, 1, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
+      LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log, 2, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
+      LoadLog::PHASE_END);
+  ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
 
 // Test that the proxy resolver does not see the URL's username/password
@@ -989,8 +1009,9 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   ProxyInfo info1;
   TestCompletionCallback callback1;
   ProxyService::PacRequest* request1;
+  scoped_refptr<LoadLog> log1(new LoadLog);
   int rv = service.ResolveProxy(
-      GURL("http://request1"), &info1, &callback1, &request1, NULL);
+      GURL("http://request1"), &info1, &callback1, &request1, log1);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // The first request should have triggered download of PAC script.
@@ -1041,6 +1062,16 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
 
   EXPECT_FALSE(callback1.have_result());  // Cancelled.
   EXPECT_FALSE(callback2.have_result());  // Cancelled.
+
+  // Check the LoadLog for request 1 (which was cancelled) got filled properly.
+  EXPECT_EQ(4u, log1->events().size());
+  ExpectLogContains(log1, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log1, 1, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
+      LoadLog::PHASE_BEGIN);
+  // Note that TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC is never completed before
+  // the cancellation occured.
+  ExpectLogContains(log1, 2, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
+  ExpectLogContains(log1, 3, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
 
 // Test that if auto-detect fails, we fall-back to the custom pac.
