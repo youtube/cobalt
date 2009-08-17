@@ -344,12 +344,7 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
   }
 }
 
-// TODO(eroman): This test is disabled because it is bogus. It used to pass
-// solely because of a bug in the RuleBasedHostMapper -- (empty replacements
-// would map to a failure). However when using the actual host resolver
-// (getaddrinfo), this is not necessarily the case. On windows getaddrinfo("")
-// gives you the address of your machine.
-TEST_F(HostResolverImplTest, DISABLED_EmptyHost) {
+TEST_F(HostResolverImplTest, EmptyHost) {
   scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AllowDirectLookup("*");
