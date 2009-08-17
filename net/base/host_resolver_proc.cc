@@ -125,6 +125,12 @@ ThreadLocalStorage::Slot DnsReloadTimer::tls_index_(base::LINKER_INITIALIZED);
 #endif  // defined(OS_LINUX)
 
 int SystemHostResolverProc(const std::string& host, AddressList* addrlist) {
+  // The result of |getaddrinfo| for empty hosts is inconsistent across systems.
+  // On Windows it gives the default interface's address, whereas on Linux it
+  // gives an error. We will make it fail on all platforms for consistency.
+  if (host.empty())
+    return ERR_NAME_NOT_RESOLVED;
+
   struct addrinfo* ai = NULL;
   struct addrinfo hints = {0};
   hints.ai_family = AF_UNSPEC;
