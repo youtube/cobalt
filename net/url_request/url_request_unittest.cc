@@ -119,7 +119,8 @@ class URLRequestTest : public PlatformTest {
 class URLRequestTestHTTP : public URLRequestTest {
  protected:
   static void SetUpTestCase() {
-    server_ = HTTPTestServer::CreateForkingServer(L"");
+    server_ = HTTPTestServer::CreateForkingServer(
+        L"net/data/url_request_unittest/");
   }
 
   static void TearDownTestCase() {
@@ -357,7 +358,7 @@ TEST_F(HTTPSRequestTest, MAYBE_HTTPSExpiredTest) {
   }
 }
 
-TEST_F(URLRequestTest, CancelTest) {
+TEST_F(URLRequestTestHTTP, CancelTest) {
   TestDelegate d;
   {
     TestURLRequest r(GURL("http://www.google.com/"), &d);
@@ -380,17 +381,15 @@ TEST_F(URLRequestTest, CancelTest) {
 #endif
 }
 
-TEST_F(URLRequestTest, CancelTest2) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, CancelTest2) {
+  ASSERT_TRUE(NULL != server_.get());
 
   // error C2446: '!=' : no conversion from 'HTTPTestServer *const '
   // to 'const int'
 
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage(""), &d);
+    TestURLRequest r(server_->TestServerPage(""), &d);
 
     d.set_cancel_in_response_started(true);
 
@@ -409,13 +408,11 @@ TEST_F(URLRequestTest, CancelTest2) {
 #endif
 }
 
-TEST_F(URLRequestTest, CancelTest3) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, CancelTest3) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage(""), &d);
+    TestURLRequest r(server_->TestServerPage(""), &d);
 
     d.set_cancel_in_received_data(true);
 
@@ -437,13 +434,11 @@ TEST_F(URLRequestTest, CancelTest3) {
 #endif
 }
 
-TEST_F(URLRequestTest, CancelTest4) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, CancelTest4) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage(""), &d);
+    TestURLRequest r(server_->TestServerPage(""), &d);
 
     r.Start();
     EXPECT_TRUE(r.is_pending());
@@ -463,16 +458,14 @@ TEST_F(URLRequestTest, CancelTest4) {
   EXPECT_EQ(0, d.bytes_received());
 }
 
-TEST_F(URLRequestTest, CancelTest5) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, CancelTest5) {
+  ASSERT_TRUE(NULL != server_.get());
   scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
 
   // populate cache
   {
     TestDelegate d;
-    URLRequest r(server->TestServerPage("cachetime"), &d);
+    URLRequest r(server_->TestServerPage("cachetime"), &d);
     r.set_context(context);
     r.Start();
     MessageLoop::current()->Run();
@@ -482,7 +475,7 @@ TEST_F(URLRequestTest, CancelTest5) {
   // cancel read from cache (see bug 990242)
   {
     TestDelegate d;
-    URLRequest r(server->TestServerPage("cachetime"), &d);
+    URLRequest r(server_->TestServerPage("cachetime"), &d);
     r.set_context(context);
     r.Start();
     r.Cancel();
@@ -499,10 +492,8 @@ TEST_F(URLRequestTest, CancelTest5) {
 #endif
 }
 
-TEST_F(URLRequestTest, PostTest) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, PostTest) {
+  ASSERT_TRUE(NULL != server_.get());
   const int kMsgSize = 20000;  // multiple of 10
   const int kIterations = 50;
   char *uploadBytes = new char[kMsgSize+1];
@@ -524,7 +515,7 @@ TEST_F(URLRequestTest, PostTest) {
 
   for (int i = 0; i < kIterations; ++i) {
     TestDelegate d;
-    URLRequest r(server->TestServerPage("echo"), &d);
+    URLRequest r(server_->TestServerPage("echo"), &d);
     r.set_context(context);
     r.set_method("POST");
 
@@ -549,13 +540,11 @@ TEST_F(URLRequestTest, PostTest) {
 #endif
 }
 
-TEST_F(URLRequestTest, PostEmptyTest) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, PostEmptyTest) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage("echo"), &d);
+    TestURLRequest r(server_->TestServerPage("echo"), &d);
     r.set_method("POST");
 
     r.Start();
@@ -574,13 +563,11 @@ TEST_F(URLRequestTest, PostEmptyTest) {
 #endif
 }
 
-TEST_F(URLRequestTest, PostFileTest) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, PostFileTest) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage("echo"), &d);
+    TestURLRequest r(server_->TestServerPage("echo"), &d);
     r.set_method("POST");
 
     FilePath dir;
@@ -824,12 +811,10 @@ TEST_F(URLRequestTest, DISABLED_DnsFailureTest) {
 #endif
 }
 
-TEST_F(URLRequestTest, ResponseHeadersTest) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, ResponseHeadersTest) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
-  TestURLRequest req(server->TestServerPage("files/with-headers.html"), &d);
+  TestURLRequest req(server_->TestServerPage("files/with-headers.html"), &d);
   req.Start();
   MessageLoop::current()->Run();
 
@@ -979,13 +964,11 @@ TEST_F(URLRequestTest, ResolveShortcutTest) {
 }
 #endif  // defined(OS_WIN)
 
-TEST_F(URLRequestTest, ContentTypeNormalizationTest) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, ContentTypeNormalizationTest) {
+  ASSERT_TRUE(NULL != server_.get());
 
   TestDelegate d;
-  TestURLRequest req(server->TestServerPage(
+  TestURLRequest req(server_->TestServerPage(
       "files/content-type-normalization.html"), &d);
   req.Start();
   MessageLoop::current()->Run();
@@ -1027,13 +1010,11 @@ TEST_F(URLRequestTest, FileDirCancelTest) {
   net::NetModule::SetResourceProvider(NULL);
 }
 
-TEST_F(URLRequestTest, RestrictRedirects) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, RestrictRedirects) {
+  ASSERT_TRUE(NULL != server_.get());
 
   TestDelegate d;
-  TestURLRequest req(server->TestServerPage(
+  TestURLRequest req(server_->TestServerPage(
       "files/redirect-to-file.html"), &d);
   req.Start();
   MessageLoop::current()->Run();
@@ -1042,13 +1023,11 @@ TEST_F(URLRequestTest, RestrictRedirects) {
   EXPECT_EQ(net::ERR_UNSAFE_REDIRECT, req.status().os_error());
 }
 
-TEST_F(URLRequestTest, RedirectToInvalidURL) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, RedirectToInvalidURL) {
+  ASSERT_TRUE(NULL != server_.get());
 
   TestDelegate d;
-  TestURLRequest req(server->TestServerPage(
+  TestURLRequest req(server_->TestServerPage(
       "files/redirect-to-invalid-url.html"), &d);
   req.Start();
   MessageLoop::current()->Run();
@@ -1057,12 +1036,10 @@ TEST_F(URLRequestTest, RedirectToInvalidURL) {
   EXPECT_EQ(net::ERR_INVALID_URL, req.status().os_error());
 }
 
-TEST_F(URLRequestTest, NoUserPassInReferrer) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, NoUserPassInReferrer) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
-  TestURLRequest req(server->TestServerPage(
+  TestURLRequest req(server_->TestServerPage(
       "echoheader?Referer"), &d);
   req.set_referrer("http://user:pass@foo.com/");
   req.Start();
@@ -1071,14 +1048,12 @@ TEST_F(URLRequestTest, NoUserPassInReferrer) {
   EXPECT_EQ(std::string("http://foo.com/"), d.data_received());
 }
 
-TEST_F(URLRequestTest, CancelRedirect) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, CancelRedirect) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
     d.set_cancel_in_received_redirect(true);
-    TestURLRequest req(server->TestServerPage(
+    TestURLRequest req(server_->TestServerPage(
         "files/redirect-test.html"), &d);
     req.Start();
     MessageLoop::current()->Run();
@@ -1090,14 +1065,12 @@ TEST_F(URLRequestTest, CancelRedirect) {
   }
 }
 
-TEST_F(URLRequestTest, DeferredRedirect) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, DeferredRedirect) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
     d.set_quit_on_redirect(true);
-    TestURLRequest req(server->TestServerPage(
+    TestURLRequest req(server_->TestServerPage(
         "files/redirect-test.html"), &d);
     req.Start();
     MessageLoop::current()->Run();
@@ -1124,14 +1097,12 @@ TEST_F(URLRequestTest, DeferredRedirect) {
   }
 }
 
-TEST_F(URLRequestTest, CancelDeferredRedirect) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, CancelDeferredRedirect) {
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
     d.set_quit_on_redirect(true);
-    TestURLRequest req(server->TestServerPage(
+    TestURLRequest req(server_->TestServerPage(
         "files/redirect-test.html"), &d);
     req.Start();
     MessageLoop::current()->Run();
@@ -1148,10 +1119,8 @@ TEST_F(URLRequestTest, CancelDeferredRedirect) {
   }
 }
 
-TEST_F(URLRequestTest, VaryHeader) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, VaryHeader) {
+  ASSERT_TRUE(NULL != server_.get());
 
   scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
 
@@ -1160,7 +1129,7 @@ TEST_F(URLRequestTest, VaryHeader) {
   // populate the cache
   {
     TestDelegate d;
-    URLRequest req(server->TestServerPage("echoheader?foo"), &d);
+    URLRequest req(server_->TestServerPage("echoheader?foo"), &d);
     req.set_context(context);
     req.SetExtraRequestHeaders("foo:1");
     req.Start();
@@ -1176,7 +1145,7 @@ TEST_F(URLRequestTest, VaryHeader) {
   // expect a cache hit
   {
     TestDelegate d;
-    URLRequest req(server->TestServerPage("echoheader?foo"), &d);
+    URLRequest req(server_->TestServerPage("echoheader?foo"), &d);
     req.set_context(context);
     req.SetExtraRequestHeaders("foo:1");
     req.Start();
@@ -1188,7 +1157,7 @@ TEST_F(URLRequestTest, VaryHeader) {
   // expect a cache miss
   {
     TestDelegate d;
-    URLRequest req(server->TestServerPage("echoheader?foo"), &d);
+    URLRequest req(server_->TestServerPage("echoheader?foo"), &d);
     req.set_context(context);
     req.SetExtraRequestHeaders("foo:2");
     req.Start();
@@ -1198,11 +1167,9 @@ TEST_F(URLRequestTest, VaryHeader) {
   }
 }
 
-TEST_F(URLRequestTest, BasicAuth) {
+TEST_F(URLRequestTestHTTP, BasicAuth) {
   scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+  ASSERT_TRUE(NULL != server_.get());
 
   Time response_time;
 
@@ -1212,7 +1179,7 @@ TEST_F(URLRequestTest, BasicAuth) {
     d.set_username(L"user");
     d.set_password(L"secret");
 
-    URLRequest r(server->TestServerPage("auth-basic"), &d);
+    URLRequest r(server_->TestServerPage("auth-basic"), &d);
     r.set_context(context);
     r.Start();
 
@@ -1235,7 +1202,7 @@ TEST_F(URLRequestTest, BasicAuth) {
     d.set_username(L"user");
     d.set_password(L"secret");
 
-    URLRequest r(server->TestServerPage("auth-basic"), &d);
+    URLRequest r(server_->TestServerPage("auth-basic"), &d);
     r.set_context(context);
     r.set_load_flags(net::LOAD_VALIDATE_CACHE);
     r.Start();
@@ -1252,13 +1219,11 @@ TEST_F(URLRequestTest, BasicAuth) {
 
 // Check that Set-Cookie headers in 401 responses are respected.
 // http://crbug.com/6450
-TEST_F(URLRequestTest, BasicAuthWithCookies) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"", NULL);
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
+  ASSERT_TRUE(NULL != server_.get());
 
   GURL url_requiring_auth =
-      server->TestServerPage("auth-basic?set-cookie-if-challenged");
+      server_->TestServerPage("auth-basic?set-cookie-if-challenged");
 
   // Request a page that will give a 401 containing a Set-Cookie header.
   // Verify that when the transaction is restarted, it includes the new cookie.
@@ -1312,13 +1277,11 @@ TEST_F(URLRequestTest, BasicAuthWithCookies) {
 // The subsequent transaction should use GET, and should not send the
 // Content-Type header.
 // http://code.google.com/p/chromium/issues/detail?id=843
-TEST_F(URLRequestTest, Post302RedirectGet) {
+TEST_F(URLRequestTestHTTP, Post302RedirectGet) {
   const char kData[] = "hello world";
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
-  TestURLRequest req(server->TestServerPage("files/redirect-to-echoall"), &d);
+  TestURLRequest req(server_->TestServerPage("files/redirect-to-echoall"), &d);
   req.set_method("POST");
   req.set_upload(CreateSimpleUploadData(kData));
 
@@ -1352,13 +1315,11 @@ TEST_F(URLRequestTest, Post302RedirectGet) {
   EXPECT_TRUE(ContainsString(data, "Accept-Charset:"));
 }
 
-TEST_F(URLRequestTest, Post307RedirectPost) {
+TEST_F(URLRequestTestHTTP, Post307RedirectPost) {
   const char kData[] = "hello world";
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/url_request_unittest", NULL);
-  ASSERT_TRUE(NULL != server.get());
+  ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
-  TestURLRequest req(server->TestServerPage("files/redirect307-to-echo"),
+  TestURLRequest req(server_->TestServerPage("files/redirect307-to-echo"),
       &d);
   req.set_method("POST");
   req.set_upload(CreateSimpleUploadData(kData).get());
