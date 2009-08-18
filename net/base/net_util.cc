@@ -494,7 +494,7 @@ bool IsCompatibleWithASCIILetters(const std::string& lang) {
          !lang.substr(0, 2).compare("ko");
 }
 
-typedef std::map<std::string, UnicodeSet*> LangToExemplarSetMap;
+typedef std::map<std::string, icu::UnicodeSet*> LangToExemplarSetMap;
 
 class LangToExemplarSet {
  private:
@@ -506,13 +506,14 @@ class LangToExemplarSet {
 
   friend class Singleton<LangToExemplarSet>;
   friend struct DefaultSingletonTraits<LangToExemplarSet>;
-  friend bool GetExemplarSetForLang(const std::string&, UnicodeSet**);
-  friend void SetExemplarSetForLang(const std::string&, UnicodeSet*);
+  friend bool GetExemplarSetForLang(const std::string&, icu::UnicodeSet**);
+  friend void SetExemplarSetForLang(const std::string&, icu::UnicodeSet*);
 
   DISALLOW_COPY_AND_ASSIGN(LangToExemplarSet);
 };
 
-bool GetExemplarSetForLang(const std::string& lang, UnicodeSet** lang_set) {
+bool GetExemplarSetForLang(const std::string& lang,
+                           icu::UnicodeSet** lang_set) {
   const LangToExemplarSetMap& map = Singleton<LangToExemplarSet>()->map;
   LangToExemplarSetMap::const_iterator pos = map.find(lang);
   if (pos != map.end()) {
@@ -522,7 +523,8 @@ bool GetExemplarSetForLang(const std::string& lang, UnicodeSet** lang_set) {
   return false;
 }
 
-void SetExemplarSetForLang(const std::string& lang, UnicodeSet* lang_set) {
+void SetExemplarSetForLang(const std::string& lang,
+                           icu::UnicodeSet* lang_set) {
   LangToExemplarSetMap& map = Singleton<LangToExemplarSet>()->map;
   map.insert(std::make_pair(lang, lang_set));
 }
@@ -531,10 +533,10 @@ static Lock lang_set_lock;
 
 // Returns true if all the characters in component_characters are used by
 // the language |lang|.
-bool IsComponentCoveredByLang(const UnicodeSet& component_characters,
+bool IsComponentCoveredByLang(const icu::UnicodeSet& component_characters,
                               const std::string& lang) {
-  static const UnicodeSet kASCIILetters(0x61, 0x7a);  // [a-z]
-  UnicodeSet* lang_set;
+  static const icu::UnicodeSet kASCIILetters(0x61, 0x7a);  // [a-z]
+  icu::UnicodeSet* lang_set;
   // We're called from both the UI thread and the history thread.
   {
     AutoLock lock(lang_set_lock);
@@ -549,14 +551,14 @@ bool IsComponentCoveredByLang(const UnicodeSet& component_characters,
       // (issue 2078)
       // DCHECK(U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING);
       if (U_SUCCESS(status) && status != U_USING_DEFAULT_WARNING) {
-        lang_set = reinterpret_cast<UnicodeSet *>(
+        lang_set = reinterpret_cast<icu::UnicodeSet *>(
             ulocdata_getExemplarSet(uld, NULL, 0,
                                     ULOCDATA_ES_STANDARD, &status));
         // If |lang| is compatible with ASCII Latin letters, add them.
         if (IsCompatibleWithASCIILetters(lang))
           lang_set->addAll(kASCIILetters);
       } else {
-        lang_set = new UnicodeSet(1, 0);
+        lang_set = new icu::UnicodeSet(1, 0);
       }
       lang_set->freeze();
       SetExemplarSetForLang(lang, lang_set);
@@ -598,7 +600,7 @@ bool IsIDNComponentSafe(const char16* str,
       L"[\ufffa-\ufffd]]"), status);
 #else
   UnicodeSet dangerous_characters(UnicodeString(
-      "[[\\ \\u0020\\u00bc\\u00bd\\u01c3\\u0337\\u0338"
+      "[[\\u0020\\u00bc\\u00bd\\u01c3\\u0337\\u0338"
       "\\u05c3\\u05f4\\u06d4\\u0702\\u115f\\u1160][\\u2000-\\u200b]"
       "[\\u2024\\u2027\\u2028\\u2029\\u2039\\u203a\\u2044\\u205f]"
       "[\\u2154-\\u2156][\\u2159-\\u215b][\\u215f\\u2215\\u23ae"
@@ -608,8 +610,8 @@ bool IsIDNComponentSafe(const char16* str,
       "[\\ufffa-\\ufffd]]", -1, US_INV), status);
 #endif
   DCHECK(U_SUCCESS(status));
-  UnicodeSet component_characters;
-  component_characters.addAll(UnicodeString(str, str_len));
+  icu::UnicodeSet component_characters;
+  component_characters.addAll(icu::UnicodeString(str, str_len));
   if (dangerous_characters.containsSome(component_characters))
     return false;
 
@@ -626,8 +628,8 @@ bool IsIDNComponentSafe(const char16* str,
   // underscore that are used across scripts and allowed in domain names.
   // (sync'd with characters allowed in url_canon_host with square
   // brackets excluded.) See kHostCharLookup[] array in url_canon_host.cc.
-  UnicodeSet common_characters(UNICODE_STRING_SIMPLE("[[0-9]\\-_+\\ ]"),
-                               status);
+  icu::UnicodeSet common_characters(UNICODE_STRING_SIMPLE("[[0-9]\\-_+\\ ]"),
+                                    status);
   DCHECK(U_SUCCESS(status));
   // Subtract common characters because they're always allowed so that
   // we just have to check if a language-specific set contains
