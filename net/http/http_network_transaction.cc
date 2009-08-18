@@ -139,7 +139,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session,
       request_(NULL),
       pac_request_(NULL),
       socket_factory_(csf),
-      connection_(session->connection_pool()),
       reused_socket_(false),
       using_ssl_(false),
       proxy_mode_(kDirectConnection),
@@ -628,8 +627,8 @@ int HttpNetworkTransaction::DoInitConnection() {
     resolve_info.set_allow_cached_response(false);
   }
 
-  int rv = connection_.Init(connection_group, resolve_info,
-                            request_->priority, &io_callback_, NULL);
+  int rv = connection_.Init(connection_group, resolve_info, request_->priority,
+                            &io_callback_, session_->connection_pool(), NULL);
   return rv;
 }
 

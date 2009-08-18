@@ -11,9 +11,8 @@
 
 namespace net {
 
-ClientSocketHandle::ClientSocketHandle(ClientSocketPool* pool)
-    : pool_(pool),
-      socket_(NULL),
+ClientSocketHandle::ClientSocketHandle()
+    : socket_(NULL),
       is_reused_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           callback_(this, &ClientSocketHandle::OnIOComplete)) {}
@@ -41,6 +40,7 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
   group_name_.clear();
   is_reused_ = false;
   user_callback_ = NULL;
+  pool_ = NULL;
   idle_time_ = base::TimeDelta();
   init_time_ = base::TimeTicks();
 }

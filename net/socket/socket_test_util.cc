@@ -329,21 +329,6 @@ void ClientSocketPoolTest::TearDown() {
   MessageLoop::current()->RunAllPending();
 }
 
-int ClientSocketPoolTest::StartRequestUsingPool(ClientSocketPool* socket_pool,
-                                                const std::string& group_name,
-                                                int priority) {
-  DCHECK(socket_pool);
-  TestSocketRequest* request = new TestSocketRequest(socket_pool,
-                                                     &request_order_,
-                                                     &completion_count_);
-  requests_.push_back(request);
-  int rv = request->handle()->Init(group_name, ignored_request_info_,
-                                   priority, request, NULL);
-  if (rv != ERR_IO_PENDING)
-    request_order_.push_back(request);
-  return rv;
-}
-
 int ClientSocketPoolTest::GetOrderOfRequest(size_t index) {
   index--;
   if (index < 0 || index >= requests_.size())
