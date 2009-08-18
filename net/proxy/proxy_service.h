@@ -10,8 +10,6 @@
 
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
-// TODO(eroman): remove this unused header; other callers are depending on it!
-#include "base/thread.h"
 #include "base/waitable_event.h"
 #include "net/base/completion_callback.h"
 #include "net/proxy/proxy_server.h"

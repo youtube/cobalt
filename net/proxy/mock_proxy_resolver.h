@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_resolver.h"
