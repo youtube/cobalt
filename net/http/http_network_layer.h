@@ -51,11 +51,10 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   // The factory we will use to create network sockets.
   ClientSocketFactory* socket_factory_;
 
-  // The host resolver being used for the session.
+  // The host resolver and proxy service that will used when lazily
+  // creating |session_|.
   scoped_refptr<HostResolver> host_resolver_;
-
-  // The proxy service being used for the session.
-  ProxyService* proxy_service_;
+  scoped_refptr<ProxyService> proxy_service_;
 
   scoped_refptr<HttpNetworkSession> session_;
   bool suspended_;

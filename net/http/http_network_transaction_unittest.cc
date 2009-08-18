@@ -43,7 +43,7 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver), proxy_service(proxy_service) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
-  scoped_ptr<ProxyService> proxy_service;
+  scoped_refptr<ProxyService> proxy_service;
   MockClientSocketFactory socket_factory;
 };
 
@@ -56,7 +56,7 @@ ProxyService* CreateFixedProxyService(const std::string& proxy) {
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(session_deps->host_resolver,
-                                session_deps->proxy_service.get(),
+                                session_deps->proxy_service,
                                 &session_deps->socket_factory);
 }
 
@@ -3053,9 +3053,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeaders) {
 }
 
 TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
-  SessionDependencies session_deps;
-  session_deps.proxy_service.reset(CreateFixedProxyService(
-      "socks4://myproxy:1080"));
+  SessionDependencies session_deps(
+      CreateFixedProxyService("socks4://myproxy:1080"));
 
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(
@@ -3106,9 +3105,8 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
 }
 
 TEST_F(HttpNetworkTransactionTest, SOCKS4_SSL_GET) {
-  SessionDependencies session_deps;
-  session_deps.proxy_service.reset(CreateFixedProxyService(
-      "socks4://myproxy:1080"));
+  SessionDependencies session_deps(
+      CreateFixedProxyService("socks4://myproxy:1080"));
 
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(
@@ -3164,9 +3162,8 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_SSL_GET) {
 }
 
 TEST_F(HttpNetworkTransactionTest, SOCKS5_HTTP_GET) {
-  SessionDependencies session_deps;
-  session_deps.proxy_service.reset(CreateFixedProxyService(
-      "socks5://myproxy:1080"));
+  SessionDependencies session_deps(
+      CreateFixedProxyService("socks5://myproxy:1080"));
 
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(
@@ -3223,9 +3220,8 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_HTTP_GET) {
 }
 
 TEST_F(HttpNetworkTransactionTest, SOCKS5_SSL_GET) {
-  SessionDependencies session_deps;
-  session_deps.proxy_service.reset(CreateFixedProxyService(
-      "socks5://myproxy:1080"));
+  SessionDependencies session_deps(
+      CreateFixedProxyService("socks5://myproxy:1080"));
 
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(
@@ -3327,9 +3323,8 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SessionDependencies session_deps;
-    session_deps.proxy_service.reset(CreateFixedProxyService(
-        tests[i].proxy_server));
+    SessionDependencies session_deps(
+        CreateFixedProxyService(tests[i].proxy_server));
 
     scoped_refptr<CaptureGroupNameSocketPool> conn_pool(
         new CaptureGroupNameSocketPool());
