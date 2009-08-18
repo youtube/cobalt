@@ -46,8 +46,6 @@ HttpNetworkLayer::HttpNetworkLayer(ClientSocketFactory* socket_factory,
 
 HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
     : socket_factory_(ClientSocketFactory::GetDefaultFactory()),
-      host_resolver_(NULL),
-      proxy_service_(NULL),
       session_(session),
       suspended_(false) {
   DCHECK(session_.get());
@@ -79,6 +77,9 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
     DCHECK(proxy_service_);
     session_ = new HttpNetworkSession(host_resolver_, proxy_service_,
                                       socket_factory_);
+    // These were just temps for lazy-initializing HttpNetworkSession.
+    host_resolver_ = NULL;
+    proxy_service_ = NULL;
   }
   return session_;
 }

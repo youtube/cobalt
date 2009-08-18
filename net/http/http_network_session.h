@@ -6,16 +6,16 @@
 #define NET_HTTP_HTTP_NETWORK_SESSION_H_
 
 #include "base/ref_counted.h"
+#include "net/base/host_resolver.h"
 #include "net/base/ssl_client_auth_cache.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_auth_cache.h"
+#include "net/proxy/proxy_service.h"
 #include "net/socket/tcp_client_socket_pool.h"
 
 namespace net {
 
 class ClientSocketFactory;
-class HostResolver;
-class ProxyService;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
 class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
@@ -51,7 +51,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   SSLClientAuthCache ssl_client_auth_cache_;
   scoped_refptr<ClientSocketPool> connection_pool_;
   scoped_refptr<HostResolver> host_resolver_;
-  ProxyService* proxy_service_;
+  scoped_refptr<ProxyService> proxy_service_;
 #if defined(OS_WIN)
   // TODO(port): Port the SSLConfigService class to Linux and Mac OS X.
   SSLConfigService ssl_config_service_;
