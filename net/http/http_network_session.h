@@ -27,6 +27,8 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   SSLClientAuthCache* ssl_client_auth_cache() {
     return &ssl_client_auth_cache_;
   }
+  // TODO(willchan): Look at making this return a TCPClientSocketPool instead so
+  // we can get type safety information.
   ClientSocketPool* connection_pool() { return connection_pool_; }
   HostResolver* host_resolver() { return host_resolver_; }
   ProxyService* proxy_service() { return proxy_service_; }
