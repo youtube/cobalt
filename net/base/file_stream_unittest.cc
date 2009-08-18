@@ -21,7 +21,7 @@ class FileStreamTest : public PlatformTest {
   virtual void SetUp() {
     PlatformTest::SetUp();
 
-    file_util::CreateTemporaryFileName(&temp_file_path_);
+    file_util::CreateTemporaryFile(&temp_file_path_);
     file_util::WriteFile(temp_file_path_.ToWStringHack(),
                          kTestData, kTestDataSize);
   }

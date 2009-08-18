@@ -777,10 +777,10 @@ TEST_F(FileUtilTest, CopyAndDeleteDirectoryTest) {
 }
 #endif
 
-TEST_F(FileUtilTest, CreateTemporaryFileNameTest) {
-  std::wstring temp_files[3];
+TEST_F(FileUtilTest, CreateTemporaryFileTest) {
+  FilePath temp_files[3];
   for (int i = 0; i < 3; i++) {
-    ASSERT_TRUE(file_util::CreateTemporaryFileName(&(temp_files[i])));
+    ASSERT_TRUE(file_util::CreateTemporaryFile(&(temp_files[i])));
     EXPECT_TRUE(file_util::PathExists(temp_files[i]));
     EXPECT_FALSE(file_util::DirectoryExists(temp_files[i]));
   }
@@ -790,7 +790,7 @@ TEST_F(FileUtilTest, CreateTemporaryFileNameTest) {
     EXPECT_TRUE(file_util::Delete(temp_files[i], false));
 }
 
-TEST_F(FileUtilTest, CreateAndOpenTemporaryFileNameTest) {
+TEST_F(FileUtilTest, CreateAndOpenTemporaryFileTest) {
   FilePath names[3];
   FILE *fps[3];
   int i;
