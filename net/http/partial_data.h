@@ -31,7 +31,8 @@ class IOBuffer;
 // of those individual network / cache requests.
 class PartialData {
  public:
-  PartialData() : range_present_(false), final_range_(false) {}
+  PartialData()
+      : range_present_(false), final_range_(false), sparse_entry_(true) {}
   ~PartialData() {}
 
   // Performs initialization of the object by parsing the request |headers|
@@ -61,9 +62,12 @@ class PartialData {
   bool IsLastRange() const;
 
   // Extracts info from headers already stored in the cache. Returns false if
-  // there is any problem with the headers or the requested range.
+  // there is any problem with the headers.
   bool UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
                                disk_cache::Entry* entry);
+
+  // Returns true if the requested range is valid given the stored data.
+  bool IsRequestedRangeOK();
 
   // Returns true if the response headers match what we expect, false otherwise.
   bool ResponseHeadersOK(const HttpResponseHeaders* headers);
@@ -106,6 +110,7 @@ class PartialData {
   std::string extra_headers_;  // The clean set of extra headers (no ranges).
   bool range_present_;  // True if next range entry is already stored.
   bool final_range_;
+  bool sparse_entry_;
 
   DISALLOW_COPY_AND_ASSIGN(PartialData);
 };
