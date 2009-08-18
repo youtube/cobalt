@@ -186,6 +186,9 @@ class ProxyService::PacRequest
 
   ProxyResolver* resolver() const { return service_->resolver_.get(); }
 
+  // Note that we don't hold a reference to the ProxyService. Outstanding
+  // requests are cancelled during ~ProxyService, so this is guaranteed
+  // to be valid throughout our lifetime.
   ProxyService* service_;
   CompletionCallback* user_callback_;
   CompletionCallbackImpl<PacRequest> io_callback_;

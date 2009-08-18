@@ -33,11 +33,10 @@ class ProxyScriptFetcher;
 // This class can be used to resolve the proxy server to use when loading a
 // HTTP(S) URL.  It uses the given ProxyResolver to handle the actual proxy
 // resolution.  See ProxyResolverV8 for example.
-class ProxyService {
+class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
  public:
   // The instance takes ownership of |config_service| and |resolver|.
-  ProxyService(ProxyConfigService* config_service,
-               ProxyResolver* resolver);
+  ProxyService(ProxyConfigService* config_service, ProxyResolver* resolver);
 
   ~ProxyService();
 
