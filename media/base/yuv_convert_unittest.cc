@@ -40,6 +40,10 @@ unsigned int hash(unsigned char *s, size_t len, unsigned int hash = 5381) {
 }
 }
 
+// Set to 100 to time ConvertYUVToRGB32.
+// This will take approximately 40 to 200 ms.
+static const int kTestTimes = 1;
+
 TEST(YUVConvertTest, YV12) {
   // Allocate all surfaces.
   scoped_array<uint8> yuv_bytes(new uint8[kYUV12Size]);
@@ -58,16 +62,18 @@ TEST(YUVConvertTest, YV12) {
                                 reinterpret_cast<char*>(yuv_bytes.get()),
                                 static_cast<int>(kYUV12Size)));
 
-  // Convert a frame of YUV to 32 bit ARGB.
-  media::ConvertYUVToRGB32(yuv_bytes.get(),                             // Y
-                           yuv_bytes.get() + kWidth * kHeight,          // U
-                           yuv_bytes.get() + kWidth * kHeight * 5 / 4,  // V
-                           rgb_converted_bytes.get(),             // RGB output
-                           kWidth, kHeight,                       // Dimensions
-                           kWidth,                                // YStride
-                           kWidth / 2,                            // UVStride
-                           kWidth * kBpp,                         // RGBStride
-                           media::YV12);
+  for (int i = 0; i < kTestTimes; ++i) {
+    // Convert a frame of YUV to 32 bit ARGB.
+    media::ConvertYUVToRGB32(yuv_bytes.get(),                             // Y
+                             yuv_bytes.get() + kWidth * kHeight,          // U
+                             yuv_bytes.get() + kWidth * kHeight * 5 / 4,  // V
+                             rgb_converted_bytes.get(),  // RGB output
+                             kWidth, kHeight,            // Dimensions
+                             kWidth,                     // YStride
+                             kWidth / 2,                 // UVStride
+                             kWidth * kBpp,              // RGBStride
+                             media::YV12);
+  }
 
   unsigned int rgb_hash = hash(rgb_converted_bytes.get(), kRGBSizeConverted);
 
@@ -80,7 +86,6 @@ TEST(YUVConvertTest, YV12) {
 #else
   EXPECT_EQ(2936300063u, rgb_hash);
 #endif
-  return;  // This is here to allow you to put a break point on this line
 }
 
 TEST(YUVConvertTest, YV16) {
@@ -123,10 +128,9 @@ TEST(YUVConvertTest, YV16) {
 #else
   EXPECT_EQ(106869773u, rgb_hash);
 #endif
-  return;  // This is here to allow you to put a break point on this line
 }
 
-TEST(YuvScaleTest, Basic) {
+TEST(YuvScaleTest, YV12) {
   // Read YUV reference data from file.
   FilePath yuv_url;
   EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &yuv_url));
@@ -168,10 +172,9 @@ TEST(YuvScaleTest, Basic) {
 #else
   EXPECT_EQ(197274901u, rgb_hash);
 #endif
-  return;  // This is here to allow you to put a break point on this line
 }
 
-TEST(YV16ScaleTest, Basic) {
+TEST(YuvScaleTest, YV16) {
   // Read YV16 reference data from file.
   FilePath yuv_url;
   EXPECT_TRUE(PathService::Get(base::DIR_SOURCE_ROOT, &yuv_url));
@@ -213,6 +216,41 @@ TEST(YV16ScaleTest, Basic) {
 #else
   EXPECT_EQ(2946450771u, rgb_hash);
 #endif
-  return;
+}
+
+// This tests a known worst case YUV value, and for overflow.
+TEST(YUVConvertTest, Clamp) {
+  // Allocate all surfaces.
+  scoped_array<uint8> yuv_bytes(new uint8[1]);
+  scoped_array<uint8> rgb_bytes(new uint8[1]);
+  scoped_array<uint8> rgb_converted_bytes(new uint8[1]);
+
+  // Values that failed previously in bug report.
+  unsigned char y = 255u;
+  unsigned char u = 255u;
+  unsigned char v = 19u;
+
+  // Prefill extra large destination buffer to test for overflow.
+  unsigned char rgb[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+  // TODO(fbarchard): Make reference code mimic MMX exactly
+  // The code is fixed point and has slight rounding differences.
+#if USE_MMX
+  unsigned char expected[8] = { 255, 255, 104, 255, 4, 5, 6, 7 };
+#else
+  unsigned char expected[8] = { 255, 255, 105, 255, 4, 5, 6, 7 };
+#endif
+  // Convert a frame of YUV to 32 bit ARGB.
+  media::ConvertYUVToRGB32(&y,  // Y
+                           &u,  // U
+                           &v,  // V
+                           &rgb[0],  // RGB output
+                           1, 1,     // Dimensions
+                           0,        // YStride
+                           0,        // UVStride
+                           0,        // RGBStride
+                           media::YV12);
+
+  int expected_test = memcmp(rgb, expected, sizeof(expected));
+  EXPECT_EQ(0, expected_test);
 }
 
