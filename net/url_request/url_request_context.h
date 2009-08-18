@@ -16,12 +16,12 @@
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
 #include "net/ftp/ftp_auth_cache.h"
+#include "net/proxy/proxy_service.h"
 
 namespace net {
 class ForceTLSState;
 class FtpTransactionFactory;
 class HttpTransactionFactory;
-class ProxyService;
 }
 class URLRequest;
 
@@ -30,9 +30,7 @@ class URLRequestContext :
     public base::RefCountedThreadSafe<URLRequestContext> {
  public:
   URLRequestContext()
-      : host_resolver_(NULL),
-        proxy_service_(NULL),
-        http_transaction_factory_(NULL),
+      : http_transaction_factory_(NULL),
         ftp_transaction_factory_(NULL),
         cookie_store_(NULL),
         force_tls_state_(NULL) {
@@ -109,7 +107,7 @@ class URLRequestContext :
   // The following members are expected to be initialized and owned by
   // subclasses.
   scoped_refptr<net::HostResolver> host_resolver_;
-  net::ProxyService* proxy_service_;
+  scoped_refptr<net::ProxyService> proxy_service_;
   net::HttpTransactionFactory* http_transaction_factory_;
   net::FtpTransactionFactory* ftp_transaction_factory_;
   net::CookieStore* cookie_store_;
