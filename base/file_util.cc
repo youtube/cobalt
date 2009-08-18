@@ -343,13 +343,6 @@ bool CreateNewTempDirectory(const std::wstring& prefix,
   *new_temp_path = temp_path.ToWStringHack();
   return true;
 }
-bool CreateTemporaryFileName(std::wstring* temp_file) {
-  FilePath temp_file_path;
-  if (!CreateTemporaryFileName(&temp_file_path))
-    return false;
-  *temp_file = temp_file_path.ToWStringHack();
-  return true;
-}
 bool Delete(const std::wstring& path, bool recursive) {
   return Delete(FilePath::FromWStringHack(path), recursive);
 }

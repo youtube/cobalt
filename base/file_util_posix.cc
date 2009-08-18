@@ -387,7 +387,7 @@ int CreateAndOpenFdForTemporaryFile(FilePath directory, FilePath* path) {
   return mkstemp(buffer);
 }
 
-bool CreateTemporaryFileName(FilePath* path) {
+bool CreateTemporaryFile(FilePath* path) {
   FilePath directory;
   if (!GetTempDir(&directory))
     return false;
@@ -413,10 +413,9 @@ FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
 
   return fdopen(fd, "a+");
 }
-
-bool CreateTemporaryFileNameInDir(const std::wstring& dir,
-                                  std::wstring* temp_file) {
-  // Not implemented yet.
+// TODO(port): implement me.
+bool CreateTemporaryFileInDir(const FilePath& dir,
+                              FilePath* temp_file) {
   NOTREACHED();
   return false;
 }
