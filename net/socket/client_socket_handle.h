@@ -34,7 +34,7 @@ class ClientSocketHandle {
     NUM_TYPES,
   } SocketReuseType;
 
-  explicit ClientSocketHandle(ClientSocketPool* pool);
+  ClientSocketHandle();
   ~ClientSocketHandle();
 
   // Initializes a ClientSocketHandle object, which involves talking to the
@@ -56,11 +56,12 @@ class ClientSocketHandle {
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
   //
-  template <typename SocketParams>
+  template <typename SocketParams, typename PoolType>
   int Init(const std::string& group_name,
            const SocketParams& socket_params,
            int priority,
            CompletionCallback* callback,
+           PoolType* pool,
            LoadLog* load_log);
 
   // An initialized handle can be reset, which causes it to return to the
@@ -129,14 +130,18 @@ class ClientSocketHandle {
 };
 
 // Template function implementation:
-template <typename SocketParams>
+// TODO(willchan): Register valid (SocketParams,PoolType) pairs to provide
+// type safety.
+template <typename SocketParams, typename PoolType>
 int ClientSocketHandle::Init(const std::string& group_name,
                              const SocketParams& socket_params,
                              int priority,
                              CompletionCallback* callback,
+                             PoolType* pool,
                              LoadLog* load_log) {
   CHECK(!group_name.empty());
   ResetInternal(true);
+  pool_ = pool;
   group_name_ = group_name;
   init_time_ = base::TimeTicks::Now();
   int rv = pool_->RequestSocket(

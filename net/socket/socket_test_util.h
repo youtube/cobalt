@@ -297,11 +297,9 @@ class MockSSLClientSocket : public MockClientSocket {
 class TestSocketRequest : public CallbackRunner< Tuple1<int> > {
  public:
   TestSocketRequest(
-      ClientSocketPool* pool,
       std::vector<TestSocketRequest*>* request_order,
       size_t* completion_count)
-      : handle_(pool),
-        request_order_(request_order),
+      : request_order_(request_order),
         completion_count_(completion_count) {
     DCHECK(request_order);
     DCHECK(completion_count);
@@ -337,9 +335,21 @@ class ClientSocketPoolTest : public testing::Test {
   virtual void SetUp();
   virtual void TearDown();
 
-  int StartRequestUsingPool(ClientSocketPool* socket_pool,
+  template <typename PoolType>
+  int StartRequestUsingPool(PoolType* socket_pool,
                             const std::string& group_name,
-                            int priority);
+                            int priority) {
+    DCHECK(socket_pool);
+    TestSocketRequest* request = new TestSocketRequest(&request_order_,
+                                                       &completion_count_);
+    requests_.push_back(request);
+    int rv = request->handle()->Init(
+        group_name, ignored_request_info_, priority, request,
+        socket_pool, NULL);
+    if (rv != ERR_IO_PENDING)
+      request_order_.push_back(request);
+    return rv;
+  }
 
   // Provided there were n requests started, takes |index| in range 1..n
   // and returns order in which that request completed, in range 1..n,
