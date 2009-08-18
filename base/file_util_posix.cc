@@ -40,10 +40,10 @@ class LocaleAwareComparator {
     UErrorCode error_code = U_ZERO_ERROR;
     // Use the default collator. The default locale should have been properly
     // set by the time this constructor is called.
-    collator_.reset(Collator::createInstance(error_code));
+    collator_.reset(icu::Collator::createInstance(error_code));
     DCHECK(U_SUCCESS(error_code));
     // Make it case-sensitive.
-    collator_->setStrength(Collator::TERTIARY);
+    collator_->setStrength(icu::Collator::TERTIARY);
     // Note: We do not set UCOL_NORMALIZATION_MODE attribute. In other words, we
     // do not pay performance penalty to guarantee sort order correctness for
     // non-FCD (http://unicode.org/notes/tn5/#FCD) file names. This should be a
@@ -71,7 +71,7 @@ class LocaleAwareComparator {
   }
 
  private:
-  scoped_ptr<Collator> collator_;
+  scoped_ptr<icu::Collator> collator_;
   Lock lock_;
   friend struct DefaultSingletonTraits<LocaleAwareComparator>;
 
