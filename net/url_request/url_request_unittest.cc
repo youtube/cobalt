@@ -664,7 +664,7 @@ TEST_F(URLRequestTest, FileTestFullSpecifiedRange) {
   FillBuffer(buffer.get(), buffer_size);
 
   FilePath temp_path;
-  EXPECT_TRUE(file_util::CreateTemporaryFileName(&temp_path));
+  EXPECT_TRUE(file_util::CreateTemporaryFile(&temp_path));
   GURL temp_url = net::FilePathToFileURL(temp_path);
   file_util::WriteFile(temp_path, buffer.get(), buffer_size);
 
@@ -708,7 +708,7 @@ TEST_F(URLRequestTest, FileTestHalfSpecifiedRange) {
   FillBuffer(buffer.get(), buffer_size);
 
   FilePath temp_path;
-  EXPECT_TRUE(file_util::CreateTemporaryFileName(&temp_path));
+  EXPECT_TRUE(file_util::CreateTemporaryFile(&temp_path));
   GURL temp_url = net::FilePathToFileURL(temp_path);
   file_util::WriteFile(temp_path, buffer.get(), buffer_size);
 
@@ -751,7 +751,7 @@ TEST_F(URLRequestTest, FileTestMultipleRanges) {
   FillBuffer(buffer.get(), buffer_size);
 
   FilePath temp_path;
-  EXPECT_TRUE(file_util::CreateTemporaryFileName(&temp_path));
+  EXPECT_TRUE(file_util::CreateTemporaryFile(&temp_path));
   GURL temp_url = net::FilePathToFileURL(temp_path);
   file_util::WriteFile(temp_path, buffer.get(), buffer_size);
 
