@@ -7,6 +7,7 @@
 #include "base/scoped_ptr.h"
 #include "base/compiler_specific.h"
 #include "base/field_trial.h"
+#include "base/histogram.h"
 #include "base/string_util.h"
 #include "base/trace_event.h"
 #include "build/build_config.h"
