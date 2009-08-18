@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -153,15 +153,25 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
     buffer = GetNextBuffer(buffer);
   }
   buffer = buffer_;
-
-  // Send the buffers to the audio driver.
+  MMRESULT result = ::waveOutPause(waveout_);
+  if (result != MMSYSERR_NOERROR) {
+    HandleError(result);
+    return;
+  }
+  // Send the buffers to the audio driver. Note that the device is paused
+  // so we avoid entering the callback method while still here.
   for (int ix = 0; ix != kNumBuffers; ++ix) {
-    MMRESULT result = ::waveOutWrite(waveout_, buffer, sizeof(WAVEHDR));
+    result = ::waveOutWrite(waveout_, buffer, sizeof(WAVEHDR));
     if (result != MMSYSERR_NOERROR) {
       HandleError(result);
       break;
     }
     buffer = GetNextBuffer(buffer);
+  }
+  result = ::waveOutRestart(waveout_);
+  if (result != MMSYSERR_NOERROR) {
+    HandleError(result);
+    return;
   }
 }
 
