@@ -283,12 +283,7 @@ bool GetShmemTempDir(FilePath* path);
 // Creates a temporary file. The full path is placed in |path|, and the
 // function returns true if was successful in creating the file. The file will
 // be empty and all handles closed after this function returns.
-// TODO(erikkay): rename this function and track down all of the callers.
-// (Clarification of erik's comment: the intent is to rename the BlahFileName()
-//  calls into BlahFile(), since they create temp files (not temp filenames).)
-bool CreateTemporaryFileName(FilePath* path);
-// Deprecated temporary compatibility function.
-bool CreateTemporaryFileName(std::wstring* temp_file);
+bool CreateTemporaryFile(FilePath* path);
 
 // Create and open a temporary file.  File is opened for read/write.
 // The full path is placed in |path|, and the function returns true if
@@ -300,9 +295,9 @@ FILE* CreateAndOpenTemporaryShmemFile(FilePath* path);
 // Similar to CreateAndOpenTemporaryFile, but the file is created in |dir|.
 FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path);
 
-// Same as CreateTemporaryFileName but the file is created in |dir|.
-bool CreateTemporaryFileNameInDir(const std::wstring& dir,
-                                  std::wstring* temp_file);
+// Same as CreateTemporaryFile but the file is created in |dir|.
+bool CreateTemporaryFileInDir(const FilePath& dir,
+                              FilePath* temp_file);
 
 // Create a new directory under TempPath. If prefix is provided, the new
 // directory name is in the format of prefixyyyy.

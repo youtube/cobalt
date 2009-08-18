@@ -445,14 +445,14 @@ bool GetShmemTempDir(FilePath* path) {
   return GetTempDir(path);
 }
 
-bool CreateTemporaryFileName(FilePath* path) {
-  std::wstring temp_path, temp_file;
+bool CreateTemporaryFile(FilePath* path) {
+  FilePath temp_file;
 
-  if (!GetTempDir(&temp_path))
+  if (!GetTempDir(path))
     return false;
 
-  if (CreateTemporaryFileNameInDir(temp_path, &temp_file)) {
-    *path = FilePath(temp_file);
+  if (CreateTemporaryFileInDir(*path, &temp_file)) {
+    *path = temp_file;
     return true;
   }
 
@@ -468,29 +468,29 @@ FILE* CreateAndOpenTemporaryShmemFile(FilePath* path) {
 // TODO(jrg): is there equivalent call to use on Windows instead of
 // going 2-step?
 FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
-  std::wstring wstring_path;
-  if (!CreateTemporaryFileNameInDir(dir.value(), &wstring_path)) {
+  if (!CreateTemporaryFileInDir(dir, path)) {
     return NULL;
   }
-  *path = FilePath(wstring_path);
   // Open file in binary mode, to avoid problems with fwrite. On Windows
   // it replaces \n's with \r\n's, which may surprise you.
   // Reference: http://msdn.microsoft.com/en-us/library/h9t88zwz(VS.71).aspx
   return OpenFile(*path, "wb+");
 }
 
-bool CreateTemporaryFileNameInDir(const std::wstring& dir,
-                                  std::wstring* temp_file) {
+bool CreateTemporaryFileInDir(const FilePath& dir,
+                              FilePath* temp_file) {
   wchar_t temp_name[MAX_PATH + 1];
 
-  if (!GetTempFileName(dir.c_str(), L"", 0, temp_name))
+  if (!GetTempFileName(dir.value().c_str(), L"", 0, temp_name))
     return false;  // fail!
 
   DWORD path_len = GetLongPathName(temp_name, temp_name, MAX_PATH);
   if (path_len > MAX_PATH + 1 || path_len == 0)
     return false;  // fail!
 
-  temp_file->assign(temp_name, path_len);
+  std::wstring temp_file_str;
+  temp_file_str.assign(temp_name, path_len);
+  *temp_file = FilePath(temp_file_str);
   return true;
 }
 
