@@ -28,20 +28,23 @@
           'type': 'settings',
           'direct_dependent_settings': {
             'cflags': [
-              '<!@(pkg-config --cflags --atleast-version=<(required_sqlite_version) sqlite3)',
+              # This next command produces no output but it it will fail (and
+              # cause GYP to fail) if we don't have a recent enough version of
+              # sqlite.
+              '<!@(pkg-config --atleast-version=<(required_sqlite_version) sqlite3)',
+
+              '<!@(pkg-config --cflags sqlite3)',
             ],
-          },
-          'direct_dependent_settings': {
             'defines': [
               'USE_SYSTEM_SQLITE',
             ],
           },
           'link_settings': {
             'ldflags': [
-              '<!@(pkg-config --atleast-version=<(required_sqlite_version) --libs-only-L --libs-only-other sqlite3)',
+              '<!@(pkg-config --libs-only-L --libs-only-other sqlite3)',
             ],
             'libraries': [
-              '<!@(pkg-config --atleast-version=<(required_sqlite_version) --libs-only-l sqlite3)',
+              '<!@(pkg-config --libs-only-l sqlite3)',
             ],
           },
         }, { # else: OS != "linux" or ! use_system_sqlite
