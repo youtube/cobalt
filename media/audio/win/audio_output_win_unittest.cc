@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -285,7 +285,7 @@ TEST(WinAudioTest, PCMWaveStreamDoubleBuffer) {
   oas->Close();
 }
 
-// Test potential deadlock situations if the source is slow or blocks for some
+// Test potential deadlock situation if the source is slow or blocks for some
 // time. The actual EXPECT_GT are mostly meaningless and the real test is that
 // the test completes in reasonable time.
 TEST(WinAudioTest, PCMWaveSlowSource) {
@@ -310,6 +310,37 @@ TEST(WinAudioTest, PCMWaveSlowSource) {
   ::Sleep(1000);
   oas->Close();
 }
+
+// Test another potential deadlock situation if the thread that calls Start()
+// gets paused. This test is best when run over RDP with audio enabled. See
+// bug 19276 for more details.
+TEST(WinAudioTest, PCMWaveStreamPlaySlowLoop) {
+  if (IsRunningHeadless())
+    return;
+  AudioManager* audio_man = AudioManager::GetAudioManager();
+  ASSERT_TRUE(NULL != audio_man);
+  if (!audio_man->HasAudioDevices())
+    return;
+  AudioOutputStream* oas =
+      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
+                                 AudioManager::kAudioCDSampleRate, 16);
+  ASSERT_TRUE(NULL != oas);
+
+  SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
+                             200.0, AudioManager::kAudioCDSampleRate);
+  size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+
+  EXPECT_TRUE(oas->Open(bytes_100_ms));
+  oas->SetVolume(1.0, 1.0);
+
+  for (int ix = 0; ix != 25; ++ix) {
+    oas->Start(&source);
+    ::Sleep(10);
+    oas->Stop();
+  }
+  oas->Close();
+}
+
 
 // This test produces actual audio for 1.5 seconds on the default wave
 // device at 44.1K s/sec. Parameters have been chosen carefully so you should
