@@ -16,6 +16,7 @@ namespace {
 // The headers that we have to process.
 const char kLengthHeader[] = "Content-Length";
 const char kRangeHeader[] = "Content-Range";
+const int kDataStream = 1;
 
 }
 
@@ -61,8 +62,14 @@ int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
     return 0;
   range_present_ = false;
 
-  cached_min_len_ = entry->GetAvailableRange(current_range_start_, len,
-                                             &cached_start_);
+  if (sparse_entry_) {
+    cached_min_len_ = entry->GetAvailableRange(current_range_start_, len,
+                                               &cached_start_);
+  } else {
+    cached_min_len_ = len;
+    cached_start_ = current_range_start_;
+  }
+
   if (cached_min_len_ < 0) {
     DCHECK(cached_min_len_ != ERR_IO_PENDING);
     return cached_min_len_;
@@ -104,12 +111,28 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
                                           disk_cache::Entry* entry) {
   std::string length_value;
   resource_size_ = 0;
+  if (headers->response_code() == 200) {
+    DCHECK(byte_range_.IsValid());
+    sparse_entry_ = false;
+    resource_size_ = entry->GetDataSize(kDataStream);
+    return true;
+  }
+
   if (!headers->GetNormalizedHeader(kLengthHeader, &length_value))
     return false;  // We must have stored the resource length.
 
   if (!StringToInt64(length_value, &resource_size_) || !resource_size_)
     return false;
 
+  // Make sure that this is really a sparse entry.
+  int64 n;
+  if (ERR_CACHE_OPERATION_NOT_SUPPORTED == entry->GetAvailableRange(0, 5, &n))
+    return false;
+
+  return true;
+}
+
+bool PartialData::IsRequestedRangeOK() {
   if (byte_range_.IsValid()) {
     if (!byte_range_.ComputeBounds(resource_size_))
       return false;
@@ -122,15 +145,20 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
     byte_range_.set_last_byte_position(resource_size_ - 1);
   }
 
-  // Make sure that this is really a sparse entry.
-  int64 n;
-  if (ERR_CACHE_OPERATION_NOT_SUPPORTED == entry->GetAvailableRange(0, 5, &n))
-    return false;
+  bool rv = current_range_start_ >= 0;
+  if (!rv)
+    current_range_start_ = 0;
 
-  return current_range_start_ >= 0;
+  return rv;
 }
 
 bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
+  if (headers->response_code() == 304) {
+    // We must have a complete range here.
+    return byte_range_.HasFirstBytePosition() &&
+           byte_range_.HasLastBytePosition();
+  }
+
   int64 start, end, total_length;
   if (!headers->GetContentRange(&start, &end, &total_length))
     return false;
@@ -168,6 +196,9 @@ void PartialData::FixResponseHeaders(HttpResponseHeaders* headers) {
 
   int64 range_len;
   if (byte_range_.IsValid()) {
+    if (!sparse_entry_)
+      headers->ReplaceStatusLine("HTTP/1.1 206 Partial Content");
+
     DCHECK(byte_range_.HasFirstBytePosition());
     DCHECK(byte_range_.HasLastBytePosition());
     headers->AddHeader(StringPrintf("%s: bytes %lld-%lld/%lld", kRangeHeader,
@@ -194,15 +225,32 @@ void PartialData::FixContentLength(HttpResponseHeaders* headers) {
 int PartialData::CacheRead(disk_cache::Entry* entry, IOBuffer* data,
                            int data_len, CompletionCallback* callback) {
   int read_len = std::min(data_len, cached_min_len_);
-  int rv = entry->ReadSparseData(current_range_start_, data, read_len,
-                                 callback);
+  int rv = 0;
+  if (sparse_entry_) {
+    rv = entry->ReadSparseData(current_range_start_, data, read_len,
+                               callback);
+  } else {
+    if (current_range_start_ > kint32max)
+      return ERR_INVALID_ARGUMENT;
+
+    rv = entry->ReadData(kDataStream, static_cast<int>(current_range_start_),
+                         data, read_len, callback);
+  }
   return rv;
 }
 
 int PartialData::CacheWrite(disk_cache::Entry* entry, IOBuffer* data,
                            int data_len, CompletionCallback* callback) {
-  return entry->WriteSparseData(current_range_start_, data, data_len,
-                                 callback);
+  if (sparse_entry_) {
+    return entry->WriteSparseData(current_range_start_, data, data_len,
+                                  callback);
+  } else  {
+    if (current_range_start_ > kint32max)
+      return ERR_INVALID_ARGUMENT;
+
+    return entry->WriteData(kDataStream, static_cast<int>(current_range_start_),
+                            data, data_len, callback, false);
+  }
 }
 
 void PartialData::OnCacheReadCompleted(int result) {
