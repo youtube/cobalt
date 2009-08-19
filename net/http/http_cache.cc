@@ -5,6 +5,7 @@
 #include "net/http/http_cache.h"
 
 #include <algorithm>
+#include <string>
 
 #include "base/compiler_specific.h"
 
@@ -543,7 +544,7 @@ bool HttpCache::Transaction::IsReadyToRestartForAuth() {
 int HttpCache::Transaction::Read(IOBuffer* buf, int buf_len,
                                  CompletionCallback* callback) {
   DCHECK(buf);
-  DCHECK(buf_len > 0);
+  DCHECK_GT(buf_len, 0);
   DCHECK(callback);
 
   DCHECK(!callback_);
@@ -731,6 +732,7 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
       // (intentionally).  If we read from the cache, we replay them
       // prematurely.
       effective_load_flags_ |= LOAD_BYPASS_CACHE;
+      break;
     case PLAYBACK:
       // When in playback mode, we want to load exclusively from the cache.
       effective_load_flags_ |= LOAD_ONLY_FROM_CACHE;
@@ -1583,7 +1585,7 @@ HttpCache::~HttpCache() {
 HttpTransaction* HttpCache::CreateTransaction() {
   // Do lazy initialization of disk cache if needed.
   if (!disk_cache_.get()) {
-    DCHECK(cache_size_ >= 0);
+    DCHECK_GE(cache_size_, 0);
     if (in_memory_cache_) {
       // We may end up with no folder name and no cache if the initialization
       // of the disk cache fails. We want to be sure that what we wanted to have
@@ -1645,7 +1647,7 @@ bool HttpCache::ReadResponseInfo(disk_cache::Entry* disk_entry,
 
   // read response-headers
   response_info->headers = new HttpResponseHeaders(pickle, &iter);
-  DCHECK(response_info->headers->response_code() != -1);
+  DCHECK_NE(response_info->headers->response_code(), -1);
 
   // read ssl-info
   if (flags & RESPONSE_INFO_HAS_CERT) {
