@@ -344,10 +344,6 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
                          const SECOidTag* policy_oids,
                          int num_policy_oids,
                          CERTValOutParam* cvout) {
-  // TODO(wtc): Disable OCSP until we track down the crash in OCSP code.
-  // See http://crbug.com/18907.
-  bool use_ocsp = false;
-
   PRUint64 revocation_method_flags =
       CERT_REV_M_TEST_USING_THIS_METHOD |
       CERT_REV_M_ALLOW_NETWORK_FETCHING |
@@ -361,8 +357,6 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
     // revoked if we don't have revocation info.
     // TODO(wtc): Add a bool parameter to expressly specify we're doing EV
     // verification or we want strict revocation flags.
-    if (!use_ocsp)
-      return SECFailure;  // No OCSP, no EV.
     revocation_method_flags |= CERT_REV_M_REQUIRE_INFO_ON_MISSING_SOURCE;
     revocation_method_independent_flags |=
         CERT_REV_MI_REQUIRE_SOME_FRESH_INFO_AVAILABLE;
@@ -375,19 +369,12 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
   method_flags[cert_revocation_method_crl] = revocation_method_flags;
   method_flags[cert_revocation_method_ocsp] = revocation_method_flags;
 
-  int number_of_defined_methods;
   CERTRevocationMethodIndex preferred_revocation_methods[1];
-  if (use_ocsp) {
-    number_of_defined_methods = arraysize(method_flags);
-    preferred_revocation_methods[0] = cert_revocation_method_ocsp;
-  } else {
-    number_of_defined_methods = arraysize(method_flags) - 1;
-    preferred_revocation_methods[0] = cert_revocation_method_crl;
-  }
+  preferred_revocation_methods[0] = cert_revocation_method_ocsp;
 
   CERTRevocationFlags revocation_flags;
   revocation_flags.leafTests.number_of_defined_methods =
-      number_of_defined_methods;
+      arraysize(method_flags);
   revocation_flags.leafTests.cert_rev_flags_per_method = method_flags;
   revocation_flags.leafTests.number_of_preferred_methods =
       arraysize(preferred_revocation_methods);
@@ -396,7 +383,7 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
       revocation_method_independent_flags;
 
   revocation_flags.chainTests.number_of_defined_methods =
-      number_of_defined_methods;
+      arraysize(method_flags);
   revocation_flags.chainTests.cert_rev_flags_per_method = method_flags;
   revocation_flags.chainTests.number_of_preferred_methods =
       arraysize(preferred_revocation_methods);
