@@ -274,6 +274,11 @@
             'msvs_props': ['release.vsprops'],
           }],
           [ 'OS=="win"', {
+            'msvs_configuration_attributes': {
+              'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
+              'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
+              'CharacterSet': '1',
+            },
             'msvs_settings': {
               'VCLinkerTool': {
                 'LinkIncremental': '1',
@@ -291,6 +296,11 @@
               'PURIFY',
               'NO_TCMALLOC',
             ],
+            'msvs_configuration_attributes': {
+              'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
+              'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
+              'CharacterSet': '1',
+            },
             'msvs_settings': {
               'VCCLCompilerTool': {
                 'Optimization': '0',
@@ -314,6 +324,11 @@
               'NDEBUG',
               'NO_TCMALLOC',
             ],
+            'msvs_configuration_attributes': {
+              'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
+              'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
+              'CharacterSet': '1',
+            },
             'conditions': [
               [ 'msvs_use_common_release', {
                 'configuration_platform': 'Win32',
