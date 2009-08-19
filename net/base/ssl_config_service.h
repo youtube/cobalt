@@ -7,7 +7,7 @@
 
 #include <vector>
 
-#include "base/time.h"
+#include "base/ref_counted.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
@@ -60,45 +60,16 @@ struct SSLConfig {
   scoped_refptr<X509Certificate> client_cert;
 };
 
-// This class is responsible for getting and setting the SSL configuration.
-//
-// We think the SSL configuration settings should apply to all applications
-// used by the user.  We consider IE's Internet Options as the de facto
-// system-wide network configuration settings, so we just use the values
-// from IE's Internet Settings registry key.
-class SSLConfigService {
+// The interface for retrieving the system SSL configuration.  This interface
+// does not cover setting the SSL configuration, as on some systems, the
+// SSLConfigService objects may not have direct access to the configuration, or
+// live longer than the configuration preferences.
+class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
  public:
-  SSLConfigService();
-  explicit SSLConfigService(base::TimeTicks now);  // Used for testing.
-  ~SSLConfigService() { }
+  virtual ~SSLConfigService() {}
 
-  // Get the current SSL configuration settings.  Can be called on any
-  // thread.
-  static bool GetSSLConfigNow(SSLConfig* config);
-
-  // Setters.  Can be called on any thread.
-  static void SetRevCheckingEnabled(bool enabled);
-  static void SetSSL2Enabled(bool enabled);
-
-  // Get the (cached) SSL configuration settings that are fresh within 10
-  // seconds.  This is cheaper than GetSSLConfigNow and is suitable when
-  // we don't need the absolutely current configuration settings.  This
-  // method is not thread-safe, so it must be called on the same thread.
-  void GetSSLConfig(SSLConfig* config) {
-    GetSSLConfigAt(config, base::TimeTicks::Now());
-  }
-
-  // Used for testing.
-  void GetSSLConfigAt(SSLConfig* config, base::TimeTicks now);
-
- private:
-  void UpdateConfig(base::TimeTicks now);
-
-  // We store the IE SSL config and the time that we fetched it.
-  SSLConfig config_info_;
-  base::TimeTicks config_time_;
-
-  DISALLOW_EVIL_CONSTRUCTORS(SSLConfigService);
+  // May not be thread-safe, should only be called on the IO thread.
+  virtual void GetSSLConfig(SSLConfig* config) = 0;
 };
 
 }  // namespace net

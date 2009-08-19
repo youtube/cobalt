@@ -1505,13 +1505,14 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
 
 HttpCache::HttpCache(HostResolver* host_resolver,
                      ProxyService* proxy_service,
+                     SSLConfigService* ssl_config_service,
                      const std::wstring& cache_dir,
                      int cache_size)
     : disk_cache_dir_(cache_dir),
       mode_(NORMAL),
       type_(DISK_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(
-          host_resolver, proxy_service)),
+          host_resolver, proxy_service, ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(false),
       deleted_(false),
@@ -1533,11 +1534,12 @@ HttpCache::HttpCache(HttpNetworkSession* session,
 
 HttpCache::HttpCache(HostResolver* host_resolver,
                      ProxyService* proxy_service,
+                     SSLConfigService* ssl_config_service,
                      int cache_size)
     : mode_(NORMAL),
       type_(MEMORY_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(
-          host_resolver, proxy_service)),
+          host_resolver, proxy_service, ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(true),
       deleted_(false),

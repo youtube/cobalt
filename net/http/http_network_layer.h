@@ -16,13 +16,15 @@ class HostResolver;
 class HttpNetworkSession;
 class ProxyInfo;
 class ProxyService;
+class SSLConfigService;
 
 class HttpNetworkLayer : public HttpTransactionFactory {
  public:
   // |socket_factory|, |proxy_service| and |host_resolver| must remain valid
   // for the lifetime of HttpNetworkLayer.
   HttpNetworkLayer(ClientSocketFactory* socket_factory,
-                   HostResolver* host_resolver, ProxyService* proxy_service);
+                   HostResolver* host_resolver, ProxyService* proxy_service,
+                   SSLConfigService* ssl_config_service);
   // Construct a HttpNetworkLayer with an existing HttpNetworkSession which
   // contains a valid ProxyService.
   explicit HttpNetworkLayer(HttpNetworkSession* session);
@@ -30,8 +32,10 @@ class HttpNetworkLayer : public HttpTransactionFactory {
 
   // This function hides the details of how a network layer gets instantiated
   // and allows other implementations to be substituted.
-  static HttpTransactionFactory* CreateFactory(HostResolver* host_resolver,
-                                               ProxyService* proxy_service);
+  static HttpTransactionFactory* CreateFactory(
+      HostResolver* host_resolver,
+      ProxyService* proxy_service,
+      SSLConfigService* ssl_config_service);
   // Create a transaction factory that instantiate a network layer over an
   // existing network session. Network session contains some valuable
   // information (e.g. authentication data) that we want to share across
@@ -55,6 +59,9 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   // creating |session_|.
   scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
+
+  // The SSL config service being used for the session.
+  scoped_refptr<SSLConfigService> ssl_config_service_;
 
   scoped_refptr<HttpNetworkSession> session_;
   bool suspended_;
