@@ -69,7 +69,7 @@ void HttpNetworkLayer::Suspend(bool suspend) {
   suspended_ = suspend;
 
   if (suspend && session_)
-    session_->connection_pool()->CloseIdleSockets();
+    session_->tcp_socket_pool()->CloseIdleSockets();
 }
 
 HttpNetworkSession* HttpNetworkLayer::GetSession() {

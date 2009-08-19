@@ -329,22 +329,20 @@ class ClientSocketPoolTest : public testing::Test {
   static const int kIndexOutOfBounds;
   static const int kRequestNotFound;
 
-  ClientSocketPoolTest() : ignored_request_info_("ignored", 80) {
-  }
-
   virtual void SetUp();
   virtual void TearDown();
 
-  template <typename PoolType>
+  template <typename PoolType, typename SocketParams>
   int StartRequestUsingPool(PoolType* socket_pool,
                             const std::string& group_name,
-                            int priority) {
+                            int priority,
+                            const SocketParams& socket_params) {
     DCHECK(socket_pool);
     TestSocketRequest* request = new TestSocketRequest(&request_order_,
                                                        &completion_count_);
     requests_.push_back(request);
     int rv = request->handle()->Init(
-        group_name, ignored_request_info_, priority, request,
+        group_name, socket_params, priority, request,
         socket_pool, NULL);
     if (rv != ERR_IO_PENDING)
       request_order_.push_back(request);
@@ -364,7 +362,6 @@ class ClientSocketPoolTest : public testing::Test {
   // Releases connections until there is nothing to release.
   void ReleaseAllConnections(KeepAlive keep_alive);
 
-  HostResolver::RequestInfo ignored_request_info_;
   ScopedVector<TestSocketRequest> requests_;
   std::vector<TestSocketRequest*> request_order_;
   size_t completion_count_;
