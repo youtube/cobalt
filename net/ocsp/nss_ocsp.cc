@@ -80,7 +80,7 @@ class OCSPRequestSession {
   OCSPRequestSession(const GURL& url,
                      const char* http_request_method,
                      base::TimeDelta timeout);
-  ~OCSPRequestSession() {}
+  ~OCSPRequestSession();
 
   void SetPostData(const char* http_data,
                    const PRUint32 http_data_len,
@@ -137,15 +137,18 @@ class OCSPRequestSession::Core
       public URLRequest::Delegate {
  public:
   explicit Core(OCSPRequestSession* req)
-      : ocsp_req_(req),
-        url_(ocsp_req_->url()),
+      : url_(req->url()),
+        http_request_method_(req->http_request_method()),
+        timeout_(req->timeout()),
         io_loop_(Singleton<OCSPInitSingleton>::get()->io_thread()),
         request_(NULL),
         buffer_(new net::IOBuffer(kRecvBufferSize)),
         response_code_(-1),
         cv_(&lock_),
         finished_(false) {}
-  virtual ~Core() {}
+  virtual ~Core() {
+    DCHECK(!request_);
+  }
 
   void SetPostData(const char* http_data, PRUint32 http_data_len,
                    const char* http_content_type) {
@@ -181,7 +184,7 @@ class OCSPRequestSession::Core
   }
 
   bool Wait() {
-    base::TimeDelta timeout = ocsp_req_->timeout();
+    base::TimeDelta timeout = timeout_;
     AutoLock autolock(lock_);
     while (!finished_) {
       base::TimeTicks last_time = base::TimeTicks::Now();
@@ -226,6 +229,7 @@ class OCSPRequestSession::Core
   virtual void OnResponseStarted(URLRequest* request) {
     DCHECK(request == request_);
     DCHECK(MessageLoopForIO::current() == io_loop_);
+
     int bytes_read = 0;
     if (request->status().is_success()) {
       response_code_ = request_->GetResponseCode();
@@ -269,7 +273,7 @@ class OCSPRequestSession::Core
     request_->set_load_flags(
         net::LOAD_DISABLE_CACHE|net::LOAD_DO_NOT_SAVE_COOKIES);
 
-    if (ocsp_req_->http_request_method() == "POST") {
+    if (http_request_method_ == "POST") {
       DCHECK(!upload_content_.empty());
       DCHECK(!upload_content_type_.empty());
 
@@ -290,13 +294,15 @@ class OCSPRequestSession::Core
   void CancelURLRequest() {
     DCHECK(MessageLoopForIO::current() == io_loop_);
     if (request_) {
+      request_->Cancel();
       delete request_;
       request_ = NULL;
     }
   }
 
-  OCSPRequestSession* ocsp_req_;  // corresponding OCSP session
   GURL url_;                      // The URL we eventually wound up at
+  std::string http_request_method_;
+  base::TimeDelta timeout_;       // The timeout for OCSP
   MessageLoop* io_loop_;          // Message loop of the IO thread
   URLRequest* request_;           // The actual request this wraps
   scoped_refptr<net::IOBuffer> buffer_;  // Read buffer
@@ -324,6 +330,10 @@ OCSPRequestSession::OCSPRequestSession(const GURL& url,
     : url_(url), http_request_method_(http_request_method),
       timeout_(timeout),
       ALLOW_THIS_IN_INITIALIZER_LIST(core_(new Core(this))) {
+}
+
+OCSPRequestSession::~OCSPRequestSession() {
+  core_->Cancel();
 }
 
 void OCSPRequestSession::SetPostData(const char* http_data,
@@ -508,7 +518,7 @@ bool OCSPSetResponse(OCSPRequestSession* req,
       return false;
     }
   }
-  LOG(INFO) << "OSCP response "
+  LOG(INFO) << "OCSP response "
             << " response_code=" << req->http_response_code()
             << " content_type=" << req->http_response_content_type()
             << " header=" << req->http_response_headers()
