@@ -121,8 +121,10 @@
         'base/ssl_cert_request_info.h',
         'base/ssl_client_auth_cache.cc',
         'base/ssl_client_auth_cache.h',
-        'base/ssl_config_service.cc',
         'base/ssl_config_service.h',
+        'base/ssl_config_service_defaults.h',
+        'base/ssl_config_service_win.cc',
+        'base/ssl_config_service_win.h',
         'base/ssl_info.h',
         'base/telnet_server.cc',
         'base/telnet_server.h',
@@ -390,7 +392,6 @@
           },
           {  # else: OS != "win"
             'sources!': [
-              'base/ssl_config_service.cc',
               'base/wininet_util.cc',
               'base/winsock_init.cc',
               'proxy/proxy_resolver_winhttp.cc',
@@ -471,7 +472,7 @@
         'base/run_all_unittests.cc',
         'base/sdch_filter_unittest.cc',
         'base/ssl_client_auth_cache_unittest.cc',
-        'base/ssl_config_service_unittest.cc',
+        'base/ssl_config_service_win_unittest.cc',
         'base/telnet_server_unittest.cc',
         'base/test_completion_callback_unittest.cc',
         'base/wininet_util_unittest.cc',
@@ -543,15 +544,11 @@
             ],
             'sources!': [
               'base/sdch_filter_unittest.cc',
-              'base/ssl_config_service_unittest.cc',
             ],
           },
         ],
         [ 'OS == "mac"', {
             'sources/': [ ['exclude', '_(linux|win)_unittest\\.cc$'] ],
-            'sources!': [
-              'base/ssl_config_service_unittest.cc',
-            ],
           },
         ],
         # This is needed to trigger the dll copy step on windows.

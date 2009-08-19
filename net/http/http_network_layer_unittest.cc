@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/base/mock_host_resolver.h"
+#include "net/base/ssl_config_service_defaults.h"
 #include "net/http/http_network_layer.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/proxy/proxy_service.h"
@@ -15,14 +16,16 @@ class HttpNetworkLayerTest : public PlatformTest {
 
 TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
   net::HttpNetworkLayer factory(
-      NULL, new net::MockHostResolver, net::ProxyService::CreateNull());
+      NULL, new net::MockHostResolver, net::ProxyService::CreateNull(),
+      new net::SSLConfigServiceDefaults);
 
   scoped_ptr<net::HttpTransaction> trans(factory.CreateTransaction());
 }
 
 TEST_F(HttpNetworkLayerTest, Suspend) {
   net::HttpNetworkLayer factory(
-      NULL, new net::MockHostResolver, net::ProxyService::CreateNull());
+      NULL, new net::MockHostResolver, net::ProxyService::CreateNull(),
+      new net::SSLConfigServiceDefaults);
 
   scoped_ptr<net::HttpTransaction> trans(factory.CreateTransaction());
   trans.reset();
@@ -54,7 +57,8 @@ TEST_F(HttpNetworkLayerTest, GET) {
   mock_socket_factory.AddMockSocket(&data);
 
   net::HttpNetworkLayer factory(&mock_socket_factory, new net::MockHostResolver,
-                                net::ProxyService::CreateNull());
+                                net::ProxyService::CreateNull(),
+                                new net::SSLConfigServiceDefaults);
 
   TestCompletionCallback callback;
 

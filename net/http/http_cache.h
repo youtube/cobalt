@@ -36,6 +36,7 @@ class HttpNetworkSession;
 class HttpRequestInfo;
 class HttpResponseInfo;
 class ProxyService;
+class SSLConfigService;
 
 class HttpCache : public HttpTransactionFactory {
  public:
@@ -60,6 +61,7 @@ class HttpCache : public HttpTransactionFactory {
   // |cache_size| is zero, a default value will be calculated automatically.
   HttpCache(HostResolver* host_resolver,
             ProxyService* proxy_service,
+            SSLConfigService* ssl_config_service,
             const std::wstring& cache_dir,
             int cache_size);
 
@@ -77,6 +79,7 @@ class HttpCache : public HttpTransactionFactory {
   // value will be calculated automatically.
   HttpCache(HostResolver* host_resolver,
             ProxyService* proxy_service,
+            SSLConfigService* ssl_config_service,
             int cache_size);
 
   // Initialize the cache from its component parts, which is useful for
