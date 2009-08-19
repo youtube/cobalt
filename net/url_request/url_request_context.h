@@ -15,6 +15,7 @@
 #include "net/base/cookie_policy.h"
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
+#include "net/base/ssl_config_service.h"
 #include "net/ftp/ftp_auth_cache.h"
 #include "net/proxy/proxy_service.h"
 
@@ -43,6 +44,11 @@ class URLRequestContext :
   // Get the proxy service for this context.
   net::ProxyService* proxy_service() const {
     return proxy_service_;
+  }
+
+  // Get the ssl config service for this context.
+  net::SSLConfigService* ssl_config_service() const {
+    return ssl_config_service_;
   }
 
   // Gets the http transaction factory for this context.
@@ -108,6 +114,7 @@ class URLRequestContext :
   // subclasses.
   scoped_refptr<net::HostResolver> host_resolver_;
   scoped_refptr<net::ProxyService> proxy_service_;
+  scoped_refptr<net::SSLConfigService> ssl_config_service_;
   net::HttpTransactionFactory* http_transaction_factory_;
   net::FtpTransactionFactory* ftp_transaction_factory_;
   net::CookieStore* cookie_store_;

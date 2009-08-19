@@ -7,6 +7,7 @@
 #include "base/compiler_specific.h"
 #include "net/base/completion_callback.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/base/ssl_config_service_defaults.h"
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/upload_data.h"
@@ -35,15 +36,20 @@ ProxyService* CreateNullProxyService() {
 class SessionDependencies {
  public:
   // Default set of dependencies -- "null" proxy service.
-  SessionDependencies() : host_resolver(new MockHostResolver),
-      proxy_service(CreateNullProxyService()) {}
+  SessionDependencies()
+      : host_resolver(new MockHostResolver),
+        proxy_service(CreateNullProxyService()),
+        ssl_config_service(new SSLConfigServiceDefaults) {}
 
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
-      : host_resolver(new MockHostResolver), proxy_service(proxy_service) {}
+      : host_resolver(new MockHostResolver),
+        proxy_service(proxy_service),
+        ssl_config_service(new SSLConfigServiceDefaults) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
+  scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
 };
 
@@ -57,7 +63,8 @@ ProxyService* CreateFixedProxyService(const std::string& proxy) {
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(session_deps->host_resolver,
                                 session_deps->proxy_service,
-                                &session_deps->socket_factory);
+                                &session_deps->socket_factory,
+                                session_deps->ssl_config_service);
 }
 
 class HttpNetworkTransactionTest : public PlatformTest {

@@ -155,10 +155,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session,
       response_body_read_(0),
       read_buf_len_(0),
       next_state_(STATE_NONE) {
-#if defined(OS_WIN)
-  // TODO(port): Port the SSLConfigService class to Linux and Mac OS X.
   session->ssl_config_service()->GetSSLConfig(&ssl_config_);
-#endif
 }
 
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,

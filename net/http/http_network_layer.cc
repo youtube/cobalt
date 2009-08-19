@@ -16,11 +16,12 @@ namespace net {
 // static
 HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
     HostResolver* host_resolver,
-    ProxyService* proxy_service) {
+    ProxyService* proxy_service,
+    SSLConfigService* ssl_config_service) {
   DCHECK(proxy_service);
 
   return new HttpNetworkLayer(ClientSocketFactory::GetDefaultFactory(),
-                              host_resolver, proxy_service);
+                              host_resolver, proxy_service, ssl_config_service);
 }
 
 // static
@@ -35,17 +36,21 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
 
 HttpNetworkLayer::HttpNetworkLayer(ClientSocketFactory* socket_factory,
                                    HostResolver* host_resolver,
-                                   ProxyService* proxy_service)
+                                   ProxyService* proxy_service,
+                                   SSLConfigService* ssl_config_service)
     : socket_factory_(socket_factory),
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
+      ssl_config_service_(ssl_config_service),
       session_(NULL),
       suspended_(false) {
   DCHECK(proxy_service_);
+  DCHECK(ssl_config_service_.get());
 }
 
 HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
     : socket_factory_(ClientSocketFactory::GetDefaultFactory()),
+      ssl_config_service_(NULL),
       session_(session),
       suspended_(false) {
   DCHECK(session_.get());
@@ -76,7 +81,7 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
   if (!session_) {
     DCHECK(proxy_service_);
     session_ = new HttpNetworkSession(host_resolver_, proxy_service_,
-                                      socket_factory_);
+                                      socket_factory_, ssl_config_service_);
     // These were just temps for lazy-initializing HttpNetworkSession.
     host_resolver_ = NULL;
     proxy_service_ = NULL;
