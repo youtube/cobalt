@@ -21,7 +21,8 @@ class ClientSocketFactory;
 class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
  public:
   HttpNetworkSession(HostResolver* host_resolver, ProxyService* proxy_service,
-                     ClientSocketFactory* client_socket_factory);
+                     ClientSocketFactory* client_socket_factory,
+                     SSLConfigService* ssl_config_service);
 
   HttpAuthCache* auth_cache() { return &auth_cache_; }
   SSLClientAuthCache* ssl_client_auth_cache() {
@@ -31,9 +32,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   TCPClientSocketPool* tcp_socket_pool() { return tcp_socket_pool_; }
   HostResolver* host_resolver() { return host_resolver_; }
   ProxyService* proxy_service() { return proxy_service_; }
-#if defined(OS_WIN)
-  SSLConfigService* ssl_config_service() { return &ssl_config_service_; }
-#endif
+  SSLConfigService* ssl_config_service() { return ssl_config_service_; }
 
   static void set_max_sockets_per_group(int socket_count);
 
@@ -53,10 +52,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
   scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
-#if defined(OS_WIN)
-  // TODO(port): Port the SSLConfigService class to Linux and Mac OS X.
-  SSLConfigService ssl_config_service_;
-#endif
+  scoped_refptr<SSLConfigService> ssl_config_service_;
 };
 
 }  // namespace net

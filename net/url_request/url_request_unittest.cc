@@ -50,9 +50,11 @@ class URLRequestTestContext : public URLRequestContext {
     host_resolver_ = net::CreateSystemHostResolver();
     proxy_service_ = net::ProxyService::CreateNull();
     ftp_transaction_factory_ = new net::FtpNetworkLayer(host_resolver_);
+    ssl_config_service_ = new net::SSLConfigServiceDefaults;
     http_transaction_factory_ =
         new net::HttpCache(
-          net::HttpNetworkLayer::CreateFactory(host_resolver_, proxy_service_),
+          net::HttpNetworkLayer::CreateFactory(host_resolver_, proxy_service_,
+                                               ssl_config_service_),
           disk_cache::CreateInMemoryCacheBackend(0));
     // In-memory cookie store.
     cookie_store_ = new net::CookieMonster();

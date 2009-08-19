@@ -17,13 +17,16 @@ int HttpNetworkSession::max_sockets_per_group_ = 6;
 HttpNetworkSession::HttpNetworkSession(
     HostResolver* host_resolver,
     ProxyService* proxy_service,
-    ClientSocketFactory* client_socket_factory)
+    ClientSocketFactory* client_socket_factory,
+    SSLConfigService* ssl_config_service)
     : tcp_socket_pool_(new TCPClientSocketPool(
           max_sockets_, max_sockets_per_group_, host_resolver,
           client_socket_factory)),
       host_resolver_(host_resolver),
-      proxy_service_(proxy_service) {
+      proxy_service_(proxy_service),
+      ssl_config_service_(ssl_config_service) {
   DCHECK(proxy_service);
+  DCHECK(ssl_config_service);
 }
 
 // static
