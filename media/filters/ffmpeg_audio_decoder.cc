@@ -128,9 +128,16 @@ void FFmpegAudioDecoder::OnDecode(Buffer* input) {
       result_buffer->SetTimestamp(input->GetTimestamp());
     }
 
-    // Update our estimated timestamp for the next packet.
-    estimated_next_timestamp_ = result_buffer->GetTimestamp() +
-        result_buffer->GetDuration();
+    // Only use the timestamp of |result_buffer| to estimate the next timestamp
+    // if it is valid (i.e. greater than 0).  Otherwise the error will stack
+    // together and we will get a series of incorrect timestamps.  In this case,
+    // this will maintain a series of zero timestamps.
+    // TODO(hclam): We should use another invalid value other than 0.
+    if (result_buffer->GetTimestamp().InMicroseconds() > 0) {
+      // Update our estimated timestamp for the next packet.
+      estimated_next_timestamp_ = result_buffer->GetTimestamp() +
+          result_buffer->GetDuration();
+    }
 
     EnqueueResult(result_buffer);
     return;
