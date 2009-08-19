@@ -2075,7 +2075,7 @@ void HttpCache::CloseIdleConnections() {
       static_cast<net::HttpNetworkLayer*>(network_layer_.get());
   HttpNetworkSession* session = network->GetSession();
   if (session) {
-    session->connection_pool()->CloseIdleSockets();
+    session->tcp_socket_pool()->CloseIdleSockets();
   }
 }
 
