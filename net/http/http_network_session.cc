@@ -18,7 +18,7 @@ HttpNetworkSession::HttpNetworkSession(
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     ClientSocketFactory* client_socket_factory)
-    : connection_pool_(new TCPClientSocketPool(
+    : tcp_socket_pool_(new TCPClientSocketPool(
           max_sockets_, max_sockets_per_group_, host_resolver,
           client_socket_factory)),
       host_resolver_(host_resolver),
