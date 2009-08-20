@@ -146,9 +146,9 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_EQ(4u, log->events().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
-      LoadLog::PHASE_BEGIN);
+                    LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 2, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
-      LoadLog::PHASE_END);
+                    LoadLog::PHASE_END);
   ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
 
@@ -1078,7 +1078,7 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   EXPECT_EQ(4u, log1->events().size());
   ExpectLogContains(log1, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log1, 1, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
-      LoadLog::PHASE_BEGIN);
+                    LoadLog::PHASE_BEGIN);
   // Note that TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC is never completed before
   // the cancellation occured.
   ExpectLogContains(log1, 2, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
