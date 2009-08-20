@@ -24,15 +24,11 @@
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using net::HostResolverImpl;
-using net::LoadLog;
-using net::RuleBasedHostResolverProc;
-using net::WaitingHostResolverProc;
-
 // TODO(eroman):
 //  - Test mixing async with sync (in particular how does sync update the
 //    cache while an async is already pending).
 
+namespace net {
 namespace {
 static const int kMaxCacheEntries = 100;
 static const int kMaxCacheAgeMs = 60000;
@@ -40,17 +36,17 @@ static const int kMaxCacheAgeMs = 60000;
 // A variant of WaitingHostResolverProc that pushes each host mapped into a
 // list.
 // (and uses a manual-reset event rather than auto-reset).
-class CapturingHostResolverProc : public net::HostResolverProc {
+class CapturingHostResolverProc : public HostResolverProc {
  public:
   explicit CapturingHostResolverProc(HostResolverProc* previous)
-      : net::HostResolverProc(previous), event_(true, false) {
+      : HostResolverProc(previous), event_(true, false) {
   }
 
   void Signal() {
     event_.Signal();
   }
 
-  virtual int Resolve(const std::string& host, net::AddressList* addrlist) {
+  virtual int Resolve(const std::string& host, AddressList* addrlist) {
     event_.Wait();
     {
       AutoLock l(lock_);
@@ -85,7 +81,7 @@ class ResolveRequest {
     virtual void OnCompleted(ResolveRequest* resolve) = 0;
   };
 
-  ResolveRequest(net::HostResolver* resolver,
+  ResolveRequest(HostResolver* resolver,
                  const std::string& hostname,
                  int port,
                  Delegate* delegate)
@@ -94,18 +90,18 @@ class ResolveRequest {
             callback_(this, &ResolveRequest::OnLookupFinished)) {
     // Start the request.
     int err = resolver->Resolve(info_, &addrlist_, &callback_, &req_, NULL);
-    EXPECT_EQ(net::ERR_IO_PENDING, err);
+    EXPECT_EQ(ERR_IO_PENDING, err);
   }
 
-  ResolveRequest(net::HostResolver* resolver,
-                 const net::HostResolver::RequestInfo& info,
+  ResolveRequest(HostResolver* resolver,
+                 const HostResolver::RequestInfo& info,
                  Delegate* delegate)
       : info_(info), resolver_(resolver), delegate_(delegate),
         ALLOW_THIS_IN_INITIALIZER_LIST(
             callback_(this, &ResolveRequest::OnLookupFinished)) {
     // Start the request.
     int err = resolver->Resolve(info, &addrlist_, &callback_, &req_, NULL);
-    EXPECT_EQ(net::ERR_IO_PENDING, err);
+    EXPECT_EQ(ERR_IO_PENDING, err);
   }
 
   void Cancel() {
@@ -124,11 +120,11 @@ class ResolveRequest {
     return result_;
   }
 
-  const net::AddressList& addrlist() const {
+  const AddressList& addrlist() const {
     return addrlist_;
   }
 
-  net::HostResolver* resolver() const {
+  HostResolver* resolver() const {
     return resolver_;
   }
 
@@ -139,19 +135,19 @@ class ResolveRequest {
   }
 
   // The request details.
-  net::HostResolver::RequestInfo info_;
-  net::HostResolver::RequestHandle req_;
+  HostResolver::RequestInfo info_;
+  HostResolver::RequestHandle req_;
 
   // The result of the resolve.
   int result_;
-  net::AddressList addrlist_;
+  AddressList addrlist_;
 
   // We don't use a scoped_refptr, to simplify deleting shared resolver in
   // DeleteWithinCallback test.
-  net::HostResolver* resolver_;
+  HostResolver* resolver_;
 
   Delegate* delegate_;
-  net::CompletionCallbackImpl<ResolveRequest> callback_;
+  CompletionCallbackImpl<ResolveRequest> callback_;
 
   DISALLOW_COPY_AND_ASSIGN(ResolveRequest);
 };
@@ -167,7 +163,7 @@ class HostResolverImplTest : public testing::Test {
  protected:
   bool callback_called_;
   int callback_result_;
-  net::CompletionCallbackImpl<HostResolverImplTest> callback_;
+  CompletionCallbackImpl<HostResolverImplTest> callback_;
 
  private:
   void OnLookupFinished(int result) {
@@ -178,26 +174,26 @@ class HostResolverImplTest : public testing::Test {
 };
 
 TEST_F(HostResolverImplTest, SynchronousLookup) {
-  net::AddressList adrlist;
+  AddressList adrlist;
   const int kPortnum = 80;
 
   scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AddRule("just.testing", "192.168.1.42");
 
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
 
-  net::HostResolver::RequestInfo info("just.testing", kPortnum);
+  HostResolver::RequestInfo info("just.testing", kPortnum);
   scoped_refptr<LoadLog> log(new LoadLog);
   int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, log);
-  EXPECT_EQ(net::OK, err);
+  EXPECT_EQ(OK, err);
 
   EXPECT_EQ(2u, log->events().size());
-  net::ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-      LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-      LoadLog::PHASE_END);
+  ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
+                    LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL,
+                    LoadLog::PHASE_END);
 
   const struct addrinfo* ainfo = adrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -210,33 +206,33 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
 }
 
 TEST_F(HostResolverImplTest, AsynchronousLookup) {
-  net::AddressList adrlist;
+  AddressList adrlist;
   const int kPortnum = 80;
 
   scoped_refptr<RuleBasedHostResolverProc> resolver_proc =
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AddRule("just.testing", "192.168.1.42");
 
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
 
-  net::HostResolver::RequestInfo info("just.testing", kPortnum);
+  HostResolver::RequestInfo info("just.testing", kPortnum);
   scoped_refptr<LoadLog> log(new LoadLog);
   int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL, log);
-  EXPECT_EQ(net::ERR_IO_PENDING, err);
+  EXPECT_EQ(ERR_IO_PENDING, err);
 
   EXPECT_EQ(1u, log->events().size());
-  net::ExpectLogContains(
-      log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL, LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
+                    LoadLog::PHASE_BEGIN);
 
   MessageLoop::current()->Run();
 
   ASSERT_TRUE(callback_called_);
-  ASSERT_EQ(net::OK, callback_result_);
+  ASSERT_EQ(OK, callback_result_);
 
   EXPECT_EQ(2u, log->events().size());
-  net::ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-      LoadLog::PHASE_END);
+  ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL,
+                    LoadLog::PHASE_END);
 
   const struct addrinfo* ainfo = adrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -254,14 +250,14 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
 
   scoped_refptr<LoadLog> log(new LoadLog);
   {
-    scoped_refptr<net::HostResolver> host_resolver(
+    scoped_refptr<HostResolver> host_resolver(
         new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
-    net::AddressList adrlist;
+    AddressList adrlist;
     const int kPortnum = 80;
 
-    net::HostResolver::RequestInfo info("just.testing", kPortnum);
+    HostResolver::RequestInfo info("just.testing", kPortnum);
     int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL, log);
-    EXPECT_EQ(net::ERR_IO_PENDING, err);
+    EXPECT_EQ(ERR_IO_PENDING, err);
 
     // Make sure we will exit the queue even when callback is not called.
     MessageLoop::current()->PostDelayedTask(FROM_HERE,
@@ -273,11 +269,11 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
   resolver_proc->Signal();
 
   EXPECT_EQ(3u, log->events().size());
-  net::ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-      LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 1, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
-  net::ExpectLogContains(log, 2, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-      LoadLog::PHASE_END);
+  ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
+                    LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log, 1, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
+  ExpectLogContains(log, 2, LoadLog::TYPE_HOST_RESOLVER_IMPL,
+                    LoadLog::PHASE_END);
 
   EXPECT_FALSE(callback_called_);
 }
@@ -289,13 +285,13 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AllowDirectLookup("*");
 
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
-  net::AddressList adrlist;
+  AddressList adrlist;
   const int kPortnum = 5555;
-  net::HostResolver::RequestInfo info("127.1.2.3", kPortnum);
+  HostResolver::RequestInfo info("127.1.2.3", kPortnum);
   int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, NULL);
-  EXPECT_EQ(net::OK, err);
+  EXPECT_EQ(OK, err);
 
   const struct addrinfo* ainfo = adrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -314,18 +310,18 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
 
   // Resolve a plain IPv6 address.  Don't worry about [brackets], because
   // the caller should have removed them.
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
-  net::AddressList adrlist;
+  AddressList adrlist;
   const int kPortnum = 5555;
-  net::HostResolver::RequestInfo info("2001:db8::1", kPortnum);
+  HostResolver::RequestInfo info("2001:db8::1", kPortnum);
   int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, NULL);
   // On computers without IPv6 support, getaddrinfo cannot convert IPv6
   // address literals to addresses (getaddrinfo returns EAI_NONAME).  So this
   // test has to allow host_resolver->Resolve to fail.
-  if (err == net::ERR_NAME_NOT_RESOLVED)
+  if (err == ERR_NAME_NOT_RESOLVED)
     return;
-  EXPECT_EQ(net::OK, err);
+  EXPECT_EQ(OK, err);
 
   const struct addrinfo* ainfo = adrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -349,13 +345,13 @@ TEST_F(HostResolverImplTest, EmptyHost) {
       new RuleBasedHostResolverProc(NULL);
   resolver_proc->AllowDirectLookup("*");
 
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
-  net::AddressList adrlist;
+  AddressList adrlist;
   const int kPortnum = 5555;
-  net::HostResolver::RequestInfo info("", kPortnum);
+  HostResolver::RequestInfo info("", kPortnum);
   int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, NULL);
-  EXPECT_EQ(net::ERR_NAME_NOT_RESOLVED, err);
+  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
 }
 
 // Helper class used by HostResolverImplTest.DeDupeRequests. It receives request
@@ -410,7 +406,7 @@ TEST_F(HostResolverImplTest, DeDupeRequests) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc =
       new CapturingHostResolverProc(NULL);
 
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -461,7 +457,7 @@ TEST_F(HostResolverImplTest, CancelMultipleRequests) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc =
       new CapturingHostResolverProc(NULL);
 
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -548,7 +544,7 @@ TEST_F(HostResolverImplTest, CancelWithinCallback) {
   scoped_refptr<CapturingHostResolverProc> resolver_proc =
       new CapturingHostResolverProc(NULL);
 
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -578,7 +574,7 @@ class DeleteWithinCallbackVerifier : public ResolveRequest::Delegate {
  public:
   // |host_resolver| is the resolver that the the resolve requests were started
   // with.
-  DeleteWithinCallbackVerifier(net::HostResolver* host_resolver)
+  DeleteWithinCallbackVerifier(HostResolver* host_resolver)
       : host_resolver_(host_resolver) {}
 
   virtual void OnCompleted(ResolveRequest* resolve) {
@@ -595,7 +591,7 @@ class DeleteWithinCallbackVerifier : public ResolveRequest::Delegate {
   }
 
  private:
-  scoped_refptr<net::HostResolver> host_resolver_;
+  scoped_refptr<HostResolver> host_resolver_;
   DISALLOW_COPY_AND_ASSIGN(DeleteWithinCallbackVerifier);
 };
 
@@ -609,7 +605,7 @@ TEST_F(HostResolverImplTest, DeleteWithinCallback) {
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened. Note that the verifier holds the
   // only reference to |host_resolver|, so it can delete it within callback.
-  net::HostResolver* host_resolver =
+  HostResolver* host_resolver =
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs);
   DeleteWithinCallbackVerifier verifier(host_resolver);
 
@@ -662,7 +658,7 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
       new CapturingHostResolverProc(NULL);
 
   // Turn off caching for this host resolver.
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(resolver_proc, 0, 0));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -691,7 +687,7 @@ class BypassCacheVerifier : public ResolveRequest::Delegate {
 
   virtual void OnCompleted(ResolveRequest* resolve) {
     EXPECT_EQ("a", resolve->hostname());
-    net::HostResolver* resolver = resolve->resolver();
+    HostResolver* resolver = resolve->resolver();
 
     if (80 == resolve->port()) {
       // On completing the first request, start another request for "a".
@@ -700,17 +696,17 @@ class BypassCacheVerifier : public ResolveRequest::Delegate {
       // Note that |junk_callback| shouldn't be used since we are going to
       // complete synchronously. We can't specify NULL though since that would
       // mean synchronous mode so we give it a value of 1.
-      net::CompletionCallback* junk_callback =
-          reinterpret_cast<net::CompletionCallback*> (1);
-      net::AddressList addrlist;
+      CompletionCallback* junk_callback =
+          reinterpret_cast<CompletionCallback*> (1);
+      AddressList addrlist;
 
-      net::HostResolver::RequestInfo info("a", 70);
+      HostResolver::RequestInfo info("a", 70);
       int error = resolver->Resolve(info, &addrlist, junk_callback, NULL, NULL);
-      EXPECT_EQ(net::OK, error);
+      EXPECT_EQ(OK, error);
 
       // Ok good. Now make sure that if we ask to bypass the cache, it can no
       // longer service the request synchronously.
-      info = net::HostResolver::RequestInfo("a", 71);
+      info = HostResolver::RequestInfo("a", 71);
       info.set_allow_cached_response(false);
       final_request_.reset(new ResolveRequest(resolver, info, this));
     } else if (71 == resolve->port()) {
@@ -727,7 +723,7 @@ class BypassCacheVerifier : public ResolveRequest::Delegate {
 };
 
 TEST_F(HostResolverImplTest, BypassCache) {
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(NULL, kMaxCacheEntries, kMaxCacheAgeMs));
 
   // The class will receive callbacks for when each resolve completes. It
@@ -741,8 +737,8 @@ TEST_F(HostResolverImplTest, BypassCache) {
   MessageLoop::current()->Run();
 }
 
-bool operator==(const net::HostResolver::RequestInfo& a,
-                const net::HostResolver::RequestInfo& b) {
+bool operator==(const HostResolver::RequestInfo& a,
+                const HostResolver::RequestInfo& b) {
    return a.hostname() == b.hostname() &&
           a.port() == b.port() &&
           a.allow_cached_response() == b.allow_cached_response() &&
@@ -752,29 +748,29 @@ bool operator==(const net::HostResolver::RequestInfo& a,
 
 // Observer that just makes note of how it was called. The test code can then
 // inspect to make sure it was called with the right parameters.
-class CapturingObserver : public net::HostResolver::Observer {
+class CapturingObserver : public HostResolver::Observer {
  public:
   // DnsResolutionObserver methods:
   virtual void OnStartResolution(int id,
-                                 const net::HostResolver::RequestInfo& info) {
+                                 const HostResolver::RequestInfo& info) {
     start_log.push_back(StartOrCancelEntry(id, info));
   }
 
   virtual void OnFinishResolutionWithStatus(
       int id,
       bool was_resolved,
-      const net::HostResolver::RequestInfo& info) {
+      const HostResolver::RequestInfo& info) {
     finish_log.push_back(FinishEntry(id, was_resolved, info));
   }
 
   virtual void OnCancelResolution(int id,
-                                  const net::HostResolver::RequestInfo& info) {
+                                  const HostResolver::RequestInfo& info) {
     cancel_log.push_back(StartOrCancelEntry(id, info));
   }
 
   // Tuple (id, info).
   struct StartOrCancelEntry {
-    StartOrCancelEntry(int id, const net::HostResolver::RequestInfo& info)
+    StartOrCancelEntry(int id, const HostResolver::RequestInfo& info)
         : id(id), info(info) {}
 
     bool operator==(const StartOrCancelEntry& other) const {
@@ -782,13 +778,13 @@ class CapturingObserver : public net::HostResolver::Observer {
     }
 
     int id;
-    net::HostResolver::RequestInfo info;
+    HostResolver::RequestInfo info;
   };
 
   // Tuple (id, was_resolved, info).
   struct FinishEntry {
     FinishEntry(int id, bool was_resolved,
-                const net::HostResolver::RequestInfo& info)
+                const HostResolver::RequestInfo& info)
         : id(id), was_resolved(was_resolved), info(info) {}
 
     bool operator==(const FinishEntry& other) const {
@@ -799,7 +795,7 @@ class CapturingObserver : public net::HostResolver::Observer {
 
     int id;
     bool was_resolved;
-    net::HostResolver::RequestInfo info;
+    HostResolver::RequestInfo info;
   };
 
   std::vector<StartOrCancelEntry> start_log;
@@ -811,34 +807,34 @@ class CapturingObserver : public net::HostResolver::Observer {
 // Does not test the cancellation notification since all resolves are
 // synchronous.
 TEST_F(HostResolverImplTest, Observers) {
-  scoped_refptr<net::HostResolver> host_resolver(
+  scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(NULL, kMaxCacheEntries, kMaxCacheAgeMs));
 
   CapturingObserver observer;
 
   host_resolver->AddObserver(&observer);
 
-  net::AddressList addrlist;
+  AddressList addrlist;
 
   // Resolve "host1".
-  net::HostResolver::RequestInfo info1("host1", 70);
+  HostResolver::RequestInfo info1("host1", 70);
   scoped_refptr<LoadLog> log(new LoadLog);
   int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log);
-  EXPECT_EQ(net::OK, rv);
+  EXPECT_EQ(OK, rv);
 
   EXPECT_EQ(6u, log->events().size());
-  net::ExpectLogContains(log, 0,
-      LoadLog::TYPE_HOST_RESOLVER_IMPL, LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 1,
-      LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART, LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 2,
-      LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART, LoadLog::PHASE_END);
-  net::ExpectLogContains(log, 3,
-      LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH, LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 4,
-      LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH, LoadLog::PHASE_END);
-  net::ExpectLogContains(log, 5,
-      LoadLog::TYPE_HOST_RESOLVER_IMPL, LoadLog::PHASE_END);
+  ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
+                    LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART,
+                    LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log, 2, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART,
+                    LoadLog::PHASE_END);
+  ExpectLogContains(log, 3, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH,
+                    LoadLog::PHASE_BEGIN);
+  ExpectLogContains(log, 4, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH,
+                    LoadLog::PHASE_END);
+  ExpectLogContains(log, 5, LoadLog::TYPE_HOST_RESOLVER_IMPL,
+                    LoadLog::PHASE_END);
 
   EXPECT_EQ(1U, observer.start_log.size());
   EXPECT_EQ(1U, observer.finish_log.size());
@@ -852,7 +848,7 @@ TEST_F(HostResolverImplTest, Observers) {
   // should still notify of completion.
   TestCompletionCallback callback;
   rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
-  ASSERT_EQ(net::OK, rv);  // Should complete synchronously.
+  ASSERT_EQ(OK, rv);  // Should complete synchronously.
 
   EXPECT_EQ(2U, observer.start_log.size());
   EXPECT_EQ(2U, observer.finish_log.size());
@@ -863,10 +859,10 @@ TEST_F(HostResolverImplTest, Observers) {
               CapturingObserver::FinishEntry(1, true, info1));
 
   // Resolve "host2", setting referrer to "http://foobar.com"
-  net::HostResolver::RequestInfo info2("host2", 70);
+  HostResolver::RequestInfo info2("host2", 70);
   info2.set_referrer(GURL("http://foobar.com"));
   rv = host_resolver->Resolve(info2, &addrlist, NULL, NULL, NULL);
-  EXPECT_EQ(net::OK, rv);
+  EXPECT_EQ(OK, rv);
 
   EXPECT_EQ(3U, observer.start_log.size());
   EXPECT_EQ(3U, observer.finish_log.size());
@@ -880,7 +876,7 @@ TEST_F(HostResolverImplTest, Observers) {
   host_resolver->RemoveObserver(&observer);
 
   // Resolve "host3"
-  net::HostResolver::RequestInfo info3("host3", 70);
+  HostResolver::RequestInfo info3("host3", 70);
   host_resolver->Resolve(info3, &addrlist, NULL, NULL, NULL);
 
   // No effect this time, since observer was removed.
@@ -897,7 +893,7 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
   CapturingObserver observer;
   {
     // Create a host resolver and attach an observer.
-    scoped_refptr<net::HostResolver> host_resolver(
+    scoped_refptr<HostResolver> host_resolver(
         new HostResolverImpl(NULL, kMaxCacheEntries, kMaxCacheAgeMs));
     host_resolver->AddObserver(&observer);
 
@@ -908,11 +904,11 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
     EXPECT_EQ(0U, observer.cancel_log.size());
 
     // Start an async resolve for (host1:70).
-    net::HostResolver::RequestInfo info1("host1", 70);
-    net::HostResolver::RequestHandle req = NULL;
-    net::AddressList addrlist;
+    HostResolver::RequestInfo info1("host1", 70);
+    HostResolver::RequestHandle req = NULL;
+    AddressList addrlist;
     int rv = host_resolver->Resolve(info1, &addrlist, &callback, &req, NULL);
-    EXPECT_EQ(net::ERR_IO_PENDING, rv);
+    EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_TRUE(NULL != req);
 
     EXPECT_EQ(1U, observer.start_log.size());
@@ -933,9 +929,9 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
                 CapturingObserver::StartOrCancelEntry(0, info1));
 
     // Start an async request for (host2:60)
-    net::HostResolver::RequestInfo info2("host2", 60);
+    HostResolver::RequestInfo info2("host2", 60);
     rv = host_resolver->Resolve(info2, &addrlist, &callback, NULL, NULL);
-    EXPECT_EQ(net::ERR_IO_PENDING, rv);
+    EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_TRUE(NULL != req);
 
     EXPECT_EQ(2U, observer.start_log.size());
@@ -956,9 +952,10 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
   EXPECT_EQ(0U, observer.finish_log.size());
   EXPECT_EQ(2U, observer.cancel_log.size());
 
-  net::HostResolver::RequestInfo info("host2", 60);
+  HostResolver::RequestInfo info("host2", 60);
   EXPECT_TRUE(observer.cancel_log[1] ==
               CapturingObserver::StartOrCancelEntry(1, info));
 }
 
 }  // namespace
+}  // namespace net
