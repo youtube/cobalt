@@ -224,25 +224,40 @@ bool LaunchApp(const std::vector<std::string>& argv,
                const environment_vector& environ,
                const file_handle_mapping_vector& fds_to_remap,
                bool wait, ProcessHandle* process_handle) {
-  pid_t pid = fork();
+  // We call vfork() for additional performance (avoids touching the page
+  // tables).  This makes things a bit more dangerous since the child and
+  // parent share the same address space and stack.  Try to do most of our
+  // operations before the fork, and hope that everything we do have to do
+  // will be ok...
+  bool use_vfork = (environ.size() == 0);
+
+  InjectiveMultimap fd_shuffle;
+  for (file_handle_mapping_vector::const_iterator
+      it = fds_to_remap.begin(); it != fds_to_remap.end(); ++it) {
+    fd_shuffle.push_back(InjectionArc(it->first, it->second, false));
+  }
+
+  scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
+  for (size_t i = 0; i < argv.size(); i++)
+    argv_cstr[i] = const_cast<char*>(argv[i].c_str());
+  argv_cstr[argv.size()] = NULL;
+
+  pid_t pid = use_vfork ? vfork() : fork();
   if (pid < 0)
     return false;
 
   if (pid == 0) {
     // Child process
-    InjectiveMultimap fd_shuffle;
-    for (file_handle_mapping_vector::const_iterator
-        it = fds_to_remap.begin(); it != fds_to_remap.end(); ++it) {
-      fd_shuffle.push_back(InjectionArc(it->first, it->second, false));
-    }
 
-    for (environment_vector::const_iterator it = environ.begin();
-         it != environ.end(); ++it) {
-      if (it->first) {
-        if (it->second) {
-          setenv(it->first, it->second, 1);
-        } else {
-          unsetenv(it->first);
+    if (!use_vfork) {
+      for (environment_vector::const_iterator it = environ.begin();
+           it != environ.end(); ++it) {
+        if (it->first) {
+          if (it->second) {
+            setenv(it->first, it->second, 1);
+          } else {
+            unsetenv(it->first);
+          }
         }
       }
     }
@@ -255,17 +270,8 @@ bool LaunchApp(const std::vector<std::string>& argv,
     if (!ShuffleFileDescriptors(fd_shuffle))
       _exit(127);
 
-    // If we are using the SUID sandbox, it sets a magic environment variable
-    // ("SBX_D"), so we remove that variable from the environment here on the
-    // off chance that it's already set.
-    unsetenv("SBX_D");
-
     CloseSuperfluousFds(fd_shuffle);
 
-    scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
-    for (size_t i = 0; i < argv.size(); i++)
-      argv_cstr[i] = const_cast<char*>(argv[i].c_str());
-    argv_cstr[argv.size()] = NULL;
     execvp(argv_cstr[0], argv_cstr.get());
     LOG(ERROR) << "LaunchApp: exec failed!, argv_cstr[0] " << argv_cstr[0]
         << ", errno " << errno;
