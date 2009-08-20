@@ -258,9 +258,6 @@ void PartialData::OnCacheReadCompleted(int result) {
     current_range_start_ += result;
     cached_min_len_ -= result;
     DCHECK(cached_min_len_ >= 0);
-  } else if (!result) {
-    // TODO(rvargas): we can detect this error and make sure that we are not
-    // in a loop of failure/retry.
   }
 }
 
