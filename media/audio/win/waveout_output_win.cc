@@ -29,9 +29,6 @@
 //   to make sure we are not executing inside the audio source's OnMoreData()
 //   or that we take locks inside WaveCallback() or QueueNextPacket().
 
-// Enable or disable software folding
-#define FOLDING 1
-
 namespace {
 
 // We settled for a triple buffering scheme. It seems to strike a good balance
@@ -63,11 +60,7 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       volume_(1),
       channels_(channels) {
   format_.wFormatTag = WAVE_FORMAT_PCM;
-#ifdef FOLDING
   format_.nChannels = channels > 2 ? 2 : channels;
-#else
-  format_.nChannels = channels;
-#endif
   format_.nSamplesPerSec = sampling_rate;
   format_.wBitsPerSample = bits_per_sample;
   format_.cbSize = 0;
