@@ -465,12 +465,18 @@ class RangeTransactionServer {
  public:
   RangeTransactionServer() {
     not_modified_ = false;
+    modified_ = false;
   }
   ~RangeTransactionServer() {
     not_modified_ = false;
+    modified_ = false;
   }
 
+  // Returns only 416 or 304 when set.
   void set_not_modified(bool value) { not_modified_ = value; }
+
+  // Returns 206 when revalidating a range (instead of 304).
+  void set_modified(bool value) { modified_ = value; }
 
   static void RangeHandler(const net::HttpRequestInfo* request,
                            std::string* response_status,
@@ -479,9 +485,11 @@ class RangeTransactionServer {
 
  private:
   static bool not_modified_;
+  static bool modified_;
   DISALLOW_COPY_AND_ASSIGN(RangeTransactionServer);
 };
 bool RangeTransactionServer::not_modified_ = false;
+bool RangeTransactionServer::modified_ = false;
 
 // Static.
 void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
@@ -519,7 +527,8 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
                                            start, end);
   response_headers->append(content_range);
 
-  if (request->extra_headers.find("If-None-Match") == std::string::npos) {
+  if (request->extra_headers.find("If-None-Match") == std::string::npos ||
+      modified_) {
     EXPECT_EQ(9, (end - start) % 10);
     std::string data;
     for (int block_start = start; block_start < end; block_start += 10)
@@ -1762,6 +1771,41 @@ TEST(HttpCache, DISABLED_RangeGET_304) {
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// Tests that we deal with 206s when revalidating range requests.
+TEST(HttpCache, DISABLED_RangeGET_ModifiedResult) {
+  MockHttpCache cache;
+  AddMockTransaction(&kRangeGET_TransactionOK);
+  std::string headers;
+
+  // Write to the cache (40-49).
+  RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
+                                 &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Attempt to read from the cache (40-49).
+  RangeTransactionServer handler;
+  handler.set_modified(true);
+  RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
+                                 &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // And the entry should be gone.
+  RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
 
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
