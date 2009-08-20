@@ -502,22 +502,22 @@ std::string CollapseWhitespaceASCII(const std::string& text,
 }
 
 std::string WideToASCII(const std::wstring& wide) {
-  DCHECK(IsStringASCII(wide));
+  DCHECK(IsStringASCII(wide)) << wide;
   return std::string(wide.begin(), wide.end());
 }
 
 std::wstring ASCIIToWide(const StringPiece& ascii) {
-  DCHECK(IsStringASCII(ascii));
+  DCHECK(IsStringASCII(ascii)) << ascii;
   return std::wstring(ascii.begin(), ascii.end());
 }
 
 std::string UTF16ToASCII(const string16& utf16) {
-  DCHECK(IsStringASCII(utf16));
+  DCHECK(IsStringASCII(utf16)) << utf16;
   return std::string(utf16.begin(), utf16.end());
 }
 
 string16 ASCIIToUTF16(const StringPiece& ascii) {
-  DCHECK(IsStringASCII(ascii));
+  DCHECK(IsStringASCII(ascii)) << ascii;
   return string16(ascii.begin(), ascii.end());
 }
 
