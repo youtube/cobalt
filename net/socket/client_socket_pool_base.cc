@@ -562,7 +562,7 @@ void ClientSocketPoolBaseHelper::OnAvailableSocketSlot(
     const std::string& group_name, Group* group) {
   if (may_have_stalled_group_) {
     std::string top_group_name;
-    Group* top_group;
+    Group* top_group = NULL;
     int stalled_group_count = FindTopStalledGroup(&top_group, &top_group_name);
     if (stalled_group_count <= 1)
       may_have_stalled_group_ = false;
