@@ -15,14 +15,14 @@ class NSAutoreleasePool;
 #endif
 
 // The purpose of this class us to provide a hook for platform-specific
-// SetUp and TearDown across unit tests.  For example, on the Mac, it
-// creates and releases an outer AutoreleasePool for each test.  For now, it's
-// only implemented on the Mac.  To enable this for another platform, just
-// adjust the #ifdefs and add a platform_test_<platform>.cc implementation file.
+// operations across unit tests.  For example, on the Mac, it creates and
+// releases an outer NSAutoreleasePool for each test case.  For now, it's only
+// implemented on the Mac.  To enable this for another platform, just adjust
+// the #ifdefs and add a platform_test_<platform>.cc implementation file.
 class PlatformTest : public testing::Test {
  protected:
-  virtual void SetUp();
-  virtual void TearDown();
+  PlatformTest();
+  virtual ~PlatformTest();
 
  private:
   NSAutoreleasePool* pool_;
