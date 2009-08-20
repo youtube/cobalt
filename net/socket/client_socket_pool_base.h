@@ -64,7 +64,8 @@ class ConnectJob {
   ConnectJob(const std::string& group_name,
              const ClientSocketHandle* key_handle,
              base::TimeDelta timeout_duration,
-             Delegate* delegate);
+             Delegate* delegate,
+             LoadLog* load_log);
   virtual ~ConnectJob();
 
   // Accessors
@@ -84,11 +85,13 @@ class ConnectJob {
   // if it succeeded.
   int Connect();
 
+  LoadLog* load_log() { return load_log_; }
+
  protected:
   void set_load_state(LoadState load_state) { load_state_ = load_state; }
   void set_socket(ClientSocket* socket) { socket_.reset(socket); }
   ClientSocket* socket() { return socket_.get(); }
-  Delegate* delegate() { return delegate_; }
+  void NotifyDelegateOfCompletion(int rv);
 
  private:
   virtual int ConnectInternal() = 0;
@@ -105,6 +108,7 @@ class ConnectJob {
   Delegate* delegate_;
   LoadState load_state_;
   scoped_ptr<ClientSocket> socket_;
+  scoped_refptr<LoadLog> load_log_;
 
   DISALLOW_COPY_AND_ASSIGN(ConnectJob);
 };
@@ -126,7 +130,8 @@ class ClientSocketPoolBaseHelper
             CompletionCallback* callback,
             int priority,
             LoadLog* load_log)
-        : handle_(handle), callback_(callback), priority_(priority) {}
+        : handle_(handle), callback_(callback), priority_(priority),
+          load_log_(load_log) {}
 
     virtual ~Request() {}
 
@@ -152,7 +157,8 @@ class ClientSocketPoolBaseHelper
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const Request& request,
-        ConnectJob::Delegate* delegate) const = 0;
+        ConnectJob::Delegate* delegate,
+        LoadLog* load_log) const = 0;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
@@ -265,6 +271,8 @@ class ClientSocketPoolBaseHelper
 
   static void InsertRequestIntoQueue(const Request* r,
                                      RequestQueue* pending_requests);
+  static const Request* RemoveRequestFromQueue(RequestQueue::iterator it,
+                                               RequestQueue* pending_requests);
 
   // Closes all idle sockets if |force| is true.  Else, only closes idle
   // sockets that timed out or can't be reused.
@@ -404,7 +412,8 @@ class ClientSocketPoolBase {
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const Request& request,
-        ConnectJob::Delegate* delegate) const = 0;
+        ConnectJob::Delegate* delegate,
+        LoadLog* load_log) const = 0;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
@@ -432,9 +441,12 @@ class ClientSocketPoolBase {
                     LoadLog* load_log) {
     scoped_ptr<Request> request(
         new Request(handle, callback, priority, params, load_log));
+    LoadLog::BeginEvent(load_log, LoadLog::TYPE_SOCKET_POOL);
     int rv = helper_->RequestSocket(group_name, request.get());
     if (rv == ERR_IO_PENDING)
       request.release();
+    else
+      LoadLog::EndEvent(load_log, LoadLog::TYPE_SOCKET_POOL);
     return rv;
   }
 
@@ -493,10 +505,11 @@ class ClientSocketPoolBase {
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const internal::ClientSocketPoolBaseHelper::Request& request,
-        ConnectJob::Delegate* delegate) const {
+        ConnectJob::Delegate* delegate,
+        LoadLog* load_log) const {
       const Request* casted_request = static_cast<const Request*>(&request);
       return connect_job_factory_->NewConnectJob(
-          group_name, *casted_request, delegate);
+          group_name, *casted_request, delegate, load_log);
     }
 
     const scoped_ptr<ConnectJobFactory> connect_job_factory_;
