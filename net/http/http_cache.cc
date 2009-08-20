@@ -1128,6 +1128,23 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
   return true;
 }
 
+// We just received some headers from the server. We may have asked for a range,
+// in which case partial_ has an object. This could be the first network request
+// we make to fulfill the original request, or we may be already reading (from
+// the net and / or the cache). If we are not expecting a certain response, we
+// just bypass the cache for this request (but again, maybe we are reading), and
+// delete partial_ (so we are not able to "fix" the headers that we return to
+// the user). This results in either a weird response for the caller (we don't
+// expect it after all), or maybe a range that was not exactly what it was asked
+// for.
+//
+// For example, if the original request is for 30KB and we have the last 20KB,
+// we ask the server for the first 10KB. If the resourse has changed, we'll
+// end up forwarding the 200 back to the user (so far so good). However, if
+// we have instead the first 10KB, we end up sending back a byte range response
+// for the first 10KB, because we never asked the server for the last part. It's
+// just too complicated to restart the whole request from this point; and of
+// course, maybe we already returned the headers.
 bool HttpCache::Transaction::ValidatePartialResponse(
     const HttpResponseHeaders* headers) {
     int response_code = headers->response_code();
@@ -1150,30 +1167,38 @@ bool HttpCache::Transaction::ValidatePartialResponse(
     return false;
   }
 
-  // TODO(rvargas): Handle 206 when the current range is already cached.
-  bool failure = false;
-  if (!partial_content) {
-    if (!partial_.get())
-      return false;
+  if (!partial_.get()) {
+    // We are not expecting 206 but we may have one.
+    if (partial_content)
+      IgnoreRangeRequest();
 
-    // TODO(rvargas): Do we need to consider other results here?.
-    if (response_code == 200 || response_code == 416)
+    return false;
+  }
+
+  // TODO(rvargas): Do we need to consider other results here?.
+  bool failure = response_code == 200 || response_code == 416;
+
+  if (partial_->IsCurrentRangeCached()) {
+    // We asked for "If-None-Match: " so a 206 means a new object.
+    if (partial_content)
       failure = true;
-
-    if (!reading_ && failure) {
-      // We are expecting 206 or 304 because we asked for a range. Given that
-      // the server is refusing the request we'll remove the sparse entry.
-      DoomPartialEntry(true);
-      mode_ = NONE;
-      return false;
-    }
 
     if (response_code == 304 && partial_->ResponseHeadersOK(headers))
       return false;
+  } else {
+    // We asked for "If-Range: " so a 206 means just another range.
+    if (partial_content && partial_->ResponseHeadersOK(headers))
+      return true;
+
+    // 304 is not expected here, but we'll spare the entry.
   }
 
-  if (!failure && partial_.get() && partial_->ResponseHeadersOK(headers))
-    return true;
+  if (failure) {
+    // We cannot truncate this entry, it has to be deleted.
+    DoomPartialEntry(true);
+    mode_ = NONE;
+    return false;
+  }
 
   IgnoreRangeRequest();
   return false;
@@ -1352,7 +1377,10 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
           if (response_.headers->HasHeaderValue("cache-control", "no-store")) {
             cache_->DoomEntry(cache_key_);
           } else {
-            WriteResponseInfoToEntry();
+            // If we are already reading, we already updated the headers for
+            // this request; doing it again will change Content-Length.
+            if (!reading_)
+              WriteResponseInfoToEntry();
           }
 
           if (mode_ == UPDATE) {
