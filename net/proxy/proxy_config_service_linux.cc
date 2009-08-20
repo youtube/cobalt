@@ -554,7 +554,8 @@ void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
       }
       break;
 
-    case base::DESKTOP_ENVIRONMENT_KDE:
+    case base::DESKTOP_ENVIRONMENT_KDE3:
+    case base::DESKTOP_ENVIRONMENT_KDE4:
       NOTIMPLEMENTED() << "Bug 17363: obey KDE proxy settings.";
       break;
 

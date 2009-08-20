@@ -35,7 +35,10 @@ class EnvironmentVariableGetter {
 enum DesktopEnvironment {
   DESKTOP_ENVIRONMENT_OTHER,
   DESKTOP_ENVIRONMENT_GNOME,
-  DESKTOP_ENVIRONMENT_KDE,
+  // KDE3 and KDE4 are sufficiently different that we count
+  // them as two different desktop environments here.
+  DESKTOP_ENVIRONMENT_KDE3,
+  DESKTOP_ENVIRONMENT_KDE4,
 };
 
 // Return an entry from the DesktopEnvironment enum with a best guess
@@ -43,6 +46,12 @@ enum DesktopEnvironment {
 // to attempt to use preferences from the desktop environment --
 // proxy settings, password manager, etc.
 DesktopEnvironment GetDesktopEnvironment(EnvironmentVariableGetter* env);
+
+// Return a string representation of the given desktop environment.
+// May return NULL in the case of DESKTOP_ENVIRONMENT_OTHER.
+const char* GetDesktopEnvironmentName(DesktopEnvironment env);
+// Convenience wrapper that calls GetDesktopEnvironment() first.
+const char* GetDesktopEnvironmentName(EnvironmentVariableGetter* env);
 
 }  // namespace base
 
