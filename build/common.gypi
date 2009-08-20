@@ -160,6 +160,9 @@
     ],
   },
   'target_defaults': {
+    'variables': {
+      'mac_release_optimization%': '2'  # Use -O2 unless overridden
+    },
     'conditions': [
       ['branding=="Chrome"', {
         'defines': ['GOOGLE_CHROME_BUILD'],
@@ -224,13 +227,11 @@
        #   2 == /INCREMENTAL
        # Debug links incremental, Release does not.
       'Debug': {
+        'xcode_settings': {
+          'COPY_PHASE_STRIP': 'NO',
+          'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
+        },
         'conditions': [
-          [ 'OS=="mac"', {
-            'xcode_settings': {
-              'COPY_PHASE_STRIP': 'NO',
-              'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
-            }
-          }],
           [ 'OS=="win"', {
             'configuration_platform': 'Win32',
             'msvs_configuration_attributes': {
@@ -259,16 +260,11 @@
         'defines': [
           'NDEBUG',
         ],
+        'xcode_settings': {
+          'DEAD_CODE_STRIPPING': 'YES',  # -Wl,-dead_strip
+          'GCC_OPTIMIZATION_LEVEL': '<(mac_release_optimization)',
+        },
         'conditions': [
-          [ 'OS=="mac"', {
-            'xcode_settings': {
-              'DEAD_CODE_STRIPPING': 'YES',  # -Wl,-dead_strip
-              'conditions': [
-                ['mac_release_optimization != "UNSET"',
-                  {'GCC_OPTIMIZATION_LEVEL': '<(mac_release_optimization)'}],
-              ],
-            }
-          }],
           [ 'OS=="win" and msvs_use_common_release', {
             'configuration_platform': 'Win32',
             'msvs_props': ['release.vsprops'],
@@ -553,9 +549,6 @@
           # with % in variables that are intended to be set to different
           # values in different targets, like this one.
           'mac_real_dsym': 0,  # Fake .dSYMs are fine in most cases.
-          # Release defaults to the Xcode optimization default, this var
-          # lets you force the value.
-          'mac_release_optimization%': 'UNSET'
         },
         'mac_bundle': 0,
         'xcode_settings': {
