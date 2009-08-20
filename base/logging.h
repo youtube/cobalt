@@ -280,9 +280,17 @@ std::string* MakeCheckOpString(const int& v1,
 //     foo.CheckThatFoo();
 //   #endif
 
-#ifdef OFFICIAL_BUILD
-// We want to have optimized code for an official build so we remove DLOGS and
-// DCHECK from the executable.
+// http://crbug.com/16512 is open for a real fix for this.  For now, Windows
+// uses OFFICIAL_BUILD and other platforms use the branding flag when NDEBUG is
+// defined.
+#if ( defined(OS_WIN) && defined(OFFICIAL_BUILD)) || \
+    (!defined(OS_WIN) && defined(NDEBUG) && defined(GOOGLE_CHROME_BUILD))
+// In order to have optimized code for official builds, remove DLOGs and
+// DCHECKs.
+#define OMIT_DLOG_AND_DCHECK 1
+#endif
+
+#ifdef OMIT_DLOG_AND_DCHECK
 
 #define DLOG(severity) \
   true ? (void) 0 : logging::LogMessageVoidify() & LOG(severity)
@@ -337,7 +345,8 @@ enum { DEBUG_MODE = 0 };
 #define DCHECK_STRCASENE(str1, str2) \
   while (false && (str1) == (str2)) NDEBUG_EAT_STREAM_PARAMETERS
 
-#else
+#else  // OMIT_DLOG_AND_DCHECK
+
 #ifndef NDEBUG
 // On a regular debug build, we want to have DCHECKS and DLOGS enabled.
 
@@ -490,7 +499,8 @@ DEFINE_DCHECK_OP_IMPL(GT, > )
 #define DCHECK_GE(val1, val2) DCHECK_OP(GE, >=, val1, val2)
 #define DCHECK_GT(val1, val2) DCHECK_OP(GT, > , val1, val2)
 
-#endif  // OFFICIAL_BUILD
+#endif  // OMIT_DLOG_AND_DCHECK
+#undef OMIT_DLOG_AND_DCHECK
 
 #define NOTREACHED() DCHECK(false)
 
