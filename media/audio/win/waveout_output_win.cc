@@ -34,9 +34,10 @@
 
 namespace {
 
-// We settled for a double buffering scheme. It seems to strike a good balance
+// We settled for a triple buffering scheme. It seems to strike a good balance
 // between how fast data needs to be provided versus memory usage.
-const size_t kNumBuffers = 2;
+// Double buffering is insufficient for Vista and produces stutter.
+const size_t kNumBuffers = 3;
 
 // Sixty four MB is the maximum buffer size per AudioOutputStream.
 const size_t kMaxOpenBufferSize = 1024 * 1024 * 64;
