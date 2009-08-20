@@ -71,26 +71,31 @@ bool IsRunningHeadless() {
 
 }  // namespace.
 
+const int kNumBuffers = 3;
 // Specializes TestSourceBasic to detect that the AudioStream is using
-// double buffering correctly.
-class TestSourceDoubleBuffer : public TestSourceBasic {
+// triple buffering correctly.
+class TestSourceTripleBuffer : public TestSourceBasic {
  public:
-  TestSourceDoubleBuffer() {
+  TestSourceTripleBuffer() {
     buffer_address_[0] = NULL;
     buffer_address_[1] = NULL;
+    buffer_address_[2] = NULL;
   }
   // Override of TestSourceBasic::OnMoreData.
   virtual size_t OnMoreData(AudioOutputStream* stream,
                             void* dest, size_t max_size) {
     // Call the base, which increments the callback_count_.
     TestSourceBasic::OnMoreData(stream, dest, max_size);
-    if (callback_count() % 2) {
+    if (callback_count() % kNumBuffers == 2) {
+      set_error(!CompareExistingIfNotNULL(2, dest));
+    } else if (callback_count() % kNumBuffers == 1) {
       set_error(!CompareExistingIfNotNULL(1, dest));
     } else {
       set_error(!CompareExistingIfNotNULL(0, dest));
     }
-    if (callback_count() > 2) {
+    if (callback_count() > kNumBuffers) {
       set_error(buffer_address_[0] == buffer_address_[1]);
+      set_error(buffer_address_[1] == buffer_address_[2]);
     }
     return max_size;
   }
@@ -103,7 +108,7 @@ class TestSourceDoubleBuffer : public TestSourceBasic {
     return (entry == address);
   }
 
-  void* buffer_address_[2];
+  void* buffer_address_[kNumBuffers];
 };
 
 // Specializes TestSourceBasic to simulate a source that blocks for some time
@@ -117,7 +122,7 @@ class TestSourceLaggy : public TestSourceBasic {
                             void* dest, size_t max_size) {
     // Call the base, which increments the callback_count_.
     TestSourceBasic::OnMoreData(stream, dest, max_size);
-    if (callback_count() > 2) {
+    if (callback_count() > kNumBuffers) {
       ::Sleep(lag_in_ms_);
     }
     return max_size;
@@ -132,7 +137,7 @@ class TestSourceLaggy : public TestSourceBasic {
 // memory access violations.
 class ReadOnlyMappedFile {
  public:
-  ReadOnlyMappedFile(const wchar_t* file_name)
+  explicit ReadOnlyMappedFile(const wchar_t* file_name)
       : fmap_(NULL), start_(NULL), size_(0) {
     HANDLE file = ::CreateFileW(file_name, GENERIC_READ, FILE_SHARE_READ, NULL,
                                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -262,9 +267,9 @@ TEST(WinAudioTest, PCMWaveStreamOpenLimit) {
   oas->Close();
 }
 
-// Test that it uses the double buffers correctly. Because it uses the actual
+// Test that it uses the triple buffers correctly. Because it uses the actual
 // audio device, you might hear a short pop noise for a short time.
-TEST(WinAudioTest, PCMWaveStreamDoubleBuffer) {
+TEST(WinAudioTest, PCMWaveStreamTripleBuffer) {
   if (IsRunningHeadless())
     return;
   AudioManager* audio_man = AudioManager::GetAudioManager();
@@ -274,12 +279,12 @@ TEST(WinAudioTest, PCMWaveStreamDoubleBuffer) {
   AudioOutputStream* oas =
       audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1, 16000, 16);
   ASSERT_TRUE(NULL != oas);
-  TestSourceDoubleBuffer test_double_buffer;
+  TestSourceTripleBuffer test_triple_buffer;
   EXPECT_TRUE(oas->Open(512));
-  oas->Start(&test_double_buffer);
+  oas->Start(&test_triple_buffer);
   ::Sleep(300);
-  EXPECT_GT(test_double_buffer.callback_count(), 2);
-  EXPECT_FALSE(test_double_buffer.had_error());
+  EXPECT_GT(test_triple_buffer.callback_count(), kNumBuffers);
+  EXPECT_FALSE(test_triple_buffer.had_error());
   oas->Stop();
   ::Sleep(1000);
   oas->Close();
