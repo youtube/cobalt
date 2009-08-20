@@ -75,78 +75,27 @@ class OCSPInitSingleton {
 scoped_refptr<URLRequestContext> OCSPInitSingleton::request_context_;
 
 // Concrete class for SEC_HTTP_REQUEST_SESSION.
-class OCSPRequestSession {
- public:
-  OCSPRequestSession(const GURL& url,
-                     const char* http_request_method,
-                     base::TimeDelta timeout);
-  ~OCSPRequestSession();
-
-  void SetPostData(const char* http_data,
-                   const PRUint32 http_data_len,
-                   const char* http_content_type);
-
-  void AddHeader(const char* http_header_name,
-                 const char* http_header_value);
-
-  void Start();
-  bool Started() const;
-
-  void Cancel();
-
-  bool Finished() const;
-
-  bool Wait();
-
-  const GURL& url() const {
-    return url_;
-  }
-
-  const std::string& http_request_method() const {
-    return http_request_method_;
-  }
-
-  base::TimeDelta timeout() const {
-    return timeout_;
-  }
-
-  PRUint16 http_response_code() const;
-  const std::string& http_response_content_type() const;
-  const std::string& http_response_headers() const;
-  const std::string& http_response_data() const;
-
- private:
-  class Core;
-
-  GURL url_;
-  std::string http_request_method_;
-  base::TimeDelta timeout_;
-
-  scoped_refptr<Core> core_;
-
-  DISALLOW_COPY_AND_ASSIGN(OCSPRequestSession);
-};
-
-// This class is the real guts of OCSP handlers.
 // Public methods except virtual methods of URLRequest::Delegate (On* methods)
 // run on certificate verifier thread (worker thread).
 // Virtual methods of URLRequest::Delegate and private methods run
 // on IO thread.
-class OCSPRequestSession::Core
-    : public base::RefCountedThreadSafe<OCSPRequestSession::Core>,
+class OCSPRequestSession
+    : public base::RefCountedThreadSafe<OCSPRequestSession>,
       public URLRequest::Delegate {
  public:
-  explicit Core(OCSPRequestSession* req)
-      : url_(req->url()),
-        http_request_method_(req->http_request_method()),
-        timeout_(req->timeout()),
+  OCSPRequestSession(const GURL& url,
+                     const char* http_request_method,
+                     base::TimeDelta timeout)
+      : url_(url),
+        http_request_method_(http_request_method),
+        timeout_(timeout),
         io_loop_(Singleton<OCSPInitSingleton>::get()->io_thread()),
         request_(NULL),
         buffer_(new net::IOBuffer(kRecvBufferSize)),
         response_code_(-1),
         cv_(&lock_),
         finished_(false) {}
-  virtual ~Core() {
+  virtual ~OCSPRequestSession() {
     DCHECK(!request_);
   }
 
@@ -165,22 +114,24 @@ class OCSPRequestSession::Core
 
   void Start() {
     DCHECK(io_loop_);
-    io_loop_->PostTask(FROM_HERE,
-                       NewRunnableMethod(this, &Core::StartURLRequest));
+    io_loop_->PostTask(
+        FROM_HERE,
+        NewRunnableMethod(this, &OCSPRequestSession::StartURLRequest));
   }
 
   bool Started() const {
     return request_ != NULL;
   }
 
+  void Cancel() {
+    io_loop_->PostTask(
+        FROM_HERE,
+        NewRunnableMethod(this, &OCSPRequestSession::CancelURLRequest));
+  }
+
   bool Finished() const {
     AutoLock autolock(lock_);
     return finished_;
-  }
-
-  void Cancel() {
-    io_loop_->PostTask(FROM_HERE,
-                       NewRunnableMethod(this, &Core::CancelURLRequest));
   }
 
   bool Wait() {
@@ -202,29 +153,37 @@ class OCSPRequestSession::Core
     return finished_;
   }
 
-  PRUint16 response_code() const {
+  const GURL& url() const {
+    return url_;
+  }
+
+  const std::string& http_request_method() const {
+    return http_request_method_;
+  }
+
+  base::TimeDelta timeout() const {
+    return timeout_;
+  }
+
+  PRUint16 http_response_code() const {
     DCHECK(finished_);
     return response_code_;
   }
 
-  const std::string &response_content_type() const {
+  const std::string& http_response_content_type() const {
     DCHECK(finished_);
     return response_content_type_;
   }
 
-  const std::string &response_headers() const {
+  const std::string& http_response_headers() const {
     DCHECK(finished_);
     return response_headers_->raw_headers();
   }
 
-  const std::string &http_response_data() const {
+  const std::string& http_response_data() const {
     DCHECK(finished_);
     return data_;
   }
-
-  // Follow rediect.
-  virtual void OnReceivedRedirect(URLRequest* request,
-                                  const GURL& new_url) {}
 
   virtual void OnResponseStarted(URLRequest* request) {
     DCHECK(request == request_);
@@ -321,67 +280,8 @@ class OCSPRequestSession::Core
 
   bool finished_;
 
-  DISALLOW_COPY_AND_ASSIGN(Core);
+  DISALLOW_COPY_AND_ASSIGN(OCSPRequestSession);
 };
-
-OCSPRequestSession::OCSPRequestSession(const GURL& url,
-                                       const char* http_request_method,
-                                       base::TimeDelta timeout)
-    : url_(url), http_request_method_(http_request_method),
-      timeout_(timeout),
-      ALLOW_THIS_IN_INITIALIZER_LIST(core_(new Core(this))) {
-}
-
-OCSPRequestSession::~OCSPRequestSession() {
-  core_->Cancel();
-}
-
-void OCSPRequestSession::SetPostData(const char* http_data,
-                                     const PRUint32 http_data_len,
-                                     const char* http_content_type) {
-  core_->SetPostData(http_data, http_data_len, http_content_type);
-}
-
-void OCSPRequestSession::AddHeader(const char* http_header_name,
-                                   const char* http_header_value) {
-  core_->AddHeader(http_header_name, http_header_value);
-}
-
-void OCSPRequestSession::Start() {
-  core_->Start();
-}
-
-bool OCSPRequestSession::Started() const {
-  return core_->Started();
-}
-
-void OCSPRequestSession::Cancel() {
-  core_->Cancel();
-}
-
-bool OCSPRequestSession::Finished() const {
-  return core_->Finished();
-}
-
-bool OCSPRequestSession::Wait() {
-  return core_->Wait();
-}
-
-PRUint16 OCSPRequestSession::http_response_code() const {
-  return core_->response_code();
-}
-
-const std::string& OCSPRequestSession::http_response_content_type() const {
-  return core_->response_content_type();
-}
-
-const std::string& OCSPRequestSession::http_response_headers() const {
-  return core_->response_headers();
-}
-
-const std::string& OCSPRequestSession::http_response_data() const {
-  return core_->http_response_data();
-}
 
 // Concrete class for SEC_HTTP_SERVER_SESSION.
 class OCSPServerSession {
@@ -467,11 +367,17 @@ SECStatus OCSPCreate(SEC_HTTP_SERVER_SESSION session,
   OCSPServerSession* ocsp_session =
       reinterpret_cast<OCSPServerSession*>(session);
 
-  *pRequest = ocsp_session->CreateRequest(http_protocol_variant,
-                                          path_and_query_string,
-                                          http_request_method,
-                                          timeout);
-  return *pRequest ? SECSuccess : SECFailure;
+  OCSPRequestSession* req = ocsp_session->CreateRequest(http_protocol_variant,
+                                                        path_and_query_string,
+                                                        http_request_method,
+                                                        timeout);
+  SECStatus rv = SECFailure;
+  if (req) {
+    req->AddRef();  // Release in OCSPFree().
+    rv = SECSuccess;
+  }
+  *pRequest = req;
+  return rv;
 }
 
 SECStatus OCSPSetPostData(SEC_HTTP_REQUEST_SESSION request,
@@ -572,7 +478,8 @@ SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
   LOG(INFO) << "OCSP free";
   DCHECK(!MessageLoop::current());
   OCSPRequestSession* req = reinterpret_cast<OCSPRequestSession*>(request);
-  delete req;
+  req->Cancel();
+  req->Release();
   return SECSuccess;
 }
 
