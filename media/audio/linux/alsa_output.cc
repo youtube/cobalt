@@ -167,9 +167,13 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       message_loop_(message_loop) {
 
   // Sanity check input values.
-  // TODO(ajwong): Just try what happens if we allow non 2-channel audio.
-  if (channels_ != 2) {
-    LOG(WARNING) << "Only 2-channel audio is supported right now.";
+  //
+  // TODO(scherkus): ALSA works fine if you pass in multichannel audio, however
+  // it seems to be mapped to the wrong channels.  We may have to do some
+  // channel swizzling from decoder output to ALSA's preferred multichannel
+  // format.
+  if (channels_ != 1 && channels_ != 2) {
+    LOG(WARNING) << "Only 1 and 2 channel audio is supported right now.";
     shared_data_.TransitionTo(kInError);
   }
 

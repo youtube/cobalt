@@ -108,10 +108,21 @@ TEST_F(AlsaPcmOutputStreamTest, ConstructedState) {
   EXPECT_EQ(AlsaPcmOutputStream::kCreated,
             test_stream_->shared_data_.state());
 
-  // Only supports 2 channel.
+  // Should support mono.
   test_stream_ = new AlsaPcmOutputStream(kTestDeviceName,
                                          kTestFormat,
-                                         kTestChannels + 1,
+                                         1,  // Channels.
+                                         kTestSampleRate,
+                                         kTestBitsPerSample,
+                                         &mock_alsa_wrapper_,
+                                         &message_loop_);
+  EXPECT_EQ(AlsaPcmOutputStream::kCreated,
+            test_stream_->shared_data_.state());
+
+  // Should not support multi-channel.
+  test_stream_ = new AlsaPcmOutputStream(kTestDeviceName,
+                                         kTestFormat,
+                                         3,  // Channels.
                                          kTestSampleRate,
                                          kTestBitsPerSample,
                                          &mock_alsa_wrapper_,
