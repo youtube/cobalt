@@ -104,8 +104,10 @@ DesktopEnvironment GetDesktopEnvironment(EnvironmentVariableGetter* env) {
   if (env->Getenv("DESKTOP_SESSION", &desktop_session)) {
     if (desktop_session == "gnome")
       return DESKTOP_ENVIRONMENT_GNOME;
-    else if (desktop_session.substr(3) == "kde")  // kde3 or kde4
-      return DESKTOP_ENVIRONMENT_KDE;
+    else if (desktop_session == "kde4")
+      return DESKTOP_ENVIRONMENT_KDE4;
+    else if (desktop_session == "kde")
+      return DESKTOP_ENVIRONMENT_KDE3;
   }
 
   // Fall back on some older environment variables.
@@ -114,10 +116,30 @@ DesktopEnvironment GetDesktopEnvironment(EnvironmentVariableGetter* env) {
   if (env->Getenv("GNOME_DESKTOP_SESSION_ID", &dummy)) {
     return DESKTOP_ENVIRONMENT_GNOME;
   } else if (env->Getenv("KDE_FULL_SESSION", &dummy)) {
-    return DESKTOP_ENVIRONMENT_KDE;
+    if (env->Getenv("KDE_SESSION_VERSION", &dummy))
+      return DESKTOP_ENVIRONMENT_KDE4;
+    return DESKTOP_ENVIRONMENT_KDE3;
   }
 
   return DESKTOP_ENVIRONMENT_OTHER;
+}
+
+const char* GetDesktopEnvironmentName(DesktopEnvironment env) {
+  switch (env) {
+    case DESKTOP_ENVIRONMENT_OTHER:
+      return NULL;
+    case DESKTOP_ENVIRONMENT_GNOME:
+      return "GNOME";
+    case DESKTOP_ENVIRONMENT_KDE3:
+      return "KDE3";
+    case DESKTOP_ENVIRONMENT_KDE4:
+      return "KDE4";
+  }
+  return NULL;
+}
+
+const char* GetDesktopEnvironmentName(EnvironmentVariableGetter* env) {
+  return GetDesktopEnvironmentName(GetDesktopEnvironment(env));
 }
 
 }  // namespace base
