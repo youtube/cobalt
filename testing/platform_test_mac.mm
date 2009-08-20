@@ -6,10 +6,10 @@
 
 #import <Foundation/Foundation.h>
 
-void PlatformTest::SetUp() {
-  pool_ = [[NSAutoreleasePool alloc] init];
+PlatformTest::PlatformTest()
+    : pool_([[NSAutoreleasePool alloc] init]) {
 }
 
-void PlatformTest::TearDown() {
-  [pool_ drain];
+PlatformTest::~PlatformTest() {
+  [pool_ release];
 }

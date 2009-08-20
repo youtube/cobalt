@@ -56,6 +56,11 @@
           'sources': [
             'platform_test_mac.mm'
           ],
+          'link_settings': {
+            'libraries': [
+              '$(SDKROOT)/System/Library/Frameworks/Foundation.framework',
+            ],
+          },
         }],
         ['OS == "mac" or OS == "linux"', {
           'defines': [
