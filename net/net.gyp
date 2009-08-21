@@ -121,6 +121,7 @@
         'base/ssl_cert_request_info.h',
         'base/ssl_client_auth_cache.cc',
         'base/ssl_client_auth_cache.h',
+        'base/ssl_config_service.cc',
         'base/ssl_config_service.h',
         'base/ssl_config_service_defaults.h',
         'base/ssl_config_service_win.cc',
