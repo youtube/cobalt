@@ -320,8 +320,8 @@ TEST_F(FFmpegDemuxerTest, Read) {
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVDupPacket(_))
+      .WillOnce(Return(0));
 
   // ...then we'll free it with some sanity checkpoints...
   EXPECT_CALL(*MockFFmpeg::get(), CheckPoint(1));
@@ -331,8 +331,8 @@ TEST_F(FFmpegDemuxerTest, Read) {
   // ...then we'll read a video packet...
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_VIDEO, kVideoData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVDupPacket(_))
+      .WillOnce(Return(0));
 
   // ...then we'll free it with some sanity checkpoints...
   EXPECT_CALL(*MockFFmpeg::get(), CheckPoint(3));
@@ -449,16 +449,16 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   // inside FFmpegDemuxer...
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVDupPacket(_))
+      .WillOnce(Return(0));
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVDupPacket(_))
+      .WillOnce(Return(0));
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_VIDEO, kVideoData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVDupPacket(_))
+      .WillOnce(Return(0));
 
   // ...then we'll release our video packet...
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
@@ -489,25 +489,25 @@ TEST_F(FFmpegDemuxerTest, Seek) {
   // ...followed by two audio packet reads we'll trigger...
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVDupPacket(_))
+      .WillOnce(Return(0));
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_AUDIO, kAudioData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVDupPacket(_))
+      .WillOnce(Return(0));
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
 
   // ...followed by two video packet reads...
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_VIDEO, kVideoData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVDupPacket(_))
+      .WillOnce(Return(0));
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
   EXPECT_CALL(*MockFFmpeg::get(), AVReadFrame(&format_context_, _))
       .WillOnce(CreatePacket(AV_STREAM_VIDEO, kVideoData, kDataSize));
-  EXPECT_CALL(*MockFFmpeg::get(), AVNewPacket(_, _)).WillOnce(NewPacket());
-  EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
+  EXPECT_CALL(*MockFFmpeg::get(), AVDupPacket(_))
+      .WillOnce(Return(0));
   EXPECT_CALL(*MockFFmpeg::get(), AVFreePacket(_)).WillOnce(FreePacket());
 
   // ...and finally a sanity checkpoint to make sure everything was released.
@@ -595,7 +595,8 @@ TEST_F(FFmpegDemuxerTest, Seek) {
 
 // A mocked callback specialization for calling Read().  Since RunWithParams()
 // is mocked we don't need to pass in object or method pointers.
-typedef CallbackImpl<FFmpegDemuxerTest, void (FFmpegDemuxerTest::*)(Buffer*),
+typedef CallbackImpl<FFmpegDemuxerTest,
+                     void (FFmpegDemuxerTest::*)(Buffer*),
                      Tuple1<Buffer*> > ReadCallback;
 class MockReadCallback : public ReadCallback {
  public:

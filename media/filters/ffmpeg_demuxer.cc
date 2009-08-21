@@ -11,25 +11,6 @@
 #include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/ffmpeg_glue.h"
 
-namespace {
-
-// Helper function to deep copy an AVPacket's data, size and timestamps.
-// Returns NULL if a packet could not be cloned (i.e., out of memory).
-AVPacket* ClonePacket(AVPacket* packet) {
-  scoped_ptr<AVPacket> clone(new AVPacket());
-  if (!clone.get() || av_new_packet(clone.get(), packet->size) < 0) {
-    return NULL;
-  }
-  DCHECK_EQ(clone->size, packet->size);
-  clone->dts = packet->dts;
-  clone->pts = packet->pts;
-  clone->duration = packet->duration;
-  memcpy(clone->data, packet->data, clone->size);
-  return clone.release();
-}
-
-}  // namespace
-
 namespace media {
 
 //
@@ -300,8 +281,8 @@ size_t FFmpegDemuxer::GetNumberOfStreams() {
 }
 
 scoped_refptr<DemuxerStream> FFmpegDemuxer::GetStream(int stream) {
-  DCHECK(stream >= 0);
-  DCHECK(stream < static_cast<int>(streams_.size()));
+  DCHECK_GE(stream, 0);
+  DCHECK_LT(stream, static_cast<int>(streams_.size()));
   return streams_[stream].get();
 }
 
@@ -493,21 +474,15 @@ void FFmpegDemuxer::DemuxTask() {
   // TODO(scherkus): should we post this back to the pipeline thread?  I'm
   // worried about downstream filters (i.e., decoders) executing on this
   // thread.
-  DCHECK(packet->stream_index >= 0);
-  DCHECK(packet->stream_index < static_cast<int>(packet_streams_.size()));
+  DCHECK_GE(packet->stream_index, 0);
+  DCHECK_LT(packet->stream_index, static_cast<int>(packet_streams_.size()));
   FFmpegDemuxerStream* demuxer_stream = packet_streams_[packet->stream_index];
   if (demuxer_stream) {
-    // Duplicate the entire packet to avoid aliasing.
-    // Directly affects MP3, but do all formats to be safe.
-    scoped_ptr<AVPacket> clone(ClonePacket(packet.get()));
-    if (!clone.get()) {
-      NOTREACHED();
-      return;
-    }
-    // Free FFmpeg-allocated memory and swap original packet into |clone| so
-    // that it gets deleted as |clone| goes out of scope.
-    av_free_packet(packet.get());
-    packet.swap(clone);
+    // If a packet is returned by FFmpeg's av_parser_parse2()
+    // the packet will reference an inner memory of FFmpeg.
+    // In this case, the packet's "destruct" member is NULL,
+    // and it MUST be duplicated.  Fixes issue with MP3.
+    av_dup_packet(packet.get());
 
     // Queue the packet with the appropriate stream.  The stream takes
     // ownership of the AVPacket.
