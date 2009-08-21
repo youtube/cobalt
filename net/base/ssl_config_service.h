@@ -14,10 +14,10 @@ namespace net {
 
 // A collection of SSL-related configuration settings.
 struct SSLConfig {
-  // Default to no revocation checking.
+  // Default to revocation checking.
   // Default to SSL 2.0 off, SSL 3.0 on, and TLS 1.0 on.
   SSLConfig()
-      : rev_checking_enabled(false),  ssl2_enabled(false), ssl3_enabled(true),
+      : rev_checking_enabled(true),  ssl2_enabled(false), ssl3_enabled(true),
         tls1_enabled(true), send_client_cert(false), verify_ev_cert(false) {
   }
 
@@ -60,13 +60,20 @@ struct SSLConfig {
   scoped_refptr<X509Certificate> client_cert;
 };
 
-// The interface for retrieving the system SSL configuration.  This interface
+// The interface for retrieving the SSL configuration.  This interface
 // does not cover setting the SSL configuration, as on some systems, the
 // SSLConfigService objects may not have direct access to the configuration, or
 // live longer than the configuration preferences.
 class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
  public:
   virtual ~SSLConfigService() {}
+
+  // Create an instance of SSLConfigService which retrieves the configuration
+  // from the system SSL configuration, or an instance of
+  // SSLConfigServiceDefaults if the current system does not have a system SSL
+  // configuration.  Note: this does not handle SSLConfigService implementations
+  // that are not native to their platform, such as preference-backed ones.
+  static SSLConfigService* CreateSystemSSLConfigService();
 
   // May not be thread-safe, should only be called on the IO thread.
   virtual void GetSSLConfig(SSLConfig* config) = 0;
