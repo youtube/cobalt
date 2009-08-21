@@ -262,11 +262,6 @@ bool PipelineImpl::IsStreaming() const {
   return streaming_;
 }
 
-bool PipelineImpl::IsLoaded() const {
-  AutoLock auto_lock(lock_);
-  return loaded_;
-}
-
 PipelineError PipelineImpl::GetError() const {
   AutoLock auto_lock(lock_);
   return error_;
@@ -292,7 +287,6 @@ void PipelineImpl::ResetState() {
   buffered_time_    = kZero;
   buffered_bytes_   = 0;
   streaming_        = false;
-  loaded_           = false;
   total_bytes_      = 0;
   video_width_      = 0;
   video_height_     = 0;
@@ -409,12 +403,6 @@ void PipelineImpl::NotifyEnded() {
   DCHECK(IsRunning());
   message_loop_->PostTask(FROM_HERE,
       NewRunnableMethod(this, &PipelineImpl::NotifyEndedTask));
-}
-
-void PipelineImpl::SetLoaded(bool loaded) {
-  DCHECK(IsRunning());
-  AutoLock auto_lock(lock_);
-  loaded_ = loaded;
 }
 
 void PipelineImpl::BroadcastMessage(FilterMessage message) {
