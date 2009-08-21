@@ -466,6 +466,10 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
   if (!req->Wait())
     return SECFailure;
 
+  // If the response code is -1, the request failed and there is no response.
+  if (req->http_response_code() == static_cast<PRUint16>(-1))
+    return SECFailure;
+
   return OCSPSetResponse(
       req, http_response_code,
       http_response_content_type,
@@ -483,7 +487,8 @@ SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
   return SECSuccess;
 }
 
-OCSPInitSingleton::OCSPInitSingleton() : io_loop_(MessageLoopForIO::current()) {
+OCSPInitSingleton::OCSPInitSingleton()
+    : io_loop_(MessageLoopForIO::current()) {
   client_fcn_.version = 1;
   SEC_HttpClientFcnV1Struct *ft = &client_fcn_.fcnTable.ftable1;
   ft->createSessionFcn = OCSPCreateSession;
