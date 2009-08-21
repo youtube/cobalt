@@ -13,8 +13,6 @@
 #include <unistd.h>
 #endif
 
-#include "base/base_switches.h"
-#include "base/command_line.h"
 #include "base/message_loop.h"
 #include "base/pickle.h"
 #include "base/ref_counted.h"
@@ -35,6 +33,9 @@
 #include "net/http/partial_data.h"
 
 using base::Time;
+
+// Uncomment this to enable experimental byte-range support.
+// #define ENABLE_RANGE_SUPPORT
 
 namespace net {
 
@@ -169,7 +170,7 @@ HttpCache::ActiveEntry::~ActiveEntry() {
 class HttpCache::Transaction
     : public HttpTransaction, public RevocableStore::Revocable {
  public:
-  Transaction(HttpCache* cache, bool enable_range_support)
+  explicit Transaction(HttpCache* cache)
       : RevocableStore::Revocable(&cache->transactions_),
         request_(NULL),
         cache_(cache),
@@ -179,7 +180,6 @@ class HttpCache::Transaction
         mode_(NONE),
         reading_(false),
         invalid_range_(false),
-        enable_range_support_(enable_range_support),
         read_offset_(0),
         effective_load_flags_(0),
         final_upload_progress_(0),
@@ -386,7 +386,6 @@ class HttpCache::Transaction
   Mode mode_;
   bool reading_;  // We are already reading.
   bool invalid_range_;  // We may bypass the cache for this request.
-  bool enable_range_support_;
   scoped_refptr<IOBuffer> read_buf_;
   int read_buf_len_;
   int read_offset_;
@@ -778,12 +777,12 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
       new_extra_headers.append(it.name_begin(), it.values_end());
       new_extra_headers.append("\r\n");
     } else {
-      if (enable_range_support_) {
-        range_found = true;
-      } else {
-        effective_load_flags_ |= LOAD_DISABLE_CACHE;
-        continue;
-      }
+#ifdef ENABLE_RANGE_SUPPORT
+      range_found = true;
+#else
+      effective_load_flags_ |= LOAD_DISABLE_CACHE;
+      continue;
+#endif
     }
     for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kSpecialHeaders); ++i) {
       if (HeaderMatches(it, kSpecialHeaders[i].search)) {
@@ -908,8 +907,9 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
   if (response_.headers->response_code() != 206 && !partial_.get())
     return BeginCacheValidation();
 
-  if (!enable_range_support_)
-    return BeginCacheValidation();
+#if !defined(ENABLE_RANGE_SUPPORT)
+  return BeginCacheValidation();
+#endif
 
   bool byte_range_requested = partial_.get() != NULL;
   if (!byte_range_requested) {
@@ -1070,10 +1070,11 @@ bool HttpCache::Transaction::RequiresValidation() {
 bool HttpCache::Transaction::ConditionalizeRequest() {
   DCHECK(response_.headers);
 
-  if (!enable_range_support_ && response_.headers->response_code() != 200) {
-    // This only makes sense for cached 200 responses.
+#if !defined(ENABLE_RANGE_SUPPORT)
+  // This only makes sense for cached 200 responses.
+  if (response_.headers->response_code() != 200)
     return false;
-  }
+#endif
 
   // This only makes sense for cached 200 or 206 responses.
   if (response_.headers->response_code() != 200 &&
@@ -1146,8 +1147,12 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
 // course, maybe we already returned the headers.
 bool HttpCache::Transaction::ValidatePartialResponse(
     const HttpResponseHeaders* headers) {
-  int response_code = headers->response_code();
-  bool partial_content = enable_range_support_ ? response_code == 206 : false;
+    int response_code = headers->response_code();
+#ifdef ENABLE_RANGE_SUPPORT
+  bool partial_content = response_code == 206;
+#else
+  bool partial_content = false;
+#endif
 
   if (invalid_range_) {
     // We gave up trying to match this request with the stored data. If the
@@ -1580,7 +1585,6 @@ HttpCache::HttpCache(HttpTransactionFactory* network_layer,
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(false),
       deleted_(false),
-      enable_range_support_(false),
       cache_size_(0) {
 }
 
@@ -1621,7 +1625,7 @@ HttpTransaction* HttpCache::CreateTransaction() {
       disk_cache_dir_.clear();  // Reclaim memory.
     }
   }
-  return new HttpCache::Transaction(this, enable_range_support_);
+  return new HttpCache::Transaction(this);
 }
 
 HttpCache* HttpCache::GetCache() {
