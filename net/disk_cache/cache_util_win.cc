@@ -39,9 +39,6 @@ void DeleteFiles(const wchar_t* path, const wchar_t* search_name) {
 
 namespace disk_cache {
 
-// Implemented in file_win.cc.
-MessageLoopForIO::IOHandler* GetFileIOHandler();
-
 bool MoveCache(const std::wstring& from_path, const std::wstring& to_path) {
   // I don't want to use the shell version of move because if something goes
   // wrong, that version will attempt to move file by file and fail at the end.
@@ -62,14 +59,6 @@ bool DeleteCacheFile(const std::wstring& name) {
   // We do a simple delete, without ever falling back to SHFileOperation, as the
   // version from base does.
   return DeleteFile(name.c_str()) ? true : false;
-}
-
-void WaitForPendingIO(int* num_pending_io) {
-  while (*num_pending_io) {
-    // Asynchronous IO operations may be in flight and the completion may end
-    // up calling us back so let's wait for them.
-    MessageLoopForIO::current()->WaitForIOCompletion(100, GetFileIOHandler());
-  }
 }
 
 }  // namespace disk_cache
