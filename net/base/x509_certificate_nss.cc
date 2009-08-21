@@ -13,6 +13,7 @@
 #include <secder.h>
 #include <secerr.h>
 #include <sechash.h>
+#include <sslerr.h>
 #undef Lock
 
 #include "base/logging.h"
@@ -144,6 +145,8 @@ int MapSecurityError(int err) {
 // Map PORT_GetError() return values to our cert status flags.
 int MapCertErrorToCertStatus(int err) {
   switch (err) {
+    case SSL_ERROR_BAD_CERT_DOMAIN:
+      return CERT_STATUS_COMMON_NAME_INVALID;
     case SEC_ERROR_INVALID_TIME:
     case SEC_ERROR_EXPIRED_CERTIFICATE:
       return CERT_STATUS_DATE_INVALID;
@@ -152,12 +155,15 @@ int MapCertErrorToCertStatus(int err) {
     case SEC_ERROR_UNTRUSTED_ISSUER:
     case SEC_ERROR_CA_CERT_INVALID:
       return CERT_STATUS_AUTHORITY_INVALID;
+    // TODO(port): map CERT_STATUS_NO_REVOCATION_MECHANISM.
+    case SEC_ERROR_OCSP_SERVER_ERROR:
+      return CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
     case SEC_ERROR_REVOKED_CERTIFICATE:
       return CERT_STATUS_REVOKED;
     case SEC_ERROR_BAD_DER:
     case SEC_ERROR_BAD_SIGNATURE:
     case SEC_ERROR_CERT_NOT_VALID:
-    // TODO(port): add an CERT_STATUS_WRONG_USAGE error code.
+    // TODO(port): add a CERT_STATUS_WRONG_USAGE error code.
     case SEC_ERROR_CERT_USAGES_INVALID:
       return CERT_STATUS_INVALID;
     default:
@@ -313,6 +319,7 @@ void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
 
   CERTGeneralName* alt_name_list;
   alt_name_list = CERT_DecodeAltNameExtension(arena, &alt_name);
+  SECITEM_FreeItem(&alt_name, PR_FALSE);
 
   CERTGeneralName* name = alt_name_list;
   while (name) {
@@ -332,7 +339,6 @@ void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
       break;
   }
   PORT_FreeArena(arena, PR_FALSE);
-  PORT_Free(alt_name.data);
 }
 
 // Call CERT_PKIXVerifyCert for the cert_handle.
@@ -422,6 +428,7 @@ bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
   }
   CERTCertificatePolicies* policies =
       CERT_DecodeCertificatePoliciesExtension(&policy_ext);
+  SECITEM_FreeItem(&policy_ext, PR_FALSE);
   if (!policies) {
     LOG(ERROR) << "Failed to decode certificate policy.";
     return false;
