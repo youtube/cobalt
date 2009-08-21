@@ -42,9 +42,10 @@ AudioOutputStream* AudioManagerLinux::MakeAudioStream(Format format,
   AlsaPcmOutputStream* stream =
       new AlsaPcmOutputStream(AlsaPcmOutputStream::kDefaultDevice,
                               format, channels, sample_rate, bits_per_sample,
-                              wrapper_.get(), audio_thread_.message_loop());
+                              wrapper_.get(), this,
+                              audio_thread_.message_loop());
 
-  // TODO(ajwong): Set up this to clear itself when the stream closes.
+  AutoLock l(lock_);
   active_streams_[stream] = scoped_refptr<AlsaPcmOutputStream>(stream);
   return stream;
 }
@@ -55,6 +56,7 @@ AudioManagerLinux::AudioManagerLinux()
 }
 
 AudioManagerLinux::~AudioManagerLinux() {
+  active_streams_.clear();
 }
 
 void AudioManagerLinux::Init() {
@@ -63,13 +65,16 @@ void AudioManagerLinux::Init() {
 }
 
 void AudioManagerLinux::MuteAll() {
-  // TODO(ajwong): Implement.
   NOTIMPLEMENTED();
 }
 
 void AudioManagerLinux::UnMuteAll() {
-  // TODO(ajwong): Implement.
   NOTIMPLEMENTED();
+}
+
+void AudioManagerLinux::ReleaseStream(AlsaPcmOutputStream* stream) {
+  AutoLock l(lock_);
+  active_streams_.erase(stream);
 }
 
 // TODO(ajwong): Collapse this with the windows version.

@@ -40,6 +40,7 @@
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 class AlsaWrapper;
+class AudioManagerLinux;
 
 class AlsaPcmOutputStream :
     public AudioOutputStream,
@@ -63,6 +64,7 @@ class AlsaPcmOutputStream :
                       int sample_rate,
                       int bits_per_sample,
                       AlsaWrapper* wrapper,
+                      AudioManagerLinux* manager,
                       MessageLoop* message_loop);
   virtual ~AlsaPcmOutputStream();
 
@@ -120,7 +122,7 @@ class AlsaPcmOutputStream :
 
   // Various tasks that complete actions started in the public API.
   void FinishOpen(snd_pcm_t* playback_handle, size_t packet_size);
-  void StartTask(AudioSourceCallback* callback);
+  void StartTask();
   void CloseTask();
 
   // Functions to get another packet from the data source and write it into the
@@ -130,13 +132,6 @@ class AlsaPcmOutputStream :
   void WriteTask();
   void ScheduleNextWrite(Packet* current_packet);
 
-  // Functions to safeguard state transitions and ensure that transitions are
-  // only allowed occuring on the thread that created the object.  All changes
-  // to the object state should go through these functions.
-  bool CanTransitionTo(InternalState to);
-  bool CanTransitionTo_Locked(InternalState to);
-  InternalState TransitionTo(InternalState to);
-
   // Utility functions for talking with the ALSA API.
   static snd_pcm_sframes_t FramesInPacket(const Packet& packet,
                                           int bytes_per_frame);
@@ -144,6 +139,9 @@ class AlsaPcmOutputStream :
   static int64 FramesToMillis(int frames, int sample_rate);
   bool CloseDevice(snd_pcm_t* handle);
   snd_pcm_sframes_t GetAvailableFrames();
+
+  // Thread-asserting accessors for member variables.
+  AudioManagerLinux* manager();
 
   // Struct holding all mutable the data that must be shared by the
   // message_loop() and the thread that created the object.
@@ -162,13 +160,33 @@ class AlsaPcmOutputStream :
     float volume();
     void set_volume(float v);
 
+    // API for Proxying calls to the AudioSourceCallback provided during
+    // Start().  These APIs are threadsafe.
+    //
+    // TODO(ajwong): This is necessary because the ownership semantics for the
+    // |source_callback_| object are incorrect in AudioRenderHost. The callback
+    // is passed into the output stream, but ownership is not transfered which
+    // requires a synchronization on access of the |source_callback_| to avoid
+    // using a deleted callback.
+    size_t OnMoreData(AudioOutputStream* stream, void* dest, size_t max_size);
+    void OnClose(AudioOutputStream* stream);
+    void OnError(AudioOutputStream* stream, int code);
+
+    // Changes the AudioSourceCallback to proxy calls to.  Pass in NULL to
+    // release ownership of the currently registered callback.
+    void set_source_callback(AudioSourceCallback* callback);
+
    private:
     Lock lock_;
 
     InternalState state_;
     float volume_;  // Volume level from 0.0 to 1.0.
 
+    AudioSourceCallback* source_callback_;
+
     MessageLoop* const state_transition_loop_;
+
+    DISALLOW_COPY_AND_ASSIGN(SharedData);
   } shared_data_;
 
   // Configuration constants from the constructor.  Referenceable by all threads
@@ -188,11 +206,13 @@ class AlsaPcmOutputStream :
   // Wrapper class to invoke all the ALSA functions.
   AlsaWrapper* wrapper_;
 
+  // Audio manager that created us.  Used to report that we've been closed.
+  // This should only be used on the |client_thread_loop_|.  Access via
+  // the manager() function.
+  AudioManagerLinux* manager_;
+
   // Handle to the actual PCM playback device.
   snd_pcm_t* playback_handle_;
-
-  // Callback used to request more data from the data source.
-  AudioSourceCallback* source_callback_;
 
   scoped_ptr<Packet> packet_;
   int frames_per_packet_;

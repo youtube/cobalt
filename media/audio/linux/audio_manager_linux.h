@@ -20,7 +20,7 @@ class AudioManagerLinux : public AudioManager {
   AudioManagerLinux();
 
   // Call before using a newly created AudioManagerLinux instance.
-  void Init();
+  virtual void Init();
 
   // Implementation of AudioManager.
   virtual bool HasAudioDevices();
@@ -30,16 +30,20 @@ class AudioManagerLinux : public AudioManager {
   virtual void MuteAll();
   virtual void UnMuteAll();
 
- private:
-  // Friend function for invoking the private destructor at exit.
+  virtual void ReleaseStream(AlsaPcmOutputStream* stream);
+
+ protected:
+  // Friend function for invoking the destructor at exit.
   friend void DestroyAudioManagerLinux(void*);
   virtual ~AudioManagerLinux();
 
+ private:
   // Thread used to interact with AudioOutputStreams created by this
   // audio manger.
   base::Thread audio_thread_;
   scoped_ptr<AlsaWrapper> wrapper_;
 
+  Lock lock_;
   std::map<AlsaPcmOutputStream*, scoped_refptr<AlsaPcmOutputStream> >
       active_streams_;
 
