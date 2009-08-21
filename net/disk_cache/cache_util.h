@@ -22,9 +22,6 @@ void DeleteCache(const std::wstring& path, bool remove_folder);
 // Deletes a cache file.
 bool DeleteCacheFile(const std::wstring& name);
 
-// Blocks until |num_pending_io| IO operations complete.
-void WaitForPendingIO(int* num_pending_io);
-
 }  // namespace disk_cache
 
 #endif  // NET_DISK_CACHE_CACHE_UTIL_H_
