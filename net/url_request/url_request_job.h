@@ -64,7 +64,9 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
 
   // This function MUST somehow call NotifyDone/NotifyCanceled or some requests
   // will get leaked. Certain callers use that message to know when they can
-  // delete their URLRequest object, even when doing a cancel.
+  // delete their URLRequest object, even when doing a cancel. The default Kill
+  // implementation calls NotifyCanceled, so it is recommended that subclasses
+  // call URLRequestJob::Kill() after doing any additional work.
   //
   // The job should endeavor to stop working as soon as is convenient, but must
   // not send and complete notifications from inside this function. Instead,
