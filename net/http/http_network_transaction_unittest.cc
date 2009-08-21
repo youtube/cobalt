@@ -3535,11 +3535,9 @@ TEST_F(HttpNetworkTransactionTest, GetIdentifyFromUrl) {
       L"use rname",
       L"password",
     },
-    { // The URL canonicalizer for userinfo does not recognize non-ascii
-      // escapes it seems... So things like %00 will NOT be unescapable,
-      // since they are canonicalized by escaping the %...
+    { // Keep %00 as is.
       "http://use%00rname:password@google.com",
-      L"use%2500rname",
+      L"use%00rname",
       L"password",
     },
     { // Use a '+' in the username.
