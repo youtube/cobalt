@@ -147,22 +147,16 @@ bool InitExperiment(int* current_group) {
   }
 
   if (*current_group <= 5) {
-    // Re-load the two groups.
-    int option = base::RandInt(0, 9);
-
-    if (option > 1) {
-      // 80% will be out of the experiment.
-      *current_group = 9;
-    } else {
-      *current_group = option + 6;
-    }
+    // The experiment is currently closed.
+    *current_group = 10;
   }
 
   // The current groups should be:
-  // 6 control. (~10%)
-  // 7 new eviction, upgraded data. (~10%)
+  // 6 control.
+  // 7 new eviction, upgraded data.
   // 8 new eviction, from new files.
-  // 9 out. (~80%)
+  // 9 out. (sort of control for group 8).
+  // 10 out.
 
   UMA_HISTOGRAM_CACHE_ERROR("DiskCache.Experiment", *current_group);
 
@@ -183,7 +177,7 @@ void SetFieldTrialInfo(int experiment_group, int size_group) {
   std::string group1 = StringPrintf("CacheSizeGroup_%d", size_group);
   trial1->AppendGroup(group1, FieldTrial::kAllRemainingProbability);
 
-  if (experiment_group < 6 || experiment_group > 8)
+  if (experiment_group < 6 || experiment_group > 9)
     return;
 
   scoped_refptr<FieldTrial> trial2 = new FieldTrial("NewEviction", 10);
@@ -288,7 +282,14 @@ bool BackendImpl::Init() {
   }
 
   init_ = true;
-  if (!(user_flags_ & disk_cache::kNoRandom)) {
+
+  if (data_->header.experiment != 0 && cache_type_ != net::DISK_CACHE) {
+    // No experiment for other caches.
+    return false;
+  }
+
+  if (!(user_flags_ & disk_cache::kNoRandom) &&
+      cache_type_ == net::DISK_CACHE) {
     // The unit test controls directly what to test.
     if (!InitExperiment(&data_->header.experiment))
       return false;
@@ -990,12 +991,6 @@ bool BackendImpl::CreateBackingStore(disk_cache::File* file) {
 
   IndexHeader header;
   header.table_len = DesiredIndexTableLen(max_size_);
-
-  // All new profiles are going to use the new eviction.
-  if (!(user_flags_ & disk_cache::kNoRandom)) {
-    header.experiment = 8;
-    new_eviction_ = true;
-  }
 
   // We need file version 2.1 for the new eviction algorithm.
   if (new_eviction_)
