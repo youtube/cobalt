@@ -55,7 +55,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   // The factory we will use to create network sockets.
   ClientSocketFactory* socket_factory_;
 
-  // The host resolver and proxy service that will used when lazily
+  // The host resolver and proxy service that will be used when lazily
   // creating |session_|.
   scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
