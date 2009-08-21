@@ -208,39 +208,6 @@ TEST_F(DiskCacheBackendTest, ExternalFiles) {
   EXPECT_EQ(0, memcmp(buffer1->data(), buffer2->data(), kSize));
 }
 
-TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
-  SimpleCallbackTest callback;
-
-  {
-    std::wstring path = GetCachePath();
-    ASSERT_TRUE(DeleteCache(path.c_str()));
-
-    disk_cache::Backend* cache =
-        disk_cache::CreateCacheBackend(path, false, 0, net::DISK_CACHE);
-
-    disk_cache::Entry* entry;
-    ASSERT_TRUE(cache->CreateEntry("some key", &entry));
-
-    const int kSize = 25000;
-    scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
-    CacheTestFillBuffer(buffer->data(), kSize, false);
-
-    for (int i = 0; i < 10 * 1024 * 1024; i += 64 * 1024) {
-      int rv = entry->WriteData(0, i, buffer, kSize, &callback, false);
-      if (rv == net::ERR_IO_PENDING)
-        break;
-      EXPECT_EQ(kSize, rv);
-    }
-
-    entry->Close();
-
-    // The cache destructor will see one pending operation here.
-    delete cache;
-  }
-
-  MessageLoop::current()->RunAllPending();
-}
-
 void DiskCacheBackendTest::BackendSetSize() {
   SetDirectMode();
   const int cache_size = 0x10000;  // 64 kB
