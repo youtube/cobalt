@@ -67,6 +67,8 @@ void URLRequestFileDirJob::Kill() {
   // OnListDone will notify the URLRequest at this time.
   if (lister_)
     lister_->Cancel();
+
+  URLRequestJob::Kill();
 }
 
 bool URLRequestFileDirJob::ReadRawData(net::IOBuffer* buf, int buf_size,
@@ -148,12 +150,12 @@ void URLRequestFileDirJob::OnListFile(
 void URLRequestFileDirJob::OnListDone(int error) {
   CloseLister();
 
-  if (error) {
+  if (canceled_) {
+    read_pending_ = false;
+    // No need for NotifyCanceled() since canceled_ is set inside Kill().
+  } else if (error) {
     read_pending_ = false;
     NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, error));
-  } else if (canceled_) {
-    read_pending_ = false;
-    NotifyCanceled();
   } else {
     list_complete_ = true;
     CompleteRead();

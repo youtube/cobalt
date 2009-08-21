@@ -912,10 +912,13 @@ std::string CanonicalizeHost(const std::wstring& host,
 
 std::string GetDirectoryListingHeader(const string16& title) {
   static const StringPiece header(NetModule::GetResource(IDR_DIR_HEADER_HTML));
-  if (header.empty()) {
-    NOTREACHED() << "expected resource not found";
-  }
-  std::string result(header.data(), header.size());
+  // This can be null in unit tests.
+  DLOG_IF(WARNING, header.empty()) <<
+      "Missing resource: directory listing header";
+
+  std::string result;
+  if (!header.empty())
+    result.assign(header.data(), header.size());
 
   result.append("<script>start(");
   string_escape::JsonDoubleQuote(title, true, &result);
