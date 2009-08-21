@@ -1639,6 +1639,7 @@ TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Hit) {
 
 TEST(HttpCache, RangeGET_SkipsCache) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
 
   // Test that we skip the cache for range GET requests.  Eventually, we will
   // want to cache these, but we'll still have cases where skipping the cache
@@ -1670,6 +1671,7 @@ TEST(HttpCache, RangeGET_SkipsCache) {
 // Tests that receiving 206 for a regular request is handled correctly.
 TEST(HttpCache, GET_Crazy206) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
 
   // Write to the cache.
   MockTransaction transaction(kRangeGET_TransactionOK);
@@ -1686,15 +1688,16 @@ TEST(HttpCache, GET_Crazy206) {
   RunTransactionTest(cache.http_cache(), transaction);
 
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
-  EXPECT_EQ(1, cache.disk_cache()->open_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
   RemoveMockTransaction(&transaction);
 }
 
 // Tests that we can cache range requests and fetch random blocks from the
 // cache and the network.
-TEST(HttpCache, DISABLED_RangeGET_OK) {
+TEST(HttpCache, RangeGET_OK) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
   std::string headers;
 
@@ -1747,8 +1750,9 @@ TEST(HttpCache, DISABLED_RangeGET_OK) {
 }
 
 // Tests that we deal with 304s for range requests.
-TEST(HttpCache, DISABLED_RangeGET_304) {
+TEST(HttpCache, RangeGET_304) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
   std::string headers;
 
@@ -1776,8 +1780,9 @@ TEST(HttpCache, DISABLED_RangeGET_304) {
 }
 
 // Tests that we deal with 206s when revalidating range requests.
-TEST(HttpCache, DISABLED_RangeGET_ModifiedResult) {
+TEST(HttpCache, RangeGET_ModifiedResult) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
   std::string headers;
 
@@ -1812,8 +1817,9 @@ TEST(HttpCache, DISABLED_RangeGET_ModifiedResult) {
 
 // Tests that we can cache range requests when the start or end is unknown.
 // We start with one suffix request, followed by a request from a given point.
-TEST(HttpCache, DISABLED_UnknownRangeGET_1) {
+TEST(HttpCache, UnknownRangeGET_1) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
   std::string headers;
 
@@ -1847,8 +1853,9 @@ TEST(HttpCache, DISABLED_UnknownRangeGET_1) {
 // Tests that we can cache range requests when the start or end is unknown.
 // We start with one request from a given point, followed by a suffix request.
 // We'll also verify that synchronous cache responses work as intended.
-TEST(HttpCache, DISABLED_UnknownRangeGET_2) {
+TEST(HttpCache, UnknownRangeGET_2) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   std::string headers;
 
   MockTransaction transaction(kRangeGET_TransactionOK);
@@ -1884,8 +1891,9 @@ TEST(HttpCache, DISABLED_UnknownRangeGET_2) {
 
 // Tests that receiving Not Modified when asking for an open range doesn't mess
 // up things.
-TEST(HttpCache, DISABLED_UnknownRangeGET_304) {
+TEST(HttpCache, UnknownRangeGET_304) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   std::string headers;
 
   MockTransaction transaction(kRangeGET_TransactionOK);
@@ -1912,8 +1920,9 @@ TEST(HttpCache, DISABLED_UnknownRangeGET_304) {
 }
 
 // Tests that we can handle non-range requests when we have cached a range.
-TEST(HttpCache, DISABLED_GET_Previous206) {
+TEST(HttpCache, GET_Previous206) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
   std::string headers;
 
@@ -1942,8 +1951,9 @@ TEST(HttpCache, DISABLED_GET_Previous206) {
 }
 
 // Tests that we can handle cached 206 responses that are not sparse.
-TEST(HttpCache, DISABLED_GET_Previous206_NotSparse) {
+TEST(HttpCache, GET_Previous206_NotSparse) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
 
   // Create a disk cache entry that stores 206 headers while not being sparse.
   disk_cache::Entry* entry;
@@ -1983,8 +1993,9 @@ TEST(HttpCache, DISABLED_GET_Previous206_NotSparse) {
 
 // Tests that we can handle cached 206 responses that are not sparse. This time
 // we issue a range request and expect to receive a range.
-TEST(HttpCache, DISABLED_RangeGET_Previous206_NotSparse_2) {
+TEST(HttpCache, RangeGET_Previous206_NotSparse_2) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
 
   // Create a disk cache entry that stores 206 headers while not being sparse.
@@ -2023,8 +2034,9 @@ TEST(HttpCache, DISABLED_RangeGET_Previous206_NotSparse_2) {
 }
 
 // Tests that we can handle range requests with cached 200 responses.
-TEST(HttpCache, DISABLED_RangeGET_Previous200) {
+TEST(HttpCache, RangeGET_Previous200) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
 
   // Store the whole thing with status 200.
   MockTransaction transaction(kTypicalGET_Transaction);
@@ -2069,8 +2081,9 @@ TEST(HttpCache, DISABLED_RangeGET_Previous200) {
 }
 
 // Tests that we can handle a 200 response when dealing with sparse entries.
-TEST(HttpCache, DISABLED_RangeRequestResultsIn200) {
+TEST(HttpCache, RangeRequestResultsIn200) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
   std::string headers;
 
@@ -2109,8 +2122,9 @@ TEST(HttpCache, DISABLED_RangeRequestResultsIn200) {
 
 // Tests that a range request that falls outside of the size that we know about
 // only deletes the entry if the resource has indeed changed.
-TEST(HttpCache, DISABLED_RangeGET_MoreThanCurrentSize) {
+TEST(HttpCache, RangeGET_MoreThanCurrentSize) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
   std::string headers;
 
@@ -2142,8 +2156,9 @@ TEST(HttpCache, DISABLED_RangeGET_MoreThanCurrentSize) {
 
 #ifdef NDEBUG
 // This test hits a NOTREACHED so it is a release mode only test.
-TEST(HttpCache, DISABLED_RangeGET_OK_LoadOnlyFromCache) {
+TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
   MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
 
   // Write to the cache (40-49).
