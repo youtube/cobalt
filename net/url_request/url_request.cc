@@ -357,6 +357,7 @@ void URLRequest::ResponseStarted() {
 
 void URLRequest::FollowDeferredRedirect() {
   DCHECK(job_);
+  DCHECK(status_.is_success());
 
   job_->FollowDeferredRedirect();
 }

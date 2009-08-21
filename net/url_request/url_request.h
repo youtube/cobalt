@@ -499,6 +499,10 @@ class URLRequest {
     priority_ = priority;
   }
 
+#ifdef UNIT_TEST
+  URLRequestJob* job() { return job_; }
+#endif
+
  protected:
   // Allow the URLRequestJob class to control the is_pending() flag.
   void set_is_pending(bool value) { is_pending_ = value; }

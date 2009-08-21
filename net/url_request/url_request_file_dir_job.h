@@ -32,6 +32,8 @@ class URLRequestFileDirJob
   virtual void OnListFile(const file_util::FileEnumerator::FindInfo& data);
   virtual void OnListDone(int error);
 
+  bool list_complete() const { return list_complete_; }
+
  private:
   void CloseLister();
   // When we have data and a read has been pending, this function
