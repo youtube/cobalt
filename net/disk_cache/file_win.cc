@@ -72,6 +72,11 @@ MyOverlapped::~MyOverlapped() {
 
 namespace disk_cache {
 
+// Used from WaitForPendingIO() when the cache is being destroyed.
+MessageLoopForIO::IOHandler* GetFileIOHandler() {
+  return Singleton<CompletionHandler>::get();
+}
+
 File::File(base::PlatformFile file)
     : init_(true), mixed_(true), platform_file_(INVALID_HANDLE_VALUE),
       sync_platform_file_(file) {
@@ -263,16 +268,6 @@ size_t File::GetLength() {
     return ULONG_MAX;
 
   return static_cast<size_t>(size.LowPart);
-}
-
-// Static.
-void File::WaitForPendingIO(int* num_pending_io) {
-  while (*num_pending_io) {
-    // Asynchronous IO operations may be in flight and the completion may end
-    // up calling us back so let's wait for them.
-    MessageLoopForIO::IOHandler* handler = Singleton<CompletionHandler>::get();
-    MessageLoopForIO::current()->WaitForIOCompletion(100, handler);
-  }
 }
 
 }  // namespace disk_cache

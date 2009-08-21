@@ -99,16 +99,6 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   ASSERT_TRUE(cache_->CreateEntry("the first key", &entry1));
   ASSERT_TRUE(NULL != entry1);
 
-  // Avoid using internal buffers for the test. We have to write something to
-  // the entry and close it so that we flush the internal buffer to disk. After
-  // that, IO operations will be really hitting the disk. We don't care about
-  // the content, so just extending the entry is enough (all extensions zero-
-  // fill any holes).
-  EXPECT_EQ(0, entry1->WriteData(0, 15 * 1024, NULL, 0, NULL, false));
-  EXPECT_EQ(0, entry1->WriteData(1, 15 * 1024, NULL, 0, NULL, false));
-  entry1->Close();
-  ASSERT_TRUE(cache_->OpenEntry("the first key", &entry1));
-
   // Let's verify that each IO goes to the right callback object.
   CallbackTest callback1(false);
   CallbackTest callback2(false);
@@ -139,7 +129,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   CacheTestFillBuffer(buffer2->data(), kSize2, false);
   CacheTestFillBuffer(buffer3->data(), kSize3, false);
 
-  EXPECT_EQ(0, entry1->ReadData(0, 15 * 1024, buffer1, kSize1, &callback1));
+  EXPECT_EQ(0, entry1->ReadData(0, 0, buffer1, kSize1, &callback1));
   base::strlcpy(buffer1->data(), "the data", kSize1);
   int expected = 0;
   int ret = entry1->WriteData(0, 0, buffer1, kSize1, &callback2, false);
@@ -157,7 +147,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   EXPECT_STREQ("the data", buffer2->data());
 
   base::strlcpy(buffer2->data(), "The really big data goes here", kSize2);
-  ret = entry1->WriteData(1, 1500, buffer2, kSize2, &callback4, true);
+  ret = entry1->WriteData(1, 1500, buffer2, kSize2, &callback4, false);
   EXPECT_TRUE(5000 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
@@ -184,12 +174,13 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
+  EXPECT_EQ(0, entry1->ReadData(1, 6500, buffer2, kSize2, &callback8));
   ret = entry1->ReadData(1, 0, buffer3, kSize3, &callback9);
   EXPECT_TRUE(6500 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
-  ret = entry1->WriteData(1, 0, buffer3, 8192, &callback10, true);
+  ret = entry1->WriteData(1, 0, buffer3, 8192, &callback10, false);
   EXPECT_TRUE(8192 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
     expected++;
