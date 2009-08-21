@@ -308,6 +308,11 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // by filters.
   ClockImpl clock_;
 
+  // If this value is set to true, then |clock_| is paused and we are waiting
+  // for an update of the clock greater than or equal to the elapsed time to
+  // start the clock.
+  bool waiting_for_clock_update_;
+
   // Status of the pipeline.  Initialized to PIPELINE_OK which indicates that
   // the pipeline is operating correctly. Any other value indicates that the
   // pipeline is stopped or is stopping.  Clients can call the Stop() method to

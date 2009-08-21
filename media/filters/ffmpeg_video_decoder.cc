@@ -306,6 +306,8 @@ FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
     // |pts_queue_|.
     pts.timestamp = pts_queue.top();
   } else {
+    DCHECK(last_pts.timestamp != StreamSample::kInvalidTimestamp);
+    DCHECK(last_pts.duration != StreamSample::kInvalidTimestamp);
     // Unable to read the pts from anywhere. Time to guess.
     pts.timestamp = last_pts.timestamp + last_pts.duration;
   }
