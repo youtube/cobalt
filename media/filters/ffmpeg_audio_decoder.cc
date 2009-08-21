@@ -76,7 +76,7 @@ bool FFmpegAudioDecoder::OnInitialize(DemuxerStream* demuxer_stream) {
 
 void FFmpegAudioDecoder::OnSeek(base::TimeDelta time) {
   avcodec_flush_buffers(codec_context_);
-  estimated_next_timestamp_ = base::TimeDelta();
+  estimated_next_timestamp_ = StreamSample::kInvalidTimestamp;
 }
 
 void FFmpegAudioDecoder::OnStop() {
@@ -114,32 +114,43 @@ void FFmpegAudioDecoder::OnDecode(Buffer* input) {
 
     // Determine the duration if the demuxer couldn't figure it out, otherwise
     // copy it over.
-    if (input->GetDuration().InMicroseconds() == 0) {
+    if (input->GetDuration().ToInternalValue() == 0) {
       result_buffer->SetDuration(CalculateDuration(output_buffer_size));
     } else {
+      DCHECK(input->GetDuration() != StreamSample::kInvalidTimestamp);
       result_buffer->SetDuration(input->GetDuration());
     }
 
     // Use our estimate for the timestamp if |input| does not have one.
     // Otherwise, copy over the timestamp.
-    if (input->GetTimestamp().InMicroseconds() == 0) {
+    if (input->GetTimestamp() == StreamSample::kInvalidTimestamp) {
       result_buffer->SetTimestamp(estimated_next_timestamp_);
     } else {
       result_buffer->SetTimestamp(input->GetTimestamp());
     }
 
     // Only use the timestamp of |result_buffer| to estimate the next timestamp
-    // if it is valid (i.e. greater than 0).  Otherwise the error will stack
-    // together and we will get a series of incorrect timestamps.  In this case,
-    // this will maintain a series of zero timestamps.
-    // TODO(hclam): We should use another invalid value other than 0.
-    if (result_buffer->GetTimestamp().InMicroseconds() > 0) {
+    // if it is valid (i.e. != StreamSample::kInvalidTimestamp).  Otherwise the
+    // error will stack together and we will get a series of incorrect
+    // timestamps.  In this case, this will maintain a series of zero
+    // timestamps.
+    if (result_buffer->GetTimestamp() != StreamSample::kInvalidTimestamp) {
       // Update our estimated timestamp for the next packet.
       estimated_next_timestamp_ = result_buffer->GetTimestamp() +
           result_buffer->GetDuration();
     }
 
     EnqueueResult(result_buffer);
+    return;
+  }
+
+  // We can get a positive result but no decoded data.  This is ok because this
+  // this can be a marker packet that only contains timestamp.  In this case we
+  // save the timestamp for later use.
+  if (result && !input->IsEndOfStream() &&
+      input->GetTimestamp() != StreamSample::kInvalidTimestamp &&
+      input->GetDuration() != StreamSample::kInvalidTimestamp) {
+    estimated_next_timestamp_ = input->GetTimestamp() + input->GetDuration();
     return;
   }
 

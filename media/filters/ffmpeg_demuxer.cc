@@ -207,6 +207,8 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
 }
 
 base::TimeDelta FFmpegDemuxerStream::ConvertTimestamp(int64 timestamp) {
+  if (timestamp == AV_NOPTS_VALUE)
+    return StreamSample::kInvalidTimestamp;
   AVRational time_base = { 1, base::Time::kMicrosecondsPerSecond };
   int64 microseconds = av_rescale_q(timestamp, stream_->time_base, time_base);
   return base::TimeDelta::FromMicroseconds(microseconds);
