@@ -34,6 +34,7 @@
 /third_party/WebKit/
 /third_party/ffmpeg/binaries/
 /third_party/googlemac/
+/third_party/hunspell/
 /third_party/icu38/
 /third_party/pdfsqueeze/
 /third_party/protobuf2/
