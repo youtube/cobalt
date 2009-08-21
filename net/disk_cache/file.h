@@ -67,6 +67,9 @@ class File : public base::RefCounted<File> {
   bool SetLength(size_t length);
   size_t GetLength();
 
+  // Blocks until |num_pending_io| IO operations complete.
+  static void WaitForPendingIO(int* num_pending_io);
+
  protected:
   virtual ~File();
 

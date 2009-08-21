@@ -345,7 +345,7 @@ BackendImpl::~BackendImpl() {
 
   timer_.Stop();
 
-  WaitForPendingIO(&num_pending_io_);
+  File::WaitForPendingIO(&num_pending_io_);
   DCHECK(!num_refs_);
 }
 
