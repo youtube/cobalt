@@ -12,21 +12,12 @@ namespace base {
 void SysInfo::OperatingSystemVersionNumbers(int32 *major_version,
                                             int32 *minor_version,
                                             int32 *bugfix_version) {
-  int32 major_version_cached = 0;
-  int32 minor_version_cached = 0;
-  int32 bugfix_version_cached = 0;
-
-  // Gestalt can't be called in the sandbox, so we cache its return value.
   Gestalt(gestaltSystemVersionMajor,
-      reinterpret_cast<SInt32*>(&major_version_cached));
+      reinterpret_cast<SInt32*>(major_version));
   Gestalt(gestaltSystemVersionMinor,
-      reinterpret_cast<SInt32*>(&minor_version_cached));
+      reinterpret_cast<SInt32*>(minor_version));
   Gestalt(gestaltSystemVersionBugFix,
-      reinterpret_cast<SInt32*>(&bugfix_version_cached));
-
-  *major_version = major_version_cached;
-  *minor_version = minor_version_cached;
-  *bugfix_version = bugfix_version_cached;
+      reinterpret_cast<SInt32*>(bugfix_version));
 }
 
 }  // namespace base
