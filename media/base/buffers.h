@@ -35,6 +35,9 @@ namespace media {
 
 class StreamSample : public base::RefCountedThreadSafe<StreamSample> {
  public:
+  // Constant timestamp value to indicate an invalid or missing timestamp.
+  static const base::TimeDelta kInvalidTimestamp;
+
   // Returns the timestamp of this buffer in microseconds.
   base::TimeDelta GetTimestamp() const {
     return timestamp_;
