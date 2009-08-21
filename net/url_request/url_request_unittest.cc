@@ -36,6 +36,7 @@
 #include "net/proxy/proxy_service.h"
 #include "net/socket/ssl_test_util.h"
 #include "net/url_request/url_request.h"
+#include "net/url_request/url_request_file_dir_job.h"
 #include "net/url_request/url_request_test_job.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -1009,6 +1010,38 @@ TEST_F(URLRequestTest, FileDirCancelTest) {
 
   // Take out mock resource provider.
   net::NetModule::SetResourceProvider(NULL);
+}
+
+TEST_F(URLRequestTest, FileDirRedirectNoCrash) {
+  // There is an implicit redirect when loading a file path that matches a
+  // directory and does not end with a slash.  Ensure that following such
+  // redirects does not crash.  See http://crbug.com/18686.
+
+  FilePath path;
+  PathService::Get(base::DIR_SOURCE_ROOT, &path);
+  path = path.Append(FILE_PATH_LITERAL("net"));
+  path = path.Append(FILE_PATH_LITERAL("data"));
+  path = path.Append(FILE_PATH_LITERAL("url_request_unittest"));
+
+  TestDelegate d;
+  d.set_quit_on_redirect(true);
+  TestURLRequest req(net::FilePathToFileURL(path), &d);
+  req.Start();
+  MessageLoop::current()->Run();
+
+  // Let the directory lister have time to finish its work, which will
+  // cause the URLRequestFileDirJob's ref count to drop to 1.
+  URLRequestFileDirJob* job = static_cast<URLRequestFileDirJob*>(req.job());
+  while (!job->list_complete()) {
+    PlatformThread::Sleep(10);
+    MessageLoop::current()->RunAllPending();
+  }
+
+  // Should not crash during this call!
+  req.FollowDeferredRedirect();
+
+  // Flush event queue.
+  MessageLoop::current()->RunAllPending();
 }
 
 TEST_F(URLRequestTestHTTP, RestrictRedirects) {
