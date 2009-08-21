@@ -116,6 +116,10 @@ class HttpCache : public HttpTransactionFactory {
   // Close All Idle Sockets.  This is for debugging.
   void CloseIdleConnections();
 
+  void set_enable_range_support(bool value) {
+    enable_range_support_ = value;
+  }
+
  private:
 
   // Types --------------------------------------------------------------------
@@ -188,6 +192,7 @@ class HttpCache : public HttpTransactionFactory {
 
   bool in_memory_cache_;
   bool deleted_;  // TODO(rvargas): remove this member. See bug 9952.
+  bool enable_range_support_;
   int cache_size_;
 
   typedef base::hash_map<std::string, int> PlaybackCacheMap;
