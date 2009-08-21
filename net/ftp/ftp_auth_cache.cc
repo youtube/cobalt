@@ -13,7 +13,7 @@ namespace net {
 const size_t FtpAuthCache::kMaxEntries = 10;
 
 AuthData* FtpAuthCache::Lookup(const GURL& origin) {
-  Entry* entry = LookupByOrigin(origin);
+  Entry* entry = LookupEntry(origin);
   return (entry ? entry->auth_data : NULL);
 }
 
@@ -21,7 +21,7 @@ void FtpAuthCache::Add(const GURL& origin, AuthData* auth_data) {
   DCHECK(origin.SchemeIs("ftp"));
   DCHECK_EQ(origin.GetOrigin(), origin);
 
-  Entry* entry = LookupByOrigin(origin);
+  Entry* entry = LookupEntry(origin);
   if (entry) {
     entry->auth_data = auth_data;
   } else {
@@ -37,13 +37,13 @@ void FtpAuthCache::Remove(const GURL& origin) {
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
     if (it->origin == origin) {
       entries_.erase(it);
-      DCHECK(!LookupByOrigin(origin));
+      DCHECK(!LookupEntry(origin));
       return;
     }
   }
 }
 
-FtpAuthCache::Entry* FtpAuthCache::LookupByOrigin(const GURL& origin) {
+FtpAuthCache::Entry* FtpAuthCache::LookupEntry(const GURL& origin) {
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
     if (it->origin == origin)
       return &(*it);
