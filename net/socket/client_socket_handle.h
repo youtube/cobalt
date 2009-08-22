@@ -28,9 +28,9 @@ namespace net {
 class ClientSocketHandle {
  public:
   typedef enum {
-    UNUSED = 0,
-    UNUSED_IDLE,
-    REUSED_IDLE,
+    UNUSED = 0,   // unused socket that just finished connectin
+    UNUSED_IDLE,  // unused socket that has been idle for awhile
+    REUSED_IDLE,  // previously used socket
     NUM_TYPES,
   } SocketReuseType;
 
