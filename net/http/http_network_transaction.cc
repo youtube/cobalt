@@ -1554,7 +1554,8 @@ bool HttpNetworkTransaction::ShouldResendRequest() const {
   // This automatically prevents an infinite resend loop because we'll run
   // out of the cached keep-alive connections eventually.
   if (establishing_tunnel_ ||
-      !reused_socket_ ||  // We didn't reuse a keep-alive connection.
+      // We used a socket that was never idle.
+      connection_.reuse_type() == ClientSocketHandle::UNUSED ||
       header_buf_len_) {  // We have received some response headers.
     return false;
   }
