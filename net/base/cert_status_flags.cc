@@ -43,10 +43,10 @@ int MapCertStatusToNetError(int cert_status) {
   // serious error.
 
   // Unrecoverable errors
-  if (cert_status & CERT_STATUS_INVALID)
-    return ERR_CERT_INVALID;
   if (cert_status & CERT_STATUS_REVOKED)
     return ERR_CERT_REVOKED;
+  if (cert_status & CERT_STATUS_INVALID)
+    return ERR_CERT_INVALID;
 
   // Recoverable errors
   if (cert_status & CERT_STATUS_AUTHORITY_INVALID)
