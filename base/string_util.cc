@@ -943,14 +943,14 @@ static void StringAppendVT(StringType* dst,
   // and StringUtilTest.StringPrintfBounds.
   typename StringType::value_type stack_buf[1024];
 
-  va_list backup_ap;
-  GG_VA_COPY(backup_ap, ap);
+  va_list ap_copy;
+  GG_VA_COPY(ap_copy, ap);
 
 #if !defined(OS_WIN)
   errno = 0;
 #endif
-  int result = vsnprintfT(stack_buf, arraysize(stack_buf), format, backup_ap);
-  va_end(backup_ap);
+  int result = vsnprintfT(stack_buf, arraysize(stack_buf), format, ap_copy);
+  va_end(ap_copy);
 
   if (result >= 0 && result < static_cast<int>(arraysize(stack_buf))) {
     // It fit.
@@ -990,11 +990,11 @@ static void StringAppendVT(StringType* dst,
 
     std::vector<typename StringType::value_type> mem_buf(mem_length);
 
-    // Restore the va_list before we use it again.
-    GG_VA_COPY(backup_ap, ap);
-
-    result = vsnprintfT(&mem_buf[0], mem_length, format, ap);
-    va_end(backup_ap);
+    // NOTE: You can only use a va_list once.  Since we're in a while loop, we
+    // need to make a new copy each time so we don't use up the original.
+    GG_VA_COPY(ap_copy, ap);
+    result = vsnprintfT(&mem_buf[0], mem_length, format, ap_copy);
+    va_end(ap_copy);
 
     if ((result >= 0) && (result < mem_length)) {
       // It fit.
