@@ -212,3 +212,149 @@ TEST(FilterTest, Svgz) {
   ASSERT_EQ(1U, encoding_types.size());
   EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
 }
+
+TEST(FilterTest, UnsupportedMimeGzip) {
+  // From issue 8170 - handling files with Content-Encoding: x-gzip
+  const int kInputBufferSize(100);
+  MockFilterContext filter_context(kInputBufferSize);
+  std::vector<Filter::FilterType> encoding_types;
+  const std::string kTarMime("application/x-tar");
+  const std::string kCpioMime("application/x-cpio");
+  const std::string kTarUrl("http://ignore.com/foo.tar");
+  const std::string kTargzUrl("http://ignore.com/foo.tar.gz");
+  const std::string kTgzUrl("http://ignore.com/foo.tgz");
+  const std::string kBadTgzUrl("http://ignore.com/foo.targz");
+  const std::string kUrl("http://ignore.com/foo");
+
+  // Firefox 3 does not decompress when we have unsupported mime types for
+  // certain filenames.
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(false);
+  filter_context.SetMimeType(kTarMime);
+  filter_context.SetURL(GURL(kTargzUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  EXPECT_TRUE(encoding_types.empty());
+
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(false);
+  filter_context.SetMimeType(kTarMime);
+  filter_context.SetURL(GURL(kTgzUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  EXPECT_TRUE(encoding_types.empty());
+
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(false);
+  filter_context.SetMimeType(kCpioMime);
+  filter_context.SetURL(GURL(kTgzUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  EXPECT_TRUE(encoding_types.empty());
+
+  // Same behavior for downloads.
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(true);
+  filter_context.SetMimeType(kCpioMime);
+  filter_context.SetURL(GURL(kTgzUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  EXPECT_TRUE(encoding_types.empty());
+
+  // Unsupported mime type with wrong file name, decompressed.
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(false);
+  filter_context.SetMimeType(kTarMime);
+  filter_context.SetURL(GURL(kUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  ASSERT_EQ(1U, encoding_types.size());
+  EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
+
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(false);
+  filter_context.SetMimeType(kTarMime);
+  filter_context.SetURL(GURL(kTarUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  ASSERT_EQ(1U, encoding_types.size());
+  EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
+
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(false);
+  filter_context.SetMimeType(kTarMime);
+  filter_context.SetURL(GURL(kBadTgzUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  ASSERT_EQ(1U, encoding_types.size());
+  EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
+
+  // Same behavior for downloads.
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(true);
+  filter_context.SetMimeType(kTarMime);
+  filter_context.SetURL(GURL(kBadTgzUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  ASSERT_EQ(1U, encoding_types.size());
+  EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
+}
+
+TEST(FilterTest, SupportedMimeGzip) {
+  // From issue 16430 - Files with supported mime types should be decompressed,
+  // even though these files end in .gz/.tgz.
+  const int kInputBufferSize(100);
+  MockFilterContext filter_context(kInputBufferSize);
+  std::vector<Filter::FilterType> encoding_types;
+  const std::string kGzUrl("http://ignore.com/foo.gz");
+  const std::string kUrl("http://ignore.com/foo");
+  const std::string kHtmlMime("text/html");
+  const std::string kJavascriptMime("text/javascript");
+
+  // For files that does not end in .gz/.tgz, we always decompress.
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(false);
+  filter_context.SetMimeType(kHtmlMime);
+  filter_context.SetURL(GURL(kUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  ASSERT_EQ(1U, encoding_types.size());
+  EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
+
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(true);
+  filter_context.SetMimeType(kHtmlMime);
+  filter_context.SetURL(GURL(kUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  ASSERT_EQ(1U, encoding_types.size());
+  EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
+
+  // And also decompress files that end in .gz/.tgz.
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(false);
+  filter_context.SetMimeType(kHtmlMime);
+  filter_context.SetURL(GURL(kGzUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  ASSERT_EQ(1U, encoding_types.size());
+  EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
+
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(false);
+  filter_context.SetMimeType(kJavascriptMime);
+  filter_context.SetURL(GURL(kGzUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  ASSERT_EQ(1U, encoding_types.size());
+  EXPECT_EQ(Filter::FILTER_TYPE_GZIP, encoding_types.front());
+
+  // Except on downloads, where they just get saved.
+  encoding_types.clear();
+  encoding_types.push_back(Filter::FILTER_TYPE_GZIP);
+  filter_context.SetDownload(true);
+  filter_context.SetMimeType(kHtmlMime);
+  filter_context.SetURL(GURL(kGzUrl));
+  Filter::FixupEncodingTypes(filter_context, &encoding_types);
+  EXPECT_TRUE(encoding_types.empty());
+}
