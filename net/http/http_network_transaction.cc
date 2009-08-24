@@ -1137,6 +1137,40 @@ void HttpNetworkTransaction::LogTCPConnectedMetrics(
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
   }
+
+  switch (handle.reuse_type()) {
+    case ClientSocketHandle::UNUSED:
+      break;
+    case ClientSocketHandle::UNUSED_IDLE:
+      UMA_HISTOGRAM_CUSTOM_TIMES(
+          "Net.SocketIdleTimeBeforeNextUse_UnusedSocket",
+          handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
+          base::TimeDelta::FromMinutes(6), 100);
+      if (use_late_binding_histogram) {
+        UMA_HISTOGRAM_CUSTOM_TIMES(
+            FieldTrial::MakeName("Net.SocketIdleTimeBeforeNextUse_UnusedSocket",
+                                 "SocketLateBinding").data(),
+            handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
+            base::TimeDelta::FromMinutes(6), 100);
+      }
+      break;
+    case ClientSocketHandle::REUSED_IDLE:
+      UMA_HISTOGRAM_CUSTOM_TIMES(
+          "Net.SocketIdleTimeBeforeNextUse_ReusedSocket",
+          handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
+          base::TimeDelta::FromMinutes(6), 100);
+      if (use_late_binding_histogram) {
+        UMA_HISTOGRAM_CUSTOM_TIMES(
+            FieldTrial::MakeName("Net.SocketIdleTimeBeforeNextUse_ReusedSocket",
+                                 "SocketLateBinding").data(),
+            handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
+            base::TimeDelta::FromMinutes(6), 100);
+      }
+      break;
+    default:
+      NOTREACHED();
+      break;
+  }
 }
 
 void HttpNetworkTransaction::LogIOErrorMetrics(
@@ -1163,23 +1197,29 @@ void HttpNetworkTransaction::LogIOErrorMetrics(
     case ClientSocketHandle::UNUSED:
       break;
     case ClientSocketHandle::UNUSED_IDLE:
-      UMA_HISTOGRAM_TIMES("Net.SocketIdleTimeOnIOError_UnusedSocket",
-                          handle.idle_time());
+      UMA_HISTOGRAM_CUSTOM_TIMES(
+          "Net.SocketIdleTimeOnIOError2_UnusedSocket",
+          handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
+          base::TimeDelta::FromMinutes(6), 100);
       if (use_late_binding_histogram) {
-        UMA_HISTOGRAM_TIMES(
-            FieldTrial::MakeName("Net.SocketIdleTimeOnIOError_UnusedSocket",
+        UMA_HISTOGRAM_CUSTOM_TIMES(
+            FieldTrial::MakeName("Net.SocketIdleTimeOnIOError2_UnusedSocket",
                                  "SocketLateBinding").data(),
-            handle.idle_time());
+            handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
+            base::TimeDelta::FromMinutes(6), 100);
       }
       break;
     case ClientSocketHandle::REUSED_IDLE:
-      UMA_HISTOGRAM_TIMES("Net.SocketIdleTimeOnIOError_ReusedSocket",
-                          handle.idle_time());
+      UMA_HISTOGRAM_CUSTOM_TIMES(
+          "Net.SocketIdleTimeOnIOError2_ReusedSocket",
+          handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
+          base::TimeDelta::FromMinutes(6), 100);
       if (use_late_binding_histogram) {
-        UMA_HISTOGRAM_TIMES(
-            FieldTrial::MakeName("Net.SocketIdleTimeOnIOError_ReusedSocket",
+        UMA_HISTOGRAM_CUSTOM_TIMES(
+            FieldTrial::MakeName("Net.SocketIdleTimeOnIOError2_ReusedSocket",
                                  "SocketLateBinding").data(),
-            handle.idle_time());
+            handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
+            base::TimeDelta::FromMinutes(6), 100);
       }
       break;
     default:
