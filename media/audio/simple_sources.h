@@ -26,7 +26,7 @@ class SineWaveAudioSource : public AudioOutputStream::AudioSourceCallback {
 
   // Implementation of AudioSourceCallback.
   virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size);
+                            void* dest, size_t max_size, int pending_bytes);
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
@@ -73,12 +73,12 @@ class PushSource : public AudioOutputStream::AudioSourceCallback,
 
   // Implementation of AudioSourceCallback.
   virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size);
+                            void* dest, size_t max_size, int pending_bytes);
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
  private:
-  // Defines the unit of playback. We own the memory pointed by |buffer|. 
+  // Defines the unit of playback. We own the memory pointed by |buffer|.
   struct Packet {
     char* buffer;
     size_t size;
@@ -88,7 +88,7 @@ class PushSource : public AudioOutputStream::AudioSourceCallback,
   void CleanUp();
 
   const size_t packet_size_;
-  typedef std::list<Packet> PacketList; 
+  typedef std::list<Packet> PacketList;
   PacketList packets_;
   size_t buffered_bytes_;
   size_t front_buffer_consumed_;

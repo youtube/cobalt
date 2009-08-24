@@ -33,7 +33,7 @@ bool FakeAudioOutputStream::Open(size_t packet_size) {
 void FakeAudioOutputStream::Start(AudioSourceCallback* callback)  {
   callback_ = callback;
   memset(buffer_.get(), 0, packet_size_);
-  callback_->OnMoreData(this, buffer_.get(), packet_size_);
+  callback_->OnMoreData(this, buffer_.get(), packet_size_, 0);
 }
 
 void FakeAudioOutputStream::Stop() {

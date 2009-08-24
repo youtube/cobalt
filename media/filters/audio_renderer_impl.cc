@@ -13,7 +13,8 @@ static const size_t kSamplesPerBuffer = 8*1024;
 
 AudioRendererImpl::AudioRendererImpl()
     : AudioRendererBase(),
-      stream_(NULL) {
+      stream_(NULL),
+      bytes_per_second_(0) {
 }
 
 AudioRendererImpl::~AudioRendererImpl() {
@@ -48,7 +49,7 @@ void AudioRendererImpl::SetVolume(float volume) {
 }
 
 size_t AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,
-                                     size_t len) {
+                                     size_t len, int pending_bytes) {
   // TODO(scherkus): handle end of stream.
   if (!stream_)
     return 0;
@@ -56,7 +57,9 @@ size_t AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,
   // TODO(scherkus): Maybe change OnMoreData to pass in char/uint8 or similar.
   // TODO(fbarchard): Waveout_output_win.h should handle zero length buffers
   //                  without clicking.
-  return FillBuffer(static_cast<uint8*>(dest_void), len, base::TimeDelta());
+  base::TimeDelta delay =  base::TimeDelta::FromMicroseconds(
+      base::Time::kMicrosecondsPerSecond * pending_bytes / bytes_per_second_);
+  return FillBuffer(static_cast<uint8*>(dest_void), len, delay);
 }
 
 void AudioRendererImpl::OnClose(AudioOutputStream* stream) {
@@ -77,6 +80,8 @@ bool AudioRendererImpl::OnInitialize(const MediaFormat& media_format) {
   if (!ParseMediaFormat(media_format, &channels, &sample_rate, &sample_bits)) {
     return false;
   }
+
+  bytes_per_second_ = sample_rate * channels * sample_bits / 8;
 
   // Create our audio stream.
   stream_ = AudioManager::GetAudioManager()->MakeAudioStream(

@@ -168,7 +168,8 @@ class AlsaPcmOutputStream :
     // is passed into the output stream, but ownership is not transfered which
     // requires a synchronization on access of the |source_callback_| to avoid
     // using a deleted callback.
-    size_t OnMoreData(AudioOutputStream* stream, void* dest, size_t max_size);
+    size_t OnMoreData(AudioOutputStream* stream, void* dest,
+                      size_t max_size, int pending_bytes);
     void OnClose(AudioOutputStream* stream);
     void OnError(AudioOutputStream* stream, int code);
 

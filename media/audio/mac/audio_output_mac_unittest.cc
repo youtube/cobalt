@@ -19,7 +19,7 @@ TEST(MacAudioTest, SineWaveAudio16MonoTest) {
 
   // TODO(cpu): Put the real test when the mock renderer is ported.
   int16 buffer[samples] = { 0xffff };
-  source.OnMoreData(NULL, buffer, sizeof(buffer));
+  source.OnMoreData(NULL, buffer, sizeof(buffer), 0);
   EXPECT_EQ(0, buffer[0]);
   EXPECT_EQ(5126, buffer[1]);
 }

@@ -390,8 +390,9 @@ void AlsaPcmOutputStream::BufferPacket(Packet* packet) {
   // Request more data if we don't have any cached.
   if (packet->used >= packet->size) {
     packet->used = 0;
+    // TODO(hclam): Provide pending bytes.
     packet->size = shared_data_.OnMoreData(this, packet->buffer.get(),
-                                           packet->capacity);
+                                           packet->capacity, 0);
     CHECK(packet->size <= packet->capacity) << "Data source overran buffer.";
 
     // This should not happen, but incase it does, drop any trailing bytes
@@ -629,10 +630,11 @@ void AlsaPcmOutputStream::SharedData::set_volume(float v) {
 
 size_t AlsaPcmOutputStream::SharedData::OnMoreData(AudioOutputStream* stream,
                                                    void* dest,
-                                                   size_t max_size) {
+                                                   size_t max_size,
+                                                   int pending_bytes) {
   AutoLock l(lock_);
   if (source_callback_) {
-    return source_callback_->OnMoreData(stream, dest, max_size);
+    return source_callback_->OnMoreData(stream, dest, max_size, pending_bytes);
   }
 
   return 0;
