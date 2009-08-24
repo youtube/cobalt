@@ -89,6 +89,9 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // Channels from 0 to 6.
   int channels_;
 
+  // Number of bytes yet to be played in the hardware buffer.
+  int pending_bytes_;
+
   // The id assigned by the operating system to the selected wave output
   // hardware device. Usually this is just -1 which means 'default device'.
   UINT device_id_;

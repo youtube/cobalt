@@ -25,8 +25,8 @@ SineWaveAudioSource::SineWaveAudioSource(Format format, int channels,
 
 // The implementation could be more efficient if a lookup table is constructed
 // but it is efficient enough for our simple needs.
-size_t SineWaveAudioSource::OnMoreData(AudioOutputStream* stream,
-                                       void* dest, size_t max_size) {
+size_t SineWaveAudioSource::OnMoreData(AudioOutputStream* stream, void* dest,
+                                       size_t max_size, int pending_bytes) {
   const double kTwoPi = 2.0 * 3.141592653589;
   double f = freq_ / sample_freq_;
   int16* sin_tbl = reinterpret_cast<int16*>(dest);
@@ -59,8 +59,8 @@ PushSource::~PushSource() {
   CleanUp();
 }
 
-size_t PushSource::OnMoreData(AudioOutputStream* stream,
-                              void* dest, size_t max_size) {
+size_t PushSource::OnMoreData(AudioOutputStream* stream, void* dest,
+                              size_t max_size, int pending_bytes) {
   size_t copied = 0;
   while (copied < max_size) {
     AutoLock auto_lock(lock_);

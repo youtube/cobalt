@@ -40,8 +40,8 @@ class MockAlsaWrapper : public AlsaWrapper {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD3(OnMoreData, size_t(AudioOutputStream* stream,
-                                  void* dest, size_t max_size));
+  MOCK_METHOD4(OnMoreData, size_t(AudioOutputStream* stream, void* dest,
+                                  size_t max_size, int pending_bytes));
   MOCK_METHOD1(OnClose, void(AudioOutputStream* stream));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
@@ -273,7 +273,7 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
   // Expect the pre-roll.
   MockAudioSourceCallback mock_callback;
   EXPECT_CALL(mock_callback,
-              OnMoreData(test_stream_.get(), _, kTestPacketSize))
+              OnMoreData(test_stream_.get(), _, kTestPacketSize, 0))
       .Times(2)
       .WillRepeatedly(Return(kTestPacketSize));
   EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, _, _))
@@ -363,7 +363,7 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket) {
   MockAudioSourceCallback mock_callback;
   EXPECT_CALL(mock_callback,
               OnMoreData(test_stream_.get(), packet_.buffer.get(),
-                         packet_.capacity))
+                         packet_.capacity, 0))
       .WillOnce(Return(10));
 
   test_stream_->shared_data_.set_source_callback(&mock_callback);

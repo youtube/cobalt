@@ -9,7 +9,16 @@
 #include "base/file_util.h"
 #include "media/audio/audio_output.h"
 #include "media/audio/simple_sources.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+using ::testing::_;
+using ::testing::AnyNumber;
+using ::testing::DoAll;
+using ::testing::InSequence;
+using ::testing::NiceMock;
+using ::testing::NotNull;
+using ::testing::Return;
 
 namespace {
 
@@ -27,7 +36,7 @@ class TestSourceBasic : public AudioOutputStream::AudioSourceCallback {
   }
   // AudioSourceCallback::OnMoreData implementation:
   virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size) {
+                            void* dest, size_t max_size, int pending_bytes) {
     ++callback_count_;
     // Touch the first byte to make sure memory is good.
     if (max_size)
@@ -83,9 +92,9 @@ class TestSourceTripleBuffer : public TestSourceBasic {
   }
   // Override of TestSourceBasic::OnMoreData.
   virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size) {
+                            void* dest, size_t max_size, int pending_bytes) {
     // Call the base, which increments the callback_count_.
-    TestSourceBasic::OnMoreData(stream, dest, max_size);
+    TestSourceBasic::OnMoreData(stream, dest, max_size, 0);
     if (callback_count() % kNumBuffers == 2) {
       set_error(!CompareExistingIfNotNULL(2, dest));
     } else if (callback_count() % kNumBuffers == 1) {
@@ -119,9 +128,9 @@ class TestSourceLaggy : public TestSourceBasic {
       : laggy_after_buffer_(laggy_after_buffer), lag_in_ms_(lag_in_ms) {
   }
   virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size) {
+                            void* dest, size_t max_size, int pending_bytes) {
     // Call the base, which increments the callback_count_.
-    TestSourceBasic::OnMoreData(stream, dest, max_size);
+    TestSourceBasic::OnMoreData(stream, dest, max_size, 0);
     if (callback_count() > kNumBuffers) {
       ::Sleep(lag_in_ms_);
     }
@@ -130,6 +139,14 @@ class TestSourceLaggy : public TestSourceBasic {
  private:
   int laggy_after_buffer_;
   int lag_in_ms_;
+};
+
+class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
+ public:
+  MOCK_METHOD4(OnMoreData, size_t(AudioOutputStream* stream, void* dest,
+                                  size_t max_size, int pending_bytes));
+  MOCK_METHOD1(OnClose, void(AudioOutputStream* stream));
+  MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
 
 // Helper class to memory map an entire file. The mapping is read-only. Don't
@@ -479,12 +496,12 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
   if (!audio_man->HasAudioDevices())
     return;
   AudioOutputStream* oas =
-    audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
-    AudioManager::kAudioCDSampleRate, 16);
+      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
+                                 AudioManager::kAudioCDSampleRate, 16);
   ASSERT_TRUE(NULL != oas);
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
-    200.0, AudioManager::kAudioCDSampleRate);
+                             200.0, AudioManager::kAudioCDSampleRate);
   size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
@@ -506,3 +523,46 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
   oas->Close();
 }
 
+// Check that the pending bytes value is correct what the stream starts.
+TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
+  if (IsRunningHeadless())
+    return;
+  AudioManager* audio_man = AudioManager::GetAudioManager();
+  ASSERT_TRUE(NULL != audio_man);
+  if (!audio_man->HasAudioDevices())
+    return;
+  AudioOutputStream* oas =
+      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
+                                 AudioManager::kAudioCDSampleRate, 16);
+  ASSERT_TRUE(NULL != oas);
+
+  NiceMock<MockAudioSource> source;
+  size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+  EXPECT_TRUE(oas->Open(bytes_100_ms));
+
+  // We expect the amount of pending bytes will reaching 2 times of
+  // |bytes_100_ms| because the audio output stream has a triple buffer scheme.
+  // And then we will try to provide zero data so the amount of pending bytes
+  // will go down and eventually read zero.
+  InSequence s;
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, 0))
+      .WillOnce(Return(bytes_100_ms));
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, bytes_100_ms))
+      .WillOnce(Return(bytes_100_ms));
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(),
+                                 bytes_100_ms, 2 * bytes_100_ms))
+      .WillOnce(Return(bytes_100_ms));
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(),
+                                 bytes_100_ms, 2 * bytes_100_ms))
+      .WillOnce(Return(0));
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, bytes_100_ms))
+      .WillOnce(Return(0));
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, 0))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(0));
+
+  oas->Start(&source);
+  ::Sleep(500);
+  oas->Stop();
+  oas->Close();
+}

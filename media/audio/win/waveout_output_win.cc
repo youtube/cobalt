@@ -58,7 +58,8 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       buffer_(NULL),
       buffer_size_(0),
       volume_(1),
-      channels_(channels) {
+      channels_(channels),
+      pending_bytes_(0) {
   format_.wFormatTag = WAVE_FORMAT_PCM;
   format_.nChannels = channels > 2 ? 2 : channels;
   format_.nSamplesPerSec = sampling_rate;
@@ -144,6 +145,7 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   WAVEHDR* buffer = buffer_;
   for (int ix = 0; ix != kNumBuffers; ++ix) {
     QueueNextPacket(buffer);  // Read more data.
+    pending_bytes_ += buffer->dwBufferLength;
     buffer = GetNextBuffer(buffer);
   }
   buffer = buffer_;
@@ -235,8 +237,12 @@ void PCMWaveOutAudioOutputStream::HandleError(MMRESULT error) {
 void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
   // Call the source which will fill our buffer with pleasant sounds and
   // return to us how many bytes were used.
+  // If we are down sampling to a smaller number of channels, we need to
+  // scale up the amount of pending bytes.
   // TODO(fbarchard): Handle used 0 by queueing more.
-  size_t used = callback_->OnMoreData(this, buffer->lpData, buffer_size_);
+  int scaled_pending_bytes = pending_bytes_ * channels_ / format_.nChannels;
+  size_t used = callback_->OnMoreData(this, buffer->lpData, buffer_size_,
+                                      scaled_pending_bytes);
   if (used <= buffer_size_) {
     buffer->dwBufferLength = used * format_.nChannels / channels_;
     if (channels_ > 2 && format_.nChannels == 2) {
@@ -248,7 +254,6 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
                           format_.nChannels, format_.wBitsPerSample >> 3,
                           volume_);
     }
-
   } else {
     HandleError(0);
     return;
@@ -282,6 +287,11 @@ void PCMWaveOutAudioOutputStream::WaveCallback(HWAVEOUT hwo, UINT msg,
       // Not sure if ever hit this but just in case.
       return;
     }
+
+    // Before we queue the next packet, we need to adjust the number of pending
+    // bytes since the last write to hardware.
+    obj->pending_bytes_ -= buffer->dwBufferLength;
+
     obj->QueueNextPacket(buffer);
 
     // Time to send the buffer to the audio driver. Since we are reusing
@@ -289,6 +299,8 @@ void PCMWaveOutAudioOutputStream::WaveCallback(HWAVEOUT hwo, UINT msg,
     MMRESULT result = ::waveOutWrite(hwo, buffer, sizeof(WAVEHDR));
     if (result != MMSYSERR_NOERROR)
       obj->HandleError(result);
+
+    obj->pending_bytes_ += buffer->dwBufferLength;
 
   } else if (msg == WOM_CLOSE) {
     // We can be closed before calling Start, so it is possible to have a
