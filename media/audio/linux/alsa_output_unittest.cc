@@ -24,6 +24,7 @@ class MockAlsaWrapper : public AlsaWrapper {
   MOCK_METHOD1(PcmClose, int(snd_pcm_t* handle));
   MOCK_METHOD1(PcmPrepare, int(snd_pcm_t* handle));
   MOCK_METHOD1(PcmDrop, int(snd_pcm_t* handle));
+  MOCK_METHOD2(PcmDelay, int(snd_pcm_t* handle, snd_pcm_sframes_t* delay));
   MOCK_METHOD3(PcmWritei, snd_pcm_sframes_t(snd_pcm_t* handle,
                                             const void* buffer,
                                             snd_pcm_uframes_t size));
@@ -272,6 +273,9 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
 
   // Expect the pre-roll.
   MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(kFakeHandle, _))
+      .Times(2)
+      .WillRepeatedly(DoAll(SetArgumentPointee<1>(0), Return(0)));
   EXPECT_CALL(mock_callback,
               OnMoreData(test_stream_.get(), _, kTestPacketSize, 0))
       .Times(2)
@@ -361,9 +365,11 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket) {
 
   // Return a partially filled packet.
   MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(_, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(1), Return(0)));
   EXPECT_CALL(mock_callback,
               OnMoreData(test_stream_.get(), packet_.buffer.get(),
-                         packet_.capacity, 0))
+                         packet_.capacity, kTestBytesPerFrame))
       .WillOnce(Return(10));
 
   test_stream_->shared_data_.set_source_callback(&mock_callback);
