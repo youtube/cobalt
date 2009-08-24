@@ -350,8 +350,11 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
                          const SECOidTag* policy_oids,
                          int num_policy_oids,
                          CERTValOutParam* cvout) {
+  bool use_crl = true;
+  bool use_ocsp = true;
+
   PRUint64 revocation_method_flags =
-      CERT_REV_M_TEST_USING_THIS_METHOD |
+      CERT_REV_M_DO_NOT_TEST_USING_THIS_METHOD |
       CERT_REV_M_ALLOW_NETWORK_FETCHING |
       CERT_REV_M_IGNORE_IMPLICIT_DEFAULT_SOURCE |
       CERT_REV_M_IGNORE_MISSING_FRESH_INFO |
@@ -375,8 +378,21 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
   method_flags[cert_revocation_method_crl] = revocation_method_flags;
   method_flags[cert_revocation_method_ocsp] = revocation_method_flags;
 
+  if (use_crl) {
+    method_flags[cert_revocation_method_crl] |=
+        CERT_REV_M_TEST_USING_THIS_METHOD;
+  }
+  if (use_ocsp) {
+    method_flags[cert_revocation_method_ocsp] |=
+        CERT_REV_M_TEST_USING_THIS_METHOD;
+  }
+
   CERTRevocationMethodIndex preferred_revocation_methods[1];
-  preferred_revocation_methods[0] = cert_revocation_method_ocsp;
+  if (use_ocsp) {
+    preferred_revocation_methods[0] = cert_revocation_method_ocsp;
+  } else {
+    preferred_revocation_methods[0] = cert_revocation_method_crl;
+  }
 
   CERTRevocationFlags revocation_flags;
   revocation_flags.leafTests.number_of_defined_methods =
