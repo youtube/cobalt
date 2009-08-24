@@ -9,6 +9,7 @@
 #include "net/base/gzip_filter.h"
 #include "net/base/bzip2_filter.h"
 #include "net/base/io_buffer.h"
+#include "net/base/mime_util.h"
 #include "net/base/sdch_filter.h"
 
 namespace {
@@ -102,18 +103,27 @@ void Filter::FixupEncodingTypes(
     FilePath filename = FilePath().AppendASCII(url.ExtractFileName());
     FilePath::StringType extension = filename.Extension();
 
-    // Firefox does not apply the filter to the following extensions.
-    // See Firefox's nsHttpChannel::nsContentEncodings::GetNext() and
-    // nonDecodableExtensions in nsExternalHelperAppService.cpp
-    // For the case of svgz files, we use the extension to distinguish
-    // between svgz files and svg files compressed with gzip by the server.
-    // When viewing a .svgz file, we need to uncompress it, but we don't
-    // want to do that when downloading.
-    if (0 == extension.compare(FILE_PATH_LITERAL(".gz")) ||
-        0 == extension.compare(FILE_PATH_LITERAL(".tgz")) ||
-        (0 == extension.compare(FILE_PATH_LITERAL(".svgz")) &&
-        filter_context.IsDownload())) {
-      encoding_types->clear();
+    if (filter_context.IsDownload()) {
+      // We don't want to decompress gzipped files when the user explicitly
+      // asks to download them.
+      // For the case of svgz files, we use the extension to distinguish
+      // between svgz files and svg files compressed with gzip by the server.
+      // When viewing a .svgz file, we need to uncompress it, but we don't
+      // want to do that when downloading.
+      // See Firefox's nonDecodableExtensions in nsExternalHelperAppService.cpp
+      if (FILE_PATH_LITERAL(".gz" == extension) ||
+          FILE_PATH_LITERAL(".tgz" == extension) ||
+          FILE_PATH_LITERAL(".svgz") == extension)
+        encoding_types->clear();
+    } else {
+      // When the user does not explicitly ask to download a file, if we get a
+      // supported mime type, then we attempt to decompress in order to view it.
+      // However, if it's not a supported mime type, then we will attempt to
+      // download it, and in that case, don't decompress .gz/.tgz files.
+      if ((FILE_PATH_LITERAL(".gz" == extension) ||
+           FILE_PATH_LITERAL(".tgz") == extension) &&
+          !net::IsSupportedMimeType(mime_type))
+        encoding_types->clear();
     }
   }
 
