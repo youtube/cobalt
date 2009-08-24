@@ -389,10 +389,28 @@ void AlsaPcmOutputStream::BufferPacket(Packet* packet) {
 
   // Request more data if we don't have any cached.
   if (packet->used >= packet->size) {
+    // Before making a request to source for data. We need to determine the
+    // delay (in bytes) for the requested data to be played.
+    snd_pcm_sframes_t delay;
+    int error = wrapper_->PcmDelay(playback_handle_, &delay);
+    if (error < 0) {
+      error = wrapper_->PcmRecover(playback_handle_,
+                                   error,
+                                   kPcmRecoverIsSilent);
+      if (error < 0) {
+        LOG(ERROR) << "Failed querying delay: " << wrapper_->StrError(error);
+      }
+
+      // TODO(hclam): If we cannot query the delay, we may want to stop
+      // the playback and report an error.
+      delay = 0;
+    } else {
+      delay *= bytes_per_frame_;
+    }
+
     packet->used = 0;
-    // TODO(hclam): Provide pending bytes.
     packet->size = shared_data_.OnMoreData(this, packet->buffer.get(),
-                                           packet->capacity, 0);
+                                           packet->capacity, delay);
     CHECK(packet->size <= packet->capacity) << "Data source overran buffer.";
 
     // This should not happen, but incase it does, drop any trailing bytes
