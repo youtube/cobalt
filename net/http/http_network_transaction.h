@@ -192,8 +192,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   int HandleIOError(int error);
 
   // Called when we reached EOF or got an error.  Returns true if we should
-  // resend the request.
-  bool ShouldResendRequest() const;
+  // resend the request.  |error| is OK when we reached EOF.
+  bool ShouldResendRequest(int error) const;
 
   // Resets the connection and the request headers for resend.  Called when
   // ShouldResendRequest() is true.
