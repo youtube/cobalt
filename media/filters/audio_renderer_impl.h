@@ -43,7 +43,8 @@ class AudioRendererImpl : public AudioRendererBase,
   virtual void SetVolume(float volume);
 
   // AudioSourceCallback implementation.
-  virtual size_t OnMoreData(AudioOutputStream* stream, void* dest, size_t len);
+  virtual size_t OnMoreData(AudioOutputStream* stream, void* dest,
+                            size_t len, int pending_bytes);
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
@@ -60,6 +61,7 @@ class AudioRendererImpl : public AudioRendererBase,
  private:
   // Audio output stream device.
   AudioOutputStream* stream_;
+  int bytes_per_second_;
 
   DISALLOW_COPY_AND_ASSIGN(AudioRendererImpl);
 };

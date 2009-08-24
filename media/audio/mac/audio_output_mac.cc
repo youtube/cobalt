@@ -160,7 +160,9 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
   if (!source)
     return;
   size_t capacity = buffer->mAudioDataBytesCapacity;
-  size_t filled = source->OnMoreData(audio_stream, buffer->mAudioData, capacity);
+  // TODO(hclam): Provide pending bytes.
+  size_t filled = source->OnMoreData(audio_stream, buffer->mAudioData,
+                                     capacity, 0);
   if (filled > capacity) {
     // User probably overran our buffer.
     audio_stream->HandleError(0);

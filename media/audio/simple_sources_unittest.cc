@@ -54,7 +54,7 @@ TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
   // Read everything from the push source.
   for (size_t i = 0; i < kDataSize; i += kReadSize) {
     size_t size = std::min(kDataSize - i , kReadSize);
-    EXPECT_EQ(size, push_source.OnMoreData(NULL, read_data.get(), size));
+    EXPECT_EQ(size, push_source.OnMoreData(NULL, read_data.get(), size, 0));
     EXPECT_EQ(0, memcmp(data.get() + i, read_data.get(), size));
   }
   EXPECT_EQ(0u, push_source.UnProcessedBytes());
