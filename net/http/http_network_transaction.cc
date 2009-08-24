@@ -884,7 +884,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   if (result < 0)
     return HandleIOError(result);
 
-  if (result == 0 && ShouldResendRequest()) {
+  if (result == 0 && ShouldResendRequest(result)) {
     ResetConnectionAndRequestForResend();
     return result;
   }
@@ -1562,7 +1562,7 @@ int HttpNetworkTransaction::HandleIOError(int error) {
     case ERR_CONNECTION_CLOSED:
     case ERR_CONNECTION_ABORTED:
       LogIOErrorMetrics(connection_);
-      if (ShouldResendRequest()) {
+      if (ShouldResendRequest(error)) {
         ResetConnectionAndRequestForResend();
         error = OK;
       }
@@ -1589,13 +1589,16 @@ void HttpNetworkTransaction::ResetStateForRestart() {
   response_ = HttpResponseInfo();
 }
 
-bool HttpNetworkTransaction::ShouldResendRequest() const {
+bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
   // NOTE: we resend a request only if we reused a keep-alive connection.
   // This automatically prevents an infinite resend loop because we'll run
   // out of the cached keep-alive connections eventually.
   if (establishing_tunnel_ ||
       // We used a socket that was never idle.
       connection_.reuse_type() == ClientSocketHandle::UNUSED ||
+      // We used an unused, idle socket and got a error that wasn't a TCP RST.
+      (connection_.reuse_type() == ClientSocketHandle::UNUSED_IDLE &&
+       (error != OK && error != ERR_CONNECTION_RESET)) ||
       header_buf_len_) {  // We have received some response headers.
     return false;
   }
