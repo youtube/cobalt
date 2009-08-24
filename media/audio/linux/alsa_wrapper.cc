@@ -29,6 +29,10 @@ int AlsaWrapper::PcmDrop(snd_pcm_t* handle) {
   return snd_pcm_drop(handle);
 }
 
+int AlsaWrapper::PcmDelay(snd_pcm_t* handle, snd_pcm_sframes_t* delay) {
+  return snd_pcm_delay(handle, delay);
+}
+
 snd_pcm_sframes_t AlsaWrapper::PcmWritei(snd_pcm_t* handle,
                                          const void* buffer,
                                          snd_pcm_uframes_t size) {

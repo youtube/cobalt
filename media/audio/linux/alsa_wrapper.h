@@ -20,6 +20,7 @@ class AlsaWrapper {
   virtual int PcmClose(snd_pcm_t* handle);
   virtual int PcmPrepare(snd_pcm_t* handle);
   virtual int PcmDrop(snd_pcm_t* handle);
+  virtual int PcmDelay(snd_pcm_t* handle, snd_pcm_sframes_t* delay);
   virtual snd_pcm_sframes_t PcmWritei(snd_pcm_t* handle,
                                       const void* buffer,
                                       snd_pcm_uframes_t size);
