@@ -12,7 +12,7 @@ function addRow(name, url, isdir, size, date_modified) {
   var file_cell = document.createElement("td");
   var link = document.createElement("a");
   if (name == "..") {
-    link.href = "..";
+    link.href = document.location + "/..";
     link.innerText = document.getElementById("parentDirText").innerText;
     size = "";
     date_modified = "";
@@ -23,7 +23,7 @@ function addRow(name, url, isdir, size, date_modified) {
       size = "";
     }
     link.innerText = name;
-    link.href = "./" + url;
+    link.href = document.location + "/" + url;
   }
   file_cell.appendChild(link);
 
