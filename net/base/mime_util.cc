@@ -77,7 +77,8 @@ static const MimeInfo primary_mappings[] = {
   { "audio/mp3", "mp3" },
   { "video/ogg", "ogv,ogm" },
   { "audio/ogg", "ogg,oga" },
-  { "application/xhtml+xml", "xhtml,xht" }
+  { "application/xhtml+xml", "xhtml,xht" },
+  { "application/x-chrome-extension", "crx" }
 };
 
 static const MimeInfo secondary_mappings[] = {
