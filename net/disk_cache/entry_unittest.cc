@@ -147,7 +147,8 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
-  memset(buffer2->data(), 0, kSize1);
+  EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
+  memset(buffer2->data(), 0, kSize2);
   ret = entry1->ReadData(0, 0, buffer2, kSize1, &callback3);
   EXPECT_TRUE(10 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
@@ -162,7 +163,8 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
-  memset(buffer3->data(), 0, kSize2);
+  EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
+  memset(buffer3->data(), 0, kSize3);
   ret = entry1->ReadData(1, 1511, buffer3, kSize2, &callback5);
   EXPECT_TRUE(4989 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
@@ -194,6 +196,7 @@ void DiskCacheEntryTest::InternalAsyncIO() {
   if (net::ERR_IO_PENDING == ret)
     expected++;
 
+  EXPECT_TRUE(helper.WaitUntilCacheIoFinished(expected));
   ret = entry1->ReadData(1, 0, buffer3, kSize3, &callback11);
   EXPECT_TRUE(8192 == ret || net::ERR_IO_PENDING == ret);
   if (net::ERR_IO_PENDING == ret)
@@ -1180,10 +1183,18 @@ void DiskCacheEntryTest::DoomSparseEntry() {
   // system cache so we don't see that there is pending IO.
   MessageLoop::current()->RunAllPending();
 
-  if (memory_only_)
+  if (memory_only_) {
     EXPECT_EQ(0, cache_->GetEntryCount());
-  else
+  } else {
+    if (5 == cache_->GetEntryCount()) {
+      // Most likely we are waiting for the result of reading the sparse info
+      // (it's always async on Posix so it is easy to miss). Unfortunately we
+      // don't have any signal to watch for so we can only wait.
+      PlatformThread::Sleep(500);
+      MessageLoop::current()->RunAllPending();
+    }
     EXPECT_EQ(0, cache_->GetEntryCount());
+  }
 }
 
 TEST_F(DiskCacheEntryTest, DoomSparseEntry) {
