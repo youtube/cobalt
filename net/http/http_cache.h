@@ -106,6 +106,10 @@ class HttpCache : public HttpTransactionFactory {
                                 const HttpResponseInfo* response_info,
                                 bool skip_transient_headers);
 
+  // Given a header data blob, convert it to a response info object.
+  static bool ParseResponseInfo(const char* data, int len,
+                                HttpResponseInfo* response_info);
+
   // Get/Set the cache's mode.
   void set_mode(Mode value) { mode_ = value; }
   Mode mode() { return mode_; }
