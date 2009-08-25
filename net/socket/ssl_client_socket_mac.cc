@@ -92,7 +92,6 @@ int NetErrorFromOSStatus(OSStatus status) {
   switch (status) {
     case errSSLWouldBlock:
       return ERR_IO_PENDING;
-    case errSSLIllegalParam:
     case errSSLBadCipherSuite:
     case errSSLBadConfiguration:
       return ERR_INVALID_ARGUMENT;
@@ -105,6 +104,8 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSSLInternal:
     case errSSLCrypto:
     case errSSLFatalAlert:
+    case errSSLIllegalParam:  // Received an illegal_parameter alert.
+    case errSSLPeerUnexpectedMsg:  // Received an unexpected_message alert.
     case errSSLProtocol:
       return ERR_SSL_PROTOCOL_ERROR;
     case errSSLHostNameMismatch:
@@ -246,7 +247,8 @@ int KeySizeOfCipherSuite(SSLCipherSuite suite) {
 X509Certificate* GetServerCert(SSLContextRef ssl_context) {
   CFArrayRef certs;
   OSStatus status = SSLCopyPeerCertificates(ssl_context, &certs);
-  if (status != noErr)
+  // SSLCopyPeerCertificates may succeed but return a null |certs|.
+  if (status != noErr || !certs)
     return NULL;
 
   DCHECK_GT(CFArrayGetCount(certs), 0);
@@ -529,7 +531,7 @@ int SSLClientSocketMac::DoHandshake() {
         }
       }
     }
-  } else if (IsCertStatusError(net_error)) {
+  } else if (IsCertificateError(net_error)) {
     server_cert_ = GetServerCert(ssl_context_);
     DCHECK(server_cert_);
     server_cert_status_ |= MapNetErrorToCertStatus(net_error);
