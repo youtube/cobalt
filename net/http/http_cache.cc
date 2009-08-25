@@ -1634,18 +1634,9 @@ void HttpCache::Suspend(bool suspend) {
 }
 
 // static
-bool HttpCache::ReadResponseInfo(disk_cache::Entry* disk_entry,
-                                 HttpResponseInfo* response_info) {
-  int size = disk_entry->GetDataSize(kResponseInfoIndex);
-
-  scoped_refptr<IOBuffer> buffer = new IOBuffer(size);
-  int rv = disk_entry->ReadData(kResponseInfoIndex, 0, buffer, size, NULL);
-  if (rv != size) {
-    DLOG(ERROR) << "ReadData failed: " << rv;
-    return false;
-  }
-
-  Pickle pickle(buffer->data(), size);
+bool HttpCache::ParseResponseInfo(const char* data, int len,
+                                  HttpResponseInfo* response_info) {
+  Pickle pickle(data, len);
   void* iter = NULL;
 
   // read flags and verify version
@@ -1699,6 +1690,21 @@ bool HttpCache::ReadResponseInfo(disk_cache::Entry* disk_entry,
   }
 
   return true;
+}
+
+// static
+bool HttpCache::ReadResponseInfo(disk_cache::Entry* disk_entry,
+                                 HttpResponseInfo* response_info) {
+  int size = disk_entry->GetDataSize(kResponseInfoIndex);
+
+  scoped_refptr<IOBuffer> buffer = new IOBuffer(size);
+  int rv = disk_entry->ReadData(kResponseInfoIndex, 0, buffer, size, NULL);
+  if (rv != size) {
+    DLOG(ERROR) << "ReadData failed: " << rv;
+    return false;
+  }
+
+  return ParseResponseInfo(buffer->data(), size, response_info);
 }
 
 // static
