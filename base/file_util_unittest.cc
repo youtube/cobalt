@@ -712,16 +712,15 @@ TEST_F(FileUtilTest, ResolveShortcutTest) {
     shell->Release();
 
   bool is_solved;
-  std::wstring link_file_str = link_file.value();
-  is_solved = file_util::ResolveShortcut(&link_file_str);
+  is_solved = file_util::ResolveShortcut(&link_file);
   EXPECT_TRUE(is_solved);
   std::wstring contents;
-  contents = ReadTextFile(FilePath(link_file_str));
+  contents = ReadTextFile(link_file);
   EXPECT_EQ(L"This is the target.", contents);
 
   // Cleaning
   DeleteFile(target_file.value().c_str());
-  DeleteFile(link_file_str.c_str());
+  DeleteFile(link_file.value().c_str());
   CoUninitialize();
 }
 
@@ -736,9 +735,9 @@ TEST_F(FileUtilTest, CreateShortcutTest) {
   EXPECT_TRUE(file_util::CreateShortcutLink(target_file.value().c_str(),
                                             link_file.value().c_str(),
                                             NULL, NULL, NULL, NULL, 0));
-  std::wstring resolved_name = link_file.value();
+  FilePath resolved_name = link_file;
   EXPECT_TRUE(file_util::ResolveShortcut(&resolved_name));
-  std::wstring read_contents = ReadTextFile(FilePath(resolved_name));
+  std::wstring read_contents = ReadTextFile(resolved_name);
   EXPECT_EQ(file_contents, read_contents);
 
   DeleteFile(target_file.value().c_str());

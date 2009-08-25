@@ -254,13 +254,6 @@ bool GetFileCreationLocalTime(const std::wstring& filename,
   return GetFileCreationLocalTimeFromHandle(file_handle.Get(), creation_time);
 }
 
-bool ResolveShortcut(std::wstring* path) {
-  FilePath file_path(*path);
-  bool result = ResolveShortcut(&file_path);
-  *path = file_path.value();
-  return result;
-}
-
 bool ResolveShortcut(FilePath* path) {
   HRESULT result;
   IShellLink *shell = NULL;
