@@ -280,7 +280,7 @@ bool URLRequestFileJob::IsRedirectResponse(
   if (!LowerCaseEqualsASCII(extension, "lnk"))
     return false;
 
-  std::wstring new_path = file_path_.value();
+  FilePath new_path = file_path_;
   bool resolved;
   resolved = file_util::ResolveShortcut(&new_path);
 
@@ -288,7 +288,7 @@ bool URLRequestFileJob::IsRedirectResponse(
   if (!resolved)
     return false;
 
-  *location = net::FilePathToFileURL(FilePath(new_path));
+  *location = net::FilePathToFileURL(new_path);
   *http_status_code = 301;
   return true;
 #else
