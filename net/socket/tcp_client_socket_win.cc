@@ -6,6 +6,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/field_trial.h"  // for SlowStart trial
 #include "base/memory_debug.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
@@ -118,6 +119,19 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
   scoped_refptr<IOBuffer> read_iobuffer_;
   scoped_refptr<IOBuffer> write_iobuffer_;
 
+  // Throttle the read size based on our current slow start state.
+  // Returns the throttled read size.
+  int ThrottleReadSize(int size) {
+    if (!use_slow_start_throttle_)
+      return size;
+
+    if (slow_start_throttle_ < kMaxSlowStartThrottle) {
+      size = std::min(size, slow_start_throttle_);
+      slow_start_throttle_ *= 2;
+    }
+    return size;
+  }
+
  private:
   class ReadDelegate : public base::ObjectWatcher::Delegate {
    public:
@@ -156,16 +170,41 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
   // |write_watcher_| watches for events from Write();
   base::ObjectWatcher write_watcher_;
 
+  // When doing reads from the socket, we try to mirror TCP's slow start.
+  // We do this because otherwise the async IO subsystem artifically delays
+  // returning data to the application.
+  static const int kInitialSlowStartThrottle = 1 * 1024;
+  static const int kMaxSlowStartThrottle = 32 * kInitialSlowStartThrottle;
+  int slow_start_throttle_;
+
+  static bool use_slow_start_throttle_;
+  static bool trial_initialized_;
+
   DISALLOW_COPY_AND_ASSIGN(Core);
 };
+
+bool TCPClientSocketWin::Core::use_slow_start_throttle_ = true;
+bool TCPClientSocketWin::Core::trial_initialized_ = false;
 
 TCPClientSocketWin::Core::Core(
     TCPClientSocketWin* socket)
     : socket_(socket),
       ALLOW_THIS_IN_INITIALIZER_LIST(reader_(this)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(writer_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(writer_(this)),
+      slow_start_throttle_(kInitialSlowStartThrottle) {
   memset(&read_overlapped_, 0, sizeof(read_overlapped_));
   memset(&write_overlapped_, 0, sizeof(write_overlapped_));
+
+  // Initialize the AsyncSlowStart FieldTrial.
+  if (!trial_initialized_) {
+    trial_initialized_ = true;
+    scoped_refptr<FieldTrial> trial = new FieldTrial("AsyncSlowStart", 100);
+    int my_group = trial->AppendGroup("_AsyncSlowStart", 50);
+    trial->AppendGroup("_AsyncSlowStart_off", 50);
+
+    // Only use the throttling if the FieldTrial is enabled.
+    use_slow_start_throttle_ = trial->group() == my_group;
+  }
 }
 
 TCPClientSocketWin::Core::~Core() {
@@ -365,6 +404,8 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
   DCHECK(!waiting_read_);
   DCHECK(!read_callback_);
   DCHECK(!core_->read_iobuffer_);
+
+  buf_len = core_->ThrottleReadSize(buf_len);
 
   core_->read_buffer_.len = buf_len;
   core_->read_buffer_.buf = buf->data();
