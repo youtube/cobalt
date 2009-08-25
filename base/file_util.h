@@ -229,11 +229,10 @@ bool ReadFromFD(int fd, char* buffer, size_t bytes);
 
 #if defined(OS_WIN)
 // Resolve Windows shortcut (.LNK file)
-// Argument path specifies a valid LNK file. On success, return true and put
-// the URL into path. If path is a invalid .LNK file, return false.
+// This methods tries to resolve a shortcut .LNK file. If the |path| is valid
+// returns true and puts the target into the |path|, otherwise returns
+// false leaving the path as it is.
 bool ResolveShortcut(FilePath* path);
-// Deprecated temporary compatibility function.
-bool ResolveShortcut(std::wstring* path);
 
 // Create a Windows shortcut (.LNK file)
 // This method creates a shortcut link using the information given. Ensure
