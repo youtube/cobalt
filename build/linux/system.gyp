@@ -9,15 +9,15 @@
       'type': 'settings',
       'direct_dependent_settings': {
         'cflags': [
-          '<!@(pkg-config --cflags gtk+-2.0)',
+          '<!@(pkg-config --cflags gtk+-2.0 gthread-2.0)',
         ],
       },
       'link_settings': {
         'ldflags': [
-          '<!@(pkg-config --libs-only-L --libs-only-other gtk+-2.0)',
+          '<!@(pkg-config --libs-only-L --libs-only-other gtk+-2.0 gthread-2.0)',
         ],
         'libraries': [
-          '<!@(pkg-config --libs-only-l gtk+-2.0)',
+          '<!@(pkg-config --libs-only-l gtk+-2.0 gthread-2.0)',
         ],
       },
     },
@@ -103,23 +103,6 @@
         ],
         'libraries': [
           '<!@(pkg-config --libs-only-l gconf-2.0)',
-        ],
-      },
-    },
-    {
-      'target_name': 'gthread',
-      'type': 'settings',
-      'direct_dependent_settings': {
-        'cflags': [
-          '<!@(pkg-config --cflags gthread-2.0)',
-        ],
-      },
-      'link_settings': {
-        'ldflags': [
-          '<!@(pkg-config --libs-only-L --libs-only-other gthread-2.0)',
-        ],
-        'libraries': [
-          '<!@(pkg-config --libs-only-l gthread-2.0)',
         ],
       },
     },

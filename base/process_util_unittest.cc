@@ -27,6 +27,11 @@
 namespace base {
 
 class ProcessUtilTest : public MultiProcessTest {
+#if defined(OS_POSIX)
+ public:
+  // Spawn a child process that counts how many file descriptors are open.
+  int CountOpenFDsInChild();
+#endif
 };
 
 MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
@@ -194,19 +199,10 @@ MULTIPROCESS_TEST_MAIN(ProcessUtilsLeakFDChildProcess) {
   for (int i = STDERR_FILENO + 1; i < max_files; i++) {
     if (i != kChildPipe) {
       if (HANDLE_EINTR(close(i)) != -1) {
-        LOG(WARNING) << "Leaked FD " << i;
         num_open_files += 1;
       }
     }
   }
-
-  // InitLogging always opens a file at startup.
-  int expected_num_open_fds = 1;
-#if defined(OS_LINUX)
-  // On Linux, '/etc/localtime' is opened before the test's main() enters.
-  expected_num_open_fds += 1;
-#endif  // defined(OS_LINUX)
-  num_open_files -= expected_num_open_fds;
 
   int written = HANDLE_EINTR(write(write_pipe, &num_open_files,
                                    sizeof(num_open_files)));
@@ -216,13 +212,34 @@ MULTIPROCESS_TEST_MAIN(ProcessUtilsLeakFDChildProcess) {
   return 0;
 }
 
-TEST_F(ProcessUtilTest, FDRemapping) {
-  // Open some files to check they don't get leaked to the child process.
+int ProcessUtilTest::CountOpenFDsInChild() {
   int fds[2];
   if (pipe(fds) < 0)
     NOTREACHED();
-  int pipe_read_fd = fds[0];
-  int pipe_write_fd = fds[1];
+
+  file_handle_mapping_vector fd_mapping_vec;
+  fd_mapping_vec.push_back(std::pair<int,int>(fds[1], kChildPipe));
+  ProcessHandle handle = this->SpawnChild(L"ProcessUtilsLeakFDChildProcess",
+                                          fd_mapping_vec,
+                                          false);
+  CHECK(handle);
+  HANDLE_EINTR(close(fds[1]));
+
+  // Read number of open files in client process from pipe;
+  int num_open_files = -1;
+  ssize_t bytes_read =
+      HANDLE_EINTR(read(fds[0], &num_open_files, sizeof(num_open_files)));
+  CHECK(bytes_read == static_cast<ssize_t>(sizeof(num_open_files)));
+
+  CHECK(WaitForSingleProcess(handle, 1000));
+  base::CloseProcessHandle(handle);
+  HANDLE_EINTR(close(fds[0]));
+
+  return num_open_files;
+}
+
+TEST_F(ProcessUtilTest, FDRemapping) {
+  int fds_before = CountOpenFDsInChild();
 
   // open some dummy fds to make sure they don't propogate over to the
   // child process.
@@ -230,26 +247,10 @@ TEST_F(ProcessUtilTest, FDRemapping) {
   int sockets[2];
   socketpair(AF_UNIX, SOCK_STREAM, 0, sockets);
 
-  file_handle_mapping_vector fd_mapping_vec;
-  fd_mapping_vec.push_back(std::pair<int,int>(pipe_write_fd, kChildPipe));
-  ProcessHandle handle = this->SpawnChild(L"ProcessUtilsLeakFDChildProcess",
-                                          fd_mapping_vec,
-                                          false);
-  ASSERT_NE(static_cast<ProcessHandle>(NULL), handle);
-  HANDLE_EINTR(close(pipe_write_fd));
+  int fds_after = CountOpenFDsInChild();
 
-  // Read number of open files in client process from pipe;
-  int num_open_files = -1;
-  ssize_t bytes_read =
-      HANDLE_EINTR(read(pipe_read_fd, &num_open_files, sizeof(num_open_files)));
-  ASSERT_EQ(bytes_read, static_cast<ssize_t>(sizeof(num_open_files)));
+  ASSERT_EQ(fds_after, fds_before);
 
-  // Make sure 0 fds are leaked to the client.
-  ASSERT_EQ(0, num_open_files);
-
-  EXPECT_TRUE(WaitForSingleProcess(handle, 1000));
-  base::CloseProcessHandle(handle);
-  HANDLE_EINTR(close(fds[0]));
   HANDLE_EINTR(close(sockets[0]));
   HANDLE_EINTR(close(sockets[1]));
   HANDLE_EINTR(close(dev_null));
