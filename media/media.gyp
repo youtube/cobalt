@@ -174,6 +174,7 @@
         'base/seekable_buffer_unittest.cc',
         'base/video_frame_impl_unittest.cc',
         'base/yuv_convert_unittest.cc',
+        'filters/audio_renderer_algorithm_ola_unittest.cc',
         'filters/audio_renderer_base_unittest.cc',
         'filters/ffmpeg_demuxer_unittest.cc',
         'filters/ffmpeg_glue_unittest.cc',
