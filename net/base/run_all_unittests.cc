@@ -27,42 +27,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "base/message_loop.h"
-#include "base/ref_counted.h"
-#include "base/test_suite.h"
-#include "net/base/mock_host_resolver.h"
-
-class NetTestSuite : public TestSuite {
- public:
-  NetTestSuite(int argc, char** argv) : TestSuite(argc, argv) {
-  }
-
-  virtual void Initialize() {
-    TestSuite::Initialize();
-
-    host_resolver_proc_ = new net::RuleBasedHostResolverProc(NULL);
-    scoped_host_resolver_proc_.Init(host_resolver_proc_.get());
-    // In case any attempts are made to resolve host names, force them all to
-    // be mapped to localhost.  This prevents DNS queries from being sent in
-    // the process of running these unit tests.
-    host_resolver_proc_->AddRule("*", "127.0.0.1");
-
-    message_loop_.reset(new MessageLoopForIO());
-  }
-
-  virtual void Shutdown() {
-    // We want to destroy this here before the TestSuite continues to tear down
-    // the environment.
-    message_loop_.reset();
-
-    TestSuite::Shutdown();
-  }
-
- private:
-  scoped_ptr<MessageLoop> message_loop_;
-  scoped_refptr<net::RuleBasedHostResolverProc> host_resolver_proc_;
-  net::ScopedDefaultHostResolverProc scoped_host_resolver_proc_;
-};
+#include "net/base/net_test_suite.h"
 
 int main(int argc, char** argv) {
   return NetTestSuite(argc, argv).Run();
