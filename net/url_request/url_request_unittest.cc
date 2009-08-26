@@ -1972,6 +1972,36 @@ TEST_F(URLRequestTest, FTPCheckWrongPassword) {
   }
 }
 
+TEST_F(URLRequestTest, FTPCheckWrongPasswordRestart) {
+  // Pass wrong login credentials in the request URL.
+  scoped_refptr<FTPTestServer> server =
+      FTPTestServer::CreateServer(L"", "chrome", "wrong_password");
+  ASSERT_TRUE(NULL != server.get());
+  FilePath app_path;
+  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  app_path = app_path.AppendASCII("LICENSE");
+  TestDelegate d;
+  // Set correct login credentials. The delegate will be asked for them when
+  // the initial login with wrong credentials will fail.
+  d.set_username(L"chrome");
+  d.set_password(L"chrome");
+  {
+    TestURLRequest r(server->TestServerPage("/LICENSE"), &d);
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    int64 file_size = 0;
+    file_util::GetFileSize(app_path, &file_size);
+
+    EXPECT_FALSE(r.is_pending());
+    EXPECT_EQ(1, d.response_started_count());
+    EXPECT_FALSE(d.received_data_before_response());
+    EXPECT_EQ(d.bytes_received(), static_cast<int>(file_size));
+  }
+}
+
 TEST_F(URLRequestTest, FTPCheckWrongUser) {
   scoped_refptr<FTPTestServer> server =
       FTPTestServer::CreateServer(L"", "wrong_user", "chrome");
@@ -1994,5 +2024,35 @@ TEST_F(URLRequestTest, FTPCheckWrongUser) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), 0);
+  }
+}
+
+TEST_F(URLRequestTest, FTPCheckWrongUserRestart) {
+  // Pass wrong login credentials in the request URL.
+  scoped_refptr<FTPTestServer> server =
+      FTPTestServer::CreateServer(L"", "wrong_user", "chrome");
+  ASSERT_TRUE(NULL != server.get());
+  FilePath app_path;
+  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  app_path = app_path.AppendASCII("LICENSE");
+  TestDelegate d;
+  // Set correct login credentials. The delegate will be asked for them when
+  // the initial login with wrong credentials will fail.
+  d.set_username(L"chrome");
+  d.set_password(L"chrome");
+  {
+    TestURLRequest r(server->TestServerPage("/LICENSE"), &d);
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    int64 file_size = 0;
+    file_util::GetFileSize(app_path, &file_size);
+
+    EXPECT_FALSE(r.is_pending());
+    EXPECT_EQ(1, d.response_started_count());
+    EXPECT_FALSE(d.received_data_before_response());
+    EXPECT_EQ(d.bytes_received(), static_cast<int>(file_size));
   }
 }

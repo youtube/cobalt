@@ -85,6 +85,9 @@ class FtpNetworkTransaction : public FtpTransaction {
     ERROR_CLASS_PERMANENT_ERROR,
   };
 
+  // Resets the members of the transaction so it can be restarted.
+  void ResetStateForRestart();
+
   void DoCallback(int result);
   void OnIOComplete(int result);
 
@@ -167,7 +170,7 @@ class FtpNetworkTransaction : public FtpTransaction {
   // User buffer passed to the Read method for control socket.
   scoped_refptr<IOBuffer> read_ctrl_buf_;
 
-  FtpCtrlResponseBuffer ctrl_response_buffer_;
+  scoped_ptr<FtpCtrlResponseBuffer> ctrl_response_buffer_;
 
   scoped_refptr<IOBuffer> read_data_buf_;
   int read_data_buf_len_;
@@ -186,7 +189,11 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   int last_error_;
 
-  bool is_anonymous_;
+  // We get username and password as wstrings in RestartWithAuth, so they are
+  // also kept as wstrings here.
+  std::wstring username_;
+  std::wstring password_;
+
   bool retr_failed_;
 
   std::string data_connection_ip_;
