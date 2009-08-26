@@ -5,17 +5,18 @@
 #ifndef NET_FTP_FTP_RESPONSE_INFO_H_
 #define NET_FTP_FTP_RESPONSE_INFO_H_
 
-#include "net/base/auth.h"
+#include "base/time.h"
 
 namespace net {
 
 class FtpResponseInfo {
  public:
-  FtpResponseInfo() : is_directory_listing(false) {
+  FtpResponseInfo() : needs_auth(false), is_directory_listing(false) {
   }
 
-  // Non-null when authentication is required.
-  scoped_refptr<AuthChallengeInfo> auth_challenge;
+  // True if authentication failed and valid authentication credentials are
+  // needed.
+  bool needs_auth;
 
   // The time at which the request was made that resulted in this response.
   // For cached responses, this time could be "far" in the past.
