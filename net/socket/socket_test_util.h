@@ -200,6 +200,13 @@ class MockClientSocketFactory : public ClientSocketFactory {
   void AddMockSSLSocket(MockSSLSocket* socket);
   void ResetNextMockIndexes();
 
+  // Return |index|-th ClientSocket (starting from 0) that the factory created.
+  ClientSocket* GetMockTCPClientSocket(int index) const;
+
+  // Return |index|-th SSLClientSocket (starting from 0) that the factory
+  // created.
+  SSLClientSocket* GetMockSSLClientSocket(int index) const;
+
   // ClientSocketFactory
   virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses);
   virtual SSLClientSocket* CreateSSLClientSocket(
@@ -210,6 +217,10 @@ class MockClientSocketFactory : public ClientSocketFactory {
  private:
   MockSocketArray<MockSocket> mock_sockets_;
   MockSocketArray<MockSSLSocket> mock_ssl_sockets_;
+
+  // Store pointers to handed out sockets in case the test wants to get them.
+  std::vector<ClientSocket*> tcp_client_sockets_;
+  std::vector<SSLClientSocket*> ssl_client_sockets_;
 };
 
 class MockClientSocket : public net::SSLClientSocket {

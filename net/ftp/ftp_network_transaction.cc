@@ -133,6 +133,9 @@ LoadState FtpNetworkTransaction::GetLoadState() const {
   if (next_state_ == STATE_DATA_READ_COMPLETE)
     return LOAD_STATE_READING_RESPONSE;
 
+  if (command_sent_ == COMMAND_RETR && read_data_buf_.get())
+    return LOAD_STATE_READING_RESPONSE;
+
   if (command_sent_ == COMMAND_QUIT)
     return LOAD_STATE_IDLE;
 
@@ -808,7 +811,10 @@ int FtpNetworkTransaction::ProcessResponseRETR(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
-      next_state_ = STATE_CTRL_READ;
+      // We want the client to start reading the response at this point.
+      // It got here either through Start or RestartWithAuth. We want that
+      // method to complete. Not setting next state here will make DoLoop exit
+      // and in turn make Start/RestartWithAuth complete.
       break;
     case ERROR_CLASS_OK:
       next_state_ = STATE_CTRL_WRITE_QUIT;
