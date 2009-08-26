@@ -24,20 +24,33 @@ namespace base {
 
 // Time -----------------------------------------------------------------------
 
-// The internal representation of Time uses a 64-bit microsecond count
-// from 1970-01-01 00:00:00 UTC.  Core Foundation uses a double second count
-// since 2001-01-01 00:00:00 UTC.
+// Core Foundation uses a double second count since 2001-01-01 00:00:00 UTC.
+// The UNIX epoch is 1970-01-01 00:00:00 UTC.
+// Windows uses a Gregorian epoch of 1601.  We need to match this internally
+// so that our time representations match across all platforms.  See bug 14734.
+//   irb(main):010:0> Time.at(0).getutc()
+//   => Thu Jan 01 00:00:00 UTC 1970
+//   irb(main):011:0> Time.at(-11644473600).getutc()
+//   => Mon Jan 01 00:00:00 UTC 1601
+static const int64 kWindowsEpochDeltaSeconds = GG_INT64_C(11644473600);
+static const int64 kWindowsEpochDeltaMilliseconds =
+    kWindowsEpochDeltaSeconds * Time::kMillisecondsPerSecond;
 
-// Some functions in time.cc use time_t directly, so we provide a zero offset
-// for them.  The epoch is 1970-01-01 00:00:00 UTC.
 // static
-const int64 Time::kTimeTToMicrosecondsOffset = GG_INT64_C(0);
+const int64 Time::kWindowsEpochDeltaMicroseconds =
+    kWindowsEpochDeltaSeconds * Time::kMicrosecondsPerSecond;
+
+// Some functions in time.cc use time_t directly, so we provide an offset
+// to convert from time_t (Unix epoch) and internal (Windows epoch).
+// static
+const int64 Time::kTimeTToMicrosecondsOffset = kWindowsEpochDeltaMicroseconds;
 
 // static
 Time Time::Now() {
   CFAbsoluteTime now =
       CFAbsoluteTimeGetCurrent() + kCFAbsoluteTimeIntervalSince1970;
-  return Time(static_cast<int64>(now * kMicrosecondsPerSecond));
+  return Time(static_cast<int64>(now * kMicrosecondsPerSecond) +
+      kWindowsEpochDeltaMicroseconds);
 }
 
 // static
@@ -61,13 +74,14 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
       time_zone(is_local ? CFTimeZoneCopySystem() : NULL);
   CFAbsoluteTime seconds = CFGregorianDateGetAbsoluteTime(date, time_zone) +
       kCFAbsoluteTimeIntervalSince1970;
-  return Time(static_cast<int64>(seconds * kMicrosecondsPerSecond));
+  return Time(static_cast<int64>(seconds * kMicrosecondsPerSecond) +
+      kWindowsEpochDeltaMicroseconds);
 }
 
 void Time::Explode(bool is_local, Exploded* exploded) const {
   CFAbsoluteTime seconds =
-      (static_cast<double>(us_) / kMicrosecondsPerSecond) -
-      kCFAbsoluteTimeIntervalSince1970;
+      (static_cast<double>((us_ - kWindowsEpochDeltaMicroseconds) /
+      kMicrosecondsPerSecond) - kCFAbsoluteTimeIntervalSince1970);
 
   scoped_cftyperef<CFTimeZoneRef>
       time_zone(is_local ? CFTimeZoneCopySystem() : NULL);

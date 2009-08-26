@@ -4,9 +4,6 @@
 
 #include "base/time.h"
 
-#ifdef OS_MACOSX
-#include <mach/mach_time.h>
-#endif
 #include <sys/time.h>
 #include <time.h>
 
@@ -23,10 +20,24 @@ namespace base {
 
 // Time -----------------------------------------------------------------------
 
-// Some functions in time.cc use time_t directly, so we provide a zero offset
-// for them.  The epoch is 1970-01-01 00:00:00 UTC.
+// Windows uses a Gregorian epoch of 1601.  We need to match this internally
+// so that our time representations match across all platforms.  See bug 14734.
+//   irb(main):010:0> Time.at(0).getutc()
+//   => Thu Jan 01 00:00:00 UTC 1970
+//   irb(main):011:0> Time.at(-11644473600).getutc()
+//   => Mon Jan 01 00:00:00 UTC 1601
+static const int64 kWindowsEpochDeltaSeconds = GG_INT64_C(11644473600);
+static const int64 kWindowsEpochDeltaMilliseconds =
+    kWindowsEpochDeltaSeconds * Time::kMillisecondsPerSecond;
+
 // static
-const int64 Time::kTimeTToMicrosecondsOffset = GG_INT64_C(0);
+const int64 Time::kWindowsEpochDeltaMicroseconds =
+    kWindowsEpochDeltaSeconds * Time::kMicrosecondsPerSecond;
+
+// Some functions in time.cc use time_t directly, so we provide an offset
+// to convert from time_t (Unix epoch) and internal (Windows epoch).
+// static
+const int64 Time::kTimeTToMicrosecondsOffset = kWindowsEpochDeltaMicroseconds;
 
 // static
 Time Time::Now() {
@@ -36,8 +47,10 @@ Time Time::Now() {
     DCHECK(0) << "Could not determine time of day";
   }
   // Combine seconds and microseconds in a 64-bit field containing microseconds
-  // since the epoch.  That's enough for nearly 600 centuries.
-  return tv.tv_sec * kMicrosecondsPerSecond + tv.tv_usec;
+  // since the epoch.  That's enough for nearly 600 centuries.  Adjust from
+  // Unix (1970) to Windows (1601) epoch.
+  return Time((tv.tv_sec * kMicrosecondsPerSecond + tv.tv_usec) +
+      kWindowsEpochDeltaMicroseconds);
 }
 
 // static
@@ -100,13 +113,17 @@ Time Time::FromExploded(bool is_local, const Exploded& exploded) {
     milliseconds = seconds * kMillisecondsPerSecond + exploded.millisecond;
   }
 
-  return Time(milliseconds * kMicrosecondsPerMillisecond);
+  // Adjust from Unix (1970) to Windows (1601) epoch.
+  return Time((milliseconds * kMicrosecondsPerMillisecond) +
+      kWindowsEpochDeltaMicroseconds);
 }
 
 void Time::Explode(bool is_local, Exploded* exploded) const {
   // Time stores times with microsecond resolution, but Exploded only carries
-  // millisecond resolution, so begin by being lossy.
-  int64 milliseconds = us_ / kMicrosecondsPerMillisecond;
+  // millisecond resolution, so begin by being lossy.  Adjust from Windows
+  // epoch (1601) to Unix epoch (1970);
+  int64 milliseconds = (us_ - kWindowsEpochDeltaMicroseconds) /
+      kMicrosecondsPerMillisecond;
   time_t seconds = milliseconds / kMillisecondsPerSecond;
 
   struct tm timestruct;
@@ -127,37 +144,12 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
 
 // TimeTicks ------------------------------------------------------------------
 
+#if defined(OS_POSIX) && \
+    defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0
+
 // static
 TimeTicks TimeTicks::Now() {
   uint64_t absolute_micro;
-
-#if defined(OS_MACOSX)
-  static mach_timebase_info_data_t timebase_info;
-  if (timebase_info.denom == 0) {
-    // Zero-initialization of statics guarantees that denom will be 0 before
-    // calling mach_timebase_info.  mach_timebase_info will never set denom to
-    // 0 as that would be invalid, so the zero-check can be used to determine
-    // whether mach_timebase_info has already been called.  This is
-    // recommended by Apple's QA1398.
-    kern_return_t kr = mach_timebase_info(&timebase_info);
-    DCHECK(kr == KERN_SUCCESS);
-  }
-
-  // mach_absolute_time is it when it comes to ticks on the Mac.  Other calls
-  // with less precision (such as TickCount) just call through to
-  // mach_absolute_time.
-
-  // timebase_info converts absolute time tick units into nanoseconds.  Convert
-  // to microseconds up front to stave off overflows.
-  absolute_micro = mach_absolute_time() / Time::kNanosecondsPerMicrosecond *
-                   timebase_info.numer / timebase_info.denom;
-
-  // Don't bother with the rollover handling that the Windows version does.
-  // With numer and denom = 1 (the expected case), the 64-bit absolute time
-  // reported in nanoseconds is enough to last nearly 585 years.
-
-#elif defined(OS_POSIX) && \
-      defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0
 
   struct timespec ts;
   if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
@@ -169,12 +161,12 @@ TimeTicks TimeTicks::Now() {
       (static_cast<int64>(ts.tv_sec) * Time::kMicrosecondsPerSecond) +
       (static_cast<int64>(ts.tv_nsec) / Time::kNanosecondsPerMicrosecond);
 
+  return TimeTicks(absolute_micro);
+}
+
 #else  // _POSIX_MONOTONIC_CLOCK
 #error No usable tick clock function on this platform.
 #endif  // _POSIX_MONOTONIC_CLOCK
-
-  return TimeTicks(absolute_micro);
-}
 
 // static
 TimeTicks TimeTicks::HighResNow() {
