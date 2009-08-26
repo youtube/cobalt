@@ -127,7 +127,7 @@ void CommandLine::InitFromArgv() {
 }
 
 CommandLine::CommandLine(const std::wstring& program) {
-  argv_.push_back(WideToASCII(program));
+  argv_.push_back(base::SysWideToNativeMB(program));
 }
 #endif
 
@@ -224,7 +224,7 @@ std::wstring CommandLine::GetSwitchValue(
 #if defined(OS_WIN)
     return result->second;
 #else
-    return ASCIIToWide(result->second);
+    return base::SysNativeMBToWide(result->second);
 #endif
   }
 }
@@ -240,12 +240,12 @@ std::wstring CommandLine::program() const {
 std::vector<std::wstring> CommandLine::GetLooseValues() const {
   std::vector<std::wstring> values;
   for (size_t i = 0; i < loose_values_.size(); ++i)
-    values.push_back(ASCIIToWide(loose_values_[i]));
+    values.push_back(base::SysNativeMBToWide(loose_values_[i]));
   return values;
 }
 std::wstring CommandLine::program() const {
   DCHECK(argv_.size() > 0);
-  return ASCIIToWide(argv_[0]);
+  return base::SysNativeMBToWide(argv_[0]);
 }
 #endif
 
@@ -341,15 +341,15 @@ void CommandLine::AppendSwitch(const std::wstring& switch_string) {
 void CommandLine::AppendSwitchWithValue(const std::wstring& switch_string,
                                         const std::wstring& value_string) {
   std::string ascii_switch = WideToASCII(switch_string);
-  std::string ascii_value = WideToASCII(value_string);
+  std::string mb_value = base::SysWideToNativeMB(value_string);
 
   argv_.push_back(kSwitchPrefixes[0] + ascii_switch +
-                  kSwitchValueSeparator + ascii_value);
-  switches_[ascii_switch] = ascii_value;
+                  kSwitchValueSeparator + mb_value);
+  switches_[ascii_switch] = mb_value;
 }
 
 void CommandLine::AppendLooseValue(const std::wstring& value) {
-  argv_.push_back(WideToASCII(value));
+  argv_.push_back(base::SysWideToNativeMB(value));
 }
 
 void CommandLine::AppendArguments(const CommandLine& other,
@@ -369,7 +369,7 @@ void CommandLine::AppendArguments(const CommandLine& other,
 void CommandLine::PrependWrapper(const std::wstring& wrapper_wide) {
   // The wrapper may have embedded arguments (like "gdb --args"). In this case,
   // we don't pretend to do anything fancy, we just split on spaces.
-  const std::string wrapper = WideToASCII(wrapper_wide);
+  const std::string wrapper = base::SysWideToNativeMB(wrapper_wide);
   std::vector<std::string> wrapper_and_args;
   SplitString(wrapper, ' ', &wrapper_and_args);
   argv_.insert(argv_.begin(), wrapper_and_args.begin(), wrapper_and_args.end());
