@@ -11,8 +11,8 @@
 
 namespace net {
 
-class FtpRequestInfo;
 class FtpResponseInfo;
+class FtpRequestInfo;
 class LoadLog;
 
 // Represents a single FTP transaction.

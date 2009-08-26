@@ -36,11 +36,11 @@ FtpNetworkTransaction::FtpNetworkTransaction(
       request_(NULL),
       resolver_(session->host_resolver()),
       read_ctrl_buf_(new IOBuffer(kCtrlBufLen)),
+      ctrl_response_buffer_(new FtpCtrlResponseBuffer()),
       read_data_buf_len_(0),
       file_data_len_(0),
       write_command_buf_written_(0),
       last_error_(OK),
-      is_anonymous_(false),
       retr_failed_(false),
       data_connection_port_(0),
       socket_factory_(socket_factory),
@@ -55,6 +55,15 @@ int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
                                  LoadLog* load_log) {
   load_log_ = load_log;
   request_ = request_info;
+
+  if (request_->url.has_username()) {
+    username_ = UTF8ToWide(request_->url.username());
+    if (request_->url.has_password())
+      password_ = UTF8ToWide(request_->url.password());
+  } else {
+    username_ = L"anonymous";
+    password_ = L"chrome@example.com";
+  }
 
   next_state_ = STATE_CTRL_INIT;
   int rv = DoLoop(OK);
@@ -75,7 +84,16 @@ int FtpNetworkTransaction::Stop(int error) {
 int FtpNetworkTransaction::RestartWithAuth(const std::wstring& username,
                                            const std::wstring& password,
                                            CompletionCallback* callback) {
-  return ERR_FAILED;
+  ResetStateForRestart();
+
+  username_ = username;
+  password_ = password;
+
+  next_state_ = STATE_CTRL_INIT;
+  int rv = DoLoop(OK);
+  if (rv == ERR_IO_PENDING)
+    user_callback_ = callback;
+  return rv;
 }
 
 int FtpNetworkTransaction::RestartIgnoringLastError(
@@ -134,7 +152,7 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
   // If we send a new command when we still have unprocessed responses
   // for previous commands, the response receiving code will have no way to know
   // which responses are for which command.
-  DCHECK(!ctrl_response_buffer_.ResponseAvailable());
+  DCHECK(!ctrl_response_buffer_->ResponseAvailable());
 
   DCHECK(!write_command_buf_);
   DCHECK(!write_buf_);
@@ -176,7 +194,7 @@ FtpNetworkTransaction::ErrorClass FtpNetworkTransaction::GetErrorClass(
 }
 
 int FtpNetworkTransaction::ProcessCtrlResponse() {
-  FtpCtrlResponse response = ctrl_response_buffer_.PopResponse();
+  FtpCtrlResponse response = ctrl_response_buffer_->PopResponse();
 
   int rv = OK;
   switch (command_sent_) {
@@ -230,8 +248,8 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
 
   // We may get multiple responses for some commands,
   // see http://crbug.com/18036.
-  while (ctrl_response_buffer_.ResponseAvailable() && rv == OK) {
-    response = ctrl_response_buffer_.PopResponse();
+  while (ctrl_response_buffer_->ResponseAvailable() && rv == OK) {
+    response = ctrl_response_buffer_->PopResponse();
 
     switch (command_sent_) {
       case COMMAND_RETR:
@@ -244,6 +262,24 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
   }
 
   return rv;
+}
+
+void FtpNetworkTransaction::ResetStateForRestart() {
+  command_sent_ = COMMAND_NONE;
+  user_callback_ = NULL;
+  response_ = FtpResponseInfo();
+  read_ctrl_buf_ = new IOBuffer(kCtrlBufLen);
+  ctrl_response_buffer_.reset(new FtpCtrlResponseBuffer());
+  read_data_buf_ = NULL;
+  read_data_buf_len_ = 0;
+  file_data_len_ = 0;
+  write_command_buf_written_ = 0;
+  last_error_ = OK;
+  retr_failed_ = false;
+  data_connection_port_ = 0;
+  ctrl_socket_.reset();
+  data_socket_.reset();
+  next_state_ = STATE_NONE;
 }
 
 void FtpNetworkTransaction::DoCallback(int rv) {
@@ -443,9 +479,9 @@ int FtpNetworkTransaction::DoCtrlReadComplete(int result) {
   if (result < 0)
     return Stop(result);
 
-  ctrl_response_buffer_.ConsumeData(read_ctrl_buf_->data(), result);
+  ctrl_response_buffer_->ConsumeData(read_ctrl_buf_->data(), result);
 
-  if (!ctrl_response_buffer_.ResponseAvailable()) {
+  if (!ctrl_response_buffer_->ResponseAvailable()) {
     // Read more data from the control socket.
     next_state_ = STATE_CTRL_READ;
     return OK;
@@ -486,14 +522,7 @@ int FtpNetworkTransaction::DoCtrlWriteComplete(int result) {
 
 // USER Command.
 int FtpNetworkTransaction::DoCtrlWriteUSER() {
-  std::string command = "USER";
-  if (request_->url.has_username()) {
-    command.append(" ");
-    command.append(request_->url.username());
-  } else {
-    is_anonymous_ = true;
-    command.append(" anonymous");
-  }
+  std::string command = "USER " + WideToUTF8(username_);
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_USER);
 }
@@ -522,14 +551,7 @@ int FtpNetworkTransaction::ProcessResponseUSER(
 
 // PASS command.
 int FtpNetworkTransaction::DoCtrlWritePASS() {
-  std::string command = "PASS";
-  if (request_->url.has_password()) {
-    command.append(" ");
-    command.append(request_->url.password());
-  } else {
-    command.append(" ");
-    command.append("chrome@example.com");
-  }
+  std::string command = "PASS " + WideToUTF8(password_);
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_PASS);
 }
@@ -552,7 +574,7 @@ int FtpNetworkTransaction::ProcessResponsePASS(
       if (response.status_code == 503) {
         next_state_ = STATE_CTRL_WRITE_USER;
       } else {
-        // TODO(ibrar): Retry here.
+        response_.needs_auth = true;
         return Stop(ERR_FAILED);
       }
       break;
