@@ -178,6 +178,15 @@ class Time {
   static const int64 kNanosecondsPerSecond = kNanosecondsPerMicrosecond *
                                              kMicrosecondsPerSecond;
 
+#if !defined(OS_WIN)
+  // On Mac & Linux, this value is the delta from the Windows epoch of 1601 to
+  // the Posix delta of 1970. This is used for migrating between the old
+  // 1970-based epochs to the new 1601-based ones. It should be removed from
+  // this global header and put in the platform-specific ones when we remove the
+  // migration code.
+  static const int64 kWindowsEpochDeltaMicroseconds;
+#endif
+
   // Represents an exploded time that can be formatted nicely. This is kind of
   // like the Win32 SYSTEMTIME structure or the Unix "struct tm" with a few
   // additions and changes to prevent errors.
