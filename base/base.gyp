@@ -365,6 +365,9 @@
       ],
       'conditions': [
         [ 'OS == "linux"', {
+            'variables' : {
+              'linux_use_tcmalloc%': 0,
+            },
             'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
             'sources!': [
@@ -376,6 +379,12 @@
             'conditions': [
               [ 'chromeos==1', {
                   'sources/': [ ['include', '_chromeos\\.cc$'] ]
+                },
+              ],
+              [ 'linux_use_tcmalloc==1', {
+                  'dependencies': [
+                    '../third_party/tcmalloc/tcmalloc.gyp:tcmalloc',
+                  ],
                 },
               ],
             ],
