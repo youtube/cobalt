@@ -64,7 +64,7 @@ class FileUtilTest : public PlatformTest {
 // interface to query whether a given file is present.
 class FindResultCollector {
  public:
-  FindResultCollector(file_util::FileEnumerator& enumerator) {
+  explicit FindResultCollector(file_util::FileEnumerator& enumerator) {
     FilePath cur_file;
     while (!(cur_file = enumerator.Next()).value().empty()) {
       FilePath::StringType path = cur_file.value();
@@ -306,7 +306,7 @@ static const struct dir_case {
   {L"/foo/bar./", L"/foo/bar."},
   {L"/", L"/"},
   {L".", L"."},
-  {L"..", L"."}, // yes, ".." technically lives in "."
+  {L"..", L"."},  // yes, ".." technically lives in "."
 #endif
 };
 
@@ -524,23 +524,22 @@ TEST_F(FileUtilTest, CopyFile) {
   ASSERT_TRUE(file_util::CopyFile(file_name_from, dest_file));
 
   // Copy the file to another location using '..' in the path.
-  std::wstring dest_file2(dir_name_from.ToWStringHack());
-  file_util::AppendToPath(&dest_file2, L"..");
-  file_util::AppendToPath(&dest_file2, L"DestFile.txt");
-  ASSERT_TRUE(file_util::CopyFile(file_name_from,
-                                  FilePath::FromWStringHack(dest_file2)));
-  std::wstring dest_file2_test(dir_name_from.ToWStringHack());
-  file_util::UpOneDirectory(&dest_file2_test);
-  file_util::AppendToPath(&dest_file2_test, L"DestFile.txt");
+  FilePath dest_file2(dir_name_from);
+  dest_file2 = dest_file2.AppendASCII("..");
+  dest_file2 = dest_file2.AppendASCII("DestFile.txt");
+  ASSERT_TRUE(file_util::CopyFile(file_name_from, dest_file2));
+
+  FilePath dest_file2_test(dir_name_from);
+  dest_file2_test = dest_file2_test.DirName();
+  dest_file2_test = dest_file2_test.AppendASCII("DestFile.txt");
 
   // Check everything has been copied.
   EXPECT_TRUE(file_util::PathExists(file_name_from));
   EXPECT_TRUE(file_util::PathExists(dest_file));
   const std::wstring read_contents = ReadTextFile(dest_file);
   EXPECT_EQ(file_contents, read_contents);
-  EXPECT_TRUE(file_util::PathExists(
-      FilePath::FromWStringHack(dest_file2_test)));
-  EXPECT_TRUE(file_util::PathExists(FilePath::FromWStringHack(dest_file2)));
+  EXPECT_TRUE(file_util::PathExists(dest_file2_test));
+  EXPECT_TRUE(file_util::PathExists(dest_file2));
 }
 
 // TODO(erikkay): implement
@@ -814,8 +813,9 @@ TEST_F(FileUtilTest, CreateAndOpenTemporaryFileTest) {
 }
 
 TEST_F(FileUtilTest, CreateNewTempDirectoryTest) {
-  std::wstring temp_dir;
-  ASSERT_TRUE(file_util::CreateNewTempDirectory(std::wstring(), &temp_dir));
+  FilePath temp_dir;
+  ASSERT_TRUE(file_util::CreateNewTempDirectory(FilePath::StringType(),
+                                                &temp_dir));
   EXPECT_TRUE(file_util::PathExists(temp_dir));
   EXPECT_TRUE(file_util::Delete(temp_dir, false));
 }
