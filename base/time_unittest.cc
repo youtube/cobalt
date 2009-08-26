@@ -66,9 +66,10 @@ TEST(Time, LocalExplode) {
 
   Time b = Time::FromLocalExploded(exploded);
 
-  // The exploded structure doesn't have microseconds, so the result will be
-  // rounded to the nearest millisecond.
-  EXPECT_TRUE((a - b) < TimeDelta::FromMilliseconds(1));
+  // The exploded structure doesn't have microseconds, and on Mac & Linux, the
+  // internal OS conversion uses seconds, which will cause truncation. So we
+  // can only make sure that the delta is within one second.
+  EXPECT_TRUE((a - b) < TimeDelta::FromSeconds(1));
 }
 
 TEST(Time, UTCExplode) {
@@ -77,7 +78,7 @@ TEST(Time, UTCExplode) {
   a.UTCExplode(&exploded);
 
   Time b = Time::FromUTCExploded(exploded);
-  EXPECT_TRUE((a - b) < TimeDelta::FromMilliseconds(1));
+  EXPECT_TRUE((a - b) < TimeDelta::FromSeconds(1));
 }
 
 TEST(Time, LocalMidnight) {
@@ -139,4 +140,25 @@ TEST(TimeDelta, FromAndIn) {
   EXPECT_EQ(13, TimeDelta::FromMilliseconds(13).InMilliseconds());
   EXPECT_EQ(13.0, TimeDelta::FromMilliseconds(13).InMillisecondsF());
   EXPECT_EQ(13, TimeDelta::FromMicroseconds(13).InMicroseconds());
+}
+
+// Our internal time format is serialized in things like databases, so it's
+// important that it's consistent across all our platforms.  We use the 1601
+// Windows epoch as the internal format across all platforms.
+TEST(TimeDelta, WindowsEpoch) {
+  Time::Exploded exploded;
+  exploded.year = 1970;
+  exploded.month = 1;
+  exploded.day_of_week = 0;  // Should be unusued.
+  exploded.day_of_month = 1;
+  exploded.hour = 0;
+  exploded.minute = 0;
+  exploded.second = 0;
+  exploded.millisecond = 0;
+  Time t = Time::FromUTCExploded(exploded);
+  // Unix 1970 epoch.
+  EXPECT_EQ(GG_INT64_C(11644473600000000), t.ToInternalValue());
+
+  // We can't test 1601 epoch, since the system time functions on Linux
+  // only compute years starting from 1900.
 }
