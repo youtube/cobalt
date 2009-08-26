@@ -781,6 +781,11 @@ GURL FilePathToFileURL(const FilePath& path) {
   ReplaceSubstringsAfterOffset(&url_string, 0,
       FILE_PATH_LITERAL("#"), FILE_PATH_LITERAL("%23"));
 
+#if defined(OS_POSIX)
+  ReplaceSubstringsAfterOffset(&url_string, 0,
+      FILE_PATH_LITERAL("\\"), FILE_PATH_LITERAL("%5C"));
+#endif
+
   return GURL(url_string);
 }
 
