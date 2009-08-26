@@ -290,17 +290,32 @@ void MockClientSocketFactory::ResetNextMockIndexes() {
   mock_ssl_sockets_.ResetNextIndex();
 }
 
+ClientSocket* MockClientSocketFactory::GetMockTCPClientSocket(int index) const {
+  return tcp_client_sockets_[index];
+}
+
+SSLClientSocket* MockClientSocketFactory::GetMockSSLClientSocket(
+    int index) const {
+  return ssl_client_sockets_[index];
+}
+
 ClientSocket* MockClientSocketFactory::CreateTCPClientSocket(
     const AddressList& addresses) {
-  return new MockTCPClientSocket(addresses, mock_sockets_.GetNext());
+  ClientSocket* socket =
+      new MockTCPClientSocket(addresses, mock_sockets_.GetNext());
+  tcp_client_sockets_.push_back(socket);
+  return socket;
 }
 
 SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
     ClientSocket* transport_socket,
     const std::string& hostname,
     const SSLConfig& ssl_config) {
-  return new MockSSLClientSocket(transport_socket, hostname, ssl_config,
-                                 mock_ssl_sockets_.GetNext());
+  SSLClientSocket* socket =
+      new MockSSLClientSocket(transport_socket, hostname, ssl_config,
+                              mock_ssl_sockets_.GetNext());
+  ssl_client_sockets_.push_back(socket);
+  return socket;
 }
 
 int TestSocketRequest::WaitForResult() {
