@@ -1307,6 +1307,91 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   }
 }
 
+TEST_F(URLRequestTest, DoNotSendCookies) {
+  scoped_refptr<HTTPTestServer> server =
+      HTTPTestServer::CreateServer(L"", NULL);
+  ASSERT_TRUE(NULL != server.get());
+  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+
+  // Set up a cookie.
+  {
+    TestDelegate d;
+    URLRequest req(server->TestServerPage("set-cookie?CookieToNotSend=1"), &d);
+    req.set_context(context);
+    req.Start();
+    MessageLoop::current()->Run();
+  }
+
+  // Verify that the cookie is set.
+  {
+    TestDelegate d;
+    TestURLRequest req(server->TestServerPage("echoheader?Cookie"), &d);
+    req.set_context(context);
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_TRUE(d.data_received().find("CookieToNotSend=1")
+                != std::string::npos);
+  }
+
+  // Verify that the cookie isn't sent when LOAD_DO_NOT_SEND_COOKIES is set.
+  {
+    TestDelegate d;
+    TestURLRequest req(server->TestServerPage("echoheader?Cookie"), &d);
+    req.set_load_flags(net::LOAD_DO_NOT_SEND_COOKIES);
+    req.set_context(context);
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_TRUE(d.data_received().find("Cookie: CookieToNotSend=1")
+                == std::string::npos);
+  }
+}
+
+TEST_F(URLRequestTest, DoNotSaveCookies) {
+  scoped_refptr<HTTPTestServer> server =
+      HTTPTestServer::CreateServer(L"", NULL);
+  ASSERT_TRUE(NULL != server.get());
+  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+
+  // Set up a cookie.
+  {
+    TestDelegate d;
+    URLRequest req(server->TestServerPage("set-cookie?CookieToNotUpdate=2"),
+                   &d);
+    req.set_context(context);
+    req.Start();
+    MessageLoop::current()->Run();
+  }
+
+  // Try to set-up another cookie and update the previous cookie.
+  {
+    scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+    TestDelegate d;
+    URLRequest req(server->TestServerPage(
+        "set-cookie?CookieToNotSave=1&CookieToNotUpdate=1"), &d);
+    req.set_load_flags(net::LOAD_DO_NOT_SAVE_COOKIES);
+    req.set_context(context);
+    req.Start();
+
+    MessageLoop::current()->Run();
+  }
+
+  // Verify the cookies weren't saved or updated.
+  {
+    TestDelegate d;
+    TestURLRequest req(server->TestServerPage("echoheader?Cookie"), &d);
+    req.set_context(context);
+    req.Start();
+    MessageLoop::current()->Run();
+
+    EXPECT_TRUE(d.data_received().find("CookieToNotSave=1")
+                == std::string::npos);
+    EXPECT_TRUE(d.data_received().find("CookieToNotUpdate=2")
+                != std::string::npos);
+  }
+}
+
 // In this test, we do a POST which the server will 302 redirect.
 // The subsequent transaction should use GET, and should not send the
 // Content-Type header.
