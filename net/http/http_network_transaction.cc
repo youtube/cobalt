@@ -1683,7 +1683,8 @@ bool HttpNetworkTransaction::ShouldApplyProxyAuth() const {
 }
 
 bool HttpNetworkTransaction::ShouldApplyServerAuth() const {
-  return !establishing_tunnel_;
+  return !establishing_tunnel_ &&
+      !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA);
 }
 
 std::string HttpNetworkTransaction::BuildAuthorizationHeader(
@@ -1886,10 +1887,13 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
 
   auth_identity_[target].invalid = true;
 
-  // Find the best authentication challenge that we support.
-  HttpAuth::ChooseBestChallenge(response_.headers.get(),
-                                target,
-                                &auth_handler_[target]);
+  if (target != HttpAuth::AUTH_SERVER ||
+      !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA)) {
+    // Find the best authentication challenge that we support.
+    HttpAuth::ChooseBestChallenge(response_.headers.get(),
+                                  target,
+                                  &auth_handler_[target]);
+  }
 
   if (!auth_handler_[target]) {
     if (establishing_tunnel_) {

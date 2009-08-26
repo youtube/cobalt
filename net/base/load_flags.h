@@ -70,6 +70,13 @@ enum {
 
   // Requires EV certificate verification.
   LOAD_VERIFY_EV_CERT = 1 << 16,
+
+  // This load will not send any cookies.
+  LOAD_DO_NOT_SEND_COOKIES = 1 << 17,
+
+  // This load will not send authentication data (user name/password)
+  // to the server (as opposed to the proxy).
+  LOAD_DO_NOT_SEND_AUTH_DATA = 1 << 18,
 };
 
 }  // namespace net
