@@ -729,6 +729,48 @@ TEST_F(HttpNetworkTransactionTest, BasicAuth) {
   EXPECT_EQ(100, response->headers->GetContentLength());
 }
 
+TEST_F(HttpNetworkTransactionTest, DoNotSendAuth) {
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(
+          CreateSession(&session_deps),
+          &session_deps.socket_factory));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = net::LOAD_DO_NOT_SEND_AUTH_DATA;
+
+  MockWrite data_writes[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.0 401 Unauthorized\r\n"),
+    MockRead("WWW-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
+    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
+    // Large content-length -- won't matter, as connection will be reset.
+    MockRead("Content-Length: 10000\r\n\r\n"),
+    MockRead(false, ERR_FAILED),
+  };
+
+  StaticMockSocket data(data_reads, data_writes);
+  session_deps.socket_factory.AddMockSocket(&data);
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(0, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+}
+
 // Test the request-challenge-retry sequence for basic auth, over a keep-alive
 // connection.
 TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
@@ -979,7 +1021,9 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("https://www.google.com/");
-  request.load_flags = 0;
+  // Ensure that proxy authentication is attempted even
+  // when the no authentication data flag is set.
+  request.load_flags = net::LOAD_DO_NOT_SEND_AUTH_DATA;
 
   // Since we have proxy, should try to establish tunnel.
   MockWrite data_writes1[] = {

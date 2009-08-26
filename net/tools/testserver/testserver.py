@@ -117,6 +117,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.FileHandler,
       self.RealFileWithCommonHeaderHandler,
       self.RealBZ2FileWithCommonHeaderHandler,
+      self.SetCookieHandler,
       self.AuthBasicHandler,
       self.AuthDigestHandler,
       self.SlowServerHandler,
@@ -697,6 +698,26 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     except:
       self.send_error(404)
 
+    return True
+
+  def SetCookieHandler(self):
+    """This handler just sets a cookie, for testing cookie handling."""
+
+    if not self._ShouldHandleRequest("/set-cookie"):
+      return False
+
+    query_char = self.path.find('?')
+    if query_char != -1:
+      cookie_values = self.path[query_char + 1:].split('&')
+    else:
+      cookie_values = ("",)
+    self.send_response(200)
+    self.send_header('Content-type', 'text/html')
+    for cookie_value in cookie_values:
+      self.send_header('Set-Cookie', '%s' % cookie_value)
+    self.end_headers()
+    for cookie_value in cookie_values:
+      self.wfile.write('%s' % cookie_value)
     return True
 
   def AuthBasicHandler(self):

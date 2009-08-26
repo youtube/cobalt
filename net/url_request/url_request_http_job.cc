@@ -661,6 +661,9 @@ void URLRequestHttpJob::AddExtraHeaders() {
 }
 
 std::string URLRequestHttpJob::AssembleRequestCookies() {
+  if (request_info_.load_flags & net::LOAD_DO_NOT_SEND_COOKIES)
+    return std::string();
+
   URLRequestContext* context = request_->context();
   if (context) {
     // Add in the cookie header.  TODO might we need more than one header?
