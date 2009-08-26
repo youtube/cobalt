@@ -31,6 +31,10 @@
       # on 'buildtype' (i.e. we don't care about saving symbols for non-Official
       # builds).
       'buildtype%': 'Dev',
+
+      # We do want to build Chromium with Breakpad support in certain
+      # situations. I.e. for Chrome bot.
+      'linux_chromium_breakpad%': 0,
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -72,9 +76,9 @@
     # Once all vsprops settings are migrated into gyp, this can go away.
     'msvs_use_common_release%': 1,
 
-    # TODO(bradnelson): eliminate this when possible.    
-    # To allow local gyp files to override additional linker options for msvs. 
-    # Yes(1) means set use the common linker options.        
+    # TODO(bradnelson): eliminate this when possible.
+    # To allow local gyp files to override additional linker options for msvs.
+    # Yes(1) means set use the common linker options.
     'msvs_use_common_linker_extras%': 1,
 
     # TODO(sgk): eliminate this if possible.
@@ -114,6 +118,15 @@
     'linux_sandbox_chrome_path%': '/opt/google/chrome/chrome',
 
     'conditions': [
+      ['OS=="linux"', {
+        'conditions': [
+          ['branding=="Chrome" or linux_chromium_breakpad==1', {
+            'linux_breakpad%': 1,
+          }, {
+            'linux_breakpad%': 0,
+          }],
+        ],
+      }],  # OS=="linux"
       ['OS=="mac"', {
         'conditions': [
           # mac_product_name is set to the name of the .app bundle as it should
@@ -166,11 +179,6 @@
     'conditions': [
       ['branding=="Chrome"', {
         'defines': ['GOOGLE_CHROME_BUILD'],
-        'conditions': [
-          ['OS=="linux"', {
-            'cflags': [ '-gstabs' ],
-          }],
-        ],
       }, {  # else: branding!="Chrome"
         'defines': ['CHROMIUM_BUILD'],
       }],
@@ -538,6 +546,10 @@
             'cflags': [
               '-fno-strict-aliasing',
             ],
+          }],
+          ['linux_breakpad==1', {
+            'cflags': [ '-gstabs' ],
+            'defines': ['USE_LINUX_BREAKPAD'],
           }],
         ],
       },
