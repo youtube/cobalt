@@ -174,7 +174,7 @@
   },
   'target_defaults': {
     'variables': {
-      'mac_release_optimization%': '2'  # Use -O2 unless overridden
+      'mac_release_optimization%': '3'  # Use -O3 unless overridden
     },
     'conditions': [
       ['branding=="Chrome"', {
