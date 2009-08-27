@@ -202,6 +202,7 @@
         'non_thread_safe.h',
         'nss_init.cc',
         'nss_init.h',
+        'nullable_string16.h',
         'object_watcher.cc',
         'object_watcher.h',
         'observer_list.h',
