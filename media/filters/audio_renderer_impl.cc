@@ -57,6 +57,7 @@ size_t AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,
   // TODO(scherkus): Maybe change OnMoreData to pass in char/uint8 or similar.
   // TODO(fbarchard): Waveout_output_win.h should handle zero length buffers
   //                  without clicking.
+  pending_bytes = static_cast<int>(ceil(pending_bytes * GetPlaybackRate()));
   base::TimeDelta delay =  base::TimeDelta::FromMicroseconds(
       base::Time::kMicrosecondsPerSecond * pending_bytes / bytes_per_second_);
   return FillBuffer(static_cast<uint8*>(dest_void), len, delay);
