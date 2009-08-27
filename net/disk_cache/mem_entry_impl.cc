@@ -69,7 +69,7 @@ void MemEntryImpl::Close() {
   ref_count_--;
   DCHECK(ref_count_ >= 0);
   if (!ref_count_ && doomed_)
-    delete this;
+    InternalDoom();
 }
 
 void MemEntryImpl::Open() {
