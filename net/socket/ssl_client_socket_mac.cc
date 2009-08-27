@@ -4,8 +4,10 @@
 
 #include "net/socket/ssl_client_socket_mac.h"
 
+#include "base/scoped_cftyperef.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
+#include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_info.h"
@@ -276,7 +278,6 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocket* transport_socket,
       user_callback_(NULL),
       next_state_(STATE_NONE),
       next_io_state_(STATE_NONE),
-      server_cert_status_(0),
       completed_handshake_(false),
       ssl_context_(NULL),
       pending_send_error_(OK),
@@ -325,23 +326,11 @@ int SSLClientSocketMac::Connect(CompletionCallback* callback) {
   if (status)
     return NetErrorFromOSStatus(status);
 
-  if (ssl_config_.allowed_bad_certs.empty()) {
-    // We're going to use the default certificate verification that the system
-    // does, and accept its answer for the cert status.
-    status = SSLSetPeerDomainName(ssl_context_, hostname_.data(),
-                                  hostname_.length());
-    if (status)
-      return NetErrorFromOSStatus(status);
-
-    // TODO(wtc): for now, always check revocation.
-    server_cert_status_ = CERT_STATUS_REV_CHECKING_ENABLED;
-  } else {
-    // Disable certificate chain validation.  We will only allow the certs in
-    // ssl_config_.allowed_bad_certs.
-    status = SSLSetEnableCertVerify(ssl_context_, false);
-    if (status)
-      return NetErrorFromOSStatus(status);
-  }
+  // Disable certificate verification within Secure Transport; we'll
+  // be handling that ourselves.
+  status = SSLSetEnableCertVerify(ssl_context_, false);
+  if (status)
+    return NetErrorFromOSStatus(status);
 
   next_state_ = STATE_HANDSHAKE;
   int rv = DoLoop(OK);
@@ -430,7 +419,7 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->cert = server_cert_;
 
   // update status
-  ssl_info->cert_status = server_cert_status_;
+  ssl_info->cert_status = server_cert_verify_result_.cert_status;
 
   // security info
   SSLCipherSuite suite;
@@ -483,6 +472,14 @@ int SSLClientSocketMac::DoLoop(int last_io_result) {
         // Do the SSL/TLS handshake.
         rv = DoHandshake();
         break;
+      case STATE_VERIFY_CERT:
+        // Kick off server certificate validation.
+        rv = DoVerifyCert();
+        break;
+      case STATE_VERIFY_CERT_COMPLETE:
+        // Check the results of the  server certificate validation.
+        rv = DoVerifyCertComplete(rv);
+        break;
       case STATE_READ_COMPLETE:
         // A read off the network is complete; do the paperwork.
         rv = DoReadComplete(rv);
@@ -506,38 +503,60 @@ int SSLClientSocketMac::DoLoop(int last_io_result) {
 
 int SSLClientSocketMac::DoHandshake() {
   OSStatus status = SSLHandshake(ssl_context_);
-  int net_error = NetErrorFromOSStatus(status);
 
-  if (status == errSSLWouldBlock) {
+  if (status == errSSLWouldBlock)
     next_state_ = STATE_HANDSHAKE;
-  } else if (status == noErr) {
-    completed_handshake_ = true;  // We have a connection.
 
+  if (status == noErr) {
     server_cert_ = GetServerCert(ssl_context_);
-    DCHECK(server_cert_);
-    if (!ssl_config_.allowed_bad_certs.empty()) {
-      // Check server_cert_ because SecureTransport didn't verify it.
-      // TODO(wtc): If server_cert_ is not one of the allowed bad certificates,
-      // we should verify server_cert_ ourselves.  Since we don't know how to
-      // do that yet, treat it as an invalid certificate.
-      net_error = ERR_CERT_INVALID;
-      server_cert_status_ |= CERT_STATUS_INVALID;
-
-      for (size_t i = 0; i < ssl_config_.allowed_bad_certs.size(); ++i) {
-        if (server_cert_ == ssl_config_.allowed_bad_certs[i].cert) {
-          net_error = OK;
-          server_cert_status_ = ssl_config_.allowed_bad_certs[i].cert_status;
-          break;
-        }
-      }
-    }
-  } else if (IsCertificateError(net_error)) {
-    server_cert_ = GetServerCert(ssl_context_);
-    DCHECK(server_cert_);
-    server_cert_status_ |= MapNetErrorToCertStatus(net_error);
+    if (!server_cert_)
+      return ERR_UNEXPECTED;
+    next_state_ = STATE_VERIFY_CERT;
   }
 
-  return net_error;
+  return NetErrorFromOSStatus(status);
+}
+
+int SSLClientSocketMac::DoVerifyCert() {
+  next_state_ = STATE_VERIFY_CERT_COMPLETE;
+
+  if (!server_cert_)
+    return ERR_UNEXPECTED;
+
+  // Add each of the intermediate certificates in the server's chain to the
+  // server's X509Certificate object. This makes them available to
+  // X509Certificate::Verify() for chain building.
+  CFArrayRef certs;
+  OSStatus status = SSLCopyPeerCertificates(ssl_context_, &certs);
+  if (status != noErr || !certs)
+    return ERR_UNEXPECTED;
+  scoped_cftyperef<CFArrayRef> scoped_certs(certs);
+  CFIndex certs_length = CFArrayGetCount(certs);
+  for (CFIndex i = 1; i < certs_length; ++i) {
+    SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
+        const_cast<void*>(CFArrayGetValueAtIndex(certs, i)));
+    server_cert_->AddIntermediateCertificate(cert_ref);
+  }
+
+  // TODO(hawk): set flags based on the SSLConfig, once SSLConfig is
+  // fully fleshed out on Mac OS X.
+  int flags = 0;
+  verifier_.reset(new CertVerifier);
+  return verifier_->Verify(server_cert_, hostname_, flags,
+                           &server_cert_verify_result_, &io_callback_);
+}
+
+int SSLClientSocketMac::DoVerifyCertComplete(int result) {
+  DCHECK(verifier_.get());
+  verifier_.reset();
+
+  if (IsCertificateError(result) && ssl_config_.IsAllowedBadCert(server_cert_))
+    result = OK;
+
+  completed_handshake_ = true;
+  DCHECK(next_state_ == STATE_NONE);
+
+  return result;
 }
 
 int SSLClientSocketMac::DoReadComplete(int result) {

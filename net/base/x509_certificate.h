@@ -209,6 +209,12 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // now.
   bool HasExpired() const;
 
+#if defined(OS_MACOSX)
+    // Adds an untrusted intermediate certificate that may be needed for
+    // chain building.
+    void AddIntermediateCertificate(SecCertificateRef cert);
+#endif
+
   // Verifies the certificate against the given hostname.  Returns OK if
   // successful or an error code upon failure.
   //
@@ -298,6 +304,12 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
   // A handle to the certificate object in the underlying crypto library.
   OSCertHandle cert_handle_;
+
+#if defined(OS_MACOSX)
+    // Untrusted intermediate certificates associated with this certificate
+    // that may be needed for chain building.
+    CFMutableArrayRef intermediate_ca_certs_;
+#endif
 
   // Where the certificate comes from.
   Source source_;

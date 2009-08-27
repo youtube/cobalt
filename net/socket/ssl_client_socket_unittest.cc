@@ -56,35 +56,7 @@ class SSLClientSocketTest : public PlatformTest {
 
 //-----------------------------------------------------------------------------
 
-#if defined(OS_MACOSX)
-// Status 6/19/09:
-//
-// If these tests are enabled on OSX, we choke at the point
-// SSLHandshake() (Security framework call) is called from
-// SSLClientSocketMac::DoHandshake().  Return value is -9812 (cert
-// valid but root not trusted), but if you don't have the cert in your
-// keychain as documented on
-// http://dev.chromium.org/developers/testing, the -9812 becomes a
-// -9813 (no root cert).
-//
-// See related handshake failures exhibited by disabled tests in
-// net/url_request/url_request_unittest.cc.
-#define MAYBE_Connect DISABLED_Connect
-#define MAYBE_ConnectExpired DISABLED_ConnectExpired
-#define MAYBE_ConnectMismatched DISABLED_ConnectMismatched
-#define MAYBE_Read DISABLED_Read
-#define MAYBE_Read_SmallChunks DISABLED_Read_SmallChunks
-#define MAYBE_Read_Interrupted DISABLED_Read_Interrupted
-#else
-#define MAYBE_Connect Connect
-#define MAYBE_ConnectExpired ConnectExpired
-#define MAYBE_ConnectMismatched ConnectMismatched
-#define MAYBE_Read Read
-#define MAYBE_Read_SmallChunks Read_SmallChunks
-#define MAYBE_Read_Interrupted Read_Interrupted
-#endif
-
-TEST_F(SSLClientSocketTest, MAYBE_Connect) {
+TEST_F(SSLClientSocketTest, Connect) {
   StartOKServer();
 
   net::AddressList addr;
@@ -121,7 +93,7 @@ TEST_F(SSLClientSocketTest, MAYBE_Connect) {
   EXPECT_FALSE(sock->IsConnected());
 }
 
-TEST_F(SSLClientSocketTest, MAYBE_ConnectExpired) {
+TEST_F(SSLClientSocketTest, ConnectExpired) {
   StartExpiredServer();
 
   net::AddressList addr;
@@ -157,7 +129,7 @@ TEST_F(SSLClientSocketTest, MAYBE_ConnectExpired) {
   // leave it connected.
 }
 
-TEST_F(SSLClientSocketTest, MAYBE_ConnectMismatched) {
+TEST_F(SSLClientSocketTest, ConnectMismatched) {
   StartMismatchedServer();
 
   net::AddressList addr;
@@ -199,7 +171,7 @@ TEST_F(SSLClientSocketTest, MAYBE_ConnectMismatched) {
 //   - Server closes the underlying TCP connection directly.
 //   - Server sends data unexpectedly.
 
-TEST_F(SSLClientSocketTest, MAYBE_Read) {
+TEST_F(SSLClientSocketTest, Read) {
   StartOKServer();
 
   net::AddressList addr;
@@ -259,7 +231,7 @@ TEST_F(SSLClientSocketTest, MAYBE_Read) {
   }
 }
 
-TEST_F(SSLClientSocketTest, MAYBE_Read_SmallChunks) {
+TEST_F(SSLClientSocketTest, Read_SmallChunks) {
   StartOKServer();
 
   net::AddressList addr;
@@ -314,7 +286,7 @@ TEST_F(SSLClientSocketTest, MAYBE_Read_SmallChunks) {
   }
 }
 
-TEST_F(SSLClientSocketTest, MAYBE_Read_Interrupted) {
+TEST_F(SSLClientSocketTest, Read_Interrupted) {
   StartOKServer();
 
   net::AddressList addr;
