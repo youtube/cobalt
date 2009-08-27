@@ -1695,7 +1695,9 @@ TEST_F(URLRequestTest, InterceptRedirect) {
 
   // Check we got one good response
   EXPECT_TRUE(req.status().is_success());
-  EXPECT_EQ(200, req.response_headers()->response_code());
+  if (req.status().is_success()) {
+    EXPECT_EQ(200, req.response_headers()->response_code());
+  }
   EXPECT_EQ(TestInterceptor::ok_data(), d.data_received());
   EXPECT_EQ(1, d.response_started_count());
   EXPECT_EQ(0, d.received_redirect_count());
@@ -1784,7 +1786,9 @@ TEST_F(URLRequestTest, InterceptRestartRequired) {
 
   // Check we received one good response
   EXPECT_TRUE(req.status().is_success());
-  EXPECT_EQ(200, req.response_headers()->response_code());
+  if (req.status().is_success()) {
+    EXPECT_EQ(200, req.response_headers()->response_code());
+  }
   EXPECT_EQ(TestInterceptor::ok_data(), d.data_received());
   EXPECT_EQ(1, d.response_started_count());
   EXPECT_EQ(0, d.received_redirect_count());
