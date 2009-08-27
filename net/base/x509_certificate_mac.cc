@@ -7,21 +7,168 @@
 #include <CommonCrypto/CommonDigest.h>
 #include <time.h>
 
+#include "base/scoped_cftyperef.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "net/base/cert_status_flags.h"
-#include "net/base/ev_root_ca_metadata.h"
+#include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
 
 using base::Time;
 
 namespace net {
 
+class MacTrustedCertificates {
+ public:
+  // Sets the trusted root certificate used by tests. Call with |cert| set
+  // to NULL to clear the test certificate.
+  void SetTestCertificate(X509Certificate* cert) {
+    AutoLock lock(lock_);
+    test_certificate_ = cert;
+  }
+
+  // Returns an array containing the trusted certificates for use with
+  // SecTrustSetAnchorCertificates(). Returns NULL if the system-supplied
+  // list of trust anchors is acceptable (that is, there is not test
+  // certificate available). Ownership follows the Create Rule (caller
+  // is responsible for calling CFRelease on the non-NULL result).
+  CFArrayRef CopyTrustedCertificateArray() {
+    AutoLock lock(lock_);
+
+    if (!test_certificate_)
+      return NULL;
+
+    // Failure to copy the anchor certificates or add the test certificate
+    // is non-fatal; SecTrustEvaluate() will use the system anchors instead.
+    CFArrayRef anchor_array;
+    OSStatus status = SecTrustCopyAnchorCertificates(&anchor_array);
+    if (status)
+      return NULL;
+    scoped_cftyperef<CFArrayRef> scoped_anchor_array(anchor_array);
+    CFMutableArrayRef merged_array = CFArrayCreateMutableCopy(
+        kCFAllocatorDefault, 0, anchor_array);
+    if (!merged_array)
+      return NULL;
+    CFArrayAppendValue(merged_array, test_certificate_->os_cert_handle());
+
+    return merged_array;
+  }
+ private:
+  friend struct DefaultSingletonTraits<MacTrustedCertificates>;
+
+  // Obtain an instance of MacTrustedCertificates via the singleton
+  // interface.
+  MacTrustedCertificates() : test_certificate_(NULL) { }
+
+  // An X509Certificate object that may be appended to the list of
+  // system trusted anchors.
+  scoped_refptr<X509Certificate> test_certificate_;
+
+  // The trusted cache may be accessed from multiple threads.
+  mutable Lock lock_;
+
+  DISALLOW_COPY_AND_ASSIGN(MacTrustedCertificates);
+};
+
+void SetMacTestCertificate(X509Certificate* cert) {
+  Singleton<MacTrustedCertificates>::get()->SetTestCertificate(cert);
+}
+
 namespace {
+
+typedef OSStatus (*SecTrustCopyExtendedResultFuncPtr)(SecTrustRef,
+                                                      CFDictionaryRef*);
 
 inline bool CSSMOIDEqual(const CSSM_OID* oid1, const CSSM_OID* oid2) {
   return oid1->Length == oid2->Length &&
       (memcmp(oid1->Data, oid2->Data, oid1->Length) == 0);
+}
+
+int NetErrorFromOSStatus(OSStatus status) {
+  switch (status) {
+    case noErr:
+      return OK;
+    case errSecNotAvailable:
+    case errSecNoCertificateModule:
+    case errSecNoPolicyModule:
+      return ERR_NOT_IMPLEMENTED;
+    case errSecAuthFailed:
+      return ERR_ACCESS_DENIED;
+    default:
+      LOG(ERROR) << "Unknown error " << status << " mapped to net::ERR_FAILED";
+      return ERR_FAILED;
+  }
+}
+
+int CertStatusFromOSStatus(OSStatus status) {
+  switch (status) {
+    case noErr:
+      return 0;
+
+    case CSSMERR_TP_INVALID_ANCHOR_CERT:
+    case CSSMERR_TP_NOT_TRUSTED:
+    case CSSMERR_TP_INVALID_CERT_AUTHORITY:
+      return CERT_STATUS_AUTHORITY_INVALID;
+
+    case CSSMERR_TP_CERT_EXPIRED:
+    case CSSMERR_TP_CERT_NOT_VALID_YET:
+      // "Expired" and "not yet valid" collapse into a single status.
+      return CERT_STATUS_DATE_INVALID;
+
+    case CSSMERR_TP_CERT_REVOKED:
+    case CSSMERR_TP_CERT_SUSPENDED:
+      return CERT_STATUS_REVOKED;
+
+    case CSSMERR_APPLETP_HOSTNAME_MISMATCH:
+      return CERT_STATUS_COMMON_NAME_INVALID;
+
+    case CSSMERR_APPLETP_CRL_NOT_FOUND:
+    case CSSMERR_APPLETP_INCOMPLETE_REVOCATION_CHECK:
+      return CERT_STATUS_NO_REVOCATION_MECHANISM;
+
+    case CSSMERR_APPLETP_CRL_NOT_TRUSTED:
+    case CSSMERR_APPLETP_CRL_SERVER_DOWN:
+    case CSSMERR_APPLETP_CRL_NOT_VALID_YET:
+    case CSSMERR_APPLETP_NETWORK_FAILURE:
+    case CSSMERR_APPLETP_OCSP_UNAVAILABLE:
+    case CSSMERR_APPLETP_OCSP_BAD_RESPONSE:
+    case CSSMERR_APPLETP_OCSP_RESP_UNAUTHORIZED:
+    case CSSMERR_APPLETP_OCSP_RESP_SIG_REQUIRED:
+    case CSSMERR_APPLETP_OCSP_RESP_MALFORMED_REQ:
+    case CSSMERR_APPLETP_OCSP_RESP_INTERNAL_ERR:
+    case CSSMERR_APPLETP_OCSP_RESP_TRY_LATER:
+      // We asked for a revocation check, but didn't get it.
+      return CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
+
+    default:
+      // Failure was due to something Chromium doesn't define a
+      // specific status for (such as basic constraints violation, or
+      // unknown critical extension)
+      return CERT_STATUS_INVALID;
+  }
+}
+
+bool OverrideHostnameMismatch(const std::string& hostname,
+                              std::vector<std::string>* dns_names) {
+  // SecTrustEvaluate() does not check dotted IP addresses. If
+  // hostname is provided as, say, 127.0.0.1, then the error
+  // CSSMERR_APPLETP_HOSTNAME_MISMATCH will always be returned,
+  // even if the certificate contains 127.0.0.1 as one of its names.
+  // We, however, want to allow that behavior. SecTrustEvaluate()
+  // only checks for digits and dots when considering whether a
+  // hostname is an IP address, so IPv6 and hex addresses go through
+  // its normal comparison.
+  bool is_dotted_ip = true;
+  bool override_hostname_mismatch = false;
+  for (std::string::const_iterator c = hostname.begin();
+       c != hostname.end() && is_dotted_ip; ++c)
+    is_dotted_ip = (*c >= '0' && *c <= '9') || *c == '.';
+  if (is_dotted_ip) {
+    for (std::vector<std::string>::const_iterator name = dns_names->begin();
+         name != dns_names->end() && !override_hostname_mismatch; ++name)
+      override_hostname_mismatch = (*name == hostname);
+  }
+  return override_hostname_mismatch;
 }
 
 void ParsePrincipal(const CSSM_X509_NAME* name,
@@ -262,24 +409,255 @@ void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
     dns_names->push_back(subject_.common_name);
 }
 
-int X509Certificate::Verify(const std::string& hostname,
-                            int flags, CertVerifyResult* verify_result) const {
-  NOTIMPLEMENTED();
-  return ERR_NOT_IMPLEMENTED;
+int X509Certificate::Verify(const std::string& hostname, int flags,
+                            CertVerifyResult* verify_result) const {
+  verify_result->Reset();
+
+  // Create an SSL SecPolicyRef, and configure it to perform hostname
+  // validation. The hostname check does 99% of what we want, with the
+  // exception of dotted IPv4 addreses, which we handle ourselves below.
+  SecPolicySearchRef ssl_policy_search_ref = NULL;
+  OSStatus status = SecPolicySearchCreate(CSSM_CERT_X_509v3,
+                                          &CSSMOID_APPLE_TP_SSL,
+                                          NULL,
+                                          &ssl_policy_search_ref);
+  if (status)
+    return NetErrorFromOSStatus(status);
+  scoped_cftyperef<SecPolicySearchRef>
+      scoped_ssl_policy_search_ref(ssl_policy_search_ref);
+  SecPolicyRef ssl_policy = NULL;
+  status = SecPolicySearchCopyNext(ssl_policy_search_ref, &ssl_policy);
+  if (status)
+    return NetErrorFromOSStatus(status);
+  scoped_cftyperef<SecPolicyRef> scoped_ssl_policy(ssl_policy);
+  CSSM_APPLE_TP_SSL_OPTIONS tp_ssl_options = { CSSM_APPLE_TP_SSL_OPTS_VERSION };
+  tp_ssl_options.ServerName = hostname.data();
+  tp_ssl_options.ServerNameLen = hostname.size();
+  CSSM_DATA tp_ssl_options_data_value;
+  tp_ssl_options_data_value.Data = reinterpret_cast<uint8*>(&tp_ssl_options);
+  tp_ssl_options_data_value.Length = sizeof(tp_ssl_options);
+  status = SecPolicySetValue(ssl_policy, &tp_ssl_options_data_value);
+  if (status)
+    return NetErrorFromOSStatus(status);
+
+  // Create and configure a SecTrustRef, which takes our certificate(s)
+  // and our SSL SecPolicyRef. SecTrustCreateWithCertificates() takes an
+  // array of certificates, the first of which is the certificate we're
+  // verifying, and the subsequent (optional) certificates are used for
+  // chain building.
+  CFMutableArrayRef cert_array = CFArrayCreateMutable(kCFAllocatorDefault, 0,
+                                                      &kCFTypeArrayCallBacks);
+  if (!cert_array)
+    return ERR_OUT_OF_MEMORY;
+  scoped_cftyperef<CFArrayRef> scoped_cert_array(cert_array);
+  CFArrayAppendValue(cert_array, cert_handle_);
+  if (intermediate_ca_certs_) {
+    CFIndex intermediate_count = CFArrayGetCount(intermediate_ca_certs_);
+    for (CFIndex i = 0; i < intermediate_count; ++i) {
+      SecCertificateRef intermediate_cert = static_cast<SecCertificateRef>(
+          const_cast<void*>(CFArrayGetValueAtIndex(intermediate_ca_certs_, i)));
+      CFArrayAppendValue(cert_array, intermediate_cert);
+    }
+  }
+
+  SecTrustRef trust_ref = NULL;
+  status = SecTrustCreateWithCertificates(cert_array, ssl_policy, &trust_ref);
+  if (status)
+    return NetErrorFromOSStatus(status);
+  scoped_cftyperef<SecTrustRef> scoped_trust_ref(trust_ref);
+
+  // Set the trusted anchor certificates for the SecTrustRef by merging the
+  // system trust anchors and the test root certificate.
+  CFArrayRef anchor_array =
+      Singleton<MacTrustedCertificates>::get()->CopyTrustedCertificateArray();
+  scoped_cftyperef<CFArrayRef> scoped_anchor_array(anchor_array);
+  if (anchor_array) {
+    status = SecTrustSetAnchorCertificates(trust_ref, anchor_array);
+    if (status)
+      return NetErrorFromOSStatus(status);
+  }
+
+  if (flags & VERIFY_REV_CHECKING_ENABLED) {
+    // When called with VERIFY_REV_CHECKING_ENABLED, we ask SecTrustEvaluate()
+    // to apply OCSP and CRL checking, but we're still subject to the global
+    // settings, which are configured in the Keychain Access application (in
+    // the Certificates tab of the Preferences dialog). If the user has
+    // revocation disabled (which is the default), then we will get
+    // kSecTrustResultRecoverableTrustFailure back from SecTrustEvaluate()
+    // with one of a number of sub error codes indicating that revocation
+    // checking did not occur. In that case, we'll set our own result to include
+    // CERT_STATUS_UNABLE_TO_CHECK_REVOCATION (note that this does not apply
+    // to EV certificates, which always get revocation checks regardless of the
+    // global settings).
+    verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
+    CSSM_APPLE_TP_ACTION_DATA tp_action_data = { CSSM_APPLE_TP_ACTION_VERSION };
+    tp_action_data.ActionFlags = CSSM_TP_ACTION_REQUIRE_REV_PER_CERT;
+    CFDataRef action_data_ref =
+        CFDataCreate(NULL, reinterpret_cast<UInt8*>(&tp_action_data),
+                     sizeof(tp_action_data));
+    if (!action_data_ref)
+      return ERR_OUT_OF_MEMORY;
+    scoped_cftyperef<CFDataRef> scoped_action_data_ref(action_data_ref);
+    status = SecTrustSetParameters(trust_ref, CSSM_TP_ACTION_DEFAULT,
+                                   action_data_ref);
+    if (status)
+      return NetErrorFromOSStatus(status);
+  } else {
+    // EV requires revocation checking.
+    flags &= ~VERIFY_EV_CERT;
+  }
+
+  // Verify the certificate. A non-zero result from SecTrustGetResult()
+  // indicates that some fatal error occurred and the chain couldn't be
+  // processed, not that the chain contains no errors. We need to examine the
+  // output of SecTrustGetResult() to determine that.
+  SecTrustResultType trust_result;
+  status = SecTrustEvaluate(trust_ref, &trust_result);
+  if (status)
+    return NetErrorFromOSStatus(status);
+  CFArrayRef completed_chain = NULL;
+  CSSM_TP_APPLE_EVIDENCE_INFO* chain_info;
+  status = SecTrustGetResult(trust_ref, &trust_result, &completed_chain,
+                             &chain_info);
+  if (status)
+    return NetErrorFromOSStatus(status);
+  scoped_cftyperef<CFArrayRef> scoped_completed_chain(completed_chain);
+
+  // Evaluate the results
+  OSStatus cssm_result;
+  bool got_certificate_error = false;
+  switch (trust_result) {
+    case kSecTrustResultUnspecified:
+    case kSecTrustResultProceed:
+      // Certificate chain is valid and trusted ("unspecified" indicates that
+      // the user has not explicitly set a trust setting)
+      break;
+
+    case kSecTrustResultDeny:
+    case kSecTrustResultConfirm:
+      // Certificate chain is explicitly untrusted. For kSecTrustResultConfirm,
+      // we're following what Secure Transport does and treating it as
+      // "deny".
+      verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
+      break;
+
+    case kSecTrustResultRecoverableTrustFailure:
+      // Certificate chain has a failure that can be overridden by the user.
+      status = SecTrustGetCssmResultCode(trust_ref, &cssm_result);
+      if (status)
+        return NetErrorFromOSStatus(status);
+      switch (cssm_result) {
+        case CSSMERR_TP_NOT_TRUSTED:
+        case CSSMERR_TP_INVALID_ANCHOR_CERT:
+          verify_result->cert_status |= CERT_STATUS_AUTHORITY_INVALID;
+          break;
+        case CSSMERR_TP_CERT_EXPIRED:
+        case CSSMERR_TP_CERT_NOT_VALID_YET:
+          verify_result->cert_status |= CERT_STATUS_DATE_INVALID;
+          break;
+        case CSSMERR_TP_CERT_REVOKED:
+        case CSSMERR_TP_CERT_SUSPENDED:
+          verify_result->cert_status |= CERT_STATUS_REVOKED;
+          break;
+        default:
+          // Look for specific per-certificate errors below.
+          break;
+      }
+      // Walk the chain of error codes in the CSSM_TP_APPLE_EVIDENCE_INFO
+      // structure which can catch multiple errors from each certificate.
+      for (CFIndex index = 0, chain_count = CFArrayGetCount(completed_chain);
+           index < chain_count; ++index) {
+        if (chain_info[index].StatusBits & CSSM_CERT_STATUS_EXPIRED ||
+            chain_info[index].StatusBits & CSSM_CERT_STATUS_NOT_VALID_YET)
+          verify_result->cert_status |= CERT_STATUS_DATE_INVALID;
+        for (uint32 status_code_index = 0;
+             status_code_index < chain_info[index].NumStatusCodes;
+             ++status_code_index) {
+          got_certificate_error = true;
+          int cert_status = CertStatusFromOSStatus(cssm_result);
+          if (cert_status == CERT_STATUS_COMMON_NAME_INVALID) {
+            std::vector<std::string> names;
+            GetDNSNames(&names);
+            if (OverrideHostnameMismatch(hostname, &names)) {
+              cert_status = 0;
+            }
+          }
+          verify_result->cert_status |= cert_status;
+        }
+      }
+      // Be paranoid and ensure that we recorded at least one certificate
+      // status on receiving kSecTrustResultRecoverableTrustFailure. The
+      // call to SecTrustGetCssmResultCode() should pick up when the chain
+      // is not trusted and the loop through CSSM_TP_APPLE_EVIDENCE_INFO
+      // should pick up everything else, but let's be safe.
+      if (!verify_result->cert_status && !got_certificate_error) {
+        verify_result->cert_status |= CERT_STATUS_INVALID;
+        NOTREACHED();
+      }
+      break;
+
+    default:
+      status = SecTrustGetCssmResultCode(trust_ref, &cssm_result);
+      if (status)
+        return NetErrorFromOSStatus(status);
+      verify_result->cert_status |= CertStatusFromOSStatus(cssm_result);
+      if (!verify_result->cert_status) {
+        verify_result->cert_status |= CERT_STATUS_INVALID;
+      }
+      break;
+  }
+
+  if (IsCertStatusError(verify_result->cert_status))
+    return MapCertStatusToNetError(verify_result->cert_status);
+
+  if (flags & VERIFY_EV_CERT) {
+    // Determine the certificate's EV status using SecTrustCopyExtendedResult(),
+    // which we need to look up because the function wasn't added until
+    // Mac OS X 10.5.7.
+    CFBundleRef bundle =
+        CFBundleGetBundleWithIdentifier(CFSTR("com.apple.security"));
+    if (bundle) {
+      SecTrustCopyExtendedResultFuncPtr copy_extended_result =
+          reinterpret_cast<SecTrustCopyExtendedResultFuncPtr>(
+              CFBundleGetFunctionPointerForName(bundle,
+                  CFSTR("SecTrustCopyExtendedResult")));
+      if (copy_extended_result) {
+        CFDictionaryRef ev_dict = NULL;
+        status = copy_extended_result(trust_ref, &ev_dict);
+        if (!status && ev_dict) {
+          // The returned dictionary contains the EV organization name from the
+          // server certificate, which we don't need at this point (and we
+          // have other ways to access, anyway). All we care is that
+          // SecTrustCopyExtendedResult() returned noErr and a non-NULL
+          // dictionary.
+          CFRelease(ev_dict);
+          verify_result->cert_status |= CERT_STATUS_IS_EV;
+        }
+      }
+    }
+  }
+
+  return OK;
 }
 
-// Returns true if the certificate is an extended-validation certificate.
-//
-// The certificate has already been verified by the HTTP library.  cert_status
-// represents the result of that verification.  This function performs
-// additional checks of the certificatePolicies extensions of the certificates
-// in the certificate chain according to Section 7 (pp. 11-12) of the EV
-// Certificate Guidelines Version 1.0 at
-// http://cabforum.org/EV_Certificate_Guidelines.pdf.
 bool X509Certificate::VerifyEV() const {
-  // TODO(avi): implement this
-  NOTIMPLEMENTED();
+  // We don't call this private method, but we do need to implement it because
+  // it's defined in x509_certificate.h. We perform EV checking in the
+  // Verify() above.
+  NOTREACHED();
   return false;
+}
+
+void X509Certificate::AddIntermediateCertificate(SecCertificateRef cert) {
+  if (cert) {
+    if (!intermediate_ca_certs_) {
+      intermediate_ca_certs_ = CFArrayCreateMutable(kCFAllocatorDefault, 0,
+                                                    &kCFTypeArrayCallBacks);
+    }
+    if (intermediate_ca_certs_) {
+      CFArrayAppendValue(intermediate_ca_certs_, cert);
+    }
+  }
 }
 
 // static
