@@ -1202,7 +1202,7 @@ TEST_F(DiskCacheEntryTest, DoomSparseEntry) {
   DoomSparseEntry();
 }
 
-TEST_F(DiskCacheEntryTest, DISABLED_MemoryOnlyDoomSparseEntry) {
+TEST_F(DiskCacheEntryTest, MemoryOnlyDoomSparseEntry) {
   SetMemoryOnlyMode();
   InitCache();
   DoomSparseEntry();
