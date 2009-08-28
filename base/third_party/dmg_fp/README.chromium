@@ -14,4 +14,3 @@ List of changes made to original code:
   - made some minor changes to allow clean compilation under g++ -Wall, see
     gcc_warnings.patch.
   - made some minor changes to build on 64-bit, see gcc_64_bit.patch.
-  - made some implicit type converisons explicit, see type_conversion.patch.
