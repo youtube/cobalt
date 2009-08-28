@@ -40,9 +40,6 @@ class Clock {
 
   // Returns the current elapsed media time.
   virtual base::TimeDelta Elapsed() const = 0;
-
- protected:
-  ~Clock() {}
 };
 
 }  // namespace media
