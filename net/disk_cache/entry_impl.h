@@ -21,6 +21,14 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   friend class base::RefCounted<EntryImpl>;
   friend class SparseControl;
  public:
+  enum Operation {
+    kRead,
+    kWrite,
+    kSparseRead,
+    kSparseWrite,
+    kAsyncIO
+  };
+
   EntryImpl(BackendImpl* backend, Addr address);
 
   // Entry interface.
@@ -99,16 +107,12 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   // the upgrade tool.
   void SetTimes(base::Time last_used, base::Time last_modified);
 
+  // Generates a histogram for the time spent working on this operation.
+  void ReportIOTime(Operation op, const base::Time& start);
+
  private:
   enum {
      kNumStreams = 3
-  };
-
-  enum Operation {
-    kRead,
-    kWrite,
-    kSparseRead,
-    kSparseWrite
   };
 
   ~EntryImpl();
@@ -165,9 +169,6 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   // point; there is no need to report any storage-size change, only to do the
   // actual cleanup.
   void GetData(int index, char** buffer, Addr* address);
-
-  // Generates a histogram for the time spent working on this operation.
-  void ReportIOTime(Operation op, const base::Time& start);
 
   // Logs this entry to the internal trace buffer.
   void Log(const char* msg);
