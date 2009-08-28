@@ -93,8 +93,6 @@ class HostResolver : public base::RefCounted<HostResolver> {
   // Opaque type used to cancel a request.
   typedef void* RequestHandle;
 
-  HostResolver() {}
-
   // If any completion callbacks are pending when the resolver is destroyed,
   // the host resolutions are cancelled, and the completion callbacks will not
   // be called.
@@ -135,6 +133,10 @@ class HostResolver : public base::RefCounted<HostResolver> {
   // TODO(eroman): temp hack for http://crbug.com/18373
   virtual void Shutdown() = 0;
 
+ protected:
+  HostResolver() { }
+
+ private:
   DISALLOW_COPY_AND_ASSIGN(HostResolver);
 };
 
