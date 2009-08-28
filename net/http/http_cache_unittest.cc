@@ -1639,7 +1639,6 @@ TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Hit) {
 
 TEST(HttpCache, RangeGET_SkipsCache) {
   MockHttpCache cache;
-  cache.http_cache()->set_enable_range_support(true);
 
   // Test that we skip the cache for range GET requests.  Eventually, we will
   // want to cache these, but we'll still have cases where skipping the cache
@@ -1661,6 +1660,39 @@ TEST(HttpCache, RangeGET_SkipsCache) {
 
   transaction.request_headers =
       "If-Modified-Since: Wed, 28 Nov 2007 00:45:20 GMT";
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(0, cache.disk_cache()->create_count());
+}
+
+// Test that we skip the cache for range requests that include a validation
+// header.
+TEST(HttpCache, RangeGET_SkipsCache2) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+
+  MockTransaction transaction(kRangeGET_Transaction);
+  transaction.request_headers = "If-None-Match: foo\n"
+                                "Range: bytes = 40-49\n";
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(0, cache.disk_cache()->create_count());
+
+  transaction.request_headers =
+      "If-Modified-Since: Wed, 28 Nov 2007 00:45:20 GMT\n"
+      "Range: bytes = 40-49\n";
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(0, cache.disk_cache()->create_count());
+
+  transaction.request_headers = "If-Range: bla\n"
+                                "Range: bytes = 40-49\n";
   RunTransactionTest(cache.http_cache(), transaction);
 
   EXPECT_EQ(3, cache.network_layer()->transaction_count());
