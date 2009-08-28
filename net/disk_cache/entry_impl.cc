@@ -29,7 +29,7 @@ class SyncCallback: public disk_cache::FileIOCallback {
  public:
   SyncCallback(disk_cache::EntryImpl* entry, net::IOBuffer* buffer,
                net::CompletionCallback* callback )
-      : entry_(entry), callback_(callback), buf_(buffer) {
+      : entry_(entry), callback_(callback), buf_(buffer), start_(Time::Now()) {
     entry->AddRef();
     entry->IncrementIoCount();
   }
@@ -41,15 +41,18 @@ class SyncCallback: public disk_cache::FileIOCallback {
   disk_cache::EntryImpl* entry_;
   net::CompletionCallback* callback_;
   scoped_refptr<net::IOBuffer> buf_;
+  Time start_;
 
   DISALLOW_EVIL_CONSTRUCTORS(SyncCallback);
 };
 
 void SyncCallback::OnFileIOComplete(int bytes_copied) {
   entry_->DecrementIoCount();
-  entry_->Release();
-  if (callback_)
+  if (callback_) {
+    entry_->ReportIOTime(disk_cache::EntryImpl::kAsyncIO, start_);
     callback_->Run(bytes_copied);
+  }
+  entry_->Release();
   delete this;
 }
 
@@ -879,6 +882,9 @@ void EntryImpl::ReportIOTime(Operation op, const base::Time& start) {
       break;
     case kSparseWrite:
       CACHE_UMA(AGE_MS, "SparseWriteTime", 0, start);
+      break;
+    case kAsyncIO:
+      CACHE_UMA(AGE_MS, "AsyncIOTime", group, start);
       break;
     default:
       NOTREACHED();
