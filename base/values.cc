@@ -610,18 +610,29 @@ bool ListValue::Remove(size_t index, Value** out_value) {
   return true;
 }
 
-void ListValue::Remove(const Value& value) {
+int ListValue::Remove(const Value& value) {
   for (ValueVector::iterator i(list_.begin()); i != list_.end(); ++i) {
     if ((*i)->Equals(&value)) {
+      size_t index = i - list_.begin();
       list_.erase(i);
-      break;
+      return index;
     }
   }
+  return -1;
 }
 
 void ListValue::Append(Value* in_value) {
   DCHECK(in_value);
   list_.push_back(in_value);
+}
+
+bool ListValue::Insert(size_t index, Value* in_value) {
+  DCHECK(in_value);
+  if (index < 0 || index > list_.size())
+    return false;
+
+  list_.insert(list_.begin() + index, in_value);
+  return true;
 }
 
 Value* ListValue::DeepCopy() const {
