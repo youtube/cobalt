@@ -24,7 +24,7 @@ TEST(FtpAuthCacheTest, LookupAddRemove) {
   scoped_refptr<AuthData> data3(new AuthData());
 
   // Lookup non-existent entry.
-  EXPECT_TRUE(NULL == cache.Lookup(origin1));
+  EXPECT_EQ(NULL, cache.Lookup(origin1));
 
   // Add entry for origin1.
   cache.Add(origin1, data1.get());
@@ -42,12 +42,12 @@ TEST(FtpAuthCacheTest, LookupAddRemove) {
 
   // Remove entry of origin1.
   cache.Remove(origin1);
-  EXPECT_TRUE(NULL == cache.Lookup(origin1));
+  EXPECT_EQ(NULL, cache.Lookup(origin1));
   EXPECT_EQ(data2.get(), cache.Lookup(origin2));
 
   // Remove non-existent entry
   cache.Remove(origin1);
-  EXPECT_TRUE(NULL == cache.Lookup(origin1));
+  EXPECT_EQ(NULL, cache.Lookup(origin1));
   EXPECT_EQ(data2.get(), cache.Lookup(origin2));
 }
 
@@ -93,7 +93,7 @@ TEST(FtpAuthCacheTest, NormalizedKey) {
 
   // Remove
   cache.Remove(GURL("ftp://HOsT"));
-  EXPECT_TRUE(NULL == cache.Lookup(GURL("ftp://host")));
+  EXPECT_EQ(NULL, cache.Lookup(GURL("ftp://host")));
 }
 
 TEST(FtpAuthCacheTest, EvictOldEntries) {
@@ -112,7 +112,7 @@ TEST(FtpAuthCacheTest, EvictOldEntries) {
 
   // Adding one entry should cause eviction of the first entry.
   cache.Add(GURL("ftp://last_host"), auth_data.get());
-  EXPECT_TRUE(NULL == cache.Lookup(GURL("ftp://host0")));
+  EXPECT_EQ(NULL, cache.Lookup(GURL("ftp://host0")));
 
   // Remaining entries should not get evicted.
   for (size_t i = 1; i < FtpAuthCache::kMaxEntries; i++) {

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,7 +37,7 @@ DirectoryLister::DirectoryLister(const FilePath& dir,
     : dir_(dir),
       delegate_(delegate),
       message_loop_(NULL),
-      thread_(0),
+      thread_(NULL),
       canceled_(false) {
   DCHECK(!dir.value().empty());
 }
@@ -70,7 +70,7 @@ void DirectoryLister::Cancel() {
 
   if (thread_) {
     PlatformThread::Join(thread_);
-    thread_ = 0;
+    thread_ = NULL;
   }
 }
 
