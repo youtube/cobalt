@@ -9,6 +9,7 @@
 #include "net/base/connection_type_histograms.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_util.h"
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
 #include "net/socket/client_socket.h"
@@ -122,8 +123,7 @@ const FtpResponseInfo* FtpNetworkTransaction::GetResponseInfo() const {
 }
 
 LoadState FtpNetworkTransaction::GetLoadState() const {
-  if (next_state_ == STATE_CTRL_RESOLVE_HOST_COMPLETE ||
-      next_state_ == STATE_DATA_RESOLVE_HOST_COMPLETE)
+  if (next_state_ == STATE_CTRL_RESOLVE_HOST_COMPLETE)
     return LOAD_STATE_RESOLVING_HOST;
 
   if (next_state_ == STATE_CTRL_CONNECT_COMPLETE ||
@@ -397,13 +397,6 @@ int FtpNetworkTransaction::DoLoop(int result) {
         rv = DoCtrlWriteQUIT();
         break;
 
-      case STATE_DATA_RESOLVE_HOST:
-        DCHECK(rv == OK);
-        rv = DoDataResolveHost();
-        break;
-      case STATE_DATA_RESOLVE_HOST_COMPLETE:
-        rv = DoDataResolveHostComplete(rv);
-        break;
       case STATE_DATA_CONNECT:
         DCHECK(rv == OK);
         rv = DoDataConnect();
@@ -710,7 +703,8 @@ int FtpNetworkTransaction::DoCtrlWritePASV() {
 }
 
 // There are two way we can receive IP address and port.
-// (127,0,0,1,23,21) IP address and port encapsulate in ().
+// TODO(phajdan.jr): Figure out how this should work for IPv6.
+// (127,0,0,1,23,21) IP address and port encapsulated in ().
 // 127,0,0,1,23,21  IP address and port without ().
 int FtpNetworkTransaction::ProcessResponsePASV(
     const FtpCtrlResponse& response) {
@@ -736,9 +730,16 @@ int FtpNetworkTransaction::ProcessResponsePASV(
       }
       if (sscanf_s(ptr, "%d,%d,%d,%d,%d,%d",
                    &i0, &i1, &i2, &i3, &p0, &p1) == 6) {
-        data_connection_ip_ = StringPrintf("%d.%d.%d.%d", i0, i1, i2, i3);
+        // Ignore the IP address supplied in the response. We are always going
+        // to connect back to the same server to prevent FTP PASV port scanning.
+
         data_connection_port_ = (p0 << 8) + p1;
-        next_state_ = STATE_DATA_RESOLVE_HOST;
+
+        if (data_connection_port_ < 1024 ||
+            !IsPortAllowedByFtp(data_connection_port_))
+          return Stop(ERR_UNSAFE_PORT);
+
+        next_state_ = STATE_DATA_CONNECT;
       } else {
         return Stop(ERR_INVALID_RESPONSE);
       }
@@ -954,29 +955,16 @@ int FtpNetworkTransaction::ProcessResponseQUIT(
 
 // Data Connection
 
-int FtpNetworkTransaction::DoDataResolveHost() {
-  if (data_socket_ != NULL && data_socket_->IsConnected())
-    data_socket_->Disconnect();
-
-  next_state_ = STATE_DATA_RESOLVE_HOST_COMPLETE;
-
-  HostResolver::RequestInfo info(data_connection_ip_,
-                                 data_connection_port_);
-  // No known referrer.
-  return resolver_.Resolve(info, &addresses_, &io_callback_, load_log_);
-}
-
-int FtpNetworkTransaction::DoDataResolveHostComplete(int result) {
-  if (result == OK) {
-    next_state_ = STATE_DATA_CONNECT;
-    return result;
-  }
-  return Stop(result);
-}
-
 int FtpNetworkTransaction::DoDataConnect() {
   next_state_ = STATE_DATA_CONNECT_COMPLETE;
-  data_socket_.reset(socket_factory_->CreateTCPClientSocket(addresses_));
+  AddressList data_addresses;
+  // TODO(phajdan.jr): Use exactly same IP address as the control socket.
+  // If the DNS name resolves to several different IPs, and they are different
+  // physical servers, this will break. However, that configuration is very rare
+  // in practice.
+  data_addresses.Copy(addresses_.head());
+  data_addresses.SetPort(data_connection_port_);
+  data_socket_.reset(socket_factory_->CreateTCPClientSocket(data_addresses));
   return data_socket_->Connect(&io_callback_);
 }
 

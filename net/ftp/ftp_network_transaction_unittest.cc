@@ -4,9 +4,19 @@
 
 #include "net/ftp/ftp_network_transaction.h"
 
+#include "build/build_config.h"
+
+#if defined(OS_WIN)
+#include <ws2tcpip.h>
+#elif defined(OS_POSIX)
+#include <netdb.h>
+#include <sys/socket.h>
+#endif
+
 #include "base/ref_counted.h"
 #include "net/base/io_buffer.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/base/net_util.h"
 #include "net/base/test_completion_callback.h"
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
@@ -303,6 +313,32 @@ class FtpMockControlSocketFileDownloadRetrFail
   DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketFileDownloadRetrFail);
 };
 
+class FtpMockControlSocketEvilPasv : public FtpMockControlSocketFileDownload {
+ public:
+  explicit FtpMockControlSocketEvilPasv(const char* pasv_response,
+                                        State expected_state)
+      : pasv_response_(pasv_response),
+        expected_state_(expected_state) {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_PASV:
+        return Verify("PASV\r\n", data, expected_state_, pasv_response_);
+      default:
+        return FtpMockControlSocketFileDownload::OnWrite(data);
+    }
+  }
+
+ private:
+  const char* pasv_response_;
+  const State expected_state_;
+
+  DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketEvilPasv);
+};
+
 class FtpNetworkTransactionTest : public PlatformTest {
  public:
   FtpNetworkTransactionTest()
@@ -487,6 +523,65 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionTransferStarting) {
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionInvalidResponse) {
   FtpMockControlSocketFileDownloadInvalidResponse ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_INVALID_RESPONSE);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafePort1) {
+  FtpMockControlSocketEvilPasv ctrl_socket("227 Portscan (127,0,0,1,0,22)\r\n",
+                                           FtpMockControlSocket::PRE_QUIT);
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_UNSAFE_PORT);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafePort2) {
+  // Still unsafe. 1 * 256 + 2 = 258, which is < 1024.
+  FtpMockControlSocketEvilPasv ctrl_socket("227 Portscan (127,0,0,1,1,2)\r\n",
+                                           FtpMockControlSocket::PRE_QUIT);
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_UNSAFE_PORT);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafePort3) {
+  // Still unsafe. 3 * 256 + 4 = 772, which is < 1024.
+  FtpMockControlSocketEvilPasv ctrl_socket("227 Portscan (127,0,0,1,3,4)\r\n",
+                                           FtpMockControlSocket::PRE_QUIT);
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_UNSAFE_PORT);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafePort4) {
+  // Unsafe. 8 * 256 + 1 = 2049, which is used by nfs.
+  FtpMockControlSocketEvilPasv ctrl_socket("227 Portscan (127,0,0,1,8,1)\r\n",
+                                           FtpMockControlSocket::PRE_QUIT);
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_UNSAFE_PORT);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafeHost) {
+  FtpMockControlSocketEvilPasv ctrl_socket(
+      "227 Portscan (10,1,2,3,4,123,456)\r\n", FtpMockControlSocket::PRE_SIZE);
+  std::string mock_data("mock-data");
+  MockRead data_reads[] = {
+    MockRead(mock_data.c_str()),
+  };
+  StaticMockSocket data_socket1(data_reads, NULL);
+  mock_socket_factory_.AddMockSocket(&ctrl_socket);
+  mock_socket_factory_.AddMockSocket(&data_socket1);
+  FtpRequestInfo request_info = GetRequestInfo("ftp://host/file");
+
+  // Start the transaction.
+  ASSERT_EQ(ERR_IO_PENDING,
+            transaction_.Start(&request_info, &callback_, NULL));
+  EXPECT_EQ(OK, callback_.WaitForResult());
+
+  // The transaction fires the callback when we can start reading data. That
+  // means that the data socket should be open.
+  MockTCPClientSocket* data_socket =
+      mock_socket_factory_.GetMockTCPClientSocket(1);
+  ASSERT_TRUE(data_socket);
+  ASSERT_TRUE(data_socket->IsConnected());
+
+  // Even if the PASV response specified some other address, we connect
+  // to the address we used for control connection.
+  EXPECT_EQ("127.0.0.1", NetAddressToString(data_socket->addresses().head()));
+
+  // Make sure we have only one host entry in the AddressList.
+  EXPECT_FALSE(data_socket->addresses().head()->ai_next);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailUser) {
