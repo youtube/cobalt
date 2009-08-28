@@ -24,22 +24,38 @@ namespace net {
 class ProxyConfigServiceLinux : public ProxyConfigService {
  public:
 
+  // Forward declaration of Delegate.
+  class Delegate;
+
   class GConfSettingGetter {
    public:
     virtual ~GConfSettingGetter() {}
 
-    // Initializes the class: obtains a gconf client, in the concrete
-    // implementation. Returns true on success. Must be called before
-    // using other methods.
-    virtual bool Init() = 0;
+    // Initializes the class: obtains a gconf client, or simulates one, in
+    // the concrete implementations. Returns true on success. Must be called
+    // before using other methods, and should be called on the thread running
+    // the glib main loop.
+    // One of |glib_default_loop| and |file_loop| will be used for gconf calls
+    // or reading necessary files, depending on the implementation.
+    virtual bool Init(MessageLoop* glib_default_loop,
+                      MessageLoopForIO* file_loop) = 0;
 
     // Releases the gconf client, which clears cached directories and
     // stops notifications.
-    virtual void Release() = 0;
+    virtual void Shutdown() = 0;
 
     // Requests notification of gconf setting changes for proxy
     // settings. Returns true on success.
-    virtual bool SetupNotification(void* callback_user_data) = 0;
+    virtual bool SetupNotification(Delegate* delegate) = 0;
+
+    // Returns the message loop for the thread on which this object
+    // handles notifications, and also on which it must be destroyed.
+    // Returns NULL if it does not matter.
+    virtual MessageLoop* GetNotificationLoop() = 0;
+
+    // Returns the data source's name (e.g. "gconf", "KDE", "test").
+    // Used only for diagnostic purposes (e.g. LOG(INFO) etc.).
+    virtual const char* GetDataSource() = 0;
 
     // Gets a string type value from gconf and stores it in
     // result. Returns false if the key is unset or on error. Must
@@ -79,8 +95,11 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
 
   class Delegate : public base::RefCountedThreadSafe<Delegate> {
    public:
+    // Constructor receives env var getter implementation to use, and
+    // takes ownership of it. This is the normal constructor.
+    explicit Delegate(base::EnvironmentVariableGetter* env_var_getter);
     // Constructor receives gconf and env var getter implementations
-    // to use, and takes ownership of them.
+    // to use, and takes ownership of them. Used for testing.
     Delegate(base::EnvironmentVariableGetter* env_var_getter,
              GConfSettingGetter* gconf_getter);
     // Synchronously obtains the proxy configuration. If gconf is
@@ -89,9 +108,11 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     // the default glib main loop, and so this method must be called
     // from the UI thread. The message loop for the IO thread is
     // specified so that notifications can post tasks to it (and for
-    // assertions).
+    // assertions). The message loop for the file thread is used to
+    // read any files needed to determine proxy settings.
     void SetupAndFetchInitialConfig(MessageLoop* glib_default_loop,
-                                    MessageLoop* io_loop);
+                                    MessageLoop* io_loop,
+                                    MessageLoopForIO* file_loop);
     // Resets cached_config_ and releases the gconf_getter_, making it
     // possible to call SetupAndFetchInitialConfig() again. Only used
     // in testing.
@@ -182,8 +203,10 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
   }
 
   void SetupAndFetchInitialConfig(MessageLoop* glib_default_loop,
-                                  MessageLoop* io_loop) {
-    delegate_->SetupAndFetchInitialConfig(glib_default_loop, io_loop);
+                                  MessageLoop* io_loop,
+                                  MessageLoopForIO* file_loop) {
+    delegate_->SetupAndFetchInitialConfig(glib_default_loop, io_loop,
+                                          file_loop);
   }
   void Reset() {
     delegate_->Reset();

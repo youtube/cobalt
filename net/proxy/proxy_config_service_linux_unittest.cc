@@ -153,14 +153,23 @@ class MockGConfSettingGetter
     values = zero_values;
   }
 
-  virtual bool Init() {
+  virtual bool Init(MessageLoop* glib_default_loop,
+                    MessageLoopForIO* file_loop) {
     return true;
   }
 
-  virtual void Release() {}
+  virtual void Shutdown() {}
 
-  virtual bool SetupNotification(void* callback_user_data) {
+  virtual bool SetupNotification(ProxyConfigServiceLinux::Delegate* delegate) {
     return true;
+  }
+
+  virtual MessageLoop* GetNotificationLoop() {
+    return NULL;
+  }
+
+  virtual const char* GetDataSource() {
+    return "test";
   }
 
   virtual bool GetString(const char* key, std::string* result) {
@@ -243,9 +252,12 @@ class SynchConfigGetter {
   // all on the calling thread (meant to be the thread with the
   // default glib main loop, which is the UI thread).
   void SetupAndInitialFetch() {
+    MessageLoop* file_loop = io_thread_.message_loop();
+    DCHECK_EQ(MessageLoop::TYPE_IO, file_loop->type());
     config_service_->Reset();
     config_service_->SetupAndFetchInitialConfig(
-        MessageLoop::current(), io_thread_.message_loop());
+        MessageLoop::current(), io_thread_.message_loop(),
+        static_cast<MessageLoopForIO*>(file_loop));
   }
   // Synchronously gets the proxy config.
   int SyncGetProxyConfig(net::ProxyConfig* config) {
@@ -479,7 +491,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicGConfTest) {
 
       // Expected result.
       false,                                          // auto_detect
-      GURL(),                                         // pac_aurl
+      GURL(),                                         // pac_url
       MakeSingleProxyRules("www.google.com:88"),      // proxy_rules
       "",                                             // proxy_bypass_list
       false,                                          // bypass_local_names
@@ -488,11 +500,11 @@ TEST(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     {
       TEST_DESC("Per-scheme proxy rules"),
       { // Input.
-        "manual",                              // mode
+        "manual",                                     // mode
         "",                                           // autoconfig_url
         "www.google.com",                             // http_host
         "www.foo.com",                                // secure_host
-        "ftpfoo.com",                                 // ftp
+        "ftp.foo.com",                                // ftp
         "",                                           // socks
         88, 110, 121, 0,                              // ports
         TRUE, FALSE, FALSE,                           // use, same, auth
@@ -504,7 +516,7 @@ TEST(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL(),                                         // pac_url
       MakeProxyPerSchemeRules("www.google.com:88",    // proxy_rules
                               "www.foo.com:110",
-                              "ftpfoo.com:121"),
+                              "ftp.foo.com:121"),
       "",                                             // proxy_bypass_list
       false,                                          // bypass_local_names
     },
@@ -832,33 +844,6 @@ TEST(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     EXPECT_EQ(tests[i].bypass_local_names, config.proxy_bypass_local_names);
     EXPECT_EQ(tests[i].proxy_rules, config.proxy_rules);
   }
-}
-
-// Verify that we fall back on consulting the environment when
-// GNOME-specific environment variables aren't available.
-TEST(ProxyConfigServiceLinuxTest, FallbackOnEnv) {
-  MockEnvironmentVariableGetter* env_getter =
-      new MockEnvironmentVariableGetter;
-  MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
-  ProxyConfigServiceLinux service(env_getter, gconf_getter);
-
-  // Imagine we're:
-  // 1) Running a non-GNOME desktop session:
-  env_getter->values.DESKTOP_SESSION = "default";
-  // 2) Have settings in gconf.
-  gconf_getter->values.mode = "auto";
-  gconf_getter->values.autoconfig_url = "http://incorrect/wpad.dat";
-  // 3) But we have a proxy-specifying environment variable set:
-  env_getter->values.auto_proxy = "http://correct/wpad.dat";
-
-  ProxyConfig config;
-
-  SynchConfigGetter sync_config_getter(&service);
-  sync_config_getter.SetupAndInitialFetch();
-  sync_config_getter.SyncGetProxyConfig(&config);
-
-  // Then we expect the environment variable to win.
-  EXPECT_EQ(GURL(env_getter->values.auto_proxy), config.pac_url);
 }
 
 TEST(ProxyConfigServiceLinuxTest, GconfNotification) {

@@ -117,8 +117,9 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // script needs to be fetched.
   // |io_loop| points to the IO thread's message loop. It is only used
   // when pc is NULL. If both pc and io_loop are NULL, then monitoring
-  // of gconf setting changes will be disabled in
-  // ProxyConfigServiceLinux.
+  // of proxy setting changes will be disabled in ProxyConfigServiceLinux.
+  // |file_loop| points to the file thread's message loop. It is used
+  // to read any files necessary to get proxy settings.
   // ##########################################################################
   // # See the warnings in net/proxy/proxy_resolver_v8.h describing the
   // # multi-threading model. In order for this to be safe to use, *ALL* the
@@ -128,7 +129,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
       const ProxyConfig* pc,
       bool use_v8_resolver,
       URLRequestContext* url_request_context,
-      MessageLoop* io_loop);
+      MessageLoop* io_loop, MessageLoop* file_loop);
 
   // Convenience method that creates a proxy service using the
   // specified fixed settings. |pc| must not be NULL.
@@ -152,7 +153,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // Creates a config service appropriate for this platform that fetches the
   // system proxy settings.
   static ProxyConfigService* CreateSystemProxyConfigService(
-      MessageLoop* io_loop);
+      MessageLoop* io_loop, MessageLoop* file_loop);
 
   // Creates a proxy resolver appropriate for this platform that doesn't rely
   // on V8.
