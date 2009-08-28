@@ -396,7 +396,7 @@ TEST_F(FFmpegDemuxerTest, Read) {
   EXPECT_TRUE(reader->called());
   ASSERT_TRUE(reader->buffer());
   EXPECT_TRUE(reader->buffer()->IsEndOfStream());
-  EXPECT_TRUE(NULL == reader->buffer()->GetData());
+  EXPECT_EQ(NULL, reader->buffer()->GetData());
   EXPECT_EQ(0u, reader->buffer()->GetDataSize());
 
   // Manually release buffer, which should release any remaining AVPackets.
@@ -410,7 +410,7 @@ TEST_F(FFmpegDemuxerTest, Read) {
   EXPECT_TRUE(reader->called());
   ASSERT_TRUE(reader->buffer());
   EXPECT_TRUE(reader->buffer()->IsEndOfStream());
-  EXPECT_TRUE(NULL == reader->buffer()->GetData());
+  EXPECT_EQ(NULL, reader->buffer()->GetData());
   EXPECT_EQ(0u, reader->buffer()->GetDataSize());
 
   // Manually release buffer, which should release any remaining AVPackets.

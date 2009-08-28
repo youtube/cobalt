@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -327,9 +327,9 @@ class TestConnectJobDelegate : public ConnectJob::Delegate {
     result_ = result;
     scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
     if (result == OK) {
-      EXPECT_FALSE(socket.get() == NULL);
+      EXPECT_TRUE(socket.get() != NULL);
     } else {
-      EXPECT_TRUE(socket.get() == NULL);
+      EXPECT_EQ(NULL, socket.get());
     }
     delete job;
     have_result_ = true;
