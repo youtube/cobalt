@@ -215,7 +215,7 @@ TEST_F(AlsaPcmOutputStreamTest, OpenClose) {
   test_stream_->Close();
   message_loop_.RunAllPending();
 
-  EXPECT_EQ(NULL, test_stream_->playback_handle_);
+  EXPECT_TRUE(NULL == test_stream_->playback_handle_);
   EXPECT_FALSE(test_stream_->packet_.get());
   EXPECT_TRUE(test_stream_->stop_stream_);
 }

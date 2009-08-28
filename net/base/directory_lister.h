@@ -1,9 +1,9 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_BASE_DIRECTORY_LISTER_H__
-#define NET_BASE_DIRECTORY_LISTER_H__
+#ifndef NET_BASE_DIRECTORY_LISTER_H_
+#define NET_BASE_DIRECTORY_LISTER_H_
 
 #include <string>
 
@@ -32,6 +32,9 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
     virtual void OnListFile(
         const file_util::FileEnumerator::FindInfo& data) = 0;
     virtual void OnListDone(int error) = 0;
+
+   protected:
+    ~DirectoryListerDelegate() {}
   };
 
   DirectoryLister(const FilePath& dir, DirectoryListerDelegate* delegate);
@@ -68,4 +71,4 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
 
 }  // namespace net
 
-#endif  // NET_BASE_DIRECTORY_LISTER_H__
+#endif  // NET_BASE_DIRECTORY_LISTER_H_

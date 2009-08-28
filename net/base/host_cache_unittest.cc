@@ -28,7 +28,7 @@ TEST(HostCacheTest, Basic) {
   EXPECT_EQ(0U, cache.size());
 
   // Add an entry for "foobar.com" at t=0.
-  EXPECT_EQ(NULL, cache.Lookup("foobar.com", base::TimeTicks()));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar.com", base::TimeTicks()));
   cache.Set("foobar.com", OK, AddressList(), now);
   entry1 = cache.Lookup("foobar.com", base::TimeTicks());
   EXPECT_FALSE(NULL == entry1);
@@ -38,7 +38,7 @@ TEST(HostCacheTest, Basic) {
   now += base::TimeDelta::FromSeconds(5);
 
   // Add an entry for "foobar2.com" at t=5.
-  EXPECT_EQ(NULL, cache.Lookup("foobar2.com", base::TimeTicks()));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar2.com", base::TimeTicks()));
   cache.Set("foobar2.com", OK, AddressList(), now);
   entry2 = cache.Lookup("foobar2.com", base::TimeTicks());
   EXPECT_FALSE(NULL == entry1);
@@ -54,7 +54,7 @@ TEST(HostCacheTest, Basic) {
   // Advance to t=10; entry1 is now expired.
   now += base::TimeDelta::FromSeconds(1);
 
-  EXPECT_EQ(NULL, cache.Lookup("foobar.com", now));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar.com", now));
   EXPECT_EQ(entry2, cache.Lookup("foobar2.com", now));
 
   // Update entry1, so it is no longer expired.
@@ -70,8 +70,8 @@ TEST(HostCacheTest, Basic) {
   // Advance to t=20; both entries are now expired.
   now += base::TimeDelta::FromSeconds(10);
 
-  EXPECT_EQ(NULL, cache.Lookup("foobar.com", now));
-  EXPECT_EQ(NULL, cache.Lookup("foobar2.com", now));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar.com", now));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar2.com", now));
 }
 
 // Try caching entries for a failed resolve attempt.
@@ -81,19 +81,19 @@ TEST(HostCacheTest, NegativeEntry) {
   // Set t=0.
   base::TimeTicks now;
 
-  EXPECT_EQ(NULL, cache.Lookup("foobar.com", base::TimeTicks()));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar.com", base::TimeTicks()));
   cache.Set("foobar.com", ERR_NAME_NOT_RESOLVED, AddressList(), now);
   EXPECT_EQ(1U, cache.size());
 
   // We disallow use of negative entries.
-  EXPECT_EQ(NULL, cache.Lookup("foobar.com", now));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar.com", now));
 
   // Now overwrite with a valid entry, and then overwrite with negative entry
   // again -- the valid entry should be kicked out.
   cache.Set("foobar.com", OK, AddressList(), now);
   EXPECT_FALSE(NULL == cache.Lookup("foobar.com", now));
   cache.Set("foobar.com", ERR_NAME_NOT_RESOLVED, AddressList(), now);
-  EXPECT_EQ(NULL, cache.Lookup("foobar.com", now));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar.com", now));
 }
 
 TEST(HostCacheTest, Compact) {
@@ -185,7 +185,7 @@ TEST(HostCacheTest, SetWithCompact) {
   // Adding the fourth entry will cause "expired" to be evicted.
   cache.Set("host3", OK, AddressList(), now);
   EXPECT_EQ(3U, cache.size());
-  EXPECT_EQ(NULL, cache.Lookup("expired", now));
+  EXPECT_TRUE(NULL == cache.Lookup("expired", now));
   EXPECT_FALSE(NULL == cache.Lookup("host1", now));
   EXPECT_FALSE(NULL == cache.Lookup("host2", now));
   EXPECT_FALSE(NULL == cache.Lookup("host3", now));
@@ -208,9 +208,9 @@ TEST(HostCacheTest, NoCache) {
   base::TimeTicks now;
 
   // Lookup and Set should have no effect.
-  EXPECT_EQ(NULL, cache.Lookup("foobar.com", base::TimeTicks()));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar.com", base::TimeTicks()));
   cache.Set("foobar.com", OK, AddressList(), now);
-  EXPECT_EQ(NULL, cache.Lookup("foobar.com", base::TimeTicks()));
+  EXPECT_TRUE(NULL == cache.Lookup("foobar.com", base::TimeTicks()));
 
   EXPECT_EQ(0U, cache.size());
 }
