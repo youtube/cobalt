@@ -334,11 +334,16 @@ class ListValue : public Value {
   // it will return false and the ListValue object will be unchanged.
   bool Remove(size_t index, Value** out_value);
 
-  // Removes the first instance of |value| found in the list, if any.
-  void Remove(const Value& value);
+  // Removes the first instance of |value| found in the list, if any, returning
+  // the index that it was located at (-1 for not present).
+  int Remove(const Value& value);
 
   // Appends a Value to the end of the list.
   void Append(Value* in_value);
+
+  // Insert a Value at index.
+  // Returns true if successful, or false if the index was out of range.
+  bool Insert(size_t index, Value* in_value);
 
   // Iteration
   typedef ValueVector::iterator iterator;
