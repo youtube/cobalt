@@ -81,6 +81,7 @@ struct HeaderNameAndValue {
 static const HeaderNameAndValue kPassThroughHeaders[] = {
   { "if-unmodified-since", NULL },  // causes unexpected 412s
   { "if-match", NULL },             // causes unexpected 412s
+  { "if-range", NULL },
   { NULL, NULL }
 };
 
@@ -804,6 +805,12 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
     }
   }
 
+  // We don't support ranges and validation headers.
+  if (range_found && num_validation_headers) {
+    LOG(WARNING) << "Byte ranges AND validation headers found.";
+    effective_load_flags_ |= LOAD_DISABLE_CACHE;
+  }
+
   if (range_found && !(effective_load_flags_ & LOAD_DISABLE_CACHE)) {
     partial_.reset(new PartialData);
     if (partial_->Init(request_->extra_headers, new_extra_headers)) {
@@ -814,6 +821,7 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
       custom_request_->extra_headers = new_extra_headers;
     } else {
       // The range is invalid or we cannot handle it properly.
+      LOG(WARNING) << "Invalid byte range found.";
       effective_load_flags_ |= LOAD_DISABLE_CACHE;
       partial_.reset(NULL);
     }
