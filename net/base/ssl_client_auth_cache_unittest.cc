@@ -28,7 +28,7 @@ TEST(SSLClientAuthCacheTest, LookupAddRemove) {
     new X509Certificate("foo3", "CA", start_date, expiration_date));
 
   // Lookup non-existent client certificate.
-  EXPECT_TRUE(NULL == cache.Lookup(server1));
+  EXPECT_EQ(NULL, cache.Lookup(server1));
 
   // Add client certificate for server1.
   cache.Add(server1, cert1.get());
@@ -46,12 +46,12 @@ TEST(SSLClientAuthCacheTest, LookupAddRemove) {
 
   // Remove client certificate of server1.
   cache.Remove(server1);
-  EXPECT_TRUE(NULL == cache.Lookup(server1));
+  EXPECT_EQ(NULL, cache.Lookup(server1));
   EXPECT_EQ(cert2.get(), cache.Lookup(server2));
 
   // Remove non-existent client certificate.
   cache.Remove(server1);
-  EXPECT_TRUE(NULL == cache.Lookup(server1));
+  EXPECT_EQ(NULL, cache.Lookup(server1));
   EXPECT_EQ(cert2.get(), cache.Lookup(server2));
 }
 
