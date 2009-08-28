@@ -65,4 +65,8 @@ PlatformFile CreatePlatformFile(const std::wstring& name,
   return file;
 }
 
+bool ClosePlatformFile(PlatformFile file) {
+  return (CloseHandle(file) == 0);
+}
+
 }  // namespace disk_cache
