@@ -139,20 +139,20 @@ TEST(YuvScaleTest, YV12) {
                    .Append(FILE_PATH_LITERAL("data"))
                    .Append(FILE_PATH_LITERAL("bali.yv12.640_360.yuv"));
   const size_t size_of_yuv = kWidth * kHeight * 12 / 8;  // 12 bpp.
-  uint8* yuv_bytes = new uint8[size_of_yuv];
+  scoped_array<uint8> yuv_bytes(new uint8[size_of_yuv]);
   EXPECT_EQ(static_cast<int>(size_of_yuv),
             file_util::ReadFile(yuv_url,
-                                reinterpret_cast<char*>(yuv_bytes),
+                                reinterpret_cast<char*>(yuv_bytes.get()),
                                 static_cast<int>(size_of_yuv)));
 
   // Scale a frame of YUV to 32 bit ARGB.
   const size_t size_of_rgb_scaled = kScaledWidth * kScaledHeight * kBpp;
-  uint8* rgb_scaled_bytes = new uint8[size_of_rgb_scaled];
+  scoped_array<uint8> rgb_scaled_bytes(new uint8[size_of_rgb_scaled]);
 
-  media::ScaleYUVToRGB32(yuv_bytes,                             // Y plane
-                         yuv_bytes + kWidth * kHeight,          // U plane
-                         yuv_bytes + kWidth * kHeight * 5 / 4,  // V plane
-                         rgb_scaled_bytes,                      // Rgb output
+  media::ScaleYUVToRGB32(yuv_bytes.get(),                             // Y
+                         yuv_bytes.get() + kWidth * kHeight,          // U
+                         yuv_bytes.get() + kWidth * kHeight * 5 / 4,  // V
+                         rgb_scaled_bytes.get(),                // Rgb output
                          kWidth, kHeight,                       // Dimensions
                          kScaledWidth, kScaledHeight,           // Dimensions
                          kWidth,                                // YStride
@@ -161,7 +161,7 @@ TEST(YuvScaleTest, YV12) {
                          media::YV12,
                          media::ROTATE_0);
 
-  unsigned int rgb_hash = hash(rgb_scaled_bytes, size_of_rgb_scaled);
+  unsigned int rgb_hash = hash(rgb_scaled_bytes.get(), size_of_rgb_scaled);
 
   // To get this hash value, run once and examine the following EXPECT_EQ.
   // Then plug new hash value into EXPECT_EQ statements.
@@ -183,29 +183,29 @@ TEST(YuvScaleTest, YV16) {
                    .Append(FILE_PATH_LITERAL("data"))
                    .Append(FILE_PATH_LITERAL("bali.yv16.640_360.yuv"));
   const size_t size_of_yuv = kWidth * kHeight * 16 / 8;  // 16 bpp.
-  uint8* yuv_bytes = new uint8[size_of_yuv];
+  scoped_array<uint8> yuv_bytes(new uint8[size_of_yuv]);
   EXPECT_EQ(static_cast<int>(size_of_yuv),
             file_util::ReadFile(yuv_url,
-                                reinterpret_cast<char*>(yuv_bytes),
+                                reinterpret_cast<char*>(yuv_bytes.get()),
                                 static_cast<int>(size_of_yuv)));
 
   // Scale a frame of YUV to 32 bit ARGB.
   const size_t size_of_rgb_scaled = kScaledWidth * kScaledHeight * kBpp;
-  uint8* rgb_scaled_bytes = new uint8[size_of_rgb_scaled];
+  scoped_array<uint8> rgb_scaled_bytes(new uint8[size_of_rgb_scaled]);
 
-  media::ScaleYUVToRGB32(yuv_bytes,                             // Y plane
-                         yuv_bytes + kWidth * kHeight,          // U plane
-                         yuv_bytes + kWidth * kHeight * 3 / 2,  // V plane
-                         rgb_scaled_bytes,                      // Rgb output
-                         kWidth, kHeight,                       // Dimensions
-                         kScaledWidth, kScaledHeight,           // Dimensions
-                         kWidth,                                // YStride
-                         kWidth / 2,                            // UvStride
-                         kScaledWidth * kBpp,                   // RgbStride
+  media::ScaleYUVToRGB32(yuv_bytes.get(),                             // Y
+                         yuv_bytes.get() + kWidth * kHeight,          // U
+                         yuv_bytes.get() + kWidth * kHeight * 3 / 2,  // V
+                         rgb_scaled_bytes.get(),        // Rgb output
+                         kWidth, kHeight,               // Dimensions
+                         kScaledWidth, kScaledHeight,   // Dimensions
+                         kWidth,                        // YStride
+                         kWidth / 2,                    // UvStride
+                         kScaledWidth * kBpp,           // RgbStride
                          media::YV16,
                          media::ROTATE_0);
 
-  unsigned int rgb_hash = hash(rgb_scaled_bytes, size_of_rgb_scaled);
+  unsigned int rgb_hash = hash(rgb_scaled_bytes.get(), size_of_rgb_scaled);
 
   // To get this hash value, run once and examine the following EXPECT_EQ.
   // Then plug new hash value into EXPECT_EQ statements.
