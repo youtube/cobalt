@@ -174,7 +174,8 @@
   },
   'target_defaults': {
     'variables': {
-      'mac_release_optimization%': '3'  # Use -O3 unless overridden
+      'mac_release_optimization%': '3', # Use -O3 unless overridden
+      'mac_debug_optimization%': '0'    # Use -O0 unless overridden
     },
     'conditions': [
       ['branding=="Chrome"', {
@@ -237,7 +238,7 @@
       'Debug': {
         'xcode_settings': {
           'COPY_PHASE_STRIP': 'NO',
-          'GCC_OPTIMIZATION_LEVEL': '0',  # -O0
+          'GCC_OPTIMIZATION_LEVEL': '<(mac_debug_optimization)',
         },
         'conditions': [
           [ 'OS=="win"', {
