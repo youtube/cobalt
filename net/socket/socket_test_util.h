@@ -189,6 +189,9 @@ class MockSocketArray {
   std::vector<T*> sockets_;
 };
 
+class MockTCPClientSocket;
+class MockSSLClientSocket;
+
 // ClientSocketFactory which contains arrays of sockets of each type.
 // You should first fill the arrays using AddMock{SSL,}Socket. When the factory
 // is asked to create a socket, it takes next entry from appropriate array.
@@ -200,12 +203,13 @@ class MockClientSocketFactory : public ClientSocketFactory {
   void AddMockSSLSocket(MockSSLSocket* socket);
   void ResetNextMockIndexes();
 
-  // Return |index|-th ClientSocket (starting from 0) that the factory created.
-  ClientSocket* GetMockTCPClientSocket(int index) const;
-
-  // Return |index|-th SSLClientSocket (starting from 0) that the factory
+  // Return |index|-th MockTCPClientSocket (starting from 0) that the factory
   // created.
-  SSLClientSocket* GetMockSSLClientSocket(int index) const;
+  MockTCPClientSocket* GetMockTCPClientSocket(int index) const;
+
+  // Return |index|-th MockSSLClientSocket (starting from 0) that the factory
+  // created.
+  MockSSLClientSocket* GetMockSSLClientSocket(int index) const;
 
   // ClientSocketFactory
   virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses);
@@ -219,8 +223,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
   MockSocketArray<MockSSLSocket> mock_ssl_sockets_;
 
   // Store pointers to handed out sockets in case the test wants to get them.
-  std::vector<ClientSocket*> tcp_client_sockets_;
-  std::vector<SSLClientSocket*> ssl_client_sockets_;
+  std::vector<MockTCPClientSocket*> tcp_client_sockets_;
+  std::vector<MockSSLClientSocket*> ssl_client_sockets_;
 };
 
 class MockClientSocket : public net::SSLClientSocket {
@@ -271,7 +275,11 @@ class MockTCPClientSocket : public MockClientSocket {
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::CompletionCallback* callback);
 
+  net::AddressList addresses() const { return addresses_; }
+
  private:
+  net::AddressList addresses_;
+
   net::MockSocket* data_;
   int read_offset_;
   net::MockRead read_data_;

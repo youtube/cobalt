@@ -145,8 +145,6 @@ class FtpNetworkTransaction : public FtpTransaction {
   int DoCtrlWriteQUIT();
   int ProcessResponseQUIT(const FtpCtrlResponse& response);
 
-  int DoDataResolveHost();
-  int DoDataResolveHostComplete(int result);
   int DoDataConnect();
   int DoDataConnectComplete(int result);
   int DoDataRead();
@@ -196,7 +194,6 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   bool retr_failed_;
 
-  std::string data_connection_ip_;
   int data_connection_port_;
 
   ClientSocketFactory* socket_factory_;
@@ -230,8 +227,6 @@ class FtpNetworkTransaction : public FtpTransaction {
     STATE_CTRL_WRITE_MDTM,
     STATE_CTRL_WRITE_QUIT,
     // Data connection states:
-    STATE_DATA_RESOLVE_HOST,
-    STATE_DATA_RESOLVE_HOST_COMPLETE,
     STATE_DATA_CONNECT,
     STATE_DATA_CONNECT_COMPLETE,
     STATE_DATA_READ,
