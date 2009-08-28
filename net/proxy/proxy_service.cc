@@ -217,11 +217,11 @@ ProxyService* ProxyService::Create(
     const ProxyConfig* pc,
     bool use_v8_resolver,
     URLRequestContext* url_request_context,
-    MessageLoop* io_loop) {
+    MessageLoop* io_loop, MessageLoop* file_loop) {
   // Choose the system configuration service appropriate for each platform.
   ProxyConfigService* proxy_config_service = pc ?
       new ProxyConfigServiceFixed(*pc) :
-      CreateSystemProxyConfigService(io_loop);
+      CreateSystemProxyConfigService(io_loop, file_loop);
 
   ProxyResolver* proxy_resolver;
 
@@ -255,7 +255,7 @@ ProxyService* ProxyService::Create(
 
 // static
 ProxyService* ProxyService::CreateFixed(const ProxyConfig& pc) {
-  return Create(&pc, false, NULL, NULL);
+  return Create(&pc, false, NULL, NULL, NULL);
 }
 
 // static
@@ -537,7 +537,7 @@ void ProxyService::DidCompletePacRequest(int config_id, int result_code) {
 
 // static
 ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
-    MessageLoop* io_loop) {
+    MessageLoop* io_loop, MessageLoop* file_loop) {
 #if defined(OS_WIN)
   return new ProxyConfigServiceWin();
 #elif defined(OS_MACOSX)
@@ -551,11 +551,15 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
   // running gconf calls from.
   MessageLoop* glib_default_loop = MessageLoopForUI::current();
 
+  // The file loop should be a MessageLoopForIO on Linux.
+  DCHECK_EQ(MessageLoop::TYPE_IO, file_loop->type());
+
   // Synchronously fetch the current proxy config (since we are
-  // running on glib_default_loop). Additionally register for gconf
-  // notifications (delivered in |glib_default_loop|) to keep us
-  // updated on when the proxy config has changed.
-  linux_config_service->SetupAndFetchInitialConfig(glib_default_loop, io_loop);
+  // running on glib_default_loop). Additionally register for
+  // notifications (delivered in either |glib_default_loop| or
+  // |file_loop|) to keep us updated when the proxy config changes.
+  linux_config_service->SetupAndFetchInitialConfig(glib_default_loop, io_loop,
+      static_cast<MessageLoopForIO*>(file_loop));
 
   return linux_config_service;
 #else
