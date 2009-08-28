@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -2639,19 +2639,19 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   trans->ResetStateForRestart();
 
   // Verify that the state that needed to be reset, has been reset.
-  EXPECT_EQ(NULL, trans->header_buf_->headers());
+  EXPECT_TRUE(NULL == trans->header_buf_->headers());
   EXPECT_EQ(0, trans->header_buf_capacity_);
   EXPECT_EQ(0, trans->header_buf_len_);
   EXPECT_EQ(-1, trans->header_buf_body_offset_);
   EXPECT_EQ(-1, trans->header_buf_http_offset_);
   EXPECT_EQ(-1, trans->response_body_length_);
   EXPECT_EQ(0, trans->response_body_read_);
-  EXPECT_EQ(NULL, trans->read_buf_.get());
+  EXPECT_TRUE(NULL == trans->read_buf_.get());
   EXPECT_EQ(0, trans->read_buf_len_);
   EXPECT_EQ("", trans->request_headers_->headers_);
   EXPECT_EQ(0U, trans->request_headers_bytes_sent_);
-  EXPECT_EQ(NULL, trans->response_.auth_challenge.get());
-  EXPECT_EQ(NULL, trans->response_.headers.get());
+  EXPECT_TRUE(NULL == trans->response_.auth_challenge.get());
+  EXPECT_TRUE(NULL == trans->response_.headers.get());
   EXPECT_EQ(false, trans->response_.was_cached);
   EXPECT_EQ(0, trans->response_.ssl_info.cert_status);
   EXPECT_FALSE(trans->response_.vary_data.is_valid());
