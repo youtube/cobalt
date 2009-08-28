@@ -106,3 +106,6 @@ Changes from Chrome:
  - Added a new function chromium_sqlite3_initialize_win_sqlite3_file()
    at the end of os_win.c. It allows the Windows-specific Chromium VFS
    to reuse most of the win32 SQLite VFS.
+ - Added a new function initUnixFile() and made fillInUnixFile()
+   non-static in os_unix.c. It allows the Linux-specific Chromium VFS
+   to reuse most of the unix SQLite VFS.
