@@ -250,8 +250,12 @@ class TestClientSocketPool : public ClientSocketPool {
   TestClientSocketPool(
       int max_sockets,
       int max_sockets_per_group,
+      base::TimeDelta unused_idle_socket_timeout,
+      base::TimeDelta used_idle_socket_timeout,
       TestClientSocketPoolBase::ConnectJobFactory* connect_job_factory)
-      : base_(max_sockets, max_sockets_per_group, connect_job_factory) {}
+      : base_(max_sockets, max_sockets_per_group,
+              unused_idle_socket_timeout, used_idle_socket_timeout,
+              connect_job_factory) {}
 
   virtual int RequestSocket(
       const std::string& group_name,
@@ -296,6 +300,8 @@ class TestClientSocketPool : public ClientSocketPool {
   int NumConnectJobsInGroup(const std::string& group_name) const {
     return base_.NumConnectJobsInGroup(group_name);
   }
+
+  void CleanupTimedOutIdleSockets() { base_.CleanupIdleSockets(false); }
 
  private:
   TestClientSocketPoolBase base_;
@@ -359,10 +365,23 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
   ClientSocketPoolBaseTest() {}
 
   void CreatePool(int max_sockets, int max_sockets_per_group) {
+    CreatePoolWithIdleTimeouts(
+        max_sockets,
+        max_sockets_per_group,
+        base::TimeDelta::FromSeconds(kUnusedIdleSocketTimeout),
+        base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout));
+  }
+
+  void CreatePoolWithIdleTimeouts(
+      int max_sockets, int max_sockets_per_group,
+      base::TimeDelta unused_idle_socket_timeout,
+      base::TimeDelta used_idle_socket_timeout) {
     DCHECK(!pool_.get());
     connect_job_factory_ = new TestConnectJobFactory(&client_socket_factory_);
     pool_ = new TestClientSocketPool(max_sockets,
                                      max_sockets_per_group,
+                                     unused_idle_socket_timeout,
+                                     used_idle_socket_timeout,
                                      connect_job_factory_);
   }
 
@@ -1758,6 +1777,47 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding,
   EXPECT_EQ(2, pool_->IdleSocketCountInGroup("a"));
   pool_->CloseIdleSockets();
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+}
+
+TEST_F(ClientSocketPoolBaseTest_LateBinding, CleanupTimedOutIdleSockets) {
+  CreatePoolWithIdleTimeouts(
+      kDefaultMaxSockets, kDefaultMaxSocketsPerGroup,
+      base::TimeDelta(),  // Time out unused sockets immediately.
+      base::TimeDelta::FromDays(1));  // Don't time out used sockets.
+
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  // Startup two mock pending connect jobs, which will sit in the MessageLoop.
+
+  TestSocketRequest req(&request_order_, &completion_count_);
+  int rv = InitHandle(req.handle(), "a", 0, &req, pool_.get(), NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
+
+  TestSocketRequest req2(&request_order_, &completion_count_);
+  rv = InitHandle(req2.handle(), "a", 0, &req2, pool_.get(), NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req2.handle()));
+
+  // Cancel one of the requests.  Wait for the other, which will get the first
+  // job.  Release the socket.  Run the loop again to make sure the second
+  // socket is sitting idle and the first one is released (since ReleaseSocket()
+  // just posts a DoReleaseSocket() task).
+
+  req.handle()->Reset();
+  EXPECT_EQ(OK, req2.WaitForResult());
+  req2.handle()->Reset();
+  MessageLoop::current()->RunAllPending();
+
+  ASSERT_EQ(2, pool_->IdleSocketCount());
+  
+  // Invoke the idle socket cleanup check.  Only one socket should be left, the
+  // used socket.  Request it to make sure that it's used.
+
+  pool_->CleanupTimedOutIdleSockets();
+  rv = InitHandle(req.handle(), "a", 0, &req, pool_.get(), NULL);
+  EXPECT_EQ(OK, rv);
+  EXPECT_TRUE(req.handle()->is_reused());
 }
 
 }  // namespace
