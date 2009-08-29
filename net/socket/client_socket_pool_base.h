@@ -166,6 +166,8 @@ class ClientSocketPoolBaseHelper
 
   ClientSocketPoolBaseHelper(int max_sockets,
                              int max_sockets_per_group,
+                             base::TimeDelta unused_idle_socket_timeout,
+                             base::TimeDelta used_idle_socket_timeout,
                              ConnectJobFactory* connect_job_factory);
 
   ~ClientSocketPoolBaseHelper();
@@ -217,6 +219,10 @@ class ClientSocketPoolBaseHelper
     return group_map_.find(group_name)->second.jobs.size();
   }
 
+  // Closes all idle sockets if |force| is true.  Else, only closes idle
+  // sockets that timed out or can't be reused.  Made public for testing.
+  void CleanupIdleSockets(bool force);
+
  private:
   // Entry for a persistent socket which became idle at time |start_time|.
   struct IdleSocket {
@@ -227,12 +233,13 @@ class ClientSocketPoolBaseHelper
 
     // An idle socket should be removed if it can't be reused, or has been idle
     // for too long. |now| is the current time value (TimeTicks::Now()).
+    // |timeout| is the length of time to wait before timing out an idle socket.
     //
     // An idle socket can't be reused if it is disconnected or has received
     // data unexpectedly (hence no longer idle).  The unread data would be
     // mistaken for the beginning of the next response if we were to reuse the
     // socket for a new request.
-    bool ShouldCleanup(base::TimeTicks now) const;
+    bool ShouldCleanup(base::TimeTicks now, base::TimeDelta timeout) const;
   };
 
   typedef std::deque<const Request*> RequestQueue;
@@ -273,10 +280,6 @@ class ClientSocketPoolBaseHelper
                                      RequestQueue* pending_requests);
   static const Request* RemoveRequestFromQueue(RequestQueue::iterator it,
                                                RequestQueue* pending_requests);
-
-  // Closes all idle sockets if |force| is true.  Else, only closes idle
-  // sockets that timed out or can't be reused.
-  void CleanupIdleSockets(bool force);
 
   // Called when the number of idle sockets changes.
   void IncrementIdleCount();
@@ -359,6 +362,10 @@ class ClientSocketPoolBaseHelper
   // The maximum number of sockets kept per group.
   const int max_sockets_per_group_;
 
+  // The time to wait until closing idle sockets.
+  const base::TimeDelta unused_idle_socket_timeout_;
+  const base::TimeDelta used_idle_socket_timeout_;
+
   // Until the maximum number of sockets limit is reached, a group can only
   // have pending requests if it exceeds the "max sockets per group" limit.
   //
@@ -383,6 +390,14 @@ class ClientSocketPoolBaseHelper
 };
 
 }  // namespace internal
+
+// The maximum duration, in seconds, to keep unused idle persistent sockets
+// alive.
+// TODO(willchan): Change this timeout after getting histogram data on how
+// long it should be.
+static const int kUnusedIdleSocketTimeout = 10;
+// The maximum duration, in seconds, to keep used idle persistent sockets alive.
+static const int kUsedIdleSocketTimeout = 300;  // 5 minutes
 
 template <typename SocketParams>
 class ClientSocketPoolBase {
@@ -419,11 +434,20 @@ class ClientSocketPoolBase {
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
   };
 
+  // |max_sockets| is the maximum number of sockets to be maintained by this
+  // ClientSocketPool.  |max_sockets_per_group| specifies the maximum number of
+  // sockets a "group" can have.  |unused_idle_socket_timeout| specifies how
+  // long to leave an unused idle socket open before closing it.
+  // |used_idle_socket_timeout| specifies how long to leave a previously used
+  // idle socket open before closing it.
   ClientSocketPoolBase(int max_sockets,
                        int max_sockets_per_group,
+                       base::TimeDelta unused_idle_socket_timeout,
+                       base::TimeDelta used_idle_socket_timeout,
                        ConnectJobFactory* connect_job_factory)
       : helper_(new internal::ClientSocketPoolBaseHelper(
           max_sockets, max_sockets_per_group,
+          unused_idle_socket_timeout, used_idle_socket_timeout,
           new ConnectJobFactoryAdaptor(connect_job_factory))) {}
 
   ~ClientSocketPoolBase() {}
@@ -483,6 +507,10 @@ class ClientSocketPoolBase {
 
   int NumConnectJobsInGroup(const std::string& group_name) const {
     return helper_->NumConnectJobsInGroup(group_name);
+  }
+
+  void CleanupIdleSockets(bool force) {
+    return helper_->CleanupIdleSockets(force);
   }
 
  private:

@@ -24,9 +24,6 @@ namespace {
 // some conditions.  See http://crbug.com/4606.
 const int kCleanupInterval = 10;  // DO NOT INCREASE THIS TIMEOUT.
 
-// The maximum duration, in seconds, to keep idle persistent sockets alive.
-const int kIdleTimeout = 300;  // 5 minutes.
-
 }  // namespace
 
 namespace net {
@@ -99,12 +96,16 @@ bool ClientSocketPoolBaseHelper::g_late_binding = false;
 ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
     int max_sockets,
     int max_sockets_per_group,
+    base::TimeDelta unused_idle_socket_timeout,
+    base::TimeDelta used_idle_socket_timeout,
     ConnectJobFactory* connect_job_factory)
     : idle_socket_count_(0),
       connecting_socket_count_(0),
       handed_out_socket_count_(0),
       max_sockets_(max_sockets),
       max_sockets_per_group_(max_sockets_per_group),
+      unused_idle_socket_timeout_(unused_idle_socket_timeout),
+      used_idle_socket_timeout_(used_idle_socket_timeout),
       may_have_stalled_group_(false),
       connect_job_factory_(connect_job_factory) {
   DCHECK_LE(0, max_sockets_per_group);
@@ -340,9 +341,9 @@ LoadState ClientSocketPoolBaseHelper::GetLoadState(
 }
 
 bool ClientSocketPoolBaseHelper::IdleSocket::ShouldCleanup(
-    base::TimeTicks now) const {
-  bool timed_out = (now - start_time) >=
-      base::TimeDelta::FromSeconds(kIdleTimeout);
+    base::TimeTicks now,
+    base::TimeDelta timeout) const {
+  bool timed_out = (now - start_time) >= timeout;
   return timed_out ||
       !(used ? socket->IsConnectedAndIdle() : socket->IsConnected());
 }
@@ -361,7 +362,9 @@ void ClientSocketPoolBaseHelper::CleanupIdleSockets(bool force) {
 
     std::deque<IdleSocket>::iterator j = group.idle_sockets.begin();
     while (j != group.idle_sockets.end()) {
-      if (force || j->ShouldCleanup(now)) {
+      base::TimeDelta timeout =
+          j->used ? used_idle_socket_timeout_ : unused_idle_socket_timeout_;
+      if (force || j->ShouldCleanup(now, timeout)) {
         delete j->socket;
         j = group.idle_sockets.erase(j);
         DecrementIdleCount();
