@@ -389,12 +389,6 @@ class URLRequest {
   int load_flags() const { return load_flags_; }
   void set_load_flags(int flags) { load_flags_ = flags; }
 
-  // Accessors to the pid of the process this request originated from.
-  int origin_pid() const { return origin_pid_; }
-  void set_origin_pid(int proc_id) {
-    origin_pid_ = proc_id;
-  }
-
   // Returns true if the request is "pending" (i.e., if Start() has been called,
   // and the response has not yet been called).
   bool is_pending() const { return is_pending_; }
@@ -568,10 +562,6 @@ class URLRequest {
   std::string extra_request_headers_;
   int load_flags_;  // Flags indicating the request type for the load;
                     // expected values are LOAD_* enums above.
-
-  // The pid of the process that initiated this request.  Initialized to the id
-  // of the current process.
-  int origin_pid_;
 
   Delegate* delegate_;
 
