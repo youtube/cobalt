@@ -149,7 +149,7 @@ PR_ImplodeTime(const PRExplodedTime *exploded)
     result *= kSecondsToMicroseconds;
     result += exploded->tm_usec;
     return result;
-#elif defined(OS_LINUX)
+#elif defined(OS_LINUX) || defined(OS_FREEBSD)
     struct tm exp_tm = {0};
     exp_tm.tm_sec  = exploded->tm_sec;
     exp_tm.tm_min  = exploded->tm_min;

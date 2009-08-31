@@ -143,9 +143,10 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
 }
 
 // TimeTicks ------------------------------------------------------------------
-
-#if defined(OS_POSIX) && \
-    defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0
+// FreeBSD 6 has CLOCK_MONOLITHIC but defines _POSIX_MONOTONIC_CLOCK to -1.
+#if (defined(OS_POSIX) &&                                               \
+     defined(_POSIX_MONOTONIC_CLOCK) && _POSIX_MONOTONIC_CLOCK >= 0) || \
+    defined(OS_FREEBSD)
 
 // static
 TimeTicks TimeTicks::Now() {

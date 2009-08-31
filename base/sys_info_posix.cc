@@ -52,7 +52,8 @@ int SysInfo::NumberOfProcessors() {
 
 // static
 int64 SysInfo::AmountOfPhysicalMemory() {
-  // _SC_PHYS_PAGES is not part of POSIX and not available on OS X
+  // _SC_PHYS_PAGES is not part of POSIX and not available on OS X or
+  // FreeBSD
 #if defined(OS_MACOSX)
   struct host_basic_info hostinfo;
   mach_msg_type_number_t count = HOST_BASIC_INFO_COUNT;
@@ -67,6 +68,10 @@ int64 SysInfo::AmountOfPhysicalMemory() {
   }
 
   return static_cast<int64>(hostinfo.max_mem);
+#elif defined(OS_FREEBSD)
+  // TODO(benl): I have no idea how to get this
+  NOTIMPLEMENTED();
+  return 0;
 #else
   long pages = sysconf(_SC_PHYS_PAGES);
   long page_size = sysconf(_SC_PAGE_SIZE);
