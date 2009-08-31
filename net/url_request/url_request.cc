@@ -240,6 +240,20 @@ void URLRequest::set_referrer(const std::string& referrer) {
   referrer_ = referrer;
 }
 
+GURL URLRequest::GetSanitizedReferrer() const {
+  GURL ret(referrer());
+
+  // Ensure that we do not send username and password fields in the referrer.
+  if (ret.has_username() || ret.has_password()) {
+    GURL::Replacements referrer_mods;
+    referrer_mods.ClearUsername();
+    referrer_mods.ClearPassword();
+    ret = ret.ReplaceComponents(referrer_mods);
+  }
+
+  return ret;
+}
+
 void URLRequest::Start() {
   StartJob(GetJobManager()->CreateJob(this));
 }

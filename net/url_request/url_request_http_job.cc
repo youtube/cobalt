@@ -151,16 +151,8 @@ void URLRequestHttpJob::SetExtraRequestHeaders(
 void URLRequestHttpJob::Start() {
   DCHECK(!transaction_.get());
 
-  // TODO(darin): URLRequest::referrer() should return a GURL
-  GURL referrer(request_->referrer());
-
   // Ensure that we do not send username and password fields in the referrer.
-  if (referrer.has_username() || referrer.has_password()) {
-    GURL::Replacements referrer_mods;
-    referrer_mods.ClearUsername();
-    referrer_mods.ClearPassword();
-    referrer = referrer.ReplaceComponents(referrer_mods);
-  }
+  GURL referrer(request_->GetSanitizedReferrer());
 
   request_info_.url = request_->url();
   request_info_.referrer = referrer;
