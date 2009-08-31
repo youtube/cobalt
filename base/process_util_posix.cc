@@ -117,6 +117,9 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
 #elif defined(OS_MACOSX)
   static const rlim_t kSystemDefaultMaxFds = 256;
   static const char fd_dir[] = "/dev/fd";
+#elif defined(OS_FREEBSD)
+  static const rlim_t kSystemDefaultMaxFds = 8192;
+  static const char fd_dir[] = "/dev/fd";
 #endif
   std::set<int> saved_fds;
 
@@ -193,7 +196,7 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
 void SetAllFDsToCloseOnExec() {
 #if defined(OS_LINUX)
   const char fd_dir[] = "/proc/self/fd";
-#elif defined(OS_MACOSX)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
   const char fd_dir[] = "/dev/fd";
 #endif
   ScopedDIR dir_closer(opendir(fd_dir));

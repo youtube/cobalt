@@ -13,7 +13,11 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #include <tlhelp32.h>
-#elif defined(OS_LINUX)
+#elif defined(OS_MACOSX)
+// kinfo_proc is defined in <sys/sysctl.h>, but this forward declaration
+// is sufficient for the vector<kinfo_proc> below.
+struct kinfo_proc;
+#elif defined(OS_POSIX)
 #include <dirent.h>
 #include <limits.h>
 #include <sys/types.h>
@@ -48,10 +52,6 @@ struct IoCounters {
 };
 
 #include "base/file_descriptor_shuffle.h"
-#endif
-
-#if defined(OS_MACOSX)
-struct kinfo_proc;
 #endif
 
 namespace base {
@@ -273,11 +273,11 @@ class NamedProcessIterator {
 #if defined(OS_WIN)
   HANDLE snapshot_;
   bool started_iteration_;
-#elif defined(OS_LINUX)
-  DIR *procfs_dir_;
 #elif defined(OS_MACOSX)
   std::vector<kinfo_proc> kinfo_procs_;
   size_t index_of_kinfo_proc_;
+#elif defined(OS_POSIX)
+  DIR *procfs_dir_;
 #endif
   ProcessEntry entry_;
   const ProcessFilter* filter_;
