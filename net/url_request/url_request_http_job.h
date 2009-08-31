@@ -5,6 +5,7 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_HTTP_JOB_H_
 #define NET_URL_REQUEST_URL_REQUEST_HTTP_JOB_H_
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,12 @@ class URLRequestContext;
 class URLRequestHttpJob : public URLRequestJob {
  public:
   static URLRequestJob* Factory(URLRequest* request, const std::string& scheme);
+  // Specifies a comma separated list of port numbers that should be accepted
+  // despite bans. If the string is invalid no allowed ports are stored.
+  static void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports);
+  static const std::set<int>& explicitly_allowed_ports() {
+    return explicitly_allowed_ports_;
+  }
 
   virtual ~URLRequestHttpJob();
 
@@ -78,6 +85,10 @@ class URLRequestHttpJob : public URLRequestJob {
   void RestartTransactionWithAuth(const std::wstring& username,
                                   const std::wstring& password);
 
+  // Check if banned |port| has been overriden by an entry in
+  // |explicitly_allowed_ports_|.
+  static bool IsPortAllowedByOverride(int port);
+
   // Keep a reference to the url request context to be sure it's not deleted
   // before us.
   scoped_refptr<URLRequestContext> context_;
@@ -114,6 +125,10 @@ class URLRequestHttpJob : public URLRequestJob {
 
   // For recording of stats, we need to remember if this is cached content.
   bool is_cached_content_;
+
+ private:
+  // Holds a list of ports that should be accepted despite bans.
+  static std::set<int> explicitly_allowed_ports_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
 };

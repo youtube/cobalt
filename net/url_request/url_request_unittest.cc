@@ -37,6 +37,7 @@
 #include "net/socket/ssl_test_util.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_file_dir_job.h"
+#include "net/url_request/url_request_http_job.h"
 #include "net/url_request/url_request_test_job.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -221,6 +222,22 @@ TEST_F(URLRequestTestHTTP, GetTest) {
 #ifndef NDEBUG
   DCHECK_EQ(url_request_metrics.object_count, 0);
 #endif
+}
+
+TEST_F(URLRequestTestHTTP, SetExplicitlyAllowedPortsTest) {
+  std::wstring invalid[] = { L"1,2,a", L"'1','2'", L"1, 2, 3", L"1 0,11,12" };
+  std::wstring valid[] = { L"", L"1", L"1,2", L"1,2,3", L"10,11,12,13" };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(invalid); ++i) {
+    URLRequestHttpJob::SetExplicitlyAllowedPorts(invalid[i]);
+    EXPECT_EQ(0, static_cast<int>(
+        URLRequestHttpJob::explicitly_allowed_ports().size()));
+  }
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(valid); ++i) {
+    URLRequestHttpJob::SetExplicitlyAllowedPorts(valid[i]);
+    EXPECT_EQ(i, URLRequestHttpJob::explicitly_allowed_ports().size());
+  }
 }
 
 TEST_F(URLRequestTest, QuitTest) {
