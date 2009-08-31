@@ -1919,15 +1919,30 @@ TEST_F(URLRequestTest, InterceptRespectsCancelInRestart) {
   EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
 }
 
-TEST_F(URLRequestTest, FTPGetTestAnonymous) {
-  scoped_refptr<FTPTestServer> server = FTPTestServer::CreateServer(L"");
-  ASSERT_TRUE(NULL != server.get());
+class URLRequestTestFTP : public URLRequestTest {
+ protected:
+  static void SetUpTestCase() {
+    server_ = FTPTestServer::CreateServer(L"");
+  }
+
+  static void TearDownTestCase() {
+    server_ = NULL;
+  }
+
+  static scoped_refptr<FTPTestServer> server_;
+};
+
+// static
+scoped_refptr<FTPTestServer> URLRequestTestFTP::server_;
+
+TEST_F(URLRequestTestFTP, FTPGetTestAnonymous) {
+  ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage("/LICENSE"), &d);
+    TestURLRequest r(server_->TestServerPage("/LICENSE"), &d);
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
@@ -1943,16 +1958,15 @@ TEST_F(URLRequestTest, FTPGetTestAnonymous) {
   }
 }
 
-TEST_F(URLRequestTest, FTPGetTest) {
-  scoped_refptr<FTPTestServer> server =
-      FTPTestServer::CreateServer(L"", "chrome", "chrome");
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestFTP, FTPGetTest) {
+  ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage("/LICENSE"), &d);
+    TestURLRequest r(server_->TestServerPage("/LICENSE", "chrome", "chrome"),
+                     &d);
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
@@ -1968,16 +1982,15 @@ TEST_F(URLRequestTest, FTPGetTest) {
   }
 }
 
-TEST_F(URLRequestTest, FTPCheckWrongPassword) {
-  scoped_refptr<FTPTestServer> server =
-      FTPTestServer::CreateServer(L"", "chrome", "wrong_password");
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestFTP, FTPCheckWrongPassword) {
+  ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage("/LICENSE"), &d);
+    TestURLRequest r(server_->TestServerPage("/LICENSE",
+                                             "chrome", "wrong_password"), &d);
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
@@ -1993,11 +2006,8 @@ TEST_F(URLRequestTest, FTPCheckWrongPassword) {
   }
 }
 
-TEST_F(URLRequestTest, FTPCheckWrongPasswordRestart) {
-  // Pass wrong login credentials in the request URL.
-  scoped_refptr<FTPTestServer> server =
-      FTPTestServer::CreateServer(L"", "chrome", "wrong_password");
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestFTP, FTPCheckWrongPasswordRestart) {
+  ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
@@ -2007,7 +2017,8 @@ TEST_F(URLRequestTest, FTPCheckWrongPasswordRestart) {
   d.set_username(L"chrome");
   d.set_password(L"chrome");
   {
-    TestURLRequest r(server->TestServerPage("/LICENSE"), &d);
+    TestURLRequest r(server_->TestServerPage("/LICENSE",
+                                             "chrome", "wrong_password"), &d);
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
@@ -2023,16 +2034,15 @@ TEST_F(URLRequestTest, FTPCheckWrongPasswordRestart) {
   }
 }
 
-TEST_F(URLRequestTest, FTPCheckWrongUser) {
-  scoped_refptr<FTPTestServer> server =
-      FTPTestServer::CreateServer(L"", "wrong_user", "chrome");
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestFTP, FTPCheckWrongUser) {
+  ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
   TestDelegate d;
   {
-    TestURLRequest r(server->TestServerPage("/LICENSE"), &d);
+    TestURLRequest r(server_->TestServerPage("/LICENSE",
+                                             "wrong_user", "chrome"), &d);
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
@@ -2048,11 +2058,8 @@ TEST_F(URLRequestTest, FTPCheckWrongUser) {
   }
 }
 
-TEST_F(URLRequestTest, FTPCheckWrongUserRestart) {
-  // Pass wrong login credentials in the request URL.
-  scoped_refptr<FTPTestServer> server =
-      FTPTestServer::CreateServer(L"", "wrong_user", "chrome");
-  ASSERT_TRUE(NULL != server.get());
+TEST_F(URLRequestTestFTP, FTPCheckWrongUserRestart) {
+  ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
   app_path = app_path.AppendASCII("LICENSE");
@@ -2062,7 +2069,8 @@ TEST_F(URLRequestTest, FTPCheckWrongUserRestart) {
   d.set_username(L"chrome");
   d.set_password(L"chrome");
   {
-    TestURLRequest r(server->TestServerPage("/LICENSE"), &d);
+    TestURLRequest r(server_->TestServerPage("/LICENSE",
+                                             "wrong_user", "chrome"), &d);
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
