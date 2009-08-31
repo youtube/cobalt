@@ -5,7 +5,6 @@
 #include "net/url_request/url_request.h"
 
 #include "base/message_loop.h"
-#include "base/process_util.h"
 #include "base/singleton.h"
 #include "base/stats_counters.h"
 #include "base/string_util.h"
@@ -53,7 +52,6 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       priority_(0) {
   URLREQUEST_COUNT_CTOR();
   SIMPLE_STATS_COUNTER("URLRequestCount");
-  origin_pid_ = base::GetCurrentProcId();
 
   // Sanity check out environment.
   DCHECK(MessageLoop::current()) <<
