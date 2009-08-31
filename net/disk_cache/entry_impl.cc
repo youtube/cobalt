@@ -384,6 +384,8 @@ int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
   return sparse_->GetAvailableRange(offset, len, start);
 }
 
+// ------------------------------------------------------------------------
+
 uint32 EntryImpl::GetHash() {
   return entry_.Data()->hash;
 }
@@ -574,6 +576,31 @@ void EntryImpl::SetTimes(base::Time last_used, base::Time last_modified) {
   node_.Data()->last_modified = last_modified.ToInternalValue();
   node_.set_modified();
 }
+
+void EntryImpl::ReportIOTime(Operation op, const base::Time& start) {
+  int group = backend_->GetSizeGroup();
+  switch (op) {
+    case kRead:
+      CACHE_UMA(AGE_MS, "ReadTime", group, start);
+      break;
+    case kWrite:
+      CACHE_UMA(AGE_MS, "WriteTime", group, start);
+      break;
+    case kSparseRead:
+      CACHE_UMA(AGE_MS, "SparseReadTime", 0, start);
+      break;
+    case kSparseWrite:
+      CACHE_UMA(AGE_MS, "SparseWriteTime", 0, start);
+      break;
+    case kAsyncIO:
+      CACHE_UMA(AGE_MS, "AsyncIOTime", group, start);
+      break;
+    default:
+      NOTREACHED();
+  }
+}
+
+// ------------------------------------------------------------------------
 
 bool EntryImpl::CreateDataBlock(int index, int size) {
   DCHECK(index >= 0 && index < kNumStreams);
@@ -865,29 +892,6 @@ void EntryImpl::GetData(int index, char** buffer, Addr* address) {
                                     unreported_size_[index], 0);
     entry_.Data()->data_addr[index] = 0;
     entry_.Data()->data_size[index] = 0;
-  }
-}
-
-void EntryImpl::ReportIOTime(Operation op, const base::Time& start) {
-  int group = backend_->GetSizeGroup();
-  switch (op) {
-    case kRead:
-      CACHE_UMA(AGE_MS, "ReadTime", group, start);
-      break;
-    case kWrite:
-      CACHE_UMA(AGE_MS, "WriteTime", group, start);
-      break;
-    case kSparseRead:
-      CACHE_UMA(AGE_MS, "SparseReadTime", 0, start);
-      break;
-    case kSparseWrite:
-      CACHE_UMA(AGE_MS, "SparseWriteTime", 0, start);
-      break;
-    case kAsyncIO:
-      CACHE_UMA(AGE_MS, "AsyncIOTime", group, start);
-      break;
-    default:
-      NOTREACHED();
   }
 }
 
