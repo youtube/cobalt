@@ -270,6 +270,8 @@ class URLRequest {
   // may only be changed before Start() is called.
   const std::string& referrer() const { return referrer_; }
   void set_referrer(const std::string& referrer);
+  // Returns the referrer header with potential username and password removed.
+  GURL GetSanitizedReferrer() const;
 
   // The delegate of the request.  This value may be changed at any time,
   // and it is permissible for it to be null.
