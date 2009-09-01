@@ -20,6 +20,7 @@
 #endif
 #include "net/url_request/url_request_http_job.h"
 #include "net/url_request/url_request_view_cache_job.h"
+#include "net/url_request/url_request_view_net_internal_job.h"
 
 // The built-in set of protocol factories
 namespace {
@@ -42,6 +43,7 @@ static const SchemeToFactory kBuiltinFactories[] = {
 #endif
   { "about", URLRequestAboutJob::Factory },
   { "view-cache", URLRequestViewCacheJob::Factory },
+  { "view-net-internal", URLRequestViewNetInternalJob::Factory },
 };
 
 URLRequestJobManager::URLRequestJobManager() {
