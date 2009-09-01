@@ -263,9 +263,6 @@ class HttpCache::Transaction
   // layer (skipping the cache entirely).
   bool ShouldPassThrough();
 
-  // Returns true if we should force an end-to-end fetch.
-  bool ShouldBypassCache();
-
   // Called to begin reading from the cache.  Returns network error code.
   int BeginCacheRead();
 
@@ -333,11 +330,11 @@ class HttpCache::Transaction
   // Called to write response_ to the cache entry.
   void WriteResponseInfoToEntry();
 
-  // Called to truncate response content in the entry.
-  void TruncateResponseData();
-
   // Called to append response data to the cache entry.
   void AppendResponseDataToEntry(IOBuffer* data, int data_len);
+
+  // Called to truncate response content in the entry.
+  void TruncateResponseData();
 
   // Called when we are done writing to the cache entry.
   void DoneWritingToEntry(bool success);
@@ -1346,6 +1343,77 @@ void HttpCache::Transaction::DoomPartialEntry(bool delete_object) {
     partial_.reset(NULL);
 }
 
+int HttpCache::Transaction::DoNetworkReadCompleted(int result) {
+  DCHECK(mode_ & WRITE || mode_ == NONE);
+
+  if (revoked())
+    return HandleResult(ERR_UNEXPECTED);
+
+  AppendResponseDataToEntry(read_buf_, result);
+
+  if (partial_.get())
+    return DoPartialNetworkReadCompleted(result);
+
+  if (result == 0)  // End of file.
+    DoneWritingToEntry(true);
+
+  return HandleResult(result);
+}
+
+int HttpCache::Transaction::DoPartialNetworkReadCompleted(int result) {
+  partial_->OnNetworkReadCompleted(result);
+
+  if (result == 0) {  // End of file.
+    if (mode_ == READ_WRITE) {
+      // We need to move on to the next range.
+      network_trans_.reset();
+      result = ContinuePartialCacheValidation();
+      if (result != OK)
+        // Any error was already handled.
+        return result;
+    }
+    DoneWritingToEntry(true);
+  }
+  return HandleResult(result);
+}
+
+int HttpCache::Transaction::DoCacheReadCompleted(int result) {
+  DCHECK(cache_);
+  cache_read_callback_->Release();  // Balance the AddRef() from Start().
+
+  if (revoked())
+    return HandleResult(ERR_UNEXPECTED);
+
+  if (partial_.get())
+    return DoPartialCacheReadCompleted(result);
+
+  if (result > 0) {
+    read_offset_ += result;
+  } else if (result == 0) {  // End of file.
+    cache_->DoneReadingFromEntry(entry_, this);
+    entry_ = NULL;
+  }
+  return HandleResult(result);
+}
+
+int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
+  partial_->OnCacheReadCompleted(result);
+
+  if (result == 0) {  // End of file.
+    if (partial_.get() && mode_ == READ_WRITE) {
+      // We need to move on to the next range.
+      result = ContinuePartialCacheValidation();
+      if (result != OK)
+        // Any error was already handled.
+        return result;
+      cache_->ConvertWriterToReader(entry_);
+    }
+    cache_->DoneReadingFromEntry(entry_, this);
+    entry_ = NULL;
+  }
+  return HandleResult(result);
+}
+
 void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
   DCHECK(result != ERR_IO_PENDING);
 
@@ -1457,79 +1525,8 @@ void HttpCache::Transaction::OnNetworkReadCompleted(int result) {
   DoNetworkReadCompleted(result);
 }
 
-int HttpCache::Transaction::DoNetworkReadCompleted(int result) {
-  DCHECK(mode_ & WRITE || mode_ == NONE);
-
-  if (revoked())
-    return HandleResult(ERR_UNEXPECTED);
-
-  AppendResponseDataToEntry(read_buf_, result);
-
-  if (partial_.get())
-    return DoPartialNetworkReadCompleted(result);
-
-  if (result == 0)  // End of file.
-    DoneWritingToEntry(true);
-
-  return HandleResult(result);
-}
-
-int HttpCache::Transaction::DoPartialNetworkReadCompleted(int result) {
-  partial_->OnNetworkReadCompleted(result);
-
-  if (result == 0) {  // End of file.
-    if (mode_ == READ_WRITE) {
-      // We need to move on to the next range.
-      network_trans_.reset();
-      result = ContinuePartialCacheValidation();
-      if (result != OK)
-        // Any error was already handled.
-        return result;
-    }
-    DoneWritingToEntry(true);
-  }
-  return HandleResult(result);
-}
-
 void HttpCache::Transaction::OnCacheReadCompleted(int result) {
   DoCacheReadCompleted(result);
-}
-
-int HttpCache::Transaction::DoCacheReadCompleted(int result) {
-  DCHECK(cache_);
-  cache_read_callback_->Release();  // Balance the AddRef() from Start().
-
-  if (revoked())
-    return HandleResult(ERR_UNEXPECTED);
-
-  if (partial_.get())
-    return DoPartialCacheReadCompleted(result);
-
-  if (result > 0) {
-    read_offset_ += result;
-  } else if (result == 0) {  // End of file.
-    cache_->DoneReadingFromEntry(entry_, this);
-    entry_ = NULL;
-  }
-  return HandleResult(result);
-}
-
-int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
-  partial_->OnCacheReadCompleted(result);
-
-  if (result == 0) {  // End of file.
-    if (partial_.get() && mode_ == READ_WRITE) {
-      // We need to move on to the next range.
-      result = ContinuePartialCacheValidation();
-      if (result != OK)
-        // Any error was already handled.
-        return result;
-      cache_->ConvertWriterToReader(entry_);
-    }
-    cache_->DoneReadingFromEntry(entry_, this);
-    entry_ = NULL;
-  }
-  return HandleResult(result);
 }
 
 //-----------------------------------------------------------------------------
