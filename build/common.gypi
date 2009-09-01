@@ -69,6 +69,9 @@
     # {'variables': {'library': 'shared_library'}}
     # to compile as shared by default
     'library%': 'static_library',
+    
+    # The Google Update appid.
+    'google_update_appid%': '{8A69D345-D564-463c-AFF1-A69D9E530F96}',
 
     # TODO(bradnelson): eliminate this when possible.
     # To allow local gyp files to prevent release.vsprops from being included.
