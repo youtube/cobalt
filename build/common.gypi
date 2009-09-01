@@ -98,24 +98,10 @@
 
     'chromeos%': 0,
 
-    # Set the restrictions on the SUID sandbox binary.
-    #  Path: only exec the hard coded chrome binary path
-    #  User: only exec binaries owned by the running user.
-    #
-    # Developers should read
-    #  http://code.google.com/p/chromium/wiki/LinuxSUIDSandboxDevelopment
-    'linux_suid_sandbox_restrictions%': 'Path',
-
     # This is the location of the sandbox binary. Chrome looks for this before
     # running the zygote process. If found, and SUID, it will be used to
     # sandbox the zygote process and, thus, all renderer processes.
     'linux_sandbox_path%': '',
-
-    # If |linux_suid_sandbox_restrictions|, above, is 'Path' then only a single
-    # path is allowed to be exec'ed by the sandbox for security reasons. That
-    # path is set here. It should be the final location of the Chromium binary
-    # on the system.
-    'linux_sandbox_chrome_path%': '/opt/google/chrome/chrome',
 
     'conditions': [
       ['OS=="linux"', {
