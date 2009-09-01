@@ -70,8 +70,8 @@ class ConnectJob {
 
   // Accessors
   const std::string& group_name() const { return group_name_; }
-  LoadState load_state() const { return load_state_; }
   const ClientSocketHandle* key_handle() const { return key_handle_; }
+  LoadLog* load_log() { return load_log_; }
 
   // Releases |socket_| to the client.  On connection error, this should return
   // NULL.
@@ -85,10 +85,9 @@ class ConnectJob {
   // if it succeeded.
   int Connect();
 
-  LoadLog* load_log() { return load_log_; }
+  virtual LoadState GetLoadState() const = 0;
 
  protected:
-  void set_load_state(LoadState load_state) { load_state_ = load_state; }
   void set_socket(ClientSocket* socket) { socket_.reset(socket); }
   ClientSocket* socket() { return socket_.get(); }
   void NotifyDelegateOfCompletion(int rv);
@@ -106,7 +105,6 @@ class ConnectJob {
   // Timer to abort jobs that take too long.
   base::OneShotTimer<ConnectJob> timer_;
   Delegate* delegate_;
-  LoadState load_state_;
   scoped_ptr<ClientSocket> socket_;
   scoped_refptr<LoadLog> load_log_;
 

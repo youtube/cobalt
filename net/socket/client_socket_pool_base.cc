@@ -37,7 +37,6 @@ ConnectJob::ConnectJob(const std::string& group_name,
       key_handle_(key_handle),
       timeout_duration_(timeout_duration),
       delegate_(delegate),
-      load_state_(LOAD_STATE_IDLE),
       load_log_(load_log) {
   DCHECK(!group_name.empty());
   DCHECK(key_handle);
@@ -314,7 +313,7 @@ LoadState ClientSocketPoolBaseHelper::GetLoadState(
       NOTREACHED();
       return LOAD_STATE_IDLE;
     }
-    return job_it->second->load_state();
+    return job_it->second->GetLoadState();
   }
 
   // Search pending_requests for matching handle.
@@ -325,7 +324,7 @@ LoadState ClientSocketPoolBaseHelper::GetLoadState(
         LoadState max_state = LOAD_STATE_IDLE;
         for (ConnectJobSet::const_iterator job_it = group.jobs.begin();
              job_it != group.jobs.end(); ++job_it) {
-          max_state = std::max(max_state, (*job_it)->load_state());
+          max_state = std::max(max_state, (*job_it)->GetLoadState());
         }
         return max_state;
       } else {
