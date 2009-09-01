@@ -107,6 +107,16 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
     return init_proxy_resolver_log_;
   }
 
+  // Returns true if we have called UpdateConfig() at least once.
+  bool config_has_been_initialized() const {
+    return config_.id() != ProxyConfig::INVALID_ID;
+  }
+
+  // Returns the last configuration fetched from ProxyConfigService.
+  const ProxyConfig& config() {
+    return config_;
+  }
+
   // Creates a proxy service using the specified settings. If |pc| is NULL then
   // the system's default proxy settings will be used (on Windows this will
   // use IE's settings).
@@ -161,11 +171,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
 
   // Identifies the proxy configuration.
   ProxyConfig::ID config_id() const { return config_.id(); }
-
-  // Returns true if we have called UpdateConfig() at least once.
-  bool config_has_been_initialized() const {
-    return config_.id() != ProxyConfig::INVALID_ID;
-  }
 
   // Checks to see if the proxy configuration changed, and then updates config_
   // to reference the new configuration.
