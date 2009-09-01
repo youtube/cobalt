@@ -131,7 +131,7 @@ void ScaleYUVToRGB32(const uint8* y_buf,
     const uint8* u_ptr = u_buf + (scaled_y >> y_shift) * uv_pitch;
     const uint8* v_ptr = v_buf + (scaled_y >> y_shift) * uv_pitch;
 
-#if USE_MMX
+#if USE_MMX && defined(_MSC_VER)
     if (scaled_width == (width * 2)) {
       DoubleYUVToRGB32Row(y_ptr, u_ptr, v_ptr,
                           dest_pixel, scaled_width);
