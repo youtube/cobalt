@@ -292,11 +292,10 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   ws_usage->priv = private_kb;
   // Sharable is not calculated, as it does not provide interesting data.
   ws_usage->shareable = 0;
-  if (have_pss) {
-   ws_usage->shared = pss_kb - private_kb;
-  } else {
-    ws_usage->shared = shared_kb;
-  }
+
+  ws_usage->shared = 0;
+  if (have_pss)
+    ws_usage->shared = pss_kb;
   return true;
 }
 
