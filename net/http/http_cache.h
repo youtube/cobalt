@@ -195,7 +195,6 @@ class HttpCache : public HttpTransactionFactory {
   ScopedRunnableMethodFactory<HttpCache> task_factory_;
 
   bool in_memory_cache_;
-  bool deleted_;  // TODO(rvargas): remove this member. See bug 9952.
   bool enable_range_support_;
   int cache_size_;
 
