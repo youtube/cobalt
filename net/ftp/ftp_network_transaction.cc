@@ -159,7 +159,6 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
 
   DCHECK(!write_command_buf_);
   DCHECK(!write_buf_);
-  DLOG(INFO) << " >> " << command;
 
   command_sent_ = cmd;
 
