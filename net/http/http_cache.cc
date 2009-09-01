@@ -1546,7 +1546,6 @@ HttpCache::HttpCache(HostResolver* host_resolver,
           host_resolver, proxy_service, ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(false),
-      deleted_(false),
       enable_range_support_(false),
       cache_size_(cache_size) {
 }
@@ -1560,7 +1559,6 @@ HttpCache::HttpCache(HttpNetworkSession* session,
       network_layer_(HttpNetworkLayer::CreateFactory(session)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(false),
-      deleted_(false),
       enable_range_support_(false),
       cache_size_(cache_size) {
 }
@@ -1575,7 +1573,6 @@ HttpCache::HttpCache(HostResolver* host_resolver,
           host_resolver, proxy_service, ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(true),
-      deleted_(false),
       enable_range_support_(false),
       cache_size_(cache_size) {
 }
@@ -1588,7 +1585,6 @@ HttpCache::HttpCache(HttpTransactionFactory* network_layer,
       disk_cache_(disk_cache),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(false),
-      deleted_(false),
       enable_range_support_(false),
       cache_size_(0) {
 }
@@ -1610,9 +1606,6 @@ HttpCache::~HttpCache() {
   ActiveEntriesSet::iterator it = doomed_entries_.begin();
   for (; it != doomed_entries_.end(); ++it)
     delete *it;
-
-  // TODO(rvargas): remove this. I'm just tracking a few crashes.
-  deleted_ = true;
 }
 
 HttpTransaction* HttpCache::CreateTransaction() {
@@ -1875,57 +1868,29 @@ void HttpCache::DestroyEntry(ActiveEntry* entry) {
 HttpCache::ActiveEntry* HttpCache::ActivateEntry(
     const std::string& key,
     disk_cache::Entry* disk_entry) {
-  // TODO(rvargas): remove this code.
-  ActiveEntriesMap::iterator it = active_entries_.find(key);
-  CHECK(it == active_entries_.end());
-
   ActiveEntry* entry = new ActiveEntry(disk_entry);
   active_entries_[key] = entry;
   return entry;
 }
 
-#if defined(OS_WIN)
-#pragma optimize("", off)
-#pragma warning(disable:4748)
-#endif
-// Avoid optimizing local_entry out of the code.
 void HttpCache::DeactivateEntry(ActiveEntry* entry) {
+  DCHECK(!entry->will_process_pending_queue);
+  DCHECK(!entry->doomed);
+  DCHECK(!entry->writer);
+  DCHECK(entry->readers.empty());
+  DCHECK(entry->pending_queue.empty());
+
   std::string key = entry->disk_entry->GetKey();
   if (key.empty())
     return SlowDeactivateEntry(entry);
 
-  // TODO(rvargas): remove this code and go back to DCHECKS once we find out
-  // why are we crashing. I'm just trying to gather more info for bug 3931.
-  ActiveEntry local_entry = *entry;
-  size_t readers_size = local_entry.readers.size();
-  size_t pending_size = local_entry.pending_queue.size();
-
   ActiveEntriesMap::iterator it = active_entries_.find(key);
-  if (it == active_entries_.end() || it->second != entry ||
-      local_entry.will_process_pending_queue || local_entry.doomed ||
-      local_entry.writer || readers_size || pending_size || deleted_) {
-    bool local_mem_flag = in_memory_cache_;
-    ActiveEntriesSet::iterator it2 = doomed_entries_.find(entry);
-    char local_key[64];
-    int key_length = key.size();
-    base::strlcpy(local_key, key.c_str(), sizeof(local_key));
-    CHECK(it2 == doomed_entries_.end());
-    CHECK(!deleted_);
-    CHECK(local_mem_flag);
-    CHECK(key_length);
-    CHECK(false);
-  }
+  DCHECK(it != active_entries_.end());
+  DCHECK(it->second == entry);
 
   active_entries_.erase(it);
   delete entry;
-
-  // Avoid closing the disk_entry again on the destructor.
-  local_entry.disk_entry = NULL;
 }
-#if defined(OS_WIN)
-#pragma warning(default:4748)
-#pragma optimize("", on)
-#endif
 
 // We don't know this entry's key so we have to find it without it.
 void HttpCache::SlowDeactivateEntry(ActiveEntry* entry) {
@@ -1977,11 +1942,6 @@ int HttpCache::AddTransactionToEntry(ActiveEntry* entry, Transaction* trans) {
   return trans->EntryAvailable(entry);
 }
 
-#if defined(OS_WIN)
-#pragma optimize("", off)
-#pragma warning(disable:4748)
-#endif
-// Avoid optimizing local_transaction out of the code.
 void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans) {
   // If we already posted a task to move on to the next transaction and this was
   // the writer, there is nothing to cancel.
@@ -1989,15 +1949,7 @@ void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans) {
     return;
 
   if (entry->writer) {
-    // TODO(rvargas): convert this to a DCHECK.
-    CHECK(trans == entry->writer);
-    // Get a local copy of the transaction, in preparation for a crash inside
-    // DeactivateEntry.
-    char local_transaction[sizeof(*trans)];
-    memcpy(local_transaction, trans, sizeof(*trans));
-
-    char local_key[64];
-    base::strlcpy(local_key, trans->key().c_str(), sizeof(local_key));
+    DCHECK(trans == entry->writer);
 
     // Assume that this is not a successful write.
     DoneWritingToEntry(entry, false);
@@ -2005,10 +1957,6 @@ void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans) {
     DoneReadingFromEntry(entry, trans);
   }
 }
-#if defined(OS_WIN)
-#pragma warning(default:4748)
-#pragma optimize("", on)
-#endif
 
 void HttpCache::DoneWritingToEntry(ActiveEntry* entry, bool success) {
   DCHECK(entry->readers.empty());
@@ -2018,8 +1966,7 @@ void HttpCache::DoneWritingToEntry(ActiveEntry* entry, bool success) {
   if (success) {
     ProcessPendingQueue(entry);
   } else {
-    // TODO(rvargas): convert this to a DCHECK.
-    CHECK(!entry->will_process_pending_queue);
+    DCHECK(!entry->will_process_pending_queue);
 
     // We failed to create this entry.
     TransactionList pending_queue;
@@ -2092,9 +2039,7 @@ void HttpCache::ProcessPendingQueue(ActiveEntry* entry) {
 
 void HttpCache::OnProcessPendingQueue(ActiveEntry* entry) {
   entry->will_process_pending_queue = false;
-
-  // TODO(rvargas): Convert this to a DCHECK.
-  CHECK(!entry->writer);
+  DCHECK(!entry->writer);
 
   // If no one is interested in this entry, then we can de-activate it.
   if (entry->pending_queue.empty()) {
@@ -2106,7 +2051,7 @@ void HttpCache::OnProcessPendingQueue(ActiveEntry* entry) {
   // Promote next transaction from the pending queue.
   Transaction* next = entry->pending_queue.front();
   if ((next->mode() & Transaction::WRITE) && !entry->readers.empty())
-    return;  // have to wait
+    return;  // Have to wait.
 
   entry->pending_queue.erase(entry->pending_queue.begin());
 
