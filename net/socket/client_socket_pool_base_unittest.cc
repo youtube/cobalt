@@ -118,11 +118,14 @@ class TestConnectJob : public ConnectJob {
                    delegate, load_log),
         job_type_(job_type),
         client_socket_factory_(client_socket_factory),
-        method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)) {}
+        method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
+        load_state_(LOAD_STATE_IDLE) {}
 
   void Signal() {
     DoConnect(waiting_success_, true /* async */);
   }
+
+  virtual LoadState GetLoadState() const { return load_state_; }
 
  private:
   // ConnectJob methods:
@@ -162,7 +165,7 @@ class TestConnectJob : public ConnectJob {
         MessageLoop::current()->PostTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
-                &TestConnectJob::AdvanceLoadState, load_state()));
+                &TestConnectJob::AdvanceLoadState, load_state_));
         return ERR_IO_PENDING;
       default:
         NOTREACHED();
@@ -170,6 +173,8 @@ class TestConnectJob : public ConnectJob {
         return ERR_FAILED;
     }
   }
+
+  void set_load_state(LoadState load_state) { load_state_ = load_state; }
 
   int DoConnect(bool succeed, bool was_async) {
     int result = ERR_CONNECTION_FAILED;
@@ -202,6 +207,7 @@ class TestConnectJob : public ConnectJob {
   const JobType job_type_;
   MockClientSocketFactory* const client_socket_factory_;
   ScopedRunnableMethodFactory<TestConnectJob> method_factory_;
+  LoadState load_state_;
 
   DISALLOW_COPY_AND_ASSIGN(TestConnectJob);
 };
