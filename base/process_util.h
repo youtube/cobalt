@@ -286,12 +286,20 @@ class NamedProcessIterator {
 };
 
 // Working Set (resident) memory usage broken down by
+//
+// On Windows:
 // priv (private): These pages (kbytes) cannot be shared with any other process.
 // shareable:      These pages (kbytes) can be shared with other processes under
 //                 the right circumstances.
 // shared :        These pages (kbytes) are currently shared with at least one
 //                 other process.
+//
+// On Linux:
+// priv:           Pages mapped only by this process
+// shared:         PSS or 0 if the kernel doesn't support this
+// shareable:      0
 struct WorkingSetKBytes {
+  WorkingSetKBytes() : priv(0), shareable(0), shared(0) {}
   size_t priv;
   size_t shareable;
   size_t shared;
@@ -304,6 +312,7 @@ struct WorkingSetKBytes {
 // image:   These pages are mapped into the view of an image section (backed by
 //          file system)
 struct CommittedKBytes {
+  CommittedKBytes() : priv(0), mapped(0), image(0) {}
   size_t priv;
   size_t mapped;
   size_t image;
