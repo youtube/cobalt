@@ -357,6 +357,8 @@
         'url_request/url_request_test_job.h',
         'url_request/url_request_view_cache_job.cc',
         'url_request/url_request_view_cache_job.h',
+        'url_request/url_request_view_net_internal_job.cc',
+        'url_request/url_request_view_net_internal_job.h',
       ],
       'sources!': [
         'build/precompiled_net.h',
