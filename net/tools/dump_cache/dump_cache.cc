@@ -29,7 +29,7 @@ int GetMajorVersion(const std::wstring& input_path);
 int DumpContents(const std::wstring& input_path);
 int DumpHeaders(const std::wstring& input_path);
 int RunSlave(const std::wstring& input_path, const std::wstring& pipe_number);
-int Upgrade(const std::wstring& output_path, HANDLE pipe);
+int CopyCache(const std::wstring& output_path, HANDLE pipe, bool copy_to_text);
 HANDLE CreateServer(std::wstring* pipe_number);
 
 const char kUpgradeHelp[] =
@@ -50,6 +50,9 @@ const wchar_t kDumpHeaders[] = L"dump-headers";
 // Dumps all entries to stdout.
 const wchar_t kDumpContents[] = L"dump-contents";
 
+// Convert the cache to files.
+const wchar_t kDumpToFiles[] = L"dump-to-files";
+
 // Upgrade an old version to the current one.
 const wchar_t kUpgrade[] = L"upgrade";
 
@@ -63,6 +66,7 @@ int Help() {
   printf("--dump-headers: display file headers\n");
   printf("--dump-contents: display all entries\n");
   printf("--upgrade: copy contents to the output path\n");
+  printf("--dump-to-files: write the contents of the cache to files\n");
   return INVALID_ARGUMENT;
 }
 
@@ -75,14 +79,21 @@ int LaunchSlave(const CommandLine& command_line,
   size_t to_remove = hacked_command_line.find(old_exe);
   hacked_command_line.erase(to_remove, old_exe.size());
 
-  std::wstring new_program = StringPrintf(L"%ls%d.exe", L"dump_cache_",
-                                          version);
+  bool do_upgrade = command_line.HasSwitch(kUpgrade);
+  bool do_convert_to_text = command_line.HasSwitch(kDumpToFiles);
+
+  std::wstring new_program;
+  if (do_upgrade)
+    new_program = StringPrintf(L"%ls%d.exe", L"dump_cache_", version);
+  else
+    new_program = StringPrintf(L"dump_cache.exe");
+
   hacked_command_line.insert(to_remove, new_program);
 
   CommandLine new_command_line(L"");
   new_command_line.ParseFromString(hacked_command_line);
 
-  if (command_line.HasSwitch(kUpgrade))
+  if (do_upgrade || do_convert_to_text)
     new_command_line.AppendSwitch(kSlave);
 
   new_command_line.AppendSwitchWithValue(kPipe, pipe_number);
@@ -110,13 +121,17 @@ int main(int argc, const char* argv[]) {
 
   bool upgrade = false;
   bool slave_required = false;
-  std::wstring output_path;
-  if (command_line.HasSwitch(kUpgrade)) {
-    output_path = command_line.GetSwitchValue(kOutputPath);
+  bool copy_to_text = false;
+  std::wstring output_path = command_line.GetSwitchValue(kOutputPath);
+  if (command_line.HasSwitch(kUpgrade))
+    upgrade = true;
+  if (command_line.HasSwitch(kDumpToFiles))
+    copy_to_text = true;
+
+  if (upgrade || copy_to_text) {
     if (output_path.empty())
       return Help();
     slave_required = true;
-    upgrade = true;
   }
 
   int version = GetMajorVersion(input_path);
@@ -148,8 +163,8 @@ int main(int argc, const char* argv[]) {
       return ret;
   }
 
-  if (upgrade)
-    return Upgrade(output_path, server);
+  if (upgrade || copy_to_text)
+    return CopyCache(output_path, server, copy_to_text);
 
   if (slave_required) {
     // Wait until the slave starts dumping data before we quit. Lazy "fix" for a

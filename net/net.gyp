@@ -732,9 +732,12 @@
             '../base/base.gyp:base',
           ],
           'sources': [
+            'tools/dump_cache/cache_dumper.cc',
+            'tools/dump_cache/cache_dumper.h',
             'tools/dump_cache/dump_cache.cc',
             'tools/dump_cache/dump_files.cc',
             'tools/dump_cache/upgrade.cc',
+            'tools/dump_cache/url_to_filename_encoder.h',
           ],
         },
       ],
