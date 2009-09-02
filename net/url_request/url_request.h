@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/leak_tracker.h"
+#include "base/linked_list.h"
 #include "base/linked_ptr.h"
 #include "base/logging.h"
 #include "base/ref_counted.h"
@@ -201,6 +202,8 @@ class URLRequest {
     // and bytes read will be -1.
     virtual void OnReadCompleted(URLRequest* request, int bytes_read) = 0;
   };
+
+  class InstanceTracker;
 
   // Initialize an URL request.
   URLRequest(const GURL& url, Delegate* delegate);
@@ -524,6 +527,19 @@ class URLRequest {
  private:
   friend class URLRequestJob;
 
+  // Helper class to make URLRequest insertable into a base::LinkedList,
+  // without making the public interface expose base::LinkNode.
+  class InstanceTrackerNode : public base::LinkNode<InstanceTrackerNode> {
+   public:
+    InstanceTrackerNode(URLRequest* url_request);
+    ~InstanceTrackerNode();
+
+    URLRequest* url_request() const { return url_request_; }
+
+   private:
+    URLRequest* url_request_;
+  };
+
   void StartJob(URLRequestJob* job);
 
   // Restarting involves replacing the current job with a new one such as what
@@ -597,34 +613,64 @@ class URLRequest {
   // this to determine which URLRequest to allocate sockets to first.
   int priority_;
 
+  InstanceTrackerNode instance_tracker_node_;
   base::LeakTracker<URLRequest> leak_tracker_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
 };
 
-//-----------------------------------------------------------------------------
-// To help ensure that all requests are cleaned up properly, we keep static
-// counters of live objects.  TODO(darin): Move this leak checking stuff into
-// a common place and generalize it so it can be used everywhere (Bug 566229).
+// ----------------------------------------------------------------------
+// Singleton to track all of the live instances of URLRequest, and
+// keep a circular queue of the LoadLogs for recently deceased requests.
+//
+class URLRequest::InstanceTracker {
+ public:
+  struct RecentRequestInfo {
+    GURL original_url;
+    scoped_refptr<net::LoadLog> load_log;
+  };
 
-#ifndef NDEBUG
+  typedef std::vector<RecentRequestInfo> RecentRequestInfoList;
 
-struct URLRequestMetrics {
-  int object_count;
-  URLRequestMetrics() : object_count(0) {}
-  ~URLRequestMetrics();
+  // The maximum number of entries for |graveyard_|.
+  static const size_t kMaxGraveyardSize;
+
+  // The maximum size of URLs to stuff into RecentRequestInfo.
+  static const size_t kMaxGraveyardURLSize;
+
+  ~InstanceTracker();
+
+  // Returns the singleton instance of InstanceTracker.
+  static InstanceTracker* Get();
+
+  // Returns a list of URLRequests that are alive.
+  std::vector<URLRequest*> GetLiveRequests();
+
+  // Clears the circular buffer of RecentRequestInfos.
+  void ClearRecentlyDeceased();
+
+  // Returns a list of recently completed URLRequests.
+  const RecentRequestInfoList GetRecentlyDeceased();
+
+ private:
+  friend class URLRequest;
+  friend struct DefaultSingletonTraits<InstanceTracker>;
+
+  InstanceTracker();
+
+  void Add(InstanceTrackerNode* node);
+  void Remove(InstanceTrackerNode* node);
+
+  // Copy the goodies out of |url_request| that we want to show the
+  // user later on the about:net-internal page.
+  static const RecentRequestInfo ExtractInfo(URLRequest* url_request);
+
+  void InsertIntoGraveyard(const RecentRequestInfo& info);
+
+  base::LinkedList<InstanceTrackerNode> live_instances_;
+
+  size_t next_graveyard_index_;
+  RecentRequestInfoList graveyard_;
 };
-
-extern URLRequestMetrics url_request_metrics;
-
-#define URLREQUEST_COUNT_CTOR() url_request_metrics.object_count++
-#define URLREQUEST_COUNT_DTOR() url_request_metrics.object_count--
-
-#else  // disable leak checking in release builds...
-
-#define URLREQUEST_COUNT_CTOR()
-#define URLREQUEST_COUNT_DTOR()
-
-#endif  // #ifndef NDEBUG
 
 #endif  // NET_URL_REQUEST_URL_REQUEST_H_
