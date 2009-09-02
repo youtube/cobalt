@@ -231,10 +231,6 @@ bool PathService::Override(int key, const FilePath& path) {
   return true;
 }
 
-bool PathService::Override(int key, const std::wstring& path) {
-  return Override(key, FilePath::FromWStringHack(path));
-}
-
 bool PathService::SetCurrentDirectory(const std::wstring& current_directory) {
   return file_util::SetCurrentDirectory(current_directory);
 }
