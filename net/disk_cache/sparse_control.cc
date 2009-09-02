@@ -506,6 +506,13 @@ void SparseControl::UpdateRange(int result) {
   int last_bit = (child_offset_ + result) >> 10;
   block_offset = (child_offset_ + result) & (kBlockSize - 1);
 
+  // This condition will hit with the following criteria:
+  // 1. The first byte doesn't follow the last write.
+  // 2. The first byte is in the middle of a block.
+  // 3. The first byte and the last byte are in the same block.
+  if (first_bit > last_bit)
+    return;
+
   if (block_offset && !child_map_.Get(last_bit)) {
     // The last block is not completely filled; save it for later.
     child_data_.header.last_block = last_bit;
