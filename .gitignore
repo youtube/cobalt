@@ -13,6 +13,7 @@
 /chrome/Release
 /chrome/app/theme/google_chrome/
 /chrome/installer/linux/
+/chrome/personalization/
 /chrome/test/data/firefox2_profile/searchplugins/
 /chrome/test/data/firefox2_searchplugins/
 /chrome/test/data/firefox3_profile/searchplugins/
@@ -36,6 +37,7 @@
 /third_party/googlemac/
 /third_party/hunspell/
 /third_party/icu38/
+/third_party/personalization/
 /third_party/pdfsqueeze/
 /third_party/protobuf2/
 /third_party/skia/
@@ -46,6 +48,7 @@
 /tools/gyp/
 /tools/page_cycler/acid3/
 /tools/tryserver/
+/valgrind.tmp/
 /v8/
 /webkit/Debug/
 /webkit/Release/
