@@ -414,6 +414,10 @@ void HostResolverImpl::RemoveObserver(Observer* observer) {
   observers_.erase(it);
 }
 
+HostCache* HostResolverImpl::GetHostCache() {
+  return &cache_;
+}
+
 void HostResolverImpl::Shutdown() {
   shutdown_ = true;
 

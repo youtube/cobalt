@@ -16,6 +16,7 @@ class MessageLoop;
 namespace net {
 
 class AddressList;
+class HostCache;
 class LoadLog;
 
 // This class represents the task of resolving hostnames (or IP address
@@ -129,6 +130,10 @@ class HostResolver : public base::RefCounted<HostResolver> {
 
   // Unregisters an observer previously added by AddObserver().
   virtual void RemoveObserver(Observer* observer) = 0;
+
+  // Returns the host cache, or NULL if this implementation does not use
+  // a HostCache.
+  virtual HostCache* GetHostCache() = 0;
 
   // TODO(eroman): temp hack for http://crbug.com/18373
   virtual void Shutdown() = 0;
