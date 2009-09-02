@@ -281,7 +281,13 @@ class MessageLoop : public base::MessagePump::Delegate {
     bool operator<(const PendingTask& other) const;
   };
 
-  typedef std::queue<PendingTask> TaskQueue;
+  class TaskQueue : public std::queue<PendingTask> {
+   public:
+    void Swap(TaskQueue* queue) {
+      c.swap(queue->c);  // Calls std::deque::swap
+    }
+  };
+
   typedef std::priority_queue<PendingTask> DelayedTaskQueue;
 
 #if defined(OS_WIN)
