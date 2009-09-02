@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_PATH_SERVICE_H__
-#define BASE_PATH_SERVICE_H__
+#ifndef BASE_PATH_SERVICE_H_
+#define BASE_PATH_SERVICE_H_
 
 #include "build/build_config.h"
 #ifdef OS_WIN
@@ -49,9 +49,6 @@ class PathService {
   // WARNING: Consumers of PathService::Get may expect paths to be constant
   // over the lifetime of the app, so this method should be used with caution.
   static bool Override(int key, const FilePath& path);
-  // This version, using a wstring, is deprecated and only kept around
-  // until we can fix all callers.
-  static bool Override(int key, const std::wstring& path);
 
   // Return whether a path was overridden.
   static bool IsOverridden(int key);
@@ -77,7 +74,6 @@ class PathService {
  private:
   static bool GetFromCache(int key, FilePath* path);
   static void AddToCache(int key, const FilePath& path);
-
 };
 
-#endif // BASE_PATH_SERVICE_H__
+#endif  // BASE_PATH_SERVICE_H_
