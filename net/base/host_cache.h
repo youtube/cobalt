@@ -31,6 +31,8 @@ class HostCache {
     base::TimeTicks expiration;
   };
 
+  typedef base::hash_map<std::string, scoped_refptr<Entry> > EntryMap;
+
   // Constructs a HostCache whose entries are valid for |cache_duration_ms|
   // milliseconds. The cache will store up to |max_entries|.
   HostCache(size_t max_entries, size_t cache_duration_ms);
@@ -60,11 +62,22 @@ class HostCache {
     return entries_.size();
   }
 
+  size_t max_entries() const {
+    return max_entries_;
+  }
+
+  size_t cache_duration_ms() const {
+    return cache_duration_ms_;
+  }
+
+  // Note that this map may contain expired entries.
+  const EntryMap& entries() const {
+    return entries_;
+  }
+
  private:
   FRIEND_TEST(HostCacheTest, Compact);
   FRIEND_TEST(HostCacheTest, NoCache);
-
-  typedef base::hash_map<std::string, scoped_refptr<Entry> > EntryMap;
 
   // Returns true if this cache entry's result is valid at time |now|.
   static bool CanUseEntry(const Entry* entry, const base::TimeTicks now);

@@ -66,6 +66,10 @@ void MockHostResolverBase::RemoveObserver(Observer* observer) {
   impl_->RemoveObserver(observer);
 }
 
+HostCache* MockHostResolverBase::GetHostCache() {
+  return impl_->GetHostCache();
+}
+
 void MockHostResolverBase::Shutdown() {
   impl_->Shutdown();
 }
