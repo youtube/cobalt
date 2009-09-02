@@ -1256,6 +1256,21 @@ void DiskCacheEntryTest::PartialSparseEntry() {
   EXPECT_EQ(3616, entry->GetAvailableRange(20 * 1024, 10000, &start));
   EXPECT_EQ(20 * 1024, start);
 
+  // 1. Query before a filled 1KB block.
+  // 2. Query within a filled 1KB block.
+  // 3. Query beyond a filled 1KB block.
+  if (memory_only_) {
+    EXPECT_EQ(3496, entry->GetAvailableRange(19400, kSize, &start));
+    EXPECT_EQ(20000, start);
+  } else {
+    EXPECT_EQ(3016, entry->GetAvailableRange(19400, kSize, &start));
+    EXPECT_EQ(20480, start);
+  }
+  EXPECT_EQ(1523, entry->GetAvailableRange(3073, kSize, &start));
+  EXPECT_EQ(3073, start);
+  EXPECT_EQ(0, entry->GetAvailableRange(4600, kSize, &start));
+  EXPECT_EQ(4600, start);
+
   // Now make another write and verify that there is no hole in between.
   EXPECT_EQ(kSize, entry->WriteSparseData(500 + kSize, buf1, kSize, NULL));
   EXPECT_EQ(7 * 1024 + 500, entry->GetAvailableRange(1024, 10000, &start));
