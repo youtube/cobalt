@@ -510,7 +510,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionAcceptedDataConnection) {
 
   // Make sure the transaction finishes cleanly.
   EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
-  EXPECT_EQ(0, callback_.WaitForResult());
+  EXPECT_EQ(OK, callback_.WaitForResult());
   EXPECT_EQ(FtpMockControlSocket::QUIT, ctrl_socket.state());
   EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
 }
