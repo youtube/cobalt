@@ -117,6 +117,10 @@ scoped_refptr<net::UploadData> CreateSimpleUploadData(const char* data) {
 
 // Inherit PlatformTest since we require the autorelease pool on Mac OS X.f
 class URLRequestTest : public PlatformTest {
+ public:
+  ~URLRequestTest() {
+    EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
+  }
 };
 
 class URLRequestTestHTTP : public URLRequestTest {
@@ -199,9 +203,6 @@ TEST_F(URLRequestTestHTTP, GetTest_NoCache) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTestHTTP, GetTest) {
@@ -219,9 +220,86 @@ TEST_F(URLRequestTestHTTP, GetTest) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
+}
+
+// Test the instance tracking functionality of URLRequest.
+TEST_F(URLRequestTest, Tracking) {
+  URLRequest::InstanceTracker::Get()->ClearRecentlyDeceased();
+  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
+  EXPECT_EQ(0u,
+            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
+
+  {
+    URLRequest req1(GURL("http://req1"), NULL);
+    URLRequest req2(GURL("http://req2"), NULL);
+    URLRequest req3(GURL("http://req3"), NULL);
+
+    std::vector<URLRequest*> live_reqs =
+        URLRequest::InstanceTracker::Get()->GetLiveRequests();
+    ASSERT_EQ(3u, live_reqs.size());
+    EXPECT_EQ(GURL("http://req1"), live_reqs[0]->original_url());
+    EXPECT_EQ(GURL("http://req2"), live_reqs[1]->original_url());
+    EXPECT_EQ(GURL("http://req3"), live_reqs[2]->original_url());
+  }
+
+  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
+
+  URLRequest::InstanceTracker::RecentRequestInfoList recent_reqs =
+      URLRequest::InstanceTracker::Get()->GetRecentlyDeceased();
+
+  // Note that the order is reversed from definition order, because
+  // this matches the destructor order.
+  ASSERT_EQ(3u, recent_reqs.size());
+  EXPECT_EQ(GURL("http://req3"), recent_reqs[0].original_url);
+  EXPECT_EQ(GURL("http://req2"), recent_reqs[1].original_url);
+  EXPECT_EQ(GURL("http://req1"), recent_reqs[2].original_url);
+}
+
+// Test the instance tracking functionality of URLRequest.
+TEST_F(URLRequestTest, TrackingGraveyardBounded) {
+  URLRequest::InstanceTracker::Get()->ClearRecentlyDeceased();
+  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
+  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
+
+  const size_t kMaxGraveyardSize =
+      URLRequest::InstanceTracker::kMaxGraveyardSize;
+  const size_t kMaxURLLen = URLRequest::InstanceTracker::kMaxGraveyardURLSize;
+
+  // Add twice as many requests as will fit in the graveyard.
+  for (size_t i = 0; i < kMaxGraveyardSize * 2; ++i)
+    URLRequest req(GURL(StringPrintf("http://req%d", i).c_str()), NULL);
+
+  // Check that only the last |kMaxGraveyardSize| requests are in-memory.
+
+  URLRequest::InstanceTracker::RecentRequestInfoList recent_reqs =
+      URLRequest::InstanceTracker::Get()->GetRecentlyDeceased();
+
+  ASSERT_EQ(kMaxGraveyardSize, recent_reqs.size());
+
+  for (size_t i = 0; i < kMaxGraveyardSize; ++i) {
+    size_t req_number = i + kMaxGraveyardSize;
+    GURL url(StringPrintf("http://req%d", req_number).c_str());
+    EXPECT_EQ(url, recent_reqs[i].original_url);
+  }
+
+  URLRequest::InstanceTracker::Get()->ClearRecentlyDeceased();
+  EXPECT_EQ(0u,
+            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
+
+  // Check that very long URLs are truncated.
+  std::string big_url_spec("http://");
+  big_url_spec.resize(2 * kMaxURLLen, 'x');
+  GURL big_url(big_url_spec);
+  {
+    URLRequest req(big_url, NULL);
+  }
+  ASSERT_EQ(1u,
+            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
+  // The +1 is because GURL canonicalizes with a trailing '/' ... maybe
+  // we should just save the std::string rather than the GURL.
+  EXPECT_EQ(kMaxURLLen + 1,
+            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased()[0]
+                .original_url.spec().size());
 }
 
 TEST_F(URLRequestTestHTTP, SetExplicitlyAllowedPortsTest) {
@@ -248,10 +326,6 @@ TEST_F(URLRequestTest, QuitTest) {
   ASSERT_TRUE(NULL != server.get());
   server->SendQuit();
   EXPECT_TRUE(server->WaitToFinish(20000));
-
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 class HTTPSRequestTest : public testing::Test {
@@ -314,9 +388,6 @@ TEST_F(HTTPSRequestTest, MAYBE_HTTPSGetTest) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(HTTPSRequestTest, MAYBE_HTTPSMismatchedTest) {
@@ -395,9 +466,6 @@ TEST_F(URLRequestTestHTTP, CancelTest) {
     EXPECT_EQ(0, d.bytes_received());
     EXPECT_FALSE(d.received_data_before_response());
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTestHTTP, CancelTest2) {
@@ -422,9 +490,6 @@ TEST_F(URLRequestTestHTTP, CancelTest2) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(URLRequestStatus::CANCELED, r.status().status());
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTestHTTP, CancelTest3) {
@@ -448,9 +513,6 @@ TEST_F(URLRequestTestHTTP, CancelTest3) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(URLRequestStatus::CANCELED, r.status().status());
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTestHTTP, CancelTest4) {
@@ -505,10 +567,6 @@ TEST_F(URLRequestTestHTTP, CancelTest5) {
     EXPECT_EQ(0, d.bytes_received());
     EXPECT_FALSE(d.received_data_before_response());
   }
-
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTestHTTP, PostTest) {
@@ -554,9 +612,6 @@ TEST_F(URLRequestTestHTTP, PostTest) {
     EXPECT_EQ(d.data_received().compare(uploadBytes), 0);
   }
   delete[] uploadBytes;
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTestHTTP, PostEmptyTest) {
@@ -577,9 +632,6 @@ TEST_F(URLRequestTestHTTP, PostEmptyTest) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_TRUE(d.data_received().empty());
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTestHTTP, PostFileTest) {
@@ -627,9 +679,6 @@ TEST_F(URLRequestTestHTTP, PostFileTest) {
     ASSERT_EQ(size, d.bytes_received());
     EXPECT_EQ(0, memcmp(d.data_received().c_str(), buf.get(), size));
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTest, AboutBlankTest) {
@@ -646,9 +695,6 @@ TEST_F(URLRequestTest, AboutBlankTest) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), 0);
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTest, FileTest) {
@@ -673,9 +719,6 @@ TEST_F(URLRequestTest, FileTest) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_EQ(d.bytes_received(), static_cast<int>(file_size));
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTest, FileTestFullSpecifiedRange) {
@@ -717,9 +760,6 @@ TEST_F(URLRequestTest, FileTestFullSpecifiedRange) {
   }
 
   EXPECT_TRUE(file_util::Delete(temp_path, false));
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTest, FileTestHalfSpecifiedRange) {
@@ -760,9 +800,6 @@ TEST_F(URLRequestTest, FileTestHalfSpecifiedRange) {
   }
 
   EXPECT_TRUE(file_util::Delete(temp_path, false));
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTest, FileTestMultipleRanges) {
@@ -791,9 +828,6 @@ TEST_F(URLRequestTest, FileTestMultipleRanges) {
   }
 
   EXPECT_TRUE(file_util::Delete(temp_path, false));
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTest, InvalidUrlTest) {
@@ -807,9 +841,6 @@ TEST_F(URLRequestTest, InvalidUrlTest) {
     MessageLoop::current()->Run();
     EXPECT_TRUE(d.request_failed());
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 // This test is disabled because it fails on some computers due to proxies
@@ -825,9 +856,6 @@ TEST_F(URLRequestTest, DISABLED_DnsFailureTest) {
     MessageLoop::current()->Run();
     EXPECT_TRUE(d.request_failed());
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 
 TEST_F(URLRequestTestHTTP, ResponseHeadersTest) {
@@ -927,11 +955,11 @@ TEST_F(URLRequestTest, ResolveShortcutTest) {
   CoInitialize(NULL);
   // Temporarily create a shortcut for test
   result = CoCreateInstance(CLSID_ShellLink, NULL,
-                          CLSCTX_INPROC_SERVER, IID_IShellLink,
-                          reinterpret_cast<LPVOID*>(&shell));
+                            CLSCTX_INPROC_SERVER, IID_IShellLink,
+                            reinterpret_cast<LPVOID*>(&shell));
   ASSERT_TRUE(SUCCEEDED(result));
   result = shell->QueryInterface(IID_IPersistFile,
-                             reinterpret_cast<LPVOID*>(&persist));
+                                reinterpret_cast<LPVOID*>(&persist));
   ASSERT_TRUE(SUCCEEDED(result));
   result = shell->SetPath(app_path.value().c_str());
   EXPECT_TRUE(SUCCEEDED(result));
@@ -976,10 +1004,6 @@ TEST_F(URLRequestTest, ResolveShortcutTest) {
   // Clean the shortcut
   DeleteFile(lnk_path.c_str());
   CoUninitialize();
-
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 }
 #endif  // defined(OS_WIN)
 
@@ -1021,9 +1045,6 @@ TEST_F(URLRequestTest, FileDirCancelTest) {
 
     MessageLoop::current()->Run();
   }
-#ifndef NDEBUG
-  DCHECK_EQ(url_request_metrics.object_count, 0);
-#endif
 
   // Take out mock resource provider.
   net::NetModule::SetResourceProvider(NULL);
