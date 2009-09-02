@@ -1216,12 +1216,17 @@ void DiskCacheEntryTest::PartialSparseEntry() {
   // We should be able to deal with IO that is not aligned to the block size
   // of a sparse entry, at least to write a big range without leaving holes.
   const int kSize = 4 * 1024;
+  const int kSmallSize = 128;
   scoped_refptr<net::IOBuffer> buf1 = new net::IOBuffer(kSize);
   CacheTestFillBuffer(buf1->data(), kSize, false);
 
-  // The first write is just to extend the entry.
+  // The first write is just to extend the entry. The third write occupies
+  // a 1KB block partially, it may not be written internally depending on the
+  // implementation.
   EXPECT_EQ(kSize, entry->WriteSparseData(20000, buf1, kSize, NULL));
   EXPECT_EQ(kSize, entry->WriteSparseData(500, buf1, kSize, NULL));
+  EXPECT_EQ(kSmallSize,
+            entry->WriteSparseData(1080321, buf1, kSmallSize, NULL));
   entry->Close();
   ASSERT_TRUE(cache_->OpenEntry(key, &entry));
 
