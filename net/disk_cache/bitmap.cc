@@ -107,6 +107,7 @@ void Bitmap::SetMap(const uint32* map, int size) {
 
 void Bitmap::SetWordBits(int start, int len, bool value) {
   DCHECK_LT(len, kIntBits);
+  DCHECK_GE(len, 0);
   if (!len)
     return;
 
@@ -123,6 +124,7 @@ void Bitmap::SetWordBits(int start, int len, bool value) {
 }
 
 void Bitmap::SetRange(int begin, int end, bool value) {
+  DCHECK_LE(begin, end);
   int start_offset = begin & (kIntBits - 1);
   if (start_offset) {
     // Set the bits in the first word.
