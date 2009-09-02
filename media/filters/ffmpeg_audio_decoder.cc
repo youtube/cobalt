@@ -101,7 +101,12 @@ void FFmpegAudioDecoder::OnDecode(Buffer* input) {
   if (result < 0 ||
       output_buffer_size < 0 ||
       static_cast<size_t>(output_buffer_size) > kOutputBufferSize) {
-    host()->SetError(PIPELINE_ERROR_DECODE);
+    LOG(INFO) << "Error decoding an audio frame with timestamp: "
+              << input->GetTimestamp().InMicroseconds() << " us"
+              << " , duration: "
+              << input->GetDuration().InMicroseconds() << " us"
+              << " , packet size: "
+              << input->GetDataSize() << " bytes";
     return;
   }
 
