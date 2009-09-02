@@ -1,4 +1,4 @@
-{"linux-release-hardy/morejs": {"t": {"delta": -20, "var": 100}},
- "linux-release-hardy/startup": {"t": {"delta": -20, "var": 30}},
+{"linux-release-hardy/morejs": {"t": {"delta": -20, "var": 65}},
+ "linux-release-hardy/startup": {"t": {"delta": -20, "var": 12}},
  "loaded": true
 }
