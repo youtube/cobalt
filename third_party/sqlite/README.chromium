@@ -68,7 +68,7 @@ Scott Hess <shess@google.com>, December 11, 2007
 
 --------------------------------------------
 
-As of July 20, 2009, these are our changes from sqlite_vendor:
+As of Sep 2, 2009, these are our changes from sqlite_vendor:
 
  - fts2.c disables fts2_tokenizer().
  - sqlite3Poison() in src/btree.c.
@@ -82,6 +82,10 @@ As of July 20, 2009, these are our changes from sqlite_vendor:
  - Compile warning fixed in func.c (check if this is still needed)
  - Fixed a typo bug in fts2_icu.c: "strlen(nInput)" (filed upstream as
    http://www.sqlite.org/cvstrac/tktview?tn=3543)
+ - Avoid using tolower() in fts code which causes problem in some locales, see:
+   safe-tolower.patch
+   http://crbug.com/15261
+   http://www.sqlite.org/src/tktview/991789d9f3136a0460dc83a33e815c1aa9757c26
 
 Changes from Chrome:
  - I marked all changes I made with "evanm", so you can find them with
