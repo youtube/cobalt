@@ -354,7 +354,7 @@ void MessageLoop::ReloadWorkQueue() {
     AutoLock lock(incoming_queue_lock_);
     if (incoming_queue_.empty())
       return;
-    std::swap(incoming_queue_, work_queue_);
+    incoming_queue_.Swap(&work_queue_);  // Constant time
     DCHECK(incoming_queue_.empty());
   }
 }
