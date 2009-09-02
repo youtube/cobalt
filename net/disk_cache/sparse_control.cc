@@ -620,7 +620,8 @@ int SparseControl::DoGetAvailableRange() {
   int last_bit = (child_offset_ + child_len_ + 1023) >> 10;
   int start = child_offset_ >> 10;
   int partial_start_bytes = PartialBlockLength(start);
-  int bits_found = child_map_.FindBits(&start, last_bit, true);
+  int found = start;
+  int bits_found = child_map_.FindBits(&found, last_bit, true);
 
   // We don't care if there is a partial block in the middle of the range.
   int block_offset = child_offset_ & (kBlockSize - 1);
@@ -630,15 +631,18 @@ int SparseControl::DoGetAvailableRange() {
   // We are done. Just break the loop and reset result_ to our real result.
   range_found_ = true;
 
-  // start now points to the first 1. Lets see if we have zeros before it.
-  int empty_start = (start << 10) - child_offset_;
+  // found now points to the first 1. Lets see if we have zeros before it.
+  int empty_start = std::max((found << 10) - child_offset_, 0);
 
   int bytes_found = bits_found << 10;
-  bytes_found += PartialBlockLength(start + bits_found);
+  bytes_found += PartialBlockLength(found + bits_found);
+
+  if (start == found)
+    bytes_found -= block_offset;
 
   // If the user is searching past the end of this child, bits_found is the
   // right result; otherwise, we have some empty space at the start of this
-  // query that we have to substarct from the range that we searched.
+  // query that we have to subtract from the range that we searched.
   result_ = std::min(bytes_found, child_len_ - empty_start);
 
   if (!bits_found) {
