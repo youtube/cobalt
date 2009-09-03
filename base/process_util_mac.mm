@@ -7,6 +7,8 @@
 
 #import <Cocoa/Cocoa.h>
 #include <crt_externs.h>
+#include <mach/mach_init.h>
+#include <mach/task.h>
 #include <spawn.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -20,6 +22,23 @@
 #include "base/time.h"
 
 namespace base {
+
+void RestoreDefaultExceptionHandler() {
+  // This function is tailored to remove the Breakpad exception handler.
+  // exception_mask matches s_exception_mask in
+  // breakpad/src/client/mac/handler/exception_handler.cc
+  const exception_mask_t exception_mask = EXC_MASK_BAD_ACCESS |
+                                          EXC_MASK_BAD_INSTRUCTION |
+                                          EXC_MASK_ARITHMETIC |
+                                          EXC_MASK_BREAKPOINT;
+
+  // Setting the exception port to MACH_PORT_NULL may not be entirely
+  // kosher to restore the default exception handler, but in practice,
+  // it results in the exception port being set to Apple Crash Reporter,
+  // the desired behavior.
+  task_set_exception_ports(mach_task_self(), exception_mask, MACH_PORT_NULL,
+                           EXCEPTION_DEFAULT, THREAD_STATE_NONE);
+}
 
 NamedProcessIterator::NamedProcessIterator(const std::wstring& executable_name,
                                            const ProcessFilter* filter)
