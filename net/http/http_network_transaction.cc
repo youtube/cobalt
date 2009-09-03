@@ -625,7 +625,8 @@ int HttpNetworkTransaction::DoInitConnection() {
   }
 
   int rv = connection_.Init(connection_group, resolve_info, request_->priority,
-                            &io_callback_, session_->tcp_socket_pool(), NULL);
+                            &io_callback_, session_->tcp_socket_pool(),
+                            load_log_);
   return rv;
 }
 
