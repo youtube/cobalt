@@ -266,7 +266,7 @@ class GConfSettingGetterImplGConf
     return true;
   }
 
-  MessageLoop* GetNotificationLoop() {
+  virtual MessageLoop* GetNotificationLoop() {
     return loop_;
   }
 
@@ -481,7 +481,7 @@ class GConfSettingGetterImplKDE
         MessageLoopForIO::WATCH_READ, &inotify_watcher_, this);
   }
 
-  MessageLoop* GetNotificationLoop() {
+  virtual MessageLoop* GetNotificationLoop() {
     return file_loop_;
   }
 
@@ -542,7 +542,7 @@ class GConfSettingGetterImplKDE
     string_table_[prefix + "host"] = value;
   }
 
-  void AddKDESetting(std::string key, const char* value) {
+  void AddKDESetting(const std::string& key, const std::string& value) {
     // The astute reader may notice that there is no mention of SOCKS
     // here. That's because KDE handles socks is a strange way, and we
     // don't support it. Rather than just a setting for the SOCKS server,
@@ -584,7 +584,7 @@ class GConfSettingGetterImplKDE
       // We count "true" or any nonzero number as true, otherwise false.
       // Note that if the value is not actually numeric StringToInt()
       // will return 0, which we count as false.
-      reversed_exception_ = !strcmp(value, "true") || StringToInt(value);
+      reversed_exception_ = value == "true" || StringToInt(value);
     } else if (key == "NoProxyFor") {
       std::vector<std::string> exceptions;
       StringTokenizer tk(value, ",");
@@ -654,11 +654,8 @@ class GConfSettingGetterImplKDE
     ResetCachedSettings();
     bool in_proxy_settings = false;
     bool line_too_long = false;
-    char line[512];
-    // feof() and ferror() only tell you if you have hit EOF or an error
-    // after you try to read some data that encounters that condition. So,
-    // the initialize statement of this loop is the same as the update
-    // statement. We need to start out each iteration with fgets().
+    char line[BUFFER_SIZE];
+    // fgets() will return NULL on EOF or error.
     while (fgets(line, sizeof(line), input.get())) {
       // fgets() guarantees the line will be properly terminated.
       size_t length = strlen(line);
@@ -687,26 +684,36 @@ class GConfSettingGetterImplKDE
         in_proxy_settings = !strncmp(line, "[Proxy Settings]", 16);
       } else if (in_proxy_settings) {
         // A regular line, in the (a?) proxy settings section.
-        char* value = strchr(line, '=');
-        if (!value)
+        char* split = strchr(line, '=');
+        // Skip this line if it does not contain an = sign.
+        if (!split)
           continue;
-        // The length of the value name.
-        length = value - line;
-        if (!length)
+        // Split the line on the = and advance |split|.
+        *(split++) = 0;
+        std::string key = line;
+        std::string value = split;
+        TrimWhitespaceASCII(key, TRIM_ALL, &key);
+        TrimWhitespaceASCII(value, TRIM_ALL, &value);
+        // Skip this line if the key name is empty.
+        if (key.empty())
           continue;
         // Is the value name localized?
-        if (line[length - 1] == ']') {
-          // Find the matching '['.
-          for (; length && line[length - 1] != '['; --length);
-          if (!length)
+        if (key[key.length() - 1] == ']') {
+          // Find the matching bracket.
+          length = key.rfind('[');
+          // Skip this line if the localization indicator is malformed.
+          if (length == std::string::npos)
             continue;
           // Trim the localization indicator off.
-          line[length - 1] = '\0';
+          key.resize(length);
+          // Remove any resulting trailing whitespace.
+          TrimWhitespaceASCII(key, TRIM_TRAILING, &key);
+          // Skip this line if the key name is now empty.
+          if (key.empty())
+            continue;
         }
-        // Split the string on the = sign, and advance |value| to the value.
-        *(value++) = '\0';
         // Now fill in the tables.
-        AddKDESetting(line, value);
+        AddKDESetting(key, value);
       }
     }
     if (ferror(input.get()))
@@ -1109,6 +1116,11 @@ void ProxyConfigServiceLinux::Delegate::OnDestroy() {
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux()
     : delegate_(new Delegate(base::EnvironmentVariableGetter::Create())) {
+}
+
+ProxyConfigServiceLinux::ProxyConfigServiceLinux(
+    base::EnvironmentVariableGetter* env_var_getter)
+    : delegate_(new Delegate(env_var_getter)) {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
