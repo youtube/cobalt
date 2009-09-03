@@ -252,7 +252,6 @@
             'player/props.h',
             'player/seek.h',
             'player/resource.h',
-            'player/stdafx.h',
             'player/view.h',
             'player/wtl_renderer.cc',
             'player/wtl_renderer.h',
@@ -262,6 +261,9 @@
               'SubSystem': '2',         # Set /SUBSYSTEM:WINDOWS
             },
           },
+          'defines': [
+            '_CRT_SECURE_NO_WARNINGS=1',
+          ],
         },
       ],
     }],
