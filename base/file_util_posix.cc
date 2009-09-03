@@ -645,18 +645,22 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
   struct dirent* dent;
   while (readdir_r(dir, &dent_buf, &dent) == 0 && dent) {
     DirectoryEntryInfo info;
-    FilePath full_name;
-    int stat_value;
-
     info.filename = FilePath(dent->d_name);
-    full_name = source.Append(dent->d_name);
+
+    FilePath full_name = source.Append(dent->d_name);
+    int ret;
     if (show_links)
-      stat_value = lstat(full_name.value().c_str(), &info.stat);
+      ret = lstat(full_name.value().c_str(), &info.stat);
     else
-      stat_value = stat(full_name.value().c_str(), &info.stat);
-    if (stat_value < 0) {
-      LOG(ERROR) << "Couldn't stat file: " <<
-          source.Append(dent->d_name).value().c_str() << " errno = " << errno;
+      ret = stat(full_name.value().c_str(), &info.stat);
+    if (ret < 0) {
+      // Print the stat() error message unless it was ENOENT and we're
+      // following symlinks.
+      if (!(ret == ENOENT && !show_links)) {
+        LOG(ERROR) << "Couldn't stat "
+                   << source.Append(dent->d_name).value() << ": "
+                   << strerror(errno);
+      }
       memset(&info.stat, 0, sizeof(info.stat));
     }
     entries->push_back(info);
