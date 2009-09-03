@@ -90,6 +90,19 @@ namespace net {
 
 namespace {
 
+// Declarations needed to call the 10.5.7 and later SSLSetSessionOption()
+// function when building with the 10.5.0 SDK.
+typedef enum {
+  kSSLSessionOptionBreakOnServerAuthFlag
+} SSLSetSessionOptionType;
+
+enum {
+  errSSLServerAuthCompletedFlag = -9841
+};
+
+typedef OSStatus (*SSLSetSessionOptionFuncPtr)(SSLContextRef,
+                                               SSLSetSessionOptionType,
+                                               Boolean);
 int NetErrorFromOSStatus(OSStatus status) {
   switch (status) {
     case errSSLWouldBlock:
@@ -252,15 +265,29 @@ X509Certificate* GetServerCert(SSLContextRef ssl_context) {
   // SSLCopyPeerCertificates may succeed but return a null |certs|.
   if (status != noErr || !certs)
     return NULL;
+  scoped_cftyperef<CFArrayRef> scoped_certs(certs);
 
   DCHECK_GT(CFArrayGetCount(certs), 0);
 
   SecCertificateRef server_cert = static_cast<SecCertificateRef>(
       const_cast<void*>(CFArrayGetValueAtIndex(certs, 0)));
   CFRetain(server_cert);
-  CFRelease(certs);
-  return X509Certificate::CreateFromHandle(
+  X509Certificate *x509_cert = X509Certificate::CreateFromHandle(
       server_cert, X509Certificate::SOURCE_FROM_NETWORK);
+  if (!x509_cert)
+    return NULL;
+
+  // Add each of the intermediate certificates in the server's chain to the
+  // server's X509Certificate object. This makes them available to
+  // X509Certificate::Verify() for chain building.
+  CFIndex certs_length = CFArrayGetCount(certs);
+  for (CFIndex i = 1; i < certs_length; ++i) {
+    SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
+        const_cast<void*>(CFArrayGetValueAtIndex(certs, i)));
+    x509_cert->AddIntermediateCertificate(cert_ref);
+  }
+
+  return x509_cert;
 }
 
 }  // namespace
@@ -279,6 +306,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocket* transport_socket,
       next_state_(STATE_NONE),
       next_io_state_(STATE_NONE),
       completed_handshake_(false),
+      handshake_interrupted_(false),
       ssl_context_(NULL),
       pending_send_error_(OK),
       recv_buffer_head_slop_(0),
@@ -332,7 +360,62 @@ int SSLClientSocketMac::Connect(CompletionCallback* callback) {
   if (status)
     return NetErrorFromOSStatus(status);
 
-  next_state_ = STATE_HANDSHAKE;
+  // SSLSetSessionOption() was introduced in Mac OS X 10.5.7. It allows us
+  // to perform certificate validation during the handshake, which is
+  // required in order to properly enable session resumption.
+  //
+  // With the kSSLSessionOptionBreakOnServerAuth option set, SSLHandshake()
+  // will return errSSLServerAuthCompleted after receiving the server's
+  // Certificate during the handshake. That gives us an opportunity to verify
+  // the server certificate and then re-enter that handshake (assuming the
+  // certificate successfully validated).
+  //
+  // If SSLSetSessionOption() is not present, we do not enable session
+  // resumption, because in that case we are verifying the server's certificate
+  // after the handshake completes (but before any application data is
+  // exchanged). If we were to enable session resumption in this situation,
+  // the session would be cached before we verified the certificate, leaving
+  // the potential for a session in which the certificate failed to validate
+  // to still be able to be resumed.
+  CFBundleRef bundle =
+      CFBundleGetBundleWithIdentifier(CFSTR("com.apple.security"));
+  if (bundle) {
+    SSLSetSessionOptionFuncPtr ssl_set_session_options =
+        reinterpret_cast<SSLSetSessionOptionFuncPtr>(
+            CFBundleGetFunctionPointerForName(bundle,
+                CFSTR("SSLSetSessionOption")));
+    if (ssl_set_session_options) {
+      status = ssl_set_session_options(ssl_context_,
+                                       kSSLSessionOptionBreakOnServerAuthFlag,
+                                       true);
+      if (status)
+        return NetErrorFromOSStatus(status);
+
+      // Concatenate the hostname and peer address to use as the peer ID. To
+      // resume a session, we must connect to the same server on the same port
+      // using the same hostname (i.e., localhost and 127.0.0.1 are considered
+      // different peers, which puts us through certificate validation again
+      // and catches hostname/certificate name mismatches.
+      struct sockaddr_storage addr;
+      socklen_t addr_length = sizeof(struct sockaddr_storage);
+      memset(&addr, 0, sizeof(addr));
+      if (!transport_->GetPeerName(reinterpret_cast<struct sockaddr*>(&addr),
+                                   &addr_length)) {
+        // Assemble the socket hostname and address into a single buffer.
+        std::vector<char> peer_id(hostname_.begin(), hostname_.end());
+        peer_id.insert(peer_id.end(), reinterpret_cast<char*>(&addr),
+                       reinterpret_cast<char*>(&addr) + addr_length);
+
+        // SSLSetPeerID() treats peer_id as a binary blob, and makes its
+        // own copy.
+        status = SSLSetPeerID(ssl_context_, &peer_id[0], peer_id.size());
+        if (status)
+          return NetErrorFromOSStatus(status);
+      }
+    }
+  }
+
+  next_state_ = STATE_HANDSHAKE_START;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
     user_callback_ = callback;
@@ -468,9 +551,9 @@ int SSLClientSocketMac::DoLoop(int last_io_result) {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
-      case STATE_HANDSHAKE:
-        // Do the SSL/TLS handshake.
-        rv = DoHandshake();
+      case STATE_HANDSHAKE_START:
+        // Do the SSL/TLS handshake, up to the server certificate message.
+        rv = DoHandshakeStart();
         break;
       case STATE_VERIFY_CERT:
         // Kick off server certificate validation.
@@ -479,6 +562,10 @@ int SSLClientSocketMac::DoLoop(int last_io_result) {
       case STATE_VERIFY_CERT_COMPLETE:
         // Check the results of the  server certificate validation.
         rv = DoVerifyCertComplete(rv);
+        break;
+      case STATE_HANDSHAKE_FINISH:
+        // Do the SSL/TLS handshake, after the server certificate message.
+        rv = DoHandshakeFinish();
         break;
       case STATE_READ_COMPLETE:
         // A read off the network is complete; do the paperwork.
@@ -501,17 +588,29 @@ int SSLClientSocketMac::DoLoop(int last_io_result) {
   return rv;
 }
 
-int SSLClientSocketMac::DoHandshake() {
+int SSLClientSocketMac::DoHandshakeStart() {
   OSStatus status = SSLHandshake(ssl_context_);
 
   if (status == errSSLWouldBlock)
-    next_state_ = STATE_HANDSHAKE;
+    next_state_ = STATE_HANDSHAKE_START;
 
-  if (status == noErr) {
+  if (status == noErr || status == errSSLServerAuthCompletedFlag) {
     server_cert_ = GetServerCert(ssl_context_);
     if (!server_cert_)
       return ERR_UNEXPECTED;
+
+    // TODO(hawk): we verify the certificate chain even on resumed sessions
+    // so that we have the certificate status (valid, expired but overridden
+    // by the user, EV, etc.) available. Eliminate this step once we have
+    // a certificate validation result cache.
     next_state_ = STATE_VERIFY_CERT;
+    if (status == errSSLServerAuthCompletedFlag) {
+      // Override errSSLServerAuthCompletedFlag as it's not actually an error,
+      // but rather an indication that we're only half way through the
+      // handshake.
+      handshake_interrupted_ = true;
+      status = noErr;
+    }
   }
 
   return NetErrorFromOSStatus(status);
@@ -522,21 +621,6 @@ int SSLClientSocketMac::DoVerifyCert() {
 
   if (!server_cert_)
     return ERR_UNEXPECTED;
-
-  // Add each of the intermediate certificates in the server's chain to the
-  // server's X509Certificate object. This makes them available to
-  // X509Certificate::Verify() for chain building.
-  CFArrayRef certs;
-  OSStatus status = SSLCopyPeerCertificates(ssl_context_, &certs);
-  if (status != noErr || !certs)
-    return ERR_UNEXPECTED;
-  scoped_cftyperef<CFArrayRef> scoped_certs(certs);
-  CFIndex certs_length = CFArrayGetCount(certs);
-  for (CFIndex i = 1; i < certs_length; ++i) {
-    SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
-        const_cast<void*>(CFArrayGetValueAtIndex(certs, i)));
-    server_cert_->AddIntermediateCertificate(cert_ref);
-  }
 
   // TODO(hawk): set flags based on the SSLConfig, once SSLConfig is
   // fully fleshed out on Mac OS X.
@@ -553,10 +637,32 @@ int SSLClientSocketMac::DoVerifyCertComplete(int result) {
   if (IsCertificateError(result) && ssl_config_.IsAllowedBadCert(server_cert_))
     result = OK;
 
-  completed_handshake_ = true;
-  DCHECK(next_state_ == STATE_NONE);
+  if (handshake_interrupted_) {
+    // With session resumption enabled the full handshake (i.e., the handshake
+    // in a non-resumed session) occurs in two steps. Continue on to the second
+    // step if the certificate is OK.
+    if (result == OK)
+      next_state_ = STATE_HANDSHAKE_FINISH;
+  } else {
+    // If the session was resumed or session resumption was disabled, we're
+    // done with the handshake.
+    completed_handshake_ = true;
+    DCHECK(next_state_ == STATE_NONE);
+  }
 
   return result;
+}
+
+int SSLClientSocketMac::DoHandshakeFinish() {
+  OSStatus status = SSLHandshake(ssl_context_);
+
+  if (status == errSSLWouldBlock)
+    next_state_ = STATE_HANDSHAKE_FINISH;
+
+  if (status == noErr)
+    completed_handshake_ = true;
+
+  return NetErrorFromOSStatus(status);
 }
 
 int SSLClientSocketMac::DoReadComplete(int result) {
