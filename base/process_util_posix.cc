@@ -233,6 +233,10 @@ bool LaunchApp(const std::vector<std::string>& argv,
 
   if (pid == 0) {
     // Child process
+#if defined(OS_MACOSX)
+    RestoreDefaultExceptionHandler();
+#endif
+
     InjectiveMultimap fd_shuffle;
     for (file_handle_mapping_vector::const_iterator
         it = fds_to_remap.begin(); it != fds_to_remap.end(); ++it) {
@@ -520,6 +524,10 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
       return false;
     case 0:  // child
       {
+#if defined(OS_MACOSX)
+        RestoreDefaultExceptionHandler();
+#endif
+
         // Obscure fork() rule: in the child, if you don't end up doing exec*(),
         // you call _exit() instead of exit(). This is because _exit() does not
         // call any previously-registered (in the parent) exit handlers, which
