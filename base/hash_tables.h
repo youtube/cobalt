@@ -11,6 +11,12 @@
 //   base::hash_map<int> my_map;
 //   base::hash_set<int> my_set;
 //
+// NOTE: It is an explicit non-goal of this class to provide a generic hash
+// function for pointers.  If you want to hash a pointers to a particular class,
+// please define the template specialization elsewhere (for example, in its
+// header file) and keep it specific to just pointers to that class.  This is
+// because identity hashes are not desirable for all types that might show up
+// in containers as pointers.
 
 #ifndef BASE_HASH_TABLES_H_
 #define BASE_HASH_TABLES_H_
