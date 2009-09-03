@@ -33,16 +33,13 @@ class TCPClientSocketLibevent : public ClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
+  virtual int GetPeerName(struct sockaddr *name, socklen_t *namelen);
 
   // Socket methods:
   // Multiple outstanding requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-
-  // Identical to posix system call of same name
-  // Needed by ssl_client_socket_nss
-  virtual int GetPeerName(struct sockaddr *name, socklen_t *namelen);
 
  private:
   class ReadWatcher : public MessageLoopForIO::Watcher {

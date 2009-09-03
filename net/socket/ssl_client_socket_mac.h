@@ -53,9 +53,10 @@ class SSLClientSocketMac : public SSLClientSocket {
   int DoLoop(int last_io_result);
   int DoPayloadRead();
   int DoPayloadWrite();
-  int DoHandshake();
+  int DoHandshakeStart();
   int DoVerifyCert();
   int DoVerifyCertComplete(int result);
+  int DoHandshakeFinish();
   int DoReadComplete(int result);
   void OnWriteComplete(int result);
 
@@ -83,9 +84,10 @@ class SSLClientSocketMac : public SSLClientSocket {
     STATE_NONE,
     STATE_PAYLOAD_READ,
     STATE_PAYLOAD_WRITE,
-    STATE_HANDSHAKE,
+    STATE_HANDSHAKE_START,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
+    STATE_HANDSHAKE_FINISH,
     STATE_READ_COMPLETE,
   };
   State next_state_;
@@ -97,6 +99,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   CertVerifyResult server_cert_verify_result_;
 
   bool completed_handshake_;
+  bool handshake_interrupted_;
   SSLContextRef ssl_context_;
 
   // These are buffers for holding data during I/O. The "slop" is the amount of
