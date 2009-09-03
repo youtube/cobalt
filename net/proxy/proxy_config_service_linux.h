@@ -29,6 +29,10 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
 
   class GConfSettingGetter {
    public:
+    // Buffer size used in some implementations of this class when reading
+    // files. Defined here so unit tests can construct worst-case inputs.
+    static const size_t BUFFER_SIZE = 512;
+
     virtual ~GConfSettingGetter() {}
 
     // Initializes the class: obtains a gconf client, or simulates one, in
@@ -194,7 +198,9 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
 
   // Usual constructor
   ProxyConfigServiceLinux();
-  // For testing: takes alternate gconf and env var getter implementations.
+  // For testing: take alternate gconf and env var getter implementations.
+  explicit ProxyConfigServiceLinux(
+      base::EnvironmentVariableGetter* env_var_getter);
   ProxyConfigServiceLinux(base::EnvironmentVariableGetter* env_var_getter,
                           GConfSettingGetter* gconf_getter);
 
