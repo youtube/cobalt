@@ -769,6 +769,8 @@ TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {
       .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
   EXPECT_CALL(*data_source_, GetSize(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
+  EXPECT_CALL(*data_source_, GetSize(_))
+      .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
 
   int64 position;
   EXPECT_TRUE(demuxer_->GetPosition(&position));
@@ -776,6 +778,7 @@ TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {
 
   EXPECT_TRUE(demuxer_->SetPosition(512));
   EXPECT_FALSE(demuxer_->SetPosition(2048));
+  EXPECT_FALSE(demuxer_->SetPosition(-1));
   EXPECT_TRUE(demuxer_->GetPosition(&position));
   EXPECT_EQ(512, position);
 }
