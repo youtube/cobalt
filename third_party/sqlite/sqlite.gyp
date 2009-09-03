@@ -194,6 +194,9 @@
               'preprocessed',
             ],
           },
+          'msvs_disabled_warnings': [
+              4018, 4244,
+          ],
           'conditions': [
             ['OS=="win"', {
               'sources/': [['exclude', '_unix\\.cc?$']],
