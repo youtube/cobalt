@@ -414,6 +414,17 @@ void EnableTerminationOnHeapCorruption();
 // the current process's scheduling priority to a high priority.
 void RaiseProcessToHighPriority();
 
+#if defined(OS_MACOSX)
+// Restore the default exception handler, setting it to Apple Crash Reporter
+// (ReportCrash).  When forking and execing a new process, the child will
+// inherit the parent's exception ports, which may be set to the Breakpad
+// instance running inside the parent.  The parent's Breakpad instance should
+// not handle the child's exceptions.  Calling RestoreDefaultExceptionHandler
+// in the child after forking will restore the standard exception handler.
+// See http://crbug.com/20371/ for more details.
+void RestoreDefaultExceptionHandler();
+#endif
+
 }  // namespace base
 
 #endif  // BASE_PROCESS_UTIL_H_
