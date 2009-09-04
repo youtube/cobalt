@@ -32,10 +32,6 @@
 #include "base/lock.h"
 #include "base/singleton.h"
 
-// FFmpeg forward declarations.
-struct URLContext;
-typedef int64 offset_t;
-
 namespace media {
 
 class FFmpegURLProtocol {
