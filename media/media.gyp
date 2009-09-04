@@ -206,6 +206,7 @@
       'sources': [
         'bench/bench.cc',
         'bench/file_protocol.cc',
+        'bench/file_protocol.h',
       ],
     },
     {
