@@ -28,6 +28,7 @@
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_error_job.h"
+#include "net/url_request/url_request_redirect_job.h"
 
 // static
 std::set<int> URLRequestHttpJob::explicitly_allowed_ports_;
@@ -56,8 +57,15 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
   if (kForceHTTPS && scheme == "http" &&
       request->context()->force_tls_state() &&
       request->context()->force_tls_state()->IsEnabledForHost(
-          request->url().host()))
-    return new URLRequestErrorJob(request, net::ERR_DISALLOWED_URL_SCHEME);
+          request->url().host())) {
+    DCHECK_EQ(request->url().scheme(), "http");
+    url_canon::Replacements<char> replacements;
+    static const char kNewScheme[] = "https";
+    replacements.SetScheme(kNewScheme,
+                           url_parse::Component(0, strlen(kNewScheme)));
+    GURL new_location = request->url().ReplaceComponents(replacements);
+    return new URLRequestRedirectJob(request, new_location);
+  }
 
   return new URLRequestHttpJob(request);
 }
