@@ -68,11 +68,6 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // sequence used by a connection-based authentication scheme.
   virtual bool NeedsIdentity() { return true; }
 
-  // Returns true if this is the final round of the authentication sequence.
-  // For Basic and Digest, the method always returns true because they are
-  // single-round schemes.
-  virtual bool IsFinalRound() { return true; }
-
   // Generate the Authorization header value.
   virtual std::string GenerateCredentials(const std::wstring& username,
                                           const std::wstring& password,
