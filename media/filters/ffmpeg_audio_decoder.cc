@@ -5,6 +5,7 @@
 #include "media/filters/ffmpeg_audio_decoder.h"
 
 #include "media/base/data_buffer.h"
+#include "media/base/limits.h"
 #include "media/filters/ffmpeg_common.h"
 #include "media/filters/ffmpeg_demuxer.h"
 
@@ -38,9 +39,17 @@ bool FFmpegAudioDecoder::OnInitialize(DemuxerStream* demuxer_stream) {
 
   // Grab the AVStream's codec context and make sure we have sensible values.
   codec_context_ = av_stream->codec;
+  int bps = av_get_bits_per_sample_format(codec_context_->sample_fmt);
   DCHECK_GT(codec_context_->channels, 0);
-  DCHECK_GT(av_get_bits_per_sample_format(codec_context_->sample_fmt), 0);
+  DCHECK_GT(bps, 0);
   DCHECK_GT(codec_context_->sample_rate, 0);
+  if (codec_context_->channels == 0 ||
+      static_cast<size_t>(codec_context_->channels) > Limits::kMaxChannels ||
+      bps == 0 ||
+      static_cast<size_t>(bps) > Limits::kMaxBPS ||
+      codec_context_->sample_rate == 0 ||
+      static_cast<size_t>(codec_context_->sample_rate) > Limits::kMaxSampleRate)
+      return false;
 
   // Serialize calls to avcodec_open().
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);

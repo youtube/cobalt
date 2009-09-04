@@ -2,6 +2,7 @@
 // source code is governed by a BSD-style license that can be found in the
 // LICENSE file.
 
+#include "media/base/limits.h"
 #include "media/base/video_frame_impl.h"
 #include "media/filters/ffmpeg_common.h"
 #include "media/filters/ffmpeg_demuxer.h"
@@ -65,6 +66,9 @@ bool FFmpegVideoDecoder::OnInitialize(DemuxerStream* demuxer_stream) {
   width_ = av_stream->codec->width;
   height_ = av_stream->codec->height;
   *time_base_ = av_stream->time_base;
+  if (width_ > Limits::kMaxDimension || height_ > Limits::kMaxDimension ||
+      width_ * height_ > Limits::kMaxCanvas)
+      return false;
 
   media_format_.SetAsString(MediaFormat::kMimeType,
                             mime_type::kUncompressedVideo);
