@@ -1444,6 +1444,7 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
           // (response_.ssl_info), too?
           response_.headers->Update(*new_response->headers);
           response_.response_time = new_response->response_time;
+          response_.request_time = new_response->request_time;
 
           if (response_.headers->HasHeaderValue("cache-control", "no-store")) {
             cache_->DoomEntry(cache_key_);

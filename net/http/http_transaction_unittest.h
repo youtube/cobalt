@@ -43,6 +43,8 @@ typedef void (*MockTransactionHandler)(const net::HttpRequestInfo* request,
 struct MockTransaction {
   const char* url;
   const char* method;
+  // If |request_time| is unspecified, the current time will be used.
+  base::Time request_time;
   const char* request_headers;
   int load_flags;
   const char* status;
@@ -219,6 +221,9 @@ class MockNetworkTransaction : public net::HttpTransaction {
     std::replace(header_data.begin(), header_data.end(), '\n', '\0');
 
     response_.request_time = base::Time::Now();
+    if (!t->request_time.is_null())
+      response_.request_time = t->request_time;
+
     response_.was_cached = false;
 
     response_.response_time = base::Time::Now();
