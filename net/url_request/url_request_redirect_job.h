@@ -5,11 +5,7 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_REDIRECT_JOB_H_
 #define NET_URL_REQUEST_URL_REQUEST_REDIRECT_JOB_H_
 
-#include <string>
-
-#include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job.h"
-#include "googleurl/src/gurl.h"
 
 class GURL;
 
