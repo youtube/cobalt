@@ -101,6 +101,9 @@
 
     'chromeos%': 0,
 
+    # The system root for cross-compiles. Default: none.
+    'sysroot%': '',
+
     # This is the location of the sandbox binary. Chrome looks for this before
     # running the zygote process. If found, and SUID, it will be used to
     # sandbox the zygote process and, thus, all renderer processes.
@@ -530,6 +533,14 @@
                   '-mfloat-abi=softfp',
                 ],
               }],
+            ],
+          }],
+          ['sysroot!=""', {
+            'cflags': [
+              '--sysroot=<(sysroot)',
+            ],
+            'ldflags': [
+              '--sysroot=<(sysroot)',
             ],
           }],
           ['no_strict_aliasing==1', {
