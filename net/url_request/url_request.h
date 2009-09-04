@@ -346,13 +346,13 @@ class URLRequest {
   void GetAllResponseHeaders(std::string* headers);
 
   // The time at which the returned response was requested.  For cached
-  // responses, this may be a time well in the past.
+  // responses, this is the last time the cache entry was validated.
   const base::Time& request_time() const {
     return response_info_.request_time;
   }
 
   // The time at which the returned response was generated.  For cached
-  // responses, this may be a time well in the past.
+  // responses, this is the last time the cache entry was validated.
   const base::Time& response_time() const {
     return response_info_.response_time;
   }

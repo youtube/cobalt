@@ -31,11 +31,11 @@ class HttpResponseInfo {
   bool was_cached;
 
   // The time at which the request was made that resulted in this response.
-  // For cached responses, this time could be "far" in the past.
+  // For cached responses, this is the last time the cache entry was validated.
   base::Time request_time;
 
   // The time at which the response headers were received.  For cached
-  // responses, this time could be "far" in the past.
+  // this is the last time the cache entry was validated.
   base::Time response_time;
 
   // If the response headers indicate a 401 or 407 failure, then this structure
