@@ -223,8 +223,6 @@
         'http/http_auth_handler_digest.h',
         'http/http_auth_handler_ntlm.cc',
         'http/http_auth_handler_ntlm.h',
-        'http/http_auth_handler_ntlm_portable.cc',
-        'http/http_auth_handler_ntlm_win.cc',
         'http/http_basic_stream.h',
         'http/http_byte_range.cc',
         'http/http_byte_range.h',
@@ -385,7 +383,6 @@
         [ 'OS == "win"', {
             'sources/': [ ['exclude', '_(mac|linux|posix)\\.cc$'] ],
             'sources!': [
-              'http/http_auth_handler_ntlm_portable.cc',
               'socket/tcp_client_socket_libevent.cc',
             ],
             'dependencies': [
