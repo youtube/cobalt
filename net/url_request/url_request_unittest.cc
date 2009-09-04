@@ -24,6 +24,8 @@
 #include "base/string_util.h"
 #include "net/base/cookie_monster.h"
 #include "net/base/load_flags.h"
+#include "net/base/load_log.h"
+#include "net/base/load_log_unittest.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_module.h"
 #include "net/base/net_util.h"
@@ -202,6 +204,15 @@ TEST_F(URLRequestTestHTTP, GetTest_NoCache) {
     EXPECT_EQ(1, d.response_started_count());
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
+
+    // The first and last entries of the LoadLog should be for
+    // TYPE_URL_REQUEST_START.
+    net::ExpectLogContains(r.load_log(), 0,
+                           net::LoadLog::TYPE_URL_REQUEST_START,
+                           net::LoadLog::PHASE_BEGIN);
+    net::ExpectLogContains(r.load_log(), r.load_log()->events().size() - 1,
+                           net::LoadLog::TYPE_URL_REQUEST_START,
+                           net::LoadLog::PHASE_END);
   }
 }
 

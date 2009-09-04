@@ -360,6 +360,8 @@ void URLRequest::StartJob(URLRequestJob* job) {
   DCHECK(!is_pending_);
   DCHECK(!job_);
 
+  net::LoadLog::BeginEvent(load_log_, net::LoadLog::TYPE_URL_REQUEST_START);
+
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
 
@@ -459,6 +461,8 @@ void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
 }
 
 void URLRequest::ResponseStarted() {
+  net::LoadLog::EndEvent(load_log_, net::LoadLog::TYPE_URL_REQUEST_START);
+
   URLRequestJob* job = GetJobManager()->MaybeInterceptResponse(this);
   if (job) {
     RestartWithJob(job);
