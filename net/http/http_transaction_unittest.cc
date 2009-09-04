@@ -22,6 +22,7 @@
 const MockTransaction kSimpleGET_Transaction = {
   "http://www.google.com/",
   "GET",
+  base::Time(),
   "",
   net::LOAD_NORMAL,
   "HTTP/1.1 200 OK",
@@ -36,6 +37,7 @@ const MockTransaction kSimpleGET_Transaction = {
 const MockTransaction kSimplePOST_Transaction = {
   "http://bugdatabase.com/edit",
   "POST",
+  base::Time(),
   "",
   net::LOAD_NORMAL,
   "HTTP/1.1 200 OK",
@@ -50,6 +52,7 @@ const MockTransaction kSimplePOST_Transaction = {
 const MockTransaction kTypicalGET_Transaction = {
   "http://www.example.com/~foo/bar.html",
   "GET",
+  base::Time(),
   "",
   net::LOAD_NORMAL,
   "HTTP/1.1 200 OK",
@@ -65,6 +68,7 @@ const MockTransaction kTypicalGET_Transaction = {
 const MockTransaction kETagGET_Transaction = {
   "http://www.google.com/foopy",
   "GET",
+  base::Time(),
   "",
   net::LOAD_NORMAL,
   "HTTP/1.1 200 OK",
@@ -80,6 +84,7 @@ const MockTransaction kETagGET_Transaction = {
 const MockTransaction kRangeGET_Transaction = {
   "http://www.google.com/",
   "GET",
+  base::Time(),
   "Range: 0-100\r\n",
   net::LOAD_NORMAL,
   "HTTP/1.1 200 OK",

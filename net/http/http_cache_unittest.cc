@@ -458,6 +458,7 @@ bool FastTransactionServer::no_store;
 const MockTransaction kFastNoStoreGET_Transaction = {
   "http://www.google.com/nostore",
   "GET",
+  base::Time(),
   "",
   net::LOAD_VALIDATE_CACHE,
   "HTTP/1.1 200 OK",
@@ -562,6 +563,7 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
 const MockTransaction kRangeGET_TransactionOK = {
   "http://www.google.com/range",
   "GET",
+  base::Time(),
   "Range: bytes = 40-49\r\n",
   net::LOAD_NORMAL,
   "HTTP/1.1 206 Partial Content",
@@ -2498,9 +2500,10 @@ TEST(HttpCache, CacheDisabledMode) {
 
 // Other tests check that the response headers of the cached response
 // get updated on 304. Here we specifically check that the
-// HttpResponseHeaders::response_time field also gets updated.
+// HttpResponseHeaders::request_time and HttpResponseHeaders::response_time
+// fields also gets updated.
 // http://crbug.com/20594.
-TEST(HttpCache, UpdatesResponseTimeOn304) {
+TEST(HttpCache, UpdatesRequestResponseTimeOn304) {
   MockHttpCache cache;
 
   const char* kUrl = "http://foobar";
@@ -2543,14 +2546,19 @@ TEST(HttpCache, UpdatesResponseTimeOn304) {
 
   kNetResponse2.AssignTo(&mock_network_response);
 
-  base::Time t = base::Time() + base::TimeDelta::FromHours(1234);
-  mock_network_response.response_time = t;
+  base::Time request_time = base::Time() + base::TimeDelta::FromHours(1234);
+  base::Time response_time = base::Time() + base::TimeDelta::FromHours(1235);
+
+  mock_network_response.request_time = request_time;
+  mock_network_response.response_time = response_time;
 
   net::HttpResponseInfo response;
   RunTransactionTestWithResponseInfo(cache.http_cache(), request, &response);
 
-  // The response time should have been updated.
-  EXPECT_EQ(t.ToInternalValue(),
+  // The request and response times should have been updated.
+  EXPECT_EQ(request_time.ToInternalValue(),
+            response.request_time.ToInternalValue());
+  EXPECT_EQ(response_time.ToInternalValue(),
             response.response_time.ToInternalValue());
 
   std::string headers;
