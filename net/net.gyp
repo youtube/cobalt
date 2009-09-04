@@ -143,8 +143,6 @@
         'base/x509_certificate_mac.cc',
         'base/x509_certificate_nss.cc',
         'base/x509_certificate_win.cc',
-        'build/precompiled_net.cc',
-        'build/precompiled_net.h',
         'disk_cache/addr.cc',
         'disk_cache/addr.h',
         'disk_cache/backend_impl.cc',
@@ -362,10 +360,6 @@
         'url_request/url_request_view_net_internal_job.cc',
         'url_request/url_request_view_net_internal_job.h',
       ],
-      'sources!': [
-        'build/precompiled_net.h',
-        'build/precompiled_net.cc',
-      ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
       ],
@@ -390,12 +384,6 @@
             'dependencies': [
               'tld_cleanup',
             ],
-            'configurations': {
-              'Debug': {
-                'msvs_precompiled_header': 'build/precompiled_net.h',
-                'msvs_precompiled_source': 'build/precompiled_net.cc',
-              },
-            },
           },
           {  # else: OS != "win"
             'sources!': [
