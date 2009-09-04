@@ -773,6 +773,22 @@ bool StartsWith(const std::wstring& str,
   }
 }
 
+bool EndsWith(const std::wstring& str,
+              const std::wstring& search,
+              bool case_sensitive) {
+  std::wstring::size_type str_length = str.length();
+  std::wstring::size_type search_length = search.length();
+  if (search_length > str_length)
+    return false;
+  if (case_sensitive) {
+    return str.compare(str_length - search_length, search_length, search) == 0;
+  } else {
+    return std::equal(search.begin(), search.end(),
+                      str.begin() + (str_length - search_length),
+                      CaseInsensitiveCompare<wchar_t>());
+  }
+}
+
 DataUnits GetByteDisplayUnits(int64 bytes) {
   // The byte thresholds at which we display amounts.  A byte count is displayed
   // in unit U when kUnitThresholds[U] <= bytes < kUnitThresholds[U+1].

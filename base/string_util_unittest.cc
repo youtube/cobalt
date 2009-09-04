@@ -1576,6 +1576,25 @@ TEST(StringUtilTest, StartsWith) {
   EXPECT_TRUE(StartsWith(L"java", L"", true));
 }
 
+TEST(StringUtilTest, EndsWith) {
+  EXPECT_TRUE(EndsWith(L"Foo.plugin", L".plugin", true));
+  EXPECT_FALSE(EndsWith(L"Foo.Plugin", L".plugin", true));
+  EXPECT_TRUE(EndsWith(L"Foo.plugin", L".plugin", false));
+  EXPECT_TRUE(EndsWith(L"Foo.Plugin", L".plugin", false));
+  EXPECT_FALSE(EndsWith(L".plug", L".plugin", true));
+  EXPECT_FALSE(EndsWith(L".plug", L".plugin", false));
+  EXPECT_FALSE(EndsWith(L"Foo.plugin Bar", L".plugin", true));
+  EXPECT_FALSE(EndsWith(L"Foo.plugin Bar", L".plugin", false));
+  EXPECT_FALSE(EndsWith(L"", L".plugin", false));
+  EXPECT_FALSE(EndsWith(L"", L".plugin", true));
+  EXPECT_TRUE(EndsWith(L"Foo.plugin", L"", false));
+  EXPECT_TRUE(EndsWith(L"Foo.plugin", L"", true));
+  EXPECT_TRUE(EndsWith(L".plugin", L".plugin", false));
+  EXPECT_TRUE(EndsWith(L".plugin", L".plugin", true));
+  EXPECT_TRUE(EndsWith(L"", L"", false));
+  EXPECT_TRUE(EndsWith(L"", L"", true));
+}
+
 TEST(StringUtilTest, GetStringFWithOffsets) {
   std::vector<string16> subst;
   subst.push_back(ASCIIToUTF16("1"));
