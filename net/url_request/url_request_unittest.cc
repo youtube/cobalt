@@ -1207,8 +1207,6 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
 
   scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
 
-  Time response_time;
-
   // populate the cache
   {
     TestDelegate d;
@@ -1217,13 +1215,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
     req.SetExtraRequestHeaders("foo:1");
     req.Start();
     MessageLoop::current()->Run();
-
-    response_time = req.response_time();
   }
-
-  // Make sure that the response time of a future response will be in the
-  // future!
-  PlatformThread::Sleep(10);
 
   // expect a cache hit
   {
@@ -1234,7 +1226,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
     req.Start();
     MessageLoop::current()->Run();
 
-    EXPECT_TRUE(req.response_time() == response_time);
+    EXPECT_TRUE(req.was_cached());
   }
 
   // expect a cache miss
@@ -1246,17 +1238,13 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
     req.Start();
     MessageLoop::current()->Run();
 
-    EXPECT_FALSE(req.response_time() == response_time);
+    EXPECT_FALSE(req.was_cached());
   }
 }
 
-// TODO(eroman): Broke with commit of r25484 -- this is depending on
-// the response time value.
-TEST_F(URLRequestTestHTTP, DISABLED_BasicAuth) {
+TEST_F(URLRequestTestHTTP, BasicAuth) {
   scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
   ASSERT_TRUE(NULL != server_.get());
-
-  Time response_time;
 
   // populate the cache
   {
@@ -1271,13 +1259,7 @@ TEST_F(URLRequestTestHTTP, DISABLED_BasicAuth) {
     MessageLoop::current()->Run();
 
     EXPECT_TRUE(d.data_received().find("user/secret") != std::string::npos);
-
-    response_time = r.response_time();
   }
-
-  // Let some time pass so we can ensure that a future response will have a
-  // response time value in the future.
-  PlatformThread::Sleep(10 /* milliseconds */);
 
   // repeat request with end-to-end validation.  since auth-basic results in a
   // cachable page, we expect this test to result in a 304.  in which case, the
@@ -1296,9 +1278,8 @@ TEST_F(URLRequestTestHTTP, DISABLED_BasicAuth) {
 
     EXPECT_TRUE(d.data_received().find("user/secret") != std::string::npos);
 
-    // Should be the same cached document, which means that the response time
-    // should not have changed.
-    EXPECT_TRUE(response_time == r.response_time());
+    // Should be the same cached document.
+    EXPECT_TRUE(r.was_cached());
   }
 }
 
