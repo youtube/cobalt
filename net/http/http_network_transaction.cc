@@ -253,6 +253,11 @@ void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
   // If auth_identity_[target].source is HttpAuth::IDENT_SRC_NONE,
   // auth_identity_[target] contains no identity because identity is not
   // required yet.
+  //
+  // TODO(wtc): For NTLM_SSPI, we add the same auth entry to the cache in
+  // round 1 and round 2, which is redundant but correct.  It would be nice
+  // to add an auth entry to the cache only once, preferrably in round 1.
+  // See http://crbug.com/21015.
   bool has_auth_identity =
       auth_identity_[target].source != HttpAuth::IDENT_SRC_NONE;
   if (has_auth_identity) {
@@ -280,6 +285,9 @@ void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
   // If the auth scheme is connection-based but the proxy/server mistakenly
   // marks the connection as non-keep-alive, the auth is going to fail, so log
   // an error message.
+  //
+  // TODO(wtc): has_auth_identity is not the right condition.  We should
+  // be testing for "not round 1" here.  See http://crbug.com/21015.
   if (!keep_alive && auth_handler_[target]->is_connection_based() &&
       has_auth_identity) {
     LOG(ERROR) << "Can't perform " << auth_handler_[target]->scheme()
@@ -742,6 +750,9 @@ int HttpNetworkTransaction::DoWriteHeaders() {
 
     std::string authorization_headers;
 
+    // TODO(wtc): If BuildAuthorizationHeader fails (returns an authorization
+    // header with no credentials), we should return an error to prevent
+    // entering an infinite auth restart loop.  See http://crbug.com/21050.
     if (have_proxy_auth)
       authorization_headers.append(
           BuildAuthorizationHeader(HttpAuth::AUTH_PROXY));
@@ -1881,10 +1892,17 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
     return ERR_UNEXPECTED_PROXY_AUTH;
 
   // The auth we tried just failed, hence it can't be valid. Remove it from
-  // the cache so it won't be used again, unless it's a null identity.
-  if (HaveAuth(target) &&
-      auth_identity_[target].source != HttpAuth::IDENT_SRC_NONE)
+  // the cache so it won't be used again.
+  // TODO(wtc): IsFinalRound is not the right condition.  In a multi-round
+  // auth sequence, the server may fail the auth in round 1 if our first
+  // authorization header is broken.  We should inspect response_.headers to
+  // determine if the server already failed the auth or wants us to continue.
+  // See http://crbug.com/21015.
+  if (HaveAuth(target) && auth_handler_[target]->IsFinalRound()) {
     InvalidateRejectedAuthFromCache(target);
+    auth_handler_[target] = NULL;
+    auth_identity_[target] = HttpAuth::Identity();
+  }
 
   auth_identity_[target].invalid = true;
 
@@ -1919,14 +1937,11 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
     // If an identity to try is found, it is saved to auth_identity_[target].
     SelectNextAuthIdentityToTry(target);
   } else {
-    // Proceed with a null identity.
+    // Proceed with the existing identity or a null identity.
     //
     // TODO(wtc): Add a safeguard against infinite transaction restarts, if
     // the server keeps returning "NTLM".
-    auth_identity_[target].source = HttpAuth::IDENT_SRC_NONE;
     auth_identity_[target].invalid = false;
-    auth_identity_[target].username.clear();
-    auth_identity_[target].password.clear();
   }
 
   // Make a note that we are waiting for auth. This variable is inspected
