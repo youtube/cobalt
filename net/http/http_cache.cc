@@ -64,9 +64,11 @@ enum {
   // This bit is set if the response info has vary header data.
   RESPONSE_INFO_HAS_VARY_DATA = 1 << 11,
 
-  // TODO(darin): Add other bits to indicate alternate request methods and
-  // whether or not we are storing a partial document.  For now, we don't
-  // support storing those.
+  // This bit is set if the request was cancelled before completion.
+  RESPONSE_INFO_TRUNCATED = 1 << 12,
+
+  // TODO(darin): Add other bits to indicate alternate request methods.
+  // For now, we don't support storing those.
 };
 
 //-----------------------------------------------------------------------------
@@ -179,6 +181,7 @@ class HttpCache::Transaction
         reading_(false),
         invalid_range_(false),
         enable_range_support_(enable_range_support),
+        truncated_(false),
         read_offset_(0),
         effective_load_flags_(0),
         final_upload_progress_(0),
@@ -247,6 +250,10 @@ class HttpCache::Transaction
   // Called by the HttpCache when the given disk cache entry becomes accessible
   // to the transaction.  Returns network error code.
   int EntryAvailable(ActiveEntry* entry);
+
+  // This transaction is being deleted and we are not done writing to the cache.
+  // We need to indicate that the response data was truncated.
+  void AddTruncatedFlag();
 
  private:
   // This is a helper function used to trigger a completion callback.  It may
@@ -327,8 +334,9 @@ class HttpCache::Transaction
   // nothing without side-effect.
   void WriteToEntry(int index, int offset, IOBuffer* data, int data_len);
 
-  // Called to write response_ to the cache entry.
-  void WriteResponseInfoToEntry();
+  // Called to write response_ to the cache entry. |truncated| indicates if the
+  // entry should be marked as incomplete.
+  void WriteResponseInfoToEntry(bool truncated);
 
   // Called to append response data to the cache entry.
   void AppendResponseDataToEntry(IOBuffer* data, int data_len);
@@ -383,6 +391,7 @@ class HttpCache::Transaction
   bool reading_;  // We are already reading.
   bool invalid_range_;  // We may bypass the cache for this request.
   bool enable_range_support_;
+  bool truncated_;  // We don't have all the response data.
   scoped_refptr<IOBuffer> read_buf_;
   int read_buf_len_;
   int read_offset_;
@@ -398,7 +407,11 @@ class HttpCache::Transaction
 HttpCache::Transaction::~Transaction() {
   if (!revoked()) {
     if (entry_) {
-      cache_->DoneWithEntry(entry_, this);
+      bool cancel_request = reading_ && !partial_.get() &&
+                            enable_range_support_ &&
+                            response_.headers->response_code() == 200;
+
+      cache_->DoneWithEntry(entry_, this, cancel_request);
     } else {
       cache_->RemovePendingTransaction(this);
     }
@@ -558,12 +571,12 @@ int HttpCache::Transaction::Read(IOBuffer* buf, int buf_len,
     mode_ = NONE;
   }
 
+  reading_ = true;
   int rv;
 
   switch (mode_) {
     case READ_WRITE:
       DCHECK(partial_.get());
-      reading_ = true;
       if (!network_trans_.get()) {
         // We are just reading from the cache, but we may be writing later.
         rv = ReadFromEntry(buf, buf_len);
@@ -695,6 +708,12 @@ int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
       rv = ERR_FAILED;
   }
   return rv;
+}
+
+void HttpCache::Transaction::AddTruncatedFlag() {
+  DCHECK(mode_ & WRITE);
+  truncated_ = true;
+  WriteResponseInfoToEntry(true);
 }
 
 void HttpCache::Transaction::DoCallback(int rv) {
@@ -877,6 +896,10 @@ int HttpCache::Transaction::BeginCacheRead() {
     return HandleResult(ERR_CACHE_MISS);
   }
 
+  // We don't have the whole resource.
+  if (truncated_)
+    return HandleResult(ERR_CACHE_MISS);
+
   return HandleResult(rv);
 }
 
@@ -908,7 +931,8 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
     return HandleResult(rv);
   }
 
-  if (response_.headers->response_code() != 206 && !partial_.get())
+  if (response_.headers->response_code() != 206 && !partial_.get() &&
+      !truncated_)
     return BeginCacheValidation();
 
   if (!enable_range_support_)
@@ -925,8 +949,8 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
     }
   }
 
-  if (!partial_->UpdateFromStoredHeaders(response_.headers,
-                                         entry_->disk_entry)) {
+  if (!partial_->UpdateFromStoredHeaders(response_.headers, entry_->disk_entry,
+                                         truncated_)) {
     // The stored data cannot be used. Get rid of it and restart this request.
     DoomPartialEntry(!byte_range_requested);
     mode_ = WRITE;
@@ -987,9 +1011,8 @@ int HttpCache::Transaction::BeginExternallyConditionalizedRequest() {
       external_validation_.type_info().related_response_header_name,
       &validator);
 
-  if (response_.headers->response_code() != 200 ||
-      validator.empty() ||
-      validator != external_validation_.value) {
+  if (response_.headers->response_code() != 200 || truncated_ ||
+      validator.empty() || validator != external_validation_.value) {
     // The externally conditionalized request is not a validation request
     // for our existing cache entry. Proceed with caching disabled.
     DoneWritingToEntry(true);
@@ -1251,7 +1274,7 @@ int HttpCache::Transaction::ReadFromEntry(IOBuffer* data, int data_len) {
 int HttpCache::Transaction::ReadResponseInfoFromEntry() {
   DCHECK(entry_);
 
-  if (!HttpCache::ReadResponseInfo(entry_->disk_entry, &response_))
+  if (!HttpCache::ReadResponseInfo(entry_->disk_entry, &response_, &truncated_))
     return ERR_CACHE_READ_FAILURE;
   return OK;
 }
@@ -1274,7 +1297,7 @@ void HttpCache::Transaction::WriteToEntry(int index, int offset,
   }
 }
 
-void HttpCache::Transaction::WriteResponseInfoToEntry() {
+void HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
   if (!entry_)
     return;
 
@@ -1298,8 +1321,12 @@ void HttpCache::Transaction::WriteResponseInfoToEntry() {
   // headers; when in record mode, record everything.
   bool skip_transient_headers = (cache_->mode() != RECORD);
 
+  if (truncated) {
+    DCHECK_EQ(200, response_.headers->response_code());
+  }
+
   if (!HttpCache::WriteResponseInfo(entry_->disk_entry, &response_,
-                                    skip_transient_headers)) {
+                                    skip_transient_headers, truncated)) {
     DLOG(ERROR) << "failed to write response info to cache";
     DoneWritingToEntry(false);
   }
@@ -1336,7 +1363,7 @@ void HttpCache::Transaction::DoneWritingToEntry(bool success) {
 }
 
 void HttpCache::Transaction::DoomPartialEntry(bool delete_object) {
-  cache_->DoneWithEntry(entry_, this);
+  cache_->DoneWithEntry(entry_, this, false);
   cache_->DoomEntry(cache_key_);
   entry_ = NULL;
   if (delete_object)
@@ -1429,7 +1456,7 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
       auth_response_ = *new_response;
     } else {
       bool partial_content = ValidatePartialResponse(new_response->headers);
-      if (partial_content && mode_ == READ_WRITE &&
+      if (partial_content && mode_ == READ_WRITE && !truncated_ &&
           response_.headers->response_code() == 200) {
         // We have stored the full entry, but it changed and the server is
         // sending a range. We have to delete the old entry.
@@ -1452,7 +1479,7 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
             // If we are already reading, we already updated the headers for
             // this request; doing it again will change Content-Length.
             if (!reading_)
-              WriteResponseInfoToEntry();
+              WriteResponseInfoToEntry(false);
           }
 
           if (mode_ == UPDATE) {
@@ -1485,7 +1512,7 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
           partial_->FixContentLength(new_response->headers);
 
         response_ = *new_response;
-        WriteResponseInfoToEntry();
+        WriteResponseInfoToEntry(truncated_);
 
         // Truncate response data.
         TruncateResponseData();
@@ -1495,8 +1522,7 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
         if (response_.headers->IsRedirect(NULL))
           DoneWritingToEntry(true);
       }
-      if (reading_) {
-        DCHECK(partial_.get());
+      if (reading_ && partial_.get()) {
         if (network_trans_.get()) {
           result = ReadFromNetwork(read_buf_, read_buf_len_);
         } else {
@@ -1636,7 +1662,8 @@ void HttpCache::Suspend(bool suspend) {
 
 // static
 bool HttpCache::ParseResponseInfo(const char* data, int len,
-                                  HttpResponseInfo* response_info) {
+                                  HttpResponseInfo* response_info,
+                                  bool* response_truncated) {
   Pickle pickle(data, len);
   void* iter = NULL;
 
@@ -1690,12 +1717,15 @@ bool HttpCache::ParseResponseInfo(const char* data, int len,
       return false;
   }
 
+  *response_truncated = (flags & RESPONSE_INFO_TRUNCATED) ? true : false;
+
   return true;
 }
 
 // static
 bool HttpCache::ReadResponseInfo(disk_cache::Entry* disk_entry,
-                                 HttpResponseInfo* response_info) {
+                                 HttpResponseInfo* response_info,
+                                 bool* response_truncated) {
   int size = disk_entry->GetDataSize(kResponseInfoIndex);
 
   scoped_refptr<IOBuffer> buffer = new IOBuffer(size);
@@ -1705,13 +1735,15 @@ bool HttpCache::ReadResponseInfo(disk_cache::Entry* disk_entry,
     return false;
   }
 
-  return ParseResponseInfo(buffer->data(), size, response_info);
+  return ParseResponseInfo(buffer->data(), size, response_info,
+                           response_truncated);
 }
 
 // static
 bool HttpCache::WriteResponseInfo(disk_cache::Entry* disk_entry,
                                   const HttpResponseInfo* response_info,
-                                  bool skip_transient_headers) {
+                                  bool skip_transient_headers,
+                                  bool response_truncated) {
   int flags = RESPONSE_INFO_VERSION;
   if (response_info->ssl_info.cert) {
     flags |= RESPONSE_INFO_HAS_CERT;
@@ -1721,6 +1753,8 @@ bool HttpCache::WriteResponseInfo(disk_cache::Entry* disk_entry,
     flags |= RESPONSE_INFO_HAS_SECURITY_BITS;
   if (response_info->vary_data.is_valid())
     flags |= RESPONSE_INFO_HAS_VARY_DATA;
+  if (response_truncated)
+    flags |= RESPONSE_INFO_TRUNCATED;
 
   Pickle pickle;
   pickle.WriteInt(flags);
@@ -1942,7 +1976,8 @@ int HttpCache::AddTransactionToEntry(ActiveEntry* entry, Transaction* trans) {
   return trans->EntryAvailable(entry);
 }
 
-void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans) {
+void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans,
+                              bool cancel) {
   // If we already posted a task to move on to the next transaction and this was
   // the writer, there is nothing to cancel.
   if (entry->will_process_pending_queue && entry->readers.empty())
@@ -1951,8 +1986,19 @@ void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans) {
   if (entry->writer) {
     DCHECK(trans == entry->writer);
 
-    // Assume that this is not a successful write.
-    DoneWritingToEntry(entry, false);
+    // Assume there was a failure.
+    bool success = false;
+    if (cancel) {
+      DCHECK(entry->disk_entry);
+      // This is a successful operation in the sense that we want to keep the
+      // entry.
+      success = true;
+      // Double check that there is something worth keeping.
+      if (!entry->disk_entry->GetDataSize(kResponseContentIndex))
+        success = false;
+      trans->AddTruncatedFlag();
+    }
+    DoneWritingToEntry(entry, success);
   } else {
     DoneReadingFromEntry(entry, trans);
   }

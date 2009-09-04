@@ -65,6 +65,12 @@ int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
   if (sparse_entry_) {
     cached_min_len_ = entry->GetAvailableRange(current_range_start_, len,
                                                &cached_start_);
+  } else if (truncated_) {
+    if (!current_range_start_) {
+      // Update the cached range only the first time.
+      cached_min_len_ = static_cast<int32>(byte_range_.first_byte_position());
+      cached_start_ = 0;
+    }
   } else {
     cached_min_len_ = len;
     cached_start_ = current_range_start_;
@@ -80,7 +86,8 @@ int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
   if (!cached_min_len_) {
     // We don't have anything else stored.
     final_range_ = true;
-    cached_start_ = current_range_start_ + len;
+    cached_start_ =
+        byte_range_.HasLastBytePosition() ? current_range_start_  + len : 0;
   }
 
   if (current_range_start_ == cached_start_) {
@@ -108,9 +115,24 @@ bool PartialData::IsLastRange() const {
 }
 
 bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
-                                          disk_cache::Entry* entry) {
-  std::string length_value;
+                                          disk_cache::Entry* entry,
+                                          bool truncated) {
   resource_size_ = 0;
+  if (truncated) {
+    DCHECK_EQ(headers->response_code(), 200);
+    truncated_ = true;
+    sparse_entry_ = false;
+
+    // We don't have the real length and the user may be trying to create a
+    // sparse entry so let's not write to this entry.
+    if (byte_range_.IsValid())
+      return false;
+
+    byte_range_.set_first_byte_position(entry->GetDataSize(kDataStream));
+    current_range_start_ = 0;
+    return true;
+  }
+
   if (headers->response_code() == 200) {
     DCHECK(byte_range_.IsValid());
     sparse_entry_ = false;
@@ -118,6 +140,7 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
     return true;
   }
 
+  std::string length_value;
   if (!headers->GetNormalizedHeader(kLengthHeader, &length_value))
     return false;  // We must have stored the resource length.
 
@@ -134,6 +157,8 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
 
 bool PartialData::IsRequestedRangeOK() {
   if (byte_range_.IsValid()) {
+    if (truncated_)
+      return true;
     if (!byte_range_.ComputeBounds(resource_size_))
       return false;
 
@@ -154,6 +179,9 @@ bool PartialData::IsRequestedRangeOK() {
 
 bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
   if (headers->response_code() == 304) {
+    if (truncated_)
+      return true;
+
     // We must have a complete range here.
     return byte_range_.HasFirstBytePosition() &&
            byte_range_.HasLastBytePosition();
@@ -191,6 +219,9 @@ bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
 // Just assume that everything is fine and say that we are returning what was
 // requested.
 void PartialData::FixResponseHeaders(HttpResponseHeaders* headers) {
+  if (truncated_)
+    return;
+
   headers->RemoveHeader(kLengthHeader);
   headers->RemoveHeader(kRangeHeader);
 
@@ -249,7 +280,7 @@ int PartialData::CacheWrite(disk_cache::Entry* entry, IOBuffer* data,
       return ERR_INVALID_ARGUMENT;
 
     return entry->WriteData(kDataStream, static_cast<int>(current_range_start_),
-                            data, data_len, callback, false);
+                            data, data_len, callback, true);
   }
 }
 

@@ -97,18 +97,23 @@ class HttpCache : public HttpTransactionFactory {
   virtual HttpCache* GetCache();
   virtual void Suspend(bool suspend);
 
-  // Helper function for reading response info from the disk cache.
+  // Helper function for reading response info from the disk cache.  If the
+  // cache doesn't have the whole resource *|request_truncated| is set to true.
   static bool ReadResponseInfo(disk_cache::Entry* disk_entry,
-                               HttpResponseInfo* response_info);
+                               HttpResponseInfo* response_info,
+                               bool* response_truncated);
 
-  // Helper function for writing response info into the disk cache.
+  // Helper function for writing response info into the disk cache.  If the
+  // cache doesn't have the whole resource |request_truncated| should be true.
   static bool WriteResponseInfo(disk_cache::Entry* disk_entry,
                                 const HttpResponseInfo* response_info,
-                                bool skip_transient_headers);
+                                bool skip_transient_headers,
+                                bool response_truncated);
 
   // Given a header data blob, convert it to a response info object.
   static bool ParseResponseInfo(const char* data, int len,
-                                HttpResponseInfo* response_info);
+                                HttpResponseInfo* response_info,
+                                bool* response_truncated);
 
   // Get/Set the cache's mode.
   void set_mode(Mode value) { mode_ = value; }
@@ -162,7 +167,7 @@ class HttpCache : public HttpTransactionFactory {
   ActiveEntry* CreateEntry(const std::string& cache_key);
   void DestroyEntry(ActiveEntry* entry);
   int AddTransactionToEntry(ActiveEntry* entry, Transaction* trans);
-  void DoneWithEntry(ActiveEntry* entry, Transaction* trans);
+  void DoneWithEntry(ActiveEntry* entry, Transaction* trans, bool cancel);
   void DoneWritingToEntry(ActiveEntry* entry, bool success);
   void DoneReadingFromEntry(ActiveEntry* entry, Transaction* trans);
   void ConvertWriterToReader(ActiveEntry* entry);

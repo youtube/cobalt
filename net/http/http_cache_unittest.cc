@@ -2013,7 +2013,7 @@ TEST(HttpCache, GET_Previous206_NotSparse) {
 
   net::HttpResponseInfo response;
   response.headers = new net::HttpResponseHeaders(raw_headers);
-  net::HttpCache::WriteResponseInfo(entry, &response, true);
+  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, false));
 
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
@@ -2056,7 +2056,7 @@ TEST(HttpCache, RangeGET_Previous206_NotSparse_2) {
 
   net::HttpResponseInfo response;
   response.headers = new net::HttpResponseHeaders(raw_headers);
-  net::HttpCache::WriteResponseInfo(entry, &response, true);
+  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, false));
 
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
@@ -2237,6 +2237,159 @@ TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 #endif
+
+// Tests the handling of the "truncation" flag.
+TEST(HttpCache, WriteResponseInfo_Truncated) {
+  MockHttpCache cache;
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.disk_cache()->CreateEntry("http://www.google.com", &entry));
+
+  std::string headers("HTTP/1.1 200 OK");
+  headers = net::HttpUtil::AssembleRawHeaders(headers.data(), headers.size());
+  net::HttpResponseInfo response;
+  response.headers = new net::HttpResponseHeaders(headers);
+
+  // Set the last argument for this to be an incomplete request.
+  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+  bool truncated = false;
+  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(truncated);
+
+  // And now test the opposite case.
+  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, false));
+  truncated = true;
+  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_FALSE(truncated);
+  entry->Close();
+}
+
+// Tests that we delete an entry when the request is cancelled before starting
+// to read from the network.
+TEST(HttpCache, DoomOnDestruction) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+
+  MockHttpRequest request(kSimpleGET_Transaction);
+
+  Context* c =  new Context(cache.http_cache()->CreateTransaction());
+
+  int rv = c->trans->Start(&request, &c->callback, NULL);
+  if (rv == net::ERR_IO_PENDING)
+    c->result = c->callback.WaitForResult();
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Destroy the transaction. We only have the headers so we should delete this
+  // entry.
+  delete c;
+
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+}
+
+// Tests that we mark an entry as incomplete when the request is cancelled.
+TEST(HttpCache, Set_Truncated_Flag) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+
+  MockHttpRequest request(kSimpleGET_Transaction);
+
+  Context* c =  new Context(cache.http_cache()->CreateTransaction());
+
+  int rv = c->trans->Start(&request, &c->callback, NULL);
+  if (rv == net::ERR_IO_PENDING)
+    rv = c->callback.WaitForResult();
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Make sure that the entry has some data stored.
+  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(10);
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  if (rv == net::ERR_IO_PENDING)
+    rv = c->callback.WaitForResult();
+  EXPECT_EQ(buf->size(), rv);
+
+  // Destroy the transaction.
+  delete c;
+
+  // Verify that the entry is marked as incomplete.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.disk_cache()->OpenEntry(kSimpleGET_Transaction.url,
+                                            &entry));
+  net::HttpResponseInfo response;
+  bool truncated = false;
+  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(truncated);
+  entry->Close();
+}
+
+// Tests that we can continue with a request that was interrupted.
+TEST(HttpCache, GET_IncompleteResource) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  // Create a disk cache entry that stores an incomplete resource.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url,
+                                              &entry));
+
+  // Content-length will be intentionally bogus.
+  std::string raw_headers("HTTP/1.1 200 OK\n"
+                          "Last-Modified: something\n"
+                          "ETag: \"foo\"\n"
+                          "Accept-Ranges: bytes\n"
+                          "Content-Length: 10\n");
+  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
+                                                  raw_headers.size());
+
+  net::HttpResponseInfo response;
+  response.headers = new net::HttpResponseHeaders(raw_headers);
+  // Set the last argument for this to be an incomplete request.
+  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
+  int len = static_cast<int>(base::strlcpy(buf->data(),
+                                           "rg: 00-09 rg: 10-19 ", 100));
+  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+
+  // Now make a regular request.
+  std::string headers;
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = "";
+  transaction.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
+                     "rg: 50-59 rg: 60-69 rg: 70-79 ";
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  // We update the headers with the ones received while revalidating.
+  std::string expected_headers(
+      "HTTP/1.1 200 OK\n"
+      "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+      "Accept-Ranges: bytes\n"
+      "ETag: \"foo\"\n"
+      "Content-Length: 10\n");
+
+  EXPECT_EQ(expected_headers, headers);
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+
+  // Verify that the disk entry was updated.
+  EXPECT_EQ(80, entry->GetDataSize(1));
+  bool truncated = true;
+  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_FALSE(truncated);
+  entry->Close();
+}
 
 TEST(HttpCache, SyncRead) {
   MockHttpCache cache;
