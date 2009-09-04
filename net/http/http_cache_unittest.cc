@@ -9,6 +9,7 @@
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/load_flags.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_byte_range.h"
 #include "net/http/http_request_info.h"
@@ -386,7 +387,7 @@ void ReadAndVerifyTransaction(net::HttpTransaction* trans,
 void RunTransactionTestWithRequest(net::HttpCache* cache,
                                    const MockTransaction& trans_info,
                                    const MockHttpRequest& request,
-                                   std::string* response_headers) {
+                                   net::HttpResponseInfo* response_info) {
   TestCompletionCallback callback;
 
   // write to the cache
@@ -402,23 +403,31 @@ void RunTransactionTestWithRequest(net::HttpCache* cache,
   const net::HttpResponseInfo* response = trans->GetResponseInfo();
   ASSERT_TRUE(response);
 
-  if (response_headers)
-    response->headers->GetNormalizedHeaders(response_headers);
+  if (response_info)
+    *response_info = *response;
 
   ReadAndVerifyTransaction(trans.get(), trans_info);
 }
 
 void RunTransactionTest(net::HttpCache* cache,
                         const MockTransaction& trans_info) {
-  return RunTransactionTestWithRequest(
+  RunTransactionTestWithRequest(
       cache, trans_info, MockHttpRequest(trans_info), NULL);
+}
+
+void RunTransactionTestWithResponseInfo(net::HttpCache* cache,
+                                        const MockTransaction& trans_info,
+                                        net::HttpResponseInfo* response) {
+  RunTransactionTestWithRequest(
+      cache, trans_info, MockHttpRequest(trans_info), response);
 }
 
 void RunTransactionTestWithResponse(net::HttpCache* cache,
                                     const MockTransaction& trans_info,
                                     std::string* response_headers) {
-  return RunTransactionTestWithRequest(
-      cache, trans_info, MockHttpRequest(trans_info), response_headers);
+  net::HttpResponseInfo response;
+  RunTransactionTestWithResponseInfo(cache, trans_info, &response);
+  response.headers->GetNormalizedHeaders(response_headers);
 }
 
 // This class provides a handler for kFastNoStoreGET_Transaction so that the
@@ -453,6 +462,7 @@ const MockTransaction kFastNoStoreGET_Transaction = {
   net::LOAD_VALIDATE_CACHE,
   "HTTP/1.1 200 OK",
   "Cache-Control: max-age=10000\n",
+  base::Time(),
   "<html><body>Google Blah Blah</body></html>",
   TEST_MODE_SYNC_NET_START,
   &FastTransactionServer::FastNoStoreHandler,
@@ -559,6 +569,7 @@ const MockTransaction kRangeGET_TransactionOK = {
   "ETag: \"foo\"\n"
   "Accept-Ranges: bytes\n"
   "Content-Length: 10\n",
+  base::Time(),
   "rg: 40-49 ",
   TEST_MODE_NORMAL,
   &RangeTransactionServer::RangeHandler,
@@ -2483,4 +2494,72 @@ TEST(HttpCache, CacheDisabledMode) {
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
+}
+
+// Other tests check that the response headers of the cached response
+// get updated on 304. Here we specifically check that the
+// HttpResponseHeaders::response_time field also gets updated.
+// http://crbug.com/20594.
+TEST(HttpCache, UpdatesResponseTimeOn304) {
+  MockHttpCache cache;
+
+  const char* kUrl = "http://foobar";
+  const char* kData = "body";
+
+  MockTransaction mock_network_response = { 0 };
+  mock_network_response.url = kUrl;
+
+  AddMockTransaction(&mock_network_response);
+
+  // Request |kUrl|, causing |kNetResponse1| to be written to the cache.
+
+  MockTransaction request = { 0 };
+  request.url = kUrl;
+  request.method = "GET";
+  request.request_headers = "";
+  request.data = kData;
+
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    kData
+  };
+
+  kNetResponse1.AssignTo(&mock_network_response);
+
+  RunTransactionTest(cache.http_cache(), request);
+
+  // Request |kUrl| again, this time validating the cache and getting
+  // a 304 back.
+
+  request.load_flags = net::LOAD_VALIDATE_CACHE;
+
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 304 Not Modified",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n",
+    ""
+  };
+
+  kNetResponse2.AssignTo(&mock_network_response);
+
+  base::Time t = base::Time() + base::TimeDelta::FromHours(1234);
+  mock_network_response.response_time = t;
+
+  net::HttpResponseInfo response;
+  RunTransactionTestWithResponseInfo(cache.http_cache(), request, &response);
+
+  // The response time should have been updated.
+  EXPECT_EQ(t.ToInternalValue(),
+            response.response_time.ToInternalValue());
+
+  std::string headers;
+  response.headers->GetNormalizedHeaders(&headers);
+
+  EXPECT_EQ("HTTP/1.1 200 OK\n"
+            "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+            "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+            headers);
+
+  RemoveMockTransaction(&mock_network_response);
 }

@@ -47,6 +47,8 @@ struct MockTransaction {
   int load_flags;
   const char* status;
   const char* response_headers;
+  // If |response_time| is unspecified, the current time will be used.
+  base::Time response_time;
   const char* data;
   int test_mode;
   MockTransactionHandler handler;
@@ -218,7 +220,11 @@ class MockNetworkTransaction : public net::HttpTransaction {
 
     response_.request_time = base::Time::Now();
     response_.was_cached = false;
+
     response_.response_time = base::Time::Now();
+    if (!t->response_time.is_null())
+      response_.response_time = t->response_time;
+
     response_.headers = new net::HttpResponseHeaders(header_data);
     response_.ssl_info.cert_status = t->cert_status;
     data_ = resp_data;

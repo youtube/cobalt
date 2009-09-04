@@ -1443,6 +1443,8 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
           // TODO(wtc): should we update cached certificate
           // (response_.ssl_info), too?
           response_.headers->Update(*new_response->headers);
+          response_.response_time = new_response->response_time;
+
           if (response_.headers->HasHeaderValue("cache-control", "no-store")) {
             cache_->DoomEntry(cache_key_);
           } else {
