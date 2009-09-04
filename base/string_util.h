@@ -363,6 +363,12 @@ bool StartsWith(const std::wstring& str,
                 const std::wstring& search,
                 bool case_sensitive);
 
+// Returns true if str ends with search, or false otherwise.
+bool EndsWith(const std::wstring& str,
+              const std::wstring& search,
+              bool case_sensitive);
+
+
 // Determines the type of ASCII character, independent of locale (the C
 // library versions will change based on locale).
 template <typename Char>
