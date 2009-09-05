@@ -179,7 +179,7 @@ bool PartialData::IsRequestedRangeOK() {
 
 bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
   if (headers->response_code() == 304) {
-    if (truncated_)
+    if (!byte_range_.IsValid() || truncated_)
       return true;
 
     // We must have a complete range here.
