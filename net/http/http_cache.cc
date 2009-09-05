@@ -945,7 +945,6 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
     if (!custom_request_.get()) {
       custom_request_.reset(new HttpRequestInfo(*request_));
       request_ = custom_request_.get();
-      DCHECK(custom_request_->extra_headers.empty());
     }
   }
 
