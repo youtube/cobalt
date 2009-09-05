@@ -62,7 +62,7 @@ class URLRequestContext :
   }
 
   // Gets the cookie store for this context.
-  net::CookieStore* cookie_store() { return cookie_store_; }
+  net::CookieStore* cookie_store() { return cookie_store_.get(); }
 
   // Gets the cookie policy for this context.
   net::CookiePolicy* cookie_policy() { return &cookie_policy_; }
@@ -117,7 +117,7 @@ class URLRequestContext :
   scoped_refptr<net::SSLConfigService> ssl_config_service_;
   net::HttpTransactionFactory* http_transaction_factory_;
   net::FtpTransactionFactory* ftp_transaction_factory_;
-  net::CookieStore* cookie_store_;
+  scoped_refptr<net::CookieStore> cookie_store_;
   net::CookiePolicy cookie_policy_;
   net::ForceTLSState* force_tls_state_;;
   net::FtpAuthCache ftp_auth_cache_;
