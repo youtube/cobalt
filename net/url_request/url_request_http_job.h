@@ -74,8 +74,8 @@ class URLRequestHttpJob : public URLRequestJob {
   std::string AssembleRequestCookies();
   void FetchResponseCookies();
 
-  // Process the X-Force-TLS header, if one exists.
-  void ProcessForceTLSHeader();
+  // Process the Strict-Transport-Security header, if one exists.
+  void ProcessStrictTransportSecurityHeader();
 
   void OnStartCompleted(int result);
   void OnReadCompleted(int result);
