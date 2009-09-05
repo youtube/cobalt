@@ -14,7 +14,7 @@
 #include "base/string_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/filter.h"
-#include "net/base/force_tls_state.h"
+#include "net/base/strict_transport_security_state.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
@@ -55,8 +55,8 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
   static const bool kForceHTTPS =
       CommandLine::ForCurrentProcess()->HasSwitch(switches::kForceHTTPS);
   if (kForceHTTPS && scheme == "http" &&
-      request->context()->force_tls_state() &&
-      request->context()->force_tls_state()->IsEnabledForHost(
+      request->context()->strict_transport_security_state() &&
+      request->context()->strict_transport_security_state()->IsEnabledForHost(
           request->url().host())) {
     DCHECK_EQ(request->url().scheme(), "http");
     url_canon::Replacements<char> replacements;
@@ -536,11 +536,11 @@ bool URLRequestHttpJob::ShouldTreatAsCertificateError(int result) {
   if (!CommandLine::ForCurrentProcess()->HasSwitch(switches::kForceHTTPS))
     return true;
 
-  // Check whether our context is using ForceTLS.
-  if (!context_->force_tls_state())
+  // Check whether our context is using Strict-Transport-Security.
+  if (!context_->strict_transport_security_state())
     return true;
 
-  return !context_->force_tls_state()->IsEnabledForHost(
+  return !context_->strict_transport_security_state()->IsEnabledForHost(
       request_info_.url.host());
 }
 
@@ -568,7 +568,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
     }
   }
 
-  ProcessForceTLSHeader();
+  ProcessStrictTransportSecurityHeader();
 
   if (SdchManager::Global() &&
       SdchManager::Global()->IsInSupportedDomain(request_->url())) {
@@ -741,29 +741,31 @@ void URLRequestHttpJob::FetchResponseCookies() {
 }
 
 
-void URLRequestHttpJob::ProcessForceTLSHeader() {
+void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   DCHECK(response_info_);
 
   // Hide processing behind a command line flag.
   if (!CommandLine::ForCurrentProcess()->HasSwitch(switches::kForceHTTPS))
     return;
 
-  // Only process X-Force-TLS from HTTPS responses.
+  // Only process Strict-Transport-Security from HTTPS responses.
   if (request_info_.url.scheme() != "https")
     return;
 
-  // Only process X-Force-TLS from responses with valid certificates.
+  // Only process Strict-Transport-Security from responses with valid certificates.
   if (response_info_->ssl_info.cert_status & net::CERT_STATUS_ALL_ERRORS)
     return;
 
   URLRequestContext* ctx = request_->context();
-  if (!ctx || !ctx->force_tls_state())
+  if (!ctx || !ctx->strict_transport_security_state())
     return;
 
-  std::string name = "X-Force-TLS";
+  std::string name = "Strict-Transport-Security";
   std::string value;
 
   void* iter = NULL;
-  while (response_info_->headers->EnumerateHeader(&iter, name, &value))
-    ctx->force_tls_state()->DidReceiveHeader(request_info_.url, value);
+  while (response_info_->headers->EnumerateHeader(&iter, name, &value)) {
+    ctx->strict_transport_security_state()->DidReceiveHeader(
+        request_info_.url, value);
+  }
 }
