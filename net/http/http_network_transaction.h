@@ -352,6 +352,11 @@ class HttpNetworkTransaction : public HttpTransaction {
   // but it isn't really being used.
   bool reading_body_from_socket_;
 
+  // True if we've used the username/password embedded in the URL.  This
+  // makes sure we use the embedded identity only once for the transaction,
+  // preventing an infinite auth restart loop.
+  bool embedded_identity_used_;
+
   SSLConfig ssl_config_;
 
   scoped_refptr<RequestHeaders> request_headers_;
