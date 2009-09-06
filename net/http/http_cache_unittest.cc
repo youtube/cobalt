@@ -9,6 +9,7 @@
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/load_flags.h"
+#include "net/base/load_log_unittest.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_byte_range.h"
@@ -384,10 +385,11 @@ void ReadAndVerifyTransaction(net::HttpTransaction* trans,
   EXPECT_EQ(expected, content);
 }
 
-void RunTransactionTestWithRequest(net::HttpCache* cache,
-                                   const MockTransaction& trans_info,
-                                   const MockHttpRequest& request,
-                                   net::HttpResponseInfo* response_info) {
+void RunTransactionTestWithRequestAndLog(net::HttpCache* cache,
+                                         const MockTransaction& trans_info,
+                                         const MockHttpRequest& request,
+                                         net::HttpResponseInfo* response_info,
+                                         net::LoadLog* load_log) {
   TestCompletionCallback callback;
 
   // write to the cache
@@ -395,7 +397,7 @@ void RunTransactionTestWithRequest(net::HttpCache* cache,
   scoped_ptr<net::HttpTransaction> trans(cache->CreateTransaction());
   ASSERT_TRUE(trans.get());
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, load_log);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::OK, rv);
@@ -409,10 +411,24 @@ void RunTransactionTestWithRequest(net::HttpCache* cache,
   ReadAndVerifyTransaction(trans.get(), trans_info);
 }
 
+void RunTransactionTestWithRequest(net::HttpCache* cache,
+                                   const MockTransaction& trans_info,
+                                   const MockHttpRequest& request,
+                                   net::HttpResponseInfo* response_info) {
+  RunTransactionTestWithRequestAndLog(cache, trans_info, request,
+                                      response_info, NULL);
+}
+
+void RunTransactionTestWithLog(net::HttpCache* cache,
+                               const MockTransaction& trans_info,
+                               net::LoadLog* log) {
+  RunTransactionTestWithRequestAndLog(
+      cache, trans_info, MockHttpRequest(trans_info), NULL, log);
+}
+
 void RunTransactionTest(net::HttpCache* cache,
                         const MockTransaction& trans_info) {
-  RunTransactionTestWithRequest(
-      cache, trans_info, MockHttpRequest(trans_info), NULL);
+  RunTransactionTestWithLog(cache, trans_info, NULL);
 }
 
 void RunTransactionTestWithResponseInfo(net::HttpCache* cache,
@@ -656,8 +672,22 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
 
   cache.disk_cache()->set_fail_requests();
 
+  scoped_refptr<net::LoadLog> log(new net::LoadLog);
+
   // Read from the network, and don't use the cache.
-  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+  RunTransactionTestWithLog(cache.http_cache(), kSimpleGET_Transaction, log);
+
+  // Check that the LoadLog was filled as expected.
+  // (We attempted to both Open and Create entries, but both failed).
+  EXPECT_EQ(4u, log->events().size());
+  net::ExpectLogContains(log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
+                         net::LoadLog::PHASE_BEGIN);
+  net::ExpectLogContains(log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
+                         net::LoadLog::PHASE_END);
+  net::ExpectLogContains(log, 2, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY,
+                         net::LoadLog::PHASE_BEGIN);
+  net::ExpectLogContains(log, 3, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY,
+                         net::LoadLog::PHASE_END);
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
@@ -687,14 +717,48 @@ TEST(HttpCache, SimpleGETWithDiskFailures) {
 TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   MockHttpCache cache;
 
+  scoped_refptr<net::LoadLog> log(new net::LoadLog);
+
   // write to the cache
-  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+  RunTransactionTestWithLog(cache.http_cache(), kSimpleGET_Transaction, log);
+
+  // Check that the LoadLog was filled as expected.
+  EXPECT_EQ(6u, log->events().size());
+  net::ExpectLogContains(log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
+                         net::LoadLog::PHASE_BEGIN);
+  net::ExpectLogContains(log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
+                         net::LoadLog::PHASE_END);
+  net::ExpectLogContains(log, 2, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY,
+                         net::LoadLog::PHASE_BEGIN);
+  net::ExpectLogContains(log, 3, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY,
+                         net::LoadLog::PHASE_END);
+  net::ExpectLogContains(log, 4, net::LoadLog::TYPE_HTTP_CACHE_WAITING,
+                         net::LoadLog::PHASE_BEGIN);
+  net::ExpectLogContains(log, 5, net::LoadLog::TYPE_HTTP_CACHE_WAITING,
+                         net::LoadLog::PHASE_END);
 
   // force this transaction to read from the cache
   MockTransaction transaction(kSimpleGET_Transaction);
   transaction.load_flags |= net::LOAD_ONLY_FROM_CACHE;
 
-  RunTransactionTest(cache.http_cache(), transaction);
+  log = new net::LoadLog;
+
+  RunTransactionTestWithLog(cache.http_cache(), transaction, log);
+
+  // Check that the LoadLog was filled as expected.
+  EXPECT_EQ(6u, log->events().size());
+  net::ExpectLogContains(log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
+                         net::LoadLog::PHASE_BEGIN);
+  net::ExpectLogContains(log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
+                         net::LoadLog::PHASE_END);
+  net::ExpectLogContains(log, 2, net::LoadLog::TYPE_HTTP_CACHE_WAITING,
+                         net::LoadLog::PHASE_BEGIN);
+  net::ExpectLogContains(log, 3, net::LoadLog::TYPE_HTTP_CACHE_WAITING,
+                         net::LoadLog::PHASE_END);
+  net::ExpectLogContains(log, 4, net::LoadLog::TYPE_HTTP_CACHE_READ_INFO,
+                         net::LoadLog::PHASE_BEGIN);
+  net::ExpectLogContains(log, 5, net::LoadLog::TYPE_HTTP_CACHE_READ_INFO,
+                         net::LoadLog::PHASE_END);
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
