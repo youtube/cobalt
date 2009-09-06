@@ -175,6 +175,10 @@ std::ostream& operator<<(std::ostream& out,
   return out;
 }
 
+const char* BoolToYesNoString(bool b) {
+  return b ? "Yes" : "No";
+}
+
 }  // namespace
 
 std::ostream& operator<<(std::ostream& out,
@@ -206,26 +210,54 @@ std::ostream& operator<<(std::ostream& out,
 }
 
 std::ostream& operator<<(std::ostream& out, const net::ProxyConfig& config) {
-  out << "{\n"
-      << "  auto_detect: " << config.auto_detect << "\n"
-      << "  pac_url: " << config.pac_url << "\n"
-      << "  proxy_rules:\n" << config.proxy_rules << "\n"
-      << "  proxy_bypass_local_names: " << config.proxy_bypass_local_names
-      << "\n"
-      << "  proxy_bypass_list:\n";
+  // "Automatic" settings.
+  out << "Automatic settings:\n";
+  out << "  Auto-detect: " << BoolToYesNoString(config.auto_detect) << "\n";
+  out << "  Custom PAC script: ";
+  if (config.pac_url.is_valid())
+    out << config.pac_url;
+  else
+    out << "[None]";
+  out << "\n";
 
-  // Print out the proxy bypass list.
-  if (!config.proxy_bypass.empty()) {
-    out << "  {\n";
+  // "Manual" settings.
+  out << "Manual settings:\n";
+  out << "  Proxy server: ";
+
+  switch (config.proxy_rules.type) {
+    case net::ProxyConfig::ProxyRules::TYPE_NO_RULES:
+      out << "[None]\n";
+      break;
+    case net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY:
+      out << config.proxy_rules.single_proxy;
+      out << "\n";
+      break;
+    case net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME:
+      out << "\n";
+      if (config.proxy_rules.proxy_for_http.is_valid())
+        out << "    HTTP: " << config.proxy_rules.proxy_for_http << "\n";
+      if (config.proxy_rules.proxy_for_https.is_valid())
+        out << "    HTTPS: " << config.proxy_rules.proxy_for_https << "\n";
+      if (config.proxy_rules.proxy_for_ftp.is_valid())
+        out << "    FTP: " << config.proxy_rules.proxy_for_ftp << "\n";
+      if (config.proxy_rules.socks_proxy.is_valid())
+        out << "    SOCKS: " << config.proxy_rules.socks_proxy << "\n";
+      break;
+  }
+
+  out << "  Bypass list: ";
+  if (config.proxy_bypass.empty()) {
+    out << "[None]\n";
+  } else {
+    out << "\n";
     std::vector<std::string>::const_iterator it;
     for (it = config.proxy_bypass.begin();
          it != config.proxy_bypass.end(); ++it) {
       out << "    " << *it << "\n";
     }
-    out << "  }\n";
   }
 
-  out << "  id: " << config.id() << "\n"
-      << "}";
+  out << "  Bypass local names: "
+      << BoolToYesNoString(config.proxy_bypass_local_names);
   return out;
 }
