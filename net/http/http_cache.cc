@@ -20,6 +20,7 @@
 #include "base/time.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/disk_cache/disk_cache.h"
@@ -635,7 +636,9 @@ int HttpCache::Transaction::AddToEntry() {
   } else {
     entry = cache_->FindActiveEntry(cache_key_);
     if (!entry) {
+      LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
       entry = cache_->OpenEntry(cache_key_);
+      LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
       if (!entry) {
         if (mode_ == READ_WRITE) {
           mode_ = WRITE;
@@ -657,7 +660,9 @@ int HttpCache::Transaction::AddToEntry() {
 
   if (mode_ == WRITE) {
     DCHECK(!entry);
+    LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
     entry = cache_->CreateEntry(cache_key_);
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
     if (!entry) {
       DLOG(WARNING) << "unable to create cache entry";
       mode_ = NONE;
@@ -665,10 +670,14 @@ int HttpCache::Transaction::AddToEntry() {
     }
   }
 
+
+  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
   return cache_->AddTransactionToEntry(entry, this);
 }
 
 int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
+  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
+
   // We now have access to the cache entry.
   //
   //  o if we are the writer for the transaction, then we can start the network
@@ -1273,9 +1282,12 @@ int HttpCache::Transaction::ReadFromEntry(IOBuffer* data, int data_len) {
 int HttpCache::Transaction::ReadResponseInfoFromEntry() {
   DCHECK(entry_);
 
-  if (!HttpCache::ReadResponseInfo(entry_->disk_entry, &response_, &truncated_))
-    return ERR_CACHE_READ_FAILURE;
-  return OK;
+  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  bool read_ok =
+      HttpCache::ReadResponseInfo(entry_->disk_entry, &response_, &truncated_);
+  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+
+  return read_ok ? OK : ERR_CACHE_READ_FAILURE;
 }
 
 void HttpCache::Transaction::WriteToEntry(int index, int offset,
