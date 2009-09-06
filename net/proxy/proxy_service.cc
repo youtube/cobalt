@@ -608,8 +608,6 @@ void ProxyService::SetConfig(const ProxyConfig& config) {
   // Increment the ID to reflect that the config has changed.
   config_.set_id(next_config_id_++);
 
-  LOG(INFO) << "New proxy configuration was loaded:\n" << config_;
-
   // Reset state associated with latest config.
   config_is_bad_ = false;
   proxy_retry_info_.clear();
