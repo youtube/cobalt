@@ -2,28 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <ostream>
+
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service_common_unittest.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace net {
 namespace {
-static void ExpectProxyServerEquals(const char* expectation,
-                                    const net::ProxyServer& proxy_server) {
+
+void ExpectProxyServerEquals(const char* expectation,
+                             const ProxyServer& proxy_server) {
   if (expectation == NULL) {
     EXPECT_FALSE(proxy_server.is_valid());
   } else {
     EXPECT_EQ(expectation, proxy_server.ToURI());
   }
 }
-}
 
 TEST(ProxyConfigTest, Equals) {
   // Test |ProxyConfig::auto_detect|.
 
-  net::ProxyConfig config1;
+  ProxyConfig config1;
   config1.auto_detect = true;
 
-  net::ProxyConfig config2;
+  ProxyConfig config2;
   config2.auto_detect = false;
 
   EXPECT_FALSE(config1.Equals(config2));
@@ -48,22 +51,22 @@ TEST(ProxyConfigTest, Equals) {
 
   // Test |ProxyConfig::proxy_rules|.
 
-  config2.proxy_rules.type = net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
+  config2.proxy_rules.type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
   config2.proxy_rules.single_proxy =
-      net::ProxyServer::FromURI("myproxy:80", net::ProxyServer::SCHEME_HTTP);
+      ProxyServer::FromURI("myproxy:80", ProxyServer::SCHEME_HTTP);
 
   EXPECT_FALSE(config1.Equals(config2));
   EXPECT_FALSE(config2.Equals(config1));
 
-  config1.proxy_rules.type = net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
+  config1.proxy_rules.type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
   config1.proxy_rules.single_proxy =
-      net::ProxyServer::FromURI("myproxy:100", net::ProxyServer::SCHEME_HTTP);
+      ProxyServer::FromURI("myproxy:100", ProxyServer::SCHEME_HTTP);
 
   EXPECT_FALSE(config1.Equals(config2));
   EXPECT_FALSE(config2.Equals(config1));
 
   config1.proxy_rules.single_proxy =
-      net::ProxyServer::FromURI("myproxy", net::ProxyServer::SCHEME_HTTP);
+      ProxyServer::FromURI("myproxy", ProxyServer::SCHEME_HTTP);
 
   EXPECT_TRUE(config1.Equals(config2));
   EXPECT_TRUE(config2.Equals(config1));
@@ -97,7 +100,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
   const struct {
     const char* proxy_rules;
 
-    net::ProxyConfig::ProxyRules::Type type;
+    ProxyConfig::ProxyRules::Type type;
     const char* single_proxy;
     const char* proxy_for_http;
     const char* proxy_for_https;
@@ -108,7 +111,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "myproxy:80",
 
-      net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
+      ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
       "myproxy:80",
       NULL,
       NULL,
@@ -120,7 +123,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "http=myproxy:80",
 
-      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
       NULL,
       "myproxy:80",
       NULL,
@@ -132,7 +135,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "ftp=ftp-proxy ; https=socks4://foopy",
 
-      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
       NULL,
       NULL,
       "socks4://foopy:1080",
@@ -146,7 +149,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "foopy ; ftp=ftp-proxy",
 
-      net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
+      ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
       "foopy:80",
       NULL,
       NULL,
@@ -160,7 +163,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "ftp=ftp-proxy ; foopy",
 
-      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
       NULL,
       NULL,
       NULL,
@@ -172,7 +175,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "ftp=ftp1 ; ftp=ftp2 ; ftp=ftp3",
 
-      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
       NULL,
       NULL,
       NULL,
@@ -184,7 +187,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "socks=foopy",
 
-      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
       NULL,
       NULL,
       NULL,
@@ -196,7 +199,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "http=httpproxy ; https=httpsproxy ; ftp=ftpproxy ; socks=foopy ",
 
-      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
       NULL,
       "httpproxy:80",
       "httpsproxy:80",
@@ -209,7 +212,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "http=httpproxy ; https=httpsproxy ; socks=socks5://foopy ",
 
-      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
       NULL,
       "httpproxy:80",
       "httpsproxy:80",
@@ -221,7 +224,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     {
       "crazy=foopy ; foo=bar ; https=myhttpsproxy",
 
-      net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+      ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
       NULL,
       NULL,
       "myhttpsproxy:80",
@@ -230,7 +233,7 @@ TEST(ProxyConfigTest, ParseProxyRules) {
     },
   };
 
-  net::ProxyConfig config;
+  ProxyConfig config;
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     config.proxy_rules.ParseFromString(tests[i].proxy_rules);
@@ -273,11 +276,130 @@ TEST(ProxyConfigTest, ParseProxyBypassList) {
     }
   };
 
-  net::ProxyConfig config;
+  ProxyConfig config;
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     config.ParseNoProxyList(tests[i].proxy_bypass_input);
     EXPECT_EQ(tests[i].flattened_output,
-              net::FlattenProxyBypass(config.proxy_bypass));
+              FlattenProxyBypass(config.proxy_bypass));
   }
 }
+
+std::string ProxyConfigToString(const ProxyConfig& config) {
+  std::ostringstream stream;
+  stream << config;
+  return stream.str();
+}
+
+TEST(ProxyConfigTest, ToString) {
+  // Manual proxy.
+  {
+    ProxyConfig config;
+    config.auto_detect = false;
+    config.proxy_rules.ParseFromString("http://single-proxy:81");
+
+    EXPECT_EQ("Automatic settings:\n"
+              "  Auto-detect: No\n"
+              "  Custom PAC script: [None]\n"
+              "Manual settings:\n"
+              "  Proxy server: single-proxy:81\n"
+              "  Bypass list: [None]\n"
+              "  Bypass local names: No",
+              ProxyConfigToString(config));
+  }
+
+  // Autodetect + custom PAC + manual proxy.
+  {
+    ProxyConfig config;
+    config.auto_detect = true;
+    config.pac_url = GURL("http://custom/pac.js");
+    config.proxy_rules.ParseFromString("http://single-proxy:81");
+
+    EXPECT_EQ("Automatic settings:\n"
+              "  Auto-detect: Yes\n"
+              "  Custom PAC script: http://custom/pac.js\n"
+              "Manual settings:\n"
+              "  Proxy server: single-proxy:81\n"
+              "  Bypass list: [None]\n"
+              "  Bypass local names: No",
+              ProxyConfigToString(config));
+  }
+
+  // Manual proxy with bypass list + bypass local.
+  {
+    ProxyConfig config;
+    config.auto_detect = false;
+    config.proxy_rules.ParseFromString("http://single-proxy:81");
+    config.proxy_bypass.push_back("google.com");
+    config.proxy_bypass.push_back("bypass2.net:1730");
+    config.proxy_bypass_local_names = true;
+
+    EXPECT_EQ("Automatic settings:\n"
+              "  Auto-detect: No\n"
+              "  Custom PAC script: [None]\n"
+              "Manual settings:\n"
+              "  Proxy server: single-proxy:81\n"
+              "  Bypass list: \n"
+              "    google.com\n"
+              "    bypass2.net:1730\n"
+              "  Bypass local names: Yes",
+              ProxyConfigToString(config));
+  }
+
+  // Proxy-per scheme (HTTP and HTTPS)
+  {
+    ProxyConfig config;
+    config.auto_detect = false;
+    config.proxy_rules.ParseFromString(
+        "http=proxy-for-http:1801; https=proxy-for-https:1802");
+
+    EXPECT_EQ("Automatic settings:\n"
+              "  Auto-detect: No\n"
+              "  Custom PAC script: [None]\n"
+              "Manual settings:\n"
+              "  Proxy server: \n"
+              "    HTTP: proxy-for-http:1801\n"
+              "    HTTPS: proxy-for-https:1802\n"
+              "  Bypass list: [None]\n"
+              "  Bypass local names: No",
+              ProxyConfigToString(config));
+  }
+
+  // Proxy-per scheme (HTTP and SOCKS)
+  {
+    ProxyConfig config;
+    config.auto_detect = false;
+    config.proxy_rules.ParseFromString(
+        "http=http://proxy-for-http:1801; socks=socks-server:6083");
+
+    EXPECT_EQ("Automatic settings:\n"
+              "  Auto-detect: No\n"
+              "  Custom PAC script: [None]\n"
+              "Manual settings:\n"
+              "  Proxy server: \n"
+              "    HTTP: proxy-for-http:1801\n"
+              "    SOCKS: socks4://socks-server:6083\n"
+              "  Bypass list: [None]\n"
+              "  Bypass local names: No",
+              ProxyConfigToString(config));
+  }
+
+  // No proxy.
+  {
+    ProxyConfig config;
+    config.auto_detect = false;
+
+    EXPECT_EQ("Automatic settings:\n"
+              "  Auto-detect: No\n"
+              "  Custom PAC script: [None]\n"
+              "Manual settings:\n"
+              "  Proxy server: [None]\n"
+              "  Bypass list: [None]\n"
+              "  Bypass local names: No",
+              ProxyConfigToString(config));
+  }
+}
+
+}  // namespace
+}  // namespace net
+
