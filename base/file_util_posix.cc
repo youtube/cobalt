@@ -82,6 +82,19 @@ class LocaleAwareComparator {
 
 namespace file_util {
 
+#if defined(OS_FREEBSD)
+typedef struct stat stat_wrapper_t;
+static int CallStat(const char *path, stat_wrapper_t *sb) {
+  return stat(path, sb);
+}
+#else
+typedef struct stat64 stat_wrapper_t;
+static int CallStat(const char *path, stat_wrapper_t *sb) {
+  return stat64(path, sb);
+}
+#endif
+
+
 #if defined(GOOGLE_CHROME_BUILD)
 static const char* kTempFileName = "com.google.chrome.XXXXXX";
 #else
@@ -114,7 +127,7 @@ int CountFilesCreatedAfter(const FilePath& path,
 
   DIR* dir = opendir(path.value().c_str());
   if (dir) {
-#if !defined(OS_LINUX) && !defined(OS_MACOSX)
+#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD)
   #error Depending on the definition of struct dirent, additional space for \
       pathname may be needed
 #endif
@@ -125,8 +138,8 @@ int CountFilesCreatedAfter(const FilePath& path,
           (strcmp(ent->d_name, "..") == 0))
         continue;
 
-      struct stat64 st;
-      int test = stat64(path.Append(ent->d_name).value().c_str(), &st);
+      stat_wrapper_t st;
+      int test = CallStat(path.Append(ent->d_name).value().c_str(), &st);
       if (test != 0) {
         LOG(ERROR) << "stat64 failed: " << strerror(errno);
         continue;
@@ -160,8 +173,8 @@ int CountFilesCreatedAfter(const FilePath& path,
 // here.
 bool Delete(const FilePath& path, bool recursive) {
   const char* path_str = path.value().c_str();
-  struct stat64 file_info;
-  int test = stat64(path_str, &file_info);
+  stat_wrapper_t file_info;
+  int test = CallStat(path_str, &file_info);
   if (test != 0) {
     // The Windows version defines this condition as success.
     bool ret = (errno == ENOENT || errno == ENOTDIR);
@@ -302,19 +315,19 @@ bool CopyDirectory(const FilePath& from_path,
 }
 
 bool PathExists(const FilePath& path) {
-  struct stat64 file_info;
-  return (stat64(path.value().c_str(), &file_info) == 0);
+  stat_wrapper_t file_info;
+  return CallStat(path.value().c_str(), &file_info) == 0;
 }
 
 bool PathIsWritable(const FilePath& path) {
   FilePath test_path(path);
-  struct stat64 file_info;
-  if (stat64(test_path.value().c_str(), &file_info) != 0) {
+  stat_wrapper_t file_info;
+  if (CallStat(test_path.value().c_str(), &file_info) != 0) {
     // If the path doesn't exist, test the parent dir.
     test_path = test_path.DirName();
     // If the parent dir doesn't exist, then return false (the path is not
     // directly writable).
-    if (stat64(test_path.value().c_str(), &file_info) != 0)
+    if (CallStat(test_path.value().c_str(), &file_info) != 0)
       return false;
   }
   if (S_IWOTH & file_info.st_mode)
@@ -327,8 +340,8 @@ bool PathIsWritable(const FilePath& path) {
 }
 
 bool DirectoryExists(const FilePath& path) {
-  struct stat64 file_info;
-  if (stat64(path.value().c_str(), &file_info) == 0)
+  stat_wrapper_t file_info;
+  if (CallStat(path.value().c_str(), &file_info) == 0)
     return S_ISDIR(file_info.st_mode);
   return false;
 }
@@ -460,8 +473,8 @@ bool CreateDirectory(const FilePath& full_path) {
 }
 
 bool GetFileInfo(const FilePath& file_path, FileInfo* results) {
-  struct stat64 file_info;
-  if (stat64(file_path.value().c_str(), &file_info) != 0)
+  stat_wrapper_t file_info;
+  if (CallStat(file_path.value().c_str(), &file_info) != 0)
     return false;
   results->is_directory = S_ISDIR(file_info.st_mode);
   results->size = file_info.st_size;
@@ -637,7 +650,7 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
   if (!dir)
     return false;
 
-#if !defined(OS_LINUX) && !defined(OS_MACOSX)
+#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD)
   #error Depending on the definition of struct dirent, additional space for \
       pathname may be needed
 #endif
