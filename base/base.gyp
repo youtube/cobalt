@@ -366,7 +366,7 @@
         4244, 4554, 4018, 4102,
       ],
       'conditions': [
-        [ 'OS == "linux"', {
+        [ 'OS == "linux" or OS == "freebsd"', {
             'variables' : {
               'linux_use_tcmalloc%': 0,
             },
@@ -398,17 +398,21 @@
             'cflags': [
               '-Wno-write-strings',
             ],
-            'link_settings': {
-              'libraries': [
-                # We need rt for clock_gettime().
-                '-lrt',
-              ],
-            },
+	    'conditions': [
+	      [ 'OS == "linux"', {
+	        'link_settings': {
+		  'libraries': [
+                    # We need rt for clock_gettime().
+                    '-lrt',
+                  ],
+                },
+              },
+            ] ],
             'export_dependent_settings': [
               '../build/linux/system.gyp:gtk',
             ],
           },
-          {  # else: OS != "linux"
+          {  # else: OS != "linux" && OS != "freebsd"
             'sources/': [
               ['exclude', '/xdg_mime/'],
             ],
@@ -429,6 +433,15 @@
         [ 'GENERATOR == "quentin"', {
             # Quentin builds don't have a recent enough glibc to include the
             # inotify headers
+            'sources!': [
+              'directory_watcher_inotify.cc',
+            ],
+            'sources': [
+              'directory_watcher_stub.cc',
+            ],
+          },
+        ],
+        [ 'OS == "freebsd"', {
             'sources!': [
               'directory_watcher_inotify.cc',
             ],
@@ -544,7 +557,7 @@
         'base',
       ],
       'conditions': [
-        ['OS == "linux"', {
+        ['OS == "linux" or OS == "freebsd"', {
           'dependencies': [
             '../build/linux/system.gyp:gtk',
           ],
@@ -554,7 +567,7 @@
             'gfx/native_theme.cc',
             ],
         }],
-        [ 'OS != "linux"', { 'sources!': [
+        [ 'OS != "linux" and OS != "freebsd"', { 'sources!': [
             'gfx/gtk_native_view_id_manager.cc',
             'gfx/gtk_util.cc',
             'gfx/native_widget_types_gtk.cc',
@@ -663,7 +676,7 @@
         '../testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        ['OS == "linux"', {
+        ['OS == "linux" or OS == "freebsd"', {
           'sources!': [
             'file_version_info_unittest.cc',
             # Linux has an implementation of idle_timer, but it's unclear
@@ -675,7 +688,7 @@
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:nss',
           ],
-        }, {  # OS != "linux"
+        }, {  # OS != "linux" and OS != "freebsd"
           'sources!': [
             'message_pump_glib_unittest.cc',
           ]
@@ -727,7 +740,7 @@
         'test_file_util_win.cc',
       ],
       'conditions': [
-        [ 'OS == "linux"', {
+        [ 'OS == "linux" or OS == "freebsd"', {
             'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
             'conditions': [
@@ -766,7 +779,7 @@
         ],
       },
       'conditions': [
-        ['OS == "linux"', {
+        ['OS == "linux" or OS == "freebsd"', {
           'dependencies': [
             # Needed to handle the #include chain:
             #   base/perf_test_suite.h
@@ -795,7 +808,7 @@
         },
       ],
     }],
-    [ 'OS == "linux"', {
+    [ 'OS == "linux" or OS == "freebsd"', {
       'targets': [
         {
           'target_name': 'linux_versioninfo',

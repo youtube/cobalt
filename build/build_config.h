@@ -26,14 +26,32 @@
 #elif defined(_WIN32)
 #define OS_WIN 1
 #define TOOLKIT_VIEWS 1
+#elif defined(__FreeBSD__)
+#define OS_FREEBSD 1
+#define TOOLKIT_GTK
 #else
 #error Please add support for your platform in build/build_config.h
 #endif
 
-// For access to standard POSIX features, use OS_POSIX instead of a more
-// specific macro.
-#if defined(OS_MACOSX) || defined(OS_LINUX)
+// For access to standard POSIXish features, use OS_POSIX instead of a
+// more specific macro.
+#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD)
 #define OS_POSIX 1
+#endif
+
+// Use base::DataPack for name/value pairs.
+#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD)
+#define USE_BASE_DATA_PACK 1
+#endif
+
+// Use NSS for crypto.
+#if defined(OS_LINUX) || defined(OS_FREEBSD)
+#define USE_NSS 1
+#endif
+
+// Use X11 (and hence GTK/GDK)
+#if defined(OS_LINUX) || defined(OS_FREEBSD)
+#define USE_X11 1
 #endif
 
 // Compiler detection.
