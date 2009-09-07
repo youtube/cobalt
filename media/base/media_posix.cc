@@ -21,7 +21,7 @@ namespace {
 
 #if defined(OS_MACOSX)
 #define DSO_NAME(MODULE, VERSION) ("lib" MODULE "." #VERSION ".dylib")
-#elif defined(OS_LINUX)
+#elif defined(OS_POSIX)
 #define DSO_NAME(MODULE, VERSION) ("lib" MODULE ".so." #VERSION)
 #else
 #error "Do not know how to construct DSO name for this OS."

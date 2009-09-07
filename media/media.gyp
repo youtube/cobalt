@@ -12,6 +12,7 @@
   'target_defaults': {
     'conditions': [
       ['OS!="linux"', {'sources/': [['exclude', '/linux/']]}],
+      ['OS!="freebsd"', {'sources/': [['exclude', '/freebsd/']]}],
       ['OS!="mac"', {'sources/': [['exclude', '/mac/']]}],
       ['OS!="win"', {'sources/': [['exclude', '/win/']]}],
     ],
@@ -127,6 +128,14 @@
             ],
           },
         }],
+        ['OS =="freebsd"', {
+          'sources/': [ ['exclude', '_(mac|win)\\.cc$'],
+                        ['exclude', '\\.mm?$' ] ],
+          'link_settings': {
+            'libraries': [
+            ],
+          },
+        }],
         ['OS =="mac"', {
           'link_settings': {
             'libraries': [
@@ -183,7 +192,7 @@
         'filters/video_renderer_base_unittest.cc',
       ],
       'conditions': [
-        ['OS=="linux"', {
+        ['OS=="linux" or OS=="freebsd"', {
           'dependencies': [
             # Needed for the following #include chain:
             #   base/run_all_unittests.cc

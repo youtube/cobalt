@@ -39,7 +39,7 @@
         # provided and live in platform-specific directories.
         [ 'OS == "linux"', { 'sources': [ 'epoll.c', 'epoll_sub.c' ],
                              'include_dirs': [ 'linux' ] } ],
-        [ 'OS == "mac"',   { 'sources': [ 'kqueue.c' ],
+        [ 'OS == "mac" or OS == "freebsd"',   { 'sources': [ 'kqueue.c' ],
                              'include_dirs': [ 'mac' ] } ],
       ],
     },
