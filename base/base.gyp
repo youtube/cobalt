@@ -398,16 +398,12 @@
             'cflags': [
               '-Wno-write-strings',
             ],
-	    'conditions': [
-	      [ 'OS == "linux"', {
-	        'link_settings': {
-		  'libraries': [
-                    # We need rt for clock_gettime().
-                    '-lrt',
-                  ],
-                },
-              },
-            ] ],
+	    'link_settings': {
+	      'libraries': [
+                # We need rt for clock_gettime().
+                '-lrt',
+              ],
+            },
             'export_dependent_settings': [
               '../build/linux/system.gyp:gtk',
             ],
