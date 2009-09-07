@@ -59,12 +59,11 @@ std::wstring GetCachePath() {
 }
 
 bool CreateCacheTestFile(const wchar_t* name) {
-  using namespace disk_cache;
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE;
 
-  scoped_refptr<File> file(new File(
+  scoped_refptr<disk_cache::File> file(new disk_cache::File(
       base::CreatePlatformFile(name, flags, NULL)));
   if (!file->IsValid())
     return false;
