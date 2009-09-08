@@ -576,6 +576,12 @@
       'type': 'executable',
       'msvs_guid': '27A30967-4BBA-48D1-8522-CDE95F7B1CEC',
       'sources': [
+        # Infrastructure files.
+        'multiprocess_test.h',
+        'run_all_unittests.cc',
+        'test_suite.h',
+
+        # Tests.
         'at_exit_unittest.cc',
         'atomicops_unittest.cc',
         'clipboard_unittest.cc',
@@ -619,7 +625,6 @@
         'process_util_unittest.cc',
         'rand_util_unittest.cc',
         'ref_counted_unittest.cc',
-        'run_all_unittests.cc',
         'scoped_bstr_win_unittest.cc',
         'scoped_comptr_win_unittest.cc',
         'scoped_ptr_unittest.cc',
