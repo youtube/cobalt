@@ -7,12 +7,16 @@ function addRow(name, url, isdir, size, date_modified) {
   if (name == ".")
     return;
 
+  var root = "" + document.location;
+  if (root.substr(-1) !== "/")
+    root += "/";
+
   var table = document.getElementById("table");
   var row = document.createElement("tr");
   var file_cell = document.createElement("td");
   var link = document.createElement("a");
   if (name == "..") {
-    link.href = document.location + "/..";
+    link.href = root + "..";
     link.innerText = document.getElementById("parentDirText").innerText;
     size = "";
     date_modified = "";
@@ -23,7 +27,7 @@ function addRow(name, url, isdir, size, date_modified) {
       size = "";
     }
     link.innerText = name;
-    link.href = document.location + "/" + url;
+    link.href = root + url;
   }
   file_cell.appendChild(link);
 
