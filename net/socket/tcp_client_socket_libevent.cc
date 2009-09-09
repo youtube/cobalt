@@ -262,6 +262,23 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
   return ERR_IO_PENDING;
 }
 
+bool TCPClientSocketLibevent::SetReceiveBufferSize(int32 size) {
+  int rv = setsockopt(socket_, SOL_SOCKET, SO_RCVBUF,
+      reinterpret_cast<const char*>(&size),
+      sizeof(size));
+  DCHECK(!rv) << "Could not set socket receive buffer size: " << errno;
+  return rv == 0;
+}
+
+bool TCPClientSocketLibevent::SetSendBufferSize(int32 size) {
+  int rv = setsockopt(socket_, SOL_SOCKET, SO_SNDBUF,
+      reinterpret_cast<const char*>(&size),
+      sizeof(size));
+  DCHECK(!rv) << "Could not set socket send buffer size: " << errno;
+  return rv == 0;
+}
+
+
 int TCPClientSocketLibevent::CreateSocket(const addrinfo* ai) {
   socket_ = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
   if (socket_ == kInvalidSocket)

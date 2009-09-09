@@ -136,6 +136,14 @@ int SOCKSClientSocket::Write(IOBuffer* buf, int buf_len,
   return transport_->Write(buf, buf_len, callback);
 }
 
+bool SOCKSClientSocket::SetReceiveBufferSize(int32 size) {
+  return transport_->SetReceiveBufferSize(size);
+}
+
+bool SOCKSClientSocket::SetSendBufferSize(int32 size) {
+  return transport_->SetSendBufferSize(size);
+}
+
 void SOCKSClientSocket::DoCallback(int result) {
   DCHECK_NE(ERR_IO_PENDING, result);
   DCHECK(user_callback_);

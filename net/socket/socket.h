@@ -37,6 +37,16 @@ class Socket {
   // buffer that is written to the socket.
   virtual int Write(IOBuffer* buf, int buf_len,
                     CompletionCallback* callback) = 0;
+
+  // Set the receive buffer size (in bytes) for the socket.
+  // Note: changing this value can effect the TCP window size on some platforms.
+  // Returns true on success, or false on failure.
+  virtual bool SetReceiveBufferSize(int32 size) = 0;
+
+  // Set the send buffer size (in bytes) for the socket.
+  // Note: changing this value can effect the TCP window size on some platforms.
+  // Returns true on success, or false on failure.
+  virtual bool SetSendBufferSize(int32 size) = 0;
 };
 
 }  // namespace net
