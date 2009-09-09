@@ -303,7 +303,7 @@ class FtpMockControlSocketFileDownloadRetrFail
                       "227 Entering Passive Mode (127,0,0,1,123,456)\r\n");
       case PRE_CWD:
         return Verify("CWD /file\r\n", data, PRE_QUIT,
-                      "500 file is a directory\r\n");
+                      "550 file is a directory\r\n");
       default:
         return FtpMockControlSocketFileDownload::OnWrite(data);
     }
@@ -684,6 +684,16 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailCwd) {
                         ERR_FAILED);
 }
 
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFileNotFound) {
+  FtpMockControlSocketDirectoryListing ctrl_socket;
+  TransactionFailHelper(&ctrl_socket,
+                        "ftp://host",
+                        FtpMockControlSocket::PRE_CWD,
+                        FtpMockControlSocket::PRE_QUIT,
+                        "550 cannot open file\r\n",
+                        ERR_FILE_NOT_FOUND);
+}
+
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailList) {
   FtpMockControlSocketDirectoryListing ctrl_socket;
   TransactionFailHelper(&ctrl_socket,
@@ -769,9 +779,19 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailRetr) {
   TransactionFailHelper(&ctrl_socket,
                         "ftp://host/file",
                         FtpMockControlSocket::PRE_RETR,
-                        FtpMockControlSocket::PRE_PASV2,
+                        FtpMockControlSocket::PRE_QUIT,
                         "500 failed retr\r\n",
                         ERR_FAILED);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionFileNotFound) {
+  FtpMockControlSocketFileDownloadRetrFail ctrl_socket;
+  TransactionFailHelper(&ctrl_socket,
+                        "ftp://host/file",
+                        FtpMockControlSocket::PRE_RETR,
+                        FtpMockControlSocket::PRE_PASV2,
+                        "550 cannot open file\r\n",
+                        ERR_FILE_NOT_FOUND);
 }
 
 }  // namespace net
