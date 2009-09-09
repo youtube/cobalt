@@ -981,6 +981,10 @@ int FtpNetworkTransaction::DoDataRead() {
   DCHECK_GT(read_data_buf_len_, 0);
 
   if (data_socket_ == NULL || !data_socket_->IsConnected()) {
+    // If we don't destroy the data socket completely, some servers will wait
+    // for us (http://crbug.com/21127).
+    data_socket_.reset();
+
     // No more data so send QUIT Command now and wait for response.
     return Stop(OK);
   }
