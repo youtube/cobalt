@@ -1933,6 +1933,23 @@ class URLRequestTestFTP : public URLRequestTest {
 // static
 scoped_refptr<FTPTestServer> URLRequestTestFTP::server_;
 
+TEST_F(URLRequestTestFTP, FTPDirectoryListing) {
+  ASSERT_TRUE(NULL != server_.get());
+  TestDelegate d;
+  {
+    TestURLRequest r(server_->TestServerPage("/"), &d);
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    EXPECT_FALSE(r.is_pending());
+    EXPECT_EQ(1, d.response_started_count());
+    EXPECT_FALSE(d.received_data_before_response());
+    EXPECT_LT(0, d.bytes_received());
+  }
+}
+
 TEST_F(URLRequestTestFTP, FTPGetTestAnonymous) {
   ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
