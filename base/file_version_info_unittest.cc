@@ -13,12 +13,12 @@ namespace {
 class FileVersionInfoTest : public testing::Test {
 };
 
-std::wstring GetTestDataPath() {
-  std::wstring path;
+FilePath GetTestDataPath() {
+  FilePath path;
   PathService::Get(base::DIR_SOURCE_ROOT, &path);
-  file_util::AppendToPath(&path, L"base");
-  file_util::AppendToPath(&path, L"data");
-  file_util::AppendToPath(&path, L"file_version_info_unittest");
+  path = path.AppendASCII("base");
+  path = path.AppendASCII("data");
+  path = path.AppendASCII("file_version_info_unittest");
   return path;
 }
 
@@ -47,12 +47,11 @@ TEST(FileVersionInfoTest, HardCodedProperties) {
       L"This is the legal copyright",     // legal_copyright
       L"This is the legal trademarks",    // legal_trademarks
       L"This is the last change",         // last_change
-
   };
 
   for (int i = 0; i < arraysize(kDLLNames); ++i) {
-    std::wstring dll_path = GetTestDataPath();
-    file_util::AppendToPath(&dll_path, kDLLNames[i]);
+    FilePath dll_path = GetTestDataPath();
+    dll_path = dll_path.Append(kDLLNames[i]);
 
     scoped_ptr<FileVersionInfo> version_info(
         FileVersionInfo::CreateFileVersionInfo(dll_path));
@@ -93,8 +92,8 @@ TEST(FileVersionInfoTest, IsOfficialBuild) {
   ASSERT_EQ(arraysize(kDLLNames), arraysize(kExpected));
 
   for (int i = 0; i < arraysize(kDLLNames); ++i) {
-    std::wstring dll_path = GetTestDataPath();
-    file_util::AppendToPath(&dll_path, kDLLNames[i]);
+    FilePath dll_path = GetTestDataPath();
+    dll_path = dll_path.Append(kDLLNames[i]);
 
     scoped_ptr<FileVersionInfo> version_info(
         FileVersionInfo::CreateFileVersionInfo(dll_path));
@@ -105,8 +104,8 @@ TEST(FileVersionInfoTest, IsOfficialBuild) {
 #endif
 
 TEST(FileVersionInfoTest, CustomProperties) {
-  std::wstring dll_path = GetTestDataPath();
-  file_util::AppendToPath(&dll_path, L"FileVersionInfoTest1.dll");
+  FilePath dll_path = GetTestDataPath();
+  dll_path = dll_path.AppendASCII("FileVersionInfoTest1.dll");
 
   scoped_ptr<FileVersionInfo> version_info(
       FileVersionInfo::CreateFileVersionInfo(dll_path));
