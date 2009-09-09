@@ -164,7 +164,7 @@ TrimPositions TrimWhitespace(const std::string& input,
 // Searches  for CR or LF characters.  Removes all contiguous whitespace
 // strings that contain them.  This is useful when trying to deal with text
 // copied from terminals.
-// Returns |text, with the following three transformations:
+// Returns |text|, with the following three transformations:
 // (1) Leading and trailing whitespace is trimmed.
 // (2) If |trim_sequences_with_line_breaks| is true, any other whitespace
 //     sequences containing a CR or LF are trimmed.
