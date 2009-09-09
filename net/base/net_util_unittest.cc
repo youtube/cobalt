@@ -152,7 +152,7 @@ const IDNTestCase idn_cases[] = {
   {"xn--bcher-kva.de", L"b\x00fc" L"cher.de",
    {true,  false, false, false, false,
     false, false, false, false, true,
-    true,  true,  false, false, false,
+    true,  false,  false, false, false,
     true,  false, false, false, false,
     false}},
   // a with diaeresis
@@ -173,7 +173,7 @@ const IDNTestCase idn_cases[] = {
   {"xn--caf-dma.fr", L"caf\x00e9.fr",
    {true,  false, false, false, false,
     false, false, false, false, true,
-    false, true,  false, false, false,
+    false, true,  true,  false, false,
     false, false, false, false, false,
     false}},
   // c-cedillla and a with tilde (Portuguese)

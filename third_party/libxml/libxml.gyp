@@ -158,11 +158,11 @@
             'include',
           ],
           'dependencies': [
-            '../icu38/icu38.gyp:icuuc',
+            '../icu/icu.gyp:icuuc',
             '../zlib/zlib.gyp:zlib',
           ],
           'export_dependent_settings': [
-            '../icu38/icu38.gyp:icuuc',
+            '../icu/icu.gyp:icuuc',
           ],
           'direct_dependent_settings': {
             'defines': [
@@ -189,6 +189,7 @@
       'type': 'executable',
       'sources': [
         'xmlcatalog.c',
+        'xmldummy_mac.cc',
       ],
       'include_dirs': [
         '<(os_include)',
@@ -212,13 +213,14 @@
       'type': 'executable',
       'sources': [
         'xmllint.c',
+        'xmldummy_mac.cc',
       ],
       'include_dirs': [
         '<(os_include)',
       ],
       'dependencies': [
         'libxml',
-        '../icu38/icu38.gyp:icuuc',
+        '../icu/icu.gyp:icuuc',
       ],
       'conditions': [
         ['OS=="linux"', {

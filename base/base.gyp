@@ -14,8 +14,8 @@
       'target_name': 'base',
       'type': '<(library)',
       'dependencies': [
-        '../third_party/icu38/icu38.gyp:icui18n',
-        '../third_party/icu38/icu38.gyp:icuuc',
+        '../third_party/icu/icu.gyp:icui18n',
+        '../third_party/icu/icu.gyp:icuuc',
       ],
       'msvs_guid': '1832A374-8A74-4F9E-B536-69A699B3E165',
       'sources': [
@@ -667,7 +667,7 @@
       'include_dirs': [
         # word_iterator.h (used by word_iterator_unittest.cc) leaks an ICU
         # #include for unicode/uchar.h.  This should probably be cleaned up.
-        '../third_party/icu38/public/common',
+        '../third_party/icu/public/common',
       ],
       'dependencies': [
         'base',
@@ -703,7 +703,7 @@
         # TODO(mark): This should not be necessary.
         ['OS == "win"', {
           'dependencies': [
-            '../third_party/icu38/icu38.gyp:icudata',
+            '../third_party/icu/icu.gyp:icudata',
           ],
           'sources!': [
             'data_pack_unittest.cc',
