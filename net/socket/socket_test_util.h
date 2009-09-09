@@ -247,6 +247,8 @@ class MockClientSocket : public net::SSLClientSocket {
                    net::CompletionCallback* callback) = 0;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::CompletionCallback* callback) = 0;
+  virtual bool SetReceiveBufferSize(int32 size) { return true; };
+  virtual bool SetSendBufferSize(int32 size) { return true; };
 
 #if defined(OS_LINUX)
   virtual int GetPeerName(struct sockaddr *name, socklen_t *namelen);

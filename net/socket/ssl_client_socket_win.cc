@@ -580,6 +580,14 @@ int SSLClientSocketWin::Write(IOBuffer* buf, int buf_len,
   return rv;
 }
 
+bool SSLClientSocketWin::SetReceiveBufferSize(int32 size) {
+  return transport_->SetReceiveBufferSize(size);
+}
+
+bool SSLClientSocketWin::SetSendBufferSize(int32 size) {
+  return transport_->SetSendBufferSize(size);
+}
+
 void SSLClientSocketWin::DoCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
   DCHECK(user_callback_);

@@ -495,6 +495,14 @@ int SSLClientSocketMac::Write(IOBuffer* buf, int buf_len,
   return rv;
 }
 
+bool SSLClientSocketMac::SetReceiveBufferSize(int32 size) {
+  return transport_->SetReceiveBufferSize(size);
+}
+
+bool SSLClientSocketMac::SetSendBufferSize(int32 size) {
+  return transport_->SetSendBufferSize(size);
+}
+
 void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
 

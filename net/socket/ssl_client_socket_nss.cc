@@ -434,6 +434,14 @@ int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
   return rv;
 }
 
+bool SSLClientSocketNSS::SetReceiveBufferSize(int32 size) {
+  return transport_->SetReceiveBufferSize(size);
+}
+
+bool SSLClientSocketNSS::SetSendBufferSize(int32 size) {
+  return transport_->SetSendBufferSize(size);
+}
+
 X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
   // We set the server_cert_ from OwnAuthCertHandler(), but this handler
   // does not necessarily get called if we are continuing a cached SSL
