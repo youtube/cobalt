@@ -2298,6 +2298,42 @@ TEST(HttpCache, RangeGET_MoreThanCurrentSize) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
+// Tests that we don't delete a sparse entry when we cancel a request.
+TEST(HttpCache, RangeGET_Cancel) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  MockHttpRequest request(kRangeGET_TransactionOK);
+
+  Context* c =  new Context(cache.http_cache()->CreateTransaction());
+
+  int rv = c->trans->Start(&request, &c->callback, NULL);
+  if (rv == net::ERR_IO_PENDING)
+    rv = c->callback.WaitForResult();
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Make sure that the entry has some data stored.
+  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(10);
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  if (rv == net::ERR_IO_PENDING)
+    rv = c->callback.WaitForResult();
+  EXPECT_EQ(buf->size(), rv);
+
+  // Destroy the transaction.
+  delete c;
+
+  // Verify that the entry has not been deleted.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url,
+                                            &entry));
+  entry->Close();
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
 #ifdef NDEBUG
 // This test hits a NOTREACHED so it is a release mode only test.
 TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
