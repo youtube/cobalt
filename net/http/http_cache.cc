@@ -253,8 +253,9 @@ class HttpCache::Transaction
   int EntryAvailable(ActiveEntry* entry);
 
   // This transaction is being deleted and we are not done writing to the cache.
-  // We need to indicate that the response data was truncated.
-  void AddTruncatedFlag();
+  // We need to indicate that the response data was truncated.  Returns true on
+  // success.
+  bool AddTruncatedFlag();
 
  private:
   // This is a helper function used to trigger a completion callback.  It may
@@ -408,9 +409,9 @@ class HttpCache::Transaction
 HttpCache::Transaction::~Transaction() {
   if (!revoked()) {
     if (entry_) {
-      bool cancel_request = reading_ && !partial_.get() &&
-                            enable_range_support_ &&
-                            response_.headers->response_code() == 200;
+      bool cancel_request = reading_ && enable_range_support_;
+      if (cancel_request && !partial_.get())
+        cancel_request &= (response_.headers->response_code() == 200);
 
       cache_->DoneWithEntry(entry_, this, cancel_request);
     } else {
@@ -719,10 +720,20 @@ int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
   return rv;
 }
 
-void HttpCache::Transaction::AddTruncatedFlag() {
+bool HttpCache::Transaction::AddTruncatedFlag() {
   DCHECK(mode_ & WRITE);
+
+  // Don't set the flag for sparse entries.
+  if (partial_.get())
+    return true;
+
+  // Double check that there is something worth keeping.
+  if (!entry_->disk_entry->GetDataSize(kResponseContentIndex))
+    return false;
+
   truncated_ = true;
   WriteResponseInfoToEntry(true);
+  return true;
 }
 
 void HttpCache::Transaction::DoCallback(int rv) {
@@ -2003,11 +2014,7 @@ void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans,
       DCHECK(entry->disk_entry);
       // This is a successful operation in the sense that we want to keep the
       // entry.
-      success = true;
-      // Double check that there is something worth keeping.
-      if (!entry->disk_entry->GetDataSize(kResponseContentIndex))
-        success = false;
-      trans->AddTruncatedFlag();
+      success = trans->AddTruncatedFlag();
     }
     DoneWritingToEntry(entry, success);
   } else {
