@@ -6,6 +6,8 @@
 
 #if defined(OS_WIN)
 #include "net/base/ssl_config_service_win.h"
+#elif defined(OS_MACOSX)
+#include "net/base/ssl_config_service_mac.h"
 #else
 #include "net/base/ssl_config_service_defaults.h"
 #endif
@@ -16,6 +18,8 @@ namespace net {
 SSLConfigService* SSLConfigService::CreateSystemSSLConfigService() {
 #if defined(OS_WIN)
   return new SSLConfigServiceWin;
+#elif defined(OS_MACOSX)
+  return new SSLConfigServiceMac;
 #else
   return new SSLConfigServiceDefaults;
 #endif
