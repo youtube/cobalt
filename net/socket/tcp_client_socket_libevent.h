@@ -40,6 +40,8 @@ class TCPClientSocketLibevent : public ClientSocket {
   // Full duplex mode (reading and writing at the same time) is supported
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual bool SetReceiveBufferSize(int32 size);
+  virtual bool SetSendBufferSize(int32 size);
 
  private:
   class ReadWatcher : public MessageLoopForIO::Watcher {

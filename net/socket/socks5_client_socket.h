@@ -48,6 +48,9 @@ class SOCKS5ClientSocket : public ClientSocket {
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
 
+  virtual bool SetReceiveBufferSize(int32 size);
+  virtual bool SetSendBufferSize(int32 size);
+
 #if defined(OS_LINUX)
   virtual int GetPeerName(struct sockaddr* name, socklen_t* namelen);
 #endif
