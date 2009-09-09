@@ -4,6 +4,8 @@
 
 #include "net/base/dns_util.h"
 
+#include <cstring>
+
 namespace net {
 
 // Based on DJB's public domain code.
