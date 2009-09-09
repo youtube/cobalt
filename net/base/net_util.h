@@ -12,6 +12,7 @@
 #endif
 
 #include <string>
+#include <set>
 
 #include "base/basictypes.h"
 #include "base/string16.h"
@@ -34,6 +35,9 @@ struct Parsed;
 }
 
 namespace net {
+
+// Holds a list of ports that should be accepted despite bans.
+extern std::set<int> explicitly_allowed_ports;
 
 // Given the full path to a file name, creates a file: URL. The returned URL
 // may not be valid if the input is malformed.
@@ -191,6 +195,10 @@ bool IsPortAllowedByDefault(int port);
 // restricted.
 bool IsPortAllowedByFtp(int port);
 
+// Check if banned |port| has been overriden by an entry in
+// |explicitly_allowed_ports_|.
+bool IsPortAllowedByOverride(int port);
+
 // Set socket to non-blocking mode
 int SetNonBlocking(int fd);
 
@@ -229,6 +237,8 @@ inline std::wstring FormatUrl(const GURL& url, const std::wstring& languages) {
 //   - user name / password
 //   - reference section
 GURL SimplifyUrlForRequest(const GURL& url);
+
+void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports);
 
 }  // namespace net
 
