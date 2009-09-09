@@ -312,22 +312,6 @@ TEST_F(URLRequestTest, TrackingGraveyardBounded) {
                 .original_url.spec().size());
 }
 
-TEST_F(URLRequestTestHTTP, SetExplicitlyAllowedPortsTest) {
-  std::wstring invalid[] = { L"1,2,a", L"'1','2'", L"1, 2, 3", L"1 0,11,12" };
-  std::wstring valid[] = { L"", L"1", L"1,2", L"1,2,3", L"10,11,12,13" };
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(invalid); ++i) {
-    URLRequestHttpJob::SetExplicitlyAllowedPorts(invalid[i]);
-    EXPECT_EQ(0, static_cast<int>(
-        URLRequestHttpJob::explicitly_allowed_ports().size()));
-  }
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(valid); ++i) {
-    URLRequestHttpJob::SetExplicitlyAllowedPorts(valid[i]);
-    EXPECT_EQ(i, URLRequestHttpJob::explicitly_allowed_ports().size());
-  }
-}
-
 TEST_F(URLRequestTest, QuitTest) {
   // Don't use shared server here because we order it to quit.
   // It would impact other tests.

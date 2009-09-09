@@ -30,18 +30,14 @@
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_redirect_job.h"
 
-// static
-std::set<int> URLRequestHttpJob::explicitly_allowed_ports_;
-
 // TODO(darin): make sure the port blocking code is not lost
-
 // static
 URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
                                           const std::string& scheme) {
   DCHECK(scheme == "http" || scheme == "https");
 
   int port = request->url().IntPort();
-  if (!net::IsPortAllowedByDefault(port) && !IsPortAllowedByOverride(port))
+  if (!net::IsPortAllowedByDefault(port) && !net::IsPortAllowedByOverride(port))
     return new URLRequestErrorJob(request, net::ERR_UNSAFE_PORT);
 
   if (!request->context() ||
@@ -68,35 +64,6 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
   }
 
   return new URLRequestHttpJob(request);
-}
-
-// static
-void URLRequestHttpJob::SetExplicitlyAllowedPorts(
-    const std::wstring& allowed_ports) {
-  if (allowed_ports.empty())
-    return;
-
-  std::set<int> ports;
-  size_t last = 0;
-  size_t size = allowed_ports.size();
-  // The comma delimiter.
-  const std::wstring::value_type kComma = L',';
-
-  // Overflow is still possible for evil user inputs.
-  for (size_t i = 0; i <= size; ++i) {
-    // The string should be composed of only digits and commas.
-    if (i != size && !IsAsciiDigit(allowed_ports[i]) &&
-        (allowed_ports[i] != kComma))
-      return;
-    if (i == size || allowed_ports[i] == kComma) {
-      size_t length = i - last;
-      if (length > 0)
-        ports.insert(StringToInt(WideToASCII(
-            allowed_ports.substr(last, length))));
-      last = i + 1;
-    }
-  }
-  explicitly_allowed_ports_ = ports;
 }
 
 URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
@@ -376,19 +343,6 @@ void URLRequestHttpJob::RestartTransactionWithAuth(
   // URLRequest delegate via the message loop.
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
       this, &URLRequestHttpJob::OnStartCompleted, rv));
-}
-
-// static
-bool URLRequestHttpJob::IsPortAllowedByOverride(int port) {
-  if (explicitly_allowed_ports().empty())
-    return false;
-
-  std::set<int>::const_iterator it =
-      std::find(explicitly_allowed_ports().begin(),
-                explicitly_allowed_ports().end(),
-                port);
-
-  return it != explicitly_allowed_ports().end();
 }
 
 void URLRequestHttpJob::CancelAuth() {

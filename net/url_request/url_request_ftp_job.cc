@@ -62,8 +62,10 @@ URLRequestJob* URLRequestFtpJob::Factory(URLRequest* request,
 
   DCHECK(scheme == "ftp");
 
+  int port = request->url().IntPort();
+
   if (request->url().has_port() &&
-      !net::IsPortAllowedByFtp(request->url().IntPort()))
+      !net::IsPortAllowedByFtp(port) && !net::IsPortAllowedByOverride(port))
     return new URLRequestErrorJob(request, net::ERR_UNSAFE_PORT);
 
   return new URLRequestFtpJob(request);
