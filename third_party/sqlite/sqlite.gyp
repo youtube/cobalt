@@ -186,8 +186,8 @@
             'src',
           ],
           'dependencies': [
-            '../icu38/icu38.gyp:icui18n',
-            '../icu38/icu38.gyp:icuuc',
+            '../icu/icu.gyp:icui18n',
+            '../icu/icu.gyp:icuuc',
           ],
           'direct_dependent_settings': {
             'include_dirs': [
@@ -215,7 +215,7 @@
           'target_name': 'sqlite_shell',
           'type': 'executable',
           'dependencies': [
-            '../icu38/icu38.gyp:icuuc',
+            '../icu/icu.gyp:icuuc',
             'sqlite',
           ],
           'sources': [
