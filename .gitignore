@@ -22,6 +22,7 @@
 /chrome/test/data/osdd/
 /chrome/test/data/plugin/
 /chrome/test/data/workers/LayoutTests/
+/chrome/tools/test/reference_build/
 /data/
 /googleurl/
 /native_client/
