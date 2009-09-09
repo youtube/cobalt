@@ -274,8 +274,8 @@ bool LaunchApp(const std::vector<std::string>& argv,
       argv_cstr[i] = const_cast<char*>(argv[i].c_str());
     argv_cstr[argv.size()] = NULL;
     execvp(argv_cstr[0], argv_cstr.get());
-    LOG(ERROR) << "LaunchApp: exec failed!, argv_cstr[0] " << argv_cstr[0]
-        << ", errno " << errno;
+    LOG(ERROR) << "LaunchApp: execvp(" << argv_cstr[0] << ") failed: "
+               << strerror(errno);
     _exit(127);
   } else {
     // Parent process
