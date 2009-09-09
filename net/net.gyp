@@ -18,8 +18,8 @@
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../sdch/sdch.gyp:sdch',
         '../third_party/bzip2/bzip2.gyp:bzip2',
-        '../third_party/icu38/icu38.gyp:icui18n',
-        '../third_party/icu38/icu38.gyp:icuuc',
+        '../third_party/icu/icu.gyp:icui18n',
+        '../third_party/icu/icu.gyp:icuuc',
         '../third_party/modp_b64/modp_b64.gyp:modp_b64',
         '../third_party/zlib/zlib.gyp:zlib',
         'net_resources',
@@ -415,8 +415,8 @@
             ],
             # Get U_STATIC_IMPLEMENTATION and -I directories on Linux.
             'dependencies': [
-              '../third_party/icu38/icu38.gyp:icui18n',
-              '../third_party/icu38/icu38.gyp:icuuc',
+              '../third_party/icu/icu.gyp:icui18n',
+              '../third_party/icu/icu.gyp:icuuc',
             ],
           },
         ],
@@ -556,7 +556,7 @@
         # TODO(mark): Specifying this here shouldn't be necessary.
         [ 'OS == "win"', {
             'dependencies': [
-              '../third_party/icu38/icu38.gyp:icudata',
+              '../third_party/icu/icu.gyp:icudata',
             ],
           },
         ],
@@ -584,7 +584,7 @@
         # TODO(mark): Specifying this here shouldn't be necessary.
         [ 'OS == "win"', {
             'dependencies': [
-              '../third_party/icu38/icu38.gyp:icudata',
+              '../third_party/icu/icu.gyp:icudata',
             ],
           },
         ],
