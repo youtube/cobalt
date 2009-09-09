@@ -828,8 +828,12 @@ int FtpNetworkTransaction::ProcessResponseRETR(
         return Stop(ERR_FAILED);
       return ERR_FAILED;  // TODO(ibrar): Retry here.
     case ERROR_CLASS_PERMANENT_ERROR:
-      if (retr_failed_)
+      // Code 550 means "Failed to open file". Other codes are unrelated,
+      // like "Not logged in" etc.
+      if (response.status_code != 550)
         return Stop(ERR_FAILED);
+
+      DCHECK(!retr_failed_);  // Should not get here twice.
       retr_failed_ = true;
       next_state_ = STATE_CTRL_WRITE_PASV;
       break;
@@ -901,6 +905,13 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
+      if (retr_failed_ && response.status_code == 550) {
+        // Both RETR and CWD failed with codes 550. That means that the path
+        // we're trying to access is not a file, and not a directory. The most
+        // probable interpretation is that it doesn't exist (with FTP we can't
+        // be sure).
+        return Stop(ERR_FILE_NOT_FOUND);
+      }
       return Stop(ERR_FAILED);
     default:
       NOTREACHED();
