@@ -49,6 +49,9 @@ class SSLClientSocketWin : public SSLClientSocket {
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
 
+  virtual bool SetReceiveBufferSize(int32 size);
+  virtual bool SetSendBufferSize(int32 size);
+
  private:
   void DoCallback(int result);
   void OnIOComplete(int result);

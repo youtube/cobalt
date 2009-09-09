@@ -7,6 +7,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/memory_debug.h"
+#include "base/stats_counters.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
 #include "base/trace_event.h"
@@ -239,6 +240,9 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
   if (socket_ != INVALID_SOCKET)
     return OK;
 
+  static StatsCounter connects("tcp.connect");
+  connects.Increment();
+
   TRACE_EVENT_BEGIN("socket.connect", this, "");
   const struct addrinfo* ai = current_ai_;
   DCHECK(ai);
@@ -386,6 +390,8 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       // false error reports.
       // See bug 5297.
       base::MemoryDebug::MarkAsInitialized(core_->read_buffer_.buf, num);
+      static StatsCounter read_bytes("tcp.read_bytes");
+      read_bytes.Add(num);
       return static_cast<int>(num);
     }
   } else {
@@ -409,6 +415,9 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   DCHECK_GT(buf_len, 0);
   DCHECK(!core_->write_iobuffer_);
 
+  static StatsCounter reads("tcp.writes");
+  reads.Increment();
+
   core_->write_buffer_.len = buf_len;
   core_->write_buffer_.buf = buf->data();
 
@@ -422,6 +431,8 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   if (rv == 0) {
     if (ResetEventIfSignaled(core_->write_overlapped_.hEvent)) {
       TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", num));
+      static StatsCounter write_bytes("tcp.write_bytes");
+      write_bytes.Add(num);
       return static_cast<int>(num);
     }
   } else {
@@ -434,6 +445,20 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   write_callback_ = callback;
   core_->write_iobuffer_ = buf;
   return ERR_IO_PENDING;
+}
+
+bool TCPClientSocketWin::SetReceiveBufferSize(int32 size) {
+  int rv = setsockopt(socket_, SOL_SOCKET, SO_RCVBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  DCHECK(!rv) << "Could not set socket receive buffer size: " << GetLastError();
+  return rv == 0;
+}
+
+bool TCPClientSocketWin::SetSendBufferSize(int32 size) {
+  int rv = setsockopt(socket_, SOL_SOCKET, SO_SNDBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  DCHECK(!rv) << "Could not set socket send buffer size: " << GetLastError();
+  return rv == 0;
 }
 
 int TCPClientSocketWin::CreateSocket(const struct addrinfo* ai) {
@@ -459,15 +484,9 @@ int TCPClientSocketWin::CreateSocket(const struct addrinfo* ai) {
   base::SysInfo::OperatingSystemVersionNumbers(&major_version, &minor_version,
     &fix_version);
   if (major_version < 6) {
-    const int kSocketBufferSize = 64 * 1024;
-    int rv = setsockopt(socket_, SOL_SOCKET, SO_SNDBUF,
-        reinterpret_cast<const char*>(&kSocketBufferSize),
-        sizeof(kSocketBufferSize));
-    DCHECK(!rv) << "Could not set socket send buffer size";
-    rv = setsockopt(socket_, SOL_SOCKET, SO_RCVBUF,
-        reinterpret_cast<const char*>(&kSocketBufferSize),
-        sizeof(kSocketBufferSize));
-    DCHECK(!rv) << "Could not set socket receive buffer size";
+    const int32 kSocketBufferSize = 64 * 1024;
+    SetReceiveBufferSize(kSocketBufferSize);
+    SetSendBufferSize(kSocketBufferSize);
   }
 
   // Disable Nagle.
@@ -504,6 +523,9 @@ void TCPClientSocketWin::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(read_callback_);
 
+  static StatsCounter read_bytes("tcp.read_bytes");
+  read_bytes.Add(rv);
+
   // since Run may result in Read being called, clear read_callback_ up front.
   CompletionCallback* c = read_callback_;
   read_callback_ = NULL;
@@ -513,6 +535,9 @@ void TCPClientSocketWin::DoReadCallback(int rv) {
 void TCPClientSocketWin::DoWriteCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(write_callback_);
+
+  static StatsCounter write_bytes("tcp.write_bytes");
+  write_bytes.Add(rv);
 
   // since Run may result in Write being called, clear write_callback_ up front.
   CompletionCallback* c = write_callback_;
