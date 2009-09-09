@@ -42,6 +42,8 @@ class MockClientSocket : public ClientSocket {
       IOBuffer* /* buf */, int /* len */, CompletionCallback* /* callback */) {
     return ERR_UNEXPECTED;
   }
+  virtual bool SetReceiveBufferSize(int32 size) { return true; };
+  virtual bool SetSendBufferSize(int32 size) { return true; };
 
   // ClientSocket methods:
 
@@ -1816,7 +1818,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CleanupTimedOutIdleSockets) {
   MessageLoop::current()->RunAllPending();
 
   ASSERT_EQ(2, pool_->IdleSocketCount());
-  
+
   // Invoke the idle socket cleanup check.  Only one socket should be left, the
   // used socket.  Request it to make sure that it's used.
 

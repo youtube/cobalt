@@ -51,6 +51,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
   virtual int Write(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual bool SetReceiveBufferSize(int32 size);
+  virtual bool SetSendBufferSize(int32 size);
 
  private:
   void InvalidateSessionIfBadCertificate();
