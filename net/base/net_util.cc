@@ -749,6 +749,8 @@ std::wstring FormatViewSourceUrl(const GURL& url,
 
 namespace net {
 
+std::set<int> explicitly_allowed_ports;
+
 // Appends the substring |in_component| inside of the URL |spec| to |output|,
 // and the resulting range will be filled into |out_component|. |unescape_rules|
 // defines how to clean the URL for human readability.
@@ -1041,6 +1043,18 @@ bool IsPortAllowedByFtp(int port) {
   return IsPortAllowedByDefault(port);
 }
 
+bool IsPortAllowedByOverride(int port) {
+  if (explicitly_allowed_ports.empty())
+    return false;
+
+  std::set<int>::const_iterator it =
+      std::find(explicitly_allowed_ports.begin(),
+                explicitly_allowed_ports.end(),
+                port);
+
+  return it != explicitly_allowed_ports.end();
+}
+
 int SetNonBlocking(int fd) {
 #if defined(OS_WIN)
   unsigned long no_block = 1;
@@ -1314,6 +1328,35 @@ GURL SimplifyUrlForRequest(const GURL& url) {
   replacements.ClearPassword();
   replacements.ClearRef();
   return url.ReplaceComponents(replacements);
+}
+
+// Specifies a comma separated list of port numbers that should be accepted
+// despite bans. If the string is invalid no allowed ports are stored.
+void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports) {
+  if (allowed_ports.empty())
+    return;
+
+  std::set<int> ports;
+  size_t last = 0;
+  size_t size = allowed_ports.size();
+  // The comma delimiter.
+  const std::wstring::value_type kComma = L',';
+
+  // Overflow is still possible for evil user inputs.
+  for (size_t i = 0; i <= size; ++i) {
+    // The string should be composed of only digits and commas.
+    if (i != size && !IsAsciiDigit(allowed_ports[i]) &&
+        (allowed_ports[i] != kComma))
+      return;
+    if (i == size || allowed_ports[i] == kComma) {
+      size_t length = i - last;
+      if (length > 0)
+        ports.insert(StringToInt(WideToASCII(
+            allowed_ports.substr(last, length))));
+      last = i + 1;
+    }
+  }
+  explicitly_allowed_ports = ports;
 }
 
 }  // namespace net
