@@ -46,11 +46,7 @@ URLRequestJob* URLRequestHttpJob::Factory(URLRequest* request,
     return new URLRequestErrorJob(request, net::ERR_INVALID_ARGUMENT);
   }
 
-  // We cache the value of the switch because this code path is hit on every
-  // network request.
-  static const bool kForceHTTPS =
-      CommandLine::ForCurrentProcess()->HasSwitch(switches::kForceHTTPS);
-  if (kForceHTTPS && scheme == "http" &&
+  if (scheme == "http" &&
       request->context()->strict_transport_security_state() &&
       request->context()->strict_transport_security_state()->IsEnabledForHost(
           request->url().host())) {
@@ -486,10 +482,6 @@ bool URLRequestHttpJob::ShouldTreatAsCertificateError(int result) {
   if (!net::IsCertificateError(result))
     return false;
 
-  // Hide the fancy processing behind a command line switch.
-  if (!CommandLine::ForCurrentProcess()->HasSwitch(switches::kForceHTTPS))
-    return true;
-
   // Check whether our context is using Strict-Transport-Security.
   if (!context_->strict_transport_security_state())
     return true;
@@ -697,10 +689,6 @@ void URLRequestHttpJob::FetchResponseCookies() {
 
 void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
   DCHECK(response_info_);
-
-  // Hide processing behind a command line flag.
-  if (!CommandLine::ForCurrentProcess()->HasSwitch(switches::kForceHTTPS))
-    return;
 
   // Only process Strict-Transport-Security from HTTPS responses.
   if (request_info_.url.scheme() != "https")

@@ -34,14 +34,4 @@ const wchar_t kEnableDCHECK[]                  = L"enable-dcheck";
 // scripts that do not have a user interface.
 const wchar_t kNoMessageBox[]                  = L"no-message-box";
 
-// Refuse to make HTTP connections and refuse to accept certificate errors.
-// For more information about the design of this feature, please see
-//
-//   ForceHTTPS: Protecting High-Security Web Sites from Network Attacks
-//   Collin Jackson and Adam Barth
-//   In Proc. of the 17th International World Wide Web Conference (WWW 2008)
-//
-// Available at http://www.adambarth.com/papers/2008/jackson-barth.pdf
-const wchar_t kForceHTTPS[]                    = L"force-https";
-
 }  // namespace switches
