@@ -17,7 +17,6 @@ extern const wchar_t kNoErrorDialogs[];
 extern const wchar_t kProcessType[];
 extern const wchar_t kEnableDCHECK[];
 extern const wchar_t kNoMessageBox[];
-extern const wchar_t kForceHTTPS[];
 
 }  // namespace switches
 
