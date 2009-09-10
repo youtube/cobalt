@@ -8,6 +8,8 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
+using namespace base;
+
 TEST(StringPieceTest, CheckComparisonOperators) {
 #define CMP_Y(op, x, y)                                               \
   ASSERT_TRUE( (StringPiece((x)) op StringPiece((y))));               \

@@ -14,8 +14,8 @@ void NetModule::SetResourceProvider(ResourceProvider func) {
 }
 
 // static
-StringPiece NetModule::GetResource(int key) {
-  return resource_provider ? resource_provider(key) : StringPiece();
+base::StringPiece NetModule::GetResource(int key) {
+  return resource_provider ? resource_provider(key) : base::StringPiece();
 }
 
 }  // namespace net
