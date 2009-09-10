@@ -19,7 +19,7 @@ namespace net {
 //
 class NetModule {
  public:
-  typedef StringPiece (*ResourceProvider)(int key);
+  typedef base::StringPiece (*ResourceProvider)(int key);
 
   // Set the function to call when the net module needs resources
   static void SetResourceProvider(ResourceProvider func);
@@ -27,7 +27,7 @@ class NetModule {
   // Call the resource provider (if one exists) to get the specified resource.
   // Returns an empty string if the resource does not exist or if there is no
   // resource provider.
-  static StringPiece GetResource(int key);
+  static base::StringPiece GetResource(int key);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(NetModule);

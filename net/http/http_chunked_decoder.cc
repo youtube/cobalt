@@ -93,8 +93,8 @@ int HttpChunkedDecoder::ScanForChunkRemaining(const char* buf, int buf_len) {
 
   int bytes_consumed = 0;
 
-  size_t index_of_lf = StringPiece(buf, buf_len).find('\n');
-  if (index_of_lf != StringPiece::npos) {
+  size_t index_of_lf = base::StringPiece(buf, buf_len).find('\n');
+  if (index_of_lf != base::StringPiece::npos) {
     buf_len = static_cast<int>(index_of_lf);
     if (buf_len && buf[buf_len - 1] == '\r')  // Eliminate a preceding CR.
       buf_len--;
@@ -121,8 +121,8 @@ int HttpChunkedDecoder::ScanForChunkRemaining(const char* buf, int buf_len) {
        chunk_terminator_remaining_ = false;
     } else if (buf_len) {
       // Ignore any chunk-extensions.
-      size_t index_of_semicolon = StringPiece(buf, buf_len).find(';');
-      if (index_of_semicolon != StringPiece::npos)
+      size_t index_of_semicolon = base::StringPiece(buf, buf_len).find(';');
+      if (index_of_semicolon != base::StringPiece::npos)
         buf_len = static_cast<int>(index_of_semicolon);
 
       if (!ParseChunkSize(buf, buf_len, &chunk_remaining_)) {
@@ -181,8 +181,8 @@ bool HttpChunkedDecoder::ParseChunkSize(const char* start, int len, int* out) {
 
   // Be more restrictive than HexStringToInt;
   // don't allow inputs with leading "-", "+", "0x", "0X"
-  if (StringPiece(start, len).find_first_not_of("0123456789abcdefABCDEF")!=
-      StringPiece::npos)
+  if (base::StringPiece(start, len).find_first_not_of("0123456789abcdefABCDEF")
+      != base::StringPiece::npos)
     return false;
 
   int parsed_number;
