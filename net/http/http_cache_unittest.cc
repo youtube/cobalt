@@ -126,7 +126,12 @@ class MockDiskEntry : public disk_cache::Entry,
     data_[index].resize(offset + buf_len);
     if (buf_len)
       memcpy(&data_[index][offset], buf->data(), buf_len);
-    return buf_len;
+
+    if (!callback || (test_mode_ & TEST_MODE_SYNC_CACHE_WRITE))
+      return buf_len;
+
+    CallbackLater(callback, buf_len);
+    return net::ERR_IO_PENDING;
   }
 
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
@@ -177,7 +182,11 @@ class MockDiskEntry : public disk_cache::Entry,
       data_[1].resize(real_offset + buf_len);
 
     memcpy(&data_[1][real_offset], buf->data(), buf_len);
-    return buf_len;
+    if (!completion_callback || (test_mode_ & TEST_MODE_SYNC_CACHE_WRITE))
+      return buf_len;
+
+    CallbackLater(completion_callback, buf_len);
+    return net::ERR_IO_PENDING;
   }
 
   virtual int GetAvailableRange(int64 offset, int len, int64* start) {
@@ -1969,7 +1978,8 @@ TEST(HttpCache, UnknownRangeGET_2) {
 
   MockTransaction transaction(kRangeGET_TransactionOK);
   transaction.test_mode = TEST_MODE_SYNC_CACHE_START |
-                          TEST_MODE_SYNC_CACHE_READ;
+                          TEST_MODE_SYNC_CACHE_READ |
+                          TEST_MODE_SYNC_CACHE_WRITE;
   AddMockTransaction(&transaction);
 
   // Write to the cache (70-79).
@@ -2534,7 +2544,8 @@ TEST(HttpCache, SyncRead) {
 
   ScopedMockTransaction transaction(kSimpleGET_Transaction);
   transaction.test_mode |= (TEST_MODE_SYNC_CACHE_START |
-                            TEST_MODE_SYNC_CACHE_READ);
+                            TEST_MODE_SYNC_CACHE_READ |
+                            TEST_MODE_SYNC_CACHE_WRITE);
 
   MockHttpRequest r1(transaction),
                   r2(transaction),
