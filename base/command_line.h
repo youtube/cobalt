@@ -55,6 +55,16 @@ class CommandLine {
   static void Init(int argc, const char* const* argv);
   static void Init(const std::vector<std::string>& argv);
 
+#if defined(OS_LINUX) || defined(OS_FREEBSD)
+  // Sets the current process' arguments that show in "ps" etc. to those
+  // in |current_process_commandline_|. Used by the zygote host so that
+  // renderers show up with --type=renderer.
+  static void SetProcTitle();
+
+  // Needed to support SetProcTitle() on Linux. Should be called by main().
+  static void SetTrueArgv(char** argv);
+#endif
+
   // Destroys the current process CommandLine singleton. This is necessary if
   // you want to reset the base library to its initial state (for example in an
   // outer library that needs to be able to terminate, and be re-initialized).
