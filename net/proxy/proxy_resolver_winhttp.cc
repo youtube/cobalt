@@ -55,7 +55,8 @@ ProxyResolverWinHttp::~ProxyResolverWinHttp() {
 int ProxyResolverWinHttp::GetProxyForURL(const GURL& query_url,
                                          ProxyInfo* results,
                                          CompletionCallback* /*callback*/,
-                                         RequestHandle* /*request*/) {
+                                         RequestHandle* /*request*/,
+                                         LoadLog* /*load_log*/) {
   // If we don't have a WinHTTP session, then create a new one.
   if (!session_handle_ && !OpenWinHttpSession())
     return ERR_FAILED;
