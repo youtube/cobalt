@@ -261,6 +261,8 @@
         'scoped_variant_win.cc',
         'scoped_variant_win.h',
         'scoped_vector.h',
+        'setproctitle_linux.c',
+        'setproctitle_linux.h',
         'sha2.cc',
         'sha2.h',
         'shared_memory.h',
@@ -398,8 +400,8 @@
             'cflags': [
               '-Wno-write-strings',
             ],
-	    'link_settings': {
-	      'libraries': [
+            'link_settings': {
+              'libraries': [
                 # We need rt for clock_gettime().
                 '-lrt',
               ],
@@ -424,7 +426,15 @@
               'nss_init.h',
               'time_posix.cc',
             ],
-          }
+          },
+        ],
+        [ 'OS != "linux"', {
+            'sources!': [
+              # Not automatically excluded by the *linux.cc rules.
+              'setproctitle_linux.c',
+              'setproctitle_linux.h',
+            ],
+          },
         ],
         [ 'GENERATOR == "quentin"', {
             # Quentin builds don't have a recent enough glibc to include the
