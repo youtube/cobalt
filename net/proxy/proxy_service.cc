@@ -54,7 +54,8 @@ class ProxyResolverNull : public ProxyResolver {
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
                              CompletionCallback* callback,
-                             RequestHandle* request) {
+                             RequestHandle* request,
+                             LoadLog* load_log) {
     return ERR_NOT_IMPLEMENTED;
   }
 
@@ -99,11 +100,8 @@ class ProxyService::PacRequest
 
     config_id_ = service_->config_.id();
 
-    // TODO(eroman): ProxyResolver::GetProxyForURL should take LoadLog*.
-    // Then we can pass in |load_log_| and understand how much time is
-    // spent in bindings like dnsResolve()!
     return resolver()->GetProxyForURL(
-        url_, results_, &io_callback_, &resolve_job_/*, load_log_*/);
+        url_, results_, &io_callback_, &resolve_job_, load_log_);
   }
 
   bool is_started() const {
