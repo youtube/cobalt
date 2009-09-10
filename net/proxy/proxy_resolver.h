@@ -13,6 +13,7 @@
 
 namespace net {
 
+class LoadLog;
 class ProxyInfo;
 
 // Interface for "proxy resolvers". A ProxyResolver fills in a list of proxies
@@ -39,7 +40,8 @@ class ProxyResolver {
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
                              CompletionCallback* callback,
-                             RequestHandle* request) = 0;
+                             RequestHandle* request,
+                             LoadLog* load_log) = 0;
 
   // Cancels |request|.
   virtual void CancelRequest(RequestHandle request) = 0;

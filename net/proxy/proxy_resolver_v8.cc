@@ -7,6 +7,7 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
@@ -54,7 +55,7 @@ bool V8ObjectToString(v8::Handle<v8::Value> object, std::string* result) {
 class ProxyResolverV8::Context {
  public:
   explicit Context(ProxyResolverJSBindings* js_bindings)
-      : js_bindings_(js_bindings) {
+      : js_bindings_(js_bindings), current_request_load_log_(NULL) {
     DCHECK(js_bindings != NULL);
   }
 
@@ -156,6 +157,10 @@ class ProxyResolverV8::Context {
     return OK;
   }
 
+  void SetCurrentRequestLoadLog(LoadLog* load_log) {
+    current_request_load_log_ = load_log;
+  }
+
  private:
   bool GetFindProxyForURL(v8::Local<v8::Value>* function) {
     *function = v8_context_->Global()->Get(v8::String::New("FindProxyForURL"));
@@ -198,9 +203,16 @@ class ProxyResolverV8::Context {
     Context* context =
         static_cast<Context*>(v8::External::Cast(*args.Data())->Value());
 
+    LoadLog::BeginEvent(context->current_request_load_log_,
+                        LoadLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS);
+
     // We shouldn't be called with any arguments, but will not complain if
     // we are.
     std::string result = context->js_bindings_->MyIpAddress();
+
+    LoadLog::EndEvent(context->current_request_load_log_,
+                      LoadLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS);
+
     if (result.empty())
       result = "127.0.0.1";
     return StdStringToV8String(result);
@@ -220,13 +232,20 @@ class ProxyResolverV8::Context {
         return v8::Undefined();
     }
 
+    LoadLog::BeginEvent(context->current_request_load_log_,
+                        LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE);
+
     std::string result = context->js_bindings_->DnsResolve(host);
+
+    LoadLog::EndEvent(context->current_request_load_log_,
+                      LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE);
 
     // DoDnsResolve() returns empty string on failure.
     return result.empty() ? v8::Null() : StdStringToV8String(result);
   }
 
   ProxyResolverJSBindings* js_bindings_;
+  LoadLog* current_request_load_log_;
   v8::Persistent<v8::External> v8_this_;
   v8::Persistent<v8::Context> v8_context_;
 };
@@ -244,14 +263,19 @@ ProxyResolverV8::~ProxyResolverV8() {}
 int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
                                     ProxyInfo* results,
                                     CompletionCallback* /*callback*/,
-                                    RequestHandle* /*request*/) {
+                                    RequestHandle* /*request*/,
+                                    LoadLog* load_log) {
   // If the V8 instance has not been initialized (either because
   // SetPacScript() wasn't called yet, or because it failed.
   if (!context_.get())
     return ERR_FAILED;
 
   // Otherwise call into V8.
-  return context_->ResolveProxy(query_url, results);
+  context_->SetCurrentRequestLoadLog(load_log);
+  int rv = context_->ResolveProxy(query_url, results);
+  context_->SetCurrentRequestLoadLog(NULL);
+
+  return rv;
 }
 
 void ProxyResolverV8::CancelRequest(RequestHandle request) {
