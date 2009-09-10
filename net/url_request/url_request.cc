@@ -101,11 +101,10 @@ URLRequest::InstanceTracker::ExtractInfo(URLRequest* url_request) {
   info.original_url = url_request->original_url();
   info.load_log = url_request->load_log();
 
-  // Paranoia check: truncate really big URLs.
-  if (info.original_url.spec().size() > kMaxGraveyardURLSize) {
-    info.original_url = GURL(url_request->original_url().spec().substr(
-        0, kMaxGraveyardURLSize));
-  }
+  // Paranoia check: truncate |info.original_url| if it is really big.
+  const std::string& spec = info.original_url.possibly_invalid_spec();
+  if (spec.size() > kMaxGraveyardURLSize)
+    info.original_url = GURL(spec.substr(0, kMaxGraveyardURLSize));
   return info;
 }
 
