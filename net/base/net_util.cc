@@ -918,7 +918,8 @@ std::string CanonicalizeHost(const std::wstring& host,
 }
 
 std::string GetDirectoryListingHeader(const string16& title) {
-  static const StringPiece header(NetModule::GetResource(IDR_DIR_HEADER_HTML));
+  static const base::StringPiece header(
+      NetModule::GetResource(IDR_DIR_HEADER_HTML));
   // This can be null in unit tests.
   DLOG_IF(WARNING, header.empty()) <<
       "Missing resource: directory listing header";

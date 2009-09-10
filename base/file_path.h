@@ -187,7 +187,7 @@ class FilePath {
   // path == "C:\pics\jojo"     suffix == " (1)", returns "C:\pics\jojo (1)"
   // path == "C:\pics.old\jojo" suffix == " (1)", returns "C:\pics.old\jojo (1)"
   FilePath InsertBeforeExtension(const StringType& suffix) const;
-  FilePath InsertBeforeExtensionASCII(const StringPiece& suffix) const;
+  FilePath InsertBeforeExtensionASCII(const base::StringPiece& suffix) const;
 
   // Replaces the extension of |file_name| with |extension|.  If |file_name|
   // does not have an extension, them |extension| is added.  If |extension| is
@@ -214,7 +214,8 @@ class FilePath {
   // On Linux, although it can use any 8-bit encoding for paths, we assume that
   // ASCII is a valid subset, regardless of the encoding, since many operating
   // system paths will always be ASCII.
-  FilePath AppendASCII(const StringPiece& component) const WARN_UNUSED_RESULT;
+  FilePath AppendASCII(const base::StringPiece& component)
+      const WARN_UNUSED_RESULT;
 
   // Returns true if this FilePath contains an absolute path.  On Windows, an
   // absolute path begins with either a drive letter specification followed by

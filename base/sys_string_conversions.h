@@ -22,9 +22,9 @@ class NSString;
 #endif
 #endif  // OS_MACOSX
 
-class StringPiece;
-
 namespace base {
+
+class StringPiece;
 
 // Converts between wide and UTF-8 representations of a string. On error, the
 // result is system-dependent.
