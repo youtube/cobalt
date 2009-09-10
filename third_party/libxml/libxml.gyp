@@ -189,7 +189,7 @@
       'type': 'executable',
       'sources': [
         'xmlcatalog.c',
-        'xmldummy_mac.cc',
+        'xmlcatalog_dummy.cc',
       ],
       'include_dirs': [
         '<(os_include)',
@@ -213,7 +213,7 @@
       'type': 'executable',
       'sources': [
         'xmllint.c',
-        'xmldummy_mac.cc',
+        'xmllint_dummy.cc',
       ],
       'include_dirs': [
         '<(os_include)',
