@@ -310,7 +310,8 @@ FilePath FilePath::InsertBeforeExtension(const StringType& suffix) const {
   return FilePath(ret);
 }
 
-FilePath FilePath::InsertBeforeExtensionASCII(const StringPiece& suffix) const {
+FilePath FilePath::InsertBeforeExtensionASCII(const base::StringPiece& suffix)
+    const {
   DCHECK(IsStringASCII(suffix));
 #if defined(OS_WIN)
   return InsertBeforeExtension(ASCIIToWide(suffix));
@@ -397,7 +398,7 @@ FilePath FilePath::Append(const FilePath& component) const {
   return Append(component.value());
 }
 
-FilePath FilePath::AppendASCII(const StringPiece& component) const {
+FilePath FilePath::AppendASCII(const base::StringPiece& component) const {
   DCHECK(IsStringASCII(component));
 #if defined(OS_WIN)
   return Append(ASCIIToWide(component));

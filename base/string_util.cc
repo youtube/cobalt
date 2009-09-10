@@ -506,7 +506,7 @@ std::string WideToASCII(const std::wstring& wide) {
   return std::string(wide.begin(), wide.end());
 }
 
-std::wstring ASCIIToWide(const StringPiece& ascii) {
+std::wstring ASCIIToWide(const base::StringPiece& ascii) {
   DCHECK(IsStringASCII(ascii)) << ascii;
   return std::wstring(ascii.begin(), ascii.end());
 }
@@ -516,7 +516,7 @@ std::string UTF16ToASCII(const string16& utf16) {
   return std::string(utf16.begin(), utf16.end());
 }
 
-string16 ASCIIToUTF16(const StringPiece& ascii) {
+string16 ASCIIToUTF16(const base::StringPiece& ascii) {
   DCHECK(IsStringASCII(ascii)) << ascii;
   return string16(ascii.begin(), ascii.end());
 }
@@ -563,7 +563,7 @@ bool IsStringASCII(const string16& str) {
 }
 #endif
 
-bool IsStringASCII(const StringPiece& str) {
+bool IsStringASCII(const base::StringPiece& str) {
   return DoIsStringASCII(str);
 }
 
@@ -745,7 +745,7 @@ bool LowerCaseEqualsASCII(const wchar_t* a_begin,
   return DoLowerCaseEqualsASCII(a_begin, a_end, b);
 }
 
-bool EqualsASCII(const string16& a, const StringPiece& b) {
+bool EqualsASCII(const string16& a, const base::StringPiece& b) {
   if (a.length() != b.length())
     return false;
   return std::equal(b.begin(), b.end(), a.begin());

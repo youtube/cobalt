@@ -8,6 +8,8 @@
 
 #include "base/string_piece.h"
 
+namespace base {
+
 typedef StringPiece::size_type size_type;
 
 std::ostream& operator<<(std::ostream& o, const StringPiece& piece) {
@@ -213,3 +215,5 @@ StringPiece StringPiece::substr(size_type pos, size_type n) const {
 }
 
 const StringPiece::size_type StringPiece::npos = size_type(-1);
+
+}  // namespace base
