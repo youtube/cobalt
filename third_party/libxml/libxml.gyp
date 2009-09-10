@@ -184,54 +184,5 @@
         }],
       ],
     },
-    {
-      'target_name': 'xmlcatalog',
-      'type': 'executable',
-      'sources': [
-        'xmlcatalog.c',
-        'xmlcatalog_dummy.cc',
-      ],
-      'include_dirs': [
-        '<(os_include)',
-      ],
-      'dependencies': [
-        'libxml',
-      ],
-      'conditions': [
-        ['OS=="linux"', {
-          'link_settings': {
-            'libraries': [
-              '-ldl',
-              '-lm',
-            ],
-          },
-        }],
-      ],
-    },
-    {
-      'target_name': 'xmllint',
-      'type': 'executable',
-      'sources': [
-        'xmllint.c',
-        'xmllint_dummy.cc',
-      ],
-      'include_dirs': [
-        '<(os_include)',
-      ],
-      'dependencies': [
-        'libxml',
-        '../icu/icu.gyp:icuuc',
-      ],
-      'conditions': [
-        ['OS=="linux"', {
-          'link_settings': {
-            'libraries': [
-              '-ldl',
-              '-lm',
-            ],
-          },
-        }],
-      ],
-    },
   ],
 }
