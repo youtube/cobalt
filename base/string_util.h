@@ -176,9 +176,9 @@ std::string CollapseWhitespaceASCII(const std::string& text,
 
 // These convert between ASCII (7-bit) and Wide/UTF16 strings.
 std::string WideToASCII(const std::wstring& wide);
-std::wstring ASCIIToWide(const StringPiece& ascii);
+std::wstring ASCIIToWide(const base::StringPiece& ascii);
 std::string UTF16ToASCII(const string16& utf16);
-string16 ASCIIToUTF16(const StringPiece& ascii);
+string16 ASCIIToUTF16(const base::StringPiece& ascii);
 
 // These convert between UTF-8, -16, and -32 strings. They are potentially slow,
 // so avoid unnecessary conversions. The low-level versions return a boolean
@@ -196,7 +196,7 @@ string16 ASCIIToUTF16(const StringPiece& ascii);
 bool WideToUTF8(const wchar_t* src, size_t src_len, std::string* output);
 std::string WideToUTF8(const std::wstring& wide);
 bool UTF8ToWide(const char* src, size_t src_len, std::wstring* output);
-std::wstring UTF8ToWide(const StringPiece& utf8);
+std::wstring UTF8ToWide(const base::StringPiece& utf8);
 
 bool WideToUTF16(const wchar_t* src, size_t src_len, string16* output);
 string16 WideToUTF16(const std::wstring& wide);
@@ -287,7 +287,7 @@ bool IsString8Bit(const std::wstring& str);
 bool IsStringUTF8(const std::string& str);
 bool IsStringWideUTF8(const std::wstring& str);
 bool IsStringASCII(const std::wstring& str);
-bool IsStringASCII(const StringPiece& str);
+bool IsStringASCII(const base::StringPiece& str);
 bool IsStringASCII(const string16& str);
 
 // ASCII-specific tolower.  The standard library's tolower is locale sensitive,
@@ -353,7 +353,7 @@ bool LowerCaseEqualsASCII(const wchar_t* a_begin,
 
 // Performs a case-sensitive string compare. The behavior is undefined if both
 // strings are not ASCII.
-bool EqualsASCII(const string16& a, const StringPiece& b);
+bool EqualsASCII(const string16& a, const base::StringPiece& b);
 
 // Returns true if str starts with search, or false otherwise.
 bool StartsWithASCII(const std::string& str,

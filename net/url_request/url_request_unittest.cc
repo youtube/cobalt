@@ -78,7 +78,7 @@ class TestURLRequest : public URLRequest {
   }
 };
 
-StringPiece TestNetResourceProvider(int key) {
+base::StringPiece TestNetResourceProvider(int key) {
   return "header";
 }
 
