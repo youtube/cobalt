@@ -189,6 +189,7 @@
       'type': 'executable',
       'sources': [
         'xmlcatalog.c',
+        'xmldummy_mac.cc',
       ],
       'include_dirs': [
         '<(os_include)',
@@ -205,11 +206,6 @@
             ],
           },
         }],
-        ['OS=="mac"', {
-          'sources': [
-            'xmldummy_mac.cc',
-          ],
-        }],
       ],
     },
     {
@@ -217,6 +213,7 @@
       'type': 'executable',
       'sources': [
         'xmllint.c',
+        'xmldummy_mac.cc',
       ],
       'include_dirs': [
         '<(os_include)',
@@ -233,11 +230,6 @@
               '-lm',
             ],
           },
-        }],
-        ['OS=="mac"', {
-          'sources': [
-            'xmldummy_mac.cc',
-          ],
         }],
       ],
     },
