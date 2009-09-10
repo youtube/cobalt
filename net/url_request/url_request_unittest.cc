@@ -269,7 +269,8 @@ TEST_F(URLRequestTest, Tracking) {
 TEST_F(URLRequestTest, TrackingGraveyardBounded) {
   URLRequest::InstanceTracker::Get()->ClearRecentlyDeceased();
   EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
-  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
+  EXPECT_EQ(0u,
+            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
 
   const size_t kMaxGraveyardSize =
       URLRequest::InstanceTracker::kMaxGraveyardSize;
@@ -310,6 +311,28 @@ TEST_F(URLRequestTest, TrackingGraveyardBounded) {
   EXPECT_EQ(kMaxURLLen + 1,
             URLRequest::InstanceTracker::Get()->GetRecentlyDeceased()[0]
                 .original_url.spec().size());
+}
+
+// Test the instance tracking functionality of URLRequest does not
+// fail if the URL was invalid. http://crbug.com/21423.
+TEST_F(URLRequestTest, TrackingInvalidURL) {
+  URLRequest::InstanceTracker::Get()->ClearRecentlyDeceased();
+  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
+  EXPECT_EQ(0u,
+            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
+
+  {
+    GURL invalid_url("xabc");
+    EXPECT_FALSE(invalid_url.is_valid());
+    URLRequest req(invalid_url, NULL);
+  }
+
+  // Check that the invalid URL made it into graveyard.
+  URLRequest::InstanceTracker::RecentRequestInfoList recent_reqs =
+      URLRequest::InstanceTracker::Get()->GetRecentlyDeceased();
+
+  ASSERT_EQ(1u, recent_reqs.size());
+  EXPECT_FALSE(recent_reqs[0].original_url.is_valid());
 }
 
 TEST_F(URLRequestTest, QuitTest) {
