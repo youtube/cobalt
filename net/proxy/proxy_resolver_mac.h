@@ -24,7 +24,8 @@ class ProxyResolverMac : public ProxyResolver {
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
                              CompletionCallback* callback,
-                             RequestHandle* request);
+                             RequestHandle* request,
+                             LoadLog* load_log);
 
   virtual void CancelRequest(RequestHandle request) {
     NOTREACHED();

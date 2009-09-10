@@ -92,7 +92,8 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
   virtual int GetProxyForURL(const GURL& url,
                              ProxyInfo* results,
                              CompletionCallback* callback,
-                             RequestHandle* request_handle) {
+                             RequestHandle* request_handle,
+                             LoadLog* /*load_log*/) {
     scoped_refptr<Request> request = new Request(this, url, results, callback);
     pending_requests_.push_back(request);
 
