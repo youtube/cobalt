@@ -7,6 +7,9 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #include <shellapi.h>
+#elif defined(OS_FREEBSD)
+#include <stdlib.h>
+#include <unistd.h>
 #endif
 
 #include <algorithm>
@@ -16,6 +19,11 @@
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
+
+#if defined(OS_LINUX)
+// Linux/glibc doesn't natively have setproctitle().
+#include "base/setproctitle_linux.h"
+#endif
 
 CommandLine* CommandLine::current_process_commandline_ = NULL;
 
@@ -193,6 +201,29 @@ void CommandLine::Init(const std::vector<std::string>& argv) {
   current_process_commandline_ = new CommandLine(argv);
 #endif
 }
+
+#if defined(OS_LINUX) || defined(OS_FREEBSD)
+// static
+void CommandLine::SetProcTitle() {
+  // Build a single string which consists of all the arguments separated
+  // by spaces. We can't actually keep them separate due to the way the
+  // setproctitle() function works.
+  std::string title;
+  for (size_t i = 1; i < current_process_commandline_->argv_.size(); ++i) {
+    if (!title.empty())
+      title += " ";
+    title += current_process_commandline_->argv_[i];
+  }
+  setproctitle("%s", title.c_str());
+}
+
+// static
+void CommandLine::SetTrueArgv(char** argv) {
+#if defined(OS_LINUX)
+  setproctitle_init(argv);
+#endif
+}
+#endif
 
 void CommandLine::Terminate() {
   DCHECK(current_process_commandline_ != NULL);
