@@ -178,6 +178,11 @@ int MapCertErrorToCertStatus(int err) {
 // contain the root CA certificate.
 void GetCertChainInfo(CERTCertList* cert_list,
                       CertVerifyResult* verify_result) {
+  // NOTE: Using a NSS library before 3.12.3.1 will crash below.  To see the
+  // NSS version currently in use:
+  // 1. use ldd on the chrome executable for NSS's location (ie. libnss3.so*)
+  // 2. use ident libnss3.so* for the library's version
+  DCHECK(cert_list);
   int i = 0;
   for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
        !CERT_LIST_END(node, cert_list);
