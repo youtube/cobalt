@@ -400,9 +400,6 @@ FILE* OpenFile(const std::wstring& filename, const char* mode) {
 bool PathExists(const std::wstring& path) {
   return PathExists(FilePath::FromWStringHack(path));
 }
-bool PathIsWritable(const std::wstring& path) {
-  return PathIsWritable(FilePath::FromWStringHack(path));
-}
 int ReadFile(const std::wstring& filename, char* data, int size) {
   return ReadFile(FilePath::FromWStringHack(filename), data, size);
 }

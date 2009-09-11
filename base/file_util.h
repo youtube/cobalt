@@ -182,8 +182,6 @@ bool PathExists(const std::wstring& path);
 
 // Returns true if the given path is writable by the user, false otherwise.
 bool PathIsWritable(const FilePath& path);
-// Deprecated temporary compatibility function.
-bool PathIsWritable(const std::wstring& path);
 
 // Returns true if the given path exists and is a directory, false otherwise.
 bool DirectoryExists(const FilePath& path);
