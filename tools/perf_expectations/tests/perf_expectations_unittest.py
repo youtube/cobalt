@@ -121,7 +121,7 @@ class PerfExpectationsUnittest(unittest.TestCase):
     for key in perf_data:
       if key == 'load':
         continue
-      if not re.match(r"^([\w-]+)/([\w-]+)/([\w-]+)/([\w-]+)$", key):
+      if not re.match(r"^([\w\.-]+)/([\w\.-]+)/([\w\.-]+)/([\w\.-]+)$", key):
         bad_keys.append(key)
     if len(bad_keys) > 0:
       msg = "perf expectations keys in bad format, expected a/b/c/d"
