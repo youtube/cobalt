@@ -710,6 +710,8 @@ int HttpNetworkTransaction::DoSSLConnect() {
   if (request_->load_flags & LOAD_VERIFY_EV_CERT)
     ssl_config_.verify_ev_cert = true;
 
+  ssl_connect_start_time_ = base::TimeTicks::Now();
+
   // Add a SSL socket on top of our existing transport socket.
   ClientSocket* s = connection_.release_socket();
   s = socket_factory_->CreateSSLClientSocket(
@@ -723,6 +725,16 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
     result = HandleCertificateError(result);
 
   if (result == OK) {
+    DCHECK(ssl_connect_start_time_ != base::TimeTicks());
+    base::TimeDelta connect_duration =
+        base::TimeTicks::Now() - ssl_connect_start_time_;
+
+    UMA_HISTOGRAM_CLIPPED_TIMES("Net.SSL_Connection_Latency",
+        connect_duration,
+        base::TimeDelta::FromMilliseconds(1),
+        base::TimeDelta::FromMinutes(10),
+        100);
+
     next_state_ = STATE_WRITE_HEADERS;
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     result = HandleCertificateRequest(result);

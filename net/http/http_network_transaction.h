@@ -408,8 +408,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   // The time the Start method was called.
   base::Time start_time_;
 
-  // The time the Connect() method was called (if it got called).
-  base::Time connect_start_time_;
+  // The time the DoSSLConnect() method was called (if it got called).
+  base::TimeTicks ssl_connect_start_time_;
 
   // The next state in the state machine.
   State next_state_;
