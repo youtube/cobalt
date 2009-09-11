@@ -72,6 +72,9 @@
     
     # The Google Update appid.
     'google_update_appid%': '{8A69D345-D564-463c-AFF1-A69D9E530F96}',
+    
+    # Extra defines to add to built targets
+    'extra_custom_defines%': [],
 
     # TODO(bradnelson): eliminate this when possible.
     # To allow local gyp files to prevent release.vsprops from being included.
@@ -169,6 +172,9 @@
       'mac_release_optimization%': '3', # Use -O3 unless overridden
       'mac_debug_optimization%': '0'    # Use -O0 unless overridden
     },
+    'defines': [
+      '<@(extra_custom_defines)',
+    ],
     'conditions': [
       ['branding=="Chrome"', {
         'defines': ['GOOGLE_CHROME_BUILD'],
