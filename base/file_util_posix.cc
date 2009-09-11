@@ -424,11 +424,10 @@ FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path) {
 
   return fdopen(fd, "a+");
 }
-// TODO(port): implement me.
-bool CreateTemporaryFileInDir(const FilePath& dir,
-                              FilePath* temp_file) {
-  NOTREACHED();
-  return false;
+
+bool CreateTemporaryFileInDir(const FilePath& dir, FilePath* temp_file) {
+  int fd = CreateAndOpenFdForTemporaryFile(dir, temp_file);
+  return ((fd >= 0) && !close(fd));
 }
 
 bool CreateNewTempDirectory(const FilePath::StringType& prefix,
