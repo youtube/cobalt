@@ -69,12 +69,12 @@
     # {'variables': {'library': 'shared_library'}}
     # to compile as shared by default
     'library%': 'static_library',
-    
+
     # The Google Update appid.
     'google_update_appid%': '{8A69D345-D564-463c-AFF1-A69D9E530F96}',
-    
-    # Extra defines to add to built targets
-    'extra_custom_defines%': [],
+
+    # Whether to add the experimental build define.
+    'experimental_build_define%': 0,
 
     # TODO(bradnelson): eliminate this when possible.
     # To allow local gyp files to prevent release.vsprops from being included.
@@ -174,14 +174,14 @@
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
     },
-    'defines': [
-      '<@(extra_custom_defines)',
-    ],
     'conditions': [
       ['branding=="Chrome"', {
         'defines': ['GOOGLE_CHROME_BUILD'],
       }, {  # else: branding!="Chrome"
         'defines': ['CHROMIUM_BUILD'],
+      }],
+      ['experimental_build_define', {
+        'defines': ['CHROME_EXP_BUILD'],
       }],
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
