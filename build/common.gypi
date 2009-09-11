@@ -170,7 +170,9 @@
   'target_defaults': {
     'variables': {
       'mac_release_optimization%': '3', # Use -O3 unless overridden
-      'mac_debug_optimization%': '0'    # Use -O0 unless overridden
+      'mac_debug_optimization%': '0',   # Use -O0 unless overridden
+      'release_extra_cflags%': '',
+      'debug_extra_cflags%': '',
     },
     'defines': [
       '<@(extra_custom_defines)',
@@ -237,6 +239,7 @@
         'xcode_settings': {
           'COPY_PHASE_STRIP': 'NO',
           'GCC_OPTIMIZATION_LEVEL': '<(mac_debug_optimization)',
+          'OTHER_CFLAGS': [ '<@(debug_extra_cflags)', ],
         },
         'conditions': [
           [ 'OS=="win"', {
@@ -261,6 +264,11 @@
               },
             },
           }],
+         ['OS=="linux"', {
+           'cflags': [
+             '<@(debug_extra_cflags)',
+           ],
+         }],
         ],
       },
       'Release': {
@@ -270,6 +278,7 @@
         'xcode_settings': {
           'DEAD_CODE_STRIPPING': 'YES',  # -Wl,-dead_strip
           'GCC_OPTIMIZATION_LEVEL': '<(mac_release_optimization)',
+          'OTHER_CFLAGS': [ '<@(release_extra_cflags)', ],
         },
         'conditions': [
           [ 'OS=="win" and msvs_use_common_release', {
@@ -288,6 +297,11 @@
               },
             },
           }],
+         ['OS=="linux"', {
+           'cflags': [
+             '<@(release_extra_cflags)',
+           ],
+         }],
         ],
       },
       'conditions': [
@@ -453,7 +467,6 @@
           'Release': {
             'variables': {
               'release_optimize%': '2',
-              'release_extra_cflags%': '',
             },
             'cflags': [
               '-O<(release_optimize)',
@@ -464,7 +477,6 @@
               # can be removed at link time with --gc-sections.
               '-fdata-sections',
               '-ffunction-sections',
-              '<(release_extra_cflags)',
             ],
           },
         },
