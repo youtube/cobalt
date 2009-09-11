@@ -387,10 +387,8 @@ bool ReadFromFD(int fd, char* buffer, size_t bytes) {
 }
 
 // Creates and opens a temporary file in |directory|, returning the
-// file descriptor.  |path| is set to the temporary file path.
-// Note TODO(erikkay) comment in header for BlahFileName() calls; the
-// intent is to rename these files BlahFile() (since they create
-// files, not filenames).  This function does NOT unlink() the file.
+// file descriptor. |path| is set to the temporary file path.
+// This function does NOT unlink() the file.
 int CreateAndOpenFdForTemporaryFile(FilePath directory, FilePath* path) {
   *path = directory.Append(kTempFileName);
   const std::string& tmpdir_string = path->value();
