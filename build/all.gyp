@@ -96,15 +96,6 @@
     ['OS=="mac"', {
       'targets': [
         {
-          # This target is legacy and can go away when the bots have been
-          # updated to direclty build the test_shell targets.
-          'target_name': 'build_for_layout_tests',
-          'type': 'none',
-          'dependencies': [
-            '../webkit/tools/test_shell/test_shell.gyp:*',
-          ],
-        },
-        {
           # Target to build everything plus the dmg.  We don't put the dmg
           # in the All target because developers really don't need it.
           'target_name': 'all_and_dmg',
@@ -114,7 +105,39 @@
             '../chrome/chrome.gyp:build_app_dmg',
           ],
         },
-      ],
-    }],
-  ],
+        # These targets are here so the build bots can use them to build
+        # subsets of a full tree for faster cycle times.
+        {
+          'target_name': 'chromium_builder_dbg',
+          'xcode_create_dependents_test_runner': 1,
+          'type': 'none',
+          'dependencies': [
+            '../app/app.gyp:app_unittests',
+            '../ipc/ipc.gyp:ipc_tests',
+            '../media/media.gyp:media_unittests',
+            '../printing/printing.gyp:printing_unittests',
+            '../chrome/chrome.gyp:ui_tests',
+            '../chrome/chrome.gyp:unit_tests',
+          ],
+        },
+        {
+          'target_name': 'chromium_builder_rel',
+          'type': 'none',
+          'dependencies': [
+            '../app/app.gyp:app_unittests',
+            '../chrome/chrome.gyp:memory_test',
+            '../chrome/chrome.gyp:page_cycler_tests',
+            '../chrome/chrome.gyp:startup_tests',
+            '../chrome/chrome.gyp:tab_switching_test',
+            '../chrome/chrome.gyp:ui_tests',
+            '../chrome/chrome.gyp:unit_tests',
+            '../chrome/chrome.gyp:url_fetch_test',
+            '../ipc/ipc.gyp:ipc_tests',
+            '../media/media.gyp:media_unittests',
+            '../printing/printing.gyp:printing_unittests',
+          ],
+        },
+      ],  # targets
+    }], # OS="mac"
+  ], # conditions
 }
