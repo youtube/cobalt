@@ -42,7 +42,7 @@ unsigned int hash(unsigned char *s, size_t len, unsigned int hash = 5381) {
 
 // Set to 100 to time ConvertYUVToRGB32.
 // This will take approximately 40 to 200 ms.
-static const int kTestTimes = 100;
+static const int kTestTimes = 1;
 
 TEST(YUVConvertTest, YV12) {
   // Allocate all surfaces.
