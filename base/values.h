@@ -100,23 +100,24 @@ class Value {
  protected:
   // This isn't safe for end-users (they should use the Create*Value()
   // static methods above), but it's useful for subclasses.
-  Value(ValueType type) : type_(type) {}
+  explicit Value(ValueType type) : type_(type) {}
 
  private:
-  DISALLOW_EVIL_CONSTRUCTORS(Value);
   Value();
 
   ValueType type_;
+
+  DISALLOW_COPY_AND_ASSIGN(Value);
 };
 
 // FundamentalValue represents the simple fundamental types of values.
 class FundamentalValue : public Value {
  public:
-  FundamentalValue(bool in_value)
+  explicit FundamentalValue(bool in_value)
     : Value(TYPE_BOOLEAN), boolean_value_(in_value) {}
-  FundamentalValue(int in_value)
+  explicit FundamentalValue(int in_value)
     : Value(TYPE_INTEGER), integer_value_(in_value) {}
-  FundamentalValue(double in_value)
+  explicit FundamentalValue(double in_value)
     : Value(TYPE_REAL), real_value_(in_value) {}
   ~FundamentalValue();
 
@@ -128,22 +129,22 @@ class FundamentalValue : public Value {
   virtual bool Equals(const Value* other) const;
 
  private:
-  DISALLOW_EVIL_CONSTRUCTORS(FundamentalValue);
-
   union {
     bool boolean_value_;
     int integer_value_;
     double real_value_;
   };
+
+  DISALLOW_COPY_AND_ASSIGN(FundamentalValue);
 };
 
 class StringValue : public Value {
  public:
   // Initializes a StringValue with a UTF-8 narrow character string.
-  StringValue(const std::string& in_value);
+  explicit StringValue(const std::string& in_value);
 
   // Initializes a StringValue with a wide character string.
-  StringValue(const std::wstring& in_value);
+  explicit StringValue(const std::wstring& in_value);
 
   ~StringValue();
 
@@ -154,13 +155,13 @@ class StringValue : public Value {
   virtual bool Equals(const Value* other) const;
 
  private:
-  DISALLOW_EVIL_CONSTRUCTORS(StringValue);
-
   std::string value_;
+
+  DISALLOW_COPY_AND_ASSIGN(StringValue);
 };
 
 class BinaryValue: public Value {
-public:
+ public:
   // Creates a Value to represent a binary buffer.  The new object takes
   // ownership of the pointer passed in, if successful.
   // Returns NULL if buffer is NULL.
@@ -181,15 +182,15 @@ public:
   size_t GetSize() const { return size_; }
   char* GetBuffer() { return buffer_; }
 
-private:
-  DISALLOW_EVIL_CONSTRUCTORS(BinaryValue);
-
+ private:
   // Constructor is private so that only objects with valid buffer pointers
   // and size values can be created.
   BinaryValue(char* buffer, size_t size);
 
   char* buffer_;
   size_t size_;
+
+  DISALLOW_COPY_AND_ASSIGN(BinaryValue);
 };
 
 class DictionaryValue : public Value {
@@ -264,7 +265,7 @@ class DictionaryValue : public Value {
   class key_iterator
     : private std::iterator<std::input_iterator_tag, const std::wstring> {
    public:
-    key_iterator(ValueMap::const_iterator itr) { itr_ = itr; }
+    explicit key_iterator(ValueMap::const_iterator itr) { itr_ = itr; }
     key_iterator operator++() { ++itr_; return *this; }
     const std::wstring& operator*() { return itr_->first; }
     bool operator!=(const key_iterator& other) { return itr_ != other.itr_; }
@@ -278,14 +279,14 @@ class DictionaryValue : public Value {
   key_iterator end_keys() const { return key_iterator(dictionary_.end()); }
 
  private:
-  DISALLOW_EVIL_CONSTRUCTORS(DictionaryValue);
-
   // Associates the value |in_value| with the |key|.  This method should be
   // used instead of "dictionary_[key] = foo" so that any previous value can
   // be properly deleted.
   void SetInCurrentNode(const std::wstring& key, Value* in_value);
 
   ValueMap dictionary_;
+
+  DISALLOW_COPY_AND_ASSIGN(DictionaryValue);
 };
 
 // This type of Value represents a list of other Value values.
@@ -356,9 +357,9 @@ class ListValue : public Value {
   ListValue::const_iterator end() const { return list_.end(); }
 
  private:
-  DISALLOW_EVIL_CONSTRUCTORS(ListValue);
-
   ValueVector list_;
+
+  DISALLOW_COPY_AND_ASSIGN(ListValue);
 };
 
 // This interface is implemented by classes that know how to serialize and
