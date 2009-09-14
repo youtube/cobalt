@@ -178,7 +178,7 @@ std::wstring StripWWW(const std::wstring& text);
 // Gets the filename from the raw Content-Disposition header (as read from the
 // network).  Otherwise uses the last path component name or hostname from
 // |url|.  Note: it's possible for the suggested filename to be empty (e.g.,
-// file:/// or view-cache:). referrer_charset is used as one of charsets
+// file:///). referrer_charset is used as one of charsets
 // to interpret a raw 8bit string in C-D header (after interpreting
 // as UTF-8 fails). See the comment for GetFilenameFromCD for more details.
 std::wstring GetSuggestedFilename(const GURL& url,
