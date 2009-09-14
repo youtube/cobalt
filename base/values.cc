@@ -184,7 +184,7 @@ bool StringValue::Equals(const Value* other) const {
 
 ///////////////////// BinaryValue ////////////////////
 
-//static
+// static
 BinaryValue* BinaryValue::Create(char* buffer, size_t size) {
   if (!buffer)
     return NULL;
@@ -192,7 +192,7 @@ BinaryValue* BinaryValue::Create(char* buffer, size_t size) {
   return new BinaryValue(buffer, size);
 }
 
-//static
+// static
 BinaryValue* BinaryValue::CreateWithCopiedBuffer(char* buffer, size_t size) {
   if (!buffer)
     return NULL;
