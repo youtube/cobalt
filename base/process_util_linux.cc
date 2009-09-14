@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -259,7 +259,6 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   int private_kb = 0;
   int pss_kb = 0;
   bool have_pss = false;
-  const int kPssAdjust = 0.5;
   if (!file_util::ReadFileToString(stat_file, &smaps))
     return false;
 
@@ -278,12 +277,12 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
           return false;
         }
         if (StartsWithASCII(last_key_name, "Shared_", 1)) {
-            shared_kb += StringToInt(tokenizer.token());
+          shared_kb += StringToInt(tokenizer.token());
         } else if (StartsWithASCII(last_key_name, "Private_", 1)) {
-            private_kb += StringToInt(tokenizer.token());
+          private_kb += StringToInt(tokenizer.token());
         } else if (StartsWithASCII(last_key_name, "Pss", 1)) {
-            have_pss = true;
-            pss_kb += StringToInt(tokenizer.token()) + kPssAdjust;
+          have_pss = true;
+          pss_kb += StringToInt(tokenizer.token());
         }
         state = KEY_NAME;
         break;
