@@ -22,9 +22,10 @@ TEST_F(SysInfoTest, AmountOfMem) {
 
 TEST_F(SysInfoTest, AmountOfFreeDiskSpace) {
   // We aren't actually testing that it's correct, just that it's sane.
-  std::wstring tmp_path;
+  FilePath tmp_path;
   ASSERT_TRUE(file_util::GetTempDir(&tmp_path));
-  EXPECT_GT(base::SysInfo::AmountOfFreeDiskSpace(tmp_path), 0) << tmp_path;
+  EXPECT_GT(base::SysInfo::AmountOfFreeDiskSpace(tmp_path.ToWStringHack()), 0)
+            << tmp_path.value();
 }
 
 TEST_F(SysInfoTest, GetEnvVar) {
