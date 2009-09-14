@@ -802,7 +802,7 @@ TEST(NetUtilTest, GetSuggestedFilename) {
      "",
      L"",
      L"download"},
-    {"view-cache:",
+    {"non-standard-scheme:",
      "",
      "",
      L"",
