@@ -109,7 +109,6 @@
         # subsets of a full tree for faster cycle times.
         {
           'target_name': 'chromium_builder_dbg',
-          'xcode_create_dependents_test_runner': 1,
           'type': 'none',
           'dependencies': [
             '../app/app.gyp:app_unittests',
