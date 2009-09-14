@@ -189,7 +189,7 @@ Time Time::Now() {
       continue;
     }
 
-    return Time(elapsed + initial_time);
+    return Time(elapsed + Time(initial_time));
   }
 }
 
