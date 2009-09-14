@@ -27,7 +27,7 @@ bool ReturnsValidPath(int dir_type) {
 #if defined(OS_WIN)
 // Function to test DIR_LOCAL_APP_DATA_LOW on Windows XP. Make sure it fails.
 bool ReturnsInvalidPath(int dir_type) {
-  std::wstring path;
+  FilePath path;
   bool result = PathService::Get(base::DIR_LOCAL_APP_DATA_LOW, &path);
   return !result && path.empty();
 }
