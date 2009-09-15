@@ -174,6 +174,14 @@
             ],
           },
           'conditions': [
+            ['OS=="linux"', {
+              'link_settings': {
+                'libraries': [
+                  # We need dl for dlopen() and friends.
+                  '-ldl',
+                ],
+              },
+            }],
             ['OS=="mac"', {'defines': ['_REENTRANT']}],
             ['OS=="win"', {
               'product_name': 'libxml2',

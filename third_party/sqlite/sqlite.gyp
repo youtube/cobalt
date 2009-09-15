@@ -24,6 +24,13 @@
     {
       'target_name': 'sqlite',
       'conditions': [
+        ['OS=="linux" and not use_system_sqlite', {
+          'link_settings': {
+            'libraries': [
+              '-ldl',
+            ],
+          },
+        }],
         ['OS=="linux" and use_system_sqlite', {
           'type': 'settings',
           'direct_dependent_settings': {
@@ -224,9 +231,6 @@
           ],
           'link_settings': {
             'link_languages': ['c++'],
-            'libraries': [
-              '-ldl',
-            ],
           },
         },
       ],
