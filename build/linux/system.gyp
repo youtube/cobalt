@@ -135,6 +135,15 @@
         ],
       },
     },
+    {
+      'target_name': 'selinux',
+      'type': 'settings',
+      'link_settings': {
+        'libraries': [
+          '-lselinux',
+        ],
+      },
+    },
 # TODO(evanm): temporarily disabled while we figure out whether to depend
 # on gnome-keyring etc.
 # http://code.google.com/p/chromium/issues/detail?id=12351

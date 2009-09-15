@@ -112,6 +112,9 @@
     # sandbox the zygote process and, thus, all renderer processes.
     'linux_sandbox_path%': '',
 
+    # Set this to true to enable SELinux support.
+    'selinux%': 0,
+
     'conditions': [
       ['OS=="linux"', {
         'conditions': [
@@ -188,6 +191,9 @@
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
+      }],
+      ['selinux==1', {
+        'defines': ['CHROMIUM_SELINUX=1'],
       }],
       ['coverage!=0', {
         'conditions': [
