@@ -3,9 +3,6 @@
 # found in the LICENSE file.
 
 {
-  'includes': [
-    '../common.gypi',
-  ],
   'targets': [
     {
       'target_name': 'pdfsqueeze',

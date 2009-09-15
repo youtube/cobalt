@@ -6,9 +6,6 @@
   'variables': {
     'chromium_code': 1,
   },
-  'includes': [
-    '../build/common.gypi',
-  ],
   'target_defaults': {
     'conditions': [
       ['OS!="linux"', {'sources/': [['exclude', '/linux/']]}],

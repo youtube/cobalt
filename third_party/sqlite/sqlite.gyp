@@ -7,9 +7,6 @@
     'use_system_sqlite%': 0,
     'required_sqlite_version': '3.6.1',
   },
-  'includes': [
-    '../../build/common.gypi',
-  ],
   'target_defaults': {
     'defines': [
       'SQLITE_ENABLE_FTS2',
