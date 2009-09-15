@@ -3,18 +3,18 @@
 # found in the LICENSE file.
 
 {
-  'variables' : {
-    'includes': [
-      '../common.gypi',
-    ],
-    'conditions': [
-      ['sysroot!=""', {
+  'conditions': [
+    ['sysroot!=""', {
+      'variables': {
         'pkg-config': './pkg-config-wrapper "<(sysroot)"',
-      }, {
+      },
+    }, {
+      'variables': {
         'pkg-config': 'pkg-config'
-      }],
-    ],
-  },
+      },
+    }],
+  ],
+  
   'targets': [
     {
       'target_name': 'gtk',

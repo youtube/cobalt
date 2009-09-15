@@ -7,9 +7,6 @@
   'variables': {
     'chromium_code': 1,
   },
-  'includes': [
-    '../common.gypi',
-  ],
   'targets': [
     {
       'target_name': 'googleurl',

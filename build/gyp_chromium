@@ -1,0 +1,37 @@
+#!/usr/bin/python
+
+# This script is wrapper for Chromium that adds some support for how GYP
+# is invoked by Chromium beyond what can be done it the gclient hooks.
+
+import glob
+import os
+import shlex
+import sys
+
+print 'Updating projects from gyp files...'
+
+try:
+  import gyp
+except ImportError, e:
+  sys.path.append(os.path.join(os.path.dirname(sys.argv[0]), '../tools/gyp/pylib'))
+  import gyp
+
+if __name__ == '__main__':
+  args = sys.argv[1:]
+
+  # If we didn't get a file, check an env var, and then fall back to
+  # assuming 'src/build/all.gyp'
+  if len(args) == 0:
+    args += shlex.split(os.environ.get('CHROMIUM_GYP_FILE',
+                                       'src/build/all.gyp'))
+
+  # Always include gyp_chromium.gypi
+  args += ['-I', os.path.join(os.path.dirname(sys.argv[0]),'common.gypi')]
+  
+  # Optionally add supplemental .gypi files if present.
+  supplements = glob.glob('src/*/supplement.gypi')
+  for supplement in supplements:
+    args += ['-I', supplement]
+
+  # Off we go...
+  sys.exit(gyp.main(args))
