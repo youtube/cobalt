@@ -11,9 +11,6 @@
     ],
     'use_system_libxml%': 0,
   },
-  'includes': [
-    '../../build/common.gypi',
-  ],
   'targets': [
     {
       'target_name': 'libxml',
