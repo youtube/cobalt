@@ -6,9 +6,6 @@
   'variables': {
     'chromium_code': 1,
   },
-  'includes': [
-    '../build/common.gypi',
-  ],
   'targets': [
     {
       'target_name': 'net',
