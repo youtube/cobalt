@@ -32,6 +32,7 @@
 #include "base/time.h"
 #include "unicode/coll.h"
 
+
 namespace {
 
 class LocaleAwareComparator {
@@ -82,7 +83,7 @@ class LocaleAwareComparator {
 
 namespace file_util {
 
-#if defined(OS_FREEBSD)
+#if defined(OS_FREEBSD) || defined(SUPPORT_MACOSX_10_4)
 typedef struct stat stat_wrapper_t;
 static int CallStat(const char *path, stat_wrapper_t *sb) {
   return stat(path, sb);

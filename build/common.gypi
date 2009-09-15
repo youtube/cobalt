@@ -52,6 +52,16 @@
     # Linux-Mac cross compiler distcc farm.
     'chromium_mac_pch%': 1,
 
+    # We normally expect MacOS X 10.5 at runtime in the product generated.
+    # Set to 1 to enable MacOS X 10.4 support where possible.
+    # Harmless to set on other platforms, as it has no effect.
+    # This is designed so that products such as O3D can use some Chrome source
+    # without losing 10.4 support.
+    # Look for support_macosx_10_4 later in the file to see where it turns on
+    # compile flags, defines SUPPORT_MACOSX_10_4 in the C preprocessor,
+    # and changes the Xcode deployment target setting.
+    'support_macosx_10_4%': 0,
+
     # Set to 1 to enable code coverage.  In addition to build changes
     # (e.g. extra CFLAGS), also creates a new target in the src/chrome
     # project file called "coverage".
@@ -611,7 +621,17 @@
           'WARNING_CFLAGS': ['-Wall', '-Wendif-labels'],
           'conditions': [
             ['chromium_mac_pch', {'GCC_PRECOMPILE_PREFIX_HEADER': 'YES'},
-                                 {'GCC_PRECOMPILE_PREFIX_HEADER': 'NO'}],
+                                 {'GCC_PRECOMPILE_PREFIX_HEADER': 'NO'}
+            ],
+            ['support_macosx_10_4',
+              {
+                'OTHER_CFLAGS': ['-D', 'SUPPORT_MACOSX_10_4',],
+                'MACOSX_DEPLOYMENT_TARGET': '10.4',  # mmacosx-version-min=10.4
+              },
+              {
+                'MACOSX_DEPLOYMENT_TARGET': '10.5',  # mmacosx-version-min=10.5
+              }
+            ],
           ],
         },
         'target_conditions': [
