@@ -431,6 +431,8 @@ void SSLClientSocketMac::Disconnect() {
     ssl_context_ = NULL;
   }
 
+  // Shut down anything that may call us back.
+  verifier_.reset();
   transport_->Disconnect();
 }
 
