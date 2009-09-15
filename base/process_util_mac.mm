@@ -199,6 +199,17 @@ size_t ProcessMetrics::GetPeakWorkingSetSize() const {
   return 0;
 }
 
+size_t ProcessMetrics::GetPrivateBytes() const {
+  return 0;
+}
+
+void ProcessMetrics::GetCommittedKBytes(CommittedKBytes* usage) const {
+}
+
+bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
+  return false;
+}
+
 // ------------------------------------------------------------------------
 
 }  // namespace base
