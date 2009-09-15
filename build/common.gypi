@@ -173,6 +173,7 @@
       'mac_debug_optimization%': '0',   # Use -O0 unless overridden
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
+      'release_valgrind_build%': 0,
     },
     'conditions': [
       ['branding=="Chrome"', {
@@ -281,6 +282,9 @@
           'OTHER_CFLAGS': [ '<@(release_extra_cflags)', ],
         },
         'conditions': [
+          ['release_valgrind_build==0', {
+            'defines': ['NVALGRIND'],
+          }],
           [ 'OS=="win" and msvs_use_common_release', {
             'msvs_props': ['release.vsprops'],
           }],
