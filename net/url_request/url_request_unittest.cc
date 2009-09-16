@@ -2123,3 +2123,99 @@ TEST_F(URLRequestTestFTP, FTPCheckWrongUserRestart) {
     EXPECT_EQ(d.bytes_received(), static_cast<int>(file_size));
   }
 }
+
+TEST_F(URLRequestTestFTP, FTPCacheURLCredentials) {
+  ASSERT_TRUE(NULL != server_.get());
+  FilePath app_path;
+  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  app_path = app_path.AppendASCII("LICENSE");
+
+  scoped_ptr<TestDelegate> d(new TestDelegate);
+  {
+    // Pass correct login identity in the URL.
+    TestURLRequest r(server_->TestServerPage("/LICENSE",
+                                             "chrome", "chrome"),
+                     d.get());
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    int64 file_size = 0;
+    file_util::GetFileSize(app_path, &file_size);
+
+    EXPECT_FALSE(r.is_pending());
+    EXPECT_EQ(1, d->response_started_count());
+    EXPECT_FALSE(d->received_data_before_response());
+    EXPECT_EQ(d->bytes_received(), static_cast<int>(file_size));
+  }
+
+  d.reset(new TestDelegate);
+  {
+    // This request should use cached identity from previous request.
+    TestURLRequest r(server_->TestServerPage("/LICENSE"), d.get());
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    int64 file_size = 0;
+    file_util::GetFileSize(app_path, &file_size);
+
+    EXPECT_FALSE(r.is_pending());
+    EXPECT_EQ(1, d->response_started_count());
+    EXPECT_FALSE(d->received_data_before_response());
+    EXPECT_EQ(d->bytes_received(), static_cast<int>(file_size));
+  }
+}
+
+TEST_F(URLRequestTestFTP, FTPCacheLoginBoxCredentials) {
+  ASSERT_TRUE(NULL != server_.get());
+  FilePath app_path;
+  PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
+  app_path = app_path.AppendASCII("LICENSE");
+
+  scoped_ptr<TestDelegate> d(new TestDelegate);
+  // Set correct login credentials. The delegate will be asked for them when
+  // the initial login with wrong credentials will fail.
+  d->set_username(L"chrome");
+  d->set_password(L"chrome");
+  {
+    TestURLRequest r(server_->TestServerPage("/LICENSE",
+                                             "chrome", "wrong_password"),
+                     d.get());
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    int64 file_size = 0;
+    file_util::GetFileSize(app_path, &file_size);
+
+    EXPECT_FALSE(r.is_pending());
+    EXPECT_EQ(1, d->response_started_count());
+    EXPECT_FALSE(d->received_data_before_response());
+    EXPECT_EQ(d->bytes_received(), static_cast<int>(file_size));
+  }
+
+  // Use a new delegate without explicit credentials. The cached ones should be
+  // used.
+  d.reset(new TestDelegate);
+  {
+    // Don't pass wrong credentials in the URL, they would override valid cached
+    // ones.
+    TestURLRequest r(server_->TestServerPage("/LICENSE"), d.get());
+    r.Start();
+    EXPECT_TRUE(r.is_pending());
+
+    MessageLoop::current()->Run();
+
+    int64 file_size = 0;
+    file_util::GetFileSize(app_path, &file_size);
+
+    EXPECT_FALSE(r.is_pending());
+    EXPECT_EQ(1, d->response_started_count());
+    EXPECT_FALSE(d->received_data_before_response());
+    EXPECT_EQ(d->bytes_received(), static_cast<int>(file_size));
+  }
+}
