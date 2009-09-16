@@ -17,6 +17,8 @@
 #include "base/basictypes.h"
 #include "base/process.h"
 
+class FilePath;
+
 namespace base {
 
 // SharedMemoryHandle is a platform specific type which represents
@@ -160,8 +162,7 @@ class SharedMemory {
  private:
 #if defined(OS_POSIX)
   bool CreateOrOpen(const std::wstring &name, int posix_flags, size_t size);
-  bool FilenameForMemoryName(const std::wstring &memname,
-                             std::wstring *filename);
+  bool FilePathForMemoryName(const std::wstring& memname, FilePath* path);
   void LockOrUnlockCommon(int function);
 
 #endif
