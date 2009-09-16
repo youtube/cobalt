@@ -25,10 +25,12 @@
 // 6) The same thread that called stop will call Close() where we cleanup
 // and notifiy the audio manager, which likley will destroy this object.
 
-// TODO(cpu): Remove the constant for this error when snow leopard arrives.
+#if !defined(MAC_OS_X_VERSION_10_6) || \
+    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_6
 enum {
   kAudioQueueErr_EnqueueDuringReset = -66632
 };
+#endif
 
 PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
     AudioManagerMac* manager, int channels, int sampling_rate,
