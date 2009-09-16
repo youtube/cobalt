@@ -367,6 +367,10 @@ int ReadFile(const std::wstring& filename, char* data, int size);
 int WriteFile(const FilePath& filename, const char* data, int size);
 // Deprecated temporary compatibility function.
 int WriteFile(const std::wstring& filename, const char* data, int size);
+#if defined(OS_POSIX)
+// Append the data to |fd|. Does not close |fd| when done.
+int WriteFileDescriptor(const int fd, const char* data, int size);
+#endif
 
 // Gets the current working directory for the process.
 bool GetCurrentDirectory(FilePath* path);
