@@ -12,35 +12,35 @@ import os
 import shlex
 import sys
 
-print 'Updating projects from gyp files...'
-sys.stdout.flush()
+script_dir = os.path.dirname(__file__)
+chrome_src = os.path.normpath(os.path.join(script_dir, os.pardir))
 
-chrome_src = os.path.join(os.path.dirname(sys.argv[0]), os.pardir)
-
-try:
-  import gyp
-except ImportError, e:
-  sys.path.append(os.path.join(chrome_src, 'tools', 'gyp', 'pylib'))
-  import gyp
+sys.path.append(os.path.join(chrome_src, 'tools', 'gyp', 'pylib'))
+import gyp
 
 if __name__ == '__main__':
   args = sys.argv[1:]
 
   # If we didn't get a file, check an env var, and then fall back to
-  # assuming 'src/build/all.gyp'.  This can't have any backslashes as path
-  # separators even on Windows due to the use of shlex.split.
-  default_gyp_file = 'src/build/all.gyp'
-  if len(args) == 0:
-    args += shlex.split(os.environ.get('CHROMIUM_GYP_FILE',
-                                       default_gyp_file))
+  # assuming 'all.gyp' from the same directory as the script.
+  gyp_file = os.environ.get('CHROMIUM_GYP_FILE')
+  if gyp_file:
+    # Note that CHROMIUM_GYP_FILE values can't have backslashes as
+    # path separators even on Windows due to the use of shlex.split().
+    args.extend(shlex.split(gyp_file))
+  else:
+    args.append(os.path.join(script_dir, 'all.gyp'))
 
   # Always include common.gypi
-  args += ['-I', os.path.join(chrome_src, 'build', 'common.gypi')]
+  args += ['-I', os.path.join(script_dir, 'common.gypi')]
 
   # Optionally add supplemental .gypi files if present.
   supplements = glob.glob(os.path.join(chrome_src, '*', 'supplement.gypi'))
   for supplement in supplements:
     args += ['-I', supplement]
+
+  print 'Updating projects from gyp files...'
+  sys.stdout.flush()
 
   # Off we go...
   sys.exit(gyp.main(args))
