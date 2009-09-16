@@ -159,6 +159,11 @@ bool FilePath::operator!=(const FilePath& that) const {
 }
 
 bool FilePath::IsParent(const FilePath& child) const {
+  return AppendRelativePath(child, NULL);
+}
+
+bool FilePath::AppendRelativePath(const FilePath& child,
+                                  FilePath* path) const {
   std::vector<FilePath::StringType> parent_components;
   std::vector<FilePath::StringType> child_components;
   GetComponents(&parent_components);
@@ -194,6 +199,11 @@ bool FilePath::IsParent(const FilePath& child) const {
     ++child_comp;
   }
 
+  if (path != NULL) {
+    for (; child_comp != child_components.end(); ++child_comp) {
+      *path = path->Append(*child_comp);
+    }
+  }
   return true;
 }
 

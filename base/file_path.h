@@ -157,6 +157,16 @@ class FilePath {
   // parent.
   bool IsParent(const FilePath& child) const;
 
+  // If IsParent(child) holds, appends to path (if non-NULL) the
+  // relative path to child and returns true.  For example, if parent
+  // holds "/Users/johndoe/Library/Application Support", child holds
+  // "/Users/johndoe/Library/Application Support/Google/Chrome/Default", and
+  // *path holds "/Users/johndoe/Library/Caches", then after
+  // parent.AppendRelativePath(child, path) is called *path will hold
+  // "/Users/johndoe/Library/Caches/Google/Chrome/Default".  Otherwise,
+  // returns false.
+  bool AppendRelativePath(const FilePath& child, FilePath* path) const;
+
   // Returns a FilePath corresponding to the directory containing the path
   // named by this object, stripping away the file component.  If this object
   // only contains one component, returns a FilePath identifying
