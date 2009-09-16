@@ -1414,7 +1414,9 @@ TEST_F(DiskCacheBackendTest, DisableSuccess4) {
   BackendDisable4();
 }
 
-TEST_F(DiskCacheBackendTest, NewEvictionDisableSuccess4) {
+// Flaky, http://crbug.com/21110. Don't re-enable without a real fix or adding
+// more debugging info!
+TEST_F(DiskCacheBackendTest, DISABLED_NewEvictionDisableSuccess4) {
   ASSERT_TRUE(CopyTestCache(L"bad_rankings"));
   DisableFirstCleanup();
   SetDirectMode();
