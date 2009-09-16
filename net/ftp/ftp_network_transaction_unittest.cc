@@ -339,6 +339,36 @@ class FtpMockControlSocketEvilPasv : public FtpMockControlSocketFileDownload {
   DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketEvilPasv);
 };
 
+class FtpMockControlSocketEvilLogin : public FtpMockControlSocketFileDownload {
+ public:
+  FtpMockControlSocketEvilLogin(const char* expected_user,
+                                const char* expected_password)
+      : expected_user_(expected_user),
+        expected_password_(expected_password) {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_USER:
+        return Verify(std::string("USER ") + expected_user_ + "\r\n", data,
+                      PRE_PASSWD, "331 Password needed\r\n");
+      case PRE_PASSWD:
+        return Verify(std::string("PASS ") + expected_password_ + "\r\n", data,
+                      PRE_SYST, "230 Welcome\r\n");
+      default:
+        return FtpMockControlSocketFileDownload::OnWrite(data);
+    }
+  }
+
+ private:
+  const char* expected_user_;
+  const char* expected_password_;
+
+  DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketEvilLogin);
+};
+
 class FtpNetworkTransactionTest : public PlatformTest {
  public:
   FtpNetworkTransactionTest()
@@ -582,6 +612,86 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafeHost) {
 
   // Make sure we have only one host entry in the AddressList.
   EXPECT_FALSE(data_socket->addresses().head()->ai_next);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilLoginBadUsername) {
+  FtpMockControlSocketEvilLogin ctrl_socket("hello%0Aworld", "test");
+  ExecuteTransaction(&ctrl_socket, "ftp://hello%0Aworld:test@host/file", OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilLoginBadPassword) {
+  FtpMockControlSocketEvilLogin ctrl_socket("test", "hello%0Dworld");
+  ExecuteTransaction(&ctrl_socket, "ftp://test:hello%0Dworld@host/file", OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionSpaceInLogin) {
+  FtpMockControlSocketEvilLogin ctrl_socket("hello world", "test");
+  ExecuteTransaction(&ctrl_socket, "ftp://hello%20world:test@host/file", OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionSpaceInPassword) {
+  FtpMockControlSocketEvilLogin ctrl_socket("test", "hello world");
+  ExecuteTransaction(&ctrl_socket, "ftp://test:hello%20world@host/file", OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, EvilRestartUser) {
+  FtpMockControlSocket ctrl_socket1;
+  ctrl_socket1.InjectFailure(FtpMockControlSocket::PRE_PASSWD,
+                             FtpMockControlSocket::PRE_QUIT,
+                             "530 Login authentication failed\r\n");
+  mock_socket_factory_.AddMockSocket(&ctrl_socket1);
+
+  FtpRequestInfo request_info = GetRequestInfo("ftp://host/file");
+
+  ASSERT_EQ(ERR_IO_PENDING,
+            transaction_.Start(&request_info, &callback_, NULL));
+  EXPECT_EQ(ERR_FAILED, callback_.WaitForResult());
+
+  MockRead ctrl_reads[] = {
+    MockRead("220 host TestFTPd\r\n"),
+    MockRead("221 Goodbye!\r\n"),
+    MockRead(false, OK),
+  };
+  MockWrite ctrl_writes[] = {
+    MockWrite("QUIT\r\n"),
+  };
+  StaticMockSocket ctrl_socket2(ctrl_reads, ctrl_writes);
+  mock_socket_factory_.AddMockSocket(&ctrl_socket2);
+  ASSERT_EQ(ERR_IO_PENDING, transaction_.RestartWithAuth(L"foo\nownz0red",
+                                                         L"innocent",
+                                                         &callback_));
+  EXPECT_EQ(ERR_MALFORMED_IDENTITY, callback_.WaitForResult());
+}
+
+TEST_F(FtpNetworkTransactionTest, EvilRestartPassword) {
+  FtpMockControlSocket ctrl_socket1;
+  ctrl_socket1.InjectFailure(FtpMockControlSocket::PRE_PASSWD,
+                             FtpMockControlSocket::PRE_QUIT,
+                             "530 Login authentication failed\r\n");
+  mock_socket_factory_.AddMockSocket(&ctrl_socket1);
+
+  FtpRequestInfo request_info = GetRequestInfo("ftp://host/file");
+
+  ASSERT_EQ(ERR_IO_PENDING,
+            transaction_.Start(&request_info, &callback_, NULL));
+  EXPECT_EQ(ERR_FAILED, callback_.WaitForResult());
+
+  MockRead ctrl_reads[] = {
+    MockRead("220 host TestFTPd\r\n"),
+    MockRead("331 User okay, send password\r\n"),
+    MockRead("221 Goodbye!\r\n"),
+    MockRead(false, OK),
+  };
+  MockWrite ctrl_writes[] = {
+    MockWrite("USER innocent\r\n"),
+    MockWrite("QUIT\r\n"),
+  };
+  StaticMockSocket ctrl_socket2(ctrl_reads, ctrl_writes);
+  mock_socket_factory_.AddMockSocket(&ctrl_socket2);
+  ASSERT_EQ(ERR_IO_PENDING, transaction_.RestartWithAuth(L"innocent",
+                                                         L"foo\nownz0red",
+                                                         &callback_));
+  EXPECT_EQ(ERR_MALFORMED_IDENTITY, callback_.WaitForResult());
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailUser) {
