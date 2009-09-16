@@ -485,7 +485,7 @@ TEST_F(FilePathTest, IsParentTest) {
   }
 }
 
-TEST_F(FilePathTest, AppendRelativePathTest) {
+TEST_F(FilePathTest, DISABLED_AppendRelativePathTest) {
   const struct BinaryTestData cases[] = {
     { { FPL("/"),             FPL("/foo/bar/baz") },      FPL("foo/bar/baz")},
     { { FPL("/foo/bar"),      FPL("/foo/bar/baz") },      FPL("baz")},
