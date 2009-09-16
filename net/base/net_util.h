@@ -77,6 +77,12 @@ std::string NetAddressToString(const struct addrinfo* net_address);
 // Returns the hostname of the current system. Returns empty string on failure.
 std::string GetHostName();
 
+// Extracts the unescaped username/password from |url|, saving the results
+// into |*username| and |*password|.
+void GetIdentityFromURL(const GURL& url,
+                        std::wstring* username,
+                        std::wstring* password);
+
 // Return the value of the HTTP response header with name 'name'.  'headers'
 // should be in the format that URLRequest::GetResponseHeaders() returns.
 // Returns the empty string if the header is not found.
