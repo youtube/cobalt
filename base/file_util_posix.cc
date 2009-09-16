@@ -18,6 +18,10 @@
 #include <time.h>
 #include <unistd.h>
 
+#if defined(OS_MACOSX)
+#include <AvailabilityMacros.h>
+#endif
+
 #include <fstream>
 
 #include "base/basictypes.h"
@@ -83,7 +87,9 @@ class LocaleAwareComparator {
 
 namespace file_util {
 
-#if defined(OS_FREEBSD) || defined(SUPPORT_MACOSX_10_4)
+#if defined(OS_FREEBSD) || \
+    (defined(OS_MACOSX) && \
+     MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
 typedef struct stat stat_wrapper_t;
 static int CallStat(const char *path, stat_wrapper_t *sb) {
   return stat(path, sb);

@@ -55,15 +55,22 @@
     # Linux-Mac cross compiler distcc farm.
     'chromium_mac_pch%': 1,
 
-    # We normally expect MacOS X 10.5 at runtime in the product generated.
-    # Set to 1 to enable MacOS X 10.4 support where possible.
-    # Harmless to set on other platforms, as it has no effect.
-    # This is designed so that products such as O3D can use some Chrome source
-    # without losing 10.4 support.
-    # Look for support_macosx_10_4 later in the file to see where it turns on
-    # compile flags, defines SUPPORT_MACOSX_10_4 in the C preprocessor,
-    # and changes the Xcode deployment target setting.
-    'support_macosx_10_4%': 0,
+    # Mac OS X SDK and deployment target support.
+    # The SDK identifies the version of the system headers that will be used,
+    # and corresponds to the MAC_OS_X_VERSION_MAX_ALLOWED compile-time macro.
+    # "Maximum allowed" refers to the operating system version whose APIs are
+    # available in the headers.
+    # The deployment target identifies the minimum system version that the
+    # built products are expected to function on.  It corresponds to the
+    # MAC_OS_X_VERSION_MIN_REQUIRED compile-time macro.
+    # To ensure these macros are available, #include <AvailabilityMacros.h>.
+    # Additional documentation on these macros is available at
+    # http://developer.apple.com/mac/library/technotes/tn2002/tn2064.html#SECTION3
+    # Chrome normally builds with the Mac OS X 10.5 SDK and sets the
+    # deployment target to 10.5.  Other projects, such as O3D, may override
+    # these defaults.
+    'mac_sdk%': '10.5',
+    'mac_deployment_target%': '10.5',
 
     # Set to 1 to enable code coverage.  In addition to build changes
     # (e.g. extra CFLAGS), also creates a new target in the src/chrome
@@ -610,30 +617,23 @@
           'GCC_ENABLE_CPP_EXCEPTIONS': 'NO',        # -fno-exceptions
           'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
           'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
-          'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',  # -fvisibility-inlines-hidden
+          # GCC_INLINES_ARE_PRIVATE_EXTERN maps to -fvisibility-inlines-hidden
+          'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
           'GCC_OBJC_CALL_CXX_CDTORS': 'YES',        # -fobjc-call-cxx-cdtors
           'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
           'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
           'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
           'GCC_VERSION': '4.2',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
-          'MACOSX_DEPLOYMENT_TARGET': '10.5',       # -mmacosx-version-min=10.5
+          # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
+          'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
           'PREBINDING': 'NO',                       # No -Wl,-prebind
-          'SDKROOT': 'macosx10.5',                  # -isysroot
+          'SDKROOT': 'macosx<(mac_sdk)',            # -isysroot
           'USE_HEADERMAP': 'NO',
           'WARNING_CFLAGS': ['-Wall', '-Wendif-labels'],
           'conditions': [
             ['chromium_mac_pch', {'GCC_PRECOMPILE_PREFIX_HEADER': 'YES'},
                                  {'GCC_PRECOMPILE_PREFIX_HEADER': 'NO'}
-            ],
-            ['support_macosx_10_4',
-              {
-                'OTHER_CFLAGS': ['-D', 'SUPPORT_MACOSX_10_4',],
-                'MACOSX_DEPLOYMENT_TARGET': '10.4',  # mmacosx-version-min=10.4
-              },
-              {
-                'MACOSX_DEPLOYMENT_TARGET': '10.5',  # mmacosx-version-min=10.5
-              }
             ],
           ],
         },
