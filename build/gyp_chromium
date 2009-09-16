@@ -1,7 +1,11 @@
 #!/usr/bin/python
 
+# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
 # This script is wrapper for Chromium that adds some support for how GYP
-# is invoked by Chromium beyond what can be done it the gclient hooks.
+# is invoked by Chromium beyond what can be done in the gclient hooks.
 
 import glob
 import os
@@ -9,27 +13,32 @@ import shlex
 import sys
 
 print 'Updating projects from gyp files...'
+sys.stdout.flush()
+
+chrome_src = os.path.join(os.path.dirname(sys.argv[0]), os.pardir)
 
 try:
   import gyp
 except ImportError, e:
-  sys.path.append(os.path.join(os.path.dirname(sys.argv[0]), '../tools/gyp/pylib'))
+  sys.path.append(os.path.join(chrome_src, 'tools', 'gyp', 'pylib'))
   import gyp
 
 if __name__ == '__main__':
   args = sys.argv[1:]
 
   # If we didn't get a file, check an env var, and then fall back to
-  # assuming 'src/build/all.gyp'
+  # assuming 'src/build/all.gyp'.  This can't have any backslashes as path
+  # separators even on Windows due to the use of shlex.split.
+  default_gyp_file = 'src/build/all.gyp'
   if len(args) == 0:
     args += shlex.split(os.environ.get('CHROMIUM_GYP_FILE',
-                                       'src/build/all.gyp'))
+                                       default_gyp_file))
 
-  # Always include gyp_chromium.gypi
-  args += ['-I', os.path.join(os.path.dirname(sys.argv[0]),'common.gypi')]
-  
+  # Always include common.gypi
+  args += ['-I', os.path.join(chrome_src, 'build', 'common.gypi')]
+
   # Optionally add supplemental .gypi files if present.
-  supplements = glob.glob('src/*/supplement.gypi')
+  supplements = glob.glob(os.path.join(chrome_src, '*', 'supplement.gypi'))
   for supplement in supplements:
     args += ['-I', supplement]
 
