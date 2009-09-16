@@ -34,6 +34,23 @@
       },
     },
     {
+      'target_name': 'gtkprint',
+      'type': 'settings',
+      'direct_dependent_settings': {
+        'cflags': [
+          '<!@(<(pkg-config) --cflags gtk+-unix-print-2.0)',
+        ],
+      },
+      'link_settings': {
+        'ldflags': [
+          '<!@(<(pkg-config) --libs-only-L --libs-only-other gtk+-unix-print-2.0)',
+        ],
+        'libraries': [
+          '<!@(<(pkg-config) --libs-only-l gtk+-unix-print-2.0)',
+        ],
+      },
+    },
+    {
       'target_name': 'nss',
       'type': 'settings',
       'direct_dependent_settings': {
