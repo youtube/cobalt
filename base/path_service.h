@@ -6,14 +6,6 @@
 #define BASE_PATH_SERVICE_H_
 
 #include "build/build_config.h"
-#ifdef OS_WIN
-// TODO(erikkay): this should be removable, but because SetCurrentDirectory
-// is the name of a Windows function, it gets macro-ized to SetCurrentDirectoryW
-// by windows.h, which leads to a different name in the header vs. the impl.
-// Even if we could fix that, it would still hose all callers of the function.
-// The right thing is likely to rename.
-#include <windows.h>
-#endif
 
 #include <string>
 
@@ -52,9 +44,6 @@ class PathService {
 
   // Return whether a path was overridden.
   static bool IsOverridden(int key);
-
-  // Sets the current directory.
-  static bool SetCurrentDirectory(const std::wstring& current_directory);
 
   // To extend the set of supported keys, you can register a path provider,
   // which is just a function mirroring PathService::Get.  The ProviderFunc
