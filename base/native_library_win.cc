@@ -6,8 +6,7 @@
 
 #include <windows.h>
 
-#include "base/file_path.h"
-#include "base/path_service.h"
+#include "base/file_util.h"
 #include "base/string_util.h"
 
 namespace base {
@@ -17,18 +16,18 @@ NativeLibrary LoadNativeLibrary(const FilePath& library_path) {
   // Switch the current directory to the library directory as the library
   // may have dependencies on DLLs in this directory.
   bool restore_directory = false;
-  std::wstring current_directory;
-  if (PathService::Get(base::DIR_CURRENT, &current_directory)) {
+  FilePath current_directory;
+  if (file_util::GetCurrentDirectory(&current_directory)) {
     FilePath plugin_path = library_path.DirName();
-    if (!plugin_path.value().empty()) {
-      PathService::SetCurrentDirectory(plugin_path.value());
+    if (!plugin_path.empty()) {
+      file_util::SetCurrentDirectory(plugin_path);
       restore_directory = true;
     }
   }
 
   HMODULE module = LoadLibrary(library_path.value().c_str());
   if (restore_directory)
-    PathService::SetCurrentDirectory(current_directory);
+    file_util::SetCurrentDirectory(current_directory);
 
   return module;
 }
