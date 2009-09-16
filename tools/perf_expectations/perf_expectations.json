@@ -1,8 +1,4 @@
-{"linux-release-hardy/morejs/times/t": {"delta": 0, "var": 70},
- "linux-release-hardy/startup/warm/t": {"delta": 0, "var": 15},
- "mac-release-10.5/morejs/times/t": {"delta": -70, "var": 60},
- "mac-release-10.5/startup/warm/t": {"delta": -170, "var": 10},
- "xp-release-dual-core/morejs/times/t": {"delta": 50, "var": 10},
- "xp-release-dual-core/startup/warm/t": {"delta": -30, "var": 4},
- "load": true
+{"linux-release-hardy/morejs/times/t": {"delta": 200, "var": 65},
+ "linux-release-hardy/startup/warm/t": {"delta": 200, "var": 12},
+ "load": false
 }
