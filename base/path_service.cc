@@ -231,10 +231,6 @@ bool PathService::Override(int key, const FilePath& path) {
   return true;
 }
 
-bool PathService::SetCurrentDirectory(const std::wstring& current_directory) {
-  return file_util::SetCurrentDirectory(current_directory);
-}
-
 void PathService::RegisterProvider(ProviderFunc func, int key_start,
                                    int key_end) {
   PathData* path_data = GetPathData();
