@@ -257,6 +257,9 @@ NET_ERROR(PAC_SCRIPT_FAILED, -327)
 // satisfy the range requested.
 NET_ERROR(REQUEST_RANGE_NOT_SATISFIABLE, -328)
 
+// The identity used for authentication is invalid.
+NET_ERROR(MALFORMED_IDENTITY, -329)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 

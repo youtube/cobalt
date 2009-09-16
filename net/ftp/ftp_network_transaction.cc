@@ -24,6 +24,23 @@ const char kCRLF[] = "\r\n";
 
 const int kCtrlBufLen = 1024;
 
+namespace {
+
+// Returns true if |input| can be safely used as a part of FTP command.
+bool IsValidFTPCommandString(const std::string& input) {
+  // RFC 959 only allows ASCII strings.
+  if (!IsStringASCII(input))
+    return false;
+
+  // Protect agains newline injection attack.
+  if (input.find_first_of("\r\n") != std::string::npos)
+    return false;
+
+  return true;
+}
+
+}  // namespace
+
 namespace net {
 
 FtpNetworkTransaction::FtpNetworkTransaction(
@@ -58,9 +75,7 @@ int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
   request_ = request_info;
 
   if (request_->url.has_username()) {
-    username_ = UTF8ToWide(request_->url.username());
-    if (request_->url.has_password())
-      password_ = UTF8ToWide(request_->url.password());
+    GetIdentityFromURL(request_->url, &username_, &password_);
   } else {
     username_ = L"anonymous";
     password_ = L"chrome@example.com";
@@ -159,6 +174,13 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
 
   DCHECK(!write_command_buf_);
   DCHECK(!write_buf_);
+
+  if (!IsValidFTPCommandString(command)) {
+    // Callers should validate the command themselves and return a more specific
+    // error code.
+    NOTREACHED();
+    return Stop(ERR_UNEXPECTED);
+  }
 
   command_sent_ = cmd;
 
@@ -518,6 +540,10 @@ int FtpNetworkTransaction::DoCtrlWriteComplete(int result) {
 // USER Command.
 int FtpNetworkTransaction::DoCtrlWriteUSER() {
   std::string command = "USER " + WideToUTF8(username_);
+
+  if (!IsValidFTPCommandString(command))
+    return Stop(ERR_MALFORMED_IDENTITY);
+
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_USER);
 }
@@ -547,6 +573,10 @@ int FtpNetworkTransaction::ProcessResponseUSER(
 // PASS command.
 int FtpNetworkTransaction::DoCtrlWritePASS() {
   std::string command = "PASS " + WideToUTF8(password_);
+
+  if (!IsValidFTPCommandString(command))
+    return Stop(ERR_MALFORMED_IDENTITY);
+
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_PASS);
 }
