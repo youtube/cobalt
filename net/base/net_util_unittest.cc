@@ -530,6 +530,71 @@ TEST(NetUtilTest, FileURLConversion) {
   EXPECT_FALSE(net::FileURLToFilePath(GURL("filefoobar"), &output));
 }
 
+TEST(NetUtilTest, GetIdentityFromURL) {
+  struct {
+    const char* input_url;
+    const wchar_t* expected_username;
+    const wchar_t* expected_password;
+  } tests[] = {
+    {
+      "http://username:password@google.com",
+      L"username",
+      L"password",
+    },
+    { // Test for http://crbug.com/19200
+      "http://username:p@ssword@google.com",
+      L"username",
+      L"p@ssword",
+    },
+    { // Username contains %20.
+      "http://use rname:password@google.com",
+      L"use rname",
+      L"password",
+    },
+    { // Keep %00 as is.
+      "http://use%00rname:password@google.com",
+      L"use%00rname",
+      L"password",
+    },
+    { // Use a '+' in the username.
+      "http://use+rname:password@google.com",
+      L"use+rname",
+      L"password",
+    },
+    { // Use a '&' in the password.
+      "http://username:p&ssword@google.com",
+      L"username",
+      L"p&ssword",
+    },
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    SCOPED_TRACE(StringPrintf("Test[%d]: %s", i, tests[i].input_url));
+    GURL url(tests[i].input_url);
+
+    std::wstring username, password;
+    net::GetIdentityFromURL(url, &username, &password);
+
+    EXPECT_EQ(tests[i].expected_username, username);
+    EXPECT_EQ(tests[i].expected_password, password);
+  }
+}
+
+// Try extracting a username which was encoded with UTF8.
+TEST(NetUtilTest, GetIdentityFromURL_UTF8) {
+  GURL url(WideToUTF16(L"http://foo:\x4f60\x597d@blah.com"));
+
+  EXPECT_EQ("foo", url.username());
+  EXPECT_EQ("%E4%BD%A0%E5%A5%BD", url.password());
+
+  // Extract the unescaped identity.
+  std::wstring username, password;
+  net::GetIdentityFromURL(url, &username, &password);
+
+  // Verify that it was decoded as UTF8.
+  EXPECT_EQ(L"foo", username);
+  EXPECT_EQ(L"\x4f60\x597d", password);
+}
+
 // Just a bunch of fake headers.
 const wchar_t* google_headers =
     L"HTTP/1.1 200 OK\n"

@@ -1808,7 +1808,7 @@ bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
     auth_identity_[target].source = HttpAuth::IDENT_SRC_URL;
     auth_identity_[target].invalid = false;
     // Extract the username:password from the URL.
-    GetIdentifyFromUrl(request_->url,
+    GetIdentityFromURL(request_->url,
                        &auth_identity_[target].username,
                        &auth_identity_[target].password);
     embedded_identity_used_ = true;
@@ -1846,15 +1846,6 @@ bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
     return true;
   }
   return false;
-}
-
-// static
-void HttpNetworkTransaction::GetIdentifyFromUrl(const GURL& url,
-                                                std::wstring* username,
-                                                std::wstring* password) {
-  UnescapeRule::Type flags = UnescapeRule::SPACES;
-  *username = UnescapeAndDecodeUTF8URLComponent(url.username(), flags);
-  *password = UnescapeAndDecodeUTF8URLComponent(url.password(), flags);
 }
 
 std::string HttpNetworkTransaction::AuthChallengeLogMessage() const {
