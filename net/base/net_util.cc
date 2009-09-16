@@ -1169,6 +1169,14 @@ std::string GetHostName() {
   return std::string(buffer);
 }
 
+void GetIdentityFromURL(const GURL& url,
+                        std::wstring* username,
+                        std::wstring* password) {
+  UnescapeRule::Type flags = UnescapeRule::SPACES;
+  *username = UnescapeAndDecodeUTF8URLComponent(url.username(), flags);
+  *password = UnescapeAndDecodeUTF8URLComponent(url.password(), flags);
+}
+
 void AppendFormattedHost(const GURL& url,
                          const std::wstring& languages,
                          std::wstring* output,
