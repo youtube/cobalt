@@ -5,8 +5,25 @@
 #include "base/basictypes.h"
 #include "media/audio/audio_output.h"
 #include "media/audio/simple_sources.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using ::testing::_;
+using ::testing::AnyNumber;
+using ::testing::DoAll;
+using ::testing::InSequence;
+using ::testing::Invoke;
+using ::testing::NiceMock;
+using ::testing::NotNull;
+using ::testing::Return;
+
+class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
+ public:
+  MOCK_METHOD4(OnMoreData, size_t(AudioOutputStream* stream, void* dest,
+                                  size_t max_size, int pending_bytes));
+  MOCK_METHOD1(OnClose, void(AudioOutputStream* stream));
+  MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
+};
 
 // Validate that the SineWaveAudioSource writes the expected values for
 // the FORMAT_16BIT_MONO.
@@ -101,6 +118,47 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone22KssMono) {
   EXPECT_TRUE(oas->Open(bytes_100_ms));
   oas->Start(&source);
   usleep(1500000);
+  oas->Stop();
+  oas->Close();
+}
+
+// Custom action to clear a memory buffer.
+static void ClearBuffer(AudioOutputStream* strea, void* dest,
+                        size_t max_size, size_t pending_bytes) {
+  memset(dest, 0, max_size);
+}
+
+TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
+  AudioManager* audio_man = AudioManager::GetAudioManager();
+  ASSERT_TRUE(NULL != audio_man);
+  if (!audio_man->HasAudioDevices())
+    return;
+  AudioOutputStream* oas =
+      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
+                                 AudioManager::kAudioCDSampleRate, 16);
+  ASSERT_TRUE(NULL != oas);
+
+  NiceMock<MockAudioSource> source;
+  size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+  EXPECT_TRUE(oas->Open(bytes_100_ms));
+
+  // We expect the amount of pending bytes will reaching |bytes_100_ms|
+  // because the audio output stream has a double buffer scheme.
+  // And then we will try to provide zero data so the amount of pending bytes
+  // will go down and eventually read zero.
+  InSequence s;
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, 0))
+      .WillOnce(DoAll(Invoke(&ClearBuffer), Return(bytes_100_ms)));
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, bytes_100_ms))
+      .WillOnce(DoAll(Invoke(&ClearBuffer), Return(bytes_100_ms)));
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, bytes_100_ms))
+      .WillOnce(Return(0));
+  EXPECT_CALL(source, OnMoreData(oas, NotNull(), bytes_100_ms, _))
+      .Times(AnyNumber())
+      .WillRepeatedly(Return(0));
+
+  oas->Start(&source);
+  usleep(500000);
   oas->Stop();
   oas->Close();
 }
