@@ -28,7 +28,7 @@ class LoadLog;
 // request at a time is to create a SingleRequestHostResolver wrapper around
 // HostResolver (which will automatically cancel the single request when it
 // goes out of scope).
-class HostResolver : public base::RefCounted<HostResolver> {
+class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
  public:
   // The parameters for doing a Resolve(). |hostname| and |port| are required,
   // the rest are optional (and have reasonable defaults).
