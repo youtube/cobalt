@@ -142,6 +142,7 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
     return;
   callback_ = callback;
   state_ = PCMA_PLAYING;
+  pending_bytes_ = 0;
   WAVEHDR* buffer = buffer_;
   for (int ix = 0; ix != kNumBuffers; ++ix) {
     QueueNextPacket(buffer);  // Read more data.
@@ -172,8 +173,8 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
 }
 
 // Stopping is tricky. First, no buffer should be locked by the audio driver
-// or else the waveOutReset will deadlock and secondly, the callback should not
-// be inside the AudioSource's OnMoreData because waveOutReset() forcefully
+// or else the waveOutReset() will deadlock and secondly, the callback should
+// not be inside the AudioSource's OnMoreData because waveOutReset() forcefully
 // kills the callback thread.
 void PCMWaveOutAudioOutputStream::Stop() {
   if (state_ != PCMA_PLAYING)
