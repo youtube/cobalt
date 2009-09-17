@@ -6,9 +6,9 @@
 #define NET_FTP_FTP_AUTH_CACHE_H_
 
 #include <list>
-#include <string>
 
 #include "googleurl/src/gurl.h"
+#include "net/base/auth.h"
 
 namespace net {
 
@@ -25,39 +25,35 @@ class FtpAuthCache {
   // Maximum number of entries we allow in the cache.
   static const size_t kMaxEntries;
 
-  struct Entry {
-    Entry(const GURL& origin,
-          const std::wstring& username,
-          const std::wstring& password)
-        : origin(origin),
-          username(username),
-          password(password) {
-    }
-
-    const GURL origin;
-    std::wstring username;
-    std::wstring password;
-  };
-
   FtpAuthCache() {}
   ~FtpAuthCache() {}
 
-  // Return Entry corresponding to given |origin| or NULL if not found.
-  Entry* Lookup(const GURL& origin);
+  // Check if we have authentication data for ftp server at |origin|.
+  // Returns the address of corresponding AuthData object (if found) or NULL
+  // (if not found).
+  AuthData* Lookup(const GURL& origin);
 
-  // Add an entry for |origin| to the cache (consisting of |username| and
-  // |password|). If there is already an entry for |origin|, it will be
-  // overwritten.
-  void Add(const GURL& origin, const std::wstring& username,
-           const std::wstring& password);
+  // Add an entry for |origin| to the cache. If there is already an
+  // entry for |origin|, it will be overwritten. Both parameters are IN only.
+  void Add(const GURL& origin, AuthData* auth_data);
 
-  // Remove the entry for |origin| from the cache, if one exists and matches
-  // |username| and |password|.
-  void Remove(const GURL& origin, const std::wstring& username,
-              const std::wstring& password);
+  // Remove the entry for |origin| from the cache, if one exists.
+  void Remove(const GURL& origin);
 
  private:
+  struct Entry {
+    Entry(const GURL& origin, AuthData* auth_data)
+        : origin(origin),
+          auth_data(auth_data) {
+    }
+
+    const GURL origin;
+    scoped_refptr<AuthData> auth_data;
+  };
   typedef std::list<Entry> EntryList;
+
+  // Return Entry corresponding to given |origin| or NULL if not found.
+  Entry* LookupEntry(const GURL& origin);
 
   // Internal representation of cache, an STL list. This makes lookups O(n),
   // but we expect n to be very low.

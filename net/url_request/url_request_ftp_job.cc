@@ -138,8 +138,7 @@ void URLRequestFtpJob::SendRequest() {
     username = WideToUTF8(server_auth_->username);
     password = WideToUTF8(server_auth_->password);
     request_->context()->ftp_auth_cache()->Add(request_->url().GetOrigin(),
-                                               server_auth_->username,
-                                               server_auth_->password);
+                                               server_auth_.get());
   } else {
     if (request_->url().has_username()) {
       username = request_->url().username();
@@ -184,15 +183,13 @@ void URLRequestFtpJob::OnIOComplete(const AsyncResult& result) {
         GURL origin = request_->url().GetOrigin();
         if (server_auth_ != NULL &&
             server_auth_->state == net::AUTH_STATE_HAVE_AUTH) {
-          request_->context()->ftp_auth_cache()->Remove(origin,
-                                                        server_auth_->username,
-                                                        server_auth_->password);
+          request_->context()->ftp_auth_cache()->Remove(origin);
         } else {
           server_auth_ = new net::AuthData();
         }
         server_auth_->state = net::AUTH_STATE_NEED_AUTH;
 
-        net::FtpAuthCache::Entry* cached_auth =
+        scoped_refptr<net::AuthData> cached_auth =
             request_->context()->ftp_auth_cache()->Lookup(origin);
 
         if (cached_auth) {
