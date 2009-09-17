@@ -39,7 +39,9 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
           audio_queue_(NULL),
           buffer_(),
           source_(NULL),
-          manager_(manager) {
+          manager_(manager),
+          silence_bytes_(0),
+          pending_bytes_(0) {
   // We must have a manager.
   DCHECK(manager_);
   // A frame is one sample across all channels. In interleaved audio the per
@@ -54,6 +56,11 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
   format_.mFramesPerPacket = 1;
   format_.mBytesPerPacket = (format_.mBitsPerChannel * channels) / 8;
   format_.mBytesPerFrame = format_.mBytesPerPacket;
+
+  // Silence buffer has a duration of 6ms to simulate the behavior of Windows.
+  // This value is choosen by experiments and macs cannot keep up with
+  // anything less than 6ms.
+  silence_bytes_ = format_.mBytesPerFrame * sampling_rate * 6 / 1000;
 }
 
 PCMQueueOutAudioOutputStream::~PCMQueueOutAudioOutputStream() {
@@ -161,16 +168,30 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
   AudioSourceCallback* source = audio_stream->source_;
   if (!source)
     return;
+
+  // Adjust the number of pending bytes by subtracting the amount played.
+  audio_stream->pending_bytes_ -= buffer->mAudioDataByteSize;
   size_t capacity = buffer->mAudioDataBytesCapacity;
-  // TODO(hclam): Provide pending bytes.
   size_t filled = source->OnMoreData(audio_stream, buffer->mAudioData,
-                                     capacity, 0);
+                                     capacity, audio_stream->pending_bytes_);
+
+  // In order to keep the callback running, we need to provide a positive amount
+  // of data to the audio queue. To simulate the behavior of Windows, we write
+  // a buffer of silence.
+  if (!filled) {
+    CHECK(audio_stream->silence_bytes_ <= static_cast<int>(capacity));
+    filled = audio_stream->silence_bytes_;
+    memset(buffer->mAudioData, 0, filled);
+  }
+
   if (filled > capacity) {
     // User probably overran our buffer.
     audio_stream->HandleError(0);
     return;
   }
   buffer->mAudioDataByteSize = filled;
+  // Incremnet bytes by amount filled into audio buffer.
+  audio_stream->pending_bytes_ += filled;
   if (NULL == queue)
     return;
   // Queue the audio data to the audio driver.
@@ -189,14 +210,12 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
 
 void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   DCHECK(callback);
-  OSStatus err = AudioQueueStart(audio_queue_, NULL);
-  if (err != noErr) {
-    HandleError(err);
-    return;
-  }
+  OSStatus err = noErr;
   source_ = callback;
+  pending_bytes_ = 0;
   // Ask the source to pre-fill all our buffers before playing.
   for(size_t ix = 0; ix != kNumBuffers; ++ix) {
+    buffer_[ix]->mAudioDataByteSize = 0;
     RenderCallback(this, NULL, buffer_[ix]);
   }
   // Queue the buffers to the audio driver, sounds starts now.
@@ -206,6 +225,11 @@ void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
       HandleError(err);
       return;
     }
+  }
+  err  = AudioQueueStart(audio_queue_, NULL);
+  if (err != noErr) {
+    HandleError(err);
+    return;
   }
 }
 
