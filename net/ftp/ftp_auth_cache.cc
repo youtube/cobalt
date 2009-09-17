@@ -12,25 +12,20 @@ namespace net {
 // static
 const size_t FtpAuthCache::kMaxEntries = 10;
 
-FtpAuthCache::Entry* FtpAuthCache::Lookup(const GURL& origin) {
-  for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
-    if (it->origin == origin)
-      return &(*it);
-  }
-  return NULL;
+AuthData* FtpAuthCache::Lookup(const GURL& origin) {
+  Entry* entry = LookupEntry(origin);
+  return (entry ? entry->auth_data : NULL);
 }
 
-void FtpAuthCache::Add(const GURL& origin, const std::wstring& username,
-                       const std::wstring& password) {
+void FtpAuthCache::Add(const GURL& origin, AuthData* auth_data) {
   DCHECK(origin.SchemeIs("ftp"));
   DCHECK_EQ(origin.GetOrigin(), origin);
 
-  Entry* entry = Lookup(origin);
+  Entry* entry = LookupEntry(origin);
   if (entry) {
-    entry->username = username;
-    entry->password = password;
+    entry->auth_data = auth_data;
   } else {
-    entries_.push_front(Entry(origin, username, password));
+    entries_.push_front(Entry(origin, auth_data));
 
     // Prevent unbound memory growth of the cache.
     if (entries_.size() > kMaxEntries)
@@ -38,16 +33,22 @@ void FtpAuthCache::Add(const GURL& origin, const std::wstring& username,
   }
 }
 
-void FtpAuthCache::Remove(const GURL& origin, const std::wstring& username,
-                          const std::wstring& password) {
+void FtpAuthCache::Remove(const GURL& origin) {
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
-    if (it->origin == origin && it->username == username &&
-        it->password == password) {
+    if (it->origin == origin) {
       entries_.erase(it);
-      DCHECK(!Lookup(origin));
+      DCHECK(!LookupEntry(origin));
       return;
     }
   }
+}
+
+FtpAuthCache::Entry* FtpAuthCache::LookupEntry(const GURL& origin) {
+  for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
+    if (it->origin == origin)
+      return &(*it);
+  }
+  return NULL;
 }
 
 }  // namespace net
