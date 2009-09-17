@@ -56,6 +56,10 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   AudioSourceCallback* source_;
   // Our creator, the audio manager needs to be notified when we close.
   AudioManagerMac* manager_;
+  // Number of bytes for making a silence buffer.
+  int silence_bytes_;
+  // Number of bytes yet to be played in audio buffer.
+  int pending_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };
