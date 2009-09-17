@@ -8,51 +8,47 @@
 #include "googleurl/src/gurl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+using net::AuthData;
 using net::FtpAuthCache;
 
 TEST(FtpAuthCacheTest, LookupAddRemove) {
   FtpAuthCache cache;
 
   GURL origin1("ftp://foo1");
+  scoped_refptr<AuthData> data1(new AuthData());
+
   GURL origin2("ftp://foo2");
+  scoped_refptr<AuthData> data2(new AuthData());
+
+  GURL origin3("ftp://foo3");
+  scoped_refptr<AuthData> data3(new AuthData());
 
   // Lookup non-existent entry.
   EXPECT_EQ(NULL, cache.Lookup(origin1));
 
   // Add entry for origin1.
-  cache.Add(origin1, L"username1", L"password1");
-  FtpAuthCache::Entry* entry1 = cache.Lookup(origin1);
-  ASSERT_TRUE(entry1);
-  EXPECT_EQ(origin1, entry1->origin);
-  EXPECT_EQ(L"username1", entry1->username);
-  EXPECT_EQ(L"password1", entry1->password);
+  cache.Add(origin1, data1.get());
+  EXPECT_EQ(data1.get(), cache.Lookup(origin1));
 
   // Add an entry for origin2.
-  cache.Add(origin2, L"username2", L"password2");
-  FtpAuthCache::Entry* entry2 = cache.Lookup(origin2);
-  ASSERT_TRUE(entry2);
-  EXPECT_EQ(origin2, entry2->origin);
-  EXPECT_EQ(L"username2", entry2->username);
-  EXPECT_EQ(L"password2", entry2->password);
-
-  // The original entry1 should still be there.
-  EXPECT_EQ(entry1, cache.Lookup(origin1));
+  cache.Add(origin2, data2.get());
+  EXPECT_EQ(data1.get(), cache.Lookup(origin1));
+  EXPECT_EQ(data2.get(), cache.Lookup(origin2));
 
   // Overwrite the entry for origin1.
-  cache.Add(origin1, L"username3", L"password3");
-  FtpAuthCache::Entry* entry3 = cache.Lookup(origin1);
-  ASSERT_TRUE(entry3);
-  EXPECT_EQ(origin1, entry3->origin);
-  EXPECT_EQ(L"username3", entry3->username);
-  EXPECT_EQ(L"password3", entry3->password);
+  cache.Add(origin1, data3.get());
+  EXPECT_EQ(data3.get(), cache.Lookup(origin1));
+  EXPECT_EQ(data2.get(), cache.Lookup(origin2));
 
   // Remove entry of origin1.
-  cache.Remove(origin1, L"username3", L"password3");
+  cache.Remove(origin1);
   EXPECT_EQ(NULL, cache.Lookup(origin1));
+  EXPECT_EQ(data2.get(), cache.Lookup(origin2));
 
-  // Remove non-existent entry.
-  cache.Remove(origin1, L"username3", L"password3");
+  // Remove non-existent entry
+  cache.Remove(origin1);
   EXPECT_EQ(NULL, cache.Lookup(origin1));
+  EXPECT_EQ(data2.get(), cache.Lookup(origin2));
 }
 
 // Check that if the origin differs only by port number, it is considered
@@ -61,12 +57,16 @@ TEST(FtpAuthCacheTest, LookupWithPort) {
   FtpAuthCache cache;
 
   GURL origin1("ftp://foo:80");
+  scoped_refptr<AuthData> data1(new AuthData());
+
   GURL origin2("ftp://foo:21");
+  scoped_refptr<AuthData> data2(new AuthData());
 
-  cache.Add(origin1, L"username", L"password");
-  cache.Add(origin2, L"username", L"password");
+  cache.Add(origin1, data1.get());
+  cache.Add(origin2, data2.get());
 
-  EXPECT_NE(cache.Lookup(origin1), cache.Lookup(origin2));
+  EXPECT_EQ(data1.get(), cache.Lookup(origin1));
+  EXPECT_EQ(data2.get(), cache.Lookup(origin2));
 }
 
 TEST(FtpAuthCacheTest, NormalizedKey) {
@@ -76,61 +76,48 @@ TEST(FtpAuthCacheTest, NormalizedKey) {
 
   FtpAuthCache cache;
 
+  scoped_refptr<AuthData> data1(new AuthData());
+  scoped_refptr<AuthData> data2(new AuthData());
+
   // Add.
-  cache.Add(GURL("ftp://HoSt:21"), L"username", L"password");
+  cache.Add(GURL("ftp://HoSt:21"), data1.get());
 
   // Lookup.
-  FtpAuthCache::Entry* entry1 = cache.Lookup(GURL("ftp://HoSt:21"));
-  ASSERT_TRUE(entry1);
-  EXPECT_EQ(entry1, cache.Lookup(GURL("ftp://host:21")));
-  EXPECT_EQ(entry1, cache.Lookup(GURL("ftp://host")));
+  EXPECT_EQ(data1.get(), cache.Lookup(GURL("ftp://HoSt:21")));
+  EXPECT_EQ(data1.get(), cache.Lookup(GURL("ftp://host:21")));
+  EXPECT_EQ(data1.get(), cache.Lookup(GURL("ftp://host")));
 
   // Overwrite.
-  cache.Add(GURL("ftp://host"), L"othername", L"otherword");
-  FtpAuthCache::Entry* entry2 = cache.Lookup(GURL("ftp://HoSt:21"));
-  ASSERT_TRUE(entry2);
-  EXPECT_EQ(GURL("ftp://host"), entry2->origin);
-  EXPECT_EQ(L"othername", entry2->username);
-  EXPECT_EQ(L"otherword", entry2->password);
+  cache.Add(GURL("ftp://host"), data2.get());
+  EXPECT_EQ(data2.get(), cache.Lookup(GURL("ftp://HoSt:21")));
 
   // Remove
-  cache.Remove(GURL("ftp://HOsT"), L"othername", L"otherword");
-  EXPECT_EQ(NULL, cache.Lookup(GURL("ftp://host")));
-}
-
-TEST(FtpAuthCacheTest, OnlyRemoveMatching) {
-  FtpAuthCache cache;
-
-  cache.Add(GURL("ftp://host"), L"username", L"password");
-  EXPECT_TRUE(cache.Lookup(GURL("ftp://host")));
-
-  // Auth data doesn't match, shouldn't remove.
-  cache.Remove(GURL("ftp://host"), L"bogus", L"bogus");
-  EXPECT_TRUE(cache.Lookup(GURL("ftp://host")));
-
-  // Auth data matches, should remove.
-  cache.Remove(GURL("ftp://host"), L"username", L"password");
+  cache.Remove(GURL("ftp://HOsT"));
   EXPECT_EQ(NULL, cache.Lookup(GURL("ftp://host")));
 }
 
 TEST(FtpAuthCacheTest, EvictOldEntries) {
   FtpAuthCache cache;
 
+  scoped_refptr<AuthData> auth_data(new AuthData());
+
   for (size_t i = 0; i < FtpAuthCache::kMaxEntries; i++)
-    cache.Add(GURL("ftp://host" + IntToString(i)), L"username", L"password");
+    cache.Add(GURL("ftp://host" + IntToString(i)), auth_data.get());
 
   // No entries should be evicted before reaching the limit.
   for (size_t i = 0; i < FtpAuthCache::kMaxEntries; i++) {
-    EXPECT_TRUE(cache.Lookup(GURL("ftp://host" + IntToString(i))));
+    EXPECT_EQ(auth_data.get(),
+              cache.Lookup(GURL("ftp://host" + IntToString(i))));
   }
 
   // Adding one entry should cause eviction of the first entry.
-  cache.Add(GURL("ftp://last_host"), L"username", L"password");
+  cache.Add(GURL("ftp://last_host"), auth_data.get());
   EXPECT_EQ(NULL, cache.Lookup(GURL("ftp://host0")));
 
   // Remaining entries should not get evicted.
   for (size_t i = 1; i < FtpAuthCache::kMaxEntries; i++) {
-    EXPECT_TRUE(cache.Lookup(GURL("ftp://host" + IntToString(i))));
+    EXPECT_EQ(auth_data.get(),
+              cache.Lookup(GURL("ftp://host" + IntToString(i))));
   }
-  EXPECT_TRUE(cache.Lookup(GURL("ftp://last_host")));
+  EXPECT_EQ(auth_data.get(), cache.Lookup(GURL("ftp://last_host")));
 }
