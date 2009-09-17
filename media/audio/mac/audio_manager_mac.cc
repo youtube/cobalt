@@ -10,11 +10,21 @@
 #include "media/audio/mac/audio_output_mac.h"
 
 bool AudioManagerMac::HasAudioDevices() {
-  AudioDeviceID output_device_id = 0;
-  size_t size = sizeof(output_device_id);
-  OSStatus err = AudioHardwareGetProperty(
-      kAudioHardwarePropertyDefaultOutputDevice, &size, &output_device_id);
-  return ((err == noErr) && (output_device_id > 0));
+  AudioDeviceID output_device_id = kAudioObjectUnknown;
+  AudioObjectPropertyAddress property_address = {
+    kAudioHardwarePropertyDefaultOutputDevice,  // mSelector
+    kAudioObjectPropertyScopeGlobal,            // mScope
+    kAudioObjectPropertyElementMaster           // mElement
+  };
+  size_t output_device_id_size = sizeof(output_device_id);
+  OSStatus err = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+                                            &property_address,
+                                            0,     // inQualifierDataSize
+                                            NULL,  // inQualifierData
+                                            &output_device_id_size,
+                                            &output_device_id);
+  return err == kAudioHardwareNoError &&
+         output_device_id != kAudioObjectUnknown;
 }
 
 AudioOutputStream* AudioManagerMac::MakeAudioStream(Format format, int channels,
