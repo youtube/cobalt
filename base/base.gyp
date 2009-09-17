@@ -87,6 +87,7 @@
         'clipboard_util.cc',
         'clipboard_util.h',
         'clipboard_win.cc',
+        'cocoa_protocols_mac.h',
         'command_line.cc',
         'command_line.h',
         'compiler_specific.h',
