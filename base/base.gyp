@@ -696,6 +696,7 @@
           'dependencies': [
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:nss',
+            '../tools/xdisplaycheck/xdisplaycheck.gyp:xdisplaycheck',
           ],
         }, {  # OS != "linux" and OS != "freebsd"
           'sources!': [
