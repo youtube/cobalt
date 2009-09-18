@@ -25,9 +25,6 @@ cd ../third_party/sqlite
 # Resolve any conflicts.  Figure out if we've got everything we should
 # have (see below), or if we can omit any changes we no longer need.
 
-# TODO(shess) If we don't want the CVS dirs.
-# find sqlite_vendor -name CVS -execdir rm -rf {} + -prune
-
 # Find a sucker.  Send review.
 # TODO(shess) Describe an appropriate comment style.  Seems like it
 # should include the DATE line, and the sqlite version number.
@@ -44,12 +41,13 @@ version which is merged with local changes.
 third_party/sqlite_vendor/... is the CVS checkout for a particular
 build from sqlite.org.  third_party/sqlite_google/... is the local
 version, with our local modifications.  So we update the sqlite_vendor
-tree, then use perforce to downintegrate changes into our
+tree, then use subversion to downintegrate changes into our
 locally-modified tree.  The downintegrate will call out any
 conflicting changes, but will otherwise just merge things together.
-Basically, sqlite_vendor is a gateway between CVS and perforce.
+Basically, sqlite_vendor is a gateway between CVS and subversion.
 
 Scott Hess <shess@google.com>, April 9, 2007.
+[Updated September 14, 2009.]
 
 --------------------------------------------
 
@@ -68,7 +66,7 @@ Scott Hess <shess@google.com>, December 11, 2007
 
 --------------------------------------------
 
-As of Sep 2, 2009, these are our changes from sqlite_vendor:
+As of Sep 15, 2009, these are our changes from sqlite_vendor:
 
  - fts2.c disables fts2_tokenizer().
  - sqlite3Poison() in src/btree.c.
@@ -79,9 +77,7 @@ As of Sep 2, 2009, these are our changes from sqlite_vendor:
  - src/os_symbian.cc.
  - Modifications to Makefile.linux-gcc and main.mk for compiling
    SQLite tests.
- - Compile warning fixed in func.c (check if this is still needed)
- - Fixed a typo bug in fts2_icu.c: "strlen(nInput)" (filed upstream as
-   http://www.sqlite.org/cvstrac/tktview?tn=3543)
+ - Compile warning (cast to void* for sqlite3_free) fixed in func.c.
  - Avoid using tolower() in fts code which causes problem in some locales, see:
    safe-tolower.patch
    http://crbug.com/15261
@@ -106,7 +102,8 @@ Changes from Chrome:
  - Added a new function sqlite3Preload we use to prime the database cache. It
    allows much faster performance by reading the file in one contiguous
    operation rather than bringing it in organically, which involves a lot of
-   seeking.
+   seeking. This change also required sqlite3PcacheGetCachesize to be compiled
+   even outside SQLITE_TEST.
  - Added a new function chromium_sqlite3_initialize_win_sqlite3_file()
    at the end of os_win.c. It allows the Windows-specific Chromium VFS
    to reuse most of the win32 SQLite VFS.
