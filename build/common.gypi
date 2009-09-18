@@ -35,6 +35,9 @@
       # builds).
       'buildtype%': 'Dev',
 
+      # The architecture that we're building on.
+      'target_arch%': 'ia32',
+
       # We do want to build Chromium with Breakpad support in certain
       # situations. I.e. for Chrome bot.
       'linux_chromium_breakpad%': 0,
@@ -44,6 +47,7 @@
     # variables sub-dict above, unless overridden.
     'branding%': '<(branding)',
     'buildtype%': '<(buildtype)',
+    'target_arch%': '<(target_arch)',
 
     # Override chromium_mac_pch and set it to 0 to suppress the use of
     # precompiled headers on the Mac.  Prefix header injection may still be
@@ -113,9 +117,6 @@
     # 'Debug' configuration in the 'target_defaults' dict below,
     # but that doesn't work as we'd like.
     'msvs_debug_link_incremental%': '2',
-
-    # The architecture that we're building on.
-    'target_arch%': 'ia32',
 
     # By default linux does not use views. To turn on views in Linux
     # set the variable GYP_DEFINES to "toolkit_views=1", or modify
