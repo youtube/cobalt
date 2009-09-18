@@ -246,6 +246,7 @@
         'http/http_transaction.h',
         'http/http_transaction_factory.h',
         'http/http_util.cc',
+        'http/http_util_icu.cc',
         'http/http_util.h',
         'http/http_vary_data.cc',
         'http/http_vary_data.h',

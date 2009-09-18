@@ -54,20 +54,6 @@ static size_t FindStringEnd(const string& line, size_t start, char delim) {
 //-----------------------------------------------------------------------------
 
 // static
-std::string HttpUtil::PathForRequest(const GURL& url) {
-  DCHECK(url.is_valid() && (url.SchemeIs("http") || url.SchemeIs("https")));
-  if (url.has_query())
-    return url.path() + "?" + url.query();
-  return url.path();
-}
-
-// static
-std::string HttpUtil::SpecForRequest(const GURL& url) {
-  DCHECK(url.is_valid() && (url.SchemeIs("http") || url.SchemeIs("https")));
-  return SimplifyUrlForRequest(url).spec();
-}
-
-// static
 size_t HttpUtil::FindDelimiter(const string& line, size_t search_start,
                                char delimiter) {
   do {
@@ -453,7 +439,7 @@ int HttpUtil::LocateStartOfStatusLine(const char* buf, int buf_len) {
         return i;
     }
   }
-  return -1; // Not found
+  return -1;  // Not found
 }
 
 int HttpUtil::LocateEndOfHeaders(const char* buf, int buf_len, int i) {
@@ -512,7 +498,7 @@ static const char* FindFirstNonLWS(const char* begin, const char* end) {
     if (!HttpUtil::IsLWS(*cur))
       return cur;
   }
-  return end; // Not found.
+  return end;  // Not found.
 }
 
 std::string HttpUtil::AssembleRawHeaders(const char* input_begin,
