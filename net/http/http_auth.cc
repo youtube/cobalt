@@ -19,6 +19,7 @@ namespace net {
 // static
 void HttpAuth::ChooseBestChallenge(const HttpResponseHeaders* headers,
                                    Target target,
+                                   const GURL& origin,
                                    scoped_refptr<HttpAuthHandler>* handler) {
   // A connection-based authentication scheme must continue to use the
   // existing handler object in |*handler|.
@@ -30,7 +31,7 @@ void HttpAuth::ChooseBestChallenge(const HttpResponseHeaders* headers,
       ChallengeTokenizer props(challenge.begin(), challenge.end());
       if (LowerCaseEqualsASCII(props.scheme(), (*handler)->scheme().c_str()) &&
           (*handler)->InitFromChallenge(challenge.begin(), challenge.end(),
-                                        target))
+                                        target, origin))
         return;
     }
   }
@@ -42,7 +43,7 @@ void HttpAuth::ChooseBestChallenge(const HttpResponseHeaders* headers,
   void* iter = NULL;
   while (headers->EnumerateHeader(&iter, header_name, &cur_challenge)) {
     scoped_refptr<HttpAuthHandler> cur;
-    CreateAuthHandler(cur_challenge, target, &cur);
+    CreateAuthHandler(cur_challenge, target, origin, &cur);
     if (cur && (!best || best->score() < cur->score()))
       best.swap(cur);
   }
@@ -52,6 +53,7 @@ void HttpAuth::ChooseBestChallenge(const HttpResponseHeaders* headers,
 // static
 void HttpAuth::CreateAuthHandler(const std::string& challenge,
                                  Target target,
+                                 const GURL& origin,
                                  scoped_refptr<HttpAuthHandler>* handler) {
   // Find the right auth handler for the challenge's scheme.
   ChallengeTokenizer props(challenge.begin(), challenge.end());
@@ -70,7 +72,7 @@ void HttpAuth::CreateAuthHandler(const std::string& challenge,
   }
   if (tmp_handler) {
     if (!tmp_handler->InitFromChallenge(challenge.begin(), challenge.end(),
-                                        target)) {
+                                        target, origin)) {
       // Invalid/unsupported challenge.
       tmp_handler = NULL;
     }
