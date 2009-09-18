@@ -283,45 +283,6 @@ void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
     // connection even though the server says it's keep-alive.
   }
 
-  // If the auth scheme is connection-based but the proxy/server mistakenly
-  // marks the connection as non-keep-alive, the auth is going to fail, so log
-  // an error message.
-  //
-  // TODO(wtc): has_auth_identity is not the right condition.  We should
-  // be testing for "not round 1" here.  See http://crbug.com/21015.
-  if (!keep_alive && auth_handler_[target]->is_connection_based() &&
-      has_auth_identity) {
-    LOG(ERROR) << "Can't perform " << auth_handler_[target]->scheme()
-               << " auth to the " << AuthTargetString(target) << " "
-               << AuthOrigin(target) << " over a non-keep-alive connection";
-
-    HttpVersion http_version = response_.headers->GetHttpVersion();
-    LOG(ERROR) << "  HTTP version is " << http_version.major_value() << "."
-               << http_version.minor_value();
-
-    std::string header_val;
-    void* iter = NULL;
-    while (response_.headers->EnumerateHeader(&iter, "connection",
-                                              &header_val)) {
-      LOG(ERROR) << "  Has header Connection: " << header_val;
-    }
-
-    iter = NULL;
-    while (response_.headers->EnumerateHeader(&iter, "proxy-connection",
-                                              &header_val)) {
-      LOG(ERROR) << "  Has header Proxy-Connection: " << header_val;
-    }
-
-    // RFC 4559 requires that a proxy indicate its support of NTLM/Negotiate
-    // authentication with a "Proxy-Support: Session-Based-Authentication"
-    // response header.
-    iter = NULL;
-    while (response_.headers->EnumerateHeader(&iter, "proxy-support",
-                                              &header_val)) {
-      LOG(ERROR) << "  Has header Proxy-Support: " << header_val;
-    }
-  }
-
   // We don't need to drain the response body, so we act as if we had drained
   // the response body.
   DidDrainBodyForAuthRestart(keep_alive);
@@ -1914,6 +1875,7 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
     // Find the best authentication challenge that we support.
     HttpAuth::ChooseBestChallenge(response_.headers.get(),
                                   target,
+                                  AuthOrigin(target),
                                   &auth_handler_[target]);
   }
 
@@ -1965,18 +1927,10 @@ void HttpNetworkTransaction::PopulateAuthChallenge(HttpAuth::Target target) {
 
   AuthChallengeInfo* auth_info = new AuthChallengeInfo;
   auth_info->is_proxy = target == HttpAuth::AUTH_PROXY;
+  auth_info->host_and_port = ASCIIToWide(GetHostAndPort(AuthOrigin(target)));
   auth_info->scheme = ASCIIToWide(auth_handler_[target]->scheme());
   // TODO(eroman): decode realm according to RFC 2047.
   auth_info->realm = ASCIIToWide(auth_handler_[target]->realm());
-
-  std::string host_and_port;
-  if (target == HttpAuth::AUTH_PROXY) {
-    host_and_port = proxy_info_.proxy_server().host_and_port();
-  } else {
-    DCHECK(target == HttpAuth::AUTH_SERVER);
-    host_and_port = GetHostAndPort(request_->url);
-  }
-  auth_info->host_and_port = ASCIIToWide(host_and_port);
   response_.auth_challenge = auth_info;
 }
 

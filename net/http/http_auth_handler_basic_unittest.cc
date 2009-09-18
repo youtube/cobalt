@@ -23,11 +23,12 @@ TEST(HttpAuthHandlerBasicTest, GenerateCredentials) {
     // Empty username and empty password.
     { L"", L"", "Basic Og==" },
   };
+  GURL origin("http://www.example.com");
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::string challenge = "Basic realm=\"Atlantis\"";
     scoped_refptr<HttpAuthHandlerBasic> basic = new HttpAuthHandlerBasic;
     basic->InitFromChallenge(challenge.begin(), challenge.end(),
-                             HttpAuth::AUTH_SERVER);
+                             HttpAuth::AUTH_SERVER, origin);
     std::string credentials = basic->GenerateCredentials(tests[i].username,
                                                          tests[i].password,
                                                          NULL, NULL);
