@@ -48,6 +48,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
       "",
     }
   };
+  GURL origin("http://www.example.com");
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     // Make a HttpResponseHeaders object.
@@ -62,6 +63,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
     scoped_refptr<HttpAuthHandler> handler;
     HttpAuth::ChooseBestChallenge(headers.get(),
                                   HttpAuth::AUTH_SERVER,
+                                  origin,
                                   &handler);
 
     if (handler) {
@@ -99,6 +101,7 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
       "",
     }
   };
+  GURL origin("http://www.example.com");
 
   scoped_refptr<HttpAuthHandler> handler;
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
@@ -114,6 +117,7 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
     scoped_refptr<HttpAuthHandler> old_handler = handler;
     HttpAuth::ChooseBestChallenge(headers.get(),
                                   HttpAuth::AUTH_SERVER,
+                                  origin,
                                   &handler);
 
     EXPECT_TRUE(handler != NULL);
@@ -229,10 +233,13 @@ TEST(HttpAuthTest, GetAuthorizationHeaderName) {
 }
 
 TEST(HttpAuthTest, CreateAuthHandler) {
+  GURL server_origin("http://www.example.com");
+  GURL proxy_origin("http://cache.example.com:3128");
   {
     scoped_refptr<HttpAuthHandler> handler;
     HttpAuth::CreateAuthHandler("Basic realm=\"FooBar\"",
                                 HttpAuth::AUTH_SERVER,
+                                server_origin,
                                 &handler);
     EXPECT_FALSE(handler.get() == NULL);
     EXPECT_STREQ("basic", handler->scheme().c_str());
@@ -245,6 +252,7 @@ TEST(HttpAuthTest, CreateAuthHandler) {
     scoped_refptr<HttpAuthHandler> handler;
     HttpAuth::CreateAuthHandler("UNSUPPORTED realm=\"FooBar\"",
                                 HttpAuth::AUTH_SERVER,
+                                server_origin,
                                 &handler);
     EXPECT_TRUE(handler.get() == NULL);
   }
@@ -252,6 +260,7 @@ TEST(HttpAuthTest, CreateAuthHandler) {
     scoped_refptr<HttpAuthHandler> handler;
     HttpAuth::CreateAuthHandler("Digest realm=\"FooBar\", nonce=\"xyz\"",
                                 HttpAuth::AUTH_PROXY,
+                                proxy_origin,
                                 &handler);
     EXPECT_FALSE(handler.get() == NULL);
     EXPECT_STREQ("digest", handler->scheme().c_str());
@@ -264,6 +273,7 @@ TEST(HttpAuthTest, CreateAuthHandler) {
     scoped_refptr<HttpAuthHandler> handler;
     HttpAuth::CreateAuthHandler("NTLM",
                                 HttpAuth::AUTH_SERVER,
+                                server_origin,
                                 &handler);
     EXPECT_FALSE(handler.get() == NULL);
     EXPECT_STREQ("ntlm", handler->scheme().c_str());
