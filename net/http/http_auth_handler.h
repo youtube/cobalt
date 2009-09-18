@@ -26,7 +26,8 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // Initialize the handler by parsing a challenge string.
   bool InitFromChallenge(std::string::const_iterator begin,
                          std::string::const_iterator end,
-                         HttpAuth::Target target);
+                         HttpAuth::Target target,
+                         const GURL& origin);
 
   // Lowercase name of the auth scheme
   const std::string& scheme() const {
@@ -94,8 +95,12 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // The lowercase auth-scheme {"basic", "digest", "ntlm", ...}
   std::string scheme_;
 
-  // The realm.
+  // The realm.  Used by "basic" and "digest".
   std::string realm_;
+
+  // The {scheme, host, port} for the authentication target.  Used by "ntlm"
+  // to construct the service principal name.
+  GURL origin_;
 
   // The score for this challenge. Higher numbers are better.
   int score_;

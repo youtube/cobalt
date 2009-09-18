@@ -10,7 +10,9 @@
 #include "net/http/http_auth_handler_ntlm.h"
 
 #include "base/logging.h"
+#include "base/string_util.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_util.h"
 
 #pragma comment(lib, "secur32.lib")
 
@@ -134,13 +136,16 @@ int HttpAuthHandlerNTLM::GetNextToken(const void* in_token,
   if (!out_buffer.pvBuffer)
     return ERR_OUT_OF_MEMORY;
 
-  // Name of the destination server.  NULL for NTLM.
-  SEC_WCHAR* target = NULL;
+  // The service principal name of the destination server.  See
+  // http://msdn.microsoft.com/en-us/library/ms677949%28VS.85%29.aspx
+  std::wstring target(L"HTTP/");
+  target.append(ASCIIToWide(GetHostAndPort(origin_)));
+  wchar_t* target_name = const_cast<wchar_t*>(target.c_str());
 
   // This returns a token that is passed to the remote server.
   status = InitializeSecurityContext(&cred_,  // phCredential
                                      ctxt_ptr,  // phContext
-                                     target,  // pszTargetName
+                                     target_name,  // pszTargetName
                                      0,  // fContextReq
                                      0,  // Reserved1 (must be 0)
                                      SECURITY_NATIVE_DREP,  // TargetDataRep
