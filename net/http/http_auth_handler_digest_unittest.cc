@@ -235,11 +235,12 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
       "qop=auth, nc=00000001, cnonce=\"15c07961ed8575c4\""
     }
   };
+  GURL origin("http://www.example.com");
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest;
     std::string challenge = tests[i].challenge;
     EXPECT_TRUE(digest->InitFromChallenge(
-        challenge.begin(), challenge.end(), HttpAuth::AUTH_SERVER));
+        challenge.begin(), challenge.end(), HttpAuth::AUTH_SERVER, origin));
 
     std::string creds = digest->AssembleCredentials(tests[i].req_method,
         tests[i].req_path, tests[i].username, tests[i].password,
