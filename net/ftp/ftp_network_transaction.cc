@@ -865,7 +865,10 @@ int FtpNetworkTransaction::ProcessResponseRETR(
 
       DCHECK(!retr_failed_);  // Should not get here twice.
       retr_failed_ = true;
-      next_state_ = STATE_CTRL_WRITE_PASV;
+
+      // It's possible that RETR failed because the path is a directory.
+      // Try CWD next, to see if that's the case.
+      next_state_ = STATE_CTRL_WRITE_CWD;
       break;
     default:
       NOTREACHED();
@@ -1023,7 +1026,8 @@ int FtpNetworkTransaction::DoDataRead() {
 
   if (data_socket_ == NULL || !data_socket_->IsConnected()) {
     // If we don't destroy the data socket completely, some servers will wait
-    // for us (http://crbug.com/21127).
+    // for us (http://crbug.com/21127). The half-closed TCP connection needs
+    // to be closed on our side too.
     data_socket_.reset();
 
     // No more data so send QUIT Command now and wait for response.
