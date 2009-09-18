@@ -1,10 +1,10 @@
-Index: build.c
+Index: src/build.c
 ===================================================================
---- build.c	(revision 12588)
-+++ build.c	(working copy)
-@@ -27,6 +27,9 @@
+--- src/build.c	2009-09-11 07:02:46.000000000 -0700
++++ src/build.c	2009-09-14 18:16:46.000000000 -0700
+@@ -26,6 +26,9 @@
+ */
  #include "sqliteInt.h"
- #include <ctype.h>
  
 +#include "pager.h"
 +#include "btree.h"
@@ -12,11 +12,12 @@ Index: build.c
  /*
  ** This routine is called when a new SQL statement is beginning to
  ** be parsed.  Initialize the pParse structure as needed.
-@@ -3359,3 +3362,28 @@
+@@ -3659,3 +3662,30 @@
    }
    return pKey;
  }
 +
++/* Begin preload-cache.patch for Chromium */
 +/* See declaration in sqlite3.h for information */
 +int sqlite3Preload(sqlite3 *db)
 +{
@@ -41,14 +42,17 @@ Index: build.c
 +    return SQLITE_ERROR;
 +  return SQLITE_OK;
 +}
-Index: sqlite3.h
++/* End preload-cache.patch for Chromium */
+Index: src/sqlite3.h.in
 ===================================================================
---- sqlite3.h	(revision 12588)
-+++ sqlite3.h	(working copy)
-@@ -2696,6 +2696,19 @@
+--- src/sqlite.h.in	2009-09-09 07:03:20.000000000 -0700
++++ src/sqlite.h.in	2009-09-15 11:34:26.000000000 -0700
+@@ -4677,6 +4677,21 @@
+ */
  int sqlite3_blob_write(sqlite3_blob *, const void *z, int n, int iOffset);
  
- /*
++/* Begin preload-cache.patch for Chromium */
++/*
 +** Preload the databases into the pager cache, up to the maximum size of the
 +** pager cache.
 +**
@@ -60,19 +64,20 @@ Index: sqlite3.h
 +** an error. Otherwise, we return OK.
 +*/
 +int sqlite3Preload(sqlite3 *db);
++/* End preload-cache.patch for Chromium */
 +
-+/*
- ** Undo the hack that converts floating point types to integer for
- ** builds on processors without floating point support.
- */
-Index: pager.c
+ /*
+ ** CAPI3REF: Virtual File System Objects {H11200} <S20100>
+ **
+Index: src/pager.c
 ===================================================================
---- pager.c	(revision 12588)
-+++ pager.c	(working copy)
-@@ -453,6 +453,14 @@
+--- src/pager.c	2009-09-07 08:58:09.000000000 -0700
++++ src/pager.c	2009-09-15 16:43:07.000000000 -0700
+@@ -388,6 +388,16 @@
  */
  #define PAGER_MAX_PGNO 2147483647
  
++/* Begin preload-cache.patch for Chromium */
 +/* See comments above the definition. */
 +int sqlite3PagerAcquire2(
 +  Pager *pPager,
@@ -80,28 +85,12 @@ Index: pager.c
 +  DbPage **ppPage,
 +  int noContent,
 +  unsigned char *pDataToFill);
++/* End preload-cache.patch for Chromium */
 +
+ #ifndef NDEBUG 
  /*
- ** Enable reference count tracking (for debugging) here:
- */
-@@ -2000,14 +2008,14 @@
-   }
-   if( pPager->dbSize>=0 ){
-     n = pPager->dbSize;
--  } else {
-+  }else{
-     if( (rc = sqlite3OsFileSize(pPager->fd, &n))!=SQLITE_OK ){
-       pager_error(pPager, rc);
-       return 0;
-     }
-     if( n>0 && n<pPager->pageSize ){
-       n = 1;
--    }else{
-+    } else {
-       n /= pPager->pageSize;
-     }
-     if( pPager->state!=PAGER_UNLOCK ){
-@@ -3101,6 +3109,25 @@
+ ** Usage:
+@@ -3788,6 +3798,25 @@
    DbPage **ppPage,    /* Write a pointer to the page here */
    int noContent       /* Do not bother reading content from disk if true */
  ){
@@ -124,55 +113,53 @@ Index: pager.c
 +  int noContent,      /* Do not bother reading content from disk if true */
 +  unsigned char* pDataToFill
 +){
-   PgHdr *pPg;
    int rc;
+   PgHdr *pPg;
  
-@@ -3181,11 +3208,18 @@
-       pPg->needRead = noContent && !pPager->alwaysRollback;
+@@ -3870,9 +3899,17 @@
        IOTRACE(("ZERO %p %d\n", pPager, pgno));
      }else{
--      rc = readDbPage(pPager, pPg, pgno);
--      if( rc!=SQLITE_OK && rc!=SQLITE_IOERR_SHORT_READ ){
--        pPg->pgno = 0;
--        sqlite3PagerUnref(pPg);
--        return rc;
-+      if (pDataToFill) {
-+        /* Just copy from the given memory. */
-+        memcpy(PGHDR_TO_DATA(pPg), pDataToFill, pPager->pageSize);
-+        CODEC1(pPager, PGHDR_TO_DATA(pPg), pPg->pgno, 3);
-+      } else {
-+        /* Load from disk (old regular sqlite code path). */
-+        rc = readDbPage(pPager, pPg, pgno);
-+        if( rc!=SQLITE_OK && rc!=SQLITE_IOERR_SHORT_READ ){
-+          pPg->pgno = 0;
-+          sqlite3PagerUnref(pPg);
-+          return rc;
+       assert( pPg->pPager==pPager );
+-      rc = readDbPage(pPg);
+-      if( rc!=SQLITE_OK ){
+-        goto pager_acquire_err;
++      if( pDataToFill ){
++        /* Just copy from the given memory */
++        memcpy(pPg->pData, pDataToFill, pPager->pageSize);
++        CODEC1(pPager, pPg->pData, pPg->pgno, 3, rc = SQLITE_NOMEM;
++                                                 goto pager_acquire_err);
++      }else{
++        /* Load from disk (old regular sqlite code path) */
++        rc = readDbPage(pPg);
++        if( rc!=SQLITE_OK ){
++          goto pager_acquire_err;
 +        }
        }
-       pPg->needRead = 0;
      }
-@@ -4416,6 +4450,89 @@
+ #ifdef SQLITE_CHECK_PAGES
+@@ -5221,6 +5258,91 @@
  }
  #endif
  
++/* Begin preload-cache.patch for Chromium */
 +/**
 +** When making large allocations, there is no need to stress the heap and
 +** potentially hold its lock while we allocate a bunch of memory.  If we know
 +** the allocation will be large, go directly to the OS instead of the heap.
 +**/
 +static void* allocLarge(size_t size) {
-+#if OS_WIN
++#if SQLITE_OS_WIN
 +  return VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 +#else
-+  return sqliteMallocRaw(size);
++  return sqlite3Malloc(size);
 +#endif
 +}
 +
 +static void freeLarge(void* ptr) {
-+#if OS_WIN
++#if SQLITE_OS_WIN
 +  VirtualFree(ptr, 0, MEM_RELEASE);
 +#else
-+  sqliteFree(ptr);
++  sqlite3_free(ptr);
 +#endif
 +}
 +
@@ -183,13 +170,14 @@ Index: pager.c
 +** than loading a subset of the pages one at a time in random order.
 +**
 +** The pager must be initialized before this function is called. This means a
-+** statement must be open that has initialized the pager and is keeping the
++* statement must be open that has initialized the pager and is keeping the
 +** cache in memory.
 +**/
 +int sqlite3PagerLoadall(Pager* pPager)
 +{
 +  int i;
 +  int rc;
++  int nMax;
 +  int loadSize;
 +  int loadPages;
 +  unsigned char *fileData;
@@ -200,23 +188,20 @@ Index: pager.c
 +  }
 +
 +  /* compute sizes */
-+  if (pPager->mxPage < pPager->dbSize)
-+    loadPages = pPager->mxPage;
++  nMax = sqlite3PcacheGetCachesize(pPager->pPCache);
++  if (nMax < pPager->dbSize)
++    loadPages = nMax;
 +  else
 +    loadPages = pPager->dbSize;
 +  loadSize = loadPages * pPager->pageSize;
 +
-+  rc = sqlite3OsSeek(pPager->fd, 0);
-+  if (rc != SQLITE_OK)
-+    return rc;
-+
 +  /* load the file as one chunk */
-+  fileData = sqliteMallocRaw(loadSize);
++  fileData = allocLarge(loadSize);
 +  if (! fileData)
 +    return SQLITE_NOMEM;
-+  rc = sqlite3OsRead(pPager->fd, fileData, loadSize);
++  rc = sqlite3OsRead(pPager->fd, fileData, loadSize, 0);
 +  if (rc != SQLITE_OK) {
-+    sqliteFree(fileData);
++    freeLarge(fileData);
 +    return rc;
 +  }
 +
@@ -226,42 +211,34 @@ Index: pager.c
 +   * already been a few pages loaded before, so we may fill the cache before
 +   * loading all of the pages we want to.
 +   */
-+  for(i=1; i <= loadPages && pPager->nPage < pPager->mxPage; i++) {
-+    DbPage *pPage;
++  for(i=1;
++      i <= loadPages && sqlite3PcachePagecount(pPager->pPCache) < nMax;
++      i++) {
++    DbPage *pPage = 0;
 +    rc = sqlite3PagerAcquire2(pPager, i, &pPage, 0,
 +                              &fileData[(i-1)*(i64)pPager->pageSize]);
 +    if (rc != SQLITE_OK)
 +      break;
 +    sqlite3PagerUnref(pPage);
 +  }
-+  sqliteFree(fileData);
++  freeLarge(fileData);
 +  return SQLITE_OK;
 +}
++/* End preload-cache.patch for Chromium */
 +
  /*
  ** Return a pointer to the data for the specified page.
  */
-Index: pager.h
+Index: src/pager.h
 ===================================================================
---- pager.h	(revision 12588)
-+++ pager.h	(working copy)
-@@ -93,6 +93,7 @@
- void *sqlite3PagerGetData(DbPage *); 
- void *sqlite3PagerGetExtra(DbPage *); 
- int sqlite3PagerLockingMode(Pager *, int);
+--- src/pager.h	2009-09-04 13:37:42.000000000 -0700
++++ src/pager.h	2009-09-15 11:31:55.000000000 -0700
+@@ -143,6 +143,8 @@
+ sqlite3_file *sqlite3PagerFile(Pager*);
+ const char *sqlite3PagerJournalname(Pager*);
+ int sqlite3PagerNosync(Pager*);
++/* This function is for preload-cache.patch for Chromium: */
 +int sqlite3PagerLoadall(Pager*);
+ void *sqlite3PagerTempSpace(Pager*);
+ int sqlite3PagerIsMemdb(Pager*);
  
- #if defined(SQLITE_ENABLE_MEMORY_MANAGEMENT) && !defined(SQLITE_OMIT_DISKIO)
-   int sqlite3PagerReleaseMemory(int);
-+Index: pager.h
-+===================================================================
-+--- pager.h	(revision 12588)
-++++ pager.h	(working copy)
-+@@ -93,6 +93,7 @@
-+ void *sqlite3PagerGetData(DbPage *); 
-+ void *sqlite3PagerGetExtra(DbPage *); 
-+ int sqlite3PagerLockingMode(Pager *, int);
-++int sqlite3PagerLoadall(Pager*);
-+ 
-+ #if defined(SQLITE_ENABLE_MEMORY_MANAGEMENT) && !defined(SQLITE_OMIT_DISKIO)
-+   int sqlite3PagerReleaseMemory(int);
