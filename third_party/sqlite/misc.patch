@@ -1,0 +1,794 @@
+Index: Makefile.linux-gcc
+===================================================================
+--- Makefile.linux-gcc	2009-09-03 13:32:06.000000000 -0700
++++ Makefile.linux-gcc	2009-07-01 12:08:39.000000000 -0700
+@@ -14,7 +14,7 @@
+ #### The toplevel directory of the source tree.  This is the directory
+ #    that contains this "Makefile.in" and the "configure.in" script.
+ #
+-TOP = ../sqlite
++TOP = ..
+ 
+ #### C Compiler and options for use in building executables that
+ #    will run on the platform that is doing the build.
+@@ -33,13 +33,13 @@
+ #    appropriately:
+ #
+ #THREADSAFE = -DTHREADSAFE=1
+-THREADSAFE = -DTHREADSAFE=0
++THREADSAFE = -DTHREADSAFE=1
+ 
+ #### Specify any extra linker options needed to make the library
+ #    thread safe
+ #
+ #THREADLIB = -lpthread
+-THREADLIB = 
++THREADLIB = -lpthread
+ 
+ #### Specify any extra libraries needed to access required functions.
+ #
+@@ -57,8 +57,29 @@
+ #OPTS = -DSQLITE_DEBUG=2
+ #OPTS = -DSQLITE_DEBUG=1
+ #OPTS = 
+-OPTS = -DNDEBUG=1
+-OPTS += -DHAVE_FDATASYNC=1
++
++# These flags match those for SQLITE_CFLAGS in config.mk.  
++
++OPTS += -DNDEBUG
++OPTS += -DSQLITE_CORE
++OPTS += -DSQLITE_ENABLE_FTS1 -DSQLITE_ENABLE_BROKEN_FTS1
++OPTS += -DSQLITE_ENABLE_FTS2 -DSQLITE_ENABLE_BROKEN_FTS2
++OPTS += -DSQLITE_DEFAULT_FILE_PERMISSIONS=0600
++OPTS += -DHAVE_USLEEP=1
++
++# Additional SQLite tests.
++OPTS += -DSQLITE_MEMDEBUG=1
++
++# Don't include these ones, they break the SQLite tests.
++#  -DSQLITE_OMIT_ATTACH=1 \
++#  -DSQLITE_OMIT_LOAD_EXTENSION=1 \
++#  -DSQLITE_OMIT_VACUUM=1 \
++#  -DSQLITE_TRANSACTION_DEFAULT_IMMEDIATE=1 \
++
++SHELL_ICU = $(TOP)/src/shell_icu_linux.c -licuuc
++
++# TODO(shess) I can't see why I need this setting.
++OPTS += -DOS_UNIX=1
+ 
+ #### The suffix to add to executable files.  ".exe" for windows.
+ #    Nothing for unix.
+@@ -91,16 +112,16 @@
+ 
+ #### Extra compiler options needed for programs that use the TCL library.
+ #
+-#TCL_FLAGS =
++TCL_FLAGS = -I/usr/include/tcl8.4
+ #TCL_FLAGS = -DSTATIC_BUILD=1
+-TCL_FLAGS = -I/home/drh/tcltk/8.4linux
++#TCL_FLAGS = -I/home/drh/tcltk/8.4linux
+ #TCL_FLAGS = -I/home/drh/tcltk/8.4win -DSTATIC_BUILD=1
+ #TCL_FLAGS = -I/home/drh/tcltk/8.3hpux
+ 
+ #### Linker options needed to link against the TCL library.
+ #
+-#LIBTCL = -ltcl -lm -ldl
+-LIBTCL = /home/drh/tcltk/8.4linux/libtcl8.4g.a -lm -ldl
++LIBTCL = -ltcl8.4 -lm -ldl
++#LIBTCL = /home/drh/tcltk/8.4linux/libtcl8.4g.a -lm -ldl
+ #LIBTCL = /home/drh/tcltk/8.4win/libtcl84s.a -lmsvcrt
+ #LIBTCL = /home/drh/tcltk/8.3hpux/libtcl8.3.a -ldld -lm -lc
+ 
+Index: ext/fts1/fts1.c
+===================================================================
+--- ext/fts1/fts1.c	2009-09-04 13:37:41.000000000 -0700
++++ ext/fts1/fts1.c	2009-09-14 18:16:55.000000000 -0700
+@@ -1225,10 +1225,6 @@
+     break;
+   }
+   return rc;
+-
+- err:
+-  sqlite3_finalize(s);
+-  return rc;
+ }
+ 
+ /* Like sql_step_statement(), but convert SQLITE_DONE to SQLITE_OK.
+Index: ext/fts2/fts2.c
+===================================================================
+--- ext/fts2/fts2.c	2009-09-04 13:37:41.000000000 -0700
++++ ext/fts2/fts2.c	2009-09-14 18:17:02.000000000 -0700
+@@ -37,6 +37,20 @@
+ ** This is an SQLite module implementing full-text search.
+ */
+ 
++/* TODO(shess): To make it easier to spot changes without groveling
++** through changelogs, I've defined GEARS_FTS2_CHANGES to call them
++** out, and I will document them here.  On imports, these changes
++** should be reviewed to make sure they are still present, or are
++** dropped as appropriate.
++**
++** SQLite core adds the custom function fts2_tokenizer() to be used
++** for defining new tokenizers.  The second parameter is a vtable
++** pointer encoded as a blob.  Obviously this cannot be exposed to
++** Gears callers for security reasons.  It could be suppressed in the
++** authorizer, but for now I have simply commented the definition out.
++*/
++#define GEARS_FTS2_CHANGES 1
++
+ /*
+ ** The code in this file is only compiled if:
+ **
+@@ -335,6 +349,16 @@
+ # define TRACE(A)
+ #endif
+ 
++#if 0
++/* Useful to set breakpoints.  See main.c sqlite3Corrupt(). */
++static int fts2Corrupt(void){
++  return SQLITE_CORRUPT;
++}
++# define SQLITE_CORRUPT_BKPT fts2Corrupt()
++#else
++# define SQLITE_CORRUPT_BKPT SQLITE_CORRUPT
++#endif
++
+ /* It is not safe to call isspace(), tolower(), or isalnum() on
+ ** hi-bit-set characters.  This is the same solution used in the
+ ** tokenizer.
+@@ -1814,7 +1838,7 @@
+   /* SEGDIR_MAX_INDEX */ "select max(idx) from %_segdir where level = ?",
+   /* SEGDIR_SET */ "insert into %_segdir values (?, ?, ?, ?, ?, ?)",
+   /* SEGDIR_SELECT_LEVEL */
+-  "select start_block, leaves_end_block, root from %_segdir "
++  "select start_block, leaves_end_block, root, idx from %_segdir "
+   " where level = ? order by idx",
+   /* SEGDIR_SPAN */
+   "select min(start_block), max(end_block) from %_segdir "
+@@ -3421,8 +3445,11 @@
+       c->eof = 0;
+       return SQLITE_OK;
+     }
+-    /* an error occurred; abort */
+-    return rc==SQLITE_DONE ? SQLITE_ERROR : rc;
++
++    /* Corrupt if the index refers to missing document. */
++    if( rc==SQLITE_DONE ) return SQLITE_CORRUPT_BKPT;
++
++    return rc;
+   }
+ }
+ 
+@@ -3544,6 +3571,7 @@
+   int firstIndex = pQuery->nTerms;
+   int iCol;
+   int nTerm = 1;
++  int iEndLast = -1;
+   
+   int rc = pModule->xOpen(pTokenizer, pSegment, nSegment, &pCursor);
+   if( rc!=SQLITE_OK ) return rc;
+@@ -3568,6 +3596,20 @@
+       pQuery->nextIsOr = 1;
+       continue;
+     }
++
++    /*
++     * The ICU tokenizer considers '*' a break character, so the code below
++     * sets isPrefix correctly, but since that code doesn't eat the '*', the
++     * ICU tokenizer returns it as the next token.  So eat it here until a
++     * better solution presents itself.
++     */
++    if( pQuery->nTerms>0 && nToken==1 && pSegment[iBegin]=='*' &&
++        iEndLast==iBegin){
++      pQuery->pTerms[pQuery->nTerms-1].isPrefix = 1;
++      continue;
++    }
++    iEndLast = iEnd;
++    
+     queryAdd(pQuery, pToken, nToken);
+     if( !inPhrase && iBegin>0 && pSegment[iBegin-1]=='-' ){
+       pQuery->pTerms[pQuery->nTerms-1].isNot = 1;
+@@ -5077,6 +5119,9 @@
+ ** the leaf data was entirely contained in the root), or from the
+ ** stream of blocks between iStartBlockid and iEndBlockid, inclusive.
+ */
++/* TODO(shess): Figure out a means of indicating how many leaves are
++** expected, for purposes of detecting corruption.
++*/
+ static int leavesReaderInit(fulltext_vtab *v,
+                             int idx,
+                             sqlite_int64 iStartBlockid,
+@@ -5088,6 +5133,10 @@
+ 
+   dataBufferInit(&pReader->rootData, 0);
+   if( iStartBlockid==0 ){
++    /* Corrupt if this can't be a leaf node. */
++    if( pRootData==NULL || nRootData<1 || pRootData[0]!='\0' ){
++      return SQLITE_CORRUPT_BKPT;
++    }
+     /* Entire leaf level fit in root data. */
+     dataBufferReplace(&pReader->rootData, pRootData, nRootData);
+     leafReaderInit(pReader->rootData.pData, pReader->rootData.nData,
+@@ -5098,22 +5147,48 @@
+     if( rc!=SQLITE_OK ) return rc;
+ 
+     rc = sqlite3_bind_int64(s, 1, iStartBlockid);
+-    if( rc!=SQLITE_OK ) return rc;
++    if( rc!=SQLITE_OK ) goto err;
+ 
+     rc = sqlite3_bind_int64(s, 2, iEndBlockid);
+-    if( rc!=SQLITE_OK ) return rc;
++    if( rc!=SQLITE_OK ) goto err;
+ 
+     rc = sqlite3_step(s);
++
++    /* Corrupt if interior node referenced missing leaf node. */
+     if( rc==SQLITE_DONE ){
+-      pReader->eof = 1;
+-      return SQLITE_OK;
++      rc = SQLITE_CORRUPT_BKPT;
++      goto err;
++    }
++
++    if( rc!=SQLITE_ROW ) goto err;
++    rc = SQLITE_OK;
++
++    /* Corrupt if leaf data isn't a blob. */
++    if( sqlite3_column_type(s, 0)!=SQLITE_BLOB ){
++      rc = SQLITE_CORRUPT_BKPT;
++    }else{
++      const char *pLeafData = sqlite3_column_blob(s, 0);
++      int nLeafData = sqlite3_column_bytes(s, 0);
++
++      /* Corrupt if this can't be a leaf node. */
++      if( pLeafData==NULL || nLeafData<1 || pLeafData[0]!='\0' ){
++        rc = SQLITE_CORRUPT_BKPT;
++      }else{
++        leafReaderInit(pLeafData, nLeafData, &pReader->leafReader);
++      }
++    }
++
++ err:
++    if( rc!=SQLITE_OK ){
++      if( idx==-1 ){
++        sqlite3_finalize(s);
++      }else{
++        sqlite3_reset(s);
++      }
++      return rc;
+     }
+-    if( rc!=SQLITE_ROW ) return rc;
+ 
+     pReader->pStmt = s;
+-    leafReaderInit(sqlite3_column_blob(pReader->pStmt, 0),
+-                   sqlite3_column_bytes(pReader->pStmt, 0),
+-                   &pReader->leafReader);
+   }
+   return SQLITE_OK;
+ }
+@@ -5136,10 +5211,22 @@
+       pReader->eof = 1;
+       return rc==SQLITE_DONE ? SQLITE_OK : rc;
+     }
+-    leafReaderDestroy(&pReader->leafReader);
+-    leafReaderInit(sqlite3_column_blob(pReader->pStmt, 0),
+-                   sqlite3_column_bytes(pReader->pStmt, 0),
+-                   &pReader->leafReader);
++
++    /* Corrupt if leaf data isn't a blob. */
++    if( sqlite3_column_type(pReader->pStmt, 0)!=SQLITE_BLOB ){
++      return SQLITE_CORRUPT_BKPT;
++    }else{
++      const char *pLeafData = sqlite3_column_blob(pReader->pStmt, 0);
++      int nLeafData = sqlite3_column_bytes(pReader->pStmt, 0);
++
++      /* Corrupt if this can't be a leaf node. */
++      if( pLeafData==NULL || nLeafData<1 || pLeafData[0]!='\0' ){
++        return SQLITE_CORRUPT_BKPT;
++      }
++
++      leafReaderDestroy(&pReader->leafReader);
++      leafReaderInit(pLeafData, nLeafData, &pReader->leafReader);
++    }
+   }
+   return SQLITE_OK;
+ }
+@@ -5200,8 +5287,19 @@
+     sqlite_int64 iEnd = sqlite3_column_int64(s, 1);
+     const char *pRootData = sqlite3_column_blob(s, 2);
+     int nRootData = sqlite3_column_bytes(s, 2);
++    sqlite_int64 iIndex = sqlite3_column_int64(s, 3);
++
++    /* Corrupt if we get back different types than we stored. */
++    /* Also corrupt if the index is not sequential starting at 0. */
++    if( sqlite3_column_type(s, 0)!=SQLITE_INTEGER ||
++        sqlite3_column_type(s, 1)!=SQLITE_INTEGER ||
++        sqlite3_column_type(s, 2)!=SQLITE_BLOB ||
++        i!=iIndex ||
++        i>=MERGE_COUNT ){
++      rc = SQLITE_CORRUPT_BKPT;
++      break;
++    }
+ 
+-    assert( i<MERGE_COUNT );
+     rc = leavesReaderInit(v, i, iStart, iEnd, pRootData, nRootData,
+                           &pReaders[i]);
+     if( rc!=SQLITE_OK ) break;
+@@ -5212,6 +5310,7 @@
+     while( i-->0 ){
+       leavesReaderDestroy(&pReaders[i]);
+     }
++    sqlite3_reset(s);          /* So we don't leave a lock. */
+     return rc;
+   }
+ 
+@@ -5295,10 +5394,14 @@
+   memset(&lrs, '\0', sizeof(lrs));
+   rc = leavesReadersInit(v, iLevel, lrs, &i);
+   if( rc!=SQLITE_OK ) return rc;
+-  assert( i==MERGE_COUNT );
+ 
+   leafWriterInit(iLevel+1, idx, &writer);
+ 
++  if( i!=MERGE_COUNT ){
++    rc = SQLITE_CORRUPT_BKPT;
++    goto err;
++  }
++
+   /* Since leavesReaderReorder() pushes readers at eof to the end,
+   ** when the first reader is empty, all will be empty.
+   */
+@@ -5588,11 +5691,27 @@
+   if( rc!=SQLITE_OK ) return rc;
+ 
+   rc = sqlite3_step(s);
+-  if( rc==SQLITE_DONE ) return SQLITE_ERROR;
++  /* Corrupt if interior node references missing child node. */
++  if( rc==SQLITE_DONE ) return SQLITE_CORRUPT_BKPT;
+   if( rc!=SQLITE_ROW ) return rc;
+ 
+-  getChildrenContaining(sqlite3_column_blob(s, 0), sqlite3_column_bytes(s, 0),
+-                        pTerm, nTerm, isPrefix, piStartChild, piEndChild);
++  /* Corrupt if child node isn't a blob. */
++  if( sqlite3_column_type(s, 0)!=SQLITE_BLOB ){
++    sqlite3_reset(s);         /* So we don't leave a lock. */
++    return SQLITE_CORRUPT_BKPT;
++  }else{
++    const char *pData = sqlite3_column_blob(s, 0);
++    int nData = sqlite3_column_bytes(s, 0);
++
++    /* Corrupt if child is not a valid interior node. */
++    if( pData==NULL || nData<1 || pData[0]=='\0' ){
++      sqlite3_reset(s);         /* So we don't leave a lock. */
++      return SQLITE_CORRUPT_BKPT;
++    }
++
++    getChildrenContaining(pData, nData, pTerm, nTerm,
++                          isPrefix, piStartChild, piEndChild);
++  }
+ 
+   /* We expect only one row.  We must execute another sqlite3_step()
+    * to complete the iteration; otherwise the table will remain
+@@ -5675,7 +5794,8 @@
+   DataBuffer result;
+   int rc;
+ 
+-  assert( nData>1 );
++  /* Corrupt if segment root can't be valid. */
++  if( pData==NULL || nData<1 ) return SQLITE_CORRUPT_BKPT;
+ 
+   /* This code should never be called with buffered updates. */
+   assert( v->nPendingData<0 );
+@@ -5729,6 +5849,14 @@
+     const char *pData = sqlite3_column_blob(s, 2);
+     const int nData = sqlite3_column_bytes(s, 2);
+     const sqlite_int64 iLeavesEnd = sqlite3_column_int64(s, 1);
++
++    /* Corrupt if we get back different types than we stored. */
++    if( sqlite3_column_type(s, 1)!=SQLITE_INTEGER ||
++        sqlite3_column_type(s, 2)!=SQLITE_BLOB ){
++      rc = SQLITE_CORRUPT_BKPT;
++      goto err;
++    }
++
+     rc = loadSegment(v, pData, nData, iLeavesEnd, pTerm, nTerm, isPrefix,
+                      &doclist);
+     if( rc!=SQLITE_OK ) goto err;
+@@ -5748,6 +5876,7 @@
+   }
+ 
+  err:
++  sqlite3_reset(s);         /* So we don't leave a lock. */
+   dataBufferDestroy(&doclist);
+   return rc;
+ }
+@@ -6240,6 +6369,14 @@
+       const char *pRootData = sqlite3_column_blob(s, 2);
+       int nRootData = sqlite3_column_bytes(s, 2);
+ 
++      /* Corrupt if we get back different types than we stored. */
++      if( sqlite3_column_type(s, 0)!=SQLITE_INTEGER ||
++          sqlite3_column_type(s, 1)!=SQLITE_INTEGER ||
++          sqlite3_column_type(s, 2)!=SQLITE_BLOB ){
++        rc = SQLITE_CORRUPT_BKPT;
++        break;
++      }
++
+       assert( i<nReaders );
+       rc = leavesReaderInit(v, -1, iStart, iEnd, pRootData, nRootData,
+                             &readers[i].reader);
+@@ -6253,6 +6390,8 @@
+     if( rc==SQLITE_DONE ){
+       assert( i==nReaders );
+       rc = optimizeInternal(v, readers, nReaders, &writer);
++    }else{
++      sqlite3_reset(s);      /* So we don't leave a lock. */
+     }
+ 
+     while( i-- > 0 ){
+@@ -6316,9 +6455,18 @@
+   const sqlite_int64 iEndBlockid = sqlite3_column_int64(s, 1);
+   const char *pRootData = sqlite3_column_blob(s, 2);
+   const int nRootData = sqlite3_column_bytes(s, 2);
++  int rc;
+   LeavesReader reader;
+-  int rc = leavesReaderInit(v, 0, iStartBlockid, iEndBlockid,
+-                            pRootData, nRootData, &reader);
++
++  /* Corrupt if we get back different types than we stored. */
++  if( sqlite3_column_type(s, 0)!=SQLITE_INTEGER ||
++      sqlite3_column_type(s, 1)!=SQLITE_INTEGER ||
++      sqlite3_column_type(s, 2)!=SQLITE_BLOB ){
++    return SQLITE_CORRUPT_BKPT;
++  }
++
++  rc = leavesReaderInit(v, 0, iStartBlockid, iEndBlockid,
++                        pRootData, nRootData, &reader);
+   if( rc!=SQLITE_OK ) return rc;
+ 
+   while( rc==SQLITE_OK && !leavesReaderAtEnd(&reader) ){
+@@ -6822,7 +6970,11 @@
+   ** module with sqlite.
+   */
+   if( SQLITE_OK==rc 
++#if GEARS_FTS2_CHANGES && !SQLITE_TEST
++      /* fts2_tokenizer() disabled for security reasons. */
++#else
+    && SQLITE_OK==(rc = sqlite3Fts2InitHashTable(db, pHash, "fts2_tokenizer"))
++#endif
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "snippet", -1))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "offsets", -1))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "optimize", -1))
+Index: ext/fts2/fts2_icu.c
+===================================================================
+--- ext/fts2/fts2_icu.c	2009-09-03 13:32:06.000000000 -0700
++++ ext/fts2/fts2_icu.c	2009-09-14 18:17:16.000000000 -0700
+@@ -198,7 +198,7 @@
+ 
+     while( iStart<iEnd ){
+       int iWhite = iStart;
+-      U8_NEXT(pCsr->aChar, iWhite, pCsr->nChar, c);
++      U16_NEXT(pCsr->aChar, iWhite, pCsr->nChar, c);
+       if( u_isspace(c) ){
+         iStart = iWhite;
+       }else{
+Index: ext/fts2/fts2_tokenizer.c
+===================================================================
+--- ext/fts2/fts2_tokenizer.c	2009-09-03 13:32:06.000000000 -0700
++++ ext/fts2/fts2_tokenizer.c	2009-09-14 18:17:24.000000000 -0700
+@@ -33,6 +33,7 @@
+ #include "fts2_hash.h"
+ #include "fts2_tokenizer.h"
+ #include <assert.h>
++#include <stddef.h>
+ 
+ /*
+ ** Implementation of the SQL scalar function for accessing the underlying 
+Index: ext/icu/icu.c
+===================================================================
+--- ext/icu/icu.c	2009-09-03 13:32:06.000000000 -0700
++++ ext/icu/icu.c	2009-07-01 12:08:37.000000000 -0700
+@@ -38,6 +38,11 @@
+ 
+ #include <assert.h>
+ 
++// TODO(evanm): this is cut'n'pasted from fts2.c.  Why is it necessary?
++#if !defined(SQLITE_CORE)
++# define SQLITE_CORE 1
++#endif
++
+ #ifndef SQLITE_CORE
+   #include "sqlite3ext.h"
+   SQLITE_EXTENSION_INIT1
+Index: main.mk
+===================================================================
+--- main.mk	2009-09-10 12:18:17.000000000 -0700
++++ main.mk	2009-09-15 11:45:21.000000000 -0700
+@@ -69,6 +69,16 @@
+          walker.o where.o utf.o vtab.o
+ 
+ 
++LIBOBJ += fts1.o \
++	  fts1_hash.o \
++	  fts1_tokenizer1.o \
++	  fts1_porter.o
++LIBOBJ += fts2.o \
++	  fts2_hash.o \
++	  fts2_icu.o \
++	  fts2_porter.o \
++          fts2_tokenizer.o \
++	  fts2_tokenizer1.o
+ 
+ # All of the source code files.
+ #
+@@ -243,6 +253,25 @@
+   $(TOP)/src/test_thread.c \
+   $(TOP)/src/test_wsd.c
+ 
++TESTSRC += \
++  $(TOP)/ext/fts1/fts1.c \
++  $(TOP)/ext/fts1/fts1.h \
++  $(TOP)/ext/fts1/fts1_hash.c \
++  $(TOP)/ext/fts1/fts1_hash.h \
++  $(TOP)/ext/fts1/fts1_porter.c \
++  $(TOP)/ext/fts1/fts1_tokenizer.h \
++  $(TOP)/ext/fts1/fts1_tokenizer1.c
++TESTSRC += \
++  $(TOP)/ext/fts2/fts2.c \
++  $(TOP)/ext/fts2/fts2.h \
++  $(TOP)/ext/fts2/fts2_hash.c \
++  $(TOP)/ext/fts2/fts2_hash.h \
++  $(TOP)/ext/fts2/fts2_icu.c \
++  $(TOP)/ext/fts2/fts2_porter.c \
++  $(TOP)/ext/fts2/fts2_tokenizer.h \
++  $(TOP)/ext/fts2/fts2_tokenizer.c \
++  $(TOP)/ext/fts2/fts2_tokenizer1.c
++
+ #TESTSRC += $(TOP)/ext/fts2/fts2_tokenizer.c
+ #TESTSRC += $(TOP)/ext/fts3/fts3_tokenizer.c
+ 
+@@ -314,8 +343,8 @@
+ 
+ sqlite3$(EXE):	$(TOP)/src/shell.c libsqlite3.a sqlite3.h
+ 	$(TCCX) $(READLINE_FLAGS) -o sqlite3$(EXE)                  \
+-		$(TOP)/src/shell.c                                  \
+-		libsqlite3.a $(LIBREADLINE) $(TLIBS) $(THREADLIB)
++		$(TOP)/src/shell.c $(SHELL_ICU)                     \
++		libsqlite3.a $(LIBREADLINE) $(TLIBS) $(THREADLIB) -ldl
+ 
+ objects: $(LIBOBJ_ORIG)
+ 
+@@ -447,6 +476,20 @@
+ 	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/rtree/rtree.c
+ 
+ 
++
++
++fts1.o:	$(TOP)/ext/fts1/fts1.c $(HDR) $(EXTHDR)
++	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1.c
++
++fts1_hash.o:	$(TOP)/ext/fts1/fts1_hash.c $(HDR) $(EXTHDR)
++	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1_hash.c
++
++fts1_tokenizer1.o:	$(TOP)/ext/fts1/fts1_tokenizer1.c $(HDR) $(EXTHDR)
++	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1_tokenizer1.c
++
++fts1_porter.o:	$(TOP)/ext/fts1/fts1_porter.c $(HDR) $(EXTHDR)
++	$(TCCX) -DSQLITE_CORE -c $(TOP)/ext/fts1/fts1_porter.c
++
+ # Rules for building test programs and for running tests
+ #
+ tclsqlite3:	$(TOP)/src/tclsqlite.c libsqlite3.a
+@@ -484,6 +527,15 @@
+ test:	testfixture$(EXE) sqlite3$(EXE)
+ 	./testfixture$(EXE) $(TOP)/test/veryquick.test
+ 
++ftstest:	testfixture$(EXE) sqlite3$(EXE)
++	./testfixture$(EXE) $(TOP)/test/fts.test
++
++fts1test:	testfixture$(EXE) sqlite3$(EXE)
++	./testfixture$(EXE) $(TOP)/test/fts1.test
++
++fts2test:	testfixture$(EXE) sqlite3$(EXE)
++	./testfixture$(EXE) $(TOP)/test/fts2.test
++
+ sqlite3_analyzer$(EXE):	$(TOP)/src/tclsqlite.c sqlite3.c $(TESTSRC) \
+ 			$(TOP)/tool/spaceanal.tcl
+ 	sed \
+Index: src/func.c
+===================================================================
+--- src/func.c	2009-09-04 13:37:42.000000000 -0700
++++ src/func.c	2009-09-14 18:18:18.000000000 -0700
+@@ -1020,7 +1020,7 @@
+       }
+     }
+     if( zCharSet ){
+-      sqlite3_free(azChar);
++      sqlite3_free((void*)azChar);
+     }
+   }
+   sqlite3_result_text(context, (char*)zIn, nIn, SQLITE_TRANSIENT);
+Index: src/os.h
+===================================================================
+--- src/os.h	2009-09-04 13:37:42.000000000 -0700
++++ src/os.h	2009-09-14 18:18:24.000000000 -0700
+@@ -29,6 +29,10 @@
+ ** will defined to either 1 or 0.  One of the four will be 1.  The other 
+ ** three will be 0.
+ */
++#ifdef OS_SYMBIAN
++# define SQLITE_OS_SYMBIAN 1
++# define SQLITE_OS_OTHER 1
++#endif
+ #if defined(SQLITE_OS_OTHER)
+ # if SQLITE_OS_OTHER==1
+ #   undef SQLITE_OS_UNIX
+Index: src/os_unix.c
+===================================================================
+--- src/os_unix.c	2009-09-10 12:14:55.000000000 -0700
++++ src/os_unix.c	2009-09-15 16:50:43.000000000 -0700
+@@ -3215,6 +3215,7 @@
+ ********************** End sqlite3_file Methods *******************************
+ ******************************************************************************/
+ 
++
+ /*
+ ** This division contains definitions of sqlite3_io_methods objects that
+ ** implement various file locking strategies.  It also contains definitions
+@@ -3496,9 +3497,16 @@
+ */
+ 
+ /*
++** Initializes a unixFile structure with zeros.
++*/
++void initUnixFile(sqlite3_file* file) {
++  memset(file, 0, sizeof(unixFile));
++}
++
++/*
+ ** Initialize the contents of the unixFile structure pointed to by pId.
+ */
+-static int fillInUnixFile(
++int fillInUnixFile(
+   sqlite3_vfs *pVfs,      /* Pointer to vfs object */
+   int h,                  /* Open file descriptor of file being opened */
+   int dirfd,              /* Directory file descriptor */
+Index: src/os_win.c
+===================================================================
+--- src/os_win.c	2009-09-10 15:08:39.000000000 -0700
++++ src/os_win.c	2009-09-14 18:26:16.000000000 -0700
+@@ -1890,4 +1890,11 @@
+   return SQLITE_OK;
+ }
+ 
++void chromium_sqlite3_initialize_win_sqlite3_file(sqlite3_file* file, HANDLE handle) {
++  winFile* winSQLite3File = (winFile*)file;
++  memset(file, 0, sizeof(*file));
++  winSQLite3File->pMethod = &winIoMethod;
++  winSQLite3File->h = handle;
++}
++
+ #endif /* SQLITE_OS_WIN */
+Index: src/parse.y
+===================================================================
+--- src/parse.y	2009-09-04 13:37:42.000000000 -0700
++++ src/parse.y	2009-09-15 11:32:03.000000000 -0700
+@@ -121,7 +121,12 @@
+ trans_opt ::= TRANSACTION.
+ trans_opt ::= TRANSACTION nm.
+ %type transtype {int}
++%ifdef SQLITE_TRANSACTION_DEFAULT_IMMEDIATE
++transtype(A) ::= .             {A = TK_IMMEDIATE;}
++%endif  SQLITE_TRANSACTION_DEFAULT_IMMEDIATE
++%ifndef SQLITE_TRANSACTION_DEFAULT_IMMEDIATE
+ transtype(A) ::= .             {A = TK_DEFERRED;}
++%endif  SQLITE_TRANSACTION_DEFAULT_IMMEDIATE
+ transtype(A) ::= DEFERRED(X).  {A = @X;}
+ transtype(A) ::= IMMEDIATE(X). {A = @X;}
+ transtype(A) ::= EXCLUSIVE(X). {A = @X;}
+Index: src/pcache.c
+===================================================================
+--- src/pcache.c	2009-09-04 13:37:42.000000000 -0700
++++ src/pcache.c	2009-09-15 16:41:55.000000000 -0700
+@@ -542,14 +542,12 @@
+   return nPage;
+ }
+ 
+-#ifdef SQLITE_TEST
+ /*
+ ** Get the suggested cache-size value.
+ */
+ int sqlite3PcacheGetCachesize(PCache *pCache){
+   return pCache->nMax;
+ }
+-#endif
+ 
+ /*
+ ** Set the suggested cache-size value.
+Index: src/pcache.h
+===================================================================
+--- src/pcache.h	2009-09-04 13:37:42.000000000 -0700
++++ src/pcache.h	2009-09-15 16:41:52.000000000 -0700
+@@ -139,9 +139,7 @@
+ ** of the suggested cache-sizes.
+ */
+ void sqlite3PcacheSetCachesize(PCache *, int);
+-#ifdef SQLITE_TEST
+ int sqlite3PcacheGetCachesize(PCache *);
+-#endif
+ 
+ #ifdef SQLITE_ENABLE_MEMORY_MANAGEMENT
+ /* Try to return memory used by the pcache module to the main memory heap */
+Index: src/shell.c
+===================================================================
+--- src/shell.c	2009-09-04 13:37:43.000000000 -0700
++++ src/shell.c	2009-09-15 11:32:08.000000000 -0700
+@@ -3007,6 +3007,18 @@
+   int i;
+   int rc = 0;
+ 
++  /* Begin evanm patch. */
++#ifdef SQLITE_GEARS_DISABLE_SHELL_ICU
++  /* Gears doesn't use this. */
++#else
++  extern int sqlite_shell_init_icu();
++  if( !sqlite_shell_init_icu() ){
++    fprintf(stderr, "%s: warning: couldn't find icudt38.dll; "
++                    "queries against ICU FTS tables will fail.\n", argv[0]);
++  }
++#endif
++  /* End evanm patch. */
++
+   Argv0 = argv[0];
+   main_init(&data);
+   stdin_is_interactive = isatty(0);
+Index: src/sqlite3ext.h
+===================================================================
+--- src/sqlite3ext.h	2009-09-03 13:32:06.000000000 -0700
++++ src/sqlite3ext.h	2009-09-15 11:34:43.000000000 -0700
+@@ -372,9 +372,15 @@
+ #define sqlite3_next_stmt              sqlite3_api->next_stmt
+ #define sqlite3_sql                    sqlite3_api->sql
+ #define sqlite3_status                 sqlite3_api->status
+-#endif /* SQLITE_CORE */
+ 
+ #define SQLITE_EXTENSION_INIT1     const sqlite3_api_routines *sqlite3_api = 0;
+ #define SQLITE_EXTENSION_INIT2(v)  sqlite3_api = v;
+ 
++#else
++
++#define SQLITE_EXTENSION_INIT1
++#define SQLITE_EXTENSION_INIT2(v)
++
++#endif /* SQLITE_CORE */
++
+ #endif /* _SQLITE3EXT_H_ */
+Index: src/test_autoext.c
+===================================================================
+--- src/test_autoext.c	2009-09-03 13:32:06.000000000 -0700
++++ src/test_autoext.c	2009-09-15 18:14:35.000000000 -0700
+@@ -17,7 +17,9 @@
+ #include "sqlite3ext.h"
+ 
+ #ifndef SQLITE_OMIT_LOAD_EXTENSION
++#ifndef SQLITE_CORE
+ static SQLITE_EXTENSION_INIT1
++#endif
+ 
+ /*
+ ** The sqr() SQL function returns the square of its input value.
+Index: src/quick.test
+===================================================================
+--- test/quick.test	2009-09-04 13:37:44.000000000 -0700
++++ test/quick.test	2009-09-15 11:34:54.000000000 -0700
+@@ -58,6 +58,9 @@
+   crash7.test
+   delete3.test
+   fts3.test
++  fts.test
++  fts1.test
++  fts2.test
+   fuzz.test
+   fuzz3.test
+   fuzz_malloc.test
