@@ -276,6 +276,26 @@ TEST_F(ProcessUtilTest, GetParentProcessId) {
   base::ProcessId ppid = GetParentProcessId(GetCurrentProcId());
   EXPECT_EQ(ppid, getppid());
 }
+
+TEST_F(ProcessUtilTest, ParseProcStatCPU) {
+  // /proc/self/stat for a process running "top".
+  const char kTopStat[] = "960 (top) S 16230 960 16230 34818 960 "
+      "4202496 471 0 0 0 "
+      "12 16 0 0 "  // <- These are the goods.
+      "20 0 1 0 121946157 15077376 314 18446744073709551615 4194304 "
+      "4246868 140733983044336 18446744073709551615 140244213071219 "
+      "0 0 0 138047495 0 0 0 17 1 0 0 0 0 0";
+  EXPECT_EQ(12 + 16, ParseProcStatCPU(kTopStat));
+
+  // cat /proc/self/stat on a random other machine I have.
+  const char kSelfStat[] = "5364 (cat) R 5354 5364 5354 34819 5364 "
+      "0 142 0 0 0 "
+      "0 0 0 0 "  // <- No CPU, apparently.
+      "16 0 1 0 1676099790 2957312 114 4294967295 134512640 134528148 "
+      "3221224832 3221224344 3086339742 0 0 0 0 0 0 0 17 0 0 0";
+
+  EXPECT_EQ(0, ParseProcStatCPU(kSelfStat));
+}
 #endif
 
 #endif  // defined(OS_POSIX)

@@ -6,9 +6,12 @@
 
 #include <ctype.h>
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <string>
@@ -336,6 +339,99 @@ bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
     }
   }
   return true;
+}
+
+
+// Exposed for testing.
+int ParseProcStatCPU(const std::string& input) {
+  // /proc/<pid>/stat contains the process name in parens.  In case the
+  // process name itself contains parens, skip past them.
+  std::string::size_type rparen = input.rfind(')');
+  if (rparen == std::string::npos)
+    return -1;
+
+  // From here, we expect a bunch of space-separated fields, where the
+  // 0-indexed 11th and 12th are utime and stime.  On two different machines
+  // I found 42 and 39 fields, so let's just expect the ones we need.
+  std::vector<std::string> fields;
+  SplitString(input.substr(rparen + 2), ' ', &fields);
+  if (fields.size() < 13)
+    return -1;  // Output not in the format we expect.
+
+  return StringToInt(fields[11]) + StringToInt(fields[12]);
+}
+
+// Get the total CPU of a single process.  Return value is number of jiffies
+// on success or -1 on error.
+static int GetProcessCPU(pid_t pid) {
+  // Use /proc/<pid>/task to find all threads and parse their /stat file.
+  FilePath path = FilePath(StringPrintf("/proc/%d/task/", pid));
+
+  DIR* dir = opendir(path.value().c_str());
+  if (!dir) {
+    LOG(ERROR) << "opendir(" << path.value() << "): " << strerror(errno);
+    return -1;
+  }
+
+  int total_cpu = 0;
+  while (struct dirent* ent = readdir(dir)) {
+    if (ent->d_name[0] == '.')
+      continue;
+
+    FilePath stat_path = path.AppendASCII(ent->d_name).AppendASCII("stat");
+    std::string stat;
+    if (file_util::ReadFileToString(stat_path, &stat)) {
+      int cpu = ParseProcStatCPU(stat);
+      if (cpu > 0)
+        total_cpu += cpu;
+    }
+  }
+  closedir(dir);
+
+  return total_cpu;
+}
+
+int ProcessMetrics::GetCPUUsage() {
+  // This queries the /proc-specific scaling factor which is
+  // conceptually the system hertz.  To dump this value on another
+  // system, try
+  //   od -t dL /proc/self/auxv
+  // and look for the number after 17 in the output; mine is
+  //   0000040          17         100           3   134512692
+  // which means the answer is 100.
+  // It may be the case that this value is always 100.
+  static const int kHertz = sysconf(_SC_CLK_TCK);
+
+  struct timeval now;
+  int retval = gettimeofday(&now, NULL);
+  if (retval)
+    return 0;
+  int64 time = TimeValToMicroseconds(now);
+
+  if (last_time_ == 0) {
+    // First call, just set the last values.
+    last_time_ = time;
+    last_cpu_ = GetProcessCPU(process_);
+    return 0;
+  }
+
+  int64 time_delta = time - last_time_;
+  DCHECK(time_delta != 0);
+  if (time_delta == 0)
+    return 0;
+
+  int cpu = GetProcessCPU(process_);
+
+  // We have the number of jiffies in the time period.  Convert to percentage.
+  // Note this means we will go *over* 100 in the case where multiple threads
+  // are together adding to more than one CPU's worth.
+  int percentage = 100 * (cpu - last_cpu_) /
+      (kHertz * TimeDelta::FromMicroseconds(time_delta).InSecondsF());
+
+  last_time_ = time;
+  last_cpu_ = cpu;
+
+  return percentage;
 }
 
 }  // namespace base
