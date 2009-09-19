@@ -95,6 +95,11 @@ ProcessId GetParentProcessId(ProcessHandle process);
 
 // Returns the path to the executable of the given process.
 FilePath GetProcessExecutablePath(ProcessHandle process);
+
+// Parse the data found in /proc/<pid>/stat and return the sum of the
+// CPU-related ticks.  Returns -1 on parse error.
+// Exposed for testing.
+int ParseProcStatCPU(const std::string& input);
 #endif
 
 #if defined(OS_POSIX)
@@ -329,6 +334,9 @@ struct FreeMBytes {
   void* largest_ptr;
 };
 
+// Convert a POSIX timeval to microseconds.
+int64 TimeValToMicroseconds(const struct timeval& tv);
+
 // Provides performance metrics for a specified process (CPU usage, memory and
 // IO counters). To use it, invoke CreateProcessMetrics() to get an instance
 // for a specific process, then access the information with the different get
@@ -391,9 +399,15 @@ class ProcessMetrics {
 
   int processor_count_;
 
-  // Used to store the previous times so we can compute the CPU usage.
+  // Used to store the previous times and CPU usage counts so we can
+  // compute the CPU usage between calls.
   int64 last_time_;
   int64 last_system_time_;
+
+#if defined(OS_LINUX)
+  // Jiffie count at the last_time_ we updated.
+  int last_cpu_;
+#endif
 
   DISALLOW_EVIL_CONSTRUCTORS(ProcessMetrics);
 };
