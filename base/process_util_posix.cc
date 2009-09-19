@@ -305,7 +305,11 @@ bool LaunchApp(const CommandLine& cl,
 
 ProcessMetrics::ProcessMetrics(ProcessHandle process) : process_(process),
                                                         last_time_(0),
-                                                        last_system_time_(0) {
+                                                        last_system_time_(0)
+#if defined(OS_LINUX)
+                                                      , last_cpu_(0)
+#endif
+{
   processor_count_ = base::SysInfo::NumberOfProcessors();
 }
 
@@ -463,14 +467,13 @@ bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds) {
   }
 }
 
-namespace {
-
 int64 TimeValToMicroseconds(const struct timeval& tv) {
   return tv.tv_sec * kMicrosecondsPerSecond + tv.tv_usec;
 }
 
-}
-
+#if defined(OS_MACOSX)
+// TODO(port): this function only returns the *current* CPU's usage;
+// we want to return this->process_'s CPU usage.
 int ProcessMetrics::GetCPUUsage() {
   struct timeval now;
   struct rusage usage;
@@ -509,6 +512,7 @@ int ProcessMetrics::GetCPUUsage() {
 
   return cpu;
 }
+#endif
 
 bool GetAppOutput(const CommandLine& cl, std::string* output) {
   int pipe_fd[2];
