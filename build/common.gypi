@@ -456,9 +456,15 @@
           # TODO(sgk): investigate handling this not by re-ordering the
           # flags this way, but by adding a hook to use the SCons
           # ParseFlags() option on the output from pkg-config.
-          'LINKCOM': [['$FLOCK_LINK', '-o', '$TARGET', '$_LIBDIRFLAGS', '$LINKFLAGS', '$SOURCES', '-Wl,--start-group', '$_LIBFLAGS', '-Wl,--end-group']],
-          'SHLINKCOM': [['$FLOCK_SHLINK', '-o', '$TARGET', '$_LIBDIRFLAGS', '$SHLINKFLAGS', '$SOURCES', '-Wl,--start-group', '$_LIBFLAGS', '-Wl,--end-group']],
-          'LDMODULECOM': [['$FLOCK_LDMODULE', '-o', '$TARGET', '$_LIBDIRFLAGS', '$LDMODULEFLAGS', '$SOURCES', '-Wl,--start-group', '$_LIBFLAGS', '-Wl,--end-group']],
+          'LINKCOM': [['$FLOCK_LINK', '-o', '$TARGET',
+                       '$_LIBDIRFLAGS', '$LINKFLAGS', '$SOURCES',
+                       '-Wl,--start-group', '$_LIBFLAGS', '-Wl,--end-group']],
+          'SHLINKCOM': [['$FLOCK_SHLINK', '-o', '$TARGET',
+                         '$_LIBDIRFLAGS', '$SHLINKFLAGS', '$SOURCES',
+                         '-Wl,--start-group', '$_LIBFLAGS', '-Wl,--end-group']],
+          'LDMODULECOM': [['$FLOCK_LDMODULE', '-o', '$TARGET',
+                           '$_LIBDIRFLAGS', '$LDMODULEFLAGS', '$SOURCES',
+                           '-Wl,--start-group', '$_LIBFLAGS', '-Wl,--end-group']],
           'IMPLICIT_COMMAND_DEPENDENCIES': 0,
           # -rpath is only used when building with shared libraries.
           'conditions': [
