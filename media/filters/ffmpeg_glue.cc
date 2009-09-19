@@ -101,6 +101,9 @@ static URLProtocol kFFmpegURLProtocol = {
 };
 
 FFmpegGlue::FFmpegGlue() {
+  // Before doing anything disable logging as it interferes with layout tests.
+  av_log_set_level(AV_LOG_QUIET);
+
   // Register our protocol glue code with FFmpeg.
   avcodec_init();
   av_register_protocol(&kFFmpegURLProtocol);
