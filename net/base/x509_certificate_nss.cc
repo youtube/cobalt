@@ -543,7 +543,8 @@ int X509Certificate::Verify(const std::string& hostname,
   status = PKIXVerifyCert(cert_handle_, NULL, 0, cvout);
   if (status != SECSuccess) {
     int err = PORT_GetError();
-    LOG(ERROR) << "CERT_PKIXVerifyCert failed err=" << err;
+    LOG(ERROR) << "CERT_PKIXVerifyCert for " << hostname
+               << " failed err=" << err;
     // CERT_PKIXVerifyCert rerports the wrong error code for
     // expired certificates (NSS bug 491174)
     if (err == SEC_ERROR_CERT_NOT_VALID &&
