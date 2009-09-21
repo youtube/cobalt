@@ -101,6 +101,9 @@ class FtpNetworkTransaction : public FtpTransaction {
   // code to be in range 100-599.
   static ErrorClass GetErrorClass(int response_code);
 
+  // Returns request path suitable to be included in an FTP command.
+  std::string GetRequestPathForFtpCommand() const;
+
   // Runs the state transition loop.
   int DoLoop(int result);
 
