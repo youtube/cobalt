@@ -202,7 +202,6 @@ class FtpMockControlSocketFileDownload : public FtpMockControlSocket {
         return Verify("MDTM /file\r\n", data, PRE_RETR,
                       "213 20070221112533\r\n");
       case PRE_RETR:
-        // TODO(phajdan.jr): Also test with "150 Accepted Data Connection".
         return Verify("RETR /file\r\n", data, PRE_QUIT, "200 OK\r\n");
       default:
         return FtpMockControlSocket::OnWrite(data);
@@ -211,6 +210,33 @@ class FtpMockControlSocketFileDownload : public FtpMockControlSocket {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketFileDownload);
+};
+
+class FtpMockControlSocketEscaping : public FtpMockControlSocket {
+ public:
+  FtpMockControlSocketEscaping() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_SIZE:
+        return Verify("SIZE / !\"#$%y\200\201\r\n", data, PRE_MDTM,
+                      "213 18\r\n");
+      case PRE_MDTM:
+        return Verify("MDTM / !\"#$%y\200\201\r\n", data, PRE_RETR,
+                      "213 20070221112533\r\n");
+      case PRE_RETR:
+        return Verify("RETR / !\"#$%y\200\201\r\n", data, PRE_QUIT,
+                      "200 OK\r\n");
+      default:
+        return FtpMockControlSocket::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketEscaping);
 };
 
 class FtpMockControlSocketFileDownloadAcceptedDataConnection
@@ -681,6 +707,12 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartPassword) {
                                                          L"foo\nownz0red",
                                                          &callback_));
   EXPECT_EQ(ERR_MALFORMED_IDENTITY, callback_.WaitForResult());
+}
+
+TEST_F(FtpNetworkTransactionTest, Escaping) {
+  FtpMockControlSocketEscaping ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host/%20%21%22%23%24%25%79%80%81",
+                     OK);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailUser) {
