@@ -755,6 +755,16 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
 
   if (result == OK) {
     // Remember the intermediate CA certs if the server sends them to us.
+    //
+    // We used to remember the intermediate CA certs in the NSS database
+    // persistently.  However, NSS opens a connection to the SQLite database
+    // during NSS initialization and doesn't close the connection until NSS
+    // shuts down.  If the file system where the database resides is gone,
+    // the database connection goes bad.  What's worse, the connection won't
+    // recover when the file system comes back.  Until this NSS or SQLite bug
+    // is fixed, we need to  avoid using the NSS database for non-essential
+    // purposes.  See https://bugzilla.mozilla.org/show_bug.cgi?id=508081 and
+    // http://crbug.com/15630 for more info.
     CERTCertList* cert_list = CERT_GetCertChainFromCert(
         server_cert_->os_cert_handle(), PR_Now(), certUsageSSLCA);
     if (cert_list) {
@@ -772,15 +782,8 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
         }
 
         // We have found a CA cert that we want to remember.
-        std::string nickname(GetDefaultCertNickname(node->cert));
-        if (!nickname.empty()) {
-          PK11SlotInfo* slot = PK11_GetInternalKeySlot();
-          if (slot) {
-            PK11_ImportCert(slot, node->cert, CK_INVALID_HANDLE,
-                            const_cast<char*>(nickname.c_str()), PR_FALSE);
-            PK11_FreeSlot(slot);
-          }
-        }
+        // TODO(wtc): Remember the intermediate CA certs in a std::set
+        // temporarily (http://crbug.com/15630).
       }
       CERT_DestroyCertList(cert_list);
     }
