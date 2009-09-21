@@ -36,7 +36,7 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
       HttpAuthHandlerDigest::QOP_UNSPECIFIED
     },
 
-    {// Check that when algorithm has an unsupported value, parsing fails.
+    { // Check that when algorithm has an unsupported value, parsing fails.
       "Digest nonce=\"xyz\", algorithm=\"awezum\", realm=\"Thunder\"",
       false,
       // The remaining values don't matter (but some have been set already).
@@ -74,9 +74,22 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
       HttpAuthHandlerDigest::QOP_AUTH
     },
 
-    { // The realm can't be missing.
+    { // We allow the realm to be omitted, and will default it to empty string.
+      // See http://crbug.com/20984.
       "Digest nonce=\"xyz\"",
-      false, // FAILED parse.
+      true,
+      "",
+      "xyz",
+      "",
+      "",
+      false,
+      HttpAuthHandlerDigest::ALGORITHM_UNSPECIFIED,
+      HttpAuthHandlerDigest::QOP_UNSPECIFIED
+    },
+
+    { // Try with realm set to empty string.
+      "Digest realm=\"\", nonce=\"xyz\"",
+      true,
       "",
       "xyz",
       "",

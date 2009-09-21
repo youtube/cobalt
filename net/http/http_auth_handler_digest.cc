@@ -187,7 +187,7 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
 
 // The digest challenge header looks like:
 //   WWW-Authenticate: Digest
-//     realm="<realm-value>"
+//     [realm="<realm-value>"]
 //     nonce="<nonce-value>"
 //     [domain="<list-of-URIs>"]
 //     [opaque="<opaque-token-value>"]
@@ -195,6 +195,14 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
 //     [algorithm="<digest-algorithm>"]
 //     [qop="<list-of-qop-values>"]
 //     [<extension-directive>]
+//
+// Note that according to RFC 2617 (section 1.2) the realm is required.
+// However we allow it to be omitted, in which case it will default to the
+// empty string.
+//
+// This allowance is for better compatibility with webservers that fail to
+// send the realm (See http://crbug.com/20984 for an instance where a
+// webserver was not sending the realm with a BASIC challenge).
 bool HttpAuthHandlerDigest::ParseChallenge(
     std::string::const_iterator challenge_begin,
     std::string::const_iterator challenge_end) {
@@ -229,7 +237,7 @@ bool HttpAuthHandlerDigest::ParseChallenge(
     return false; // FAIL
 
   // Check that a minimum set of properties were provided.
-  if (realm_.empty() || nonce_.empty())
+  if (nonce_.empty())
     return false; // FAIL
 
   return true;

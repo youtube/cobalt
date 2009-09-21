@@ -666,7 +666,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuth) {
     MockRead("HTTP/1.0 401 Unauthorized\r\n"),
     // Give a couple authenticate options (only the middle one is actually
     // supported).
-    MockRead("WWW-Authenticate: Basic\r\n"),  // Malformed
+    MockRead("WWW-Authenticate: Basic invalid\r\n"),  // Malformed.
     MockRead("WWW-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
     MockRead("WWW-Authenticate: UNSUPPORTED realm=\"FOO\"\r\n"),
     MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
@@ -1398,7 +1398,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
     MockRead("HTTP/1.0 407 Unauthorized\r\n"),
     // Give a couple authenticate options (only the middle one is actually
     // supported).
-    MockRead("Proxy-Authenticate: Basic\r\n"),  // Malformed
+    MockRead("Proxy-Authenticate: Basic invalid\r\n"),  // Malformed.
     MockRead("Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
     MockRead("Proxy-Authenticate: UNSUPPORTED realm=\"FOO\"\r\n"),
     MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
