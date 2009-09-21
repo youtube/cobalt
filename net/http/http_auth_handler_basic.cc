@@ -10,6 +10,14 @@
 
 namespace net {
 
+// Note that if a realm was not specified, we will default it to "";
+// so specifying 'Basic realm=""' is equivalent to 'Basic'.
+//
+// This is more generous than RFC 2617, which is pretty clear in the
+// production of challenge that realm is required.
+//
+// We allow it to be compatibility with certain embedded webservers that don't
+// include a realm (see http://crbug.com/20984.)
 bool HttpAuthHandlerBasic::Init(std::string::const_iterator challenge_begin,
                                 std::string::const_iterator challenge_end) {
   scheme_ = "basic";
@@ -22,13 +30,13 @@ bool HttpAuthHandlerBasic::Init(std::string::const_iterator challenge_begin,
       !LowerCaseEqualsASCII(challenge_tok.scheme(), "basic"))
     return false;
 
-  // Extract the realm.
+  // Extract the realm (may be missing).
   while (challenge_tok.GetNext()) {
     if (LowerCaseEqualsASCII(challenge_tok.name(), "realm"))
       realm_ = challenge_tok.unquoted_value();
   }
 
-  return challenge_tok.valid() && !realm_.empty();
+  return challenge_tok.valid();
 }
 
 std::string HttpAuthHandlerBasic::GenerateCredentials(
