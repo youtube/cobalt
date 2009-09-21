@@ -7,6 +7,7 @@
 #include "base/compiler_specific.h"
 #include "base/string_util.h"
 #include "net/base/connection_type_histograms.h"
+#include "net/base/escape.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
@@ -28,9 +29,9 @@ namespace {
 
 // Returns true if |input| can be safely used as a part of FTP command.
 bool IsValidFTPCommandString(const std::string& input) {
-  // RFC 959 only allows ASCII strings.
-  if (!IsStringASCII(input))
-    return false;
+  // RFC 959 only allows ASCII strings, but at least Firefox can send non-ASCII
+  // characters in the command if the request path contains them. To be
+  // compatible, we do the same and allow non-ASCII characters in a command.
 
   // Protect agains newline injection attack.
   if (input.find_first_of("\r\n") != std::string::npos)
@@ -320,6 +321,17 @@ void FtpNetworkTransaction::OnIOComplete(int result) {
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING)
     DoCallback(rv);
+}
+
+std::string FtpNetworkTransaction::GetRequestPathForFtpCommand() const {
+  std::string path = (request_->url.has_path() ? request_->url.path() : "/");
+  UnescapeRule::Type unescape_rules = UnescapeRule::SPACES |
+                                      UnescapeRule::URL_SPECIAL_CHARS;
+  // This may unescape to non-ASCII characters, but we allow that. See the
+  // comment for IsValidFTPCommandString.
+  path = UnescapeURLComponent(path, unescape_rules);
+  DCHECK(IsValidFTPCommandString(path));
+  return path;
 }
 
 int FtpNetworkTransaction::DoLoop(int result) {
@@ -788,11 +800,7 @@ int FtpNetworkTransaction::ProcessResponsePASV(
 
 // SIZE command
 int FtpNetworkTransaction::DoCtrlWriteSIZE() {
-  std::string command = "SIZE";
-  if (request_->url.has_path()) {
-    command.append(" ");
-    command.append(request_->url.path());
-  }
+  std::string command = "SIZE " + GetRequestPathForFtpCommand();
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_SIZE);
 }
@@ -826,13 +834,7 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
 
 // RETR command
 int FtpNetworkTransaction::DoCtrlWriteRETR() {
-  std::string command = "RETR";
-  if (request_->url.has_path()) {
-    command.append(" ");
-    command.append(request_->url.path());
-  } else {
-    command.append(" /");
-  }
+  std::string command = "RETR " + GetRequestPathForFtpCommand();
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_RETR);
 }
@@ -879,13 +881,7 @@ int FtpNetworkTransaction::ProcessResponseRETR(
 
 // MDMT command
 int FtpNetworkTransaction::DoCtrlWriteMDTM() {
-  std::string command = "MDTM";
-  if (request_->url.has_path()) {
-    command.append(" ");
-    command.append(request_->url.path());
-  } else {
-    command.append(" /");
-  }
+  std::string command = "MDTM " + GetRequestPathForFtpCommand();
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_MDTM);
 }
@@ -915,13 +911,7 @@ int FtpNetworkTransaction::ProcessResponseMDTM(
 
 // CWD command
 int FtpNetworkTransaction::DoCtrlWriteCWD() {
-  std::string command = "CWD";
-  if (request_->url.has_path()) {
-    command.append(" ");
-    command.append(request_->url.path());
-  } else {
-    command.append(" /");
-  }
+  std::string command = "CWD " + GetRequestPathForFtpCommand();
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_CWD);
 }
