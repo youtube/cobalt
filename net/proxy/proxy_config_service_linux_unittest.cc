@@ -254,13 +254,12 @@ class SynchConfigGetter {
     Wait();
   }
 
-  // Does a reset, gconf setup and initial fetch of the proxy config,
+  // Does gconf setup and initial fetch of the proxy config,
   // all on the calling thread (meant to be the thread with the
   // default glib main loop, which is the UI thread).
   void SetupAndInitialFetch() {
     MessageLoop* file_loop = io_thread_.message_loop();
     DCHECK_EQ(MessageLoop::TYPE_IO, file_loop->type());
-    config_service_->Reset();
     // We pass the mock IO thread as both the IO and file threads.
     config_service_->SetupAndFetchInitialConfig(
         MessageLoop::current(), io_thread_.message_loop(),
@@ -350,12 +349,6 @@ class ProxyConfigServiceLinuxTest : public PlatformTest {
 #define TEST_DESC(desc) StringPrintf("at line %d <%s>", __LINE__, desc)
 
 TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
-  MockEnvironmentVariableGetter* env_getter =
-      new MockEnvironmentVariableGetter;
-  MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
-  SynchConfigGetter sync_config_getter(
-      new ProxyConfigServiceLinux(env_getter, gconf_getter));
-
   std::vector<std::string> empty_ignores;
 
   std::vector<std::string> google_ignores;
@@ -594,6 +587,11 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%d] %s", i, tests[i].description.c_str()));
+    MockEnvironmentVariableGetter* env_getter =
+        new MockEnvironmentVariableGetter;
+    MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
+    SynchConfigGetter sync_config_getter(
+        new ProxyConfigServiceLinux(env_getter, gconf_getter));
     ProxyConfig config;
     gconf_getter->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
@@ -609,12 +607,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
 }
 
 TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
-  MockEnvironmentVariableGetter* env_getter =
-      new MockEnvironmentVariableGetter;
-  MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
-  SynchConfigGetter sync_config_getter(
-      new ProxyConfigServiceLinux(env_getter, gconf_getter));
-
   // Inspired from proxy_config_service_win_unittest.cc.
   const struct {
     // Short description to identify the test
@@ -874,6 +866,11 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%d] %s", i, tests[i].description.c_str()));
+    MockEnvironmentVariableGetter* env_getter =
+        new MockEnvironmentVariableGetter;
+    MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
+    SynchConfigGetter sync_config_getter(
+        new ProxyConfigServiceLinux(env_getter, gconf_getter));
     ProxyConfig config;
     env_getter->values = tests[i].values;
     sync_config_getter.SetupAndInitialFetch();
@@ -912,13 +909,6 @@ TEST_F(ProxyConfigServiceLinuxTest, GconfNotification) {
 }
 
 TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
-  MockEnvironmentVariableGetter* env_getter =
-      new MockEnvironmentVariableGetter;
-  // Force the KDE getter to be used and tell it where the test is.
-  env_getter->values.DESKTOP_SESSION = "kde";
-  env_getter->values.KDE_HOME = kde_home_.value().c_str();
-  SynchConfigGetter sync_config_getter(new ProxyConfigServiceLinux(env_getter));
-
   // One of the tests below needs a worst-case long line prefix. We build it
   // programmatically so that it will always be the right size.
   std::string long_line;
@@ -1197,6 +1187,13 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%d] %s", i, tests[i].description.c_str()));
+    MockEnvironmentVariableGetter* env_getter =
+        new MockEnvironmentVariableGetter;
+    // Force the KDE getter to be used and tell it where the test is.
+    env_getter->values.DESKTOP_SESSION = "kde";
+    env_getter->values.KDE_HOME = kde_home_.value().c_str();
+    SynchConfigGetter sync_config_getter(
+        new ProxyConfigServiceLinux(env_getter));
     ProxyConfig config;
     // Overwrite the kioslaverc file.
     file_util::WriteFile(kioslaverc_, tests[i].kioslaverc.c_str(),

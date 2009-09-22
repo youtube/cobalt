@@ -33,6 +33,7 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     // files. Defined here so unit tests can construct worst-case inputs.
     static const size_t BUFFER_SIZE = 512;
 
+    GConfSettingGetter() {}
     virtual ~GConfSettingGetter() {}
 
     // Initializes the class: obtains a gconf client, or simulates one, in
@@ -74,6 +75,9 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     // And for a string list.
     virtual bool GetStringList(const char* key,
                                std::vector<std::string>* result) = 0;
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(GConfSettingGetter);
   };
 
   // ProxyConfigServiceLinux is created on the UI thread, and
@@ -117,10 +121,6 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     void SetupAndFetchInitialConfig(MessageLoop* glib_default_loop,
                                     MessageLoop* io_loop,
                                     MessageLoopForIO* file_loop);
-    // Resets cached_config_ and releases the gconf_getter_, making it
-    // possible to call SetupAndFetchInitialConfig() again. Only used
-    // in testing.
-    void Reset();
 
     // Handler for gconf change notifications: fetches a new proxy
     // configuration from gconf settings, and if this config is
@@ -213,9 +213,6 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
                                   MessageLoopForIO* file_loop) {
     delegate_->SetupAndFetchInitialConfig(glib_default_loop, io_loop,
                                           file_loop);
-  }
-  void Reset() {
-    delegate_->Reset();
   }
   void OnCheckProxyConfigSettings() {
     delegate_->OnCheckProxyConfigSettings();
