@@ -1041,12 +1041,6 @@ void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
   }
 }
 
-void ProxyConfigServiceLinux::Delegate::Reset() {
-  DCHECK(!glib_default_loop_ || MessageLoop::current() == glib_default_loop_);
-  gconf_getter_->Shutdown();
-  cached_config_ = ProxyConfig();
-}
-
 int ProxyConfigServiceLinux::Delegate::GetProxyConfig(ProxyConfig* config) {
   // This is called from the IO thread.
   DCHECK(!io_loop_ || MessageLoop::current() == io_loop_);
