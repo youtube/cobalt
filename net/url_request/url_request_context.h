@@ -16,11 +16,11 @@
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
 #include "net/base/ssl_config_service.h"
+#include "net/base/strict_transport_security_state.h"
 #include "net/ftp/ftp_auth_cache.h"
 #include "net/proxy/proxy_service.h"
 
 namespace net {
-class StrictTransportSecurityState;
 class FtpTransactionFactory;
 class HttpTransactionFactory;
 }
@@ -120,7 +120,8 @@ class URLRequestContext :
   net::FtpTransactionFactory* ftp_transaction_factory_;
   scoped_refptr<net::CookieStore> cookie_store_;
   net::CookiePolicy cookie_policy_;
-  net::StrictTransportSecurityState* strict_transport_security_state_;
+  scoped_refptr<net::StrictTransportSecurityState>
+      strict_transport_security_state_;
   net::FtpAuthCache ftp_auth_cache_;
   std::string accept_language_;
   std::string accept_charset_;
