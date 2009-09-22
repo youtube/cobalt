@@ -59,10 +59,10 @@ class ProxyResolver {
   }
 
   // Sets the PAC script backend to use for this proxy resolver (by contents).
-  int SetPacScriptByData(const std::string& bytes,
+  int SetPacScriptByData(const std::string& bytes_utf8,
                          CompletionCallback* callback) {
     DCHECK(expects_pac_bytes());
-    return SetPacScript(GURL(), bytes, callback);
+    return SetPacScript(GURL(), bytes_utf8, callback);
   }
 
   // TODO(eroman): Make this =0.
@@ -72,12 +72,12 @@ class ProxyResolver {
 
  private:
   // Called to set the PAC script backend to use. If |pac_url| is invalid,
-  // this is a request to use WPAD (auto detect). |bytes| may be empty if the
-  // fetch failed, or if the fetch returned no content.
+  // this is a request to use WPAD (auto detect). |bytes_utf8| may be empty if
+  // the fetch failed, or if the fetch returned no content.
   // Returns ERR_IO_PENDING in the case of asynchronous completion, and notifies
   // the result through |callback|.
   virtual int SetPacScript(const GURL& pac_url,
-                           const std::string& bytes,
+                           const std::string& bytes_utf8,
                            CompletionCallback* callback) = 0;
 
   const bool expects_pac_bytes_;

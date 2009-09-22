@@ -62,7 +62,7 @@ class ProxyResolverV8 : public ProxyResolver {
 
   // ProxyResolver implementation:
   virtual int SetPacScript(const GURL& /*pac_url*/,
-                           const std::string& bytes,
+                           const std::string& bytes_utf8,
                            CompletionCallback* /*callback*/);
   scoped_ptr<Context> context_;
 
