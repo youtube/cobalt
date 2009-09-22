@@ -54,6 +54,11 @@
 #define USE_X11 1
 #endif
 
+// Use tcmalloc
+#if defined(OS_WIN) && ! defined(NO_TCMALLOC)
+#define USE_TCMALLOC 1
+#endif
+
 // Compiler detection.
 #if defined(__GNUC__)
 #define COMPILER_GCC 1
