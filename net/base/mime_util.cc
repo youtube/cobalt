@@ -226,6 +226,7 @@ static const char* const supported_non_image_types[] = {
   // So, by including "text/css" into this list we choose Firefox
   // behavior - css files will be displayed:
   "text/css",
+  "text/vnd.chromium.ftp-dir",
   "text/",
   "image/svg+xml",  // SVG is text-based XML, even though it has an image/ type
   "application/xml",
