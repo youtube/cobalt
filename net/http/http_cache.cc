@@ -192,10 +192,7 @@ class HttpCache::Transaction
             network_read_callback_(this, &Transaction::OnNetworkReadCompleted)),
         ALLOW_THIS_IN_INITIALIZER_LIST(
             cache_read_callback_(new CancelableCompletionCallback<Transaction>(
-                this, &Transaction::OnCacheReadCompleted))),
-        ALLOW_THIS_IN_INITIALIZER_LIST(
-            cache_write_callback_(new CancelableCompletionCallback<Transaction>(
-                this, &Transaction::OnCacheWriteCompleted))) {
+                this, &Transaction::OnCacheReadCompleted))) {
   }
 
   // Clean up the transaction.
@@ -336,18 +333,15 @@ class HttpCache::Transaction
 
   // Called to write data to the cache entry.  If the write fails, then the
   // cache entry is destroyed.  Future calls to this function will just do
-  // nothing without side-effect.  Returns a network error code.
-  int WriteToEntry(int index, int offset, IOBuffer* data, int data_len,
-                   CompletionCallback* callback);
+  // nothing without side-effect.
+  void WriteToEntry(int index, int offset, IOBuffer* data, int data_len);
 
   // Called to write response_ to the cache entry. |truncated| indicates if the
   // entry should be marked as incomplete.
   void WriteResponseInfoToEntry(bool truncated);
 
-  // Called to append response data to the cache entry.  Returns a network error
-  // code.
-  int AppendResponseDataToEntry(IOBuffer* data, int data_len,
-                                CompletionCallback* callback);
+  // Called to append response data to the cache entry.
+  void AppendResponseDataToEntry(IOBuffer* data, int data_len);
 
   // Called to truncate response content in the entry.
   void TruncateResponseData();
@@ -373,9 +367,6 @@ class HttpCache::Transaction
   // working with range requests.
   int DoPartialCacheReadCompleted(int result);
 
-  // Performs the needed work after writing data to the cache.
-  int DoCacheWriteCompleted(int result);
-
   // Called to signal completion of the network transaction's Start method:
   void OnNetworkInfoAvailable(int result);
 
@@ -384,9 +375,6 @@ class HttpCache::Transaction
 
   // Called to signal completion of the cache's ReadData method:
   void OnCacheReadCompleted(int result);
-
-  // Called to signal completion of the cache's WriteData method:
-  void OnCacheWriteCompleted(int result);
 
   scoped_refptr<LoadLog> load_log_;
   const HttpRequestInfo* request_;
@@ -416,8 +404,6 @@ class HttpCache::Transaction
   CompletionCallbackImpl<Transaction> network_read_callback_;
   scoped_refptr<CancelableCompletionCallback<Transaction> >
       cache_read_callback_;
-  scoped_refptr<CancelableCompletionCallback<Transaction> >
-      cache_write_callback_;
 };
 
 HttpCache::Transaction::~Transaction() {
@@ -436,10 +422,9 @@ HttpCache::Transaction::~Transaction() {
   // If there is an outstanding callback, mark it as cancelled so running it
   // does nothing.
   cache_read_callback_->Cancel();
-  cache_write_callback_->Cancel();
 
-  // We could still have a cache read or write in progress, so we just null the
-  // cache_ pointer to signal that we are dead.  See DoCacheReadCompleted.
+  // We could still have a cache read in progress, so we just null the cache_
+  // pointer to signal that we are dead.  See OnCacheReadCompleted.
   cache_ = NULL;
 }
 
@@ -1287,7 +1272,7 @@ int HttpCache::Transaction::ReadFromNetwork(IOBuffer* data, int data_len) {
 int HttpCache::Transaction::ReadFromEntry(IOBuffer* data, int data_len) {
   DCHECK(entry_);
   int rv;
-  cache_read_callback_->AddRef();  // Balanced in OnCacheReadCompleted.
+  cache_read_callback_->AddRef();  // Balanced in DoCacheReadCompleted.
   if (partial_.get()) {
     rv = partial_->CacheRead(entry_->disk_entry, data, data_len,
                             cache_read_callback_);
@@ -1297,12 +1282,11 @@ int HttpCache::Transaction::ReadFromEntry(IOBuffer* data, int data_len) {
   }
   read_buf_ = data;
   read_buf_len_ = data_len;
-  if (rv != ERR_IO_PENDING)
-    cache_read_callback_->Release();
-
-  if (rv >= 0)
+  if (rv >= 0) {
     rv = DoCacheReadCompleted(rv);
-
+  } else if (rv != ERR_IO_PENDING) {
+    cache_read_callback_->Release();
+  }
   return rv;
 }
 
@@ -1317,25 +1301,22 @@ int HttpCache::Transaction::ReadResponseInfoFromEntry() {
   return read_ok ? OK : ERR_CACHE_READ_FAILURE;
 }
 
-int HttpCache::Transaction::WriteToEntry(int index, int offset,
-                                         IOBuffer* data, int data_len,
-                                         CompletionCallback* callback) {
+void HttpCache::Transaction::WriteToEntry(int index, int offset,
+                                          IOBuffer* data, int data_len) {
   if (!entry_)
-    return data_len;
+    return;
 
   int rv = 0;
   if (!partial_.get() || !data_len) {
-    rv = entry_->disk_entry->WriteData(index, offset, data, data_len, callback,
+    rv = entry_->disk_entry->WriteData(index, offset, data, data_len, NULL,
                                        true);
   } else {
-    rv = partial_->CacheWrite(entry_->disk_entry, data, data_len, callback);
+    rv = partial_->CacheWrite(entry_->disk_entry, data, data_len, NULL);
   }
-
-  if (rv >= 0 && rv != data_len) {
+  if (rv != data_len) {
     DLOG(ERROR) << "failed to write response data to cache";
     DoneWritingToEntry(false);
   }
-  return rv;
 }
 
 void HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
@@ -1373,14 +1354,13 @@ void HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
   }
 }
 
-int HttpCache::Transaction::AppendResponseDataToEntry(
-    IOBuffer* data, int data_len, CompletionCallback* callback) {
+void HttpCache::Transaction::AppendResponseDataToEntry(IOBuffer* data,
+                                                       int data_len) {
   if (!entry_ || !data_len)
-    return data_len;
+    return;
 
   int current_size = entry_->disk_entry->GetDataSize(kResponseContentIndex);
-  return WriteToEntry(kResponseContentIndex, current_size, data, data_len,
-                      callback);
+  WriteToEntry(kResponseContentIndex, current_size, data, data_len);
 }
 
 void HttpCache::Transaction::TruncateResponseData() {
@@ -1388,8 +1368,7 @@ void HttpCache::Transaction::TruncateResponseData() {
     return;
 
   // Truncate the stream.
-  int rv = WriteToEntry(kResponseContentIndex, 0, NULL, 0, NULL);
-  DCHECK(rv != ERR_IO_PENDING);
+  WriteToEntry(kResponseContentIndex, 0, NULL, 0);
 }
 
 void HttpCache::Transaction::DoneWritingToEntry(bool success) {
@@ -1419,13 +1398,15 @@ int HttpCache::Transaction::DoNetworkReadCompleted(int result) {
   if (revoked())
     return HandleResult(ERR_UNEXPECTED);
 
-  cache_write_callback_->AddRef();  // Balanced in DoCacheWriteCompleted.
+  AppendResponseDataToEntry(read_buf_, result);
 
-  result = AppendResponseDataToEntry(read_buf_, result, cache_write_callback_);
-  if (result == ERR_IO_PENDING)
-    return result;
+  if (partial_.get())
+    return DoPartialNetworkReadCompleted(result);
 
-  return DoCacheWriteCompleted(result);
+  if (result == 0)  // End of file.
+    DoneWritingToEntry(true);
+
+  return HandleResult(result);
 }
 
 int HttpCache::Transaction::DoPartialNetworkReadCompleted(int result) {
@@ -1447,6 +1428,7 @@ int HttpCache::Transaction::DoPartialNetworkReadCompleted(int result) {
 
 int HttpCache::Transaction::DoCacheReadCompleted(int result) {
   DCHECK(cache_);
+  cache_read_callback_->Release();  // Balance the AddRef() from Start().
 
   if (revoked())
     return HandleResult(ERR_UNEXPECTED);
@@ -1478,25 +1460,6 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
     cache_->DoneReadingFromEntry(entry_, this);
     entry_ = NULL;
   }
-  return HandleResult(result);
-}
-
-int HttpCache::Transaction::DoCacheWriteCompleted(int result) {
-  DCHECK(cache_);
-  // Balance the AddRef from DoNetworkReadCompleted.
-  cache_write_callback_->Release();
-  if (revoked())
-    return HandleResult(ERR_UNEXPECTED);
-
-  if (result < 0)
-    return HandleResult(result);
-
-  if (partial_.get())
-    return DoPartialNetworkReadCompleted(result);
-
-  if (result == 0)  // End of file.
-    DoneWritingToEntry(true);
-
   return HandleResult(result);
 }
 
@@ -1614,12 +1577,7 @@ void HttpCache::Transaction::OnNetworkReadCompleted(int result) {
 }
 
 void HttpCache::Transaction::OnCacheReadCompleted(int result) {
-  cache_read_callback_->Release();  // Balance the AddRef from ReadFromEntry.
   DoCacheReadCompleted(result);
-}
-
-void HttpCache::Transaction::OnCacheWriteCompleted(int result) {
-  DoCacheWriteCompleted(result);
 }
 
 //-----------------------------------------------------------------------------
