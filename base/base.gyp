@@ -157,7 +157,6 @@
         'json_writer.h',
         'keyboard_codes.h',
         'keyboard_codes_win.h',
-        'keyboard_codes_posix.h',
         'lazy_instance.cc',
         'lazy_instance.h',
         'leak_tracker.h',
