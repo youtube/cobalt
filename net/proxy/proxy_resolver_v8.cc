@@ -29,7 +29,7 @@ std::string V8StringToStdString(v8::Handle<v8::String> s) {
   return result;
 }
 
-// Convert a std::string to a V8 string.
+// Convert a std::string (UTF8) to a V8 string.
 v8::Local<v8::String> StdStringToV8String(const std::string& s) {
   return v8::String::New(s.data(), s.size());
 }
@@ -104,7 +104,7 @@ class ProxyResolverV8::Context {
     return OK;
   }
 
-  int InitV8(const std::string& pac_data) {
+  int InitV8(const std::string& pac_data_utf8) {
     v8::Locker locked;
     v8::HandleScope scope;
 
@@ -133,8 +133,8 @@ class ProxyResolverV8::Context {
     v8::TryCatch try_catch;
 
     // Compile the script, including the PAC library functions.
-    std::string text_raw = pac_data + PROXY_RESOLVER_SCRIPT;
-    v8::Local<v8::String> text = StdStringToV8String(text_raw);
+    std::string text_raw_utf8 = pac_data_utf8 + PROXY_RESOLVER_SCRIPT;
+    v8::Local<v8::String> text = StdStringToV8String(text_raw_utf8);
     v8::ScriptOrigin origin = v8::ScriptOrigin(
         v8::String::New(kPacResourceName));
     v8::Local<v8::Script> code = v8::Script::Compile(text, &origin);
@@ -284,15 +284,15 @@ void ProxyResolverV8::CancelRequest(RequestHandle request) {
 }
 
 int ProxyResolverV8::SetPacScript(const GURL& /*url*/,
-                                  const std::string& bytes,
+                                  const std::string& bytes_utf8,
                                   CompletionCallback* /*callback*/) {
   context_.reset();
-  if (bytes.empty())
+  if (bytes_utf8.empty())
     return ERR_PAC_SCRIPT_FAILED;
 
   // Try parsing the PAC script.
   scoped_ptr<Context> context(new Context(js_bindings_.get()));
-  int rv = context->InitV8(bytes);
+  int rv = context->InitV8(bytes_utf8);
   if (rv == OK)
     context_.reset(context.release());
   return rv;
