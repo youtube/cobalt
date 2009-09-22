@@ -41,6 +41,14 @@
       # We do want to build Chromium with Breakpad support in certain
       # situations. I.e. for Chrome bot.
       'linux_chromium_breakpad%': 0,
+
+      # By default, Linux does not use views. To turn on views in Linux,
+      # set the variable GYP_DEFINES to "toolkit_views=1", or modify
+      # ~/.gyp/include.gypi .
+      'toolkit_views%': 0,
+
+      # Defaults to a desktop build, overridden via command line/env.
+      'chromeos%': 0,
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -48,6 +56,8 @@
     'branding%': '<(branding)',
     'buildtype%': '<(buildtype)',
     'target_arch%': '<(target_arch)',
+    'toolkit_views%': '<(toolkit_views)',
+    'chromeos%': '<(chromeos)',
 
     # Override chromium_mac_pch and set it to 0 to suppress the use of
     # precompiled headers on the Mac.  Prefix header injection may still be
@@ -118,13 +128,6 @@
     # but that doesn't work as we'd like.
     'msvs_debug_link_incremental%': '2',
 
-    # By default linux does not use views. To turn on views in Linux
-    # set the variable GYP_DEFINES to "toolkit_views=1", or modify
-    # ~/.gyp/include.gypi .
-    'toolkit_views%': 0,
-
-    'chromeos%': 0,
-
     # The system root for cross-compiles. Default: none.
     'sysroot%': '',
 
@@ -135,6 +138,9 @@
 
     # Set this to true to enable SELinux support.
     'selinux%': 0,
+    
+    # Set to select the Title Case versions of strings in GRD files.
+    'use_titlecase_in_grd_files%': 0,
 
     'conditions': [
       ['OS=="linux"', {
@@ -144,9 +150,15 @@
           }, {
             'linux_breakpad%': 0,
           }],
+          ['toolkit_views==0', {
+            # GTK wants Title Case strings
+            'use_titlecase_in_grd_files%': 1,
+          }],
         ],
       }],  # OS=="linux"
       ['OS=="mac"', {
+        # Mac wants Title Case strings
+        'use_titlecase_in_grd_files%': 1,
         'conditions': [
           # mac_product_name is set to the name of the .app bundle as it should
           # appear on disk.  This duplicates data from
