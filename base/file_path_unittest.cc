@@ -485,9 +485,13 @@ TEST_F(FilePathTest, IsParentTest) {
   }
 }
 
-TEST_F(FilePathTest, DISABLED_AppendRelativePathTest) {
+TEST_F(FilePathTest, AppendRelativePathTest) {
   const struct BinaryTestData cases[] = {
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+    { { FPL("/"),             FPL("/foo/bar/baz") },      FPL("foo\\bar\\baz")},
+#else  // FILE_PATH_USES_WIN_SEPARATORS
     { { FPL("/"),             FPL("/foo/bar/baz") },      FPL("foo/bar/baz")},
+#endif  // FILE_PATH_USES_WIN_SEPARATORS
     { { FPL("/foo/bar"),      FPL("/foo/bar/baz") },      FPL("baz")},
     { { FPL("/foo/bar/"),     FPL("/foo/bar/baz") },      FPL("baz")},
     { { FPL("//foo/bar/"),    FPL("//foo/bar/baz") },     FPL("baz")},
@@ -506,8 +510,14 @@ TEST_F(FilePathTest, DISABLED_AppendRelativePathTest) {
     { { FPL("f:/foo/bar"),    FPL("F:/foo/bar/baz") },    FPL("baz")},
     { { FPL("E:/Foo/bar"),    FPL("e:/foo/bar/baz") },    FPL("")},
     { { FPL("f:/foo/bar"),    FPL("F:/foo/Bar/baz") },    FPL("")},
-    { { FPL("c:/"),           FPL("c:/foo/bar/baz") },    FPL("foo/bar/baz")},
-    { { FPL("c:"),            FPL("c:/foo/bar/baz") },    FPL("foo/bar/baz")},
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+    { { FPL("c:/"),           FPL("c:/foo/bar/baz") },    FPL("foo\\bar\\baz")},
+    // TODO(akalin): Figure out how to handle the corner case in the
+    // commented-out test case below.  Appending to an empty path gives
+    // /foo\bar\baz but appending to a nonempty path "blah" gives
+    // blah\foo\bar\baz.
+    // { { FPL("c:"),            FPL("c:/foo/bar/baz") }, FPL("foo\\bar\\baz")},
+#endif  // FILE_PATH_USES_WIN_SEPARATORS
     { { FPL("c:/foo/bar"),    FPL("d:/foo/bar/baz") },    FPL("")},
     { { FPL("c:/foo/bar"),    FPL("D:/foo/bar/baz") },    FPL("")},
     { { FPL("C:/foo/bar"),    FPL("d:/foo/bar/baz") },    FPL("")},
