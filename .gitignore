@@ -1,9 +1,12 @@
 *.mk
 *.ncb
 *.pyc
+*.rules
 *.scons
+*.sln
 *.suo
 *.user
+*.vcproj
 *.xcodeproj
 /Makefile
 /breakpad/src/
@@ -22,6 +25,7 @@
 /chrome/test/data/osdd
 /chrome/test/data/plugin
 /chrome/test/data/workers/LayoutTests
+/chrome/tools/memory
 /chrome/tools/test/reference_build
 /data
 /googleurl
@@ -34,6 +38,7 @@
 /testserver.log
 /third_party/GTM
 /third_party/WebKit
+/third_party/cygwin
 /third_party/ffmpeg/binaries
 /third_party/forge
 /third_party/googlemac
@@ -41,7 +46,10 @@
 /third_party/icu
 /third_party/personalization
 /third_party/pdfsqueeze
+/third_party/platformsdk_win2008_6_1
 /third_party/protobuf2
+/third_party/pthreads-win32
+/third_party/python_24
 /third_party/skia
 /third_party/tcmalloc/tcmalloc
 /third_party/xdg-utils
