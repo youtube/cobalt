@@ -18,6 +18,35 @@ chrome_src = os.path.normpath(os.path.join(script_dir, os.pardir))
 sys.path.append(os.path.join(chrome_src, 'tools', 'gyp', 'pylib'))
 import gyp
 
+def additional_include_files(args=[]):
+  """
+  Returns a list of additional (.gypi) files to include, without
+  duplicating ones that are already specified on the command line.
+  """
+  # Determine the include files specified on the command line.
+  # This doesn't cover all the different option formats you can use,
+  # but it's mainly intended to avoid duplicating flags on the automatic
+  # makefile regeneration which only uses this format.
+  specified_includes = set()
+  for arg in args:
+    if arg.startswith('-I') and len(arg) > 2:
+      specified_includes.add(os.path.realpath(arg[2:]))
+
+  result = []
+  def AddInclude(path):
+    if os.path.realpath(path) not in specified_includes:
+      result.append(path)
+
+  # Always include common.gypi
+  AddInclude(os.path.join(script_dir, 'common.gypi'))
+
+  # Optionally add supplemental .gypi files if present.
+  supplements = glob.glob(os.path.join(chrome_src, '*', 'supplement.gypi'))
+  for supplement in supplements:
+    AddInclude(supplement)
+
+  return result
+
 if __name__ == '__main__':
   args = sys.argv[1:]
 
@@ -40,26 +69,7 @@ if __name__ == '__main__':
     else:
       args.append(os.path.join(script_dir, 'all.gyp'))
 
-  # Avoid duplicating an include that's already in the command line.  This
-  # doesn't cover all the different option formats you can use, but it's mainly
-  # intended to avoid duplicating flags on the automatic makefile regeneration
-  # which only uses this format.
-  specified_includes = set()
-  for arg in args:
-    if arg.startswith('-I') and len(arg) > 2:
-      specified_includes.add(os.path.realpath(arg[2:]))
-
-  def AddInclude(path):
-    if os.path.realpath(path) not in specified_includes:
-      args.append('-I' + path)
-
-  # Always include common.gypi
-  AddInclude(os.path.join(script_dir, 'common.gypi'))
-
-  # Optionally add supplemental .gypi files if present.
-  supplements = glob.glob(os.path.join(chrome_src, '*', 'supplement.gypi'))
-  for supplement in supplements:
-    AddInclude(supplement)
+  args.extend(['-I' + i for i in additional_include_files(args)])
 
   print 'Updating projects from gyp files...'
   sys.stdout.flush()
