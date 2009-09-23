@@ -20,10 +20,8 @@
         'crypto/cssm_init.cc',
         'crypto/cssm_init.h',
         'crypto/rsa_private_key.h',
-        'crypto/rsa_private_key_nss.cc',
         'crypto/rsa_private_key_win.cc',
         'crypto/signature_creator.h',
-        'crypto/signature_creator_nss.cc',
         'crypto/signature_creator_win.cc',
         'crypto/signature_verifier.h',
         'crypto/signature_verifier_mac.cc',
@@ -415,8 +413,6 @@
               ['exclude', '/xdg_mime/'],
             ],
             'sources!': [
-              'crypto/rsa_private_key_nss.cc',
-              'crypto/signature_creator_nss.cc',
               'crypto/signature_verifier_nss.cc',
               'atomicops_internals_x86_gcc.cc',
               'directory_watcher_inotify.cc',
@@ -707,12 +703,7 @@
             'message_pump_glib_unittest.cc',
           ]
         }],
-        ['OS == "mac"', {
-          'sources!': [
-            'crypto/rsa_private_key_unittest.cc',
-            'crypto/signature_creator_unittest.cc',
-          ],
-        }, { # OS != "mac"
+        ['OS != "mac"', {
           'sources!': [
             'mac_util_unittest.cc',
           ],
@@ -729,6 +720,8 @@
           ],
         }, {  # OS != "win"
           'sources!': [
+            'crypto/rsa_private_key_unittest.cc',
+            'crypto/signature_creator_unittest.cc',
             'gfx/native_theme_unittest.cc',
             'object_watcher_unittest.cc',
             'pe_image_unittest.cc',
