@@ -1,59 +1,73 @@
-Instructions for importing a new release of sqlite from sqlite.org.
+Instructions for importing a new release of SQLite from sqlite.org.
 
 First, you need to be on Linux.
 
-Find the release you want at:
-  http://www.sqlite.org/cvstrac/timeline
+# Determine the versions of the release you want and the release we currently
+# have. (See the VERSION file to determine which release we currently have.)
+# You may wish to consult http://www.sqlite.org/changes.html to find out what
+# changes have been made in each release.
+# Set some variables to remember the versions, e.g.:
+BASE=3.6.1
+LATEST=3.6.18
 
-Search for "Milestone", and find the appropriate release.  Click
-through, and snag the "Date" for use in DATE line below.
-Unfortunately, the actual displayed date string on that page will not
-work, you have to make it YYYY/MM/DD.  [TODO(shess) Determine if the
-fact that sqlite.org thinks it's running under UTC is relevant.]
+# Get to the src/third_party directory in your Chromium client:
+cd src/third_party
 
-DATE='2007/01/24 09:54:56'
+# Download the .tar.gz files for the releases:
+# (If the URL changes you might need to find the new one.)
+wget http://www.sqlite.org/sqlite-$BASE.tar.gz
+wget http://www.sqlite.org/sqlite-$LATEST.tar.gz
 
-# Get to the third_party/sqlite directory in your Chromium client.
-cd ../third_party/sqlite
+# Extract the vanilla current and desired versions:
+tar xzf sqlite-$BASE.tar.gz
+tar xzf sqlite-$LATEST.tar.gz
 
-# Run the super awesome automatic merge tool (requires kdiff3).
-# NOTE(shess): The following (which runs google_generate_preprocessed.sh) will
-# produce different output on grhat versus goobuntu; I've been running it on
-# goobuntu.
-./google_update_sqlite.sh "$DATE"
+# Use kdiff3 to merge the changes:
+kdiff3 -m sqlite-$BASE sqlite-$LATEST sqlite
 
 # Resolve any conflicts.  Figure out if we've got everything we should
 # have (see below), or if we can omit any changes we no longer need.
 
+# Change to the sqlite directory:
+cd sqlite
+
+# Run the google_generate_preprocessed.sh script:
+./google_generate_preprocessed.sh
+
 # Find a sucker.  Send review.
 # TODO(shess) Describe an appropriate comment style.  Seems like it
-# should include the DATE line, and the sqlite version number.
-
-
---------------------------------------------
-
-Why all this convolution?  The problem being solved is that we want to
-harvest changes from the sqlite CVS tree, and merge them with any
-local changes we make.  In CVS, you would do this using a "vendor
-import", which is essentially a branch dedictated to the vendor
-version which is merged with local changes.
-
-third_party/sqlite_vendor/... is the CVS checkout for a particular
-build from sqlite.org.  third_party/sqlite_google/... is the local
-version, with our local modifications.  So we update the sqlite_vendor
-tree, then use subversion to downintegrate changes into our
-locally-modified tree.  The downintegrate will call out any
-conflicting changes, but will otherwise just merge things together.
-Basically, sqlite_vendor is a gateway between CVS and subversion.
-
-Scott Hess <shess@google.com>, April 9, 2007.
-[Updated September 14, 2009.]
+# should at least include the SQLite version number.
 
 --------------------------------------------
 
-How to run the SQLite tests for the Gears version of SQLite on Linux.
+For reference, all of our local patches are also kept as .patch files in the
+sqlite directory. Here is a list of the patches, in the order they should be
+applied to a vanilla SQLite (of the version we currently have) to get, in
+principle, exactly what is checked in:
 
-cd ../third_party/sqlite_google/
+misc.patch
+preload-cache.patch
+safe-tolower.patch
+sqlite-poison.patch
+
+So, e.g. you could do this to apply all our patches to vanilla SQLite:
+
+cd sqlite-$LATEST
+patch -p0 < ../sqlite/misc.patch
+patch -p0 < ../sqlite/preload-cache.patch
+patch -p0 < ../sqlite/safe-tolower.patch
+patch -p0 < ../sqlite/sqlite-poison.patch
+
+This will only be the case if all changes we make also update the corresponding
+patch files. Therefore please remember to do that whenever you make a change!
+
+Descriptions of the changes we've made can be found at the bottom of this file.
+
+--------------------------------------------
+
+How to run the SQLite tests for the Chromium version of SQLite on Linux.
+
+cd src/third_party/sqlite
 mkdir build
 cd build
 make -f ../Makefile.linux-gcc testfixture
