@@ -68,9 +68,9 @@ class MessagePumpLibevent : public MessagePump {
   };
 
   // Have the current thread's message loop watch for a a situation in which
-  // reading/writing to the FD can be performed without Blocking.
+  // reading/writing to the FD can be performed without blocking.
   // Callers must provide a preallocated FileDescriptorWatcher object which
-  // can later be used to manage the Lifetime of this event.
+  // can later be used to manage the lifetime of this event.
   // If a FileDescriptorWatcher is passed in which is already attached to
   // an event, then the effect is cumulative i.e. after the call |controller|
   // will watch both the previous event and the new one.
