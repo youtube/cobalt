@@ -31,6 +31,7 @@ install_gold() {
     echo Bad sha1sum for $BINUTILS.tar.bz2
     exit 1
   fi
+
   cat > binutils-fix.patch <<__EOF__
 --- binutils-2.19.1/gold/reduced_debug_output.h.orig	2009-05-10 14:44:52.000000000 -0700
 +++ binutils-2.19.1/gold/reduced_debug_output.h	2009-05-10 14:46:51.000000000 -0700
@@ -52,6 +53,63 @@ install_gold() {
      this->failed_ = true;
    }
  
+diff -u -r1.3 -r1.4
+--- binutils-2.19.1/gold/descriptors.h	2009/01/15 01:29:25	1.3
++++ binutils-2.19.1/gold/descriptors.h	2009/02/28 03:05:08	1.4
+@@ -69,6 +69,8 @@
+     bool inuse;
+     // Whether this is a write descriptor.
+     bool is_write;
++    // Whether the descriptor is on the stack.
++    bool is_on_stack;
+   };
+ 
+   bool
+--- binutils-2.19.1/gold/descriptors.cc	2009/01/15 01:29:25	1.3
++++ binutils-2.19.1/gold/descriptors.cc	2009/02/28 03:05:08	1.4
+@@ -75,6 +75,12 @@
+ 	{
+ 	  gold_assert(!pod->inuse);
+ 	  pod->inuse = true;
++	  if (descriptor == this->stack_top_)
++	    {
++	      this->stack_top_ = pod->stack_next;
++	      pod->stack_next = -1;
++	      pod->is_on_stack = false;
++	    }
+ 	  return descriptor;
+ 	}
+     }
+@@ -114,6 +120,7 @@
+ 	  pod->stack_next = -1;
+ 	  pod->inuse = true;
+ 	  pod->is_write = (flags & O_ACCMODE) != O_RDONLY;
++	  pod->is_on_stack = false;
+ 
+ 	  ++this->current_;
+ 	  if (this->current_ >= this->limit_)
+@@ -158,10 +165,11 @@
+   else
+     {
+       pod->inuse = false;
+-      if (!pod->is_write)
++      if (!pod->is_write && !pod->is_on_stack)
+ 	{
+ 	  pod->stack_next = this->stack_top_;
+ 	  this->stack_top_ = descriptor;
++	  pod->is_on_stack = true;
+ 	}
+     }
+ }
+@@ -193,6 +201,8 @@
+ 	    this->stack_top_ = pod->stack_next;
+ 	  else
+ 	    this->open_descriptors_[last].stack_next = pod->stack_next;
++	  pod->stack_next = -1;
++	  pod->is_on_stack = false;
+ 	  return true;
+ 	}
+       last = i;
 __EOF__
 
   tar -xjvf $BINUTILS.tar.bz2
