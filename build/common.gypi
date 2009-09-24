@@ -49,6 +49,11 @@
 
       # Defaults to a desktop build, overridden via command line/env.
       'chromeos%': 0,
+
+      # This variable tells WebCore.gyp and JavaScriptCore.gyp whether they are
+      # are built under a chromium full build (1) or a webkit.org chromium
+      # build (0).
+      'inside_chromium_build%': 1,
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -58,6 +63,7 @@
     'target_arch%': '<(target_arch)',
     'toolkit_views%': '<(toolkit_views)',
     'chromeos%': '<(chromeos)',
+    'inside_chromium_build%': '<(inside_chromium_build)',
 
     # Override chromium_mac_pch and set it to 0 to suppress the use of
     # precompiled headers on the Mac.  Prefix header injection may still be
