@@ -20,6 +20,8 @@ namespace {
 
 // Pseudo-name for the PAC script.
 const char kPacResourceName[] = "proxy-pac-script.js";
+// Pseudo-name for the PAC utility script.
+const char kPacUtilityResourceName[] = "proxy-pac-utility-script.js";
 
 // Convert a V8 String to a std::string.
 std::string V8StringToStdString(v8::Handle<v8::String> s) {
@@ -130,23 +132,18 @@ class ProxyResolverV8::Context {
 
     v8::Context::Scope ctx(v8_context_);
 
-    v8::TryCatch try_catch;
-
-    // Compile the script, including the PAC library functions.
-    std::string text_raw_utf8 = pac_data_utf8 + PROXY_RESOLVER_SCRIPT;
-    v8::Local<v8::String> text = StdStringToV8String(text_raw_utf8);
-    v8::ScriptOrigin origin = v8::ScriptOrigin(
-        v8::String::New(kPacResourceName));
-    v8::Local<v8::Script> code = v8::Script::Compile(text, &origin);
-
-    // Execute.
-    if (!code.IsEmpty())
-      code->Run();
-
-    if (try_catch.HasCaught()) {
-      HandleError(try_catch.Message());
-      return ERR_PAC_SCRIPT_FAILED;
+    // Add the PAC utility functions to the environment.
+    // (This script should never fail, as it is a string literal!)
+    int rv = RunScript(PROXY_RESOLVER_SCRIPT, kPacUtilityResourceName);
+    if (rv != OK) {
+      NOTREACHED();
+      return rv;
     }
+
+    // Add the user's PAC code to the environment.
+    rv = RunScript(pac_data_utf8, kPacResourceName);
+    if (rv != OK)
+      return rv;
 
     // At a minimum, the FindProxyForURL() function must be defined for this
     // to be a legitimiate PAC script.
@@ -177,6 +174,29 @@ class ProxyResolverV8::Context {
     std::string error_message;
     V8ObjectToString(message->Get(), &error_message);
     js_bindings_->OnError(line_number, error_message);
+  }
+
+  // Compiles and runs |script_utf8| in the current V8 context.
+  // Returns OK on success, otherwise an error code.
+  int RunScript(const std::string& script_utf8, const char* script_name) {
+    v8::TryCatch try_catch;
+
+    // Compile the script.
+    v8::Local<v8::String> text = StdStringToV8String(script_utf8);
+    v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New(script_name));
+    v8::Local<v8::Script> code = v8::Script::Compile(text, &origin);
+
+    // Execute.
+    if (!code.IsEmpty())
+      code->Run();
+
+    // Check for errors.
+    if (try_catch.HasCaught()) {
+      HandleError(try_catch.Message());
+      return ERR_PAC_SCRIPT_FAILED;
+    }
+
+    return OK;
   }
 
   // V8 callback for when "alert()" is invoked by the PAC script.
