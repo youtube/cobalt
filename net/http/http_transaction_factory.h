@@ -5,6 +5,8 @@
 #ifndef NET_HTTP_HTTP_TRANSACTION_FACTORY_H__
 #define NET_HTTP_HTTP_TRANSACTION_FACTORY_H__
 
+#include "base/scoped_ptr.h"
+
 namespace net {
 
 class HttpCache;
@@ -15,8 +17,9 @@ class HttpTransactionFactory {
  public:
   virtual ~HttpTransactionFactory() {}
 
-  // Creates a HttpTransaction object.
-  virtual HttpTransaction* CreateTransaction() = 0;
+  // Creates a HttpTransaction object. On success, saves the new
+  // transaction to |*trans| and returns OK.
+  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans) = 0;
 
   // Returns the associated cache if any (may be NULL).
   virtual HttpCache* GetCache() = 0;
