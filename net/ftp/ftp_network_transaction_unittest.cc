@@ -186,6 +186,82 @@ class FtpMockControlSocketDirectoryListing : public FtpMockControlSocket {
   DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketDirectoryListing);
 };
 
+class FtpMockControlSocketVMSDirectoryListing : public FtpMockControlSocket {
+ public:
+  FtpMockControlSocketVMSDirectoryListing() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_SYST:
+        return Verify("SYST\r\n", data, PRE_PWD, "215 VMS\r\n");
+      case PRE_PWD:
+        return Verify("PWD\r\n", data, PRE_TYPE,
+                      "257 \"ANONYMOUS_ROOT:[000000]\"\r\n");
+      case PRE_SIZE:
+        return Verify("SIZE ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_MDTM,
+                      "550 I can only retrieve regular files\r\n");
+      case PRE_MDTM:
+        return Verify("MDTM ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_RETR,
+                      "213 20070221112533\r\n");
+      case PRE_RETR:
+        return Verify("RETR ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_CWD,
+                      "550 Can't download directory\r\n");
+      case PRE_CWD:
+        return Verify("CWD ANONYMOUS_ROOT:[dir]\r\n", data, PRE_LIST,
+                      "200 OK\r\n");
+      case PRE_LIST:
+        return Verify("LIST *.*;0\r\n", data, PRE_QUIT, "200 OK\r\n");
+      default:
+        return FtpMockControlSocket::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketVMSDirectoryListing);
+};
+
+class FtpMockControlSocketVMSDirectoryListingRootDirectory
+    : public FtpMockControlSocket {
+ public:
+  FtpMockControlSocketVMSDirectoryListingRootDirectory() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_SYST:
+        return Verify("SYST\r\n", data, PRE_PWD, "215 VMS\r\n");
+      case PRE_PWD:
+        return Verify("PWD\r\n", data, PRE_TYPE,
+                      "257 \"ANONYMOUS_ROOT:[000000]\"\r\n");
+      case PRE_SIZE:
+        return Verify("SIZE ANONYMOUS_ROOT\r\n", data, PRE_MDTM,
+                      "550 I can only retrieve regular files\r\n");
+      case PRE_MDTM:
+        return Verify("MDTM ANONYMOUS_ROOT\r\n", data, PRE_RETR,
+                      "213 20070221112533\r\n");
+      case PRE_RETR:
+        return Verify("RETR ANONYMOUS_ROOT\r\n", data, PRE_CWD,
+                      "550 Can't download directory\r\n");
+      case PRE_CWD:
+        return Verify("CWD ANONYMOUS_ROOT:[000000]\r\n", data, PRE_LIST,
+                      "200 OK\r\n");
+      case PRE_LIST:
+        return Verify("LIST *.*;0\r\n", data, PRE_QUIT, "200 OK\r\n");
+      default:
+        return FtpMockControlSocket::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(
+      FtpMockControlSocketVMSDirectoryListingRootDirectory);
+};
+
 class FtpMockControlSocketFileDownload : public FtpMockControlSocket {
  public:
   FtpMockControlSocketFileDownload() {
@@ -210,6 +286,38 @@ class FtpMockControlSocketFileDownload : public FtpMockControlSocket {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketFileDownload);
+};
+
+class FtpMockControlSocketVMSFileDownload : public FtpMockControlSocket {
+ public:
+  FtpMockControlSocketVMSFileDownload() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_SYST:
+        return Verify("SYST\r\n", data, PRE_PWD, "215 VMS\r\n");
+      case PRE_PWD:
+        return Verify("PWD\r\n", data, PRE_TYPE,
+                      "257 \"ANONYMOUS_ROOT:[000000]\"\r\n");
+      case PRE_SIZE:
+        return Verify("SIZE ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_MDTM,
+                      "213 18\r\n");
+      case PRE_MDTM:
+        return Verify("MDTM ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_RETR,
+                      "213 20070221112533\r\n");
+      case PRE_RETR:
+        return Verify("RETR ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_QUIT,
+                      "200 OK\r\n");
+      default:
+        return FtpMockControlSocket::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketVMSFileDownload);
 };
 
 class FtpMockControlSocketEscaping : public FtpMockControlSocket {
@@ -491,6 +599,16 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionMultilineWelcomeShort) {
   ExecuteTransaction(&ctrl_socket, "ftp://host", OK);
 }
 
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionVMS) {
+  FtpMockControlSocketVMSDirectoryListing ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host/dir", OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionVMSRootDirectory) {
+  FtpMockControlSocketVMSDirectoryListingRootDirectory ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host", OK);
+}
+
 TEST_F(FtpNetworkTransactionTest, DownloadTransaction) {
   FtpMockControlSocketFileDownload ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
@@ -511,6 +629,11 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionShortReads2) {
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionShortReads5) {
   FtpMockControlSocketFileDownload ctrl_socket;
   ctrl_socket.set_short_read_limit(5);
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionVMS) {
+  FtpMockControlSocketVMSFileDownload ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
 }
 
