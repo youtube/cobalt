@@ -302,8 +302,8 @@ bool URLRequestJob::ReadFilteredData(int *bytes_read) {
       }
       case Filter::FILTER_ERROR: {
         filter_needs_more_output_space_ = false;
-        // TODO(jar): Figure out a better error code.
-        NotifyDone(URLRequestStatus(URLRequestStatus::FAILED, net::ERR_FAILED));
+        NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
+                   net::ERR_CONTENT_DECODING_FAILED));
         rv = false;
         break;
       }
