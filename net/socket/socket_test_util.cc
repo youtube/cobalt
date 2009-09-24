@@ -343,6 +343,15 @@ void ClientSocketPoolTest::SetUp() {
 void ClientSocketPoolTest::TearDown() {
   // The tests often call Reset() on handles at the end which may post
   // DoReleaseSocket() tasks.
+  // Pending tasks created by client_socket_pool_base_unittest.cc are
+  // posted two milliseconds into the future and thus won't become
+  // scheduled until that time.
+  // We wait a few milliseconds to make sure that all such future tasks
+  // are ready to run, before calling RunAllPending(). This will work
+  // correctly even if Sleep() finishes late (and it should never finish
+  // early), as all we have to ensure is that actual wall-time has progressed
+  // past the scheduled starting time of the pending task.
+  PlatformThread::Sleep(10);
   MessageLoop::current()->RunAllPending();
 }
 
