@@ -85,6 +85,15 @@ class FtpNetworkTransaction : public FtpTransaction {
     ERROR_CLASS_PERMANENT_ERROR,
   };
 
+  // Major categories of remote system types, as returned by SYST command.
+  enum SystemType {
+    SYSTEM_TYPE_UNKNOWN,
+    SYSTEM_TYPE_UNIX,
+    SYSTEM_TYPE_WINDOWS,
+    SYSTEM_TYPE_OS2,
+    SYSTEM_TYPE_VMS,
+  };
+
   // Resets the members of the transaction so it can be restarted.
   void ResetStateForRestart();
 
@@ -101,8 +110,9 @@ class FtpNetworkTransaction : public FtpTransaction {
   // code to be in range 100-599.
   static ErrorClass GetErrorClass(int response_code);
 
-  // Returns request path suitable to be included in an FTP command.
-  std::string GetRequestPathForFtpCommand() const;
+  // Returns request path suitable to be included in an FTP command. If the path
+  // will be used as a directory, |is_directory| should be true.
+  std::string GetRequestPathForFtpCommand(bool is_directory) const;
 
   // Runs the state transition loop.
   int DoLoop(int result);
@@ -190,10 +200,16 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   int last_error_;
 
+  SystemType system_type_;
+
   // We get username and password as wstrings in RestartWithAuth, so they are
   // also kept as wstrings here.
   std::wstring username_;
   std::wstring password_;
+
+  // Current directory on the remote server, as returned by last PWD command,
+  // with any trailing slash removed.
+  std::string current_remote_directory_;
 
   bool retr_failed_;
 
