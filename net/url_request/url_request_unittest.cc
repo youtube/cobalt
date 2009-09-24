@@ -62,6 +62,8 @@ class URLRequestTestContext : public URLRequestContext {
           disk_cache::CreateInMemoryCacheBackend(0));
     // In-memory cookie store.
     cookie_store_ = new net::CookieMonster();
+    accept_language_ = "en-us,fr";
+    accept_charset_ = "iso-8859-1,*,utf-8";
   }
 
   virtual ~URLRequestTestContext() {
@@ -2219,3 +2221,52 @@ TEST_F(URLRequestTestFTP, FTPCacheLoginBoxCredentials) {
     EXPECT_EQ(d->bytes_received(), static_cast<int>(file_size));
   }
 }
+
+// Check that default A-L header is sent.
+TEST_F(URLRequestTestHTTP, DefaultAcceptLanguage) {
+  ASSERT_TRUE(NULL != server_.get());
+  TestDelegate d;
+  TestURLRequest req(server_->TestServerPage("echoheader?Accept-Language"), &d);
+  req.set_context(new URLRequestTestContext());
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ(req.context()->accept_language(), d.data_received());
+}
+
+// Check that if request overrides the A-L header, the default is not appended.
+// See http://crbug.com/20894
+TEST_F(URLRequestTestHTTP, OverrideAcceptLanguage) {
+  ASSERT_TRUE(NULL != server_.get());
+  TestDelegate d;
+  TestURLRequest req(server_->TestServerPage("echoheader?Accept-Language"), &d);
+  req.set_context(new URLRequestTestContext());
+  req.SetExtraRequestHeaders("Accept-Language: ru");
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ(std::string("ru"), d.data_received());
+}
+
+// Check that default A-C header is sent.
+TEST_F(URLRequestTestHTTP, DefaultAcceptCharset) {
+  ASSERT_TRUE(NULL != server_.get());
+  TestDelegate d;
+  TestURLRequest req(server_->TestServerPage("echoheader?Accept-Charset"), &d);
+  req.set_context(new URLRequestTestContext());
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ(req.context()->accept_charset(), d.data_received());
+}
+
+// Check that if request overrides the A-C header, the default is not appended.
+// See http://crbug.com/20894
+TEST_F(URLRequestTestHTTP, OverrideAcceptCharset) {
+  ASSERT_TRUE(NULL != server_.get());
+  TestDelegate d;
+  TestURLRequest req(server_->TestServerPage("echoheader?Accept-Charset"), &d);
+  req.set_context(new URLRequestTestContext());
+  req.SetExtraRequestHeaders("Accept-Charset: koi-8r");
+  req.Start();
+  MessageLoop::current()->Run();
+  EXPECT_EQ(std::string("koi-8r"), d.data_received());
+}
+

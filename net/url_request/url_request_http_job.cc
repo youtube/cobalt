@@ -584,6 +584,18 @@ void URLRequestHttpJob::StartTransaction() {
       this, &URLRequestHttpJob::OnStartCompleted, rv));
 }
 
+// Helper. If |*headers| already contains |header_name| do nothing,
+// otherwise add <header_name> ": " <header_value> to the end of the list.
+static void AppendHeaderIfMissing(const char* header_name,
+                                  const std::string& header_value,
+                                  std::string* headers) {
+  if (header_value.empty())
+    return;
+  if (net::HttpUtil::HasHeader(*headers, header_name))
+    return;
+  *headers += std::string(header_name) + ": " + header_value + "\r\n";
+}
+
 void URLRequestHttpJob::AddExtraHeaders() {
   // TODO(jar): Consider optimizing away SDCH advertising bytes when the URL is
   // probably an img or such (and SDCH encoding is not likely).
@@ -640,12 +652,15 @@ void URLRequestHttpJob::AddExtraHeaders() {
   if (context) {
     if (context->AllowSendingCookies(request_))
       request_info_.extra_headers += AssembleRequestCookies();
-    if (!context->accept_language().empty())
-      request_info_.extra_headers += "Accept-Language: " +
-          context->accept_language() + "\r\n";
-    if (!context->accept_charset().empty())
-      request_info_.extra_headers += "Accept-Charset: " +
-          context->accept_charset() + "\r\n";
+
+    // Only add default Accept-Language and Accept-Charset if the request
+    // didn't have them specified.
+    AppendHeaderIfMissing("Accept-Language",
+                          context->accept_language(),
+                          &request_info_.extra_headers);
+    AppendHeaderIfMissing("Accept-Charset",
+                          context->accept_charset(),
+                          &request_info_.extra_headers);
   }
 }
 
