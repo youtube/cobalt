@@ -96,6 +96,9 @@ As of Sep 15, 2009, these are our changes from sqlite_vendor:
    safe-tolower.patch
    http://crbug.com/15261
    http://www.sqlite.org/src/tktview/991789d9f3136a0460dc83a33e815c1aa9757c26
+ - Check that the third argument to memset() is nonzero in expr.c to avoid
+   a linker warning when the compiler can optimize it to a constant zero
+   (e.g. see http://www.sqlite.org/cvstrac/tktview?tn=3765,39)
 
 Changes from Chrome:
  - I marked all changes I made with "evanm", so you can find them with
