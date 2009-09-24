@@ -13,6 +13,7 @@
 #include "net/base/net_util.h"
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
+#include "net/ftp/ftp_util.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
 
@@ -60,6 +61,7 @@ FtpNetworkTransaction::FtpNetworkTransaction(
       file_data_len_(0),
       write_command_buf_written_(0),
       last_error_(OK),
+      system_type_(SYSTEM_TYPE_UNKNOWN),
       retr_failed_(false),
       data_connection_port_(0),
       socket_factory_(socket_factory),
@@ -323,13 +325,28 @@ void FtpNetworkTransaction::OnIOComplete(int result) {
     DoCallback(rv);
 }
 
-std::string FtpNetworkTransaction::GetRequestPathForFtpCommand() const {
-  std::string path = (request_->url.has_path() ? request_->url.path() : "/");
+std::string FtpNetworkTransaction::GetRequestPathForFtpCommand(
+    bool is_directory) const {
+  std::string path(current_remote_directory_);
+  if (request_->url.has_path())
+    path.append(request_->url.path());
+  // Make sure that if the path is expected to be a file, it won't end
+  // with a trailing slash.
+  if (!is_directory && path.length() > 1 && path[path.length() - 1] == '/')
+    path.erase(path.length() - 1);
   UnescapeRule::Type unescape_rules = UnescapeRule::SPACES |
                                       UnescapeRule::URL_SPECIAL_CHARS;
   // This may unescape to non-ASCII characters, but we allow that. See the
   // comment for IsValidFTPCommandString.
   path = UnescapeURLComponent(path, unescape_rules);
+
+  if (system_type_ == SYSTEM_TYPE_VMS) {
+    if (is_directory)
+      path = FtpUtil::UnixDirectoryPathToVMS(path);
+    else
+      path = FtpUtil::UnixFilePathToVMS(path);
+  }
+
   DCHECK(IsValidFTPCommandString(path));
   return path;
 }
@@ -634,10 +651,32 @@ int FtpNetworkTransaction::ProcessResponseSYST(
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_INVALID_RESPONSE);
-    case ERROR_CLASS_OK:
-      // TODO(ibrar): Process SYST response properly.
+    case ERROR_CLASS_OK: {
+      // All important info should be on the first line.
+      std::string line = response.lines[0];
+      // The response should be ASCII, which allows us to do case-insensitive
+      // comparisons easily. If it is not ASCII, we leave the system type
+      // as unknown.
+      if (IsStringASCII(line)) {
+        line = StringToLowerASCII(line);
+        // The "magic" strings we test for below have been gathered by an
+        // empirical study.
+        if (line.find("l8") != std::string::npos ||
+            line.find("unix") != std::string::npos ||
+            line.find("bsd") != std::string::npos) {
+          system_type_ = SYSTEM_TYPE_UNIX;
+        } else if (line.find("win32") != std::string::npos ||
+                   line.find("windows") != std::string::npos) {
+          system_type_ = SYSTEM_TYPE_WINDOWS;
+        } else if (line.find("os/2") != std::string::npos) {
+          system_type_ = SYSTEM_TYPE_OS2;
+        } else if (line.find("vms") != std::string::npos) {
+          system_type_ = SYSTEM_TYPE_VMS;
+        }
+      }
       next_state_ = STATE_CTRL_WRITE_PWD;
       break;
+    }
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
@@ -664,9 +703,27 @@ int FtpNetworkTransaction::ProcessResponsePWD(const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_INVALID_RESPONSE);
-    case ERROR_CLASS_OK:
+    case ERROR_CLASS_OK: {
+      // The info we look for should be on the first line.
+      std::string line = response.lines[0];
+      if (line.empty())
+        return Stop(ERR_INVALID_RESPONSE);
+      std::string::size_type quote_pos = line.find('"');
+      if (quote_pos != std::string::npos) {
+        line = line.substr(quote_pos + 1);
+        quote_pos = line.find('"');
+        if (quote_pos == std::string::npos)
+          return Stop(ERR_INVALID_RESPONSE);
+        line = line.substr(0, quote_pos);
+      }
+      if (system_type_ == SYSTEM_TYPE_VMS)
+        line = FtpUtil::VMSPathToUnix(line);
+      if (line[line.length() - 1] == '/')
+        line.erase(line.length() - 1);
+      current_remote_directory_ = line;
       next_state_ = STATE_CTRL_WRITE_TYPE;
       break;
+    }
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
@@ -800,7 +857,7 @@ int FtpNetworkTransaction::ProcessResponsePASV(
 
 // SIZE command
 int FtpNetworkTransaction::DoCtrlWriteSIZE() {
-  std::string command = "SIZE " + GetRequestPathForFtpCommand();
+  std::string command = "SIZE " + GetRequestPathForFtpCommand(false);
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_SIZE);
 }
@@ -834,7 +891,7 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
 
 // RETR command
 int FtpNetworkTransaction::DoCtrlWriteRETR() {
-  std::string command = "RETR " + GetRequestPathForFtpCommand();
+  std::string command = "RETR " + GetRequestPathForFtpCommand(false);
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_RETR);
 }
@@ -881,7 +938,7 @@ int FtpNetworkTransaction::ProcessResponseRETR(
 
 // MDMT command
 int FtpNetworkTransaction::DoCtrlWriteMDTM() {
-  std::string command = "MDTM " + GetRequestPathForFtpCommand();
+  std::string command = "MDTM " + GetRequestPathForFtpCommand(false);
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_MDTM);
 }
@@ -911,7 +968,7 @@ int FtpNetworkTransaction::ProcessResponseMDTM(
 
 // CWD command
 int FtpNetworkTransaction::DoCtrlWriteCWD() {
-  std::string command = "CWD " + GetRequestPathForFtpCommand();
+  std::string command = "CWD " + GetRequestPathForFtpCommand(true);
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_CWD);
 }
@@ -945,7 +1002,7 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
 
 // LIST command
 int FtpNetworkTransaction::DoCtrlWriteLIST() {
-  std::string command = "LIST";
+  std::string command(system_type_ == SYSTEM_TYPE_VMS ? "LIST *.*;0" : "LIST");
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_LIST);
 }
