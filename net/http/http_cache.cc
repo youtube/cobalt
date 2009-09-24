@@ -1044,11 +1044,12 @@ int HttpCache::Transaction::BeginNetworkRequest() {
   DCHECK(mode_ & WRITE || mode_ == NONE);
   DCHECK(!network_trans_.get());
 
-  network_trans_.reset(cache_->network_layer_->CreateTransaction());
-  if (!network_trans_.get())
-    return net::ERR_CACHE_CANNOT_CREATE_NETWORK_TRANSACTION;
+  // Create a network transaction.
+  int rv = cache_->network_layer_->CreateTransaction(&network_trans_);
+  if (rv != OK)
+    return rv;
 
-  int rv = network_trans_->Start(request_, &network_info_callback_, load_log_);
+  rv = network_trans_->Start(request_, &network_info_callback_, load_log_);
   if (rv != ERR_IO_PENDING)
     OnNetworkInfoAvailable(rv);
   return rv;
@@ -1656,7 +1657,7 @@ HttpCache::~HttpCache() {
     delete *it;
 }
 
-HttpTransaction* HttpCache::CreateTransaction() {
+int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   // Do lazy initialization of disk cache if needed.
   if (!disk_cache_.get()) {
     DCHECK_GE(cache_size_, 0);
@@ -1671,7 +1672,8 @@ HttpTransaction* HttpCache::CreateTransaction() {
       disk_cache_dir_.clear();  // Reclaim memory.
     }
   }
-  return new HttpCache::Transaction(this, enable_range_support_);
+  trans->reset(new HttpCache::Transaction(this, enable_range_support_));
+  return OK;
 }
 
 HttpCache* HttpCache::GetCache() {

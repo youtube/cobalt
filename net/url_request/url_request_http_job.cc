@@ -564,21 +564,18 @@ void URLRequestHttpJob::StartTransaction() {
   DCHECK(request_->context());
   DCHECK(request_->context()->http_transaction_factory());
 
-  transaction_.reset(
-      request_->context()->http_transaction_factory()->CreateTransaction());
-
   // No matter what, we want to report our status as IO pending since we will
   // be notifying our consumer asynchronously via OnStartCompleted.
   SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
 
-  int rv;
-  if (transaction_.get()) {
+  int rv = request_->context()->http_transaction_factory()->CreateTransaction(
+      &transaction_);
+
+  if (rv == net::OK) {
     rv = transaction_->Start(
         &request_info_, &start_callback_, request_->load_log());
     if (rv == net::ERR_IO_PENDING)
       return;
-  } else {
-    rv = net::ERR_FAILED;
   }
 
   // The transaction started synchronously, but we need to notify the
