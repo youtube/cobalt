@@ -71,6 +71,7 @@ class TimeDelta {
   int64 InSeconds() const;
   double InMillisecondsF() const;
   int64 InMilliseconds() const;
+  int64 InMillisecondsRoundedUp() const;
   int64 InMicroseconds() const;
 
   TimeDelta& operator=(TimeDelta other) {
