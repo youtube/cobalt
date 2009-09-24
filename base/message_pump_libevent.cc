@@ -161,24 +161,11 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
     event_mask |= EV_WRITE;
   }
 
-  // |should_delete_event| is true if we're modifying an event that's currently
-  // active in |controller|.
-  // If we're modifying an existing event and there's an error then we need to
-  // tell libevent to clean it up via event_delete() before returning.
-  bool should_delete_event = true;
   scoped_ptr<event> evt(controller->ReleaseEvent());
   if (evt.get() == NULL) {
-    should_delete_event = false;
     // Ownership is transferred to the controller.
     evt.reset(new event);
   } else {
-    // It's illegal to use this function to listen on 2 separate fds with the
-    // same |controller|.
-    if (EVENT_FD(evt.get()) != fd) {
-      NOTREACHED() << "FDs don't match" << EVENT_FD(evt.get()) << "!=" << fd;
-      return false;
-    }
-
     // Make sure we don't pick up any funky internal libevent masks.
     int old_interest_mask = evt.get()->ev_events &
         (EV_READ | EV_WRITE | EV_PERSIST);
@@ -188,25 +175,25 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
 
     // Must disarm the event before we can reuse it.
     event_del(evt.get());
+
+    // It's illegal to use this function to listen on 2 separate fds with the
+    // same |controller|.
+    if (EVENT_FD(evt.get()) != fd) {
+      NOTREACHED() << "FDs don't match" << EVENT_FD(evt.get()) << "!=" << fd;
+      return false;
+    }
   }
 
   // Set current interest mask and message pump for this event.
-  event_set(evt.get(), fd, event_mask, OnLibeventNotification,
-            delegate);
+  event_set(evt.get(), fd, event_mask, OnLibeventNotification, delegate);
 
   // Tell libevent which message pump this socket will belong to when we add it.
   if (event_base_set(event_base_, evt.get()) != 0) {
-    if (should_delete_event) {
-      event_del(evt.get());
-    }
     return false;
   }
 
   // Add this socket to the list of monitored sockets.
   if (event_add(evt.get(), NULL) != 0) {
-    if (should_delete_event) {
-      event_del(evt.get());
-    }
     return false;
   }
 
