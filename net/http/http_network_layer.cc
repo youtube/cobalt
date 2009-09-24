@@ -59,11 +59,12 @@ HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
 HttpNetworkLayer::~HttpNetworkLayer() {
 }
 
-HttpTransaction* HttpNetworkLayer::CreateTransaction() {
+int HttpNetworkLayer::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   if (suspended_)
-    return NULL;
+    return ERR_NETWORK_IO_SUSPENDED;
 
-  return new HttpNetworkTransaction(GetSession(), socket_factory_);
+  trans->reset(new HttpNetworkTransaction(GetSession(), socket_factory_));
+  return OK;
 }
 
 HttpCache* HttpNetworkLayer::GetCache() {
