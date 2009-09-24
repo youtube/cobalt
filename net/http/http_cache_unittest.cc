@@ -394,10 +394,12 @@ void RunTransactionTestWithRequestAndLog(net::HttpCache* cache,
 
   // write to the cache
 
-  scoped_ptr<net::HttpTransaction> trans(cache->CreateTransaction());
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = cache->CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
   ASSERT_TRUE(trans.get());
 
-  int rv = trans->Start(&request, &callback, load_log);
+  rv = trans->Start(&request, &callback, load_log);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::OK, rv);
@@ -651,8 +653,9 @@ struct Response {
 TEST(HttpCache, CreateThenDestroy) {
   MockHttpCache cache;
 
-  scoped_ptr<net::HttpTransaction> trans(
-      cache.http_cache()->CreateTransaction());
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = cache.http_cache()->CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
   ASSERT_TRUE(trans.get());
 }
 
@@ -775,11 +778,12 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Miss) {
   MockHttpRequest request(transaction);
   TestCompletionCallback callback;
 
-  scoped_ptr<net::HttpTransaction> trans(
-      cache.http_cache()->CreateTransaction());
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = cache.http_cache()->CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
   ASSERT_TRUE(trans.get());
 
-  int rv = trans->Start(&request, &callback, NULL);
+  rv = trans->Start(&request, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::ERR_CACHE_MISS, rv);
@@ -918,8 +922,7 @@ struct Context {
   TestCompletionCallback callback;
   scoped_ptr<net::HttpTransaction> trans;
 
-  explicit Context(net::HttpTransaction* t)
-      : result(net::ERR_IO_PENDING), trans(t) {
+  Context() : result(net::ERR_IO_PENDING) {
   }
 };
 
@@ -932,13 +935,13 @@ TEST(HttpCache, SimpleGET_ManyReaders) {
   const int kNumTransactions = 5;
 
   for (int i = 0; i < kNumTransactions; ++i) {
-    context_list.push_back(
-        new Context(cache.http_cache()->CreateTransaction()));
-
+    context_list.push_back(new Context());
     Context* c = context_list[i];
-    int rv = c->trans->Start(&request, &c->callback, NULL);
-    if (rv != net::ERR_IO_PENDING)
-      c->result = rv;
+
+    c->result = cache.http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(net::OK, c->result);
+
+    c->result = c->trans->Start(&request, &c->callback, NULL);
   }
 
   // the first request should be a writer at this point, and the subsequent
@@ -982,17 +985,17 @@ TEST(HttpCache, SimpleGET_RacingReaders) {
   const int kNumTransactions = 5;
 
   for (int i = 0; i < kNumTransactions; ++i) {
-    context_list.push_back(
-        new Context(cache.http_cache()->CreateTransaction()));
-
+    context_list.push_back(new Context());
     Context* c = context_list[i];
+
+    c->result = cache.http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(net::OK, c->result);
+
     MockHttpRequest* this_request = &request;
     if (i == 1 || i == 2)
       this_request = &reader_request;
 
-    int rv = c->trans->Start(this_request, &c->callback, NULL);
-    if (rv != net::ERR_IO_PENDING)
-      c->result = rv;
+    c->result = c->trans->Start(this_request, &c->callback, NULL);
   }
 
   // The first request should be a writer at this point, and the subsequent
@@ -1058,13 +1061,13 @@ TEST(HttpCache, FastNoStoreGET_DoneWithPending) {
   const int kNumTransactions = 3;
 
   for (int i = 0; i < kNumTransactions; ++i) {
-    context_list.push_back(
-        new Context(cache.http_cache()->CreateTransaction()));
-
+    context_list.push_back(new Context());
     Context* c = context_list[i];
-    int rv = c->trans->Start(&request, &c->callback, NULL);
-    if (rv != net::ERR_IO_PENDING)
-      c->result = rv;
+
+    c->result = cache.http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(net::OK, c->result);
+
+    c->result = c->trans->Start(&request, &c->callback, NULL);
   }
 
   // The first request should be a writer at this point, and the subsequent
@@ -1101,13 +1104,13 @@ TEST(HttpCache, SimpleGET_ManyWriters_CancelFirst) {
   const int kNumTransactions = 2;
 
   for (int i = 0; i < kNumTransactions; ++i) {
-    context_list.push_back(
-        new Context(cache.http_cache()->CreateTransaction()));
-
+    context_list.push_back(new Context());
     Context* c = context_list[i];
-    int rv = c->trans->Start(&request, &c->callback, NULL);
-    if (rv != net::ERR_IO_PENDING)
-      c->result = rv;
+
+    c->result = cache.http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(net::OK, c->result);
+
+    c->result = c->trans->Start(&request, &c->callback, NULL);
   }
 
   // the first request should be a writer at this point, and the subsequent
@@ -1155,9 +1158,10 @@ TEST(HttpCache, SimpleGET_AbandonedCacheRead) {
   MockHttpRequest request(kSimpleGET_Transaction);
   TestCompletionCallback callback;
 
-  scoped_ptr<net::HttpTransaction> trans(
-      cache.http_cache()->CreateTransaction());
-  int rv = trans->Start(&request, &callback, NULL);
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = cache.http_cache()->CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
+  rv = trans->Start(&request, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::OK, rv);
@@ -1668,11 +1672,12 @@ TEST(HttpCache, SimplePOST_LoadOnlyFromCache_Miss) {
   MockHttpRequest request(transaction);
   TestCompletionCallback callback;
 
-  scoped_ptr<net::HttpTransaction> trans(
-      cache.http_cache()->CreateTransaction());
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = cache.http_cache()->CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
   ASSERT_TRUE(trans.get());
 
-  int rv = trans->Start(&request, &callback, NULL);
+  rv = trans->Start(&request, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::ERR_CACHE_MISS, rv);
@@ -2306,9 +2311,11 @@ TEST(HttpCache, RangeGET_Cancel) {
 
   MockHttpRequest request(kRangeGET_TransactionOK);
 
-  Context* c =  new Context(cache.http_cache()->CreateTransaction());
+  Context* c = new Context();
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
 
-  int rv = c->trans->Start(&request, &c->callback, NULL);
+  rv = c->trans->Start(&request, &c->callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = c->callback.WaitForResult();
 
@@ -2354,8 +2361,9 @@ TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
   MockHttpRequest request(transaction);
   TestCompletionCallback callback;
 
-  scoped_ptr<net::HttpTransaction> trans(
-      cache.http_cache()->CreateTransaction());
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = cache.http_cache()->CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
   ASSERT_TRUE(trans.get());
 
   int rv = trans->Start(&request, &callback, NULL);
@@ -2406,9 +2414,11 @@ TEST(HttpCache, DoomOnDestruction) {
 
   MockHttpRequest request(kSimpleGET_Transaction);
 
-  Context* c =  new Context(cache.http_cache()->CreateTransaction());
+  Context* c = new Context();
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
 
-  int rv = c->trans->Start(&request, &c->callback, NULL);
+  rv = c->trans->Start(&request, &c->callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     c->result = c->callback.WaitForResult();
 
@@ -2434,9 +2444,11 @@ TEST(HttpCache, Set_Truncated_Flag) {
 
   MockHttpRequest request(kSimpleGET_Transaction);
 
-  Context* c =  new Context(cache.http_cache()->CreateTransaction());
+  Context* c = new Context();
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
 
-  int rv = c->trans->Start(&request, &c->callback, NULL);
+  rv = c->trans->Start(&request, &c->callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = c->callback.WaitForResult();
 
@@ -2593,11 +2605,12 @@ TEST(HttpCache, CachedRedirect) {
 
   // write to the cache
   {
-    scoped_ptr<net::HttpTransaction> trans(
-        cache.http_cache()->CreateTransaction());
+    scoped_ptr<net::HttpTransaction> trans;
+    int rv = cache.http_cache()->CreateTransaction(&trans);
+    EXPECT_EQ(net::OK, rv);
     ASSERT_TRUE(trans.get());
 
-    int rv = trans->Start(&request, &callback, NULL);
+    rv = trans->Start(&request, &callback, NULL);
     if (rv == net::ERR_IO_PENDING)
       rv = callback.WaitForResult();
     ASSERT_EQ(net::OK, rv);
@@ -2620,11 +2633,12 @@ TEST(HttpCache, CachedRedirect) {
 
   // read from the cache
   {
-    scoped_ptr<net::HttpTransaction> trans(
-        cache.http_cache()->CreateTransaction());
+    scoped_ptr<net::HttpTransaction> trans;
+    int rv = cache.http_cache()->CreateTransaction(&trans);
+    EXPECT_EQ(net::OK, rv);
     ASSERT_TRUE(trans.get());
 
-    int rv = trans->Start(&request, &callback, NULL);
+    rv = trans->Start(&request, &callback, NULL);
     if (rv == net::ERR_IO_PENDING)
       rv = callback.WaitForResult();
     ASSERT_EQ(net::OK, rv);
@@ -2747,11 +2761,12 @@ TEST(HttpCache, SimpleGET_SSLError) {
   MockHttpRequest request(transaction);
   TestCompletionCallback callback;
 
-  scoped_ptr<net::HttpTransaction> trans(
-      cache.http_cache()->CreateTransaction());
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = cache.http_cache()->CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
   ASSERT_TRUE(trans.get());
 
-  int rv = trans->Start(&request, &callback, NULL);
+  rv = trans->Start(&request, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::ERR_CACHE_MISS, rv);
@@ -2761,9 +2776,12 @@ TEST(HttpCache, SimpleGET_SSLError) {
 TEST(HttpCache, OutlivedTransactions) {
   MockHttpCache* cache = new MockHttpCache;
 
-  net::HttpTransaction* trans = cache->http_cache()->CreateTransaction();
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = cache->http_cache()->CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
+
   delete cache;
-  delete trans;
+  trans.reset();
 }
 
 // Test that the disabled mode works.

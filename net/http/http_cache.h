@@ -93,7 +93,7 @@ class HttpCache : public HttpTransactionFactory {
   disk_cache::Backend* disk_cache() { return disk_cache_.get(); }
 
   // HttpTransactionFactory implementation:
-  virtual HttpTransaction* CreateTransaction();
+  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
   virtual HttpCache* GetCache();
   virtual void Suspend(bool suspend);
 

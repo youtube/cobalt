@@ -19,7 +19,10 @@ TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
       NULL, new net::MockHostResolver, net::ProxyService::CreateNull(),
       new net::SSLConfigServiceDefaults);
 
-  scoped_ptr<net::HttpTransaction> trans(factory.CreateTransaction());
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = factory.CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
+  EXPECT_TRUE(trans.get() != NULL);
 }
 
 TEST_F(HttpNetworkLayerTest, Suspend) {
@@ -27,17 +30,23 @@ TEST_F(HttpNetworkLayerTest, Suspend) {
       NULL, new net::MockHostResolver, net::ProxyService::CreateNull(),
       new net::SSLConfigServiceDefaults);
 
-  scoped_ptr<net::HttpTransaction> trans(factory.CreateTransaction());
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = factory.CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
+
   trans.reset();
 
   factory.Suspend(true);
 
-  trans.reset(factory.CreateTransaction());
+  rv = factory.CreateTransaction(&trans);
+  EXPECT_EQ(net::ERR_NETWORK_IO_SUSPENDED, rv);
+
   ASSERT_TRUE(trans == NULL);
 
   factory.Suspend(false);
 
-  trans.reset(factory.CreateTransaction());
+  rv = factory.CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
 }
 
 TEST_F(HttpNetworkLayerTest, GET) {
@@ -62,7 +71,9 @@ TEST_F(HttpNetworkLayerTest, GET) {
 
   TestCompletionCallback callback;
 
-  scoped_ptr<net::HttpTransaction> trans(factory.CreateTransaction());
+  scoped_ptr<net::HttpTransaction> trans;
+  int rv = factory.CreateTransaction(&trans);
+  EXPECT_EQ(net::OK, rv);
 
   net::HttpRequestInfo request_info;
   request_info.url = GURL("http://www.google.com/");
@@ -70,7 +81,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
   request_info.user_agent = "Foo/1.0";
   request_info.load_flags = net::LOAD_NORMAL;
 
-  int rv = trans->Start(&request_info, &callback, NULL);
+  rv = trans->Start(&request_info, &callback, NULL);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::OK, rv);

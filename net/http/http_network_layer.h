@@ -45,7 +45,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   static HttpTransactionFactory* CreateFactory(HttpNetworkSession* session);
 
   // HttpTransactionFactory methods:
-  virtual HttpTransaction* CreateTransaction();
+  virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
   virtual HttpCache* GetCache();
   virtual void Suspend(bool suspend);
 

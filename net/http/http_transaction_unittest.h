@@ -104,8 +104,10 @@ class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
  public:
   explicit TestTransactionConsumer(net::HttpTransactionFactory* factory)
       : state_(IDLE),
-        trans_(factory->CreateTransaction()),
+        trans_(NULL),
         error_(net::OK) {
+    // Disregard the error code.
+    factory->CreateTransaction(&trans_);
     ++quit_counter_;
   }
 
@@ -310,9 +312,10 @@ class MockNetworkLayer : public net::HttpTransactionFactory {
   MockNetworkLayer() : transaction_count_(0) {
   }
 
-  virtual net::HttpTransaction* CreateTransaction() {
+  virtual int CreateTransaction(scoped_ptr<net::HttpTransaction>* trans) {
     transaction_count_++;
-    return new MockNetworkTransaction();
+    trans->reset(new MockNetworkTransaction());
+    return net::OK;
   }
 
   virtual net::HttpCache* GetCache() {
