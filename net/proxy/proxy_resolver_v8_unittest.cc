@@ -420,11 +420,11 @@ TEST(ProxyResolverV8Test, LoadLog) {
                     LoadLog::PHASE_END);
 }
 
-// Try loading a PAC script which ends with a trailing comment (no terminal
-// newline). This should not cause problems with the PAC utility functions
-// that we add to the script.
+// Try loading a PAC script that ends with a comment and has no terminal
+// newline. This should not cause problems with the PAC utility functions
+// that we add to the script's environment.
 // http://crbug.com/22864
-TEST(ProxyResolverV8Test, TrailingComment) {
+TEST(ProxyResolverV8Test, EndsWithCommentNoNewline) {
   ProxyResolverV8WithMockBindings resolver;
   int result = resolver.SetPacScriptFromDisk("ends_with_comment.js");
   EXPECT_EQ(OK, result);
@@ -436,6 +436,25 @@ TEST(ProxyResolverV8Test, TrailingComment) {
   EXPECT_EQ(OK, result);
   EXPECT_FALSE(proxy_info.is_direct());
   EXPECT_EQ("success:80", proxy_info.proxy_server().ToURI());
+}
+
+// Try loading a PAC script that ends with a statement and has no terminal
+// newline. This should not cause problems with the PAC utility functions
+// that we add to the script's environment.
+// http://crbug.com/22864
+TEST(ProxyResolverV8Test, EndsWithStatementNoNewline) {
+  ProxyResolverV8WithMockBindings resolver;
+  int result = resolver.SetPacScriptFromDisk(
+      "ends_with_statement_no_semicolon.js");
+  EXPECT_EQ(OK, result);
+
+  ProxyInfo proxy_info;
+  scoped_refptr<LoadLog> log(new LoadLog);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, log);
+
+  EXPECT_EQ(OK, result);
+  EXPECT_FALSE(proxy_info.is_direct());
+  EXPECT_EQ("success:3", proxy_info.proxy_server().ToURI());
 }
 
 }  // namespace
