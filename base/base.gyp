@@ -157,8 +157,11 @@
         'json_reader.h',
         'json_writer.cc',
         'json_writer.h',
+	'keyboard_code_conversion_gtk.cc',
+	'keyboard_code_conversion_gtk.h',
         'keyboard_codes.h',
         'keyboard_codes_win.h',
+        'keyboard_codes_posix.h',
         'lazy_instance.cc',
         'lazy_instance.h',
         'leak_tracker.h',
@@ -459,7 +462,7 @@
           },
         ],
         [ 'OS == "mac"', {
-            'sources/': [ ['exclude', '_(linux|win|chromeos)\\.cc$'] ],
+            'sources/': [ ['exclude', '_(linux|gtk|win|chromeos)\\.cc$'] ],
             'sources!': [
             ],
             'link_settings': {
@@ -483,7 +486,7 @@
             'include_dirs': [
               '../chrome/third_party/wtl/include',
             ],
-            'sources/': [ ['exclude', '_(linux|mac|posix|chromeos)\\.cc$'],
+            'sources/': [ ['exclude', '_(linux|gtk|mac|posix|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
             'sources': [
               'window_impl.cc',
