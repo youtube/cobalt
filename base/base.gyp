@@ -244,8 +244,6 @@
         'registry.h',
         'resource_util.cc',
         'resource_util.h',
-        'revocable_store.cc',
-        'revocable_store.h',
         'scoped_bstr_win.cc',
         'scoped_bstr_win.h',
         'scoped_cftyperef.h',

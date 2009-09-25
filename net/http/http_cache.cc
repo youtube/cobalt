@@ -168,13 +168,11 @@ HttpCache::ActiveEntry::~ActiveEntry() {
 
 //-----------------------------------------------------------------------------
 
-class HttpCache::Transaction
-    : public HttpTransaction, public RevocableStore::Revocable {
+class HttpCache::Transaction : public HttpTransaction {
  public:
   Transaction(HttpCache* cache, bool enable_range_support)
-      : RevocableStore::Revocable(&cache->transactions_),
-        request_(NULL),
-        cache_(cache),
+      : request_(NULL),
+        cache_(cache->AsWeakPtr()),
         entry_(NULL),
         network_trans_(NULL),
         callback_(NULL),
@@ -382,7 +380,7 @@ class HttpCache::Transaction
   // If extra_headers specified a "if-modified-since" or "if-none-match",
   // |external_validation_| contains the value of that header.
   ValidationHeader external_validation_;
-  HttpCache* cache_;
+  base::WeakPtr<HttpCache> cache_;
   HttpCache::ActiveEntry* entry_;
   scoped_ptr<HttpTransaction> network_trans_;
   CompletionCallback* callback_;  // Consumer's callback.
@@ -407,7 +405,7 @@ class HttpCache::Transaction
 };
 
 HttpCache::Transaction::~Transaction() {
-  if (!revoked()) {
+  if (cache_) {
     if (entry_) {
       bool cancel_request = reading_ && enable_range_support_;
       if (cancel_request && !partial_.get())
@@ -425,7 +423,7 @@ HttpCache::Transaction::~Transaction() {
 
   // We could still have a cache read in progress, so we just null the cache_
   // pointer to signal that we are dead.  See OnCacheReadCompleted.
-  cache_ = NULL;
+  cache_.reset();
 }
 
 int HttpCache::Transaction::Start(const HttpRequestInfo* request,
@@ -437,7 +435,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
   // ensure that we only have one asynchronous call at a time.
   DCHECK(!callback_);
 
-  if (revoked())
+  if (!cache_)
     return ERR_UNEXPECTED;
 
   SetRequest(load_log, request);
@@ -493,7 +491,7 @@ int HttpCache::Transaction::RestartIgnoringLastError(
   // ensure that we only have one asynchronous call at a time.
   DCHECK(!callback_);
 
-  if (revoked())
+  if (!cache_)
     return ERR_UNEXPECTED;
 
   int rv = RestartNetworkRequest();
@@ -512,7 +510,7 @@ int HttpCache::Transaction::RestartWithCertificate(
   // ensure that we only have one asynchronous call at a time.
   DCHECK(!callback_);
 
-  if (revoked())
+  if (!cache_)
     return ERR_UNEXPECTED;
 
   int rv = RestartNetworkRequestWithCertificate(client_cert);
@@ -533,7 +531,7 @@ int HttpCache::Transaction::RestartWithAuth(
   // Ensure that we only have one asynchronous call at a time.
   DCHECK(!callback_);
 
-  if (revoked())
+  if (!cache_)
     return ERR_UNEXPECTED;
 
   // Clear the intermediate response since we are going to start over.
@@ -561,7 +559,7 @@ int HttpCache::Transaction::Read(IOBuffer* buf, int buf_len,
 
   DCHECK(!callback_);
 
-  if (revoked())
+  if (!cache_)
     return ERR_UNEXPECTED;
 
   // If we have an intermediate auth response at this point, then it means the
@@ -629,7 +627,7 @@ uint64 HttpCache::Transaction::GetUploadProgress() const {
 int HttpCache::Transaction::AddToEntry() {
   ActiveEntry* entry = NULL;
 
-  if (revoked())
+  if (!cache_)
     return ERR_UNEXPECTED;
 
   if (mode_ == WRITE) {
@@ -1396,7 +1394,7 @@ void HttpCache::Transaction::DoomPartialEntry(bool delete_object) {
 int HttpCache::Transaction::DoNetworkReadCompleted(int result) {
   DCHECK(mode_ & WRITE || mode_ == NONE);
 
-  if (revoked())
+  if (!cache_)
     return HandleResult(ERR_UNEXPECTED);
 
   AppendResponseDataToEntry(read_buf_, result);
@@ -1431,7 +1429,7 @@ int HttpCache::Transaction::DoCacheReadCompleted(int result) {
   DCHECK(cache_);
   cache_read_callback_->Release();  // Balance the AddRef() from Start().
 
-  if (revoked())
+  if (!cache_)
     return HandleResult(ERR_UNEXPECTED);
 
   if (partial_.get())
@@ -1467,7 +1465,7 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
 void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
   DCHECK(result != ERR_IO_PENDING);
 
-  if (revoked()) {
+  if (!cache_) {
     HandleResult(ERR_UNEXPECTED);
     return;
   }
