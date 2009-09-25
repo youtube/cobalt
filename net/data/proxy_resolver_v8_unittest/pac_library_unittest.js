@@ -2,7 +2,7 @@
 // Otherwise it will output "PROXY failure:<num-failures>".
 //
 // This aims to unit-test the PAC library functions, which are
-// exposed in the PAC's execution environment. (Namely, dnsDomainLevels, 
+// exposed in the PAC's execution environment. (Namely, dnsDomainLevels,
 // timeRange, etc.)
 
 function FindProxyForURL(url, host) {
@@ -36,6 +36,7 @@ Tests.testDnsDomainIs = function(t) {
   t.expectTrue(dnsDomainIs("google.com", ".com"));
   t.expectTrue(dnsDomainIs("google.co.uk", ".co.uk"));
   t.expectFalse(dnsDomainIs("google.com", ".co.uk"));
+  t.expectFalse(dnsDomainIs("www.adobe.com", ".ad"));
 };
 
 Tests.testDnsDomainLevels = function(t) {
@@ -49,7 +50,7 @@ Tests.testIsInNet = function(t) {
       isInNet("192.89.132.25", "192.89.132.25", "255.255.255.255"));
   t.expectFalse(
       isInNet("193.89.132.25", "192.89.132.25", "255.255.255.255"));
- 
+
   t.expectTrue(isInNet("192.89.132.25", "192.89.0.0", "255.255.0.0"));
   t.expectFalse(isInNet("193.89.132.25", "192.89.0.0", "255.255.0.0"));
 
