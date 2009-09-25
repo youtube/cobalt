@@ -2126,7 +2126,7 @@ TEST_F(URLRequestTestFTP, FTPCheckWrongUserRestart) {
   }
 }
 
-TEST_F(URLRequestTestFTP, FTPCacheURLCredentials) {
+TEST_F(URLRequestTestFTP, DISABLED_FTPCacheURLCredentials) {
   ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
@@ -2269,4 +2269,3 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptCharset) {
   MessageLoop::current()->Run();
   EXPECT_EQ(std::string("koi-8r"), d.data_received());
 }
-
