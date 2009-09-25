@@ -21,6 +21,7 @@
 #include "base/hash_tables.h"
 #include "base/scoped_ptr.h"
 #include "base/task.h"
+#include "base/weak_ptr.h"
 #include "net/base/cache_type.h"
 #include "net/http/http_transaction_factory.h"
 
@@ -38,7 +39,8 @@ class HttpResponseInfo;
 class ProxyService;
 class SSLConfigService;
 
-class HttpCache : public HttpTransactionFactory {
+class HttpCache : public HttpTransactionFactory,
+                  public base::SupportsWeakPtr<HttpCache> {
  public:
   ~HttpCache();
 
@@ -205,8 +207,6 @@ class HttpCache : public HttpTransactionFactory {
 
   typedef base::hash_map<std::string, int> PlaybackCacheMap;
   scoped_ptr<PlaybackCacheMap> playback_cache_map_;
-
-  RevocableStore transactions_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpCache);
 };
