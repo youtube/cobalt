@@ -134,5 +134,56 @@
         },
       ],  # targets
     }], # OS="mac"
+    ['OS=="win"', {
+      'targets': [
+        # These targets are here so the build bots can use them to build
+        # subsets of a full tree for faster cycle times.
+        {
+          'target_name': 'chromium_builder',
+          'type': 'none',
+          'dependencies': [
+            '../app/app.gyp:app_unittests',
+            '../chrome/chrome.gyp:browser_tests',
+            '../chrome/chrome.gyp:interactive_ui_tests',
+            '../chrome/chrome.gyp:memory_test',
+            '../chrome/chrome.gyp:page_cycler_tests',
+            '../chrome/chrome.gyp:plugin_tests',
+            '../chrome/chrome.gyp:startup_tests',
+            '../chrome/chrome.gyp:tab_switching_test',
+            '../chrome/chrome.gyp:ui_tests',
+            '../chrome/chrome.gyp:unit_tests',
+            '../chrome/chrome.gyp:url_fetch_test',
+            '../chrome/installer/installer.gyp:installer_util_unittests',
+            '../chrome/installer/installer.gyp:mini_installer_test',
+            '../courgette/courgette.gyp:courgette_unittests',
+            '../ipc/ipc.gyp:ipc_tests',
+            '../media/media.gyp:media_unittests',
+            '../printing/printing.gyp:printing_unittests',
+          ],
+        },
+        {
+          'target_name': 'purify_builder_ui',
+          'type': 'none',
+          'dependencies': [
+            '../chrome/chrome.gyp:ui_tests',
+          ],
+        },
+        {
+          'target_name': 'purify_builder_unit',
+          'type': 'none',
+          'dependencies': [
+            '../chrome/chrome.gyp:unit_tests',
+          ],
+        },
+        {
+          'target_name': 'purify_builder_webkit',
+          'type': 'none',
+          'dependencies': [
+            '../webkit/tools/test_shell/test_shell.gyp:test_shell_tests',
+            '../webkit/tools/test_shell/test_shell.gyp:test_shell',
+          ],
+        },
+      ],  # targets
+    }], # OS="win"
   ], # conditions
 }
