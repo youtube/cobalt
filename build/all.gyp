@@ -155,10 +155,13 @@
             '../chrome/chrome.gyp:url_fetch_test',
             '../chrome/installer/installer.gyp:installer_util_unittests',
             '../chrome/installer/installer.gyp:mini_installer_test',
+            '../chrome/installer/mini_installer.gyp:mini_installer',
             '../courgette/courgette.gyp:courgette_unittests',
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
             '../printing/printing.gyp:printing_unittests',
+            '../webkit/tools/test_shell/test_shell.gyp:npapi_layout_test_plugin',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
         {
