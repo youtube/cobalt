@@ -155,12 +155,19 @@
             '../chrome/chrome.gyp:url_fetch_test',
             '../chrome/installer/installer.gyp:installer_util_unittests',
             '../chrome/installer/installer.gyp:mini_installer_test',
+            # mini_installer_tests depends on mini_installer. This should be
+            # defined in installer.gyp.
             '../chrome/installer/mini_installer.gyp:mini_installer',
             '../courgette/courgette.gyp:courgette_unittests',
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
             '../printing/printing.gyp:printing_unittests',
             '../webkit/tools/test_shell/test_shell.gyp:npapi_layout_test_plugin',
+            # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
+            # This should:
+            # 1) not be the case. OR.
+            # 2) be expressed in the ui tests dependencies.
+            '../webkit/tools/test_shell/test_shell.gyp:test_shell_common',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
