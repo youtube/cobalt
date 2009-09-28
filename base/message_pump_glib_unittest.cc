@@ -185,8 +185,8 @@ class MessagePumpGLibTest : public testing::Test {
 // This lets us call NewRunnableMethod on EventInjector instances.
 template<>
 struct RunnableMethodTraits<EventInjector> {
-  void RetainCallee(EventInjector* obj) { }
-  void ReleaseCallee(EventInjector* obj) { }
+  static void RetainCallee(EventInjector* obj) { }
+  static void ReleaseCallee(EventInjector* obj) { }
 };
 
 TEST_F(MessagePumpGLibTest, TestQuit) {
