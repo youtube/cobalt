@@ -309,11 +309,12 @@ class SynchConfigGetter {
   int get_config_result_;  // Return value from GetProxyConfig().
 };
 
-template <>
-struct RunnableMethodTraits<SynchConfigGetter> {
-  void RetainCallee(SynchConfigGetter*) {}
-  void ReleaseCallee(SynchConfigGetter*) {}
-};
+template<>
+void RunnableMethodTraits<SynchConfigGetter>::RetainCallee(
+    SynchConfigGetter* remover) {}
+template<>
+void RunnableMethodTraits<SynchConfigGetter>::ReleaseCallee(
+    SynchConfigGetter* remover) {}
 
 namespace net {
 
