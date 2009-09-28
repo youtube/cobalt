@@ -114,7 +114,7 @@
     'google_update_appid%': '{8A69D345-D564-463c-AFF1-A69D9E530F96}',
 
     # Whether to add the experimental build define.
-    'experimental_build_define%': 0,
+    'chrome_frame_define%': 0,
 
     # TODO(bradnelson): eliminate this when possible.
     # To allow local gyp files to prevent release.vsprops from being included.
@@ -234,8 +234,8 @@
       }, {  # else: branding!="Chrome"
         'defines': ['CHROMIUM_BUILD'],
       }],
-      ['experimental_build_define', {
-        'defines': ['CHROME_EXP_BUILD'],
+      ['chrome_frame_define', {
+        'defines': ['CHROME_FRAME_BUILD'],
       }],
       ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
