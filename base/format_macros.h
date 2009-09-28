@@ -37,17 +37,9 @@
 
 #else  // OS_WIN
 
-#if !defined(PRId64)
 #define PRId64 "I64d"
-#endif
-
-#if !defined(PRIu64)
 #define PRIu64 "I64u"
-#endif
-
-#if !defined(PRIx64)
 #define PRIx64 "I64x"
-#endif
 
 #define WidePRId64 L"I64d"
 #define WidePRIu64 L"I64u"
