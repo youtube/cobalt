@@ -472,16 +472,16 @@ void Eviction::ReportListStats() {
       rankings_->GetPrev(NULL, Rankings::DELETED));
 
   if (last1.get())
-    CACHE_UMA(AGE, "NoUseAge", header_->experiment,
+    CACHE_UMA(AGE, "NoUseAge", 0,
               Time::FromInternalValue(last1.get()->Data()->last_used));
   if (last2.get())
-    CACHE_UMA(AGE, "LowUseAge", header_->experiment,
+    CACHE_UMA(AGE, "LowUseAge", 0,
               Time::FromInternalValue(last2.get()->Data()->last_used));
   if (last3.get())
-    CACHE_UMA(AGE, "HighUseAge", header_->experiment,
+    CACHE_UMA(AGE, "HighUseAge", 0,
               Time::FromInternalValue(last3.get()->Data()->last_used));
   if (last4.get())
-    CACHE_UMA(AGE, "DeletedAge", header_->experiment,
+    CACHE_UMA(AGE, "DeletedAge", 0,
               Time::FromInternalValue(last4.get()->Data()->last_used));
 }
 

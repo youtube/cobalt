@@ -19,6 +19,7 @@
 namespace disk_cache {
 
 enum BackendFlags {
+  kNone = 0,
   kMask = 1,                    // A mask (for the index table) was specified.
   kMaxSize = 1 << 1,            // A maximum size was provided.
   kUnitTestMode = 1 << 2,       // We are modifying the behavior for testing.
@@ -47,6 +48,12 @@ class BackendImpl : public Backend {
         new_eviction_(false), first_timer_(true),
         ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {}
   ~BackendImpl();
+
+  // Returns a new backend with the desired flags. See the declaration of
+  // CreateCacheBackend().
+  static Backend* CreateBackend(const std::wstring& full_path, bool force,
+                                int max_bytes, net::CacheType type,
+                                BackendFlags flags);
 
   // Performs general initialization for this current instance of the cache.
   bool Init();
