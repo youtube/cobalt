@@ -99,6 +99,7 @@ URLRequestJob* URLRequestJobManager::CreateJob(URLRequest* request) const {
   // If we reached here, then it means that a registered protocol factory
   // wasn't interested in handling the URL.  That is fairly unexpected, and we
   // don't know have a specific error to report here :-(
+  LOG(WARNING) << "Failed to map: " << request->url().spec();
   return new URLRequestErrorJob(request, net::ERR_FAILED);
 }
 
