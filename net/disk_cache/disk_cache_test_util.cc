@@ -83,6 +83,7 @@ bool CheckCacheIntegrity(const std::wstring& path, bool new_eviction) {
     return false;
   if (new_eviction)
     cache->SetNewEviction();
+  cache->SetFlags(disk_cache::kNoRandom);
   if (!cache->Init())
     return false;
   return cache->SelfCheck() >= 0;

@@ -56,17 +56,12 @@ void DiskCacheTestWithCache::InitDiskCache() {
   if (first_cleanup_)
     ASSERT_TRUE(DeleteCache(path.c_str()));
 
-  if (!implementation_) {
-    cache_ = disk_cache::CreateCacheBackend(path, force_creation_, size_,
-                                            net::DISK_CACHE);
-    disk_cache::BackendImpl* impl =
-        static_cast<disk_cache::BackendImpl*>(cache_);
-    if (impl)
-      impl->SetFlags(disk_cache::kNoRandom);
-    return;
-  }
+  if (implementation_)
+    return InitDiskCacheImpl(path);
 
-  InitDiskCacheImpl(path);
+  cache_ = disk_cache::BackendImpl::CreateBackend(path, force_creation_, size_,
+                                                  net::DISK_CACHE,
+                                                  disk_cache::kNoRandom);
 }
 
 void DiskCacheTestWithCache::InitDiskCacheImpl(const std::wstring& path) {
