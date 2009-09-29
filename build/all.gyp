@@ -44,6 +44,11 @@
             '../v8/tools/gyp/v8.gyp:*',
           ],
         }],
+        ['OS=="mac"', {
+          'dependencies': [
+            '../third_party/ocmock/ocmock.gyp:*',
+          ],
+        }],
         ['OS=="linux"', {
           'dependencies': [
             '../breakpad/breakpad.gyp:*',
