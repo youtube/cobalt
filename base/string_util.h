@@ -607,6 +607,10 @@ string16 ReplaceStringPlaceholders(const string16& format_string,
                                    const std::vector<string16>& subst,
                                    std::vector<size_t>* offsets);
 
+std::string ReplaceStringPlaceholders(const std::string& format_string,
+                                      const std::vector<std::string>& subst,
+                                      std::vector<size_t>* offsets);
+
 // Single-string shortcut for ReplaceStringHolders.
 string16 ReplaceStringPlaceholders(const string16& format_string,
                                    const string16& a,

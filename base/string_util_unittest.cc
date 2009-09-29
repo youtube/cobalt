@@ -1652,6 +1652,25 @@ TEST(StringUtilTest, ReplaceStringPlaceholdersTooFew) {
   EXPECT_EQ(formatted, ASCIIToUTF16("9aa,8bb,7cc,d,e,f,9ag,8bh,7ci"));
 }
 
+TEST(StringUtilTest, StdStringReplaceStringPlaceholders) {
+  std::vector<std::string> subst;
+  subst.push_back("9a");
+  subst.push_back("8b");
+  subst.push_back("7c");
+  subst.push_back("6d");
+  subst.push_back("5e");
+  subst.push_back("4f");
+  subst.push_back("3g");
+  subst.push_back("2h");
+  subst.push_back("1i");
+
+  std::string formatted =
+      ReplaceStringPlaceholders(
+          "$1a,$2b,$3c,$4d,$5e,$6f,$7g,$8h,$9i", subst, NULL);
+
+  EXPECT_EQ(formatted, "9aa,8bb,7cc,6dd,5ee,4ff,3gg,2hh,1ii");
+}
+
 TEST(StringUtilTest, SplitStringAlongWhitespace) {
   struct TestData {
     const std::wstring input;
