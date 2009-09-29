@@ -149,6 +149,7 @@
             '../chrome/chrome.gyp:page_cycler_tests',
             '../chrome/chrome.gyp:plugin_tests',
             '../chrome/chrome.gyp:startup_tests',
+            '../chrome/chrome.gyp:sync_unit_tests',
             '../chrome/chrome.gyp:tab_switching_test',
             '../chrome/chrome.gyp:ui_tests',
             '../chrome/chrome.gyp:unit_tests',
