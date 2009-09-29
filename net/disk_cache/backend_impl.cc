@@ -20,9 +20,6 @@
 #include "net/disk_cache/hash.h"
 #include "net/disk_cache/file.h"
 
-// Uncomment this to use the new eviction algorithm.
-// #define USE_NEW_EVICTION
-
 // This has to be defined before including histogram_macros.h from this file.
 #define NET_DISK_CACHE_BACKEND_IMPL_CC_
 #include "net/disk_cache/histogram_macros.h"
@@ -146,27 +143,14 @@ bool InitExperiment(int* current_group) {
     return false;
   }
 
-  if (*current_group <= 5) {
-    // The experiment is currently closed.
-    *current_group = 10;
-  }
-
-  // The current groups should be:
-  // 6 control.
-  // 7 new eviction, upgraded data.
-  // 8 new eviction, from new files.
-  // 9 out. (sort of control for group 8).
-  // 10 out.
-
-  UMA_HISTOGRAM_CACHE_ERROR("DiskCache.Experiment", *current_group);
-
-  // Current experiment already set.
+  // There is no experiment.
+  *current_group = 0;
   return true;
 }
 
 // Initializes the field trial structures to allow performance measurements
 // for the current cache configuration.
-void SetFieldTrialInfo(int experiment_group, int size_group) {
+void SetFieldTrialInfo(int size_group) {
   static bool first = true;
   if (!first)
     return;
@@ -176,13 +160,6 @@ void SetFieldTrialInfo(int experiment_group, int size_group) {
   scoped_refptr<FieldTrial> trial1 = new FieldTrial("CacheSize", 10);
   std::string group1 = StringPrintf("CacheSizeGroup_%d", size_group);
   trial1->AppendGroup(group1, FieldTrial::kAllRemainingProbability);
-
-  if (experiment_group < 6 || experiment_group > 9)
-    return;
-
-  scoped_refptr<FieldTrial> trial2 = new FieldTrial("NewEviction", 10);
-  std::string group2 = StringPrintf("NewEvictionGroup_%d", experiment_group);
-  trial2->AppendGroup(group2, FieldTrial::kAllRemainingProbability);
 }
 
 }  // namespace
@@ -191,40 +168,10 @@ void SetFieldTrialInfo(int experiment_group, int size_group) {
 
 namespace disk_cache {
 
-// If the initialization of the cache fails, and force is true, we will discard
-// the whole cache and create a new one. In order to process a potentially large
-// number of files, we'll rename the cache folder to old_ + original_name +
-// number, (located on the same parent folder), and spawn a worker thread to
-// delete all the files on all the stale cache folders. The whole process can
-// still fail if we are not able to rename the cache folder (for instance due to
-// a sharing violation), and in that case a cache for this profile (on the
-// desired path) cannot be created.
 Backend* CreateCacheBackend(const std::wstring& full_path, bool force,
                             int max_bytes, net::CacheType type) {
-  BackendImpl* cache = new BackendImpl(full_path);
-  cache->SetMaxSize(max_bytes);
-  cache->SetType(type);
-  if (cache->Init())
-    return cache;
-
-  delete cache;
-  if (!force)
-    return NULL;
-
-  if (!DelayedCacheCleanup(full_path))
-    return NULL;
-
-  // The worker thread will start deleting files soon, but the original folder
-  // is not there anymore... let's create a new set of files.
-  cache = new BackendImpl(full_path);
-  cache->SetMaxSize(max_bytes);
-  cache->SetType(type);
-  if (cache->Init())
-    return cache;
-
-  delete cache;
-  LOG(ERROR) << "Unable to create cache";
-  return NULL;
+  // Create a backend without extra flags.
+  return BackendImpl::CreateBackend(full_path, force, max_bytes, type, kNone);
 }
 
 int PreferedCacheSize(int64 available) {
@@ -255,15 +202,51 @@ int PreferedCacheSize(int64 available) {
 
 // ------------------------------------------------------------------------
 
+// If the initialization of the cache fails, and force is true, we will discard
+// the whole cache and create a new one. In order to process a potentially large
+// number of files, we'll rename the cache folder to old_ + original_name +
+// number, (located on the same parent folder), and spawn a worker thread to
+// delete all the files on all the stale cache folders. The whole process can
+// still fail if we are not able to rename the cache folder (for instance due to
+// a sharing violation), and in that case a cache for this profile (on the
+// desired path) cannot be created.
+//
+// Static.
+Backend* BackendImpl::CreateBackend(const std::wstring& full_path, bool force,
+                                    int max_bytes, net::CacheType type,
+                                    BackendFlags flags) {
+  BackendImpl* cache = new BackendImpl(full_path);
+  cache->SetMaxSize(max_bytes);
+  cache->SetType(type);
+  cache->SetFlags(flags);
+  if (cache->Init())
+    return cache;
+
+  delete cache;
+  if (!force)
+    return NULL;
+
+  if (!DelayedCacheCleanup(full_path))
+    return NULL;
+
+  // The worker thread will start deleting files soon, but the original folder
+  // is not there anymore... let's create a new set of files.
+  cache = new BackendImpl(full_path);
+  cache->SetMaxSize(max_bytes);
+  cache->SetType(type);
+  cache->SetFlags(flags);
+  if (cache->Init())
+    return cache;
+
+  delete cache;
+  LOG(ERROR) << "Unable to create cache";
+  return NULL;
+}
+
 bool BackendImpl::Init() {
   DCHECK(!init_);
   if (init_)
     return false;
-
-#ifdef USE_NEW_EVICTION
-  new_eviction_ = true;
-  user_flags_ |= kNewEviction;
-#endif
 
   bool create_files = false;
   if (!InitBackingStore(&create_files)) {
@@ -288,15 +271,13 @@ bool BackendImpl::Init() {
     return false;
   }
 
-  if (!(user_flags_ & disk_cache::kNoRandom) &&
-      cache_type_ == net::DISK_CACHE) {
+  if (!(user_flags_ & disk_cache::kNoRandom)) {
     // The unit test controls directly what to test.
     if (!InitExperiment(&data_->header.experiment))
       return false;
-  }
 
-  if (data_->header.experiment > 6 && data_->header.experiment < 9)
-    new_eviction_ = true;
+    new_eviction_ = (cache_type_ == net::DISK_CACHE);
+  }
 
   if (!CheckIndex()) {
     ReportError(ERR_INIT_FAILED);
@@ -329,9 +310,9 @@ bool BackendImpl::Init() {
   disabled_ = !rankings_.Init(this, new_eviction_);
   eviction_.Init(this);
 
-  // Setup experiment data only for the main cache.
+  // Setup load-time data only for the main cache.
   if (cache_type() == net::DISK_CACHE)
-    SetFieldTrialInfo(data_->header.experiment, GetSizeGroup());
+    SetFieldTrialInfo(GetSizeGroup());
 
   return !disabled_;
 }
@@ -855,13 +836,13 @@ void BackendImpl::FirstEviction() {
   int large_ratio = large_entries_bytes * 100 / data_->header.num_bytes;
   CACHE_UMA(PERCENTAGE, "FirstLargeEntriesRatio", 0, large_ratio);
 
-  if (data_->header.experiment == 8) {
-    CACHE_UMA(PERCENTAGE, "FirstResurrectRatio", 8, stats_.GetResurrectRatio());
-    CACHE_UMA(PERCENTAGE, "FirstNoUseRatio", 8,
+  if (new_eviction_) {
+    CACHE_UMA(PERCENTAGE, "FirstResurrectRatio", 0, stats_.GetResurrectRatio());
+    CACHE_UMA(PERCENTAGE, "FirstNoUseRatio", 0,
               data_->header.lru.sizes[0] * 100 / data_->header.num_entries);
-    CACHE_UMA(PERCENTAGE, "FirstLowUseRatio", 8,
+    CACHE_UMA(PERCENTAGE, "FirstLowUseRatio", 0,
               data_->header.lru.sizes[1] * 100 / data_->header.num_entries);
-    CACHE_UMA(PERCENTAGE, "FirstHighUseRatio", 8,
+    CACHE_UMA(PERCENTAGE, "FirstHighUseRatio", 0,
               data_->header.lru.sizes[2] * 100 / data_->header.num_entries);
   }
 
@@ -1508,29 +1489,27 @@ void BackendImpl::ReportStats() {
     return;
 
   CACHE_UMA(HOURS, "UseTime", 0, static_cast<int>(use_hours));
-  CACHE_UMA(PERCENTAGE, "HitRatio", data_->header.experiment,
-            stats_.GetHitRatio());
+  CACHE_UMA(PERCENTAGE, "HitRatio", 0, stats_.GetHitRatio());
 
   int64 trim_rate = stats_.GetCounter(Stats::TRIM_ENTRY) / use_hours;
   CACHE_UMA(COUNTS, "TrimRate", 0, static_cast<int>(trim_rate));
 
   int avg_size = data_->header.num_bytes / GetEntryCount();
-  CACHE_UMA(COUNTS, "EntrySize", data_->header.experiment, avg_size);
+  CACHE_UMA(COUNTS, "EntrySize", 0, avg_size);
 
   int large_entries_bytes = stats_.GetLargeEntriesSize();
   int large_ratio = large_entries_bytes * 100 / data_->header.num_bytes;
   CACHE_UMA(PERCENTAGE, "LargeEntriesRatio", 0, large_ratio);
 
   if (new_eviction_) {
-    CACHE_UMA(PERCENTAGE, "ResurrectRatio", data_->header.experiment,
-              stats_.GetResurrectRatio());
-    CACHE_UMA(PERCENTAGE, "NoUseRatio", data_->header.experiment,
+    CACHE_UMA(PERCENTAGE, "ResurrectRatio", 0, stats_.GetResurrectRatio());
+    CACHE_UMA(PERCENTAGE, "NoUseRatio", 0,
               data_->header.lru.sizes[0] * 100 / data_->header.num_entries);
-    CACHE_UMA(PERCENTAGE, "LowUseRatio", data_->header.experiment,
+    CACHE_UMA(PERCENTAGE, "LowUseRatio", 0,
               data_->header.lru.sizes[1] * 100 / data_->header.num_entries);
-    CACHE_UMA(PERCENTAGE, "HighUseRatio", data_->header.experiment,
+    CACHE_UMA(PERCENTAGE, "HighUseRatio", 0,
               data_->header.lru.sizes[2] * 100 / data_->header.num_entries);
-    CACHE_UMA(PERCENTAGE, "DeletedRatio", data_->header.experiment,
+    CACHE_UMA(PERCENTAGE, "DeletedRatio", 0,
               data_->header.lru.sizes[4] * 100 / data_->header.num_entries);
   }
 
