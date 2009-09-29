@@ -1310,24 +1310,25 @@ void SplitStringAlongWhitespace(const std::wstring& str,
   }
 }
 
-string16 ReplaceStringPlaceholders(const string16& format_string,
-                                   const std::vector<string16>& subst,
-                                   std::vector<size_t>* offsets) {
+template<class StringType>
+StringType DoReplaceStringPlaceholders(const StringType& format_string,
+                                       const std::vector<StringType>& subst,
+                                       std::vector<size_t>* offsets) {
   int substitutions = subst.size();
   DCHECK(substitutions < 10);
 
   int sub_length = 0;
-  for (std::vector<string16>::const_iterator iter = subst.begin();
+  for (typename std::vector<StringType>::const_iterator iter = subst.begin();
        iter != subst.end();
        ++iter) {
     sub_length += (*iter).length();
   }
 
-  string16 formatted;
+  StringType formatted;
   formatted.reserve(format_string.length() + sub_length);
 
   std::vector<ReplacementOffset> r_offsets;
-  for (string16::const_iterator i = format_string.begin();
+  for (typename StringType::const_iterator i = format_string.begin();
        i != format_string.end(); ++i) {
     if ('$' == *i) {
       if (i + 1 != format_string.end()) {
@@ -1360,6 +1361,18 @@ string16 ReplaceStringPlaceholders(const string16& format_string,
     }
   }
   return formatted;
+}
+
+string16 ReplaceStringPlaceholders(const string16& format_string,
+                                   const std::vector<string16>& subst,
+                                   std::vector<size_t>* offsets) {
+  return DoReplaceStringPlaceholders(format_string, subst, offsets);
+}
+
+std::string ReplaceStringPlaceholders(const std::string& format_string,
+                                      const std::vector<std::string>& subst,
+                                      std::vector<size_t>* offsets) {
+  return DoReplaceStringPlaceholders(format_string, subst, offsets);
 }
 
 string16 ReplaceStringPlaceholders(const string16& format_string,
