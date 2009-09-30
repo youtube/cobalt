@@ -29,7 +29,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
     return &ssl_client_auth_cache_;
   }
 
+  // TCP sockets come from the tcp_socket_pool().
   TCPClientSocketPool* tcp_socket_pool() { return tcp_socket_pool_; }
+  // SSL sockets come frmo the socket_factory().
+  ClientSocketFactory* socket_factory() { return socket_factory_; }
   HostResolver* host_resolver() { return host_resolver_; }
   ProxyService* proxy_service() { return proxy_service_; }
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
@@ -50,6 +53,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   HttpAuthCache auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
   scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
+  ClientSocketFactory* socket_factory_;
   scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;

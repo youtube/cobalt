@@ -63,7 +63,7 @@ int HttpNetworkLayer::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   if (suspended_)
     return ERR_NETWORK_IO_SUSPENDED;
 
-  trans->reset(new HttpNetworkTransaction(GetSession(), socket_factory_));
+  trans->reset(new HttpNetworkTransaction(GetSession()));
   return OK;
 }
 
@@ -86,6 +86,7 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
     // These were just temps for lazy-initializing HttpNetworkSession.
     host_resolver_ = NULL;
     proxy_service_ = NULL;
+    socket_factory_ = NULL;
   }
   return session_;
 }
