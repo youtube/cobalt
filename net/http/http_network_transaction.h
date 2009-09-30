@@ -35,8 +35,7 @@ class UploadDataStream;
 
 class HttpNetworkTransaction : public HttpTransaction {
  public:
-  HttpNetworkTransaction(HttpNetworkSession* session,
-                         ClientSocketFactory* socket_factory);
+  explicit HttpNetworkTransaction(HttpNetworkSession* session);
 
   virtual ~HttpNetworkTransaction();
 
@@ -312,7 +311,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   ProxyService::PacRequest* pac_request_;
   ProxyInfo proxy_info_;
 
-  ClientSocketFactory* socket_factory_;
   ClientSocketHandle connection_;
   scoped_ptr<HttpStream> http_stream_;
   bool reused_socket_;

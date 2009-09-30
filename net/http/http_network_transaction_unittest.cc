@@ -89,9 +89,7 @@ class HttpNetworkTransactionTest : public PlatformTest {
 
     SessionDependencies session_deps;
     scoped_ptr<HttpTransaction> trans(
-        new HttpNetworkTransaction(
-            CreateSession(&session_deps),
-            &session_deps.socket_factory));
+        new HttpNetworkTransaction(CreateSession(&session_deps)));
 
     HttpRequestInfo request;
     request.method = "GET";
@@ -216,9 +214,7 @@ class CaptureGroupNameSocketPool : public TCPClientSocketPool {
 TEST_F(HttpNetworkTransactionTest, Basic) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 }
 
 TEST_F(HttpNetworkTransactionTest, SimpleGET) {
@@ -329,9 +325,7 @@ TEST_F(HttpNetworkTransactionTest, StopsReading204) {
 TEST_F(HttpNetworkTransactionTest, Head) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "HEAD";
@@ -406,8 +400,7 @@ TEST_F(HttpNetworkTransactionTest, ReuseConnection) {
   };
 
   for (int i = 0; i < 2; ++i) {
-    scoped_ptr<HttpTransaction> trans(
-        new HttpNetworkTransaction(session, &session_deps.socket_factory));
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
     HttpRequestInfo request;
     request.method = "GET";
@@ -438,9 +431,7 @@ TEST_F(HttpNetworkTransactionTest, ReuseConnection) {
 TEST_F(HttpNetworkTransactionTest, Ignores100) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -484,9 +475,7 @@ TEST_F(HttpNetworkTransactionTest, Ignores100) {
 TEST_F(HttpNetworkTransactionTest, Ignores1xx) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -557,8 +546,7 @@ void HttpNetworkTransactionTest::KeepAliveConnectionResendRequestTest(
   for (int i = 0; i < 2; ++i) {
     TestCompletionCallback callback;
 
-    scoped_ptr<HttpTransaction> trans(
-        new HttpNetworkTransaction(session, &session_deps.socket_factory));
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
     int rv = trans->Start(&request, &callback, NULL);
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -592,9 +580,7 @@ TEST_F(HttpNetworkTransactionTest, KeepAliveConnectionEOF) {
 TEST_F(HttpNetworkTransactionTest, NonKeepAliveConnectionReset) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -647,9 +633,7 @@ TEST_F(HttpNetworkTransactionTest, NonKeepAliveConnectionEOF) {
 TEST_F(HttpNetworkTransactionTest, BasicAuth) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -732,9 +716,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuth) {
 TEST_F(HttpNetworkTransactionTest, DoNotSendAuth) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -776,9 +758,7 @@ TEST_F(HttpNetworkTransactionTest, DoNotSendAuth) {
 TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -852,9 +832,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
 TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -931,9 +909,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
 TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveLargeBody) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1015,8 +991,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
   SessionDependencies session_deps(CreateFixedProxyService("myproxy:70"));
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      session.get(), &session_deps.socket_factory));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1115,8 +1090,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyCancelTunnel) {
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      session.get(), &session_deps.socket_factory));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1169,8 +1143,7 @@ void HttpNetworkTransactionTest::ConnectStatusHelperWithExpectedStatus(
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      session.get(), &session_deps.socket_factory));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1380,8 +1353,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
 
   // Configure against proxy server "myproxy:70".
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      CreateSession(&session_deps),
-      &session_deps.socket_factory));
+      CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1515,9 +1487,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
                                                          MockGetHostName);
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1638,9 +1608,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
                                                          MockGetHostName);
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1841,9 +1809,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
 TEST_F(HttpNetworkTransactionTest, LargeHeadersNoBody) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1884,8 +1850,7 @@ TEST_F(HttpNetworkTransactionTest, DontRecycleTCPSocketForSSLTunnel) {
 
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      session.get(), &session_deps.socket_factory));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1940,8 +1905,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocket) {
   SessionDependencies session_deps;
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      session.get(), &session_deps.socket_factory));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1997,8 +1961,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocketAfterZeroContentLength) {
   SessionDependencies session_deps;
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
-  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      session.get(), &session_deps.socket_factory));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -2111,7 +2074,7 @@ TEST_F(HttpNetworkTransactionTest, ResendRequestOnWriteBodyError) {
 
   for (int i = 0; i < 2; ++i) {
     scoped_ptr<HttpTransaction> trans(
-        new HttpNetworkTransaction(session, &session_deps.socket_factory));
+        new HttpNetworkTransaction(session));
 
     TestCompletionCallback callback;
 
@@ -2140,9 +2103,7 @@ TEST_F(HttpNetworkTransactionTest, ResendRequestOnWriteBodyError) {
 TEST_F(HttpNetworkTransactionTest, AuthIdentityInURL) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -2222,9 +2183,7 @@ TEST_F(HttpNetworkTransactionTest, AuthIdentityInURL) {
 TEST_F(HttpNetworkTransactionTest, WrongAuthIdentityInURL) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -2336,8 +2295,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
   // Transaction 1: authenticate (foo, bar) on MyRealm1
   {
-    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-        session, &session_deps.socket_factory));
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
     HttpRequestInfo request;
     request.method = "GET";
@@ -2414,8 +2372,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
   // Transaction 2: authenticate (foo2, bar2) on MyRealm2
   {
-    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-        session, &session_deps.socket_factory));
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
     HttpRequestInfo request;
     request.method = "GET";
@@ -2499,8 +2456,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
   // Transaction 3: Resend a request in MyRealm's protection space --
   // succeed with preemptive authorization.
   {
-    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-        session, &session_deps.socket_factory));
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
     HttpRequestInfo request;
     request.method = "GET";
@@ -2546,8 +2502,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
   // Transaction 4: request another URL in MyRealm (however the
   // url is not known to belong to the protection space, so no pre-auth).
   {
-    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-        session, &session_deps.socket_factory));
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
     HttpRequestInfo request;
     request.method = "GET";
@@ -2614,8 +2569,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
   // Transaction 5: request a URL in MyRealm, but the server rejects the
   // cached identity. Should invalidate and re-prompt.
   {
-    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-        session, &session_deps.socket_factory));
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
     HttpRequestInfo request;
     request.method = "GET";
@@ -2721,9 +2675,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   // Create a transaction (the dependencies aren't important).
   SessionDependencies session_deps;
   scoped_ptr<HttpNetworkTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   // Setup some state (which we expect ResetStateForRestart() will clear).
   trans->header_buf_->Realloc(10);
@@ -2779,9 +2731,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
 TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificate) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -2885,9 +2835,7 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaProxy) {
     session_deps.socket_factory.ResetNextMockIndexes();
 
     scoped_ptr<HttpTransaction> trans(
-        new HttpNetworkTransaction(
-            CreateSession(&session_deps),
-            &session_deps.socket_factory));
+        new HttpNetworkTransaction(CreateSession(&session_deps)));
 
     int rv = trans->Start(&request, &callback, NULL);
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -2911,9 +2859,7 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaProxy) {
 TEST_F(HttpNetworkTransactionTest, BuildRequest_UserAgent) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -2950,9 +2896,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_UserAgent) {
 TEST_F(HttpNetworkTransactionTest, BuildRequest_Referer) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -2990,9 +2934,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_Referer) {
 TEST_F(HttpNetworkTransactionTest, BuildRequest_PostContentLengthZero) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "POST";
@@ -3028,9 +2970,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_PostContentLengthZero) {
 TEST_F(HttpNetworkTransactionTest, BuildRequest_PutContentLengthZero) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "PUT";
@@ -3066,9 +3006,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_PutContentLengthZero) {
 TEST_F(HttpNetworkTransactionTest, BuildRequest_HeadContentLengthZero) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "HEAD";
@@ -3104,9 +3042,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_HeadContentLengthZero) {
 TEST_F(HttpNetworkTransactionTest, BuildRequest_CacheControlNoCache) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -3145,9 +3081,7 @@ TEST_F(HttpNetworkTransactionTest,
        BuildRequest_CacheControlValidateCache) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -3184,9 +3118,7 @@ TEST_F(HttpNetworkTransactionTest,
 TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeaders) {
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -3225,9 +3157,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
       CreateFixedProxyService("socks4://myproxy:1080"));
 
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -3277,9 +3207,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_SSL_GET) {
       CreateFixedProxyService("socks4://myproxy:1080"));
 
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -3334,9 +3262,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_HTTP_GET) {
       CreateFixedProxyService("socks5://myproxy:1080"));
 
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -3392,9 +3318,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_SSL_GET) {
       CreateFixedProxyService("socks5://myproxy:1080"));
 
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -3500,10 +3424,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
     scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
     session->tcp_socket_pool_ = conn_pool.get();
 
-    scoped_ptr<HttpTransaction> trans(
-        new HttpNetworkTransaction(
-            session.get(),
-            &session_deps.socket_factory));
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
     HttpRequestInfo request;
     request.method = "GET";
@@ -3526,9 +3447,7 @@ TEST_F(HttpNetworkTransactionTest, ReconsiderProxyAfterFailedConnection) {
   session_deps.host_resolver->rules()->AddSimulatedFailure("*");
 
   scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(
-          CreateSession(&session_deps),
-          &session_deps.socket_factory));
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -3592,7 +3511,7 @@ TEST_F(HttpNetworkTransactionTest, ResolveMadeWithReferrer) {
 
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      CreateSession(&session_deps), &session_deps.socket_factory));
+      CreateSession(&session_deps)));
 
   // Attach an observer to watch the host resolutions being made.
   session_deps.host_resolver->AddObserver(&resolution_observer);
@@ -3630,7 +3549,7 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   session_deps.host_resolver = new MockCachingHostResolver;
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(
-      CreateSession(&session_deps), &session_deps.socket_factory));
+      CreateSession(&session_deps)));
 
   // Warm up the host cache so it has an entry for "www.google.com" (by doing
   // a synchronous lookup.)

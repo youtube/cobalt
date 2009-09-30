@@ -129,8 +129,7 @@ void BuildTunnelRequest(const HttpRequestInfo* request_info,
 
 //-----------------------------------------------------------------------------
 
-HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session,
-                                               ClientSocketFactory* csf)
+HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
     : pending_auth_target_(HttpAuth::AUTH_NONE),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpNetworkTransaction::OnIOComplete)),
@@ -138,7 +137,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session,
       session_(session),
       request_(NULL),
       pac_request_(NULL),
-      socket_factory_(csf),
       reused_socket_(false),
       using_ssl_(false),
       proxy_mode_(kDirectConnection),
@@ -675,7 +673,7 @@ int HttpNetworkTransaction::DoSSLConnect() {
 
   // Add a SSL socket on top of our existing transport socket.
   ClientSocket* s = connection_.release_socket();
-  s = socket_factory_->CreateSSLClientSocket(
+  s = session_->socket_factory()->CreateSSLClientSocket(
       s, request_->url.HostNoBrackets(), ssl_config_);
   connection_.set_socket(s);
   return connection_.socket()->Connect(&io_callback_);
