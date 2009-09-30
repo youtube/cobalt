@@ -147,9 +147,6 @@
         'iat_patch.h',
         'icu_util.cc',
         'icu_util.h',
-        'idle_timer.cc',
-        'idle_timer.h',
-        'idle_timer_none.cc',
         'id_map.h',
         'image_util.cc',
         'image_util.h',
@@ -375,12 +372,6 @@
             },
             'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
-            'sources!': [
-              # Linux has an implementation of idle_timer that depends
-              # on XScreenSaver, but it's unclear if we want it yet,
-              # so use idle_timer_none.cc instead.
-              'idle_timer.cc',
-            ],
             'conditions': [
               [ 'chromeos==1', {
                   'sources/': [ ['include', '_chromeos\\.cc$'] ]
@@ -422,7 +413,6 @@
               'atomicops_internals_x86_gcc.cc',
               'directory_watcher_inotify.cc',
               'hmac_nss.cc',
-              'idle_timer_none.cc',
               'linux_util.cc',
               'message_pump_glib.cc',
               'nss_init.cc',
@@ -618,7 +608,6 @@
         'gmock_unittest.cc',
         'histogram_unittest.cc',
         'hmac_unittest.cc',
-        'idletimer_unittest.cc',
         'id_map_unittest.cc',
         'json_reader_unittest.cc',
         'json_writer_unittest.cc',
@@ -693,9 +682,6 @@
         ['OS == "linux" or OS == "freebsd"', {
           'sources!': [
             'file_version_info_unittest.cc',
-            # Linux has an implementation of idle_timer, but it's unclear
-            # if we want it yet, so leave it 'unported' for now.
-            'idletimer_unittest.cc',
             'worker_pool_linux_unittest.cc',
           ],
           'dependencies': [
