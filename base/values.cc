@@ -628,7 +628,7 @@ void ListValue::Append(Value* in_value) {
 
 bool ListValue::Insert(size_t index, Value* in_value) {
   DCHECK(in_value);
-  if (index < 0 || index > list_.size())
+  if (index > list_.size())
     return false;
 
   list_.insert(list_.begin() + index, in_value);
