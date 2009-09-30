@@ -41,8 +41,9 @@ const size_t URLRequest::InstanceTracker::kMaxGraveyardURLSize = 1000;
 URLRequest::InstanceTracker::~InstanceTracker() {
   base::LeakTracker<URLRequest>::CheckForLeaks();
 
-  // Check in release mode as well, since we have the info.
-  CHECK(0u == GetLiveRequests().size());
+  // Only check in Debug mode, because this is triggered too often.
+  // See http://crbug.com/21199, http://crbug.com/18372
+  DCHECK_EQ(0u, GetLiveRequests().size());
 }
 
 // static
