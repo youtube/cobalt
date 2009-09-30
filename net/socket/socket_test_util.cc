@@ -4,6 +4,8 @@
 
 #include "net/socket/socket_test_util.h"
 
+#include <algorithm>
+
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
@@ -121,7 +123,7 @@ int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
 int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
                                net::CompletionCallback* callback) {
   DCHECK(buf);
-  DCHECK(buf_len > 0);
+  DCHECK_GT(buf_len, 0);
   DCHECK(!callback_);
 
   if (!IsConnected())
@@ -348,7 +350,7 @@ void ClientSocketPoolTest::TearDown() {
 
 int ClientSocketPoolTest::GetOrderOfRequest(size_t index) {
   index--;
-  if (index < 0 || index >= requests_.size())
+  if (index >= requests_.size())
     return kIndexOutOfBounds;
 
   for (size_t i = 0; i < request_order_.size(); i++)
