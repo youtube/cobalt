@@ -2214,6 +2214,9 @@ TEST(HttpCache, RangeGET_Previous200) {
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
+  // The last transaction has finished so make sure the entry is deactivated.
+  MessageLoop::current()->RunAllPending();
+
   // Now we should receive a range from the server and drop the stored entry.
   handler.set_not_modified(false);
   transaction2.request_headers = kRangeGET_TransactionOK.request_headers;
