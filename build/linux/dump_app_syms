@@ -10,19 +10,21 @@
 set -e
 
 usage() {
-  echo "$0 <dump_syms_exe> <binary_with_symbols> <symbols_output>" >&2
+  echo -n "$0 <dump_syms_exe> <strip_binary> " >&2
+  echo "<binary_with_symbols> <symbols_output>" >&2
 }
 
 
-if [ $# -ne 3 ]; then
+if [ $# -ne 4 ]; then
   usage
   exit 1
 fi
 
 SCRIPTDIR="$(readlink -f "$(dirname "$0")")"
 DUMPSYMS="$1"
-INFILE="$2"
-OUTFILE="$3"
+KEEP_STRIPPED_BINARY="$2"
+INFILE="$3"
+OUTFILE="$4"
 
 STRIPPED=$(mktemp -q -t stripped-XXXXX)
 if [ $? -ne 0 ]; then
@@ -38,7 +40,11 @@ fi
 # Strip the binary and calculate the signature of that, since that's what ships.
 strip "$INFILE" -o "$STRIPPED"
 NEWSIG=$("$SCRIPTDIR/dump_signature.py" "$STRIPPED")
-rm "$STRIPPED"
+if [ "$KEEP_STRIPPED_BINARY" != "0" ]; then
+  mv "$STRIPPED" "$INFILE"
+else
+  rm "$STRIPPED"
+fi
 
 # Replace the old signature with the stripped signature in the symbols file.
 sed -i "1s/ [0-9A-F]* / $NEWSIG /" "$OUTFILE"

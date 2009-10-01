@@ -42,7 +42,8 @@
       # situations. I.e. for Chrome bot.
       'linux_chromium_breakpad%': 0,
       # And if we want to dump symbols.
-      'linux_chromium_dump_symbols': 0,
+      'linux_chromium_dump_symbols%': 0,
+      # Also see linux_strip_binary below.
 
       # By default, Linux does not use views. To turn on views in Linux,
       # set the variable GYP_DEFINES to "toolkit_views=1", or modify
@@ -146,6 +147,9 @@
 
     # Set this to true to enable SELinux support.
     'selinux%': 0,
+
+    # Strip the binary after dumping symbols.
+    'linux_strip_binary%': 0,
 
     # Set to select the Title Case versions of strings in GRD files.
     'use_titlecase_in_grd_files%': 0,
