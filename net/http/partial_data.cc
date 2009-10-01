@@ -256,6 +256,9 @@ void PartialData::FixContentLength(HttpResponseHeaders* headers) {
 int PartialData::CacheRead(disk_cache::Entry* entry, IOBuffer* data,
                            int data_len, CompletionCallback* callback) {
   int read_len = std::min(data_len, cached_min_len_);
+  if (!read_len)
+    return 0;
+
   int rv = 0;
   if (sparse_entry_) {
     rv = entry->ReadSparseData(current_range_start_, data, read_len,

@@ -168,7 +168,7 @@ int MemEntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
   if (!InitSparseInfo())
     return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
 
-  if (offset < 0 || buf_len < 0 || !buf_len)
+  if (offset < 0 || buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
 
   // We will keep using this buffer and adjust the offset in this buffer.
