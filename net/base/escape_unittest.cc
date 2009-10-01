@@ -107,10 +107,10 @@ TEST(Escape, EscapePath) {
     "%7B%7C%7D~%7F%80%FF");
 }
 
-TEST(Escape, EscapeUrl) {
+TEST(Escape, EscapeUrlEncodedData) {
   ASSERT_EQ(
     // Most of the character space we care about, un-escaped
-    EscapeUrl(
+    EscapeUrlEncodedData(
       "\x02\n\x1d !\"#$%&'()*+,-./0123456789:;"
       "<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "[\\]^_`abcdefghijklmnopqrstuvwxyz"
