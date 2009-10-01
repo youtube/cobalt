@@ -1,14 +1,18 @@
 Instructions for importing a new release of SQLite from sqlite.org.
 
+Note: our current base version is 3.6.18.
+
 First, you need to be on Linux.
 
 # Determine the versions of the release you want and the release we currently
 # have. (See the VERSION file to determine which release we currently have.)
 # You may wish to consult http://www.sqlite.org/changes.html to find out what
 # changes have been made in each release.
+# Note - this is just an example. Always refer to the version above for our
+# real current version.
 # Set some variables to remember the versions, e.g.:
-BASE=3.6.1
-LATEST=3.6.18
+BASE=3.6.18
+LATEST=3.6.22
 
 # Get to the src/third_party directory in your Chromium client:
 cd src/third_party
@@ -67,16 +71,25 @@ Descriptions of the changes we've made can be found at the bottom of this file.
 
 How to run the SQLite tests for the Chromium version of SQLite on Linux.
 
+Prerequisties: On my corp Ubuntu 8.04 workstation, I needed to install the
+following packages:
+sudo apt-get install tcl8.4-dev libicu-dev
+
 cd src/third_party/sqlite
 mkdir build
 cd build
 make -f ../Makefile.linux-gcc testfixture
 make -f ../Makefile.linux-gcc test > /tmp/test.log
 egrep -v 'Ok$' /tmp/test.log
-# When run on a locally-mounted disk, my output ends with:
+# For an ideal test run, you would see:
 # 0 errors out of 57887 tests
+# However, the current situation on my corp Linux Ubuntu 8.04 machine, with
+# test run on a locally mounted directory, is the failure of:
+# "rollback-2.3", "tkt3457-1.4"
+# I do not know why, but it is not related to our fts2.c changes -- I backed
+# them out to check.
 
-Scott Hess <shess@google.com>, December 11, 2007
+Chris Evans <cevans@google.com>, Oct 1, 2009
 
 --------------------------------------------
 
