@@ -186,6 +186,16 @@ std::string EscapePath(const std::string& path) {
   return Escape(path, kPathCharmap, false);
 }
 
+// non-printable, non-7bit, and (including space) ?>=<;+'&%$#"![\]^`{|}
+static const Charmap kUrlEscape(
+  0xffffffffL, 0xf80008fdL, 0x78000001L, 0xb8000001L,
+  0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL
+);
+
+std::string EscapeUrl(const std::string& path) {
+  return Escape(path, kUrlEscape, true);
+}
+
 // non-7bit
 static const Charmap kNonASCIICharmap(
   0x00000000L, 0x00000000L, 0x00000000L, 0x00000000L,
