@@ -41,6 +41,8 @@
       # We do want to build Chromium with Breakpad support in certain
       # situations. I.e. for Chrome bot.
       'linux_chromium_breakpad%': 0,
+      # And if we want to dump symbols.
+      'linux_chromium_dump_symbols': 0,
 
       # By default, Linux does not use views. To turn on views in Linux,
       # set the variable GYP_DEFINES to "toolkit_views=1", or modify
@@ -144,7 +146,7 @@
 
     # Set this to true to enable SELinux support.
     'selinux%': 0,
-    
+
     # Set to select the Title Case versions of strings in GRD files.
     'use_titlecase_in_grd_files%': 0,
 
@@ -155,6 +157,17 @@
             'linux_breakpad%': 1,
           }, {
             'linux_breakpad%': 0,
+          }],
+          # All Chrome builds have breakpad symbols, but only process the
+          # symbols from official builds.
+          # TODO(mmoss) dump_syms segfaults on x64. Enable once dump_syms and
+          # crash server handle 64-bit symbols.
+          ['linux_chromium_dump_symbols==1 or '
+           '(branding=="Chrome" and buildtype=="Official" and '
+           'target_arch=="ia32")', {
+            'linux_dump_symbols%': 1,
+          }, {
+            'linux_dump_symbols%': 0,
           }],
           ['toolkit_views==0', {
             # GTK wants Title Case strings
