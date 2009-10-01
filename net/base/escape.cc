@@ -192,7 +192,7 @@ static const Charmap kUrlEscape(
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL
 );
 
-std::string EscapeUrl(const std::string& path) {
+std::string EscapeUrlEncodedData(const std::string& path) {
   return Escape(path, kUrlEscape, true);
 }
 
