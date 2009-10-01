@@ -19,6 +19,7 @@
 #include "net/base/escape.h"
 
 struct addrinfo;
+class Clipboard;
 class FilePath;
 class GURL;
 
@@ -238,6 +239,11 @@ std::wstring FormatUrl(const GURL& url,
 inline std::wstring FormatUrl(const GURL& url, const std::wstring& languages) {
   return FormatUrl(url, languages, true, UnescapeRule::SPACES, NULL, NULL);
 }
+
+// Writes a string representation of |url| to the system clipboard.
+void WriteURLToClipboard(const GURL& url,
+                         const std::wstring& languages,
+                         Clipboard *clipboard);
 
 // Strip the portions of |url| that aren't core to the network request.
 //   - user name / password
