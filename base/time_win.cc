@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -104,28 +104,24 @@ class HighResolutionTimerManager : public base::SystemMonitor::PowerObserver {
     if (is_monitoring_)
       return;
     is_monitoring_ = true;
-    base::SystemMonitor* system = base::SystemMonitor::Get();
-    DCHECK(system);
-    system->AddObserver(this);
-    UseHiResClock(!system->BatteryPower());
+    base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
+    system_monitor->AddObserver(this);
+    UseHiResClock(!system_monitor->BatteryPower());
   }
 
   void StopMonitoring() {
     if (!is_monitoring_)
       return;
     is_monitoring_ = false;
-    base::SystemMonitor* monitor = base::SystemMonitor::Get();
-    if (monitor)
-      monitor->RemoveObserver(this);
+    base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
+    if (system_monitor)
+      system_monitor->RemoveObserver(this);
   }
 
   // Interfaces for monitoring Power changes.
-  void OnPowerStateChange(base::SystemMonitor* system) {
-    UseHiResClock(!system->BatteryPower());
+  void OnPowerStateChange(bool on_battery_power) {
+    UseHiResClock(!on_battery_power);
   }
-
-  void OnSuspend(base::SystemMonitor* system) {}
-  void OnResume(base::SystemMonitor* system) {}
 
  private:
   HighResolutionTimerManager()
