@@ -20,6 +20,7 @@
         'crypto/cssm_init.cc',
         'crypto/cssm_init.h',
         'crypto/rsa_private_key.h',
+        'crypto/rsa_private_key_mac.cc',
         'crypto/rsa_private_key_nss.cc',
         'crypto/rsa_private_key_win.cc',
         'crypto/signature_creator.h',
@@ -696,7 +697,6 @@
         }],
         ['OS == "mac"', {
           'sources!': [
-            'crypto/rsa_private_key_unittest.cc',
             'crypto/signature_creator_unittest.cc',
           ],
         }, { # OS != "mac"
