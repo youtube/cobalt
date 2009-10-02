@@ -134,7 +134,8 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self._mime_types = {
       'gif': 'image/gif',
       'jpeg' : 'image/jpeg',
-      'jpg' : 'image/jpeg'
+      'jpg' : 'image/jpeg',
+      'xml' : 'text/xml'
     }
     self._default_mime_type = 'text/html'
 
@@ -586,7 +587,12 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.rfile.read(int(self.headers.getheader('content-length')))
 
     file = self.path[len(prefix):]
-    entries = file.split('/');
+    if file.find('?') > -1:
+      # Ignore the query parameters entirely.
+      url, querystring = file.split('?')
+    else:
+      url = file
+    entries = url.split('/')
     path = os.path.join(self.server.data_dir, *entries)
     if os.path.isdir(path):
       path = os.path.join(path, 'index.html')
