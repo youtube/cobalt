@@ -120,14 +120,13 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
   resource_size_ = 0;
   if (truncated) {
     DCHECK_EQ(headers->response_code(), 200);
-    truncated_ = true;
-    sparse_entry_ = false;
-
     // We don't have the real length and the user may be trying to create a
     // sparse entry so let's not write to this entry.
     if (byte_range_.IsValid())
       return false;
 
+    truncated_ = true;
+    sparse_entry_ = false;
     byte_range_.set_first_byte_position(entry->GetDataSize(kDataStream));
     current_range_start_ = 0;
     return true;

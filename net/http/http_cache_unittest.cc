@@ -2541,6 +2541,50 @@ TEST(HttpCache, GET_IncompleteResource) {
   entry->Close();
 }
 
+// Tests that we can handle range requests when we have a truncated entry.
+TEST(HttpCache, RangeGET_IncompleteResource) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  // Create a disk cache entry that stores an incomplete resource.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url,
+                                              &entry));
+
+  // Content-length will be intentionally bogus.
+  std::string raw_headers("HTTP/1.1 200 OK\n"
+                          "Last-Modified: something\n"
+                          "ETag: \"foo\"\n"
+                          "Accept-Ranges: bytes\n"
+                          "Content-Length: 10\n");
+  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
+                                                  raw_headers.size());
+
+  net::HttpResponseInfo response;
+  response.headers = new net::HttpResponseHeaders(raw_headers);
+  // Set the last argument for this to be an incomplete request.
+  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
+  int len = static_cast<int>(base::strlcpy(buf->data(),
+                                           "rg: 00-09 rg: 10-19 ", 100));
+  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+  entry->Close();
+
+  // Now make a range request.
+  std::string headers;
+  RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
+                                 &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
 TEST(HttpCache, SyncRead) {
   MockHttpCache cache;
 
