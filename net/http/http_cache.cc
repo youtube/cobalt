@@ -969,8 +969,10 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
   if (!partial_->UpdateFromStoredHeaders(response_.headers, entry_->disk_entry,
                                          truncated_)) {
     // The stored data cannot be used. Get rid of it and restart this request.
+    // We need to also reset the |truncated_| flag as a new entry is created.
     DoomPartialEntry(!byte_range_requested);
     mode_ = WRITE;
+    truncated_ = false;
     return AddToEntry();
   }
 
