@@ -144,6 +144,8 @@
         'hmac_mac.cc',
         'hmac_nss.cc',
         'hmac_win.cc',
+        'i18n/string_conversions.cc',
+        'i18n/string_conversions.h',
         'iat_patch.cc',
         'iat_patch.h',
         'icu_util.cc',
