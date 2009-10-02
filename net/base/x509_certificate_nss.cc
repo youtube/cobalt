@@ -156,6 +156,7 @@ int MapCertErrorToCertStatus(int err) {
     case SEC_ERROR_CA_CERT_INVALID:
       return CERT_STATUS_AUTHORITY_INVALID;
     // TODO(port): map CERT_STATUS_NO_REVOCATION_MECHANISM.
+    case SEC_ERROR_OCSP_BAD_HTTP_RESPONSE:
     case SEC_ERROR_OCSP_SERVER_ERROR:
       return CERT_STATUS_UNABLE_TO_CHECK_REVOCATION;
     case SEC_ERROR_REVOKED_CERTIFICATE:
@@ -227,49 +228,29 @@ base::Time PRTimeToBaseTime(PRTime prtime) {
   return base::Time::FromUTCExploded(exploded);
 }
 
-void ParsePrincipal(SECItem* der_name,
+typedef char* (*CERTGetNameFunc)(CERTName* name);
+
+void ParsePrincipal(CERTName* name,
                     X509Certificate::Principal* principal) {
-  CERTName name;
-  PRArenaPool* arena = NULL;
-
-  arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
-  DCHECK(arena != NULL);
-  if (arena == NULL)
-    return;
-
-  // TODO(dkegel): is CERT_NameTemplate what we always want here?
-  SECStatus rv;
-  rv = SEC_QuickDERDecodeItem(arena, &name, CERT_NameTemplate, der_name);
-  DCHECK(rv == SECSuccess);
-  if ( rv != SECSuccess ) {
-    PORT_FreeArena(arena, PR_FALSE);
-    return;
-  }
-
-  std::vector<std::string> common_names, locality_names, state_names,
-      country_names;
-
   // TODO(jcampan): add business_category and serial_number.
+  // TODO(wtc): NSS has the CERT_GetOrgName, CERT_GetOrgUnitName, and
+  // CERT_GetDomainComponentName functions, but they return only the most
+  // general (the first) RDN.  NSS doesn't have a function for the street
+  // address.
   static const SECOidTag kOIDs[] = {
-      SEC_OID_AVA_COMMON_NAME,
-      SEC_OID_AVA_LOCALITY,
-      SEC_OID_AVA_STATE_OR_PROVINCE,
-      SEC_OID_AVA_COUNTRY_NAME,
       SEC_OID_AVA_STREET_ADDRESS,
       SEC_OID_AVA_ORGANIZATION_NAME,
       SEC_OID_AVA_ORGANIZATIONAL_UNIT_NAME,
       SEC_OID_AVA_DC };
 
   std::vector<std::string>* values[] = {
-      &common_names, &locality_names,
-      &state_names, &country_names,
       &principal->street_addresses,
       &principal->organization_names,
       &principal->organization_unit_names,
       &principal->domain_components };
   DCHECK(arraysize(kOIDs) == arraysize(values));
 
-  CERTRDN** rdns = name.rdns;
+  CERTRDN** rdns = name->rdns;
   for (size_t rdn = 0; rdns[rdn]; ++rdn) {
     CERTAVA** avas = rdns[rdn]->avas;
     for (size_t pair = 0; avas[pair] != 0; ++pair) {
@@ -279,6 +260,7 @@ void ParsePrincipal(SECItem* der_name,
           SECItem* decode_item = CERT_DecodeAVAValue(&avas[pair]->value);
           if (!decode_item)
             break;
+          // TODO(wtc): Pass decode_item to CERT_RFC1485_EscapeAndQuote.
           std::string value(reinterpret_cast<char*>(decode_item->data),
                             decode_item->len);
           values[oid]->push_back(value);
@@ -289,18 +271,20 @@ void ParsePrincipal(SECItem* der_name,
     }
   }
 
-  // We don't expect to have more than one CN, L, S, and C.
-  std::vector<std::string>* single_value_lists[4] = {
-      &common_names, &locality_names, &state_names, &country_names };
+  // Get CN, L, S, and C.
+  CERTGetNameFunc get_name_funcs[4] = {
+      CERT_GetCommonName, CERT_GetLocalityName,
+      CERT_GetStateName, CERT_GetCountryName };
   std::string* single_values[4] = {
       &principal->common_name, &principal->locality_name,
       &principal->state_or_province_name, &principal->country_name };
-  for (size_t i = 0; i < arraysize(single_value_lists); ++i) {
-    DCHECK(single_value_lists[i]->size() <= 1);
-    if (single_value_lists[i]->size() > 0)
-      *(single_values[i]) = (*(single_value_lists[i]))[0];
+  for (size_t i = 0; i < arraysize(get_name_funcs); ++i) {
+    char* value = get_name_funcs[i](name);
+    if (value) {
+      single_values[i]->assign(value);
+      PORT_Free(value);
+    }
   }
-  PORT_FreeArena(arena, PR_FALSE);
 }
 
 void ParseDate(SECItem* der_date, base::Time* result) {
@@ -471,8 +455,8 @@ bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
 }  // namespace
 
 void X509Certificate::Initialize() {
-  ParsePrincipal(&cert_handle_->derSubject, &subject_);
-  ParsePrincipal(&cert_handle_->derIssuer, &issuer_);
+  ParsePrincipal(&cert_handle_->subject, &subject_);
+  ParsePrincipal(&cert_handle_->issuer, &issuer_);
 
   ParseDate(&cert_handle_->validity.notBefore, &valid_start_);
   ParseDate(&cert_handle_->validity.notAfter, &valid_expiry_);
