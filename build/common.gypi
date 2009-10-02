@@ -57,6 +57,10 @@
       # are built under a chromium full build (1) or a webkit.org chromium
       # build (0).
       'inside_chromium_build%': 1,
+
+      # Set to 1 to enable fast builds. It disables debug info for fastest
+      # compilation.
+      'fastbuild%': 0,
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -67,6 +71,7 @@
     'toolkit_views%': '<(toolkit_views)',
     'chromeos%': '<(chromeos)',
     'inside_chromium_build%': '<(inside_chromium_build)',
+    'fastbuild%': '<(fastbuild)',
 
     # Override chromium_mac_pch and set it to 0 to suppress the use of
     # precompiled headers on the Mac.  Prefix header injection may still be
@@ -264,6 +269,21 @@
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
       }],
+      ['fastbuild!=0', {
+        'conditions': [
+          # Finally, for Windows, we simply turn on profiling.
+          ['OS=="win"', {
+            'msvs_settings': {
+              'VCLinkerTool': {
+                'GenerateDebugInformation': 'false',
+              },
+              'VCCLCompilerTool': {
+                'DebugInformationFormat': '0',
+              }
+            }
+         }],  # OS==win
+        ],  # conditions for fastbuild.
+      }],  # fastbuild!=0
       ['selinux==1', {
         'defines': ['CHROMIUM_SELINUX=1'],
       }],
