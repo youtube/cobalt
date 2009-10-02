@@ -154,6 +154,10 @@
     # Set to select the Title Case versions of strings in GRD files.
     'use_titlecase_in_grd_files%': 0,
 
+    # Used to disable Native Client at compile time, for platforms where it
+    # isn't supported
+    'disable_nacl%': 0,
+
     'conditions': [
       ['OS=="linux"', {
         'conditions': [
@@ -844,6 +848,13 @@
         # C99 macros on Mac and Linux.
         'defines': [
           '__STDC_FORMAT_MACROS',
+        ],
+      },
+    }],
+    ['disable_nacl==1', {
+      'target_defaults': {
+        'defines': [
+          'DISABLE_NACL',
         ],
       },
     }],
