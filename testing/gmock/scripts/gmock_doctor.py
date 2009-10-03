@@ -1,4 +1,4 @@
-#!/usr/bin/python2.4
+#!/usr/bin/env python
 #
 # Copyright 2008, Google Inc.
 # All rights reserved.
@@ -71,7 +71,6 @@ _COMMON_GMOCK_SYMBOLS = [
     'Not',
     'NotNull',
     'Pointee',
-    'PointeeIsInitializedProto',
     'Property',
     'Ref',
     'ResultOf',

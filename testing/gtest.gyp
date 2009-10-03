@@ -87,6 +87,7 @@
         'target_conditions': [
           ['_type=="executable"', {'test': 1}],
         ],
+        'msvs_disabled_warnings': [4800],
       },
     },
     {
