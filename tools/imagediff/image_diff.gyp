@@ -9,8 +9,8 @@
       'type': 'executable',
       'msvs_guid': '50B079C7-CD01-42D3-B8C4-9F8D9322E822',
       'dependencies': [
+        '../../app/app.gyp:app_base',
         '../../base/base.gyp:base',
-        '../../base/base.gyp:base_gfx',
       ],
       'sources': [
         'image_diff.cc',

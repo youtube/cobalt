@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,11 +13,10 @@
 #include <string>
 #include <iostream>
 
+#include "app/gfx/codec/png_codec.h"
 #include "base/basictypes.h"
 #include "base/command_line.h"
 #include "base/file_util.h"
-#include "base/gfx/png_decoder.h"
-#include "base/gfx/png_encoder.h"
 #include "base/logging.h"
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
@@ -78,8 +77,9 @@ class Image {
     if (fread(source.get(), 1, byte_length, stdin) != byte_length)
       return false;
 
-    if (!PNGDecoder::Decode(source.get(), byte_length, PNGDecoder::FORMAT_RGBA,
-                          &data_, &w_, &h_)) {
+    if (!gfx::PNGCodec::Decode(source.get(), byte_length,
+                               gfx::PNGCodec::FORMAT_RGBA,
+                               &data_, &w_, &h_)) {
       Clear();
       return false;
     }
@@ -103,8 +103,8 @@ class Image {
 
     file_util::CloseFile(f);
 
-    if (!PNGDecoder::Decode(&compressed[0], compressed.size(),
-                          PNGDecoder::FORMAT_RGBA, &data_, &w_, &h_)) {
+    if (!gfx::PNGCodec::Decode(&compressed[0], compressed.size(),
+                               gfx::PNGCodec::FORMAT_RGBA, &data_, &w_, &h_)) {
       Clear();
       return false;
     }
@@ -308,9 +308,9 @@ int DiffImages(const char* file1, const char* file2, const char* out_file) {
     return kStatusSame;
 
   std::vector<unsigned char> png_encoding;
-  PNGEncoder::Encode(diff_image.data(),  PNGEncoder::FORMAT_RGBA,
-                     diff_image.w(), diff_image.h(), diff_image.w() * 4,
-                     false, &png_encoding);
+  gfx::PNGCodec::Encode(diff_image.data(), gfx::PNGCodec::FORMAT_RGBA,
+                        diff_image.w(), diff_image.h(), diff_image.w() * 4,
+                        false, &png_encoding);
   if (file_util::WriteFile(UTF8ToWide(out_file),
       reinterpret_cast<char*>(&png_encoding.front()), png_encoding.size()) < 0)
     return kStatusError;
