@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/base/net_util.h"
+
 #include <algorithm>
 #include <map>
 #include <unicode/ucnv.h>
@@ -24,8 +26,6 @@
 #include <fcntl.h>
 #endif
 
-#include "net/base/net_util.h"
-
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -33,7 +33,6 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
-#include "base/scoped_clipboard_writer.h"
 #include "base/singleton.h"
 #include "base/stl_util-inl.h"
 #include "base/string_escape.h"
@@ -1329,23 +1328,6 @@ std::wstring FormatUrl(const GURL& url,
   }
 
   return url_string;
-}
-
-void WriteURLToClipboard(const GURL& url,
-                         const std::wstring& languages,
-                         Clipboard *clipboard) {
-  if (url.is_empty() || !url.is_valid() || !clipboard)
-    return;
-
-  string16 text =
-      // Unescaping path and query is not a good idea because other
-      // applications may not encode non-ASCII characters in UTF-8.
-      // See crbug.com/2820.
-      WideToUTF16(FormatUrl(url, languages, false, UnescapeRule::NONE, NULL,
-                            NULL));
-
-  ScopedClipboardWriter scw(clipboard);
-  scw.WriteURL(text);
 }
 
 GURL SimplifyUrlForRequest(const GURL& url) {
