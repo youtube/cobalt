@@ -221,6 +221,34 @@ class ImplicitlyConvertible {
 template <typename From, typename To>
 const bool ImplicitlyConvertible<From, To>::value;
 
+// Symbian compilation can be done with wchar_t being either a native
+// type or a typedef.  Using Google Mock with OpenC without wchar_t
+// should require the definition of _STLP_NO_WCHAR_T.
+//
+// MSVC treats wchar_t as a native type usually, but treats it as the
+// same as unsigned short when the compiler option /Zc:wchar_t- is
+// specified.  It defines _NATIVE_WCHAR_T_DEFINED symbol when wchar_t
+// is a native type.
+#if (GTEST_OS_SYMBIAN && defined(_STLP_NO_WCHAR_T)) || \
+    (defined(_MSC_VER) && !defined(_NATIVE_WCHAR_T_DEFINED))
+// wchar_t is a typedef.
+#else
+#define GMOCK_WCHAR_T_IS_NATIVE_ 1
+#endif
+
+// signed wchar_t and unsigned wchar_t are NOT in the C++ standard.
+// Using them is a bad practice and not portable.  So DON'T use them.
+//
+// Still, Google Mock is designed to work even if the user uses signed
+// wchar_t or unsigned wchar_t (obviously, assuming the compiler
+// supports them).
+//
+// To gcc,
+//   wchar_t == signed wchar_t != unsigned wchar_t == unsigned int
+#ifdef __GNUC__
+#define GMOCK_HAS_SIGNED_WCHAR_T_ 1  // signed/unsigned wchar_t are valid types.
+#endif
+
 // In what follows, we use the term "kind" to indicate whether a type
 // is bool, an integer type (excluding bool), a floating-point type,
 // or none of them.  This categorization is useful for determining
@@ -252,10 +280,7 @@ GMOCK_DECLARE_KIND_(unsigned int, kInteger);
 GMOCK_DECLARE_KIND_(long, kInteger);  // NOLINT
 GMOCK_DECLARE_KIND_(unsigned long, kInteger);  // NOLINT
 
-// MSVC can be configured to define wchar_t as a typedef of unsigned
-// short. It defines _NATIVE_WCHAR_T_DEFINED symbol when wchar_t is a
-// native type.
-#if !defined(_MSC_VER) || defined(_NATIVE_WCHAR_T_DEFINED)
+#if GMOCK_WCHAR_T_IS_NATIVE_
 GMOCK_DECLARE_KIND_(wchar_t, kInteger);
 #endif
 
@@ -581,21 +606,9 @@ class NativeArray {
   typedef Element value_type;
   typedef const Element* const_iterator;
 
-  // Constructs from a native array passed by reference.
-  template <size_t N>
-  NativeArray(const Element (&array)[N], RelationToSource relation) {
-    Init(array, N, relation);
-  }
-
-  // Constructs from a native array passed by a pointer and a size.
-  // For generality we don't artificially restrict the types of the
-  // pointer and the size.
-  template <typename Pointer, typename Size>
-  NativeArray(const ::std::tr1::tuple<Pointer, Size>& array,
-              RelationToSource relation) {
-    Init(internal::GetRawPointer(::std::tr1::get<0>(array)),
-         ::std::tr1::get<1>(array),
-         relation);
+  // Constructs from a native array.
+  NativeArray(const Element* array, size_t count, RelationToSource relation) {
+    Init(array, count, relation);
   }
 
   // Copy constructor.
@@ -691,10 +704,31 @@ class StlContainerView<Element[N]> {
   static const_reference ConstReference(const Element (&array)[N]) {
     // Ensures that Element is not a const type.
     testing::StaticAssertTypeEq<Element, RawElement>();
-    return type(array, kReference);
+#if GTEST_OS_SYMBIAN
+    // The Nokia Symbian compiler confuses itself in template instantiation
+    // for this call without the cast to Element*:
+    // function call '[testing::internal::NativeArray<char *>].NativeArray(
+    //     {lval} const char *[4], long, testing::internal::RelationToSource)'
+    //     does not match
+    // 'testing::internal::NativeArray<char *>::NativeArray(
+    //     char *const *, unsigned int, testing::internal::RelationToSource)'
+    // (instantiating: 'testing::internal::ContainsMatcherImpl
+    //     <const char * (&)[4]>::Matches(const char * (&)[4]) const')
+    // (instantiating: 'testing::internal::StlContainerView<char *[4]>::
+    //     ConstReference(const char * (&)[4])')
+    // (and though the N parameter type is mismatched in the above explicit
+    // conversion of it doesn't help - only the conversion of the array).
+    return type(const_cast<Element*>(&array[0]), N, kReference);
+#else
+    return type(array, N, kReference);
+#endif  // GTEST_OS_SYMBIAN
   }
   static type Copy(const Element (&array)[N]) {
-    return type(array, kCopy);
+#if GTEST_OS_SYMBIAN
+    return type(const_cast<Element*>(&array[0]), N, kCopy);
+#else
+    return type(array, N, kCopy);
+#endif  // GTEST_OS_SYMBIAN
   }
 };
 
@@ -710,10 +744,12 @@ class StlContainerView< ::std::tr1::tuple<ElementPointer, Size> > {
 
   static const_reference ConstReference(
       const ::std::tr1::tuple<ElementPointer, Size>& array) {
-    return type(array, kReference);
+    using ::std::tr1::get;
+    return type(get<0>(array), get<1>(array), kReference);
   }
   static type Copy(const ::std::tr1::tuple<ElementPointer, Size>& array) {
-    return type(array, kCopy);
+    using ::std::tr1::get;
+    return type(get<0>(array), get<1>(array), kCopy);
   }
 };
 

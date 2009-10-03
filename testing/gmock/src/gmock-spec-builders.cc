@@ -82,11 +82,9 @@ void ExpectationBase::RetireAllPreRequisites() {
     return;
   }
 
-  for (ExpectationBaseSet::const_iterator it =
-           immediate_prerequisites_.begin();
-       it != immediate_prerequisites_.end();
-       ++it) {
-    ExpectationBase* const prerequisite = (*it).get();
+  for (ExpectationSet::const_iterator it = immediate_prerequisites_.begin();
+       it != immediate_prerequisites_.end(); ++it) {
+    ExpectationBase* const prerequisite = it->expectation_base().get();
     if (!prerequisite->is_retired()) {
       prerequisite->RetireAllPreRequisites();
       prerequisite->Retire();
@@ -99,10 +97,10 @@ void ExpectationBase::RetireAllPreRequisites() {
 // L >= g_gmock_mutex
 bool ExpectationBase::AllPrerequisitesAreSatisfied() const {
   g_gmock_mutex.AssertHeld();
-  for (ExpectationBaseSet::const_iterator it = immediate_prerequisites_.begin();
+  for (ExpectationSet::const_iterator it = immediate_prerequisites_.begin();
        it != immediate_prerequisites_.end(); ++it) {
-    if (!(*it)->IsSatisfied() ||
-        !(*it)->AllPrerequisitesAreSatisfied())
+    if (!(it->expectation_base()->IsSatisfied()) ||
+        !(it->expectation_base()->AllPrerequisitesAreSatisfied()))
       return false;
   }
   return true;
@@ -111,21 +109,21 @@ bool ExpectationBase::AllPrerequisitesAreSatisfied() const {
 // Adds unsatisfied pre-requisites of this expectation to 'result'.
 // L >= g_gmock_mutex
 void ExpectationBase::FindUnsatisfiedPrerequisites(
-    ExpectationBaseSet* result) const {
+    ExpectationSet* result) const {
   g_gmock_mutex.AssertHeld();
-  for (ExpectationBaseSet::const_iterator it = immediate_prerequisites_.begin();
+  for (ExpectationSet::const_iterator it = immediate_prerequisites_.begin();
        it != immediate_prerequisites_.end(); ++it) {
-    if ((*it)->IsSatisfied()) {
+    if (it->expectation_base()->IsSatisfied()) {
       // If *it is satisfied and has a call count of 0, some of its
       // pre-requisites may not be satisfied yet.
-      if ((*it)->call_count_ == 0) {
-        (*it)->FindUnsatisfiedPrerequisites(result);
+      if (it->expectation_base()->call_count_ == 0) {
+        it->expectation_base()->FindUnsatisfiedPrerequisites(result);
       }
     } else {
       // Now that we know *it is unsatisfied, we are not so interested
       // in whether its pre-requisites are satisfied.  Therefore we
       // don't recursively call FindUnsatisfiedPrerequisites() here.
-      result->insert(*it);
+      *result += *it;
     }
   }
 }
@@ -188,7 +186,9 @@ class MockObjectRegistry {
   // object alive.  Therefore we report any living object as test
   // failure, unless the user explicitly asked us to ignore it.
   ~MockObjectRegistry() {
-    using ::std::cout;
+
+    // "using ::std::cout;" doesn't work with Symbian's STLport, where cout is
+    // a macro.
 
     if (!GMOCK_FLAG(catch_leaked_mocks))
       return;
@@ -201,24 +201,24 @@ class MockObjectRegistry {
 
       // TODO(wan@google.com): Print the type of the leaked object.
       // This can help the user identify the leaked object.
-      cout << "\n";
+      std::cout << "\n";
       const MockObjectState& state = it->second;
-      internal::FormatFileLocation(
-          state.first_used_file, state.first_used_line, &cout);
-      cout << " ERROR: this mock object";
+      std::cout << internal::FormatFileLocation(state.first_used_file,
+                                                state.first_used_line);
+      std::cout << " ERROR: this mock object";
       if (state.first_used_test != "") {
-        cout << " (used in test " << state.first_used_test_case << "."
+        std::cout << " (used in test " << state.first_used_test_case << "."
              << state.first_used_test << ")";
       }
-      cout << " should be deleted but never is. Its address is @"
+      std::cout << " should be deleted but never is. Its address is @"
            << it->first << ".";
       leaked_count++;
     }
     if (leaked_count > 0) {
-      cout << "\nERROR: " << leaked_count
+      std::cout << "\nERROR: " << leaked_count
            << " leaked mock " << (leaked_count == 1 ? "object" : "objects")
            << " found at program exit.\n";
-      cout.flush();
+      std::cout.flush();
       ::std::cerr.flush();
       // RUN_ALL_TESTS() has already returned when this destructor is
       // called.  Therefore we cannot use the normal Google Test
@@ -420,12 +420,20 @@ void Mock::ClearDefaultActionsLocked(void* mock_obj) {
   // needed by VerifyAndClearExpectationsLocked().
 }
 
+Expectation::Expectation() {}
+
+Expectation::Expectation(
+    const internal::linked_ptr<internal::ExpectationBase>& expectation_base)
+    : expectation_base_(expectation_base) {}
+
+Expectation::~Expectation() {}
+
 // Adds an expectation to a sequence.
-void Sequence::AddExpectation(
-    const internal::linked_ptr<internal::ExpectationBase>& expectation) const {
+void Sequence::AddExpectation(const Expectation& expectation) const {
   if (*last_expectation_ != expectation) {
-    if (*last_expectation_ != NULL) {
-      expectation->immediate_prerequisites_.insert(*last_expectation_);
+    if (last_expectation_->expectation_base() != NULL) {
+      expectation.expectation_base()->immediate_prerequisites_
+          += *last_expectation_;
     }
     *last_expectation_ = expectation;
   }
