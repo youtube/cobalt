@@ -480,7 +480,7 @@
           '-D_FILE_OFFSET_BITS=64',
         ],
         'cflags_cc': [
-          '-fno-rtti',
+          #'-fno-rtti',
           '-fno-threadsafe-statics',
         ],
         'ldflags': [
