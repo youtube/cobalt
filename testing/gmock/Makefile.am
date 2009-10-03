@@ -34,6 +34,7 @@ pkginclude_HEADERS = include/gmock/gmock.h \
                      include/gmock/gmock-generated-matchers.h \
                      include/gmock/gmock-generated-nice-strict.h \
                      include/gmock/gmock-matchers.h \
+                     include/gmock/gmock-more-actions.h \
                      include/gmock/gmock-printers.h \
                      include/gmock/gmock-spec-builders.h
 
@@ -109,6 +110,11 @@ TESTS += test/gmock-matchers_test
 check_PROGRAMS += test/gmock-matchers_test
 test_gmock_matchers_test_SOURCES = test/gmock-matchers_test.cc
 test_gmock_matchers_test_LDADD = $(GTEST_LIBS) lib/libgmock_main.la
+
+TESTS += test/gmock-more-actions_test
+check_PROGRAMS += test/gmock-more-actions_test
+test_gmock_more_actions_test_SOURCES = test/gmock-more-actions_test.cc
+test_gmock_more_actions_test_LDADD = $(GTEST_LIBS) lib/libgmock_main.la
 
 TESTS += test/gmock-nice-strict_test
 check_PROGRAMS += test/gmock-nice-strict_test
