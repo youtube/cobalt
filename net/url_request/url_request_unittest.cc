@@ -885,6 +885,10 @@ TEST_F(URLRequestTestHTTP, ResponseHeadersTest) {
   MessageLoop::current()->Run();
 
   const net::HttpResponseHeaders* headers = req.response_headers();
+
+  // Simple sanity check that response_info() accesses the same data.
+  EXPECT_EQ(headers, req.response_info().headers.get());
+
   std::string header;
   EXPECT_TRUE(headers->GetNormalizedHeader("cache-control", &header));
   EXPECT_EQ("private", header);
