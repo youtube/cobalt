@@ -388,6 +388,9 @@ class URLRequest {
   // called.  For non-HTTP requests, this method returns -1.
   int GetResponseCode();
 
+  // Get the HTTP response info in its entirety.
+  const net::HttpResponseInfo& response_info() const { return response_info_; }
+
   // Access the net::LOAD_* flags modifying this request (see load_flags.h).
   int load_flags() const { return load_flags_; }
   void set_load_flags(int flags) { load_flags_ = flags; }
