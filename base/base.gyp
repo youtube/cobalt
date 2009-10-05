@@ -196,6 +196,8 @@
         'native_library_win.cc',
         'non_thread_safe.cc',
         'non_thread_safe.h',
+        'nsimage_cache_mac.h',
+        'nsimage_cache_mac.mm',
         'nss_init.cc',
         'nss_init.h',
         'nullable_string16.h',
