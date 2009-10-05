@@ -116,8 +116,10 @@
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
             '../printing/printing.gyp:printing_unittests',
+            '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:ui_tests',
             '../chrome/chrome.gyp:unit_tests',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
         {
@@ -125,6 +127,7 @@
           'type': 'none',
           'dependencies': [
             '../app/app.gyp:app_unittests',
+            '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:memory_test',
             '../chrome/chrome.gyp:page_cycler_tests',
             '../chrome/chrome.gyp:startup_tests',
@@ -135,6 +138,7 @@
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
             '../printing/printing.gyp:printing_unittests',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
       ],  # targets
