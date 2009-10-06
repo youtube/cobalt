@@ -1680,6 +1680,12 @@ HttpCache* HttpCache::GetCache() {
   return this;
 }
 
+HttpNetworkSession* HttpCache::GetSession() {
+  net::HttpNetworkLayer* network =
+      static_cast<net::HttpNetworkLayer*>(network_layer_.get());
+  return network->GetSession();
+}
+
 void HttpCache::Suspend(bool suspend) {
   network_layer_->Suspend(suspend);
 }
