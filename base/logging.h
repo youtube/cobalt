@@ -75,14 +75,6 @@
 //
 // We also override the standard 'assert' to use 'DLOG_ASSERT'.
 //
-// Lastly, there is:
-//
-//   PLOG(ERROR) << "Couldn't do foo";
-//   DPLOG(ERROR) << "Couldn't do foo";
-//
-// which appends the last system error to the message in string form (taken from
-// GetLastError() on Windows and errno on POSIX).
-//
 // The supported severity levels for macros that allow you to specify one
 // are (in increasing order of severity) INFO, WARNING, ERROR, ERROR_REPORT,
 // and FATAL.
@@ -200,33 +192,18 @@ const LogSeverity LOG_DFATAL_LEVEL = LOG_FATAL;
 // A few definitions of macros that don't generate much code. These are used
 // by LOG() and LOG_IF, etc. Since these are used all over our code, it's
 // better to have compact code for these operations.
-#define COMPACT_GOOGLE_LOG_EX_INFO(ClassName, ...) \
-  logging::ClassName(__FILE__, __LINE__, logging::LOG_INFO , ##__VA_ARGS__)
-#define COMPACT_GOOGLE_LOG_EX_WARNING(ClassName, ...) \
-  logging::ClassName(__FILE__, __LINE__, logging::LOG_WARNING , ##__VA_ARGS__)
-#define COMPACT_GOOGLE_LOG_EX_ERROR(ClassName, ...) \
-  logging::ClassName(__FILE__, __LINE__, logging::LOG_ERROR , ##__VA_ARGS__)
-#define COMPACT_GOOGLE_LOG_EX_ERROR_REPORT(ClassName, ...) \
-  logging::ClassName(__FILE__, __LINE__, \
-                     logging::LOG_ERROR_REPORT , ##__VA_ARGS__)
-#define COMPACT_GOOGLE_LOG_EX_FATAL(ClassName, ...) \
-  logging::ClassName(__FILE__, __LINE__, logging::LOG_FATAL , ##__VA_ARGS__)
-#define COMPACT_GOOGLE_LOG_EX_DFATAL(ClassName, ...) \
-  logging::ClassName(__FILE__, __LINE__, \
-                     logging::LOG_DFATAL_LEVEL , ##__VA_ARGS__)
-
 #define COMPACT_GOOGLE_LOG_INFO \
-  COMPACT_GOOGLE_LOG_EX_INFO(LogMessage)
+  logging::LogMessage(__FILE__, __LINE__)
 #define COMPACT_GOOGLE_LOG_WARNING \
-  COMPACT_GOOGLE_LOG_EX_WARNING(LogMessage)
+  logging::LogMessage(__FILE__, __LINE__, logging::LOG_WARNING)
 #define COMPACT_GOOGLE_LOG_ERROR \
-  COMPACT_GOOGLE_LOG_EX_ERROR(LogMessage)
+  logging::LogMessage(__FILE__, __LINE__, logging::LOG_ERROR)
 #define COMPACT_GOOGLE_LOG_ERROR_REPORT \
-  COMPACT_GOOGLE_LOG_EX_ERROR_REPORT(LogMessage)
+  logging::LogMessage(__FILE__, __LINE__, logging::LOG_ERROR_REPORT)
 #define COMPACT_GOOGLE_LOG_FATAL \
-  COMPACT_GOOGLE_LOG_EX_FATAL(LogMessage)
+  logging::LogMessage(__FILE__, __LINE__, logging::LOG_FATAL)
 #define COMPACT_GOOGLE_LOG_DFATAL \
-  COMPACT_GOOGLE_LOG_EX_DFATAL(LogMessage)
+  logging::LogMessage(__FILE__, __LINE__, logging::LOG_DFATAL_LEVEL)
 
 // wingdi.h defines ERROR to be 0. When we call LOG(ERROR), it gets
 // substituted with 0, and it expands to COMPACT_GOOGLE_LOG_0. To allow us
@@ -234,9 +211,8 @@ const LogSeverity LOG_DFATAL_LEVEL = LOG_FATAL;
 // as COMPACT_GOOGLE_LOG_ERROR, and also define ERROR the same way that
 // the Windows SDK does for consistency.
 #define ERROR 0
-#define COMPACT_GOOGLE_LOG_EX_0(ClassName, ...) \
-  COMPACT_GOOGLE_LOG_EX_ERROR(ClassName , ##__VA_ARGS__)
-#define COMPACT_GOOGLE_LOG_0 COMPACT_GOOGLE_LOG_ERROR
+#define COMPACT_GOOGLE_LOG_0 \
+  logging::LogMessage(__FILE__, __LINE__, logging::LOG_ERROR)
 
 // We use the preprocessor's merging operator, "##", so that, e.g.,
 // LOG(INFO) becomes the token COMPACT_GOOGLE_LOG_INFO.  There's some funny
@@ -258,26 +234,6 @@ const LogSeverity LOG_DFATAL_LEVEL = LOG_FATAL;
   LOG_IF(FATAL, !(condition)) << "Assert failed: " #condition ". "
 #define SYSLOG_ASSERT(condition) \
   SYSLOG_IF(FATAL, !(condition)) << "Assert failed: " #condition ". "
-
-#if defined(OS_WIN)
-#define LOG_GETLASTERROR(severity) \
-  COMPACT_GOOGLE_LOG_EX_ ## severity(Win32ErrorLogMessage, \
-      ::logging::GetLastSystemErrorCode()).stream()
-#define LOG_GETLASTERROR_MODULE(severity, module) \
-  COMPACT_GOOGLE_LOG_EX_ ## severity(Win32ErrorLogMessage, \
-      ::logging::GetLastSystemErrorCode(), module).stream()
-// PLOG is the usual error logging macro for each platform.
-#define PLOG(severity) LOG_GETLASTERROR(severity)
-#define DPLOG(severity) DLOG_GETLASTERROR(severity)
-#elif defined(OS_POSIX)
-#define LOG_ERRNO(severity) \
-  COMPACT_GOOGLE_LOG_EX_ ## severity(ErrnoLogMessage, \
-      ::logging::GetLastSystemErrorCode()).stream()
-// PLOG is the usual error logging macro for each platform.
-#define PLOG(severity) LOG_ERRNO(severity)
-#define DPLOG(severity) DLOG_ERRNO(severity)
-// TODO(tschmelcher): Should we add OSStatus logging for Mac?
-#endif
 
 // CHECK dies with a fatal error if condition is not true.  It is *not*
 // controlled by NDEBUG, so the check will be executed regardless of
@@ -345,17 +301,6 @@ std::string* MakeCheckOpString(const int& v1,
 #define DLOG_ASSERT(condition) \
   true ? (void) 0 : LOG_ASSERT(condition)
 
-#if defined(OS_WIN)
-#define DLOG_GETLASTERROR(severity) \
-  true ? (void) 0 : logging::LogMessageVoidify() & LOG_GETLASTERROR(severity)
-#define DLOG_GETLASTERROR_MODULE(severity, module) \
-  true ? (void) 0 : logging::LogMessageVoidify() & \
-      LOG_GETLASTERROR_MODULE(severity, module)
-#elif defined(OS_POSIX)
-#define DLOG_ERRNO(severity) \
-  true ? (void) 0 : logging::LogMessageVoidify() & LOG_ERRNO(severity)
-#endif
-
 enum { DEBUG_MODE = 0 };
 
 // This macro can be followed by a sequence of stream parameters in
@@ -408,14 +353,6 @@ enum { DEBUG_MODE = 0 };
 #define DLOG(severity) LOG(severity)
 #define DLOG_IF(severity, condition) LOG_IF(severity, condition)
 #define DLOG_ASSERT(condition) LOG_ASSERT(condition)
-
-#if defined(OS_WIN)
-#define DLOG_GETLASTERROR(severity) LOG_GETLASTERROR(severity)
-#define DLOG_GETLASTERROR_MODULE(severity, module) \
-  LOG_GETLASTERROR_MODULE(severity, module)
-#elif defined(OS_POSIX)
-#define DLOG_ERRNO(severity) LOG_ERRNO(severity)
-#endif
 
 // debug-only checking.  not executed in NDEBUG mode.
 enum { DEBUG_MODE = 1 };
@@ -475,17 +412,6 @@ DECLARE_DCHECK_STROP_IMPL(_stricmp, false)
 
 #define DLOG_ASSERT(condition) \
   true ? (void) 0 : LOG_ASSERT(condition)
-
-#if defined(OS_WIN)
-#define DLOG_GETLASTERROR(severity) \
-  true ? (void) 0 : logging::LogMessageVoidify() & LOG_GETLASTERROR(severity)
-#define DLOG_GETLASTERROR_MODULE(severity, module) \
-  true ? (void) 0 : logging::LogMessageVoidify() & \
-      LOG_GETLASTERROR_MODULE(severity, module)
-#elif defined(OS_POSIX)
-#define DLOG_ERRNO(severity) \
-  true ? (void) 0 : logging::LogMessageVoidify() & LOG_ERRNO(severity)
-#endif
 
 enum { DEBUG_MODE = 0 };
 
@@ -670,66 +596,6 @@ class LogMessageVoidify {
   // higher than ?:
   void operator&(std::ostream&) { }
 };
-
-#if defined(OS_WIN)
-typedef unsigned long SystemErrorCode;
-#elif defined(OS_POSIX)
-typedef int SystemErrorCode;
-#endif
-
-// Alias for ::GetLastError() on Windows and errno on POSIX. Avoids having to
-// pull in windows.h just for GetLastError() and DWORD.
-SystemErrorCode GetLastSystemErrorCode();
-
-#if defined(OS_WIN)
-// Appends a formatted system message of the GetLastError() type.
-class Win32ErrorLogMessage {
- public:
-  Win32ErrorLogMessage(const char* file,
-                       int line,
-                       LogSeverity severity,
-                       SystemErrorCode err,
-                       const char* module);
-
-  Win32ErrorLogMessage(const char* file,
-                       int line,
-                       LogSeverity severity,
-                       SystemErrorCode err);
-
-  std::ostream& stream() { return log_message_.stream(); }
-
-  // Appends the error message before destructing the encapsulated class.
-  ~Win32ErrorLogMessage();
-
- private:
-  SystemErrorCode err_;
-  // Optional name of the module defining the error.
-  const char* module_;
-  LogMessage log_message_;
-
-  DISALLOW_COPY_AND_ASSIGN(Win32ErrorLogMessage);
-};
-#elif defined(OS_POSIX)
-// Appends a formatted system message of the errno type
-class ErrnoLogMessage {
- public:
-  ErrnoLogMessage(const char* file,
-                  int line,
-                  LogSeverity severity,
-                  SystemErrorCode err);
-
-  std::ostream& stream() { return log_message_.stream(); }
-
-  // Appends the error message before destructing the encapsulated class.
-  ~ErrnoLogMessage();
-
- private:
-  SystemErrorCode err_;
-  LogMessage log_message_;
-
-  DISALLOW_COPY_AND_ASSIGN(ErrnoLogMessage);
-};
-#endif  // OS_WIN
 
 // Closes the log file explicitly if open.
 // NOTE: Since the log file is opened as necessary by the action of logging
