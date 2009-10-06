@@ -7,6 +7,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "media/audio/audio_util.h"
 
 // Overview of operation:
 // 1) An object of PCMQueueOutAudioOutputStream is created by the AudioManager
@@ -41,6 +42,7 @@ PCMQueueOutAudioOutputStream::PCMQueueOutAudioOutputStream(
           source_(NULL),
           manager_(manager),
           silence_bytes_(0),
+          volume_(1),
           pending_bytes_(0) {
   // We must have a manager.
   DCHECK(manager_);
@@ -90,7 +92,7 @@ bool PCMQueueOutAudioOutputStream::Open(size_t packet_size) {
     return false;
   }
   // Allocate the hardware-managed buffers.
-  for(size_t ix = 0; ix != kNumBuffers; ++ix) {
+  for (size_t ix = 0; ix != kNumBuffers; ++ix) {
     err = AudioQueueAllocateBuffer(audio_queue_, packet_size, &buffer_[ix]);
     if (err != noErr) {
       HandleError(err);
@@ -145,13 +147,40 @@ void PCMQueueOutAudioOutputStream::Stop() {
 }
 
 void PCMQueueOutAudioOutputStream::SetVolume(double left_level,
-                                             double right_level) {
-  // TODO(cpu): Implement.
+                                             double ) {
+  if (!audio_queue_)
+    return;
+  volume_ = static_cast<float>(left_level);
+  OSStatus err = AudioQueueSetParameter(audio_queue_,
+                                        kAudioQueueParam_Volume,
+                                        left_level);
+  if (err != noErr) {
+    HandleError(err);
+  }
 }
 
 void PCMQueueOutAudioOutputStream::GetVolume(double* left_level,
                                              double* right_level) {
-  // TODO(cpu): Implement.
+  if (!audio_queue_)
+    return;
+  *left_level = volume_;
+  *right_level = volume_;
+}
+
+// Reorder PCM from AAC layout to Core Audio layout.
+// TODO(fbarchard): Switch layout when ffmpeg is updated.
+// TODO(fbarchard): Add 8 and 32 bit versions of this function.
+static void PCM16LayoutSwizzle(int16 *b, size_t filled) {
+  int16 aac[6];
+  for (size_t i = 0; i < filled; i += 12, b += 6) {
+    memcpy(aac, b, sizeof(aac));
+    b[0] = aac[1];  // L
+    b[1] = aac[2];  // R
+    b[2] = aac[0];  // C
+    b[3] = aac[5];  // LFE
+    b[4] = aac[3];  // Ls
+    b[5] = aac[4];  // Rs
+  }
 }
 
 // Note to future hackers of this function: Do not add locks here because we
@@ -182,13 +211,18 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
     CHECK(audio_stream->silence_bytes_ <= static_cast<int>(capacity));
     filled = audio_stream->silence_bytes_;
     memset(buffer->mAudioData, 0, filled);
-  }
-
-  if (filled > capacity) {
+  } else if (filled > capacity) {
     // User probably overran our buffer.
     audio_stream->HandleError(0);
     return;
   }
+
+  // Handle channel order for PCM 5.1 audio.
+  if (audio_stream->format_.mChannelsPerFrame == 6 &&
+      audio_stream->format_.mBitsPerChannel == 16) {
+    PCM16LayoutSwizzle(reinterpret_cast<int16*>(buffer->mAudioData), filled);
+  }
+
   buffer->mAudioDataByteSize = filled;
   // Incremnet bytes by amount filled into audio buffer.
   audio_stream->pending_bytes_ += filled;
@@ -214,12 +248,12 @@ void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   source_ = callback;
   pending_bytes_ = 0;
   // Ask the source to pre-fill all our buffers before playing.
-  for(size_t ix = 0; ix != kNumBuffers; ++ix) {
+  for (size_t ix = 0; ix != kNumBuffers; ++ix) {
     buffer_[ix]->mAudioDataByteSize = 0;
     RenderCallback(this, NULL, buffer_[ix]);
   }
   // Queue the buffers to the audio driver, sounds starts now.
-  for(size_t ix = 0; ix != kNumBuffers; ++ix) {
+  for (size_t ix = 0; ix != kNumBuffers; ++ix) {
     err = AudioQueueEnqueueBuffer(audio_queue_, buffer_[ix], 0, NULL);
     if (err != noErr) {
       HandleError(err);
