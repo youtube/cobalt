@@ -52,7 +52,7 @@ class URLRequestContext :
   }
 
   // Gets the http transaction factory for this context.
-  net::HttpTransactionFactory* http_transaction_factory() {
+  net::HttpTransactionFactory* http_transaction_factory() const {
     return http_transaction_factory_;
   }
 

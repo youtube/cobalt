@@ -47,9 +47,8 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   // HttpTransactionFactory methods:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
   virtual HttpCache* GetCache();
+  virtual HttpNetworkSession* GetSession();
   virtual void Suspend(bool suspend);
-
-  HttpNetworkSession* GetSession();
 
  private:
   // The factory we will use to create network sockets.

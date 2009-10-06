@@ -322,6 +322,10 @@ class MockNetworkLayer : public net::HttpTransactionFactory {
     return NULL;
   }
 
+  virtual net::HttpNetworkSession* GetSession() {
+    return NULL;
+  }
+
   virtual void Suspend(bool suspend) {}
 
   int transaction_count() const { return transaction_count_; }
