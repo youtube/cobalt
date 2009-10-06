@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef MEDIA_AUDIO_MAC_OUTPUT_MAC_H_
-#define MEDIA_AUDIO_MAC_OUTPUT_MAC_H_
+#ifndef MEDIA_AUDIO_MAC_AUDIO_OUTPUT_MAC_H_
+#define MEDIA_AUDIO_MAC_AUDIO_OUTPUT_MAC_H_
 
 #include <AudioToolbox/AudioQueue.h>
 #include <AudioToolbox/AudioFormat.h>
@@ -58,10 +58,12 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   AudioManagerMac* manager_;
   // Number of bytes for making a silence buffer.
   int silence_bytes_;
+  // Volume level from 0 to 1.
+  float volume_;
   // Number of bytes yet to be played in audio buffer.
   int pending_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };
 
-#endif  // MEDIA_AUDIO_MAC_OUTPUT_MAC_H_
+#endif  // MEDIA_AUDIO_MAC_AUDIO_OUTPUT_MAC_H_
