@@ -97,6 +97,7 @@ class HttpCache : public HttpTransactionFactory,
   // HttpTransactionFactory implementation:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
   virtual HttpCache* GetCache();
+  virtual HttpNetworkSession* GetSession();
   virtual void Suspend(bool suspend);
 
   // Helper function for reading response info from the disk cache.  If the
