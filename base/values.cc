@@ -193,7 +193,8 @@ BinaryValue* BinaryValue::Create(char* buffer, size_t size) {
 }
 
 // static
-BinaryValue* BinaryValue::CreateWithCopiedBuffer(char* buffer, size_t size) {
+BinaryValue* BinaryValue::CreateWithCopiedBuffer(const char* buffer,
+                                                 size_t size) {
   if (!buffer)
     return NULL;
 

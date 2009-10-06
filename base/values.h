@@ -171,7 +171,7 @@ class BinaryValue: public Value {
   // factory method creates a new BinaryValue by copying the contents of the
   // buffer that's passed in.
   // Returns NULL if buffer is NULL.
-  static BinaryValue* CreateWithCopiedBuffer(char* buffer, size_t size);
+  static BinaryValue* CreateWithCopiedBuffer(const char* buffer, size_t size);
 
   ~BinaryValue();
 
@@ -181,6 +181,7 @@ class BinaryValue: public Value {
 
   size_t GetSize() const { return size_; }
   char* GetBuffer() { return buffer_; }
+  const char* GetBuffer() const { return buffer_; }
 
  private:
   // Constructor is private so that only objects with valid buffer pointers
