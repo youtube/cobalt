@@ -371,7 +371,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   // grow to. If the body start is not found within this range of the
   // response, the transaction will fail with ERR_RESPONSE_HEADERS_TOO_BIG.
   // Note: |kMaxHeaderBufSize| should be a multiple of |kHeaderBufInitialSize|.
-  enum { kMaxHeaderBufSize = 32768 };  // 32 kilobytes.
+  enum { kMaxHeaderBufSize = 256 * 1024 };  // 256 kilobytes.
 
   // The size in bytes of the buffer we use to drain the response body that
   // we want to throw away.  The response body is typically a small error
