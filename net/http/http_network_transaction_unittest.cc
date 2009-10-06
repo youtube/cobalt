@@ -1816,9 +1816,9 @@ TEST_F(HttpNetworkTransactionTest, LargeHeadersNoBody) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
 
-  // Respond with 50 kb of headers (we should fail after 32 kb).
+  // Respond with 300 kb of headers (we should fail after 256 kb).
   std::string large_headers_string;
-  FillLargeHeadersString(&large_headers_string, 50 * 1024);
+  FillLargeHeadersString(&large_headers_string, 300 * 1024);
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\n"),
