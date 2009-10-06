@@ -19,6 +19,7 @@ typedef HANDLE MutexHandle;
 #endif
 
 #if defined(OS_POSIX)
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -42,6 +43,111 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/sys_string_conversions.h"
 
 namespace logging {
+
+static const int kErrorMessageBufferSize = 256;
+
+#ifdef OS_POSIX
+// Wrapper for strerror_r functions that implement the POSIX interface. POSIX
+// does not define the behaviour for some of the edge cases, so we wrap it to
+// guarantee that they are handled. This is used on all POSIX platforms, but
+// on Linux there are some more cases (see below).
+static void wrap_posix_strerror_r(int err, char* buf, size_t len) {
+  int old_errno = errno;
+  // Have to cast since otherwise we get an error if this is the GNU version
+  // (but in such a scenario this function is never called). Sadly we can't use
+  // C++-style casts because the appropriate one is reinterpret_cast but it's
+  // considered illegal to reinterpret_cast a type to itself, so we get an
+  // error in the opposite case.
+  int result = (int)strerror_r(err, buf, len);
+  if (result == 0) {
+    // POSIX is vague about whether the string will be terminated, although
+    // it indirectly implies that typically ERANGE will be returned, instead
+    // of truncating the string. We play it safe by always terminating the
+    // string explicitly.
+    buf[len - 1] = '\0';
+  } else {
+    // Error. POSIX is vague about whether the return value is itself a system
+    // error code or something else. On Linux currently it is -1 and errno is
+    // set. On BSD-derived systems it is a system error and errno is unchanged.
+    // We try and detect which case it is so as to put as much useful info as
+    // we can into our message.
+    int error;
+    int new_errno = errno;
+    if (new_errno != old_errno) {
+      // errno was changed, so probably the return value is just -1 or something
+      // else that doesn't provide any info, and errno is the error.
+      error = new_errno;
+    } else {
+      // Either the error from strerror_r was the same as the previous value, or
+      // errno wasn't used. Assume the latter.
+      error = result;
+    }
+    // snprintf truncates and always null-terminates.
+    snprintf(buf, len, "Error %d while retrieving error %d", error, err);
+  }
+  errno = old_errno;
+}
+
+#ifdef OS_LINUX
+// glibc has two strerror_r functions: a historical GNU-specific one that
+// returns type char *, and a POSIX.1-2001 compliant one available since 2.3.4
+// that returns int. This detects which one has been selected at compile-time
+// and wraps the GNU one so that it behaves like the POSIX one.
+template <class T>
+class GlibcStrErrorRWrapper;
+
+template <>
+class GlibcStrErrorRWrapper<char*> {
+ public:
+  static void WrapStrErrorR(int err, char* buf, size_t len) {
+    // strerror_r is the GNU version.
+    // See note in wrap_posix_strerror_r about the casting.
+    char* rc = (char*)strerror_r(err, buf, len);
+    if (rc != buf) {
+      // glibc did not use buf and returned a static string instead. Copy it
+      // into buf.
+      buf[0] = '\0';
+      strncat(buf, rc, len - 1);
+    }
+    // The GNU version never fails. Unknown errors get an
+    // "unknown error message". The result is always null terminated.
+  }
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(GlibcStrErrorRWrapper);
+};
+
+template <>
+class GlibcStrErrorRWrapper<int> {
+ public:
+  static void WrapStrErrorR(int err, char* buf, size_t len) {
+    // strerror_r is the POSIX version. Defer to our global function shared on
+    // all POSIX platforms.
+    wrap_posix_strerror_r(err, buf, len);
+  }
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(GlibcStrErrorRWrapper);
+};
+#endif  // OS_LINUX
+
+// Thread-safe strerror function with dependable semantics that never fails.
+// It will write the string form of error "err" to buffer buf of length len.
+// If there is an error calling the OS's strerror_r() function then a message to
+// that effect will be printed into buf, truncating if necessary. The final
+// result is always null-terminated. The value of errno is never changed.
+static void safe_strerror_r(int err, char *buf, size_t len) {
+  if (buf == NULL || len <= 0) {
+    return;
+  }
+#ifdef OS_LINUX
+  GlibcStrErrorRWrapper<typeof(strerror_r(err, buf, len))>
+      ::WrapStrErrorR(err, buf, len);
+#else
+  wrap_posix_strerror_r(err, buf, len);
+#endif
+}
+#endif  // OS_POSIX
 
 bool g_enable_dcheck = false;
 
@@ -566,6 +672,95 @@ LogMessage::~LogMessage() {
     }
   }
 }
+
+#if defined(OS_WIN)
+// This has already been defined in the header, but defining it again as DWORD
+// ensures that the type used in the header is equivalent to DWORD. If not,
+// the redefinition is a compile error.
+typedef DWORD SystemErrorCode;
+#endif
+
+SystemErrorCode GetLastSystemErrorCode() {
+#if defined(OS_WIN)
+  return ::GetLastError();
+#elif defined(OS_POSIX)
+  return errno;
+#else
+#error Not implemented
+#endif
+}
+
+#if defined(OS_WIN)
+Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
+                                           int line,
+                                           LogSeverity severity,
+                                           SystemErrorCode err,
+                                           const char* module)
+    : err_(err),
+      module_(module),
+      log_message_(file, line, severity) {
+}
+
+Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
+                                           int line,
+                                           LogSeverity severity,
+                                           SystemErrorCode err)
+    : err_(err),
+      module_(NULL),
+      log_message_(file, line, severity) {
+}
+
+Win32ErrorLogMessage::~Win32ErrorLogMessage() {
+  char msgbuf[kErrorMessageBufferSize];
+  DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM;
+  HMODULE hmod;
+  if (module_) {
+    hmod = GetModuleHandleA(module_);
+    if (hmod) {
+      flags |= FORMAT_MESSAGE_FROM_HMODULE;
+    } else {
+      // This makes a nested Win32ErrorLogMessage. It will have module_ of NULL
+      // so it will not call GetModuleHandle, so recursive errors are
+      // impossible.
+      DPLOG(WARNING) << "Couldn't open module " << module_
+          << " for error message query";
+    }
+  } else {
+    hmod = NULL;
+  }
+  DWORD len = FormatMessageA(flags,
+                             hmod,
+                             err_,
+                             MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                             msgbuf,
+                             sizeof(msgbuf) / sizeof(msgbuf[0]),
+                             NULL);
+  if (len) {
+    while ((len > 0) &&
+           isspace(static_cast<unsigned char>(msgbuf[len - 1]))) {
+      msgbuf[--len] = 0;
+    }
+    stream() << " [" << msgbuf << "]";
+  } else {
+    stream() << " [Error " << GetLastError() << " while retrieving error "
+        << err_ << "]";
+  }
+}
+#elif defined(OS_POSIX)
+ErrnoLogMessage::ErrnoLogMessage(const char* file,
+                                 int line,
+                                 LogSeverity severity,
+                                 SystemErrorCode err)
+    : err_(err),
+      log_message_(file, line, severity) {
+}
+
+ErrnoLogMessage::~ErrnoLogMessage() {
+  char msgbuf[kErrorMessageBufferSize];
+  safe_strerror_r(err_, msgbuf, sizeof(msgbuf));
+  stream() << " [" << msgbuf << "]";
+}
+#endif  // OS_WIN
 
 void CloseLogFile() {
   if (!log_file)
