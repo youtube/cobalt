@@ -24,6 +24,7 @@
         'crypto/rsa_private_key_nss.cc',
         'crypto/rsa_private_key_win.cc',
         'crypto/signature_creator.h',
+        'crypto/signature_creator_mac.cc',
         'crypto/signature_creator_nss.cc',
         'crypto/signature_creator_win.cc',
         'crypto/signature_verifier.h',
@@ -677,11 +678,7 @@
             'message_pump_glib_unittest.cc',
           ]
         }],
-        ['OS == "mac"', {
-          'sources!': [
-            'crypto/signature_creator_unittest.cc',
-          ],
-        }, { # OS != "mac"
+        ['OS != "mac"', {
           'sources!': [
             'mac_util_unittest.cc',
           ],
