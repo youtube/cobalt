@@ -10,7 +10,9 @@
 namespace net {
 
 class HttpCache;
+class HttpNetworkSession;
 class HttpTransaction;
+
 
 // An interface to a class that can create HttpTransaction objects.
 class HttpTransactionFactory {
@@ -23,6 +25,9 @@ class HttpTransactionFactory {
 
   // Returns the associated cache if any (may be NULL).
   virtual HttpCache* GetCache() = 0;
+
+  // Returns the associated HttpNetworkSession used by new transactions.
+  virtual HttpNetworkSession* GetSession() = 0;
 
   // Suspends the creation of new transactions. If |suspend| is false, creation
   // of new transactions is resumed.
