@@ -18,6 +18,31 @@ import google.platform_utils
 
 class HttpdNotStarted(Exception): pass
 
+def UrlIsAlive(url):
+  """Checks to see if we get an http response from |url|.
+  We poll the url 5 times with a 1 second delay.  If we don't
+  get a reply in that time, we give up and assume the httpd
+  didn't start properly.
+
+  Args:
+    url: The URL to check.
+  Return:
+    True if the url is alive.
+  """
+  wait_time = 5
+  while wait_time > 0:
+    try:
+      response = urllib.urlopen(url)
+      # Server is up and responding.
+      return True
+    except IOError:
+      pass
+    wait_time -= 1
+    # Wait a second and try again.
+    time.sleep(1)
+
+  return False
+
 def ApacheConfigDir(start_dir):
   """Returns a path to the directory holding the Apache config files."""
   return google.path_utils.FindUpward(start_dir, 'tools', 'python',
@@ -122,33 +147,8 @@ class ApacheHttpd(object):
 
     # Ensure that the server is running on all the desired ports.
     for port in self._port_list:
-      if not self._UrlIsAlive('http://127.0.0.1:%s/' % str(port)):
+      if not UrlIsAlive('http://127.0.0.1:%s/' % str(port)):
         raise HttpdNotStarted('Failed to start httpd on port %s' % str(port))
-
-  def _UrlIsAlive(self, url):
-    """Checks to see if we get an http response from |url|.
-    We poll the url 5 times with a 1 second delay.  If we don't
-    get a reply in that time, we give up and assume the httpd
-    didn't start properly.
-
-    Args:
-      url: The URL to check.
-    Return:
-      True if the url is alive.
-    """
-    wait_time = 5
-    while wait_time > 0:
-      try:
-        response = urllib.urlopen(url)
-        # Server is up and responding.
-        return True
-      except IOError:
-        pass
-      wait_time -= 1
-      # Wait a second and try again.
-      time.sleep(1)
-
-    return False
 
   def StopServer(self, force=False):
     """If we started an httpd.exe process, or if force is True, call
