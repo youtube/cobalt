@@ -39,7 +39,7 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/lock_impl.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
-#include "base/sys_string_conversions.h"
+#include "base/utf_string_conversions.h"
 
 namespace logging {
 
@@ -328,7 +328,7 @@ void DisplayDebugMessage(const std::string& str) {
     backslash[1] = 0;
   wcscat_s(prog_name, MAX_PATH, L"debug_message.exe");
 
-  std::wstring cmdline = base::SysUTF8ToWide(str);
+  std::wstring cmdline = UTF8ToWide(str);
   if (cmdline.empty())
     return;
 
@@ -578,5 +578,5 @@ void CloseLogFile() {
 }  // namespace logging
 
 std::ostream& operator<<(std::ostream& out, const wchar_t* wstr) {
-  return out << base::SysWideToUTF8(std::wstring(wstr));
+  return out << WideToUTF8(std::wstring(wstr));
 }

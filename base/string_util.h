@@ -18,7 +18,8 @@
 
 // TODO(brettw) this dependency should be removed and callers that need
 // these functions should include this file directly.
-#include "base/i18n/string_conversions.h"
+#include "base/utf_string_conversions.h"
+#include "base/i18n/icu_string_conversions.h"
 
 // Safe standard library wrappers for all platforms.
 
