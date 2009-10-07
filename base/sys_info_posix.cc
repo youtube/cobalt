@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/file_util.h"
 #include "base/sys_info.h"
-#include "base/basictypes.h"
 
 #include <errno.h>
 #include <string.h>
@@ -23,8 +21,10 @@
 #include <sys/sysctl.h>
 #endif
 
+#include "base/basictypes.h"
+#include "base/file_util.h"
 #include "base/logging.h"
-#include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 
 namespace base {
 
@@ -105,7 +105,7 @@ std::wstring SysInfo::GetEnvVar(const wchar_t* var) {
   std::string var_utf8 = WideToUTF8(std::wstring(var));
   char* value = getenv(var_utf8.c_str());
   if (!value) {
-    return L"";
+    return std::wstring();
   } else {
     return UTF8ToWide(value);
   }
