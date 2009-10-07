@@ -248,8 +248,9 @@ size_t ProcessMetrics::GetPeakWorkingSetSize() const {
 }
 
 size_t ProcessMetrics::GetPrivateBytes() const {
-  // http://crbug.com/16251
-  return 0;
+  WorkingSetKBytes ws_usage;
+  GetWorkingSetKBytes(&ws_usage);
+  return ws_usage.priv << 10;
 }
 
 // Private and Shared working set sizes are obtained from /proc/<pid>/smaps,
@@ -258,7 +259,6 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   FilePath stat_file =
     FilePath("/proc").Append(IntToString(process_)).Append("smaps");
   std::string smaps;
-  int shared_kb = 0;
   int private_kb = 0;
   int pss_kb = 0;
   bool have_pss = false;
@@ -279,9 +279,7 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
           NOTREACHED();
           return false;
         }
-        if (StartsWithASCII(last_key_name, "Shared_", 1)) {
-          shared_kb += StringToInt(tokenizer.token());
-        } else if (StartsWithASCII(last_key_name, "Private_", 1)) {
+        if (StartsWithASCII(last_key_name, "Private_", 1)) {
           private_kb += StringToInt(tokenizer.token());
         } else if (StartsWithASCII(last_key_name, "Pss", 1)) {
           have_pss = true;
