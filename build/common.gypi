@@ -163,6 +163,9 @@
     # isn't supported
     'disable_nacl%': 0,
 
+    # Set ARM-v7 compilation flags
+    'armv7%': 0,
+
     'conditions': [
       ['OS=="linux"', {
         'conditions': [
@@ -650,11 +653,11 @@
           }],
           ['target_arch=="arm"', {
             'conditions': [
-              ['chromeos==1', {
+              ['armv7==1', {
                 'cflags': [
                   '-march=armv7-a',
                   '-mtune=cortex-a8',
-                  '-mfpu=vfp',
+                  '-mfpu=neon',
                   '-mfloat-abi=softfp',
                 ],
               }],
