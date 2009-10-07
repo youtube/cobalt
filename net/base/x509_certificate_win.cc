@@ -22,6 +22,16 @@ namespace net {
 
 namespace {
 
+// Problematic certificates.
+const X509Certificate::Fingerprint cert_blacklist[] = {
+  // A certificate for www.paypal.com with a NULL byte in the common name.
+  // Validity period from 2009-02-24 to 2011-02-24.
+  // Subject CN=www.paypal.com\00ssl.secureconnection.cc
+  // From http://www.gossamer-threads.com/lists/fulldisc/full-disclosure/70363
+  { 0x4c, 0x88, 0x9e, 0x28, 0xd7, 0x7a, 0x44, 0x1e, 0x13, 0xf2,
+    0x6a, 0xba, 0x1f, 0xe8, 0x1b, 0xd6, 0xab, 0x7b, 0xe8, 0xd7 }
+};
+
 //-----------------------------------------------------------------------------
 
 // TODO(wtc): This is a copy of the MapSecurityError function in
@@ -478,6 +488,14 @@ int X509Certificate::Verify(const std::string& hostname,
   // Flag certificates signed using weak signature algorithms.
   if (verify_result->has_md2)
     verify_result->cert_status |= CERT_STATUS_WEAK_SIGNATURE_ALGORITHM;
+
+  // Treat certificates on our blacklist as invalid.
+  for (int i = 0; i < arraysize(cert_blacklist); ++i) {
+    if (fingerprint_.Equals(cert_blacklist[i])) {
+      verify_result->cert_status |= CERT_STATUS_INVALID;
+      break;
+    }
+  }
 
   std::wstring wstr_hostname = ASCIIToWide(hostname);
 
