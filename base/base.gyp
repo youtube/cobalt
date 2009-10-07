@@ -518,16 +518,8 @@
       'type': '<(library)',
       'msvs_guid': 'A508ADD3-CECE-4E0F-8448-2F5E454DF551',
       'sources': [
-        'gfx/blit.cc',
-        'gfx/blit.h',
-        'gfx/gdi_util.cc',
-        'gfx/gdi_util.h',
         'gfx/gtk_native_view_id_manager.cc',
         'gfx/gtk_native_view_id_manager.h',
-        'gfx/gtk_util.cc',
-        'gfx/gtk_util.h',
-        'gfx/native_theme.cc',
-        'gfx/native_theme.h',
         'gfx/native_widget_types.h',
         'gfx/native_widget_types_gtk.cc',
         'gfx/point.cc',
@@ -542,7 +534,6 @@
       ],
       'dependencies': [
         'base',
-        '../skia/skia.gyp:skia',
       ],
       'export_dependent_settings': [
         'base',
@@ -553,14 +544,8 @@
             '../build/linux/system.gyp:gtk',
           ],
         }],
-        [ 'OS != "win"', { 'sources!': [
-            'gfx/gdi_util.cc',
-            'gfx/native_theme.cc',
-            ],
-        }],
         [ 'OS != "linux" and OS != "freebsd"', { 'sources!': [
             'gfx/gtk_native_view_id_manager.cc',
-            'gfx/gtk_util.cc',
             'gfx/native_widget_types_gtk.cc',
             ],
         }],
@@ -592,7 +577,6 @@
         'file_path_unittest.cc',
         'file_util_unittest.cc',
         'file_version_info_unittest.cc',
-        'gfx/native_theme_unittest.cc',
         'gfx/rect_unittest.cc',
         'gmock_unittest.cc',
         'histogram_unittest.cc',
@@ -663,7 +647,6 @@
       'dependencies': [
         'base',
         'base_gfx',
-        '../skia/skia.gyp:skia',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
       ],
