@@ -19,6 +19,7 @@
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/sys_string_conversions.h"
 #include "base/time.h"
 
 namespace base {
@@ -42,9 +43,9 @@ void RestoreDefaultExceptionHandler() {
 
 NamedProcessIterator::NamedProcessIterator(const std::wstring& executable_name,
                                            const ProcessFilter* filter)
-  : executable_name_(executable_name),
-    index_of_kinfo_proc_(0),
-    filter_(filter) {
+    : executable_name_(executable_name),
+      index_of_kinfo_proc_(0),
+      filter_(filter) {
   // Get a snapshot of all of my processes (yes, as we loop it can go stale, but
   // but trying to find where we were in a constantly changing list is basically
   // impossible.
@@ -111,7 +112,7 @@ const ProcessEntry* NamedProcessIterator::NextProcessEntry() {
 }
 
 bool NamedProcessIterator::CheckForNextProcess() {
-  std::string executable_name_utf8(WideToUTF8(executable_name_));
+  std::string executable_name_utf8(base::SysWideToUTF8(executable_name_));
 
   std::string data;
   std::string exec_name;
