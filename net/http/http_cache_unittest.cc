@@ -32,11 +32,13 @@ class MockDiskEntry : public disk_cache::Entry,
                       public base::RefCounted<MockDiskEntry> {
  public:
   MockDiskEntry()
-      : test_mode_(0), doomed_(false), sparse_(false), fail_requests_(false) {
+      : test_mode_(0), doomed_(false), sparse_(false), fail_requests_(false),
+        busy_(false), delayed_(false) {
   }
 
   explicit MockDiskEntry(const std::string& key)
-      : key_(key), doomed_(false), sparse_(false), fail_requests_(false) {
+      : key_(key), doomed_(false), sparse_(false), fail_requests_(false),
+        busy_(false), delayed_(false) {
     //
     // 'key' is prefixed with an identifier if it corresponds to a cached POST.
     // Skip past that to locate the actual URL.
@@ -131,7 +133,7 @@ class MockDiskEntry : public disk_cache::Entry,
 
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
                              net::CompletionCallback* completion_callback) {
-    if (!sparse_)
+    if (!sparse_ || busy_)
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
     if (offset < 0)
       return net::ERR_FAILED;
@@ -152,11 +154,15 @@ class MockDiskEntry : public disk_cache::Entry,
       return num;
 
     CallbackLater(completion_callback, num);
+    busy_ = true;
+    delayed_ = false;
     return net::ERR_IO_PENDING;
   }
 
   virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* completion_callback) {
+    if (busy_)
+      return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
     if (!sparse_) {
       if (data_[1].size())
         return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
@@ -181,7 +187,7 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int GetAvailableRange(int64 offset, int len, int64* start) {
-    if (!sparse_)
+    if (!sparse_ || busy_)
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
     if (offset < 0)
       return net::ERR_FAILED;
@@ -212,6 +218,23 @@ class MockDiskEntry : public disk_cache::Entry,
     return count;
   }
 
+  virtual void CancelSparseIO() { cancel_ = true; }
+
+  virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback) {
+    if (!cancel_)
+      return net::OK;
+
+    cancel_ = false;
+    DCHECK(completion_callback);
+    if (test_mode_ & TEST_MODE_SYNC_CACHE_READ)
+      return net::OK;
+
+    // The pending operation is already in the message loop (and hopefuly
+    // already in the second pass).  Just notify the caller that it finished.
+    CallbackLater(completion_callback, 0);
+    return net::ERR_IO_PENDING;
+  }
+
   // Fail most subsequent requests.
   void set_fail_requests() { fail_requests_ = true; }
 
@@ -224,6 +247,21 @@ class MockDiskEntry : public disk_cache::Entry,
         &MockDiskEntry::RunCallback, callback, result));
   }
   void RunCallback(net::CompletionCallback* callback, int result) {
+    if (busy_) {
+      // This is kind of hacky, but controlling the behavior of just this entry
+      // from a test is sort of complicated.  What we really want to do is
+      // delay the delivery of a sparse IO operation a little more so that the
+      // request start operation (async) will finish without seeing the end of
+      // this operation (already posted to the message loop)... and without
+      // just delaying for n mS (which may cause trouble with slow bots).  So
+      // we re-post this operation (all async sparse IO operations will take two
+      // trips trhough the message loop instead of one).
+      if (!delayed_) {
+        delayed_ = true;
+        return CallbackLater(callback, result);
+      }
+    }
+    busy_ = false;
     callback->Run(result);
   }
 
@@ -233,7 +271,13 @@ class MockDiskEntry : public disk_cache::Entry,
   bool doomed_;
   bool sparse_;
   bool fail_requests_;
+  bool busy_;
+  bool delayed_;
+  static bool cancel_;
 };
+
+// Static.
+bool MockDiskEntry::cancel_ = false;
 
 class MockDiskCache : public disk_cache::Backend {
  public:
@@ -2341,6 +2385,52 @@ TEST(HttpCache, RangeGET_Cancel) {
   ASSERT_TRUE(cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url,
                                             &entry));
   entry->Close();
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// Tests that we don't delete a sparse entry when we start a new request after
+// cancelling the previous one.
+TEST(HttpCache, RangeGET_Cancel2) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
+  MockHttpRequest request(kRangeGET_TransactionOK);
+
+  Context* c = new Context();
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
+
+  rv = c->trans->Start(&request, &c->callback, NULL);
+  if (rv == net::ERR_IO_PENDING)
+    rv = c->callback.WaitForResult();
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Make sure that we revalidate the entry and read from the cache (a single
+  // read will return while waiting for the network).
+  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(5);
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+  rv = c->callback.WaitForResult();
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+
+  // Destroy the transaction before completing the read.
+  delete c;
+
+  // We have the read and the delete (OnProcessPendingQueue) waiting on the
+  // message loop. This means that a new transaction will just reuse the same
+  // active entry (no open or create).
+
+  RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
+
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 

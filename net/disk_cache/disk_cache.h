@@ -183,6 +183,18 @@ class Entry {
   // The Backend implementation is free to evict any range from the cache at any
   // moment, so in practice, the previously stated granularity of 1 KB is not
   // as bad as it sounds.
+  //
+  // The sparse methods don't support multiple simultaneous IO operations to the
+  // same physical entry, so in practice a single object should be instantiated
+  // for a given key at any given time. Once an operation has been issued, the
+  // caller should wait until it completes before starting another one. This
+  // requirement includes the case when an entry is closed while some operation
+  // is in progress and another object is instantiated; any IO operation will
+  // fail while the previous operation is still in-flight. In order to deal with
+  // this requirement, the caller could either wait until the operation
+  // completes before closing the entry, or call CancelSparseIO() before closing
+  // the entry, and call ReadyForSparseIO() on the new entry and wait for the
+  // callback before issuing new operations.
 
   // Behaves like ReadData() except that this method is used to access sparse
   // entries.
@@ -206,6 +218,26 @@ class Entry {
   // this entry has stored more than the returned value. This method returns a
   // net error code whenever the request cannot be completed successfully.
   virtual int GetAvailableRange(int64 offset, int len, int64* start) = 0;
+
+  // Cancels any pending sparse IO operation (if any). The completion callback
+  // of the operation in question will still be called when the operation
+  // finishes, but the operation will finish sooner when this method is used.
+  virtual void CancelSparseIO() = 0;
+
+  // Returns OK if this entry can be used immediately. If that is not the
+  // case, returns ERR_IO_PENDING and invokes the provided callback when this
+  // entry is ready to use. This method always returns OK for non-sparse
+  // entries, and returns ERR_IO_PENDING when a previous operation was cancelled
+  // (by calling CancelSparseIO), but the cache is still busy with it. If there
+  // is a pending operation that has not been cancelled, this method will return
+  // OK although another IO operation cannot be issued at this time; in this
+  // case the caller should just wait for the regular callback to be invoked
+  // instead of using this method to provide another callback.
+  //
+  // Note that CancelSparseIO may have been called on another instance of this
+  // object that refers to the same physical disk entry.
+  virtual int ReadyForSparseIO(
+      net::CompletionCallback* completion_callback) = 0;
 
  protected:
   virtual ~Entry() {}

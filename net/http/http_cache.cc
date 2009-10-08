@@ -161,7 +161,10 @@ class HttpCache::Transaction : public HttpTransaction {
             network_read_callback_(this, &Transaction::OnNetworkReadCompleted)),
         ALLOW_THIS_IN_INITIALIZER_LIST(
             cache_read_callback_(new CancelableCompletionCallback<Transaction>(
-                this, &Transaction::OnCacheReadCompleted))) {
+                this, &Transaction::OnCacheReadCompleted))),
+        ALLOW_THIS_IN_INITIALIZER_LIST(
+            entry_ready_callback_(new CancelableCompletionCallback<Transaction>(
+                this, &Transaction::OnCacheEntryReady))) {
   }
 
   // Clean up the transaction.
@@ -250,6 +253,10 @@ class HttpCache::Transaction : public HttpTransaction {
   // Called to begin validating an entry that stores partial content.  Returns
   // a network error code.
   int BeginPartialCacheValidation();
+
+  // Validates the entry headers against the requested range and continues with
+  // the validation of the rest of the entry.  Returns a network error code.
+  int ValidateEntryHeadersAndContinue(bool byte_range_requested);
 
   // Performs the cache validation for the next chunk of data stored by the
   // cache.  If this chunk is not currently stored, starts the network request
@@ -345,6 +352,9 @@ class HttpCache::Transaction : public HttpTransaction {
   // Called to signal completion of the cache's ReadData method:
   void OnCacheReadCompleted(int result);
 
+  // Called to signal completion of the cache entry's ReadyForSparseIO method:
+  void OnCacheEntryReady(int result);
+
   scoped_refptr<LoadLog> load_log_;
   const HttpRequestInfo* request_;
   scoped_ptr<HttpRequestInfo> custom_request_;
@@ -373,14 +383,21 @@ class HttpCache::Transaction : public HttpTransaction {
   CompletionCallbackImpl<Transaction> network_read_callback_;
   scoped_refptr<CancelableCompletionCallback<Transaction> >
       cache_read_callback_;
+  scoped_refptr<CancelableCompletionCallback<Transaction> >
+      entry_ready_callback_;
 };
 
 HttpCache::Transaction::~Transaction() {
   if (cache_) {
     if (entry_) {
       bool cancel_request = reading_ && enable_range_support_;
-      if (cancel_request && !partial_.get())
-        cancel_request &= (response_.headers->response_code() == 200);
+      if (cancel_request) {
+        if (partial_.get()) {
+          entry_->disk_entry->CancelSparseIO();
+        } else {
+          cancel_request &= (response_.headers->response_code() == 200);
+        }
+      }
 
       cache_->DoneWithEntry(entry_, this, cancel_request);
     } else {
@@ -928,7 +945,10 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
     return BeginCacheValidation();
 
   bool byte_range_requested = partial_.get() != NULL;
-  if (!byte_range_requested) {
+  if (byte_range_requested) {
+    if (OK != entry_->disk_entry->ReadyForSparseIO(entry_ready_callback_))
+      return ERR_IO_PENDING;
+  } else {
     // The request is not for a range, but we have stored just ranges.
     partial_.reset(new PartialData());
     if (!custom_request_.get()) {
@@ -936,6 +956,13 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
       request_ = custom_request_.get();
     }
   }
+
+  return ValidateEntryHeadersAndContinue(byte_range_requested);
+}
+
+int HttpCache::Transaction::ValidateEntryHeadersAndContinue(
+    bool byte_range_requested) {
+  DCHECK(mode_ == READ_WRITE);
 
   if (!partial_->UpdateFromStoredHeaders(response_.headers, entry_->disk_entry,
                                          truncated_)) {
@@ -1550,6 +1577,11 @@ void HttpCache::Transaction::OnNetworkReadCompleted(int result) {
 
 void HttpCache::Transaction::OnCacheReadCompleted(int result) {
   DoCacheReadCompleted(result);
+}
+
+void HttpCache::Transaction::OnCacheEntryReady(int result) {
+  DCHECK_EQ(OK, result);
+  ValidateEntryHeadersAndContinue(true);
 }
 
 //-----------------------------------------------------------------------------
