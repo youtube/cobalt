@@ -140,8 +140,6 @@ bool TrimString(const std::string& input,
 // The non-wide version has two functions:
 // * TrimWhitespaceASCII()
 //   This function is for ASCII strings and only looks for ASCII whitespace;
-// * TrimWhitespaceUTF8()
-//   This function is for UTF-8 strings and looks for Unicode whitespace.
 // Please choose the best one according to your usage.
 // NOTE: Safe to use the same variable for both input and output.
 enum TrimPositions {
@@ -156,9 +154,6 @@ TrimPositions TrimWhitespace(const std::wstring& input,
 TrimPositions TrimWhitespaceASCII(const std::string& input,
                                   TrimPositions positions,
                                   std::string* output);
-TrimPositions TrimWhitespaceUTF8(const std::string& input,
-                                 TrimPositions positions,
-                                 std::string* output);
 
 // Deprecated. This function is only for backward compatibility and calls
 // TrimWhitespaceASCII().
