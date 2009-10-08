@@ -169,10 +169,11 @@ void PCMQueueOutAudioOutputStream::GetVolume(double* left_level,
 
 // Reorder PCM from AAC layout to Core Audio layout.
 // TODO(fbarchard): Switch layout when ffmpeg is updated.
-// TODO(fbarchard): Add 8 and 32 bit versions of this function.
-static void PCM16LayoutSwizzle(int16 *b, size_t filled) {
-  int16 aac[6];
-  for (size_t i = 0; i < filled; i += 12, b += 6) {
+const int kNumSurroundChannels = 6;
+template<class Format>
+static void SwizzleLayout(Format *b, size_t filled) {
+  Format aac[kNumSurroundChannels];
+  for (size_t i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
     memcpy(aac, b, sizeof(aac));
     b[0] = aac[1];  // L
     b[1] = aac[2];  // R
@@ -218,9 +219,14 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
   }
 
   // Handle channel order for PCM 5.1 audio.
-  if (audio_stream->format_.mChannelsPerFrame == 6 &&
-      audio_stream->format_.mBitsPerChannel == 16) {
-    PCM16LayoutSwizzle(reinterpret_cast<int16*>(buffer->mAudioData), filled);
+  if (audio_stream->format_.mChannelsPerFrame == 6) {
+    if (audio_stream->format_.mBitsPerChannel == 8)
+      SwizzleLayout(reinterpret_cast<uint8*>(buffer->mAudioData), filled);
+    } else if (audio_stream->format_.mBitsPerChannel == 16) {
+      SwizzleLayout(reinterpret_cast<int16*>(buffer->mAudioData), filled);
+    } else if (audio_stream->format_.mBitsPerChannel == 32) {
+      SwizzleLayout(reinterpret_cast<int32*>(buffer->mAudioData), filled);
+    }
   }
 
   buffer->mAudioDataByteSize = filled;
