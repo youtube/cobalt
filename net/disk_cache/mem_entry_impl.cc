@@ -319,6 +319,11 @@ int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
   return 0;
 }
 
+int MemEntryImpl::ReadyForSparseIO(
+    net::CompletionCallback* completion_callback) {
+  return net::OK;
+}
+
 // ------------------------------------------------------------------------
 
 bool MemEntryImpl::CreateEntry(const std::string& key) {

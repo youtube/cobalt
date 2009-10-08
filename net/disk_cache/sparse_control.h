@@ -6,6 +6,7 @@
 #define NET_DISK_CACHE_SPARSE_CONTROL_H_
 
 #include <string>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -62,6 +63,14 @@ class SparseControl {
 
   // Implements Entry::GetAvailableRange().
   int GetAvailableRange(int64 offset, int len, int64* start);
+
+  // Cancels the current sparse operation (if any).
+  void CancelIO();
+
+  // Returns OK if the entry can be used for new IO or ERR_IO_PENDING if we are
+  // busy. If the entry is busy, we'll invoke the callback when we are ready
+  // again. See disk_cache::Entry::ReadyToUse() for more info.
+  int ReadyToUse(net::CompletionCallback* completion_callback);
 
   // Deletes the children entries of |entry|.
   static void DeleteChildren(EntryImpl* entry);
@@ -134,6 +143,7 @@ class SparseControl {
 
   // Reports to the user that we are done.
   void DoUserCallback();
+  void DoAbortCallbacks();
 
   EntryImpl* entry_;  // The sparse entry.
   Entry* child_;  // The current child entry.
@@ -142,6 +152,7 @@ class SparseControl {
   bool finished_;
   bool init_;
   bool range_found_;  // True if GetAvailableRange found something.
+  bool abort_;  // True if we should abort the current operation ASAP.
 
   SparseHeader sparse_header_;  // Data about the children of entry_.
   Bitmap children_map_;  // The actual bitmap of children.
@@ -150,6 +161,7 @@ class SparseControl {
 
   net::CompletionCallbackImpl<SparseControl> child_callback_;
   net::CompletionCallback* user_callback_;
+  std::vector<net::CompletionCallback*> abort_callbacks_;
   int64 offset_;  // Current sparse offset.
   scoped_refptr<net::ReusedIOBuffer> user_buf_;
   int buf_len_;  // Bytes to read or write.
