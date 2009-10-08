@@ -220,7 +220,7 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
 
   // Handle channel order for PCM 5.1 audio.
   if (audio_stream->format_.mChannelsPerFrame == 6) {
-    if (audio_stream->format_.mBitsPerChannel == 8)
+    if (audio_stream->format_.mBitsPerChannel == 8) {
       SwizzleLayout(reinterpret_cast<uint8*>(buffer->mAudioData), filled);
     } else if (audio_stream->format_.mBitsPerChannel == 16) {
       SwizzleLayout(reinterpret_cast<int16*>(buffer->mAudioData), filled);
