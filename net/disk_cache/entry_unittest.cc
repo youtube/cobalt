@@ -1343,3 +1343,50 @@ TEST_F(DiskCacheEntryTest, CleanupSparseEntry) {
   // We re-created one of the corrupt children.
   EXPECT_EQ(3, cache_->GetEntryCount());
 }
+
+TEST_F(DiskCacheEntryTest, CancelSparseIO) {
+  InitCache();
+  std::string key("the first key");
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache_->CreateEntry(key, &entry));
+
+  const int kSize = 4 * 1024;
+  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
+  CacheTestFillBuffer(buf->data(), kSize, false);
+
+  SimpleCallbackTest cb1, cb2, cb3, cb4;
+  int64 offset = 0;
+  for (int ret = 0; ret != net::ERR_IO_PENDING; offset += kSize * 4)
+    ret = entry->WriteSparseData(offset, buf, kSize, &cb1);
+
+  // Cannot use the entry at this point.
+  offset = 0;
+  EXPECT_EQ(net::ERR_CACHE_OPERATION_NOT_SUPPORTED,
+            entry->GetAvailableRange(offset, kSize, &offset));
+  EXPECT_EQ(net::OK, entry->ReadyForSparseIO(&cb2));
+
+  // We cancel the pending operation, and register multiple notifications.
+  entry->CancelSparseIO();
+  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadyForSparseIO(&cb2));
+  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadyForSparseIO(&cb3));
+  entry->CancelSparseIO();  // Should be a no op at this point.
+  EXPECT_EQ(net::ERR_IO_PENDING, entry->ReadyForSparseIO(&cb4));
+
+  offset = 0;
+  EXPECT_EQ(net::ERR_CACHE_OPERATION_NOT_SUPPORTED,
+            entry->GetAvailableRange(offset, kSize, &offset));
+  EXPECT_EQ(net::ERR_CACHE_OPERATION_NOT_SUPPORTED,
+            entry->ReadSparseData(offset, buf, kSize, NULL));
+  EXPECT_EQ(net::ERR_CACHE_OPERATION_NOT_SUPPORTED,
+            entry->WriteSparseData(offset, buf, kSize, NULL));
+
+  // Now see if we receive all notifications.
+  EXPECT_EQ(kSize, cb1.GetResult(net::ERR_IO_PENDING));
+  EXPECT_EQ(net::OK, cb2.GetResult(net::ERR_IO_PENDING));
+  EXPECT_EQ(net::OK, cb3.GetResult(net::ERR_IO_PENDING));
+  EXPECT_EQ(net::OK, cb4.GetResult(net::ERR_IO_PENDING));
+
+  EXPECT_EQ(kSize, entry->GetAvailableRange(offset, kSize, &offset));
+  EXPECT_EQ(net::OK, entry->ReadyForSparseIO(&cb2));
+  entry->Close();
+}

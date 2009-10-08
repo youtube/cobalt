@@ -192,6 +192,7 @@ int SparseControl::StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
   result_ = 0;
   pending_ = false;
   finished_ = false;
+  abort_ = false;
 
   DoChildrenIO();
 
@@ -224,6 +225,24 @@ int SparseControl::GetAvailableRange(int64 offset, int len, int64* start) {
   // This is a failure. We want to return a valid start value in any case.
   *start = offset;
   return result < 0 ? result : 0;  // Don't mask error codes to the caller.
+}
+
+void SparseControl::CancelIO() {
+  if (operation_ == kNoOperation)
+    return;
+  abort_ = true;
+}
+
+int SparseControl::ReadyToUse(net::CompletionCallback* completion_callback) {
+  if (!abort_)
+    return net::OK;
+
+  // We'll grab another reference to keep this object alive because we just have
+  // one extra reference due to the pending IO operation itself, but we'll
+  // release that one before invoking user_callback_.
+  entry_->AddRef();  // Balanced in DoAbortCallbacks.
+  abort_callbacks_.push_back(completion_callback);
+  return net::ERR_IO_PENDING;
 }
 
 // Static
@@ -601,7 +620,7 @@ bool SparseControl::DoChildIO() {
       // progress. However, this entry can still be closed, and that would not
       // be a good thing for us, so we increase the refcount until we're
       // finished doing sparse stuff.
-      entry_->AddRef();
+      entry_->AddRef();  // Balanced in DoUserCallback.
     }
     return false;
   }
@@ -681,6 +700,14 @@ void SparseControl::OnChildIOCompleted(int result) {
   DCHECK_NE(net::ERR_IO_PENDING, result);
   DoChildIOCompleted(result);
 
+  if (abort_) {
+    // We'll return the current result of the operation, which may be less than
+    // the bytes to read or write, but the user cancelled the operation.
+    abort_ = false;
+    DoUserCallback();
+    return DoAbortCallbacks();
+  }
+
   // We are running a callback from the message loop. It's time to restart what
   // we were doing before.
   DoChildrenIO();
@@ -695,6 +722,19 @@ void SparseControl::DoUserCallback() {
   operation_ = kNoOperation;
   entry_->Release();  // Don't touch object after this line.
   c->Run(result_);
+}
+
+void SparseControl::DoAbortCallbacks() {
+  for (size_t i = 0; i < abort_callbacks_.size(); i++) {
+    // Releasing all references to entry_ may result in the destruction of this
+    // object so we should not be touching it after the last Release().
+    net::CompletionCallback* c = abort_callbacks_[i];
+    if (i == abort_callbacks_.size() - 1)
+      abort_callbacks_.clear();
+
+    entry_->Release();  // Don't touch object after this line.
+    c->Run(net::OK);
+  }
 }
 
 }  // namespace disk_cache
