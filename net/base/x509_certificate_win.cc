@@ -22,16 +22,6 @@ namespace net {
 
 namespace {
 
-// Problematic certificates.
-const X509Certificate::Fingerprint cert_blacklist[] = {
-  // A certificate for www.paypal.com with a NULL byte in the common name.
-  // Validity period from 2009-02-24 to 2011-02-24.
-  // Subject CN=www.paypal.com\00ssl.secureconnection.cc
-  // From http://www.gossamer-threads.com/lists/fulldisc/full-disclosure/70363
-  { 0x4c, 0x88, 0x9e, 0x28, 0xd7, 0x7a, 0x44, 0x1e, 0x13, 0xf2,
-    0x6a, 0xba, 0x1f, 0xe8, 0x1b, 0xd6, 0xab, 0x7b, 0xe8, 0xd7 }
-};
-
 //-----------------------------------------------------------------------------
 
 // TODO(wtc): This is a copy of the MapSecurityError function in
@@ -172,6 +162,90 @@ void GetCertSubjectAltName(PCCERT_CONTEXT cert,
                            &alt_name_info_size);
   if (rv)
     output->reset(alt_name_info);
+}
+
+// Returns true if any common name in the certificate's Subject field contains
+// a NULL character.
+bool CertSubjectCommonNameHasNull(PCCERT_CONTEXT cert) {
+  CRYPT_DECODE_PARA decode_para;
+  decode_para.cbSize = sizeof(decode_para);
+  decode_para.pfnAlloc = MyCryptAlloc;
+  decode_para.pfnFree = MyCryptFree;
+  CERT_NAME_INFO* name_info = NULL;
+  DWORD name_info_size = 0;
+  BOOL rv;
+  rv = CryptDecodeObjectEx(X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+                           X509_NAME,
+                           cert->pCertInfo->Subject.pbData,
+                           cert->pCertInfo->Subject.cbData,
+                           CRYPT_DECODE_ALLOC_FLAG | CRYPT_DECODE_NOCOPY_FLAG,
+                           &decode_para,
+                           &name_info,
+                           &name_info_size);
+  if (rv) {
+    scoped_ptr_malloc<CERT_NAME_INFO> scoped_name_info(name_info);
+
+    // The Subject field may have multiple common names.  According to the
+    // "PKI Layer Cake" paper, CryptoAPI uses every common name in the
+    // Subject field, so we inspect every common name.
+    //
+    // From RFC 5280:
+    // X520CommonName ::= CHOICE {
+    //       teletexString     TeletexString   (SIZE (1..ub-common-name)),
+    //       printableString   PrintableString (SIZE (1..ub-common-name)),
+    //       universalString   UniversalString (SIZE (1..ub-common-name)),
+    //       utf8String        UTF8String      (SIZE (1..ub-common-name)),
+    //       bmpString         BMPString       (SIZE (1..ub-common-name)) }
+    //
+    // We also check IA5String and VisibleString.
+    for (DWORD i = 0; i < name_info->cRDN; ++i) {
+      PCERT_RDN rdn = &name_info->rgRDN[i];
+      for (DWORD j = 0; j < rdn->cRDNAttr; ++j) {
+        PCERT_RDN_ATTR rdn_attr = &rdn->rgRDNAttr[j];
+        if (strcmp(rdn_attr->pszObjId, szOID_COMMON_NAME) == 0) {
+          switch (rdn_attr->dwValueType) {
+            // Array of 8-bit characters.
+            case CERT_RDN_PRINTABLE_STRING:
+            case CERT_RDN_TELETEX_STRING:
+            case CERT_RDN_IA5_STRING:
+            case CERT_RDN_VISIBLE_STRING:
+              for (DWORD k = 0; k < rdn_attr->Value.cbData; ++k) {
+                if (rdn_attr->Value.pbData[k] == '\0')
+                  return true;
+              }
+              break;
+            // Array of 16-bit characters.
+            case CERT_RDN_BMP_STRING:
+            case CERT_RDN_UTF8_STRING: {
+              DWORD num_wchars = rdn_attr->Value.cbData / 2;
+              wchar_t* common_name =
+                  reinterpret_cast<wchar_t*>(rdn_attr->Value.pbData);
+              for (DWORD k = 0; k < num_wchars; ++k) {
+                if (common_name[k] == L'\0')
+                  return true;
+              }
+              break;
+            }
+            // Array of ints (32-bit).
+            case CERT_RDN_UNIVERSAL_STRING: {
+              DWORD num_ints = rdn_attr->Value.cbData / 4;
+              int* common_name =
+                  reinterpret_cast<int*>(rdn_attr->Value.pbData);
+              for (DWORD k = 0; k < num_ints; ++k) {
+                if (common_name[k] == 0)
+                  return true;
+              }
+              break;
+            }
+            default:
+              NOTREACHED();
+              break;
+          }
+        }
+      }
+    }
+  }
+  return false;
 }
 
 // Saves some information about the certificate chain chain_context in
@@ -489,13 +563,9 @@ int X509Certificate::Verify(const std::string& hostname,
   if (verify_result->has_md2)
     verify_result->cert_status |= CERT_STATUS_WEAK_SIGNATURE_ALGORITHM;
 
-  // Treat certificates on our blacklist as invalid.
-  for (int i = 0; i < arraysize(cert_blacklist); ++i) {
-    if (fingerprint_.Equals(cert_blacklist[i])) {
-      verify_result->cert_status |= CERT_STATUS_INVALID;
-      break;
-    }
-  }
+  // Flag certificates that have a Subject common name with a NULL character.
+  if (CertSubjectCommonNameHasNull(cert_handle_))
+    verify_result->cert_status |= CERT_STATUS_INVALID;
 
   std::wstring wstr_hostname = ASCIIToWide(hostname);
 
