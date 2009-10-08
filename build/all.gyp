@@ -44,6 +44,11 @@
             '../v8/tools/gyp/v8.gyp:*',
           ],
         }],
+        ['chrome_frame_define==1', {
+          'dependencies': [
+            '../chrome_frame/chrome_frame.gyp:*',
+          ],
+        }],
         ['OS=="mac"', {
           'dependencies': [
             '../third_party/ocmock/ocmock.gyp:*',
