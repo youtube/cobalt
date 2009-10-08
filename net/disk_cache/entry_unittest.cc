@@ -1344,7 +1344,7 @@ TEST_F(DiskCacheEntryTest, CleanupSparseEntry) {
   EXPECT_EQ(3, cache_->GetEntryCount());
 }
 
-TEST_F(DiskCacheEntryTest, CancelSparseIO) {
+TEST_F(DiskCacheEntryTest, DISABLED_CancelSparseIO) {
   InitCache();
   std::string key("the first key");
   disk_cache::Entry* entry;
