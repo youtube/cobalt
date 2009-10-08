@@ -511,6 +511,8 @@ std::string JoinString(const std::vector<std::string>& parts, char s);
 // characters is added to result.
 void SplitStringAlongWhitespace(const std::wstring& str,
                                 std::vector<std::wstring>* result);
+void SplitStringAlongWhitespace(const std::string& str,
+                                std::vector<std::string>* result);
 
 // Replace $1-$2-$3..$9 in the format string with |a|-|b|-|c|..|i| respectively.
 // Additionally, $$ is replaced by $. The offsets parameter here can
