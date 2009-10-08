@@ -1270,8 +1270,8 @@ std::wstring JoinString(const std::vector<std::wstring>& parts, wchar_t sep) {
   return JoinStringT(parts, sep);
 }
 
-void SplitStringAlongWhitespace(const std::wstring& str,
-                                std::vector<std::wstring>* result) {
+template<typename STR>
+void SplitStringAlongWhitespaceT(const STR& str, std::vector<STR>* result) {
   const size_t length = str.length();
   if (!length)
     return;
@@ -1308,6 +1308,16 @@ void SplitStringAlongWhitespace(const std::wstring& str,
     result->push_back(
         str.substr(last_non_ws_start, length - last_non_ws_start));
   }
+}
+
+void SplitStringAlongWhitespace(const std::wstring& str,
+                                std::vector<std::wstring>* result) {
+  SplitStringAlongWhitespaceT(str, result);
+}
+
+void SplitStringAlongWhitespace(const std::string& str,
+                                std::vector<std::string>* result) {
+  SplitStringAlongWhitespaceT(str, result);
 }
 
 template<class StringType>
