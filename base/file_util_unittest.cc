@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -876,41 +876,6 @@ TEST_F(FileUtilTest, DetectDirectoryTest) {
   EXPECT_TRUE(file_util::Delete(test_root, true));
 }
 
-static const struct goodbad_pair {
-  std::wstring bad_name;
-  std::wstring good_name;
-} kIllegalCharacterCases[] = {
-  {L"bad*file:name?.jpg", L"bad-file-name-.jpg"},
-  {L"**********::::.txt", L"--------------.txt"},
-  // We can't use UCNs (universal character names) for C0/C1 characters and
-  // U+007F, but \x escape is interpreted by MSVC and gcc as we intend.
-  {L"bad\x0003\x0091 file\u200E\u200Fname.png", L"bad-- file--name.png"},
-#if defined(OS_WIN)
-  {L"bad*file\\name.jpg", L"bad-file-name.jpg"},
-  {L"\t  bad*file\\name/.jpg ", L"bad-file-name-.jpg"},
-#elif defined(OS_POSIX)
-  {L"bad*file?name.jpg", L"bad-file-name.jpg"},
-  {L"\t  bad*file?name/.jpg ", L"bad-file-name-.jpg"},
-#endif
-  {L"this_file_name is okay!.mp3", L"this_file_name is okay!.mp3"},
-  {L"\u4E00\uAC00.mp3", L"\u4E00\uAC00.mp3"},
-  {L"\u0635\u200C\u0644.mp3", L"\u0635\u200C\u0644.mp3"},
-  {L"\U00010330\U00010331.mp3", L"\U00010330\U00010331.mp3"},
-  // Unassigned codepoints are ok.
-  {L"\u0378\U00040001.mp3", L"\u0378\U00040001.mp3"},
-  // Non-characters are not allowed.
-  {L"bad\uFFFFfile\U0010FFFEname.jpg ", L"bad-file-name.jpg"},
-  {L"bad\uFDD0file\uFDEFname.jpg ", L"bad-file-name.jpg"},
-};
-
-TEST_F(FileUtilTest, ReplaceIllegalCharactersTest) {
-  for (unsigned int i = 0; i < arraysize(kIllegalCharacterCases); ++i) {
-    std::wstring bad_name(kIllegalCharacterCases[i].bad_name);
-    file_util::ReplaceIllegalCharacters(&bad_name, L'-');
-    EXPECT_EQ(kIllegalCharacterCases[i].good_name, bad_name);
-  }
-}
-
 static const struct ReplaceExtensionCase {
   std::wstring file_name;
   FilePath::StringType extension;
@@ -1067,58 +1032,6 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   file_util::FileEnumerator f6(test_dir_, true, FILES_AND_DIRECTORIES);
   EXPECT_FALSE(f6.Next().value().empty());  // Should have found something
                                             // (we don't care what).
-}
-
-TEST_F(FileUtilTest, FileEnumeratorOrderTest) {
-  FilePath fileA = test_dir_.Append(FILE_PATH_LITERAL("a"));
-  FilePath fileB = test_dir_.Append(FILE_PATH_LITERAL("B"));
-  FilePath dirC = test_dir_.Append(FILE_PATH_LITERAL("C"));
-  FilePath dirD = test_dir_.Append(FILE_PATH_LITERAL("d"));
-  FilePath dirE = test_dir_.Append(FILE_PATH_LITERAL("e"));
-  FilePath fileF = test_dir_.Append(FILE_PATH_LITERAL("f"));
-
-  // Create files/directories in near random order.
-  CreateTextFile(fileF, L"");
-  CreateTextFile(fileA, L"");
-  CreateTextFile(fileB, L"");
-  EXPECT_TRUE(file_util::CreateDirectory(dirE));
-  EXPECT_TRUE(file_util::CreateDirectory(dirC));
-  EXPECT_TRUE(file_util::CreateDirectory(dirD));
-
-  // On Windows, files and directories are enumerated in the lexicographical
-  // order, ignoring case and whether they are files or directories. On posix,
-  // we order directories before files.
-  file_util::FileEnumerator enumerator(test_dir_, false, FILES_AND_DIRECTORIES);
-  FilePath cur_file = enumerator.Next();
-#if defined(OS_WIN)
-  EXPECT_EQ(fileA.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(fileB.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(dirC.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(dirD.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(dirE.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(fileF.value(), cur_file.value());
-  cur_file = enumerator.Next();
-#elif defined(OS_POSIX)
-  EXPECT_EQ(dirC.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(dirD.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(dirE.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(fileA.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(fileB.value(), cur_file.value());
-  cur_file = enumerator.Next();
-  EXPECT_EQ(fileF.value(), cur_file.value());
-  cur_file = enumerator.Next();
-#endif
-
-  EXPECT_EQ(FILE_PATH_LITERAL(""), cur_file.value());
 }
 
 TEST_F(FileUtilTest, Contains) {
