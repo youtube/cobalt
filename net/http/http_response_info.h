@@ -12,6 +12,8 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_vary_data.h"
 
+class Pickle;
+
 namespace net {
 
 class HttpResponseInfo {
@@ -55,6 +57,14 @@ class HttpResponseInfo {
 
   // The "Vary" header data for this response.
   HttpVaryData vary_data;
+
+  // Initializes from the representation stored in the given pickle.
+  bool InitFromPickle(const Pickle& pickle, bool* response_truncated);
+
+  // Call this method to persist the response info.
+  void Persist(Pickle* pickle,
+               bool skip_transient_headers,
+               bool response_truncated) const;
 };
 
 }  // namespace net
