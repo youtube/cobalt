@@ -35,56 +35,6 @@
 #include "base/sys_string_conversions.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
-#include "unicode/coll.h"
-
-
-namespace {
-
-class LocaleAwareComparator {
- public:
-  LocaleAwareComparator() {
-    UErrorCode error_code = U_ZERO_ERROR;
-    // Use the default collator. The default locale should have been properly
-    // set by the time this constructor is called.
-    collator_.reset(icu::Collator::createInstance(error_code));
-    DCHECK(U_SUCCESS(error_code));
-    // Make it case-sensitive.
-    collator_->setStrength(icu::Collator::TERTIARY);
-    // Note: We do not set UCOL_NORMALIZATION_MODE attribute. In other words, we
-    // do not pay performance penalty to guarantee sort order correctness for
-    // non-FCD (http://unicode.org/notes/tn5/#FCD) file names. This should be a
-    // reasonable tradeoff because such file names should be rare and the sort
-    // order doesn't change much anyway.
-  }
-
-  // Note: A similar function is available in l10n_util.
-  // We cannot use it because base should not depend on l10n_util.
-  // TODO(yuzo): Move some of l10n_util to base.
-  int Compare(const string16& a, const string16& b) {
-    // We are not sure if Collator::compare is thread-safe.
-    // Use an AutoLock just in case.
-    AutoLock auto_lock(lock_);
-
-    UErrorCode error_code = U_ZERO_ERROR;
-    UCollationResult result = collator_->compare(
-        static_cast<const UChar*>(a.c_str()),
-        static_cast<int>(a.length()),
-        static_cast<const UChar*>(b.c_str()),
-        static_cast<int>(b.length()),
-        error_code);
-    DCHECK(U_SUCCESS(error_code));
-    return result;
-  }
-
- private:
-  scoped_ptr<icu::Collator> collator_;
-  Lock lock_;
-  friend struct DefaultSingletonTraits<LocaleAwareComparator>;
-
-  DISALLOW_COPY_AND_ASSIGN(LocaleAwareComparator);
-};
-
-}  // namespace
 
 namespace file_util {
 
@@ -623,9 +573,6 @@ FilePath FileEnumerator::Next() {
     if (!ReadDirectory(&entries, root_path_, file_type_ & SHOW_SYM_LINKS))
       continue;
 
-    // The API says that order is not guaranteed, but order affects UX
-    std::sort(entries.begin(), entries.end(), CompareFiles);
-
     directory_entries_.clear();
     current_directory_entry_ = 0;
     for (std::vector<DirectoryEntryInfo>::const_iterator
@@ -689,23 +636,6 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
 
   closedir(dir);
   return true;
-}
-
-bool FileEnumerator::CompareFiles(const DirectoryEntryInfo& a,
-                                  const DirectoryEntryInfo& b) {
-  // Order lexicographically with directories before other files.
-  if (S_ISDIR(a.stat.st_mode) != S_ISDIR(b.stat.st_mode))
-    return S_ISDIR(a.stat.st_mode);
-
-  // On linux, the file system encoding is not defined. We assume
-  // SysNativeMBToWide takes care of it.
-  //
-  // ICU's collator can take strings in OS native encoding. But we convert the
-  // strings to UTF-16 ourselves to ensure conversion consistency.
-  // TODO(yuzo): Perhaps we should define SysNativeMBToUTF16?
-  return Singleton<LocaleAwareComparator>()->Compare(
-      WideToUTF16(base::SysNativeMBToWide(a.filename.value().c_str())),
-      WideToUTF16(base::SysNativeMBToWide(b.filename.value().c_str()))) < 0;
 }
 
 ///////////////////////////////////////////////

@@ -1,10 +1,14 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/base/directory_lister.h"
 
+#include <algorithm>
+#include <vector>
+
 #include "base/file_util.h"
+#include "base/i18n/file_util_icu.h"
 #include "base/message_loop.h"
 #include "base/platform_thread.h"
 #include "net/base/net_errors.h"
@@ -15,22 +19,36 @@ static const int kFilesPerEvent = 8;
 
 class DirectoryDataEvent : public Task {
  public:
-  explicit DirectoryDataEvent(DirectoryLister* d)
-      : lister(d), count(0), error(0) {
+  explicit DirectoryDataEvent(DirectoryLister* d) : lister(d), error(0) {
+    // Allocations of the FindInfo aren't super cheap, so reserve space.
+    data.reserve(64);
   }
 
   void Run() {
-    if (count) {
-      lister->OnReceivedData(data, count);
-    } else {
+    if (data.empty()) {
       lister->OnDone(error);
+      return;
     }
+    lister->OnReceivedData(&data[0], static_cast<int>(data.size()));
   }
 
   scoped_refptr<DirectoryLister> lister;
-  file_util::FileEnumerator::FindInfo data[kFilesPerEvent];
-  int count, error;
+  std::vector<file_util::FileEnumerator::FindInfo> data;
+  int error;
 };
+
+// Comparator for sorting FindInfo's. This uses the locale aware filename
+// comparison function on the filenames for sorting in the user's locale.
+static bool CompareFindInfo(const file_util::FileEnumerator::FindInfo& a,
+                            const file_util::FileEnumerator::FindInfo& b) {
+#if defined(OS_WIN)
+  return file_util::LocaleAwareCompareFilenames(FilePath(a.cFileName),
+                                                FilePath(b.cFileName));
+#elif defined(OS_POSIX)
+  return file_util::LocaleAwareCompareFilenames(FilePath(a.filename),
+                                                FilePath(b.filename));
+#endif
+}
 
 DirectoryLister::DirectoryLister(const FilePath& dir,
                                  DirectoryListerDelegate* delegate)
@@ -91,15 +109,25 @@ void DirectoryLister::ThreadMain() {
           file_util::FileEnumerator::INCLUDE_DOT_DOT));
 
   while (!canceled_ && !(file_enum.Next().value().empty())) {
-    file_enum.GetFindInfo(&e->data[e->count]);
+    e->data.push_back(file_util::FileEnumerator::FindInfo());
+    file_enum.GetFindInfo(&e->data[e->data.size() - 1]);
 
+    /* TODO(brettw) bug 24107: It would be nice to send incremental updates.
+       We gather them all so they can be sorted, but eventually the sorting
+       should be done from JS to give more flexibility in the page. When we do
+       that, we can uncomment this to send incremental updates to the page.
     if (++e->count == kFilesPerEvent) {
       message_loop_->PostTask(FROM_HERE, e);
       e = new DirectoryDataEvent(this);
     }
+    */
   }
 
-  if (e->count > 0) {
+  if (!e->data.empty()) {
+    // Sort the results. See the TODO above (this sort should be removed and we
+    // should do it from JS).
+    std::sort(e->data.begin(), e->data.end(), CompareFindInfo);
+
     message_loop_->PostTask(FROM_HERE, e);
     e = new DirectoryDataEvent(this);
   }

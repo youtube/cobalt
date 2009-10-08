@@ -103,19 +103,6 @@ void InsertBeforeExtension(FilePath* path, const FilePath::StringType& suffix);
 void ReplaceExtension(FilePath* file_name,
                       const FilePath::StringType& extension);
 
-// Replaces characters in 'file_name' that are illegal for file names with
-// 'replace_char'. 'file_name' must not be a full or relative path, but just the
-// file name component. Any leading or trailing whitespace in 'file_name' is
-// removed.
-// Example:
-//   file_name == "bad:file*name?.txt", changed to: "bad-file-name-.txt" when
-//   'replace_char' is '-'.
-void ReplaceIllegalCharacters(std::wstring* file_name, int replace_char);
-
-// Returns true if file_name does not have any illegal character. The input
-// param has the same restriction as that for ReplaceIllegalCharacters.
-bool IsFilenameLegal(const string16& file_name);
-
 //-----------------------------------------------------------------------------
 // Functions that involve filesystem access or modification:
 
@@ -490,10 +477,6 @@ class FileEnumerator {
   static bool ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
                             const FilePath& source, bool show_links);
 
-  // Comparison function to neatly sort directory entries
-  static bool CompareFiles(const DirectoryEntryInfo& a,
-                           const DirectoryEntryInfo& b);
-
   // The files in the current directory
   std::vector<DirectoryEntryInfo> directory_entries_;
 
@@ -501,7 +484,7 @@ class FileEnumerator {
   size_t current_directory_entry_;
 #endif
 
-  DISALLOW_EVIL_CONSTRUCTORS(FileEnumerator);
+  DISALLOW_COPY_AND_ASSIGN(FileEnumerator);
 };
 
 class MemoryMappedFile {
