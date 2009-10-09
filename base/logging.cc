@@ -19,6 +19,7 @@ typedef HANDLE MutexHandle;
 #endif
 
 #if defined(OS_POSIX)
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,6 +38,9 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/command_line.h"
 #include "base/debug_util.h"
 #include "base/lock_impl.h"
+#if defined(OS_POSIX)
+#include "base/safe_strerror_posix.h"
+#endif
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -566,6 +570,94 @@ LogMessage::~LogMessage() {
     }
   }
 }
+
+#if defined(OS_WIN)
+// This has already been defined in the header, but defining it again as DWORD
+// ensures that the type used in the header is equivalent to DWORD. If not,
+// the redefinition is a compile error.
+typedef DWORD SystemErrorCode;
+#endif
+
+SystemErrorCode GetLastSystemErrorCode() {
+#if defined(OS_WIN)
+  return ::GetLastError();
+#elif defined(OS_POSIX)
+  return errno;
+#else
+#error Not implemented
+#endif
+}
+
+#if defined(OS_WIN)
+Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
+                                           int line,
+                                           LogSeverity severity,
+                                           SystemErrorCode err,
+                                           const char* module)
+    : err_(err),
+      module_(module),
+      log_message_(file, line, severity) {
+}
+
+Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
+                                           int line,
+                                           LogSeverity severity,
+                                           SystemErrorCode err)
+    : err_(err),
+      module_(NULL),
+      log_message_(file, line, severity) {
+}
+
+Win32ErrorLogMessage::~Win32ErrorLogMessage() {
+  const int error_message_buffer_size = 256;
+  char msgbuf[error_message_buffer_size];
+  DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM;
+  HMODULE hmod;
+  if (module_) {
+    hmod = GetModuleHandleA(module_);
+    if (hmod) {
+      flags |= FORMAT_MESSAGE_FROM_HMODULE;
+    } else {
+      // This makes a nested Win32ErrorLogMessage. It will have module_ of NULL
+      // so it will not call GetModuleHandle, so recursive errors are
+      // impossible.
+      DPLOG(WARNING) << "Couldn't open module " << module_
+          << " for error message query";
+    }
+  } else {
+    hmod = NULL;
+  }
+  DWORD len = FormatMessageA(flags,
+                             hmod,
+                             err_,
+                             MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                             msgbuf,
+                             sizeof(msgbuf) / sizeof(msgbuf[0]),
+                             NULL);
+  if (len) {
+    while ((len > 0) &&
+           isspace(static_cast<unsigned char>(msgbuf[len - 1]))) {
+      msgbuf[--len] = 0;
+    }
+    stream() << ": " << msgbuf;
+  } else {
+    stream() << ": Error " << GetLastError() << " while retrieving error "
+        << err_;
+  }
+}
+#elif defined(OS_POSIX)
+ErrnoLogMessage::ErrnoLogMessage(const char* file,
+                                 int line,
+                                 LogSeverity severity,
+                                 SystemErrorCode err)
+    : err_(err),
+      log_message_(file, line, severity) {
+}
+
+ErrnoLogMessage::~ErrnoLogMessage() {
+  stream() << ": " << safe_strerror(err_);
+}
+#endif  // OS_WIN
 
 void CloseLogFile() {
   if (!log_file)
