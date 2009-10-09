@@ -12,7 +12,6 @@
         '../app/app.gyp:*',
         '../base/base.gyp:*',
         '../chrome/chrome.gyp:*',
-        '../chrome/test/interactive_ui/interactive_ui_test.gyp:*',
         '../ipc/ipc.gyp:*',
         '../media/media.gyp:*',
         '../net/net.gyp:*',
@@ -159,6 +158,7 @@
           'dependencies': [
             '../app/app.gyp:app_unittests',
             '../chrome/chrome.gyp:browser_tests',
+            '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:memory_test',
             '../chrome/chrome.gyp:page_cycler_tests',
             '../chrome/chrome.gyp:plugin_tests',
@@ -173,7 +173,6 @@
             # mini_installer_tests depends on mini_installer. This should be
             # defined in installer.gyp.
             '../chrome/installer/mini_installer.gyp:mini_installer',
-            '../chrome/test/interactive_ui/interactive_ui_test.gyp:interactive_ui_tests',
             '../courgette/courgette.gyp:courgette_unittests',
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
