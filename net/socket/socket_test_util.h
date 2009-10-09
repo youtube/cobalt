@@ -256,10 +256,9 @@ class MockClientSocket : public net::SSLClientSocket {
 
  protected:
   void RunCallbackAsync(net::CompletionCallback* callback, int result);
-  void RunCallback(int result);
+  void RunCallback(net::CompletionCallback*, int result);
 
   ScopedRunnableMethodFactory<MockClientSocket> method_factory_;
-  net::CompletionCallback* callback_;
   bool connected_;
 };
 
