@@ -250,6 +250,8 @@
         'registry.h',
         'resource_util.cc',
         'resource_util.h',
+        'safe_strerror_posix.cc',
+        'safe_strerror_posix.h',
         'scoped_bstr_win.cc',
         'scoped_bstr_win.h',
         'scoped_cftyperef.h',
