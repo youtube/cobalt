@@ -7,7 +7,7 @@
 
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
-#include "base/test_suite.h"
+#include "base/test/test_suite.h"
 #include "net/base/mock_host_resolver.h"
 
 class NetTestSuite : public TestSuite {
