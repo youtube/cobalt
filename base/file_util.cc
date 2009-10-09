@@ -294,6 +294,13 @@ bool ReadFileToString(const std::wstring& path, std::string* contents) {
   return ReadFileToString(FilePath::FromWStringHack(path), contents);
 }
 
+bool AbsolutePath(std::wstring* path_str) {
+  FilePath path(FilePath::FromWStringHack(*path_str));
+  if (!AbsolutePath(&path))
+    return false;
+  *path_str = path.ToWStringHack();
+  return true;
+}
 void AppendToPath(std::wstring* path, const std::wstring& new_ending) {
   if (!path) {
     NOTREACHED();

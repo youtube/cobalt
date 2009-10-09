@@ -89,6 +89,8 @@ void AppendToPath(std::wstring* path, const std::wstring& new_ending);
 // Convert provided relative path into an absolute path.  Returns false on
 // error. On POSIX, this function fails if the path does not exist.
 bool AbsolutePath(FilePath* path);
+// Deprecated temporary compatibility function.
+bool AbsolutePath(std::wstring* path);
 
 // Returns true if |parent| contains |child|. Both paths are converted to
 // absolute paths before doing the comparison.
