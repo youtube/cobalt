@@ -144,12 +144,16 @@
         'i18n/file_util_icu.h',
         'i18n/icu_string_conversions.cc',
         'i18n/icu_string_conversions.h',
+        'i18n/icu_util.cc',
+        'i18n/icu_util.h',
         'i18n/number_formatting.cc',
         'i18n/number_formatting.h',
+        'i18n/time_formatting.cc',
+        'i18n/time_formatting.h',
+        'i18n/word_iterator.cc',
+        'i18n/word_iterator.h',
         'iat_patch.cc',
         'iat_patch.h',
-        'icu_util.cc',
-        'icu_util.h',
         'id_map.h',
         'image_util.cc',
         'image_util.h',
@@ -314,8 +318,6 @@
         'thread_local_win.cc',
         'time.cc',
         'time.h',
-        'time_format.cc',
-        'time_format.h',
         'time_mac.cc',
         'time_posix.cc',
         'time_win.cc',
@@ -349,8 +351,6 @@
         'windows_message_list.h',
         'wmi_util.cc',
         'wmi_util.h',
-        'word_iterator.cc',
-        'word_iterator.h',
         'worker_pool.h',
         'worker_pool_linux.cc',
         'worker_pool_linux.h',
@@ -560,8 +560,8 @@
       'sources': [
         # Infrastructure files.
         'multiprocess_test.h',
-        'run_all_unittests.cc',
-        'test_suite.h',
+        'test/run_all_unittests.cc',
+        'test/test_suite.h',
 
         # Tests.
         'at_exit_unittest.cc',
@@ -585,6 +585,7 @@
         'hmac_unittest.cc',
         'id_map_unittest.cc',
         'i18n/file_util_icu_unittest.cc',
+        'i18n/word_iterator_unittest.cc',
         'json_reader_unittest.cc',
         'json_writer_unittest.cc',
         'lazy_instance_unittest.cc',
@@ -639,7 +640,6 @@
         'weak_ptr_unittest.cc',
         'win_util_unittest.cc',
         'wmi_util_unittest.cc',
-        'word_iterator_unittest.cc',
         'worker_pool_unittest.cc',
       ],
       'include_dirs': [
@@ -707,11 +707,11 @@
         'base',
       ],
       'sources': [
-        'test_file_util.h',
-        'test_file_util_linux.cc',
-        'test_file_util_mac.cc',
-        'test_file_util_posix.cc',
-        'test_file_util_win.cc',
+        'test/test_file_util.h',
+        'test/test_file_util_linux.cc',
+        'test/test_file_util_mac.cc',
+        'test/test_file_util_posix.cc',
+        'test/test_file_util_win.cc',
       ],
       'conditions': [
         [ 'OS == "linux" or OS == "freebsd"', {
@@ -745,7 +745,7 @@
       ],
       'sources': [
         'perftimer.cc',
-        'run_all_perftests.cc',
+        'test/run_all_perftests.cc',
       ],
       'direct_dependent_settings': {
         'defines': [
@@ -756,8 +756,8 @@
         ['OS == "linux" or OS == "freebsd"', {
           'dependencies': [
             # Needed to handle the #include chain:
-            #   base/perf_test_suite.h
-            #   base/test_suite.h
+            #   base/test/perf_test_suite.h
+            #   base/test/test_suite.h
             #   gtk/gtk.h
             '../build/linux/system.gyp:gtk',
           ],
