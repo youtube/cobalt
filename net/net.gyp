@@ -323,6 +323,8 @@
         'socket/tcp_client_socket_win.cc',
         'socket/tcp_client_socket_win.h',
         'socket/tcp_pinger.h',
+        'socket_stream/socket_stream.cc',
+        'socket_stream/socket_stream.h',
         'third_party/parseftp/ParseFTPList.cpp',
         'third_party/parseftp/ParseFTPList.h',
         'url_request/url_request.cc',
