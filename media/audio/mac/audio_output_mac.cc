@@ -169,9 +169,10 @@ void PCMQueueOutAudioOutputStream::GetVolume(double* left_level,
 
 // Reorder PCM from AAC layout to Core Audio layout.
 // TODO(fbarchard): Switch layout when ffmpeg is updated.
-const int kNumSurroundChannels = 6;
+namespace {
 template<class Format>
 static void SwizzleLayout(Format *b, size_t filled) {
+  static const int kNumSurroundChannels = 6;
   Format aac[kNumSurroundChannels];
   for (size_t i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
     memcpy(aac, b, sizeof(aac));
@@ -183,6 +184,7 @@ static void SwizzleLayout(Format *b, size_t filled) {
     b[5] = aac[4];  // Rs
   }
 }
+}  // namespace
 
 // Note to future hackers of this function: Do not add locks here because we
 // call out to third party source that might do crazy things including adquire
@@ -218,7 +220,7 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
     return;
   }
 
-  // Handle channel order for PCM 5.1 audio.
+  // Handle channel order for 5.1 audio.
   if (audio_stream->format_.mChannelsPerFrame == 6) {
     if (audio_stream->format_.mBitsPerChannel == 8) {
       SwizzleLayout(reinterpret_cast<uint8*>(buffer->mAudioData), filled);
