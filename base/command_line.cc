@@ -14,6 +14,7 @@
 
 #include <algorithm>
 
+#include "base/file_path.h"
 #include "base/logging.h"
 #include "base/singleton.h"
 #include "base/string_piece.h"
@@ -92,6 +93,15 @@ void CommandLine::ParseFromString(const std::wstring& command_line) {
   if (args)
     LocalFree(args);
 }
+
+CommandLine::CommandLine(const FilePath& program) {
+  if (!program.empty()) {
+    program_ = program.value();
+    command_line_string_ = L'"' + program.value() + L'"';
+  }
+}
+
+// Deprecated version
 CommandLine::CommandLine(const std::wstring& program) {
   if (!program.empty()) {
     program_ = program;
@@ -134,6 +144,11 @@ void CommandLine::InitFromArgv() {
   }
 }
 
+CommandLine::CommandLine(const FilePath& program) {
+  argv_.push_back(program.value());
+}
+
+// Deprecated version
 CommandLine::CommandLine(const std::wstring& program) {
   argv_.push_back(base::SysWideToNativeMB(program));
 }
@@ -275,7 +290,7 @@ std::vector<std::wstring> CommandLine::GetLooseValues() const {
   return values;
 }
 std::wstring CommandLine::program() const {
-  DCHECK(argv_.size() > 0);
+  DCHECK_GT(argv_.size(), 0U);
   return base::SysNativeMBToWide(argv_[0]);
 }
 #endif
