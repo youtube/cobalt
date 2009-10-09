@@ -9,7 +9,7 @@
 #include "base/file_util.h"
 #include "base/perftimer.h"
 #include "base/string_util.h"
-#include "base/test_file_util.h"
+#include "base/test/test_file_util.h"
 #include "base/timer.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
