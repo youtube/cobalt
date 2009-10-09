@@ -26,6 +26,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 
+class FilePath;
 class InProcessBrowserTest;
 
 class CommandLine {
@@ -42,7 +43,9 @@ class CommandLine {
 
   // Construct a new, empty command line.
   // |program| is the name of the program to run (aka argv[0]).
-  // TODO(port): should be a FilePath.
+  explicit CommandLine(const FilePath& program);
+
+  // Deprecated in favor of FilePath version.
   explicit CommandLine(const std::wstring& program);
 
   // Uninit and free the current process's command line.
