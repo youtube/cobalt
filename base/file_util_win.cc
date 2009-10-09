@@ -428,9 +428,7 @@ bool GetTempDir(FilePath* path) {
   // TODO(evanm): the old behavior of this function was to always strip the
   // trailing slash.  We duplicate this here, but it shouldn't be necessary
   // when everyone is using the appropriate FilePath APIs.
-  std::wstring path_str(temp_path);
-  TrimTrailingSeparator(&path_str);
-  *path = FilePath(path_str);
+  *path = FilePath(temp_path).StripTrailingSeparators();
   return true;
 }
 
