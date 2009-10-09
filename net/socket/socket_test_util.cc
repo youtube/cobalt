@@ -17,7 +17,6 @@ namespace net {
 
 MockClientSocket::MockClientSocket()
     : ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
-      callback_(NULL),
       connected_(false) {
 }
 
@@ -32,7 +31,6 @@ void MockClientSocket::GetSSLCertRequestInfo(
 
 void MockClientSocket::Disconnect() {
   connected_ = false;
-  callback_ = NULL;
 }
 
 bool MockClientSocket::IsConnected() const {
@@ -52,17 +50,15 @@ int MockClientSocket::GetPeerName(struct sockaddr *name, socklen_t *namelen) {
 
 void MockClientSocket::RunCallbackAsync(net::CompletionCallback* callback,
                                         int result) {
-  callback_ = callback;
   MessageLoop::current()->PostTask(FROM_HERE,
       method_factory_.NewRunnableMethod(
-          &MockClientSocket::RunCallback, result));
+          &MockClientSocket::RunCallback, callback, result));
 }
 
-void MockClientSocket::RunCallback(int result) {
-  net::CompletionCallback* c = callback_;
-  callback_ = NULL;
-  if (c)
-    c->Run(result);
+void MockClientSocket::RunCallback(net::CompletionCallback* callback,
+                                   int result) {
+  if (callback)
+    callback->Run(result);
 }
 
 MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
@@ -77,7 +73,6 @@ MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
 }
 
 int MockTCPClientSocket::Connect(net::CompletionCallback* callback) {
-  DCHECK(!callback_);
   if (connected_)
     return net::OK;
   connected_ = true;
@@ -90,8 +85,6 @@ int MockTCPClientSocket::Connect(net::CompletionCallback* callback) {
 
 int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* callback) {
-  DCHECK(!callback_);
-
   if (!IsConnected())
     return net::ERR_UNEXPECTED;
 
@@ -124,7 +117,6 @@ int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
                                net::CompletionCallback* callback) {
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
-  DCHECK(!callback_);
 
   if (!IsConnected())
     return net::ERR_UNEXPECTED;
@@ -185,7 +177,6 @@ void MockSSLClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
 }
 
 int MockSSLClientSocket::Connect(net::CompletionCallback* callback) {
-  DCHECK(!callback_);
   ConnectCallback* connect_callback = new ConnectCallback(
       this, callback, data_->connect.result);
   int rv = transport_->Connect(connect_callback);
@@ -210,13 +201,11 @@ void MockSSLClientSocket::Disconnect() {
 
 int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* callback) {
-  DCHECK(!callback_);
   return transport_->Read(buf, buf_len, callback);
 }
 
 int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
                                net::CompletionCallback* callback) {
-  DCHECK(!callback_);
   return transport_->Write(buf, buf_len, callback);
 }
 
