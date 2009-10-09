@@ -299,9 +299,11 @@ std::wstring CommandLine::program() const {
 // static
 std::wstring CommandLine::PrefixedSwitchString(
     const std::wstring& switch_string) {
-  return StringPrintf(L"%ls%ls",
-                      kSwitchPrefixes[0],
-                      switch_string.c_str());
+#if defined(OS_WIN)
+  return kSwitchPrefixes[0] + switch_string;
+#else
+  return ASCIIToWide(kSwitchPrefixes[0]) + switch_string;
+#endif
 }
 
 // static
@@ -311,11 +313,13 @@ std::wstring CommandLine::PrefixedSwitchStringWithValue(
     return PrefixedSwitchString(switch_string);
   }
 
-  return StringPrintf(L"%ls%ls%ls%ls",
-                      kSwitchPrefixes[0],
-                      switch_string.c_str(),
-                      kSwitchValueSeparator,
-                      value_string.c_str());
+  return PrefixedSwitchString(switch_string +
+#if defined(OS_WIN)
+                              kSwitchValueSeparator +
+#else
+                              ASCIIToWide(kSwitchValueSeparator) +
+#endif
+                              value_string);
 }
 
 #if defined(OS_WIN)
