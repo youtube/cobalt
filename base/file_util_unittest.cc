@@ -8,6 +8,7 @@
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>
+#include <tchar.h>
 #endif
 
 #include <fstream>
@@ -773,7 +774,35 @@ TEST_F(FileUtilTest, CopyAndDeleteDirectoryTest) {
   EXPECT_TRUE(file_util::PathExists(dir_name_to));
   EXPECT_TRUE(file_util::PathExists(file_name_to));
 }
-#endif
+
+TEST_F(FileUtilTest, GetTempDirTest) {
+  static const TCHAR* kTmpKey = _T("TMP");
+  static const TCHAR* kTmpValues[] = {
+    _T(""), _T("C:"), _T("C:\\"), _T("C:\\tmp"), _T("C:\\tmp\\")
+  };
+  // Save the original $TMP.
+  size_t original_tmp_size;
+  TCHAR* original_tmp;
+  ASSERT_EQ(0, ::_tdupenv_s(&original_tmp, &original_tmp_size, kTmpKey));
+  // original_tmp may be NULL.
+
+  for (unsigned int i = 0; i < arraysize(kTmpValues); ++i) {
+    FilePath path;
+    ::_tputenv_s(kTmpKey, kTmpValues[i]);
+    file_util::GetTempDir(&path);
+    EXPECT_TRUE(path.IsAbsolute()) << "$TMP=" << kTmpValues[i] <<
+        " result=" << path.value();
+  }
+
+  // Restore the original $TMP.
+  if (original_tmp) {
+    ::_tputenv_s(kTmpKey, original_tmp);
+    free(original_tmp);
+  } else {
+    ::_tputenv_s(kTmpKey, _T(""));
+  }
+}
+#endif  // OS_WIN
 
 TEST_F(FileUtilTest, CreateTemporaryFileTest) {
   FilePath temp_files[3];
