@@ -383,7 +383,6 @@ const char kWhitespaceASCII[] = {
   0x20,    // Space
   0
 };
-const char* const kCodepageUTF8 = "UTF-8";
 
 template<typename STR>
 TrimPositions TrimStringT(const STR& input,
