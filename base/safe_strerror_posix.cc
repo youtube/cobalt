@@ -5,6 +5,7 @@
 #include "base/safe_strerror_posix.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 
 #if defined(__GLIBC__) && defined(__GNUC__)
