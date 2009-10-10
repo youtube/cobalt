@@ -6,6 +6,7 @@
 
 #include <schnlsp.h>
 
+#include "base/compiler_specific.h"
 #include "base/lock.h"
 #include "base/singleton.h"
 #include "base/stl_util-inl.h"
@@ -288,13 +289,21 @@ static const int kRecvBufferSize = (5 + 16*1024 + 64);
 SSLClientSocketWin::SSLClientSocketWin(ClientSocket* transport_socket,
                                        const std::string& hostname,
                                        const SSLConfig& ssl_config)
-#pragma warning(suppress: 4355)
-    : io_callback_(this, &SSLClientSocketWin::OnIOComplete),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(
+        handshake_io_callback_(this,
+                               &SSLClientSocketWin::OnHandshakeIOComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+        read_callback_(this, &SSLClientSocketWin::OnReadComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+        write_callback_(this, &SSLClientSocketWin::OnWriteComplete)),
       transport_(transport_socket),
       hostname_(hostname),
       ssl_config_(ssl_config),
-      user_callback_(NULL),
-      user_buf_len_(0),
+      user_connect_callback_(NULL),
+      user_read_callback_(NULL),
+      user_read_buf_len_(0),
+      user_write_callback_(NULL),
+      user_write_buf_len_(0),
       next_state_(STATE_NONE),
       creds_(NULL),
       isc_status_(SEC_E_OK),
@@ -305,9 +314,9 @@ SSLClientSocketWin::SSLClientSocketWin(ClientSocket* transport_socket,
       received_ptr_(NULL),
       bytes_received_(0),
       writing_first_token_(false),
-      completed_handshake_(false),
       ignore_ok_result_(false),
-      renegotiating_(false) {
+      renegotiating_(false),
+      need_more_data_(false) {
   memset(&stream_sizes_, 0, sizeof(stream_sizes_));
   memset(in_buffers_, 0, sizeof(in_buffers_));
   memset(&send_buffer_, 0, sizeof(send_buffer_));
@@ -409,7 +418,7 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
 int SSLClientSocketWin::Connect(CompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(next_state_ == STATE_NONE);
-  DCHECK(!user_callback_);
+  DCHECK(!user_connect_callback_);
 
   int ssl_version_mask = 0;
   if (ssl_config_.ssl2_enabled)
@@ -471,14 +480,15 @@ int SSLClientSocketWin::Connect(CompletionCallback* callback) {
   next_state_ = STATE_HANDSHAKE_WRITE;
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    user_connect_callback_ = callback;
   return rv;
 }
 
 void SSLClientSocketWin::Disconnect() {
   // TODO(wtc): Send SSL close_notify alert.
-  completed_handshake_ = false;
-  // Shut down anything that may call us back through io_callback_.
+  next_state_ = STATE_NONE;
+
+  // Shut down anything that may call us back.
   verifier_.reset();
   transport_->Disconnect();
 
@@ -496,6 +506,7 @@ void SSLClientSocketWin::Disconnect() {
   bytes_received_ = 0;
   writing_first_token_ = false;
   renegotiating_ = false;
+  need_more_data_ = false;
 }
 
 bool SSLClientSocketWin::IsConnected() const {
@@ -505,7 +516,7 @@ bool SSLClientSocketWin::IsConnected() const {
   // layer (HttpNetworkTransaction) needs to handle a persistent connection
   // closed by the server when we send a request anyway, a false positive in
   // exchange for simpler code is a good trade-off.
-  return completed_handshake_ && transport_->IsConnected();
+  return completed_handshake() && transport_->IsConnected();
 }
 
 bool SSLClientSocketWin::IsConnectedAndIdle() const {
@@ -516,14 +527,13 @@ bool SSLClientSocketWin::IsConnectedAndIdle() const {
   // the close_notify alert message means EOF in the SSL layer, it is just
   // bytes to the transport layer below, so transport_->IsConnectedAndIdle()
   // returns the desired false when we receive close_notify.
-  return completed_handshake_ && transport_->IsConnectedAndIdle();
+  return completed_handshake() && transport_->IsConnectedAndIdle();
 }
 
 int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
-  DCHECK(completed_handshake_);
-  DCHECK(next_state_ == STATE_NONE);
-  DCHECK(!user_callback_);
+  DCHECK(completed_handshake());
+  DCHECK(!user_read_callback_);
 
   // If we have surplus decrypted plaintext, satisfy the Read with it without
   // reading more ciphertext from the transport socket.
@@ -542,40 +552,43 @@ int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
     return len;
   }
 
-  DCHECK(!user_buf_);
+  DCHECK(!user_read_buf_);
   // http://crbug.com/16371: We're seeing |buf->data()| return NULL.  See if the
   // user is passing in an IOBuffer with a NULL |data_|.
   CHECK(buf);
   CHECK(buf->data());
-  user_buf_ = buf;
-  user_buf_len_ = buf_len;
+  user_read_buf_ = buf;
+  user_read_buf_len_ = buf_len;
 
-  SetNextStateForRead();
-  int rv = DoLoop(OK);
+  int rv = DoPayloadRead();
   if (rv == ERR_IO_PENDING) {
-    user_callback_ = callback;
+    user_read_callback_ = callback;
   } else {
-    user_buf_ = NULL;
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
   }
   return rv;
 }
 
 int SSLClientSocketWin::Write(IOBuffer* buf, int buf_len,
                               CompletionCallback* callback) {
-  DCHECK(completed_handshake_);
-  DCHECK(next_state_ == STATE_NONE);
-  DCHECK(!user_callback_);
+  DCHECK(completed_handshake());
+  DCHECK(!user_write_callback_);
 
-  DCHECK(!user_buf_);
-  user_buf_ = buf;
-  user_buf_len_ = buf_len;
+  DCHECK(!user_write_buf_);
+  user_write_buf_ = buf;
+  user_write_buf_len_ = buf_len;
 
-  next_state_ = STATE_PAYLOAD_ENCRYPT;
-  int rv = DoLoop(OK);
+  int rv = DoPayloadEncrypt();
+  if (rv != OK)
+    return rv;
+
+  rv = DoPayloadWrite();
   if (rv == ERR_IO_PENDING) {
-    user_callback_ = callback;
+    user_write_callback_ = callback;
   } else {
-    user_buf_ = NULL;
+    user_write_buf_ = NULL;
+    user_write_buf_len_ = 0;
   }
   return rv;
 }
@@ -588,22 +601,61 @@ bool SSLClientSocketWin::SetSendBufferSize(int32 size) {
   return transport_->SetSendBufferSize(size);
 }
 
-void SSLClientSocketWin::DoCallback(int rv) {
-  DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_callback_);
-
-  // since Run may result in Read being called, clear user_callback_ up front.
-  CompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
-  user_buf_ = NULL;
-  c->Run(rv);
-}
-
-void SSLClientSocketWin::OnIOComplete(int result) {
+void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
   int rv = DoLoop(result);
-  if (rv != ERR_IO_PENDING)
-    DoCallback(rv);
+
+  // The SSL handshake has some round trips.  Any error, other than waiting
+  // for IO, means that we've failed and need to notify the caller.
+  if (rv != ERR_IO_PENDING) {
+    // If there is no connect callback available to call, it had better be
+    // because we are renegotiating (which occurs because we are in the middle
+    // of a Read when the renegotiation process starts).  We need to inform the
+    // caller of the SSL error, so we complete the Read here.
+    if (!user_connect_callback_) {
+      DCHECK(renegotiating_);
+      CompletionCallback* c = user_read_callback_;
+      user_read_callback_ = NULL;
+      user_read_buf_ = NULL;
+      user_read_buf_len_ = 0;
+      c->Run(rv);
+      return;
+    }
+    CompletionCallback* c = user_connect_callback_;
+    user_connect_callback_ = NULL;
+    c->Run(rv);
+  }
 }
+
+void SSLClientSocketWin::OnReadComplete(int result) {
+  DCHECK(completed_handshake());
+
+  result = DoPayloadReadComplete(result);
+  if (result > 0)
+    result = DoPayloadDecrypt();
+  if (result != ERR_IO_PENDING) {
+    DCHECK(user_read_callback_);
+    CompletionCallback* c = user_read_callback_;
+    user_read_callback_ = NULL;
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
+    c->Run(result);
+  }
+}
+
+void SSLClientSocketWin::OnWriteComplete(int result) {
+  DCHECK(completed_handshake());
+
+  int rv = DoPayloadWriteComplete(result);
+  if (rv != ERR_IO_PENDING) {
+    DCHECK(user_write_callback_);
+    CompletionCallback* c = user_write_callback_;
+    user_write_callback_ = NULL;
+    user_write_buf_ = NULL;
+    user_write_buf_len_ = 0;
+    c->Run(rv);
+  }
+}
+
 
 int SSLClientSocketWin::DoLoop(int last_io_result) {
   DCHECK(next_state_ != STATE_NONE);
@@ -630,21 +682,13 @@ int SSLClientSocketWin::DoLoop(int last_io_result) {
       case STATE_VERIFY_CERT_COMPLETE:
         rv = DoVerifyCertComplete(rv);
         break;
-      case STATE_PAYLOAD_READ:
-        rv = DoPayloadRead();
+      case STATE_COMPLETED_RENEGOTIATION:
+        rv = DoCompletedRenegotiation(rv);
         break;
-      case STATE_PAYLOAD_READ_COMPLETE:
-        rv = DoPayloadReadComplete(rv);
-        break;
-      case STATE_PAYLOAD_ENCRYPT:
-        rv = DoPayloadEncrypt();
-        break;
-      case STATE_PAYLOAD_WRITE:
-        rv = DoPayloadWrite();
-        break;
-      case STATE_PAYLOAD_WRITE_COMPLETE:
-        rv = DoPayloadWriteComplete(rv);
-        break;
+      case STATE_COMPLETED_HANDSHAKE:
+        next_state_ = STATE_COMPLETED_HANDSHAKE;
+        // This is the end of our state machine, so return.
+        return rv;
       default:
         rv = ERR_UNEXPECTED;
         NOTREACHED() << "unexpected state";
@@ -667,25 +711,26 @@ int SSLClientSocketWin::DoHandshakeRead() {
     return ERR_UNEXPECTED;
   }
 
-  DCHECK(!transport_buf_);
-  transport_buf_ = new IOBuffer(buf_len);
+  DCHECK(!transport_read_buf_);
+  transport_read_buf_ = new IOBuffer(buf_len);
 
-  return transport_->Read(transport_buf_, buf_len, &io_callback_);
+  return transport_->Read(transport_read_buf_, buf_len,
+                          &handshake_io_callback_);
 }
 
 int SSLClientSocketWin::DoHandshakeReadComplete(int result) {
   if (result < 0) {
-    transport_buf_ = NULL;
+    transport_read_buf_ = NULL;
     return result;
   }
 
-  if (transport_buf_) {
+  if (transport_read_buf_) {
     // A transition to STATE_HANDSHAKE_READ_COMPLETE is set in multiple places,
-    // not only in DoHandshakeRead(), so we may not have a transport_buf_.
+    // not only in DoHandshakeRead(), so we may not have a transport_read_buf_.
     DCHECK_LE(result, kRecvBufferSize - bytes_received_);
     char* buf = recv_buffer_.get() + bytes_received_;
-    memcpy(buf, transport_buf_->data(), result);
-    transport_buf_ = NULL;
+    memcpy(buf, transport_read_buf_->data(), result);
+    transport_read_buf_ = NULL;
   }
 
   if (result == 0 && !ignore_ok_result_)
@@ -816,19 +861,20 @@ int SSLClientSocketWin::DoHandshakeWrite() {
   // We should have something to send.
   DCHECK(send_buffer_.pvBuffer);
   DCHECK(send_buffer_.cbBuffer > 0);
-  DCHECK(!transport_buf_);
+  DCHECK(!transport_write_buf_);
 
   const char* buf = static_cast<char*>(send_buffer_.pvBuffer) + bytes_sent_;
   int buf_len = send_buffer_.cbBuffer - bytes_sent_;
-  transport_buf_ = new IOBuffer(buf_len);
-  memcpy(transport_buf_->data(), buf, buf_len);
+  transport_write_buf_ = new IOBuffer(buf_len);
+  memcpy(transport_write_buf_->data(), buf, buf_len);
 
-  return transport_->Write(transport_buf_, buf_len, &io_callback_);
+  return transport_->Write(transport_write_buf_, buf_len,
+                           &handshake_io_callback_);
 }
 
 int SSLClientSocketWin::DoHandshakeWriteComplete(int result) {
-  DCHECK(transport_buf_);
-  transport_buf_ = NULL;
+  DCHECK(transport_write_buf_);
+  transport_write_buf_ = NULL;
   if (result < 0)
     return result;
 
@@ -870,7 +916,8 @@ int SSLClientSocketWin::DoVerifyCert() {
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new CertVerifier);
   return verifier_->Verify(server_cert_, hostname_, flags,
-                           &server_cert_verify_result_, &io_callback_);
+                           &server_cert_verify_result_,
+                           &handshake_io_callback_);
 }
 
 int SSLClientSocketWin::DoVerifyCertComplete(int result) {
@@ -889,19 +936,16 @@ int SSLClientSocketWin::DoVerifyCertComplete(int result) {
 
   LogConnectionTypeMetrics();
   if (renegotiating_) {
-    DidCompleteRenegotiation(result);
-  } else {
-    // The initial handshake, kicked off by a Connect, has completed.
-    completed_handshake_ = true;
-    // Exit DoLoop and return the result to the caller of Connect.
-    DCHECK(next_state_ == STATE_NONE);
+    DidCompleteRenegotiation();
+    return result;
   }
+
+  // The initial handshake has completed.
+  next_state_ = STATE_COMPLETED_HANDSHAKE;
   return result;
 }
 
 int SSLClientSocketWin::DoPayloadRead() {
-  next_state_ = STATE_PAYLOAD_READ_COMPLETE;
-
   DCHECK(recv_buffer_.get());
 
   int buf_len = kRecvBufferSize - bytes_received_;
@@ -911,157 +955,195 @@ int SSLClientSocketWin::DoPayloadRead() {
     return ERR_FAILED;
   }
 
-  DCHECK(!transport_buf_);
-  transport_buf_ = new IOBuffer(buf_len);
+  int rv;
+  // If bytes_received_, we have some data from a previous read still ready
+  // for decoding.  Otherwise, we need to issue a real read.
+  if (!bytes_received_ || need_more_data_) {
+    DCHECK(!transport_read_buf_);
+    transport_read_buf_ = new IOBuffer(buf_len);
 
-  return transport_->Read(transport_buf_, buf_len, &io_callback_);
+    rv = transport_->Read(transport_read_buf_, buf_len, &read_callback_);
+    if (rv != ERR_IO_PENDING)
+      rv = DoPayloadReadComplete(rv);
+    if (rv <= 0)
+      return rv;
+  }
+
+  // Decode what we've read.  If there is not enough data to decode yet,
+  // this may return ERR_IO_PENDING still.
+  return DoPayloadDecrypt();
 }
 
+// result is the number of bytes that have been read; it should not be
+// less than zero; a value of zero means that no additional bytes have
+// been read.
 int SSLClientSocketWin::DoPayloadReadComplete(int result) {
-  if (result < 0) {
-    transport_buf_ = NULL;
+  DCHECK(completed_handshake());
+
+  // If IO Pending, there is nothing to do here.
+  if (result == ERR_IO_PENDING)
+    return result;
+
+  // We completed a Read, so reset the need_more_data_ flag.
+  need_more_data_ = false;
+
+  // Check for error
+  if (result <= 0) {
+    transport_read_buf_ = NULL;
+    if (result == 0 && bytes_received_ != 0) {
+      // TODO(wtc): Unless we have received the close_notify alert, we need
+      // to return an error code indicating that the SSL connection ended
+      // uncleanly, a potential truncation attack.  See
+      // http://crbug.com/18586.
+      return ERR_SSL_PROTOCOL_ERROR;
+    }
     return result;
   }
-  if (transport_buf_) {
-    // This method is called after a state transition following DoPayloadRead(),
-    // or if SetNextStateForRead() was called. We have a transport_buf_ only
-    // in the first case, and we have to transfer the data from transport_buf_
-    // to recv_buffer_.
+
+  // Transfer the data from transport_read_buf_ to recv_buffer_.
+  if (transport_read_buf_) {
     DCHECK_LE(result, kRecvBufferSize - bytes_received_);
     char* buf = recv_buffer_.get() + bytes_received_;
-    memcpy(buf, transport_buf_->data(), result);
-    transport_buf_ = NULL;
+    memcpy(buf, transport_read_buf_->data(), result);
+    transport_read_buf_ = NULL;
   }
-
-  if (result == 0 && !ignore_ok_result_) {
-    // TODO(wtc): Unless we have received the close_notify alert, we need to
-    // return an error code indicating that the SSL connection ended
-    // uncleanly, a potential truncation attack.  See http://crbug.com/18586.
-    if (bytes_received_ != 0)
-      return ERR_SSL_PROTOCOL_ERROR;
-    return OK;
-  }
-
-  ignore_ok_result_ = false;
 
   bytes_received_ += result;
 
+  return result;
+}
+
+int SSLClientSocketWin::DoPayloadDecrypt() {
   // Process the contents of recv_buffer_.
-  SecBuffer buffers[4];
-  buffers[0].pvBuffer = recv_buffer_.get();
-  buffers[0].cbBuffer = bytes_received_;
-  buffers[0].BufferType = SECBUFFER_DATA;
+  int len = 0;  // the number of bytes we've copied to the user buffer.
+  while (bytes_received_) {
+    SecBuffer buffers[4];
+    buffers[0].pvBuffer = recv_buffer_.get();
+    buffers[0].cbBuffer = bytes_received_;
+    buffers[0].BufferType = SECBUFFER_DATA;
 
-  buffers[1].BufferType = SECBUFFER_EMPTY;
-  buffers[2].BufferType = SECBUFFER_EMPTY;
-  buffers[3].BufferType = SECBUFFER_EMPTY;
+    buffers[1].BufferType = SECBUFFER_EMPTY;
+    buffers[2].BufferType = SECBUFFER_EMPTY;
+    buffers[3].BufferType = SECBUFFER_EMPTY;
 
-  SecBufferDesc buffer_desc;
-  buffer_desc.cBuffers = 4;
-  buffer_desc.pBuffers = buffers;
-  buffer_desc.ulVersion = SECBUFFER_VERSION;
+    SecBufferDesc buffer_desc;
+    buffer_desc.cBuffers = 4;
+    buffer_desc.pBuffers = buffers;
+    buffer_desc.ulVersion = SECBUFFER_VERSION;
 
-  SECURITY_STATUS status;
-  status = DecryptMessage(&ctxt_, &buffer_desc, 0, NULL);
+    SECURITY_STATUS status;
+    status = DecryptMessage(&ctxt_, &buffer_desc, 0, NULL);
 
-  if (status == SEC_E_INCOMPLETE_MESSAGE) {
-    next_state_ = STATE_PAYLOAD_READ;
-    return OK;
-  }
-
-  if (status == SEC_I_CONTEXT_EXPIRED) {
-    // Received the close_notify alert.
-    bytes_received_ = 0;
-    return OK;
-  }
-
-  if (status != SEC_E_OK && status != SEC_I_RENEGOTIATE) {
-    DCHECK(status != SEC_E_MESSAGE_ALTERED);
-    return MapSecurityError(status);
-  }
-
-  // The received ciphertext was decrypted in place in recv_buffer_.  Remember
-  // the location and length of the decrypted plaintext and any unused
-  // ciphertext.
-  decrypted_ptr_ = NULL;
-  bytes_decrypted_ = 0;
-  received_ptr_ = NULL;
-  bytes_received_ = 0;
-  for (int i = 1; i < 4; i++) {
-    if (!decrypted_ptr_ && buffers[i].BufferType == SECBUFFER_DATA) {
-      decrypted_ptr_ = static_cast<char*>(buffers[i].pvBuffer);
-      bytes_decrypted_ = buffers[i].cbBuffer;
+    if (status == SEC_E_INCOMPLETE_MESSAGE) {
+      need_more_data_ = true;
+      return DoPayloadRead();
     }
-    if (!received_ptr_ && buffers[i].BufferType == SECBUFFER_EXTRA) {
-      received_ptr_ = static_cast<char*>(buffers[i].pvBuffer);
-      bytes_received_ = buffers[i].cbBuffer;
-    }
-  }
 
-  int len = 0;
-  if (bytes_decrypted_ != 0) {
-    len = std::min(user_buf_len_, bytes_decrypted_);
-    memcpy(user_buf_->data(), decrypted_ptr_, len);
-    decrypted_ptr_ += len;
-    bytes_decrypted_ -= len;
-  }
-  if (bytes_decrypted_ == 0) {
+    if (status == SEC_I_CONTEXT_EXPIRED) {
+      // Received the close_notify alert.
+      bytes_received_ = 0;
+      return OK;
+    }
+
+    if (status != SEC_E_OK && status != SEC_I_RENEGOTIATE) {
+      DCHECK(status != SEC_E_MESSAGE_ALTERED);
+      return MapSecurityError(status);
+    }
+
+    // The received ciphertext was decrypted in place in recv_buffer_.  Remember
+    // the location and length of the decrypted plaintext and any unused
+    // ciphertext.
     decrypted_ptr_ = NULL;
-    if (bytes_received_ != 0) {
-      memmove(recv_buffer_.get(), received_ptr_, bytes_received_);
-      received_ptr_ = recv_buffer_.get();
+    bytes_decrypted_ = 0;
+    received_ptr_ = NULL;
+    bytes_received_ = 0;
+    for (int i = 1; i < 4; i++) {
+      if (!decrypted_ptr_ && buffers[i].BufferType == SECBUFFER_DATA) {
+        decrypted_ptr_ = static_cast<char*>(buffers[i].pvBuffer);
+        bytes_decrypted_ = buffers[i].cbBuffer;
+      }
+      if (!received_ptr_ && buffers[i].BufferType == SECBUFFER_EXTRA) {
+        received_ptr_ = static_cast<char*>(buffers[i].pvBuffer);
+        bytes_received_ = buffers[i].cbBuffer;
+      }
     }
-  }
 
-  if (status == SEC_I_RENEGOTIATE) {
-    if (bytes_received_ != 0) {
-      // The server requested renegotiation, but there are some data yet to
-      // be decrypted.  The Platform SDK WebClient.c sample doesn't handle
-      // this, so we don't know how to handle this.  Assume this cannot
-      // happen.
-      LOG(ERROR) << "DecryptMessage returned SEC_I_RENEGOTIATE with a buffer "
-                 << "of type SECBUFFER_EXTRA.";
-      return ERR_SSL_RENEGOTIATION_REQUESTED;
+    DCHECK(len == 0);
+    if (bytes_decrypted_ != 0) {
+      len = std::min(user_read_buf_len_, bytes_decrypted_);
+      memcpy(user_read_buf_->data(), decrypted_ptr_, len);
+      decrypted_ptr_ += len;
+      bytes_decrypted_ -= len;
     }
-    if (len != 0) {
-      // The server requested renegotiation, but there are some decrypted
-      // data.  We can't start renegotiation until we have returned all
-      // decrypted data to the caller.
-      //
-      // This hasn't happened during testing.  Assume this cannot happen even
-      // though we know how to handle this.
-      LOG(ERROR) << "DecryptMessage returned SEC_I_RENEGOTIATE with a buffer "
-                 << "of type SECBUFFER_DATA.";
-      return ERR_SSL_RENEGOTIATION_REQUESTED;
+    if (bytes_decrypted_ == 0) {
+      decrypted_ptr_ = NULL;
+      if (bytes_received_ != 0) {
+        memmove(recv_buffer_.get(), received_ptr_, bytes_received_);
+        received_ptr_ = recv_buffer_.get();
+      }
     }
-    // Jump to the handshake sequence.  Will come back when the rehandshake is
-    // done.
-    renegotiating_ = true;
-    next_state_ = STATE_HANDSHAKE_READ_COMPLETE;
-    ignore_ok_result_ = true;  // OK doesn't mean EOF.
-    return len;
+
+    if (status == SEC_I_RENEGOTIATE) {
+      if (bytes_received_ != 0) {
+        // The server requested renegotiation, but there are some data yet to
+        // be decrypted.  The Platform SDK WebClient.c sample doesn't handle
+        // this, so we don't know how to handle this.  Assume this cannot
+        // happen.
+        LOG(ERROR) << "DecryptMessage returned SEC_I_RENEGOTIATE with a buffer "
+                   << "of type SECBUFFER_EXTRA.";
+        return ERR_SSL_RENEGOTIATION_REQUESTED;
+      }
+      if (len != 0) {
+        // The server requested renegotiation, but there are some decrypted
+        // data.  We can't start renegotiation until we have returned all
+        // decrypted data to the caller.
+        //
+        // This hasn't happened during testing.  Assume this cannot happen even
+        // though we know how to handle this.
+        LOG(ERROR) << "DecryptMessage returned SEC_I_RENEGOTIATE with a buffer "
+                   << "of type SECBUFFER_DATA.";
+        return ERR_SSL_RENEGOTIATION_REQUESTED;
+      }
+      // Jump to the handshake sequence.  Will come back when the rehandshake is
+      // done.
+      renegotiating_ = true;
+      ignore_ok_result_ = true;  // OK doesn't mean EOF.
+      // If renegotiation handshake occurred, we need to go back into the
+      // handshake state machine.
+      next_state_ = STATE_HANDSHAKE_READ_COMPLETE;
+      return DoLoop(OK);
+    }
+
+    // We've already copied data into the user buffer, so quit now.
+    // TODO(mbelshe): We really should keep decoding as long as we can.  This
+    // break out is causing us to return pretty small chunks of data up to the
+    // application, even though more is already buffered and ready to be
+    // decoded.
+    if (len)
+      break;
   }
 
   // If we decrypted 0 bytes, don't report 0 bytes read, which would be
   // mistaken for EOF.  Continue decrypting or read more.
   if (len == 0)
-    SetNextStateForRead();
+    return DoPayloadRead();
   return len;
 }
 
 int SSLClientSocketWin::DoPayloadEncrypt() {
-  DCHECK(user_buf_);
-  DCHECK(user_buf_len_ > 0);
+  DCHECK(completed_handshake());
+  DCHECK(user_write_buf_);
+  DCHECK(user_write_buf_len_ > 0);
 
   ULONG message_len = std::min(
-      stream_sizes_.cbMaximumMessage, static_cast<ULONG>(user_buf_len_));
+      stream_sizes_.cbMaximumMessage, static_cast<ULONG>(user_write_buf_len_));
   ULONG alloc_len =
       message_len + stream_sizes_.cbHeader + stream_sizes_.cbTrailer;
-  user_buf_len_ = message_len;
+  user_write_buf_len_ = message_len;
 
   payload_send_buffer_.reset(new char[alloc_len]);
   memcpy(&payload_send_buffer_[stream_sizes_.cbHeader],
-         user_buf_->data(), message_len);
+         user_write_buf_->data(), message_len);
 
   SecBuffer buffers[4];
   buffers[0].pvBuffer = payload_send_buffer_.get();
@@ -1093,30 +1175,31 @@ int SSLClientSocketWin::DoPayloadEncrypt() {
                              buffers[1].cbBuffer +
                              buffers[2].cbBuffer;
   DCHECK(bytes_sent_ == 0);
-
-  next_state_ = STATE_PAYLOAD_WRITE;
   return OK;
 }
 
 int SSLClientSocketWin::DoPayloadWrite() {
-  next_state_ = STATE_PAYLOAD_WRITE_COMPLETE;
+  DCHECK(completed_handshake());
 
   // We should have something to send.
   DCHECK(payload_send_buffer_.get());
   DCHECK(payload_send_buffer_len_ > 0);
-  DCHECK(!transport_buf_);
+  DCHECK(!transport_write_buf_);
 
   const char* buf = payload_send_buffer_.get() + bytes_sent_;
   int buf_len = payload_send_buffer_len_ - bytes_sent_;
-  transport_buf_ = new IOBuffer(buf_len);
-  memcpy(transport_buf_->data(), buf, buf_len);
+  transport_write_buf_ = new IOBuffer(buf_len);
+  memcpy(transport_write_buf_->data(), buf, buf_len);
 
-  return transport_->Write(transport_buf_, buf_len, &io_callback_);
+  int rv = transport_->Write(transport_write_buf_, buf_len, &write_callback_);
+  if (rv != ERR_IO_PENDING)
+    rv = DoPayloadWriteComplete(rv);
+  return rv;
 }
 
 int SSLClientSocketWin::DoPayloadWriteComplete(int result) {
-  DCHECK(transport_buf_);
-  transport_buf_ = NULL;
+  DCHECK(transport_write_buf_);
+  transport_write_buf_ = NULL;
   if (result < 0)
     return result;
 
@@ -1133,12 +1216,19 @@ int SSLClientSocketWin::DoPayloadWriteComplete(int result) {
     if (overflow)  // Bug!
       return ERR_UNEXPECTED;
     // Done
-    return user_buf_len_;
+    return user_write_buf_len_;
   }
 
   // Send the remaining bytes.
-  next_state_ = STATE_PAYLOAD_WRITE;
-  return OK;
+  return DoPayloadWrite();
+}
+
+int SSLClientSocketWin::DoCompletedRenegotiation(int result) {
+  // The user had a read in progress, which was usurped by the renegotiation.
+  // Restart the read sequence.
+  next_state_ = STATE_COMPLETED_HANDSHAKE;
+  DCHECK(result == OK);
+  return DoPayloadRead();
 }
 
 int SSLClientSocketWin::DidCompleteHandshake() {
@@ -1161,7 +1251,7 @@ int SSLClientSocketWin::DidCompleteHandshake() {
     // We already verified the server certificate.  Either it is good or the
     // user has accepted the certificate error.
     CertFreeCertificateContext(server_cert_handle);
-    DidCompleteRenegotiation(OK);
+    DidCompleteRenegotiation();
   } else {
     server_cert_ = X509Certificate::CreateFromHandle(
         server_cert_handle, X509Certificate::SOURCE_FROM_NETWORK);
@@ -1173,12 +1263,9 @@ int SSLClientSocketWin::DidCompleteHandshake() {
 
 // Called when a renegotiation is completed.  |result| is the verification
 // result of the server certificate received during renegotiation.
-void SSLClientSocketWin::DidCompleteRenegotiation(int result) {
-  // A rehandshake, started in the middle of a Read, has completed.
+void SSLClientSocketWin::DidCompleteRenegotiation() {
   renegotiating_ = false;
-  // Pick up where we left off.  Go back to reading data.
-  if (result == OK)
-    SetNextStateForRead();
+  next_state_ = STATE_COMPLETED_RENEGOTIATION;
 }
 
 void SSLClientSocketWin::LogConnectionTypeMetrics() const {
@@ -1193,15 +1280,6 @@ void SSLClientSocketWin::LogConnectionTypeMetrics() const {
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5_CA);
   if (server_cert_verify_result_.has_md2_ca)
     UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2_CA);
-}
-
-void SSLClientSocketWin::SetNextStateForRead() {
-  if (bytes_received_ == 0) {
-    next_state_ = STATE_PAYLOAD_READ;
-  } else {
-    next_state_ = STATE_PAYLOAD_READ_COMPLETE;
-    ignore_ok_result_ = true;  // OK doesn't mean EOF.
-  }
 }
 
 void SSLClientSocketWin::FreeSendBuffer() {
