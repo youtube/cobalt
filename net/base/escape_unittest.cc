@@ -7,6 +7,7 @@
 #include "net/base/escape.h"
 
 #include "base/basictypes.h"
+#include "base/i18n/icu_string_conversions.h"
 #include "base/string_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -42,7 +43,7 @@ struct EscapeForHTMLCase {
   const char* expected_output;
 };
 
-}
+}  // namespace
 
 TEST(Escape, EscapeTextForFormSubmission) {
   const EscapeCase escape_cases[] = {
@@ -88,7 +89,7 @@ TEST(Escape, EscapeTextForFormSubmission) {
     test_str.push_back(i);
   }
   std::wstring wide;
-  EXPECT_TRUE(EscapeQueryParamValue(test_str, kCodepageUTF8, &wide));
+  EXPECT_TRUE(EscapeQueryParamValue(test_str, base::kCodepageUTF8, &wide));
   EXPECT_EQ(wide, EscapeQueryParamValueUTF8(test_str));
 }
 

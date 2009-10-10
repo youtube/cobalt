@@ -10,9 +10,11 @@
 #include "base/string16.h"
 #include "base/string_piece.h"
 
+namespace base {
+
 // Defines the error handling modes of UTF16ToCodepage, CodepageToUTF16,
 // WideToCodepage and CodepageToWide.
-class OnStringUtilConversionError {
+class OnStringConversionError {
  public:
   enum Type {
     // The function will return failure. The output buffer will be empty.
@@ -29,20 +31,26 @@ class OnStringUtilConversionError {
   };
 
  private:
-  OnStringUtilConversionError();
+  OnStringConversionError();
 };
+
+// Names of codepages (charsets) understood by icu.
+extern const char kCodepageLatin1[];  // a.k.a. ISO 8859-1
+extern const char kCodepageUTF8[];
+extern const char kCodepageUTF16BE[];
+extern const char kCodepageUTF16LE[];
 
 // Converts between UTF-16 strings and the encoding specified.  If the
 // encoding doesn't exist or the encoding fails (when on_error is FAIL),
 // returns false.
 bool UTF16ToCodepage(const string16& utf16,
                      const char* codepage_name,
-                     OnStringUtilConversionError::Type on_error,
+                     OnStringConversionError::Type on_error,
                      std::string* encoded);
 
 bool CodepageToUTF16(const std::string& encoded,
                      const char* codepage_name,
-                     OnStringUtilConversionError::Type on_error,
+                     OnStringConversionError::Type on_error,
                      string16* utf16);
 
 // Converts between wide strings and the encoding specified.  If the
@@ -50,11 +58,13 @@ bool CodepageToUTF16(const std::string& encoded,
 // returns false.
 bool WideToCodepage(const std::wstring& wide,
                     const char* codepage_name,
-                    OnStringUtilConversionError::Type on_error,
+                    OnStringConversionError::Type on_error,
                     std::string* encoded);
 bool CodepageToWide(const std::string& encoded,
                     const char* codepage_name,
-                    OnStringUtilConversionError::Type on_error,
+                    OnStringConversionError::Type on_error,
                     std::wstring* wide);
+
+}  // namespace base
 
 #endif  // BASE_I18N_ICU_STRING_CONVERSIONS_H_

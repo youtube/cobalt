@@ -14,6 +14,8 @@
 #include "unicode/ucnv_err.h"
 #include "unicode/ustring.h"
 
+namespace base {
+
 namespace {
 
 inline bool IsValidCodepoint(uint32 code_point) {
@@ -83,7 +85,7 @@ void ToUnicodeCallbackSubstitute(const void* context,
 }
 
 bool ConvertFromUTF16(UConverter* converter, const UChar* uchar_src,
-                      int uchar_len, OnStringUtilConversionError::Type on_error,
+                      int uchar_len, OnStringConversionError::Type on_error,
                       std::string* encoded) {
   int encoded_max_length = UCNV_GET_MAX_BYTES_FOR_STRING(uchar_len,
       ucnv_getMaxCharSize(converter));
@@ -93,12 +95,12 @@ bool ConvertFromUTF16(UConverter* converter, const UChar* uchar_src,
 
   // Setup our error handler.
   switch (on_error) {
-    case OnStringUtilConversionError::FAIL:
+    case OnStringConversionError::FAIL:
       ucnv_setFromUCallBack(converter, UCNV_FROM_U_CALLBACK_STOP, 0,
                             NULL, NULL, &status);
       break;
-    case OnStringUtilConversionError::SKIP:
-    case OnStringUtilConversionError::SUBSTITUTE:
+    case OnStringConversionError::SKIP:
+    case OnStringConversionError::SUBSTITUTE:
       ucnv_setFromUCallBack(converter, UCNV_FROM_U_CALLBACK_SKIP, 0,
                             NULL, NULL, &status);
       break;
@@ -118,18 +120,18 @@ bool ConvertFromUTF16(UConverter* converter, const UChar* uchar_src,
 }
 
 // Set up our error handler for ToUTF-16 converters
-void SetUpErrorHandlerForToUChars(OnStringUtilConversionError::Type on_error,
+void SetUpErrorHandlerForToUChars(OnStringConversionError::Type on_error,
                                   UConverter* converter, UErrorCode* status) {
   switch (on_error) {
-    case OnStringUtilConversionError::FAIL:
+    case OnStringConversionError::FAIL:
       ucnv_setToUCallBack(converter, UCNV_TO_U_CALLBACK_STOP, 0,
                           NULL, NULL, status);
       break;
-    case OnStringUtilConversionError::SKIP:
+    case OnStringConversionError::SKIP:
       ucnv_setToUCallBack(converter, UCNV_TO_U_CALLBACK_SKIP, 0,
                           NULL, NULL, status);
       break;
-    case OnStringUtilConversionError::SUBSTITUTE:
+    case OnStringConversionError::SUBSTITUTE:
       ucnv_setToUCallBack(converter, ToUnicodeCallbackSubstitute, 0,
                           NULL, NULL, status);
       break;
@@ -148,13 +150,18 @@ inline UConverterType utf32_platform_endian() {
 
 }  // namespace
 
+const char kCodepageLatin1[] = "ISO-8859-1";
+const char kCodepageUTF8[] = "UTF-8";
+const char kCodepageUTF16BE[] = "UTF-16BE";
+const char kCodepageUTF16LE[] = "UTF-16LE";
+
 // Codepage <-> Wide/UTF-16  ---------------------------------------------------
 
 // Convert a wstring into the specified codepage_name.  If the codepage
 // isn't found, return false.
 bool WideToCodepage(const std::wstring& wide,
                     const char* codepage_name,
-                    OnStringUtilConversionError::Type on_error,
+                    OnStringConversionError::Type on_error,
                     std::string* encoded) {
 #if defined(WCHAR_T_IS_UTF16)
   return UTF16ToCodepage(wide, codepage_name, on_error, encoded);
@@ -185,7 +192,7 @@ bool WideToCodepage(const std::wstring& wide,
 // isn't found, return false.
 bool UTF16ToCodepage(const string16& utf16,
                     const char* codepage_name,
-                    OnStringUtilConversionError::Type on_error,
+                    OnStringConversionError::Type on_error,
                     std::string* encoded) {
   encoded->clear();
 
@@ -202,7 +209,7 @@ bool UTF16ToCodepage(const string16& utf16,
 // If the codepage isn't found, return false.
 bool CodepageToWide(const std::string& encoded,
                     const char* codepage_name,
-                    OnStringUtilConversionError::Type on_error,
+                    OnStringConversionError::Type on_error,
                     std::wstring* wide) {
 #if defined(WCHAR_T_IS_UTF16)
   return CodepageToUTF16(encoded, codepage_name, on_error, wide);
@@ -250,7 +257,7 @@ bool CodepageToWide(const std::string& encoded,
 // If the codepage isn't found, return false.
 bool CodepageToUTF16(const std::string& encoded,
                      const char* codepage_name,
-                     OnStringUtilConversionError::Type on_error,
+                     OnStringConversionError::Type on_error,
                      string16* utf16) {
   utf16->clear();
 
@@ -286,3 +293,4 @@ bool CodepageToUTF16(const std::string& encoded,
   return true;
 }
 
+}  // namespace base
