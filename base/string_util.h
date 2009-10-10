@@ -19,7 +19,6 @@
 // TODO(brettw) this dependency should be removed and callers that need
 // these functions should include this file directly.
 #include "base/utf_string_conversions.h"
-#include "base/i18n/icu_string_conversions.h"
 
 // Safe standard library wrappers for all platforms.
 
@@ -122,9 +121,6 @@ const string16& EmptyString16();
 
 extern const wchar_t kWhitespaceWide[];
 extern const char kWhitespaceASCII[];
-
-// Names of codepages (charsets) understood by icu.
-extern const char* const kCodepageUTF8;
 
 // Removes characters in trim_chars from the beginning and end of input.
 // NOTE: Safe to use the same variable for both input and output.

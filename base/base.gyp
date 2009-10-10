@@ -587,6 +587,7 @@
         'hmac_unittest.cc',
         'id_map_unittest.cc',
         'i18n/file_util_icu_unittest.cc',
+        'i18n/icu_string_conversions_unittest.cc',
         'i18n/word_iterator_unittest.cc',
         'json_reader_unittest.cc',
         'json_writer_unittest.cc',
