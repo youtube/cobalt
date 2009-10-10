@@ -53,8 +53,13 @@ class SSLClientSocketWin : public SSLClientSocket {
   virtual bool SetSendBufferSize(int32 size);
 
  private:
-  void DoCallback(int result);
-  void OnIOComplete(int result);
+  bool completed_handshake() const {
+    return next_state_ == STATE_COMPLETED_HANDSHAKE;
+  }
+
+  void OnHandshakeIOComplete(int result);
+  void OnReadComplete(int result);
+  void OnWriteComplete(int result);
 
   int DoLoop(int last_io_result);
   int DoHandshakeRead();
@@ -63,32 +68,46 @@ class SSLClientSocketWin : public SSLClientSocket {
   int DoHandshakeWriteComplete(int result);
   int DoVerifyCert();
   int DoVerifyCertComplete(int result);
+
   int DoPayloadRead();
   int DoPayloadReadComplete(int result);
+  int DoPayloadDecrypt();
   int DoPayloadEncrypt();
   int DoPayloadWrite();
   int DoPayloadWriteComplete(int result);
+  int DoCompletedRenegotiation(int result);
 
   int DidCallInitializeSecurityContext();
   int DidCompleteHandshake();
-  void DidCompleteRenegotiation(int result);
+  void DidCompleteRenegotiation();
   void LogConnectionTypeMetrics() const;
-  void SetNextStateForRead();
   void FreeSendBuffer();
 
-  CompletionCallbackImpl<SSLClientSocketWin> io_callback_;
+  // Internal callbacks as async operations complete.
+  CompletionCallbackImpl<SSLClientSocketWin> handshake_io_callback_;
+  CompletionCallbackImpl<SSLClientSocketWin> read_callback_;
+  CompletionCallbackImpl<SSLClientSocketWin> write_callback_;
+
   scoped_ptr<ClientSocket> transport_;
   std::string hostname_;
   SSLConfig ssl_config_;
 
-  CompletionCallback* user_callback_;
+  // User function to callback when the Connect() completes.
+  CompletionCallback* user_connect_callback_;
 
-  // Used by both Read and Write functions.
-  scoped_refptr<IOBuffer> user_buf_;
-  int user_buf_len_;
+  // User function to callback when a Read() completes.
+  CompletionCallback* user_read_callback_;
+  scoped_refptr<IOBuffer> user_read_buf_;
+  int user_read_buf_len_;
+
+  // User function to callback when a Write() completes.
+  CompletionCallback* user_write_callback_;
+  scoped_refptr<IOBuffer> user_write_buf_;
+  int user_write_buf_len_;
 
   // Used to Read and Write using transport_.
-  scoped_refptr<IOBuffer> transport_buf_;
+  scoped_refptr<IOBuffer> transport_read_buf_;
+  scoped_refptr<IOBuffer> transport_write_buf_;
 
   enum State {
     STATE_NONE,
@@ -98,11 +117,11 @@ class SSLClientSocketWin : public SSLClientSocket {
     STATE_HANDSHAKE_WRITE_COMPLETE,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
-    STATE_PAYLOAD_ENCRYPT,
-    STATE_PAYLOAD_WRITE,
-    STATE_PAYLOAD_WRITE_COMPLETE,
-    STATE_PAYLOAD_READ,
-    STATE_PAYLOAD_READ_COMPLETE,
+    STATE_COMPLETED_RENEGOTIATION,
+    STATE_COMPLETED_HANDSHAKE
+    // After the handshake, the socket remains
+    // in the STATE_COMPLETED_HANDSHAKE state,
+    // unless a renegotiate handshake occurs.
   };
   State next_state_;
 
@@ -154,6 +173,9 @@ class SSLClientSocketWin : public SSLClientSocket {
 
   // Renegotiation is in progress.
   bool renegotiating_;
+
+  // True when the decrypter needs more data in order to decrypt.
+  bool need_more_data_;
 };
 
 }  // namespace net
