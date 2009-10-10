@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,6 +30,8 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/i18n/file_util_icu.h"
+#include "base/i18n/icu_string_conversions.h"
+#include "base/i18n/time_formatting.h"
 #include "base/lock.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
@@ -42,7 +44,7 @@
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "base/time.h"
-#include "base/i18n/time_formatting.h"
+#include "base/utf_string_conversions.h"
 #include "grit/net_resources.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
@@ -264,8 +266,9 @@ bool DecodeWord(const std::string& encoded_word,
     } else {
       std::wstring wide_output;
       if (!referrer_charset.empty() &&
-          CodepageToWide(encoded_word, referrer_charset.c_str(),
-                         OnStringUtilConversionError::FAIL, &wide_output)) {
+          base::CodepageToWide(encoded_word, referrer_charset.c_str(),
+                               base::OnStringConversionError::FAIL,
+                               &wide_output)) {
         *output = WideToUTF8(wide_output);
       } else {
         *output = WideToUTF8(base::SysNativeMBToWide(encoded_word));
