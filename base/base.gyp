@@ -482,10 +482,6 @@
             ],
             'sources/': [ ['exclude', '_(linux|gtk|mac|posix|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
-            'sources': [
-              'window_impl.cc',
-              'window_impl.h',
-            ],
             'sources!': [
               'data_pack.cc',
               'event_recorder_stubs.cc',
@@ -522,10 +518,6 @@
       'type': '<(library)',
       'msvs_guid': 'A508ADD3-CECE-4E0F-8448-2F5E454DF551',
       'sources': [
-        'gfx/gtk_native_view_id_manager.cc',
-        'gfx/gtk_native_view_id_manager.h',
-        'gfx/native_widget_types.h',
-        'gfx/native_widget_types_gtk.cc',
         'gfx/point.cc',
         'gfx/point.h',
         'gfx/rect.cc',
