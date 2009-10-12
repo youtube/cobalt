@@ -7,6 +7,7 @@
 #ifndef NET_DISK_CACHE_BACKEND_IMPL_H_
 #define NET_DISK_CACHE_BACKEND_IMPL_H_
 
+#include "base/file_path.h"
 #include "base/hash_tables.h"
 #include "base/timer.h"
 #include "net/disk_cache/block_files.h"
@@ -34,15 +35,15 @@ enum BackendFlags {
 class BackendImpl : public Backend {
   friend class Eviction;
  public:
-  explicit BackendImpl(const std::wstring& path)
-      : path_(path), block_files_(path), mask_(0), max_size_(0),
+  explicit BackendImpl(const FilePath& path)
+      : path_(path), block_files_(path.ToWStringHack()), mask_(0), max_size_(0),
         cache_type_(net::DISK_CACHE), uma_report_(0), user_flags_(0),
         init_(false), restarted_(false), unit_test_(false), read_only_(false),
         new_eviction_(false), first_timer_(true),
         ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {}
   // mask can be used to limit the usable size of the hash table, for testing.
-  BackendImpl(const std::wstring& path, uint32 mask)
-      : path_(path), block_files_(path), mask_(mask), max_size_(0),
+  BackendImpl(const FilePath& path, uint32 mask)
+      : path_(path), block_files_(path.ToWStringHack()), mask_(mask), max_size_(0),
         cache_type_(net::DISK_CACHE), uma_report_(0), user_flags_(kMask),
         init_(false), restarted_(false), unit_test_(false), read_only_(false),
         new_eviction_(false), first_timer_(true),
@@ -78,7 +79,7 @@ class BackendImpl : public Backend {
   void SetType(net::CacheType type);
 
   // Returns the full name for an external storage file.
-  std::wstring GetFileName(Addr address) const;
+  FilePath GetFileName(Addr address) const;
 
   // Returns the actual file used to store a given (non-external) address.
   MappedFile* File(Addr address);
@@ -262,7 +263,7 @@ class BackendImpl : public Backend {
   bool CheckEntry(EntryImpl* cache_entry);
 
   scoped_refptr<MappedFile> index_;  // The main cache index.
-  std::wstring path_;  // Path to the folder used as backing storage.
+  FilePath path_;  // Path to the folder used as backing storage.
   Index* data_;  // Pointer to the index data.
   BlockFiles block_files_;  // Set of files used to store all data.
   Rankings rankings_;  // Rankings to be able to trim the cache.

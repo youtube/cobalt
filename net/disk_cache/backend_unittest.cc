@@ -1431,7 +1431,7 @@ TEST_F(DiskCacheTest, Backend_UsageStats) {
   std::wstring path = GetCachePath();
   ASSERT_TRUE(DeleteCache(path.c_str()));
   scoped_ptr<disk_cache::BackendImpl> cache;
-  cache.reset(new disk_cache::BackendImpl(path));
+  cache.reset(new disk_cache::BackendImpl(FilePath::FromWStringHack(path)));
   ASSERT_TRUE(NULL != cache.get());
   cache->SetUnitTestMode();
   ASSERT_TRUE(cache->Init());

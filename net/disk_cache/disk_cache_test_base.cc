@@ -57,14 +57,14 @@ void DiskCacheTestWithCache::InitDiskCache() {
     ASSERT_TRUE(DeleteCache(path.c_str()));
 
   if (implementation_)
-    return InitDiskCacheImpl(path);
+    return InitDiskCacheImpl(FilePath::FromWStringHack(path));
 
   cache_ = disk_cache::BackendImpl::CreateBackend(path, force_creation_, size_,
                                                   net::DISK_CACHE,
                                                   disk_cache::kNoRandom);
 }
 
-void DiskCacheTestWithCache::InitDiskCacheImpl(const std::wstring& path) {
+void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
   if (mask_)
     cache_impl_ = new disk_cache::BackendImpl(path, mask_);
   else
@@ -104,7 +104,7 @@ void DiskCacheTestWithCache::SimulateCrash() {
   std::wstring path = GetCachePath();
   EXPECT_TRUE(CheckCacheIntegrity(path, new_eviction_));
 
-  InitDiskCacheImpl(path);
+  InitDiskCacheImpl(FilePath::FromWStringHack(path));
 }
 
 void DiskCacheTestWithCache::SetTestMode() {
