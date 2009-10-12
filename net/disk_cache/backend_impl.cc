@@ -29,7 +29,7 @@ using base::TimeDelta;
 
 namespace {
 
-const wchar_t* kIndexName = L"index";
+const char* kIndexName = "index";
 const int kMaxOldFolders = 100;
 
 // Seems like ~240 MB correspond to less than 50k entries for 99% of the people.
@@ -65,72 +65,74 @@ size_t GetIndexSize(int table_len) {
 // Returns a fully qualified name from path and name, using a given name prefix
 // and index number. For instance, if the arguments are "/foo", "bar" and 5, it
 // will return "/foo/old_bar_005".
-std::wstring GetPrefixedName(const std::wstring& path, const std::wstring& name,
-                             int index) {
-  std::wstring prefixed(path);
-  std::wstring tmp = StringPrintf(L"%ls%ls_%03d", L"old_", name.c_str(), index);
-  file_util::AppendToPath(&prefixed, tmp);
-  return prefixed;
+FilePath GetPrefixedName(const FilePath& path, const std::string& name,
+                         int index) {
+  std::string tmp = StringPrintf("%s%s_%03d", "old_", name.c_str(), index);
+  return path.AppendASCII(tmp);
 }
 
 // This is a simple Task to cleanup old caches.
 class CleanupTask : public Task {
  public:
-  CleanupTask(const std::wstring& path, const std::wstring& name)
+  CleanupTask(const FilePath& path, const std::string& name)
       : path_(path), name_(name) {}
 
   virtual void Run();
 
  private:
-  std::wstring path_;
-  std::wstring name_;
+  FilePath path_;
+  std::string name_;
   DISALLOW_EVIL_CONSTRUCTORS(CleanupTask);
 };
 
 void CleanupTask::Run() {
   for (int i = 0; i < kMaxOldFolders; i++) {
-    std::wstring to_delete = GetPrefixedName(path_, name_, i);
+    FilePath to_delete = GetPrefixedName(path_, name_, i);
     disk_cache::DeleteCache(to_delete, true);
   }
 }
 
 // Returns a full path to rename the current cache, in order to delete it. path
 // is the current folder location, and name is the current folder name.
-std::wstring GetTempCacheName(const std::wstring& path,
-                              const std::wstring& name) {
+FilePath GetTempCacheName(const FilePath& path, const std::string& name) {
   // We'll attempt to have up to kMaxOldFolders folders for deletion.
   for (int i = 0; i < kMaxOldFolders; i++) {
-    std::wstring to_delete = GetPrefixedName(path, name, i);
+    FilePath to_delete = GetPrefixedName(path, name, i);
     if (!file_util::PathExists(to_delete))
       return to_delete;
   }
-  return std::wstring();
+  return FilePath();
 }
 
 // Moves the cache files to a new folder and creates a task to delete them.
-bool DelayedCacheCleanup(const std::wstring& full_path) {
-  FilePath current_path = FilePath::FromWStringHack(full_path);
-  current_path = current_path.StripTrailingSeparators();
+bool DelayedCacheCleanup(const FilePath& full_path) {
+  FilePath current_path = full_path.StripTrailingSeparators();
 
-  std::wstring path = current_path.DirName().ToWStringHack();
-  std::wstring name = current_path.BaseName().ToWStringHack();
+  FilePath path = current_path.DirName();
+  FilePath name = current_path.BaseName();
+#if defined(OS_POSIX)
+  std::string name_str = name.value();
+#elif defined(OS_WIN)
+  // We created this file so it should only contain ASCII.
+  std::string name_str = WideToASCII(name.value());
+#endif
 
-  std::wstring to_delete = GetTempCacheName(path, name);
+  FilePath to_delete = GetTempCacheName(path, name_str);
   if (to_delete.empty()) {
     LOG(ERROR) << "Unable to get another cache folder";
     return false;
   }
 
-  if (!disk_cache::MoveCache(full_path.c_str(), to_delete.c_str())) {
+  if (!disk_cache::MoveCache(full_path, to_delete)) {
     LOG(ERROR) << "Unable to rename cache folder";
     return false;
   }
 
 #if defined(OS_WIN)
-  WorkerPool::PostTask(FROM_HERE, new CleanupTask(path, name), true);
+  WorkerPool::PostTask(FROM_HERE, new CleanupTask(path, name_str), true);
 #elif defined(OS_POSIX)
   // TODO(rvargas): Use the worker pool.
-  MessageLoop::current()->PostTask(FROM_HERE, new CleanupTask(path, name));
+  MessageLoop::current()->PostTask(FROM_HERE, new CleanupTask(path, name_str));
 #endif
   return true;
 }
@@ -215,7 +217,8 @@ int PreferedCacheSize(int64 available) {
 Backend* BackendImpl::CreateBackend(const std::wstring& full_path, bool force,
                                     int max_bytes, net::CacheType type,
                                     BackendFlags flags) {
-  BackendImpl* cache = new BackendImpl(full_path);
+  FilePath full_cache_path = FilePath::FromWStringHack(full_path);
+  BackendImpl* cache = new BackendImpl(full_cache_path);
   cache->SetMaxSize(max_bytes);
   cache->SetType(type);
   cache->SetFlags(flags);
@@ -226,12 +229,12 @@ Backend* BackendImpl::CreateBackend(const std::wstring& full_path, bool force,
   if (!force)
     return NULL;
 
-  if (!DelayedCacheCleanup(full_path))
+  if (!DelayedCacheCleanup(full_cache_path))
     return NULL;
 
   // The worker thread will start deleting files soon, but the original folder
   // is not there anymore... let's create a new set of files.
-  cache = new BackendImpl(full_path);
+  cache = new BackendImpl(full_cache_path);
   cache->SetMaxSize(max_bytes);
   cache->SetType(type);
   cache->SetFlags(flags);
@@ -478,7 +481,7 @@ bool BackendImpl::DoomEntry(const std::string& key) {
 bool BackendImpl::DoomAllEntries() {
   if (!num_refs_) {
     PrepareForRestart();
-    DeleteCache(path_.c_str(), false);
+    DeleteCache(path_, false);
     return Init();
   } else {
     if (disabled_)
@@ -610,16 +613,14 @@ void BackendImpl::SetType(net::CacheType type) {
   cache_type_ = type;
 }
 
-std::wstring BackendImpl::GetFileName(Addr address) const {
+FilePath BackendImpl::GetFileName(Addr address) const {
   if (!address.is_separate_file() || !address.is_initialized()) {
     NOTREACHED();
-    return std::wstring();
+    return FilePath();
   }
 
-  std::wstring name(path_);
-  std::wstring tmp = StringPrintf(L"f_%06x", address.FileNumber());
-  file_util::AppendToPath(&name, tmp);
-  return name;
+  std::string tmp = StringPrintf("f_%06x", address.FileNumber());
+  return path_.AppendASCII(tmp);
 }
 
 MappedFile* BackendImpl::File(Addr address) {
@@ -637,13 +638,13 @@ bool BackendImpl::CreateExternalFile(Addr* address) {
       file_number = 1;
       continue;
     }
-    std::wstring name = GetFileName(file_address);
+    FilePath name = GetFileName(file_address);
     int flags = base::PLATFORM_FILE_READ |
                 base::PLATFORM_FILE_WRITE |
                 base::PLATFORM_FILE_CREATE |
                 base::PLATFORM_FILE_EXCLUSIVE_WRITE;
     scoped_refptr<disk_cache::File> file(new disk_cache::File(
-        base::CreatePlatformFile(name.c_str(), flags, NULL)));
+        base::CreatePlatformFile(name.ToWStringHack().c_str(), flags, NULL)));
     if (!file->IsValid())
       continue;
 
@@ -988,15 +989,15 @@ bool BackendImpl::CreateBackingStore(disk_cache::File* file) {
 bool BackendImpl::InitBackingStore(bool* file_created) {
   file_util::CreateDirectory(path_);
 
-  std::wstring index_name(path_);
-  file_util::AppendToPath(&index_name, kIndexName);
+  FilePath index_name = path_.AppendASCII(kIndexName);
 
   int flags = base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE |
               base::PLATFORM_FILE_OPEN_ALWAYS |
               base::PLATFORM_FILE_EXCLUSIVE_WRITE;
   scoped_refptr<disk_cache::File> file(new disk_cache::File(
-      base::CreatePlatformFile(index_name.c_str(), flags, file_created)));
+      base::CreatePlatformFile(index_name.ToWStringHack().c_str(), flags,
+                               file_created)));
 
   if (!file->IsValid())
     return false;
@@ -1010,7 +1011,7 @@ bool BackendImpl::InitBackingStore(bool* file_created) {
     return false;
 
   index_ = new MappedFile();
-  data_ = reinterpret_cast<Index*>(index_->Init(index_name, 0));
+  data_ = reinterpret_cast<Index*>(index_->Init(index_name.ToWStringHack(), 0));
   if (!data_) {
     LOG(ERROR) << "Unable to map Index file";
     return false;
@@ -1028,7 +1029,7 @@ void BackendImpl::AdjustMaxCacheSize(int table_len) {
   DCHECK(!table_len || data_->header.magic);
 
   // The user is not setting the size, let's figure it out.
-  int64 available = base::SysInfo::AmountOfFreeDiskSpace(path_);
+  int64 available = base::SysInfo::AmountOfFreeDiskSpace(path_.ToWStringHack());
   if (available < 0) {
     max_size_ = kDefaultCacheSize;
     return;

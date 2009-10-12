@@ -10,13 +10,13 @@
 
 namespace disk_cache {
 
-bool MoveCache(const std::wstring& from_path, const std::wstring& to_path) {
+bool MoveCache(const FilePath& from_path, const FilePath& to_path) {
   // Just use the version from base.
-  return file_util::Move(from_path.c_str(), to_path.c_str());
+  return file_util::Move(from_path, to_path);
 }
 
-void DeleteCache(const std::wstring& path, bool remove_folder) {
-  file_util::FileEnumerator iter(FilePath::FromWStringHack(path),
+void DeleteCache(const FilePath& path, bool remove_folder) {
+  file_util::FileEnumerator iter(path,
                                  /* recursive */ false,
                                  file_util::FileEnumerator::FILES);
   for (FilePath file = iter.Next(); !file.value().empty(); file = iter.Next()) {
@@ -30,8 +30,16 @@ void DeleteCache(const std::wstring& path, bool remove_folder) {
   }
 }
 
-bool DeleteCacheFile(const std::wstring& name) {
+bool DeleteCacheFile(const FilePath& name) {
   return file_util::Delete(name, false);
+}
+
+void DeleteCache(const std::wstring& path, bool remove_folder) {
+  DeleteCache(FilePath::FromWStringHack(path), remove_folder);
+}
+
+bool DeleteCacheFile(const std::wstring& name) {
+  return DeleteCacheFile(FilePath::FromWStringHack(name));
 }
 
 }  // namespace disk_cache
