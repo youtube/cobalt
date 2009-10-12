@@ -122,8 +122,8 @@ bool EvictFileFromSystemCache(const FilePath& file) {
 
 // Like CopyFileNoCache but recursively copies all files and subdirectories
 // in the given input directory to the output directory.
-bool CopyRecursiveDirNoCache(const std::wstring& source_dir,
-                             const std::wstring& dest_dir) {
+bool CopyRecursiveDirNoCache(const FilePath& source_dir,
+                             const FilePath& dest_dir) {
   // Try to create the directory if it doesn't already exist.
   if (!CreateDirectory(dest_dir)) {
     if (GetLastError() != ERROR_ALREADY_EXISTS)
@@ -132,7 +132,7 @@ bool CopyRecursiveDirNoCache(const std::wstring& source_dir,
 
   std::vector<std::wstring> files_copied;
 
-  std::wstring src(source_dir);
+  std::wstring src(source_dir.value());
   file_util::AppendToPath(&src, L"*");
 
   WIN32_FIND_DATA fd;
@@ -145,11 +145,8 @@ bool CopyRecursiveDirNoCache(const std::wstring& source_dir,
     if (cur_file == L"." || cur_file == L"..")
       continue;  // Skip these special entries.
 
-    std::wstring cur_source_path(source_dir);
-    file_util::AppendToPath(&cur_source_path, cur_file);
-
-    std::wstring cur_dest_path(dest_dir);
-    file_util::AppendToPath(&cur_dest_path, cur_file);
+    FilePath cur_source_path = source_dir.Append(cur_file);
+    FilePath cur_dest_path = dest_dir.Append(cur_file);
 
     if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
       // Recursively copy a subdirectory. We stripped "." and ".." already.
@@ -159,7 +156,8 @@ bool CopyRecursiveDirNoCache(const std::wstring& source_dir,
       }
     } else {
       // Copy the file.
-      if (!::CopyFile(cur_source_path.c_str(), cur_dest_path.c_str(), false)) {
+      if (!::CopyFile(cur_source_path.value().c_str(),
+                      cur_dest_path.value().c_str(), false)) {
         FindClose(fh);
         return false;
       }
@@ -168,7 +166,7 @@ bool CopyRecursiveDirNoCache(const std::wstring& source_dir,
       // files that are in the repository, and they will have read-only set.
       // This will prevent us from evicting from the cache, but these don't
       // matter anyway.
-      EvictFileFromSystemCache(FilePath::FromWStringHack(cur_dest_path));
+      EvictFileFromSystemCache(cur_dest_path);
     }
   } while (FindNextFile(fh, &fd));
 
