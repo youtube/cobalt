@@ -24,21 +24,28 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/file_path.h"
 #include "base/logging.h"
 
-class FilePath;
 class InProcessBrowserTest;
 
 class CommandLine {
  public:
 #if defined(OS_WIN)
-  // Creates a parsed version of the given command-line string.
+  // Initialize by parsing the given command-line string.
   // The program name is assumed to be the first item in the string.
   void ParseFromString(const std::wstring& command_line);
 #elif defined(OS_POSIX)
-  // Initialize from an argv vector (or directly from main()'s argv).
-  CommandLine(int argc, const char* const* argv);
-  explicit CommandLine(const std::vector<std::string>& argv);
+  // Initialize from an argv vector.
+  void InitFromArgv(int argc, const char* const* argv);
+  void InitFromArgv(const std::vector<std::string>& argv);
+
+  CommandLine(int argc, const char* const* argv) {
+    InitFromArgv(argc, argv);
+  }
+  explicit CommandLine(const std::vector<std::string>& argv) {
+    InitFromArgv(argv);
+  }
 #endif
 
   // Construct a new, empty command line.
@@ -53,7 +60,6 @@ class CommandLine {
   // directly) because we don't trust the CRT's parsing of the command
   // line, but it still must be called to set up the command line.
   static void Init(int argc, const char* const* argv);
-  static void Init(const std::vector<std::string>& argv);
 
 #if defined(OS_LINUX) || defined(OS_FREEBSD)
   // Sets the current process' arguments that show in "ps" etc. to those
@@ -76,8 +82,9 @@ class CommandLine {
   static void Terminate() { Reset(); }
 
   // Get the singleton CommandLine representing the current process's
-  // command line.
-  static const CommandLine* ForCurrentProcess() {
+  // command line.  Note: returned value is mutable, but not thread safe;
+  // only mutate if you know what you're doing!
+  static CommandLine* ForCurrentProcess() {
     DCHECK(current_process_commandline_);
     return current_process_commandline_;
   }
@@ -111,6 +118,12 @@ class CommandLine {
 #endif
 
   // Returns the program part of the command line string (the first item).
+  FilePath GetProgram() const {
+    return FilePath::FromWStringHack(program());
+  }
+
+  // Returns the program part of the command line string (the first item).
+  // Deprecated version of the above.
   std::wstring program() const;
 
   // Return a copy of the string prefixed with a switch prefix.
@@ -178,9 +191,6 @@ class CommandLine {
 
   // The type of native command line arguments.
   typedef std::string StringType;
-
-  // Shared by the two POSIX constructor forms.  Initalize from argv_.
-  void InitFromArgv();
 #endif
 
   // Returns true and fills in |switch_string| and |switch_value|
