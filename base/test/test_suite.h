@@ -75,7 +75,7 @@ class TestSuite {
   }
 
   virtual ~TestSuite() {
-    CommandLine::Terminate();
+    CommandLine::Reset();
   }
 
   // Returns true if a string starts with FLAKY_.

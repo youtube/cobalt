@@ -48,9 +48,6 @@ class CommandLine {
   // Deprecated in favor of FilePath version.
   explicit CommandLine(const std::wstring& program);
 
-  // Uninit and free the current process's command line.
-  static void Reset();
-
   // Initialize the current process CommandLine singleton.  On Windows,
   // ignores its arguments (we instead parse GetCommandLineW()
   // directly) because we don't trust the CRT's parsing of the command
@@ -71,9 +68,12 @@ class CommandLine {
   // Destroys the current process CommandLine singleton. This is necessary if
   // you want to reset the base library to its initial state (for example in an
   // outer library that needs to be able to terminate, and be re-initialized).
-  // If Init is called only once, e.g. in main(), calling Terminate() is not
+  // If Init is called only once, e.g. in main(), calling Reset() is not
   // necessary.
-  static void Terminate();
+  static void Reset();
+  // The same function snuck into this class under two different names;
+  // this one remains for backwards compat with the older o3d build.
+  static void Terminate() { Reset(); }
 
   // Get the singleton CommandLine representing the current process's
   // command line.
