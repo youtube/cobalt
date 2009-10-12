@@ -379,7 +379,7 @@
             'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
             'conditions': [
-              [ 'chromeos==1', {
+              [ 'chromeos==1 or toolkit_views==1', {
                   'sources/': [ ['include', '_chromeos\\.cc$'] ]
                 },
               ],
@@ -713,7 +713,7 @@
             'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
             'conditions': [
-              [ 'chromeos==1', {
+              [ 'chromeos==1 or toolkit_views==1', {
                   'sources/': [ ['include', '_chromeos\\.cc$'] ]
                 },
               ],
