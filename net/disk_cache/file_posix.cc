@@ -245,7 +245,7 @@ File::File(base::PlatformFile file)
     : init_(true), mixed_(true), platform_file_(file) {
 }
 
-bool File::Init(const std::wstring& name) {
+bool File::Init(const FilePath& name) {
   if (init_)
     return false;
 

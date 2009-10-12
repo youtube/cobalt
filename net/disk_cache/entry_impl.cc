@@ -692,7 +692,7 @@ File* EntryImpl::GetExternalFile(Addr address, int index) {
   if (!files_[index].get()) {
     // For a key file, use mixed mode IO.
     scoped_refptr<File> file(new File(kKeyFileIndex == index));
-    if (file->Init(backend_->GetFileName(address).ToWStringHack()))
+    if (file->Init(backend_->GetFileName(address)))
       files_[index].swap(file);
   }
   return files_[index].get();
