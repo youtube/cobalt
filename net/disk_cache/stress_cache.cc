@@ -78,7 +78,8 @@ void StressTheCache(int iteration) {
   int cache_size = 0x800000;  // 8MB
   std::wstring path = GetCachePath();
   path.append(L"_stress");
-  disk_cache::BackendImpl* cache = new disk_cache::BackendImpl(path);
+  disk_cache::BackendImpl* cache =
+      new disk_cache::BackendImpl(FilePath::FromWStringHack(path));
   cache->SetFlags(disk_cache::kNoLoadProtection | disk_cache::kNoRandom);
   cache->SetMaxSize(cache_size);
   cache->SetType(net::DISK_CACHE);

@@ -78,7 +78,8 @@ bool DeleteCache(const wchar_t* path) {
 }
 
 bool CheckCacheIntegrity(const std::wstring& path, bool new_eviction) {
-  scoped_ptr<disk_cache::BackendImpl> cache(new disk_cache::BackendImpl(path));
+  scoped_ptr<disk_cache::BackendImpl> cache(new disk_cache::BackendImpl(
+      FilePath::FromWStringHack(path)));
   if (!cache.get())
     return false;
   if (new_eviction)
