@@ -24,19 +24,16 @@ bool DieFileDie(const FilePath& file, bool recurse) {
 }
 
 // Mostly a verbatim copy of CopyDirectory
-bool CopyRecursiveDirNoCache(const std::wstring& source_dir,
-                             const std::wstring& dest_dir) {
-  const FilePath from_path(FilePath::FromWStringHack(source_dir));
-  const FilePath to_path(FilePath::FromWStringHack(dest_dir));
-
+bool CopyRecursiveDirNoCache(const FilePath& source_dir,
+                             const FilePath& dest_dir) {
   char top_dir[PATH_MAX];
-  if (base::strlcpy(top_dir, from_path.value().c_str(),
+  if (base::strlcpy(top_dir, source_dir.value().c_str(),
                     arraysize(top_dir)) >= arraysize(top_dir)) {
     return false;
   }
 
   // This function does not properly handle destinations within the source
-  FilePath real_to_path = to_path;
+  FilePath real_to_path = dest_dir;
   if (PathExists(real_to_path)) {
     if (!AbsolutePath(&real_to_path))
       return false;
@@ -45,35 +42,35 @@ bool CopyRecursiveDirNoCache(const std::wstring& source_dir,
     if (!AbsolutePath(&real_to_path))
       return false;
   }
-  if (real_to_path.value().compare(0, from_path.value().size(),
-      from_path.value()) == 0)
+  if (real_to_path.value().compare(0, source_dir.value().size(),
+      source_dir.value()) == 0)
     return false;
 
   bool success = true;
   FileEnumerator::FILE_TYPE traverse_type =
       static_cast<FileEnumerator::FILE_TYPE>(FileEnumerator::FILES |
       FileEnumerator::SHOW_SYM_LINKS | FileEnumerator::DIRECTORIES);
-  FileEnumerator traversal(from_path, true, traverse_type);
+  FileEnumerator traversal(source_dir, true, traverse_type);
 
-  // to_path may not exist yet, start the loop with to_path
+  // dest_dir may not exist yet, start the loop with dest_dir
   FileEnumerator::FindInfo info;
-  FilePath current = from_path;
-  if (stat(from_path.value().c_str(), &info.stat) < 0) {
+  FilePath current = source_dir;
+  if (stat(source_dir.value().c_str(), &info.stat) < 0) {
     LOG(ERROR) << "CopyRecursiveDirNoCache() couldn't stat source directory: "
-        << from_path.value() << " errno = " << errno;
+        << source_dir.value() << " errno = " << errno;
     success = false;
   }
 
   while (success && !current.empty()) {
-    // current is the source path, including from_path, so paste
-    // the suffix after from_path onto to_path to create the target_path.
-    std::string suffix(&current.value().c_str()[from_path.value().size()]);
+    // |current| is the source path, including source_dir, so paste
+    // the suffix after source_dir onto dest_dir to create the target_path.
+    std::string suffix(&current.value().c_str()[source_dir.value().size()]);
     // Strip the leading '/' (if any).
     if (!suffix.empty()) {
       DCHECK_EQ('/', suffix[0]);
       suffix.erase(0, 1);
     }
-    const FilePath target_path = to_path.Append(suffix);
+    const FilePath target_path = dest_dir.Append(suffix);
 
     if (S_ISDIR(info.stat.st_mode)) {
       if (mkdir(target_path.value().c_str(), info.stat.st_mode & 01777) != 0 &&
