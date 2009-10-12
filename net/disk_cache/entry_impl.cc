@@ -657,8 +657,8 @@ void EntryImpl::DeleteData(Addr address, int index) {
     int failure = DeleteCacheFile(backend_->GetFileName(address)) ? 0 : 1;
     CACHE_UMA(COUNTS, "DeleteFailed", 0, failure);
     if (failure)
-      LOG(ERROR) << "Failed to delete " << backend_->GetFileName(address) <<
-                    " from the cache.";
+      LOG(ERROR) << "Failed to delete " <<
+          backend_->GetFileName(address).value() << " from the cache.";
   } else {
     backend_->DeleteBlock(address, true);
   }
@@ -692,7 +692,7 @@ File* EntryImpl::GetExternalFile(Addr address, int index) {
   if (!files_[index].get()) {
     // For a key file, use mixed mode IO.
     scoped_refptr<File> file(new File(kKeyFileIndex == index));
-    if (file->Init(backend_->GetFileName(address)))
+    if (file->Init(backend_->GetFileName(address).ToWStringHack()))
       files_[index].swap(file);
   }
   return files_[index].get();

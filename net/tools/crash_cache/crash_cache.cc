@@ -214,7 +214,8 @@ int LoadOperations(const std::wstring& path, RankCrashes action) {
   DCHECK(action >= disk_cache::INSERT_LOAD_1);
 
   // Work with a tiny index table (16 entries)
-  disk_cache::BackendImpl* cache = new disk_cache::BackendImpl(path, 0xf);
+  disk_cache::BackendImpl* cache =
+      new disk_cache::BackendImpl(FilePath::FromWStringHack(path), 0xf);
   if (!cache || !cache->SetMaxSize(0x100000) || !cache->Init() ||
       cache->GetEntryCount())
     return GENERIC;
