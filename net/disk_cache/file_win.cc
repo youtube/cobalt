@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/file.h"
 
+#include "base/file_path.h"
 #include "base/message_loop.h"
 #include "base/singleton.h"
 #include "net/disk_cache/disk_cache.h"
@@ -77,12 +78,13 @@ File::File(base::PlatformFile file)
       sync_platform_file_(file) {
 }
 
-bool File::Init(const std::wstring& name) {
+bool File::Init(const FilePath& name) {
   DCHECK(!init_);
   if (init_)
     return false;
 
-  platform_file_ = CreateFile(name.c_str(), GENERIC_READ | GENERIC_WRITE,
+  platform_file_ = CreateFile(name.value().c_str(),
+                              GENERIC_READ | GENERIC_WRITE,
                               FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                               OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 
@@ -93,7 +95,8 @@ bool File::Init(const std::wstring& name) {
       platform_file_, Singleton<CompletionHandler>::get());
 
   init_ = true;
-  sync_platform_file_  = CreateFile(name.c_str(), GENERIC_READ | GENERIC_WRITE,
+  sync_platform_file_  = CreateFile(name.value().c_str(),
+                                    GENERIC_READ | GENERIC_WRITE,
                                     FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                                     OPEN_EXISTING, 0, NULL);
 
