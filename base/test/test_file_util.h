@@ -28,8 +28,8 @@ bool EvictFileFromSystemCache(const FilePath& file);
 //
 // Returns true on success. False means there was some error copying, so the
 // state of the destination is unknown.
-bool CopyRecursiveDirNoCache(const std::wstring& source_dir,
-                             const std::wstring& dest_dir);
+bool CopyRecursiveDirNoCache(const FilePath& source_dir,
+                             const FilePath& dest_dir);
 
 }  // namespace file_util
 
