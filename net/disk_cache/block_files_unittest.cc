@@ -170,7 +170,7 @@ TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
   // Truncate one of the files.
   {
     scoped_refptr<File> file(new File);
-    ASSERT_TRUE(file->Init(filename));
+    ASSERT_TRUE(file->Init(FilePath::FromWStringHack(filename)));
     EXPECT_TRUE(file->SetLength(0));
   }
 
