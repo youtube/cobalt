@@ -109,17 +109,14 @@ CommandLine::CommandLine(const std::wstring& program) {
   }
 }
 #elif defined(OS_POSIX)
-CommandLine::CommandLine(int argc, const char* const* argv) {
+void CommandLine::InitFromArgv(int argc, const char* const* argv) {
   for (int i = 0; i < argc; ++i)
     argv_.push_back(argv[i]);
-  InitFromArgv();
-}
-CommandLine::CommandLine(const std::vector<std::string>& argv) {
-  argv_ = argv;
-  InitFromArgv();
+  InitFromArgv(argv_);
 }
 
-void CommandLine::InitFromArgv() {
+void CommandLine::InitFromArgv(const std::vector<std::string>& argv) {
+  argv_ = argv;
   bool parse_switches = true;
   for (size_t i = 1; i < argv_.size(); ++i) {
     const std::string& arg = argv_[i];
@@ -192,22 +189,11 @@ bool CommandLine::IsSwitch(const StringType& parameter_string,
 
 // static
 void CommandLine::Init(int argc, const char* const* argv) {
-#if defined(OS_WIN)
   current_process_commandline_ = new CommandLine;
+#if defined(OS_WIN)
   current_process_commandline_->ParseFromString(::GetCommandLineW());
 #elif defined(OS_POSIX)
-  current_process_commandline_ = new CommandLine(argc, argv);
-#endif
-}
-
-// static
-void CommandLine::Init(const std::vector<std::string>& argv) {
-  DCHECK(current_process_commandline_ == NULL);
-#if defined(OS_WIN)
-  current_process_commandline_ = new CommandLine;
-  current_process_commandline_->ParseFromString(::GetCommandLineW());
-#elif defined(OS_POSIX)
-  current_process_commandline_ = new CommandLine(argv);
+  current_process_commandline_->InitFromArgv(argc, argv);
 #endif
 }
 
