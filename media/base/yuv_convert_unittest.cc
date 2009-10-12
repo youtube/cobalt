@@ -4,18 +4,19 @@
 
 #include "base/base_paths.h"
 #include "base/file_util.h"
+#include "media/base/djb2.h"
 #include "media/base/yuv_convert.h"
 #include "media/base/yuv_row.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Reference images were created with the following steps
 // ffmpeg -vframes 25 -i bali.mov -vcodec rawvideo -pix_fmt yuv420p -an
-//   bali.yv12.1280_720.yuv
-// yuvhalf -yv12 -skip 24 bali.yv12.1280_720.yuv bali.yv12.640_360.yuv
+//   bali_1280x720_P420.yuv
+// yuvhalf -yv12 -skip 24 bali_1280x720_P420.yuv bali_640x360_P420.yuv
 
 // ffmpeg -vframes 25 -i bali.mov -vcodec rawvideo -pix_fmt yuv422p -an
-//   bali.yv16.1280_720.yuv
-// yuvhalf -yv16 -skip 24 bali.yv16.1280_720.yuv bali.yv16.640_360.yuv
+//   bali_1280x720_P422.yuv
+// yuvhalf -yv16 -skip 24 bali_1280x720_P422.yuv bali_640x360_P422.yuv
 // Size of raw image.
 
 // Size of raw image.
@@ -30,15 +31,6 @@ static const size_t kYUV12Size = kWidth * kHeight * 12 / 8;
 static const size_t kYUV16Size = kWidth * kHeight * 16 / 8;
 static const size_t kRGBSize = kWidth * kHeight * kBpp;
 static const size_t kRGBSizeConverted = kWidth * kHeight * kBpp;
-
-namespace {
-// DJB2 hash
-unsigned int hash(unsigned char *s, size_t len, unsigned int hash = 5381) {
-  while (len--)
-    hash = hash * 33 + *s++;
-  return hash;
-}
-}
 
 // Set to 100 to time ConvertYUVToRGB32.
 // This will take approximately 40 to 200 ms.
@@ -56,7 +48,7 @@ TEST(YUVConvertTest, YV12) {
   yuv_url = yuv_url.Append(FILE_PATH_LITERAL("media"))
                    .Append(FILE_PATH_LITERAL("test"))
                    .Append(FILE_PATH_LITERAL("data"))
-                   .Append(FILE_PATH_LITERAL("bali.yv12.640_360.yuv"));
+                   .Append(FILE_PATH_LITERAL("bali_640x360_P420.yuv"));
   EXPECT_EQ(static_cast<int>(kYUV12Size),
             file_util::ReadFile(yuv_url,
                                 reinterpret_cast<char*>(yuv_bytes.get()),
@@ -75,7 +67,8 @@ TEST(YUVConvertTest, YV12) {
                              media::YV12);
   }
 
-  unsigned int rgb_hash = hash(rgb_converted_bytes.get(), kRGBSizeConverted);
+  unsigned int rgb_hash = DJB2Hash(rgb_converted_bytes.get(), kRGBSizeConverted,
+                                   kDJB2HashSeed);
 
   // To get this hash value, run once and examine the following EXPECT_EQ.
   // Then plug new hash value into EXPECT_EQ statements.
@@ -100,7 +93,7 @@ TEST(YUVConvertTest, YV16) {
   yuv_url = yuv_url.Append(FILE_PATH_LITERAL("media"))
                    .Append(FILE_PATH_LITERAL("test"))
                    .Append(FILE_PATH_LITERAL("data"))
-                   .Append(FILE_PATH_LITERAL("bali.yv16.640_360.yuv"));
+                   .Append(FILE_PATH_LITERAL("bali_640x360_P422.yuv"));
   EXPECT_EQ(static_cast<int>(kYUV16Size),
             file_util::ReadFile(yuv_url,
                                 reinterpret_cast<char*>(yuv_bytes.get()),
@@ -117,7 +110,8 @@ TEST(YUVConvertTest, YV16) {
                            kWidth * kBpp,                         // RGBStride
                            media::YV16);
 
-  unsigned int rgb_hash = hash(rgb_converted_bytes.get(), kRGBSizeConverted);
+  unsigned int rgb_hash = DJB2Hash(rgb_converted_bytes.get(), kRGBSizeConverted,
+                                   kDJB2HashSeed);
 
   // To get this hash value, run once and examine the following EXPECT_EQ.
   // Then plug new hash value into EXPECT_EQ statements.
@@ -137,7 +131,7 @@ TEST(YuvScaleTest, YV12) {
   yuv_url = yuv_url.Append(FILE_PATH_LITERAL("media"))
                    .Append(FILE_PATH_LITERAL("test"))
                    .Append(FILE_PATH_LITERAL("data"))
-                   .Append(FILE_PATH_LITERAL("bali.yv12.640_360.yuv"));
+                   .Append(FILE_PATH_LITERAL("bali_640x360_P420.yuv"));
   const size_t size_of_yuv = kWidth * kHeight * 12 / 8;  // 12 bpp.
   scoped_array<uint8> yuv_bytes(new uint8[size_of_yuv]);
   EXPECT_EQ(static_cast<int>(size_of_yuv),
@@ -161,7 +155,8 @@ TEST(YuvScaleTest, YV12) {
                          media::YV12,
                          media::ROTATE_0);
 
-  unsigned int rgb_hash = hash(rgb_scaled_bytes.get(), size_of_rgb_scaled);
+  unsigned int rgb_hash = DJB2Hash(rgb_scaled_bytes.get(), size_of_rgb_scaled,
+                                   kDJB2HashSeed);
 
   // To get this hash value, run once and examine the following EXPECT_EQ.
   // Then plug new hash value into EXPECT_EQ statements.
@@ -181,7 +176,7 @@ TEST(YuvScaleTest, YV16) {
   yuv_url = yuv_url.Append(FILE_PATH_LITERAL("media"))
                    .Append(FILE_PATH_LITERAL("test"))
                    .Append(FILE_PATH_LITERAL("data"))
-                   .Append(FILE_PATH_LITERAL("bali.yv16.640_360.yuv"));
+                   .Append(FILE_PATH_LITERAL("bali_640x360_P422.yuv"));
   const size_t size_of_yuv = kWidth * kHeight * 16 / 8;  // 16 bpp.
   scoped_array<uint8> yuv_bytes(new uint8[size_of_yuv]);
   EXPECT_EQ(static_cast<int>(size_of_yuv),
@@ -205,7 +200,8 @@ TEST(YuvScaleTest, YV16) {
                          media::YV16,
                          media::ROTATE_0);
 
-  unsigned int rgb_hash = hash(rgb_scaled_bytes.get(), size_of_rgb_scaled);
+  unsigned int rgb_hash = DJB2Hash(rgb_scaled_bytes.get(), size_of_rgb_scaled,
+                                   kDJB2HashSeed);
 
   // To get this hash value, run once and examine the following EXPECT_EQ.
   // Then plug new hash value into EXPECT_EQ statements.
