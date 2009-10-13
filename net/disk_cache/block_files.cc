@@ -15,7 +15,7 @@ using base::Time;
 
 namespace {
 
-const wchar_t* kBlockName = L"data_";
+const char* kBlockName = "data_";
 
 // This array is used to perform a fast lookup of the nibble bit pattern to the
 // type of entry that can be stored there (number of consecutive blocks).
@@ -200,24 +200,21 @@ void BlockFiles::CloseFiles() {
   block_files_.clear();
 }
 
-std::wstring BlockFiles::Name(int index) {
+FilePath BlockFiles::Name(int index) {
   // The file format allows for 256 files.
   DCHECK(index < 256 || index >= 0);
-  std::wstring name(path_);
-  std::wstring tmp = StringPrintf(L"%ls%d", kBlockName, index);
-  file_util::AppendToPath(&name, tmp);
-
-  return name;
+  std::string tmp = StringPrintf("%s%d", kBlockName, index);
+  return path_.AppendASCII(tmp);
 }
 
 bool BlockFiles::CreateBlockFile(int index, FileType file_type, bool force) {
-  std::wstring name = Name(index);
+  FilePath name = Name(index);
   int flags =
       force ? base::PLATFORM_FILE_CREATE_ALWAYS : base::PLATFORM_FILE_CREATE;
   flags |= base::PLATFORM_FILE_WRITE | base::PLATFORM_FILE_EXCLUSIVE_WRITE;
 
   scoped_refptr<File> file(new File(
-      base::CreatePlatformFile(name.c_str(), flags, NULL)));
+      base::CreatePlatformFile(name, flags, NULL)));
   if (!file->IsValid())
     return false;
 
@@ -236,16 +233,16 @@ bool BlockFiles::OpenBlockFile(int index) {
     block_files_.resize(block_files_.size() + to_add);
   }
 
-  std::wstring name = Name(index);
+  FilePath name = Name(index);
   scoped_refptr<MappedFile> file(new MappedFile());
 
-  if (!file->Init(name, kBlockHeaderSize)) {
-    LOG(ERROR) << "Failed to open " << name;
+  if (!file->Init(name.ToWStringHack(), kBlockHeaderSize)) {
+    LOG(ERROR) << "Failed to open " << name.value();
     return false;
   }
 
   if (file->GetLength() < static_cast<size_t>(kBlockHeaderSize)) {
-    LOG(ERROR) << "File too small " << name;
+    LOG(ERROR) << "File too small " << name.value();
     return false;
   }
 
@@ -390,11 +387,11 @@ void BlockFiles::RemoveEmptyFile(FileType block_type) {
       block_files_[file_index]->Release();
       block_files_[file_index] = NULL;
 
-      std::wstring name = Name(file_index);
+      FilePath name = Name(file_index);
       int failure = DeleteCacheFile(name) ? 0 : 1;
       UMA_HISTOGRAM_COUNTS("DiskCache.DeleteFailed2", failure);
       if (failure)
-        LOG(ERROR) << "Failed to delete " << name << " from the cache.";
+        LOG(ERROR) << "Failed to delete " << name.value() << " from the cache.";
       continue;
     }
 
