@@ -62,6 +62,10 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   // the object was created in.
   int nesting_level_;
 
+  // The recursion depth (calculated in the same way as nesting_level_) of the
+  // innermost executing CFRunLoopRun loop started by a call to Run.
+  int run_nesting_level_;
+
  private:
   // Timer callback scheduled by ScheduleDelayedWork.  This does not do any
   // work, but it signals delayed_work_source_ so that delayed work can be
@@ -149,10 +153,6 @@ class MessagePumpCFRunLoop : public MessagePumpCFRunLoopBase {
 
  private:
   virtual void EnterExitRunLoop(CFRunLoopActivity activity);
-
-  // The recursion depth (calculated in the same way as nesting_level_) of the
-  // innermost executing CFRunLoopRun loop started by a call to Run.
-  int innermost_quittable_;
 
   // True if Quit is called to stop the innermost MessagePump
   // (innermost_quittable_) but some other CFRunLoopRun loop (nesting_level_)
