@@ -13,6 +13,7 @@
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/platform_thread.h"
+#include "base/safe_strerror_posix.h"
 #include "base/string_util.h"
 
 namespace base {
@@ -188,8 +189,7 @@ bool SharedMemory::CreateOrOpen(const std::wstring &name,
 
   if (fp == NULL) {
     if (posix_flags & O_CREAT)
-      LOG(ERROR) << "Creating shared memory in " << path.value() << " failed: "
-                 << strerror(errno);
+      PLOG(ERROR) << "Creating shared memory in " << path.value() << " failed";
     return false;
   }
 
@@ -291,7 +291,7 @@ void SharedMemory::LockOrUnlockCommon(int function) {
                    << " function:" << function
                    << " fd:" << mapped_file_
                    << " errno:" << errno
-                   << " msg:" << strerror(errno);
+                   << " msg:" << safe_strerror(errno);
     }
   }
 }

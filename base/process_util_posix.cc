@@ -274,8 +274,7 @@ bool LaunchApp(const std::vector<std::string>& argv,
       argv_cstr[i] = const_cast<char*>(argv[i].c_str());
     argv_cstr[argv.size()] = NULL;
     execvp(argv_cstr[0], argv_cstr.get());
-    LOG(ERROR) << "LaunchApp: execvp(" << argv_cstr[0] << ") failed: "
-               << strerror(errno);
+    PLOG(ERROR) << "LaunchApp: execvp(" << argv_cstr[0] << ") failed";
     _exit(127);
   } else {
     // Parent process
@@ -333,7 +332,7 @@ bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
   int status;
   const int result = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
   if (result == -1) {
-    LOG(ERROR) << "waitpid(" << handle << "): " << strerror(errno);
+    PLOG(ERROR) << "waitpid(" << handle << ")";
     if (child_exited)
       *child_exited = false;
     return false;
