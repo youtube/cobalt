@@ -13,10 +13,14 @@
 #include "base/timer.h"
 #include "net/base/test_completion_callback.h"
 
+class FilePath;
+
 // Re-creates a given test file inside the cache test folder.
 bool CreateCacheTestFile(const wchar_t* name);
 
 // Deletes all file son the cache.
+bool DeleteCache(const FilePath& path);
+// Deprecated.
 bool DeleteCache(const wchar_t* path);
 
 // Gets the path to the cache test folder.

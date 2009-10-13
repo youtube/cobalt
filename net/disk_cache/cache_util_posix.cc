@@ -38,8 +38,4 @@ void DeleteCache(const std::wstring& path, bool remove_folder) {
   DeleteCache(FilePath::FromWStringHack(path), remove_folder);
 }
 
-bool DeleteCacheFile(const std::wstring& name) {
-  return DeleteCacheFile(FilePath::FromWStringHack(name));
-}
-
 }  // namespace disk_cache
