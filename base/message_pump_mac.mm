@@ -23,6 +23,7 @@ namespace base {
 // Must be called on the run loop thread.
 MessagePumpCFRunLoopBase::MessagePumpCFRunLoopBase()
     : nesting_level_(0),
+      run_nesting_level_(0),
       delegate_(NULL),
       delegateless_work_(false),
       delegateless_delayed_work_(false),
@@ -125,6 +126,11 @@ MessagePumpCFRunLoopBase::~MessagePumpCFRunLoopBase() {
 
 // Must be called on the run loop thread.
 void MessagePumpCFRunLoopBase::Run(Delegate* delegate) {
+  // nesting_level_ will be incremented in EnterExitRunLoop, so set
+  // run_nesting_level_ accordingly.
+  int last_run_nesting_level = run_nesting_level_;
+  run_nesting_level_ = nesting_level_ + 1;
+
   Delegate* last_delegate = delegate_;
   delegate_ = delegate;
 
@@ -145,7 +151,14 @@ void MessagePumpCFRunLoopBase::Run(Delegate* delegate) {
 
   DoRun(delegate);
 
+  // If this was an inner Run invocation, arrange to run nesting-deferred work
+  // when the stack has unwound to an outer invocation.
+  if (nesting_level_)
+    CFRunLoopSourceSignal(nesting_deferred_work_source_);
+
+  // Restore the previous state of the object.
   delegate_ = last_delegate;
+  run_nesting_level_ = last_run_nesting_level;
 }
 
 // May be called on any thread.
@@ -357,12 +370,20 @@ void MessagePumpCFRunLoopBase::EnterExitObserver(CFRunLoopObserverRef observer,
       ++self->nesting_level_;
       break;
     case kCFRunLoopExit:
+      // After decrementing self->nesting_level_, it will be one less than
+      // self->run_nesting_level_ if the loop that is now exiting was directly
+      // started by a DoRun call.
       --self->nesting_level_;
-      if (self->nesting_level_) {
+
+      if (self->nesting_level_ >= self->run_nesting_level_ &&
+          self->nesting_level_) {
         // It's possible that some work was not performed because it was
         // inappropriate to do within a nested loop.  When leaving any inner
-        // loop, signal the nesting-deferred work source to ensure that such
+        // loop not directly supervised by a DoRun call, such as nested native
+        // loops, signal the nesting-deferred work source to ensure that such
         // work be afforded an opportunity to be processed if appropriate.
+        // This is not done for loops being run directly by Run/DoRun because
+        // it can be done directly as Run exits.
         CFRunLoopSourceSignal(self->nesting_deferred_work_source_);
       }
       break;
@@ -379,8 +400,7 @@ void MessagePumpCFRunLoopBase::EnterExitRunLoop(CFRunLoopActivity activity) {
 }
 
 MessagePumpCFRunLoop::MessagePumpCFRunLoop()
-    : innermost_quittable_(0),
-      quit_pending_(false) {
+    : quit_pending_(false) {
 }
 
 // Called by MessagePumpCFRunLoopBase::DoRun.  If other CFRunLoopRun loops were
@@ -388,11 +408,6 @@ MessagePumpCFRunLoop::MessagePumpCFRunLoop()
 // the same number of CFRunLoopRun loops must be running for the outermost call
 // to Run.  Run/DoRun are reentrant after that point.
 void MessagePumpCFRunLoop::DoRun(Delegate* delegate) {
-  // nesting_level_ will be incremented in EnterExitRunLoop, so set
-  // innermost_quittable_ accordingly.
-  int last_innermost_quittable = innermost_quittable_;
-  innermost_quittable_ = nesting_level_ + 1;
-
   // This is completely identical to calling CFRunLoopRun(), except autorelease
   // pool management is introduced.
   int result;
@@ -400,15 +415,12 @@ void MessagePumpCFRunLoop::DoRun(Delegate* delegate) {
     ScopedNSAutoreleasePool autorelease_pool;
     result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, DBL_MAX, false);
   } while (result != kCFRunLoopRunStopped && result != kCFRunLoopRunFinished);
-
-  // Restore the previous state of the object.
-  innermost_quittable_ = last_innermost_quittable;
 }
 
 // Must be called on the run loop thread.
 void MessagePumpCFRunLoop::Quit() {
   // Stop the innermost run loop managed by this MessagePumpCFRunLoop object.
-  if (nesting_level_ == innermost_quittable_) {
+  if (nesting_level_ == run_nesting_level_) {
     // This object is running the innermost loop, just stop it.
     CFRunLoopStop(run_loop_);
   } else {
@@ -424,7 +436,7 @@ void MessagePumpCFRunLoop::Quit() {
 // Called by MessagePumpCFRunLoopBase::EnterExitObserver.
 void MessagePumpCFRunLoop::EnterExitRunLoop(CFRunLoopActivity activity) {
   if (activity == kCFRunLoopExit &&
-      nesting_level_ == innermost_quittable_ &&
+      nesting_level_ == run_nesting_level_ &&
       quit_pending_) {
     // Quit was called while loops other than those managed by this object
     // were running further inside a run loop managed by this object.  Now
