@@ -41,7 +41,7 @@ MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
 TEST_F(ProcessUtilTest, SpawnChild) {
   ProcessHandle handle = this->SpawnChild(L"SimpleChildProcess");
 
-  ASSERT_NE(static_cast<ProcessHandle>(NULL), handle);
+  ASSERT_NE(base::kNullProcessHandle, handle);
   EXPECT_TRUE(WaitForSingleProcess(handle, 5000));
   base::CloseProcessHandle(handle);
 }
@@ -62,7 +62,7 @@ MULTIPROCESS_TEST_MAIN(SlowChildProcess) {
 TEST_F(ProcessUtilTest, KillSlowChild) {
   remove("SlowChildProcess.die");
   ProcessHandle handle = this->SpawnChild(L"SlowChildProcess");
-  ASSERT_NE(static_cast<ProcessHandle>(NULL), handle);
+  ASSERT_NE(base::kNullProcessHandle, handle);
   FILE *fp = fopen("SlowChildProcess.die", "w");
   fclose(fp);
   EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
