@@ -76,6 +76,9 @@ class HttpChunkedDecoder {
   // Indicates that a previous call to FilterBuf encountered the final CRLF.
   bool reached_eof() const { return reached_eof_; }
 
+  // Returns the number of bytes after the final CRLF.
+  int bytes_after_eof() const { return bytes_after_eof_; }
+
   // Called to filter out the chunk markers from buf and to check for end-of-
   // file.  This method modifies |buf| inline if necessary to remove chunk
   // markers.  The return value indicates the final size of decoded data stored
@@ -108,6 +111,10 @@ class HttpChunkedDecoder {
 
   // Set to true when FilterBuf encounters the final CRLF.
   bool reached_eof_;
+
+  // The number of unfiltered bytes after the final CRLF, either extraneous
+  // data or the first part of the next response in a pipelined stream.
+  int bytes_after_eof_;
 };
 
 }  // namespace net
