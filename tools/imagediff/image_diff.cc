@@ -28,8 +28,8 @@
 
 // Causes the app to remain open, waiting for pairs of filenames on stdin.
 // The caller is then responsible for terminating this app.
-static const wchar_t kOptionPollStdin[] = L"use-stdin";
-static const wchar_t kOptionGenerateDiff[] = L"diff";
+static const char kOptionPollStdin[] = "use-stdin";
+static const char kOptionGenerateDiff[] = "diff";
 
 // Return codes used by this utility.
 static const int kStatusSame = 0;

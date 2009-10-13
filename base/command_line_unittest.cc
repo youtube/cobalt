@@ -30,33 +30,33 @@ TEST(CommandLineTest, CommandLineConstructor) {
                         "in the time of submarines..."};
   CommandLine cl(arraysize(argv), argv);
 #endif
-  EXPECT_FALSE(cl.HasSwitch(L"cruller"));
-  EXPECT_FALSE(cl.HasSwitch(L"flim"));
-  EXPECT_FALSE(cl.HasSwitch(L"program"));
-  EXPECT_FALSE(cl.HasSwitch(L"dog"));
-  EXPECT_FALSE(cl.HasSwitch(L"cat"));
-  EXPECT_FALSE(cl.HasSwitch(L"output-rotation"));
-  EXPECT_FALSE(cl.HasSwitch(L"not-a-switch"));
-  EXPECT_FALSE(cl.HasSwitch(L"--"));
+  EXPECT_FALSE(cl.HasSwitch("cruller"));
+  EXPECT_FALSE(cl.HasSwitch("flim"));
+  EXPECT_FALSE(cl.HasSwitch("program"));
+  EXPECT_FALSE(cl.HasSwitch("dog"));
+  EXPECT_FALSE(cl.HasSwitch("cat"));
+  EXPECT_FALSE(cl.HasSwitch("output-rotation"));
+  EXPECT_FALSE(cl.HasSwitch("not-a-switch"));
+  EXPECT_FALSE(cl.HasSwitch("--"));
 
   EXPECT_EQ(L"program", cl.program());
 
-  EXPECT_TRUE(cl.HasSwitch(L"foo"));
-  EXPECT_TRUE(cl.HasSwitch(L"bar"));
-  EXPECT_TRUE(cl.HasSwitch(L"baz"));
-  EXPECT_TRUE(cl.HasSwitch(L"spaetzle"));
+  EXPECT_TRUE(cl.HasSwitch("foo"));
+  EXPECT_TRUE(cl.HasSwitch("bar"));
+  EXPECT_TRUE(cl.HasSwitch("baz"));
+  EXPECT_TRUE(cl.HasSwitch("spaetzle"));
 #if defined(OS_WIN)
-  EXPECT_TRUE(cl.HasSwitch(L"SPAETZLE"));
+  EXPECT_TRUE(cl.HasSwitch("SPAETZLE"));
 #endif
-  EXPECT_TRUE(cl.HasSwitch(L"other-switches"));
-  EXPECT_TRUE(cl.HasSwitch(L"input-translation"));
+  EXPECT_TRUE(cl.HasSwitch("other-switches"));
+  EXPECT_TRUE(cl.HasSwitch("input-translation"));
 
-  EXPECT_EQ(L"Crepe", cl.GetSwitchValue(L"spaetzle"));
-  EXPECT_EQ(L"", cl.GetSwitchValue(L"Foo"));
-  EXPECT_EQ(L"", cl.GetSwitchValue(L"bar"));
-  EXPECT_EQ(L"", cl.GetSwitchValue(L"cruller"));
-  EXPECT_EQ(L"--dog=canine --cat=feline", cl.GetSwitchValue(L"other-switches"));
-  EXPECT_EQ(L"45--output-rotation", cl.GetSwitchValue(L"input-translation"));
+  EXPECT_EQ(L"Crepe", cl.GetSwitchValue("spaetzle"));
+  EXPECT_EQ(L"", cl.GetSwitchValue("Foo"));
+  EXPECT_EQ(L"", cl.GetSwitchValue("bar"));
+  EXPECT_EQ(L"", cl.GetSwitchValue("cruller"));
+  EXPECT_EQ(L"--dog=canine --cat=feline", cl.GetSwitchValue("other-switches"));
+  EXPECT_EQ(L"45--output-rotation", cl.GetSwitchValue("input-translation"));
 
   std::vector<std::wstring> loose_values = cl.GetLooseValues();
   ASSERT_EQ(5U, loose_values.size());
@@ -97,12 +97,12 @@ TEST(CommandLineTest, EmptyString) {
 
 // Test methods for appending switches to a command line.
 TEST(CommandLineTest, AppendSwitches) {
-  std::wstring switch1 = L"switch1";
-  std::wstring switch2 = L"switch2";
+  std::string switch1 = "switch1";
+  std::string switch2 = "switch2";
   std::wstring value = L"value";
-  std::wstring switch3 = L"switch3";
+  std::string switch3 = "switch3";
   std::wstring value3 = L"a value with spaces";
-  std::wstring switch4 = L"switch4";
+  std::string switch4 = "switch4";
   std::wstring value4 = L"\"a value with quotes\"";
 
 #if defined(OS_WIN)
