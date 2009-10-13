@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -69,6 +69,11 @@ class ProxyResolver {
   virtual void CancelSetPacScript() {
     NOTREACHED();
   }
+
+  // Frees any unneeded memory held by the resolver, e.g. garbage in the JS
+  // engine.  Most subclasses don't need to do anything, so we provide a default
+  // no-op implementation.
+  virtual void PurgeMemory() {}
 
  private:
   // Called to set the PAC script backend to use. If |pac_url| is invalid,

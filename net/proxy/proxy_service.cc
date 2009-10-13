@@ -521,6 +521,11 @@ void ProxyService::ResetConfigService(
   UpdateConfig();
 }
 
+void ProxyService::PurgeMemory() {
+  if (resolver_.get())
+    resolver_->PurgeMemory();
+}
+
 void ProxyService::DidCompletePacRequest(int config_id, int result_code) {
   // If we get an error that indicates a bad PAC config, then we should
   // remember that, and not try the PAC config again for a while.
