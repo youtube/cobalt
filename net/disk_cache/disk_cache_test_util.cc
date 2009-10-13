@@ -72,9 +72,13 @@ bool CreateCacheTestFile(const wchar_t* name) {
   return true;
 }
 
-bool DeleteCache(const wchar_t* path) {
+bool DeleteCache(const FilePath& path) {
   disk_cache::DeleteCache(path, false);
   return true;
+}
+
+bool DeleteCache(const wchar_t* path) {
+  return DeleteCache(FilePath::FromWStringHack(path));
 }
 
 bool CheckCacheIntegrity(const std::wstring& path, bool new_eviction) {

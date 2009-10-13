@@ -9,6 +9,7 @@
 
 #include <vector>
 
+#include "base/file_path.h"
 #include "net/disk_cache/addr.h"
 #include "net/disk_cache/mapped_file.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
@@ -20,7 +21,7 @@ class EntryImpl;
 // This class handles the set of block-files open by the disk cache.
 class BlockFiles {
  public:
-  explicit BlockFiles(const std::wstring& path)
+  explicit BlockFiles(const FilePath& path)
       : init_(false), zero_buffer_(NULL), path_(path) {}
   ~BlockFiles();
 
@@ -69,11 +70,11 @@ class BlockFiles {
   bool FixBlockFileHeader(MappedFile* file);
 
   // Returns the filename for a given file index.
-  std::wstring Name(int index);
+  FilePath Name(int index);
 
   bool init_;
   char* zero_buffer_;  // Buffer to speed-up cleaning deleted entries.
-  std::wstring path_;  // Path to the backing folder.
+  FilePath path_;  // Path to the backing folder.
   std::vector<MappedFile*> block_files_;  // The actual files.
 
   FRIEND_TEST(DiskCacheTest, BlockFiles_ZeroSizeFile);

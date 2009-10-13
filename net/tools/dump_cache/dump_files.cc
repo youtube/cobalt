@@ -106,7 +106,9 @@ void DumpBlockHeader(const std::wstring& name) {
 class CacheDumper {
  public:
   explicit CacheDumper(const std::wstring& path)
-      : path_(path), block_files_(path), index_(NULL) {}
+      : path_(path),
+        block_files_(FilePath::FromWStringHack(path)),
+        index_(NULL) {}
 
   bool Init();
 

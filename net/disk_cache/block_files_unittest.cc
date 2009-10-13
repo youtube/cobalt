@@ -14,9 +14,8 @@ using base::Time;
 namespace {
 
 // Returns the number of files in this folder.
-int NumberOfFiles(const std::wstring& path) {
-  file_util::FileEnumerator iter(FilePath::FromWStringHack(path), false,
-                                 file_util::FileEnumerator::FILES);
+int NumberOfFiles(const FilePath& path) {
+  file_util::FileEnumerator iter(path, false, file_util::FileEnumerator::FILES);
   int count = 0;
   for (FilePath file = iter.Next(); !file.value().empty(); file = iter.Next()) {
     count++;
@@ -29,8 +28,8 @@ int NumberOfFiles(const std::wstring& path) {
 namespace disk_cache {
 
 TEST_F(DiskCacheTest, BlockFiles_Grow) {
-  std::wstring path = GetCachePath();
-  ASSERT_TRUE(DeleteCache(path.c_str()));
+  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
   BlockFiles files(path);
@@ -56,8 +55,8 @@ TEST_F(DiskCacheTest, BlockFiles_Grow) {
 
 // We should be able to delete empty block files.
 TEST_F(DiskCacheTest, BlockFiles_Shrink) {
-  std::wstring path = GetCachePath();
-  ASSERT_TRUE(DeleteCache(path.c_str()));
+  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
   BlockFiles files(path);
@@ -80,8 +79,8 @@ TEST_F(DiskCacheTest, BlockFiles_Shrink) {
 
 // Handling of block files not properly closed.
 TEST_F(DiskCacheTest, BlockFiles_Recover) {
-  std::wstring path = GetCachePath();
-  ASSERT_TRUE(DeleteCache(path.c_str()));
+  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
   BlockFiles files(path);
@@ -158,19 +157,19 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
 
 // Handling of truncated files.
 TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
-  std::wstring path = GetCachePath();
-  ASSERT_TRUE(DeleteCache(path.c_str()));
+  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
   BlockFiles files(path);
   ASSERT_TRUE(files.Init(true));
 
-  std::wstring filename = files.Name(0);
+  FilePath filename = files.Name(0);
   files.CloseFiles();
   // Truncate one of the files.
   {
     scoped_refptr<File> file(new File);
-    ASSERT_TRUE(file->Init(FilePath::FromWStringHack(filename)));
+    ASSERT_TRUE(file->Init(filename));
     EXPECT_TRUE(file->SetLength(0));
   }
 
@@ -180,8 +179,8 @@ TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
 
 // An invalid file can be detected after init.
 TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
-  std::wstring path = GetCachePath();
-  ASSERT_TRUE(DeleteCache(path.c_str()));
+  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
   BlockFiles files(path);
@@ -192,7 +191,7 @@ TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
   EXPECT_TRUE(NULL == files.GetFile(addr));
 
   // Let's create an invalid file.
-  FilePath filename(FilePath::FromWStringHack(files.Name(5)));
+  FilePath filename(files.Name(5));
   char header[kBlockHeaderSize];
   memset(header, 'a', kBlockHeaderSize);
   EXPECT_EQ(kBlockHeaderSize,

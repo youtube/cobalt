@@ -25,8 +25,6 @@ void DeleteCache(const std::wstring& path, bool remove_folder);
 
 // Deletes a cache file.
 bool DeleteCacheFile(const FilePath& name);
-// Deprecated.
-bool DeleteCacheFile(const std::wstring& name);
 
 }  // namespace disk_cache
 
