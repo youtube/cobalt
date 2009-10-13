@@ -367,7 +367,7 @@ static int GetProcessCPU(pid_t pid) {
 
   DIR* dir = opendir(path.value().c_str());
   if (!dir) {
-    LOG(ERROR) << "opendir(" << path.value() << "): " << strerror(errno);
+    PLOG(ERROR) << "opendir(" << path.value() << ")";
     return -1;
   }
 
