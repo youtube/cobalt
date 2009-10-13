@@ -22,8 +22,7 @@ class FileStreamTest : public PlatformTest {
     PlatformTest::SetUp();
 
     file_util::CreateTemporaryFile(&temp_file_path_);
-    file_util::WriteFile(temp_file_path_.ToWStringHack(),
-                         kTestData, kTestDataSize);
+    file_util::WriteFile(temp_file_path_, kTestData, kTestDataSize);
   }
   virtual void TearDown() {
     file_util::Delete(temp_file_path_, false);
