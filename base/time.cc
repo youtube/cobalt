@@ -41,6 +41,11 @@ int64 TimeDelta::InMilliseconds() const {
   return delta_ / Time::kMicrosecondsPerMillisecond;
 }
 
+int64 TimeDelta::InMillisecondsRoundedUp() const {
+  return (delta_ + Time::kMicrosecondsPerMillisecond - 1) /
+      Time::kMicrosecondsPerMillisecond;
+}
+
 int64 TimeDelta::InMicroseconds() const {
   return delta_;
 }
