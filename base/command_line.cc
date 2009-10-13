@@ -189,11 +189,17 @@ bool CommandLine::IsSwitch(const StringType& parameter_string,
 
 // static
 void CommandLine::Init(int argc, const char* const* argv) {
+  delete current_process_commandline_;
   current_process_commandline_ = new CommandLine;
 #if defined(OS_WIN)
   current_process_commandline_->ParseFromString(::GetCommandLineW());
 #elif defined(OS_POSIX)
   current_process_commandline_->InitFromArgv(argc, argv);
+#endif
+
+#if defined(OS_LINUX)
+  if (argv)
+    setproctitle_init(const_cast<char**>(argv));
 #endif
 }
 
@@ -210,13 +216,6 @@ void CommandLine::SetProcTitle() {
     title += current_process_commandline_->argv_[i];
   }
   setproctitle("%s", title.c_str());
-}
-
-// static
-void CommandLine::SetTrueArgv(char** argv) {
-#if defined(OS_LINUX)
-  setproctitle_init(argv);
-#endif
 }
 #endif
 
