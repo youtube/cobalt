@@ -99,7 +99,7 @@ int CountFilesCreatedAfter(const FilePath& path,
       stat_wrapper_t st;
       int test = CallStat(path.Append(ent->d_name).value().c_str(), &st);
       if (test != 0) {
-        LOG(ERROR) << "stat64 failed: " << strerror(errno);
+        PLOG(ERROR) << "stat64 failed";
         continue;
       }
       // Here, we use Time::TimeT(), which discards microseconds. This
@@ -634,9 +634,8 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
       // Print the stat() error message unless it was ENOENT and we're
       // following symlinks.
       if (!(ret == ENOENT && !show_links)) {
-        LOG(ERROR) << "Couldn't stat "
-                   << source.Append(dent->d_name).value() << ": "
-                   << strerror(errno);
+        PLOG(ERROR) << "Couldn't stat "
+                    << source.Append(dent->d_name).value();
       }
       memset(&info.stat, 0, sizeof(info.stat));
     }
