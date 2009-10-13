@@ -507,6 +507,8 @@ bool SSLClientSocketMac::SetSendBufferSize(int32 size) {
 
 void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
+  if (!server_cert_)
+    return;
 
   // set cert
   ssl_info->cert = server_cert_;
@@ -604,8 +606,9 @@ int SSLClientSocketMac::DoHandshakeStart() {
   if (status == errSSLWouldBlock)
     next_state_ = STATE_HANDSHAKE_START;
 
+  server_cert_ = GetServerCert(ssl_context_);
+
   if (status == noErr || status == errSSLServerAuthCompletedFlag) {
-    server_cert_ = GetServerCert(ssl_context_);
     if (!server_cert_)
       return ERR_UNEXPECTED;
 
