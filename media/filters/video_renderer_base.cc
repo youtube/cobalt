@@ -39,7 +39,7 @@ VideoRendererBase::VideoRendererBase()
       height_(0),
       frame_available_(&lock_),
       state_(kUninitialized),
-      thread_(NULL),
+      thread_(kNullThreadHandle),
       pending_reads_(0),
       playback_rate_(0) {
 }
@@ -105,7 +105,7 @@ void VideoRendererBase::Stop() {
       AutoUnlock auto_unlock(lock_);
       PlatformThread::Join(thread_);
     }
-    thread_ = NULL;
+    thread_ = kNullThreadHandle;
   }
 }
 
