@@ -439,12 +439,12 @@ class GConfSettingGetterImplKDE
     DCHECK(inotify_fd_ < 0);
     inotify_fd_ = inotify_init();
     if (inotify_fd_ < 0) {
-      LOG(ERROR) << "inotify_init failed: " << strerror(errno);
+      PLOG(ERROR) << "inotify_init failed";
       return false;
     }
     int flags = fcntl(inotify_fd_, F_GETFL);
     if (fcntl(inotify_fd_, F_SETFL, flags | O_NONBLOCK) < 0) {
-      LOG(ERROR) << "fcntl failed: " << strerror(errno);
+      PLOG(ERROR) << "fcntl failed";
       close(inotify_fd_);
       inotify_fd_ = -1;
       return false;
@@ -763,8 +763,7 @@ class GConfSettingGetterImplKDE
       // new behavior (EINVAL) so we can reuse the code below.
       errno = EINVAL;
     if (errno != EAGAIN) {
-      LOG(WARNING) << "error reading inotify file descriptor: "
-                   << strerror(errno);
+      PLOG(WARNING) << "error reading inotify file descriptor";
       if (errno == EINVAL) {
         // Our buffer is not large enough to read the next event. This should
         // not happen (because its size is calculated to always be sufficiently
