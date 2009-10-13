@@ -143,31 +143,46 @@ class TestConnectJob : public ConnectJob {
         return DoConnect(false /* error */, false /* sync */);
       case kMockPendingJob:
         set_load_state(LOAD_STATE_CONNECTING);
-        MessageLoop::current()->PostTask(
+
+        // Depending on execution timings, posting a delayed task can result
+        // in the task getting executed the at the earliest possible
+        // opportunity or only after returning once from the message loop and
+        // then a second call into the message loop. In order to make behavior
+        // more deterministic, we change the default delay to 2ms. This should
+        // always require us to wait for the second call into the message loop.
+        //
+        // N.B. The correct fix for this and similar timing problems is to
+        // abstract time for the purpose of unittests. Unfortunately, we have
+        // a lot of third-party components that directly call the various
+        // time functions, so this change would be rather invasive.
+        MessageLoop::current()->PostDelayedTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
-               &TestConnectJob::DoConnect,
-               true /* successful */,
-               true /* async */));
+                &TestConnectJob::DoConnect,
+                true /* successful */,
+                true /* async */),
+            2);
         return ERR_IO_PENDING;
       case kMockPendingFailingJob:
         set_load_state(LOAD_STATE_CONNECTING);
-        MessageLoop::current()->PostTask(
+        MessageLoop::current()->PostDelayedTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
-               &TestConnectJob::DoConnect,
-               false /* error */,
-               true  /* async */));
+                &TestConnectJob::DoConnect,
+                false /* error */,
+                true  /* async */),
+            2);
         return ERR_IO_PENDING;
       case kMockWaitingJob:
         client_socket_factory_->WaitForSignal(this);
         waiting_success_ = true;
         return ERR_IO_PENDING;
       case kMockAdvancingLoadStateJob:
-        MessageLoop::current()->PostTask(
+        MessageLoop::current()->PostDelayedTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
-                &TestConnectJob::AdvanceLoadState, load_state_));
+                &TestConnectJob::AdvanceLoadState, load_state_),
+            2);
         return ERR_IO_PENDING;
       default:
         NOTREACHED();
@@ -396,6 +411,13 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
   }
 
   virtual void TearDown() {
+    // We post all of our delayed tasks with a 2ms delay. I.e. they don't
+    // actually become pending until 2ms after they have been created. In order
+    // to flush all tasks, we need to wait so that we know there are no
+    // soon-to-be-pending tasks waiting.
+    PlatformThread::Sleep(10);
+    MessageLoop::current()->RunAllPending();
+
     // Need to delete |pool_| before we turn late binding back off. We also need
     // to delete |requests_| because the pool is reference counted and requests
     // keep reference to it.
@@ -715,6 +737,13 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitCountsConnectingSockets) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("d", kDefaultPriority));
 
+  // We post all of our delayed tasks with a 2ms delay. I.e. they don't
+  // actually become pending until 2ms after they have been created. In order
+  // to flush all tasks, we need to wait so that we know there are no
+  // soon-to-be-pending tasks waiting.
+  PlatformThread::Sleep(10);
+  MessageLoop::current()->RunAllPending();
+
   // The next synchronous request should wait for its turn.
   connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("e", kDefaultPriority));
@@ -950,14 +979,26 @@ class RequestSocketCallback : public CallbackRunner< Tuple1<int> > {
       test_connect_job_factory_->set_job_type(next_job_type_);
       handle_->Reset();
       within_callback_ = true;
+      TestCompletionCallback next_job_callback;
       int rv = InitHandle(
-          handle_, "a", kDefaultPriority, this, pool_.get(), NULL);
+          handle_, "a", kDefaultPriority, &next_job_callback, pool_.get(),
+          NULL);
       switch (next_job_type_) {
         case TestConnectJob::kMockJob:
           EXPECT_EQ(OK, rv);
           break;
         case TestConnectJob::kMockPendingJob:
           EXPECT_EQ(ERR_IO_PENDING, rv);
+
+          // For pending jobs, wait for new socket to be created. This makes
+          // sure there are no more pending operations nor any unclosed sockets
+          // when the test finishes.
+          // We need to give it a little bit of time to run, so that all the
+          // operations that happen on timers (e.g. cleanup of idle
+          // connections) can execute.
+          MessageLoop::current()->SetNestableTasksAllowed(true);
+          PlatformThread::Sleep(10);
+          EXPECT_EQ(OK, next_job_callback.WaitForResult());
           break;
         default:
           FAIL() << "Unexpected job type: " << next_job_type_;
@@ -1812,6 +1853,12 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CleanupTimedOutIdleSockets) {
   req.handle()->Reset();
   EXPECT_EQ(OK, req2.WaitForResult());
   req2.handle()->Reset();
+
+  // We post all of our delayed tasks with a 2ms delay. I.e. they don't
+  // actually become pending until 2ms after they have been created. In order
+  // to flush all tasks, we need to wait so that we know there are no
+  // soon-to-be-pending tasks waiting.
+  PlatformThread::Sleep(10);
   MessageLoop::current()->RunAllPending();
 
   ASSERT_EQ(2, pool_->IdleSocketCount());

@@ -64,6 +64,9 @@ class TimeDelta {
 
   // Returns the time delta in some unit. The F versions return a floating
   // point value, the "regular" versions return a rounded-down value.
+  //
+  // InMillisecondsRoundedUp() instead returns an integer that is rounded up
+  // to the next full millisecond.
   int InDays() const;
   int InHours() const;
   int InMinutes() const;
@@ -71,6 +74,7 @@ class TimeDelta {
   int64 InSeconds() const;
   double InMillisecondsF() const;
   int64 InMilliseconds() const;
+  int64 InMillisecondsRoundedUp() const;
   int64 InMicroseconds() const;
 
   TimeDelta& operator=(TimeDelta other) {
