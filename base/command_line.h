@@ -99,12 +99,17 @@ class CommandLine {
   // Returns the value associated with the given switch.  If the
   // switch has no value or isn't present, this method returns
   // the empty string.
-  std::wstring GetSwitchValue(const std::string& switch_string) const;
+  // TODO(evanm): move these into command_line.cpp once we've fixed the
+  // wstringness.
   std::string GetSwitchValueASCII(const std::string& switch_string) const {
     return WideToASCII(GetSwitchValue(switch_string));
   }
+  FilePath GetSwitchValuePath(const std::string& switch_string) const {
+    return FilePath::FromWStringHack(GetSwitchValue(switch_string));
+  }
 
-  // Deprecated version of the above.
+  // Deprecated versions of the above.
+  std::wstring GetSwitchValue(const std::string& switch_string) const;
   std::wstring GetSwitchValue(const std::wstring& switch_string) const {
     return GetSwitchValue(WideToASCII(switch_string));
   }
