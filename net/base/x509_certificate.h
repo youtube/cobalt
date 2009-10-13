@@ -213,6 +213,11 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
     // Adds an untrusted intermediate certificate that may be needed for
     // chain building.
     void AddIntermediateCertificate(SecCertificateRef cert);
+
+    // Returns intermediate certificates added via AddIntermediateCertificate().
+    // Ownership follows the "get" rule: it is the caller's responsibility to
+    // retain the result.
+    CFArrayRef GetIntermediateCertificates() { return intermediate_ca_certs_; }
 #endif
 
   // Verifies the certificate against the given hostname.  Returns OK if
