@@ -21,15 +21,17 @@ namespace base {
 #if defined(OS_WIN)
 typedef HANDLE ProcessHandle;
 typedef DWORD ProcessId;
+const ProcessHandle kNullProcessHandle = NULL;
 #elif defined(OS_POSIX)
 // On POSIX, our ProcessHandle will just be the PID.
 typedef pid_t ProcessHandle;
 typedef pid_t ProcessId;
+const ProcessHandle kNullProcessHandle = 0;
 #endif
 
 class Process {
  public:
-  Process() : process_(0), last_working_set_size_(0) {}
+  Process() : process_(kNullProcessHandle), last_working_set_size_(0) {}
   explicit Process(ProcessHandle handle) :
     process_(handle), last_working_set_size_(0) {}
 
