@@ -207,7 +207,7 @@ TEST_F(DiskCacheTest, BlockFilesPerformance) {
 
   ScopedTestCache test_cache;
 
-  disk_cache::BlockFiles files(test_cache.path_wstring());
+  disk_cache::BlockFiles files(test_cache.path());
   ASSERT_TRUE(files.Init(true));
 
   int seed = static_cast<int>(Time::Now().ToInternalValue());
