@@ -158,6 +158,16 @@ class ProxyResolverV8::Context {
     current_request_load_log_ = load_log;
   }
 
+  void PurgeMemory() {
+    v8::Locker locked;
+    // Repeatedly call the V8 idle notification until it returns true ("nothing
+    // more to free").  Note that it makes more sense to do this than to
+    // implement a new "delete everything" pass because object references make
+    // it difficult to free everything possible in just one pass.
+    while (!v8::V8::IdleNotification())
+      ;
+  }
+
  private:
   bool GetFindProxyForURL(v8::Local<v8::Value>* function) {
     *function = v8_context_->Global()->Get(v8::String::New("FindProxyForURL"));
@@ -301,6 +311,10 @@ int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
 void ProxyResolverV8::CancelRequest(RequestHandle request) {
   // This is a synchronous ProxyResolver; no possibility for async requests.
   NOTREACHED();
+}
+
+void ProxyResolverV8::PurgeMemory() {
+  context_->PurgeMemory();
 }
 
 int ProxyResolverV8::SetPacScript(const GURL& /*url*/,

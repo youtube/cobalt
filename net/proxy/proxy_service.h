@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -99,6 +99,9 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // ResolveProxy calls. ProxyService takes ownership of
   // |new_proxy_config_service|.
   void ResetConfigService(ProxyConfigService* new_proxy_config_service);
+
+  // Tells the resolver to purge any memory it does not need.
+  void PurgeMemory();
 
   // Returns the log for the most recent WPAD + PAC initialization.
   // (This shows how much time was spent downloading and parsing the
