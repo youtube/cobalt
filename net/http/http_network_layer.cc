@@ -5,6 +5,7 @@
 #include "net/http/http_network_layer.h"
 
 #include "base/logging.h"
+#include "net/flip/flip_network_transaction.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
 #include "net/socket/client_socket_factory.h"
@@ -33,6 +34,7 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
 }
 
 //-----------------------------------------------------------------------------
+bool HttpNetworkLayer::enable_flip_ = false;
 
 HttpNetworkLayer::HttpNetworkLayer(ClientSocketFactory* socket_factory,
                                    HostResolver* host_resolver,
@@ -63,7 +65,10 @@ int HttpNetworkLayer::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   if (suspended_)
     return ERR_NETWORK_IO_SUSPENDED;
 
-  trans->reset(new HttpNetworkTransaction(GetSession()));
+  if (enable_flip_)
+    trans->reset(new FlipNetworkTransaction(GetSession()));
+  else
+    trans->reset(new HttpNetworkTransaction(GetSession()));
   return OK;
 }
 
@@ -89,6 +94,11 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
     socket_factory_ = NULL;
   }
   return session_;
+}
+
+// static
+void HttpNetworkLayer::EnableFlip(bool enable) {
+  enable_flip_ = enable;
 }
 
 }  // namespace net
