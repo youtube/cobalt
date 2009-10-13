@@ -45,7 +45,7 @@ const char kSwitchValueSeparator[] = "=";
 // Lowercase a string.  This is used to lowercase switch names.
 // Is this what we really want?  It seems crazy to me.  I've left it in
 // for backwards compatibility on Windows.
-static void Lowercase(std::wstring* parameter) {
+static void Lowercase(std::string* parameter) {
   transform(parameter->begin(), parameter->end(), parameter->begin(),
             tolower);
 }
@@ -175,8 +175,8 @@ bool CommandLine::IsSwitch(const StringType& parameter_string,
       *switch_value = parameter_string.substr(equals_position + 1);
     }
 #if defined(OS_WIN)
-    Lowercase(&switch_native);
     *switch_string = WideToASCII(switch_native);
+    Lowercase(switch_string);
 #else
     *switch_string = switch_native;
 #endif
@@ -225,23 +225,23 @@ void CommandLine::Reset() {
   current_process_commandline_ = NULL;
 }
 
-bool CommandLine::HasSwitch(const std::wstring& switch_string) const {
-  std::wstring lowercased_switch(switch_string);
+bool CommandLine::HasSwitch(const std::string& switch_string) const {
+  std::string lowercased_switch(switch_string);
 #if defined(OS_WIN)
   Lowercase(&lowercased_switch);
 #endif
-  return switches_.find(WideToASCII(lowercased_switch)) != switches_.end();
+  return switches_.find(lowercased_switch) != switches_.end();
 }
 
 std::wstring CommandLine::GetSwitchValue(
-    const std::wstring& switch_string) const {
-  std::wstring lowercased_switch(switch_string);
+    const std::string& switch_string) const {
+  std::string lowercased_switch(switch_string);
 #if defined(OS_WIN)
   Lowercase(&lowercased_switch);
 #endif
 
   std::map<std::string, StringType>::const_iterator result =
-      switches_.find(WideToASCII(lowercased_switch));
+      switches_.find(lowercased_switch);
 
   if (result == switches_.end()) {
     return L"";
@@ -277,39 +277,39 @@ std::wstring CommandLine::program() const {
 
 // static
 std::wstring CommandLine::PrefixedSwitchString(
-    const std::wstring& switch_string) {
+    const std::string& switch_string) {
 #if defined(OS_WIN)
-  return kSwitchPrefixes[0] + switch_string;
+  return kSwitchPrefixes[0] + ASCIIToWide(switch_string);
 #else
-  return ASCIIToWide(kSwitchPrefixes[0]) + switch_string;
+  return ASCIIToWide(kSwitchPrefixes[0] + switch_string);
 #endif
 }
 
 // static
 std::wstring CommandLine::PrefixedSwitchStringWithValue(
-    const std::wstring& switch_string, const std::wstring& value_string) {
+    const std::string& switch_string, const std::wstring& value_string) {
   if (value_string.empty()) {
     return PrefixedSwitchString(switch_string);
   }
 
   return PrefixedSwitchString(switch_string +
 #if defined(OS_WIN)
-                              kSwitchValueSeparator +
+                              WideToASCII(kSwitchValueSeparator)
 #else
-                              ASCIIToWide(kSwitchValueSeparator) +
+                              kSwitchValueSeparator
 #endif
-                              value_string);
+                              ) + value_string;
 }
 
 #if defined(OS_WIN)
-void CommandLine::AppendSwitch(const std::wstring& switch_string) {
+void CommandLine::AppendSwitch(const std::string& switch_string) {
   std::wstring prefixed_switch_string = PrefixedSwitchString(switch_string);
   command_line_string_.append(L" ");
   command_line_string_.append(prefixed_switch_string);
-  switches_[WideToASCII(switch_string)] = L"";
+  switches_[switch_string] = L"";
 }
 
-void CommandLine::AppendSwitchWithValue(const std::wstring& switch_string,
+void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
                                         const std::wstring& value_string) {
   std::wstring value_string_edit;
 
@@ -326,12 +326,12 @@ void CommandLine::AppendSwitchWithValue(const std::wstring& switch_string,
   }
 
   std::wstring combined_switch_string =
-    PrefixedSwitchStringWithValue(switch_string, value_string_edit);
+      PrefixedSwitchStringWithValue(switch_string, value_string_edit);
 
   command_line_string_.append(L" ");
   command_line_string_.append(combined_switch_string);
 
-  switches_[WideToASCII(switch_string)] = value_string;
+  switches_[switch_string] = value_string;
 }
 
 void CommandLine::AppendLooseValue(const std::wstring& value) {
@@ -361,20 +361,18 @@ void CommandLine::PrependWrapper(const std::wstring& wrapper) {
 }
 
 #elif defined(OS_POSIX)
-void CommandLine::AppendSwitch(const std::wstring& switch_string) {
-  std::string ascii_switch = WideToASCII(switch_string);
-  argv_.push_back(kSwitchPrefixes[0] + ascii_switch);
-  switches_[ascii_switch] = "";
+void CommandLine::AppendSwitch(const std::string& switch_string) {
+  argv_.push_back(kSwitchPrefixes[0] + switch_string);
+  switches_[switch_string] = "";
 }
 
-void CommandLine::AppendSwitchWithValue(const std::wstring& switch_string,
+void CommandLine::AppendSwitchWithValue(const std::string& switch_string,
                                         const std::wstring& value_string) {
-  std::string ascii_switch = WideToASCII(switch_string);
   std::string mb_value = base::SysWideToNativeMB(value_string);
 
-  argv_.push_back(kSwitchPrefixes[0] + ascii_switch +
+  argv_.push_back(kSwitchPrefixes[0] + switch_string +
                   kSwitchValueSeparator + mb_value);
-  switches_[ascii_switch] = mb_value;
+  switches_[switch_string] = mb_value;
 }
 
 void CommandLine::AppendLooseValue(const std::wstring& value) {

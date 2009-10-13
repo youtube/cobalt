@@ -210,7 +210,7 @@ class TestSuite {
 
     // In some cases, we do not want to see standard error dialogs.
     if (!IsDebuggerPresent() &&
-        !CommandLine::ForCurrentProcess()->HasSwitch(L"show-error-dialogs")) {
+        !CommandLine::ForCurrentProcess()->HasSwitch("show-error-dialogs")) {
       SuppressErrorDialogs();
 #if !defined(PURIFY)
       // When the code in this file moved around, bug 6436 resurfaced.
