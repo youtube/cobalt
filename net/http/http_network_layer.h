@@ -50,6 +50,9 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   virtual HttpNetworkSession* GetSession();
   virtual void Suspend(bool suspend);
 
+  // Enable the flip protocol.  Default is false.
+  static void EnableFlip(bool enable);
+
  private:
   // The factory we will use to create network sockets.
   ClientSocketFactory* socket_factory_;
@@ -64,6 +67,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
 
   scoped_refptr<HttpNetworkSession> session_;
   bool suspended_;
+  static bool enable_flip_;
 };
 
 }  // namespace net
