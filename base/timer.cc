@@ -22,7 +22,7 @@ void BaseTimer_Helper::InitiateDelayedTask(TimerTask* timer_task) {
   delayed_task_->timer_ = this;
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE, timer_task,
-      static_cast<int>(timer_task->delay_.InMilliseconds()));
+      static_cast<int>(timer_task->delay_.InMillisecondsRoundedUp()));
 }
 
 }  // namespace base
