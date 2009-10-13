@@ -227,9 +227,18 @@ bool CopyDirectory(const FilePath& from_path,
         traverse_type | FileEnumerator::DIRECTORIES);
   FileEnumerator traversal(from_path, recursive, traverse_type);
 
-  // to_path may not exist yet, start the loop with to_path
+  // We have to mimic windows behavior here. |to_path| may not exist yet,
+  // start the loop with |to_path|.  If this is a recursive copy and
+  // the destination already exists, we have to copy the source directory
+  // as well.
   FileEnumerator::FindInfo info;
   FilePath current = from_path;
+  FilePath from_path_base = from_path;
+  if (recursive && stat(to_path.value().c_str(), &info.stat) == 0) {
+    // If the destination already exists, then the top level of source
+    // needs to be copied.
+    from_path_base = from_path.DirName();
+  }
   if (stat(from_path.value().c_str(), &info.stat) < 0) {
     LOG(ERROR) << "CopyDirectory() couldn't stat source directory: " <<
         from_path.value() << " errno = " << errno;
@@ -239,7 +248,7 @@ bool CopyDirectory(const FilePath& from_path,
   while (success && !current.empty()) {
     // current is the source path, including from_path, so paste
     // the suffix after from_path onto to_path to create the target_path.
-    std::string suffix(&current.value().c_str()[from_path.value().size()]);
+    std::string suffix(&current.value().c_str()[from_path_base.value().size()]);
     // Strip the leading '/' (if any).
     if (!suffix.empty()) {
       DCHECK_EQ('/', suffix[0]);
