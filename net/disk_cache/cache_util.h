@@ -20,8 +20,6 @@ bool MoveCache(const FilePath& from_path, const FilePath& to_path);
 // Deletes the cache files stored on |path|, and optionally also attempts to
 // delete the folder itself.
 void DeleteCache(const FilePath& path, bool remove_folder);
-// Deprecated.
-void DeleteCache(const std::wstring& path, bool remove_folder);
 
 // Deletes a cache file.
 bool DeleteCacheFile(const FilePath& name);

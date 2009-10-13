@@ -236,7 +236,7 @@ bool BlockFiles::OpenBlockFile(int index) {
   FilePath name = Name(index);
   scoped_refptr<MappedFile> file(new MappedFile());
 
-  if (!file->Init(name.ToWStringHack(), kBlockHeaderSize)) {
+  if (!file->Init(name, kBlockHeaderSize)) {
     LOG(ERROR) << "Failed to open " << name.value();
     return false;
   }

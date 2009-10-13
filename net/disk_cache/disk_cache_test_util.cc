@@ -58,7 +58,11 @@ std::wstring GetCachePath() {
   return BuildCachePath(L"cache_test");
 }
 
-bool CreateCacheTestFile(const wchar_t* name) {
+FilePath GetCacheFilePath() {
+  return FilePath::FromWStringHack(GetCachePath());
+}
+
+bool CreateCacheTestFile(const FilePath& name) {
   int flags = base::PLATFORM_FILE_CREATE_ALWAYS |
               base::PLATFORM_FILE_READ |
               base::PLATFORM_FILE_WRITE;
@@ -70,6 +74,10 @@ bool CreateCacheTestFile(const wchar_t* name) {
 
   file->SetLength(4 * 1024 * 1024);
   return true;
+}
+
+bool CreateCacheTestFile(const wchar_t* name) {
+  return CreateCacheTestFile(FilePath::FromWStringHack(name));
 }
 
 bool DeleteCache(const FilePath& path) {
