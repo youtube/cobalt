@@ -57,8 +57,8 @@ const wchar_t kDumpToFiles[] = L"dump-to-files";
 const wchar_t kUpgrade[] = L"upgrade";
 
 // Internal use:
-const wchar_t kSlave[] = L"slave";
-const wchar_t kPipe[] = L"pipe";
+const char kSlave[] = "slave";
+const char kPipe[] = "pipe";
 
 int Help() {
   printf("warning: input files are modified by this tool\n");

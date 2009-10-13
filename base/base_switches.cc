@@ -9,29 +9,29 @@ namespace switches {
 // If the program includes chrome/common/debug_on_start.h, the process will
 // start the JIT system-registered debugger on itself and will wait for 60
 // seconds for the debugger to attach to itself. Then a break point will be hit.
-const wchar_t kDebugOnStart[]                  = L"debug-on-start";
+const char kDebugOnStart[]                  = "debug-on-start";
 
 // Will wait for 60 seconds for a debugger to come to attach to the process.
-const wchar_t kWaitForDebugger[]               = L"wait-for-debugger";
+const char kWaitForDebugger[]               = "wait-for-debugger";
 
 // Suppresses all error dialogs when present.
-const wchar_t kNoErrorDialogs[]                = L"noerrdialogs";
+const char kNoErrorDialogs[]                = "noerrdialogs";
 
 // Disables the crash reporting.
-const wchar_t kDisableBreakpad[]               = L"disable-breakpad";
+const char kDisableBreakpad[]               = "disable-breakpad";
 
 // Generates full memory crash dump.
-const wchar_t kFullMemoryCrashReport[]         = L"full-memory-crash-report";
+const char kFullMemoryCrashReport[]         = "full-memory-crash-report";
 
 // The value of this switch determines whether the process is started as a
 // renderer or plugin host.  If it's empty, it's the browser.
-const wchar_t kProcessType[]                   = L"type";
+const char kProcessType[]                   = "type";
 
 // Enable DCHECKs in release mode.
-const wchar_t kEnableDCHECK[]                  = L"enable-dcheck";
+const char kEnableDCHECK[]                  = "enable-dcheck";
 
 // Disable win_util::MessageBox.  This is useful when running as part of
 // scripts that do not have a user interface.
-const wchar_t kNoMessageBox[]                  = L"no-message-box";
+const char kNoMessageBox[]                  = "no-message-box";
 
 }  // namespace switches
