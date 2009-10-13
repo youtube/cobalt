@@ -13,7 +13,8 @@ typedef testing::Test HttpChunkedDecoderTest;
 
 void RunTest(const char* inputs[], size_t num_inputs,
              const char* expected_output,
-             bool expected_eof) {
+             bool expected_eof,
+             int bytes_after_eof) {
   net::HttpChunkedDecoder decoder;
   EXPECT_FALSE(decoder.reached_eof());
 
@@ -27,8 +28,9 @@ void RunTest(const char* inputs[], size_t num_inputs,
       result.append(input.data(), n);
   }
 
-  EXPECT_TRUE(result == expected_output);
-  EXPECT_TRUE(decoder.reached_eof() == expected_eof);
+  EXPECT_EQ(expected_output, result);
+  EXPECT_EQ(expected_eof, decoder.reached_eof());
+  EXPECT_EQ(bytes_after_eof, decoder.bytes_after_eof());
 }
 
 // Feed the inputs to the decoder, until it returns an error.
@@ -56,14 +58,14 @@ TEST(HttpChunkedDecoderTest, Basic) {
   const char* inputs[] = {
     "5\r\nhello\r\n0\r\n\r\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello", true);
+  RunTest(inputs, arraysize(inputs), "hello", true, 0);
 }
 
 TEST(HttpChunkedDecoderTest, OneChunk) {
   const char* inputs[] = {
     "5\r\nhello\r\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello", false);
+  RunTest(inputs, arraysize(inputs), "hello", false, 0);
 }
 
 TEST(HttpChunkedDecoderTest, Typical) {
@@ -73,7 +75,7 @@ TEST(HttpChunkedDecoderTest, Typical) {
     "5\r\nworld\r\n",
     "0\r\n\r\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello world", true);
+  RunTest(inputs, arraysize(inputs), "hello world", true, 0);
 }
 
 TEST(HttpChunkedDecoderTest, Incremental) {
@@ -90,7 +92,7 @@ TEST(HttpChunkedDecoderTest, Incremental) {
     "\r",
     "\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello", true);
+  RunTest(inputs, arraysize(inputs), "hello", true, 0);
 }
 
 TEST(HttpChunkedDecoderTest, LF_InsteadOf_CRLF) {
@@ -103,7 +105,7 @@ TEST(HttpChunkedDecoderTest, LF_InsteadOf_CRLF) {
     "5\nworld\n",
     "0\n\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello world", true);
+  RunTest(inputs, arraysize(inputs), "hello world", true, 0);
 }
 
 TEST(HttpChunkedDecoderTest, Extensions) {
@@ -111,7 +113,7 @@ TEST(HttpChunkedDecoderTest, Extensions) {
     "5;x=0\r\nhello\r\n",
     "0;y=\"2 \"\r\n\r\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello", true);
+  RunTest(inputs, arraysize(inputs), "hello", true, 0);
 }
 
 TEST(HttpChunkedDecoderTest, Trailers) {
@@ -122,7 +124,7 @@ TEST(HttpChunkedDecoderTest, Trailers) {
     "Bar: 2\r\n",
     "\r\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello", true);
+  RunTest(inputs, arraysize(inputs), "hello", true, 0);
 }
 
 TEST(HttpChunkedDecoderTest, TrailersUnfinished) {
@@ -131,7 +133,7 @@ TEST(HttpChunkedDecoderTest, TrailersUnfinished) {
     "0\r\n",
     "Foo: 1\r\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello", false);
+  RunTest(inputs, arraysize(inputs), "hello", false, 0);
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_TooBig) {
@@ -165,7 +167,7 @@ TEST(HttpChunkedDecoderTest, ChunkSize_TrailingSpace) {
     "5      \r\nhello\r\n",
     "0\r\n\r\n"
   };
-  RunTest(inputs, arraysize(inputs), "hello", true);
+  RunTest(inputs, arraysize(inputs), "hello", true, 0);
 }
 
 TEST(HttpChunkedDecoderTest, InvalidChunkSize_TrailingTab) {
@@ -272,4 +274,36 @@ TEST(HttpChunkedDecoderTest, ExcessiveChunkLen) {
     "c0000000\r\nhello\r\n"
   };
   RunTestUntilFailure(inputs, arraysize(inputs), 0);
+}
+
+TEST(HttpChunkedDecoderTest, BasicExtraData) {
+  const char* inputs[] = {
+    "5\r\nhello\r\n0\r\n\r\nextra bytes"
+  };
+  RunTest(inputs, arraysize(inputs), "hello", true, 11);
+}
+
+TEST(HttpChunkedDecoderTest, IncrementalExtraData) {
+  const char* inputs[] = {
+    "5",
+    "\r",
+    "\n",
+    "hello",
+    "\r",
+    "\n",
+    "0",
+    "\r",
+    "\n",
+    "\r",
+    "\nextra bytes"
+  };
+  RunTest(inputs, arraysize(inputs), "hello", true, 11);
+}
+
+TEST(HttpChunkedDecoderTest, MultipleExtraDataBlocks) {
+  const char* inputs[] = {
+    "5\r\nhello\r\n0\r\n\r\nextra",
+    " bytes"
+  };
+  RunTest(inputs, arraysize(inputs), "hello", true, 11);
 }
