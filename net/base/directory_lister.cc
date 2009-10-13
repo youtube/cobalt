@@ -55,7 +55,7 @@ DirectoryLister::DirectoryLister(const FilePath& dir,
     : dir_(dir),
       delegate_(delegate),
       message_loop_(NULL),
-      thread_(NULL),
+      thread_(kNullThreadHandle),
       canceled_(false) {
   DCHECK(!dir.value().empty());
 }
@@ -88,7 +88,7 @@ void DirectoryLister::Cancel() {
 
   if (thread_) {
     PlatformThread::Join(thread_);
-    thread_ = NULL;
+    thread_ = kNullThreadHandle;
   }
 }
 
