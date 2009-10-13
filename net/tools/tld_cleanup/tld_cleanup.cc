@@ -58,8 +58,7 @@ bool WriteRules(const StringSet& rules, FilePath outfile) {
 
   data.append(";\n");
 
-  int written = file_util::WriteFile(outfile.ToWStringHack(), data.data(),
-                                     data.size());
+  int written = file_util::WriteFile(outfile, data.data(), data.size());
 
   return written == static_cast<int>(data.size());
 }
