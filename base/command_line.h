@@ -66,9 +66,6 @@ class CommandLine {
   // in |current_process_commandline_|. Used by the zygote host so that
   // renderers show up with --type=renderer.
   static void SetProcTitle();
-
-  // Needed to support SetProcTitle() on Linux. Should be called by main().
-  static void SetTrueArgv(char** argv);
 #endif
 
   // Destroys the current process CommandLine singleton. This is necessary if
