@@ -51,6 +51,7 @@ class ProxyResolverV8 : public ProxyResolver {
                              RequestHandle* /*request*/,
                              LoadLog* load_log);
   virtual void CancelRequest(RequestHandle request);
+  virtual void PurgeMemory();
 
   ProxyResolverJSBindings* js_bindings() const { return js_bindings_.get(); }
 
