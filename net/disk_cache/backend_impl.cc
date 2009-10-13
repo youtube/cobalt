@@ -1011,7 +1011,7 @@ bool BackendImpl::InitBackingStore(bool* file_created) {
     return false;
 
   index_ = new MappedFile();
-  data_ = reinterpret_cast<Index*>(index_->Init(index_name.ToWStringHack(), 0));
+  data_ = reinterpret_cast<Index*>(index_->Init(index_name, 0));
   if (!data_) {
     LOG(ERROR) << "Unable to map Index file";
     return false;
