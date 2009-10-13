@@ -16,6 +16,8 @@
 class FilePath;
 
 // Re-creates a given test file inside the cache test folder.
+bool CreateCacheTestFile(const FilePath& name);
+// Deprecated.
 bool CreateCacheTestFile(const wchar_t* name);
 
 // Deletes all file son the cache.
@@ -24,6 +26,8 @@ bool DeleteCache(const FilePath& path);
 bool DeleteCache(const wchar_t* path);
 
 // Gets the path to the cache test folder.
+FilePath GetCacheFilePath();
+// Deprecated.
 std::wstring GetCachePath();
 
 // Fills buffer with random values (may contain nulls unless no_nulls is true).

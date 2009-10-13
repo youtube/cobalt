@@ -69,10 +69,9 @@ void WaitForCallbacks(int expected) {
 }  // namespace
 
 TEST_F(DiskCacheTest, MappedFile_SyncIO) {
-  std::wstring filename = GetCachePath();
-  file_util::AppendToPath(&filename, L"a_test");
+  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
-  ASSERT_TRUE(CreateCacheTestFile(filename.c_str()));
+  ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
 
   char buffer1[20];
@@ -85,10 +84,9 @@ TEST_F(DiskCacheTest, MappedFile_SyncIO) {
 }
 
 TEST_F(DiskCacheTest, MappedFile_AsyncIO) {
-  std::wstring filename = GetCachePath();
-  file_util::AppendToPath(&filename, L"a_test");
+  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
-  ASSERT_TRUE(CreateCacheTestFile(filename.c_str()));
+  ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
 
   FileCallbackTest callback(1);

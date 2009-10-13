@@ -13,6 +13,8 @@
 #include "net/disk_cache/file.h"
 #include "net/disk_cache/file_block.h"
 
+class FilePath;
+
 namespace disk_cache {
 
 // This class implements a memory mapped file used to access block-files. The
@@ -26,7 +28,7 @@ class MappedFile : public File {
   // Performs object initialization. name is the file to use, and size is the
   // ammount of data to memory map from th efile. If size is 0, the whole file
   // will be mapped in memory.
-  void* Init(const std::wstring& name, size_t size);
+  void* Init(const FilePath& name, size_t size);
 
   void* buffer() const {
     return buffer_;

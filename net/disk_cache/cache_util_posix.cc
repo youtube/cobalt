@@ -34,8 +34,4 @@ bool DeleteCacheFile(const FilePath& name) {
   return file_util::Delete(name, false);
 }
 
-void DeleteCache(const std::wstring& path, bool remove_folder) {
-  DeleteCache(FilePath::FromWStringHack(path), remove_folder);
-}
-
 }  // namespace disk_cache
