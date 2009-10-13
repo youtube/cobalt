@@ -540,11 +540,6 @@
             '../build/linux/system.gyp:gtk',
           ],
         }],
-        [ 'OS != "linux" and OS != "freebsd"', { 'sources!': [
-            'gfx/gtk_native_view_id_manager.cc',
-            'gfx/native_widget_types_gtk.cc',
-            ],
-        }],
       ],
     },
     {
@@ -681,7 +676,6 @@
           ],
         }, {  # OS != "win"
           'sources!': [
-            'gfx/native_theme_unittest.cc',
             'object_watcher_unittest.cc',
             'pe_image_unittest.cc',
             'scoped_bstr_win_unittest.cc',
