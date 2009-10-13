@@ -9,14 +9,14 @@
 
 namespace switches {
 
-extern const wchar_t kDebugOnStart[];
-extern const wchar_t kWaitForDebugger[];
-extern const wchar_t kDisableBreakpad[];
-extern const wchar_t kFullMemoryCrashReport[];
-extern const wchar_t kNoErrorDialogs[];
-extern const wchar_t kProcessType[];
-extern const wchar_t kEnableDCHECK[];
-extern const wchar_t kNoMessageBox[];
+extern const char kDebugOnStart[];
+extern const char kWaitForDebugger[];
+extern const char kDisableBreakpad[];
+extern const char kFullMemoryCrashReport[];
+extern const char kNoErrorDialogs[];
+extern const char kProcessType[];
+extern const char kEnableDCHECK[];
+extern const char kNoMessageBox[];
 
 }  // namespace switches
 

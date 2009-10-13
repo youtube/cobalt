@@ -24,7 +24,7 @@ class PerfTestSuite : public TestSuite {
     // Initialize the perf timer log
     FilePath log_path;
     std::wstring log_file =
-        CommandLine::ForCurrentProcess()->GetSwitchValue(L"log-file");
+        CommandLine::ForCurrentProcess()->GetSwitchValue("log-file");
     if (log_file.empty()) {
       FilePath exe;
       PathService::Get(base::FILE_EXE, &exe);
