@@ -140,8 +140,8 @@ bool CacheDumper::Init() {
   std::wstring index_name(path_);
   file_util::AppendToPath(&index_name, kIndexName);
   index_file_ = new disk_cache::MappedFile;
-  index_ =
-      reinterpret_cast<disk_cache::Index*>(index_file_->Init(index_name, 0));
+  index_ = reinterpret_cast<disk_cache::Index*>(index_file_->Init(
+      FilePath::FromWStringHack(index_name), 0));
   if (!index_) {
     printf("Unable to map index\n");
     return false;

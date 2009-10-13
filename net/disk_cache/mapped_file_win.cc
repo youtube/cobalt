@@ -10,9 +10,9 @@
 
 namespace disk_cache {
 
-void* MappedFile::Init(const std::wstring& name, size_t size) {
+void* MappedFile::Init(const FilePath& name, size_t size) {
   DCHECK(!init_);
-  if (init_ || !File::Init(FilePath::FromWStringHack(name)))
+  if (init_ || !File::Init(name))
     return NULL;
 
   buffer_ = NULL;

@@ -10,10 +10,9 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 TEST_F(DiskCacheTest, StorageBlock_LoadStore) {
-  std::wstring filename = GetCachePath();
-  file_util::AppendToPath(&filename, L"a_test");
+  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
-  ASSERT_TRUE(CreateCacheTestFile(filename.c_str()));
+  ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
 
   disk_cache::CacheEntryBlock entry1(file, disk_cache::Addr(0xa0010001));
@@ -31,10 +30,9 @@ TEST_F(DiskCacheTest, StorageBlock_LoadStore) {
 }
 
 TEST_F(DiskCacheTest, StorageBlock_SetData) {
-  std::wstring filename = GetCachePath();
-  file_util::AppendToPath(&filename, L"a_test");
+  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
-  ASSERT_TRUE(CreateCacheTestFile(filename.c_str()));
+  ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
 
   disk_cache::CacheEntryBlock entry1(file, disk_cache::Addr(0xa0010001));
@@ -52,10 +50,9 @@ TEST_F(DiskCacheTest, StorageBlock_SetData) {
 }
 
 TEST_F(DiskCacheTest, StorageBlock_SetModified) {
-  std::wstring filename = GetCachePath();
-  file_util::AppendToPath(&filename, L"a_test");
+  FilePath filename = GetCacheFilePath().AppendASCII("a_test");
   scoped_refptr<disk_cache::MappedFile> file(new disk_cache::MappedFile);
-  ASSERT_TRUE(CreateCacheTestFile(filename.c_str()));
+  ASSERT_TRUE(CreateCacheTestFile(filename));
   ASSERT_TRUE(file->Init(filename, 8192));
 
   disk_cache::CacheEntryBlock* entry1 =
