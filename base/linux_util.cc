@@ -9,7 +9,9 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/lock.h"
 #include "base/process_util.h"
+#include "base/singleton.h"
 #include "base/string_util.h"
 
 namespace {
@@ -44,7 +46,50 @@ class EnvironmentVariableGetterImpl
   }
 };
 
-} // anonymous namespace
+enum LinuxDistroState {
+  STATE_DID_NOT_CHECK  = 0,
+  STATE_CHECK_STARTED  = 1,
+  STATE_CHECK_FINISHED = 2,
+};
+
+// Helper class for GetLinuxDistro().
+class LinuxDistroHelper {
+ public:
+  // Retrieves the Singleton.
+  static LinuxDistroHelper* Get() {
+    return Singleton<LinuxDistroHelper>::get();
+  }
+
+  // The simple state machine goes from:
+  // STATE_DID_NOT_CHECK -> STATE_CHECK_STARTED -> STATE_CHECK_FINISHED.
+  LinuxDistroHelper() : state_(STATE_DID_NOT_CHECK) {}
+  ~LinuxDistroHelper() {}
+
+  // Retrieve the current state, if we're in STATE_DID_NOT_CHECK,
+  // we automatically move to STATE_CHECK_STARTED so nobody else will
+  // do the check.
+  LinuxDistroState State() {
+    AutoLock scoped_lock(lock_);
+    if (STATE_DID_NOT_CHECK == state_) {
+      state_ = STATE_CHECK_STARTED;
+      return STATE_DID_NOT_CHECK;
+    }
+    return state_;
+  }
+
+  // Indicate the check finished, move to STATE_CHECK_FINISHED.
+  void CheckFinished() {
+    AutoLock scoped_lock(lock_);
+    DCHECK(state_ == STATE_CHECK_STARTED);
+    state_ = STATE_CHECK_FINISHED;
+  }
+
+ private:
+  Lock lock_;
+  LinuxDistroState state_;
+};
+
+}  // anonymous namespace
 
 namespace base {
 
@@ -73,8 +118,12 @@ uint8_t* BGRAToRGBA(const uint8_t* pixels, int width, int height, int stride) {
 std::string linux_distro = "Unknown";
 
 std::string GetLinuxDistro() {
-  static bool checked_distro = false;
-  if (!checked_distro) {
+  LinuxDistroHelper* distro_state_singleton = LinuxDistroHelper::Get();
+  LinuxDistroState state = distro_state_singleton->State();
+  if (STATE_DID_NOT_CHECK == state) {
+    // We do this check only once per process. If it fails, there's
+    // little reason to believe it will work if we attempt to run
+    // lsb_release again.
     std::vector<std::string> argv;
     argv.push_back("lsb_release");
     argv.push_back("-d");
@@ -86,12 +135,16 @@ std::string GetLinuxDistro() {
       if (output.compare(0, field.length(), field) == 0)
         linux_distro = output.substr(field.length());
     }
-    // We do this check only once per process. If it fails, there's
-    // little reason to believe it will work if we attempt to run
-    // lsb_release again.
-    checked_distro = true;
+    distro_state_singleton->CheckFinished();
+    return linux_distro;
+  } else if (STATE_CHECK_STARTED == state) {
+    // If the distro check above is in progress in some other thread, we're
+    // not going to wait for the results.
+    return "Unknown";
+  } else {
+    // In STATE_CHECK_FINISHED, no more writing to |linux_distro|.
+    return linux_distro;
   }
-  return linux_distro;
 }
 
 // static
