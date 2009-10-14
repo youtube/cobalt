@@ -158,6 +158,7 @@
       'dependencies': [
         'media',
         '../base/base.gyp:base',
+        '../base/base.gyp:base_i18n',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
