@@ -187,6 +187,24 @@
           ],
         },
         {
+          'target_name': 'chrome_frame_builder',
+          'type': 'none',
+          'dependencies': [
+            '../chrome/installer/installer.gyp:installer_util_unittests',
+            '../chrome/installer/installer.gyp:mini_installer_test',
+            # mini_installer_tests depends on mini_installer. This should be
+            # defined in installer.gyp.
+            '../chrome/installer/mini_installer.gyp:mini_installer',
+            '../courgette/courgette.gyp:courgette_unittests',
+            '../chrome/chrome.gyp:chrome',
+            '../chrome_frame/chrome_frame.gyp:npchrome_tab',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_tests',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_net_tests',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_perftests',
+          ],
+        },
+        {
           'target_name': 'purify_builder_ui',
           'type': 'none',
           'dependencies': [
