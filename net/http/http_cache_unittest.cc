@@ -402,6 +402,10 @@ class MockHttpCache {
   MockHttpCache() : http_cache_(new MockNetworkLayer(), new MockDiskCache()) {
   }
 
+  explicit MockHttpCache(disk_cache::Backend* disk_cache)
+      : http_cache_(new MockNetworkLayer(), disk_cache) {
+  }
+
   net::HttpCache* http_cache() { return &http_cache_; }
 
   MockNetworkLayer* network_layer() {
@@ -2431,6 +2435,142 @@ TEST(HttpCache, RangeGET_Cancel2) {
   EXPECT_EQ(3, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// Tests that an invalid range response results in no cached entry.
+TEST(HttpCache, RangeGET_InvalidResponse1) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  std::string headers;
+
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.handler = NULL;
+  transaction.response_headers = "Content-Range: bytes 40-49/45\n"
+                                 "Content-Length: 10\n";
+  AddMockTransaction(&transaction);
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  std::string expected(transaction.status);
+  expected.append("\n");
+  expected.append(transaction.response_headers);
+  EXPECT_EQ(expected, headers);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Verify that we don't have a cached entry.
+  disk_cache::Entry* en;
+  ASSERT_FALSE(cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url, &en));
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// Tests that we reject a range that doesn't match the content-length.
+TEST(HttpCache, RangeGET_InvalidResponse2) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  std::string headers;
+
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.handler = NULL;
+  transaction.response_headers = "Content-Range: bytes 40-49/80\n"
+                                 "Content-Length: 20\n";
+  AddMockTransaction(&transaction);
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  std::string expected(transaction.status);
+  expected.append("\n");
+  expected.append(transaction.response_headers);
+  EXPECT_EQ(expected, headers);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Verify that we don't have a cached entry.
+  disk_cache::Entry* en;
+  ASSERT_FALSE(cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url, &en));
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// Tests that if a server tells us conflicting information about a resource we
+// ignore the response.
+TEST(HttpCache, RangeGET_InvalidResponse3) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  std::string headers;
+
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.handler = NULL;
+  transaction.request_headers = "Range: bytes = 50-59\r\n";
+  std::string response_headers(transaction.response_headers);
+  response_headers.append("Content-Range: bytes 50-59/160\n");
+  transaction.response_headers = response_headers.c_str();
+  AddMockTransaction(&transaction);
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 50, 59));
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&transaction);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  // This transaction will report a resource size of 80 bytes, and we think it's
+  // 160 so we should ignore the response.
+  RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
+                                 &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Verify that we cached the first response but not the second one.
+  disk_cache::Entry* en;
+  ASSERT_TRUE(cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url, &en));
+  int64 cached_start = 0;
+  EXPECT_EQ(10, en->GetAvailableRange(40, 20, &cached_start));
+  EXPECT_EQ(50, cached_start);
+  en->Close();
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// Tests that we handle large range values properly.
+TEST(HttpCache, RangeGET_LargeValues) {
+  // We need a real sparse cache for this test.
+  disk_cache::Backend* disk_cache =
+      disk_cache::CreateInMemoryCacheBackend(1024 * 1024);
+  MockHttpCache cache(disk_cache);
+  cache.http_cache()->set_enable_range_support(true);
+  std::string headers;
+
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.handler = NULL;
+  transaction.request_headers = "Range: bytes = 4294967288-4294967297\r\n";
+  transaction.response_headers =
+      "Content-Range: bytes 4294967288-4294967297/4294967299\n"
+      "Content-Length: 10\n";
+  AddMockTransaction(&transaction);
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  std::string expected(transaction.status);
+  expected.append("\n");
+  expected.append(transaction.response_headers);
+  EXPECT_EQ(expected, headers);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+
+  // Verify that we have a cached entry.
+  disk_cache::Entry* en;
+  ASSERT_TRUE(cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url, &en));
+  en->Close();
+
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 

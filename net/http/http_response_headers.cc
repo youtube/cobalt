@@ -765,7 +765,6 @@ bool HttpResponseHeaders::IsRedirect(std::string* location) const {
 bool HttpResponseHeaders::RequiresValidation(const Time& request_time,
                                              const Time& response_time,
                                              const Time& current_time) const {
-
   TimeDelta lifetime =
       GetFreshnessLifetime(response_time);
   if (lifetime == TimeDelta())
@@ -1032,6 +1031,7 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
                                           int64* instance_length) const {
   void* iter = NULL;
   std::string content_range_spec;
+  *first_byte_position = *last_byte_position = *instance_length = -1;
   if (!EnumerateHeader(&iter, "content-range", &content_range_spec))
     return false;
 
@@ -1069,11 +1069,8 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
   // Parse the byte-range-resp-spec part.
   std::string byte_range_resp_spec(byte_range_resp_spec_begin,
                                    byte_range_resp_spec_end);
-  // If byte-range-resp-spec == "*".
-  if (LowerCaseEqualsASCII(byte_range_resp_spec, "*")) {
-    *first_byte_position = -1;
-    *last_byte_position = -1;
-  } else {
+  // If byte-range-resp-spec != "*".
+  if (!LowerCaseEqualsASCII(byte_range_resp_spec, "*")) {
     size_t minus_position = byte_range_resp_spec.find('-');
     if (minus_position != std::string::npos) {
       // Obtain first-byte-pos.
@@ -1097,9 +1094,11 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
       ok &= StringToInt64(
           std::string(last_byte_pos_begin, last_byte_pos_end),
           last_byte_position);
-      if (!ok ||
-          *first_byte_position < 0 ||
-          *last_byte_position < 0 ||
+      if (!ok) {
+        *first_byte_position = *last_byte_position = -1;
+        return false;
+      }
+      if (*first_byte_position < 0 || *last_byte_position < 0 ||
           *first_byte_position > *last_byte_position)
         return false;
     } else {
@@ -1116,16 +1115,19 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
   HttpUtil::TrimLWS(&instance_length_begin, &instance_length_end);
 
   if (LowerCaseEqualsASCII(instance_length_begin, instance_length_end, "*")) {
-    *instance_length = -1;
+    return false;
   } else if (!StringToInt64(
                  std::string(instance_length_begin, instance_length_end),
                  instance_length)) {
-    return false;
-  } else if (*instance_length < 0 ||
-             *instance_length <
-                 *last_byte_position - *first_byte_position + 1) {
+    *instance_length = -1;
     return false;
   }
+
+  // We have all the values; let's verify that they make sense for a 206
+  // response.
+  if (*first_byte_position < 0 || *last_byte_position < 0 ||
+      *instance_length < 0 || *instance_length - 1 < *last_byte_position)
+    return false;
 
   return true;
 }
