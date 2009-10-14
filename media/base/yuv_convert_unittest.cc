@@ -33,6 +33,7 @@ static const size_t kRGBSize = kWidth * kHeight * kBpp;
 static const size_t kRGBSizeConverted = kWidth * kHeight * kBpp;
 
 // Set to 100 to time ConvertYUVToRGB32.
+// This will take approximately 40 to 200 ms.
 static const int kTestTimes = 1;
 
 TEST(YUVConvertTest, YV12) {
@@ -98,18 +99,16 @@ TEST(YUVConvertTest, YV16) {
                                 reinterpret_cast<char*>(yuv_bytes.get()),
                                 static_cast<int>(kYUV16Size)));
 
-  for (int i = 0; i < kTestTimes; ++i) {
-    // Convert a frame of YUV to 32 bit ARGB.
-    media::ConvertYUVToRGB32(yuv_bytes.get(),                             // Y
-                             yuv_bytes.get() + kWidth * kHeight,          // U
-                             yuv_bytes.get() + kWidth * kHeight * 3 / 2,  // V
-                             rgb_converted_bytes.get(),  // RGB output
-                             kWidth, kHeight,            // Dimensions
-                             kWidth,                     // YStride
-                             kWidth / 2,                 // UVStride
-                             kWidth * kBpp,              // RGBStride
-                             media::YV16);
-  }
+  // Convert a frame of YUV to 32 bit ARGB.
+  media::ConvertYUVToRGB32(yuv_bytes.get(),                             // Y
+                           yuv_bytes.get() + kWidth * kHeight,          // U
+                           yuv_bytes.get() + kWidth * kHeight * 3 / 2,  // V
+                           rgb_converted_bytes.get(),             // RGB output
+                           kWidth, kHeight,                       // Dimensions
+                           kWidth,                                // YStride
+                           kWidth / 2,                            // UVStride
+                           kWidth * kBpp,                         // RGBStride
+                           media::YV16);
 
   unsigned int rgb_hash = DJB2Hash(rgb_converted_bytes.get(), kRGBSizeConverted,
                                    kDJB2HashSeed);
@@ -144,19 +143,17 @@ TEST(YuvScaleTest, YV12) {
   const size_t size_of_rgb_scaled = kScaledWidth * kScaledHeight * kBpp;
   scoped_array<uint8> rgb_scaled_bytes(new uint8[size_of_rgb_scaled]);
 
-  for (int i = 0; i < kTestTimes; ++i) {
-    media::ScaleYUVToRGB32(yuv_bytes.get(),                           // Y
+  media::ScaleYUVToRGB32(yuv_bytes.get(),                             // Y
                          yuv_bytes.get() + kWidth * kHeight,          // U
                          yuv_bytes.get() + kWidth * kHeight * 5 / 4,  // V
-                         rgb_scaled_bytes.get(),       // Rgb output
-                         kWidth, kHeight,              // Dimensions
-                         kScaledWidth, kScaledHeight,  // Dimensions
-                         kWidth,                       // YStride
-                         kWidth / 2,                   // UvStride
-                         kScaledWidth * kBpp,          // RgbStride
+                         rgb_scaled_bytes.get(),                // Rgb output
+                         kWidth, kHeight,                       // Dimensions
+                         kScaledWidth, kScaledHeight,           // Dimensions
+                         kWidth,                                // YStride
+                         kWidth / 2,                            // UvStride
+                         kScaledWidth * kBpp,                   // RgbStride
                          media::YV12,
                          media::ROTATE_0);
-  }
 
   unsigned int rgb_hash = DJB2Hash(rgb_scaled_bytes.get(), size_of_rgb_scaled,
                                    kDJB2HashSeed);
@@ -191,19 +188,17 @@ TEST(YuvScaleTest, YV16) {
   const size_t size_of_rgb_scaled = kScaledWidth * kScaledHeight * kBpp;
   scoped_array<uint8> rgb_scaled_bytes(new uint8[size_of_rgb_scaled]);
 
-  for (int i = 0; i < kTestTimes; ++i) {
-    media::ScaleYUVToRGB32(yuv_bytes.get(),                           // Y
+  media::ScaleYUVToRGB32(yuv_bytes.get(),                             // Y
                          yuv_bytes.get() + kWidth * kHeight,          // U
                          yuv_bytes.get() + kWidth * kHeight * 3 / 2,  // V
-                         rgb_scaled_bytes.get(),       // Rgb output
-                         kWidth, kHeight,              // Dimensions
-                         kScaledWidth, kScaledHeight,  // Dimensions
-                         kWidth,                       // YStride
-                         kWidth / 2,                   // UvStride
-                         kScaledWidth * kBpp,          // RgbStride
+                         rgb_scaled_bytes.get(),        // Rgb output
+                         kWidth, kHeight,               // Dimensions
+                         kScaledWidth, kScaledHeight,   // Dimensions
+                         kWidth,                        // YStride
+                         kWidth / 2,                    // UvStride
+                         kScaledWidth * kBpp,           // RgbStride
                          media::YV16,
                          media::ROTATE_0);
-  }
 
   unsigned int rgb_hash = DJB2Hash(rgb_scaled_bytes.get(), size_of_rgb_scaled,
                                    kDJB2HashSeed);
