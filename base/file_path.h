@@ -20,6 +20,8 @@
 //   Linux does not specify an encoding, but in practice, the locale's
 //   character set may be used.
 //
+// For more arcane bits of path trivia, see below.
+//
 // FilePath objects are intended to be used anywhere paths are.  An
 // application may pass FilePath objects around internally, masking the
 // underlying differences between systems, only differing in implementation
@@ -68,6 +70,32 @@
 // RTL UI.
 //
 // This is a very common source of bugs, please try to keep this in mind.
+//
+// ARCANE BITS OF PATH TRIVIA
+//
+//  - A double leading slash is actually part of the POSIX standard.  Systems
+//    are allowed to treat // as an alternate root, as Windows does for UNC
+//    (network share) paths.  Most POSIX systems don't do anything special
+//    with two leading slashes, but FilePath handles this case properly
+//    in case it ever comes across such a system.  FilePath needs this support
+//    for Windows UNC paths, anyway.
+//    References:
+//    The Open Group Base Specifications Issue 7, sections 3.266 ("Pathname")
+//    and 4.12 ("Pathname Resolution"), available at:
+//    http://www.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap03.html#tag_03_266
+//    http://www.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap04.html#tag_04_12
+//
+//  - Windows treats c:\\ the same way it treats \\.  This was intended to
+//    allow older applications that require drive letters to support UNC paths
+//    like \\server\share\path, by permitting c:\\server\share\path as an
+//    equivalent.  Since the OS treats these paths specially, FilePath needs
+//    to do the same.  Since Windows can use either / or \ as the separator,
+//    FilePath treats c://, c:\\, //, and \\ all equivalently.
+//    Reference:
+//    The Old New Thing, "Why is a drive letter permitted in front of UNC
+//    paths (sometimes)?", available at:
+//    http://blogs.msdn.com/oldnewthing/archive/2005/11/22/495740.aspx
+
 #ifndef BASE_FILE_PATH_H_
 #define BASE_FILE_PATH_H_
 
