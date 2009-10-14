@@ -12,6 +12,7 @@
       'type': '<(library)',
       'dependencies': [
         '../base/base.gyp:base',
+        '../base/base.gyp:base_i18n',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../sdch/sdch.gyp:sdch',
         '../third_party/bzip2/bzip2.gyp:bzip2',
@@ -456,6 +457,7 @@
         'net',
         'net_test_support',
         '../base/base.gyp:base',
+        '../base/base.gyp:base_i18n',
         '../testing/gtest.gyp:gtest',
         '../third_party/zlib/zlib.gyp:zlib',
         '../third_party/bzip2/bzip2.gyp:bzip2',
@@ -591,6 +593,7 @@
         'net',
         'net_test_support',
         '../base/base.gyp:base',
+        '../base/base.gyp:base_i18n',
         '../base/base.gyp:test_support_base',
         '../base/base.gyp:test_support_perf',
         '../testing/gtest.gyp:gtest',
@@ -629,6 +632,7 @@
       'type': 'executable',
       'dependencies': [
         '../base/base.gyp:base',
+        '../base/base.gyp:base_i18n',
         '../build/temp_gyp/googleurl.gyp:googleurl',
       ],
       'msvs_guid': 'E13045CD-7E1F-4A41-9B18-8D288B2E7B41',
