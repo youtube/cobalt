@@ -253,7 +253,7 @@ TEST(HttpResponseHeadersTest, NormalizeHeadersOfWhitepace) {
     "HTTP/1.0 200 OK\n",
 
     200,
-    HttpVersion(0,0), // Parse error
+    HttpVersion(0,0),  // Parse error
     HttpVersion(1,0)
   };
   TestCommon(test);
@@ -1157,6 +1157,13 @@ TEST(HttpResponseHeaders, GetContentRange) {
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: \t   bytes \t  0    -   50   /   5   1",
       false,
+      0,
+      50,
+      -1
+    },
+    { "HTTP/1.1 206 Partial Content\n"
+      "Content-Range: \t   bytes \t  0    -   5 0   /   51",
+      false,
       -1,
       -1,
       -1
@@ -1164,34 +1171,34 @@ TEST(HttpResponseHeaders, GetContentRange) {
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 50-0/51",
       false,
-      -1,
-      -1,
+      50,
+      0,
       -1
     },
     { "HTTP/1.1 416 Requested range not satisfiable\n"
-      "Content-Range: bytes */*",
-      true,
+      "Content-Range: bytes * /*",
+      false,
       -1,
       -1,
       -1
     },
     { "HTTP/1.1 416 Requested range not satisfiable\n"
       "Content-Range: bytes *   /    *   ",
-      true,
+      false,
       -1,
       -1,
       -1
     },
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0-50/*",
-      true,
+      false,
       0,
       50,
       -1
     },
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0-50  /    * ",
-      true,
+      false,
       0,
       50,
       -1
@@ -1206,15 +1213,29 @@ TEST(HttpResponseHeaders, GetContentRange) {
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0-10000000000/10000000000",
       false,
-      -1,
-      -1,
-      -1
+      0,
+      10000000000ll,
+      10000000000ll
     },
-    // The following header is invalid for response code of 206, this should be
-    // verified by the user.
+    // 64 bits wraparound.
+    { "HTTP/1.1 206 Partial Content\n"
+      "Content-Range: bytes 0 - 9223372036854775807 / 100",
+      false,
+      0,
+      kint64max,
+      100
+    },
+    // 64 bits wraparound.
+    { "HTTP/1.1 206 Partial Content\n"
+      "Content-Range: bytes 0 - 100 / -9223372036854775808",
+      false,
+      0,
+      100,
+      kint64min
+    },
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes */50",
-      true,
+      false,
       -1,
       -1,
       50
@@ -1222,16 +1243,16 @@ TEST(HttpResponseHeaders, GetContentRange) {
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0-50/10",
       false,
-      -1,
-      -1,
-      -1
+      0,
+      50,
+      10
     },
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0-50/-10",
       false,
-      -1,
-      -1,
-      -1
+      0,
+      50,
+      -10
     },
     { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0-0/1",
@@ -1269,15 +1290,8 @@ TEST(HttpResponseHeaders, GetContentRange) {
       -1
     },
     { "HTTP/1.1 206 Partial Content\n"
-      "Content-Range: bytes 0-40000000000000000000/40000000000000000001",
-      false,
-      -1,
-      -1,
-      -1
-    },
-    { "HTTP/1.1 206 Partial Content\n"
       "Content-Range: bytes 0-1233/*",
-      true,
+      false,
       0,
       1233,
       -1
@@ -1303,11 +1317,9 @@ TEST(HttpResponseHeaders, GetContentRange) {
                                                 &last_byte_position,
                                                 &instance_size);
     EXPECT_EQ(tests[i].expected_return_value, return_value);
-    if (return_value) {
-      EXPECT_EQ(tests[i].expected_first_byte_position, first_byte_position);
-      EXPECT_EQ(tests[i].expected_last_byte_position, last_byte_position);
-      EXPECT_EQ(tests[i].expected_instance_size, instance_size);
-    }
+    EXPECT_EQ(tests[i].expected_first_byte_position, first_byte_position);
+    EXPECT_EQ(tests[i].expected_last_byte_position, last_byte_position);
+    EXPECT_EQ(tests[i].expected_instance_size, instance_size);
   }
 }
 

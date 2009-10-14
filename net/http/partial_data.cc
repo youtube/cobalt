@@ -192,6 +192,10 @@ bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
   if (total_length <= 0)
     return false;
 
+  int64 content_length = headers->GetContentLength();
+  if (content_length != end - start + 1)
+    return false;
+
   if (!resource_size_) {
     // First response. Update our values with the ones provided by the server.
     resource_size_ = total_length;
