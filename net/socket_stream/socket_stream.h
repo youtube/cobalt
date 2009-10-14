@@ -241,7 +241,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   // for Write operation, that is, |current_write_buf_| is
   // |write_buf_| + |write_buf_offset_|.
   scoped_refptr<IOBuffer> write_buf_;
-  scoped_refptr<ReusedIOBuffer> current_write_buf_;
+  scoped_refptr<DrainableIOBuffer> current_write_buf_;
   int write_buf_offset_;
   int write_buf_size_;
   PendingDataQueue pending_write_bufs_;

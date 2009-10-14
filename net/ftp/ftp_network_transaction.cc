@@ -59,7 +59,6 @@ FtpNetworkTransaction::FtpNetworkTransaction(
       ctrl_response_buffer_(new FtpCtrlResponseBuffer()),
       read_data_buf_len_(0),
       file_data_len_(0),
-      write_command_buf_written_(0),
       last_error_(OK),
       system_type_(SYSTEM_TYPE_UNKNOWN),
       retr_failed_(false),
@@ -188,8 +187,8 @@ int FtpNetworkTransaction::SendFtpCommand(const std::string& command,
   command_sent_ = cmd;
 
   write_command_buf_ = new IOBufferWithSize(command.length() + 2);
-  write_buf_ = new ReusedIOBuffer(write_command_buf_,
-                                  write_command_buf_->size());
+  write_buf_ = new DrainableIOBuffer(write_command_buf_,
+                                     write_command_buf_->size());
   memcpy(write_command_buf_->data(), command.data(), command.length());
   memcpy(write_command_buf_->data() + command.length(), kCRLF, 2);
 
@@ -300,7 +299,8 @@ void FtpNetworkTransaction::ResetStateForRestart() {
   read_data_buf_ = NULL;
   read_data_buf_len_ = 0;
   file_data_len_ = 0;
-  write_command_buf_written_ = 0;
+  if (write_buf_)
+    write_buf_->SetOffset(0);
   last_error_ = OK;
   retr_failed_ = false;
   data_connection_port_ = 0;
@@ -539,10 +539,8 @@ int FtpNetworkTransaction::DoCtrlReadComplete(int result) {
 int FtpNetworkTransaction::DoCtrlWrite() {
   next_state_ = STATE_CTRL_WRITE_COMPLETE;
 
-  write_buf_->SetOffset(write_command_buf_written_);
-  int bytes_to_write = write_command_buf_->size() - write_command_buf_written_;
   return ctrl_socket_->Write(write_buf_,
-                             bytes_to_write,
+                             write_buf_->BytesRemaining(),
                              &io_callback_);
 }
 
@@ -550,12 +548,11 @@ int FtpNetworkTransaction::DoCtrlWriteComplete(int result) {
   if (result < 0)
     return result;
 
-  write_command_buf_written_ += result;
-  if (write_command_buf_written_ == write_command_buf_->size()) {
+  write_buf_->DidConsume(result);
+  if (write_buf_->BytesRemaining() == 0) {
     // Clear the write buffer.
     write_buf_ = NULL;
     write_command_buf_ = NULL;
-    write_command_buf_written_ = 0;
 
     next_state_ = STATE_CTRL_READ;
   } else {
