@@ -9,6 +9,8 @@
 
 #include <string>
 
+class FilePath;
+
 namespace base {
 
 class SysInfo {
@@ -26,7 +28,7 @@ class SysInfo {
 
   // Return the available disk space in bytes on the volume containing |path|,
   // or -1 on failure.
-  static int64 AmountOfFreeDiskSpace(const std::wstring& path);
+  static int64 AmountOfFreeDiskSpace(const FilePath& path);
 
   // Return true if the given environment variable is defined.
   // TODO: find a better place for HasEnvVar.
