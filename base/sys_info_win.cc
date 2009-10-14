@@ -6,6 +6,7 @@
 
 #include <windows.h>
 
+#include "base/file_path.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "base/string_util.h"
@@ -35,9 +36,9 @@ int64 SysInfo::AmountOfPhysicalMemory() {
 }
 
 // static
-int64 SysInfo::AmountOfFreeDiskSpace(const std::wstring& path) {
+int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
   ULARGE_INTEGER available, total, free;
-  if (!GetDiskFreeSpaceExW(path.c_str(), &available, &total, &free)) {
+  if (!GetDiskFreeSpaceExW(path.value().c_str(), &available, &total, &free)) {
     return -1;
   }
   int64 rv = static_cast<int64>(available.QuadPart);
