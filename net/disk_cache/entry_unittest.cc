@@ -1344,13 +1344,13 @@ TEST_F(DiskCacheEntryTest, CleanupSparseEntry) {
   EXPECT_EQ(3, cache_->GetEntryCount());
 }
 
-TEST_F(DiskCacheEntryTest, DISABLED_CancelSparseIO) {
+TEST_F(DiskCacheEntryTest, CancelSparseIO) {
   InitCache();
   std::string key("the first key");
   disk_cache::Entry* entry;
   ASSERT_TRUE(cache_->CreateEntry(key, &entry));
 
-  const int kSize = 4 * 1024;
+  const int kSize = 40 * 1024;
   scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
   CacheTestFillBuffer(buf->data(), kSize, false);
 
