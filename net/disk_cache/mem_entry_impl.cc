@@ -172,29 +172,26 @@ int MemEntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
     return net::ERR_INVALID_ARGUMENT;
 
   // We will keep using this buffer and adjust the offset in this buffer.
-  scoped_refptr<net::ReusedIOBuffer> io_buf = new net::ReusedIOBuffer(buf,
-                                                                      buf_len);
-
-  // Counts the number of bytes read.
-  int bytes_read = 0;
+  scoped_refptr<net::DrainableIOBuffer> io_buf =
+      new net::DrainableIOBuffer(buf, buf_len);
 
   // Iterate until we have read enough.
-  while (bytes_read < buf_len) {
-    MemEntryImpl* child = OpenChild(offset + bytes_read, false);
+  while (io_buf->BytesRemaining()) {
+    MemEntryImpl* child = OpenChild(offset + io_buf->BytesConsumed(), false);
 
     // No child present for that offset.
     if (!child)
       break;
 
     // We then need to prepare the child offset and len.
-    int child_offset = ToChildOffset(offset + bytes_read);
+    int child_offset = ToChildOffset(offset + io_buf->BytesConsumed());
 
     // If we are trying to read from a position that the child entry has no data
     // we should stop.
     if (child_offset < child->child_first_pos_)
       break;
     int ret = child->ReadData(kSparseData, child_offset, io_buf,
-                              buf_len - bytes_read, NULL);
+                              io_buf->BytesRemaining(), NULL);
 
     // If we encounter an error in one entry, return immediately.
     if (ret < 0)
@@ -203,15 +200,12 @@ int MemEntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
       break;
 
     // Increment the counter by number of bytes read in the child entry.
-    bytes_read += ret;
-    // And also adjust the buffer's offset.
-    if (bytes_read < buf_len)
-      io_buf->SetOffset(bytes_read);
+    io_buf->DidConsume(ret);
   }
 
   UpdateRank(false);
 
-  return bytes_read;
+  return io_buf->BytesConsumed();
 }
 
 int MemEntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
@@ -224,22 +218,20 @@ int MemEntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
   if (offset < 0 || buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
 
-  scoped_refptr<net::ReusedIOBuffer> io_buf = new net::ReusedIOBuffer(buf,
-                                                                      buf_len);
-  // Counter for amount of bytes written.
-  int bytes_written = 0;
+  scoped_refptr<net::DrainableIOBuffer> io_buf =
+      new net::DrainableIOBuffer(buf, buf_len);
 
   // This loop walks through child entries continuously starting from |offset|
   // and writes blocks of data (of maximum size kMaxSparseEntrySize) into each
   // child entry until all |buf_len| bytes are written. The write operation can
   // start in the middle of an entry.
-  while (bytes_written < buf_len) {
-    MemEntryImpl* child = OpenChild(offset + bytes_written, true);
-    int child_offset = ToChildOffset(offset + bytes_written);
+  while (io_buf->BytesRemaining()) {
+    MemEntryImpl* child = OpenChild(offset + io_buf->BytesConsumed(), true);
+    int child_offset = ToChildOffset(offset + io_buf->BytesConsumed());
 
     // Find the right amount to write, this evaluates the remaining bytes to
     // write and remaining capacity of this child entry.
-    int write_len = std::min(buf_len - bytes_written,
+    int write_len = std::min(static_cast<int>(io_buf->BytesRemaining()),
                              kMaxSparseEntrySize - child_offset);
 
     // Keep a record of the last byte position (exclusive) in the child.
@@ -262,17 +254,13 @@ int MemEntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
     if (data_size != child_offset)
       child->child_first_pos_ = child_offset;
 
-    // Increment the counter.
-    bytes_written += ret;
-
-    // And adjust the offset in the IO buffer.
-    if (bytes_written < buf_len)
-      io_buf->SetOffset(bytes_written);
+    // Adjust the offset in the IO buffer.
+    io_buf->DidConsume(ret);
   }
 
   UpdateRank(true);
 
-  return bytes_written;
+  return io_buf->BytesConsumed();
 }
 
 int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {

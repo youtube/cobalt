@@ -16,7 +16,7 @@
 
 namespace net {
 class IOBuffer;
-class ReusedIOBuffer;
+class DrainableIOBuffer;
 }
 
 namespace disk_cache {
@@ -163,7 +163,7 @@ class SparseControl {
   net::CompletionCallback* user_callback_;
   std::vector<net::CompletionCallback*> abort_callbacks_;
   int64 offset_;  // Current sparse offset.
-  scoped_refptr<net::ReusedIOBuffer> user_buf_;
+  scoped_refptr<net::DrainableIOBuffer> user_buf_;
   int buf_len_;  // Bytes to read or write.
   int child_offset_;  // Offset to use for the current child.
   int child_len_;  // Bytes to read or write for this child.

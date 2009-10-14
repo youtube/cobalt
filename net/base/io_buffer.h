@@ -5,7 +5,10 @@
 #ifndef NET_BASE_IO_BUFFER_H_
 #define NET_BASE_IO_BUFFER_H_
 
+#include <string>
+
 #include "base/ref_counted.h"
+#include "base/scoped_ptr.h"
 
 namespace net {
 
@@ -30,7 +33,7 @@ class IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
 
 // This version stores the size of the buffer so that the creator of the object
 // doesn't have to keep track of that value.
-// NOTE: This doesn't mean that we want to stop sending the size as an explictit
+// NOTE: This doesn't mean that we want to stop sending the size as an explicit
 // argument to IO functions. Please keep using IOBuffer* for API declarations.
 class IOBufferWithSize : public IOBuffer {
  public:
@@ -43,24 +46,80 @@ class IOBufferWithSize : public IOBuffer {
   int size_;
 };
 
-// This version allows the caller to do multiple IO operations reusing a given
-// IOBuffer. We don't own data_, we simply make it point to the buffer of the
-// passed in IOBuffer, plus the desired offset.
-class ReusedIOBuffer : public IOBuffer {
+// This is a read only IOBuffer.  The data is stored in a string and
+// the IOBuffer interface does not provide a proper way to modify it.
+class StringIOBuffer : public IOBuffer {
  public:
-  ReusedIOBuffer(IOBuffer* base, int size)
-      : IOBuffer(base->data()), base_(base), size_(size) {}
-  ~ReusedIOBuffer() {
-    // We don't really own a buffer.
+  explicit StringIOBuffer(const std::string& s)
+      : IOBuffer(static_cast<char*>(NULL)),
+        string_data_(s) {
+    data_ = const_cast<char*>(string_data_.data());
+  }
+  ~StringIOBuffer() {
+    // We haven't allocated the buffer, so remove it before the base class
+    // destructor tries to delete[] it.
     data_ = NULL;
   }
 
+  int size() const { return string_data_.size(); }
+
+ private:
+  std::string string_data_;
+};
+
+// This version wraps an existing IOBuffer and provides convenient functions
+// to progressively read all the data.
+class DrainableIOBuffer : public IOBuffer {
+ public:
+  DrainableIOBuffer(IOBuffer* base, int size)
+      : IOBuffer(base->data()), base_(base), size_(size), used_(0) {}
+  ~DrainableIOBuffer() {
+    // The buffer is owned by the |base_| instance.
+    data_ = NULL;
+  }
+
+  // DidConsume() changes the |data_| pointer so that |data_| always points
+  // to the first unconsumed byte.
+  void DidConsume(int bytes) { SetOffset(used_ + bytes); }
+
+  // Returns the number of unconsumed bytes.
+  int BytesRemaining() const { return size_ - used_; }
+
+  // Returns the number of consumed bytes.
+  int BytesConsumed() const { return used_; }
+
+  // Seeks to an arbitrary point in the buffer. The notion of bytes consumed
+  // and remaining are updated appropriately.
+  void SetOffset(int bytes);
+
   int size() const { return size_; }
-  void SetOffset(int offset);
 
  private:
   scoped_refptr<IOBuffer> base_;
   int size_;
+  int used_;
+};
+
+// This version provides a resizable buffer and a changeable offset.
+class GrowableIOBuffer : public IOBuffer {
+ public:
+  GrowableIOBuffer() : IOBuffer(), capacity_(0), offset_(0) {}
+  ~GrowableIOBuffer() { data_ = NULL; }
+
+  int capacity() { return capacity_; }
+  void set_capacity(int capacity);
+
+  // |offset| moves the |data_| pointer, allowing "seeking" in the data.
+  int offset() { return offset_; }
+  void set_offset(int offset);
+
+  int RemainingCapacity() { return capacity_ - offset_; }
+  char* StartOfBuffer() { return real_data_.get(); }
+
+ private:
+  scoped_ptr_malloc<char> real_data_;
+  int capacity_;
+  int offset_;
 };
 
 // This class allows the creation of a temporary IOBuffer that doesn't really
