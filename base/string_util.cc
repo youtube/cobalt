@@ -344,41 +344,35 @@ const string16& EmptyString16() {
   return Singleton<EmptyStrings>::get()->s16;
 }
 
-#define WHITESPACE_UNICODE \
-  0x0009, /* <control-0009> to <control-000D> */ \
-  0x000A,                                        \
-  0x000B,                                        \
-  0x000C,                                        \
-  0x000D,                                        \
-  0x0020, /* Space */                            \
-  0x0085, /* <control-0085> */                   \
-  0x00A0, /* No-Break Space */                   \
-  0x1680, /* Ogham Space Mark */                 \
-  0x180E, /* Mongolian Vowel Separator */        \
-  0x2000, /* En Quad to Hair Space */            \
-  0x2001,                                        \
-  0x2002,                                        \
-  0x2003,                                        \
-  0x2004,                                        \
-  0x2005,                                        \
-  0x2006,                                        \
-  0x2007,                                        \
-  0x2008,                                        \
-  0x2009,                                        \
-  0x200A,                                        \
-  0x200C, /* Zero Width Non-Joiner */            \
-  0x2028, /* Line Separator */                   \
-  0x2029, /* Paragraph Separator */              \
-  0x202F, /* Narrow No-Break Space */            \
-  0x205F, /* Medium Mathematical Space */        \
-  0x3000, /* Ideographic Space */                \
-  0
-
 const wchar_t kWhitespaceWide[] = {
-  WHITESPACE_UNICODE
-};
-const char16 kWhitespaceUTF16[] = {
-  WHITESPACE_UNICODE
+  0x0009,  // <control-0009> to <control-000D>
+  0x000A,
+  0x000B,
+  0x000C,
+  0x000D,
+  0x0020,  // Space
+  0x0085,  // <control-0085>
+  0x00A0,  // No-Break Space
+  0x1680,  // Ogham Space Mark
+  0x180E,  // Mongolian Vowel Separator
+  0x2000,  // En Quad to Hair Space
+  0x2001,
+  0x2002,
+  0x2003,
+  0x2004,
+  0x2005,
+  0x2006,
+  0x2007,
+  0x2008,
+  0x2009,
+  0x200A,
+  0x200C,  // Zero Width Non-Joiner
+  0x2028,  // Line Separator
+  0x2029,  // Paragraph Separator
+  0x202F,  // Narrow No-Break Space
+  0x205F,  // Medium Mathematical Space
+  0x3000,  // Ideographic Space
+  0
 };
 const char kWhitespaceASCII[] = {
   0x09,    // <control-0009> to <control-000D>
@@ -428,14 +422,6 @@ bool TrimString(const std::wstring& input,
   return TrimStringT(input, trim_chars, TRIM_ALL, output) != TRIM_NONE;
 }
 
-#if !defined(WCHAR_T_IS_UTF16)
-bool TrimString(const string16& input,
-                const wchar_t trim_chars[],
-                string16* output) {
-  return TrimStringT(input, trim_chars, TRIM_ALL, output) != TRIM_NONE;
-}
-#endif
-
 bool TrimString(const std::string& input,
                 const char trim_chars[],
                 std::string* output) {
@@ -447,14 +433,6 @@ TrimPositions TrimWhitespace(const std::wstring& input,
                              std::wstring* output) {
   return TrimStringT(input, kWhitespaceWide, positions, output);
 }
-
-#if !defined(WCHAR_T_IS_UTF16)
-TrimPositions TrimWhitespace(const string16& input,
-                             TrimPositions positions,
-                             string16* output) {
-  return TrimStringT(input, kWhitespaceWide, positions, output);
-}
-#endif
 
 TrimPositions TrimWhitespaceASCII(const std::string& input,
                                   TrimPositions positions,
@@ -516,13 +494,6 @@ std::wstring CollapseWhitespace(const std::wstring& text,
                                 bool trim_sequences_with_line_breaks) {
   return CollapseWhitespaceT(text, trim_sequences_with_line_breaks);
 }
-
-#if !defined(WCHAR_T_IS_UTF16)
-string16 CollapseWhitespace(const string16& text,
-                            bool trim_sequences_with_line_breaks) {
-  return CollapseWhitespaceT(text, trim_sequences_with_line_breaks);
-}
-#endif
 
 std::string CollapseWhitespaceASCII(const std::string& text,
                                     bool trim_sequences_with_line_breaks) {
