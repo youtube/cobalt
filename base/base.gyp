@@ -10,10 +10,6 @@
     {
       'target_name': 'base',
       'type': '<(library)',
-      'dependencies': [
-        '../third_party/icu/icu.gyp:icui18n',
-        '../third_party/icu/icu.gyp:icuuc',
-      ],
       'msvs_guid': '1832A374-8A74-4F9E-B536-69A699B3E165',
       'sources': [
         '../build/build_config.h',
@@ -131,6 +127,12 @@
         'fix_wp64.h',
         'float_util.h',
         'foundation_utils_mac.h',
+        'gfx/point.cc',
+        'gfx/point.h',
+        'gfx/rect.cc',
+        'gfx/rect.h',
+        'gfx/size.cc',
+        'gfx/size.h',
         'global_descriptors_posix.h',
         'global_descriptors_posix.cc',
         'hash_tables.h',
@@ -140,18 +142,6 @@
         'hmac_mac.cc',
         'hmac_nss.cc',
         'hmac_win.cc',
-        'i18n/file_util_icu.cc',
-        'i18n/file_util_icu.h',
-        'i18n/icu_string_conversions.cc',
-        'i18n/icu_string_conversions.h',
-        'i18n/icu_util.cc',
-        'i18n/icu_util.h',
-        'i18n/number_formatting.cc',
-        'i18n/number_formatting.h',
-        'i18n/time_formatting.cc',
-        'i18n/time_formatting.h',
-        'i18n/word_iterator.cc',
-        'i18n/word_iterator.h',
         'iat_patch.cc',
         'iat_patch.h',
         'id_map.h',
@@ -371,6 +361,9 @@
       'msvs_disabled_warnings': [
         4244, 4554, 4018, 4102,
       ],
+      'mac_framework_dirs': [
+        '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
+      ],
       'conditions': [
         [ 'OS == "linux" or OS == "freebsd"', {
             'variables' : {
@@ -514,25 +507,30 @@
       ],
     },
     {
-      'target_name': 'base_gfx',
+      'target_name': 'base_i18n',
       'type': '<(library)',
-      'msvs_guid': 'A508ADD3-CECE-4E0F-8448-2F5E454DF551',
-      'sources': [
-        'gfx/point.cc',
-        'gfx/point.h',
-        'gfx/rect.cc',
-        'gfx/rect.h',
-        'gfx/size.cc',
-        'gfx/size.h',
-      ],
-      'mac_framework_dirs': [
-        '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
-      ],
+      'msvs_guid': '968F3222-9798-4D21-BE08-15ECB5EF2994',
       'dependencies': [
         'base',
+        '../third_party/icu/icu.gyp:icui18n',
+        '../third_party/icu/icu.gyp:icuuc',
       ],
       'export_dependent_settings': [
         'base',
+      ],
+      'sources': [
+        'i18n/file_util_icu.cc',
+        'i18n/file_util_icu.h',
+        'i18n/icu_string_conversions.cc',
+        'i18n/icu_string_conversions.h',
+        'i18n/icu_util.cc',
+        'i18n/icu_util.h',
+        'i18n/number_formatting.cc',
+        'i18n/number_formatting.h',
+        'i18n/time_formatting.cc',
+        'i18n/time_formatting.h',
+        'i18n/word_iterator.cc',
+        'i18n/word_iterator.h',
       ],
       'conditions': [
         ['OS == "linux" or OS == "freebsd"', {
@@ -639,7 +637,7 @@
       ],
       'dependencies': [
         'base',
-        'base_gfx',
+        'base_i18n',
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
       ],
