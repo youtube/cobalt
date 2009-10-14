@@ -120,6 +120,7 @@ const std::wstring& EmptyWString();
 const string16& EmptyString16();
 
 extern const wchar_t kWhitespaceWide[];
+extern const char16 kWhitespaceUTF16[];
 extern const char kWhitespaceASCII[];
 
 // Removes characters in trim_chars from the beginning and end of input.
@@ -127,6 +128,9 @@ extern const char kWhitespaceASCII[];
 bool TrimString(const std::wstring& input,
                 const wchar_t trim_chars[],
                 std::wstring* output);
+bool TrimString(const string16& input,
+                const char16 trim_chars[],
+                string16* output);
 bool TrimString(const std::string& input,
                 const char trim_chars[],
                 std::string* output);
@@ -147,6 +151,9 @@ enum TrimPositions {
 TrimPositions TrimWhitespace(const std::wstring& input,
                              TrimPositions positions,
                              std::wstring* output);
+TrimPositions TrimWhitespace(const string16& input,
+                             TrimPositions positions,
+                             string16* output);
 TrimPositions TrimWhitespaceASCII(const std::string& input,
                                   TrimPositions positions,
                                   std::string* output);
