@@ -23,8 +23,8 @@ class TimeDelta;
 namespace net {
 
 // HttpResponseHeaders: parses and holds HTTP response headers.
-class HttpResponseHeaders :
-    public base::RefCountedThreadSafe<HttpResponseHeaders> {
+class HttpResponseHeaders
+    : public base::RefCountedThreadSafe<HttpResponseHeaders> {
  public:
   // Parses the given raw_headers.  raw_headers should be formatted thus:
   // includes the http status response line, each line is \0-terminated, and
@@ -211,8 +211,8 @@ class HttpResponseHeaders :
   // no such header in the response.
   int64 GetContentLength() const;
 
-  // Extracts the values in Content-Range header, if the header exists and is
-  // well formatted returns true, else returns false.
+  // Extracts the values in a Content-Range header and returns true if they are
+  // valid for a 206 response; otherwise returns false.
   // The following values will be outputted:
   // |*first_byte_position| = inclusive position of the first byte of the range
   // |*last_byte_position| = inclusive position of the last byte of the range
