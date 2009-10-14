@@ -88,12 +88,7 @@ std::wstring FileVersionInfo::private_build() {
 }
 
 std::wstring FileVersionInfo::file_version() {
-  // CFBundleVersion has limitations that may not be honored by a
-  // proper Chromium version number, so try KSVersion first.
-  std::wstring version = GetStringValue(L"KSVersion");
-  if (version.empty())
-    version = GetStringValue(L"CFBundleVersion");
-  return version;
+  return product_version();
 }
 
 std::wstring FileVersionInfo::original_filename() {
