@@ -748,7 +748,7 @@ TEST_F(URLRequestTest, FileTestFullSpecifiedRange) {
   FilePath temp_path;
   EXPECT_TRUE(file_util::CreateTemporaryFile(&temp_path));
   GURL temp_url = net::FilePathToFileURL(temp_path);
-  file_util::WriteFile(temp_path, buffer.get(), buffer_size);
+  EXPECT_TRUE(file_util::WriteFile(temp_path, buffer.get(), buffer_size));
 
   int64 file_size;
   EXPECT_TRUE(file_util::GetFileSize(temp_path, &file_size));
@@ -789,7 +789,7 @@ TEST_F(URLRequestTest, FileTestHalfSpecifiedRange) {
   FilePath temp_path;
   EXPECT_TRUE(file_util::CreateTemporaryFile(&temp_path));
   GURL temp_url = net::FilePathToFileURL(temp_path);
-  file_util::WriteFile(temp_path, buffer.get(), buffer_size);
+  EXPECT_TRUE(file_util::WriteFile(temp_path, buffer.get(), buffer_size));
 
   int64 file_size;
   EXPECT_TRUE(file_util::GetFileSize(temp_path, &file_size));
@@ -829,7 +829,7 @@ TEST_F(URLRequestTest, FileTestMultipleRanges) {
   FilePath temp_path;
   EXPECT_TRUE(file_util::CreateTemporaryFile(&temp_path));
   GURL temp_url = net::FilePathToFileURL(temp_path);
-  file_util::WriteFile(temp_path, buffer.get(), buffer_size);
+  EXPECT_TRUE(file_util::WriteFile(temp_path, buffer.get(), buffer_size));
 
   int64 file_size;
   EXPECT_TRUE(file_util::GetFileSize(temp_path, &file_size));
