@@ -577,10 +577,10 @@ int SocketStream::DoReadWrite(int result) {
     }
   }
   if (write_buf_ && !current_write_buf_) {
-    current_write_buf_ = new ReusedIOBuffer(write_buf_, write_buf_size_);
+    current_write_buf_ = new DrainableIOBuffer(write_buf_, write_buf_size_);
     current_write_buf_->SetOffset(write_buf_offset_);
     result = socket_->Write(current_write_buf_,
-                            write_buf_size_ - write_buf_offset_,
+                            current_write_buf_->BytesRemaining(),
                             &write_callback_);
     if (result > 0) {
       DidSendData(result);

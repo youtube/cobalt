@@ -185,7 +185,7 @@ int SparseControl::StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
   // Copy the operation parameters.
   operation_ = op;
   offset_ = offset;
-  user_buf_ = buf ? new net::ReusedIOBuffer(buf, buf_len) : NULL;
+  user_buf_ = buf ? new net::DrainableIOBuffer(buf, buf_len) : NULL;
   buf_len_ = buf_len;
   user_callback_ = callback;
 
@@ -693,7 +693,7 @@ void SparseControl::DoChildIOCompleted(int result) {
 
   // We'll be reusing the user provided buffer for the next chunk.
   if (buf_len_ && user_buf_)
-    user_buf_->SetOffset(result_);
+    user_buf_->DidConsume(result);
 }
 
 void SparseControl::OnChildIOCompleted(int result) {

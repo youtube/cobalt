@@ -192,11 +192,7 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   // Buffer passed to the Write method of control socket. It actually writes
   // to the write_command_buf_ at correct offset.
-  scoped_refptr<ReusedIOBuffer> write_buf_;
-
-  // Number of bytes from write_command_buf_ that we've already sent to the
-  // server.
-  int write_command_buf_written_;
+  scoped_refptr<DrainableIOBuffer> write_buf_;
 
   int last_error_;
 
