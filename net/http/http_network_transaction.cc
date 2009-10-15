@@ -1707,7 +1707,8 @@ std::string HttpNetworkTransaction::AuthTargetString(
 }
 
 void HttpNetworkTransaction::InvalidateRejectedAuthFromCache(
-    HttpAuth::Target target) {
+    HttpAuth::Target target,
+    const GURL& auth_origin) {
   DCHECK(HaveAuth(target));
 
   // TODO(eroman): this short-circuit can be relaxed. If the realm of
@@ -1720,7 +1721,7 @@ void HttpNetworkTransaction::InvalidateRejectedAuthFromCache(
   // Clear the cache entry for the identity we just failed on.
   // Note: we require the username/password to match before invalidating
   // since the entry in the cache may be newer than what we used last time.
-  session_->auth_cache()->Remove(AuthOrigin(target),
+  session_->auth_cache()->Remove(auth_origin,
                                  auth_handler_[target]->realm(),
                                  auth_identity_[target].username,
                                  auth_identity_[target].password);
@@ -1757,7 +1758,8 @@ bool HttpNetworkTransaction::SelectPreemptiveAuth(HttpAuth::Target target) {
 }
 
 bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
-    HttpAuth::Target target) {
+    HttpAuth::Target target,
+    const GURL& auth_origin) {
   DCHECK(auth_handler_[target]);
   DCHECK(auth_identity_[target].invalid);
 
@@ -1778,7 +1780,7 @@ bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
 
   // Check the auth cache for a realm entry.
   HttpAuthCache::Entry* entry = session_->auth_cache()->LookupByRealm(
-      AuthOrigin(target), auth_handler_[target]->realm());
+      auth_origin, auth_handler_[target]->realm());
 
   if (entry) {
     // Disallow re-using of identity if the scheme of the originating challenge
@@ -1845,9 +1847,10 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
     return OK;
   HttpAuth::Target target = status == 407 ?
       HttpAuth::AUTH_PROXY : HttpAuth::AUTH_SERVER;
+  GURL auth_origin = AuthOrigin(target);
 
   LOG(INFO) << "The " << AuthTargetString(target) << " "
-            << AuthOrigin(target) << " requested auth"
+            << auth_origin << " requested auth"
             << AuthChallengeLogMessage();
 
   if (target == HttpAuth::AUTH_PROXY && proxy_info_.is_direct())
@@ -1861,7 +1864,7 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   // determine if the server already failed the auth or wants us to continue.
   // See http://crbug.com/21015.
   if (HaveAuth(target) && auth_handler_[target]->IsFinalRound()) {
-    InvalidateRejectedAuthFromCache(target);
+    InvalidateRejectedAuthFromCache(target, auth_origin);
     auth_handler_[target] = NULL;
     auth_identity_[target] = HttpAuth::Identity();
   }
@@ -1873,15 +1876,14 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
     // Find the best authentication challenge that we support.
     HttpAuth::ChooseBestChallenge(response_.headers.get(),
                                   target,
-                                  AuthOrigin(target),
+                                  auth_origin,
                                   &auth_handler_[target]);
   }
 
   if (!auth_handler_[target]) {
     if (establishing_tunnel_) {
       LOG(ERROR) << "Can't perform auth to the " << AuthTargetString(target)
-                 << " " << AuthOrigin(target)
-                 << " when establishing a tunnel"
+                 << " " << auth_origin << " when establishing a tunnel"
                  << AuthChallengeLogMessage();
 
       // We are establishing a tunnel, we can't show the error page because an
@@ -1898,7 +1900,7 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   if (auth_handler_[target]->NeedsIdentity()) {
     // Pick a new auth identity to try, by looking to the URL and auth cache.
     // If an identity to try is found, it is saved to auth_identity_[target].
-    SelectNextAuthIdentityToTry(target);
+    SelectNextAuthIdentityToTry(target, auth_origin);
   } else {
     // Proceed with the existing identity or a null identity.
     //
@@ -1914,18 +1916,19 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   if (auth_identity_[target].invalid) {
     // We have exhausted all identity possibilities, all we can do now is
     // pass the challenge information back to the client.
-    PopulateAuthChallenge(target);
+    PopulateAuthChallenge(target, auth_origin);
   }
   return OK;
 }
 
-void HttpNetworkTransaction::PopulateAuthChallenge(HttpAuth::Target target) {
+void HttpNetworkTransaction::PopulateAuthChallenge(HttpAuth::Target target,
+                                                   const GURL& auth_origin) {
   // Populates response_.auth_challenge with the authentication challenge info.
   // This info is consumed by URLRequestHttpJob::GetAuthChallengeInfo().
 
   AuthChallengeInfo* auth_info = new AuthChallengeInfo;
   auth_info->is_proxy = target == HttpAuth::AUTH_PROXY;
-  auth_info->host_and_port = ASCIIToWide(GetHostAndPort(AuthOrigin(target)));
+  auth_info->host_and_port = ASCIIToWide(GetHostAndPort(auth_origin));
   auth_info->scheme = ASCIIToWide(auth_handler_[target]->scheme());
   // TODO(eroman): decode realm according to RFC 2047.
   auth_info->realm = ASCIIToWide(auth_handler_[target]->realm());
