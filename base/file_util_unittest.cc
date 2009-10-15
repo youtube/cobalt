@@ -380,6 +380,63 @@ TEST_F(FileUtilTest, Delete) {
   EXPECT_FALSE(file_util::PathExists(subdir_path));
 }
 
+TEST_F(FileUtilTest, MoveFileNew) {
+  // Create a file
+  FilePath file_name_from =
+      test_dir_.Append(FILE_PATH_LITERAL("Move_Test_File.txt"));
+  CreateTextFile(file_name_from, L"Gooooooooooooooooooooogle");
+  ASSERT_TRUE(file_util::PathExists(file_name_from));
+
+  // The destination
+  FilePath file_name_to =
+      test_dir_.Append(FILE_PATH_LITERAL("Move_Test_File_Destination.txt"));
+  ASSERT_FALSE(file_util::PathExists(file_name_to));
+
+  EXPECT_TRUE(file_util::Move(file_name_from, file_name_to));
+
+  // Check everything has been moved.
+  EXPECT_FALSE(file_util::PathExists(file_name_from));
+  EXPECT_TRUE(file_util::PathExists(file_name_to));
+}
+
+TEST_F(FileUtilTest, MoveFileExists) {
+  // Create a file
+  FilePath file_name_from =
+      test_dir_.Append(FILE_PATH_LITERAL("Move_Test_File.txt"));
+  CreateTextFile(file_name_from, L"Gooooooooooooooooooooogle");
+  ASSERT_TRUE(file_util::PathExists(file_name_from));
+
+  // The destination name
+  FilePath file_name_to =
+      test_dir_.Append(FILE_PATH_LITERAL("Move_Test_File_Destination.txt"));
+  CreateTextFile(file_name_to, L"Old file content");
+  ASSERT_TRUE(file_util::PathExists(file_name_to));
+
+  EXPECT_TRUE(file_util::Move(file_name_from, file_name_to));
+
+  // Check everything has been moved.
+  EXPECT_FALSE(file_util::PathExists(file_name_from));
+  EXPECT_TRUE(file_util::PathExists(file_name_to));
+  EXPECT_TRUE(L"Gooooooooooooooooooooogle" == ReadTextFile(file_name_to));
+}
+
+TEST_F(FileUtilTest, MoveFileDirExists) {
+  // Create a file
+  FilePath file_name_from =
+      test_dir_.Append(FILE_PATH_LITERAL("Move_Test_File.txt"));
+  CreateTextFile(file_name_from, L"Gooooooooooooooooooooogle");
+  ASSERT_TRUE(file_util::PathExists(file_name_from));
+
+  // The destination directory
+  FilePath dir_name_to =
+      test_dir_.Append(FILE_PATH_LITERAL("Destination"));
+  file_util::CreateDirectory(dir_name_to);
+  ASSERT_TRUE(file_util::PathExists(dir_name_to));
+
+  EXPECT_FALSE(file_util::Move(file_name_from, dir_name_to));
+}
+
+
 TEST_F(FileUtilTest, MoveNew) {
   // Create a directory
   FilePath dir_name_from =
@@ -643,6 +700,65 @@ TEST_F(FileUtilTest, CopyDirectoryExists) {
   EXPECT_TRUE(file_util::PathExists(dir_name_to));
   EXPECT_TRUE(file_util::PathExists(file_name_to));
   EXPECT_FALSE(file_util::PathExists(subdir_name_to));
+}
+
+TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToNew) {
+  // Create a file
+  FilePath file_name_from =
+      test_dir_.Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
+  CreateTextFile(file_name_from, L"Gooooooooooooooooooooogle");
+  ASSERT_TRUE(file_util::PathExists(file_name_from));
+
+  // The destination name
+  FilePath file_name_to =
+      test_dir_.Append(FILE_PATH_LITERAL("Copy_Test_File_Destination.txt"));
+  ASSERT_FALSE(file_util::PathExists(file_name_to));
+
+  EXPECT_TRUE(file_util::CopyDirectory(file_name_from, file_name_to, true));
+
+  // Check the has been copied
+  EXPECT_TRUE(file_util::PathExists(file_name_to));
+}
+
+TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToExisting) {
+  // Create a file
+  FilePath file_name_from =
+      test_dir_.Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
+  CreateTextFile(file_name_from, L"Gooooooooooooooooooooogle");
+  ASSERT_TRUE(file_util::PathExists(file_name_from));
+
+  // The destination name
+  FilePath file_name_to =
+      test_dir_.Append(FILE_PATH_LITERAL("Copy_Test_File_Destination.txt"));
+  CreateTextFile(file_name_to, L"Old file content");
+  ASSERT_TRUE(file_util::PathExists(file_name_to));
+
+  EXPECT_TRUE(file_util::CopyDirectory(file_name_from, file_name_to, true));
+
+  // Check the has been copied
+  EXPECT_TRUE(file_util::PathExists(file_name_to));
+  EXPECT_TRUE(L"Gooooooooooooooooooooogle" == ReadTextFile(file_name_to));
+}
+
+TEST_F(FileUtilTest, CopyFileWithCopyDirectoryRecursiveToExistingDirectory) {
+  // Create a file
+  FilePath file_name_from =
+      test_dir_.Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
+  CreateTextFile(file_name_from, L"Gooooooooooooooooooooogle");
+  ASSERT_TRUE(file_util::PathExists(file_name_from));
+
+  // The destination
+  FilePath dir_name_to =
+      test_dir_.Append(FILE_PATH_LITERAL("Destination"));
+  file_util::CreateDirectory(dir_name_to);
+  ASSERT_TRUE(file_util::PathExists(dir_name_to));
+  FilePath file_name_to =
+      dir_name_to.Append(FILE_PATH_LITERAL("Copy_Test_File.txt"));
+
+  EXPECT_TRUE(file_util::CopyDirectory(file_name_from, dir_name_to, true));
+
+  // Check the has been copied
+  EXPECT_TRUE(file_util::PathExists(file_name_to));
 }
 
 TEST_F(FileUtilTest, CopyFile) {
