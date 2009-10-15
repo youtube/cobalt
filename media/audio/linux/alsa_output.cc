@@ -88,6 +88,11 @@
 // busy looping.
 static const int kNoDataSleepMilliseconds = 10;
 
+// According to the linux nanosleep manpage, nanosleep on linux can miss the
+// deadline by up to 10ms because the kernel timeslice is 10ms.  Give a 2x
+// buffer to compensate for the timeslice, and any additional slowdowns.
+static const int kSleepErrorMilliseconds = 20;
+
 // Set to 0 during debugging if you want error messages due to underrun
 // events or other recoverable errors.
 #if defined(NDEBUG)
@@ -499,6 +504,11 @@ void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
   int frames_until_empty_enough = frames_needed - GetAvailableFrames();
   int next_fill_time_ms =
       FramesToMillis(frames_until_empty_enough, sample_rate_);
+
+  // Adjust for timer resolution issues.
+  if (next_fill_time_ms > kSleepErrorMilliseconds) {
+    next_fill_time_ms -= kSleepErrorMilliseconds;
+  }
 
   // Avoid busy looping if the data source is exhausted.
   if (current_packet->size == 0) {
