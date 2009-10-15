@@ -248,17 +248,20 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   // Populates response_.auth_challenge with the challenge information, so that
   // URLRequestHttpJob can prompt for a username/password.
-  void PopulateAuthChallenge(HttpAuth::Target target);
+  void PopulateAuthChallenge(HttpAuth::Target target,
+                             const GURL& auth_origin);
 
   // Invalidates any auth cache entries after authentication has failed.
   // The identity that was rejected is auth_identity_[target].
-  void InvalidateRejectedAuthFromCache(HttpAuth::Target target);
+  void InvalidateRejectedAuthFromCache(HttpAuth::Target target,
+                                       const GURL& auth_origin);
 
   // Sets auth_identity_[target] to the next identity that the transaction
   // should try. It chooses candidates by searching the auth cache
   // and the URL for a username:password. Returns true if an identity
   // was found.
-  bool SelectNextAuthIdentityToTry(HttpAuth::Target target);
+  bool SelectNextAuthIdentityToTry(HttpAuth::Target target,
+                                   const GURL& auth_origin);
 
   // Searches the auth cache for an entry that encompasses the request's path.
   // If such an entry is found, updates auth_identity_[target] and
