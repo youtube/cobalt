@@ -11,51 +11,41 @@
 #include "base/message_loop.h"
 #include "base/task.h"
 #include "base/timer.h"
+#include "build/build_config.h"
 #include "net/base/test_completion_callback.h"
 
 class FilePath;
 
 // Re-creates a given test file inside the cache test folder.
 bool CreateCacheTestFile(const FilePath& name);
-// Deprecated.
-bool CreateCacheTestFile(const wchar_t* name);
 
 // Deletes all file son the cache.
 bool DeleteCache(const FilePath& path);
-// Deprecated.
-bool DeleteCache(const wchar_t* path);
 
 // Gets the path to the cache test folder.
 FilePath GetCacheFilePath();
-// Deprecated.
-std::wstring GetCachePath();
 
 // Fills buffer with random values (may contain nulls unless no_nulls is true).
 void CacheTestFillBuffer(char* buffer, size_t len, bool no_nulls);
-
-// Deletes all files matching a pattern.
-// Do not call this function with "*" as search_name.
-bool DeleteFiles(const wchar_t* path, const wchar_t* search_name);
 
 // Generates a random key of up to 200 bytes.
 std::string GenerateKey(bool same_length);
 
 // Returns true if the cache is not corrupt.
-bool CheckCacheIntegrity(const std::wstring& path, bool new_eviction);
+bool CheckCacheIntegrity(const FilePath& path, bool new_eviction);
 
-// Helper class which ensures that the cache dir returned by GetCachePath exists
-// and is clear in ctor and that the directory gets deleted in dtor.
+// Helper class which ensures that the cache dir returned by GetCacheFilePath
+// exists and is clear in ctor and that the directory gets deleted in dtor.
 class ScopedTestCache {
  public:
   ScopedTestCache();
-  ScopedTestCache(const std::wstring& name);  // Use a specific folder name.
+  ScopedTestCache(const std::string& name);  // Use a specific folder name.
   ~ScopedTestCache();
 
-  FilePath path() const { return FilePath::FromWStringHack(path_); }
-  std::wstring path_wstring() const { return path_; }
+  FilePath path() const { return path_; }
 
  private:
-  const std::wstring path_;  // Path to the cache test folder.
+  const FilePath path_;  // Path to the cache test folder.
 
   DISALLOW_COPY_AND_ASSIGN(ScopedTestCache);
 };

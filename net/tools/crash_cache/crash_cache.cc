@@ -78,47 +78,46 @@ extern RankCrashes g_rankings_crash;
 const char* kCrashEntryName = "the first key";
 
 // Creates the destinaton folder for this run, and returns it on full_path.
-bool CreateTargetFolder(const std::wstring& path, RankCrashes action,
-                        std::wstring* full_path) {
-  const wchar_t* folders[] = {
-    L"",
-    L"insert_empty1",
-    L"insert_empty2",
-    L"insert_empty3",
-    L"insert_one1",
-    L"insert_one2",
-    L"insert_one3",
-    L"insert_load1",
-    L"insert_load2",
-    L"remove_one1",
-    L"remove_one2",
-    L"remove_one3",
-    L"remove_one4",
-    L"remove_head1",
-    L"remove_head2",
-    L"remove_head3",
-    L"remove_head4",
-    L"remove_tail1",
-    L"remove_tail2",
-    L"remove_tail3",
-    L"remove_load1",
-    L"remove_load2",
-    L"remove_load3"
+bool CreateTargetFolder(const FilePath& path, RankCrashes action,
+                        FilePath* full_path) {
+  const char* folders[] = {
+    "",
+    "insert_empty1",
+    "insert_empty2",
+    "insert_empty3",
+    "insert_one1",
+    "insert_one2",
+    "insert_one3",
+    "insert_load1",
+    "insert_load2",
+    "remove_one1",
+    "remove_one2",
+    "remove_one3",
+    "remove_one4",
+    "remove_head1",
+    "remove_head2",
+    "remove_head3",
+    "remove_head4",
+    "remove_tail1",
+    "remove_tail2",
+    "remove_tail3",
+    "remove_load1",
+    "remove_load2",
+    "remove_load3"
   };
   COMPILE_ASSERT(arraysize(folders) == disk_cache::MAX_CRASH, sync_folders);
   DCHECK(action > disk_cache::NO_CRASH && action < disk_cache::MAX_CRASH);
 
-  *full_path = path;
-  file_util::AppendToPath(full_path, folders[action]);
+  *full_path = path.AppendASCII(folders[action]);
 
-  if (file_util::PathExists(FilePath::FromWStringHack(*full_path)))
+  if (file_util::PathExists(*full_path))
     return false;
 
   return file_util::CreateDirectory(*full_path);
 }
 
 // Generates the files for an empty and one item cache.
-int SimpleInsert(const std::wstring& path, RankCrashes action) {
+int SimpleInsert(const FilePath& path, RankCrashes action) {
   disk_cache::Backend* cache = disk_cache::CreateCacheBackend(path, false, 0,
                                                               net::DISK_CACHE);
   if (!cache || cache->GetEntryCount())
@@ -148,7 +147,7 @@ int SimpleInsert(const std::wstring& path, RankCrashes action) {
 }
 
 // Generates the files for a one item cache, and removing the head.
-int SimpleRemove(const std::wstring& path, RankCrashes action) {
+int SimpleRemove(const FilePath& path, RankCrashes action) {
   DCHECK(action >= disk_cache::REMOVE_ONE_1);
   DCHECK(action <= disk_cache::REMOVE_TAIL_3);
 
@@ -180,7 +179,7 @@ int SimpleRemove(const std::wstring& path, RankCrashes action) {
   return NOT_REACHED;
 }
 
-int HeadRemove(const std::wstring& path, RankCrashes action) {
+int HeadRemove(const FilePath& path, RankCrashes action) {
   DCHECK(action >= disk_cache::REMOVE_HEAD_1);
   DCHECK(action <= disk_cache::REMOVE_HEAD_4);
 
@@ -210,12 +209,12 @@ int HeadRemove(const std::wstring& path, RankCrashes action) {
 }
 
 // Generates the files for insertion and removals on heavy loaded caches.
-int LoadOperations(const std::wstring& path, RankCrashes action) {
+int LoadOperations(const FilePath& path, RankCrashes action) {
   DCHECK(action >= disk_cache::INSERT_LOAD_1);
 
   // Work with a tiny index table (16 entries)
   disk_cache::BackendImpl* cache =
-      new disk_cache::BackendImpl(FilePath::FromWStringHack(path), 0xf);
+      new disk_cache::BackendImpl(path, 0xf);
   if (!cache || !cache->SetMaxSize(0x100000) || !cache->Init() ||
       cache->GetEntryCount())
     return GENERIC;
@@ -255,10 +254,10 @@ int LoadOperations(const std::wstring& path, RankCrashes action) {
 }
 
 // Main function on the child process.
-int SlaveCode(const std::wstring& path, RankCrashes action) {
+int SlaveCode(const FilePath& path, RankCrashes action) {
   MessageLoop message_loop;
 
-  std::wstring full_path;
+  FilePath full_path;
   if (!CreateTargetFolder(path, action, &full_path)) {
     printf("Destination folder found, please remove it.\n");
     return CRASH_OVERWRITE;
@@ -308,5 +307,5 @@ int main(int argc, const char* argv[]) {
   path = path.AppendASCII("cache_tests");
   path = path.AppendASCII("new_crashes");
 
-  return SlaveCode(path.ToWStringHack(), action);
+  return SlaveCode(path, action);
 }
