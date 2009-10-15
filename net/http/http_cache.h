@@ -18,6 +18,7 @@
 #include <set>
 
 #include "base/basictypes.h"
+#include "base/file_path.h"
 #include "base/hash_tables.h"
 #include "base/scoped_ptr.h"
 #include "base/task.h"
@@ -64,7 +65,7 @@ class HttpCache : public HttpTransactionFactory,
   HttpCache(HostResolver* host_resolver,
             ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
-            const std::wstring& cache_dir,
+            const FilePath& cache_dir,
             int cache_size);
 
   // Initialize the cache from the directory where its data is stored. The
@@ -73,7 +74,7 @@ class HttpCache : public HttpTransactionFactory,
   // Provide an existing HttpNetworkSession, the cache can construct a
   // network layer with a shared HttpNetworkSession in order for multiple
   // network layers to share information (e.g. authenication data).
-  HttpCache(HttpNetworkSession* session, const std::wstring& cache_dir,
+  HttpCache(HttpNetworkSession* session, const FilePath& cache_dir,
             int cache_size);
 
   // Initialize using an in-memory cache. The cache is initialized lazily
@@ -186,7 +187,7 @@ class HttpCache : public HttpTransactionFactory,
   // Variables ----------------------------------------------------------------
 
   // used when lazily constructing the disk_cache_
-  std::wstring disk_cache_dir_;
+  FilePath disk_cache_dir_;
 
   Mode mode_;
   CacheType type_;
