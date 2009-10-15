@@ -16,6 +16,8 @@
 #include "net/base/cache_type.h"
 #include "net/base/completion_callback.h"
 
+class FilePath;
+
 namespace net {
 class IOBuffer;
 }
@@ -34,7 +36,7 @@ class Backend;
 // If zero is passed in as max_bytes, the cache will determine the value to use
 // based on the available disk space. The returned pointer can be NULL if a
 // fatal error is found.
-Backend* CreateCacheBackend(const std::wstring& path, bool force,
+Backend* CreateCacheBackend(const FilePath& path, bool force,
                             int max_bytes, net::CacheType type);
 
 // Returns an instance of a Backend implemented only in memory. The returned

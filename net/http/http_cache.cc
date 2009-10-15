@@ -1670,8 +1670,9 @@ int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
       // was an in-memory cache.
       disk_cache_.reset(disk_cache::CreateInMemoryCacheBackend(cache_size_));
     } else if (!disk_cache_dir_.empty()) {
-      disk_cache_.reset(disk_cache::CreateCacheBackend(disk_cache_dir_, true,
-                                                       cache_size_, type_));
+      disk_cache_.reset(disk_cache::CreateCacheBackend(
+          FilePath::FromWStringHack(disk_cache_dir_), true, cache_size_,
+          type_));
       disk_cache_dir_.clear();  // Reclaim memory.
     }
   }

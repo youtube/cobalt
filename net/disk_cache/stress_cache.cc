@@ -76,10 +76,8 @@ int MasterCode() {
 // to know which instance of the application wrote them.
 void StressTheCache(int iteration) {
   int cache_size = 0x800000;  // 8MB
-  std::wstring path = GetCachePath();
-  path.append(L"_stress");
-  disk_cache::BackendImpl* cache =
-      new disk_cache::BackendImpl(FilePath::FromWStringHack(path));
+  FilePath path = GetCacheFilePath().AppendASCII("_stress");
+  disk_cache::BackendImpl* cache = new disk_cache::BackendImpl(path);
   cache->SetFlags(disk_cache::kNoLoadProtection | disk_cache::kNoRandom);
   cache->SetMaxSize(cache_size);
   cache->SetType(net::DISK_CACHE);
