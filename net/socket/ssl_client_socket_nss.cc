@@ -51,6 +51,7 @@
 #include "net/socket/ssl_client_socket_nss.h"
 
 #include <certdb.h>
+#include <keyhi.h>
 #include <nspr.h>
 #include <nss.h>
 #include <secerr.h>
@@ -69,6 +70,7 @@
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
 #include "net/ocsp/nss_ocsp.h"
 
@@ -164,6 +166,8 @@ int NetErrorFromNSPRError(PRErrorCode err) {
     case SEC_ERROR_UNTRUSTED_CERT:
     case SEC_ERROR_UNTRUSTED_ISSUER:
       return ERR_CERT_AUTHORITY_INVALID;
+    case SSL_ERROR_HANDSHAKE_FAILURE_ALERT:
+      return ERR_SSL_PROTOCOL_ERROR;
 
     default: {
       if (IS_SSL_ERROR(err)) {
@@ -205,6 +209,8 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocket* transport_socket,
       user_write_callback_(NULL),
       user_read_buf_len_(0),
       user_write_buf_len_(0),
+      client_auth_ca_names_(NULL),
+      client_auth_cert_needed_(false),
       completed_handshake_(false),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
@@ -318,6 +324,10 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   if (rv != SECSuccess)
      return ERR_UNEXPECTED;
 
+  rv = SSL_GetClientAuthDataHook(nss_fd_, ClientAuthHandler, this);
+  if (rv != SECSuccess)
+     return ERR_UNEXPECTED;
+
   rv = SSL_HandshakeCallback(nss_fd_, HandshakeCallback, this);
   if (rv != SECSuccess)
     return ERR_UNEXPECTED;
@@ -373,6 +383,11 @@ void SSLClientSocketNSS::Disconnect() {
   server_cert_verify_result_.Reset();
   completed_handshake_   = false;
   nss_bufs_              = NULL;
+  if (client_auth_ca_names_) {
+    CERT_FreeDistNames(client_auth_ca_names_);
+    client_auth_ca_names_ = NULL;
+  }
+  client_auth_cert_needed_ = false;
 
   LeaveFunction("");
 }
@@ -508,7 +523,41 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
 
 void SSLClientSocketNSS::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
-  // TODO(wtc): implement this.
+  EnterFunction("");
+  cert_request_info->host_and_port = hostname_;
+  cert_request_info->client_certs.clear();
+
+  void* wincx = SSL_RevealPinArg(nss_fd_);
+
+  CERTCertNicknames* names = CERT_GetCertNicknames(
+      CERT_GetDefaultCertDB(), SEC_CERT_NICKNAMES_USER, wincx);
+
+  if (names) {
+    for (int i = 0; i < names->numnicknames; ++i) {
+      CERTCertificate* cert = CERT_FindUserCertByUsage(
+          CERT_GetDefaultCertDB(), names->nicknames[i],
+          certUsageSSLClient, PR_FALSE, wincx);
+      if (!cert)
+        continue;
+      // Only check unexpired certs.
+      if (CERT_CheckCertValidTimes(cert, PR_Now(), PR_TRUE) ==
+          secCertTimeValid &&
+          NSS_CmpCertChainWCANames(cert, client_auth_ca_names_) ==
+          SECSuccess) {
+        SECKEYPrivateKey* privkey = PK11_FindKeyByAnyCert(cert, wincx);
+        if (privkey) {
+          X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
+              cert, X509Certificate::SOURCE_LONE_CERT_IMPORT);
+          cert_request_info->client_certs.push_back(x509_cert);
+          SECKEY_DestroyPrivateKey(privkey);
+          continue;
+        }
+      }
+      CERT_DestroyCertificate(cert);
+    }
+    CERT_FreeNicknames(names);
+  }
+  LeaveFunction(cert_request_info->client_certs.size());
 }
 
 void SSLClientSocketNSS::DoReadCallback(int rv) {
@@ -821,6 +870,55 @@ SECStatus SSLClientSocketNSS::OwnAuthCertHandler(void* arg,
 }
 
 // static
+// NSS calls this if a client certificate is needed.
+// Based on Mozilla's NSS_GetClientAuthData.
+SECStatus SSLClientSocketNSS::ClientAuthHandler(
+    void* arg,
+    PRFileDesc* socket,
+    CERTDistNames* ca_names,
+    CERTCertificate** result_certificate,
+    SECKEYPrivateKey** result_private_key) {
+  SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
+
+  that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
+
+  // Second pass: a client certificate should have been selected.
+  if (that->ssl_config_.send_client_cert) {
+    if (that->ssl_config_.client_cert) {
+      void* wincx = SSL_RevealPinArg(socket);
+      CERTCertificate* cert = CERT_DupCertificate(
+          that->ssl_config_.client_cert->os_cert_handle());
+      SECKEYPrivateKey* privkey = PK11_FindKeyByAnyCert(cert, wincx);
+      if (privkey) {
+        // TODO(jsorianopastor): We should wait for server certificate
+        // verification before sending our credentials.  See
+        // http://crbug.com/13934.
+        *result_certificate = cert;
+        *result_private_key = privkey;
+        return SECSuccess;
+      }
+      LOG(WARNING) << "Client cert found without private key";
+    }
+    // Send no client certificate.
+    return SECFailure;
+  }
+
+  PRArenaPool* arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+  CERTDistNames* ca_names_copy = PORT_ArenaZNew(arena, CERTDistNames);
+
+  ca_names_copy->arena = arena;
+  ca_names_copy->head = NULL;
+  ca_names_copy->nnames = ca_names->nnames;
+  ca_names_copy->names = PORT_ArenaZNewArray(arena, SECItem,
+                                             ca_names->nnames);
+  for (int i = 0; i < ca_names->nnames; ++i)
+    SECITEM_CopyItem(arena, &ca_names_copy->names[i], &ca_names->names[i]);
+
+  that->client_auth_ca_names_ = ca_names_copy;
+  return SECFailure;
+}
+
+// static
 // NSS calls this when handshake is completed.
 // After the SSL handshake is finished, use CertVerifier to verify
 // the saved server certificate.
@@ -834,9 +932,19 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
 int SSLClientSocketNSS::DoHandshake() {
   EnterFunction("");
   int net_error = net::OK;
-  int rv = SSL_ForceHandshake(nss_fd_);
+  SECStatus rv = SSL_ForceHandshake(nss_fd_);
 
-  if (rv == SECSuccess) {
+  if (client_auth_cert_needed_) {
+    net_error = ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+    // If the handshake already succeeded (because the server requests but
+    // doesn't require a client cert), we need to invalidate the SSL session
+    // so that we won't try to resume the non-client-authenticated session in
+    // the next handshake.  This will cause the server to ask for a client
+    // cert again.
+    if (rv == SECSuccess && SSL_InvalidateSession(nss_fd_) != SECSuccess) {
+      LOG(WARNING) << "Couldn't invalidate SSL session: " << PR_GetError();
+    }
+  } else if (rv == SECSuccess) {
     // SSL handshake is completed.  Let's verify the certificate.
     GotoState(STATE_VERIFY_CERT);
     // Done!
@@ -946,6 +1054,12 @@ int SSLClientSocketNSS::DoPayloadRead() {
   DCHECK(user_read_buf_);
   DCHECK(user_read_buf_len_ > 0);
   int rv = PR_Read(nss_fd_, user_read_buf_->data(), user_read_buf_len_);
+  if (client_auth_cert_needed_) {
+    // We don't need to invalidate the non-client-authenticated SSL session
+    // because the server will renegotiate anyway.
+    LeaveFunction("");
+    return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+  }
   if (rv >= 0) {
     LogData(user_read_buf_->data(), rv);
     LeaveFunction("");

@@ -10,8 +10,10 @@
 #define Lock FOO_NSS_Lock
 #include <certt.h>
 #undef Lock
+#include <keyt.h>
 #include <nspr.h>
 #include <nss.h>
+
 #include <string>
 
 #include "base/scoped_ptr.h"
@@ -85,6 +87,12 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // argument.
   static SECStatus OwnAuthCertHandler(void* arg, PRFileDesc* socket,
                                       PRBool checksig, PRBool is_server);
+  // NSS calls this when client authentication is requested.
+  static SECStatus ClientAuthHandler(void* arg,
+                                     PRFileDesc* socket,
+                                     CERTDistNames* ca_names,
+                                     CERTCertificate** result_certificate,
+                                     SECKEYPrivateKey** result_private_key);
   // NSS calls this when handshake is completed.  We pass 'this' as the second
   // argument.
   static void HandshakeCallback(PRFileDesc* socket, void* arg);
@@ -115,6 +123,11 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // Set when handshake finishes.
   scoped_refptr<X509Certificate> server_cert_;
   CertVerifyResult server_cert_verify_result_;
+
+  // Stores client authentication information between ClientAuthHandler and
+  // GetSSLCertRequestInfo calls.
+  CERTDistNames* client_auth_ca_names_;
+  bool client_auth_cert_needed_;
 
   scoped_ptr<CertVerifier> verifier_;
 
