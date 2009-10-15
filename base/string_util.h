@@ -251,6 +251,7 @@ template <class str> inline str StringToUpperASCII(const str& s) {
 // borrowed from the equivalent APIs in Mozilla.
 bool LowerCaseEqualsASCII(const std::string& a, const char* b);
 bool LowerCaseEqualsASCII(const std::wstring& a, const char* b);
+bool LowerCaseEqualsASCII(const string16& a, const char* b);
 
 // Same thing, but with string iterators instead.
 bool LowerCaseEqualsASCII(std::string::const_iterator a_begin,
@@ -259,11 +260,17 @@ bool LowerCaseEqualsASCII(std::string::const_iterator a_begin,
 bool LowerCaseEqualsASCII(std::wstring::const_iterator a_begin,
                           std::wstring::const_iterator a_end,
                           const char* b);
+bool LowerCaseEqualsASCII(string16::const_iterator a_begin,
+                          string16::const_iterator a_end,
+                          const char* b);
 bool LowerCaseEqualsASCII(const char* a_begin,
                           const char* a_end,
                           const char* b);
 bool LowerCaseEqualsASCII(const wchar_t* a_begin,
                           const wchar_t* a_end,
+                          const char* b);
+bool LowerCaseEqualsASCII(const char16* a_begin,
+                          const char16* a_end,
                           const char* b);
 
 // Performs a case-sensitive string compare. The behavior is undefined if both
@@ -277,10 +284,16 @@ bool StartsWithASCII(const std::string& str,
 bool StartsWith(const std::wstring& str,
                 const std::wstring& search,
                 bool case_sensitive);
+bool StartsWith(const string16& str,
+                const string16& search,
+                bool case_sensitive);
 
 // Returns true if str ends with search, or false otherwise.
 bool EndsWith(const std::wstring& str,
               const std::wstring& search,
+              bool case_sensitive);
+bool EndsWith(const string16& str,
+              const string16& search,
               bool case_sensitive);
 
 
@@ -467,6 +480,8 @@ inline typename string_type::value_type* WriteInto(string_type* str,
 template<typename Char> struct CaseInsensitiveCompare {
  public:
   bool operator()(Char x, Char y) const {
+    // TODO(darin): Do we really want to do locale sensitive comparisons here?
+    // See http://crbug.com/24917
     return tolower(x) == tolower(y);
   }
 };
