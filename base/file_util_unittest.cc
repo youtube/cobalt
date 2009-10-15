@@ -297,7 +297,7 @@ static const struct dir_case {
   {L"C:\\WINDOWS\\system32\\\\", L"C:\\WINDOWS\\system32"},
   {L"C:\\WINDOWS\\system32", L"C:\\WINDOWS"},
   {L"C:\\WINDOWS\\system32.\\", L"C:\\WINDOWS\\system32."},
-  {L"C:\\", L"C:"},
+  {L"C:\\", L"C:\\"},
 #elif defined(OS_POSIX)
   {L"/foo/bar/gdi32.dll", L"/foo/bar"},
   {L"/foo/bar/not_exist_thx_1138", L"/foo/bar"},
