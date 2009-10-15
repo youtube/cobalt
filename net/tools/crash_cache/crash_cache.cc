@@ -111,7 +111,7 @@ bool CreateTargetFolder(const std::wstring& path, RankCrashes action,
   *full_path = path;
   file_util::AppendToPath(full_path, folders[action]);
 
-  if (file_util::PathExists(FilePath::FromWStringHack(*full_path)))
+  if (file_util::PathExists(*full_path))
     return false;
 
   return file_util::CreateDirectory(*full_path);
