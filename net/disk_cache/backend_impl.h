@@ -52,7 +52,7 @@ class BackendImpl : public Backend {
 
   // Returns a new backend with the desired flags. See the declaration of
   // CreateCacheBackend().
-  static Backend* CreateBackend(const std::wstring& full_path, bool force,
+  static Backend* CreateBackend(const FilePath& full_path, bool force,
                                 int max_bytes, net::CacheType type,
                                 BackendFlags flags);
 

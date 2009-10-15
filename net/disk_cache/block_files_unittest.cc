@@ -28,7 +28,7 @@ int NumberOfFiles(const FilePath& path) {
 namespace disk_cache {
 
 TEST_F(DiskCacheTest, BlockFiles_Grow) {
-  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  FilePath path = GetCacheFilePath();
   ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
@@ -55,7 +55,7 @@ TEST_F(DiskCacheTest, BlockFiles_Grow) {
 
 // We should be able to delete empty block files.
 TEST_F(DiskCacheTest, BlockFiles_Shrink) {
-  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  FilePath path = GetCacheFilePath();
   ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
@@ -79,7 +79,7 @@ TEST_F(DiskCacheTest, BlockFiles_Shrink) {
 
 // Handling of block files not properly closed.
 TEST_F(DiskCacheTest, BlockFiles_Recover) {
-  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  FilePath path = GetCacheFilePath();
   ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
@@ -157,7 +157,7 @@ TEST_F(DiskCacheTest, BlockFiles_Recover) {
 
 // Handling of truncated files.
 TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
-  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  FilePath path = GetCacheFilePath();
   ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
@@ -179,7 +179,7 @@ TEST_F(DiskCacheTest, BlockFiles_ZeroSizeFile) {
 
 // An invalid file can be detected after init.
 TEST_F(DiskCacheTest, BlockFiles_InvalidFile) {
-  FilePath path = FilePath::FromWStringHack(GetCachePath());
+  FilePath path = GetCacheFilePath();
   ASSERT_TRUE(DeleteCache(path));
   ASSERT_TRUE(file_util::CreateDirectory(path));
 
