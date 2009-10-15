@@ -751,6 +751,12 @@ bool LowerCaseEqualsASCII(const std::wstring& a, const char* b) {
   return DoLowerCaseEqualsASCII(a.begin(), a.end(), b);
 }
 
+#if !defined(WCHAR_T_IS_UTF16)
+bool LowerCaseEqualsASCII(const string16& a, const char* b) {
+  return DoLowerCaseEqualsASCII(a.begin(), a.end(), b);
+}
+#endif
+
 bool LowerCaseEqualsASCII(std::string::const_iterator a_begin,
                           std::string::const_iterator a_end,
                           const char* b) {
@@ -762,16 +768,34 @@ bool LowerCaseEqualsASCII(std::wstring::const_iterator a_begin,
                           const char* b) {
   return DoLowerCaseEqualsASCII(a_begin, a_end, b);
 }
+
+#if !defined(WCHAR_T_IS_UTF16)
+bool LowerCaseEqualsASCII(string16::const_iterator a_begin,
+                          string16::const_iterator a_end,
+                          const char* b) {
+  return DoLowerCaseEqualsASCII(a_begin, a_end, b);
+}
+#endif
+
 bool LowerCaseEqualsASCII(const char* a_begin,
                           const char* a_end,
                           const char* b) {
   return DoLowerCaseEqualsASCII(a_begin, a_end, b);
 }
+
 bool LowerCaseEqualsASCII(const wchar_t* a_begin,
                           const wchar_t* a_end,
                           const char* b) {
   return DoLowerCaseEqualsASCII(a_begin, a_end, b);
 }
+
+#if !defined(WCHAR_T_IS_UTF16)
+bool LowerCaseEqualsASCII(const char16* a_begin,
+                          const char16* a_end,
+                          const char* b) {
+  return DoLowerCaseEqualsASCII(a_begin, a_end, b);
+}
+#endif
 
 bool EqualsASCII(const string16& a, const base::StringPiece& b) {
   if (a.length() != b.length())
@@ -788,24 +812,34 @@ bool StartsWithASCII(const std::string& str,
     return base::strncasecmp(str.c_str(), search.c_str(), search.length()) == 0;
 }
 
-bool StartsWith(const std::wstring& str,
-                const std::wstring& search,
-                bool case_sensitive) {
+template <typename STR>
+bool StartsWithT(const STR& str, const STR& search, bool case_sensitive) {
   if (case_sensitive)
     return str.compare(0, search.length(), search) == 0;
   else {
     if (search.size() > str.size())
       return false;
     return std::equal(search.begin(), search.end(), str.begin(),
-                      CaseInsensitiveCompare<wchar_t>());
+                      CaseInsensitiveCompare<typename STR::value_type>());
   }
 }
 
-bool EndsWith(const std::wstring& str,
-              const std::wstring& search,
-              bool case_sensitive) {
-  std::wstring::size_type str_length = str.length();
-  std::wstring::size_type search_length = search.length();
+bool StartsWith(const std::wstring& str, const std::wstring& search,
+                bool case_sensitive) {
+  return StartsWithT(str, search, case_sensitive);
+}
+
+#if !defined(WCHAR_T_IS_UTF16)
+bool StartsWith(const string16& str, const string16& search,
+                bool case_sensitive) {
+  return StartsWithT(str, search, case_sensitive);
+}
+#endif
+
+template <typename STR>
+bool EndsWithT(const STR& str, const STR& search, bool case_sensitive) {
+  typename STR::size_type str_length = str.length();
+  typename STR::size_type search_length = search.length();
   if (search_length > str_length)
     return false;
   if (case_sensitive) {
@@ -813,9 +847,21 @@ bool EndsWith(const std::wstring& str,
   } else {
     return std::equal(search.begin(), search.end(),
                       str.begin() + (str_length - search_length),
-                      CaseInsensitiveCompare<wchar_t>());
+                      CaseInsensitiveCompare<typename STR::value_type>());
   }
 }
+
+bool EndsWith(const std::wstring& str, const std::wstring& search,
+              bool case_sensitive) {
+  return EndsWithT(str, search, case_sensitive);
+}
+
+#if !defined(WCHAR_T_IS_UTF16)
+bool EndsWith(const string16& str, const string16& search,
+              bool case_sensitive) {
+  return EndsWithT(str, search, case_sensitive);
+}
+#endif
 
 DataUnits GetByteDisplayUnits(int64 bytes) {
   // The byte thresholds at which we display amounts.  A byte count is displayed
