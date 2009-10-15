@@ -28,10 +28,10 @@ bool CopyTestCache(const std::wstring& name) {
   path = path.AppendASCII("cache_tests");
   path = path.Append(FilePath::FromWStringHack(name));
 
-  std::wstring dest = GetCachePath();
-  if (!DeleteCache(dest.c_str()))
+  FilePath dest = GetCacheFilePath();
+  if (!DeleteCache(dest))
     return false;
-  return file_util::CopyDirectory(path, FilePath::FromWStringHack(dest), false);
+  return file_util::CopyDirectory(path, dest, false);
 }
 
 }  // namespace
@@ -188,8 +188,7 @@ TEST_F(DiskCacheBackendTest, MemoryOnlyKeying) {
 TEST_F(DiskCacheBackendTest, ExternalFiles) {
   InitCache();
   // First, lets create a file on the folder.
-  std::wstring filename = GetCachePath();
-  file_util::AppendToPath(&filename, L"f_000001");
+  FilePath filename = GetCacheFilePath().AppendASCII("f_000001");
 
   const int kSize = 50;
   scoped_refptr<net::IOBuffer> buffer1 = new net::IOBuffer(kSize);
@@ -212,8 +211,8 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
   SimpleCallbackTest callback;
 
   {
-    std::wstring path = GetCachePath();
-    ASSERT_TRUE(DeleteCache(path.c_str()));
+    FilePath path = GetCacheFilePath();
+    ASSERT_TRUE(DeleteCache(path));
 
     disk_cache::Backend* cache =
         disk_cache::CreateCacheBackend(path, false, 0, net::DISK_CACHE);
@@ -985,7 +984,7 @@ void DiskCacheBackendTest::BackendTransaction(const std::wstring& name,
   cache_ = NULL;
   cache_impl_ = NULL;
 
-  ASSERT_TRUE(CheckCacheIntegrity(GetCachePath(), new_eviction_));
+  ASSERT_TRUE(CheckCacheIntegrity(GetCacheFilePath(), new_eviction_));
   success_ = true;
 }
 
@@ -1076,7 +1075,7 @@ TEST_F(DiskCacheBackendTest, NewEvictionRecoverRemove) {
 // Tests dealing with cache files that cannot be recovered.
 TEST_F(DiskCacheTest, Backend_DeleteOld) {
   ASSERT_TRUE(CopyTestCache(L"wrong_version"));
-  std::wstring path = GetCachePath();
+  FilePath path = GetCacheFilePath();
   scoped_ptr<disk_cache::Backend> cache;
   cache.reset(disk_cache::CreateCacheBackend(path, true, 0, net::DISK_CACHE));
 
@@ -1147,7 +1146,7 @@ TEST_F(DiskCacheBackendTest, NewEvictionNotMarkedButDirty2) {
 // We want to be able to deal with messed up entries on disk.
 void DiskCacheBackendTest::BackendInvalidRankings2() {
   ASSERT_TRUE(CopyTestCache(L"bad_rankings"));
-  std::wstring path = GetCachePath();
+  FilePath path = GetCacheFilePath();
   DisableFirstCleanup();
   InitCache();
 
@@ -1428,10 +1427,10 @@ TEST_F(DiskCacheBackendTest, DISABLED_NewEvictionDisableSuccess4) {
 TEST_F(DiskCacheTest, Backend_UsageStats) {
   MessageLoopHelper helper;
 
-  std::wstring path = GetCachePath();
-  ASSERT_TRUE(DeleteCache(path.c_str()));
+  FilePath path = GetCacheFilePath();
+  ASSERT_TRUE(DeleteCache(path));
   scoped_ptr<disk_cache::BackendImpl> cache;
-  cache.reset(new disk_cache::BackendImpl(FilePath::FromWStringHack(path)));
+  cache.reset(new disk_cache::BackendImpl(path));
   ASSERT_TRUE(NULL != cache.get());
   cache->SetUnitTestMode();
   ASSERT_TRUE(cache->Init());
@@ -1529,15 +1528,15 @@ TEST_F(DiskCacheBackendTest, NewEvictionDoomAll2) {
 // of the cache.
 TEST_F(DiskCacheTest, MultipleInstances) {
   ScopedTestCache store1;
-  ScopedTestCache store2(L"cache_test2");
-  ScopedTestCache store3(L"cache_test3");
+  ScopedTestCache store2("cache_test2");
+  ScopedTestCache store3("cache_test3");
 
   const int kNumberOfCaches = 2;
   scoped_ptr<disk_cache::Backend> cache[kNumberOfCaches];
 
-  cache[0].reset(disk_cache::CreateCacheBackend(store1.path_wstring(), false, 0,
+  cache[0].reset(disk_cache::CreateCacheBackend(store1.path(), false, 0,
                                                 net::DISK_CACHE));
-  cache[1].reset(disk_cache::CreateCacheBackend(store2.path_wstring(), false, 0,
+  cache[1].reset(disk_cache::CreateCacheBackend(store2.path(), false, 0,
                                                 net::MEDIA_CACHE));
 
   ASSERT_TRUE(cache[0].get() != NULL && cache[1].get() != NULL);
