@@ -175,6 +175,9 @@ bool CopyDirectory(const FilePath& from_path, const FilePath& to_path,
   if (recursive)
     return ShellCopy(from_path, to_path, true);
 
+  // The following code assumes that from path is a directory.
+  DCHECK(DirectoryExists(from_path));
+
   // Instead of creating a new directory, we copy the old one to include the
   // security information of the folder as part of the copy.
   if (!PathExists(to_path)) {
