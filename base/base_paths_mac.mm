@@ -5,6 +5,7 @@
 #include "base/base_paths_mac.h"
 
 #import <Cocoa/Cocoa.h>
+#include <mach-o/dyld.h>
 
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -42,9 +43,13 @@ bool PathProviderMac(int key, FilePath* result) {
     case base::FILE_MODULE: {
       // Executable path can have relative references ("..") depending on
       // how the app was launched.
-      NSString* path =
-          [[[NSBundle mainBundle] executablePath] stringByStandardizingPath];
-      cur = [path fileSystemRepresentation];
+      uint32_t executable_length = 0;
+      _NSGetExecutablePath(NULL, &executable_length);
+      DCHECK_GT(executable_length, 1u);
+      char* executable = WriteInto(&cur, executable_length);
+      int rv = _NSGetExecutablePath(executable, &executable_length);
+      DCHECK_EQ(rv, 0);
+      DCHECK(!cur.empty());
       break;
     }
     case base::DIR_CACHE:
@@ -52,22 +57,16 @@ bool PathProviderMac(int key, FilePath* result) {
     case base::DIR_APP_DATA:
       return GetUserDirectory(NSApplicationSupportDirectory, result);
     case base::DIR_SOURCE_ROOT: {
-      FilePath path;
-      PathService::Get(base::DIR_EXE, &path);
+      PathService::Get(base::DIR_EXE, result);
       if (mac_util::AmIBundled()) {
         // The bundled app executables (Chromium, TestShell, etc) live five
         // levels down, eg:
         // src/xcodebuild/{Debug|Release}/Chromium.app/Contents/MacOS/Chromium.
-        path = path.DirName();
-        path = path.DirName();
-        path = path.DirName();
-        path = path.DirName();
-        *result = path.DirName();
+        *result = result->DirName().DirName().DirName().DirName().DirName();
       } else {
         // Unit tests execute two levels deep from the source root, eg:
         // src/xcodebuild/{Debug|Release}/base_unittests
-        path = path.DirName();
-        *result = path.DirName();
+        *result = result->DirName().DirName();
       }
       return true;
     }
