@@ -1589,7 +1589,7 @@ void HttpCache::Transaction::OnCacheEntryReady(int result) {
 HttpCache::HttpCache(HostResolver* host_resolver,
                      ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
-                     const std::wstring& cache_dir,
+                     const FilePath& cache_dir,
                      int cache_size)
     : disk_cache_dir_(cache_dir),
       mode_(NORMAL),
@@ -1603,7 +1603,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
 }
 
 HttpCache::HttpCache(HttpNetworkSession* session,
-                     const std::wstring& cache_dir,
+                     const FilePath& cache_dir,
                      int cache_size)
     : disk_cache_dir_(cache_dir),
       mode_(NORMAL),
@@ -1670,10 +1670,9 @@ int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
       // was an in-memory cache.
       disk_cache_.reset(disk_cache::CreateInMemoryCacheBackend(cache_size_));
     } else if (!disk_cache_dir_.empty()) {
-      disk_cache_.reset(disk_cache::CreateCacheBackend(
-          FilePath::FromWStringHack(disk_cache_dir_), true, cache_size_,
-          type_));
-      disk_cache_dir_.clear();  // Reclaim memory.
+      disk_cache_.reset(disk_cache::CreateCacheBackend(disk_cache_dir_, true,
+          cache_size_, type_));
+      disk_cache_dir_ = FilePath();  // Reclaim memory.
     }
   }
   trans->reset(new HttpCache::Transaction(this, enable_range_support_));
