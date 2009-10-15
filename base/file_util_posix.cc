@@ -170,6 +170,19 @@ bool Delete(const FilePath& path, bool recursive) {
 }
 
 bool Move(const FilePath& from_path, const FilePath& to_path) {
+  // Windows compatibility: if to_path exists, from_path and to_path
+  // must be the same type, either both files, or both directories.
+  stat_wrapper_t to_file_info;
+  if (CallStat(to_path.value().c_str(), &to_file_info) == 0) {
+    stat_wrapper_t from_file_info;
+    if (CallStat(from_path.value().c_str(), &from_file_info) == 0) {
+      if (S_ISDIR(to_file_info.st_mode) != S_ISDIR(from_file_info.st_mode))
+        return false;
+    } else {
+      return false;
+    }
+  }
+
   if (rename(from_path.value().c_str(), to_path.value().c_str()) == 0)
     return true;
 
@@ -228,22 +241,26 @@ bool CopyDirectory(const FilePath& from_path,
   FileEnumerator traversal(from_path, recursive, traverse_type);
 
   // We have to mimic windows behavior here. |to_path| may not exist yet,
-  // start the loop with |to_path|.  If this is a recursive copy and
-  // the destination already exists, we have to copy the source directory
-  // as well.
+  // start the loop with |to_path|.
   FileEnumerator::FindInfo info;
   FilePath current = from_path;
-  FilePath from_path_base = from_path;
-  if (recursive && stat(to_path.value().c_str(), &info.stat) == 0) {
-    // If the destination already exists, then the top level of source
-    // needs to be copied.
-    from_path_base = from_path.DirName();
-  }
   if (stat(from_path.value().c_str(), &info.stat) < 0) {
     LOG(ERROR) << "CopyDirectory() couldn't stat source directory: " <<
         from_path.value() << " errno = " << errno;
     success = false;
   }
+  struct stat to_path_stat;
+  FilePath from_path_base = from_path;
+  if (recursive && stat(to_path.value().c_str(), &to_path_stat) == 0 &&
+      S_ISDIR(to_path_stat.st_mode)) {
+    // If the destination already exists and is a directory, then the
+    // top level of source needs to be copied.
+    from_path_base = from_path.DirName();
+  }
+
+  // The Windows version of this function assumes that non-recursive calls
+  // will always have a directory for from_path.
+  DCHECK(recursive || S_ISDIR(info.stat.st_mode));
 
   while (success && !current.empty()) {
     // current is the source path, including from_path, so paste
