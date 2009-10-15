@@ -17,14 +17,14 @@ using base::TimeDelta;
 
 namespace {
 
-std::wstring BuildCachePath(const std::wstring& name) {
+FilePath BuildCachePath(const std::string& name) {
   FilePath path;
   PathService::Get(base::DIR_TEMP, &path);  // Ignore return value;
-  path = path.Append(FilePath::FromWStringHack(name));
+  path = path.AppendASCII(name);
   if (!file_util::PathExists(path))
     file_util::CreateDirectory(path);
 
-  return path.ToWStringHack();
+  return path;
 }
 
 }  // namespace.
@@ -54,12 +54,8 @@ void CacheTestFillBuffer(char* buffer, size_t len, bool no_nulls) {
     buffer[0] = 'g';
 }
 
-std::wstring GetCachePath() {
-  return BuildCachePath(L"cache_test");
-}
-
 FilePath GetCacheFilePath() {
-  return FilePath::FromWStringHack(GetCachePath());
+  return BuildCachePath("cache_test");
 }
 
 bool CreateCacheTestFile(const FilePath& name) {
@@ -76,22 +72,13 @@ bool CreateCacheTestFile(const FilePath& name) {
   return true;
 }
 
-bool CreateCacheTestFile(const wchar_t* name) {
-  return CreateCacheTestFile(FilePath::FromWStringHack(name));
-}
-
 bool DeleteCache(const FilePath& path) {
   disk_cache::DeleteCache(path, false);
   return true;
 }
 
-bool DeleteCache(const wchar_t* path) {
-  return DeleteCache(FilePath::FromWStringHack(path));
-}
-
-bool CheckCacheIntegrity(const std::wstring& path, bool new_eviction) {
-  scoped_ptr<disk_cache::BackendImpl> cache(new disk_cache::BackendImpl(
-      FilePath::FromWStringHack(path)));
+bool CheckCacheIntegrity(const FilePath& path, bool new_eviction) {
+  scoped_ptr<disk_cache::BackendImpl> cache(new disk_cache::BackendImpl(path));
   if (!cache.get())
     return false;
   if (new_eviction)
@@ -102,14 +89,14 @@ bool CheckCacheIntegrity(const std::wstring& path, bool new_eviction) {
   return cache->SelfCheck() >= 0;
 }
 
-ScopedTestCache::ScopedTestCache() : path_(GetCachePath()) {
-  bool result = DeleteCache(path_.c_str());
+ScopedTestCache::ScopedTestCache() : path_(GetCacheFilePath()) {
+  bool result = DeleteCache(path_);
   DCHECK(result);
 }
 
-ScopedTestCache::ScopedTestCache(const std::wstring& name)
+ScopedTestCache::ScopedTestCache(const std::string& name)
     : path_(BuildCachePath(name)) {
-  bool result = DeleteCache(path_.c_str());
+  bool result = DeleteCache(path_);
   DCHECK(result);
 }
 

@@ -170,7 +170,7 @@ void SetFieldTrialInfo(int size_group) {
 
 namespace disk_cache {
 
-Backend* CreateCacheBackend(const std::wstring& full_path, bool force,
+Backend* CreateCacheBackend(const FilePath& full_path, bool force,
                             int max_bytes, net::CacheType type) {
   // Create a backend without extra flags.
   return BackendImpl::CreateBackend(full_path, force, max_bytes, type, kNone);
@@ -214,11 +214,10 @@ int PreferedCacheSize(int64 available) {
 // desired path) cannot be created.
 //
 // Static.
-Backend* BackendImpl::CreateBackend(const std::wstring& full_path, bool force,
+Backend* BackendImpl::CreateBackend(const FilePath& full_path, bool force,
                                     int max_bytes, net::CacheType type,
                                     BackendFlags flags) {
-  FilePath full_cache_path = FilePath::FromWStringHack(full_path);
-  BackendImpl* cache = new BackendImpl(full_cache_path);
+  BackendImpl* cache = new BackendImpl(full_path);
   cache->SetMaxSize(max_bytes);
   cache->SetType(type);
   cache->SetFlags(flags);
@@ -229,12 +228,12 @@ Backend* BackendImpl::CreateBackend(const std::wstring& full_path, bool force,
   if (!force)
     return NULL;
 
-  if (!DelayedCacheCleanup(full_cache_path))
+  if (!DelayedCacheCleanup(full_path))
     return NULL;
 
   // The worker thread will start deleting files soon, but the original folder
   // is not there anymore... let's create a new set of files.
-  cache = new BackendImpl(full_cache_path);
+  cache = new BackendImpl(full_path);
   cache->SetMaxSize(max_bytes);
   cache->SetType(type);
   cache->SetFlags(flags);
@@ -644,7 +643,7 @@ bool BackendImpl::CreateExternalFile(Addr* address) {
                 base::PLATFORM_FILE_CREATE |
                 base::PLATFORM_FILE_EXCLUSIVE_WRITE;
     scoped_refptr<disk_cache::File> file(new disk_cache::File(
-        base::CreatePlatformFile(name.ToWStringHack().c_str(), flags, NULL)));
+        base::CreatePlatformFile(name, flags, NULL)));
     if (!file->IsValid())
       continue;
 
@@ -996,8 +995,7 @@ bool BackendImpl::InitBackingStore(bool* file_created) {
               base::PLATFORM_FILE_OPEN_ALWAYS |
               base::PLATFORM_FILE_EXCLUSIVE_WRITE;
   scoped_refptr<disk_cache::File> file(new disk_cache::File(
-      base::CreatePlatformFile(index_name.ToWStringHack().c_str(), flags,
-                               file_created)));
+      base::CreatePlatformFile(index_name, flags, file_created)));
 
   if (!file->IsValid())
     return false;
