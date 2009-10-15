@@ -133,6 +133,8 @@ bool Delete(const std::wstring& path, bool recursive);
 // on different volumes, this will attempt to copy and delete. Returns
 // true for success.
 bool Move(const FilePath& from_path, const FilePath& to_path);
+// Deprecated temporary compatibility function.
+bool Move(const std::wstring& from_path, const std::wstring& to_path);
 
 // Renames file |from_path| to |to_path|. Both paths must be on the same
 // volume, or the function will fail. Destination file will be created
@@ -143,6 +145,8 @@ bool ReplaceFile(const FilePath& from_path, const FilePath& to_path);
 
 // Copies a single file. Use CopyDirectory to copy directories.
 bool CopyFile(const FilePath& from_path, const FilePath& to_path);
+// Deprecated temporary compatibility function.
+bool CopyFile(const std::wstring& from_path, const std::wstring& to_path);
 
 // Copies the given path, and optionally all subdirectories and their contents
 // as well.
@@ -160,12 +164,16 @@ bool CopyDirectory(const std::wstring& from_path, const std::wstring& to_path,
 // Returns true if the given path exists on the local filesystem,
 // false otherwise.
 bool PathExists(const FilePath& path);
+// Deprecated temporary compatibility function.
+bool PathExists(const std::wstring& path);
 
 // Returns true if the given path is writable by the user, false otherwise.
 bool PathIsWritable(const FilePath& path);
 
 // Returns true if the given path exists and is a directory, false otherwise.
 bool DirectoryExists(const FilePath& path);
+// Deprecated temporary compatibility function.
+bool DirectoryExists(const std::wstring& path);
 
 #if defined(OS_WIN)
 // Gets the creation time of the given file (expressed in the local timezone),
