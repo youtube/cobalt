@@ -487,9 +487,10 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
     // kSecTrustResultRecoverableTrustFailure back from SecTrustEvaluate()
     // with one of a number of sub error codes indicating that revocation
     // checking did not occur. In that case, we'll set our own result to include
-    // CERT_STATUS_UNABLE_TO_CHECK_REVOCATION (note that this does not apply
-    // to EV certificates, which always get revocation checks regardless of the
-    // global settings).
+    // CERT_STATUS_UNABLE_TO_CHECK_REVOCATION.
+    //
+    // NOTE: This does not apply to EV certificates, which always get
+    // revocation checks regardless of the global settings.
     verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
     CSSM_APPLE_TP_ACTION_DATA tp_action_data = { CSSM_APPLE_TP_ACTION_VERSION };
     tp_action_data.ActionFlags = CSSM_TP_ACTION_REQUIRE_REV_PER_CERT;
@@ -503,9 +504,6 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
                                    action_data_ref);
     if (status)
       return NetErrorFromOSStatus(status);
-  } else {
-    // EV requires revocation checking.
-    flags &= ~VERIFY_EV_CERT;
   }
 
   // Verify the certificate. A non-zero result from SecTrustGetResult()
