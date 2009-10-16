@@ -939,6 +939,54 @@ std::string GetDirectoryListingHeader(const string16& title) {
   return result;
 }
 
+inline bool IsHostCharAlpha(char c) {
+  // We can just check lowercase because uppercase characters have already been
+  // normalized.
+  return (c >= 'a') && (c <= 'z');
+}
+
+inline bool IsHostCharDigit(char c) {
+  return (c >= '0') && (c <= '9');
+}
+
+bool IsCanonicalizedHostRFC1738Compliant(const std::string& host) {
+  if (host.empty())
+    return false;
+
+  enum State {
+    NOT_IN_COMPONENT,
+    IN_COMPONENT_STARTED_DIGIT,
+    IN_COMPONENT_STARTED_ALPHA
+  } state = NOT_IN_COMPONENT;
+  bool last_char_was_hyphen = false;
+
+  for (std::string::const_iterator i(host.begin()); i != host.end(); ++i) {
+    const char c = *i;
+    if (state == NOT_IN_COMPONENT) {
+      if (IsHostCharDigit(c))
+        state = IN_COMPONENT_STARTED_DIGIT;
+      else if (IsHostCharAlpha(c))
+        state = IN_COMPONENT_STARTED_ALPHA;
+      else
+        return false;
+    } else {
+      if (c == '.') {
+        if (last_char_was_hyphen)
+          return false;
+        state = NOT_IN_COMPONENT;
+      } else if (IsHostCharAlpha(c) || IsHostCharDigit(c)) {
+        last_char_was_hyphen = false;
+      } else if (c == '-') {
+        last_char_was_hyphen = true;
+      } else {
+        return false;
+      }
+    }
+  }
+
+  return state == IN_COMPONENT_STARTED_ALPHA;
+}
+
 std::string GetDirectoryListingEntry(const string16& name,
                                      const std::string& raw_bytes,
                                      bool is_dir,

@@ -344,6 +344,11 @@ const IDNTestCase idn_cases[] = {
 #endif
 };
 
+struct RFC1738Case {
+  const char* host;
+  bool expected_output;
+};
+
 struct SuggestedFilenameCase {
   const char* url;
   const char* content_disp_header;
@@ -807,6 +812,32 @@ TEST(NetUtilTest, IDNToUnicodeSlow) {
       AppendLanguagesToOutputs(kLanguages[j], &expected, &output);
       EXPECT_EQ(expected, output);
     }
+  }
+}
+
+TEST(NetUtilTest, RFC1738) {
+  const RFC1738Case rfc1738_cases[] = {
+    {"", false},
+    {"a", true},
+    {"-", false},
+    {".", false},
+    {"a.", false},
+    {"a.a", true},
+    {"9.a", true},
+    {"a.9", false},
+    {"a.a9", true},
+    {"a.9a", false},
+    {"a+9a", false},
+    {"1-.a-b", false},
+    {"1-2.a-b", true},
+    {"a.b.c.d.e", true},
+    {"1.2.3.4.e", true},
+    {"a.b.c.d.5", false},
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(rfc1738_cases); ++i) {
+    EXPECT_EQ(rfc1738_cases[i].expected_output,
+              net::IsCanonicalizedHostRFC1738Compliant(rfc1738_cases[i].host));
   }
 }
 
