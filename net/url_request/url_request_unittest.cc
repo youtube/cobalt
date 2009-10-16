@@ -1962,7 +1962,8 @@ class URLRequestTestFTP : public URLRequestTest {
 // static
 scoped_refptr<FTPTestServer> URLRequestTestFTP::server_;
 
-TEST_F(URLRequestTestFTP, FTPDirectoryListing) {
+// Flaky, see http://crbug.com/25045.
+TEST_F(URLRequestTestFTP, FLAKY_FTPDirectoryListing) {
   ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
@@ -2050,7 +2051,8 @@ TEST_F(URLRequestTestFTP, FTPCheckWrongPassword) {
   }
 }
 
-TEST_F(URLRequestTestFTP, FTPCheckWrongPasswordRestart) {
+// Flaky, see http://crbug.com/25045.
+TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongPasswordRestart) {
   ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
@@ -2102,7 +2104,8 @@ TEST_F(URLRequestTestFTP, FTPCheckWrongUser) {
   }
 }
 
-TEST_F(URLRequestTestFTP, FTPCheckWrongUserRestart) {
+// Flaky, see http://crbug.com/25045.
+TEST_F(URLRequestTestFTP, FLAKY_FTPCheckWrongUserRestart) {
   ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
@@ -2130,7 +2133,8 @@ TEST_F(URLRequestTestFTP, FTPCheckWrongUserRestart) {
   }
 }
 
-TEST_F(URLRequestTestFTP, DISABLED_FTPCacheURLCredentials) {
+// Flaky, see http://crbug.com/25045.
+TEST_F(URLRequestTestFTP, FLAKY_FTPCacheURLCredentials) {
   ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
@@ -2175,7 +2179,8 @@ TEST_F(URLRequestTestFTP, DISABLED_FTPCacheURLCredentials) {
   }
 }
 
-TEST_F(URLRequestTestFTP, FTPCacheLoginBoxCredentials) {
+// Flaky, see http://crbug.com/25045.
+TEST_F(URLRequestTestFTP, FLAKY_FTPCacheLoginBoxCredentials) {
   ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
