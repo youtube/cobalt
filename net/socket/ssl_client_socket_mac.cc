@@ -635,9 +635,11 @@ int SSLClientSocketMac::DoVerifyCert() {
   if (!server_cert_)
     return ERR_UNEXPECTED;
 
-  // TODO(hawk): set flags based on the SSLConfig, once SSLConfig is
-  // fully fleshed out on Mac OS X.
   int flags = 0;
+  if (ssl_config_.rev_checking_enabled)
+    flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
+  if (ssl_config_.verify_ev_cert)
+    flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new CertVerifier);
   return verifier_->Verify(server_cert_, hostname_, flags,
                            &server_cert_verify_result_, &io_callback_);
