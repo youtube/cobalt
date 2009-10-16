@@ -9,32 +9,50 @@
 #ifndef NET_HTTP_HTTP_BASIC_STREAM_H_
 #define NET_HTTP_HTTP_BASIC_STREAM_H_
 
+#include <string>
+
 #include "base/basictypes.h"
+#include "net/base/io_buffer.h"
 #include "net/http/http_stream.h"
-#include "net/socket/client_socket_handle.h"
+#include "net/http/http_stream_parser.h"
 
 namespace net {
 
+class ClientSocketHandle;
+class HttpRequestInfo;
+class HttpResponseInfo;
+class UploadDataStream;
+
 class HttpBasicStream : public HttpStream {
  public:
-  explicit HttpBasicStream(ClientSocketHandle* handle) : handle_(handle) {}
+  explicit HttpBasicStream(ClientSocketHandle* handle);
   virtual ~HttpBasicStream() {}
 
   // HttpStream methods:
-  virtual int Read(IOBuffer* buf,
-                   int buf_len,
-                   CompletionCallback* callback) {
-    return handle_->socket()->Read(buf, buf_len, callback);
-  }
+  virtual int SendRequest(const HttpRequestInfo* request,
+                          const std::string& headers,
+                          UploadDataStream* request_body,
+                          CompletionCallback* callback);
 
-  virtual int Write(IOBuffer* buf,
-                    int buf_len,
-                    CompletionCallback* callback) {
-    return handle_->socket()->Write(buf, buf_len, callback);
-  }
+  virtual uint64 GetUploadProgress() const;
+
+  virtual int ReadResponseHeaders(CompletionCallback* callback);
+
+  virtual HttpResponseInfo* GetResponseInfo() const;
+
+  virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
+                               CompletionCallback* callback);
+
+  virtual bool IsResponseBodyComplete() const;
+
+  virtual bool CanFindEndOfResponse() const;
+
+  virtual bool IsMoreDataBuffered() const;
 
  private:
-  ClientSocketHandle* const handle_;
+  scoped_refptr<GrowableIOBuffer> read_buf_;
+
+  scoped_ptr<HttpStreamParser> parser_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpBasicStream);
 };
