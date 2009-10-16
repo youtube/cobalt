@@ -63,6 +63,8 @@
         'atomicops_internals_x86_gcc.cc',
         'at_exit.cc',
         'at_exit.h',
+        'atomic_flag.h',
+        'atomic_flag.cc',
         'atomic_ref_count.h',
         'atomic_sequence_num.h',
         'atomicops.h',
@@ -552,6 +554,7 @@
 
         # Tests.
         'at_exit_unittest.cc',
+        'atomic_flag_unittest.cc',
         'atomicops_unittest.cc',
         'command_line_unittest.cc',
         'condition_variable_unittest.cc',
