@@ -840,9 +840,6 @@ TimeDelta HttpResponseHeaders::GetFreshnessLifetime(
   //   there are cache-control directives or another header(s) that explicitly
   //   allow it.
   //
-  // Since we do not support byte range requests yet, we exclude 206.  See
-  // HttpCache::Transaction::ShouldPassThrough.
-  //
   // From RFC 2616 section 14.9.4:
   //
   //   When the must-revalidate directive is present in a response received by
@@ -852,7 +849,8 @@ TimeDelta HttpResponseHeaders::GetFreshnessLifetime(
   //   time, if, based solely on the origin server's Expires or max-age value,
   //   the cached response is stale.)
   //
-  if ((response_code_ == 200 || response_code_ == 203) &&
+  if ((response_code_ == 200 || response_code_ == 203 ||
+       response_code_ == 206) &&
       !HasHeaderValue("cache-control", "must-revalidate")) {
     // TODO(darin): Implement a smarter heuristic.
     Time last_modified_value;
