@@ -5,10 +5,13 @@
 #include "media/audio/linux/audio_manager_linux.h"
 
 #include "base/at_exit.h"
+#include "base/command_line.h"
 #include "base/logging.h"
 #include "media/audio/fake_audio_output_stream.h"
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
+#include "media/base/media_switches.h"
+
 
 namespace {
 AudioManagerLinux* g_audio_manager = NULL;
@@ -34,15 +37,14 @@ AudioOutputStream* AudioManagerLinux::MakeAudioStream(Format format,
     return NULL;
   }
 
-  // TODO(ajwong): Do we want to be able to configure the device? default
-  // should work correctly for all mono/stereo, but not surround, which needs
-  // surround40, surround51, etc.
-  //
-  // http://0pointer.de/blog/projects/guide-to-sound-apis.html
+  std::string device_name = AlsaPcmOutputStream::kAutoSelectDevice;
+  if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kAlsaDevice)) {
+    device_name = CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+        switches::kAlsaDevice);
+  }
   AlsaPcmOutputStream* stream =
-      new AlsaPcmOutputStream(AlsaPcmOutputStream::kDefaultDevice,
-                              format, channels, sample_rate, bits_per_sample,
-                              wrapper_.get(), this,
+      new AlsaPcmOutputStream(device_name, format, channels, sample_rate,
+                              bits_per_sample, wrapper_.get(), this,
                               audio_thread_.message_loop());
 
   AutoLock l(lock_);

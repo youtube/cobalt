@@ -46,10 +46,19 @@ class AlsaPcmOutputStream :
     public AudioOutputStream,
     public base::RefCountedThreadSafe<AlsaPcmOutputStream> {
  public:
-  // Set to "default" which should avoid locking the sound device and allow
-  // ALSA to multiplex sound from different processes that want to write PCM
-  // data.
+  // String for the generic "default" ALSA device that has the highest
+  // compatibility and chance of working.
   static const char kDefaultDevice[];
+
+  // Pass this to the AlsaPcmOutputStream if you want to attempt auto-selection
+  // of the audio device.
+  static const char kAutoSelectDevice[];
+
+  // Prefix for device names to enable ALSA library resampling.
+  static const char kPlugPrefix[];
+
+  // The minimum latency that is accepted by the device.
+  static const int kMinLatencyMicros;
 
   // Create a PCM Output stream for the ALSA device identified by
   // |device_name|.  The AlsaPcmOutputStream uses |wrapper| to communicate with
@@ -57,7 +66,7 @@ class AlsaPcmOutputStream :
   // requesting of data, and writing to the alsa device will be done on
   // |message_loop|.
   //
-  // If unsure of what to use for |device_name|, use |kDefaultDevice|.
+  // If unsure of what to use for |device_name|, use |kAutoSelectDevice|.
   AlsaPcmOutputStream(const std::string& device_name,
                       AudioManager::Format format,
                       int channels,
@@ -78,10 +87,14 @@ class AlsaPcmOutputStream :
 
  private:
   friend class AlsaPcmOutputStreamTest;
+  FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_FallbackDevices);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_HintFail);
   FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket);
   FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_StopStream);
   FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_UnfinishedPacket);
   FRIEND_TEST(AlsaPcmOutputStreamTest, ConstructedState);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, LatencyFloor);
   FRIEND_TEST(AlsaPcmOutputStreamTest, OpenClose);
   FRIEND_TEST(AlsaPcmOutputStreamTest, PcmOpenFailed);
   FRIEND_TEST(AlsaPcmOutputStreamTest, PcmSetParamsFailed);
@@ -121,7 +134,7 @@ class AlsaPcmOutputStream :
   friend std::ostream& ::operator<<(std::ostream& os, InternalState);
 
   // Various tasks that complete actions started in the public API.
-  void FinishOpen(snd_pcm_t* playback_handle, size_t packet_size);
+  void OpenTask(size_t packet_size);
   void StartTask();
   void CloseTask();
 
@@ -137,8 +150,16 @@ class AlsaPcmOutputStream :
                                           int bytes_per_frame);
   static int64 FramesToMicros(int frames, int sample_rate);
   static int64 FramesToMillis(int frames, int sample_rate);
+  std::string FindDeviceForChannels(int channels);
+  snd_pcm_t* OpenDevice(const std::string& device_name,
+                        int channels,
+                        unsigned int latency);
   bool CloseDevice(snd_pcm_t* handle);
   snd_pcm_sframes_t GetAvailableFrames();
+
+  // Attempts to find the best matching linux audio device for the given number
+  // of channels.  This function will set |device_name_| and |should_downmix_|.
+  snd_pcm_t* AutoSelectDevice(unsigned int latency);
 
   // Thread-asserting accessors for member variables.
   AudioManagerLinux* manager();
@@ -192,12 +213,19 @@ class AlsaPcmOutputStream :
 
   // Configuration constants from the constructor.  Referenceable by all threads
   // since they are constants.
-  const std::string device_name_;
+  const std::string requested_device_name_;
   const snd_pcm_format_t pcm_format_;
   const int channels_;
   const int sample_rate_;
   const int bytes_per_sample_;
   const int bytes_per_frame_;
+
+  // Device configuration data. Populated after OpenTask() completes.
+  std::string device_name_;
+  bool should_downmix_;
+  int latency_micros_;
+  int micros_per_packet_;
+  int bytes_per_output_frame_;
 
   // Flag indicating the code should stop reading from the data source or
   // writing to the ALSA device.  This is set because the device has entered

@@ -171,7 +171,7 @@ void PCMQueueOutAudioOutputStream::GetVolume(double* left_level,
 // TODO(fbarchard): Switch layout when ffmpeg is updated.
 namespace {
 template<class Format>
-static void SwizzleLayout(Format *b, size_t filled) {
+static void SwizzleLayout(Format* b, size_t filled) {
   static const int kNumSurroundChannels = 6;
   Format aac[kNumSurroundChannels];
   for (size_t i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
@@ -274,4 +274,3 @@ void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
     return;
   }
 }
-
