@@ -28,8 +28,10 @@
 namespace net {
 
 class ClientSocketFactory;
+class HttpChunkedDecoder;
 class HttpNetworkSession;
 class HttpStream;
+class UploadDataStream;
 
 class HttpNetworkTransaction : public HttpTransaction {
  public:
@@ -60,6 +62,38 @@ class HttpNetworkTransaction : public HttpTransaction {
  private:
   FRIEND_TEST(HttpNetworkTransactionTest, ResetStateForRestart);
 
+  // This version of IOBuffer lets us use a string as the real storage and
+  // "move" the data pointer inside the string before using it to do actual IO.
+  class RequestHeaders : public net::IOBuffer {
+   public:
+    RequestHeaders() : net::IOBuffer() {}
+    ~RequestHeaders() { data_ = NULL; }
+
+    void SetDataOffset(size_t offset) {
+      data_ = const_cast<char*>(headers_.data()) + offset;
+    }
+
+    // This is intentionally a public member.
+    std::string headers_;
+  };
+
+  // This version of IOBuffer lets us use a malloc'ed buffer as the real storage
+  // and "move" the data pointer inside the buffer before using it to do actual
+  // IO.
+  class ResponseHeaders : public net::IOBuffer {
+   public:
+    ResponseHeaders() : net::IOBuffer() {}
+    ~ResponseHeaders() { data_ = NULL; }
+
+    void set_data(size_t offset) { data_ = headers_.get() + offset; }
+    char* headers() { return headers_.get(); }
+    void Reset() { headers_.reset(); }
+    void Realloc(size_t new_size);
+
+   private:
+    scoped_ptr_malloc<char> headers_;
+  };
+
   enum State {
     STATE_RESOLVE_PROXY,
     STATE_RESOLVE_PROXY_COMPLETE,
@@ -69,8 +103,10 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_SOCKS_CONNECT_COMPLETE,
     STATE_SSL_CONNECT,
     STATE_SSL_CONNECT_COMPLETE,
-    STATE_SEND_REQUEST,
-    STATE_SEND_REQUEST_COMPLETE,
+    STATE_WRITE_HEADERS,
+    STATE_WRITE_HEADERS_COMPLETE,
+    STATE_WRITE_BODY,
+    STATE_WRITE_BODY_COMPLETE,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
     STATE_READ_BODY,
@@ -105,8 +141,10 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoSOCKSConnectComplete(int result);
   int DoSSLConnect();
   int DoSSLConnectComplete(int result);
-  int DoSendRequest();
-  int DoSendRequestComplete(int result);
+  int DoWriteHeaders();
+  int DoWriteHeadersComplete(int result);
+  int DoWriteBody();
+  int DoWriteBodyComplete(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
   int DoReadBody();
@@ -129,6 +167,9 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   static void LogIOErrorMetrics(const ClientSocketHandle& handle);
 
+  // Called when header_buf_ contains the complete response headers.
+  int DidReadResponseHeaders();
+
   // Called to handle a certificate error.  Returns OK if the error should be
   // ignored.  Otherwise, stores the certificate in response_.ssl_info and
   // returns the same error code.
@@ -146,9 +187,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   // returns OK if recovering from the error.  Otherwise, the same error code
   // is returned.
   int HandleIOError(int error);
-
-  // Gets the response headers from the HttpStream.
-  HttpResponseHeaders* GetResponseHeaders() const;
 
   // Called when we reached EOF or got an error.  Returns true if we should
   // resend the request.  |error| is OK when we reached EOF.
@@ -170,6 +208,13 @@ class HttpNetworkTransaction : public HttpTransaction {
   // has been read. This only applies to reading responses, and not writing
   // requests.
   int HandleConnectionClosedBeforeEndOfHeaders();
+
+  // Return true if based on the bytes read so far, the start of the
+  // status line is known. This is used to distingish between HTTP/0.9
+  // responses (which have no status line) and HTTP/1.x responses.
+  bool has_found_status_line_start() const {
+    return header_buf_http_offset_ != -1;
+  }
 
   // Sets up the state machine to restart the transaction with auth.
   void PrepareForAuthRestart(HttpAuth::Target target);
@@ -264,6 +309,7 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   scoped_refptr<LoadLog> load_log_;
   const HttpRequestInfo* request_;
+  HttpResponseInfo response_;
 
   ProxyService::PacRequest* pac_request_;
   ProxyInfo proxy_info_;
@@ -272,23 +318,32 @@ class HttpNetworkTransaction : public HttpTransaction {
   scoped_ptr<HttpStream> http_stream_;
   bool reused_socket_;
 
-  // True if we've validated the headers that the stream parser has returned.
-  bool headers_valid_;
-
-  // True if we've logged the time of the first response byte.  Used to
-  // prevent logging across authentication activity where we see multiple
-  // responses.
-  bool logged_response_time;
-
   bool using_ssl_;     // True if handling a HTTPS request
   ProxyMode proxy_mode_;
 
   // True while establishing a tunnel.  This allows the HTTP CONNECT
-  // request/response to reuse the STATE_SEND_REQUEST,
-  // STATE_SEND_REQUEST_COMPLETE, STATE_READ_HEADERS, and
+  // request/response to reuse the STATE_WRITE_HEADERS,
+  // STATE_WRITE_HEADERS_COMPLETE, STATE_READ_HEADERS, and
   // STATE_READ_HEADERS_COMPLETE states and allows us to tell them apart from
   // the real request/response of the transaction.
   bool establishing_tunnel_;
+
+  // Only used between the states
+  // STATE_READ_BODY/STATE_DRAIN_BODY_FOR_AUTH and
+  // STATE_READ_BODY_COMPLETE/STATE_DRAIN_BODY_FOR_AUTH_COMPLETE.
+  //
+  // Set to true when DoReadBody or DoDrainBodyForAuthRestart starts to read
+  // the response body from the socket, and set to false when the socket read
+  // call completes. DoReadBodyComplete and DoDrainBodyForAuthRestartComplete
+  // use this boolean to disambiguate a |result| of 0 between a connection
+  // closure (EOF) and reaching the end of the response body (no more data).
+  //
+  // TODO(wtc): this is similar to the |ignore_ok_result_| member of the
+  // SSLClientSocketWin class.  We may want to add an internal error code, say
+  // ERR_EOF, to indicate a connection closure, so that 0 simply means 0 bytes
+  // or OK.  Note that we already have an ERR_CONNECTION_CLOSED error code,
+  // but it isn't really being used.
+  bool reading_body_from_socket_;
 
   // True if we've used the username/password embedded in the URL.  This
   // makes sure we use the embedded identity only once for the transaction,
@@ -297,12 +352,47 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   SSLConfig ssl_config_;
 
-  std::string request_headers_;
+  scoped_refptr<RequestHeaders> request_headers_;
+  size_t request_headers_bytes_sent_;
+  scoped_ptr<UploadDataStream> request_body_stream_;
+
+  // The read buffer |header_buf_| may be larger than it is full.  The
+  // 'capacity' indicates the allocation size of the buffer, and the 'len'
+  // indicates how much data is in the buffer already.  The 'body offset'
+  // indicates the offset of the start of the response body within the read
+  // buffer.
+  scoped_refptr<ResponseHeaders> header_buf_;
+  int header_buf_capacity_;
+  int header_buf_len_;
+  int header_buf_body_offset_;
+
+  // The number of bytes by which the header buffer is grown when it reaches
+  // capacity.
+  enum { kHeaderBufInitialSize = 4096 };
+
+  // |kMaxHeaderBufSize| is the number of bytes that the response headers can
+  // grow to. If the body start is not found within this range of the
+  // response, the transaction will fail with ERR_RESPONSE_HEADERS_TOO_BIG.
+  // Note: |kMaxHeaderBufSize| should be a multiple of |kHeaderBufInitialSize|.
+  enum { kMaxHeaderBufSize = 256 * 1024 };  // 256 kilobytes.
 
   // The size in bytes of the buffer we use to drain the response body that
   // we want to throw away.  The response body is typically a small error
   // page just a few hundred bytes long.
   enum { kDrainBodyBufferSize = 1024 };
+
+  // The position where status line starts; -1 if not found yet.
+  int header_buf_http_offset_;
+
+  // Indicates the content length remaining to read.  If this value is less
+  // than zero (and chunked_decoder_ is null), then we read until the server
+  // closes the connection.
+  int64 response_body_length_;
+
+  // Keeps track of the number of response body bytes read so far.
+  int64 response_body_read_;
+
+  scoped_ptr<HttpChunkedDecoder> chunked_decoder_;
 
   // User buffer and length passed to the Read method.
   scoped_refptr<IOBuffer> read_buf_;
