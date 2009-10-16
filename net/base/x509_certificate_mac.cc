@@ -124,14 +124,15 @@ int CertStatusFromOSStatus(OSStatus status) {
 
     case CSSMERR_APPLETP_CRL_NOT_FOUND:
     case CSSMERR_APPLETP_INCOMPLETE_REVOCATION_CHECK:
+    case CSSMERR_APPLETP_OCSP_UNAVAILABLE:
       return CERT_STATUS_NO_REVOCATION_MECHANISM;
 
     case CSSMERR_APPLETP_CRL_NOT_TRUSTED:
     case CSSMERR_APPLETP_CRL_SERVER_DOWN:
     case CSSMERR_APPLETP_CRL_NOT_VALID_YET:
     case CSSMERR_APPLETP_NETWORK_FAILURE:
-    case CSSMERR_APPLETP_OCSP_UNAVAILABLE:
     case CSSMERR_APPLETP_OCSP_BAD_RESPONSE:
+    case CSSMERR_APPLETP_OCSP_NO_SIGNER:
     case CSSMERR_APPLETP_OCSP_RESP_UNAUTHORIZED:
     case CSSMERR_APPLETP_OCSP_RESP_SIG_REQUIRED:
     case CSSMERR_APPLETP_OCSP_RESP_MALFORMED_REQ:
@@ -574,7 +575,8 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
              status_code_index < chain_info[index].NumStatusCodes;
              ++status_code_index) {
           got_certificate_error = true;
-          int cert_status = CertStatusFromOSStatus(cssm_result);
+          int cert_status = CertStatusFromOSStatus(
+              chain_info[index].StatusCodes[status_code_index]);
           if (cert_status == CERT_STATUS_COMMON_NAME_INVALID) {
             std::vector<std::string> names;
             GetDNSNames(&names);
@@ -606,6 +608,11 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
       }
       break;
   }
+
+  // TODO(wtc): Suppress CERT_STATUS_NO_REVOCATION_MECHANISM for now to be
+  // compatible with Windows, which in turn implements this behavior to be
+  // compatible with WinHTTP, which doesn't report this error (bug 3004).
+  verify_result->cert_status &= ~CERT_STATUS_NO_REVOCATION_MECHANISM;
 
   if (IsCertStatusError(verify_result->cert_status))
     return MapCertStatusToNetError(verify_result->cert_status);
