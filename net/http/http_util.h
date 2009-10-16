@@ -167,6 +167,10 @@ class HttpUtil {
     // current position will be at the end of the headers.
     bool AdvanceTo(const char* lowercase_name);
 
+    void Reset() {
+      lines_.Reset();
+    }
+
     std::string::const_iterator name_begin() const {
       return name_begin_;
     }
