@@ -102,13 +102,20 @@ static const int kPcmRecoverIsSilent = 0;
 #endif
 
 const char AlsaPcmOutputStream::kDefaultDevice[] = "default";
+const char AlsaPcmOutputStream::kAutoSelectDevice[] = "";
+const char AlsaPcmOutputStream::kPlugPrefix[] = "plug:";
+
+// Since we expect to only be able to wake up with a resolution of
+// kSleepErrorMilliseconds, double that for our minimum required latency.
+const int AlsaPcmOutputStream::kMinLatencyMicros =
+    kSleepErrorMilliseconds * 2 * 1000;
 
 namespace {
 
 snd_pcm_format_t BitsToFormat(char bits_per_sample) {
   switch (bits_per_sample) {
     case 8:
-      return SND_PCM_FORMAT_S8;
+      return SND_PCM_FORMAT_U8;
 
     case 16:
       return SND_PCM_FORMAT_S16;
@@ -124,8 +131,79 @@ snd_pcm_format_t BitsToFormat(char bits_per_sample) {
   }
 }
 
+// While the "default" device may support multi-channel audio, in Alsa, only
+// the device names surround40, surround41, surround50, etc, have a defined
+// channel mapping according to Lennart:
+//
+// http://0pointer.de/blog/projects/guide-to-sound-apis.html
+//
+// This function makes a best guess at the specific > 2 channel device name
+// based on the number of channels requested.  NULL is returned if no device
+// can be found to match the channel numbers.  In this case, using
+// kDefaultDevice is probably the best bet.
+//
+// A five channel source is assumed to be surround50 instead of surround41
+// (which is also 5 channels).
+//
+// TODO(ajwong): The source data should have enough info to tell us if we want
+// surround41 versus surround51, etc., instead of needing us to guess base don
+// channel number.  Fix API to pass that data down.
+const char* GuessSpecificDeviceName(int channels) {
+  switch (channels) {
+    case 8:
+      return "surround71";
+
+    case 7:
+      return "surround70";
+
+    case 6:
+      return "surround51";
+
+    case 5:
+      return "surround50";
+
+    case 4:
+      return "surround40";
+
+    default:
+      return NULL;
+  }
+}
+
+// Reorder PCM from AAC layout to Alsa layout.
+// TODO(fbarchard): Switch layout when ffmpeg is updated.
+template<class Format>
+static void Swizzle50Layout(Format* b, size_t filled) {
+  static const int kNumSurroundChannels = 5;
+  Format aac[kNumSurroundChannels];
+  for (size_t i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
+    memcpy(aac, b, sizeof(aac));
+    b[0] = aac[1];  // L
+    b[1] = aac[2];  // R
+    b[2] = aac[3];  // Ls
+    b[3] = aac[4];  // Rs
+    b[4] = aac[0];  // C
+  }
+}
+
+template<class Format>
+static void Swizzle51Layout(Format* b, size_t filled) {
+  static const int kNumSurroundChannels = 6;
+  Format aac[kNumSurroundChannels];
+  for (size_t i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
+    memcpy(aac, b, sizeof(aac));
+    b[0] = aac[1];  // L
+    b[1] = aac[2];  // R
+    b[2] = aac[3];  // Ls
+    b[3] = aac[4];  // Rs
+    b[4] = aac[0];  // C
+    b[5] = aac[5];  // LFE
+  }
+}
+
 }  // namespace
 
+// Not in an anonymous so that it can be a friend to AlsaPcmOutputStream.
 std::ostream& operator<<(std::ostream& os,
                          AlsaPcmOutputStream::InternalState state) {
   switch (state) {
@@ -160,12 +238,16 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
                                          AudioManagerLinux* manager,
                                          MessageLoop* message_loop)
     : shared_data_(MessageLoop::current()),
-      device_name_(device_name),
+      requested_device_name_(device_name),
       pcm_format_(BitsToFormat(bits_per_sample)),
       channels_(channels),
       sample_rate_(sample_rate),
       bytes_per_sample_(bits_per_sample / 8),
       bytes_per_frame_(channels_ * bits_per_sample / 8),
+      should_downmix_(false),
+      latency_micros_(0),
+      micros_per_packet_(0),
+      bytes_per_output_frame_(bytes_per_frame_),
       stop_stream_(false),
       wrapper_(wrapper),
       manager_(manager),
@@ -175,16 +257,6 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       message_loop_(message_loop) {
 
   // Sanity check input values.
-  //
-  // TODO(scherkus): ALSA works fine if you pass in multichannel audio, however
-  // it seems to be mapped to the wrong channels.  We may have to do some
-  // channel swizzling from decoder output to ALSA's preferred multichannel
-  // format.
-  if (channels_ != 1 && channels_ != 2) {
-    LOG(WARNING) << "Only 1 and 2 channel audio is supported right now.";
-    shared_data_.TransitionTo(kInError);
-  }
-
   if (AudioManager::AUDIO_PCM_LINEAR != format) {
     LOG(WARNING) << "Only linear PCM supported.";
     shared_data_.TransitionTo(kInError);
@@ -222,36 +294,6 @@ bool AlsaPcmOutputStream::Open(size_t packet_size) {
     return false;
   }
 
-  // Try to open the device.
-  snd_pcm_t* handle = NULL;
-  int error = wrapper_->PcmOpen(&handle, device_name_.c_str(),
-                                SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK);
-  if (error < 0) {
-    LOG(ERROR) << "Cannot open audio device (" << device_name_ << "): "
-               << wrapper_->StrError(error);
-    return false;
-  }
-
-  // Configure the device for software resampling, and add enough buffer for
-  // two audio packets.
-  int micros_per_packet =
-      FramesToMicros(packet_size / bytes_per_frame_, sample_rate_);
-  if ((error = wrapper_->PcmSetParams(handle,
-                                      pcm_format_,
-                                      SND_PCM_ACCESS_RW_INTERLEAVED,
-                                      channels_,
-                                      sample_rate_,
-                                      1,  // soft_resample -- let ALSA resample
-                                      micros_per_packet * 2)) < 0) {
-    LOG(ERROR) << "Unable to set PCM parameters for (" << device_name_
-               << "): " << wrapper_->StrError(error);
-    if (!CloseDevice(handle)) {
-      // TODO(ajwong): Retry on certain errors?
-      LOG(WARNING) << "Unable to close audio device. Leaking handle.";
-    }
-    return false;
-  }
-
   // We do not need to check if the transition was successful because
   // CanTransitionTo() was checked above, and it is assumed that this
   // object's public API is only called on one thread so the state cannot
@@ -259,8 +301,7 @@ bool AlsaPcmOutputStream::Open(size_t packet_size) {
   shared_data_.TransitionTo(kIsOpened);
   message_loop_->PostTask(
       FROM_HERE,
-      NewRunnableMethod(this, &AlsaPcmOutputStream::FinishOpen,
-                        handle, packet_size));
+      NewRunnableMethod(this, &AlsaPcmOutputStream::OpenTask, packet_size));
 
   return true;
 }
@@ -321,17 +362,44 @@ void AlsaPcmOutputStream::GetVolume(double* left_level, double* right_level) {
   *left_level = *right_level = shared_data_.volume();
 }
 
-void AlsaPcmOutputStream::FinishOpen(snd_pcm_t* playback_handle,
-                                     size_t packet_size) {
+void AlsaPcmOutputStream::OpenTask(size_t packet_size) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  playback_handle_ = playback_handle;
-  packet_.reset(new Packet(packet_size));
+  // Initialize the configuration variables.
   frames_per_packet_ = packet_size / bytes_per_frame_;
+
+  // Try to open the device.
+  micros_per_packet_ =
+      FramesToMicros(packet_size / bytes_per_frame_, sample_rate_);
+  latency_micros_ = std::max(AlsaPcmOutputStream::kMinLatencyMicros,
+                             micros_per_packet_ * 2);
+  if (requested_device_name_ == kAutoSelectDevice) {
+    playback_handle_ = AutoSelectDevice(latency_micros_);
+    if (playback_handle_) {
+      LOG(INFO) << "Auto-selected device: " << device_name_;
+    }
+  } else {
+    device_name_ = requested_device_name_;
+    playback_handle_ = OpenDevice(device_name_, channels_, latency_micros_);
+  }
+
+  // Finish initializing the stream if the device was opened successfully.
+  if (playback_handle_ == NULL) {
+    stop_stream_ = true;
+  } else {
+    packet_.reset(new Packet(packet_size));
+    if (should_downmix_) {
+      bytes_per_output_frame_ = 2 * bytes_per_sample_;
+    }
+  }
 }
 
 void AlsaPcmOutputStream::StartTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
+
+  if (stop_stream_) {
+    return;
+  }
 
   // When starting again, drop all packets in the device and prepare it again
   // incase we are restarting from a pause state and need to flush old data.
@@ -353,14 +421,15 @@ void AlsaPcmOutputStream::StartTask() {
     return;
   }
 
-  // Do a best-effort write of 2 packets to pre-roll.
+  // Do a best-effort pre-roll to fill the buffer.  Use integer rounding to find
+  // the maximum number of full packets that can fit into the buffer.
   //
-  // TODO(ajwong): Make this track with the us_latency set in Open().
-  // Also handle EAGAIN.
-  BufferPacket(packet_.get());
-  WritePacket(packet_.get());
-  BufferPacket(packet_.get());
-  WritePacket(packet_.get());
+  // TODO(ajwong): Handle EAGAIN.
+  const int num_preroll = latency_micros_ / micros_per_packet_;
+  for (int i = 0; i < num_preroll; ++i) {
+    BufferPacket(packet_.get());
+    WritePacket(packet_.get());
+  }
 
   ScheduleNextWrite(packet_.get());
 }
@@ -410,7 +479,7 @@ void AlsaPcmOutputStream::BufferPacket(Packet* packet) {
       // the playback and report an error.
       delay = 0;
     } else {
-      delay *= bytes_per_frame_;
+      delay *= bytes_per_output_frame_;
     }
 
     packet->used = 0;
@@ -425,18 +494,62 @@ void AlsaPcmOutputStream::BufferPacket(Packet* packet) {
     DCHECK(packet->size % bytes_per_frame_ == 0);
     packet->size = (packet->size / bytes_per_frame_) * bytes_per_frame_;
 
-    media::AdjustVolume(packet->buffer.get(),
-                        packet->size,
-                        channels_,
-                        bytes_per_sample_,
-                        shared_data_.volume());
+    if (should_downmix_) {
+      if (media::FoldChannels(packet->buffer.get(),
+                              packet->size,
+                              channels_,
+                              bytes_per_sample_,
+                              shared_data_.volume())) {
+        // Adjust packet size for downmix.
+        packet->size =
+            packet->size / bytes_per_frame_ * bytes_per_output_frame_;
+      } else {
+        LOG(ERROR) << "Folding failed";
+      }
+    } else {
+      // TODO(ajwong): Handle other channel orderings.
+
+      // Handle channel order for 5.0 audio.
+      if (channels_ == 5) {
+        if (bytes_per_sample_ == 1) {
+          Swizzle50Layout(reinterpret_cast<uint8*>(packet->buffer.get()),
+                          packet->size);
+        } else if (bytes_per_sample_ == 2) {
+          Swizzle50Layout(reinterpret_cast<int16*>(packet->buffer.get()),
+                          packet->size);
+        } else if (bytes_per_sample_ == 4) {
+          Swizzle50Layout(reinterpret_cast<int32*>(packet->buffer.get()),
+                          packet->size);
+        }
+      }
+
+      // Handle channel order for 5.1 audio.
+      if (channels_ == 6) {
+        if (bytes_per_sample_ == 1) {
+          Swizzle51Layout(reinterpret_cast<uint8*>(packet->buffer.get()),
+                          packet->size);
+        } else if (bytes_per_sample_ == 2) {
+          Swizzle51Layout(reinterpret_cast<int16*>(packet->buffer.get()),
+                          packet->size);
+        } else if (bytes_per_sample_ == 4) {
+          Swizzle51Layout(reinterpret_cast<int32*>(packet->buffer.get()),
+                          packet->size);
+        }
+      }
+
+      media::AdjustVolume(packet->buffer.get(),
+                          packet->size,
+                          channels_,
+                          bytes_per_sample_,
+                          shared_data_.volume());
+    }
   }
 }
 
 void AlsaPcmOutputStream::WritePacket(Packet* packet) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  CHECK(packet->size % bytes_per_frame_ == 0);
+  CHECK(packet->size % bytes_per_output_frame_ == 0);
 
   // If the device is in error, just eat the bytes.
   if (stop_stream_) {
@@ -446,7 +559,7 @@ void AlsaPcmOutputStream::WritePacket(Packet* packet) {
 
   if (packet->used < packet->size) {
     char* buffer_pos = packet->buffer.get() + packet->used;
-    snd_pcm_sframes_t frames = FramesInPacket(*packet, bytes_per_frame_);
+    snd_pcm_sframes_t frames = FramesInPacket(*packet, bytes_per_output_frame_);
 
     DCHECK_GT(frames, 0);
 
@@ -472,7 +585,7 @@ void AlsaPcmOutputStream::WritePacket(Packet* packet) {
         stop_stream_ = true;
       }
     } else {
-      packet->used += frames_written * bytes_per_frame_;
+      packet->used += frames_written * bytes_per_output_frame_;
     }
   }
 }
@@ -498,10 +611,12 @@ void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
   }
 
   // Calculate when we should have enough buffer for another packet of data.
-  int frames_leftover = FramesInPacket(*current_packet, bytes_per_frame_);
-  int frames_needed =
-      frames_leftover > 0 ? frames_leftover : frames_per_packet_;
-  int frames_until_empty_enough = frames_needed - GetAvailableFrames();
+  // Make sure to take into consideration down-mixing.
+  int frames_leftover =
+      FramesInPacket(*current_packet, bytes_per_output_frame_);
+  int frames_avail_wanted =
+      (frames_leftover > 0) ? frames_leftover : frames_per_packet_;
+  int frames_until_empty_enough = frames_avail_wanted - GetAvailableFrames();
   int next_fill_time_ms =
       FramesToMillis(frames_until_empty_enough, sample_rate_);
 
@@ -545,6 +660,89 @@ int64 AlsaPcmOutputStream::FramesToMillis(int frames, int sample_rate) {
   return frames * base::Time::kMillisecondsPerSecond / sample_rate;
 }
 
+std::string AlsaPcmOutputStream::FindDeviceForChannels(int channels) {
+  // Constants specified by the ALSA API for device hints.
+  static const int kGetAllDevices = -1;
+  static const char kPcmInterfaceName[] = "pcm";
+  static const char kIoHintName[] = "IOID";
+  static const char kNameHintName[] = "NAME";
+
+  const char* wanted_device = GuessSpecificDeviceName(channels);
+  if (!wanted_device) {
+    return "";
+  }
+
+  std::string guessed_device;
+  void** hints = NULL;
+  int error = wrapper_->DeviceNameHint(kGetAllDevices,
+                                       kPcmInterfaceName,
+                                       &hints);
+  if (error == 0) {
+    // NOTE: Do not early return from inside this if statement.  The
+    // hints above need to be freed.
+    for (void** hint_iter = hints; *hint_iter != NULL; hint_iter++) {
+      // Only examine devices that are output capable..  Valid values are
+      // "Input", "Output", and NULL which means both input and output.
+      scoped_ptr_malloc<char> io(
+          wrapper_->DeviceNameGetHint(*hint_iter, kIoHintName));
+      if (io != NULL && strcmp(io.get(), "Input") == 0)
+        continue;
+
+      // Attempt to select the closest device for number of channels.
+      scoped_ptr_malloc<char> name(
+          wrapper_->DeviceNameGetHint(*hint_iter, kNameHintName));
+      if (strncmp(wanted_device, name.get(), strlen(wanted_device)) == 0) {
+        guessed_device = name.get();
+        break;
+      }
+    }
+
+    // Destory the hint now that we're done with it.
+    wrapper_->DeviceNameFreeHint(hints);
+    hints = NULL;
+  } else {
+    LOG(ERROR) << "Unable to get hints for devices: "
+               << wrapper_->StrError(error);
+  }
+
+  return guessed_device;
+}
+
+snd_pcm_t* AlsaPcmOutputStream::OpenDevice(const std::string& device_name,
+                                           int channels,
+                                           unsigned int latency) {
+  snd_pcm_t* handle = NULL;
+  int error = wrapper_->PcmOpen(&handle, device_name.c_str(),
+                                SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK);
+  if (error < 0) {
+    LOG(ERROR) << "Cannot open audio device (" << device_name << "): "
+               << wrapper_->StrError(error);
+    return NULL;
+  }
+
+  // Configure the device for software resampling.
+  if ((error = wrapper_->PcmSetParams(handle,
+                                      pcm_format_,
+                                      SND_PCM_ACCESS_RW_INTERLEAVED,
+                                      channels,
+                                      sample_rate_,
+                                      1,  // soft_resample -- let ALSA resample
+                                      latency)) < 0) {
+    LOG(ERROR) << "Unable to set PCM parameters for (" << device_name
+               << "): " << wrapper_->StrError(error)
+               << " -- Format: " << pcm_format_
+               << " Channels: " << channels
+               << " Latency (us): " << latency;
+    if (!CloseDevice(handle)) {
+      // TODO(ajwong): Retry on certain errors?
+      LOG(WARNING) << "Unable to close audio device. Leaking handle.";
+    }
+    return NULL;
+  }
+
+  return handle;
+}
+
 bool AlsaPcmOutputStream::CloseDevice(snd_pcm_t* handle) {
   int error = wrapper_->PcmClose(handle);
   if (error < 0) {
@@ -578,6 +776,60 @@ snd_pcm_sframes_t AlsaPcmOutputStream::GetAvailableFrames() {
   }
 
   return available_frames;
+}
+
+snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
+  // For auto-selection:
+  //   1) Attempt to open a device that best matches the number of channels
+  //      requested.
+  //   2) If that fails, attempt the "plug:" version of it incase ALSA can
+  //      remap do some software conversion to make it work.
+  //   3) Fallback to kDefaultDevice.
+  //   4) If that fails too, try the "plug:" version of kDefaultDevice.
+  //   5) Give up.
+  snd_pcm_t* handle = NULL;
+  device_name_ = FindDeviceForChannels(channels_);
+
+  // Step 1.
+  if (!device_name_.empty()) {
+    if ((handle = OpenDevice(device_name_, channels_, latency)) != NULL) {
+      return handle;
+    }
+
+    // Step 2.
+    device_name_ = kPlugPrefix + device_name_;
+    if ((handle = OpenDevice(device_name_, channels_, latency)) != NULL) {
+      return handle;
+    }
+  }
+
+  // For the kDefaultDevice device, we can only reliably depend on 2-channel
+  // output to have the correct ordering according to Lennart.  For the channel
+  // formats that we know how to downmix from (5 channel to 6 channel), setup
+  // downmixing.
+  //
+  // TODO(ajwong): We need a SupportsFolding() function.
+  int default_channels = channels_;
+  if (default_channels >= 5 && default_channels <= 6) {
+    should_downmix_ = true;
+    default_channels = 2;
+  }
+
+  // Step 3.
+  device_name_ = kDefaultDevice;
+  if ((handle = OpenDevice(device_name_, default_channels, latency)) != NULL) {
+    return handle;
+  }
+
+  // Step 4.
+  device_name_ = kPlugPrefix + device_name_;
+  if ((handle = OpenDevice(device_name_, default_channels, latency)) != NULL) {
+    return handle;
+  }
+
+  // Unable to open any device.
+  device_name_.clear();
+  return NULL;
 }
 
 AudioManagerLinux* AlsaPcmOutputStream::manager() {

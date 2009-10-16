@@ -17,6 +17,18 @@ int AlsaWrapper::PcmOpen(snd_pcm_t** handle, const char* name,
   return snd_pcm_open(handle, name, stream, mode);
 }
 
+int AlsaWrapper::DeviceNameHint(int card, const char* iface, void*** hints) {
+  return snd_device_name_hint(card, iface, hints);
+}
+
+char* AlsaWrapper::DeviceNameGetHint(const void* hint, const char* id) {
+  return snd_device_name_get_hint(hint, id);
+}
+
+int AlsaWrapper::DeviceNameFreeHint(void** hints) {
+  return snd_device_name_free_hint(hints);
+}
+
 int AlsaWrapper::PcmClose(snd_pcm_t* handle) {
   return snd_pcm_close(handle);
 }
