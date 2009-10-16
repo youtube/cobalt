@@ -318,9 +318,8 @@ TEST(TimerTest, DelayTimer_OneCall) {
   RunTest_DelayTimer_OneCall(MessageLoop::TYPE_IO);
 }
 
-// Disabled because it's flaky on the buildbot. Bug not filed because this
-// kind of test is difficult to make not-flaky on buildbots.
-TEST(TimerTest, DISABLED_DelayTimer_Reset) {
+// It's flaky on the buildbot, http://crbug.com/25038.
+TEST(TimerTest, FLAKY_DelayTimer_Reset) {
   RunTest_DelayTimer_Reset(MessageLoop::TYPE_DEFAULT);
   RunTest_DelayTimer_Reset(MessageLoop::TYPE_UI);
   RunTest_DelayTimer_Reset(MessageLoop::TYPE_IO);
