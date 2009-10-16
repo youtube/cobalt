@@ -105,6 +105,19 @@ TEST(HttpUtilTest, HeadersIterator_AdvanceTo) {
   EXPECT_FALSE(it.GetNext());  // should be at end of headers
 }
 
+TEST(HttpUtilTest, HeadersIterator_Reset) {
+  std::string headers = "foo: 1\r\n: 2\r\n3\r\nbar: 4";
+  HttpUtil::HeadersIterator it(headers.begin(), headers.end(), "\r\n");
+  // Search past "foo".
+  EXPECT_TRUE(it.AdvanceTo("bar"));
+  // Now try advancing to "foo".  This time it should fail since the iterator
+  // position is past it.
+  EXPECT_FALSE(it.AdvanceTo("foo"));
+  it.Reset();
+  // Now that we reset the iterator position, we should find 'foo'
+  EXPECT_TRUE(it.AdvanceTo("foo"));
+}
+
 TEST(HttpUtilTest, ValuesIterator) {
   std::string values = " must-revalidate,   no-cache=\"foo, bar\"\t, private ";
 

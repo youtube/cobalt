@@ -30,6 +30,28 @@ TEST(StringTokenizerTest, Simple) {
   EXPECT_FALSE(t.GetNext());
 }
 
+TEST(StringTokenizerTest, Reset) {
+  string input = "this is a test";
+  StringTokenizer t(input, " ");
+
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_TRUE(t.GetNext());
+    EXPECT_EQ(string("this"), t.token());
+
+    EXPECT_TRUE(t.GetNext());
+    EXPECT_EQ(string("is"), t.token());
+
+    EXPECT_TRUE(t.GetNext());
+    EXPECT_EQ(string("a"), t.token());
+
+    EXPECT_TRUE(t.GetNext());
+    EXPECT_EQ(string("test"), t.token());
+
+    EXPECT_FALSE(t.GetNext());
+    t.Reset();
+  }
+}
+
 TEST(StringTokenizerTest, RetDelims) {
   string input = "this is a test";
   StringTokenizer t(input, " ");

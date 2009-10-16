@@ -141,6 +141,11 @@ class StringTokenizerT {
     return true;
   }
 
+  // Start iterating through tokens from the beginning of the string.
+  void Reset() {
+    token_end_ = start_pos_;
+  }
+
   // Returns true if token is a delimiter.  When the tokenizer is constructed
   // with the RETURN_DELIMS option, this method can be used to check if the
   // returned token is actually a delimiter.
@@ -156,6 +161,7 @@ class StringTokenizerT {
   void Init(const_iterator string_begin,
             const_iterator string_end,
             const str& delims) {
+    start_pos_ = string_begin;
     token_end_ = string_begin;
     end_ = string_end;
     delims_ = delims;
@@ -195,6 +201,7 @@ class StringTokenizerT {
     return true;
   }
 
+  const_iterator start_pos_;
   const_iterator token_begin_;
   const_iterator token_end_;
   const_iterator end_;
