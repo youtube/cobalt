@@ -157,6 +157,11 @@ bool PipelineImpl::IsInitialized() const {
   }
 }
 
+bool PipelineImpl::IsNetworkActive() const {
+  AutoLock auto_lock(lock_);
+  return network_activity_;
+}
+
 bool PipelineImpl::IsRendered(const std::string& major_mime_type) const {
   AutoLock auto_lock(lock_);
   bool is_rendered = (rendered_mime_types_.find(major_mime_type) !=
@@ -282,6 +287,12 @@ void PipelineImpl::SetPipelineErrorCallback(PipelineCallback* error_callback) {
   DCHECK(!IsRunning())
       << "Permanent callbacks should be set before the pipeline has started";
   error_callback_.reset(error_callback);
+}
+
+void PipelineImpl::SetNetworkEventCallback(PipelineCallback* network_callback) {
+  DCHECK(!IsRunning())
+      << "Permanent callbacks should be set before the pipeline has started";
+  network_callback_.reset(network_callback);
 }
 
 void PipelineImpl::ResetState() {
@@ -415,6 +426,16 @@ void PipelineImpl::SetLoaded(bool loaded) {
   DCHECK(IsRunning());
   AutoLock auto_lock(lock_);
   loaded_ = loaded;
+}
+
+void PipelineImpl::SetNetworkActivity(bool network_activity) {
+  DCHECK(IsRunning());
+  {
+    AutoLock auto_lock(lock_);
+    network_activity_ = network_activity;
+  }
+  message_loop_->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &PipelineImpl::NotifyNetworkEventTask));
 }
 
 void PipelineImpl::BroadcastMessage(FilterMessage message) {
@@ -715,6 +736,13 @@ void PipelineImpl::NotifyEndedTask() {
   state_ = kEnded;
   if (ended_callback_.get()) {
     ended_callback_->Run();
+  }
+}
+
+void PipelineImpl::NotifyNetworkEventTask() {
+  DCHECK_EQ(MessageLoop::current(), message_loop_);
+  if (network_callback_.get()) {
+    network_callback_->Run();
   }
 }
 

@@ -72,6 +72,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void Seek(base::TimeDelta time, PipelineCallback* seek_callback);
   virtual bool IsRunning() const;
   virtual bool IsInitialized() const;
+  virtual bool IsNetworkActive() const;
   virtual bool IsRendered(const std::string& major_mime_type) const;
   virtual float GetPlaybackRate() const;
   virtual void SetPlaybackRate(float playback_rate);
@@ -95,6 +96,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // |error_callback_| is NULL, it is ignored. The pipeline takes ownership
   // of |error_callback|.
   virtual void SetPipelineErrorCallback(PipelineCallback* error_callback);
+
+  // |network_callback_| will be executed when there's a network event.
+  virtual void SetNetworkEventCallback(PipelineCallback* network_callback);
 
  private:
   // Pipeline states, as described above.
@@ -145,6 +149,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetVideoSize(size_t width, size_t height);
   virtual void SetStreaming(bool streamed);
   virtual void SetLoaded(bool loaded);
+  virtual void SetNetworkActivity(bool network_activity);
   virtual void NotifyEnded();
   virtual void BroadcastMessage(FilterMessage message);
 
@@ -193,6 +198,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Carries out handling a notification from a filter that it has ended.
   void NotifyEndedTask();
+
+  // Carries out handling a notification of network event.
+  void NotifyNetworkEventTask();
 
   // Carries out message broadcasting on the message loop.
   void BroadcastMessageTask(FilterMessage message);
@@ -299,6 +307,9 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // loaded source.
   bool loaded_;
 
+  // Sets by the filters to indicate whether network is active.
+  bool network_activity_;
+
   // Current volume level (from 0.0f to 1.0f).  This value is set immediately
   // via SetVolume() and a task is dispatched on the message loop to notify the
   // filters.
@@ -356,6 +367,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   scoped_ptr<PipelineCallback> stop_callback_;
   scoped_ptr<PipelineCallback> ended_callback_;
   scoped_ptr<PipelineCallback> error_callback_;
+  scoped_ptr<PipelineCallback> network_callback_;
 
   // Vector of our filters and map maintaining the relationship between the
   // FilterType and the filter itself.
