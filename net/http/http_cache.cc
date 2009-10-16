@@ -1601,7 +1601,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
           host_resolver, proxy_service, ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(false),
-      enable_range_support_(false),
+      enable_range_support_(true),
       cache_size_(cache_size) {
 }
 
@@ -1614,7 +1614,7 @@ HttpCache::HttpCache(HttpNetworkSession* session,
       network_layer_(HttpNetworkLayer::CreateFactory(session)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(false),
-      enable_range_support_(false),
+      enable_range_support_(true),
       cache_size_(cache_size) {
 }
 
@@ -1628,7 +1628,7 @@ HttpCache::HttpCache(HostResolver* host_resolver,
           host_resolver, proxy_service, ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(true),
-      enable_range_support_(false),
+      enable_range_support_(true),
       cache_size_(cache_size) {
 }
 
@@ -1640,7 +1640,7 @@ HttpCache::HttpCache(HttpTransactionFactory* network_layer,
       disk_cache_(disk_cache),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       in_memory_cache_(false),
-      enable_range_support_(false),
+      enable_range_support_(true),
       cache_size_(0) {
 }
 
