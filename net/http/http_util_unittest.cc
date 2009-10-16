@@ -93,6 +93,18 @@ TEST(HttpUtilTest, HeadersIterator_MalformedLine) {
   EXPECT_FALSE(it.GetNext());
 }
 
+TEST(HttpUtilTest, HeadersIterator_AdvanceTo) {
+  std::string headers = "foo: 1\r\n: 2\r\n3\r\nbar: 4";
+
+  HttpUtil::HeadersIterator it(headers.begin(), headers.end(), "\r\n");
+  EXPECT_TRUE(it.AdvanceTo("foo"));
+  EXPECT_EQ("foo", it.name());
+  EXPECT_TRUE(it.AdvanceTo("bar"));
+  EXPECT_EQ("bar", it.name());
+  EXPECT_FALSE(it.AdvanceTo("blat"));
+  EXPECT_FALSE(it.GetNext());  // should be at end of headers
+}
+
 TEST(HttpUtilTest, ValuesIterator) {
   std::string values = " must-revalidate,   no-cache=\"foo, bar\"\t, private ";
 
