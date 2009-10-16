@@ -715,8 +715,32 @@ TEST(HttpResponseHeadersTest, RequiresValidation) {
       "\n",
       false
     },
+    { "HTTP/1.1 203 Non-Authoritative Information\n"
+      "date: Wed, 28 Nov 2007 00:40:11 GMT\n"
+      "last-modified: Wed, 27 Nov 2007 08:00:00 GMT\n"
+      "\n",
+      false
+    },
+    { "HTTP/1.1 206 Partial Content\n"
+      "date: Wed, 28 Nov 2007 00:40:11 GMT\n"
+      "last-modified: Wed, 27 Nov 2007 08:00:00 GMT\n"
+      "\n",
+      false
+    },
     // last-modified heuristic: modified recently
     { "HTTP/1.1 200 OK\n"
+      "date: Wed, 28 Nov 2007 00:40:11 GMT\n"
+      "last-modified: Wed, 28 Nov 2007 00:40:10 GMT\n"
+      "\n",
+      true
+    },
+    { "HTTP/1.1 203 Non-Authoritative Information\n"
+      "date: Wed, 28 Nov 2007 00:40:11 GMT\n"
+      "last-modified: Wed, 28 Nov 2007 00:40:10 GMT\n"
+      "\n",
+      true
+    },
+    { "HTTP/1.1 206 Partial Content\n"
       "date: Wed, 28 Nov 2007 00:40:11 GMT\n"
       "last-modified: Wed, 28 Nov 2007 00:40:10 GMT\n"
       "\n",

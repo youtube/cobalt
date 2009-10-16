@@ -1099,6 +1099,9 @@ bool HttpCache::Transaction::RequiresValidation() {
   if (effective_load_flags_ & LOAD_VALIDATE_CACHE)
     return true;
 
+  if (response_.headers->response_code() == 206 && !enable_range_support_)
+    return true;
+
   if (response_.headers->RequiresValidation(
           response_.request_time, response_.response_time, Time::Now()))
     return true;
