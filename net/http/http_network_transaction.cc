@@ -25,6 +25,7 @@
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
+#include "net/http/http_response_info.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socks5_client_socket.h"
@@ -34,10 +35,6 @@
 using base::Time;
 
 namespace net {
-
-void HttpNetworkTransaction::ResponseHeaders::Realloc(size_t new_size) {
-  headers_.reset(static_cast<char*>(realloc(headers_.release(), new_size)));
-}
 
 namespace {
 
@@ -138,20 +135,12 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       request_(NULL),
       pac_request_(NULL),
       reused_socket_(false),
+      headers_valid_(false),
+      logged_response_time(false),
       using_ssl_(false),
       proxy_mode_(kDirectConnection),
       establishing_tunnel_(false),
-      reading_body_from_socket_(false),
       embedded_identity_used_(false),
-      request_headers_(new RequestHeaders()),
-      request_headers_bytes_sent_(0),
-      header_buf_(new ResponseHeaders()),
-      header_buf_capacity_(0),
-      header_buf_len_(0),
-      header_buf_body_offset_(-1),
-      header_buf_http_offset_(-1),
-      response_body_length_(-1),  // -1 means unspecified.
-      response_body_read_(0),
       read_buf_len_(0),
       next_state_(STATE_NONE) {
   session->ssl_config_service()->GetSSLConfig(&ssl_config_);
@@ -176,7 +165,7 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
 int HttpNetworkTransaction::RestartIgnoringLastError(
     CompletionCallback* callback) {
   if (connection_.socket()->IsConnected()) {
-    next_state_ = STATE_WRITE_HEADERS;
+    next_state_ = STATE_SEND_REQUEST;
   } else {
     connection_.socket()->Disconnect();
     connection_.Reset();
@@ -266,19 +255,19 @@ void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
   }
 
   bool keep_alive = false;
-  if (response_.headers->IsKeepAlive()) {
-    // If there is a response body of known length, we need to drain it first.
-    if (response_body_length_ > 0 || chunked_decoder_.get()) {
+  // Even if the server says the connection is keep-alive, we have to be
+  // able to find the end of each response in order to reuse the connection.
+  if (GetResponseHeaders()->IsKeepAlive() &&
+      http_stream_->CanFindEndOfResponse()) {
+    // If the response body hasn't been completely read, we need to drain
+    // it first.
+    if (!http_stream_->IsResponseBodyComplete()) {
       next_state_ = STATE_DRAIN_BODY_FOR_AUTH_RESTART;
-      read_buf_ = new IOBuffer(kDrainBodyBufferSize);  // A bit bucket
+      read_buf_ = new IOBuffer(kDrainBodyBufferSize);  // A bit bucket.
       read_buf_len_ = kDrainBodyBufferSize;
       return;
     }
-    if (response_body_length_ == 0)  // No response body to drain.
-      keep_alive = true;
-    // response_body_length_ is -1 and we're not using chunked encoding. We
-    // don't know the length of the response body, so we can't reuse this
-    // connection even though the server says it's keep-alive.
+    keep_alive = true;
   }
 
   // We don't need to drain the response body, so we act as if we had drained
@@ -288,7 +277,7 @@ void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
 
 void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
   if (keep_alive) {
-    next_state_ = STATE_WRITE_HEADERS;
+    next_state_ = STATE_SEND_REQUEST;
     reused_socket_ = true;
   } else {
     next_state_ = STATE_INIT_CONNECTION;
@@ -302,7 +291,8 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
 
 int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
                                  CompletionCallback* callback) {
-  DCHECK(response_.headers);
+  scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
+  DCHECK(headers.get());
   DCHECK(buf);
   DCHECK_LT(0, buf_len);
 
@@ -317,8 +307,8 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
     // network attacker can already control HTTP sessions.
     // We reach this case when the user cancels a 407 proxy auth prompt.
     // See http://crbug.com/8473
-    DCHECK_EQ(407, response_.headers->response_code());
-    LogBlockedTunnelResponse(response_.headers->response_code());
+    DCHECK_EQ(407, headers->response_code());
+    LogBlockedTunnelResponse(headers->response_code());
     return ERR_TUNNEL_CONNECTION_FAILED;
   }
 
@@ -338,8 +328,9 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
 }
 
 const HttpResponseInfo* HttpNetworkTransaction::GetResponseInfo() const {
-  return (response_.headers || response_.ssl_info.cert ||
-          response_.cert_request_info) ? &response_ : NULL;
+  const HttpResponseInfo* response = http_stream_->GetResponseInfo();
+  return ((headers_valid_ && response->headers) || response->ssl_info.cert ||
+          response->cert_request_info) ? response : NULL;
 }
 
 LoadState HttpNetworkTransaction::GetLoadState() const {
@@ -350,8 +341,7 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
       return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
     case STATE_INIT_CONNECTION_COMPLETE:
       return connection_.GetLoadState();
-    case STATE_WRITE_HEADERS_COMPLETE:
-    case STATE_WRITE_BODY_COMPLETE:
+    case STATE_SEND_REQUEST_COMPLETE:
       return LOAD_STATE_SENDING_REQUEST;
     case STATE_READ_HEADERS_COMPLETE:
       return LOAD_STATE_WAITING_FOR_RESPONSE;
@@ -363,10 +353,10 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
 }
 
 uint64 HttpNetworkTransaction::GetUploadProgress() const {
-  if (!request_body_stream_.get())
+  if (!http_stream_.get())
     return 0;
 
-  return request_body_stream_->position();
+  return http_stream_->GetUploadProgress();
 }
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
@@ -439,23 +429,14 @@ int HttpNetworkTransaction::DoLoop(int result) {
         rv = DoSSLConnectComplete(rv);
         TRACE_EVENT_END("http.ssl_connect", request_, request_->url.spec());
         break;
-      case STATE_WRITE_HEADERS:
+      case STATE_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
-        TRACE_EVENT_BEGIN("http.write_headers", request_, request_->url.spec());
-        rv = DoWriteHeaders();
+        TRACE_EVENT_BEGIN("http.send_request", request_, request_->url.spec());
+        rv = DoSendRequest();
         break;
-      case STATE_WRITE_HEADERS_COMPLETE:
-        rv = DoWriteHeadersComplete(rv);
-        TRACE_EVENT_END("http.write_headers", request_, request_->url.spec());
-        break;
-      case STATE_WRITE_BODY:
-        DCHECK_EQ(OK, rv);
-        TRACE_EVENT_BEGIN("http.write_body", request_, request_->url.spec());
-        rv = DoWriteBody();
-        break;
-      case STATE_WRITE_BODY_COMPLETE:
-        rv = DoWriteBodyComplete(rv);
-        TRACE_EVENT_END("http.write_body", request_, request_->url.spec());
+      case STATE_SEND_REQUEST_COMPLETE:
+        rv = DoSendRequestComplete(rv);
+        TRACE_EVENT_END("http.send_request", request_, request_->url.spec());
         break;
       case STATE_READ_HEADERS:
         DCHECK_EQ(OK, rv);
@@ -611,7 +592,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   // trying to reuse a keep-alive connection.
   reused_socket_ = connection_.is_reused();
   if (reused_socket_) {
-    next_state_ = STATE_WRITE_HEADERS;
+    next_state_ = STATE_SEND_REQUEST;
   } else {
     // Now we have a TCP connected socket.  Perform other connection setup as
     // needed.
@@ -620,11 +601,12 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     else if (using_ssl_ && proxy_mode_ == kDirectConnection) {
       next_state_ = STATE_SSL_CONNECT;
     } else {
-      next_state_ = STATE_WRITE_HEADERS;
+      next_state_ = STATE_SEND_REQUEST;
       if (proxy_mode_ == kHTTPProxyUsingTunnel)
         establishing_tunnel_ = true;
     }
   }
+  headers_valid_ = false;
   http_stream_.reset(new HttpBasicStream(&connection_));
   return OK;
 }
@@ -655,7 +637,7 @@ int HttpNetworkTransaction::DoSOCKSConnectComplete(int result) {
     if (using_ssl_) {
       next_state_ = STATE_SSL_CONNECT;
     } else {
-      next_state_ = STATE_WRITE_HEADERS;
+      next_state_ = STATE_SEND_REQUEST;
     }
   } else {
     result = ReconsiderProxyAfterError(result);
@@ -694,7 +676,7 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
         base::TimeDelta::FromMinutes(10),
         100);
 
-    next_state_ = STATE_WRITE_HEADERS;
+    next_state_ = STATE_SEND_REQUEST;
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     result = HandleCertificateRequest(result);
   } else {
@@ -703,12 +685,16 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
   return result;
 }
 
-int HttpNetworkTransaction::DoWriteHeaders() {
-  next_state_ = STATE_WRITE_HEADERS_COMPLETE;
+int HttpNetworkTransaction::DoSendRequest() {
+  next_state_ = STATE_SEND_REQUEST_COMPLETE;
+
+  UploadDataStream* request_body = NULL;
+  if (!establishing_tunnel_ && request_->upload_data)
+    request_body = new UploadDataStream(request_->upload_data);
 
   // This is constructed lazily (instead of within our Start method), so that
   // we have proxy info available.
-  if (request_headers_->headers_.empty()) {
+  if (request_headers_.empty()) {
     // Figure out if we can/should add Proxy-Authentication & Authentication
     // headers.
     bool have_proxy_auth =
@@ -733,91 +719,30 @@ int HttpNetworkTransaction::DoWriteHeaders() {
           BuildAuthorizationHeader(HttpAuth::AUTH_SERVER));
 
     if (establishing_tunnel_) {
-      BuildTunnelRequest(request_, authorization_headers,
-                         &request_headers_->headers_);
+      BuildTunnelRequest(request_, authorization_headers, &request_headers_);
     } else {
-      if (request_->upload_data)
-        request_body_stream_.reset(new UploadDataStream(request_->upload_data));
-      BuildRequestHeaders(request_, authorization_headers,
-                          request_body_stream_.get(),
-                          proxy_mode_ == kHTTPProxy,
-                          &request_headers_->headers_);
+      BuildRequestHeaders(request_, authorization_headers, request_body,
+                          proxy_mode_ == kHTTPProxy, &request_headers_);
     }
   }
 
-  // Record our best estimate of the 'request time' as the time when we send
-  // out the first bytes of the request headers.
-  if (request_headers_bytes_sent_ == 0) {
-    response_.request_time = Time::Now();
-  }
-
-  request_headers_->SetDataOffset(request_headers_bytes_sent_);
-  int buf_len = static_cast<int>(request_headers_->headers_.size() -
-                                 request_headers_bytes_sent_);
-  DCHECK_GT(buf_len, 0);
-
-  return http_stream_->Write(request_headers_, buf_len, &io_callback_);
+  return http_stream_->SendRequest(request_, request_headers_, request_body,
+                                   &io_callback_);
 }
 
-int HttpNetworkTransaction::DoWriteHeadersComplete(int result) {
+int HttpNetworkTransaction::DoSendRequestComplete(int result) {
   if (result < 0)
     return HandleIOError(result);
 
-  request_headers_bytes_sent_ += result;
-  if (request_headers_bytes_sent_ < request_headers_->headers_.size()) {
-    next_state_ = STATE_WRITE_HEADERS;
-  } else if (!establishing_tunnel_ && request_body_stream_.get() &&
-             request_body_stream_->size()) {
-    next_state_ = STATE_WRITE_BODY;
-  } else {
-    next_state_ = STATE_READ_HEADERS;
-  }
-  return OK;
-}
+  next_state_ = STATE_READ_HEADERS;
 
-int HttpNetworkTransaction::DoWriteBody() {
-  next_state_ = STATE_WRITE_BODY_COMPLETE;
-
-  DCHECK(request_body_stream_.get());
-  DCHECK(request_body_stream_->size());
-
-  int buf_len = static_cast<int>(request_body_stream_->buf_len());
-
-  return http_stream_->Write(request_body_stream_->buf(), buf_len,
-                             &io_callback_);
-}
-
-int HttpNetworkTransaction::DoWriteBodyComplete(int result) {
-  if (result < 0)
-    return HandleIOError(result);
-
-  request_body_stream_->DidConsume(result);
-
-  if (request_body_stream_->position() < request_body_stream_->size()) {
-    next_state_ = STATE_WRITE_BODY;
-  } else {
-    next_state_ = STATE_READ_HEADERS;
-  }
   return OK;
 }
 
 int HttpNetworkTransaction::DoReadHeaders() {
   next_state_ = STATE_READ_HEADERS_COMPLETE;
 
-  // Grow the read buffer if necessary.
-  if (header_buf_len_ == header_buf_capacity_) {
-    header_buf_capacity_ += kHeaderBufInitialSize;
-    header_buf_->Realloc(header_buf_capacity_);
-  }
-
-  int buf_len = header_buf_capacity_ - header_buf_len_;
-  header_buf_->set_data(header_buf_len_);
-
-  // http://crbug.com/16371: We're seeing |user_buf_->data()| return NULL.
-  // See if the user is passing in an IOBuffer with a NULL |data_|.
-  CHECK(header_buf_->data());
-
-  return http_stream_->Read(header_buf_, buf_len, &io_callback_);
+  return http_stream_->ReadResponseHeaders(&io_callback_);
 }
 
 int HttpNetworkTransaction::HandleConnectionClosedBeforeEndOfHeaders() {
@@ -826,24 +751,12 @@ int HttpNetworkTransaction::HandleConnectionClosedBeforeEndOfHeaders() {
     return ERR_TUNNEL_CONNECTION_FAILED;
   }
 
-  if (has_found_status_line_start()) {
-    // Assume EOF is end-of-headers.
-    header_buf_body_offset_ = header_buf_len_;
-    return OK;
-  }
-
-  // No status line was matched yet. Could have been a HTTP/0.9 response, or
-  // a partial HTTP/1.x response.
-
-  if (header_buf_len_ == 0) {
+  if (!http_stream_->GetResponseInfo()->headers) {
     // The connection was closed before any data was sent. Likely an error
     // rather than empty HTTP/0.9 response.
     return ERR_EMPTY_RESPONSE;
   }
 
-  // Assume everything else is a HTTP/0.9 response (including responses
-  // of 'h', 'ht', 'htt').
-  header_buf_body_offset_ = 0;
   return OK;
 }
 
@@ -865,99 +778,115 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
     }
   }
 
-  if (result < 0)
+  if (result < 0 && result != ERR_CONNECTION_CLOSED)
     return HandleIOError(result);
 
-  if (result == 0 && ShouldResendRequest(result)) {
+  if (result == ERR_CONNECTION_CLOSED && ShouldResendRequest(result)) {
     ResetConnectionAndRequestForResend();
-    return result;
+    return OK;
   }
 
-  // Record our best estimate of the 'response time' as the time when we read
-  // the first bytes of the response headers.
-  if (header_buf_len_ == 0) {
-    // After we call RestartWithAuth header_buf_len will be zero again, and
-    // we need to be cautious about incorrectly logging the duration across the
-    // authentication activitiy.
-    bool first_response = response_.response_time == Time();
-    response_.response_time = Time::Now();
-    if (first_response)
-      LogTransactionConnectedMetrics();
+  // After we call RestartWithAuth a new response_time will be recorded, and
+  // we need to be cautious about incorrectly logging the duration across the
+  // authentication activity.
+  HttpResponseInfo* response = http_stream_->GetResponseInfo();
+  if (!logged_response_time) {
+    LogTransactionConnectedMetrics();
+    logged_response_time = true;
   }
 
-  // The socket was closed before we found end-of-headers.
-  if (result == 0) {
+  if (result == ERR_CONNECTION_CLOSED) {
     int rv = HandleConnectionClosedBeforeEndOfHeaders();
     if (rv != OK)
       return rv;
-  } else {
-    header_buf_len_ += result;
-    DCHECK(header_buf_len_ <= header_buf_capacity_);
+    // TODO(wtc): Traditionally this code has returned 0 when reading a closed
+    // socket.  That is partially corrected in classes that we call, but
+    // callers need to be updated.
+    result = 0;
+  }
 
-    // Look for the start of the status line, if it hasn't been found yet.
-    if (!has_found_status_line_start()) {
-      header_buf_http_offset_ = HttpUtil::LocateStartOfStatusLine(
-          header_buf_->headers(), header_buf_len_);
-    }
+  if (response->headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
+    // Require the "HTTP/1.x" status line for SSL CONNECT.
+    if (establishing_tunnel_)
+      return ERR_TUNNEL_CONNECTION_FAILED;
 
-    if (has_found_status_line_start()) {
-      int eoh = HttpUtil::LocateEndOfHeaders(
-          header_buf_->headers(), header_buf_len_, header_buf_http_offset_);
-      if (eoh == -1) {
-        // Prevent growing the headers buffer indefinitely.
-        if (header_buf_len_ >= kMaxHeaderBufSize)
-          return ERR_RESPONSE_HEADERS_TOO_BIG;
+    // HTTP/0.9 doesn't support the PUT method, so lack of response headers
+    // indicates a buggy server.  See:
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=193921
+    if (request_->method == "PUT")
+      return ERR_METHOD_NOT_SUPPORTED;
+  }
 
-        // Haven't found the end of headers yet, keep reading.
-        next_state_ = STATE_READ_HEADERS;
+  if (establishing_tunnel_) {
+    switch (response->headers->response_code()) {
+      case 200:  // OK
+        if (http_stream_->IsMoreDataBuffered()) {
+          // The proxy sent extraneous data after the headers.
+          return ERR_TUNNEL_CONNECTION_FAILED;
+        }
+        next_state_ = STATE_SSL_CONNECT;
+        // Reset for the real request and response headers.
+        request_headers_.clear();
+        http_stream_.reset(new HttpBasicStream(&connection_));
+        headers_valid_ = false;
+        establishing_tunnel_ = false;
         return OK;
-      }
-      header_buf_body_offset_ = eoh;
-    } else if (header_buf_len_ < 8) {
-      // Not enough data to decide whether this is HTTP/0.9 yet.
-      // 8 bytes = (4 bytes of junk) + "http".length()
-      next_state_ = STATE_READ_HEADERS;
-      return OK;
-    } else {
-      // Enough data was read -- there is no status line.
-      header_buf_body_offset_ = 0;
+
+      // We aren't able to CONNECT to the remote host through the proxy.  We
+      // need to be very suspicious about the response because an active network
+      // attacker can force us into this state by masquerading as the proxy.
+      // The only safe thing to do here is to fail the connection because our
+      // client is expecting an SSL protected response.
+      // See http://crbug.com/7338.
+      case 407:  // Proxy Authentication Required
+        // We need this status code to allow proxy authentication.  Our
+        // authentication code is smart enough to avoid being tricked by an
+        // active network attacker.
+        break;
+      default:
+        // For all other status codes, we conservatively fail the CONNECT
+        // request.
+        // We lose something by doing this.  We have seen proxy 403, 404, and
+        // 501 response bodies that contain a useful error message.  For
+        // example, Squid uses a 404 response to report the DNS error: "The
+        // domain name does not exist."
+        LogBlockedTunnelResponse(response->headers->response_code());
+        return ERR_TUNNEL_CONNECTION_FAILED;
     }
   }
 
-  // And, we are done with the Start or the SSL tunnel CONNECT sequence.
-  return DidReadResponseHeaders();
+  // Check for an intermediate 100 Continue response.  An origin server is
+  // allowed to send this response even if we didn't ask for it, so we just
+  // need to skip over it.
+  // We treat any other 1xx in this same way (although in practice getting
+  // a 1xx that isn't a 100 is rare).
+  if (response->headers->response_code() / 100 == 1) {
+    next_state_ = STATE_READ_HEADERS;
+    return OK;
+  }
+
+  int rv = HandleAuthChallenge();
+  if (rv != OK)
+    return rv;
+
+  if (using_ssl_ && !establishing_tunnel_) {
+    SSLClientSocket* ssl_socket =
+        reinterpret_cast<SSLClientSocket*>(connection_.socket());
+    ssl_socket->GetSSLInfo(&response->ssl_info);
+  }
+
+  headers_valid_ = true;
+  return OK;
 }
 
 int HttpNetworkTransaction::DoReadBody() {
   DCHECK(read_buf_);
   DCHECK_GT(read_buf_len_, 0);
   DCHECK(connection_.is_initialized());
-  DCHECK(!header_buf_->headers() || header_buf_body_offset_ >= 0);
 
   next_state_ = STATE_READ_BODY_COMPLETE;
-
-  // We may have already consumed the indicated content length.
-  if (response_body_length_ != -1 &&
-      response_body_read_ >= response_body_length_)
-    return 0;
-
-  // We may have some data remaining in the header buffer.
-  if (header_buf_->headers() && header_buf_body_offset_ < header_buf_len_) {
-    int n = std::min(read_buf_len_, header_buf_len_ - header_buf_body_offset_);
-    memcpy(read_buf_->data(), header_buf_->headers() + header_buf_body_offset_,
-           n);
-    header_buf_body_offset_ += n;
-    if (header_buf_body_offset_ == header_buf_len_) {
-      header_buf_->Reset();
-      header_buf_capacity_ = 0;
-      header_buf_len_ = 0;
-      header_buf_body_offset_ = -1;
-    }
-    return n;
-  }
-
-  reading_body_from_socket_ = true;
-  return http_stream_->Read(read_buf_, read_buf_len_, &io_callback_);
+  return http_stream_->ReadResponseBody(read_buf_, read_buf_len_,
+                                        &io_callback_);
 }
 
 int HttpNetworkTransaction::DoReadBodyComplete(int result) {
@@ -965,39 +894,18 @@ int HttpNetworkTransaction::DoReadBodyComplete(int result) {
   DCHECK(!establishing_tunnel_) <<
       "We should never read a response body of a tunnel.";
 
-  bool unfiltered_eof = (result == 0 && reading_body_from_socket_);
-  reading_body_from_socket_ = false;
-
-  // Filter incoming data if appropriate.  FilterBuf may return an error.
-  if (result > 0 && chunked_decoder_.get()) {
-    result = chunked_decoder_->FilterBuf(read_buf_->data(), result);
-    if (result == 0 && !chunked_decoder_->reached_eof()) {
-      // Don't signal completion of the Read call yet or else it'll look like
-      // we received end-of-file.  Wait for more data.
-      next_state_ = STATE_READ_BODY;
-      return OK;
-    }
-  }
-
   bool done = false, keep_alive = false;
   if (result < 0) {
-    // Error while reading the socket.
+    // Error or closed connection while reading the socket.
     done = true;
-  } else {
-    response_body_read_ += result;
-    if (unfiltered_eof ||
-        (response_body_length_ != -1 &&
-         response_body_read_ >= response_body_length_) ||
-        (chunked_decoder_.get() && chunked_decoder_->reached_eof())) {
-      done = true;
-      keep_alive = response_.headers->IsKeepAlive();
-      // We can't reuse the connection if we read more than the advertised
-      // content length.
-      if (unfiltered_eof ||
-          (response_body_length_ != -1 &&
-           response_body_read_ > response_body_length_))
-        keep_alive = false;
-    }
+    // TODO(wtc): Traditionally this code has returned 0 when reading a closed
+    // socket.  That is partially corrected in classes that we call, but
+    // callers need to be updated.
+    if (result == ERR_CONNECTION_CLOSED)
+      result = 0;
+  } else if (http_stream_->IsResponseBodyComplete()) {
+    done = true;
+    keep_alive = GetResponseHeaders()->IsKeepAlive();
   }
 
   // Clean up connection_ if we are done.
@@ -1026,45 +934,18 @@ int HttpNetworkTransaction::DoDrainBodyForAuthRestart() {
   return rv;
 }
 
-// TODO(wtc): The first two thirds of this method and the DoReadBodyComplete
-// method are almost the same.  Figure out a good way for these two methods
-// to share code.
+// TODO(wtc): This method and the DoReadBodyComplete method are almost
+// the same.  Figure out a good way for these two methods to share code.
 int HttpNetworkTransaction::DoDrainBodyForAuthRestartComplete(int result) {
-  bool unfiltered_eof = (result == 0 && reading_body_from_socket_);
-  reading_body_from_socket_ = false;
-
-  // Filter incoming data if appropriate.  FilterBuf may return an error.
-  if (result > 0 && chunked_decoder_.get()) {
-    result = chunked_decoder_->FilterBuf(read_buf_->data(), result);
-    if (result == 0 && !chunked_decoder_->reached_eof()) {
-      // Don't signal completion of the Read call yet or else it'll look like
-      // we received end-of-file.  Wait for more data.
-      next_state_ = STATE_DRAIN_BODY_FOR_AUTH_RESTART;
-      return OK;
-    }
-  }
-
   // keep_alive defaults to true because the very reason we're draining the
   // response body is to reuse the connection for auth restart.
   bool done = false, keep_alive = true;
   if (result < 0) {
-    // Error while reading the socket.
+    // Error or closed connection while reading the socket.
     done = true;
     keep_alive = false;
-  } else {
-    response_body_read_ += result;
-    if (unfiltered_eof ||
-        (response_body_length_ != -1 &&
-         response_body_read_ >= response_body_length_) ||
-        (chunked_decoder_.get() && chunked_decoder_->reached_eof())) {
-      done = true;
-      // We can't reuse the connection if we read more than the advertised
-      // content length.
-      if (unfiltered_eof ||
-          (response_body_length_ != -1 &&
-           response_body_read_ > response_body_length_))
-        keep_alive = false;
-    }
+  } else if (http_stream_->IsResponseBodyComplete()) {
+    done = true;
   }
 
   if (done) {
@@ -1213,7 +1094,8 @@ void HttpNetworkTransaction::LogIOErrorMetrics(
 }
 
 void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
-  base::TimeDelta total_duration = response_.response_time - start_time_;
+  base::TimeDelta total_duration =
+      http_stream_->GetResponseInfo()->response_time - start_time_;
 
   UMA_HISTOGRAM_CLIPPED_TIMES(
       "Net.Transaction_Connected_Under_10",
@@ -1272,7 +1154,8 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
 }
 
 void HttpNetworkTransaction::LogTransactionMetrics() const {
-  base::TimeDelta duration = base::Time::Now() - response_.request_time;
+  base::TimeDelta duration = base::Time::Now() -
+      http_stream_->GetResponseInfo()->request_time;
   if (60 < duration.InMinutes())
     return;
 
@@ -1300,143 +1183,6 @@ void HttpNetworkTransaction::LogBlockedTunnelResponse(
                << GetHostAndPort(request_->url) << ".";
 }
 
-int HttpNetworkTransaction::DidReadResponseHeaders() {
-  DCHECK_GE(header_buf_body_offset_, 0);
-
-  scoped_refptr<HttpResponseHeaders> headers;
-  if (has_found_status_line_start()) {
-    headers = new HttpResponseHeaders(
-        HttpUtil::AssembleRawHeaders(
-            header_buf_->headers(), header_buf_body_offset_));
-  } else {
-    // Fabricate a status line to to preserve the HTTP/0.9 version.
-    // (otherwise HttpResponseHeaders will default it to HTTP/1.0).
-    headers = new HttpResponseHeaders(std::string("HTTP/0.9 200 OK"));
-  }
-
-  if (headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
-    // Require the "HTTP/1.x" status line for SSL CONNECT.
-    if (establishing_tunnel_)
-      return ERR_TUNNEL_CONNECTION_FAILED;
-
-    // HTTP/0.9 doesn't support the PUT method, so lack of response headers
-    // indicates a buggy server.  See:
-    // https://bugzilla.mozilla.org/show_bug.cgi?id=193921
-    if (request_->method == "PUT")
-      return ERR_METHOD_NOT_SUPPORTED;
-  }
-
-  if (establishing_tunnel_) {
-    switch (headers->response_code()) {
-      case 200:  // OK
-        if (header_buf_body_offset_ != header_buf_len_) {
-          // The proxy sent extraneous data after the headers.
-          return ERR_TUNNEL_CONNECTION_FAILED;
-        }
-        next_state_ = STATE_SSL_CONNECT;
-        // Reset for the real request and response headers.
-        request_headers_->headers_.clear();
-        request_headers_bytes_sent_ = 0;
-        header_buf_len_ = 0;
-        header_buf_body_offset_ = -1;
-        establishing_tunnel_ = false;
-        return OK;
-
-      // We aren't able to CONNECT to the remote host through the proxy.  We
-      // need to be very suspicious about the response because an active network
-      // attacker can force us into this state by masquerading as the proxy.
-      // The only safe thing to do here is to fail the connection because our
-      // client is expecting an SSL protected response.
-      // See http://crbug.com/7338.
-      case 407:  // Proxy Authentication Required
-        // We need this status code to allow proxy authentication.  Our
-        // authentication code is smart enough to avoid being tricked by an
-        // active network attacker.
-        break;
-      default:
-        // For all other status codes, we conservatively fail the CONNECT
-        // request.
-        // We lose something by doing this.  We have seen proxy 403, 404, and
-        // 501 response bodies that contain a useful error message.  For
-        // example, Squid uses a 404 response to report the DNS error: "The
-        // domain name does not exist."
-        LogBlockedTunnelResponse(headers->response_code());
-        return ERR_TUNNEL_CONNECTION_FAILED;
-    }
-  }
-
-  // Check for an intermediate 100 Continue response.  An origin server is
-  // allowed to send this response even if we didn't ask for it, so we just
-  // need to skip over it.
-  // We treat any other 1xx in this same way (although in practice getting
-  // a 1xx that isn't a 100 is rare).
-  if (headers->response_code() / 100 == 1) {
-    header_buf_len_ -= header_buf_body_offset_;
-    // If we've already received some bytes after the 1xx response,
-    // move them to the beginning of header_buf_.
-    if (header_buf_len_) {
-      memmove(header_buf_->headers(),
-              header_buf_->headers() + header_buf_body_offset_,
-              header_buf_len_);
-    }
-    header_buf_body_offset_ = -1;
-    next_state_ = STATE_READ_HEADERS;
-    return OK;
-  }
-
-  response_.headers = headers;
-  response_.vary_data.Init(*request_, *response_.headers);
-
-  // Figure how to determine EOF:
-
-  // For certain responses, we know the content length is always 0. From
-  // RFC 2616 Section 4.3 Message Body:
-  //
-  // For response messages, whether or not a message-body is included with
-  // a message is dependent on both the request method and the response
-  // status code (section 6.1.1). All responses to the HEAD request method
-  // MUST NOT include a message-body, even though the presence of entity-
-  // header fields might lead one to believe they do. All 1xx
-  // (informational), 204 (no content), and 304 (not modified) responses
-  // MUST NOT include a message-body. All other responses do include a
-  // message-body, although it MAY be of zero length.
-  switch (response_.headers->response_code()) {
-    // Note that 1xx was already handled earlier.
-    case 204:  // No Content
-    case 205:  // Reset Content
-    case 304:  // Not Modified
-      response_body_length_ = 0;
-      break;
-  }
-  if (request_->method == "HEAD")
-    response_body_length_ = 0;
-
-  if (response_body_length_ == -1) {
-    // Ignore spurious chunked responses from HTTP/1.0 servers and proxies.
-    // Otherwise "Transfer-Encoding: chunked" trumps "Content-Length: N"
-    if (response_.headers->GetHttpVersion() >= HttpVersion(1, 1) &&
-        response_.headers->HasHeaderValue("Transfer-Encoding", "chunked")) {
-      chunked_decoder_.reset(new HttpChunkedDecoder());
-    } else {
-      response_body_length_ = response_.headers->GetContentLength();
-      // If response_body_length_ is still -1, then we have to wait for the
-      // server to close the connection.
-    }
-  }
-
-  int rv = HandleAuthChallenge();
-  if (rv != OK)
-    return rv;
-
-  if (using_ssl_ && !establishing_tunnel_) {
-    SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(connection_.socket());
-    ssl_socket->GetSSLInfo(&response_.ssl_info);
-  }
-
-  return OK;
-}
-
 int HttpNetworkTransaction::HandleCertificateError(int error) {
   DCHECK(using_ssl_);
 
@@ -1462,17 +1208,18 @@ int HttpNetworkTransaction::HandleCertificateError(int error) {
   }
 
   if (error != OK) {
+    HttpResponseInfo* response = http_stream_->GetResponseInfo();
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_.socket());
-    ssl_socket->GetSSLInfo(&response_.ssl_info);
+    ssl_socket->GetSSLInfo(&response->ssl_info);
 
     // Add the bad certificate to the set of allowed certificates in the
     // SSL info object. This data structure will be consulted after calling
     // RestartIgnoringLastError(). And the user will be asked interactively
     // before RestartIgnoringLastError() is ever called.
     SSLConfig::CertAndStatus bad_cert;
-    bad_cert.cert = response_.ssl_info.cert;
-    bad_cert.cert_status = response_.ssl_info.cert_status;
+    bad_cert.cert = response->ssl_info.cert;
+    bad_cert.cert_status = response->ssl_info.cert_status;
     ssl_config_.allowed_bad_certs.push_back(bad_cert);
   }
   return error;
@@ -1489,10 +1236,11 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
   // test.
   DCHECK(reused_socket_ || !ssl_config_.send_client_cert);
 
-  response_.cert_request_info = new SSLCertRequestInfo;
+  HttpResponseInfo* response = http_stream_->GetResponseInfo();
+  response->cert_request_info = new SSLCertRequestInfo;
   SSLClientSocket* ssl_socket =
       reinterpret_cast<SSLClientSocket*>(connection_.socket());
-  ssl_socket->GetSSLCertRequestInfo(response_.cert_request_info);
+  ssl_socket->GetSSLCertRequestInfo(response->cert_request_info);
 
   // Close the connection while the user is selecting a certificate to send
   // to the server.
@@ -1505,7 +1253,7 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
       Lookup(GetHostAndPort(request_->url));
   if (client_cert) {
     const std::vector<scoped_refptr<X509Certificate> >& client_certs =
-        response_.cert_request_info->client_certs;
+        response->cert_request_info->client_certs;
     for (size_t i = 0; i < client_certs.size(); ++i) {
       if (client_cert->fingerprint().Equals(client_certs[i]->fingerprint())) {
         ssl_config_.client_cert = client_cert;
@@ -1570,20 +1318,16 @@ int HttpNetworkTransaction::HandleIOError(int error) {
 
 void HttpNetworkTransaction::ResetStateForRestart() {
   pending_auth_target_ = HttpAuth::AUTH_NONE;
-  header_buf_->Reset();
-  header_buf_capacity_ = 0;
-  header_buf_len_ = 0;
-  header_buf_body_offset_ = -1;
-  header_buf_http_offset_ = -1;
-  response_body_length_ = -1;
-  response_body_read_ = 0;
   read_buf_ = NULL;
   read_buf_len_ = 0;
-  request_headers_->headers_.clear();
-  request_headers_bytes_sent_ = 0;
-  chunked_decoder_.reset();
-  // Reset all the members of response_.
-  response_ = HttpResponseInfo();
+  http_stream_.reset(new HttpBasicStream(&connection_));
+  headers_valid_ = false;
+  request_headers_.clear();
+}
+
+HttpResponseHeaders* HttpNetworkTransaction::GetResponseHeaders() const {
+  CHECK(http_stream_.get());
+  return http_stream_->GetResponseInfo()->headers;
 }
 
 bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
@@ -1591,12 +1335,8 @@ bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
   // This automatically prevents an infinite resend loop because we'll run
   // out of the cached keep-alive connections eventually.
   if (establishing_tunnel_ ||
-      // We used a socket that was never idle.
-      connection_.reuse_type() == ClientSocketHandle::UNUSED ||
-      // We used an unused, idle socket and got a error that wasn't a TCP RST.
-      (connection_.reuse_type() == ClientSocketHandle::UNUSED_IDLE &&
-       (error != OK && error != ERR_CONNECTION_RESET)) ||
-      header_buf_len_) {  // We have received some response headers.
+      !connection_.ShouldResendFailedRequest(error) ||
+      GetResponseHeaders()) {  // We have received some response headers.
     return false;
   }
   return true;
@@ -1605,13 +1345,10 @@ bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
 void HttpNetworkTransaction::ResetConnectionAndRequestForResend() {
   connection_.socket()->Disconnect();
   connection_.Reset();
-  // There are two reasons we need to clear request_headers_.  1) It contains
-  // the real request headers, but we may need to resend the CONNECT request
-  // first to recreate the SSL tunnel.  2) An empty request_headers_ causes
-  // BuildRequestHeaders to be called, which rewinds request_body_stream_ to
-  // the beginning of request_->upload_data.
-  request_headers_->headers_.clear();
-  request_headers_bytes_sent_ = 0;
+  // We need to clear request_headers_ because it contains the real request
+  // headers, but we may need to resend the CONNECT request first to recreate
+  // the SSL tunnel.
+  request_headers_.clear();
   next_state_ = STATE_INIT_CONNECTION;  // Resend the request.
 }
 
@@ -1653,7 +1390,6 @@ int HttpNetworkTransaction::ReconsiderProxyAfterError(int error) {
     if (connection_.socket())
       connection_.socket()->Disconnect();
     connection_.Reset();
-    DCHECK(!request_headers_bytes_sent_);
     next_state_ = STATE_RESOLVE_PROXY_COMPLETE;
   } else {
     rv = error;
@@ -1813,15 +1549,14 @@ std::string HttpNetworkTransaction::AuthChallengeLogMessage() const {
   std::string msg;
   std::string header_val;
   void* iter = NULL;
-  while (response_.headers->EnumerateHeader(&iter, "proxy-authenticate",
-                                            &header_val)) {
+  scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
+  while (headers->EnumerateHeader(&iter, "proxy-authenticate", &header_val)) {
     msg.append("\n  Has header Proxy-Authenticate: ");
     msg.append(header_val);
   }
 
   iter = NULL;
-  while (response_.headers->EnumerateHeader(&iter, "www-authenticate",
-                                            &header_val)) {
+  while (headers->EnumerateHeader(&iter, "www-authenticate", &header_val)) {
     msg.append("\n  Has header WWW-Authenticate: ");
     msg.append(header_val);
   }
@@ -1830,8 +1565,7 @@ std::string HttpNetworkTransaction::AuthChallengeLogMessage() const {
   // authentication with a "Proxy-Support: Session-Based-Authentication"
   // response header.
   iter = NULL;
-  while (response_.headers->EnumerateHeader(&iter, "proxy-support",
-                                            &header_val)) {
+  while (headers->EnumerateHeader(&iter, "proxy-support", &header_val)) {
     msg.append("\n  Has header Proxy-Support: ");
     msg.append(header_val);
   }
@@ -1840,9 +1574,10 @@ std::string HttpNetworkTransaction::AuthChallengeLogMessage() const {
 }
 
 int HttpNetworkTransaction::HandleAuthChallenge() {
-  DCHECK(response_.headers);
+  scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
+  DCHECK(headers);
 
-  int status = response_.headers->response_code();
+  int status = headers->response_code();
   if (status != 401 && status != 407)
     return OK;
   HttpAuth::Target target = status == 407 ?
@@ -1874,9 +1609,7 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   if (target != HttpAuth::AUTH_SERVER ||
       !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA)) {
     // Find the best authentication challenge that we support.
-    HttpAuth::ChooseBestChallenge(response_.headers.get(),
-                                  target,
-                                  auth_origin,
+    HttpAuth::ChooseBestChallenge(headers, target, auth_origin,
                                   &auth_handler_[target]);
   }
 
@@ -1932,7 +1665,7 @@ void HttpNetworkTransaction::PopulateAuthChallenge(HttpAuth::Target target,
   auth_info->scheme = ASCIIToWide(auth_handler_[target]->scheme());
   // TODO(eroman): decode realm according to RFC 2047.
   auth_info->realm = ASCIIToWide(auth_handler_[target]->realm());
-  response_.auth_challenge = auth_info;
+  http_stream_->GetResponseInfo()->auth_challenge = auth_info;
 }
 
 }  // namespace net
