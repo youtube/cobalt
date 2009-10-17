@@ -104,6 +104,19 @@ class ClientSocketHandle {
       return UNUSED_IDLE;
     }
   }
+  bool ShouldResendFailedRequest(int error) const {
+    // NOTE: we resend a request only if we reused a keep-alive connection.
+    // This automatically prevents an infinite resend loop because we'll run
+    // out of the cached keep-alive connections eventually.
+    if (  // We used a socket that was never idle.
+        reuse_type() == ClientSocketHandle::UNUSED ||
+        // We used an unused, idle socket and got a error that wasn't a TCP RST.
+        (reuse_type() == ClientSocketHandle::UNUSED_IDLE &&
+         (error != OK && error != ERR_CONNECTION_RESET))) {
+      return false;
+    }
+    return true;
+  }
 
  private:
   // Called on asynchronous completion of an Init() request.
