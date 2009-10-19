@@ -1301,6 +1301,14 @@ void SplitString(const std::wstring& str,
   SplitStringT(str, s, true, r);
 }
 
+#if !defined(WCHAR_T_IS_UTF16)
+void SplitString(const string16& str,
+                 char16 s,
+                 std::vector<string16>* r) {
+  SplitStringT(str, s, true, r);
+}
+#endif
+
 void SplitString(const std::string& str,
                  char s,
                  std::vector<std::string>* r) {
@@ -1312,6 +1320,14 @@ void SplitStringDontTrim(const std::wstring& str,
                          std::vector<std::wstring>* r) {
   SplitStringT(str, s, false, r);
 }
+
+#if !defined(WCHAR_T_IS_UTF16)
+void SplitStringDontTrim(const string16& str,
+                         char16 s,
+                         std::vector<string16>* r) {
+  SplitStringT(str, s, false, r);
+}
+#endif
 
 void SplitStringDontTrim(const std::string& str,
                          char s,
@@ -1339,6 +1355,12 @@ static STR JoinStringT(const std::vector<STR>& parts,
 std::string JoinString(const std::vector<std::string>& parts, char sep) {
   return JoinStringT(parts, sep);
 }
+
+#if !defined(WCHAR_T_IS_UTF16)
+string16 JoinString(const std::vector<string16>& parts, char sep) {
+  return JoinStringT(parts, sep);
+}
+#endif
 
 std::wstring JoinString(const std::vector<std::wstring>& parts, wchar_t sep) {
   return JoinStringT(parts, sep);
@@ -1388,6 +1410,13 @@ void SplitStringAlongWhitespace(const std::wstring& str,
                                 std::vector<std::wstring>* result) {
   SplitStringAlongWhitespaceT(str, result);
 }
+
+#if !defined(WCHAR_T_IS_UTF16)
+void SplitStringAlongWhitespace(const string16& str,
+                                std::vector<string16>* result) {
+  SplitStringAlongWhitespaceT(str, result);
+}
+#endif
 
 void SplitStringAlongWhitespace(const std::string& str,
                                 std::vector<std::string>* result) {

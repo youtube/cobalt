@@ -503,6 +503,9 @@ template<typename Char> struct CaseInsensitiveCompareASCII {
 void SplitString(const std::wstring& str,
                  wchar_t s,
                  std::vector<std::wstring>* r);
+void SplitString(const string16& str,
+                 char16 s,
+                 std::vector<string16>* r);
 void SplitString(const std::string& str,
                  char s,
                  std::vector<std::string>* r);
@@ -511,12 +514,16 @@ void SplitString(const std::string& str,
 void SplitStringDontTrim(const std::wstring& str,
                          wchar_t s,
                          std::vector<std::wstring>* r);
+void SplitStringDontTrim(const string16& str,
+                         char16 s,
+                         std::vector<string16>* r);
 void SplitStringDontTrim(const std::string& str,
                          char s,
                          std::vector<std::string>* r);
 
 // Does the opposite of SplitString().
 std::wstring JoinString(const std::vector<std::wstring>& parts, wchar_t s);
+string16 JoinString(const std::vector<string16>& parts, char16 s);
 std::string JoinString(const std::vector<std::string>& parts, char s);
 
 // WARNING: this uses whitespace as defined by the HTML5 spec. If you need
@@ -529,6 +536,8 @@ std::string JoinString(const std::vector<std::string>& parts, char s);
 // characters is added to result.
 void SplitStringAlongWhitespace(const std::wstring& str,
                                 std::vector<std::wstring>* result);
+void SplitStringAlongWhitespace(const string16& str,
+                                std::vector<string16>* result);
 void SplitStringAlongWhitespace(const std::string& str,
                                 std::vector<std::string>* result);
 
