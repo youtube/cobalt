@@ -121,6 +121,9 @@ std::string GetLinuxDistro() {
   LinuxDistroHelper* distro_state_singleton = LinuxDistroHelper::Get();
   LinuxDistroState state = distro_state_singleton->State();
   if (STATE_DID_NOT_CHECK == state) {
+#if defined(OS_CHROMEOS)
+    linux_distro = "CrOS";
+#else // if defined(OS_LINUX)
     // We do this check only once per process. If it fails, there's
     // little reason to believe it will work if we attempt to run
     // lsb_release again.
@@ -135,6 +138,7 @@ std::string GetLinuxDistro() {
       if (output.compare(0, field.length(), field) == 0)
         linux_distro = output.substr(field.length());
     }
+#endif
     distro_state_singleton->CheckFinished();
     return linux_distro;
   } else if (STATE_CHECK_STARTED == state) {
