@@ -26,9 +26,11 @@ class PathService {
   // Returns true if the directory or file was successfully retrieved. On
   // failure, 'path' will not be changed.
   static bool Get(int key, FilePath* path);
+#if defined(OS_WIN)
   // This version, producing a wstring, is deprecated and only kept around
   // until we can fix all callers.
   static bool Get(int key, std::wstring* path);
+#endif
 
   // Overrides the path to a special directory or file.  This cannot be used to
   // change the value of DIR_CURRENT, but that should be obvious.  Also, if the
