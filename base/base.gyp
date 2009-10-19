@@ -238,6 +238,7 @@
         'rand_util_win.cc',
         'ref_counted.cc',
         'ref_counted.h',
+        'ref_counted_memory.h',
         'registry.cc',
         'registry.h',
         'resource_util.cc',
