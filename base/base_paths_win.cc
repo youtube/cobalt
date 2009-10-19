@@ -102,10 +102,8 @@ bool PathProviderWin(int key, FilePath* result) {
     case base::DIR_SOURCE_ROOT:
       // On Windows, unit tests execute two levels deep from the source root.
       // For example:  chrome/{Debug|Release}/ui_tests.exe
-      PathService::Get(base::DIR_EXE, &wstring_path);
-      file_util::UpOneDirectory(&wstring_path);
-      file_util::UpOneDirectory(&wstring_path);
-      cur = FilePath(wstring_path);
+      PathService::Get(base::DIR_EXE, &cur);
+      cur = cur.DirName().DirName();
       break;
     default:
       return false;
