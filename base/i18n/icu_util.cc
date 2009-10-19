@@ -56,12 +56,11 @@ bool Initialize() {
 
 #if (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_SHARED)
   // We expect to find the ICU data module alongside the current module.
-  std::wstring data_path;
+  FilePath data_path;
   PathService::Get(base::DIR_MODULE, &data_path);
-  file_util::AppendToPath(&data_path,
-                          ASCIIToWide(ICU_UTIL_DATA_SHARED_MODULE_NAME));
+  data_path = data_path.AppendASCII(ICU_UTIL_DATA_SHARED_MODULE_NAME);
 
-  HMODULE module = LoadLibrary(data_path.c_str());
+  HMODULE module = LoadLibrary(data_path.value().c_str());
   if (!module) {
     LOG(ERROR) << "Failed to load " << ICU_UTIL_DATA_SHARED_MODULE_NAME;
     return false;
