@@ -12,7 +12,7 @@
 
 namespace base {
 
-#if defined(OFFICIAL_BUILD)
+#if defined(GOOGLE_CHROME_BUILD)
 static const char kLinuxStandardBaseVersionKey[] = "GOOGLE_RELEASE";
 #else
 static const char kLinuxStandardBaseVersionKey[] = "DISTRIB_RELEASE";
