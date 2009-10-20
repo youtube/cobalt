@@ -37,8 +37,8 @@ typedef IO_COUNTERS IoCounters;
 #elif defined(OS_POSIX)
 // TODO(port): we should not rely on a Win32 structure.
 struct ProcessEntry {
-  int pid;
-  int ppid;
+  base::ProcessId pid;
+  base::ProcessId ppid;
   char szExeFile[NAME_MAX + 1];
 };
 
