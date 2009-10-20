@@ -77,7 +77,7 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
     // The process may not end immediately due to pending I/O
     bool exited = false;
     while (tries-- > 0) {
-      int pid = HANDLE_EINTR(waitpid(process_id, NULL, WNOHANG));
+      pid_t pid = HANDLE_EINTR(waitpid(process_id, NULL, WNOHANG));
       if (pid == process_id) {
         exited = true;
         break;
@@ -330,7 +330,7 @@ void RaiseProcessToHighPriority() {
 
 bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
   int status;
-  const int result = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
+  const pid_t result = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
   if (result == -1) {
     PLOG(ERROR) << "waitpid(" << handle << ")";
     if (child_exited)
