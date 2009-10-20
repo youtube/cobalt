@@ -198,7 +198,9 @@ MULTIPROCESS_TEST_MAIN(ProcessUtilsLeakFDChildProcess) {
   int max_files = GetMaxFilesOpenInProcess();
   for (int i = STDERR_FILENO + 1; i < max_files; i++) {
     if (i != kChildPipe) {
-      if (HANDLE_EINTR(close(i)) != -1) {
+      int fd;
+      if ((fd = HANDLE_EINTR(dup(i))) != -1) {
+        close(fd);
         num_open_files += 1;
       }
     }
