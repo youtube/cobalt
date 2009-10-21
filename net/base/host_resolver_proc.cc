@@ -52,12 +52,13 @@ HostResolverProc* HostResolverProc::GetDefault() {
 }
 
 int HostResolverProc::ResolveUsingPrevious(const std::string& host,
+                                           AddressFamily address_family,
                                            AddressList* addrlist) {
   if (previous_proc_)
-    return previous_proc_->Resolve(host, addrlist);
+    return previous_proc_->Resolve(host, address_family, addrlist);
 
   // Final fallback is the system resolver.
-  return SystemHostResolverProc(host, addrlist);
+  return SystemHostResolverProc(host, address_family, addrlist);
 }
 
 #if defined(OS_LINUX)
@@ -124,7 +125,9 @@ ThreadLocalStorage::Slot DnsReloadTimer::tls_index_(base::LINKER_INITIALIZED);
 
 #endif  // defined(OS_LINUX)
 
-int SystemHostResolverProc(const std::string& host, AddressList* addrlist) {
+int SystemHostResolverProc(const std::string& host,
+                           AddressFamily address_family,
+                           AddressList* addrlist) {
   // The result of |getaddrinfo| for empty hosts is inconsistent across systems.
   // On Windows it gives the default interface's address, whereas on Linux it
   // gives an error. We will make it fail on all platforms for consistency.
@@ -133,7 +136,14 @@ int SystemHostResolverProc(const std::string& host, AddressList* addrlist) {
 
   struct addrinfo* ai = NULL;
   struct addrinfo hints = {0};
-  hints.ai_family = AF_UNSPEC;
+
+  switch (address_family) {
+    case ADDRESS_FAMILY_IPV4_ONLY:
+      hints.ai_family = AF_INET;
+      break;
+    default:
+      hints.ai_family = AF_UNSPEC;
+  }
 
 #if defined(OS_WIN)
   // DO NOT USE AI_ADDRCONFIG ON WINDOWS.

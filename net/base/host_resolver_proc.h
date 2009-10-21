@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/ref_counted.h"
+#include "net/base/address_family.h"
 
 namespace net {
 
@@ -25,14 +26,18 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
   explicit HostResolverProc(HostResolverProc* previous);
   virtual ~HostResolverProc() {}
 
-  // Resolves |host| to an address list. If successful returns OK and fills
-  // |addrlist| with a list of socket addresses. Otherwise returns a
-  // network error code.
-  virtual int Resolve(const std::string& host, AddressList* addrlist) = 0;
+  // Resolves |host| to an address list, restricting the results to addresses
+  // in |address_family|. If successful returns OK and fills |addrlist| with
+  // a list of socket addresses. Otherwise returns a network error code.
+  virtual int Resolve(const std::string& host,
+                      AddressFamily address_family,
+                      AddressList* addrlist) = 0;
 
  protected:
   // Asks the fallback procedure (if set) to do the resolve.
-  int ResolveUsingPrevious(const std::string& host, AddressList* addrlist);
+  int ResolveUsingPrevious(const std::string& host,
+                           AddressFamily address_family,
+                           AddressList* addrlist);
 
  private:
   friend class HostResolverImpl;
@@ -62,7 +67,9 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
 // (i.e. this calls out to getaddrinfo()). If successful returns OK and fills
 // |addrlist| with a list of socket addresses. Otherwise returns a
 // network error code.
-int SystemHostResolverProc(const std::string& host, AddressList* addrlist);
+int SystemHostResolverProc(const std::string& host,
+                           AddressFamily address_family,
+                           AddressList* addrlist);
 
 }  // namespace net
 
