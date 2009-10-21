@@ -121,7 +121,9 @@ class RuleBasedHostResolverProc : public HostResolverProc {
   void AddSimulatedFailure(const std::string& host);
 
   // HostResolverProc methods:
-  virtual int Resolve(const std::string& host, AddressList* addrlist);
+  virtual int Resolve(const std::string& host,
+                      AddressFamily address_family,
+                      AddressList* addrlist);
 
  private:
   struct Rule;
@@ -141,9 +143,11 @@ class WaitingHostResolverProc : public HostResolverProc {
   }
 
   // HostResolverProc methods:
-  virtual int Resolve(const std::string& host, AddressList* addrlist) {
+  virtual int Resolve(const std::string& host,
+                      AddressFamily address_family,
+                      AddressList* addrlist) {
     event_.Wait();
-    return ResolveUsingPrevious(host, addrlist);
+    return ResolveUsingPrevious(host, address_family, addrlist);
   }
 
   base::WaitableEvent event_;

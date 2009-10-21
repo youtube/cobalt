@@ -41,13 +41,15 @@ HostResolver* CreateSystemHostResolver() {
 }
 
 static int ResolveAddrInfo(HostResolverProc* resolver_proc,
-                           const std::string& host, AddressList* out) {
+                           const std::string& host,
+                           AddressFamily address_family,
+                           AddressList* out) {
   if (resolver_proc) {
     // Use the custom procedure.
-    return resolver_proc->Resolve(host, out);
+    return resolver_proc->Resolve(host, address_family, out);
   } else {
     // Use the system procedure (getaddrinfo).
-    return SystemHostResolverProc(host, out);
+    return SystemHostResolverProc(host, address_family, out);
   }
 }
 
@@ -142,8 +144,8 @@ class HostResolverImpl::Request {
 class HostResolverImpl::Job
     : public base::RefCountedThreadSafe<HostResolverImpl::Job> {
  public:
-  Job(HostResolverImpl* resolver, const std::string& host)
-      : host_(host),
+  Job(HostResolverImpl* resolver, const Key& key)
+      : key_(key),
         resolver_(resolver),
         origin_loop_(MessageLoop::current()),
         resolver_proc_(resolver->effective_resolver_proc()),
@@ -206,8 +208,8 @@ class HostResolverImpl::Job
   }
 
   // Called from origin thread.
-  const std::string& host() const {
-    return host_;
+  const Key& key() const {
+    return key_;
   }
 
   // Called from origin thread.
@@ -218,7 +220,10 @@ class HostResolverImpl::Job
  private:
   void DoLookup() {
     // Running on the worker thread
-    error_ = ResolveAddrInfo(resolver_proc_, host_, &results_);
+    error_ = ResolveAddrInfo(resolver_proc_,
+                             key_.hostname,
+                             key_.address_family,
+                             &results_);
 
     Task* reply = NewRunnableMethod(this, &Job::OnLookupComplete);
 
@@ -257,7 +262,7 @@ class HostResolverImpl::Job
   }
 
   // Set on the origin thread, read on the worker thread.
-  std::string host_;
+  Key key_;
 
   // Only used on the origin thread (where Resolve was called).
   HostResolverImpl* resolver_;
@@ -285,8 +290,11 @@ class HostResolverImpl::Job
 HostResolverImpl::HostResolverImpl(HostResolverProc* resolver_proc,
                                    int max_cache_entries,
                                    int cache_duration_ms)
-    : cache_(max_cache_entries, cache_duration_ms), next_request_id_(0),
-      resolver_proc_(resolver_proc), shutdown_(false) {
+    : cache_(max_cache_entries, cache_duration_ms),
+      next_request_id_(0),
+      resolver_proc_(resolver_proc),
+      disable_ipv6_(false),
+      shutdown_(false) {
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
@@ -319,10 +327,16 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   // Update the load log and notify registered observers.
   OnStartRequest(load_log, request_id, info);
 
+  // Build a key that identifies the request in the cache and in the
+  // outstanding jobs map.
+  Key key(info.hostname(), info.address_family());
+  if (disable_ipv6_)
+    key.address_family = ADDRESS_FAMILY_IPV4_ONLY;
+
   // If we have an unexpired cache entry, use it.
   if (info.allow_cached_response()) {
     const HostCache::Entry* cache_entry = cache_.Lookup(
-        info.hostname(), base::TimeTicks::Now());
+        key, base::TimeTicks::Now());
     if (cache_entry) {
       addresses->SetFrom(cache_entry->addrlist, info.port());
       int error = cache_entry->error;
@@ -338,14 +352,14 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   if (!callback) {
     AddressList addrlist;
     int error = ResolveAddrInfo(
-        effective_resolver_proc(), info.hostname(), &addrlist);
+        effective_resolver_proc(), key.hostname, key.address_family, &addrlist);
     if (error == OK) {
       addrlist.SetPort(info.port());
       *addresses = addrlist;
     }
 
     // Write to cache.
-    cache_.Set(info.hostname(), error, addrlist, base::TimeTicks::Now());
+    cache_.Set(key, error, addrlist, base::TimeTicks::Now());
 
     // Update the load log and notify registered observers.
     OnFinishRequest(load_log, request_id, info, error);
@@ -363,14 +377,14 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   // calling "getaddrinfo(hostname)" on a worker thread.
   scoped_refptr<Job> job;
 
-  // If there is already an outstanding job to resolve |info.hostname()|, use
+  // If there is already an outstanding job to resolve |key|, use
   // it. This prevents starting concurrent resolves for the same hostname.
-  job = FindOutstandingJob(info.hostname());
+  job = FindOutstandingJob(key);
   if (job) {
     job->AddRequest(req);
   } else {
     // Create a new job for this request.
-    job = new Job(this, info.hostname());
+    job = new Job(this, key);
     job->AddRequest(req);
     AddOutstandingJob(job);
     // TODO(eroman): Bound the total number of concurrent jobs.
@@ -431,21 +445,20 @@ void HostResolverImpl::Shutdown() {
 }
 
 void HostResolverImpl::AddOutstandingJob(Job* job) {
-  scoped_refptr<Job>& found_job = jobs_[job->host()];
+  scoped_refptr<Job>& found_job = jobs_[job->key()];
   DCHECK(!found_job);
   found_job = job;
 }
 
-HostResolverImpl::Job* HostResolverImpl::FindOutstandingJob(
-    const std::string& hostname) {
-  JobMap::iterator it = jobs_.find(hostname);
+HostResolverImpl::Job* HostResolverImpl::FindOutstandingJob(const Key& key) {
+  JobMap::iterator it = jobs_.find(key);
   if (it != jobs_.end())
     return it->second;
   return NULL;
 }
 
 void HostResolverImpl::RemoveOutstandingJob(Job* job) {
-  JobMap::iterator it = jobs_.find(job->host());
+  JobMap::iterator it = jobs_.find(job->key());
   DCHECK(it != jobs_.end());
   DCHECK_EQ(it->second.get(), job);
   jobs_.erase(it);
@@ -457,7 +470,7 @@ void HostResolverImpl::OnJobComplete(Job* job,
   RemoveOutstandingJob(job);
 
   // Write result to the cache.
-  cache_.Set(job->host(), error, addrlist, base::TimeTicks::Now());
+  cache_.Set(job->key(), error, addrlist, base::TimeTicks::Now());
 
   // Make a note that we are executing within OnJobComplete() in case the
   // HostResolver is deleted by a callback invocation.

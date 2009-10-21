@@ -27,7 +27,7 @@ namespace net {
 //            +----------- HostResolverImpl -------------+
 //            |                    |                     |
 //           Job                  Job                   Job
-//       (for host1)          (for host2)           (for hostX)
+//    (for host1, fam1)    (for host2, fam2)     (for hostx, famx)
 //       /    |   |            /   |   |             /   |   |
 //   Request ... Request  Request ... Request   Request ... Request
 //  (port1)     (port2)  (port3)      (port4)  (port5)      (portX)
@@ -70,11 +70,18 @@ class HostResolverImpl : public HostResolver {
   // TODO(eroman): temp hack for http://crbug.com/15513
   virtual void Shutdown();
 
+  // Prevents returning IPv6 addresses from Resolve().
+  // The default is to allow IPv6 results.
+  virtual void DisableIPv6(bool disable_ipv6) {
+    disable_ipv6_ = disable_ipv6;
+  }
+
  private:
   class Job;
   class Request;
   typedef std::vector<Request*> RequestsList;
-  typedef base::hash_map<std::string, scoped_refptr<Job> > JobMap;
+  typedef HostCache::Key Key;
+  typedef std::map<Key, scoped_refptr<Job> > JobMap;
   typedef std::vector<Observer*> ObserversList;
 
   // Returns the HostResolverProc to use for this instance.
@@ -86,8 +93,8 @@ class HostResolverImpl : public HostResolver {
   // Adds a job to outstanding jobs list.
   void AddOutstandingJob(Job* job);
 
-  // Returns the outstanding job for |hostname|, or NULL if there is none.
-  Job* FindOutstandingJob(const std::string& hostname);
+  // Returns the outstanding job for |key|, or NULL if there is none.
+  Job* FindOutstandingJob(const Key& key);
 
   // Removes |job| from the outstanding jobs list.
   void RemoveOutstandingJob(Job* job);
@@ -131,6 +138,9 @@ class HostResolverImpl : public HostResolver {
   // The procedure to use for resolving host names. This will be NULL, except
   // in the case of unit-tests which inject custom host resolving behaviors.
   scoped_refptr<HostResolverProc> resolver_proc_;
+
+  // Set to true if only IPv4 address are to be returned by Resolve().
+  bool disable_ipv6_;
 
   // TODO(eroman): temp hack for http://crbug.com/15513
   bool shutdown_;

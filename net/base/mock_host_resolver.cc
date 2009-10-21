@@ -165,6 +165,7 @@ void RuleBasedHostResolverProc::AddSimulatedFailure(
 }
 
 int RuleBasedHostResolverProc::Resolve(const std::string& host,
+                                       AddressFamily address_family,
                                        AddressList* addrlist) {
   RuleList::iterator r;
   for (r = rules_.begin(); r != rules_.end(); ++r) {
@@ -181,7 +182,9 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
         case Rule::kResolverTypeFail:
           return ERR_NAME_NOT_RESOLVED;
         case Rule::kResolverTypeSystem:
-          return SystemHostResolverProc(effective_host, addrlist);
+          return SystemHostResolverProc(effective_host,
+                                        address_family,
+                                        addrlist);
         case Rule::kResolverTypeIPV6Literal:
           return ResolveIPV6LiteralUsingGURL(effective_host, addrlist);
         default:
@@ -190,7 +193,7 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
       }
     }
   }
-  return ResolveUsingPrevious(host, addrlist);
+  return ResolveUsingPrevious(host, address_family, addrlist);
 }
 
 //-----------------------------------------------------------------------------
