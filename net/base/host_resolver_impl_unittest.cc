@@ -46,13 +46,15 @@ class CapturingHostResolverProc : public HostResolverProc {
     event_.Signal();
   }
 
-  virtual int Resolve(const std::string& host, AddressList* addrlist) {
+  virtual int Resolve(const std::string& host,
+                      AddressFamily address_family,
+                      AddressList* addrlist) {
     event_.Wait();
     {
       AutoLock l(lock_);
       capture_list_.push_back(host);
     }
-    return ResolveUsingPrevious(host, addrlist);
+    return ResolveUsingPrevious(host, address_family, addrlist);
   }
 
   std::vector<std::string> GetCaptureList() const {
