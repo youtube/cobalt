@@ -70,13 +70,17 @@ class BackgroundIO : public base::RefCountedThreadSafe<BackgroundIO> {
     return callback_;
   }
 
+  disk_cache::File* file() {
+    return file_;
+  }
+
  private:
-  // An event to signal when the operation completes, and the user callback tha
+  // An event to signal when the operation completes, and the user callback that
   // has to be invoked. These members are accessed directly by the controller.
   base::WaitableEvent io_completed_;
   disk_cache::FileIOCallback* callback_;
 
-  scoped_refptr<disk_cache::File> file_;
+  disk_cache::File* file_;
   const void* buf_;
   size_t buf_len_;
   size_t offset_;
@@ -186,6 +190,7 @@ void InFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
   scoped_refptr<BackgroundIO> operation =
       new BackgroundIO(file, buf, buf_len, offset, callback, this);
   io_list_.insert(operation.get());
+  file->AddRef();  // Balanced on InvokeCallback()
 
   WorkerPool::PostTask(FROM_HERE,
                        NewRunnableMethod(operation.get(), &BackgroundIO::Read),
@@ -199,6 +204,7 @@ void InFlightIO::PostWrite(disk_cache::File* file, const void* buf,
   scoped_refptr<BackgroundIO> operation =
       new BackgroundIO(file, buf, buf_len, offset, callback, this);
   io_list_.insert(operation.get());
+  file->AddRef();  // Balanced on InvokeCallback()
 
   WorkerPool::PostTask(FROM_HERE,
                        NewRunnableMethod(operation.get(), &BackgroundIO::Write,
@@ -232,7 +238,8 @@ void InFlightIO::InvokeCallback(BackgroundIO* operation, bool cancel_task) {
   disk_cache::FileIOCallback* callback = operation->callback();
   int bytes = operation->Result();
 
-  // Release the reference acquired in PostRead / PostWrite.
+  // Release the references acquired in PostRead / PostWrite.
+  operation->file()->Release();
   io_list_.erase(operation);
   callback->OnFileIOComplete(bytes);
 }
