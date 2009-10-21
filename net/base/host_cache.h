@@ -5,11 +5,12 @@
 #ifndef NET_BASE_HOST_CACHE_H_
 #define NET_BASE_HOST_CACHE_H_
 
+#include <map>
 #include <string>
 
-#include "base/hash_tables.h"
 #include "base/ref_counted.h"
 #include "base/time.h"
+#include "net/base/address_family.h"
 #include "net/base/address_list.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -31,7 +32,26 @@ class HostCache {
     base::TimeTicks expiration;
   };
 
-  typedef base::hash_map<std::string, scoped_refptr<Entry> > EntryMap;
+  struct Key {
+    Key(const std::string& hostname, AddressFamily address_family)
+        : hostname(hostname), address_family(address_family) {}
+
+    bool operator==(const Key& other) const {
+      return other.hostname == hostname &&
+             other.address_family == address_family;
+    }
+
+    bool operator<(const Key& other) const {
+      if (address_family < other.address_family)
+        return true;
+      return hostname < other.hostname;
+    }
+
+    std::string hostname;
+    AddressFamily address_family;
+  };
+
+  typedef std::map<Key, scoped_refptr<Entry> > EntryMap;
 
   // Constructs a HostCache whose entries are valid for |cache_duration_ms|
   // milliseconds. The cache will store up to |max_entries|.
@@ -39,15 +59,15 @@ class HostCache {
 
   ~HostCache();
 
-  // Returns a pointer to the entry for |hostname|, which is valid at time
+  // Returns a pointer to the entry for |key|, which is valid at time
   // |now|. If there is no such entry, returns NULL.
-  const Entry* Lookup(const std::string& hostname, base::TimeTicks now) const;
+  const Entry* Lookup(const Key& key, base::TimeTicks now) const;
 
-  // Overwrites or creates an entry for |hostname|. Returns the pointer to the
+  // Overwrites or creates an entry for |key|. Returns the pointer to the
   // entry, or NULL on failure (fails if caching is disabled).
   // (|error|, |addrlist|) is the value to set, and |now| is the current
   // timestamp.
-  Entry* Set(const std::string& hostname,
+  Entry* Set(const Key& key,
              int error,
              const AddressList addrlist,
              base::TimeTicks now);

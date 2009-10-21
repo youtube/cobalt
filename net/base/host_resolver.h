@@ -9,6 +9,7 @@
 
 #include "base/ref_counted.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
 
 class MessageLoop;
@@ -36,12 +37,18 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
    public:
     RequestInfo(const std::string& hostname, int port)
         : hostname_(hostname),
+          address_family_(ADDRESS_FAMILY_UNSPECIFIED),
           port_(port),
           allow_cached_response_(true),
           is_speculative_(false) {}
 
     const int port() const { return port_; }
     const std::string& hostname() const { return hostname_; }
+
+    AddressFamily address_family() const { return address_family_; }
+    void set_address_family(AddressFamily address_family) {
+      address_family_ = address_family;
+    }
 
     bool allow_cached_response() const { return allow_cached_response_; }
     void set_allow_cached_response(bool b) { allow_cached_response_ = b; }
@@ -55,6 +62,9 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
    private:
     // The hostname to resolve.
     std::string hostname_;
+
+    // The address family to restrict results to.
+    AddressFamily address_family_;
 
     // The port number to set in the result's sockaddrs.
     int port_;
@@ -137,6 +147,9 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
 
   // TODO(eroman): temp hack for http://crbug.com/18373
   virtual void Shutdown() = 0;
+
+  // Disables or enables support for IPv6 results.
+  virtual void DisableIPv6(bool disable_ipv6) {}
 
  protected:
   HostResolver() { }
