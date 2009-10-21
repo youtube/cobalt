@@ -5,7 +5,9 @@
 #include "net/http/http_network_layer.h"
 
 #include "base/logging.h"
+#include "net/flip/flip_framer.h"
 #include "net/flip/flip_network_transaction.h"
+#include "net/flip/flip_session.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
 #include "net/socket/client_socket_factory.h"
@@ -97,8 +99,21 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
 }
 
 // static
-void HttpNetworkLayer::EnableFlip(bool enable) {
-  enable_flip_ = enable;
+void HttpNetworkLayer::EnableFlip(const std::string& mode) {
+  static const std::string kDisableSSL("no-ssl");
+  static const std::string kDisableCompression("no-compress");
+  static const std::string kDisableEverything("no-ssl-no-compress");
+
+  // Enable flip mode.
+  enable_flip_ = true;
+
+  // Disable SSL
+  if (mode == kDisableEverything || mode == kDisableSSL)
+    FlipSession::SetSSLMode(false);
+
+  // Disable compression
+  if (mode == kDisableEverything || mode == kDisableCompression)
+    flip::FlipFramer::set_enable_compression_default(false);
 }
 
 }  // namespace net

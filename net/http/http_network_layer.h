@@ -5,6 +5,8 @@
 #ifndef NET_HTTP_HTTP_NETWORK_LAYER_H_
 #define NET_HTTP_HTTP_NETWORK_LAYER_H_
 
+#include <string>
+
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/http/http_transaction_factory.h"
@@ -50,8 +52,13 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   virtual HttpNetworkSession* GetSession();
   virtual void Suspend(bool suspend);
 
-  // Enable the flip protocol.  Default is false.
-  static void EnableFlip(bool enable);
+  // Enable the flip protocol.
+  // Without calling this function, FLIP is disabled.  The mode can be:
+  //   ""            : (default) SSL and compression are enabled.
+  //   "no-ssl"      : disables SSL.
+  //   "no-compress" : disables compression.
+  //   "none"        : disables both SSL and compression.
+  static void EnableFlip(const std::string& mode);
 
  private:
   // The factory we will use to create network sockets.
