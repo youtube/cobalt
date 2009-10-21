@@ -923,8 +923,10 @@ int FtpNetworkTransaction::ProcessResponseRETR(
       retr_failed_ = true;
 
       // It's possible that RETR failed because the path is a directory.
-      // Try CWD next, to see if that's the case.
-      next_state_ = STATE_CTRL_WRITE_CWD;
+      // We're going to try CWD next, but first send a PASV one more time,
+      // because some FTP servers, including FileZilla, require that.
+      // See http://crbug.com/25316.
+      next_state_ = STATE_CTRL_WRITE_PASV;
       break;
     default:
       NOTREACHED();
