@@ -47,6 +47,7 @@ class FtpMockControlSocket : public DynamicMockSocket {
     PRE_MDTM,
     PRE_LIST,
     PRE_RETR,
+    PRE_PASV2,
     PRE_CWD,
     PRE_QUIT,
     QUIT
@@ -83,9 +84,14 @@ class FtpMockControlSocket : public DynamicMockSocket {
       case PRE_PASV:
         return Verify("PASV\r\n", data, PRE_SIZE,
                       "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
+      case PRE_PASV2:	
+        // Parser should also accept format without parentheses.	
+        return Verify("PASV\r\n", data, PRE_CWD,	
+                      "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
       case PRE_QUIT:
         return Verify("QUIT\r\n", data, QUIT, "221 Goodbye.\r\n");
       default:
+        NOTREACHED() << "State not handled " << state();
         return MockWriteResult(true, ERR_UNEXPECTED);
     }
   }
@@ -170,8 +176,9 @@ class FtpMockControlSocketDirectoryListing : public FtpMockControlSocket {
         return Verify("MDTM /\r\n", data, PRE_RETR,
                       "213 20070221112533\r\n");
       case PRE_RETR:
-        return Verify("RETR /\r\n", data, PRE_CWD,
+        return Verify("RETR /\r\n", data, PRE_PASV2,
                       "550 Can't download directory\r\n");
+
       case PRE_CWD:
         return Verify("CWD /\r\n", data, PRE_LIST, "200 OK\r\n");
       case PRE_LIST:
@@ -207,7 +214,7 @@ class FtpMockControlSocketVMSDirectoryListing : public FtpMockControlSocket {
         return Verify("MDTM ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_RETR,
                       "213 20070221112533\r\n");
       case PRE_RETR:
-        return Verify("RETR ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_CWD,
+        return Verify("RETR ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_PASV2,
                       "550 Can't download directory\r\n");
       case PRE_CWD:
         return Verify("CWD ANONYMOUS_ROOT:[dir]\r\n", data, PRE_LIST,
@@ -245,7 +252,7 @@ class FtpMockControlSocketVMSDirectoryListingRootDirectory
         return Verify("MDTM ANONYMOUS_ROOT\r\n", data, PRE_RETR,
                       "213 20070221112533\r\n");
       case PRE_RETR:
-        return Verify("RETR ANONYMOUS_ROOT\r\n", data, PRE_CWD,
+        return Verify("RETR ANONYMOUS_ROOT\r\n", data, PRE_PASV2,
                       "550 Can't download directory\r\n");
       case PRE_CWD:
         return Verify("CWD ANONYMOUS_ROOT:[000000]\r\n", data, PRE_LIST,
@@ -517,9 +524,13 @@ class FtpNetworkTransactionTest : public PlatformTest {
     MockRead data_reads[] = {
       MockRead(mock_data.c_str()),
     };
-    StaticMockSocket data_socket(data_reads, NULL);
+    // For compatibility with FileZilla, the transaction code will use two data
+    // sockets for directory requests. For more info see http://crbug.com/25316.
+    StaticMockSocket data_socket1(data_reads, NULL);
+    StaticMockSocket data_socket2(data_reads, NULL);
     mock_socket_factory_.AddMockSocket(ctrl_socket);
-    mock_socket_factory_.AddMockSocket(&data_socket);
+    mock_socket_factory_.AddMockSocket(&data_socket1);
+    mock_socket_factory_.AddMockSocket(&data_socket2);
     FtpRequestInfo request_info = GetRequestInfo(request);
     EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
     ASSERT_EQ(ERR_IO_PENDING,
@@ -918,6 +929,16 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailMdtm) {
                         OK);
 }
 
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailPasv2) {
+  FtpMockControlSocketDirectoryListing ctrl_socket;
+  TransactionFailHelper(&ctrl_socket,
+                        "ftp://host",
+                        FtpMockControlSocket::PRE_PASV2,
+                        FtpMockControlSocket::PRE_QUIT,
+                        "500 failed pasv2\r\n",
+                        ERR_FAILED);
+}
+
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailCwd) {
   FtpMockControlSocketDirectoryListing ctrl_socket;
   TransactionFailHelper(&ctrl_socket,
@@ -1033,7 +1054,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFileNotFound) {
   TransactionFailHelper(&ctrl_socket,
                         "ftp://host/file",
                         FtpMockControlSocket::PRE_RETR,
-                        FtpMockControlSocket::PRE_CWD,
+                        FtpMockControlSocket::PRE_PASV2,
                         "550 cannot open file\r\n",
                         ERR_FILE_NOT_FOUND);
 }
