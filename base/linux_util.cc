@@ -46,6 +46,8 @@ class EnvironmentVariableGetterImpl
   }
 };
 
+// Not needed for OS_CHROMEOS.
+#if defined(OS_LINUX)
 enum LinuxDistroState {
   STATE_DID_NOT_CHECK  = 0,
   STATE_CHECK_STARTED  = 1,
@@ -88,6 +90,7 @@ class LinuxDistroHelper {
   Lock lock_;
   LinuxDistroState state_;
 };
+#endif  // if defined(OS_LINUX)
 
 }  // anonymous namespace
 
@@ -115,15 +118,20 @@ uint8_t* BGRAToRGBA(const uint8_t* pixels, int width, int height, int stride) {
 
 // We use this static string to hold the Linux distro info. If we
 // crash, the crash handler code will send this in the crash dump.
-std::string linux_distro = "Unknown";
+std::string linux_distro =
+#if defined(OS_CHROMEOS)
+    "CrOS";
+#else  // if defined(OS_LINUX)
+    "Unknown";
+#endif
 
 std::string GetLinuxDistro() {
+#if defined(OS_CHROMEOS)
+  return linux_distro;
+#else  // if defined(OS_LINUX)
   LinuxDistroHelper* distro_state_singleton = LinuxDistroHelper::Get();
   LinuxDistroState state = distro_state_singleton->State();
   if (STATE_DID_NOT_CHECK == state) {
-#if defined(OS_CHROMEOS)
-    linux_distro = "CrOS";
-#else // if defined(OS_LINUX)
     // We do this check only once per process. If it fails, there's
     // little reason to believe it will work if we attempt to run
     // lsb_release again.
@@ -138,7 +146,6 @@ std::string GetLinuxDistro() {
       if (output.compare(0, field.length(), field) == 0)
         linux_distro = output.substr(field.length());
     }
-#endif
     distro_state_singleton->CheckFinished();
     return linux_distro;
   } else if (STATE_CHECK_STARTED == state) {
@@ -149,6 +156,7 @@ std::string GetLinuxDistro() {
     // In STATE_CHECK_FINISHED, no more writing to |linux_distro|.
     return linux_distro;
   }
+#endif
 }
 
 // static
