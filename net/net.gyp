@@ -384,8 +384,6 @@
         'url_request/url_request_view_net_internals_job.h',
         'url_request/view_cache_helper.cc',
         'url_request/view_cache_helper.h',
-        'websockets/websocket.cc',
-        'websockets/websocket.h',
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
@@ -555,7 +553,6 @@
         'socket/tcp_pinger_unittest.cc',
         'url_request/url_request_unittest.cc',
         'url_request/url_request_unittest.h',
-        'websockets/websocket_unittest.cc',
       ],
       'conditions': [
         [ 'OS == "win"', {
