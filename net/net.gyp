@@ -8,21 +8,17 @@
   },
   'targets': [
     {
-      'target_name': 'net',
+      'target_name': 'net_base',
       'type': '<(library)',
       'dependencies': [
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../sdch/sdch.gyp:sdch',
-        '../third_party/bzip2/bzip2.gyp:bzip2',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
-        '../third_party/modp_b64/modp_b64.gyp:modp_b64',
-        '../third_party/zlib/zlib.gyp:zlib',
         'net_resources',
       ],
-      'msvs_guid': '326E9795-E760-410A-B69A-3F79DB3F5243',
       'sources': [
         'base/address_family.h',
         'base/address_list.cc',
@@ -146,6 +142,76 @@
         'base/x509_certificate_mac.cc',
         'base/x509_certificate_nss.cc',
         'base/x509_certificate_win.cc',
+      ],
+      'export_dependent_settings': [
+        '../base/base.gyp:base',
+      ],
+      'conditions': [
+        [ 'OS == "linux"', {
+          'dependencies': [
+            '../build/linux/system.gyp:gconf',
+            '../build/linux/system.gyp:gdk',
+            '../build/linux/system.gyp:nss',
+          ],
+        }],
+        [ 'OS == "win"', {
+            'sources/': [ ['exclude', '_(mac|linux|posix)\\.cc$'] ],
+            'dependencies': [
+              'tld_cleanup',
+            ],
+          },
+          {  # else: OS != "win"
+            'sources!': [
+              'base/wininet_util.cc',
+              'base/winsock_init.cc',
+            ],
+          },
+        ],
+        [ 'OS == "linux"', {
+            'sources/': [ ['exclude', '_(mac|win)\\.cc$'] ],
+          },
+          {  # else: OS != "linux"
+            'sources!': [
+              'base/nss_memio.c',
+              'base/nss_memio.h',
+              'base/x509_certificate_nss.cc',
+            ],
+            # Get U_STATIC_IMPLEMENTATION and -I directories on Linux.
+            'dependencies': [
+              '../third_party/icu/icu.gyp:icui18n',
+              '../third_party/icu/icu.gyp:icuuc',
+            ],
+          },
+        ],
+        [ 'OS == "mac"', {
+            'sources/': [ ['exclude', '_(linux|win)\\.cc$'] ],
+            'link_settings': {
+              'libraries': [
+                '$(SDKROOT)/System/Library/Frameworks/Security.framework',
+                '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
+              ]
+            },
+          },
+        ],
+      ],
+    },
+    {
+      'target_name': 'net',
+      'type': '<(library)',
+      'dependencies': [
+        '../base/base.gyp:base',
+        '../base/base.gyp:base_i18n',
+        '../build/temp_gyp/googleurl.gyp:googleurl',
+        '../sdch/sdch.gyp:sdch',
+        '../third_party/bzip2/bzip2.gyp:bzip2',
+        '../third_party/icu/icu.gyp:icui18n',
+        '../third_party/icu/icu.gyp:icuuc',
+        '../third_party/modp_b64/modp_b64.gyp:modp_b64',
+        '../third_party/zlib/zlib.gyp:zlib',
+        'net_base',
+        'net_resources',
+      ],
+      'sources': [
         'disk_cache/addr.cc',
         'disk_cache/addr.h',
         'disk_cache/backend_impl.cc',
@@ -416,8 +482,6 @@
           },
           {  # else: OS != "win"
             'sources!': [
-              'base/wininet_util.cc',
-              'base/winsock_init.cc',
               'proxy/proxy_resolver_winhttp.cc',
               'url_request/url_request_ftp_job.cc',
               'url_request/url_request_inet_job.cc',
@@ -429,9 +493,6 @@
           },
           {  # else: OS != "linux"
             'sources!': [
-              'base/nss_memio.c',
-              'base/nss_memio.h',
-              'base/x509_certificate_nss.cc',
               'ocsp/nss_ocsp.cc',
               'ocsp/nss_ocsp.h',
               'socket/ssl_client_socket_nss.cc',
@@ -718,7 +779,6 @@
       'dependencies': [
         'net',
         '../base/base.gyp:base',
-        '../base/base.gyp:test_support_perf',
         '../testing/gtest.gyp:gtest',
       ],
       'msvs_guid': 'DABB8796-B9A2-4CD9-BF89-09B03E92B123',
@@ -732,7 +792,6 @@
       'dependencies': [
         'net',
         '../base/base.gyp:base',
-        '../base/base.gyp:test_support_perf',
         '../testing/gtest.gyp:gtest',
       ],
       'msvs_guid': 'DABB8796-B9A2-4CD9-BF89-09B03E92B124',
