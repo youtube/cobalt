@@ -354,11 +354,7 @@
         'xcode_settings': {
           'COPY_PHASE_STRIP': 'NO',
           'GCC_OPTIMIZATION_LEVEL': '<(mac_debug_optimization)',
-          'OTHER_CFLAGS': [
-            '-fstack-protector',
-            '-fstack-protector-all',
-            '<@(debug_extra_cflags)',
-          ],
+          'OTHER_CFLAGS': [ '<@(debug_extra_cflags)', ],
         },
         'conditions': [
           [ 'OS=="win"', {
