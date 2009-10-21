@@ -746,6 +746,13 @@
           ['_mac_bundle', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
           }],
+          ['_type=="executable"', {
+            'xcode_settings': {
+              'OTHER_LDFLAGS': [
+                '-Wl,-pie',  # Position-independent executable (MH_PIE)
+              ],
+            },
+          }],
           ['_type=="executable" or _type=="shared_library"', {
             'target_conditions': [
               ['mac_real_dsym == 1', {
