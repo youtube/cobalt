@@ -19,7 +19,9 @@ void CreateAddressList(net::AddressList* addrlist, int port) {
 #if defined(OS_WIN)
   net::EnsureWinsockInit();
 #endif
-  int rv = SystemHostResolverProc("192.168.1.1", addrlist);
+  int rv = SystemHostResolverProc("192.168.1.1",
+                                  net::ADDRESS_FAMILY_UNSPECIFIED,
+                                  addrlist);
   EXPECT_EQ(0, rv);
   addrlist->SetPort(port);
 }

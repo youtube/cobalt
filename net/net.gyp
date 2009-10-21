@@ -24,6 +24,7 @@
       ],
       'msvs_guid': '326E9795-E760-410A-B69A-3F79DB3F5243',
       'sources': [
+        'base/address_family.h',
         'base/address_list.cc',
         'base/address_list.h',
         'base/auth.h',
