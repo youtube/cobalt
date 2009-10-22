@@ -630,6 +630,9 @@ void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
     next_fill_time_ms = std::max(next_fill_time_ms, kNoDataSleepMilliseconds);
   }
 
+  // Wake up sooner than should be necessary to avoid stutter.
+  next_fill_time_ms /= 2;  // TODO(fbarchard): Remove this hack.
+
   // Only schedule more reads/writes if we are still in the playing state.
   if (shared_data_.state() == kIsPlaying) {
     if (next_fill_time_ms <= 0) {
