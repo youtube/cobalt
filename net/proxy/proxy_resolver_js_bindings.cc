@@ -32,9 +32,12 @@ class SyncHostResolverBridge
   }
 
   // Run the resolve on host_resolver_loop, and wait for result.
-  int Resolve(const std::string& hostname, net::AddressList* addresses) {
+  int Resolve(const std::string& hostname,
+              AddressFamily address_family,
+              net::AddressList* addresses) {
     // Port number doesn't matter.
     HostResolver::RequestInfo info(hostname, 80);
+    info.set_address_family(address_family);
 
     // Hack for tests -- run synchronously on current thread.
     if (!host_resolver_loop_)
@@ -107,8 +110,11 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
       return std::string();
 
     // Do a sync resolve of the hostname.
+    // Disable IPv6 results, see http://crbug.com/24641 for motivation.
     net::AddressList address_list;
-    int result = host_resolver_->Resolve(host, &address_list);
+    int result = host_resolver_->Resolve(host,
+                                         ADDRESS_FAMILY_IPV4_ONLY,
+                                         &address_list);
 
     if (result != OK)
       return std::string();  // Failed.
