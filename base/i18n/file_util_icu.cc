@@ -124,50 +124,47 @@ bool IsFilenameLegal(const string16& file_name) {
   return Singleton<IllegalCharacters>()->containsNone(file_name);
 }
 
-void ReplaceIllegalCharacters(std::wstring* file_name, int replace_char) {
+void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
+                                    char replace_char) {
   DCHECK(file_name);
 
-  DCHECK(!(Singleton<IllegalCharacters>()->contains(replace_char)) &&
-         replace_char < 0x10000);
+  DCHECK(!(Singleton<IllegalCharacters>()->contains(replace_char)));
 
   // Remove leading and trailing whitespace.
   TrimWhitespace(*file_name, TRIM_ALL, file_name);
 
-  if (IsFilenameLegal(WideToUTF16(*file_name)))
-    return;
-
-  std::wstring::size_type i = 0;
-  std::wstring::size_type length = file_name->size();
-  const wchar_t* wstr = file_name->data();
-#if defined(WCHAR_T_IS_UTF16)
-  // Using |span| method of UnicodeSet might speed things up a bit, but
-  // it's not likely to matter here.
-  std::wstring temp;
-  temp.reserve(length);
-  while (i < length) {
-    UChar32 ucs4;
-    std::wstring::size_type prev = i;
-    U16_NEXT(wstr, i, length, ucs4);
-    if (Singleton<IllegalCharacters>()->contains(ucs4)) {
-      temp.push_back(replace_char);
-    } else if (ucs4 < 0x10000) {
-      temp.push_back(ucs4);
-    } else {
-      temp.push_back(wstr[prev]);
-      temp.push_back(wstr[prev + 1]);
-    }
-  }
-  file_name->swap(temp);
-#elif defined(WCHAR_T_IS_UTF32)
-  while (i < length) {
-    if (Singleton<IllegalCharacters>()->contains(wstr[i])) {
-      (*file_name)[i] = replace_char;
-    }
-    ++i;
-  }
+  IllegalCharacters* illegal = Singleton<IllegalCharacters>::get();
+  int cursor = 0;  // The ICU macros expect an int.
+  while (cursor < static_cast<int>(file_name->size())) {
+    int char_begin = cursor;
+    uint32 code_point;
+#if defined(OS_MACOSX)
+    // Mac uses UTF-8 encoding for filenames.
+    U8_NEXT(file_name->data(), cursor, static_cast<int>(file_name->length()),
+            code_point);
+#elif defined(OS_WIN)
+    // Windows uses UTF-16 encoding for filenames.
+    U16_NEXT(file_name->data(), cursor, static_cast<int>(file_name->length()),
+             code_point);
+#elif defined(OS_LINUX)
+    // Linux doesn't actually define an encoding. It basically allows anything
+    // except for a few special ASCII characters.
+    unsigned char cur_char = static_cast<unsigned char>((*file_name)[cursor++]);
+    if (cur_char >= 0x80)
+      continue;
+    code_point = cur_char;
 #else
-#error wchar_t* should be either UTF-16 or UTF-32
+    NOTREACHED();
 #endif
+
+    if (illegal->contains(code_point)) {
+      file_name->replace(char_begin, cursor - char_begin, 1, replace_char);
+      // We just made the potentially multi-byte/word char into one that only
+      // takes one byte/word, so need to adjust the cursor to point to the next
+      // character again.
+      cursor = char_begin + 1;
+    }
+  }
 }
 
 bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {

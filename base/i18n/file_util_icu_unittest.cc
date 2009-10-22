@@ -6,6 +6,7 @@
 
 #include "base/file_util.h"
 #include "base/path_service.h"
+#include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -34,9 +35,34 @@ class FileUtilICUTest : public PlatformTest {
   FilePath test_dir_;
 };
 
+#if defined(OS_LINUX)
+
+// Linux disallows some evil ASCII characters, but passes all non-ASCII.
 static const struct goodbad_pair {
-  std::wstring bad_name;
-  std::wstring good_name;
+  const char* bad_name;
+  const char* good_name;
+} kIllegalCharacterCases[] = {
+  {"bad*file:name?.jpg", "bad-file-name-.jpg"},
+  {"**********::::.txt", "--------------.txt"},
+  {"\xe9\xf0zzzz.\xff", "\xe9\xf0zzzz.\xff"},
+};
+
+TEST_F(FileUtilICUTest, ReplaceIllegalCharacersInPathLinuxTest) {
+  for (size_t i = 0; i < arraysize(kIllegalCharacterCases); ++i) {
+    std::string bad_name(kIllegalCharacterCases[i].bad_name);
+    file_util::ReplaceIllegalCharactersInPath(&bad_name, '-');
+    EXPECT_EQ(kIllegalCharacterCases[i].good_name, bad_name);
+  }
+}
+
+#else
+
+// For Mac & Windows, which both do Unicode validation on filenames. These
+// characters are given as wide strings since its more convenient to specify
+// unicode characters. For Mac they should be converted to UTF-8.
+static const struct goodbad_pair {
+  const wchar_t* bad_name;
+  const wchar_t* good_name;
 } kIllegalCharacterCases[] = {
   {L"bad*file:name?.jpg", L"bad-file-name-.jpg"},
   {L"**********::::.txt", L"--------------.txt"},
@@ -46,7 +72,7 @@ static const struct goodbad_pair {
 #if defined(OS_WIN)
   {L"bad*file\\name.jpg", L"bad-file-name.jpg"},
   {L"\t  bad*file\\name/.jpg ", L"bad-file-name-.jpg"},
-#elif defined(OS_POSIX)
+#elif defined(OS_MACOSX)
   {L"bad*file?name.jpg", L"bad-file-name.jpg"},
   {L"\t  bad*file?name/.jpg ", L"bad-file-name-.jpg"},
 #endif
@@ -61,11 +87,19 @@ static const struct goodbad_pair {
   {L"bad\uFDD0file\uFDEFname.jpg ", L"bad-file-name.jpg"},
 };
 
-TEST_F(FileUtilICUTest, ReplaceIllegalCharactersTest) {
-  for (unsigned int i = 0; i < arraysize(kIllegalCharacterCases); ++i) {
+TEST_F(FileUtilICUTest, ReplaceIllegalCharactersInPathTest) {
+  for (size_t i = 0; i < arraysize(kIllegalCharacterCases); ++i) {
+#if defined(OS_WIN)
     std::wstring bad_name(kIllegalCharacterCases[i].bad_name);
-    file_util::ReplaceIllegalCharacters(&bad_name, L'-');
+    file_util::ReplaceIllegalCharactersInPath(&bad_name, '-');
     EXPECT_EQ(kIllegalCharacterCases[i].good_name, bad_name);
+#elif defined(OS_MACOSX)
+    std::string bad_name(WideToUTF8(kIllegalCharacterCases[i].bad_name));
+    file_util::ReplaceIllegalCharactersInPath(&bad_name, '-');
+    EXPECT_EQ(WideToUTF8(kIllegalCharacterCases[i].good_name), bad_name);
+#endif
   }
 }
+
+#endif
 
