@@ -97,15 +97,21 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   bool RunNestingDeferredWork();
 
   // Schedules possible nesting-deferred work to be processed before the run
-  // loop goes to sleep or exits.  If this function detects that a nested loop
-  // had run since the previous attempt to schedule nesting-deferred work, it
-  // will schedule a call to RunNestingDeferredWorkSource.
+  // loop goes to sleep, exits, or begins processing sources at the top of its
+  // loop.  If this function detects that a nested loop had run since the
+  // previous attempt to schedule nesting-deferred work, it will schedule a
+  // call to RunNestingDeferredWorkSource.
   void MaybeScheduleNestingDeferredWork();
 
   // Observer callback responsible for performing idle-priority work, before
   // the run loop goes to sleep.  Associated with idle_work_observer_.
   static void PreWaitObserver(CFRunLoopObserverRef observer,
                               CFRunLoopActivity activity, void* info);
+
+  // Observer callback called before the run loop processes any sources.
+  // Associated with pre_source_observer_.
+  static void PreSourceObserver(CFRunLoopObserverRef observer,
+                                CFRunLoopActivity activity, void* info);
 
   // Observer callback called when the run loop starts and stops, at the
   // beginning and end of calls to CFRunLoopRun.  This is used to maintain
@@ -129,6 +135,7 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   CFRunLoopSourceRef idle_work_source_;
   CFRunLoopSourceRef nesting_deferred_work_source_;
   CFRunLoopObserverRef pre_wait_observer_;
+  CFRunLoopObserverRef pre_source_observer_;
   CFRunLoopObserverRef enter_exit_observer_;
 
   // (weak) Delegate passed as an argument to the innermost Run call.
