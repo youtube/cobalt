@@ -416,6 +416,8 @@
         'url_request/url_request_about_job.cc',
         'url_request/url_request_about_job.h',
         'url_request/url_request_context.h',
+        'url_request/url_request_data_job.cc',
+        'url_request/url_request_data_job.h',
         'url_request/url_request_error_job.cc',
         'url_request/url_request_error_job.h',
         'url_request/url_request_file_dir_job.cc',

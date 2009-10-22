@@ -1036,6 +1036,18 @@ std::wstring GetSuggestedFilename(const GURL& url,
                                   const std::string& content_disposition,
                                   const std::string& referrer_charset,
                                   const std::wstring& default_name) {
+  // TODO(rolandsteiner): as pointed out by darin in the code review, this is
+  // hardly ideal. "download" should be translated, or another solution found.
+  // (cf. http://code.google.com/p/chromium/issues/detail?id=25289)
+  const wchar_t kFinalFallbackName[] = L"download";
+
+  // about: and data: URLs don't have file names, but esp. data: URLs may
+  // contain parts that look like ones (i.e., contain a slash).
+  // Therefore we don't attempt to divine a file name out of them.
+  if (url.SchemeIs("about") || url.SchemeIs("data"))
+    return default_name.empty() ? std::wstring(kFinalFallbackName)
+                                : default_name;
+
   std::wstring filename = GetFileNameFromCD(content_disposition,
                                             referrer_charset);
   if (!filename.empty()) {
@@ -1065,7 +1077,8 @@ std::wstring GetSuggestedFilename(const GURL& url,
       // Some schemes (e.g. file) do not have a hostname. Even though it's
       // not likely to reach here, let's hardcode the last fallback name.
       // TODO(jungshik) : Decode a 'punycoded' IDN hostname. (bug 1264451)
-      filename = url.host().empty() ? L"download" : UTF8ToWide(url.host());
+      filename = url.host().empty() ? std::wstring(kFinalFallbackName)
+                                    : UTF8ToWide(url.host());
     } else {
       NOTREACHED();
     }
