@@ -972,6 +972,22 @@ TEST(NetUtilTest, GetSuggestedFilename) {
      "",
      L"",
      L"test.html"},
+    // about: and data: URLs
+    {"about:chrome",
+     "",
+     "",
+     L"",
+     L"download"},
+    {"data:,looks/like/a.path",
+     "",
+     "",
+     L"",
+     L"download"},
+    {"data:text/plain;base64,VG8gYmUgb3Igbm90IHRvIGJlLg=",
+     "",
+     "",
+     L"",
+     L"download"},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
     std::wstring filename = net::GetSuggestedFilename(
