@@ -1,9 +1,9 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_BASE_NET_UTIL_H__
-#define NET_BASE_NET_UTIL_H__
+#ifndef NET_BASE_NET_UTIL_H_
+#define NET_BASE_NET_UTIL_H_
 
 #include "build/build_config.h"
 
@@ -126,8 +126,8 @@ std::string GetHeaderParamValue(const std::string& field,
 // other caller is a unit test. Need to figure out expose this function only to
 // net_util_unittest.
 //
-std::wstring GetFileNameFromCD(const std::string& header,
-                               const std::string& referrer_charset);
+std::string GetFileNameFromCD(const std::string& header,
+                              const std::string& referrer_charset);
 
 // Converts the given host name to unicode characters, APPENDING them to the
 // the given output string. This can be called for any host name, if the
@@ -194,14 +194,17 @@ std::wstring StripWWW(const std::wstring& text);
 
 // Gets the filename from the raw Content-Disposition header (as read from the
 // network).  Otherwise uses the last path component name or hostname from
-// |url|.  Note: it's possible for the suggested filename to be empty (e.g.,
+// |url|. If there is no filename or it can't be used, the given default name
+// will be used if specified.
+
+// Note: it's possible for the suggested filename to be empty (e.g.,
 // file:///). referrer_charset is used as one of charsets
 // to interpret a raw 8bit string in C-D header (after interpreting
 // as UTF-8 fails). See the comment for GetFilenameFromCD for more details.
-std::wstring GetSuggestedFilename(const GURL& url,
-                                  const std::string& content_disposition,
-                                  const std::string& referrer_charset,
-                                  const std::wstring& default_name);
+FilePath GetSuggestedFilename(const GURL& url,
+                              const std::string& content_disposition,
+                              const std::string& referrer_charset,
+                              const char* default_name);
 
 // Checks the given port against a list of ports which are restricted by
 // default.  Returns true if the port is allowed, false if it is restricted.
@@ -259,4 +262,4 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports);
 
 }  // namespace net
 
-#endif  // NET_BASE_NET_UTIL_H__
+#endif  // NET_BASE_NET_UTIL_H_
