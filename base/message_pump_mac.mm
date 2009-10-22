@@ -6,7 +6,8 @@
 
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
-#include <float.h>
+
+#include <limits>
 
 #include "base/scoped_nsautorelease_pool.h"
 #include "base/time.h"
@@ -15,6 +16,9 @@ namespace {
 
 void NoOp(void* info) {
 }
+
+const CFTimeInterval kCFTimeIntervalMax =
+    std::numeric_limits<CFTimeInterval>::max();
 
 }  // namespace
 
@@ -37,11 +41,11 @@ MessagePumpCFRunLoopBase::MessagePumpCFRunLoopBase()
   // as needed when ScheduleDelayedWork is called.
   CFRunLoopTimerContext timer_context = CFRunLoopTimerContext();
   timer_context.info = this;
-  delayed_work_timer_ = CFRunLoopTimerCreate(NULL,     // allocator
-                                             DBL_MAX,  // fire time
-                                             DBL_MAX,  // interval
-                                             0,        // flags (ignored)
-                                             0,        // priority (ignored)
+  delayed_work_timer_ = CFRunLoopTimerCreate(NULL,                // allocator
+                                             kCFTimeIntervalMax,  // fire time
+                                             kCFTimeIntervalMax,  // interval
+                                             0,                   // flags
+                                             0,                   // priority
                                              RunDelayedWorkTimer,
                                              &timer_context);
   CFRunLoopAddTimer(run_loop_, delayed_work_timer_, kCFRunLoopCommonModes);
@@ -83,6 +87,14 @@ MessagePumpCFRunLoopBase::MessagePumpCFRunLoopBase()
                                                &observer_context);
   CFRunLoopAddObserver(run_loop_, pre_wait_observer_, kCFRunLoopCommonModes);
 
+  pre_source_observer_ = CFRunLoopObserverCreate(NULL,  // allocator
+                                                 kCFRunLoopBeforeSources,
+                                                 true,  // repeat
+                                                 0,     // priority
+                                                 PreSourceObserver,
+                                                 &observer_context);
+  CFRunLoopAddObserver(run_loop_, pre_source_observer_, kCFRunLoopCommonModes);
+
   enter_exit_observer_ = CFRunLoopObserverCreate(NULL,  // allocator
                                                  kCFRunLoopEntry |
                                                      kCFRunLoopExit,
@@ -100,6 +112,10 @@ MessagePumpCFRunLoopBase::~MessagePumpCFRunLoopBase() {
   CFRunLoopRemoveObserver(run_loop_, enter_exit_observer_,
                           kCFRunLoopCommonModes);
   CFRelease(enter_exit_observer_);
+
+  CFRunLoopRemoveObserver(run_loop_, pre_source_observer_,
+                          kCFRunLoopCommonModes);
+  CFRelease(pre_source_observer_);
 
   CFRunLoopRemoveObserver(run_loop_, pre_wait_observer_,
                           kCFRunLoopCommonModes);
@@ -351,14 +367,14 @@ bool MessagePumpCFRunLoopBase::RunNestingDeferredWork() {
   return true;
 }
 
-// Called before the run loop goes to sleep or exits.
+// Called before the run loop goes to sleep or exits, or processes sources.
 void MessagePumpCFRunLoopBase::MaybeScheduleNestingDeferredWork() {
   // deepest_nesting_level_ is set as run loops are entered.  If the deepest
-  // level encountered is deeper than the current level (about to sleep or
-  // exit), a nested loop (relative to the current level) ran since the last
-  // time nesting-deferred work was scheduled.  When that situation is
-  // encountered, schedule nesting-deferred work in case any work was deferred
-  // because nested work was disallowed.
+  // level encountered is deeper than the current level, a nested loop
+  // (relative to the current level) ran since the last time nesting-deferred
+  // work was scheduled.  When that situation is encountered, schedule
+  // nesting-deferred work in case any work was deferred because nested work
+  // was disallowed.
   if (deepest_nesting_level_ > nesting_level_) {
     deepest_nesting_level_ = nesting_level_;
     CFRunLoopSourceSignal(nesting_deferred_work_source_);
@@ -379,6 +395,21 @@ void MessagePumpCFRunLoopBase::PreWaitObserver(CFRunLoopObserverRef observer,
   // started or woke up resulted in a nested run loop running,
   // nesting-deferred work may have accumulated.  Schedule it for processing
   // if appropriate.
+  self->MaybeScheduleNestingDeferredWork();
+}
+
+// Called from the run loop.
+// static
+void MessagePumpCFRunLoopBase::PreSourceObserver(CFRunLoopObserverRef observer,
+                                                 CFRunLoopActivity activity,
+                                                 void* info) {
+  MessagePumpCFRunLoopBase* self = static_cast<MessagePumpCFRunLoopBase*>(info);
+
+  // The run loop has reached the top of the loop and is about to begin
+  // processing sources.  If the last iteration of the loop at this nesting
+  // level did not sleep or exit, nesting-deferred work may have accumulated
+  // if a nested loop ran.  Schedule nesting-deferred work for processing if
+  // appropriate.
   self->MaybeScheduleNestingDeferredWork();
 }
 
@@ -442,7 +473,9 @@ void MessagePumpCFRunLoop::DoRun(Delegate* delegate) {
   int result;
   do {
     ScopedNSAutoreleasePool autorelease_pool;
-    result = CFRunLoopRunInMode(kCFRunLoopDefaultMode, DBL_MAX, false);
+    result = CFRunLoopRunInMode(kCFRunLoopDefaultMode,
+                                kCFTimeIntervalMax,
+                                false);
   } while (result != kCFRunLoopRunStopped && result != kCFRunLoopRunFinished);
 }
 
@@ -523,10 +556,11 @@ void MessagePumpNSApplication::DoRun(Delegate* delegate) {
     [NSApp run];
   } else {
     running_own_loop_ = true;
+    NSDate* distant_future = [NSDate distantFuture];
     while (keep_running_) {
       ScopedNSAutoreleasePool autorelease_pool;
       NSEvent* event = [NSApp nextEventMatchingMask:NSAnyEventMask
-                                          untilDate:[NSDate distantFuture]
+                                          untilDate:distant_future
                                              inMode:NSDefaultRunLoopMode
                                             dequeue:YES];
       if (event) {
