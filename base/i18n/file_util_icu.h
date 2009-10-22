@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/file_path.h"
 #include "base/string16.h"
 
 class FilePath;
@@ -18,12 +19,13 @@ bool IsFilenameLegal(const string16& file_name);
 
 // Replaces characters in 'file_name' that are illegal for file names with
 // 'replace_char'. 'file_name' must not be a full or relative path, but just the
-// file name component. Any leading or trailing whitespace in 'file_name' is
-// removed.
+// file name component (since slashes are considered illegal). Any leading or
+// trailing whitespace in 'file_name' is removed.
 // Example:
 //   file_name == "bad:file*name?.txt", changed to: "bad-file-name-.txt" when
 //   'replace_char' is '-'.
-void ReplaceIllegalCharacters(std::wstring* file_name, int replace_char);
+void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
+                                    char replace_char);
 
 // Compares two filenames using the current locale information. This can be
 // used to sort directory listings. It behaves like "operator<" for use in

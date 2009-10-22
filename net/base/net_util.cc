@@ -749,6 +749,18 @@ std::wstring FormatViewSourceUrl(const GURL& url,
   return result;
 }
 
+// Converts a UTF-8 string to a FilePath string type.
+//
+// This is inline with the hope that the function will be "free" on non-Windows
+// platforms.
+inline FilePath::StringType UTF8ToFilePathString(const std::string& utf8) {
+#if defined(OS_WIN)
+  return FilePath::StringType(UTF8ToUTF16(utf8));
+#else
+  return utf8;
+#endif
+}
+
 }  // namespace
 
 namespace net {
@@ -805,19 +817,19 @@ std::string GetSpecificHeader(const std::string& headers,
   return GetSpecificHeaderT(headers, name);
 }
 
-std::wstring GetFileNameFromCD(const std::string& header,
-                               const std::string& referrer_charset) {
+std::string GetFileNameFromCD(const std::string& header,
+                              const std::string& referrer_charset) {
   std::string param_value = GetHeaderParamValue(header, "filename");
   if (param_value.empty()) {
     // Some servers use 'name' parameter.
     param_value = GetHeaderParamValue(header, "name");
   }
   if (param_value.empty())
-    return std::wstring();
+    return std::string();
   std::string decoded;
   if (DecodeParamValue(param_value, referrer_charset, &decoded))
-    return UTF8ToWide(decoded);
-  return std::wstring();
+    return decoded;
+  return std::string();
 }
 
 std::wstring GetHeaderParamValue(const std::wstring& field,
@@ -1032,60 +1044,72 @@ std::wstring StripWWW(const std::wstring& text) {
       text.substr(www.length()) : text;
 }
 
-std::wstring GetSuggestedFilename(const GURL& url,
-                                  const std::string& content_disposition,
-                                  const std::string& referrer_charset,
-                                  const std::wstring& default_name) {
+FilePath GetSuggestedFilename(const GURL& url,
+                              const std::string& content_disposition,
+                              const std::string& referrer_charset,
+                              const char* default_name) {
   // TODO(rolandsteiner): as pointed out by darin in the code review, this is
   // hardly ideal. "download" should be translated, or another solution found.
   // (cf. http://code.google.com/p/chromium/issues/detail?id=25289)
-  const wchar_t kFinalFallbackName[] = L"download";
+  const char kFinalFallbackName[] = "download";
 
   // about: and data: URLs don't have file names, but esp. data: URLs may
   // contain parts that look like ones (i.e., contain a slash).
   // Therefore we don't attempt to divine a file name out of them.
-  if (url.SchemeIs("about") || url.SchemeIs("data"))
-    return default_name.empty() ? std::wstring(kFinalFallbackName)
-                                : default_name;
+  if (url.SchemeIs("about") || url.SchemeIs("data")) {
+    return FilePath(UTF8ToFilePathString(
+        default_name && default_name[0] ? default_name : kFinalFallbackName));
+  }
 
-  std::wstring filename = GetFileNameFromCD(content_disposition,
-                                            referrer_charset);
+  std::string filename = GetFileNameFromCD(content_disposition,
+                                           referrer_charset);
   if (!filename.empty()) {
     // Remove any path information the server may have sent, take the name
     // only.
-    filename = file_util::GetFilenameFromPath(filename);
+#if defined(OS_WIN)
+    filename = UTF16ToUTF8(FilePath(UTF8ToUTF16(filename)).BaseName().value());
+#else
+    filename = FilePath(filename).BaseName().value();
+#endif
+
     // Next, remove "." from the beginning and end of the file name to avoid
     // tricks with hidden files, "..", and "."
-    TrimString(filename, L".", &filename);
+    TrimString(filename, ".", &filename);
   }
   if (filename.empty()) {
     if (url.is_valid()) {
-      filename = UnescapeAndDecodeUTF8URLComponent(
+      filename = UnescapeURLComponent(
           url.ExtractFileName(),
           UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
     }
   }
 
   // Trim '.' once more.
-  TrimString(filename, L".", &filename);
+  TrimString(filename, ".", &filename);
+
   // If there's no filename or it gets trimed to be empty, use
   // the URL hostname or default_name
   if (filename.empty()) {
-    if (!default_name.empty()) {
+    if (default_name && default_name[0]) {
       filename = default_name;
     } else if (url.is_valid()) {
       // Some schemes (e.g. file) do not have a hostname. Even though it's
       // not likely to reach here, let's hardcode the last fallback name.
       // TODO(jungshik) : Decode a 'punycoded' IDN hostname. (bug 1264451)
-      filename = url.host().empty() ? std::wstring(kFinalFallbackName)
-                                    : UTF8ToWide(url.host());
+      filename = url.host().empty() ? std::string(kFinalFallbackName)
+                                    : url.host();
     } else {
       NOTREACHED();
     }
   }
 
-  file_util::ReplaceIllegalCharacters(&filename, '-');
-  return filename;
+#if defined(OS_WIN)
+  FilePath::StringType file_path_string = UTF8ToWide(filename);
+#else
+  std::string& file_path_string = filename;
+#endif
+  file_util::ReplaceIllegalCharactersInPath(&file_path_string, '-');
+  return FilePath(file_path_string);
 }
 
 bool IsPortAllowedByDefault(int port) {
