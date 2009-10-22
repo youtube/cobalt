@@ -19,6 +19,7 @@
 #include "net/base/strict_transport_security_state.h"
 #include "net/ftp/ftp_auth_cache.h"
 #include "net/proxy/proxy_service.h"
+#include "net/url_request/url_request_tracker.h"
 
 namespace net {
 class FtpTransactionFactory;
@@ -79,6 +80,9 @@ class URLRequestContext :
   // Gets the value of 'Accept-Language' header field.
   const std::string& accept_language() const { return accept_language_; }
 
+  // Gets the tracker for URLRequests associated with this context.
+  URLRequestTracker* request_tracker() { return &request_tracker_; }
+
   // Gets the UA string to use for the given URL.  Pass an invalid URL (such as
   // GURL()) to get the default UA string.  Subclasses should override this
   // method to provide a UA string.
@@ -129,6 +133,9 @@ class URLRequestContext :
   // used in communication with a server but is used to construct a suggested
   // filename for file download.
   std::string referrer_charset_;
+
+  // Tracks the requests associated with this context.
+  URLRequestTracker request_tracker_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
