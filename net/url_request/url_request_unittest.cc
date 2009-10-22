@@ -120,10 +120,6 @@ scoped_refptr<net::UploadData> CreateSimpleUploadData(const char* data) {
 
 // Inherit PlatformTest since we require the autorelease pool on Mac OS X.f
 class URLRequestTest : public PlatformTest {
- public:
-  ~URLRequestTest() {
-    EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
-  }
 };
 
 class URLRequestTestHTTP : public URLRequestTest {
@@ -232,109 +228,6 @@ TEST_F(URLRequestTestHTTP, GetTest) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
   }
-}
-
-// Test the instance tracking functionality of URLRequest.
-TEST_F(URLRequestTest, Tracking) {
-  URLRequest::InstanceTracker::Get()->ClearRecentlyDeceased();
-  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
-  EXPECT_EQ(0u,
-            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
-
-  {
-    URLRequest req1(GURL("http://req1"), NULL);
-    URLRequest req2(GURL("http://req2"), NULL);
-    URLRequest req3(GURL("http://req3"), NULL);
-
-    std::vector<URLRequest*> live_reqs =
-        URLRequest::InstanceTracker::Get()->GetLiveRequests();
-    ASSERT_EQ(3u, live_reqs.size());
-    EXPECT_EQ(GURL("http://req1"), live_reqs[0]->original_url());
-    EXPECT_EQ(GURL("http://req2"), live_reqs[1]->original_url());
-    EXPECT_EQ(GURL("http://req3"), live_reqs[2]->original_url());
-  }
-
-  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
-
-  URLRequest::InstanceTracker::RecentRequestInfoList recent_reqs =
-      URLRequest::InstanceTracker::Get()->GetRecentlyDeceased();
-
-  // Note that the order is reversed from definition order, because
-  // this matches the destructor order.
-  ASSERT_EQ(3u, recent_reqs.size());
-  EXPECT_EQ(GURL("http://req3"), recent_reqs[0].original_url);
-  EXPECT_EQ(GURL("http://req2"), recent_reqs[1].original_url);
-  EXPECT_EQ(GURL("http://req1"), recent_reqs[2].original_url);
-}
-
-// Test the instance tracking functionality of URLRequest.
-TEST_F(URLRequestTest, TrackingGraveyardBounded) {
-  URLRequest::InstanceTracker::Get()->ClearRecentlyDeceased();
-  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
-  EXPECT_EQ(0u,
-            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
-
-  const size_t kMaxGraveyardSize =
-      URLRequest::InstanceTracker::kMaxGraveyardSize;
-  const size_t kMaxURLLen = URLRequest::InstanceTracker::kMaxGraveyardURLSize;
-
-  // Add twice as many requests as will fit in the graveyard.
-  for (size_t i = 0; i < kMaxGraveyardSize * 2; ++i)
-    URLRequest req(GURL(StringPrintf("http://req%d", i).c_str()), NULL);
-
-  // Check that only the last |kMaxGraveyardSize| requests are in-memory.
-
-  URLRequest::InstanceTracker::RecentRequestInfoList recent_reqs =
-      URLRequest::InstanceTracker::Get()->GetRecentlyDeceased();
-
-  ASSERT_EQ(kMaxGraveyardSize, recent_reqs.size());
-
-  for (size_t i = 0; i < kMaxGraveyardSize; ++i) {
-    size_t req_number = i + kMaxGraveyardSize;
-    GURL url(StringPrintf("http://req%d", req_number).c_str());
-    EXPECT_EQ(url, recent_reqs[i].original_url);
-  }
-
-  URLRequest::InstanceTracker::Get()->ClearRecentlyDeceased();
-  EXPECT_EQ(0u,
-            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
-
-  // Check that very long URLs are truncated.
-  std::string big_url_spec("http://");
-  big_url_spec.resize(2 * kMaxURLLen, 'x');
-  GURL big_url(big_url_spec);
-  {
-    URLRequest req(big_url, NULL);
-  }
-  ASSERT_EQ(1u,
-            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
-  // The +1 is because GURL canonicalizes with a trailing '/' ... maybe
-  // we should just save the std::string rather than the GURL.
-  EXPECT_EQ(kMaxURLLen + 1,
-            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased()[0]
-                .original_url.spec().size());
-}
-
-// Test the instance tracking functionality of URLRequest does not
-// fail if the URL was invalid. http://crbug.com/21423.
-TEST_F(URLRequestTest, TrackingInvalidURL) {
-  URLRequest::InstanceTracker::Get()->ClearRecentlyDeceased();
-  EXPECT_EQ(0u, URLRequest::InstanceTracker::Get()->GetLiveRequests().size());
-  EXPECT_EQ(0u,
-            URLRequest::InstanceTracker::Get()->GetRecentlyDeceased().size());
-
-  {
-    GURL invalid_url("xabc");
-    EXPECT_FALSE(invalid_url.is_valid());
-    URLRequest req(invalid_url, NULL);
-  }
-
-  // Check that the invalid URL made it into graveyard.
-  URLRequest::InstanceTracker::RecentRequestInfoList recent_reqs =
-      URLRequest::InstanceTracker::Get()->GetRecentlyDeceased();
-
-  ASSERT_EQ(1u, recent_reqs.size());
-  EXPECT_FALSE(recent_reqs[0].original_url.is_valid());
 }
 
 TEST_F(URLRequestTest, QuitTest) {
