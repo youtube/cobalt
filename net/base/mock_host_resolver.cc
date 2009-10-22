@@ -110,15 +110,18 @@ struct RuleBasedHostResolverProc::Rule {
 
   ResolverType resolver_type;
   std::string host_pattern;
+  AddressFamily address_family;
   std::string replacement;
   int latency_ms;  // In milliseconds.
 
   Rule(ResolverType resolver_type,
        const std::string& host_pattern,
+       AddressFamily address_family,
        const std::string& replacement,
        int latency_ms)
       : resolver_type(resolver_type),
         host_pattern(host_pattern),
+        address_family(address_family),
         replacement(replacement),
         latency_ms(latency_ms) {}
 };
@@ -132,14 +135,24 @@ RuleBasedHostResolverProc::~RuleBasedHostResolverProc() {
 
 void RuleBasedHostResolverProc::AddRule(const std::string& host_pattern,
                                         const std::string& replacement) {
+  AddRuleForFamily(host_pattern, ADDRESS_FAMILY_UNSPECIFIED, replacement);
+}
+
+void RuleBasedHostResolverProc::AddRuleForFamily(
+    const std::string& host_pattern,
+    AddressFamily address_family,
+    const std::string& replacement) {
   DCHECK(!replacement.empty());
-  Rule rule(Rule::kResolverTypeSystem, host_pattern, replacement, 0);
+  Rule rule(Rule::kResolverTypeSystem, host_pattern,
+            address_family, replacement, 0);
   rules_.push_back(rule);
 }
 
+
 void RuleBasedHostResolverProc::AddIPv6Rule(const std::string& host_pattern,
                                             const std::string& ipv6_literal) {
-  Rule rule(Rule::kResolverTypeIPV6Literal, host_pattern, ipv6_literal, 0);
+  Rule rule(Rule::kResolverTypeIPV6Literal, host_pattern,
+            ADDRESS_FAMILY_UNSPECIFIED, ipv6_literal, 0);
   rules_.push_back(rule);
 }
 
@@ -148,19 +161,22 @@ void RuleBasedHostResolverProc::AddRuleWithLatency(
     const std::string& replacement,
     int latency_ms) {
   DCHECK(!replacement.empty());
-  Rule rule(Rule::kResolverTypeSystem, host_pattern, replacement, latency_ms);
+  Rule rule(Rule::kResolverTypeSystem, host_pattern,
+            ADDRESS_FAMILY_UNSPECIFIED, replacement, latency_ms);
   rules_.push_back(rule);
 }
 
 void RuleBasedHostResolverProc::AllowDirectLookup(
     const std::string& host_pattern) {
-  Rule rule(Rule::kResolverTypeSystem, host_pattern, "", 0);
+  Rule rule(Rule::kResolverTypeSystem, host_pattern,
+            ADDRESS_FAMILY_UNSPECIFIED, "", 0);
   rules_.push_back(rule);
 }
 
 void RuleBasedHostResolverProc::AddSimulatedFailure(
     const std::string& host_pattern) {
-  Rule rule(Rule::kResolverTypeFail, host_pattern, "", 0);
+  Rule rule(Rule::kResolverTypeFail, host_pattern,
+            ADDRESS_FAMILY_UNSPECIFIED, "", 0);
   rules_.push_back(rule);
 }
 
@@ -169,7 +185,11 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
                                        AddressList* addrlist) {
   RuleList::iterator r;
   for (r = rules_.begin(); r != rules_.end(); ++r) {
-    if (MatchPattern(host, r->host_pattern)) {
+    bool matches_address_family =
+        r->address_family == ADDRESS_FAMILY_UNSPECIFIED ||
+        r->address_family == address_family;
+
+    if (matches_address_family && MatchPattern(host, r->host_pattern)) {
       if (r->latency_ms != 0)
         PlatformThread::Sleep(r->latency_ms);
 
