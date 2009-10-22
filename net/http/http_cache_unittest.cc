@@ -128,7 +128,12 @@ class MockDiskEntry : public disk_cache::Entry,
     data_[index].resize(offset + buf_len);
     if (buf_len)
       memcpy(&data_[index][offset], buf->data(), buf_len);
-    return buf_len;
+
+    if (!callback || (test_mode_ & TEST_MODE_SYNC_CACHE_WRITE))
+      return buf_len;
+
+    CallbackLater(callback, buf_len);
+    return net::ERR_IO_PENDING;
   }
 
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
@@ -183,7 +188,11 @@ class MockDiskEntry : public disk_cache::Entry,
       data_[1].resize(real_offset + buf_len);
 
     memcpy(&data_[1][real_offset], buf->data(), buf_len);
-    return buf_len;
+    if (!completion_callback || (test_mode_ & TEST_MODE_SYNC_CACHE_WRITE))
+      return buf_len;
+
+    CallbackLater(completion_callback, buf_len);
+    return net::ERR_IO_PENDING;
   }
 
   virtual int GetAvailableRange(int64 offset, int len, int64* start) {
@@ -691,6 +700,14 @@ struct Response {
   const char* body;
 };
 
+struct Context {
+  Context() : result(net::ERR_IO_PENDING) {}
+
+  int result;
+  TestCompletionCallback callback;
+  scoped_ptr<net::HttpTransaction> trans;
+};
+
 }  // namespace
 
 
@@ -762,6 +779,44 @@ TEST(HttpCache, SimpleGETWithDiskFailures) {
 
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+}
+
+// Tests that disk failures after the transaction has started don't cause the
+// request to fail.
+TEST(HttpCache, SimpleGETWithDiskFailures2) {
+  MockHttpCache cache;
+
+  MockHttpRequest request(kSimpleGET_Transaction);
+
+  scoped_ptr<Context> c(new Context());
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
+
+  rv = c->trans->Start(&request, &c->callback, NULL);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+  rv = c->callback.WaitForResult();
+
+  // Start failing request now.
+  cache.disk_cache()->set_soft_failures(true);
+
+  // We have to open the entry again to propagate the failure flag.
+  disk_cache::Entry* en;
+  ASSERT_TRUE(cache.disk_cache()->OpenEntry(kSimpleGET_Transaction.url, &en));
+  en->Close();
+
+  ReadAndVerifyTransaction(c->trans.get(), kSimpleGET_Transaction);
+  c.reset();
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // This one should see an empty cache again.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(2, cache.disk_cache()->create_count());
 }
 
@@ -964,15 +1019,6 @@ TEST(HttpCache, SimpleGET_LoadValidateCache_Implicit) {
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
-
-struct Context {
-  int result;
-  TestCompletionCallback callback;
-  scoped_ptr<net::HttpTransaction> trans;
-
-  Context() : result(net::ERR_IO_PENDING) {
-  }
-};
 
 TEST(HttpCache, SimpleGET_ManyReaders) {
   MockHttpCache cache;
@@ -2022,7 +2068,8 @@ TEST(HttpCache, UnknownRangeGET_2) {
 
   MockTransaction transaction(kRangeGET_TransactionOK);
   transaction.test_mode = TEST_MODE_SYNC_CACHE_START |
-                          TEST_MODE_SYNC_CACHE_READ;
+                          TEST_MODE_SYNC_CACHE_READ |
+                          TEST_MODE_SYNC_CACHE_WRITE;
   AddMockTransaction(&transaction);
 
   // Write to the cache (70-79).
@@ -2823,7 +2870,8 @@ TEST(HttpCache, SyncRead) {
 
   ScopedMockTransaction transaction(kSimpleGET_Transaction);
   transaction.test_mode |= (TEST_MODE_SYNC_CACHE_START |
-                            TEST_MODE_SYNC_CACHE_READ);
+                            TEST_MODE_SYNC_CACHE_READ |
+                            TEST_MODE_SYNC_CACHE_WRITE);
 
   MockHttpRequest r1(transaction),
                   r2(transaction),
