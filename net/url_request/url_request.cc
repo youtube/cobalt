@@ -8,7 +8,6 @@
 #include "base/message_loop.h"
 #include "base/singleton.h"
 #include "base/stats_counters.h"
-#include "base/string_util.h"
 #include "net/base/load_flags.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
@@ -33,97 +32,6 @@ static URLRequestJobManager* GetJobManager() {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// URLRequest::InstanceTracker
-
-const size_t URLRequest::InstanceTracker::kMaxGraveyardSize = 25;
-const size_t URLRequest::InstanceTracker::kMaxGraveyardURLSize = 1000;
-
-URLRequest::InstanceTracker::~InstanceTracker() {
-  base::LeakTracker<URLRequest>::CheckForLeaks();
-
-  // Only check in Debug mode, because this is triggered too often.
-  // See http://crbug.com/21199, http://crbug.com/18372
-  DCHECK_EQ(0u, GetLiveRequests().size());
-}
-
-// static
-URLRequest::InstanceTracker* URLRequest::InstanceTracker::Get() {
-  return Singleton<InstanceTracker>::get();
-}
-
-std::vector<URLRequest*> URLRequest::InstanceTracker::GetLiveRequests() {
-  std::vector<URLRequest*> list;
-  for (base::LinkNode<InstanceTrackerNode>* node = live_instances_.head();
-       node != live_instances_.end();
-       node = node->next()) {
-    URLRequest* url_request = node->value()->url_request();
-    list.push_back(url_request);
-  }
-  return list;
-}
-
-void URLRequest::InstanceTracker::ClearRecentlyDeceased() {
-  next_graveyard_index_ = 0;
-  graveyard_.clear();
-}
-
-const URLRequest::InstanceTracker::RecentRequestInfoList
-URLRequest::InstanceTracker::GetRecentlyDeceased() {
-  RecentRequestInfoList list;
-
-  // Copy the items from |graveyard_| (our circular queue of recently
-  // deceased request infos) into a vector, ordered from oldest to
-  // newest.
-  for (size_t i = 0; i < graveyard_.size(); ++i) {
-    size_t index = (next_graveyard_index_ + i) % graveyard_.size();
-    list.push_back(graveyard_[index]);
-  }
-  return list;
-}
-
-URLRequest::InstanceTracker::InstanceTracker() : next_graveyard_index_(0) {}
-
-void URLRequest::InstanceTracker::Add(InstanceTrackerNode* node) {
-  live_instances_.Append(node);
-}
-
-void URLRequest::InstanceTracker::Remove(InstanceTrackerNode* node) {
-  // Remove from |live_instances_|.
-  node->RemoveFromList();
-
-  // Add into |graveyard_|.
-  InsertIntoGraveyard(ExtractInfo(node->url_request()));
-}
-
-// static
-const URLRequest::InstanceTracker::RecentRequestInfo
-URLRequest::InstanceTracker::ExtractInfo(URLRequest* url_request) {
-  RecentRequestInfo info;
-  info.original_url = url_request->original_url();
-  info.load_log = url_request->load_log();
-
-  // Paranoia check: truncate |info.original_url| if it is really big.
-  const std::string& spec = info.original_url.possibly_invalid_spec();
-  if (spec.size() > kMaxGraveyardURLSize)
-    info.original_url = GURL(spec.substr(0, kMaxGraveyardURLSize));
-  return info;
-}
-
-void URLRequest::InstanceTracker::InsertIntoGraveyard(
-    const RecentRequestInfo& info) {
-  if (graveyard_.size() < kMaxGraveyardSize) {
-    // Still growing to maximum capacity.
-    DCHECK_EQ(next_graveyard_index_, graveyard_.size());
-    graveyard_.push_back(info);
-  } else {
-    // At maximum capacity, overwrite the oldest entry.
-    graveyard_[next_graveyard_index_] = info;
-  }
-
-  next_graveyard_index_ = (next_graveyard_index_ + 1) % kMaxGraveyardSize;
-}
-
-///////////////////////////////////////////////////////////////////////////////
 // URLRequest
 
 URLRequest::URLRequest(const GURL& url, Delegate* delegate)
@@ -138,7 +46,7 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       redirect_limit_(kMaxRedirects),
       final_upload_progress_(0),
       priority_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(instance_tracker_node_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(url_request_tracker_node_(this)) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
   // Sanity check out environment.
@@ -153,6 +61,8 @@ URLRequest::~URLRequest() {
 
   if (job_)
     OrphanJob();
+
+  set_context(NULL);
 }
 
 // static
@@ -340,18 +250,6 @@ GURL URLRequest::GetSanitizedReferrer() const {
 
 void URLRequest::Start() {
   StartJob(GetJobManager()->CreateJob(this));
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// URLRequest::InstanceTrackerNode
-
-URLRequest::InstanceTrackerNode::
-InstanceTrackerNode(URLRequest* url_request) : url_request_(url_request) {
-  InstanceTracker::Get()->Add(this);
-}
-
-URLRequest::InstanceTrackerNode::~InstanceTrackerNode() {
-  InstanceTracker::Get()->Remove(this);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -587,7 +485,17 @@ URLRequestContext* URLRequest::context() {
 }
 
 void URLRequest::set_context(URLRequestContext* context) {
+  scoped_refptr<URLRequestContext> prev_context = context_;
+
   context_ = context;
+
+  // If the context this request belongs to has changed, update the tracker(s).
+  if (prev_context != context) {
+    if (prev_context)
+      prev_context->request_tracker()->Remove(this);
+    if (context)
+      context->request_tracker()->Add(this);
+  }
 }
 
 int64 URLRequest::GetExpectedContentSize() const {
