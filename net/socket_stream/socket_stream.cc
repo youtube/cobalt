@@ -195,7 +195,7 @@ void SocketStream::DidEstablishConnection() {
 
 void SocketStream::DidReceiveData(int result) {
   DCHECK(read_buf_);
-  DCHECK(result > 0);
+  DCHECK_GT(result, 0);
   if (!delegate_)
     return;
   // Notify recevied data to delegate.
@@ -233,7 +233,10 @@ void SocketStream::OnIOCompleted(int result) {
 
 void SocketStream::OnReadCompleted(int result) {
   // TODO(ukai): notify error.
-  if (result >= 0 && read_buf_) {
+  if (result == 0) {
+    // 0 indicates end-of-file, so socket was closed.
+    next_state_ = STATE_NONE;
+  } else if (result > 0 && read_buf_) {
     DidReceiveData(result);
     result = OK;
   }
@@ -468,6 +471,12 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
   if (result < 0)
     return result;
 
+  if (result == 0) {
+    // 0 indicates end-of-file, so socket was closed.
+    Finish();
+    return result;
+  }
+
   tunnel_response_headers_len_ += result;
   DCHECK(tunnel_response_headers_len_ <= tunnel_response_headers_capacity_);
 
@@ -574,6 +583,10 @@ int SocketStream::DoReadWrite(int result) {
     if (result > 0) {
       DidReceiveData(result);
       result = OK;
+    } else if (result == 0) {
+      // 0 indicates end-of-file, so socket was closed.
+      Finish();
+      return ERR_CONNECTION_CLOSED;
     }
   }
   if (write_buf_ && !current_write_buf_) {
