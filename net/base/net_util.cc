@@ -32,13 +32,13 @@
 #include "base/i18n/file_util_icu.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/i18n/time_formatting.h"
+#include "base/json/string_escape.h"
 #include "base/lock.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/singleton.h"
 #include "base/stl_util-inl.h"
-#include "base/string_escape.h"
 #include "base/string_piece.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
@@ -945,7 +945,7 @@ std::string GetDirectoryListingHeader(const string16& title) {
     result.assign(header.data(), header.size());
 
   result.append("<script>start(");
-  string_escape::JsonDoubleQuote(title, true, &result);
+  base::JsonDoubleQuote(title, true, &result);
   result.append(");</script>\n");
 
   return result;
@@ -1006,13 +1006,13 @@ std::string GetDirectoryListingEntry(const string16& name,
                                      Time modified) {
   std::string result;
   result.append("<script>addRow(");
-  string_escape::JsonDoubleQuote(name, true, &result);
+  base::JsonDoubleQuote(name, true, &result);
   result.append(",");
   if (raw_bytes.empty()) {
-    string_escape::JsonDoubleQuote(EscapePath(UTF16ToUTF8(name)),
+    base::JsonDoubleQuote(EscapePath(UTF16ToUTF8(name)),
                                    true, &result);
   } else {
-    string_escape::JsonDoubleQuote(EscapePath(raw_bytes), true, &result);
+    base::JsonDoubleQuote(EscapePath(raw_bytes), true, &result);
   }
   if (is_dir) {
     result.append(",1,");
@@ -1020,7 +1020,7 @@ std::string GetDirectoryListingEntry(const string16& name,
     result.append(",0,");
   }
 
-  string_escape::JsonDoubleQuote(
+  base::JsonDoubleQuote(
       WideToUTF16Hack(FormatBytes(size, GetByteDisplayUnits(size), true)), true,
       &result);
 
@@ -1031,7 +1031,7 @@ std::string GetDirectoryListingEntry(const string16& name,
   if (!modified.is_null()) {
     modified_str = WideToUTF16Hack(base::TimeFormatShortDateAndTime(modified));
   }
-  string_escape::JsonDoubleQuote(modified_str, true, &result);
+  base::JsonDoubleQuote(modified_str, true, &result);
 
   result.append(");</script>\n");
 
