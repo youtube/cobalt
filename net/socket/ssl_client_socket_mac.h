@@ -49,18 +49,21 @@ class SSLClientSocketMac : public SSLClientSocket {
   virtual bool SetSendBufferSize(int32 size);
 
  private:
-  void DoCallback(int result);
-  void OnIOComplete(int result);
+  void DoConnectCallback(int result);
+  void DoReadCallback(int result);
+  void DoWriteCallback(int result);
+  void OnHandshakeIOComplete(int result);
+  void OnTransportReadComplete(int result);
+  void OnTransportWriteComplete(int result);
 
-  int DoLoop(int last_io_result);
+  int DoHandshakeLoop(int last_io_result);
+
   int DoPayloadRead();
   int DoPayloadWrite();
   int DoHandshakeStart();
   int DoVerifyCert();
   int DoVerifyCertComplete(int result);
   int DoHandshakeFinish();
-  int DoReadComplete(int result);
-  void OnWriteComplete(int result);
 
   static OSStatus SSLReadCallback(SSLConnectionRef connection,
                                   void* data,
@@ -69,31 +72,34 @@ class SSLClientSocketMac : public SSLClientSocket {
                                    const void* data,
                                    size_t* data_length);
 
-  CompletionCallbackImpl<SSLClientSocketMac> io_callback_;
-  CompletionCallbackImpl<SSLClientSocketMac> write_callback_;
+  CompletionCallbackImpl<SSLClientSocketMac> handshake_io_callback_;
+  CompletionCallbackImpl<SSLClientSocketMac> transport_read_callback_;
+  CompletionCallbackImpl<SSLClientSocketMac> transport_write_callback_;
 
   scoped_ptr<ClientSocket> transport_;
   std::string hostname_;
   SSLConfig ssl_config_;
 
-  CompletionCallback* user_callback_;
+  CompletionCallback* user_connect_callback_;
+  CompletionCallback* user_read_callback_;
+  CompletionCallback* user_write_callback_;
 
-  // Used by both Read and Write functions.
-  scoped_refptr<IOBuffer> user_buf_;
-  int user_buf_len_;
+  // Used by Read function.
+  scoped_refptr<IOBuffer> user_read_buf_;
+  int user_read_buf_len_;
+
+  // Used by Write function.
+  scoped_refptr<IOBuffer> user_write_buf_;
+  int user_write_buf_len_;
 
   enum State {
     STATE_NONE,
-    STATE_PAYLOAD_READ,
-    STATE_PAYLOAD_WRITE,
     STATE_HANDSHAKE_START,
     STATE_VERIFY_CERT,
     STATE_VERIFY_CERT_COMPLETE,
     STATE_HANDSHAKE_FINISH,
-    STATE_READ_COMPLETE,
   };
-  State next_state_;
-  State next_io_state_;
+  State next_handshake_state_;
 
   scoped_refptr<X509Certificate> server_cert_;
   std::vector<scoped_refptr<X509Certificate> > intermediate_certs_;
