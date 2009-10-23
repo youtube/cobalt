@@ -120,29 +120,25 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
     return config_;
   }
 
-  // Creates a proxy service using the specified settings. If |pc| is NULL then
-  // the system's default proxy settings will be used (on Windows this will
-  // use IE's settings).
+  // Creates a proxy service that polls |proxy_config_service| to notice when
+  // the proxy settings change. We take ownership of |proxy_config_service|.
   // Iff |use_v8_resolver| is true, then the V8 implementation is
   // used.
   // |url_request_context| is only used when use_v8_resolver is true:
   // it specifies the URL request context that will be used if a PAC
   // script needs to be fetched.
   // |io_loop| points to the IO thread's message loop. It is only used
-  // when pc is NULL. If both pc and io_loop are NULL, then monitoring
-  // of proxy setting changes will be disabled in ProxyConfigServiceLinux.
-  // |file_loop| points to the file thread's message loop. It is used
-  // to read any files necessary to get proxy settings.
+  // when pc is NULL.
   // ##########################################################################
   // # See the warnings in net/proxy/proxy_resolver_v8.h describing the
   // # multi-threading model. In order for this to be safe to use, *ALL* the
   // # other V8's running in the process must use v8::Locker.
   // ##########################################################################
   static ProxyService* Create(
-      const ProxyConfig* pc,
+      ProxyConfigService* proxy_config_service,
       bool use_v8_resolver,
       URLRequestContext* url_request_context,
-      MessageLoop* io_loop, MessageLoop* file_loop);
+      MessageLoop* io_loop);
 
   // Convenience method that creates a proxy service using the
   // specified fixed settings. |pc| must not be NULL.
@@ -151,6 +147,11 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // Creates a proxy service that always fails to fetch the proxy configuration,
   // so it falls back to direct connect.
   static ProxyService* CreateNull();
+
+  // Creates a config service appropriate for this platform that fetches the
+  // system proxy settings.
+  static ProxyConfigService* CreateSystemProxyConfigService(
+      MessageLoop* io_loop, MessageLoop* file_loop);
 
  private:
   FRIEND_TEST(ProxyServiceTest, IsLocalName);
@@ -162,11 +163,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   //   ProxyServiceTest.InitialPACScriptDownload
   // which expects requests to finish in the order they were added.
   typedef std::vector<scoped_refptr<PacRequest> > PendingRequests;
-
-  // Creates a config service appropriate for this platform that fetches the
-  // system proxy settings.
-  static ProxyConfigService* CreateSystemProxyConfigService(
-      MessageLoop* io_loop, MessageLoop* file_loop);
 
   // Creates a proxy resolver appropriate for this platform that doesn't rely
   // on V8.
