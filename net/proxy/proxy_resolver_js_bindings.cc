@@ -110,10 +110,13 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
       return std::string();
 
     // Do a sync resolve of the hostname.
-    // Disable IPv6 results, see http://crbug.com/24641 for motivation.
+    // Disable IPv6 results. We do this because Internet Explorer does it --
+    // consequently a lot of existing PAC scripts assume they will only get
+    // IPv4 results, and will misbehave if they get an IPv6 result.
+    // See http://crbug.com/24641 for more details.
     net::AddressList address_list;
     int result = host_resolver_->Resolve(host,
-                                         ADDRESS_FAMILY_IPV4_ONLY,
+                                         ADDRESS_FAMILY_IPV4,
                                          &address_list);
 
     if (result != OK)

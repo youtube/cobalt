@@ -138,10 +138,17 @@ int SystemHostResolverProc(const std::string& host,
   struct addrinfo hints = {0};
 
   switch (address_family) {
-    case ADDRESS_FAMILY_IPV4_ONLY:
+    case ADDRESS_FAMILY_IPV4:
       hints.ai_family = AF_INET;
       break;
+    case ADDRESS_FAMILY_IPV6:
+      hints.ai_family = AF_INET6;
+      break;
+    case ADDRESS_FAMILY_UNSPECIFIED:
+      hints.ai_family = AF_UNSPEC;
+      break;
     default:
+      NOTREACHED();
       hints.ai_family = AF_UNSPEC;
   }
 

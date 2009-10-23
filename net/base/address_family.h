@@ -8,10 +8,11 @@
 namespace net {
 
 // Enum wrapper around the address family types supported by host resolver
-// procedures. These correspond with AF_UNSPEC and AF_INET.
+// procedures.
 enum AddressFamily {
-  ADDRESS_FAMILY_UNSPECIFIED,
-  ADDRESS_FAMILY_IPV4_ONLY,
+  ADDRESS_FAMILY_UNSPECIFIED,   // AF_UNSPEC
+  ADDRESS_FAMILY_IPV4,          // AF_INET
+  ADDRESS_FAMILY_IPV6,          // AF_INET6
 };
 
 }  // namesapce net
