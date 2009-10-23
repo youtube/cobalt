@@ -135,10 +135,11 @@ RuleBasedHostResolverProc::~RuleBasedHostResolverProc() {
 
 void RuleBasedHostResolverProc::AddRule(const std::string& host_pattern,
                                         const std::string& replacement) {
-  AddRuleForFamily(host_pattern, ADDRESS_FAMILY_UNSPECIFIED, replacement);
+  AddRuleForAddressFamily(host_pattern, ADDRESS_FAMILY_UNSPECIFIED,
+                          replacement);
 }
 
-void RuleBasedHostResolverProc::AddRuleForFamily(
+void RuleBasedHostResolverProc::AddRuleForAddressFamily(
     const std::string& host_pattern,
     AddressFamily address_family,
     const std::string& replacement) {
@@ -147,7 +148,6 @@ void RuleBasedHostResolverProc::AddRuleForFamily(
             address_family, replacement, 0);
   rules_.push_back(rule);
 }
-
 
 void RuleBasedHostResolverProc::AddIPv6Rule(const std::string& host_pattern,
                                             const std::string& ipv6_literal) {
