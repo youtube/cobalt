@@ -311,10 +311,10 @@
               'GCC_INSTRUMENT_PROGRAM_FLOW_ARCS': 'YES',  # -fprofile-arcs
               'GCC_GENERATE_TEST_COVERAGE_FILES': 'YES',  # -ftest-coverage
             },
-            # Add -lgcov for executables, not for static_libraries.
-            # This is a delayed conditional.
+            # Add -lgcov for executables and shared_libraries, not for
+            # static_libraries.  This is a delayed conditional.
             'target_conditions': [
-              ['_type=="executable"', {
+              ['_type=="executable" or _type=="shared_library"', {
                 'xcode_settings': { 'OTHER_LDFLAGS': [ '-lgcov' ] },
               }],
             ],
