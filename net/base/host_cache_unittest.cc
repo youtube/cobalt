@@ -214,7 +214,7 @@ TEST(HostCacheTest, AddressFamilyIsPartOfKey) {
   base::TimeTicks now;
 
   HostCache::Key key1("foobar.com", ADDRESS_FAMILY_UNSPECIFIED);
-  HostCache::Key key2("foobar.com", ADDRESS_FAMILY_IPV4_ONLY);
+  HostCache::Key key2("foobar.com", ADDRESS_FAMILY_IPV4);
 
   const HostCache::Entry* entry1 = NULL;  // Entry for key1
   const HostCache::Entry* entry2 = NULL;  // Entry for key2

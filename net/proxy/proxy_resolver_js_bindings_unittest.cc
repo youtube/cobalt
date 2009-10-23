@@ -49,7 +49,7 @@ TEST(ProxyResolverJSBindingsTest, MyIpAddress) {
 }
 
 // Tests that myIpAddress() and dnsResolve() pass the flag
-// ADDRESS_FAMILY_IPV4_ONLY to the host resolver, as we don't want them
+// ADDRESS_FAMILY_IPV4 to the host resolver, as we don't want them
 // to return IPv6 results.
 TEST(ProxyResolverJSBindingsTest, DontUseIPv6) {
   scoped_refptr<MockHostResolver> host_resolver(new MockHostResolver);
@@ -62,11 +62,11 @@ TEST(ProxyResolverJSBindingsTest, DontUseIPv6) {
   // Make it so requests resolve to particular address patterns based on family:
   //  IPV4_ONLY --> 192.168.1.*
   //  UNSPECIFIED --> 192.168.2.1
-  host_resolver->rules()->AddRuleForFamily(
-      "foo", ADDRESS_FAMILY_IPV4_ONLY, "192.168.1.1");
-  host_resolver->rules()->AddRuleForFamily(
-      "*", ADDRESS_FAMILY_IPV4_ONLY, "192.168.1.2");
-  host_resolver->rules()->AddRuleForFamily(
+  host_resolver->rules()->AddRuleForAddressFamily(
+      "foo", ADDRESS_FAMILY_IPV4, "192.168.1.1");
+  host_resolver->rules()->AddRuleForAddressFamily(
+      "*", ADDRESS_FAMILY_IPV4, "192.168.1.2");
+  host_resolver->rules()->AddRuleForAddressFamily(
       "*", ADDRESS_FAMILY_UNSPECIFIED, "192.168.2.1");
 
   // Verify that our mock setups works as expected, and we get different results
@@ -76,7 +76,7 @@ TEST(ProxyResolverJSBindingsTest, DontUseIPv6) {
   EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, NULL, NULL, NULL));
   EXPECT_EQ("192.168.2.1", NetAddressToString(address_list.head()));
 
-  info.set_address_family(ADDRESS_FAMILY_IPV4_ONLY);
+  info.set_address_family(ADDRESS_FAMILY_IPV4);
   EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, NULL, NULL, NULL));
   EXPECT_EQ("192.168.1.1", NetAddressToString(address_list.head()));
 
