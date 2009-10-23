@@ -596,6 +596,16 @@ std::string HttpUtil::GenerateAcceptCharsetHeader(const std::string& charset) {
   return charset_with_q;
 }
 
+void HttpUtil::AppendHeaderIfMissing(const char* header_name,
+                                     const std::string& header_value,
+                                     std::string* headers) {
+  if (header_value.empty())
+    return;
+  if (net::HttpUtil::HasHeader(*headers, header_name))
+    return;
+  *headers += std::string(header_name) + ": " + header_value + "\r\n";
+}
+
 // BNF from section 4.2 of RFC 2616:
 //
 //   message-header = field-name ":" [ field-value ]

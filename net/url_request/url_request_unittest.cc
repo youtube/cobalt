@@ -2177,7 +2177,8 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptLanguage) {
 TEST_F(URLRequestTestHTTP, OverrideAcceptLanguage) {
   ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
-  TestURLRequest req(server_->TestServerPage("echoheader?Accept-Language"), &d);
+  TestURLRequest
+      req(server_->TestServerPage("echoheaderoverride?Accept-Language"), &d);
   req.set_context(new URLRequestTestContext());
   req.SetExtraRequestHeaders("Accept-Language: ru");
   req.Start();
@@ -2201,7 +2202,8 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptCharset) {
 TEST_F(URLRequestTestHTTP, OverrideAcceptCharset) {
   ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
-  TestURLRequest req(server_->TestServerPage("echoheader?Accept-Charset"), &d);
+  TestURLRequest
+      req(server_->TestServerPage("echoheaderoverride?Accept-Charset"), &d);
   req.set_context(new URLRequestTestContext());
   req.SetExtraRequestHeaders("Accept-Charset: koi-8r");
   req.Start();
