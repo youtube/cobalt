@@ -212,15 +212,10 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
 
 // static
 ProxyService* ProxyService::Create(
-    const ProxyConfig* pc,
+    ProxyConfigService* proxy_config_service,
     bool use_v8_resolver,
     URLRequestContext* url_request_context,
-    MessageLoop* io_loop, MessageLoop* file_loop) {
-  // Choose the system configuration service appropriate for each platform.
-  ProxyConfigService* proxy_config_service = pc ?
-      new ProxyConfigServiceFixed(*pc) :
-      CreateSystemProxyConfigService(io_loop, file_loop);
-
+    MessageLoop* io_loop) {
   ProxyResolver* proxy_resolver;
 
   if (use_v8_resolver) {
@@ -253,7 +248,7 @@ ProxyService* ProxyService::Create(
 
 // static
 ProxyService* ProxyService::CreateFixed(const ProxyConfig& pc) {
-  return Create(&pc, false, NULL, NULL, NULL);
+  return Create(new ProxyConfigServiceFixed(pc), false, NULL, NULL);
 }
 
 // static
