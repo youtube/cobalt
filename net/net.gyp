@@ -15,8 +15,10 @@
         '../base/base.gyp:base_i18n',
         '../build/temp_gyp/googleurl.gyp:googleurl',
         '../sdch/sdch.gyp:sdch',
+        '../third_party/bzip2/bzip2.gyp:bzip2',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
+        '../third_party/zlib/zlib.gyp:zlib',
         'net_resources',
       ],
       'sources': [
