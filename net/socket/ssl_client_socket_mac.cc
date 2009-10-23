@@ -68,12 +68,12 @@
 // So, like in any good relationship, we're forced to lie. Whenever Secure
 // Transport asks for data to be written, we take it all and lie about it always
 // being written. We spin in a loop (see SSLWriteCallback() and
-// OnWriteComplete()) independent of the main state machine writing the data to
-// the network, and get the data out. The main consequence of this independence
-// from the state machine is that we require a full-duplex transport underneath
-// us since we can't use it to keep our reading and writing
-// straight. Fortunately, the NSS implementation also has this issue to deal
-// with, so we share the same Libevent-based full-duplex TCP socket.
+// OnTransportWriteComplete()) independent of the main state machine writing
+// the data to he network, and get the data out. The main consequence of this
+// independence from the state machine is that we require a full-duplex
+// transport underneath us since we can't use it to keep our reading and
+// writing straight. Fortunately, the NSS implementation also has this issue
+// to deal with, so we share the same Libevent-based full-duplex TCP socket.
 //
 // A side comment on return values might be in order. Those who haven't taken
 // the time to read the documentation (ahem, header comments) in our various
@@ -297,14 +297,20 @@ X509Certificate* GetServerCert(SSLContextRef ssl_context) {
 SSLClientSocketMac::SSLClientSocketMac(ClientSocket* transport_socket,
                                        const std::string& hostname,
                                        const SSLConfig& ssl_config)
-    : io_callback_(this, &SSLClientSocketMac::OnIOComplete),
-      write_callback_(this, &SSLClientSocketMac::OnWriteComplete),
+    : handshake_io_callback_(this, &SSLClientSocketMac::OnHandshakeIOComplete),
+      transport_read_callback_(this,
+                               &SSLClientSocketMac::OnTransportReadComplete),
+      transport_write_callback_(this,
+                                &SSLClientSocketMac::OnTransportWriteComplete),
       transport_(transport_socket),
       hostname_(hostname),
       ssl_config_(ssl_config),
-      user_callback_(NULL),
-      next_state_(STATE_NONE),
-      next_io_state_(STATE_NONE),
+      user_connect_callback_(NULL),
+      user_read_callback_(NULL),
+      user_write_callback_(NULL),
+      user_read_buf_len_(0),
+      user_write_buf_len_(0),
+      next_handshake_state_(STATE_NONE),
       completed_handshake_(false),
       handshake_interrupted_(false),
       ssl_context_(NULL),
@@ -319,8 +325,8 @@ SSLClientSocketMac::~SSLClientSocketMac() {
 
 int SSLClientSocketMac::Connect(CompletionCallback* callback) {
   DCHECK(transport_.get());
-  DCHECK(next_state_ == STATE_NONE);
-  DCHECK(!user_callback_);
+  DCHECK(next_handshake_state_ == STATE_NONE);
+  DCHECK(!user_connect_callback_);
 
   OSStatus status = noErr;
 
@@ -415,10 +421,10 @@ int SSLClientSocketMac::Connect(CompletionCallback* callback) {
     }
   }
 
-  next_state_ = STATE_HANDSHAKE_START;
-  int rv = DoLoop(OK);
+  next_handshake_state_ = STATE_HANDSHAKE_START;
+  int rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING)
-    user_callback_ = callback;
+    user_connect_callback_ = callback;
   return rv;
 }
 
@@ -460,19 +466,18 @@ bool SSLClientSocketMac::IsConnectedAndIdle() const {
 int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   DCHECK(completed_handshake_);
-  DCHECK(next_state_ == STATE_NONE);
-  DCHECK(!user_callback_);
-  DCHECK(!user_buf_);
+  DCHECK(!user_read_callback_);
+  DCHECK(!user_read_buf_);
 
-  user_buf_ = buf;
-  user_buf_len_ = buf_len;
+  user_read_buf_ = buf;
+  user_read_buf_len_ = buf_len;
 
-  next_state_ = STATE_PAYLOAD_READ;
-  int rv = DoLoop(OK);
+  int rv = DoPayloadRead();
   if (rv == ERR_IO_PENDING) {
-    user_callback_ = callback;
+    user_read_callback_ = callback;
   } else {
-    user_buf_ = NULL;
+    user_read_buf_ = NULL;
+    user_read_buf_len_ = 0;
   }
   return rv;
 }
@@ -480,19 +485,18 @@ int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
 int SSLClientSocketMac::Write(IOBuffer* buf, int buf_len,
                               CompletionCallback* callback) {
   DCHECK(completed_handshake_);
-  DCHECK(next_state_ == STATE_NONE);
-  DCHECK(!user_callback_);
-  DCHECK(!user_buf_);
+  DCHECK(!user_write_callback_);
+  DCHECK(!user_write_buf_);
 
-  user_buf_ = buf;
-  user_buf_len_ = buf_len;
+  user_write_buf_ = buf;
+  user_write_buf_len_ = buf_len;
 
-  next_state_ = STATE_PAYLOAD_WRITE;
-  int rv = DoLoop(OK);
+  int rv = DoPayloadWrite();
   if (rv == ERR_IO_PENDING) {
-    user_callback_ = callback;
+    user_write_callback_ = callback;
   } else {
-    user_buf_ = NULL;
+    user_write_buf_ = NULL;
+    user_write_buf_len_ = 0;
   }
   return rv;
 }
@@ -528,40 +532,97 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
   // TODO(wtc): implement this.
 }
 
-void SSLClientSocketMac::DoCallback(int rv) {
+void SSLClientSocketMac::DoConnectCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
-  DCHECK(user_callback_);
+  DCHECK(user_connect_callback_);
+  DCHECK(next_handshake_state_ == STATE_NONE);
 
-  // since Run may result in Read being called, clear user_callback_ up front.
-  CompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
-  user_buf_ = NULL;
+  CompletionCallback* c = user_connect_callback_;
+  user_connect_callback_ = NULL;
+  c->Run(rv > OK ? OK : rv);
+}
+
+void SSLClientSocketMac::DoReadCallback(int rv) {
+  DCHECK(rv != ERR_IO_PENDING);
+  DCHECK(user_read_callback_);
+
+  // Since Run may result in Read being called, clear user_read_callback_ up
+  // front.
+  CompletionCallback* c = user_read_callback_;
+  user_read_callback_ = NULL;
+  user_read_buf_ = NULL;
+  user_read_buf_len_ = 0;
   c->Run(rv);
 }
 
-void SSLClientSocketMac::OnIOComplete(int result) {
-  if (next_io_state_ != STATE_NONE) {
-    State next_state = next_state_;
-    next_state_ = next_io_state_;
-    next_io_state_ = STATE_NONE;
-    result = DoLoop(result);
-    next_state_ = next_state;
+void SSLClientSocketMac::DoWriteCallback(int rv) {
+  DCHECK(rv != ERR_IO_PENDING);
+  DCHECK(user_write_callback_);
+
+  // Since Run may result in Write being called, clear user_write_callback_ up
+  // front.
+  CompletionCallback* c = user_write_callback_;
+  user_write_callback_ = NULL;
+  user_write_buf_ = NULL;
+  user_write_buf_len_ = 0;
+  c->Run(rv);
+}
+
+void SSLClientSocketMac::OnHandshakeIOComplete(int result) {
+  DCHECK(next_handshake_state_ != STATE_NONE);
+  int rv = DoHandshakeLoop(result);
+  if (rv != ERR_IO_PENDING)
+    DoConnectCallback(rv);
+}
+
+void SSLClientSocketMac::OnTransportReadComplete(int result) {
+  if (result > 0) {
+      char* buffer =
+	  &recv_buffer_[recv_buffer_.size() - recv_buffer_tail_slop_];
+      memcpy(buffer, read_io_buf_->data(), result);
+      recv_buffer_tail_slop_ -= result;
   }
-  if (next_state_ != STATE_NONE) {
-    int rv = DoLoop(result);
+  read_io_buf_ = NULL;
+
+  if (next_handshake_state_ != STATE_NONE) {
+    int rv = DoHandshakeLoop(result);
     if (rv != ERR_IO_PENDING)
-      DoCallback(rv);
+      DoConnectCallback(rv);
+    return;
   }
+  if (user_read_buf_) {
+    if (result < 0) {
+      DoReadCallback(result);
+      return;
+    }
+    int rv = DoPayloadRead();
+    if (rv != ERR_IO_PENDING)
+      DoReadCallback(rv);
+  }
+}
+
+void SSLClientSocketMac::OnTransportWriteComplete(int result) {
+  if (result < 0) {
+    pending_send_error_ = result;
+    return;
+  }
+  send_buffer_.erase(send_buffer_.begin(),
+		     send_buffer_.begin() + result);
+  if (!send_buffer_.empty())
+    SSLWriteCallback(this, NULL, NULL);
+
+  // Since SSLWriteCallback() lies to return noErr even if transport_->Write()
+  // returns ERR_IO_PENDING, we don't need to call any callbacks here.
 }
 
 // This is the main loop driving the state machine. Most calls coming from the
 // outside just set up a few variables and jump into here.
-int SSLClientSocketMac::DoLoop(int last_io_result) {
-  DCHECK(next_state_ != STATE_NONE);
+int SSLClientSocketMac::DoHandshakeLoop(int last_io_result) {
+  DCHECK(next_handshake_state_ != STATE_NONE);
   int rv = last_io_result;
   do {
-    State state = next_state_;
-    next_state_ = STATE_NONE;
+    State state = next_handshake_state_;
+    next_handshake_state_ = STATE_NONE;
     switch (state) {
       case STATE_HANDSHAKE_START:
         // Do the SSL/TLS handshake, up to the server certificate message.
@@ -579,32 +640,19 @@ int SSLClientSocketMac::DoLoop(int last_io_result) {
         // Do the SSL/TLS handshake, after the server certificate message.
         rv = DoHandshakeFinish();
         break;
-      case STATE_READ_COMPLETE:
-        // A read off the network is complete; do the paperwork.
-        rv = DoReadComplete(rv);
-        break;
-      case STATE_PAYLOAD_READ:
-        // Do a read of data from the network.
-        rv = DoPayloadRead();
-        break;
-      case STATE_PAYLOAD_WRITE:
-        // Do a write of data to the network.
-        rv = DoPayloadWrite();
-        break;
       default:
         rv = ERR_UNEXPECTED;
         NOTREACHED() << "unexpected state";
         break;
     }
-  } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
+  } while (rv != ERR_IO_PENDING && next_handshake_state_ != STATE_NONE);
   return rv;
 }
 
 int SSLClientSocketMac::DoHandshakeStart() {
   OSStatus status = SSLHandshake(ssl_context_);
-
   if (status == errSSLWouldBlock)
-    next_state_ = STATE_HANDSHAKE_START;
+    next_handshake_state_ = STATE_HANDSHAKE_START;
 
   server_cert_ = GetServerCert(ssl_context_);
 
@@ -616,7 +664,7 @@ int SSLClientSocketMac::DoHandshakeStart() {
     // so that we have the certificate status (valid, expired but overridden
     // by the user, EV, etc.) available. Eliminate this step once we have
     // a certificate validation result cache.
-    next_state_ = STATE_VERIFY_CERT;
+    next_handshake_state_ = STATE_VERIFY_CERT;
     if (status == errSSLServerAuthCompletedFlag) {
       // Override errSSLServerAuthCompletedFlag as it's not actually an error,
       // but rather an indication that we're only half way through the
@@ -630,7 +678,7 @@ int SSLClientSocketMac::DoHandshakeStart() {
 }
 
 int SSLClientSocketMac::DoVerifyCert() {
-  next_state_ = STATE_VERIFY_CERT_COMPLETE;
+  next_handshake_state_ = STATE_VERIFY_CERT_COMPLETE;
 
   if (!server_cert_)
     return ERR_UNEXPECTED;
@@ -642,7 +690,8 @@ int SSLClientSocketMac::DoVerifyCert() {
     flags |= X509Certificate::VERIFY_EV_CERT;
   verifier_.reset(new CertVerifier);
   return verifier_->Verify(server_cert_, hostname_, flags,
-                           &server_cert_verify_result_, &io_callback_);
+                           &server_cert_verify_result_,
+                           &handshake_io_callback_);
 }
 
 int SSLClientSocketMac::DoVerifyCertComplete(int result) {
@@ -657,12 +706,12 @@ int SSLClientSocketMac::DoVerifyCertComplete(int result) {
     // in a non-resumed session) occurs in two steps. Continue on to the second
     // step if the certificate is OK.
     if (result == OK)
-      next_state_ = STATE_HANDSHAKE_FINISH;
+      next_handshake_state_ = STATE_HANDSHAKE_FINISH;
   } else {
     // If the session was resumed or session resumption was disabled, we're
     // done with the handshake.
     completed_handshake_ = true;
-    DCHECK(next_state_ == STATE_NONE);
+    DCHECK(next_handshake_state_ == STATE_NONE);
   }
 
   return result;
@@ -672,47 +721,21 @@ int SSLClientSocketMac::DoHandshakeFinish() {
   OSStatus status = SSLHandshake(ssl_context_);
 
   if (status == errSSLWouldBlock)
-    next_state_ = STATE_HANDSHAKE_FINISH;
+    next_handshake_state_ = STATE_HANDSHAKE_FINISH;
 
-  if (status == noErr)
+  if (status == noErr) {
     completed_handshake_ = true;
+    DCHECK(next_handshake_state_ == STATE_NONE);
+  }
 
   return NetErrorFromOSStatus(status);
-}
-
-int SSLClientSocketMac::DoReadComplete(int result) {
-  if (result < 0) {
-    read_io_buf_ = NULL;
-    return result;
-  }
-
-  char* buffer = &recv_buffer_[recv_buffer_.size() - recv_buffer_tail_slop_];
-  memcpy(buffer, read_io_buf_->data(), result);
-  read_io_buf_ = NULL;
-
-  recv_buffer_tail_slop_ -= result;
-
-  return result;
-}
-
-void SSLClientSocketMac::OnWriteComplete(int result) {
-  if (result < 0) {
-    pending_send_error_ = result;
-    return;
-  }
-
-  send_buffer_.erase(send_buffer_.begin(),
-                     send_buffer_.begin() + result);
-
-  if (!send_buffer_.empty())
-    SSLWriteCallback(this, NULL, NULL);
 }
 
 int SSLClientSocketMac::DoPayloadRead() {
   size_t processed = 0;
   OSStatus status = SSLRead(ssl_context_,
-                            user_buf_->data(),
-                            user_buf_len_,
+                            user_read_buf_->data(),
+                            user_read_buf_len_,
                             &processed);
 
   // There's a subtle difference here in semantics of the "would block" errors.
@@ -731,17 +754,14 @@ int SSLClientSocketMac::DoPayloadRead() {
     return OK;
   }
 
-  if (status == errSSLWouldBlock)
-    next_state_ = STATE_PAYLOAD_READ;
-
   return NetErrorFromOSStatus(status);
 }
 
 int SSLClientSocketMac::DoPayloadWrite() {
   size_t processed = 0;
   OSStatus status = SSLWrite(ssl_context_,
-                             user_buf_->data(),
-                             user_buf_len_,
+                             user_write_buf_->data(),
+                             user_write_buf_len_,
                              &processed);
 
   if (processed > 0)
@@ -783,8 +803,8 @@ int SSLClientSocketMac::DoPayloadWrite() {
 // When executing a read, we pass a pointer to the beginning of the tail slop
 // area (guaranteed to be contiguous space because it's a vector, unlike, say, a
 // deque (sigh)) and the size of the tail slop. When we get data (either here in
-// SSLReadCallback() or above in DoReadComplete()) we subtract the number of
-// bytes received from the tail slop value. That moves those bytes
+// SSLReadCallback() or above in OnTransportReadComplete()) we subtract the
+// number of bytes received from the tail slop value. That moves those bytes
 // (conceptually, not physically) from the tail slop area to the area containing
 // real data.
 //
@@ -834,7 +854,7 @@ OSStatus SSLClientSocketMac::SSLReadCallback(SSLConnectionRef connection,
   // If we have I/O in flight, promise we'll get back to them and use the
   // existing callback to do so
 
-  if (us->next_io_state_ == STATE_READ_COMPLETE) {
+  if (us->read_io_buf_) {
     *data_length = 0;
     return errSSLWouldBlock;
   }
@@ -857,7 +877,7 @@ OSStatus SSLClientSocketMac::SSLReadCallback(SSLConnectionRef connection,
     us->read_io_buf_ = new IOBuffer(*data_length - total_read);
     rv = us->transport_->Read(us->read_io_buf_,
                               *data_length - total_read,
-                              &us->io_callback_);
+                              &us->transport_read_callback_);
 
     if (rv >= 0) {
       memcpy(buffer, us->read_io_buf_->data(), rv);
@@ -883,11 +903,8 @@ OSStatus SSLClientSocketMac::SSLReadCallback(SSLConnectionRef connection,
     }
   }
 
-  if (rv == ERR_IO_PENDING) {
-    us->next_io_state_ = STATE_READ_COMPLETE;
-  } else {
+  if (rv != ERR_IO_PENDING)
     us->read_io_buf_ = NULL;
-  }
 
   if (rv < 0)
     return OSStatusFromNetError(rv);
@@ -932,7 +949,7 @@ OSStatus SSLClientSocketMac::SSLWriteCallback(SSLConnectionRef connection,
     memcpy(buffer->data(), &us->send_buffer_[0], us->send_buffer_.size());
     rv = us->transport_->Write(buffer,
                                us->send_buffer_.size(),
-                               &us->write_callback_);
+                               &us->transport_write_callback_);
     if (rv > 0) {
       us->send_buffer_.erase(us->send_buffer_.begin(),
                              us->send_buffer_.begin() + rv);
