@@ -113,6 +113,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.DownloadHandler,
       self.DownloadFinishHandler,
       self.EchoHeader,
+      self.EchoHeaderOverride,
       self.EchoAllHandler,
       self.FileHandler,
       self.RealFileWithCommonHeaderHandler,
@@ -408,8 +409,23 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
   def EchoHeader(self):
     """This handler echoes back the value of a specific request header."""
+    """The only difference between this function and the EchoHeaderOverride"""
+    """function is in the parameter being passed to the helper function"""
+    return self.EchoHeaderHelper("/echoheader")
 
-    if not self._ShouldHandleRequest("/echoheader"):
+  def EchoHeaderOverride(self):
+    """This handler echoes back the value of a specific request header."""
+    """The UrlRequest unit tests also execute for ChromeFrame which uses"""
+    """IE to issue HTTP requests using the host network stack."""
+    """The Accept and Charset tests which expect the server to echo back"""
+    """the corresponding headers fail here as IE returns cached responses"""
+    """The EchoHeaderOverride parameter is an easy way to ensure that IE"""
+    """treats this request as a new request and does not cache it."""
+    return self.EchoHeaderHelper("/echoheaderoverride")
+
+  def EchoHeaderHelper(self, echo_header):
+    """This function echoes back the value of the request header passed in."""
+    if not self._ShouldHandleRequest(echo_header):
       return False
 
     query_char = self.path.find('?')
