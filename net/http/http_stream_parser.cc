@@ -289,12 +289,19 @@ int HttpStreamParser::DoReadHeadersComplete(int result) {
       io_state_ = STATE_BODY_PENDING;
       CalculateResponseBodySize();
       // If the body is 0, the caller may not call ReadResponseBody, which
-      // is where any extra data is copied to read_buf_, so we trigger
-      // the progression to DONE here.
+      // is where any extra data is copied to read_buf_, so we move the
+      // data here and transition to DONE.
       if (response_body_length_ == 0) {
-        io_state_ = STATE_READ_BODY;
-        user_read_buf_ = read_buf_;
-        user_read_buf_len_ = read_buf_->capacity();
+        io_state_ = STATE_DONE;
+        int extra_bytes = read_buf_->offset() - read_buf_unused_offset_;
+        if (extra_bytes) {
+          CHECK(extra_bytes > 0);
+          memmove(read_buf_->StartOfBuffer(),
+                  read_buf_->StartOfBuffer() + read_buf_unused_offset_,
+                  extra_bytes);
+        }
+        read_buf_->set_capacity(extra_bytes);
+        read_buf_unused_offset_ = 0;
         return OK;
       }
     }
@@ -310,12 +317,11 @@ int HttpStreamParser::DoReadBody() {
   if (read_buf_->offset()) {
     int available = read_buf_->offset() - read_buf_unused_offset_;
     if (available) {
+      CHECK(available > 0);
       bytes_read = std::min(available, user_read_buf_len_);
-      // memmove is used here so that the caller can pass read_buf_
-      // for user_read_buf.
-      memmove(user_read_buf_->data(),
-              read_buf_->StartOfBuffer() + read_buf_unused_offset_,
-              bytes_read);
+      memcpy(user_read_buf_->data(),
+             read_buf_->StartOfBuffer() + read_buf_unused_offset_,
+             bytes_read);
       read_buf_unused_offset_ += bytes_read;
       if (bytes_read == available) {
         read_buf_->set_capacity(0);
@@ -364,22 +370,24 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
     // in |read_buf_|.  But the part left over in |user_read_buf_| must have
     // come from the |read_buf_|, so there's room to put it back at the
     // start first.
-    int save_amount = 0;
     int additional_save_amount = read_buf_->offset() - read_buf_unused_offset_;
+    int save_amount = 0;
     if (chunked_decoder_.get()) {
       save_amount = chunked_decoder_->bytes_after_eof();
     } else if (response_body_length_ >= 0) {
       save_amount = static_cast<int>(response_body_read_ -
                                      response_body_length_);
+      if (save_amount < 0)
+        save_amount = 0;
+
       if (result > 0)
         result -= save_amount;
     }
-    if (save_amount > 0) {
-      if (static_cast<int>(read_buf_->capacity()) < save_amount)
-        read_buf_->set_capacity(save_amount + additional_save_amount);
-      // memmove is used here so that the caller can pass read_buf_
-      // for body_buf.
-      memmove(read_buf_->StartOfBuffer(), user_read_buf_->data() + result,
+    if (read_buf_->capacity() < save_amount + additional_save_amount) {
+      read_buf_->set_capacity(save_amount + additional_save_amount);
+    }
+    if (save_amount) {
+      memcpy(read_buf_->StartOfBuffer(), user_read_buf_->data() + result,
               save_amount);
       read_buf_->set_offset(save_amount);
     }
