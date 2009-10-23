@@ -144,6 +144,12 @@ class HttpUtil {
   // 'euc-jp,utf-8;q=0.7,*;q=0.3'.
   static std::string GenerateAcceptCharsetHeader(const std::string& charset);
 
+  // Helper. If |*headers| already contains |header_name| do nothing,
+  // otherwise add <header_name> ": " <header_value> to the end of the list.
+  static void AppendHeaderIfMissing(const char* header_name,
+                                    const std::string& header_value,
+                                    std::string* headers);
+
   // Used to iterate over the name/value pairs of HTTP headers.  To iterate
   // over the values in a multi-value header, use ValuesIterator.
   // See AssembleRawHeaders for joining line continuations (this iterator
