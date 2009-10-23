@@ -103,9 +103,9 @@ class RuleBasedHostResolverProc : public HostResolverProc {
                const std::string& replacement);
 
   // Same as AddRule(), but further restricts to |address_family|.
-  void AddRuleForFamily(const std::string& host_pattern,
-                        AddressFamily address_family,
-                        const std::string& replacement);
+  void AddRuleForAddressFamily(const std::string& host_pattern,
+                               AddressFamily address_family,
+                               const std::string& replacement);
 
   // Same as AddRule(), but the replacement is expected to be an IPV6 literal.
   // You should use this in place of AddRule(), since the system's host resolver

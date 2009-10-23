@@ -331,7 +331,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   // outstanding jobs map.
   Key key(info.hostname(), info.address_family());
   if (disable_ipv6_)
-    key.address_family = ADDRESS_FAMILY_IPV4_ONLY;
+    key.address_family = ADDRESS_FAMILY_IPV4;
 
   // If we have an unexpired cache entry, use it.
   if (info.allow_cached_response()) {
