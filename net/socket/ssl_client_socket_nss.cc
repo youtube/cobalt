@@ -209,7 +209,6 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocket* transport_socket,
       user_write_callback_(NULL),
       user_read_buf_len_(0),
       user_write_buf_len_(0),
-      client_auth_ca_names_(NULL),
       client_auth_cert_needed_(false),
       completed_handshake_(false),
       next_handshake_state_(STATE_NONE),
@@ -383,10 +382,7 @@ void SSLClientSocketNSS::Disconnect() {
   server_cert_verify_result_.Reset();
   completed_handshake_   = false;
   nss_bufs_              = NULL;
-  if (client_auth_ca_names_) {
-    CERT_FreeDistNames(client_auth_ca_names_);
-    client_auth_ca_names_ = NULL;
-  }
+  client_certs_.clear();
   client_auth_cert_needed_ = false;
 
   LeaveFunction("");
@@ -525,38 +521,7 @@ void SSLClientSocketNSS::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
   EnterFunction("");
   cert_request_info->host_and_port = hostname_;
-  cert_request_info->client_certs.clear();
-
-  void* wincx = SSL_RevealPinArg(nss_fd_);
-
-  CERTCertNicknames* names = CERT_GetCertNicknames(
-      CERT_GetDefaultCertDB(), SEC_CERT_NICKNAMES_USER, wincx);
-
-  if (names) {
-    for (int i = 0; i < names->numnicknames; ++i) {
-      CERTCertificate* cert = CERT_FindUserCertByUsage(
-          CERT_GetDefaultCertDB(), names->nicknames[i],
-          certUsageSSLClient, PR_FALSE, wincx);
-      if (!cert)
-        continue;
-      // Only check unexpired certs.
-      if (CERT_CheckCertValidTimes(cert, PR_Now(), PR_TRUE) ==
-          secCertTimeValid &&
-          NSS_CmpCertChainWCANames(cert, client_auth_ca_names_) ==
-          SECSuccess) {
-        SECKEYPrivateKey* privkey = PK11_FindKeyByAnyCert(cert, wincx);
-        if (privkey) {
-          X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
-              cert, X509Certificate::SOURCE_LONE_CERT_IMPORT);
-          cert_request_info->client_certs.push_back(x509_cert);
-          SECKEY_DestroyPrivateKey(privkey);
-          continue;
-        }
-      }
-      CERT_DestroyCertificate(cert);
-    }
-    CERT_FreeNicknames(names);
-  }
+  cert_request_info->client_certs = client_certs_;
   LeaveFunction(cert_request_info->client_certs.size());
 }
 
@@ -882,13 +847,16 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
 
   that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
 
+  CERTCertificate* cert = NULL;
+  SECKEYPrivateKey* privkey = NULL;
+  void* wincx  = SSL_RevealPinArg(socket);
+
   // Second pass: a client certificate should have been selected.
   if (that->ssl_config_.send_client_cert) {
     if (that->ssl_config_.client_cert) {
-      void* wincx = SSL_RevealPinArg(socket);
-      CERTCertificate* cert = CERT_DupCertificate(
+      cert = CERT_DupCertificate(
           that->ssl_config_.client_cert->os_cert_handle());
-      SECKEYPrivateKey* privkey = PK11_FindKeyByAnyCert(cert, wincx);
+      privkey = PK11_FindKeyByAnyCert(cert, wincx);
       if (privkey) {
         // TODO(jsorianopastor): We should wait for server certificate
         // verification before sending our credentials.  See
@@ -903,18 +871,33 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
     return SECFailure;
   }
 
-  PRArenaPool* arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
-  CERTDistNames* ca_names_copy = PORT_ArenaZNew(arena, CERTDistNames);
+  CERTCertNicknames* names = CERT_GetCertNicknames(
+      CERT_GetDefaultCertDB(), SEC_CERT_NICKNAMES_USER, wincx);
+  if (names) {
+    for (int i = 0; i < names->numnicknames; ++i) {
+      cert = CERT_FindUserCertByUsage(
+          CERT_GetDefaultCertDB(), names->nicknames[i],
+          certUsageSSLClient, PR_FALSE, wincx);
+      if (!cert)
+        continue;
+      // Only check unexpired certs.
+      if (CERT_CheckCertValidTimes(cert, PR_Now(), PR_TRUE) ==
+          secCertTimeValid &&
+          NSS_CmpCertChainWCANames(cert, ca_names) == SECSuccess) {
+        privkey = PK11_FindKeyByAnyCert(cert, wincx);
+        if (privkey) {
+          X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
+              cert, X509Certificate::SOURCE_LONE_CERT_IMPORT);
+          that->client_certs_.push_back(x509_cert);
+          SECKEY_DestroyPrivateKey(privkey);
+          continue;
+        }
+      }
+      CERT_DestroyCertificate(cert);
+    }
+    CERT_FreeNicknames(names);
+  }
 
-  ca_names_copy->arena = arena;
-  ca_names_copy->head = NULL;
-  ca_names_copy->nnames = ca_names->nnames;
-  ca_names_copy->names = PORT_ArenaZNewArray(arena, SECItem,
-                                             ca_names->nnames);
-  for (int i = 0; i < ca_names->nnames; ++i)
-    SECITEM_CopyItem(arena, &ca_names_copy->names[i], &ca_names->names[i]);
-
-  that->client_auth_ca_names_ = ca_names_copy;
   return SECFailure;
 }
 
