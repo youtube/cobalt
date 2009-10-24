@@ -15,6 +15,7 @@
 #include <nss.h>
 
 #include <string>
+#include <vector>
 
 #include "base/scoped_ptr.h"
 #include "net/base/cert_verify_result.h"
@@ -126,7 +127,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   // Stores client authentication information between ClientAuthHandler and
   // GetSSLCertRequestInfo calls.
-  CERTDistNames* client_auth_ca_names_;
+  std::vector<scoped_refptr<X509Certificate> > client_certs_;
   bool client_auth_cert_needed_;
 
   scoped_ptr<CertVerifier> verifier_;
