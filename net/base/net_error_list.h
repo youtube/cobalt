@@ -4,6 +4,15 @@
 
 // This file contains the list of network errors.
 
+//
+// Ranges:
+//     0- 99 System related errors
+//   100-199 Connection related errors
+//   200-299 Certificate errors
+//   300-399 HTTP errors
+//   400-499 Cache errors
+//
+
 // An asynchronous IO operation is not yet complete.  This usually does not
 // indicate a fatal error.  Typically this error will be generated as a
 // notification to wait for some external notification that the IO operation
@@ -266,6 +275,9 @@ NET_ERROR(CONTENT_DECODING_FAILED, -330)
 // An operation could not be completed because all network IO
 // is suspended.
 NET_ERROR(NETWORK_IO_SUSPENDED, -331)
+
+// FLIP data received without receiving a SYN_REPLY on the stream.
+NET_ERROR(SYN_REPLY_NOT_RECEIVED, -332)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
