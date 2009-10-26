@@ -169,18 +169,24 @@ void MessageLoop::RunAllPending() {
 void MessageLoop::RunHandler() {
 #if defined(OS_WIN)
   if (exception_restoration_) {
-    LPTOP_LEVEL_EXCEPTION_FILTER current_filter = GetTopSEHFilter();
-    __try {
-      RunInternal();
-    } __except(SEHFilter(current_filter)) {
-    }
+    RunInternalInSEHFrame();
     return;
   }
 #endif
 
   RunInternal();
 }
-
+//------------------------------------------------------------------------------
+#if defined(OS_WIN)
+__declspec(noinline) void MessageLoop::RunInternalInSEHFrame() {
+  LPTOP_LEVEL_EXCEPTION_FILTER current_filter = GetTopSEHFilter();
+  __try {
+    RunInternal();
+  } __except(SEHFilter(current_filter)) {
+  }
+  return;
+}
+#endif
 //------------------------------------------------------------------------------
 
 void MessageLoop::RunInternal() {
