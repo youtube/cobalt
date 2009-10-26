@@ -979,6 +979,9 @@ int HttpCache::Transaction::ValidateEntryHeadersAndContinue(
     bool byte_range_requested) {
   DCHECK(mode_ == READ_WRITE);
 
+  if (!cache_)
+    return HandleResult(ERR_UNEXPECTED);
+
   if (!partial_->UpdateFromStoredHeaders(response_.headers, entry_->disk_entry,
                                          truncated_)) {
     // The stored data cannot be used. Get rid of it and restart this request.
@@ -2044,17 +2047,29 @@ void HttpCache::ConvertWriterToReader(ActiveEntry* entry) {
 
 void HttpCache::RemovePendingTransaction(Transaction* trans) {
   ActiveEntriesMap::const_iterator i = active_entries_.find(trans->key());
-  if (i == active_entries_.end())
+  bool found = false;
+  if (i != active_entries_.end())
+    found = RemovePendingTransactionFromEntry(i->second, trans);
+
+  if (found)
     return;
 
-  TransactionList& pending_queue = i->second->pending_queue;
+  ActiveEntriesSet::iterator it = doomed_entries_.begin();
+  for (; it != doomed_entries_.end() && !found; ++it)
+    found = RemovePendingTransactionFromEntry(*it, trans);
+}
+
+bool HttpCache::RemovePendingTransactionFromEntry(ActiveEntry* entry,
+                                                  Transaction* trans) {
+  TransactionList& pending_queue = entry->pending_queue;
 
   TransactionList::iterator j =
       find(pending_queue.begin(), pending_queue.end(), trans);
   if (j == pending_queue.end())
-    return;
+    return false;
 
   pending_queue.erase(j);
+  return true;
 }
 
 void HttpCache::ProcessPendingQueue(ActiveEntry* entry) {
