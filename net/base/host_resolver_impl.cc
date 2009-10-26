@@ -293,7 +293,7 @@ HostResolverImpl::HostResolverImpl(HostResolverProc* resolver_proc,
     : cache_(max_cache_entries, cache_duration_ms),
       next_request_id_(0),
       resolver_proc_(resolver_proc),
-      disable_ipv6_(false),
+      default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
       shutdown_(false) {
 #if defined(OS_WIN)
   EnsureWinsockInit();
@@ -330,8 +330,8 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   // Build a key that identifies the request in the cache and in the
   // outstanding jobs map.
   Key key(info.hostname(), info.address_family());
-  if (disable_ipv6_)
-    key.address_family = ADDRESS_FAMILY_IPV4;
+  if (key.address_family == ADDRESS_FAMILY_UNSPECIFIED)
+    key.address_family = default_address_family_;
 
   // If we have an unexpired cache entry, use it.
   if (info.allow_cached_response()) {
