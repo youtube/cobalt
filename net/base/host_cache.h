@@ -42,9 +42,9 @@ class HostCache {
     }
 
     bool operator<(const Key& other) const {
-      if (address_family < other.address_family)
-        return true;
-      return hostname < other.hostname;
+      if (address_family == other.address_family)
+        return hostname < other.hostname;
+      return address_family < other.address_family;
     }
 
     std::string hostname;
