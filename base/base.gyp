@@ -349,6 +349,7 @@
         'worker_pool.h',
         'worker_pool_linux.cc',
         'worker_pool_linux.h',
+        'worker_pool_mac.h',
         'worker_pool_mac.mm',
         'worker_pool_win.cc',
       ],
