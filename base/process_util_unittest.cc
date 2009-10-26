@@ -151,7 +151,7 @@ TEST_F(ProcessUtilTest, GetAppOutput) {
                                  .Append(FILE_PATH_LITERAL("python_24"))
                                  .Append(FILE_PATH_LITERAL("python.exe"));
 
-  CommandLine cmd_line(python_runtime.value());
+  CommandLine cmd_line(python_runtime);
   cmd_line.AppendLooseValue(L"-c");
   cmd_line.AppendLooseValue(L"\"import sys; sys.stdout.write('" +
       ASCIIToWide(message) + L"');\"");
@@ -160,7 +160,7 @@ TEST_F(ProcessUtilTest, GetAppOutput) {
   EXPECT_EQ(message, output);
 
   // Let's make sure stderr is ignored.
-  CommandLine other_cmd_line(python_runtime.value());
+  CommandLine other_cmd_line(python_runtime);
   other_cmd_line.AppendLooseValue(L"-c");
   other_cmd_line.AppendLooseValue(
       L"\"import sys; sys.stderr.write('Hello!');\"");
@@ -260,10 +260,10 @@ TEST_F(ProcessUtilTest, FDRemapping) {
 
 TEST_F(ProcessUtilTest, GetAppOutput) {
   std::string output;
-  EXPECT_TRUE(GetAppOutput(CommandLine(L"true"), &output));
+  EXPECT_TRUE(GetAppOutput(CommandLine(FilePath("true")), &output));
   EXPECT_STREQ("", output.c_str());
 
-  EXPECT_FALSE(GetAppOutput(CommandLine(L"false"), &output));
+  EXPECT_FALSE(GetAppOutput(CommandLine(FilePath("false")), &output));
 
   std::vector<std::string> argv;
   argv.push_back("/bin/echo");
