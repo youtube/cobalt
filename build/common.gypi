@@ -579,7 +579,7 @@
               '_DEBUG',
             ],
             'cflags': [
-              '-O<(debug_optimize)',
+              '-O>(debug_optimize)',
               '-g',
               # One can use '-gstabs' to enable building the debugging
               # information in STABS format for breakpad's dumpsyms.
@@ -593,7 +593,7 @@
               'release_optimize%': '2',
             },
             'cflags': [
-              '-O<(release_optimize)',
+              '-O>(release_optimize)',
               # Don't emit the GCC version ident directives, they just end up
               # in the .comment section taking up binary size.
               '-fno-ident',
