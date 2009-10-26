@@ -263,6 +263,14 @@
   "        date.setSeconds(date.getUTCSeconds());\n" \
   "    }\n" \
   "    return ((date1 <= date) && (date <= date2));\n" \
-  "}\n" \
+  "}\n"
+
+// This is a Microsoft extension to PAC for IPv6, see:
+// http://blogs.msdn.com/wndp/articles/IPV6_PAC_Extensions_v0_9.aspx
+#define PROXY_RESOLVER_SCRIPT_EX \
+  "function isResolvableEx(host) {\n" \
+  "    var ipList = dnsResolveEx(host);\n" \
+  "    return (ipList != '');\n" \
+  "}\n"
 
 #endif  // NET_PROXY_PROXY_RESOLVER_SCRIPT_H_

@@ -21,7 +21,7 @@ namespace {
 // list, for later verification.
 class MockJSBindings : public ProxyResolverJSBindings {
  public:
-  MockJSBindings() : my_ip_address_count(0) {}
+  MockJSBindings() : my_ip_address_count(0), my_ip_address_ex_count(0) {}
 
   virtual void Alert(const std::string& message) {
     LOG(INFO) << "PAC-alert: " << message;  // Helpful when debugging.
@@ -33,9 +33,19 @@ class MockJSBindings : public ProxyResolverJSBindings {
     return my_ip_address_result;
   }
 
+  virtual std::string MyIpAddressEx() {
+    my_ip_address_ex_count++;
+    return my_ip_address_ex_result;
+  }
+
   virtual std::string DnsResolve(const std::string& host) {
     dns_resolves.push_back(host);
     return dns_resolve_result;
+  }
+
+  virtual std::string DnsResolveEx(const std::string& host) {
+    dns_resolves_ex.push_back(host);
+    return dns_resolve_ex_result;
   }
 
   virtual void OnError(int line_number, const std::string& message) {
@@ -48,14 +58,18 @@ class MockJSBindings : public ProxyResolverJSBindings {
 
   // Mock values to return.
   std::string my_ip_address_result;
+  std::string my_ip_address_ex_result;
   std::string dns_resolve_result;
+  std::string dns_resolve_ex_result;
 
   // Inputs we got called with.
   std::vector<std::string> alerts;
   std::vector<std::string> errors;
   std::vector<int> errors_line_number;
   std::vector<std::string> dns_resolves;
+  std::vector<std::string> dns_resolves_ex;
   int my_ip_address_count;
+  int my_ip_address_ex_count;
 };
 
 // This is the same as ProxyResolverV8, but it uses mock bindings in place of
@@ -391,6 +405,14 @@ TEST(ProxyResolverV8Test, V8Bindings) {
 
   // MyIpAddress was called two times.
   EXPECT_EQ(2, bindings->my_ip_address_count);
+
+  // MyIpAddressEx was called once.
+  EXPECT_EQ(1, bindings->my_ip_address_ex_count);
+
+  // DnsResolveEx was called 2 times.
+  ASSERT_EQ(2U, bindings->dns_resolves_ex.size());
+  EXPECT_EQ("is_resolvable", bindings->dns_resolves_ex[0]);
+  EXPECT_EQ("foobar", bindings->dns_resolves_ex[1]);
 }
 
 // Test that calls to the myIpAddress() and dnsResolve() bindings get
@@ -462,6 +484,23 @@ TEST(ProxyResolverV8Test, EndsWithStatementNoNewline) {
   EXPECT_EQ(OK, result);
   EXPECT_FALSE(proxy_info.is_direct());
   EXPECT_EQ("success:3", proxy_info.proxy_server().ToURI());
+}
+
+// Test the return values from myIpAddress(), myIpAddressEx(), dnsResolve(),
+// dnsResolveEx(), isResolvable(), isResolvableEx(), when the the binding
+// returns empty string (failure). This simulates the return values from
+// those functions when the underlying DNS resolution fails.
+TEST(ProxyResolverV8Test, DNSResolutionFailure) {
+  ProxyResolverV8WithMockBindings resolver;
+  int result = resolver.SetPacScriptFromDisk("dns_fail.js");
+  EXPECT_EQ(OK, result);
+
+  ProxyInfo proxy_info;
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+
+  EXPECT_EQ(OK, result);
+  EXPECT_FALSE(proxy_info.is_direct());
+  EXPECT_EQ("success:80", proxy_info.proxy_server().ToURI());
 }
 
 }  // namespace
