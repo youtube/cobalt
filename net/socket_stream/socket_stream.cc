@@ -578,18 +578,27 @@ int SocketStream::DoReadWrite(int result) {
   next_state_ = STATE_READ_WRITE;
 
   if (!read_buf_) {
+    // No read pending.
     read_buf_ = new IOBuffer(kReadBufferSize);
     result = socket_->Read(read_buf_, kReadBufferSize, &read_callback_);
     if (result > 0) {
       DidReceiveData(result);
-      result = OK;
+      return OK;
     } else if (result == 0) {
       // 0 indicates end-of-file, so socket was closed.
       Finish();
       return ERR_CONNECTION_CLOSED;
     }
+    // If read is pending, try write as well.
+    // Otherwise, return the result and do next loop.
+    if (result != ERR_IO_PENDING)
+      return result;
   }
+  // Read is pending.
+  DCHECK(read_buf_);
+
   if (write_buf_ && !current_write_buf_) {
+    // No write pending.
     current_write_buf_ = new DrainableIOBuffer(write_buf_, write_buf_size_);
     current_write_buf_->SetOffset(write_buf_offset_);
     result = socket_->Write(current_write_buf_,
@@ -597,14 +606,13 @@ int SocketStream::DoReadWrite(int result) {
                             &write_callback_);
     if (result > 0) {
       DidSendData(result);
-      result = OK;
+      return OK;
     }
+    return result;
   }
 
-  // We arrived here when Write is performed and finished.
-  if (result == OK)
-    return ERR_IO_PENDING;
-  return result;
+  // We arrived here when both operation is pending.
+  return ERR_IO_PENDING;
 }
 
 int SocketStream::HandleCertificateError(int result) {
