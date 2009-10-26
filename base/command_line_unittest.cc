@@ -12,8 +12,8 @@
 
 TEST(CommandLineTest, CommandLineConstructor) {
 #if defined(OS_WIN)
-  CommandLine cl(L"");
-  cl.ParseFromString(L"program --foo= -bAr  /Spaetzel=pierogi /Baz flim "
+  CommandLine cl = CommandLine::FromString(
+                     L"program --foo= -bAr  /Spaetzel=pierogi /Baz flim "
                      L"--other-switches=\"--dog=canine --cat=feline\" "
                      L"-spaetzle=Crepe   -=loosevalue  flan "
                      L"--input-translation=\"45\"--output-rotation "
@@ -85,7 +85,7 @@ TEST(CommandLineTest, CommandLineConstructor) {
 // Tests behavior with an empty input string.
 TEST(CommandLineTest, EmptyString) {
 #if defined(OS_WIN)
-  CommandLine cl(L"");
+  CommandLine cl = CommandLine::FromString(L"");
   EXPECT_TRUE(cl.command_line_string().empty());
   EXPECT_TRUE(cl.program().empty());
 #elif defined(OS_POSIX)
@@ -105,13 +105,7 @@ TEST(CommandLineTest, AppendSwitches) {
   std::string switch4 = "switch4";
   std::wstring value4 = L"\"a value with quotes\"";
 
-#if defined(OS_WIN)
-  CommandLine cl(L"Program");
-#elif defined(OS_POSIX)
-  std::vector<std::string> argv;
-  argv.push_back(std::string("Program"));
-  CommandLine cl(argv);
-#endif
+  CommandLine cl(FilePath(FILE_PATH_LITERAL("Program")));
 
   cl.AppendSwitch(switch1);
   cl.AppendSwitchWithValue(switch2, value);

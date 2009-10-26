@@ -90,8 +90,7 @@ int LaunchSlave(const CommandLine& command_line,
 
   hacked_command_line.insert(to_remove, new_program);
 
-  CommandLine new_command_line(L"");
-  new_command_line.ParseFromString(hacked_command_line);
+  CommandLine new_command_line = CommandLine::FromString(hacked_command_line);
 
   if (do_upgrade || do_convert_to_text)
     new_command_line.AppendSwitch(kSlave);

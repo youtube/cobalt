@@ -32,10 +32,19 @@ class InProcessBrowserTest;
 
 class CommandLine {
  public:
+  // A constructor for CommandLines that are used only to carry arguments.
+  enum ArgumentsOnly { ARGUMENTS_ONLY };
+  explicit CommandLine(ArgumentsOnly args_only);
+
 #if defined(OS_WIN)
   // Initialize by parsing the given command-line string.
   // The program name is assumed to be the first item in the string.
   void ParseFromString(const std::wstring& command_line);
+  static CommandLine FromString(const std::wstring& command_line) {
+    CommandLine cmd;
+    cmd.ParseFromString(command_line);
+    return cmd;
+  }
 #elif defined(OS_POSIX)
   // Initialize from an argv vector.
   void InitFromArgv(int argc, const char* const* argv);
@@ -52,9 +61,6 @@ class CommandLine {
   // Construct a new, empty command line.
   // |program| is the name of the program to run (aka argv[0]).
   explicit CommandLine(const FilePath& program);
-
-  // Deprecated in favor of FilePath version.
-  explicit CommandLine(const std::wstring& program);
 
   // Initialize the current process CommandLine singleton.  On Windows,
   // ignores its arguments (we instead parse GetCommandLineW()
