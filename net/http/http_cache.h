@@ -176,6 +176,8 @@ class HttpCache : public HttpTransactionFactory,
   void DoneReadingFromEntry(ActiveEntry* entry, Transaction* trans);
   void ConvertWriterToReader(ActiveEntry* entry);
   void RemovePendingTransaction(Transaction* trans);
+  bool RemovePendingTransactionFromEntry(ActiveEntry* entry,
+                                         Transaction* trans);
   void ProcessPendingQueue(ActiveEntry* entry);
 
 
