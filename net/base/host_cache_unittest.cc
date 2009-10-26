@@ -256,4 +256,77 @@ TEST(HostCacheTest, NoCache) {
   EXPECT_EQ(0U, cache.size());
 }
 
+// Tests the less than and equal operators for HostCache::Key work.
+TEST(HostCacheTest, KeyComparators) {
+  struct {
+    // Inputs.
+    HostCache::Key key1;
+    HostCache::Key key2;
+
+    // Expectation.
+    //   -1 means key1 is less than key2
+    //    0 means key1 equals key2
+    //    1 means key1 is greater than key2
+    int expected_comparison;
+  } tests[] = {
+    {
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
+      0
+    },
+    {
+      HostCache::Key("host1", ADDRESS_FAMILY_IPV4),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
+      1
+    },
+    {
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
+      HostCache::Key("host1", ADDRESS_FAMILY_IPV4),
+      -1
+    },
+    {
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
+      HostCache::Key("host2", ADDRESS_FAMILY_UNSPECIFIED),
+      -1
+    },
+    {
+      HostCache::Key("host1", ADDRESS_FAMILY_IPV4),
+      HostCache::Key("host2", ADDRESS_FAMILY_UNSPECIFIED),
+      1
+    },
+    {
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
+      HostCache::Key("host2", ADDRESS_FAMILY_IPV4),
+      -1
+    },
+  };
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    SCOPED_TRACE(StringPrintf("Test[%d]", i));
+
+    const HostCache::Key& key1 = tests[i].key1;
+    const HostCache::Key& key2 = tests[i].key2;
+
+    switch (tests[i].expected_comparison) {
+      case -1:
+        EXPECT_TRUE(key1 < key2);
+        EXPECT_FALSE(key2 < key1);
+        EXPECT_FALSE(key2 == key1);
+        break;
+      case 0:
+        EXPECT_FALSE(key1 < key2);
+        EXPECT_FALSE(key2 < key1);
+        EXPECT_TRUE(key2 == key1);
+        break;
+      case 1:
+        EXPECT_FALSE(key1 < key2);
+        EXPECT_TRUE(key2 < key1);
+        EXPECT_FALSE(key2 == key1);
+        break;
+      default:
+        FAIL() << "Invalid expectation. Can be only -1, 0, 1";
+    }
+  }
+}
+
 }  // namespace net
