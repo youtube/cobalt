@@ -2,6 +2,14 @@
 // source code is governed by a BSD-style license that can be found in the
 // LICENSE file.
 
+#include "build/build_config.h"
+
+#if defined(OS_WIN)
+#include <ws2tcpip.h>
+#else
+#include <netdb.h>
+#endif
+
 #include "net/proxy/proxy_resolver_js_bindings.h"
 
 #include "base/compiler_specific.h"
@@ -97,21 +105,24 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
   }
 
   // Handler for "myIpAddress()". Returns empty string on failure.
+  // TODO(eroman): Perhaps enumerate the interfaces directly, using
+  // getifaddrs().
   virtual std::string MyIpAddress() {
     // DnsResolve("") returns "", so no need to check for failure.
     return DnsResolve(GetHostName());
   }
 
+  // Handler for "myIpAddressEx()". Returns empty string on failure.
+  virtual std::string MyIpAddressEx() {
+    return DnsResolveEx(GetHostName());
+  }
+
   // Handler for "dnsResolve(host)". Returns empty string on failure.
   virtual std::string DnsResolve(const std::string& host) {
-    // TODO(eroman): Should this return our IP address, or fail, or
-    // simply be unspecified (works differently on windows and mac os x).
-    if (host.empty())
-      return std::string();
-
     // Do a sync resolve of the hostname.
-    // Disable IPv6 results. We do this because Internet Explorer does it --
-    // consequently a lot of existing PAC scripts assume they will only get
+    // Disable IPv6 results. We do this because the PAC specification isn't
+    // really IPv6 friendly, and Internet Explorer also restricts to IPv4.
+    // Consequently a lot of existing PAC scripts assume they will only get
     // IPv4 results, and will misbehave if they get an IPv6 result.
     // See http://crbug.com/24641 for more details.
     net::AddressList address_list;
@@ -128,6 +139,31 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     // There may be multiple results; we will just use the first one.
     // This returns empty string on failure.
     return net::NetAddressToString(address_list.head());
+  }
+
+  // Handler for "dnsResolveEx(host)". Returns empty string on failure.
+  virtual std::string DnsResolveEx(const std::string& host) {
+    // Do a sync resolve of the hostname.
+    net::AddressList address_list;
+    int result = host_resolver_->Resolve(host,
+                                         ADDRESS_FAMILY_UNSPECIFIED,
+                                         &address_list);
+
+    if (result != OK)
+      return std::string();  // Failed.
+
+    // Stringify all of the addresses in the address list, separated
+    // by semicolons.
+    std::string address_list_str;
+    const struct addrinfo* current_address = address_list.head();
+    while (current_address) {
+      if (!address_list_str.empty())
+        address_list_str += ";";
+      address_list_str += net::NetAddressToString(current_address);
+      current_address = current_address->ai_next;
+    }
+
+    return address_list_str;
   }
 
   // Handler for when an error is encountered. |line_number| may be -1.
