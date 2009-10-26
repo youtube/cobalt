@@ -52,6 +52,9 @@ static void Lowercase(std::string* parameter) {
 #endif
 
 #if defined(OS_WIN)
+CommandLine::CommandLine(ArgumentsOnly args_only) {
+}
+
 void CommandLine::ParseFromString(const std::wstring& command_line) {
   TrimWhitespace(command_line, TRIM_ALL, &command_line_string_);
 
@@ -101,14 +104,12 @@ CommandLine::CommandLine(const FilePath& program) {
   }
 }
 
-// Deprecated version
-CommandLine::CommandLine(const std::wstring& program) {
-  if (!program.empty()) {
-    program_ = program;
-    command_line_string_ = L'"' + program + L'"';
-  }
-}
 #elif defined(OS_POSIX)
+CommandLine::CommandLine(ArgumentsOnly args_only) {
+  // Push an empty argument, because we always assume argv_[0] is a program.
+  argv_.push_back("");
+}
+
 void CommandLine::InitFromArgv(int argc, const char* const* argv) {
   for (int i = 0; i < argc; ++i)
     argv_.push_back(argv[i]);
@@ -145,10 +146,6 @@ CommandLine::CommandLine(const FilePath& program) {
   argv_.push_back(program.value());
 }
 
-// Deprecated version
-CommandLine::CommandLine(const std::wstring& program) {
-  argv_.push_back(base::SysWideToNativeMB(program));
-}
 #endif
 
 // static

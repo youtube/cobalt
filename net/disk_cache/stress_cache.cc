@@ -39,7 +39,7 @@ int RunSlave(int iteration) {
   FilePath exe;
   PathService::Get(base::FILE_EXE, &exe);
 
-  CommandLine cmdline(exe.ToWStringHack());
+  CommandLine cmdline(exe);
   cmdline.AppendLooseValue(ASCIIToWide(IntToString(iteration)));
 
   base::ProcessHandle handle;
