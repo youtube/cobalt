@@ -70,10 +70,8 @@ class HostResolverImpl : public HostResolver {
   // TODO(eroman): temp hack for http://crbug.com/15513
   virtual void Shutdown();
 
-  // Prevents returning IPv6 addresses from Resolve().
-  // The default is to allow IPv6 results.
-  virtual void DisableIPv6(bool disable_ipv6) {
-    disable_ipv6_ = disable_ipv6;
+  virtual void SetDefaultAddressFamily(AddressFamily address_family) {
+    default_address_family_ = address_family;
   }
 
  private:
@@ -139,8 +137,8 @@ class HostResolverImpl : public HostResolver {
   // in the case of unit-tests which inject custom host resolving behaviors.
   scoped_refptr<HostResolverProc> resolver_proc_;
 
-  // Set to true if only IPv4 address are to be returned by Resolve().
-  bool disable_ipv6_;
+  // Address family to use when the request doesn't specify one.
+  AddressFamily default_address_family_;
 
   // TODO(eroman): temp hack for http://crbug.com/15513
   bool shutdown_;

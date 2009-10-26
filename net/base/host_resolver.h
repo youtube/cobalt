@@ -148,8 +148,11 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   // TODO(eroman): temp hack for http://crbug.com/18373
   virtual void Shutdown() = 0;
 
-  // Disables or enables support for IPv6 results.
-  virtual void DisableIPv6(bool disable_ipv6) {}
+  // Sets the default AddressFamily to use when requests have left it
+  // unspecified. For example, this could be used to restrict resolution
+  // results to AF_INET by passing in ADDRESS_FAMILY_IPV4, or to
+  // AF_INET6 by passing in ADDRESS_FAMILY_IPV6.
+  virtual void SetDefaultAddressFamily(AddressFamily address_family) {}
 
  protected:
   HostResolver() { }
