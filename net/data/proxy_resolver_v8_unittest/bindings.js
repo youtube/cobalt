@@ -35,9 +35,16 @@ function FindProxyForURL(url, host) {
     alert(e);
   }
 
-  // Call myIpAddress() with wonky arguments 
+  // Call myIpAddress() with wonky arguments
   myIpAddress(null);
   myIpAddress(null, null);
+
+  // Call myIpAddressEx() correctly (no arguments).
+  myIpAddressEx();
+
+  // Call dnsResolveEx() (note that isResolvableEx() implicity calls it.)
+  isResolvableEx("is_resolvable");
+  dnsResolveEx("foobar");
 
   return "DIRECT";
 }

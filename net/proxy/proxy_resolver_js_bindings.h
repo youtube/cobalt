@@ -24,8 +24,20 @@ class ProxyResolverJSBindings {
   // Handler for "myIpAddress()". Returns empty string on failure.
   virtual std::string MyIpAddress() = 0;
 
+  // Handler for "myIpAddressEx()". Returns empty string on failure.
+  //
+  // This is a Microsoft extension to PAC for IPv6, see:
+  // http://blogs.msdn.com/wndp/articles/IPV6_PAC_Extensions_v0_9.aspx
+  virtual std::string MyIpAddressEx() = 0;
+
   // Handler for "dnsResolve(host)". Returns empty string on failure.
   virtual std::string DnsResolve(const std::string& host) = 0;
+
+  // Handler for "dnsResolveEx(host)". Returns empty string on failure.
+  //
+  // This is a Microsoft extension to PAC for IPv6, see:
+  // http://blogs.msdn.com/wndp/articles/IPV6_PAC_Extensions_v0_9.aspx
+  virtual std::string DnsResolveEx(const std::string& host) = 0;
 
   // Handler for when an error is encountered. |line_number| may be -1
   // if a line number is not applicable to this error.
