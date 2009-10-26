@@ -303,8 +303,12 @@ class MessageLoop : public base::MessagePump::Delegate {
   // A function to encapsulate all the exception handling capability in the
   // stacks around the running of a main message loop.  It will run the message
   // loop in a SEH try block or not depending on the set_SEH_restoration()
-  // flag.
+  // flag invoking respectively RunInternalInSEHFrame() or RunInternal().
   void RunHandler();
+
+#if defined(OS_WIN)
+  __declspec(noinline) void RunInternalInSEHFrame();
+#endif
 
   // A surrounding stack frame around the running of the message loop that
   // supports all saving and restoring of state, as is needed for any/all (ugly)
