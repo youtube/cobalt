@@ -6,6 +6,7 @@
 
 #include "base/hash_tables.h"
 #include "base/message_loop.h"
+#include "base/scoped_vector.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/load_flags.h"
@@ -1137,6 +1138,55 @@ TEST(HttpCache, SimpleGET_RacingReaders) {
   for (int i = 0; i < kNumTransactions; ++i) {
     Context* c = context_list[i];
     delete c;
+  }
+}
+
+// Tests that we can doom an entry with pending transactions and delete one of
+// the pending transactions before the first one completes.
+// See http://code.google.com/p/chromium/issues/detail?id=25588
+TEST(HttpCache, SimpleGET_DoomWithPending) {
+  // We need simultaneous doomed / not_doomed entries so let's use a real cache.
+  disk_cache::Backend* disk_cache =
+      disk_cache::CreateInMemoryCacheBackend(1024 * 1024);
+  MockHttpCache cache(disk_cache);
+
+  MockHttpRequest request(kSimpleGET_Transaction);
+  MockHttpRequest writer_request(kSimpleGET_Transaction);
+  writer_request.load_flags = net::LOAD_BYPASS_CACHE;
+
+  ScopedVector<Context> context_list;
+  const int kNumTransactions = 4;
+
+  for (int i = 0; i < kNumTransactions; ++i) {
+    context_list.push_back(new Context());
+    Context* c = context_list[i];
+
+    c->result = cache.http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(net::OK, c->result);
+
+    MockHttpRequest* this_request = &request;
+    if (i == 3)
+      this_request = &writer_request;
+
+    c->result = c->trans->Start(this_request, &c->callback, NULL);
+  }
+
+  // The first request should be a writer at this point, and the two subsequent
+  // requests should be pending. The last request doomed the first entry.
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+
+  // Cancel the first queued transaction.
+  delete context_list[1];
+  context_list.get()[1] = NULL;
+
+  for (int i = 0; i < kNumTransactions; ++i) {
+    if (i == 1)
+      continue;
+    Context* c = context_list[i];
+    ASSERT_EQ(net::ERR_IO_PENDING, c->result);
+    c->result = c->callback.WaitForResult();
+    ReadAndVerifyTransaction(c->trans.get(), kSimpleGET_Transaction);
   }
 }
 
