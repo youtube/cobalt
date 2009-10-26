@@ -40,7 +40,7 @@ int RunSlave(RankCrashes action) {
   FilePath exe;
   PathService::Get(base::FILE_EXE, &exe);
 
-  CommandLine cmdline(exe.ToWStringHack());
+  CommandLine cmdline(exe);
   cmdline.AppendLooseValue(ASCIIToWide(IntToString(action)));
 
   base::ProcessHandle handle;
