@@ -33,6 +33,7 @@
         'gmock/src/gmock-printers.cc',
         'gmock/src/gmock-spec-builders.cc',
         'gmock/src/gmock.cc',
+        'gmock_mutant.h',  # gMock helpers
       ],
       'sources!': [
         'gmock/src/gmock-all.cc',  # Not needed by our build.
