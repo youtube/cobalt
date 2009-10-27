@@ -158,16 +158,17 @@ std::string CanonicalizeHost(const std::string& host,
 std::string CanonicalizeHost(const std::wstring& host,
                              url_canon::CanonHostInfo* host_info);
 
-// Returns true if |host| is RFC 1738-compliant (and not an IP address).  The
-// rules are:
+// Returns true if |host| is not an IP address and is compliant with a set of
+// rules based on RFC 1738 and tweaked to be compatible with the real world.
+// The rules are:
 //   * One or more components separated by '.'
 //   * Each component begins and ends with an alphanumeric character
-//   * Each component contains only alphanumeric characters and '-'
+//   * Each component contains only alphanumeric characters and '-' or '_'
 //   * The last component does not begin with a digit
 //
 // NOTE: You should only pass in hosts that have been returned from
 // CanonicalizeHost(), or you may not get accurate results.
-bool IsCanonicalizedHostRFC1738Compliant(const std::string& host);
+bool IsCanonicalizedHostCompliant(const std::string& host);
 
 // Call these functions to get the html snippet for a directory listing.
 // The return values of both functions are in UTF-8.
