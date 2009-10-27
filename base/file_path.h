@@ -294,6 +294,41 @@ class FilePath {
   // TODO(port): remove these functions.
   static FilePath FromWStringHack(const std::wstring& wstring);
 
+  // Compare two strings in the same way the file system does.
+  // Note that these always ignore case, even on file systems that are case-
+  // sensitive. If case-sensitive comparison is ever needed, add corresponding
+  // methods here.
+  // The methods are written as a static method so that they can also be used
+  // on parts of a file path, e.g., just the extension.
+  // CompareIgnoreCase() returns -1, 0 or 1 for less-than, equal-to and
+  // greater-than respectively.
+  static int CompareIgnoreCase(const StringType& string1,
+                               const StringType& string2);
+  static bool CompareEqualIgnoreCase(const StringType& string1,
+                                     const StringType& string2) {
+    return CompareIgnoreCase(string1, string2) == 0;
+  }
+  static bool CompareLessIgnoreCase(const StringType& string1,
+                                    const StringType& string2) {
+    return CompareIgnoreCase(string1, string2) < 0;
+  }
+
+#if defined(OS_MACOSX)
+  // Returns the string in the special canonical decomposed form as defined for
+  // HFS, which is close to, but not quite, decomposition form D. See
+  // http://developer.apple.com/mac/library/technotes/tn/tn1150.html#UnicodeSubtleties
+  // for further comments.
+  // Returns the epmty string if the conversion failed.
+  static StringType GetHFSDecomposedForm(const FilePath::StringType& string);
+
+  // Special UTF-8 version of FastUnicodeCompare. Cf:
+  // http://developer.apple.com/mac/library/technotes/tn/tn1150.html#StringComparisonAlgorithm
+  // IMPORTANT: The input strings must be in the special HFS decomposed form!
+  // (cf. above GetHFSDecomposedForm method)
+  static int HFSFastUnicodeCompare(const StringType& string1,
+                                   const StringType& string2);
+#endif
+
   // Older Chromium code assumes that paths are always wstrings.
   // This function produces a wstring from a FilePath, and is useful to smooth
   // porting that old code to the FilePath API.
