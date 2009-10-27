@@ -9,9 +9,10 @@
   },
   'target_defaults': {
     'defines': [
-      'SQLITE_ENABLE_FTS2',
       'SQLITE_ENABLE_BROKEN_FTS2',
+      'SQLITE_ENABLE_FTS2',
       'SQLITE_ENABLE_ICU',
+      'SQLITE_ENABLE_MEMORY_MANAGEMENT',
       'SQLITE_SECURE_DELETE',
       'THREADSAFE',
       '_HAS_EXCEPTIONS=0',
