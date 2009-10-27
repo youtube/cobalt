@@ -1214,6 +1214,9 @@ bool HttpCache::Transaction::ValidatePartialResponse(
   int response_code = headers->response_code();
   bool partial_content = enable_range_support_ ? response_code == 206 : false;
 
+  if (!entry_)
+    return false;
+
   if (invalid_range_) {
     // We gave up trying to match this request with the stored data. If the
     // server is ok with the request, delete the entry, otherwise just ignore
