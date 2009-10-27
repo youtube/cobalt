@@ -214,17 +214,18 @@ bool PathService::Override(int key, const FilePath& path) {
   DCHECK(key > base::DIR_CURRENT) << "invalid path key";
 
   FilePath file_path = path;
-#if defined(OS_WIN)
-  // On Windows we switch the current working directory to load plugins (at
-  // least). That's not the case on POSIX.
-  // Also, on POSIX, AbsolutePath fails if called on a non-existant path.
-  if (!file_util::AbsolutePath(&file_path))
-    return false;
-#endif
 
-  // make sure the directory exists:
+  // Make sure the directory exists. We need to do this before we translate
+  // this to the absolute path because on POSIX, AbsolutePath fails if called
+  // on a non-existant path.
   if (!file_util::PathExists(file_path) &&
       !file_util::CreateDirectory(file_path))
+    return false;
+
+  // We need to have an absolute path, as extensions and plugins don't like
+  // relative paths, and will glady crash the browser in CHECK()s if they get a
+  // relative path.
+  if (!file_util::AbsolutePath(&file_path))
     return false;
 
   AutoLock scoped_lock(path_data->lock);
