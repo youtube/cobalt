@@ -11,51 +11,18 @@
 
 #include "base/at_exit.h"
 #include "base/base_paths.h"
-#include "base/command_line.h"
 #include "base/debug_on_start.h"
-#include "base/debug_util.h"
-#include "base/file_path.h"
 #include "base/i18n/icu_util.h"
-#include "base/logging.h"
 #include "base/multiprocess_test.h"
+#include "base/process_util.h"
 #include "base/scoped_nsautorelease_pool.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
-#if defined(OS_WIN)
-#include <windows.h>
-#endif
-
-#if defined(OS_POSIX)
-#include <signal.h>
-#endif
-
 #if defined(OS_LINUX)
 #include <gtk/gtk.h>
 #endif
-
-#if defined(OS_POSIX)
-static void TestSuiteCrashHandler(int signal) {
-  StackTrace().PrintBacktrace();
-  _exit(1);
-}
-#endif  // OS_POSIX
-
-#if defined(OS_WIN)
-// Previous unhandled filter. Will be called if not NULL when we intercept an
-// exception.
-__declspec(selectany) LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
-
-// Prints the exception call stack.
-// This is the unit tests exception filter.
-inline long WINAPI UnitTestExceptionFilter(EXCEPTION_POINTERS* info) {
-  StackTrace(info).PrintBacktrace();
-  if (g_previous_filter)
-    return g_previous_filter(info);
-  return EXCEPTION_EXECUTE_HANDLER;
-}
-#endif  // OS_WIN
 
 // Match function used by the GetTestCount method.
 typedef bool (*TestMatch)(const testing::TestInfo&);
@@ -185,23 +152,7 @@ class TestSuite {
     // Note: temporarily enabled timestamps in an effort to catch bug 6361.
     logging::SetLogItems(true, true, true, true);
 
-#if defined(OS_POSIX)
-    // When running in an application, our code typically expects SIGPIPE
-    // to be ignored.  Therefore, when testing that same code, it should run
-    // with SIGPIPE ignored as well.
-    struct sigaction action;
-    action.sa_handler = SIG_IGN;
-    action.sa_flags = 0;
-    sigemptyset(&action.sa_mask);
-    CHECK(sigaction(SIGPIPE, &action, NULL) == 0);
-
-    // TODO(phajdan.jr): Catch other crashy signals, like SIGABRT.
-    CHECK(signal(SIGSEGV, &TestSuiteCrashHandler) != SIG_ERR);
-    CHECK(signal(SIGILL, &TestSuiteCrashHandler) != SIG_ERR);
-    CHECK(signal(SIGBUS, &TestSuiteCrashHandler) != SIG_ERR);
-    CHECK(signal(SIGFPE, &TestSuiteCrashHandler) != SIG_ERR);
-#endif  // OS_POSIX
-
+    CHECK(base::EnableInProcessStackDumping());
 #if defined(OS_WIN)
     // For unit tests we turn on the high resolution timer and disable
     // base::Time's use of SystemMonitor. Tests create and destroy the message
@@ -217,9 +168,6 @@ class TestSuite {
       // As a hack workaround, just #ifdef out this code for Purify builds.
       logging::SetLogAssertHandler(UnitTestAssertHandler);
 #endif  // !defined(PURIFY)
-      // Add stack dumping support on exception on windows. Similar to OS_POSIX
-      // signal() handling above.
-      g_previous_filter = SetUnhandledExceptionFilter(&UnitTestExceptionFilter);
     }
 #endif  // defined(OS_WIN)
 
