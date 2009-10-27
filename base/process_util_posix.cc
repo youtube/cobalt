@@ -16,7 +16,7 @@
 #include <limits>
 #include <set>
 
-#include "base/basictypes.h"
+#include "base/debug_util.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/platform_thread.h"
@@ -29,6 +29,68 @@
 const int kMicrosecondsPerSecond = 1000000;
 
 namespace base {
+
+namespace {
+
+int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
+                       bool* success) {
+  // This POSIX version of this function only guarantees that we wait no less
+  // than |wait_milliseconds| for the proces to exit.  The child process may
+  // exit sometime before the timeout has ended but we may still block for
+  // up to 0.25 seconds after the fact.
+  //
+  // waitpid() has no direct support on POSIX for specifying a timeout, you can
+  // either ask it to block indefinitely or return immediately (WNOHANG).
+  // When a child process terminates a SIGCHLD signal is sent to the parent.
+  // Catching this signal would involve installing a signal handler which may
+  // affect other parts of the application and would be difficult to debug.
+  //
+  // Our strategy is to call waitpid() once up front to check if the process
+  // has already exited, otherwise to loop for wait_milliseconds, sleeping for
+  // at most 0.25 secs each time using usleep() and then calling waitpid().
+  //
+  // usleep() is speced to exit if a signal is received for which a handler
+  // has been installed.  This means that when a SIGCHLD is sent, it will exit
+  // depending on behavior external to this function.
+  //
+  // This function is used primarily for unit tests, if we want to use it in
+  // the application itself it would probably be best to examine other routes.
+  int status = -1;
+  pid_t ret_pid = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
+  static const int64 kQuarterSecondInMicroseconds = kMicrosecondsPerSecond / 4;
+
+  // If the process hasn't exited yet, then sleep and try again.
+  Time wakeup_time = Time::Now() + TimeDelta::FromMilliseconds(
+      wait_milliseconds);
+  while (ret_pid == 0) {
+    Time now = Time::Now();
+    if (now > wakeup_time)
+      break;
+    // Guaranteed to be non-negative!
+    int64 sleep_time_usecs = (wakeup_time - now).InMicroseconds();
+    // Don't sleep for more than 0.25 secs at a time.
+    if (sleep_time_usecs > kQuarterSecondInMicroseconds) {
+      sleep_time_usecs = kQuarterSecondInMicroseconds;
+    }
+
+    // usleep() will return 0 and set errno to EINTR on receipt of a signal
+    // such as SIGCHLD.
+    usleep(sleep_time_usecs);
+    ret_pid = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
+  }
+
+  if (success)
+    *success = (ret_pid != -1);
+
+  return status;
+}
+
+void StackDumpSignalHandler(int signal) {
+  StackTrace().PrintBacktrace();
+  _exit(1);
+}
+
+}  // namespace
 
 ProcessId GetCurrentProcId() {
   return getpid();
@@ -323,6 +385,29 @@ void EnableTerminationOnHeapCorruption() {
   // On POSIX, there nothing to do AFAIK.
 }
 
+bool EnableInProcessStackDumping() {
+  // When running in an application, our code typically expects SIGPIPE
+  // to be ignored.  Therefore, when testing that same code, it should run
+  // with SIGPIPE ignored as well.
+  struct sigaction action;
+  action.sa_handler = SIG_IGN;
+  action.sa_flags = 0;
+  sigemptyset(&action.sa_mask);
+  bool success = (sigaction(SIGPIPE, &action, NULL) == 0);
+
+  // TODO(phajdan.jr): Catch other crashy signals, like SIGABRT.
+  success &= (signal(SIGSEGV, &StackDumpSignalHandler) != SIG_ERR);
+  success &= (signal(SIGILL, &StackDumpSignalHandler) != SIG_ERR);
+  success &= (signal(SIGBUS, &StackDumpSignalHandler) != SIG_ERR);
+  success &= (signal(SIGFPE, &StackDumpSignalHandler) != SIG_ERR);
+  return success;
+}
+
+void AttachToConsole() {
+  // On POSIX, there nothing to do AFAIK. Maybe create a new console if none
+  // exist?
+}
+
 void RaiseProcessToHighPriority() {
   // On POSIX, we don't actually do anything here.  We could try to nice() or
   // setpriority() or sched_getscheduler, but these all require extra rights.
@@ -380,63 +465,6 @@ bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
   DCHECK(WIFSIGNALED(status));
   return false;
 }
-
-namespace {
-
-int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
-                       bool* success) {
-  // This POSIX version of this function only guarantees that we wait no less
-  // than |wait_milliseconds| for the proces to exit.  The child process may
-  // exit sometime before the timeout has ended but we may still block for
-  // up to 0.25 seconds after the fact.
-  //
-  // waitpid() has no direct support on POSIX for specifying a timeout, you can
-  // either ask it to block indefinitely or return immediately (WNOHANG).
-  // When a child process terminates a SIGCHLD signal is sent to the parent.
-  // Catching this signal would involve installing a signal handler which may
-  // affect other parts of the application and would be difficult to debug.
-  //
-  // Our strategy is to call waitpid() once up front to check if the process
-  // has already exited, otherwise to loop for wait_milliseconds, sleeping for
-  // at most 0.25 secs each time using usleep() and then calling waitpid().
-  //
-  // usleep() is speced to exit if a signal is received for which a handler
-  // has been installed.  This means that when a SIGCHLD is sent, it will exit
-  // depending on behavior external to this function.
-  //
-  // This function is used primarily for unit tests, if we want to use it in
-  // the application itself it would probably be best to examine other routes.
-  int status = -1;
-  pid_t ret_pid = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
-  static const int64 kQuarterSecondInMicroseconds = kMicrosecondsPerSecond/4;
-
-  // If the process hasn't exited yet, then sleep and try again.
-  Time wakeup_time = Time::Now() + TimeDelta::FromMilliseconds(
-      wait_milliseconds);
-  while (ret_pid == 0) {
-    Time now = Time::Now();
-    if (now > wakeup_time)
-      break;
-    // Guaranteed to be non-negative!
-    int64 sleep_time_usecs = (wakeup_time - now).InMicroseconds();
-    // Don't sleep for more than 0.25 secs at a time.
-    if (sleep_time_usecs > kQuarterSecondInMicroseconds) {
-      sleep_time_usecs = kQuarterSecondInMicroseconds;
-    }
-
-    // usleep() will return 0 and set errno to EINTR on receipt of a signal
-    // such as SIGCHLD.
-    usleep(sleep_time_usecs);
-    ret_pid = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
-  }
-
-  if (success)
-    *success = (ret_pid != -1);
-
-  return status;
-}
-
-}  // namespace
 
 bool WaitForSingleProcess(ProcessHandle handle, int64 wait_milliseconds) {
   bool waitpid_success;
