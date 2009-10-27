@@ -75,7 +75,7 @@ int LaunchSlave(const CommandLine& command_line,
                 const std::wstring& pipe_number, int version) {
   // TODO(port): remove this string-munging hackery.
   std::wstring hacked_command_line = command_line.command_line_string();
-  const std::wstring old_exe(L"dump_cache.exe");
+  const std::wstring old_exe(L"dump_cache");
   size_t to_remove = hacked_command_line.find(old_exe);
   hacked_command_line.erase(to_remove, old_exe.size());
 
@@ -84,9 +84,9 @@ int LaunchSlave(const CommandLine& command_line,
 
   std::wstring new_program;
   if (do_upgrade)
-    new_program = StringPrintf(L"%ls%d.exe", L"dump_cache_", version);
+    new_program = StringPrintf(L"%ls%d", L"dump_cache_", version);
   else
-    new_program = StringPrintf(L"dump_cache.exe");
+    new_program = StringPrintf(L"dump_cache");
 
   hacked_command_line.insert(to_remove, new_program);
 
