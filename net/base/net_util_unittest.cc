@@ -344,7 +344,7 @@ const IDNTestCase idn_cases[] = {
 #endif
 };
 
-struct RFC1738Case {
+struct CompliantHostCase {
   const char* host;
   bool expected_output;
 };
@@ -815,8 +815,8 @@ TEST(NetUtilTest, IDNToUnicodeSlow) {
   }
 }
 
-TEST(NetUtilTest, RFC1738) {
-  const RFC1738Case rfc1738_cases[] = {
+TEST(NetUtilTest, CompliantHost) {
+  const CompliantHostCase compliant_host_cases[] = {
     {"", false},
     {"a", true},
     {"-", false},
@@ -825,19 +825,20 @@ TEST(NetUtilTest, RFC1738) {
     {"a.a", true},
     {"9.a", true},
     {"a.9", false},
+    {"_9a", false},
     {"a.a9", true},
     {"a.9a", false},
     {"a+9a", false},
     {"1-.a-b", false},
-    {"1-2.a-b", true},
+    {"1-2.a_b", true},
     {"a.b.c.d.e", true},
     {"1.2.3.4.e", true},
     {"a.b.c.d.5", false},
   };
 
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(rfc1738_cases); ++i) {
-    EXPECT_EQ(rfc1738_cases[i].expected_output,
-              net::IsCanonicalizedHostRFC1738Compliant(rfc1738_cases[i].host));
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(compliant_host_cases); ++i) {
+    EXPECT_EQ(compliant_host_cases[i].expected_output,
+              net::IsCanonicalizedHostCompliant(compliant_host_cases[i].host));
   }
 }
 
