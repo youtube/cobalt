@@ -961,7 +961,7 @@ inline bool IsHostCharDigit(char c) {
   return (c >= '0') && (c <= '9');
 }
 
-bool IsCanonicalizedHostRFC1738Compliant(const std::string& host) {
+bool IsCanonicalizedHostCompliant(const std::string& host) {
   if (host.empty())
     return false;
 
@@ -970,7 +970,7 @@ bool IsCanonicalizedHostRFC1738Compliant(const std::string& host) {
     IN_COMPONENT_STARTED_DIGIT,
     IN_COMPONENT_STARTED_ALPHA
   } state = NOT_IN_COMPONENT;
-  bool last_char_was_hyphen = false;
+  bool last_char_was_hyphen_or_underscore = false;
 
   for (std::string::const_iterator i(host.begin()); i != host.end(); ++i) {
     const char c = *i;
@@ -983,13 +983,13 @@ bool IsCanonicalizedHostRFC1738Compliant(const std::string& host) {
         return false;
     } else {
       if (c == '.') {
-        if (last_char_was_hyphen)
+        if (last_char_was_hyphen_or_underscore)
           return false;
         state = NOT_IN_COMPONENT;
       } else if (IsHostCharAlpha(c) || IsHostCharDigit(c)) {
-        last_char_was_hyphen = false;
-      } else if (c == '-') {
-        last_char_was_hyphen = true;
+        last_char_was_hyphen_or_underscore = false;
+      } else if ((c == '-') || (c == '_')) {
+        last_char_was_hyphen_or_underscore = true;
       } else {
         return false;
       }
