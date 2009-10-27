@@ -262,7 +262,7 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   int private_kb = 0;
   int pss_kb = 0;
   bool have_pss = false;
-  if (!file_util::ReadFileToString(stat_file, &smaps))
+  if (!file_util::ReadFileToString(stat_file, &smaps) || smaps.length() == 0)
     return false;
 
   StringTokenizer tokenizer(smaps, ":\n");
