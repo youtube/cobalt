@@ -586,7 +586,7 @@
         'leak_tracker_unittest.cc',
         'linked_list_unittest.cc',
         'linked_ptr_unittest.cc',
-        'mac_util_unittest.cc',
+        'mac_util_unittest.mm',
         'message_loop_unittest.cc',
         'message_pump_glib_unittest.cc',
         'object_watcher_unittest.cc',
@@ -648,6 +648,7 @@
       ],
       'conditions': [
         ['OS == "linux" or OS == "freebsd"', {
+          'sources/': [ ['exclude', '\\.mm?$' ] ],
           'sources!': [
             'file_version_info_unittest.cc',
             'worker_pool_linux_unittest.cc',
@@ -661,11 +662,6 @@
           'sources!': [
             'message_pump_glib_unittest.cc',
           ]
-        }],
-        ['OS != "mac"', {
-          'sources!': [
-            'mac_util_unittest.cc',
-          ],
         }],
         # This is needed to trigger the dll copy step on windows.
         # TODO(mark): This should not be necessary.
