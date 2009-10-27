@@ -6,6 +6,7 @@
 #define NET_SOCKET_STREAM_SOCKET_STREAM_H_
 
 #include <deque>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -16,17 +17,27 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
+#include "net/http/http_auth.h"
+#include "net/http/http_auth_cache.h"
+#include "net/http/http_auth_handler.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/url_request/url_request_context.h"
 
 namespace net {
 
+class AuthChallengeInfo;
 class ClientSocketFactory;
 class HostResolver;
 class SSLConfigService;
 class SingleRequestHostResolver;
 
+// SocketStream is used to implement Web Sockets.
+// It provides plain full-duplex stream with proxy and SSL support.
+// For proxy authentication, only basic mechanisum is supported.  It will try
+// authentication identity for proxy URL first.  If server requires proxy
+// authentication, it will try authentication identity for realm that server
+// requests.
 class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
  public:
   // Derive from this class and add your own data members to associate extra
@@ -59,6 +70,15 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
     // Called when the socket stream has been closed.
     virtual void OnClose(SocketStream* socket) = 0;
+
+    // Called when proxy authentication required.
+    // The delegate should call RestartWithAuth() if credential for |auth_info|
+    // is found in password database, or call Close() to close the connection.
+    virtual void OnAuthRequired(SocketStream* socket,
+                                AuthChallengeInfo* auth_info) {
+      // By default, no credential is available and close the connection.
+      socket->Close();
+    }
   };
 
   SocketStream(const GURL& url, Delegate* delegate);
@@ -90,6 +110,12 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   // Requests to close the connection.
   // Once the connection is closed, calls delegate's OnClose.
   void Close();
+
+  // Restarts with authentication info.
+  // Should be used for response of OnAuthRequired.
+  void RestartWithAuth(
+      const std::wstring& username,
+      const std::wstring& password);
 
   // Detach delegate.  Call before delegate is deleted.
   // Once delegate is detached, close the socket stream and never call delegate
@@ -145,7 +171,6 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     STATE_SOCKS_CONNECT_COMPLETE,
     STATE_SSL_CONNECT,
     STATE_SSL_CONNECT_COMPLETE,
-    STATE_CONNECTION_ESTABLISHED,
     STATE_READ_WRITE
   };
 
@@ -189,6 +214,11 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   int DoSSLConnectComplete(int result);
   int DoReadWrite(int result);
 
+  GURL ProxyAuthOrigin() const;
+  int HandleAuthChallenge(const HttpResponseHeaders* headers);
+  void DoAuthRequired();
+  void DoRestartWithAuth();
+
   int HandleCertificateError(int result);
 
   bool is_secure() const;
@@ -211,6 +241,11 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   ProxyService::PacRequest* pac_request_;
   ProxyInfo proxy_info_;
+
+  HttpAuthCache auth_cache_;
+  scoped_refptr<HttpAuthHandler> auth_handler_;
+  HttpAuth::Identity auth_identity_;
+  scoped_refptr<AuthChallengeInfo> auth_info_;
 
   scoped_refptr<RequestHeaders> tunnel_request_headers_;
   size_t tunnel_request_headers_bytes_sent_;
