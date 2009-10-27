@@ -2671,6 +2671,19 @@ TEST(HttpCache, RangeGET_LargeValues) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
+// Tests that we don't crash with a range request if the disk cache was not
+// initialized properly.
+TEST(HttpCache, RangeGET_NoDiskCache) {
+  MockHttpCache cache(NULL);
+  cache.http_cache()->set_enable_range_support(true);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
 #ifdef NDEBUG
 // This test hits a NOTREACHED so it is a release mode only test.
 TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
