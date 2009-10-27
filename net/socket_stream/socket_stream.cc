@@ -13,6 +13,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
+#include "net/base/auth.h"
 #include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -149,6 +150,31 @@ void SocketStream::Close() {
       NewRunnableMethod(this, &SocketStream::DoLoop, OK));
 }
 
+void SocketStream::RestartWithAuth(
+    const std::wstring& username, const std::wstring& password) {
+  DCHECK(MessageLoop::current()) <<
+      "The current MessageLoop must exist";
+  DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
+      "The current MessageLoop must be TYPE_IO";
+  DCHECK(auth_handler_);
+  if (!socket_.get()) {
+    LOG(ERROR) << "Socket is closed before restarting with auth.";
+    return;
+  }
+
+  if (auth_identity_.invalid) {
+    // Update the username/password.
+    auth_identity_.source = HttpAuth::IDENT_SRC_EXTERNAL;
+    auth_identity_.invalid = false;
+    auth_identity_.username = username;
+    auth_identity_.password = password;
+  }
+
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      NewRunnableMethod(this, &SocketStream::DoRestartWithAuth));
+}
+
 void SocketStream::DetachDelegate() {
   if (!delegate_)
     return;
@@ -161,6 +187,7 @@ void SocketStream::Finish() {
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
+  DLOG(INFO) << "Finish";
   Delegate* delegate = delegate_;
   delegate_ = NULL;
   if (delegate) {
@@ -205,7 +232,7 @@ void SocketStream::DidReceiveData(int result) {
 
 void SocketStream::DidSendData(int result) {
   current_write_buf_ = NULL;
-  DCHECK(result > 0);
+  DCHECK_GT(result, 0);
   if (!delegate_)
     return;
 
@@ -378,6 +405,7 @@ int SocketStream::DoResolveHost() {
 int SocketStream::DoResolveHostComplete(int result) {
   if (result == OK)
     next_state_ = STATE_TCP_CONNECT;
+  // TODO(ukai): if error occured, reconsider proxy after error.
   return result;
 }
 
@@ -389,6 +417,7 @@ int SocketStream::DoTcpConnect() {
 }
 
 int SocketStream::DoTcpConnectComplete(int result) {
+  // TODO(ukai): if error occured, reconsider proxy after error.
   if (result != OK)
     return result;
 
@@ -414,13 +443,43 @@ int SocketStream::DoWriteTunnelHeaders() {
     tunnel_request_headers_bytes_sent_ = 0;
   }
   if (tunnel_request_headers_->headers_.empty()) {
+    std::string authorization_headers;
+
+    if (!auth_handler_.get()) {
+      // First attempt.  Find auth from the proxy address.
+      HttpAuthCache::Entry* entry = auth_cache_.LookupByPath(
+          ProxyAuthOrigin(), std::string());
+      if (entry && !entry->handler()->is_connection_based()) {
+        auth_identity_.source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
+        auth_identity_.invalid = false;
+        auth_identity_.username = entry->username();
+        auth_identity_.password = entry->password();
+        auth_handler_ = entry->handler();
+      }
+    }
+
+    // Support basic authentication scheme only, because we don't have
+    // HttpRequestInfo.
+    // TODO(ukai): Add support other authentication scheme.
+    if (auth_handler_.get() && auth_handler_->scheme() == "basic") {
+      std::string credentials = auth_handler_->GenerateCredentials(
+          auth_identity_.username,
+          auth_identity_.password,
+          NULL,
+          &proxy_info_);
+      authorization_headers.append(
+          HttpAuth::GetAuthorizationHeaderName(HttpAuth::AUTH_PROXY) +
+          ": " + credentials + "\r\n");
+    }
+
     tunnel_request_headers_->headers_ = StringPrintf(
         "CONNECT %s HTTP/1.1\r\n"
         "Host: %s\r\n"
         "Proxy-Connection: keep-alive\r\n",
         GetHostAndPort(url_).c_str(),
         GetHostAndOptionalPort(url_).c_str());
-    // TODO(ukai): set proxy auth if necessary.
+    if (!authorization_headers.empty())
+      tunnel_request_headers_->headers_ += authorization_headers;
     tunnel_request_headers_->headers_ += "\r\n";
   }
   tunnel_request_headers_->SetDataOffset(tunnel_request_headers_bytes_sent_);
@@ -511,8 +570,21 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
       }
       return OK;
     case 407:  // Proxy Authentication Required.
-      // TODO(ukai): handle Proxy Authentication.
-      break;
+      result = HandleAuthChallenge(headers.get());
+      if (result == ERR_PROXY_AUTH_REQUESTED &&
+          auth_handler_.get() && delegate_) {
+        auth_info_ = new AuthChallengeInfo;
+        auth_info_->is_proxy = true;
+        auth_info_->host_and_port =
+            ASCIIToWide(proxy_info_.proxy_server().host_and_port());
+        auth_info_->scheme = ASCIIToWide(auth_handler_->scheme());
+        auth_info_->realm = ASCIIToWide(auth_handler_->realm());
+        // Wait until RestartWithAuth or Close is called.
+        MessageLoop::current()->PostTask(
+            FROM_HERE,
+            NewRunnableMethod(this, &SocketStream::DoAuthRequired));
+        return ERR_IO_PENDING;
+      }
     default:
       break;
   }
@@ -613,6 +685,79 @@ int SocketStream::DoReadWrite(int result) {
 
   // We arrived here when both operation is pending.
   return ERR_IO_PENDING;
+}
+
+GURL SocketStream::ProxyAuthOrigin() const {
+  return GURL("http://" + proxy_info_.proxy_server().host_and_port());
+}
+
+int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
+  GURL auth_origin(ProxyAuthOrigin());
+
+  LOG(INFO) << "The proxy " << auth_origin << " requested auth";
+
+  // The auth we tried just failed, hence it can't be valid.
+  // Remove it from the cache so it won't be used again.
+  if (auth_handler_.get() && !auth_identity_.invalid &&
+      auth_handler_->IsFinalRound()) {
+    if (auth_identity_.source != HttpAuth::IDENT_SRC_PATH_LOOKUP)
+      auth_cache_.Remove(auth_origin,
+                         auth_handler_->realm(),
+                         auth_identity_.username,
+                         auth_identity_.password);
+    auth_handler_ = NULL;
+    auth_identity_ = HttpAuth::Identity();
+  }
+
+  auth_identity_.invalid = true;
+  HttpAuth::ChooseBestChallenge(headers, HttpAuth::AUTH_PROXY, auth_origin,
+                                &auth_handler_);
+  if (!auth_handler_) {
+    LOG(ERROR) << "Can't perform auth to the proxy " << auth_origin;
+    return ERR_TUNNEL_CONNECTION_FAILED;
+  }
+  if (auth_handler_->NeedsIdentity()) {
+    HttpAuthCache::Entry* entry = auth_cache_.LookupByRealm(
+        auth_origin, auth_handler_->realm());
+    if (entry) {
+      if (entry->handler()->scheme() != "basic") {
+        // We only support basic authentication scheme now.
+        // TODO(ukai): Support other authentication scheme.
+        return ERR_TUNNEL_CONNECTION_FAILED;
+      }
+      auth_identity_.source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
+      auth_identity_.invalid = false;
+      auth_identity_.username = entry->username();
+      auth_identity_.password = entry->password();
+      // Restart with auth info.
+    }
+    return ERR_PROXY_AUTH_REQUESTED;
+  } else {
+    auth_identity_.invalid = false;
+  }
+  return ERR_TUNNEL_CONNECTION_FAILED;
+}
+
+void SocketStream::DoAuthRequired() {
+  if (delegate_ && auth_info_.get())
+    delegate_->OnAuthRequired(this, auth_info_.get());
+  else
+    DoLoop(net::ERR_UNEXPECTED);
+}
+
+void SocketStream::DoRestartWithAuth() {
+  auth_cache_.Add(ProxyAuthOrigin(), auth_handler_,
+                  auth_identity_.username, auth_identity_.password,
+                  std::string());
+
+  tunnel_request_headers_ = NULL;
+  tunnel_request_headers_bytes_sent_ = 0;
+  tunnel_response_headers_ = NULL;
+  tunnel_response_headers_capacity_ = 0;
+  tunnel_response_headers_len_ = 0;
+
+  next_state_ = STATE_TCP_CONNECT;
+  DoLoop(OK);
 }
 
 int SocketStream::HandleCertificateError(int result) {
