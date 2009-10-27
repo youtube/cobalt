@@ -2,7 +2,7 @@
  "linux-release-hardy/startup/warm/t": {"delta": 0, "var": 15},
  "mac-release-10.5/morejs/times/t": {"delta": -30, "var": 60},
  "mac-release-10.5/startup/warm/t": {"delta": -155, "var": 20},
- "xp-release-dual-core/morejs/times/t": {"delta": 95, "var": 20},
- "xp-release-dual-core/startup/warm/t": {"delta": -20, "var": 30},
+ "xp-release-dual-core/morejs/times/t": {"delta": 0, "var": 20},
+ "xp-release-dual-core/startup/warm/t": {"delta": 0, "var": 30},
  "load": true
 }
