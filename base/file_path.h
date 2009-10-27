@@ -178,6 +178,18 @@ class FilePath {
   // and BaseName().value() on each child component.
   void GetComponents(std::vector<FilePath::StringType>* components) const;
 
+  // Returns true, and sets *path to resulting full path, if relative_path can
+  // be applied to current path by resolving any '..' it may contain. Returns
+  // false otherwise, e.g., if relative path is absolute, or if it climbs back
+  // up the hierarchy too far (i.e., beyond the root of current path).
+  //
+  // Note that if the current path ends with a file name, we won't try to
+  // figure it out (so this method doesn't go to the disk) and we will blindly
+  // append relative_path at the end of the current path, including the file
+  // name in the current path (if any).
+  bool AppendAndResolveRelative(const FilePath& relative_path,
+                                FilePath* path) const;
+
   // Returns true if this FilePath is a strict parent of the |child|. Absolute
   // and relative paths are accepted i.e. is /foo parent to /foo/bar and
   // is foo parent to foo/bar. Does not convert paths to absolute, follow

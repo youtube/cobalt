@@ -158,6 +158,75 @@ bool FilePath::operator!=(const FilePath& that) const {
 #endif  // defined(FILE_PATH_USES_DRIVE_LETTERS)
 }
 
+bool FilePath::AppendAndResolveRelative(const FilePath& relative_path,
+                                        FilePath* path) const {
+  DCHECK(path);
+  if (!path || relative_path.IsAbsolute())
+    return false;
+
+  FilePath full_path = Append(relative_path);
+  // Is it worth looking for parent references?
+  if (!full_path.ReferencesParent()) {
+    *path = full_path;
+    return true;
+  }
+
+  // If the parent has a drive letter, then we must not remove the first
+  // component, which is the drive letter.
+  bool drive_letter = (FindDriveLetter(full_path.path_) !=
+                       FilePath::StringType::npos);
+
+  std::vector<FilePath::StringType> components;
+  full_path.GetComponents(&components);
+  std::vector<FilePath::StringType>::iterator it = components.begin();
+  // Start by removing any kCurrentDirectory component, since they may
+  // fool us into not going back to the appropriate parent level.
+  for (; it != components.end(); ++it) {
+    if (*it == kCurrentDirectory) {
+      // erase returns an iterator to the next component.
+      it = components.erase(it);
+      // So now, go back to previous iterator,
+      // so that we can appropriately process the next one as we loop.
+      --it;
+    }
+  }
+
+  // Now parse the component looking for kParentDirectory and remove them as
+  // well as the previous component.
+  it = components.begin();
+  for (; it != components.end(); ++it) {
+    if (*it == kParentDirectory) {
+      // Did we reach the beginning?
+      if (it == components.begin() ||
+          (drive_letter && (it - 1) == components.begin())) {
+        return false;
+      }
+      // Remove the previous component, as well as the current one.
+      std::vector<FilePath::StringType>::iterator previous = it - 1;
+      // Unless the previous is at the beginning.
+      if (previous == components.begin() ||
+          (drive_letter && (previous - 1) == components.begin())) {
+        return false;
+      }
+      // vector::erase doesn't erase _Last, it erases [_First, _Last[,
+      // so we must increment current which we want erased.
+      it = components.erase(previous, it + 1);
+      // And go back to previous so that we can process the next one as we loop.
+      --it;
+    }
+  }
+
+  // Now reconstruct the path with the components that were left in.
+  it = components.begin();
+  // We start with the first component, in case it is absolute
+  // and absolute paths can't be appended.
+  *path = FilePath(*it);
+  for (++it; it != components.end(); ++it)
+    *path = path->Append(*it);
+
+  return true;
+}
+
 bool FilePath::IsParent(const FilePath& child) const {
   return AppendRelativePath(child, NULL);
 }
