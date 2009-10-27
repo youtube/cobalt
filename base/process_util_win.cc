@@ -4,14 +4,21 @@
 
 #include "base/process_util.h"
 
+#include <fcntl.h>
+#include <io.h>
 #include <windows.h>
 #include <winternl.h>
 #include <psapi.h>
 
+#include <ios>
+
+#include "base/debug_util.h"
 #include "base/histogram.h"
 #include "base/logging.h"
 #include "base/scoped_handle_win.h"
 #include "base/scoped_ptr.h"
+
+namespace base {
 
 namespace {
 
@@ -21,9 +28,54 @@ const int PAGESIZE_KB = 4;
 // HeapSetInformation function pointer.
 typedef BOOL (WINAPI* HeapSetFn)(HANDLE, HEAP_INFORMATION_CLASS, PVOID, SIZE_T);
 
-}  // namespace
+// Previous unhandled filter. Will be called if not NULL when we intercept an
+// exception. Only used in unit tests.
+LPTOP_LEVEL_EXCEPTION_FILTER g_previous_filter = NULL;
 
-namespace base {
+// Prints the exception call stack.
+// This is the unit tests exception filter.
+long WINAPI StackDumpExceptionFilter(EXCEPTION_POINTERS* info) {
+  StackTrace(info).PrintBacktrace();
+  if (g_previous_filter)
+    return g_previous_filter(info);
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+// Connects back to a console if available.
+// Only necessary on Windows, no-op on other platforms.
+void AttachToConsole() {
+  if (!AttachConsole(ATTACH_PARENT_PROCESS)) {
+    unsigned int result = GetLastError();
+    // Was probably already attached.
+    if (result == ERROR_ACCESS_DENIED)
+      return;
+
+    if (result == ERROR_INVALID_HANDLE || result == ERROR_INVALID_HANDLE) {
+      // TODO(maruel): Walk up the process chain if deemed necessary.
+    }
+    // Continue even if the function call fails.
+    AllocConsole();
+  }
+  // http://support.microsoft.com/kb/105305
+  int raw_out = _open_osfhandle(
+      reinterpret_cast<intptr_t>(GetStdHandle(STD_OUTPUT_HANDLE)), _O_TEXT);
+  *stdout = *_fdopen(raw_out, "w");
+  setvbuf(stdout, NULL, _IONBF, 0);
+
+  int raw_err = _open_osfhandle(
+      reinterpret_cast<intptr_t>(GetStdHandle(STD_ERROR_HANDLE)), _O_TEXT);
+  *stderr = *_fdopen(raw_err, "w");
+  setvbuf(stderr, NULL, _IONBF, 0);
+
+  int raw_in = _open_osfhandle(
+      reinterpret_cast<intptr_t>(GetStdHandle(STD_INPUT_HANDLE)), _O_TEXT);
+  *stdin = *_fdopen(raw_in, "r");
+  setvbuf(stdin, NULL, _IONBF, 0);
+  // Fix all cout, wcout, cin, wcin, cerr, wcerr, clog and wclog.
+  std::ios::sync_with_stdio();
+}
+
+}  // namespace
 
 ProcessId GetCurrentProcId() {
   return ::GetCurrentProcessId();
@@ -761,6 +813,14 @@ bool EnableLowFragmentationHeap() {
 void EnableTerminationOnHeapCorruption() {
   // Ignore the result code. Supported on XP SP3 and Vista.
   HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
+}
+
+bool EnableInProcessStackDumping() {
+  // Add stack dumping support on exception on windows. Similar to OS_POSIX
+  // signal() handling in process_util_posix.cc.
+  g_previous_filter = SetUnhandledExceptionFilter(&StackDumpExceptionFilter);
+  AttachToConsole();
+  return true;
 }
 
 void RaiseProcessToHighPriority() {
