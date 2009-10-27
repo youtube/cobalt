@@ -493,6 +493,7 @@
           '<(werror)',  # See note above about the werror variable.
           '-pthread',
           '-fno-exceptions',
+          '-fvisibility=hidden',
           '-Wall',
           '-D_FILE_OFFSET_BITS=64',
         ],
@@ -693,6 +694,11 @@
           ['linux_breakpad==1', {
             'cflags': [ '-gstabs' ],
             'defines': ['USE_LINUX_BREAKPAD'],
+          }],
+          ['library=="shared_library"', {
+            # When building with shared libraries, remove the visiblity-hiding
+            # flag.
+            'cflags!': [ '-fvisibility=hidden' ],
           }],
         ],
       },
