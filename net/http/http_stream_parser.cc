@@ -208,8 +208,10 @@ int HttpStreamParser::DoReadHeaders() {
   io_state_ = STATE_READ_HEADERS_COMPLETE;
 
   // Grow the read buffer if necessary.
-  if (read_buf_->RemainingCapacity() == 0)
-    read_buf_->set_capacity(read_buf_->capacity() + kHeaderBufInitialSize);
+  if (read_buf_->RemainingCapacity() == 0) {
+    if (!read_buf_->SetCapacity(read_buf_->capacity() + kHeaderBufInitialSize))
+      return ERR_OUT_OF_MEMORY;
+  }
 
   // http://crbug.com/16371: We're seeing |user_buf_->data()| return NULL.
   // See if the user is passing in an IOBuffer with a NULL |data_|.
@@ -300,7 +302,8 @@ int HttpStreamParser::DoReadHeadersComplete(int result) {
                   read_buf_->StartOfBuffer() + read_buf_unused_offset_,
                   extra_bytes);
         }
-        read_buf_->set_capacity(extra_bytes);
+        // Ok if this fails, since it only shrinks the buffer.
+        read_buf_->SetCapacity(extra_bytes);
         read_buf_unused_offset_ = 0;
         return OK;
       }
@@ -324,12 +327,12 @@ int HttpStreamParser::DoReadBody() {
              bytes_read);
       read_buf_unused_offset_ += bytes_read;
       if (bytes_read == available) {
-        read_buf_->set_capacity(0);
+        read_buf_->SetCapacity(0);
         read_buf_unused_offset_ = 0;
       }
       return bytes_read;
     } else {
-      read_buf_->set_capacity(0);
+      read_buf_->SetCapacity(0);
       read_buf_unused_offset_ = 0;
     }
   }
@@ -384,11 +387,18 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
         result -= save_amount;
     }
     if (read_buf_->capacity() < save_amount + additional_save_amount) {
-      read_buf_->set_capacity(save_amount + additional_save_amount);
+      if (!read_buf_->SetCapacity(save_amount + additional_save_amount)) {
+        // This response is ok, but we weren't able to copy the extra data,
+        // so close the connection so that it is not reused.
+        connection_->socket()->Disconnect();
+        connection_->Reset();
+        read_buf_unused_offset_ = -1;  // So that IsMoreDataBuffered works.
+        return result;
+      }
     }
     if (save_amount) {
       memcpy(read_buf_->StartOfBuffer(), user_read_buf_->data() + result,
-              save_amount);
+             save_amount);
       read_buf_->set_offset(save_amount);
     }
     if (additional_save_amount) {
