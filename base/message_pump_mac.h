@@ -33,6 +33,7 @@
 #include "base/message_pump.h"
 
 #include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOKitLib.h>
 
 namespace base {
 
@@ -124,6 +125,12 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   // the basis of run loops starting and stopping.
   virtual void EnterExitRunLoop(CFRunLoopActivity activity);
 
+  // IOKit power state change notification callback, called when the system
+  // enters and leaves the sleep state.
+  static void PowerStateNotification(void* info, io_service_t service,
+                                     uint32_t message_type,
+                                     void* message_argument);
+
   // The thread's run loop.
   CFRunLoopRef run_loop_;
 
@@ -138,8 +145,19 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   CFRunLoopObserverRef pre_source_observer_;
   CFRunLoopObserverRef enter_exit_observer_;
 
+  // Objects used for power state notification.  See PowerStateNotification.
+  io_connect_t root_power_domain_;
+  IONotificationPortRef power_notification_port_;
+  io_object_t power_notification_object_;
+
   // (weak) Delegate passed as an argument to the innermost Run call.
   Delegate* delegate_;
+
+  // The time that delayed_work_timer_ is scheduled to fire.  This is tracked
+  // independently of CFRunLoopTimerGetNextFireDate(delayed_work_timer_)
+  // to be able to reset the timer properly after waking from system sleep.
+  // See PowerStateNotification.
+  CFAbsoluteTime delayed_work_fire_time_;
 
   // The recursion depth of the currently-executing CFRunLoopRun loop on the
   // run loop's thread.  0 if no run loops are running inside of whatever scope
