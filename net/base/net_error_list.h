@@ -279,6 +279,12 @@ NET_ERROR(NETWORK_IO_SUSPENDED, -331)
 // FLIP data received without receiving a SYN_REPLY on the stream.
 NET_ERROR(SYN_REPLY_NOT_RECEIVED, -332)
 
+// Converting the response to target encoding failed.
+NET_ERROR(ENCODING_CONVERSION_FAILED, -333)
+
+// The server sent an FTP directory listing in a format we do not understand.
+NET_ERROR(UNRECOGNIZED_FTP_DIRECTORY_LISTING_FORMAT, -334)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 

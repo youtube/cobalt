@@ -174,6 +174,8 @@ TrimPositions TrimWhitespace(const std::string& input,
 // (3) All other whitespace sequences are converted to single spaces.
 std::wstring CollapseWhitespace(const std::wstring& text,
                                 bool trim_sequences_with_line_breaks);
+string16 CollapseWhitespace(const string16& text,
+                            bool trim_sequences_with_line_breaks);
 std::string CollapseWhitespaceASCII(const std::string& text,
                                     bool trim_sequences_with_line_breaks);
 
