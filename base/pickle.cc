@@ -6,8 +6,8 @@
 
 #include <stdlib.h>
 
+#include <algorithm>  // for max()
 #include <limits>
-#include <string>
 
 //------------------------------------------------------------------------------
 
@@ -168,6 +168,20 @@ bool Pickle::ReadUInt32(void** iter, uint32* result) const {
 }
 
 bool Pickle::ReadInt64(void** iter, int64* result) const {
+  DCHECK(iter);
+  if (!*iter)
+    *iter = const_cast<char*>(payload());
+
+  if (!IteratorHasRoomFor(*iter, sizeof(*result)))
+    return false;
+
+  memcpy(result, *iter, sizeof(*result));
+
+  UpdateIter(iter, sizeof(*result));
+  return true;
+}
+
+bool Pickle::ReadUInt64(void** iter, uint64* result) const {
   DCHECK(iter);
   if (!*iter)
     *iter = const_cast<char*>(payload());
@@ -355,7 +369,7 @@ char* Pickle::BeginWriteData(int length) {
 }
 
 void Pickle::TrimWriteData(int new_length) {
-  DCHECK(variable_buffer_offset_ != 0);
+  DCHECK_NE(variable_buffer_offset_, 0);
 
   // Fetch the the variable buffer size
   int* cur_length = reinterpret_cast<int*>(
