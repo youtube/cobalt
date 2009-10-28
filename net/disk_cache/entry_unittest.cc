@@ -1356,8 +1356,16 @@ TEST_F(DiskCacheEntryTest, CancelSparseIO) {
 
   SimpleCallbackTest cb1, cb2, cb3, cb4;
   int64 offset = 0;
-  for (int ret = 0; ret != net::ERR_IO_PENDING; offset += kSize * 4)
+  int tries = 0;
+  const int maxtries = 100;   // Avoid hang on infinitely fast disks
+  for (int ret = 0; ret != net::ERR_IO_PENDING; offset += kSize * 4) {
     ret = entry->WriteSparseData(offset, buf, kSize, &cb1);
+    if (++tries > maxtries) {
+       LOG(ERROR) << "Data writes never come back PENDING; skipping test";
+       entry->Close();
+       return;
+    }
+  }
 
   // Cannot use the entry at this point.
   offset = 0;
