@@ -369,7 +369,7 @@ char* Pickle::BeginWriteData(int length) {
 }
 
 void Pickle::TrimWriteData(int new_length) {
-  DCHECK_NE(variable_buffer_offset_, 0);
+  DCHECK_NE(variable_buffer_offset_, 0U);
 
   // Fetch the the variable buffer size
   int* cur_length = reinterpret_cast<int*>(
