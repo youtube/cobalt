@@ -32,6 +32,11 @@ struct BinaryBooleanTestData {
   bool expected;
 };
 
+struct BinaryIntTestData {
+  const FilePath::CharType* inputs[2];
+  int expected;
+};
+
 // file_util winds up using autoreleased objects on the Mac, so this needs
 // to be a PlatformTest
 class FilePathTest : public PlatformTest {
@@ -941,24 +946,38 @@ TEST_F(FilePathTest, ReplaceExtension) {
 
 TEST_F(FilePathTest, MatchesExtension) {
   const struct BinaryBooleanTestData cases[] = {
-    { { FPL("foo"),                   FPL("") },      true},
-    { { FPL("foo"),                   FPL(".") },     false},
-    { { FPL("foo."),                  FPL("") },      false},
-    { { FPL("foo."),                  FPL(".") },     true},
-    { { FPL("foo.txt"),               FPL(".dll") },  false},
-    { { FPL("foo.txt"),               FPL(".txt") },  true},
-    { { FPL("foo.txt.dll"),           FPL(".txt") },  false},
-    { { FPL("foo.txt.dll"),           FPL(".dll") },  true},
+    { { FPL("foo"),                     FPL("") },                    true},
+    { { FPL("foo"),                     FPL(".") },                   false},
+    { { FPL("foo."),                    FPL("") },                    false},
+    { { FPL("foo."),                    FPL(".") },                   true},
+    { { FPL("foo.txt"),                 FPL(".dll") },                false},
+    { { FPL("foo.txt"),                 FPL(".txt") },                true},
+    { { FPL("foo.txt.dll"),             FPL(".txt") },                false},
+    { { FPL("foo.txt.dll"),             FPL(".dll") },                true},
+    { { FPL("foo.TXT"),                 FPL(".txt") },                true},
+    { { FPL("foo.txt"),                 FPL(".TXT") },                true},
+    { { FPL("foo.tXt"),                 FPL(".txt") },                true},
+    { { FPL("foo.txt"),                 FPL(".tXt") },                true},
+    { { FPL("foo.tXt"),                 FPL(".TXT") },                true},
+    { { FPL("foo.tXt"),                 FPL(".tXt") },                true},
 #if defined(FILE_PATH_USES_DRIVE_LETTERS)
-    { { FPL("c:/foo.txt.dll"),        FPL(".txt") },  false},
-    { { FPL("c:/foo.txt"),            FPL(".txt") },  true},
+    { { FPL("c:/foo.txt.dll"),          FPL(".txt") },                false},
+    { { FPL("c:/foo.txt"),              FPL(".txt") },                true},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
-    { { FPL("c:\\bar\\foo.txt.dll"),  FPL(".txt") },  false},
-    { { FPL("c:\\bar\\foo.txt"),      FPL(".txt") },  true},
+    { { FPL("c:\\bar\\foo.txt.dll"),    FPL(".txt") },                false},
+    { { FPL("c:\\bar\\foo.txt"),        FPL(".txt") },                true},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-    { { FPL("/bar/foo.txt.dll"),      FPL(".txt") },  false},
-    { { FPL("/bar/foo.txt"),          FPL(".txt") },  true},
+    { { FPL("/bar/foo.txt.dll"),        FPL(".txt") },                false},
+    { { FPL("/bar/foo.txt"),            FPL(".txt") },                true},
+#if defined(OS_WIN) || defined(OS_MACOSX)
+    // Umlauts A, O, U: direct comparison, and upper case vs. lower case
+    { { FPL("foo.\u00E4\u00F6\u00FC"),  FPL(".\u00E4\u00F6\u00FC") }, true},
+    { { FPL("foo.\u00C4\u00D6\u00DC"),  FPL(".\u00E4\u00F6\u00FC") }, true},
+    // C with circumflex: direct comparison, and upper case vs. lower case
+    { { FPL("foo.\u0109"),              FPL(".\u0109") },             true},
+    { { FPL("foo.\u0108"),              FPL(".\u0109") },             true},
+#endif
   };
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
@@ -967,6 +986,83 @@ TEST_F(FilePathTest, MatchesExtension) {
 
     EXPECT_EQ(cases[i].expected, path.MatchesExtension(ext)) <<
         "i: " << i << ", path: " << path.value() << ", ext: " << ext;
+  }
+}
+
+TEST_F(FilePathTest, CompareIgnoreCase) {
+  const struct BinaryIntTestData cases[] = {
+    { { FPL("foo"),                          FPL("foo") },                  0},
+    { { FPL("FOO"),                          FPL("foo") },                  0},
+    { { FPL("foo.ext"),                      FPL("foo.ext") },              0},
+    { { FPL("FOO.EXT"),                      FPL("foo.ext") },              0},
+    { { FPL("Foo.Ext"),                      FPL("foo.ext") },              0},
+    { { FPL("foO"),                          FPL("foo") },                  0},
+    { { FPL("foo"),                          FPL("foO") },                  0},
+    { { FPL("fOo"),                          FPL("foo") },                  0},
+    { { FPL("foo"),                          FPL("fOo") },                  0},
+    { { FPL("bar"),                          FPL("foo") },                 -1},
+    { { FPL("foo"),                          FPL("bar") },                  1},
+    { { FPL("BAR"),                          FPL("foo") },                 -1},
+    { { FPL("FOO"),                          FPL("bar") },                  1},
+    { { FPL("bar"),                          FPL("FOO") },                 -1},
+    { { FPL("foo"),                          FPL("BAR") },                  1},
+    { { FPL("BAR"),                          FPL("FOO") },                 -1},
+    { { FPL("FOO"),                          FPL("BAR") },                  1},
+    // German "Eszett" (lower case and the new-fangled upper case)
+    // Note that uc(<lowercase eszett>) => "SS", NOT <uppercase eszett>!
+    // However, neither Windows nor Mac OSX converts these.
+    // (or even have glyphs for <uppercase eszett>)
+    { { FPL("\u00DF"),                       FPL("\u00DF") },               0},
+    { { FPL("\u1E9E"),                       FPL("\u1E9E") },               0},
+    { { FPL("\u00DF"),                       FPL("\u1E9E") },              -1},
+    { { FPL("SS"),                           FPL("\u00DF") },              -1},
+    { { FPL("SS"),                           FPL("\u1E9E") },              -1},
+#if defined(OS_WIN) || defined(OS_MACOSX)
+    // Umlauts A, O, U: direct comparison, and upper case vs. lower case
+    { { FPL("\u00E4\u00F6\u00FC"),           FPL("\u00E4\u00F6\u00FC") },   0},
+    { { FPL("\u00C4\u00D6\u00DC"),           FPL("\u00E4\u00F6\u00FC") },   0},
+    // C with circumflex: direct comparison, and upper case vs. lower case
+    { { FPL("\u0109"),                       FPL("\u0109") },               0},
+    { { FPL("\u0108"),                       FPL("\u0109") },               0},
+    // Cyrillic letter SHA: direct comparison, and upper case vs. lower case
+    { { FPL("\u0428"),                       FPL("\u0428") },               0},
+    { { FPL("\u0428"),                       FPL("\u0448") },               0},
+    // Greek letter DELTA: direct comparison, and upper case vs. lower case
+    { { FPL("\u0394"),                       FPL("\u0394") },               0},
+    { { FPL("\u0394"),                       FPL("\u03B4") },               0},
+    // Japanese full-width A: direct comparison, and upper case vs. lower case
+    // Note that full-width and standard characters are considered different.
+    { { FPL("\uFF21"),                       FPL("\uFF21") },               0},
+    { { FPL("\uFF21"),                       FPL("\uFF41") },               0},
+    { { FPL("A"),                            FPL("\uFF21") },              -1},
+    { { FPL("A"),                            FPL("\uFF41") },              -1},
+    { { FPL("a"),                            FPL("\uFF21") },              -1},
+    { { FPL("a"),                            FPL("\uFF41") },              -1},
+#endif
+#if defined(OS_MACOSX)
+    // Codepoints > 0x1000
+    // Georgian letter DON: direct comparison, and upper case vs. lower case
+    { { FPL("\u10A3"),                       FPL("\u10A3") },               0},
+    { { FPL("\u10A3"),                       FPL("\u10D3") },               0},
+    // Combining characters vs. pre-composed characters, upper and lower case
+    { { FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("\u1E31\u1E77\u1E53n") },  0},
+    { { FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("kuon") },                 1},
+    { { FPL("kuon"), FPL("k\u0301u\u032Do\u0304\u0301n") },                -1},
+    { { FPL("K\u0301U\u032DO\u0304\u0301N"), FPL("KUON") },                 1},
+    { { FPL("KUON"), FPL("K\u0301U\u032DO\u0304\u0301N") },                -1},
+    { { FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("KUON") },                 1},
+    { { FPL("K\u0301U\u032DO\u0304\u0301N"), FPL("\u1E31\u1E77\u1E53n") },  0},
+    { { FPL("k\u0301u\u032Do\u0304\u0301n"), FPL("\u1E30\u1E76\u1E52n") },  0},
+    { { FPL("k\u0301u\u032Do\u0304\u0302n"), FPL("\u1E30\u1E76\u1E52n") },  1},
+#endif
+  };
+
+  for (size_t i = 0; i < arraysize(cases); ++i) {
+    FilePath::StringType s1(cases[i].inputs[0]);
+    FilePath::StringType s2(cases[i].inputs[1]);
+    int result = FilePath::CompareIgnoreCase(s1, s2);
+    EXPECT_EQ(cases[i].expected, result) <<
+        "i: " << i << ", s1: " << s1 << ", s2: " << s2;
   }
 }
 
