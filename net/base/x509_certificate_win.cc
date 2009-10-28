@@ -436,6 +436,7 @@ void X509Certificate::Initialize() {
   std::wstring subject_info;
   std::wstring issuer_info;
   DWORD name_size;
+  DCHECK(cert_handle_);
   name_size = CertNameToStr(cert_handle_->dwCertEncodingType,
                             &cert_handle_->pCertInfo->Subject,
                             CERT_X500_NAME_STR | CERT_NAME_STR_CRLF_FLAG,
@@ -484,6 +485,7 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
 }
 
 void X509Certificate::Persist(Pickle* pickle) {
+  DCHECK(cert_handle_);
   DWORD length;
   if (!CertSerializeCertificateStoreElement(cert_handle_, 0,
       NULL, &length)) {
@@ -501,16 +503,19 @@ void X509Certificate::Persist(Pickle* pickle) {
 
 void X509Certificate::GetDNSNames(std::vector<std::string>* dns_names) const {
   dns_names->clear();
-  scoped_ptr_malloc<CERT_ALT_NAME_INFO> alt_name_info;
-  GetCertSubjectAltName(cert_handle_, &alt_name_info);
-  CERT_ALT_NAME_INFO* alt_name = alt_name_info.get();
-  if (alt_name) {
-    int num_entries = alt_name->cAltEntry;
-    for (int i = 0; i < num_entries; i++) {
-      // dNSName is an ASN.1 IA5String representing a string of ASCII
-      // characters, so we can use WideToASCII here.
-      if (alt_name->rgAltEntry[i].dwAltNameChoice == CERT_ALT_NAME_DNS_NAME)
-        dns_names->push_back(WideToASCII(alt_name->rgAltEntry[i].pwszDNSName));
+  if (cert_handle_) {
+    scoped_ptr_malloc<CERT_ALT_NAME_INFO> alt_name_info;
+    GetCertSubjectAltName(cert_handle_, &alt_name_info);
+    CERT_ALT_NAME_INFO* alt_name = alt_name_info.get();
+    if (alt_name) {
+      int num_entries = alt_name->cAltEntry;
+      for (int i = 0; i < num_entries; i++) {
+        // dNSName is an ASN.1 IA5String representing a string of ASCII
+        // characters, so we can use WideToASCII here.
+        if (alt_name->rgAltEntry[i].dwAltNameChoice == CERT_ALT_NAME_DNS_NAME)
+          dns_names->push_back(
+              WideToASCII(alt_name->rgAltEntry[i].pwszDNSName));
+      }
     }
   }
   if (dns_names->empty())
@@ -521,6 +526,8 @@ int X509Certificate::Verify(const std::string& hostname,
                             int flags,
                             CertVerifyResult* verify_result) const {
   verify_result->Reset();
+  if (!cert_handle_)
+    return ERR_UNEXPECTED;
 
   // Build and validate certificate chain.
 
@@ -671,6 +678,7 @@ int X509Certificate::Verify(const std::string& hostname,
 // of the EV Certificate Guidelines Version 1.0 at
 // http://cabforum.org/EV_Certificate_Guidelines.pdf.
 bool X509Certificate::VerifyEV() const {
+  DCHECK(cert_handle_);
   net::EVRootCAMetadata* metadata = net::EVRootCAMetadata::GetInstance();
 
   PCCERT_CHAIN_CONTEXT chain_context = ConstructCertChain(cert_handle_,
