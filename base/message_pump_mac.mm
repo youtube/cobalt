@@ -6,6 +6,8 @@
 
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
+#include <IOKit/IOMessage.h>
+#include <IOKit/pwr_mgt/IOPMLib.h>
 
 #include <limits>
 
@@ -27,6 +29,7 @@ namespace base {
 // Must be called on the run loop thread.
 MessagePumpCFRunLoopBase::MessagePumpCFRunLoopBase()
     : delegate_(NULL),
+      delayed_work_fire_time_(kCFTimeIntervalMax),
       nesting_level_(0),
       run_nesting_level_(0),
       deepest_nesting_level_(0),
@@ -103,12 +106,33 @@ MessagePumpCFRunLoopBase::MessagePumpCFRunLoopBase()
                                                  EnterExitObserver,
                                                  &observer_context);
   CFRunLoopAddObserver(run_loop_, enter_exit_observer_, kCFRunLoopCommonModes);
+
+  root_power_domain_ = IORegisterForSystemPower(this,
+                                                &power_notification_port_,
+                                                PowerStateNotification,
+                                                &power_notification_object_);
+  if (root_power_domain_ != MACH_PORT_NULL) {
+    CFRunLoopAddSource(
+        run_loop_,
+        IONotificationPortGetRunLoopSource(power_notification_port_),
+        kCFRunLoopCommonModes);
+  }
 }
 
 // Ideally called on the run loop thread.  If other run loops were running
 // lower on the run loop thread's stack when this object was created, the
 // same number of run loops must be running when this object is destroyed.
 MessagePumpCFRunLoopBase::~MessagePumpCFRunLoopBase() {
+  if (root_power_domain_ != MACH_PORT_NULL) {
+    CFRunLoopRemoveSource(
+        run_loop_,
+        IONotificationPortGetRunLoopSource(power_notification_port_),
+        kCFRunLoopCommonModes);
+    IODeregisterForSystemPower(&power_notification_object_);
+    IOServiceClose(root_power_domain_);
+    IONotificationPortDestroy(power_notification_port_);
+  }
+
   CFRunLoopRemoveObserver(run_loop_, enter_exit_observer_,
                           kCFRunLoopCommonModes);
   CFRelease(enter_exit_observer_);
@@ -198,9 +222,9 @@ void MessagePumpCFRunLoopBase::ScheduleDelayedWork(
     exploded.minute,
     seconds
   };
-  CFAbsoluteTime fire_time = CFGregorianDateGetAbsoluteTime(gregorian, NULL);
+  delayed_work_fire_time_ = CFGregorianDateGetAbsoluteTime(gregorian, NULL);
 
-  CFRunLoopTimerSetNextFireDate(delayed_work_timer_, fire_time);
+  CFRunLoopTimerSetNextFireDate(delayed_work_timer_, delayed_work_fire_time_);
 }
 
 // Called from the run loop.
@@ -208,6 +232,9 @@ void MessagePumpCFRunLoopBase::ScheduleDelayedWork(
 void MessagePumpCFRunLoopBase::RunDelayedWorkTimer(CFRunLoopTimerRef timer,
                                                    void* info) {
   MessagePumpCFRunLoopBase* self = static_cast<MessagePumpCFRunLoopBase*>(info);
+
+  // The timer won't fire again until it's reset.
+  self->delayed_work_fire_time_ = kCFTimeIntervalMax;
 
   // CFRunLoopTimers fire outside of the priority scheme for CFRunLoopSources.
   // In order to establish the proper priority where delegate_->DoDelayedWork
@@ -427,6 +454,7 @@ void MessagePumpCFRunLoopBase::EnterExitObserver(CFRunLoopObserverRef observer,
         self->deepest_nesting_level_ = self->nesting_level_;
       }
       break;
+
     case kCFRunLoopExit:
       // Not all run loops go to sleep.  If a run loop is stopped before it
       // goes to sleep due to a CFRunLoopStop call, or if the timeout passed
@@ -447,11 +475,79 @@ void MessagePumpCFRunLoopBase::EnterExitObserver(CFRunLoopObserverRef observer,
       self->MaybeScheduleNestingDeferredWork();
       --self->nesting_level_;
       break;
+
     default:
       break;
   }
 
   self->EnterExitRunLoop(activity);
+}
+
+// Called from the run loop.
+// static
+void MessagePumpCFRunLoopBase::PowerStateNotification(void* info,
+                                                      io_service_t service,
+                                                      uint32_t message_type,
+                                                      void* message_argument) {
+  // CFRunLoopTimer (NSTimer) is scheduled in terms of CFAbsoluteTime, which
+  // measures the number of seconds since 2001-01-01 00:00:00.0 Z.  It is
+  // implemented in terms of kernel ticks, as in mach_absolute_time.  While an
+  // offset and scale factor can be applied to convert between the two time
+  // bases at any time after boot, the kernel clock stops while the system is
+  // asleep, altering the offset.  (The offset will also change when the
+  // real-time clock is adjusted.)  CFRunLoopTimers are not readjusted to take
+  // this into account when the system wakes up, so any timers that were
+  // pending while the system was asleep will be delayed by the sleep
+  // duration.
+  //
+  // The MessagePump interface assumes that scheduled delayed work will be
+  // performed at the time ScheduleDelayedWork was asked to perform it.  The
+  // delay caused by the CFRunLoopTimer not firing at the appropriate time
+  // results in a stall of queued delayed work when the system wakes up.
+  // With this limitation, scheduled work would not be performed until
+  // (system wake time + scheduled work time - system sleep time), while it
+  // would be expected to be performed at (scheduled work time).
+  //
+  // To work around this problem, when the system wakes up from sleep, if a
+  // delayed work timer is pending, it is rescheduled to fire at the original
+  // time that it was scheduled to fire.
+  //
+  // This mechanism is not resilient if the real-time clock does not maintain
+  // stable time while the system is sleeping, but it matches the behavior of
+  // the various other MessagePump implementations, and MessageLoop seems to
+  // be limited in the same way.
+  //
+  // References
+  //  - Chris Kane, "NSTimer and deep sleep," cocoa-dev@lists.apple.com,
+  //    http://lists.apple.com/archives/Cocoa-dev/2002/May/msg01547.html
+  //  - Apple Technical Q&A QA1340, "Registering and unregistering for sleep
+  //    and wake notifications,"
+  //    http://developer.apple.com/mac/library/qa/qa2004/qa1340.html
+  //  - Core Foundation source code, CF-550/CFRunLoop.c and CF-550/CFDate.c,
+  //    http://www.opensource.apple.com/
+
+  MessagePumpCFRunLoopBase* self = static_cast<MessagePumpCFRunLoopBase*>(info);
+
+  switch (message_type) {
+    case kIOMessageSystemWillPowerOn:
+      if (self->delayed_work_fire_time_ != kCFTimeIntervalMax) {
+        CFRunLoopTimerSetNextFireDate(self->delayed_work_timer_,
+                                      self->delayed_work_fire_time_);
+      }
+      break;
+
+    case kIOMessageSystemWillSleep:
+    case kIOMessageCanSystemSleep:
+      // The system will wait for 30 seconds before entering sleep if neither
+      // IOAllowPowerChange nor IOCancelPowerChange are called.  That would be
+      // pretty antisocial.
+      IOAllowPowerChange(self->root_power_domain_,
+                         reinterpret_cast<long>(message_argument));
+      break;
+
+    default:
+      break;
+  }
 }
 
 // Called by MessagePumpCFRunLoopBase::EnterExitRunLoop.  The default
