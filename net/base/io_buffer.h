@@ -106,12 +106,14 @@ class GrowableIOBuffer : public IOBuffer {
   GrowableIOBuffer() : IOBuffer(), capacity_(0), offset_(0) {}
   ~GrowableIOBuffer() { data_ = NULL; }
 
+  // realloc memory to the specified capacity.  Returns true on success.
+  // On failure, the capacity and buffer are unchanged.
+  bool SetCapacity(int capacity);
   int capacity() { return capacity_; }
-  void set_capacity(int capacity);
 
   // |offset| moves the |data_| pointer, allowing "seeking" in the data.
-  int offset() { return offset_; }
   void set_offset(int offset);
+  int offset() { return offset_; }
 
   int RemainingCapacity() { return capacity_ - offset_; }
   char* StartOfBuffer() { return real_data_.get(); }
