@@ -103,6 +103,8 @@ enum {
 typedef OSStatus (*SSLSetSessionOptionFuncPtr)(SSLContextRef,
                                                SSLSetSessionOptionType,
                                                Boolean);
+// For an explanation of the Mac OS X error codes, please refer to:
+// http://developer.apple.com/mac/library/documentation/Security/Reference/secureTransportRef/Reference/reference.html
 int NetErrorFromOSStatus(OSStatus status) {
   switch (status) {
     case errSSLWouldBlock:
@@ -122,6 +124,7 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSSLIllegalParam:  // Received an illegal_parameter alert.
     case errSSLPeerUnexpectedMsg:  // Received an unexpected_message alert.
     case errSSLProtocol:
+    case errSSLPeerHandshakeFail:  // Received a handshake_failure alert.
       return ERR_SSL_PROTOCOL_ERROR;
     case errSSLHostNameMismatch:
       return ERR_CERT_COMMON_NAME_INVALID;
