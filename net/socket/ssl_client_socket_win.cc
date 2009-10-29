@@ -48,8 +48,10 @@ static int MapSecurityError(SECURITY_STATUS err) {
     case SEC_E_CERT_UNKNOWN:
     case CERT_E_ROLE:
       return ERR_CERT_INVALID;
-    // We received an unexpected_message or illegal_parameter alert message
-    // from the server.
+    // We received one of the following alert messages from the server:
+    //   handshake_failure
+    //   illegal_parameter
+    //   unexpected_message
     case SEC_E_ILLEGAL_MESSAGE:
       return ERR_SSL_PROTOCOL_ERROR;
     case SEC_E_ALGORITHM_MISMATCH:
