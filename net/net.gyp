@@ -277,6 +277,8 @@
         'flip/flip_frame_builder.h',
         'flip/flip_framer.cc',
         'flip/flip_framer.h',
+        'flip/flip_io_buffer.cc',
+        'flip/flip_io_buffer.h',
         'flip/flip_network_transaction.cc',
         'flip/flip_network_transaction.h',
         'flip/flip_protocol.h',
