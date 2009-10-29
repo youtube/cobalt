@@ -6,6 +6,7 @@
 #define BASE_LINUX_UTIL_H__
 
 #include <stdint.h>
+#include <sys/types.h>
 
 #include <string>
 
