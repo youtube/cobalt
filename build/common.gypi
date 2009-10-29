@@ -350,43 +350,50 @@
        #   1 == /INCREMENTAL:NO
        #   2 == /INCREMENTAL
        # Debug links incremental, Release does not.
+      'Common': {
+        'abstract': 1,
+        'msvs_configuration_attributes': {
+          'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
+          'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
+          'CharacterSet': '1',
+        },
+        'conditions': [
+          ['OS=="win"', {
+            'configuration_platform': 'Win32',
+          }],
+        ],
+      },
       'Debug': {
+        'inherit_from': ['Common'],
         'xcode_settings': {
           'COPY_PHASE_STRIP': 'NO',
           'GCC_OPTIMIZATION_LEVEL': '<(mac_debug_optimization)',
           'OTHER_CFLAGS': [ '<@(debug_extra_cflags)', ],
         },
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'Optimization': '0',
+            'PreprocessorDefinitions': ['_DEBUG'],
+            'BasicRuntimeChecks': '3',
+            'RuntimeLibrary': '1',
+          },
+          'VCLinkerTool': {
+            'LinkIncremental': '<(msvs_debug_link_incremental)',
+          },
+          'VCResourceCompilerTool': {
+            'PreprocessorDefinitions': ['_DEBUG'],
+          },
+        },
         'conditions': [
-          [ 'OS=="win"', {
-            'configuration_platform': 'Win32',
-            'msvs_configuration_attributes': {
-              'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
-              'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
-              'CharacterSet': '1',
-            },
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'Optimization': '0',
-                'PreprocessorDefinitions': ['_DEBUG'],
-                'BasicRuntimeChecks': '3',
-                'RuntimeLibrary': '1',
-              },
-              'VCLinkerTool': {
-                'LinkIncremental': '<(msvs_debug_link_incremental)',
-              },
-              'VCResourceCompilerTool': {
-                'PreprocessorDefinitions': ['_DEBUG'],
-              },
-            },
+          ['OS=="linux"', {
+            'cflags': [
+              '<@(debug_extra_cflags)',
+            ],
           }],
-         ['OS=="linux"', {
-           'cflags': [
-             '<@(debug_extra_cflags)',
-           ],
-         }],
         ],
       },
       'Release': {
+        'inherit_from': ['Common'],
         'defines': [
           'NDEBUG',
         ],
@@ -395,48 +402,34 @@
           'GCC_OPTIMIZATION_LEVEL': '<(mac_release_optimization)',
           'OTHER_CFLAGS': [ '<@(release_extra_cflags)', ],
         },
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'LinkIncremental': '1',
+          },
+        },
         'conditions': [
           ['release_valgrind_build==0', {
             'defines': ['NVALGRIND'],
           }],
-          [ 'OS=="win" and msvs_use_common_release', {
+          ['msvs_use_common_release', {
             'msvs_props': ['release.vsprops'],
           }],
-          [ 'OS=="win"', {
-            'configuration_platform': 'Win32',
-            'msvs_configuration_attributes': {
-              'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
-              'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
-              'CharacterSet': '1',
-            },
-            'msvs_settings': {
-              'VCLinkerTool': {
-                'LinkIncremental': '1',
-              },
-            },
-          }],
-         ['OS=="linux"', {
-           'cflags': [
+          ['OS=="linux"', {
+            'cflags': [
              '<@(release_extra_cflags)',
-           ],
-         }],
+            ],
+          }],
         ],
       },
       'conditions': [
         [ 'OS=="win"', {
           # TODO(bradnelson): add a gyp mechanism to make this more graceful.
           'Purify': {
-            'configuration_platform': 'Win32',
+            'inherit_from': ['Release'],
             'defines': [
-              'NDEBUG',
               'PURIFY',
               'NO_TCMALLOC',
             ],
-            'msvs_configuration_attributes': {
-              'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
-              'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
-              'CharacterSet': '1',
-            },
             'msvs_settings': {
               'VCCLCompilerTool': {
                 'Optimization': '0',
@@ -448,33 +441,10 @@
                 'LinkIncremental': '1',
               },
             },
-            'conditions': [
-              [ 'msvs_use_common_release', {
-                'msvs_props': ['release.vsprops'],
-              }],
-            ],
           },
           'Release - no tcmalloc': {
-            'configuration_platform': 'Win32',
-            'defines': [
-              'NDEBUG',
-              'NO_TCMALLOC',
-            ],
-            'msvs_configuration_attributes': {
-              'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
-              'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
-              'CharacterSet': '1',
-            },
-            'conditions': [
-              [ 'msvs_use_common_release', {
-                'msvs_props': ['release.vsprops'],
-              }],
-            ],
-            'msvs_settings': {
-              'VCLinkerTool': {
-                'LinkIncremental': '1',
-              },
-            },
+            'inherit_from': ['Release'],
+            'defines': ['NO_TCMALLOC'],
           },
         }],
       ],
