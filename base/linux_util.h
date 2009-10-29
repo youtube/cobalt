@@ -53,6 +53,13 @@ const char* GetDesktopEnvironmentName(DesktopEnvironment env);
 // Convenience wrapper that calls GetDesktopEnvironment() first.
 const char* GetDesktopEnvironmentName(EnvironmentVariableGetter* env);
 
+// Return the inode number for the UNIX domain socket |fd|.
+bool FileDescriptorGetInode(ino_t* inode_out, int fd);
+
+// Find the process which holds the given socket, named by inode number. If
+// multiple processes hold the socket, this function returns false.
+bool FindProcessHoldingSocket(pid_t* pid_out, ino_t socket_inode);
+
 }  // namespace base
 
 #endif  // BASE_LINUX_UTIL_H__
