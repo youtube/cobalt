@@ -25,7 +25,7 @@ void Process::Terminate(int result_code) {
 bool Process::IsProcessBackgrounded() const {
   if (!process_)
     return false;  // Failure case.
-  DWORD priority = GetPriorityClass(process_);
+  DWORD priority = GetPriority();
   if (priority == 0)
     return false;  // Failure case.
   return priority == BELOW_NORMAL_PRIORITY_CLASS;
@@ -52,6 +52,11 @@ bool Process::is_current() const {
 // static
 Process Process::Current() {
   return Process(GetCurrentProcess());
+}
+
+int Process::GetPriority() const {
+  DCHECK(process_);
+  return GetPriorityClass(process_);
 }
 
 }  // namespace base
