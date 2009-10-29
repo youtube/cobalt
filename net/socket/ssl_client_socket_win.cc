@@ -192,13 +192,22 @@ void CredHandleTable::InitializeHandle(CredHandle* handle,
   //    and expired certificate errors.  There are only flags to ignore the
   //    name mismatch and unable-to-check-revocation errors.
   //
+  // We specify SCH_CRED_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT to cause the TLS
+  // certificate status request extension (commonly known as OCSP stapling)
+  // to be sent on Vista or later.  This flag matches the
+  // CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT flag that we pass to the
+  // CertGetCertificateChain calls.  Note: we specify this flag even when
+  // revocation checking is disabled to avoid doubling the number of
+  // credentials handles we need to acquire.
+  //
   // TODO(wtc): Look into undocumented or poorly documented flags:
   //   SCH_CRED_RESTRICTED_ROOTS
   //   SCH_CRED_REVOCATION_CHECK_CACHE_ONLY
   //   SCH_CRED_CACHE_ONLY_URL_RETRIEVAL
   //   SCH_CRED_MEMORY_STORE_CERT
   schannel_cred.dwFlags |= SCH_CRED_NO_DEFAULT_CREDS |
-                           SCH_CRED_MANUAL_CRED_VALIDATION;
+                           SCH_CRED_MANUAL_CRED_VALIDATION |
+                           SCH_CRED_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT;
   TimeStamp expiry;
   SECURITY_STATUS status;
 
