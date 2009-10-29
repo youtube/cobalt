@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sys/resource.h>
+
 #include "base/process.h"
 #include "base/process_util.h"
 
@@ -9,7 +11,7 @@ namespace base {
 
 void Process::Close() {
   process_ = 0;
-  // if the process wasn't termiated (so we waited) or the state
+  // if the process wasn't terminated (so we waited) or the state
   // wasn't already collected w/ a wait from process_utils, we're gonna
   // end up w/ a zombie when it does finally exit.
 }
@@ -23,18 +25,19 @@ void Process::Terminate(int result_code) {
   KillProcess(process_, result_code, false);
 }
 
+#if !defined(OS_LINUX)
 bool Process::IsProcessBackgrounded() const {
-  // http://code.google.com/p/chromium/issues/detail?id=8083
+  // See SetProcessBackgrounded().
   return false;
 }
 
 bool Process::SetProcessBackgrounded(bool value) {
-  // http://code.google.com/p/chromium/issues/detail?id=8083
-  // Just say we did it to keep renderer happy at the moment.  Need to finish
-  // cleaning this up w/in higher layers since windows is probably the only
-  // one that can raise priorities w/o privileges.
-  return true;
+  // POSIX only allows lowering the priority of a process, so if we
+  // were to lower it we wouldn't be able to raise it back to its initial
+  // priority.
+  return false;
 }
+#endif
 
 ProcessId Process::pid() const {
   if (process_ == 0)
@@ -50,6 +53,11 @@ bool Process::is_current() const {
 // static
 Process Process::Current() {
   return Process(GetCurrentProcessHandle());
+}
+
+int Process::GetPriority() const {
+  DCHECK(process_);
+  return getpriority(PRIO_PROCESS, process_);
 }
 
 }  // namspace base

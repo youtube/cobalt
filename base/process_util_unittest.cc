@@ -69,6 +69,20 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
   base::CloseProcessHandle(handle);
 }
 
+// Ensure that the priority of a process is restored correctly after
+// backgrounding and restoring.
+// Note: a platform may not be willing or able to lower the priority of
+// a process. The calls to SetProcessBackground should be noops then.
+TEST_F(ProcessUtilTest, SetProcessBackgrounded) {
+  ProcessHandle handle = this->SpawnChild(L"SimpleChildProcess");
+  Process process(handle);
+  int old_priority = process.GetPriority();
+  process.SetProcessBackgrounded(true);
+  process.SetProcessBackgrounded(false);
+  int new_priority = process.GetPriority();
+  EXPECT_EQ(old_priority, new_priority);
+}
+
 // TODO(estade): if possible, port these 2 tests.
 #if defined(OS_WIN)
 TEST_F(ProcessUtilTest, EnableLFH) {
