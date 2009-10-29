@@ -227,6 +227,7 @@
         'profiler.cc',
         'profiler.h',
         'process.h',
+        'process_linux.cc',
         'process_posix.cc',
         'process_util.h',
         'process_util_linux.cc',
