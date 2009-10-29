@@ -9,3 +9,4 @@ TRYSERVER_HTTP_PORT: 8018
 TRYSERVER_SVN_URL: svn://svn.chromium.org/chrome-try/try
 GITCL_PREUPLOAD: http://src.chromium.org/viewvc/chrome/trunk/tools/depot_tools/git-cl-upload-hook?revision=HEAD
 GITCL_PREDCOMMIT: http://src.chromium.org/viewvc/chrome/trunk/tools/depot_tools/git-cl-upload-hook?revision=HEAD
+LINT_IGNORE_REGEX: webkit/api/.*
