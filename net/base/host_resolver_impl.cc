@@ -75,9 +75,6 @@ class HostResolverImpl::Request {
     job_ = NULL;
     callback_ = NULL;
     addresses_ = NULL;
-    // Clear the LoadLog to make sure it won't be released later on the
-    // worker thread. See http://crbug.com/22272
-    load_log_ = NULL;
   }
 
   bool was_cancelled() const {
@@ -193,7 +190,7 @@ class HostResolverImpl::Job
     }
 
     // We will call HostResolverImpl::CancelRequest(Request*) on each one
-    // in order to notify any observers, and also clear the LoadLog.
+    // in order to notify any observers.
     for (RequestsList::const_iterator it = requests_.begin();
          it != requests_.end(); ++it) {
       HostResolverImpl::Request* req = *it;
@@ -410,11 +407,9 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
   Request* req = reinterpret_cast<Request*>(req_handle);
   DCHECK(req);
   DCHECK(req->job());
-  // Hold a reference to the request's load log as we are about to clear it.
-  scoped_refptr<LoadLog> load_log(req->load_log());
   // NULL out the fields of req, to mark it as cancelled.
   req->MarkAsCancelled();
-  OnCancelRequest(load_log, req->id(), req->info());
+  OnCancelRequest(req->load_log(), req->id(), req->info());
 }
 
 void HostResolverImpl::AddObserver(Observer* observer) {
@@ -465,8 +460,8 @@ void HostResolverImpl::RemoveOutstandingJob(Job* job) {
 }
 
 void HostResolverImpl::OnJobComplete(Job* job,
-                                 int error,
-                                 const AddressList& addrlist) {
+                                     int error,
+                                     const AddressList& addrlist) {
   RemoveOutstandingJob(job);
 
   // Write result to the cache.
