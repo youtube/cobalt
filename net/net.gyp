@@ -284,6 +284,8 @@
         'flip/flip_session.h',
         'flip/flip_session_pool.cc',
         'flip/flip_session_pool.h',
+        'flip/flip_stream.cc',
+        'flip/flip_stream.h',
         'flip/flip_transaction_factory.h',
         'ftp/ftp_auth_cache.cc',
         'ftp/ftp_auth_cache.h',
