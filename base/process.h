@@ -29,11 +29,25 @@ typedef pid_t ProcessId;
 const ProcessHandle kNullProcessHandle = 0;
 #endif
 
+#if defined(OS_LINUX)
+// saved_priority_ will be set to this to indicate that it's not holding
+// a valid value. -20 to 19 are valid process priorities.
+const int kUnsetProcessPriority = 256;
+#endif
+
 class Process {
  public:
-  Process() : process_(kNullProcessHandle), last_working_set_size_(0) {}
-  explicit Process(ProcessHandle handle) :
-    process_(handle), last_working_set_size_(0) {}
+  Process() : process_(kNullProcessHandle) {
+#if defined(OS_LINUX)
+    saved_priority_ = kUnsetProcessPriority;
+#endif
+  }
+
+  explicit Process(ProcessHandle handle) : process_(handle) {
+#if defined(OS_LINUX)
+    saved_priority_ = kUnsetProcessPriority;
+#endif
+  }
 
   // A handle to the current process.
   static Process Current();
@@ -41,7 +55,12 @@ class Process {
   // Get/Set the handle for this process. The handle will be 0 if the process
   // is no longer running.
   ProcessHandle handle() const { return process_; }
-  void set_handle(ProcessHandle handle) { process_ = handle; }
+  void set_handle(ProcessHandle handle) {
+    process_ = handle;
+#if defined(OS_LINUX)
+    saved_priority_ = kUnsetProcessPriority;
+#endif
+  }
 
   // Get the PID for this process.
   ProcessId pid() const;
@@ -61,16 +80,24 @@ class Process {
   // Return true if this process is backgrounded, false otherwise.
   bool IsProcessBackgrounded() const;
 
-  // Set a prcess as backgrounded.  If value is true, the priority
-  // of the process will be lowered.  If value is false, the priority
+  // Set a process as backgrounded. If value is true, the priority
+  // of the process will be lowered. If value is false, the priority
   // of the process will be made "normal" - equivalent to default
   // process priority.
   // Returns true if the priority was changed, false otherwise.
   bool SetProcessBackgrounded(bool value);
 
+  // Returns an integer representing the priority of a process. The meaning
+  // of this value is OS dependent.
+  int GetPriority() const;
+
  private:
   ProcessHandle process_;
-  size_t last_working_set_size_;
+#if defined(OS_LINUX)
+  // Holds the priority that the process was set to when it was backgrounded.
+  // If the process wasn't backgrounded it will be kUnsetProcessPriority.
+  int saved_priority_;
+#endif
 };
 
 }  // namespace base
