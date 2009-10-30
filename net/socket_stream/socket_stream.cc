@@ -143,6 +143,7 @@ void SocketStream::Close() {
     return;
   if (socket_->IsConnected())
     socket_->Disconnect();
+  next_state_ = STATE_NONE;
   // Close asynchronously, so that delegate won't be called
   // back before returning Close().
   MessageLoop::current()->PostTask(
@@ -182,18 +183,22 @@ void SocketStream::DetachDelegate() {
   Close();
 }
 
-void SocketStream::Finish() {
+void SocketStream::Finish(int result) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
+  DCHECK_LT(result, 0);
   DLOG(INFO) << "Finish";
+  if (delegate_)
+    delegate_->OnError(this, result);
+
   Delegate* delegate = delegate_;
   delegate_ = NULL;
   if (delegate) {
     delegate->OnClose(this);
-    Release();
   }
+  Release();
 }
 
 void SocketStream::SetHostResolver(HostResolver* host_resolver) {
@@ -207,17 +212,16 @@ void SocketStream::SetClientSocketFactory(
   factory_ = factory;
 }
 
-void SocketStream::DidEstablishConnection() {
+int SocketStream::DidEstablishConnection() {
   if (!socket_.get() || !socket_->IsConnected()) {
-    Finish();
-    return;
+    return ERR_CONNECTION_FAILED;
   }
   next_state_ = STATE_READ_WRITE;
 
   if (delegate_)
     delegate_->OnConnected(this, max_pending_send_allowed_);
 
-  return;
+  return OK;
 }
 
 void SocketStream::DidReceiveData(int result) {
@@ -255,11 +259,9 @@ void SocketStream::DidSendData(int result) {
 
 void SocketStream::OnIOCompleted(int result) {
   DoLoop(result);
-  // TODO(ukai): notify error.
 }
 
 void SocketStream::OnReadCompleted(int result) {
-  // TODO(ukai): notify error.
   if (result == 0) {
     // 0 indicates end-of-file, so socket was closed.
     next_state_ = STATE_NONE;
@@ -279,16 +281,17 @@ void SocketStream::OnWriteCompleted(int result) {
   DoLoop(result);
 }
 
-int SocketStream::DoLoop(int result) {
-  if (next_state_ == STATE_NONE) {
-    Finish();
-    return ERR_CONNECTION_CLOSED;
-  }
-
+void SocketStream::DoLoop(int result) {
   do {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
+      case STATE_NONE:
+        DCHECK_LE(result, OK);
+        if (result == OK)
+          result = ERR_CONNECTION_CLOSED;
+        Finish(result);
+        return;
       case STATE_RESOLVE_PROXY:
         DCHECK_EQ(OK, result);
         result = DoResolveProxy();
@@ -346,12 +349,7 @@ int SocketStream::DoLoop(int result) {
         result = ERR_UNEXPECTED;
         break;
     }
-  } while (result != ERR_IO_PENDING && next_state_ != STATE_NONE);
-
-  if (result != ERR_IO_PENDING)
-    Finish();
-
-  return result;
+  } while (result != ERR_IO_PENDING);
 }
 
 int SocketStream::DoResolveProxy() {
@@ -368,6 +366,8 @@ int SocketStream::DoResolveProxyComplete(int result) {
   pac_request_ = NULL;
   if (result != OK) {
     LOG(ERROR) << "Failed to resolve proxy: " << result;
+    if (delegate_)
+      delegate_->OnError(this, result);
     proxy_info_.UseDirect();
   }
 
@@ -428,9 +428,9 @@ int SocketStream::DoTcpConnectComplete(int result) {
   else if (is_secure()) {
     next_state_ = STATE_SSL_CONNECT;
   } else {
-    DidEstablishConnection();
+    result = DidEstablishConnection();
   }
-  return OK;
+  return result;
 }
 
 int SocketStream::DoWriteTunnelHeaders() {
@@ -532,8 +532,8 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
 
   if (result == 0) {
     // 0 indicates end-of-file, so socket was closed.
-    Finish();
-    return result;
+    DCHECK_EQ(next_state_, STATE_NONE);
+    return ERR_CONNECTION_CLOSED;
   }
 
   tunnel_response_headers_len_ += result;
@@ -542,8 +542,10 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
   int eoh = HttpUtil::LocateEndOfHeaders(
       tunnel_response_headers_->headers(), tunnel_response_headers_len_, 0);
   if (eoh == -1) {
-    if (tunnel_response_headers_len_ >= kMaxTunnelResponseHeadersSize)
+    if (tunnel_response_headers_len_ >= kMaxTunnelResponseHeadersSize) {
+      DCHECK_EQ(next_state_, STATE_NONE);
       return ERR_RESPONSE_HEADERS_TOO_BIG;
+    }
 
     next_state_ = STATE_READ_TUNNEL_HEADERS;
     return OK;
@@ -554,6 +556,7 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
       HttpUtil::AssembleRawHeaders(tunnel_response_headers_->headers(), eoh));
   if (headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
     // Require the "HTTP/1.x" status line.
+    DCHECK_EQ(next_state_, STATE_NONE);
     return ERR_TUNNEL_CONNECTION_FAILED;
   }
   switch (headers->response_code()) {
@@ -562,7 +565,11 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
         DCHECK_EQ(eoh, tunnel_response_headers_len_);
         next_state_ = STATE_SSL_CONNECT;
       } else {
-        DidEstablishConnection();
+        result = DidEstablishConnection();
+        if (result < 0) {
+          DCHECK_EQ(next_state_, STATE_NONE);
+          return result;
+        }
         if ((eoh < tunnel_response_headers_len_) && delegate_)
           delegate_->OnReceivedData(
               this, tunnel_response_headers_->headers() + eoh,
@@ -583,6 +590,7 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
         MessageLoop::current()->PostTask(
             FROM_HERE,
             NewRunnableMethod(this, &SocketStream::DoAuthRequired));
+        next_state_ = STATE_AUTH_REQUIRED;
         return ERR_IO_PENDING;
       }
     default:
@@ -633,17 +641,15 @@ int SocketStream::DoSSLConnectComplete(int result) {
     result = HandleCertificateError(result);
 
   if (result == OK)
-    DidEstablishConnection();
+    result = DidEstablishConnection();
   return result;
 }
 
 int SocketStream::DoReadWrite(int result) {
   if (result < OK) {
-    Finish();
     return result;
   }
   if (!socket_.get() || !socket_->IsConnected()) {
-    Finish();
     return ERR_CONNECTION_CLOSED;
   }
 
@@ -658,7 +664,6 @@ int SocketStream::DoReadWrite(int result) {
       return OK;
     } else if (result == 0) {
       // 0 indicates end-of-file, so socket was closed.
-      Finish();
       return ERR_CONNECTION_CLOSED;
     }
     // If read is pending, try write as well.
@@ -746,6 +751,7 @@ void SocketStream::DoAuthRequired() {
 }
 
 void SocketStream::DoRestartWithAuth() {
+  DCHECK_EQ(next_state_, STATE_AUTH_REQUIRED);
   auth_cache_.Add(ProxyAuthOrigin(), auth_handler_,
                   auth_identity_.username, auth_identity_.password,
                   std::string());
