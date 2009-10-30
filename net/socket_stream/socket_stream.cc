@@ -215,6 +215,7 @@ void SocketStream::SetClientSocketFactory(
 
 int SocketStream::DidEstablishConnection() {
   if (!socket_.get() || !socket_->IsConnected()) {
+    next_state_ = STATE_CLOSE;
     return ERR_CONNECTION_FAILED;
   }
   next_state_ = STATE_READ_WRITE;
@@ -349,8 +350,8 @@ void SocketStream::DoLoop(int result) {
         return;
       default:
         NOTREACHED() << "bad state";
-        result = ERR_UNEXPECTED;
-        break;
+        Finish(result);
+        return;
     }
   } while (result != ERR_IO_PENDING);
 }
@@ -408,6 +409,8 @@ int SocketStream::DoResolveHost() {
 int SocketStream::DoResolveHostComplete(int result) {
   if (result == OK)
     next_state_ = STATE_TCP_CONNECT;
+  else
+    next_state_ = STATE_CLOSE;
   // TODO(ukai): if error occured, reconsider proxy after error.
   return result;
 }
@@ -421,8 +424,10 @@ int SocketStream::DoTcpConnect() {
 
 int SocketStream::DoTcpConnectComplete(int result) {
   // TODO(ukai): if error occured, reconsider proxy after error.
-  if (result != OK)
+  if (result != OK) {
+    next_state_ = STATE_CLOSE;
     return result;
+  }
 
   if (proxy_mode_ == kTunnelProxy)
     next_state_ = STATE_WRITE_TUNNEL_HEADERS;
@@ -495,8 +500,10 @@ int SocketStream::DoWriteTunnelHeaders() {
 int SocketStream::DoWriteTunnelHeadersComplete(int result) {
   DCHECK_EQ(kTunnelProxy, proxy_mode_);
 
-  if (result < 0)
+  if (result < 0) {
+    next_state_ = STATE_CLOSE;
     return result;
+  }
 
   tunnel_request_headers_bytes_sent_ += result;
   if (tunnel_request_headers_bytes_sent_ <
@@ -530,8 +537,10 @@ int SocketStream::DoReadTunnelHeaders() {
 int SocketStream::DoReadTunnelHeadersComplete(int result) {
   DCHECK_EQ(kTunnelProxy, proxy_mode_);
 
-  if (result < 0)
+  if (result < 0) {
+    next_state_ = STATE_CLOSE;
     return result;
+  }
 
   if (result == 0) {
     // 0 indicates end-of-file, so socket was closed.
@@ -599,6 +608,7 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
     default:
       break;
   }
+  next_state_ = STATE_CLOSE;
   return ERR_TUNNEL_CONNECTION_FAILED;
 }
 
@@ -645,14 +655,18 @@ int SocketStream::DoSSLConnectComplete(int result) {
 
   if (result == OK)
     result = DidEstablishConnection();
+  else
+    next_state_ = STATE_CLOSE;
   return result;
 }
 
 int SocketStream::DoReadWrite(int result) {
   if (result < OK) {
+    next_state_ = STATE_CLOSE;
     return result;
   }
   if (!socket_.get() || !socket_->IsConnected()) {
+    next_state_ = STATE_CLOSE;
     return ERR_CONNECTION_CLOSED;
   }
 
@@ -667,12 +681,15 @@ int SocketStream::DoReadWrite(int result) {
       return OK;
     } else if (result == 0) {
       // 0 indicates end-of-file, so socket was closed.
+      next_state_ = STATE_CLOSE;
       return ERR_CONNECTION_CLOSED;
     }
     // If read is pending, try write as well.
     // Otherwise, return the result and do next loop.
-    if (result != ERR_IO_PENDING)
+    if (result != ERR_IO_PENDING) {
+      next_state_ = STATE_CLOSE;
       return result;
+    }
   }
   // Read is pending.
   DCHECK(read_buf_);
