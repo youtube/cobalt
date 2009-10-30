@@ -676,11 +676,6 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
   for (size_t i = 0; i < 20; ++i)
     EXPECT_EQ(paypal_null_fingerprint[i], fingerprint.data[i]);
 
-#if defined(OS_WIN)
-  // TODO(wtc): The Linux try bots still have NSS 3.12.0.  They need to be
-  // updated to NSS 3.12.3.1 or later.  Also, nss_ocsp.cc asserts that the
-  // current thread is a worker thread in our thread pool and therefore has
-  // no message loop.  That assertion is overly strict.
   int flags = 0;
   CertVerifyResult verify_result;
   int error = paypal_null_cert->Verify("www.paypal.com", flags,
@@ -689,6 +684,9 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
   // Either the system crypto library should correctly report a certificate
   // name mismatch, or our certificate blacklist should cause us to report an
   // invalid certificate.
+#if defined(OS_WIN)
+  // TODO(wtc): The Linux try bots still have NSS 3.12.0.  They need to be
+  // updated to NSS 3.12.3.1 or later.
   EXPECT_NE(0, verify_result.cert_status &
             (CERT_STATUS_COMMON_NAME_INVALID | CERT_STATUS_INVALID));
 #endif
