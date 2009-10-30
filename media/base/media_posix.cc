@@ -21,14 +21,19 @@ namespace {
 
 #if defined(OS_MACOSX)
 #define DSO_NAME(MODULE, VERSION) ("lib" MODULE "." #VERSION ".dylib")
+const FilePath::CharType sumo_name[] =
+    FILE_PATH_LITERAL("libffmpegsumo.dylib");
 #elif defined(OS_POSIX)
 #define DSO_NAME(MODULE, VERSION) ("lib" MODULE ".so." #VERSION)
+const FilePath::CharType sumo_name[] = FILE_PATH_LITERAL("libffmpegsumo.so");
 #else
 #error "Do not know how to construct DSO name for this OS."
 #endif
 
 // Retrieves the DSOName for the given key.
 std::string GetDSOName(tp_ffmpeg::StubModules stub_key) {
+  // TODO(ajwong): Remove this once mac is migrated. Either that, or have GYP
+  // set a constant that we can switch implementations based off of.
   switch (stub_key) {
     case tp_ffmpeg::kModuleAvcodec52:
       return FILE_PATH_LITERAL(DSO_NAME("avcodec", 52));
@@ -51,6 +56,11 @@ bool InitializeMediaLibrary(const FilePath& module_dir) {
   tp_ffmpeg::StubPathMap paths;
   for (int i = 0; i < static_cast<int>(tp_ffmpeg::kNumStubModules); ++i) {
     tp_ffmpeg::StubModules module = static_cast<tp_ffmpeg::StubModules>(i);
+
+    // Add the sumo library first so it takes precedence.
+    paths[module].push_back(module_dir.Append(sumo_name).value());
+
+    // Add the more specific FFmpeg library name.
     FilePath path = module_dir.Append(GetDSOName(module));
     paths[module].push_back(path.value());
   }

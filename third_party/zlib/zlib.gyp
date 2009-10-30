@@ -58,7 +58,7 @@
           },
           'conditions': [
             ['OS!="win"', {
-              'product_name': 'z',
+              'product_name': 'chrome_zlib',
               'sources!': [
                 'contrib/minizip/iowin32.c'
               ],

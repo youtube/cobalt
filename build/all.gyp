@@ -57,11 +57,12 @@
         ['OS=="linux"', {
           'dependencies': [
             '../breakpad/breakpad.gyp:*',
+            '../courgette/courgette.gyp:*',
             '../sandbox/sandbox.gyp:*',
             '../third_party/harfbuzz/harfbuzz.gyp:*',
+            '../third_party/yasm/yasm.gyp:*',
             '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
-            '../courgette/courgette.gyp:*',
           ],
           'conditions': [
             ['branding=="Chrome"', {
