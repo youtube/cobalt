@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,6 +35,13 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOKitLib.h>
 
+#if defined(__OBJC__)
+@class NSAutoreleasePool;
+#else   // __OBJC__
+class NSAutoreleasePool;
+#endif  // __OBJC__
+
+
 namespace base {
 
 class Time;
@@ -59,6 +66,10 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   CFRunLoopRef run_loop() const { return run_loop_; }
   int nesting_level() const { return nesting_level_; }
   int run_nesting_level() const { return run_nesting_level_; }
+
+  // Factory method for creating an autorelease pool. Not all message
+  // pumps work with autorelease pools in the same way.
+  virtual NSAutoreleasePool* CreateAutoreleasePool();
 
  private:
   // Timer callback scheduled by ScheduleDelayedWork.  This does not do any
@@ -223,13 +234,35 @@ class MessagePumpNSRunLoop : public MessagePumpCFRunLoopBase {
 };
 
 class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
+  // ObjC objects and C++ objects can't be friends, so this function
+  // will act as a friendly trampoline for
+  // MessagePumpNSAppDeferredAutoReleasePool to call
+  // set_needs_event_loop_wakeup.
+  friend void SetNeedsEventLoopWakeUpTrue(MessagePumpNSApplication* pump);
+
  public:
   MessagePumpNSApplication();
 
   virtual void DoRun(Delegate* delegate);
   virtual void Quit();
 
+ protected:
+  // MessagePumpNSApplications need a special autorelease pool that works
+  // correctly when nested inside another autorelease pool.
+  virtual NSAutoreleasePool* CreateAutoreleasePool();
+
+  // Sets a flag that will trigger the sending of an NSEvent to wake up the
+  // NSApplication event loop when the run loop exits.
+  void set_needs_event_loop_wake_up_true() {
+    needs_event_loop_wake_up_ = true;
+  }
+
  private:
+  virtual void EnterExitRunLoop(CFRunLoopActivity activity);
+
+  // Send a null event through to the event loop if necessary.
+  void WakeUpEventLoop();
+
   // False after Quit is called.
   bool keep_running_;
 
@@ -238,6 +271,10 @@ class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
   // is managed by -[NSApplication run], inner run loops are handled by a loop
   // in DoRun.
   bool running_own_loop_;
+
+  // True if an event should be sent to the event loop to cause it to spin
+  // when the run loop is exiting.
+  bool needs_event_loop_wake_up_;
 
   DISALLOW_COPY_AND_ASSIGN(MessagePumpNSApplication);
 };
