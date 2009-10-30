@@ -120,6 +120,8 @@ class ScopedCERTValOutParam {
 // Map PORT_GetError() return values to our network error codes.
 int MapSecurityError(int err) {
   switch (err) {
+    case SEC_ERROR_INVALID_ARGS:
+      return ERR_INVALID_ARGUMENT;
     case SEC_ERROR_INVALID_TIME:
     case SEC_ERROR_EXPIRED_CERTIFICATE:
       return ERR_CERT_DATE_INVALID;
@@ -336,11 +338,12 @@ void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
 // are also checked.
 // Caller must initialize cvout before calling this function.
 SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
+                         bool check_revocation,
                          const SECOidTag* policy_oids,
                          int num_policy_oids,
                          CERTValOutParam* cvout) {
-  bool use_crl = true;
-  bool use_ocsp = true;
+  bool use_crl = check_revocation;
+  bool use_ocsp = check_revocation;
 
   PRUint64 revocation_method_flags =
       CERT_REV_M_DO_NOT_TEST_USING_THIS_METHOD |
@@ -402,12 +405,14 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
   revocation_flags.chainTests.cert_rev_method_independent_flags =
       revocation_method_independent_flags;
 
-  CERTValInParam cvin[3];
+  CERTValInParam cvin[4];
   int cvin_index = 0;
   // No need to set cert_pi_trustAnchors here.
-  // TODO(ukai): use cert_pi_useAIACertFetch (new feature in NSS 3.12.1).
   cvin[cvin_index].type = cert_pi_revocationFlags;
   cvin[cvin_index].value.pointer.revocation = &revocation_flags;
+  cvin_index++;
+  cvin[cvin_index].type = cert_pi_useAIACertFetch;
+  cvin[cvin_index].value.scalar.b = PR_TRUE;
   cvin_index++;
   std::vector<SECOidTag> policies;
   if (policy_oids && num_policy_oids > 0) {
@@ -523,8 +528,14 @@ int X509Certificate::Verify(const std::string& hostname,
   cvout[cvout_index].type = cert_po_end;
   ScopedCERTValOutParam scoped_cvout(cvout);
 
-  verify_result->cert_status |= net::CERT_STATUS_REV_CHECKING_ENABLED;
-  status = PKIXVerifyCert(cert_handle_, NULL, 0, cvout);
+  bool check_revocation = (flags & VERIFY_REV_CHECKING_ENABLED);
+  if (check_revocation) {
+    verify_result->cert_status |= CERT_STATUS_REV_CHECKING_ENABLED;
+  } else {
+    // EV requires revocation checking.
+    flags &= ~VERIFY_EV_CERT;
+  }
+  status = PKIXVerifyCert(cert_handle_, check_revocation, NULL, 0, cvout);
   if (status != SECSuccess) {
     int err = PORT_GetError();
     LOG(ERROR) << "CERT_PKIXVerifyCert for " << hostname
@@ -534,8 +545,13 @@ int X509Certificate::Verify(const std::string& hostname,
     if (err == SEC_ERROR_CERT_NOT_VALID &&
         (verify_result->cert_status & CERT_STATUS_DATE_INVALID) != 0)
       err = SEC_ERROR_EXPIRED_CERTIFICATE;
-    verify_result->cert_status |= MapCertErrorToCertStatus(err);
-    return MapCertStatusToNetError(verify_result->cert_status);
+    int cert_status = MapCertErrorToCertStatus(err);
+    if (cert_status) {
+      verify_result->cert_status |= cert_status;
+      return MapCertStatusToNetError(verify_result->cert_status);
+    }
+    // |err| is not a certificate error.
+    return MapSecurityError(err);
   }
 
   GetCertChainInfo(cvout[cvout_cert_list_index].value.pointer.chain,
@@ -568,6 +584,7 @@ bool X509Certificate::VerifyEV() const {
   ScopedCERTValOutParam scoped_cvout(cvout);
 
   SECStatus status = PKIXVerifyCert(cert_handle_,
+                                    true,
                                     metadata->GetPolicyOIDs(),
                                     metadata->NumPolicyOIDs(),
                                     cvout);
