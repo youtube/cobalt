@@ -156,15 +156,15 @@ dev_list="bison fakeroot flex g++ g++-multilib gperf libasound2-dev
           pkg-config python rpm subversion wdiff"
 
 # Full list of required run-time libraries
-lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libexpat1 libfontconfig1
-          libfreetype6 libglib2.0-0 libgtk2.0-0 libnspr4-0d libnss3-1d
-          libpango1.0-0 libpcre3 libpixman-1-0 libpng12-0 libstdc++6
+lib_list="libatk1.0-0 libbz2-1.0 libc6 libasound2 libcairo2 libexpat1
+          libfontconfig1 libfreetype6 libglib2.0-0 libgtk2.0-0 libnspr4-0d
+          libnss3-1d libpango1.0-0 libpcre3 libpixman-1-0 libpng12-0 libstdc++6
           libsqlite3-0 libx11-6 libxau6 libxcb1 libxcomposite1
           libxcursor1 libxdamage1 libxdmcp6 libxext6 libxfixes3 libxi6
           libxinerama1 libxrandr2 libxrender1 zlib1g"
 
 # Debugging symbols for all of the run-time libraries
-dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg libfontconfig1-dbg
+dbg_list="libatk1.0-dbg libbz2-dev libc6-dbg libcairo2-dbg libfontconfig1-dbg
           libglib2.0-0-dbg libgtk2.0-0-dbg libnspr4-0d-dbg libnss3-1d-dbg
           libpango1.0-0-dbg libpcre3-dbg libpixman-1-0-dbg libx11-6-dbg
           libxau6-dbg libxcb1-dbg libxcomposite1-dbg
