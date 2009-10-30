@@ -79,6 +79,11 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
       // By default, no credential is available and close the connection.
       socket->Close();
     }
+
+    // Called when an error occured.
+    // This is only for error reporting to the delegate.
+    // |error| is net::Error.
+    virtual void OnError(const SocketStream* socket, int error) {}
   };
 
   SocketStream(const GURL& url, Delegate* delegate);
@@ -171,7 +176,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     STATE_SOCKS_CONNECT_COMPLETE,
     STATE_SSL_CONNECT,
     STATE_SSL_CONNECT_COMPLETE,
-    STATE_READ_WRITE
+    STATE_READ_WRITE,
+    STATE_AUTH_REQUIRED,
   };
 
   enum ProxyMode {
@@ -184,11 +190,12 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   friend class base::RefCountedThreadSafe<SocketStream>;
   ~SocketStream();
 
-  // Finish the job.  Once finished, calls OnClose of delegate, and no more
+  // Finishes the job.
+  // Calls OnError and OnClose of delegate, and no more
   // notifications will be sent to delegate.
-  void Finish();
+  void Finish(int result);
 
-  void DidEstablishConnection();
+  int DidEstablishConnection();
   void DidReceiveData(int result);
   void DidSendData(int result);
 
@@ -196,7 +203,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   void OnReadCompleted(int result);
   void OnWriteCompleted(int result);
 
-  int DoLoop(int result);
+  void DoLoop(int result);
 
   int DoResolveProxy();
   int DoResolveProxyComplete(int result);
