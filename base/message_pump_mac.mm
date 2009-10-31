@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,29 +11,8 @@
 
 #include <limits>
 
-#include "base/logging.h"
 #include "base/scoped_nsautorelease_pool.h"
-#include "base/scoped_nsobject.h"
-#include "base/scoped_ptr.h"
 #include "base/time.h"
-
-// This pool passes the objects stored in it to the pool below it in the
-// autorelease pool stack when -drain is called. See its implementation
-// for all the gory details.
-@interface DeferredAutoreleasePool : NSAutoreleasePool {
- @private
-  NSMutableArray* deferredPool_;  // Strong.
-}
-@end
-
-// Informs the message pump that it has been drained.
-@interface MessagePumpNSAppDeferredAutoReleasePool : DeferredAutoreleasePool {
- @private
-  base::MessagePumpNSApplication* pump_;  // Weak.
-}
-
-- (id)initWithPump:(base::MessagePumpNSApplication*)pump;
-@end
 
 namespace {
 
@@ -42,24 +21,6 @@ void NoOp(void* info) {
 
 const CFTimeInterval kCFTimeIntervalMax =
     std::numeric_limits<CFTimeInterval>::max();
-
-// Class for dealing with scoping autorelease pools when they need to be a
-// special implementation of NSAutoreleasePool.
-// This class is independant from ScopedNSAutoreleasePool because having
-// ScopedNSAutoreleasePool(NSAutoreleasePool*) would just clutter
-// ScopedNSAutoreleasePool's interface, potentially leading to misuse, and the
-// case where using an externally created instance of a kind of
-// NSAutoreleasePool is so rare.
-class AutoreleasePoolOwner {
- public:
-  explicit AutoreleasePoolOwner(NSAutoreleasePool *pool) : pool_(pool) {}
-  ~AutoreleasePoolOwner() {
-    [pool_ drain];
-  }
- private:
-  NSAutoreleasePool *pool_;
-  DISALLOW_COPY_AND_ASSIGN(AutoreleasePoolOwner);
-};
 
 }  // namespace
 
@@ -300,7 +261,12 @@ bool MessagePumpCFRunLoopBase::RunWork() {
     return false;
   }
 
-  AutoreleasePoolOwner pool(CreateAutoreleasePool());
+  // The NSApplication-based run loop only drains the autorelease pool at each
+  // UI event (NSEvent).  The autorelease pool is not drained for each
+  // CFRunLoopSource target that's run.  Use a local pool for any autoreleased
+  // objects to ensure they're released promptly even in the absence of UI
+  // events.
+  ScopedNSAutoreleasePool autorelease_pool;
 
   // Call DoWork once, and if something was done, arrange to come back here
   // again as long as the loop is still running.
@@ -329,7 +295,12 @@ bool MessagePumpCFRunLoopBase::RunDelayedWork() {
     return false;
   }
 
-  AutoreleasePoolOwner pool(CreateAutoreleasePool());
+  // The NSApplication-based run loop only drains the autorelease pool at each
+  // UI event (NSEvent).  The autorelease pool is not drained for each
+  // CFRunLoopSource target that's run.  Use a local pool for any autoreleased
+  // objects to ensure they're released promptly even in the absence of UI
+  // events.
+  ScopedNSAutoreleasePool autorelease_pool;
 
   Time next_time;
   delegate_->DoDelayedWork(&next_time);
@@ -368,7 +339,12 @@ bool MessagePumpCFRunLoopBase::RunIdleWork() {
     return false;
   }
 
-  AutoreleasePoolOwner pool(CreateAutoreleasePool());
+  // The NSApplication-based run loop only drains the autorelease pool at each
+  // UI event (NSEvent).  The autorelease pool is not drained for each
+  // CFRunLoopSource target that's run.  Use a local pool for any autoreleased
+  // objects to ensure they're released promptly even in the absence of UI
+  // events.
+  ScopedNSAutoreleasePool autorelease_pool;
 
   // Call DoIdleWork once, and if something was done, arrange to come back here
   // again as long as the loop is still running.
@@ -579,14 +555,6 @@ void MessagePumpCFRunLoopBase::PowerStateNotification(void* info,
 void MessagePumpCFRunLoopBase::EnterExitRunLoop(CFRunLoopActivity activity) {
 }
 
-// Called by MessagePumpCFRunLoopBase::RunWork,
-// MessagePumpCFRunLoopBase::RunDelayedWork and
-// MessagePumpCFRunLoopBase::RunIdleWork. Default implementation is a standard
-// NSAutoreleasePool that can be used for eash source as it fires.
-NSAutoreleasePool* MessagePumpCFRunLoopBase::CreateAutoreleasePool() {
-  return [[NSAutoreleasePool alloc] init];
-}
-
 MessagePumpCFRunLoop::MessagePumpCFRunLoop()
     : quit_pending_(false) {
 }
@@ -670,8 +638,7 @@ void MessagePumpNSRunLoop::Quit() {
 
 MessagePumpNSApplication::MessagePumpNSApplication()
     : keep_running_(true),
-      running_own_loop_(false),
-      needs_event_loop_wake_up_(false) {
+      running_own_loop_(false) {
 }
 
 void MessagePumpNSApplication::DoRun(Delegate* delegate) {
@@ -709,121 +676,17 @@ void MessagePumpNSApplication::Quit() {
     keep_running_ = false;
   }
 
-  WakeUpEventLoop();
-}
-
-// Called by MessagePumpCFRunLoopBase::EnterExitObserver.
-void MessagePumpNSApplication::EnterExitRunLoop(CFRunLoopActivity activity) {
-  if (activity == kCFRunLoopExit && needs_event_loop_wake_up_) {
-    WakeUpEventLoop();
-    needs_event_loop_wake_up_ = false;
-  }
-}
-
-NSAutoreleasePool* MessagePumpNSApplication::CreateAutoreleasePool() {
-  // Return an instance of a special autorelease pool that deals
-  // correctly with nested autorelease pools in run loops. This is used by
-  // MessagePumpNSApplication instead of a standard NSAutoreleasePool
-  // because of how NSApplication interacts with CFRunLoops.
-  //
-  // A standard NSApplication event loop looks something like this:
-  //
-  // - (void)run {
-  //   while ([self isRunning]) {
-  //     NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-  //     NSEvent* event = [self nextEventMatchingMask:NSAnyEventMask
-  //                                        untilDate:[NSDate distantFuture]
-  //                                           inMode:NSDefaultRunLoopMode
-  //                                          dequeue:YES];
-  //     [self sendEvent:event];
-  //     [self updateWindows];
-  //     [pool release];
-  //   }
-  // }
-  //
-  // Notice that the autorelease pool only gets cleaned up when an NSEvent gets
-  // returned by nextEventMatchingMask:untilDate:inMode:dequeue: as this is an
-  // an important point in getting objects released in a timely manner.
-  //
-  // Message pumps have a variety of CFRunLoopSources attached to their
-  // CFRunLoops. These sources can cause actions to run from within
-  // [NSApplication -nextEventMatchingMask:untilDate:inMode:dequeue:]. These
-  // actions can call into Objective C code when they fire and add things to the
-  // autorelease pool.
-  //
-  // The problem is that the sources don't necessarily cause
-  // an NSEvent to be generated and therefore the autorelease pool in
-  // [NSApplication run] is not necessarily released in a timely fashion. This
-  // potentially leaves a lot of objects that can be cleaned up sitting around
-  // taking up memory until something, such as an NSEvent, causes [NSApplication
-  // run] to release its pool.
-  //
-  // The easy answer would seem to be to wrap all of the calls from the
-  // sources in generic NSAutoreleasePools. Unfortunately, there is a nested
-  // case where some bit of code can run its own event loop causing the sources
-  // to fire. In this case, code below the secondary event loop on the stack may
-  // be depending on objects above the secondary event loop on the stack. These
-  // objects above the event loop may have autorelease called on them, and then
-  // they will be released when the source completes. The code below the
-  // secondary event loop will now be pointing to freed memory.
-  //
-  // eg:
-  // (Several stack frames elided for clarity)
-  //
-  // #0 [NSWindowController autorelease]
-  // #1 DoAClose
-  // #2 MessagePumpCFRunLoopBase::DoWork()
-  // #3 [NSRunLoop run]
-  // #4 [NSButton performClick:]
-  // #5 [NSWindow sendEvent:]
-  // #6 [NSApp sendEvent:]
-  // #7 [NSApp run]
-  //
-  // PerformClick: spins a nested run loop. If the pool created in DoWork is a
-  // standard NSAutoreleasePool, it will release the objects that have been
-  // autoreleased into it once DoWork releases it. This will cause the window
-  // controller, which autoreleased itself in frame #0, to release itself, and
-  // possibly free itself. Unfortunately this window controller controls the
-  // window in frame #5. When the stack is unwound to frame #5, window no longer
-  // exists and crashes can occur.
-  //
-  // The current solution is to have a deferred autorelease pool that collects
-  // objects and then passes them up to the next autorelease pool on the
-  // autorelease pool stack when -drain is called on it. This is handled by the
-  // code in DeferredAutoReleasePool. This moves the objects to the proper
-  // autorelease pool, but doesn't drain them from that pool.
-  //
-  // The problem then becomes getting the NSApplication event loop to spin to
-  // release its autorelease pool. This is done by sending an empty event
-  // through the event loop. This is handled by
-  // MessagePumpNSAppDeferredAutoReleasePool setting
-  // a flag in MessagePumpNSApplication, which is acted on by
-  // MessagePumpNSApplication::EnterExitRunLoop. The event is sent just as the
-  // MessagePumpNSApplication's run loop is exiting so that the event isn't
-  // unintentionally swallowed by one of the other sources spinning its own
-  // event loop.
-  return [[MessagePumpNSAppDeferredAutoReleasePool alloc] initWithPump:this];
-}
-
-void MessagePumpNSApplication::WakeUpEventLoop() {
-  // If there is already an event waiting in the queue, there is no need
-  // to post another one.
-  NSString* currentMode = [[NSRunLoop currentRunLoop] currentMode];
-  if (![NSApp nextEventMatchingMask:NSAnyEventMask
-                          untilDate:nil
-                             inMode:currentMode
-                            dequeue:NO]) {
-    NSEvent* wakeUpEvent = [NSEvent otherEventWithType:NSApplicationDefined
-                                              location:NSZeroPoint
-                                         modifierFlags:0
-                                             timestamp:0
-                                          windowNumber:0
-                                               context:NULL
-                                               subtype:0
-                                                 data1:0
-                                                 data2:0];
-    [NSApp postEvent:wakeUpEvent atStart:NO];
-  }
+  // Send a fake event to wake the loop up.
+  [NSApp postEvent:[NSEvent otherEventWithType:NSApplicationDefined
+                                      location:NSMakePoint(0, 0)
+                                 modifierFlags:0
+                                     timestamp:0
+                                  windowNumber:0
+                                       context:NULL
+                                       subtype:0
+                                         data1:0
+                                         data2:0]
+           atStart:NO];
 }
 
 // static
@@ -835,88 +698,4 @@ MessagePump* MessagePumpMac::Create() {
   return new MessagePumpNSRunLoop;
 }
 
-// A trampoline to get around problem where ObjC classes/methods cannot be
-// friends of C++ classes.
-void SetNeedsEventLoopWakeUpTrue(MessagePumpNSApplication* pump) {
-  pump->set_needs_event_loop_wake_up_true();
-}
-
 }  // namespace base
-
-@implementation DeferredAutoreleasePool
-
-- (void)addObject:(id)anObject {
-  // If the GarbageCollector is running, none of this should be necessary
-  // and it can be tossed out.
-  DCHECK([NSGarbageCollector defaultCollector] == nil);
-  if (!deferredPool_) {
-    // Create an array to use as a store for autoreleased objects. Not created
-    // in init because the existence of the pool as a flag is used to
-    // determine if the event loop needs to be sent an event to cause
-    // the app to release its autorelease pool.
-    deferredPool_ = [[NSMutableArray alloc] init];
-  }
-
-  // Store the object in deferredPool_. Don't call [super addObject] because the
-  // retain/release is taken care of here.
-  // When -addObject is called the retain count on anObject is 'n'. When -drain
-  // is called on a normal NSAutoreleasePool the user expects the retain count
-  // of anObject to become 'n - 1'. When anObject is added to deferredPool_ the
-  // array calls -retain so the retain count becomes 'n + 1'. Release is
-  // called to return it to 'n' so that when anObject is eventually released
-  // by the NSAutoreleasePool above self in the autorelease pool stack the
-  // retain count will become 'n - 1' as expected.
-  [deferredPool_ addObject:anObject];
-  [anObject release];
-
-  // TODO(dmaclach): Is a call to
-  // NSRecordAllocationEvent(NSObjectAutoreleasedEvent, anObject) needed? I did
-  // some testing and set some breakpoints and nothing seems to call it.
-}
-
-- (void)drain {
-  // Store off the address of deferredPool_ because -[super drain] calls
-  // free on "self" and deferredPool_ is needed after drain. NSAutoreleasePools
-  // are interesting in that dealloc is never called on them and instead they
-  // override release and call free directly. This means that deferredPool_ is
-  // still alive, and would be leaked if we didn't release it, but the memory
-  // owned by self is dead so even though what deferredPool_ pointed to before
-  // calling -drain is still valid, the actual pointer value of deferredPool_
-  // is potentially garbage. By caching a copy of the pointer to deferredPool_
-  // on the stack before calling drain a good reference to deferredPool_ is
-  // available to be used post [super drain].
-  NSMutableArray* deferredPool = deferredPool_;
-  [super drain];
-
-  // This autorelease pool is now off the autorelease stack. Calling
-  // autorelease on deferredPool effectively transfers ownership of the
-  // objects in the array to the outer autorelease pool.
-  [deferredPool autorelease];
-}
-
-// Must call drain on DeferredAutoreleasePools.
-- (oneway void)release {
-  CHECK(false);
-}
-
-@end
-
-@implementation MessagePumpNSAppDeferredAutoReleasePool
-
-- (id)initWithPump:(base::MessagePumpNSApplication*)pump {
-  if ((self = [super init])) {
-    pump_ = pump;
-  }
-  return self;
-}
-
-- (void)drain {
-  // Set a flag in pump_ so that it wakes up the event loop when exiting its
-  // run loop. Calling through a trampoline to get around problem where
-  // ObjC classes/methods cannot be friends of C++ classes.
-  base::SetNeedsEventLoopWakeUpTrue(pump_);
-  pump_ = nil;
-  [super drain];
-}
-
-@end
