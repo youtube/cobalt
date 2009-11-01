@@ -357,11 +357,7 @@
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
           'CharacterSet': '1',
         },
-        'conditions': [
-          ['OS=="win"', {
-            'configuration_platform': 'Win32',
-          }],
-        ],
+        'msvs_configuration_platform': 'Win32',
       },
       'Debug': {
         'inherit_from': ['Common'],
