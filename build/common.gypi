@@ -442,6 +442,22 @@
             'inherit_from': ['Release'],
             'defines': ['NO_TCMALLOC'],
           },
+          'Debug_x64': {
+            'inherit_from': ['Debug'],
+            'msvs_configuration_platform': 'x64',
+          },
+          'Release_x64': {
+            'inherit_from': ['Release'],
+            'msvs_configuration_platform': 'x64',
+          },
+          'Purify_x64': {
+            'inherit_from': ['Purify'],
+            'msvs_configuration_platform': 'x64',
+          },
+          'Release - no tcmalloc_x64': {
+            'inherit_from': ['Release - no tcmalloc'],
+            'msvs_configuration_platform': 'x64',
+          },
         }],
       ],
     },
