@@ -135,6 +135,9 @@
     # Whether to add the experimental build define.
     'chrome_frame_define%': 0,
 
+    # Whether pepper APIs are enabled.
+    'enable_pepper%': 0,
+    
     # TODO(bradnelson): eliminate this when possible.
     # To allow local gyp files to prevent release.vsprops from being included.
     # Yes(1) means include release.vsprops.
@@ -285,6 +288,9 @@
       }],
       ['chromeos==1 or toolkit_views==1', {
         'defines': ['OS_CHROMEOS=1'],
+      }],
+      ['enable_pepper==1', {
+        'defines': ['ENABLE_PEPPER=1'],
       }],
       ['fastbuild!=0', {
         'conditions': [
