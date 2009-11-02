@@ -502,6 +502,27 @@ class FtpMockControlSocketEvilLogin : public FtpMockControlSocketFileDownload {
   DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketEvilLogin);
 };
 
+class FtpMockControlSocketCloseConnection : public FtpMockControlSocket {
+ public:
+  FtpMockControlSocketCloseConnection() {
+  }
+  
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_USER:
+        return Verify("USER anonymous\r\n", data,
+                      PRE_QUIT, "");
+      default:
+        return FtpMockControlSocket::OnWrite(data);
+    }
+  }
+  
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpMockControlSocketCloseConnection);
+};
+
 class FtpNetworkTransactionTest : public PlatformTest {
  public:
   FtpNetworkTransactionTest()
@@ -847,6 +868,12 @@ TEST_F(FtpNetworkTransactionTest, Escaping) {
   FtpMockControlSocketEscaping ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/%20%21%22%23%24%25%79%80%81",
                      OK);
+}
+
+// Regression test for http://crbug.com/25023.
+TEST_F(FtpNetworkTransactionTest, CloseConnection) {
+  FtpMockControlSocketCloseConnection ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host", ERR_EMPTY_RESPONSE);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailUser) {
