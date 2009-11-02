@@ -9,6 +9,8 @@
 #include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
 #include "net/base/listen_socket.h"
+#include "net/base/load_log.h"
+#include "net/base/load_log_unittest.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
@@ -97,15 +99,22 @@ TEST_F(TCPClientSocketTest, Connect) {
   TestCompletionCallback callback;
   EXPECT_FALSE(sock_->IsConnected());
 
-  int rv = sock_->Connect(&callback);
+  scoped_refptr<LoadLog> log(new LoadLog);
+  int rv = sock_->Connect(&callback, log);
+  EXPECT_TRUE(net::LogContains(
+      *log, 0, net::LoadLog::TYPE_TCP_CONNECT, net::LoadLog::PHASE_BEGIN));
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
+    EXPECT_FALSE(net::LogContains(
+        *log, -1, net::LoadLog::TYPE_TCP_CONNECT, net::LoadLog::PHASE_END));
 
     rv = callback.WaitForResult();
     EXPECT_EQ(rv, OK);
   }
 
   EXPECT_TRUE(sock_->IsConnected());
+  EXPECT_TRUE(net::LogContains(
+      *log, -1, net::LoadLog::TYPE_TCP_CONNECT, net::LoadLog::PHASE_END));
 
   sock_->Disconnect();
   EXPECT_FALSE(sock_->IsConnected());
@@ -117,7 +126,7 @@ TEST_F(TCPClientSocketTest, Connect) {
 
 TEST_F(TCPClientSocketTest, Read) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(&callback, NULL);
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
 
@@ -162,7 +171,7 @@ TEST_F(TCPClientSocketTest, Read) {
 
 TEST_F(TCPClientSocketTest, Read_SmallChunks) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(&callback, NULL);
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
 
@@ -207,7 +216,7 @@ TEST_F(TCPClientSocketTest, Read_SmallChunks) {
 
 TEST_F(TCPClientSocketTest, Read_Interrupted) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(&callback, NULL);
   if (rv != OK) {
     ASSERT_EQ(ERR_IO_PENDING, rv);
 
@@ -241,7 +250,7 @@ TEST_F(TCPClientSocketTest, Read_Interrupted) {
 
 TEST_F(TCPClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(&callback, NULL);
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
 
@@ -283,7 +292,7 @@ TEST_F(TCPClientSocketTest, DISABLED_FullDuplex_ReadFirst) {
 
 TEST_F(TCPClientSocketTest, DISABLED_FullDuplex_WriteFirst) {
   TestCompletionCallback callback;
-  int rv = sock_->Connect(&callback);
+  int rv = sock_->Connect(&callback, NULL);
   if (rv != OK) {
     ASSERT_EQ(ERR_IO_PENDING, rv);
 

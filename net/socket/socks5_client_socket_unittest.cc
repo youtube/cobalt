@@ -12,6 +12,8 @@
 #include <netdb.h>
 #endif
 #include "net/base/address_list.h"
+#include "net/base/load_log.h"
+#include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
@@ -73,7 +75,7 @@ SOCKS5ClientSocket* SOCKS5ClientSocketTest::BuildMockSocket(
   mock_socket_.reset(new StaticMockSocket(reads, writes));
   tcp_sock_ = new MockTCPClientSocket(address_list_, mock_socket_.get());
 
-  int rv = tcp_sock_->Connect(&callback);
+  int rv = tcp_sock_->Connect(&callback, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -112,15 +114,21 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
   EXPECT_TRUE(tcp_sock_->IsConnected());
   EXPECT_FALSE(user_sock_->IsConnected());
 
-  int rv = user_sock_->Connect(&callback_);
+  scoped_refptr<LoadLog> log(new LoadLog);
+  int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(user_sock_->IsConnected());
+  EXPECT_TRUE(
+      LogContains(*log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
+
   rv = callback_.WaitForResult();
 
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKS5ClientSocket::kEndPointResolvedIPv4,
             user_sock_->address_type_);
+  EXPECT_TRUE(LogContains(
+      *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
 
   scoped_refptr<IOBuffer> buffer = new IOBuffer(payload_write.size());
   memcpy(buffer->data(), payload_write.data(), payload_write.size());
@@ -163,13 +171,18 @@ TEST_F(SOCKS5ClientSocketTest, FailedDNS) {
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
 
-  int rv = user_sock_->Connect(&callback_);
+  scoped_refptr<LoadLog> log(new LoadLog);
+  int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_TRUE(LogContains(
+      *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKS5ClientSocket::kEndPointFailedDomain,
             user_sock_->address_type_);
+  EXPECT_TRUE(LogContains(
+      *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
 }
 
 // Tries to connect to a domain that resolves to IPv6.
@@ -195,13 +208,18 @@ TEST_F(SOCKS5ClientSocketTest, IPv6Domain) {
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
 
-  int rv = user_sock_->Connect(&callback_);
+  scoped_refptr<LoadLog> log(new LoadLog);
+  int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_TRUE(LogContains(
+      *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKS5ClientSocket::kEndPointResolvedIPv6,
             user_sock_->address_type_);
+  EXPECT_TRUE(LogContains(
+      *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
 }
 
 TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
@@ -219,11 +237,16 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
         MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
         MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-    int rv = user_sock_->Connect(&callback_);
+    scoped_refptr<LoadLog> log(new LoadLog);
+    int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
+    EXPECT_TRUE(LogContains(
+        *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
+    EXPECT_TRUE(LogContains(
+        *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
   }
 
   // Test for partial greet response read
@@ -238,11 +261,16 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
         MockRead(true, partial2, arraysize(partial2)),
         MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-    int rv = user_sock_->Connect(&callback_);
+    scoped_refptr<LoadLog> log(new LoadLog);
+    int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
+    EXPECT_TRUE(LogContains(
+        *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
+    EXPECT_TRUE(LogContains(
+        *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
   }
 
   // Test for partial handshake request write
@@ -257,11 +285,16 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
         MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
         MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-    int rv = user_sock_->Connect(&callback_);
+    scoped_refptr<LoadLog> log(new LoadLog);
+    int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
+    EXPECT_TRUE(LogContains(
+        *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
+    EXPECT_TRUE(LogContains(
+        *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
   }
 
   // Test for partial handshake response read
@@ -276,11 +309,16 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
         MockRead(true, partial1, arraysize(partial1)),
         MockRead(true, partial2, arraysize(partial2)) };
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-    int rv = user_sock_->Connect(&callback_);
+    scoped_refptr<LoadLog> log(new LoadLog);
+    int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
+    EXPECT_TRUE(LogContains(
+        *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
+    EXPECT_TRUE(LogContains(
+        *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
   }
 }
 
