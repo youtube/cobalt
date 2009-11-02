@@ -13,6 +13,7 @@
 #include "base/sys_info.h"
 #include "base/trace_event.h"
 #include "net/base/io_buffer.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/winsock_init.h"
 
@@ -271,15 +272,39 @@ TCPClientSocketWin::~TCPClientSocketWin() {
   Disconnect();
 }
 
-int TCPClientSocketWin::Connect(CompletionCallback* callback) {
+int TCPClientSocketWin::Connect(CompletionCallback* callback,
+                                LoadLog* load_log) {
   // If already connected, then just return OK.
   if (socket_ != INVALID_SOCKET)
     return OK;
+
+  DCHECK(!load_log_);
 
   static StatsCounter connects("tcp.connect");
   connects.Increment();
 
   TRACE_EVENT_BEGIN("socket.connect", this, "");
+
+  LoadLog::BeginEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
+
+  int rv = DoConnect();
+
+  if (rv == ERR_IO_PENDING) {
+    // Synchronous operation not supported.
+    DCHECK(callback);
+
+    load_log_ = load_log;
+    waiting_connect_ = true;
+    read_callback_ = callback;
+  } else {
+    TRACE_EVENT_END("socket.connect", this, "");
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
+  }
+
+  return rv;
+}
+
+int TCPClientSocketWin::DoConnect() {
   const struct addrinfo* ai = current_ai_;
   DCHECK(ai);
 
@@ -311,10 +336,8 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
     // and we don't know if it's correct.
     NOTREACHED();
 
-    if (ResetEventIfSignaled(core_->read_overlapped_.hEvent)) {
-      TRACE_EVENT_END("socket.connect", this, "");
+    if (ResetEventIfSignaled(core_->read_overlapped_.hEvent))
       return OK;
-    }
   } else {
     DWORD err = WSAGetLastError();
     if (err != WSAEWOULDBLOCK) {
@@ -324,8 +347,6 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
   }
 
   core_->WatchForRead();
-  waiting_connect_ = true;
-  read_callback_ = callback;
   return ERR_IO_PENDING;
 }
 
@@ -587,7 +608,6 @@ void TCPClientSocketWin::DidCompleteConnect() {
   DCHECK(waiting_connect_);
   int result;
 
-  TRACE_EVENT_END("socket.connect", this, "");
   waiting_connect_ = false;
 
   WSANETWORKEVENTS events;
@@ -609,13 +629,23 @@ void TCPClientSocketWin::DidCompleteConnect() {
       const struct addrinfo* next = current_ai_->ai_next;
       Disconnect();
       current_ai_ = next;
-      result = Connect(read_callback_);
+      scoped_refptr<LoadLog> load_log;
+      load_log.swap(load_log_);
+      TRACE_EVENT_END("socket.connect", this, "");
+      LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
+      result = Connect(read_callback_, load_log);
     } else {
       result = MapConnectError(error_code);
+      TRACE_EVENT_END("socket.connect", this, "");
+      LoadLog::EndEvent(load_log_, LoadLog::TYPE_TCP_CONNECT);
+      load_log_ = NULL;
     }
   } else {
     NOTREACHED();
     result = ERR_UNEXPECTED;
+    TRACE_EVENT_END("socket.connect", this, "");
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_TCP_CONNECT);
+    load_log_ = NULL;
   }
 
   if (result != ERR_IO_PENDING)

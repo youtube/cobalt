@@ -5,6 +5,8 @@
 #include "net/socket/socks_client_socket.h"
 
 #include "net/base/address_list.h"
+#include "net/base/load_log.h"
+#include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
@@ -62,7 +64,7 @@ SOCKSClientSocket* SOCKSClientSocketTest::BuildMockSocket(
   mock_socket_.reset(new StaticMockSocket(reads, writes));
   tcp_sock_ = new MockTCPClientSocket(address_list_, mock_socket_.get());
 
-  int rv = tcp_sock_->Connect(&callback);
+  int rv = tcp_sock_->Connect(&callback, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -91,14 +93,19 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
   EXPECT_TRUE(tcp_sock_->IsConnected());
   EXPECT_FALSE(user_sock_->IsConnected());
 
-  int rv = user_sock_->Connect(&callback_);
+  scoped_refptr<LoadLog> log(new LoadLog);
+  int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_TRUE(
+      LogContains(*log, 0, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_BEGIN));
   EXPECT_FALSE(user_sock_->IsConnected());
   rv = callback_.WaitForResult();
 
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKSClientSocket::kSOCKS4, user_sock_->socks_version_);
+  EXPECT_TRUE(LogContains(
+      *log, -1, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_END));
 
   scoped_refptr<IOBuffer> buffer = new IOBuffer(payload_write.size());
   memcpy(buffer->data(), payload_write.data(), payload_write.size());
@@ -147,13 +154,18 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
         MockRead(false, tests[i].fail_reply, arraysize(tests[i].fail_reply)) };
 
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, "localhost", 80));
+    scoped_refptr<LoadLog> log(new LoadLog);
 
-    int rv = user_sock_->Connect(&callback_);
+    int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
+    EXPECT_TRUE(LogContains(
+        *log, 0, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_BEGIN));
     rv = callback_.WaitForResult();
     EXPECT_EQ(tests[i].fail_code, rv);
     EXPECT_FALSE(user_sock_->IsConnected());
     EXPECT_TRUE(tcp_sock_->IsConnected());
+    EXPECT_TRUE(LogContains(
+        *log, -1, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_END));
   }
 }
 
@@ -170,12 +182,17 @@ TEST_F(SOCKSClientSocketTest, PartialServerReads) {
       MockRead(true, kSOCKSPartialReply2, arraysize(kSOCKSPartialReply2)) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, "localhost", 80));
+  scoped_refptr<LoadLog> log(new LoadLog);
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_TRUE(LogContains(
+      *log, 0, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_BEGIN));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
+  EXPECT_TRUE(LogContains(
+      *log, -1, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_END));
 }
 
 // Tests scenario when the client sends the handshake request in
@@ -195,12 +212,17 @@ TEST_F(SOCKSClientSocketTest, PartialClientWrites) {
       MockRead(true, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, "localhost", 80));
+  scoped_refptr<LoadLog> log(new LoadLog);
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_TRUE(LogContains(
+      *log, 0, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_BEGIN));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
+  EXPECT_TRUE(LogContains(
+      *log, -1, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_END));
 }
 
 // Tests the case when the server sends a smaller sized handshake data
@@ -214,12 +236,17 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
       MockRead(false, 0) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, "localhost", 80));
+  scoped_refptr<LoadLog> log(new LoadLog);
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_TRUE(LogContains(
+      *log, 0, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_BEGIN));
   rv = callback_.WaitForResult();
   EXPECT_EQ(ERR_CONNECTION_CLOSED, rv);
   EXPECT_FALSE(user_sock_->IsConnected());
+  EXPECT_TRUE(LogContains(
+      *log, -1, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_END));
 }
 
 // Tries to connect to an unknown DNS and on failure should revert to SOCKS4A.
@@ -238,13 +265,18 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
       MockRead(false, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
+  scoped_refptr<LoadLog> log(new LoadLog);
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_TRUE(LogContains(
+      *log, 0, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_BEGIN));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKSClientSocket::kSOCKS4a, user_sock_->socks_version_);
+  EXPECT_TRUE(LogContains(
+      *log, -1, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_END));
 }
 
 // Tries to connect to a domain that resolves to IPv6.
@@ -264,14 +296,18 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
       MockRead(false, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
+  scoped_refptr<LoadLog> log(new LoadLog);
 
-  int rv = user_sock_->Connect(&callback_);
+  int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_TRUE(LogContains(
+      *log, 0, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_BEGIN));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKSClientSocket::kSOCKS4a, user_sock_->socks_version_);
+  EXPECT_TRUE(LogContains(
+      *log, -1, LoadLog::TYPE_SOCKS_CONNECT, LoadLog::PHASE_END));
 }
 
 }  // namespace net
-

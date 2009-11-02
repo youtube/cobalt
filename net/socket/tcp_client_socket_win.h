@@ -14,6 +14,8 @@
 
 namespace net {
 
+class LoadLog;
+
 class TCPClientSocketWin : public ClientSocket {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
@@ -24,7 +26,7 @@ class TCPClientSocketWin : public ClientSocket {
   ~TCPClientSocketWin();
 
   // ClientSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -40,6 +42,9 @@ class TCPClientSocketWin : public ClientSocket {
 
  private:
   class Core;
+
+  // Performs the actual connect().  Returns a net error code.
+  int DoConnect();
 
   int CreateSocket(const struct addrinfo* ai);
   void DoReadCallback(int rv);
@@ -71,6 +76,8 @@ class TCPClientSocketWin : public ClientSocket {
 
   // External callback; called when write is complete.
   CompletionCallback* write_callback_;
+
+  scoped_refptr<LoadLog> load_log_;
 
   DISALLOW_COPY_AND_ASSIGN(TCPClientSocketWin);
 };

@@ -14,6 +14,7 @@
 #include "net/base/cert_verifier.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
@@ -426,11 +427,33 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
   DCHECK(ok);
 }
 
-int SSLClientSocketWin::Connect(CompletionCallback* callback) {
+int SSLClientSocketWin::Connect(CompletionCallback* callback,
+                                LoadLog* load_log) {
   DCHECK(transport_.get());
   DCHECK(next_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
 
+  LoadLog::BeginEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+
+  int rv = InitializeSSLContext();
+  if (rv != OK) {
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+    return rv;
+  }
+
+  writing_first_token_ = true;
+  next_state_ = STATE_HANDSHAKE_WRITE;
+  rv = DoLoop(OK);
+  if (rv == ERR_IO_PENDING) {
+    user_connect_callback_ = callback;
+    load_log_ = load_log;
+  } else {
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+  }
+  return rv;
+}
+
+int SSLClientSocketWin::InitializeSSLContext() {
   int ssl_version_mask = 0;
   if (ssl_config_.ssl2_enabled)
     ssl_version_mask |= SSL2;
@@ -487,13 +510,9 @@ int SSLClientSocketWin::Connect(CompletionCallback* callback) {
     return MapSecurityError(status);
   }
 
-  writing_first_token_ = true;
-  next_state_ = STATE_HANDSHAKE_WRITE;
-  int rv = DoLoop(OK);
-  if (rv == ERR_IO_PENDING)
-    user_connect_callback_ = callback;
-  return rv;
+  return OK;
 }
+
 
 void SSLClientSocketWin::Disconnect() {
   // TODO(wtc): Send SSL close_notify alert.
@@ -618,6 +637,9 @@ void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
   // The SSL handshake has some round trips.  Any error, other than waiting
   // for IO, means that we've failed and need to notify the caller.
   if (rv != ERR_IO_PENDING) {
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_SSL_CONNECT);
+    load_log_ = NULL;
+
     // If there is no connect callback available to call, it had better be
     // because we are renegotiating (which occurs because we are in the middle
     // of a Read when the renegotiation process starts).  We need to inform the

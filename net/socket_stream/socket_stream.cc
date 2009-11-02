@@ -419,7 +419,8 @@ int SocketStream::DoTcpConnect() {
   next_state_ = STATE_TCP_CONNECT_COMPLETE;
   DCHECK(factory_);
   socket_.reset(factory_->CreateTCPClientSocket(addresses_));
-  return socket_->Connect(&io_callback_);
+  // TODO(willchan): Plumb LoadLog into SocketStream.
+  return socket_->Connect(&io_callback_, NULL);
 }
 
 int SocketStream::DoTcpConnectComplete(int result) {
@@ -626,7 +627,8 @@ int SocketStream::DoSOCKSConnect() {
   else
     s = new SOCKSClientSocket(s, req_info, host_resolver_.get());
   socket_.reset(s);
-  return socket_->Connect(&io_callback_);
+  // TODO(willchan): Plumb LoadLog into SocketStream.
+  return socket_->Connect(&io_callback_, NULL);
 }
 
 int SocketStream::DoSOCKSConnectComplete(int result) {
@@ -646,7 +648,8 @@ int SocketStream::DoSSLConnect() {
   socket_.reset(factory_->CreateSSLClientSocket(
       socket_.release(), url_.HostNoBrackets(), ssl_config_));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
-  return socket_->Connect(&io_callback_);
+  // TODO(willchan): Plumb LoadLog into SocketStream.
+  return socket_->Connect(&io_callback_, NULL);
 }
 
 int SocketStream::DoSSLConnectComplete(int result) {

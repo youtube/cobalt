@@ -27,6 +27,7 @@
 namespace net {
 
 class CertVerifier;
+class LoadLog;
 class X509Certificate;
 
 // An SSL client socket implemented with Mozilla NSS.
@@ -46,7 +47,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
   // ClientSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -58,6 +59,9 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual bool SetSendBufferSize(int32 size);
 
  private:
+  // Initializes NSS SSL options.  Returns a net error code.
+  int InitializeSSLOptions();
+
   void InvalidateSessionIfBadCertificate();
   X509Certificate* UpdateServerCert();
   void DoReadCallback(int result);
@@ -147,6 +151,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   // Buffers for the network end of the SSL state machine
   memio_Private* nss_bufs_;
+
+  scoped_refptr<LoadLog> load_log_;
 
   static bool nss_options_initialized_;
 };
