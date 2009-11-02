@@ -71,23 +71,11 @@ static const ValidationHeaderInfo kValidationHeaders[] = {
 
 // Helper struct to pair a header name with its value, for
 // headers used to validate cache entries.
-struct ValidationHeader {
-  enum {kInvalidIndex = -1};
+struct ValidationHeaders {
+  ValidationHeaders() : initialized(false) {}
 
-  ValidationHeader() : type_index(kInvalidIndex) {}
-
-  bool initialized() const {
-    return type_index != kInvalidIndex;
-  }
-
-  const ValidationHeaderInfo& type_info() {
-    DCHECK(initialized());
-    return kValidationHeaders[type_index];
-  }
-
-  // Index into |kValidationHeaders|.
-  int type_index;
-  std::string value;
+  std::string values[ARRAYSIZE_UNSAFE(kValidationHeaders)];
+  bool initialized;
 };
 
 // If the request includes one of these request headers, then avoid reusing
@@ -371,8 +359,8 @@ class HttpCache::Transaction : public HttpTransaction {
   const HttpRequestInfo* request_;
   scoped_ptr<HttpRequestInfo> custom_request_;
   // If extra_headers specified a "if-modified-since" or "if-none-match",
-  // |external_validation_| contains the value of that header.
-  ValidationHeader external_validation_;
+  // |external_validation_| contains the value of those headers.
+  ValidationHeaders external_validation_;
   base::WeakPtr<HttpCache> cache_;
   HttpCache::ActiveEntry* entry_;
   scoped_ptr<HttpTransaction> network_trans_;
@@ -458,7 +446,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
     }
 
     // Downgrade to UPDATE if the request has been externally conditionalized.
-    if (external_validation_.initialized()) {
+    if (external_validation_.initialized) {
       if (mode_ & WRITE) {
         // Strip off the READ_DATA bit (and maybe add back a READ_META bit
         // in case READ was off).
@@ -799,11 +787,7 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
 
   std::string new_extra_headers;
   bool range_found = false;
-
-  // We will scan through the headers to see if any "if-modified-since" or
-  // "if-none-match" request headers were specified as part of extra_headers.
-  int num_validation_headers = 0;
-  ValidationHeader validation_header;
+  bool external_validation_error = false;
 
   // scan request headers to see if we have any that would impact our load flags
   HttpUtil::HeadersIterator it(request_->extra_headers.begin(),
@@ -834,17 +818,26 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
       const ValidationHeaderInfo& info = kValidationHeaders[i];
       if (LowerCaseEqualsASCII(it.name_begin(), it.name_end(),
                                info.request_header_name)) {
-        num_validation_headers++;
-        validation_header.type_index = i;
-        validation_header.value = it.values();
+        if (!external_validation_.values[i].empty() || it.values().empty())
+          external_validation_error = true;
+        external_validation_.values[i] = it.values();
+        external_validation_.initialized = true;
         break;
       }
     }
   }
 
   // We don't support ranges and validation headers.
-  if (range_found && num_validation_headers) {
+  if (range_found && external_validation_.initialized) {
     LOG(WARNING) << "Byte ranges AND validation headers found.";
+    effective_load_flags_ |= LOAD_DISABLE_CACHE;
+  }
+
+  // If there is more than one validation header, we can't treat this request as
+  // a cache validation, since we don't know for sure which header the server
+  // will give us a response for (and they could be contradictory).
+  if (external_validation_error) {
+    LOG(WARNING) << "Multiple or malformed validation headers found.";
     effective_load_flags_ |= LOAD_DISABLE_CACHE;
   }
 
@@ -862,19 +855,6 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
       effective_load_flags_ |= LOAD_DISABLE_CACHE;
       partial_.reset(NULL);
     }
-  }
-
-  // If there is more than one validation header, we can't treat this request as
-  // a cache validation, since we don't know for sure which header the server
-  // will give us a response for (and they could be contradictory).
-  if (num_validation_headers > 1) {
-    LOG(WARNING) << "Multiple validation headers found.";
-    effective_load_flags_ |= LOAD_DISABLE_CACHE;
-  }
-
-  if (num_validation_headers == 1) {
-    DCHECK(validation_header.initialized());
-    external_validation_ = validation_header;
   }
 }
 
@@ -1029,7 +1009,7 @@ int HttpCache::Transaction::ContinuePartialCacheValidation() {
 
 int HttpCache::Transaction::BeginExternallyConditionalizedRequest() {
   DCHECK_EQ(UPDATE, mode_);
-  DCHECK(external_validation_.initialized());
+  DCHECK(external_validation_.initialized);
 
   // Read the cached response.
   int rv = ReadResponseInfoFromEntry();
@@ -1038,19 +1018,22 @@ int HttpCache::Transaction::BeginExternallyConditionalizedRequest() {
     return HandleResult(rv);
   }
 
-  // Retrieve either the cached response's "etag" or "last-modified" header,
-  // depending on which is applicable for the caller's request header.
-  std::string validator;
-  response_.headers->EnumerateHeader(
-      NULL,
-      external_validation_.type_info().related_response_header_name,
-      &validator);
+  for (size_t i = 0;  i < ARRAYSIZE_UNSAFE(kValidationHeaders); i++) {
+    if (external_validation_.values[i].empty())
+      continue;
+    // Retrieve either the cached response's "etag" or "last-modified" header.
+    std::string validator;
+    response_.headers->EnumerateHeader(
+        NULL,
+        kValidationHeaders[i].related_response_header_name,
+        &validator);
 
-  if (response_.headers->response_code() != 200 || truncated_ ||
-      validator.empty() || validator != external_validation_.value) {
-    // The externally conditionalized request is not a validation request
-    // for our existing cache entry. Proceed with caching disabled.
-    DoneWritingToEntry(true);
+    if (response_.headers->response_code() != 200 || truncated_ ||
+        validator.empty() || validator != external_validation_.values[i]) {
+      // The externally conditionalized request is not a validation request
+      // for our existing cache entry. Proceed with caching disabled.
+      DoneWritingToEntry(true);
+    }
   }
 
   return BeginNetworkRequest();

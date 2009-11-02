@@ -1779,6 +1779,121 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache7) {
       kNetResponse1, kNetResponse2, kNetResponse1, kExtraRequestHeaders);
 }
 
+// Test that doing an externally conditionalized request with both if-none-match
+// and if-modified-since updates the cache.
+TEST(HttpCache, ConditionalizedRequestUpdatesCache8) {
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Etag: \"Foo1\"\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 200 OK",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Etag: \"Foo2\"\n"
+    "Last-Modified: Fri, 03 Jul 2009 02:14:27 GMT\n",
+    "body2"
+  };
+
+  const char* kExtraRequestHeaders =
+    "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n"
+    "If-None-Match: \"Foo1\"\n";
+
+  ConditionalizedRequestUpdatesCacheHelper(
+      kNetResponse1, kNetResponse2, kNetResponse2, kExtraRequestHeaders);
+}
+
+// Test that doing an externally conditionalized request with both if-none-match
+// and if-modified-since does not update the cache with only one match.
+TEST(HttpCache, ConditionalizedRequestUpdatesCache9) {
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Etag: \"Foo1\"\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 200 OK",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Etag: \"Foo2\"\n"
+    "Last-Modified: Fri, 03 Jul 2009 02:14:27 GMT\n",
+    "body2"
+  };
+
+  // The etag doesn't match what we have stored.
+  const char* kExtraRequestHeaders =
+    "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n"
+    "If-None-Match: \"Foo2\"\n";
+
+  ConditionalizedRequestUpdatesCacheHelper(
+      kNetResponse1, kNetResponse2, kNetResponse1, kExtraRequestHeaders);
+}
+
+// Test that doing an externally conditionalized request with both if-none-match
+// and if-modified-since does not update the cache with only one match.
+TEST(HttpCache, ConditionalizedRequestUpdatesCache10) {
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Etag: \"Foo1\"\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 200 OK",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Etag: \"Foo2\"\n"
+    "Last-Modified: Fri, 03 Jul 2009 02:14:27 GMT\n",
+    "body2"
+  };
+
+  // The modification date doesn't match what we have stored.
+  const char* kExtraRequestHeaders =
+    "If-Modified-Since: Fri, 08 Feb 2008 22:38:21 GMT\n"
+    "If-None-Match: \"Foo1\"\n";
+
+  ConditionalizedRequestUpdatesCacheHelper(
+      kNetResponse1, kNetResponse2, kNetResponse1, kExtraRequestHeaders);
+}
+
+// Test that doing an externally conditionalized request with two conflicting
+// headers does not update the cache.
+TEST(HttpCache, ConditionalizedRequestUpdatesCache11) {
+  static const Response kNetResponse1 = {
+    "HTTP/1.1 200 OK",
+    "Date: Fri, 12 Jun 2009 21:46:42 GMT\n"
+    "Etag: \"Foo1\"\n"
+    "Last-Modified: Wed, 06 Feb 2008 22:38:21 GMT\n",
+    "body1"
+  };
+
+  // Second network response for |kUrl|.
+  static const Response kNetResponse2 = {
+    "HTTP/1.1 200 OK",
+    "Date: Wed, 22 Jul 2009 03:15:26 GMT\n"
+    "Etag: \"Foo2\"\n"
+    "Last-Modified: Fri, 03 Jul 2009 02:14:27 GMT\n",
+    "body2"
+  };
+
+  // Two dates, the second matches what we have stored.
+  const char* kExtraRequestHeaders =
+    "If-Modified-Since: Mon, 04 Feb 2008 22:38:21 GMT\n"
+    "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+
+  ConditionalizedRequestUpdatesCacheHelper(
+      kNetResponse1, kNetResponse2, kNetResponse1, kExtraRequestHeaders);
+}
+
 TEST(HttpCache, UrlContainingHash) {
   MockHttpCache cache;
 
