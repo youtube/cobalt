@@ -627,7 +627,7 @@ int HttpNetworkTransaction::DoSOCKSConnect() {
   else
     s = new SOCKSClientSocket(s, req_info, session_->host_resolver());
   connection_.set_socket(s);
-  return connection_.socket()->Connect(&io_callback_);
+  return connection_.socket()->Connect(&io_callback_, load_log_);
 }
 
 int HttpNetworkTransaction::DoSOCKSConnectComplete(int result) {
@@ -658,7 +658,7 @@ int HttpNetworkTransaction::DoSSLConnect() {
   s = session_->socket_factory()->CreateSSLClientSocket(
       s, request_->url.HostNoBrackets(), ssl_config_);
   connection_.set_socket(s);
-  return connection_.socket()->Connect(&io_callback_);
+  return connection_.socket()->Connect(&io_callback_, load_log_);
 }
 
 int HttpNetworkTransaction::DoSSLConnectComplete(int result) {

@@ -18,6 +18,8 @@ struct event;  // From libevent
 
 namespace net {
 
+class LoadLog;
+
 // A client socket that uses TCP as the transport layer.
 class TCPClientSocketLibevent : public ClientSocket {
  public:
@@ -29,7 +31,7 @@ class TCPClientSocketLibevent : public ClientSocket {
   virtual ~TCPClientSocketLibevent();
 
   // ClientSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -85,6 +87,9 @@ class TCPClientSocketLibevent : public ClientSocket {
     DISALLOW_COPY_AND_ASSIGN(WriteWatcher);
   };
 
+  // Performs the actual connect().  Returns a net error code.
+  int DoConnect();
+
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
   void DidCompleteRead();
@@ -125,6 +130,8 @@ class TCPClientSocketLibevent : public ClientSocket {
 
   // External callback; called when write is complete.
   CompletionCallback* write_callback_;
+
+  scoped_refptr<LoadLog> load_log_;
 
   DISALLOW_COPY_AND_ASSIGN(TCPClientSocketLibevent);
 };

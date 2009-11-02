@@ -14,6 +14,7 @@
 #include "base/compiler_specific.h"
 #include "base/trace_event.h"
 #include "net/base/io_buffer.h"
+#include "net/base/load_log.h"
 #include "net/base/net_util.h"
 
 namespace net {
@@ -83,7 +84,8 @@ SOCKSClientSocket::~SOCKSClientSocket() {
   Disconnect();
 }
 
-int SOCKSClientSocket::Connect(CompletionCallback* callback) {
+int SOCKSClientSocket::Connect(CompletionCallback* callback,
+                               LoadLog* load_log) {
   DCHECK(transport_.get());
   DCHECK(transport_->IsConnected());
   DCHECK_EQ(STATE_NONE, next_state_);
@@ -94,10 +96,17 @@ int SOCKSClientSocket::Connect(CompletionCallback* callback) {
     return OK;
 
   next_state_ = STATE_RESOLVE_HOST;
+  load_log_ = load_log;
+
+  LoadLog::BeginEvent(load_log, LoadLog::TYPE_SOCKS_CONNECT);
 
   int rv = DoLoop(OK);
-  if (rv == ERR_IO_PENDING)
+  if (rv == ERR_IO_PENDING) {
     user_callback_ = callback;
+  } else {
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_SOCKS_CONNECT);
+    load_log_ = NULL;
+  }
   return rv;
 }
 
@@ -159,8 +168,11 @@ void SOCKSClientSocket::DoCallback(int result) {
 void SOCKSClientSocket::OnIOComplete(int result) {
   DCHECK_NE(STATE_NONE, next_state_);
   int rv = DoLoop(result);
-  if (rv != ERR_IO_PENDING)
+  if (rv != ERR_IO_PENDING) {
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_SOCKS_CONNECT);
+    load_log_ = NULL;
     DoCallback(rv);
+  }
 }
 
 int SOCKSClientSocket::DoLoop(int last_io_result) {
@@ -205,7 +217,7 @@ int SOCKSClientSocket::DoResolveHost() {
 
   next_state_ = STATE_RESOLVE_HOST_COMPLETE;
   return host_resolver_.Resolve(
-      host_request_info_, &addresses_, &io_callback_, NULL);
+      host_request_info_, &addresses_, &io_callback_, load_log_);
 }
 
 int SOCKSClientSocket::DoResolveHostComplete(int result) {

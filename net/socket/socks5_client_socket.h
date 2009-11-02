@@ -20,6 +20,8 @@
 
 namespace net {
 
+class LoadLog;
+
 // This ClientSocket is used to setup a SOCKSv5 handshake with a socks proxy.
 // Currently no SOCKSv5 authentication is supported.
 class SOCKS5ClientSocket : public ClientSocket {
@@ -39,7 +41,7 @@ class SOCKS5ClientSocket : public ClientSocket {
   // ClientSocket methods:
 
   // Does the SOCKS handshake and completes the protocol.
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -145,10 +147,11 @@ class SOCKS5ClientSocket : public ClientSocket {
   AddressList addresses_;
   HostResolver::RequestInfo host_request_info_;
 
+  scoped_refptr<LoadLog> load_log_;
+
   DISALLOW_COPY_AND_ASSIGN(SOCKS5ClientSocket);
 };
 
 }  // namespace net
 
 #endif  // NET_SOCKET_SOCKS5_CLIENT_SOCKET_H_
-

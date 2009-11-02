@@ -47,7 +47,7 @@ class MockClientSocket : public ClientSocket {
 
   // ClientSocket methods:
 
-  virtual int Connect(CompletionCallback* callback) {
+  virtual int Connect(CompletionCallback* callback, LoadLog* load_log) {
     connected_ = true;
     return OK;
   }
@@ -197,7 +197,7 @@ class TestConnectJob : public ConnectJob {
     int result = ERR_CONNECTION_FAILED;
     if (succeed) {
       result = OK;
-      socket()->Connect(NULL);
+      socket()->Connect(NULL, NULL);
     } else {
       set_socket(NULL);
     }

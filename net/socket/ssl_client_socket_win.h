@@ -22,6 +22,7 @@
 namespace net {
 
 class CertVerifier;
+class LoadLog;
 
 // An SSL client socket implemented with the Windows Schannel.
 class SSLClientSocketWin : public SSLClientSocket {
@@ -40,7 +41,7 @@ class SSLClientSocketWin : public SSLClientSocket {
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
   // ClientSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -56,6 +57,9 @@ class SSLClientSocketWin : public SSLClientSocket {
   bool completed_handshake() const {
     return next_state_ == STATE_COMPLETED_HANDSHAKE;
   }
+
+  // Initializes the SSL options and security context. Returns a net error code.
+  int InitializeSSLContext();
 
   void OnHandshakeIOComplete(int result);
   void OnReadComplete(int result);
@@ -176,6 +180,8 @@ class SSLClientSocketWin : public SSLClientSocket {
 
   // True when the decrypter needs more data in order to decrypt.
   bool need_more_data_;
+
+  scoped_refptr<LoadLog> load_log_;
 };
 
 }  // namespace net
