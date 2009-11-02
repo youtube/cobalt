@@ -684,6 +684,12 @@
             # When building with shared libraries, remove the visiblity-hiding
             # flag.
             'cflags!': [ '-fvisibility=hidden' ],
+            'conditions': [
+              ['target_arch=="x64"', {
+                # Shared libraries need -fPIC on x86-64
+                'cflags': ['-fPIC']
+              }]
+            ],
           }],
         ],
       },
