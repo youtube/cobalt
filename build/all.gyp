@@ -49,6 +49,11 @@
             '../chrome_frame/chrome_frame.gyp:*',
           ],
         }],
+        ['enable_pepper==1', {
+          'dependencies': [
+            '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
+          ],
+        }],
         ['OS=="mac"', {
           'dependencies': [
             '../third_party/ocmock/ocmock.gyp:*',
