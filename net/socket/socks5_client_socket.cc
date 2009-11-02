@@ -14,6 +14,7 @@
 #include "base/compiler_specific.h"
 #include "base/trace_event.h"
 #include "net/base/io_buffer.h"
+#include "net/base/load_log.h"
 #include "net/base/net_util.h"
 
 namespace net {
@@ -49,7 +50,8 @@ SOCKS5ClientSocket::~SOCKS5ClientSocket() {
   Disconnect();
 }
 
-int SOCKS5ClientSocket::Connect(CompletionCallback* callback) {
+int SOCKS5ClientSocket::Connect(CompletionCallback* callback,
+                                LoadLog* load_log) {
   DCHECK(transport_.get());
   DCHECK(transport_->IsConnected());
   DCHECK_EQ(STATE_NONE, next_state_);
@@ -60,10 +62,17 @@ int SOCKS5ClientSocket::Connect(CompletionCallback* callback) {
     return OK;
 
   next_state_ = STATE_RESOLVE_HOST;
+  load_log_ = load_log;
+
+  LoadLog::BeginEvent(load_log, LoadLog::TYPE_SOCKS5_CONNECT);
 
   int rv = DoLoop(OK);
-  if (rv == ERR_IO_PENDING)
+  if (rv == ERR_IO_PENDING) {
     user_callback_ = callback;
+  } else {
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_SOCKS5_CONNECT);
+    load_log_ = NULL;
+  }
   return rv;
 }
 
@@ -125,8 +134,11 @@ void SOCKS5ClientSocket::DoCallback(int result) {
 void SOCKS5ClientSocket::OnIOComplete(int result) {
   DCHECK_NE(STATE_NONE, next_state_);
   int rv = DoLoop(result);
-  if (rv != ERR_IO_PENDING)
+  if (rv != ERR_IO_PENDING) {
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_SOCKS5_CONNECT);
+    load_log_ = NULL;
     DoCallback(rv);
+  }
 }
 
 int SOCKS5ClientSocket::DoLoop(int last_io_result) {
@@ -185,7 +197,7 @@ int SOCKS5ClientSocket::DoResolveHost() {
 
   next_state_ = STATE_RESOLVE_HOST_COMPLETE;
   return host_resolver_.Resolve(
-      host_request_info_, &addresses_, &io_callback_, NULL);
+      host_request_info_, &addresses_, &io_callback_, load_log_);
 }
 
 int SOCKS5ClientSocket::DoResolveHostComplete(int result) {

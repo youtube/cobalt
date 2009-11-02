@@ -19,6 +19,7 @@
 namespace net {
 
 class CertVerifier;
+class LoadLog;
 
 // An SSL client socket implemented with Secure Transport.
 class SSLClientSocketMac : public SSLClientSocket {
@@ -37,7 +38,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
 
   // ClientSocket methods:
-  virtual int Connect(CompletionCallback* callback);
+  virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -49,6 +50,9 @@ class SSLClientSocketMac : public SSLClientSocket {
   virtual bool SetSendBufferSize(int32 size);
 
  private:
+  // Initializes the SSLContext.  Returns a net error code.
+  int InitializeSSLContext();
+
   void DoConnectCallback(int result);
   void DoReadCallback(int result);
   void DoWriteCallback(int result);
@@ -122,6 +126,8 @@ class SSLClientSocketMac : public SSLClientSocket {
   // This buffer holds data for Read() operations on the underlying transport
   // (ClientSocket::Read()).
   scoped_refptr<IOBuffer> read_io_buf_;
+
+  scoped_refptr<LoadLog> load_log_;
 };
 
 }  // namespace net
