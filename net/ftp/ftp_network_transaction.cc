@@ -522,6 +522,14 @@ int FtpNetworkTransaction::DoCtrlRead() {
 }
 
 int FtpNetworkTransaction::DoCtrlReadComplete(int result) {
+  if (result == 0) {
+    // Some servers (for example Pure-FTPd) apparently close the control
+    // connection when anonymous login is not permitted. For more details
+    // see http://crbug.com/25023.
+    if (command_sent_ == COMMAND_USER && username_ == L"anonymous")
+      response_.needs_auth = true;
+    return Stop(ERR_EMPTY_RESPONSE);
+  }
   if (result < 0)
     return Stop(result);
 
