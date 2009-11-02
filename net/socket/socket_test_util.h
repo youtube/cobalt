@@ -26,6 +26,7 @@
 namespace net {
 
 class ClientSocket;
+class LoadLog;
 class SSLClientSocket;
 
 struct MockConnect {
@@ -232,7 +233,7 @@ class MockClientSocket : public net::SSLClientSocket {
   MockClientSocket();
 
   // ClientSocket methods:
-  virtual int Connect(net::CompletionCallback* callback) = 0;
+  virtual int Connect(net::CompletionCallback* callback, LoadLog* load_log) = 0;
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
@@ -268,7 +269,8 @@ class MockTCPClientSocket : public MockClientSocket {
                       net::MockSocket* socket);
 
   // ClientSocket methods:
-  virtual int Connect(net::CompletionCallback* callback);
+  virtual int Connect(net::CompletionCallback* callback,
+                      LoadLog* load_log);
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
@@ -298,7 +300,7 @@ class MockSSLClientSocket : public MockClientSocket {
 
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
 
-  virtual int Connect(net::CompletionCallback* callback);
+  virtual int Connect(net::CompletionCallback* callback, LoadLog* load_log);
   virtual void Disconnect();
 
   // Socket methods:

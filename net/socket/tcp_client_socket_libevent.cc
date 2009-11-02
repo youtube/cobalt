@@ -14,6 +14,7 @@
 #include "base/string_util.h"
 #include "base/trace_event.h"
 #include "net/base/io_buffer.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "third_party/libevent/event.h"
 
@@ -117,15 +118,37 @@ TCPClientSocketLibevent::~TCPClientSocketLibevent() {
   Disconnect();
 }
 
-int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
+int TCPClientSocketLibevent::Connect(CompletionCallback* callback,
+                                     LoadLog* load_log) {
   // If already connected, then just return OK.
   if (socket_ != kInvalidSocket)
     return OK;
 
   DCHECK(!waiting_connect_);
+  DCHECK(!load_log_);
 
   TRACE_EVENT_BEGIN("socket.connect", this, "");
 
+  LoadLog::BeginEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
+
+  int rv = DoConnect();
+
+  if (rv == ERR_IO_PENDING) {
+    // Synchronous operation not supported.
+    DCHECK(callback);
+
+    load_log_ = load_log;
+    waiting_connect_ = true;
+    write_callback_ = callback;
+  } else {
+    TRACE_EVENT_END("socket.connect", this, "");
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
+  }
+
+  return rv;
+}
+
+int TCPClientSocketLibevent::DoConnect() {
   while (true) {
     DCHECK(current_ai_);
 
@@ -135,7 +158,6 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
 
     if (!HANDLE_EINTR(connect(socket_, current_ai_->ai_addr,
                               static_cast<int>(current_ai_->ai_addrlen)))) {
-      TRACE_EVENT_END("socket.connect", this, "");
       // Connected without waiting!
       return OK;
     }
@@ -158,9 +180,6 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
     }
   }
 
-  // Synchronous operation not supported
-  DCHECK(callback);
-
   // Initialize write_socket_watcher_ and link it to our MessagePump.
   // POLLOUT is set if the connection is established.
   // POLLIN is set if the connection fails.
@@ -173,8 +192,6 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
     return MapPosixError(errno);
   }
 
-  waiting_connect_ = true;
-  write_callback_ = callback;
   return ERR_IO_PENDING;
 }
 
@@ -345,8 +362,6 @@ void TCPClientSocketLibevent::DoWriteCallback(int rv) {
 void TCPClientSocketLibevent::DidCompleteConnect() {
   int result = ERR_UNEXPECTED;
 
-  TRACE_EVENT_END("socket.connect", this, "");
-
   // Check to see if connect succeeded
   int error_code = 0;
   socklen_t len = sizeof(error_code);
@@ -361,12 +376,19 @@ void TCPClientSocketLibevent::DidCompleteConnect() {
     const addrinfo* next = current_ai_->ai_next;
     Disconnect();
     current_ai_ = next;
-    result = Connect(write_callback_);
+    scoped_refptr<LoadLog> load_log;
+    load_log.swap(load_log_);
+    TRACE_EVENT_END("socket.connect", this, "");
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
+    result = Connect(write_callback_, load_log);
   } else {
     result = MapConnectError(error_code);
     bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
     DCHECK(ok);
     waiting_connect_ = false;
+    TRACE_EVENT_END("socket.connect", this, "");
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_TCP_CONNECT);
+    load_log_ = NULL;
   }
 
   if (result != ERR_IO_PENDING) {

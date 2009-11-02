@@ -9,6 +9,7 @@
 #include "base/string_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_info.h"
 
@@ -326,108 +327,28 @@ SSLClientSocketMac::~SSLClientSocketMac() {
   Disconnect();
 }
 
-int SSLClientSocketMac::Connect(CompletionCallback* callback) {
+int SSLClientSocketMac::Connect(CompletionCallback* callback,
+                                LoadLog* load_log) {
   DCHECK(transport_.get());
   DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
 
-  OSStatus status = noErr;
+  LoadLog::BeginEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
 
-  status = SSLNewContext(false, &ssl_context_);
-  if (status)
-    return NetErrorFromOSStatus(status);
-
-  status = SSLSetProtocolVersionEnabled(ssl_context_,
-                                        kSSLProtocol2,
-                                        ssl_config_.ssl2_enabled);
-  if (status)
-    return NetErrorFromOSStatus(status);
-
-  status = SSLSetProtocolVersionEnabled(ssl_context_,
-                                        kSSLProtocol3,
-                                        ssl_config_.ssl3_enabled);
-  if (status)
-    return NetErrorFromOSStatus(status);
-
-  status = SSLSetProtocolVersionEnabled(ssl_context_,
-                                        kTLSProtocol1,
-                                        ssl_config_.tls1_enabled);
-  if (status)
-    return NetErrorFromOSStatus(status);
-
-  status = SSLSetIOFuncs(ssl_context_, SSLReadCallback, SSLWriteCallback);
-  if (status)
-    return NetErrorFromOSStatus(status);
-
-  status = SSLSetConnection(ssl_context_, this);
-  if (status)
-    return NetErrorFromOSStatus(status);
-
-  // Disable certificate verification within Secure Transport; we'll
-  // be handling that ourselves.
-  status = SSLSetEnableCertVerify(ssl_context_, false);
-  if (status)
-    return NetErrorFromOSStatus(status);
-
-  // SSLSetSessionOption() was introduced in Mac OS X 10.5.7. It allows us
-  // to perform certificate validation during the handshake, which is
-  // required in order to properly enable session resumption.
-  //
-  // With the kSSLSessionOptionBreakOnServerAuth option set, SSLHandshake()
-  // will return errSSLServerAuthCompleted after receiving the server's
-  // Certificate during the handshake. That gives us an opportunity to verify
-  // the server certificate and then re-enter that handshake (assuming the
-  // certificate successfully validated).
-  //
-  // If SSLSetSessionOption() is not present, we do not enable session
-  // resumption, because in that case we are verifying the server's certificate
-  // after the handshake completes (but before any application data is
-  // exchanged). If we were to enable session resumption in this situation,
-  // the session would be cached before we verified the certificate, leaving
-  // the potential for a session in which the certificate failed to validate
-  // to still be able to be resumed.
-  CFBundleRef bundle =
-      CFBundleGetBundleWithIdentifier(CFSTR("com.apple.security"));
-  if (bundle) {
-    SSLSetSessionOptionFuncPtr ssl_set_session_options =
-        reinterpret_cast<SSLSetSessionOptionFuncPtr>(
-            CFBundleGetFunctionPointerForName(bundle,
-                CFSTR("SSLSetSessionOption")));
-    if (ssl_set_session_options) {
-      status = ssl_set_session_options(ssl_context_,
-                                       kSSLSessionOptionBreakOnServerAuthFlag,
-                                       true);
-      if (status)
-        return NetErrorFromOSStatus(status);
-
-      // Concatenate the hostname and peer address to use as the peer ID. To
-      // resume a session, we must connect to the same server on the same port
-      // using the same hostname (i.e., localhost and 127.0.0.1 are considered
-      // different peers, which puts us through certificate validation again
-      // and catches hostname/certificate name mismatches.
-      struct sockaddr_storage addr;
-      socklen_t addr_length = sizeof(struct sockaddr_storage);
-      memset(&addr, 0, sizeof(addr));
-      if (!transport_->GetPeerName(reinterpret_cast<struct sockaddr*>(&addr),
-                                   &addr_length)) {
-        // Assemble the socket hostname and address into a single buffer.
-        std::vector<char> peer_id(hostname_.begin(), hostname_.end());
-        peer_id.insert(peer_id.end(), reinterpret_cast<char*>(&addr),
-                       reinterpret_cast<char*>(&addr) + addr_length);
-
-        // SSLSetPeerID() treats peer_id as a binary blob, and makes its
-        // own copy.
-        status = SSLSetPeerID(ssl_context_, &peer_id[0], peer_id.size());
-        if (status)
-          return NetErrorFromOSStatus(status);
-      }
-    }
+  int rv = InitializeSSLContext();
+  if (rv != OK) {
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+    return rv;
   }
 
   next_handshake_state_ = STATE_HANDSHAKE_START;
-  int rv = DoHandshakeLoop(OK);
-  if (rv == ERR_IO_PENDING)
+  rv = DoHandshakeLoop(OK);
+  if (rv == ERR_IO_PENDING) {
+    load_log_ = load_log;
     user_connect_callback_ = callback;
+  } else {
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+  }
   return rv;
 }
 
@@ -535,6 +456,103 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
   // TODO(wtc): implement this.
 }
 
+int SSLClientSocketMac::InitializeSSLContext() {
+  OSStatus status = noErr;
+
+  status = SSLNewContext(false, &ssl_context_);
+  if (status)
+    return NetErrorFromOSStatus(status);
+
+  status = SSLSetProtocolVersionEnabled(ssl_context_,
+                                        kSSLProtocol2,
+                                        ssl_config_.ssl2_enabled);
+  if (status)
+    return NetErrorFromOSStatus(status);
+
+  status = SSLSetProtocolVersionEnabled(ssl_context_,
+                                        kSSLProtocol3,
+                                        ssl_config_.ssl3_enabled);
+  if (status)
+    return NetErrorFromOSStatus(status);
+
+  status = SSLSetProtocolVersionEnabled(ssl_context_,
+                                        kTLSProtocol1,
+                                        ssl_config_.tls1_enabled);
+  if (status)
+    return NetErrorFromOSStatus(status);
+
+  status = SSLSetIOFuncs(ssl_context_, SSLReadCallback, SSLWriteCallback);
+  if (status)
+    return NetErrorFromOSStatus(status);
+
+  status = SSLSetConnection(ssl_context_, this);
+  if (status)
+    return NetErrorFromOSStatus(status);
+
+  // Disable certificate verification within Secure Transport; we'll
+  // be handling that ourselves.
+  status = SSLSetEnableCertVerify(ssl_context_, false);
+  if (status)
+    return NetErrorFromOSStatus(status);
+
+  // SSLSetSessionOption() was introduced in Mac OS X 10.5.7. It allows us
+  // to perform certificate validation during the handshake, which is
+  // required in order to properly enable session resumption.
+  //
+  // With the kSSLSessionOptionBreakOnServerAuth option set, SSLHandshake()
+  // will return errSSLServerAuthCompleted after receiving the server's
+  // Certificate during the handshake. That gives us an opportunity to verify
+  // the server certificate and then re-enter that handshake (assuming the
+  // certificate successfully validated).
+  //
+  // If SSLSetSessionOption() is not present, we do not enable session
+  // resumption, because in that case we are verifying the server's certificate
+  // after the handshake completes (but before any application data is
+  // exchanged). If we were to enable session resumption in this situation,
+  // the session would be cached before we verified the certificate, leaving
+  // the potential for a session in which the certificate failed to validate
+  // to still be able to be resumed.
+  CFBundleRef bundle =
+      CFBundleGetBundleWithIdentifier(CFSTR("com.apple.security"));
+  if (bundle) {
+    SSLSetSessionOptionFuncPtr ssl_set_session_options =
+        reinterpret_cast<SSLSetSessionOptionFuncPtr>(
+            CFBundleGetFunctionPointerForName(bundle,
+                CFSTR("SSLSetSessionOption")));
+    if (ssl_set_session_options) {
+      status = ssl_set_session_options(ssl_context_,
+                                       kSSLSessionOptionBreakOnServerAuthFlag,
+                                       true);
+      if (status)
+        return NetErrorFromOSStatus(status);
+
+      // Concatenate the hostname and peer address to use as the peer ID. To
+      // resume a session, we must connect to the same server on the same port
+      // using the same hostname (i.e., localhost and 127.0.0.1 are considered
+      // different peers, which puts us through certificate validation again
+      // and catches hostname/certificate name mismatches.
+      struct sockaddr_storage addr;
+      socklen_t addr_length = sizeof(struct sockaddr_storage);
+      memset(&addr, 0, sizeof(addr));
+      if (!transport_->GetPeerName(reinterpret_cast<struct sockaddr*>(&addr),
+                                   &addr_length)) {
+        // Assemble the socket hostname and address into a single buffer.
+        std::vector<char> peer_id(hostname_.begin(), hostname_.end());
+        peer_id.insert(peer_id.end(), reinterpret_cast<char*>(&addr),
+                       reinterpret_cast<char*>(&addr) + addr_length);
+
+        // SSLSetPeerID() treats peer_id as a binary blob, and makes its
+        // own copy.
+        status = SSLSetPeerID(ssl_context_, &peer_id[0], peer_id.size());
+        if (status)
+          return NetErrorFromOSStatus(status);
+      }
+    }
+  }
+
+  return OK;
+}
+
 void SSLClientSocketMac::DoConnectCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
   DCHECK(user_connect_callback_);
@@ -574,8 +592,11 @@ void SSLClientSocketMac::DoWriteCallback(int rv) {
 void SSLClientSocketMac::OnHandshakeIOComplete(int result) {
   DCHECK(next_handshake_state_ != STATE_NONE);
   int rv = DoHandshakeLoop(result);
-  if (rv != ERR_IO_PENDING)
+  if (rv != ERR_IO_PENDING) {
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_SSL_CONNECT);
+    load_log_ = NULL;
     DoConnectCallback(rv);
+  }
 }
 
 void SSLClientSocketMac::OnTransportReadComplete(int result) {
@@ -589,8 +610,11 @@ void SSLClientSocketMac::OnTransportReadComplete(int result) {
 
   if (next_handshake_state_ != STATE_NONE) {
     int rv = DoHandshakeLoop(result);
-    if (rv != ERR_IO_PENDING)
+    if (rv != ERR_IO_PENDING) {
+      LoadLog::EndEvent(load_log_, LoadLog::TYPE_SSL_CONNECT);
+      load_log_ = NULL;
       DoConnectCallback(rv);
+    }
     return;
   }
   if (user_read_buf_) {

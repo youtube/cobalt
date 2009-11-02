@@ -69,6 +69,7 @@
 #include "base/string_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
+#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
@@ -236,7 +237,8 @@ int SSLClientSocketNSS::Init() {
   return OK;
 }
 
-int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
+int SSLClientSocketNSS::Connect(CompletionCallback* callback,
+                                LoadLog* load_log) {
   EnterFunction("");
   DCHECK(transport_.get());
   DCHECK(next_handshake_state_ == STATE_NONE);
@@ -246,10 +248,32 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   DCHECK(!user_read_buf_);
   DCHECK(!user_write_buf_);
 
+  LoadLog::BeginEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+
   if (Init() != OK) {
     NOTREACHED() << "Couldn't initialize nss";
   }
 
+  int rv = InitializeSSLOptions();
+  if (rv != OK) {
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+    return rv;
+  }
+
+  GotoState(STATE_HANDSHAKE);
+  rv = DoHandshakeLoop(OK);
+  if (rv == ERR_IO_PENDING) {
+    user_connect_callback_ = callback;
+    load_log_ = load_log;
+  } else {
+    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+  }
+
+  LeaveFunction("");
+  return rv > OK ? OK : rv;
+}
+
+int SSLClientSocketNSS::InitializeSSLOptions() {
   // Transport connected, now hook it up to nss
   // TODO(port): specify rx and tx buffer sizes separately
   nss_fd_ = memio_CreateIOLayer(kRecvBufferSize);
@@ -337,13 +361,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   // Tell SSL we're a client; needed if not letting NSPR do socket I/O
   SSL_ResetHandshake(nss_fd_, 0);
 
-  GotoState(STATE_HANDSHAKE);
-  rv = DoHandshakeLoop(OK);
-  if (rv == ERR_IO_PENDING)
-    user_connect_callback_ = callback;
-
-  LeaveFunction("");
-  return rv > OK ? OK : rv;
+  return OK;
 }
 
 void SSLClientSocketNSS::InvalidateSessionIfBadCertificate() {
@@ -576,8 +594,11 @@ void SSLClientSocketNSS::DoConnectCallback(int rv) {
 void SSLClientSocketNSS::OnHandshakeIOComplete(int result) {
   EnterFunction(result);
   int rv = DoHandshakeLoop(result);
-  if (rv != ERR_IO_PENDING)
+  if (rv != ERR_IO_PENDING) {
+    LoadLog::EndEvent(load_log_, net::LoadLog::TYPE_SSL_CONNECT);
+    load_log_ = NULL;
     DoConnectCallback(rv);
+  }
   LeaveFunction("");
 }
 
