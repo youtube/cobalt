@@ -843,12 +843,13 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
 
   if (range_found && !(effective_load_flags_ & LOAD_DISABLE_CACHE)) {
     partial_.reset(new PartialData);
-    if (partial_->Init(request_->extra_headers, new_extra_headers)) {
+    if (partial_->Init(request_->extra_headers)) {
       // We will be modifying the actual range requested to the server, so
       // let's remove the header here.
       custom_request_.reset(new HttpRequestInfo(*request_));
       request_ = custom_request_.get();
       custom_request_->extra_headers = new_extra_headers;
+      partial_->SetHeaders(new_extra_headers);
     } else {
       // The range is invalid or we cannot handle it properly.
       LOG(WARNING) << "Invalid byte range found.";
@@ -946,6 +947,7 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
   } else {
     // The request is not for a range, but we have stored just ranges.
     partial_.reset(new PartialData());
+    partial_->SetHeaders(request_->extra_headers);
     if (!custom_request_.get()) {
       custom_request_.reset(new HttpRequestInfo(*request_));
       request_ = custom_request_.get();

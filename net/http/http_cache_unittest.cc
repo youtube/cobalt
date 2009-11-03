@@ -578,6 +578,10 @@ class RangeTransactionServer {
 bool RangeTransactionServer::not_modified_ = false;
 bool RangeTransactionServer::modified_ = false;
 
+// A dummy extra header that must be preserved on a given request.
+// TODO(rvargas): Add tests using this without byte ranges.
+#define EXTRA_HEADER "Extra: header\r\n"
+
 // Static.
 void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
                                           std::string* response_status,
@@ -585,6 +589,12 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
                                           std::string* response_data) {
   if (request->extra_headers.empty()) {
     response_status->assign("HTTP/1.1 416 Requested Range Not Satisfiable");
+    return;
+  }
+
+  // We want to make sure we don't delete extra headers.
+  if (request->extra_headers.find(EXTRA_HEADER) == std::string::npos) {
+    response_status->assign("HTTP/1.1 403 Forbidden");
     return;
   }
 
@@ -640,7 +650,8 @@ const MockTransaction kRangeGET_TransactionOK = {
   "http://www.google.com/range",
   "GET",
   base::Time(),
-  "Range: bytes = 40-49\r\n",
+  "Range: bytes = 40-49\r\n"
+  EXTRA_HEADER,
   net::LOAD_NORMAL,
   "HTTP/1.1 206 Partial Content",
   "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
@@ -2016,6 +2027,7 @@ TEST(HttpCache, RangeGET_SkipsCache2) {
 
   MockTransaction transaction(kRangeGET_Transaction);
   transaction.request_headers = "If-None-Match: foo\n"
+                                EXTRA_HEADER
                                 "Range: bytes = 40-49\n";
   RunTransactionTest(cache.http_cache(), transaction);
 
@@ -2025,6 +2037,7 @@ TEST(HttpCache, RangeGET_SkipsCache2) {
 
   transaction.request_headers =
       "If-Modified-Since: Wed, 28 Nov 2007 00:45:20 GMT\n"
+      EXTRA_HEADER
       "Range: bytes = 40-49\n";
   RunTransactionTest(cache.http_cache(), transaction);
 
@@ -2033,6 +2046,7 @@ TEST(HttpCache, RangeGET_SkipsCache2) {
   EXPECT_EQ(0, cache.disk_cache()->create_count());
 
   transaction.request_headers = "If-Range: bla\n"
+                                EXTRA_HEADER
                                 "Range: bytes = 40-49\n";
   RunTransactionTest(cache.http_cache(), transaction);
 
@@ -2049,7 +2063,7 @@ TEST(HttpCache, GET_Crazy206) {
   // Write to the cache.
   MockTransaction transaction(kRangeGET_TransactionOK);
   AddMockTransaction(&transaction);
-  transaction.request_headers = "";
+  transaction.request_headers = EXTRA_HEADER;
   transaction.handler = NULL;
   RunTransactionTest(cache.http_cache(), transaction);
 
@@ -2097,7 +2111,7 @@ TEST(HttpCache, RangeGET_OK) {
 
   // Write to the cache (30-39).
   MockTransaction transaction(kRangeGET_TransactionOK);
-  transaction.request_headers = "Range: bytes = 30-39\r\n";
+  transaction.request_headers = "Range: bytes = 30-39\r\n" EXTRA_HEADER;
   transaction.data = "rg: 30-39 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
@@ -2110,7 +2124,7 @@ TEST(HttpCache, RangeGET_OK) {
   MessageLoop::current()->RunAllPending();
 
   // Write and read from the cache (20-59).
-  transaction.request_headers = "Range: bytes = 20-59\r\n";
+  transaction.request_headers = "Range: bytes = 20-59\r\n" EXTRA_HEADER;
   transaction.data = "rg: 20-29 rg: 30-39 rg: 40-49 rg: 50-59 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
@@ -2198,7 +2212,7 @@ TEST(HttpCache, UnknownRangeGET_1) {
 
   // Write to the cache (70-79).
   MockTransaction transaction(kRangeGET_TransactionOK);
-  transaction.request_headers = "Range: bytes = -10\r\n";
+  transaction.request_headers = "Range: bytes = -10\r\n" EXTRA_HEADER;
   transaction.data = "rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
@@ -2211,7 +2225,7 @@ TEST(HttpCache, UnknownRangeGET_1) {
   MessageLoop::current()->RunAllPending();
 
   // Write and read from the cache (60-79).
-  transaction.request_headers = "Range: bytes = 60-\r\n";
+  transaction.request_headers = "Range: bytes = 60-\r\n" EXTRA_HEADER;
   transaction.data = "rg: 60-69 rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
@@ -2238,7 +2252,7 @@ TEST(HttpCache, UnknownRangeGET_2) {
   AddMockTransaction(&transaction);
 
   // Write to the cache (70-79).
-  transaction.request_headers = "Range: bytes = 70-\r\n";
+  transaction.request_headers = "Range: bytes = 70-\r\n" EXTRA_HEADER;
   transaction.data = "rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
@@ -2251,7 +2265,7 @@ TEST(HttpCache, UnknownRangeGET_2) {
   MessageLoop::current()->RunAllPending();
 
   // Write and read from the cache (60-79).
-  transaction.request_headers = "Range: bytes = -20\r\n";
+  transaction.request_headers = "Range: bytes = -20\r\n" EXTRA_HEADER;
   transaction.data = "rg: 60-69 rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
@@ -2277,7 +2291,7 @@ TEST(HttpCache, UnknownRangeGET_304) {
   handler.set_not_modified(true);
 
   // Ask for the end of the file, without knowing the length.
-  transaction.request_headers = "Range: bytes = 70-\r\n";
+  transaction.request_headers = "Range: bytes = 70-\r\n" EXTRA_HEADER;
   transaction.data = "rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
@@ -2311,7 +2325,7 @@ TEST(HttpCache, GET_Previous206) {
 
   // Write and read from the cache (0-79), when not asked for a range.
   MockTransaction transaction(kRangeGET_TransactionOK);
-  transaction.request_headers = "";
+  transaction.request_headers = EXTRA_HEADER;
   transaction.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
                      "rg: 50-59 rg: 60-69 rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
@@ -2331,7 +2345,7 @@ TEST(HttpCache, GET_Previous206_NotModified) {
   cache.http_cache()->set_enable_range_support(true);
 
   MockTransaction transaction(kRangeGET_TransactionOK);
-  transaction.request_headers = "Range: bytes = 0-9\r\n";
+  transaction.request_headers = "Range: bytes = 0-9\r\n" EXTRA_HEADER;
   transaction.data = "rg: 00-09 ";
   AddMockTransaction(&transaction);
   std::string headers;
@@ -2346,7 +2360,7 @@ TEST(HttpCache, GET_Previous206_NotModified) {
 
   // Read from the cache (0-9), write and read from cache (10 - 79),
   MockTransaction transaction2(kRangeGET_TransactionOK);
-  transaction2.request_headers = "Foo: bar\r\n";
+  transaction2.request_headers = "Foo: bar\r\n" EXTRA_HEADER;
   transaction2.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
                       "rg: 50-59 rg: 60-69 rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction2, &headers);
@@ -2501,7 +2515,7 @@ TEST(HttpCache, RangeRequestResultsIn200) {
 
   // Write to the cache (70-79).
   MockTransaction transaction(kRangeGET_TransactionOK);
-  transaction.request_headers = "Range: bytes = -10\r\n";
+  transaction.request_headers = "Range: bytes = -10\r\n" EXTRA_HEADER;
   transaction.data = "rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
@@ -2551,7 +2565,7 @@ TEST(HttpCache, RangeGET_MoreThanCurrentSize) {
 
   // A weird request should not delete this entry. Ask for bytes 120-.
   MockTransaction transaction(kRangeGET_TransactionOK);
-  transaction.request_headers = "Range: bytes = 120-\r\n";
+  transaction.request_headers = "Range: bytes = 120-\r\n" EXTRA_HEADER;
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   EXPECT_EQ(0U, headers.find("HTTP/1.1 416 "));
@@ -2717,7 +2731,7 @@ TEST(HttpCache, RangeGET_InvalidResponse3) {
 
   MockTransaction transaction(kRangeGET_TransactionOK);
   transaction.handler = NULL;
-  transaction.request_headers = "Range: bytes = 50-59\r\n";
+  transaction.request_headers = "Range: bytes = 50-59\r\n" EXTRA_HEADER;
   std::string response_headers(transaction.response_headers);
   response_headers.append("Content-Range: bytes 50-59/160\n");
   transaction.response_headers = response_headers.c_str();
@@ -2764,7 +2778,8 @@ TEST(HttpCache, RangeGET_LargeValues) {
 
   MockTransaction transaction(kRangeGET_TransactionOK);
   transaction.handler = NULL;
-  transaction.request_headers = "Range: bytes = 4294967288-4294967297\r\n";
+  transaction.request_headers = "Range: bytes = 4294967288-4294967297\r\n"
+                                EXTRA_HEADER;
   transaction.response_headers =
       "Content-Range: bytes 4294967288-4294967297/4294967299\n"
       "Content-Length: 10\n";
@@ -2968,7 +2983,7 @@ TEST(HttpCache, GET_IncompleteResource) {
   // Now make a regular request.
   std::string headers;
   MockTransaction transaction(kRangeGET_TransactionOK);
-  transaction.request_headers = "";
+  transaction.request_headers = EXTRA_HEADER;
   transaction.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
                      "rg: 50-59 rg: 60-69 rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
