@@ -2814,6 +2814,28 @@ TEST(HttpCache, RangeGET_NoDiskCache) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
+// Tests that we handle byte range requests that skip the cache.
+TEST(HttpCache, RangeHEAD) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = "Range: bytes = -10\r\n" EXTRA_HEADER;
+  transaction.method = "HEAD";
+  transaction.data = "rg: 70-79 ";
+
+  std::string headers;
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 70, 79));
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(0, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
 #ifdef NDEBUG
 // This test hits a NOTREACHED so it is a release mode only test.
 TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
