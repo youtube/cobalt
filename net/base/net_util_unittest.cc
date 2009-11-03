@@ -821,7 +821,7 @@ TEST(NetUtilTest, CompliantHost) {
     {"a", true},
     {"-", false},
     {".", false},
-    {"a.", false},
+    {"a.", true},
     {"a.a", true},
     {"9.a", true},
     {"a.9", false},
@@ -834,6 +834,8 @@ TEST(NetUtilTest, CompliantHost) {
     {"a.b.c.d.e", true},
     {"1.2.3.4.e", true},
     {"a.b.c.d.5", false},
+    {"1.2.3.4.e.", true},
+    {"a.b.c.d.5.", false},
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(compliant_host_cases); ++i) {
