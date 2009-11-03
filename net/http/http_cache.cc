@@ -462,10 +462,13 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
   if (!(mode_ & READ) && effective_load_flags_ & LOAD_ONLY_FROM_CACHE)
     return ERR_CACHE_MISS;
 
-  if (mode_ == NONE)
+  if (mode_ == NONE) {
+    if (partial_.get())
+      partial_->RestoreHeaders(&custom_request_->extra_headers);
     rv = BeginNetworkRequest();
-  else
+  } else {
     rv = AddToEntry();
+  }
 
   // setting this here allows us to check for the existance of a callback_ to
   // determine if we are still inside Start.
@@ -656,6 +659,8 @@ int HttpCache::Transaction::AddToEntry() {
     if (!entry) {
       DLOG(WARNING) << "unable to create cache entry";
       mode_ = NONE;
+      if (partial_.get())
+        partial_->RestoreHeaders(&custom_request_->extra_headers);
       return BeginNetworkRequest();
     }
   }
@@ -1586,7 +1591,7 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
         }
         if (result >= 0 || result == net::ERR_IO_PENDING)
           return;
-      } else if (partial_.get()) {
+      } else if (mode_ != NONE && partial_.get()) {
         // We are about to return the headers for a byte-range request to the
         // user, so let's fix them.
         partial_->FixResponseHeaders(response_.headers);
