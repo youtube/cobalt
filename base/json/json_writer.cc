@@ -19,6 +19,9 @@ static const char kPrettyPrintLineEnding[] = "\n";
 #endif
 
 /* static */
+const char* JSONWriter::kEmptyArray = "[]";
+
+/* static */
 void JSONWriter::Write(const Value* const node,
                        bool pretty_print,
                        std::string* json) {
@@ -48,7 +51,7 @@ JSONWriter::JSONWriter(bool pretty_print, std::string* json)
 void JSONWriter::BuildJSONString(const Value* const node,
                                  int depth,
                                  bool escape) {
-  switch(node->GetType()) {
+  switch (node->GetType()) {
     case Value::TYPE_NULL:
       json_string_->append("null");
       break;
@@ -147,7 +150,6 @@ void JSONWriter::BuildJSONString(const Value* const node,
         for (DictionaryValue::key_iterator key_itr = dict->begin_keys();
              key_itr != dict->end_keys();
              ++key_itr) {
-
           if (key_itr != dict->begin_keys()) {
             json_string_->append(",");
             if (pretty_print_)
