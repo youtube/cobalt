@@ -33,7 +33,7 @@ static const size_t kRGBSize = kWidth * kHeight * kBpp;
 static const size_t kRGBSizeConverted = kWidth * kHeight * kBpp;
 
 // Set to 100 to time ConvertYUVToRGB32.
-static const int kTestTimes = 100;
+static const int kTestTimes = 1;
 
 TEST(YUVConvertTest, YV12) {
   // Allocate all surfaces.
