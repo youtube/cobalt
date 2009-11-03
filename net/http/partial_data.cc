@@ -22,8 +22,7 @@ const int kDataStream = 1;
 
 namespace net {
 
-bool PartialData::Init(const std::string& headers,
-                       const std::string& new_headers) {
+bool PartialData::Init(const std::string& headers) {
   std::vector<HttpByteRange> ranges;
   if (!HttpUtil::ParseRanges(headers, &ranges) || ranges.size() != 1)
     return false;
@@ -33,11 +32,14 @@ bool PartialData::Init(const std::string& headers,
   if (!byte_range_.IsValid())
     return false;
 
-  extra_headers_ = new_headers;
   resource_size_ = 0;
-
   current_range_start_ = byte_range_.first_byte_position();
   return true;
+}
+
+void PartialData::SetHeaders(const std::string& headers) {
+  DCHECK(extra_headers_.empty());
+  extra_headers_ = headers;
 }
 
 void PartialData::RestoreHeaders(std::string* headers) const {
