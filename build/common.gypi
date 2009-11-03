@@ -182,6 +182,9 @@
 
     'conditions': [
       ['OS=="linux"', {
+        # This will set gcc_version to XY if you are running gcc X.Y.*.
+        # This is used to tweak build flags for gcc 4.4.
+        'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
         'conditions': [
           ['branding=="Chrome" or linux_chromium_breakpad==1', {
             'linux_breakpad%': 1,
