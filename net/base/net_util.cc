@@ -965,27 +965,22 @@ bool IsCanonicalizedHostCompliant(const std::string& host) {
   if (host.empty())
     return false;
 
-  enum State {
-    NOT_IN_COMPONENT,
-    IN_COMPONENT_STARTED_DIGIT,
-    IN_COMPONENT_STARTED_ALPHA
-  } state = NOT_IN_COMPONENT;
+  bool in_component = false;
+  bool most_recent_component_started_alpha = false;
   bool last_char_was_hyphen_or_underscore = false;
 
   for (std::string::const_iterator i(host.begin()); i != host.end(); ++i) {
     const char c = *i;
-    if (state == NOT_IN_COMPONENT) {
-      if (IsHostCharDigit(c))
-        state = IN_COMPONENT_STARTED_DIGIT;
-      else if (IsHostCharAlpha(c))
-        state = IN_COMPONENT_STARTED_ALPHA;
-      else
+    if (!in_component) {
+      most_recent_component_started_alpha = IsHostCharAlpha(c);
+      if (!most_recent_component_started_alpha && !IsHostCharDigit(c))
         return false;
+      in_component = true;
     } else {
       if (c == '.') {
         if (last_char_was_hyphen_or_underscore)
           return false;
-        state = NOT_IN_COMPONENT;
+        in_component = false;
       } else if (IsHostCharAlpha(c) || IsHostCharDigit(c)) {
         last_char_was_hyphen_or_underscore = false;
       } else if ((c == '-') || (c == '_')) {
@@ -996,7 +991,7 @@ bool IsCanonicalizedHostCompliant(const std::string& host) {
     }
   }
 
-  return state == IN_COMPONENT_STARTED_ALPHA;
+  return most_recent_component_started_alpha;
 }
 
 std::string GetDirectoryListingEntry(const string16& name,
