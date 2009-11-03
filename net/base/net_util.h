@@ -165,6 +165,7 @@ std::string CanonicalizeHost(const std::wstring& host,
 //   * Each component begins and ends with an alphanumeric character
 //   * Each component contains only alphanumeric characters and '-' or '_'
 //   * The last component does not begin with a digit
+//   * Optional trailing dot after last component (means "treat as FQDN")
 //
 // NOTE: You should only pass in hosts that have been returned from
 // CanonicalizeHost(), or you may not get accurate results.
