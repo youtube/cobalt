@@ -21,7 +21,7 @@ def GetVersion(compiler):
     compiler = compiler + " -dumpversion"
     pipe = subprocess.Popen(compiler, stdout=subprocess.PIPE, shell=True)
     gcc_output = pipe.communicate()[0]
-    result = re.match(r"(\d+)\.(\d+)\..*", gcc_output)
+    result = re.match(r"(\d+)\.(\d+)", gcc_output)
     return result.group(1) + result.group(2)
   except Exception, e:
     print >> sys.stderr, "compiler_version.py failed to execute:", compiler
