@@ -66,6 +66,8 @@
         'base/file_stream_win.cc',
         'base/filter.cc',
         'base/filter.h',
+        'base/fixed_host_resolver.cc',
+        'base/fixed_host_resolver.h',
         'base/gzip_filter.cc',
         'base/gzip_filter.h',
         'base/gzip_header.cc',
