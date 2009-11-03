@@ -33,6 +33,10 @@ class JSONWriter {
                                       bool escape,
                                       std::string* json);
 
+  // A static, constant JSON string representing an empty array.  Useful
+  // for empty JSON argument passing.
+  static const char* kEmptyArray;
+
  private:
   JSONWriter(bool pretty_print, std::string* json);
 
