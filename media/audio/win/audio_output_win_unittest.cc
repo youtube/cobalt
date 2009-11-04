@@ -303,7 +303,7 @@ TEST(WinAudioTest, PCMWaveStreamTripleBuffer) {
   EXPECT_GT(test_triple_buffer.callback_count(), kNumBuffers);
   EXPECT_FALSE(test_triple_buffer.had_error());
   oas->Stop();
-  ::Sleep(1000);
+  ::Sleep(500);
   oas->Close();
 }
 
@@ -325,11 +325,11 @@ TEST(WinAudioTest, PCMWaveSlowSource) {
   // The test parameters cause a callback every 32 ms and the source is
   // sleeping for 90 ms, so it is guaranteed that we run out of ready buffers.
   oas->Start(&test_laggy);
-  ::Sleep(1000);
+  ::Sleep(500);
   EXPECT_GT(test_laggy.callback_count(), 2);
   EXPECT_FALSE(test_laggy.had_error());
   oas->Stop();
-  ::Sleep(1000);
+  ::Sleep(500);
   oas->Close();
 }
 
@@ -353,9 +353,9 @@ TEST(WinAudioTest, PCMWaveStreamPlaySlowLoop) {
   size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
-  oas->SetVolume(1.0, 1.0);
+  oas->SetVolume(1.0);
 
-  for (int ix = 0; ix != 25; ++ix) {
+  for (int ix = 0; ix != 5; ++ix) {
     oas->Start(&source);
     ::Sleep(10);
     oas->Stop();
@@ -364,7 +364,7 @@ TEST(WinAudioTest, PCMWaveStreamPlaySlowLoop) {
 }
 
 
-// This test produces actual audio for 1.5 seconds on the default wave
+// This test produces actual audio for .5 seconds on the default wave
 // device at 44.1K s/sec. Parameters have been chosen carefully so you should
 // not hear pops or noises while the sound is playing.
 TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44Kss) {
@@ -384,14 +384,14 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44Kss) {
   size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
-  oas->SetVolume(1.0, 1.0);
+  oas->SetVolume(1.0);
   oas->Start(&source);
-  ::Sleep(1500);
+  ::Sleep(500);
   oas->Stop();
   oas->Close();
 }
 
-// This test produces actual audio for for 1.5 seconds on the default wave
+// This test produces actual audio for for .5 seconds on the default wave
 // device at 22K s/sec. Parameters have been chosen carefully so you should
 // not hear pops or noises while the sound is playing. The audio also should
 // sound with a lower volume than PCMWaveStreamPlay200HzTone44Kss.
@@ -413,18 +413,15 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone22Kss) {
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
 
-  oas->SetVolume(0.5, 0.5);
+  oas->SetVolume(0.5);
   oas->Start(&source);
-  ::Sleep(1500);
+  ::Sleep(500);
 
   // Test that the volume is within the set limits.
-  double left_volume = 0.0;
-  double right_volume = 0.0;
-  oas->GetVolume(&left_volume, &right_volume);
-  EXPECT_LT(left_volume, 0.51);
-  EXPECT_GT(left_volume, 0.49);
-  EXPECT_LT(right_volume, 0.51);
-  EXPECT_GT(right_volume, 0.49);
+  double volume = 0.0;
+  oas->GetVolume(&volume);
+  EXPECT_LT(volume, 0.51);
+  EXPECT_GT(volume, 0.49);
   oas->Stop();
   oas->Close();
 }
@@ -479,14 +476,14 @@ TEST(WinAudioTest, PushSourceFile16KHz)  {
   }
 
   // Play a little bit more of the file.
-  ::Sleep(4000);
+  ::Sleep(500);
 
   oas->Stop();
   oas->Close();
 }
 
 // This test is to make sure an AudioOutputStream can be started after it was
-// stopped. You will here two 1.5 seconds wave signal separated by 0.5 seconds
+// stopped. You will here two .5 seconds wave signal separated by 0.5 seconds
 // of silence.
 TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
   if (IsRunningHeadless())
@@ -505,19 +502,19 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
   size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
-  oas->SetVolume(1.0, 1.0);
+  oas->SetVolume(1.0);
 
-  // Play the wave for 1.5 seconds.
+  // Play the wave for .5 seconds.
   oas->Start(&source);
-  ::Sleep(1500);
+  ::Sleep(500);
   oas->Stop();
 
   // Sleep to give silence after stopping the AudioOutputStream.
-  ::Sleep(500);
+  ::Sleep(250);
 
-  // Start again and play for 1.5 seconds.
+  // Start again and play for .5 seconds.
   oas->Start(&source);
-  ::Sleep(1500);
+  ::Sleep(500);
   oas->Stop();
 
   oas->Close();

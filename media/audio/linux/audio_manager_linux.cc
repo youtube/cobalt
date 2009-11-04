@@ -14,6 +14,7 @@
 
 
 namespace {
+
 AudioManagerLinux* g_audio_manager = NULL;
 }  // namespace
 
@@ -75,8 +76,10 @@ void AudioManagerLinux::UnMuteAll() {
 }
 
 void AudioManagerLinux::ReleaseStream(AlsaPcmOutputStream* stream) {
-  AutoLock l(lock_);
-  active_streams_.erase(stream);
+  if (stream) {
+    AutoLock l(lock_);
+    active_streams_.erase(stream);
+  }
 }
 
 // TODO(ajwong): Collapse this with the windows version.

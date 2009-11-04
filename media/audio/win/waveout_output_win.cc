@@ -215,19 +215,16 @@ void PCMWaveOutAudioOutputStream::Close() {
   manager_->ReleaseStream(this);
 }
 
-void PCMWaveOutAudioOutputStream::SetVolume(double left_level,
-                                            double ) {
+void PCMWaveOutAudioOutputStream::SetVolume(double volume) {
   if (!waveout_)
     return;
-  volume_ = static_cast<float>(left_level);
+  volume_ = static_cast<float>(volume);
 }
 
-void PCMWaveOutAudioOutputStream::GetVolume(double* left_level,
-                                            double* right_level) {
+void PCMWaveOutAudioOutputStream::GetVolume(double* volume) {
   if (!waveout_)
     return;
-  *left_level = volume_;
-  *right_level = volume_;
+  *volume = volume_;
 }
 
 void PCMWaveOutAudioOutputStream::HandleError(MMRESULT error) {
