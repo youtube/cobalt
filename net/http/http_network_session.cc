@@ -5,6 +5,7 @@
 #include "net/http/http_network_session.h"
 
 #include "base/logging.h"
+#include "net/flip/flip_session_pool.h"
 
 namespace net {
 
@@ -18,16 +19,21 @@ HttpNetworkSession::HttpNetworkSession(
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     ClientSocketFactory* client_socket_factory,
-    SSLConfigService* ssl_config_service)
+    SSLConfigService* ssl_config_service,
+    FlipSessionPool* flip_session_pool)
     : tcp_socket_pool_(new TCPClientSocketPool(
           max_sockets_, max_sockets_per_group_, host_resolver,
           client_socket_factory)),
       socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
-      ssl_config_service_(ssl_config_service) {
+      ssl_config_service_(ssl_config_service),
+      flip_session_pool_(flip_session_pool) {
   DCHECK(proxy_service);
   DCHECK(ssl_config_service);
+}
+
+HttpNetworkSession::~HttpNetworkSession() {
 }
 
 // static
