@@ -1042,69 +1042,74 @@ std::wstring StripWWW(const std::wstring& text) {
 FilePath GetSuggestedFilename(const GURL& url,
                               const std::string& content_disposition,
                               const std::string& referrer_charset,
-                              const char* default_name) {
-  // TODO(rolandsteiner): as pointed out by darin in the code review, this is
-  // hardly ideal. "download" should be translated, or another solution found.
-  // (cf. http://code.google.com/p/chromium/issues/detail?id=25289)
-  const char kFinalFallbackName[] = "download";
+                              const FilePath& default_name) {
+  // We don't translate this fallback string, "download". If localization is
+  // needed, the caller should provide localized fallback default_name.
+  static const FilePath::CharType kFinalFallbackName[] =
+      FILE_PATH_LITERAL("download");
 
   // about: and data: URLs don't have file names, but esp. data: URLs may
   // contain parts that look like ones (i.e., contain a slash).
   // Therefore we don't attempt to divine a file name out of them.
   if (url.SchemeIs("about") || url.SchemeIs("data")) {
-    return FilePath(UTF8ToFilePathString(
-        default_name && default_name[0] ? default_name : kFinalFallbackName));
+    return default_name.empty() ? FilePath(kFinalFallbackName) : default_name;
   }
 
-  std::string filename = GetFileNameFromCD(content_disposition,
-                                           referrer_charset);
+  const std::string filename_from_cd = GetFileNameFromCD(content_disposition,
+                                                          referrer_charset);
+#if defined(OS_WIN)
+  FilePath::StringType filename = UTF8ToWide(filename_from_cd);
+#elif defined(OS_POSIX)
+  FilePath::StringType filename = filename_from_cd;
+#endif
+
   if (!filename.empty()) {
     // Remove any path information the server may have sent, take the name
     // only.
-#if defined(OS_WIN)
-    filename = UTF16ToUTF8(FilePath(UTF8ToUTF16(filename)).BaseName().value());
-#else
     filename = FilePath(filename).BaseName().value();
-#endif
 
     // Next, remove "." from the beginning and end of the file name to avoid
     // tricks with hidden files, "..", and "."
-    TrimString(filename, ".", &filename);
+    TrimString(filename, FILE_PATH_LITERAL("."), &filename);
   }
   if (filename.empty()) {
     if (url.is_valid()) {
-      filename = UnescapeURLComponent(
+      const std::string unescaped_url_filename = UnescapeURLComponent(
           url.ExtractFileName(),
           UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
+#if defined(OS_WIN)
+      filename = UTF8ToWide(unescaped_url_filename);
+#elif defined(OS_POSIX)
+      filename = unescaped_url_filename;
+#endif
     }
   }
 
   // Trim '.' once more.
-  TrimString(filename, ".", &filename);
+  TrimString(filename, FILE_PATH_LITERAL("."), &filename);
 
   // If there's no filename or it gets trimed to be empty, use
   // the URL hostname or default_name
   if (filename.empty()) {
-    if (default_name && default_name[0]) {
-      filename = default_name;
+    if (!default_name.empty()) {
+      filename = default_name.value();
     } else if (url.is_valid()) {
       // Some schemes (e.g. file) do not have a hostname. Even though it's
       // not likely to reach here, let's hardcode the last fallback name.
       // TODO(jungshik) : Decode a 'punycoded' IDN hostname. (bug 1264451)
-      filename = url.host().empty() ? std::string(kFinalFallbackName)
-                                    : url.host();
+      filename = url.host().empty() ? kFinalFallbackName :
+#if defined(OS_WIN)
+          UTF8ToWide(url.host());
+#elif defined(OS_POSIX)
+          url.host();
+#endif
     } else {
       NOTREACHED();
     }
   }
 
-#if defined(OS_WIN)
-  FilePath::StringType file_path_string = UTF8ToWide(filename);
-#else
-  std::string& file_path_string = filename;
-#endif
-  file_util::ReplaceIllegalCharactersInPath(&file_path_string, '-');
-  return FilePath(file_path_string);
+  file_util::ReplaceIllegalCharactersInPath(&filename, '-');
+  return FilePath(filename);
 }
 
 bool IsPortAllowedByDefault(int port) {
