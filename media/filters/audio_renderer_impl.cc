@@ -47,7 +47,7 @@ void AudioRendererImpl::SetPlaybackRate(float rate) {
 
 void AudioRendererImpl::SetVolume(float volume) {
   if (stream_)
-    stream_->SetVolume(volume, volume);
+    stream_->SetVolume(volume);
 }
 
 size_t AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,

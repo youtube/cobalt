@@ -22,13 +22,12 @@ class FakeAudioOutputStream : public AudioOutputStream {
   virtual bool Open(size_t packet_size);
   virtual void Start(AudioSourceCallback* callback);
   virtual void Stop();
-  virtual void SetVolume(double left_level, double right_level);
-  virtual void GetVolume(double* left_level, double* right_level);
+  virtual void SetVolume(double volume);
+  virtual void GetVolume(double* volume);
   virtual void Close();
 
   char* buffer() { return buffer_.get(); }
-  double left_volume() { return left_volume_; }
-  double right_volume() { return right_volume_; }
+  double volume() { return volume_; }
 
  private:
   FakeAudioOutputStream();
@@ -38,8 +37,7 @@ class FakeAudioOutputStream : public AudioOutputStream {
   static bool has_created_fake_stream_;
   static FakeAudioOutputStream* last_fake_stream_;
 
-  double left_volume_;
-  double right_volume_;
+  double volume_;
   AudioSourceCallback* callback_;
   scoped_array<char> buffer_;
   size_t packet_size_;
@@ -48,3 +46,4 @@ class FakeAudioOutputStream : public AudioOutputStream {
 };
 
 #endif  // MEDIA_AUDIO_FAKE_AUDIO_OUTPUT_STREAM_H_
+

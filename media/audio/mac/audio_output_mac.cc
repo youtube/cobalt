@@ -146,25 +146,22 @@ void PCMQueueOutAudioOutputStream::Stop() {
     HandleError(err);
 }
 
-void PCMQueueOutAudioOutputStream::SetVolume(double left_level,
-                                             double ) {
+void PCMQueueOutAudioOutputStream::SetVolume(double volume) {
   if (!audio_queue_)
     return;
-  volume_ = static_cast<float>(left_level);
+  volume_ = static_cast<float>(volume);
   OSStatus err = AudioQueueSetParameter(audio_queue_,
                                         kAudioQueueParam_Volume,
-                                        left_level);
+                                        volume);
   if (err != noErr) {
     HandleError(err);
   }
 }
 
-void PCMQueueOutAudioOutputStream::GetVolume(double* left_level,
-                                             double* right_level) {
+void PCMQueueOutAudioOutputStream::GetVolume(double* volume) {
   if (!audio_queue_)
     return;
-  *left_level = volume_;
-  *right_level = volume_;
+  *volume = volume_;
 }
 
 // Reorder PCM from AAC layout to Core Audio layout.
