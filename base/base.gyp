@@ -253,6 +253,7 @@
         'scoped_cftyperef.h',
         'scoped_comptr_win.h',
         'scoped_handle.h',
+        'scoped_handle_gtk.h',
         'scoped_handle_win.h',
         'scoped_nsautorelease_pool.h',
         'scoped_nsautorelease_pool.mm',
