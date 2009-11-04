@@ -12,8 +12,6 @@
 
 namespace base {
 
-static const char kFindInodeSwitch[] = "--find-inode";
-
 // Makes a copy of |pixels| with the ordering changed from BGRA to RGBA.
 // The caller is responsible for free()ing the data. If |stride| is 0,
 // it's assumed to be 4 * |width|.
