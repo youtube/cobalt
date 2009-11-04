@@ -638,7 +638,7 @@ int SocketStream::DoSOCKSConnectComplete(int result) {
     if (is_secure())
       next_state_ = STATE_SSL_CONNECT;
     else
-      DidEstablishConnection();
+      result = DidEstablishConnection();
   }
   return result;
 }
@@ -688,7 +688,7 @@ int SocketStream::DoReadWrite(int result) {
       return ERR_CONNECTION_CLOSED;
     }
     // If read is pending, try write as well.
-    // Otherwise, return the result and do next loop.
+    // Otherwise, return the result and do next loop (to close the connection).
     if (result != ERR_IO_PENDING) {
       next_state_ = STATE_CLOSE;
       return result;
@@ -707,6 +707,12 @@ int SocketStream::DoReadWrite(int result) {
     if (result > 0) {
       DidSendData(result);
       return OK;
+    }
+    // If write is not pending, return the result and do next loop (to close
+    // the connection).
+    if (result != 0 && result != ERR_IO_PENDING) {
+      next_state_ = STATE_CLOSE;
+      return result;
     }
     return result;
   }
