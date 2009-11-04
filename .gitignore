@@ -40,6 +40,7 @@
 /third_party/WebKit
 /third_party/cygwin
 /third_party/ffmpeg/binaries
+/third_party/ffmpeg/source/patched-ffmpeg-mt
 /third_party/forge
 /third_party/googlemac
 /third_party/hunspell
@@ -54,6 +55,7 @@
 /third_party/skia
 /third_party/tcmalloc/tcmalloc
 /third_party/xdg-utils
+/third_party/yasm/source/patched-yasm
 /tools/distcc
 /tools/grit/grit/test/data
 /tools/gyp
