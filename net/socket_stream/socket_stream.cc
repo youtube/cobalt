@@ -25,6 +25,7 @@
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
 #include "net/socket/tcp_client_socket.h"
+#include "net/socket_stream/socket_stream_throttle.h"
 #include "net/url_request/url_request.h"
 
 static const int kMaxPendingSendAllowed = 32768;  // 32 kilobytes.
@@ -55,12 +56,16 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       write_buf_(NULL),
       current_write_buf_(NULL),
       write_buf_offset_(0),
-      write_buf_size_(0) {
+      write_buf_size_(0),
+      throttle_(
+          SocketStreamThrottle::GetSocketStreamThrottleForScheme(
+              url.scheme())) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
   DCHECK(delegate_);
+  DCHECK(throttle_);
 }
 
 SocketStream::~SocketStream() {
@@ -199,6 +204,7 @@ void SocketStream::Finish(int result) {
   if (delegate) {
     delegate->OnClose(this);
   }
+  throttle_->OnClose(this);
   Release();
 }
 
@@ -211,6 +217,10 @@ void SocketStream::SetClientSocketFactory(
     ClientSocketFactory* factory) {
   DCHECK(factory);
   factory_ = factory;
+}
+
+void SocketStream::CopyAddrInfo(struct addrinfo* head) {
+  addresses_.Copy(head);
 }
 
 int SocketStream::DidEstablishConnection() {
@@ -226,24 +236,29 @@ int SocketStream::DidEstablishConnection() {
   return OK;
 }
 
-void SocketStream::DidReceiveData(int result) {
+int SocketStream::DidReceiveData(int result) {
   DCHECK(read_buf_);
   DCHECK_GT(result, 0);
-  if (!delegate_)
-    return;
-  // Notify recevied data to delegate.
-  delegate_->OnReceivedData(this, read_buf_->data(), result);
+  int len = result;
+  result = throttle_->OnRead(this, read_buf_->data(), len, &io_callback_);
+  if (delegate_) {
+    // Notify recevied data to delegate.
+    delegate_->OnReceivedData(this, read_buf_->data(), len);
+  }
   read_buf_ = NULL;
+  return result;
 }
 
-void SocketStream::DidSendData(int result) {
-  current_write_buf_ = NULL;
+int SocketStream::DidSendData(int result) {
   DCHECK_GT(result, 0);
-  if (!delegate_)
-    return;
+  int len = result;
+  result = throttle_->OnWrite(this, current_write_buf_->data(), len,
+                              &io_callback_);
+  current_write_buf_ = NULL;
+  if (delegate_)
+    delegate_->OnSentData(this, len);
 
-  delegate_->OnSentData(this, result);
-  int remaining_size = write_buf_size_ - write_buf_offset_ - result;
+  int remaining_size = write_buf_size_ - write_buf_offset_ - len;
   if (remaining_size == 0) {
     if (!pending_write_bufs_.empty()) {
       write_buf_size_ = pending_write_bufs_.front()->size();
@@ -255,8 +270,9 @@ void SocketStream::DidSendData(int result) {
     }
     write_buf_offset_ = 0;
   } else {
-    write_buf_offset_ += result;
+    write_buf_offset_ += len;
   }
+  return result;
 }
 
 void SocketStream::OnIOCompleted(int result) {
@@ -268,16 +284,14 @@ void SocketStream::OnReadCompleted(int result) {
     // 0 indicates end-of-file, so socket was closed.
     next_state_ = STATE_CLOSE;
   } else if (result > 0 && read_buf_) {
-    DidReceiveData(result);
-    result = OK;
+    result = DidReceiveData(result);
   }
   DoLoop(result);
 }
 
 void SocketStream::OnWriteCompleted(int result) {
   if (result >= 0 && write_buf_) {
-    DidSendData(result);
-    result = OK;
+    result = DidSendData(result);
   }
   DoLoop(result);
 }
@@ -407,10 +421,12 @@ int SocketStream::DoResolveHost() {
 }
 
 int SocketStream::DoResolveHostComplete(int result) {
-  if (result == OK)
+  if (result == OK) {
     next_state_ = STATE_TCP_CONNECT;
-  else
+    result = throttle_->OnStartOpenConnection(this, &io_callback_);
+  } else {
     next_state_ = STATE_CLOSE;
+  }
   // TODO(ukai): if error occured, reconsider proxy after error.
   return result;
 }
@@ -680,8 +696,7 @@ int SocketStream::DoReadWrite(int result) {
     read_buf_ = new IOBuffer(kReadBufferSize);
     result = socket_->Read(read_buf_, kReadBufferSize, &read_callback_);
     if (result > 0) {
-      DidReceiveData(result);
-      return OK;
+      return DidReceiveData(result);
     } else if (result == 0) {
       // 0 indicates end-of-file, so socket was closed.
       next_state_ = STATE_CLOSE;
@@ -705,8 +720,7 @@ int SocketStream::DoReadWrite(int result) {
                             current_write_buf_->BytesRemaining(),
                             &write_callback_);
     if (result > 0) {
-      DidSendData(result);
-      return OK;
+      return DidSendData(result);
     }
     // If write is not pending, return the result and do next loop (to close
     // the connection).
