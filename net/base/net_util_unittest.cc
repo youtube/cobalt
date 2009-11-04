@@ -5,6 +5,7 @@
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/string_util.h"
+#include "base/sys_string_conversions.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/escape.h"
@@ -353,7 +354,7 @@ struct SuggestedFilenameCase {
   const char* url;
   const char* content_disp_header;
   const char* referrer_charset;
-  const char* default_filename;
+  const wchar_t* default_filename;
   const wchar_t* expected_filename;
 };
 
@@ -856,32 +857,32 @@ TEST(NetUtilTest, GetSuggestedFilename) {
     {"http://www.google.com/",
      "Content-disposition: attachment; filename=test.html",
      "",
-     "",
+     L"",
      L"test.html"},
     {"http://www.google.com/",
      "Content-disposition: attachment; filename=\"test.html\"",
      "",
-     "",
+     L"",
      L"test.html"},
     {"http://www.google.com/path/test.html",
      "Content-disposition: attachment",
      "",
-     "",
+     L"",
      L"test.html"},
     {"http://www.google.com/path/test.html",
      "Content-disposition: attachment;",
      "",
-     "",
+     L"",
      L"test.html"},
     {"http://www.google.com/",
      "",
      "",
-     "",
+     L"",
      L"www.google.com"},
     {"http://www.google.com/test.html",
      "",
      "",
-     "",
+     L"",
      L"test.html"},
     // Now that we use googleurl's ExtractFileName, this case falls back
     // to the hostname. If this behavior is not desirable, we'd better
@@ -889,117 +890,134 @@ TEST(NetUtilTest, GetSuggestedFilename) {
     {"http://www.google.com/path/",
      "",
      "",
-     "",
+     L"",
      L"www.google.com"},
     {"http://www.google.com/path",
      "",
      "",
-     "",
+     L"",
      L"path"},
     {"file:///",
      "",
      "",
-     "",
+     L"",
      L"download"},
     {"non-standard-scheme:",
      "",
      "",
-     "",
+     L"",
      L"download"},
     {"http://www.google.com/",
      "Content-disposition: attachment; filename =\"test.html\"",
      "",
-     "download",
+     L"download",
      L"test.html"},
     {"http://www.google.com/",
      "",
      "",
-     "download",
+     L"download",
      L"download"},
     {"http://www.google.com/",
      "Content-disposition: attachment; filename=\"../test.html\"",
      "",
-     "",
+     L"",
      L"test.html"},
     {"http://www.google.com/",
      "Content-disposition: attachment; filename=\"..\"",
      "",
-     "download",
+     L"download",
      L"download"},
     {"http://www.google.com/test.html",
      "Content-disposition: attachment; filename=\"..\"",
      "",
-     "download",
+     L"download",
      L"test.html"},
     // Below is a small subset of cases taken from GetFileNameFromCD test above.
     {"http://www.google.com/",
      "Content-Disposition: attachment; filename=\"%EC%98%88%EC%88%A0%20"
      "%EC%98%88%EC%88%A0.jpg\"",
      "",
-     "",
+     L"",
      L"\uc608\uc220 \uc608\uc220.jpg"},
     {"http://www.google.com/%EC%98%88%EC%88%A0%20%EC%98%88%EC%88%A0.jpg",
      "",
      "",
-     "download",
+     L"download",
      L"\uc608\uc220 \uc608\uc220.jpg"},
     {"http://www.google.com/",
      "Content-disposition: attachment;",
      "",
-     "\xEB\x8B\xA4\xEC\x9A\xB4\xEB\xA1\x9C\xEB\x93\x9C",
+     L"\uB2E4\uC6B4\uB85C\uB4DC",
      L"\uB2E4\uC6B4\uB85C\uB4DC"},
     {"http://www.google.com/",
      "Content-Disposition: attachment; filename=\"=?EUC-JP?Q?=B7=DD=BD="
      "D13=2Epng?=\"",
      "",
-     "download",
+     L"download",
      L"\u82b8\u88533.png"},
     {"http://www.example.com/images?id=3",
      "Content-Disposition: attachment; filename=caf\xc3\xa9.png",
      "iso-8859-1",
-     "",
+     L"",
      L"caf\u00e9.png"},
     {"http://www.example.com/images?id=3",
      "Content-Disposition: attachment; filename=caf\xe5.png",
      "windows-1253",
-     "",
+     L"",
      L"caf\u03b5.png"},
     {"http://www.example.com/file?id=3",
      "Content-Disposition: attachment; name=\xcf\xc2\xd4\xd8.zip",
      "GBK",
-     "",
+     L"",
      L"\u4e0b\u8f7d.zip"},
     // Invalid C-D header. Extracts filename from url.
     {"http://www.google.com/test.html",
      "Content-Disposition: attachment; filename==?iiso88591?Q?caf=EG?=",
      "",
-     "",
+     L"",
      L"test.html"},
     // about: and data: URLs
     {"about:chrome",
      "",
      "",
-     "",
+     L"",
      L"download"},
     {"data:,looks/like/a.path",
      "",
      "",
-     "",
+     L"",
      L"download"},
     {"data:text/plain;base64,VG8gYmUgb3Igbm90IHRvIGJlLg=",
      "",
      "",
-     "",
+     L"",
      L"download"},
+    {"data:,looks/like/a.path",
+     "",
+     "",
+     L"default_filename_is_given",
+     L"default_filename_is_given"},
+    {"data:,looks/like/a.path",
+     "",
+     "",
+     L"\u65e5\u672c\u8a9e",  // Japanese Kanji.
+     L"\u65e5\u672c\u8a9e"},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
+#if defined(OS_WIN)
+    FilePath default_name(test_cases[i].default_filename);
+#else
+    FilePath default_name(
+        base::SysWideToNativeMB(test_cases[i].default_filename));
+#endif
     FilePath filename = net::GetSuggestedFilename(
         GURL(test_cases[i].url), test_cases[i].content_disp_header,
-        test_cases[i].referrer_charset, test_cases[i].default_filename);
+        test_cases[i].referrer_charset, default_name);
 #if defined(OS_WIN)
     EXPECT_EQ(std::wstring(test_cases[i].expected_filename), filename.value())
 #else
-    EXPECT_EQ(WideToUTF8(test_cases[i].expected_filename), filename.value())
+    EXPECT_EQ(base::SysWideToNativeMB(test_cases[i].expected_filename),
+              filename.value())
 #endif
       << "Iteration " << i << ": " << test_cases[i].url;
   }
