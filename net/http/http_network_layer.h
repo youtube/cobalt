@@ -14,6 +14,7 @@
 namespace net {
 
 class ClientSocketFactory;
+class FlipSessionPool;
 class HostResolver;
 class HttpNetworkSession;
 class ProxyInfo;
@@ -73,6 +74,8 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   scoped_refptr<SSLConfigService> ssl_config_service_;
 
   scoped_refptr<HttpNetworkSession> session_;
+  scoped_refptr<FlipSessionPool> flip_session_pool_;
+
   bool suspended_;
   static bool enable_flip_;
 };

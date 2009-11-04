@@ -16,13 +16,16 @@
 namespace net {
 
 class ClientSocketFactory;
+class FlipSessionPool;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
 class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
  public:
   HttpNetworkSession(HostResolver* host_resolver, ProxyService* proxy_service,
                      ClientSocketFactory* client_socket_factory,
-                     SSLConfigService* ssl_config_service);
+                     SSLConfigService* ssl_config_service,
+                     FlipSessionPool* flip_session_pool);
+  ~HttpNetworkSession();
 
   HttpAuthCache* auth_cache() { return &auth_cache_; }
   SSLClientAuthCache* ssl_client_auth_cache() {
@@ -36,6 +39,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   HostResolver* host_resolver() { return host_resolver_; }
   ProxyService* proxy_service() { return proxy_service_; }
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
+  FlipSessionPool* flip_session_pool() { return flip_session_pool_; }
 
   static void set_max_sockets_per_group(int socket_count);
 
@@ -57,6 +61,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
+  scoped_refptr<FlipSessionPool> flip_session_pool_;
 };
 
 }  // namespace net
