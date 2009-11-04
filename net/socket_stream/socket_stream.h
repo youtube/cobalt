@@ -31,6 +31,7 @@ class ClientSocketFactory;
 class HostResolver;
 class SSLConfigService;
 class SingleRequestHostResolver;
+class SocketStreamThrottle;
 
 // SocketStream is used to implement Web Sockets.
 // It provides plain full-duplex stream with proxy and SSL support.
@@ -96,6 +97,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   void SetUserData(const void* key, UserData* data);
 
   const GURL& url() const { return url_; }
+  const AddressList& address_list() const { return addresses_; }
   Delegate* delegate() const { return delegate_; }
   int max_pending_send_allowed() const { return max_pending_send_allowed_; }
 
@@ -191,14 +193,20 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   friend class base::RefCountedThreadSafe<SocketStream>;
   ~SocketStream();
 
+  friend class WebSocketThrottleTest;
+
+  // Copies the given addrinfo list in |addresses_|.
+  // Used for WebSocketThrottleTest.
+  void CopyAddrInfo(struct addrinfo* head);
+
   // Finishes the job.
   // Calls OnError and OnClose of delegate, and no more
   // notifications will be sent to delegate.
   void Finish(int result);
 
   int DidEstablishConnection();
-  void DidReceiveData(int result);
-  void DidSendData(int result);
+  int DidReceiveData(int result);
+  int DidSendData(int result);
 
   void OnIOCompleted(int result);
   void OnReadCompleted(int result);
@@ -288,6 +296,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   int write_buf_offset_;
   int write_buf_size_;
   PendingDataQueue pending_write_bufs_;
+
+  SocketStreamThrottle* throttle_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStream);
 };
