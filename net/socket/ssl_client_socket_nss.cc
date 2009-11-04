@@ -150,6 +150,23 @@ int NetErrorFromNSPRError(PRErrorCode err) {
   switch (err) {
     case PR_WOULD_BLOCK_ERROR:
       return ERR_IO_PENDING;
+    case PR_ADDRESS_NOT_SUPPORTED_ERROR:  // For connect.
+    case PR_NO_ACCESS_RIGHTS_ERROR:
+      return ERR_ACCESS_DENIED;
+    case PR_IO_TIMEOUT_ERROR:
+      return ERR_TIMED_OUT;
+    case PR_CONNECT_RESET_ERROR:
+      return ERR_CONNECTION_RESET;
+    case PR_CONNECT_ABORTED_ERROR:
+      return ERR_CONNECTION_ABORTED;
+    case PR_CONNECT_REFUSED_ERROR:
+      return ERR_CONNECTION_REFUSED;
+    case PR_HOST_UNREACHABLE_ERROR:
+    case PR_NETWORK_UNREACHABLE_ERROR:
+      return ERR_ADDRESS_UNREACHABLE;
+    case PR_ADDRESS_NOT_AVAILABLE_ERROR:
+      return ERR_ADDRESS_INVALID;
+
     case SSL_ERROR_NO_CYPHER_OVERLAP:
       return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
     case SSL_ERROR_BAD_CERT_DOMAIN:
@@ -656,15 +673,39 @@ void SSLClientSocketNSS::OnRecvComplete(int result) {
   LeaveFunction("");
 }
 
-// Map a Chromium net error code to an NSS error code
+// Map a Chromium net error code to an NSS error code.
 // See _MD_unix_map_default_error in the NSS source
 // tree for inspiration.
 static PRErrorCode MapErrorToNSS(int result) {
   if (result >=0)
     return result;
-  // TODO(port): add real table
-  LOG(ERROR) << "MapErrorToNSS " << result;
-  return PR_UNKNOWN_ERROR;
+
+  switch (result) {
+    case ERR_IO_PENDING:
+      return PR_WOULD_BLOCK_ERROR;
+    case ERR_ACCESS_DENIED:
+      // For connect, this could be mapped to PR_ADDRESS_NOT_SUPPORTED_ERROR.
+      return PR_NO_ACCESS_RIGHTS_ERROR;
+    case ERR_INTERNET_DISCONNECTED:  // Equivalent to ENETDOWN.
+      return PR_NETWORK_UNREACHABLE_ERROR;  // Best approximation.
+    case ERR_CONNECTION_TIMED_OUT:
+    case ERR_TIMED_OUT:
+      return PR_IO_TIMEOUT_ERROR;
+    case ERR_CONNECTION_RESET:
+      return PR_CONNECT_RESET_ERROR;
+    case ERR_CONNECTION_ABORTED:
+      return PR_CONNECT_ABORTED_ERROR;
+    case ERR_CONNECTION_REFUSED:
+      return PR_CONNECT_REFUSED_ERROR;
+    case ERR_ADDRESS_UNREACHABLE:
+      return PR_HOST_UNREACHABLE_ERROR;  // Also PR_NETWORK_UNREACHABLE_ERROR.
+    case ERR_ADDRESS_INVALID:
+      return PR_ADDRESS_NOT_AVAILABLE_ERROR;
+    default:
+      LOG(WARNING) << "MapErrorToNSS " << result
+                   << " mapped to PR_UNKNOWN_ERROR";
+      return PR_UNKNOWN_ERROR;
+  }
 }
 
 // Do network I/O between the given buffer and the given socket.
@@ -710,7 +751,7 @@ int SSLClientSocketNSS::BufferSend(void) {
 
 void SSLClientSocketNSS::BufferSendComplete(int result) {
   EnterFunction(result);
-  memio_PutWriteResult(nss_bufs_, result);
+  memio_PutWriteResult(nss_bufs_, MapErrorToNSS(result));
   transport_send_busy_ = false;
   OnSendComplete(result);
   LeaveFunction("");
@@ -751,7 +792,7 @@ void SSLClientSocketNSS::BufferRecvComplete(int result) {
     memcpy(buf, recv_buffer_->data(), result);
   }
   recv_buffer_ = NULL;
-  memio_PutReadResult(nss_bufs_, result);
+  memio_PutReadResult(nss_bufs_, MapErrorToNSS(result));
   transport_recv_busy_ = false;
   OnRecvComplete(result);
   LeaveFunction("");
