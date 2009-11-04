@@ -196,8 +196,8 @@ std::wstring StripWWW(const std::wstring& text);
 
 // Gets the filename from the raw Content-Disposition header (as read from the
 // network).  Otherwise uses the last path component name or hostname from
-// |url|. If there is no filename or it can't be used, the given default name
-// will be used if specified.
+// |url|. If there is no filename or it can't be used, the given |default_name|,
+// will be used unless it is empty.
 
 // Note: it's possible for the suggested filename to be empty (e.g.,
 // file:///). referrer_charset is used as one of charsets
@@ -206,7 +206,7 @@ std::wstring StripWWW(const std::wstring& text);
 FilePath GetSuggestedFilename(const GURL& url,
                               const std::string& content_disposition,
                               const std::string& referrer_charset,
-                              const char* default_name);
+                              const FilePath& default_name);
 
 // Checks the given port against a list of ports which are restricted by
 // default.  Returns true if the port is allowed, false if it is restricted.
