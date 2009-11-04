@@ -244,8 +244,10 @@ void WebSocketThrottle::RemoveFromQueue(SocketStream* socket,
     ConnectingQueue* queue = iter->second;
     DCHECK(state == queue->front());
     queue->pop_front();
-    if (queue->empty())
+    if (queue->empty()) {
+      delete queue;
       addr_map_.erase(iter);
+    }
   }
   for (ConnectingQueue::iterator iter = queue_.begin();
        iter != queue_.end();
