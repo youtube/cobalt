@@ -92,19 +92,15 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
 
-  oas->SetVolume(0.5, 0.5);
+  oas->SetVolume(0.5);
   oas->Start(&source);
   usleep(1500000);
 
   // Test that the volume is within the set limits.
-  double left_volume = 0.0;
-  double right_volume = 0.0;
-  oas->GetVolume(&left_volume, &right_volume);
-  EXPECT_LT(left_volume, 0.51);
-  EXPECT_GT(left_volume, 0.49);
-  EXPECT_LT(right_volume, 0.51);
-  EXPECT_GT(right_volume, 0.49);
-
+  double volume = 0.0;
+  oas->GetVolume(&volume);
+  EXPECT_LT(volume, 0.51);
+  EXPECT_GT(volume, 0.49);
   oas->Stop();
   oas->Close();
 }

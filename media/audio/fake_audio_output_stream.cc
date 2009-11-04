@@ -39,14 +39,12 @@ void FakeAudioOutputStream::Start(AudioSourceCallback* callback)  {
 void FakeAudioOutputStream::Stop() {
 }
 
-void FakeAudioOutputStream::SetVolume(double left_level, double right_level) {
-  left_volume_ = left_level;
-  right_volume_ = right_level;
+void FakeAudioOutputStream::SetVolume(double volume) {
+  volume_ = volume;
 }
 
-void FakeAudioOutputStream::GetVolume(double* left_level, double* right_level) {
-  *left_level = left_volume_;
-  *right_level = right_volume_;
+void FakeAudioOutputStream::GetVolume(double* volume) {
+  *volume = volume_;
 }
 
 void FakeAudioOutputStream::Close() {
@@ -59,8 +57,7 @@ void FakeAudioOutputStream::Close() {
 }
 
 FakeAudioOutputStream::FakeAudioOutputStream()
-    : left_volume_(0),
-      right_volume_(0),
+    : volume_(0),
       callback_(NULL),
       packet_size_(0) {
 }

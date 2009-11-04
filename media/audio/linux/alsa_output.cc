@@ -350,16 +350,16 @@ void AlsaPcmOutputStream::Stop() {
   shared_data_.TransitionTo(kIsStopped);
 }
 
-void AlsaPcmOutputStream::SetVolume(double left_level, double right_level) {
+void AlsaPcmOutputStream::SetVolume(double volume) {
   DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
 
-  shared_data_.set_volume(static_cast<float>(left_level));
+  shared_data_.set_volume(static_cast<float>(volume));
 }
 
-void AlsaPcmOutputStream::GetVolume(double* left_level, double* right_level) {
+void AlsaPcmOutputStream::GetVolume(double* volume) {
   DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
 
-  *left_level = *right_level = shared_data_.volume();
+  *volume = shared_data_.volume();
 }
 
 void AlsaPcmOutputStream::OpenTask(size_t packet_size) {
