@@ -8,6 +8,7 @@
 #include "net/flip/flip_framer.h"
 #include "net/flip/flip_network_transaction.h"
 #include "net/flip/flip_session.h"
+#include "net/flip/flip_session_pool.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_network_transaction.h"
 #include "net/socket/client_socket_factory.h"
@@ -47,6 +48,7 @@ HttpNetworkLayer::HttpNetworkLayer(ClientSocketFactory* socket_factory,
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
       session_(NULL),
+      flip_session_pool_(NULL),
       suspended_(false) {
   DCHECK(proxy_service_);
   DCHECK(ssl_config_service_.get());
@@ -56,6 +58,7 @@ HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
     : socket_factory_(ClientSocketFactory::GetDefaultFactory()),
       ssl_config_service_(NULL),
       session_(session),
+      flip_session_pool_(session->flip_session_pool()),
       suspended_(false) {
   DCHECK(session_.get());
 }
@@ -88,8 +91,10 @@ void HttpNetworkLayer::Suspend(bool suspend) {
 HttpNetworkSession* HttpNetworkLayer::GetSession() {
   if (!session_) {
     DCHECK(proxy_service_);
-    session_ = new HttpNetworkSession(host_resolver_, proxy_service_,
-                                      socket_factory_, ssl_config_service_);
+    FlipSessionPool* flip_pool = enable_flip_ ? new FlipSessionPool : NULL;
+    session_ = new HttpNetworkSession(
+        host_resolver_, proxy_service_, socket_factory_,
+        ssl_config_service_, flip_pool);
     // These were just temps for lazy-initializing HttpNetworkSession.
     host_resolver_ = NULL;
     proxy_service_ = NULL;
