@@ -14,8 +14,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <string>
-
 #include "base/file_util.h"
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
@@ -253,8 +251,10 @@ size_t ProcessMetrics::GetPrivateBytes() const {
   return ws_usage.priv << 10;
 }
 
-// Private and Shared working set sizes are obtained from /proc/<pid>/smaps,
-// as in http://www.pixelbeat.org/scripts/ps_mem.py
+// Private and Shared working set sizes are obtained from /proc/<pid>/smaps.
+// When that's not available, use the values from /proc<pid>/statm as a
+// close approximation.
+// See http://www.pixelbeat.org/scripts/ps_mem.py
 bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   FilePath stat_file =
     FilePath("/proc").Append(IntToString(process_)).Append("smaps");
@@ -262,32 +262,50 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   int private_kb = 0;
   int pss_kb = 0;
   bool have_pss = false;
-  if (!file_util::ReadFileToString(stat_file, &smaps) || smaps.length() == 0)
-    return false;
-
-  StringTokenizer tokenizer(smaps, ":\n");
-  ParsingState state = KEY_NAME;
-  std::string last_key_name;
-  while (tokenizer.GetNext()) {
-    switch (state) {
-      case KEY_NAME:
-        last_key_name = tokenizer.token();
-        state = KEY_VALUE;
-        break;
-      case KEY_VALUE:
-        if (last_key_name.empty()) {
-          NOTREACHED();
-          return false;
-        }
-        if (StartsWithASCII(last_key_name, "Private_", 1)) {
-          private_kb += StringToInt(tokenizer.token());
-        } else if (StartsWithASCII(last_key_name, "Pss", 1)) {
-          have_pss = true;
-          pss_kb += StringToInt(tokenizer.token());
-        }
-        state = KEY_NAME;
-        break;
+  if (file_util::ReadFileToString(stat_file, &smaps) && smaps.length() > 0) {
+    StringTokenizer tokenizer(smaps, ":\n");
+    ParsingState state = KEY_NAME;
+    std::string last_key_name;
+    while (tokenizer.GetNext()) {
+      switch (state) {
+        case KEY_NAME:
+          last_key_name = tokenizer.token();
+          state = KEY_VALUE;
+          break;
+        case KEY_VALUE:
+          if (last_key_name.empty()) {
+            NOTREACHED();
+            return false;
+          }
+          if (StartsWithASCII(last_key_name, "Private_", 1)) {
+            private_kb += StringToInt(tokenizer.token());
+          } else if (StartsWithASCII(last_key_name, "Pss", 1)) {
+            have_pss = true;
+            pss_kb += StringToInt(tokenizer.token());
+          }
+          state = KEY_NAME;
+          break;
+      }
     }
+  } else {
+    // Try statm if smaps is empty because of the SUID sandbox.
+    // First we need to get the page size though.
+    int page_size_kb = sysconf(_SC_PAGE_SIZE) / 1024;
+    if (page_size_kb <= 0)
+      return false;
+
+    stat_file =
+        FilePath("/proc").Append(IntToString(process_)).Append("statm");
+    std::string statm;
+    if (!file_util::ReadFileToString(stat_file, &statm) || statm.length() == 0)
+      return false;
+
+    std::vector<std::string> statm_vec;
+    SplitString(statm, ' ', &statm_vec);
+    if (statm_vec.size() != 7)
+      return false;  // Not the format we expect.
+    private_kb = StringToInt(statm_vec[1]) - StringToInt(statm_vec[2]);
+    private_kb *= page_size_kb;
   }
   ws_usage->priv = private_kb;
   // Sharable is not calculated, as it does not provide interesting data.
@@ -414,7 +432,7 @@ int ProcessMetrics::GetCPUUsage() {
   }
 
   int64 time_delta = time - last_time_;
-  DCHECK(time_delta != 0);
+  DCHECK_NE(time_delta, 0);
   if (time_delta == 0)
     return 0;
 
