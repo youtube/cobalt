@@ -851,6 +851,11 @@ bool EndsWithT(const STR& str, const STR& search, bool case_sensitive) {
   }
 }
 
+bool EndsWith(const std::string& str, const std::string& search,
+              bool case_sensitive) {
+  return EndsWithT(str, search, case_sensitive);
+}
+
 bool EndsWith(const std::wstring& str, const std::wstring& search,
               bool case_sensitive) {
   return EndsWithT(str, search, case_sensitive);
