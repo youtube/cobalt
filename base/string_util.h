@@ -291,6 +291,9 @@ bool StartsWith(const string16& str,
                 bool case_sensitive);
 
 // Returns true if str ends with search, or false otherwise.
+bool EndsWith(const std::string& str,
+              const std::string& search,
+              bool case_sensitive);
 bool EndsWith(const std::wstring& str,
               const std::wstring& search,
               bool case_sensitive);
