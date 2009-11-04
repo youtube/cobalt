@@ -258,11 +258,11 @@
     # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
     # so Cocoa is happy (http://crbug.com/20441).
     'locales': [
-      'ar', 'bg', 'bn', 'ca', 'cs', 'da', 'de', 'el', 'en-GB',
+      'am', 'ar', 'bg', 'bn', 'ca', 'cs', 'da', 'de', 'el', 'en-GB',
       'en-US', 'es-419', 'es', 'et', 'fi', 'fil', 'fr', 'gu', 'he',
       'hi', 'hr', 'hu', 'id', 'it', 'ja', 'kn', 'ko', 'lt', 'lv',
       'ml', 'mr', 'nb', 'nl', 'or', 'pl', 'pt-BR', 'pt-PT', 'ro',
-      'ru', 'sk', 'sl', 'sr', 'sv', 'ta', 'te', 'th', 'tr',
+      'ru', 'sk', 'sl', 'sr', 'sv', 'sw', 'ta', 'te', 'th', 'tr',
       'uk', 'vi', 'zh-CN', 'zh-TW',
     ],
   },
