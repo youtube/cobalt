@@ -431,6 +431,8 @@
         'socket/tcp_pinger.h',
         'socket_stream/socket_stream.cc',
         'socket_stream/socket_stream.h',
+        'socket_stream/socket_stream_throttle.cc',
+        'socket_stream/socket_stream_throttle.h',
         'third_party/parseftp/ParseFTPList.cpp',
         'third_party/parseftp/ParseFTPList.h',
         'url_request/url_request.cc',
@@ -479,6 +481,8 @@
         'url_request/view_cache_helper.h',
         'websockets/websocket.cc',
         'websockets/websocket.h',
+        'websockets/websocket_throttle.cc',
+        'websockets/websocket_throttle.h',
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
@@ -647,6 +651,7 @@
         'url_request/url_request_tracker_unittest.cc',
         'url_request/url_request_unittest.cc',
         'url_request/url_request_unittest.h',
+        'websockets/websocket_throttle_unittest.cc',
         'websockets/websocket_unittest.cc',
       ],
       'conditions': [
