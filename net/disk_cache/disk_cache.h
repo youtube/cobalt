@@ -26,6 +26,7 @@ namespace disk_cache {
 
 class Entry;
 class Backend;
+typedef net::CompletionCallback CompletionCallback;
 
 // Returns an instance of the Backend. path points to a folder where
 // the cached data will be stored. This cache instance must be the only object
@@ -36,6 +37,7 @@ class Backend;
 // If zero is passed in as max_bytes, the cache will determine the value to use
 // based on the available disk space. The returned pointer can be NULL if a
 // fatal error is found.
+// Note: This function is deprecated.
 Backend* CreateCacheBackend(const FilePath& path, bool force,
                             int max_bytes, net::CacheType type);
 
@@ -44,11 +46,35 @@ Backend* CreateCacheBackend(const FilePath& path, bool force,
 // size the cache can grow to. If zero is passed in as max_bytes, the cache will
 // determine the value to use based on the available memory. The returned
 // pointer can be NULL if a fatal error is found.
+// Note: This function is deprecated.
 Backend* CreateInMemoryCacheBackend(int max_bytes);
+
+// Returns an instance of a Backend of the given |type|. |path| points to a
+// folder where the cached data will be stored (if appropriate). This cache
+// instance must be the only object that will be reading or writing files to
+// that folder. The returned object should be deleted when not needed anymore.
+// If |force| is true, and there is a problem with the cache initialization, the
+// files will be deleted and a new set will be created. |max_bytes| is the
+// maximum size the cache can grow to. If zero is passed in as |max_bytes|, the
+// cache will determine the value to use. The returned pointer can be NULL if a
+// fatal error is found. The actual return value of the function is a net error
+// code. If this function returns ERR_IO_PENDING, the |callback| will be invoked
+// when a backend is available or a fatal error condition is reached. The
+// pointer to receive the |backend| must remain valid until the operation
+// completes.
+int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
+                       bool force, Backend** backend,
+                       CompletionCallback* callback);
 
 // The root interface for a disk cache instance.
 class Backend {
  public:
+  // If the backend is destroyed when there are operations in progress (any
+  // callback that has not been invoked yet), this method cancels said
+  // operations so the callbacks are not invoked, possibly leaving the work
+  // half way (for instance, dooming just a few entries). Note that pending IO
+  // for a given Entry (as opposed to the Backend) will still generate a
+  // callback from within this method.
   virtual ~Backend() {}
 
   // Returns the number of entries in the cache.
@@ -58,27 +84,69 @@ class Backend {
   // to a Entry object representing the specified disk cache entry.
   // When the entry pointer is no longer needed, the Close method
   // should be called.
+  // Note: This method is deprecated.
   virtual bool OpenEntry(const std::string& key, Entry** entry) = 0;
+
+  // Opens an existing entry. Upon success, |entry| holds a pointer to an Entry
+  // object representing the specified disk cache entry. When the entry pointer
+  // is no longer needed, its Close method should be called. The return value is
+  // a net error code. If this method returns ERR_IO_PENDING, the |callback|
+  // will be invoked when the entry is available. The pointer to receive the
+  // |entry| must remain valid until the operation completes.
+  virtual int OpenEntry(const std::string& key, Entry** entry,
+                        CompletionCallback* callback) = 0;
 
   // Creates a new entry.  Upon success, the out param holds a pointer
   // to a Entry object representing the newly created disk cache
   // entry.  When the entry pointer is no longer needed, the Close
   // method should be called.
+  // Note: This method is deprecated.
   virtual bool CreateEntry(const std::string& key, Entry** entry) = 0;
+
+  // Creates a new entry. Upon success, the out param holds a pointer to an
+  // Entry object representing the newly created disk cache entry. When the
+  // entry pointer is no longer needed, its Close method should be called. The
+  // return value is a net error code. If this method returns ERR_IO_PENDING,
+  // the |callback| will be invoked when the entry is available. The pointer to
+  // receive the |entry| must remain valid until the operation completes.
+  virtual int CreateEntry(const std::string& key, Entry** entry,
+                          CompletionCallback* callback) = 0;
 
   // Marks the entry, specified by the given key, for deletion.
   virtual bool DoomEntry(const std::string& key) = 0;
 
   // Marks all entries for deletion.
+  // Note: This method is deprecated.
   virtual bool DoomAllEntries() = 0;
+
+  // Marks all entries for deletion. The return value is a net error code. If
+  // this method returns ERR_IO_PENDING, the |callback| will be invoked when the
+  // operation completes.
+  virtual int DoomAllEntries(CompletionCallback* callback) = 0;
 
   // Marks a range of entries for deletion. This supports unbounded deletes in
   // either direction by using null Time values for either argument.
+  // Note: This method is deprecated.
   virtual bool DoomEntriesBetween(const base::Time initial_time,
                                   const base::Time end_time) = 0;
 
+  // Marks a range of entries for deletion. This supports unbounded deletes in
+  // either direction by using null Time values for either argument. The return
+  // value is a net error code. If this method returns ERR_IO_PENDING, the
+  // |callback| will be invoked when the operation completes.
+  virtual int DoomEntriesBetween(const base::Time initial_time,
+                                 const base::Time end_time,
+                                 CompletionCallback* callback) = 0;
+
   // Marks all entries accessed since initial_time for deletion.
+  // Note: This method is deprecated.
   virtual bool DoomEntriesSince(const base::Time initial_time) = 0;
+
+  // Marks all entries accessed since |initial_time| for deletion. The return
+  // value is a net error code. If this method returns ERR_IO_PENDING, the
+  // |callback| will be invoked when the operation completes.
+  virtual int DoomEntriesSince(const base::Time initial_time,
+                               CompletionCallback* callback) = 0;
 
   // Enumerate the cache.  Initialize iter to NULL before calling this method
   // the first time.  That will cause the enumeration to start at the head of
@@ -89,7 +157,23 @@ class Backend {
   //
   // NOTE: This method does not modify the last_used field of the entry,
   // and therefore it does not impact the eviction ranking of the entry.
+  // Note: This method is deprecated.
   virtual bool OpenNextEntry(void** iter, Entry** next_entry) = 0;
+
+  // Enumerates the cache. Initialize |iter| to NULL before calling this method
+  // the first time. That will cause the enumeration to start at the head of
+  // the cache. For subsequent calls, pass the same |iter| pointer again without
+  // changing its value. This method returns ERR_FAILED when there are no more
+  // entries to enumerate. When the entry pointer is no longer needed, its
+  // Close method should be called. The return value is a net error code. If
+  // this method returns ERR_IO_PENDING, the |callback| will be invoked when the
+  // |next_entry| is available. The pointer to receive the |next_entry| must
+  // remain valid until the operation completes.
+  //
+  // NOTE: This method does not modify the last_used field of the entry, and
+  // therefore it does not impact the eviction ranking of the entry.
+  virtual int OpenNextEntry(void** iter, Entry** next_entry,
+                            CompletionCallback* callback) = 0;
 
   // Releases iter without returning the next entry. Whenever OpenNextEntry()
   // returns true, but the caller is not interested in continuing the
@@ -137,7 +221,7 @@ class Entry {
   // having to wait for all the callbacks, and still rely on the cleanup
   // performed from the callback code.
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                       net::CompletionCallback* completion_callback) = 0;
+                       CompletionCallback* completion_callback) = 0;
 
   // Copies cache data from the given buffer of length |buf_len|.  If
   // completion_callback is null, then this call blocks until the write
@@ -153,7 +237,7 @@ class Entry {
   // If truncate is true, this call will truncate the stored data at the end of
   // what we are writing here.
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        net::CompletionCallback* completion_callback,
+                        CompletionCallback* completion_callback,
                         bool truncate) = 0;
 
   // Sparse entries support:
@@ -201,7 +285,7 @@ class Entry {
   // Behaves like ReadData() except that this method is used to access sparse
   // entries.
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             net::CompletionCallback* completion_callback) = 0;
+                             CompletionCallback* completion_callback) = 0;
 
   // Behaves like WriteData() except that this method is used to access sparse
   // entries. |truncate| is not part of this interface because a sparse entry
@@ -210,7 +294,7 @@ class Entry {
   // that the content has changed), the whole entry should be doomed and
   // re-created.
   virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* completion_callback) = 0;
+                              CompletionCallback* completion_callback) = 0;
 
   // Returns information about the currently stored portion of a sparse entry.
   // |offset| and |len| describe a particular range that should be scanned to
@@ -219,7 +303,20 @@ class Entry {
   // minimum number of consecutive stored bytes. Note that it is possible that
   // this entry has stored more than the returned value. This method returns a
   // net error code whenever the request cannot be completed successfully.
+  // Note: This method is deprecated.
   virtual int GetAvailableRange(int64 offset, int len, int64* start) = 0;
+
+  // Returns information about the currently stored portion of a sparse entry.
+  // |offset| and |len| describe a particular range that should be scanned to
+  // find out if it is stored or not. |start| will contain the offset of the
+  // first byte that is stored within this range, and the return value is the
+  // minimum number of consecutive stored bytes. Note that it is possible that
+  // this entry has stored more than the returned value. This method returns a
+  // net error code whenever the request cannot be completed successfully. If
+  // this method returns ERR_IO_PENDING, the |callback| will be invoked when the
+  // operation completes, and |start| must remain valid until that point.
+  virtual int GetAvailableRange(int64 offset, int len, int64* start,
+                                CompletionCallback* callback) = 0;
 
   // Cancels any pending sparse IO operation (if any). The completion callback
   // of the operation in question will still be called when the operation
@@ -238,8 +335,8 @@ class Entry {
   //
   // Note that CancelSparseIO may have been called on another instance of this
   // object that refers to the same physical disk entry.
-  virtual int ReadyForSparseIO(
-      net::CompletionCallback* completion_callback) = 0;
+  // Note: This method is deprecated.
+  virtual int ReadyForSparseIO(CompletionCallback* completion_callback) = 0;
 
  protected:
   virtual ~Entry() {}
