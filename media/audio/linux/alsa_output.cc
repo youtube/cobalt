@@ -112,6 +112,10 @@ const int AlsaPcmOutputStream::kMinLatencyMicros =
 
 namespace {
 
+// ALSA is currently limited to 48Khz.
+// TODO(fbarchard): Resample audio from higher frequency to 48000.
+const int kMaxSampleRate = 48000;
+
 snd_pcm_format_t BitsToFormat(char bits_per_sample) {
   switch (bits_per_sample) {
     case 8:
@@ -257,6 +261,11 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       message_loop_(message_loop) {
 
   // Sanity check input values.
+  if ((sample_rate > kMaxSampleRate) || (sample_rate <= 0)) {
+    LOG(WARNING) << "Unsupported audio frequency.";
+    shared_data_.TransitionTo(kInError);
+  }
+
   if (AudioManager::AUDIO_PCM_LINEAR != format) {
     LOG(WARNING) << "Only linear PCM supported.";
     shared_data_.TransitionTo(kInError);
