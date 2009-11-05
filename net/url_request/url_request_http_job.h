@@ -27,8 +27,6 @@ class URLRequestHttpJob : public URLRequestJob {
  public:
   static URLRequestJob* Factory(URLRequest* request, const std::string& scheme);
 
-  virtual ~URLRequestHttpJob();
-
  protected:
   explicit URLRequestHttpJob(URLRequest* request);
 
@@ -115,6 +113,9 @@ class URLRequestHttpJob : public URLRequestJob {
 
   // For recording of stats, we need to remember if this is cached content.
   bool is_cached_content_;
+
+ private:
+  virtual ~URLRequestHttpJob();
 
   DISALLOW_COPY_AND_ASSIGN(URLRequestHttpJob);
 };

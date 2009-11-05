@@ -327,6 +327,8 @@ class TestClientSocketPool : public ClientSocketPool {
   void CleanupTimedOutIdleSockets() { base_.CleanupIdleSockets(false); }
 
  private:
+  ~TestClientSocketPool() {}
+
   TestClientSocketPoolBase base_;
 
   DISALLOW_COPY_AND_ASSIGN(TestClientSocketPool);

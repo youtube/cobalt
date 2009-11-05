@@ -36,8 +36,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // The instance takes ownership of |config_service| and |resolver|.
   ProxyService(ProxyConfigService* config_service, ProxyResolver* resolver);
 
-  ~ProxyService();
-
   // Used internally to handle PAC queries.
   // TODO(eroman): consider naming this simply "Request".
   class PacRequest;
@@ -154,15 +152,19 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
       MessageLoop* io_loop, MessageLoop* file_loop);
 
  private:
+  friend class base::RefCountedThreadSafe<ProxyService>;
   FRIEND_TEST(ProxyServiceTest, IsLocalName);
   FRIEND_TEST(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
   FRIEND_TEST(ProxyServiceTest, UpdateConfigFromPACToDirect);
   friend class PacRequest;
+
   // TODO(eroman): change this to a std::set. Note that this requires updating
   // some tests in proxy_service_unittest.cc such as:
   //   ProxyServiceTest.InitialPACScriptDownload
   // which expects requests to finish in the order they were added.
   typedef std::vector<scoped_refptr<PacRequest> > PendingRequests;
+
+  ~ProxyService();
 
   // Creates a proxy resolver appropriate for this platform that doesn't rely
   // on V8.
@@ -283,6 +285,10 @@ class SyncProxyServiceHelper
                                 ProxyInfo* proxy_info, LoadLog* load_log);
 
  private:
+  friend class base::RefCountedThreadSafe<SyncProxyServiceHelper>;
+
+  ~SyncProxyServiceHelper() {}
+
   void StartAsyncResolve(const GURL& url, LoadLog* load_log);
   void StartAsyncReconsider(const GURL& url, LoadLog* load_log);
 

@@ -35,8 +35,6 @@ class CertVerifier::Request :
         error_(OK) {
   }
 
-  ~Request() {}
-
   void DoVerify() {
     // Running on the worker thread
     error_ = cert_->Verify(hostname_, flags_, &result_);
@@ -92,6 +90,10 @@ class CertVerifier::Request :
   }
 
  private:
+  friend class base::RefCountedThreadSafe<CertVerifier::Request>;
+
+  ~Request() {}
+
   // Set on the origin thread, read on the worker thread.
   scoped_refptr<X509Certificate> cert_;
   std::string hostname_;

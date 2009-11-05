@@ -159,6 +159,7 @@ class SdchManager {
     const std::string& text() const { return text_; }
 
    private:
+    friend class base::RefCounted<Dictionary>;
     friend class SdchManager;  // Only manager can construct an instance.
     FRIEND_TEST(SdchFilterTest, PathMatch);
 
@@ -169,6 +170,7 @@ class SdchManager {
                const std::string& client_hash, const GURL& url,
                const std::string& domain, const std::string& path,
                const base::Time& expiration, const std::set<int> ports);
+    ~Dictionary() {}
 
     const GURL& url() const { return url_; }
     const std::string& client_hash() const { return client_hash_; }

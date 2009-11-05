@@ -60,6 +60,10 @@ class URLRequestFileJob::AsyncResolver :
   }
 
  private:
+  friend class base::RefCountedThreadSafe<URLRequestFileJob::AsyncResolver>;
+
+  ~AsyncResolver() {}
+
   void ReturnResults(bool exists, const file_util::FileInfo& file_info) {
     if (owner_)
       owner_->DidResolve(exists, file_info);

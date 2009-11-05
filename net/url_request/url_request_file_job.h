@@ -22,7 +22,6 @@ struct FileInfo;
 class URLRequestFileJob : public URLRequestJob {
  public:
   URLRequestFileJob(URLRequest* request, const FilePath& file_path);
-  virtual ~URLRequestFileJob();
 
   virtual void Start();
   virtual void Kill();
@@ -36,6 +35,8 @@ class URLRequestFileJob : public URLRequestJob {
   static URLRequest::ProtocolFactory Factory;
 
  protected:
+  virtual ~URLRequestFileJob();
+
   // The OS-specific full path name of the file
   FilePath file_path_;
 

@@ -21,8 +21,6 @@ class ProxyInfo;
 // HttpAuth::CreateAuthHandler().
 class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
  public:
-  virtual ~HttpAuthHandler() { }
-
   // Initialize the handler by parsing a challenge string.
   bool InitFromChallenge(std::string::const_iterator begin,
                          std::string::const_iterator end,
@@ -85,6 +83,10 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
     ENCRYPTS_IDENTITY = 1 << 0,
     IS_CONNECTION_BASED = 1 << 1,
   };
+
+  friend class base::RefCounted<HttpAuthHandler>;
+
+  virtual ~HttpAuthHandler() { }
 
   // Initialize the handler by parsing a challenge string.
   // Implementations are expcted to initialize the following members:

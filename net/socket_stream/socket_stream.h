@@ -140,18 +140,20 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   class RequestHeaders : public IOBuffer {
    public:
     RequestHeaders() : IOBuffer() {}
-    ~RequestHeaders() { data_ = NULL; }
 
     void SetDataOffset(size_t offset) {
       data_ = const_cast<char*>(headers_.data()) + offset;
     }
+
     std::string headers_;
+
+    private:
+     ~RequestHeaders() { data_ = NULL; }
   };
 
   class ResponseHeaders : public IOBuffer {
    public:
     ResponseHeaders() : IOBuffer() {}
-    ~ResponseHeaders() { data_ = NULL; }
 
     void SetDataOffset(size_t offset) { data_ = headers_.get() + offset; }
     char* headers() const { return headers_.get(); }
@@ -159,6 +161,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
     void Realloc(size_t new_size);
 
    private:
+     ~ResponseHeaders() { data_ = NULL; }
+
     scoped_ptr_malloc<char> headers_;
   };
 

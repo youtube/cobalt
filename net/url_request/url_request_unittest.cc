@@ -66,6 +66,7 @@ class URLRequestTestContext : public URLRequestContext {
     accept_charset_ = "iso-8859-1,*,utf-8";
   }
 
+ private:
   virtual ~URLRequestTestContext() {
     delete ftp_transaction_factory_;
     delete http_transaction_factory_;
@@ -1433,6 +1434,8 @@ class RestartTestJob : public URLRequestTestJob {
   virtual void StartAsync() {
     this->NotifyRestartRequired();
   }
+ private:
+   ~RestartTestJob() {}
 };
 
 class CancelTestJob : public URLRequestTestJob {
@@ -1443,6 +1446,8 @@ class CancelTestJob : public URLRequestTestJob {
   virtual void StartAsync() {
     request_->Cancel();
   }
+ private:
+  ~CancelTestJob() {}
 };
 
 class CancelThenRestartTestJob : public URLRequestTestJob {
@@ -1455,6 +1460,8 @@ class CancelThenRestartTestJob : public URLRequestTestJob {
     request_->Cancel();
     this->NotifyRestartRequired();
   }
+ private:
+  ~CancelThenRestartTestJob() {}
 };
 
 // An Interceptor for use with interceptor tests

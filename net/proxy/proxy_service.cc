@@ -170,6 +170,10 @@ class ProxyService::PacRequest
   LoadLog* load_log() const { return load_log_; }
 
  private:
+  friend class base::RefCounted<ProxyService::PacRequest>;
+
+  ~PacRequest() {}
+
   // Callback for when the ProxyResolver request has completed.
   void QueryComplete(int result_code) {
     result_code = QueryDidComplete(result_code);

@@ -15,7 +15,6 @@ namespace net {
 class SSLConfigServiceDefaults : public SSLConfigService {
  public:
   SSLConfigServiceDefaults() {}
-  virtual ~SSLConfigServiceDefaults() {}
 
   // Store default SSL config settings in |config|.
   virtual void GetSSLConfig(SSLConfig* config) {
@@ -23,6 +22,8 @@ class SSLConfigServiceDefaults : public SSLConfigService {
   }
 
  private:
+  virtual ~SSLConfigServiceDefaults() {}
+
   // Default value of prefs.
   const SSLConfig default_config_;
 

@@ -14,8 +14,6 @@ class URLRequestFtpJob : public URLRequestInetJob {
  public:
   static URLRequestJob* Factory(URLRequest* request, const std::string& scheme);
 
-  virtual ~URLRequestFtpJob();
-
   // URLRequestJob methods:
   virtual void Start();
   virtual bool GetMimeType(std::string* mime_type) const;
@@ -38,6 +36,8 @@ class URLRequestFtpJob : public URLRequestInetJob {
   virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
 
  private:
+  virtual ~URLRequestFtpJob();
+
   // Called after InternetConnect successfully connects to server.
   void OnConnect();
 
