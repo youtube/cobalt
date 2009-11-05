@@ -384,6 +384,11 @@ int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
   return sparse_->GetAvailableRange(offset, len, start);
 }
 
+int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
+                                 CompletionCallback* callback) {
+  return GetAvailableRange(offset, len, start);
+}
+
 void EntryImpl::CancelSparseIO() {
   if (!sparse_.get())
     return;

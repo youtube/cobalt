@@ -29,13 +29,25 @@ class MemBackendImpl : public Backend {
   // Backend interface.
   virtual int32 GetEntryCount() const;
   virtual bool OpenEntry(const std::string& key, Entry** entry);
+  virtual int OpenEntry(const std::string& key, Entry** entry,
+                        CompletionCallback* callback);
   virtual bool CreateEntry(const std::string& key, Entry** entry);
+  virtual int CreateEntry(const std::string& key, Entry** entry,
+                          CompletionCallback* callback);
   virtual bool DoomEntry(const std::string& key);
   virtual bool DoomAllEntries();
+  virtual int DoomAllEntries(CompletionCallback* callback);
   virtual bool DoomEntriesBetween(const base::Time initial_time,
                                   const base::Time end_time);
+  virtual int DoomEntriesBetween(const base::Time initial_time,
+                                 const base::Time end_time,
+                                 CompletionCallback* callback);
   virtual bool DoomEntriesSince(const base::Time initial_time);
+  virtual int DoomEntriesSince(const base::Time initial_time,
+                               CompletionCallback* callback);
   virtual bool OpenNextEntry(void** iter, Entry** next_entry);
+  virtual int OpenNextEntry(void** iter, Entry** next_entry,
+                            CompletionCallback* callback);
   virtual void EndEnumeration(void** iter);
   virtual void GetStats(
       std::vector<std::pair<std::string, std::string> >* stats) {}
