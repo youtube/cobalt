@@ -54,6 +54,11 @@
             '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
           ],
         }],
+        ['OS=="mac" or OS=="linux" or OS=="freebsd"', {
+          'dependencies': [
+            '../third_party/yasm/yasm.gyp:*',
+          ],
+        }],
         ['OS=="mac"', {
           'dependencies': [
             '../third_party/ocmock/ocmock.gyp:*',
@@ -64,7 +69,6 @@
             '../breakpad/breakpad.gyp:*',
             '../courgette/courgette.gyp:*',
             '../sandbox/sandbox.gyp:*',
-            '../third_party/yasm/yasm.gyp:*',
             '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
           ],
