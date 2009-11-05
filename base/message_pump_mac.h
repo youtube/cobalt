@@ -35,11 +35,19 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOKitLib.h>
 
+#if defined(__OBJC__)
+@class NSAutoreleasePool;
+#else  // defined(__OBJC__)
+class NSAutoreleasePool;
+#endif  // defined(__OBJC__)
+
 namespace base {
 
 class Time;
 
 class MessagePumpCFRunLoopBase : public MessagePump {
+  // Needs access to CreateAutoreleasePool.
+  friend class MessagePumpScopedAutoreleasePool;
  public:
   MessagePumpCFRunLoopBase();
   virtual ~MessagePumpCFRunLoopBase();
@@ -59,6 +67,12 @@ class MessagePumpCFRunLoopBase : public MessagePump {
   CFRunLoopRef run_loop() const { return run_loop_; }
   int nesting_level() const { return nesting_level_; }
   int run_nesting_level() const { return run_nesting_level_; }
+
+  // Return an autorelease pool to wrap around any work being performed.
+  // In some cases, CreateAutoreleasePool may return nil intentionally to
+  // preventing an autorelease pool from being created, allowing any
+  // objects autoreleased by work to fall into the current autorelease pool.
+  virtual NSAutoreleasePool* CreateAutoreleasePool();
 
  private:
   // Timer callback scheduled by ScheduleDelayedWork.  This does not do any
@@ -228,6 +242,10 @@ class MessagePumpNSApplication : public MessagePumpCFRunLoopBase {
 
   virtual void DoRun(Delegate* delegate);
   virtual void Quit();
+
+ protected:
+  // Returns nil if NSApp is currently in the middle of calling -sendEvent.
+  virtual NSAutoreleasePool* CreateAutoreleasePool();
 
  private:
   // False after Quit is called.
