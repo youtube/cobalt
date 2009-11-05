@@ -42,10 +42,14 @@ bool ResetEventIfSignaled(WSAEVENT hEvent) {
 
 //-----------------------------------------------------------------------------
 
-int MapWinsockError(DWORD err) {
+int MapWinsockError(int err) {
   // There are numerous Winsock error codes, but these are the ones we thus far
   // find interesting.
   switch (err) {
+    // connect fails with WSAEACCES when Windows Firewall blocks the
+    // connection.
+    case WSAEACCES:
+      return ERR_ACCESS_DENIED;
     case WSAENETDOWN:
       return ERR_INTERNET_DISCONNECTED;
     case WSAETIMEDOUT:
@@ -79,12 +83,34 @@ int MapWinsockError(DWORD err) {
   }
 }
 
-int MapConnectError(DWORD err) {
+int MapConnectError(int err) {
   switch (err) {
     case WSAETIMEDOUT:
       return ERR_CONNECTION_TIMED_OUT;
+    default: {
+      int net_error = MapWinsockError(err);
+      if (net_error == ERR_FAILED)
+        return ERR_CONNECTION_FAILED;  // More specific than ERR_FAILED.
+      return net_error;
+    }
+  }
+}
+
+// Given err, a WSAGetLastError() error code from a connect() attempt, returns
+// true if connect() should be retried with another address.
+bool ShouldTryNextAddress(int err) {
+  switch (err) {
+    case WSAEADDRNOTAVAIL:
+    case WSAEAFNOSUPPORT:
+    case WSAECONNREFUSED:
+    case WSAEACCES:
+    case WSAENETUNREACH:
+    case WSAEHOSTUNREACH:
+    case WSAENETDOWN:
+    case WSAETIMEDOUT:
+      return true;
     default:
-      return MapWinsockError(err);
+      return false;
   }
 }
 
@@ -339,7 +365,7 @@ int TCPClientSocketWin::DoConnect() {
     if (ResetEventIfSignaled(core_->read_overlapped_.hEvent))
       return OK;
   } else {
-    DWORD err = WSAGetLastError();
+    int err = WSAGetLastError();
     if (err != WSAEWOULDBLOCK) {
       LOG(ERROR) << "connect failed: " << err;
       return MapConnectError(err);
@@ -524,7 +550,7 @@ int TCPClientSocketWin::CreateSocket(const struct addrinfo* ai) {
   socket_ = WSASocket(ai->ai_family, ai->ai_socktype, ai->ai_protocol, NULL, 0,
                       WSA_FLAG_OVERLAPPED);
   if (socket_ == INVALID_SOCKET) {
-    DWORD err = WSAGetLastError();
+    int err = WSAGetLastError();
     LOG(ERROR) << "WSASocket failed: " << err;
     return MapWinsockError(err);
   }
@@ -618,13 +644,7 @@ void TCPClientSocketWin::DidCompleteConnect() {
     result = MapWinsockError(WSAGetLastError());
   } else if (events.lNetworkEvents & FD_CONNECT) {
     DWORD error_code = static_cast<DWORD>(events.iErrorCode[FD_CONNECT_BIT]);
-    if (current_ai_->ai_next && (
-        error_code == WSAEADDRNOTAVAIL ||
-        error_code == WSAEAFNOSUPPORT ||
-        error_code == WSAECONNREFUSED ||
-        error_code == WSAENETUNREACH ||
-        error_code == WSAEHOSTUNREACH ||
-        error_code == WSAETIMEDOUT)) {
+    if (current_ai_->ai_next && ShouldTryNextAddress(error_code)) {
       // Try using the next address.
       const struct addrinfo* next = current_ai_->ai_next;
       Disconnect();

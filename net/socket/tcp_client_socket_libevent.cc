@@ -74,8 +74,12 @@ int MapConnectError(int err) {
   switch (err) {
     case ETIMEDOUT:
       return ERR_CONNECTION_TIMED_OUT;
-    default:
-      return MapPosixError(err);
+    default: {
+      int net_error = MapPosixError(err);
+      if (net_error == ERR_FAILED)
+        return ERR_CONNECTION_FAILED;  // More specific than ERR_FAILED.
+      return net_error;
+    }
   }
 }
 
