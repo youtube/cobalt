@@ -37,6 +37,11 @@ class SSLCertRequestInfo
   //       DistinguishedName certificate_authorities<3..2^16-1>;
   //   } CertificateRequest;
   std::vector<scoped_refptr<X509Certificate> > client_certs;
+
+ private:
+  friend class base::RefCountedThreadSafe<SSLCertRequestInfo>;
+
+  ~SSLCertRequestInfo() {}
 };
 
 }  // namespace net

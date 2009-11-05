@@ -21,6 +21,8 @@ class URLRequestSimpleJob : public URLRequestJob {
   virtual bool GetCharset(std::string* charset);
 
  protected:
+  ~URLRequestSimpleJob() {}
+
   // subclasses must override the way response data is determined.
   virtual bool GetData(std::string* mime_type,
                        std::string* charset,

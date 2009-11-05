@@ -149,11 +149,6 @@ class HostResolverImpl::Job
         error_(OK) {
   }
 
-  ~Job() {
-    // Free the requests attached to this job.
-    STLDeleteElements(&requests_);
-  }
-
   // Attaches a request to this job. The job takes ownership of |req| and will
   // take care to delete it.
   void AddRequest(Request* req) {
@@ -215,6 +210,13 @@ class HostResolverImpl::Job
   }
 
  private:
+  friend class base::RefCountedThreadSafe<HostResolverImpl::Job>;
+
+  ~Job() {
+    // Free the requests attached to this job.
+    STLDeleteElements(&requests_);
+  }
+
   void DoLookup() {
     // Running on the worker thread
     error_ = ResolveAddrInfo(resolver_proc_,

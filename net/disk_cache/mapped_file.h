@@ -38,10 +38,9 @@ class MappedFile : public File {
   bool Load(const FileBlock* block);
   bool Store(const FileBlock* block);
 
- protected:
+ private:
   virtual ~MappedFile();
 
- private:
   bool init_;
 #if defined(OS_WIN)
   HANDLE section_;

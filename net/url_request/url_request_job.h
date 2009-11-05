@@ -41,7 +41,6 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   static const size_t kSdchPacketHistogramCount = 5;
 
   explicit URLRequestJob(URLRequest* request);
-  virtual ~URLRequestJob();
 
   // Returns the request that owns this job. THIS POINTER MAY BE NULL if the
   // request was destroyed.
@@ -218,6 +217,9 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   virtual void RecordPacketStats(StatisticSelector statistic) const;
 
  protected:
+  friend class base::RefCountedThreadSafe<URLRequestJob>;
+  virtual ~URLRequestJob();
+
   // Notifies the job that headers have been received.
   void NotifyHeadersComplete();
 

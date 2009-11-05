@@ -61,6 +61,10 @@ class SyncHostResolverBridge
   }
 
  private:
+  friend class base::RefCountedThreadSafe<SyncHostResolverBridge>;
+
+  ~SyncHostResolverBridge() {}
+
   // Called on host_resolver_loop_.
   void StartResolve(const HostResolver::RequestInfo& info,
                     net::AddressList* addresses) {

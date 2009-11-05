@@ -38,8 +38,6 @@ class RuleBasedHostResolverProc;
 // Base class shared by MockHostResolver and MockCachingHostResolver.
 class MockHostResolverBase : public HostResolver {
  public:
-  virtual ~MockHostResolverBase() {}
-
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
@@ -65,8 +63,8 @@ class MockHostResolverBase : public HostResolver {
 
  protected:
   MockHostResolverBase(bool use_caching);
+  virtual ~MockHostResolverBase() {}
 
- private:
   scoped_refptr<HostResolverImpl> impl_;
   scoped_refptr<RuleBasedHostResolverProc> rules_;
   bool synchronous_mode_;
@@ -76,6 +74,9 @@ class MockHostResolverBase : public HostResolver {
 class MockHostResolver : public MockHostResolverBase {
  public:
   MockHostResolver() : MockHostResolverBase(false /*use_caching*/) {}
+
+ private:
+  virtual ~MockHostResolver() {}
 };
 
 // Same as MockHostResolver, except internally it uses a host-cache.
@@ -86,6 +87,9 @@ class MockHostResolver : public MockHostResolverBase {
 class MockCachingHostResolver : public MockHostResolverBase {
  public:
   MockCachingHostResolver() : MockHostResolverBase(true /*use_caching*/) {}
+
+ private:
+  ~MockCachingHostResolver() {}
 };
 
 // RuleBasedHostResolverProc applies a set of rules to map a host string to
@@ -95,7 +99,6 @@ class MockCachingHostResolver : public MockHostResolverBase {
 class RuleBasedHostResolverProc : public HostResolverProc {
  public:
   explicit RuleBasedHostResolverProc(HostResolverProc* previous);
-  ~RuleBasedHostResolverProc();
 
   // Any hostname matching the given pattern will be replaced with the given
   // replacement value.  Usually, replacement should be an IP address literal.
@@ -131,6 +134,8 @@ class RuleBasedHostResolverProc : public HostResolverProc {
                       AddressList* addrlist);
 
  private:
+  ~RuleBasedHostResolverProc();
+
   struct Rule;
   typedef std::list<Rule> RuleList;
 
@@ -154,6 +159,9 @@ class WaitingHostResolverProc : public HostResolverProc {
     event_.Wait();
     return ResolveUsingPrevious(host, address_family, addrlist);
   }
+
+ private:
+  ~WaitingHostResolverProc() {}
 
   base::WaitableEvent event_;
 };

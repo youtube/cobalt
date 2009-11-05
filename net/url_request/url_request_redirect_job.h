@@ -21,6 +21,8 @@ class URLRequestRedirectJob : public URLRequestJob {
   bool IsRedirectResponse(GURL* location, int* http_status_code);
 
  private:
+  ~URLRequestRedirectJob() {}
+
   void StartAsync();
 
   GURL redirect_destination_;

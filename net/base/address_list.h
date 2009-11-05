@@ -54,11 +54,15 @@ class AddressList {
   struct Data : public base::RefCountedThreadSafe<Data> {
     Data(struct addrinfo* ai, bool is_system_created)
         : head(ai), is_system_created(is_system_created) {}
-    ~Data();
     struct addrinfo* head;
 
     // Indicates which free function to use for |head|.
     bool is_system_created;
+
+   private:
+    friend class base::RefCountedThreadSafe<Data>;
+
+    ~Data();
   };
 
   explicit AddressList(Data* data) : data_(data) {}

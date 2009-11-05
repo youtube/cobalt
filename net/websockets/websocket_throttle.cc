@@ -131,11 +131,14 @@ class WebSocketThrottle::WebSocketState : public SocketStream::UserData {
         : callback_(callback) {
       DCHECK(callback_);
     }
-    virtual ~CompletionCallbackRunner() {}
     void Run() {
       callback_->Run(OK);
     }
    private:
+    friend class base::RefCountedThreadSafe<CompletionCallbackRunner>;
+
+    virtual ~CompletionCallbackRunner() {}
+
     CompletionCallback* callback_;
 
     DISALLOW_COPY_AND_ASSIGN(CompletionCallbackRunner);
