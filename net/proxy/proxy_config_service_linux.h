@@ -139,6 +139,10 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     void OnDestroy();
 
    private:
+    friend class base::RefCountedThreadSafe<Delegate>;
+
+    ~Delegate() {}
+
     // Obtains an environment variable's value. Parses a proxy server
     // specification from it and puts it in result. Returns true if the
     // requested variable is defined and the value valid.

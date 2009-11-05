@@ -168,8 +168,6 @@ class ClientSocketPoolBaseHelper
                              base::TimeDelta used_idle_socket_timeout,
                              ConnectJobFactory* connect_job_factory);
 
-  ~ClientSocketPoolBaseHelper();
-
   // See ClientSocketPool::RequestSocket for documentation on this function.
   // Note that |request| must be heap allocated.  If ERR_IO_PENDING is returned,
   // then ClientSocketPoolBaseHelper takes ownership of |request|.
@@ -222,6 +220,10 @@ class ClientSocketPoolBaseHelper
   void CleanupIdleSockets(bool force);
 
  private:
+  friend class base::RefCounted<ClientSocketPoolBaseHelper>;
+
+  ~ClientSocketPoolBaseHelper();
+
   // Entry for a persistent socket which became idle at time |start_time|.
   struct IdleSocket {
     IdleSocket() : socket(NULL), used(false) {}

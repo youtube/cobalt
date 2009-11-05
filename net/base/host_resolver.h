@@ -104,11 +104,6 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   // Opaque type used to cancel a request.
   typedef void* RequestHandle;
 
-  // If any completion callbacks are pending when the resolver is destroyed,
-  // the host resolutions are cancelled, and the completion callbacks will not
-  // be called.
-  virtual ~HostResolver() {}
-
   // Resolves the given hostname (or IP address literal), filling out the
   // |addresses| object upon success.  The |info.port| parameter will be set as
   // the sin(6)_port field of the sockaddr_in{6} struct.  Returns OK if
@@ -157,7 +152,14 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   virtual void SetDefaultAddressFamily(AddressFamily address_family) {}
 
  protected:
+  friend class base::RefCountedThreadSafe<HostResolver>;
+
   HostResolver() { }
+
+  // If any completion callbacks are pending when the resolver is destroyed,
+  // the host resolutions are cancelled, and the completion callbacks will not
+  // be called.
+  virtual ~HostResolver() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HostResolver);

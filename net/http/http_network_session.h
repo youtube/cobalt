@@ -25,7 +25,6 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
                      ClientSocketFactory* client_socket_factory,
                      SSLConfigService* ssl_config_service,
                      FlipSessionPool* flip_session_pool);
-  ~HttpNetworkSession();
 
   HttpAuthCache* auth_cache() { return &auth_cache_; }
   SSLClientAuthCache* ssl_client_auth_cache() {
@@ -44,7 +43,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   static void set_max_sockets_per_group(int socket_count);
 
  private:
+  friend class base::RefCounted<HttpNetworkSession>;
   FRIEND_TEST(HttpNetworkTransactionTest, GroupNameForProxyConnections);
+
+  ~HttpNetworkSession();
 
   // Total limit of sockets. Not a constant to allow experiments.
   static int max_sockets_;

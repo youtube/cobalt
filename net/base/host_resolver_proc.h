@@ -24,7 +24,6 @@ class AddressList;
 class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
  public:
   explicit HostResolverProc(HostResolverProc* previous);
-  virtual ~HostResolverProc() {}
 
   // Resolves |host| to an address list, restricting the results to addresses
   // in |address_family|. If successful returns OK and fills |addrlist| with
@@ -34,6 +33,10 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
                       AddressList* addrlist) = 0;
 
  protected:
+  friend class base::RefCountedThreadSafe<HostResolverProc>;
+
+  virtual ~HostResolverProc() {}
+
   // Asks the fallback procedure (if set) to do the resolve.
   int ResolveUsingPrevious(const std::string& host,
                            AddressFamily address_family,

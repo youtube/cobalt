@@ -34,6 +34,9 @@ class MockAuthHandler : public HttpAuthHandler {
   virtual bool Init(std::string::const_iterator, std::string::const_iterator) {
     return false;  // Unused.
   }
+
+ private:
+  ~MockAuthHandler() {}
 };
 
 }  // namespace

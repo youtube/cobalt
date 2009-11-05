@@ -102,6 +102,10 @@ class UploadData : public base::RefCounted<UploadData> {
   int64 identifier() const { return identifier_; }
 
  private:
+  friend class base::RefCounted<UploadData>;
+
+  ~UploadData() {}
+
   std::vector<Element> elements_;
   int64 identifier_;
 };

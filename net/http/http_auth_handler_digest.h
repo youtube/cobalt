@@ -53,6 +53,8 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
     QOP_AUTH_INT = 1 << 1,
   };
 
+  ~HttpAuthHandlerDigest() {}
+
   // Parse the challenge, saving the results into this instance.
   // Returns true on success.
   bool ParseChallenge(std::string::const_iterator challenge_begin,

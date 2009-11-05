@@ -35,8 +35,6 @@ class BackgroundIO : public base::RefCountedThreadSafe<BackgroundIO> {
         buf_len_(buf_len), offset_(offset), controller_(controller),
         bytes_(0) {}
 
-  ~BackgroundIO() {}
-
   // Read and Write are the operations that can be performed asynchronously.
   // The actual parameters for the operation are setup in the constructor of
   // the object, with the exception of |delete_buffer|, that allows a write
@@ -75,6 +73,9 @@ class BackgroundIO : public base::RefCountedThreadSafe<BackgroundIO> {
   }
 
  private:
+  friend class base::RefCountedThreadSafe<BackgroundIO>;
+  ~BackgroundIO() {}
+
   // An event to signal when the operation completes, and the user callback that
   // has to be invoked. These members are accessed directly by the controller.
   base::WaitableEvent io_completed_;

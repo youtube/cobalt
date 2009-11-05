@@ -63,8 +63,6 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
 
   HttpAuthHandlerNTLM();
 
-  virtual ~HttpAuthHandlerNTLM();
-
   virtual bool NeedsIdentity();
 
   virtual bool IsFinalRound();
@@ -85,6 +83,8 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
   int InitializeBeforeFirstChallenge();
 
  private:
+  ~HttpAuthHandlerNTLM();
+
 #if defined(NTLM_PORTABLE)
   // For unit tests to override the GenerateRandom and GetHostName functions.
   // Returns the old function.

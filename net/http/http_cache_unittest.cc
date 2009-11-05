@@ -61,9 +61,6 @@ class MockDiskEntry : public disk_cache::Entry,
     test_mode_ = t->test_mode;
   }
 
-  ~MockDiskEntry() {
-  }
-
   bool is_doomed() const { return doomed_; }
 
   virtual void Doom() {
@@ -254,6 +251,10 @@ class MockDiskEntry : public disk_cache::Entry,
   void set_fail_requests() { fail_requests_ = true; }
 
  private:
+  friend class base::RefCounted<MockDiskEntry>;
+
+  ~MockDiskEntry() {}
+
   // Unlike the callbacks for MockHttpTransaction, we want this one to run even
   // if the consumer called Close on the MockDiskEntry.  We achieve that by
   // leveraging the fact that this class is reference counted.
