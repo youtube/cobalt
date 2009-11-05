@@ -579,7 +579,6 @@ bool RangeTransactionServer::not_modified_ = false;
 bool RangeTransactionServer::modified_ = false;
 
 // A dummy extra header that must be preserved on a given request.
-// TODO(rvargas): Add tests using this without byte ranges.
 #define EXTRA_HEADER "Extra: header\r\n"
 
 // Static.
@@ -593,10 +592,7 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
   }
 
   // We want to make sure we don't delete extra headers.
-  if (request->extra_headers.find(EXTRA_HEADER) == std::string::npos) {
-    response_status->assign("HTTP/1.1 403 Forbidden");
-    return;
-  }
+  EXPECT_TRUE(request->extra_headers.find(EXTRA_HEADER) != std::string::npos);
 
   if (not_modified_) {
     response_status->assign("HTTP/1.1 304 Not Modified");
@@ -1030,6 +1026,55 @@ TEST(HttpCache, SimpleGET_LoadValidateCache_Implicit) {
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
+}
+
+static void PreserveRequestHeaders_Handler(
+    const net::HttpRequestInfo* request,
+    std::string* response_status,
+    std::string* response_headers,
+    std::string* response_data) {
+  EXPECT_TRUE(request->extra_headers.find(EXTRA_HEADER) != std::string::npos);
+}
+
+// Tests that we don't remove extra headers for simple requests.
+TEST(HttpCache, SimpleGET_PreserveRequestHeaders) {
+  MockHttpCache cache;
+
+  MockTransaction transaction(kSimpleGET_Transaction);
+  transaction.handler = PreserveRequestHeaders_Handler;
+  transaction.request_headers = EXTRA_HEADER;
+  transaction.response_headers = "Cache-Control: max-age=0\n";
+  AddMockTransaction(&transaction);
+
+  // Write, then revalidate the entry.
+  RunTransactionTest(cache.http_cache(), transaction);
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  RemoveMockTransaction(&transaction);
+}
+
+// Tests that we don't remove extra headers for conditionalized requests.
+TEST(HttpCache, ConditionalizedGET_PreserveRequestHeaders) {
+  MockHttpCache cache;
+
+  // Write to the cache.
+  RunTransactionTest(cache.http_cache(), kETagGET_Transaction);
+
+  MockTransaction transaction(kETagGET_Transaction);
+  transaction.handler = PreserveRequestHeaders_Handler;
+  transaction.request_headers = "If-None-Match: \"foopy\"\n"
+                                EXTRA_HEADER;
+  AddMockTransaction(&transaction);
+
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  RemoveMockTransaction(&transaction);
 }
 
 TEST(HttpCache, SimpleGET_ManyReaders) {
