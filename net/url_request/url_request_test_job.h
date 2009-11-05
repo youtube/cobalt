@@ -50,8 +50,6 @@ class URLRequestTestJob : public URLRequestJob {
                              const std::string& response_data,
                              bool auto_advance);
 
-  virtual ~URLRequestTestJob();
-
   // The three canned URLs this handler will respond to without having been
   // explicitly initialized with response headers and data.
   // FIXME(brettw): we should probably also have a redirect one
@@ -101,6 +99,8 @@ class URLRequestTestJob : public URLRequestJob {
   // This is what operation we are going to do next when this job is handled.
   // When the stage is DONE, this job will not be put on the queue.
   enum Stage { WAITING, DATA_AVAILABLE, ALL_DATA, DONE };
+
+  virtual ~URLRequestTestJob();
 
   // Call to process the next opeation, usually sending a notification, and
   // advancing the stage if necessary. THIS MAY DELETE THE OBJECT.

@@ -17,7 +17,6 @@ class URLRequestFileDirJob
     public net::DirectoryLister::DirectoryListerDelegate {
  public:
   URLRequestFileDirJob(URLRequest* request, const FilePath& dir_path);
-  virtual ~URLRequestFileDirJob();
 
   // URLRequestJob methods:
   virtual void Start();
@@ -35,6 +34,8 @@ class URLRequestFileDirJob
   bool list_complete() const { return list_complete_; }
 
  private:
+  virtual ~URLRequestFileDirJob();
+
   void CloseLister();
   // When we have data and a read has been pending, this function
   // will fill the response buffer and notify the request

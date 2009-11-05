@@ -48,6 +48,8 @@ class MockHostResolverWithMultipleResults : public HostResolver {
   virtual void Shutdown() {}
 
  private:
+  ~MockHostResolverWithMultipleResults() {}
+
   // Resolves an IP literal to an address list.
   AddressList ResolveIPLiteral(const char* ip_literal) {
     AddressList result;

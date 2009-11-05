@@ -126,7 +126,6 @@ bool ShouldTryNextAddress(int err) {
 class TCPClientSocketWin::Core : public base::RefCounted<Core> {
  public:
   explicit Core(TCPClientSocketWin* socket);
-  ~Core();
 
   // Start watching for the end of a read or write operation.
   void WatchForRead();
@@ -161,6 +160,8 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
   }
 
  private:
+  friend class base::RefCounted<Core>;
+
   class ReadDelegate : public base::ObjectWatcher::Delegate {
    public:
     explicit ReadDelegate(Core* core) : core_(core) {}
@@ -184,6 +185,8 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
    private:
     Core* const core_;
   };
+
+  ~Core();
 
   // The socket that created this object.
   TCPClientSocketWin* socket_;

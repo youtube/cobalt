@@ -67,6 +67,8 @@ class CapturingHostResolverProc : public HostResolverProc {
   }
 
  private:
+  ~CapturingHostResolverProc() {}
+
   std::vector<std::string> capture_list_;
   mutable Lock lock_;
   base::WaitableEvent event_;
