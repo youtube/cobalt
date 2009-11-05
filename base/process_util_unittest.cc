@@ -287,6 +287,51 @@ TEST_F(ProcessUtilTest, GetAppOutput) {
   EXPECT_STREQ("foobar42", output.c_str());
 }
 
+TEST_F(ProcessUtilTest, GetAppOutputRestricted) {
+  // Unfortunately, since we can't rely on the path, we need to know where
+  // everything is. So let's use /bin/sh, which is on every POSIX system, and
+  // its built-ins.
+  std::vector<std::string> argv;
+  argv.push_back("/bin/sh");  // argv[0]
+  argv.push_back("-c");       // argv[1]
+
+  // On success, should set |output|. We use |/bin/sh -c 'exit 0'| instead of
+  // |true| since the location of the latter may be |/bin| or |/usr/bin| (and we
+  // need absolute paths).
+  argv.push_back("exit 0");   // argv[2]; equivalent to "true"
+  std::string output = "abc";
+  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 100));
+  EXPECT_STREQ("", output.c_str());
+
+  // On failure, should not touch |output|. As above, but for |false|.
+  argv[2] = "exit 1";  // equivalent to "false"
+  output = "abc";
+  EXPECT_FALSE(GetAppOutputRestricted(CommandLine(argv),
+                                      &output, 100));
+  EXPECT_STREQ("abc", output.c_str());
+
+  // Amount of output exactly equal to space allowed.
+  argv[2] = "echo 123456789";  // (the sh built-in doesn't take "-n")
+  output.clear();
+  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 10));
+  EXPECT_STREQ("123456789\n", output.c_str());
+
+  // Amount of output greater than space allowed.
+  output.clear();
+  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 5));
+  EXPECT_STREQ("12345", output.c_str());
+
+  // Amount of output less than space allowed.
+  output.clear();
+  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 15));
+  EXPECT_STREQ("123456789\n", output.c_str());
+
+  // Zero space allowed.
+  output = "abc";
+  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 0));
+  EXPECT_STREQ("", output.c_str());
+}
+
 #if defined(OS_LINUX)
 TEST_F(ProcessUtilTest, GetParentProcessId) {
   base::ProcessId ppid = GetParentProcessId(GetCurrentProcId());
