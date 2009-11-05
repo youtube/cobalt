@@ -11,7 +11,8 @@
 
 #include <limits>
 
-#include "base/scoped_nsautorelease_pool.h"
+#import "base/chrome_application_mac.h"
+#include "base/logging.h"
 #include "base/time.h"
 
 namespace {
@@ -25,6 +26,23 @@ const CFTimeInterval kCFTimeIntervalMax =
 }  // namespace
 
 namespace base {
+
+// A scoper for autorelease pools created from message pump run loops.
+// Avoids dirtying up the ScopedNSAutoreleasePool interface for the rare
+// case where an autorelease pool needs to be passed in.
+class MessagePumpScopedAutoreleasePool {
+ public:
+  explicit MessagePumpScopedAutoreleasePool(MessagePumpCFRunLoopBase* pump) :
+      pool_(pump->CreateAutoreleasePool()) {
+  }
+   ~MessagePumpScopedAutoreleasePool() {
+    [pool_ drain];
+  }
+
+ private:
+  NSAutoreleasePool* pool_;
+  DISALLOW_COPY_AND_ASSIGN(MessagePumpScopedAutoreleasePool);
+};
 
 // Must be called on the run loop thread.
 MessagePumpCFRunLoopBase::MessagePumpCFRunLoopBase()
@@ -264,9 +282,9 @@ bool MessagePumpCFRunLoopBase::RunWork() {
   // The NSApplication-based run loop only drains the autorelease pool at each
   // UI event (NSEvent).  The autorelease pool is not drained for each
   // CFRunLoopSource target that's run.  Use a local pool for any autoreleased
-  // objects to ensure they're released promptly even in the absence of UI
-  // events.
-  ScopedNSAutoreleasePool autorelease_pool;
+  // objects if the app is not currently handling a UI event to ensure they're
+  // released promptly even in the absence of UI events.
+  MessagePumpScopedAutoreleasePool autorelease_pool(this);
 
   // Call DoWork once, and if something was done, arrange to come back here
   // again as long as the loop is still running.
@@ -298,9 +316,9 @@ bool MessagePumpCFRunLoopBase::RunDelayedWork() {
   // The NSApplication-based run loop only drains the autorelease pool at each
   // UI event (NSEvent).  The autorelease pool is not drained for each
   // CFRunLoopSource target that's run.  Use a local pool for any autoreleased
-  // objects to ensure they're released promptly even in the absence of UI
-  // events.
-  ScopedNSAutoreleasePool autorelease_pool;
+  // objects if the app is not currently handling a UI event to ensure they're
+  // released promptly even in the absence of UI events.
+  MessagePumpScopedAutoreleasePool autorelease_pool(this);
 
   Time next_time;
   delegate_->DoDelayedWork(&next_time);
@@ -342,9 +360,9 @@ bool MessagePumpCFRunLoopBase::RunIdleWork() {
   // The NSApplication-based run loop only drains the autorelease pool at each
   // UI event (NSEvent).  The autorelease pool is not drained for each
   // CFRunLoopSource target that's run.  Use a local pool for any autoreleased
-  // objects to ensure they're released promptly even in the absence of UI
-  // events.
-  ScopedNSAutoreleasePool autorelease_pool;
+  // objects if the app is not currently handling a UI event to ensure they're
+  // released promptly even in the absence of UI events.
+  MessagePumpScopedAutoreleasePool autorelease_pool(this);
 
   // Call DoIdleWork once, and if something was done, arrange to come back here
   // again as long as the loop is still running.
@@ -555,6 +573,11 @@ void MessagePumpCFRunLoopBase::PowerStateNotification(void* info,
 void MessagePumpCFRunLoopBase::EnterExitRunLoop(CFRunLoopActivity activity) {
 }
 
+// Base version returns a standard NSAutoreleasePool.
+NSAutoreleasePool* MessagePumpCFRunLoopBase::CreateAutoreleasePool() {
+  return [[NSAutoreleasePool alloc] init];
+}
+
 MessagePumpCFRunLoop::MessagePumpCFRunLoop()
     : quit_pending_(false) {
 }
@@ -568,7 +591,7 @@ void MessagePumpCFRunLoop::DoRun(Delegate* delegate) {
   // pool management is introduced.
   int result;
   do {
-    ScopedNSAutoreleasePool autorelease_pool;
+    MessagePumpScopedAutoreleasePool autorelease_pool(this);
     result = CFRunLoopRunInMode(kCFRunLoopDefaultMode,
                                 kCFTimeIntervalMax,
                                 false);
@@ -644,7 +667,9 @@ MessagePumpNSApplication::MessagePumpNSApplication()
 void MessagePumpNSApplication::DoRun(Delegate* delegate) {
   bool last_running_own_loop_ = running_own_loop_;
 
-  [NSApplication sharedApplication];
+  // TODO(dmaclach): Get rid of this gratuitous sharedApplication.
+  // Tests should be setting up their applications on their own.
+  [CrApplication sharedApplication];
 
   if (![NSApp isRunning]) {
     running_own_loop_ = false;
@@ -654,7 +679,7 @@ void MessagePumpNSApplication::DoRun(Delegate* delegate) {
     running_own_loop_ = true;
     NSDate* distant_future = [NSDate distantFuture];
     while (keep_running_) {
-      ScopedNSAutoreleasePool autorelease_pool;
+      MessagePumpScopedAutoreleasePool autorelease_pool(this);
       NSEvent* event = [NSApp nextEventMatchingMask:NSAnyEventMask
                                           untilDate:distant_future
                                              inMode:NSDefaultRunLoopMode
@@ -687,6 +712,46 @@ void MessagePumpNSApplication::Quit() {
                                          data1:0
                                          data2:0]
            atStart:NO];
+}
+
+// Prevents an autorelease pool from being created if the app is in the midst of
+// handling a UI event because various parts of AppKit depend on objects that
+// are created while handling a UI event to be autoreleased in the event loop.
+// An example of this is NSWindowController. When a window with a window
+// controller is closed it goes through a stack like this:
+// (Several stack frames elided for clarity)
+//
+// #0 [NSWindowController autorelease]
+// #1 DoAClose
+// #2 MessagePumpCFRunLoopBase::DoWork()
+// #3 [NSRunLoop run]
+// #4 [NSButton performClick:]
+// #5 [NSWindow sendEvent:]
+// #6 [NSApp sendEvent:]
+// #7 [NSApp run]
+//
+// -performClick: spins a nested run loop. If the pool created in DoWork was a
+// standard NSAutoreleasePool, it would release the objects that were
+// autoreleased into it once DoWork released it. This would cause the window
+// controller, which autoreleased itself in frame #0, to release itself, and
+// possibly free itself. Unfortunately this window controller controls the
+// window in frame #5. When the stack is unwound to frame #5, the window would
+// no longer exists and crashes may occur. Apple gets around this by never
+// releasing the pool it creates in frame #4, and letting frame #7 clean it up
+// when it cleans up the pool that wraps frame #7. When an autorelease pool is
+// released it releases all other pools that were created after it on the
+// autorelease pool stack.
+//
+// CrApplication is responsible for setting handlingSendEvent to true just
+// before it sends the event throught the event handling mechanism, and
+// returning it to its previous value once the event has been sent.
+NSAutoreleasePool* MessagePumpNSApplication::CreateAutoreleasePool() {
+  NSAutoreleasePool* pool = nil;
+  DCHECK([NSApp isKindOfClass:[CrApplication class]]);
+  if (![static_cast<CrApplication*>(NSApp) isHandlingSendEvent]) {
+    pool = MessagePumpCFRunLoopBase::CreateAutoreleasePool();
+  }
+  return pool;
 }
 
 // static
