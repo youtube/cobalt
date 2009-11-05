@@ -68,6 +68,8 @@ class MemEntryImpl : public Entry {
   virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* completion_callback);
   virtual int GetAvailableRange(int64 offset, int len, int64* start);
+  virtual int GetAvailableRange(int64 offset, int len, int64* start,
+                                CompletionCallback* callback);
   virtual void CancelSparseIO() {}
   virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
 
