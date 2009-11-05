@@ -100,6 +100,9 @@ class Buffer : public StreamSample {
 
   // If there's no data in this buffer, it represents end of stream.
   virtual bool IsEndOfStream() const { return GetData() == NULL; }
+
+ protected:
+  virtual ~Buffer() {}
 };
 
 
@@ -114,6 +117,9 @@ class WritableBuffer : public Buffer  {
 
   // Returns the size of the underlying buffer.
   virtual size_t GetBufferSize() const = 0;
+
+ protected:
+  virtual ~WritableBuffer() {}
 };
 
 

@@ -54,8 +54,6 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   // inside |stream|.
   FFmpegDemuxerStream(FFmpegDemuxer* demuxer, AVStream* stream);
 
-  virtual ~FFmpegDemuxerStream();
-
   // Returns true is this stream has pending reads, false otherwise.
   //
   // Safe to call on any thread.
@@ -85,6 +83,8 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   virtual void* QueryInterface(const char* interface_id);
 
  private:
+  virtual ~FFmpegDemuxerStream();
+
   // Carries out enqueuing a pending read on the demuxer thread.
   void ReadTask(Callback1<Buffer*>::Type* read_callback);
 

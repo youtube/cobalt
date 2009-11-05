@@ -67,6 +67,10 @@ class Foo : public base::RefCounted<Foo> {
   const std::string& result() const { return result_; }
 
  private:
+  friend class base::RefCounted<Foo>;
+
+  ~Foo() {}
+
   int test_count_;
   std::string result_;
 };
@@ -76,6 +80,11 @@ class QuitMsgLoop : public base::RefCounted<QuitMsgLoop> {
   void QuitNow() {
     MessageLoop::current()->Quit();
   }
+
+ private:
+  friend class base::RefCounted<QuitMsgLoop>;
+
+  ~QuitMsgLoop() {}
 };
 
 void RunTest_PostTask(MessageLoop::Type message_loop_type) {
