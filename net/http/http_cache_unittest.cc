@@ -228,6 +228,11 @@ class MockDiskEntry : public disk_cache::Entry,
     return count;
   }
 
+  virtual int GetAvailableRange(int64 offset, int len, int64* start,
+                                net::CompletionCallback* callback) {
+    return net::ERR_NOT_IMPLEMENTED;
+  }
+
   virtual void CancelSparseIO() { cancel_ = true; }
 
   virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback) {
@@ -331,6 +336,11 @@ class MockDiskCache : public disk_cache::Backend {
     return true;
   }
 
+  virtual int OpenEntry(const std::string& key, disk_cache::Entry** entry,
+                        net::CompletionCallback* callback) {
+    return net::ERR_NOT_IMPLEMENTED;
+  }
+
   virtual bool CreateEntry(const std::string& key, disk_cache::Entry** entry) {
     if (fail_requests_)
       return false;
@@ -354,6 +364,11 @@ class MockDiskCache : public disk_cache::Backend {
     return true;
   }
 
+  virtual int CreateEntry(const std::string& key, disk_cache::Entry** entry,
+                          net::CompletionCallback* callback) {
+    return net::ERR_NOT_IMPLEMENTED;
+  }
+
   virtual bool DoomEntry(const std::string& key) {
     EntryMap::iterator it = entries_.find(key);
     if (it != entries_.end()) {
@@ -367,17 +382,37 @@ class MockDiskCache : public disk_cache::Backend {
     return false;
   }
 
+  virtual int DoomAllEntries(net::CompletionCallback* callback) {
+    return net::ERR_NOT_IMPLEMENTED;
+  }
+
   virtual bool DoomEntriesBetween(const Time initial_time,
                                   const Time end_time) {
     return true;
+  }
+
+  virtual int DoomEntriesBetween(const base::Time initial_time,
+                                 const base::Time end_time,
+                                 net::CompletionCallback* callback) {
+    return net::ERR_NOT_IMPLEMENTED;
   }
 
   virtual bool DoomEntriesSince(const Time initial_time) {
     return true;
   }
 
+  virtual int DoomEntriesSince(const base::Time initial_time,
+                               net::CompletionCallback* callback) {
+    return net::ERR_NOT_IMPLEMENTED;
+  }
+
   virtual bool OpenNextEntry(void** iter, disk_cache::Entry** next_entry) {
     return false;
+  }
+
+  virtual int OpenNextEntry(void** iter, disk_cache::Entry** next_entry,
+                            net::CompletionCallback* callback) {
+    return net::ERR_NOT_IMPLEMENTED;
   }
 
   virtual void EndEnumeration(void** iter) {}

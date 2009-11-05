@@ -307,6 +307,11 @@ int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
   return 0;
 }
 
+int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
+                                    CompletionCallback* callback) {
+  return GetAvailableRange(offset, len, start);
+}
+
 int MemEntryImpl::ReadyForSparseIO(
     net::CompletionCallback* completion_callback) {
   return net::OK;

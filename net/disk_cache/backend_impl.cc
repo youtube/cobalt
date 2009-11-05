@@ -14,6 +14,7 @@
 #include "base/sys_info.h"
 #include "base/timer.h"
 #include "base/worker_pool.h"
+#include "net/base/net_errors.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/entry_impl.h"
 #include "net/disk_cache/errors.h"
@@ -379,6 +380,14 @@ bool BackendImpl::OpenEntry(const std::string& key, Entry** entry) {
   return true;
 }
 
+int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
+                           CompletionCallback* callback) {
+  if (OpenEntry(key, entry))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
 bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
   if (disabled_ || key.empty())
     return false;
@@ -461,6 +470,14 @@ bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
   return true;
 }
 
+int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
+                             CompletionCallback* callback) {
+  if (CreateEntry(key, entry))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
 bool BackendImpl::DoomEntry(const std::string& key) {
   if (disabled_)
     return false;
@@ -490,6 +507,13 @@ bool BackendImpl::DoomAllEntries() {
     stats_.OnEvent(Stats::DOOM_CACHE);
     return true;
   }
+}
+
+int BackendImpl::DoomAllEntries(CompletionCallback* callback) {
+  if (DoomAllEntries())
+    return net::OK;
+
+  return net::ERR_FAILED;
 }
 
 bool BackendImpl::DoomEntriesBetween(const Time initial_time,
@@ -528,6 +552,15 @@ bool BackendImpl::DoomEntriesBetween(const Time initial_time,
   return true;
 }
 
+int BackendImpl::DoomEntriesBetween(const base::Time initial_time,
+                                    const base::Time end_time,
+                                    CompletionCallback* callback) {
+  if (DoomEntriesBetween(initial_time, end_time))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
 // We use OpenNextEntry to retrieve elements from the cache, until we get
 // entries that are too old.
 bool BackendImpl::DoomEntriesSince(const Time initial_time) {
@@ -552,8 +585,24 @@ bool BackendImpl::DoomEntriesSince(const Time initial_time) {
   }
 }
 
+int BackendImpl::DoomEntriesSince(const base::Time initial_time,
+                                  CompletionCallback* callback) {
+  if (DoomEntriesSince(initial_time))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
 bool BackendImpl::OpenNextEntry(void** iter, Entry** next_entry) {
   return OpenFollowingEntry(true, iter, next_entry);
+}
+
+int BackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
+                               CompletionCallback* callback) {
+  if (OpenNextEntry(iter, next_entry))
+    return net::OK;
+
+  return net::ERR_FAILED;
 }
 
 void BackendImpl::EndEnumeration(void** iter) {
