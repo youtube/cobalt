@@ -85,6 +85,8 @@
         'base_switches.h',
         'basictypes.h',
         'bzip2_error_handler.cc',
+        'chrome_application_mac.h',
+        'chrome_application_mac.mm',
         'cocoa_protocols_mac.h',
         'command_line.cc',
         'command_line.h',
