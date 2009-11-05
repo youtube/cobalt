@@ -94,7 +94,7 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
 
   oas->SetVolume(0.5);
   oas->Start(&source);
-  usleep(1500000);
+  usleep(500000);
 
   // Test that the volume is within the set limits.
   double volume = 0.0;
