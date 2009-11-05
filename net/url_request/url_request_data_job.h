@@ -22,6 +22,9 @@ class URLRequestDataJob : public URLRequestSimpleJob {
 
   static URLRequest::ProtocolFactory Factory;
 
+ private:
+  ~URLRequestDataJob() {}
+
   DISALLOW_COPY_AND_ASSIGN(URLRequestDataJob);
 };
 

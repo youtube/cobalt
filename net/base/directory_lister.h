@@ -35,7 +35,6 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
   };
 
   DirectoryLister(const FilePath& dir, DirectoryListerDelegate* delegate);
-  ~DirectoryLister();
 
   // Call this method to start the directory enumeration thread.
   bool Start();
@@ -53,7 +52,10 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
   void ThreadMain();
 
  private:
+  friend class base::RefCountedThreadSafe<DirectoryLister>;
   friend class DirectoryDataEvent;
+
+  ~DirectoryLister();
 
   void OnReceivedData(const file_util::FileEnumerator::FindInfo* data,
                       int count);

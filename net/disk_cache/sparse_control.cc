@@ -60,6 +60,9 @@ class ChildrenDeleter
   void ReadData(disk_cache::Addr address, int len);
 
  private:
+  friend class base::RefCounted<ChildrenDeleter>;
+  ~ChildrenDeleter() {}
+
   void DeleteChildren();
 
   disk_cache::BackendImpl* backend_;

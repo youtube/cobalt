@@ -20,6 +20,8 @@ class HttpAuthHandlerBasic : public HttpAuthHandler {
   virtual bool Init(std::string::const_iterator challenge_begin,
                     std::string::const_iterator challenge_end);
 
+ private:
+  ~HttpAuthHandlerBasic() {}
 };
 
 }  // namespace net

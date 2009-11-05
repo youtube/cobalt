@@ -221,6 +221,12 @@ class OCSPRequestSession
   }
 
  private:
+  friend class base::RefCountedThreadSafe<OCSPRequestSession>;
+
+  virtual ~OCSPRequestSession() {
+    DCHECK(!request_);
+  }
+
   void StartURLRequest() {
     DCHECK(MessageLoopForIO::current() == io_loop_);
     DCHECK(!request_);

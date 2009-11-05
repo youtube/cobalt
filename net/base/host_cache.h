@@ -22,7 +22,6 @@ class HostCache {
   // Stores the latest address list that was looked up for a hostname.
   struct Entry : public base::RefCounted<Entry> {
     Entry(int error, const AddressList& addrlist, base::TimeTicks expiration);
-    ~Entry();
 
     // The resolve results for this entry.
     int error;
@@ -30,6 +29,11 @@ class HostCache {
 
     // The time when this entry expires.
     base::TimeTicks expiration;
+
+   private:
+    friend class base::RefCounted<Entry>;
+
+    ~Entry();
   };
 
   struct Key {

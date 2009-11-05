@@ -47,6 +47,10 @@ class ExampleEmployer::ExampleWorker
   void DoWork();
   void DoCallback();
  private:
+  friend class base::RefCountedThreadSafe<ExampleWorker>;
+
+  ~ExampleWorker() {}
+
   // Only used on the origin thread (where DoSomething was called).
   ExampleEmployer* employer_;
   CompletionCallback* callback_;

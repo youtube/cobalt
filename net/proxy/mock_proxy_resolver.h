@@ -46,6 +46,10 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     }
 
    private:
+    friend class base::RefCounted<Request>;
+
+    ~Request() {}
+
     MockAsyncProxyResolverBase* resolver_;
     const GURL url_;
     ProxyInfo* results_;

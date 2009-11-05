@@ -18,16 +18,20 @@ class IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
  public:
   IOBuffer() : data_(NULL) {}
   explicit IOBuffer(int buffer_size);
-  virtual ~IOBuffer() {
-    delete[] data_;
-  }
 
   char* data() { return data_; }
 
  protected:
+  friend class base::RefCountedThreadSafe<IOBuffer>;
+
   // Only allow derived classes to specify data_.
   // In all other cases, we own data_, and must delete it at destruction time.
   explicit IOBuffer(char* data) : data_(data) {}
+
+  virtual ~IOBuffer() {
+    delete[] data_;
+  }
+
   char* data_;
 };
 
@@ -38,11 +42,12 @@ class IOBuffer : public base::RefCountedThreadSafe<IOBuffer> {
 class IOBufferWithSize : public IOBuffer {
  public:
   explicit IOBufferWithSize(int size) : IOBuffer(size), size_(size) {}
-  ~IOBufferWithSize() {}
 
   int size() const { return size_; }
 
  private:
+  ~IOBufferWithSize() {}
+
   int size_;
 };
 
@@ -55,15 +60,16 @@ class StringIOBuffer : public IOBuffer {
         string_data_(s) {
     data_ = const_cast<char*>(string_data_.data());
   }
+
+  int size() const { return string_data_.size(); }
+
+ private:
   ~StringIOBuffer() {
     // We haven't allocated the buffer, so remove it before the base class
     // destructor tries to delete[] it.
     data_ = NULL;
   }
 
-  int size() const { return string_data_.size(); }
-
- private:
   std::string string_data_;
 };
 
@@ -73,10 +79,6 @@ class DrainableIOBuffer : public IOBuffer {
  public:
   DrainableIOBuffer(IOBuffer* base, int size)
       : IOBuffer(base->data()), base_(base), size_(size), used_(0) {}
-  ~DrainableIOBuffer() {
-    // The buffer is owned by the |base_| instance.
-    data_ = NULL;
-  }
 
   // DidConsume() changes the |data_| pointer so that |data_| always points
   // to the first unconsumed byte.
@@ -95,6 +97,11 @@ class DrainableIOBuffer : public IOBuffer {
   int size() const { return size_; }
 
  private:
+  ~DrainableIOBuffer() {
+    // The buffer is owned by the |base_| instance.
+    data_ = NULL;
+  }
+
   scoped_refptr<IOBuffer> base_;
   int size_;
   int used_;
@@ -104,7 +111,6 @@ class DrainableIOBuffer : public IOBuffer {
 class GrowableIOBuffer : public IOBuffer {
  public:
   GrowableIOBuffer() : IOBuffer(), capacity_(0), offset_(0) {}
-  ~GrowableIOBuffer() { data_ = NULL; }
 
   // realloc memory to the specified capacity.  Returns true on success.
   // On failure, the capacity and buffer are unchanged.
@@ -119,6 +125,8 @@ class GrowableIOBuffer : public IOBuffer {
   char* StartOfBuffer() { return real_data_.get(); }
 
  private:
+  ~GrowableIOBuffer() { data_ = NULL; }
+
   scoped_ptr_malloc<char> real_data_;
   int capacity_;
   int offset_;
@@ -133,6 +141,8 @@ class WrappedIOBuffer : public IOBuffer {
  public:
   explicit WrappedIOBuffer(const char* data)
       : IOBuffer(const_cast<char*>(data)) {}
+
+ protected:
   ~WrappedIOBuffer() {
     data_ = NULL;
   }
