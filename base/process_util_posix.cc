@@ -541,9 +541,23 @@ int ProcessMetrics::GetCPUUsage() {
 }
 #endif
 
-bool GetAppOutput(const CommandLine& cl, std::string* output) {
+// Executes the application specified by |cl| and wait for it to exit. Stores
+// the output (stdout) in |output|. If |do_search_path| is set, it searches the
+// path for the application; in that case, |envp| must be null, and it will use
+// the current environment. If |do_search_path| is false, |cl| should fully
+// specify the path of the application, and |envp| will be used as the
+// environment. Redirects stderr to /dev/null. Returns true on success
+// (application launched and exited cleanly, with exit code indicating success).
+// |output| is modified only when the function finished successfully.
+static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
+                                 std::string* output, size_t max_output,
+                                 bool do_search_path) {
   int pipe_fd[2];
   pid_t pid;
+
+  // Either |do_search_path| should be false or |envp| should be null, but not
+  // both.
+  DCHECK(!do_search_path ^ !envp);
 
   if (pipe(pipe_fd) < 0)
     return false;
@@ -583,7 +597,10 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
         for (size_t i = 0; i < argv.size(); i++)
           argv_cstr[i] = const_cast<char*>(argv[i].c_str());
         argv_cstr[argv.size()] = NULL;
-        execvp(argv_cstr[0], argv_cstr.get());
+        if (do_search_path)
+          execvp(argv_cstr[0], argv_cstr.get());
+        else
+          execve(argv_cstr[0], argv_cstr.get(), envp);
         _exit(127);
       }
     default:  // parent
@@ -595,25 +612,48 @@ bool GetAppOutput(const CommandLine& cl, std::string* output) {
 
         char buffer[256];
         std::string buf_output;
+        size_t output_left = max_output;
+        ssize_t bytes_read = 1;  // A lie to properly handle |max_output == 0|
+                                 // case in the logic below.
 
-        while (true) {
-          ssize_t bytes_read =
-              HANDLE_EINTR(read(pipe_fd[0], buffer, sizeof(buffer)));
+        while (output_left > 0) {
+          bytes_read = HANDLE_EINTR(read(pipe_fd[0], buffer,
+                                    std::min(output_left, sizeof(buffer))));
           if (bytes_read <= 0)
             break;
           buf_output.append(buffer, bytes_read);
+          output_left -= static_cast<size_t>(bytes_read);
         }
         close(pipe_fd[0]);
 
-        int exit_code = EXIT_FAILURE;
-        bool success = WaitForExitCode(pid, &exit_code);
-        if (!success || exit_code != EXIT_SUCCESS)
-          return false;
+        // If we stopped because we read as much as we wanted, we always declare
+        // success (because the child may exit due to |SIGPIPE|).
+        if (output_left || bytes_read <= 0) {
+          int exit_code = EXIT_FAILURE;
+          bool success = WaitForExitCode(pid, &exit_code);
+          if (!success || exit_code != EXIT_SUCCESS)
+            return false;
+        }
 
         output->swap(buf_output);
         return true;
       }
   }
+}
+
+bool GetAppOutput(const CommandLine& cl, std::string* output) {
+  // Run |execve()| with the current environment and store "unlimited" data.
+  return GetAppOutputInternal(cl, NULL, output,
+                              std::numeric_limits<std::size_t>::max(), true);
+}
+
+// TODO(viettrungluu): Conceivably, we should have a timeout as well, so we
+// don't hang if what we're calling hangs.
+bool GetAppOutputRestricted(const CommandLine& cl,
+                            std::string* output, size_t max_output) {
+  // Run |execve()| with the empty environment.
+  char* const empty_environ = NULL;
+  return GetAppOutputInternal(cl, &empty_environ, output, max_output, false);
 }
 
 int GetProcessCount(const std::wstring& executable_name,

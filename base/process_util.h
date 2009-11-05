@@ -169,6 +169,14 @@ bool LaunchApp(const CommandLine& cl,
 // successfully.
 bool GetAppOutput(const CommandLine& cl, std::string* output);
 
+#if defined(OS_POSIX)
+// A restricted version of |GetAppOutput()| which (a) clears the environment,
+// and (b) stores at most |max_output| bytes; also, it doesn't search the path
+// for the command.
+bool GetAppOutputRestricted(const CommandLine& cl,
+                            std::string* output, size_t max_output);
+#endif
+
 // Used to filter processes by process ID.
 class ProcessFilter {
  public:
