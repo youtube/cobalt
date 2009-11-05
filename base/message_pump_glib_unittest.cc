@@ -330,6 +330,10 @@ class ConcurrentHelper : public base::RefCounted<ConcurrentHelper>  {
   int task_count() const { return task_count_; }
 
  private:
+  friend class base::RefCounted<ConcurrentHelper>;
+
+  ~ConcurrentHelper() {}
+
   static const int kStartingEventCount = 20;
   static const int kStartingTaskCount = 20;
 
@@ -455,6 +459,10 @@ class GLibLoopRunner : public base::RefCounted<GLibLoopRunner> {
   }
 
  private:
+  friend class base::RefCounted<GLibLoopRunner>;
+
+  ~GLibLoopRunner() {}
+
   bool quit_;
 };
 

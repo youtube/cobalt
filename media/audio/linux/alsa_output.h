@@ -75,7 +75,6 @@ class AlsaPcmOutputStream :
                       AlsaWrapper* wrapper,
                       AudioManagerLinux* manager,
                       MessageLoop* message_loop);
-  virtual ~AlsaPcmOutputStream();
 
   // Implementation of AudioOutputStream.
   virtual bool Open(size_t packet_size);
@@ -86,6 +85,7 @@ class AlsaPcmOutputStream :
   virtual void GetVolume(double* volume);
 
  private:
+  friend class base::RefCountedThreadSafe<AlsaPcmOutputStream>;
   friend class AlsaPcmOutputStreamTest;
   FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect);
   FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_FallbackDevices);
@@ -105,6 +105,8 @@ class AlsaPcmOutputStream :
   FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_NormalPacket);
   FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_StopStream);
   FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_WriteFails);
+
+  virtual ~AlsaPcmOutputStream();
 
   // In-memory buffer to hold sound samples before pushing to the sound device.
   // TODO(ajwong): There are now about 3 buffer/packet implementations. Factor
