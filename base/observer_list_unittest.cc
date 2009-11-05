@@ -83,7 +83,7 @@ class AddInObserve : public Foo {
 class ObserverListThreadSafeTest : public testing::Test {
 };
 
-static const int kThreadRunTime = 10000;  // ms to run the multi-threaded test.
+static const int kThreadRunTime = 2000;  // ms to run the multi-threaded test.
 
 // A thread for use in the ThreadSafeObserver test
 // which will add and remove itself from the notification
