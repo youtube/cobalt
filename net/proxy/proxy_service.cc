@@ -36,6 +36,8 @@ using base::TimeTicks;
 
 namespace net {
 
+static const size_t kMaxNumLoadLogEntries = 100;
+
 // Config getter that fails every time.
 class ProxyConfigServiceNull : public ProxyConfigService {
  public:
@@ -630,7 +632,7 @@ void ProxyService::SetConfig(const ProxyConfig& config) {
     init_proxy_resolver_.reset(
         new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get()));
 
-    init_proxy_resolver_log_ = new LoadLog;
+    init_proxy_resolver_log_ = new LoadLog(kMaxNumLoadLogEntries);
 
     int rv = init_proxy_resolver_->Init(
         config_, &init_proxy_resolver_callback_, init_proxy_resolver_log_);
