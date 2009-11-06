@@ -28,6 +28,10 @@
 #include "base/string16.h"
 #include "base/time.h"
 
+#if defined(OS_POSIX)
+#include "base/file_descriptor_posix.h"
+#endif
+
 namespace base {
 class Time;
 }
@@ -486,6 +490,10 @@ class MemoryMappedFile {
   // the file does not exist, or the memory mapping fails, it will return false.
   // Later we may want to allow the user to specify access.
   bool Initialize(const FilePath& file_name);
+#if defined(OS_POSIX)
+  // As above, but works with an alreay-opened file.
+  bool Initialize(const base::FileDescriptor& fd);
+#endif
 
   const uint8* data() const { return data_; }
   size_t length() const { return length_; }
@@ -498,6 +506,10 @@ class MemoryMappedFile {
   // success, false on any kind of failure. This is a helper for Initialize().
   bool MapFileToMemory(const FilePath& file_name);
 
+#if defined(OS_POSIX)
+  bool MapFileToMemoryInternal();
+#endif
+
   // Closes all open handles. Later we may want to make this public.
   void CloseHandles();
 
@@ -506,7 +518,7 @@ class MemoryMappedFile {
   HANDLE file_mapping_;
 #elif defined(OS_POSIX)
   // The file descriptor.
-  int file_;
+  base::FileDescriptor file_;
 #endif
   uint8* data_;
   size_t length_;
