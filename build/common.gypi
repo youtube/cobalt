@@ -741,7 +741,6 @@
           # MACOSX_DEPLOYMENT_TARGET maps to -mmacosx-version-min
           'MACOSX_DEPLOYMENT_TARGET': '<(mac_deployment_target)',
           'PREBINDING': 'NO',                       # No -Wl,-prebind
-          'SDKROOT': 'macosx<(mac_sdk)',            # -isysroot
           'USE_HEADERMAP': 'NO',
           'WARNING_CFLAGS': ['-Wall', '-Wendif-labels'],
           'conditions': [
@@ -931,6 +930,17 @@
     'tools': ['ar', 'as', 'gcc', 'g++', 'gnulink', 'chromium_builders'],
   },
   'xcode_settings': {
+    # DON'T ADD ANYTHING NEW TO THIS BLOCK UNLESS YOU REALLY REALLY NEED IT!
+    # This block adds *project-wide* configuration settings to each project
+    # file.  It's almost always wrong to put things here.  Specify your
+    # custom xcode_settings in target_defaults to add them to targets instead.
+
+    # In an Xcode Project Info window, the "Base SDK for All Configurations"
+    # setting sets the SDK on a project-wide basis.  In order to get the
+    # configured SDK to show properly in the Xcode UI, SDKROOT must be set
+    # here at the project level.
+    'SDKROOT': 'macosx<(mac_sdk)',  # -isysroot
+
     # The Xcode generator will look for an xcode_settings section at the root
     # of each dict and use it to apply settings on a file-wide basis.  Most
     # settings should not be here, they should be in target-specific
