@@ -215,12 +215,22 @@ void MessagePumpLibevent::OnLibeventNotification(int fd, short flags,
   }
 }
 
+// Tell libevent to break out of inner loop.
+static void timer_callback(int fd, short events, void *context)
+{
+  event_base_loopbreak((struct event_base *)context);
+}
+
 // Reentrant!
 void MessagePumpLibevent::Run(Delegate* delegate) {
   DCHECK(keep_running_) << "Quit must have been called outside of Run!";
 
   bool old_in_run = in_run_;
   in_run_ = true;
+
+  // event_base_loopexit() + EVLOOP_ONCE is leaky, see http://crbug.com/25641.
+  // Instead, make our own timer and reuse it on each call to event_base_loop().
+  scoped_ptr<event> timer_event(new event);
 
   for (;;) {
     ScopedNSAutoreleasePool autorelease_pool;
@@ -253,8 +263,11 @@ void MessagePumpLibevent::Run(Delegate* delegate) {
         struct timeval poll_tv;
         poll_tv.tv_sec = delay.InSeconds();
         poll_tv.tv_usec = delay.InMicroseconds() % Time::kMicrosecondsPerSecond;
-        event_base_loopexit(event_base_, &poll_tv);
+        event_set(timer_event.get(), -1, 0, timer_callback, event_base_);
+        event_base_set(event_base_, timer_event.get());
+        event_add(timer_event.get(), &poll_tv);
         event_base_loop(event_base_, EVLOOP_ONCE);
+        event_del(timer_event.get());
       } else {
         // It looks like delayed_work_time_ indicates a time in the past, so we
         // need to call DoDelayedWork now.
