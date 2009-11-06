@@ -318,9 +318,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocket* transport_socket,
       completed_handshake_(false),
       handshake_interrupted_(false),
       ssl_context_(NULL),
-      pending_send_error_(OK),
-      recv_buffer_head_slop_(0),
-      recv_buffer_tail_slop_(0) {
+      pending_send_error_(OK) {
 }
 
 SSLClientSocketMac::~SSLClientSocketMac() {
@@ -601,10 +599,9 @@ void SSLClientSocketMac::OnHandshakeIOComplete(int result) {
 
 void SSLClientSocketMac::OnTransportReadComplete(int result) {
   if (result > 0) {
-      char* buffer =
-	  &recv_buffer_[recv_buffer_.size() - recv_buffer_tail_slop_];
-      memcpy(buffer, read_io_buf_->data(), result);
-      recv_buffer_tail_slop_ -= result;
+    recv_buffer_.insert(recv_buffer_.end(),
+                        read_io_buf_->data(),
+                        read_io_buf_->data() + result);
   }
   read_io_buf_ = NULL;
 
@@ -629,12 +626,15 @@ void SSLClientSocketMac::OnTransportReadComplete(int result) {
 }
 
 void SSLClientSocketMac::OnTransportWriteComplete(int result) {
+  write_io_buf_ = NULL;
+
   if (result < 0) {
     pending_send_error_ = result;
     return;
   }
+
   send_buffer_.erase(send_buffer_.begin(),
-		     send_buffer_.begin() + result);
+                     send_buffer_.begin() + result);
   if (!send_buffer_.empty())
     SSLWriteCallback(this, NULL, NULL);
 
@@ -797,77 +797,6 @@ int SSLClientSocketMac::DoPayloadWrite() {
   return NetErrorFromOSStatus(status);
 }
 
-// Handling the reading from the network is one of those things that should be
-// simpler than it is. Ideally, we'd have some kind of ring buffer. For now, a
-// std::vector<char> will have to do.
-//
-// The need for a buffer at all comes from the difference between an
-// asynchronous connection (which is what we have) and a non-blocking connection
-// (which is what we fake for Secure Transport). When Secure Transport calls us
-// to read data, we call our underlying transport, which will likely tell us
-// that it'll do a callback. When that happens, we need to tell Secure Transport
-// that we've "blocked". When the callback happens, we have a chunk of data that
-// we need to feed to Secure Transport, but it's not interested. It'll ask for
-// it again when we call it again, so we need to hold on to the data.
-//
-// Why keep our own buffer? Well, when we execute a read and the underlying
-// transport says that it'll do a callback, it keeps the pointer to the
-// buffer. We can't pass it the buffer that Secure Transport gave us to fill, as
-// we can't guarantee its lifetime.
-//
-// The basic idea, then, is this: we have a buffer filled with the data that
-// we've read from the network but haven't given to Secure Transport
-// yet. Whenever we read from the network the first thing we do is ensure we
-// have enough room in the buffer for the read. We enlarge the buffer to be big
-// enough to hold both our existing data and the new data, and then we mark the
-// extra space at the end as "tail slop." Slop is just space at the ends of the
-// buffer that's going to be used for data but isn't (yet). A diagram:
-//
-// +--------------------------------------+--------------------------------+
-// | existing good data ~~~~~~~~~~~~~~~~~ | tail slop area ~~~~~~~~~~~~~~~ |
-// +--------------------------------------+--------------------------------+
-//
-// When executing a read, we pass a pointer to the beginning of the tail slop
-// area (guaranteed to be contiguous space because it's a vector, unlike, say, a
-// deque (sigh)) and the size of the tail slop. When we get data (either here in
-// SSLReadCallback() or above in OnTransportReadComplete()) we subtract the
-// number of bytes received from the tail slop value. That moves those bytes
-// (conceptually, not physically) from the tail slop area to the area containing
-// real data.
-//
-// The idea is still pretty simple. We enlarge the tail slop, call our
-// underlying network, get data, shrink the slop area to match, copy requested
-// data back into our caller's buffer, and delete the data from the head of the
-// vector.
-//
-// Except for a nasty little problem. Asynchronous I/O calls keep the buffer
-// pointer.
-//
-// This leads to the following scenario: we have a few bytes of good data in our
-// buffer. But our caller requests more than that. We oblige by enlarging the
-// tail slop, and calling our underlying provider, but the provider says that
-// it'll call us back later. So we shrug our shoulders, copy what we do have
-// into our caller's buffer and...
-//
-// Wait. We can't delete the data from the head of our vector. That would
-// invalidate the pointer that we just gave to our provider. So instead, in that
-// case we keep track of where the good data starts by keeping a "head slop"
-// value, which just notes what data we've already sent and that is useless to
-// us but that we can't delete because we have I/O in flight depending on us
-// leaving the buffer alone.
-//
-// I hear what you're saying. "We need to use a ring buffer!" You write it,
-// then, and I'll use it. Here are the features it needs. First, it needs to be
-// able to have contiguous segments of arbitrary length attached to it to create
-// read buffers. Second, each of those segments must have a "used" length
-// indicator, so if it was half-filled by a previous data read, but the next
-// data read is for more than there's space left, a new segment can be created
-// for the new read without leaving an internal gap.
-//
-// Get to it.
-//
-// (sigh) Who am I kidding? TODO(avi): write the aforementioned ring buffer
-
 // static
 OSStatus SSLClientSocketMac::SSLReadCallback(SSLConnectionRef connection,
                                              void* data,
@@ -878,56 +807,35 @@ OSStatus SSLClientSocketMac::SSLReadCallback(SSLConnectionRef connection,
       const_cast<SSLClientSocketMac*>(
           static_cast<const SSLClientSocketMac*>(connection));
 
-  // If we have I/O in flight, promise we'll get back to them and use the
-  // existing callback to do so
-
   if (us->read_io_buf_) {
+    // We have I/O in flight; promise we'll get back to them and use the
+    // existing callback to do so.
     *data_length = 0;
     return errSSLWouldBlock;
   }
 
-  // Start with what's in the buffer
-
-  size_t total_read = us->recv_buffer_.size() - us->recv_buffer_head_slop_ -
-                      us->recv_buffer_tail_slop_;
-
-  // Resize the buffer if needed
-
-  if (us->recv_buffer_.size() - us->recv_buffer_head_slop_ < *data_length) {
-    us->recv_buffer_.resize(us->recv_buffer_head_slop_ + *data_length);
-    us->recv_buffer_tail_slop_ = *data_length - total_read;
-  }
+  size_t total_read = us->recv_buffer_.size();
 
   int rv = 1;  // any old value to spin the loop below
   while (rv > 0 && total_read < *data_length) {
-    char* buffer = &us->recv_buffer_[us->recv_buffer_head_slop_ + total_read];
     us->read_io_buf_ = new IOBuffer(*data_length - total_read);
     rv = us->transport_->Read(us->read_io_buf_,
                               *data_length - total_read,
                               &us->transport_read_callback_);
 
     if (rv >= 0) {
-      memcpy(buffer, us->read_io_buf_->data(), rv);
+      us->recv_buffer_.insert(us->recv_buffer_.end(),
+                              us->read_io_buf_->data(),
+                              us->read_io_buf_->data() + rv);
       us->read_io_buf_ = NULL;
       total_read += rv;
-      us->recv_buffer_tail_slop_ -= rv;
     }
   }
 
   *data_length = total_read;
   if (total_read) {
-    memcpy(data, &us->recv_buffer_[us->recv_buffer_head_slop_], total_read);
-    if (rv == ERR_IO_PENDING) {
-      // We have I/O in flight which is going to land in our buffer. We can't
-      // shuffle things around, so we need to just fiddle with pointers.
-      us->recv_buffer_head_slop_ += total_read;
-    } else {
-      us->recv_buffer_.erase(us->recv_buffer_.begin(),
-                             us->recv_buffer_.begin() +
-                             total_read +
-                             us->recv_buffer_head_slop_);
-      us->recv_buffer_head_slop_ = 0;
-    }
+    memcpy(data, &us->recv_buffer_[0], total_read);
+    us->recv_buffer_.clear();
   }
 
   if (rv != ERR_IO_PENDING)
@@ -955,14 +863,12 @@ OSStatus SSLClientSocketMac::SSLWriteCallback(SSLConnectionRef connection,
     return status;
   }
 
-  bool send_pending = !us->send_buffer_.empty();
-
   if (data)
     us->send_buffer_.insert(us->send_buffer_.end(),
                             static_cast<const char*>(data),
                             static_cast<const char*>(data) + *data_length);
 
-  if (send_pending) {
+  if (us->write_io_buf_) {
     // If we have I/O in flight, just add the data to the end of the buffer and
     // return to our caller. The existing callback will trigger the write of the
     // new data when it sees that data remains in the buffer after removing the
@@ -972,18 +878,21 @@ OSStatus SSLClientSocketMac::SSLWriteCallback(SSLConnectionRef connection,
 
   int rv;
   do {
-    scoped_refptr<IOBuffer> buffer = new IOBuffer(us->send_buffer_.size());
-    memcpy(buffer->data(), &us->send_buffer_[0], us->send_buffer_.size());
-    rv = us->transport_->Write(buffer,
+    us->write_io_buf_ = new IOBuffer(us->send_buffer_.size());
+    memcpy(us->write_io_buf_->data(), &us->send_buffer_[0],
+           us->send_buffer_.size());
+    rv = us->transport_->Write(us->write_io_buf_,
                                us->send_buffer_.size(),
                                &us->transport_write_callback_);
     if (rv > 0) {
       us->send_buffer_.erase(us->send_buffer_.begin(),
                              us->send_buffer_.begin() + rv);
+      us->write_io_buf_ = NULL;
     }
   } while (rv > 0 && !us->send_buffer_.empty());
 
   if (rv < 0 && rv != ERR_IO_PENDING) {
+    us->write_io_buf_ = NULL;
     return OSStatusFromNetError(rv);
   }
 
