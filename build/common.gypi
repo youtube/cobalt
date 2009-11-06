@@ -43,9 +43,14 @@
           # else gets passed through, which probably won't work very well; such
           # hosts should pass an explicit target_arch to gyp.
           'target_arch%':
-            '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/arm.*/arm/")'
+            '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/arm.*/arm/")',
+
+          # For now, only Linux spellchecks in the renderer.
+          'spellchecker_in_renderer%': 1,
         }, {  # OS!="linux"
           'target_arch%': 'ia32',
+
+          'spellchecker_in_renderer%': 0,
         }],
       ],
 
@@ -79,6 +84,7 @@
     'branding%': '<(branding)',
     'buildtype%': '<(buildtype)',
     'target_arch%': '<(target_arch)',
+    'spellchecker_in_renderer%': '<(spellchecker_in_renderer)',
     'toolkit_views%': '<(toolkit_views)',
     'chromeos%': '<(chromeos)',
     'inside_chromium_build%': '<(inside_chromium_build)',
@@ -294,6 +300,9 @@
       }],
       ['enable_pepper==1', {
         'defines': ['ENABLE_PEPPER=1'],
+      }],
+      ['spellchecker_in_renderer==1', {
+        'defines': ['SPELLCHECKER_IN_RENDERER=1']
       }],
       ['fastbuild!=0', {
         'conditions': [
