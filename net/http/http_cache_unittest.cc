@@ -784,7 +784,7 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
 
   cache.disk_cache()->set_fail_requests();
 
-  scoped_refptr<net::LoadLog> log(new net::LoadLog);
+  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
 
   // Read from the network, and don't use the cache.
   RunTransactionTestWithLog(cache.http_cache(), kSimpleGET_Transaction, log);
@@ -867,7 +867,7 @@ TEST(HttpCache, SimpleGETWithDiskFailures2) {
 TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   MockHttpCache cache;
 
-  scoped_refptr<net::LoadLog> log(new net::LoadLog);
+  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
 
   // write to the cache
   RunTransactionTestWithLog(cache.http_cache(), kSimpleGET_Transaction, log);
@@ -891,7 +891,7 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   MockTransaction transaction(kSimpleGET_Transaction);
   transaction.load_flags |= net::LOAD_ONLY_FROM_CACHE;
 
-  log = new net::LoadLog;
+  log = new net::LoadLog(net::LoadLog::kUnbounded);
 
   RunTransactionTestWithLog(cache.http_cache(), transaction, log);
 
