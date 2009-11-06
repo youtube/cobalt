@@ -40,12 +40,12 @@ struct EmptyStrings {
 // Used by ReplaceStringPlaceholders to track the position in the string of
 // replaced parameters.
 struct ReplacementOffset {
-  ReplacementOffset(int parameter, size_t offset)
+  ReplacementOffset(uintptr_t parameter, size_t offset)
       : parameter(parameter),
         offset(offset) {}
 
   // Index of the parameter.
-  int parameter;
+  uintptr_t parameter;
 
   // Starting position in the string.
   size_t offset;
@@ -640,7 +640,7 @@ static inline bool IsInUTF8Sequence(int c) {
 // originally been UTF-8, but has been converted to wide characters because
 // that's what we (and Windows) use internally.
 template<typename CHAR>
-static bool IsStringUTF8T(const CHAR* str, int length) {
+static bool IsStringUTF8T(const CHAR* str, size_t length) {
   bool overlong = false;
   bool surrogate = false;
   bool nonchar = false;
@@ -655,7 +655,7 @@ static bool IsStringUTF8T(const CHAR* str, int length) {
   // are left in the sequence
   int positions_left = 0;
 
-  for (int i = 0; i < length; i++) {
+  for (uintptr_t i = 0; i < length; i++) {
     // This whole function assume an unsigned value so force its conversion to
     // an unsigned value.
     typename ToUnsigned<CHAR>::Unsigned c = str[i];
@@ -1431,10 +1431,10 @@ void SplitStringAlongWhitespace(const std::string& str,
 template<class FormatStringType, class OutStringType>
 OutStringType DoReplaceStringPlaceholders(const FormatStringType& format_string,
     const std::vector<OutStringType>& subst, std::vector<size_t>* offsets) {
-  int substitutions = subst.size();
+  size_t substitutions = subst.size();
   DCHECK(substitutions < 10);
 
-  int sub_length = 0;
+  size_t sub_length = 0;
   for (typename std::vector<OutStringType>::const_iterator iter = subst.begin();
        iter != subst.end(); ++iter) {
     sub_length += (*iter).length();
@@ -1453,7 +1453,7 @@ OutStringType DoReplaceStringPlaceholders(const FormatStringType& format_string,
         if ('$' == *i) {
           formatted.push_back('$');
         } else {
-          int index = *i - '1';
+          uintptr_t index = *i - '1';
           if (offsets) {
             ReplacementOffset r_offset(index,
                 static_cast<int>(formatted.size()));
@@ -1656,10 +1656,10 @@ bool HexDigitToIntT(const CHAR digit, uint8* val) {
 template<typename STR>
 bool HexStringToBytesT(const STR& input, std::vector<uint8>* output) {
   DCHECK(output->size() == 0);
-  int count = input.size();
+  size_t count = input.size();
   if (count == 0 || (count % 2) != 0)
     return false;
-  for (int i = 0; i < count / 2; ++i) {
+  for (uintptr_t i = 0; i < count / 2; ++i) {
     uint8 msb = 0;  // most significant 4 bits
     uint8 lsb = 0;  // least significant 4 bits
     if (!HexDigitToIntT(input[i * 2], &msb) ||

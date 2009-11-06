@@ -159,6 +159,19 @@ inline Atomic64 Release_Load(volatile const Atomic64* ptr) {
   return *ptr;
 }
 
+inline Atomic64 Acquire_CompareAndSwap(volatile Atomic64* ptr,
+                                       Atomic64 old_value,
+                                       Atomic64 new_value) {
+  return NoBarrier_CompareAndSwap(ptr, old_value, new_value);
+}
+
+inline Atomic64 Release_CompareAndSwap(volatile Atomic64* ptr,
+                                       Atomic64 old_value,
+                                       Atomic64 new_value) {
+  return NoBarrier_CompareAndSwap(ptr, old_value, new_value);
+}
+
+
 #endif  // defined(_WIN64)
 
 }  // namespace base::subtle
