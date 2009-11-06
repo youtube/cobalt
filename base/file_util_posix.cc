@@ -667,30 +667,47 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
 // MemoryMappedFile
 
 MemoryMappedFile::MemoryMappedFile()
-    : file_(-1),
-      data_(NULL),
+    : data_(NULL),
       length_(0) {
 }
 
-bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
-  file_ = open(file_name.value().c_str(), O_RDONLY);
+bool MemoryMappedFile::Initialize(const base::FileDescriptor& fd) {
+  if (IsValid())
+    return false;
 
-  if (file_ == -1) {
+  file_ = fd;
+
+  if (!MapFileToMemoryInternal()) {
+    CloseHandles();
+    return false;
+  }
+
+  return true;
+}
+
+bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
+  file_ = base::FileDescriptor(open(file_name.value().c_str(), O_RDONLY), true);
+
+  if (file_.fd == -1) {
     LOG(ERROR) << "Couldn't open " << file_name.value();
     return false;
   }
 
+  return MapFileToMemoryInternal();
+}
+
+bool MemoryMappedFile::MapFileToMemoryInternal() {
   struct stat file_stat;
-  if (fstat(file_, &file_stat) == -1) {
-    LOG(ERROR) << "Couldn't fstat " << file_name.value() << ", errno " << errno;
+  if (fstat(file_.fd, &file_stat) == -1) {
+    LOG(ERROR) << "Couldn't fstat " << file_.fd << ", errno " << errno;
     return false;
   }
   length_ = file_stat.st_size;
 
   data_ = static_cast<uint8*>(
-      mmap(NULL, length_, PROT_READ, MAP_SHARED, file_, 0));
+      mmap(NULL, length_, PROT_READ, MAP_SHARED, file_.fd, 0));
   if (data_ == MAP_FAILED)
-    LOG(ERROR) << "Couldn't mmap " << file_name.value() << ", errno " << errno;
+    LOG(ERROR) << "Couldn't mmap " << file_.fd << ", errno " << errno;
 
   return data_ != MAP_FAILED;
 }
@@ -698,12 +715,12 @@ bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
 void MemoryMappedFile::CloseHandles() {
   if (data_ != NULL)
     munmap(data_, length_);
-  if (file_ != -1)
-    close(file_);
+  if (file_.auto_close && file_.fd != -1)
+    close(file_.fd);
 
   data_ = NULL;
   length_ = 0;
-  file_ = -1;
+  file_ = base::FileDescriptor();
 }
 
 } // namespace file_util
