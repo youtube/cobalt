@@ -423,7 +423,7 @@ bool OCSPSetResponse(OCSPRequestSession* req,
     if (*http_response_data_len < data.size()) {
       LOG(ERROR) << "data size too large: " << *http_response_data_len
                  << " < " << data.size();
-      *http_response_data_len = 1;
+      *http_response_data_len = data.size();
       return false;
     }
   }
@@ -452,7 +452,7 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
                                 const char** http_response_headers,
                                 const char** http_response_data,
                                 PRUint32* http_response_data_len) {
-  LOG(INFO) << "OCSP try start and receive";
+  LOG(INFO) << "OCSP try send and receive";
   DCHECK(!MessageLoop::current());
   OCSPRequestSession* req = reinterpret_cast<OCSPRequestSession*>(request);
   // We support blocking mode only.
@@ -463,15 +463,15 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
     // We support blocking mode only, so this function shouldn't be called
     // again when req has stareted or finished.
     NOTREACHED();
-    return SECFailure;
+    goto failed;
   }
   req->Start();
   if (!req->Wait())
-    return SECFailure;
+    goto failed;
 
   // If the response code is -1, the request failed and there is no response.
   if (req->http_response_code() == static_cast<PRUint16>(-1))
-    return SECFailure;
+    goto failed;
 
   return OCSPSetResponse(
       req, http_response_code,
@@ -479,6 +479,14 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
       http_response_headers,
       http_response_data,
       http_response_data_len) ? SECSuccess : SECFailure;
+
+failed:
+  if (http_response_data_len) {
+    // We must always set an output value, even on failure.  The output value 0
+    // means the failure was unrelated to the acceptable response data length.
+    *http_response_data_len = 0;
+  }
+  return SECFailure;
 }
 
 SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
