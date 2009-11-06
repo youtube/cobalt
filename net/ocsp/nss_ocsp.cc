@@ -95,9 +95,6 @@ class OCSPRequestSession
         response_code_(-1),
         cv_(&lock_),
         finished_(false) {}
-  virtual ~OCSPRequestSession() {
-    DCHECK(!request_);
-  }
 
   void SetPostData(const char* http_data, PRUint32 http_data_len,
                    const char* http_content_type) {
