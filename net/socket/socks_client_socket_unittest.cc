@@ -93,7 +93,7 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
   EXPECT_TRUE(tcp_sock_->IsConnected());
   EXPECT_FALSE(user_sock_->IsConnected());
 
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_TRUE(
@@ -154,7 +154,7 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
         MockRead(false, tests[i].fail_reply, arraysize(tests[i].fail_reply)) };
 
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, "localhost", 80));
-    scoped_refptr<LoadLog> log(new LoadLog);
+    scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -182,7 +182,7 @@ TEST_F(SOCKSClientSocketTest, PartialServerReads) {
       MockRead(true, kSOCKSPartialReply2, arraysize(kSOCKSPartialReply2)) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, "localhost", 80));
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -212,7 +212,7 @@ TEST_F(SOCKSClientSocketTest, PartialClientWrites) {
       MockRead(true, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, "localhost", 80));
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -236,7 +236,7 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
       MockRead(false, 0) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, "localhost", 80));
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -265,7 +265,7 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
       MockRead(false, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -296,7 +296,7 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
       MockRead(false, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);

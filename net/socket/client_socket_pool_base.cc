@@ -24,6 +24,9 @@ namespace {
 // some conditions.  See http://crbug.com/4606.
 const int kCleanupInterval = 10;  // DO NOT INCREASE THIS TIMEOUT.
 
+// The maximum size of the ConnectJob's LoadLog.
+const int kMaxNumLoadLogEntries = 50;
+
 }  // namespace
 
 namespace net {
@@ -199,7 +202,7 @@ int ClientSocketPoolBaseHelper::RequestSocket(
   // If we aren't using late binding, the job lines up with a request so
   // just write directly into the request's LoadLog.
   scoped_refptr<LoadLog> job_load_log = g_late_binding ?
-      new LoadLog : request->load_log();
+      new LoadLog(kMaxNumLoadLogEntries) : request->load_log();
 
   scoped_ptr<ConnectJob> connect_job(
       connect_job_factory_->NewConnectJob(group_name, *request, this,

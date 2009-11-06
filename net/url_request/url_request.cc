@@ -27,6 +27,9 @@ using std::wstring;
 // Max number of http redirects to follow.  Same number as gecko.
 static const int kMaxRedirects = 20;
 
+// The maximum size of the passive LoadLog associated with each request.
+static const int kMaxNumLoadLogEntries = 50;
+
 static URLRequestJobManager* GetJobManager() {
   return Singleton<URLRequestJobManager>::get();
 }
@@ -35,7 +38,7 @@ static URLRequestJobManager* GetJobManager() {
 // URLRequest
 
 URLRequest::URLRequest(const GURL& url, Delegate* delegate)
-    : load_log_(new net::LoadLog),
+    : load_log_(new net::LoadLog(kMaxNumLoadLogEntries)),
       url_(url),
       original_url_(url),
       method_("GET"),
