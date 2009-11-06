@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <algorithm>
+
 #include "net/base/host_resolver_proc.h"
 
 #include "build/build_config.h"
@@ -181,7 +183,24 @@ int SystemHostResolverProc(const std::string& host,
   // Restrict result set to only this socket type to avoid duplicates.
   hints.ai_socktype = SOCK_STREAM;
 
-  int err = getaddrinfo(host.c_str(), NULL, &hints, &ai);
+  // Copy up to the first 255 bytes of |host| onto the stack, so we can see
+  // what it was when getaddrinfo() crashes.
+  // TODO(eroman): Remove this once done investigating http://crbug.com/22083.
+  char buffer[256];
+  size_t actual_size = host.size() + 1;  // The size of |host| (including NULL).
+  size_t saved_size = std::min(actual_size, sizeof(buffer));
+  memcpy(buffer, host.data(), saved_size - 1);
+  buffer[saved_size - 1] = '\0';
+
+  // Try to use the copy of |host| that was saved to the stack.
+  // (This will help rule out concurrent mutations on |host| as a factor.)
+  const char* host_cstr = (actual_size == saved_size) ? buffer : host.c_str();
+
+  int err = getaddrinfo(host_cstr, NULL, &hints, &ai);
+
+  // Keep the variables alive so compiler can't optimize away.
+  CHECK(actual_size > 0 && buffer[saved_size - 1] == '\0');
+
 #if defined(OS_LINUX)
   net::DnsReloadTimer* dns_timer = Singleton<net::DnsReloadTimer>::get();
   // If we fail, re-initialise the resolver just in case there have been any
