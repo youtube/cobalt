@@ -51,12 +51,13 @@ TEST(CommandLineTest, CommandLineConstructor) {
   EXPECT_TRUE(cl.HasSwitch("other-switches"));
   EXPECT_TRUE(cl.HasSwitch("input-translation"));
 
-  EXPECT_EQ(L"Crepe", cl.GetSwitchValue("spaetzle"));
-  EXPECT_EQ(L"", cl.GetSwitchValue("Foo"));
-  EXPECT_EQ(L"", cl.GetSwitchValue("bar"));
-  EXPECT_EQ(L"", cl.GetSwitchValue("cruller"));
-  EXPECT_EQ(L"--dog=canine --cat=feline", cl.GetSwitchValue("other-switches"));
-  EXPECT_EQ(L"45--output-rotation", cl.GetSwitchValue("input-translation"));
+  EXPECT_EQ("Crepe", cl.GetSwitchValueASCII("spaetzle"));
+  EXPECT_EQ("", cl.GetSwitchValueASCII("Foo"));
+  EXPECT_EQ("", cl.GetSwitchValueASCII("bar"));
+  EXPECT_EQ("", cl.GetSwitchValueASCII("cruller"));
+  EXPECT_EQ("--dog=canine --cat=feline", cl.GetSwitchValueASCII(
+      "other-switches"));
+  EXPECT_EQ("45--output-rotation", cl.GetSwitchValueASCII("input-translation"));
 
   std::vector<std::wstring> loose_values = cl.GetLooseValues();
   ASSERT_EQ(5U, loose_values.size());
