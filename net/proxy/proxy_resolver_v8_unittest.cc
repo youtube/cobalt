@@ -118,7 +118,7 @@ TEST(ProxyResolverV8Test, Direct) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, log);
 
   EXPECT_EQ(OK, result);
@@ -423,7 +423,7 @@ TEST(ProxyResolverV8Test, LoadLog) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, log);
 
   EXPECT_EQ(OK, result);
@@ -459,7 +459,7 @@ TEST(ProxyResolverV8Test, EndsWithCommentNoNewline) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, log);
 
   EXPECT_EQ(OK, result);
@@ -478,7 +478,7 @@ TEST(ProxyResolverV8Test, EndsWithStatementNoNewline) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, log);
 
   EXPECT_EQ(OK, result);

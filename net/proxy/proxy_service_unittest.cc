@@ -95,7 +95,7 @@ TEST(ProxyServiceTest, Direct) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int rv = service->ResolveProxy(url, &info, &callback, NULL, log);
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(resolver->pending_requests().empty());
@@ -122,7 +122,7 @@ TEST(ProxyServiceTest, PAC) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int rv = service->ResolveProxy(url, &info, &callback, NULL, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
@@ -1020,7 +1020,7 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   ProxyInfo info1;
   TestCompletionCallback callback1;
   ProxyService::PacRequest* request1;
-  scoped_refptr<LoadLog> log1(new LoadLog);
+  scoped_refptr<LoadLog> log1(new LoadLog(LoadLog::kUnbounded));
   int rv = service->ResolveProxy(
       GURL("http://request1"), &info1, &callback1, &request1, log1);
   EXPECT_EQ(ERR_IO_PENDING, rv);

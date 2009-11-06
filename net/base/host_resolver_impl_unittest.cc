@@ -30,8 +30,8 @@
 
 namespace net {
 namespace {
-static const int kMaxCacheEntries = 100;
-static const int kMaxCacheAgeMs = 60000;
+const int kMaxCacheEntries = 100;
+const int kMaxCacheAgeMs = 60000;
 
 // A variant of WaitingHostResolverProc that pushes each host mapped into a
 // list.
@@ -189,7 +189,7 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
 
   HostResolver::RequestInfo info("just.testing", kPortnum);
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, log);
   EXPECT_EQ(OK, err);
 
@@ -221,7 +221,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
       new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
 
   HostResolver::RequestInfo info("just.testing", kPortnum);
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL, log);
   EXPECT_EQ(ERR_IO_PENDING, err);
 
@@ -252,7 +252,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc =
       new WaitingHostResolverProc(NULL);
 
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   {
     scoped_refptr<HostResolver> host_resolver(
         new HostResolverImpl(resolver_proc, kMaxCacheEntries, kMaxCacheAgeMs));
@@ -822,7 +822,7 @@ TEST_F(HostResolverImplTest, Observers) {
 
   // Resolve "host1".
   HostResolver::RequestInfo info1("host1", 70);
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log);
   EXPECT_EQ(OK, rv);
 

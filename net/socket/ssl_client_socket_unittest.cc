@@ -80,7 +80,7 @@ TEST_F(SSLClientSocketTest, Connect) {
 
   EXPECT_FALSE(sock->IsConnected());
 
-  scoped_refptr<net::LoadLog> log(new net::LoadLog);
+  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
   rv = sock->Connect(&callback, log);
   EXPECT_TRUE(net::LogContains(
       *log, 0, net::LoadLog::TYPE_SSL_CONNECT, net::LoadLog::PHASE_BEGIN));
@@ -124,7 +124,7 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 
   EXPECT_FALSE(sock->IsConnected());
 
-  scoped_refptr<net::LoadLog> log(new net::LoadLog);
+  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
   rv = sock->Connect(&callback, log);
   EXPECT_TRUE(net::LogContains(
       *log, 0, net::LoadLog::TYPE_SSL_CONNECT, net::LoadLog::PHASE_BEGIN));
@@ -169,7 +169,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   EXPECT_FALSE(sock->IsConnected());
 
-  scoped_refptr<net::LoadLog> log(new net::LoadLog);
+  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
   rv = sock->Connect(&callback, log);
   EXPECT_TRUE(net::LogContains(
       *log, 0, net::LoadLog::TYPE_SSL_CONNECT, net::LoadLog::PHASE_BEGIN));
