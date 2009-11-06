@@ -99,7 +99,7 @@ TEST_F(TCPClientSocketTest, Connect) {
   TestCompletionCallback callback;
   EXPECT_FALSE(sock_->IsConnected());
 
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int rv = sock_->Connect(&callback, log);
   EXPECT_TRUE(net::LogContains(
       *log, 0, net::LoadLog::TYPE_TCP_CONNECT, net::LoadLog::PHASE_BEGIN));

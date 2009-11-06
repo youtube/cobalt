@@ -114,7 +114,7 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
   EXPECT_TRUE(tcp_sock_->IsConnected());
   EXPECT_FALSE(user_sock_->IsConnected());
 
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(user_sock_->IsConnected());
@@ -171,7 +171,7 @@ TEST_F(SOCKS5ClientSocketTest, FailedDNS) {
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
 
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_TRUE(LogContains(
@@ -208,7 +208,7 @@ TEST_F(SOCKS5ClientSocketTest, IPv6Domain) {
 
   user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
 
-  scoped_refptr<LoadLog> log(new LoadLog);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_TRUE(LogContains(
@@ -237,7 +237,7 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
         MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
         MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-    scoped_refptr<LoadLog> log(new LoadLog);
+    scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_TRUE(LogContains(
@@ -261,7 +261,7 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
         MockRead(true, partial2, arraysize(partial2)),
         MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-    scoped_refptr<LoadLog> log(new LoadLog);
+    scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_TRUE(LogContains(
@@ -285,7 +285,7 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
         MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
         MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-    scoped_refptr<LoadLog> log(new LoadLog);
+    scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_TRUE(LogContains(
@@ -309,7 +309,7 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
         MockRead(true, partial1, arraysize(partial1)),
         MockRead(true, partial2, arraysize(partial2)) };
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
-    scoped_refptr<LoadLog> log(new LoadLog);
+    scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_TRUE(LogContains(
