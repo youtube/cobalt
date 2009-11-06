@@ -195,7 +195,7 @@ void SocketStream::Finish(int result) {
       "The current MessageLoop must be TYPE_IO";
   DCHECK_LT(result, 0);
   DCHECK_EQ(next_state_, STATE_NONE);
-  DLOG(INFO) << "Finish";
+  DLOG(INFO) << "Finish result=" << net::ErrorToString(result);
   if (delegate_)
     delegate_->OnError(this, result);
 
