@@ -114,18 +114,15 @@ class SSLClientSocketMac : public SSLClientSocket {
   bool handshake_interrupted_;
   SSLContextRef ssl_context_;
 
-  // These are buffers for holding data during I/O. The "slop" is the amount of
-  // space at the ends of the receive buffer that are allocated for holding data
-  // but don't (yet).
+  // These buffers hold data retrieved from/sent to the underlying transport
+  // before it's fed to the SSL engine.
   std::vector<char> send_buffer_;
   int pending_send_error_;
   std::vector<char> recv_buffer_;
-  int recv_buffer_head_slop_;
-  int recv_buffer_tail_slop_;
 
-  // This buffer holds data for Read() operations on the underlying transport
-  // (ClientSocket::Read()).
+  // These are the IOBuffers used for operations on the underlying transport.
   scoped_refptr<IOBuffer> read_io_buf_;
+  scoped_refptr<IOBuffer> write_io_buf_;
 
   scoped_refptr<LoadLog> load_log_;
 };
