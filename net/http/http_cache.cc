@@ -867,7 +867,7 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
 bool HttpCache::Transaction::ShouldPassThrough() {
   // We may have a null disk_cache if there is an error we cannot recover from,
   // like not enough disk space, or sharing violations.
-  if (!cache_->disk_cache())
+  if (!cache_->disk_cache_.get())
     return true;
 
   // When using the record/playback modes, we always use the cache
@@ -1642,7 +1642,6 @@ HttpCache::HttpCache(HostResolver* host_resolver,
       network_layer_(HttpNetworkLayer::CreateFactory(
           host_resolver, proxy_service, ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      in_memory_cache_(false),
       enable_range_support_(true),
       cache_size_(cache_size) {
 }
@@ -1655,7 +1654,6 @@ HttpCache::HttpCache(HttpNetworkSession* session,
       type_(DISK_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(session)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      in_memory_cache_(false),
       enable_range_support_(true),
       cache_size_(cache_size) {
 }
@@ -1669,7 +1667,6 @@ HttpCache::HttpCache(HostResolver* host_resolver,
       network_layer_(HttpNetworkLayer::CreateFactory(
           host_resolver, proxy_service, ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      in_memory_cache_(true),
       enable_range_support_(true),
       cache_size_(cache_size) {
 }
@@ -1681,7 +1678,6 @@ HttpCache::HttpCache(HttpTransactionFactory* network_layer,
       network_layer_(network_layer),
       disk_cache_(disk_cache),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      in_memory_cache_(false),
       enable_range_support_(true),
       cache_size_(0) {
 }
@@ -1705,21 +1701,27 @@ HttpCache::~HttpCache() {
     delete *it;
 }
 
+disk_cache::Backend* HttpCache::GetBackend() {
+  if (disk_cache_.get())
+    return disk_cache_.get();
+
+  DCHECK_GE(cache_size_, 0);
+  if (type_ == MEMORY_CACHE) {
+    // We may end up with no folder name and no cache if the initialization
+    // of the disk cache fails. We want to be sure that what we wanted to have
+    // was an in-memory cache.
+    disk_cache_.reset(disk_cache::CreateInMemoryCacheBackend(cache_size_));
+  } else if (!disk_cache_dir_.empty()) {
+    disk_cache_.reset(disk_cache::CreateCacheBackend(disk_cache_dir_, true,
+        cache_size_, type_));
+    disk_cache_dir_ = FilePath();  // Reclaim memory.
+  }
+  return disk_cache_.get();
+}
+
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   // Do lazy initialization of disk cache if needed.
-  if (!disk_cache_.get()) {
-    DCHECK_GE(cache_size_, 0);
-    if (in_memory_cache_) {
-      // We may end up with no folder name and no cache if the initialization
-      // of the disk cache fails. We want to be sure that what we wanted to have
-      // was an in-memory cache.
-      disk_cache_.reset(disk_cache::CreateInMemoryCacheBackend(cache_size_));
-    } else if (!disk_cache_dir_.empty()) {
-      disk_cache_.reset(disk_cache::CreateCacheBackend(disk_cache_dir_, true,
-          cache_size_, type_));
-      disk_cache_dir_ = FilePath();  // Reclaim memory.
-    }
-  }
+  GetBackend();
   trans->reset(new HttpCache::Transaction(this, enable_range_support_));
   return OK;
 }
