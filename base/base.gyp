@@ -633,6 +633,7 @@
         'timer_unittest.cc',
         'tracked_objects_unittest.cc',
         'tuple_unittest.cc',
+        'utf_string_conversions_unittest.cc',
         'values_unittest.cc',
         'version_unittest.cc',
         'waitable_event_unittest.cc',
