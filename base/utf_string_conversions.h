@@ -10,6 +10,37 @@
 #include "base/string16.h"
 #include "base/string_piece.h"
 
+// Like the conversions below, but also takes an offset into the source string,
+// which will be adjusted to point at the same logical place in the result
+// string.  If this isn't possible because it points past the end of the source
+// string or into the middle of a multibyte sequence, it will be set to
+// std::wstring::npos.  |offset_for_adjustment| may be NULL.
+bool WideToUTF8AndAdjustOffset(const wchar_t* src,
+                               size_t src_len,
+                               std::string* output,
+                               size_t* offset_for_adjustment);
+std::string WideToUTF8AndAdjustOffset(const std::wstring& wide,
+                                      size_t* offset_for_adjustment);
+bool UTF8ToWideAndAdjustOffset(const char* src,
+                               size_t src_len,
+                               std::wstring* output,
+                               size_t* offset_for_adjustment);
+std::wstring UTF8ToWideAndAdjustOffset(const base::StringPiece& utf8,
+                                       size_t* offset_for_adjustment);
+
+bool WideToUTF16AndAdjustOffset(const wchar_t* src,
+                                size_t src_len,
+                                string16* output,
+                                size_t* offset_for_adjustment);
+string16 WideToUTF16AndAdjustOffset(const std::wstring& wide,
+                                    size_t* offset_for_adjustment);
+bool UTF16ToWideAndAdjustOffset(const char16* src,
+                                size_t src_len,
+                                std::wstring* output,
+                                size_t* offset_for_adjustment);
+std::wstring UTF16ToWideAndAdjustOffset(const string16& utf16,
+                                        size_t* offset_for_adjustment);
+
 // These convert between UTF-8, -16, and -32 strings. They are potentially slow,
 // so avoid unnecessary conversions. The low-level versions return a boolean
 // indicating whether the conversion was 100% valid. In this case, it will still
@@ -23,15 +54,34 @@
 // the Unicode replacement character or adding |replacement_char| parameter.
 // Currently, it's skipped in the ouput, which could be problematic in
 // some situations.
-bool WideToUTF8(const wchar_t* src, size_t src_len, std::string* output);
-std::string WideToUTF8(const std::wstring& wide);
-bool UTF8ToWide(const char* src, size_t src_len, std::wstring* output);
-std::wstring UTF8ToWide(const base::StringPiece& utf8);
+inline bool WideToUTF8(const wchar_t* src,
+                       size_t src_len,
+                       std::string* output) {
+  return WideToUTF8AndAdjustOffset(src, src_len, output, NULL);
+}
+inline std::string WideToUTF8(const std::wstring& wide) {
+  return WideToUTF8AndAdjustOffset(wide, NULL);
+}
+inline bool UTF8ToWide(const char* src, size_t src_len, std::wstring* output) {
+  return UTF8ToWideAndAdjustOffset(src, src_len, output, NULL);
+}
+inline std::wstring UTF8ToWide(const base::StringPiece& utf8) {
+  return UTF8ToWideAndAdjustOffset(utf8, NULL);
+}
 
-bool WideToUTF16(const wchar_t* src, size_t src_len, string16* output);
-string16 WideToUTF16(const std::wstring& wide);
-bool UTF16ToWide(const char16* src, size_t src_len, std::wstring* output);
-std::wstring UTF16ToWide(const string16& utf16);
+inline bool WideToUTF16(const wchar_t* src, size_t src_len, string16* output) {
+  return WideToUTF16AndAdjustOffset(src, src_len, output, NULL);
+}
+inline string16 WideToUTF16(const std::wstring& wide) {
+  return WideToUTF16AndAdjustOffset(wide, NULL);
+}
+inline bool UTF16ToWide(const char16* src, size_t src_len,
+                        std::wstring* output) {
+  return UTF16ToWideAndAdjustOffset(src, src_len, output, NULL);
+}
+inline std::wstring UTF16ToWide(const string16& utf16) {
+  return UTF16ToWideAndAdjustOffset(utf16, NULL);
+}
 
 bool UTF8ToUTF16(const char* src, size_t src_len, string16* output);
 string16 UTF8ToUTF16(const std::string& utf8);
