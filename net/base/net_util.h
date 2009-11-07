@@ -129,10 +129,9 @@ std::string GetHeaderParamValue(const std::string& field,
 std::string GetFileNameFromCD(const std::string& header,
                               const std::string& referrer_charset);
 
-// Converts the given host name to unicode characters, APPENDING them to the
-// the given output string. This can be called for any host name, if the
-// input is not IDN or is invalid in some way, we'll just append the ASCII
-// source to the output so it is still usable.
+// Converts the given host name to unicode characters. This can be called for
+// any host name, if the input is not IDN or is invalid in some way, we'll just
+// return the ASCII source so it is still usable.
 //
 // The input should be the canonicalized ASCII host name from GURL. This
 // function does NOT accept UTF-8! Its length must also be given (this is
@@ -146,10 +145,16 @@ std::string GetFileNameFromCD(const std::string& header,
 // Latin letters in the ASCII range can be mixed with a limited set of
 // script-language pairs (currently Han, Kana and Hangul for zh,ja and ko).
 // When |languages| is empty, even that mixing is not allowed.
-void IDNToUnicode(const char* host,
-                  int host_len,
-                  const std::wstring& languages,
-                  std::wstring* out);
+//
+// |offset_for_adjustment| is an offset into |host|, which will be adjusted to
+// point at the same logical place in the output string. If this isn't possible
+// because it points past the end of |host| or into the middle of a punycode
+// sequence, it will be set to std::wstring::npos.  |offset_for_adjustment| may
+// be NULL.
+std::wstring IDNToUnicode(const char* host,
+                          size_t host_len,
+                          const std::wstring& languages,
+                          size_t* offset_for_adjustment);
 
 // Canonicalizes |host| and returns it.  Also fills |host_info| with
 // IP address information.  |host_info| must not be NULL.
@@ -228,31 +233,47 @@ int SetNonBlocking(int fd);
 // the user. The given parsed structure will be updated. The host name formatter
 // also takes the same accept languages component as ElideURL. |new_parsed| may
 // be null.
-void AppendFormattedHost(const GURL& url, const std::wstring& languages,
-                         std::wstring* output, url_parse::Parsed* new_parsed);
+void AppendFormattedHost(const GURL& url,
+                         const std::wstring& languages,
+                         std::wstring* output,
+                         url_parse::Parsed* new_parsed,
+                         size_t* offset_for_adjustment);
 
-// Creates a string representation of |url|. The IDN host name may
-// be in Unicode if |languages| accepts the Unicode representation.
-// If |omit_username_password| is true, the username and the password are
-// omitted. |unescape_rules| defines how to clean the URL for human readability.
+// Creates a string representation of |url|. The IDN host name may be in Unicode
+// if |languages| accepts the Unicode representation. If
+// |omit_username_password| is true, any username and password are removed.
+// |unescape_rules| defines how to clean the URL for human readability.
 // You will generally want |UnescapeRule::SPACES| for display to the user if you
 // can handle spaces, or |UnescapeRule::NORMAL| if not. If the path part and the
 // query part seem to be encoded in %-encoded UTF-8, decodes %-encoding and
-// UTF-8. |new_parsed| will have parsing parameters of the resultant URL.
+// UTF-8.
+//
+// The last three parameters may be NULL.
+// |new_parsed| will be set to the parsing parameters of the resultant URL.
 // |prefix_end| will be the length before the hostname of the resultant URL.
-// |new_parsed| and |prefix_end| may be NULL.
+// |offset_for_adjustment| is an offset into the original |url|'s spec(), which
+// will be modified to reflect changes this function makes to the output string;
+// for example, if |url| is "http://a:b@c.com/", |omit_username_password| is
+// true, and |offset_for_adjustment| is 12 (the offset of '.'), then on return
+// the output string will be "http://c.com/" and |offset_for_adjustment| will be
+// 8.  If the offset cannot be successfully adjusted (e.g. because it points
+// into the middle of a component that was entirely removed, past the end of the
+// string, or into the middle of an encoding sequence), it will be set to
+// std::wstring::npos.
 std::wstring FormatUrl(const GURL& url,
                        const std::wstring& languages,
                        bool omit_username_password,
                        UnescapeRule::Type unescape_rules,
                        url_parse::Parsed* new_parsed,
-                       size_t* prefix_end);
+                       size_t* prefix_end,
+                       size_t* offset_for_adjustment);
 
 // Creates a string representation of |url| for display to the user.
 // This is a shorthand of the above function with omit_username_password=true,
 // unescape=SPACES, new_parsed=NULL, and prefix_end=NULL.
 inline std::wstring FormatUrl(const GURL& url, const std::wstring& languages) {
-  return FormatUrl(url, languages, true, UnescapeRule::SPACES, NULL, NULL);
+  return FormatUrl(url, languages, true, UnescapeRule::SPACES, NULL, NULL,
+                   NULL);
 }
 
 // Strip the portions of |url| that aren't core to the network request.
