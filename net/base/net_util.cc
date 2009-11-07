@@ -650,60 +650,51 @@ bool IsIDNComponentSafe(const char16* str,
 }
 
 // Converts one component of a host (between dots) to IDN if safe. The result
-// will be APPENDED to the given output string and  will be the same as the
-// input if it is not IDN or the IDN is unsafe to display.
-void IDNToUnicodeOneComponent(const char16* comp,
-                              int comp_len,
+// will be APPENDED to the given output string and will be the same as the input
+// if it is not IDN or the IDN is unsafe to display.  Returns whether any
+// conversion was performed.
+bool IDNToUnicodeOneComponent(const char16* comp,
+                              size_t comp_len,
                               const std::wstring& languages,
                               string16* out) {
-  DCHECK(comp_len >= 0);
+  DCHECK(out);
   if (comp_len == 0)
-    return;
+    return false;
 
-  // Expand the output string to make room for a possibly longer string
-  // (we'll expand if it's still not big enough below).
-  int extra_space = 64;
-  size_t host_begin_in_output = out->size();
-
-  // Just copy the input if it can't be an IDN component.
-  if (comp_len < 4 ||
-      comp[0] != 'x' || comp[1] != 'n' || comp[2] != '-' || comp[3] != '-') {
-    out->resize(host_begin_in_output + comp_len);
-    for (int i = 0; i < comp_len; i++)
-      (*out)[host_begin_in_output + i] = comp[i];
-    return;
-  }
-
-  while (true) {
-    UErrorCode status = U_ZERO_ERROR;
-    out->resize(out->size() + extra_space);
-    int output_chars =
-        uidna_IDNToUnicode(comp, comp_len, &(*out)[host_begin_in_output],
-                           extra_space, UIDNA_DEFAULT, NULL, &status);
-    if (status == U_ZERO_ERROR) {
-      // Converted successfully.
-      out->resize(host_begin_in_output + output_chars);
-      if (!IsIDNComponentSafe(&out->data()[host_begin_in_output],
-                              output_chars,
-                              languages))
-        break;  // The error handling below will undo the IDN.
-      return;
-    }
-    if (status != U_BUFFER_OVERFLOW_ERROR)
-      break;
-
-    // Need to loop again with a bigger buffer. It looks like ICU will
-    // return the required size of the buffer, but that's not documented,
-    // so we'll just grow by 2x. This should be rare and is not on a
+  // Only transform if the input can be an IDN component.
+  static const char16 kIdnPrefix[] = {'x', 'n', '-', '-'};
+  if ((comp_len > arraysize(kIdnPrefix)) &&
+      !memcmp(comp, kIdnPrefix, arraysize(kIdnPrefix) * sizeof(char16))) {
+    // Repeatedly expand the output string until it's big enough.  It looks like
+    // ICU will return the required size of the buffer, but that's not
+    // documented, so we'll just grow by 2x. This should be rare and is not on a
     // critical path.
-    extra_space *= 2;
+    size_t original_length = out->length();
+    for (int extra_space = 64; ; extra_space *= 2) {
+      UErrorCode status = U_ZERO_ERROR;
+      out->resize(out->length() + extra_space);
+      int output_chars = uidna_IDNToUnicode(comp,
+          static_cast<int32_t>(comp_len), &(*out)[original_length], extra_space,
+          UIDNA_DEFAULT, NULL, &status);
+      if (status == U_ZERO_ERROR) {
+        // Converted successfully.
+        out->resize(original_length + output_chars);
+        if (IsIDNComponentSafe(out->data() + original_length, output_chars,
+                               languages))
+          return true;
+      }
+
+      if (status != U_BUFFER_OVERFLOW_ERROR)
+        break;
+    }
+    // Failed, revert back to original string.
+    out->resize(original_length);
   }
 
-  // We get here on error, in which case we replace anything that was added
-  // with the literal input.
-  out->resize(host_begin_in_output + comp_len);
-  for (int i = 0; i < comp_len; i++)
-    (*out)[host_begin_in_output + i] = comp[i];
+  // We get here with no IDN or on error, in which case we just append the
+  // literal input.
+  out->append(comp, comp_len);
+  return false;
 }
 
 // Helper for FormatUrl().
@@ -712,19 +703,23 @@ std::wstring FormatViewSourceUrl(const GURL& url,
                                  bool omit_username_password,
                                  UnescapeRule::Type unescape_rules,
                                  url_parse::Parsed* new_parsed,
-                                 size_t* prefix_end) {
+                                 size_t* prefix_end,
+                                 size_t* offset_for_adjustment) {
   DCHECK(new_parsed);
   const wchar_t* const kWideViewSource = L"view-source:";
   const size_t kViewSourceLengthPlus1 = 12;
 
   GURL real_url(url.possibly_invalid_spec().substr(kViewSourceLengthPlus1));
+  size_t temp_offset = (*offset_for_adjustment == std::wstring::npos) ?
+      std::wstring::npos : (*offset_for_adjustment - kViewSourceLengthPlus1);
+  size_t* temp_offset_ptr = (*offset_for_adjustment < kViewSourceLengthPlus1) ?
+      NULL : &temp_offset;
   std::wstring result = net::FormatUrl(real_url, languages,
-      omit_username_password, unescape_rules, new_parsed, prefix_end);
+      omit_username_password, unescape_rules, new_parsed, prefix_end,
+      temp_offset_ptr);
   result.insert(0, kWideViewSource);
 
   // Adjust position values.
-  if (prefix_end)
-    *prefix_end += kViewSourceLengthPlus1;
   if (new_parsed->scheme.is_nonempty()) {
     // Assume "view-source:real-scheme" as a scheme.
     new_parsed->scheme.len += kViewSourceLengthPlus1;
@@ -746,6 +741,12 @@ std::wstring FormatViewSourceUrl(const GURL& url,
     new_parsed->query.begin += kViewSourceLengthPlus1;
   if (new_parsed->ref.is_nonempty())
     new_parsed->ref.begin += kViewSourceLengthPlus1;
+  if (prefix_end)
+    *prefix_end += kViewSourceLengthPlus1;
+  if (temp_offset_ptr) {
+    *offset_for_adjustment = (temp_offset == std::wstring::npos) ?
+        std::wstring::npos : (temp_offset + kViewSourceLengthPlus1);
+  }
   return result;
 }
 
@@ -769,12 +770,20 @@ std::set<int> explicitly_allowed_ports;
 
 // Appends the substring |in_component| inside of the URL |spec| to |output|,
 // and the resulting range will be filled into |out_component|. |unescape_rules|
-// defines how to clean the URL for human readability.
+// defines how to clean the URL for human readability.  |offset_for_adjustment|
+// is an offset into |output| which will be adjusted based on how it maps to the
+// component being converted; if it is less than output->length(), it will be
+// untouched, and if it is greater than output->length() + in_component.len it
+// will be shortened by the difference in lengths between the input and output
+// components.  Otherwise it points into the component being converted, and is
+// adjusted to point to the same logical place in |output|.
+// |offset_for_adjustment| may not be NULL.
 static void AppendFormattedComponent(const std::string& spec,
                                      const url_parse::Component& in_component,
                                      UnescapeRule::Type unescape_rules,
                                      std::wstring* output,
-                                     url_parse::Component* out_component);
+                                     url_parse::Component* out_component,
+                                     size_t* offset_for_adjustment);
 
 GURL FilePathToFileURL(const FilePath& path) {
   // Produce a URL like "file:///C:/foo" for a regular file, or
@@ -849,58 +858,56 @@ std::string GetHeaderParamValue(const std::string& field,
 //
 // We may want to skip this step in the case of file URLs to allow unicode
 // UNC hostnames regardless of encodings.
-void IDNToUnicode(const char* host,
-                  int host_len,
-                  const std::wstring& languages,
-                  std::wstring* out) {
+std::wstring IDNToUnicode(const char* host,
+                          size_t host_len,
+                          const std::wstring& languages,
+                          size_t* offset_for_adjustment) {
   // Convert the ASCII input to a wide string for ICU.
   string16 input16;
   input16.reserve(host_len);
-  for (int i = 0; i < host_len; i++)
-    input16.push_back(host[i]);
+  std::copy(host, host + host_len, std::back_inserter(input16));
 
   string16 out16;
-  // The output string is appended to, so convert what's already there if
-  // needed.
-#if defined(WCHAR_T_IS_UTF32)
-  WideToUTF16(out->data(), out->length(), &out16);
-  out->clear();  // for equivalence with the swap below
-#elif defined(WCHAR_T_IS_UTF16)
-  out->swap(out16);
-#endif
+  size_t output_offset = offset_for_adjustment ?
+      *offset_for_adjustment : std::wstring::npos;
 
   // Do each component of the host separately, since we enforce script matching
   // on a per-component basis.
-  size_t cur_begin = 0;  // Beginning of the current component (inclusive).
-  while (cur_begin < input16.size()) {
-    // Find the next dot or the end of the string.
-    size_t next_dot = input16.find_first_of('.', cur_begin);
-    if (next_dot == std::wstring::npos)
-      next_dot = input16.size();  // For getting the last component.
+  for (size_t component_start = 0, component_end;
+       component_start < input16.length();
+       component_start = component_end + 1) {
+    // Find the end of the component.
+    component_end = input16.find('.', component_start);
+    if (component_end == string16::npos)
+      component_end = input16.length();  // For getting the last component.
+    size_t component_length = component_end - component_start;
 
-    if (next_dot > cur_begin) {
+    size_t output_component_start = out16.length();
+    bool converted_idn = false;
+    if (component_end > component_start) {
       // Add the substring that we just found.
-      IDNToUnicodeOneComponent(&input16[cur_begin],
-                               static_cast<int>(next_dot - cur_begin),
-                               languages,
-                               &out16);
+      converted_idn = IDNToUnicodeOneComponent(input16.data() + component_start,
+          component_length, languages, &out16);
+    }
+    size_t output_component_length = out16.length() - output_component_start;
+
+    if ((output_offset != std::wstring::npos) &&
+        (*offset_for_adjustment > component_start)) {
+      if ((*offset_for_adjustment < component_end) && converted_idn)
+        output_offset = std::wstring::npos;
+      else
+        output_offset += output_component_length - component_length;
     }
 
-    // Need to add the dot we just found (if we found one). This needs to be
-    // done before we break out below in case the URL ends in a dot.
-    if (next_dot < input16.size())
+    // Need to add the dot we just found (if we found one).
+    if (component_end < input16.length())
       out16.push_back('.');
-    else
-      break;  // No more components left.
-
-    cur_begin = next_dot + 1;
   }
 
-#if defined(WCHAR_T_IS_UTF32)
-  UTF16ToWide(out16.data(), out16.length(), out);
-#elif defined(WCHAR_T_IS_UTF16)
-  out->swap(out16);
-#endif
+  if (offset_for_adjustment)
+    *offset_for_adjustment = output_offset;
+
+  return UTF16ToWideAndAdjustOffset(out16, offset_for_adjustment);
 }
 
 std::string CanonicalizeHost(const std::string& host,
@@ -1262,31 +1269,48 @@ void GetIdentityFromURL(const GURL& url,
                         std::wstring* username,
                         std::wstring* password) {
   UnescapeRule::Type flags = UnescapeRule::SPACES;
-  *username = UnescapeAndDecodeUTF8URLComponent(url.username(), flags);
-  *password = UnescapeAndDecodeUTF8URLComponent(url.password(), flags);
+  *username = UnescapeAndDecodeUTF8URLComponent(url.username(), flags, NULL);
+  *password = UnescapeAndDecodeUTF8URLComponent(url.password(), flags, NULL);
 }
 
 void AppendFormattedHost(const GURL& url,
                          const std::wstring& languages,
                          std::wstring* output,
-                         url_parse::Parsed* new_parsed) {
+                         url_parse::Parsed* new_parsed,
+                         size_t* offset_for_adjustment) {
+  DCHECK(output);
   const url_parse::Component& host =
       url.parsed_for_possibly_invalid_spec().host;
 
   if (host.is_nonempty()) {
     // Handle possible IDN in the host name.
+    int new_host_begin = static_cast<int>(output->length());
     if (new_parsed)
-      new_parsed->host.begin = static_cast<int>(output->length());
+      new_parsed->host.begin = new_host_begin;
+    size_t offset_past_current_output =
+        (!offset_for_adjustment ||
+         (*offset_for_adjustment == std::wstring::npos) ||
+         (*offset_for_adjustment < output->length())) ?
+            std::wstring::npos : (*offset_for_adjustment - output->length());
+    size_t* offset_into_host =
+        (offset_past_current_output >= static_cast<size_t>(host.len)) ?
+            NULL : &offset_past_current_output;
 
     const std::string& spec = url.possibly_invalid_spec();
     DCHECK(host.begin >= 0 &&
            ((spec.length() == 0 && host.begin == 0) ||
             host.begin < static_cast<int>(spec.length())));
-    net::IDNToUnicode(&spec[host.begin], host.len, languages, output);
+    output->append(net::IDNToUnicode(&spec[host.begin],
+                   static_cast<size_t>(host.len), languages, offset_into_host));
 
-    if (new_parsed) {
-      new_parsed->host.len =
-          static_cast<int>(output->length()) - new_parsed->host.begin;
+    int new_host_len = static_cast<int>(output->length()) - new_host_begin;
+    if (new_parsed)
+      new_parsed->host.len = new_host_len;
+    if (offset_into_host) {
+      *offset_for_adjustment = (*offset_into_host == std::wstring::npos) ?
+          std::wstring::npos : (new_host_begin + *offset_into_host);
+    } else if (offset_past_current_output != std::wstring::npos) {
+      *offset_for_adjustment += new_host_len - host.len;
     }
   } else if (new_parsed) {
     new_parsed->host.reset();
@@ -1298,19 +1322,36 @@ void AppendFormattedComponent(const std::string& spec,
                               const url_parse::Component& in_component,
                               UnescapeRule::Type unescape_rules,
                               std::wstring* output,
-                              url_parse::Component* out_component) {
+                              url_parse::Component* out_component,
+                              size_t* offset_for_adjustment) {
+  DCHECK(output);
+  DCHECK(offset_for_adjustment);
   if (in_component.is_nonempty()) {
     out_component->begin = static_cast<int>(output->length());
+    size_t offset_past_current_output =
+        ((*offset_for_adjustment == std::wstring::npos) ||
+         (*offset_for_adjustment < output->length())) ?
+            std::wstring::npos : (*offset_for_adjustment - output->length());
+    size_t* offset_into_component =
+        (offset_past_current_output >= static_cast<size_t>(in_component.len)) ?
+            NULL : &offset_past_current_output;
     if (unescape_rules == UnescapeRule::NONE) {
-      output->append(UTF8ToWide(spec.substr(
-          in_component.begin, in_component.len)));
+      output->append(UTF8ToWideAndAdjustOffset(
+          spec.substr(in_component.begin, in_component.len),
+          offset_into_component));
     } else {
       output->append(UnescapeAndDecodeUTF8URLComponent(
-          spec.substr(in_component.begin, in_component.len),
-          unescape_rules));
+          spec.substr(in_component.begin, in_component.len), unescape_rules,
+          offset_into_component));
     }
     out_component->len =
         static_cast<int>(output->length()) - out_component->begin;
+    if (offset_into_component) {
+      *offset_for_adjustment = (*offset_into_component == std::wstring::npos) ?
+          std::wstring::npos : (out_component->begin + *offset_into_component);
+    } else if (offset_past_current_output != std::wstring::npos) {
+      *offset_for_adjustment += out_component->len - in_component.len;
+    }
   } else {
     out_component->reset();
   }
@@ -1321,10 +1362,14 @@ std::wstring FormatUrl(const GURL& url,
                        bool omit_username_password,
                        UnescapeRule::Type unescape_rules,
                        url_parse::Parsed* new_parsed,
-                       size_t* prefix_end) {
+                       size_t* prefix_end,
+                       size_t* offset_for_adjustment) {
   url_parse::Parsed parsed_temp;
   if (!new_parsed)
     new_parsed = &parsed_temp;
+  size_t offset_temp = std::wstring::npos;
+  if (!offset_for_adjustment)
+    offset_for_adjustment = &offset_temp;
 
   std::wstring url_string;
 
@@ -1332,6 +1377,7 @@ std::wstring FormatUrl(const GURL& url,
   if (url.is_empty()) {
     if (prefix_end)
       *prefix_end = 0;
+    *offset_for_adjustment = std::wstring::npos;
     return url_string;
   }
 
@@ -1343,19 +1389,22 @@ std::wstring FormatUrl(const GURL& url,
   if (url.SchemeIs(kViewSource) &&
       !StartsWithASCII(url.possibly_invalid_spec(), kViewSourceTwice, false)) {
     return FormatViewSourceUrl(url, languages, omit_username_password,
-        unescape_rules, new_parsed, prefix_end);
+        unescape_rules, new_parsed, prefix_end, offset_for_adjustment);
   }
 
   // We handle both valid and invalid URLs (this will give us the spec
   // regardless of validity).
   const std::string& spec = url.possibly_invalid_spec();
   const url_parse::Parsed& parsed = url.parsed_for_possibly_invalid_spec();
+  if (*offset_for_adjustment >= spec.length())
+    *offset_for_adjustment = std::wstring::npos;
 
   // Copy everything before the username (the scheme and the separators.)
   // These are ASCII.
-  int pre_end = parsed.CountCharactersBefore(url_parse::Parsed::USERNAME, true);
-  for (int i = 0; i < pre_end; ++i)
-    url_string.push_back(spec[i]);
+  std::copy(spec.begin(),
+      spec.begin() + parsed.CountCharactersBefore(url_parse::Parsed::USERNAME,
+                                                  true),
+      std::back_inserter(url_string));
   new_parsed->scheme = parsed.scheme;
 
   if (omit_username_password) {
@@ -1364,16 +1413,41 @@ std::wstring FormatUrl(const GURL& url,
     // e.g. "http://google.com:search@evil.ru/"
     new_parsed->username.reset();
     new_parsed->password.reset();
+    if ((*offset_for_adjustment != std::wstring::npos) &&
+        (parsed.username.is_nonempty() || parsed.password.is_nonempty())) {
+      if (parsed.username.is_nonempty() && parsed.password.is_nonempty()) {
+        // The seeming off-by-one and off-by-two in these first two lines are to
+        // account for the ':' after the username and '@' after the password.
+        if (*offset_for_adjustment >
+            static_cast<size_t>(parsed.password.end())) {
+          *offset_for_adjustment -=
+              (parsed.username.len + parsed.password.len + 2);
+        } else if (*offset_for_adjustment >
+                   static_cast<size_t>(parsed.username.begin)) {
+          *offset_for_adjustment = std::wstring::npos;
+        }
+      } else {
+        const url_parse::Component* nonempty_component =
+            parsed.username.is_nonempty() ? &parsed.username : &parsed.password;
+        // The seeming off-by-one in these first two lines is to account for the
+        // '@' after the username/password.
+        if (*offset_for_adjustment >
+            static_cast<size_t>(nonempty_component->end())) {
+          *offset_for_adjustment -= (nonempty_component->len + 1);
+        } else if (*offset_for_adjustment >
+                   static_cast<size_t>(nonempty_component->begin)) {
+          *offset_for_adjustment = std::wstring::npos;
+        }
+      }
+    }
   } else {
-    AppendFormattedComponent(
-        spec, parsed.username, unescape_rules,
-        &url_string, &new_parsed->username);
+    AppendFormattedComponent(spec, parsed.username, unescape_rules, &url_string,
+                             &new_parsed->username, offset_for_adjustment);
     if (parsed.password.is_valid()) {
       url_string.push_back(':');
     }
-    AppendFormattedComponent(
-        spec, parsed.password, unescape_rules,
-        &url_string, &new_parsed->password);
+    AppendFormattedComponent(spec, parsed.password, unescape_rules, &url_string,
+                             &new_parsed->password, offset_for_adjustment);
     if (parsed.username.is_valid() || parsed.password.is_valid()) {
       url_string.push_back('@');
     }
@@ -1381,39 +1455,56 @@ std::wstring FormatUrl(const GURL& url,
   if (prefix_end)
     *prefix_end = static_cast<size_t>(url_string.length());
 
-  AppendFormattedHost(url, languages, &url_string, new_parsed);
+  AppendFormattedHost(url, languages, &url_string, new_parsed,
+                      offset_for_adjustment);
 
   // Port.
   if (parsed.port.is_nonempty()) {
     url_string.push_back(':');
-    int begin = url_string.length();
-    for (int i = parsed.port.begin; i < parsed.port.end(); ++i)
-      url_string.push_back(spec[i]);
-    new_parsed->port.begin = begin;
-    new_parsed->port.len = url_string.length() - begin;
+    new_parsed->port.begin = url_string.length();
+    std::copy(spec.begin() + parsed.port.begin,
+              spec.begin() + parsed.port.end(), std::back_inserter(url_string));
+    new_parsed->port.len = url_string.length() - new_parsed->port.begin;
   } else {
     new_parsed->port.reset();
   }
 
   // Path and query both get the same general unescape & convert treatment.
-  AppendFormattedComponent(
-      spec, parsed.path, unescape_rules, &url_string,
-      &new_parsed->path);
+  AppendFormattedComponent(spec, parsed.path, unescape_rules, &url_string,
+                           &new_parsed->path, offset_for_adjustment);
   if (parsed.query.is_valid())
     url_string.push_back('?');
-  AppendFormattedComponent(
-      spec, parsed.query, unescape_rules, &url_string,
-      &new_parsed->query);
+  AppendFormattedComponent(spec, parsed.query, unescape_rules, &url_string,
+                           &new_parsed->query, offset_for_adjustment);
 
   // Reference is stored in valid, unescaped UTF-8, so we can just convert.
   if (parsed.ref.is_valid()) {
     url_string.push_back('#');
-    int begin = url_string.length();
-    if (parsed.ref.len > 0)
-      url_string.append(UTF8ToWide(std::string(&spec[parsed.ref.begin],
-                                               parsed.ref.len)));
-    new_parsed->ref.begin = begin;
-    new_parsed->ref.len = url_string.length() - begin;
+    new_parsed->ref.begin = url_string.length();
+    size_t offset_past_current_output =
+        ((*offset_for_adjustment == std::wstring::npos) ||
+         (*offset_for_adjustment < url_string.length())) ?
+            std::wstring::npos : (*offset_for_adjustment - url_string.length());
+    size_t* offset_into_ref =
+        (offset_past_current_output >= static_cast<size_t>(parsed.ref.len)) ?
+            NULL : &offset_past_current_output;
+    if (parsed.ref.len > 0) {
+      url_string.append(UTF8ToWideAndAdjustOffset(spec.substr(parsed.ref.begin,
+                                                              parsed.ref.len),
+                                                  offset_into_ref));
+    }
+    new_parsed->ref.len = url_string.length() - new_parsed->ref.begin;
+    if (offset_into_ref) {
+      *offset_for_adjustment = (*offset_into_ref == std::wstring::npos) ?
+          std::wstring::npos : (new_parsed->ref.begin + *offset_into_ref);
+    } else if (offset_past_current_output != std::wstring::npos) {
+      // We clamped the offset near the beginning of this function to ensure it
+      // was within the input URL.  If we reach here, the input was something
+      // invalid and non-parseable such that the offset was past any component
+      // we could figure out.  In this case it won't be represented in the
+      // output string, so reset it.
+      *offset_for_adjustment = std::wstring::npos;
+    }
   }
 
   return url_string;

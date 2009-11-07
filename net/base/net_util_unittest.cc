@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -343,6 +343,11 @@ const IDNTestCase idn_cases[] = {
      false, false, true,  false, false,
      true}},
 #endif
+};
+
+struct AdjustOffsetCase {
+  size_t input_offset;
+  size_t output_offset;
 };
 
 struct CompliantHostCase {
@@ -782,14 +787,10 @@ TEST(NetUtilTest, IDNToUnicodeFast) {
       // ja || zh-TW,en || ko,ja -> IDNToUnicodeSlow
       if (j == 3 || j == 17 || j == 18)
         continue;
-      std::wstring output;
-      net::IDNToUnicode(idn_cases[i].input,
-                        static_cast<int>(strlen(idn_cases[i].input)),
-                        kLanguages[j],
-                        &output);
+      std::wstring output(net::IDNToUnicode(idn_cases[i].input,
+          strlen(idn_cases[i].input), kLanguages[j], NULL));
       std::wstring expected(idn_cases[i].unicode_allowed[j] ?
-                            idn_cases[i].unicode_output :
-                            ASCIIToWide(idn_cases[i].input));
+          idn_cases[i].unicode_output : ASCIIToWide(idn_cases[i].input));
       AppendLanguagesToOutputs(kLanguages[j], &expected, &output);
       EXPECT_EQ(expected, output);
     }
@@ -802,17 +803,40 @@ TEST(NetUtilTest, IDNToUnicodeSlow) {
       // !(ja || zh-TW,en || ko,ja) -> IDNToUnicodeFast
       if (!(j == 3 || j == 17 || j == 18))
         continue;
-      std::wstring output;
-      net::IDNToUnicode(idn_cases[i].input,
-                        static_cast<int>(strlen(idn_cases[i].input)),
-                        kLanguages[j],
-                        &output);
+      std::wstring output(net::IDNToUnicode(idn_cases[i].input,
+          strlen(idn_cases[i].input), kLanguages[j], NULL));
       std::wstring expected(idn_cases[i].unicode_allowed[j] ?
-                            idn_cases[i].unicode_output :
-                            ASCIIToWide(idn_cases[i].input));
+          idn_cases[i].unicode_output : ASCIIToWide(idn_cases[i].input));
       AppendLanguagesToOutputs(kLanguages[j], &expected, &output);
       EXPECT_EQ(expected, output);
     }
+  }
+}
+
+TEST(NetUtilTest, IDNToUnicodeAdjustOffset) {
+  const AdjustOffsetCase adjust_cases[] = {
+    {0, 0},
+    {2, 2},
+    {4, 4},
+    {5, 5},
+    {6, std::wstring::npos},
+    {16, std::wstring::npos},
+    {17, 7},
+    {18, 8},
+    {19, std::wstring::npos},
+    {25, std::wstring::npos},
+    {34, 12},
+    {35, 13},
+    {38, 16},
+    {39, std::wstring::npos},
+    {std::wstring::npos, std::wstring::npos},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(adjust_cases); ++i) {
+    size_t offset = adjust_cases[i].input_offset;
+    // "test.\x89c6\x9891.\x5317\x4eac\x5927\x5b78.test"
+    net::IDNToUnicode("test.xn--cy2a840a.xn--1lq90ic7f1rc.test", 39, L"zh-CN",
+                      &offset);
+    EXPECT_EQ(adjust_cases[i].output_offset, offset);
   }
 }
 
@@ -1328,7 +1352,7 @@ TEST(NetUtilTest, FormatUrl) {
     size_t prefix_len;
     std::wstring formatted = net::FormatUrl(
         GURL(tests[i].input), tests[i].languages, tests[i].omit,
-        tests[i].escape_rules, NULL, &prefix_len);
+        tests[i].escape_rules, NULL, &prefix_len, NULL);
     EXPECT_EQ(tests[i].output, formatted) << tests[i].description;
     EXPECT_EQ(tests[i].prefix_len, prefix_len) << tests[i].description;
   }
@@ -1340,7 +1364,7 @@ TEST(NetUtilTest, FormatUrlParsed) {
   std::wstring formatted = net::FormatUrl(
       GURL("http://\xE3\x82\xB0:\xE3\x83\xBC@xn--qcka1pmc.jp:8080/"
            "%E3%82%B0/?q=%E3%82%B0#\xE3\x82\xB0"),
-      L"ja", false, UnescapeRule::NONE, &parsed, NULL);
+      L"ja", false, UnescapeRule::NONE, &parsed, NULL, NULL);
   EXPECT_EQ(L"http://%E3%82%B0:%E3%83%BC@\x30B0\x30FC\x30B0\x30EB.jp:8080"
       L"/%E3%82%B0/?q=%E3%82%B0#\x30B0", formatted);
   EXPECT_EQ(L"%E3%82%B0",
@@ -1360,7 +1384,7 @@ TEST(NetUtilTest, FormatUrlParsed) {
   formatted = net::FormatUrl(
       GURL("http://\xE3\x82\xB0:\xE3\x83\xBC@xn--qcka1pmc.jp:8080/"
            "%E3%82%B0/?q=%E3%82%B0#\xE3\x82\xB0"),
-      L"ja", false, UnescapeRule::NORMAL, &parsed, NULL);
+      L"ja", false, UnescapeRule::NORMAL, &parsed, NULL, NULL);
   EXPECT_EQ(L"http://\x30B0:\x30FC@\x30B0\x30FC\x30B0\x30EB.jp:8080"
       L"/\x30B0/?q=\x30B0#\x30B0", formatted);
   EXPECT_EQ(L"\x30B0",
@@ -1379,7 +1403,7 @@ TEST(NetUtilTest, FormatUrlParsed) {
   formatted = net::FormatUrl(
       GURL("http://\xE3\x82\xB0:\xE3\x83\xBC@xn--qcka1pmc.jp:8080/"
            "%E3%82%B0/?q=%E3%82%B0#\xE3\x82\xB0"),
-      L"ja", true, UnescapeRule::NORMAL, &parsed, NULL);
+      L"ja", true, UnescapeRule::NORMAL, &parsed, NULL, NULL);
   EXPECT_EQ(L"http://\x30B0\x30FC\x30B0\x30EB.jp:8080"
       L"/\x30B0/?q=\x30B0#\x30B0", formatted);
   EXPECT_FALSE(parsed.username.is_valid());
@@ -1395,7 +1419,7 @@ TEST(NetUtilTest, FormatUrlParsed) {
   // View-source case.
   formatted = net::FormatUrl(
       GURL("view-source:http://user:passwd@host:81/path?query#ref"),
-      L"", true, UnescapeRule::NORMAL, &parsed, NULL);
+      L"", true, UnescapeRule::NORMAL, &parsed, NULL, NULL);
   EXPECT_EQ(L"view-source:http://host:81/path?query#ref", formatted);
   EXPECT_EQ(L"view-source:http",
       formatted.substr(parsed.scheme.begin, parsed.scheme.len));
@@ -1406,6 +1430,124 @@ TEST(NetUtilTest, FormatUrlParsed) {
   EXPECT_EQ(L"/path", formatted.substr(parsed.path.begin, parsed.path.len));
   EXPECT_EQ(L"query", formatted.substr(parsed.query.begin, parsed.query.len));
   EXPECT_EQ(L"ref", formatted.substr(parsed.ref.begin, parsed.ref.len));
+}
+
+TEST(NetUtilTest, FormatUrlAdjustOffset) {
+  const AdjustOffsetCase basic_cases[] = {
+    {0, 0},
+    {3, 3},
+    {5, 5},
+    {6, 6},
+    {13, 13},
+    {21, 21},
+    {22, 22},
+    {23, 23},
+    {25, 25},
+    {26, std::wstring::npos},
+    {500000, std::wstring::npos},
+    {std::wstring::npos, std::wstring::npos},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(basic_cases); ++i) {
+    size_t offset = basic_cases[i].input_offset;
+    net::FormatUrl(GURL("http://www.google.com/foo/"), L"en", true,
+                   UnescapeRule::NORMAL, NULL, NULL, &offset);
+    EXPECT_EQ(basic_cases[i].output_offset, offset);
+  }
+
+  const struct {
+    const char* input_url;
+    size_t input_offset;
+    size_t output_offset;
+  } omit_auth_cases[] = {
+    {"http://foo:bar@www.google.com/", 6, 6},
+    {"http://foo:bar@www.google.com/", 7, 7},
+    {"http://foo:bar@www.google.com/", 8, std::wstring::npos},
+    {"http://foo:bar@www.google.com/", 10, std::wstring::npos},
+    {"http://foo:bar@www.google.com/", 11, std::wstring::npos},
+    {"http://foo:bar@www.google.com/", 14, std::wstring::npos},
+    {"http://foo:bar@www.google.com/", 15, 7},
+    {"http://foo:bar@www.google.com/", 25, 17},
+    {"http://foo@www.google.com/", 9, std::wstring::npos},
+    {"http://foo@www.google.com/", 11, 7},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(omit_auth_cases); ++i) {
+    size_t offset = omit_auth_cases[i].input_offset;
+    net::FormatUrl(GURL(omit_auth_cases[i].input_url), L"en", true,
+                   UnescapeRule::NORMAL, NULL, NULL, &offset);
+    EXPECT_EQ(omit_auth_cases[i].output_offset, offset);
+  }
+
+  const AdjustOffsetCase view_source_cases[] = {
+    {0, 0},
+    {3, 3},
+    {11, 11},
+    {12, 12},
+    {13, 13},
+    {19, 19},
+    {20, std::wstring::npos},
+    {23, 19},
+    {26, 22},
+    {std::wstring::npos, std::wstring::npos},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(view_source_cases); ++i) {
+    size_t offset = view_source_cases[i].input_offset;
+    net::FormatUrl(GURL("view-source:http://foo@www.google.com/"), L"en", true,
+                   UnescapeRule::NORMAL, NULL, NULL, &offset);
+    EXPECT_EQ(view_source_cases[i].output_offset, offset);
+  }
+
+  const AdjustOffsetCase idn_hostname_cases[] = {
+    {8, std::wstring::npos},
+    {16, std::wstring::npos},
+    {24, std::wstring::npos},
+    {25, 12},
+    {30, 17},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(idn_hostname_cases); ++i) {
+    size_t offset = idn_hostname_cases[i].input_offset;
+    // "http://\x671d\x65e5\x3042\x3055\x3072.jp/foo/"
+    net::FormatUrl(GURL("http://xn--l8jvb1ey91xtjb.jp/foo/"), L"ja", true,
+                   UnescapeRule::NORMAL, NULL, NULL, &offset);
+    EXPECT_EQ(idn_hostname_cases[i].output_offset, offset);
+  }
+
+  const AdjustOffsetCase unescape_cases[] = {
+    {25, 25},
+    {26, std::wstring::npos},
+    {27, std::wstring::npos},
+    {28, 26},
+    {35, std::wstring::npos},
+    {41, 31},
+    {59, 33},
+    {60, std::wstring::npos},
+    {67, std::wstring::npos},
+    {68, std::wstring::npos},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(unescape_cases); ++i) {
+    size_t offset = unescape_cases[i].input_offset;
+    // "http://www.google.com/foo bar/\x30B0\x30FC\x30B0\x30EB"
+    net::FormatUrl(GURL(
+        "http://www.google.com/foo%20bar/%E3%82%B0%E3%83%BC%E3%82%B0%E3%83%AB"),
+        L"en", true, UnescapeRule::SPACES, NULL, NULL, &offset);
+    EXPECT_EQ(unescape_cases[i].output_offset, offset);
+  }
+
+  const AdjustOffsetCase ref_cases[] = {
+    {30, 30},
+    {31, 31},
+    {32, std::wstring::npos},
+    {34, 32},
+    {37, 33},
+    {38, std::wstring::npos},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(ref_cases); ++i) {
+    size_t offset = ref_cases[i].input_offset;
+    // "http://www.google.com/foo.html#\x30B0\x30B0z"
+    net::FormatUrl(GURL(
+        "http://www.google.com/foo.html#\xE3\x82\xB0\xE3\x82\xB0z"), L"en",
+        true, UnescapeRule::NORMAL, NULL, NULL, &offset);
+    EXPECT_EQ(ref_cases[i].output_offset, offset);
+  }
 }
 
 TEST(NetUtilTest, SimplifyUrlForRequest) {
@@ -1466,4 +1608,3 @@ TEST(NetUtilTest, SetExplicitlyAllowedPortsTest) {
     EXPECT_EQ(i, net::explicitly_allowed_ports.size());
   }
 }
-
