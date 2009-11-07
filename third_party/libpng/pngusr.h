@@ -416,6 +416,7 @@
 #define png_write_chunk_data            webkit_png_write_chunk_data
 #define png_write_chunk_end             webkit_png_write_chunk_end
 #define png_write_chunk_start           webkit_png_write_chunk_start
+#define png_write_destroy               webkit_png_write_dest
 #define png_write_end                   webkit_png_write_end
 #define png_write_flush                 webkit_png_write_flush
 #define png_write_image                 webkit_png_write_image
