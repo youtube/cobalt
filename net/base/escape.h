@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -93,17 +93,17 @@ std::string UnescapeURLComponent(const std::string& escaped_text,
                                  UnescapeRule::Type rules);
 
 // Unescapes the given substring as a URL, and then tries to interpret the
-// result as being encoded in the given code page. If the result is convertable
-// into the code page, it will be returned as converted. If it is not, the
-// original escaped string will be converted into a wide string and returned.
-std::wstring UnescapeAndDecodeURLComponent(const std::string& text,
-                                           const char* codepage,
-                                           UnescapeRule::Type rules);
-inline std::wstring UnescapeAndDecodeUTF8URLComponent(
-    const std::string& text,
-    UnescapeRule::Type rules) {
-  return UnescapeAndDecodeURLComponent(text, "UTF-8", rules);
-}
+// result as being encoded as UTF-8. If the result is convertable into UTF-8, it
+// will be returned as converted. If it is not, the original escaped string will
+// be converted into a wide string and returned.
+//
+// |offset_for_adjustment| may be NULL; if not, it is an offset into |text| that
+// will be adjusted to point at the same logical place in the result string.  If
+// this isn't possible because it points into the middle of an escape sequence
+// or past the end of the string, it will be set to std::wstring::npos.
+std::wstring UnescapeAndDecodeUTF8URLComponent(const std::string& text,
+                                               UnescapeRule::Type rules,
+                                               size_t* offset_for_adjustment);
 
 // Deprecated ------------------------------------------------------------------
 

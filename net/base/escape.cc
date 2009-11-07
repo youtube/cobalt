@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -107,7 +107,14 @@ const char kUrlUnescape[128] = {
 };
 
 std::string UnescapeURLImpl(const std::string& escaped_text,
-                            UnescapeRule::Type rules) {
+                            UnescapeRule::Type rules,
+                            size_t* offset_for_adjustment) {
+  size_t offset_temp = std::wstring::npos;
+  if (!offset_for_adjustment)
+    offset_for_adjustment = &offset_temp;
+  else if (*offset_for_adjustment >= escaped_text.length())
+    *offset_for_adjustment = std::wstring::npos;
+
   // Do not unescape anything, return the |escaped_text| text.
   if (rules == UnescapeRule::NONE)
     return escaped_text;
@@ -136,8 +143,17 @@ std::string UnescapeURLImpl(const std::string& escaped_text,
              // Additionally allow control characters if requested.
              (value < ' ' && (rules & UnescapeRule::CONTROL_CHARS)))) {
           // Use the unescaped version of the character.
+          size_t length_before_append = result.length();
           result.push_back(value);
           i += 2;
+
+          // Adjust offset to match length change.
+          if (*offset_for_adjustment != std::string::npos) {
+            if (*offset_for_adjustment > (length_before_append + 2))
+              *offset_for_adjustment -= 2;
+            else if (*offset_for_adjustment > length_before_append)
+              *offset_for_adjustment = std::string::npos;
+          }
         } else {
           // Keep escaped. Append a percent and we'll get the following two
           // digits on the next loops through.
@@ -231,19 +247,27 @@ bool EscapeQueryParamValue(const std::wstring& text, const char* codepage,
   return true;
 }
 
-std::wstring UnescapeAndDecodeURLComponent(const std::string& text,
-                                           const char* codepage,
-                                           UnescapeRule::Type rules) {
+std::wstring UnescapeAndDecodeUTF8URLComponent(const std::string& text,
+                                               UnescapeRule::Type rules,
+                                               size_t* offset_for_adjustment) {
   std::wstring result;
-  if (base::CodepageToWide(UnescapeURLImpl(text, rules), codepage,
-                           base::OnStringConversionError::FAIL, &result))
+  size_t original_offset = offset_for_adjustment ? *offset_for_adjustment : 0;
+  if (base::CodepageToWideAndAdjustOffset(
+          UnescapeURLImpl(text, rules, offset_for_adjustment),
+          "UTF-8", base::OnStringConversionError::FAIL, &result,
+          offset_for_adjustment))
     return result;          // Character set looks like it's valid.
-  return UTF8ToWide(text);  // Return the escaped version when it's not.
+
+  // Not valid.  Return the escaped version.  Undo our changes to
+  // |offset_for_adjustment| since we haven't changed the string after all.
+  if (offset_for_adjustment)
+    *offset_for_adjustment = original_offset;
+  return UTF8ToWideAndAdjustOffset(text, offset_for_adjustment);
 }
 
 std::string UnescapeURLComponent(const std::string& escaped_text,
                                  UnescapeRule::Type rules) {
-  return UnescapeURLImpl(escaped_text, rules);
+  return UnescapeURLImpl(escaped_text, rules, NULL);
 }
 
 template <class str>

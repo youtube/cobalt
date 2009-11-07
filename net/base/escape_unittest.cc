@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,8 +24,7 @@ struct UnescapeURLCase {
   const char* output;
 };
 
-struct UnescapeAndDecodeURLCase {
-  const char* encoding;
+struct UnescapeAndDecodeCase {
   const char* input;
 
   // The expected output when run through UnescapeURL.
@@ -38,6 +37,12 @@ struct UnescapeAndDecodeURLCase {
   const wchar_t* decoded;
 };
 
+struct AdjustOffsetCase {
+  const char* input;
+  size_t input_offset;
+  size_t output_offset;
+};
+
 struct EscapeForHTMLCase {
   const char* input;
   const char* expected_output;
@@ -45,7 +50,7 @@ struct EscapeForHTMLCase {
 
 }  // namespace
 
-TEST(Escape, EscapeTextForFormSubmission) {
+TEST(EscapeTest, EscapeTextForFormSubmission) {
   const EscapeCase escape_cases[] = {
     {L"foo", L"foo"},
     {L"foo bar", L"foo+bar"},
@@ -93,7 +98,7 @@ TEST(Escape, EscapeTextForFormSubmission) {
   EXPECT_EQ(wide, EscapeQueryParamValueUTF8(test_str));
 }
 
-TEST(Escape, EscapePath) {
+TEST(EscapeTest, EscapePath) {
   ASSERT_EQ(
     // Most of the character space we care about, un-escaped
     EscapePath(
@@ -108,7 +113,7 @@ TEST(Escape, EscapePath) {
     "%7B%7C%7D~%7F%80%FF");
 }
 
-TEST(Escape, EscapeUrlEncodedData) {
+TEST(EscapeTest, EscapeUrlEncodedData) {
   ASSERT_EQ(
     // Most of the character space we care about, un-escaped
     EscapeUrlEncodedData(
@@ -123,7 +128,7 @@ TEST(Escape, EscapeUrlEncodedData) {
     "%7B%7C%7D~%7F%80%FF");
 }
 
-TEST(Escape, UnescapeURLComponent) {
+TEST(EscapeTest, UnescapeURLComponent) {
   const UnescapeURLCase unescape_cases[] = {
     {"", UnescapeRule::NORMAL, ""},
     {"%2", UnescapeRule::NORMAL, "%2"},
@@ -184,40 +189,48 @@ TEST(Escape, UnescapeURLComponent) {
   EXPECT_EQ(expected, UnescapeURLComponent(input, UnescapeRule::NORMAL));
 }
 
-TEST(Escape, UnescapeAndDecodeURLComponent) {
-  const UnescapeAndDecodeURLCase unescape_cases[] = {
-    {"UTF8", "%", "%", "%", L"%"},
-    {"UTF8", "+", "+", " ", L"+"},
-    {"UTF8", "%2+", "%2+", "%2 ", L"%2+"},
-    {"UTF8", "+%%%+%%%", "+%%%+%%%", " %%% %%%", L"+%%%+%%%"},
-    {"UTF8", "Don't escape anything",
-             "Don't escape anything",
-             "Don't escape anything",
-             L"Don't escape anything"},
-    {"UTF8", "+Invalid %escape %2+",
-             "+Invalid %escape %2+",
-             " Invalid %escape %2 ",
-             L"+Invalid %escape %2+"},
-    {"UTF8", "Some random text %25%3bOK",
-             "Some random text %25;OK",
-             "Some random text %25;OK",
-             L"Some random text %25;OK"},
-    {"UTF8", "%01%02%03%04%05%06%07%08%09",
-             "%01%02%03%04%05%06%07%08%09",
-             "%01%02%03%04%05%06%07%08%09",
-             L"%01%02%03%04%05%06%07%08%09"},
-    {"UTF8", "%E4%BD%A0+%E5%A5%BD",
-             "\xE4\xBD\xA0+\xE5\xA5\xBD",
-             "\xE4\xBD\xA0 \xE5\xA5\xBD",
-             L"\x4f60+\x597d"},
-    {"BIG5", "%A7A%A6n",
-             "\xA7\x41\xA6n",
-             "\xA7\x41\xA6n",
-             L"\x4f60\x597d"},
-    {"UTF8", "%ED%ED",  // Invalid UTF-8.
-             "\xED\xED",
-             "\xED\xED",
-             L"%ED%ED"},  // Invalid UTF-8 -> kept unescaped.
+TEST(EscapeTest, UnescapeAndDecodeUTF8URLComponent) {
+  const UnescapeAndDecodeCase unescape_cases[] = {
+    { "%",
+      "%",
+      "%",
+     L"%"},
+    { "+",
+      "+",
+      " ",
+     L"+"},
+    { "%2+",
+      "%2+",
+      "%2 ",
+     L"%2+"},
+    { "+%%%+%%%",
+      "+%%%+%%%",
+      " %%% %%%",
+     L"+%%%+%%%"},
+    { "Don't escape anything",
+      "Don't escape anything",
+      "Don't escape anything",
+     L"Don't escape anything"},
+    { "+Invalid %escape %2+",
+      "+Invalid %escape %2+",
+      " Invalid %escape %2 ",
+     L"+Invalid %escape %2+"},
+    { "Some random text %25%3BOK",
+      "Some random text %25;OK",
+      "Some random text %25;OK",
+     L"Some random text %25;OK"},
+    { "%01%02%03%04%05%06%07%08%09",
+      "%01%02%03%04%05%06%07%08%09",
+      "%01%02%03%04%05%06%07%08%09",
+     L"%01%02%03%04%05%06%07%08%09"},
+    { "%E4%BD%A0+%E5%A5%BD",
+      "\xE4\xBD\xA0+\xE5\xA5\xBD",
+      "\xE4\xBD\xA0 \xE5\xA5\xBD",
+     L"\x4f60+\x597d"},
+    { "%ED%ED",  // Invalid UTF-8.
+      "\xED\xED",
+      "\xED\xED",
+     L"%ED%ED"},  // Invalid UTF-8 -> kept unescaped.
   };
 
   for (size_t i = 0; i < arraysize(unescape_cases); i++) {
@@ -230,14 +243,36 @@ TEST(Escape, UnescapeAndDecodeURLComponent) {
     EXPECT_EQ(std::string(unescape_cases[i].query_unescaped), unescaped);
 
     // TODO: Need to test unescape_spaces and unescape_percent.
-    std::wstring decoded = UnescapeAndDecodeURLComponent(
-        unescape_cases[i].input, unescape_cases[i].encoding,
-        UnescapeRule::NORMAL);
+    std::wstring decoded = UnescapeAndDecodeUTF8URLComponent(
+        unescape_cases[i].input, UnescapeRule::NORMAL, NULL);
     EXPECT_EQ(std::wstring(unescape_cases[i].decoded), decoded);
   }
 }
 
-TEST(Escape, EscapeForHTML) {
+TEST(EscapeTest, AdjustOffset) {
+  const AdjustOffsetCase adjust_cases[] = {
+    {"", 0, std::wstring::npos},
+    {"test", 0, 0},
+    {"test", 2, 2},
+    {"test", 4, std::wstring::npos},
+    {"test", std::wstring::npos, std::wstring::npos},
+    {"%3Btest", 6, 4},
+    {"%3Btest", 2, std::wstring::npos},
+    {"test%3B", 2, 2},
+    {"%E4%BD%A0+%E5%A5%BD", 9, 1},
+    {"%E4%BD%A0+%E5%A5%BD", 6, std::wstring::npos},
+    {"%ED%B0%80+%E5%A5%BD", 6, 6},
+  };
+
+  for (size_t i = 0; i < arraysize(adjust_cases); i++) {
+    size_t offset = adjust_cases[i].input_offset;
+    UnescapeAndDecodeUTF8URLComponent(adjust_cases[i].input,
+                                      UnescapeRule::NORMAL, &offset);
+    EXPECT_EQ(adjust_cases[i].output_offset, offset);
+  }
+}
+
+TEST(EscapeTest, EscapeForHTML) {
   const EscapeForHTMLCase tests[] = {
     { "hello", "hello" },
     { "<hello>", "&lt;hello&gt;" },
