@@ -116,7 +116,7 @@ static disk_cache::Backend* GetDiskCache(URLRequestContext* context) {
   if (!http_cache)
     return NULL;
 
-  return http_cache->disk_cache();
+  return http_cache->GetBackend();
 }
 
 static std::string FormatStatistics(disk_cache::Backend* disk_cache) {

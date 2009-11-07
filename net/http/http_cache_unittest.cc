@@ -8,6 +8,7 @@
 #include "base/message_loop.h"
 #include "base/scoped_vector.h"
 #include "base/string_util.h"
+#include "net/base/cache_type.h"
 #include "net/base/net_errors.h"
 #include "net/base/load_flags.h"
 #include "net/base/load_log_unittest.h"
@@ -458,7 +459,7 @@ class MockHttpCache {
     return static_cast<MockNetworkLayer*>(http_cache_.network_layer());
   }
   MockDiskCache* disk_cache() {
-    return static_cast<MockDiskCache*>(http_cache_.disk_cache());
+    return static_cast<MockDiskCache*>(http_cache_.GetBackend());
   }
 
  private:
@@ -766,6 +767,15 @@ TEST(HttpCache, CreateThenDestroy) {
   int rv = cache.http_cache()->CreateTransaction(&trans);
   EXPECT_EQ(net::OK, rv);
   ASSERT_TRUE(trans.get());
+}
+
+TEST(HttpCache, GetBackend) {
+  // This will initialize a cache object with NULL backend.
+  MockHttpCache cache(NULL);
+
+  // This will lazily initialize the backend.
+  cache.http_cache()->set_type(net::MEMORY_CACHE);
+  EXPECT_TRUE(cache.http_cache()->GetBackend());
 }
 
 TEST(HttpCache, SimpleGET) {
