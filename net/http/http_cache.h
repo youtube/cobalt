@@ -93,7 +93,11 @@ class HttpCache : public HttpTransactionFactory,
             disk_cache::Backend* disk_cache);
 
   HttpTransactionFactory* network_layer() { return network_layer_.get(); }
-  disk_cache::Backend* disk_cache() { return disk_cache_.get(); }
+
+  // Returns the cache backend for this HttpCache instance. If the backend
+  // is not initialized yet, this method will initialize it. If the return
+  // value is NULL then the backend cannot be initialized.
+  disk_cache::Backend* GetBackend();
 
   // HttpTransactionFactory implementation:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
@@ -205,7 +209,6 @@ class HttpCache : public HttpTransactionFactory,
 
   ScopedRunnableMethodFactory<HttpCache> task_factory_;
 
-  bool in_memory_cache_;
   bool enable_range_support_;
   int cache_size_;
 
