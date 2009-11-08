@@ -621,6 +621,7 @@
         'string_tokenizer_unittest.cc',
         'string_util_unittest.cc',
         'sys_info_unittest.cc',
+        'sys_string_conversions_mac_unittest.mm',
         'sys_string_conversions_unittest.cc',
         'system_monitor_unittest.cc',
         'task_unittest.cc',
