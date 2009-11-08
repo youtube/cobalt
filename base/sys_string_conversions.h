@@ -71,7 +71,8 @@ std::string SysCFStringRefToUTF8(CFStringRef ref);
 string16 SysCFStringRefToUTF16(CFStringRef ref);
 std::wstring SysCFStringRefToWide(CFStringRef ref);
 
-// Same, but accepts NSString input.
+// Same, but accepts NSString input. Converts nil NSString* to the appropriate
+// string type of length 0.
 std::string SysNSStringToUTF8(NSString* ref);
 string16 SysNSStringToUTF16(NSString* ref);
 std::wstring SysNSStringToWide(NSString* ref);

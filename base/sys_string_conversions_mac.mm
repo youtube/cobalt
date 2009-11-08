@@ -184,14 +184,20 @@ std::wstring SysCFStringRefToWide(CFStringRef ref) {
 }
 
 std::string SysNSStringToUTF8(NSString* nsstring) {
+  if (!nsstring)
+    return std::string();
   return SysCFStringRefToUTF8(reinterpret_cast<CFStringRef>(nsstring));
 }
 
 string16 SysNSStringToUTF16(NSString* nsstring) {
+  if (!nsstring)
+    return string16();
   return SysCFStringRefToUTF16(reinterpret_cast<CFStringRef>(nsstring));
 }
 
 std::wstring SysNSStringToWide(NSString* nsstring) {
+  if (!nsstring)
+    return std::wstring();
   return SysCFStringRefToWide(reinterpret_cast<CFStringRef>(nsstring));
 }
 
