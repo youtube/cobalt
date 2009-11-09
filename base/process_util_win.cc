@@ -799,4 +799,43 @@ void RaiseProcessToHighPriority() {
   SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
 }
 
+// GetPerformanceInfo is not available on WIN2K.  So we'll
+// load it on-the-fly.
+const wchar_t kPsapiDllName[] = L"psapi.dll";
+typedef BOOL (WINAPI *GetPerformanceInfoFunction) (
+    PPERFORMANCE_INFORMATION pPerformanceInformation,
+    DWORD cb);
+
+// Beware of races if called concurrently from multiple threads.
+static BOOL InternalGetPerformanceInfo(
+    PPERFORMANCE_INFORMATION pPerformanceInformation, DWORD cb) {
+  static GetPerformanceInfoFunction GetPerformanceInfo_func = NULL;
+  if (!GetPerformanceInfo_func) {
+    HMODULE psapi_dll = ::GetModuleHandle(kPsapiDllName);
+    if (psapi_dll)
+      GetPerformanceInfo_func = reinterpret_cast<GetPerformanceInfoFunction>(
+          GetProcAddress(psapi_dll, "GetPerformanceInfo"));
+
+    if (!GetPerformanceInfo_func) {
+      // The function could be loaded!
+      memset(pPerformanceInformation, 0, cb);
+      return FALSE;
+    }
+  }
+  return GetPerformanceInfo_func(pPerformanceInformation, cb);
+}
+
+size_t GetSystemCommitCharge() {
+  // Get the System Page Size.
+  SYSTEM_INFO system_info;
+  GetSystemInfo(&system_info);
+
+  PERFORMANCE_INFORMATION info;
+  if (! InternalGetPerformanceInfo(&info, sizeof(info))) {
+    LOG(ERROR) << "Failed to fetch internal performance info.";
+    return 0;
+  }
+  return (info.CommitTotal * system_info.dwPageSize) / 1024;
+}
+
 }  // namespace base
