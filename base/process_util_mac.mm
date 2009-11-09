@@ -7,6 +7,7 @@
 
 #import <Cocoa/Cocoa.h>
 #include <crt_externs.h>
+#include <mach/mach.h>
 #include <mach/mach_init.h>
 #include <mach/task.h>
 #include <spawn.h>
@@ -212,5 +213,26 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
 }
 
 // ------------------------------------------------------------------------
+
+// Bytes committed by the system.
+size_t GetSystemCommitCharge() {
+  host_name_port_t host = mach_host_self();
+  mach_msg_type_number_t count = HOST_VM_INFO_COUNT;
+  vm_statistics_data_t data;
+  kern_return_t kr = host_statistics(host, HOST_VM_INFO,
+                                     reinterpret_cast<host_info_t>(&data),
+                                     &count);
+  if (kr)
+    LOG(ERROR) << "Failed to fetch host statistics.";
+    return 0;
+
+  vm_size_t page_size;
+  kr = host_page_size(host, &page_size);
+  if (kr)
+    LOG(ERROR) << "Failed to fetch host page size.";
+    return 0;
+
+  return (data.active_count * page_size) / 1024;
+}
 
 }  // namespace base
