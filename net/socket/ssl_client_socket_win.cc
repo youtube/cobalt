@@ -1091,13 +1091,19 @@ int SSLClientSocketWin::DoPayloadDecrypt() {
     received_ptr_ = NULL;
     bytes_received_ = 0;
     for (int i = 1; i < 4; i++) {
-      if (!decrypted_ptr_ && buffers[i].BufferType == SECBUFFER_DATA) {
-        decrypted_ptr_ = static_cast<char*>(buffers[i].pvBuffer);
-        bytes_decrypted_ = buffers[i].cbBuffer;
-      }
-      if (!received_ptr_ && buffers[i].BufferType == SECBUFFER_EXTRA) {
-        received_ptr_ = static_cast<char*>(buffers[i].pvBuffer);
-        bytes_received_ = buffers[i].cbBuffer;
+      switch (buffers[i].BufferType) {
+        case SECBUFFER_DATA:
+          DCHECK(!decrypted_ptr_ && bytes_decrypted_ == 0);
+          decrypted_ptr_ = static_cast<char*>(buffers[i].pvBuffer);
+          bytes_decrypted_ = buffers[i].cbBuffer;
+          break;
+        case SECBUFFER_EXTRA:
+          DCHECK(!received_ptr_ && bytes_received_ == 0);
+          received_ptr_ = static_cast<char*>(buffers[i].pvBuffer);
+          bytes_received_ = buffers[i].cbBuffer;
+          break;
+        default:
+          break;
       }
     }
 
