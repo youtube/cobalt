@@ -420,6 +420,10 @@ class ProcessMetrics {
   DISALLOW_EVIL_CONSTRUCTORS(ProcessMetrics);
 };
 
+// Returns the memory commited by the system in KBytes.
+// Returns 0 if it can't compute the commit charge.
+size_t GetSystemCommitCharge();
+
 // Enables low fragmentation heap (LFH) for every heaps of this process. This
 // won't have any effect on heaps created after this function call. It will not
 // modify data allocated in the heaps before calling this function. So it is
