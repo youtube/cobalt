@@ -26,7 +26,7 @@ bool ProxyConfig::Equals(const ProxyConfig& other) const {
 }
 
 bool ProxyConfig::MayRequirePACResolver() const {
-  return auto_detect || !pac_url.is_empty();
+  return auto_detect || pac_url.is_valid();
 }
 
 void ProxyConfig::ProxyRules::ParseFromString(const std::string& proxy_rules) {
