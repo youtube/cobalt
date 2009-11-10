@@ -104,6 +104,13 @@ class StaticMockSocket : public MockSocket {
   virtual MockWriteResult OnWrite(const std::string& data);
   virtual void Reset();
 
+  // If the test wishes to verify that all data is consumed, it can include
+  // a EOF MockRead or MockWrite, which is a zero-length Read or Write.
+  // The test can then call at_read_eof() or at_write_eof() to verify that
+  // all data has been consumed.
+  bool at_read_eof() const { return reads_[read_index_].data_len == 0; }
+  bool at_write_eof() const { return writes_[write_index_].data_len == 0; }
+
  private:
   MockRead* reads_;
   int read_index_;
