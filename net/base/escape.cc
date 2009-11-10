@@ -252,10 +252,10 @@ std::wstring UnescapeAndDecodeUTF8URLComponent(const std::string& text,
                                                size_t* offset_for_adjustment) {
   std::wstring result;
   size_t original_offset = offset_for_adjustment ? *offset_for_adjustment : 0;
-  if (base::CodepageToWideAndAdjustOffset(
-          UnescapeURLImpl(text, rules, offset_for_adjustment),
-          "UTF-8", base::OnStringConversionError::FAIL, &result,
-          offset_for_adjustment))
+  std::string unescaped_url(
+      UnescapeURLImpl(text, rules, offset_for_adjustment));
+  if (UTF8ToWideAndAdjustOffset(unescaped_url.data(), unescaped_url.length(),
+                                &result, offset_for_adjustment))
     return result;          // Character set looks like it's valid.
 
   // Not valid.  Return the escaped version.  Undo our changes to
