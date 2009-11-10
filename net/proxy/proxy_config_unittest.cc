@@ -400,6 +400,28 @@ TEST(ProxyConfigTest, ToString) {
   }
 }
 
+TEST(ProxyConfigTest, MayRequirePACResolver) {
+  {
+    ProxyConfig config;
+    EXPECT_FALSE(config.MayRequirePACResolver());
+  }
+  {
+    ProxyConfig config;
+    config.auto_detect = true;
+    EXPECT_TRUE(config.MayRequirePACResolver());
+  }
+  {
+    ProxyConfig config;
+    config.pac_url = GURL("http://custom/pac.js");
+    EXPECT_TRUE(config.MayRequirePACResolver());
+  }
+  {
+    ProxyConfig config;
+    config.pac_url = GURL("notvalid");
+    EXPECT_FALSE(config.MayRequirePACResolver());
+  }
+}
+
 }  // namespace
 }  // namespace net
 
