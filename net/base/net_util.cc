@@ -750,18 +750,6 @@ std::wstring FormatViewSourceUrl(const GURL& url,
   return result;
 }
 
-// Converts a UTF-8 string to a FilePath string type.
-//
-// This is inline with the hope that the function will be "free" on non-Windows
-// platforms.
-inline FilePath::StringType UTF8ToFilePathString(const std::string& utf8) {
-#if defined(OS_WIN)
-  return FilePath::StringType(UTF8ToUTF16(utf8));
-#else
-  return utf8;
-#endif
-}
-
 }  // namespace
 
 namespace net {
