@@ -35,10 +35,10 @@ int SetNonBlocking(int fd) {
 }
 
 // Convert values from <errno.h> to values from "net/base/net_errors.h"
-int MapPosixError(int err) {
+int MapPosixError(int os_error) {
   // There are numerous posix error codes, but these are the ones we thus far
   // find interesting.
-  switch (err) {
+  switch (os_error) {
     case EAGAIN:
 #if EWOULDBLOCK != EAGAIN
     case EWOULDBLOCK:
@@ -65,17 +65,18 @@ int MapPosixError(int err) {
     case 0:
       return OK;
     default:
-      LOG(WARNING) << "Unknown error " << err << " mapped to net::ERR_FAILED";
+      LOG(WARNING) << "Unknown error " << os_error
+                   << " mapped to net::ERR_FAILED";
       return ERR_FAILED;
   }
 }
 
-int MapConnectError(int err) {
-  switch (err) {
+int MapConnectError(int os_error) {
+  switch (os_error) {
     case ETIMEDOUT:
       return ERR_CONNECTION_TIMED_OUT;
     default: {
-      int net_error = MapPosixError(err);
+      int net_error = MapPosixError(os_error);
       if (net_error == ERR_FAILED)
         return ERR_CONNECTION_FAILED;  // More specific than ERR_FAILED.
       return net_error;
@@ -83,10 +84,10 @@ int MapConnectError(int err) {
   }
 }
 
-// Given err, an errno from a connect() attempt, returns true if connect()
-// should be retried with another address.
-bool ShouldTryNextAddress(int err) {
-  switch (err) {
+// Given os_error, an errno from a connect() attempt, returns true if
+// connect() should be retried with another address.
+bool ShouldTryNextAddress(int os_error) {
+  switch (os_error) {
     case EADDRNOTAVAIL:
     case EAFNOSUPPORT:
     case ECONNREFUSED:
@@ -166,21 +167,21 @@ int TCPClientSocketLibevent::DoConnect() {
       return OK;
     }
 
-    int error_code = errno;
-    if (error_code == EINPROGRESS)
+    int os_error = errno;
+    if (os_error == EINPROGRESS)
       break;
 
     close(socket_);
     socket_ = kInvalidSocket;
 
-    if (current_ai_->ai_next && ShouldTryNextAddress(error_code)) {
+    if (current_ai_->ai_next && ShouldTryNextAddress(os_error)) {
       // connect() can fail synchronously for an address even on a
       // non-blocking socket.  As an example, this can happen when there is
       // no route to the host.  Retry using the next address in the list.
       current_ai_ = current_ai_->ai_next;
     } else {
-      DLOG(INFO) << "connect failed: " << error_code;
-      return MapConnectError(error_code);
+      DLOG(INFO) << "connect failed: " << os_error;
+      return MapConnectError(os_error);
     }
   }
 
@@ -367,15 +368,15 @@ void TCPClientSocketLibevent::DidCompleteConnect() {
   int result = ERR_UNEXPECTED;
 
   // Check to see if connect succeeded
-  int error_code = 0;
-  socklen_t len = sizeof(error_code);
-  if (getsockopt(socket_, SOL_SOCKET, SO_ERROR, &error_code, &len) < 0)
-    error_code = errno;
+  int os_error = 0;
+  socklen_t len = sizeof(os_error);
+  if (getsockopt(socket_, SOL_SOCKET, SO_ERROR, &os_error, &len) < 0)
+    os_error = errno;
 
-  if (error_code == EINPROGRESS || error_code == EALREADY) {
+  if (os_error == EINPROGRESS || os_error == EALREADY) {
     NOTREACHED();  // This indicates a bug in libevent or our code.
     result = ERR_IO_PENDING;
-  } else if (current_ai_->ai_next && ShouldTryNextAddress(error_code)) {
+  } else if (current_ai_->ai_next && ShouldTryNextAddress(os_error)) {
     // This address failed, try next one in list.
     const addrinfo* next = current_ai_->ai_next;
     Disconnect();
@@ -386,7 +387,7 @@ void TCPClientSocketLibevent::DidCompleteConnect() {
     LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
     result = Connect(write_callback_, load_log);
   } else {
-    result = MapConnectError(error_code);
+    result = MapConnectError(os_error);
     bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
     DCHECK(ok);
     waiting_connect_ = false;
