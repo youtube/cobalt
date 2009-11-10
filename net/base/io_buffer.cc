@@ -19,20 +19,17 @@ void DrainableIOBuffer::SetOffset(int bytes) {
   data_ = base_->data() + used_;
 }
 
-bool GrowableIOBuffer::SetCapacity(int capacity) {
-  DCHECK_GE(capacity, 0);
-  char* cur_buf = real_data_.release();
-  real_data_.reset(static_cast<char*>(realloc(cur_buf, capacity)));
-  if (real_data_.get() == NULL && capacity != 0) {
-    real_data_.reset(cur_buf);
-    return false;
-  }
+void GrowableIOBuffer::SetCapacity(int capacity) {
+  CHECK(capacity >= 0);
+  // realloc will crash if it fails.
+  real_data_.reset(static_cast<char*>(realloc(real_data_.release(), capacity)));
+  // Sanity check.
+  CHECK(real_data_.get() != NULL || capacity == 0);
   capacity_ = capacity;
   if (offset_ > capacity)
     set_offset(capacity);
   else
     set_offset(offset_);  // The pointer may have changed.
-  return true;
 }
 
 void GrowableIOBuffer::set_offset(int offset) {
