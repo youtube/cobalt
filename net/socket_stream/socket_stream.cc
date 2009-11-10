@@ -42,7 +42,6 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       delegate_(delegate),
       max_pending_send_allowed_(kMaxPendingSendAllowed),
       next_state_(STATE_NONE),
-      host_resolver_(CreateSystemHostResolver()),
       factory_(ClientSocketFactory::GetDefaultFactory()),
       proxy_mode_(kDirectConnection),
       pac_request_(NULL),
@@ -86,6 +85,7 @@ void SocketStream::SetUserData(const void* key, UserData* data) {
 
 void SocketStream::set_context(URLRequestContext* context) {
   context_ = context;
+  host_resolver_ = context_->host_resolver();
 }
 
 void SocketStream::Connect() {
@@ -416,6 +416,7 @@ int SocketStream::DoResolveHost() {
 
   HostResolver::RequestInfo resolve_info(host, port);
 
+  DCHECK(host_resolver_.get());
   resolver_.reset(new SingleRequestHostResolver(host_resolver_.get()));
   return resolver_->Resolve(resolve_info, &addresses_, &io_callback_, NULL);
 }
