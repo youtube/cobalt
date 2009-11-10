@@ -85,16 +85,8 @@ class WebSocketThrottle::WebSocketState : public SocketStream::UserData {
       }
       buffer_ = new GrowableIOBuffer();
       buffer_->SetCapacity(kBufferSize);
-    } else {
-      if (buffer_->RemainingCapacity() < len) {
-        if (!buffer_->SetCapacity(buffer_->capacity() + kBufferSize)) {
-          // TODO(ukai): Check more correctly.
-          // Seek to the last CR or LF and reduce memory usage.
-          LOG(ERROR) << "Too large headers? capacity=" << buffer_->capacity();
-          handshake_finished_ = true;
-          return OK;
-        }
-      }
+    } else if (buffer_->RemainingCapacity() < len) {
+      buffer_->SetCapacity(buffer_->capacity() + kBufferSize);
     }
     memcpy(buffer_->data(), data, len);
     buffer_->set_offset(buffer_->offset() + len);
