@@ -227,32 +227,12 @@ TEST(UTFStringConversionsTest, ConvertMultiString) {
 }
 
 TEST(UTFStringConversionsTest, AdjustOffset) {
-  // Under the hood, all the functions call the same converter function, so we
-  // don't need to exhaustively check every case.
-  struct WideToUTF8Case {
-    const wchar_t* wide;
-    size_t input_offset;
-    size_t output_offset;
-  } wide_to_utf8_cases[] = {
-    {L"", 0, std::string::npos},
-    {L"\x4f60\x597d", 0, 0},
-    {L"\x4f60\x597d", 1, 3},
-    {L"\x4f60\x597d", 2, std::string::npos},
-    {L"\x4f60\x597d", std::wstring::npos, std::string::npos},
-    {L"\xd800\x597dz", 1, 0},
-    {L"\xd800\x597dz", 2, 3},
-  };
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(wide_to_utf8_cases); ++i) {
-    size_t offset = wide_to_utf8_cases[i].input_offset;
-    WideToUTF8AndAdjustOffset(wide_to_utf8_cases[i].wide, &offset);
-    EXPECT_EQ(wide_to_utf8_cases[i].output_offset, offset);
-  }
-
   struct UTF8ToWideCase {
     const char* utf8;
     size_t input_offset;
     size_t output_offset;
   } utf8_to_wide_cases[] = {
+    {"", 0, std::wstring::npos},
     {"\xe4\xbd\xa0\xe5\xa5\xbd", 1, std::wstring::npos},
     {"\xe4\xbd\xa0\xe5\xa5\xbd", 3, 1},
     {"\xed\xb0\x80z", 3, 0},
@@ -271,20 +251,6 @@ TEST(UTFStringConversionsTest, AdjustOffset) {
   }
 
 #if defined(WCHAR_T_IS_UTF32)
-  struct WideToUTF16Case {
-    const wchar_t* wide;
-    size_t input_offset;
-    size_t output_offset;
-  } wide_to_utf16_cases[] = {
-    {L"\x4F60\x597D", 1, 1},
-    {L"\x20000\x4E00", 1, 2},
-  };
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(wide_to_utf16_cases); ++i) {
-    size_t offset = wide_to_utf16_cases[i].input_offset;
-    WideToUTF16AndAdjustOffset(wide_to_utf16_cases[i].wide, &offset);
-    EXPECT_EQ(wide_to_utf16_cases[i].output_offset, offset);
-  }
-
   struct UTF16ToWideCase {
     const wchar_t* wide;
     size_t input_offset;
