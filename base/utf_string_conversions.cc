@@ -221,22 +221,16 @@ void PrepareForUTF16Or32Output(const char* src,
 
 // UTF-8 <-> Wide --------------------------------------------------------------
 
-bool WideToUTF8AndAdjustOffset(const wchar_t* src,
-                               size_t src_len,
-                               std::string* output,
-                               size_t* offset_for_adjustment) {
+bool WideToUTF8(const wchar_t* src, size_t src_len, std::string* output) {
   PrepareForUTF8Output(src, src_len, output);
-  return ConvertUnicode<wchar_t, std::string>(src, src_len, output,
-                                              offset_for_adjustment);
+  return ConvertUnicode<wchar_t, std::string>(src, src_len, output, NULL);
 }
 
-std::string WideToUTF8AndAdjustOffset(const std::wstring& wide,
-                                      size_t* offset_for_adjustment) {
+std::string WideToUTF8(const std::wstring& wide) {
   std::string ret;
   // Ignore the success flag of this call, it will do the best it can for
   // invalid input, which is what we want here.
-  WideToUTF8AndAdjustOffset(wide.data(), wide.length(), &ret,
-                            offset_for_adjustment);
+  WideToUTF8(wide.data(), wide.length(), &ret);
   return ret;
 }
 
@@ -262,20 +256,12 @@ std::wstring UTF8ToWideAndAdjustOffset(const base::StringPiece& utf8,
 #if defined(WCHAR_T_IS_UTF16)
 
 // When wide == UTF-16, then conversions are a NOP.
-bool WideToUTF16AndAdjustOffset(const wchar_t* src,
-                                size_t src_len,
-                                string16* output,
-                                size_t* offset_for_adjustment) {
+bool WideToUTF16(const wchar_t* src, size_t src_len, string16* output) {
   output->assign(src, src_len);
-  if (offset_for_adjustment && (*offset_for_adjustment >= src_len))
-    *offset_for_adjustment = string16::npos;
   return true;
 }
 
-string16 WideToUTF16AndAdjustOffset(const std::wstring& wide,
-                                    size_t* offset_for_adjustment) {
-  if (offset_for_adjustment && (*offset_for_adjustment >= wide.length()))
-    *offset_for_adjustment = string16::npos;
+string16 WideToUTF16(const std::wstring& wide) {
   return wide;
 }
 
@@ -298,23 +284,17 @@ std::wstring UTF16ToWideAndAdjustOffset(const string16& utf16,
 
 #elif defined(WCHAR_T_IS_UTF32)
 
-bool WideToUTF16AndAdjustOffset(const wchar_t* src,
-                                size_t src_len,
-                                string16* output,
-                                size_t* offset_for_adjustment) {
+bool WideToUTF16(const wchar_t* src, size_t src_len, string16* output) {
   output->clear();
   // Assume that normally we won't have any non-BMP characters so the counts
   // will be the same.
   output->reserve(src_len);
-  return ConvertUnicode<wchar_t, string16>(src, src_len, output,
-                                           offset_for_adjustment);
+  return ConvertUnicode<wchar_t, string16>(src, src_len, output, NULL);
 }
 
-string16 WideToUTF16AndAdjustOffset(const std::wstring& wide,
-                                    size_t* offset_for_adjustment) {
+string16 WideToUTF16(const std::wstring& wide) {
   string16 ret;
-  WideToUTF16AndAdjustOffset(wide.data(), wide.length(), &ret,
-                             offset_for_adjustment);
+  WideToUTF16(wide.data(), wide.length(), &ret);
   return ret;
 }
 

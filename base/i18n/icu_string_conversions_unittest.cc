@@ -325,45 +325,4 @@ TEST(ICUStringConversionsTest, ConvertBetweenCodepageAndUTF16) {
   }
 }
 
-static const struct {
-  const char* codepage_name;
-  const char* encoded;
-  size_t input_offset;
-  size_t u16_output_offset;
-  size_t wide_output_offset;
-} kAdjustOffsetCases[] = {
-  {"gb2312", "", 0, string16::npos, std::wstring::npos},
-  {"gb2312", "\xC4\xE3\xBA\xC3", 0, 0, 0},
-  {"gb2312", "\xC4\xE3\xBA\xC3", 2, 1, 1},
-  {"gb2312", "\xC4\xE3\xBA\xC3", 4, string16::npos, std::wstring::npos},
-  {"gb2312", "\xC4\xE3\xBA\xC3", 1, string16::npos, std::wstring::npos},
-  {"gb2312", "\xC4\xE3\xBA\xC3", std::string::npos, string16::npos,
-   std::wstring::npos},
-  {"gb18030", "\x95\x32\x82\x36\xD2\xBB", 2, string16::npos,
-   std::wstring::npos},
-  {"gb18030", "\x95\x32\x82\x36\xD2\xBB", 4, 2, 1},
-};
-
-TEST(ICUStringConversionsTest, AdjustOffset) {
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kAdjustOffsetCases); ++i) {
-    string16 utf16;
-    size_t offset = kAdjustOffsetCases[i].input_offset;
-    EXPECT_TRUE(CodepageToUTF16AndAdjustOffset(kAdjustOffsetCases[i].encoded,
-        kAdjustOffsetCases[i].codepage_name,
-        OnStringConversionError::FAIL, &utf16, &offset));
-    EXPECT_EQ(kAdjustOffsetCases[i].u16_output_offset, offset);
-
-    std::wstring wide;
-    offset = kAdjustOffsetCases[i].input_offset;
-    CodepageToWideAndAdjustOffset(kAdjustOffsetCases[i].encoded,
-        kAdjustOffsetCases[i].codepage_name,
-        OnStringConversionError::FAIL, &wide, &offset);
-#if defined(WCHAR_T_IS_UTF16)
-    EXPECT_EQ(kAdjustOffsetCases[i].u16_output_offset, offset);
-#elif defined(WCHAR_T_IS_UTF32)
-    EXPECT_EQ(kAdjustOffsetCases[i].wide_output_offset, offset);
-#endif
-  }
-}
-
 }  // namespace base
