@@ -112,9 +112,8 @@ class GrowableIOBuffer : public IOBuffer {
  public:
   GrowableIOBuffer() : IOBuffer(), capacity_(0), offset_(0) {}
 
-  // realloc memory to the specified capacity.  Returns true on success.
-  // On failure, the capacity and buffer are unchanged.
-  bool SetCapacity(int capacity);
+  // realloc memory to the specified capacity.
+  void SetCapacity(int capacity);
   int capacity() { return capacity_; }
 
   // |offset| moves the |data_| pointer, allowing "seeking" in the data.
