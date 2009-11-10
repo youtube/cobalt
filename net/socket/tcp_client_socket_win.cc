@@ -42,10 +42,10 @@ bool ResetEventIfSignaled(WSAEVENT hEvent) {
 
 //-----------------------------------------------------------------------------
 
-int MapWinsockError(int err) {
+int MapWinsockError(int os_error) {
   // There are numerous Winsock error codes, but these are the ones we thus far
   // find interesting.
-  switch (err) {
+  switch (os_error) {
     // connect fails with WSAEACCES when Windows Firewall blocks the
     // connection.
     case WSAEACCES:
@@ -78,17 +78,18 @@ int MapWinsockError(int err) {
     case ERROR_SUCCESS:
       return OK;
     default:
-      LOG(WARNING) << "Unknown error " << err << " mapped to net::ERR_FAILED";
+      LOG(WARNING) << "Unknown error " << os_error
+                   << " mapped to net::ERR_FAILED";
       return ERR_FAILED;
   }
 }
 
-int MapConnectError(int err) {
-  switch (err) {
+int MapConnectError(int os_error) {
+  switch (os_error) {
     case WSAETIMEDOUT:
       return ERR_CONNECTION_TIMED_OUT;
     default: {
-      int net_error = MapWinsockError(err);
+      int net_error = MapWinsockError(os_error);
       if (net_error == ERR_FAILED)
         return ERR_CONNECTION_FAILED;  // More specific than ERR_FAILED.
       return net_error;
@@ -96,10 +97,10 @@ int MapConnectError(int err) {
   }
 }
 
-// Given err, a WSAGetLastError() error code from a connect() attempt, returns
-// true if connect() should be retried with another address.
-bool ShouldTryNextAddress(int err) {
-  switch (err) {
+// Given os_error, a WSAGetLastError() error code from a connect() attempt,
+// returns true if connect() should be retried with another address.
+bool ShouldTryNextAddress(int os_error) {
+  switch (os_error) {
     case WSAEADDRNOTAVAIL:
     case WSAEAFNOSUPPORT:
     case WSAECONNREFUSED:
@@ -368,10 +369,10 @@ int TCPClientSocketWin::DoConnect() {
     if (ResetEventIfSignaled(core_->read_overlapped_.hEvent))
       return OK;
   } else {
-    int err = WSAGetLastError();
-    if (err != WSAEWOULDBLOCK) {
-      LOG(ERROR) << "connect failed: " << err;
-      return MapConnectError(err);
+    int os_error = WSAGetLastError();
+    if (os_error != WSAEWOULDBLOCK) {
+      LOG(ERROR) << "connect failed: " << os_error;
+      return MapConnectError(os_error);
     }
   }
 
@@ -483,9 +484,9 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       return static_cast<int>(num);
     }
   } else {
-    int err = WSAGetLastError();
-    if (err != WSA_IO_PENDING)
-      return MapWinsockError(err);
+    int os_error = WSAGetLastError();
+    if (os_error != WSA_IO_PENDING)
+      return MapWinsockError(os_error);
   }
   core_->WatchForRead();
   waiting_read_ = true;
@@ -524,9 +525,9 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
       return static_cast<int>(num);
     }
   } else {
-    int err = WSAGetLastError();
-    if (err != WSA_IO_PENDING)
-      return MapWinsockError(err);
+    int os_error = WSAGetLastError();
+    if (os_error != WSA_IO_PENDING)
+      return MapWinsockError(os_error);
   }
   core_->WatchForWrite();
   waiting_write_ = true;
@@ -553,9 +554,9 @@ int TCPClientSocketWin::CreateSocket(const struct addrinfo* ai) {
   socket_ = WSASocket(ai->ai_family, ai->ai_socktype, ai->ai_protocol, NULL, 0,
                       WSA_FLAG_OVERLAPPED);
   if (socket_ == INVALID_SOCKET) {
-    int err = WSAGetLastError();
-    LOG(ERROR) << "WSASocket failed: " << err;
-    return MapWinsockError(err);
+    int os_error = WSAGetLastError();
+    LOG(ERROR) << "WSASocket failed: " << os_error;
+    return MapWinsockError(os_error);
   }
 
   // Increase the socket buffer sizes from the default sizes for WinXP.  In
@@ -646,8 +647,8 @@ void TCPClientSocketWin::DidCompleteConnect() {
     NOTREACHED();
     result = MapWinsockError(WSAGetLastError());
   } else if (events.lNetworkEvents & FD_CONNECT) {
-    DWORD error_code = static_cast<DWORD>(events.iErrorCode[FD_CONNECT_BIT]);
-    if (current_ai_->ai_next && ShouldTryNextAddress(error_code)) {
+    int os_error = events.iErrorCode[FD_CONNECT_BIT];
+    if (current_ai_->ai_next && ShouldTryNextAddress(os_error)) {
       // Try using the next address.
       const struct addrinfo* next = current_ai_->ai_next;
       Disconnect();
@@ -658,7 +659,7 @@ void TCPClientSocketWin::DidCompleteConnect() {
       LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
       result = Connect(read_callback_, load_log);
     } else {
-      result = MapConnectError(error_code);
+      result = MapConnectError(os_error);
       TRACE_EVENT_END("socket.connect", this, "");
       LoadLog::EndEvent(load_log_, LoadLog::TYPE_TCP_CONNECT);
       load_log_ = NULL;
