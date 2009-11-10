@@ -165,7 +165,7 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
       config->pac_url = GURL(base::SysCFStringRefToUTF8(pac_url_ref));
   }
 
-  // proxies (for now only ftp, http and https)
+  // proxies (for now ftp, http, https, and SOCKS)
 
   if (GetBoolFromDictionary(config_dict.get(),
                             kSCPropNetProxiesFTPEnable,
@@ -204,6 +204,19 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
     if (proxy_server.is_valid()) {
       config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
       config->proxy_rules.proxy_for_https = proxy_server;
+    }
+  }
+  if (GetBoolFromDictionary(config_dict.get(),
+                            kSCPropNetProxiesSOCKSEnable,
+                            false)) {
+    ProxyServer proxy_server =
+        GetProxyServerFromDictionary(ProxyServer::SCHEME_SOCKS5,
+                                     config_dict.get(),
+                                     kSCPropNetProxiesSOCKSProxy,
+                                     kSCPropNetProxiesSOCKSPort);
+    if (proxy_server.is_valid()) {
+      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
+      config->proxy_rules.socks_proxy = proxy_server;
     }
   }
 
