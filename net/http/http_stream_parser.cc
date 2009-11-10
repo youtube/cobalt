@@ -208,10 +208,8 @@ int HttpStreamParser::DoReadHeaders() {
   io_state_ = STATE_READ_HEADERS_COMPLETE;
 
   // Grow the read buffer if necessary.
-  if (read_buf_->RemainingCapacity() == 0) {
-    if (!read_buf_->SetCapacity(read_buf_->capacity() + kHeaderBufInitialSize))
-      return ERR_OUT_OF_MEMORY;
-  }
+  if (read_buf_->RemainingCapacity() == 0)
+    read_buf_->SetCapacity(read_buf_->capacity() + kHeaderBufInitialSize);
 
   // http://crbug.com/16371: We're seeing |user_buf_->data()| return NULL.
   // See if the user is passing in an IOBuffer with a NULL |data_|.
@@ -302,7 +300,6 @@ int HttpStreamParser::DoReadHeadersComplete(int result) {
                   read_buf_->StartOfBuffer() + read_buf_unused_offset_,
                   extra_bytes);
         }
-        // Ok if this fails, since it only shrinks the buffer.
         read_buf_->SetCapacity(extra_bytes);
         read_buf_unused_offset_ = 0;
         return OK;
@@ -386,16 +383,11 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
       if (result > 0)
         result -= save_amount;
     }
+
     if (read_buf_->capacity() < save_amount + additional_save_amount) {
-      if (!read_buf_->SetCapacity(save_amount + additional_save_amount)) {
-        // This response is ok, but we weren't able to copy the extra data,
-        // so close the connection so that it is not reused.
-        connection_->socket()->Disconnect();
-        connection_->Reset();
-        read_buf_unused_offset_ = -1;  // So that IsMoreDataBuffered works.
-        return result;
-      }
+      read_buf_->SetCapacity(save_amount + additional_save_amount);
     }
+
     if (save_amount) {
       memcpy(read_buf_->StartOfBuffer(), user_read_buf_->data() + result,
              save_amount);
