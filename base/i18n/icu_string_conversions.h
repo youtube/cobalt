@@ -40,17 +40,6 @@ extern const char kCodepageUTF8[];
 extern const char kCodepageUTF16BE[];
 extern const char kCodepageUTF16LE[];
 
-// Like CodepageToUTF16() (see below), but also takes an offset into |encoded|,
-// which will be adjusted to point at the same logical place in |utf16|.  If
-// this isn't possible because it points past the end of |encoded| or into the
-// middle of a multibyte sequence, it will be set to std::string16::npos.
-// |offset_for_adjustment| may be NULL.
-bool CodepageToUTF16AndAdjustOffset(const std::string& encoded,
-                                    const char* codepage_name,
-                                    OnStringConversionError::Type on_error,
-                                    string16* utf16,
-                                    size_t* offset_for_adjustment);
-
 // Converts between UTF-16 strings and the encoding specified.  If the
 // encoding doesn't exist or the encoding fails (when on_error is FAIL),
 // returns false.
@@ -58,24 +47,10 @@ bool UTF16ToCodepage(const string16& utf16,
                      const char* codepage_name,
                      OnStringConversionError::Type on_error,
                      std::string* encoded);
-inline bool CodepageToUTF16(const std::string& encoded,
-                            const char* codepage_name,
-                            OnStringConversionError::Type on_error,
-                            string16* utf16) {
-  return CodepageToUTF16AndAdjustOffset(encoded, codepage_name, on_error, utf16,
-                                        NULL);
-}
-
-// Like CodepageToWide() (see below), but also takes an offset into |encoded|,
-// which will be adjusted to point at the same logical place in |wide|.  If
-// this isn't possible because it points past the end of |encoded| or into the
-// middle of a multibyte sequence, it will be set to std::wstring::npos.
-// |offset_for_adjustment| may be NULL.
-bool CodepageToWideAndAdjustOffset(const std::string& encoded,
-                                   const char* codepage_name,
-                                   OnStringConversionError::Type on_error,
-                                   std::wstring* wide,
-                                   size_t* offset_for_adjustment);
+bool CodepageToUTF16(const std::string& encoded,
+                     const char* codepage_name,
+                     OnStringConversionError::Type on_error,
+                     string16* utf16);
 
 // Converts between wide strings and the encoding specified.  If the
 // encoding doesn't exist or the encoding fails (when on_error is FAIL),
@@ -84,13 +59,10 @@ bool WideToCodepage(const std::wstring& wide,
                     const char* codepage_name,
                     OnStringConversionError::Type on_error,
                     std::string* encoded);
-inline bool CodepageToWide(const std::string& encoded,
-                           const char* codepage_name,
-                           OnStringConversionError::Type on_error,
-                           std::wstring* wide) {
-  return CodepageToWideAndAdjustOffset(encoded, codepage_name, on_error, wide,
-                                       NULL);
-}
+bool CodepageToWide(const std::string& encoded,
+                    const char* codepage_name,
+                    OnStringConversionError::Type on_error,
+                    std::wstring* wide);
 
 }  // namespace base
 

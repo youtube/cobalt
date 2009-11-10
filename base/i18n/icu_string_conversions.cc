@@ -157,8 +157,6 @@ const char kCodepageUTF16LE[] = "UTF-16LE";
 
 // Codepage <-> Wide/UTF-16  ---------------------------------------------------
 
-// Convert a UTF-16 string into the specified codepage_name.  If the codepage
-// isn't found, return false.
 bool UTF16ToCodepage(const string16& utf16,
                      const char* codepage_name,
                      OnStringConversionError::Type on_error,
@@ -174,11 +172,10 @@ bool UTF16ToCodepage(const string16& utf16,
                           static_cast<int>(utf16.length()), on_error, encoded);
 }
 
-bool CodepageToUTF16AndAdjustOffset(const std::string& encoded,
-                                    const char* codepage_name,
-                                    OnStringConversionError::Type on_error,
-                                    string16* utf16,
-                                    size_t* offset_for_adjustment) {
+bool CodepageToUTF16(const std::string& encoded,
+                     const char* codepage_name,
+                     OnStringConversionError::Type on_error,
+                     string16* utf16) {
   utf16->clear();
 
   UErrorCode status = U_ZERO_ERROR;
@@ -197,40 +194,9 @@ bool CodepageToUTF16AndAdjustOffset(const std::string& encoded,
   size_t uchar_max_length = encoded.length() + 1;
 
   SetUpErrorHandlerForToUChars(on_error, converter, &status);
-  char16* byte_buffer = WriteInto(utf16, uchar_max_length);
-  int byte_buffer_length = static_cast<int>(uchar_max_length);
-  const char* data = encoded.data();
-  int length = static_cast<int>(encoded.length());
-  int actual_size = 0;
-  if (offset_for_adjustment) {
-    if (*offset_for_adjustment >= encoded.length()) {
-      *offset_for_adjustment = string16::npos;
-    } else if (*offset_for_adjustment != 0) {
-      // Try to adjust the offset by converting the string in two pieces and
-      // using the length of the first piece as the adjusted offset.
-      actual_size += ucnv_toUChars(converter, byte_buffer, byte_buffer_length,
-          data, static_cast<int>(*offset_for_adjustment), &status);
-      if (U_SUCCESS(status)) {
-        // Conversion succeeded, so update the offset and then fall through to
-        // appending the second half of the string.
-        data += *offset_for_adjustment;
-        length -= *offset_for_adjustment;
-        *offset_for_adjustment = actual_size;
-        byte_buffer += actual_size;
-        byte_buffer_length -= actual_size;
-      } else {
-        // The offset may have been in the middle of an encoding sequence; mark
-        // it as having failed to adjust and then try to convert the entire
-        // string.
-        *offset_for_adjustment = string16::npos;
-        actual_size = 0;
-        ucnv_reset(converter);
-        status = U_ZERO_ERROR;
-      }
-    }
-  }
-  actual_size += ucnv_toUChars(converter, byte_buffer, byte_buffer_length, data,
-                               length, &status);
+  int actual_size = ucnv_toUChars(converter, WriteInto(utf16, uchar_max_length),
+      static_cast<int>(uchar_max_length), encoded.data(),
+      static_cast<int>(encoded.length()), &status);
   ucnv_close(converter);
   if (!U_SUCCESS(status)) {
     utf16->clear();  // Make sure the output is empty on error.
@@ -241,8 +207,6 @@ bool CodepageToUTF16AndAdjustOffset(const std::string& encoded,
   return true;
 }
 
-// Convert a wstring into the specified codepage_name.  If the codepage
-// isn't found, return false.
 bool WideToCodepage(const std::wstring& wide,
                     const char* codepage_name,
                     OnStringConversionError::Type on_error,
@@ -272,16 +236,12 @@ bool WideToCodepage(const std::wstring& wide,
 #endif  // defined(WCHAR_T_IS_UTF32)
 }
 
-// Converts a string of the given codepage into wstring.
-// If the codepage isn't found, return false.
-bool CodepageToWideAndAdjustOffset(const std::string& encoded,
-                                   const char* codepage_name,
-                                   OnStringConversionError::Type on_error,
-                                   std::wstring* wide,
-                                   size_t* offset_for_adjustment) {
+bool CodepageToWide(const std::string& encoded,
+                    const char* codepage_name,
+                    OnStringConversionError::Type on_error,
+                    std::wstring* wide) {
 #if defined(WCHAR_T_IS_UTF16)
-  return CodepageToUTF16AndAdjustOffset(encoded, codepage_name, on_error, wide,
-                                        offset_for_adjustment);
+  return CodepageToUTF16(encoded, codepage_name, on_error, wide);
 #elif defined(WCHAR_T_IS_UTF32)
   wide->clear();
 
@@ -297,42 +257,10 @@ bool CodepageToWideAndAdjustOffset(const std::string& encoded,
   size_t wchar_max_length = encoded.length() + 1;
 
   SetUpErrorHandlerForToUChars(on_error, converter, &status);
-  char* byte_buffer =
-      reinterpret_cast<char*>(WriteInto(wide, wchar_max_length));
-  int byte_buffer_length = static_cast<int>(wchar_max_length) * sizeof(wchar_t);
-  const char* data = encoded.data();
-  int length = static_cast<int>(encoded.length());
-  int actual_size = 0;
-  if (offset_for_adjustment) {
-    if (*offset_for_adjustment >= encoded.length()) {
-      *offset_for_adjustment = std::wstring::npos;
-    } else if (*offset_for_adjustment != 0) {
-      // Try to adjust the offset by converting the string in two pieces and
-      // using the length of the first piece as the adjusted offset.
-      actual_size += ucnv_toAlgorithmic(utf32_platform_endian(), converter,
-          byte_buffer, byte_buffer_length, data,
-          static_cast<int>(*offset_for_adjustment), &status);
-      if (U_SUCCESS(status)) {
-        // Conversion succeeded, so update the offset and then fall through to
-        // appending the second half of the string.
-        data += *offset_for_adjustment;
-        length -= *offset_for_adjustment;
-        *offset_for_adjustment = actual_size / sizeof(wchar_t);
-        byte_buffer += actual_size;
-        byte_buffer_length -= actual_size;
-      } else {
-        // The offset may have been in the middle of an encoding sequence; mark
-        // it as having failed to adjust and then try to convert the entire
-        // string.
-        *offset_for_adjustment = std::wstring::npos;
-        actual_size = 0;
-        ucnv_reset(converter);
-        status = U_ZERO_ERROR;
-      }
-    }
-  }
-  actual_size += ucnv_toAlgorithmic(utf32_platform_endian(), converter,
-      byte_buffer, byte_buffer_length, data, length, &status);
+  int actual_size = ucnv_toAlgorithmic(utf32_platform_endian(), converter,
+      reinterpret_cast<char*>(WriteInto(wide, wchar_max_length)),
+      static_cast<int>(wchar_max_length) * sizeof(wchar_t), encoded.data(),
+      static_cast<int>(encoded.length()), &status);
   ucnv_close(converter);
   if (!U_SUCCESS(status)) {
     wide->clear();  // Make sure the output is empty on error.
