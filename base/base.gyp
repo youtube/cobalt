@@ -164,6 +164,7 @@
         'keyboard_codes_posix.h',
         'lazy_instance.cc',
         'lazy_instance.h',
+        'leak_annotations.h',
         'leak_tracker.h',
         'linked_list.h',
         'linked_ptr.h',
@@ -378,15 +379,38 @@
         [ 'OS == "linux" or OS == "freebsd"', {
             'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
+            'variables' : {
+              'linux_use_heapchecker%' : 0,
+            },
             'conditions': [
               [ 'chromeos==1 or toolkit_views==1', {
                   'sources/': [ ['include', '_chromeos\\.cc$'] ]
                 },
               ],
-              [ 'linux_use_tcmalloc==1', {
+              [ 'linux_use_heapchecker==1', {
+                  'defines': [
+                    'LINUX_USE_HEAPCHECKER',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'LINUX_USE_HEAPCHECKER',
+                    ],
+                  },
+                },
+              ],
+              # linux_use_heapchecker==1 implies linux_use_tcmalloc=1.
+              [ 'linux_use_tcmalloc==1 or linux_use_heapchecker==1', {
                   'dependencies': [
                     '../third_party/tcmalloc/tcmalloc.gyp:tcmalloc',
                   ],
+                  'defines': [
+                    'LINUX_USE_TCMALLOC',
+                  ],
+                  'direct_dependent_settings': {
+                    'defines': [
+                      'LINUX_USE_TCMALLOC',
+                    ],
+                  },
                 },
               ],
             ],
