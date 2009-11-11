@@ -31,6 +31,7 @@ class ClientSocketFactory;
 class HostResolver;
 class SSLConfigService;
 class SingleRequestHostResolver;
+class SocketStreamMetrics;
 class SocketStreamThrottle;
 
 // SocketStream is used to implement Web Sockets.
@@ -302,6 +303,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   PendingDataQueue pending_write_bufs_;
 
   SocketStreamThrottle* throttle_;
+
+  scoped_ptr<SocketStreamMetrics> metrics_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStream);
 };
