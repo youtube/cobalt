@@ -21,6 +21,8 @@ bool FileURLToFilePath(const GURL& url, FilePath* path) {
 
   // Firefox seems to ignore the "host" of a file url if there is one. That is,
   // file://foo/bar.txt maps to /bar.txt.
+  // TODO(dhg): This should probably take into account UNCs which could
+  // include a hostname other than localhost or blank
   std::string old_path = url.path();
 
   if (old_path.empty())
