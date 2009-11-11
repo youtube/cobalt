@@ -431,6 +431,8 @@
         'socket/tcp_pinger.h',
         'socket_stream/socket_stream.cc',
         'socket_stream/socket_stream.h',
+        'socket_stream/socket_stream_metrics.cc',
+        'socket_stream/socket_stream_metrics.h',
         'socket_stream/socket_stream_throttle.cc',
         'socket_stream/socket_stream_throttle.h',
         'third_party/parseftp/ParseFTPList.cpp',

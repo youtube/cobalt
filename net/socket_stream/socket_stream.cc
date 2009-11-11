@@ -25,6 +25,7 @@
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
 #include "net/socket/tcp_client_socket.h"
+#include "net/socket_stream/socket_stream_metrics.h"
 #include "net/socket_stream/socket_stream_throttle.h"
 #include "net/url_request/url_request.h"
 
@@ -58,7 +59,8 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       write_buf_size_(0),
       throttle_(
           SocketStreamThrottle::GetSocketStreamThrottleForScheme(
-              url.scheme())) {
+              url.scheme())),
+      metrics_(new SocketStreamMetrics(url)) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
@@ -199,6 +201,7 @@ void SocketStream::Finish(int result) {
   if (delegate_)
     delegate_->OnError(this, result);
 
+  metrics_->OnClose();
   Delegate* delegate = delegate_;
   delegate_ = NULL;
   if (delegate) {
@@ -229,6 +232,7 @@ int SocketStream::DidEstablishConnection() {
     return ERR_CONNECTION_FAILED;
   }
   next_state_ = STATE_READ_WRITE;
+  metrics_->OnConnected();
 
   if (delegate_)
     delegate_->OnConnected(this, max_pending_send_allowed_);
@@ -240,6 +244,7 @@ int SocketStream::DidReceiveData(int result) {
   DCHECK(read_buf_);
   DCHECK_GT(result, 0);
   int len = result;
+  metrics_->OnRead(len);
   result = throttle_->OnRead(this, read_buf_->data(), len, &io_callback_);
   if (delegate_) {
     // Notify recevied data to delegate.
@@ -252,6 +257,7 @@ int SocketStream::DidReceiveData(int result) {
 int SocketStream::DidSendData(int result) {
   DCHECK_GT(result, 0);
   int len = result;
+  metrics_->OnWrite(len);
   result = throttle_->OnWrite(this, current_write_buf_->data(), len,
                               &io_callback_);
   current_write_buf_ = NULL;
@@ -425,6 +431,8 @@ int SocketStream::DoResolveHostComplete(int result) {
   if (result == OK) {
     next_state_ = STATE_TCP_CONNECT;
     result = throttle_->OnStartOpenConnection(this, &io_callback_);
+    if (result == net::ERR_IO_PENDING)
+      metrics_->OnWaitConnection();
   } else {
     next_state_ = STATE_CLOSE;
   }
@@ -437,6 +445,7 @@ int SocketStream::DoTcpConnect() {
   DCHECK(factory_);
   socket_.reset(factory_->CreateTCPClientSocket(addresses_));
   // TODO(willchan): Plumb LoadLog into SocketStream.
+  metrics_->OnStartConnection();
   return socket_->Connect(&io_callback_, NULL);
 }
 
@@ -465,6 +474,7 @@ int SocketStream::DoWriteTunnelHeaders() {
   next_state_ = STATE_WRITE_TUNNEL_HEADERS_COMPLETE;
 
   if (!tunnel_request_headers_.get()) {
+    metrics_->OnTunnelProxy();
     tunnel_request_headers_ = new RequestHeaders();
     tunnel_request_headers_bytes_sent_ = 0;
   }
@@ -645,6 +655,7 @@ int SocketStream::DoSOCKSConnect() {
     s = new SOCKSClientSocket(s, req_info, host_resolver_.get());
   socket_.reset(s);
   // TODO(willchan): Plumb LoadLog into SocketStream.
+  metrics_->OnSOCKSProxy();
   return socket_->Connect(&io_callback_, NULL);
 }
 
@@ -666,6 +677,7 @@ int SocketStream::DoSSLConnect() {
       socket_.release(), url_.HostNoBrackets(), ssl_config_));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   // TODO(willchan): Plumb LoadLog into SocketStream.
+  metrics_->OnSSLConnection();
   return socket_->Connect(&io_callback_, NULL);
 }
 
