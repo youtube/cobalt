@@ -27,6 +27,7 @@ namespace net {
 
 class ClientSocket;
 class LoadLog;
+class MockClientSocket;
 class SSLClientSocket;
 
 struct MockConnect {
@@ -78,17 +79,27 @@ struct MockWriteResult {
 // for getting data about individual reads and writes on the socket.
 class SocketDataProvider {
  public:
-  SocketDataProvider() {}
+  SocketDataProvider() : socket_(NULL) {}
 
   virtual ~SocketDataProvider() {}
+
+  // Returns the buffer and result code for the next simulated read.
+  // If the |MockRead.result| is ERR_IO_PENDING, it informs the caller
+  // that it will be called via the MockClientSocket::OnReadComplete()
+  // function at a later time.
   virtual MockRead GetNextRead() = 0;
   virtual MockWriteResult OnWrite(const std::string& data) = 0;
   virtual void Reset() = 0;
+
+  // Accessor for the socket which is using the SocketDataProvider.
+  MockClientSocket* socket() { return socket_; }
+  void set_socket(MockClientSocket* socket) { socket_ = socket; }
 
   MockConnect connect_data() const { return connect_; }
 
  private:
   MockConnect connect_;
+  MockClientSocket* socket_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketDataProvider);
 };
@@ -264,6 +275,11 @@ class MockClientSocket : public net::SSLClientSocket {
   virtual int GetPeerName(struct sockaddr *name, socklen_t *namelen);
 #endif
 
+  // If an async IO is pending because the SocketDataProvider returned
+  // ERR_IO_PENDING, then the MockClientSocket waits until this OnReadComplete
+  // is called to complete the asynchronous read operation.
+  virtual void OnReadComplete(const MockRead& data) = 0;
+
  protected:
   void RunCallbackAsync(net::CompletionCallback* callback, int result);
   void RunCallback(net::CompletionCallback*, int result);
@@ -287,15 +303,24 @@ class MockTCPClientSocket : public MockClientSocket {
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::CompletionCallback* callback);
 
+  virtual void OnReadComplete(const MockRead& data);
+
   net::AddressList addresses() const { return addresses_; }
 
  private:
+  int CompleteRead();
+
   net::AddressList addresses_;
 
   net::SocketDataProvider* data_;
   int read_offset_;
   net::MockRead read_data_;
   bool need_read_data_;
+
+  // While an asynchronous IO is pending, we save our user-buffer state.
+  net::IOBuffer* pending_buf_;
+  int pending_buf_len_;
+  net::CompletionCallback* pending_callback_;
 };
 
 class MockSSLClientSocket : public MockClientSocket {
@@ -317,6 +342,9 @@ class MockSSLClientSocket : public MockClientSocket {
                    net::CompletionCallback* callback);
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::CompletionCallback* callback);
+
+  // This MockSocket does not implement the manual async IO feature.
+  virtual void OnReadComplete(const MockRead& data) { NOTIMPLEMENTED(); }
 
  private:
   class ConnectCallback;
