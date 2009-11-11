@@ -74,11 +74,13 @@ struct MockWriteResult {
   int result;
 };
 
-class MockSocket {
+// The SocketDataProvider is an interface used by the MockClientSocket
+// for getting data about individual reads and writes on the socket.
+class SocketDataProvider {
  public:
-  MockSocket() {}
+  SocketDataProvider() {}
 
-  virtual ~MockSocket() {}
+  virtual ~SocketDataProvider() {}
   virtual MockRead GetNextRead() = 0;
   virtual MockWriteResult OnWrite(const std::string& data) = 0;
   virtual void Reset() = 0;
@@ -88,18 +90,19 @@ class MockSocket {
  private:
   MockConnect connect_;
 
-  DISALLOW_COPY_AND_ASSIGN(MockSocket);
+  DISALLOW_COPY_AND_ASSIGN(SocketDataProvider);
 };
 
-// MockSocket which responds based on static tables of mock reads and writes.
-class StaticMockSocket : public MockSocket {
+// SocketDataProvider which responds based on static tables of mock reads and
+// writes.
+class StaticSocketDataProvider : public SocketDataProvider {
  public:
-  StaticMockSocket() : reads_(NULL), read_index_(0),
+  StaticSocketDataProvider() : reads_(NULL), read_index_(0),
       writes_(NULL), write_index_(0) {}
-  StaticMockSocket(MockRead* r, MockWrite* w) : reads_(r), read_index_(0),
-      writes_(w), write_index_(0) {}
+  StaticSocketDataProvider(MockRead* r, MockWrite* w) : reads_(r),
+      read_index_(0), writes_(w), write_index_(0) {}
 
-  // MockSocket methods:
+  // SocketDataProvider methods:
   virtual MockRead GetNextRead();
   virtual MockWriteResult OnWrite(const std::string& data);
   virtual void Reset();
@@ -117,19 +120,18 @@ class StaticMockSocket : public MockSocket {
   MockWrite* writes_;
   int write_index_;
 
-  DISALLOW_COPY_AND_ASSIGN(StaticMockSocket);
+  DISALLOW_COPY_AND_ASSIGN(StaticSocketDataProvider);
 };
 
-// MockSocket which can make decisions about next mock reads based on
-// received writes. It can also be used to enforce order of operations,
-// for example that tested code must send the "Hello!" message before
-// receiving response. This is useful for testing conversation-like
-// protocols like FTP.
-class DynamicMockSocket : public MockSocket {
+// SocketDataProvider which can make decisions about next mock reads based on
+// received writes. It can also be used to enforce order of operations, for
+// example that tested code must send the "Hello!" message before receiving
+// response. This is useful for testing conversation-like protocols like FTP.
+class DynamicSocketDataProvider : public SocketDataProvider {
  public:
-  DynamicMockSocket();
+  DynamicSocketDataProvider();
 
-  // MockSocket methods:
+  // SocketDataProvider methods:
   virtual MockRead GetNextRead();
   virtual MockWriteResult OnWrite(const std::string& data) = 0;
   virtual void Reset();
@@ -154,34 +156,34 @@ class DynamicMockSocket : public MockSocket {
   // mock the next read.
   bool allow_unconsumed_reads_;
 
-  DISALLOW_COPY_AND_ASSIGN(DynamicMockSocket);
+  DISALLOW_COPY_AND_ASSIGN(DynamicSocketDataProvider);
 };
 
-// MockSSLSockets only need to keep track of the return code from calls to
-// Connect().
-struct  MockSSLSocket {
-  MockSSLSocket(bool async, int result) : connect(async, result) { }
+// SSLSocketDataProviders only need to keep track of the return code from calls
+// to Connect().
+struct SSLSocketDataProvider {
+  SSLSocketDataProvider(bool async, int result) : connect(async, result) { }
 
   MockConnect connect;
 };
 
-// Holds an array of Mock{SSL,}Socket elements.  As Mock{TCP,SSL}ClientSocket
+// Holds an array of SocketDataProvider elements.  As Mock{TCP,SSL}ClientSocket
 // objects get instantiated, they take their data from the i'th element of this
 // array.
 template<typename T>
-class MockSocketArray {
+class SocketDataProviderArray {
  public:
-  MockSocketArray() : next_index_(0) {
+  SocketDataProviderArray() : next_index_(0) {
   }
 
   T* GetNext() {
-    DCHECK(next_index_ < sockets_.size());
-    return sockets_[next_index_++];
+    DCHECK(next_index_ < data_providers_.size());
+    return data_providers_[next_index_++];
   }
 
-  void Add(T* socket) {
-    DCHECK(socket);
-    sockets_.push_back(socket);
+  void Add(T* data_provider) {
+    DCHECK(data_provider);
+    data_providers_.push_back(data_provider);
   }
 
   void ResetNextIndex() {
@@ -189,12 +191,12 @@ class MockSocketArray {
   }
 
  private:
-  // Index of the next |sockets| element to use. Not an iterator because those
-  // are invalidated on vector reallocation.
+  // Index of the next |data_providers_| element to use. Not an iterator
+  // because those are invalidated on vector reallocation.
   size_t next_index_;
 
-  // Mock sockets to be returned.
-  std::vector<T*> sockets_;
+  // SocketDataProviders to be returned.
+  std::vector<T*> data_providers_;
 };
 
 class MockTCPClientSocket;
@@ -207,8 +209,8 @@ class MockSSLClientSocket;
 // socket types.
 class MockClientSocketFactory : public ClientSocketFactory {
  public:
-  void AddMockSocket(MockSocket* socket);
-  void AddMockSSLSocket(MockSSLSocket* socket);
+  void AddSocketDataProvider(SocketDataProvider* socket);
+  void AddSSLSocketDataProvider(SSLSocketDataProvider* socket);
   void ResetNextMockIndexes();
 
   // Return |index|-th MockTCPClientSocket (starting from 0) that the factory
@@ -227,8 +229,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
       const SSLConfig& ssl_config);
 
  private:
-  MockSocketArray<MockSocket> mock_sockets_;
-  MockSocketArray<MockSSLSocket> mock_ssl_sockets_;
+  SocketDataProviderArray<SocketDataProvider> mock_data_;
+  SocketDataProviderArray<SSLSocketDataProvider> mock_ssl_data_;
 
   // Store pointers to handed out sockets in case the test wants to get them.
   std::vector<MockTCPClientSocket*> tcp_client_sockets_;
@@ -273,7 +275,7 @@ class MockClientSocket : public net::SSLClientSocket {
 class MockTCPClientSocket : public MockClientSocket {
  public:
   MockTCPClientSocket(const net::AddressList& addresses,
-                      net::MockSocket* socket);
+                      net::SocketDataProvider* socket);
 
   // ClientSocket methods:
   virtual int Connect(net::CompletionCallback* callback,
@@ -290,7 +292,7 @@ class MockTCPClientSocket : public MockClientSocket {
  private:
   net::AddressList addresses_;
 
-  net::MockSocket* data_;
+  net::SocketDataProvider* data_;
   int read_offset_;
   net::MockRead read_data_;
   bool need_read_data_;
@@ -302,7 +304,7 @@ class MockSSLClientSocket : public MockClientSocket {
       net::ClientSocket* transport_socket,
       const std::string& hostname,
       const net::SSLConfig& ssl_config,
-      net::MockSSLSocket* socket);
+      net::SSLSocketDataProvider* socket);
   ~MockSSLClientSocket();
 
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
@@ -320,7 +322,7 @@ class MockSSLClientSocket : public MockClientSocket {
   class ConnectCallback;
 
   scoped_ptr<ClientSocket> transport_;
-  net::MockSSLSocket* data_;
+  net::SSLSocketDataProvider* data_;
 };
 
 class TestSocketRequest : public CallbackRunner< Tuple1<int> > {

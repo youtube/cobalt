@@ -103,8 +103,8 @@ class HttpNetworkTransactionTest : public PlatformTest {
     request.url = GURL("http://www.google.com/");
     request.load_flags = 0;
 
-    StaticMockSocket data(data_reads, NULL);
-    session_deps.socket_factory.AddMockSocket(&data);
+    StaticSocketDataProvider data(data_reads, NULL);
+    session_deps.socket_factory.AddSocketDataProvider(&data);
 
     TestCompletionCallback callback;
 
@@ -372,8 +372,8 @@ TEST_F(HttpNetworkTransactionTest, Head) {
     MockRead(false, ERR_UNEXPECTED),  // Should not be reached.
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  session_deps.socket_factory.AddMockSocket(&data1);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
 
   TestCompletionCallback callback1;
 
@@ -417,8 +417,8 @@ TEST_F(HttpNetworkTransactionTest, ReuseConnection) {
     MockRead("world"),
     MockRead(false, OK),
   };
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   const char* kExpectedResponseData[] = {
     "hello", "world"
@@ -471,8 +471,8 @@ TEST_F(HttpNetworkTransactionTest, Ignores100) {
     MockRead("hello world"),
     MockRead(false, OK),
   };
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -513,8 +513,8 @@ TEST_F(HttpNetworkTransactionTest, Ignores1xx) {
     MockRead("hello world"),
     MockRead(false, OK),
   };
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -553,16 +553,16 @@ void HttpNetworkTransactionTest::KeepAliveConnectionResendRequestTest(
     MockRead("hello"),
     read_failure,  // Now, we reuse the connection and fail the first read.
   };
-  StaticMockSocket data1(data1_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data1);
+  StaticSocketDataProvider data1(data1_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
 
   MockRead data2_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n"),
     MockRead("world"),
     MockRead(true, OK),
   };
-  StaticMockSocket data2(data2_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data2);
+  StaticSocketDataProvider data2(data2_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   const char* kExpectedResponseData[] = {
     "hello", "world"
@@ -618,8 +618,8 @@ TEST_F(HttpNetworkTransactionTest, NonKeepAliveConnectionReset) {
     MockRead("hello world"),
     MockRead(false, OK),
   };
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -701,10 +701,10 @@ TEST_F(HttpNetworkTransactionTest, BasicAuth) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  StaticMockSocket data2(data_reads2, data_writes2);
-  session_deps.socket_factory.AddMockSocket(&data1);
-  session_deps.socket_factory.AddMockSocket(&data2);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  StaticSocketDataProvider data2(data_reads2, data_writes2);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   TestCompletionCallback callback1;
 
@@ -763,8 +763,8 @@ TEST_F(HttpNetworkTransactionTest, DoNotSendAuth) {
     MockRead(false, ERR_FAILED),
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
   TestCompletionCallback callback;
 
   int rv = trans->Start(&request, &callback, NULL);
@@ -817,8 +817,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  session_deps.socket_factory.AddMockSocket(&data1);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
 
   TestCompletionCallback callback1;
 
@@ -894,8 +894,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  session_deps.socket_factory.AddMockSocket(&data1);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
 
   TestCompletionCallback callback1;
 
@@ -974,8 +974,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveLargeBody) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  session_deps.socket_factory.AddMockSocket(&data1);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
 
   TestCompletionCallback callback1;
 
@@ -1056,8 +1056,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
     MockRead(false, ERR_UNEXPECTED),  // Should not be reached.
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  session_deps.socket_factory.AddMockSocket(&data1);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
 
   TestCompletionCallback callback1;
 
@@ -1137,8 +1137,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyCancelTunnel) {
     MockRead(false, ERR_UNEXPECTED),  // Should not be reached.
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -1189,8 +1189,8 @@ void HttpNetworkTransactionTest::ConnectStatusHelperWithExpectedStatus(
     MockRead(false, ERR_UNEXPECTED),  // Should not be reached.
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -1444,12 +1444,12 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  StaticMockSocket data2(data_reads2, data_writes2);
-  StaticMockSocket data3(data_reads3, data_writes3);
-  session_deps.socket_factory.AddMockSocket(&data1);
-  session_deps.socket_factory.AddMockSocket(&data2);
-  session_deps.socket_factory.AddMockSocket(&data3);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  StaticSocketDataProvider data2(data_reads2, data_writes2);
+  StaticSocketDataProvider data3(data_reads3, data_writes3);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+  session_deps.socket_factory.AddSocketDataProvider(&data3);
 
   TestCompletionCallback callback1;
 
@@ -1583,10 +1583,10 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  StaticMockSocket data2(data_reads2, data_writes2);
-  session_deps.socket_factory.AddMockSocket(&data1);
-  session_deps.socket_factory.AddMockSocket(&data2);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  StaticSocketDataProvider data2(data_reads2, data_writes2);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   TestCompletionCallback callback1;
 
@@ -1753,12 +1753,12 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  StaticMockSocket data2(data_reads2, data_writes2);
-  StaticMockSocket data3(data_reads3, data_writes3);
-  session_deps.socket_factory.AddMockSocket(&data1);
-  session_deps.socket_factory.AddMockSocket(&data2);
-  session_deps.socket_factory.AddMockSocket(&data3);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  StaticSocketDataProvider data2(data_reads2, data_writes2);
+  StaticSocketDataProvider data3(data_reads3, data_writes3);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+  session_deps.socket_factory.AddSocketDataProvider(&data3);
 
   TestCompletionCallback callback1;
 
@@ -1851,8 +1851,8 @@ TEST_F(HttpNetworkTransactionTest, LargeHeadersNoBody) {
     MockRead("\r\nBODY"),
     MockRead(false, OK),
   };
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -1898,8 +1898,8 @@ TEST_F(HttpNetworkTransactionTest, DontRecycleTCPSocketForSSLTunnel) {
     MockRead(false, ERR_UNEXPECTED),  // Should not be reached.
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  session_deps.socket_factory.AddMockSocket(&data1);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
 
   TestCompletionCallback callback1;
 
@@ -1947,8 +1947,8 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocket) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -2004,8 +2004,8 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocketAfterZeroContentLength) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -2073,7 +2073,7 @@ TEST_F(HttpNetworkTransactionTest, ResendRequestOnWriteBodyError) {
     MockWrite(false, 93),  // POST
     MockWrite(false, ERR_CONNECTION_ABORTED),  // POST data
   };
-  StaticMockSocket data1(data_reads1, data_writes1);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
 
   // The second socket is used for the second attempt of transaction 2.
 
@@ -2088,10 +2088,10 @@ TEST_F(HttpNetworkTransactionTest, ResendRequestOnWriteBodyError) {
     MockWrite(false, 93),  // POST
     MockWrite(false, 3),  // POST data
   };
-  StaticMockSocket data2(data_reads2, data_writes2);
+  StaticSocketDataProvider data2(data_reads2, data_writes2);
 
-  session_deps.socket_factory.AddMockSocket(&data1);
-  session_deps.socket_factory.AddMockSocket(&data2);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   const char* kExpectedResponseData[] = {
     "hello world", "welcome"
@@ -2169,10 +2169,10 @@ TEST_F(HttpNetworkTransactionTest, AuthIdentityInURL) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  StaticMockSocket data2(data_reads2, data_writes2);
-  session_deps.socket_factory.AddMockSocket(&data1);
-  session_deps.socket_factory.AddMockSocket(&data2);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  StaticSocketDataProvider data2(data_reads2, data_writes2);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   TestCompletionCallback callback1;
 
@@ -2262,12 +2262,12 @@ TEST_F(HttpNetworkTransactionTest, WrongAuthIdentityInURL) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  StaticMockSocket data2(data_reads2, data_writes2);
-  StaticMockSocket data3(data_reads3, data_writes3);
-  session_deps.socket_factory.AddMockSocket(&data1);
-  session_deps.socket_factory.AddMockSocket(&data2);
-  session_deps.socket_factory.AddMockSocket(&data3);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  StaticSocketDataProvider data2(data_reads2, data_writes2);
+  StaticSocketDataProvider data3(data_reads3, data_writes3);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+  session_deps.socket_factory.AddSocketDataProvider(&data3);
 
   TestCompletionCallback callback1;
 
@@ -2355,10 +2355,10 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
       MockRead(false, OK),
     };
 
-    StaticMockSocket data1(data_reads1, data_writes1);
-    StaticMockSocket data2(data_reads2, data_writes2);
-    session_deps.socket_factory.AddMockSocket(&data1);
-    session_deps.socket_factory.AddMockSocket(&data2);
+    StaticSocketDataProvider data1(data_reads1, data_writes1);
+    StaticSocketDataProvider data2(data_reads2, data_writes2);
+    session_deps.socket_factory.AddSocketDataProvider(&data1);
+    session_deps.socket_factory.AddSocketDataProvider(&data2);
 
     TestCompletionCallback callback1;
 
@@ -2438,10 +2438,10 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
       MockRead(false, OK),
     };
 
-    StaticMockSocket data1(data_reads1, data_writes1);
-    StaticMockSocket data2(data_reads2, data_writes2);
-    session_deps.socket_factory.AddMockSocket(&data1);
-    session_deps.socket_factory.AddMockSocket(&data2);
+    StaticSocketDataProvider data1(data_reads1, data_writes1);
+    StaticSocketDataProvider data2(data_reads2, data_writes2);
+    session_deps.socket_factory.AddSocketDataProvider(&data1);
+    session_deps.socket_factory.AddSocketDataProvider(&data2);
 
     TestCompletionCallback callback1;
 
@@ -2504,8 +2504,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
       MockRead(false, OK),
     };
 
-    StaticMockSocket data1(data_reads1, data_writes1);
-    session_deps.socket_factory.AddMockSocket(&data1);
+    StaticSocketDataProvider data1(data_reads1, data_writes1);
+    session_deps.socket_factory.AddSocketDataProvider(&data1);
 
     TestCompletionCallback callback1;
 
@@ -2562,10 +2562,10 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
       MockRead(false, OK),
     };
 
-    StaticMockSocket data1(data_reads1, data_writes1);
-    StaticMockSocket data2(data_reads2, data_writes2);
-    session_deps.socket_factory.AddMockSocket(&data1);
-    session_deps.socket_factory.AddMockSocket(&data2);
+    StaticSocketDataProvider data1(data_reads1, data_writes1);
+    StaticSocketDataProvider data2(data_reads2, data_writes2);
+    session_deps.socket_factory.AddSocketDataProvider(&data1);
+    session_deps.socket_factory.AddSocketDataProvider(&data2);
 
     TestCompletionCallback callback1;
 
@@ -2646,12 +2646,12 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
       MockRead(false, OK),
     };
 
-    StaticMockSocket data1(data_reads1, data_writes1);
-    StaticMockSocket data2(data_reads2, data_writes2);
-    StaticMockSocket data3(data_reads3, data_writes3);
-    session_deps.socket_factory.AddMockSocket(&data1);
-    session_deps.socket_factory.AddMockSocket(&data2);
-    session_deps.socket_factory.AddMockSocket(&data3);
+    StaticSocketDataProvider data1(data_reads1, data_writes1);
+    StaticSocketDataProvider data2(data_reads2, data_writes2);
+    StaticSocketDataProvider data3(data_reads3, data_writes3);
+    session_deps.socket_factory.AddSocketDataProvider(&data1);
+    session_deps.socket_factory.AddSocketDataProvider(&data2);
+    session_deps.socket_factory.AddSocketDataProvider(&data3);
 
     TestCompletionCallback callback1;
 
@@ -2763,15 +2763,15 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificate) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket ssl_bad_certificate;
-  StaticMockSocket data(data_reads, data_writes);
-  MockSSLSocket ssl_bad(true, ERR_CERT_AUTHORITY_INVALID);
-  MockSSLSocket ssl(true, OK);
+  StaticSocketDataProvider ssl_bad_certificate;
+  StaticSocketDataProvider data(data_reads, data_writes);
+  SSLSocketDataProvider ssl_bad(true, ERR_CERT_AUTHORITY_INVALID);
+  SSLSocketDataProvider ssl(true, OK);
 
-  session_deps.socket_factory.AddMockSocket(&ssl_bad_certificate);
-  session_deps.socket_factory.AddMockSocket(&data);
-  session_deps.socket_factory.AddMockSSLSocket(&ssl_bad);
-  session_deps.socket_factory.AddMockSSLSocket(&ssl);
+  session_deps.socket_factory.AddSocketDataProvider(&ssl_bad_certificate);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_bad);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback callback;
 
@@ -2831,15 +2831,15 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaProxy) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket ssl_bad_certificate(proxy_reads, proxy_writes);
-  StaticMockSocket data(data_reads, data_writes);
-  MockSSLSocket ssl_bad(true, ERR_CERT_AUTHORITY_INVALID);
-  MockSSLSocket ssl(true, OK);
+  StaticSocketDataProvider ssl_bad_certificate(proxy_reads, proxy_writes);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  SSLSocketDataProvider ssl_bad(true, ERR_CERT_AUTHORITY_INVALID);
+  SSLSocketDataProvider ssl(true, OK);
 
-  session_deps.socket_factory.AddMockSocket(&ssl_bad_certificate);
-  session_deps.socket_factory.AddMockSocket(&data);
-  session_deps.socket_factory.AddMockSSLSocket(&ssl_bad);
-  session_deps.socket_factory.AddMockSSLSocket(&ssl);
+  session_deps.socket_factory.AddSocketDataProvider(&ssl_bad_certificate);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl_bad);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback callback;
 
@@ -2893,8 +2893,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_UserAgent) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -2931,8 +2931,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_Referer) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -2967,8 +2967,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_PostContentLengthZero) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3003,8 +3003,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_PutContentLengthZero) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3039,8 +3039,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_HeadContentLengthZero) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3077,8 +3077,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_CacheControlNoCache) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3115,8 +3115,8 @@ TEST_F(HttpNetworkTransactionTest,
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3152,8 +3152,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeaders) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3187,15 +3187,15 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
   };
 
   MockRead data_reads[] = {
-    MockWrite(true, read_buffer, arraysize(read_buffer)),
+    MockRead(true, read_buffer, arraysize(read_buffer)),
     MockRead("HTTP/1.0 200 OK\r\n"),
     MockRead("Content-Type: text/html; charset=iso-8859-1\r\n\r\n"),
     MockRead("Payload"),
     MockRead(false, OK)
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3246,11 +3246,11 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_SSL_GET) {
     MockRead(false, OK)
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
-  MockSSLSocket ssl(true, OK);
-  session_deps.socket_factory.AddMockSSLSocket(&ssl);
+  SSLSocketDataProvider ssl(true, OK);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback callback;
 
@@ -3305,8 +3305,8 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_HTTP_GET) {
     MockRead(false, OK)
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3362,11 +3362,11 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_SSL_GET) {
     MockRead(false, OK)
   };
 
-  StaticMockSocket data(data_reads, data_writes);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, data_writes);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
-  MockSSLSocket ssl(true, OK);
-  session_deps.socket_factory.AddMockSSLSocket(&ssl);
+  SSLSocketDataProvider ssl(true, OK);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback callback;
 
@@ -3532,8 +3532,8 @@ TEST_F(HttpNetworkTransactionTest, ResolveMadeWithReferrer) {
   MockRead data_reads[] = {
     MockRead(false, ERR_FAILED),
   };
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   // Issue a request, containing an HTTP referrer.
   HttpRequestInfo request;
@@ -3587,8 +3587,8 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   // Connect up a mock socket which will fail with ERR_UNEXPECTED during the
   // first read -- this won't be reached as the host resolution will fail first.
   MockRead data_reads[] = { MockRead(false, ERR_UNEXPECTED) };
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   // Issue a request, asking to bypass the cache(s).
   HttpRequestInfo request;
@@ -3620,8 +3620,8 @@ TEST_F(HttpNetworkTransactionTest, RequestWriteError) {
   MockWrite write_failure[] = {
     MockWrite(true, ERR_CONNECTION_RESET),
   };
-  StaticMockSocket data(NULL, write_failure);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(NULL, write_failure);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3650,8 +3650,8 @@ TEST_F(HttpNetworkTransactionTest, ConnectionClosedAfterStartOfHeaders) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data(data_reads, NULL);
-  session_deps.socket_factory.AddMockSocket(&data);
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
 
@@ -3703,8 +3703,8 @@ TEST_F(HttpNetworkTransactionTest, DrainResetOK) {
     MockRead(true, ERR_CONNECTION_RESET),
   };
 
-  StaticMockSocket data1(data_reads1, data_writes1);
-  session_deps.socket_factory.AddMockSocket(&data1);
+  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
 
   // After calling trans->RestartWithAuth(), this is the request we should
   // be issuing -- the final header line contains the credentials.
@@ -3723,8 +3723,8 @@ TEST_F(HttpNetworkTransactionTest, DrainResetOK) {
     MockRead(false, OK),
   };
 
-  StaticMockSocket data2(data_reads2, data_writes2);
-  session_deps.socket_factory.AddMockSocket(&data2);
+  StaticSocketDataProvider data2(data_reads2, data_writes2);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
 
   TestCompletionCallback callback1;
 
@@ -3772,11 +3772,11 @@ TEST_F(HttpNetworkTransactionTest, HTTPSViaProxyWithExtraData) {
     MockRead(false, OK)
   };
 
-  StaticMockSocket data(proxy_reads, NULL);
-  MockSSLSocket ssl(true, OK);
+  StaticSocketDataProvider data(proxy_reads, NULL);
+  SSLSocketDataProvider ssl(true, OK);
 
-  session_deps.socket_factory.AddMockSocket(&data);
-  session_deps.socket_factory.AddMockSSLSocket(&ssl);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   TestCompletionCallback callback;
 
