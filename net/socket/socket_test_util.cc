@@ -62,9 +62,9 @@ void MockClientSocket::RunCallback(net::CompletionCallback* callback,
 }
 
 MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
-                                         net::MockSocket* socket)
+                                         net::SocketDataProvider* data)
     : addresses_(addresses),
-      data_(socket),
+      data_(data),
       read_offset_(0),
       read_data_(true, net::ERR_UNEXPECTED),
       need_read_data_(true) {
@@ -163,9 +163,9 @@ MockSSLClientSocket::MockSSLClientSocket(
     net::ClientSocket* transport_socket,
     const std::string& hostname,
     const net::SSLConfig& ssl_config,
-    net::MockSSLSocket* socket)
+    net::SSLSocketDataProvider* data)
     : transport_(transport_socket),
-      data_(socket) {
+      data_(data) {
   DCHECK(data_);
 }
 
@@ -211,11 +211,11 @@ int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
   return transport_->Write(buf, buf_len, callback);
 }
 
-MockRead StaticMockSocket::GetNextRead() {
+MockRead StaticSocketDataProvider::GetNextRead() {
   return reads_[read_index_++];
 }
 
-MockWriteResult StaticMockSocket::OnWrite(const std::string& data) {
+MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
   if (!writes_) {
     // Not using mock writes; succeed synchronously.
     return MockWriteResult(false, data.length());
@@ -236,17 +236,17 @@ MockWriteResult StaticMockSocket::OnWrite(const std::string& data) {
   return MockWriteResult(w->async, result);
 }
 
-void StaticMockSocket::Reset() {
+void StaticSocketDataProvider::Reset() {
   read_index_ = 0;
   write_index_ = 0;
 }
 
-DynamicMockSocket::DynamicMockSocket()
+DynamicSocketDataProvider::DynamicSocketDataProvider()
     : short_read_limit_(0),
       allow_unconsumed_reads_(false) {
 }
 
-MockRead DynamicMockSocket::GetNextRead() {
+MockRead DynamicSocketDataProvider::GetNextRead() {
   if (reads_.empty())
     return MockRead(true, ERR_UNEXPECTED);
   MockRead result = reads_.front();
@@ -260,28 +260,30 @@ MockRead DynamicMockSocket::GetNextRead() {
   return result;
 }
 
-void DynamicMockSocket::Reset() {
+void DynamicSocketDataProvider::Reset() {
   reads_.clear();
 }
 
-void DynamicMockSocket::SimulateRead(const char* data) {
+void DynamicSocketDataProvider::SimulateRead(const char* data) {
   if (!allow_unconsumed_reads_) {
     EXPECT_TRUE(reads_.empty()) << "Unconsumed read: " << reads_.front().data;
   }
   reads_.push_back(MockRead(data));
 }
 
-void MockClientSocketFactory::AddMockSocket(MockSocket* socket) {
-  mock_sockets_.Add(socket);
+void MockClientSocketFactory::AddSocketDataProvider(
+    SocketDataProvider* data) {
+  mock_data_.Add(data);
 }
 
-void MockClientSocketFactory::AddMockSSLSocket(MockSSLSocket* socket) {
-  mock_ssl_sockets_.Add(socket);
+void MockClientSocketFactory::AddSSLSocketDataProvider(
+    SSLSocketDataProvider* data) {
+  mock_ssl_data_.Add(data);
 }
 
 void MockClientSocketFactory::ResetNextMockIndexes() {
-  mock_sockets_.ResetNextIndex();
-  mock_ssl_sockets_.ResetNextIndex();
+  mock_data_.ResetNextIndex();
+  mock_ssl_data_.ResetNextIndex();
 }
 
 MockTCPClientSocket* MockClientSocketFactory::GetMockTCPClientSocket(
@@ -297,7 +299,7 @@ MockSSLClientSocket* MockClientSocketFactory::GetMockSSLClientSocket(
 ClientSocket* MockClientSocketFactory::CreateTCPClientSocket(
     const AddressList& addresses) {
   MockTCPClientSocket* socket =
-      new MockTCPClientSocket(addresses, mock_sockets_.GetNext());
+      new MockTCPClientSocket(addresses, mock_data_.GetNext());
   tcp_client_sockets_.push_back(socket);
   return socket;
 }
@@ -308,7 +310,7 @@ SSLClientSocket* MockClientSocketFactory::CreateSSLClientSocket(
     const SSLConfig& ssl_config) {
   MockSSLClientSocket* socket =
       new MockSSLClientSocket(transport_socket, hostname, ssl_config,
-                              mock_ssl_sockets_.GetNext());
+                              mock_ssl_data_.GetNext());
   ssl_client_sockets_.push_back(socket);
   return socket;
 }
