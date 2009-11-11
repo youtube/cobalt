@@ -67,7 +67,10 @@ MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
       data_(data),
       read_offset_(0),
       read_data_(true, net::ERR_UNEXPECTED),
-      need_read_data_(true) {
+      need_read_data_(true),
+      pending_buf_(NULL),
+      pending_buf_len_(0),
+      pending_callback_(NULL) {
   DCHECK(data_);
   data_->Reset();
 }
@@ -89,29 +92,26 @@ int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
   if (!IsConnected())
     return net::ERR_UNEXPECTED;
 
+  // If the buffer is already in use, a read is already in progress!
+  DCHECK(pending_buf_ == NULL);
+
+  // Store our async IO data.
+  pending_buf_ = buf;
+  pending_buf_len_ = buf_len;
+  pending_callback_ = callback;
+
   if (need_read_data_) {
     read_data_ = data_->GetNextRead();
+    // ERR_IO_PENDING means that the SocketDataProvider is taking responsibility
+    // to complete the async IO manually later (via OnReadComplete).
+    if (read_data_.result == ERR_IO_PENDING) {
+      DCHECK(callback);  // We need to be using async IO in this case.
+      return ERR_IO_PENDING;
+    }
     need_read_data_ = false;
   }
-  int result = read_data_.result;
-  if (read_data_.data) {
-    if (read_data_.data_len - read_offset_ > 0) {
-      result = std::min(buf_len, read_data_.data_len - read_offset_);
-      memcpy(buf->data(), read_data_.data + read_offset_, result);
-      read_offset_ += result;
-      if (read_offset_ == read_data_.data_len) {
-        need_read_data_ = true;
-        read_offset_ = 0;
-      }
-    } else {
-      result = 0;  // EOF
-    }
-  }
-  if (read_data_.async) {
-    RunCallbackAsync(callback, result);
-    return net::ERR_IO_PENDING;
-  }
-  return result;
+
+  return CompleteRead();
 }
 
 int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
@@ -130,6 +130,59 @@ int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
     return net::ERR_IO_PENDING;
   }
   return write_result.result;
+}
+
+void MockTCPClientSocket::OnReadComplete(const MockRead& data) {
+  // There must be a read pending.
+  DCHECK(pending_buf_);
+  // You can't complete a read with another ERR_IO_PENDING status code.
+  DCHECK_NE(ERR_IO_PENDING, data.result);
+  // Since we've been waiting for data, need_read_data_ should be true.
+  DCHECK(need_read_data_);
+  // In order to fire the callback, this IO needs to be marked as async.
+  DCHECK(data.async);
+
+  read_data_ = data;
+  need_read_data_ = false;
+
+  CompleteRead();
+}
+
+int MockTCPClientSocket::CompleteRead() {
+  DCHECK(pending_buf_);
+  DCHECK(pending_buf_len_ > 0);
+
+  // Save the pending async IO data and reset our |pending_| state.
+  net::IOBuffer* buf = pending_buf_;
+  int buf_len = pending_buf_len_;
+  net::CompletionCallback* callback = pending_callback_;
+  pending_buf_ = NULL;
+  pending_buf_len_ = 0;
+  pending_callback_ = NULL;
+
+  int result = read_data_.result;
+  DCHECK(result != ERR_IO_PENDING);
+
+  if (read_data_.data) {
+    if (read_data_.data_len - read_offset_ > 0) {
+      result = std::min(buf_len, read_data_.data_len - read_offset_);
+      memcpy(buf->data(), read_data_.data + read_offset_, result);
+      read_offset_ += result;
+      if (read_offset_ == read_data_.data_len) {
+        need_read_data_ = true;
+        read_offset_ = 0;
+      }
+    } else {
+      result = 0;  // EOF
+    }
+  }
+
+  if (read_data_.async) {
+    DCHECK(callback);
+    RunCallbackAsync(callback, result);
+    return net::ERR_IO_PENDING;
+  }
+  return result;
 }
 
 class MockSSLClientSocket::ConnectCallback :
@@ -212,7 +265,10 @@ int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
 }
 
 MockRead StaticSocketDataProvider::GetNextRead() {
-  return reads_[read_index_++];
+  MockRead rv = reads_[read_index_];
+  if (reads_[read_index_].data_len != 0)
+    read_index_++;  // Don't advance past an EOF.
+  return rv;
 }
 
 MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
@@ -298,8 +354,10 @@ MockSSLClientSocket* MockClientSocketFactory::GetMockSSLClientSocket(
 
 ClientSocket* MockClientSocketFactory::CreateTCPClientSocket(
     const AddressList& addresses) {
+  SocketDataProvider* data_provider = mock_data_.GetNext();
   MockTCPClientSocket* socket =
-      new MockTCPClientSocket(addresses, mock_data_.GetNext());
+      new MockTCPClientSocket(addresses, data_provider);
+  data_provider->set_socket(socket);
   tcp_client_sockets_.push_back(socket);
   return socket;
 }
