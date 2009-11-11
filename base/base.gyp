@@ -376,9 +376,6 @@
       ],
       'conditions': [
         [ 'OS == "linux" or OS == "freebsd"', {
-            'variables' : {
-              'linux_use_tcmalloc%': 0,
-            },
             'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
                           ['exclude', '\\.mm?$' ] ],
             'conditions': [
