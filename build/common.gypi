@@ -176,6 +176,9 @@
     # Strip the binary after dumping symbols.
     'linux_strip_binary%': 0,
 
+    # Enable TCMalloc.
+    'linux_use_tcmalloc%': 0,
+
     # Set to select the Title Case versions of strings in GRD files.
     'use_titlecase_in_grd_files%': 0,
 
@@ -708,6 +711,9 @@
                 'cflags': ['-fPIC']
               }]
             ],
+          }],
+          ['linux_use_tcmalloc==1', {
+            'defines': ['LINUX_USE_TCMALLOC'],
           }],
         ],
       },
