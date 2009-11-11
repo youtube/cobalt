@@ -45,7 +45,7 @@ class SOCKS5ClientSocketTest : public PlatformTest {
   ClientSocket* tcp_sock_;
   TestCompletionCallback callback_;
   scoped_refptr<MockHostResolver> host_resolver_;
-  scoped_ptr<MockSocket> mock_socket_;
+  scoped_ptr<SocketDataProvider> data_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SOCKS5ClientSocketTest);
@@ -72,8 +72,8 @@ SOCKS5ClientSocket* SOCKS5ClientSocketTest::BuildMockSocket(
     int port) {
 
   TestCompletionCallback callback;
-  mock_socket_.reset(new StaticMockSocket(reads, writes));
-  tcp_sock_ = new MockTCPClientSocket(address_list_, mock_socket_.get());
+  data_.reset(new StaticSocketDataProvider(reads, writes));
+  tcp_sock_ = new MockTCPClientSocket(address_list_, data_.get());
 
   int rv = tcp_sock_->Connect(&callback, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
