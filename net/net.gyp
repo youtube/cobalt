@@ -335,6 +335,8 @@
         'http/http_byte_range.h',
         'http/http_cache.cc',
         'http/http_cache.h',
+        'http/http_cache_transaction.cc',
+        'http/http_cache_transaction.h',
         'http/http_chunked_decoder.cc',
         'http/http_chunked_decoder.h',
         'http/http_network_layer.cc',
