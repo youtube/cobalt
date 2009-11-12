@@ -101,7 +101,6 @@ As of Nov 9, 2009, these are our changes from sqlite_vendor:
    tables.
  - fts2.c disables fts2_tokenizer().
  - sqlite3Poison() in src/btree.c.
- - BEGIN defaults to BEGIN IMMEDIATE in parse.y.
  - Tweak to SQLITE_EXTENSION_INIT* in sqlite3ext.h.
    - That implied a change in src/test_autoext.c for testing.
  - Added fts.test and fts1.test in tests, modified quick.test.

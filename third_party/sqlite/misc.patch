@@ -295,23 +295,6 @@ Index: src/os_win.c
 +}
 +
  #endif /* SQLITE_OS_WIN */
-Index: src/parse.y
-===================================================================
---- src/parse.y	2009-09-04 13:37:42.000000000 -0700
-+++ src/parse.y	2009-09-15 11:32:03.000000000 -0700
-@@ -121,7 +121,12 @@
- trans_opt ::= TRANSACTION.
- trans_opt ::= TRANSACTION nm.
- %type transtype {int}
-+%ifdef SQLITE_TRANSACTION_DEFAULT_IMMEDIATE
-+transtype(A) ::= .             {A = TK_IMMEDIATE;}
-+%endif  SQLITE_TRANSACTION_DEFAULT_IMMEDIATE
-+%ifndef SQLITE_TRANSACTION_DEFAULT_IMMEDIATE
- transtype(A) ::= .             {A = TK_DEFERRED;}
-+%endif  SQLITE_TRANSACTION_DEFAULT_IMMEDIATE
- transtype(A) ::= DEFERRED(X).  {A = @X;}
- transtype(A) ::= IMMEDIATE(X). {A = @X;}
- transtype(A) ::= EXCLUSIVE(X). {A = @X;}
 Index: src/pcache.c
 ===================================================================
 --- src/pcache.c	2009-09-04 13:37:42.000000000 -0700
