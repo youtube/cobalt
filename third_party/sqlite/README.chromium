@@ -95,7 +95,7 @@ Chris Evans <cevans@google.com>, Oct 1, 2009
 
 --------------------------------------------
 
-As of Oct 1, 2009, these are our changes from sqlite_vendor:
+As of Nov 9, 2009, these are our changes from sqlite_vendor:
 
  - A large number of fts2 robustness fixes against corrupt data in its metadata
    tables.
@@ -141,6 +141,18 @@ Changes from Chrome:
  - Added a new function chromium_sqlite3_initialize_win_sqlite3_file()
    at the end of os_win.c. It allows the Windows-specific Chromium VFS
    to reuse most of the win32 SQLite VFS.
- - Added a new function initUnixFile() and made fillInUnixFile()
-   non-static in os_unix.c. It allows the Linux-specific Chromium VFS
-   to reuse most of the unix SQLite VFS.
+ - Added a new function
+   chromium_sqlite3_initialize_unix_sqlite3_file() and made
+   fillInUnixFile() non-static in os_unix.c. It allows the
+   Linux-specific Chromium VFS to reuse most of the unix SQLite VFS.
+ - Exposed three functions that deal with unused file descriptors in
+   os_unix.c, to allow Chromium's Posix VFS implementation in
+   WebKit/WebCore/platform/sql/chromium/SQLiteFileSystemChromiumPosix.cpp
+   to correctly implement the "unused file descriptors" logic in the
+   xDlOpen() method. The new functions are
+   chromium_sqlite3_get_reusable_file_handle(),
+   chromium_sqlite3_update_reusable_file_handle() and
+   chromium_sqlite3_destroy_reusable_file_handle(). Also, added the
+   chromium_sqlite3_fill_in_unix_sqlite3_file() function that calls
+   fillInUnixFile(), which will be made static again as soon as a
+   WebKit patch using the new function lands.
