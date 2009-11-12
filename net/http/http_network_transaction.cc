@@ -276,8 +276,11 @@ void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
 }
 
 void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
-  if (keep_alive) {
+  if (keep_alive && connection_.socket()->IsConnectedAndIdle()) {
+    // We should call connection_.set_idle_time(), but this doesn't occur
+    // often enough to be worth the trouble.
     next_state_ = STATE_SEND_REQUEST;
+    connection_.set_is_reused(true);
     reused_socket_ = true;
   } else {
     next_state_ = STATE_INIT_CONNECTION;
