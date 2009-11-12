@@ -436,6 +436,12 @@ bool EnableLowFragmentationHeap();
 // overflow. Has no effect if the OS doesn't provide the necessary facility.
 void EnableTerminationOnHeapCorruption();
 
+#if !defined(OS_WIN)
+// Turns on process termination if memory runs out. This is handled on Windows
+// inside RegisterInvalidParamHandler().
+void EnableTerminationOnOutOfMemory();
+#endif
+
 #if defined(UNIT_TEST)
 // Enables stack dump to console output on exception and signals.
 // When enabled, the process will quit immediately. This is meant to be used in
