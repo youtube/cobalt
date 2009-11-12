@@ -496,4 +496,9 @@ size_t GetSystemCommitCharge() {
   return result_in_kb;
 }
 
+void EnableTerminationOnOutOfMemory() {
+  // http://crbug.com/27222
+  NOTIMPLEMENTED();
+}
+
 }  // namespace base
