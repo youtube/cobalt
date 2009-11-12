@@ -285,6 +285,9 @@ NET_ERROR(ENCODING_CONVERSION_FAILED, -333)
 // The server sent an FTP directory listing in a format we do not understand.
 NET_ERROR(UNRECOGNIZED_FTP_DIRECTORY_LISTING_FORMAT, -334)
 
+// Attempted use of an unknown FLIP stream id.
+NET_ERROR(INVALID_FLIP_STREAM, -335)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
