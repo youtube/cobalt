@@ -52,6 +52,19 @@ TEST_F(SysInfoTest, OperatingSystemVersionNumbers) {
 }
 #endif
 
+TEST_F(SysInfoTest, GetPrimaryDisplayDimensions) {
+  // We aren't actually testing that it's correct, just that it's sane.
+  int width, height;
+  base::SysInfo::GetPrimaryDisplayDimensions(&width, &height);
+  EXPECT_GE(width, 10);
+  EXPECT_GE(height, 10);
+}
+
+TEST_F(SysInfoTest, DisplayCount) {
+  // We aren't actually testing that it's correct, just that it's sane.
+  EXPECT_GE(base::SysInfo::DisplayCount(), 1);
+}
+
 #if defined(OS_CHROMEOS)
 TEST_F(SysInfoTest, GoogleChromeOSVersionNumbers) {
   int32 os_major_version = -1;
