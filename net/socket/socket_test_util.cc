@@ -66,8 +66,9 @@ MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
     : addresses_(addresses),
       data_(data),
       read_offset_(0),
-      read_data_(true, net::ERR_UNEXPECTED),
+      read_data_(false, net::ERR_UNEXPECTED),
       need_read_data_(true),
+      peer_closed_connection_(false),
       pending_buf_(NULL),
       pending_buf_len_(0),
       pending_callback_(NULL) {
@@ -87,9 +88,13 @@ int MockTCPClientSocket::Connect(net::CompletionCallback* callback,
   return data_->connect_data().result;
 }
 
+bool MockTCPClientSocket::IsConnected() const {
+  return connected_ && !peer_closed_connection_;
+}
+
 int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* callback) {
-  if (!IsConnected())
+  if (!connected_)
     return net::ERR_UNEXPECTED;
 
   // If the buffer is already in use, a read is already in progress!
@@ -102,6 +107,12 @@ int MockTCPClientSocket::Read(net::IOBuffer* buf, int buf_len,
 
   if (need_read_data_) {
     read_data_ = data_->GetNextRead();
+    if (read_data_.result == ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ) {
+      // This MockRead is just a marker to instruct us to set
+      // peer_closed_connection_.  Skip it and get the next one.
+      read_data_ = data_->GetNextRead();
+      peer_closed_connection_ = true;
+    }
     // ERR_IO_PENDING means that the SocketDataProvider is taking responsibility
     // to complete the async IO manually later (via OnReadComplete).
     if (read_data_.result == ERR_IO_PENDING) {
@@ -119,7 +130,7 @@ int MockTCPClientSocket::Write(net::IOBuffer* buf, int buf_len,
   DCHECK(buf);
   DCHECK_GT(buf_len, 0);
 
-  if (!IsConnected())
+  if (!connected_)
     return net::ERR_UNEXPECTED;
 
   std::string data(buf->data(), buf_len);
@@ -304,7 +315,7 @@ DynamicSocketDataProvider::DynamicSocketDataProvider()
 
 MockRead DynamicSocketDataProvider::GetNextRead() {
   if (reads_.empty())
-    return MockRead(true, ERR_UNEXPECTED);
+    return MockRead(false, ERR_UNEXPECTED);
   MockRead result = reads_.front();
   if (short_read_limit_ == 0 || result.data_len <= short_read_limit_) {
     reads_.pop_front();
