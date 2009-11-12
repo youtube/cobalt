@@ -25,6 +25,15 @@
 
 namespace net {
 
+enum {
+  // A private network error code used by the socket test utility classes.
+  // If the |result| member of a MockRead is
+  // ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ, that MockRead is just a
+  // marker that indicates the peer will close the connection after the next
+  // MockRead.  The other members of that MockRead are ignored.
+  ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ = -10000,
+};
+
 class ClientSocket;
 class LoadLog;
 class MockClientSocket;
@@ -285,6 +294,8 @@ class MockClientSocket : public net::SSLClientSocket {
   void RunCallback(net::CompletionCallback*, int result);
 
   ScopedRunnableMethodFactory<MockClientSocket> method_factory_;
+
+  // True if Connect completed successfully and Disconnect hasn't been called.
   bool connected_;
 };
 
@@ -296,6 +307,8 @@ class MockTCPClientSocket : public MockClientSocket {
   // ClientSocket methods:
   virtual int Connect(net::CompletionCallback* callback,
                       LoadLog* load_log);
+  virtual bool IsConnected() const;
+  virtual bool IsConnectedAndIdle() const { return IsConnected(); }
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
@@ -316,6 +329,11 @@ class MockTCPClientSocket : public MockClientSocket {
   int read_offset_;
   net::MockRead read_data_;
   bool need_read_data_;
+
+  // True if the peer has closed the connection.  This allows us to simulate
+  // the recv(..., MSG_PEEK) call in the IsConnectedAndIdle method of the real
+  // TCPClientSocket.
+  bool peer_closed_connection_;
 
   // While an asynchronous IO is pending, we save our user-buffer state.
   net::IOBuffer* pending_buf_;
