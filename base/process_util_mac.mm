@@ -10,6 +10,7 @@
 #include <mach/mach.h>
 #include <mach/mach_init.h>
 #include <mach/task.h>
+#include <malloc/malloc.h>
 #include <spawn.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -233,6 +234,95 @@ size_t GetSystemCommitCharge() {
     return 0;
 
   return (data.active_count * page_size) / 1024;
+}
+
+// ------------------------------------------------------------------------
+
+namespace {
+
+typedef void* (*malloc_type)(struct _malloc_zone_t* zone,
+                             size_t size);
+typedef void* (*calloc_type)(struct _malloc_zone_t* zone,
+                             size_t num_items,
+                             size_t size);
+typedef void* (*valloc_type)(struct _malloc_zone_t* zone,
+                             size_t size);
+typedef void* (*realloc_type)(struct _malloc_zone_t* zone,
+                              void* ptr,
+                              size_t size);
+
+malloc_type g_old_malloc;
+calloc_type g_old_calloc;
+valloc_type g_old_valloc;
+realloc_type g_old_realloc;
+
+void* oom_killer_malloc(struct _malloc_zone_t* zone,
+                        size_t size) {
+  void* result = g_old_malloc(zone, size);
+  if (size)
+    CHECK(result) << "Out of memory, size = " << size;
+  return result;
+}
+
+void* oom_killer_calloc(struct _malloc_zone_t* zone,
+                        size_t num_items,
+                        size_t size) {
+  void* result = g_old_calloc(zone, num_items, size);
+  if (size)
+    CHECK(result) << "Out of memory, num_items = " << num_items
+                  << ", size = " << size;
+  return result;
+}
+
+void* oom_killer_valloc(struct _malloc_zone_t* zone,
+                        size_t size) {
+  void* result = g_old_valloc(zone, size);
+  if (size)
+    CHECK(result) << "Out of memory, size = " << size;
+  return result;
+}
+
+void* oom_killer_realloc(struct _malloc_zone_t* zone,
+                         void* ptr,
+                         size_t size) {
+  void* result = g_old_realloc(zone, ptr, size);
+  if (size)
+    CHECK(result) << "Out of memory, size = " << size;
+  return result;
+}
+
+}  // namespace
+
+void EnableTerminationOnOutOfMemory() {
+  CHECK(!g_old_malloc && !g_old_calloc && !g_old_valloc && !g_old_realloc)
+      << "EnableTerminationOnOutOfMemory() called twice!";
+
+  // This approach is sub-optimal:
+  // - Requests for amounts of memory larger than MALLOC_ABSOLUTE_MAX_SIZE
+  //   (currently SIZE_T_MAX - (2 * PAGE_SIZE)) will still fail with a NULL
+  //   rather than dying (see
+  //   http://opensource.apple.com/source/Libc/Libc-583/gen/malloc.c for
+  //   details).
+  // - It is unclear whether allocations via the C++ operator new() are affected
+  //   by this (although it is likely).
+  // - This does not affect allocations from non-default zones.
+  // - It is unclear whether allocations from CoreFoundation's
+  //   kCFAllocatorDefault or +[NSObject alloc] are affected by this.
+  // Nevertheless this is better than nothing for now.
+  // TODO(avi):Do better. http://crbug.com/12673
+
+  malloc_zone_t* default_zone = malloc_default_zone();
+  g_old_malloc = default_zone->malloc;
+  g_old_calloc = default_zone->calloc;
+  g_old_valloc = default_zone->valloc;
+  g_old_realloc = default_zone->realloc;
+  CHECK(g_old_malloc && g_old_calloc && g_old_valloc && g_old_realloc)
+      << "Failed to get system allocation functions.";
+
+  default_zone->malloc = oom_killer_malloc;
+  default_zone->calloc = oom_killer_calloc;
+  default_zone->valloc = oom_killer_valloc;
+  default_zone->realloc = oom_killer_realloc;
 }
 
 }  // namespace base
