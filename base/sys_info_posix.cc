@@ -10,6 +10,10 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 
+#if !defined(OS_MACOSX)
+#include <gdk/gdk.h>
+#endif
+
 #if defined(OS_OPENBSD)
 #include <sys/param.h>
 #include <sys/sysctl.h>
@@ -126,19 +130,24 @@ std::string SysInfo::CPUArchitecture() {
 #if !defined(OS_MACOSX)
 // static
 void SysInfo::GetPrimaryDisplayDimensions(int* width, int* height) {
-  // TODO(port): http://crbug.com/21732
-  NOTIMPLEMENTED();
+  // Note that Bad Things Happen if this isn't called from the UI thread,
+  // but also that there's no way to check that from here.  :(
+  GdkScreen* screen = gdk_screen_get_default();
   if (width)
-    *width = 0;
+    *width = gdk_screen_get_width(screen);
   if (height)
-    *height = 0;
+    *height = gdk_screen_get_height(screen);
 }
 
 // static
 int SysInfo::DisplayCount() {
-  // TODO(port): http://crbug.com/21732
-  NOTIMPLEMENTED();
-  return 1;
+  // Note that Bad Things Happen if this isn't called from the UI thread,
+  // but also that there's no way to check that from here.  :(
+
+  // This query is kinda bogus for Linux -- do we want number of X screens?
+  // The number of monitors Xinerama has?  We'll just use whatever GDK uses.
+  GdkScreen* screen = gdk_screen_get_default();
+  return gdk_screen_get_n_monitors(screen);
 }
 #endif
 
