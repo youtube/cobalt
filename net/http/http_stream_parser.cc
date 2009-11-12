@@ -215,16 +215,15 @@ int HttpStreamParser::DoReadHeaders() {
   // See if the user is passing in an IOBuffer with a NULL |data_|.
   CHECK(read_buf_->data());
 
-  int bytes_read = connection_->socket()->Read(read_buf_,
-                                               read_buf_->RemainingCapacity(),
-                                               &io_callback_);
-  if (bytes_read == 0)
-    bytes_read = ERR_CONNECTION_CLOSED;
-
-  return bytes_read;
+  return connection_->socket()->Read(read_buf_,
+                                     read_buf_->RemainingCapacity(),
+                                     &io_callback_);
 }
 
 int HttpStreamParser::DoReadHeadersComplete(int result) {
+  if (result == 0)
+    result = ERR_CONNECTION_CLOSED;
+
   if (result < 0 && result != ERR_CONNECTION_CLOSED) {
     io_state_ = STATE_DONE;
     return result;
@@ -312,22 +311,21 @@ int HttpStreamParser::DoReadHeadersComplete(int result) {
 int HttpStreamParser::DoReadBody() {
   io_state_ = STATE_READ_BODY_COMPLETE;
 
-  int bytes_read;
   // There may be some data left over from reading the response headers.
   if (read_buf_->offset()) {
     int available = read_buf_->offset() - read_buf_unused_offset_;
     if (available) {
       CHECK(available > 0);
-      bytes_read = std::min(available, user_read_buf_len_);
+      int bytes_from_buffer = std::min(available, user_read_buf_len_);
       memcpy(user_read_buf_->data(),
              read_buf_->StartOfBuffer() + read_buf_unused_offset_,
-             bytes_read);
-      read_buf_unused_offset_ += bytes_read;
-      if (bytes_read == available) {
+             bytes_from_buffer);
+      read_buf_unused_offset_ += bytes_from_buffer;
+      if (bytes_from_buffer == available) {
         read_buf_->SetCapacity(0);
         read_buf_unused_offset_ = 0;
       }
-      return bytes_read;
+      return bytes_from_buffer;
     } else {
       read_buf_->SetCapacity(0);
       read_buf_unused_offset_ = 0;
@@ -339,15 +337,14 @@ int HttpStreamParser::DoReadBody() {
     return 0;
 
   DCHECK_EQ(0, read_buf_->offset());
-  bytes_read = connection_->socket()->Read(user_read_buf_, user_read_buf_len_,
-                                           &io_callback_);
-  if (bytes_read == 0)
-    bytes_read = ERR_CONNECTION_CLOSED;
-
-  return bytes_read;
+  return connection_->socket()->Read(user_read_buf_, user_read_buf_len_,
+                                     &io_callback_);
 }
 
 int HttpStreamParser::DoReadBodyComplete(int result) {
+  if (result == 0)
+    result = ERR_CONNECTION_CLOSED;
+
   // Filter incoming data if appropriate.  FilterBuf may return an error.
   if (result > 0 && chunked_decoder_.get()) {
     result = chunked_decoder_->FilterBuf(user_read_buf_->data(), result);
