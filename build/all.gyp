@@ -31,6 +31,7 @@
         '../third_party/lzma_sdk/lzma_sdk.gyp:*',
         '../third_party/modp_b64/modp_b64.gyp:*',
         '../third_party/npapi/npapi.gyp:*',
+        '../third_party/ots/ots.gyp:*',
         '../third_party/sqlite/sqlite.gyp:*',
         '../third_party/WebKit/WebKit/chromium/WebKit.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
