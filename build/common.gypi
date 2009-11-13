@@ -672,13 +672,17 @@
             ],
           }],
           ['target_arch=="arm"', {
-            'target_conditions': [
-              ['armv7==1 and _toolset=="target"', {
-                'cflags': [
-                  '-march=armv7-a',
-                  '-mtune=cortex-a8',
-                  '-mfpu=neon',
-                  '-mfloat-abi=softfp',
+            'conditions': [
+              ['armv7==1', {
+                'target_conditions': [
+                  ['_toolset=="target"', {
+                    'cflags': [
+                      '-march=armv7-a',
+                      '-mtune=cortex-a8',
+                      '-mfpu=neon',
+                      '-mfloat-abi=softfp',
+                    ],
+                  }],
                 ],
               }],
             ],
