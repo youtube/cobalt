@@ -49,7 +49,7 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       redirect_limit_(kMaxRedirects),
       final_upload_progress_(0),
       priority_(0),
-      ALLOW_THIS_IN_INITIALIZER_LIST(url_request_tracker_node_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(request_tracker_node_(this)) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
   // Sanity check out environment.
@@ -495,9 +495,9 @@ void URLRequest::set_context(URLRequestContext* context) {
   // If the context this request belongs to has changed, update the tracker(s).
   if (prev_context != context) {
     if (prev_context)
-      prev_context->request_tracker()->Remove(this);
+      prev_context->url_request_tracker()->Remove(this);
     if (context)
-      context->request_tracker()->Add(this);
+      context->url_request_tracker()->Add(this);
   }
 }
 
@@ -518,4 +518,11 @@ URLRequest::UserData* URLRequest::GetUserData(const void* key) const {
 
 void URLRequest::SetUserData(const void* key, UserData* data) {
   user_data_[key] = linked_ptr<UserData>(data);
+}
+
+void URLRequest::GetInfoForTracker(
+    RequestTracker<URLRequest>::RecentRequestInfo* info) const {
+  DCHECK(info);
+  info->original_url = original_url_;
+  info->load_log = load_log_;
 }

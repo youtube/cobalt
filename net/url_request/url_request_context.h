@@ -19,11 +19,12 @@
 #include "net/base/strict_transport_security_state.h"
 #include "net/ftp/ftp_auth_cache.h"
 #include "net/proxy/proxy_service.h"
-#include "net/url_request/url_request_tracker.h"
+#include "net/url_request/request_tracker.h"
 
 namespace net {
 class FtpTransactionFactory;
 class HttpTransactionFactory;
+class SocketStream;
 }
 class URLRequest;
 
@@ -81,7 +82,14 @@ class URLRequestContext :
   const std::string& accept_language() const { return accept_language_; }
 
   // Gets the tracker for URLRequests associated with this context.
-  URLRequestTracker* request_tracker() { return &request_tracker_; }
+  RequestTracker<URLRequest>* url_request_tracker() {
+    return &url_request_tracker_;
+  }
+
+  // Gets the tracker for SocketStreams associated with this context.
+  RequestTracker<net::SocketStream>* socket_stream_tracker() {
+    return &socket_stream_tracker_;
+  }
 
   // Gets the UA string to use for the given URL.  Pass an invalid URL (such as
   // GURL()) to get the default UA string.  Subclasses should override this
@@ -135,7 +143,10 @@ class URLRequestContext :
   std::string referrer_charset_;
 
   // Tracks the requests associated with this context.
-  URLRequestTracker request_tracker_;
+  RequestTracker<URLRequest> url_request_tracker_;
+
+  // Trakcs the socket streams associated with this context.
+  RequestTracker<net::SocketStream> socket_stream_tracker_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);
