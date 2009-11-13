@@ -36,7 +36,7 @@
         '../third_party/WebKit/WebKit/chromium/WebKit.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
         '../webkit/tools/test_shell/test_shell.gyp:*',
-        '../webkit/webkit_glue.gyp:*',
+        '../webkit/webkit.gyp:*',
         'util/build_util.gyp:*',
         'temp_gyp/googleurl.gyp:*',
       ],
