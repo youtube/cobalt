@@ -553,7 +553,7 @@ class URLRequest {
   // Gets the goodies out of this that we want to show the user later on the
   // chrome://net-internals/ page.
   void GetInfoForTracker(
-      RequestTracker<URLRequest>::RecentRequestInfo *info) const;
+      RequestTracker<URLRequest>::RecentRequestInfo* info) const;
 
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
