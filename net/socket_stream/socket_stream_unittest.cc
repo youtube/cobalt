@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "net/base/load_log.h"
+#include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/socket_test_util.h"
@@ -205,6 +207,16 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
   EXPECT_EQ(SocketStreamEvent::EVENT_AUTH_REQUIRED, events[0].event_type);
   EXPECT_EQ(SocketStreamEvent::EVENT_CONNECTED, events[1].event_type);
   EXPECT_EQ(SocketStreamEvent::EVENT_CLOSE, events[2].event_type);
+
+  // The first and last entries of the LoadLog should be for
+  // SOCKET_STREAM_CONNECT.
+  ExpectLogContains(socket_stream->load_log(), 0,
+                    LoadLog::TYPE_SOCKET_STREAM_CONNECT,
+                    LoadLog::PHASE_BEGIN);
+  ExpectLogContains(socket_stream->load_log(),
+                    socket_stream->load_log()->events().size() - 1,
+                    LoadLog::TYPE_SOCKET_STREAM_CONNECT,
+                    LoadLog::PHASE_END);
 }
 
 }  // namespace net
