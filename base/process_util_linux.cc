@@ -470,14 +470,15 @@ size_t GetSystemCommitCharge() {
   // Used memory is: total - free - buffers - caches
   FilePath meminfo_file("/proc/meminfo");
   std::string meminfo_data;
-  if (!file_util::ReadFileToString(meminfo_file, &meminfo_data))
-    LOG(ERROR) << "Failed to open /proc/meminfo.";
+  if (!file_util::ReadFileToString(meminfo_file, &meminfo_data)) {
+    LOG(WARNING) << "Failed to open /proc/meminfo.";
     return 0;
+  }
   std::vector<std::string> meminfo_fields;
   SplitStringAlongWhitespace(meminfo_data, &meminfo_fields);
 
   if (meminfo_fields.size() < kMemCacheIndex) {
-    LOG(ERROR) << "Failed to parse /proc/meminfo.  Only found " <<
+    LOG(WARNING) << "Failed to parse /proc/meminfo.  Only found " <<
       meminfo_fields.size() << " fields.";
     return 0;
   }
