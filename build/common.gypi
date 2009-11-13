@@ -45,12 +45,14 @@
           'target_arch%':
             '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/arm.*/arm/")',
 
-          # For now, only Linux spellchecks in the renderer.
-          'spellchecker_in_renderer%': 1,
         }, {  # OS!="linux"
           'target_arch%': 'ia32',
-
+        }],
+        [ 'OS=="mac"', {
+          # For now, only Linux and Windows use spellcheck in the renderer.
           'spellchecker_in_renderer%': 0,
+        }, {  # OS!="mac"
+          'spellchecker_in_renderer%': 1,
         }],
       ],
 
@@ -143,7 +145,7 @@
 
     # Whether pepper APIs are enabled.
     'enable_pepper%': 0,
-    
+
     # TODO(bradnelson): eliminate this when possible.
     # To allow local gyp files to prevent release.vsprops from being included.
     # Yes(1) means include release.vsprops.
