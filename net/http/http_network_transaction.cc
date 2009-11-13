@@ -435,40 +435,58 @@ int HttpNetworkTransaction::DoLoop(int result) {
       case STATE_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.send_request", request_, request_->url.spec());
+        LoadLog::BeginEvent(load_log_,
+                            LoadLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
         rv = DoSendRequest();
         break;
       case STATE_SEND_REQUEST_COMPLETE:
         rv = DoSendRequestComplete(rv);
         TRACE_EVENT_END("http.send_request", request_, request_->url.spec());
+        LoadLog::EndEvent(load_log_,
+                          LoadLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
         break;
       case STATE_READ_HEADERS:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_headers", request_, request_->url.spec());
+        LoadLog::BeginEvent(load_log_,
+                            LoadLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
         rv = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
         rv = DoReadHeadersComplete(rv);
         TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
+        LoadLog::EndEvent(load_log_,
+                          LoadLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
         break;
       case STATE_READ_BODY:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_body", request_, request_->url.spec());
+        LoadLog::BeginEvent(load_log_,
+                            LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY);
         rv = DoReadBody();
         break;
       case STATE_READ_BODY_COMPLETE:
         rv = DoReadBodyComplete(rv);
         TRACE_EVENT_END("http.read_body", request_, request_->url.spec());
+        LoadLog::EndEvent(load_log_,
+                          LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY);
         break;
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.drain_body_for_auth_restart",
                           request_, request_->url.spec());
+        LoadLog::BeginEvent(
+            load_log_,
+            LoadLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
         rv = DoDrainBodyForAuthRestart();
         break;
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE:
         rv = DoDrainBodyForAuthRestartComplete(rv);
         TRACE_EVENT_END("http.drain_body_for_auth_restart",
                         request_, request_->url.spec());
+        LoadLog::EndEvent(
+            load_log_,
+            LoadLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
         break;
       default:
         NOTREACHED() << "bad state";
