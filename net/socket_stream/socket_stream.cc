@@ -112,7 +112,8 @@ void SocketStream::Connect() {
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
-  ssl_config_service()->GetSSLConfig(&ssl_config_);
+  if (context_)
+    ssl_config_service()->GetSSLConfig(&ssl_config_);
   DCHECK_EQ(next_state_, STATE_NONE);
 
   AddRef();  // Released in Finish()
@@ -327,6 +328,10 @@ void SocketStream::OnWriteCompleted(int result) {
 }
 
 void SocketStream::DoLoop(int result) {
+  // If context was not set, close immediately.
+  if (!context_)
+    next_state_ = STATE_CLOSE;
+
   if (next_state_ == STATE_NONE)
     return;
 
