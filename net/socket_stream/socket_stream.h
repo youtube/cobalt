@@ -22,6 +22,7 @@
 #include "net/http/http_auth_handler.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/tcp_client_socket.h"
+#include "net/url_request/request_tracker.h"
 #include "net/url_request/url_request_context.h"
 
 namespace net {
@@ -29,6 +30,7 @@ namespace net {
 class AuthChallengeInfo;
 class ClientSocketFactory;
 class HostResolver;
+class LoadLog;
 class SSLConfigService;
 class SingleRequestHostResolver;
 class SocketStreamMetrics;
@@ -104,6 +106,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   URLRequestContext* context() const { return context_.get(); }
   void set_context(URLRequestContext* context);
+
+  LoadLog* load_log() const { return load_log_; }
 
   // Opens the connection on the IO thread.
   // Once the connection is established, calls delegate's OnConnected.
@@ -195,6 +199,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   };
 
   typedef std::deque< scoped_refptr<IOBufferWithSize> > PendingDataQueue;
+  friend class RequestTracker<SocketStream>;
   friend class base::RefCountedThreadSafe<SocketStream>;
   ~SocketStream();
 
@@ -245,6 +250,11 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   bool is_secure() const;
   SSLConfigService* ssl_config_service() const;
   ProxyService* proxy_service() const;
+
+  void GetInfoForTracker(
+      RequestTracker<SocketStream>::RecentRequestInfo *info) const;
+
+  scoped_refptr<LoadLog> load_log_;
 
   GURL url_;
   Delegate* delegate_;
@@ -305,6 +315,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   SocketStreamThrottle* throttle_;
 
   scoped_ptr<SocketStreamMetrics> metrics_;
+
+  RequestTracker<SocketStream>::Node request_tracker_node_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStream);
 };
