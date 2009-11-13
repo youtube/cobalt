@@ -146,6 +146,9 @@
     # Whether pepper APIs are enabled.
     'enable_pepper%': 0,
 
+    # Whether usage of OpenMAX is enabled.
+    'enable_openmax%': 0,
+
     # TODO(bradnelson): eliminate this when possible.
     # To allow local gyp files to prevent release.vsprops from being included.
     # Yes(1) means include release.vsprops.
