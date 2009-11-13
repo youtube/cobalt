@@ -773,10 +773,7 @@ MemoryMappedFile::MemoryMappedFile()
       length_(INVALID_FILE_SIZE) {
 }
 
-bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
-  file_ = ::CreateFile(file_name.value().c_str(), GENERIC_READ,
-                       FILE_SHARE_READ, NULL, OPEN_EXISTING,
-                       FILE_ATTRIBUTE_NORMAL, NULL);
+bool MemoryMappedFile::MapFileToMemoryInternal() {
   if (file_ == INVALID_HANDLE_VALUE)
     return false;
 
