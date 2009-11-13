@@ -223,15 +223,17 @@ size_t GetSystemCommitCharge() {
   kern_return_t kr = host_statistics(host, HOST_VM_INFO,
                                      reinterpret_cast<host_info_t>(&data),
                                      &count);
-  if (kr)
-    LOG(ERROR) << "Failed to fetch host statistics.";
+  if (kr) {
+    LOG(WARNING) << "Failed to fetch host statistics.";
     return 0;
+  }
 
   vm_size_t page_size;
   kr = host_page_size(host, &page_size);
-  if (kr)
+  if (kr) {
     LOG(ERROR) << "Failed to fetch host page size.";
     return 0;
+  }
 
   return (data.active_count * page_size) / 1024;
 }
