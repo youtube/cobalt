@@ -258,6 +258,8 @@ class URLRequest {
   const GURL& first_party_for_cookies() const {
       return first_party_for_cookies_;
   }
+  // This method may be called before Start() or FollowDeferredRedirect() is
+  // called.
   void set_first_party_for_cookies(const GURL& first_party_for_cookies);
 
   // The request method, as an uppercase string.  "GET" is the default value.
