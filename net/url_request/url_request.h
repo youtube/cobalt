@@ -19,8 +19,8 @@
 #include "net/base/load_log.h"
 #include "net/base/load_states.h"
 #include "net/http/http_response_info.h"
+#include "net/url_request/request_tracker.h"
 #include "net/url_request/url_request_status.h"
-#include "net/url_request/url_request_tracker.h"
 
 namespace base {
 class Time;
@@ -528,7 +528,7 @@ class URLRequest {
 
  private:
   friend class URLRequestJob;
-  friend class URLRequestTracker;
+  friend class RequestTracker<URLRequest>;
 
   void StartJob(URLRequestJob* job);
 
@@ -549,6 +549,11 @@ class URLRequest {
   // Discard headers which have meaning in POST (Content-Length, Content-Type,
   // Origin).
   static std::string StripPostSpecificHeaders(const std::string& headers);
+
+  // Gets the goodies out of this that we want to show the user later on the
+  // chrome://net-internals/ page.
+  void GetInfoForTracker(
+      RequestTracker<URLRequest>::RecentRequestInfo *info) const;
 
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
@@ -603,7 +608,7 @@ class URLRequest {
   // this to determine which URLRequest to allocate sockets to first.
   int priority_;
 
-  URLRequestTracker::Node url_request_tracker_node_;
+  RequestTracker<URLRequest>::Node request_tracker_node_;
   base::LeakTracker<URLRequest> leak_tracker_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);
