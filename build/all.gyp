@@ -58,8 +58,8 @@
         }],
         ['OS=="mac" or OS=="linux" or OS=="freebsd"', {
           'dependencies': [
-            '../third_party/yasm/yasm.gyp:*',
-          ],
+            '../third_party/yasm/yasm.gyp:*#host',
+           ],
         }],
         ['OS=="mac"', {
           'dependencies': [
