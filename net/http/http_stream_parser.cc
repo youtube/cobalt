@@ -388,8 +388,8 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
     if (save_amount) {
       memcpy(read_buf_->StartOfBuffer(), user_read_buf_->data() + result,
              save_amount);
-      read_buf_->set_offset(save_amount);
     }
+    read_buf_->set_offset(save_amount);
     if (additional_save_amount) {
       memmove(read_buf_->data(),
               read_buf_->StartOfBuffer() + read_buf_unused_offset_,
