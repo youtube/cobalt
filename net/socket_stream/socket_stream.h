@@ -252,7 +252,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   ProxyService* proxy_service() const;
 
   void GetInfoForTracker(
-      RequestTracker<SocketStream>::RecentRequestInfo *info) const;
+      RequestTracker<SocketStream>::RecentRequestInfo* info) const;
 
   scoped_refptr<LoadLog> load_log_;
 
