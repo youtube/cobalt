@@ -223,7 +223,6 @@ bool URLRequest::IsHandledURL(const GURL& url) {
 
 void URLRequest::set_first_party_for_cookies(
     const GURL& first_party_for_cookies) {
-  DCHECK(!is_pending_);
   first_party_for_cookies_ = first_party_for_cookies;
 }
 
