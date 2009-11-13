@@ -44,7 +44,7 @@
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "base/time.h"
-#include "base/utf_string_conversions.h"
+#include "base/utf_offset_string_conversions.h"
 #include "grit/net_resources.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
