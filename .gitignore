@@ -27,6 +27,7 @@
 /chrome/test/data/workers/LayoutTests
 /chrome/tools/memory
 /chrome/tools/test/reference_build
+/chrome_frame/tools/test/reference_build
 /data
 /googleurl
 /native_client
@@ -45,6 +46,8 @@
 /third_party/googlemac
 /third_party/hunspell
 /third_party/icu
+/third_party/ots
+/third_party/pefile
 /third_party/personalization
 /third_party/pdfsqueeze
 /third_party/platformsdk_win2008_6_1
@@ -55,6 +58,7 @@
 /third_party/skia
 /third_party/tcmalloc/tcmalloc
 /third_party/xdg-utils
+/third_party/xulrunner-sdk
 /third_party/yasm/source/patched-yasm
 /tools/distcc
 /tools/grit/grit/test/data
