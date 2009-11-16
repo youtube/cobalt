@@ -267,20 +267,6 @@ MemoryMappedFile::~MemoryMappedFile() {
   CloseHandles();
 }
 
-bool MemoryMappedFile::Initialize(base::PlatformFile file) {
-  if (IsValid())
-    return false;
-
-  file_ = file;
-
-  if (!MapFileToMemoryInternal()) {
-    CloseHandles();
-    return false;
-  }
-
-  return true;
-}
-
 bool MemoryMappedFile::Initialize(const FilePath& file_name) {
   if (IsValid())
     return false;
@@ -291,19 +277,6 @@ bool MemoryMappedFile::Initialize(const FilePath& file_name) {
   }
 
   return true;
-}
-
-bool MemoryMappedFile::MapFileToMemory(const FilePath& file_name) {
-  file_ = base::CreatePlatformFile(file_name,
-      base::PLATFORM_FILE_OPEN | base::PLATFORM_FILE_READ,
-      NULL);
-
-  if (file_ == base::kInvalidPlatformFileValue) {
-    LOG(ERROR) << "Couldn't open " << file_name.value();
-    return false;
-  }
-
-  return MapFileToMemoryInternal();
 }
 
 bool MemoryMappedFile::IsValid() {
