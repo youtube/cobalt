@@ -678,7 +678,7 @@ int HttpAuthHandlerNTLM::GetNextToken(const void* in_token,
                                       uint32 in_token_len,
                                       void** out_token,
                                       uint32* out_token_len) {
-  int rv;
+  int rv = 0;
 
   // If in_token is non-null, then assume it contains a type 2 message...
   if (in_token) {
