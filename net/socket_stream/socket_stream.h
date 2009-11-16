@@ -270,6 +270,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   ProxyMode proxy_mode_;
 
+  GURL proxy_url_;
   ProxyService::PacRequest* pac_request_;
   ProxyInfo proxy_info_;
 
