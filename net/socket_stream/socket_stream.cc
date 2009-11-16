@@ -47,6 +47,7 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       next_state_(STATE_NONE),
       factory_(ClientSocketFactory::GetDefaultFactory()),
       proxy_mode_(kDirectConnection),
+      proxy_url_(url),
       pac_request_(NULL),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &SocketStream::OnIOCompleted)),
@@ -414,7 +415,7 @@ int SocketStream::DoResolveProxy() {
   next_state_ = STATE_RESOLVE_PROXY_COMPLETE;
 
   return proxy_service()->ResolveProxy(
-      url_, &proxy_info_, &io_callback_, &pac_request_, load_log_);
+      proxy_url_, &proxy_info_, &io_callback_, &pac_request_, load_log_);
 }
 
 int SocketStream::DoResolveProxyComplete(int result) {
@@ -426,6 +427,20 @@ int SocketStream::DoResolveProxyComplete(int result) {
     if (delegate_)
       delegate_->OnError(this, result);
     proxy_info_.UseDirect();
+  }
+  if (proxy_info_.is_direct()) {
+    // If proxy was not found for original URL (i.e. websocket URL),
+    // try again with https URL, like Safari implementation.
+    // Note that we don't want to use http proxy, because we'll use tunnel
+    // proxy using CONNECT method, which is used by https proxy.
+    if (!proxy_url_.SchemeIs("https")) {
+      GURL::Replacements repl;
+      repl.SetSchemeStr("https");
+      proxy_url_ = url_.ReplaceComponents(repl);
+      DLOG(INFO) << "Try https proxy: " << proxy_url_;
+      next_state_ = STATE_RESOLVE_PROXY;
+      return OK;
+    }
   }
 
   return OK;
