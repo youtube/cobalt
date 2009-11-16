@@ -18,6 +18,7 @@
         '../third_party/bzip2/bzip2.gyp:bzip2',
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
+        '../third_party/modp_b64/modp_b64.gyp:modp_b64',
         '../third_party/zlib/zlib.gyp:zlib',
         'net_resources',
       ],
