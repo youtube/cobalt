@@ -499,7 +499,6 @@ size_t GetSystemCommitCharge() {
 
 void EnableTerminationOnOutOfMemory() {
   // http://crbug.com/27222
-  NOTIMPLEMENTED();
 }
 
 }  // namespace base
