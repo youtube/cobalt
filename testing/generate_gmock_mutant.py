@@ -418,7 +418,14 @@ def GenerateCreateFunctor(prebound, calltime):
   # Functor for method with __stdcall calling conventions.
   print "#if defined (OS_WIN)"
   stdcall = CREATE_METHOD_FUNCTOR_TEMPLATE.replace("U::", "__stdcall U::")
-  print FixCode(stdcall % args)
+  stdcall = FixCode(stdcall % args)
+  print stdcall
+  print "#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING"
+  stdcall2 = stdcall.replace("CreateFunctor(T* obj,", "CreateFunctor(T** obj,")
+  stdcall2 = stdcall2.replace("new Mutant", "new MutantLateObjectBind")
+  stdcall2 = stdcall2.replace(" " * 17 + "Tuple", " " * 31 + "Tuple")
+  print stdcall2
+  print "#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING"
   print "#endif  // OS_WIN\n"
 
 
