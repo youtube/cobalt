@@ -45,14 +45,12 @@
           'target_arch%':
             '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/arm.*/arm/")',
 
+          # For now, only Linux spellchecks in the renderer.
+          'spellchecker_in_renderer%': 1,
         }, {  # OS!="linux"
           'target_arch%': 'ia32',
-        }],
-        [ 'OS=="mac"', {
-          # For now, only Linux and Windows use spellcheck in the renderer.
+
           'spellchecker_in_renderer%': 0,
-        }, {  # OS!="mac"
-          'spellchecker_in_renderer%': 1,
         }],
       ],
 
@@ -145,7 +143,7 @@
 
     # Whether pepper APIs are enabled.
     'enable_pepper%': 0,
-
+    
     # Whether usage of OpenMAX is enabled.
     'enable_openmax%': 0,
 
