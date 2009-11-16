@@ -50,8 +50,8 @@ class OCSPInitSingleton {
   static void set_url_request_context(URLRequestContext* request_context) {
     request_context_ = request_context;
   }
-  URLRequestContext* url_request_context() const {
-    return request_context_.get();
+  static URLRequestContext* url_request_context() {
+    return request_context_;
   }
 
  private:
@@ -67,12 +67,12 @@ class OCSPInitSingleton {
   MessageLoop* io_loop_;  // I/O thread
 
   // URLRequestContext for OCSP handlers.
-  static scoped_refptr<URLRequestContext> request_context_;
+  static URLRequestContext* request_context_;
 
   DISALLOW_COPY_AND_ASSIGN(OCSPInitSingleton);
 };
 
-scoped_refptr<URLRequestContext> OCSPInitSingleton::request_context_;
+URLRequestContext* OCSPInitSingleton::request_context_ = NULL;
 
 // Concrete class for SEC_HTTP_REQUEST_SESSION.
 // Public methods except virtual methods of URLRequest::Delegate (On* methods)
@@ -528,6 +528,10 @@ void EnsureOCSPInit() {
 // This function would be called before NSS initialization.
 void SetURLRequestContextForOCSP(URLRequestContext* request_context) {
   OCSPInitSingleton::set_url_request_context(request_context);
+}
+
+URLRequestContext* GetURLRequestContextForOCSP() {
+  return OCSPInitSingleton::url_request_context();
 }
 
 }  // namespace net
