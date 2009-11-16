@@ -650,6 +650,17 @@ CreateFunctor(T* obj, R (__stdcall U::*method)()) {
           (obj, method, MakeTuple());
   return MutantFunctor<R, Tuple0>(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U>
+inline MutantFunctor<R, Tuple0>
+CreateFunctor(T** obj, R (__stdcall U::*method)()) {
+  MutantRunner<R, Tuple0>* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(),
+                               Tuple0, Tuple0>
+          (obj, method, MakeTuple());
+  return MutantFunctor<R, Tuple0>(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 0 - 1
@@ -695,6 +706,17 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(A1)) {
           (obj, method, MakeTuple());
   return MutantFunctor<R, Tuple1<A1> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename A1>
+inline MutantFunctor<R, Tuple1<A1> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(A1)) {
+  MutantRunner<R, Tuple1<A1> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(A1),
+                               Tuple0, Tuple1<A1> >
+          (obj, method, MakeTuple());
+  return MutantFunctor<R, Tuple1<A1> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 0 - 2
@@ -740,6 +762,17 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(A1, A2)) {
           (obj, method, MakeTuple());
   return MutantFunctor<R, Tuple2<A1, A2> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename A1, typename A2>
+inline MutantFunctor<R, Tuple2<A1, A2> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(A1, A2)) {
+  MutantRunner<R, Tuple2<A1, A2> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(A1, A2),
+                               Tuple0, Tuple2<A1, A2> >
+          (obj, method, MakeTuple());
+  return MutantFunctor<R, Tuple2<A1, A2> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 0 - 3
@@ -788,6 +821,18 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(A1, A2, A3)) {
           (obj, method, MakeTuple());
   return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename A1, typename A2,
+          typename A3>
+inline MutantFunctor<R, Tuple3<A1, A2, A3> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(A1, A2, A3)) {
+  MutantRunner<R, Tuple3<A1, A2, A3> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(A1, A2, A3),
+                               Tuple0, Tuple3<A1, A2, A3> >
+          (obj, method, MakeTuple());
+  return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 0 - 4
@@ -836,6 +881,18 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(A1, A2, A3, A4)) {
           (obj, method, MakeTuple());
   return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename A1, typename A2,
+          typename A3, typename A4>
+inline MutantFunctor<R, Tuple4<A1, A2, A3, A4> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(A1, A2, A3, A4)) {
+  MutantRunner<R, Tuple4<A1, A2, A3, A4> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(A1, A2, A3, A4),
+                               Tuple0, Tuple4<A1, A2, A3, A4> >
+          (obj, method, MakeTuple());
+  return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 1 - 0
@@ -881,6 +938,17 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1), const P1& p1) {
           (obj, method, MakeTuple(p1));
   return MutantFunctor<R, Tuple0>(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename X1>
+inline MutantFunctor<R, Tuple0>
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1), const P1& p1) {
+  MutantRunner<R, Tuple0>* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1),
+                               Tuple1<P1>, Tuple0>
+          (obj, method, MakeTuple(p1));
+  return MutantFunctor<R, Tuple0>(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 1 - 1
@@ -929,6 +997,18 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, A1), const P1& p1) {
           (obj, method, MakeTuple(p1));
   return MutantFunctor<R, Tuple1<A1> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename A1,
+          typename X1>
+inline MutantFunctor<R, Tuple1<A1> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, A1), const P1& p1) {
+  MutantRunner<R, Tuple1<A1> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, A1),
+                               Tuple1<P1>, Tuple1<A1> >
+          (obj, method, MakeTuple(p1));
+  return MutantFunctor<R, Tuple1<A1> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 1 - 2
@@ -977,6 +1057,18 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, A1, A2), const P1& p1) {
           (obj, method, MakeTuple(p1));
   return MutantFunctor<R, Tuple2<A1, A2> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename A1,
+          typename A2, typename X1>
+inline MutantFunctor<R, Tuple2<A1, A2> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, A1, A2), const P1& p1) {
+  MutantRunner<R, Tuple2<A1, A2> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, A1, A2),
+                               Tuple1<P1>, Tuple2<A1, A2> >
+          (obj, method, MakeTuple(p1));
+  return MutantFunctor<R, Tuple2<A1, A2> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 1 - 3
@@ -1026,6 +1118,18 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, A1, A2, A3), const P1& p1) {
           (obj, method, MakeTuple(p1));
   return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename A1,
+          typename A2, typename A3, typename X1>
+inline MutantFunctor<R, Tuple3<A1, A2, A3> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, A1, A2, A3), const P1& p1) {
+  MutantRunner<R, Tuple3<A1, A2, A3> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, A1, A2, A3),
+                               Tuple1<P1>, Tuple3<A1, A2, A3> >
+          (obj, method, MakeTuple(p1));
+  return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 1 - 4
@@ -1076,6 +1180,19 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, A1, A2, A3, A4),
           (obj, method, MakeTuple(p1));
   return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename A1,
+          typename A2, typename A3, typename A4, typename X1>
+inline MutantFunctor<R, Tuple4<A1, A2, A3, A4> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, A1, A2, A3, A4),
+    const P1& p1) {
+  MutantRunner<R, Tuple4<A1, A2, A3, A4> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, A1, A2, A3, A4),
+                               Tuple1<P1>, Tuple4<A1, A2, A3, A4> >
+          (obj, method, MakeTuple(p1));
+  return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 2 - 0
@@ -1125,6 +1242,19 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2), const P1& p1,
           (obj, method, MakeTuple(p1, p2));
   return MutantFunctor<R, Tuple0>(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename X1, typename X2>
+inline MutantFunctor<R, Tuple0>
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2), const P1& p1,
+    const P2& p2) {
+  MutantRunner<R, Tuple0>* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2),
+                               Tuple2<P1, P2>, Tuple0>
+          (obj, method, MakeTuple(p1, p2));
+  return MutantFunctor<R, Tuple0>(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 2 - 1
@@ -1175,6 +1305,19 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, A1), const P1& p1,
           (obj, method, MakeTuple(p1, p2));
   return MutantFunctor<R, Tuple1<A1> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename A1, typename X1, typename X2>
+inline MutantFunctor<R, Tuple1<A1> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, A1), const P1& p1,
+    const P2& p2) {
+  MutantRunner<R, Tuple1<A1> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, A1),
+                               Tuple2<P1, P2>, Tuple1<A1> >
+          (obj, method, MakeTuple(p1, p2));
+  return MutantFunctor<R, Tuple1<A1> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 2 - 2
@@ -1227,6 +1370,19 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, A1, A2), const P1& p1,
           (obj, method, MakeTuple(p1, p2));
   return MutantFunctor<R, Tuple2<A1, A2> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename A1, typename A2, typename X1, typename X2>
+inline MutantFunctor<R, Tuple2<A1, A2> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, A1, A2), const P1& p1,
+    const P2& p2) {
+  MutantRunner<R, Tuple2<A1, A2> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, A1, A2),
+                               Tuple2<P1, P2>, Tuple2<A1, A2> >
+          (obj, method, MakeTuple(p1, p2));
+  return MutantFunctor<R, Tuple2<A1, A2> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 2 - 3
@@ -1279,6 +1435,19 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, A1, A2, A3),
           (obj, method, MakeTuple(p1, p2));
   return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename A1, typename A2, typename A3, typename X1, typename X2>
+inline MutantFunctor<R, Tuple3<A1, A2, A3> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, A1, A2, A3),
+    const P1& p1, const P2& p2) {
+  MutantRunner<R, Tuple3<A1, A2, A3> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, A1, A2, A3),
+                               Tuple2<P1, P2>, Tuple3<A1, A2, A3> >
+          (obj, method, MakeTuple(p1, p2));
+  return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 2 - 4
@@ -1335,6 +1504,20 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, A1, A2, A3, A4),
           (obj, method, MakeTuple(p1, p2));
   return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename A1, typename A2, typename A3, typename A4, typename X1,
+          typename X2>
+inline MutantFunctor<R, Tuple4<A1, A2, A3, A4> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, A1, A2, A3, A4),
+    const P1& p1, const P2& p2) {
+  MutantRunner<R, Tuple4<A1, A2, A3, A4> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, A1, A2, A3, A4),
+                               Tuple2<P1, P2>, Tuple4<A1, A2, A3, A4> >
+          (obj, method, MakeTuple(p1, p2));
+  return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 3 - 0
@@ -1388,6 +1571,19 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3), const P1& p1,
           (obj, method, MakeTuple(p1, p2, p3));
   return MutantFunctor<R, Tuple0>(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename X1, typename X2, typename X3>
+inline MutantFunctor<R, Tuple0>
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3), const P1& p1,
+    const P2& p2, const P3& p3) {
+  MutantRunner<R, Tuple0>* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3),
+                               Tuple3<P1, P2, P3>, Tuple0>
+          (obj, method, MakeTuple(p1, p2, p3));
+  return MutantFunctor<R, Tuple0>(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 3 - 1
@@ -1441,6 +1637,19 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3, A1), const P1& p1,
           (obj, method, MakeTuple(p1, p2, p3));
   return MutantFunctor<R, Tuple1<A1> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename A1, typename X1, typename X2, typename X3>
+inline MutantFunctor<R, Tuple1<A1> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3, A1), const P1& p1,
+    const P2& p2, const P3& p3) {
+  MutantRunner<R, Tuple1<A1> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3, A1),
+                               Tuple3<P1, P2, P3>, Tuple1<A1> >
+          (obj, method, MakeTuple(p1, p2, p3));
+  return MutantFunctor<R, Tuple1<A1> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 3 - 2
@@ -1497,6 +1706,20 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3, A1, A2),
           (obj, method, MakeTuple(p1, p2, p3));
   return MutantFunctor<R, Tuple2<A1, A2> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename A1, typename A2, typename X1, typename X2,
+          typename X3>
+inline MutantFunctor<R, Tuple2<A1, A2> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3, A1, A2),
+    const P1& p1, const P2& p2, const P3& p3) {
+  MutantRunner<R, Tuple2<A1, A2> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3, A1, A2),
+                               Tuple3<P1, P2, P3>, Tuple2<A1, A2> >
+          (obj, method, MakeTuple(p1, p2, p3));
+  return MutantFunctor<R, Tuple2<A1, A2> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 3 - 3
@@ -1553,6 +1776,20 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3, A1, A2, A3),
           (obj, method, MakeTuple(p1, p2, p3));
   return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename A1, typename A2, typename A3, typename X1,
+          typename X2, typename X3>
+inline MutantFunctor<R, Tuple3<A1, A2, A3> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3, A1, A2, A3),
+    const P1& p1, const P2& p2, const P3& p3) {
+  MutantRunner<R, Tuple3<A1, A2, A3> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3, A1, A2, A3),
+                               Tuple3<P1, P2, P3>, Tuple3<A1, A2, A3> >
+          (obj, method, MakeTuple(p1, p2, p3));
+  return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 3 - 4
@@ -1610,6 +1847,20 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3, A1, A2, A3, A4),
           (obj, method, MakeTuple(p1, p2, p3));
   return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename A1, typename A2, typename A3, typename A4,
+          typename X1, typename X2, typename X3>
+inline MutantFunctor<R, Tuple4<A1, A2, A3, A4> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3, A1, A2, A3, A4),
+    const P1& p1, const P2& p2, const P3& p3) {
+  MutantRunner<R, Tuple4<A1, A2, A3, A4> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3, A1, A2, A3, A4),
+                               Tuple3<P1, P2, P3>, Tuple4<A1, A2, A3, A4> >
+          (obj, method, MakeTuple(p1, p2, p3));
+  return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 4 - 0
@@ -1666,6 +1917,20 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3, X4), const P1& p1,
           (obj, method, MakeTuple(p1, p2, p3, p4));
   return MutantFunctor<R, Tuple0>(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename P4, typename X1, typename X2, typename X3,
+          typename X4>
+inline MutantFunctor<R, Tuple0>
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3, X4), const P1& p1,
+    const P2& p2, const P3& p3, const P4& p4) {
+  MutantRunner<R, Tuple0>* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3, X4),
+                               Tuple4<P1, P2, P3, P4>, Tuple0>
+          (obj, method, MakeTuple(p1, p2, p3, p4));
+  return MutantFunctor<R, Tuple0>(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 4 - 1
@@ -1722,6 +1987,20 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3, X4, A1),
           (obj, method, MakeTuple(p1, p2, p3, p4));
   return MutantFunctor<R, Tuple1<A1> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename P4, typename A1, typename X1, typename X2,
+          typename X3, typename X4>
+inline MutantFunctor<R, Tuple1<A1> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3, X4, A1),
+    const P1& p1, const P2& p2, const P3& p3, const P4& p4) {
+  MutantRunner<R, Tuple1<A1> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3, X4, A1),
+                               Tuple4<P1, P2, P3, P4>, Tuple1<A1> >
+          (obj, method, MakeTuple(p1, p2, p3, p4));
+  return MutantFunctor<R, Tuple1<A1> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 4 - 2
@@ -1779,6 +2058,20 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3, X4, A1, A2),
           (obj, method, MakeTuple(p1, p2, p3, p4));
   return MutantFunctor<R, Tuple2<A1, A2> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename P4, typename A1, typename A2, typename X1,
+          typename X2, typename X3, typename X4>
+inline MutantFunctor<R, Tuple2<A1, A2> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3, X4, A1, A2),
+    const P1& p1, const P2& p2, const P3& p3, const P4& p4) {
+  MutantRunner<R, Tuple2<A1, A2> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3, X4, A1, A2),
+                               Tuple4<P1, P2, P3, P4>, Tuple2<A1, A2> >
+          (obj, method, MakeTuple(p1, p2, p3, p4));
+  return MutantFunctor<R, Tuple2<A1, A2> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 4 - 3
@@ -1836,6 +2129,20 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3, X4, A1, A2, A3),
           (obj, method, MakeTuple(p1, p2, p3, p4));
   return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename P4, typename A1, typename A2, typename A3,
+          typename X1, typename X2, typename X3, typename X4>
+inline MutantFunctor<R, Tuple3<A1, A2, A3> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3, X4, A1, A2, A3),
+    const P1& p1, const P2& p2, const P3& p3, const P4& p4) {
+  MutantRunner<R, Tuple3<A1, A2, A3> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3, X4, A1, A2, A3),
+                               Tuple4<P1, P2, P3, P4>, Tuple3<A1, A2, A3> >
+          (obj, method, MakeTuple(p1, p2, p3, p4));
+  return MutantFunctor<R, Tuple3<A1, A2, A3> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 // 4 - 4
@@ -1893,6 +2200,20 @@ CreateFunctor(T* obj, R (__stdcall U::*method)(X1, X2, X3, X4, A1, A2, A3, A4),
           (obj, method, MakeTuple(p1, p2, p3, p4));
   return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
 }
+#ifdef GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
+template <typename R, typename T, typename U, typename P1, typename P2,
+          typename P3, typename P4, typename A1, typename A2, typename A3,
+          typename A4, typename X1, typename X2, typename X3, typename X4>
+inline MutantFunctor<R, Tuple4<A1, A2, A3, A4> >
+CreateFunctor(T** obj, R (__stdcall U::*method)(X1, X2, X3, X4, A1, A2, A3, A4),
+    const P1& p1, const P2& p2, const P3& p3, const P4& p4) {
+  MutantRunner<R, Tuple4<A1, A2, A3, A4> >* t =
+      new MutantLateObjectBind<R, T, R (__stdcall U::*)(X1, X2, X3, X4, A1, A2, A3, A4),
+                               Tuple4<P1, P2, P3, P4>, Tuple4<A1, A2, A3, A4> >
+          (obj, method, MakeTuple(p1, p2, p3, p4));
+  return MutantFunctor<R, Tuple4<A1, A2, A3, A4> >(t);
+}
+#endif  // GMOCK_MUTANT_INCLUDE_LATE_OBJECT_BINDING
 #endif  // OS_WIN
 
 }  // namespace testing
