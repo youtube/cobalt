@@ -508,6 +508,9 @@
         'cflags_cc': [
           '-fno-rtti',
           '-fno-threadsafe-statics',
+          # Make inline functions have hidden visiblity by default.
+          # Surprisingly, not covered by -fvisibility=hidden.
+          '-fvisibility-inlines-hidden',
         ],
         'ldflags': [
           '-pthread',
