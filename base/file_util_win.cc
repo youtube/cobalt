@@ -413,6 +413,26 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
   return SUCCEEDED(result);
 }
 
+bool TaskbarPinShortcutLink(const wchar_t* shortcut) {
+  // "Pin to taskbar" is only supported after Win7.
+  if (win_util::GetWinVersion() < win_util::WINVERSION_WIN7)
+    return false;
+
+  int result = reinterpret_cast<int>(ShellExecute(NULL, L"taskbarpin", shortcut,
+      NULL, NULL, 0));
+  return result > 32;
+}
+
+bool TaskbarUnpinShortcutLink(const wchar_t* shortcut) {
+  // "Unpin from taskbar" is only supported after Win7.
+  if (win_util::GetWinVersion() < win_util::WINVERSION_WIN7)
+    return false;
+
+  int result = reinterpret_cast<int>(ShellExecute(NULL, L"taskbarunpin",
+      shortcut, NULL, NULL, 0));
+  return result > 32;
+}
+
 bool IsDirectoryEmpty(const std::wstring& dir_path) {
   FileEnumerator files(FilePath(dir_path), false,
     static_cast<FileEnumerator::FILE_TYPE>(
