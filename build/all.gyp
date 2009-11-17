@@ -78,6 +78,7 @@
             '../sandbox/sandbox.gyp:*',
             '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
+            '../net/third_party/nss/nss.gyp:*',
           ],
           'conditions': [
             ['branding=="Chrome"', {

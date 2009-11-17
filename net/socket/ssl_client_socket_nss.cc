@@ -356,6 +356,12 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   #error "You need to install NSS-3.12 or later to build chromium"
 #endif
 
+#ifdef SSL_ENABLE_DEFLATE
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_DEFLATE, PR_TRUE);
+  if (rv != SECSuccess)
+     LOG(INFO) << "SSL_ENABLE_DEFLATE failed.  Old system nss?";
+#endif
+
   rv = SSL_OptionSet(nss_fd_, SSL_HANDSHAKE_AS_CLIENT, PR_TRUE);
   if (rv != SECSuccess)
      return ERR_UNEXPECTED;
