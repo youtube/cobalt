@@ -133,8 +133,8 @@ __EOF__
   fi
 }
 
-if ! egrep -q "Ubuntu 8.04|Ubuntu 8.10|Ubuntu 9.04" /etc/issue; then
-  echo "Only Ubuntu 8.04, 8.10, and 9.04 are currently supported" >&2
+if ! egrep -q 'Ubuntu (8\.04|8\.10|9\.04|9\.10)' /etc/issue; then
+  echo "Only Ubuntu 8.04, 8.10, 9.04, and 9.10 are currently supported" >&2
   exit 1
 fi
 
@@ -280,13 +280,19 @@ fi
 case `ld --version` in
 *gold*) ;;
 * )
-  # FIXME: avoid installing as /usr/bin/ld
   echo "Gold is a new linker that links Chrome 5x faster than ld."
   echo "Don't use it if you need to link other apps (e.g. valgrind, wine)"
-  echo -n "REPLACE SYSTEM LINKER ld with gold and back up ld as ld.orig? (y/N) "
+  echo -n "REPLACE SYSTEM LINKER ld with gold and back up ld? (y/N) "
   if yes_no 1; then
-    echo "Building binutils."
-    install_gold || exit 99
+    # If the system provides gold, just install it.
+    if apt-cache show binutils-gold >/dev/null; then
+      echo "Installing binutils-gold. Backing up ld as ld.single."
+      sudo apt-get install binutils-gold
+    else
+      # FIXME: avoid installing as /usr/bin/ld
+      echo "Building binutils. Backing up ld as ld.orig."
+      install_gold || exit 99
+    fi
   else
     echo "Not installing gold."
   fi
