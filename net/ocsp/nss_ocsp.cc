@@ -38,10 +38,13 @@ static const int kRecvBufferSize = 4096;
 // CertVerifier's thread (i.e. worker pool, not on the I/O thread).
 // It supports blocking mode only.
 
-class OCSPInitSingleton {
+class OCSPInitSingleton : public MessageLoop::DestructionObserver {
  public:
+  virtual void WillDestroyCurrentMessageLoop() {
+    io_loop_ = NULL;
+  };
+
   MessageLoop* io_thread() const {
-    DCHECK(io_loop_);
     return io_loop_;
   }
 
@@ -57,7 +60,7 @@ class OCSPInitSingleton {
  private:
   friend struct DefaultSingletonTraits<OCSPInitSingleton>;
   OCSPInitSingleton();
-  ~OCSPInitSingleton() {
+  virtual ~OCSPInitSingleton() {
     request_context_ = NULL;
   }
 
@@ -81,7 +84,8 @@ URLRequestContext* OCSPInitSingleton::request_context_ = NULL;
 // on IO thread.
 class OCSPRequestSession
     : public base::RefCountedThreadSafe<OCSPRequestSession>,
-      public URLRequest::Delegate {
+      public URLRequest::Delegate,
+      public MessageLoop::DestructionObserver {
  public:
   OCSPRequestSession(const GURL& url,
                      const char* http_request_method,
@@ -110,10 +114,11 @@ class OCSPRequestSession
   }
 
   void Start() {
-    DCHECK(io_loop_);
-    io_loop_->PostTask(
-        FROM_HERE,
-        NewRunnableMethod(this, &OCSPRequestSession::StartURLRequest));
+    if (io_loop_) {
+      io_loop_->PostTask(
+          FROM_HERE,
+          NewRunnableMethod(this, &OCSPRequestSession::StartURLRequest));
+    }
   }
 
   bool Started() const {
@@ -121,9 +126,11 @@ class OCSPRequestSession
   }
 
   void Cancel() {
-    io_loop_->PostTask(
-        FROM_HERE,
-        NewRunnableMethod(this, &OCSPRequestSession::CancelURLRequest));
+    if (io_loop_) {
+      io_loop_->PostTask(
+          FROM_HERE,
+          NewRunnableMethod(this, &OCSPRequestSession::CancelURLRequest));
+    }
   }
 
   bool Finished() const {
@@ -214,7 +221,19 @@ class OCSPRequestSession
       cv_.Signal();
       delete request_;
       request_ = NULL;
+      io_loop_->RemoveDestructionObserver(this);
+      io_loop_ = NULL;
     }
+  }
+
+  virtual void WillDestroyCurrentMessageLoop() {
+    DCHECK(MessageLoopForIO::current() == io_loop_);
+    if (request_) {
+      request_->Cancel();
+      delete request_;
+      request_ = NULL;
+    }
+    io_loop_ = NULL;
   }
 
  private:
@@ -222,11 +241,16 @@ class OCSPRequestSession
 
   virtual ~OCSPRequestSession() {
     DCHECK(!request_);
+    if (io_loop_)
+      io_loop_->RemoveDestructionObserver(this);
+    io_loop_ = NULL;
   }
 
   void StartURLRequest() {
     DCHECK(MessageLoopForIO::current() == io_loop_);
     DCHECK(!request_);
+
+    io_loop_->AddDestructionObserver(this);
 
     request_ = new URLRequest(url_, this);
     request_->set_context(
@@ -500,6 +524,7 @@ SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
 
 OCSPInitSingleton::OCSPInitSingleton()
     : io_loop_(MessageLoopForIO::current()) {
+  io_loop_->AddDestructionObserver(this);
   client_fcn_.version = 1;
   SEC_HttpClientFcnV1Struct *ft = &client_fcn_.fcnTable.ftable1;
   ft->createSessionFcn = OCSPCreateSession;
