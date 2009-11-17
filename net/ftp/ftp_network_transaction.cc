@@ -5,6 +5,7 @@
 #include "net/ftp/ftp_network_transaction.h"
 
 #include "base/compiler_specific.h"
+#include "base/histogram.h"
 #include "base/string_util.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/escape.h"
@@ -1066,6 +1067,7 @@ int FtpNetworkTransaction::DoDataConnect() {
 }
 
 int FtpNetworkTransaction::DoDataConnectComplete(int result) {
+  RecordDataConnectionError(result);
   if (retr_failed_) {
     next_state_ = STATE_CTRL_WRITE_CWD;
   } else {
@@ -1096,6 +1098,82 @@ int FtpNetworkTransaction::DoDataRead() {
 
 int FtpNetworkTransaction::DoDataReadComplete(int result) {
   return result;
+}
+
+// We're using a histogram as a group of counters.  We're only interested in
+// the values of the counters.  Ignore the shape, average, and standard
+// deviation of the histograms because they are meaningless.
+//
+// We use two groups of counters.  In the first group (counter1), each counter
+// is a boolean (0 or 1) that indicates whether the user has seen an error
+// of that type during that session.  In the second group (counter2), each
+// counter is the number of errors of that type the user has seen during
+// that session.
+//
+// Each histogram has an unused bucket at the end to allow seamless future
+// expansion.
+void FtpNetworkTransaction::RecordDataConnectionError(int result) {
+  // Gather data for http://crbug.com/3073. See how many users have trouble
+  // establishing FTP data connection in passive FTP mode.
+  enum {
+    // Data connection successful.
+    NET_ERROR_OK = 0,
+
+    // Local firewall blocked the connection.
+    NET_ERROR_ACCESS_DENIED = 1,
+
+    // Connection timed out.
+    NET_ERROR_TIMED_OUT = 2,
+
+    // Connection has been estabilished, but then got broken (either reset
+    // or aborted).
+    NET_ERROR_CONNECTION_BROKEN = 3,
+
+    // Connection has been refused.
+    NET_ERROR_CONNECTION_REFUSED = 4,
+
+    // Other kind of error.
+    NET_ERROR_OTHER = 20,
+
+    NUM_OF_NET_ERROR_TYPES
+  } type;
+  switch (result) {
+    case OK:
+      type = NET_ERROR_OK;
+      break;
+    case ERR_ACCESS_DENIED:
+      type = NET_ERROR_ACCESS_DENIED;
+      break;
+    case ERR_TIMED_OUT:
+      type = NET_ERROR_TIMED_OUT;
+      break;
+    case ERR_CONNECTION_RESET:
+    case ERR_CONNECTION_ABORTED:
+      type = NET_ERROR_CONNECTION_BROKEN;
+      break;
+    case ERR_CONNECTION_REFUSED:
+      type = NET_ERROR_CONNECTION_REFUSED;
+      break;
+    default:
+      type = NET_ERROR_OTHER;
+      break;
+  };
+  static bool had_error_type[NUM_OF_NET_ERROR_TYPES];
+  static LinearHistogram error_flagged("Net.FtpDataConnectionErrorHappened",
+                                       1, NUM_OF_NET_ERROR_TYPES,
+                                       NUM_OF_NET_ERROR_TYPES + 1);
+  static LinearHistogram error_counter("Net.FtpDataConnectionErrorCount",
+                                       1, NUM_OF_NET_ERROR_TYPES,
+                                       NUM_OF_NET_ERROR_TYPES + 1);
+
+  DCHECK(type >= 0 && type < NUM_OF_NET_ERROR_TYPES);
+  if (!had_error_type[type]) {
+    had_error_type[type] = true;
+    error_flagged.SetFlags(kUmaTargetedHistogramFlag);
+    error_flagged.Add(type);
+  }
+  error_counter.SetFlags(kUmaTargetedHistogramFlag);
+  error_counter.Add(type);
 }
 
 }  // namespace net
