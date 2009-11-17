@@ -14,7 +14,11 @@
       },
     }],
   ],
-  
+
+  'variables': {
+    'use_system_ssl%': 1,
+  },
+
   'targets': [
     {
       'target_name': 'gtk',
@@ -61,20 +65,42 @@
       'type': 'settings',
       'conditions': [
         ['_toolset=="target"', {
-          'direct_dependent_settings': {
-            'cflags': [
-              '<!@(<(pkg-config) --cflags nss)',
-            ],
-          },
-          'link_settings': {
-            'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other nss)',
-            ],
-            'libraries': [
-              '<!@(<(pkg-config) --libs-only-l nss)',
-            ],
-          },
-      }]]
+          'conditions': [
+            ['use_system_ssl==0', {
+              'dependencies': [
+                '../../net/third_party/nss/nss.gyp:ssl',
+              ],
+              'direct_dependent_settings': {
+                'cflags': [
+                  '-Inet/third_party/nss/ssl',
+                  '<!@(<(pkg-config) --cflags nss)',
+                ],
+              },
+              'link_settings': {
+                'ldflags': [
+                  '<!@(<(pkg-config) --libs-only-L --libs-only-other nss)',
+                ],
+                'libraries': [
+                  '<!@(<(pkg-config) --libs-only-l nss | sed -e "s/-lssl3//")',
+                ],
+              },
+          }, {
+              'direct_dependent_settings': {
+                'cflags': [
+                  '<!@(<(pkg-config) --cflags nss)',
+                ],
+              },
+              'link_settings': {
+                'ldflags': [
+                  '<!@(<(pkg-config) --libs-only-L --libs-only-other nss)',
+                ],
+                'libraries': [
+                  '<!@(<(pkg-config) --libs-only-l nss)',
+                ],
+              },
+          }]]
+        }],
+      ],
     },
     {
       'target_name': 'freetype2',
