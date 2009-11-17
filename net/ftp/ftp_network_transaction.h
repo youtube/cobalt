@@ -163,6 +163,8 @@ class FtpNetworkTransaction : public FtpTransaction {
   int DoDataRead();
   int DoDataReadComplete(int result);
 
+  void RecordDataConnectionError(int result);
+
   Command command_sent_;
 
   CompletionCallbackImpl<FtpNetworkTransaction> io_callback_;
