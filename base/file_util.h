@@ -237,6 +237,14 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *description, const wchar_t *icon,
                         int icon_index);
 
+// Pins a shortcut to the Windows 7 taskbar. The shortcut file must already
+// exist and be a shortcut that points to an executable.
+bool TaskbarPinShortcutLink(const wchar_t* shortcut);
+
+// Unpins a shortcut from the Windows 7 taskbar. The shortcut must exist and
+// already be pinned to the taskbar.
+bool TaskbarUnpinShortcutLink(const wchar_t* shortcut);
+
 // Return true if the given directory is empty
 bool IsDirectoryEmpty(const std::wstring& dir_path);
 
