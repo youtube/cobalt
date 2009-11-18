@@ -1,5 +1,5 @@
 {"linux-release-hardy/morejs/times/t": {"delta": 0, "var": 100},
- "linux-release-hardy/startup/warm/t": {"delta": 0, "var": 15},
+ "linux-release-hardy/startup/warm/t": {"delta": 80, "var": 20},
  "mac-release-10.5/morejs/times/t": {"delta": -30, "var": 80},
  "mac-release-10.5/startup/warm/t": {"delta": -155, "var": 20},
  "xp-release-dual-core/morejs/times/t": {"delta": 0, "var": 20},
