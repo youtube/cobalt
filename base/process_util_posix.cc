@@ -126,11 +126,9 @@ ProcessId GetProcId(ProcessHandle process) {
 // entry structure.  Ignores specified exit_code; posix can't force that.
 // Returns true if this is successful, false otherwise.
 bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
-  DCHECK(process_id > 1);
-  if (process_id <= 1) {
-    LOG(ERROR) << "tried to kill process_id " << process_id;
+  DCHECK_GT(process_id, 1) << " tried to kill invalid process_id";
+  if (process_id <= 1)
     return false;
-  }
 
   bool result = kill(process_id, SIGTERM) == 0;
 
