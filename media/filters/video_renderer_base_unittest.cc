@@ -16,6 +16,7 @@ using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::NotNull;
 using ::testing::Return;
+using ::testing::ReturnRef;
 using ::testing::StrictMock;
 
 namespace media {
@@ -42,13 +43,20 @@ class VideoRendererBaseTest : public ::testing::Test {
  public:
   VideoRendererBaseTest()
       : renderer_(new MockVideoRendererBase()),
-        decoder_(new MockVideoDecoder(mime_type::kUncompressedVideo, kWidth,
-                                      kHeight)) {
+        decoder_(new MockVideoDecoder()) {
     renderer_->set_host(&host_);
 
     // Queue all reads from the decoder.
     EXPECT_CALL(*decoder_, Read(NotNull()))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::EnqueueCallback));
+
+    // Sets the essential media format keys for this decoder.
+    decoder_media_format_.SetAsString(MediaFormat::kMimeType,
+                                      mime_type::kUncompressedVideo);
+    decoder_media_format_.SetAsInteger(MediaFormat::kWidth, kWidth);
+    decoder_media_format_.SetAsInteger(MediaFormat::kHeight, kHeight);
+    EXPECT_CALL(*decoder_, media_format())
+        .WillRepeatedly(ReturnRef(decoder_media_format_));
   }
 
   virtual ~VideoRendererBaseTest() {
@@ -68,6 +76,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   scoped_refptr<MockVideoDecoder> decoder_;
   StrictMock<MockFilterHost> host_;
   StrictMock<MockFilterCallback> callback_;
+  MediaFormat decoder_media_format_;
 
   // Receives asynchronous read requests sent to |decoder_|.
   std::deque<Callback1<VideoFrame*>::Type*> read_queue_;
@@ -88,7 +97,10 @@ TEST_F(VideoRendererBaseTest, Initialize_BadMediaFormat) {
   InSequence s;
 
   // Don't set a media format.
+  MediaFormat media_format;
   scoped_refptr<MockVideoDecoder> bad_decoder = new MockVideoDecoder();
+  EXPECT_CALL(*bad_decoder, media_format())
+      .WillRepeatedly(ReturnRef(media_format));
 
   // We expect to receive an error.
   EXPECT_CALL(host_, SetError(PIPELINE_ERROR_INITIALIZATION_FAILED));
