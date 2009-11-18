@@ -233,6 +233,7 @@ static const char* const supported_non_image_types[] = {
   "application/xhtml+xml",
   "application/rss+xml",
   "application/atom+xml",
+  "application/json",
   "application/x-x509-user-cert",
   "multipart/x-mixed-replace"
 };
