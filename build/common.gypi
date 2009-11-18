@@ -618,6 +618,9 @@
               '-fdata-sections',
               '-ffunction-sections',
             ],
+            'ldflags': [
+              '-Wl,--gc-sections',
+            ],
           },
         },
         'variants': {
