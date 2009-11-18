@@ -21,95 +21,53 @@ install_gold() {
     return
   fi
 
-  BINUTILS=binutils-2.19.1
+  BINUTILS=binutils-2.20
   BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/$BINUTILS.tar.bz2
-  BINUTILS_SHA1=88c91e36cde93433e4c4c2b2e3417777aad84526
+  BINUTILS_SHA1=747e7b4d94bce46587236dc5f428e5b412a590dc
 
   test -f $BINUTILS.tar.bz2 || wget $BINUTILS_URL
-  if `sha1sum $BINUTILS.tar.bz2` != $BINUTILS_SHA1
+  if test "`sha1sum $BINUTILS.tar.bz2|cut -d' ' -f1`" != "$BINUTILS_SHA1"
   then
     echo Bad sha1sum for $BINUTILS.tar.bz2
     exit 1
   fi
 
   cat > binutils-fix.patch <<__EOF__
---- binutils-2.19.1/gold/reduced_debug_output.h.orig	2009-05-10 14:44:52.000000000 -0700
-+++ binutils-2.19.1/gold/reduced_debug_output.h	2009-05-10 14:46:51.000000000 -0700
-@@ -64,7 +64,7 @@
-   void
-   failed(std::string reason)
-   {
--    gold_warning(reason.c_str());
-+    gold_warning("%s", reason.c_str());
-     failed_ = true;
-   }
+--- binutils-2.20/gold/output.cc.orig	2009-11-17 17:40:49.000000000 -0800
++++ binutils-2.20/gold/output.cc	2009-11-17 18:27:21.000000000 -0800
+@@ -22,6 +22,10 @@
  
-@@ -110,7 +110,7 @@
-   void
-   failed(std::string reason)
-   {
--    gold_warning(reason.c_str());
-+    gold_warning("%s", reason.c_str());
-     this->failed_ = true;
-   }
+ #include "gold.h"
  
-diff -u -r1.3 -r1.4
---- binutils-2.19.1/gold/descriptors.h	2009/01/15 01:29:25	1.3
-+++ binutils-2.19.1/gold/descriptors.h	2009/02/28 03:05:08	1.4
-@@ -69,6 +69,8 @@
-     bool inuse;
-     // Whether this is a write descriptor.
-     bool is_write;
-+    // Whether the descriptor is on the stack.
-+    bool is_on_stack;
-   };
++#if !defined(__STDC_FORMAT_MACROS)
++#define __STDC_FORMAT_MACROS
++#endif
++
+ #include <cstdlib>
+ #include <cstring>
+ #include <cerrno>
+@@ -29,6 +33,7 @@
+ #include <unistd.h>
+ #include <sys/mman.h>
+ #include <sys/stat.h>
++#include <inttypes.h>
+ #include <algorithm>
+ #include "libiberty.h"
  
-   bool
---- binutils-2.19.1/gold/descriptors.cc	2009/01/15 01:29:25	1.3
-+++ binutils-2.19.1/gold/descriptors.cc	2009/02/28 03:05:08	1.4
-@@ -75,6 +75,12 @@
- 	{
- 	  gold_assert(!pod->inuse);
- 	  pod->inuse = true;
-+	  if (descriptor == this->stack_top_)
-+	    {
-+	      this->stack_top_ = pod->stack_next;
-+	      pod->stack_next = -1;
-+	      pod->is_on_stack = false;
-+	    }
- 	  return descriptor;
- 	}
-     }
-@@ -114,6 +120,7 @@
- 	  pod->stack_next = -1;
- 	  pod->inuse = true;
- 	  pod->is_write = (flags & O_ACCMODE) != O_RDONLY;
-+	  pod->is_on_stack = false;
- 
- 	  ++this->current_;
- 	  if (this->current_ >= this->limit_)
-@@ -158,10 +165,11 @@
-   else
-     {
-       pod->inuse = false;
--      if (!pod->is_write)
-+      if (!pod->is_write && !pod->is_on_stack)
- 	{
- 	  pod->stack_next = this->stack_top_;
- 	  this->stack_top_ = descriptor;
-+	  pod->is_on_stack = true;
- 	}
-     }
- }
-@@ -193,6 +201,8 @@
- 	    this->stack_top_ = pod->stack_next;
- 	  else
- 	    this->open_descriptors_[last].stack_next = pod->stack_next;
-+	  pod->stack_next = -1;
-+	  pod->is_on_stack = false;
- 	  return true;
- 	}
-       last = i;
+@@ -3505,11 +3510,11 @@
+ 		  Output_section* os = (*p)->output_section();
+ 		  if (os == NULL)
+ 		    gold_error(_("dot moves backward in linker script "
+-				 "from 0x%llx to 0x%llx"),
++				 "from 0x%"PRIx64" to 0x%"PRIx64),
+ 			       addr + (off - startoff), (*p)->address());
+ 		  else
+ 		    gold_error(_("address of section '%s' moves backward "
+-				 "from 0x%llx to 0x%llx"),
++				 "from 0x%"PRIx64" to 0x%"PRIx64),
+ 			       os->name(), addr + (off - startoff),
+ 			       (*p)->address());
+ 		}
 __EOF__
 
   tar -xjvf $BINUTILS.tar.bz2
