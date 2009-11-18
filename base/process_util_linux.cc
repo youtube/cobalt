@@ -6,6 +6,7 @@
 
 #include <ctype.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/time.h>
@@ -497,8 +498,105 @@ size_t GetSystemCommitCharge() {
   return result_in_kb;
 }
 
+namespace {
+
+void OnNoMemorySize(size_t size) {
+  if (size != 0)
+    CHECK(false) << "Out of memory, size = " << size;
+  CHECK(false) << "Out of memory.";
+}
+
+void OnNoMemory() {
+  OnNoMemorySize(0);
+}
+
+}  // namespace
+
+extern "C" {
+
+#if defined(LINUX_USE_TCMALLOC)
+
+int tc_set_new_mode(int mode);
+
+#else  // defined(LINUX_USE_TCMALLOC)
+
+typedef void* (*malloc_type)(size_t size);
+typedef void* (*valloc_type)(size_t size);
+typedef void* (*pvalloc_type)(size_t size);
+
+typedef void* (*calloc_type)(size_t nmemb, size_t size);
+typedef void* (*realloc_type)(void *ptr, size_t size);
+typedef void* (*memalign_type)(size_t boundary, size_t size);
+
+typedef int (*posix_memalign_type)(void **memptr, size_t alignment,
+                                   size_t size);
+
+// Override the __libc_FOO name too.
+#define DIE_ON_OOM_1(function_name) \
+  _DIE_ON_OOM_1(function_name##_type, function_name) \
+  _DIE_ON_OOM_1(function_name##_type, __libc_##function_name)
+
+#define DIE_ON_OOM_2(function_name, arg1_type) \
+  _DIE_ON_OOM_2(function_name##_type, function_name, arg1_type) \
+  _DIE_ON_OOM_2(function_name##_type, __libc_##function_name, arg1_type)
+
+// posix_memalign doesn't have a __libc_ variant.
+#define DIE_ON_OOM_3INT(function_name) \
+  _DIE_ON_OOM_3INT(function_name##_type, function_name)
+
+#define _DIE_ON_OOM_1(function_type, function_name) \
+  void* function_name(size_t size) { \
+    static function_type original_function = \
+        reinterpret_cast<function_type>(dlsym(RTLD_NEXT, #function_name)); \
+    void* ret = original_function(size); \
+    if (ret == NULL && size != 0) \
+      OnNoMemorySize(size); \
+    return ret; \
+  }
+
+#define _DIE_ON_OOM_2(function_type, function_name, arg1_type) \
+  void* function_name(arg1_type arg1, size_t size) { \
+    static function_type original_function = \
+        reinterpret_cast<function_type>(dlsym(RTLD_NEXT, #function_name)); \
+    void* ret = original_function(arg1, size); \
+    if (ret == NULL && size != 0) \
+      OnNoMemorySize(size); \
+    return ret; \
+  }
+
+#define _DIE_ON_OOM_3INT(function_type, function_name) \
+  int function_name(void** ptr, size_t alignment, size_t size) { \
+    static function_type original_function = \
+        reinterpret_cast<function_type>(dlsym(RTLD_NEXT, #function_name)); \
+    int ret = original_function(ptr, alignment, size); \
+    if (ret == ENOMEM) \
+      OnNoMemorySize(size); \
+    return ret; \
+  }
+
+DIE_ON_OOM_1(malloc)
+DIE_ON_OOM_1(valloc)
+DIE_ON_OOM_1(pvalloc)
+
+DIE_ON_OOM_2(calloc, size_t)
+DIE_ON_OOM_2(realloc, void*)
+DIE_ON_OOM_2(memalign, size_t)
+
+DIE_ON_OOM_3INT(posix_memalign)
+
+#endif  // defined(LINUX_USE_TCMALLOC)
+
+}  // extern C
+
 void EnableTerminationOnOutOfMemory() {
-  // http://crbug.com/27222
+  // Set the new-out of memory handler.
+  std::set_new_handler(&OnNoMemory);
+  // If we're using glibc's allocator, the above functions will override
+  // malloc and friends and make them die on out of memory.
+#if defined(LINUX_USE_TCMALLOC)
+  // For tcmalloc, we just need to tell it to behave like new.
+  tc_set_new_mode(1);
+#endif
 }
 
 }  // namespace base
