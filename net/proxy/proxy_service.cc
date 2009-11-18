@@ -513,7 +513,23 @@ void ProxyService::RemovePendingRequest(PacRequest* req) {
 
 void ProxyService::SetProxyScriptFetcher(
     ProxyScriptFetcher* proxy_script_fetcher) {
-  proxy_script_fetcher_.reset(proxy_script_fetcher);
+  if (init_proxy_resolver_.get()) {
+    // We need to be careful to first cancel |init_proxy_resolver_|, since it
+    // holds a pointer to the old proxy script fetcher we are about to delete.
+
+    DCHECK(IsInitializingProxyResolver());
+    init_proxy_resolver_.reset();
+    proxy_script_fetcher_.reset(proxy_script_fetcher);
+
+    // Restart the initialization, using the new proxy script fetcher.
+    StartInitProxyResolver();
+  } else {
+    proxy_script_fetcher_.reset(proxy_script_fetcher);
+  }
+}
+
+ProxyScriptFetcher* ProxyService::GetProxyScriptFetcher() const {
+  return proxy_script_fetcher_.get();
 }
 
 void ProxyService::ResetConfigService(
@@ -629,17 +645,24 @@ void ProxyService::SetConfig(const ProxyConfig& config) {
     // OnInitProxyResolverComplete().
     SuspendAllPendingRequests();
 
-    init_proxy_resolver_.reset(
-        new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get()));
-
-    init_proxy_resolver_log_ = new LoadLog(kMaxNumLoadLogEntries);
-
-    int rv = init_proxy_resolver_->Init(
-        config_, &init_proxy_resolver_callback_, init_proxy_resolver_log_);
-
-    if (rv != ERR_IO_PENDING)
-      OnInitProxyResolverComplete(rv);
+    // Calls OnInitProxyResolverComplete() on completion.
+    StartInitProxyResolver();
   }
+}
+
+void ProxyService::StartInitProxyResolver() {
+  DCHECK(!init_proxy_resolver_.get());
+
+  init_proxy_resolver_.reset(
+      new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get()));
+
+  init_proxy_resolver_log_ = new LoadLog(kMaxNumLoadLogEntries);
+
+  int rv = init_proxy_resolver_->Init(
+      config_, &init_proxy_resolver_callback_, init_proxy_resolver_log_);
+
+  if (rv != ERR_IO_PENDING)
+    OnInitProxyResolverComplete(rv);
 }
 
 void ProxyService::UpdateConfigIfOld() {

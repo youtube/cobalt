@@ -90,6 +90,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // is of type ProxyResolverWithoutFetch. ProxyService takes ownership of
   // |proxy_script_fetcher|.
   void SetProxyScriptFetcher(ProxyScriptFetcher* proxy_script_fetcher);
+  ProxyScriptFetcher* GetProxyScriptFetcher() const;
 
   // Tells this ProxyService to start using a new ProxyConfigService to
   // retrieve its ProxyConfig from. The new ProxyConfigService will immediately
@@ -179,6 +180,10 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
 
   // Assign |config| as the current configuration.
   void SetConfig(const ProxyConfig& config);
+
+  // Starts downloading and testing the various PAC choices.
+  // Calls OnInitProxyResolverComplete() when completed.
+  void StartInitProxyResolver();
 
   // Tries to update the configuration if it hasn't been checked in a while.
   void UpdateConfigIfOld();

@@ -45,6 +45,10 @@ class ProxyScriptFetcher {
   // Aborts the in-progress fetch (if any).
   virtual void Cancel() = 0;
 
+  // Returns the request context that this fetcher uses to issue downloads,
+  // or NULL.
+  virtual URLRequestContext* GetRequestContext() { return NULL; }
+
   // Create a ProxyScriptFetcher that uses |url_request_context|.
   static ProxyScriptFetcher* Create(URLRequestContext* url_request_context);
 
