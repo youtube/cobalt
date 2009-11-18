@@ -500,7 +500,11 @@
         'cflags': [
           '<(werror)',  # See note above about the werror variable.
           '-pthread',
+          # We don't use exceptions.  By disabling exceptions
+          # (and asynchronous-unwind-tables), we shave off 2.5mb from
+          # our resulting binary by not including the eh_frame section.
           '-fno-exceptions',
+          '-fno-asynchronous-unwind-tables',
           '-fvisibility=hidden',
           '-Wall',
           '-D_FILE_OFFSET_BITS=64',
