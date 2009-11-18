@@ -4,6 +4,8 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
+#include <limits>
+
 #include "base/command_line.h"
 #include "base/eintr_wrapper.h"
 #include "base/file_path.h"
@@ -15,6 +17,7 @@
 
 #if defined(OS_LINUX)
 #include <dlfcn.h>
+#include <malloc.h>
 #endif
 #if defined(OS_POSIX)
 #include <fcntl.h>
@@ -360,5 +363,96 @@ TEST_F(ProcessUtilTest, ParseProcStatCPU) {
 #endif
 
 #endif  // defined(OS_POSIX)
+
+#if defined(OS_LINUX)
+// TODO(vandebo) make this work on Windows and Mac too.
+
+class OutOfMemoryTest : public testing::Test {
+ public:
+  OutOfMemoryTest()
+      : value_(NULL),
+        // Make test size as large as possible minus a few pages so
+        // that alignment or other rounding doesn't make it wrap.
+        test_size_(std::numeric_limits<std::size_t>::max() - 8192) {
+  }
+
+  virtual void SetUp() {
+    // Must call EnableTerminationOnOutOfMemory() because that is called from
+    // chrome's main function and therefore hasn't been called yet.
+    EnableTerminationOnOutOfMemory();
+  }
+
+  void* value_;
+  size_t test_size_;
+};
+
+TEST_F(OutOfMemoryTest, New) {
+  ASSERT_DEATH(value_ = new char[test_size_], "");
+}
+
+TEST_F(OutOfMemoryTest, Malloc) {
+  ASSERT_DEATH(value_ = malloc(test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, Realloc) {
+  ASSERT_DEATH(value_ = realloc(NULL, test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, Calloc) {
+  ASSERT_DEATH(value_ = calloc(1024, test_size_ / 1024L), "");
+}
+
+TEST_F(OutOfMemoryTest, Valloc) {
+  ASSERT_DEATH(value_ = valloc(test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, Pvalloc) {
+  ASSERT_DEATH(value_ = pvalloc(test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, Memalign) {
+  ASSERT_DEATH(value_ = memalign(4, test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, Posix_memalign) {
+  ASSERT_DEATH(posix_memalign(&value_, 8, test_size_), "");
+}
+
+extern "C" {
+
+void* __libc_malloc(size_t size);
+void* __libc_realloc(void* ptr, size_t size);
+void* __libc_calloc(size_t nmemb, size_t size);
+void* __libc_valloc(size_t size);
+void* __libc_pvalloc(size_t size);
+void* __libc_memalign(size_t alignment, size_t size);
+
+}  // extern "C"
+
+TEST_F(OutOfMemoryTest, __libc_malloc) {
+  ASSERT_DEATH(value_ = __libc_malloc(test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, __libc_realloc) {
+  ASSERT_DEATH(value_ = __libc_realloc(NULL, test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, __libc_calloc) {
+  ASSERT_DEATH(value_ = __libc_calloc(1024, test_size_ / 1024L), "");
+}
+
+TEST_F(OutOfMemoryTest, __libc_valloc) {
+  ASSERT_DEATH(value_ = __libc_valloc(test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, __libc_pvalloc) {
+  ASSERT_DEATH(value_ = __libc_pvalloc(test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, __libc_memalign) {
+  ASSERT_DEATH(value_ = __libc_memalign(4, test_size_), "");
+}
+
+#endif  // defined(OS_LINUX)
 
 }  // namespace base
