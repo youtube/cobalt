@@ -82,7 +82,8 @@ __EOF__
     # variables.  That will go into bootstrap-linux.sh when it's ready.
     echo "Installing gold as /usr/bin/ld."
     echo "To uninstall, do 'cd /usr/bin; sudo rm ld; sudo mv ld.orig ld'"
-    test -f /usr/bin/ld && sudo mv /usr/bin/ld /usr/bin/ld.orig
+    test -f /usr/bin/ld && test ! -f /usr/bin/ld.orig && \
+        sudo mv /usr/bin/ld /usr/bin/ld.orig
     sudo strip /usr/local/gold/bin/ld
     sudo ln -fs /usr/local/gold/bin/ld /usr/bin/ld.gold
     sudo ln -fs /usr/bin/ld.gold /usr/bin/ld
