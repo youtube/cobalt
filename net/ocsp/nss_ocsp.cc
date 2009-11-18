@@ -126,7 +126,7 @@ class OCSPRequestSession
   }
 
   void Cancel() {
-    if (io_loop_) {
+    if (io_loop_ && request_) {
       io_loop_->PostTask(
           FROM_HERE,
           NewRunnableMethod(this, &OCSPRequestSession::CancelURLRequest));
@@ -190,8 +190,8 @@ class OCSPRequestSession
   }
 
   virtual void OnResponseStarted(URLRequest* request) {
-    DCHECK(request == request_);
-    DCHECK(MessageLoopForIO::current() == io_loop_);
+    DCHECK_EQ(request, request_);
+    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 
     int bytes_read = 0;
     if (request->status().is_success()) {
@@ -204,8 +204,8 @@ class OCSPRequestSession
   }
 
   virtual void OnReadCompleted(URLRequest* request, int bytes_read) {
-    DCHECK(request == request_);
-    DCHECK(MessageLoopForIO::current() == io_loop_);
+    DCHECK_EQ(request, request_);
+    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
 
     do {
       if (!request_->status().is_success() || bytes_read <= 0)
@@ -227,7 +227,7 @@ class OCSPRequestSession
   }
 
   virtual void WillDestroyCurrentMessageLoop() {
-    DCHECK(MessageLoopForIO::current() == io_loop_);
+    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
     if (request_) {
       request_->Cancel();
       delete request_;
@@ -247,7 +247,7 @@ class OCSPRequestSession
   }
 
   void StartURLRequest() {
-    DCHECK(MessageLoopForIO::current() == io_loop_);
+    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
     DCHECK(!request_);
 
     io_loop_->AddDestructionObserver(this);
@@ -278,7 +278,7 @@ class OCSPRequestSession
   }
 
   void CancelURLRequest() {
-    DCHECK(MessageLoopForIO::current() == io_loop_);
+    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
     if (request_) {
       request_->Cancel();
       delete request_;
