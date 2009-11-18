@@ -923,7 +923,7 @@ TEST(ProxyServiceTest, CancelInProgressRequest) {
   EXPECT_EQ("request3:80", info3.proxy_server().ToURI());
 }
 
-// Test the initial PAC download for ProxyResolverWithoutFetch.
+// Test the initial PAC download for resolver that expects bytes.
 TEST(ProxyServiceTest, InitialPACScriptDownload) {
   MockProxyConfigService* config_service =
       new MockProxyConfigService("http://foopy/proxy.pac");
@@ -1000,6 +1000,63 @@ TEST(ProxyServiceTest, InitialPACScriptDownload) {
 
   EXPECT_EQ(OK, callback3.WaitForResult());
   EXPECT_EQ("request3:80", info3.proxy_server().ToURI());
+}
+
+// Test changing the ProxyScriptFetcher while PAC download is in progress.
+TEST(ProxyServiceTest, ChangeScriptFetcherWhilePACDownloadInProgress) {
+  MockProxyConfigService* config_service =
+      new MockProxyConfigService("http://foopy/proxy.pac");
+
+  MockAsyncProxyResolverExpectsBytes* resolver =
+      new MockAsyncProxyResolverExpectsBytes;
+
+  scoped_refptr<ProxyService> service(
+      new ProxyService(config_service, resolver));
+
+  MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
+  service->SetProxyScriptFetcher(fetcher);
+
+  // Start 2 requests.
+
+  ProxyInfo info1;
+  TestCompletionCallback callback1;
+  int rv = service->ResolveProxy(
+      GURL("http://request1"), &info1, &callback1, NULL, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // The first request should have triggered download of PAC script.
+  EXPECT_TRUE(fetcher->has_pending_request());
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"), fetcher->pending_request_url());
+
+  ProxyInfo info2;
+  TestCompletionCallback callback2;
+  rv = service->ResolveProxy(
+      GURL("http://request2"), &info2, &callback2, NULL, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // At this point the ProxyService should be waiting for the
+  // ProxyScriptFetcher to invoke its completion callback, notifying it of
+  // PAC script download completion.
+
+  // We now change out the ProxyService's script fetcher. We should restart
+  // the initialization with the new fetcher.
+
+  fetcher = new MockProxyScriptFetcher;
+  service->SetProxyScriptFetcher(fetcher);
+
+  // Nothing has been sent to the resolver yet.
+  EXPECT_TRUE(resolver->pending_requests().empty());
+
+  fetcher->NotifyFetchCompletion(OK, "pac-v1");
+
+  // Now that the PAC script is downloaded, it will have been sent to the proxy
+  // resolver.
+  EXPECT_EQ("pac-v1", resolver->pending_set_pac_script_request()->pac_bytes());
+  resolver->pending_set_pac_script_request()->CompleteNow(OK);
+
+  ASSERT_EQ(2u, resolver->pending_requests().size());
+  EXPECT_EQ(GURL("http://request1"), resolver->pending_requests()[0]->url());
+  EXPECT_EQ(GURL("http://request2"), resolver->pending_requests()[1]->url());
 }
 
 // Test cancellation of a request, while the PAC script is being fetched.
