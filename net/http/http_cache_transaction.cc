@@ -150,6 +150,7 @@ HttpCache::Transaction::~Transaction() {
   // does nothing.
   cache_read_callback_->Cancel();
   cache_write_callback_->Cancel();
+  entry_ready_callback_->Cancel();
 
   // We could still have a cache read or write in progress, so we just null the
   // cache_ pointer to signal that we are dead.  See DoCacheReadCompleted.
@@ -686,6 +687,8 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
 
   bool byte_range_requested = partial_.get() != NULL;
   if (byte_range_requested) {
+    // Balanced in ValidateEntryHeadersAndContinue.
+    entry_ready_callback_->AddRef();
     if (OK != entry_->disk_entry->ReadyForSparseIO(entry_ready_callback_))
       return ERR_IO_PENDING;
   } else {
@@ -704,6 +707,11 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
 int HttpCache::Transaction::ValidateEntryHeadersAndContinue(
     bool byte_range_requested) {
   DCHECK(mode_ == READ_WRITE);
+
+  if (byte_range_requested) {
+    // Balance the AddRef from BeginPartialCacheValidation.
+    entry_ready_callback_->Release();
+  }
 
   if (!cache_)
     return HandleResult(ERR_UNEXPECTED);
