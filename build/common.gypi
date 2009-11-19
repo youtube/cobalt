@@ -48,12 +48,6 @@
         }, {  # OS!="linux"
           'target_arch%': 'ia32',
         }],
-        [ 'OS=="mac"', {
-          # For now, only Linux and Windows use spellcheck in the renderer.
-          'spellchecker_in_renderer%': 0,
-        }, {  # OS!="mac"
-          'spellchecker_in_renderer%': 1,
-        }],
       ],
 
       # We do want to build Chromium with Breakpad support in certain
@@ -86,7 +80,6 @@
     'branding%': '<(branding)',
     'buildtype%': '<(buildtype)',
     'target_arch%': '<(target_arch)',
-    'spellchecker_in_renderer%': '<(spellchecker_in_renderer)',
     'toolkit_views%': '<(toolkit_views)',
     'chromeos%': '<(chromeos)',
     'inside_chromium_build%': '<(inside_chromium_build)',
@@ -308,9 +301,6 @@
       }],
       ['enable_pepper==1', {
         'defines': ['ENABLE_PEPPER=1'],
-      }],
-      ['spellchecker_in_renderer==1', {
-        'defines': ['SPELLCHECKER_IN_RENDERER=1']
       }],
       ['fastbuild!=0', {
         'conditions': [
