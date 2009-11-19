@@ -290,9 +290,6 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
 // If success, return true and output the full path of the directory created.
 bool CreateNewTempDirectory(const FilePath::StringType& prefix,
                             FilePath* new_temp_path);
-// Deprecated temporary compatibility function.
-bool CreateNewTempDirectory(const std::wstring& prefix,
-                            std::wstring* new_temp_path);
 
 // Creates a directory, as well as creating any parent directories, if they
 // don't exist. Returns 'true' on successful creation, or if the directory
