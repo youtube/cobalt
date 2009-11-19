@@ -251,8 +251,25 @@ class MockDiskEntry : public disk_cache::Entry,
   // Fail most subsequent requests.
   void set_fail_requests() { fail_requests_ = true; }
 
+  // If |value| is true, don't deliver any completion callbacks until called
+  // again with |value| set to false.  Caution: remember to enable callbacks
+  // again or all subsequent tests will fail.
+  static void IgnoreCallbacks(bool value) {
+    if (ignore_callbacks_ == value)
+      return;
+    ignore_callbacks_ = value;
+    if (!value)
+      StoreAndDeliverCallbacks(false, NULL, NULL, 0);
+  }
+
  private:
   friend class base::RefCounted<MockDiskEntry>;
+
+  struct CallbackInfo {
+    scoped_refptr<MockDiskEntry> entry;
+    net::CompletionCallback* callback;
+    int result;
+  };
 
   ~MockDiskEntry() {}
 
@@ -260,6 +277,8 @@ class MockDiskEntry : public disk_cache::Entry,
   // if the consumer called Close on the MockDiskEntry.  We achieve that by
   // leveraging the fact that this class is reference counted.
   void CallbackLater(net::CompletionCallback* callback, int result) {
+    if (ignore_callbacks_)
+      return StoreAndDeliverCallbacks(true, this, callback, result);
     MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(this,
         &MockDiskEntry::RunCallback, callback, result));
   }
@@ -282,6 +301,24 @@ class MockDiskEntry : public disk_cache::Entry,
     callback->Run(result);
   }
 
+  // When |store| is true, stores the callback to be delivered later; otherwise
+  // delivers any callback previously stored.
+  static void StoreAndDeliverCallbacks(bool store, MockDiskEntry* entry,
+                                       net::CompletionCallback* callback,
+                                       int result) {
+    static std::vector<CallbackInfo> callback_list;
+    if (store) {
+      CallbackInfo c = {entry, callback, result};
+      callback_list.push_back(c);
+    } else {
+      for (size_t i = 0; i < callback_list.size(); i++) {
+        CallbackInfo& c = callback_list[i];
+        c.entry->CallbackLater(c.callback, c.result);
+      }
+      callback_list.clear();
+    }
+  }
+
   std::string key_;
   std::vector<char> data_[2];
   int test_mode_;
@@ -291,10 +328,12 @@ class MockDiskEntry : public disk_cache::Entry,
   bool busy_;
   bool delayed_;
   static bool cancel_;
+  static bool ignore_callbacks_;
 };
 
-// Static.
+// Statics.
 bool MockDiskEntry::cancel_ = false;
+bool MockDiskEntry::ignore_callbacks_ = false;
 
 class MockDiskCache : public disk_cache::Backend {
  public:
@@ -2750,6 +2789,67 @@ TEST(HttpCache, RangeGET_Cancel2) {
   RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
 
   EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// A slight variation of the previous test, this time we cancel two requests in
+// a row, making sure that the second is waiting for the entry to be ready.
+TEST(HttpCache, RangeGET_Cancel3) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
+  MockHttpRequest request(kRangeGET_TransactionOK);
+
+  Context* c = new Context();
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
+
+  rv = c->trans->Start(&request, &c->callback, NULL);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+  rv = c->callback.WaitForResult();
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Make sure that we revalidate the entry and read from the cache (a single
+  // read will return while waiting for the network).
+  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(5);
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+  rv = c->callback.WaitForResult();
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+
+  // Destroy the transaction before completing the read.
+  delete c;
+
+  // We have the read and the delete (OnProcessPendingQueue) waiting on the
+  // message loop. This means that a new transaction will just reuse the same
+  // active entry (no open or create).
+
+  c = new Context();
+  rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
+
+  rv = c->trans->Start(&request, &c->callback, NULL);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+
+  MockDiskEntry::IgnoreCallbacks(true);
+  MessageLoop::current()->RunAllPending();
+  MockDiskEntry::IgnoreCallbacks(false);
+
+  // The new transaction is waiting for the query range callback.
+  delete c;
+
+  // And we should not crash when the callback is delivered.
+  MessageLoop::current()->RunAllPending();
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
   RemoveMockTransaction(&kRangeGET_TransactionOK);
