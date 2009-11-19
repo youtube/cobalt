@@ -128,7 +128,7 @@ int HttpStreamParser::DoLoop(int result) {
         if (result < 0)
           can_do_more = false;
         else
-          result =  DoSendBody(result);
+          result = DoSendBody(result);
         TRACE_EVENT_END("http.write_body", request_, request_->url.spec());
         break;
       case STATE_REQUEST_SENT:
@@ -192,7 +192,8 @@ int HttpStreamParser::DoSendHeaders(int result) {
 }
 
 int HttpStreamParser::DoSendBody(int result) {
-  request_body_->DidConsume(result);
+  if (result > 0)
+    request_body_->DidConsume(result);
 
   if (request_body_->position() < request_body_->size()) {
     int buf_len = static_cast<int>(request_body_->buf_len());
