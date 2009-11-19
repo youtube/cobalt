@@ -989,7 +989,7 @@ TEST_F(FileUtilTest, CreateShortcutTest) {
   CoInitialize(NULL);
   EXPECT_TRUE(file_util::CreateShortcutLink(target_file.value().c_str(),
                                             link_file.value().c_str(),
-                                            NULL, NULL, NULL, NULL, 0));
+                                            NULL, NULL, NULL, NULL, 0, NULL));
   FilePath resolved_name = link_file;
   EXPECT_TRUE(file_util::ResolveShortcut(&resolved_name));
   std::wstring read_contents = ReadTextFile(resolved_name);

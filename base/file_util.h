@@ -218,24 +218,24 @@ bool ResolveShortcut(FilePath* path);
 // 'source' is the existing file, 'destination' is the new link file to be
 // created; for best results pass the filename with the .lnk extension.
 // The 'icon' can specify a dll or exe in which case the icon index is the
-// resource id.
+// resource id. 'app_id' is the app model id for the shortcut on Win7.
 // Note that if the shortcut exists it will overwrite it.
 bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *working_dir, const wchar_t *arguments,
                         const wchar_t *description, const wchar_t *icon,
-                        int icon_index);
+                        int icon_index, const wchar_t* app_id);
 
 // Update a Windows shortcut (.LNK file). This method assumes the shortcut
 // link already exists (otherwise false is returned). Ensure you have
 // initialized COM before calling into this function. Only 'destination'
 // parameter is required, everything else can be NULL (but if everything else
 // is NULL no changes are made to the shortcut). 'destination' is the link
-// file to be updated. For best results pass the filename with the .lnk
-// extension.
+// file to be updated. 'app_id' is the app model id for the shortcut on Win7.
+// For best results pass the filename with the .lnk extension.
 bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *working_dir, const wchar_t *arguments,
                         const wchar_t *description, const wchar_t *icon,
-                        int icon_index);
+                        int icon_index, const wchar_t* app_id);
 
 // Pins a shortcut to the Windows 7 taskbar. The shortcut file must already
 // exist and be a shortcut that points to an executable.

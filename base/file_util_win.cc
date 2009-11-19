@@ -5,6 +5,7 @@
 #include "base/file_util.h"
 
 #include <windows.h>
+#include <propvarutil.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <time.h>
@@ -12,6 +13,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/scoped_comptr_win.h"
 #include "base/scoped_handle.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -258,38 +260,32 @@ bool GetFileCreationLocalTime(const std::wstring& filename,
 
 bool ResolveShortcut(FilePath* path) {
   HRESULT result;
-  IShellLink *shell = NULL;
+  ScopedComPtr<IShellLink> i_shell_link;
   bool is_resolved = false;
 
   // Get pointer to the IShellLink interface
-  result = CoCreateInstance(CLSID_ShellLink, NULL,
-                            CLSCTX_INPROC_SERVER, IID_IShellLink,
-                            reinterpret_cast<LPVOID*>(&shell));
+  result = i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
+                                       CLSCTX_INPROC_SERVER);
   if (SUCCEEDED(result)) {
-    IPersistFile *persist = NULL;
+    ScopedComPtr<IPersistFile> persist;
     // Query IShellLink for the IPersistFile interface
-    result = shell->QueryInterface(IID_IPersistFile,
-                                   reinterpret_cast<LPVOID*>(&persist));
+    result = persist.QueryFrom(i_shell_link);
     if (SUCCEEDED(result)) {
       WCHAR temp_path[MAX_PATH];
       // Load the shell link
       result = persist->Load(path->value().c_str(), STGM_READ);
       if (SUCCEEDED(result)) {
         // Try to find the target of a shortcut
-        result = shell->Resolve(0, SLR_NO_UI);
+        result = i_shell_link->Resolve(0, SLR_NO_UI);
         if (SUCCEEDED(result)) {
-          result = shell->GetPath(temp_path, MAX_PATH,
+          result = i_shell_link->GetPath(temp_path, MAX_PATH,
                                   NULL, SLGP_UNCPRIORITY);
           *path = FilePath(temp_path);
           is_resolved = true;
         }
       }
     }
-    if (persist)
-      persist->Release();
   }
-  if (shell)
-    shell->Release();
 
   return is_resolved;
 }
@@ -297,58 +293,46 @@ bool ResolveShortcut(FilePath* path) {
 bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *working_dir, const wchar_t *arguments,
                         const wchar_t *description, const wchar_t *icon,
-                        int icon_index) {
-  IShellLink *i_shell_link = NULL;
-  IPersistFile *i_persist_file = NULL;
+                        int icon_index, const wchar_t* app_id) {
+  ScopedComPtr<IShellLink> i_shell_link;
+  ScopedComPtr<IPersistFile> i_persist_file;
 
   // Get pointer to the IShellLink interface
-  HRESULT result = CoCreateInstance(CLSID_ShellLink, NULL,
-                                    CLSCTX_INPROC_SERVER, IID_IShellLink,
-                                    reinterpret_cast<LPVOID*>(&i_shell_link));
+  HRESULT result = i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
+                                               CLSCTX_INPROC_SERVER);
   if (FAILED(result))
     return false;
 
   // Query IShellLink for the IPersistFile interface
-  result = i_shell_link->QueryInterface(IID_IPersistFile,
-      reinterpret_cast<LPVOID*>(&i_persist_file));
-  if (FAILED(result)) {
-    i_shell_link->Release();
+  result = i_persist_file.QueryFrom(i_shell_link);
+  if (FAILED(result))
     return false;
-  }
 
-  if (FAILED(i_shell_link->SetPath(source))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (FAILED(i_shell_link->SetPath(source)))
     return false;
-  }
 
-  if (working_dir && FAILED(i_shell_link->SetWorkingDirectory(working_dir))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (working_dir && FAILED(i_shell_link->SetWorkingDirectory(working_dir)))
     return false;
-  }
 
-  if (arguments && FAILED(i_shell_link->SetArguments(arguments))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (arguments && FAILED(i_shell_link->SetArguments(arguments)))
     return false;
-  }
 
-  if (description && FAILED(i_shell_link->SetDescription(description))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (description && FAILED(i_shell_link->SetDescription(description)))
     return false;
-  }
 
-  if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index)))
     return false;
+
+  if (app_id && (win_util::GetWinVersion() >= win_util::WINVERSION_WIN7)) {
+    ScopedComPtr<IPropertyStore> property_store;
+    if (FAILED(property_store.QueryFrom(i_shell_link)))
+      return false;
+
+    if (!win_util::SetAppIdForPropertyStore(property_store, app_id))
+      return false;
   }
 
   result = i_persist_file->Save(destination, TRUE);
-  i_persist_file->Release();
-  i_shell_link->Release();
   return SUCCEEDED(result);
 }
 
@@ -356,60 +340,45 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
 bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *working_dir, const wchar_t *arguments,
                         const wchar_t *description, const wchar_t *icon,
-                        int icon_index) {
+                        int icon_index, const wchar_t* app_id) {
   // Get pointer to the IPersistFile interface and load existing link
-  IShellLink *i_shell_link = NULL;
-  if (FAILED(CoCreateInstance(CLSID_ShellLink, NULL,
-                              CLSCTX_INPROC_SERVER, IID_IShellLink,
-                              reinterpret_cast<LPVOID*>(&i_shell_link))))
+  ScopedComPtr<IShellLink> i_shell_link;
+  if (FAILED(i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
+                                         CLSCTX_INPROC_SERVER)))
     return false;
 
-  IPersistFile *i_persist_file = NULL;
-  if (FAILED(i_shell_link->QueryInterface(
-      IID_IPersistFile, reinterpret_cast<LPVOID*>(&i_persist_file)))) {
-    i_shell_link->Release();
+  ScopedComPtr<IPersistFile> i_persist_file;
+  if (FAILED(i_persist_file.QueryFrom(i_shell_link)))
     return false;
-  }
 
-  if (FAILED(i_persist_file->Load(destination, 0))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (FAILED(i_persist_file->Load(destination, 0)))
     return false;
-  }
 
-  if (source && FAILED(i_shell_link->SetPath(source))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (source && FAILED(i_shell_link->SetPath(source)))
     return false;
-  }
 
-  if (working_dir && FAILED(i_shell_link->SetWorkingDirectory(working_dir))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (working_dir && FAILED(i_shell_link->SetWorkingDirectory(working_dir)))
     return false;
-  }
 
-  if (arguments && FAILED(i_shell_link->SetArguments(arguments))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (arguments && FAILED(i_shell_link->SetArguments(arguments)))
     return false;
-  }
 
-  if (description && FAILED(i_shell_link->SetDescription(description))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (description && FAILED(i_shell_link->SetDescription(description)))
     return false;
-  }
 
-  if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index))) {
-    i_persist_file->Release();
-    i_shell_link->Release();
+  if (icon && FAILED(i_shell_link->SetIconLocation(icon, icon_index)))
     return false;
+
+  if (app_id && win_util::GetWinVersion() >= win_util::WINVERSION_WIN7) {
+    ScopedComPtr<IPropertyStore> property_store;
+    if (FAILED(property_store.QueryFrom(i_shell_link)))
+      return false;
+
+    if (!win_util::SetAppIdForPropertyStore(property_store, app_id))
+      return false;
   }
 
   HRESULT result = i_persist_file->Save(destination, TRUE);
-  i_persist_file->Release();
-  i_shell_link->Release();
   return SUCCEEDED(result);
 }
 
