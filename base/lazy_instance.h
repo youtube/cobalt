@@ -76,6 +76,10 @@ class LazyInstanceHelper {
   base::subtle::Atomic32 state_;
 
  private:
+  // Resets state of |helper| to STATE_EMPTY so that it can be reused.
+  // Not thread safe.
+  static void ResetState(void* helper);
+
   DISALLOW_COPY_AND_ASSIGN(LazyInstanceHelper);
 };
 
