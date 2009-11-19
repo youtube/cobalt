@@ -195,6 +195,15 @@ void FFmpegVideoDecoder::OnDecode(Buffer* buffer) {
 bool FFmpegVideoDecoder::EnqueueVideoFrame(VideoSurface::Format surface_format,
                                            const TimeTuple& time,
                                            const AVFrame* frame) {
+  // TODO(fbarchard): Work around for FFmpeg http://crbug.com/27675
+  // The decoder is in a bad state and not decoding correctly.
+  // Checking for NULL avoids a crash in CopyPlane().
+  if (!frame->data[VideoSurface::kYPlane] ||
+      !frame->data[VideoSurface::kUPlane] ||
+      !frame->data[VideoSurface::kVPlane]) {
+    return true;
+  }
+
   scoped_refptr<VideoFrame> video_frame;
   VideoFrameImpl::CreateFrame(surface_format, width_, height_,
                               time.timestamp, time.duration, &video_frame);
