@@ -122,16 +122,17 @@ void URLRequestFileDirJob::OnListFile(
   }
 
 #if defined(OS_WIN)
-  FILETIME local_time;
-  ::FileTimeToLocalFileTime(&data.ftLastWriteTime, &local_time);
   int64 size = (static_cast<unsigned __int64>(data.nFileSizeHigh) << 32) |
       data.nFileSizeLow;
 
+  // Note that we should not convert ftLastWriteTime to the local time because
+  // ICU's datetime formatting APIs expect time in UTC and take into account
+  // the timezone before formatting.
   data_.append(net::GetDirectoryListingEntry(
       data.cFileName, std::string(),
       (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? true : false,
       size,
-      base::Time::FromFileTime(local_time)));
+      base::Time::FromFileTime(data.ftLastWriteTime)));
 
 #elif defined(OS_POSIX)
   // TOOD(jungshik): The same issue as for the directory name.
