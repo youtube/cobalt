@@ -8,13 +8,6 @@
 
 namespace {
 
-// Don't test the global AtExitManager, because asking it to process its
-// AtExit callbacks can ruin the global state that other tests may depend on.
-class ShadowingAtExitManager : public base::AtExitManager {
- public:
-  ShadowingAtExitManager() : AtExitManager(true) {}
-};
-
 int g_test_counter_1 = 0;
 int g_test_counter_2 = 0;
 
@@ -45,9 +38,14 @@ void ExpectParamIsCounter(void* param) {
 
 }  // namespace
 
-TEST(AtExitTest, Basic) {
-  ShadowingAtExitManager shadowing_at_exit_manager;
+class AtExitTest : public testing::Test {
+ private:
+  // Don't test the global AtExitManager, because asking it to process its
+  // AtExit callbacks can ruin the global state that other tests may depend on.
+  base::ShadowingAtExitManager exit_manager_;
+};
 
+TEST_F(AtExitTest, Basic) {
   ZeroTestCounters();
   base::AtExitManager::RegisterCallback(&IncrementTestCounter1, NULL);
   base::AtExitManager::RegisterCallback(&IncrementTestCounter2, NULL);
@@ -60,9 +58,7 @@ TEST(AtExitTest, Basic) {
   EXPECT_EQ(1, g_test_counter_2);
 }
 
-TEST(AtExitTest, LIFOOrder) {
-  ShadowingAtExitManager shadowing_at_exit_manager;
-
+TEST_F(AtExitTest, LIFOOrder) {
   ZeroTestCounters();
   base::AtExitManager::RegisterCallback(&IncrementTestCounter1, NULL);
   base::AtExitManager::RegisterCallback(&ExpectCounter1IsZero, NULL);
@@ -75,9 +71,7 @@ TEST(AtExitTest, LIFOOrder) {
   EXPECT_EQ(1, g_test_counter_2);
 }
 
-TEST(AtExitTest, Param) {
-  ShadowingAtExitManager shadowing_at_exit_manager;
-
+TEST_F(AtExitTest, Param) {
   base::AtExitManager::RegisterCallback(&ExpectParamIsNull, NULL);
   base::AtExitManager::RegisterCallback(&ExpectParamIsCounter,
                                         &g_test_counter_1);

@@ -14,8 +14,10 @@
 #include "base/debug_on_start.h"
 #include "base/i18n/icu_util.h"
 #include "base/multiprocess_test.h"
+#include "base/nss_init.h"
 #include "base/process_util.h"
 #include "base/scoped_nsautorelease_pool.h"
+#include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
@@ -26,6 +28,25 @@
 
 // Match function used by the GetTestCount method.
 typedef bool (*TestMatch)(const testing::TestInfo&);
+
+// By setting up a shadow AtExitManager, this test event listener ensures that
+// no state is carried between tests (like singletons, lazy instances, etc).
+// Of course it won't help if the code under test corrupts memory.
+class TestIsolationEnforcer : public testing::EmptyTestEventListener {
+ public:
+  virtual void OnTestStart(const testing::TestInfo& test_info) {
+    ASSERT_FALSE(exit_manager_.get());
+    exit_manager_.reset(new base::ShadowingAtExitManager());
+  }
+
+  virtual void OnTestEnd(const testing::TestInfo& test_info) {
+    ASSERT_TRUE(exit_manager_.get());
+    exit_manager_.reset();
+  }
+
+ private:
+  scoped_ptr<base::ShadowingAtExitManager> exit_manager_;
+};
 
 class TestSuite {
  public:
@@ -75,6 +96,13 @@ class TestSuite {
     }
 
     return count;
+  }
+
+  // TODO(phajdan.jr): Enforce isolation for all tests once it's stable.
+  void EnforceTestIsolation() {
+    testing::TestEventListeners& listeners =
+        testing::UnitTest::GetInstance()->listeners();
+    listeners.Append(new TestIsolationEnforcer);
   }
 
   // Don't add additional code to this method.  Instead add it to
@@ -172,6 +200,14 @@ class TestSuite {
 #endif  // defined(OS_WIN)
 
     icu_util::Initialize();
+
+#if defined(OS_LINUX)
+    // Trying to repeatedly initialize and cleanup NSS and NSPR may result in
+    // a deadlock. Such repeated initialization will happen when using test
+    // isolation. Prevent problems by initializing NSS here, so that the cleanup
+    // will be done only on process exit.
+    base::EnsureNSSInit();
+#endif  // defined(OS_LINUX)
   }
 
   virtual void Shutdown() {
