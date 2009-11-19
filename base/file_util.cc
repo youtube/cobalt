@@ -347,19 +347,6 @@ bool ContentsEqual(const std::wstring& filename1,
 bool CreateDirectory(const std::wstring& full_path) {
   return CreateDirectory(FilePath::FromWStringHack(full_path));
 }
-bool CreateNewTempDirectory(const std::wstring& prefix,
-                            std::wstring* new_temp_path) {
-#if defined(OS_WIN)
-  FilePath::StringType dir_prefix(prefix);
-#elif defined(OS_POSIX)
-  FilePath::StringType dir_prefix = WideToUTF8(prefix);
-#endif
-  FilePath temp_path;
-  if (!CreateNewTempDirectory(dir_prefix, &temp_path))
-    return false;
-  *new_temp_path = temp_path.ToWStringHack();
-  return true;
-}
 bool Delete(const std::wstring& path, bool recursive) {
   return Delete(FilePath::FromWStringHack(path), recursive);
 }
