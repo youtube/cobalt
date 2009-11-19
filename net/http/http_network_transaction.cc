@@ -164,7 +164,7 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
 
 int HttpNetworkTransaction::RestartIgnoringLastError(
     CompletionCallback* callback) {
-  if (connection_.socket()->IsConnected()) {
+  if (connection_.socket()->IsConnectedAndIdle()) {
     next_state_ = STATE_SEND_REQUEST;
   } else {
     connection_.socket()->Disconnect();
