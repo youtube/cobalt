@@ -66,6 +66,13 @@ class AtExitManager {
   DISALLOW_COPY_AND_ASSIGN(AtExitManager);
 };
 
+#if defined(UNIT_TEST)
+class ShadowingAtExitManager : public AtExitManager {
+ public:
+  ShadowingAtExitManager() : AtExitManager(true) {}
+};
+#endif  // defined(UNIT_TEST)
+
 }  // namespace base
 
 #endif  // BASE_AT_EXIT_H_
