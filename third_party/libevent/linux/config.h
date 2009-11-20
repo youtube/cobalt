@@ -31,8 +31,17 @@
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
+/* Define to 1 if the system has the type `fd_mask'. */
+#define HAVE_FD_MASK 1
+
 /* Define to 1 if you have the `getaddrinfo' function. */
 #define HAVE_GETADDRINFO 1
+
+/* Define to 1 if you have the `getegid' function. */
+#define HAVE_GETEGID 1
+
+/* Define to 1 if you have the `geteuid' function. */
+#define HAVE_GETEUID 1
 
 /* Define to 1 if you have the `getnameinfo' function. */
 #define HAVE_GETNAMEINFO 1
@@ -45,6 +54,9 @@
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
+
+/* Define to 1 if you have the `issetugid' function. */
+/* #undef HAVE_ISSETUGID */
 
 /* Define to 1 if you have the `kqueue' function. */
 /* #undef HAVE_KQUEUE */
@@ -230,7 +242,7 @@
 #define TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-#define VERSION "1.4.7-stable"
+#define VERSION "1.4.13-stable"
 
 /* Define to appropriate substitue if compiler doesnt have __func__ */
 /* #undef __func__ */

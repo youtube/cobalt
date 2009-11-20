@@ -122,7 +122,7 @@ static int 	evport_dispatch	(struct event_base *, void *, struct timeval *);
 static void	evport_dealloc	(struct event_base *, void *);
 
 const struct eventop evportops = {
-	"event ports",
+	"evport",
 	evport_init,
 	evport_add,
 	evport_del,
@@ -143,7 +143,7 @@ evport_init(struct event_base *base)
 	/*
 	 * Disable event ports when this environment variable is set 
 	 */
-	if (getenv("EVENT_NOEVPORT"))
+	if (evutil_getenv("EVENT_NOEVPORT"))
 		return (NULL);
 
 	if (!(evpd = calloc(1, sizeof(struct evport_data))))
