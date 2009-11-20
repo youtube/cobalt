@@ -5,14 +5,21 @@
 #ifndef BASE_FORMAT_MACROS_H_
 #define BASE_FORMAT_MACROS_H_
 
-// This file defines the C99 format macros for 64-bit values. If you wish to
-// print a 64-bit value in a portable way do:
+// This file defines the format macros for some integer types.
+
+// To print a 64-bit value in a portable way:
 //   int64_t value;
 //   printf("xyz:%" PRId64, value);
+// The "d" in the macro corresponds to %d; you can also use PRIu64 etc.
 //
 // For wide strings, prepend "Wide" to the macro:
 //   int64_t value;
 //   StringPrintf(L"xyz: %" WidePRId64, value);
+//
+// To print a size_t value in a portable way:
+//   size_t size;
+//   printf("xyz: %" PRIuS, size);
+// The "u" in the macro corresponds to %u, and S is for "size".
 
 #include "build/build_config.h"
 
@@ -35,6 +42,8 @@
 #define WidePRIu64 PRIu64
 #define WidePRIx64 PRIx64
 
+#define PRIuS "zu"
+
 #else  // OS_WIN
 
 #if !defined(PRId64)
@@ -52,6 +61,8 @@
 #define WidePRId64 L"I64d"
 #define WidePRIu64 L"I64u"
 #define WidePRIx64 L"I64x"
+
+#define PRIuS "Iu"
 
 #endif
 

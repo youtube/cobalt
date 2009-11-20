@@ -827,25 +827,13 @@ TEST(StringUtilTest, VAList) {
   VariableArgsFunc("%d %d %s %lf", 45, 92, "This is interesting", 9.21);
 }
 
-TEST(StringUtilTest, StringPrintfEmptyFormat) {
-  const char* empty = "";
-  EXPECT_EQ("", StringPrintf(empty));
+TEST(StringUtilTest, StringPrintfEmpty) {
   EXPECT_EQ("", StringPrintf("%s", ""));
 }
 
 TEST(StringUtilTest, StringPrintfMisc) {
   EXPECT_EQ("123hello w", StringPrintf("%3d%2s %1c", 123, "hello", 'w'));
   EXPECT_EQ(L"123hello w", StringPrintf(L"%3d%2ls %1lc", 123, L"hello", 'w'));
-}
-
-TEST(StringUtilTest, StringAppendfStringEmptyParam) {
-  std::string value("Hello");
-  StringAppendF(&value, "");
-  EXPECT_EQ("Hello", value);
-
-  std::wstring valuew(L"Hello");
-  StringAppendF(&valuew, L"");
-  EXPECT_EQ(L"Hello", valuew);
 }
 
 TEST(StringUtilTest, StringAppendfEmptyString) {
@@ -924,6 +912,25 @@ TEST(StringUtilTest, Grow) {
 
   EXPECT_STREQ(ref, out.c_str());
   delete[] ref;
+}
+
+// A helper for the StringAppendV test that follows.
+// Just forwards its args to StringAppendV.
+static void StringAppendVTestHelper(std::string* out,
+                                    const char* format,
+                                    ...) PRINTF_FORMAT(2, 3);
+
+static void StringAppendVTestHelper(std::string* out, const char* format, ...) {
+  va_list ap;
+  va_start(ap, format);
+  StringAppendV(out, format, ap);
+  va_end(ap);
+}
+
+TEST(StringUtilTest, StringAppendV) {
+  std::string out;
+  StringAppendVTestHelper(&out, "%d foo %s", 1, "bar");
+  EXPECT_EQ("1 foo bar", out);
 }
 
 // Test the boundary condition for the size of the string_util's

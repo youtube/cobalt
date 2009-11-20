@@ -12,6 +12,7 @@
 #include <unistd.h>
 #endif
 
+#include "base/format_macros.h"
 #include "base/message_loop.h"
 #include "base/pickle.h"
 #include "base/ref_counted.h"
@@ -210,8 +211,10 @@ std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
   if (mode_ == NORMAL) {
     // No valid URL can begin with numerals, so we should not have to worry
     // about collisions with normal URLs.
-    if (request->upload_data && request->upload_data->identifier())
-      url.insert(0, StringPrintf("%lld/", request->upload_data->identifier()));
+    if (request->upload_data && request->upload_data->identifier()) {
+      url.insert(0, StringPrintf("%" PRId64 "/",
+                                 request->upload_data->identifier()));
+    }
     return url;
   }
 

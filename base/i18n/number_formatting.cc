@@ -4,6 +4,7 @@
 
 #include "base/i18n/number_formatting.h"
 
+#include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
@@ -37,7 +38,7 @@ string16 FormatNumber(int64 number) {
 
   if (!number_format) {
     // As a fallback, just return the raw number in a string.
-    return UTF8ToUTF16(StringPrintf("%lld", number));
+    return UTF8ToUTF16(StringPrintf("%" PRId64, number));
   }
   icu::UnicodeString ustr;
   number_format->format(number, ustr);
