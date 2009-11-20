@@ -71,7 +71,7 @@ struct event_base {
 };
 
 /* Internal use only: Functions that might be missing from <sys/queue.h> */
-#if !defined(HAVE_TAILQFOREACH) || defined(__QUENTIN_BUILD__)
+#ifndef HAVE_TAILQFOREACH
 #define	TAILQ_FIRST(head)		((head)->tqh_first)
 #define	TAILQ_END(head)			NULL
 #define	TAILQ_NEXT(elm, field)		((elm)->field.tqe_next)
@@ -85,14 +85,14 @@ struct event_base {
 	*(listelm)->field.tqe_prev = (elm);				\
 	(listelm)->field.tqe_prev = &(elm)->field.tqe_next;		\
 } while (0)
-#define TAILQ_LAST(head, headname) \
-	(*(((struct headname *)((head)->tqh_last))->tqh_last))
-#define TAILQ_EMPTY(head)	((head)->tqh_first == NULL)
 #endif /* TAILQ_FOREACH */
 
 int _evsignal_set_handler(struct event_base *base, int evsignal,
 			  void (*fn)(int));
 int _evsignal_restore_handler(struct event_base *base, int evsignal);
+
+/* defined in evutil.c */
+const char *evutil_getenv(const char *varname);
 
 #ifdef __cplusplus
 }

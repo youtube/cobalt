@@ -37,17 +37,18 @@
         [ 'OS == "linux"', {
           'sources': [ 'epoll.c', 'epoll_sub.c' ],
           'include_dirs': [ 'linux' ],
-          'link_settings':
-            { 'libraries': [
+          'link_settings': {
+            'libraries': [
               # We need rt for clock_gettime().
               # TODO(port) Maybe on FreeBSD as well?
               '-lrt',
-              ],
-            },
-          }
-        ],
-        [ 'OS == "mac" or OS == "freebsd"',   { 'sources': [ 'kqueue.c' ],
-                             'include_dirs': [ 'mac' ] } ],
+            ],
+          },
+        }],
+        [ 'OS == "mac" or OS == "freebsd"', {
+          'sources': [ 'kqueue.c' ],
+          'include_dirs': [ 'mac' ]
+        }],
       ],
     },
   ],

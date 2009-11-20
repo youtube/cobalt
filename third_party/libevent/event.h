@@ -209,6 +209,7 @@ struct {								\
 #endif /* !TAILQ_ENTRY */
 
 struct event_base;
+#ifndef EVENT_NO_STRUCT
 struct event {
 	TAILQ_ENTRY (event) ev_next;
 	TAILQ_ENTRY (event) ev_active_next;
@@ -232,6 +233,9 @@ struct event {
 	int ev_res;		/* result passed to event callback */
 	int ev_flags;
 };
+#else
+struct event;
+#endif
 
 #define EVENT_SIGNAL(ev)	(int)(ev)->ev_fd
 #define EVENT_FD(ev)		(int)(ev)->ev_fd
@@ -747,6 +751,7 @@ struct event_watermark {
 	size_t high;
 };
 
+#ifndef EVENT_NO_STRUCT
 struct bufferevent {
 	struct event_base *ev_base;
 
@@ -769,7 +774,7 @@ struct bufferevent {
 
 	short enabled;	/* events that are currently enabled */
 };
-
+#endif
 
 /**
   Create a new bufferevent.
@@ -1069,7 +1074,6 @@ int evbuffer_add_vprintf(struct evbuffer *, const char *fmt, va_list ap);
 
   @param buf the evbuffer to be drained
   @param len the number of bytes to drain from the beginning of the buffer
-  @return 0 if successful, or -1 if an error occurred
  */
 void evbuffer_drain(struct evbuffer *, size_t);
 

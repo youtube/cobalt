@@ -43,7 +43,7 @@
 #ifndef WIN32
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <unistd.h>
 #include <netdb.h>
 #endif
@@ -95,6 +95,9 @@ simple_read_cb(int fd, short event, void *arg)
 	char buf[256];
 	int len;
 
+	if (arg == NULL)
+		return;
+
 	len = read(fd, buf, sizeof(buf));
 
 	if (len) {
@@ -112,6 +115,9 @@ static void
 simple_write_cb(int fd, short event, void *arg)
 {
 	int len;
+
+	if (arg == NULL)
+		return;
 
 	len = write(fd, TEST1, strlen(TEST1) + 1);
 	if (len == -1)
@@ -195,6 +201,7 @@ timeout_cb(int fd, short event, void *arg)
 		test_ok = 1;
 }
 
+#ifndef WIN32
 static void
 signal_cb_sa(int sig)
 {
@@ -209,6 +216,7 @@ signal_cb(int fd, short event, void *arg)
 	signal_del(ev);
 	test_ok = 1;
 }
+#endif
 
 struct both {
 	struct event ev;
@@ -301,6 +309,57 @@ cleanup_test(void)
 	}
         test_ok = 0;
 	return (0);
+}
+
+static void
+test_registerfds(void)
+{
+	int i, j;
+	int pair[2];
+	struct event read_evs[512];
+	struct event write_evs[512];
+
+	struct event_base *base = event_base_new();
+
+	fprintf(stdout, "Testing register fds: ");
+
+	for (i = 0; i < 512; ++i) {
+		if (evutil_socketpair(AF_UNIX, SOCK_STREAM, 0, pair) == -1) {
+			/* run up to the limit of file descriptors */
+			break;
+		}
+		event_set(&read_evs[i], pair[0],
+		    EV_READ|EV_PERSIST, simple_read_cb, NULL);
+		event_base_set(base, &read_evs[i]);
+		event_add(&read_evs[i], NULL);
+		event_set(&write_evs[i], pair[1],
+		    EV_WRITE|EV_PERSIST, simple_write_cb, NULL);
+		event_base_set(base, &write_evs[i]);
+		event_add(&write_evs[i], NULL);
+
+		/* just loop once */
+		event_base_loop(base, EVLOOP_ONCE);
+	}
+
+	/* now delete everything */
+	for (j = 0; j < i; ++j) {
+		event_del(&read_evs[j]);
+		event_del(&write_evs[j]);
+#ifndef WIN32
+		close(read_evs[j].ev_fd);
+		close(write_evs[j].ev_fd);
+#else
+		CloseHandle((HANDLE)read_evs[j].ev_fd);
+		CloseHandle((HANDLE)write_evs[j].ev_fd);
+#endif
+
+		/* just loop once */
+		event_base_loop(base, EVLOOP_ONCE);
+	}
+
+	event_base_free(base);
+
+	fprintf(stdout, "OK\n");
 }
 
 static void
@@ -760,6 +819,52 @@ test_signal_restore(void)
 	if (test_ok != 2)
 		test_ok = 0;
 out:
+	event_base_free(base);
+	cleanup_test();
+	return;
+}
+
+static void
+signal_cb_swp(int sig, short event, void *arg)
+{
+	called++;
+	if (called < 5)
+		raise(sig);
+	else
+		event_loopexit(NULL);
+}
+static void
+timeout_cb_swp(int fd, short event, void *arg)
+{
+	if (called == -1) {
+		struct timeval tv = {5, 0};
+
+		called = 0;
+		evtimer_add((struct event *)arg, &tv);
+		raise(SIGUSR1);
+		return;
+	}
+	test_ok = 0;
+	event_loopexit(NULL);
+}
+
+static void
+test_signal_while_processing(void)
+{
+	struct event_base *base = event_init();
+	struct event ev, ev_timer;
+	struct timeval tv = {0, 0};
+
+	setup_test("Receiving a signal while processing other signal: ");
+
+	called = -1;
+	test_ok = 1;
+	signal_set(&ev, SIGUSR1, signal_cb_swp, NULL);
+	signal_add(&ev, NULL);
+	evtimer_set(&ev_timer, timeout_cb_swp, &ev_timer);
+	evtimer_add(&ev_timer, &tv);
+	event_dispatch();
+
 	event_base_free(base);
 	cleanup_test();
 	return;
@@ -1515,10 +1620,16 @@ main (int argc, char **argv)
 	err = WSAStartup( wVersionRequested, &wsaData );
 #endif
 
+#ifndef WIN32
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		return (1);
+#endif
 	setvbuf(stdout, NULL, _IONBF, 0);
 
 	/* Initalize the event library */
 	global_base = event_init();
+
+	test_registerfds();
 
         test_evutil_strtoll();
 
@@ -1584,6 +1695,7 @@ main (int argc, char **argv)
 	test_signal_switchbase();
 	test_signal_restore();
 	test_signal_assert();
+	test_signal_while_processing();
 #endif
 	
 	return (0);
