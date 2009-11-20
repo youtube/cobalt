@@ -2,21 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/basictypes.h"
-#include "base/file_path.h"
-#include "base/string_util.h"
-#include "base/sys_string_conversions.h"
-#include "base/time.h"
-#include "googleurl/src/gurl.h"
-#include "net/base/escape.h"
 #include "net/base/net_util.h"
-#include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_WIN)
 #include <ws2tcpip.h>
 #else
 #include <netdb.h>
 #endif
+
+#include "base/file_path.h"
+#include "base/format_macros.h"
+#include "base/string_util.h"
+#include "base/sys_string_conversions.h"
+#include "base/time.h"
+#include "googleurl/src/gurl.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
@@ -579,7 +579,7 @@ TEST(NetUtilTest, GetIdentityFromURL) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%d]: %s", i, tests[i].input_url));
+    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, tests[i].input_url));
     GURL url(tests[i].input_url);
 
     std::wstring username, password;
@@ -1587,7 +1587,7 @@ TEST(NetUtilTest, SimplifyUrlForRequest) {
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%d]: %s", i, tests[i].input_url));
+    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, tests[i].input_url));
     GURL input_url(GURL(tests[i].input_url));
     GURL expected_url(GURL(tests[i].expected_simplified_url));
     EXPECT_EQ(expected_url, net::SimplifyUrlForRequest(input_url));

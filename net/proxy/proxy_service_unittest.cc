@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/proxy/proxy_service.h"
+
 #include <vector>
 
+#include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
@@ -15,7 +18,6 @@
 #include "net/proxy/proxy_config_service.h"
 #include "net/proxy/proxy_resolver.h"
 #include "net/proxy/proxy_script_fetcher.h"
-#include "net/proxy/proxy_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 // TODO(eroman): Write a test which exercises
@@ -1474,7 +1476,7 @@ TEST(ProxyServiceTest, IsLocalName) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%d]: %s", i, tests[i].url));
+    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, tests[i].url));
     bool is_local = ProxyService::IsLocalName(GURL(tests[i].url));
     EXPECT_EQ(tests[i].expected_is_local, is_local);
   }

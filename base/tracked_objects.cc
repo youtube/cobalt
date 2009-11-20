@@ -6,6 +6,7 @@
 
 #include <math.h>
 
+#include "base/format_macros.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
 
@@ -551,22 +552,23 @@ void Aggregation::Write(std::string* output) const {
   if (locations_.size() == 1) {
     locations_.begin()->first.Write(true, true, output);
   } else {
-    StringAppendF(output, "%d Locations. ", locations_.size());
+    StringAppendF(output, "%" PRIuS " Locations. ", locations_.size());
     if (birth_files_.size() > 1)
-      StringAppendF(output, "%d Files. ", birth_files_.size());
+      StringAppendF(output, "%" PRIuS " Files. ", birth_files_.size());
     else
       StringAppendF(output, "All born in %s. ",
                     birth_files_.begin()->first.c_str());
   }
 
   if (birth_threads_.size() > 1)
-    StringAppendF(output, "%d BirthingThreads. ", birth_threads_.size());
+    StringAppendF(output, "%" PRIuS " BirthingThreads. ",
+                  birth_threads_.size());
   else
     StringAppendF(output, "All born on %s. ",
                   birth_threads_.begin()->first->ThreadName().c_str());
 
   if (death_threads_.size() > 1) {
-    StringAppendF(output, "%d DeathThreads. ", death_threads_.size());
+    StringAppendF(output, "%" PRIuS " DeathThreads. ", death_threads_.size());
   } else {
     if (death_threads_.begin()->first)
       StringAppendF(output, "All deleted on %s. ",

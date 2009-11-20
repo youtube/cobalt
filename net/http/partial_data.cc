@@ -4,6 +4,7 @@
 
 #include "net/http/partial_data.h"
 
+#include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
@@ -237,10 +238,12 @@ void PartialData::FixResponseHeaders(HttpResponseHeaders* headers) {
 
     DCHECK(byte_range_.HasFirstBytePosition());
     DCHECK(byte_range_.HasLastBytePosition());
-    headers->AddHeader(StringPrintf("%s: bytes %lld-%lld/%lld", kRangeHeader,
-                                    byte_range_.first_byte_position(),
-                                    byte_range_.last_byte_position(),
-                                    resource_size_));
+    headers->AddHeader(
+        StringPrintf("%s: bytes %" PRId64 "-%" PRId64 "/%" PRId64,
+                     kRangeHeader,
+                     byte_range_.first_byte_position(),
+                     byte_range_.last_byte_position(),
+                     resource_size_));
     range_len = byte_range_.last_byte_position() -
                 byte_range_.first_byte_position() + 1;
   } else {
@@ -250,12 +253,13 @@ void PartialData::FixResponseHeaders(HttpResponseHeaders* headers) {
     range_len = resource_size_;
   }
 
-  headers->AddHeader(StringPrintf("%s: %lld", kLengthHeader, range_len));
+  headers->AddHeader(StringPrintf("%s: %" PRId64, kLengthHeader, range_len));
 }
 
 void PartialData::FixContentLength(HttpResponseHeaders* headers) {
   headers->RemoveHeader(kLengthHeader);
-  headers->AddHeader(StringPrintf("%s: %lld", kLengthHeader, resource_size_));
+  headers->AddHeader(StringPrintf("%s: %" PRId64, kLengthHeader,
+                                  resource_size_));
 }
 
 int PartialData::CacheRead(disk_cache::Entry* entry, IOBuffer* data,
