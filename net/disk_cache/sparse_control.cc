@@ -4,6 +4,7 @@
 
 #include "net/disk_cache/sparse_control.h"
 
+#include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
@@ -40,8 +41,8 @@ const int kBlockSize = 1024;
 // number of the particular child.
 std::string GenerateChildName(const std::string& base_name, int64 signature,
                               int64 child_id) {
-  return StringPrintf("Range_%s:%llx:%llx", base_name.c_str(), signature,
-                      child_id);
+  return StringPrintf("Range_%s:%" PRIx64 ":%" PRIx64, base_name.c_str(),
+                      signature, child_id);
 }
 
 // This class deletes the children of a sparse entry.
