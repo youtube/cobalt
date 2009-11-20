@@ -93,11 +93,11 @@ class OCSPRequestSession
       : url_(url),
         http_request_method_(http_request_method),
         timeout_(timeout),
-        io_loop_(Singleton<OCSPInitSingleton>::get()->io_thread()),
         request_(NULL),
         buffer_(new net::IOBuffer(kRecvBufferSize)),
         response_code_(-1),
         cv_(&lock_),
+        io_loop_(Singleton<OCSPInitSingleton>::get()->io_thread()),
         finished_(false) {}
 
   void SetPostData(const char* http_data, PRUint32 http_data_len,
@@ -114,6 +114,8 @@ class OCSPRequestSession
   }
 
   void Start() {
+    // IO thread may set |io_loop_| to NULL, so protect by |lock_|.
+    AutoLock autolock(lock_);
     if (io_loop_) {
       io_loop_->PostTask(
           FROM_HERE,
@@ -126,7 +128,9 @@ class OCSPRequestSession
   }
 
   void Cancel() {
-    if (io_loop_ && request_) {
+    // IO thread may set |io_loop_| to NULL, so protect by |lock_|.
+    AutoLock autolock(lock_);
+    if (io_loop_) {
       io_loop_->PostTask(
           FROM_HERE,
           NewRunnableMethod(this, &OCSPRequestSession::CancelURLRequest));
@@ -214,26 +218,30 @@ class OCSPRequestSession
     } while (request_->Read(buffer_, kRecvBufferSize, &bytes_read));
 
     if (!request_->status().is_io_pending()) {
+      MessageLoop* io_loop = io_loop_;
       {
         AutoLock autolock(lock_);
         finished_ = true;
+        io_loop_ = NULL;
       }
       cv_.Signal();
       delete request_;
       request_ = NULL;
-      io_loop_->RemoveDestructionObserver(this);
-      io_loop_ = NULL;
+      io_loop->RemoveDestructionObserver(this);
     }
   }
 
   virtual void WillDestroyCurrentMessageLoop() {
     DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
+    {
+      AutoLock autolock(lock_);
+      io_loop_ = NULL;
+    }
     if (request_) {
       request_->Cancel();
       delete request_;
       request_ = NULL;
     }
-    io_loop_ = NULL;
   }
 
  private:
@@ -243,7 +251,6 @@ class OCSPRequestSession
     DCHECK(!request_);
     if (io_loop_)
       io_loop_->RemoveDestructionObserver(this);
-    io_loop_ = NULL;
   }
 
   void StartURLRequest() {
@@ -278,7 +285,8 @@ class OCSPRequestSession
   }
 
   void CancelURLRequest() {
-    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
+    if (io_loop_)
+      DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
     if (request_) {
       request_->Cancel();
       delete request_;
@@ -289,7 +297,6 @@ class OCSPRequestSession
   GURL url_;                      // The URL we eventually wound up at
   std::string http_request_method_;
   base::TimeDelta timeout_;       // The timeout for OCSP
-  MessageLoop* io_loop_;          // Message loop of the IO thread
   URLRequest* request_;           // The actual request this wraps
   scoped_refptr<net::IOBuffer> buffer_;  // Read buffer
   std::string extra_request_headers_;  // Extra headers for the request, if any
@@ -301,10 +308,11 @@ class OCSPRequestSession
   scoped_refptr<net::HttpResponseHeaders> response_headers_;
   std::string data_;              // Results of the requst
 
-  // |lock_| protects |finished_| only.
+  // |lock_| protects |finished_| and |io_loop_|.
   mutable Lock lock_;
   ConditionVariable cv_;
 
+  MessageLoop* io_loop_;          // Message loop of the IO thread
   bool finished_;
 
   DISALLOW_COPY_AND_ASSIGN(OCSPRequestSession);
