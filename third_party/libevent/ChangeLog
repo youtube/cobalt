@@ -1,3 +1,56 @@
+Changes in 1.4.13-stable:
+ o If the kernel tells us that there are a negative number of bytes to read from a socket, do not believe it.  Fixes bug 2841177; found by Alexander Pronchenkov.
+ o Do not allocate the maximum event queue and fd array for the epoll backend at startup.  Instead, start out accepting 32 events at a time, and double the queue's size when it seems that the OS is generating events faster than we're requesting them.  Saves up to 512K per epoll-based event_base.  Resolves bug 2839240.
+ o Fix compilation on Android, which forgot to define fd_mask in its sys/select.h
+ o Do not drop data from evbuffer when out of memory; reported by Jacek Masiulaniec
+ o Rename our replacement compat/sys/_time.h header to avoid build a conflict on HPUX; reported by Kathryn Hogg.
+ o Build kqueue.c correctly on GNU/kFreeBSD platforms. Patch pulled upstream from Debian.
+ o Fix a problem with excessive memory allocation when using multiple event priorities.
+ o When running set[ug]id, don't check the environment. Based on a patch from OpenBSD.
+
+
+Changes in 1.4.12-stable:
+ o Try to contain degree of failure when running on a win32 version so heavily firewalled that we can't fake a socketpair.
+ o Fix an obscure timing-dependent, allocator-dependent crash in the evdns code.
+ o Use __VA_ARGS__ syntax for varargs macros in event_rpcgen when compiler is not GCC.
+ o Activate fd events in a pseudorandom order with O(N) backends, so that we don't systematically favor low fds (select) or earlier-added fds (poll, win32).
+ o Fix another pair of fencepost bugs in epoll.c.  [Patch from Adam Langley.]
+ o Do not break evdns connections to nameservers when our IP changes.
+ o Set truncated flag correctly in evdns server replies.
+ o Disable strict aliasing with GCC: our code is not compliant with it.
+
+Changes in 1.4.11-stable:
+ o Fix a bug when removing a timeout from the heap. [Patch from Marko Kreen]
+ o Remove the limit on size of HTTP headers by removing static buffers.
+ o Fix a nasty dangling pointer bug in epoll.c that could occur after epoll_recalc(). [Patch from Kevin Springborn]
+ o Distribute Win32-Code/event-config.h, not ./event-config.h
+
+Changes in 1.4.10-stable:
+ o clean up buffered http connection data on reset; reported by Brian O'Kelley
+ o bug fix and potential race condition in signal handling; from Alexander Drozdov
+ o rename the Solaris event ports backend to evport
+ o support compilation on Haiku
+ o fix signal processing when a signal callback delivers a signal; from Alexander Drozdov
+ o const-ify some arguments to evdns functions.
+ o off-by-one error in epoll_recalc; reported by Victor Goya
+ o include Doxyfile in tar ball; from Jeff Garzik
+ o correctly parse queries with encoded \r, \n or + characters
+
+Changes in 1.4.9-stable:
+ o event_add would not return error for some backends; from Dean McNamee
+ o Clear the timer cache on entering the event loop; reported by Victor Chang
+ o Only bind the socket on connect when a local address has been provided; reported by Alejo Sanchez
+ o Allow setting of local port for evhttp connections to support millions of connections from a single system; from Richard Jones.
+ o Clear the timer cache when leaving the event loop; reported by Robin Haberkorn
+ o Fix a typo in setting the global event base; reported by lance.
+ o Fix a memory leak when reading multi-line headers
+ o Fix a memory leak by not running explicit close detection for server connections
+
+Changes in 1.4.8-stable:
+ o Match the query in DNS replies to the query in the request; from Vsevolod Stakhov.
+ o Fix a merge problem in which name_from_addr returned pointers to the stack; found by Jiang Hong.
+ o Do not remove Accept-Encoding header
+	
 Changes in 1.4.7-stable:
  o Fix a bug where headers arriving in multiple packets were not parsed; fix from Jiang Hong; test by me.
 	
@@ -47,7 +100,6 @@ Changes in 1.4.4-stable:
  o Merge windows gettimeofday() replacement into a new evutil_gettimeofday() function.
  o Fix autoconf script behavior on IRIX.
  o Make sure winsock2.h include always comes before windows.h include.
-
 
 Changes in 1.4.3-stable:
  o include Content-Length in reply for HTTP/1.0 requests with keep-alive

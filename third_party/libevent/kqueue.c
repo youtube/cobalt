@@ -30,11 +30,13 @@
 #include "config.h"
 #endif
 
+#define _GNU_SOURCE 1
+
 #include <sys/types.h>
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else
-#include <sys/_time.h>
+#include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
 #include <sys/event.h>
@@ -61,7 +63,6 @@
 #include "event.h"
 #include "event-internal.h"
 #include "log.h"
-#include "event-internal.h"
 
 #define EVLIST_X_KQINKERNEL	0x1000
 
@@ -101,7 +102,7 @@ kq_init(struct event_base *base)
 	struct kqop *kqueueop;
 
 	/* Disable kqueue when this environment variable is set */
-	if (getenv("EVENT_NOKQUEUE"))
+	if (evutil_getenv("EVENT_NOKQUEUE"))
 		return (NULL);
 
 	if (!(kqueueop = calloc(1, sizeof(struct kqop))))
