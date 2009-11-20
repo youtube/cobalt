@@ -203,10 +203,8 @@ bool SharedMemory::CreateOrOpen(const std::wstring &name,
       return false;
     const size_t current_size = stat.st_size;
     if (current_size != size) {
-      // TODO(hawk): When finished with bug 16371, revert this CHECK() to:
-      // if (ftruncate(fileno(fp), size) != 0)
-      //   return false;
-      CHECK(!ftruncate(fileno(fp), size));
+      if (ftruncate(fileno(fp), size) != 0)
+        return false;
       if (fseeko(fp, size, SEEK_SET) != 0)
         return false;
     }
