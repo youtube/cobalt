@@ -3224,6 +3224,73 @@ TEST(HttpCache, GET_IncompleteResource) {
   entry->Close();
 }
 
+// Tests that when we cancel a request that was interrupted, we mark it again
+// as truncated.
+TEST(HttpCache, GET_CancelIncompleteResource) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  // Create a disk cache entry that stores an incomplete resource.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url,
+                                              &entry));
+
+  // Content-length will be intentionally bogus.
+  std::string raw_headers("HTTP/1.1 200 OK\n"
+                          "Last-Modified: something\n"
+                          "ETag: \"foo\"\n"
+                          "Accept-Ranges: bytes\n"
+                          "Content-Length: 10\n");
+  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
+                                                  raw_headers.size());
+
+  net::HttpResponseInfo response;
+  response.headers = new net::HttpResponseHeaders(raw_headers);
+
+  // Set the last argument for this to be an incomplete request.
+  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(100));
+  int len = static_cast<int>(base::strlcpy(buf->data(), "rg: 00-09 rg: 10-19 ",
+                                           buf->size()));
+  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+
+  // Now make a regular request.
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = EXTRA_HEADER;
+
+  MockHttpRequest request(transaction);
+  Context* c = new Context();
+  EXPECT_EQ(net::OK, cache.http_cache()->CreateTransaction(&c->trans));
+
+  EXPECT_EQ(net::ERR_IO_PENDING, c->trans->Start(&request, &c->callback, NULL));
+  EXPECT_EQ(net::OK, c->callback.WaitForResult());
+
+  // Read 20 bytes from the cache, and 10 from the net.
+  EXPECT_EQ(net::ERR_IO_PENDING, c->trans->Read(buf, len, &c->callback));
+  EXPECT_EQ(len, c->callback.WaitForResult());
+  EXPECT_EQ(net::ERR_IO_PENDING, c->trans->Read(buf, 10, &c->callback));
+  EXPECT_EQ(10, c->callback.WaitForResult());
+
+  // At this point, we are already reading so canceling the request should leave
+  // a truncated one.
+  delete c;
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Verify that the disk entry was updated: now we have 30 bytes.
+  EXPECT_EQ(30, entry->GetDataSize(1));
+  bool truncated = false;
+  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(truncated);
+  entry->Close();
+}
+
 // Tests that we can handle range requests when we have a truncated entry.
 TEST(HttpCache, RangeGET_IncompleteResource) {
   MockHttpCache cache;
