@@ -222,28 +222,6 @@
             '../chrome_frame/chrome_frame.gyp:chrome_frame_perftests',
           ],
         },
-        {
-          'target_name': 'purify_builder_ui',
-          'type': 'none',
-          'dependencies': [
-            '../chrome/chrome.gyp:ui_tests',
-          ],
-        },
-        {
-          'target_name': 'purify_builder_unit',
-          'type': 'none',
-          'dependencies': [
-            '../chrome/chrome.gyp:unit_tests',
-          ],
-        },
-        {
-          'target_name': 'purify_builder_webkit',
-          'type': 'none',
-          'dependencies': [
-            '../webkit/tools/test_shell/test_shell.gyp:test_shell_tests',
-            '../webkit/tools/test_shell/test_shell.gyp:test_shell',
-          ],
-        },
       ],  # targets
     }], # OS="win"
   ], # conditions
