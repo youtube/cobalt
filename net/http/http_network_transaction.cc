@@ -4,6 +4,7 @@
 
 #include "net/http/http_network_transaction.h"
 
+#include "base/format_macros.h"
 #include "base/scoped_ptr.h"
 #include "base/compiler_specific.h"
 #include "base/field_trial.h"
@@ -69,7 +70,7 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
 
   // Add a content length header?
   if (upload_data_stream) {
-    StringAppendF(request_headers, "Content-Length: %llu\r\n",
+    StringAppendF(request_headers, "Content-Length: %" PRIu64 "\r\n",
                   upload_data_stream->size());
   } else if (request_info->method == "POST" || request_info->method == "PUT" ||
              request_info->method == "HEAD") {

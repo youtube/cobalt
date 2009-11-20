@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/file_util.h"
+#include "base/format_macros.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
@@ -704,9 +705,9 @@ TEST_F(URLRequestTest, FileTestFullSpecifiedRange) {
   {
     TestURLRequest r(temp_url, &d);
 
-    r.SetExtraRequestHeaders(StringPrintf("Range: bytes=%d-%d\n",
-                                          first_byte_position,
-                                          last_byte_position));
+    r.SetExtraRequestHeaders(
+        StringPrintf("Range: bytes=%" PRIuS "-%" PRIuS "\n",
+                     first_byte_position, last_byte_position));
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
@@ -745,7 +746,7 @@ TEST_F(URLRequestTest, FileTestHalfSpecifiedRange) {
   {
     TestURLRequest r(temp_url, &d);
 
-    r.SetExtraRequestHeaders(StringPrintf("Range: bytes=%d-\n",
+    r.SetExtraRequestHeaders(StringPrintf("Range: bytes=%" PRIuS "-\n",
                                           first_byte_position));
     r.Start();
     EXPECT_TRUE(r.is_pending());

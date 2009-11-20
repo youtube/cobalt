@@ -67,11 +67,32 @@
 
 
 #if defined(COMPILER_GCC)
+
 #define ALLOW_UNUSED __attribute__((unused))
 #define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
+
+// Tell the compiler a function is using a printf-style format string.
+// |format_param| is the one-based index of the format string parameter;
+// |dots_param| is the one-based index of the "..." parameter.
+// For v*printf functions (which take a va_list), pass 0 for dots_param.
+// (This is undocumented but matches what the system C headers do.)
+#define PRINTF_FORMAT(format_param, dots_param) \
+    __attribute__((format(printf, format_param, dots_param)))
+
+// WPRINTF_FORMAT is the same, but for wide format strings.
+// This doesn't appear to yet be implemented.
+// See http://gcc.gnu.org/bugzilla/show_bug.cgi?id=38308 .
+#define WPRINTF_FORMAT(format_param, dots_param)
+// If available, it would look like:
+//   __attribute__((format(wprintf, format_param, dots_param)))
+
 #else  // Not GCC
+
 #define ALLOW_UNUSED
 #define WARN_UNUSED_RESULT
+#define PRINTF_FORMAT(x, y)
+#define WPRINTF_FORMAT(x, y)
+
 #endif
 
 #endif  // BASE_COMPILER_SPECIFIC_H_

@@ -43,12 +43,12 @@ struct ProcessEntry {
 };
 
 struct IoCounters {
-  unsigned long long ReadOperationCount;
-  unsigned long long WriteOperationCount;
-  unsigned long long OtherOperationCount;
-  unsigned long long ReadTransferCount;
-  unsigned long long WriteTransferCount;
-  unsigned long long OtherTransferCount;
+  uint64_t ReadOperationCount;
+  uint64_t WriteOperationCount;
+  uint64_t OtherOperationCount;
+  uint64_t ReadTransferCount;
+  uint64_t WriteTransferCount;
+  uint64_t OtherTransferCount;
 };
 
 #include "base/file_descriptor_shuffle.h"

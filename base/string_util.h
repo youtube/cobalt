@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/string16.h"
 #include "base/string_piece.h"  // For implicit conversions.
 
@@ -42,17 +43,22 @@ int strncasecmp(const char* s1, const char* s2, size_t count);
 // Wrapper for vsnprintf that always null-terminates and always returns the
 // number of characters that would be in an untruncated formatted
 // string, even when truncation occurs.
-int vsnprintf(char* buffer, size_t size, const char* format, va_list arguments);
+int vsnprintf(char* buffer, size_t size, const char* format, va_list arguments)
+    PRINTF_FORMAT(3, 0);
 
 // vswprintf always null-terminates, but when truncation occurs, it will either
 // return -1 or the number of characters that would be in an untruncated
 // formatted string.  The actual return value depends on the underlying
 // C library's vswprintf implementation.
 int vswprintf(wchar_t* buffer, size_t size,
-              const wchar_t* format, va_list arguments);
+              const wchar_t* format, va_list arguments) WPRINTF_FORMAT(3, 0);
 
 // Some of these implementations need to be inlined.
 
+// We separate the declaration from the implementation of this inline
+// function just so the PRINTF_FORMAT works.
+inline int snprintf(char* buffer, size_t size, const char* format, ...)
+    PRINTF_FORMAT(3, 4);
 inline int snprintf(char* buffer, size_t size, const char* format, ...) {
   va_list arguments;
   va_start(arguments, format);
@@ -61,6 +67,10 @@ inline int snprintf(char* buffer, size_t size, const char* format, ...) {
   return result;
 }
 
+// We separate the declaration from the implementation of this inline
+// function just so the WPRINTF_FORMAT works.
+inline int swprintf(wchar_t* buffer, size_t size, const wchar_t* format, ...)
+    WPRINTF_FORMAT(3, 4);
 inline int swprintf(wchar_t* buffer, size_t size, const wchar_t* format, ...) {
   va_list arguments;
   va_start(arguments, format);
@@ -438,22 +448,28 @@ double StringToDouble(const std::string& value);
 double StringToDouble(const string16& value);
 
 // Return a C++ string given printf-like input.
-std::string StringPrintf(const char* format, ...);
-std::wstring StringPrintf(const wchar_t* format, ...);
+std::string StringPrintf(const char* format, ...) PRINTF_FORMAT(1, 2);
+std::wstring StringPrintf(const wchar_t* format, ...) WPRINTF_FORMAT(1, 2);
 
 // Store result into a supplied string and return it
-const std::string& SStringPrintf(std::string* dst, const char* format, ...);
+const std::string& SStringPrintf(std::string* dst, const char* format, ...)
+    PRINTF_FORMAT(2, 3);
 const std::wstring& SStringPrintf(std::wstring* dst,
-                                  const wchar_t* format, ...);
+                                  const wchar_t* format, ...)
+    WPRINTF_FORMAT(2, 3);
 
 // Append result to a supplied string
-void StringAppendF(std::string* dst, const char* format, ...);
-void StringAppendF(std::wstring* dst, const wchar_t* format, ...);
+void StringAppendF(std::string* dst, const char* format, ...)
+    PRINTF_FORMAT(2, 3);
+void StringAppendF(std::wstring* dst, const wchar_t* format, ...)
+    WPRINTF_FORMAT(2, 3);
 
 // Lower-level routine that takes a va_list and appends to a specified
 // string.  All other routines are just convenience wrappers around it.
-void StringAppendV(std::string* dst, const char* format, va_list ap);
-void StringAppendV(std::wstring* dst, const wchar_t* format, va_list ap);
+void StringAppendV(std::string* dst, const char* format, va_list ap)
+    PRINTF_FORMAT(2, 0);
+void StringAppendV(std::wstring* dst, const wchar_t* format, va_list ap)
+    WPRINTF_FORMAT(2, 0);
 
 // This is mpcomplete's pattern for saving a string copy when dealing with
 // a function that writes results into a wchar_t[] and wanting the result to
