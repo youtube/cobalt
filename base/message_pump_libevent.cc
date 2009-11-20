@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 #include <fcntl.h>
 
 #include "eintr_wrapper.h"
+#include "base/auto_reset.h"
 #include "base/logging.h"
 #include "base/scoped_nsautorelease_pool.h"
 #include "base/scoped_ptr.h"
@@ -224,9 +225,7 @@ static void timer_callback(int fd, short events, void *context)
 // Reentrant!
 void MessagePumpLibevent::Run(Delegate* delegate) {
   DCHECK(keep_running_) << "Quit must have been called outside of Run!";
-
-  bool old_in_run = in_run_;
-  in_run_ = true;
+  AutoReset auto_reset_in_run(&in_run_, true);
 
   // event_base_loopexit() + EVLOOP_ONCE is leaky, see http://crbug.com/25641.
   // Instead, make our own timer and reuse it on each call to event_base_loop().
@@ -277,7 +276,6 @@ void MessagePumpLibevent::Run(Delegate* delegate) {
   }
 
   keep_running_ = true;
-  in_run_ = old_in_run;
 }
 
 void MessagePumpLibevent::Quit() {
