@@ -596,6 +596,7 @@
         'base/ssl_config_service_win_unittest.cc',
         'base/strict_transport_security_state_unittest.cc',
         'base/telnet_server_unittest.cc',
+        'base/test_certificate_data.h',
         'base/test_completion_callback_unittest.cc',
         'base/wininet_util_unittest.cc',
         'base/x509_certificate_unittest.cc',
