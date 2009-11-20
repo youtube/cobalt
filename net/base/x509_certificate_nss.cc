@@ -4,17 +4,14 @@
 
 #include "net/base/x509_certificate.h"
 
-// Work around https://bugzilla.mozilla.org/show_bug.cgi?id=455424
-// until NSS 3.12.2 comes out and we update to it.
-#define Lock FOO_NSS_Lock
 #include <cert.h>
 #include <pk11pub.h>
+#include <prerror.h>
 #include <prtime.h>
 #include <secder.h>
 #include <secerr.h>
 #include <sechash.h>
 #include <sslerr.h>
-#undef Lock
 
 #include "base/logging.h"
 #include "base/pickle.h"
@@ -120,6 +117,8 @@ class ScopedCERTValOutParam {
 // Map PORT_GetError() return values to our network error codes.
 int MapSecurityError(int err) {
   switch (err) {
+    case PR_DIRECTORY_LOOKUP_ERROR:  // DNS lookup error.
+      return ERR_NAME_NOT_RESOLVED;
     case SEC_ERROR_INVALID_ARGS:
       return ERR_INVALID_ARGUMENT;
     case SEC_ERROR_INVALID_TIME:
@@ -411,9 +410,6 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
   cvin[cvin_index].type = cert_pi_revocationFlags;
   cvin[cvin_index].value.pointer.revocation = &revocation_flags;
   cvin_index++;
-  cvin[cvin_index].type = cert_pi_useAIACertFetch;
-  cvin[cvin_index].value.scalar.b = PR_TRUE;
-  cvin_index++;
   std::vector<SECOidTag> policies;
   if (policy_oids && num_policy_oids > 0) {
     cvin[cvin_index].type = cert_pi_policyOID;
@@ -421,10 +417,31 @@ SECStatus PKIXVerifyCert(X509Certificate::OSCertHandle cert_handle,
     cvin[cvin_index].value.array.oids = policy_oids;
     cvin_index++;
   }
+  // Add cert_pi_useAIACertFetch last so we can easily remove it from the
+  // cvin array in the workaround below.
+  cvin[cvin_index].type = cert_pi_useAIACertFetch;
+  cvin[cvin_index].value.scalar.b = PR_TRUE;
+  cvin_index++;
   cvin[cvin_index].type = cert_pi_end;
 
-  return CERT_PKIXVerifyCert(cert_handle, certificateUsageSSLServer,
-                             cvin, cvout, NULL);
+  SECStatus rv = CERT_PKIXVerifyCert(cert_handle, certificateUsageSSLServer,
+                                     cvin, cvout, NULL);
+  if (rv != SECSuccess) {
+    // cert_pi_useAIACertFetch can't handle a CA issuers access location that
+    // is an LDAP URL with an empty host name (NSS bug 528741).  If cert fetch
+    // fails because of a network error, it also causes CERT_PKIXVerifyCert
+    // to report the network error rather than SEC_ERROR_UNKNOWN_ISSUER.  To
+    // work around these NSS bugs, we retry without cert_pi_useAIACertFetch.
+    int nss_error = PORT_GetError();
+    if (nss_error == SEC_ERROR_INVALID_ARGS || !IS_SEC_ERROR(nss_error)) {
+      cvin_index--;
+      DCHECK_EQ(cvin[cvin_index].type, cert_pi_useAIACertFetch);
+      cvin[cvin_index].type = cert_pi_end;
+      rv = CERT_PKIXVerifyCert(cert_handle, certificateUsageSSLServer,
+                               cvin, cvout, NULL);
+    }
+  }
+  return rv;
 }
 
 bool CheckCertPolicies(X509Certificate::OSCertHandle cert_handle,
