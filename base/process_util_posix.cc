@@ -146,15 +146,12 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
       sleep(1);
     }
 
-    if (!exited) {
+    if (!exited)
       result = kill(process_id, SIGKILL) == 0;
-    }
   }
 
-  if (!result) {
-    DLOG(ERROR) << "Unable to terminate process " << process_id << "; error "
-                << errno;
-  }
+  if (!result)
+    DPLOG(ERROR) << "Unable to terminate process " << process_id;
 
   return result;
 }
