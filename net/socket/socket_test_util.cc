@@ -277,7 +277,8 @@ int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
 
 MockRead StaticSocketDataProvider::GetNextRead() {
   MockRead rv = reads_[read_index_];
-  if (reads_[read_index_].data_len != 0)
+  if (reads_[read_index_].result != OK ||
+      reads_[read_index_].data_len != 0)
     read_index_++;  // Don't advance past an EOF.
   return rv;
 }
