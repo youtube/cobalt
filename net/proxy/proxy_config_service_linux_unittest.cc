@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/proxy/proxy_config_service_linux.h"
+
 #include <map>
 #include <string>
 #include <vector>
 
-#include "net/proxy/proxy_config_service_linux.h"
-
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/format_macros.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/task.h"
@@ -17,7 +18,6 @@
 #include "base/waitable_event.h"
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service_common_unittest.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -585,7 +585,8 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%d] %s", i, tests[i].description.c_str()));
+    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
+                              tests[i].description.c_str()));
     MockEnvironmentVariableGetter* env_getter =
         new MockEnvironmentVariableGetter;
     MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
@@ -864,7 +865,8 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%d] %s", i, tests[i].description.c_str()));
+    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
+                              tests[i].description.c_str()));
     MockEnvironmentVariableGetter* env_getter =
         new MockEnvironmentVariableGetter;
     MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
@@ -1185,7 +1187,8 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%d] %s", i, tests[i].description.c_str()));
+    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
+                              tests[i].description.c_str()));
     MockEnvironmentVariableGetter* env_getter =
         new MockEnvironmentVariableGetter;
     // Force the KDE getter to be used and tell it where the test is.

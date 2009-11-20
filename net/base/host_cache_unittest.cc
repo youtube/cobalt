@@ -4,6 +4,7 @@
 
 #include "net/base/host_cache.h"
 
+#include "base/format_macros.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
@@ -302,7 +303,7 @@ TEST(HostCacheTest, KeyComparators) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%d]", i));
+    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]", i));
 
     const HostCache::Key& key1 = tests[i].key1;
     const HostCache::Key& key2 = tests[i].key2;
