@@ -415,7 +415,10 @@ TEST_F(OutOfMemoryTest, Memalign) {
 }
 
 TEST_F(OutOfMemoryTest, Posix_memalign) {
-  ASSERT_DEATH(posix_memalign(&value_, 8, test_size_), "");
+  // The (void) is to prevent a gcc warning about unused return values.
+  // We don't actually care about the return value, since we're
+  // asserting death.
+  ASSERT_DEATH((void) posix_memalign(&value_, 8, test_size_), "");
 }
 
 extern "C" {
