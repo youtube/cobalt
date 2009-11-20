@@ -4,12 +4,18 @@
  */
 
 #include <sys/types.h>
+#ifdef _EVENT_HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#define EVENT_NO_STRUCT
 #include <event.h>
 
+#ifdef _EVENT___func__
+#define __func__ _EVENT___func__
+#endif
 
 #include "./regress.gen.h"
 
@@ -290,7 +296,7 @@ msg_marshal(struct evbuffer *evbuf, const struct msg *tmp){
 int
 msg_unmarshal(struct msg *tmp,  struct evbuffer *evbuf)
 {
-  uint32_t tag;
+  ev_uint32_t tag;
   while (EVBUFFER_LENGTH(evbuf) > 0) {
     if (evtag_peek(evbuf, &tag) == -1)
       return (-1);
@@ -375,9 +381,9 @@ msg_complete(struct msg *msg)
 }
 
 int
-evtag_unmarshal_msg(struct evbuffer *evbuf, uint32_t need_tag, struct msg *msg)
+evtag_unmarshal_msg(struct evbuffer *evbuf, ev_uint32_t need_tag, struct msg *msg)
 {
-  uint32_t tag;
+  ev_uint32_t tag;
   int res = -1;
 
   struct evbuffer *tmp = evbuffer_new();
@@ -396,7 +402,7 @@ evtag_unmarshal_msg(struct evbuffer *evbuf, uint32_t need_tag, struct msg *msg)
 }
 
 void
-evtag_marshal_msg(struct evbuffer *evbuf, uint32_t tag, const struct msg *msg)
+evtag_marshal_msg(struct evbuffer *evbuf, ev_uint32_t tag, const struct msg *msg)
 {
   struct evbuffer *_buf = evbuffer_new();
   assert(_buf != NULL);
@@ -469,7 +475,7 @@ kill_action_assign(struct kill *msg,
 }
 
 int
-kill_how_often_assign(struct kill *msg, const uint32_t value)
+kill_how_often_assign(struct kill *msg, const ev_uint32_t value)
 {
   msg->how_often_set = 1;
   msg->how_often_data = value;
@@ -495,7 +501,7 @@ kill_action_get(struct kill *msg, char * *value)
 }
 
 int
-kill_how_often_get(struct kill *msg, uint32_t *value)
+kill_how_often_get(struct kill *msg, ev_uint32_t *value)
 {
   if (msg->how_often_set != 1)
     return (-1);
@@ -541,7 +547,7 @@ kill_marshal(struct evbuffer *evbuf, const struct kill *tmp){
 int
 kill_unmarshal(struct kill *tmp,  struct evbuffer *evbuf)
 {
-  uint32_t tag;
+  ev_uint32_t tag;
   while (EVBUFFER_LENGTH(evbuf) > 0) {
     if (evtag_peek(evbuf, &tag) == -1)
       return (-1);
@@ -601,9 +607,9 @@ kill_complete(struct kill *msg)
 }
 
 int
-evtag_unmarshal_kill(struct evbuffer *evbuf, uint32_t need_tag, struct kill *msg)
+evtag_unmarshal_kill(struct evbuffer *evbuf, ev_uint32_t need_tag, struct kill *msg)
 {
-  uint32_t tag;
+  ev_uint32_t tag;
   int res = -1;
 
   struct evbuffer *tmp = evbuffer_new();
@@ -622,7 +628,7 @@ evtag_unmarshal_kill(struct evbuffer *evbuf, uint32_t need_tag, struct kill *msg
 }
 
 void
-evtag_marshal_kill(struct evbuffer *evbuf, uint32_t tag, const struct kill *msg)
+evtag_marshal_kill(struct evbuffer *evbuf, ev_uint32_t tag, const struct kill *msg)
 {
   struct evbuffer *_buf = evbuffer_new();
   assert(_buf != NULL);
@@ -684,7 +690,7 @@ run_how_assign(struct run *msg,
 }
 
 int
-run_some_bytes_assign(struct run *msg, const uint8_t * value, uint32_t len)
+run_some_bytes_assign(struct run *msg, const ev_uint8_t * value, ev_uint32_t len)
 {
   if (msg->some_bytes_data != NULL)
     free (msg->some_bytes_data);
@@ -698,7 +704,7 @@ run_some_bytes_assign(struct run *msg, const uint8_t * value, uint32_t len)
 }
 
 int
-run_fixed_bytes_assign(struct run *msg, const uint8_t *value)
+run_fixed_bytes_assign(struct run *msg, const ev_uint8_t *value)
 {
   msg->fixed_bytes_set = 1;
   memcpy(msg->fixed_bytes_data, value, 24);
@@ -715,7 +721,7 @@ run_how_get(struct run *msg, char * *value)
 }
 
 int
-run_some_bytes_get(struct run *msg, uint8_t * *value, uint32_t *plen)
+run_some_bytes_get(struct run *msg, ev_uint8_t * *value, ev_uint32_t *plen)
 {
   if (msg->some_bytes_set != 1)
     return (-1);
@@ -725,7 +731,7 @@ run_some_bytes_get(struct run *msg, uint8_t * *value, uint32_t *plen)
 }
 
 int
-run_fixed_bytes_get(struct run *msg, uint8_t **value)
+run_fixed_bytes_get(struct run *msg, ev_uint8_t **value)
 {
   if (msg->fixed_bytes_set != 1)
     return (-1);
@@ -773,7 +779,7 @@ run_marshal(struct evbuffer *evbuf, const struct run *tmp){
 int
 run_unmarshal(struct run *tmp,  struct evbuffer *evbuf)
 {
-  uint32_t tag;
+  ev_uint32_t tag;
   while (EVBUFFER_LENGTH(evbuf) > 0) {
     if (evtag_peek(evbuf, &tag) == -1)
       return (-1);
@@ -839,9 +845,9 @@ run_complete(struct run *msg)
 }
 
 int
-evtag_unmarshal_run(struct evbuffer *evbuf, uint32_t need_tag, struct run *msg)
+evtag_unmarshal_run(struct evbuffer *evbuf, ev_uint32_t need_tag, struct run *msg)
 {
-  uint32_t tag;
+  ev_uint32_t tag;
   int res = -1;
 
   struct evbuffer *tmp = evbuffer_new();
@@ -860,7 +866,7 @@ evtag_unmarshal_run(struct evbuffer *evbuf, uint32_t need_tag, struct run *msg)
 }
 
 void
-evtag_marshal_run(struct evbuffer *evbuf, uint32_t tag, const struct run *msg)
+evtag_marshal_run(struct evbuffer *evbuf, ev_uint32_t tag, const struct run *msg)
 {
   struct evbuffer *_buf = evbuffer_new();
   assert(_buf != NULL);

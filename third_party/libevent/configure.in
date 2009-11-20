@@ -2,7 +2,7 @@ dnl configure.in for libevent
 dnl Dug Song <dugsong@monkey.org>
 AC_INIT(event.c)
 
-AM_INIT_AUTOMAKE(libevent,1.4.7-stable)
+AM_INIT_AUTOMAKE(libevent,1.4.13-stable)
 AM_CONFIG_HEADER(config.h)
 dnl AM_MAINTAINER_MODE
 
@@ -19,6 +19,9 @@ AC_PROG_LN_S
 AC_PROG_GCC_TRADITIONAL
 if test "$GCC" = yes ; then
         CFLAGS="$CFLAGS -Wall"
+        # And disable the strict-aliasing optimization, since it breaks
+        # our sockaddr-handling code in strange ways.
+        CFLAGS="$CFLAGS -fno-strict-aliasing"
 fi
 
 AC_ARG_ENABLE(gcc-warnings,
@@ -133,7 +136,7 @@ AC_C_INLINE
 AC_HEADER_TIME
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop signal sigaction strtoll)
+AC_CHECK_FUNCS(gettimeofday vasprintf fcntl clock_gettime strtok_r strsep getaddrinfo getnameinfo strlcpy inet_ntop signal sigaction strtoll issetugid geteuid getegid)
 
 AC_CHECK_SIZEOF(long)
 
@@ -306,8 +309,15 @@ AC_CHECK_TYPES([uint64_t, uint32_t, uint16_t, uint8_t], , ,
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif])
+AC_CHECK_TYPES([fd_mask], , ,
+[#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SELECT_H
+#include <select.h>
+#endif])
+
 AC_CHECK_SIZEOF(long long)
-AC_CHECK_SIZEOF(long)   
 AC_CHECK_SIZEOF(int)
 AC_CHECK_SIZEOF(short)
 AC_CHECK_TYPES([struct in6_addr], , ,

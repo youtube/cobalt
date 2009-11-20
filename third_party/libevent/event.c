@@ -37,7 +37,7 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #else 
-#include <sys/_time.h>
+#include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
 #include <stdio.h>
@@ -79,7 +79,7 @@ extern const struct eventop win32ops;
 #endif
 
 /* In order of preference */
-const struct eventop *eventops[] = {
+static const struct eventop *eventops[] = {
 #ifdef HAVE_EVENT_PORTS
 	&evportops,
 #endif
@@ -108,7 +108,6 @@ const struct eventop *eventops[] = {
 struct event_base *current_base = NULL;
 extern struct event_base *evsignal_base;
 static int use_monotonic;
-static int use_monotonic_initialized;
 
 /* Prototypes */
 static void	event_queue_insert(struct event_base *, struct event *, int);
@@ -125,14 +124,10 @@ static void
 detect_monotonic(void)
 {
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-	if (use_monotonic_initialized)
-		return;
-
 	struct timespec	ts;
 
 	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
 		use_monotonic = 1;
-	use_monotonic_initialized = 1;
 #endif
 }
 
@@ -198,7 +193,7 @@ event_base_new(void)
 	if (base->evbase == NULL)
 		event_errx(1, "%s: no event mechanism available", __func__);
 
-	if (getenv("EVENT_SHOW_METHOD")) 
+	if (evutil_getenv("EVENT_SHOW_METHOD")) 
 		event_msgx("libevent using: %s\n",
 			   base->evsel->name);
 
@@ -283,8 +278,13 @@ event_reinit(struct event_base *base)
 
 	/* prevent internal delete */
 	if (base->sig.ev_signal_added) {
+		/* we cannot call event_del here because the base has
+		 * not been reinitialized yet. */
 		event_queue_remove(base, &base->sig.ev_signal,
 		    EVLIST_INSERTED);
+		if (base->sig.ev_signal.ev_flags & EVLIST_ACTIVE)
+			event_queue_remove(base, &base->sig.ev_signal,
+			    EVLIST_ACTIVE);
 		base->sig.ev_signal_added = 0;
 	}
 	
@@ -326,8 +326,8 @@ event_base_priority_init(struct event_base *base, int npriorities)
 
 	/* Allocate our priority queues */
 	base->nactivequeues = npriorities;
-	base->activequeues = (struct event_list **)calloc(base->nactivequeues,
-	    npriorities * sizeof(struct event_list *));
+	base->activequeues = (struct event_list **)
+	    calloc(base->nactivequeues, sizeof(struct event_list *));
 	if (base->activequeues == NULL)
 		event_err(1, "%s: calloc", __func__);
 
@@ -470,6 +470,9 @@ event_base_loop(struct event_base *base, int flags)
 	struct timeval *tv_p;
 	int res, done;
 
+	/* clear time cache */
+	base->tv_cache.tv_sec = 0;
+
 	if (base->sig.ev_signal_added)
 		evsignal_base = base;
 	done = 0;
@@ -525,6 +528,9 @@ event_base_loop(struct event_base *base, int flags)
 		} else if (flags & EVLOOP_NONBLOCK)
 			done = 1;
 	}
+
+	/* clear time cache */
+	base->tv_cache.tv_sec = 0;
 
 	event_debug(("%s: asked to terminate loop.", __func__));
 	return (0);
@@ -765,7 +771,7 @@ event_add(struct event *ev, const struct timeval *tv)
 		event_queue_insert(base, ev, EVLIST_TIMEOUT);
 	}
 
-	return (0);
+	return (res);
 }
 
 int
@@ -890,6 +896,8 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 		struct timeval *ev_tv = &(**pev).ev_timeout;
 		evutil_timersub(ev_tv, &off, ev_tv);
 	}
+	/* Now remember what the new time turned out to be. */
+	base->event_tv = *tv;
 }
 
 void
