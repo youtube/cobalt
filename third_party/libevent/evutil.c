@@ -53,7 +53,11 @@
 #include <sys/timeb.h>
 #endif
 #include <stdio.h>
+#include <signal.h>
 
+#include <sys/queue.h>
+#include "event.h"
+#include "event-internal.h"
 #include "evutil.h"
 #include "log.h"
 
@@ -242,4 +246,32 @@ evutil_vsnprintf(char *buf, size_t buflen, const char *format, va_list ap)
 	buf[buflen-1] = '\0';
 	return r;
 #endif
+}
+
+static int
+evutil_issetugid(void)
+{
+#ifdef _EVENT_HAVE_ISSETUGID
+	return issetugid();
+#else
+
+#ifdef _EVENT_HAVE_GETEUID
+	if (getuid() != geteuid())
+		return 1;
+#endif
+#ifdef _EVENT_HAVE_GETEGID
+	if (getgid() != getegid())
+		return 1;
+#endif
+	return 0;
+#endif
+}
+
+const char *
+evutil_getenv(const char *varname)
+{
+	if (evutil_issetugid())
+		return NULL;
+
+	return getenv(varname);
 }
