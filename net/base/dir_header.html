@@ -40,7 +40,7 @@ function addRow(name, url, isdir, size, date_modified) {
 
 function createCell(text) {
   var cell = document.createElement("td");
-  cell.setAttribute("class", "sizeColumn");
+  cell.setAttribute("class", "detailsColumn");
   cell.innerText = text;
   return cell;
 }
@@ -56,7 +56,7 @@ function start(location) {
 <title id="title"></title>
 <style>
   h1 { white-space: nowrap; }
-  td.sizeColumn { text-align: right; padding-left: 30px; }
+  td.detailsColumn { text-align: right; padding-left: 30px; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -66,8 +66,8 @@ function start(location) {
 <table id="table">
 <tr style="font-weight: bold">
  <td i18n-content="headerName"></td>
- <td class="sizeColumn" i18n-content="headerSize"></td>
- <td class="sizeColumn" i18n-content="headerDateModified"></td>
+ <td class="detailsColumn" i18n-content="headerSize"></td>
+ <td class="detailsColumn" i18n-content="headerDateModified"></td>
 </tr>
 </table>
 </body>
