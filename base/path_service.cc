@@ -24,8 +24,8 @@ namespace base {
   bool PathProviderWin(int key, FilePath* result);
 #elif defined(OS_MACOSX)
   bool PathProviderMac(int key, FilePath* result);
-#elif defined(OS_LINUX)
-  bool PathProviderLinux(int key, FilePath* result);
+#elif defined(OS_POSIX)
+  bool PathProviderPosix(int key, FilePath* result);
 #endif
 }
 
@@ -56,7 +56,7 @@ static Provider base_provider = {
   true
 };
 
-#ifdef OS_WIN
+#if defined(OS_WIN)
 static Provider base_provider_win = {
   base::PathProviderWin,
   &base_provider,
@@ -68,7 +68,7 @@ static Provider base_provider_win = {
 };
 #endif
 
-#ifdef OS_MACOSX
+#if defined(OS_MACOSX)
 static Provider base_provider_mac = {
   base::PathProviderMac,
   &base_provider,
@@ -80,13 +80,13 @@ static Provider base_provider_mac = {
 };
 #endif
 
-#if defined(OS_LINUX)
-static Provider base_provider_linux = {
-  base::PathProviderLinux,
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
+static Provider base_provider_posix = {
+  base::PathProviderPosix,
   &base_provider,
 #ifndef NDEBUG
-  base::PATH_LINUX_START,
-  base::PATH_LINUX_END,
+  0,
+  0,
 #endif
   true
 };
@@ -104,8 +104,8 @@ struct PathData {
     providers = &base_provider_win;
 #elif defined(OS_MACOSX)
     providers = &base_provider_mac;
-#elif defined(OS_LINUX)
-    providers = &base_provider_linux;
+#elif defined(OS_POSIX)
+    providers = &base_provider_posix;
 #endif
   }
 
