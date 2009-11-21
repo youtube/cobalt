@@ -18,6 +18,7 @@
 
 #include <string>
 
+#include "base/debug_util.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/string_util.h"
@@ -261,8 +262,8 @@ realloc_type g_old_realloc;
 void* oom_killer_malloc(struct _malloc_zone_t* zone,
                         size_t size) {
   void* result = g_old_malloc(zone, size);
-  if (size)
-    CHECK(result) << "Out of memory, size = " << size;
+  if (size && !result)
+    DebugUtil::BreakDebugger();
   return result;
 }
 
@@ -270,17 +271,16 @@ void* oom_killer_calloc(struct _malloc_zone_t* zone,
                         size_t num_items,
                         size_t size) {
   void* result = g_old_calloc(zone, num_items, size);
-  if (size)
-    CHECK(result) << "Out of memory, num_items = " << num_items
-                  << ", size = " << size;
+  if (num_items && size && !result)
+    DebugUtil::BreakDebugger();
   return result;
 }
 
 void* oom_killer_valloc(struct _malloc_zone_t* zone,
                         size_t size) {
   void* result = g_old_valloc(zone, size);
-  if (size)
-    CHECK(result) << "Out of memory, size = " << size;
+  if (size && !result)
+    DebugUtil::BreakDebugger();
   return result;
 }
 
@@ -288,8 +288,8 @@ void* oom_killer_realloc(struct _malloc_zone_t* zone,
                          void* ptr,
                          size_t size) {
   void* result = g_old_realloc(zone, ptr, size);
-  if (size)
-    CHECK(result) << "Out of memory, size = " << size;
+  if (size && !result)
+    DebugUtil::BreakDebugger();
   return result;
 }
 
