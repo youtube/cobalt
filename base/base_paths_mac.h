@@ -14,15 +14,9 @@ namespace base {
 enum {
   PATH_MAC_START = 200,
 
-  FILE_EXE,     // path and filename of the current executable
-  FILE_MODULE,  // path and filename of the module containing the code for the
-                // PathService (which could differ from FILE_EXE if the
-                // PathService were compiled into a library, for example)
   DIR_CACHE,    // ~/Library/Caches
   DIR_APP_DATA,  // ~/Library/Application Support
-  DIR_SOURCE_ROOT,  // Returns the root of the source tree.  This key is useful
-                    // for tests that need to locate various resources.  It
-                    // should not be used outside of test code.
+
   PATH_MAC_END
 };
 
