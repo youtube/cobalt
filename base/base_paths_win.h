@@ -14,10 +14,6 @@ namespace base {
 enum {
   PATH_WIN_START = 100,
 
-  FILE_EXE,     // path and filename of the current executable
-  FILE_MODULE,  // path and filename of the module containing the code for the
-                // PathService (which could differ from FILE_EXE if the
-                // PathService were compiled into a DLL, for example)
   DIR_WINDOWS,  // Windows directory, usually "c:\windows"
   DIR_SYSTEM,   // Usually c:\windows\system32"
   DIR_PROGRAM_FILES, // Usually c:\program files
@@ -31,9 +27,6 @@ enum {
   DIR_LOCAL_APP_DATA_LOW,  // Local AppData directory for low integrity level.
   DIR_LOCAL_APP_DATA,  // "Local Settings\Application Data" directory under the
                        // user profile.
-  DIR_SOURCE_ROOT,  // Returns the root of the source tree.  This key is useful
-                    // for tests that need to locate various resources.  It
-                    // should not be used outside of test code.
   PATH_WIN_END
 };
 
