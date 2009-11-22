@@ -619,6 +619,7 @@
         'flip/flip_framer_test.cc',
         'flip/flip_network_transaction_unittest.cc',
         'flip/flip_session_unittest.cc',
+        'flip/flip_stream_unittest.cc',
         'http/http_auth_cache_unittest.cc',
         'http/http_auth_handler_basic_unittest.cc',
         'http/http_auth_handler_digest_unittest.cc',
