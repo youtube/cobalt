@@ -297,7 +297,10 @@
         'string_util_win.h',
         'sys_info.h',
         'sys_info_chromeos.cc',
+        'sys_info_freebsd.cc',
+        'sys_info_linux.cc',
         'sys_info_mac.cc',
+        'sys_info_openbsd.cc',
         'sys_info_posix.cc',
         'sys_info_win.cc',
         'sys_string_conversions.h',
@@ -463,6 +466,16 @@
               'setproctitle_linux.c',
               'setproctitle_linux.h',
             ],
+          },
+        ],
+        # For now, just test the *BSD platforms enough to exclude them.
+        # Subsequent changes will include them further.
+        [ 'OS != "freebsd"', {
+            'sources/': [ ['exclude', '_freebsd\\.cc$'] ],
+          },
+        ],
+        [ 'OS != "openbsd"', {
+            'sources/': [ ['exclude', '_openbsd\\.cc$'] ],
           },
         ],
         [ 'GENERATOR == "quentin"', {
