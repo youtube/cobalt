@@ -150,7 +150,7 @@ bool LaunchApp(const std::vector<std::string>& argv,
 
 // Similar to above, but also (un)set environment variables in child process
 // through |environ|.
-typedef std::vector<std::pair<const char*, const char*> > environment_vector;
+typedef std::vector<std::pair<std::string, std::string> > environment_vector;
 bool LaunchApp(const std::vector<std::string>& argv,
                const environment_vector& environ,
                const file_handle_mapping_vector& fds_to_remap,
