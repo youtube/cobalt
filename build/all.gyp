@@ -83,7 +83,7 @@
           'conditions': [
             ['branding=="Chrome"', {
               'dependencies': [
-                '../chrome/installer/installer.gyp:linux_packages',
+                '../chrome/installer/installer.gyp:linux_packages_<(channel)',
               ],
             }],
           ],
