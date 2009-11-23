@@ -116,8 +116,9 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   // be returned and the real result code will be passed to the completion
   // callback.  Otherwise the result code is returned immediately from this
   // call.
-  // If |req| is non-NULL, then |*req| will be filled with a handle to the
-  // async request. This handle is not valid after the request has completed.
+  // If |out_req| is non-NULL, then |*out_req| will be filled with a handle to
+  // the async request. This handle is not valid after the request has
+  // completed.
   //
   // Profiling information for the request is saved to |load_log| if non-NULL.
   virtual int Resolve(const RequestInfo& info,
