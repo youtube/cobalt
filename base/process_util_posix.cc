@@ -302,12 +302,13 @@ bool LaunchApp(const std::vector<std::string>& argv,
 
     for (environment_vector::const_iterator it = environ.begin();
          it != environ.end(); ++it) {
-      if (it->first) {
-        if (it->second) {
-          setenv(it->first, it->second, 1);
-        } else {
-          unsetenv(it->first);
-        }
+      if (it->first.empty())
+        continue;
+
+      if (it->second.empty()) {
+        unsetenv(it->first.c_str());
+      } else {
+        setenv(it->first.c_str(), it->second.c_str(), 1);
       }
     }
 
