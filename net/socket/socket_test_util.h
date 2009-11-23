@@ -287,6 +287,8 @@ class MockClientSocket : public net::SSLClientSocket {
   // If an async IO is pending because the SocketDataProvider returned
   // ERR_IO_PENDING, then the MockClientSocket waits until this OnReadComplete
   // is called to complete the asynchronous read operation.
+  // data.async is ignored, and this read is completed synchronously as
+  // part of this call.
   virtual void OnReadComplete(const MockRead& data) = 0;
 
  protected:
