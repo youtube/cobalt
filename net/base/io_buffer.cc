@@ -20,11 +20,9 @@ void DrainableIOBuffer::SetOffset(int bytes) {
 }
 
 void GrowableIOBuffer::SetCapacity(int capacity) {
-  CHECK(capacity >= 0);
+  DCHECK(capacity >= 0);
   // realloc will crash if it fails.
   real_data_.reset(static_cast<char*>(realloc(real_data_.release(), capacity)));
-  // Sanity check.
-  CHECK(real_data_.get() != NULL || capacity == 0);
   capacity_ = capacity;
   if (offset_ > capacity)
     set_offset(capacity);
