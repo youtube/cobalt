@@ -50,13 +50,14 @@ class HttpStream {
   // Provides access to HttpResponseInfo (owned by HttpStream).
   virtual HttpResponseInfo* GetResponseInfo() const = 0;
 
-  // Reads response body data, up to |buf_len| bytes.  The number of bytes read
-  // is returned, or an error is returned upon failure.  ERR_CONNECTION_CLOSED
-  // is returned to indicate end-of-connection.  ERR_IO_PENDING is returned if
-  // the operation could not be completed synchronously, in which case the
-  // result will be passed to the callback when available. If the operation is
-  // not completed immediately, the socket acquires a reference to the provided
-  // buffer until the callback is invoked or the socket is destroyed.
+  // Reads response body data, up to |buf_len| bytes. |buf_len| should be a
+  // reasonable size (<256KB). The number of bytes read is returned, or an
+  // error is returned upon failure.  ERR_CONNECTION_CLOSED is returned to
+  // indicate end-of-connection.  ERR_IO_PENDING is returned if the operation
+  // could not be completed synchronously, in which case the result will be
+  // passed to the callback when available. If the operation is not completed
+  // immediately, the socket acquires a reference to the provided buffer until
+  // the callback is invoked or the socket is destroyed.
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
                                CompletionCallback* callback) = 0;
 
