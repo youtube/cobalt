@@ -26,19 +26,10 @@
 
 namespace base {
 
+#if !defined(OS_OPENBSD)
 int SysInfo::NumberOfProcessors() {
-#if defined(OS_OPENBSD)
-  int mib[] = { CTL_HW, HW_NCPU };
-  int ncpu;
-  size_t size = sizeof(ncpu);
-  if (sysctl(mib, 2, &ncpu, &size, NULL, 0) == -1) {
-    NOTREACHED();
-    return 1;
-  }
-  return ncpu;
-#else
   // It seems that sysconf returns the number of "logical" processors on both
-  // mac and linux.  So we get the number of "online logical" processors.
+  // Mac and Linux.  So we get the number of "online logical" processors.
   long res = sysconf(_SC_NPROCESSORS_ONLN);
   if (res == -1) {
     NOTREACHED();
@@ -46,28 +37,6 @@ int SysInfo::NumberOfProcessors() {
   }
 
   return static_cast<int>(res);
-#endif
-}
-
-#if !defined(OS_MACOSX)
-// static
-int64 SysInfo::AmountOfPhysicalMemory() {
-#if defined(OS_FREEBSD)
-  // _SC_PHYS_PAGES is not part of POSIX and not available on OS X or
-  // FreeBSD
-  // TODO(benl): I have no idea how to get this
-  NOTIMPLEMENTED();
-  return 0;
-#else
-  long pages = sysconf(_SC_PHYS_PAGES);
-  long page_size = sysconf(_SC_PAGE_SIZE);
-  if (pages == -1 || page_size == -1) {
-    NOTREACHED();
-    return 0;
-  }
-
-  return static_cast<int64>(pages) * page_size;
-#endif
 }
 #endif
 
@@ -155,22 +124,5 @@ int SysInfo::DisplayCount() {
 size_t SysInfo::VMAllocationGranularity() {
   return getpagesize();
 }
-
-#if defined(OS_LINUX)
-// static
-size_t SysInfo::MaxSharedMemorySize() {
-  static size_t limit;
-  static bool limit_valid = false;
-
-  if (!limit_valid) {
-    std::string contents;
-    file_util::ReadFileToString(FilePath("/proc/sys/kernel/shmmax"), &contents);
-    limit = strtoul(contents.c_str(), NULL, 0);
-    limit_valid = true;
-  }
-
-  return limit;
-}
-#endif
 
 }  // namespace base
