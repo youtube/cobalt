@@ -3876,4 +3876,15 @@ TEST_F(HttpNetworkTransactionTest, HTTPSViaProxyWithExtraData) {
   EXPECT_EQ(ERR_TUNNEL_CONNECTION_FAILED, rv);
 }
 
+TEST_F(HttpNetworkTransactionTest, LargeContentLengthThenClose) {
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.0 200 OK\r\nContent-Length:6719476739\r\n\r\n"),
+    MockRead(false, OK),
+  };
+  SimpleGetHelperResult out = SimpleGetHelper(data_reads);
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.0 200 OK", out.status_line);
+  EXPECT_EQ("", out.response_data);
+}
+
 }  // namespace net
