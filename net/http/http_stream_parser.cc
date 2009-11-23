@@ -84,6 +84,7 @@ int HttpStreamParser::ReadResponseBody(IOBuffer* buf, int buf_len,
   DCHECK(io_state_ == STATE_BODY_PENDING || io_state_ == STATE_DONE);
   DCHECK(!user_callback_);
   DCHECK(callback);
+  DCHECK_LE(buf_len, kMaxHeaderBufSize);
 
   if (io_state_ == STATE_DONE)
     return OK;
@@ -373,15 +374,15 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
     if (chunked_decoder_.get()) {
       save_amount = chunked_decoder_->bytes_after_eof();
     } else if (response_body_length_ >= 0) {
-      save_amount = static_cast<int>(response_body_read_ -
-                                     response_body_length_);
-      if (save_amount < 0)
-        save_amount = 0;
-
-      if (result > 0)
-        result -= save_amount;
+      int64 extra_data_read = response_body_read_ - response_body_length_;
+      if (extra_data_read > 0) {
+        save_amount = static_cast<int>(extra_data_read);
+        if (result > 0)
+          result -= save_amount;
+      }
     }
 
+    CHECK(save_amount + additional_save_amount <= kMaxHeaderBufSize);
     if (read_buf_->capacity() < save_amount + additional_save_amount) {
       read_buf_->SetCapacity(save_amount + additional_save_amount);
     }
