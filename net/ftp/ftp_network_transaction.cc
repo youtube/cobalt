@@ -282,6 +282,9 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
       case COMMAND_RETR:
         rv = ProcessResponseRETR(response);
         break;
+      case COMMAND_LIST:
+        rv = ProcessResponseLIST(response);
+        break;
       default:
         // Multiple responses for other commands are invalid.
         return Stop(ERR_INVALID_RESPONSE);
