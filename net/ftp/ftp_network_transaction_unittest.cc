@@ -401,6 +401,31 @@ class FtpSocketDataProviderFileDownloadTransferStarting
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderFileDownloadTransferStarting);
 };
 
+class FtpSocketDataProviderDirectoryListingTransferStarting
+    : public FtpSocketDataProviderDirectoryListing {
+ public:
+  FtpSocketDataProviderDirectoryListingTransferStarting() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_LIST:
+        return Verify("LIST\r\n", data, PRE_QUIT,
+                      "125-Data connection already open.\r\n"
+                      "125  Transfer starting.\r\n"
+                      "226 Transfer complete.\r\n");
+      default:
+        return FtpSocketDataProviderDirectoryListing::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(
+      FtpSocketDataProviderDirectoryListingTransferStarting);
+};
+
 class FtpSocketDataProviderFileDownloadInvalidResponse
     : public FtpSocketDataProviderFileDownload {
  public:
@@ -638,6 +663,11 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionVMS) {
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionVMSRootDirectory) {
   FtpSocketDataProviderVMSDirectoryListingRootDirectory ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host", OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionTransferStarting) {
+  FtpSocketDataProviderDirectoryListingTransferStarting ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host", OK);
 }
 
