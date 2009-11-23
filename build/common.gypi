@@ -85,6 +85,11 @@
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
 
+    # The release channel that this build targets. This is used to restrict
+    # channel-specific build options, like which installer packages to create.
+    # The default is 'all', which does no channel-specific filtering.
+    'channel%': 'all',
+
     # Override chromium_mac_pch and set it to 0 to suppress the use of
     # precompiled headers on the Mac.  Prefix header injection may still be
     # used, but prefix headers will not be precompiled.  This is useful when
