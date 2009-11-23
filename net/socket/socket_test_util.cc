@@ -150,17 +150,13 @@ void MockTCPClientSocket::OnReadComplete(const MockRead& data) {
   DCHECK_NE(ERR_IO_PENDING, data.result);
   // Since we've been waiting for data, need_read_data_ should be true.
   DCHECK(need_read_data_);
+  // In order to fire the callback, this IO needs to be marked as async.
+  DCHECK(data.async);
 
   read_data_ = data;
   need_read_data_ = false;
 
-  // The caller is simulating that this IO completes right now.  Don't
-  // let CompleteRead() schedule a callback.
-  read_data_.async = false;
-
-  net::CompletionCallback* callback = pending_callback_;
-  int rv = CompleteRead();
-  RunCallback(callback, rv);
+  CompleteRead();
 }
 
 int MockTCPClientSocket::CompleteRead() {
