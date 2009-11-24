@@ -56,6 +56,11 @@
             '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
           ],
         }],
+        ['enable_openmax==1', {
+          'dependencies': [
+            '../media/omx/omx_test.gyp:*',
+          ],
+        }],
         ['OS=="mac" or OS=="linux" or OS=="freebsd"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
