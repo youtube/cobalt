@@ -17,6 +17,7 @@
 
 #if defined(OS_LINUX)
 #include <dlfcn.h>
+#include <errno.h>
 #include <malloc.h>
 #endif
 #if defined(OS_POSIX)
@@ -415,10 +416,10 @@ TEST_F(OutOfMemoryTest, Memalign) {
 }
 
 TEST_F(OutOfMemoryTest, Posix_memalign) {
-  // The (void) is to prevent a gcc warning about unused return values.
-  // We don't actually care about the return value, since we're
-  // asserting death.
-  ASSERT_DEATH((void) posix_memalign(&value_, 8, test_size_), "");
+  // Grab the return value of posix_memalign to silence a compiler warning
+  // about unused return values. We don't actually care about the return
+  // value, since we're asserting death.
+  ASSERT_DEATH(EXPECT_EQ(ENOMEM, posix_memalign(&value_, 8, test_size_)), "");
 }
 
 extern "C" {
