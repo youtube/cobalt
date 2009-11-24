@@ -76,6 +76,9 @@ class HttpStreamParser {
   // Note: |kMaxHeaderBufSize| should be a multiple of |kHeaderBufInitialSize|.
   enum { kMaxHeaderBufSize = 256 * 1024 };  // 256 kilobytes.
 
+  // The maximum sane buffer size.
+  enum { kMaxBufSize = 2 * 1024 * 1024 };  // 2 megabytes.
+
   // Handle callbacks.
   void OnIOComplete(int result);
 

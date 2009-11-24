@@ -51,7 +51,7 @@ class HttpStream {
   virtual HttpResponseInfo* GetResponseInfo() const = 0;
 
   // Reads response body data, up to |buf_len| bytes. |buf_len| should be a
-  // reasonable size (<256KB). The number of bytes read is returned, or an
+  // reasonable size (<2MB). The number of bytes read is returned, or an
   // error is returned upon failure.  ERR_CONNECTION_CLOSED is returned to
   // indicate end-of-connection.  ERR_IO_PENDING is returned if the operation
   // could not be completed synchronously, in which case the result will be
