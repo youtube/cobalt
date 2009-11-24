@@ -26,6 +26,7 @@
 #include <fcntl.h>
 #endif
 
+#include "base/base64.h"
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -54,7 +55,6 @@
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
 #endif
-#include "net/base/base64.h"
 #include "unicode/datefmt.h"
 
 
@@ -225,7 +225,7 @@ bool DecodeBQEncoding(const std::string& part, RFC2047EncodingType enc_type,
                        const std::string& charset, std::string* output) {
   std::string decoded;
   if (enc_type == B_ENCODING) {
-    if (!net::Base64Decode(part, &decoded)) {
+    if (!base::Base64Decode(part, &decoded)) {
       return false;
     }
   } else {

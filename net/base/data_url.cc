@@ -8,9 +8,9 @@
 
 #include "net/base/data_url.h"
 
+#include "base/base64.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/base64.h"
 #include "net/base/escape.h"
 
 namespace net {
@@ -93,7 +93,7 @@ bool DataURL::Parse(const GURL& url, std::string* mime_type,
   }
 
   if (base64_encoded)
-    return Base64Decode(temp_data, data);
+    return base::Base64Decode(temp_data, data);
 
   temp_data.swap(*data);
   return true;
