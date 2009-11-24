@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/base64.h"
 #include "base/field_trial.h"
 #include "base/histogram.h"
 #include "base/logging.h"
 #include "base/sha2.h"
 #include "base/string_util.h"
-#include "net/base/base64.h"
 #include "net/base/registry_controlled_domain.h"
 #include "net/base/sdch_manager.h"
 #include "net/url_request/url_request_http_job.h"
@@ -349,7 +349,7 @@ void SdchManager::UrlSafeBase64Encode(const std::string& input,
                                       std::string* output) {
   // Since this is only done during a dictionary load, and hashes are only 8
   // characters, we just do the simple fixup, rather than rewriting the encoder.
-  net::Base64Encode(input, output);
+  base::Base64Encode(input, output);
   for (size_t i = 0; i < output->size(); ++i) {
     switch (output->data()[i]) {
       case '+':
