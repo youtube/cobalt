@@ -724,12 +724,7 @@ bool HttpResponseHeaders::GetCharset(std::string* charset) const {
 }
 
 bool HttpResponseHeaders::IsRedirect(std::string* location) const {
-  // Users probably want to see 300 (multiple choice) pages, so we don't count
-  // them as redirects that need to be followed.
-  if (!(response_code_ == 301 ||
-        response_code_ == 302 ||
-        response_code_ == 303 ||
-        response_code_ == 307))
+  if (!IsRedirectResponseCode(response_code_))
     return false;
 
   // If we lack a Location header, then we can't treat this as a redirect.
@@ -751,6 +746,16 @@ bool HttpResponseHeaders::IsRedirect(std::string* location) const {
   }
 
   return true;
+}
+
+// static
+bool HttpResponseHeaders::IsRedirectResponseCode(int response_code) {
+  // Users probably want to see 300 (multiple choice) pages, so we don't count
+  // them as redirects that need to be followed.
+  return (response_code == 301 ||
+          response_code == 302 ||
+          response_code == 303 ||
+          response_code == 307);
 }
 
 // From RFC 2616 section 13.2.4:
