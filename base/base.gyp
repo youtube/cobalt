@@ -11,6 +11,9 @@
       'target_name': 'base',
       'type': '<(library)',
       'msvs_guid': '1832A374-8A74-4F9E-B536-69A699B3E165',
+      'dependencies': [
+        '../third_party/modp_b64/modp_b64.gyp:modp_b64',
+      ],
       'sources': [
         '../build/build_config.h',
         'crypto/cssm_init.cc',
@@ -70,6 +73,8 @@
         'atomicops.h',
         'atomicops_internals_x86_msvc.h',
         'auto_reset.h',
+        'base64.cc',
+        'base64.h',
         'base_drag_source.cc',
         'base_drag_source.h',
         'base_drop_target.cc',
@@ -605,6 +610,7 @@
         'at_exit_unittest.cc',
         'atomic_flag_unittest.cc',
         'atomicops_unittest.cc',
+        'base64_unittest.cc',
         'bits_unittest.cc',
         'command_line_unittest.cc',
         'condition_variable_unittest.cc',
