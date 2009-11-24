@@ -1910,7 +1910,8 @@ class URLRequestTestFTP : public URLRequestTest {
 // static
 scoped_refptr<FTPTestServer> URLRequestTestFTP::server_;
 
-TEST_F(URLRequestTestFTP, FTPDirectoryListing) {
+// Flaky, see http://crbug.com/25045.
+TEST_F(URLRequestTestFTP, FLAKY_FTPDirectoryListing) {
   ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   {
