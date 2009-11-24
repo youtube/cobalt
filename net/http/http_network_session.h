@@ -38,7 +38,9 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   HostResolver* host_resolver() { return host_resolver_; }
   ProxyService* proxy_service() { return proxy_service_; }
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
-  FlipSessionPool* flip_session_pool() { return flip_session_pool_; }
+  const scoped_refptr<FlipSessionPool>& flip_session_pool() {
+    return flip_session_pool_;
+  }
 
   static void set_max_sockets_per_group(int socket_count);
 
