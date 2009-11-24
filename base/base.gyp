@@ -300,6 +300,8 @@
         'string_util.cc',
         'string_util.h',
         'string_util_win.h',
+        'sync_socket.h',
+        'sync_socket_win.cc',
         'sys_info.h',
         'sys_info_chromeos.cc',
         'sys_info_freebsd.cc',
