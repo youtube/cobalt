@@ -54,6 +54,7 @@
         ['enable_pepper==1', {
           'dependencies': [
             '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
+            '../gpu/gpu.gyp:*',
           ],
         }],
         ['enable_openmax==1', {
