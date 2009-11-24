@@ -171,6 +171,10 @@ class HttpResponseHeaders
   // location of the redirect is optionally returned if location is non-null.
   bool IsRedirect(std::string* location) const;
 
+  // Returns true if the HTTP response code passed in corresponds to a
+  // redirect.
+  static bool IsRedirectResponseCode(int response_code);
+
   // Returns true if the response cannot be reused without validation.  The
   // result is relative to the current_time parameter, which is a parameter to
   // support unit testing.  The request_time parameter indicates the time at
