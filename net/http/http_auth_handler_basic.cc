@@ -4,9 +4,11 @@
 
 #include "net/http/http_auth_handler_basic.h"
 
+#include <string>
+
+#include "base/base64.h"
 #include "base/string_util.h"
 #include "net/http/http_auth.h"
-#include "net/base/base64.h"
 
 namespace net {
 
@@ -46,9 +48,9 @@ std::string HttpAuthHandlerBasic::GenerateCredentials(
     const ProxyInfo*) {
   // TODO(eroman): is this the right encoding of username/password?
   std::string base64_username_password;
-  if (!Base64Encode(WideToUTF8(username) + ":" + WideToUTF8(password),
-        &base64_username_password))
-    return std::string(); // FAIL
+  if (!base::Base64Encode(WideToUTF8(username) + ":" + WideToUTF8(password),
+                          &base64_username_password))
+    return std::string();  // FAIL
   return std::string("Basic ") + base64_username_password;
 }
 

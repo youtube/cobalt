@@ -4,8 +4,8 @@
 
 #include "net/http/http_auth_handler_ntlm.h"
 
+#include "base/base64.h"
 #include "base/string_util.h"
-#include "net/base/base64.h"
 #include "net/base/net_errors.h"
 
 namespace net {
@@ -57,7 +57,7 @@ std::string HttpAuthHandlerNTLM::GenerateCredentials(
       len--;
     auth_data_.erase(len);
 
-    if (!Base64Decode(auth_data_, &decoded_auth_data))
+    if (!base::Base64Decode(auth_data_, &decoded_auth_data))
       return std::string();  // Improper base64 encoding
     in_buf_len = decoded_auth_data.length();
     in_buf = decoded_auth_data.data();
@@ -70,7 +70,7 @@ std::string HttpAuthHandlerNTLM::GenerateCredentials(
   // Base64 encode data in output buffer and prepend "NTLM ".
   std::string encode_input(static_cast<char*>(out_buf), out_buf_len);
   std::string encode_output;
-  bool ok = Base64Encode(encode_input, &encode_output);
+  bool ok = base::Base64Encode(encode_input, &encode_output);
   // OK, we are done with |out_buf|
   free(out_buf);
   if (!ok)
