@@ -238,21 +238,6 @@
         'tools/qt_faststart.c'
       ],
     },
-    {
-      'target_name': 'omx_test',
-      'type': 'executable',
-      'dependencies': [
-        '../base/base.gyp:base',
-        '../third_party/openmax/openmax.gyp:il',
-      ],
-      'sources': [
-        'omx/input_buffer.cc',
-        'omx/input_buffer.h',
-        'omx/omx_test.cc',
-        'omx/omx_video_decoder.cc',
-        'omx/omx_video_decoder.h',
-      ],
-    },
   ],
   'conditions': [
     ['OS=="win"', {
