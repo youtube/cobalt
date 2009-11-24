@@ -534,15 +534,15 @@ typedef int (*posix_memalign_type)(void **memptr, size_t alignment,
 // Override the __libc_FOO name too.
 #define DIE_ON_OOM_1(function_name) \
   _DIE_ON_OOM_1(function_name##_type, function_name) \
-  _DIE_ON_OOM_1(function_name##_type, __libc_##function_name)
+  void* __libc_##function_name(size_t size) { \
+    return function_name(size); \
+  }
 
 #define DIE_ON_OOM_2(function_name, arg1_type) \
   _DIE_ON_OOM_2(function_name##_type, function_name, arg1_type) \
-  _DIE_ON_OOM_2(function_name##_type, __libc_##function_name, arg1_type)
-
-// posix_memalign doesn't have a __libc_ variant.
-#define DIE_ON_OOM_3INT(function_name) \
-  _DIE_ON_OOM_3INT(function_name##_type, function_name)
+  void* __libc_##function_name(arg1_type arg1, size_t size) { \
+    return function_name(arg1, size); \
+  }
 
 #define _DIE_ON_OOM_1(function_type, function_name) \
   void* function_name(size_t size) { \
@@ -564,25 +564,44 @@ typedef int (*posix_memalign_type)(void **memptr, size_t alignment,
     return ret; \
   }
 
-#define _DIE_ON_OOM_3INT(function_type, function_name) \
-  int function_name(void** ptr, size_t alignment, size_t size) { \
-    static function_type original_function = \
-        reinterpret_cast<function_type>(dlsym(RTLD_NEXT, #function_name)); \
-    int ret = original_function(ptr, alignment, size); \
-    if (ret == ENOMEM) \
-      OnNoMemorySize(size); \
-    return ret; \
-  }
-
 DIE_ON_OOM_1(malloc)
 DIE_ON_OOM_1(valloc)
 DIE_ON_OOM_1(pvalloc)
 
-DIE_ON_OOM_2(calloc, size_t)
 DIE_ON_OOM_2(realloc, void*)
 DIE_ON_OOM_2(memalign, size_t)
 
-DIE_ON_OOM_3INT(posix_memalign)
+// dlsym uses calloc so it has to be treated specially. http://crbug.com/28244
+static void* null_calloc(size_t nmemb, size_t size) {
+  return NULL;
+}
+
+void* calloc(size_t nmemb, size_t size) {
+  static calloc_type original_function = NULL;
+  if (original_function == NULL) {
+      original_function = null_calloc;
+      original_function = reinterpret_cast<calloc_type>(dlsym(RTLD_NEXT,
+                                                              "calloc"));
+  }
+  void* ret = original_function(nmemb, size);
+  if (ret == NULL && size != 0 && original_function != null_calloc)
+    OnNoMemorySize(size);
+  return ret;
+}
+
+void* __libc_calloc(size_t nmemb, size_t size) { \
+  return calloc(nmemb, size);
+}
+
+// posix_memalign has a unique signature and doesn't have a __libc_ variant.
+int posix_memalign(void** ptr, size_t alignment, size_t size) {
+  static posix_memalign_type original_function =
+      reinterpret_cast<posix_memalign_type>(dlsym(RTLD_NEXT, "posix_memalign"));
+  int ret = original_function(ptr, alignment, size);
+  if (ret == ENOMEM)
+    OnNoMemorySize(size);
+  return ret;
+}
 
 #endif  // defined(LINUX_USE_TCMALLOC)
 
