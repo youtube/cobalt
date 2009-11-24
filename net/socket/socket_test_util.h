@@ -49,6 +49,9 @@ struct MockConnect {
 };
 
 struct MockRead {
+  // Default
+  MockRead() : async(false), result(0), data(NULL), data_len(0) {};
+
   // Read failure (no data).
   MockRead(bool async, int result) : async(async) , result(result), data(NULL),
       data_len(0) { }
