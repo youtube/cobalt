@@ -298,9 +298,17 @@ MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
   net::MockWrite* w = &writes_[write_index_++];
   int result = w->result;
   if (w->data) {
+    // Note - we can simulate a partial write here.  If the expected data
+    // is a match, but shorter than the write actually written, that is legal.
+    // Example:
+    //   Application writes "foobarbaz" (9 bytes)
+    //   Expected write was "foo" (3 bytes)
+    //   This is a success, and we return 3 to the application.
     std::string expected_data(w->data, w->data_len);
-    EXPECT_EQ(expected_data, data);
-    if (expected_data != data)
+    EXPECT_GE(data.length(), expected_data.length());
+    std::string actual_data(data.substr(0, w->data_len));
+    EXPECT_EQ(expected_data, actual_data);
+    if (expected_data != actual_data)
       return MockWriteResult(false, net::ERR_UNEXPECTED);
     if (result == net::OK)
       result = w->data_len;
