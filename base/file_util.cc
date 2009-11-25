@@ -397,9 +397,6 @@ FILE* OpenFile(const std::wstring& filename, const char* mode) {
 int ReadFile(const std::wstring& filename, char* data, int size) {
   return ReadFile(FilePath::FromWStringHack(filename), data, size);
 }
-bool SetCurrentDirectory(const std::wstring& directory) {
-  return SetCurrentDirectory(FilePath::FromWStringHack(directory));
-}
 void UpOneDirectory(std::wstring* dir) {
   FilePath path = FilePath::FromWStringHack(*dir);
   FilePath directory = path.DirName();
