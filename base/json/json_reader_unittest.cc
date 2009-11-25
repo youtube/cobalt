@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -297,8 +297,7 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
 
   root.reset(JSONReader::Read(
-    "{\"number\":9.87654321, \"null\":null , \"\\x53\" : \"str\" }",
-    false));
+      "{\"number\":9.87654321, \"null\":null , \"\\x53\" : \"str\" }", false));
   ASSERT_TRUE(root.get());
   ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
   DictionaryValue* dict_val = static_cast<DictionaryValue*>(root.get());
@@ -313,32 +312,32 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_EQ(L"str", str_val);
 
   root2.reset(JSONReader::Read(
-    "{\"number\":9.87654321, \"null\":null , \"\\x53\" : \"str\", }", true));
+      "{\"number\":9.87654321, \"null\":null , \"\\x53\" : \"str\", }", true));
   ASSERT_TRUE(root2.get());
   EXPECT_TRUE(root->Equals(root2.get()));
 
   // Test newline equivalence.
   root2.reset(JSONReader::Read(
-    "{\n"
-    "  \"number\":9.87654321,\n"
-    "  \"null\":null,\n"
-    "  \"\\x53\":\"str\",\n"
-    "}\n", true));
+      "{\n"
+      "  \"number\":9.87654321,\n"
+      "  \"null\":null,\n"
+      "  \"\\x53\":\"str\",\n"
+      "}\n", true));
   ASSERT_TRUE(root2.get());
   EXPECT_TRUE(root->Equals(root2.get()));
 
   root2.reset(JSONReader::Read(
-    "{\r\n"
-    "  \"number\":9.87654321,\r\n"
-    "  \"null\":null,\r\n"
-    "  \"\\x53\":\"str\",\r\n"
-    "}\r\n", true));
+      "{\r\n"
+      "  \"number\":9.87654321,\r\n"
+      "  \"null\":null,\r\n"
+      "  \"\\x53\":\"str\",\r\n"
+      "}\r\n", true));
   ASSERT_TRUE(root2.get());
   EXPECT_TRUE(root->Equals(root2.get()));
 
   // Test nesting
   root.reset(JSONReader::Read(
-    "{\"inner\":{\"array\":[true]},\"false\":false,\"d\":{}}", false));
+      "{\"inner\":{\"array\":[true]},\"false\":false,\"d\":{}}", false));
   ASSERT_TRUE(root.get());
   ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
   dict_val = static_cast<DictionaryValue*>(root.get());
@@ -354,8 +353,36 @@ TEST(JSONReaderTest, Reading) {
   ASSERT_TRUE(dict_val->GetDictionary(L"d", &inner_dict));
 
   root2.reset(JSONReader::Read(
-    "{\"inner\": {\"array\":[true] , },\"false\":false,\"d\":{},}", true));
+      "{\"inner\": {\"array\":[true] , },\"false\":false,\"d\":{},}", true));
   EXPECT_TRUE(root->Equals(root2.get()));
+
+  // Test keys with periods
+  root.reset(JSONReader::Read(
+      "{\"a.b\":3,\"c\":2,\"d.e.f\":{\"g.h.i.j\":1}}", false));
+  ASSERT_TRUE(root.get());
+  ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
+  dict_val = static_cast<DictionaryValue*>(root.get());
+  int integer_value = 0;
+  EXPECT_TRUE(dict_val->GetIntegerWithoutPathExpansion(L"a.b", &integer_value));
+  EXPECT_EQ(3, integer_value);
+  EXPECT_TRUE(dict_val->GetIntegerWithoutPathExpansion(L"c", &integer_value));
+  EXPECT_EQ(2, integer_value);
+  inner_dict = NULL;
+  ASSERT_TRUE(dict_val->GetDictionaryWithoutPathExpansion(L"d.e.f",
+                                                          &inner_dict));
+  ASSERT_EQ(1U, inner_dict->size());
+  EXPECT_TRUE(inner_dict->GetIntegerWithoutPathExpansion(L"g.h.i.j",
+                                                         &integer_value));
+  EXPECT_EQ(1, integer_value);
+
+  root.reset(JSONReader::Read("{\"a\":{\"b\":2},\"a.b\":1}", false));
+  ASSERT_TRUE(root.get());
+  ASSERT_TRUE(root->IsType(Value::TYPE_DICTIONARY));
+  dict_val = static_cast<DictionaryValue*>(root.get());
+  EXPECT_TRUE(dict_val->GetInteger(L"a.b", &integer_value));
+  EXPECT_EQ(2, integer_value);
+  EXPECT_TRUE(dict_val->GetIntegerWithoutPathExpansion(L"a.b", &integer_value));
+  EXPECT_EQ(1, integer_value);
 
   // Invalid, no closing brace
   root.reset(JSONReader::Read("{\"a\": true", false));
