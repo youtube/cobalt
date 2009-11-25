@@ -186,6 +186,13 @@ void SetLogAssertHandler(LogAssertHandlerFunction handler);
 typedef void (*LogReportHandlerFunction)(const std::string& str);
 void SetLogReportHandler(LogReportHandlerFunction handler);
 
+// Sets the Log Message Handler that gets passed every log message before
+// it's sent to other log destinations (if any).
+// Returns true to signal that it handled the message and the message
+// should not be sent to other log destinations.
+typedef bool (*LogMessageHandlerFunction)(int severity, const std::string& str);
+void SetLogMessageHandler(LogMessageHandlerFunction handler);
+
 typedef int LogSeverity;
 const LogSeverity LOG_INFO = 0;
 const LogSeverity LOG_WARNING = 1;
