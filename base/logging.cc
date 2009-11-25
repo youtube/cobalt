@@ -98,6 +98,8 @@ LogAssertHandlerFunction log_assert_handler = NULL;
 // An report handler override specified by the client to be called instead of
 // the debug message dialog.
 LogReportHandlerFunction log_report_handler = NULL;
+// A log message handler that gets notified of every log message we process.
+LogMessageHandlerFunction log_message_handler = NULL;
 
 // The lock is used if log file locking is false. It helps us avoid problems
 // with multiple threads writing to the log file at the same time.  Use
@@ -312,6 +314,11 @@ void SetLogReportHandler(LogReportHandlerFunction handler) {
   log_report_handler = handler;
 }
 
+void SetLogMessageHandler(LogMessageHandlerFunction handler) {
+  log_message_handler = handler;
+}
+
+
 // Displays a message box to the user with the error message in it. For
 // Windows programs, it's possible that the message loop is messed up on
 // a fatal error, and creating a MessageBox will cause that message loop
@@ -446,6 +453,9 @@ LogMessage::~LogMessage() {
 #else
   str_newline.append("\n");
 #endif
+  // Give any log message handler first dibs on the message.
+  if (log_message_handler && log_message_handler(severity_, str_newline))
+    return;
 
   if (log_filter_prefix && severity_ <= kMaxFilteredLogLevel &&
       str_newline.compare(message_start_, log_filter_prefix->size(),
