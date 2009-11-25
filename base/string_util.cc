@@ -390,6 +390,8 @@ const char kWhitespaceASCII[] = {
   0
 };
 
+const char kUtf8ByteOrderMark[] = "\xEF\xBB\xBF";
+
 template<typename STR>
 TrimPositions TrimStringT(const STR& input,
                           const typename STR::value_type trim_chars[],
