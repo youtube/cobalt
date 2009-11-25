@@ -365,8 +365,14 @@ TEST_F(ProcessUtilTest, ParseProcStatCPU) {
 
 #endif  // defined(OS_POSIX)
 
-#if defined(OS_LINUX)
 // TODO(vandebo) make this work on Windows and Mac too.
+#if defined(OS_LINUX)
+
+#if defined(LINUX_USE_TCMALLOC)
+extern "C" {
+int tc_set_new_mode(int mode);
+}
+#endif  // defined(LINUX_USE_TCMALLOC)
 
 class OutOfMemoryTest : public testing::Test {
  public:
@@ -381,6 +387,13 @@ class OutOfMemoryTest : public testing::Test {
     // Must call EnableTerminationOnOutOfMemory() because that is called from
     // chrome's main function and therefore hasn't been called yet.
     EnableTerminationOnOutOfMemory();
+#if defined(LINUX_USE_TCMALLOC)
+    tc_set_new_mode(1);
+  }
+
+  virtual void TearDown() {
+    tc_set_new_mode(0);
+#endif  // defined(LINUX_USE_TCMALLOC)
   }
 
   void* value_;

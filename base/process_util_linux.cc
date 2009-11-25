@@ -514,11 +514,7 @@ void OnNoMemory() {
 
 extern "C" {
 
-#if defined(LINUX_USE_TCMALLOC)
-
-int tc_set_new_mode(int mode);
-
-#else  // defined(LINUX_USE_TCMALLOC)
+#if !defined(LINUX_USE_TCMALLOC)
 
 typedef void* (*malloc_type)(size_t size);
 typedef void* (*valloc_type)(size_t size);
@@ -603,7 +599,7 @@ int posix_memalign(void** ptr, size_t alignment, size_t size) {
   return ret;
 }
 
-#endif  // defined(LINUX_USE_TCMALLOC)
+#endif  // !defined(LINUX_USE_TCMALLOC)
 
 }  // extern C
 
@@ -612,10 +608,6 @@ void EnableTerminationOnOutOfMemory() {
   std::set_new_handler(&OnNoMemory);
   // If we're using glibc's allocator, the above functions will override
   // malloc and friends and make them die on out of memory.
-#if defined(LINUX_USE_TCMALLOC)
-  // For tcmalloc, we just need to tell it to behave like new.
-  tc_set_new_mode(1);
-#endif
 }
 
 }  // namespace base
