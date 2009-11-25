@@ -216,9 +216,9 @@
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
       ],
       'sources': [
-        'bench/bench.cc',
-        'bench/file_protocol.cc',
-        'bench/file_protocol.h',
+        'tools/media_bench/file_protocol.cc',
+        'tools/media_bench/file_protocol.h',
+        'tools/media_bench/media_bench.cc',
       ],
     },
     {
@@ -228,14 +228,14 @@
         'media',
       ],
       'sources': [
-        'tools/wav_ola_test.cc'
+        'tools/wav_ola_test/wav_ola_test.cc'
       ],
     },
     {
       'target_name': 'qt_faststart',
       'type': 'executable',
       'sources': [
-        'tools/qt_faststart.c'
+        'tools/qt_faststart/qt_faststart.c'
       ],
     },
     {
@@ -258,7 +258,7 @@
     ['OS=="win"', {
       'targets': [
         {
-          'target_name': 'media_player',
+          'target_name': 'player_wtl',
           'type': 'executable',
           'dependencies': [
             'media',
@@ -268,18 +268,18 @@
             '../chrome/third_party/wtl/include',
           ],
           'sources': [
-            'player/list.h',
-            'player/mainfrm.h',
-            'player/movie.cc',
-            'player/movie.h',
-            'player/player_wtl.cc',
-            'player/player_wtl.rc',
-            'player/props.h',
-            'player/seek.h',
-            'player/resource.h',
-            'player/view.h',
-            'player/wtl_renderer.cc',
-            'player/wtl_renderer.h',
+            'tools/player_wtl/list.h',
+            'tools/player_wtl/mainfrm.h',
+            'tools/player_wtl/movie.cc',
+            'tools/player_wtl/movie.h',
+            'tools/player_wtl/player_wtl.cc',
+            'tools/player_wtl/player_wtl.rc',
+            'tools/player_wtl/props.h',
+            'tools/player_wtl/seek.h',
+            'tools/player_wtl/resource.h',
+            'tools/player_wtl/view.h',
+            'tools/player_wtl/wtl_renderer.cc',
+            'tools/player_wtl/wtl_renderer.h',
           ],
           'msvs_settings': {
             'VCLinkerTool': {
@@ -295,7 +295,7 @@
     ['OS=="linux"', {
       'targets': [
         {
-          'target_name': 'media_player',
+          'target_name': 'player_x11',
           'type': 'executable',
           'dependencies': [
             'media',
@@ -309,9 +309,9 @@
             ],
           },
           'sources': [
-            'player/player_x11.cc',
-            'player/x11_video_renderer.cc',
-            'player/x11_video_renderer.h',
+            'tools/player_x11/player_x11.cc',
+            'tools/player_x11/x11_video_renderer.cc',
+            'tools/player_x11/x11_video_renderer.h',
           ],
         },
       ],
