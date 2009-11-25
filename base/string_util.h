@@ -133,6 +133,8 @@ extern const wchar_t kWhitespaceWide[];
 extern const char16 kWhitespaceUTF16[];
 extern const char kWhitespaceASCII[];
 
+extern const char kUtf8ByteOrderMark[];
+
 // Removes characters in trim_chars from the beginning and end of input.
 // NOTE: Safe to use the same variable for both input and output.
 bool TrimString(const std::wstring& input,
