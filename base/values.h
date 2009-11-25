@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -207,7 +207,10 @@ class DictionaryValue : public Value {
   bool HasKey(const std::wstring& key) const;
 
   // Returns the number of Values in this dictionary.
-  size_t GetSize() const { return dictionary_.size(); }
+  size_t size() const { return dictionary_.size(); }
+
+  // Returns whether the dictionary is empty.
+  bool empty() const { return dictionary_.empty(); }
 
   // Clears any current contents of this dictionary.
   void Clear();
@@ -220,16 +223,20 @@ class DictionaryValue : public Value {
   // a DictionaryValue, a new DictionaryValue will be created and attached
   // to the path in that location.
   // Note that the dictionary takes ownership of the value referenced by
-  // |in_value|.
-  bool Set(const std::wstring& path, Value* in_value);
+  // |in_value|, and therefore |in_value| must be non-NULL.
+  void Set(const std::wstring& path, Value* in_value);
 
   // Convenience forms of Set().  These methods will replace any existing
   // value at that path, even if it has a different type.
-  bool SetBoolean(const std::wstring& path, bool in_value);
-  bool SetInteger(const std::wstring& path, int in_value);
-  bool SetReal(const std::wstring& path, double in_value);
-  bool SetString(const std::wstring& path, const std::string& in_value);
-  bool SetString(const std::wstring& path, const std::wstring& in_value);
+  void SetBoolean(const std::wstring& path, bool in_value);
+  void SetInteger(const std::wstring& path, int in_value);
+  void SetReal(const std::wstring& path, double in_value);
+  void SetString(const std::wstring& path, const std::string& in_value);
+  void SetString(const std::wstring& path, const std::wstring& in_value);
+
+  // Like Set(), but without special treatment of '.'.  This allows e.g. URLs to
+  // be used as paths.
+  void SetWithoutPathExpansion(const std::wstring& key, Value* in_value);
 
   // Gets the Value associated with the given path starting from this object.
   // A path has the form "<key>" or "<key>.<key>.[...]", where "." indexes
@@ -253,6 +260,21 @@ class DictionaryValue : public Value {
                      DictionaryValue** out_value) const;
   bool GetList(const std::wstring& path, ListValue** out_value) const;
 
+  // Like Get(), but without special treatment of '.'.  This allows e.g. URLs to
+  // be used as paths.
+  bool GetWithoutPathExpansion(const std::wstring& key,
+                               Value** out_value) const;
+  bool GetIntegerWithoutPathExpansion(const std::wstring& path,
+                                      int* out_value) const;
+  bool GetStringWithoutPathExpansion(const std::wstring& path,
+                                     std::string* out_value) const;
+  bool GetStringWithoutPathExpansion(const std::wstring& path,
+                                     std::wstring* out_value) const;
+  bool GetDictionaryWithoutPathExpansion(const std::wstring& path,
+                                         DictionaryValue** out_value) const;
+  bool GetListWithoutPathExpansion(const std::wstring& path,
+                                   ListValue** out_value) const;
+
   // Removes the Value with the specified path from this dictionary (or one
   // of its child dictionaries, if the path is more than just a local key).
   // If |out_value| is non-NULL, the removed Value AND ITS OWNERSHIP will be
@@ -261,8 +283,16 @@ class DictionaryValue : public Value {
   // it will return false and the DictionaryValue object will be unchanged.
   bool Remove(const std::wstring& path, Value** out_value);
 
+  // Like Remove(), but without special treatment of '.'.  This allows e.g. URLs
+  // to be used as paths.
+  bool RemoveWithoutPathExpansion(const std::wstring& key, Value** out_value);
+
   // This class provides an iterator for the keys in the dictionary.
   // It can't be used to modify the dictionary.
+  //
+  // YOU SHOULD ALWAYS USE THE XXXWithoutPathExpansion() APIs WITH THESE, NOT
+  // THE NORMAL XXX() APIs.  This makes sure things will work correctly if any
+  // keys have '.'s in them.
   class key_iterator
     : private std::iterator<std::input_iterator_tag, const std::wstring> {
    public:
@@ -280,11 +310,6 @@ class DictionaryValue : public Value {
   key_iterator end_keys() const { return key_iterator(dictionary_.end()); }
 
  private:
-  // Associates the value |in_value| with the |key|.  This method should be
-  // used instead of "dictionary_[key] = foo" so that any previous value can
-  // be properly deleted.
-  void SetInCurrentNode(const std::wstring& key, Value* in_value);
-
   ValueMap dictionary_;
 
   DISALLOW_COPY_AND_ASSIGN(DictionaryValue);

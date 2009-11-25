@@ -157,7 +157,7 @@ void JSONWriter::BuildJSONString(const Value* const node,
           }
 
           Value* value = NULL;
-          bool result = dict->Get(*key_itr, &value);
+          bool result = dict->GetWithoutPathExpansion(*key_itr, &value);
           DCHECK(result);
 
           if (pretty_print_)

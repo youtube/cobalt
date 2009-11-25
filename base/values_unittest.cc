@@ -20,9 +20,9 @@ TEST(ValuesTest, Basic) {
   ASSERT_EQ(std::wstring(L"http://google.com"), homepage);
 
   ASSERT_FALSE(settings.Get(L"global", NULL));
-  ASSERT_TRUE(settings.Set(L"global", Value::CreateBooleanValue(true)));
+  settings.Set(L"global", Value::CreateBooleanValue(true));
   ASSERT_TRUE(settings.Get(L"global", NULL));
-  ASSERT_TRUE(settings.SetString(L"global.homepage", L"http://scurvy.com"));
+  settings.SetString(L"global.homepage", L"http://scurvy.com");
   ASSERT_TRUE(settings.Get(L"global", NULL));
   homepage = L"http://google.com";
   ASSERT_TRUE(settings.GetString(L"global.homepage", &homepage));
@@ -283,6 +283,28 @@ TEST(ValuesTest, DictionaryRemoval) {
     EXPECT_TRUE(deletion_flag);
     EXPECT_FALSE(dict.HasKey(key));
   }
+}
+
+TEST(ValuesTest, DictionaryWithoutPathExpansion) {
+  DictionaryValue dict;
+  dict.Set(L"this.is.expanded", Value::CreateNullValue());
+  dict.SetWithoutPathExpansion(L"this.isnt.expanded", Value::CreateNullValue());
+
+  EXPECT_FALSE(dict.HasKey(L"this.is.expanded"));
+  EXPECT_TRUE(dict.HasKey(L"this"));
+  Value* value1;
+  EXPECT_TRUE(dict.Get(L"this", &value1));
+  DictionaryValue* value2;
+  ASSERT_TRUE(dict.GetDictionaryWithoutPathExpansion(L"this", &value2));
+  EXPECT_EQ(value1, value2);
+  EXPECT_EQ(1U, value2->size());
+
+  EXPECT_TRUE(dict.HasKey(L"this.isnt.expanded"));
+  Value* value3;
+  EXPECT_FALSE(dict.Get(L"this.isnt.expanded", &value3));
+  Value* value4;
+  ASSERT_TRUE(dict.GetWithoutPathExpansion(L"this.isnt.expanded", &value4));
+  EXPECT_EQ(Value::TYPE_NULL, value4->GetType());
 }
 
 TEST(ValuesTest, DeepCopy) {
