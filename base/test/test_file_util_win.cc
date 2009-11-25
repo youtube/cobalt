@@ -16,9 +16,7 @@
 
 namespace file_util {
 
-// We could use GetSystemInfo to get the page size, but this serves
-// our purpose fine since 4K is the page size on x86 as well as x64.
-static const ptrdiff_t kPageSize = 4096;
+static const ptrdiff_t kOneMB = 1024 * 1024;
 
 bool DieFileDie(const FilePath& file, bool recurse) {
   // It turns out that to not induce flakiness a long timeout is needed.
@@ -53,56 +51,57 @@ bool EvictFileFromSystemCache(const FilePath& file) {
   // Execute in chunks. It could be optimized. We want to do few of these since
   // these operations will be slow without the cache.
 
-  // Non-buffered reads and writes need to be sector aligned and since sector
-  // sizes typically range from 512-4096 bytes, we just use the page size.
-  // The buffer size is twice the size of a page (minus one) since we need to
-  // get an aligned pointer into the buffer that we can use.
-  char buffer[2 * kPageSize - 1];
-  // Get an aligned pointer into buffer.
-  char* read_write = reinterpret_cast<char*>(
-      reinterpret_cast<ptrdiff_t>(buffer + kPageSize - 1) & ~(kPageSize - 1));
-  DCHECK((reinterpret_cast<int>(read_write) % kPageSize) == 0);
+  // Allocate a buffer for the reads and the writes.
+  char* buffer = reinterpret_cast<char*>(VirtualAlloc(NULL,
+                                                      kOneMB,
+                                                      MEM_COMMIT | MEM_RESERVE,
+                                                      PAGE_READWRITE));
 
-  // If the file size isn't a multiple of kPageSize, we'll need special
+  // If the file size isn't a multiple of kOneMB, we'll need special
   // processing.
-  bool file_is_page_aligned = true;
+  bool file_is_aligned = true;
   int total_bytes = 0;
   DWORD bytes_read, bytes_written;
   for (;;) {
     bytes_read = 0;
-    ReadFile(file_handle, read_write, kPageSize, &bytes_read, NULL);
+    ReadFile(file_handle, buffer, kOneMB, &bytes_read, NULL);
     if (bytes_read == 0)
       break;
 
-    if (bytes_read < kPageSize) {
+    if (bytes_read < kOneMB) {
       // Zero out the remaining part of the buffer.
       // WriteFile will fail if we provide a buffer size that isn't a
       // sector multiple, so we'll have to write the entire buffer with
       // padded zeros and then use SetEndOfFile to truncate the file.
-      ZeroMemory(read_write + bytes_read, kPageSize - bytes_read);
-      file_is_page_aligned = false;
+      ZeroMemory(buffer + bytes_read, kOneMB - bytes_read);
+      file_is_aligned = false;
     }
 
     // Move back to the position we just read from.
     // Note that SetFilePointer will also fail if total_bytes isn't sector
     // aligned, but that shouldn't happen here.
-    DCHECK((total_bytes % kPageSize) == 0);
+    DCHECK((total_bytes % kOneMB) == 0);
     SetFilePointer(file_handle, total_bytes, NULL, FILE_BEGIN);
-    if (!WriteFile(file_handle, read_write, kPageSize, &bytes_written, NULL) ||
-        bytes_written != kPageSize) {
-      DCHECK(false);
+    if (!WriteFile(file_handle, buffer, kOneMB, &bytes_written, NULL) ||
+        bytes_written != kOneMB) {
+      BOOL freed = VirtualFree(buffer, 0, MEM_RELEASE);
+      DCHECK(freed);
+      NOTREACHED();
       return false;
     }
 
     total_bytes += bytes_read;
 
     // If this is false, then we just processed the last portion of the file.
-    if (!file_is_page_aligned)
+    if (!file_is_aligned)
       break;
   }
 
-  if (!file_is_page_aligned) {
-    // The size of the file isn't a multiple of the page size, so we'll have
+  BOOL freed = VirtualFree(buffer, 0, MEM_RELEASE);
+  DCHECK(freed);
+
+  if (!file_is_aligned) {
+    // The size of the file isn't a multiple of 1 MB, so we'll have
     // to open the file again, this time without the FILE_FLAG_NO_BUFFERING
     // flag and use SetEndOfFile to mark EOF.
     file_handle.Set(NULL);
