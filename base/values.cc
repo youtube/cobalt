@@ -263,7 +263,7 @@ void DictionaryValue::Set(const std::wstring& path, Value* in_value) {
        delimiter_position = current_path.find('.')) {
     // Assume that we're indexing into a dictionary.
     std::wstring key(current_path, 0, delimiter_position);
-    DictionaryValue* child_dictionary;
+    DictionaryValue* child_dictionary = NULL;
     if (!current_dictionary->GetDictionary(key, &child_dictionary)) {
       child_dictionary = new DictionaryValue;
       current_dictionary->SetWithoutPathExpansion(key, child_dictionary);
@@ -316,7 +316,7 @@ bool DictionaryValue::Get(const std::wstring& path, Value** out_value) const {
   for (size_t delimiter_position = current_path.find('.');
        delimiter_position != std::wstring::npos;
        delimiter_position = current_path.find('.')) {
-    DictionaryValue* child_dictionary;
+    DictionaryValue* child_dictionary = NULL;
     if (!current_dictionary->GetDictionary(
             current_path.substr(0, delimiter_position), &child_dictionary))
       return false;
