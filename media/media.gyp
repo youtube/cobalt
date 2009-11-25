@@ -277,6 +277,30 @@
         },
       ],
     }],
+    ['OS=="linux"', {
+      'targets': [
+        {
+          'target_name': 'media_player',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../base/base.gyp:base',
+          ],
+          'link_settings': {
+            'libraries': [
+              '-lX11',
+              '-lXrender',
+              '-lXext',
+            ],
+          },
+          'sources': [
+            'player/player_x11.cc',
+            'player/x11_video_renderer.cc',
+            'player/x11_video_renderer.h',
+          ],
+        },
+      ],
+    }],
   ],
 }
 
