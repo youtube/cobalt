@@ -1192,7 +1192,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     MockEnvironmentVariableGetter* env_getter =
         new MockEnvironmentVariableGetter;
     // Force the KDE getter to be used and tell it where the test is.
-    env_getter->values.DESKTOP_SESSION = "kde";
+    env_getter->values.DESKTOP_SESSION = "kde4";
     env_getter->values.KDE_HOME = kde_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
         new ProxyConfigServiceLinux(env_getter));
