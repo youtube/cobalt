@@ -99,6 +99,7 @@
         '<(tcmalloc_dir)/src/maybe_threads.cc',
         '<(tcmalloc_dir)/src/maybe_threads.h',
         '<(tcmalloc_dir)/src/symbolize.cc',
+        '<(tcmalloc_dir)/src/symbolize_linux.cc',
         '<(tcmalloc_dir)/src/symbolize.h',
         '<(tcmalloc_dir)/src/system-alloc.cc',
         '<(tcmalloc_dir)/src/system-alloc.h',
@@ -138,6 +139,7 @@
         'win_allocator.cc',
 
         '<(tcmalloc_dir)/src/tcmalloc.cc',
+        '<(tcmalloc_dir)/src/symbolize.cc',
       ],
       'msvs_settings': {
         # TODO(sgk):  merge this with build/common.gypi settings
@@ -177,13 +179,13 @@
             '<(tcmalloc_dir)/src/base/vdso_support.h',
             '<(tcmalloc_dir)/src/maybe_threads.cc',
             '<(tcmalloc_dir)/src/maybe_threads.h',
-            '<(tcmalloc_dir)/src/symbolize.cc',
             '<(tcmalloc_dir)/src/symbolize.h',
             '<(tcmalloc_dir)/src/system-alloc.cc',
             '<(tcmalloc_dir)/src/system-alloc.h',
 
             # don't use linux forked version
             '<(tcmalloc_dir)/src/tcmalloc_linux.cc',
+            '<(tcmalloc_dir)/src/symbolize_linux.cc',
 
             # heap-profiler/checker/cpuprofiler
             '<(tcmalloc_dir)/src/base/thread_lister.c',
