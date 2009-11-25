@@ -227,8 +227,13 @@ DesktopEnvironment GetDesktopEnvironment(EnvironmentVariableGetter* env) {
       return DESKTOP_ENVIRONMENT_GNOME;
     else if (desktop_session == "kde4")
       return DESKTOP_ENVIRONMENT_KDE4;
-    else if (desktop_session == "kde")
+    else if (desktop_session == "kde") {
+      // This may mean KDE4 on newer systems, so we have to check.
+      std::string dummy;
+      if (env->Getenv("KDE_SESSION_VERSION", &dummy))
+        return DESKTOP_ENVIRONMENT_KDE4;
       return DESKTOP_ENVIRONMENT_KDE3;
+    }
   }
 
   // Fall back on some older environment variables.
