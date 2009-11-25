@@ -103,6 +103,7 @@
         '<(tcmalloc_dir)/src/system-alloc.cc',
         '<(tcmalloc_dir)/src/system-alloc.h',
         '<(tcmalloc_dir)/src/tcmalloc.cc',
+        '<(tcmalloc_dir)/src/tcmalloc_linux.cc',
 
         # heap-profiler/checker/cpuprofiler
         '<(tcmalloc_dir)/src/base/thread_lister.c',
@@ -180,6 +181,9 @@
             '<(tcmalloc_dir)/src/symbolize.h',
             '<(tcmalloc_dir)/src/system-alloc.cc',
             '<(tcmalloc_dir)/src/system-alloc.h',
+
+            # don't use linux forked version
+            '<(tcmalloc_dir)/src/tcmalloc_linux.cc',
 
             # heap-profiler/checker/cpuprofiler
             '<(tcmalloc_dir)/src/base/thread_lister.c',
