@@ -204,7 +204,6 @@
         }],
         ['OS=="linux"', {
           'sources!': [
-            '<(tcmalloc_dir)/src/page_heap.cc',
             '<(tcmalloc_dir)/src/system-alloc.h',
             '<(tcmalloc_dir)/src/windows/port.cc',
             '<(tcmalloc_dir)/src/windows/port.h',
@@ -219,6 +218,18 @@
             '<(jemalloc_dir)/ql.h',
             '<(jemalloc_dir)/qr.h',
             '<(jemalloc_dir)/rb.h',
+
+            # TODO(willchan):  Return to using this when page_heap_linux.cc
+            # becomes unnecessary.
+            '<(tcmalloc_dir)/src/page_heap.cc',
+          ],
+          # TODO(willchan):  This is actually just a branched copy of the
+          # vanilla upstream page_heap.cc.  The current forked copy of
+          # page_heap.cc has Windows-specific code in it so Linux can't
+          # use it.  These need to be refactored so we can track changes
+          # to the upstream page_heap.cc without duplication.
+          'sources': [
+            '<(tcmalloc_dir)/src/page_heap_linux.cc',
           ],
           'cflags!': [
             '-fvisibility=hidden',
