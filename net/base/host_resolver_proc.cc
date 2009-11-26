@@ -113,6 +113,7 @@ class DnsReloadTimer {
   }
 
   ~DnsReloadTimer() {
+    SlotReturnFunction(tls_index_.Get());
     tls_index_.Free();
   }
 
