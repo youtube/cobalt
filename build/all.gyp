@@ -86,6 +86,7 @@
         }],
         ['OS=="win"', {
           'dependencies': [
+            '../base/allocator/allocator.gyp:*',
             '../breakpad/breakpad.gyp:*',
             '../chrome/app/locales/locales.gyp:*',
             '../courgette/courgette.gyp:*',
@@ -95,7 +96,6 @@
             '../third_party/bsdiff/bsdiff.gyp:*',
             '../third_party/bspatch/bspatch.gyp:*',
             '../third_party/cld/cld.gyp:*',
-            '../third_party/tcmalloc/tcmalloc.gyp:*',
             '../tools/memory_watcher/memory_watcher.gyp:*',
           ],
         }, {
