@@ -77,6 +77,12 @@ int HostResolverProc::ResolveUsingPrevious(const std::string& host,
 // Keep a timer per calling thread to rate limit the calling of res_ninit.
 class DnsReloadTimer {
  public:
+  DnsReloadTimer() {
+    tls_index_.Initialize(SlotReturnFunction);
+  }
+
+  ~DnsReloadTimer() { }
+
   // Check if the timer for the calling thread has expired. When no
   // timer exists for the calling thread, create one.
   bool Expired() {
@@ -106,17 +112,6 @@ class DnsReloadTimer {
   }
 
  private:
-  friend struct DefaultSingletonTraits<DnsReloadTimer>;
-
-  DnsReloadTimer() {
-    tls_index_.Initialize(SlotReturnFunction);
-  }
-
-  ~DnsReloadTimer() {
-    SlotReturnFunction(tls_index_.Get());
-    tls_index_.Free();
-  }
-
   // We use thread local storage to identify which base::TimeTicks to
   // interact with.
   static ThreadLocalStorage::Slot tls_index_ ;
