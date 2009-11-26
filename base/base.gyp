@@ -398,8 +398,6 @@
       ],
       'conditions': [
         [ 'OS == "linux" or OS == "freebsd"', {
-            'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
-                          ['exclude', '\\.mm?$' ] ],
             'conditions': [
               [ 'chromeos==1 or toolkit_views==1', {
                   'sources/': [ ['include', '_chromeos\\.cc$'] ]
@@ -438,15 +436,12 @@
           {  # else: OS != "linux" && OS != "freebsd"
             'sources/': [
               ['exclude', '/xdg_mime/'],
+              ['exclude', '_nss\.cc$'],
             ],
             'sources!': [
-              'crypto/rsa_private_key_nss.cc',
-              'crypto/signature_creator_nss.cc',
-              'crypto/signature_verifier_nss.cc',
               'atomicops_internals_x86_gcc.cc',
               'base_paths_posix.cc',
               'directory_watcher_inotify.cc',
-              'hmac_nss.cc',
               'linux_util.cc',
               'message_pump_glib.cc',
               'nss_init.cc',
@@ -494,9 +489,6 @@
           },
         ],
         [ 'OS == "mac"', {
-            'sources/': [ ['exclude', '_(linux|gtk|win|chromeos)\\.cc$'] ],
-            'sources!': [
-            ],
             'link_settings': {
               'libraries': [
                 '$(SDKROOT)/System/Library/Frameworks/AppKit.framework',
@@ -519,8 +511,6 @@
             'include_dirs': [
               '../chrome/third_party/wtl/include',
             ],
-            'sources/': [ ['exclude', '_(linux|gtk|mac|posix|chromeos)\\.cc$'],
-                          ['exclude', '\\.mm?$' ] ],
             'sources!': [
               'data_pack.cc',
               'event_recorder_stubs.cc',
@@ -699,7 +689,6 @@
       ],
       'conditions': [
         ['OS == "linux" or OS == "freebsd"', {
-          'sources/': [ ['exclude', '\\.mm?$' ] ],
           'sources!': [
             'file_version_info_unittest.cc',
             'worker_pool_linux_unittest.cc',
@@ -762,28 +751,6 @@
         'test/test_file_util_mac.cc',
         'test/test_file_util_posix.cc',
         'test/test_file_util_win.cc',
-      ],
-      'conditions': [
-        [ 'OS == "linux" or OS == "freebsd"', {
-            'sources/': [ ['exclude', '_(mac|win|chromeos)\\.cc$'],
-                          ['exclude', '\\.mm?$' ] ],
-            'conditions': [
-              [ 'chromeos==1 or toolkit_views==1', {
-                  'sources/': [ ['include', '_chromeos\\.cc$'] ]
-                },
-              ],
-            ],
-          },
-        ],
-        [ 'OS == "mac"', {
-            'sources/': [ ['exclude', '_(linux|win|chromeos)\\.cc$'] ],
-          },
-        ],
-        [ 'OS == "win"', {
-            'sources/': [ ['exclude', '_(linux|mac|posix|chromeos)\\.cc$'],
-                          ['exclude', '\\.mm?$' ] ],
-          },
-        ],
       ],
     },
     {
