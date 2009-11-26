@@ -45,7 +45,6 @@
 #include "base/logging.h"
 #include "base/cpu.h"
 #include "base/singleton.h"
-#include "base/system_monitor.h"
 
 using base::Time;
 using base::TimeDelta;
@@ -87,65 +86,6 @@ void InitializeClock() {
   initial_ticks = TimeTicks::Now();
   initial_time = CurrentWallclockMicroseconds();
 }
-
-class HighResolutionTimerManager : public base::SystemMonitor::PowerObserver {
- public:
-  ~HighResolutionTimerManager() {
-    StopMonitoring();
-    UseHiResClock(false);
-  }
-
-  void Enable() {
-    StopMonitoring();
-    UseHiResClock(true);
-  }
-
-  void StartMonitoring() {
-    if (is_monitoring_)
-      return;
-    is_monitoring_ = true;
-    base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
-    system_monitor->AddObserver(this);
-    UseHiResClock(!system_monitor->BatteryPower());
-  }
-
-  void StopMonitoring() {
-    if (!is_monitoring_)
-      return;
-    is_monitoring_ = false;
-    base::SystemMonitor* system_monitor = base::SystemMonitor::Get();
-    if (system_monitor)
-      system_monitor->RemoveObserver(this);
-  }
-
-  // Interfaces for monitoring Power changes.
-  void OnPowerStateChange(bool on_battery_power) {
-    UseHiResClock(!on_battery_power);
-  }
-
- private:
-  HighResolutionTimerManager()
-      : is_monitoring_(false),
-        hi_res_clock_enabled_(false) {
-  }
-  friend struct DefaultSingletonTraits<HighResolutionTimerManager>;
-
-  // Enable or disable the faster multimedia timer.
-  void UseHiResClock(bool enabled) {
-    if (enabled == hi_res_clock_enabled_)
-      return;
-    if (enabled)
-      timeBeginPeriod(1);
-    else
-      timeEndPeriod(1);
-    hi_res_clock_enabled_ = enabled;
-  }
-
-  bool is_monitoring_;
-  bool hi_res_clock_enabled_;
-
-  DISALLOW_COPY_AND_ASSIGN(HighResolutionTimerManager);
-};
 
 }  // namespace
 
@@ -208,13 +148,18 @@ FILETIME Time::ToFileTime() const {
 }
 
 // static
-void Time::StartSystemMonitorObserver() {
-  Singleton<HighResolutionTimerManager>()->StartMonitoring();
-}
+bool Time::UseHighResolutionTimer(bool use) {
+  // TODO(mbelshe): Make sure that switching the system timer resolution
+  // doesn't break Timer firing order etc. An example test would be to have
+  // two threads. One would have a bunch of timers, and another would turn the
+  // high resolution timer on and off.
 
-// static
-void Time::EnableHiResClockForTests() {
-  Singleton<HighResolutionTimerManager>()->Enable();
+  MMRESULT result;
+  if (use)
+    result = timeBeginPeriod(1);
+  else
+    result = timeEndPeriod(1);
+  return (result == TIMERR_NOERROR);
 }
 
 // static
