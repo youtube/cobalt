@@ -908,7 +908,7 @@
       },
     }],
     ['chromium_code==0', {
-      # This section must follow the other conditon sections above because
+      # This section must follow the other condition sections above because
       # external_code.gypi expects to be merged into those settings.
       'includes': [
         'external_code.gypi',
@@ -919,6 +919,38 @@
         # C99 macros on Mac and Linux.
         'defines': [
           '__STDC_FORMAT_MACROS',
+        ],
+        'conditions': [
+          ['OS!="win"', {
+            'sources/': [ ['exclude', '_win\\.cc$'],
+                          ['exclude', '/win/'],
+                          ['exclude', '/win_[^/]*\\.cc$'] ],
+          }],
+          ['OS!="mac"', {
+            'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.cc$'],
+                          ['exclude', '\.mm$' ] ],
+          }],
+          ['OS!="linux"', {
+            'sources/': [
+              ['exclude', '_(chromeos|gtk|linux|x|x11)(_unittest)?\\.cc$'],
+              ['exclude', '/gtk/'],
+              ['exclude', '/(gtk|x11)_[^/]*\\.cc$'] ],
+          }],
+          # We use "POSIX" to refer to all non-Windows operating systems.
+          ['OS=="win"', {
+            'sources/': [ ['exclude', '_posix\\.cc$'] ],
+          }],
+          # Though Skia is conceptually shared by Linux and Windows,
+          # the only _skia files in our tree are Linux-specific.
+          ['OS!="linux"', {
+            'sources/': [ ['exclude', '_skia\\.cc$'] ],
+          }],
+          ['chromeos!=1', {
+            'sources/': [ ['exclude', '_chromeos\\.cc$'] ]
+          }],
+          ['OS!="win" and toolkit_views!=1', {
+            'sources/': [ ['exclude', '_views\\.cc$'] ]
+          }],
         ],
       },
     }],
