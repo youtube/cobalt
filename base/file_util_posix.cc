@@ -699,4 +699,9 @@ void MemoryMappedFile::CloseHandles() {
   file_ = base::kInvalidPlatformFileValue;
 }
 
+bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
+                              const base::Time& cutoff_time) {
+  return find_info.stat.st_mtime >= cutoff_time.ToTimeT();
+}
+
 } // namespace file_util

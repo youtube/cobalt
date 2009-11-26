@@ -793,4 +793,11 @@ void MemoryMappedFile::CloseHandles() {
   length_ = INVALID_FILE_SIZE;
 }
 
+bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
+                              const base::Time& cutoff_time) {
+  long result = CompareFileTime(&find_info.ftLastWriteTime,
+                                &cutoff_time.ToFileTime());
+  return result == 1 || result == 0;
+}
+
 }  // namespace file_util
