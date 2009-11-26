@@ -531,6 +531,10 @@ bool RenameFileAndResetSecurityDescriptor(
     const FilePath& source_file_path,
     const FilePath& target_file_path);
 
+// Returns whether the file has been modified since a particular date.
+bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
+                              const base::Time& cutoff_time);
+
 }  // namespace file_util
 
 #endif  // BASE_FILE_UTIL_H_
