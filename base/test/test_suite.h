@@ -182,10 +182,10 @@ class TestSuite {
 
     CHECK(base::EnableInProcessStackDumping());
 #if defined(OS_WIN)
-    // For unit tests we turn on the high resolution timer and disable
-    // base::Time's use of SystemMonitor. Tests create and destroy the message
-    // loop, which causes a crash with SystemMonitor (http://crbug.com/12187).
-    base::Time::EnableHiResClockForTests();
+    // Make sure we run with high resolution timer to minimize differences
+    // between production code and test code.
+    bool result = base::Time::UseHighResolutionTimer(true);
+    CHECK(result);
 
     // In some cases, we do not want to see standard error dialogs.
     if (!IsDebuggerPresent() &&
