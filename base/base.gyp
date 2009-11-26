@@ -308,6 +308,7 @@
         'string_util_win.h',
         'sync_socket.h',
         'sync_socket_win.cc',
+        'sync_socket_posix.cc',
         'sys_info.h',
         'sys_info_chromeos.cc',
         'sys_info_freebsd.cc',
