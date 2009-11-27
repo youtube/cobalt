@@ -509,10 +509,45 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
 }
 
 bool CreateDirectory(const FilePath& full_path) {
-  if (DirectoryExists(full_path))
+  // If the path exists, we've succeeded if it's a directory, failed otherwise.
+  const wchar_t* full_path_str = full_path.value().c_str();
+  DWORD fileattr = ::GetFileAttributes(full_path_str);
+  if (fileattr != INVALID_FILE_ATTRIBUTES) {
+    if ((fileattr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+      DLOG(INFO) << "CreateDirectory(" << full_path_str << "), " <<
+          "directory already exists.";
+      return true;
+    } else {
+      LOG(WARNING) << "CreateDirectory(" << full_path_str << "), " <<
+          "conflicts with existing file.";
+    }
+  }
+
+  // Invariant:  Path does not exist as file or directory.
+
+  // Attempt to create the parent recursively.  This will immediately return
+  // true if it already exists, otherwise will create all required parent
+  // directories starting with the highest-level missing parent.
+  if (!CreateDirectory(full_path.DirName())) {
+    DLOG(WARNING) << "Failed to create one of the parent directories.";
+    return false;
+  }
+
+  if (!::CreateDirectory(full_path_str, NULL)) {
+    DWORD error_code = ::GetLastError();
+    if (error_code == ERROR_ALREADY_EXISTS && DirectoryExists(full_path)) {
+      // This error code doesn't indicate whether we were racing with someone
+      // creating the same directory, or a file with the same path, therefore
+      // we check.
+      return true;
+    } else {
+      LOG(WARNING) << "Failed to create directory " << full_path_str <<
+          ", le=" << error_code;
+      return false;
+    }
+  } else {
     return true;
-  int err = SHCreateDirectoryEx(NULL, full_path.value().c_str(), NULL);
-  return err == ERROR_SUCCESS;
+  }
 }
 
 bool GetFileInfo(const FilePath& file_path, FileInfo* results) {
