@@ -1137,6 +1137,23 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
   EXPECT_TRUE(file_util::Delete(test_root, true));
   EXPECT_FALSE(file_util::PathExists(test_root));
   EXPECT_FALSE(file_util::PathExists(test_path));
+
+  // Verify assumptions made by the Windows implementation:
+  // 1. The current directory always exists.
+  // 2. The root directory always exists.
+  ASSERT_TRUE(file_util::DirectoryExists(
+      FilePath(FilePath::kCurrentDirectory)));
+  FilePath top_level = test_root;
+  while (top_level != top_level.DirName()) {
+    top_level = top_level.DirName();
+  }
+  ASSERT_TRUE(file_util::DirectoryExists(top_level));
+
+  // Given these assumptions hold, it should be safe to
+  // test that "creating" these directories succeeds.
+  EXPECT_TRUE(file_util::CreateDirectory(
+      FilePath(FilePath::kCurrentDirectory)));
+  EXPECT_TRUE(file_util::CreateDirectory(top_level));
 }
 
 TEST_F(FileUtilTest, DetectDirectoryTest) {
