@@ -928,6 +928,7 @@
           }],
           ['OS!="mac"', {
             'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.cc$'],
+                          ['exclude', '/(cocoa|mac)/'],
                           ['exclude', '\.mm$' ] ],
           }],
           ['OS!="linux"', {
