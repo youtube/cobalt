@@ -1006,6 +1006,7 @@ bool HttpCache::Transaction::ValidatePartialResponse(
       // messing up the headers.
       partial_->RestoreHeaders(&custom_request_->extra_headers);
       partial_.reset();
+      truncated_ = false;
       return false;
     }
     LOG(WARNING) << "Failed to revalidate partial entry";
@@ -1280,6 +1281,7 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
       if (!ValidatePartialResponse(new_response->headers, &partial_content)) {
         // Something went wrong with this request and we have to restart it.
         network_trans_.reset();
+        response_ = HttpResponseInfo();
         BeginNetworkRequest();
         return;
       }
