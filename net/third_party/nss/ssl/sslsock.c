@@ -163,6 +163,7 @@ static const sslSocketOps ssl_secure_ops = {	/* SSL. */
 ** default settings for socket enables
 */
 static sslOptions ssl_defaults = {
+    { siBuffer, NULL, 0 },	/* nextProtoNego */
     PR_TRUE, 	/* useSecurity        */
     PR_FALSE,	/* useSocks           */
     PR_FALSE,	/* requestCertificate */
@@ -433,6 +434,10 @@ ssl_DestroySocketContents(sslSocket *ss)
     if (ss->ephemeralECDHKeyPair) {
 	ssl3_FreeKeyPair(ss->ephemeralECDHKeyPair);
 	ss->ephemeralECDHKeyPair = NULL;
+    }
+    if (ss->opt.nextProtoNego.data) {
+	PORT_Free(ss->opt.nextProtoNego.data);
+	ss->opt.nextProtoNego.data = NULL;
     }
 }
 
@@ -1245,6 +1250,75 @@ SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd)
     if (ns)
 	ns->TCPconnected = (PR_SUCCESS == ssl_DefGetpeername(ns, &addr));
     return fd;
+}
+
+/* SSL_SetNextProtoNego sets the list of supported protocols for the given
+ * socket. The list is a series of 8-bit, length prefixed strings. */
+SECStatus
+SSL_SetNextProtoNego(PRFileDesc *fd, const unsigned char *data,
+		     unsigned short length)
+{
+    sslSocket *ss = ssl_FindSocket(fd);
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_SetNextProtoNego", SSL_GETPID(),
+		fd));
+	return SECFailure;
+    }
+
+    if (ssl3_ValidateNextProtoNego(data, length) != SECSuccess)
+	return SECFailure;
+
+    ssl_GetSSL3HandshakeLock(ss);
+    if (ss->opt.nextProtoNego.data)
+	PORT_Free(ss->opt.nextProtoNego.data);
+    ss->opt.nextProtoNego.data = PORT_Alloc(length);
+    if (!ss->opt.nextProtoNego.data) {
+	ssl_ReleaseSSL3HandshakeLock(ss);
+	return SECFailure;
+    }
+    memcpy(ss->opt.nextProtoNego.data, data, length);
+    ss->opt.nextProtoNego.len = length;
+    ss->opt.nextProtoNego.type = siBuffer;
+    ssl_ReleaseSSL3HandshakeLock(ss);
+
+    return SECSuccess;
+}
+
+/* SSL_GetNextProto reads the resulting Next Protocol Negotiation result for
+ * the given socket. It's only valid to call this once the handshake has
+ * completed.
+ *
+ * state is set to one of the SSL_NEXT_PROTO_* constants. The negotiated
+ * protocol, if any, is written into buf, which must be at least buf_len
+ * bytes long. If the negotiated protocol is longer than this, it is truncated.
+ * The number of bytes copied is written into length.
+ */
+SECStatus
+SSL_GetNextProto(PRFileDesc *fd, int *state, unsigned char *buf,
+		 unsigned int *length, unsigned int buf_len)
+{
+    sslSocket *ss = ssl_FindSocket(fd);
+
+    if (!ss) {
+	SSL_DBG(("%d: SSL[%d]: bad socket in SSL_GetNextProto", SSL_GETPID(),
+		fd));
+	return SECFailure;
+    }
+
+    *state = ss->ssl3.nextProtoState;
+
+    if (ss->ssl3.nextProtoState != SSL_NEXT_PROTO_NO_SUPPORT &&
+	ss->ssl3.nextProto.data) {
+	*length = ss->ssl3.nextProto.len;
+	if (*length > buf_len)
+	    *length = buf_len;
+	PORT_Memcpy(buf, ss->ssl3.nextProto.data, *length);
+    } else {
+	*length = 0;
+    }
+
+    return SECSuccess;
 }
 
 /************************************************************************/
