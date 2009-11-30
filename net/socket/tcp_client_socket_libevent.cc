@@ -446,8 +446,8 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
   }
 }
 
-int TCPClientSocketLibevent::GetPeerName(struct sockaddr *name,
-                                         socklen_t *namelen) {
+int TCPClientSocketLibevent::GetPeerName(struct sockaddr* name,
+                                         socklen_t* namelen) {
   return ::getpeername(socket_, name, namelen);
 }
 

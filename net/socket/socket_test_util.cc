@@ -41,12 +41,10 @@ bool MockClientSocket::IsConnectedAndIdle() const {
   return connected_;
 }
 
-#if defined(OS_LINUX)
-int MockClientSocket::GetPeerName(struct sockaddr *name, socklen_t *namelen) {
+int MockClientSocket::GetPeerName(struct sockaddr* name, socklen_t* namelen) {
   memset(reinterpret_cast<char *>(name), 0, *namelen);
   return net::OK;
 }
-#endif  // defined(OS_LINUX)
 
 void MockClientSocket::RunCallbackAsync(net::CompletionCallback* callback,
                                         int result) {
