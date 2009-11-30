@@ -347,6 +347,16 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // Tell SSL the hostname we're trying to connect to.
   SSL_SetURL(nss_fd_, hostname_.c_str());
 
+  // Set the peer ID for session reuse.  This is necessary when we create an
+  // SSL tunnel through a proxy -- GetPeerName returns the proxy's address
+  // rather than the destination server's address in that case.
+  // TODO(wtc): port in peername is not the server's port when a proxy is used.
+  std::string peer_id = StringPrintf("%s:%d", hostname_.c_str(),
+                                     PR_ntohs(PR_NetAddrInetPort(&peername)));
+  rv = SSL_SetSockPeerID(nss_fd_, const_cast<char*>(peer_id.c_str()));
+  if (rv != SECSuccess)
+    LOG(INFO) << "SSL_SetSockPeerID failed: peer_id=" << peer_id;
+
   // Tell SSL we're a client; needed if not letting NSPR do socket I/O
   SSL_ResetHandshake(nss_fd_, 0);
 
