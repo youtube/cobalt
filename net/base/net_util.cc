@@ -1257,8 +1257,10 @@ void GetIdentityFromURL(const GURL& url,
                         std::wstring* username,
                         std::wstring* password) {
   UnescapeRule::Type flags = UnescapeRule::SPACES;
-  *username = UnescapeAndDecodeUTF8URLComponent(url.username(), flags, NULL);
-  *password = UnescapeAndDecodeUTF8URLComponent(url.password(), flags, NULL);
+  *username = UTF16ToWideHack(UnescapeAndDecodeUTF8URLComponent(url.username(),
+                                                                flags, NULL));
+  *password = UTF16ToWideHack(UnescapeAndDecodeUTF8URLComponent(url.password(),
+                                                                flags, NULL));
 }
 
 void AppendFormattedHost(const GURL& url,
@@ -1328,9 +1330,9 @@ void AppendFormattedComponent(const std::string& spec,
           spec.substr(in_component.begin, in_component.len),
           offset_into_component));
     } else {
-      output->append(UnescapeAndDecodeUTF8URLComponent(
+      output->append(UTF16ToWideHack(UnescapeAndDecodeUTF8URLComponent(
           spec.substr(in_component.begin, in_component.len), unescape_rules,
-          offset_into_component));
+          offset_into_component)));
     }
     out_component->len =
         static_cast<int>(output->length()) - out_component->begin;
