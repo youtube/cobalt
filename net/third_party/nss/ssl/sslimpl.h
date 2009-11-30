@@ -317,6 +317,11 @@ typedef struct {
 #endif /* NSS_ENABLE_ECC */
 
 typedef struct sslOptionsStr {
+    /* For clients, this is a validated list of protocols in preference order
+     * and wire format. For servers, this is the list of support protocols,
+     * also in wire format. */
+    SECItem      nextProtoNego;
+
     unsigned int useSecurity		: 1;  /*  1 */
     unsigned int useSocks		: 1;  /*  2 */
     unsigned int requestCertificate	: 1;  /*  3 */
@@ -770,6 +775,7 @@ const ssl3CipherSuiteDef *suite_def;
 #ifdef NSS_ENABLE_ECC
     PRUint32              negotiatedECCurves; /* bit mask */
 #endif /* NSS_ENABLE_ECC */
+    PRBool                nextProtoNego;/* Our peer has sent this extension */
 } SSL3HandshakeState;
 
 
@@ -811,6 +817,16 @@ struct ssl3StateStr {
     PRBool               initialized;
     SSL3HandshakeState   hs;
     ssl3CipherSpec       specs[2];	/* one is current, one is pending. */
+
+    /* In a client: if the server supports Next Protocol Negotiation, then
+     * this is the protocol that was requested.
+     * In a server: this is the protocol that the client requested via Next
+     * Protocol Negotiation.
+     *
+     * In either case, if the data pointer is non-NULL, then it is malloced
+     * data.  */
+    SECItem		nextProto;
+    int			nextProtoState;	/* See SSL_NEXT_PROTO_* defines */
 };
 
 typedef struct {
@@ -1471,7 +1487,11 @@ extern SECStatus ssl3_HandleSupportedPointFormatsXtn(sslSocket * ss,
 			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ClientHandleSessionTicketXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
+extern SECStatus ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss,
+			PRUint16 ex_type, SECItem *data);
 extern SECStatus ssl3_ServerHandleSessionTicketXtn(sslSocket *ss,
+			PRUint16 ex_type, SECItem *data);
+extern SECStatus ssl3_ServerHandleNextProtoNegoXtn(sslSocket *ss,
 			PRUint16 ex_type, SECItem *data);
 
 /* ClientHello and ServerHello extension senders.
@@ -1486,6 +1506,10 @@ extern PRInt32 ssl3_SendSupportedCurvesXtn(sslSocket *ss,
 extern PRInt32 ssl3_SendSupportedPointFormatsXtn(sslSocket *ss,
 			PRBool append, PRUint32 maxBytes);
 #endif
+extern PRInt32 ssl3_ClientSendNextProtoNegoXtn(sslSocket *ss, PRBool append,
+					       PRUint32 maxBytes);
+extern SECStatus ssl3_ValidateNextProtoNego(const unsigned char* data,
+					    unsigned short length);
 
 /* call the registered extension handlers. */
 extern SECStatus ssl3_HandleHelloExtensions(sslSocket *ss, 

@@ -157,7 +157,8 @@ typedef enum {
     server_hello_done	= 14,
     certificate_verify	= 15, 
     client_key_exchange	= 16, 
-    finished		= 20
+    finished		= 20,
+    next_proto		= 67
 } SSL3HandshakeType;
 
 typedef struct {
@@ -351,10 +352,11 @@ typedef enum {
     elliptic_curves_xtn          = 10,
     ec_point_formats_xtn         = 11,
 #endif
-    session_ticket_xtn           = 35
+    session_ticket_xtn           = 35,
+    next_proto_neg_xtn           = 13172
 } ExtensionType;
 
-#define MAX_EXTENSIONS             4
+#define MAX_EXTENSIONS             5
 
 #define TLS_EX_SESS_TICKET_MAC_LENGTH       32
 

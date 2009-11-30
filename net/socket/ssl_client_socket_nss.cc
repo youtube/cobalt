@@ -317,6 +317,17 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
      LOG(INFO) << "SSL_ENABLE_DEFLATE failed.  Old system nss?";
 #endif
 
+#ifdef SSL_NEXT_PROTO_NEGOTIATED
+  if (!ssl_config_.next_protos.empty()) {
+    rv = SSL_SetNextProtoNego(
+       nss_fd_,
+       reinterpret_cast<const unsigned char *>(ssl_config_.next_protos.data()),
+       ssl_config_.next_protos.size());
+    if (rv != SECSuccess)
+       LOG(INFO) << "SSL_SetNextProtoNego failed.";
+  }
+#endif
+
   rv = SSL_OptionSet(nss_fd_, SSL_HANDSHAKE_AS_CLIENT, PR_TRUE);
   if (rv != SECSuccess)
      return ERR_UNEXPECTED;
@@ -510,6 +521,38 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
   DCHECK(server_cert_ != NULL);
   ssl_info->cert = server_cert_;
+
+#ifdef SSL_NEXT_PROTO_NEGOTIATED
+  unsigned char npn_buf[255];
+  unsigned npn_len;
+  int npn_status;
+  SECStatus rv = SSL_GetNextProto(nss_fd_, &npn_status, npn_buf, &npn_len,
+                                  sizeof(npn_buf));
+  if (rv != SECSuccess) {
+    npn_status = SSL_NEXT_PROTO_NO_SUPPORT;
+  }
+
+  if (npn_status == SSL_NEXT_PROTO_NO_SUPPORT) {
+    ssl_info->next_proto_status = SSLInfo::kNextProtoUnsupported;
+    ssl_info->next_proto.clear();
+  } else {
+    ssl_info->next_proto =
+      std::string(reinterpret_cast<const char *>(npn_buf), npn_len);
+    switch (npn_status) {
+      case SSL_NEXT_PROTO_NEGOTIATED:
+        ssl_info->next_proto_status = SSLInfo::kNextProtoNegotiated;
+        break;
+      case SSL_NEXT_PROTO_NO_OVERLAP:
+        ssl_info->next_proto_status = SSLInfo::kNextProtoNoOverlap;
+        break;
+      default:
+        LOG(ERROR) << "Unknown npn_status: " << npn_status;
+        ssl_info->next_proto_status = SSLInfo::kNextProtoNoOverlap;
+        break;
+    }
+  }
+#endif
+
   LeaveFunction("");
 }
 

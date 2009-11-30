@@ -89,6 +89,9 @@
                 'cflags': [
                   '<!@(<(pkg-config) --cflags nss)',
                 ],
+                'defines': [
+                  'USE_SYSTEM_SSL',
+                ],
               },
               'link_settings': {
                 'ldflags': [
