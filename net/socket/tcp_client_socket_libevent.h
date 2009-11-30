@@ -5,8 +5,6 @@
 #ifndef NET_SOCKET_TCP_CLIENT_SOCKET_LIBEVENT_H_
 #define NET_SOCKET_TCP_CLIENT_SOCKET_LIBEVENT_H_
 
-#include <sys/socket.h>  // for struct sockaddr
-
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
@@ -35,7 +33,7 @@ class TCPClientSocketLibevent : public ClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerName(struct sockaddr *name, socklen_t *namelen);
+  virtual int GetPeerName(struct sockaddr* name, socklen_t* namelen);
 
   // Socket methods:
   // Multiple outstanding requests are not supported.

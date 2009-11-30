@@ -449,6 +449,11 @@ bool TCPClientSocketWin::IsConnectedAndIdle() const {
   return true;
 }
 
+int TCPClientSocketWin::GetPeerName(struct sockaddr* name,
+                                    socklen_t* namelen) {
+  return getpeername(socket_, name, namelen);
+}
+
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionCallback* callback) {
