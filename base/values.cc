@@ -671,6 +671,7 @@ int ListValue::Remove(const Value& value) {
   for (ValueVector::iterator i(list_.begin()); i != list_.end(); ++i) {
     if ((*i)->Equals(&value)) {
       size_t index = i - list_.begin();
+      delete *i;
       list_.erase(i);
       return index;
     }
