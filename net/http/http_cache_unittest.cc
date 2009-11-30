@@ -2503,48 +2503,6 @@ TEST(HttpCache, GET_Previous206_NotModified) {
   RemoveMockTransaction(&transaction);
 }
 
-// Tests that we can handle a regular request to a sparse entry, that results in
-// new content provided by the server (206).
-TEST(HttpCache, GET_Previous206_NewContent) {
-  MockHttpCache cache;
-  cache.http_cache()->set_enable_range_support(true);
-  AddMockTransaction(&kRangeGET_TransactionOK);
-  std::string headers;
-
-  // Write to the cache (0-9).
-  MockTransaction transaction(kRangeGET_TransactionOK);
-  transaction.request_headers = "Range: bytes = 0-9\r\n" EXTRA_HEADER;
-  transaction.data = "rg: 00-09 ";
-  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
-
-  EXPECT_TRUE(Verify206Response(headers, 0, 9));
-  EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_EQ(0, cache.disk_cache()->open_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
-
-  // Now we'll issue a request without any range that should result first in a
-  // 206 (when revalidating), and then in a weird standard answer: the test
-  // server will not modify the response so we'll get the default range... a
-  // real server will answer with 200.
-  MockTransaction transaction2(kRangeGET_TransactionOK);
-  transaction2.request_headers = EXTRA_HEADER;
-  transaction2.data = "rg: 40-49 ";
-  RangeTransactionServer handler;
-  handler.set_modified(true);
-  RunTransactionTestWithResponse(cache.http_cache(), transaction2, &headers);
-
-  EXPECT_EQ(0U, headers.find("HTTP/1.1 206 Partial Content\n"));
-  EXPECT_EQ(3, cache.network_layer()->transaction_count());
-  EXPECT_EQ(1, cache.disk_cache()->open_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
-
-  // Verify that the previous request deleted the entry.
-  RunTransactionTest(cache.http_cache(), transaction);
-  EXPECT_EQ(2, cache.disk_cache()->create_count());
-
-  RemoveMockTransaction(&transaction);
-}
-
 // Tests that we can handle cached 206 responses that are not sparse.
 TEST(HttpCache, GET_Previous206_NotSparse) {
   MockHttpCache cache;
