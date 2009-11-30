@@ -597,7 +597,7 @@ void HttpCache::Transaction::SetRequest(LoadLog* load_log,
       partial_->SetHeaders(new_extra_headers);
     } else {
       // The range is invalid or we cannot handle it properly.
-      LOG(INFO) << "Invalid byte range found.";
+      LOG(WARNING) << "Invalid byte range found.";
       effective_load_flags_ |= LOAD_DISABLE_CACHE;
       partial_.reset(NULL);
     }
@@ -912,7 +912,7 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
     }
     custom_request_->extra_headers.append(etag_value);
     custom_request_->extra_headers.append("\r\n");
-    if (partial_.get() && partial_->IsCurrentRangeCached())
+    if (partial_.get() && !partial_->IsCurrentRangeCached())
       return true;
   }
 
@@ -939,42 +939,40 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
 // expect it after all), or maybe a range that was not exactly what it was asked
 // for.
 //
-// If the server is simply telling us that the resource has changed, we delete
-// the cached entry and restart the request as the caller intended (by returning
-// false from this method). However, we may not be able to do that at any point,
-// for instance if we already returned the headers to the user.
-//
-// WARNING: Whenever this code returns false, it has to make sure that the next
-// time it is called it will return true so that we don't keep retrying the
-// request.
+// For example, if the original request is for 30KB and we have the last 20KB,
+// we ask the server for the first 10KB. If the resourse has changed, we'll
+// end up forwarding the 200 back to the user (so far so good). However, if
+// we have instead the first 10KB, we end up sending back a byte range response
+// for the first 10KB, because we never asked the server for the last part. It's
+// just too complicated to restart the whole request from this point; and of
+// course, maybe we already returned the headers.
 bool HttpCache::Transaction::ValidatePartialResponse(
-    const HttpResponseHeaders* headers, bool* partial_content) {
+    const HttpResponseHeaders* headers) {
   int response_code = headers->response_code();
-  bool partial_response = enable_range_support_ ? response_code == 206 : false;
-  *partial_content = false;
+  bool partial_content = enable_range_support_ ? response_code == 206 : false;
 
   if (!entry_)
-    return true;
+    return false;
 
   if (invalid_range_) {
     // We gave up trying to match this request with the stored data. If the
     // server is ok with the request, delete the entry, otherwise just ignore
     // this request
-    if (partial_response || response_code == 200 || response_code == 304) {
+    if (partial_content || response_code == 200 || response_code == 304) {
       DoomPartialEntry(true);
       mode_ = NONE;
     } else {
       IgnoreRangeRequest();
     }
-    return true;
+    return false;
   }
 
   if (!partial_.get()) {
     // We are not expecting 206 but we may have one.
-    if (partial_response)
+    if (partial_content)
       IgnoreRangeRequest();
 
-    return true;
+    return false;
   }
 
   // TODO(rvargas): Do we need to consider other results here?.
@@ -982,39 +980,28 @@ bool HttpCache::Transaction::ValidatePartialResponse(
 
   if (partial_->IsCurrentRangeCached()) {
     // We asked for "If-None-Match: " so a 206 means a new object.
-    if (partial_response)
+    if (partial_content)
       failure = true;
 
     if (response_code == 304 && partial_->ResponseHeadersOK(headers))
-      return true;
+      return false;
   } else {
     // We asked for "If-Range: " so a 206 means just another range.
-    if (partial_response && partial_->ResponseHeadersOK(headers)) {
-      *partial_content = true;
+    if (partial_content && partial_->ResponseHeadersOK(headers))
       return true;
-    }
 
     // 304 is not expected here, but we'll spare the entry.
   }
 
   if (failure) {
     // We cannot truncate this entry, it has to be deleted.
-    DoomPartialEntry(false);
+    DoomPartialEntry(true);
     mode_ = NONE;
-    if (!reading_ && !partial_->IsLastRange()) {
-      // We'll attempt to issue another network request, this time without us
-      // messing up the headers.
-      partial_->RestoreHeaders(&custom_request_->extra_headers);
-      partial_.reset();
-      return false;
-    }
-    LOG(WARNING) << "Failed to revalidate partial entry";
-    partial_.reset();
-    return true;
+    return false;
   }
 
   IgnoreRangeRequest();
-  return true;
+  return false;
 }
 
 void HttpCache::Transaction::IgnoreRangeRequest() {
@@ -1276,13 +1263,7 @@ void HttpCache::Transaction::OnNetworkInfoAvailable(int result) {
         new_response->headers->response_code() == 407) {
       auth_response_ = *new_response;
     } else {
-      bool partial_content;
-      if (!ValidatePartialResponse(new_response->headers, &partial_content)) {
-        // Something went wrong with this request and we have to restart it.
-        network_trans_.reset();
-        BeginNetworkRequest();
-        return;
-      }
+      bool partial_content = ValidatePartialResponse(new_response->headers);
       if (partial_content && mode_ == READ_WRITE && !truncated_ &&
           response_.headers->response_code() == 200) {
         // We have stored the full entry, but it changed and the server is
