@@ -88,14 +88,15 @@ TEST(EscapeTest, EscapeTextForFormSubmission) {
 
   // Check to see if EscapeQueryParamValueUTF8 is the same as
   // EscapeQueryParamValue(..., kCodepageUTF8,)
-  std::wstring test_str;
+  string16 test_str;
   test_str.reserve(5000);
   for (int i = 1; i < 5000; ++i) {
     test_str.push_back(i);
   }
-  std::wstring wide;
+  string16 wide;
   EXPECT_TRUE(EscapeQueryParamValue(test_str, base::kCodepageUTF8, &wide));
-  EXPECT_EQ(wide, EscapeQueryParamValueUTF8(test_str));
+  EXPECT_EQ(UTF16ToWideHack(wide),
+            EscapeQueryParamValueUTF8(UTF16ToWideHack(test_str)));
 }
 
 TEST(EscapeTest, EscapePath) {
@@ -243,9 +244,10 @@ TEST(EscapeTest, UnescapeAndDecodeUTF8URLComponent) {
     EXPECT_EQ(std::string(unescape_cases[i].query_unescaped), unescaped);
 
     // TODO: Need to test unescape_spaces and unescape_percent.
-    std::wstring decoded = UnescapeAndDecodeUTF8URLComponent(
+    string16 decoded = UnescapeAndDecodeUTF8URLComponent(
         unescape_cases[i].input, UnescapeRule::NORMAL, NULL);
-    EXPECT_EQ(std::wstring(unescape_cases[i].decoded), decoded);
+    EXPECT_EQ(WideToUTF16Hack(std::wstring(unescape_cases[i].decoded)),
+              decoded);
   }
 }
 

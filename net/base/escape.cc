@@ -111,11 +111,11 @@ const char kUrlUnescape[128] = {
 std::string UnescapeURLImpl(const std::string& escaped_text,
                             UnescapeRule::Type rules,
                             size_t* offset_for_adjustment) {
-  size_t offset_temp = std::wstring::npos;
+  size_t offset_temp = string16::npos;
   if (!offset_for_adjustment)
     offset_for_adjustment = &offset_temp;
   else if (*offset_for_adjustment >= escaped_text.length())
-    *offset_for_adjustment = std::wstring::npos;
+    *offset_for_adjustment = string16::npos;
 
   // Do not unescape anything, return the |escaped_text| text.
   if (rules == UnescapeRule::NONE)
@@ -234,37 +234,36 @@ std::string EscapeExternalHandlerValue(const std::string& text) {
   return Escape(text, kExternalHandlerCharmap, false);
 }
 
-bool EscapeQueryParamValue(const std::wstring& text, const char* codepage,
-                           std::wstring* escaped) {
+bool EscapeQueryParamValue(const string16& text, const char* codepage,
+                           string16* escaped) {
   // TODO(brettw) bug 1201094: this function should be removed, this "SKIP"
   // behavior is wrong when the character can't be encoded properly.
   std::string encoded;
-  if (!base::WideToCodepage(text, codepage,
-                            base::OnStringConversionError::SKIP, &encoded))
+  if (!base::UTF16ToCodepage(text, codepage,
+                             base::OnStringConversionError::SKIP, &encoded))
     return false;
 
-  // It's safe to use UTF8ToWide here because Escape should only return
-  // alphanumerics and !'()*-._~
-  escaped->assign(UTF8ToWide(Escape(encoded, kQueryCharmap, true)));
+  escaped->assign(UTF8ToUTF16(Escape(encoded, kQueryCharmap, true)));
   return true;
 }
 
-std::wstring UnescapeAndDecodeUTF8URLComponent(const std::string& text,
-                                               UnescapeRule::Type rules,
-                                               size_t* offset_for_adjustment) {
+string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
+                                           UnescapeRule::Type rules,
+                                           size_t* offset_for_adjustment) {
   std::wstring result;
   size_t original_offset = offset_for_adjustment ? *offset_for_adjustment : 0;
   std::string unescaped_url(
       UnescapeURLImpl(text, rules, offset_for_adjustment));
   if (UTF8ToWideAndAdjustOffset(unescaped_url.data(), unescaped_url.length(),
                                 &result, offset_for_adjustment))
-    return result;          // Character set looks like it's valid.
+    return WideToUTF16Hack(result);      // Character set looks like it's valid.
 
   // Not valid.  Return the escaped version.  Undo our changes to
   // |offset_for_adjustment| since we haven't changed the string after all.
   if (offset_for_adjustment)
     *offset_for_adjustment = original_offset;
-  return UTF8ToWideAndAdjustOffset(text, offset_for_adjustment);
+  return WideToUTF16Hack(UTF8ToWideAndAdjustOffset(text,
+                                                   offset_for_adjustment));
 }
 
 std::string UnescapeURLComponent(const std::string& escaped_text,
@@ -301,7 +300,7 @@ void AppendEscapedCharForHTML(char c, std::string* output) {
   AppendEscapedCharForHTMLImpl(c, output);
 }
 
-void AppendEscapedCharForHTML(wchar_t c, std::wstring* output) {
+void AppendEscapedCharForHTML(wchar_t c, string16* output) {
   AppendEscapedCharForHTMLImpl(c, output);
 }
 
@@ -320,6 +319,6 @@ std::string EscapeForHTML(const std::string& input) {
   return EscapeForHTMLImpl(input);
 }
 
-std::wstring EscapeForHTML(const std::wstring& input) {
+string16 EscapeForHTML(const string16& input) {
   return EscapeForHTMLImpl(input);
 }
