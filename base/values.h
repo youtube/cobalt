@@ -361,8 +361,8 @@ class ListValue : public Value {
   // it will return false and the ListValue object will be unchanged.
   bool Remove(size_t index, Value** out_value);
 
-  // Removes the first instance of |value| found in the list, if any, returning
-  // the index that it was located at (-1 for not present).
+  // Removes the first instance of |value| found in the list, if any, and
+  // deletes it.  Returns the index that it was located at (-1 for not present).
   int Remove(const Value& value);
 
   // Appends a Value to the end of the list.
