@@ -2,11 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file includes code GetDefaultCertNickname(), derived from
-// nsNSSCertificate::defaultServerNickName()
-// in mozilla/security/manager/ssl/src/nsNSSCertificate.cpp
-// and SSLClientSocketNSS::DoVerifyCertComplete() derived from
-// AuthCertificateCallback() in
+// This file includes code SSLClientSocketNSS::DoVerifyCertComplete() derived
+// from AuthCertificateCallback() in
 // mozilla/security/manager/ssl/src/nsNSSCallbacks.cpp.
 
 /* ***** BEGIN LICENSE BLOCK *****
@@ -102,48 +99,6 @@ namespace net {
 #endif
 
 namespace {
-
-// Gets default certificate nickname from cert.
-// Derived from nsNSSCertificate::defaultServerNickname
-// in mozilla/security/manager/ssl/src/nsNSSCertificate.cpp.
-std::string GetDefaultCertNickname(
-    net::X509Certificate::OSCertHandle cert) {
-  if (cert == NULL)
-    return "";
-
-  char* name = CERT_GetCommonName(&cert->subject);
-  if (!name) {
-    // Certs without common names are strange, but they do exist...
-    // Let's try to use another string for the nickname
-    name = CERT_GetOrgUnitName(&cert->subject);
-    if (!name)
-      name = CERT_GetOrgName(&cert->subject);
-    if (!name)
-      name = CERT_GetLocalityName(&cert->subject);
-    if (!name)
-      name = CERT_GetStateName(&cert->subject);
-    if (!name)
-      name = CERT_GetCountryName(&cert->subject);
-    if (!name)
-      return "";
-  }
-  int count = 1;
-  std::string nickname;
-  while (1) {
-    if (count == 1) {
-      nickname = name;
-    } else {
-      nickname = StringPrintf("%s #%d", name, count);
-    }
-    PRBool conflict = SEC_CertNicknameConflict(
-        const_cast<char*>(nickname.c_str()), &cert->derSubject, cert->dbhandle);
-    if (!conflict)
-      break;
-    count++;
-  }
-  PR_FREEIF(name);
-  return nickname;
-}
 
 int NetErrorFromNSPRError(PRErrorCode err) {
   // TODO(port): fill this out as we learn what's important
