@@ -266,14 +266,15 @@ class MockClientSocket : public net::SSLClientSocket {
 
   // ClientSocket methods:
   virtual int Connect(net::CompletionCallback* callback, LoadLog* load_log) = 0;
+  virtual void Disconnect();
+  virtual bool IsConnected() const;
+  virtual bool IsConnectedAndIdle() const;
+  virtual int GetPeerName(struct sockaddr* name, socklen_t* namelen);
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(
       net::SSLCertRequestInfo* cert_request_info);
-  virtual void Disconnect();
-  virtual bool IsConnected() const;
-  virtual bool IsConnectedAndIdle() const;
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
@@ -282,10 +283,6 @@ class MockClientSocket : public net::SSLClientSocket {
                     net::CompletionCallback* callback) = 0;
   virtual bool SetReceiveBufferSize(int32 size) { return true; };
   virtual bool SetSendBufferSize(int32 size) { return true; };
-
-#if defined(OS_LINUX)
-  virtual int GetPeerName(struct sockaddr *name, socklen_t *namelen);
-#endif
 
   // If an async IO is pending because the SocketDataProvider returned
   // ERR_IO_PENDING, then the MockClientSocket waits until this OnReadComplete
