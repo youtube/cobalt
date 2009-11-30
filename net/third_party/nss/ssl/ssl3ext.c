@@ -229,6 +229,7 @@ static const ssl3HelloExtensionHandler clientHelloHandlers[] = {
     { ec_point_formats_xtn, &ssl3_HandleSupportedPointFormatsXtn },
 #endif
     { session_ticket_xtn, &ssl3_ServerHandleSessionTicketXtn },
+    { next_proto_neg_xtn, &ssl3_ServerHandleNextProtoNegoXtn },
     { -1, NULL }
 };
 
@@ -236,6 +237,7 @@ static const ssl3HelloExtensionHandler serverHelloHandlers[] = {
     { server_name_xtn, &ssl3_HandleServerNameXtn },
     /* TODO: add a handler for ec_point_formats_xtn */
     { session_ticket_xtn, &ssl3_ClientHandleSessionTicketXtn },
+    { next_proto_neg_xtn, &ssl3_ClientHandleNextProtoNegoXtn },
     { -1, NULL }
 };
 
@@ -254,7 +256,8 @@ ssl3HelloExtensionSender clientHelloSenders[MAX_EXTENSIONS] = {
     { -1, NULL },
     { -1, NULL },
 #endif
-    { session_ticket_xtn, ssl3_SendSessionTicketXtn }
+    { session_ticket_xtn, ssl3_SendSessionTicketXtn },
+    { next_proto_neg_xtn, ssl3_ClientSendNextProtoNegoXtn }
 };
 
 static PRBool
@@ -409,6 +412,123 @@ ssl3_SendSessionTicketXtn(
 
  loser:
     ss->xtnData.ticketTimestampVerified = PR_FALSE;
+    return -1;
+}
+
+/* handle an incoming Next Protocol Negotiation extension. */
+SECStatus
+ssl3_ServerHandleNextProtoNegoXtn(sslSocket * ss, PRUint16 ex_type, SECItem *data)
+{
+    if (data->len != 0) {
+	/* Clients MUST send an empty NPN extension, if any. */
+	return SECFailure;
+    }
+
+    ss->ssl3.hs.nextProtoNego = PR_TRUE;
+    return SECSuccess;
+}
+
+/* ssl3_ValidateNextProtoNego checks that the given block of data is valid: none
+ * of the length may be 0 and the sum of the lengths must equal the length of
+ * the block. */
+SECStatus
+ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
+{
+    unsigned int offset = 0;
+
+    while (offset < length) {
+	if (data[offset] == 0) {
+	    return SECFailure;
+	}
+	offset += data[offset] + 1;
+    }
+
+    if (offset > length)
+	return SECFailure;
+
+    return SECSuccess;
+}
+
+SECStatus
+ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
+                                 SECItem *data)
+{
+    unsigned int i, j;
+    SECStatus rv;
+    unsigned char *result;
+
+    if (data->len == 0) {
+	/* The server supports the extension, but doesn't have any
+	 * protocols configured. In this case we request our favoured
+	 * protocol. */
+	goto pick_first;
+    }
+
+    rv = ssl3_ValidateNextProtoNego(data->data, data->len);
+    if (rv != SECSuccess)
+	return rv;
+
+    /* For each protocol in server preference order, see if we support it. */
+    for (i = 0; i < data->len; ) {
+	for (j = 0; j < ss->opt.nextProtoNego.len; ) {
+	    if (data->data[i] == ss->opt.nextProtoNego.data[j] &&
+		memcmp(&data->data[i+1], &ss->opt.nextProtoNego.data[j+1],
+		       data->data[i]) == 0) {
+		/* We found a match */
+		ss->ssl3.nextProtoState = SSL_NEXT_PROTO_NEGOTIATED;
+		result = &data->data[i];
+		goto found;
+	    }
+	    j += ss->opt.nextProtoNego.data[j] + 1;
+	}
+
+	i += data->data[i] + 1;
+    }
+
+  pick_first:
+    ss->ssl3.nextProtoState = SSL_NEXT_PROTO_NO_OVERLAP;
+    result = ss->opt.nextProtoNego.data;
+
+  found:
+    if (ss->ssl3.nextProto.data)
+	PORT_Free(ss->ssl3.nextProto.data);
+    ss->ssl3.nextProto.data = PORT_Alloc(result[0]);
+    PORT_Memcpy(ss->ssl3.nextProto.data, result + 1, result[0]);
+    ss->ssl3.nextProto.len = result[0];
+    return SECSuccess;
+}
+
+PRInt32
+ssl3_ClientSendNextProtoNegoXtn(sslSocket * ss,
+			       PRBool      append,
+			       PRUint32    maxBytes)
+{
+    PRInt32 extension_length;
+
+    /* Renegotiations do not send this extension. */
+    if (ss->opt.nextProtoNego.len == 0 || ss->firstHsDone) {
+	return 0;
+    }
+
+    extension_length = 4;
+
+    if (append && maxBytes >= extension_length) {
+	SECStatus rv;
+	rv = ssl3_AppendHandshakeNumber(ss, next_proto_neg_xtn, 2);
+	if (rv != SECSuccess)
+	    goto loser;
+	rv = ssl3_AppendHandshakeNumber(ss, 0, 2);
+	if (rv != SECSuccess)
+	    goto loser;
+	TLSExtensionData *xtnData = &ss->xtnData;
+	xtnData->advertised[xtnData->numAdvertised++] = next_proto_neg_xtn;
+    } else if (maxBytes < extension_length) {
+	return 0;
+    }
+
+    return extension_length;
+
+ loser:
     return -1;
 }
 
