@@ -135,6 +135,18 @@ SSL_IMPORT SECStatus SSL_OptionSetDefault(PRInt32 option, PRBool on);
 SSL_IMPORT SECStatus SSL_OptionGetDefault(PRInt32 option, PRBool *on);
 SSL_IMPORT SECStatus SSL_CertDBHandleSet(PRFileDesc *fd, CERTCertDBHandle *dbHandle);
 
+SSL_IMPORT SECStatus SSL_SetNextProtoNego(PRFileDesc *fd,
+					  const unsigned char *data,
+					  unsigned short length);
+SSL_IMPORT SECStatus SSL_GetNextProto(PRFileDesc *fd,
+				      int *state,
+				      unsigned char *buf,
+				      unsigned *length,
+				      unsigned buf_len);
+#define SSL_NEXT_PROTO_NO_SUPPORT	0 /* No peer support                */
+#define SSL_NEXT_PROTO_NEGOTIATED	1 /* Mutual agreement               */
+#define SSL_NEXT_PROTO_NO_OVERLAP	2 /* No protocol overlap found      */
+
 /*
 ** Control ciphers that SSL uses. If on is non-zero then the named cipher
 ** is enabled, otherwise it is disabled. 
