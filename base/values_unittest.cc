@@ -224,6 +224,16 @@ TEST(ValuesTest, ListRemoval) {
     EXPECT_TRUE(deletion_flag);
     EXPECT_EQ(0U, list.GetSize());
   }
+
+  {
+    ListValue list;
+    DeletionTestValue* value = new DeletionTestValue(&deletion_flag);
+    list.Append(value);
+    EXPECT_FALSE(deletion_flag);
+    EXPECT_EQ(0, list.Remove(*value));
+    EXPECT_TRUE(deletion_flag);
+    EXPECT_EQ(0U, list.GetSize());
+  }
 }
 
 TEST(ValuesTest, DictionaryDeletion) {
