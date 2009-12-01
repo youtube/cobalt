@@ -50,7 +50,7 @@ struct MockConnect {
 
 struct MockRead {
   // Default
-  MockRead() : async(false), result(0), data(NULL), data_len(0) {};
+  MockRead() : async(false), result(0), data(NULL), data_len(0) {}
 
   // Read failure (no data).
   MockRead(bool async, int result) : async(async) , result(result), data(NULL),
@@ -281,8 +281,8 @@ class MockClientSocket : public net::SSLClientSocket {
                    net::CompletionCallback* callback) = 0;
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::CompletionCallback* callback) = 0;
-  virtual bool SetReceiveBufferSize(int32 size) { return true; };
-  virtual bool SetSendBufferSize(int32 size) { return true; };
+  virtual bool SetReceiveBufferSize(int32 size) { return true; }
+  virtual bool SetSendBufferSize(int32 size) { return true; }
 
   // If an async IO is pending because the SocketDataProvider returned
   // ERR_IO_PENDING, then the MockClientSocket waits until this OnReadComplete
