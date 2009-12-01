@@ -339,11 +339,6 @@ bool CopyDirectory(const std::wstring& from_path, const std::wstring& to_path,
                        FilePath::FromWStringHack(to_path),
                        recursive);
 }
-bool ContentsEqual(const std::wstring& filename1,
-                   const std::wstring& filename2) {
-  return ContentsEqual(FilePath::FromWStringHack(filename1),
-                       FilePath::FromWStringHack(filename2));
-}
 bool CreateDirectory(const std::wstring& full_path) {
   return CreateDirectory(FilePath::FromWStringHack(full_path));
 }
