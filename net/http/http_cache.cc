@@ -20,6 +20,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
+#include "net/flip/flip_session_pool.h"
 #include "net/http/http_cache_transaction.h"
 #include "net/http/http_network_layer.h"
 #include "net/http/http_network_session.h"
@@ -529,6 +530,8 @@ void HttpCache::CloseIdleConnections() {
   HttpNetworkSession* session = network->GetSession();
   if (session) {
     session->tcp_socket_pool()->CloseIdleSockets();
+    if (session->flip_session_pool())
+      session->flip_session_pool()->CloseAllSessions();
   }
 }
 
