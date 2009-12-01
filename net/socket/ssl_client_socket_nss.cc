@@ -52,13 +52,9 @@
 #include <nspr.h>
 #include <nss.h>
 #include <secerr.h>
-// Work around https://bugzilla.mozilla.org/show_bug.cgi?id=455424
-// until NSS 3.12.2 comes out and we update to it.
-#define Lock FOO_NSS_Lock
 #include <ssl.h>
 #include <sslerr.h>
 #include <pk11pub.h>
-#undef Lock
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"

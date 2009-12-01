@@ -4,9 +4,6 @@
 
 #include "net/base/cert_database.h"
 
-// Work around https://bugzilla.mozilla.org/show_bug.cgi?id=455424
-// until NSS 3.12.2 comes out and we update to it.
-#define Lock FOO_NSS_Lock
 #include <pk11pub.h>
 #include <secmod.h>
 #include <ssl.h>
@@ -14,7 +11,6 @@
 #include <secder.h>    // DER_Encode()
 #include <cryptohi.h>  // SEC_DerSignData()
 #include <keyhi.h>     // SECKEY_CreateSubjectPublicKeyInfo()
-#undef Lock
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
