@@ -183,9 +183,6 @@ bool GetFileCreationLocalTimeFromHandle(HANDLE file_handle,
 // otherwise.  If either file can't be read, returns false.
 bool ContentsEqual(const FilePath& filename1,
                    const FilePath& filename2);
-// Deprecated temporary compatibility function.
-bool ContentsEqual(const std::wstring& filename1,
-                   const std::wstring& filename2);
 
 // Returns true if the contents of the two text files given are equal, false
 // otherwise.  This routine treats "\r\n" and "\n" as equivalent.
