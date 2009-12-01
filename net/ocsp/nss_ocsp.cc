@@ -4,11 +4,7 @@
 
 #include "net/ocsp/nss_ocsp.h"
 
-// Work around https://bugzilla.mozilla.org/show_bug.cgi?id=455424
-// until NSS 3.12.2 comes out and we update to it.
-#define Lock FOO_NSS_Lock
 #include <certt.h>
-#undef Lock
 #include <certdb.h>
 #include <ocsp.h>
 #include <nspr.h>
