@@ -40,7 +40,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslsock.c,v 1.59 2009/11/06 20:11:29 nelson%bolyard.com Exp $ */
+/* $Id: sslsock.c,v 1.60 2009/11/25 05:24:25 wtc%google.com Exp $ */
 #include "seccomon.h"
 #include "cert.h"
 #include "keyhi.h"
@@ -1658,8 +1658,8 @@ ssl_GetSockName(PRFileDesc *fd, PRNetAddr *name)
     return (PRStatus)(*ss->ops->getsockname)(ss, name);
 }
 
-SECStatus PR_CALLBACK
-SSL_SetSockPeerID(PRFileDesc *fd, char *peerID)
+SECStatus
+SSL_SetSockPeerID(PRFileDesc *fd, const char *peerID)
 {
     sslSocket *ss;
 

@@ -36,7 +36,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: ssl.h,v 1.30 2009/11/06 20:11:27 nelson%bolyard.com Exp $ */
+/* $Id: ssl.h,v 1.31 2009/11/25 05:24:25 wtc%google.com Exp $ */
 
 #ifndef __ssl_h_
 #define __ssl_h_
@@ -427,7 +427,7 @@ SSL_IMPORT SECStatus SSL_ShutdownServerSessionIDCache(void);
 ** Set peer information so we can correctly look up SSL session later.
 ** You only have to do this if you're tunneling through a proxy.
 */
-SSL_IMPORT SECStatus SSL_SetSockPeerID(PRFileDesc *fd, char *peerID);
+SSL_IMPORT SECStatus SSL_SetSockPeerID(PRFileDesc *fd, const char *peerID);
 
 /*
 ** Reveal the security information for the peer. 
