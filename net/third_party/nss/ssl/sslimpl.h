@@ -39,7 +39,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslimpl.h,v 1.69 2009/11/07 18:23:06 wtc%google.com Exp $ */
+/* $Id: sslimpl.h,v 1.70 2009/11/21 03:40:49 wtc%google.com Exp $ */
 
 #ifndef __sslimpl_h_
 #define __sslimpl_h_
@@ -544,8 +544,9 @@ typedef struct {
     SSLDestroy         destroy;
     void *             encodeContext;
     void *             decodeContext;
-    SSLCompressor      compress;
-    SSLCompressor      decompress;
+    SSLCompressor      compressor;    /* Don't name these fields compress */
+    SSLCompressor      decompressor;  /* and uncompress because zconf.h   */
+                                      /* may define them as macros.       */ 
     SSLDestroy         destroyCompressContext;
     void *             compressContext;
     SSLDestroy         destroyDecompressContext;
