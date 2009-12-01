@@ -176,7 +176,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
 
   // Checks to see if the proxy configuration changed, and then updates config_
   // to reference the new configuration.
-  void UpdateConfig();
+  void UpdateConfig(LoadLog* load_log);
 
   // Assign |config| as the current configuration.
   void SetConfig(const ProxyConfig& config);
@@ -186,7 +186,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   void StartInitProxyResolver();
 
   // Tries to update the configuration if it hasn't been checked in a while.
-  void UpdateConfigIfOld();
+  void UpdateConfigIfOld(LoadLog* load_log);
 
   // Returns true if the proxy resolver is being initialized for PAC
   // (downloading PAC script(s) + testing).
