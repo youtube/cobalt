@@ -613,6 +613,7 @@
         'http/des_unittest.cc',
         'flip/flip_framer_test.cc',
         'flip/flip_network_transaction_unittest.cc',
+        'flip/flip_protocol_test.cc',
         'flip/flip_session_unittest.cc',
         'flip/flip_stream_unittest.cc',
         'http/http_auth_cache_unittest.cc',
