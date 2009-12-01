@@ -48,7 +48,9 @@ void PartialData::RestoreHeaders(std::string* headers) const {
   int64 end = byte_range_.IsSuffixByteRange() ?
               byte_range_.suffix_length() : byte_range_.last_byte_position();
 
-  AddRangeHeader(current_range_start_, end, headers);
+  headers->assign(extra_headers_);
+  if (byte_range_.IsValid())
+    AddRangeHeader(current_range_start_, end, headers);
 }
 
 int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,

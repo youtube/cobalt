@@ -156,8 +156,11 @@ class HttpCache::Transaction : public HttpTransaction {
   // copy is valid).  Returns true if able to make the request conditional.
   bool ConditionalizeRequest();
 
-  // Makes sure that a 206 response is expected.  Returns a network error code.
-  bool ValidatePartialResponse(const HttpResponseHeaders* headers);
+  // Makes sure that a 206 response is expected.  Returns true on success.
+  // On success, |partial_content| will be set to true if we are processing a
+  // partial entry.
+  bool ValidatePartialResponse(const HttpResponseHeaders* headers,
+                               bool* partial_content);
 
   // Handles a response validation error by bypassing the cache.
   void IgnoreRangeRequest();
