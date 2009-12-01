@@ -5,14 +5,10 @@
 #include "net/base/ev_root_ca_metadata.h"
 
 #if defined(OS_LINUX)
-// Work around https://bugzilla.mozilla.org/show_bug.cgi?id=455424
-// until NSS 3.12.2 comes out and we update to it.
-#define Lock FOO_NSS_Lock
 #include <cert.h>
 #include <pkcs11n.h>
 #include <secerr.h>
 #include <secoid.h>
-#undef Lock
 #endif
 
 #include "base/logging.h"
