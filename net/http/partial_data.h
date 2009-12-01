@@ -46,8 +46,8 @@ class PartialData {
   // removed.
   void SetHeaders(const std::string& headers);
 
-  // Restores the byte-range header that was removed during Init(), by appending
-  // the data to the provided |headers|.
+  // Restores the byte-range headers, by appending the byte range to the headers
+  // provided to SetHeaders().
   void RestoreHeaders(std::string* headers) const;
 
   // Builds the required |headers| to perform the proper cache validation for
