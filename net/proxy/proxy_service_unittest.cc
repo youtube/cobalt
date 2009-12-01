@@ -106,9 +106,9 @@ TEST(ProxyServiceTest, Direct) {
   EXPECT_TRUE(info.is_direct());
 
   // Check the LoadLog was filled correctly.
-  EXPECT_EQ(2u, log->events().size());
+  EXPECT_EQ(4u, log->events().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
+  ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
 
 TEST(ProxyServiceTest, PAC) {
@@ -145,13 +145,13 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
 
   // Check the LoadLog was filled correctly.
-  EXPECT_EQ(4u, log->events().size());
+  EXPECT_EQ(6u, log->events().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
+  ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
                     LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
+  ExpectLogContains(log, 4, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
                     LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
+  ExpectLogContains(log, 5, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
 
 // Test that the proxy resolver does not see the URL's username/password
@@ -1134,14 +1134,14 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   EXPECT_FALSE(callback2.have_result());  // Cancelled.
 
   // Check the LoadLog for request 1 (which was cancelled) got filled properly.
-  EXPECT_EQ(4u, log1->events().size());
+  EXPECT_EQ(6u, log1->events().size());
   ExpectLogContains(log1, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log1, 1, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
+  ExpectLogContains(log1, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
                     LoadLog::PHASE_BEGIN);
   // Note that TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC is never completed before
   // the cancellation occured.
-  ExpectLogContains(log1, 2, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
-  ExpectLogContains(log1, 3, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
+  ExpectLogContains(log1, 4, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
+  ExpectLogContains(log1, 5, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
 
 // Test that if auto-detect fails, we fall-back to the custom pac.
@@ -1517,7 +1517,7 @@ TEST(ProxyServiceTest, UpdateConfigAfterFailedAutodetect) {
 
   // Force the ProxyService to pull down a new proxy configuration.
   // (Even though the configuration isn't old/bad).
-  service->UpdateConfig();
+  service->UpdateConfig(NULL);
 
   // Start another request -- the effective configuration has not
   // changed, so we shouldn't re-run the autodetect step.
@@ -1573,7 +1573,7 @@ TEST(ProxyServiceTest, UpdateConfigFromPACToDirect) {
   // requests should complete synchronously now as direct-connect.
   config.auto_detect = false;
   config_service->config = config;
-  service->UpdateConfig();
+  service->UpdateConfig(NULL);
 
   // Start another request -- the effective configuration has changed.
   ProxyInfo info2;
