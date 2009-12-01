@@ -5,11 +5,7 @@
 #ifndef NET_SOCKET_SSL_CLIENT_SOCKET_NSS_H_
 #define NET_SOCKET_SSL_CLIENT_SOCKET_NSS_H_
 
-// Work around https://bugzilla.mozilla.org/show_bug.cgi?id=455424
-// until NSS 3.12.2 comes out and we update to it.
-#define Lock FOO_NSS_Lock
 #include <certt.h>
-#undef Lock
 #include <keyt.h>
 #include <nspr.h>
 #include <nss.h>
