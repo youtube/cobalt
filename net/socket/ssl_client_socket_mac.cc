@@ -266,7 +266,9 @@ int KeySizeOfCipherSuite(SSLCipherSuite suite) {
 X509Certificate* GetServerCert(SSLContextRef ssl_context) {
   CFArrayRef certs;
   OSStatus status = SSLCopyPeerCertificates(ssl_context, &certs);
-  // SSLCopyPeerCertificates may succeed but return a null |certs|.
+  // SSLCopyPeerCertificates may succeed but return a null |certs|
+  // (if we're using an anonymous cipher suite or if we call it
+  // before the certificate message has arrived and been parsed).
   if (status != noErr || !certs)
     return NULL;
   scoped_cftyperef<CFArrayRef> scoped_certs(certs);
@@ -433,8 +435,10 @@ bool SSLClientSocketMac::SetSendBufferSize(int32 size) {
 
 void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->Reset();
-  if (!server_cert_)
+  if (!server_cert_) {
+    NOTREACHED();
     return;
+  }
 
   // set cert
   ssl_info->cert = server_cert_;
@@ -681,12 +685,7 @@ int SSLClientSocketMac::DoHandshakeStart() {
   if (status == errSSLWouldBlock)
     next_handshake_state_ = STATE_HANDSHAKE_START;
 
-  server_cert_ = GetServerCert(ssl_context_);
-
   if (status == noErr || status == errSSLServerAuthCompletedFlag) {
-    if (!server_cert_)
-      return ERR_UNEXPECTED;
-
     // TODO(hawk): we verify the certificate chain even on resumed sessions
     // so that we have the certificate status (valid, expired but overridden
     // by the user, EV, etc.) available. Eliminate this step once we have
@@ -701,7 +700,13 @@ int SSLClientSocketMac::DoHandshakeStart() {
     }
   }
 
-  return NetErrorFromOSStatus(status);
+  int net_error = NetErrorFromOSStatus(status);
+  if (status == noErr || IsCertificateError(net_error)) {
+    server_cert_ = GetServerCert(ssl_context_);
+    if (!server_cert_)
+      return ERR_UNEXPECTED;
+  }
+  return net_error;
 }
 
 int SSLClientSocketMac::DoVerifyCert() {
