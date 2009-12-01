@@ -874,7 +874,9 @@ TEST_F(ReadOnlyFileUtilTest, ContentsEqual) {
   EXPECT_TRUE(file_util::ContentsEqual(original_file, same_file));
   EXPECT_FALSE(file_util::ContentsEqual(original_file, same_length_file));
   EXPECT_FALSE(file_util::ContentsEqual(original_file, different_file));
-  EXPECT_FALSE(file_util::ContentsEqual(L"bogusname", L"bogusname"));
+  EXPECT_FALSE(file_util::ContentsEqual(
+      FilePath(FILE_PATH_LITERAL("bogusname")),
+      FilePath(FILE_PATH_LITERAL("bogusname"))));
   EXPECT_FALSE(file_util::ContentsEqual(original_file, different_first_file));
   EXPECT_FALSE(file_util::ContentsEqual(original_file, different_last_file));
   EXPECT_TRUE(file_util::ContentsEqual(empty1_file, empty2_file));
