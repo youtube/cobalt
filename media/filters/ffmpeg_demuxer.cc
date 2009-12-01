@@ -61,10 +61,14 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
     case CODEC_TYPE_AUDIO:
       media_format_.SetAsString(MediaFormat::kMimeType,
                                 mime_type::kFFmpegAudio);
+      media_format_.SetAsInteger(MediaFormat::kFFmpegCodecID,
+                                 stream->codec->codec_id);
       break;
     case CODEC_TYPE_VIDEO:
       media_format_.SetAsString(MediaFormat::kMimeType,
                                 mime_type::kFFmpegVideo);
+      media_format_.SetAsInteger(MediaFormat::kFFmpegCodecID,
+                                 stream->codec->codec_id);
       break;
     default:
       NOTREACHED();
