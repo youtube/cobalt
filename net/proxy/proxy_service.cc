@@ -278,7 +278,7 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
 
   // Check if the request can be completed right away. This is the case when
   // using a direct connection, or when the config is bad.
-  UpdateConfigIfOld();
+  UpdateConfigIfOld(load_log);
   int rv = TryToCompleteSynchronously(url, result);
   if (rv != ERR_IO_PENDING) {
     LoadLog::EndEvent(load_log, LoadLog::TYPE_PROXY_SERVICE);
@@ -450,7 +450,7 @@ int ProxyService::ReconsiderProxyAfterError(const GURL& url,
 
   bool re_resolve = result->config_id_ != config_.id();
   if (!re_resolve) {
-    UpdateConfig();
+    UpdateConfig(load_log);
     if (result->config_id_ != config_.id()) {
       // A new configuration!
       re_resolve = true;
@@ -535,7 +535,7 @@ ProxyScriptFetcher* ProxyService::GetProxyScriptFetcher() const {
 void ProxyService::ResetConfigService(
     ProxyConfigService* new_proxy_config_service) {
   config_service_.reset(new_proxy_config_service);
-  UpdateConfig();
+  UpdateConfig(NULL);
 }
 
 void ProxyService::PurgeMemory() {
@@ -602,11 +602,19 @@ ProxyResolver* ProxyService::CreateNonV8ProxyResolver() {
 #endif
 }
 
-void ProxyService::UpdateConfig() {
+void ProxyService::UpdateConfig(LoadLog* load_log) {
   bool is_first_update = !config_has_been_initialized();
 
   ProxyConfig latest;
-  if (config_service_->GetProxyConfig(&latest) != OK) {
+
+  // Fetch the proxy settings.
+  LoadLog::BeginEvent(load_log,
+      LoadLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
+  int rv = config_service_->GetProxyConfig(&latest);
+  LoadLog::EndEvent(load_log,
+      LoadLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
+
+  if (rv != OK) {
     if (is_first_update) {
       // Default to direct-connection if the first fetch fails.
       LOG(INFO) << "Failed initial proxy configuration fetch.";
@@ -665,14 +673,14 @@ void ProxyService::StartInitProxyResolver() {
     OnInitProxyResolverComplete(rv);
 }
 
-void ProxyService::UpdateConfigIfOld() {
+void ProxyService::UpdateConfigIfOld(LoadLog* load_log) {
   // The overhead of calling ProxyConfigService::GetProxyConfig is very low.
   const TimeDelta kProxyConfigMaxAge = TimeDelta::FromSeconds(5);
 
   // Periodically check for a new config.
   if (!config_has_been_initialized() ||
       (TimeTicks::Now() - config_last_update_time_) > kProxyConfigMaxAge)
-    UpdateConfig();
+    UpdateConfig(load_log);
 }
 
 bool ProxyService::ShouldBypassProxyForURL(const GURL& url) {
