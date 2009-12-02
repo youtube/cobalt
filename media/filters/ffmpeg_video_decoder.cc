@@ -97,8 +97,8 @@ bool FFmpegVideoDecoder::OnInitialize(DemuxerStream* demuxer_stream) {
 
 void FFmpegVideoDecoder::OnSeek(base::TimeDelta time) {
   // Everything in the presentation time queue is invalid, clear the queue.
-  while (!pts_queue_.empty())
-    pts_queue_.pop();
+  while (!pts_heap_.IsEmpty())
+    pts_heap_.Pop();
 
   // We're back where we started.  It should be completely safe to flush here
   // since DecoderBase uses |expecting_discontinuous_| to verify that the next
@@ -151,14 +151,14 @@ void FFmpegVideoDecoder::OnDecode(Buffer* buffer) {
   // TODO(ajwong): This push logic, along with the pop logic below needs to
   // be reevaluated to correctly handle decode errors.
   if (state_ == kNormal) {
-    pts_queue_.push(buffer->GetTimestamp());
+    pts_heap_.Push(buffer->GetTimestamp());
   }
 
   // Otherwise, attempt to decode a single frame.
   scoped_ptr_malloc<AVFrame, ScopedPtrAVFree> yuv_frame(avcodec_alloc_frame());
   if (DecodeFrame(*buffer, codec_context_, yuv_frame.get())) {
     last_pts_ = FindPtsAndDuration(*time_base_,
-                                   pts_queue_,
+                                   pts_heap_,
                                    last_pts_,
                                    yuv_frame.get());
 
@@ -170,8 +170,8 @@ void FFmpegVideoDecoder::OnDecode(Buffer* buffer) {
     // popping a pts because no frame was produced.  However, when
     // avcodec_decode_video2() returns false, it is a decode error, which
     // if it means a frame is dropped, may require us to pop one more time.
-    if (!pts_queue_.empty()) {
-      pts_queue_.pop();
+    if (!pts_heap_.IsEmpty()) {
+      pts_heap_.Pop();
     } else {
       NOTREACHED() << "Attempting to decode more frames than were input.";
     }
@@ -292,7 +292,7 @@ bool FFmpegVideoDecoder::DecodeFrame(const Buffer& buffer,
 
 FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
     const AVRational& time_base,
-    const TimeQueue& pts_queue,
+    const PtsHeap& pts_heap,
     const TimeTuple& last_pts,
     const AVFrame* frame) {
   TimeTuple pts;
@@ -314,10 +314,10 @@ FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
       (frame->pts != 0)) {
     pts.timestamp = ConvertTimestamp(time_base, frame->pts);
     repeat_pict = frame->repeat_pict;
-  } else if (!pts_queue.empty()) {
+  } else if (!pts_heap.IsEmpty()) {
     // If the frame did not have pts, try to get the pts from the
-    // |pts_queue_|.
-    pts.timestamp = pts_queue.top();
+    // |pts_heap|.
+    pts.timestamp = pts_heap.Top();
   } else {
     DCHECK(last_pts.timestamp != StreamSample::kInvalidTimestamp);
     DCHECK(last_pts.duration != StreamSample::kInvalidTimestamp);
@@ -356,15 +356,6 @@ VideoSurface::Format FFmpegVideoDecoder::GetSurfaceFormat(
 void FFmpegVideoDecoder::SignalPipelineError() {
   host()->SetError(PIPELINE_ERROR_DECODE);
   state_ = kDecodeFinished;
-}
-
-// static
-bool FFmpegVideoDecoder::PtsHeapOrdering::operator()(
-    const base::TimeDelta& lhs,
-    const base::TimeDelta& rhs) const {
-  // std::priority_queue is a max-heap. We want lower timestamps to show up
-  // first so reverse the natural less-than comparison.
-  return rhs < lhs;
 }
 
 }  // namespace
