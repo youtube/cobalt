@@ -14,7 +14,6 @@
 #elif defined(OS_MACOSX)
 #include "base/base_paths_mac.h"
 #endif
-#include "base/path_service.h"
 
 namespace base {
 
@@ -32,6 +31,11 @@ enum {
   DIR_SOURCE_ROOT,  // Returns the root of the source tree.  This key is useful
                     // for tests that need to locate various resources.  It
                     // should not be used outside of test code.
+#if defined(OS_LINUX)
+  DIR_USER_CACHE,   // Directory where user cache data resides. The Chromium
+                    // browser cache can be a subdirectory of DIR_USER_CACHE.
+                    // This is $XDG_CACHE_HOME on Linux.
+#endif
 
   PATH_END
 };

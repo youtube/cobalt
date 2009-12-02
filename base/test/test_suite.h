@@ -15,6 +15,7 @@
 #include "base/i18n/icu_util.h"
 #include "base/multiprocess_test.h"
 #include "base/nss_init.h"
+#include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/scoped_nsautorelease_pool.h"
 #include "base/scoped_ptr.h"
