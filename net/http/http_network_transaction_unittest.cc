@@ -7,6 +7,7 @@
 #include "base/compiler_specific.h"
 #include "net/base/completion_callback.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/base/request_priority.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
@@ -186,7 +187,7 @@ class CaptureGroupNameSocketPool : public TCPClientSocketPool {
 
   virtual int RequestSocket(const std::string& group_name,
                             const void* socket_params,
-                            int priority,
+                            RequestPriority priority,
                             ClientSocketHandle* handle,
                             CompletionCallback* callback,
                             LoadLog* load_log) {

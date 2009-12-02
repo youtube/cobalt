@@ -48,7 +48,7 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       enable_profiling_(false),
       redirect_limit_(kMaxRedirects),
       final_upload_progress_(0),
-      priority_(0),
+      priority_(net::LOWEST),
       ALLOW_THIS_IN_INITIALIZER_LIST(request_tracker_node_(this)) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
