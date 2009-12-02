@@ -360,6 +360,7 @@ void DisplayDebugMessage(const std::string& str) {
   }
 #else
   fprintf(stderr, "%s\n", str.c_str());
+  fflush(stderr);
 #endif
 }
 
@@ -467,23 +468,28 @@ LogMessage::~LogMessage() {
       logging_destination == LOG_TO_BOTH_FILE_AND_SYSTEM_DEBUG_LOG) {
 #if defined(OS_WIN)
     OutputDebugStringA(str_newline.c_str());
-    if (severity_ >= kAlwaysPrintErrorLevel)
+    if (severity_ >= kAlwaysPrintErrorLevel) {
+#else
+    {
 #endif
-    // TODO(erikkay): this interferes with the layout tests since it grabs
-    // stderr and stdout and diffs them against known data. Our info and warn
-    // logs add noise to that.  Ideally, the layout tests would set the log
-    // level to ignore anything below error.  When that happens, we should
-    // take this fprintf out of the #else so that Windows users can benefit
-    // from the output when running tests from the command-line.  In the
-    // meantime, we leave this in for Mac and Linux, but until this is fixed
-    // they won't be able to pass any layout tests that have info or warn logs.
-    // See http://b/1343647
-    fprintf(stderr, "%s", str_newline.c_str());
+      // TODO(erikkay): this interferes with the layout tests since it grabs
+      // stderr and stdout and diffs them against known data. Our info and warn
+      // logs add noise to that.  Ideally, the layout tests would set the log
+      // level to ignore anything below error.  When that happens, we should
+      // take this fprintf out of the #else so that Windows users can benefit
+      // from the output when running tests from the command-line.  In the
+      // meantime, we leave this in for Mac and Linux, but until this is fixed
+      // they won't be able to pass any layout tests that have info or warn
+      // logs.  See http://b/1343647
+      fprintf(stderr, "%s", str_newline.c_str());
+      fflush(stderr);
+    }
   } else if (severity_ >= kAlwaysPrintErrorLevel) {
     // When we're only outputting to a log file, above a certain log level, we
     // should still output to stderr so that we can better detect and diagnose
     // problems with unit tests, especially on the buildbots.
     fprintf(stderr, "%s", str_newline.c_str());
+    fflush(stderr);
   }
 
   // write to log file
@@ -530,6 +536,7 @@ LogMessage::~LogMessage() {
               NULL);
 #else
     fprintf(log_file, "%s", str_newline.c_str());
+    fflush(log_file);
 #endif
 
     if (lock_log_file == LOCK_LOG_FILE) {
