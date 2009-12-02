@@ -287,6 +287,10 @@ class DictionaryValue : public Value {
   // to be used as paths.
   bool RemoveWithoutPathExpansion(const std::wstring& key, Value** out_value);
 
+  // Makes a copy of |this| but doesn't include empty dictionaries and lists in
+  // the copy.  This never returns NULL, even if |this| itself is empty.
+  DictionaryValue* DeepCopyWithoutEmptyChildren();
+
   // This class provides an iterator for the keys in the dictionary.
   // It can't be used to modify the dictionary.
   //
@@ -330,6 +334,9 @@ class ListValue : public Value {
 
   // Returns the number of Values in this list.
   size_t GetSize() const { return list_.size(); }
+
+  // Returns whether the list is empty.
+  bool empty() const { return list_.empty(); }
 
   // Sets the list item at the given index to be the Value specified by
   // the value given.  If the index beyond the current end of the list, null
