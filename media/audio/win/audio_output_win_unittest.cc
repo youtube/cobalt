@@ -7,6 +7,7 @@
 #include "base/basictypes.h"
 #include "base/base_paths.h"
 #include "base/file_util.h"
+#include "base/path_service.h"
 #include "media/audio/audio_output.h"
 #include "media/audio/simple_sources.h"
 #include "testing/gmock/include/gmock/gmock.h"

@@ -4,6 +4,7 @@
 
 #include "base/base_paths.h"
 #include "base/file_util.h"
+#include "base/path_service.h"
 #include "media/base/djb2.h"
 #include "media/base/yuv_convert.h"
 #include "media/base/yuv_row.h"
@@ -254,4 +255,3 @@ TEST(YUVConvertTest, Clamp) {
   int expected_test = memcmp(rgb, expected, sizeof(expected));
   EXPECT_EQ(0, expected_test);
 }
-

@@ -6,18 +6,20 @@
 
 #include <dirent.h>
 #include <errno.h>
+#include <glib.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <unistd.h>
 
 #include <vector>
 
 #include "base/command_line.h"
 #include "base/lock.h"
+#include "base/path_service.h"
 #include "base/process_util.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
+#include "base/third_party/xdg_user_dirs/xdg_user_dir_lookup.h"
 
 namespace {
 
@@ -179,6 +181,23 @@ std::string linux_distro =
     "Unknown";
 #endif
 
+FilePath GetHomeDir(EnvironmentVariableGetter* env) {
+  std::string home_dir;
+  if (env->Getenv("HOME", &home_dir) && !home_dir.empty())
+    return FilePath(home_dir);
+
+  home_dir = g_get_home_dir();
+  if (!home_dir.empty())
+    return FilePath(home_dir);
+
+  FilePath rv;
+  if (PathService::Get(base::DIR_TEMP, &rv))
+    return rv;
+
+  // Last resort.
+  return FilePath("/tmp");
+}
+
 std::string GetLinuxDistro() {
 #if defined(OS_CHROMEOS)
   return linux_distro;
@@ -213,6 +232,25 @@ std::string GetLinuxDistro() {
     return linux_distro;
   }
 #endif
+}
+
+FilePath GetXDGDirectory(EnvironmentVariableGetter* env,
+                         const char* env_name, const char* fallback_dir) {
+  std::string env_value;
+  if (env->Getenv(env_name, &env_value) && !env_value.empty())
+    return FilePath(env_value);
+  return GetHomeDir(env).Append(fallback_dir);
+}
+
+FilePath GetXDGUserDirectory(EnvironmentVariableGetter* env,
+                             const char* dir_name, const char* fallback_dir) {
+  char* xdg_dir = xdg_user_dir_lookup(dir_name);
+  if (xdg_dir) {
+    FilePath rv(xdg_dir);
+    free(xdg_dir);
+    return rv;
+  }
+  return GetHomeDir(env).Append(fallback_dir);
 }
 
 // static

@@ -10,6 +10,8 @@
 
 #include <string>
 
+class FilePath;
+
 namespace base {
 
 static const char kFindInodeSwitch[] = "--find-inode";
@@ -34,6 +36,23 @@ class EnvironmentVariableGetter {
   // Create an instance of EnvironmentVariableGetter
   static EnvironmentVariableGetter* Create();
 };
+
+// Get the home directory.
+FilePath GetHomeDir(EnvironmentVariableGetter* env);
+
+// Utility function for getting XDG directories.
+// |env_name| is the name of an environment variable that we want to use to get
+// a directory path. |fallback_dir| is the directory relative to $HOME that we
+// use if |env_name| cannot be found or is empty. |fallback_dir| may be NULL.
+// Examples of |env_name| are XDG_CONFIG_HOME and XDG_DATA_HOME.
+FilePath GetXDGDirectory(EnvironmentVariableGetter* env,
+                         const char* env_name, const char* fallback_dir);
+
+// Wrapper around xdg_user_dir_lookup() from src/base/third_party/xdg-user-dirs
+// This looks up "well known" user directories like the desktop and music
+// folder. Examples of |dir_name| are DESKTOP and MUSIC.
+FilePath GetXDGUserDirectory(EnvironmentVariableGetter* env,
+                             const char* dir_name, const char* fallback_dir);
 
 enum DesktopEnvironment {
   DESKTOP_ENVIRONMENT_OTHER,
