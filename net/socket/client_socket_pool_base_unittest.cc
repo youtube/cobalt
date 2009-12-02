@@ -11,6 +11,7 @@
 #include "net/base/load_log.h"
 #include "net/base/load_log_unittest.h"
 #include "net/base/net_errors.h"
+#include "net/base/request_priority.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
@@ -24,7 +25,7 @@ namespace {
 
 const int kDefaultMaxSockets = 4;
 const int kDefaultMaxSocketsPerGroup = 2;
-const int kDefaultPriority = 5;
+const net::RequestPriority kDefaultPriority = MEDIUM;
 
 typedef ClientSocketPoolBase<const void*> TestClientSocketPoolBase;
 
@@ -283,7 +284,7 @@ class TestClientSocketPool : public ClientSocketPool {
   virtual int RequestSocket(
       const std::string& group_name,
       const void* params,
-      int priority,
+      net::RequestPriority priority,
       ClientSocketHandle* handle,
       CompletionCallback* callback,
       LoadLog* load_log) {
@@ -407,7 +408,8 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
                                      connect_job_factory_);
   }
 
-  int StartRequest(const std::string& group_name, int priority) {
+  int StartRequest(const std::string& group_name,
+                   net::RequestPriority priority) {
     return StartRequestUsingPool<TestClientSocketPool, const void*>(
         pool_.get(), group_name, priority, NULL);
   }
@@ -441,7 +443,7 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
 // the compiler will infer (in this case, incorrectly) that NULL is of type int.
 int InitHandle(ClientSocketHandle* handle,
                const std::string& group_name,
-               int priority,
+               net::RequestPriority priority,
                CompletionCallback* callback,
                TestClientSocketPool* pool,
                LoadLog* load_log) {
@@ -522,7 +524,7 @@ TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   TestSocketRequest req(&request_order_, &completion_count_);
-  int rv = InitHandle(req.handle(), "a", 0, &req, pool_.get(), log);
+  int rv = InitHandle(req.handle(), "a", LOW, &req, pool_.get(), log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(OK, req.WaitForResult());
@@ -652,17 +654,17 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitReachedNewGroup) {
 TEST_F(ClientSocketPoolBaseTest, TotalLimitRespectsPriority) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
-  EXPECT_EQ(OK, StartRequest("b", 3));
-  EXPECT_EQ(OK, StartRequest("a", 3));
-  EXPECT_EQ(OK, StartRequest("b", 6));
-  EXPECT_EQ(OK, StartRequest("a", 6));
+  EXPECT_EQ(OK, StartRequest("b", LOWEST));
+  EXPECT_EQ(OK, StartRequest("a", MEDIUM));
+  EXPECT_EQ(OK, StartRequest("b", HIGHEST));
+  EXPECT_EQ(OK, StartRequest("a", LOWEST));
 
   EXPECT_EQ(static_cast<int>(requests_.size()),
             client_socket_factory_.allocation_count());
 
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", 4));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 5));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("b", 7));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", LOWEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("b", HIGHEST));
 
   ReleaseAllConnections(KEEP_ALIVE);
 
@@ -677,8 +679,8 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitRespectsPriority) {
   EXPECT_EQ(3, GetOrderOfRequest(3));
   EXPECT_EQ(4, GetOrderOfRequest(4));
 
-  // Request ("b", 7) has the highest priority, then ("a", 5),
-  // and then ("c", 4).
+  // Request ("b", HIGHEST) has the highest priority, then ("a", MEDIUM),
+  // and then ("c", LOWEST).
   EXPECT_EQ(7, GetOrderOfRequest(5));
   EXPECT_EQ(6, GetOrderOfRequest(6));
   EXPECT_EQ(5, GetOrderOfRequest(7));
@@ -690,17 +692,17 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitRespectsPriority) {
 TEST_F(ClientSocketPoolBaseTest, TotalLimitRespectsGroupLimit) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
-  EXPECT_EQ(OK, StartRequest("a", 3));
-  EXPECT_EQ(OK, StartRequest("a", 6));
-  EXPECT_EQ(OK, StartRequest("b", 3));
-  EXPECT_EQ(OK, StartRequest("b", 6));
+  EXPECT_EQ(OK, StartRequest("a", LOWEST));
+  EXPECT_EQ(OK, StartRequest("a", LOW));
+  EXPECT_EQ(OK, StartRequest("b", HIGHEST));
+  EXPECT_EQ(OK, StartRequest("b", MEDIUM));
 
   EXPECT_EQ(static_cast<int>(requests_.size()),
             client_socket_factory_.allocation_count());
 
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", 6));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 4));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("b", 7));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", MEDIUM));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("b", HIGHEST));
 
   ReleaseAllConnections(KEEP_ALIVE);
 
@@ -822,11 +824,11 @@ TEST_F(ClientSocketPoolBaseTest, PendingRequests) {
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 3));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 4));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 2));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
 
   ReleaseAllConnections(KEEP_ALIVE);
 
@@ -851,11 +853,11 @@ TEST_F(ClientSocketPoolBaseTest, PendingRequests_NoKeepAlive) {
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 3));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 4));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 2));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
 
   ReleaseAllConnections(NO_KEEP_ALIVE);
 
@@ -931,11 +933,11 @@ TEST_F(ClientSocketPoolBaseTest, CancelRequest) {
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 3));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 4));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 2));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
 
   // Cancel a request.
   size_t index_to_cancel = kDefaultMaxSocketsPerGroup + 2;
@@ -1218,7 +1220,7 @@ TEST_F(ClientSocketPoolBaseTest, GroupWithPendingRequestsIsNotEmpty) {
   const int kMaxSocketsPerGroup = 2;
   CreatePool(kMaxSockets, kMaxSocketsPerGroup);
 
-  const int kHighPriority = kDefaultPriority + 100;
+  const RequestPriority kHighPriority = HIGHEST;
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
@@ -1261,7 +1263,8 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding,
        ConnectJob_NoTimeoutOnSynchronousCompletion) {
   TestConnectJobDelegate delegate;
   ClientSocketHandle ignored;
-  TestClientSocketPoolBase::Request request(&ignored, NULL, 0, NULL, NULL);
+  TestClientSocketPoolBase::Request request(&ignored, NULL, LOWEST, NULL,
+                                            NULL);
   scoped_ptr<TestConnectJob> job(
       new TestConnectJob(TestConnectJob::kMockJob,
                          "a",
@@ -1276,7 +1279,8 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding,
 TEST_F(ClientSocketPoolBaseTest_LateBinding, ConnectJob_TimedOut) {
   TestConnectJobDelegate delegate;
   ClientSocketHandle ignored;
-  TestClientSocketPoolBase::Request request(&ignored, NULL, 0, NULL, NULL);
+  TestClientSocketPoolBase::Request request(&ignored, NULL, LOWEST, NULL,
+                                            NULL);
   // Deleted by TestConnectJobDelegate.
   TestConnectJob* job =
       new TestConnectJob(TestConnectJob::kMockPendingJob,
@@ -1318,7 +1322,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, BasicAsynchronous) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
   TestSocketRequest req(&request_order_, &completion_count_);
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  int rv = InitHandle(req.handle(), "a", 0, &req, pool_.get(), log);
+  int rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(OK, req.WaitForResult());
@@ -1389,11 +1393,11 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingRequests) {
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 3));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 4));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 2));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
 
   ReleaseAllConnections(KEEP_ALIVE);
 
@@ -1418,11 +1422,11 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingRequests_NoKeepAlive) {
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 3));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 4));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 2));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
 
   ReleaseAllConnections(NO_KEEP_ALIVE);
 
@@ -1529,11 +1533,11 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequest) {
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 3));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 4));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 2));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
 
   // Cancel a request.
   size_t index_to_cancel = kDefaultMaxSocketsPerGroup + 2;
@@ -1564,10 +1568,10 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequestLimitsJobs) {
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
 
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 1));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 2));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 3));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", 4));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
 
   EXPECT_EQ(kDefaultMaxSocketsPerGroup, pool_->NumConnectJobsInGroup("a"));
   requests_[2]->handle()->Reset();
@@ -1798,7 +1802,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding,
   const int kMaxSocketsPerGroup = 2;
   CreatePool(kMaxSockets, kMaxSocketsPerGroup);
 
-  const int kHighPriority = kDefaultPriority + 100;
+  const RequestPriority kHighPriority = HIGHEST;
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
@@ -1838,12 +1842,12 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CleanupTimedOutIdleSockets) {
   // Startup two mock pending connect jobs, which will sit in the MessageLoop.
 
   TestSocketRequest req(&request_order_, &completion_count_);
-  int rv = InitHandle(req.handle(), "a", 0, &req, pool_.get(), NULL);
+  int rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
 
   TestSocketRequest req2(&request_order_, &completion_count_);
-  rv = InitHandle(req2.handle(), "a", 0, &req2, pool_.get(), NULL);
+  rv = InitHandle(req2.handle(), "a", LOWEST, &req2, pool_.get(), NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req2.handle()));
 
@@ -1869,7 +1873,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CleanupTimedOutIdleSockets) {
   // used socket.  Request it to make sure that it's used.
 
   pool_->CleanupTimedOutIdleSockets();
-  rv = InitHandle(req.handle(), "a", 0, &req, pool_.get(), NULL);
+  rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), NULL);
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(req.handle()->is_reused());
 }
