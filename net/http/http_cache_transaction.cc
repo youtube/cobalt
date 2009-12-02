@@ -1233,9 +1233,10 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
     if (partial_.get() && mode_ == READ_WRITE) {
       // We need to move on to the next range.
       result = ContinuePartialCacheValidation();
-      if (result != OK)
+      if (result != OK || !entry_) {
         // Any error was already handled.
         return result;
+      }
       cache_->ConvertWriterToReader(entry_);
     }
     cache_->DoneReadingFromEntry(entry_, this);

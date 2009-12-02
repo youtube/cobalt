@@ -629,10 +629,12 @@ class RangeTransactionServer {
   RangeTransactionServer() {
     not_modified_ = false;
     modified_ = false;
+    bad_200_ = false;
   }
   ~RangeTransactionServer() {
     not_modified_ = false;
     modified_ = false;
+    bad_200_ = false;
   }
 
   // Returns only 416 or 304 when set.
@@ -640,6 +642,9 @@ class RangeTransactionServer {
 
   // Returns 206 when revalidating a range (instead of 304).
   void set_modified(bool value) { modified_ = value; }
+
+  // Returns 200 instead of 206 (a malformed response overall).
+  void set_bad_200(bool value) { bad_200_ = value; }
 
   static void RangeHandler(const net::HttpRequestInfo* request,
                            std::string* response_status,
@@ -649,10 +654,12 @@ class RangeTransactionServer {
  private:
   static bool not_modified_;
   static bool modified_;
+  static bool bad_200_;
   DISALLOW_COPY_AND_ASSIGN(RangeTransactionServer);
 };
 bool RangeTransactionServer::not_modified_ = false;
 bool RangeTransactionServer::modified_ = false;
+bool RangeTransactionServer::bad_200_ = false;
 
 // A dummy extra header that must be preserved on a given request.
 #define EXTRA_HEADER "Extra: header\r\n"
@@ -711,6 +718,10 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
       std::string content_length = StringPrintf("Content-Length: %d\n", len);
       response_headers->replace(response_headers->find("Content-Length:"),
                                 content_length.size(), content_length);
+    }
+    if (bad_200_) {
+      // We return a range, but with a response code of 200.
+      response_status->assign("HTTP/1.1 200 Success");
     }
   } else {
     response_status->assign("HTTP/1.1 304 Not Modified");
@@ -3067,6 +3078,32 @@ TEST(HttpCache, RangeHEAD) {
   EXPECT_EQ(0, cache.disk_cache()->create_count());
 
   RemoveMockTransaction(&kRangeGET_TransactionOK);
+}
+
+// Tests that we don't crash when after reading from the cache we issue a
+// request for the next range and the server gives us a 200 synchronously.
+TEST(HttpCache, RangeGET_FastFlakyServer) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = "Range: bytes = 40-\r\n" EXTRA_HEADER;
+  transaction.test_mode = TEST_MODE_SYNC_NET_START;
+  AddMockTransaction(&transaction);
+
+  // Write to the cache.
+  RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
+
+  // And now read from the cache and the network.
+  RangeTransactionServer handler;
+  handler.set_bad_200(true);
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&transaction);
 }
 
 #ifdef NDEBUG
