@@ -57,6 +57,8 @@ class OCSPInitSingleton : public MessageLoop::DestructionObserver {
   friend struct DefaultSingletonTraits<OCSPInitSingleton>;
   OCSPInitSingleton();
   virtual ~OCSPInitSingleton() {
+    if (io_loop_)
+      io_loop_->RemoveDestructionObserver(this);
     request_context_ = NULL;
   }
 
