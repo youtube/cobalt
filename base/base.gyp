@@ -63,6 +63,8 @@
         'third_party/xdg_mime/xdgmimemagic.h',
         'third_party/xdg_mime/xdgmimeparent.c',
         'third_party/xdg_mime/xdgmimeparent.h',
+        'third_party/xdg_user_dirs/xdg_user_dir_lookup.cc',
+        'third_party/xdg_user_dirs/xdg_user_dir_lookup.h',
         'atomicops_internals_x86_gcc.cc',
         'at_exit.cc',
         'at_exit.h',
@@ -434,6 +436,7 @@
           {  # else: OS != "linux" && OS != "freebsd"
             'sources/': [
               ['exclude', '/xdg_mime/'],
+              ['exclude', '/xdg_user_dirs/'],
               ['exclude', '_nss\.cc$'],
             ],
             'sources!': [
