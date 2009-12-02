@@ -54,7 +54,7 @@ class DecoderPrivateMock : public FFmpegVideoDecoder {
                                  AVCodecContext* codec_context,
                                  AVFrame* yuv_frame));
   MOCK_METHOD4(FindPtsAndDuration, TimeTuple(const AVRational& time_base,
-                                             const TimeQueue& pts_queue,
+                                             const PtsHeap& pts_heap,
                                              const TimeTuple& last_pts,
                                              const AVFrame* frame));
   MOCK_METHOD0(SignalPipelineError, void());
@@ -317,7 +317,7 @@ TEST_F(FFmpegVideoDecoderTest, GetSurfaceFormat) {
 
 TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
   // Start with an empty timestamp queue.
-  FFmpegVideoDecoder::TimeQueue pts_queue;
+  PtsHeap pts_heap;
   scoped_refptr<FFmpegVideoDecoder> decoder = new FFmpegVideoDecoder();
 
   // Use 1/2 second for simple results.  Thus, calculated Durations should be
@@ -333,14 +333,14 @@ TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
   // Simulate an uninitialized yuv_frame.
   yuv_frame_.pts = AV_NOPTS_VALUE;
   FFmpegVideoDecoder::TimeTuple result_pts =
-      decoder->FindPtsAndDuration(time_base, pts_queue, last_pts, &yuv_frame_);
+      decoder->FindPtsAndDuration(time_base, pts_heap, last_pts, &yuv_frame_);
   EXPECT_EQ(116, result_pts.timestamp.InMicroseconds());
   EXPECT_EQ(500000, result_pts.duration.InMicroseconds());
 
   // Test that providing no frame has the same result as an uninitialized
   // frame.
   result_pts = decoder->FindPtsAndDuration(time_base,
-                                           pts_queue,
+                                           pts_heap,
                                            last_pts,
                                            NULL);
   EXPECT_EQ(116, result_pts.timestamp.InMicroseconds());
@@ -351,14 +351,14 @@ TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
   // data for the frame, which means that value is useless to us.
   yuv_frame_.pts = 0;
   result_pts =
-      decoder->FindPtsAndDuration(time_base, pts_queue, last_pts, &yuv_frame_);
+      decoder->FindPtsAndDuration(time_base, pts_heap, last_pts, &yuv_frame_);
   EXPECT_EQ(116, result_pts.timestamp.InMicroseconds());
   EXPECT_EQ(500000, result_pts.duration.InMicroseconds());
 
   // Add a pts to the timequeue and make sure it overrides estimation.
-  pts_queue.push(base::TimeDelta::FromMicroseconds(123));
+  pts_heap.Push(base::TimeDelta::FromMicroseconds(123));
   result_pts = decoder->FindPtsAndDuration(time_base,
-                                           pts_queue,
+                                           pts_heap,
                                            last_pts,
                                            &yuv_frame_);
   EXPECT_EQ(123, result_pts.timestamp.InMicroseconds());
@@ -368,7 +368,7 @@ TEST_F(FFmpegVideoDecoderTest, FindPtsAndDuration) {
   yuv_frame_.pts = 333;
   yuv_frame_.repeat_pict = 2;
   result_pts = decoder->FindPtsAndDuration(time_base,
-                                           pts_queue,
+                                           pts_heap,
                                            last_pts,
                                            &yuv_frame_);
   EXPECT_EQ(166500000, result_pts.timestamp.InMicroseconds());
@@ -380,7 +380,7 @@ TEST_F(FFmpegVideoDecoderTest, OnDecode_TestStateTransition) {
   // exercise the state transitions, and bookkeeping logic of OnDecode.
   //
   // We try to verify the following:
-  //   1) Non-EoS buffer timestamps are pushed into the pts_queue.
+  //   1) Non-EoS buffer timestamps are pushed into the pts_heap.
   //   2) Timestamps are popped for each decoded frame.
   //   3) The last_pts_ is updated for each decoded frame.
   //   4) kDecodeFinished is never left regardless of what kind of buffer is
@@ -430,14 +430,14 @@ TEST_F(FFmpegVideoDecoderTest, OnDecode_TestStateTransition) {
   EXPECT_EQ(FFmpegVideoDecoder::kNormal, mock_decoder->state_);
   ASSERT_TRUE(base::TimeDelta() == mock_decoder->last_pts_.timestamp);
   ASSERT_TRUE(base::TimeDelta() == mock_decoder->last_pts_.duration);
-  EXPECT_EQ(1u, mock_decoder->pts_queue_.size());
+  EXPECT_FALSE(mock_decoder->pts_heap_.IsEmpty());
 
   // Decode a second time, which should yield the first frame.
   mock_decoder->OnDecode(buffer_);
   EXPECT_EQ(FFmpegVideoDecoder::kNormal, mock_decoder->state_);
   EXPECT_TRUE(kTestPts1.timestamp == mock_decoder->last_pts_.timestamp);
   EXPECT_TRUE(kTestPts1.duration == mock_decoder->last_pts_.duration);
-  EXPECT_EQ(1u, mock_decoder->pts_queue_.size());
+  EXPECT_FALSE(mock_decoder->pts_heap_.IsEmpty());
 
   // Decode a third time, with a regular buffer.  The decode will error
   // out, but the state should be the same.
@@ -445,7 +445,7 @@ TEST_F(FFmpegVideoDecoderTest, OnDecode_TestStateTransition) {
   EXPECT_EQ(FFmpegVideoDecoder::kNormal, mock_decoder->state_);
   EXPECT_TRUE(kTestPts1.timestamp == mock_decoder->last_pts_.timestamp);
   EXPECT_TRUE(kTestPts1.duration == mock_decoder->last_pts_.duration);
-  EXPECT_EQ(2u, mock_decoder->pts_queue_.size());
+  EXPECT_FALSE(mock_decoder->pts_heap_.IsEmpty());
 
   // Decode a fourth time, with an end of stream buffer.  This should
   // yield the second frame, and stay in flushing mode.
@@ -453,7 +453,7 @@ TEST_F(FFmpegVideoDecoderTest, OnDecode_TestStateTransition) {
   EXPECT_EQ(FFmpegVideoDecoder::kFlushCodec, mock_decoder->state_);
   EXPECT_TRUE(kTestPts2.timestamp == mock_decoder->last_pts_.timestamp);
   EXPECT_TRUE(kTestPts2.duration == mock_decoder->last_pts_.duration);
-  EXPECT_EQ(1u, mock_decoder->pts_queue_.size());
+  EXPECT_FALSE(mock_decoder->pts_heap_.IsEmpty());
 
   // Decode a fifth time with an end of stream buffer.  this should
   // yield the third frame.
@@ -461,7 +461,7 @@ TEST_F(FFmpegVideoDecoderTest, OnDecode_TestStateTransition) {
   EXPECT_EQ(FFmpegVideoDecoder::kFlushCodec, mock_decoder->state_);
   EXPECT_TRUE(kTestPts1.timestamp == mock_decoder->last_pts_.timestamp);
   EXPECT_TRUE(kTestPts1.duration == mock_decoder->last_pts_.duration);
-  EXPECT_EQ(0u, mock_decoder->pts_queue_.size());
+  EXPECT_TRUE(mock_decoder->pts_heap_.IsEmpty());
 
   // Decode a sixth time with an end of stream buffer.  This should
   // Move into kDecodeFinished.
@@ -469,7 +469,7 @@ TEST_F(FFmpegVideoDecoderTest, OnDecode_TestStateTransition) {
   EXPECT_EQ(FFmpegVideoDecoder::kDecodeFinished, mock_decoder->state_);
   EXPECT_TRUE(kTestPts1.timestamp == mock_decoder->last_pts_.timestamp);
   EXPECT_TRUE(kTestPts1.duration == mock_decoder->last_pts_.duration);
-  EXPECT_EQ(0u, mock_decoder->pts_queue_.size());
+  EXPECT_TRUE(mock_decoder->pts_heap_.IsEmpty());
 }
 
 TEST_F(FFmpegVideoDecoderTest, OnDecode_EnqueueVideoFrameError) {
@@ -529,9 +529,9 @@ TEST_F(FFmpegVideoDecoderTest, OnSeek) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kStates); ++i) {
     // Push in some timestamps.
-    mock_decoder->pts_queue_.push(kTestPts1.timestamp);
-    mock_decoder->pts_queue_.push(kTestPts2.timestamp);
-    mock_decoder->pts_queue_.push(kTestPts1.timestamp);
+    mock_decoder->pts_heap_.Push(kTestPts1.timestamp);
+    mock_decoder->pts_heap_.Push(kTestPts2.timestamp);
+    mock_decoder->pts_heap_.Push(kTestPts1.timestamp);
 
     // Expect a flush.
     mock_decoder->state_ = kStates[i];
@@ -539,23 +539,9 @@ TEST_F(FFmpegVideoDecoderTest, OnSeek) {
 
     // Seek and verify the results.
     mock_decoder->OnSeek(kZero);
-    EXPECT_TRUE(mock_decoder->pts_queue_.empty());
+    EXPECT_TRUE(mock_decoder->pts_heap_.IsEmpty());
     EXPECT_EQ(FFmpegVideoDecoder::kNormal, mock_decoder->state_);
   }
-}
-
-TEST_F(FFmpegVideoDecoderTest, TimeQueue_Ordering) {
-  FFmpegVideoDecoder::TimeQueue queue;
-  queue.push(kTestPts1.timestamp);
-  queue.push(kTestPts2.timestamp);
-  queue.push(kTestPts1.timestamp);
-
-  EXPECT_TRUE(kTestPts1.timestamp == queue.top());
-  queue.pop();
-  EXPECT_TRUE(kTestPts1.timestamp == queue.top());
-  queue.pop();
-  EXPECT_TRUE(kTestPts2.timestamp == queue.top());
-  queue.pop();
 }
 
 }  // namespace media
