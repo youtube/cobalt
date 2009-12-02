@@ -30,5 +30,7 @@
 #include "net/base/net_test_suite.h"
 
 int main(int argc, char** argv) {
-  return NetTestSuite(argc, argv).Run();
+  NetTestSuite test_suite(argc, argv);
+  test_suite.EnforceTestIsolation();
+  return test_suite.Run();
 }
