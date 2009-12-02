@@ -414,7 +414,7 @@ class ClientSocketPoolTest : public testing::Test {
   template <typename PoolType, typename SocketParams>
   int StartRequestUsingPool(PoolType* socket_pool,
                             const std::string& group_name,
-                            int priority,
+                            RequestPriority priority,
                             const SocketParams& socket_params) {
     DCHECK(socket_pool);
     TestSocketRequest* request = new TestSocketRequest(&request_order_,

@@ -8,13 +8,14 @@
 #include <string>
 #include "base/ref_counted.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/request_priority.h"
 #include "net/base/upload_data.h"
 
 namespace net {
 
 class HttpRequestInfo {
  public:
-  HttpRequestInfo() : load_flags(0), priority(0) {
+  HttpRequestInfo() : load_flags(0), priority(LOWEST) {
   }
 
   // The requested URL.
@@ -40,7 +41,7 @@ class HttpRequestInfo {
   int load_flags;
 
   // The priority level for this request.
-  int priority;
+  RequestPriority priority;
 };
 
 }  // namespace net

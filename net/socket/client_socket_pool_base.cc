@@ -136,7 +136,7 @@ void ClientSocketPoolBaseHelper::InsertRequestIntoQueue(
       LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE);
 
   RequestQueue::iterator it = pending_requests->begin();
-  while (it != pending_requests->end() && r->priority() <= (*it)->priority())
+  while (it != pending_requests->end() && r->priority() >= (*it)->priority())
     ++it;
   pending_requests->insert(it, r);
 }
@@ -437,7 +437,7 @@ int ClientSocketPoolBaseHelper::FindTopStalledGroup(Group** group,
     if (has_slot)
       stalled_group_count++;
     bool has_higher_priority = !top_group ||
-        group.TopPendingPriority() > top_group->TopPendingPriority();
+        group.TopPendingPriority() < top_group->TopPendingPriority();
     if (has_slot && has_higher_priority) {
       top_group = &group;
       top_group_name = &i->first;
