@@ -8,6 +8,7 @@
 #include <queue>
 
 #include "media/base/factory.h"
+#include "media/base/pts_heap.h"
 #include "media/filters/decoder_base.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -46,30 +47,6 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
   FRIEND_TEST(FFmpegVideoDecoderTest, OnDecode_FinishEnqueuesEmptyFrames);
   FRIEND_TEST(FFmpegVideoDecoderTest, OnDecode_TestStateTransition);
   FRIEND_TEST(FFmpegVideoDecoderTest, OnSeek);
-  FRIEND_TEST(FFmpegVideoDecoderTest, TimeQueue_Ordering);
-
-  // FFmpeg outputs packets in decode timestamp (dts) order, which may not
-  // always be in presentation timestamp (pts) order.  Therefore, when Process
-  // is called we cannot assume that the pts of the input |buffer| passed to the
-  // OnDecode() method is necessarily the pts of video frame.  For example:
-  //
-  // Process()    Timestamp     Timestamp
-  //  Call #      Buffer In     Buffer Out
-  //    1             1             1
-  //    2             3            --- <--- frame 3 buffered by FFmpeg
-  //    3             2             2
-  //    4             4             3  <--- copying timestamp 4 and 6 would be
-  //    5             6             4  <-'  incorrect, which is why we sort and
-  //    6             5             5       queue incoming timestamps
-  //
-  // The TimeQueue is used to reorder these types.
-  struct PtsHeapOrdering {
-    bool operator()(const base::TimeDelta& lhs,
-                    const base::TimeDelta& rhs) const;
-  };
-  typedef std::priority_queue<base::TimeDelta,
-                              std::vector<base::TimeDelta>,
-                              PtsHeapOrdering> TimeQueue;
 
   // The TimeTuple struct is used to hold the needed timestamp data needed for
   // enqueuing a video frame.
@@ -101,7 +78,7 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
                            AVFrame* yuv_frame);
 
   // Attempt to get the PTS and Duration for this frame by examining the time
-  // info provided via packet stream (stored in |pts_queue|), or the info
+  // info provided via packet stream (stored in |pts_heap|), or the info
   // writen into the AVFrame itself.  If no data is available in either, then
   // attempt to generate a best guess of the pts based on the last known pts.
   //
@@ -109,7 +86,7 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
   // by data from the packet stream.  Estimation based on the |last_pts| is
   // reserved as a last-ditch effort.
   virtual TimeTuple FindPtsAndDuration(const AVRational& time_base,
-                                       const TimeQueue& pts_queue,
+                                       const PtsHeap& pts_heap,
                                        const TimeTuple& last_pts,
                                        const AVFrame* frame);
 
@@ -120,8 +97,7 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
   size_t width_;
   size_t height_;
 
-  // A priority queue of presentation TimeTuples.
-  TimeQueue pts_queue_;
+  PtsHeap pts_heap_;  // Heap of presentation timestamps.
   TimeTuple last_pts_;
   scoped_ptr<AVRational> time_base_;  // Pointer to avoid needing full type.
 
