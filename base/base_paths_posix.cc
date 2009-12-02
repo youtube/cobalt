@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// This is really Posix minus Mac. Mac code is in base_paths_mac.mm.
+
 #include "base/base_paths.h"
 
 #include <unistd.h>
 
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/linux_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
-#include "base/string_piece.h"
+#include "base/scoped_ptr.h"
 #include "base/sys_string_conversions.h"
 
 namespace base {
@@ -56,6 +59,13 @@ bool PathProviderPosix(int key, FilePath* result) {
       LOG(ERROR) << "Couldn't find your source root.  "
                  << "Try running from your chromium/src directory.";
       return false;
+    case base::DIR_USER_CACHE:
+      scoped_ptr<base::EnvironmentVariableGetter> env(
+          base::EnvironmentVariableGetter::Create());
+      FilePath cache_dir(base::GetXDGDirectory(env.get(), "XDG_CACHE_HOME",
+                                               ".cache"));
+      *result = cache_dir;
+      return true;
   }
   return false;
 }
