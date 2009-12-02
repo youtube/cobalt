@@ -6,6 +6,7 @@
 
 #include "base/base_paths.h"
 #include "base/file_path.h"
+#include "base/path_service.h"
 #include "base/string_util.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
