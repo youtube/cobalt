@@ -18,6 +18,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/load_log.h"
 #include "net/base/load_states.h"
+#include "net/base/request_priority.h"
 #include "net/http/http_response_info.h"
 #include "net/url_request/request_tracker.h"
 #include "net/url_request/url_request_status.h"
@@ -494,11 +495,11 @@ class URLRequest {
   // Returns the expected content size if available
   int64 GetExpectedContentSize() const;
 
-  // Returns the priority level for this request.  A larger value indicates
-  // higher priority.  Negative values are not used.
-  int priority() const { return priority_; }
-  void set_priority(int priority) {
-    DCHECK_GE(priority, 0);
+  // Returns the priority level for this request.
+  net::RequestPriority priority() const { return priority_; }
+  void set_priority(net::RequestPriority priority) {
+    DCHECK_GE(priority, net::HIGHEST);
+    DCHECK_LE(priority, net::LOWEST);
     priority_ = priority;
   }
 
@@ -608,7 +609,7 @@ class URLRequest {
 
   // The priority level for this request.  Objects like ClientSocketPool use
   // this to determine which URLRequest to allocate sockets to first.
-  int priority_;
+  net::RequestPriority priority_;
 
   RequestTracker<URLRequest>::Node request_tracker_node_;
   base::LeakTracker<URLRequest> leak_tracker_;

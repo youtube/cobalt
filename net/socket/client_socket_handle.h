@@ -14,6 +14,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
+#include "net/base/request_priority.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
 
@@ -59,7 +60,7 @@ class ClientSocketHandle {
   template <typename SocketParams, typename PoolType>
   int Init(const std::string& group_name,
            const SocketParams& socket_params,
-           int priority,
+           RequestPriority priority,
            CompletionCallback* callback,
            PoolType* pool,
            LoadLog* load_log);
@@ -146,7 +147,7 @@ class ClientSocketHandle {
 template <typename SocketParams, typename PoolType>
 int ClientSocketHandle::Init(const std::string& group_name,
                              const SocketParams& socket_params,
-                             int priority,
+                             RequestPriority priority,
                              CompletionCallback* callback,
                              PoolType* pool,
                              LoadLog* load_log) {
