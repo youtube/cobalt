@@ -2,10 +2,62 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/values.h"
+
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
-#include "base/values.h"
+
+namespace {
+
+// Make a deep copy of |node|, but don't include empty lists or dictionaries
+// in the copy. It's possible for this function to return NULL and it
+// expects |node| to always be non-NULL.
+Value* CopyWithoutEmptyChildren(Value* node) {
+  DCHECK(node);
+  switch (node->GetType()) {
+    case Value::TYPE_LIST: {
+      ListValue* list = static_cast<ListValue*>(node);
+      ListValue* copy = new ListValue;
+      for (ListValue::const_iterator it = list->begin(); it != list->end();
+           ++it) {
+        Value* child_copy = CopyWithoutEmptyChildren(*it);
+        if (child_copy)
+          copy->Append(child_copy);
+      }
+      if (!copy->empty())
+        return copy;
+
+      delete copy;
+      return NULL;
+    }
+
+    case Value::TYPE_DICTIONARY: {
+      DictionaryValue* dict = static_cast<DictionaryValue*>(node);
+      DictionaryValue* copy = new DictionaryValue;
+      for (DictionaryValue::key_iterator it = dict->begin_keys();
+           it != dict->end_keys(); ++it) {
+        Value* child = NULL;
+        bool rv = dict->GetWithoutPathExpansion(*it, &child);
+        DCHECK(rv);
+        Value* child_copy = CopyWithoutEmptyChildren(child);
+        if (child_copy)
+          copy->SetWithoutPathExpansion(*it, child_copy);
+      }
+      if (!copy->empty())
+        return copy;
+
+      delete copy;
+      return NULL;
+    }
+
+    default:
+      // For everything else, just make a copy.
+      return node->DeepCopy();
+  }
+}
+
+}  // namespace
 
 ///////////////////// Value ////////////////////
 
@@ -237,6 +289,49 @@ DictionaryValue::~DictionaryValue() {
   Clear();
 }
 
+Value* DictionaryValue::DeepCopy() const {
+  DictionaryValue* result = new DictionaryValue;
+
+  for (ValueMap::const_iterator current_entry(dictionary_.begin());
+       current_entry != dictionary_.end(); ++current_entry) {
+    result->SetWithoutPathExpansion(current_entry->first,
+                                    current_entry->second->DeepCopy());
+  }
+
+  return result;
+}
+
+bool DictionaryValue::Equals(const Value* other) const {
+  if (other->GetType() != GetType())
+    return false;
+
+  const DictionaryValue* other_dict =
+      static_cast<const DictionaryValue*>(other);
+  key_iterator lhs_it(begin_keys());
+  key_iterator rhs_it(other_dict->begin_keys());
+  while (lhs_it != end_keys() && rhs_it != other_dict->end_keys()) {
+    Value* lhs;
+    Value* rhs;
+    if (!GetWithoutPathExpansion(*lhs_it, &lhs) ||
+        !other_dict->GetWithoutPathExpansion(*rhs_it, &rhs) ||
+        !lhs->Equals(rhs)) {
+      return false;
+    }
+    ++lhs_it;
+    ++rhs_it;
+  }
+  if (lhs_it != end_keys() || rhs_it != other_dict->end_keys())
+    return false;
+
+  return true;
+}
+
+bool DictionaryValue::HasKey(const std::wstring& key) const {
+  ValueMap::const_iterator current_entry = dictionary_.find(key);
+  DCHECK((current_entry == dictionary_.end()) || current_entry->second);
+  return current_entry != dictionary_.end();
+}
+
 void DictionaryValue::Clear() {
   ValueMap::iterator dict_iterator = dictionary_.begin();
   while (dict_iterator != dictionary_.end()) {
@@ -245,12 +340,6 @@ void DictionaryValue::Clear() {
   }
 
   dictionary_.clear();
-}
-
-bool DictionaryValue::HasKey(const std::wstring& key) const {
-  ValueMap::const_iterator current_entry = dictionary_.find(key);
-  DCHECK((current_entry == dictionary_.end()) || current_entry->second);
-  return current_entry != dictionary_.end();
 }
 
 void DictionaryValue::Set(const std::wstring& path, Value* in_value) {
@@ -510,41 +599,9 @@ bool DictionaryValue::RemoveWithoutPathExpansion(const std::wstring& key,
   return true;
 }
 
-Value* DictionaryValue::DeepCopy() const {
-  DictionaryValue* result = new DictionaryValue;
-
-  for (ValueMap::const_iterator current_entry(dictionary_.begin());
-       current_entry != dictionary_.end(); ++current_entry) {
-    result->SetWithoutPathExpansion(current_entry->first,
-                                    current_entry->second->DeepCopy());
-  }
-
-  return result;
-}
-
-bool DictionaryValue::Equals(const Value* other) const {
-  if (other->GetType() != GetType())
-    return false;
-
-  const DictionaryValue* other_dict =
-      static_cast<const DictionaryValue*>(other);
-  key_iterator lhs_it(begin_keys());
-  key_iterator rhs_it(other_dict->begin_keys());
-  while (lhs_it != end_keys() && rhs_it != other_dict->end_keys()) {
-    Value* lhs;
-    Value* rhs;
-    if (!GetWithoutPathExpansion(*lhs_it, &lhs) ||
-        !other_dict->GetWithoutPathExpansion(*rhs_it, &rhs) ||
-        !lhs->Equals(rhs)) {
-      return false;
-    }
-    ++lhs_it;
-    ++rhs_it;
-  }
-  if (lhs_it != end_keys() || rhs_it != other_dict->end_keys())
-    return false;
-
-  return true;
+DictionaryValue* DictionaryValue::DeepCopyWithoutEmptyChildren() {
+  Value* copy = CopyWithoutEmptyChildren(this);
+  return copy ? static_cast<DictionaryValue*>(copy) : new DictionaryValue;
 }
 
 ///////////////////// ListValue ////////////////////
