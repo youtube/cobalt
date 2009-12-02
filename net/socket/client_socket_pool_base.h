@@ -36,6 +36,7 @@
 #include "net/base/load_log.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
+#include "net/base/request_priority.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
 
@@ -126,7 +127,7 @@ class ClientSocketPoolBaseHelper
    public:
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
-            int priority,
+            RequestPriority priority,
             LoadLog* load_log)
         : handle_(handle), callback_(callback), priority_(priority),
           load_log_(load_log) {}
@@ -135,13 +136,13 @@ class ClientSocketPoolBaseHelper
 
     ClientSocketHandle* handle() const { return handle_; }
     CompletionCallback* callback() const { return callback_; }
-    int priority() const { return priority_; }
+    RequestPriority priority() const { return priority_; }
     LoadLog* load_log() const { return load_log_.get(); }
 
    private:
     ClientSocketHandle* const handle_;
     CompletionCallback* const callback_;
-    const int priority_;
+    const RequestPriority priority_;
     const scoped_refptr<LoadLog> load_log_;
 
     DISALLOW_COPY_AND_ASSIGN(Request);
@@ -260,7 +261,7 @@ class ClientSocketPoolBaseHelper
           max_sockets_per_group;
     }
 
-    int TopPendingPriority() const {
+    RequestPriority TopPendingPriority() const {
       return pending_requests.front()->priority();
     }
 
@@ -406,7 +407,7 @@ class ClientSocketPoolBase {
    public:
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
-            int priority,
+            RequestPriority priority,
             const SocketParams& params,
             LoadLog* load_log)
         : internal::ClientSocketPoolBaseHelper::Request(
@@ -459,7 +460,7 @@ class ClientSocketPoolBase {
   // ownership is transferred in the asynchronous (ERR_IO_PENDING) case.
   int RequestSocket(const std::string& group_name,
                     const SocketParams& params,
-                    int priority,
+                    RequestPriority priority,
                     ClientSocketHandle* handle,
                     CompletionCallback* callback,
                     LoadLog* load_log) {

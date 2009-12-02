@@ -13,6 +13,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/host_resolver.h"
 #include "net/base/load_states.h"
+#include "net/base/request_priority.h"
 
 namespace net {
 
@@ -49,7 +50,7 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   // Profiling information for the request is saved to |load_log| if non-NULL.
   virtual int RequestSocket(const std::string& group_name,
                             const void* params,
-                            int priority,
+                            RequestPriority priority,
                             ClientSocketHandle* handle,
                             CompletionCallback* callback,
                             LoadLog* load_log) = 0;
