@@ -254,6 +254,7 @@
         'rand_util.h',
         'rand_util_posix.cc',
         'rand_util_win.cc',
+        'raw_scoped_refptr_mismatch_checker.h',
         'ref_counted.cc',
         'ref_counted.h',
         'ref_counted_memory.h',
