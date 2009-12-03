@@ -149,7 +149,7 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
                                               Mode mode,
                                               FileDescriptorWatcher *controller,
                                               Watcher *delegate) {
-  DCHECK(fd > 0);
+  DCHECK_GE(fd, 0);
   DCHECK(controller);
   DCHECK(delegate);
   DCHECK(mode == WATCH_READ || mode == WATCH_WRITE || mode == WATCH_READ_WRITE);
