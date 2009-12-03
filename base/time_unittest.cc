@@ -91,7 +91,7 @@ TEST(Time, LocalMidnight) {
 }
 
 TEST(TimeTicks, Deltas) {
-  for (int index = 0; index < 500; index++) {
+  for (int index = 0; index < 50; index++) {
     TimeTicks ticks_start = TimeTicks::Now();
     PlatformThread::Sleep(10);
     TimeTicks ticks_stop = TimeTicks::Now();
