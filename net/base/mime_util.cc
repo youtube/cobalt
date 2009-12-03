@@ -198,6 +198,7 @@ static const char* const supported_media_types[] = {
   // MP3.
   "audio/mp3",
   "audio/x-mp3",
+  "audio/mpeg",
 #endif
 };
 
