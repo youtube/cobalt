@@ -1561,7 +1561,11 @@ static void EatWildcard(const CHAR** pattern) {
 }
 
 template <class CHAR>
-static bool MatchPatternT(const CHAR* eval, const CHAR* pattern) {
+static bool MatchPatternT(const CHAR* eval, const CHAR* pattern, int depth) {
+  const int kMaxDepth = 16;
+  if (depth > kMaxDepth)
+    return false;
+
   // Eat all the matching chars.
   EatSameChars(&pattern, &eval);
 
@@ -1581,8 +1585,8 @@ static bool MatchPatternT(const CHAR* eval, const CHAR* pattern) {
   // If this is a question mark, then we need to compare the rest with
   // the current string or the string with one character eaten.
   if (pattern[0] == '?') {
-    if (MatchPatternT(eval, pattern + 1) ||
-        MatchPatternT(eval + 1, pattern + 1))
+    if (MatchPatternT(eval, pattern + 1, depth + 1) ||
+        MatchPatternT(eval + 1, pattern + 1, depth + 1))
       return true;
   }
 
@@ -1590,7 +1594,7 @@ static bool MatchPatternT(const CHAR* eval, const CHAR* pattern) {
   // of the pattern.
   if (pattern[0] == '*') {
     while (*eval) {
-      if (MatchPatternT(eval, pattern + 1))
+      if (MatchPatternT(eval, pattern + 1, depth + 1))
         return true;
       eval++;
     }
@@ -1608,12 +1612,13 @@ static bool MatchPatternT(const CHAR* eval, const CHAR* pattern) {
   return false;
 }
 
-bool MatchPattern(const std::wstring& eval, const std::wstring& pattern) {
-  return MatchPatternT(eval.c_str(), pattern.c_str());
+bool MatchPatternWide(const std::wstring& eval, const std::wstring& pattern) {
+  return MatchPatternT(eval.c_str(), pattern.c_str(), 0);
 }
 
-bool MatchPattern(const std::string& eval, const std::string& pattern) {
-  return MatchPatternT(eval.c_str(), pattern.c_str());
+bool MatchPatternASCII(const std::string& eval, const std::string& pattern) {
+  DCHECK(IsStringASCII(eval) && IsStringASCII(pattern));
+  return MatchPatternT(eval.c_str(), pattern.c_str(), 0);
 }
 
 bool StringToInt(const std::string& input, int* output) {

@@ -189,7 +189,7 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
         r->address_family == ADDRESS_FAMILY_UNSPECIFIED ||
         r->address_family == address_family;
 
-    if (matches_address_family && MatchPattern(host, r->host_pattern)) {
+    if (matches_address_family && MatchPatternASCII(host, r->host_pattern)) {
       if (r->latency_ms != 0)
         PlatformThread::Sleep(r->latency_ms);
 
