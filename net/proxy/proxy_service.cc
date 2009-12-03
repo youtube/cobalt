@@ -740,7 +740,7 @@ bool ProxyService::ShouldBypassProxyForURL(const GURL& url) {
 
     StringToLowerASCII(&bypass_url_domain);
 
-    if (MatchPattern(*url_compare_reference, bypass_url_domain))
+    if (MatchPatternASCII(*url_compare_reference, bypass_url_domain))
       return true;
 
     // Some systems (the Mac, for example) allow CIDR-style specification of

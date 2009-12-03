@@ -121,7 +121,8 @@ void ProxyConfig::ParseNoProxyList(const std::string& no_proxy) {
   // A single "*" is specifically allowed and unproxies anything.
   // "*" wildcards other than a single "*" entry are not universally
   // supported. We will support them, as we get * wildcards for free
-  // (see MatchPattern() called from ProxyService::ShouldBypassProxyForURL()).
+  // (see MatchPatternASCII() called from
+  // ProxyService::ShouldBypassProxyForURL()).
   // no_proxy is a comma-separated list of <trailing_domain>[:<port>].
   // If no port is specified then any port matches.
   // The historical definition has trailing_domain match using a simple
