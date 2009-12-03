@@ -48,10 +48,6 @@ void* operator new[](size_t size, const std::nothrow_t& nt) __THROW {
   return generic_cpp_alloc(size, true);
 }
 
-}  // extern "C++"
-
-extern "C" {
-
 // This function behaves similarly to MSVC's _set_new_mode.
 // If flag is 0 (default), calls to malloc will behave normally.
 // If flag is 1, calls to malloc will behave like calls to new,
@@ -62,6 +58,10 @@ int _set_new_mode(int flag) __THROW {
   new_mode = flag;
   return old_mode;
 }
+
+}  // extern "C++"
+
+extern "C" {
 
 void* calloc(size_t n, size_t elem_size) __THROW {
   // Overflow check

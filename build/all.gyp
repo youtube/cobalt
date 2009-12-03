@@ -85,8 +85,14 @@
           ],
         }],
         ['OS=="win"', {
+          'conditions': [
+            ['win_use_allocator_shim==1', {
+              'dependencies': [
+                '../base/allocator/allocator.gyp:*',
+              ],
+            }],
+          ],
           'dependencies': [
-            '../base/allocator/allocator.gyp:*',
             '../breakpad/breakpad.gyp:*',
             '../chrome/app/locales/locales.gyp:*',
             '../courgette/courgette.gyp:*',
