@@ -3,7 +3,7 @@
  "linux-release-hardy/startup/warm/t": {"delta": 50, "var": 20},
  "mac-release-10.5/dhtml/times/t": {"delta": 170, "var": 30},
  "mac-release-10.5/morejs/times/t": {"delta": -30, "var": 80},
- "mac-release-10.5/moz/times/t": {"delta": 146, "var": 40},
+ "mac-release-10.5/moz/times/t": {"delta": -146, "var": 40},
  "mac-release-10.5/startup/warm/t": {"delta": -155, "var": 20},
  "vista-release-dual-core/dhtml/times/t": {"delta": -55, "var": 12},
  "vista-release-dual-core/morejs/times/t": {"delta": 10, "var": 16},
