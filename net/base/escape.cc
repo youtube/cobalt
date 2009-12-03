@@ -186,6 +186,10 @@ static const Charmap kQueryCharmap(
   0xffffffffL, 0xfc00987dL, 0x78000001L, 0xb8000001L,
   0xffffffffL, 0xffffffffL, 0xffffffffL, 0xffffffffL);
 
+std::string EscapeQueryParamValue(const std::string& text, bool use_plus) {
+  return Escape(text, kQueryCharmap, use_plus);
+}
+
 std::string EscapeQueryParamValue(const std::string& text) {
   return Escape(text, kQueryCharmap, true);
 }

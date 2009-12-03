@@ -110,6 +110,7 @@ string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
 
 // Escapes characters in text suitable for use as a query parameter value.
 // We %XX everything except alphanumerics and -_.!~*'()
+// Spaces change to "+" unless you pass usePlus=false.
 // This is basically the same as encodeURIComponent in javascript.
 // For the string16 version, we do a conversion to charset before encoding the
 // string.  If the charset doesn't exist, we return false.
@@ -117,6 +118,7 @@ string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
 // TODO(brettw) bug 1201094: This function should be removed. See the bug for
 // why and what callers should do instead.
 std::string EscapeQueryParamValue(const std::string& text);
+std::string EscapeQueryParamValue(const std::string& text, bool use_plus);
 bool EscapeQueryParamValue(const string16& text, const char* codepage,
                            string16* escaped);
 
