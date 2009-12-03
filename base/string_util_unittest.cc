@@ -1212,20 +1212,22 @@ TEST(StringUtilTest, SplitStringAlongWhitespace) {
 }
 
 TEST(StringUtilTest, MatchPatternTest) {
-  EXPECT_EQ(MatchPattern(L"www.google.com", L"*.com"), true);
-  EXPECT_EQ(MatchPattern(L"www.google.com", L"*"), true);
-  EXPECT_EQ(MatchPattern(L"www.google.com", L"www*.g*.org"), false);
-  EXPECT_EQ(MatchPattern(L"Hello", L"H?l?o"), true);
-  EXPECT_EQ(MatchPattern(L"www.google.com", L"http://*)"), false);
-  EXPECT_EQ(MatchPattern(L"www.msn.com", L"*.COM"), false);
-  EXPECT_EQ(MatchPattern(L"Hello*1234", L"He??o\\*1*"), true);
-  EXPECT_EQ(MatchPattern(L"", L"*.*"), false);
-  EXPECT_EQ(MatchPattern(L"", L"*"), true);
-  EXPECT_EQ(MatchPattern(L"", L"?"), true);
-  EXPECT_EQ(MatchPattern(L"", L""), true);
-  EXPECT_EQ(MatchPattern(L"Hello", L""), false);
-  EXPECT_EQ(MatchPattern(L"Hello*", L"Hello*"), true);
-  EXPECT_EQ(MatchPattern("Hello*", "Hello*"), true);  // narrow string
+  EXPECT_EQ(MatchPatternASCII("www.google.com", "*.com"), true);
+  EXPECT_EQ(MatchPatternASCII("www.google.com", "*"), true);
+  EXPECT_EQ(MatchPatternASCII("www.google.com", "www*.g*.org"), false);
+  EXPECT_EQ(MatchPatternASCII("Hello", "H?l?o"), true);
+  EXPECT_EQ(MatchPatternASCII("www.google.com", "http://*)"), false);
+  EXPECT_EQ(MatchPatternASCII("www.msn.com", "*.COM"), false);
+  EXPECT_EQ(MatchPatternASCII("Hello*1234", "He??o\\*1*"), true);
+  EXPECT_EQ(MatchPatternASCII("", "*.*"), false);
+  EXPECT_EQ(MatchPatternASCII("", "*"), true);
+  EXPECT_EQ(MatchPatternASCII("", "?"), true);
+  EXPECT_EQ(MatchPatternASCII("", ""), true);
+  EXPECT_EQ(MatchPatternASCII("Hello", ""), false);
+  EXPECT_EQ(MatchPatternASCII("Hello*", "Hello*"), true);
+  // Stop after a certain recursion depth.
+  EXPECT_EQ(MatchPatternASCII("12345678901234567890", "???????????????????*"),
+                              false);
 }
 
 TEST(StringUtilTest, LcpyTest) {
