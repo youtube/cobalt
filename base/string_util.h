@@ -590,11 +590,10 @@ bool ElideString(const std::wstring& input, int max_len, std::wstring* output);
 
 // Returns true if the string passed in matches the pattern. The pattern
 // string can contain wildcards like * and ?
-// TODO(iyengar) This function may not work correctly for CJK strings as
-// it does individual character matches.
 // The backslash character (\) is an escape character for * and ?
-bool MatchPattern(const std::wstring& string, const std::wstring& pattern);
-bool MatchPattern(const std::string& string, const std::string& pattern);
+// We limit the patterns to having a max of 16 * or ? characters.
+bool MatchPatternWide(const std::wstring& string, const std::wstring& pattern);
+bool MatchPatternASCII(const std::string& string, const std::string& pattern);
 
 // Returns a hex string representation of a binary buffer.
 // The returned hex string will be in upper case.
