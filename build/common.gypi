@@ -127,6 +127,14 @@
     # JavaScript engines.
     'javascript_engine%': 'v8',
 
+    # Although base/allocator lets you select a heap library via an 
+    # environment variable, the libcmt shim it uses sometimes gets in
+    # the way.  To disable it entirely, and switch to normal msvcrt, do e.g.
+    #  'win_use_allocator_shim': 0,
+    #  'win_release_RuntimeLibrary': 2
+    # to ~/.gyp/include.gypi, gclient runhooks --force, and do a release build.
+    'win_use_allocator_shim%': 1, # 0 = shim allocator via libcmt; 1 = msvcrt
+
     # To do a shared build on linux we need to be able to choose between type
     # static_library and shared_library. We default to doing a static build
     # but you can override this with "gyp -Dlibrary=shared_library" or you
@@ -280,8 +288,16 @@
   },
   'target_defaults': {
     'variables': {
+      # See http://gcc.gnu.org/onlinedocs/gcc-4.4.2/gcc/Optimize-Options.html
       'mac_release_optimization%': '3', # Use -O3 unless overridden
       'mac_debug_optimization%': '0',   # Use -O0 unless overridden
+      # See http://msdn.microsoft.com/en-us/library/aa652360(VS.71).aspx
+      'win_release_Optimization%': '2', # 2 = /Os
+      'win_debug_Optimization%': '0',   # 0 = /Od
+      # See http://msdn.microsoft.com/en-us/library/aa652367(VS.71).aspx
+      'win_release_RuntimeLibrary%': '0', # 0 = /MT (nondebug static)
+      'win_debug_RuntimeLibrary%': '1',   # 1 = /MTd (debug static)
+
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
       'release_valgrind_build%': 0,
@@ -324,6 +340,13 @@
       }],  # fastbuild!=0
       ['selinux==1', {
         'defines': ['CHROMIUM_SELINUX=1'],
+      }],
+      ['win_use_allocator_shim==0', {
+        'conditions': [
+          ['OS=="win"', {
+            'defines': ['NO_TCMALLOC'],
+          }],
+        ],
       }],
       ['coverage!=0', {
         'conditions': [
@@ -389,10 +412,10 @@
         },
         'msvs_settings': {
           'VCCLCompilerTool': {
-            'Optimization': '0',
+            'Optimization': '<(win_debug_Optimization)',
             'PreprocessorDefinitions': ['_DEBUG'],
             'BasicRuntimeChecks': '3',
-            'RuntimeLibrary': '1',
+            'RuntimeLibrary': '<(win_debug_RuntimeLibrary)',
           },
           'VCLinkerTool': {
             'LinkIncremental': '<(msvs_debug_link_incremental)',
@@ -420,6 +443,10 @@
           'OTHER_CFLAGS': [ '<@(release_extra_cflags)', ],
         },
         'msvs_settings': {
+          'VCCLCompilerTool': {
+            'Optimization': '<(win_release_Optimization)',
+            'RuntimeLibrary': '<(win_release_RuntimeLibrary)',
+          },
           'VCLinkerTool': {
             'LinkIncremental': '1',
           },
@@ -427,6 +454,16 @@
         'conditions': [
           ['release_valgrind_build==0', {
             'defines': ['NVALGRIND'],
+          }],
+          ['win_use_allocator_shim==0', {
+            'defines': ['NO_TCMALLOC'],
+          }],
+          ['win_release_RuntimeLibrary==2', {
+            # Visual C++ 2008 barfs when building anything with /MD (msvcrt):
+            #  VC\include\typeinfo(139) : warning C4275: non dll-interface 
+            #  class 'stdext::exception' used as base for dll-interface 
+            #  class 'std::bad_cast'
+            'msvs_disabled_warnings': [4275],
           }],
           ['msvs_use_common_release', {
             'msvs_props': ['release.vsprops'],
@@ -459,10 +496,6 @@
               },
             },
           },
-          'Release - no tcmalloc': {
-            'inherit_from': ['Release'],
-            'defines': ['NO_TCMALLOC'],
-          },
           'Debug_x64': {
             'inherit_from': ['Debug'],
             'msvs_configuration_platform': 'x64',
@@ -473,10 +506,6 @@
           },
           'Purify_x64': {
             'inherit_from': ['Purify'],
-            'msvs_configuration_platform': 'x64',
-          },
-          'Release - no tcmalloc_x64': {
-            'inherit_from': ['Release - no tcmalloc'],
             'msvs_configuration_platform': 'x64',
           },
         }],
