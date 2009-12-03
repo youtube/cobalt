@@ -216,16 +216,15 @@ class OCSPRequestSession
     } while (request_->Read(buffer_, kRecvBufferSize, &bytes_read));
 
     if (!request_->status().is_io_pending()) {
-      MessageLoop* io_loop = io_loop_;
+      delete request_;
+      request_ = NULL;
+      io_loop_->RemoveDestructionObserver(this);
       {
         AutoLock autolock(lock_);
         finished_ = true;
         io_loop_ = NULL;
       }
       cv_.Signal();
-      delete request_;
-      request_ = NULL;
-      io_loop->RemoveDestructionObserver(this);
     }
   }
 
