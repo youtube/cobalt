@@ -14,7 +14,6 @@ namespace base {
 enum {
   PATH_MAC_START = 200,
 
-  DIR_CACHE,    // ~/Library/Caches
   DIR_APP_DATA,  // ~/Library/Application Support
 
   PATH_MAC_END
