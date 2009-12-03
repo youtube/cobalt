@@ -52,7 +52,7 @@ bool PathProviderMac(int key, FilePath* result) {
       DCHECK(!cur.empty());
       break;
     }
-    case base::DIR_CACHE:
+    case base::DIR_USER_CACHE:
       return GetUserDirectory(NSCachesDirectory, result);
     case base::DIR_APP_DATA:
       return GetUserDirectory(NSApplicationSupportDirectory, result);
