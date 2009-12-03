@@ -52,6 +52,7 @@ int MapPosixError(int os_error) {
       return ERR_TIMED_OUT;
     case ECONNRESET:
     case ENETRESET:  // Related to keep-alive
+    case EPIPE:
       return ERR_CONNECTION_RESET;
     case ECONNABORTED:
       return ERR_CONNECTION_ABORTED;
