@@ -272,7 +272,8 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
 #endif
 }
 
-TEST(X509CertificateTest, UnoSoftCertParsing) {
+// Disabled this test because the certificate expired on 2009-12-04.
+TEST(X509CertificateTest, DISABLED_UnoSoftCertParsing) {
   scoped_refptr<X509Certificate> unosoft_hu_cert =
       X509Certificate::CreateFromBytes(
           reinterpret_cast<const char*>(unosoft_hu_der),
