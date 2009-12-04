@@ -7,6 +7,9 @@
 #include <fcntl.h>
 #include <math.h>
 
+#include <gtk/gtk.h>
+#include <glib.h>
+
 #include "base/eintr_wrapper.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
@@ -124,18 +127,19 @@ namespace base {
 
 MessagePumpForUI::MessagePumpForUI()
     : state_(NULL),
-      context_(g_main_context_default()) {
+      context_(g_main_context_default()),
+      wakeup_gpollfd_(new GPollFD) {
   // Create our wakeup pipe, which is used to flag when work was scheduled.
   int fds[2];
   CHECK(pipe(fds) == 0);
   wakeup_pipe_read_  = fds[0];
   wakeup_pipe_write_ = fds[1];
-  wakeup_gpollfd_.fd = wakeup_pipe_read_;
-  wakeup_gpollfd_.events = G_IO_IN;
+  wakeup_gpollfd_->fd = wakeup_pipe_read_;
+  wakeup_gpollfd_->events = G_IO_IN;
 
   work_source_ = g_source_new(&WorkSourceFuncs, sizeof(WorkSource));
   static_cast<WorkSource*>(work_source_)->pump = this;
-  g_source_add_poll(work_source_, &wakeup_gpollfd_);
+  g_source_add_poll(work_source_, wakeup_gpollfd_.get());
   // Use a low priority so that we let other events in the queue go first.
   g_source_set_priority(work_source_, G_PRIORITY_DEFAULT_IDLE);
   // This is needed to allow Run calls inside Dispatch.
@@ -229,7 +233,7 @@ bool MessagePumpForUI::HandleCheck() {
   // We should only ever have a single message on the wakeup pipe, since we
   // are only signaled when the queue went from empty to non-empty.  The glib
   // poll will tell us whether there was data, so this read shouldn't block.
-  if (wakeup_gpollfd_.revents & G_IO_IN) {
+  if (wakeup_gpollfd_->revents & G_IO_IN) {
     char msg;
     if (HANDLE_EINTR(read(wakeup_pipe_read_, &msg, 1)) != 1 || msg != '!') {
       NOTREACHED() << "Error reading from the wakeup pipe.";
