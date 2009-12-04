@@ -200,6 +200,9 @@
     # Set ARM-v7 compilation flags
     'armv7%': 0,
 
+    # Set Thumb compilation flags.
+    'arm_thumb%': 0,
+
     'conditions': [
       ['OS=="linux"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
@@ -710,10 +713,27 @@
             ],
           }],
           ['target_arch=="arm"', {
-            'conditions': [
-              ['armv7==1', {
-                'target_conditions': [
-                  ['_toolset=="target"', {
+            'target_conditions': [
+              ['_toolset=="target"', {
+                'cflags_cc': [
+                  # The codesourcery arm-2009q3 toolchain warns at that the ABI
+                  # has changed whenever it encounters a varargs function. This
+                  # silences those warnings, as they are not helpful and
+                  # clutter legitimate warnings.
+                  '-Wno-abi',
+                ],
+                'conditions': [
+                  ['arm_thumb == 1', {
+                    'cflags': [
+                    '-mthumb',
+                    # TODO(piman): -Wa,-mimplicit-it=thumb is needed for
+                    # inline assembly that uses condition codes but it's
+                    # suboptimal. Better would be to #ifdef __thumb__ at the
+                    # right place and have a separate thumb path.
+                    '-Wa,-mimplicit-it=thumb',
+                    ]
+                  }],
+                  ['armv7==1', {
                     'cflags': [
                       '-march=armv7-a',
                       '-mtune=cortex-a8',
