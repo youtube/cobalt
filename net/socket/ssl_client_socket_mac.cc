@@ -70,7 +70,7 @@
 // Transport asks for data to be written, we take it all and lie about it always
 // being written. We spin in a loop (see SSLWriteCallback() and
 // OnTransportWriteComplete()) independent of the main state machine writing
-// the data to he network, and get the data out. The main consequence of this
+// the data to the network, and get the data out. The main consequence of this
 // independence from the state machine is that we require a full-duplex
 // transport underneath us since we can't use it to keep our reading and
 // writing straight. Fortunately, the NSS implementation also has this issue
