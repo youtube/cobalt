@@ -5,12 +5,15 @@
 #ifndef BASE_MESSAGE_PUMP_GLIB_H_
 #define BASE_MESSAGE_PUMP_GLIB_H_
 
-#include <gtk/gtk.h>
-#include <glib.h>
-
 #include "base/message_pump.h"
 #include "base/observer_list.h"
+#include "base/scoped_ptr.h"
 #include "base/time.h"
+
+typedef union _GdkEvent GdkEvent;
+typedef struct _GMainContext GMainContext;
+typedef struct _GPollFD GPollFD;
+typedef struct _GSource GSource;
 
 namespace base {
 
@@ -103,7 +106,7 @@ class MessagePumpForUI : public MessagePump {
   void DidProcessEvent(GdkEvent* event);
 
   // Callback prior to gdk dispatching an event.
-  static void EventDispatcher(GdkEvent* event, gpointer data);
+  static void EventDispatcher(GdkEvent* event, void* data);
 
   RunState* state_;
 
@@ -125,7 +128,8 @@ class MessagePumpForUI : public MessagePump {
   // Dispatch() will be called.
   int wakeup_pipe_read_;
   int wakeup_pipe_write_;
-  GPollFD wakeup_gpollfd_;
+  // Use a scoped_ptr to avoid needing the definition of GPollFD in the header.
+  scoped_ptr<GPollFD> wakeup_gpollfd_;
 
   // List of observers.
   ObserverList<Observer> observers_;
