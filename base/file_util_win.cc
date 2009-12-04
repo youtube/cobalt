@@ -805,8 +805,10 @@ bool MemoryMappedFile::MapFileToMemoryInternal() {
   if (length_ == INVALID_FILE_SIZE)
     return false;
 
+  // length_ value comes from GetFileSize() above. GetFileSize() returns DWORD,
+  // therefore the cast here is safe.
   file_mapping_ = ::CreateFileMapping(file_, NULL, PAGE_READONLY,
-                                      0, length_, NULL);
+                                      0, static_cast<DWORD>(length_), NULL);
   if (file_mapping_ == INVALID_HANDLE_VALUE)
     return false;
 
