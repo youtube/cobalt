@@ -7,6 +7,8 @@
 
 #include <string>
 
+#include "base/string16.h"
+
 namespace net {
 
 class FtpUtil {
@@ -19,6 +21,10 @@ class FtpUtil {
 
   // Convert VMS path to Unix-style path.
   static std::string VMSPathToUnix(const std::string& vms_path);
+
+  // Convert three-letter month abbreviation (like Nov) to its number (in range
+  // 1-12).
+  static bool ThreeLetterMonthToNumber(const string16& text, int* number);
 };
 
 }  // namespace net
