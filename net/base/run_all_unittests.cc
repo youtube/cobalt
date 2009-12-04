@@ -31,6 +31,6 @@
 
 int main(int argc, char** argv) {
   NetTestSuite test_suite(argc, argv);
-  test_suite.EnforceTestIsolation();
+  // TODO(phajdan.jr): Enforce test isolation, http://crbug.com/12710.
   return test_suite.Run();
 }
