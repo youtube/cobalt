@@ -275,6 +275,11 @@
             'msvs_large_module_debug_link_mode%': '2',  # Yes
           }],
         ],
+        'nacl_win64_defines': [
+          # This flag is used to minimize dependencies when building
+          # Native Client loader for 64-bit Windows.
+          'NACL_WIN64',
+        ],
       }],
     ],
 
@@ -404,6 +409,11 @@
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
           'CharacterSet': '1',
         },
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'TargetMachine': '1',
+          },
+        },
         'msvs_configuration_platform': 'Win32',
       },
       'Debug': {
@@ -499,17 +509,23 @@
               },
             },
           },
-          'Debug_x64': {
-            'inherit_from': ['Debug'],
+          'Common_x64': {
             'msvs_configuration_platform': 'x64',
+            'msvs_settings': {
+              'VCLinkerTool': {
+                'TargetMachine': '17',
+              },
+            },
+            'abstract': 1,
+          },
+          'Debug_x64': {
+            'inherit_from': ['Debug', 'Common_x64'],
           },
           'Release_x64': {
-            'inherit_from': ['Release'],
-            'msvs_configuration_platform': 'x64',
+            'inherit_from': ['Release', 'Common_x64'],
           },
           'Purify_x64': {
-            'inherit_from': ['Purify'],
-            'msvs_configuration_platform': 'x64',
+            'inherit_from': ['Purify', 'Common_x64'],
           },
         }],
       ],
@@ -931,7 +947,6 @@
             'GenerateDebugInformation': 'true',
             'MapFileName': '$(OutDir)\\$(TargetName).map',
             'ImportLibrary': '$(OutDir)\\lib\\$(TargetName).lib',
-            'TargetMachine': '1',
             'FixedBaseAddress': '1',
             # SubSystem values:
             #   0 == not set
@@ -1016,13 +1031,30 @@
       'target_defaults': {
         'msvs_settings': {
           'VCLinkerTool': {
-            'AdditionalOptions':
-              '/safeseh /dynamicbase /ignore:4199 /ignore:4221 /nxcompat',
             'DelayLoadDLLs': [
               'dbghelp.dll',
               'dwmapi.dll',
               'uxtheme.dll',
             ],
+          },
+        },
+        'configurations': {
+          'Common': {
+            'msvs_settings': {
+              'VCLinkerTool': {
+                'AdditionalOptions':
+                  '/safeseh /dynamicbase /ignore:4199 /ignore:4221 /nxcompat',
+              },
+            },
+          },
+          'Common_x64': {
+            'msvs_settings': {
+              'VCLinkerTool': {
+                'AdditionalOptions':
+                  # safeseh is not compatible with x64
+                  '/dynamicbase /ignore:4199 /ignore:4221 /nxcompat',
+              },
+            },
           },
         },
       },
