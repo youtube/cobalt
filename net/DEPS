@@ -6,4 +6,5 @@ include_rules = [
 
 skip_child_includes = [
   "third_party",
+  "tools/flip_server",
 ]
