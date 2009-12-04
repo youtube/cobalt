@@ -94,12 +94,55 @@ class HttpCache::Transaction : public HttpTransaction {
     bool initialized;
   };
 
+  enum State {
+    STATE_NONE,
+    STATE_START_REQUEST,
+    STATE_SEND_REQUEST,
+    STATE_SEND_REQUEST_COMPLETE,
+    STATE_NETWORK_READ,
+    STATE_NETWORK_READ_COMPLETE,
+    STATE_OPEN_ENTRY,
+    STATE_OPEN_ENTRY_COMPLETE,
+    STATE_CREATE_ENTRY,
+    STATE_CREATE_ENTRY_COMPLETE,
+    STATE_DOOM_ENTRY,
+    STATE_DOOM_ENTRY_COMPLETE,
+    STATE_ADD_TO_ENTRY,
+    STATE_ADD_TO_ENTRY_COMPLETE,
+    STATE_ENTRY_AVAILABLE,
+    STATE_CACHE_READ_RESPONSE,
+    STATE_CACHE_READ_RESPONSE_COMPLETE,
+    STATE_CACHE_WRITE_RESPONSE,
+    STATE_CACHE_WRITE_RESPONSE_COMPLETE,
+    STATE_CACHE_QUERY_DATA,
+    STATE_CACHE_QUERY_DATA_COMPLETE,
+    STATE_CACHE_READ_DATA,
+    STATE_CACHE_READ_DATA_COMPLETE,
+    STATE_CACHE_WRITE_DATA,
+    STATE_CACHE_WRITE_DATA_COMPLETE
+  };
+
   // This is a helper function used to trigger a completion callback.  It may
   // only be called if callback_ is non-null.
   void DoCallback(int rv);
 
   // This will trigger the completion callback if appropriate.
   int HandleResult(int rv);
+
+  // Runs the state transition loop.
+  int DoLoop(int result);
+
+  // Each of these methods corresponds to a State value.
+  int DoSendRequest();
+  int DoSendRequestComplete(int result);
+  int DoNetworkRead();
+  int DoNetworkReadComplete(int result);
+  int DoCacheReadData();
+  int DoCacheReadDataComplete(int result);
+  int DoCacheQueryData();
+  int DoCacheQueryDataComplete(int result);
+  int DoCacheWriteData(int num_bytes);
+  int DoCacheWriteDataComplete(int result);
 
   // Sets request_ and fields derived from it.
   void SetRequest(LoadLog* load_log, const HttpRequestInfo* request);
@@ -199,15 +242,9 @@ class HttpCache::Transaction : public HttpTransaction {
   // the control object (partial_).
   void DoomPartialEntry(bool delete_object);
 
-  // Performs the needed work after receiving data from the network.
-  int DoNetworkReadCompleted(int result);
-
   // Performs the needed work after receiving data from the network, when
   // working with range requests.
   int DoPartialNetworkReadCompleted(int result);
-
-  // Performs the needed work after receiving data from the cache.
-  int DoCacheReadCompleted(int result);
 
   // Performs the needed work after receiving data from the cache, when
   // working with range requests.
@@ -216,23 +253,12 @@ class HttpCache::Transaction : public HttpTransaction {
   // Performs the needed work after writing data to the cache.
   int DoCacheWriteCompleted(int result);
 
-  // Called to signal completion of the network transaction's Start method:
-  void OnNetworkInfoAvailable(int result);
+  // Called to signal completion of asynchronous IO.
+  void OnIOComplete(int result);
 
-  // Called to signal completion of the network transaction's Read method:
-  void OnNetworkReadCompleted(int result);
-
-  // Called to signal completion of the cache's ReadData method:
-  void OnCacheReadCompleted(int result);
-
-  // Called to signal completion of the cache's WriteData method:
-  void OnCacheWriteCompleted(int result);
-
-  // Called to signal completion of the cache entry's ReadyForSparseIO method:
-  void OnCacheEntryReady(int result);
-
-  scoped_refptr<LoadLog> load_log_;
+  State next_state_;
   const HttpRequestInfo* request_;
+  scoped_refptr<LoadLog> load_log_;
   scoped_ptr<HttpRequestInfo> custom_request_;
   // If extra_headers specified a "if-modified-since" or "if-none-match",
   // |external_validation_| contains the value of those headers.
@@ -255,14 +281,8 @@ class HttpCache::Transaction : public HttpTransaction {
   int effective_load_flags_;
   scoped_ptr<PartialData> partial_;  // We are dealing with range requests.
   uint64 final_upload_progress_;
-  CompletionCallbackImpl<Transaction> network_info_callback_;
-  CompletionCallbackImpl<Transaction> network_read_callback_;
-  scoped_refptr<CancelableCompletionCallback<Transaction> >
-      cache_read_callback_;
-  scoped_refptr<CancelableCompletionCallback<Transaction> >
-      cache_write_callback_;
-  scoped_refptr<CancelableCompletionCallback<Transaction> >
-      entry_ready_callback_;
+  CompletionCallbackImpl<Transaction> network_callback_;
+  scoped_refptr<CancelableCompletionCallback<Transaction> > cache_callback_;
 };
 
 }  // namespace net
