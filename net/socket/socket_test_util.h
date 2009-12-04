@@ -108,6 +108,7 @@ class SocketDataProvider {
   void set_socket(MockClientSocket* socket) { socket_ = socket; }
 
   MockConnect connect_data() const { return connect_; }
+  void set_connect_data(const MockConnect& connect) { connect_ = connect; }
 
  private:
   MockConnect connect_;
