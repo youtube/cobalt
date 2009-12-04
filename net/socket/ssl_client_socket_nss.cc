@@ -246,7 +246,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // TODO(port): specify rx and tx buffer sizes separately
   nss_fd_ = memio_CreateIOLayer(kRecvBufferSize);
   if (nss_fd_ == NULL) {
-    return 9999;  // TODO(port): real error
+    return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR error code.
   }
 
   // Tell NSS who we're connected to
@@ -255,7 +255,8 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   int err = transport_->GetPeerName((struct sockaddr *)&peername, &len);
   if (err) {
     DLOG(ERROR) << "GetPeerName failed";
-    return 9999;  // TODO(port): real error
+    // TODO(wtc): Change GetPeerName to return a network error code.
+    return ERR_UNEXPECTED;
   }
   memio_SetPeerName(nss_fd_, &peername);
 
@@ -266,7 +267,7 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   /* Push SSL onto our fake I/O socket */
   nss_fd_ = SSL_ImportFD(NULL, nss_fd_);
   if (nss_fd_ == NULL) {
-      return ERR_SSL_PROTOCOL_ERROR;  // TODO(port): real error
+      return ERR_OUT_OF_MEMORY;  // TODO(port): map NSPR/NSS error code.
   }
   // TODO(port): set more ssl options!  Check errors!
 
