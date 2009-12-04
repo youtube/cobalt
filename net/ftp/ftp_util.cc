@@ -104,4 +104,44 @@ std::string FtpUtil::VMSPathToUnix(const std::string& vms_path) {
   return result;
 }
 
+// static
+bool FtpUtil::ThreeLetterMonthToNumber(const string16& text, int* number) {
+  const static char* months[] = { "jan", "feb", "mar", "apr", "may", "jun",
+                                  "jul", "aug", "sep", "oct", "nov", "dec" };
+
+  for (size_t i = 0; i < arraysize(months); i++) {
+    if (LowerCaseEqualsASCII(text, months[i])) {
+      *number = i + 1;
+      return true;
+    }
+  }
+
+  // Special cases for directory listings in German (other three-letter month
+  // abbreviations are the same as in English). Note that we don't need to do
+  // a case-insensitive compare here. Only "ls -l" style listings may use
+  // localized month names, and they will always start capitalized. Also,
+  // converting non-ASCII characters to lowercase would be more complicated.
+  if (text == UTF8ToUTF16("M\xc3\xa4r")) {
+    // The full month name is M-(a-umlaut)-rz (March), which is M-(a-umlaut)r
+    // when abbreviated.
+    *number = 3;
+    return true;
+  }
+  if (text == ASCIIToUTF16("Mai")) {
+    *number = 5;
+    return true;
+  }
+  if (text == ASCIIToUTF16("Okt")) {
+    *number = 10;
+    return true;
+  }
+  if (text == ASCIIToUTF16("Dez")) {
+    *number = 12;
+    return true;
+  }
+
+  return false;
+}
+
+
 }  // namespace
