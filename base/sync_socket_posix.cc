@@ -98,4 +98,10 @@ size_t SyncSocket::Receive(void* buffer, size_t length) {
   }
 }
 
+// TODO(port). Some kind of select?
+size_t SyncSocket::Peek() {
+  NOTIMPLEMENTED();
+  return 0;
+}
+
 }  // namespace base

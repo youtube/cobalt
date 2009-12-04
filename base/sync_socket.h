@@ -51,6 +51,12 @@ class SyncSocket {
   // Returns the number of bytes received, or 0 upon failure.
   size_t Receive(void* buffer, size_t length);
 
+  // Returns the number of bytes available. If non-zero, Receive() will not
+  // not block when called. NOTE: Some implementations cannot reliably
+  // determine the number of bytes available so avoid using the returned
+  // size as a promise and simply test against zero.
+  size_t Peek();
+
   // Extracts the contained handle.  Used for transferring between
   // processes.
   Handle handle() const { return handle_; }
