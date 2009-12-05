@@ -1095,7 +1095,9 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
     }
     custom_request_->extra_headers.append(etag_value);
     custom_request_->extra_headers.append("\r\n");
-    if (partial_.get() && partial_->IsCurrentRangeCached())
+    // For byte-range requests, make sure that we use only one way to validate
+    // the request.
+    if (partial_.get())
       return true;
   }
 
