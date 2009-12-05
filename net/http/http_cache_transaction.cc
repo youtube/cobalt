@@ -101,6 +101,7 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
       request_(NULL),
       cache_(cache->AsWeakPtr()),
       entry_(NULL),
+      new_entry_(NULL),
       network_trans_(NULL),
       callback_(NULL),
       mode_(NONE),
@@ -156,6 +157,9 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
 
   // Ensure that we only have one asynchronous call at a time.
   DCHECK(!callback_);
+  DCHECK(!reading_);
+  DCHECK(!network_trans_.get());
+  DCHECK(!entry_);
 
   if (!cache_)
     return ERR_UNEXPECTED;
@@ -167,7 +171,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
   if (!ShouldPassThrough()) {
     cache_key_ = cache_->GenerateCacheKey(request);
 
-    // requested cache access mode
+    // Requested cache access mode.
     if (effective_load_flags_ & LOAD_ONLY_FROM_CACHE) {
       mode_ = READ;
     } else if (effective_load_flags_ & LOAD_BYPASS_CACHE) {
@@ -188,7 +192,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
     }
   }
 
-  // if must use cache, then we must fail.  this can happen for back/forward
+  // If must use cache, then we must fail.  This can happen for back/forward
   // navigations to a page generated via a form post.
   if (!(mode_ & READ) && effective_load_flags_ & LOAD_ONLY_FROM_CACHE)
     return ERR_CACHE_MISS;
@@ -201,7 +205,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
     rv = AddToEntry();
   }
 
-  // setting this here allows us to check for the existance of a callback_ to
+  // Setting this here allows us to check for the existance of a callback_ to
   // determine if we are still inside Start.
   if (rv == ERR_IO_PENDING)
     callback_ = callback;
@@ -213,7 +217,7 @@ int HttpCache::Transaction::RestartIgnoringLastError(
     CompletionCallback* callback) {
   DCHECK(callback);
 
-  // ensure that we only have one asynchronous call at a time.
+  // Ensure that we only have one asynchronous call at a time.
   DCHECK(!callback_);
 
   if (!cache_)
@@ -232,7 +236,7 @@ int HttpCache::Transaction::RestartWithCertificate(
     CompletionCallback* callback) {
   DCHECK(callback);
 
-  // ensure that we only have one asynchronous call at a time.
+  // Ensure that we only have one asynchronous call at a time.
   DCHECK(!callback_);
 
   if (!cache_)
@@ -350,60 +354,128 @@ uint64 HttpCache::Transaction::GetUploadProgress() const {
 }
 
 int HttpCache::Transaction::AddToEntry() {
-  ActiveEntry* entry = NULL;
+  next_state_ = STATE_INIT_ENTRY;
+  return DoLoop(OK);
+}
+
+int HttpCache::Transaction::DoInitEntry() {
+  DCHECK(!new_entry_);
 
   if (!cache_)
     return ERR_UNEXPECTED;
 
   if (mode_ == WRITE) {
-    cache_->DoomEntry(cache_key_);
-  } else {
-    entry = cache_->FindActiveEntry(cache_key_);
-    if (!entry) {
-      LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
-      entry = cache_->OpenEntry(cache_key_);
-      LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
-      if (!entry) {
-        if (mode_ == READ_WRITE) {
-          mode_ = WRITE;
-        } else if (mode_ == UPDATE) {
-          // There is no cache entry to update; proceed without caching.
-          mode_ = NONE;
-          return BeginNetworkRequest();
-        } else {
-          if (cache_->mode() == PLAYBACK)
-            DLOG(INFO) << "Playback Cache Miss: " << request_->url;
+    next_state_ = STATE_DOOM_ENTRY;
+    return OK;
+  }
 
-          // entry does not exist, and not permitted to create a new entry, so
-          // we must fail.
-          return HandleResult(ERR_CACHE_MISS);
-        }
-      }
-    }
+  new_entry_ = cache_->FindActiveEntry(cache_key_);
+  if (!new_entry_) {
+    next_state_ = STATE_OPEN_ENTRY;
+    return OK;
   }
 
   if (mode_ == WRITE) {
-    DCHECK(!entry);
-    LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
-    entry = cache_->CreateEntry(cache_key_);
-    LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
-    if (!entry) {
-      DLOG(WARNING) << "unable to create cache entry";
-      mode_ = NONE;
-      if (partial_.get())
-        partial_->RestoreHeaders(&custom_request_->extra_headers);
-      return BeginNetworkRequest();
-    }
+    next_state_ = STATE_CREATE_ENTRY;
+    return OK;
   }
 
+  next_state_ = STATE_ADD_TO_ENTRY;
+  return OK;
+}
 
+int HttpCache::Transaction::DoDoomEntry() {
+  next_state_ = STATE_DOOM_ENTRY_COMPLETE;
+  cache_->DoomEntry(cache_key_);
+  return OK;
+}
+
+int HttpCache::Transaction::DoDoomEntryComplete() {
+  next_state_ = STATE_CREATE_ENTRY;
+  return OK;
+}
+
+int HttpCache::Transaction::DoOpenEntry() {
+  DCHECK(!new_entry_);
+  next_state_ = STATE_OPEN_ENTRY_COMPLETE;
+  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
+  new_entry_ = cache_->OpenEntry(cache_key_);
+  return OK;
+}
+
+int HttpCache::Transaction::DoOpenEntryComplete() {
+  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
+  if (new_entry_) {
+    next_state_ = STATE_ADD_TO_ENTRY;
+    return OK;
+  }
+
+  if (mode_ == READ_WRITE) {
+    mode_ = WRITE;
+    next_state_ = STATE_CREATE_ENTRY;
+    return OK;
+  }
+  if (mode_ == UPDATE) {
+    // There is no cache entry to update; proceed without caching.
+    mode_ = NONE;
+    next_state_ = STATE_SEND_REQUEST;
+    return OK;
+  }
+  if (cache_->mode() == PLAYBACK)
+    DLOG(INFO) << "Playback Cache Miss: " << request_->url;
+
+  // The entry does not exist, and we are not permitted to create a new entry,
+  // so we must fail.
+  return ERR_CACHE_MISS;
+}
+
+int HttpCache::Transaction::DoCreateEntry() {
+  DCHECK(!new_entry_);
+  next_state_ = STATE_CREATE_ENTRY_COMPLETE;
+  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
+  new_entry_ = cache_->CreateEntry(cache_key_);
+  return OK;
+}
+
+int HttpCache::Transaction::DoCreateEntryComplete() {
+  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
+  next_state_ = STATE_ADD_TO_ENTRY;
+  if (!new_entry_) {
+    // We have a race here: Maybe we failed to open the entry and decided to
+    // create one, but by the time we called create, another transaction already
+    // created the entry. If we want to eliminate this issue, we need an atomic
+    // OpenOrCreate() method exposed by the disk cache.
+    DLOG(WARNING) << "Unable to create cache entry";
+    mode_ = NONE;
+    if (partial_.get())
+      partial_->RestoreHeaders(&custom_request_->extra_headers);
+    next_state_ = STATE_SEND_REQUEST;
+  }
+  return OK;
+}
+
+int HttpCache::Transaction::DoAddToEntry() {
+  DCHECK(new_entry_);
   LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
-  return cache_->AddTransactionToEntry(entry, this);
+  int rv = cache_->AddTransactionToEntry(new_entry_, this);
+  new_entry_ = NULL;
+  return rv;
 }
 
 int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
   LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
+  entry_ = entry;
 
+  next_state_ = STATE_ENTRY_AVAILABLE;
+  if (new_entry_) {
+    // We are inside AddTransactionToEntry() so avoid reentering DoLoop().
+    DCHECK_EQ(new_entry_, entry);
+    return OK;
+  }
+  return DoLoop(OK);
+}
+
+int HttpCache::Transaction::DoEntryAvailable() {
   // We now have access to the cache entry.
   //
   //  o if we are the writer for the transaction, then we can start the network
@@ -421,8 +493,8 @@ int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
   //    the cache entry, and check if the request headers define a validation
   //    request.
   //
+  DCHECK(!new_entry_);
   int rv;
-  entry_ = entry;
   switch (mode_) {
     case READ:
       rv = BeginCacheRead();
@@ -430,7 +502,8 @@ int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
     case WRITE:
       if (partial_.get())
         partial_->RestoreHeaders(&custom_request_->extra_headers);
-      rv = BeginNetworkRequest();
+      next_state_ = STATE_SEND_REQUEST;
+      rv = OK;
       break;
     case READ_WRITE:
       rv = BeginPartialCacheValidation();
@@ -499,6 +572,46 @@ int HttpCache::Transaction::DoLoop(int result) {
         break;
       case STATE_NETWORK_READ_COMPLETE:
         rv = DoNetworkReadComplete(rv);
+        break;
+      case STATE_INIT_ENTRY:
+        DCHECK_EQ(OK, rv);
+        rv = DoInitEntry();
+        break;
+      case STATE_OPEN_ENTRY:
+        DCHECK_EQ(OK, rv);
+        rv = DoOpenEntry();
+        break;
+      case STATE_OPEN_ENTRY_COMPLETE:
+        DCHECK_EQ(OK, rv);
+        rv = DoOpenEntryComplete();
+        break;
+      case STATE_CREATE_ENTRY:
+        DCHECK_EQ(OK, rv);
+        rv = DoCreateEntry();
+        break;
+      case STATE_CREATE_ENTRY_COMPLETE:
+        DCHECK_EQ(OK, rv);
+        rv = DoCreateEntryComplete();
+        break;
+      case STATE_DOOM_ENTRY:
+        DCHECK_EQ(OK, rv);
+        rv = DoDoomEntry();
+        break;
+      case STATE_DOOM_ENTRY_COMPLETE:
+        DCHECK_EQ(OK, rv);
+        rv = DoDoomEntryComplete();
+        break;
+      case STATE_ADD_TO_ENTRY:
+        DCHECK_EQ(OK, rv);
+        rv = DoAddToEntry();
+        break;
+      case STATE_ENTRY_AVAILABLE:
+        DCHECK_EQ(OK, rv);
+        rv = DoEntryAvailable();
+        break;
+      case STATE_PARTIAL_CACHE_VALIDATION:
+        DCHECK_EQ(OK, rv);
+        rv = DoPartialCacheValidation();
         break;
       case STATE_CACHE_QUERY_DATA:
         DCHECK_EQ(OK, rv);
@@ -681,19 +794,19 @@ int HttpCache::Transaction::BeginCacheRead() {
   // Read response headers.
   int rv = ReadResponseInfoFromEntry();
   if (rv != OK)
-    return HandleResult(rv);
+    return rv;
 
   // We don't support any combination of LOAD_ONLY_FROM_CACHE and byte ranges.
   if (response_.headers->response_code() == 206 || partial_.get()) {
     NOTREACHED();
-    return HandleResult(ERR_CACHE_MISS);
+    return ERR_CACHE_MISS;
   }
 
   // We don't have the whole resource.
   if (truncated_)
-    return HandleResult(ERR_CACHE_MISS);
+    return ERR_CACHE_MISS;
 
-  return HandleResult(rv);
+  return rv;
 }
 
 int HttpCache::Transaction::BeginCacheValidation() {
@@ -710,9 +823,9 @@ int HttpCache::Transaction::BeginCacheValidation() {
     // either READ or WRITE mode once we hear back from the server.
     if (!ConditionalizeRequest())
       mode_ = WRITE;
-    return BeginNetworkRequest();
+    next_state_ = STATE_SEND_REQUEST;
   }
-  return HandleResult(OK);
+  return OK;
 }
 
 int HttpCache::Transaction::BeginPartialCacheValidation() {
@@ -721,7 +834,7 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
   int rv = ReadResponseInfoFromEntry();
   if (rv != OK) {
     DCHECK(rv != ERR_IO_PENDING);
-    return HandleResult(rv);
+    return rv;
   }
 
   if (response_.headers->response_code() != 206 && !partial_.get() &&
@@ -734,7 +847,7 @@ int HttpCache::Transaction::BeginPartialCacheValidation() {
   bool byte_range_requested = partial_.get() != NULL;
   if (byte_range_requested) {
     next_state_ = STATE_CACHE_QUERY_DATA;
-    return DoLoop(OK);
+    return OK;
   }
   // The request is not for a range, but we have stored just ranges.
   partial_.reset(new PartialData());
@@ -776,7 +889,8 @@ int HttpCache::Transaction::ValidateEntryHeadersAndContinue(
     DoomPartialEntry(!byte_range_requested);
     mode_ = WRITE;
     truncated_ = false;
-    return AddToEntry();
+    next_state_ = STATE_INIT_ENTRY;
+    return OK;
   }
 
   if (!partial_->IsRequestedRangeOK()) {
@@ -784,31 +898,36 @@ int HttpCache::Transaction::ValidateEntryHeadersAndContinue(
     invalid_range_ = true;
   }
 
-  return ContinuePartialCacheValidation();
+  next_state_ = STATE_PARTIAL_CACHE_VALIDATION;
+  return OK;
 }
 
-int HttpCache::Transaction::ContinuePartialCacheValidation() {
-  DCHECK(mode_ == READ_WRITE);
+int HttpCache::Transaction::DoPartialCacheValidation() {
+  if (mode_ == NONE)
+    return OK;
+
   int rv = partial_->PrepareCacheValidation(entry_->disk_entry,
                                             &custom_request_->extra_headers);
 
   if (!rv) {
-    // Don't invoke the callback before telling the cache we're done.
+    // This is the end of the request.
+    if (mode_ & WRITE) {
+      DoneWritingToEntry(true);
+    } else {
+      cache_->DoneReadingFromEntry(entry_, this);
+      entry_ = NULL;
+    }
     return rv;
   }
 
   if (rv < 0) {
     DCHECK(rv != ERR_IO_PENDING);
-    return HandleResult(rv);
+    return rv;
   }
 
   if (reading_ && partial_->IsCurrentRangeCached()) {
-    rv = ReadFromEntry(read_buf_, read_buf_len_);
-
-    // We are supposed to hanlde errors here.
-    if (rv < 0 && rv != ERR_IO_PENDING)
-      HandleResult(rv);
-    return rv;
+    next_state_ = STATE_CACHE_READ_DATA;
+    return OK;
   }
 
   return BeginCacheValidation();
@@ -822,7 +941,7 @@ int HttpCache::Transaction::BeginExternallyConditionalizedRequest() {
   int rv = ReadResponseInfoFromEntry();
   if (rv != OK) {
     DCHECK(rv != ERR_IO_PENDING);
-    return HandleResult(rv);
+    return rv;
   }
 
   for (size_t i = 0;  i < ARRAYSIZE_UNSAFE(kValidationHeaders); i++) {
@@ -843,7 +962,8 @@ int HttpCache::Transaction::BeginExternallyConditionalizedRequest() {
     }
   }
 
-  return BeginNetworkRequest();
+  next_state_ = STATE_SEND_REQUEST;
+  return OK;
 }
 
 int HttpCache::Transaction::BeginNetworkRequest() {
@@ -1261,16 +1381,10 @@ int HttpCache::Transaction::DoCacheWriteData(int num_bytes) {
 int HttpCache::Transaction::DoPartialNetworkReadCompleted(int result) {
   partial_->OnNetworkReadCompleted(result);
 
-  if (result == 0) {  // End of file.
-    if (mode_ == READ_WRITE) {
-      // We need to move on to the next range.
-      network_trans_.reset();
-      result = ContinuePartialCacheValidation();
-      if (result != OK)
-        // Any error was already handled.
-        return result;
-    }
-    DoneWritingToEntry(true);
+  if (result == 0) {
+    // We need to move on to the next range.
+    network_trans_.reset();
+    next_state_ = STATE_PARTIAL_CACHE_VALIDATION;
   }
   return result;
 }
@@ -1296,18 +1410,9 @@ int HttpCache::Transaction::DoCacheReadDataComplete(int result) {
 int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
   partial_->OnCacheReadCompleted(result);
 
-  if (result == 0) {  // End of file.
-    if (partial_.get() && mode_ == READ_WRITE) {
-      // We need to move on to the next range.
-      result = ContinuePartialCacheValidation();
-      if (result != OK || !entry_) {
-        // Any error was already handled.
-        return result;
-      }
-      cache_->ConvertWriterToReader(entry_);
-    }
-    cache_->DoneReadingFromEntry(entry_, this);
-    entry_ = NULL;
+  if (result == 0 && mode_ == READ_WRITE) {
+    // We need to move on to the next range.
+    next_state_ = STATE_PARTIAL_CACHE_VALIDATION;
   }
   return result;
 }
@@ -1420,19 +1525,11 @@ int HttpCache::Transaction::DoSendRequestComplete(int result) {
       }
       if (reading_ && partial_.get()) {
         if (network_trans_.get()) {
-          next_state_ = STATE_NETWORK_READ_COMPLETE;
-          result = ReadFromNetwork(read_buf_, read_buf_len_);
+          next_state_ = STATE_NETWORK_READ;
         } else {
-          next_state_ = STATE_CACHE_READ_DATA_COMPLETE;
-          result = ReadFromEntry(read_buf_, read_buf_len_);
+          next_state_ = STATE_CACHE_READ_DATA;
         }
-        if (result >= 0 || result == ERR_IO_PENDING) {
-          // Keep looping.
-          return result;
-        } else {
-          // Don't keep looping when we return.
-          next_state_ = STATE_NONE;
-        }
+        result = OK;
       } else if (mode_ != NONE && partial_.get()) {
         // We are about to return the headers for a byte-range request to the
         // user, so let's fix them.
