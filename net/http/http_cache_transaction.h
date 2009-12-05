@@ -96,11 +96,11 @@ class HttpCache::Transaction : public HttpTransaction {
 
   enum State {
     STATE_NONE,
-    STATE_START_REQUEST,
     STATE_SEND_REQUEST,
     STATE_SEND_REQUEST_COMPLETE,
     STATE_NETWORK_READ,
     STATE_NETWORK_READ_COMPLETE,
+    STATE_INIT_ENTRY,
     STATE_OPEN_ENTRY,
     STATE_OPEN_ENTRY_COMPLETE,
     STATE_CREATE_ENTRY,
@@ -108,8 +108,8 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_DOOM_ENTRY,
     STATE_DOOM_ENTRY_COMPLETE,
     STATE_ADD_TO_ENTRY,
-    STATE_ADD_TO_ENTRY_COMPLETE,
     STATE_ENTRY_AVAILABLE,
+    STATE_PARTIAL_CACHE_VALIDATION,
     STATE_CACHE_READ_RESPONSE,
     STATE_CACHE_READ_RESPONSE_COMPLETE,
     STATE_CACHE_WRITE_RESPONSE,
@@ -132,11 +132,23 @@ class HttpCache::Transaction : public HttpTransaction {
   // Runs the state transition loop.
   int DoLoop(int result);
 
-  // Each of these methods corresponds to a State value.
+  // Each of these methods corresponds to a State value.  If there is an
+  // argument, the value corresponds to the return of the previous state or
+  // corresponding callback.
   int DoSendRequest();
   int DoSendRequestComplete(int result);
   int DoNetworkRead();
   int DoNetworkReadComplete(int result);
+  int DoInitEntry();
+  int DoOpenEntry();
+  int DoOpenEntryComplete();
+  int DoCreateEntry();
+  int DoCreateEntryComplete();
+  int DoDoomEntry();
+  int DoDoomEntryComplete();
+  int DoAddToEntry();
+  int DoEntryAvailable();
+  int DoPartialCacheValidation();
   int DoCacheReadData();
   int DoCacheReadDataComplete(int result);
   int DoCacheQueryData();
@@ -164,11 +176,6 @@ class HttpCache::Transaction : public HttpTransaction {
   // Validates the entry headers against the requested range and continues with
   // the validation of the rest of the entry.  Returns a network error code.
   int ValidateEntryHeadersAndContinue(bool byte_range_requested);
-
-  // Performs the cache validation for the next chunk of data stored by the
-  // cache.  If this chunk is not currently stored, starts the network request
-  // to fetch it.  Returns a network error code.
-  int ContinuePartialCacheValidation();
 
   // Called to start requests which were given an "if-modified-since" or
   // "if-none-match" validation header by the caller (NOT when the request was
@@ -265,6 +272,7 @@ class HttpCache::Transaction : public HttpTransaction {
   ValidationHeaders external_validation_;
   base::WeakPtr<HttpCache> cache_;
   HttpCache::ActiveEntry* entry_;
+  HttpCache::ActiveEntry* new_entry_;
   scoped_ptr<HttpTransaction> network_trans_;
   CompletionCallback* callback_;  // Consumer's callback.
   HttpResponseInfo response_;
