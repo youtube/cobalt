@@ -99,18 +99,6 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/mime_util.h"
 
-namespace {
-
-class SnifferHistogram : public LinearHistogram {
- public:
-  SnifferHistogram(const char* name, int array_size)
-      : LinearHistogram(name, 0, array_size - 1, array_size) {
-    SetFlags(kUmaTargetedHistogramFlag);
-  }
-};
-
-}  // namespace
-
 namespace net {
 
 // We aren't interested in looking at more than 512 bytes of content
@@ -218,6 +206,15 @@ static const MagicNumber kSniffableTags[] = {
   MAGIC_HTML_TAG("p")  // Mozilla
 };
 
+static scoped_refptr<Histogram> UMASnifferHistogramGet(const char* name,
+                                                       int array_size) {
+  scoped_refptr<Histogram> counter =
+      LinearHistogram::LinearHistogramFactoryGet(
+          name, 1, array_size - 1, array_size);
+  counter->SetFlags(kUmaTargetedHistogramFlag);
+  return counter;
+}
+
 static bool MatchMagicNumber(const char* content, size_t size,
                              const MagicNumber* magic_entry,
                              std::string* result) {
@@ -273,22 +270,24 @@ static bool SniffForHTML(const char* content, size_t size,
     if (!IsAsciiWhitespace(*pos))
       break;
   }
-  static SnifferHistogram counter("mime_sniffer.kSniffableTags2",
-                                  arraysize(kSniffableTags));
+  static scoped_refptr<Histogram> counter =
+      UMASnifferHistogramGet("mime_sniffer.kSniffableTags2",
+                             arraysize(kSniffableTags));
   // |pos| now points to first non-whitespace character (or at end).
   return CheckForMagicNumbers(pos, end - pos,
                               kSniffableTags, arraysize(kSniffableTags),
-                              &counter, result);
+                              counter.get(), result);
 }
 
 static bool SniffForMagicNumbers(const char* content, size_t size,
                                  std::string* result) {
   // Check our big table of Magic Numbers
-  static SnifferHistogram counter("mime_sniffer.kMagicNumbers2",
-                                  arraysize(kMagicNumbers));
+  static scoped_refptr<Histogram> counter =
+      UMASnifferHistogramGet("mime_sniffer.kMagicNumbers2",
+                             arraysize(kMagicNumbers));
   return CheckForMagicNumbers(content, size,
                               kMagicNumbers, arraysize(kMagicNumbers),
-                              &counter, result);
+                              counter.get(), result);
 }
 
 // Byte order marks
@@ -320,8 +319,9 @@ static bool SniffXML(const char* content, size_t size, std::string* result) {
   // We want to skip XML processing instructions (of the form "<?xml ...")
   // and stop at the first "plain" tag, then make a decision on the mime-type
   // based on the name (or possibly attributes) of that tag.
-  static SnifferHistogram counter("mime_sniffer.kMagicXML2",
-                                  arraysize(kMagicXML));
+  static scoped_refptr<Histogram> counter =
+      UMASnifferHistogramGet("mime_sniffer.kMagicXML2",
+                             arraysize(kMagicXML));
   const int kMaxTagIterations = 5;
   for (int i = 0; i < kMaxTagIterations && pos < end; ++i) {
     pos = reinterpret_cast<const char*>(memchr(pos, '<', end - pos));
@@ -341,7 +341,7 @@ static bool SniffXML(const char* content, size_t size, std::string* result) {
 
     if (CheckForMagicNumbers(pos, end - pos,
                              kMagicXML, arraysize(kMagicXML),
-                             &counter, result))
+                             counter.get(), result))
       return true;
 
     // TODO(evanm): handle RSS 1.0, which is an RDF format and more difficult
@@ -388,12 +388,13 @@ static char kByteLooksBinary[] = {
 
 static bool LooksBinary(const char* content, size_t size) {
   // First, we look for a BOM.
-  static SnifferHistogram counter("mime_sniffer.kByteOrderMark2",
-                                  arraysize(kByteOrderMark));
+  static scoped_refptr<Histogram> counter =
+      UMASnifferHistogramGet("mime_sniffer.kByteOrderMark2",
+                             arraysize(kByteOrderMark));
   std::string unused;
   if (CheckForMagicNumbers(content, size,
                            kByteOrderMark, arraysize(kByteOrderMark),
-                           &counter, &unused)) {
+                           counter.get(), &unused)) {
     // If there is BOM, we think the buffer is not binary.
     return false;
   }
@@ -422,17 +423,18 @@ static bool IsUnknownMimeType(const std::string& mime_type) {
     // Firefox rejects a mime type if it is exactly */*
     "*/*",
   };
-  static SnifferHistogram counter("mime_sniffer.kUnknownMimeTypes2",
-                                  arraysize(kUnknownMimeTypes) + 1);
+  static scoped_refptr<Histogram> counter =
+      UMASnifferHistogramGet("mime_sniffer.kUnknownMimeTypes2",
+                             arraysize(kUnknownMimeTypes) + 1);
   for (size_t i = 0; i < arraysize(kUnknownMimeTypes); ++i) {
     if (mime_type == kUnknownMimeTypes[i]) {
-      counter.Add(i);
+      counter->Add(i);
       return true;
     }
   }
   if (mime_type.find('/') == std::string::npos) {
     // Firefox rejects a mime type if it does not contain a slash
-    counter.Add(arraysize(kUnknownMimeTypes));
+    counter->Add(arraysize(kUnknownMimeTypes));
     return true;
   }
   return false;
@@ -441,7 +443,8 @@ static bool IsUnknownMimeType(const std::string& mime_type) {
 // Sniff a crx (chrome extension) file.
 static bool SniffCRX(const char* content, size_t content_size, const GURL& url,
                      const std::string& type_hint, std::string* result) {
-  static SnifferHistogram counter("mime_sniffer.kSniffCRX", 3);
+  static scoped_refptr<Histogram> counter =
+      UMASnifferHistogramGet("mime_sniffer.kSniffCRX", 3);
 
   // Technically, the crx magic number is just Cr24, but the bytes after that
   // are a version number which changes infrequently. Including it in the
@@ -459,7 +462,7 @@ static bool SniffCRX(const char* content, size_t content_size, const GURL& url,
   const int kExtensionLength = arraysize(kCRXExtension) - 1;  // ignore null
   if (url.path().rfind(kCRXExtension, std::string::npos, kExtensionLength) ==
       url.path().size() - kExtensionLength) {
-    counter.Add(1);
+    counter->Add(1);
   } else {
     return false;
   }
@@ -467,7 +470,7 @@ static bool SniffCRX(const char* content, size_t content_size, const GURL& url,
   if (CheckForMagicNumbers(content, content_size,
                            kCRXMagicNumbers, arraysize(kCRXMagicNumbers),
                            NULL, result)) {
-    counter.Add(2);
+    counter->Add(2);
   } else {
     return false;
   }
@@ -476,15 +479,15 @@ static bool SniffCRX(const char* content, size_t content_size, const GURL& url,
 }
 
 bool ShouldSniffMimeType(const GURL& url, const std::string& mime_type) {
-  static SnifferHistogram should_sniff_counter(
-      "mime_sniffer.ShouldSniffMimeType2", 3);
+  static scoped_refptr<Histogram> should_sniff_counter =
+      UMASnifferHistogramGet("mime_sniffer.ShouldSniffMimeType2", 3);
   // We are willing to sniff the mime type for HTTP, HTTPS, and FTP
   bool sniffable_scheme = url.is_empty() ||
                           url.SchemeIs("http") ||
                           url.SchemeIs("https") ||
                           url.SchemeIs("ftp");
   if (!sniffable_scheme) {
-    should_sniff_counter.Add(1);
+    should_sniff_counter->Add(1);
     return false;
   }
 
@@ -501,23 +504,24 @@ bool ShouldSniffMimeType(const GURL& url, const std::string& mime_type) {
     "text/xml",
     "application/xml",
   };
-  static SnifferHistogram counter("mime_sniffer.kSniffableTypes2",
-                                  arraysize(kSniffableTypes) + 1);
+  static scoped_refptr<Histogram> counter =
+      UMASnifferHistogramGet("mime_sniffer.kSniffableTypes2",
+                             arraysize(kSniffableTypes) + 1);
   for (size_t i = 0; i < arraysize(kSniffableTypes); ++i) {
     if (mime_type == kSniffableTypes[i]) {
-      counter.Add(i);
-      should_sniff_counter.Add(2);
+      counter->Add(i);
+      should_sniff_counter->Add(2);
       return true;
     }
   }
   if (IsUnknownMimeType(mime_type)) {
     // The web server didn't specify a content type or specified a mime
     // type that we ignore.
-    counter.Add(arraysize(kSniffableTypes));
-    should_sniff_counter.Add(2);
+    counter->Add(arraysize(kSniffableTypes));
+    should_sniff_counter->Add(2);
     return true;
   }
-  should_sniff_counter.Add(1);
+  should_sniff_counter->Add(1);
   return false;
 }
 

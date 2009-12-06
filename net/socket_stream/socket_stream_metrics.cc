@@ -83,19 +83,21 @@ void SocketStreamMetrics::OnClose() {
 }
 
 void SocketStreamMetrics::CountProtocolType(ProtocolType protocol_type) {
-  static LinearHistogram counter("Net.SocketStream.ProtocolType",
-                                 0, NUM_PROTOCOL_TYPES,
-                                 NUM_PROTOCOL_TYPES + 1);
-  counter.SetFlags(kUmaTargetedHistogramFlag);
-  counter.Add(protocol_type);
+  static scoped_refptr<Histogram> counter =
+      LinearHistogram::LinearHistogramFactoryGet(
+          "Net.SocketStream.ProtocolType",
+          0, NUM_PROTOCOL_TYPES, NUM_PROTOCOL_TYPES + 1);
+  counter->SetFlags(kUmaTargetedHistogramFlag);
+  counter->Add(protocol_type);
 }
 
 void SocketStreamMetrics::CountConnectionType(ConnectionType connection_type) {
-  static LinearHistogram counter("Net.SocketStream.ConnectionType",
-                                 1, NUM_CONNECTION_TYPES,
-                                 NUM_CONNECTION_TYPES + 1);
-  counter.SetFlags(kUmaTargetedHistogramFlag);
-  counter.Add(connection_type);
+  static scoped_refptr<Histogram> counter =
+      LinearHistogram::LinearHistogramFactoryGet(
+          "Net.SocketStream.ConnectionType",
+          1, NUM_CONNECTION_TYPES, NUM_CONNECTION_TYPES + 1);
+  counter->SetFlags(kUmaTargetedHistogramFlag);
+  counter->Add(connection_type);
 }
 
 

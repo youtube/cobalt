@@ -22,22 +22,24 @@ namespace net {
 // expansion.
 void UpdateFtpServerTypeHistograms(FtpServerType type) {
   static bool had_server_type[NUM_OF_SERVER_TYPES];
-  static LinearHistogram counter1("Net.HadFtpServerType",
-                                  1, NUM_OF_SERVER_TYPES,
-                                  NUM_OF_SERVER_TYPES + 1);
-  static LinearHistogram counter2("Net.FtpServerTypeCount",
-                                  1, NUM_OF_SERVER_TYPES,
-                                  NUM_OF_SERVER_TYPES + 1);
+  static scoped_refptr<Histogram> counter1 =
+      LinearHistogram::LinearHistogramFactoryGet("Net.HadFtpServerType",
+                                                 1, NUM_OF_SERVER_TYPES,
+                                                 NUM_OF_SERVER_TYPES + 1);
+  static scoped_refptr<Histogram> counter2 =
+      LinearHistogram::LinearHistogramFactoryGet("Net.FtpServerTypeCount",
+                                                 1, NUM_OF_SERVER_TYPES,
+                                                 NUM_OF_SERVER_TYPES + 1);
 
   if (type >= 0 && type < NUM_OF_SERVER_TYPES) {
     if (!had_server_type[type]) {
       had_server_type[type] = true;
-      counter1.SetFlags(kUmaTargetedHistogramFlag);
-      counter1.Add(type);
+      counter1->SetFlags(kUmaTargetedHistogramFlag);
+      counter1->Add(type);
     }
   }
-  counter2.SetFlags(kUmaTargetedHistogramFlag);
-  counter2.Add(type);
+  counter2->SetFlags(kUmaTargetedHistogramFlag);
+  counter2->Add(type);
 }
 
 }  // namespace net

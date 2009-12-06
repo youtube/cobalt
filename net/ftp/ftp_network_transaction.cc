@@ -1162,21 +1162,23 @@ void FtpNetworkTransaction::RecordDataConnectionError(int result) {
       break;
   };
   static bool had_error_type[NUM_OF_NET_ERROR_TYPES];
-  static LinearHistogram error_flagged("Net.FtpDataConnectionErrorHappened",
-                                       1, NUM_OF_NET_ERROR_TYPES,
-                                       NUM_OF_NET_ERROR_TYPES + 1);
-  static LinearHistogram error_counter("Net.FtpDataConnectionErrorCount",
-                                       1, NUM_OF_NET_ERROR_TYPES,
-                                       NUM_OF_NET_ERROR_TYPES + 1);
+  static scoped_refptr<Histogram> error_flagged =
+      LinearHistogram::LinearHistogramFactoryGet(
+          "Net.FtpDataConnectionErrorHappened",
+          1, NUM_OF_NET_ERROR_TYPES, NUM_OF_NET_ERROR_TYPES + 1);
+  static scoped_refptr<Histogram> error_counter =
+      LinearHistogram::LinearHistogramFactoryGet(
+          "Net.FtpDataConnectionErrorCount",
+          1, NUM_OF_NET_ERROR_TYPES, NUM_OF_NET_ERROR_TYPES + 1);
 
   DCHECK(type >= 0 && type < NUM_OF_NET_ERROR_TYPES);
   if (!had_error_type[type]) {
     had_error_type[type] = true;
-    error_flagged.SetFlags(kUmaTargetedHistogramFlag);
-    error_flagged.Add(type);
+    error_flagged->SetFlags(kUmaTargetedHistogramFlag);
+    error_flagged->Add(type);
   }
-  error_counter.SetFlags(kUmaTargetedHistogramFlag);
-  error_counter.Add(type);
+  error_counter->SetFlags(kUmaTargetedHistogramFlag);
+  error_counter->Add(type);
 }
 
 }  // namespace net

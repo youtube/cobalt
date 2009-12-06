@@ -22,22 +22,24 @@ namespace net {
 // expansion.
 void UpdateConnectionTypeHistograms(ConnectionType type) {
   static bool had_connection_type[NUM_OF_CONNECTION_TYPES];
-  static LinearHistogram counter1("Net.HadConnectionType",
-                                  1, NUM_OF_CONNECTION_TYPES,
-                                  NUM_OF_CONNECTION_TYPES + 1);
-  static LinearHistogram counter2("Net.ConnectionTypeCount",
-                                  1, NUM_OF_CONNECTION_TYPES,
-                                  NUM_OF_CONNECTION_TYPES + 1);
+  static scoped_refptr<Histogram> counter1 =
+      LinearHistogram::LinearHistogramFactoryGet("Net.HadConnectionType",
+                                                 1, NUM_OF_CONNECTION_TYPES,
+                                                 NUM_OF_CONNECTION_TYPES + 1);
+  static scoped_refptr<Histogram> counter2 =
+      LinearHistogram::LinearHistogramFactoryGet("Net.ConnectionTypeCount",
+                                                 1, NUM_OF_CONNECTION_TYPES,
+                                                 NUM_OF_CONNECTION_TYPES + 1);
 
   if (type >= 0 && type < NUM_OF_CONNECTION_TYPES) {
     if (!had_connection_type[type]) {
       had_connection_type[type] = true;
-      counter1.SetFlags(kUmaTargetedHistogramFlag);
-      counter1.Add(type);
+      counter1->SetFlags(kUmaTargetedHistogramFlag);
+      counter1->Add(type);
     }
   }
-  counter2.SetFlags(kUmaTargetedHistogramFlag);
-  counter2.Add(type);
+  counter2->SetFlags(kUmaTargetedHistogramFlag);
+  counter2->Add(type);
 }
 
 }  // namespace net
