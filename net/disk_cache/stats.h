@@ -84,7 +84,7 @@ class Stats {
   uint32 storage_addr_;
   int data_sizes_[kDataSizesLength];
   int64 counters_[MAX_COUNTER];
-  scoped_ptr<StatsHistogram> size_histogram_;
+  scoped_refptr<StatsHistogram> size_histogram_;
 
   DISALLOW_COPY_AND_ASSIGN(Stats);
 };

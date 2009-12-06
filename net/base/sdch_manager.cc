@@ -32,10 +32,11 @@ SdchManager* SdchManager::Global() {
 
 // static
 void SdchManager::SdchErrorRecovery(ProblemCodes problem) {
-  static LinearHistogram histogram("Sdch3.ProblemCodes_4", MIN_PROBLEM_CODE,
-                                   MAX_PROBLEM_CODE - 1, MAX_PROBLEM_CODE);
-  histogram.SetFlags(kUmaTargetedHistogramFlag);
-  histogram.Add(problem);
+  static scoped_refptr<Histogram> histogram =
+      LinearHistogram::LinearHistogramFactoryGet("Sdch3.ProblemCodes_4",
+          MIN_PROBLEM_CODE + 1, MAX_PROBLEM_CODE - 1, MAX_PROBLEM_CODE);
+  histogram->SetFlags(kUmaTargetedHistogramFlag);
+  histogram->Add(problem);
 }
 
 // static

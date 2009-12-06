@@ -138,7 +138,8 @@ bool Stats::Init(BackendImpl* backend, uint32* storage_addr) {
         backend->ShouldReportAgain()) {
       // Stats may be reused when the cache is re-created, but we want only one
       // histogram at any given time.
-      size_histogram_.reset(new StatsHistogram("DiskCache.SizeStats"));
+      size_histogram_ =
+          StatsHistogram::StatsHistogramFactoryGet("DiskCache.SizeStats");
       size_histogram_->Init(this);
     }
   }

@@ -5,6 +5,8 @@
 #ifndef NET_DISK_CACHE_STATS_HISTOGRAM_H_
 #define NET_DISK_CACHE_STATS_HISTOGRAM_H_
 
+#include <string>
+
 #include "base/histogram.h"
 
 namespace disk_cache {
@@ -14,6 +16,10 @@ class Stats;
 // This class provides support for sending the disk cache size stats as a UMA
 // histogram. We'll provide our own storage and management for the data, and a
 // SampleSet with a copy of our data.
+//
+// Class derivation of Histogram "deprecated," and should not be copied, and
+// may eventually go away.
+//
 class StatsHistogram : public Histogram {
  public:
   class StatsSamples : public SampleSet {
@@ -23,9 +29,13 @@ class StatsHistogram : public Histogram {
     }
   };
 
-  explicit StatsHistogram(const char* name)
-      : Histogram(name, 1, 1, 2), init_(false) {}
+  explicit StatsHistogram(const std::string& name, Sample minimum,
+                          Sample maximum, size_t bucket_count)
+      : Histogram(name, minimum, maximum, bucket_count), init_(false) {}
   ~StatsHistogram();
+
+  static scoped_refptr<StatsHistogram>
+      StatsHistogramFactoryGet(const std::string& name);
 
   // We'll be reporting data from the given set of cache stats.
   bool Init(const Stats* stats);
@@ -35,6 +45,8 @@ class StatsHistogram : public Histogram {
   virtual void SnapshotSample(SampleSet* sample) const;
 
  private:
+  friend class Histogram;
+
   bool init_;
   static const Stats* stats_;
   DISALLOW_COPY_AND_ASSIGN(StatsHistogram);
