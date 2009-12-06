@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/ioctl.h>
 #include <sys/socket.h>
 
 #include "base/atomicops.h"
@@ -98,10 +99,13 @@ size_t SyncSocket::Receive(void* buffer, size_t length) {
   }
 }
 
-// TODO(port). Some kind of select?
 size_t SyncSocket::Peek() {
-  NOTIMPLEMENTED();
-  return 0;
+  int number_chars;
+  if (-1 == ioctl(handle_, FIONREAD, &number_chars)) {
+    // If there is an error in ioctl, signal that the channel would block.
+    return 0;
+  }
+  return (size_t) number_chars;
 }
 
 }  // namespace base
