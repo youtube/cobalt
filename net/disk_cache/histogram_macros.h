@@ -26,9 +26,11 @@
     UMA_HISTOGRAM_TIMES(name, Time::Now() - initial_time)
 
 #define UMA_HISTOGRAM_CACHE_ERROR(name, sample) do { \
-    static LinearHistogram counter((name), 0, 49, 50); \
-    counter.SetFlags(kUmaTargetedHistogramFlag); \
-    counter.Add(sample); \
+    static scoped_refptr<Histogram> counter = \
+        LinearHistogram::LinearHistogramFactoryGet(\
+            (name), 1, 49, 50); \
+    counter->SetFlags(kUmaTargetedHistogramFlag); \
+    counter->Add(sample); \
   } while (0)
 
 #ifdef NET_DISK_CACHE_BACKEND_IMPL_CC_

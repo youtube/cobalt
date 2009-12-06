@@ -397,7 +397,7 @@ class MessageLoop : public base::MessagePump::Delegate {
 
   std::string thread_name_;
   // A profiling histogram showing the counts of various messages and events.
-  scoped_ptr<LinearHistogram> message_histogram_;
+  scoped_refptr<Histogram> message_histogram_;
 
   // A null terminated list which creates an incoming_queue of tasks that are
   // aquired under a mutex for processing on this instance's thread. These tasks
