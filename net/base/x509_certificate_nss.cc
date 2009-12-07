@@ -298,6 +298,12 @@ void ParseDate(SECItem* der_date, base::Time* result) {
 void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
                                   CERTGeneralNameType name_type,
                                   std::vector<std::string>* result) {
+  // For future extension: We only support general names of types
+  // RFC822Name, DNSName or URI.
+  DCHECK(name_type == certRFC822Name ||
+         name_type == certDNSName ||
+         name_type == certURI);
+
   SECItem alt_name;
   SECStatus rv = CERT_FindCertExtension(cert_handle,
       SEC_OID_X509_SUBJECT_ALT_NAME, &alt_name);
@@ -313,11 +319,9 @@ void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,
 
   CERTGeneralName* name = alt_name_list;
   while (name) {
-    // For future extension: We're assuming that these values are of types
-    // RFC822Name, DNSName or URI.  See the mac code for notes.
-    DCHECK(name->type == certRFC822Name ||
-           name->type == certDNSName ||
-           name->type == certURI);
+    // All of the general name types we support are encoded as
+    // IA5String. In general, we should be switching off
+    // |name->type| and doing type-appropriate conversions.
     if (name->type == name_type) {
       unsigned char* p = name->name.other.data;
       int len = name->name.other.len;
