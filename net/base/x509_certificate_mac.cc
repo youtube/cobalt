@@ -266,6 +266,12 @@ OSStatus GetCertFields(X509Certificate::OSCertHandle cert_handle,
 void GetCertGeneralNamesForOID(X509Certificate::OSCertHandle cert_handle,
                                CSSM_OID oid, CE_GeneralNameType name_type,
                                std::vector<std::string>* result) {
+  // For future extension: We only support general names of types
+  // GNT_RFC822Name, GNT_DNSName or GNT_URI.
+  DCHECK(name_type == GNT_RFC822Name ||
+         name_type == GNT_DNSName ||
+         name_type == GNT_URI);
+
   CSSMFields fields;
   OSStatus status = GetCertFields(cert_handle, &fields);
   if (status)
@@ -280,15 +286,11 @@ void GetCertGeneralNamesForOID(X509Certificate::OSCertHandle cert_handle,
 
       for (size_t name = 0; name < alt_name->numNames; ++name) {
         const CE_GeneralName& name_struct = alt_name->generalName[name];
-        // For future extension: We're assuming that these values are of types
-        // GNT_RFC822Name, GNT_DNSName or GNT_URI, all of which are encoded as
+        // All of the general name types we support are encoded as
         // IA5String. In general, we should be switching off
         // |name_struct.nameType| and doing type-appropriate conversions. See
         // certextensions.h and the comment immediately preceding
         // CE_GeneralNameType for more information.
-        DCHECK(name_struct.nameType == GNT_RFC822Name ||
-               name_struct.nameType == GNT_DNSName ||
-               name_struct.nameType == GNT_URI);
         if (name_struct.nameType == name_type) {
           const CSSM_DATA& name_data = name_struct.name;
           std::string value =
