@@ -699,6 +699,13 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
 
   EXPECT_LT(end, 80);
 
+  size_t if_range_header = request->extra_headers.find("If-Range");
+  if (std::string::npos != if_range_header) {
+    // Check that If-Range isn't specified twice.
+    EXPECT_EQ(std::string::npos,
+              request->extra_headers.find("If-Range", if_range_header + 1));
+  }
+
   std::string content_range = StringPrintf("Content-Range: bytes %d-%d/80\n",
                                            start, end);
   response_headers->append(content_range);
@@ -724,6 +731,9 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
       response_status->assign("HTTP/1.1 200 Success");
     }
   } else {
+    // Check that we use only one validation header.
+    EXPECT_EQ(std::string::npos,
+              request->extra_headers.find("If-Modified-Since"));
     response_status->assign("HTTP/1.1 304 Not Modified");
     response_data->clear();
   }
