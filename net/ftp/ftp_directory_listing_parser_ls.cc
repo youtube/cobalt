@@ -57,66 +57,16 @@ string16 GetStringPartAfterColumns(const string16& text, int columns) {
   return result;
 }
 
-bool UnixDateListingToTime(const std::vector<string16>& columns,
-                           base::Time* time) {
-  DCHECK_LE(9U, columns.size());
-
-  base::Time::Exploded time_exploded = { 0 };
-
-  if (!net::FtpUtil::ThreeLetterMonthToNumber(columns[5], &time_exploded.month))
-    return false;
-
-  if (!StringToInt(columns[6], &time_exploded.day_of_month))
-    return false;
-
-  if (!StringToInt(columns[7], &time_exploded.year)) {
-    // Maybe it's time. Does it look like time (MM:HH)?
-    if (columns[7].length() != 5 || columns[7][2] != ':')
-      return false;
-
-    if (!StringToInt(columns[7].substr(0, 2), &time_exploded.hour))
-      return false;
-
-    if (!StringToInt(columns[7].substr(3, 2), &time_exploded.minute))
-      return false;
-
-    // Use current year.
-    base::Time::Exploded now_exploded;
-    base::Time::Now().LocalExplode(&now_exploded);
-    time_exploded.year = now_exploded.year;
-  }
-
-  // We don't know the time zone of the server, so just use local time.
-  *time = base::Time::FromLocalExploded(time_exploded);
-  return true;
-}
-
 }  // namespace
 
 namespace net {
 
 FtpDirectoryListingParserLs::FtpDirectoryListingParserLs()
-    : received_nonempty_line_(false) {
+    : received_nonempty_line_(false),
+      received_total_line_(false) {
 }
 
 bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
-  if (StartsWith(line, ASCIIToUTF16("total "), true) ||
-      StartsWith(line, ASCIIToUTF16("Gesamt "), true)) {
-    // Some FTP servers put a "total n" line at the beginning of the listing
-    // (n is an integer). Allow such a line, but only once, and only if it's
-    // the first non-empty line.
-    //
-    // Note: "Gesamt" is a German word for "total". The case is important here:
-    // for "ls -l" style listings, "total" will be lowercase, and Gesamt will be
-    // capitalized. This helps us distinguish that from a VMS-style listing,
-    // which would use "Total" (note the uppercase first letter).
-
-    if (received_nonempty_line_)
-      return false;
-
-    received_nonempty_line_ = true;
-    return true;
-  }
   if (line.empty() && !received_nonempty_line_) {
     // Allow empty lines only at the beginning of the listing. For example VMS
     // systems in Unix emulation mode add an empty line before the first listing
@@ -127,6 +77,23 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
 
   std::vector<string16> columns;
   SplitString(CollapseWhitespace(line, false), ' ', &columns);
+
+  // Some FTP servers put a "total n" line at the beginning of the listing
+  // (n is an integer). Allow such a line, but only once, and only if it's
+  // the first non-empty line. Do not match the word exactly, because it may be
+  // in different languages (at least English and German have been seen in the
+  // field).
+  if (columns.size() == 2 && !received_total_line_) {
+    received_total_line_ = true;
+
+    int total_number;
+    if (!StringToInt(columns[1], &total_number))
+      return false;
+    if (total_number < 0)
+      return false;
+
+    return true;
+  }
 
   // We may receive file names containing spaces, which can make the number of
   // columns arbitrarily large. We will handle that later. For now just make
@@ -159,8 +126,10 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
   if (entry.type != FtpDirectoryListingEntry::FILE)
     entry.size = -1;
 
-  if (!UnixDateListingToTime(columns, &entry.last_modified))
+  if (!FtpUtil::LsDateListingToTime(columns[5], columns[6], columns[7],
+                                    &entry.last_modified)) {
     return false;
+  }
 
   entry.name = GetStringPartAfterColumns(line, 8);
   if (entry.type == FtpDirectoryListingEntry::SYMLINK) {

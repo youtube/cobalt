@@ -35,6 +35,7 @@ enum FtpServerType {
   SERVER_LS = 9,        // Server using /bin/ls -l listing style.
   SERVER_WINDOWS = 10,  // Server using Windows listing style.
   SERVER_VMS = 11,      // Server using VMS listing style.
+  SERVER_NETWARE = 12,  // Server using Netware listing style.
 
   NUM_OF_SERVER_TYPES
 };
