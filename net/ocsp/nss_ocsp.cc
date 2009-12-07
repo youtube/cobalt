@@ -128,11 +128,7 @@ class OCSPRequestSession
   void Cancel() {
     // IO thread may set |io_loop_| to NULL, so protect by |lock_|.
     AutoLock autolock(lock_);
-    if (io_loop_) {
-      io_loop_->PostTask(
-          FROM_HERE,
-          NewRunnableMethod(this, &OCSPRequestSession::CancelURLRequest));
-    }
+    CancelLocked();
   }
 
   bool Finished() const {
@@ -152,7 +148,7 @@ class OCSPRequestSession
       if (timeout < base::TimeDelta()) {
         LOG(INFO) << "OCSP Timed out";
         if (!finished_)
-          Cancel();
+          CancelLocked();
         break;
       }
     }
@@ -225,6 +221,7 @@ class OCSPRequestSession
         io_loop_ = NULL;
       }
       cv_.Signal();
+      Release();  // Balanced with StartURLRequest().
     }
   }
 
@@ -234,11 +231,7 @@ class OCSPRequestSession
       AutoLock autolock(lock_);
       io_loop_ = NULL;
     }
-    if (request_) {
-      request_->Cancel();
-      delete request_;
-      request_ = NULL;
-    }
+    CancelURLRequest();
   }
 
  private:
@@ -248,6 +241,14 @@ class OCSPRequestSession
     DCHECK(!request_);
     if (io_loop_)
       io_loop_->RemoveDestructionObserver(this);
+  }
+
+  void CancelLocked() {
+    if (io_loop_) {
+      io_loop_->PostTask(
+          FROM_HERE,
+          NewRunnableMethod(this, &OCSPRequestSession::CancelURLRequest));
+    }
   }
 
   void StartURLRequest() {
@@ -279,6 +280,7 @@ class OCSPRequestSession
       request_->SetExtraRequestHeaders(extra_request_headers_);
 
     request_->Start();
+    AddRef();  // Release after |request_| deleted.
   }
 
   void CancelURLRequest() {
@@ -288,6 +290,13 @@ class OCSPRequestSession
       request_->Cancel();
       delete request_;
       request_ = NULL;
+      {
+        AutoLock autolock(lock_);
+        finished_ = true;
+        io_loop_ = NULL;
+      }
+      cv_.Signal();
+      Release();  // Balanced with StartURLRequest().
     }
   }
 
