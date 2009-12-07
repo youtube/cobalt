@@ -26,6 +26,10 @@ class FtpDirectoryListingParserLs : public FtpDirectoryListingParser {
  private:
   bool received_nonempty_line_;
 
+  // True after we have received a "total n" listing header, where n is an
+  // integer. Only one such header is allowed per listing.
+  bool received_total_line_;
+
   std::queue<FtpDirectoryListingEntry> entries_;
 
   DISALLOW_COPY_AND_ASSIGN(FtpDirectoryListingParserLs);
