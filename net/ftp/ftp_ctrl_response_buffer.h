@@ -24,7 +24,8 @@ struct FtpCtrlResponse {
 
 class FtpCtrlResponseBuffer {
  public:
-  FtpCtrlResponseBuffer() {}
+  FtpCtrlResponseBuffer() : multiline_(false) {
+  }
 
   // Called when data is received from the control socket. Returns error code.
   int ConsumeData(const char* data, int data_length);
@@ -80,6 +81,9 @@ class FtpCtrlResponseBuffer {
   std::string buffer_;
 
   std::queue<ParsedLine> lines_;
+
+  // True if we are in the middle of parsing a multi-line response.
+  bool multiline_;
 
   // When parsing a multiline response, we don't know beforehand if a line
   // will have a continuation. So always store last line of multiline response
