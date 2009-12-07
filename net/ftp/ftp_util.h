@@ -9,6 +9,10 @@
 
 #include "base/string16.h"
 
+namespace base {
+class Time;
+}
+
 namespace net {
 
 class FtpUtil {
@@ -25,6 +29,15 @@ class FtpUtil {
   // Convert three-letter month abbreviation (like Nov) to its number (in range
   // 1-12).
   static bool ThreeLetterMonthToNumber(const string16& text, int* number);
+
+  // Convert a "ls -l" date listing to time. The listing comes in three columns.
+  // The first one contains month, the second one contains day of month.
+  // The first one is either a time (and then the current year is assumed),
+  // or is a year (and then we don't know the time).
+  static bool LsDateListingToTime(const string16& month,
+                                  const string16& day,
+                                  const string16& rest,
+                                  base::Time* time);
 };
 
 }  // namespace net
