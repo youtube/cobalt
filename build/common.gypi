@@ -1027,7 +1027,7 @@
         ],
       },
     }],
-    ['msvs_use_common_linker_extras', {
+    ['OS=="win" and msvs_use_common_linker_extras', {
       'target_defaults': {
         'msvs_settings': {
           'VCLinkerTool': {
