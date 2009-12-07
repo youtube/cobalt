@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
+#include "base/time.h"
 
 // For examples of Unix<->VMS path conversions, see the unit test file. On VMS
 // a path looks differently depending on whether it's a file or directory.
@@ -143,5 +144,37 @@ bool FtpUtil::ThreeLetterMonthToNumber(const string16& text, int* number) {
   return false;
 }
 
+// static
+bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
+                                  const string16& rest, base::Time* time) {
+  base::Time::Exploded time_exploded = { 0 };
+
+  if (!ThreeLetterMonthToNumber(month, &time_exploded.month))
+    return false;
+
+  if (!StringToInt(day, &time_exploded.day_of_month))
+    return false;
+
+  if (!StringToInt(rest, &time_exploded.year)) {
+    // Maybe it's time. Does it look like time (MM:HH)?
+    if (rest.length() != 5 || rest[2] != ':')
+      return false;
+
+    if (!StringToInt(rest.substr(0, 2), &time_exploded.hour))
+      return false;
+
+    if (!StringToInt(rest.substr(3, 2), &time_exploded.minute))
+      return false;
+
+    // Use current year.
+    base::Time::Exploded now_exploded;
+    base::Time::Now().LocalExplode(&now_exploded);
+    time_exploded.year = now_exploded.year;
+  }
+
+  // We don't know the time zone of the listing, so just use local time.
+  *time = base::Time::FromLocalExploded(time_exploded);
+  return true;
+}
 
 }  // namespace
