@@ -96,6 +96,25 @@ TEST_F(FtpCtrlResponseBufferTest, MultilineContinuation) {
   EXPECT_EQ("LastLine", response.lines[2]);
 }
 
+TEST_F(FtpCtrlResponseBufferTest, MultilineContinuationZeroLength) {
+  // For the corner case from bug 29322.
+  EXPECT_EQ(net::OK, PushDataToBuffer("230-\r\n"));
+  EXPECT_FALSE(buffer_.ResponseAvailable());
+
+  EXPECT_EQ(net::OK, PushDataToBuffer("example.com\r\n"));
+  EXPECT_FALSE(buffer_.ResponseAvailable());
+
+  EXPECT_EQ(net::OK, PushDataToBuffer("230 LastLine\r\n"));
+  EXPECT_TRUE(buffer_.ResponseAvailable());
+
+  net::FtpCtrlResponse response = buffer_.PopResponse();
+  EXPECT_FALSE(buffer_.ResponseAvailable());
+  EXPECT_EQ(230, response.status_code);
+  ASSERT_EQ(2U, response.lines.size());
+  EXPECT_EQ("example.com", response.lines[0]);
+  EXPECT_EQ("LastLine", response.lines[1]);
+}
+
 TEST_F(FtpCtrlResponseBufferTest, SimilarContinuation) {
   EXPECT_EQ(net::OK, PushDataToBuffer("230-FirstLine\r\n"));
   EXPECT_FALSE(buffer_.ResponseAvailable());

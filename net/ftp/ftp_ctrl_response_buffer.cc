@@ -21,22 +21,7 @@ int FtpCtrlResponseBuffer::ConsumeData(const char* data, int data_length) {
     ParsedLine line = lines_.front();
     lines_.pop();
 
-    if (line_buf_.empty()) {
-      if (!line.is_complete)
-        return ERR_INVALID_RESPONSE;
-
-      response_buf_.status_code = line.status_code;
-      if (line.is_multiline) {
-        line_buf_ = line.status_text;
-      } else {
-        response_buf_.lines.push_back(line.status_text);
-        responses_.push(response_buf_);
-
-        // Prepare to handle following lines.
-        response_buf_ = FtpCtrlResponse();
-        line_buf_.clear();
-      }
-    } else {
+    if (multiline_) {
       if (!line.is_complete || line.status_code != response_buf_.status_code) {
         line_buf_.append(line.raw_text);
         continue;
@@ -49,6 +34,23 @@ int FtpCtrlResponseBuffer::ConsumeData(const char* data, int data_length) {
 
       if (!line.is_multiline) {
         response_buf_.lines.push_back(line_buf_);
+        responses_.push(response_buf_);
+
+        // Prepare to handle following lines.
+        response_buf_ = FtpCtrlResponse();
+        line_buf_.clear();
+        multiline_ = false;
+      }
+    } else {
+      if (!line.is_complete)
+        return ERR_INVALID_RESPONSE;
+
+      response_buf_.status_code = line.status_code;
+      if (line.is_multiline) {
+        line_buf_ = line.status_text;
+        multiline_ = true;
+      } else {
+        response_buf_.lines.push_back(line.status_text);
         responses_.push(response_buf_);
 
         // Prepare to handle following lines.
