@@ -7,7 +7,6 @@
 #include "base/file_path.h"
 #include "base/string_util.h"
 #include "net/base/gzip_filter.h"
-#include "net/base/bzip2_filter.h"
 #include "net/base/io_buffer.h"
 #include "net/base/mime_util.h"
 #include "net/base/sdch_filter.h"
@@ -18,8 +17,6 @@ namespace {
 const char kDeflate[]      = "deflate";
 const char kGZip[]         = "gzip";
 const char kXGZip[]        = "x-gzip";
-const char kBZip2[]        = "bzip2";
-const char kXBZip2[]       = "x-bzip2";
 const char kSdch[]         = "sdch";
 // compress and x-compress are currently not supported.  If we decide to support
 // them, we'll need the same mime type compatibility hack we have for gzip.  For
@@ -65,9 +62,6 @@ Filter::FilterType Filter::ConvertEncodingToType(
   } else if (LowerCaseEqualsASCII(filter_type, kGZip) ||
              LowerCaseEqualsASCII(filter_type, kXGZip)) {
     type_id = FILTER_TYPE_GZIP;
-  } else if (LowerCaseEqualsASCII(filter_type, kBZip2) ||
-             LowerCaseEqualsASCII(filter_type, kXBZip2)) {
-    type_id = FILTER_TYPE_BZIP2;
   } else if (LowerCaseEqualsASCII(filter_type, kSdch)) {
     type_id = FILTER_TYPE_SDCH;
   } else {
@@ -248,15 +242,6 @@ Filter* Filter::PrependNewFilter(FilterType type_id,
       if (gz_filter->InitBuffer()) {
         if (gz_filter->InitDecoding(type_id)) {
           first_filter = gz_filter.release();
-        }
-      }
-      break;
-    }
-    case FILTER_TYPE_BZIP2: {
-      scoped_ptr<BZip2Filter> bzip2_filter(new BZip2Filter(filter_context));
-      if (bzip2_filter->InitBuffer()) {
-        if (bzip2_filter->InitDecoding(false)) {
-          first_filter = bzip2_filter.release();
         }
       }
       break;

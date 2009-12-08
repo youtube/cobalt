@@ -1,5 +1,4 @@
 include_rules = [
-  "+third_party/bzip2",
   "+third_party/npapi",
   "+third_party/zlib",
   "+grit",  # For generated headers
