@@ -434,19 +434,6 @@ class FileEnumerator {
   void GetFindInfo(FindInfo* info);
 
  private:
-  FilePath root_path_;
-  bool recursive_;
-  FILE_TYPE file_type_;
-  FilePath pattern_;  // Empty when we want to find everything.
-
-  // Set to true when there is a find operation open. This way, we can lazily
-  // start the operations when the caller calls Next().
-  bool is_in_find_op_;
-
-  // A stack that keeps track of which subdirectories we still need to
-  // enumerate in the breadth-first search.
-  std::stack<FilePath> pending_paths_;
-
   // Returns true if the given path should be skipped in enumeration.
   bool ShouldSkip(const FilePath& path);
 
@@ -475,6 +462,19 @@ class FileEnumerator {
   // The next entry to use from the directory_entries_ vector
   size_t current_directory_entry_;
 #endif
+
+  FilePath root_path_;
+  bool recursive_;
+  FILE_TYPE file_type_;
+  FilePath::StringType pattern_;  // Empty when we want to find everything.
+
+  // Set to true when there is a find operation open. This way, we can lazily
+  // start the operations when the caller calls Next().
+  bool is_in_find_op_;
+
+  // A stack that keeps track of which subdirectories we still need to
+  // enumerate in the breadth-first search.
+  std::stack<FilePath> pending_paths_;
 
   DISALLOW_COPY_AND_ASSIGN(FileEnumerator);
 };
