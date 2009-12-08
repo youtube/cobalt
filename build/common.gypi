@@ -45,6 +45,15 @@
           'target_arch%':
             '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/arm.*/arm/")',
 
+          # On Linux, we use the system versions of several libraries. We end
+          # up pulling these in as .so's anyway since they are already in our
+          # transitive closure due to GTK.
+          'use_system_zlib': 1,
+          'use_system_libjpeg': 1,
+          'use_system_bzip2': 1,
+          'use_system_libpng': 1,
+          'use_system_libjpeg': 1,
+          'use_system_libxslt': 1,
         }, {  # OS!="linux"
           'target_arch%': 'ia32',
         }],
