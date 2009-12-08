@@ -5,9 +5,14 @@
 #include "base/logging.h"
 
 #if defined(OS_WIN)
+#include <io.h>
 #include <windows.h>
 typedef HANDLE FileHandle;
 typedef HANDLE MutexHandle;
+// Windows warns on using write().  It prefers _write().
+#define write(fd, buf, count) _write(fd, buf, static_cast<unsigned int>(count))
+// Windows doesn't define STDERR_FILENO.  Define it here.
+#define STDERR_FILENO 2
 #elif defined(OS_MACOSX)
 #include <CoreFoundation/CoreFoundation.h>
 #include <mach/mach.h>
@@ -37,6 +42,7 @@ typedef pthread_mutex_t* MutexHandle;
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/debug_util.h"
+#include "base/eintr_wrapper.h"
 #include "base/lock_impl.h"
 #if defined(OS_POSIX)
 #include "base/safe_strerror_posix.h"
@@ -682,6 +688,37 @@ void CloseLogFile() {
 
   CloseFile(log_file);
   log_file = NULL;
+}
+
+void RawLog(int level, const char* message) {
+  if (level >= min_log_level) {
+    size_t bytes_written = 0;
+    const size_t message_len = strlen(message);
+    int rv;
+    while (bytes_written < message_len) {
+      rv = HANDLE_EINTR(
+          write(STDERR_FILENO, message + bytes_written,
+                message_len - bytes_written));
+      if (rv < 0) {
+        // Give up, nothing we can do now.
+        break;
+      }
+      bytes_written += rv;
+    }
+
+    if (message_len > 0 && message[message_len - 1] != '\n') {
+      do {
+        rv = HANDLE_EINTR(write(STDERR_FILENO, "\n", 1));
+        if (rv < 0) {
+          // Give up, nothing we can do now.
+          break;
+        }
+      } while (rv != 1);
+    }
+  }
+
+  if (level == LOG_FATAL)
+    DebugUtil::BreakDebugger();
 }
 
 }  // namespace logging
