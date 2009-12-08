@@ -40,6 +40,20 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "-rw-r--r-- 1 2 3 3447432 May 18  2009 Foo - Manual.pdf",
       net::FtpDirectoryListingEntry::FILE, "Foo - Manual.pdf", 3447432,
       2009, 5, 18, 0, 0 },
+
+    // Tests for the wu-ftpd variant:
+    { "drwxr-xr-x   2 sys          512 Mar 27  2009 pub",
+      net::FtpDirectoryListingEntry::DIRECTORY, "pub", -1,
+      2009, 3, 27, 0, 0 },
+    { "lrwxrwxrwx 0  0 26 Sep 18 2008 pub -> vol/1/.CLUSTER/var_ftp/pub",
+      net::FtpDirectoryListingEntry::SYMLINK, "pub", -1,
+      2008, 9, 18, 0, 0 },
+    { "drwxr-xr-x   (?)      (?)          4096 Apr  8  2007 jigdo",
+      net::FtpDirectoryListingEntry::DIRECTORY, "jigdo", -1,
+      2007, 4, 8, 0, 0 },
+    { "-rw-r--r-- 2 3 3447432 May 18  2009 Foo - Manual.pdf",
+      net::FtpDirectoryListingEntry::FILE, "Foo - Manual.pdf", 3447432,
+      2009, 5, 18, 0, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, good_cases[i].input));
@@ -52,11 +66,16 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
 TEST_F(FtpDirectoryListingParserLsTest, Bad) {
   const char* bad_cases[] = {
     "garbage",
+    "-rw-r--r-- ftp ftp",
+    "-rw-r--rgb ftp ftp 528 Nov 01 2007 README",
+    "-rw-rgbr-- ftp ftp 528 Nov 01 2007 README",
+    "qrwwr--r-- ftp ftp 528 Nov 01 2007 README",
+    "-rw-r--r-- ftp ftp -528 Nov 01 2007 README",
+    "-rw-r--r-- ftp ftp 528 Foo 01 2007 README",
     "-rw-r--r-- 1 ftp ftp",
     "-rw-r--rgb 1 ftp ftp 528 Nov 01 2007 README",
     "-rw-rgbr-- 1 ftp ftp 528 Nov 01 2007 README",
     "qrwwr--r-- 1 ftp ftp 528 Nov 01 2007 README",
-    "-rw-r--r-- -1 ftp ftp 528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp 528 Foo 01 2007 README",
   };

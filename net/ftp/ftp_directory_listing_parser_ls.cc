@@ -57,27 +57,49 @@ string16 GetStringPartAfterColumns(const string16& text, int columns) {
   return result;
 }
 
+bool DetectColumnOffset(const std::vector<string16>& columns, int* offset) {
+  base::Time time;
+
+  if (columns.size() >= 8 &&
+      net::FtpUtil::LsDateListingToTime(columns[5], columns[6], columns[7],
+                                        &time)) {
+    // Standard listing, exactly like ls -l.
+    *offset = 1;
+    return true;
+  }
+
+  if (columns.size() >= 7 &&
+      net::FtpUtil::LsDateListingToTime(columns[4], columns[5], columns[6],
+                                        &time)) {
+    // wu-ftpd listing, no "number of links" column.
+    *offset = 0;
+    return true;
+  }
+
+  // Unrecognized listing style.
+  return false;
+}
+
 }  // namespace
 
 namespace net {
 
 FtpDirectoryListingParserLs::FtpDirectoryListingParserLs()
     : received_nonempty_line_(false),
-      received_total_line_(false) {
+      received_total_line_(false),
+      column_offset_(-1) {
 }
 
 bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
+  std::vector<string16> columns;
+  SplitString(CollapseWhitespace(line, false), ' ', &columns);
+
   if (line.empty() && !received_nonempty_line_) {
     // Allow empty lines only at the beginning of the listing. For example VMS
     // systems in Unix emulation mode add an empty line before the first listing
     // entry.
     return true;
   }
-  received_nonempty_line_ = true;
-
-  std::vector<string16> columns;
-  SplitString(CollapseWhitespace(line, false), ' ', &columns);
-
   // Some FTP servers put a "total n" line at the beginning of the listing
   // (n is an integer). Allow such a line, but only once, and only if it's
   // the first non-empty line. Do not match the word exactly, because it may be
@@ -94,11 +116,14 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
 
     return true;
   }
+  if (!received_nonempty_line_ && !DetectColumnOffset(columns, &column_offset_))
+    return false;
+  received_nonempty_line_ = true;
 
   // We may receive file names containing spaces, which can make the number of
   // columns arbitrarily large. We will handle that later. For now just make
   // sure we have all the columns that should normally be there.
-  if (columns.size() < 9)
+  if (columns.size() < 8U + column_offset_)
     return false;
 
   if (!LooksLikeUnixPermissionsListing(columns[0]))
@@ -113,25 +138,21 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
     entry.type = FtpDirectoryListingEntry::FILE;
   }
 
-  int number_of_links;
-  if (!StringToInt(columns[1], &number_of_links))
-    return false;
-  if (number_of_links < 0)
-    return false;
-
-  if (!StringToInt64(columns[4], &entry.size))
+  if (!StringToInt64(columns[3 + column_offset_], &entry.size))
     return false;
   if (entry.size < 0)
     return false;
   if (entry.type != FtpDirectoryListingEntry::FILE)
     entry.size = -1;
 
-  if (!FtpUtil::LsDateListingToTime(columns[5], columns[6], columns[7],
+  if (!FtpUtil::LsDateListingToTime(columns[4 + column_offset_],
+                                    columns[5 + column_offset_],
+                                    columns[6 + column_offset_],
                                     &entry.last_modified)) {
     return false;
   }
 
-  entry.name = GetStringPartAfterColumns(line, 8);
+  entry.name = GetStringPartAfterColumns(line, 7 + column_offset_);
   if (entry.type == FtpDirectoryListingEntry::SYMLINK) {
     string16::size_type pos = entry.name.rfind(ASCIIToUTF16(" -> "));
     if (pos == string16::npos)
