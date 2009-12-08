@@ -1245,6 +1245,12 @@ std::wstring StringPrintf(const wchar_t* format, ...) {
   return result;
 }
 
+std::string StringPrintV(const char* format, va_list ap) {
+  std::string result;
+  StringAppendV(&result, format, ap);
+  return result;
+}
+
 const std::string& SStringPrintf(std::string* dst, const char* format, ...) {
   va_list ap;
   va_start(ap, format);
