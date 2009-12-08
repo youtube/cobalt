@@ -539,11 +539,11 @@ bool SetCurrentDirectory(const FilePath& path) {
 FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
                                FileEnumerator::FILE_TYPE file_type)
-    : root_path_(root_path),
+    : current_directory_entry_(0),
+      root_path_(root_path),
       recursive_(recursive),
       file_type_(file_type),
-      is_in_find_op_(false),
-      current_directory_entry_(0) {
+      is_in_find_op_(false) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
   pending_paths_.push(root_path);
@@ -553,19 +553,19 @@ FileEnumerator::FileEnumerator(const FilePath& root_path,
                                bool recursive,
                                FileEnumerator::FILE_TYPE file_type,
                                const FilePath::StringType& pattern)
-    : root_path_(root_path),
+    : current_directory_entry_(0),
+      root_path_(root_path),
       recursive_(recursive),
       file_type_(file_type),
-      pattern_(root_path.Append(pattern)),
-      is_in_find_op_(false),
-      current_directory_entry_(0) {
+      pattern_(root_path.Append(pattern).value()),
+      is_in_find_op_(false) {
   // INCLUDE_DOT_DOT must not be specified if recursive.
   DCHECK(!(recursive && (INCLUDE_DOT_DOT & file_type_)));
   // The Windows version of this code appends the pattern to the root_path,
   // potentially only matching against items in the top-most directory.
   // Do the same here.
   if (pattern.size() == 0)
-    pattern_ = FilePath();
+    pattern_ = FilePath::StringType();
   pending_paths_.push(root_path);
 }
 
@@ -607,9 +607,8 @@ FilePath FileEnumerator::Next() {
       if (ShouldSkip(full_path))
         continue;
 
-      if (pattern_.value().size() &&
-          fnmatch(pattern_.value().c_str(), full_path.value().c_str(),
-              FNM_NOESCAPE))
+      if (pattern_.size() &&
+          fnmatch(pattern_.c_str(), full_path.value().c_str(), FNM_NOESCAPE))
         continue;
 
       if (recursive_ && S_ISDIR(i->stat.st_mode))
