@@ -30,11 +30,6 @@ class FtpDirectoryListingParserLs : public FtpDirectoryListingParser {
   // integer. Only one such header is allowed per listing.
   bool received_total_line_;
 
-  // There is a variant of the listing served by wu-ftpd which doesn't contain
-  // the "number of links" column (the second column in a "standard" ls -l
-  // listing). Store an offset to reference later columns.
-  int column_offset_;
-
   std::queue<FtpDirectoryListingEntry> entries_;
 
   DISALLOW_COPY_AND_ASSIGN(FtpDirectoryListingParserLs);

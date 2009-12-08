@@ -54,6 +54,19 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "-rw-r--r-- 2 3 3447432 May 18  2009 Foo - Manual.pdf",
       net::FtpDirectoryListingEntry::FILE, "Foo - Manual.pdf", 3447432,
       2009, 5, 18, 0, 0 },
+
+    // Tests for "ls -l" style listings sent by an OS/2 server (FtpServer):
+    { "-r--r--r--  1 ftp      -A---       13274 Mar  1  2006 UpTime.exe",
+      net::FtpDirectoryListingEntry::FILE, "UpTime.exe", 13274,
+      2006, 3, 1, 0, 0 },
+    { "dr--r--r--  1 ftp      -----           0 Nov 17 17:08 kernels",
+      net::FtpDirectoryListingEntry::DIRECTORY, "kernels", -1,
+      now_exploded.year, 11, 17, 17, 8 },
+
+    // Tests for "ls -l" style listing sent by Xplain FTP Server.
+    { "drwxr-xr-x               folder        0 Jul 17  2006 online",
+      net::FtpDirectoryListingEntry::DIRECTORY, "online", -1,
+      2006, 7, 17, 0, 0 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, good_cases[i].input));
@@ -78,6 +91,12 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "qrwwr--r-- 1 ftp ftp 528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp 528 Foo 01 2007 README",
+
+    // Tests important for security: verify that after we detect the column
+    // offset we don't try to access invalid memory on malformed input.
+    "drwxr-xr-x 3 ftp ftp 4096 May 15 18:11",
+    "drwxr-xr-x 3 ftp     4096 May 15 18:11",
+    "drwxr-xr-x   folder     0 May 15 18:11",
   };
   for (size_t i = 0; i < arraysize(bad_cases); i++) {
     net::FtpDirectoryListingParserLs parser;
