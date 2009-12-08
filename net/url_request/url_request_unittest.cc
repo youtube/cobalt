@@ -846,62 +846,6 @@ TEST_F(URLRequestTestHTTP, ResponseHeadersTest) {
   EXPECT_EQ("a, b", header);
 }
 
-// TODO(jar): 14801 Remove BZIP code completely.
-TEST_F(URLRequestTest, DISABLED_BZip2ContentTest) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/filter_unittests", NULL);
-  ASSERT_TRUE(NULL != server.get());
-
-  // for localhost domain, we also should support bzip2 encoding
-  // first, get the original file
-  TestDelegate d1;
-  TestURLRequest req1(server->TestServerPage("realfiles/google.txt"), &d1);
-  req1.Start();
-  MessageLoop::current()->Run();
-
-  const std::string& got_content = d1.data_received();
-
-  // second, get bzip2 content
-  TestDelegate d2;
-  TestURLRequest req2(server->TestServerPage("realbz2files/google.txt"), &d2);
-  req2.Start();
-  MessageLoop::current()->Run();
-
-  const std::string& got_bz2_content = d2.data_received();
-
-  // compare those two results
-  EXPECT_EQ(got_content, got_bz2_content);
-}
-
-// TODO(jar): 14801 Remove BZIP code completely.
-TEST_F(URLRequestTest, DISABLED_BZip2ContentTest_IncrementalHeader) {
-  scoped_refptr<HTTPTestServer> server =
-      HTTPTestServer::CreateServer(L"net/data/filter_unittests", NULL);
-  ASSERT_TRUE(NULL != server.get());
-
-  // for localhost domain, we also should support bzip2 encoding
-  // first, get the original file
-  TestDelegate d1;
-  TestURLRequest req1(server->TestServerPage("realfiles/google.txt"), &d1);
-  req1.Start();
-  MessageLoop::current()->Run();
-
-  const std::string& got_content = d1.data_received();
-
-  // second, get bzip2 content.  ask the testserver to send the BZ2 header in
-  // two chunks with a delay between them.  this tests our fix for bug 867161.
-  TestDelegate d2;
-  TestURLRequest req2(server->TestServerPage(
-      "realbz2files/google.txt?incremental-header"), &d2);
-  req2.Start();
-  MessageLoop::current()->Run();
-
-  const std::string& got_bz2_content = d2.data_received();
-
-  // compare those two results
-  EXPECT_EQ(got_content, got_bz2_content);
-}
-
 #if defined(OS_WIN)
 TEST_F(URLRequestTest, ResolveShortcutTest) {
   FilePath app_path;
