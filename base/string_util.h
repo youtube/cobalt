@@ -453,6 +453,9 @@ double StringToDouble(const string16& value);
 std::string StringPrintf(const char* format, ...) PRINTF_FORMAT(1, 2);
 std::wstring StringPrintf(const wchar_t* format, ...) WPRINTF_FORMAT(1, 2);
 
+// Return a C++ string given vprintf-like input.
+std::string StringPrintV(const char* format, va_list ap) PRINTF_FORMAT(1, 0);
+
 // Store result into a supplied string and return it
 const std::string& SStringPrintf(std::string* dst, const char* format, ...)
     PRINTF_FORMAT(2, 3);
