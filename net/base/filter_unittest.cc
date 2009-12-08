@@ -23,14 +23,6 @@ TEST(FilterTest, ContentTypeId) {
             Filter::ConvertEncodingToType("x-gzip"));
   EXPECT_EQ(Filter::FILTER_TYPE_GZIP,
             Filter::ConvertEncodingToType("X-GzIp"));
-  EXPECT_EQ(Filter::FILTER_TYPE_BZIP2,
-            Filter::ConvertEncodingToType("bzip2"));
-  EXPECT_EQ(Filter::FILTER_TYPE_BZIP2,
-            Filter::ConvertEncodingToType("BZiP2"));
-  EXPECT_EQ(Filter::FILTER_TYPE_BZIP2,
-            Filter::ConvertEncodingToType("x-bzip2"));
-  EXPECT_EQ(Filter::FILTER_TYPE_BZIP2,
-            Filter::ConvertEncodingToType("X-BZiP2"));
   EXPECT_EQ(Filter::FILTER_TYPE_SDCH,
             Filter::ConvertEncodingToType("sdch"));
   EXPECT_EQ(Filter::FILTER_TYPE_SDCH,

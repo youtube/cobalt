@@ -128,7 +128,6 @@ class Filter {
   enum FilterType {
     FILTER_TYPE_DEFLATE,
     FILTER_TYPE_GZIP,
-    FILTER_TYPE_BZIP2,
     FILTER_TYPE_GZIP_HELPING_SDCH,  // Gzip possible, but pass through allowed.
     FILTER_TYPE_SDCH,
     FILTER_TYPE_SDCH_POSSIBLE,  // Sdch possible, but pass through allowed.
