@@ -739,7 +739,7 @@ FilePath FileEnumerator::Next() {
     // Start a new find operation.
     FilePath src = root_path_;
 
-    if (pattern_.value().empty())
+    if (pattern_.empty())
       src = src.Append(L"*");  // No pattern = match everything.
     else
       src = src.Append(pattern_);
@@ -763,7 +763,7 @@ FilePath FileEnumerator::Next() {
     // in the root search directory, but for those directories which were
     // matched, we want to enumerate all files inside them. This will happen
     // when the handle is empty.
-    pattern_ = FilePath();
+    pattern_ = FilePath::StringType();
 
     return Next();
   }
