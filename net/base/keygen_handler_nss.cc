@@ -60,6 +60,10 @@ KeygenHandler::KeygenHandler(int key_size_index,
                              const std::string& challenge)
     : key_size_index_(key_size_index),
       challenge_(challenge) {
+  if (key_size_index_ < 0 ||
+      key_size_index_ >=
+          static_cast<int>(sizeof(RSAkeySizeMap) / sizeof(RSAkeySizeMap[0])))
+    key_size_index_ = 0;
 }
 
 // This function is largely copied from the Firefox's
