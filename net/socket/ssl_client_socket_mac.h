@@ -106,7 +106,6 @@ class SSLClientSocketMac : public SSLClientSocket {
   State next_handshake_state_;
 
   scoped_refptr<X509Certificate> server_cert_;
-  std::vector<scoped_refptr<X509Certificate> > intermediate_certs_;
   scoped_ptr<CertVerifier> verifier_;
   CertVerifyResult server_cert_verify_result_;
 
