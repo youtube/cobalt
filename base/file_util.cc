@@ -339,9 +339,6 @@ bool CopyDirectory(const std::wstring& from_path, const std::wstring& to_path,
                        FilePath::FromWStringHack(to_path),
                        recursive);
 }
-bool CreateDirectory(const std::wstring& full_path) {
-  return CreateDirectory(FilePath::FromWStringHack(full_path));
-}
 bool Delete(const std::wstring& path, bool recursive) {
   return Delete(FilePath::FromWStringHack(path), recursive);
 }
