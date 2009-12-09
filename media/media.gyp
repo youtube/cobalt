@@ -244,7 +244,7 @@
       'target_name': 'omx_test',
       'type': 'executable',
       'dependencies': [
-        'omx_wrapper',
+        'omx',
         '../base/base.gyp:base',
         '../third_party/openmax/openmax.gyp:il',
       ],
@@ -253,7 +253,21 @@
       ],
     },
     {
-      'target_name': 'omx_wrapper',
+      'target_name': 'omx_unittests',
+      'type': 'executable',
+      'dependencies': [
+        'omx',
+        '../base/base.gyp:base',
+        '../base/base.gyp:base_i18n',
+        '../testing/gtest.gyp:gtest',
+      ],
+      'sources': [
+        'omx/omx_unittest.cc',
+        'omx/run_all_unittests.cc',
+      ],
+    },
+    {
+      'target_name': 'omx',
       'type': '<(library)',
       'dependencies': [
         '../base/base.gyp:base',
@@ -262,7 +276,6 @@
       'sources': [
         'omx/input_buffer.cc',
         'omx/input_buffer.h',
-        'omx/omx_test.cc',
         'omx/omx_codec.cc',
         'omx/omx_codec.h',
       ],
