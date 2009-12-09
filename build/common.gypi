@@ -162,8 +162,8 @@
     # Whether to add the experimental build define.
     'chrome_frame_define%': 0,
 
-    # Whether GPU plugin build is enabled.
-    'enable_gpu%': 0,
+    # Whether pepper APIs are enabled.
+    'enable_pepper%': 0,
 
     # Whether usage of OpenMAX is enabled.
     'enable_openmax%': 0,
@@ -340,6 +340,9 @@
       }],
       ['chromeos==1 or toolkit_views==1', {
         'defines': ['OS_CHROMEOS=1'],
+      }],
+      ['enable_pepper==1', {
+        'defines': ['ENABLE_PEPPER=1'],
       }],
       ['fastbuild!=0', {
         'conditions': [
