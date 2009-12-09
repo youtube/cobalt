@@ -54,6 +54,10 @@
           'use_system_libpng': 1,
           'use_system_libjpeg': 1,
           'use_system_libxslt': 1,
+
+          # We use our own copy of libssl, although we still need to link
+          # against the rest of NSS.
+          'use_system_ssl': 0,
         }, {  # OS!="linux"
           'target_arch%': 'ia32',
         }],
