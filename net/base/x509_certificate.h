@@ -209,15 +209,19 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // now.
   bool HasExpired() const;
 
-#if defined(OS_MACOSX)
-    // Adds an untrusted intermediate certificate that may be needed for
-    // chain building.
-    void AddIntermediateCertificate(SecCertificateRef cert);
+#if defined(OS_MACOSX) || defined(OS_WIN)
+  // Adds an untrusted intermediate certificate that may be needed for
+  // chain building.
+  void AddIntermediateCertificate(OSCertHandle cert) {
+    intermediate_ca_certs_.push_back(cert);
+  }
 
-    // Returns intermediate certificates added via AddIntermediateCertificate().
-    // Ownership follows the "get" rule: it is the caller's responsibility to
-    // retain the result.
-    CFArrayRef GetIntermediateCertificates() { return intermediate_ca_certs_; }
+  // Returns intermediate certificates added via AddIntermediateCertificate().
+  // Ownership follows the "get" rule: it is the caller's responsibility to
+  // retain the elements of the result.
+  const std::vector<OSCertHandle>& GetIntermediateCertificates() const {
+    return intermediate_ca_certs_;
+  }
 #endif
 
   // Verifies the certificate against the given hostname.  Returns OK if
@@ -310,10 +314,10 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // A handle to the certificate object in the underlying crypto library.
   OSCertHandle cert_handle_;
 
-#if defined(OS_MACOSX)
-    // Untrusted intermediate certificates associated with this certificate
-    // that may be needed for chain building.
-    CFMutableArrayRef intermediate_ca_certs_;
+#if defined(OS_MACOSX) || defined(OS_WIN)
+  // Untrusted intermediate certificates associated with this certificate
+  // that may be needed for chain building.
+  std::vector<OSCertHandle> intermediate_ca_certs_;
 #endif
 
   // Where the certificate comes from.

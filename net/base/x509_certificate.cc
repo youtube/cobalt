@@ -170,9 +170,6 @@ X509Certificate* X509Certificate::CreateFromBytes(const char* data,
 
 X509Certificate::X509Certificate(OSCertHandle cert_handle, Source source)
     : cert_handle_(cert_handle),
-#if defined(OS_MACOSX)
-      intermediate_ca_certs_(NULL),
-#endif
       source_(source) {
   Initialize();
 }
@@ -186,9 +183,6 @@ X509Certificate::X509Certificate(const std::string& subject,
       valid_start_(start_date),
       valid_expiry_(expiration_date),
       cert_handle_(NULL),
-#if defined(OS_MACOSX)
-      intermediate_ca_certs_(NULL),
-#endif
       source_(SOURCE_UNUSED) {
   memset(fingerprint_.data, 0, sizeof(fingerprint_.data));
 }
@@ -198,9 +192,9 @@ X509Certificate::~X509Certificate() {
   X509Certificate::Cache::GetInstance()->Remove(this);
   if (cert_handle_)
     FreeOSCertHandle(cert_handle_);
-#if defined(OS_MACOSX)
-  if (intermediate_ca_certs_)
-    CFRelease(intermediate_ca_certs_);
+#if defined(OS_MACOSX) || defined(OS_WIN)
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i)
+    FreeOSCertHandle(intermediate_ca_certs_[i]);
 #endif
 }
 
