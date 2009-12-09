@@ -292,8 +292,6 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
 // don't exist. Returns 'true' on successful creation, or if the directory
 // already exists.  The directory is only readable by the current user.
 bool CreateDirectory(const FilePath& full_path);
-// Deprecated temporary compatibility function.
-bool CreateDirectory(const std::wstring& full_path);
 
 // Returns the file size. Returns true on success.
 bool GetFileSize(const FilePath& file_path, int64* file_size);
