@@ -35,7 +35,6 @@
         '../third_party/sqlite/sqlite.gyp:*',
         '../third_party/WebKit/WebKit/chromium/WebKit.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
-        '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
         '../webkit/tools/test_shell/test_shell.gyp:*',
         '../webkit/webkit.gyp:*',
         'util/build_util.gyp:*',
@@ -52,8 +51,9 @@
             '../chrome_frame/chrome_frame.gyp:*',
           ],
         }],
-        ['enable_gpu==1', {
+        ['enable_pepper==1', {
           'dependencies': [
+            '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
             '../gpu/gpu.gyp:*',
           ],
         }],
