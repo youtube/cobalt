@@ -454,14 +454,8 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
     return ERR_OUT_OF_MEMORY;
   scoped_cftyperef<CFArrayRef> scoped_cert_array(cert_array);
   CFArrayAppendValue(cert_array, cert_handle_);
-  if (intermediate_ca_certs_) {
-    CFIndex intermediate_count = CFArrayGetCount(intermediate_ca_certs_);
-    for (CFIndex i = 0; i < intermediate_count; ++i) {
-      SecCertificateRef intermediate_cert = static_cast<SecCertificateRef>(
-          const_cast<void*>(CFArrayGetValueAtIndex(intermediate_ca_certs_, i)));
-      CFArrayAppendValue(cert_array, intermediate_cert);
-    }
-  }
+  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i)
+    CFArrayAppendValue(cert_array, intermediate_ca_certs_[i]);
 
   SecTrustRef trust_ref = NULL;
   status = SecTrustCreateWithCertificates(cert_array, ssl_policy, &trust_ref);
@@ -653,18 +647,6 @@ bool X509Certificate::VerifyEV() const {
   // Verify() above.
   NOTREACHED();
   return false;
-}
-
-void X509Certificate::AddIntermediateCertificate(SecCertificateRef cert) {
-  if (cert) {
-    if (!intermediate_ca_certs_) {
-      intermediate_ca_certs_ = CFArrayCreateMutable(kCFAllocatorDefault, 0,
-                                                    &kCFTypeArrayCallBacks);
-    }
-    if (intermediate_ca_certs_) {
-      CFArrayAppendValue(intermediate_ca_certs_, cert);
-    }
-  }
 }
 
 // static
