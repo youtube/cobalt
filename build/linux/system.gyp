@@ -13,11 +13,19 @@
         'pkg-config': 'pkg-config'
       },
     }],
+    [ 'OS=="linux"', {
+      'variables': {
+        # We use our own copy of libssl, although we still need to link against
+        # the rest of NSS.
+        'use_system_ssl%': 0,
+      },
+    }, {  # OS!="linux"
+      'variables': {
+        'use_system_ssl%': 1,
+      },
+    }],
   ],
 
-  'variables': {
-    'use_system_ssl%': 1,
-  },
 
   'targets': [
     {
