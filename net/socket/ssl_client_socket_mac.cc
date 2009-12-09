@@ -286,10 +286,14 @@ X509Certificate* GetServerCert(SSLContextRef ssl_context) {
   // Add each of the intermediate certificates in the server's chain to the
   // server's X509Certificate object. This makes them available to
   // X509Certificate::Verify() for chain building.
+  // TODO(wtc): Since X509Certificate::CreateFromHandle may return a cached
+  // X509Certificate object, we may be adding intermediate CA certificates to
+  // it repeatedly!
   CFIndex certs_length = CFArrayGetCount(certs);
   for (CFIndex i = 1; i < certs_length; ++i) {
     SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
         const_cast<void*>(CFArrayGetValueAtIndex(certs, i)));
+    CFRetain(cert_ref);
     x509_cert->AddIntermediateCertificate(cert_ref);
   }
 
@@ -848,7 +852,7 @@ OSStatus SSLClientSocketMac::SSLReadCallback(SSLConnectionRef connection,
 
   if (rv < 0)
     return OSStatusFromNetError(rv);
-  else if (rv == 0) // stream closed
+  else if (rv == 0)  // stream closed
     return errSSLClosedGraceful;
   else
     return noErr;
