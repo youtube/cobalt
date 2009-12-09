@@ -43,9 +43,7 @@ void SysInfo::ParseLsbRelease(const std::string& lsb_release,
                               int32 *major_version,
                               int32 *minor_version,
                               int32 *bugfix_version) {
-  size_t version_key_index =
-      lsb_release.find(kLinuxStandardBaseVersionKey,
-                       arraysize(kLinuxStandardBaseVersionKey) - 1);
+  size_t version_key_index = lsb_release.find(kLinuxStandardBaseVersionKey);
   if (std::string::npos == version_key_index) {
     return;
   }
