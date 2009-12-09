@@ -4,7 +4,14 @@
 
 {
   'variables': {
-    'use_system_libjpeg%': 0,
+    'conditions': [
+      [ 'OS=="linux"', {
+        # Link to system .so since we already use it due to GTK.
+        'use_system_libjpeg%': 1,
+      }, {  # OS!="linux"
+        'use_system_libjpeg%': 0,
+      }],
+    ],
   },
   'conditions': [
     ['use_system_libjpeg==0', {
