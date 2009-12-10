@@ -40,6 +40,9 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
     { "-rw-r--r-- 1 2 3 3447432 May 18  2009 Foo - Manual.pdf",
       net::FtpDirectoryListingEntry::FILE, "Foo - Manual.pdf", 3447432,
       2009, 5, 18, 0, 0 },
+    { "d-wx-wx-wt+  4 ftp      989          512 Dec  8 15:54 incoming",
+      net::FtpDirectoryListingEntry::DIRECTORY, "incoming", -1,
+      now_exploded.year, 12, 8, 15, 54 },
 
     // Tests for the wu-ftpd variant:
     { "drwxr-xr-x   2 sys          512 Mar 27  2009 pub",
@@ -91,6 +94,10 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "qrwwr--r-- 1 ftp ftp 528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp -528 Nov 01 2007 README",
     "-rw-r--r-- 1 ftp ftp 528 Foo 01 2007 README",
+
+    "d-wx-wx-wt++  4 ftp 989 512 Dec  8 15:54 incoming",
+    "d-wx-wx-wt$  4 ftp 989 512 Dec  8 15:54 incoming",
+    "-qqqqqqqqq+  2 sys          512 Mar 27  2009 pub",
 
     // Tests important for security: verify that after we detect the column
     // offset we don't try to access invalid memory on malformed input.
