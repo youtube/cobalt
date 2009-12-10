@@ -686,6 +686,15 @@
             ],
           },
         ],
+        ['OS == "linux" or OS == "freebsd"', {
+          'conditions': [
+            ['linux_use_tcmalloc==1', {
+              'dependencies': [
+                '../base/allocator/allocator.gyp:allocator',
+              ],
+            }],
+          ],
+        }],
         [ 'OS == "mac"', {
             'sources/': [ ['exclude', '_(linux|win)_unittest\\.cc$'] ],
           },
