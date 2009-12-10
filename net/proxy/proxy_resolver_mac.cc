@@ -5,100 +5,17 @@
 #include "net/proxy/proxy_resolver_mac.h"
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <CoreServices/CoreServices.h>
-#include <SystemConfiguration/SystemConfiguration.h>
 
+#include "base/logging.h"
+#include "base/mac_util.h"
 #include "base/scoped_cftyperef.h"
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "net/base/net_errors.h"
-#include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_server.h"
 
 namespace {
-
-// Utility function to pull out a value from a dictionary, check its type, and
-// return it.  Returns NULL if the key is not present or of the wrong type.
-CFTypeRef GetValueFromDictionary(CFDictionaryRef dict,
-                                 CFStringRef key,
-                                 CFTypeID expected_type) {
-  CFTypeRef value = CFDictionaryGetValue(dict, key);
-  if (!value)
-    return value;
-
-  if (CFGetTypeID(value) != expected_type) {
-    scoped_cftyperef<CFStringRef> expected_type_ref(
-        CFCopyTypeIDDescription(expected_type));
-    scoped_cftyperef<CFStringRef> actual_type_ref(
-        CFCopyTypeIDDescription(CFGetTypeID(value)));
-    LOG(WARNING) << "Expected value for key "
-                 << base::SysCFStringRefToUTF8(key)
-                 << " to be "
-                 << base::SysCFStringRefToUTF8(expected_type_ref)
-                 << " but it was "
-                 << base::SysCFStringRefToUTF8(actual_type_ref)
-                 << " instead";
-    return NULL;
-  }
-
-  return value;
-}
-
-// Utility function to pull out a boolean value from a dictionary and return it,
-// returning a default value if the key is not present.
-bool GetBoolFromDictionary(CFDictionaryRef dict,
-                           CFStringRef key,
-                           bool default_value) {
-  CFNumberRef number = (CFNumberRef)GetValueFromDictionary(dict, key,
-                                                           CFNumberGetTypeID());
-  if (!number)
-    return default_value;
-
-  int int_value;
-  if (CFNumberGetValue(number, kCFNumberIntType, &int_value))
-    return int_value;
-  else
-    return default_value;
-}
-
-// Utility function to pull out a host/port pair from a dictionary and return it
-// as a ProxyServer object. Pass in a dictionary that has a  value for the host
-// key and optionally a value for the port key. In the error condition where
-// the host value is especially malformed, returns an invalid ProxyServer.
-net::ProxyServer GetProxyServerFromDictionary(net::ProxyServer::Scheme scheme,
-                                              CFDictionaryRef dict,
-                                              CFStringRef host_key,
-                                              CFStringRef port_key) {
-  if (scheme == net::ProxyServer::SCHEME_INVALID ||
-      scheme == net::ProxyServer::SCHEME_DIRECT) {
-    // No hostname port to extract; we are done.
-    return net::ProxyServer(scheme, std::string(), -1);
-  }
-
-  CFStringRef host_ref =
-      (CFStringRef)GetValueFromDictionary(dict, host_key,
-                                          CFStringGetTypeID());
-  if (!host_ref) {
-    LOG(WARNING) << "Could not find expected key "
-                 << base::SysCFStringRefToUTF8(host_key)
-                 << " in the proxy dictionary";
-    return net::ProxyServer();  // Invalid.
-  }
-  std::string host = base::SysCFStringRefToUTF8(host_ref);
-
-  CFNumberRef port_ref =
-      (CFNumberRef)GetValueFromDictionary(dict, port_key,
-                                          CFNumberGetTypeID());
-  int port;
-  if (port_ref) {
-    CFNumberGetValue(port_ref, kCFNumberIntType, &port);
-  } else {
-    port = net::ProxyServer::GetDefaultPortForScheme(scheme);
-  }
-
-  return net::ProxyServer(scheme, host, port);
-}
 
 // Utility function to map a CFProxyType to a ProxyServer::Scheme.
 // If the type is unknown, returns ProxyServer::SCHEME_INVALID.
@@ -120,7 +37,7 @@ net::ProxyServer::Scheme GetProxyServerScheme(CFStringRef proxy_type) {
 void ResultCallback(void* client, CFArrayRef proxies, CFErrorRef error) {
   DCHECK((proxies != NULL) == (error == NULL));
 
-  CFTypeRef* result_ptr = (CFTypeRef*)client;
+  CFTypeRef* result_ptr = reinterpret_cast<CFTypeRef*>(client);
   DCHECK(result_ptr != NULL);
   DCHECK(*result_ptr == NULL);
 
@@ -135,123 +52,6 @@ void ResultCallback(void* client, CFArrayRef proxies, CFErrorRef error) {
 }  // namespace
 
 namespace net {
-
-int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
-  scoped_cftyperef<CFDictionaryRef> config_dict(
-      SCDynamicStoreCopyProxies(NULL));
-  DCHECK(config_dict);
-
-  // auto-detect
-
-  // There appears to be no UI for this configuration option, and we're not sure
-  // if Apple's proxy code even takes it into account. But the constant is in
-  // the header file so we'll use it.
-  config->auto_detect =
-      GetBoolFromDictionary(config_dict.get(),
-                            kSCPropNetProxiesProxyAutoDiscoveryEnable,
-                            false);
-
-  // PAC file
-
-  if (GetBoolFromDictionary(config_dict.get(),
-                            kSCPropNetProxiesProxyAutoConfigEnable,
-                            false)) {
-    CFStringRef pac_url_ref =
-        (CFStringRef)GetValueFromDictionary(
-            config_dict.get(),
-            kSCPropNetProxiesProxyAutoConfigURLString,
-            CFStringGetTypeID());
-    if (pac_url_ref)
-      config->pac_url = GURL(base::SysCFStringRefToUTF8(pac_url_ref));
-  }
-
-  // proxies (for now ftp, http, https, and SOCKS)
-
-  if (GetBoolFromDictionary(config_dict.get(),
-                            kSCPropNetProxiesFTPEnable,
-                            false)) {
-    ProxyServer proxy_server =
-        GetProxyServerFromDictionary(ProxyServer::SCHEME_HTTP,
-                                     config_dict.get(),
-                                     kSCPropNetProxiesFTPProxy,
-                                     kSCPropNetProxiesFTPPort);
-    if (proxy_server.is_valid()) {
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
-      config->proxy_rules.proxy_for_ftp = proxy_server;
-    }
-  }
-  if (GetBoolFromDictionary(config_dict.get(),
-                            kSCPropNetProxiesHTTPEnable,
-                            false)) {
-    ProxyServer proxy_server =
-        GetProxyServerFromDictionary(ProxyServer::SCHEME_HTTP,
-                                     config_dict.get(),
-                                     kSCPropNetProxiesHTTPProxy,
-                                     kSCPropNetProxiesHTTPPort);
-    if (proxy_server.is_valid()) {
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
-      config->proxy_rules.proxy_for_http = proxy_server;
-    }
-  }
-  if (GetBoolFromDictionary(config_dict.get(),
-                            kSCPropNetProxiesHTTPSEnable,
-                            false)) {
-    ProxyServer proxy_server =
-        GetProxyServerFromDictionary(ProxyServer::SCHEME_HTTP,
-                                     config_dict.get(),
-                                     kSCPropNetProxiesHTTPSProxy,
-                                     kSCPropNetProxiesHTTPSPort);
-    if (proxy_server.is_valid()) {
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
-      config->proxy_rules.proxy_for_https = proxy_server;
-    }
-  }
-  if (GetBoolFromDictionary(config_dict.get(),
-                            kSCPropNetProxiesSOCKSEnable,
-                            false)) {
-    ProxyServer proxy_server =
-        GetProxyServerFromDictionary(ProxyServer::SCHEME_SOCKS5,
-                                     config_dict.get(),
-                                     kSCPropNetProxiesSOCKSProxy,
-                                     kSCPropNetProxiesSOCKSPort);
-    if (proxy_server.is_valid()) {
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
-      config->proxy_rules.socks_proxy = proxy_server;
-    }
-  }
-
-  // proxy bypass list
-
-  CFArrayRef bypass_array_ref =
-      (CFArrayRef)GetValueFromDictionary(config_dict.get(),
-                                         kSCPropNetProxiesExceptionsList,
-                                         CFArrayGetTypeID());
-  if (bypass_array_ref) {
-    CFIndex bypass_array_count = CFArrayGetCount(bypass_array_ref);
-    for (CFIndex i = 0; i < bypass_array_count; ++i) {
-      CFStringRef bypass_item_ref =
-          (CFStringRef)CFArrayGetValueAtIndex(bypass_array_ref, i);
-      if (CFGetTypeID(bypass_item_ref) != CFStringGetTypeID()) {
-        LOG(WARNING) << "Expected value for item " << i
-                     << " in the kSCPropNetProxiesExceptionsList"
-                        " to be a CFStringRef but it was not";
-
-      } else {
-        config->proxy_bypass.push_back(
-            base::SysCFStringRefToUTF8(bypass_item_ref));
-      }
-    }
-  }
-
-  // proxy bypass boolean
-
-  config->proxy_bypass_local_names =
-      GetBoolFromDictionary(config_dict.get(),
-                            kSCPropNetProxiesExcludeSimpleHostnames,
-                            false);
-
-  return OK;
-}
 
 // Gets the proxy information for a query URL from a PAC. Implementation
 // inspired by http://developer.apple.com/samplecode/CFProxySupportTool/
@@ -346,14 +146,14 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
     //                                     PAC file, I'm going home.
 
     CFStringRef proxy_type =
-        (CFStringRef)GetValueFromDictionary(proxy_dictionary,
-                                            kCFProxyTypeKey,
-                                            CFStringGetTypeID());
-    ProxyServer proxy_server =
-        GetProxyServerFromDictionary(GetProxyServerScheme(proxy_type),
-                                     proxy_dictionary,
-                                     kCFProxyHostNameKey,
-                                     kCFProxyPortNumberKey);
+        (CFStringRef)mac_util::GetValueFromDictionary(proxy_dictionary,
+                                                      kCFProxyTypeKey,
+                                                      CFStringGetTypeID());
+    ProxyServer proxy_server = ProxyServer::FromDictionary(
+        GetProxyServerScheme(proxy_type),
+        proxy_dictionary,
+        kCFProxyHostNameKey,
+        kCFProxyPortNumberKey);
     if (!proxy_server.is_valid())
       continue;
 
