@@ -81,7 +81,7 @@ TEST(MimeSnifferTest, BasicSniffingTest) {
       "text/plain", "text/plain" },
     { "\x89" "PNG\x0D\x0A\x1A\x0A", sizeof("\x89" "PNG\x0D\x0A\x1A\x0A")-1,
       "http://www.example.com/foo",
-      "application/octet-stream", "image/png" },
+      "application/octet-stream", "application/octet-stream" },
     { "\xFF\xD8\xFF\x23\x49\xAF", sizeof("\xFF\xD8\xFF\x23\x49\xAF")-1,
       "http://www.example.com/foo",
       "", "image/jpeg" },

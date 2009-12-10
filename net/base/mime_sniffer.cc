@@ -73,8 +73,12 @@
 //                                        URL has an GIF extension)
 // * Opera 9: Render as GIF
 //
-// Given our previous decisions, this decision is more or less clear.
-// => Chrome: Render as GIF
+// We used to render as GIF here, but the problem is that some sites want to
+// trigger downloads by sending application/octet-stream (even though they
+// should be sending Content-Disposition: attachment).  Although it is safe
+// to render as GIF from a security perspective, we actually get better
+// compatibility if we don't sniff from application/octet stream at all.
+// => Chrome: Download as application/octet-stream
 //
 // XHTML payload, Content-Type: "text/xml":
 // * IE 7: Render as XML
@@ -495,9 +499,8 @@ bool ShouldSniffMimeType(const GURL& url, const std::string& mime_type) {
     // Many web servers are misconfigured to send text/plain for many
     // different types of content.
     "text/plain",
-    // IIS 4.0 and 5.0 send application/octet-stream when serving .xhtml
-    // files.  Firefox 2.0 does not sniff xhtml here, but Safari 3,
-    // Opera 9, and IE do.
+    // We want to sniff application/octet-stream for
+    // application/x-chrome-extension, but nothing else.
     "application/octet-stream",
     // XHTML and Atom/RSS feeds are often served as plain xml instead of
     // their more specific mime types.
@@ -580,6 +583,11 @@ bool SniffMimeType(const char* content, size_t content_size,
   // tighter than the others because we don't have to match legacy behavior.
   if (SniffCRX(content, content_size, url, type_hint, result))
     return true;
+
+  // We're not interested in sniffing for magic numbers when the type_hint
+  // is application/octet-stream.  Time to bail out.
+  if (type_hint == "application/octet-stream")
+    return have_enough_content;
 
   // Now we look in our large table of magic numbers to see if we can find
   // anything that matches the content.
