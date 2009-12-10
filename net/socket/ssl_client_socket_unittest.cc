@@ -237,10 +237,9 @@ TEST_F(SSLClientSocketTest, Read) {
   rv = sock->Write(request_buffer, arraysize(request_text) - 1, &callback);
   EXPECT_TRUE(rv >= 0 || rv == net::ERR_IO_PENDING);
 
-  if (rv == net::ERR_IO_PENDING) {
+  if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
-    EXPECT_EQ(static_cast<int>(arraysize(request_text) - 1), rv);
-  }
+  EXPECT_EQ(static_cast<int>(arraysize(request_text) - 1), rv);
 
   scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(4096);
   for (;;) {
@@ -254,6 +253,71 @@ TEST_F(SSLClientSocketTest, Read) {
     if (rv <= 0)
       break;
   }
+}
+
+// Test the full duplex mode, with Read and Write pending at the same time.
+// This test also serves as a regression test for http://crbug.com/29815.
+TEST_F(SSLClientSocketTest, Read_FullDuplex) {
+  StartOKServer();
+
+  net::AddressList addr;
+  TestCompletionCallback callback;  // Used for everything except Write.
+  TestCompletionCallback callback2;  // Used for Write only.
+
+  net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
+  int rv = resolver_->Resolve(info, &addr, &callback, NULL, NULL);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
+
+  net::ClientSocket *transport = new net::TCPClientSocket(addr);
+  rv = transport->Connect(&callback, NULL);
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback.WaitForResult();
+  EXPECT_EQ(net::OK, rv);
+
+  scoped_ptr<net::SSLClientSocket> sock(
+      socket_factory_->CreateSSLClientSocket(transport,
+                                             server_.kHostName,
+                                             kDefaultSSLConfig));
+
+  rv = sock->Connect(&callback, NULL);
+  if (rv != net::OK) {
+    ASSERT_EQ(net::ERR_IO_PENDING, rv);
+
+    rv = callback.WaitForResult();
+    EXPECT_EQ(net::OK, rv);
+  }
+  EXPECT_TRUE(sock->IsConnected());
+
+  // Issue a "hanging" Read first.
+  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(4096);
+  rv = sock->Read(buf, 4096, &callback);
+  // We haven't written the request, so there should be no response yet.
+  ASSERT_EQ(net::ERR_IO_PENDING, rv);
+
+  // Write the request.
+  // The request is padded with a User-Agent header to a size that causes the
+  // memio circular buffer (4k bytes) in SSLClientSocketNSS to wrap around.
+  // This tests the fix for http://crbug.com/29815.
+  std::string request_text = "GET / HTTP/1.1\r\nUser-Agent: long browser name ";
+  for (int i = 0; i < 3800; ++i)
+    request_text.push_back('*');
+  request_text.append("\r\n\r\n");
+  scoped_refptr<net::IOBuffer> request_buffer =
+      new net::StringIOBuffer(request_text);
+
+  rv = sock->Write(request_buffer, request_text.size(), &callback2);
+  EXPECT_TRUE(rv >= 0 || rv == net::ERR_IO_PENDING);
+
+  if (rv == net::ERR_IO_PENDING)
+    rv = callback2.WaitForResult();
+  EXPECT_EQ(static_cast<int>(request_text.size()), rv);
+
+  // Now get the Read result.
+  rv = callback.WaitForResult();
+  EXPECT_GT(rv, 0);
 }
 
 TEST_F(SSLClientSocketTest, Read_SmallChunks) {
@@ -292,10 +356,9 @@ TEST_F(SSLClientSocketTest, Read_SmallChunks) {
   rv = sock->Write(request_buffer, arraysize(request_text) - 1, &callback);
   EXPECT_TRUE(rv >= 0 || rv == net::ERR_IO_PENDING);
 
-  if (rv == net::ERR_IO_PENDING) {
+  if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
-    EXPECT_EQ(static_cast<int>(arraysize(request_text) - 1), rv);
-  }
+  EXPECT_EQ(static_cast<int>(arraysize(request_text) - 1), rv);
 
   scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(1);
   for (;;) {
@@ -347,18 +410,17 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
   rv = sock->Write(request_buffer, arraysize(request_text) - 1, &callback);
   EXPECT_TRUE(rv >= 0 || rv == net::ERR_IO_PENDING);
 
-  if (rv == net::ERR_IO_PENDING) {
+  if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
-    EXPECT_EQ(static_cast<int>(arraysize(request_text) - 1), rv);
-  }
+  EXPECT_EQ(static_cast<int>(arraysize(request_text) - 1), rv);
 
   // Do a partial read and then exit.  This test should not crash!
   scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(512);
   rv = sock->Read(buf, 512, &callback);
-  EXPECT_TRUE(rv >= 0 || rv == net::ERR_IO_PENDING);
+  EXPECT_TRUE(rv > 0 || rv == net::ERR_IO_PENDING);
 
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
 
-  EXPECT_NE(rv, 0);
+  EXPECT_GT(rv, 0);
 }

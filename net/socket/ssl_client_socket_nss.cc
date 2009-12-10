@@ -747,25 +747,35 @@ bool SSLClientSocketNSS::DoTransportIO() {
 int SSLClientSocketNSS::BufferSend(void) {
   if (transport_send_busy_) return ERR_IO_PENDING;
 
-  const char *buf;
-  int nb = memio_GetWriteParams(nss_bufs_, &buf);
-  EnterFunction(nb);
+  int nsent = 0;
+  EnterFunction("");
+  // nss_bufs_ is a circular buffer.  It may have two contiguous parts
+  // (before and after the wrap).  So this for loop needs two iterations.
+  for (int i = 0; i < 2; ++i) {
+    const char* buf;
+    int nb = memio_GetWriteParams(nss_bufs_, &buf);
+    if (!nb)
+      break;
 
-  int rv;
-  if (!nb) {
-    rv = OK;
-  } else {
     scoped_refptr<IOBuffer> send_buffer = new IOBuffer(nb);
     memcpy(send_buffer->data(), buf, nb);
-    rv = transport_->Write(send_buffer, nb, &buffer_send_callback_);
-    if (rv == ERR_IO_PENDING)
+    int rv = transport_->Write(send_buffer, nb, &buffer_send_callback_);
+    if (rv == ERR_IO_PENDING) {
       transport_send_busy_ = true;
-    else
+      break;
+    } else {
       memio_PutWriteResult(nss_bufs_, MapErrorToNSS(rv));
+      if (rv < 0) {
+        // Return the error even if the previous Write succeeded.
+        nsent = rv;
+        break;
+      }
+      nsent += rv;
+    }
   }
 
-  LeaveFunction(rv);
-  return rv;
+  LeaveFunction(nsent);
+  return nsent;
 }
 
 void SSLClientSocketNSS::BufferSendComplete(int result) {
