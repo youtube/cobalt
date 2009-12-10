@@ -4,6 +4,7 @@
 
 #include "media/filters/ffmpeg_audio_decoder.h"
 
+#include "media/base/callback.h"
 #include "media/base/data_buffer.h"
 #include "media/base/limits.h"
 #include "media/filters/ffmpeg_common.h"
@@ -29,11 +30,16 @@ bool FFmpegAudioDecoder::IsMediaFormatSupported(const MediaFormat& format) {
       mime_type::kFFmpegAudio == mime_type;
 }
 
-bool FFmpegAudioDecoder::OnInitialize(DemuxerStream* demuxer_stream) {
+void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
+                                      bool* success,
+                                      Task* done_cb) {
+  AutoTaskRunner done_runner(done_cb);
+  *success = false;
+
   // Get the AVStream by querying for the provider interface.
   AVStreamProvider* av_stream_provider;
   if (!demuxer_stream->QueryInterface(&av_stream_provider)) {
-    return false;
+    return;
   }
   AVStream* av_stream = av_stream_provider->GetAVStream();
 
@@ -48,15 +54,17 @@ bool FFmpegAudioDecoder::OnInitialize(DemuxerStream* demuxer_stream) {
       bps == 0 ||
       static_cast<size_t>(bps) > Limits::kMaxBPS ||
       codec_context_->sample_rate == 0 ||
-      static_cast<size_t>(codec_context_->sample_rate) > Limits::kMaxSampleRate)
-      return false;
+      (static_cast<size_t>(codec_context_->sample_rate) >
+       Limits::kMaxSampleRate)) {
+    return;
+  }
 
   // Serialize calls to avcodec_open().
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
   {
     AutoLock auto_lock(FFmpegLock::get()->lock());
     if (!codec || avcodec_open(codec_context_, codec) < 0) {
-      return false;
+      return;
     }
   }
 
@@ -78,20 +86,21 @@ bool FFmpegAudioDecoder::OnInitialize(DemuxerStream* demuxer_stream) {
   output_buffer_.reset(static_cast<uint8*>(av_malloc(kOutputBufferSize)));
   if (!output_buffer_.get()) {
     host()->SetError(PIPELINE_ERROR_OUT_OF_MEMORY);
-    return false;
+    return;
   }
-  return true;
+  *success = true;
 }
 
-void FFmpegAudioDecoder::OnSeek(base::TimeDelta time) {
+void FFmpegAudioDecoder::DoSeek(base::TimeDelta time, Task* done_cb) {
   avcodec_flush_buffers(codec_context_);
   estimated_next_timestamp_ = StreamSample::kInvalidTimestamp;
+  done_cb->Run();
+  delete done_cb;
 }
 
-void FFmpegAudioDecoder::OnStop() {
-}
+void FFmpegAudioDecoder::DoDecode(Buffer* input, Task* done_cb) {
+  AutoTaskRunner done_runner(done_cb);
 
-void FFmpegAudioDecoder::OnDecode(Buffer* input) {
   // Due to FFmpeg API changes we no longer have const read-only pointers.
   AVPacket packet;
   av_init_packet(&packet);

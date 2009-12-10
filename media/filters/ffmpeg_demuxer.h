@@ -39,6 +39,7 @@ struct AVCodecContext;
 struct AVBitStreamFilterContext;
 struct AVFormatContext;
 struct AVPacket;
+struct AVRational;
 struct AVStream;
 
 namespace media {
@@ -93,7 +94,8 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   void FulfillPendingRead();
 
   // Converts an FFmpeg stream timestamp into a base::TimeDelta.
-  base::TimeDelta ConvertTimestamp(int64 timestamp);
+  static base::TimeDelta ConvertStreamTimestamp(const AVRational& time_base,
+                                                int64 timestamp);
 
   FFmpegDemuxer* demuxer_;
   AVStream* stream_;

@@ -10,43 +10,58 @@
 #include "media/base/factory.h"
 #include "media/base/pts_heap.h"
 #include "media/filters/decoder_base.h"
+#include "media/filters/video_decode_engine.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 // FFmpeg types.
 struct AVCodecContext;
 struct AVFrame;
 struct AVRational;
+struct AVStream;
 
 namespace media {
 
-class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
+class FFmpegVideoDecodeEngine : public VideoDecodeEngine {
  public:
-  static FilterFactory* CreateFactory() {
-    return new FilterFactoryImpl0<FFmpegVideoDecoder>();
+  FFmpegVideoDecodeEngine();
+  virtual ~FFmpegVideoDecodeEngine();
+
+  // Implementation of the VideoDecodeEngine Interface.
+  virtual void Initialize(AVStream* stream, Task* done_cb);
+  virtual void DecodeFrame(const Buffer& buffer, AVFrame* yuv_frame,
+                           bool* got_result, Task* done_cb);
+  virtual void Flush(Task* done_cb);
+  virtual VideoSurface::Format GetSurfaceFormat() const;
+
+  virtual State state() const { return state_; }
+
+  virtual AVCodecContext* codec_context() const { return codec_context_; }
+
+  virtual void SetCodecContextForTest(AVCodecContext* context) {
+    codec_context_ = context;
   }
 
+ private:
+  AVCodecContext* codec_context_;
+  State state_;
+
+  DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecodeEngine);
+};
+
+class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
+ public:
+  static FilterFactory* CreateFactory();
   static bool IsMediaFormatSupported(const MediaFormat& media_format);
 
- protected:
-  virtual bool OnInitialize(DemuxerStream* demuxer_stream);
-
-  virtual void OnSeek(base::TimeDelta time);
-
-  virtual void OnDecode(Buffer* buffer);
-
  private:
-  friend class FilterFactoryImpl0<FFmpegVideoDecoder>;
+  friend class FilterFactoryImpl1<FFmpegVideoDecoder, VideoDecodeEngine*>;
   friend class DecoderPrivateMock;
   friend class FFmpegVideoDecoderTest;
-  FRIEND_TEST(FFmpegVideoDecoderTest, DecodeFrame_0ByteFrame);
-  FRIEND_TEST(FFmpegVideoDecoderTest, DecodeFrame_DecodeError);
-  FRIEND_TEST(FFmpegVideoDecoderTest, DecodeFrame_Normal);
   FRIEND_TEST(FFmpegVideoDecoderTest, FindPtsAndDuration);
-  FRIEND_TEST(FFmpegVideoDecoderTest, GetSurfaceFormat);
-  FRIEND_TEST(FFmpegVideoDecoderTest, OnDecode_EnqueueVideoFrameError);
-  FRIEND_TEST(FFmpegVideoDecoderTest, OnDecode_FinishEnqueuesEmptyFrames);
-  FRIEND_TEST(FFmpegVideoDecoderTest, OnDecode_TestStateTransition);
-  FRIEND_TEST(FFmpegVideoDecoderTest, OnSeek);
+  FRIEND_TEST(FFmpegVideoDecoderTest, DoDecode_EnqueueVideoFrameError);
+  FRIEND_TEST(FFmpegVideoDecoderTest, DoDecode_FinishEnqueuesEmptyFrames);
+  FRIEND_TEST(FFmpegVideoDecoderTest, DoDecode_TestStateTransition);
+  FRIEND_TEST(FFmpegVideoDecoderTest, DoSeek);
 
   // The TimeTuple struct is used to hold the needed timestamp data needed for
   // enqueuing a video frame.
@@ -55,8 +70,14 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
     base::TimeDelta duration;
   };
 
-  FFmpegVideoDecoder();
+  FFmpegVideoDecoder(VideoDecodeEngine* engine);
   virtual ~FFmpegVideoDecoder();
+
+  // Implement DecoderBase template methods.
+  virtual void DoInitialize(DemuxerStream* demuxer_stream, bool* success,
+                            Task* done_cb);
+  virtual void DoSeek(base::TimeDelta time, Task* done_cb);
+  virtual void DoDecode(Buffer* buffer, Task* done_cb);
 
   virtual bool EnqueueVideoFrame(VideoSurface::Format surface_format,
                                  const TimeTuple& time,
@@ -68,14 +89,11 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
   virtual void CopyPlane(size_t plane, const VideoSurface& surface,
                          const AVFrame* frame);
 
-  // Converts a AVCodecContext |pix_fmt| to a VideoSurface::Format.
-  virtual VideoSurface::Format GetSurfaceFormat(
-      const AVCodecContext& codec_context);
-
-  // Decodes one frame of video with the given buffer.  Returns false if there
-  // was a decode error, or a zero-byte frame was produced.
-  virtual bool DecodeFrame(const Buffer& buffer, AVCodecContext* codec_context,
-                           AVFrame* yuv_frame);
+  // Methods that pickup after the decode engine has finished its action.
+  virtual void OnInitializeComplete(bool* success /* Not owned */,
+                                    Task* done_cb);
+  virtual void OnDecodeComplete(AVFrame* yuv_frame, bool* got_frame,
+                                Task* done_cb);
 
   // Attempt to get the PTS and Duration for this frame by examining the time
   // info provided via packet stream (stored in |pts_heap|), or the info
@@ -94,6 +112,10 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
   // into the kDecodeFinished state.
   virtual void SignalPipelineError();
 
+  // Injection point for unittest to provide a mock engine.  Takes ownership of
+  // the provided engine.
+  virtual void SetVideoDecodeEngineForTest(VideoDecodeEngine* engine);
+
   size_t width_;
   size_t height_;
 
@@ -109,7 +131,7 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
 
   DecoderState state_;
 
-  AVCodecContext* codec_context_;
+  scoped_ptr<VideoDecodeEngine> decode_engine_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegVideoDecoder);
 };
