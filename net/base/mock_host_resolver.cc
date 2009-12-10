@@ -93,10 +93,16 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
     proc = interceptor;
   }
 
-  int max_cache_entries = use_caching_ ? 100 : 0;
-  int max_cache_age_ms = use_caching_ ? 60000 : 0;
+  HostCache* cache = NULL;
 
-  impl_ = new HostResolverImpl(proc, max_cache_entries, max_cache_age_ms);
+  if (use_caching_) {
+    cache = new HostCache(
+        100,  // max entries.
+        base::TimeDelta::FromMinutes(1),
+        base::TimeDelta::FromSeconds(0));
+  }
+
+  impl_ = new HostResolverImpl(proc, cache);
 }
 
 //-----------------------------------------------------------------------------

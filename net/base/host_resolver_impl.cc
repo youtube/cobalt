@@ -35,9 +35,13 @@ namespace net {
 
 HostResolver* CreateSystemHostResolver() {
   static const size_t kMaxHostCacheEntries = 100;
-  static const size_t kHostCacheExpirationMs = 60000;  // 1 minute.
-  return new HostResolverImpl(
-      NULL, kMaxHostCacheEntries, kHostCacheExpirationMs);
+
+  HostCache* cache = new HostCache(
+      kMaxHostCacheEntries,
+      base::TimeDelta::FromMinutes(1),
+      base::TimeDelta::FromSeconds(1));
+
+  return new HostResolverImpl(NULL, cache);
 }
 
 static int ResolveAddrInfo(HostResolverProc* resolver_proc,
@@ -287,9 +291,8 @@ class HostResolverImpl::Job
 //-----------------------------------------------------------------------------
 
 HostResolverImpl::HostResolverImpl(HostResolverProc* resolver_proc,
-                                   int max_cache_entries,
-                                   int cache_duration_ms)
-    : cache_(max_cache_entries, cache_duration_ms),
+                                   HostCache* cache)
+    : cache_(cache),
       next_request_id_(0),
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
@@ -333,12 +336,13 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     key.address_family = default_address_family_;
 
   // If we have an unexpired cache entry, use it.
-  if (info.allow_cached_response()) {
-    const HostCache::Entry* cache_entry = cache_.Lookup(
+  if (info.allow_cached_response() && cache_.get()) {
+    const HostCache::Entry* cache_entry = cache_->Lookup(
         key, base::TimeTicks::Now());
     if (cache_entry) {
-      addresses->SetFrom(cache_entry->addrlist, info.port());
       int error = cache_entry->error;
+      if (error == OK)
+        addresses->SetFrom(cache_entry->addrlist, info.port());
 
       // Update the load log and notify registered observers.
       OnFinishRequest(load_log, request_id, info, error);
@@ -358,7 +362,8 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     }
 
     // Write to cache.
-    cache_.Set(key, error, addrlist, base::TimeTicks::Now());
+    if (cache_.get())
+      cache_->Set(key, error, addrlist, base::TimeTicks::Now());
 
     // Update the load log and notify registered observers.
     OnFinishRequest(load_log, request_id, info, error);
@@ -429,7 +434,7 @@ void HostResolverImpl::RemoveObserver(Observer* observer) {
 }
 
 HostCache* HostResolverImpl::GetHostCache() {
-  return &cache_;
+  return cache_.get();
 }
 
 void HostResolverImpl::Shutdown() {
@@ -467,7 +472,8 @@ void HostResolverImpl::OnJobComplete(Job* job,
   RemoveOutstandingJob(job);
 
   // Write result to the cache.
-  cache_.Set(job->key(), error, addrlist, base::TimeTicks::Now());
+  if (cache_.get())
+    cache_->Set(job->key(), error, addrlist, base::TimeTicks::Now());
 
   // Make a note that we are executing within OnJobComplete() in case the
   // HostResolver is deleted by a callback invocation.
