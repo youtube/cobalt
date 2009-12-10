@@ -5,6 +5,12 @@
 #ifndef NET_PROXY_PROXY_SERVER_H_
 #define NET_PROXY_PROXY_SERVER_H_
 
+#include "build/build_config.h"
+
+#if defined(OS_MACOSX)
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 #include <string>
 
 namespace net {
@@ -100,6 +106,19 @@ class ProxyServer {
   static ProxyServer FromPacString(const std::string& pac_string);
   static ProxyServer FromPacString(std::string::const_iterator pac_string_begin,
                                    std::string::const_iterator pac_string_end);
+
+#if defined(OS_MACOSX)
+  // Utility function to pull out a host/port pair from a dictionary and return
+  // it as a ProxyServer object. Pass in a dictionary that has a  value for the
+  // host key and optionally a value for the port key. In the error condition
+  // where the host value is especially malformed, returns an invalid
+  // ProxyServer.
+  static ProxyServer FromDictionary(Scheme scheme,
+                                    CFDictionaryRef dict,
+                                    CFStringRef host_key,
+                                    CFStringRef port_key);
+#endif
+
 
   // Format as a PAC result entry. This does the reverse of FromPacString().
   std::string ToPacString() const;

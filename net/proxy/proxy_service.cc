@@ -21,6 +21,7 @@
 #include "net/proxy/proxy_config_service_win.h"
 #include "net/proxy/proxy_resolver_winhttp.h"
 #elif defined(OS_MACOSX)
+#include "net/proxy/proxy_config_service_mac.h"
 #include "net/proxy/proxy_resolver_mac.h"
 #elif defined(OS_LINUX)
 #include "net/proxy/proxy_config_service_linux.h"
