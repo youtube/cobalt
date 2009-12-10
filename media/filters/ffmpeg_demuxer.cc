@@ -7,6 +7,7 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "media/base/filter_host.h"
+#include "media/ffmpeg/ffmpeg_util.h"
 #include "media/filters/ffmpeg_common.h"
 #include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/ffmpeg_glue.h"
@@ -76,7 +77,7 @@ FFmpegDemuxerStream::FFmpegDemuxerStream(FFmpegDemuxer* demuxer,
   }
 
   // Calculate the duration.
-  duration_ = ConvertTimestamp(stream->duration);
+  duration_ = ConvertStreamTimestamp(stream->time_base, stream->duration);
 }
 
 FFmpegDemuxerStream::~FFmpegDemuxerStream() {
@@ -103,8 +104,10 @@ bool FFmpegDemuxerStream::HasPendingReads() {
 
 base::TimeDelta FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
   DCHECK_EQ(MessageLoop::current(), demuxer_->message_loop());
-  base::TimeDelta timestamp = ConvertTimestamp(packet->pts);
-  base::TimeDelta duration = ConvertTimestamp(packet->duration);
+  base::TimeDelta timestamp =
+      ConvertStreamTimestamp(stream_->time_base, packet->pts);
+  base::TimeDelta duration =
+      ConvertStreamTimestamp(stream_->time_base, packet->duration);
   if (stopped_) {
     NOTREACHED() << "Attempted to enqueue packet on a stopped stream";
     return timestamp;
@@ -191,12 +194,13 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
   read_callback->Run(buffer);
 }
 
-base::TimeDelta FFmpegDemuxerStream::ConvertTimestamp(int64 timestamp) {
+// static
+base::TimeDelta FFmpegDemuxerStream::ConvertStreamTimestamp(
+    const AVRational& time_base, int64 timestamp) {
   if (timestamp == static_cast<int64>(AV_NOPTS_VALUE))
     return StreamSample::kInvalidTimestamp;
-  AVRational time_base = { 1, base::Time::kMicrosecondsPerSecond };
-  int64 microseconds = av_rescale_q(timestamp, stream_->time_base, time_base);
-  return base::TimeDelta::FromMicroseconds(microseconds);
+
+  return ConvertTimestamp(time_base, timestamp);
 }
 
 //
