@@ -36,6 +36,7 @@ enum FtpServerType {
   SERVER_WINDOWS = 10,  // Server using Windows listing style.
   SERVER_VMS = 11,      // Server using VMS listing style.
   SERVER_NETWARE = 12,  // Server using Netware listing style.
+  SERVER_MLSD = 13,     // Server using MLSD listing (RFC-3659).
 
   NUM_OF_SERVER_TYPES
 };
