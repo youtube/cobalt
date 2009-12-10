@@ -22,8 +22,12 @@ HostCache::Entry::~Entry() {
 
 //-----------------------------------------------------------------------------
 
-HostCache::HostCache(size_t max_entries, size_t cache_duration_ms)
-    : max_entries_(max_entries), cache_duration_ms_(cache_duration_ms) {
+HostCache::HostCache(size_t max_entries,
+                     base::TimeDelta success_entry_ttl,
+                     base::TimeDelta failure_entry_ttl)
+    : max_entries_(max_entries),
+      success_entry_ttl_(success_entry_ttl),
+      failure_entry_ttl_(failure_entry_ttl) {
 }
 
 HostCache::~HostCache() {
@@ -53,7 +57,7 @@ HostCache::Entry* HostCache::Set(const Key& key,
     return NULL;
 
   base::TimeTicks expiration = now +
-      base::TimeDelta::FromMilliseconds(cache_duration_ms_);
+      (error == OK ? success_entry_ttl_ : failure_entry_ttl_);
 
   scoped_refptr<Entry>& entry = entries_[key];
   if (!entry) {
@@ -77,7 +81,7 @@ HostCache::Entry* HostCache::Set(const Key& key,
 
 // static
 bool HostCache::CanUseEntry(const Entry* entry, const base::TimeTicks now) {
-  return entry->error == OK && entry->expiration > now;
+  return entry->expiration > now;
 }
 
 void HostCache::Compact(base::TimeTicks now, const Entry* pinned_entry) {

@@ -57,9 +57,12 @@ class HostCache {
 
   typedef std::map<Key, scoped_refptr<Entry> > EntryMap;
 
-  // Constructs a HostCache whose entries are valid for |cache_duration_ms|
-  // milliseconds. The cache will store up to |max_entries|.
-  HostCache(size_t max_entries, size_t cache_duration_ms);
+  // Constructs a HostCache that caches successful host resolves for
+  // |success_entry_ttl| time, and failed host resolves for
+  // |failure_entry_ttl|. The cache will store up to |max_entries|.
+  HostCache(size_t max_entries,
+            base::TimeDelta success_entry_ttl,
+            base::TimeDelta failure_entry_ttl);
 
   ~HostCache();
 
@@ -90,8 +93,12 @@ class HostCache {
     return max_entries_;
   }
 
-  size_t cache_duration_ms() const {
-    return cache_duration_ms_;
+  base::TimeDelta success_entry_ttl() const {
+    return success_entry_ttl_;
+  }
+
+  base::TimeDelta failure_entry_ttl() const {
+    return failure_entry_ttl_;
   }
 
   // Note that this map may contain expired entries.
@@ -113,8 +120,9 @@ class HostCache {
   // Bound on total size of the cache.
   size_t max_entries_;
 
-  // Time to live for cache entries in milliseconds.
-  size_t cache_duration_ms_;
+  // Time to live for cache entries.
+  base::TimeDelta success_entry_ttl_;
+  base::TimeDelta failure_entry_ttl_;
 
   // Map from hostname (presumably in lowercase canonicalized format) to
   // a resolved result entry.
