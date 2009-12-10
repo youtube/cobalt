@@ -100,6 +100,13 @@ FilePath GetProcessExecutablePath(ProcessHandle process);
 // CPU-related ticks.  Returns -1 on parse error.
 // Exposed for testing.
 int ParseProcStatCPU(const std::string& input);
+
+static const char kAdjustOOMScoreSwitch[] = "--adjust-oom-score";
+
+// This adjusts /proc/process/oom_adj so the Linux OOM killer will prefer
+// certain process types over others. The range for the adjustment is
+// [-17,15], with [0,15] being user accessible.
+bool AdjustOOMScore(ProcessId process, int score);
 #endif
 
 #if defined(OS_POSIX)

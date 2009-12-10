@@ -513,7 +513,6 @@ void OnNoMemory() {
 }  // namespace
 
 extern "C" {
-
 #if !defined(LINUX_USE_TCMALLOC)
 
 typedef void* (*malloc_type)(size_t size);
@@ -600,7 +599,6 @@ int posix_memalign(void** ptr, size_t alignment, size_t size) {
 }
 
 #endif  // !defined(LINUX_USE_TCMALLOC)
-
 }  // extern C
 
 void EnableTerminationOnOutOfMemory() {
@@ -608,6 +606,22 @@ void EnableTerminationOnOutOfMemory() {
   std::set_new_handler(&OnNoMemory);
   // If we're using glibc's allocator, the above functions will override
   // malloc and friends and make them die on out of memory.
+}
+
+bool AdjustOOMScore(ProcessId process, int score) {
+  if (score < 0 || score > 15)
+    return false;
+
+  FilePath oom_adj("/proc");
+  oom_adj = oom_adj.Append(Int64ToString(process));
+  oom_adj = oom_adj.AppendASCII("oom_adj");
+
+  if (!file_util::PathExists(oom_adj))
+    return false;
+
+  std::string score_str = IntToString(score);
+  return (static_cast<int>(score_str.length()) ==
+          file_util::WriteFile(oom_adj, score_str.c_str(), score_str.length()));
 }
 
 }  // namespace base
