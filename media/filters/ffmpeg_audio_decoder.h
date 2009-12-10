@@ -24,13 +24,12 @@ class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
   static bool IsMediaFormatSupported(const MediaFormat& media_format);
 
  protected:
-  virtual bool OnInitialize(DemuxerStream* demuxer_stream);
+  virtual void DoInitialize(DemuxerStream* demuxer_stream, bool* success,
+                            Task* done_cb);
 
-  virtual void OnSeek(base::TimeDelta time);
+  virtual void DoSeek(base::TimeDelta time, Task* done_cb);
 
-  virtual void OnStop();
-
-  virtual void OnDecode(Buffer* input);
+  virtual void DoDecode(Buffer* input, Task* done_cb);
 
  private:
   friend class FilterFactoryImpl0<FFmpegAudioDecoder>;

@@ -2,47 +2,143 @@
 // source code is governed by a BSD-style license that can be found in the
 // LICENSE file.
 
-#include "media/base/limits.h"
-#include "media/base/video_frame_impl.h"
-#include "media/filters/ffmpeg_common.h"
-#include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/ffmpeg_video_decoder.h"
 
-namespace {
-
-const AVRational kMicrosBase = { 1, base::Time::kMicrosecondsPerSecond };
-
-// TODO(ajwong): Move this into a utility function file and dedup with
-// FFmpegDemuxer ConvertTimestamp.
-base::TimeDelta ConvertTimestamp(const AVRational& time_base, int64 timestamp) {
-  int64 microseconds = av_rescale_q(timestamp, time_base, kMicrosBase);
-  return base::TimeDelta::FromMicroseconds(microseconds);
-}
-
-}  // namespace
+#include "base/task.h"
+#include "base/waitable_event.h"
+#include "media/base/callback.h"
+#include "media/base/limits.h"
+#include "media/base/video_frame_impl.h"
+#include "media/ffmpeg/ffmpeg_util.h"
+#include "media/filters/ffmpeg_common.h"
+#include "media/filters/ffmpeg_demuxer.h"
 
 namespace media {
 
-// Always try to use two threads for video decoding.  There is little reason
-// not to since current day CPUs tend to be multi-core and we measured
-// performance benefits on older machines such as P4s with hyperthreading.
-//
-// Handling decoding on separate threads also frees up the pipeline thread to
-// continue processing. Although it'd be nice to have the option of a single
-// decoding thread, FFmpeg treats having one thread the same as having zero
-// threads (i.e., avcodec_decode_video() will execute on the calling thread).
-// Yet another reason for having two threads :)
-//
-// TODO(scherkus): some video codecs might not like avcodec_thread_init() being
-// called on them... should attempt to find out which ones those are!
-static const int kDecodeThreads = 2;
+FFmpegVideoDecodeEngine::FFmpegVideoDecodeEngine()
+    : codec_context_(NULL),
+      state_(kCreated) {
+}
 
-FFmpegVideoDecoder::FFmpegVideoDecoder()
+FFmpegVideoDecodeEngine::~FFmpegVideoDecodeEngine() {
+}
+
+void FFmpegVideoDecodeEngine::Initialize(AVStream* stream, Task* done_cb) {
+  AutoTaskRunner done_runner(done_cb);
+
+  // Always try to use two threads for video decoding.  There is little reason
+  // not to since current day CPUs tend to be multi-core and we measured
+  // performance benefits on older machines such as P4s with hyperthreading.
+  //
+  // Handling decoding on separate threads also frees up the pipeline thread to
+  // continue processing. Although it'd be nice to have the option of a single
+  // decoding thread, FFmpeg treats having one thread the same as having zero
+  // threads (i.e., avcodec_decode_video() will execute on the calling thread).
+  // Yet another reason for having two threads :)
+  //
+  // TODO(scherkus): some video codecs might not like avcodec_thread_init()
+  // being called on them... should attempt to find out which ones those are!
+  static const int kDecodeThreads = 2;
+
+  CHECK(state_ == kCreated);
+
+  codec_context_ = stream->codec;
+  codec_context_->flags2 |= CODEC_FLAG2_FAST;  // Enable faster H264 decode.
+  // Enable motion vector search (potentially slow), strong deblocking filter
+  // for damaged macroblocks, and set our error detection sensitivity.
+  codec_context_->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
+  codec_context_->error_recognition = FF_ER_CAREFUL;
+
+  // Serialize calls to avcodec_open().
+  AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
+  {
+    AutoLock auto_lock(FFmpegLock::get()->lock());
+    if (codec &&
+        avcodec_thread_init(codec_context_, kDecodeThreads) >= 0 &&
+        avcodec_open(codec_context_, codec) >= 0) {
+      state_ = kNormal;
+    } else {
+      state_ = kError;
+    }
+  }
+}
+
+// Decodes one frame of video with the given buffer.
+void FFmpegVideoDecodeEngine::DecodeFrame(const Buffer& buffer,
+                                          AVFrame* yuv_frame,
+                                          bool* got_frame,
+                                          Task* done_cb) {
+  AutoTaskRunner done_runner(done_cb);
+
+  // Create a packet for input data.
+  // Due to FFmpeg API changes we no longer have const read-only pointers.
+  //
+  // TODO(ajwong): This is dangerous since AVPacket may change size with
+  // different ffmpeg versions.  Use the alloca verison.
+  AVPacket packet;
+  av_init_packet(&packet);
+  packet.data = const_cast<uint8*>(buffer.GetData());
+  packet.size = buffer.GetDataSize();
+
+  // We don't allocate AVFrame on the stack since different versions of FFmpeg
+  // may change the size of AVFrame, causing stack corruption.  The solution is
+  // to let FFmpeg allocate the structure via avcodec_alloc_frame().
+  int frame_decoded = 0;
+  int result =
+      avcodec_decode_video2(codec_context_, yuv_frame, &frame_decoded, &packet);
+
+  // Log the problem if we can't decode a video frame and exit early.
+  if (result < 0) {
+    LOG(INFO) << "Error decoding a video frame with timestamp: "
+              << buffer.GetTimestamp().InMicroseconds() << " us"
+              << " , duration: "
+              << buffer.GetDuration().InMicroseconds() << " us"
+              << " , packet size: "
+              << buffer.GetDataSize() << " bytes";
+    *got_frame = false;
+  } else {
+    // If frame_decoded == 0, then no frame was produced.
+    *got_frame = frame_decoded != 0;
+  }
+}
+
+void FFmpegVideoDecodeEngine::Flush(Task* done_cb) {
+  AutoTaskRunner done_runner(done_cb);
+
+  avcodec_flush_buffers(codec_context_);
+}
+
+VideoSurface::Format FFmpegVideoDecodeEngine::GetSurfaceFormat() const {
+  // J (Motion JPEG) versions of YUV are full range 0..255.
+  // Regular (MPEG) YUV is 16..240.
+  // For now we will ignore the distinction and treat them the same.
+  switch (codec_context_->pix_fmt) {
+    case PIX_FMT_YUV420P:
+    case PIX_FMT_YUVJ420P:
+      return VideoSurface::YV12;
+      break;
+    case PIX_FMT_YUV422P:
+    case PIX_FMT_YUVJ422P:
+      return VideoSurface::YV16;
+      break;
+    default:
+      // TODO(scherkus): More formats here?
+      return VideoSurface::INVALID;
+  }
+}
+
+// static
+FilterFactory* FFmpegVideoDecoder::CreateFactory() {
+  return new FilterFactoryImpl1<FFmpegVideoDecoder, VideoDecodeEngine*>(
+      new FFmpegVideoDecodeEngine());
+}
+
+FFmpegVideoDecoder::FFmpegVideoDecoder(VideoDecodeEngine* engine)
     : width_(0),
       height_(0),
       time_base_(new AVRational()),
       state_(kNormal),
-      codec_context_(NULL) {
+      decode_engine_(engine) {
 }
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder() {
@@ -55,59 +151,70 @@ bool FFmpegVideoDecoder::IsMediaFormatSupported(const MediaFormat& format) {
       mime_type::kFFmpegVideo == mime_type;
 }
 
-bool FFmpegVideoDecoder::OnInitialize(DemuxerStream* demuxer_stream) {
+void FFmpegVideoDecoder::DoInitialize(DemuxerStream* demuxer_stream,
+                                      bool* success,
+                                      Task* done_cb) {
+  AutoTaskRunner done_runner(done_cb);
+  *success = false;
+
   // Get the AVStream by querying for the provider interface.
   AVStreamProvider* av_stream_provider;
   if (!demuxer_stream->QueryInterface(&av_stream_provider)) {
-    return false;
+    return;
   }
   AVStream* av_stream = av_stream_provider->GetAVStream();
 
+  *time_base_ = av_stream->time_base;
+
+  // TODO(ajwong): We don't need these extra variables if |media_format_| has
+  // them.  Remove.
   width_ = av_stream->codec->width;
   height_ = av_stream->codec->height;
-  *time_base_ = av_stream->time_base;
   if (width_ > Limits::kMaxDimension || height_ > Limits::kMaxDimension ||
       width_ * height_ > Limits::kMaxCanvas)
-      return false;
+      return;
 
   media_format_.SetAsString(MediaFormat::kMimeType,
                             mime_type::kUncompressedVideo);
   media_format_.SetAsInteger(MediaFormat::kWidth, width_);
   media_format_.SetAsInteger(MediaFormat::kHeight, height_);
 
-  codec_context_ = av_stream->codec;
-  codec_context_->flags2 |= CODEC_FLAG2_FAST;  // Enable faster H264 decode.
-  // Enable motion vector search (potentially slow), strong deblocking filter
-  // for damaged macroblocks, and set our error detection sensitivity.
-  codec_context_->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
-  codec_context_->error_recognition = FF_ER_CAREFUL;
-
-  // Serialize calls to avcodec_open().
-  AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
-  {
-    AutoLock auto_lock(FFmpegLock::get()->lock());
-    if (!codec ||
-        avcodec_thread_init(codec_context_, kDecodeThreads) < 0 ||
-        avcodec_open(codec_context_, codec) < 0) {
-      return false;
-    }
-  }
-  return true;
+  decode_engine_->Initialize(
+      av_stream,
+      NewRunnableMethod(this,
+                        &FFmpegVideoDecoder::OnInitializeComplete,
+                        success,
+                        done_runner.release()));
 }
 
-void FFmpegVideoDecoder::OnSeek(base::TimeDelta time) {
+void FFmpegVideoDecoder::OnInitializeComplete(bool* success, Task* done_cb) {
+  AutoTaskRunner done_runner(done_cb);
+
+  *success = decode_engine_->state() == FFmpegVideoDecodeEngine::kNormal;
+}
+
+void FFmpegVideoDecoder::DoSeek(base::TimeDelta time, Task* done_cb) {
   // Everything in the presentation time queue is invalid, clear the queue.
   while (!pts_heap_.IsEmpty())
     pts_heap_.Pop();
 
   // We're back where we started.  It should be completely safe to flush here
   // since DecoderBase uses |expecting_discontinuous_| to verify that the next
-  // time OnDecode() is called we will have a discontinuous buffer.
+  // time DoDecode() is called we will have a discontinuous buffer.
+  //
+  // TODO(ajwong): Should we put a guard here to prevent leaving kError.
   state_ = kNormal;
-  avcodec_flush_buffers(codec_context_);
+
+  decode_engine_->Flush(done_cb);
 }
 
-void FFmpegVideoDecoder::OnDecode(Buffer* buffer) {
+void FFmpegVideoDecoder::DoDecode(Buffer* buffer, Task* done_cb) {
+  AutoTaskRunner done_runner(done_cb);
+
+  // TODO(ajwong): This DoDecode and OnDecodeComplete set of functions is too
+  // complicated to easily unittest.  The test becomes fragile.  Try to find a
+  // way to reorganize into smaller units for testing.
+
   // During decode, because reads are issued asynchronously, it is possible to
   // receive multiple end of stream buffers since each read is acked. When the
   // first end of stream buffer is read, FFmpeg may still have frames queued
@@ -155,12 +262,31 @@ void FFmpegVideoDecoder::OnDecode(Buffer* buffer) {
   }
 
   // Otherwise, attempt to decode a single frame.
-  scoped_ptr_malloc<AVFrame, ScopedPtrAVFree> yuv_frame(avcodec_alloc_frame());
-  if (DecodeFrame(*buffer, codec_context_, yuv_frame.get())) {
-    last_pts_ = FindPtsAndDuration(*time_base_,
-                                   pts_heap_,
-                                   last_pts_,
-                                   yuv_frame.get());
+  AVFrame* yuv_frame = avcodec_alloc_frame();
+  bool* got_frame = new bool;
+  decode_engine_->DecodeFrame(
+      *buffer,
+      yuv_frame,
+      got_frame,
+      NewRunnableMethod(this,
+                        &FFmpegVideoDecoder::OnDecodeComplete,
+                        yuv_frame,
+                        got_frame,
+                        done_runner.release()));
+}
+
+void FFmpegVideoDecoder::OnDecodeComplete(AVFrame* yuv_frame, bool* got_frame,
+                                          Task* done_cb) {
+  // Note: The |done_runner| must be declared *last* to ensure proper
+  // destruction order.
+  scoped_ptr_malloc<AVFrame, ScopedPtrAVFree> yuv_frame_deleter(yuv_frame);
+  scoped_ptr<bool> got_frame_deleter(got_frame);
+  AutoTaskRunner done_runner(done_cb);
+
+  // If we actually got data back, enqueue a frame.
+  if (*got_frame) {
+    last_pts_ = FindPtsAndDuration(*time_base_, pts_heap_, last_pts_,
+                                   yuv_frame);
 
     // Pop off a pts on a successful decode since we are "using up" one
     // timestamp.
@@ -177,7 +303,7 @@ void FFmpegVideoDecoder::OnDecode(Buffer* buffer) {
     }
 
     if (!EnqueueVideoFrame(
-            GetSurfaceFormat(*codec_context_), last_pts_, yuv_frame.get())) {
+            decode_engine_->GetSurfaceFormat(), last_pts_, yuv_frame)) {
       // On an EnqueueEmptyFrame error, error out the whole pipeline and
       // set the state to kDecodeFinished.
       SignalPipelineError();
@@ -258,38 +384,6 @@ void FFmpegVideoDecoder::EnqueueEmptyFrame() {
   EnqueueResult(video_frame);
 }
 
-bool FFmpegVideoDecoder::DecodeFrame(const Buffer& buffer,
-                                     AVCodecContext* codec_context,
-                                     AVFrame* yuv_frame) {
-  // Create a packet for input data.
-  // Due to FFmpeg API changes we no longer have const read-only pointers.
-  AVPacket packet;
-  av_init_packet(&packet);
-  packet.data = const_cast<uint8*>(buffer.GetData());
-  packet.size = buffer.GetDataSize();
-
-  // We don't allocate AVFrame on the stack since different versions of FFmpeg
-  // may change the size of AVFrame, causing stack corruption.  The solution is
-  // to let FFmpeg allocate the structure via avcodec_alloc_frame().
-  int frame_decoded = 0;
-  int result =
-      avcodec_decode_video2(codec_context, yuv_frame, &frame_decoded, &packet);
-
-  // Log the problem if we can't decode a video frame and exit early.
-  if (result < 0) {
-    LOG(INFO) << "Error decoding a video frame with timestamp: "
-              << buffer.GetTimestamp().InMicroseconds() << " us"
-              << " , duration: "
-              << buffer.GetDuration().InMicroseconds() << " us"
-              << " , packet size: "
-              << buffer.GetDataSize() << " bytes";
-    return false;
-  }
-
-  // If frame_decoded == 0, then no frame was produced.
-  return frame_decoded != 0;
-}
-
 FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
     const AVRational& time_base,
     const PtsHeap& pts_heap,
@@ -333,29 +427,14 @@ FFmpegVideoDecoder::TimeTuple FFmpegVideoDecoder::FindPtsAndDuration(
   return pts;
 }
 
-VideoSurface::Format FFmpegVideoDecoder::GetSurfaceFormat(
-    const AVCodecContext& codec_context) {
-  // J (Motion JPEG) versions of YUV are full range 0..255.
-  // Regular (MPEG) YUV is 16..240.
-  // For now we will ignore the distinction and treat them the same.
-  switch (codec_context.pix_fmt) {
-    case PIX_FMT_YUV420P:
-    case PIX_FMT_YUVJ420P:
-      return VideoSurface::YV12;
-      break;
-    case PIX_FMT_YUV422P:
-    case PIX_FMT_YUVJ422P:
-      return VideoSurface::YV16;
-      break;
-    default:
-      // TODO(scherkus): More formats here?
-      return VideoSurface::INVALID;
-  }
-}
-
 void FFmpegVideoDecoder::SignalPipelineError() {
   host()->SetError(PIPELINE_ERROR_DECODE);
   state_ = kDecodeFinished;
 }
 
-}  // namespace
+void FFmpegVideoDecoder::SetVideoDecodeEngineForTest(
+    VideoDecodeEngine* engine) {
+  decode_engine_.reset(engine);
+}
+
+}  // namespace media
