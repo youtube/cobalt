@@ -849,6 +849,17 @@
         'tools/fetch/http_session.h',
       ],
     },
+    {
+      'target_name': 'hresolv',
+      'type': 'executable',
+      'dependencies': [
+        'net_base',
+      ],
+      'msvs_guid': 'FF1BAC48-D326-4CB4-96DA-8B03DE23ED6E',
+      'sources': [
+        'tools/hresolv/hresolv.cc',
+      ],
+    },
   ],
   'conditions': [
     ['OS=="win"', {
