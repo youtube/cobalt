@@ -41,6 +41,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
   // SSLClientSocket methods:
   virtual void GetSSLInfo(SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(SSLCertRequestInfo* cert_request_info);
+  virtual NextProtoStatus GetNextProtocol(std::string* proto);
 
   // ClientSocket methods:
   virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
