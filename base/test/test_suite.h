@@ -58,7 +58,7 @@ class TestSuite {
 #if defined(OS_LINUX)
     g_thread_init(NULL);
     gtk_init_check(&argc, &argv);
-#endif
+#endif  // defined(OS_LINUX)
     // Don't add additional code to this constructor.  Instead add it to
     // Initialize().  See bug 6436.
   }
@@ -146,12 +146,22 @@ class TestSuite {
   }
 
  protected:
-  // All fatal log messages (e.g. DCHECK failures) imply unit test failures.
+#if defined(OS_WIN)
+  // TODO(phajdan.jr): Clean up the windows-specific hacks.
+  // See http://crbug.com/29997
+
+  // By default, base::LogMessage::~LogMessage calls DebugUtil::BreakDebugger()
+  // when severity is LOG_FATAL. On Windows, this results in error dialogs
+  // which are not friendly to buildbots.
+  // To avoid these problems, we override the LogMessage behaviour by
+  // replacing the assert handler with UnitTestAssertHandler.
   static void UnitTestAssertHandler(const std::string& str) {
+    // FAIL is a googletest macro, it marks the current test as failed.
+    // If throw_on_failure is set to true, it also ends the process.
+    ::testing::FLAGS_gtest_throw_on_failure = true;
     FAIL() << str;
   }
 
-#if defined(OS_WIN)
   // Disable crash dialogs so that it doesn't gum up the buildbot
   virtual void SuppressErrorDialogs() {
     UINT new_flags = SEM_FAILCRITICALERRORS |
@@ -163,7 +173,7 @@ class TestSuite {
     UINT existing_flags = SetErrorMode(new_flags);
     SetErrorMode(existing_flags | new_flags);
   }
-#endif
+#endif  // defined(OS_WIN)
 
   // Override these for custom initialization and shutdown handling.  Use these
   // instead of putting complex code in your constructor/destructor.
