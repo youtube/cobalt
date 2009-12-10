@@ -69,6 +69,17 @@
         '../../googleurl/src/url_util_unittest.cc',
         '../../googleurl/src/gurl_test_main.cc',
       ],
+      'conditions': [
+        ['OS=="linux" or OS=="freebsd"', {
+          'conditions': [
+            ['linux_use_tcmalloc==1', {
+              'dependencies': [
+                '../../base/allocator/allocator.gyp:allocator',
+              ],
+            }],
+          ],
+        }],
+      ],
     },
   ],
 }
