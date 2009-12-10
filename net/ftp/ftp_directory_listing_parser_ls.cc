@@ -28,7 +28,7 @@ bool LooksLikeUnixPermission(const string16& text) {
 }
 
 bool LooksLikeUnixPermissionsListing(const string16& text) {
-  if (text.length() != 10)
+  if (text.length() < 10)
     return false;
 
   if (text[0] != 'b' && text[0] != 'c' && text[0] != 'd' &&
@@ -38,7 +38,8 @@ bool LooksLikeUnixPermissionsListing(const string16& text) {
 
   return (LooksLikeUnixPermission(text.substr(1, 3)) &&
           LooksLikeUnixPermission(text.substr(4, 3)) &&
-          LooksLikeUnixPermission(text.substr(7, 3)));
+          LooksLikeUnixPermission(text.substr(7, 3)) &&
+          (text.substr(10).empty() || text.substr(10) == ASCIIToUTF16("+")));
 }
 
 string16 GetStringPartAfterColumns(const string16& text, int columns) {
