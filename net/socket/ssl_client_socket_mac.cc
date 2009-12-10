@@ -462,6 +462,12 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
   // TODO(wtc): implement this.
 }
 
+SSLClientSocket::NextProtoStatus
+SSLClientSocketMac::GetNextProtocol(std::string* proto) {
+  proto->clear();
+  return kNextProtoUnsupported;
+}
+
 int SSLClientSocketMac::InitializeSSLContext() {
   OSStatus status = noErr;
 

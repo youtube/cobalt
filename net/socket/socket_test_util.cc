@@ -29,6 +29,13 @@ void MockClientSocket::GetSSLCertRequestInfo(
   NOTREACHED();
 }
 
+SSLClientSocket::NextProtoStatus
+MockClientSocket::GetNextProtocol(std::string* proto) {
+  NOTREACHED();
+  proto->clear();
+  return SSLClientSocket::kNextProtoUnsupported;
+}
+
 void MockClientSocket::Disconnect() {
   connected_ = false;
 }
