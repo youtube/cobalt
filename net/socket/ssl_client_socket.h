@@ -20,6 +20,16 @@ class SSLInfo;
 //
 class SSLClientSocket : public ClientSocket {
  public:
+  // Next Protocol Negotiation (NPN), if successful, results in agreement on an
+  // application-level string that specifies the application level protocol to
+  // use over the TLS connection. NextProto enumerates the application level
+  // protocols that we recognise.
+  enum NextProto {
+    kProtoUnknown = 0,
+    kProtoHTTP11 = 1,
+    kProtoSPDY = 2,
+  };
+
   // Gets the SSL connection information of the socket.
   virtual void GetSSLInfo(SSLInfo* ssl_info) = 0;
 
@@ -27,6 +37,16 @@ class SSLClientSocket : public ClientSocket {
   // with ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) = 0;
+
+  static NextProto NextProtoFromString(const std::string& proto_string) {
+    if (proto_string == "http1.1") {
+      return kProtoHTTP11;
+    } else if (proto_string == "spdy") {
+      return kProtoSPDY;
+    } else {
+      return kProtoUnknown;
+    }
+  }
 };
 
 }  // namespace net
