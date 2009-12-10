@@ -529,37 +529,6 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   DCHECK(server_cert_ != NULL);
   ssl_info->cert = server_cert_;
 
-#ifdef SSL_NEXT_PROTO_NEGOTIATED
-  unsigned char npn_buf[255];
-  unsigned npn_len;
-  int npn_status;
-  SECStatus rv = SSL_GetNextProto(nss_fd_, &npn_status, npn_buf, &npn_len,
-                                  sizeof(npn_buf));
-  if (rv != SECSuccess) {
-    npn_status = SSL_NEXT_PROTO_NO_SUPPORT;
-  }
-
-  if (npn_status == SSL_NEXT_PROTO_NO_SUPPORT) {
-    ssl_info->next_proto_status = SSLInfo::kNextProtoUnsupported;
-    ssl_info->next_proto.clear();
-  } else {
-    ssl_info->next_proto =
-      std::string(reinterpret_cast<const char *>(npn_buf), npn_len);
-    switch (npn_status) {
-      case SSL_NEXT_PROTO_NEGOTIATED:
-        ssl_info->next_proto_status = SSLInfo::kNextProtoNegotiated;
-        break;
-      case SSL_NEXT_PROTO_NO_OVERLAP:
-        ssl_info->next_proto_status = SSLInfo::kNextProtoNoOverlap;
-        break;
-      default:
-        LOG(ERROR) << "Unknown npn_status: " << npn_status;
-        ssl_info->next_proto_status = SSLInfo::kNextProtoNoOverlap;
-        break;
-    }
-  }
-#endif
-
   LeaveFunction("");
 }
 
@@ -569,6 +538,45 @@ void SSLClientSocketNSS::GetSSLCertRequestInfo(
   cert_request_info->host_and_port = hostname_;
   cert_request_info->client_certs = client_certs_;
   LeaveFunction(cert_request_info->client_certs.size());
+}
+
+SSLClientSocket::NextProtoStatus
+SSLClientSocketNSS::GetNextProtocol(std::string* proto) {
+#if !defined(SSL_NEXT_PROTO_NEGOTIATED)
+  // No NPN support in the libssl that we are building with.
+  proto->clear();
+  return kNextProtoUnsupported;
+#else
+  unsigned char buf[256];
+  int state;
+  unsigned len;
+  SECStatus rv = SSL_GetNextProto(nss_fd_, &state, buf, &len, sizeof(buf));
+  if (rv != SECSuccess) {
+    NOTREACHED() << "Error return from SSL_GetNextProto: " << rv;
+    proto->clear();
+    return kNextProtoUnsupported;
+  }
+  if (len == sizeof(buf)) {
+    // Based on the wire protocol, it should be impossible for the protocol
+    // string to be > 255 bytes long.
+    NOTREACHED() << "NPN protocol name truncated";
+  }
+  switch(state) {
+  case SSL_NEXT_PROTO_NO_SUPPORT:
+    proto->clear();
+    return kNextProtoUnsupported;
+  case SSL_NEXT_PROTO_NEGOTIATED:
+    *proto = std::string(reinterpret_cast<char*>(buf), len);
+    return kNextProtoNegotiated;
+  case SSL_NEXT_PROTO_NO_OVERLAP:
+    *proto = std::string(reinterpret_cast<char*>(buf), len);
+    return kNextProtoNoOverlap;
+  default:
+    NOTREACHED() << "Unknown status from SSL_GetNextProto: " << state;
+    proto->clear();
+    return kNextProtoUnsupported;
+  }
+#endif
 }
 
 void SSLClientSocketNSS::DoReadCallback(int rv) {

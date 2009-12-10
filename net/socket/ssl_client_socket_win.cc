@@ -427,6 +427,12 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
   DCHECK(ok);
 }
 
+SSLClientSocket::NextProtoStatus
+SSLClientSocketWin::GetNextProtocol(std::string* proto) {
+  proto->clear();
+  return kNextProtoUnsupported;
+}
+
 int SSLClientSocketWin::Connect(CompletionCallback* callback,
                                 LoadLog* load_log) {
   DCHECK(transport_.get());

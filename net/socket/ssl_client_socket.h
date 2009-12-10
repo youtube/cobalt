@@ -20,6 +20,16 @@ class SSLInfo;
 //
 class SSLClientSocket : public ClientSocket {
  public:
+  // Next Protocol Negotiation (NPN) allows a TLS client and server to come to
+  // an agreement about the application level protocol to speak over a
+  // connection.
+  enum NextProtoStatus {
+    kNextProtoUnsupported = 0,  // The server doesn't support NPN.
+    kNextProtoNegotiated = 1,   // We agreed on a protocol.
+    kNextProtoNoOverlap = 2,    // No protocols in common. We requested
+                                // the first protocol in our list.
+  };
+
   // Next Protocol Negotiation (NPN), if successful, results in agreement on an
   // application-level string that specifies the application level protocol to
   // use over the TLS connection. NextProto enumerates the application level
@@ -37,6 +47,15 @@ class SSLClientSocket : public ClientSocket {
   // with ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   virtual void GetSSLCertRequestInfo(
       SSLCertRequestInfo* cert_request_info) = 0;
+
+  // Get the application level protocol that we negotiated with the server.
+  // *proto is set to the resulting protocol (n.b. that the string may have
+  // embedded NULs).
+  //   kNextProtoUnsupported: *proto is cleared.
+  //   kNextProtoNegotiated:  *proto is set to the negotiated protocol.
+  //   kNextProtoNoOverlap:   *proto is set to the first protocol in the
+  //                          supported list.
+  virtual NextProtoStatus GetNextProtocol(std::string* proto) = 0;
 
   static NextProto NextProtoFromString(const std::string& proto_string) {
     if (proto_string == "http1.1") {
