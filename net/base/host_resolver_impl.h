@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "base/scoped_ptr.h"
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
 #include "net/base/host_resolver_proc.h"
@@ -41,15 +42,17 @@ namespace net {
 //
 class HostResolverImpl : public HostResolver {
  public:
-  // Creates a HostResolver that caches up to |max_cache_entries| for
-  // |cache_duration_ms| milliseconds. |resolver_proc| is used to perform
-  // the actual resolves; it must be thread-safe since it is run from
-  // multiple worker threads. If |resolver_proc| is NULL then the default
-  // host resolver procedure is used (which is SystemHostResolverProc except
-  // if overridden)
-  HostResolverImpl(HostResolverProc* resolver_proc,
-                   int max_cache_entries,
-                   int cache_duration_ms);
+  // Creates a HostResolver that first uses the local cache |cache|, and then
+  // falls back to |resolver_proc|.
+  //
+  // If |cache| is NULL, then no caching is used. Otherwise we take
+  // ownership of the |cache| pointer, and will free it during destructor.
+  //
+  // |resolver_proc| is used to perform the actual resolves; it must be
+  // thread-safe since it is run from multiple worker threads. If
+  // |resolver_proc| is NULL then the default host resolver procedure is
+  // used (which is SystemHostResolverProc except if overridden).
+  HostResolverImpl(HostResolverProc* resolver_proc, HostCache* cache);
 
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
@@ -117,7 +120,7 @@ class HostResolverImpl : public HostResolver {
                        const RequestInfo& info);
 
   // Cache of host resolution results.
-  HostCache cache_;
+  scoped_ptr<HostCache> cache_;
 
   // Map from hostname to outstanding job.
   JobMap jobs_;
