@@ -431,6 +431,9 @@ class FileEnumerator {
   // Write the file info into |info|.
   void GetFindInfo(FindInfo* info);
 
+  // Looks inside a FindInfo and determines if it's a directory.
+  static bool IsDirectory(const FindInfo& info);
+
  private:
   // Returns true if the given path should be skipped in enumeration.
   bool ShouldSkip(const FilePath& path);

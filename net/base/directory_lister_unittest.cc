@@ -4,6 +4,7 @@
 
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/i18n/file_util_icu.h"
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "net/base/directory_lister.h"
@@ -19,14 +20,39 @@ class ListerDelegate : public net::DirectoryLister::DirectoryListerDelegate {
   ListerDelegate() : error_(-1) {
   }
   void OnListFile(const file_util::FileEnumerator::FindInfo& data) {
+    file_list_.push_back(data);
   }
   void OnListDone(int error) {
     error_ = error;
     MessageLoop::current()->Quit();
+    // Check that we got files in the right order.
+    if (!file_list_.empty()) {
+      for (size_t previous = 0, current = 1;
+           current < file_list_.size();
+           previous++, current++) {
+        // Directories should come before files.
+        if (file_util::FileEnumerator::IsDirectory(file_list_[previous]) &&
+            !file_util::FileEnumerator::IsDirectory(file_list_[current])) {
+          continue;
+        }
+        EXPECT_EQ(file_util::FileEnumerator::IsDirectory(file_list_[previous]),
+                  file_util::FileEnumerator::IsDirectory(file_list_[current]));
+#if defined(OS_WIN)
+        EXPECT_TRUE(file_util::LocaleAwareCompareFilenames(
+                        FilePath(file_list_[previous].cFileName),
+                        FilePath(file_list_[current].cFileName)));
+#elif defined(OS_POSIX)
+        EXPECT_TRUE(file_util::LocaleAwareCompareFilenames(
+                        FilePath(file_list_[previous].filename),
+                        FilePath(file_list_[current].filename)));
+#endif
+      }
+    }
   }
   int error() const { return error_; }
  private:
   int error_;
+  std::vector<file_util::FileEnumerator::FindInfo> file_list_;
 };
 
 TEST(DirectoryListerTest, BigDirTest) {

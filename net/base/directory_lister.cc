@@ -41,6 +41,11 @@ class DirectoryDataEvent : public Task {
 // comparison function on the filenames for sorting in the user's locale.
 static bool CompareFindInfo(const file_util::FileEnumerator::FindInfo& a,
                             const file_util::FileEnumerator::FindInfo& b) {
+  bool a_is_directory = file_util::FileEnumerator::IsDirectory(a);
+  bool b_is_directory = file_util::FileEnumerator::IsDirectory(b);
+  if (a_is_directory != b_is_directory)
+    return a_is_directory;
+
 #if defined(OS_WIN)
   return file_util::LocaleAwareCompareFilenames(FilePath(a.cFileName),
                                                 FilePath(b.cFileName));
