@@ -38,12 +38,12 @@
       # Compute the architecture that we're building for. Default to the
       # architecture that we're building on.
       'conditions': [
-        [ 'OS=="linux"', {
+        [ 'OS=="linux" or OS=="freebsd"', {
           # This handles the Linux platforms we generally deal with. Anything
           # else gets passed through, which probably won't work very well; such
           # hosts should pass an explicit target_arch to gyp.
           'target_arch%':
-            '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/arm.*/arm/")',
+            '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/")',
         }, {  # OS!="linux"
           'target_arch%': 'ia32',
         }],
@@ -203,7 +203,7 @@
     'arm_thumb%': 0,
 
     'conditions': [
-      ['OS=="linux"', {
+      ['OS=="linux" or OS=="freebsd"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
         'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
@@ -229,7 +229,7 @@
             'use_titlecase_in_grd_files%': 1,
           }],
         ],
-      }],  # OS=="linux"
+      }],  # OS=="linux" or OS=="freebsd"
       ['OS=="mac"', {
         # Mac wants Title Case strings
         'use_titlecase_in_grd_files%': 1,
@@ -531,7 +531,7 @@
     },
   },
   'conditions': [
-    ['OS=="linux"', {
+    ['OS=="linux" or OS=="freebsd"', {
       'target_defaults': {
         # Enable -Werror by default, but put it in a variable so it can
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
@@ -797,6 +797,15 @@
         ],
       },
     }],
+    # FreeBSD-specific options; note that most FreeBSD options are set above,
+    # with Linux.
+    ['OS=="freebsd"', {
+      'target_defaults': {
+        'ldflags': [
+          '-Wl,--no-keep-memory',
+        ],
+      },
+    }],
     ['OS=="mac"', {
       'target_defaults': {
         'variables': {
@@ -995,7 +1004,7 @@
                           ['exclude', '/(cocoa|mac)/'],
                           ['exclude', '\.mm$' ] ],
           }],
-          ['OS!="linux"', {
+          ['OS!="linux" and OS!="freebsd"', {
             'sources/': [
               ['exclude', '_(chromeos|gtk|linux|x|x11)(_unittest)?\\.cc$'],
               ['exclude', '/gtk/'],
@@ -1007,7 +1016,7 @@
           }],
           # Though Skia is conceptually shared by Linux and Windows,
           # the only _skia files in our tree are Linux-specific.
-          ['OS!="linux"', {
+          ['OS!="linux" and OS!="freebsd"', {
             'sources/': [ ['exclude', '_skia\\.cc$'] ],
           }],
           ['chromeos!=1', {
