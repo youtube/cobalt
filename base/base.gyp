@@ -185,6 +185,7 @@
             '../third_party/icu/icu.gyp:icudata',
           ],
           'sources!': [
+            'data_pack_unittest.cc',
             'file_descriptor_shuffle_unittest.cc',
           ],
         }, {  # OS != "win"
