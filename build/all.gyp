@@ -71,9 +71,6 @@
             '../breakpad/breakpad.gyp:*',
             '../courgette/courgette.gyp:*',
             '../sandbox/sandbox.gyp:*',
-            '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',
-            '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
-            '../net/third_party/nss/nss.gyp:*',
           ],
           'conditions': [
             ['branding=="Chrome"', {
@@ -81,6 +78,13 @@
                 '../chrome/installer/installer.gyp:linux_packages_<(channel)',
               ],
             }],
+          ],
+        }],
+        ['OS=="linux" or OS=="freebsd"', {
+          'dependencies': [
+            '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',
+            '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
+            '../net/third_party/nss/nss.gyp:*',
           ],
         }],
         ['OS=="win"', {
