@@ -29,8 +29,16 @@
 #elif defined(__FreeBSD__)
 #define OS_FREEBSD 1
 #define TOOLKIT_GTK
+#elif defined(__OpenBSD__)
+#define OS_OPENBSD 1
+#define TOOLKIT_GTK
 #else
 #error Please add support for your platform in build/build_config.h
+#endif
+
+#if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD)
+#define USE_NSS 1  // Use NSS for crypto.
+#define USE_X11 1  // Use X for graphics.
 #endif
 
 // For access to standard POSIXish features, use OS_POSIX instead of a
@@ -42,16 +50,6 @@
 // Use base::DataPack for name/value pairs.
 #if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD)
 #define USE_BASE_DATA_PACK 1
-#endif
-
-// Use NSS for crypto.
-#if defined(OS_LINUX) || defined(OS_FREEBSD)
-#define USE_NSS 1
-#endif
-
-// Use X11 (and hence GTK/GDK)
-#if defined(OS_LINUX) || defined(OS_FREEBSD)
-#define USE_X11 1
 #endif
 
 // Use tcmalloc
