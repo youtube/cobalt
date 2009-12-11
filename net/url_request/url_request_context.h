@@ -16,7 +16,7 @@
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
 #include "net/base/ssl_config_service.h"
-#include "net/base/strict_transport_security_state.h"
+#include "net/base/transport_security_state.h"
 #include "net/ftp/ftp_auth_cache.h"
 #include "net/proxy/proxy_service.h"
 #include "net/url_request/request_tracker.h"
@@ -36,7 +36,7 @@ class URLRequestContext :
       : http_transaction_factory_(NULL),
         ftp_transaction_factory_(NULL),
         cookie_store_(NULL),
-        strict_transport_security_state_(NULL) {
+        transport_security_state_(NULL) {
   }
 
   net::HostResolver* host_resolver() const {
@@ -69,8 +69,8 @@ class URLRequestContext :
   // Gets the cookie policy for this context.
   net::CookiePolicy* cookie_policy() { return &cookie_policy_; }
 
-  net::StrictTransportSecurityState* strict_transport_security_state() {
-      return strict_transport_security_state_; }
+  net::TransportSecurityState* transport_security_state() {
+      return transport_security_state_; }
 
   // Gets the FTP authentication cache for this context.
   net::FtpAuthCache* ftp_auth_cache() { return &ftp_auth_cache_; }
@@ -132,8 +132,7 @@ class URLRequestContext :
   net::FtpTransactionFactory* ftp_transaction_factory_;
   scoped_refptr<net::CookieStore> cookie_store_;
   net::CookiePolicy cookie_policy_;
-  scoped_refptr<net::StrictTransportSecurityState>
-      strict_transport_security_state_;
+  scoped_refptr<net::TransportSecurityState> transport_security_state_;
   net::FtpAuthCache ftp_auth_cache_;
   std::string accept_language_;
   std::string accept_charset_;
