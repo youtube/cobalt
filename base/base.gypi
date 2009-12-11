@@ -331,6 +331,7 @@
                 '../chrome/third_party/wtl/include',
               ],
               'sources!': [
+                'data_pack.cc',
                 'event_recorder_stubs.cc',
                 'file_descriptor_shuffle.cc',
                 'message_pump_libevent.cc',
