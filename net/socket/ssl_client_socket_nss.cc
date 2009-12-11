@@ -541,13 +541,9 @@ void SSLClientSocketNSS::GetSSLCertRequestInfo(
 }
 
 SSLClientSocket::NextProtoStatus
-SSLClientSocketNSS::GetNextProtocol(std::string* proto) {
-#if !defined(SSL_NEXT_PROTO_NEGOTIATED)
-  // No NPN support in the libssl that we are building with.
-  proto->clear();
-  return kNextProtoUnsupported;
-#else
-  unsigned char buf[256];
+SSLClientSocketNSS::GetNextProto(std::string* proto) {
+#if defined(SSL_NEXT_PROTO_NEGOTIATED)
+  unsigned char buf[255];
   int state;
   unsigned len;
   SECStatus rv = SSL_GetNextProto(nss_fd_, &state, buf, &len, sizeof(buf));
@@ -556,26 +552,27 @@ SSLClientSocketNSS::GetNextProtocol(std::string* proto) {
     proto->clear();
     return kNextProtoUnsupported;
   }
-  if (len == sizeof(buf)) {
-    // Based on the wire protocol, it should be impossible for the protocol
-    // string to be > 255 bytes long.
-    NOTREACHED() << "NPN protocol name truncated";
-  }
+  // We don't check for truncation because sizeof(buf) is large enough to hold
+  // the maximum protocol size.
   switch(state) {
-  case SSL_NEXT_PROTO_NO_SUPPORT:
-    proto->clear();
-    return kNextProtoUnsupported;
-  case SSL_NEXT_PROTO_NEGOTIATED:
-    *proto = std::string(reinterpret_cast<char*>(buf), len);
-    return kNextProtoNegotiated;
-  case SSL_NEXT_PROTO_NO_OVERLAP:
-    *proto = std::string(reinterpret_cast<char*>(buf), len);
-    return kNextProtoNoOverlap;
-  default:
-    NOTREACHED() << "Unknown status from SSL_GetNextProto: " << state;
-    proto->clear();
-    return kNextProtoUnsupported;
+    case SSL_NEXT_PROTO_NO_SUPPORT:
+      proto->clear();
+      return kNextProtoUnsupported;
+    case SSL_NEXT_PROTO_NEGOTIATED:
+      *proto = std::string(reinterpret_cast<char*>(buf), len);
+      return kNextProtoNegotiated;
+    case SSL_NEXT_PROTO_NO_OVERLAP:
+      *proto = std::string(reinterpret_cast<char*>(buf), len);
+      return kNextProtoNoOverlap;
+    default:
+      NOTREACHED() << "Unknown status from SSL_GetNextProto: " << state;
+      proto->clear();
+      return kNextProtoUnsupported;
   }
+#else
+  // No NPN support in the libssl that we are building with.
+  proto->clear();
+  return kNextProtoUnsupported;
 #endif
 }
 

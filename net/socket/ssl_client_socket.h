@@ -55,7 +55,7 @@ class SSLClientSocket : public ClientSocket {
   //   kNextProtoNegotiated:  *proto is set to the negotiated protocol.
   //   kNextProtoNoOverlap:   *proto is set to the first protocol in the
   //                          supported list.
-  virtual NextProtoStatus GetNextProtocol(std::string* proto) = 0;
+  virtual NextProtoStatus GetNextProto(std::string* proto) = 0;
 
   static NextProto NextProtoFromString(const std::string& proto_string) {
     if (proto_string == "http1.1") {

@@ -276,7 +276,7 @@ class MockClientSocket : public net::SSLClientSocket {
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
   virtual void GetSSLCertRequestInfo(
       net::SSLCertRequestInfo* cert_request_info);
-  virtual NextProtoStatus GetNextProtocol(std::string* proto);
+  virtual NextProtoStatus GetNextProto(std::string* proto);
 
   // Socket methods:
   virtual int Read(net::IOBuffer* buf, int buf_len,
