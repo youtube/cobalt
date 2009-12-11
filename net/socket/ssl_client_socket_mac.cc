@@ -463,7 +463,7 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
 }
 
 SSLClientSocket::NextProtoStatus
-SSLClientSocketMac::GetNextProtocol(std::string* proto) {
+SSLClientSocketMac::GetNextProto(std::string* proto) {
   proto->clear();
   return kNextProtoUnsupported;
 }

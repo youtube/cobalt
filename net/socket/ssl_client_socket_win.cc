@@ -428,7 +428,7 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
 }
 
 SSLClientSocket::NextProtoStatus
-SSLClientSocketWin::GetNextProtocol(std::string* proto) {
+SSLClientSocketWin::GetNextProto(std::string* proto) {
   proto->clear();
   return kNextProtoUnsupported;
 }
