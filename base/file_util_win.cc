@@ -727,6 +727,10 @@ void FileEnumerator::GetFindInfo(FindInfo* info) {
   memcpy(info, &find_data_, sizeof(*info));
 }
 
+bool FileEnumerator::IsDirectory(const FindInfo& info) {
+  return (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+}
+
 FilePath FileEnumerator::Next() {
   if (!is_in_find_op_) {
     if (pending_paths_.empty())
