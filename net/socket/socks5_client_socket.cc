@@ -5,17 +5,12 @@
 #include "net/socket/socks5_client_socket.h"
 
 #include "base/basictypes.h"
-#include "build/build_config.h"
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#elif defined(OS_POSIX)
-#include <netdb.h>
-#endif
 #include "base/compiler_specific.h"
 #include "base/trace_event.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_log.h"
 #include "net/base/net_util.h"
+#include "net/base/sys_addrinfo.h"
 
 namespace net {
 
