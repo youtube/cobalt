@@ -4,18 +4,13 @@
 
 #include "net/base/net_util.h"
 
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#else
-#include <netdb.h>
-#endif
-
 #include "base/file_path.h"
 #include "base/format_macros.h"
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/sys_addrinfo.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {

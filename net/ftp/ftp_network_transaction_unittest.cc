@@ -6,17 +6,11 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#elif defined(OS_POSIX)
-#include <netdb.h>
-#include <sys/socket.h>
-#endif
-
 #include "base/ref_counted.h"
 #include "net/base/io_buffer.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_util.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
