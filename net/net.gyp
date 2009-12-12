@@ -135,6 +135,7 @@
         'base/ssl_info.h',
         'base/transport_security_state.cc',
         'base/transport_security_state.h',
+        'base/sys_addrinfo.h',
         'base/telnet_server.cc',
         'base/telnet_server.h',
         'base/test_completion_callback.h',

@@ -5,16 +5,12 @@
 #include "net/socket/socks5_client_socket.h"
 
 #include <map>
-#include "build/build_config.h"
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#elif defined(OS_POSIX)
-#include <netdb.h>
-#endif
+
 #include "net/base/address_list.h"
 #include "net/base/load_log.h"
 #include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
 #include "net/socket/client_socket_factory.h"
