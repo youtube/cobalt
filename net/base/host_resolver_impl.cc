@@ -4,17 +4,6 @@
 
 #include "net/base/host_resolver_impl.h"
 
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#include <wspiapi.h>  // Needed for Win2k compat.
-#elif defined(OS_POSIX)
-#include <netdb.h>
-#include <sys/socket.h>
-#endif
-#if defined(OS_LINUX)
-#include <resolv.h>
-#endif
-
 #include "base/compiler_specific.h"
 #include "base/debug_util.h"
 #include "base/message_loop.h"

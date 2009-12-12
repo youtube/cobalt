@@ -4,14 +4,10 @@
 
 #include "net/base/address_list.h"
 
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#else
-#include <netdb.h>
-#endif
 #include <stdlib.h>
 
 #include "base/logging.h"
+#include "net/base/sys_addrinfo.h"
 
 namespace net {
 

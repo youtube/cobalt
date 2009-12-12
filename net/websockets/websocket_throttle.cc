@@ -4,12 +4,6 @@
 
 #include "net/websockets/websocket_throttle.h"
 
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#else
-#include <netdb.h>
-#endif
-
 #include <string>
 
 #include "base/message_loop.h"
@@ -17,6 +11,7 @@
 #include "base/singleton.h"
 #include "base/string_util.h"
 #include "net/base/io_buffer.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/socket_stream/socket_stream.h"
 
 namespace net {

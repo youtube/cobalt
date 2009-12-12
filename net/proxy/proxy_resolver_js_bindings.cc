@@ -2,14 +2,6 @@
 // source code is governed by a BSD-style license that can be found in the
 // LICENSE file.
 
-#include "build/build_config.h"
-
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#else
-#include <netdb.h>
-#endif
-
 #include "net/proxy/proxy_resolver_js_bindings.h"
 
 #include "base/compiler_specific.h"
@@ -20,6 +12,7 @@
 #include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/base/sys_addrinfo.h"
 
 namespace net {
 namespace {

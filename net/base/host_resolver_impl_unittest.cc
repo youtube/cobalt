@@ -4,13 +4,6 @@
 
 #include "net/base/host_resolver_impl.h"
 
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#include <wspiapi.h>
-#elif defined(OS_POSIX)
-#include <netdb.h>
-#endif
-
 #include <string>
 
 #include "base/compiler_specific.h"
@@ -21,6 +14,7 @@
 #include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
