@@ -2,19 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "build/build_config.h"
-
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#else
-#include <netdb.h>
-#endif
-
 #include <string>
 
 #include "base/message_loop.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/address_list.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket_stream/socket_stream.h"
 #include "net/websockets/websocket_throttle.h"

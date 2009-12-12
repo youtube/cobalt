@@ -6,13 +6,6 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_WIN)
-#include <ws2tcpip.h>
-#include <wspiapi.h>  // Needed for Win2k compat.
-#elif defined(OS_POSIX)
-#include <netdb.h>
-#include <sys/socket.h>
-#endif
 #if defined(OS_LINUX)
 #include <resolv.h>
 #endif
@@ -21,6 +14,7 @@
 #include "base/time.h"
 #include "net/base/address_list.h"
 #include "net/base/net_errors.h"
+#include "net/base/sys_addrinfo.h"
 
 #if defined(OS_LINUX)
 #include "base/singleton.h"
