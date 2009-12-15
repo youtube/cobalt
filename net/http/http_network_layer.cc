@@ -5,6 +5,7 @@
 #include "net/http/http_network_layer.h"
 
 #include "base/logging.h"
+#include "base/string_util.h"
 #include "net/flip/flip_framer.h"
 #include "net/flip/flip_network_transaction.h"
 #include "net/flip/flip_session.h"
@@ -37,7 +38,7 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
 }
 
 //-----------------------------------------------------------------------------
-bool HttpNetworkLayer::enable_flip_ = false;
+bool HttpNetworkLayer::force_flip_ = false;
 
 HttpNetworkLayer::HttpNetworkLayer(ClientSocketFactory* socket_factory,
                                    HostResolver* host_resolver,
@@ -70,7 +71,7 @@ int HttpNetworkLayer::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   if (suspended_)
     return ERR_NETWORK_IO_SUSPENDED;
 
-  if (enable_flip_)
+  if (force_flip_)
     trans->reset(new FlipNetworkTransaction(GetSession()));
   else
     trans->reset(new HttpNetworkTransaction(GetSession()));
@@ -91,7 +92,7 @@ void HttpNetworkLayer::Suspend(bool suspend) {
 HttpNetworkSession* HttpNetworkLayer::GetSession() {
   if (!session_) {
     DCHECK(proxy_service_);
-    FlipSessionPool* flip_pool = enable_flip_ ? new FlipSessionPool : NULL;
+    FlipSessionPool* flip_pool = new FlipSessionPool;
     session_ = new HttpNetworkSession(
         host_resolver_, proxy_service_, socket_factory_,
         ssl_config_service_, flip_pool);
@@ -105,20 +106,31 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
 
 // static
 void HttpNetworkLayer::EnableFlip(const std::string& mode) {
-  static const std::string kDisableSSL("no-ssl");
-  static const std::string kDisableCompression("no-compress");
-  static const std::string kDisableEverything("no-ssl-no-compress");
+  static const char kDisableSSL[] = "no-ssl";
+  static const char kDisableCompression[] = "no-compress";
 
-  // Enable flip mode.
-  enable_flip_ = true;
+  std::vector<std::string> flip_options;
+  SplitString(mode, ',', &flip_options);
 
-  // Disable SSL
-  if (mode == kDisableEverything || mode == kDisableSSL)
-    FlipSession::SetSSLMode(false);
+  // Force flip mode (use FlipNetworkTransaction for all http requests).
+  force_flip_ = true;
 
-  // Disable compression
-  if (mode == kDisableEverything || mode == kDisableCompression)
-    flip::FlipFramer::set_enable_compression_default(false);
+  for (std::vector<std::string>::iterator it = flip_options.begin();
+       it != flip_options.end(); ++it) {
+    const std::string& option = *it;
+
+    // Disable SSL
+    if (option == kDisableSSL) {
+      FlipSession::SetSSLMode(false);
+    } else if (option == kDisableCompression) {
+      flip::FlipFramer::set_enable_compression_default(false);
+    } else if (option.empty() && it == flip_options.begin()) {
+      continue;
+    } else {
+      LOG(DFATAL) << "Unrecognized flip option: " << option;
+    }
+  }
+
 }
 
 }  // namespace net

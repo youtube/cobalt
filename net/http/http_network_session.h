@@ -44,6 +44,12 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
 
   static void set_max_sockets_per_group(int socket_count);
 
+  static uint16 fixed_http_port() { return g_fixed_http_port; }
+  static void set_fixed_http_port(uint16 port) { g_fixed_http_port = port; }
+
+  static uint16 fixed_https_port() { return g_fixed_https_port; }
+  static void set_fixed_https_port(uint16 port) { g_fixed_https_port = port; }
+
  private:
   friend class base::RefCounted<HttpNetworkSession>;
   FRIEND_TEST(HttpNetworkTransactionTest, GroupNameForProxyConnections);
@@ -57,6 +63,9 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   // try other values (greater than 0).  Too large may cause many problems, such
   // as home routers blocking the connections!?!?
   static int max_sockets_per_group_;
+
+  static uint16 g_fixed_http_port;
+  static uint16 g_fixed_https_port;
 
   HttpAuthCache auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;

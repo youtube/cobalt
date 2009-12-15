@@ -77,7 +77,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   scoped_refptr<FlipSessionPool> flip_session_pool_;
 
   bool suspended_;
-  static bool enable_flip_;
+  static bool force_flip_;
 };
 
 }  // namespace net

@@ -15,6 +15,10 @@ int HttpNetworkSession::max_sockets_ = 100;
 // static
 int HttpNetworkSession::max_sockets_per_group_ = 6;
 
+// static
+uint16 HttpNetworkSession::g_fixed_http_port = 0;
+uint16 HttpNetworkSession::g_fixed_https_port = 0;
+
 HttpNetworkSession::HttpNetworkSession(
     HostResolver* host_resolver,
     ProxyService* proxy_service,
