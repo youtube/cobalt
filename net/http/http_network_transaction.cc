@@ -1150,18 +1150,6 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
-
-    // Also record for our field trial.
-    static bool use_async_tcp(FieldTrialList::Find("AsyncSlowStart") &&
-      !FieldTrialList::Find("AsyncSlowStart")->group_name().empty());
-    if (use_async_tcp) {
-      UMA_HISTOGRAM_CLIPPED_TIMES(
-        FieldTrial::MakeName("Net.Transaction_Connected_New",
-                             "AsyncSlowStart").data(),
-        total_duration,
-        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-        100);
-    }
   }
 
   // Currently, non-zero priority requests are frame or sub-frame resource
