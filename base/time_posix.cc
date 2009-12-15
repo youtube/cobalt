@@ -14,6 +14,7 @@
 
 namespace base {
 
+#if !defined(OS_MACOSX)
 // The Time routines in this file use standard POSIX routines, or almost-
 // standard routines in the case of timegm.  We need to use a Mach-specific
 // function for TimeTicks::Now() on Mac OS X.
@@ -172,6 +173,21 @@ TimeTicks TimeTicks::Now() {
 // static
 TimeTicks TimeTicks::HighResNow() {
   return Now();
+}
+
+#endif  // !OS_MACOSX
+
+struct timespec TimeDelta::ToTimeSpec() const {
+  int64 microseconds = InMicroseconds();
+  time_t seconds = 0;
+  if (microseconds >= Time::kMicrosecondsPerSecond) {
+    seconds = InSeconds();
+    microseconds -= seconds * Time::kMicrosecondsPerSecond;
+  }
+  struct timespec result =
+      {seconds,
+       microseconds * Time::kNanosecondsPerMicrosecond};
+  return result;
 }
 
 }  // namespace base

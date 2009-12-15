@@ -62,6 +62,10 @@ class TimeDelta {
     return delta_;
   }
 
+#if defined(OS_POSIX)
+  struct timespec ToTimeSpec() const;
+#endif
+
   // Returns the time delta in some unit. The F versions return a floating
   // point value, the "regular" versions return a rounded-down value.
   //
