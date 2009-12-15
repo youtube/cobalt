@@ -710,6 +710,10 @@ int SSLClientSocketMac::DoHandshakeStart() {
     }
   }
 
+  if (status == errSSLClosedGraceful)
+    // The server unexpectedly closed on us.
+    return ERR_UNEXPECTED;
+
   int net_error = NetErrorFromOSStatus(status);
   if (status == noErr || IsCertificateError(net_error)) {
     server_cert_ = GetServerCert(ssl_context_);
@@ -764,6 +768,9 @@ int SSLClientSocketMac::DoHandshakeFinish() {
 
   if (status == errSSLWouldBlock)
     next_handshake_state_ = STATE_HANDSHAKE_FINISH;
+
+  if (status == errSSLClosedGraceful)
+    return ERR_UNEXPECTED;
 
   if (status == noErr) {
     completed_handshake_ = true;
