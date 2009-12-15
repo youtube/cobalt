@@ -664,6 +664,7 @@
         'socket/tcp_client_socket_pool_unittest.cc',
         'socket/tcp_client_socket_unittest.cc',
         'socket/tcp_pinger_unittest.cc',
+        'socket_stream/socket_stream_metrics_unittest.cc',
         'socket_stream/socket_stream_unittest.cc',
         'url_request/request_tracker_unittest.cc',
         'url_request/url_request_unittest.cc',
