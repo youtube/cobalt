@@ -66,8 +66,8 @@ unsigned char paypal_null_fingerprint[] = {
 // A certificate for https://www.unosoft.hu/, whose AIA extension contains
 // an LDAP URL without a host name.
 unsigned char unosoft_hu_fingerprint[] = {
-  0x4c, 0x59, 0xab, 0xeb, 0x9f, 0x6f, 0x92, 0xc3, 0xa8, 0x4c, 0x45, 0x7c,
-  0xe4, 0x91, 0x47, 0x1e, 0x79, 0x3c, 0xc2, 0x8c
+  0x32, 0xff, 0xe3, 0xbe, 0x2c, 0x3b, 0xc7, 0xca, 0xbf, 0x2d, 0x64, 0xbd,
+  0x25, 0x66, 0xf2, 0xec, 0x8b, 0x0f, 0xbf, 0xd8
 };
 
 }  // namespace
@@ -272,8 +272,8 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
 #endif
 }
 
-// Disabled this test because the certificate expired on 2009-12-04.
-TEST(X509CertificateTest, DISABLED_UnoSoftCertParsing) {
+// This certificate will expire on 2011-09-08.
+TEST(X509CertificateTest, UnoSoftCertParsing) {
   scoped_refptr<X509Certificate> unosoft_hu_cert =
       X509Certificate::CreateFromBytes(
           reinterpret_cast<const char*>(unosoft_hu_der),
