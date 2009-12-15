@@ -142,6 +142,27 @@ TEST(TimeDelta, FromAndIn) {
   EXPECT_EQ(13, TimeDelta::FromMicroseconds(13).InMicroseconds());
 }
 
+#if defined(OS_POSIX)
+TEST(TimeDelta, TimeSpecConversion) {
+  struct timespec result = TimeDelta::FromSeconds(0).ToTimeSpec();
+  EXPECT_EQ(result.tv_sec, 0);
+  EXPECT_EQ(result.tv_nsec, 0);
+
+  result = TimeDelta::FromSeconds(1).ToTimeSpec();
+  EXPECT_EQ(result.tv_sec, 1);
+  EXPECT_EQ(result.tv_nsec, 0);
+
+  result = TimeDelta::FromMicroseconds(1).ToTimeSpec();
+  EXPECT_EQ(result.tv_sec, 0);
+  EXPECT_EQ(result.tv_nsec, 1000);
+
+  result = TimeDelta::FromMicroseconds(
+      Time::kMicrosecondsPerSecond + 1).ToTimeSpec();
+  EXPECT_EQ(result.tv_sec, 1);
+  EXPECT_EQ(result.tv_nsec, 1000);
+}
+#endif  // OS_POSIX
+
 // Our internal time format is serialized in things like databases, so it's
 // important that it's consistent across all our platforms.  We use the 1601
 // Windows epoch as the internal format across all platforms.
