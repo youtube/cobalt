@@ -287,7 +287,6 @@
                 'message_pump_glib.cc',
                 'nss_init.cc',
                 'nss_init.h',
-                'time_posix.cc',
               ],
           },],
           [ 'OS != "linux"', {
