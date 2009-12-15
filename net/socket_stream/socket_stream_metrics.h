@@ -32,7 +32,6 @@ class SocketStreamMetrics {
   void OnWrite(int len);
   void OnClose();
 
- private:
   enum ProtocolType {
     PROTOCOL_UNKNOWN,
     PROTOCOL_WEBSOCKET,
@@ -47,6 +46,8 @@ class SocketStreamMetrics {
     SSL_CONNECTION,
     NUM_CONNECTION_TYPES,
   };
+
+ private:
   void CountProtocolType(ProtocolType protocol_type);
   void CountConnectionType(ConnectionType connection_type);
 
