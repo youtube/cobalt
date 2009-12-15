@@ -55,11 +55,12 @@ void UnloadNativeLibrary(NativeLibrary library) {
 // static
 void* GetFunctionPointerFromNativeLibrary(NativeLibrary library,
                                           const char* name) {
-  if (library->type == BUNDLE)
-    return CFBundleGetFunctionPointerForName(library->bundle,
+  if (library->type == BUNDLE) {
+    scoped_cftyperef<CFStringRef> symbol_name(
         CFStringCreateWithCString(kCFAllocatorDefault, name,
                                   kCFStringEncodingUTF8));
-
+    return CFBundleGetFunctionPointerForName(library->bundle, symbol_name);
+  }
   return dlsym(library->dylib, name);
 }
 
