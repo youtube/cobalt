@@ -6,7 +6,6 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
-#include "base/field_trial.h"  // for SlowStart trial
 #include "base/memory_debug.h"
 #include "base/stats_counters.h"
 #include "base/string_util.h"
@@ -150,9 +149,6 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
   // Throttle the read size based on our current slow start state.
   // Returns the throttled read size.
   int ThrottleReadSize(int size) {
-    if (!use_slow_start_throttle_)
-      return size;
-
     if (slow_start_throttle_ < kMaxSlowStartThrottle) {
       size = std::min(size, slow_start_throttle_);
       slow_start_throttle_ *= 2;
@@ -209,14 +205,8 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
   static const int kMaxSlowStartThrottle = 32 * kInitialSlowStartThrottle;
   int slow_start_throttle_;
 
-  static bool use_slow_start_throttle_;
-  static bool trial_initialized_;
-
   DISALLOW_COPY_AND_ASSIGN(Core);
 };
-
-bool TCPClientSocketWin::Core::use_slow_start_throttle_ = false;
-bool TCPClientSocketWin::Core::trial_initialized_ = false;
 
 TCPClientSocketWin::Core::Core(
     TCPClientSocketWin* socket)
@@ -226,14 +216,6 @@ TCPClientSocketWin::Core::Core(
       slow_start_throttle_(kInitialSlowStartThrottle) {
   memset(&read_overlapped_, 0, sizeof(read_overlapped_));
   memset(&write_overlapped_, 0, sizeof(write_overlapped_));
-
-  // Initialize the AsyncSlowStart FieldTrial.
-  if (!trial_initialized_) {
-    trial_initialized_ = true;
-    FieldTrial* trial = FieldTrialList::Find("AsyncSlowStart");
-    if (trial && trial->group_name() == "_AsyncSlowStart")
-      use_slow_start_throttle_ = true;
-  }
 }
 
 TCPClientSocketWin::Core::~Core() {
