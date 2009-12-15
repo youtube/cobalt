@@ -440,7 +440,7 @@ ssl3_ValidateNextProtoNego(const unsigned char* data, unsigned short length)
 	if (data[offset] == 0) {
 	    return SECFailure;
 	}
-	offset += data[offset] + 1;
+	offset += (unsigned int)data[offset] + 1;
     }
 
     if (offset > length)
@@ -479,10 +479,10 @@ ssl3_ClientHandleNextProtoNegoXtn(sslSocket *ss, PRUint16 ex_type,
 		result = &data->data[i];
 		goto found;
 	    }
-	    j += ss->opt.nextProtoNego.data[j] + 1;
+	    j += (unsigned int)ss->opt.nextProtoNego.data[j] + 1;
 	}
 
-	i += data->data[i] + 1;
+	i += (unsigned int)data->data[i] + 1;
     }
 
   pick_first:
