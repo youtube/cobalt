@@ -561,6 +561,14 @@ int HttpNetworkTransaction::DoInitConnection() {
     port = request_->url.EffectiveIntPort();
   }
 
+  // Use the fixed testing ports if they've been provided.
+  if (using_ssl_) {
+    if (session_->fixed_https_port() != 0)
+      port = session_->fixed_https_port();
+  } else if (session_->fixed_http_port() != 0) {
+    port = session_->fixed_http_port();
+  }
+
   // For a connection via HTTP proxy not using CONNECT, the connection
   // is to the proxy server only. For all other cases
   // (direct, HTTP proxy CONNECT, SOCKS), the connection is upto the
