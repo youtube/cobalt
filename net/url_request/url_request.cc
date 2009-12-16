@@ -459,6 +459,11 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     method_ = "GET";
     upload_ = NULL;
   }
+
+  // Suppress the referrer if we're redirecting out of https.
+  if (GURL(referrer_).SchemeIsSecure() && !location.SchemeIsSecure())
+    referrer_.clear();
+
   url_ = location;
   --redirect_limit_;
 
