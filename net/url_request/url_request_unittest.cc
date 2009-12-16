@@ -242,6 +242,29 @@ TEST_F(URLRequestTestHTTP, GetTest) {
   }
 }
 
+TEST_F(URLRequestTestHTTP, HTTPSToHTTPRedirectNoRefererTest) {
+  scoped_refptr<HTTPSTestServer> https_server =
+      HTTPSTestServer::CreateGoodServer(L"net/data/ssl/");
+  ASSERT_TRUE(NULL != https_server.get());
+  ASSERT_TRUE(NULL != server_.get());
+
+  // An https server is sent a request with an https referer,
+  // and responds with a redirect to an http url. The http
+  // server should not be sent the referer.
+  GURL http_destination = server_->TestServerPage("");
+  TestDelegate d;
+  TestURLRequest req(https_server->TestServerPage(
+      "server-redirect?" + http_destination.spec()), &d);
+  req.set_referrer("https://www.referrer.com/");
+  req.Start();
+  MessageLoop::current()->Run();
+
+  EXPECT_EQ(1, d.response_started_count());
+  EXPECT_EQ(1, d.received_redirect_count());
+  EXPECT_EQ(http_destination, req.url());
+  EXPECT_EQ(std::string(), req.referrer());
+}
+
 TEST_F(URLRequestTest, QuitTest) {
   // Don't use shared server here because we order it to quit.
   // It would impact other tests.
