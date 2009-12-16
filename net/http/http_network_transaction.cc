@@ -332,9 +332,8 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
 }
 
 const HttpResponseInfo* HttpNetworkTransaction::GetResponseInfo() const {
-  const HttpResponseInfo* response = http_stream_->GetResponseInfo();
-  return ((headers_valid_ && response->headers) || response->ssl_info.cert ||
-          response->cert_request_info) ? response : NULL;
+  return ((headers_valid_ && response_.headers) || response_.ssl_info.cert ||
+          response_.cert_request_info) ? &response_ : NULL;
 }
 
 LoadState HttpNetworkTransaction::GetLoadState() const {
@@ -756,8 +755,8 @@ int HttpNetworkTransaction::DoSendRequest() {
     }
   }
 
-  return http_stream_->SendRequest(request_, request_headers_, request_body,
-                                   &io_callback_);
+  return http_stream_->SendRequest(request_, request_headers_,
+                                   request_body, &response_, &io_callback_);
 }
 
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
@@ -781,7 +780,7 @@ int HttpNetworkTransaction::HandleConnectionClosedBeforeEndOfHeaders() {
     return ERR_TUNNEL_CONNECTION_FAILED;
   }
 
-  if (!http_stream_->GetResponseInfo()->headers) {
+  if (!response_.headers) {
     // The connection was closed before any data was sent. Likely an error
     // rather than empty HTTP/0.9 response.
     return ERR_EMPTY_RESPONSE;
@@ -819,7 +818,6 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   // After we call RestartWithAuth a new response_time will be recorded, and
   // we need to be cautious about incorrectly logging the duration across the
   // authentication activity.
-  HttpResponseInfo* response = http_stream_->GetResponseInfo();
   if (!logged_response_time) {
     LogTransactionConnectedMetrics();
     logged_response_time = true;
@@ -835,7 +833,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
     result = 0;
   }
 
-  if (response->headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
+  if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
     // Require the "HTTP/1.x" status line for SSL CONNECT.
     if (establishing_tunnel_)
       return ERR_TUNNEL_CONNECTION_FAILED;
@@ -848,7 +846,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   }
 
   if (establishing_tunnel_) {
-    switch (response->headers->response_code()) {
+    switch (response_.headers->response_code()) {
       case 200:  // OK
         if (http_stream_->IsMoreDataBuffered()) {
           // The proxy sent extraneous data after the headers.
@@ -880,7 +878,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
         // 501 response bodies that contain a useful error message.  For
         // example, Squid uses a 404 response to report the DNS error: "The
         // domain name does not exist."
-        LogBlockedTunnelResponse(response->headers->response_code());
+        LogBlockedTunnelResponse(response_.headers->response_code());
         return ERR_TUNNEL_CONNECTION_FAILED;
     }
   }
@@ -890,7 +888,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   // need to skip over it.
   // We treat any other 1xx in this same way (although in practice getting
   // a 1xx that isn't a 100 is rare).
-  if (response->headers->response_code() / 100 == 1) {
+  if (response_.headers->response_code() / 100 == 1) {
     next_state_ = STATE_READ_HEADERS;
     return OK;
   }
@@ -902,7 +900,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   if (using_ssl_ && !establishing_tunnel_) {
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_.socket());
-    ssl_socket->GetSSLInfo(&response->ssl_info);
+    ssl_socket->GetSSLInfo(&response_.ssl_info);
   }
 
   headers_valid_ = true;
@@ -1131,8 +1129,7 @@ void HttpNetworkTransaction::LogIOErrorMetrics(
 }
 
 void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
-  base::TimeDelta total_duration =
-      http_stream_->GetResponseInfo()->response_time - start_time_;
+  base::TimeDelta total_duration = response_.response_time - start_time_;
 
   UMA_HISTOGRAM_CLIPPED_TIMES(
       "Net.Transaction_Connected_Under_10",
@@ -1180,7 +1177,7 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
 
 void HttpNetworkTransaction::LogTransactionMetrics() const {
   base::TimeDelta duration = base::Time::Now() -
-      http_stream_->GetResponseInfo()->request_time;
+      response_.request_time;
   if (60 < duration.InMinutes())
     return;
 
@@ -1233,18 +1230,17 @@ int HttpNetworkTransaction::HandleCertificateError(int error) {
   }
 
   if (error != OK) {
-    HttpResponseInfo* response = http_stream_->GetResponseInfo();
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_.socket());
-    ssl_socket->GetSSLInfo(&response->ssl_info);
+    ssl_socket->GetSSLInfo(&response_.ssl_info);
 
     // Add the bad certificate to the set of allowed certificates in the
     // SSL info object. This data structure will be consulted after calling
     // RestartIgnoringLastError(). And the user will be asked interactively
     // before RestartIgnoringLastError() is ever called.
     SSLConfig::CertAndStatus bad_cert;
-    bad_cert.cert = response->ssl_info.cert;
-    bad_cert.cert_status = response->ssl_info.cert_status;
+    bad_cert.cert = response_.ssl_info.cert;
+    bad_cert.cert_status = response_.ssl_info.cert_status;
     ssl_config_.allowed_bad_certs.push_back(bad_cert);
   }
   return error;
@@ -1261,11 +1257,10 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
   // test.
   DCHECK(reused_socket_ || !ssl_config_.send_client_cert);
 
-  HttpResponseInfo* response = http_stream_->GetResponseInfo();
-  response->cert_request_info = new SSLCertRequestInfo;
+  response_.cert_request_info = new SSLCertRequestInfo;
   SSLClientSocket* ssl_socket =
       reinterpret_cast<SSLClientSocket*>(connection_.socket());
-  ssl_socket->GetSSLCertRequestInfo(response->cert_request_info);
+  ssl_socket->GetSSLCertRequestInfo(response_.cert_request_info);
 
   // Close the connection while the user is selecting a certificate to send
   // to the server.
@@ -1278,7 +1273,7 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
       Lookup(GetHostAndPort(request_->url));
   if (client_cert) {
     const std::vector<scoped_refptr<X509Certificate> >& client_certs =
-        response->cert_request_info->client_certs;
+        response_.cert_request_info->client_certs;
     for (size_t i = 0; i < client_certs.size(); ++i) {
       if (client_cert->fingerprint().Equals(client_certs[i]->fingerprint())) {
         ssl_config_.client_cert = client_cert;
@@ -1348,11 +1343,11 @@ void HttpNetworkTransaction::ResetStateForRestart() {
   http_stream_.reset(new HttpBasicStream(&connection_));
   headers_valid_ = false;
   request_headers_.clear();
+  response_ = HttpResponseInfo();
 }
 
 HttpResponseHeaders* HttpNetworkTransaction::GetResponseHeaders() const {
-  CHECK(http_stream_.get());
-  return http_stream_->GetResponseInfo()->headers;
+  return response_.headers;
 }
 
 bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
@@ -1690,7 +1685,7 @@ void HttpNetworkTransaction::PopulateAuthChallenge(HttpAuth::Target target,
   auth_info->scheme = ASCIIToWide(auth_handler_[target]->scheme());
   // TODO(eroman): decode realm according to RFC 2047.
   auth_info->realm = ASCIIToWide(auth_handler_[target]->realm());
-  http_stream_->GetResponseInfo()->auth_challenge = auth_info;
+  response_.auth_challenge = auth_info;
 }
 
 }  // namespace net

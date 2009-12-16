@@ -37,12 +37,15 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
 int HttpStreamParser::SendRequest(const HttpRequestInfo* request,
                                   const std::string& headers,
                                   UploadDataStream* request_body,
+                                  HttpResponseInfo* response,
                                   CompletionCallback* callback) {
   DCHECK_EQ(STATE_NONE, io_state_);
   DCHECK(!user_callback_);
   DCHECK(callback);
+  DCHECK(response);
 
   request_ = request;
+  response_ = response;
   scoped_refptr<StringIOBuffer> headers_io_buf = new StringIOBuffer(headers);
   request_headers_ = new DrainableIOBuffer(headers_io_buf,
                                            headers_io_buf->size());
@@ -178,7 +181,7 @@ int HttpStreamParser::DoSendHeaders(int result) {
     // Record our best estimate of the 'request time' as the time when we send
     // out the first bytes of the request headers.
     if (request_headers_->BytesRemaining() == request_headers_->size()) {
-      response_.request_time = base::Time::Now();
+      response_->request_time = base::Time::Now();
     }
     result = connection_->socket()->Write(request_headers_,
                                           request_headers_->BytesRemaining(),
@@ -239,7 +242,7 @@ int HttpStreamParser::DoReadHeadersComplete(int result) {
   // Record our best estimate of the 'response time' as the time when we read
   // the first bytes of the response headers.
   if (read_buf_->offset() == 0 && result != ERR_CONNECTION_CLOSED)
-    response_.response_time = base::Time::Now();
+    response_->response_time = base::Time::Now();
 
   if (result == ERR_CONNECTION_CLOSED) {
     // The connection closed before we detected the end of the headers.
@@ -279,7 +282,7 @@ int HttpStreamParser::DoReadHeadersComplete(int result) {
     // Note where the headers stop.
     read_buf_unused_offset_ = end_of_header_offset;
 
-    if (response_.headers->response_code() / 100 == 1) {
+    if (response_->headers->response_code() / 100 == 1) {
       // After processing a 1xx response, the caller will ask for the next
       // header, so reset state to support that.  We don't just skip these
       // completely because 1xx codes aren't acceptable when establishing a
@@ -446,8 +449,8 @@ void HttpStreamParser::DoParseResponseHeaders(int end_offset) {
     headers = new HttpResponseHeaders(std::string("HTTP/0.9 200 OK"));
   }
 
-  response_.headers = headers;
-  response_.vary_data.Init(*request_, *response_.headers);
+  response_->headers = headers;
+  response_->vary_data.Init(*request_, *response_->headers);
 }
 
 void HttpStreamParser::CalculateResponseBodySize() {
@@ -464,7 +467,7 @@ void HttpStreamParser::CalculateResponseBodySize() {
   // (informational), 204 (no content), and 304 (not modified) responses
   // MUST NOT include a message-body. All other responses do include a
   // message-body, although it MAY be of zero length.
-  switch (response_.headers->response_code()) {
+  switch (response_->headers->response_code()) {
     // Note that 1xx was already handled earlier.
     case 204:  // No Content
     case 205:  // Reset Content
@@ -479,11 +482,11 @@ void HttpStreamParser::CalculateResponseBodySize() {
     // Ignore spurious chunked responses from HTTP/1.0 servers and
     // proxies. Otherwise "Transfer-Encoding: chunked" trumps
     // "Content-Length: N"
-    if (response_.headers->GetHttpVersion() >= HttpVersion(1, 1) &&
-        response_.headers->HasHeaderValue("Transfer-Encoding", "chunked")) {
+    if (response_->headers->GetHttpVersion() >= HttpVersion(1, 1) &&
+        response_->headers->HasHeaderValue("Transfer-Encoding", "chunked")) {
       chunked_decoder_.reset(new HttpChunkedDecoder());
     } else {
-      response_body_length_ = response_.headers->GetContentLength();
+      response_body_length_ = response_->headers->GetContentLength();
       // If response_body_length_ is still -1, then we have to wait
       // for the server to close the connection.
     }
@@ -498,7 +501,7 @@ uint64 HttpStreamParser::GetUploadProgress() const {
 }
 
 HttpResponseInfo* HttpStreamParser::GetResponseInfo() {
-  return &response_;
+  return response_;
 }
 
 bool HttpStreamParser::IsResponseBodyComplete() const {
