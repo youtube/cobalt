@@ -32,6 +32,7 @@ class HttpBasicStream : public HttpStream {
   virtual int SendRequest(const HttpRequestInfo* request,
                           const std::string& headers,
                           UploadDataStream* request_body,
+                          HttpResponseInfo* response,
                           CompletionCallback* callback);
 
   virtual uint64 GetUploadProgress() const;

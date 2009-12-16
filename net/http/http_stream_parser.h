@@ -33,7 +33,8 @@ class HttpStreamParser {
   // These functions implement the interface described in HttpStream with
   // some additional functionality
   int SendRequest(const HttpRequestInfo* request, const std::string& headers,
-                  UploadDataStream* request_body, CompletionCallback* callback);
+                  UploadDataStream* request_body, HttpResponseInfo* response,
+                  CompletionCallback* callback);
 
   int ReadResponseHeaders(CompletionCallback* callback);
 
@@ -128,8 +129,8 @@ class HttpStreamParser {
   // -1 if not found yet.
   int response_header_start_offset_;
 
-  // The parsed response headers.
-  HttpResponseInfo response_;
+  // The parsed response headers.  Owned by the caller.
+  HttpResponseInfo* response_;
 
   // Indicates the content length.  If this value is less than zero
   // (and chunked_decoder_ is null), then we must read until the server
