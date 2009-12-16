@@ -2793,8 +2793,7 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   trans->request_headers_ = "Authorization: NTLM";
 
   // Setup state in response_
-  trans->http_stream_.reset(new HttpBasicStream(NULL));
-  HttpResponseInfo* response = trans->http_stream_->GetResponseInfo();
+  HttpResponseInfo* response = &trans->response_;
   response->auth_challenge = new AuthChallengeInfo();
   response->ssl_info.cert_status = -15;
   response->response_time = base::Time::Now();
@@ -2813,7 +2812,6 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
   trans->ResetStateForRestart();
 
   // Verify that the state that needed to be reset, has been reset.
-  response = trans->http_stream_->GetResponseInfo();
   EXPECT_TRUE(trans->read_buf_.get() == NULL);
   EXPECT_EQ(0, trans->read_buf_len_);
   EXPECT_EQ(0U, trans->request_headers_.size());
