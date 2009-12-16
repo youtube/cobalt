@@ -265,6 +265,7 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   scoped_refptr<LoadLog> load_log_;
   const HttpRequestInfo* request_;
+  HttpResponseInfo response_;
 
   ProxyService::PacRequest* pac_request_;
   ProxyInfo proxy_info_;

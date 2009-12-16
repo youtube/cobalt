@@ -14,8 +14,10 @@ HttpBasicStream::HttpBasicStream(ClientSocketHandle* handle)
 int HttpBasicStream::SendRequest(const HttpRequestInfo* request,
                                  const std::string& headers,
                                  UploadDataStream* request_body,
+                                 HttpResponseInfo* response,
                                  CompletionCallback* callback) {
-  return parser_->SendRequest(request, headers, request_body, callback);
+  return parser_->SendRequest(
+      request, headers, request_body, response, callback);
 }
 
 uint64 HttpBasicStream::GetUploadProgress() const {

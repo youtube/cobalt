@@ -35,6 +35,7 @@ class HttpStream {
   virtual int SendRequest(const HttpRequestInfo* request,
                           const std::string& request_headers,
                           UploadDataStream* request_body,
+                          HttpResponseInfo* response,
                           CompletionCallback* callback) = 0;
 
   // Queries the UploadDataStream for its progress (bytes sent).
