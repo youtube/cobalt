@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -451,7 +451,7 @@ class ClientSocketPoolBase {
           unused_idle_socket_timeout, used_idle_socket_timeout,
           new ConnectJobFactoryAdaptor(connect_job_factory))) {}
 
-  ~ClientSocketPoolBase() {}
+  virtual ~ClientSocketPoolBase() {}
 
   // These member functions simply forward to ClientSocketPoolBaseHelper.
 
