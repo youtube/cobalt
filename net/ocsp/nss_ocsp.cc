@@ -17,6 +17,7 @@
 #include "base/condition_variable.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/singleton.h"
 #include "base/thread.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
@@ -28,7 +29,7 @@
 
 namespace {
 
-static const int kRecvBufferSize = 4096;
+const int kRecvBufferSize = 4096;
 
 // All OCSP handlers should be called in the context of
 // CertVerifier's thread (i.e. worker pool, not on the I/O thread).
@@ -36,12 +37,20 @@ static const int kRecvBufferSize = 4096;
 
 class OCSPInitSingleton : public MessageLoop::DestructionObserver {
  public:
+  // Called on IO thread.
   virtual void WillDestroyCurrentMessageLoop() {
+    AutoLock autolock(lock_);
+    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
     io_loop_ = NULL;
+    request_context_ = NULL;
   };
 
-  MessageLoop* io_thread() const {
-    return io_loop_;
+  // Called from worker thread.
+  void PostTaskToIOLoop(
+      const tracked_objects::Location& from_here, Task* task) {
+    AutoLock autolock(lock_);
+    if (io_loop_)
+      io_loop_->PostTask(from_here, task);
   }
 
   // This is static method because it is called before NSS initialization,
@@ -55,18 +64,22 @@ class OCSPInitSingleton : public MessageLoop::DestructionObserver {
 
  private:
   friend struct DefaultSingletonTraits<OCSPInitSingleton>;
+
   OCSPInitSingleton();
   virtual ~OCSPInitSingleton() {
-    if (io_loop_)
-      io_loop_->RemoveDestructionObserver(this);
-    request_context_ = NULL;
+    // IO thread was already deleted before the singleton is deleted
+    // in AtExitManager.
+    AutoLock autolock(lock_);
+    DCHECK(!io_loop_);
+    DCHECK(!request_context_);
   }
 
   SEC_HttpClientFcn client_fcn_;
 
+  // |lock_| protects |io_loop_|.
+  Lock lock_;
   // I/O thread.
   MessageLoop* io_loop_;  // I/O thread
-
   // URLRequestContext for OCSP handlers.
   static URLRequestContext* request_context_;
 
@@ -95,7 +108,7 @@ class OCSPRequestSession
         buffer_(new net::IOBuffer(kRecvBufferSize)),
         response_code_(-1),
         cv_(&lock_),
-        io_loop_(Singleton<OCSPInitSingleton>::get()->io_thread()),
+        io_loop_(NULL),
         finished_(false) {}
 
   void SetPostData(const char* http_data, PRUint32 http_data_len,
@@ -112,13 +125,13 @@ class OCSPRequestSession
   }
 
   void Start() {
-    // IO thread may set |io_loop_| to NULL, so protect by |lock_|.
-    AutoLock autolock(lock_);
-    if (io_loop_) {
-      io_loop_->PostTask(
-          FROM_HERE,
-          NewRunnableMethod(this, &OCSPRequestSession::StartURLRequest));
-    }
+    // At this point, it runs on worker thread.
+    // |io_loop_| was initialized to be NULL in constructor, and
+    // set only in StartURLRequest, so no need to lock |lock_| here.
+    DCHECK(!io_loop_);
+    Singleton<OCSPInitSingleton>()->PostTaskToIOLoop(
+        FROM_HERE,
+        NewRunnableMethod(this, &OCSPRequestSession::StartURLRequest));
   }
 
   bool Started() const {
@@ -238,12 +251,16 @@ class OCSPRequestSession
   friend class base::RefCountedThreadSafe<OCSPRequestSession>;
 
   virtual ~OCSPRequestSession() {
+    // When this destructor is called, there should be only one thread that has
+    // a reference to this object, and so that thread doesn't need to lock
+    // |lock_| here.
     DCHECK(!request_);
-    if (io_loop_)
-      io_loop_->RemoveDestructionObserver(this);
+    DCHECK(!io_loop_);
   }
 
+  // Must call this method while holding |lock_|.
   void CancelLocked() {
+    lock_.AssertAcquired();
     if (io_loop_) {
       io_loop_->PostTask(
           FROM_HERE,
@@ -252,14 +269,22 @@ class OCSPRequestSession
   }
 
   void StartURLRequest() {
-    DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
     DCHECK(!request_);
 
-    io_loop_->AddDestructionObserver(this);
+    URLRequestContext* url_request_context =
+        OCSPInitSingleton::url_request_context();
+    if (url_request_context == NULL)
+      return;
+
+    {
+      AutoLock autolock(lock_);
+      DCHECK(!io_loop_);
+      io_loop_ = MessageLoopForIO::current();
+      io_loop_->AddDestructionObserver(this);
+    }
 
     request_ = new URLRequest(url_, this);
-    request_->set_context(
-        Singleton<OCSPInitSingleton>::get()->url_request_context());
+    request_->set_context(url_request_context);
     // To meet the privacy requirements of off-the-record mode.
     request_->set_load_flags(
         net::LOAD_DISABLE_CACHE|net::LOAD_DO_NOT_SAVE_COOKIES);
@@ -284,8 +309,13 @@ class OCSPRequestSession
   }
 
   void CancelURLRequest() {
-    if (io_loop_)
-      DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
+#ifndef NDEBUG
+    {
+      AutoLock autolock(lock_);
+      if (io_loop_)
+        DCHECK_EQ(MessageLoopForIO::current(), io_loop_);
+    }
+#endif
     if (request_) {
       request_->Cancel();
       delete request_;
@@ -370,7 +400,7 @@ SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
                             SEC_HTTP_SERVER_SESSION* pSession) {
   LOG(INFO) << "OCSP create session: host=" << host << " port=" << portnum;
   DCHECK(!MessageLoop::current());
-  if (Singleton<OCSPInitSingleton>::get()->url_request_context() == NULL) {
+  if (OCSPInitSingleton::url_request_context() == NULL) {
     LOG(ERROR) << "No URLRequestContext for OCSP handler.";
     return SECFailure;
   }
@@ -538,6 +568,7 @@ SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
 
 OCSPInitSingleton::OCSPInitSingleton()
     : io_loop_(MessageLoopForIO::current()) {
+  DCHECK(io_loop_);
   io_loop_->AddDestructionObserver(this);
   client_fcn_.version = 1;
   SEC_HttpClientFcnV1Struct *ft = &client_fcn_.fcnTable.ftable1;
