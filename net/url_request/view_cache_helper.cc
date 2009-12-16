@@ -73,6 +73,9 @@ static std::string FormatEntryDetails(disk_cache::Entry* entry) {
   bool truncated;
   if (net::HttpCache::ReadResponseInfo(entry, &response, &truncated) &&
       response.headers) {
+    if (truncated)
+      result.append("<pre>RESPONSE_INFO_TRUNCATED</pre>");
+
     result.append("<hr><pre>");
     result.append(EscapeForHTML(response.headers->GetStatusLine()));
     result.push_back('\n');
