@@ -115,8 +115,6 @@ int NetErrorFromOSStatus(OSStatus status) {
       return ERR_INVALID_ARGUMENT;
     case errSSLClosedNoNotify:
       return ERR_CONNECTION_RESET;
-    case errSSLConnectionRefused:
-      return ERR_CONNECTION_REFUSED;
     case errSSLClosedAbort:
       return ERR_CONNECTION_ABORTED;
     case errSSLInternal:
@@ -126,6 +124,7 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSSLPeerUnexpectedMsg:  // Received an unexpected_message alert.
     case errSSLProtocol:
     case errSSLPeerHandshakeFail:  // Received a handshake_failure alert.
+    case errSSLConnectionRefused:
       return ERR_SSL_PROTOCOL_ERROR;
     case errSSLHostNameMismatch:
       return ERR_CERT_COMMON_NAME_INVALID;
