@@ -223,6 +223,23 @@ class MessageLoop : public base::MessagePump::Delegate {
   void SetNestableTasksAllowed(bool allowed);
   bool NestableTasksAllowed() const;
 
+  // Enables nestable tasks on |loop| while in scope.
+  class ScopedNestableTaskAllower {
+   public:
+    explicit ScopedNestableTaskAllower(MessageLoop* loop)
+        : loop_(loop),
+          old_state_(loop_->NestableTasksAllowed()) {
+      loop_->SetNestableTasksAllowed(true);
+    }
+    ~ScopedNestableTaskAllower() {
+      loop_->SetNestableTasksAllowed(old_state_);
+    }
+
+   private:
+    MessageLoop* loop_;
+    bool old_state_;
+  };
+
   // Enables or disables the restoration during an exception of the unhandled
   // exception filter that was active when Run() was called. This can happen
   // if some third party code call SetUnhandledExceptionFilter() and never
