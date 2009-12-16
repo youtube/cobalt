@@ -33,6 +33,9 @@ class DirectoryLister : public base::RefCountedThreadSafe<DirectoryLister>,
     virtual void OnListFile(
         const file_util::FileEnumerator::FindInfo& data) = 0;
     virtual void OnListDone(int error) = 0;
+
+   protected:
+    virtual ~DirectoryListerDelegate() {}
   };
 
   DirectoryLister(const FilePath& dir, DirectoryListerDelegate* delegate);
