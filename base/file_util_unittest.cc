@@ -1156,6 +1156,15 @@ TEST_F(FileUtilTest, CreateDirectoryTest) {
   EXPECT_TRUE(file_util::CreateDirectory(
       FilePath(FilePath::kCurrentDirectory)));
   EXPECT_TRUE(file_util::CreateDirectory(top_level));
+
+#if defined(OS_WIN)
+  FilePath invalid_drive(FILE_PATH_LITERAL("o:\\"));
+  FilePath invalid_path =
+      invalid_drive.Append(FILE_PATH_LITERAL("some\\inaccessible\\dir"));
+  if (!file_util::PathExists(invalid_drive)) {
+    EXPECT_FALSE(file_util::CreateDirectory(invalid_path));
+  }
+#endif
 }
 
 TEST_F(FileUtilTest, DetectDirectoryTest) {

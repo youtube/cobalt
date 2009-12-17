@@ -528,7 +528,11 @@ bool CreateDirectory(const FilePath& full_path) {
   // Attempt to create the parent recursively.  This will immediately return
   // true if it already exists, otherwise will create all required parent
   // directories starting with the highest-level missing parent.
-  if (!CreateDirectory(full_path.DirName())) {
+  FilePath parent_path(full_path.DirName());
+  if (parent_path.value() == full_path.value()) {
+    return false;
+  }
+  if (!CreateDirectory(parent_path)) {
     DLOG(WARNING) << "Failed to create one of the parent directories.";
     return false;
   }
