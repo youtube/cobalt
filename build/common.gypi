@@ -203,7 +203,7 @@
     'arm_thumb%': 0,
 
     'conditions': [
-      ['OS=="linux" or OS=="freebsd"', {
+      ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
         'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
@@ -229,7 +229,7 @@
             'use_titlecase_in_grd_files%': 1,
           }],
         ],
-      }],  # OS=="linux" or OS=="freebsd"
+      }],  # OS=="linux" or OS=="freebsd" or OS=="openbsd"
       ['OS=="mac"', {
         # Mac wants Title Case strings
         'use_titlecase_in_grd_files%': 1,
@@ -531,13 +531,16 @@
     },
   },
   'conditions': [
-    ['OS=="linux" or OS=="freebsd"', {
+    ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
       'target_defaults': {
         # Enable -Werror by default, but put it in a variable so it can
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
         'variables': {
-          'werror%': '-Werror',
           'no_strict_aliasing%': 0,
+          'conditions': [['OS=="linux"', {'werror%': '-Werror',}],
+                         ['OS=="freebsd"', {'werror%': '',}],
+                         ['OS=="openbsd"', {'werror%': '',}],
+          ],
         },
         'cflags': [
           '<(werror)',  # See note above about the werror variable.
@@ -1004,7 +1007,7 @@
                           ['exclude', '/(cocoa|mac)/'],
                           ['exclude', '\.mm$' ] ],
           }],
-          ['OS!="linux" and OS!="freebsd"', {
+          ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
             'sources/': [
               ['exclude', '_(chromeos|gtk|linux|x|x11)(_unittest)?\\.cc$'],
               ['exclude', '/gtk/'],
@@ -1016,7 +1019,7 @@
           }],
           # Though Skia is conceptually shared by Linux and Windows,
           # the only _skia files in our tree are Linux-specific.
-          ['OS!="linux" and OS!="freebsd"', {
+          ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
             'sources/': [ ['exclude', '_skia\\.cc$'] ],
           }],
           ['chromeos!=1', {
@@ -1028,7 +1031,8 @@
         ],
       },
     }],
-    ['disable_nacl==1', {
+    # Disable native client on FreeBSD/OpenBSD for now
+    ['disable_nacl==1 or OS=="freebsd" or OS=="openbsd"', {
       'target_defaults': {
         'defines': [
           'DISABLE_NACL',
