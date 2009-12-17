@@ -129,6 +129,7 @@
         'time_unittest.cc',
         'time_win_unittest.cc',
         'timer_unittest.cc',
+        'tools_sanity_unittest.cc',
         'tracked_objects_unittest.cc',
         'tuple_unittest.cc',
         'utf_offset_string_conversions_unittest.cc',
