@@ -54,6 +54,7 @@ preload-cache.patch
 safe-tolower.patch
 sqlite-poison.patch
 fts2.patch
+icu-regexp.patch
 
 So, e.g. you could do this to apply all our patches to vanilla SQLite:
 
@@ -63,6 +64,7 @@ patch -p0 < ../sqlite/preload-cache.patch
 patch -p0 < ../sqlite/safe-tolower.patch
 patch -p0 < ../sqlite/sqlite-poison.patch
 patch -p0 < ../sqlite/fts2.patch
+patch -p0 < ../sqlite/icu-regexp.patch
 
 This will only be the case if all changes we make also update the corresponding
 patch files. Therefore please remember to do that whenever you make a change!
@@ -95,8 +97,10 @@ Chris Evans <cevans@google.com>, Oct 1, 2009
 
 --------------------------------------------
 
-As of Nov 9, 2009, these are our changes from sqlite_vendor:
+As of Dec 16, 2009, these are our changes from sqlite_vendor:
 
+ - A fix for a crash mis-calling the REGEXP() function of the ICU extension.
+ See icu-regexp.patch
  - A large number of fts2 robustness fixes against corrupt data in its metadata
    tables.
  - fts2.c disables fts2_tokenizer().
