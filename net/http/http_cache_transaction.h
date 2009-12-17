@@ -98,6 +98,7 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_NONE,
     STATE_SEND_REQUEST,
     STATE_SEND_REQUEST_COMPLETE,
+    STATE_SUCCESSFUL_SEND_REQUEST,
     STATE_NETWORK_READ,
     STATE_NETWORK_READ_COMPLETE,
     STATE_INIT_ENTRY,
@@ -110,9 +111,16 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_ADD_TO_ENTRY,
     STATE_ENTRY_AVAILABLE,
     STATE_PARTIAL_CACHE_VALIDATION,
+    STATE_UPDATE_CACHED_RESPONSE,
+    STATE_UPDATE_CACHED_RESPONSE_COMPLETE,
+    STATE_OVERWRITE_CACHED_RESPONSE,
+    STATE_TRUNCATE_CACHED_DATA,
+    STATE_TRUNCATE_CACHED_DATA_COMPLETE,
+    STATE_PARTIAL_HEADERS_RECEIVED,
     STATE_CACHE_READ_RESPONSE,
     STATE_CACHE_READ_RESPONSE_COMPLETE,
     STATE_CACHE_WRITE_RESPONSE,
+    STATE_CACHE_WRITE_TRUNCATED_RESPONSE,
     STATE_CACHE_WRITE_RESPONSE_COMPLETE,
     STATE_CACHE_QUERY_DATA,
     STATE_CACHE_QUERY_DATA_COMPLETE,
@@ -137,6 +145,7 @@ class HttpCache::Transaction : public HttpTransaction {
   // corresponding callback.
   int DoSendRequest();
   int DoSendRequestComplete(int result);
+  int DoSuccessfulSendRequest();
   int DoNetworkRead();
   int DoNetworkReadComplete(int result);
   int DoInitEntry();
@@ -149,10 +158,21 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoAddToEntry();
   int DoEntryAvailable();
   int DoPartialCacheValidation();
-  int DoCacheReadData();
-  int DoCacheReadDataComplete(int result);
+  int DoUpdateCachedResponse();
+  int DoUpdateCachedResponseComplete(int result);
+  int DoOverwriteCachedResponse();
+  int DoTruncateCachedData();
+  int DoTruncateCachedDataComplete(int result);
+  int DoPartialHeadersReceived();
+  int DoCacheReadResponse();
+  int DoCacheReadResponseComplete();
+  int DoCacheWriteResponse();
+  int DoCacheWriteTruncatedResponse();
+  int DoCacheWriteResponseComplete(int result);
   int DoCacheQueryData();
   int DoCacheQueryDataComplete(int result);
+  int DoCacheReadData();
+  int DoCacheReadDataComplete(int result);
   int DoCacheWriteData(int num_bytes);
   int DoCacheWriteDataComplete(int result);
 
@@ -221,9 +241,6 @@ class HttpCache::Transaction : public HttpTransaction {
   // Reads data from the cache entry.
   int ReadFromEntry(IOBuffer* data, int data_len);
 
-  // Called to populate response_ from the cache entry.
-  int ReadResponseInfoFromEntry();
-
   // Called to write data to the cache entry.  If the write fails, then the
   // cache entry is destroyed.  Future calls to this function will just do
   // nothing without side-effect.  Returns a network error code.
@@ -232,15 +249,12 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // Called to write response_ to the cache entry. |truncated| indicates if the
   // entry should be marked as incomplete.
-  void WriteResponseInfoToEntry(bool truncated);
+  int WriteResponseInfoToEntry(bool truncated);
 
   // Called to append response data to the cache entry.  Returns a network error
   // code.
   int AppendResponseDataToEntry(IOBuffer* data, int data_len,
                                 CompletionCallback* callback);
-
-  // Called to truncate response content in the entry.
-  void TruncateResponseData();
 
   // Called when we are done writing to the cache entry.
   void DoneWritingToEntry(bool success);
@@ -277,12 +291,15 @@ class HttpCache::Transaction : public HttpTransaction {
   CompletionCallback* callback_;  // Consumer's callback.
   HttpResponseInfo response_;
   HttpResponseInfo auth_response_;
+  const HttpResponseInfo* new_response_;
   std::string cache_key_;
   Mode mode_;
+  State target_state_;
   bool reading_;  // We are already reading.
   bool invalid_range_;  // We may bypass the cache for this request.
   bool enable_range_support_;
   bool truncated_;  // We don't have all the response data.
+  bool server_responded_206_;
   scoped_refptr<IOBuffer> read_buf_;
   int read_buf_len_;
   int read_offset_;
