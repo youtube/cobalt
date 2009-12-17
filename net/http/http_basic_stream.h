@@ -21,11 +21,12 @@ namespace net {
 class ClientSocketHandle;
 class HttpRequestInfo;
 class HttpResponseInfo;
+class LoadLog;
 class UploadDataStream;
 
 class HttpBasicStream : public HttpStream {
  public:
-  explicit HttpBasicStream(ClientSocketHandle* handle);
+  HttpBasicStream(ClientSocketHandle* handle, LoadLog* load_log);
   virtual ~HttpBasicStream() {}
 
   // HttpStream methods:
