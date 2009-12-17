@@ -43,12 +43,9 @@
 
 // For access to standard POSIXish features, use OS_POSIX instead of a
 // more specific macro.
-#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD)
+#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD)
 #define OS_POSIX 1
-#endif
-
 // Use base::DataPack for name/value pairs.
-#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD)
 #define USE_BASE_DATA_PACK 1
 #endif
 
