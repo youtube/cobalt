@@ -104,11 +104,14 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
       new_entry_(NULL),
       network_trans_(NULL),
       callback_(NULL),
+      new_response_(NULL),
       mode_(NONE),
+      target_state_(STATE_NONE),
       reading_(false),
       invalid_range_(false),
       enable_range_support_(enable_range_support),
       truncated_(false),
+      server_responded_206_(false),
       read_offset_(0),
       effective_load_flags_(0),
       final_upload_progress_(0),
@@ -476,10 +479,21 @@ int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
 }
 
 int HttpCache::Transaction::DoEntryAvailable() {
+  DCHECK(!new_entry_);
+  if (mode_ == WRITE) {
+    if (partial_.get())
+      partial_->RestoreHeaders(&custom_request_->extra_headers);
+    next_state_ = STATE_SEND_REQUEST;
+  } else {
+    // We have to read the headers from the cached entry.
+    DCHECK(mode_ & READ_META);
+    next_state_ = STATE_CACHE_READ_RESPONSE;
+  }
+  return OK;
+}
+
+int HttpCache::Transaction::DoCacheReadResponseComplete() {
   // We now have access to the cache entry.
-  //
-  //  o if we are the writer for the transaction, then we can start the network
-  //    transaction.
   //
   //  o if we are a reader for the transaction, then we can start reading the
   //    cache entry.
@@ -489,21 +503,13 @@ int HttpCache::Transaction::DoEntryAvailable() {
   //    from the cache if the cache entry is already valid.
   //
   //  o if we are set to UPDATE, then we are handling an externally
-  //    conditionalized request (if-modified-since / if-none-match). We read
-  //    the cache entry, and check if the request headers define a validation
-  //    request.
+  //    conditionalized request (if-modified-since / if-none-match). We check
+  //    if the request headers define a validation request.
   //
-  DCHECK(!new_entry_);
-  int rv;
+  int rv = OK;
   switch (mode_) {
     case READ:
       rv = BeginCacheRead();
-      break;
-    case WRITE:
-      if (partial_.get())
-        partial_->RestoreHeaders(&custom_request_->extra_headers);
-      next_state_ = STATE_SEND_REQUEST;
-      rv = OK;
       break;
     case READ_WRITE:
       rv = BeginPartialCacheValidation();
@@ -511,6 +517,7 @@ int HttpCache::Transaction::DoEntryAvailable() {
     case UPDATE:
       rv = BeginExternallyConditionalizedRequest();
       break;
+    case WRITE:
     default:
       NOTREACHED();
       rv = ERR_FAILED;
@@ -529,8 +536,16 @@ bool HttpCache::Transaction::AddTruncatedFlag() {
   if (!entry_->disk_entry->GetDataSize(kResponseContentIndex))
     return false;
 
+  // We have a serious problem here: We are inside the object destructor and
+  // we need to write to the cache. We could even have a pending operation in
+  // progress already so it's not that we can just issue another operation and
+  // cancel it immediately. So, for now, just verify that the operation
+  // completes synchronously.
   truncated_ = true;
-  WriteResponseInfoToEntry(true);
+  target_state_ = STATE_NONE;
+  next_state_ = STATE_CACHE_WRITE_TRUNCATED_RESPONSE;
+  int rv = DoLoop(OK);
+  DCHECK_EQ(OK, rv);
   return true;
 }
 
@@ -538,7 +553,7 @@ void HttpCache::Transaction::DoCallback(int rv) {
   DCHECK(rv != ERR_IO_PENDING);
   DCHECK(callback_);
 
-  // since Run may result in Read being called, clear callback_ up front.
+  // Since Run may result in Read being called, clear callback_ up front.
   CompletionCallback* c = callback_;
   callback_ = NULL;
   c->Run(rv);
@@ -565,6 +580,10 @@ int HttpCache::Transaction::DoLoop(int result) {
         break;
       case STATE_SEND_REQUEST_COMPLETE:
         rv = DoSendRequestComplete(rv);
+        break;
+      case STATE_SUCCESSFUL_SEND_REQUEST:
+        DCHECK_EQ(OK, rv);
+        rv = DoSuccessfulSendRequest();
         break;
       case STATE_NETWORK_READ:
         DCHECK_EQ(OK, rv);
@@ -612,6 +631,47 @@ int HttpCache::Transaction::DoLoop(int result) {
       case STATE_PARTIAL_CACHE_VALIDATION:
         DCHECK_EQ(OK, rv);
         rv = DoPartialCacheValidation();
+        break;
+      case STATE_UPDATE_CACHED_RESPONSE:
+        DCHECK_EQ(OK, rv);
+        rv = DoUpdateCachedResponse();
+        break;
+      case STATE_UPDATE_CACHED_RESPONSE_COMPLETE:
+        rv = DoUpdateCachedResponseComplete(rv);
+        break;
+      case STATE_OVERWRITE_CACHED_RESPONSE:
+        DCHECK_EQ(OK, rv);
+        rv = DoOverwriteCachedResponse();
+        break;
+      case STATE_TRUNCATE_CACHED_DATA:
+        DCHECK_EQ(OK, rv);
+        rv = DoTruncateCachedData();
+        break;
+      case STATE_TRUNCATE_CACHED_DATA_COMPLETE:
+        rv = DoTruncateCachedDataComplete(rv);
+        break;
+      case STATE_PARTIAL_HEADERS_RECEIVED:
+        DCHECK_EQ(OK, rv);
+        rv = DoPartialHeadersReceived();
+        break;
+      case STATE_CACHE_READ_RESPONSE:
+        DCHECK_EQ(OK, rv);
+        rv = DoCacheReadResponse();
+        break;
+      case STATE_CACHE_READ_RESPONSE_COMPLETE:
+        DCHECK_EQ(OK, rv);
+        rv = DoCacheReadResponseComplete();
+        break;
+      case STATE_CACHE_WRITE_RESPONSE:
+        DCHECK_EQ(OK, rv);
+        rv = DoCacheWriteResponse();
+        break;
+      case STATE_CACHE_WRITE_TRUNCATED_RESPONSE:
+        DCHECK_EQ(OK, rv);
+        rv = DoCacheWriteTruncatedResponse();
+        break;
+      case STATE_CACHE_WRITE_RESPONSE_COMPLETE:
+        rv = DoCacheWriteResponseComplete(rv);
         break;
       case STATE_CACHE_QUERY_DATA:
         DCHECK_EQ(OK, rv);
@@ -789,13 +849,6 @@ bool HttpCache::Transaction::ShouldPassThrough() {
 }
 
 int HttpCache::Transaction::BeginCacheRead() {
-  DCHECK(mode_ == READ);
-
-  // Read response headers.
-  int rv = ReadResponseInfoFromEntry();
-  if (rv != OK)
-    return rv;
-
   // We don't support any combination of LOAD_ONLY_FROM_CACHE and byte ranges.
   if (response_.headers->response_code() == 206 || partial_.get()) {
     NOTREACHED();
@@ -806,7 +859,7 @@ int HttpCache::Transaction::BeginCacheRead() {
   if (truncated_)
     return ERR_CACHE_MISS;
 
-  return rv;
+  return OK;
 }
 
 int HttpCache::Transaction::BeginCacheValidation() {
@@ -830,12 +883,6 @@ int HttpCache::Transaction::BeginCacheValidation() {
 
 int HttpCache::Transaction::BeginPartialCacheValidation() {
   DCHECK(mode_ == READ_WRITE);
-
-  int rv = ReadResponseInfoFromEntry();
-  if (rv != OK) {
-    DCHECK(rv != ERR_IO_PENDING);
-    return rv;
-  }
 
   if (response_.headers->response_code() != 206 && !partial_.get() &&
       !truncated_)
@@ -936,13 +983,6 @@ int HttpCache::Transaction::DoPartialCacheValidation() {
 int HttpCache::Transaction::BeginExternallyConditionalizedRequest() {
   DCHECK_EQ(UPDATE, mode_);
   DCHECK(external_validation_.initialized);
-
-  // Read the cached response.
-  int rv = ReadResponseInfoFromEntry();
-  if (rv != OK) {
-    DCHECK(rv != ERR_IO_PENDING);
-    return rv;
-  }
 
   for (size_t i = 0;  i < ARRAYSIZE_UNSAFE(kValidationHeaders); i++) {
     if (external_validation_.values[i].empty())
@@ -1252,8 +1292,9 @@ int HttpCache::Transaction::DoCacheReadData() {
                                       cache_callback_);
 }
 
-int HttpCache::Transaction::ReadResponseInfoFromEntry() {
+int HttpCache::Transaction::DoCacheReadResponse() {
   DCHECK(entry_);
+  next_state_ = STATE_CACHE_READ_RESPONSE_COMPLETE;
 
   LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
   bool read_ok =
@@ -1288,9 +1329,18 @@ int HttpCache::Transaction::WriteToEntry(int index, int offset,
   return rv;
 }
 
-void HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
+int HttpCache::Transaction::DoCacheWriteResponse() {
+  return WriteResponseInfoToEntry(false);
+}
+
+int HttpCache::Transaction::DoCacheWriteTruncatedResponse() {
+  return WriteResponseInfoToEntry(true);
+}
+
+int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
+  next_state_ = STATE_CACHE_WRITE_RESPONSE_COMPLETE;
   if (!entry_)
-    return;
+    return OK;
 
   // Do not cache no-store content (unless we are record mode).  Do not cache
   // content with cert errors either.  This is to prevent not reporting net
@@ -1305,7 +1355,7 @@ void HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
       response_.headers->HasHeaderValue("cache-control", "no-store")) ||
       net::IsCertStatusError(response_.ssl_info.cert_status)) {
     DoneWritingToEntry(false);
-    return;
+    return OK;
   }
 
   // When writing headers, we normally only write the non-transient
@@ -1321,6 +1371,13 @@ void HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
     DLOG(ERROR) << "failed to write response info to cache";
     DoneWritingToEntry(false);
   }
+  return OK;
+}
+
+int HttpCache::Transaction::DoCacheWriteResponseComplete(int result) {
+  next_state_ = target_state_;
+  target_state_ = STATE_NONE;
+  return OK;
 }
 
 int HttpCache::Transaction::AppendResponseDataToEntry(
@@ -1333,13 +1390,15 @@ int HttpCache::Transaction::AppendResponseDataToEntry(
                       callback);
 }
 
-void HttpCache::Transaction::TruncateResponseData() {
+int HttpCache::Transaction::DoTruncateCachedData() {
+  next_state_ = STATE_TRUNCATE_CACHED_DATA_COMPLETE;
   if (!entry_)
-    return;
+    return OK;
 
   // Truncate the stream.
   int rv = WriteToEntry(kResponseContentIndex, 0, NULL, 0, NULL);
   DCHECK(rv != ERR_IO_PENDING);
+  return OK;
 }
 
 void HttpCache::Transaction::DoneWritingToEntry(bool success) {
@@ -1437,108 +1496,151 @@ int HttpCache::Transaction::DoCacheWriteDataComplete(int result) {
   return result;
 }
 
+// We received the response headers and there is no error.
+int HttpCache::Transaction::DoSuccessfulSendRequest() {
+  DCHECK(!new_response_);
+  const HttpResponseInfo* new_response = network_trans_->GetResponseInfo();
+  if (new_response->headers->response_code() == 401 ||
+      new_response->headers->response_code() == 407) {
+    auth_response_ = *new_response;
+    return OK;
+  }
+
+  if (!ValidatePartialResponse(new_response->headers, &server_responded_206_) &&
+      !auth_response_.headers) {
+    // Something went wrong with this request and we have to restart it.
+    // If we have an authentication response, we are exposed to weird things
+    // hapenning if the user cancels the authentication before we receive
+    // the new response.
+    response_ = HttpResponseInfo();
+    network_trans_.reset();
+    next_state_ = STATE_SEND_REQUEST;
+    return OK;
+  }
+  if (server_responded_206_ && mode_ == READ_WRITE && !truncated_ &&
+      response_.headers->response_code() == 200) {
+    // We have stored the full entry, but it changed and the server is
+    // sending a range. We have to delete the old entry.
+    DoneWritingToEntry(false);
+  }
+
+  new_response_ = new_response;
+  // Are we expecting a response to a conditional query?
+  if (mode_ == READ_WRITE || mode_ == UPDATE) {
+    if (new_response->headers->response_code() == 304 ||
+        server_responded_206_) {
+      next_state_ = STATE_UPDATE_CACHED_RESPONSE;
+      return OK;
+    }
+    mode_ = WRITE;
+  }
+
+  next_state_ = STATE_OVERWRITE_CACHED_RESPONSE;
+  return OK;
+}
+
+// We received 304 or 206 and we want to update the cached response headers.
+int HttpCache::Transaction::DoUpdateCachedResponse() {
+  next_state_ = STATE_UPDATE_CACHED_RESPONSE_COMPLETE;
+  int rv = OK;
+  // Update cached response based on headers in new_response.
+  // TODO(wtc): should we update cached certificate (response_.ssl_info), too?
+  response_.headers->Update(*new_response_->headers);
+  response_.response_time = new_response_->response_time;
+  response_.request_time = new_response_->request_time;
+
+  if (response_.headers->HasHeaderValue("cache-control", "no-store")) {
+    cache_->DoomEntry(cache_key_);
+  } else {
+    // If we are already reading, we already updated the headers for this
+    // request; doing it again will change Content-Length.
+    if (!reading_) {
+      target_state_ = STATE_UPDATE_CACHED_RESPONSE_COMPLETE;
+      next_state_ = STATE_CACHE_WRITE_RESPONSE;
+      rv = OK;
+    }
+  }
+  return rv;
+}
+
+int HttpCache::Transaction::DoUpdateCachedResponseComplete(int result) {
+  if (mode_ == UPDATE) {
+    DCHECK(!server_responded_206_);
+    // We got a "not modified" response and already updated the corresponding
+    // cache entry above.
+    //
+    // By closing the cached entry now, we make sure that the 304 rather than
+    // the cached 200 response, is what will be returned to the user.
+    DoneWritingToEntry(true);
+  } else if (entry_ && !server_responded_206_) {
+    DCHECK_EQ(READ_WRITE, mode_);
+    if (!partial_.get() || partial_->IsLastRange()) {
+      cache_->ConvertWriterToReader(entry_);
+      mode_ = READ;
+    }
+    // We no longer need the network transaction, so destroy it.
+    final_upload_progress_ = network_trans_->GetUploadProgress();
+    network_trans_.reset();
+  }
+  next_state_ = STATE_OVERWRITE_CACHED_RESPONSE;
+  return OK;
+}
+
+int HttpCache::Transaction::DoOverwriteCachedResponse() {
+  if (mode_ & READ) {
+    next_state_ = STATE_PARTIAL_HEADERS_RECEIVED;
+    return OK;
+  }
+
+  // We change the value of Content-Length for partial content.
+  if (server_responded_206_ && partial_.get())
+    partial_->FixContentLength(new_response_->headers);
+
+  response_ = *new_response_;
+  target_state_ = STATE_TRUNCATE_CACHED_DATA;
+  next_state_ = truncated_ ? STATE_CACHE_WRITE_TRUNCATED_RESPONSE :
+                             STATE_CACHE_WRITE_RESPONSE;
+  return OK;
+}
+
+int HttpCache::Transaction::DoTruncateCachedDataComplete(int result) {
+  // If this response is a redirect, then we can stop writing now.  (We  don't
+  // need to cache the response body of a redirect.)
+  if (response_.headers->IsRedirect(NULL))
+    DoneWritingToEntry(true);
+  next_state_ = STATE_PARTIAL_HEADERS_RECEIVED;
+  return OK;
+}
+
+int HttpCache::Transaction::DoPartialHeadersReceived() {
+  new_response_ = NULL;
+  if (!partial_.get())
+    return OK;
+
+  if (reading_) {
+    if (network_trans_.get()) {
+      next_state_ = STATE_NETWORK_READ;
+    } else {
+      next_state_ = STATE_CACHE_READ_DATA;
+    }
+  } else if (mode_ != NONE) {
+    // We are about to return the headers for a byte-range request to the user,
+    // so let's fix them.
+    partial_->FixResponseHeaders(response_.headers);
+  }
+  return OK;
+}
+
 int HttpCache::Transaction::DoSendRequestComplete(int result) {
   if (!cache_)
     return ERR_UNEXPECTED;
 
   if (result == OK) {
-    const HttpResponseInfo* new_response = network_trans_->GetResponseInfo();
-    if (new_response->headers->response_code() == 401 ||
-        new_response->headers->response_code() == 407) {
-      auth_response_ = *new_response;
-    } else {
-      bool partial_content;
-      if (!ValidatePartialResponse(new_response->headers, &partial_content) &&
-          !auth_response_.headers) {
-        // Something went wrong with this request and we have to restart it.
-        // If we have an authentication response, we are exposed to weird things
-        // hapenning if the user cancels the authentication before we receive
-        // the new response.
-        response_ = HttpResponseInfo();
-        network_trans_.reset();
-        next_state_ = STATE_SEND_REQUEST;
-        return OK;
-      }
-      if (partial_content && mode_ == READ_WRITE && !truncated_ &&
-          response_.headers->response_code() == 200) {
-        // We have stored the full entry, but it changed and the server is
-        // sending a range. We have to delete the old entry.
-        DoneWritingToEntry(false);
-      }
+    next_state_ = STATE_SUCCESSFUL_SEND_REQUEST;
+    return OK;
+  }
 
-      // Are we expecting a response to a conditional query?
-      if (mode_ == READ_WRITE || mode_ == UPDATE) {
-        if (new_response->headers->response_code() == 304 || partial_content) {
-          // Update cached response based on headers in new_response.
-          // TODO(wtc): should we update cached certificate
-          // (response_.ssl_info), too?
-          response_.headers->Update(*new_response->headers);
-          response_.response_time = new_response->response_time;
-          response_.request_time = new_response->request_time;
-
-          if (response_.headers->HasHeaderValue("cache-control", "no-store")) {
-            cache_->DoomEntry(cache_key_);
-          } else {
-            // If we are already reading, we already updated the headers for
-            // this request; doing it again will change Content-Length.
-            if (!reading_)
-              WriteResponseInfoToEntry(false);
-          }
-
-          if (mode_ == UPDATE) {
-            DCHECK(!partial_content);
-            // We got a "not modified" response and already updated the
-            // corresponding cache entry above.
-            //
-            // By closing the cached entry now, we make sure that the
-            // 304 rather than the cached 200 response, is what will be
-            // returned to the user.
-            DoneWritingToEntry(true);
-          } else if (entry_ && !partial_content) {
-            DCHECK_EQ(READ_WRITE, mode_);
-            if (!partial_.get() || partial_->IsLastRange()) {
-              cache_->ConvertWriterToReader(entry_);
-              mode_ = READ;
-            }
-            // We no longer need the network transaction, so destroy it.
-            final_upload_progress_ = network_trans_->GetUploadProgress();
-            network_trans_.reset();
-          }
-        } else {
-          mode_ = WRITE;
-        }
-      }
-
-      if (!(mode_ & READ)) {
-        // We change the value of Content-Length for partial content.
-        if (partial_content && partial_.get())
-          partial_->FixContentLength(new_response->headers);
-
-        response_ = *new_response;
-        WriteResponseInfoToEntry(truncated_);
-
-        // Truncate response data.
-        TruncateResponseData();
-
-        // If this response is a redirect, then we can stop writing now.  (We
-        // don't need to cache the response body of a redirect.)
-        if (response_.headers->IsRedirect(NULL))
-          DoneWritingToEntry(true);
-      }
-      if (reading_ && partial_.get()) {
-        if (network_trans_.get()) {
-          next_state_ = STATE_NETWORK_READ;
-        } else {
-          next_state_ = STATE_CACHE_READ_DATA;
-        }
-        result = OK;
-      } else if (mode_ != NONE && partial_.get()) {
-        // We are about to return the headers for a byte-range request to the
-        // user, so let's fix them.
-        partial_->FixResponseHeaders(response_.headers);
-      }
-    }
-  } else if (IsCertificateError(result)) {
+  if (IsCertificateError(result)) {
     const HttpResponseInfo* response = network_trans_->GetResponseInfo();
     // If we get a certificate error, then there is a certificate in ssl_info,
     // so GetResponseInfo() should never returns NULL here.
