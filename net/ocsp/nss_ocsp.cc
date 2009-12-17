@@ -35,6 +35,34 @@ const int kRecvBufferSize = 4096;
 // CertVerifier's thread (i.e. worker pool, not on the I/O thread).
 // It supports blocking mode only.
 
+SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
+                            SEC_HTTP_SERVER_SESSION* pSession);
+SECStatus OCSPKeepAliveSession(SEC_HTTP_SERVER_SESSION session,
+                               PRPollDesc **pPollDesc);
+SECStatus OCSPFreeSession(SEC_HTTP_SERVER_SESSION session);
+
+SECStatus OCSPCreate(SEC_HTTP_SERVER_SESSION session,
+                     const char* http_protocol_variant,
+                     const char* path_and_query_string,
+                     const char* http_request_method,
+                     const PRIntervalTime timeout,
+                     SEC_HTTP_REQUEST_SESSION* pRequest);
+SECStatus OCSPSetPostData(SEC_HTTP_REQUEST_SESSION request,
+                          const char* http_data,
+                          const PRUint32 http_data_len,
+                          const char* http_content_type);
+SECStatus OCSPAddHeader(SEC_HTTP_REQUEST_SESSION request,
+                        const char* http_header_name,
+                        const char* http_header_value);
+SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
+                                PRPollDesc** pPollDesc,
+                                PRUint16* http_response_code,
+                                const char** http_response_content_type,
+                                const char** http_response_headers,
+                                const char** http_response_data,
+                                PRUint32* http_response_data_len);
+SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request);
+
 class OCSPInitSingleton : public MessageLoop::DestructionObserver {
  public:
   // Called on IO thread.
@@ -65,7 +93,27 @@ class OCSPInitSingleton : public MessageLoop::DestructionObserver {
  private:
   friend struct DefaultSingletonTraits<OCSPInitSingleton>;
 
-  OCSPInitSingleton();
+  OCSPInitSingleton()
+      : io_loop_(MessageLoopForIO::current()) {
+    DCHECK(io_loop_);
+    io_loop_->AddDestructionObserver(this);
+    client_fcn_.version = 1;
+    SEC_HttpClientFcnV1Struct *ft = &client_fcn_.fcnTable.ftable1;
+    ft->createSessionFcn = OCSPCreateSession;
+    ft->keepAliveSessionFcn = OCSPKeepAliveSession;
+    ft->freeSessionFcn = OCSPFreeSession;
+    ft->createFcn = OCSPCreate;
+    ft->setPostDataFcn = OCSPSetPostData;
+    ft->addHeaderFcn = OCSPAddHeader;
+    ft->trySendAndReceiveFcn = OCSPTrySendAndReceive;
+    ft->cancelFcn = NULL;
+    ft->freeFcn = OCSPFree;
+    SECStatus status = SEC_RegisterDefaultHttpClient(&client_fcn_);
+    if (status != SECSuccess) {
+      NOTREACHED() << "Error initializing OCSP: " << PR_GetError();
+    }
+  }
+
   virtual ~OCSPInitSingleton() {
     // IO thread was already deleted before the singleton is deleted
     // in AtExitManager.
@@ -548,7 +596,7 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
       http_response_data,
       http_response_data_len) ? SECSuccess : SECFailure;
 
-failed:
+ failed:
   if (http_response_data_len) {
     // We must always set an output value, even on failure.  The output value 0
     // means the failure was unrelated to the acceptable response data length.
@@ -564,27 +612,6 @@ SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
   req->Cancel();
   req->Release();
   return SECSuccess;
-}
-
-OCSPInitSingleton::OCSPInitSingleton()
-    : io_loop_(MessageLoopForIO::current()) {
-  DCHECK(io_loop_);
-  io_loop_->AddDestructionObserver(this);
-  client_fcn_.version = 1;
-  SEC_HttpClientFcnV1Struct *ft = &client_fcn_.fcnTable.ftable1;
-  ft->createSessionFcn = OCSPCreateSession;
-  ft->keepAliveSessionFcn = OCSPKeepAliveSession;
-  ft->freeSessionFcn = OCSPFreeSession;
-  ft->createFcn = OCSPCreate;
-  ft->setPostDataFcn = OCSPSetPostData;
-  ft->addHeaderFcn = OCSPAddHeader;
-  ft->trySendAndReceiveFcn = OCSPTrySendAndReceive;
-  ft->cancelFcn = NULL;
-  ft->freeFcn = OCSPFree;
-  SECStatus status = SEC_RegisterDefaultHttpClient(&client_fcn_);
-  if (status != SECSuccess) {
-    NOTREACHED() << "Error initializing OCSP: " << PR_GetError();
-  }
 }
 
 }  // anonymous namespace
