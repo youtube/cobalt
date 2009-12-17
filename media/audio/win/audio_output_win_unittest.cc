@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 
 #include <windows.h>
+#include <mmsystem.h>
 
 #include "base/basictypes.h"
 #include "base/base_paths.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
+#include "base/sync_socket.h"
 #include "media/audio/audio_output.h"
 #include "media/audio/simple_sources.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -561,6 +563,122 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
 
   oas->Start(&source);
   ::Sleep(500);
+  oas->Stop();
+  oas->Close();
+}
+
+namespace {
+// Simple source that uses a SyncSocket to retrieve the audio data
+// from a potentially remote thread.
+class SyncSocketSource : public AudioOutputStream::AudioSourceCallback {
+ public:
+  explicit SyncSocketSource(base::SyncSocket* socket)
+      : socket_(socket) {}
+
+  ~SyncSocketSource() {
+    delete socket_;
+  }
+
+  // AudioSourceCallback::OnMoreData implementation:
+  virtual size_t OnMoreData(AudioOutputStream* stream,
+                            void* dest, size_t max_size, int pending_bytes) {
+    socket_->Send(&pending_bytes, sizeof(pending_bytes));
+    size_t got = socket_->Receive(dest, max_size);
+    return got;
+  }
+  // AudioSourceCallback::OnClose implementation:
+  virtual void OnClose(AudioOutputStream* stream) {
+  }
+  // AudioSourceCallback::OnError implementation:
+  virtual void OnError(AudioOutputStream* stream, int code) {
+  }
+
+ private:
+  base::SyncSocket* socket_;
+};
+
+struct SyncThreadContext {
+  base::SyncSocket* socket;
+  int sample_rate;
+  double sine_freq;
+  size_t packet_size;
+};
+
+// This thread provides the data that the SyncSocketSource above needs
+// using the other end of a SyncSocket. The protocol is as follows:
+//
+// SyncSocketSource ---send 4 bytes ------------> SyncSocketThread
+//                  <--- audio packet ----------
+//
+DWORD __stdcall SyncSocketThread(void* context) {
+  SyncThreadContext& ctx = *(reinterpret_cast<SyncThreadContext*>(context));
+
+  const int kTwoSecBytes =
+      AudioManager::kAudioCDSampleRate * 2 * sizeof(uint16);
+  char* buffer = new char[kTwoSecBytes];
+  SineWaveAudioSource sine(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM,
+                           1, ctx.sine_freq, ctx.sample_rate);
+  sine.OnMoreData(NULL, buffer, kTwoSecBytes, 0);
+
+  int pending_bytes = -1;
+  int times = 0;
+  for (int ix = 0; ix < kTwoSecBytes; ix += ctx.packet_size) {
+    if (ctx.socket->Receive(&pending_bytes, sizeof(pending_bytes)) == 0)
+      break;
+    if ((times > 0) && (pending_bytes < 1000)) __debugbreak();
+    ctx.socket->Send(&buffer[ix], ctx.packet_size);
+    ++times;
+  }
+
+  delete buffer;
+  return 0;
+}
+
+}  // namespace
+
+// Test the basic operation of AudioOutputStream used with a SyncSocket.
+// The emphasis is to test low-latency with buffers less than 100ms. With
+// the waveout api it seems not possible to go below 50ms. In this test
+// you should hear a continous 200Hz tone.
+TEST(WinAudioTest, SyncSocketBasic) {
+  if (IsRunningHeadless())
+    return;
+
+  AudioManager* audio_man = AudioManager::GetAudioManager();
+  ASSERT_TRUE(NULL != audio_man);
+  if (!audio_man->HasAudioDevices())
+    return;
+
+  int sample_rate = AudioManager::kAudioCDSampleRate;
+  AudioOutputStream* oas =
+      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
+                                 sample_rate, 16);
+  ASSERT_TRUE(NULL != oas);
+
+  // compute buffer size for 20ms of audio, 882 samples (mono).
+  const size_t kSamples20ms = sample_rate / 50 * sizeof(uint16);
+  ASSERT_TRUE(oas->Open(kSamples20ms));
+
+  base::SyncSocket* sockets[2];
+  ASSERT_TRUE(base::SyncSocket::CreatePair(sockets));
+
+  SyncSocketSource source(sockets[0]);
+
+  SyncThreadContext thread_context;
+  thread_context.sample_rate = sample_rate;
+  thread_context.sine_freq = 200.0;
+  thread_context.packet_size = kSamples20ms;
+  thread_context.socket = sockets[1];
+
+  HANDLE thread = ::CreateThread(NULL, 0, SyncSocketThread,
+                                 &thread_context, 0, NULL);
+
+  oas->Start(&source);
+
+  ::WaitForSingleObject(thread, INFINITE);
+  ::CloseHandle(thread);
+  delete sockets[1];
+
   oas->Stop();
   oas->Close();
 }
