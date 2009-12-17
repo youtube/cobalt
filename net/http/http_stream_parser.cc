@@ -14,7 +14,8 @@
 namespace net {
 
 HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
-                                   GrowableIOBuffer* read_buffer)
+                                   GrowableIOBuffer* read_buffer,
+                                   LoadLog* load_log)
     : io_state_(STATE_NONE),
       request_(NULL),
       request_headers_(NULL),
@@ -29,6 +30,7 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
       user_read_buf_len_(0),
       user_callback_(NULL),
       connection_(connection),
+      load_log_(load_log),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpStreamParser::OnIOComplete)) {
   DCHECK_EQ(0, read_buffer->offset());
@@ -141,10 +143,14 @@ int HttpStreamParser::DoLoop(int result) {
         break;
       case STATE_READ_HEADERS:
         TRACE_EVENT_BEGIN("http.read_headers", request_, request_->url.spec());
+        LoadLog::BeginEvent(load_log_,
+                            LoadLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS);
         result = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
         result = DoReadHeadersComplete(result);
+        LoadLog::EndEvent(load_log_,
+                          LoadLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS);
         TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
         break;
       case STATE_BODY_PENDING:
