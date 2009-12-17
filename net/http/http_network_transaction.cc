@@ -636,7 +636,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     }
   }
   headers_valid_ = false;
-  http_stream_.reset(new HttpBasicStream(&connection_));
+  http_stream_.reset(new HttpBasicStream(&connection_, load_log_));
   return OK;
 }
 
@@ -855,7 +855,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
         next_state_ = STATE_SSL_CONNECT;
         // Reset for the real request and response headers.
         request_headers_.clear();
-        http_stream_.reset(new HttpBasicStream(&connection_));
+        http_stream_.reset(new HttpBasicStream(&connection_, load_log_));
         headers_valid_ = false;
         establishing_tunnel_ = false;
         return OK;
@@ -1340,7 +1340,7 @@ void HttpNetworkTransaction::ResetStateForRestart() {
   pending_auth_target_ = HttpAuth::AUTH_NONE;
   read_buf_ = NULL;
   read_buf_len_ = 0;
-  http_stream_.reset(new HttpBasicStream(&connection_));
+  http_stream_.reset(new HttpBasicStream(&connection_, load_log_));
   headers_valid_ = false;
   request_headers_.clear();
   response_ = HttpResponseInfo();
