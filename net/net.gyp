@@ -593,6 +593,7 @@
         'base/listen_socket_unittest.h',
         'base/mime_sniffer_unittest.cc',
         'base/mime_util_unittest.cc',
+        'base/net_test_constants.h',
         'base/net_util_unittest.cc',
         'base/registry_controlled_domain_unittest.cc',
         'base/run_all_unittests.cc',
