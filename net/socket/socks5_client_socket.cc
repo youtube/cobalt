@@ -37,8 +37,9 @@ SOCKS5ClientSocket::SOCKS5ClientSocket(ClientSocket* transport_socket,
       bytes_sent_(0),
       bytes_received_(0),
       read_header_size(kReadHeaderSize),
-      host_resolver_(host_resolver),
       host_request_info_(req_info) {
+  if (host_resolver)
+    host_resolver_.reset(new SingleRequestHostResolver(host_resolver));
 }
 
 SOCKS5ClientSocket::~SOCKS5ClientSocket() {
@@ -56,10 +57,17 @@ int SOCKS5ClientSocket::Connect(CompletionCallback* callback,
   if (completed_handshake_)
     return OK;
 
-  next_state_ = STATE_RESOLVE_HOST;
   load_log_ = load_log;
-
   LoadLog::BeginEvent(load_log, LoadLog::TYPE_SOCKS5_CONNECT);
+
+  // If a host resolver was given, try to resolve the address locally.
+  // Otherwise let the proxy server handle the resolving.
+  if (host_resolver_.get()) {
+    next_state_ = STATE_RESOLVE_HOST;
+  } else {
+    next_state_ = STATE_GREET_WRITE;
+    address_type_ = kEndPointFailedDomain;
+  }
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -191,7 +199,7 @@ int SOCKS5ClientSocket::DoResolveHost() {
   DCHECK_EQ(kEndPointUnresolved, address_type_);
 
   next_state_ = STATE_RESOLVE_HOST_COMPLETE;
-  return host_resolver_.Resolve(
+  return host_resolver_->Resolve(
       host_request_info_, &addresses_, &io_callback_, load_log_);
 }
 
