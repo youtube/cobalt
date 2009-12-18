@@ -4,6 +4,7 @@
 
 #include "net/socket/socks5_client_socket.h"
 
+#include <algorithm>
 #include <map>
 
 #include "net/base/address_list.h"
@@ -153,9 +154,8 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
   EXPECT_FALSE(user_sock_->IsConnected());
 }
 
-// Connect to a domain, making sure to defer the host resolving to the proxy
-// server.
-TEST_F(SOCKS5ClientSocketTest, ResolveHostsProxySide) {
+// Test that you can call Connect() again after having called Disconnect().
+TEST_F(SOCKS5ClientSocketTest, ConnectAndDisconnectTwice) {
   const std::string hostname = "my-host-name";
   const char kSOCKS5DomainRequest[] = {
       0x05,  // VER
@@ -164,26 +164,49 @@ TEST_F(SOCKS5ClientSocketTest, ResolveHostsProxySide) {
       0x03,  // ATYPE
   };
 
-  std::string request(kSOCKS5DomainRequest,
-                      arraysize(kSOCKS5DomainRequest));
+  std::string request(kSOCKS5DomainRequest, arraysize(kSOCKS5DomainRequest));
   request.push_back(hostname.size());
   request.append(hostname);
   request.append(reinterpret_cast<const char*>(&kNwPort), sizeof(kNwPort));
 
-  MockWrite data_writes[] = {
-      MockWrite(false, kSOCKS5GreetRequest, arraysize(kSOCKS5GreetRequest)),
-      MockWrite(false, request.data(), request.size())
-  };
-  MockRead data_reads[] = {
-      MockRead(false, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
-      MockRead(false, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse))
-  };
+  for (int i = 0; i < 2; ++i) {
+    MockWrite data_writes[] = {
+        MockWrite(false, kSOCKS5GreetRequest, arraysize(kSOCKS5GreetRequest)),
+        MockWrite(false, request.data(), request.size())
+    };
+    MockRead data_reads[] = {
+        MockRead(false, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
+        MockRead(false, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse))
+    };
 
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
+    user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
 
-  int rv = user_sock_->Connect(&callback_, NULL);
-  EXPECT_EQ(OK, rv);
-  EXPECT_TRUE(user_sock_->IsConnected());
+    int rv = user_sock_->Connect(&callback_, NULL);
+    EXPECT_EQ(OK, rv);
+    EXPECT_TRUE(user_sock_->IsConnected());
+
+    user_sock_->Disconnect();
+    EXPECT_FALSE(user_sock_->IsConnected());
+  }
+}
+
+// Test that we fail trying to connect to a hosname longer than 255 bytes.
+TEST_F(SOCKS5ClientSocketTest, LargeHostNameFails) {
+  // Create a string of length 256, where each character is 'x'.
+  std::string large_host_name;
+  std::fill_n(std::back_inserter(large_host_name), 256, 'x');
+
+  // Create a SOCKS socket, with mock transport socket.
+  MockWrite data_writes[] = {MockWrite()};
+  MockRead data_reads[] = {MockRead()};
+  user_sock_.reset(BuildMockSocket(data_reads, data_writes,
+                                   large_host_name, 80));
+
+  // Try to connect -- should fail (without having read/written anything to
+  // the transport socket first) because the hostname is too long.
+  TestCompletionCallback callback;
+  int rv = user_sock_->Connect(&callback, NULL);
+  EXPECT_EQ(ERR_INVALID_URL, rv);
 }
 
 TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {

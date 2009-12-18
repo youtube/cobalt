@@ -85,7 +85,7 @@ bool SOCKS5ClientSocket::IsConnectedAndIdle() const {
 // Read is called by the transport layer above to read. This can only be done
 // if the SOCKS handshake is complete.
 int SOCKS5ClientSocket::Read(IOBuffer* buf, int buf_len,
-                            CompletionCallback* callback) {
+                             CompletionCallback* callback) {
   DCHECK(completed_handshake_);
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(!user_callback_);
@@ -182,6 +182,11 @@ const char kSOCKS5GreetWriteData[] = { 0x05, 0x01, 0x00 };  // no authentication
 const char kSOCKS5GreetReadData[] = { 0x05, 0x00 };
 
 int SOCKS5ClientSocket::DoGreetWrite() {
+  // Since we only have 1 byte to send the hostname length in, if the
+  // URL has a hostname longer than 255 characters we can't send it.
+  if (0xFF < host_request_info_.hostname().size())
+    return ERR_INVALID_URL;
+
   if (buffer_.empty()) {
     buffer_ = std::string(kSOCKS5GreetWriteData,
                           arraysize(kSOCKS5GreetWriteData));
@@ -251,10 +256,7 @@ int SOCKS5ClientSocket::BuildHandshakeWriteBuffer(std::string* handshake)
 
   handshake->push_back(kEndPointDomain);  // The type of the address.
 
-  // We only have 1 byte to send the length in, so if the hostname is
-  // longer than this we can't send it!
-  if(256 <= host_request_info_.hostname().size())
-    return ERR_INVALID_URL;
+  DCHECK_GE(static_cast<size_t>(0xFF), host_request_info_.hostname().size());
 
   // First add the size of the hostname, followed by the hostname.
   handshake->push_back(static_cast<unsigned char>(
