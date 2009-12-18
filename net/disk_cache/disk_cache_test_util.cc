@@ -7,7 +7,6 @@
 #include "base/logging.h"
 #include "base/file_util.h"
 #include "base/path_service.h"
-#include "net/base/net_errors.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/file.h"
@@ -121,14 +120,6 @@ void CallbackTest::RunWithParams(const Tuple1<int>& params) {
 
   result_ = params.a;
   g_cache_tests_received++;
-}
-
-// -----------------------------------------------------------------------
-
-int SimpleCallbackTest::GetResult(int result) {
-  if (net::ERR_IO_PENDING != result)
-    return result;
-  return WaitForResult();
 }
 
 // -----------------------------------------------------------------------

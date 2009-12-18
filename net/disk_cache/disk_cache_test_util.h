@@ -12,7 +12,6 @@
 #include "base/task.h"
 #include "base/timer.h"
 #include "build/build_config.h"
-#include "net/base/test_completion_callback.h"
 
 class FilePath;
 
@@ -66,24 +65,6 @@ class CallbackTest : public CallbackRunner< Tuple1<int> >  {
   int result_;
   int reuse_;
   DISALLOW_COPY_AND_ASSIGN(CallbackTest);
-};
-
-// -----------------------------------------------------------------------
-
-// Simple callback to process IO completions from the cache. This object is not
-// intended to be used when multiple IO operations are in-flight at the same
-// time.
-class SimpleCallbackTest : public TestCompletionCallback  {
- public:
-  SimpleCallbackTest() {}
-  ~SimpleCallbackTest() {}
-
-  // Returns the final result of the IO operation. If |result| is
-  // net::ERR_IO_PENDING, it waits for the callback be invoked.
-  int GetResult(int result);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SimpleCallbackTest);
 };
 
 // -----------------------------------------------------------------------
