@@ -511,24 +511,10 @@
           'Common_x64': {
             'msvs_configuration_platform': 'x64',
             'msvs_settings': {
-              'VCLibrarianTool': {
-                'AdditionalLibraryDirectories!':
-                  ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
-                'AdditionalLibraryDirectories':
-                  ['<(DEPTH)/third_party/platformsdk_win7/files/Lib/x64'],
-              },
               'VCLinkerTool': {
                 'TargetMachine': '17',
-                'AdditionalLibraryDirectories!':
-                  ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
-                'AdditionalLibraryDirectories':
-                  ['<(DEPTH)/third_party/platformsdk_win7/files/Lib/x64'],
               },
             },
-            'defines': [
-              # Not sure if tcmalloc works on 64-bit Windows.
-              'NO_TCMALLOC',
-            ],
             'abstract': 1,
           },
           'Debug_x64': {
