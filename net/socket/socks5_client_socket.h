@@ -31,6 +31,21 @@ class SOCKS5ClientSocket : public ClientSocket {
   //
   // |req_info| contains the hostname and port to which the socket above will
   // communicate to via the SOCKS layer.
+  //
+  // SOCKS5 supports three modes of specifying connection endpoints:
+  //  (1) as an IPv4 address.
+  //  (2) as an IPv6 address.
+  //  (3) as a hostname string.
+  //
+  // To select mode (3), pass NULL for |host_resolver|.
+  //
+  // Otherwise if a non-NULL |host_resolver| is given, Connect() will first
+  // try to resolve the hostname using |host_resolver|, and pass that
+  // resolved address to the proxy server. If the resolve failed, Connect()
+  // will fall-back to mode (3) and simply send the unresolved hosname string
+  // to the SOCKS v5 proxy server.
+  //
+  // Passing NULL for |host_resolver| is the recommended default.
   SOCKS5ClientSocket(ClientSocket* transport_socket,
                      const HostResolver::RequestInfo& req_info,
                      HostResolver* host_resolver);
@@ -142,8 +157,10 @@ class SOCKS5ClientSocket : public ClientSocket {
 
   size_t read_header_size;
 
-  // Used to resolve the hostname to which the SOCKS proxy will connect.
-  SingleRequestHostResolver host_resolver_;
+  // If non-NULL, we will use this host resolver to resolve DNS client-side
+  // (and fall back to proxy-side resolving if it fails).
+  // Otherwise, we will do proxy-side DNS resolving.
+  scoped_ptr<SingleRequestHostResolver> host_resolver_;
   AddressList addresses_;
   HostResolver::RequestInfo host_request_info_;
 
