@@ -652,7 +652,7 @@ int HttpNetworkTransaction::DoSOCKSConnect() {
   req_info.set_referrer(request_->referrer);
 
   if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_SOCKS5)
-    s = new SOCKS5ClientSocket(s, req_info, NULL /*use proxy-side resolving*/);
+    s = new SOCKS5ClientSocket(s, req_info);
   else
     s = new SOCKSClientSocket(s, req_info, session_->host_resolver());
   connection_.set_socket(s);

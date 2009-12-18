@@ -25,21 +25,17 @@ COMPILE_ASSERT(sizeof(struct in_addr) == 4, incorrect_system_size_of_IPv4);
 COMPILE_ASSERT(sizeof(struct in6_addr) == 16, incorrect_system_size_of_IPv6);
 
 SOCKS5ClientSocket::SOCKS5ClientSocket(ClientSocket* transport_socket,
-    const HostResolver::RequestInfo& req_info,
-    HostResolver* host_resolver)
+    const HostResolver::RequestInfo& req_info)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &SOCKS5ClientSocket::OnIOComplete)),
       transport_(transport_socket),
       next_state_(STATE_NONE),
-      address_type_(kEndPointUnresolved),
       user_callback_(NULL),
       completed_handshake_(false),
       bytes_sent_(0),
       bytes_received_(0),
       read_header_size(kReadHeaderSize),
       host_request_info_(req_info) {
-  if (host_resolver)
-    host_resolver_.reset(new SingleRequestHostResolver(host_resolver));
 }
 
 SOCKS5ClientSocket::~SOCKS5ClientSocket() {
@@ -60,14 +56,8 @@ int SOCKS5ClientSocket::Connect(CompletionCallback* callback,
   load_log_ = load_log;
   LoadLog::BeginEvent(load_log, LoadLog::TYPE_SOCKS5_CONNECT);
 
-  // If a host resolver was given, try to resolve the address locally.
-  // Otherwise let the proxy server handle the resolving.
-  if (host_resolver_.get()) {
-    next_state_ = STATE_RESOLVE_HOST;
-  } else {
-    next_state_ = STATE_GREET_WRITE;
-    address_type_ = kEndPointFailedDomain;
-  }
+  next_state_ = STATE_GREET_WRITE;
+  buffer_.clear();
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -151,13 +141,6 @@ int SOCKS5ClientSocket::DoLoop(int last_io_result) {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
-      case STATE_RESOLVE_HOST:
-        DCHECK_EQ(OK, rv);
-        rv = DoResolveHost();
-        break;
-      case STATE_RESOLVE_HOST_COMPLETE:
-        rv = DoResolveHostComplete(rv);
-        break;
       case STATE_GREET_WRITE:
         DCHECK_EQ(OK, rv);
         rv = DoGreetWrite();
@@ -193,38 +176,6 @@ int SOCKS5ClientSocket::DoLoop(int last_io_result) {
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
   return rv;
-}
-
-int SOCKS5ClientSocket::DoResolveHost() {
-  DCHECK_EQ(kEndPointUnresolved, address_type_);
-
-  next_state_ = STATE_RESOLVE_HOST_COMPLETE;
-  return host_resolver_->Resolve(
-      host_request_info_, &addresses_, &io_callback_, load_log_);
-}
-
-int SOCKS5ClientSocket::DoResolveHostComplete(int result) {
-  DCHECK_EQ(kEndPointUnresolved, address_type_);
-
-  bool ok = (result == OK);
-  next_state_ = STATE_GREET_WRITE;
-  if (ok) {
-    DCHECK(addresses_.head());
-    struct sockaddr* host_info = addresses_.head()->ai_addr;
-    if (host_info->sa_family == AF_INET) {
-      address_type_ = kEndPointResolvedIPv4;
-    } else if (host_info->sa_family == AF_INET6) {
-      address_type_ = kEndPointResolvedIPv6;
-    }
-  } else {
-    address_type_ = kEndPointFailedDomain;
-  }
-
-  buffer_.clear();
-
-  // Even if DNS resolution fails, we send OK since the server
-  // resolves the domain.
-  return OK;
 }
 
 const char kSOCKS5GreetWriteData[] = { 0x05, 0x01, 0x00 };  // no authentication
@@ -292,38 +243,23 @@ int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
 
 int SOCKS5ClientSocket::BuildHandshakeWriteBuffer(std::string* handshake)
     const {
-  DCHECK_NE(kEndPointUnresolved, address_type_);
   DCHECK(handshake->empty());
 
   handshake->push_back(kSOCKS5Version);
   handshake->push_back(kTunnelCommand);  // Connect command
   handshake->push_back(kNullByte);  // Reserved null
 
-  handshake->push_back(address_type_);  // The type of connection
-  if (address_type_ == kEndPointFailedDomain) {
-    if(256 <= host_request_info_.hostname().size())
-      return ERR_ADDRESS_INVALID;
+  handshake->push_back(kEndPointDomain);  // The type of the address.
 
-    // First add the size of the hostname, followed by the hostname.
-    handshake->push_back(static_cast<unsigned char>(
-        host_request_info_.hostname().size()));
-    handshake->append(host_request_info_.hostname());
+  // We only have 1 byte to send the length in, so if the hostname is
+  // longer than this we can't send it!
+  if(256 <= host_request_info_.hostname().size())
+    return ERR_INVALID_URL;
 
-  } else if (address_type_ == kEndPointResolvedIPv4) {
-    struct sockaddr_in* ipv4_host =
-        reinterpret_cast<struct sockaddr_in*>(addresses_.head()->ai_addr);
-    handshake->append(reinterpret_cast<char*>(&ipv4_host->sin_addr),
-                      sizeof(ipv4_host->sin_addr));
-
-  } else if (address_type_ == kEndPointResolvedIPv6) {
-    struct sockaddr_in6* ipv6_host =
-        reinterpret_cast<struct sockaddr_in6*>(addresses_.head()->ai_addr);
-    handshake->append(reinterpret_cast<char*>(&ipv6_host->sin6_addr),
-                      sizeof(ipv6_host->sin6_addr));
-
-  } else {
-    NOTREACHED();
-  }
+  // First add the size of the hostname, followed by the hostname.
+  handshake->push_back(static_cast<unsigned char>(
+      host_request_info_.hostname().size()));
+  handshake->append(host_request_info_.hostname());
 
   uint16 nw_port = htons(host_request_info_.port());
   handshake->append(reinterpret_cast<char*>(&nw_port), sizeof(nw_port));
@@ -350,8 +286,6 @@ int SOCKS5ClientSocket::DoHandshakeWrite() {
 }
 
 int SOCKS5ClientSocket::DoHandshakeWriteComplete(int result) {
-  DCHECK_NE(kEndPointUnresolved, address_type_);
-
   if (result < 0)
     return result;
 
@@ -372,8 +306,6 @@ int SOCKS5ClientSocket::DoHandshakeWriteComplete(int result) {
 }
 
 int SOCKS5ClientSocket::DoHandshakeRead() {
-  DCHECK_NE(kEndPointUnresolved, address_type_);
-
   next_state_ = STATE_HANDSHAKE_READ_COMPLETE;
 
   if (buffer_.empty()) {
@@ -387,8 +319,6 @@ int SOCKS5ClientSocket::DoHandshakeRead() {
 }
 
 int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
-  DCHECK_NE(kEndPointUnresolved, address_type_);
-
   if (result < 0)
     return result;
 
@@ -415,7 +345,7 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
     // read, we substract 1 byte from the additional request size.
     SocksEndPointAddressType address_type =
         static_cast<SocksEndPointAddressType>(buffer_[3]);
-    if (address_type == kEndPointFailedDomain)
+    if (address_type == kEndPointDomain)
       read_header_size += static_cast<uint8>(buffer_[4]);
     else if (address_type == kEndPointResolvedIPv4)
       read_header_size += sizeof(struct in_addr) - 1;
