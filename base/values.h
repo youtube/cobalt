@@ -357,6 +357,7 @@ class ListValue : public Value {
   bool GetInteger(size_t index, int* out_value) const;
   bool GetReal(size_t index, double* out_value) const;
   bool GetString(size_t index, std::string* out_value) const;
+  bool GetString(size_t index, std::wstring* out_value) const;
   bool GetBinary(size_t index, BinaryValue** out_value) const;
   bool GetDictionary(size_t index, DictionaryValue** out_value) const;
   bool GetList(size_t index, ListValue** out_value) const;
