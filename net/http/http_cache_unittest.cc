@@ -2287,6 +2287,62 @@ TEST(HttpCache, RangeGET_OK) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
 
+// Tests that we can cache range requests and fetch random blocks from the
+// cache and the network, with synchronous responses.
+TEST(HttpCache, RangeGET_SyncOK) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.test_mode = TEST_MODE_SYNC_ALL;
+  AddMockTransaction(&transaction);
+
+  // Write to the cache (40-49).
+  std::string headers;
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Read from the cache (40-49).
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Make sure we are done with the previous transaction.
+  MessageLoop::current()->RunAllPending();
+
+  // Write to the cache (30-39).
+  transaction.request_headers = "Range: bytes = 30-39\r\n" EXTRA_HEADER;
+  transaction.data = "rg: 30-39 ";
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 30, 39));
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Make sure we are done with the previous transaction.
+  MessageLoop::current()->RunAllPending();
+
+  // Write and read from the cache (20-59).
+  transaction.request_headers = "Range: bytes = 20-59\r\n" EXTRA_HEADER;
+  transaction.data = "rg: 20-29 rg: 30-39 rg: 40-49 rg: 50-59 ";
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  EXPECT_TRUE(Verify206Response(headers, 20, 59));
+  EXPECT_EQ(5, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&transaction);
+}
+
 // Tests that we deal with 304s for range requests.
 TEST(HttpCache, RangeGET_304) {
   MockHttpCache cache;
@@ -2837,8 +2893,7 @@ TEST(HttpCache, RangeGET_Cancel2) {
   // read will return while waiting for the network).
   scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(5);
   rv = c->trans->Read(buf, buf->size(), &c->callback);
-  EXPECT_EQ(net::ERR_IO_PENDING, rv);
-  rv = c->callback.WaitForResult();
+  EXPECT_EQ(5, c->callback.GetResult(rv));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
@@ -2883,8 +2938,7 @@ TEST(HttpCache, RangeGET_Cancel3) {
   // read will return while waiting for the network).
   scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(5);
   rv = c->trans->Read(buf, buf->size(), &c->callback);
-  EXPECT_EQ(net::ERR_IO_PENDING, rv);
-  rv = c->callback.WaitForResult();
+  EXPECT_EQ(5, c->callback.GetResult(rv));
   rv = c->trans->Read(buf, buf->size(), &c->callback);
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
@@ -3353,14 +3407,14 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
   Context* c = new Context();
   EXPECT_EQ(net::OK, cache.http_cache()->CreateTransaction(&c->trans));
 
-  EXPECT_EQ(net::ERR_IO_PENDING, c->trans->Start(&request, &c->callback, NULL));
-  EXPECT_EQ(net::OK, c->callback.WaitForResult());
+  int rv = c->trans->Start(&request, &c->callback, NULL);
+  EXPECT_EQ(net::OK, c->callback.GetResult(rv));
 
   // Read 20 bytes from the cache, and 10 from the net.
-  EXPECT_EQ(net::ERR_IO_PENDING, c->trans->Read(buf, len, &c->callback));
-  EXPECT_EQ(len, c->callback.WaitForResult());
-  EXPECT_EQ(net::ERR_IO_PENDING, c->trans->Read(buf, 10, &c->callback));
-  EXPECT_EQ(10, c->callback.WaitForResult());
+  rv = c->trans->Read(buf, len, &c->callback);
+  EXPECT_EQ(len, c->callback.GetResult(rv));
+  rv = c->trans->Read(buf, 10, &c->callback);
+  EXPECT_EQ(10, c->callback.GetResult(rv));
 
   // At this point, we are already reading so canceling the request should leave
   // a truncated one.
