@@ -9,6 +9,7 @@
 #include "base/string_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/test_completion_callback.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
@@ -208,7 +209,7 @@ TEST_F(DiskCacheBackendTest, ExternalFiles) {
 }
 
 TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
-  SimpleCallbackTest callback;
+  TestCompletionCallback callback;
 
   {
     FilePath path = GetCacheFilePath();

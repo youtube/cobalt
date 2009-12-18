@@ -34,6 +34,9 @@ enum {
   TEST_MODE_SYNC_CACHE_START = 1 << 2,
   TEST_MODE_SYNC_CACHE_READ  = 1 << 3,
   TEST_MODE_SYNC_CACHE_WRITE  = 1 << 4,
+  TEST_MODE_SYNC_ALL = TEST_MODE_SYNC_NET_START | TEST_MODE_SYNC_NET_READ |
+                       TEST_MODE_SYNC_CACHE_START | TEST_MODE_SYNC_CACHE_READ |
+                       TEST_MODE_SYNC_CACHE_WRITE
 };
 
 typedef void (*MockTransactionHandler)(const net::HttpRequestInfo* request,

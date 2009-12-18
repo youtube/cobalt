@@ -7,6 +7,7 @@
 
 #include "base/message_loop.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_errors.h"
 
 //-----------------------------------------------------------------------------
 // completion callback helper
@@ -36,6 +37,12 @@ class TestCompletionCallback : public CallbackRunner< Tuple1<int> > {
     }
     have_result_ = false;  // auto-reset for next callback
     return result_;
+  }
+
+  int GetResult(int result) {
+    if (net::ERR_IO_PENDING != result)
+      return result;
+    return WaitForResult();
   }
 
   bool have_result() const { return have_result_; }
