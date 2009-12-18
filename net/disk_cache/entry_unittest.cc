@@ -8,6 +8,7 @@
 #include "base/string_util.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/test_completion_callback.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
 #include "net/disk_cache/entry_impl.h"
@@ -880,8 +881,8 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyEnumerationWithSparseEntries) {
 void VerifySparseIO(disk_cache::Entry* entry, int64 offset,
                     net::IOBuffer* buf_1, int size, bool async,
                     net::IOBuffer* buf_2) {
-  SimpleCallbackTest callback;
-  SimpleCallbackTest* cb = async ? &callback : NULL;
+  TestCompletionCallback callback;
+  TestCompletionCallback* cb = async ? &callback : NULL;
 
   memset(buf_2->data(), 0, size);
   int ret = entry->ReadSparseData(offset, buf_2, size, cb);
@@ -903,8 +904,8 @@ void VerifySparseIO(disk_cache::Entry* entry, int64 offset,
 // same as the content of the provided |buffer|.
 void VerifyContentSparseIO(disk_cache::Entry* entry, int64 offset, char* buffer,
                            int size, bool async) {
-  SimpleCallbackTest callback;
-  SimpleCallbackTest* cb = async ? &callback : NULL;
+  TestCompletionCallback callback;
+  TestCompletionCallback* cb = async ? &callback : NULL;
 
   scoped_refptr<net::IOBuffer> buf_1 = new net::IOBuffer(size);
   memset(buf_1->data(), 0, size);
@@ -1354,7 +1355,7 @@ TEST_F(DiskCacheEntryTest, CancelSparseIO) {
   scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
   CacheTestFillBuffer(buf->data(), kSize, false);
 
-  SimpleCallbackTest cb1, cb2, cb3, cb4;
+  TestCompletionCallback cb1, cb2, cb3, cb4;
   int64 offset = 0;
   int tries = 0;
   const int maxtries = 100;   // Avoid hang on infinitely fast disks

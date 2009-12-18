@@ -1604,7 +1604,7 @@ int HttpCache::Transaction::DoOverwriteCachedResponse() {
 }
 
 int HttpCache::Transaction::DoTruncateCachedDataComplete(int result) {
-  // If this response is a redirect, then we can stop writing now.  (We  don't
+  // If this response is a redirect, then we can stop writing now.  (We don't
   // need to cache the response body of a redirect.)
   if (response_.headers->IsRedirect(NULL))
     DoneWritingToEntry(true);
