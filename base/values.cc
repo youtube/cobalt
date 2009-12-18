@@ -675,6 +675,14 @@ bool ListValue::GetString(size_t index, std::string* out_value) const {
   return value->GetAsString(out_value);
 }
 
+bool ListValue::GetString(size_t index, std::wstring* out_value) const {
+  Value* value;
+  if (!Get(index, &value))
+    return false;
+
+  return value->GetAsString(out_value);
+}
+
 bool ListValue::GetBinary(size_t index, BinaryValue** out_value) const {
   Value* value;
   bool result = Get(index, &value);
