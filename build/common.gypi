@@ -396,18 +396,25 @@
     ],  # conditions for 'target_defaults'
     'default_configuration': 'Debug',
     'configurations': {
-       # VCLinkerTool LinkIncremental values below:
-       #   0 == default
-       #   1 == /INCREMENTAL:NO
-       #   2 == /INCREMENTAL
-       # Debug links incremental, Release does not.
-      'Common': {
+      # VCLinkerTool LinkIncremental values below:
+      #   0 == default
+      #   1 == /INCREMENTAL:NO
+      #   2 == /INCREMENTAL
+      # Debug links incremental, Release does not.
+      #
+      # Abstract base configurations to cover common
+      # attributes.
+      #
+      'Common_Base': {
         'abstract': 1,
         'msvs_configuration_attributes': {
           'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
           'CharacterSet': '1',
         },
+      },
+      'x86_Base': {
+        'abstract': 1,
         'msvs_settings': {
           'VCLinkerTool': {
             'TargetMachine': '1',
@@ -415,8 +422,36 @@
         },
         'msvs_configuration_platform': 'Win32',
       },
-      'Debug': {
-        'inherit_from': ['Common'],
+      'x64_Base': {
+        'abstract': 1,
+        'msvs_configuration_platform': 'x64',
+        'msvs_settings': {
+          'VCLinkerTool': {
+            'TargetMachine': '17', # x86 - 64
+          },
+        },
+        'msvs_settings': {
+          'VCLibrarianTool': {
+            'AdditionalLibraryDirectories!':
+              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
+            'AdditionalLibraryDirectories':
+              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib/x64'],
+          },
+          'VCLinkerTool': {
+            'TargetMachine': '17',
+            'AdditionalLibraryDirectories!':
+              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
+            'AdditionalLibraryDirectories':
+              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib/x64'],
+          },
+        },
+        'defines': [
+          # Not sure if tcmalloc works on 64-bit Windows.
+          'NO_TCMALLOC',
+        ],
+      },
+      'Debug_Base': {
+        'abstract': 1,
         'xcode_settings': {
           'COPY_PHASE_STRIP': 'NO',
           'GCC_OPTIMIZATION_LEVEL': '<(mac_debug_optimization)',
@@ -444,8 +479,8 @@
           }],
         ],
       },
-      'Release': {
-        'inherit_from': ['Common'],
+      'Release_Base': {
+        'abstract': 1,
         'defines': [
           'NDEBUG',
         ],
@@ -477,9 +512,6 @@
             #  class 'std::bad_cast'
             'msvs_disabled_warnings': [4275],
           }],
-          ['msvs_use_common_release', {
-            'msvs_props': ['release.vsprops'],
-          }],
           ['OS=="linux"', {
             'cflags': [
              '<@(release_extra_cflags)',
@@ -487,44 +519,52 @@
           }],
         ],
       },
+      'Purify_Base': {
+        'abstract': 1,
+        'defines': [
+          'PURIFY',
+          'NO_TCMALLOC',
+        ],
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'Optimization': '0',
+            'RuntimeLibrary': '0',
+            'BufferSecurityCheck': 'false',
+          },
+          'VCLinkerTool': {
+            'EnableCOMDATFolding': '1',
+            'LinkIncremental': '1',
+          },
+        },
+      },
+      #
+      # Concrete configurations
+      #
+      'Debug': {
+        'inherit_from': ['Common_Base', 'x86_Base', 'Debug_Base'],
+      },
+      'Release': {
+        'inherit_from': ['Common_Base', 'x86_Base', 'Release_Base'],
+        'conditions': [
+          ['msvs_use_common_release', {
+            'msvs_props': ['release.vsprops'],
+          }],
+        ]
+      },
       'conditions': [
         [ 'OS=="win"', {
           # TODO(bradnelson): add a gyp mechanism to make this more graceful.
           'Purify': {
-            'inherit_from': ['Release'],
-            'defines': [
-              'PURIFY',
-              'NO_TCMALLOC',
-            ],
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'Optimization': '0',
-                'RuntimeLibrary': '0',
-                'BufferSecurityCheck': 'false',
-              },
-              'VCLinkerTool': {
-                'EnableCOMDATFolding': '1',
-                'LinkIncremental': '1',
-              },
-            },
-          },
-          'Common_x64': {
-            'msvs_configuration_platform': 'x64',
-            'msvs_settings': {
-              'VCLinkerTool': {
-                'TargetMachine': '17',
-              },
-            },
-            'abstract': 1,
+            'inherit_from': ['Common_Base', 'x86_Base', 'Release_Base', 'Purify'],
           },
           'Debug_x64': {
-            'inherit_from': ['Debug', 'Common_x64'],
+            'inherit_from': ['Common_Base', 'x64_Base', 'Debug_Base'],
           },
           'Release_x64': {
-            'inherit_from': ['Release', 'Common_x64'],
+            'inherit_from': ['Common_Base', 'x64_Base', 'Release_Base'],
           },
           'Purify_x64': {
-            'inherit_from': ['Purify', 'Common_x64'],
+            'inherit_from': ['Common_Base', 'x64_Base', 'Release_Base', 'Purify'],
           },
         }],
       ],
@@ -628,7 +668,7 @@
           'OFFICIAL_BUILD',
         ],
         'configurations': {
-          'Debug': {
+          'Debug_Base': {
             'variables': {
               'debug_optimize%': '0',
             },
@@ -861,7 +901,7 @@
                 # strip_from_xcode will not be used, set Xcode to do the
                 # stripping as well.
                 'configurations': {
-                  'Release': {
+                  'Release_Base': {
                     'xcode_settings': {
                       'DEBUG_INFORMATION_FORMAT': 'dwarf-with-dsym',
                       'DEPLOYMENT_POSTPROCESSING': 'YES',
@@ -1051,7 +1091,7 @@
           },
         },
         'configurations': {
-          'Common': {
+          'x86_Base': {
             'msvs_settings': {
               'VCLinkerTool': {
                 'AdditionalOptions':
@@ -1059,7 +1099,7 @@
               },
             },
           },
-          'Common_x64': {
+          'x64_Base': {
             'msvs_settings': {
               'VCLinkerTool': {
                 'AdditionalOptions':
