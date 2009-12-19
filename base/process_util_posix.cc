@@ -360,36 +360,20 @@ bool LaunchApp(const CommandLine& cl,
   return LaunchApp(cl.argv(), no_files, wait, process_handle);
 }
 
-#if !defined(OS_MACOSX)
-ProcessMetrics::ProcessMetrics(ProcessHandle process)
-#else
-ProcessMetrics::ProcessMetrics(ProcessHandle process,
-                               ProcessMetrics::PortProvider* port_provider)
-#endif
-    : process_(process),
-      last_time_(0),
-      last_system_time_(0)
+ProcessMetrics::ProcessMetrics(ProcessHandle process) : process_(process),
+                                                        last_time_(0),
+                                                        last_system_time_(0)
 #if defined(OS_LINUX)
-      , last_cpu_(0)
-#elif defined (OS_MACOSX)
-      , port_provider_(port_provider)
+                                                      , last_cpu_(0)
 #endif
 {
   processor_count_ = base::SysInfo::NumberOfProcessors();
 }
 
 // static
-#if !defined(OS_MACOSX)
 ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
   return new ProcessMetrics(process);
 }
-#else
-ProcessMetrics* ProcessMetrics::CreateProcessMetrics(
-    ProcessHandle process,
-    ProcessMetrics::PortProvider* port_provider) {
-  return new ProcessMetrics(process, port_provider);
-}
-#endif
 
 ProcessMetrics::~ProcessMetrics() { }
 
@@ -509,6 +493,49 @@ bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds) {
 int64 TimeValToMicroseconds(const struct timeval& tv) {
   return tv.tv_sec * kMicrosecondsPerSecond + tv.tv_usec;
 }
+
+#if defined(OS_MACOSX)
+// TODO(port): this function only returns the *current* CPU's usage;
+// we want to return this->process_'s CPU usage.
+int ProcessMetrics::GetCPUUsage() {
+  struct timeval now;
+  struct rusage usage;
+
+  int retval = gettimeofday(&now, NULL);
+  if (retval)
+    return 0;
+  retval = getrusage(RUSAGE_SELF, &usage);
+  if (retval)
+    return 0;
+
+  int64 system_time = (TimeValToMicroseconds(usage.ru_stime) +
+                       TimeValToMicroseconds(usage.ru_utime)) /
+                        processor_count_;
+  int64 time = TimeValToMicroseconds(now);
+
+  if ((last_system_time_ == 0) || (last_time_ == 0)) {
+    // First call, just set the last values.
+    last_system_time_ = system_time;
+    last_time_ = time;
+    return 0;
+  }
+
+  int64 system_time_delta = system_time - last_system_time_;
+  int64 time_delta = time - last_time_;
+  DCHECK(time_delta != 0);
+  if (time_delta == 0)
+    return 0;
+
+  // We add time_delta / 2 so the result is rounded.
+  int cpu = static_cast<int>((system_time_delta * 100 + time_delta / 2) /
+                             time_delta);
+
+  last_system_time_ = system_time;
+  last_time_ = time;
+
+  return cpu;
+}
+#endif
 
 // Executes the application specified by |cl| and wait for it to exit. Stores
 // the output (stdout) in |output|. If |do_search_path| is set, it searches the
