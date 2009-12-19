@@ -182,23 +182,46 @@ bool NamedProcessIterator::IncludeEntry() {
 // ------------------------------------------------------------------------
 // NOTE: about ProcessMetrics
 //
-// Mac doesn't have /proc, and getting a mach task from a pid for another
-// process requires permissions, so there doesn't really seem to be a way
-// to do these (and spinning up ps to fetch each stats seems dangerous to
-// put in a base api for anyone to call.
+// Getting a mach task from a pid for another process requires permissions in
+// general, so there doesn't really seem to be a way to do these (and spinning
+// up ps to fetch each stats seems dangerous to put in a base api for anyone to
+// call). Child processes ipc their port, so return something if available,
+// otherwise return 0.
 //
 bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
   return false;
 }
-size_t ProcessMetrics::GetPagefileUsage() const {
-  return 0;
+
+static bool GetTaskInfo(mach_port_t task, task_basic_info_64* task_info_data) {
+  if (!task)
+    return false;
+  mach_msg_type_number_t count = TASK_BASIC_INFO_64_COUNT;
+  kern_return_t kr = task_info(task,
+                               TASK_BASIC_INFO_64,
+                               reinterpret_cast<task_info_t>(task_info_data),
+                               &count);
+  // Most likely cause for failure: |task| is a zombie.
+  return kr == KERN_SUCCESS;
 }
+
+size_t ProcessMetrics::GetPagefileUsage() const {
+  task_basic_info_64 task_info_data;
+  if (!GetTaskInfo(TaskForPid(process_), &task_info_data))
+    return 0;
+  return task_info_data.virtual_size;
+}
+
 size_t ProcessMetrics::GetPeakPagefileUsage() const {
   return 0;
 }
+
 size_t ProcessMetrics::GetWorkingSetSize() const {
-  return 0;
+  task_basic_info_64 task_info_data;
+  if (!GetTaskInfo(TaskForPid(process_), &task_info_data))
+    return 0;
+  return task_info_data.resident_size;
 }
+
 size_t ProcessMetrics::GetPeakWorkingSetSize() const {
   return 0;
 }
@@ -211,7 +234,95 @@ void ProcessMetrics::GetCommittedKBytes(CommittedKBytes* usage) const {
 }
 
 bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
-  return false;
+  size_t priv = GetWorkingSetSize();
+  if (!priv)
+    return false;
+  ws_usage->priv = priv / 1024;
+  ws_usage->shareable = 0;
+  ws_usage->shared = 0;
+  return true;
+}
+
+#define TIME_VALUE_TO_TIMEVAL(a, r) do {  \
+  (r)->tv_sec = (a)->seconds;             \
+  (r)->tv_usec = (a)->microseconds;       \
+} while (0)
+
+int ProcessMetrics::GetCPUUsage() {
+  mach_port_t task = TaskForPid(process_);
+  if (!task)
+    return 0;
+
+  kern_return_t kr;
+
+  // TODO(thakis): Libtop doesn't use thread info. How can they get away
+  // without it?
+  task_thread_times_info thread_info_data;
+  mach_msg_type_number_t thread_info_count = TASK_THREAD_TIMES_INFO_COUNT;
+  kr = task_info(task,
+                 TASK_THREAD_TIMES_INFO,
+                 reinterpret_cast<task_info_t>(&thread_info_data),
+                 &thread_info_count);
+  if (kr != KERN_SUCCESS) {
+    // Most likely cause: |task| is a zombie.
+    return 0;
+  }
+
+  task_basic_info_64 task_info_data;
+  if (!GetTaskInfo(task, &task_info_data))
+    return 0;
+
+  /* Set total_time. */
+  // thread info contains live time...
+  struct timeval user_timeval, system_timeval, task_timeval;
+  TIME_VALUE_TO_TIMEVAL(&thread_info_data.user_time, &user_timeval);
+  TIME_VALUE_TO_TIMEVAL(&thread_info_data.system_time, &system_timeval);
+  timeradd(&user_timeval, &system_timeval, &task_timeval);
+
+  // ... task info contains terminated time.
+  TIME_VALUE_TO_TIMEVAL(&task_info_data.user_time, &user_timeval);
+  TIME_VALUE_TO_TIMEVAL(&task_info_data.system_time, &system_timeval);
+  timeradd(&user_timeval, &task_timeval, &task_timeval);
+  timeradd(&system_timeval, &task_timeval, &task_timeval);
+
+  struct timeval now;
+  int retval = gettimeofday(&now, NULL);
+  if (retval)
+    return 0;
+
+  int64 time = TimeValToMicroseconds(now);
+  int64 task_time = TimeValToMicroseconds(task_timeval);
+
+  if ((last_system_time_ == 0) || (last_time_ == 0)) {
+    // First call, just set the last values.
+    last_system_time_ = task_time;
+    last_time_ = time;
+    return 0;
+  }
+
+  int64 system_time_delta = task_time - last_system_time_;
+  int64 time_delta = time - last_time_;
+  DCHECK(time_delta != 0);
+  if (time_delta == 0)
+    return 0;
+
+  // We add time_delta / 2 so the result is rounded.
+  int cpu = static_cast<int>((system_time_delta * 100 + time_delta / 2) /
+                             (time_delta));
+
+  last_system_time_ = task_time;
+  last_time_ = time;
+
+  return cpu;
+}
+
+mach_port_t ProcessMetrics::TaskForPid(ProcessHandle process) const {
+  mach_port_t task = 0;
+  if (port_provider_)
+    task = port_provider_->TaskForPid(process_);
+  if (!task && process_ == getpid())
+    task = mach_task_self();
+  return task;
 }
 
 // ------------------------------------------------------------------------
