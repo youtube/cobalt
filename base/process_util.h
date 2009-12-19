@@ -317,6 +317,11 @@ class NamedProcessIterator {
 // priv:           Pages mapped only by this process
 // shared:         PSS or 0 if the kernel doesn't support this
 // shareable:      0
+//
+// On OS X: TODO(thakis): Revise.
+// priv:           Memory.
+// shared:         0
+// shareable:      0
 struct WorkingSetKBytes {
   WorkingSetKBytes() : priv(0), shareable(0), shared(0) {}
   size_t priv;
@@ -359,7 +364,23 @@ class ProcessMetrics {
  public:
   // Creates a ProcessMetrics for the specified process.
   // The caller owns the returned object.
+#if !defined(OS_MACOSX)
   static ProcessMetrics* CreateProcessMetrics(ProcessHandle process);
+#else
+  class PortProvider {
+   public:
+    // Should return the mach task for |process| if possible, or else 0. Only
+    // processes that this returns tasks for will have metrics on OS X (except
+    // for the current process, which always gets metrics).
+    virtual mach_port_t TaskForPid(ProcessHandle process) const = 0;
+  };
+
+  // The port provider needs to outlive the ProcessMetrics object returned by
+  // this function. If NULL is passed as provider, the returned object
+  // only returns valid metrics if |process| is the current process.
+  static ProcessMetrics* CreateProcessMetrics(ProcessHandle process,
+                                              PortProvider* port_provider);
+#endif
 
   ~ProcessMetrics();
 
@@ -407,7 +428,11 @@ class ProcessMetrics {
   bool GetIOCounters(IoCounters* io_counters) const;
 
  private:
+#if !defined(OS_MACOSX)
   explicit ProcessMetrics(ProcessHandle process);
+#else
+  ProcessMetrics(ProcessHandle process, PortProvider* port_provider);
+#endif
 
   ProcessHandle process_;
 
@@ -421,6 +446,13 @@ class ProcessMetrics {
 #if defined(OS_LINUX)
   // Jiffie count at the last_time_ we updated.
   int last_cpu_;
+#endif
+
+#if defined(OS_MACOSX)
+  // Queries the port provider if it's set.
+  mach_port_t TaskForPid(ProcessHandle process) const;
+
+  PortProvider* port_provider_;
 #endif
 
   DISALLOW_EVIL_CONSTRUCTORS(ProcessMetrics);
