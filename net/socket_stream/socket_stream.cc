@@ -29,7 +29,6 @@
 #include "net/socket_stream/socket_stream_throttle.h"
 #include "net/url_request/url_request.h"
 
-static const int kMaxNumLoadLogEntries = 50;
 static const int kMaxPendingSendAllowed = 32768;  // 32 kilobytes.
 static const int kReadBufferSize = 4096;
 
@@ -40,8 +39,7 @@ void SocketStream::ResponseHeaders::Realloc(size_t new_size) {
 }
 
 SocketStream::SocketStream(const GURL& url, Delegate* delegate)
-    : load_log_(new net::LoadLog(kMaxNumLoadLogEntries)),
-      url_(url),
+    : url_(url),
       delegate_(delegate),
       max_pending_send_allowed_(kMaxPendingSendAllowed),
       next_state_(STATE_NONE),
@@ -99,8 +97,14 @@ void SocketStream::set_context(URLRequestContext* context) {
   if (prev_context != context) {
     if (prev_context)
       prev_context->socket_stream_tracker()->Remove(this);
-    if (context)
+    if (context) {
+      if (!load_log_) {
+        // Create the LoadLog -- we waited until now to create it so we know
+        // what constraints the URLRequestContext is enforcing on log levels.
+        load_log_ = context->socket_stream_tracker()->CreateLoadLog();
+      }
       context->socket_stream_tracker()->Add(this);
+    }
   }
 
   if (context_)
