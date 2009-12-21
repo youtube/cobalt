@@ -22,13 +22,14 @@
 #include "net/http/http_response_info.h"
 #include "net/http/http_transaction.h"
 #include "net/proxy/proxy_service.h"
-#include "net/socket/client_socket_handle.h"
 #include "net/socket/client_socket_pool.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
 class ClientSocketFactory;
+class ClientSocketHandle;
+class FlipStream;
 class HttpNetworkSession;
 class HttpStream;
 
@@ -37,6 +38,9 @@ class HttpNetworkTransaction : public HttpTransaction {
   explicit HttpNetworkTransaction(HttpNetworkSession* session);
 
   virtual ~HttpNetworkTransaction();
+
+  // Sets the next protocol negotiation value used during the SSL handshake.
+  static void SetNextProtos(const std::string& next_protos);
 
   // HttpTransaction methods:
   virtual int Start(const HttpRequestInfo* request_info,
@@ -78,6 +82,12 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_READ_BODY_COMPLETE,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE,
+    STATE_SPDY_SEND_REQUEST,
+    STATE_SPDY_SEND_REQUEST_COMPLETE,
+    STATE_SPDY_READ_HEADERS,
+    STATE_SPDY_READ_HEADERS_COMPLETE,
+    STATE_SPDY_READ_BODY,
+    STATE_SPDY_READ_BODY_COMPLETE,
     STATE_NONE
   };
 
@@ -114,6 +124,12 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoReadBodyComplete(int result);
   int DoDrainBodyForAuthRestart();
   int DoDrainBodyForAuthRestartComplete(int result);
+  int DoSpdySendRequest();
+  int DoSpdySendRequestComplete(int result);
+  int DoSpdyReadHeaders();
+  int DoSpdyReadHeadersComplete(int result);
+  int DoSpdyReadBody();
+  int DoSpdyReadBodyComplete(int result);
 
   // Record histograms of latency until Connect() completes.
   static void LogTCPConnectedMetrics(const ClientSocketHandle& handle);
@@ -239,6 +255,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   // used in log messages.
   static std::string AuthTargetString(HttpAuth::Target target);
 
+  static std::string* g_next_protos;
+
   // The following three auth members are arrays of size two -- index 0 is
   // for the proxy server, and index 1 is for the origin server.
   // Use the enum HttpAuth::Target to index into them.
@@ -270,8 +288,9 @@ class HttpNetworkTransaction : public HttpTransaction {
   ProxyService::PacRequest* pac_request_;
   ProxyInfo proxy_info_;
 
-  ClientSocketHandle connection_;
+  scoped_ptr<ClientSocketHandle> connection_;
   scoped_ptr<HttpStream> http_stream_;
+  scoped_refptr<FlipStream> spdy_stream_;
   bool reused_socket_;
 
   // True if we've validated the headers that the stream parser has returned.
