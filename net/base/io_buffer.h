@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/pickle.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 
@@ -129,6 +130,26 @@ class GrowableIOBuffer : public IOBuffer {
   scoped_ptr_malloc<char> real_data_;
   int capacity_;
   int offset_;
+};
+
+// This versions allows a pickle to be used as the storage for a write-style
+// operation, avoiding an extra data copy.
+class PickledIOBuffer : public IOBuffer {
+ public:
+  PickledIOBuffer() : IOBuffer() {}
+
+  Pickle* pickle() { return &pickle_; }
+
+  // Signals that we are done writing to the picke and we can use it for a
+  // write-style IO operation.
+  void Done() {
+    data_ = const_cast<char*>(static_cast<const char*>(pickle_.data()));
+  }
+
+ private:
+  ~PickledIOBuffer() { data_ = NULL; }
+
+  Pickle pickle_;
 };
 
 // This class allows the creation of a temporary IOBuffer that doesn't really
