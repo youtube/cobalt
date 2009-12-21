@@ -203,6 +203,7 @@ NetworkChangeNotifierThread::NetworkChangeNotifierThread(
 
 NetworkChangeNotifierThread::~NetworkChangeNotifierThread() {
   notifier_impl_->Shutdown();
+  Stop();
 }
 
 // Note that |notifier_impl_| is initialized on the network change
