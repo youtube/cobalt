@@ -214,7 +214,7 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
                     LoadLog::TYPE_SOCKET_STREAM_CONNECT,
                     LoadLog::PHASE_BEGIN);
   ExpectLogContains(socket_stream->load_log(),
-                    socket_stream->load_log()->events().size() - 1,
+                    socket_stream->load_log()->entries().size() - 1,
                     LoadLog::TYPE_SOCKET_STREAM_CONNECT,
                     LoadLog::PHASE_END);
 }

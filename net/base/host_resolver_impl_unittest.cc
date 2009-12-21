@@ -192,7 +192,7 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
   int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, log);
   EXPECT_EQ(OK, err);
 
-  EXPECT_EQ(2u, log->events().size());
+  EXPECT_EQ(2u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
                     LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL,
@@ -224,7 +224,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL, log);
   EXPECT_EQ(ERR_IO_PENDING, err);
 
-  EXPECT_EQ(1u, log->events().size());
+  EXPECT_EQ(1u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
                     LoadLog::PHASE_BEGIN);
 
@@ -233,7 +233,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   ASSERT_TRUE(callback_called_);
   ASSERT_EQ(OK, callback_result_);
 
-  EXPECT_EQ(2u, log->events().size());
+  EXPECT_EQ(2u, log->entries().size());
   ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL,
                     LoadLog::PHASE_END);
 
@@ -271,7 +271,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
 
   resolver_proc->Signal();
 
-  EXPECT_EQ(3u, log->events().size());
+  EXPECT_EQ(3u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
                     LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
@@ -825,7 +825,7 @@ TEST_F(HostResolverImplTest, Observers) {
   int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log);
   EXPECT_EQ(OK, rv);
 
-  EXPECT_EQ(6u, log->events().size());
+  EXPECT_EQ(6u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
                     LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART,
