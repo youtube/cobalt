@@ -861,7 +861,7 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
 
   // Check that the LoadLog was filled as expected.
   // (We attempted to both Open and Create entries, but both failed).
-  EXPECT_EQ(4u, log->events().size());
+  EXPECT_EQ(4u, log->entries().size());
   net::ExpectLogContains(log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
                          net::LoadLog::PHASE_BEGIN);
   net::ExpectLogContains(log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
@@ -943,7 +943,7 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   RunTransactionTestWithLog(cache.http_cache(), kSimpleGET_Transaction, log);
 
   // Check that the LoadLog was filled as expected.
-  EXPECT_EQ(6u, log->events().size());
+  EXPECT_EQ(6u, log->entries().size());
   net::ExpectLogContains(log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
                          net::LoadLog::PHASE_BEGIN);
   net::ExpectLogContains(log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
@@ -966,7 +966,7 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   RunTransactionTestWithLog(cache.http_cache(), transaction, log);
 
   // Check that the LoadLog was filled as expected.
-  EXPECT_EQ(6u, log->events().size());
+  EXPECT_EQ(6u, log->entries().size());
   net::ExpectLogContains(log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
                          net::LoadLog::PHASE_BEGIN);
   net::ExpectLogContains(log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,

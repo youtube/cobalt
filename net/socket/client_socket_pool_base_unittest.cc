@@ -488,7 +488,7 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_TimedOut) {
   PlatformThread::Sleep(1);
   EXPECT_EQ(ERR_TIMED_OUT, delegate.WaitForResult());
 
-  EXPECT_EQ(3u, log->events().size());
+  EXPECT_EQ(3u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
                     LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB_TIMED_OUT,
@@ -509,7 +509,7 @@ TEST_F(ClientSocketPoolBaseTest, BasicSynchronous) {
   EXPECT_TRUE(handle.socket());
   handle.Reset();
 
-  EXPECT_EQ(4u, log->events().size());
+  EXPECT_EQ(4u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
                     LoadLog::PHASE_BEGIN);
@@ -532,7 +532,7 @@ TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
   EXPECT_TRUE(req.handle()->socket());
   req.handle()->Reset();
 
-  EXPECT_EQ(4u, log->events().size());
+  EXPECT_EQ(4u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
                     LoadLog::PHASE_BEGIN);
@@ -551,7 +551,7 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
             InitHandle(req.handle(), "a", kDefaultPriority, &req,
                        pool_.get(), log));
 
-  EXPECT_EQ(4u, log->events().size());
+  EXPECT_EQ(4u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
                     LoadLog::PHASE_BEGIN);
@@ -572,7 +572,7 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionAsynchronousFailure) {
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 
-  EXPECT_EQ(4u, log->events().size());
+  EXPECT_EQ(4u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
                     LoadLog::PHASE_BEGIN);
@@ -1307,7 +1307,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, BasicSynchronous) {
   EXPECT_TRUE(handle.socket());
   handle.Reset();
 
-  EXPECT_EQ(4u, log->events().size());
+  EXPECT_EQ(4u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
                     LoadLog::PHASE_BEGIN);
@@ -1330,7 +1330,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, BasicAsynchronous) {
   EXPECT_TRUE(req.handle()->socket());
   req.handle()->Reset();
 
-  EXPECT_EQ(6u, log->events().size());
+  EXPECT_EQ(6u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
                     LoadLog::PHASE_BEGIN);
@@ -1353,7 +1353,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, InitConnectionFailure) {
             InitHandle(req.handle(), "a", kDefaultPriority, &req,
                        pool_.get(), log));
 
-  EXPECT_EQ(4u, log->events().size());
+  EXPECT_EQ(4u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
                     LoadLog::PHASE_BEGIN);
@@ -1375,7 +1375,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding,
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 
-  EXPECT_EQ(6u, log->events().size());
+  EXPECT_EQ(6u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
                     LoadLog::PHASE_BEGIN);
@@ -1470,7 +1470,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, TwoRequestsCancelOne) {
 
   req.handle()->Reset();
 
-  EXPECT_EQ(5u, log1->events().size());
+  EXPECT_EQ(5u, log1->entries().size());
   ExpectLogContains(log1, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log1, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
                     LoadLog::PHASE_BEGIN);
@@ -1480,7 +1480,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, TwoRequestsCancelOne) {
   ExpectLogContains(log1, 4, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
 
   // At this point, request 2 is just waiting for the connect job to finish.
-  EXPECT_EQ(2u, log2->events().size());
+  EXPECT_EQ(2u, log2->entries().size());
   ExpectLogContains(log2, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log2, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
                     LoadLog::PHASE_BEGIN);
@@ -1489,7 +1489,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, TwoRequestsCancelOne) {
   req2.handle()->Reset();
 
   // Now request 2 has actually finished.
-  EXPECT_EQ(6u, log2->events().size());
+  EXPECT_EQ(6u, log2->entries().size());
   ExpectLogContains(log2, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log2, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
                     LoadLog::PHASE_BEGIN);
