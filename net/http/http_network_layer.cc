@@ -108,6 +108,7 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
 void HttpNetworkLayer::EnableFlip(const std::string& mode) {
   static const char kDisableSSL[] = "no-ssl";
   static const char kDisableCompression[] = "no-compress";
+  static const char kEnableNPN[] = "npn";
 
   std::vector<std::string> flip_options;
   SplitString(mode, ',', &flip_options);
@@ -124,13 +125,15 @@ void HttpNetworkLayer::EnableFlip(const std::string& mode) {
       FlipSession::SetSSLMode(false);
     } else if (option == kDisableCompression) {
       flip::FlipFramer::set_enable_compression_default(false);
+    } else if (option == kEnableNPN) {
+      HttpNetworkTransaction::SetNextProtos("\007http1.1\004spdy");
+      force_flip_ = false;
     } else if (option.empty() && it == flip_options.begin()) {
       continue;
     } else {
       LOG(DFATAL) << "Unrecognized flip option: " << option;
     }
   }
-
 }
 
 }  // namespace net
