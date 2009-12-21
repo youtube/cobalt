@@ -128,7 +128,7 @@ TEST(ProxyResolverV8Test, Direct) {
   EXPECT_EQ(0U, resolver.mock_js_bindings()->errors.size());
 
   // No bindings were called, so no log entries.
-  EXPECT_EQ(0u, log->events().size());
+  EXPECT_EQ(0u, log->entries().size());
 }
 
 TEST(ProxyResolverV8Test, ReturnEmptyString) {
@@ -434,7 +434,7 @@ TEST(ProxyResolverV8Test, LoadLog) {
   // in the LoadLog. This is because it gets called indirectly by
   // isInNet() and isResolvable().
 
-  EXPECT_EQ(6u, log->events().size());
+  EXPECT_EQ(6u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS,
                     LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 1, LoadLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS,
