@@ -107,12 +107,14 @@ class HttpCache : public HttpTransactionFactory,
 
   // Helper function for reading response info from the disk cache.  If the
   // cache doesn't have the whole resource *|request_truncated| is set to true.
+  // Avoid this function for performance critical paths as it uses blocking IO.
   static bool ReadResponseInfo(disk_cache::Entry* disk_entry,
                                HttpResponseInfo* response_info,
                                bool* response_truncated);
 
   // Helper function for writing response info into the disk cache.  If the
   // cache doesn't have the whole resource |request_truncated| should be true.
+  // Avoid this function for performance critical paths as it uses blocking IO.
   static bool WriteResponseInfo(disk_cache::Entry* disk_entry,
                                 const HttpResponseInfo* response_info,
                                 bool skip_transient_headers,
