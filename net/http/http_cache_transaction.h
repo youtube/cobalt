@@ -165,7 +165,7 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoTruncateCachedDataComplete(int result);
   int DoPartialHeadersReceived();
   int DoCacheReadResponse();
-  int DoCacheReadResponseComplete();
+  int DoCacheReadResponseComplete(int result);
   int DoCacheWriteResponse();
   int DoCacheWriteTruncatedResponse();
   int DoCacheWriteResponseComplete(int result);
@@ -301,13 +301,15 @@ class HttpCache::Transaction : public HttpTransaction {
   bool truncated_;  // We don't have all the response data.
   bool server_responded_206_;
   scoped_refptr<IOBuffer> read_buf_;
-  int read_buf_len_;
+  int io_buf_len_;
   int read_offset_;
   int effective_load_flags_;
   scoped_ptr<PartialData> partial_;  // We are dealing with range requests.
   uint64 final_upload_progress_;
   CompletionCallbackImpl<Transaction> network_callback_;
   scoped_refptr<CancelableCompletionCallback<Transaction> > cache_callback_;
+  scoped_refptr<CancelableCompletionCallback<Transaction> >
+      write_headers_callback_;
 };
 
 }  // namespace net

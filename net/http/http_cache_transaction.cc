@@ -119,6 +119,9 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
           network_callback_(this, &Transaction::OnIOComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           cache_callback_(new CancelableCompletionCallback<Transaction>(
+                this, &Transaction::OnIOComplete))),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          write_headers_callback_(new CancelableCompletionCallback<Transaction>(
                 this, &Transaction::OnIOComplete))) {
   COMPILE_ASSERT(HttpCache::Transaction::kNumValidationHeaders ==
                      ARRAYSIZE_UNSAFE(kValidationHeaders),
@@ -146,6 +149,7 @@ HttpCache::Transaction::~Transaction() {
   // If there is an outstanding callback, mark it as cancelled so running it
   // does nothing.
   cache_callback_->Cancel();
+  write_headers_callback_->Cancel();
 
   // We could still have a cache read or write in progress, so we just null the
   // cache_ pointer to signal that we are dead.  See DoCacheReadCompleted.
@@ -492,7 +496,16 @@ int HttpCache::Transaction::DoEntryAvailable() {
   return OK;
 }
 
-int HttpCache::Transaction::DoCacheReadResponseComplete() {
+int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
+  cache_callback_->Release();  // Balance the AddRef from DoCacheReadResponse.
+  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  if (result != io_buf_len_ ||
+      !HttpCache::ParseResponseInfo(read_buf_->data(), io_buf_len_,
+                                    &response_, &truncated_)) {
+    DLOG(ERROR) << "ReadData failed: " << result;
+    return ERR_CACHE_READ_FAILURE;
+  }
+
   // We now have access to the cache entry.
   //
   //  o if we are a reader for the transaction, then we can start reading the
@@ -506,23 +519,22 @@ int HttpCache::Transaction::DoCacheReadResponseComplete() {
   //    conditionalized request (if-modified-since / if-none-match). We check
   //    if the request headers define a validation request.
   //
-  int rv = OK;
   switch (mode_) {
     case READ:
-      rv = BeginCacheRead();
+      result = BeginCacheRead();
       break;
     case READ_WRITE:
-      rv = BeginPartialCacheValidation();
+      result = BeginPartialCacheValidation();
       break;
     case UPDATE:
-      rv = BeginExternallyConditionalizedRequest();
+      result = BeginExternallyConditionalizedRequest();
       break;
     case WRITE:
     default:
       NOTREACHED();
-      rv = ERR_FAILED;
+      result = ERR_FAILED;
   }
-  return rv;
+  return result;
 }
 
 bool HttpCache::Transaction::AddTruncatedFlag() {
@@ -536,16 +548,10 @@ bool HttpCache::Transaction::AddTruncatedFlag() {
   if (!entry_->disk_entry->GetDataSize(kResponseContentIndex))
     return false;
 
-  // We have a serious problem here: We are inside the object destructor and
-  // we need to write to the cache. We could even have a pending operation in
-  // progress already so it's not that we can just issue another operation and
-  // cancel it immediately. So, for now, just verify that the operation
-  // completes synchronously.
   truncated_ = true;
   target_state_ = STATE_NONE;
   next_state_ = STATE_CACHE_WRITE_TRUNCATED_RESPONSE;
-  int rv = DoLoop(OK);
-  DCHECK_EQ(OK, rv);
+  DoLoop(OK);
   return true;
 }
 
@@ -659,8 +665,7 @@ int HttpCache::Transaction::DoLoop(int result) {
         rv = DoCacheReadResponse();
         break;
       case STATE_CACHE_READ_RESPONSE_COMPLETE:
-        DCHECK_EQ(OK, rv);
-        rv = DoCacheReadResponseComplete();
+        rv = DoCacheReadResponseComplete(rv);
         break;
       case STATE_CACHE_WRITE_RESPONSE:
         DCHECK_EQ(OK, rv);
@@ -1261,19 +1266,19 @@ void HttpCache::Transaction::IgnoreRangeRequest() {
 
 int HttpCache::Transaction::ReadFromNetwork(IOBuffer* data, int data_len) {
   read_buf_ = data;
-  read_buf_len_ = data_len;
+  io_buf_len_ = data_len;
   next_state_ = STATE_NETWORK_READ;
   return DoLoop(OK);
 }
 
 int HttpCache::Transaction::DoNetworkRead() {
   next_state_ = STATE_NETWORK_READ_COMPLETE;
-  return network_trans_->Read(read_buf_, read_buf_len_, &network_callback_);
+  return network_trans_->Read(read_buf_, io_buf_len_, &network_callback_);
 }
 
 int HttpCache::Transaction::ReadFromEntry(IOBuffer* data, int data_len) {
   read_buf_ = data;
-  read_buf_len_ = data_len;
+  io_buf_len_ = data_len;
   next_state_ = STATE_CACHE_READ_DATA;
   return DoLoop(OK);
 }
@@ -1283,25 +1288,25 @@ int HttpCache::Transaction::DoCacheReadData() {
   next_state_ = STATE_CACHE_READ_DATA_COMPLETE;
   cache_callback_->AddRef();  // Balanced in DoCacheReadDataComplete.
   if (partial_.get()) {
-    return partial_->CacheRead(entry_->disk_entry, read_buf_, read_buf_len_,
+    return partial_->CacheRead(entry_->disk_entry, read_buf_, io_buf_len_,
                                cache_callback_);
   }
 
   return entry_->disk_entry->ReadData(kResponseContentIndex, read_offset_,
-                                      read_buf_, read_buf_len_,
-                                      cache_callback_);
+                                      read_buf_, io_buf_len_, cache_callback_);
 }
 
 int HttpCache::Transaction::DoCacheReadResponse() {
   DCHECK(entry_);
   next_state_ = STATE_CACHE_READ_RESPONSE_COMPLETE;
 
-  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
-  bool read_ok =
-      HttpCache::ReadResponseInfo(entry_->disk_entry, &response_, &truncated_);
-  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  io_buf_len_ = entry_->disk_entry->GetDataSize(kResponseInfoIndex);
+  read_buf_ = new IOBuffer(io_buf_len_);
 
-  return read_ok ? OK : ERR_CACHE_READ_FAILURE;
+  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  cache_callback_->AddRef();  // Balanced in DoCacheReadResponseComplete.
+  return entry_->disk_entry->ReadData(kResponseInfoIndex, 0, read_buf_,
+                                      io_buf_len_, cache_callback_);
 }
 
 int HttpCache::Transaction::WriteToEntry(int index, int offset,
@@ -1366,17 +1371,30 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
     DCHECK_EQ(200, response_.headers->response_code());
   }
 
-  if (!HttpCache::WriteResponseInfo(entry_->disk_entry, &response_,
-                                    skip_transient_headers, truncated)) {
-    DLOG(ERROR) << "failed to write response info to cache";
-    DoneWritingToEntry(false);
-  }
-  return OK;
+  scoped_refptr<PickledIOBuffer> data = new PickledIOBuffer();
+  response_.Persist(data->pickle(), skip_transient_headers, truncated);
+  data->Done();
+
+  // Balanced in DoCacheWriteResponseComplete.  We may be running from the
+  // destructor of this object so cache_callback_ may be currently in use.
+  write_headers_callback_->AddRef();
+  io_buf_len_ = data->pickle()->size();
+  return entry_->disk_entry->WriteData(kResponseInfoIndex, 0, data, io_buf_len_,
+                                       write_headers_callback_, true);
 }
 
 int HttpCache::Transaction::DoCacheWriteResponseComplete(int result) {
   next_state_ = target_state_;
   target_state_ = STATE_NONE;
+  if (!entry_)
+    return OK;
+
+  // Balance the AddRef from WriteResponseInfoToEntry.
+  write_headers_callback_->Release();
+  if (result != io_buf_len_) {
+    DLOG(ERROR) << "failed to write response info to cache";
+    DoneWritingToEntry(false);
+  }
   return OK;
 }
 
