@@ -106,7 +106,7 @@ TEST(ProxyServiceTest, Direct) {
   EXPECT_TRUE(info.is_direct());
 
   // Check the LoadLog was filled correctly.
-  EXPECT_EQ(4u, log->events().size());
+  EXPECT_EQ(4u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
@@ -145,7 +145,7 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
 
   // Check the LoadLog was filled correctly.
-  EXPECT_EQ(6u, log->events().size());
+  EXPECT_EQ(6u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
                     LoadLog::PHASE_BEGIN);
@@ -1134,7 +1134,7 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   EXPECT_FALSE(callback2.have_result());  // Cancelled.
 
   // Check the LoadLog for request 1 (which was cancelled) got filled properly.
-  EXPECT_EQ(6u, log1->events().size());
+  EXPECT_EQ(6u, log1->entries().size());
   ExpectLogContains(log1, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log1, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
                     LoadLog::PHASE_BEGIN);
