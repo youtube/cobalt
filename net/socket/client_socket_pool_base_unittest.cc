@@ -279,7 +279,7 @@ class TestClientSocketPool : public ClientSocketPool {
       TestClientSocketPoolBase::ConnectJobFactory* connect_job_factory)
       : base_(max_sockets, max_sockets_per_group,
               unused_idle_socket_timeout, used_idle_socket_timeout,
-              connect_job_factory) {}
+              connect_job_factory, NULL) {}
 
   virtual int RequestSocket(
       const std::string& group_name,
