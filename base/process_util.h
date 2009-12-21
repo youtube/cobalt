@@ -369,9 +369,10 @@ class ProcessMetrics {
 #else
   class PortProvider {
    public:
-    // Should return the mach task for |process| if possible, or else 0. Only
-    // processes that this returns tasks for will have metrics on OS X (except
-    // for the current process, which always gets metrics).
+    // Should return the mach task for |process| if possible, or else
+    // |MACH_PORT_NULL|. Only processes that this returns tasks for will have
+    // metrics on OS X (except for the current process, which always gets
+    // metrics).
     virtual mach_port_t TaskForPid(ProcessHandle process) const = 0;
   };
 
