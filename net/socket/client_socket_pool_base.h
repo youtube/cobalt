@@ -28,6 +28,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "base/timer.h"
@@ -36,6 +37,7 @@
 #include "net/base/load_log.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_change_notifier.h"
 #include "net/base/request_priority.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
@@ -121,7 +123,8 @@ namespace internal {
 // ClientSocketPoolBase instead.
 class ClientSocketPoolBaseHelper
     : public base::RefCounted<ClientSocketPoolBaseHelper>,
-      public ConnectJob::Delegate {
+      public ConnectJob::Delegate,
+      public NetworkChangeNotifier::Observer {
  public:
   class Request {
    public:
@@ -163,11 +166,13 @@ class ClientSocketPoolBaseHelper
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
   };
 
-  ClientSocketPoolBaseHelper(int max_sockets,
-                             int max_sockets_per_group,
-                             base::TimeDelta unused_idle_socket_timeout,
-                             base::TimeDelta used_idle_socket_timeout,
-                             ConnectJobFactory* connect_job_factory);
+  ClientSocketPoolBaseHelper(
+      int max_sockets,
+      int max_sockets_per_group,
+      base::TimeDelta unused_idle_socket_timeout,
+      base::TimeDelta used_idle_socket_timeout,
+      ConnectJobFactory* connect_job_factory,
+      const scoped_refptr<NetworkChangeNotifier>& network_change_notifier);
 
   // See ClientSocketPool::RequestSocket for documentation on this function.
   // Note that |request| must be heap allocated.  If ERR_IO_PENDING is returned,
@@ -200,6 +205,9 @@ class ClientSocketPoolBaseHelper
 
   // ConnectJob::Delegate methods:
   virtual void OnConnectJobComplete(int result, ConnectJob* job);
+
+  // NetworkChangeNotifier::Observer methods:
+  virtual void OnIPAddressChanged();
 
   // Enables late binding of sockets.  In this mode, socket requests are
   // decoupled from socket connection jobs.  A socket request may initiate a
@@ -385,9 +393,10 @@ class ClientSocketPoolBaseHelper
 
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
 
+  const scoped_refptr<NetworkChangeNotifier> network_change_notifier_;
+
   // Controls whether or not we use late binding of sockets.
   static bool g_late_binding;
-
 };
 
 }  // namespace internal
@@ -441,15 +450,18 @@ class ClientSocketPoolBase {
   // long to leave an unused idle socket open before closing it.
   // |used_idle_socket_timeout| specifies how long to leave a previously used
   // idle socket open before closing it.
-  ClientSocketPoolBase(int max_sockets,
-                       int max_sockets_per_group,
-                       base::TimeDelta unused_idle_socket_timeout,
-                       base::TimeDelta used_idle_socket_timeout,
-                       ConnectJobFactory* connect_job_factory)
+  ClientSocketPoolBase(
+      int max_sockets,
+      int max_sockets_per_group,
+      base::TimeDelta unused_idle_socket_timeout,
+      base::TimeDelta used_idle_socket_timeout,
+      ConnectJobFactory* connect_job_factory,
+      const scoped_refptr<NetworkChangeNotifier>& network_change_notifier)
       : helper_(new internal::ClientSocketPoolBaseHelper(
           max_sockets, max_sockets_per_group,
           unused_idle_socket_timeout, used_idle_socket_timeout,
-          new ConnectJobFactoryAdaptor(connect_job_factory))) {}
+          new ConnectJobFactoryAdaptor(connect_job_factory),
+          network_change_notifier)) {}
 
   virtual ~ClientSocketPoolBase() {}
 
