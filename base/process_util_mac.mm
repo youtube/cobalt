@@ -193,7 +193,7 @@ bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
 }
 
 static bool GetTaskInfo(mach_port_t task, task_basic_info_64* task_info_data) {
-  if (!task)
+  if (task == MACH_PORT_NULL)
     return false;
   mach_msg_type_number_t count = TASK_BASIC_INFO_64_COUNT;
   kern_return_t kr = task_info(task,
@@ -250,7 +250,7 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
 
 int ProcessMetrics::GetCPUUsage() {
   mach_port_t task = TaskForPid(process_);
-  if (!task)
+  if (task == MACH_PORT_NULL)
     return 0;
 
   kern_return_t kr;
@@ -317,10 +317,10 @@ int ProcessMetrics::GetCPUUsage() {
 }
 
 mach_port_t ProcessMetrics::TaskForPid(ProcessHandle process) const {
-  mach_port_t task = 0;
+  mach_port_t task = MACH_PORT_NULL;
   if (port_provider_)
     task = port_provider_->TaskForPid(process_);
-  if (!task && process_ == getpid())
+  if (task == MACH_PORT_NULL && process_ == getpid())
     task = mach_task_self();
   return task;
 }
