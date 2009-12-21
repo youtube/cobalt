@@ -46,6 +46,7 @@
 /third_party/googlemac
 /third_party/hunspell
 /third_party/icu
+/third_party/lighttpd
 /third_party/ots
 /third_party/pefile
 /third_party/personalization
