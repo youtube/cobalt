@@ -180,7 +180,7 @@ std::string MockGetHostName() {
 
 class CaptureGroupNameSocketPool : public TCPClientSocketPool {
  public:
-  CaptureGroupNameSocketPool() : TCPClientSocketPool(0, 0, NULL, NULL) {}
+  CaptureGroupNameSocketPool() : TCPClientSocketPool(0, 0, NULL, NULL, NULL) {}
   const std::string last_group_name_received() const {
     return last_group_name_;
   }
