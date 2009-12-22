@@ -11,4 +11,6 @@ namespace switches {
 const char kAlsaDevice[] = "alsa-device";
 #endif
 
+const char kVideoH264Annexb[] = "video-h264-annexb";
+
 }  // namespace switches
