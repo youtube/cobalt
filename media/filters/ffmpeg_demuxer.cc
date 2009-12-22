@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/command_line.h"
 #include "base/scoped_ptr.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/time.h"
 #include "media/base/filter_host.h"
+#include "media/base/media_switches.h"
 #include "media/ffmpeg/ffmpeg_util.h"
+#include "media/filters/bitstream_converter.h"
 #include "media/filters/ffmpeg_common.h"
 #include "media/filters/ffmpeg_demuxer.h"
 #include "media/filters/ffmpeg_glue.h"
@@ -27,7 +30,6 @@ class AVPacketBuffer : public Buffer {
   }
 
   virtual ~AVPacketBuffer() {
-    av_free_packet(packet_.get());
   }
 
   // Buffer implementation.
@@ -40,7 +42,7 @@ class AVPacketBuffer : public Buffer {
   }
 
  private:
-  scoped_ptr<AVPacket> packet_;
+  scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet_;
 
   DISALLOW_COPY_AND_ASSIGN(AVPacketBuffer);
 };
@@ -472,7 +474,7 @@ void FFmpegDemuxer::DemuxTask() {
   }
 
   // Allocate and read an AVPacket from the media.
-  scoped_ptr<AVPacket> packet(new AVPacket());
+  scoped_ptr_malloc<AVPacket, ScopedPtrAVFreePacket> packet(new AVPacket());
   int result = av_read_frame(format_context_, packet.get());
   if (result < 0) {
     // If we have reached the end of stream, tell the downstream filters about
@@ -489,17 +491,38 @@ void FFmpegDemuxer::DemuxTask() {
   DCHECK_LT(packet->stream_index, static_cast<int>(packet_streams_.size()));
   FFmpegDemuxerStream* demuxer_stream = packet_streams_[packet->stream_index];
   if (demuxer_stream) {
-    // If a packet is returned by FFmpeg's av_parser_parse2()
-    // the packet will reference an inner memory of FFmpeg.
-    // In this case, the packet's "destruct" member is NULL,
-    // and it MUST be duplicated.  Fixes issue with MP3.
-    av_dup_packet(packet.get());
+    using switches::kVideoH264Annexb;
+    AVCodecContext* stream_context =
+        format_context_->streams[packet->stream_index]->codec;
+    if (stream_context->codec_id == CODEC_ID_H264 &&
+        CommandLine::ForCurrentProcess()->HasSwitch(kVideoH264Annexb)) {
+      // TODO(ajwong): Unittest this branch of the if statement.
+      // Also, move this code into the FFmpegDemuxerStream, so that the decoder
+      // can enable a filter in the stream as needed.
+      if (!bitstream_converter_.get()) {
+        bitstream_converter_.reset(
+            new FFmpegBitstreamConverter("h264_mp4toannexb", stream_context));
+        CHECK(bitstream_converter_->Initialize());
+      }
+
+      if (!bitstream_converter_->ConvertPacket(packet.get())) {
+        LOG(ERROR) << "Packet dropped: Format converstion failed.";
+        packet.reset();
+      }
+    }
 
     // Queue the packet with the appropriate stream.  The stream takes
     // ownership of the AVPacket.
-    current_timestamp_ = demuxer_stream->EnqueuePacket(packet.release());
-  } else {
-    av_free_packet(packet.get());
+    if (packet.get()) {
+      // If a packet is returned by FFmpeg's av_parser_parse2()
+      // the packet will reference an inner memory of FFmpeg.
+      // In this case, the packet's "destruct" member is NULL,
+      // and it MUST be duplicated. This fixes issue with MP3 and possibly
+      // other codecs.  It is safe to call this function even if the packet does
+      // not refer to inner memory from FFmpeg.
+      av_dup_packet(packet.get());
+      current_timestamp_ = demuxer_stream->EnqueuePacket(packet.release());
+    }
   }
 
   // Create a loop by posting another task.  This allows seek and message loop
