@@ -584,7 +584,7 @@
             'i18n/icu_util_nacl_win64.cc',
           ],
           'configurations': {
-            'Common': {
+            'Common_Base': {
               'msvs_target_platform': 'x64',
             },
           },
