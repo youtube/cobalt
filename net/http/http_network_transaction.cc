@@ -637,19 +637,7 @@ int HttpNetworkTransaction::DoInitConnection() {
   if (proxy_mode_ != kHTTPProxy)
     connection_group.append(request_->url.GetOrigin().spec());
 
-  // TODO(willchan): Downgrade this back to a DCHECK after closing
-  // http://crbug.com/15374.
-  if (connection_group.empty()) {
-    char url_debug[4096];
-    base::strlcpy(url_debug,
-                  request_->url.possibly_invalid_spec().c_str(),
-                  arraysize(url_debug));
-    char url_origin_debug[4096];
-    base::strlcpy(url_origin_debug,
-                  request_->url.GetOrigin().possibly_invalid_spec().c_str(),
-                  arraysize(url_origin_debug));
-    CHECK(false) << "URL: " << url_debug << ", Origin: " << url_origin_debug;
-  }
+  DCHECK(!connection_group.empty());
 
   HostResolver::RequestInfo resolve_info(host, port);
 
