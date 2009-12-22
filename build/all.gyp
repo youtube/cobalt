@@ -51,11 +51,6 @@
             '../chrome_frame/chrome_frame.gyp:*',
           ],
         }],
-        ['enable_gpu==1', {
-          'dependencies': [
-            '../gpu/gpu.gyp:*',
-          ],
-        }],
         ['OS=="mac" or OS=="linux" or OS=="freebsd"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
@@ -100,6 +95,7 @@
             '../chrome/app/locales/locales.gyp:*',
             '../courgette/courgette.gyp:*',
             '../gears/gears.gyp:*',
+            '../gpu/gpu.gyp:*',
             '../rlz/rlz.gyp:*',
             '../sandbox/sandbox.gyp:*',
             '../third_party/bsdiff/bsdiff.gyp:*',

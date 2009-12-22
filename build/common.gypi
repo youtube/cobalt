@@ -126,7 +126,7 @@
     # JavaScript engines.
     'javascript_engine%': 'v8',
 
-    # Although base/allocator lets you select a heap library via an 
+    # Although base/allocator lets you select a heap library via an
     # environment variable, the libcmt shim it uses sometimes gets in
     # the way.  To disable it entirely, and switch to normal msvcrt, do e.g.
     #  'win_use_allocator_shim': 0,
@@ -327,9 +327,6 @@
       ['chromeos==1 or toolkit_views==1', {
         'defines': ['OS_CHROMEOS=1'],
       }],
-      ['enable_gpu==1', {
-        'defines': ['ENABLE_GPU=1'],
-      }],
       ['fastbuild!=0', {
         'conditions': [
           # Finally, for Windows, we simply turn on profiling.
@@ -353,6 +350,11 @@
           ['OS=="win"', {
             'defines': ['NO_TCMALLOC'],
           }],
+        ],
+      }],
+      ['OS=="win"', {
+        'defines': [
+          'ENABLE_GPU=1',
         ],
       }],
       ['coverage!=0', {
@@ -507,8 +509,8 @@
           }],
           ['win_release_RuntimeLibrary==2', {
             # Visual C++ 2008 barfs when building anything with /MD (msvcrt):
-            #  VC\include\typeinfo(139) : warning C4275: non dll-interface 
-            #  class 'stdext::exception' used as base for dll-interface 
+            #  VC\include\typeinfo(139) : warning C4275: non dll-interface
+            #  class 'stdext::exception' used as base for dll-interface
             #  class 'std::bad_cast'
             'msvs_disabled_warnings': [4275],
           }],
