@@ -335,7 +335,8 @@ class OCSPRequestSession
     request_->set_context(url_request_context);
     // To meet the privacy requirements of off-the-record mode.
     request_->set_load_flags(
-        net::LOAD_DISABLE_CACHE|net::LOAD_DO_NOT_SAVE_COOKIES);
+        net::LOAD_DISABLE_CACHE | net::LOAD_DO_NOT_SAVE_COOKIES |
+        net::LOAD_DO_NOT_SEND_COOKIES);
 
     if (http_request_method_ == "POST") {
       DCHECK(!upload_content_.empty());
