@@ -6,6 +6,8 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/format_macros.h"
+#include "base/string_util.h"
 #include "base/trace_event.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_log.h"
@@ -13,6 +15,25 @@
 #include "net/base/sys_addrinfo.h"
 
 namespace net {
+
+namespace {
+
+// Returns a string description of |socks_error|, or NULL.
+const char* MapSOCKSReplyToErrorString(char socks_error) {
+  switch(socks_error) {
+    case 1: return "(1) General SOCKS server failure";
+    case 2: return "(2) Connection not allowed by ruleset";
+    case 3: return "(3) Network unreachable";
+    case 4: return "(4) Host unreachable";
+    case 5: return "(5) Connection refused";
+    case 6: return "(6) TTL expired";
+    case 7: return "(7) Command not supported";
+    case 8: return "(8) Address type not supported";
+    default: return NULL;
+  }
+}
+
+}  // namespace
 
 const unsigned int SOCKS5ClientSocket::kGreetReadHeaderSize = 2;
 const unsigned int SOCKS5ClientSocket::kWriteHeaderSize = 10;
@@ -120,7 +141,6 @@ void SOCKS5ClientSocket::DoCallback(int result) {
   // clear user_callback_ up front.
   CompletionCallback* c = user_callback_;
   user_callback_ = NULL;
-  DLOG(INFO) << "Finished setting up SOCKSv5 handshake";
   c->Run(result);
 }
 
@@ -143,31 +163,39 @@ int SOCKS5ClientSocket::DoLoop(int last_io_result) {
     switch (state) {
       case STATE_GREET_WRITE:
         DCHECK_EQ(OK, rv);
+        LoadLog::BeginEvent(load_log_, LoadLog::TYPE_SOCKS5_GREET_WRITE);
         rv = DoGreetWrite();
         break;
       case STATE_GREET_WRITE_COMPLETE:
         rv = DoGreetWriteComplete(rv);
+        LoadLog::EndEvent(load_log_, LoadLog::TYPE_SOCKS5_GREET_WRITE);
         break;
       case STATE_GREET_READ:
         DCHECK_EQ(OK, rv);
+        LoadLog::BeginEvent(load_log_, LoadLog::TYPE_SOCKS5_GREET_READ);
         rv = DoGreetRead();
         break;
       case STATE_GREET_READ_COMPLETE:
         rv = DoGreetReadComplete(rv);
+        LoadLog::EndEvent(load_log_, LoadLog::TYPE_SOCKS5_GREET_READ);
         break;
       case STATE_HANDSHAKE_WRITE:
         DCHECK_EQ(OK, rv);
+        LoadLog::BeginEvent(load_log_, LoadLog::TYPE_SOCKS5_HANDSHAKE_WRITE);
         rv = DoHandshakeWrite();
         break;
       case STATE_HANDSHAKE_WRITE_COMPLETE:
         rv = DoHandshakeWriteComplete(rv);
+        LoadLog::EndEvent(load_log_, LoadLog::TYPE_SOCKS5_HANDSHAKE_WRITE);
         break;
       case STATE_HANDSHAKE_READ:
         DCHECK_EQ(OK, rv);
+        LoadLog::BeginEvent(load_log_, LoadLog::TYPE_SOCKS5_HANDSHAKE_READ);
         rv = DoHandshakeRead();
         break;
       case STATE_HANDSHAKE_READ_COMPLETE:
         rv = DoHandshakeReadComplete(rv);
+        LoadLog::EndEvent(load_log_, LoadLog::TYPE_SOCKS5_HANDSHAKE_READ);
         break;
       default:
         NOTREACHED() << "bad state";
@@ -184,8 +212,12 @@ const char kSOCKS5GreetReadData[] = { 0x05, 0x00 };
 int SOCKS5ClientSocket::DoGreetWrite() {
   // Since we only have 1 byte to send the hostname length in, if the
   // URL has a hostname longer than 255 characters we can't send it.
-  if (0xFF < host_request_info_.hostname().size())
+  if (0xFF < host_request_info_.hostname().size()) {
+    LoadLog::AddStringLiteral(load_log_,
+        "Failed sending request because hostname is "
+        "longer than 255 characters");
     return ERR_INVALID_URL;
+  }
 
   if (buffer_.empty()) {
     buffer_ = std::string(kSOCKS5GreetWriteData,
@@ -238,8 +270,18 @@ int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
   }
 
   // Got the greet data.
-  if (buffer_[0] != kSOCKS5Version || buffer_[1] != 0x00)
+  if (buffer_[0] != kSOCKS5Version) {
+    LoadLog::AddStringLiteral(load_log_, "Unexpected SOCKS version");
+    LoadLog::AddString(load_log_, StringPrintf(
+        "buffer_[0] = 0x%x", static_cast<int>(buffer_[0])));
+    return ERR_INVALID_RESPONSE;
+  }
+  if (buffer_[1] != 0x00) {
+    LoadLog::AddStringLiteral(load_log_, "Unexpected authentication method");
+    LoadLog::AddString(load_log_, StringPrintf(
+        "buffer_[1] = 0x%x", static_cast<int>(buffer_[1])));
     return ERR_INVALID_RESPONSE;  // Unknown error
+  }
 
   buffer_.clear();
   next_state_ = STATE_HANDSHAKE_WRITE;
@@ -334,11 +376,26 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
   // When the first few bytes are read, check how many more are required
   // and accordingly increase them
   if (bytes_received_ == kReadHeaderSize) {
-    // TODO(arindam): add error codes to net/error_list.h
-    if (buffer_[0] != kSOCKS5Version || buffer_[2] != kNullByte)
+    if (buffer_[0] != kSOCKS5Version || buffer_[2] != kNullByte) {
+      LoadLog::AddStringLiteral(load_log_, "Unexpected SOCKS version.");
+      LoadLog::AddString(load_log_, StringPrintf(
+          "buffer_[0] = 0x%x; buffer_[2] = 0x%x",
+          static_cast<int>(buffer_[0]),
+          static_cast<int>(buffer_[2])));
       return ERR_INVALID_RESPONSE;
-    if (buffer_[1] != 0x00)
+    }
+    if (buffer_[1] != 0x00) {
+      LoadLog::AddStringLiteral(load_log_,
+                                "SOCKS server returned a failure code:");
+      const char* error_string = MapSOCKSReplyToErrorString(buffer_[1]);
+      if (error_string) {
+        LoadLog::AddStringLiteral(load_log_, error_string);
+      } else {
+        LoadLog::AddString(load_log_, StringPrintf(
+            "buffer_[1] = 0x%x", static_cast<int>(buffer_[1])));
+      }
       return ERR_FAILED;
+    }
 
     // We check the type of IP/Domain the server returns and accordingly
     // increase the size of the response. For domains, we need to read the
@@ -353,8 +410,12 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
       read_header_size += sizeof(struct in_addr) - 1;
     else if (address_type == kEndPointResolvedIPv6)
       read_header_size += sizeof(struct in6_addr) - 1;
-    else
+    else {
+      LoadLog::AddStringLiteral(load_log_, "Unknown address type in response");
+      LoadLog::AddString(load_log_, StringPrintf(
+          "buffer_[3] = 0x%x", static_cast<int>(buffer_[3])));
       return ERR_INVALID_RESPONSE;
+    }
 
     read_header_size += 2;  // for the port.
     next_state_ = STATE_HANDSHAKE_READ;
