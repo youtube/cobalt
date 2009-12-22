@@ -39,6 +39,7 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
     PRE_PASV,
     PRE_SIZE,
     PRE_MDTM,
+    PRE_MLSD,
     PRE_LIST,
     PRE_RETR,
     PRE_PASV2,
@@ -174,9 +175,12 @@ class FtpSocketDataProviderDirectoryListing : public FtpSocketDataProvider {
                       "550 Can't download directory\r\n");
 
       case PRE_CWD:
-        return Verify("CWD /\r\n", data, PRE_LIST, "200 OK\r\n");
+        return Verify("CWD /\r\n", data, PRE_MLSD, "200 OK\r\n");
+      case PRE_MLSD:
+        return Verify("MLSD\r\n", data, PRE_QUIT,
+                      "150 Accepted data connection\r\n"
+                      "226 MLSD complete\r\n");
       case PRE_LIST:
-        // TODO(phajdan.jr): Also test with "150 Accepted Data Connection".
         return Verify("LIST\r\n", data, PRE_QUIT, "200 OK\r\n");
       default:
         return FtpSocketDataProvider::OnWrite(data);
@@ -211,8 +215,10 @@ class FtpSocketDataProviderVMSDirectoryListing : public FtpSocketDataProvider {
         return Verify("RETR ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_PASV2,
                       "550 Can't download directory\r\n");
       case PRE_CWD:
-        return Verify("CWD ANONYMOUS_ROOT:[dir]\r\n", data, PRE_LIST,
+        return Verify("CWD ANONYMOUS_ROOT:[dir]\r\n", data, PRE_MLSD,
                       "200 OK\r\n");
+      case PRE_MLSD:
+        return Verify("MLSD\r\n", data, PRE_LIST, "500 Invalid command\r\n");
       case PRE_LIST:
         return Verify("LIST *.*;0\r\n", data, PRE_QUIT, "200 OK\r\n");
       default:
@@ -249,8 +255,10 @@ class FtpSocketDataProviderVMSDirectoryListingRootDirectory
         return Verify("RETR ANONYMOUS_ROOT\r\n", data, PRE_PASV2,
                       "550 Can't download directory\r\n");
       case PRE_CWD:
-        return Verify("CWD ANONYMOUS_ROOT:[000000]\r\n", data, PRE_LIST,
+        return Verify("CWD ANONYMOUS_ROOT:[000000]\r\n", data, PRE_MLSD,
                       "200 OK\r\n");
+      case PRE_MLSD:
+        return Verify("MLSD\r\n", data, PRE_LIST, "500 Invalid command\r\n");
       case PRE_LIST:
         return Verify("LIST *.*;0\r\n", data, PRE_QUIT, "200 OK\r\n");
       default:
@@ -1010,10 +1018,20 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFileNotFound) {
                         ERR_FILE_NOT_FOUND);
 }
 
-TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailList) {
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailMlsd) {
   FtpSocketDataProviderDirectoryListing ctrl_socket;
   TransactionFailHelper(&ctrl_socket,
                         "ftp://host",
+                        FtpSocketDataProvider::PRE_MLSD,
+                        FtpSocketDataProvider::PRE_LIST,
+                        "500 Unrecognized command\r\n",
+                        OK);
+}
+
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailList) {
+  FtpSocketDataProviderVMSDirectoryListing ctrl_socket;
+  TransactionFailHelper(&ctrl_socket,
+                        "ftp://host/dir",
                         FtpSocketDataProvider::PRE_LIST,
                         FtpSocketDataProvider::PRE_QUIT,
                         "500 failed list\r\n",

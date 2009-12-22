@@ -57,6 +57,7 @@ class FtpNetworkTransaction : public FtpTransaction {
     COMMAND_SIZE,
     COMMAND_RETR,
     COMMAND_CWD,
+    COMMAND_MLSD,
     COMMAND_LIST,
     COMMAND_MDTM,
     COMMAND_QUIT
@@ -151,6 +152,8 @@ class FtpNetworkTransaction : public FtpTransaction {
   int ProcessResponseSIZE(const FtpCtrlResponse& response);
   int DoCtrlWriteCWD();
   int ProcessResponseCWD(const FtpCtrlResponse& response);
+  int DoCtrlWriteMLSD();
+  int ProcessResponseMLSD(const FtpCtrlResponse& response);
   int DoCtrlWriteLIST();
   int ProcessResponseLIST(const FtpCtrlResponse& response);
   int DoCtrlWriteMDTM();
@@ -240,6 +243,7 @@ class FtpNetworkTransaction : public FtpTransaction {
     STATE_CTRL_WRITE_RETR,
     STATE_CTRL_WRITE_SIZE,
     STATE_CTRL_WRITE_CWD,
+    STATE_CTRL_WRITE_MLSD,
     STATE_CTRL_WRITE_LIST,
     STATE_CTRL_WRITE_MDTM,
     STATE_CTRL_WRITE_QUIT,
