@@ -224,7 +224,7 @@
           }, {
             'linux_dump_symbols%': 0,
           }],
-          ['toolkit_views==0', {
+          ['toolkit_views==0 and chromeos==0', {
             # GTK wants Title Case strings
             'use_titlecase_in_grd_files%': 1,
           }],
@@ -318,11 +318,8 @@
       ['chrome_frame_define', {
         'defines': ['CHROME_FRAME_BUILD'],
       }],
-      ['toolkit_views==1', {
+      ['toolkit_views==1 or chromeos==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
-      }],
-      ['chromeos==1', {
-        'defines': ['CHROMEOS_TRANSITIONAL=1'],
       }],
       ['chromeos==1 or toolkit_views==1', {
         'defines': ['OS_CHROMEOS=1'],
@@ -1067,7 +1064,7 @@
           ['chromeos!=1', {
             'sources/': [ ['exclude', '_chromeos\\.cc$'] ]
           }],
-          ['OS!="win" and toolkit_views!=1', {
+          ['OS!="win" and (toolkit_views==0 and chromeos==0)', {
             'sources/': [ ['exclude', '_views\\.cc$'] ]
           }],
         ],
