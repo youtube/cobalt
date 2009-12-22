@@ -35,8 +35,6 @@
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 // FFmpeg forward declarations.
-struct AVCodecContext;
-struct AVBitStreamFilterContext;
 struct AVFormatContext;
 struct AVPacket;
 struct AVRational;
@@ -44,6 +42,7 @@ struct AVStream;
 
 namespace media {
 
+class BitstreamConverter;
 class FFmpegDemuxer;
 
 // Forward declaration for scoped_ptr_malloc.
@@ -193,6 +192,9 @@ class FFmpegDemuxer : public Demuxer,
 
   // Latest timestamp read on the demuxer thread.
   base::TimeDelta current_timestamp_;
+
+  // Used to translate bitstream formats. Lazily allocated.
+  scoped_ptr<BitstreamConverter> bitstream_converter_;
 
   // Two vector of streams:
   //   - |streams_| is indexed for the Demuxer interface GetStream(), which only
