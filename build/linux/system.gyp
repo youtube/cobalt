@@ -81,7 +81,15 @@
               ],
               'direct_dependent_settings': {
                 'cflags': [
-                  '-Inet/third_party/nss/ssl',
+                  # We need for our local copies of the libssl headers to come
+                  # first, otherwise the code will build, but will fallback to
+                  # the set of features advertised in the system headers.
+                  # Unfortunately, there's no include path that we can filter
+                  # out of $(pkg-config --cflags nss) and GYP include paths
+                  # come after cflags on the command line. So we have these
+                  # bodges:
+                  '-I../net/third_party/nss/ssl',  # for scons
+                  '-Inet/third_party/nss/ssl',     # for make
                   '<!@(<(pkg-config) --cflags nss)',
                 ],
               },
