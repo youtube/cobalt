@@ -118,8 +118,6 @@ NormalizeResult NormalizeRule(std::string* domain, Rule* rule) {
   }
 
   // Allow single leading '*.' or '!', saved here so it's not canonicalized.
-  rule->wildcard = false;
-  rule->exception = false;
   size_t start_offset = 0;
   if (domain->at(0) == '!') {
     domain->erase(0, 1);
@@ -195,6 +193,8 @@ NormalizeResult NormalizeFile(const FilePath& in_filename,
       domain.assign(data.data(), line_start, line_end - line_start);
 
       Rule rule;
+      rule.wildcard = false;
+      rule.exception = false;
       NormalizeResult new_result = NormalizeRule(&domain, &rule);
       if (new_result != kError) {
         // Check the existing rules to make sure we don't have an exception and
