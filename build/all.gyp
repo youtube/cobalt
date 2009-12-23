@@ -167,6 +167,18 @@
             'temp_gyp/googleurl.gyp:googleurl_unittests',
           ],
         },
+        {
+          'target_name': 'chromium_builder_dbg_tsan_mac',
+          'type': 'none',
+          'dependencies': [
+            '../base/base.gyp:base_unittests',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
+            '../net/net.gyp:net_unittests',
+            '../ipc/ipc.gyp:ipc_tests',
+            '../media/media.gyp:media_unittests',
+            '../printing/printing.gyp:printing_unittests',
+          ],
+        },
       ],  # targets
     }], # OS="mac"
     ['OS=="win"', {
