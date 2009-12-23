@@ -50,8 +50,6 @@
         'base/directory_lister.h',
         'base/dns_util.cc',
         'base/dns_util.h',
-        'base/effective_tld_names.cc',
-        'base/effective_tld_names.dat',
         'base/escape.cc',
         'base/escape.h',
         'base/ev_root_ca_metadata.cc',
