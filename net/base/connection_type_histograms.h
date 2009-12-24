@@ -15,7 +15,7 @@
 namespace net {
 
 enum ConnectionType {
-  CONNECTION_ANY = 0,      // Any connection, SSL or not
+  CONNECTION_ANY = 0,      // Any connection (SSL, HTTP, SPDY, etc)
   CONNECTION_SSL = 1,      // An SSL connection
   CONNECTION_SSL_MD5 = 2,  // An SSL connection with an MD5 certificate in
                            // the certificate chain (excluding root)
@@ -27,10 +27,14 @@ enum ConnectionType {
                               // in the certificate chain (excluding root)
   CONNECTION_SSL_MD2_CA = 6,  // An SSL connection with an MD2 CA certificate
                               // in the certificate chain (excluding root)
+  CONNECTION_HTTP = 7,     // An HTTP connection
+  CONNECTION_SPDY = 8,     // A SPDY connection
   NUM_OF_CONNECTION_TYPES
 };
 
-void UpdateConnectionTypeHistograms(ConnectionType type);
+// Update the connection type histograms.  |type| is the connection type.
+// |success| is whether or not the connection was successful or not.
+void UpdateConnectionTypeHistograms(ConnectionType type, bool success);
 
 }  // namespace net
 

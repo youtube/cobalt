@@ -11,6 +11,7 @@
 #include "base/string_util.h"
 #include "base/sys_info.h"
 #include "base/trace_event.h"
+#include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
@@ -311,6 +312,7 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback,
   } else {
     TRACE_EVENT_END("socket.connect", this, "");
     LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
+    UpdateConnectionTypeHistograms(CONNECTION_ANY, rv >= 0);
   }
 
   return rv;
@@ -659,8 +661,10 @@ void TCPClientSocketWin::DidCompleteConnect() {
     load_log_ = NULL;
   }
 
-  if (result != ERR_IO_PENDING)
+  if (result != ERR_IO_PENDING) {
+    UpdateConnectionTypeHistograms(CONNECTION_ANY, result >= 0);
     DoReadCallback(result);
+  }
 }
 
 void TCPClientSocketWin::DidCompleteRead() {
