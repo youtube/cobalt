@@ -9,6 +9,7 @@
 #include "base/compiler_specific.h"
 #include "base/field_trial.h"
 #include "base/histogram.h"
+#include "base/stats_counters.h"
 #include "base/string_util.h"
 #include "base/trace_event.h"
 #include "build/build_config.h"
@@ -164,7 +165,7 @@ void HttpNetworkTransaction::SetNextProtos(const std::string& next_protos) {
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
                                   CompletionCallback* callback,
                                   LoadLog* load_log) {
-  UpdateConnectionTypeHistograms(CONNECTION_ANY);
+  SIMPLE_STATS_COUNTER("HttpNetworkTransaction.Count");
 
   load_log_ = load_log;
   request_ = request_info;
@@ -664,13 +665,15 @@ int HttpNetworkTransaction::DoInitConnection() {
 }
 
 int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
-  if (result < 0)
+  if (result < 0) {
+    UpdateConnectionTypeHistograms(CONNECTION_HTTP, false);
     return ReconsiderProxyAfterError(result);
+  }
 
   DCHECK_EQ(OK, result);
 
   // If we don't have an initialized connection, that means we have a flip
-  // connection waiting for us. 
+  // connection waiting for us.
   if (!connection_->is_initialized()) {
     next_state_ = STATE_SPDY_SEND_REQUEST;
     return OK;
@@ -687,6 +690,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   } else {
     // Now we have a TCP connected socket.  Perform other connection setup as
     // needed.
+    UpdateConnectionTypeHistograms(CONNECTION_HTTP, true);
     if (proxy_mode_ == kSOCKSProxy)
       next_state_ = STATE_SOCKS_CONNECT;
     else if (using_ssl_ && proxy_mode_ == kDirectConnection) {
@@ -781,6 +785,7 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
         100);
 
     if (use_spdy) {
+      UpdateConnectionTypeHistograms(CONNECTION_SPDY, true);
       next_state_ = STATE_SPDY_SEND_REQUEST;
     } else {
       next_state_ = STATE_SEND_REQUEST;
@@ -1081,7 +1086,7 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
   const scoped_refptr<FlipSessionPool> spdy_pool =
       session_->flip_session_pool();
   scoped_refptr<FlipSession> spdy_session;
-  
+
   if (spdy_pool->HasSession(req_info)) {
     spdy_session = spdy_pool->Get(req_info, session_);
   } else {

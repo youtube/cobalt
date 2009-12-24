@@ -85,7 +85,7 @@ class SSLClientSocketWin : public SSLClientSocket {
   int DidCallInitializeSecurityContext();
   int DidCompleteHandshake();
   void DidCompleteRenegotiation();
-  void LogConnectionTypeMetrics() const;
+  void LogConnectionTypeMetrics(bool success) const;
   void FreeSendBuffer();
 
   // Internal callbacks as async operations complete.
