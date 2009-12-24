@@ -973,7 +973,7 @@ int SSLClientSocketWin::DoVerifyCertComplete(int result) {
       ssl_config_.IsAllowedBadCert(server_cert_))
     result = OK;
 
-  LogConnectionTypeMetrics();
+  LogConnectionTypeMetrics(result >= 0);
   if (renegotiating_) {
     DidCompleteRenegotiation();
     return result;
@@ -1313,18 +1313,18 @@ void SSLClientSocketWin::DidCompleteRenegotiation() {
   next_state_ = STATE_COMPLETED_RENEGOTIATION;
 }
 
-void SSLClientSocketWin::LogConnectionTypeMetrics() const {
-  UpdateConnectionTypeHistograms(CONNECTION_SSL);
+void SSLClientSocketWin::LogConnectionTypeMetrics(bool success) const {
+  UpdateConnectionTypeHistograms(CONNECTION_SSL, success);
   if (server_cert_verify_result_.has_md5)
-    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5);
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5, success);
   if (server_cert_verify_result_.has_md2)
-    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2);
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2, success);
   if (server_cert_verify_result_.has_md4)
-    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD4);
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD4, success);
   if (server_cert_verify_result_.has_md5_ca)
-    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5_CA);
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD5_CA, success);
   if (server_cert_verify_result_.has_md2_ca)
-    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2_CA);
+    UpdateConnectionTypeHistograms(CONNECTION_SSL_MD2_CA, success);
 }
 
 void SSLClientSocketWin::FreeSendBuffer() {
