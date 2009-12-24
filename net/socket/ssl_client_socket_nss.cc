@@ -312,8 +312,6 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_DEFLATE, PR_TRUE);
   if (rv != SECSuccess)
      LOG(INFO) << "SSL_ENABLE_DEFLATE failed.  Old system nss?";
-#else
-#error This is a temporary hack to check that the builders are using the correct header files. It will be removed once a build has finished.
 #endif
 
 #ifdef SSL_NEXT_PROTO_NEGOTIATED
