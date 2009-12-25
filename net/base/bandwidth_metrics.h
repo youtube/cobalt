@@ -7,6 +7,7 @@
 
 #include <list>
 
+#include "base/histogram.h"
 #include "base/logging.h"
 #include "base/time.h"
 
@@ -93,6 +94,8 @@ class BandwidthMetrics {
         data_sum_ += kbps;
         LOG(INFO) << "Bandwidth: " << kbps
                   << "Kbps (avg " << bandwidth() << "Kbps)";
+        int kbps_int = static_cast<int>(kbps);
+        UMA_HISTOGRAM_COUNTS_10000("Net.DownloadBandwidth", kbps_int);
       }
     }
   }
