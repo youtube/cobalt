@@ -213,9 +213,8 @@ static const MagicNumber kSniffableTags[] = {
 static scoped_refptr<Histogram> UMASnifferHistogramGet(const char* name,
                                                        int array_size) {
   scoped_refptr<Histogram> counter =
-      LinearHistogram::LinearHistogramFactoryGet(
-          name, 1, array_size - 1, array_size);
-  counter->SetFlags(kUmaTargetedHistogramFlag);
+      LinearHistogram::FactoryGet(name, 1, array_size - 1, array_size,
+      Histogram::kUmaTargetedHistogramFlag);
   return counter;
 }
 

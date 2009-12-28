@@ -1157,22 +1157,13 @@ void HttpNetworkTransaction::LogTCPConnectedMetrics(
         100);
   }
 
-  static scoped_refptr<Histogram> tcp_socket_type_counter =
-      LinearHistogram::LinearHistogramFactoryGet(
-          "Net.TCPSocketType",
-          1, ClientSocketHandle::NUM_TYPES, ClientSocketHandle::NUM_TYPES + 1);
-  tcp_socket_type_counter->SetFlags(kUmaTargetedHistogramFlag);
-  tcp_socket_type_counter->Add(handle.reuse_type());
+  UMA_HISTOGRAM_ENUMERATION("Net.TCPSocketType", handle.reuse_type(),
+      ClientSocketHandle::NUM_TYPES);
 
   if (use_late_binding_histogram) {
-    static scoped_refptr<Histogram> tcp_socket_type_counter2 =
-        LinearHistogram::LinearHistogramFactoryGet(
-            FieldTrial::MakeName("Net.TCPSocketType",
-                                 "SocketLateBinding").data(),
-            1, ClientSocketHandle::NUM_TYPES,
-            ClientSocketHandle::NUM_TYPES + 1);
-    tcp_socket_type_counter2->SetFlags(kUmaTargetedHistogramFlag);
-    tcp_socket_type_counter2->Add(handle.reuse_type());
+    UMA_HISTOGRAM_ENUMERATION(
+        FieldTrial::MakeName("Net.TCPSocketType", "SocketLateBinding"),
+        handle.reuse_type(), ClientSocketHandle::NUM_TYPES);
   }
 
   UMA_HISTOGRAM_CLIPPED_TIMES(
@@ -1230,22 +1221,14 @@ void HttpNetworkTransaction::LogIOErrorMetrics(
   static const bool use_late_binding_histogram =
       !FieldTrial::MakeName("", "SocketLateBinding").empty();
 
-  static scoped_refptr<Histogram> io_error_socket_type_counter =
-      LinearHistogram::LinearHistogramFactoryGet(
-          "Net.IOError_SocketReuseType",
-          1, ClientSocketHandle::NUM_TYPES, ClientSocketHandle::NUM_TYPES + 1);
-  io_error_socket_type_counter->SetFlags(kUmaTargetedHistogramFlag);
-  io_error_socket_type_counter->Add(handle.reuse_type());
+  UMA_HISTOGRAM_ENUMERATION("Net.IOError_SocketReuseType",
+       handle.reuse_type(), ClientSocketHandle::NUM_TYPES);
 
   if (use_late_binding_histogram) {
-    static scoped_refptr<Histogram> io_error_socket_type_counter =
-        LinearHistogram::LinearHistogramFactoryGet(
-            FieldTrial::MakeName("Net.IOError_SocketReuseType",
-                                 "SocketLateBinding").data(),
-            1, ClientSocketHandle::NUM_TYPES,
-            ClientSocketHandle::NUM_TYPES + 1);
-    io_error_socket_type_counter->SetFlags(kUmaTargetedHistogramFlag);
-    io_error_socket_type_counter->Add(handle.reuse_type());
+    UMA_HISTOGRAM_ENUMERATION(
+        FieldTrial::MakeName("Net.IOError_SocketReuseType",
+                             "SocketLateBinding"),
+        handle.reuse_type(), ClientSocketHandle::NUM_TYPES);
   }
 
   switch (handle.reuse_type()) {

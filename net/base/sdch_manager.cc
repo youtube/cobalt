@@ -32,11 +32,7 @@ SdchManager* SdchManager::Global() {
 
 // static
 void SdchManager::SdchErrorRecovery(ProblemCodes problem) {
-  static scoped_refptr<Histogram> histogram =
-      LinearHistogram::LinearHistogramFactoryGet("Sdch3.ProblemCodes_4",
-          MIN_PROBLEM_CODE + 1, MAX_PROBLEM_CODE - 1, MAX_PROBLEM_CODE);
-  histogram->SetFlags(kUmaTargetedHistogramFlag);
-  histogram->Add(problem);
+  UMA_HISTOGRAM_ENUMERATION("Sdch3.ProblemCodes_4", problem, MAX_PROBLEM_CODE);
 }
 
 // static
