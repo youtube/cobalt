@@ -160,14 +160,21 @@ Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
       // Watch out for an error page inserted by the proxy as part of a 40x
       // error response.  When we see such content molestation, we certainly
       // need to fall into the meta-refresh case.
-      bool successful_response = filter_context().GetResponseCode() == 200;
       if (filter_context().GetResponseCode() == 404) {
         // We could be more generous, but for now, only a "NOT FOUND" code will
-        // cause a pass through.  All other codes will fall into a meta-refresh
-        // attempt.
+        // cause a pass through.  All other bad codes will fall into a
+        // meta-refresh.
         SdchManager::SdchErrorRecovery(SdchManager::PASS_THROUGH_404_CODE);
         decoding_status_ = PASS_THROUGH;
-      } else if (possible_pass_through_ && successful_response) {
+      } else if (filter_context().GetResponseCode() != 200) {
+        // We need to meta-refresh, with SDCH disabled.
+      } else if (filter_context().IsCachedContent()
+                 && !dictionary_hash_is_plausible_) {
+        // We must have hit the back button, and gotten content that was fetched
+        // before we *really* advertised SDCH and a dictionary.
+        SdchManager::SdchErrorRecovery(SdchManager::PASS_THROUGH_OLD_CACHED);
+        decoding_status_ = PASS_THROUGH;
+      } else if (possible_pass_through_) {
         // This is the potentially most graceful response. There really was no
         // error. We were just overly cautious when we added a TENTATIVE_SDCH.
         // We added the sdch coding tag, and it should not have been added.
@@ -182,7 +189,7 @@ Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
         // the meta-refresh result.
         // TODO(jar): Improve robustness by sniffing for valid text that we can
         // actual use re: decoding_status_ = PASS_THROUGH;
-      } else if (successful_response && !dictionary_hash_is_plausible_) {
+      } else if (!dictionary_hash_is_plausible_) {
         // One of the first 9 bytes precluded consideration as a hash.
         // This can't be an SDCH payload, even though the server said it was.
         // This is a major error, as the server or proxy tagged this SDCH even
