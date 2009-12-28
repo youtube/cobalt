@@ -124,6 +124,10 @@ class SdchManager {
     INCOMPLETE_SDCH_CONTENT = 77,   // Last window was not completely decoded.
     PASS_THROUGH_404_CODE = 78,     // URL not found message passing through.
 
+    // This next report is very common, and not really an error scenario, but
+    // it exercises the error recovery logic.
+    PASS_THROUGH_OLD_CACHED = 79,   // Back button got pre-SDCH cached content.
+
     // Common decoded recovery methods.
     META_REFRESH_CACHED_RECOVERY = 80,  // Probably startup tab loading.
     DISCARD_TENTATIVE_SDCH = 81,        // Server decided not to use sdch.
