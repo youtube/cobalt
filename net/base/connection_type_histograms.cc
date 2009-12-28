@@ -22,30 +22,20 @@ namespace net {
 // expansion.
 void UpdateConnectionTypeHistograms(ConnectionType type, bool success) {
   static bool had_connection_type[NUM_OF_CONNECTION_TYPES];
-  static scoped_refptr<Histogram> had_histogram =
-      LinearHistogram::LinearHistogramFactoryGet("Net.HadConnectionType2",
-                                                 1, NUM_OF_CONNECTION_TYPES,
-                                                 NUM_OF_CONNECTION_TYPES + 1);
-  static scoped_refptr<Histogram> success_histogram =
-      LinearHistogram::LinearHistogramFactoryGet("Net.ConnectionTypeCount2",
-                                                 1, NUM_OF_CONNECTION_TYPES,
-                                                 NUM_OF_CONNECTION_TYPES + 1);
-  static scoped_refptr<Histogram> failed_histogram =
-      LinearHistogram::LinearHistogramFactoryGet("Net.ConnectionTypeFailCount2",
-                                                 1, NUM_OF_CONNECTION_TYPES,
-                                                 NUM_OF_CONNECTION_TYPES + 1);
 
   if (type >= 0 && type < NUM_OF_CONNECTION_TYPES) {
     if (!had_connection_type[type]) {
       had_connection_type[type] = true;
-      had_histogram->SetFlags(kUmaTargetedHistogramFlag);
-      had_histogram->Add(type);
+      UMA_HISTOGRAM_ENUMERATION("Net.HadConnectionType2",
+          type, NUM_OF_CONNECTION_TYPES);
     }
 
-    Histogram* histogram;
-    histogram = success ? success_histogram.get() : failed_histogram.get();
-    histogram->SetFlags(kUmaTargetedHistogramFlag);
-    histogram->Add(type);
+    if (success)
+      UMA_HISTOGRAM_ENUMERATION("Net.ConnectionTypeCount2",
+          type, NUM_OF_CONNECTION_TYPES);
+    else
+      UMA_HISTOGRAM_ENUMERATION("Net.ConnectionTypeFailCount2",
+          type, NUM_OF_CONNECTION_TYPES);
   } else {
     NOTREACHED();  // Someone's logging an invalid type!
   }

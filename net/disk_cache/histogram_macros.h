@@ -25,13 +25,8 @@
 #define UMA_HISTOGRAM_AGE_MS(name, initial_time)\
     UMA_HISTOGRAM_TIMES(name, Time::Now() - initial_time)
 
-#define UMA_HISTOGRAM_CACHE_ERROR(name, sample) do { \
-    static scoped_refptr<Histogram> counter = \
-        LinearHistogram::LinearHistogramFactoryGet(\
-            (name), 1, 49, 50); \
-    counter->SetFlags(kUmaTargetedHistogramFlag); \
-    counter->Add(sample); \
-  } while (0)
+#define UMA_HISTOGRAM_CACHE_ERROR(name, sample) \
+    UMA_HISTOGRAM_ENUMERATION(name, sample, 50)
 
 #ifdef NET_DISK_CACHE_BACKEND_IMPL_CC_
 #define BACKEND_OBJ this

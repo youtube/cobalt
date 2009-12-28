@@ -1146,18 +1146,14 @@ int FtpNetworkTransaction::DoDataReadComplete(int result) {
   return result;
 }
 
-// We're using a histogram as a group of counters.  We're only interested in
-// the values of the counters.  Ignore the shape, average, and standard
-// deviation of the histograms because they are meaningless.
+// We're using a histogram as a group of counters, with one bucket for each
+// enumeration value.  We're only interested in the values of the counters.
+// Ignore the shape, average, and standard deviation of the histograms because
+// they are meaningless.
 //
-// We use two groups of counters.  In the first group (counter1), each counter
-// is a boolean (0 or 1) that indicates whether the user has seen an error
-// of that type during that session.  In the second group (counter2), each
-// counter is the number of errors of that type the user has seen during
-// that session.
-//
-// Each histogram has an unused bucket at the end to allow seamless future
-// expansion.
+// We use two histograms.  In the first histogram we tally whether the user has
+// seen an error of that type during the session.  In the second histogram we
+// tally the total number of times the users sees each errer.
 void FtpNetworkTransaction::RecordDataConnectionError(int result) {
   // Gather data for http://crbug.com/3073. See how many users have trouble
   // establishing FTP data connection in passive FTP mode.
@@ -1205,23 +1201,15 @@ void FtpNetworkTransaction::RecordDataConnectionError(int result) {
       break;
   };
   static bool had_error_type[NUM_OF_NET_ERROR_TYPES];
-  static scoped_refptr<Histogram> error_flagged =
-      LinearHistogram::LinearHistogramFactoryGet(
-          "Net.FtpDataConnectionErrorHappened",
-          1, NUM_OF_NET_ERROR_TYPES, NUM_OF_NET_ERROR_TYPES + 1);
-  static scoped_refptr<Histogram> error_counter =
-      LinearHistogram::LinearHistogramFactoryGet(
-          "Net.FtpDataConnectionErrorCount",
-          1, NUM_OF_NET_ERROR_TYPES, NUM_OF_NET_ERROR_TYPES + 1);
 
   DCHECK(type >= 0 && type < NUM_OF_NET_ERROR_TYPES);
   if (!had_error_type[type]) {
     had_error_type[type] = true;
-    error_flagged->SetFlags(kUmaTargetedHistogramFlag);
-    error_flagged->Add(type);
+    UMA_HISTOGRAM_ENUMERATION("Net.FtpDataConnectionErrorHappened",
+        type, NUM_OF_NET_ERROR_TYPES);
   }
-  error_counter->SetFlags(kUmaTargetedHistogramFlag);
-  error_counter->Add(type);
+  UMA_HISTOGRAM_ENUMERATION("Net.FtpDataConnectionErrorCount",
+      type, NUM_OF_NET_ERROR_TYPES);
 }
 
 }  // namespace net
