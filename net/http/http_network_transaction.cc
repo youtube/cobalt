@@ -1150,8 +1150,8 @@ void HttpNetworkTransaction::LogTCPConnectedMetrics(
       !FieldTrial::MakeName("", "SocketLateBinding").empty();
 
   if (handle.reuse_type() == ClientSocketHandle::UNUSED) {
-    UMA_HISTOGRAM_CLIPPED_TIMES(
-        "Net.Dns_Resolution_And_TCP_Connection_Latency",
+    UMA_HISTOGRAM_CUSTOM_TIMES(
+        "Net.HttpConnectionLatency",
         time_to_obtain_connected_socket,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
