@@ -265,7 +265,7 @@ void MessageLoop::PostTask_Helper(
     pending_task.delayed_run_time =
         Time::Now() + TimeDelta::FromMilliseconds(delay_ms);
   } else {
-    DCHECK(delay_ms == 0) << "delay should not be negative";
+    DCHECK_EQ(delay_ms, 0) << "delay should not be negative";
   }
 
   // Warning: Don't try to short-circuit, and handle this thread's tasks more
@@ -531,13 +531,10 @@ void MessageLoop::StartHistogrammer() {
   if (enable_histogrammer_ && !message_histogram_.get()
       && StatisticsRecorder::WasStarted()) {
     DCHECK(!thread_name_.empty());
-    message_histogram_ =
-        LinearHistogram::LinearHistogramFactoryGet(
-                            ("MsgLoop:" + thread_name_),
-                            kLeastNonZeroMessageId,
-                            kMaxMessageId,
-                            kNumberOfDistinctMessagesDisplayed);
-    message_histogram_->SetFlags(message_histogram_->kHexRangePrintingFlag);
+    message_histogram_ = LinearHistogram::FactoryGet("MsgLoop:" + thread_name_,
+        kLeastNonZeroMessageId, kMaxMessageId,
+        kNumberOfDistinctMessagesDisplayed,
+        message_histogram_->kHexRangePrintingFlag);
     message_histogram_->SetRangeDescriptions(event_descriptions_);
   }
 }
