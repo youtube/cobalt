@@ -1373,19 +1373,19 @@ TEST_F(FileUtilTest, Contains) {
   EXPECT_FALSE(file_util::ContainsPath(foo, foobar));
   EXPECT_FALSE(file_util::ContainsPath(foo, foo));
 
-// Platform-specific concerns
+  // Platform-specific concerns.
   FilePath foo_caps(data_dir.Append(FILE_PATH_LITERAL("FOO")));
 #if defined(OS_WIN)
   EXPECT_TRUE(file_util::ContainsPath(foo,
       foo_caps.Append(FILE_PATH_LITERAL("bar.txt"))));
   EXPECT_TRUE(file_util::ContainsPath(foo,
       FilePath(foo.value() + FILE_PATH_LITERAL("/bar.txt"))));
-#elif defined(OS_LINUX)
+#elif defined(OS_MACOSX)
+  // We can't really do this test on OS X since the case-sensitivity of the
+  // filesystem is configurable.
+#elif defined(OS_POSIX)
   EXPECT_FALSE(file_util::ContainsPath(foo,
       foo_caps.Append(FILE_PATH_LITERAL("bar.txt"))));
-#else
-  // We can't really do this test on osx since the case-sensitivity of the
-  // filesystem is configurable.
 #endif
 }
 

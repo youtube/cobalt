@@ -23,7 +23,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 #include <gtk/gtk.h>
 #endif
 
@@ -55,7 +55,7 @@ class TestSuite {
     base::EnableTerminationOnHeapCorruption();
     CommandLine::Init(argc, argv);
     testing::InitGoogleTest(&argc, argv);
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
     g_thread_init(NULL);
     gtk_init_check(&argc, &argv);
 #endif  // defined(OS_LINUX)
@@ -212,13 +212,13 @@ class TestSuite {
 
     icu_util::Initialize();
 
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
     // Trying to repeatedly initialize and cleanup NSS and NSPR may result in
     // a deadlock. Such repeated initialization will happen when using test
     // isolation. Prevent problems by initializing NSS here, so that the cleanup
     // will be done only on process exit.
     base::EnsureNSSInit();
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_POSIX) && !defined(OS_MACOSX)
   }
 
   virtual void Shutdown() {

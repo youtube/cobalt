@@ -20,7 +20,7 @@
 #include "base/message_pump_libevent.h"
 #include "base/third_party/valgrind/valgrind.h"
 #endif
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 #include "base/message_pump_glib.h"
 #endif
 
@@ -99,9 +99,9 @@ MessageLoop::MessageLoop(Type type)
   if (type_ == TYPE_UI) {
 #if defined(OS_MACOSX)
     pump_ = base::MessagePumpMac::Create();
-#elif defined(OS_LINUX)
+#else
     pump_ = new base::MessagePumpForUI();
-#endif  // OS_LINUX
+#endif
   } else if (type_ == TYPE_IO) {
     pump_ = new base::MessagePumpLibevent();
   } else {
@@ -194,7 +194,7 @@ void MessageLoop::RunInternal() {
 
   StartHistogrammer();
 
-#if defined(OS_WIN) || defined(OS_LINUX)
+#if !defined(OS_MACOSX)
   if (state_->dispatcher && type() == TYPE_UI) {
     static_cast<base::MessagePumpForUI*>(pump_.get())->
         RunWithDispatcher(this, state_->dispatcher);
@@ -487,7 +487,7 @@ MessageLoop::AutoRunState::AutoRunState(MessageLoop* loop) : loop_(loop) {
 
   // Initialize the other fields:
   quit_received = false;
-#if defined(OS_WIN) || defined(OS_LINUX)
+#if !defined(OS_MACOSX)
   dispatcher = NULL;
 #endif
 }
@@ -588,7 +588,7 @@ void MessageLoopForUI::PumpOutPendingPaintMessages() {
 
 #endif  // defined(OS_WIN)
 
-#if defined(OS_LINUX) || defined(OS_WIN)
+#if !defined(OS_MACOSX)
 void MessageLoopForUI::AddObserver(Observer* observer) {
   pump_ui()->AddObserver(observer);
 }
@@ -602,7 +602,7 @@ void MessageLoopForUI::Run(Dispatcher* dispatcher) {
   state_->dispatcher = dispatcher;
   RunHandler();
 }
-#endif  // defined(OS_LINUX) || defined(OS_WIN)
+#endif  // !defined(OS_MACOSX)
 
 //------------------------------------------------------------------------------
 // MessageLoopForIO

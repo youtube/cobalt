@@ -5,6 +5,7 @@
 #include "base/test/test_file_util.h"
 
 #include <errno.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -99,5 +100,13 @@ bool CopyRecursiveDirNoCache(const FilePath& source_dir,
 
   return success;
 }
+
+#if !defined(OS_LINUX) && !defined(OS_MACOSX)
+bool EvictFileFromSystemCache(const FilePath& file) {
+  // There doesn't seem to be a POSIX way to cool the disk cache.
+  NOTIMPLEMENTED();
+  return false;
+}
+#endif
 
 }  // namespace file_util

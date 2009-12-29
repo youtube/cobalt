@@ -153,7 +153,7 @@ void SetMinLogLevel(int level);
 // Gets the current log level.
 int GetMinLogLevel();
 
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 // Get the file descriptor used for logging.
 // Returns -1 if none open.
 // Needed by ZygoteManager.

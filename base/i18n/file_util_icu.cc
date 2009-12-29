@@ -146,7 +146,7 @@ void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
     // Windows uses UTF-16 encoding for filenames.
     U16_NEXT(file_name->data(), cursor, static_cast<int>(file_name->length()),
              code_point);
-#elif defined(OS_LINUX)
+#elif defined(OS_POSIX)
     // Linux doesn't actually define an encoding. It basically allows anything
     // except for a few special ASCII characters.
     unsigned char cur_char = static_cast<unsigned char>((*file_name)[cursor++]);
