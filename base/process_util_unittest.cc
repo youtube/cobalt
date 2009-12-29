@@ -22,6 +22,7 @@
 #endif
 #if defined(OS_POSIX)
 #include <fcntl.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #endif
 #if defined(OS_WIN)

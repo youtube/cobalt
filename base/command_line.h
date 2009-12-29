@@ -68,7 +68,7 @@ class CommandLine {
   // line, but it still must be called to set up the command line.
   static void Init(int argc, const char* const* argv);
 
-#if defined(OS_LINUX) || defined(OS_FREEBSD)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
   // Sets the current process' arguments that show in "ps" etc. to those
   // in |current_process_commandline_|. Used by the zygote host so that
   // renderers show up with --type=renderer.

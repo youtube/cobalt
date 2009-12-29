@@ -21,9 +21,9 @@
 #include "base/message_pump_win.h"
 #elif defined(OS_POSIX)
 #include "base/message_pump_libevent.h"
-#endif
-#if defined(OS_LINUX)
+#if !defined(OS_MACOSX)
 #include "base/message_pump_glib.h"
+#endif
 #endif
 
 // A MessageLoop is used to process events for a particular thread.  There is
@@ -254,7 +254,7 @@ class MessageLoop : public base::MessagePump::Delegate {
 #if defined(OS_WIN)
   typedef base::MessagePumpWin::Dispatcher Dispatcher;
   typedef base::MessagePumpWin::Observer Observer;
-#elif defined(OS_LINUX)
+#elif !defined(OS_MACOSX)
   typedef base::MessagePumpForUI::Dispatcher Dispatcher;
   typedef base::MessagePumpForUI::Observer Observer;
 #endif
@@ -269,7 +269,7 @@ class MessageLoop : public base::MessagePump::Delegate {
     // once it becomes idle.
     bool quit_received;
 
-#if defined(OS_WIN) || defined(OS_LINUX)
+#if !defined(OS_MACOSX)
     Dispatcher* dispatcher;
 #endif
   };
@@ -457,7 +457,7 @@ class MessageLoopForUI : public MessageLoop {
   void PumpOutPendingPaintMessages();
 #endif
 
-#if defined(OS_WIN) || defined(OS_LINUX)
+#if !defined(OS_MACOSX)
   // Please see message_pump_win/message_pump_glib for definitions of these
   // methods.
   void AddObserver(Observer* observer);
@@ -469,7 +469,7 @@ class MessageLoopForUI : public MessageLoop {
   base::MessagePumpForUI* pump_ui() {
     return static_cast<base::MessagePumpForUI*>(pump_.get());
   }
-#endif  // defined(OS_WIN) || defined(OS_LINUX)
+#endif  // defined(OS_MACOSX)
 };
 
 // Do not add any member variables to MessageLoopForUI!  This is important b/c
