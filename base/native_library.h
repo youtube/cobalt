@@ -44,7 +44,7 @@ struct NativeLibraryStruct {
   };
 };
 typedef NativeLibraryStruct* NativeLibrary;
-#elif defined(OS_LINUX) || defined(OS_FREEBSD)
+#elif defined(OS_POSIX)
 typedef void* NativeLibrary;
 #endif  // OS_*
 

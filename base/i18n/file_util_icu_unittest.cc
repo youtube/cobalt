@@ -35,7 +35,7 @@ class FileUtilICUTest : public PlatformTest {
   FilePath test_dir_;
 };
 
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 
 // Linux disallows some evil ASCII characters, but passes all non-ASCII.
 static const struct goodbad_pair {

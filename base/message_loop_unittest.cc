@@ -1502,4 +1502,4 @@ TEST(MessageLoopTest, FileDescriptorWatcherDoubleStop) {
   close(pipefds[1]);
 }
 
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_POSIX)

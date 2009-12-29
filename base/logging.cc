@@ -18,7 +18,7 @@ typedef HANDLE MutexHandle;
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h>
-#elif defined(OS_LINUX)
+#elif defined(OS_POSIX)
 #include <sys/syscall.h>
 #include <time.h>
 #endif
@@ -137,6 +137,9 @@ int32 CurrentThreadId() {
   return mach_thread_self();
 #elif defined(OS_LINUX)
   return syscall(__NR_gettid);
+#elif defined(OS_FREEBSD)
+  // TODO(BSD): find a better thread ID
+  return reinterpret_cast<int64>(pthread_self());
 #endif
 }
 
@@ -145,7 +148,7 @@ uint64 TickCount() {
   return GetTickCount();
 #elif defined(OS_MACOSX)
   return mach_absolute_time();
-#elif defined(OS_LINUX)
+#elif defined(OS_POSIX)
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
 
@@ -226,7 +229,7 @@ bool InitializeLogFileHandle() {
   return true;
 }
 
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 int GetLoggingFileDescriptor() {
   // No locking needed, since this is only called by the zygote server,
   // which is single-threaded.

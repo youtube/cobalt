@@ -377,6 +377,14 @@
                 },
               },
             ],
+            [ 'OS == "linux"', {
+              'link_settings': {
+                'libraries': [
+                  # We need rt for clock_gettime().
+                  '-lrt',
+                ],
+              },
+            }],
           ],
           'dependencies': [
             '../build/util/build_util.gyp:lastchange',
@@ -386,12 +394,6 @@
           'cflags': [
             '-Wno-write-strings',
           ],
-          'link_settings': {
-            'libraries': [
-              # We need rt for clock_gettime().
-              '-lrt',
-            ],
-          },
           'export_dependent_settings': [
             '../build/linux/system.gyp:gtk',
           ],
@@ -403,6 +405,11 @@
             'sources': [
               'directory_watcher_stub.cc',
             ],
+            'link_settings': {
+              'libraries': [
+                '-L/usr/local/lib -lexecinfo',
+              ],
+            },
           },
         ],
         [ 'OS == "mac"', {

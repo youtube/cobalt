@@ -31,7 +31,7 @@
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_SHARED
 #elif defined(OS_MACOSX)
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_STATIC
-#elif defined(OS_LINUX)
+#elif defined(OS_POSIX)
 #define ICU_UTIL_DATA_IMPL ICU_UTIL_DATA_FILE
 #endif
 
