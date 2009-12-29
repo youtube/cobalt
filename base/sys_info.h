@@ -67,7 +67,7 @@ class SysInfo {
   // allocate.
   static size_t VMAllocationGranularity();
 
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
   // Returns the maximum SysV shared memory segment size.
   static size_t MaxSharedMemorySize();
 #endif

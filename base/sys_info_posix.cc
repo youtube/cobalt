@@ -6,17 +6,14 @@
 
 #include <errno.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/statvfs.h>
+#include <sys/sysctl.h>
 #include <sys/utsname.h>
 #include <unistd.h>
 
 #if !defined(OS_MACOSX)
 #include <gdk/gdk.h>
-#endif
-
-#if defined(OS_OPENBSD)
-#include <sys/param.h>
-#include <sys/sysctl.h>
 #endif
 
 #include "base/basictypes.h"

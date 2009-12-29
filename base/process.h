@@ -29,7 +29,7 @@ typedef pid_t ProcessId;
 const ProcessHandle kNullProcessHandle = 0;
 #endif
 
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 // saved_priority_ will be set to this to indicate that it's not holding
 // a valid value. -20 to 19 are valid process priorities.
 const int kUnsetProcessPriority = 256;
@@ -38,13 +38,13 @@ const int kUnsetProcessPriority = 256;
 class Process {
  public:
   Process() : process_(kNullProcessHandle) {
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
     saved_priority_ = kUnsetProcessPriority;
 #endif
   }
 
   explicit Process(ProcessHandle handle) : process_(handle) {
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
     saved_priority_ = kUnsetProcessPriority;
 #endif
   }
@@ -57,7 +57,7 @@ class Process {
   ProcessHandle handle() const { return process_; }
   void set_handle(ProcessHandle handle) {
     process_ = handle;
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
     saved_priority_ = kUnsetProcessPriority;
 #endif
   }
@@ -93,7 +93,7 @@ class Process {
 
  private:
   ProcessHandle process_;
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
   // Holds the priority that the process was set to when it was backgrounded.
   // If the process wasn't backgrounded it will be kUnsetProcessPriority.
   int saved_priority_;
