@@ -200,7 +200,7 @@ void CommandLine::Init(int argc, const char* const* argv) {
 #endif
 }
 
-#if defined(OS_LINUX) || defined(OS_FREEBSD)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 // static
 void CommandLine::SetProcTitle() {
   // Build a single string which consists of all the arguments separated
