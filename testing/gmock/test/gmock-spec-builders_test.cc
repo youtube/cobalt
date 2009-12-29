@@ -97,16 +97,26 @@ class Result {};
 
 class MockA {
  public:
+  MockA() {}
+
   MOCK_METHOD1(DoA, void(int n));  // NOLINT
   MOCK_METHOD1(ReturnResult, Result(int n));  // NOLINT
   MOCK_METHOD2(Binary, bool(int x, int y));  // NOLINT
   MOCK_METHOD2(ReturnInt, int(int x, int y));  // NOLINT
+
+ private:
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(MockA);
 };
 
 class MockB {
  public:
+  MockB() {}
+
   MOCK_CONST_METHOD0(DoB, int());  // NOLINT
   MOCK_METHOD1(DoB, int(int n));  // NOLINT
+
+ private:
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(MockB);
 };
 
 // Tests that EXPECT_CALL and ON_CALL compile in a presence of macro
@@ -123,7 +133,12 @@ class CC {
 };
 class MockCC : public CC {
  public:
+  MockCC() {}
+
   MOCK_METHOD0(Method, int());
+
+ private:
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(MockCC);
 };
 
 // Tests that a method with expanded name compiles.
@@ -571,29 +586,34 @@ TEST(ExpectCallSyntaxTest, WarnsOnTooManyActions) {
     b.DoB(2);
   }
   const string& output = GetCapturedTestStdout();
-  EXPECT_PRED_FORMAT2(IsSubstring,
-                      "Too many actions specified.\n"
-                      "Expected to be never called, but has 1 WillOnce().",
-                      output);  // #1
-  EXPECT_PRED_FORMAT2(IsSubstring,
-                      "Too many actions specified.\n"
-                      "Expected to be called at most once, "
-                      "but has 2 WillOnce()s.",
-                      output);  // #2
-  EXPECT_PRED_FORMAT2(IsSubstring,
-                      "Too many actions specified.\n"
-                      "Expected to be called once, but has 2 WillOnce()s.",
-                      output);  // #3
-  EXPECT_PRED_FORMAT2(IsSubstring,
-                      "Too many actions specified.\n"
-                      "Expected to be never called, but has 0 WillOnce()s "
-                      "and a WillRepeatedly().",
-                      output);  // #4
-  EXPECT_PRED_FORMAT2(IsSubstring,
-                      "Too many actions specified.\n"
-                      "Expected to be called once, but has 1 WillOnce() "
-                      "and a WillRepeatedly().",
-                      output);  // #5
+  EXPECT_PRED_FORMAT2(
+      IsSubstring,
+      "Too many actions specified in EXPECT_CALL(b, DoB())...\n"
+      "Expected to be never called, but has 1 WillOnce().",
+      output);  // #1
+  EXPECT_PRED_FORMAT2(
+      IsSubstring,
+      "Too many actions specified in EXPECT_CALL(b, DoB())...\n"
+      "Expected to be called at most once, "
+      "but has 2 WillOnce()s.",
+      output);  // #2
+  EXPECT_PRED_FORMAT2(
+      IsSubstring,
+      "Too many actions specified in EXPECT_CALL(b, DoB(1))...\n"
+      "Expected to be called once, but has 2 WillOnce()s.",
+      output);  // #3
+  EXPECT_PRED_FORMAT2(
+      IsSubstring,
+      "Too many actions specified in EXPECT_CALL(b, DoB())...\n"
+      "Expected to be never called, but has 0 WillOnce()s "
+      "and a WillRepeatedly().",
+      output);  // #4
+  EXPECT_PRED_FORMAT2(
+      IsSubstring,
+      "Too many actions specified in EXPECT_CALL(b, DoB(2))...\n"
+      "Expected to be called once, but has 1 WillOnce() "
+      "and a WillRepeatedly().",
+      output);  // #5
 }
 
 // Tests that Google Mock warns on having too few actions in an
@@ -608,11 +628,12 @@ TEST(ExpectCallSyntaxTest, WarnsOnTooFewActions) {
   CaptureTestStdout();
   b.DoB();
   const string& output = GetCapturedTestStdout();
-  EXPECT_PRED_FORMAT2(IsSubstring,
-                      "Too few actions specified.\n"
-                      "Expected to be called between 2 and 3 times, "
-                      "but has only 1 WillOnce().",
-                      output);
+  EXPECT_PRED_FORMAT2(
+      IsSubstring,
+      "Too few actions specified in EXPECT_CALL(b, DoB())...\n"
+      "Expected to be called between 2 and 3 times, "
+      "but has only 1 WillOnce().",
+      output);
   b.DoB();
 }
 
@@ -688,7 +709,7 @@ TEST(ExpectCallTest, CatchesTooFewCalls) {
         .Times(AtLeast(2));
 
     b.DoB(5);
-  }, "Actual function call count doesn't match this expectation.\n"
+  }, "Actual function call count doesn't match EXPECT_CALL(b, DoB(5))...\n"
      "         Expected: to be called at least twice\n"
      "           Actual: called once - unsatisfied and active");
 }
@@ -895,14 +916,14 @@ TEST(UnexpectedCallTest, GeneratesFailureForVoidFunction) {
       "Google Mock tried the following 2 expectations, but none matched:");
   EXPECT_NONFATAL_FAILURE(
       a2.DoA(2),
-      "tried expectation #0\n"
+      "tried expectation #0: EXPECT_CALL(a2, DoA(1))...\n"
       "  Expected arg #0: is equal to 1\n"
       "           Actual: 2\n"
       "         Expected: to be called once\n"
       "           Actual: called once - saturated and active");
   EXPECT_NONFATAL_FAILURE(
       a2.DoA(2),
-      "tried expectation #1\n"
+      "tried expectation #1: EXPECT_CALL(a2, DoA(3))...\n"
       "  Expected arg #0: is equal to 3\n"
       "           Actual: 2\n"
       "         Expected: to be called once\n"
@@ -1611,7 +1632,18 @@ TEST(DeletingMockEarlyTest, Success2) {
 
 // Tests that it's OK to delete a mock object itself in its action.
 
+// Suppresses warning on unreferenced formal parameter in MSVC with
+// -W4.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4100)
+#endif
+
 ACTION_P(Delete, ptr) { delete ptr; }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 TEST(DeletingMockEarlyTest, CanDeleteSelfInActionReturningVoid) {
   MockA* const a = new MockA;
@@ -1685,7 +1717,9 @@ class EvenNumberCardinality : public CardinalityInterface {
   }
 
   // Returns true iff call_count calls will saturate this cardinality.
-  virtual bool IsSaturatedByCallCount(int call_count) const { return false; }
+  virtual bool IsSaturatedByCallCount(int /* call_count */) const {
+    return false;
+  }
 
   // Describes self to an ostream.
   virtual void DescribeTo(::std::ostream* os) const {
@@ -1734,9 +1768,14 @@ struct Unprintable {
 
 class MockC {
  public:
+  MockC() {}
+
   MOCK_METHOD6(VoidMethod, void(bool cond, int n, string s, void* p,
                                 const Printable& x, Unprintable y));
   MOCK_METHOD0(NonVoidMethod, int());  // NOLINT
+
+ private:
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(MockC);
 };
 
 // TODO(wan@google.com): find a way to re-enable these tests.
@@ -1929,7 +1968,12 @@ void PrintTo(PrintMeNot /* dummy */, ::std::ostream* /* os */) {
 
 class LogTestHelper {
  public:
+  LogTestHelper() {}
+
   MOCK_METHOD1(Foo, PrintMeNot(PrintMeNot));
+
+ private:
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(LogTestHelper);
 };
 
 class GMockLogTest : public ::testing::Test {
@@ -2046,7 +2090,7 @@ TEST(VerifyAndClearExpectationsTest, SomeMethodsHaveExpectationsAndFail) {
   MockB b;
   EXPECT_CALL(b, DoB())
       .WillOnce(Return(1));
-  bool result;
+  bool result = true;
   EXPECT_NONFATAL_FAILURE(result = Mock::VerifyAndClearExpectations(&b),
                           "Actual: never called");
   ASSERT_FALSE(result);
@@ -2084,7 +2128,7 @@ TEST(VerifyAndClearExpectationsTest, AMethodHasManyExpectations) {
   EXPECT_CALL(b, DoB(_))
       .WillOnce(Return(2));
   b.DoB(1);
-  bool result;
+  bool result = true;
   EXPECT_NONFATAL_FAILURE(result = Mock::VerifyAndClearExpectations(&b),
                           "Actual: never called");
   ASSERT_FALSE(result);
@@ -2216,7 +2260,7 @@ TEST(VerifyAndClearTest, Failure) {
       .WillOnce(Return(2));
 
   b.DoB(1);
-  bool result;
+  bool result = true;
   EXPECT_NONFATAL_FAILURE(result = Mock::VerifyAndClear(&b),
                           "Actual: never called");
   ASSERT_FALSE(result);

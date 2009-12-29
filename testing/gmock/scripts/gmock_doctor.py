@@ -186,8 +186,9 @@ def _NeedToReturnNothingDiagnoser(msg):
   """Diagnoses the NRN disease, given the error messages by gcc."""
 
   regex = (_FILE_LINE_RE + r'instantiated from here\n'
-           r'.*gmock-actions\.h.*error: return-statement with a value, '
-           r'in function returning \'void\'')
+           r'.*gmock-actions\.h.*error: instantiation of '
+           r'\'testing::internal::ReturnAction<R>::Impl<F>::value_\' '
+           r'as type \'void\'')
   diagnosis = """
 You are using an action that returns *something*, but it needs to return
 void.  Please use a void-returning action instead.
@@ -336,12 +337,14 @@ Did you forget to write
 def _NeedToUseReturnNullDiagnoser(msg):
   """Diagnoses the NRNULL disease, given the error messages by gcc."""
 
-  regex = (_FILE_LINE_RE + r'instantiated from here\n'
-           r'.*gmock-actions\.h.*error: invalid conversion from '
-           r'\'long int\' to \'(?P<type>.+\*)')
+  regex = ('instantiated from \'testing::internal::ReturnAction<R>'
+           '::operator testing::Action<Func>\(\) const.*\n' +
+           _FILE_LINE_RE + r'instantiated from here\n'
+           r'.*error: no matching function for call to \'implicit_cast\('
+           r'long int&\)')
   diagnosis = """
 You are probably calling Return(NULL) and the compiler isn't sure how to turn
-NULL into a %(type)s*. Use ReturnNull() instead.
+NULL into the right type. Use ReturnNull() instead.
 Note: the line number may be off; please fix all instances of Return(NULL)."""
   return _GenericDiagnoser('NRNULL', 'Need to use ReturnNull',
                            regex, diagnosis, msg)
@@ -363,11 +366,17 @@ def _TypeInTemplatedBaseDiagnoser1(msg):
   type.
   """
 
-  regex = (r'In member function \'int .*\n' + _FILE_LINE_RE +
-           r'error: a function call cannot appear in a constant-expression')
+  gcc_4_3_1_regex = (
+      r'In member function \'int .*\n' + _FILE_LINE_RE +
+      r'error: a function call cannot appear in a constant-expression')
+  gcc_4_4_0_regex = (
+      r'error: a function call cannot appear in a constant-expression'
+      + _FILE_LINE_RE + r'error: template argument 1 is invalid\n')
   diagnosis = _TTB_DIAGNOSIS % {'type': 'Foo'}
-  return _GenericDiagnoser('TTB', 'Type in Template Base',
-                           regex, diagnosis, msg)
+  return (list(_GenericDiagnoser('TTB', 'Type in Template Base',
+                                gcc_4_3_1_regex, diagnosis, msg)) +
+          list(_GenericDiagnoser('TTB', 'Type in Template Base',
+                                 gcc_4_4_0_regex, diagnosis, msg)))
 
 
 def _TypeInTemplatedBaseDiagnoser2(msg):
@@ -377,8 +386,7 @@ def _TypeInTemplatedBaseDiagnoser2(msg):
   parameter type.
   """
 
-  regex = (r'In member function \'int .*\n'
-           + _FILE_LINE_RE +
+  regex = (_FILE_LINE_RE +
            r'error: \'(?P<type>.+)\' was not declared in this scope\n'
            r'.*error: template argument 1 is invalid\n')
   return _GenericDiagnoser('TTB', 'Type in Template Base',
@@ -455,9 +463,13 @@ _DIAGNOSERS = [
 def Diagnose(msg):
   """Generates all possible diagnoses given the gcc error message."""
 
+  diagnoses = []
   for diagnoser in _DIAGNOSERS:
-    for diagnosis in diagnoser(msg):
-      yield '[%s - %s]\n%s' % diagnosis
+    for diag in diagnoser(msg):
+      diagnosis = '[%s - %s]\n%s' % diag
+      if not diagnosis in diagnoses:
+        diagnoses.append(diagnosis)
+  return diagnoses
 
 
 def main():
@@ -471,7 +483,7 @@ def main():
     print 'Waiting for compiler errors on stdin . . .'
 
   msg = sys.stdin.read().strip()
-  diagnoses = list(Diagnose(msg))
+  diagnoses = Diagnose(msg)
   count = len(diagnoses)
   if not count:
     print '\nGcc complained:'

@@ -117,9 +117,7 @@ GMOCK_DEFINE_DEFAULT_ACTION_FOR_RETURN_TYPE_(void, );  // NOLINT
 #if GTEST_HAS_GLOBAL_STRING
 GMOCK_DEFINE_DEFAULT_ACTION_FOR_RETURN_TYPE_(::string, "");
 #endif  // GTEST_HAS_GLOBAL_STRING
-#if GTEST_HAS_STD_STRING
 GMOCK_DEFINE_DEFAULT_ACTION_FOR_RETURN_TYPE_(::std::string, "");
-#endif  // GTEST_HAS_STD_STRING
 GMOCK_DEFINE_DEFAULT_ACTION_FOR_RETURN_TYPE_(bool, false);
 GMOCK_DEFINE_DEFAULT_ACTION_FOR_RETURN_TYPE_(unsigned char, '\0');
 GMOCK_DEFINE_DEFAULT_ACTION_FOR_RETURN_TYPE_(signed char, '\0');
@@ -270,6 +268,7 @@ class ActionInterface {
 
   // Returns true iff this is the DoDefault() action.
   bool IsDoDefault() const { return is_do_default_; }
+
  private:
   template <typename Function>
   friend class internal::MonomorphicDoDefaultActionImpl;
@@ -281,6 +280,8 @@ class ActionInterface {
 
   // True iff this action is DoDefault().
   const bool is_do_default_;
+
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(ActionInterface);
 };
 
 // An Action<F> is a copyable and IMMUTABLE (except by assignment)
@@ -310,7 +311,7 @@ class Action {
 
   // This constructor allows us to turn an Action<Func> object into an
   // Action<F>, as long as F's arguments can be implicitly converted
-  // to Func's and Func's return type cann be implicitly converted to
+  // to Func's and Func's return type can be implicitly converted to
   // F's.
   template <typename Func>
   explicit Action(const Action<Func>& action);
@@ -327,6 +328,7 @@ class Action {
   Result Perform(const ArgumentTuple& args) const {
     return impl_->Perform(args);
   }
+
  private:
   template <typename F1, typename F2>
   friend class internal::ActionAdaptor;
@@ -364,6 +366,7 @@ class PolymorphicAction {
   operator Action<F>() const {
     return Action<F>(new MonomorphicImpl<F>(impl_));
   }
+
  private:
   template <typename F>
   class MonomorphicImpl : public ActionInterface<F> {
@@ -379,9 +382,13 @@ class PolymorphicAction {
 
    private:
     Impl impl_;
+
+    GTEST_DISALLOW_ASSIGN_(MonomorphicImpl);
   };
 
   Impl impl_;
+
+  GTEST_DISALLOW_ASSIGN_(PolymorphicAction);
 };
 
 // Creates an Action from its implementation and returns it.  The
@@ -418,13 +425,37 @@ class ActionAdaptor : public ActionInterface<F1> {
   virtual Result Perform(const ArgumentTuple& args) {
     return impl_->Perform(args);
   }
+
  private:
   const internal::linked_ptr<ActionInterface<F2> > impl_;
+
+  GTEST_DISALLOW_ASSIGN_(ActionAdaptor);
 };
 
 // Implements the polymorphic Return(x) action, which can be used in
 // any function that returns the type of x, regardless of the argument
 // types.
+//
+// Note: The value passed into Return must be converted into
+// Function<F>::Result when this action is cast to Action<F> rather than
+// when that action is performed. This is important in scenarios like
+//
+// MOCK_METHOD1(Method, T(U));
+// ...
+// {
+//   Foo foo;
+//   X x(&foo);
+//   EXPECT_CALL(mock, Method(_)).WillOnce(Return(x));
+// }
+//
+// In the example above the variable x holds reference to foo which leaves
+// scope and gets destroyed.  If copying X just copies a reference to foo,
+// that copy will be left with a hanging reference.  If conversion to T
+// makes a copy of foo, the above code is safe. To support that scenario, we
+// need to make sure that the type conversion happens inside the EXPECT_CALL
+// statement, and conversion of the result of Return to Action<T(U)> is a
+// good place for that.
+//
 template <typename R>
 class ReturnAction {
  public:
@@ -451,6 +482,7 @@ class ReturnAction {
         use_ReturnRef_instead_of_Return_to_return_a_reference);
     return Action<F>(new Impl<F>(value_));
   }
+
  private:
   // Implements the Return(x) action for a particular function type F.
   template <typename F>
@@ -459,15 +491,29 @@ class ReturnAction {
     typedef typename Function<F>::Result Result;
     typedef typename Function<F>::ArgumentTuple ArgumentTuple;
 
-    explicit Impl(R value) : value_(value) {}
+    // The implicit cast is necessary when Result has more than one
+    // single-argument constructor (e.g. Result is std::vector<int>) and R
+    // has a type conversion operator template.  In that case, value_(value)
+    // won't compile as the compiler doesn't known which constructor of
+    // Result to call.  implicit_cast forces the compiler to convert R to
+    // Result without considering explicit constructors, thus resolving the
+    // ambiguity. value_ is then initialized using its copy constructor.
+    explicit Impl(R value)
+        : value_(::testing::internal::implicit_cast<Result>(value)) {}
 
     virtual Result Perform(const ArgumentTuple&) { return value_; }
 
    private:
-    R value_;
+    GMOCK_COMPILE_ASSERT_(!internal::is_reference<Result>::value,
+                          Result_cannot_be_a_reference_type);
+    Result value_;
+
+    GTEST_DISALLOW_ASSIGN_(Impl);
   };
 
   R value_;
+
+  GTEST_DISALLOW_ASSIGN_(ReturnAction);
 };
 
 // Implements the ReturnNull() action.
@@ -513,6 +559,7 @@ class ReturnRefAction {
                           use_Return_instead_of_ReturnRef_to_return_a_value);
     return Action<F>(new Impl<F>(ref_));
   }
+
  private:
   // Implements the ReturnRef(x) action for a particular function type F.
   template <typename F>
@@ -526,11 +573,16 @@ class ReturnRefAction {
     virtual Result Perform(const ArgumentTuple&) {
       return ref_;
     }
+
    private:
     T& ref_;
+
+    GTEST_DISALLOW_ASSIGN_(Impl);
   };
 
   T& ref_;
+
+  GTEST_DISALLOW_ASSIGN_(ReturnRefAction);
 };
 
 // Implements the DoDefault() action for a particular function type F.
@@ -582,9 +634,12 @@ class AssignAction {
   void Perform(const ArgumentTuple& /* args */) const {
     *ptr_ = value_;
   }
+
  private:
   T1* const ptr_;
   const T2 value_;
+
+  GTEST_DISALLOW_ASSIGN_(AssignAction);
 };
 
 #if !GTEST_OS_WINDOWS_MOBILE
@@ -602,9 +657,12 @@ class SetErrnoAndReturnAction {
     errno = errno_;
     return result_;
   }
+
  private:
   const int errno_;
   const T result_;
+
+  GTEST_DISALLOW_ASSIGN_(SetErrnoAndReturnAction);
 };
 
 #endif  // !GTEST_OS_WINDOWS_MOBILE
@@ -628,6 +686,8 @@ class SetArgumentPointeeAction {
 
  private:
   const A value_;
+
+  GTEST_DISALLOW_ASSIGN_(SetArgumentPointeeAction);
 };
 
 template <size_t N, typename Proto>
@@ -646,8 +706,11 @@ class SetArgumentPointeeAction<N, Proto, true> {
     CompileAssertTypesEqual<void, Result>();
     ::std::tr1::get<N>(args)->CopyFrom(*proto_);
   }
+
  private:
   const internal::linked_ptr<Proto> proto_;
+
+  GTEST_DISALLOW_ASSIGN_(SetArgumentPointeeAction);
 };
 
 // Implements the InvokeWithoutArgs(f) action.  The template argument
@@ -667,8 +730,11 @@ class InvokeWithoutArgsAction {
   // compatible with f.
   template <typename Result, typename ArgumentTuple>
   Result Perform(const ArgumentTuple&) { return function_impl_(); }
+
  private:
   FunctionImpl function_impl_;
+
+  GTEST_DISALLOW_ASSIGN_(InvokeWithoutArgsAction);
 };
 
 // Implements the InvokeWithoutArgs(object_ptr, &Class::Method) action.
@@ -682,9 +748,12 @@ class InvokeMethodWithoutArgsAction {
   Result Perform(const ArgumentTuple&) const {
     return (obj_ptr_->*method_ptr_)();
   }
+
  private:
   Class* const obj_ptr_;
   const MethodPtr method_ptr_;
+
+  GTEST_DISALLOW_ASSIGN_(InvokeMethodWithoutArgsAction);
 };
 
 // Implements the IgnoreResult(action) action.
@@ -710,6 +779,7 @@ class IgnoreResultAction {
 
     return Action<F>(new Impl<F>(action_));
   }
+
  private:
   template <typename F>
   class Impl : public ActionInterface<F> {
@@ -731,9 +801,13 @@ class IgnoreResultAction {
         OriginalFunction;
 
     const Action<OriginalFunction> action_;
+
+    GTEST_DISALLOW_ASSIGN_(Impl);
   };
 
   const A action_;
+
+  GTEST_DISALLOW_ASSIGN_(IgnoreResultAction);
 };
 
 // A ReferenceWrapper<T> object represents a reference to type T,
@@ -798,10 +872,14 @@ class DoBothAction {
    private:
     const Action<VoidResult> action1_;
     const Action<F> action2_;
+
+    GTEST_DISALLOW_ASSIGN_(Impl);
   };
 
   Action1 action1_;
   Action2 action2_;
+
+  GTEST_DISALLOW_ASSIGN_(DoBothAction);
 };
 
 }  // namespace internal

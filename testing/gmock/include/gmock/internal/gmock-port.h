@@ -81,27 +81,22 @@ namespace internal {
 #error "At least Visual C++ 2003 (7.1) is required to compile Google Mock."
 #endif
 
-// Use implicit_cast as a safe version of static_cast or const_cast
-// for upcasting in the type hierarchy (i.e. casting a pointer to Foo
-// to a pointer to SuperclassOfFoo or casting a pointer to Foo to
-// a const pointer to Foo).
-// When you use implicit_cast, the compiler checks that the cast is safe.
-// Such explicit implicit_casts are necessary in surprisingly many
-// situations where C++ demands an exact type match instead of an
-// argument type convertable to a target type.
+// Use implicit_cast as a safe version of static_cast for upcasting in
+// the type hierarchy (e.g. casting a Foo* to a SuperclassOfFoo* or a
+// const Foo*).  When you use implicit_cast, the compiler checks that
+// the cast is safe.  Such explicit implicit_casts are necessary in
+// surprisingly many situations where C++ demands an exact type match
+// instead of an argument type convertable to a target type.
 //
-// The From type can be inferred, so the preferred syntax for using
-// implicit_cast is the same as for static_cast etc.:
+// The syntax for using implicit_cast is the same as for static_cast:
 //
 //   implicit_cast<ToType>(expr)
 //
 // implicit_cast would have been part of the C++ standard library,
 // but the proposal was submitted too late.  It will probably make
 // its way into the language in the future.
-template<typename To, typename From>
-inline To implicit_cast(From const &f) {
-  return f;
-}
+template<typename To>
+inline To implicit_cast(To x) { return x; }
 
 // When you upcast (that is, cast a pointer from type Foo to type
 // SuperclassOfFoo), it's fine to use implicit_cast<>, since upcasts
@@ -127,7 +122,8 @@ inline To down_cast(From* f) {  // so we only accept pointers
   // optimized build at run-time, as it will be optimized away
   // completely.
   if (false) {
-    implicit_cast<From*, To>(0);
+    const To to = NULL;
+    ::testing::internal::implicit_cast<From*>(to);
   }
 
 #if GTEST_HAS_RTTI
@@ -202,10 +198,8 @@ struct CompileAssert {
 
 #if GTEST_HAS_GLOBAL_STRING
 typedef ::string string;
-#elif GTEST_HAS_STD_STRING
-typedef ::std::string string;
 #else
-#error "Google Mock requires ::std::string to compile."
+typedef ::std::string string;
 #endif  // GTEST_HAS_GLOBAL_STRING
 
 #if GTEST_HAS_GLOBAL_WSTRING

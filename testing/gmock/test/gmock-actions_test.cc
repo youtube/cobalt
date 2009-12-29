@@ -95,26 +95,26 @@ TEST(BuiltInDefaultValueTest, ExistsForPointerTypes) {
 // Tests that BuiltInDefaultValue<T>::Get() returns 0 when T is a
 // built-in numeric type.
 TEST(BuiltInDefaultValueTest, IsZeroForNumericTypes) {
-  EXPECT_EQ(0, BuiltInDefaultValue<unsigned char>::Get());
+  EXPECT_EQ(0U, BuiltInDefaultValue<unsigned char>::Get());
   EXPECT_EQ(0, BuiltInDefaultValue<signed char>::Get());
   EXPECT_EQ(0, BuiltInDefaultValue<char>::Get());
 #if GMOCK_HAS_SIGNED_WCHAR_T_
-  EXPECT_EQ(0, BuiltInDefaultValue<unsigned wchar_t>::Get());
+  EXPECT_EQ(0U, BuiltInDefaultValue<unsigned wchar_t>::Get());
   EXPECT_EQ(0, BuiltInDefaultValue<signed wchar_t>::Get());
 #endif
 #if GMOCK_WCHAR_T_IS_NATIVE_
   EXPECT_EQ(0, BuiltInDefaultValue<wchar_t>::Get());
 #endif
-  EXPECT_EQ(0, BuiltInDefaultValue<unsigned short>::Get());  // NOLINT
+  EXPECT_EQ(0U, BuiltInDefaultValue<unsigned short>::Get());  // NOLINT
   EXPECT_EQ(0, BuiltInDefaultValue<signed short>::Get());  // NOLINT
   EXPECT_EQ(0, BuiltInDefaultValue<short>::Get());  // NOLINT
-  EXPECT_EQ(0, BuiltInDefaultValue<unsigned int>::Get());
+  EXPECT_EQ(0U, BuiltInDefaultValue<unsigned int>::Get());
   EXPECT_EQ(0, BuiltInDefaultValue<signed int>::Get());
   EXPECT_EQ(0, BuiltInDefaultValue<int>::Get());
-  EXPECT_EQ(0, BuiltInDefaultValue<unsigned long>::Get());  // NOLINT
+  EXPECT_EQ(0U, BuiltInDefaultValue<unsigned long>::Get());  // NOLINT
   EXPECT_EQ(0, BuiltInDefaultValue<signed long>::Get());  // NOLINT
   EXPECT_EQ(0, BuiltInDefaultValue<long>::Get());  // NOLINT
-  EXPECT_EQ(0, BuiltInDefaultValue<UInt64>::Get());
+  EXPECT_EQ(0U, BuiltInDefaultValue<UInt64>::Get());
   EXPECT_EQ(0, BuiltInDefaultValue<Int64>::Get());
   EXPECT_EQ(0, BuiltInDefaultValue<float>::Get());
   EXPECT_EQ(0, BuiltInDefaultValue<double>::Get());
@@ -165,9 +165,7 @@ TEST(BuiltInDefaultValueTest, IsEmptyStringForString) {
   EXPECT_EQ("", BuiltInDefaultValue< ::string>::Get());
 #endif  // GTEST_HAS_GLOBAL_STRING
 
-#if GTEST_HAS_STD_STRING
   EXPECT_EQ("", BuiltInDefaultValue< ::std::string>::Get());
-#endif  // GTEST_HAS_STD_STRING
 }
 
 // Tests that BuiltInDefaultValue<T>::Exists() returns true when T is a
@@ -177,9 +175,7 @@ TEST(BuiltInDefaultValueTest, ExistsForString) {
   EXPECT_TRUE(BuiltInDefaultValue< ::string>::Exists());
 #endif  // GTEST_HAS_GLOBAL_STRING
 
-#if GTEST_HAS_STD_STRING
   EXPECT_TRUE(BuiltInDefaultValue< ::std::string>::Exists());
-#endif  // GTEST_HAS_STD_STRING
 }
 
 // Tests that BuiltInDefaultValue<const T>::Get() returns the same
@@ -515,6 +511,51 @@ TEST(ReturnTest, IsCovariant) {
   EXPECT_EQ(&derived, ret.Perform(make_tuple()));
 }
 
+// Tests that the type of the value passed into Return is converted into T
+// when the action is cast to Action<T(...)> rather than when the action is
+// performed. See comments on testing::internal::ReturnAction in
+// gmock-actions.h for more information.
+class FromType {
+ public:
+  FromType(bool* is_converted) : converted_(is_converted) {}
+  bool* converted() const { return converted_; }
+
+ private:
+  bool* const converted_;
+
+  GTEST_DISALLOW_ASSIGN_(FromType);
+};
+
+class ToType {
+ public:
+  ToType(const FromType& x) { *x.converted() = true; }
+};
+
+TEST(ReturnTest, ConvertsArgumentWhenConverted) {
+  bool converted = false;
+  FromType x(&converted);
+  Action<ToType()> action(Return(x));
+  EXPECT_TRUE(converted) << "Return must convert its argument in its own "
+                         << "conversion operator.";
+  converted = false;
+  action.Perform(tuple<>());
+  EXPECT_FALSE(converted) << "Action must NOT convert its argument "
+                          << "when performed." ;
+}
+
+class DestinationType {};
+
+class SourceType {
+ public:
+  // Note: a non-const typecast operator.
+  operator DestinationType() { return DestinationType(); }
+};
+
+TEST(ReturnTest, CanConvertArgumentUsingNonConstTypeCastOperator) {
+  SourceType s;
+  Action<DestinationType()> action(Return(s));
+}
+
 // Tests that ReturnNull() returns NULL in a pointer-returning function.
 TEST(ReturnNullTest, WorksInPointerReturningFunction) {
   const Action<int*()> a1 = ReturnNull();
@@ -549,8 +590,13 @@ class MyClass {};
 
 class MockClass {
  public:
+  MockClass() {}
+
   MOCK_METHOD1(IntFunc, int(bool flag));  // NOLINT
   MOCK_METHOD0(Foo, MyClass());
+
+ private:
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(MockClass);
 };
 
 // Tests that DoDefault() returns the built-in default value for the
@@ -576,7 +622,7 @@ TEST(DoDefaultDeathTest, DiesForUnknowType) {
 // Tests that using DoDefault() inside a composite action leads to a
 // run-time error.
 
-void VoidFunc(bool flag) {}
+void VoidFunc(bool /* flag */) {}
 
 TEST(DoDefaultDeathTest, DiesIfUsedInCompositeAction) {
   MockClass mock;
@@ -762,7 +808,7 @@ bool Unary(int x) { return x < 0; }
 
 const char* Plus1(const char* s) { return s + 1; }
 
-void VoidUnary(int n) { g_done = true; }
+void VoidUnary(int /* n */) { g_done = true; }
 
 bool ByConstRef(const std::string& s) { return s == "Hi"; }
 
@@ -831,7 +877,7 @@ TEST(InvokeWithoutArgsTest, Function) {
   EXPECT_EQ(1, a.Perform(make_tuple(2)));
 
   // As an action that takes two arguments.
-  Action<short(int, double)> a2 = InvokeWithoutArgs(Nullary);  // NOLINT
+  Action<int(int, double)> a2 = InvokeWithoutArgs(Nullary);  // NOLINT
   EXPECT_EQ(1, a2.Perform(make_tuple(2, 3.5)));
 
   // As an action that returns void.
@@ -848,7 +894,7 @@ TEST(InvokeWithoutArgsTest, Functor) {
   EXPECT_EQ(2, a.Perform(make_tuple()));
 
   // As an action that takes three arguments.
-  Action<short(int, double, char)> a2 =  // NOLINT
+  Action<int(int, double, char)> a2 =  // NOLINT
       InvokeWithoutArgs(NullaryFunctor());
   EXPECT_EQ(2, a2.Perform(make_tuple(3, 3.5, 'a')));
 
@@ -889,7 +935,7 @@ TEST(IgnoreResultTest, MonomorphicAction) {
 
 // Tests using IgnoreResult() on an action that returns a class type.
 
-MyClass ReturnMyClass(double x) {
+MyClass ReturnMyClass(double /* x */) {
   g_done = true;
   return MyClass();
 }
