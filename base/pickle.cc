@@ -263,6 +263,7 @@ bool Pickle::ReadString16(void** iter, string16* result) const {
 bool Pickle::ReadBytes(void** iter, const char** data, int length) const {
   DCHECK(iter);
   DCHECK(data);
+  *data = 0;
 
   if (!IteratorHasRoomFor(*iter, length))
     return false;
@@ -277,6 +278,8 @@ bool Pickle::ReadData(void** iter, const char** data, int* length) const {
   DCHECK(iter);
   DCHECK(data);
   DCHECK(length);
+  *length = 0;
+  *data = 0;
 
   if (!ReadLength(iter, length))
     return false;
