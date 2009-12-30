@@ -248,11 +248,6 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   // Should only be called if the job has not started a resposne.
   void NotifyRestartRequired();
 
-  // Called to get more data from the request response. Returns true if there
-  // is data immediately available to read. Return false otherwise.
-  // Internally this function may initiate I/O operations to get more data.
-  virtual bool GetMoreData() { return false; }
-
   // Called to read raw (pre-filtered) data from this Job.
   // If returning true, data was read from the job.  buf will contain
   // the data, and bytes_read will receive the number of bytes read.
