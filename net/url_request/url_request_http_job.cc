@@ -415,10 +415,6 @@ void URLRequestHttpJob::ContinueDespiteLastError() {
       this, &URLRequestHttpJob::OnStartCompleted, rv));
 }
 
-bool URLRequestHttpJob::GetMoreData() {
-  return transaction_.get() && !read_in_progress_;
-}
-
 bool URLRequestHttpJob::ReadRawData(net::IOBuffer* buf, int buf_size,
                                     int *bytes_read) {
   DCHECK_NE(buf_size, 0);
