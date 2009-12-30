@@ -14,7 +14,142 @@
 #include "base/thread_local_storage.h"
 #include "base/tracked.h"
 
+// TrackedObjects provides a database of stats about objects (generally Tasks)
+// that are tracked.  Tracking means their birth, death, duration, birth thread,
+// death thread, and birth place are recorded.  This data is carefully spread
+// across a series of objects so that the counts and times can be rapidly
+// updated without (usually) having to lock the data, and hence there is usually
+// very little contention caused by the tracking.  The data can be viewed via
+// the about:objects URL, with a variety of sorting and filtering choices.
+//
+// Theese classes serve as the basis of a profiler of sorts for the Tasks
+// system.  As a result, design decisions were made to maximize speed, by
+// minimizing recurring allocation/deallocation, lock contention and data
+// copying.  In the "stable" state, which is reached relatively quickly, there
+// is no separate marginal allocation cost associated with construction or
+// destruction of tracked objects, no locks are generally employed, and probably
+// the largest computational cost is associated with obtaining start and stop
+// times for instances as they are created and destroyed.  The introduction of
+// worker threads had a slight impact on this approach, and required use of some
+// locks when accessing data from the worker threads.
+//
+// The following describes the lifecycle of tracking an instance.
+//
+// First off, when the instance is created, the FROM_HERE macro is expanded
+// to specify the birth place (file, line, function) where the instance was
+// created.  That data is used to create a transient Location instance
+// encapsulating the above triple of information.  The strings (like __FILE__)
+// are passed around by reference, with the assumption that they are static, and
+// will never go away.  This ensures that the strings can be dealt with as atoms
+// with great efficiency (i.e., copying of strings is never needed, and
+// comparisons for equality can be based on pointer comparisons).
+//
+// Next, a Births instance is created for use ONLY on the thread where this
+// instance was created.  That Births instance records (in a base class
+// BirthOnThread) references to the static data provided in a Location instance,
+// as well as a pointer specifying the thread on which the birth takes place.
+// Hence there is at most one Births instance for each Location on each thread.
+// The derived Births class contains slots for recording statistics about all
+// instances born at the same location.  Statistics currently include only the
+// count of instances constructed.
+// Since the base class BirthOnThread contains only constant data, it can be
+// freely accessed by any thread at any time (i.e., only the statistic needs to
+// be handled carefully, and it is ONLY read or written by the birth thread).
+//
+// Having now either constructed or found the Births instance described above, a
+// pointer to the Births instance is then embedded in a base class of the
+// instance we're tracking (usually a Task). This fact alone is very useful in
+// debugging, when there is a question of where an instance came from.  In
+// addition, the birth time is also embedded in the base class Tracked (see
+// tracked.h), and used to later evaluate the lifetime duration.
+// As a result of the above embedding, we can (for any tracked instance) find
+// out its location of birth, and thread of birth, without using any locks, as
+// all that data is constant across the life of the process.
+//
+// The amount of memory used in the above data structures depends on how many
+// threads there are, and how many Locations of construction there are.
+// Fortunately, we don't use memory that is the product of those two counts, but
+// rather we only need one Births instance for each thread that constructs an
+// instance at a Location. In many cases, instances (such as Tasks) are only
+// created on one thread, so the memory utilization is actually fairly
+// restrained.
+//
+// Lastly, when an instance is deleted, the final tallies of statistics are
+// carefully accumulated.  That tallying wrties into slots (members) in a
+// collection of DeathData instances.  For each birth place Location that is
+// destroyed on a thread, there is a DeathData instance to record the additional
+// death count, as well as accumulate the lifetime duration of the instance as
+// it is destroyed (dies).  By maintaining a single place to aggregate this
+// addition *only* for the given thread, we avoid the need to lock such
+// DeathData instances.
+//
+// With the above lifecycle description complete, the major remaining detail is
+// explaining how each thread maintains a list of DeathData instances, and of
+// Births instances, and is able to avoid additional (redundant/unnecessary)
+// allocations.
+//
+// Each thread maintains a list of data items specific to that thread in a
+// ThreadData instance (for that specific thread only).  The two critical items
+// are lists of DeathData and Births instances.  These lists are maintained in
+// STL maps, which are indexed by Location. As noted earlier, we can compare
+// locations very efficiently as we consider the underlying data (file,
+// function, line) to be atoms, and hence pointer comparison is used rather than
+// (slow) string comparisons.
+//
+// To provide a mechanism for iterating over all "known threads," which means
+// threads that have recorded a birth or a death, we create a singly linked list
+// of ThreadData instances. Each such instance maintains a pointer to the next
+// one.  A static member of ThreadData provides a pointer to the first_ item on
+// this global list, and access to that first_ item requires the use of a lock_.
+// When new ThreadData instances is added to the global list, it is pre-pended,
+// which ensures that any prior acquisition of the list is valid (i.e., the
+// holder can iterate over it without fear of it changing, or the necessity of
+// using an additional lock.  Iterations are actually pretty rare (used
+// primarilly for cleanup, or snapshotting data for display), so this lock has
+// very little global performance impact.
+//
+// The above description tries to define the high performance (run time)
+// portions of these classes.  After gathering statistics, calls instigated
+// by visiting about:objects will assemble and aggregate data for display. The
+// following data structures are used for producing such displays.  They are
+// not performance critical, and their only major constraint is that they should
+// be able to run concurrently with ongoing augmentation of the birth and death
+// data.
+//
+// For a given birth location, information about births are spread across data
+// structures that are asynchronously changing on various threads.  For display
+// purposes, we need to construct Snapshot instances for each combination of
+// birth thread, death thread, and location, along with the count of such
+// lifetimes.  We gather such data into a Snapshot instances, so that such
+// instances can be sorted and aggregated (and remain frozen during our
+// processing).  Snapshot instances use pointers to constant portions of the
+// birth and death datastructures, but have local (frozen) copies of the actual
+// statistics (birth count, durations, etc. etc.).
+//
+// A DataCollector is a container object that holds a set of Snapshots.  A
+// DataCollector can be passed from thread to thread, and each thread
+// contributes to it by adding or updating Snapshot instances.  DataCollector
+// instances are thread safe containers which are passed to various threads to
+// accumulate all Snapshot instances.
+//
+// After an array of Snapshots instances are colleted into a DataCollector, they
+// need to be sorted, and possibly aggregated (example: how many threads are in
+// a specific consecutive set of Snapshots?  What was the total birth count for
+// that set? etc.).  Aggregation instances collect running sums of any set of
+// snapshot instances, and are used to print sub-totals in an about:objects
+// page.
+//
+// TODO(jar): I need to store DataCollections, and provide facilities for taking
+// the difference between two gathered DataCollections.  For now, I'm just
+// adding a hack that Reset()'s to zero all counts and stats.  This is also
+// done in a slighly thread-unsafe fashion, as the reseting is done
+// asynchronously relative to ongoing updates, and worse yet, some data fields
+// are 64bit quantities, and are not atomicly accessed (reset or incremented
+// etc.).  For basic profiling, this will work "most of the time," and should be
+// sufficient... but storing away DataCollections is the "right way" to do this.
+//
 class MessageLoop;
+
 
 namespace tracked_objects {
 
@@ -58,6 +193,9 @@ class Births: public BirthOnThread {
   // for the old instance.
   void ForgetBirth() { --birth_count_; }  // We corrected a birth place.
 
+  // Hack to quickly reset all counts to zero.
+  void Clear() { birth_count_ = 0; }
+
  private:
   // The number of births on this thread for our location_.
   int birth_count_;
@@ -95,6 +233,7 @@ class DeathData {
   // Simple print of internal state.
   void Write(std::string* output) const;
 
+  // Reset all tallies to zero.
   void Clear();
 
  private:
@@ -144,7 +283,7 @@ class Snapshot {
 //------------------------------------------------------------------------------
 // DataCollector is a container class for Snapshot and BirthOnThread count
 // items.  It protects the gathering under locks, so that it could be called via
-// Posttask on any threads, such as all the target threads in parallel.
+// Posttask on any threads, or passed to all the target threads in parallel.
 
 class DataCollector {
  public:
@@ -159,7 +298,8 @@ class DataCollector {
   // implementation serialized calls to Append).
   void Append(const ThreadData& thread_data);
 
-  // After the accumulation phase, the following access is to process data.
+  // After the accumulation phase, the following accessor is used to process the
+  // data.
   Collection* collection();
 
   // After collection of death data is complete, we can add entries for all the
@@ -213,14 +353,22 @@ class Aggregation: public DeathData {
 };
 
 //------------------------------------------------------------------------------
-// Comparator does the comparison of Snapshot instances.  It is
-// used to order the instances in a vector.  It orders them into groups (for
-// aggregation), and can also order instances within the groups (for detailed
-// rendering of the instances).
+// Comparator is a class that supports the comparison of Snapshot instances.
+// An instance is actually a list of chained Comparitors, that can provide for
+// arbitrary ordering.  The path portion of an about:objects URL is translated
+// into such a chain, which is then used to order Snapshot instances in a
+// vector.  It orders them into groups (for aggregation), and can also order
+// instances within the groups (for detailed rendering of the instances in an
+// aggregation).
 
 class Comparator {
  public:
+  // Selector enum is the token identifier for each parsed keyword, most of
+  // which specify a sort order.
+  // Since it is not meaningful to sort more than once on a specific key, we
+  // use bitfields to accumulate what we have sorted on so far.
   enum Selector {
+    // Sort orders.
     NIL = 0,
     BIRTH_THREAD = 1,
     DEATH_THREAD = 2,
@@ -230,11 +378,14 @@ class Comparator {
     COUNT = 32,
     AVERAGE_DURATION = 64,
     TOTAL_DURATION = 128,
+
+    // Imediate action keywords.
+    RESET_ALL_DATA = -1,
   };
 
   explicit Comparator();
 
-  // Reset the comparator to a NIL selector.  Reset() and recursively delete any
+  // Reset the comparator to a NIL selector.  Clear() and recursively delete any
   // tiebreaker_ entries.  NOTE: We can't use a standard destructor, because
   // the sort algorithm makes copies of this object, and then deletes them,
   // which would cause problems (either we'd make expensive deep copies, or we'd
@@ -335,8 +486,8 @@ class ThreadData {
       const DataCollector::Collection& match_array,
       const Comparator& comparator, std::string* output);
 
-  // In this thread's data, find a place to record a new birth.
-  Births* FindLifetime(const Location& location);
+  // In this thread's data, record a new birth.
+  Births* TallyABirth(const Location& location);
 
   // Find a place to record a death on this thread.
   void TallyADeath(const Births& lifetimes, const base::TimeDelta& duration);
@@ -350,10 +501,24 @@ class ThreadData {
   const std::string ThreadName() const;
 
   // Using our lock, make a copy of the specified maps.  These calls may arrive
-  // from non-local threads.
+  // from non-local threads, and are used to quickly scan data from all threads
+  // in order to build an HTML page for about:objects.
   void SnapshotBirthMap(BirthMap *output) const;
   void SnapshotDeathMap(DeathMap *output) const;
 
+  // Hack: asynchronously clear all birth counts and death tallies data values
+  // in all ThreadData instances.  The numerical (zeroing) part is done without
+  // use of a locks or atomics exchanges, and may (for int64 values) produce
+  // bogus counts VERY rarely.
+  static void ResetAllThreadData();
+
+  // Using our lock to protect the iteration, Clear all birth and death data.
+  void Reset();
+
+  // Using the "known list of threads" gathered during births and deaths, the
+  // following attempts to run the given function once all all such threads.
+  // Note that the function can only be run on threads which have a message
+  // loop!
   static void RunOnAllThreads(void (*Func)());
 
   // Set internal status_ to either become ACTIVE, or later, to be SHUTDOWN,
@@ -439,18 +604,17 @@ class ThreadData {
   static void ShutdownDisablingFurtherTracking();
 
   // We use thread local store to identify which ThreadData to interact with.
-  static TLSSlot tls_index_ ;
+  static TLSSlot tls_index_;
 
   // Link to the most recently created instance (starts a null terminated list).
   static ThreadData* first_;
   // Protection for access to first_.
   static Lock list_lock_;
 
-
   // We set status_ to SHUTDOWN when we shut down the tracking service. This
-  // setting is redundantly established by all participating
-  // threads so that we are *guaranteed* (without locking) that all threads
-  // can "see" the status and avoid additional calls into the  service.
+  // setting is redundantly established by all participating threads so that we
+  // are *guaranteed* (without locking) that all threads can "see" the status
+  // and avoid additional calls into the  service.
   static Status status_;
 
   // Link to next instance (null terminated list). Used to globally track all
@@ -471,14 +635,17 @@ class ThreadData {
 
   // Similar to birth_map_, this records informations about death of tracked
   // instances (i.e., when a tracked instance was destroyed on this thread).
+  // It is locked before changing, and hence other threads may access it by
+  // locking before reading it.
   DeathMap death_map_;
 
-  // Lock to protect *some* access to BirthMap and DeathMap.  We only use
-  // locking protection when we are growing the maps, or using an iterator.  We
-  // only do writes to members from this thread, so the updates of values are
-  // atomic.  Folks can read from other threads, and get (via races) new or old
-  // data, but that is considered acceptable errors (mis-information).
-  Lock lock_;
+  // Lock to protect *some* access to BirthMap and DeathMap.  The maps are
+  // regularly read and written on this thread, but may only be read from other
+  // threads.  To support this, we acquire this lock if we are writing from this
+  // thread, or reading from another thread.  For reading from this thread we
+  // don't need a lock, as there is no potential for a conflict since the
+  // writing is only done from this thread.
+  mutable Lock lock_;
 
   DISALLOW_COPY_AND_ASSIGN(ThreadData);
 };
