@@ -18,6 +18,10 @@ namespace tracked_objects {
 // static
 TLSSlot ThreadData::tls_index_(base::LINKER_INITIALIZED);
 
+// A global state variable to prevent repeated initialization during tests.
+// static
+AutoTracking::State AutoTracking::state_ = AutoTracking::kNeverBeenRun;
+
 //------------------------------------------------------------------------------
 // Death data tallies durations when a death takes place.
 
