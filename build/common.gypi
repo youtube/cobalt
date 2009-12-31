@@ -586,7 +586,6 @@
           '<(werror)',  # See note above about the werror variable.
           '-pthread',
           '-fno-exceptions',
-          '-fvisibility=hidden',
           '-Wall',
           '-D_FILE_OFFSET_BITS=64',
         ],
@@ -698,6 +697,10 @@
               # can be removed at link time with --gc-sections.
               '-fdata-sections',
               '-ffunction-sections',
+              # Don't export any symbols (for example, to plugins we dlopen()).
+              # This must be in Release builds only because otherwise we don't
+              # get backtraces.
+              '-fvisibility=hidden',
               # We don't use exceptions.  The eh_frame section is used for those
               # and for symbolizing backtraces.  By passing this flag we drop
               # the eh_frame section completely, we shaving off 2.5mb from
