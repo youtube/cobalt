@@ -36,6 +36,12 @@
 #error Please add support for your platform in build/build_config.h
 #endif
 
+// A flag derived from the above flags, used to cover GTK code in
+// both TOOLKIT_GTK and TOOLKIT_VIEWS.
+#if defined(TOOLKIT_GTK) || (defined(TOOLKIT_VIEWS) && !defined(OS_WIN))
+#define TOOLKIT_USES_GTK 1
+#endif
+
 #if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD)
 #define USE_NSS 1  // Use NSS for crypto.
 #define USE_X11 1  // Use X for graphics.
