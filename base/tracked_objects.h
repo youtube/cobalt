@@ -654,24 +654,45 @@ class ThreadData {
 //------------------------------------------------------------------------------
 // Provide simple way to to start global tracking, and to tear down tracking
 // when done.  Note that construction and destruction of this object must be
-// done when running in single threaded mode (before spawning a lot of threads
+// done when running in  threaded mode (before spawning a lot of threads
 // for construction, and after shutting down all the threads for destruction).
+
+// To prevent grabbing thread local store resources time and again if someone
+// chooses to try to re-run the browser many times, we maintain global state and
+// only allow the tracking system to be started up at most once, and shutdown
+// at most once.  See bug 31344 for an example.
 
 class AutoTracking {
  public:
-  AutoTracking() { ThreadData::StartTracking(true); }
+  AutoTracking() {
+    if (state_ != kNeverBeenRun)
+      return;
+    ThreadData::StartTracking(true);
+    state_ = kRunning;
+  }
 
   ~AutoTracking() {
-#ifndef NDEBUG  // Don't call these in a Release build: they just waste time.
+#ifndef NDEBUG
+    if (state_ != kRunning)
+      return;
+    // Don't call these in a Release build: they just waste time.
     // The following should ONLY be called when in single threaded mode. It is
     // unsafe to do this cleanup if other threads are still active.
     // It is also very unnecessary, so I'm only doing this in debug to satisfy
     // purify (if we need to!).
     ThreadData::ShutdownSingleThreadedCleanup();
+    state_ = kTornDownAndStopped;
 #endif
   }
 
  private:
+  enum State {
+    kNeverBeenRun,
+    kRunning,
+    kTornDownAndStopped,
+  };
+  static State state_;
+
   DISALLOW_COPY_AND_ASSIGN(AutoTracking);
 };
 
