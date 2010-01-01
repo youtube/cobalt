@@ -32,8 +32,7 @@ bool ConvertUnicode(const SRC_CHAR* src,
     if (ReadUnicodeCharacter(src, src_len32, &i, &code_point)) {
       WriteUnicodeCharacter(code_point, output);
     } else {
-      // TODO(jungshik): consider adding 'Replacement character' (U+FFFD)
-      // in place of an invalid codepoint.
+      WriteUnicodeCharacter(0xFFFD, output);
       success = false;
     }
   }
