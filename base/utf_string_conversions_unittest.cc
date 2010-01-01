@@ -94,13 +94,13 @@ TEST(UTFStringConversionsTest, ConvertUTF8ToWide) {
     // Non-character is passed through.
     {"\xef\xbf\xbfHello", L"\xffffHello", true},
     // Truncated UTF-8 sequence.
-    {"\xe4\xa0\xe5\xa5\xbd", L"\x597d", false},
+    {"\xe4\xa0\xe5\xa5\xbd", L"\xfffd\x597d", false},
     // Truncated off the end.
-    {"\xe5\xa5\xbd\xe4\xa0", L"\x597d", false},
+    {"\xe5\xa5\xbd\xe4\xa0", L"\x597d\xfffd", false},
     // Non-shortest-form UTF-8.
-    {"\xf0\x84\xbd\xa0\xe5\xa5\xbd", L"\x597d", false},
+    {"\xf0\x84\xbd\xa0\xe5\xa5\xbd", L"\xfffd\x597d", false},
     // This UTF-8 character decodes to a UTF-16 surrogate, which is illegal.
-    {"\xed\xb0\x80", L"", false},
+    {"\xed\xb0\x80", L"\xfffd", false},
     // Non-BMP characters. The second is a non-character regarded as valid.
     // The result will either be in UTF-16 or UTF-32.
 #if defined(WCHAR_T_IS_UTF16)
@@ -152,9 +152,9 @@ TEST(UTFStringConversionsTest, ConvertUTF16ToUTF8) {
     {L"\xffffHello", "\xEF\xBF\xBFHello", true},
     {L"\xdbff\xdffeHello", "\xF4\x8F\xBF\xBEHello", true},
     // The first character is a truncated UTF-16 character.
-    {L"\xd800\x597d", "\xe5\xa5\xbd", false},
+    {L"\xd800\x597d", "\xef\xbf\xbd\xe5\xa5\xbd", false},
     // Truncated at the end.
-    {L"\x597d\xd800", "\xe5\xa5\xbd", false},
+    {L"\x597d\xd800", "\xe5\xa5\xbd\xef\xbf\xbd", false},
   };
 
   for (int i = 0; i < arraysize(convert_cases); i++) {
@@ -184,10 +184,10 @@ TEST(UTFStringConversionsTest, ConvertUTF32ToUTF8) {
     {L"\xffffHello", "\xEF\xBF\xBFHello", true},
     {L"\x10fffeHello", "\xF4\x8F\xBF\xBEHello", true},
     // Invalid Unicode code points.
-    {L"\xfffffffHello", "Hello", false},
+    {L"\xfffffffHello", "\xEF\xBF\xBDHello", false},
     // The first character is a truncated UTF-16 character.
-    {L"\xd800\x597d", "\xe5\xa5\xbd", false},
-    {L"\xdc01Hello", "Hello", false},
+    {L"\xd800\x597d", "\xef\xbf\xbd\xe5\xa5\xbd", false},
+    {L"\xdc01Hello", "\xef\xbf\xbdHello", false},
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(convert_cases); i++) {
