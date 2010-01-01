@@ -43,7 +43,7 @@ TEST(UTFOffsetStringConversionsTest, AdjustOffset) {
     {"", 0, std::wstring::npos},
     {"\xe4\xbd\xa0\xe5\xa5\xbd", 1, std::wstring::npos},
     {"\xe4\xbd\xa0\xe5\xa5\xbd", 3, 1},
-    {"\xed\xb0\x80z", 3, 0},
+    {"\xed\xb0\x80z", 3, 1},
     {"A\xF0\x90\x8C\x80z", 1, 1},
     {"A\xF0\x90\x8C\x80z", 2, std::wstring::npos},
 #if defined(WCHAR_T_IS_UTF16)
