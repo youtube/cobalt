@@ -36,8 +36,7 @@ bool ConvertUnicode(const SRC_CHAR* src,
     if (ReadUnicodeCharacter(src, src_len32, &i, &code_point)) {
       chars_written = WriteUnicodeCharacter(code_point, output);
     } else {
-      // TODO(jungshik): consider adding 'Replacement character' (U+FFFD)
-      // in place of an invalid codepoint.
+      chars_written = WriteUnicodeCharacter(0xFFFD, output);
       success = false;
     }
     if ((output_offset != std::wstring::npos) &&
