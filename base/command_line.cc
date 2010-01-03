@@ -7,9 +7,13 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #include <shellapi.h>
-#elif defined(OS_FREEBSD)
+#elif defined(OS_POSIX)
+#include <limits.h>
 #include <stdlib.h>
 #include <unistd.h>
+#endif
+#if defined(OS_LINUX)
+#include <sys/prctl.h>
 #endif
 
 #include <algorithm>
@@ -207,12 +211,40 @@ void CommandLine::SetProcTitle() {
   // by spaces. We can't actually keep them separate due to the way the
   // setproctitle() function works.
   std::string title;
+  bool have_argv0 = false;
+#if defined(OS_LINUX)
+  // In Linux we sometimes exec ourselves from /proc/self/exe, but this makes us
+  // show up as "exe" in process listings. Read the symlink /proc/self/exe and
+  // use the path it points at for our process title. Note that this is only for
+  // display purposes and has no TOCTTOU security implications.
+  char buffer[PATH_MAX];
+  // Note: readlink() does not append a null byte to terminate the string.
+  ssize_t length = readlink("/proc/self/exe", buffer, sizeof(buffer));
+  DCHECK(length <= static_cast<ssize_t>(sizeof(buffer)));
+  if (length > 0) {
+    have_argv0 = true;
+    title.assign(buffer, length);
+    // If the binary has since been deleted, Linux appends " (deleted)" to the
+    // symlink target. Remove it, since this is not really part of our name.
+    const std::string kDeletedSuffix = " (deleted)";
+    if (EndsWith(title, kDeletedSuffix, true))
+      title.resize(title.size() - kDeletedSuffix.size());
+#if defined(PR_SET_NAME)
+    // If PR_SET_NAME is available at compile time, we try using it. We ignore
+    // any errors if the kernel does not support it at runtime though. When
+    // available, this lets us set the short process name that shows when the
+    // full command line is not being displayed in most process listings.
+    prctl(PR_SET_NAME, FilePath(title).BaseName().value().c_str());
+#endif
+  }
+#endif
   for (size_t i = 1; i < current_process_commandline_->argv_.size(); ++i) {
     if (!title.empty())
       title += " ";
     title += current_process_commandline_->argv_[i];
   }
-  setproctitle("%s", title.c_str());
+  // Disable prepending argv[0] with '-' if we prepended it ourselves above.
+  setproctitle(have_argv0 ? "-%s" : "%s", title.c_str());
 }
 #endif
 
