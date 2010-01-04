@@ -252,12 +252,12 @@
       'msvs_settings': {
         # TODO(sgk):  merge this with build/common.gypi settings
         'VCLibrarianTool=': {
-          'AdditionalOptions': '/ignore:4006,4221',
+          'AdditionalOptions': ['/ignore:4006,4221'],
           'AdditionalLibraryDirectories':
             ['<(DEPTH)/third_party/platformsdk_win2008_6_1/files/Lib'],
         },
         'VCLinkerTool': {
-          'AdditionalOptions': '/ignore:4006',
+          'AdditionalOptions': ['/ignore:4006'],
         },
       },
       'configurations': {
