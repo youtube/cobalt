@@ -189,14 +189,25 @@ Filter::FilterStatus SdchFilter::ReadFilteredData(char* dest_buffer,
         // the meta-refresh result.
         // TODO(jar): Improve robustness by sniffing for valid text that we can
         // actual use re: decoding_status_ = PASS_THROUGH;
-      } else if (!dictionary_hash_is_plausible_) {
+      } else if (dictionary_hash_is_plausible_) {
+        // We need a meta-refresh since we don't have the dictionary.
+        // The common cause is a restart of the browser, where we try to render
+        // cached content that was saved when we had a dictionary.
+      } else if (filter_context().IsSdchResponse()) {
+        // This is a very corrupt SDCH request response.  We can't decode it.
+        // We'll use a meta-refresh, and get content without asking for SDCH.
+        // This will also progressively disable SDCH for this domain.
+      } else {
         // One of the first 9 bytes precluded consideration as a hash.
         // This can't be an SDCH payload, even though the server said it was.
         // This is a major error, as the server or proxy tagged this SDCH even
         // though it is not!
+        // Meta-refresh won't help, as we didn't advertise an SDCH dictionary!!
+        // Worse yet, meta-refresh could lead to an infinite refresh loop.
         SdchManager::SdchErrorRecovery(SdchManager::PASSING_THROUGH_NON_SDCH);
-        // Meta-refresh won't help... we didn't advertise an SDCH dictionary!!
         decoding_status_ = PASS_THROUGH;
+        // ... but further back-off on advertising SDCH support.
+        SdchManager::BlacklistDomain(url_);
       }
 
       if (decoding_status_ == PASS_THROUGH) {
