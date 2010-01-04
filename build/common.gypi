@@ -387,7 +387,7 @@
               'VCCLCompilerTool': {
                 # /Z7, not /Zi, so coverage is happyb
                 'DebugInformationFormat': '1',
-                'AdditionalOptions': '/Yd',
+                'AdditionalOptions': ['/Yd'],
               }
             }
          }],  # OS==win
@@ -547,7 +547,7 @@
         'inherit_from': ['Common_Base', 'x86_Base', 'Release_Base'],
         'conditions': [
           ['msvs_use_common_release', {
-            'msvs_props': ['release.vsprops'],
+            'includes': ['release.gypi'],
           }],
         ]
       },
@@ -564,7 +564,7 @@
             'inherit_from': ['Common_Base', 'x64_Base', 'Release_Base'],
           },
           'Purify_x64': {
-            'inherit_from': ['Common_Base', 'x64_Base', 'Release_Base', 'Purify'],
+            'inherit_from': ['Common_Base', 'x64_Base', 'Release_Base', 'Purify_Base'],
           },
         }],
       ],
@@ -977,12 +977,12 @@
             'DebugInformationFormat': '3',
             'conditions': [
               [ 'msvs_multi_core_compile', {
-                'AdditionalOptions': '/MP',
+                'AdditionalOptions': ['/MP'],
               }],
             ],
           },
           'VCLibrarianTool': {
-            'AdditionalOptions': '/ignore:4221',
+            'AdditionalOptions': ['/ignore:4221'],
             'AdditionalLibraryDirectories':
               ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
           },
@@ -1097,17 +1097,26 @@
           'x86_Base': {
             'msvs_settings': {
               'VCLinkerTool': {
-                'AdditionalOptions':
-                  '/safeseh /dynamicbase /ignore:4199 /ignore:4221 /nxcompat',
+                'AdditionalOptions': [
+                  '/safeseh',
+                  '/dynamicbase',
+                  '/ignore:4199',
+                  '/ignore:4221',
+                  '/nxcompat',
+                ],
               },
             },
           },
           'x64_Base': {
             'msvs_settings': {
               'VCLinkerTool': {
-                'AdditionalOptions':
+                'AdditionalOptions': [
                   # safeseh is not compatible with x64
-                  '/dynamicbase /ignore:4199 /ignore:4221 /nxcompat',
+                  '/dynamicbase',
+                  '/ignore:4199',
+                  '/ignore:4221',
+                  '/nxcompat',
+                ],
               },
             },
           },
