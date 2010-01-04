@@ -120,7 +120,7 @@ class SdchManager {
     // defunct = 73,  // PASSING_THROUGH_NON_SDCH plus DISCARD_TENTATIVE_SDCH.
     META_REFRESH_UNSUPPORTED = 74,         // Unrecoverable error.
     CACHED_META_REFRESH_UNSUPPORTED = 75,  // As above, but pulled from cache.
-    PASSING_THROUGH_NON_SDCH = 76,  // Non-html tagged as sdch but malformed.
+    PASSING_THROUGH_NON_SDCH = 76,  // Tagged sdch but missing dictionary-hash.
     INCOMPLETE_SDCH_CONTENT = 77,   // Last window was not completely decoded.
     PASS_THROUGH_404_CODE = 78,     // URL not found message passing through.
 
