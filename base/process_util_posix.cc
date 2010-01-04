@@ -580,31 +580,33 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
         close(pipe_fd[1]);
 
         char buffer[256];
-        std::string buf_output;
-        size_t output_left = max_output;
+        std::string output_buf;
+        size_t output_buf_left = max_output;
         ssize_t bytes_read = 1;  // A lie to properly handle |max_output == 0|
                                  // case in the logic below.
 
-        while (output_left > 0) {
+        while (output_buf_left > 0) {
           bytes_read = HANDLE_EINTR(read(pipe_fd[0], buffer,
-                                    std::min(output_left, sizeof(buffer))));
+                                    std::min(output_buf_left, sizeof(buffer))));
           if (bytes_read <= 0)
             break;
-          buf_output.append(buffer, bytes_read);
-          output_left -= static_cast<size_t>(bytes_read);
+          output_buf.append(buffer, bytes_read);
+          output_buf_left -= static_cast<size_t>(bytes_read);
         }
         close(pipe_fd[0]);
 
+        // Always wait for exit code (even if we know we'll declare success).
+        int exit_code = EXIT_FAILURE;
+        bool success = WaitForExitCode(pid, &exit_code);
+
         // If we stopped because we read as much as we wanted, we always declare
         // success (because the child may exit due to |SIGPIPE|).
-        if (output_left || bytes_read <= 0) {
-          int exit_code = EXIT_FAILURE;
-          bool success = WaitForExitCode(pid, &exit_code);
+        if (output_buf_left || bytes_read <= 0) {
           if (!success || exit_code != EXIT_SUCCESS)
             return false;
         }
 
-        output->swap(buf_output);
+        output->swap(output_buf);
         return true;
       }
   }
