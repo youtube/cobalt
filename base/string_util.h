@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -546,6 +546,19 @@ void SplitStringDontTrim(const string16& str,
 void SplitStringDontTrim(const std::string& str,
                          char s,
                          std::vector<std::string>* r);
+
+// Splits a string into its fields delimited by any of the characters in
+// |delimiters|.  Each field is added to the |tokens| vector.  Returns the
+// number of tokens found.
+size_t Tokenize(const std::wstring& str,
+                const std::wstring& delimiters,
+                std::vector<std::wstring>* tokens);
+size_t Tokenize(const string16& str,
+                const string16& delimiters,
+                std::vector<string16>* tokens);
+size_t Tokenize(const std::string& str,
+                const std::string& delimiters,
+                std::vector<std::string>* tokens);
 
 // Does the opposite of SplitString().
 std::wstring JoinString(const std::vector<std::wstring>& parts, wchar_t s);
