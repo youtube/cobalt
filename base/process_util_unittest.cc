@@ -337,6 +337,28 @@ TEST_F(ProcessUtilTest, GetAppOutputRestricted) {
   EXPECT_STREQ("", output.c_str());
 }
 
+TEST_F(ProcessUtilTest, GetAppOutputRestrictedNoZombies) {
+  std::vector<std::string> argv;
+  argv.push_back("/bin/sh");  // argv[0]
+  argv.push_back("-c");       // argv[1]
+  argv.push_back("echo 123456789012345678901234567890");  // argv[2]
+
+  // Run |GetAppOutputRestricted()| 300 (> default per-user processes on Mac OS
+  // 10.5) times with an output buffer big enough to capture all output.
+  for (int i = 0; i < 300; i++) {
+    std::string output;
+    EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 100));
+    EXPECT_STREQ("123456789012345678901234567890\n", output.c_str());
+  }
+
+  // Ditto, but with an output buffer too small to capture all output.
+  for (int i = 0; i < 300; i++) {
+    std::string output;
+    EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 10));
+    EXPECT_STREQ("1234567890", output.c_str());
+  }
+}
+
 #if defined(OS_LINUX)
 TEST_F(ProcessUtilTest, GetParentProcessId) {
   base::ProcessId ppid = GetParentProcessId(GetCurrentProcId());
