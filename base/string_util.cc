@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -293,7 +293,6 @@ namespace base {
 
 bool IsWprintfFormatPortable(const wchar_t* format) {
   for (const wchar_t* position = format; *position != '\0'; ++position) {
-
     if (*position == '%') {
       bool in_specification = true;
       bool modifier_l = false;
@@ -322,7 +321,6 @@ bool IsWprintfFormatPortable(const wchar_t* format) {
         }
       }
     }
-
   }
 
   return true;
@@ -816,9 +814,9 @@ bool StartsWithASCII(const std::string& str,
 
 template <typename STR>
 bool StartsWithT(const STR& str, const STR& search, bool case_sensitive) {
-  if (case_sensitive)
+  if (case_sensitive) {
     return str.compare(0, search.length(), search) == 0;
-  else {
+  } else {
     if (search.size() > str.size())
       return false;
     return std::equal(search.begin(), search.end(), str.begin(),
@@ -1105,7 +1103,6 @@ namespace {
 
 template <typename STR, typename INT, typename UINT, bool NEG>
 struct IntToStringT {
-
   // This is to avoid a compiler warning about unary minus on unsigned type.
   // For example, say you had the following code:
   //   template <typename INT>
@@ -1349,6 +1346,47 @@ void SplitStringDontTrim(const std::string& str,
 }
 
 template<typename STR>
+static size_t TokenizeT(const STR& str,
+                        const STR& delimiters,
+                        std::vector<STR>* tokens) {
+  tokens->clear();
+
+  typename STR::size_type start = str.find_first_not_of(delimiters);
+  while (start != STR::npos) {
+    typename STR::size_type end = str.find_first_of(delimiters, start + 1);
+    if (end == STR::npos) {
+      tokens->push_back(str.substr(start));
+      break;
+    } else {
+      tokens->push_back(str.substr(start, end - start));
+      start = str.find_first_not_of(delimiters, end + 1);
+    }
+  }
+
+  return tokens->size();
+}
+
+size_t Tokenize(const std::wstring& str,
+                const std::wstring& delimiters,
+                std::vector<std::wstring>* tokens) {
+  return TokenizeT(str, delimiters, tokens);
+}
+
+#if !defined(WCHAR_T_IS_UTF16)
+size_t Tokenize(const string16& str,
+                const string16& delimiters,
+                std::vector<string16>* tokens) {
+  return TokenizeT(str, delimiters, tokens);
+}
+#endif
+
+size_t Tokenize(const std::string& str,
+                const std::string& delimiters,
+                std::vector<std::string>* tokens) {
+  return TokenizeT(str, delimiters, tokens);
+}
+
+template<typename STR>
 static STR JoinStringT(const std::vector<STR>& parts,
                        typename STR::value_type sep) {
   if (parts.size() == 0) return STR();
@@ -1388,7 +1426,7 @@ void SplitStringAlongWhitespaceT(const STR& str, std::vector<STR>* result) {
   bool last_was_ws = false;
   size_t last_non_ws_start = 0;
   for (size_t i = 0; i < length; ++i) {
-    switch(str[i]) {
+    switch (str[i]) {
       // HTML 5 defines whitespace as: space, tab, LF, line tab, FF, or CR.
       case L' ':
       case L'\t':
@@ -1559,7 +1597,7 @@ static void EatSameChars(const CHAR** pattern, const CHAR** string) {
 
 template <class CHAR>
 static void EatWildcard(const CHAR** pattern) {
-  while(**pattern) {
+  while (**pattern) {
     if (!IsWildcard(**pattern))
       return;
     (*pattern)++;
