@@ -148,9 +148,6 @@
     # Whether to add the experimental build define.
     'chrome_frame_define%': 0,
 
-    # Whether GPU plugin build is enabled.
-    'enable_gpu%': 0,
-
     # Whether usage of OpenMAX is enabled.
     'enable_openmax%': 0,
 
@@ -349,7 +346,7 @@
           }],
         ],
       }],
-      ['OS=="win"', {
+      ['OS=="win" or (OS=="linux" and target_arch!="arm")', {
         'defines': [
           'ENABLE_GPU=1',
         ],
