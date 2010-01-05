@@ -6,9 +6,7 @@
 
 namespace net {
 
-ProxyInfo::ProxyInfo()
-    : config_id_(ProxyConfig::INVALID_ID),
-      config_was_tried_(false) {
+ProxyInfo::ProxyInfo() : config_id_(ProxyConfig::INVALID_ID) {
 }
 
 void ProxyInfo::Use(const ProxyInfo& other) {
@@ -16,7 +14,7 @@ void ProxyInfo::Use(const ProxyInfo& other) {
 }
 
 void ProxyInfo::UseDirect() {
-  proxy_list_.Set(std::string());
+  proxy_list_.SetSingleProxyServer(ProxyServer::Direct());
 }
 
 void ProxyInfo::UseNamedProxy(const std::string& proxy_uri_list) {
