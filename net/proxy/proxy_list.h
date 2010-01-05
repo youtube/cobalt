@@ -32,8 +32,12 @@ class ProxyList {
   // |scheme_bit_field| is a bunch of ProxyServer::Scheme bitwise ORed together.
   void RemoveProxiesWithoutScheme(int scheme_bit_field);
 
-  // Returns the first valid proxy server in the list.
-  ProxyServer Get() const;
+  // Returns true if there is nothing left in the ProxyList.
+  bool IsEmpty() const;
+
+  // Returns the first proxy server in the list. It is only valid to call
+  // this if !IsEmpty().
+  const ProxyServer& Get() const;
 
   // Set the list by parsing the pac result |pac_string|.
   // Some examples for |pac_string|:

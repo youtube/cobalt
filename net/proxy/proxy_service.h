@@ -222,12 +222,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // Removes |req| from the list of pending requests.
   void RemovePendingRequest(PacRequest* req);
 
-  // Called to indicate that a PacRequest completed.  The |config_id| parameter
-  // indicates the proxy configuration that was queried.  |result_code| is OK
-  // if the PAC file could be downloaded and executed.  Otherwise, it is an
-  // error code, indicating a bad proxy configuration.
-  void DidCompletePacRequest(int config_id, int result_code);
-
   // Returns true if the URL passed in should not go through the proxy server.
   // 1. If the proxy settings say to bypass local names, and |IsLocalName(url)|.
   // 2. The URL matches one of the entities in the proxy bypass list.
@@ -252,9 +246,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
 
   // Increasing ID to give to the next ProxyConfig that we set.
   int next_config_id_;
-
-  // Indicates that the configuration is bad and should be ignored.
-  bool config_is_bad_;
 
   // Indicates whether the ProxyResolver should be sent requests.
   bool should_use_proxy_resolver_;

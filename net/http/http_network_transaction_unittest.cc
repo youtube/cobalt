@@ -3556,6 +3556,8 @@ TEST_F(HttpNetworkTransactionTest, ReconsiderProxyAfterFailedConnection) {
   SessionDependencies session_deps(
       CreateFixedProxyService("myproxy:70;foobar:80"));
 
+  // This simulates failure resolving all hostnames; that means we will fail
+  // connecting to both proxies (myproxy:70 and foobar:80).
   session_deps.host_resolver->rules()->AddSimulatedFailure("*");
 
   scoped_ptr<HttpTransaction> trans(
