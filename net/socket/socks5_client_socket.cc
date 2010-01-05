@@ -18,7 +18,8 @@ namespace net {
 
 namespace {
 
-// Returns a string description of |socks_error|, or NULL.
+// Returns a string description of |socks_error|, or NULL if |socks_error| is
+// not a valid SOCKS reply.
 const char* MapSOCKSReplyToErrorString(char socks_error) {
   switch(socks_error) {
     case 1: return "(1) General SOCKS server failure";
