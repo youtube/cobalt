@@ -231,7 +231,7 @@
             '../chrome/installer/mini_installer.gyp:mini_installer',
             '../courgette/courgette.gyp:courgette_unittests',
             '../chrome/chrome.gyp:chrome',
-            '../chrome_frame/chrome_frame.gyp:npchrome_tab',
+            '../chrome_frame/chrome_frame.gyp:npchrome_frame',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_tests',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_net_tests',
