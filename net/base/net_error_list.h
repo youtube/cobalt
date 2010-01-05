@@ -288,6 +288,9 @@ NET_ERROR(UNRECOGNIZED_FTP_DIRECTORY_LISTING_FORMAT, -334)
 // Attempted use of an unknown FLIP stream id.
 NET_ERROR(INVALID_FLIP_STREAM, -335)
 
+// There are no supported proxies in the provided list.
+NET_ERROR(EMPTY_PROXY_LIST, -336)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 

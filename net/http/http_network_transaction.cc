@@ -576,24 +576,65 @@ int HttpNetworkTransaction::DoResolveProxy() {
 }
 
 int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
-  next_state_ = STATE_INIT_CONNECTION;
+
+  pac_request_ = NULL;
 
   // Remove unsupported proxies from the list.
   proxy_info_.RemoveProxiesWithoutScheme(
       ProxyServer::SCHEME_DIRECT | ProxyServer::SCHEME_HTTP |
       ProxyServer::SCHEME_SOCKS4 | ProxyServer::SCHEME_SOCKS5);
 
-  pac_request_ = NULL;
+  // There are four possible outcomes of having run the ProxyService:
+  //   (1) The ProxyService decided we should connect through a proxy.
+  //   (2) The ProxyService decided we should direct-connect.
+  //   (3) The ProxyService decided we should give up, as there are no more
+  //       proxies to try (this is more likely to happen during
+  //       ReconsiderProxyAfterError()).
+  //   (4) The ProxyService failed (which can happen if the PAC script
+  //       we were configured with threw a runtime exception).
+  //
+  // It is important that we fail the connection in case (3) rather than
+  // falling-back to a direct connection, since sending traffic through
+  // a proxy may be integral to the user's privacy/security model.
+  //
+  // For example if a user had configured traffic to go through the TOR
+  // anonymizing proxy to protect their privacy, it would be bad if we
+  // silently fell-back to direct connect if the proxy server were to
+  // become unreachable.
+  //
+  // In case (4) it is less obvious what the right thing to do is. On the
+  // one hand, for consistency it would be natural to hard-fail as well.
+  // However, both Firefox 3.5 and Internet Explorer 8 will silently fall-back
+  // to DIRECT in this case, so we will do the same for compatibility.
+  //
+  // For more information, see:
+  // http://www.chromium.org/developers/design-documents/proxy-settings-fallback
+
+  if (proxy_info_.is_empty()) {
+    // No proxies/direct to choose from. This can happen when:
+    //   a. We don't support any of the proxies in the returned list.
+    //   b. The proxy service returned us an empty list.
+    //      1. this can happen if all the proxies were marked as bad already.
+    //
+    // TODO(eroman): in case (b.1) it would be better to just try the bad
+    // proxies again rather than failing without having tried anything!
+    return ERR_EMPTY_PROXY_LIST;
+  }
 
   if (result != OK) {
     DLOG(ERROR) << "Failed to resolve proxy: " << result;
+    // Fall-back to direct when there were runtime errors in the PAC script,
+    // or some other failure with the settings.
     proxy_info_.UseDirect();
   }
+
+  next_state_ = STATE_INIT_CONNECTION;
   return OK;
 }
 
 int HttpNetworkTransaction::DoInitConnection() {
   DCHECK(!connection_->is_initialized());
+  DCHECK(proxy_info_.proxy_server().is_valid());
 
   next_state_ = STATE_INIT_CONNECTION_COMPLETE;
 
@@ -1550,6 +1591,10 @@ int HttpNetworkTransaction::ReconsiderProxyAfterError(int error) {
     connection_->Reset();
     next_state_ = STATE_RESOLVE_PROXY_COMPLETE;
   } else {
+    // If ReconsiderProxyAfterError() failed synchronously, it means
+    // there was nothing left to fall-back to, so fail the transaction
+    // with the last connection error we got.
+    // TODO(eroman): This is a confusing contract, make it more obvious.
     rv = error;
   }
 

@@ -24,9 +24,20 @@ TEST(ProxyListTest, SetFromPacString) {
     {  "proxy foopy1 ; SOCKS foopy2",
        "PROXY foopy1:80;SOCKS foopy2:1080",
     },
+    // Try putting DIRECT first.
+    {  "DIRECT ; proxy foopy1 ; DIRECT ; SOCKS5 foopy2;DIRECT ",
+       "DIRECT;PROXY foopy1:80;DIRECT;SOCKS5 foopy2:1080;DIRECT",
+    },
+    // Try putting DIRECT consecutively.
+    {  "DIRECT ; proxy foopy1:80; DIRECT ; DIRECT",
+       "DIRECT;PROXY foopy1:80;DIRECT;DIRECT",
+    },
 
     // Invalid inputs (parts which aren't understood get
     // silently discarded):
+    //
+    // If the proxy list string parsed to empty, automatically fall-back to
+    // DIRECT.
     {  "PROXY-foopy:10",
        "DIRECT",
     },
@@ -42,6 +53,7 @@ TEST(ProxyListTest, SetFromPacString) {
     net::ProxyList list;
     list.SetFromPacString(tests[i].pac_input);
     EXPECT_EQ(tests[i].pac_output, list.ToPacString());
+    EXPECT_FALSE(list.IsEmpty());
   }
 }
 
@@ -56,10 +68,10 @@ TEST(ProxyListTest, RemoveProxiesWithoutScheme) {
        net::ProxyServer::SCHEME_DIRECT | net::ProxyServer::SCHEME_HTTP,
        "PROXY foopy:10;PROXY foopy3:80;DIRECT",
     },
-    {  "PROXY foopy:10 | SOCKS5 foopy2",
+    {  "PROXY foopy:10 ; SOCKS5 foopy2",
        // Remove anything that isn't HTTP or SOCKS5.
        net::ProxyServer::SCHEME_DIRECT | net::ProxyServer::SCHEME_SOCKS4,
-       "DIRECT",
+       "",
     },
   };
 
