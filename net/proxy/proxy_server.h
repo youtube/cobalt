@@ -107,6 +107,11 @@ class ProxyServer {
   static ProxyServer FromPacString(std::string::const_iterator pac_string_begin,
                                    std::string::const_iterator pac_string_end);
 
+  // Returns a ProxyServer representing DIRECT connections.
+  static ProxyServer Direct() {
+    return ProxyServer(SCHEME_DIRECT, std::string(), -1);
+  }
+
 #if defined(OS_MACOSX)
   // Utility function to pull out a host/port pair from a dictionary and return
   // it as a ProxyServer object. Pass in a dictionary that has a  value for the
