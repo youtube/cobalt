@@ -185,7 +185,7 @@ TEST(ProxyServiceTest, PAC_NoIdentityOrHash) {
   // ProxyService will cancel the outstanding request.
 }
 
-TEST(ProxyServiceTest, PAC_FailoverToDirect) {
+TEST(ProxyServiceTest, PAC_FailoverWithoutDirect) {
   MockProxyConfigService* config_service =
       new MockProxyConfigService("http://foopy/proxy.pac");
   MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
@@ -215,18 +215,94 @@ TEST(ProxyServiceTest, PAC_FailoverToDirect) {
   EXPECT_FALSE(info.is_direct());
   EXPECT_EQ("foopy:8080", info.proxy_server().ToURI());
 
-  // Now, imagine that connecting to foopy:8080 fails.
+  // Now, imagine that connecting to foopy:8080 fails: there is nothing
+  // left to fallback to, since our proxy list was NOT terminated by
+  // DIRECT.
+  TestCompletionCallback callback2;
+  rv = service->ReconsiderProxyAfterError(url, &info, &callback2, NULL, NULL);
+  // ReconsiderProxyAfterError returns error indicating nothing left.
+  EXPECT_EQ(ERR_FAILED, rv);
+  EXPECT_TRUE(info.is_empty());
+}
+
+// The proxy list could potentially contain the DIRECT fallback choice
+// in a location other than the very end of the list, and could even
+// specify it multiple times.
+//
+// This is not a typical usage, but we will obey it.
+// (If we wanted to disallow this type of input, the right place to
+// enforce it would be in parsing the PAC result string).
+//
+// This test will use the PAC result string:
+//
+//   "DIRECT ; PROXY foobar:10 ; DIRECT ; PROXY foobar:20"
+//
+// For which we expect it to try DIRECT, then foobar:10, then DIRECT again,
+// then foobar:20, and then give up and error.
+//
+// The important check of this test is to make sure that DIRECT is not somehow
+// cached as being a bad proxy.
+TEST(ProxyServiceTest, PAC_FailoverAfterDirect) {
+  MockProxyConfigService* config_service =
+      new MockProxyConfigService("http://foopy/proxy.pac");
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+
+  scoped_refptr<ProxyService> service(
+      new ProxyService(config_service, resolver));
+
+  GURL url("http://www.google.com/");
+
+  ProxyInfo info;
+  TestCompletionCallback callback1;
+  int rv = service->ResolveProxy(url, &info, &callback1, NULL, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"),
+            resolver->pending_set_pac_script_request()->pac_url());
+  resolver->pending_set_pac_script_request()->CompleteNow(OK);
+
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(url, resolver->pending_requests()[0]->url());
+
+  // Set the result in proxy resolver.
+  resolver->pending_requests()[0]->results()->UsePacString(
+      "DIRECT ; PROXY foobar:10 ; DIRECT ; PROXY foobar:20");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  EXPECT_EQ(OK, callback1.WaitForResult());
+  EXPECT_TRUE(info.is_direct());
+
+  // Fallback 1.
   TestCompletionCallback callback2;
   rv = service->ReconsiderProxyAfterError(url, &info, &callback2, NULL, NULL);
   EXPECT_EQ(OK, rv);
+  EXPECT_FALSE(info.is_direct());
+  EXPECT_EQ("foobar:10", info.proxy_server().ToURI());
+
+  // Fallback 2.
+  TestCompletionCallback callback3;
+  rv = service->ReconsiderProxyAfterError(url, &info, &callback3, NULL, NULL);
+  EXPECT_EQ(OK, rv);
   EXPECT_TRUE(info.is_direct());
+
+  // Fallback 3.
+  TestCompletionCallback callback4;
+  rv = service->ReconsiderProxyAfterError(url, &info, &callback4, NULL, NULL);
+  EXPECT_EQ(OK, rv);
+  EXPECT_FALSE(info.is_direct());
+  EXPECT_EQ("foobar:20", info.proxy_server().ToURI());
+
+  // Fallback 4 -- Nothing to fall back to!
+  TestCompletionCallback callback5;
+  rv = service->ReconsiderProxyAfterError(url, &info, &callback5, NULL, NULL);
+  EXPECT_EQ(ERR_FAILED, rv);
+  EXPECT_TRUE(info.is_empty());
 }
 
 TEST(ProxyServiceTest, ProxyResolverFails) {
-  // Test what happens when the ProxyResolver fails (this could represent
-  // a failure to download the PAC script in the case of ProxyResolvers which
-  // do the fetch internally.)
-  // TODO(eroman): change this comment.
+  // Test what happens when the ProxyResolver fails. The download and setting
+  // of the PAC script have already succeeded, so this corresponds with a
+  // javascript runtime error while calling FindProxyForURL().
 
   MockProxyConfigService* config_service =
       new MockProxyConfigService("http://foopy/proxy.pac");
@@ -255,28 +331,21 @@ TEST(ProxyServiceTest, ProxyResolverFails) {
 
   EXPECT_EQ(ERR_FAILED, callback1.WaitForResult());
 
-  // The second resolve request will automatically select direct connect,
-  // because it has cached the configuration as being bad.
+  // The second resolve request will try to run through the proxy resolver,
+  // regardless of whether the first request failed in it.
   TestCompletionCallback callback2;
   rv = service->ResolveProxy(url, &info, &callback2, NULL, NULL);
-  EXPECT_EQ(OK, rv);
-  EXPECT_TRUE(info.is_direct());
-  EXPECT_TRUE(resolver->pending_requests().empty());
-
-  // But, if that fails, then we should give the proxy config another shot
-  // since we have never tried it with this URL before.
-  TestCompletionCallback callback3;
-  rv = service->ReconsiderProxyAfterError(url, &info, &callback3, NULL, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
   EXPECT_EQ(url, resolver->pending_requests()[0]->url());
 
-    // Set the result in proxy resolver.
+  // This time we will have the resolver succeed (perhaps the PAC script has
+  // a dependency on the current time).
   resolver->pending_requests()[0]->results()->UseNamedProxy("foopy_valid:8080");
   resolver->pending_requests()[0]->CompleteNow(OK);
 
-  EXPECT_EQ(OK, callback3.WaitForResult());
+  EXPECT_EQ(OK, callback2.WaitForResult());
   EXPECT_FALSE(info.is_direct());
   EXPECT_EQ("foopy_valid:8080", info.proxy_server().ToURI());
 }
@@ -349,18 +418,75 @@ TEST(ProxyServiceTest, ProxyFallback) {
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("foopy2:9090", info.proxy_server().ToURI());
 
-  // Fake another error, the last proxy is gone, the list should now be empty.
+  // Fake another error, the last proxy is gone, the list should now be empty,
+  // so there is nothing left to try.
   TestCompletionCallback callback5;
   rv = service->ReconsiderProxyAfterError(url, &info, &callback5, NULL, NULL);
-  EXPECT_EQ(OK, rv);  // We try direct.
-  EXPECT_TRUE(info.is_direct());
-
-  // If it fails again, we don't have anything else to try.
-  TestCompletionCallback callback6;
-  rv = service->ReconsiderProxyAfterError(url, &info, &callback6, NULL, NULL);
   EXPECT_EQ(ERR_FAILED, rv);
+  EXPECT_FALSE(info.is_direct());
+  EXPECT_TRUE(info.is_empty());
 
   // TODO(nsylvain): Test that the proxy can be retried after the delay.
+}
+
+// This test is similar to ProxyFallback, but this time we have an explicit
+// fallback choice to DIRECT.
+TEST(ProxyServiceTest, ProxyFallbackToDirect) {
+  MockProxyConfigService* config_service =
+      new MockProxyConfigService("http://foopy/proxy.pac");
+
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+
+  scoped_refptr<ProxyService> service(
+      new ProxyService(config_service, resolver));
+
+  GURL url("http://www.google.com/");
+
+  // Get the proxy information.
+  ProxyInfo info;
+  TestCompletionCallback callback1;
+  int rv = service->ResolveProxy(url, &info, &callback1, NULL, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"),
+            resolver->pending_set_pac_script_request()->pac_url());
+  resolver->pending_set_pac_script_request()->CompleteNow(OK);
+
+  ASSERT_EQ(1u, resolver->pending_requests().size());
+  EXPECT_EQ(url, resolver->pending_requests()[0]->url());
+
+  // Set the result in proxy resolver.
+  resolver->pending_requests()[0]->results()->UsePacString(
+      "PROXY foopy1:8080; PROXY foopy2:9090; DIRECT");
+  resolver->pending_requests()[0]->CompleteNow(OK);
+
+  // Get the first result.
+  EXPECT_EQ(OK, callback1.WaitForResult());
+  EXPECT_FALSE(info.is_direct());
+  EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
+
+  // Fake an error on the proxy.
+  TestCompletionCallback callback2;
+  rv = service->ReconsiderProxyAfterError(url, &info, &callback2, NULL, NULL);
+  EXPECT_EQ(OK, rv);
+
+  // Now we get back the second proxy.
+  EXPECT_EQ("foopy2:9090", info.proxy_server().ToURI());
+
+  // Fake an error on this proxy as well.
+  TestCompletionCallback callback3;
+  rv = service->ReconsiderProxyAfterError(url, &info, &callback3, NULL, NULL);
+  EXPECT_EQ(OK, rv);
+
+  // Finally, we get back DIRECT.
+  EXPECT_TRUE(info.is_direct());
+
+  // Now we tell the proxy service that even DIRECT failed.
+  TestCompletionCallback callback4;
+  rv = service->ReconsiderProxyAfterError(url, &info, &callback4, NULL, NULL);
+  // There was nothing left to try after DIRECT, so we are out of
+  // choices.
+  EXPECT_EQ(ERR_FAILED, rv);
 }
 
 TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
@@ -504,28 +630,20 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
   ASSERT_EQ(1u, resolver->pending_requests().size());
   EXPECT_EQ(url, resolver->pending_requests()[0]->url());
 
+  // This simulates a javascript runtime error in the PAC script.
   resolver->pending_requests()[0]->CompleteNow(ERR_FAILED);
 
-  // No proxy servers are returned. It's a direct connection.
+  // No proxy servers are returned, since we failed.
   EXPECT_EQ(ERR_FAILED, callback3.WaitForResult());
-  EXPECT_TRUE(info2.is_direct());
+  EXPECT_FALSE(info2.is_direct());
+  EXPECT_TRUE(info2.is_empty());
 
-  // The PAC will now be fixed and will return a proxy server.
-  // It should also clear the list of bad proxies.
-
-  // Try to resolve, it will still return "direct" because we have no reason
-  // to check the config since everything works.
+  // The PAC script will work properly next time and successfully return a
+  // proxy list. Since we have not marked the configuration as bad, it should
+  // "just work" the next time we call it.
   ProxyInfo info3;
   TestCompletionCallback callback4;
-  rv = service->ResolveProxy(url, &info3, &callback4, NULL, NULL);
-  EXPECT_EQ(OK, rv);
-  EXPECT_TRUE(info3.is_direct());
-
-  // But if the direct connection fails, we check if the ProxyInfo tried to
-  // resolve the proxy before, and if not (like in this case), we give the
-  // PAC another try.
-  TestCompletionCallback callback5;
-  rv = service->ReconsiderProxyAfterError(url, &info3, &callback5, NULL, NULL);
+  rv = service->ReconsiderProxyAfterError(url, &info3, &callback4, NULL, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -535,8 +653,9 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
       "foopy1:8080;foopy2:9090");
   resolver->pending_requests()[0]->CompleteNow(OK);
 
-  // The first proxy is still there since the list of bad proxies got cleared.
-  EXPECT_EQ(OK, callback5.WaitForResult());
+  // The first proxy is not there since the it was added to the bad proxies
+  // list by the earlier ReconsiderProxyAfterError().
+  EXPECT_EQ(OK, callback4.WaitForResult());
   EXPECT_FALSE(info3.is_direct());
   EXPECT_EQ("foopy1:8080", info3.proxy_server().ToURI());
 }

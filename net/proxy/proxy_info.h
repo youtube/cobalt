@@ -43,9 +43,20 @@ class ProxyInfo {
   }
 
   // Returns true if this proxy info specifies a direct connection.
-  bool is_direct() const { return proxy_list_.Get().is_direct(); }
+  bool is_direct() const {
+    // We don't implicitly fallback to DIRECT unless it was added to the list.
+    if (is_empty())
+      return false;
+    return proxy_list_.Get().is_direct();
+  }
 
-  // Returns the first valid proxy server.
+  // Returns true if this proxy info has no proxies left to try.
+  bool is_empty() const {
+    return proxy_list_.IsEmpty();
+  }
+
+  // Returns the first valid proxy server. is_empty() must be false to be able
+  // to call this function.
   ProxyServer proxy_server() const { return proxy_list_.Get(); }
 
   // See description in ProxyList::ToPacString().
@@ -70,17 +81,12 @@ class ProxyInfo {
  private:
   friend class ProxyService;
 
-  // If proxy_list_ is set to empty, then a "direct" connection is indicated.
+  // The ordered list of proxy servers (including DIRECT attempts) remaining to
+  // try. If proxy_list_ is empty, then there is nothing left to fall back to.
   ProxyList proxy_list_;
 
   // This value identifies the proxy config used to initialize this object.
   ProxyConfig::ID config_id_;
-
-  // This flag is false when the proxy configuration was known to be bad when
-  // this proxy info was initialized.  In such cases, we know that if this
-  // proxy info does not yield a connection that we might want to reconsider
-  // the proxy config given by config_id_.
-  bool config_was_tried_;
 };
 
 }  // namespace net
