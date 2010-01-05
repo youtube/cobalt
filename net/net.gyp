@@ -472,12 +472,8 @@
         'url_request/url_request_file_job.h',
         'url_request/url_request_filter.cc',
         'url_request/url_request_filter.h',
-        'url_request/url_request_ftp_job.cc',
-        'url_request/url_request_ftp_job.h',
         'url_request/url_request_http_job.cc',
         'url_request/url_request_http_job.h',
-        'url_request/url_request_inet_job.cc',
-        'url_request/url_request_inet_job.h',
         'url_request/url_request_job.cc',
         'url_request/url_request_job.h',
         'url_request/url_request_job_manager.cc',
@@ -533,8 +529,6 @@
           {  # else: OS != "win"
             'sources!': [
               'proxy/proxy_resolver_winhttp.cc',
-              'url_request/url_request_ftp_job.cc',
-              'url_request/url_request_inet_job.cc',
             ],
           },
         ],
