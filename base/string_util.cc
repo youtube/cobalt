@@ -1408,7 +1408,7 @@ std::string JoinString(const std::vector<std::string>& parts, char sep) {
 }
 
 #if !defined(WCHAR_T_IS_UTF16)
-string16 JoinString(const std::vector<string16>& parts, char sep) {
+string16 JoinString(const std::vector<string16>& parts, char16 sep) {
   return JoinStringT(parts, sep);
 }
 #endif
