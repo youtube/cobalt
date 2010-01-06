@@ -151,8 +151,6 @@
         'base/upload_data.h',
         'base/upload_data_stream.cc',
         'base/upload_data_stream.h',
-        'base/wininet_util.cc',
-        'base/wininet_util.h',
         'base/winsock_init.cc',
         'base/winsock_init.h',
         'base/x509_certificate.cc',
@@ -180,7 +178,6 @@
           },
           {  # else: OS != "win"
             'sources!': [
-              'base/wininet_util.cc',
               'base/winsock_init.cc',
             ],
           },
@@ -608,7 +605,6 @@
         'base/telnet_server_unittest.cc',
         'base/test_certificate_data.h',
         'base/test_completion_callback_unittest.cc',
-        'base/wininet_util_unittest.cc',
         'base/x509_certificate_unittest.cc',
         'disk_cache/addr_unittest.cc',
         'disk_cache/backend_unittest.cc',
@@ -679,12 +675,6 @@
       'conditions': [
         [ 'OS == "win"', {
             'sources/': [ ['exclude', '_(mac|linux|posix)_unittest\\.cc$'] ],
-          },
-        ],
-        [ 'OS != "win"', {
-            'sources!': [
-              'base/wininet_util_unittest.cc',
-            ],
           },
         ],
         [ 'OS == "linux"', {
