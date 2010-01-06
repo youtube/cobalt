@@ -124,6 +124,10 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
     return ERR_IO_PENDING;
   }
 
+  virtual void CancelSetPacScript() {
+    // Do nothing (caller was responsible for completing the request).
+  }
+
   const RequestsList& pending_requests() const {
     return pending_requests_;
   }

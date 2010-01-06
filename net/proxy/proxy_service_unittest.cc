@@ -1535,6 +1535,70 @@ TEST(ProxyServiceTest, BypassDoesntApplyToPac) {
   EXPECT_EQ("request2:80", info2.proxy_server().ToURI());
 }
 
+// Delete the ProxyService while InitProxyResolver has an outstanding
+// request to the script fetcher. When run under valgrind, should not
+// have any memory errors (used to be that the ProxyScriptFetcher was
+// being deleted prior to the InitProxyResolver).
+TEST(ProxyServiceTest, DeleteWhileInitProxyResolverHasOutstandingFetch) {
+  ProxyConfig config;
+  config.pac_url = GURL("http://foopy/proxy.pac");
+
+  MockProxyConfigService* config_service = new MockProxyConfigService(config);
+  MockAsyncProxyResolverExpectsBytes* resolver =
+      new MockAsyncProxyResolverExpectsBytes;
+  scoped_refptr<ProxyService> service(
+      new ProxyService(config_service, resolver));
+
+  MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
+  service->SetProxyScriptFetcher(fetcher);
+
+  // Start 1 request.
+
+  ProxyInfo info1;
+  TestCompletionCallback callback1;
+  int rv = service->ResolveProxy(
+      GURL("http://www.google.com"), &info1, &callback1, NULL, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Check that nothing has been sent to the proxy resolver yet.
+  ASSERT_EQ(0u, resolver->pending_requests().size());
+
+  // InitProxyResolver should have issued a request to the ProxyScriptFetcher
+  // and be waiting on that to complete.
+  EXPECT_TRUE(fetcher->has_pending_request());
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"), fetcher->pending_request_url());
+
+  // Delete the ProxyService
+  service = NULL;
+}
+
+// Delete the ProxyService while InitProxyResolver has an outstanding
+// request to the proxy resolver. When run under valgrind, should not
+// have any memory errors (used to be that the ProxyResolver was
+// being deleted prior to the InitProxyResolver).
+TEST(ProxyServiceTest, DeleteWhileInitProxyResolverHasOutstandingSet) {
+  MockProxyConfigService* config_service =
+      new MockProxyConfigService("http://foopy/proxy.pac");
+
+  MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
+
+  scoped_refptr<ProxyService> service(
+      new ProxyService(config_service, resolver));
+
+  GURL url("http://www.google.com/");
+
+  ProxyInfo info;
+  TestCompletionCallback callback;
+  int rv = service->ResolveProxy(url, &info, &callback, NULL, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(GURL("http://foopy/proxy.pac"),
+            resolver->pending_set_pac_script_request()->pac_url());
+
+  // Delete the ProxyService.
+  service = NULL;
+}
+
 TEST(ProxyServiceTest, ResetProxyConfigService) {
   ProxyConfig config1;
   config1.proxy_rules.ParseFromString("foopy1:8080");
