@@ -4,6 +4,8 @@
 
 #include "net/socket/ssl_client_socket_mac.h"
 
+#include <CoreServices/CoreServices.h>
+
 #include "base/scoped_cftyperef.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
@@ -118,6 +120,7 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSSLClosedAbort:
       return ERR_CONNECTION_ABORTED;
     case errSSLInternal:
+      return ERR_UNEXPECTED;
     case errSSLCrypto:
     case errSSLFatalAlert:
     case errSSLIllegalParam:  // Received an illegal_parameter alert.
@@ -170,12 +173,16 @@ OSStatus OSStatusFromNetError(int net_error) {
     case ERR_ADDRESS_UNREACHABLE:
     case ERR_ADDRESS_INVALID:
       return errSSLClosedAbort;
+    case ERR_UNEXPECTED:
+      return errSSLInternal;
+    case ERR_INVALID_ARGUMENT:
+      return paramErr;
     case OK:
       return noErr;
     default:
       LOG(WARNING) << "Unknown error " << net_error <<
-          " mapped to errSSLIllegalParam";
-      return errSSLIllegalParam;
+          " mapped to paramErr";
+      return paramErr;
   }
 }
 
