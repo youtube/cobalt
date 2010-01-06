@@ -231,12 +231,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // heuristic).
   static bool IsLocalName(const GURL& url);
 
-  // Helper to download the PAC script (wpad + custom) and apply fallback rules.
-  scoped_ptr<InitProxyResolver> init_proxy_resolver_;
-
-  // Log from the *last* time |init_proxy_resolver_.Init()| was called, or NULL.
-  scoped_refptr<LoadLog> init_proxy_resolver_log_;
-
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;
 
@@ -266,6 +260,16 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
 
   // Callback for when |init_proxy_resolver_| is done.
   CompletionCallbackImpl<ProxyService> init_proxy_resolver_callback_;
+
+  // Helper to download the PAC script (wpad + custom) and apply fallback rules.
+  //
+  // Note that the declaration is important here: |proxy_script_fetcher_| and
+  // |proxy_resolver_| must outlive |init_proxy_resolver_|.
+  scoped_ptr<InitProxyResolver> init_proxy_resolver_;
+
+  // Log from the *last* time |init_proxy_resolver_.Init()| was called, or NULL.
+  scoped_refptr<LoadLog> init_proxy_resolver_log_;
+
   DISALLOW_COPY_AND_ASSIGN(ProxyService);
 };
 
