@@ -314,6 +314,21 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
      LOG(INFO) << "SSL_ENABLE_DEFLATE failed.  Old system nss?";
 #endif
 
+#ifdef SSL_ENABLE_RENEGOTIATION
+  // We allow servers to request renegotiation. Since we're a client,
+  // prohibiting this is rather a waste of time. Only servers are in a position
+  // to prevent renegotiation attacks.
+  // http://extendedsubset.com/?p=8
+  //
+  // This should be changed when NSS 3.12.6 comes out with support for the
+  // renegotiation info extension.
+  // http://code.google.com/p/chromium/issues/detail?id=31647
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
+                     SSL_RENEGOTIATE_UNRESTRICTED);
+  if (rv != SECSuccess)
+     LOG(INFO) << "SSL_ENABLE_RENEGOTIATION failed.";
+#endif
+
 #ifdef SSL_NEXT_PROTO_NEGOTIATED
   if (!ssl_config_.next_protos.empty()) {
     rv = SSL_SetNextProtoNego(
