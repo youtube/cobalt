@@ -16,8 +16,11 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
+#if defined(USE_SYSTEM_LIBEVENT)
+#include <event.h>
+#else
 #include "third_party/libevent/event.h"
-
+#endif
 
 namespace net {
 
