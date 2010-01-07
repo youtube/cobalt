@@ -60,7 +60,7 @@ class ProxyInfo {
   ProxyServer proxy_server() const { return proxy_list_.Get(); }
 
   // See description in ProxyList::ToPacString().
-  std::string ToPacString();
+  std::string ToPacString() const;
 
   // Marks the current proxy as bad. Returns true if there is another proxy
   // available to try in proxy list_.
