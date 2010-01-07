@@ -158,13 +158,7 @@ class ProxyService::PacRequest
     resolve_job_ = NULL;
     config_id_ = ProxyConfig::INVALID_ID;
 
-    // Clean up the results list.
-    if (result_code == OK)
-      results_->RemoveBadProxies(service_->proxy_retry_info_);
-
-    LoadLog::EndEvent(load_log_, LoadLog::TYPE_PROXY_SERVICE);
-
-    return result_code;
+    return service_->DidFinishResolvingProxy(results_, result_code, load_log_);
   }
 
   LoadLog* load_log() const { return load_log_; }
@@ -277,10 +271,8 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
   // using a direct connection, or when the config is bad.
   UpdateConfigIfOld(load_log);
   int rv = TryToCompleteSynchronously(url, result);
-  if (rv != ERR_IO_PENDING) {
-    LoadLog::EndEvent(load_log, LoadLog::TYPE_PROXY_SERVICE);
-    return rv;
-  }
+  if (rv != ERR_IO_PENDING)
+    return DidFinishResolvingProxy(result, rv, load_log);
 
   scoped_refptr<PacRequest> req =
       new PacRequest(this, url, result, callback, load_log);
@@ -475,6 +467,29 @@ void ProxyService::RemovePendingRequest(PacRequest* req) {
   PendingRequests::iterator it = std::find(
       pending_requests_.begin(), pending_requests_.end(), req);
   pending_requests_.erase(it);
+}
+
+int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
+                                          int result_code,
+                                          LoadLog* load_log) {
+  // Log the result of the proxy resolution.
+  if (result_code == OK) {
+    // When full logging is enabled, dump the proxy list.
+    if (LoadLog::IsUnbounded(load_log)) {
+      LoadLog::AddString(
+          load_log,
+          std::string("Resolved proxy list: ") + result->ToPacString());
+    }
+  } else {
+    LoadLog::AddErrorCode(load_log, result_code);
+  }
+
+  // Clean up the results list.
+  if (result_code == OK)
+    result->RemoveBadProxies(proxy_retry_info_);
+
+  LoadLog::EndEvent(load_log, LoadLog::TYPE_PROXY_SERVICE);
+  return result_code;
 }
 
 void ProxyService::SetProxyScriptFetcher(
