@@ -222,6 +222,13 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // Removes |req| from the list of pending requests.
   void RemovePendingRequest(PacRequest* req);
 
+  // Called when proxy resolution has completed (either synchronously or
+  // asynchronously). Handles logging the result, and cleaning out
+  // bad entries from the results list.
+  int DidFinishResolvingProxy(ProxyInfo* result,
+                              int result_code,
+                              LoadLog* load_log);
+
   // Returns true if the URL passed in should not go through the proxy server.
   // 1. If the proxy settings say to bypass local names, and |IsLocalName(url)|.
   // 2. The URL matches one of the entities in the proxy bypass list.

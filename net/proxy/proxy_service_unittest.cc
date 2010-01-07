@@ -106,9 +106,9 @@ TEST(ProxyServiceTest, Direct) {
   EXPECT_TRUE(info.is_direct());
 
   // Check the LoadLog was filled correctly.
-  EXPECT_EQ(4u, log->entries().size());
+  EXPECT_EQ(5u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
+  ExpectLogContains(log, 4, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
 
 TEST(ProxyServiceTest, PAC) {
@@ -145,13 +145,13 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
 
   // Check the LoadLog was filled correctly.
-  EXPECT_EQ(6u, log->entries().size());
+  EXPECT_EQ(7u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
                     LoadLog::PHASE_BEGIN);
   ExpectLogContains(log, 4, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
                     LoadLog::PHASE_END);
-  ExpectLogContains(log, 5, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
+  ExpectLogContains(log, 6, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
 }
 
 // Test that the proxy resolver does not see the URL's username/password
