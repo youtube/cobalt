@@ -94,6 +94,12 @@ int SOCKS5ClientSocket::Connect(CompletionCallback* callback,
 void SOCKS5ClientSocket::Disconnect() {
   completed_handshake_ = false;
   transport_->Disconnect();
+
+  // Reset other states to make sure they aren't mistakenly used later.
+  // These are the states initialized by Connect().
+  next_state_ = STATE_NONE;
+  user_callback_ = NULL;
+  load_log_ = NULL;
 }
 
 bool SOCKS5ClientSocket::IsConnected() const {

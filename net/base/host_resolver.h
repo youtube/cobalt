@@ -185,6 +185,10 @@ class SingleRequestHostResolver {
               CompletionCallback* callback,
               LoadLog* load_log);
 
+  // Cancels the in-progress request, if any. This prevents the callback
+  // from being invoked. Resolve() can be called again after cancelling.
+  void Cancel();
+
  private:
   // Callback for when the request to |resolver_| completes, so we dispatch
   // to the user's callback.
