@@ -13,7 +13,11 @@
 #include "base/scoped_nsautorelease_pool.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
+#if defined(USE_SYSTEM_LIBEVENT)
+#include <event.h>
+#else
 #include "third_party/libevent/event.h"
+#endif
 
 // Lifecycle of struct event
 // Libevent uses two main data structures:
