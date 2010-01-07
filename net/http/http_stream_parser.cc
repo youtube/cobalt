@@ -62,9 +62,14 @@ int HttpStreamParser::SendRequest(const HttpRequestInfo* request,
 }
 
 int HttpStreamParser::ReadResponseHeaders(CompletionCallback* callback) {
-  DCHECK_EQ(STATE_REQUEST_SENT, io_state_);
+  DCHECK(io_state_ == STATE_REQUEST_SENT || io_state_ == STATE_DONE);
   DCHECK(!user_callback_);
   DCHECK(callback);
+
+  // This function can be called with io_state_ == STATE_DONE if the
+  // connection is closed after seeing just a 1xx response code.
+  if (io_state_ == STATE_DONE)
+    return ERR_CONNECTION_CLOSED;
 
   int result = OK;
   io_state_ = STATE_READ_HEADERS;

@@ -1017,6 +1017,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   // We treat any other 1xx in this same way (although in practice getting
   // a 1xx that isn't a 100 is rare).
   if (response_.headers->response_code() / 100 == 1) {
+    response_.headers = new HttpResponseHeaders("");
     next_state_ = STATE_READ_HEADERS;
     return OK;
   }
