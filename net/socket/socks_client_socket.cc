@@ -107,7 +107,14 @@ int SOCKSClientSocket::Connect(CompletionCallback* callback,
 
 void SOCKSClientSocket::Disconnect() {
   completed_handshake_ = false;
+  host_resolver_.Cancel();
   transport_->Disconnect();
+
+  // Reset other states to make sure they aren't mistakenly used later.
+  // These are the states initialized by Connect().
+  next_state_ = STATE_NONE;
+  user_callback_ = NULL;
+  load_log_ = NULL;
 }
 
 bool SOCKSClientSocket::IsConnected() const {

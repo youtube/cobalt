@@ -20,9 +20,7 @@ SingleRequestHostResolver::SingleRequestHostResolver(HostResolver* resolver)
 }
 
 SingleRequestHostResolver::~SingleRequestHostResolver() {
-  if (cur_request_) {
-    resolver_->CancelRequest(cur_request_);
-  }
+  Cancel();
 }
 
 int SingleRequestHostResolver::Resolve(const HostResolver::RequestInfo& info,
@@ -47,6 +45,13 @@ int SingleRequestHostResolver::Resolve(const HostResolver::RequestInfo& info,
   }
 
   return rv;
+}
+
+void SingleRequestHostResolver::Cancel() {
+  if (cur_request_) {
+    resolver_->CancelRequest(cur_request_);
+    cur_request_ = NULL;
+  }
 }
 
 void SingleRequestHostResolver::OnResolveCompletion(int result) {
