@@ -211,6 +211,10 @@ class HttpResponseHeaders
   // Determines if this response indicates a keep-alive connection.
   bool IsKeepAlive() const;
 
+  // Returns true if this response has a strong etag or last-modified header.
+  // See section 13.3.3 of RFC 2616.
+  bool HasStrongValidators() const;
+
   // Extracts the value of the Content-Length header or returns -1 if there is
   // no such header in the response.
   int64 GetContentLength() const;
