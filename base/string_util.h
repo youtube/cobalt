@@ -121,10 +121,15 @@ bool IsWprintfFormatPortable(const wchar_t* format);
 #error Define string operations appropriately for your platform
 #endif
 
-// Returns a reference to a globally unique empty string that functions can
-// return.  Use this to avoid static construction of strings, not to replace
-// any and all uses of "std::string()" as nicer-looking sugar.
-// These functions are threadsafe.
+// These threadsafe functions return references to globally unique empty
+// strings.
+//
+// DO NOT USE THESE AS A GENERAL-PURPOSE SUBSTITUTE FOR DEFAULT CONSTRUCTORS.
+// There is only one case where you should use these: functions which need to
+// return a string by reference (e.g. as a class member accessor), and don't
+// have an empty string to use (e.g. in an error case).  These should not be
+// used as initializers, function arguments, or return values for functions
+// which return by value or outparam.
 const std::string& EmptyString();
 const std::wstring& EmptyWString();
 const string16& EmptyString16();
