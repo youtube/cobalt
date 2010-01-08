@@ -198,13 +198,18 @@ class ProxyService::PacRequest
 // ProxyService ---------------------------------------------------------------
 
 ProxyService::ProxyService(ProxyConfigService* config_service,
-                           ProxyResolver* resolver)
+                           ProxyResolver* resolver,
+                           NetworkChangeNotifier* network_change_notifier)
     : config_service_(config_service),
       resolver_(resolver),
       next_config_id_(1),
       should_use_proxy_resolver_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(init_proxy_resolver_callback_(
-          this, &ProxyService::OnInitProxyResolverComplete)) {
+          this, &ProxyService::OnInitProxyResolverComplete)),
+      network_change_notifier_(network_change_notifier) {
+  // Register to receive network change notifications.
+  if (network_change_notifier_)
+    network_change_notifier_->AddObserver(this);
 }
 
 // static
@@ -212,6 +217,7 @@ ProxyService* ProxyService::Create(
     ProxyConfigService* proxy_config_service,
     bool use_v8_resolver,
     URLRequestContext* url_request_context,
+    NetworkChangeNotifier* network_change_notifier,
     MessageLoop* io_loop) {
   ProxyResolver* proxy_resolver;
 
@@ -231,7 +237,7 @@ ProxyService* ProxyService::Create(
   proxy_resolver = new SingleThreadedProxyResolver(proxy_resolver);
 
   ProxyService* proxy_service = new ProxyService(
-      proxy_config_service, proxy_resolver);
+      proxy_config_service, proxy_resolver, network_change_notifier);
 
   if (proxy_resolver->expects_pac_bytes()) {
     // Configure PAC script downloads to be issued using |url_request_context|.
@@ -245,13 +251,15 @@ ProxyService* ProxyService::Create(
 
 // static
 ProxyService* ProxyService::CreateFixed(const ProxyConfig& pc) {
-  return Create(new ProxyConfigServiceFixed(pc), false, NULL, NULL);
+  return Create(new ProxyConfigServiceFixed(pc), false, NULL, NULL, NULL);
 }
 
 // static
 ProxyService* ProxyService::CreateNull() {
   // Use a configuration fetcher and proxy resolver which always fail.
-  return new ProxyService(new ProxyConfigServiceNull, new ProxyResolverNull);
+  return new ProxyService(new ProxyConfigServiceNull,
+                          new ProxyResolverNull,
+                          NULL);
 }
 
 int ProxyService::ResolveProxy(const GURL& raw_url,
@@ -354,6 +362,10 @@ void ProxyService::ApplyProxyRules(const GURL& url,
 }
 
 ProxyService::~ProxyService() {
+  // Unregister to receive network change notifications.
+  if (network_change_notifier_)
+    network_change_notifier_->RemoveObserver(this);
+
   // Cancel any inprogress requests.
   for (PendingRequests::iterator it = pending_requests_.begin();
        it != pending_requests_.end();
@@ -734,6 +746,17 @@ bool ProxyService::IsLocalName(const GURL& url) {
   if (host == "127.0.0.1" || host == "[::1]")
     return true;
   return host.find('.') == std::string::npos;
+}
+
+void ProxyService::OnIPAddressChanged() {
+  DCHECK(network_change_notifier_);
+
+  // Mark the current configuration as being un-initialized.
+  //
+  // This will force us to re-fetch the configuration (and re-run all of
+  // the initialization steps) on the next ResolveProxy() request, as part
+  // of UpdateConfigIfOld().
+  config_.set_id(ProxyConfig::INVALID_ID);
 }
 
 SyncProxyServiceHelper::SyncProxyServiceHelper(MessageLoop* io_message_loop,
