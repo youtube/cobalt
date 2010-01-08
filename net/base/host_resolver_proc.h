@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -47,10 +47,17 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
   friend class MockHostResolverBase;
   friend class ScopedDefaultHostResolverProc;
 
-  // Sets the previous procedure in the chain.
-  void set_previous_proc(HostResolverProc* proc) {
-    previous_proc_ = proc;
-  }
+  // Sets the previous procedure in the chain.  Aborts if this would result in a
+  // cycle.
+  void SetPreviousProc(HostResolverProc* proc);
+
+  // Sets the last procedure in the chain, i.e. appends |proc| to the end of the
+  // current chain.  Aborts if this would result in a cycle.
+  void SetLastProc(HostResolverProc* proc);
+
+  // Returns the last procedure in the chain starting at |proc|.  Will return
+  // NULL iff |proc| is NULL.
+  static HostResolverProc* GetLastProc(HostResolverProc* proc);
 
   // Sets the default host resolver procedure that is used by HostResolverImpl.
   // This can be used through ScopedDefaultHostResolverProc to set a catch-all
@@ -59,7 +66,6 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
   static HostResolverProc* SetDefault(HostResolverProc* proc);
   static HostResolverProc* GetDefault();
 
- private:
   scoped_refptr<HostResolverProc> previous_proc_;
   static HostResolverProc* default_proc_;
 
