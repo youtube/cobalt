@@ -517,6 +517,8 @@ extern "C" {
 // it breaks builds depending on fine details of the linker command line and
 // the dependencies of other .so's that we pull in. So it's disabled for the
 // moment. See crbug.com/31809
+//
+// If enabling this, remember to reanble the tests in process_util_unittest.cc
 
 #if 0
 #if !defined(LINUX_USE_TCMALLOC)
