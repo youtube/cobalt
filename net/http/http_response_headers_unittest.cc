@@ -1427,6 +1427,60 @@ TEST(HttpResponseHeadersTest, IsKeepAlive) {
   }
 }
 
+TEST(HttpResponseHeadersTest, HasStrongValidators) {
+  const struct {
+    const char* headers;
+    bool expected_result;
+  } tests[] = {
+    { "HTTP/0.9 200 OK",
+      false
+    },
+    { "HTTP/0.9 200 OK\n"
+      "Date: Wed, 28 Nov 2007 01:40:10 GMT\n"
+      "Last-Modified: Wed, 28 Nov 2007 00:40:10 GMT\n"
+      "ETag: \"foo\"\n",
+      true
+    },
+    { "HTTP/1.1 200 OK\n"
+      "Date: Wed, 28 Nov 2007 00:41:10 GMT\n"
+      "Last-Modified: Wed, 28 Nov 2007 00:40:10 GMT\n",
+      true
+    },
+    { "HTTP/1.1 200 OK\n"
+      "Date: Wed, 28 Nov 2007 00:41:09 GMT\n"
+      "Last-Modified: Wed, 28 Nov 2007 00:40:10 GMT\n",
+      false
+    },
+    { "HTTP/1.1 200 OK\n"
+      "ETag: \"foo\"\n",
+      true
+    },
+    // This is not really a weak etag:
+    { "HTTP/1.1 200 OK\n"
+      "etag: \"w/foo\"\n",
+      true
+    },
+    // This is a weak etag:
+    { "HTTP/1.1 200 OK\n"
+      "etag: w/\"foo\"\n",
+      false
+    },
+    { "HTTP/1.1 200 OK\n"
+      "etag:    W  /   \"foo\"\n",
+      false
+    }
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    string headers(tests[i].headers);
+    HeadersToRaw(&headers);
+    scoped_refptr<HttpResponseHeaders> parsed =
+        new HttpResponseHeaders(headers);
+
+    EXPECT_EQ(tests[i].expected_result, parsed->HasStrongValidators()) <<
+      "Failed test case " << i;
+  }
+}
+
 TEST(HttpResponseHeadersTest, GetStatusText) {
   std::string headers("HTTP/1.1 404 Not Found");
   HeadersToRaw(&headers);
