@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -89,7 +89,7 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
 
   // Lastly add the provided interceptor to the front of the chain.
   if (interceptor) {
-    interceptor->set_previous_proc(proc);
+    interceptor->SetPreviousProc(proc);
     proc = interceptor;
   }
 
@@ -225,9 +225,8 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
 //-----------------------------------------------------------------------------
 
 ScopedDefaultHostResolverProc::ScopedDefaultHostResolverProc(
-    HostResolverProc* proc) : current_proc_(proc) {
-  previous_proc_ = HostResolverProc::SetDefault(current_proc_);
-  current_proc_->set_previous_proc(previous_proc_);
+    HostResolverProc* proc) {
+  Init(proc);
 }
 
 ScopedDefaultHostResolverProc::~ScopedDefaultHostResolverProc() {
@@ -239,7 +238,7 @@ ScopedDefaultHostResolverProc::~ScopedDefaultHostResolverProc() {
 void ScopedDefaultHostResolverProc::Init(HostResolverProc* proc) {
   current_proc_ = proc;
   previous_proc_ = HostResolverProc::SetDefault(current_proc_);
-  current_proc_->set_previous_proc(previous_proc_);
+  current_proc_->SetLastProc(previous_proc_);
 }
 
 }  // namespace net
