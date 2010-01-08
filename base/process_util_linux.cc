@@ -513,55 +513,60 @@ void OnNoMemory() {
 }  // namespace
 
 extern "C" {
-// This code tries to make malloc failures fatal for security reasons. However,
-// it breaks builds depending on fine details of the linker command line and
-// the dependencies of other .so's that we pull in. So it's disabled for the
-// moment. See crbug.com/31809
-//
-// If enabling this, remember to reanble the tests in process_util_unittest.cc
 
-#if 0
 #if !defined(LINUX_USE_TCMALLOC)
 
-typedef void* (*malloc_type)(size_t size);
-typedef void* (*valloc_type)(size_t size);
-typedef void* (*pvalloc_type)(size_t size);
+extern "C" {
+void* __libc_malloc(size_t size);
+void* __libc_realloc(void* ptr, size_t size);
+void* __libc_calloc(size_t nmemb, size_t size);
+void* __libc_valloc(size_t size);
+void* __libc_pvalloc(size_t size);
+void* __libc_memalign(size_t alignment, size_t size);
+}  // extern "C"
 
-typedef void* (*calloc_type)(size_t nmemb, size_t size);
-typedef void* (*realloc_type)(void *ptr, size_t size);
-typedef void* (*memalign_type)(size_t boundary, size_t size);
+// Overriding the system memory allocation functions:
+//
+// For security reasons, we want malloc failures to be fatal. Too much code
+// doesn't check for a NULL return value from malloc and unconditionally uses
+// the resulting pointer. If the first offset that they try to access is
+// attacker controlled, then the attacker can direct the code to access any
+// part of memory.
+//
+// Thus, we define all the standard malloc functions here and mark them as
+// visibility 'default'. This means that they replace the malloc functions for
+// all Chromium code and also for all code in shared libraries. There are tests
+// for this in process_util_unittest.cc.
+//
+// If we are using tcmalloc, then the problem is moot since tcmalloc handles
+// this for us. Thus this code is in a !defined(LINUX_USE_TCMALLOC) block.
+//
+// We call the real libc functions in this code by using __libc_malloc etc.
+// Previously we tried using dlsym(RTLD_NEXT, ...) but that failed depending on
+// the link order. Since ld.so needs calloc during symbol resolution, it
+// defines its own versions of several of these functions in dl-minimal.c.
+// Depending on the runtime library order, dlsym ended up giving us those
+// functions and bad things happened. See crbug.com/31809
+//
+// This means that any code which calls __libc_* gets the raw libc versions of
+// these functions.
 
-typedef int (*posix_memalign_type)(void **memptr, size_t alignment,
-                                   size_t size);
-
-// Override the __libc_FOO name too.
 #define DIE_ON_OOM_1(function_name) \
-  _DIE_ON_OOM_1(function_name##_type, function_name) \
-  void* __libc_##function_name(size_t size) { \
-    return function_name(size); \
-  }
-
-#define DIE_ON_OOM_2(function_name, arg1_type) \
-  _DIE_ON_OOM_2(function_name##_type, function_name, arg1_type) \
-  void* __libc_##function_name(arg1_type arg1, size_t size) { \
-    return function_name(arg1, size); \
-  }
-
-#define _DIE_ON_OOM_1(function_type, function_name) \
+  void* function_name(size_t) __attribute__ ((visibility("default"))); \
+  \
   void* function_name(size_t size) { \
-    static function_type original_function = \
-        reinterpret_cast<function_type>(dlsym(RTLD_NEXT, #function_name)); \
-    void* ret = original_function(size); \
+    void* ret = __libc_##function_name(size); \
     if (ret == NULL && size != 0) \
       OnNoMemorySize(size); \
     return ret; \
   }
 
-#define _DIE_ON_OOM_2(function_type, function_name, arg1_type) \
+#define DIE_ON_OOM_2(function_name, arg1_type) \
+  void* function_name(arg1_type, size_t) \
+      __attribute__ ((visibility("default"))); \
+  \
   void* function_name(arg1_type arg1, size_t size) { \
-    static function_type original_function = \
-        reinterpret_cast<function_type>(dlsym(RTLD_NEXT, #function_name)); \
-    void* ret = original_function(arg1, size); \
+    void* ret = __libc_##function_name(arg1, size); \
     if (ret == NULL && size != 0) \
       OnNoMemorySize(size); \
     return ret; \
@@ -571,43 +576,21 @@ DIE_ON_OOM_1(malloc)
 DIE_ON_OOM_1(valloc)
 DIE_ON_OOM_1(pvalloc)
 
+DIE_ON_OOM_2(calloc, size_t)
 DIE_ON_OOM_2(realloc, void*)
 DIE_ON_OOM_2(memalign, size_t)
 
-// dlsym uses calloc so it has to be treated specially. http://crbug.com/28244
-static void* null_calloc(size_t nmemb, size_t size) {
-  return NULL;
-}
-
-void* calloc(size_t nmemb, size_t size) {
-  static calloc_type original_function = NULL;
-  if (original_function == NULL) {
-      original_function = null_calloc;
-      original_function = reinterpret_cast<calloc_type>(dlsym(RTLD_NEXT,
-                                                              "calloc"));
-  }
-  void* ret = original_function(nmemb, size);
-  if (ret == NULL && size != 0 && original_function != null_calloc)
-    OnNoMemorySize(size);
-  return ret;
-}
-
-void* __libc_calloc(size_t nmemb, size_t size) { \
-  return calloc(nmemb, size);
-}
-
 // posix_memalign has a unique signature and doesn't have a __libc_ variant.
+int posix_memalign(void** ptr, size_t alignment, size_t size)
+    __attribute__ ((visibility("default")));
+
 int posix_memalign(void** ptr, size_t alignment, size_t size) {
-  static posix_memalign_type original_function =
-      reinterpret_cast<posix_memalign_type>(dlsym(RTLD_NEXT, "posix_memalign"));
-  int ret = original_function(ptr, alignment, size);
-  if (ret == ENOMEM)
-    OnNoMemorySize(size);
-  return ret;
+  // This will use the safe version of memalign, above.
+  *ptr = memalign(alignment, size);
+  return 0;
 }
 
 #endif  // !defined(LINUX_USE_TCMALLOC)
-#endif
 }  // extern C
 
 void EnableTerminationOnOutOfMemory() {

@@ -19,6 +19,7 @@
 #include <dlfcn.h>
 #include <errno.h>
 #include <malloc.h>
+#include <glib.h>
 #endif
 #if defined(OS_POSIX)
 #include <fcntl.h>
@@ -388,10 +389,6 @@ TEST_F(ProcessUtilTest, ParseProcStatCPU) {
 
 #endif  // defined(OS_POSIX)
 
-#if 0
-
-// See comments in process_util_linux.cc about why these are removed for now.
-
 // TODO(vandebo) make this work on Windows and Mac too.
 #if defined(OS_LINUX)
 
@@ -455,6 +452,16 @@ TEST_F(OutOfMemoryTest, Memalign) {
   ASSERT_DEATH(value_ = memalign(4, test_size_), "");
 }
 
+TEST_F(OutOfMemoryTest, ViaSharedLibraries) {
+  // g_try_malloc is documented to return NULL on failure. (g_malloc is the
+  // 'safe' default that crashes if allocation fails). However, since we have
+  // hopefully overridden malloc, even g_try_malloc should fail. This tests
+  // that the run-time symbol resolution is overriding malloc for shared
+  // libraries as well as for our code.
+  ASSERT_DEATH(value_ = g_try_malloc(test_size_), "");
+}
+
+
 TEST_F(OutOfMemoryTest, Posix_memalign) {
   // Grab the return value of posix_memalign to silence a compiler warning
   // about unused return values. We don't actually care about the return
@@ -462,43 +469,6 @@ TEST_F(OutOfMemoryTest, Posix_memalign) {
   ASSERT_DEATH(EXPECT_EQ(ENOMEM, posix_memalign(&value_, 8, test_size_)), "");
 }
 
-extern "C" {
-
-void* __libc_malloc(size_t size);
-void* __libc_realloc(void* ptr, size_t size);
-void* __libc_calloc(size_t nmemb, size_t size);
-void* __libc_valloc(size_t size);
-void* __libc_pvalloc(size_t size);
-void* __libc_memalign(size_t alignment, size_t size);
-
-}  // extern "C"
-
-TEST_F(OutOfMemoryTest, __libc_malloc) {
-  ASSERT_DEATH(value_ = __libc_malloc(test_size_), "");
-}
-
-TEST_F(OutOfMemoryTest, __libc_realloc) {
-  ASSERT_DEATH(value_ = __libc_realloc(NULL, test_size_), "");
-}
-
-TEST_F(OutOfMemoryTest, __libc_calloc) {
-  ASSERT_DEATH(value_ = __libc_calloc(1024, test_size_ / 1024L), "");
-}
-
-TEST_F(OutOfMemoryTest, __libc_valloc) {
-  ASSERT_DEATH(value_ = __libc_valloc(test_size_), "");
-}
-
-TEST_F(OutOfMemoryTest, __libc_pvalloc) {
-  ASSERT_DEATH(value_ = __libc_pvalloc(test_size_), "");
-}
-
-TEST_F(OutOfMemoryTest, __libc_memalign) {
-  ASSERT_DEATH(value_ = __libc_memalign(4, test_size_), "");
-}
-
 #endif  // defined(OS_LINUX)
-
-#endif
 
 }  // namespace base
