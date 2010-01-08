@@ -12,6 +12,7 @@
 #include "base/scoped_ptr.h"
 #include "base/waitable_event.h"
 #include "net/base/completion_callback.h"
+#include "net/base/network_change_notifier.h"
 #include "net/proxy/proxy_server.h"
 #include "net/proxy/proxy_info.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
@@ -31,10 +32,15 @@ class ProxyScriptFetcher;
 // This class can be used to resolve the proxy server to use when loading a
 // HTTP(S) URL.  It uses the given ProxyResolver to handle the actual proxy
 // resolution.  See ProxyResolverV8 for example.
-class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
+class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
+                     public NetworkChangeNotifier::Observer {
  public:
   // The instance takes ownership of |config_service| and |resolver|.
-  ProxyService(ProxyConfigService* config_service, ProxyResolver* resolver);
+  // If |network_change_notifier| is non-NULL, the proxy service will register
+  // with it to detect when the network setup has changed. This is used to
+  // decide when to re-configure the proxy discovery.
+  ProxyService(ProxyConfigService* config_service, ProxyResolver* resolver,
+               NetworkChangeNotifier* network_change_notifier);
 
   // Used internally to handle PAC queries.
   // TODO(eroman): consider naming this simply "Request".
@@ -126,6 +132,8 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // |url_request_context| is only used when use_v8_resolver is true:
   // it specifies the URL request context that will be used if a PAC
   // script needs to be fetched.
+  // |network_change_notifier| may be NULL. Otherwise it will be used to
+  // signal the ProxyService when the network setup has changed.
   // |io_loop| points to the IO thread's message loop. It is only used
   // when pc is NULL.
   // ##########################################################################
@@ -137,6 +145,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
       ProxyConfigService* proxy_config_service,
       bool use_v8_resolver,
       URLRequestContext* url_request_context,
+      NetworkChangeNotifier* network_change_notifier,
       MessageLoop* io_loop);
 
   // Convenience method that creates a proxy service using the
@@ -238,6 +247,9 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
   // heuristic).
   static bool IsLocalName(const GURL& url);
 
+  // NetworkChangeNotifier::Observer methods:
+  virtual void OnIPAddressChanged();
+
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;
 
@@ -276,6 +288,10 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService> {
 
   // Log from the *last* time |init_proxy_resolver_.Init()| was called, or NULL.
   scoped_refptr<LoadLog> init_proxy_resolver_log_;
+
+  // The (possibly NULL) network change notifier that we use to decide when
+  // to refetch PAC scripts or re-run WPAD.
+  scoped_refptr<NetworkChangeNotifier> network_change_notifier_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyService);
 };
