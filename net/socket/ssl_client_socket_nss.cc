@@ -309,7 +309,11 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_DEFLATE
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_DEFLATE, PR_TRUE);
+  // Some web servers have been found to break if TLS is used *or* if DEFLATE
+  // is advertised. Thus, if TLS is disabled (probably because we are doing
+  // SSLv3 fallback), we disable DEFLATE also.
+  // See http://crbug.com/31628
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_DEFLATE, ssl_config_.tls1_enabled);
   if (rv != SECSuccess)
      LOG(INFO) << "SSL_ENABLE_DEFLATE failed.  Old system nss?";
 #endif
