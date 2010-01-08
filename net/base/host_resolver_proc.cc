@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -26,11 +26,33 @@ namespace net {
 HostResolverProc* HostResolverProc::default_proc_ = NULL;
 
 HostResolverProc::HostResolverProc(HostResolverProc* previous) {
-  set_previous_proc(previous);
+  SetPreviousProc(previous);
 
   // Implicitly fall-back to the global default procedure.
   if (!previous)
-    set_previous_proc(default_proc_);
+    SetPreviousProc(default_proc_);
+}
+
+void HostResolverProc::SetPreviousProc(HostResolverProc* proc) {
+  HostResolverProc* current_previous = previous_proc_;
+  previous_proc_ = NULL;
+  // Now that we've guaranteed |this| is the last proc in a chain, we can
+  // detect potential cycles using GetLastProc().
+  previous_proc_ = (GetLastProc(proc) == this) ? current_previous : proc;
+}
+
+void HostResolverProc::SetLastProc(HostResolverProc* proc) {
+  GetLastProc(this)->SetPreviousProc(proc);
+}
+
+// static
+HostResolverProc* HostResolverProc::GetLastProc(HostResolverProc* proc) {
+  if (proc == NULL)
+    return NULL;
+  HostResolverProc* last_proc = proc;
+  while (last_proc->previous_proc_ != NULL)
+    last_proc = last_proc->previous_proc_;
+  return last_proc;
 }
 
 // static
