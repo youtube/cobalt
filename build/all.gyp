@@ -218,12 +218,16 @@
             # 2) be expressed in the ui tests dependencies.
             '../webkit/tools/test_shell/test_shell.gyp:test_shell_common',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_net_tests',
+            '../chrome_frame/chrome_frame.gyp:chrome_frame_perftests',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_tests',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
-            '../chrome_frame/chrome_frame.gyp:chrome_frame_net_tests',
+            '../chrome_frame/chrome_frame.gyp:npchrome_frame',
           ],
         },
         {
+          # TODO(robertshield): Remove this target once the last independent
+          # CF builder is retired.
           'target_name': 'chrome_frame_builder',
           'type': 'none',
           'dependencies': [
