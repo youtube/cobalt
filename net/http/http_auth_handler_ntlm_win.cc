@@ -13,6 +13,7 @@
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/http/http_auth_sspi_win.h"
 
 #pragma comment(lib, "secur32.lib")
 
@@ -43,52 +44,12 @@ HttpAuthHandlerNTLM::~HttpAuthHandlerNTLM() {
 int HttpAuthHandlerNTLM::InitializeBeforeFirstChallenge() {
   DCHECK_EQ("ntlm", scheme_) << "This is not ntlm scheme";
 
-  SEC_WCHAR* package = NTLMSP_NAME;
-  PSecPkgInfo pkg_info;
-  SECURITY_STATUS status;
-
-  // The following API call is required to get the maximum token length
-  // for the scheme.
-  // TODO(arindam): Move this (PSecPkgInfo) to a static function.
-  status = QuerySecurityPackageInfo(package, &pkg_info);
-  if (status != SEC_E_OK) {
-    LOG(ERROR) << "Security package " << package << " not found";
-    return ERR_UNEXPECTED;
+  int rv = DetermineMaxTokenLength(NTLMSP_NAME, &max_token_len_);
+  if (rv != OK) {
+    return rv;
   }
-  max_token_len_ = pkg_info->cbMaxToken;
-  FreeContextBuffer(pkg_info);
-
-  SEC_WINNT_AUTH_IDENTITY identity;
-  identity.Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
-  identity.User =
-      reinterpret_cast<USHORT*>(const_cast<wchar_t*>(username_.c_str()));
-  identity.UserLength = username_.size();
-  identity.Domain =
-      reinterpret_cast<USHORT*>(const_cast<wchar_t*>(domain_.c_str()));
-  identity.DomainLength = domain_.size();
-  identity.Password =
-      reinterpret_cast<USHORT*>(const_cast<wchar_t*>(password_.c_str()));
-  identity.PasswordLength = password_.size();
-
-  TimeStamp expiry;  // Since the credentials handle doesn't expire, ignore
-                     // the expiration time.
-
-  // Pass the username/password to get the credentials handle.
-  // Note: If the 5th argument is NULL, it uses the default cached credentials
-  // for the logged in user, which can be used for single sign-on.
-  status = AcquireCredentialsHandle(NULL,  // pszPrincipal
-                                    package,  // pszPackage
-                                    SECPKG_CRED_OUTBOUND,  // fCredentialUse
-                                    NULL,  // pvLogonID
-                                    &identity,  // pAuthData
-                                    NULL,  // pGetKeyFn (not used)
-                                    NULL,  // pvGetKeyArgument (not used)
-                                    &cred_,  // phCredential
-                                    &expiry);  // ptsExpiry
-  if (status != SEC_E_OK)
-    return ERR_UNEXPECTED;
-
-  return OK;
+  rv = AcquireCredentials(NTLMSP_NAME, domain_, username_, password_, &cred_);
+  return rv;
 }
 
 int HttpAuthHandlerNTLM::GetNextToken(const void* in_token,
