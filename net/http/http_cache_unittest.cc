@@ -731,9 +731,6 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
       response_status->assign("HTTP/1.1 200 Success");
     }
   } else {
-    // Check that we use only one validation header.
-    EXPECT_EQ(std::string::npos,
-              request->extra_headers.find("If-Modified-Since"));
     response_status->assign("HTTP/1.1 304 Not Modified");
     response_data->clear();
   }
@@ -3266,12 +3263,101 @@ TEST(HttpCache, DoomOnDestruction) {
   EXPECT_EQ(2, cache.disk_cache()->create_count());
 }
 
+// Tests that we delete an entry when the request is cancelled if the response
+// does not have content-length and strong validators.
+TEST(HttpCache, DoomOnDestruction2) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+
+  MockHttpRequest request(kSimpleGET_Transaction);
+
+  Context* c = new Context();
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
+
+  rv = c->trans->Start(&request, &c->callback, NULL);
+  if (rv == net::ERR_IO_PENDING)
+    rv = c->callback.WaitForResult();
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Make sure that the entry has some data stored.
+  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(10);
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  if (rv == net::ERR_IO_PENDING)
+    rv = c->callback.WaitForResult();
+  EXPECT_EQ(buf->size(), rv);
+
+  // Destroy the transaction.
+  delete c;
+
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+}
+
+// Tests that we delete an entry when the request is cancelled if the response
+// has an "Accept-Ranges: none" header.
+TEST(HttpCache, DoomOnDestruction3) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+
+  MockTransaction transaction(kSimpleGET_Transaction);
+  transaction.response_headers =
+      "Last-Modified: Wed, 28 Nov 2007 00:40:09 GMT\n"
+      "Content-Length: 22\n"
+      "Accept-Ranges: none\n"
+      "Etag: foopy\n";
+  AddMockTransaction(&transaction);
+  MockHttpRequest request(transaction);
+
+  Context* c = new Context();
+  int rv = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, rv);
+
+  rv = c->trans->Start(&request, &c->callback, NULL);
+  if (rv == net::ERR_IO_PENDING)
+    rv = c->callback.WaitForResult();
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Make sure that the entry has some data stored.
+  scoped_refptr<net::IOBufferWithSize> buf = new net::IOBufferWithSize(10);
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  if (rv == net::ERR_IO_PENDING)
+    rv = c->callback.WaitForResult();
+  EXPECT_EQ(buf->size(), rv);
+
+  // Destroy the transaction.
+  delete c;
+
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(2, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&transaction);
+}
+
 // Tests that we mark an entry as incomplete when the request is cancelled.
 TEST(HttpCache, Set_Truncated_Flag) {
   MockHttpCache cache;
   cache.http_cache()->set_enable_range_support(true);
 
-  MockHttpRequest request(kSimpleGET_Transaction);
+  MockTransaction transaction(kSimpleGET_Transaction);
+  transaction.response_headers =
+      "Last-Modified: Wed, 28 Nov 2007 00:40:09 GMT\n"
+      "Content-Length: 22\n"
+      "Etag: foopy\n";
+  AddMockTransaction(&transaction);
+  MockHttpRequest request(transaction);
 
   Context* c = new Context();
   int rv = cache.http_cache()->CreateTransaction(&c->trans);
@@ -3304,6 +3390,8 @@ TEST(HttpCache, Set_Truncated_Flag) {
   EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_TRUE(truncated);
   entry->Close();
+
+  RemoveMockTransaction(&transaction);
 }
 
 // Tests that we can continue with a request that was interrupted.
@@ -3317,12 +3405,11 @@ TEST(HttpCache, GET_IncompleteResource) {
   ASSERT_TRUE(cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url,
                                               &entry));
 
-  // Content-length will be intentionally bogus.
   std::string raw_headers("HTTP/1.1 200 OK\n"
-                          "Last-Modified: something\n"
+                          "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
                           "ETag: \"foo\"\n"
                           "Accept-Ranges: bytes\n"
-                          "Content-Length: 10\n");
+                          "Content-Length: 80\n");
   raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
                                                   raw_headers.size());
 
@@ -3350,7 +3437,7 @@ TEST(HttpCache, GET_IncompleteResource) {
       "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
       "Accept-Ranges: bytes\n"
       "ETag: \"foo\"\n"
-      "Content-Length: 10\n");
+      "Content-Length: 80\n");
 
   EXPECT_EQ(expected_headers, headers);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
@@ -3367,6 +3454,64 @@ TEST(HttpCache, GET_IncompleteResource) {
   entry->Close();
 }
 
+// Tests that we delete truncated entries if the server changes its mind midway.
+TEST(HttpCache, GET_IncompleteResource2) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  AddMockTransaction(&kRangeGET_TransactionOK);
+
+  // Create a disk cache entry that stores an incomplete resource.
+  disk_cache::Entry* entry;
+  ASSERT_TRUE(cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url,
+                                              &entry));
+
+  // Content-length will be intentionally bad.
+  std::string raw_headers("HTTP/1.1 200 OK\n"
+                          "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+                          "ETag: \"foo\"\n"
+                          "Accept-Ranges: bytes\n"
+                          "Content-Length: 50\n");
+  raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
+                                                  raw_headers.size());
+
+  net::HttpResponseInfo response;
+  response.headers = new net::HttpResponseHeaders(raw_headers);
+  // Set the last argument for this to be an incomplete request.
+  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+
+  scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
+  int len = static_cast<int>(base::strlcpy(buf->data(),
+                                           "rg: 00-09 rg: 10-19 ", 100));
+  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+  entry->Close();
+
+  // Now make a regular request.
+  std::string headers;
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = EXTRA_HEADER;
+  transaction.data = "rg: 00-09 rg: 10-19 ";
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  // We update the headers with the ones received while revalidating.
+  std::string expected_headers(
+      "HTTP/1.1 200 OK\n"
+      "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+      "Accept-Ranges: bytes\n"
+      "ETag: \"foo\"\n"
+      "Content-Length: 50\n");
+
+  EXPECT_EQ(expected_headers, headers);
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&kRangeGET_TransactionOK);
+
+  // Verify that the disk entry was deleted.
+  EXPECT_FALSE(cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url,
+                                             &entry));
+}
+
 // Tests that when we cancel a request that was interrupted, we mark it again
 // as truncated.
 TEST(HttpCache, GET_CancelIncompleteResource) {
@@ -3379,12 +3524,11 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
   ASSERT_TRUE(cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url,
                                               &entry));
 
-  // Content-length will be intentionally bogus.
   std::string raw_headers("HTTP/1.1 200 OK\n"
-                          "Last-Modified: something\n"
+                          "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
                           "ETag: \"foo\"\n"
                           "Accept-Ranges: bytes\n"
-                          "Content-Length: 10\n");
+                          "Content-Length: 80\n");
   raw_headers = net::HttpUtil::AssembleRawHeaders(raw_headers.data(),
                                                   raw_headers.size());
 
