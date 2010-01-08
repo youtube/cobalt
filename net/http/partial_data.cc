@@ -130,9 +130,16 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
     if (byte_range_.IsValid())
       return false;
 
+    // Now we avoid resume if there is no content length, but that was not
+    // always the case so double check here.
+    int64 total_length = headers->GetContentLength();
+    if (total_length <= 0 || !headers->HasStrongValidators())
+      return false;
+
     truncated_ = true;
     sparse_entry_ = false;
     byte_range_.set_first_byte_position(entry->GetDataSize(kDataStream));
+    resource_size_ = total_length;
     current_range_start_ = 0;
     return true;
   }
@@ -144,12 +151,11 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
     return true;
   }
 
-  std::string length_value;
-  if (!headers->GetNormalizedHeader(kLengthHeader, &length_value))
+  int64 length_value = headers->GetContentLength();
+  if (length_value <= 0)
     return false;  // We must have stored the resource length.
 
-  if (!StringToInt64(length_value, &resource_size_) || !resource_size_)
-    return false;
+  resource_size_ = length_value;
 
   // Make sure that this is really a sparse entry.
   int64 n;
@@ -212,6 +218,11 @@ bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
       byte_range_.set_last_byte_position(end);
   } else if (resource_size_ != total_length) {
     return false;
+  }
+
+  if (truncated_) {
+    if (!byte_range_.HasLastBytePosition())
+      byte_range_.set_last_byte_position(end);
   }
 
   if (start != current_range_start_)
