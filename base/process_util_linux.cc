@@ -513,6 +513,12 @@ void OnNoMemory() {
 }  // namespace
 
 extern "C" {
+// This code tries to make malloc failures fatal for security reasons. However,
+// it breaks builds depending on fine details of the linker command line and
+// the dependencies of other .so's that we pull in. So it's disabled for the
+// moment. See crbug.com/31809
+
+#if 0
 #if !defined(LINUX_USE_TCMALLOC)
 
 typedef void* (*malloc_type)(size_t size);
@@ -599,6 +605,7 @@ int posix_memalign(void** ptr, size_t alignment, size_t size) {
 }
 
 #endif  // !defined(LINUX_USE_TCMALLOC)
+#endif
 }  // extern C
 
 void EnableTerminationOnOutOfMemory() {
