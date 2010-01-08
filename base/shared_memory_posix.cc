@@ -188,8 +188,13 @@ bool SharedMemory::CreateOrOpen(const std::wstring &name,
   }
 
   if (fp == NULL) {
-    if (posix_flags & O_CREAT)
+    if (posix_flags & O_CREAT) {
       PLOG(ERROR) << "Creating shared memory in " << path.value() << " failed";
+#if !defined(OS_MACOSX)
+      LOG(ERROR) << "This is frequently caused by incorrect permissions on "
+                 << "/dev/shm.  Try 'sudo chmod 777 /dev/shm' to fix.";
+#endif
+    }
     return false;
   }
 
