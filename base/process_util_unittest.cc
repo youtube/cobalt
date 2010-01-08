@@ -388,6 +388,10 @@ TEST_F(ProcessUtilTest, ParseProcStatCPU) {
 
 #endif  // defined(OS_POSIX)
 
+#if 0
+
+// See comments in process_util_linux.cc about why these are removed for now.
+
 // TODO(vandebo) make this work on Windows and Mac too.
 #if defined(OS_LINUX)
 
@@ -494,5 +498,7 @@ TEST_F(OutOfMemoryTest, __libc_memalign) {
 }
 
 #endif  // defined(OS_LINUX)
+
+#endif
 
 }  // namespace base
