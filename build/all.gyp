@@ -95,12 +95,14 @@
             '../chrome/app/locales/locales.gyp:*',
             '../courgette/courgette.gyp:*',
             '../gears/gears.gyp:*',
+            '../gpu/demos/demos.gyp:*',
             '../gpu/gpu.gyp:*',
             '../rlz/rlz.gyp:*',
             '../sandbox/sandbox.gyp:*',
             '../third_party/bsdiff/bsdiff.gyp:*',
             '../third_party/bspatch/bspatch.gyp:*',
             '../third_party/cld/cld.gyp:*',
+            '../third_party/gles2_book/gles2_book.gyp:*',
             '../tools/memory_watcher/memory_watcher.gyp:*',
             # As of now Skia build has problems with Linux and/or 64 bits.
             # TODO(sehr,brettw): Make this unconditional.
