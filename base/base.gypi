@@ -362,7 +362,7 @@
       'conditions': [
         [ 'OS == "linux" or OS == "freebsd"', {
           'conditions': [
-            [ 'chromeos==1 or toolkit_views==1', {
+            [ 'chromeos==1', {
                 'sources/': [ ['include', '_chromeos\\.cc$'] ]
               },
             ],

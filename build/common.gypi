@@ -318,7 +318,7 @@
       ['toolkit_views==1 or chromeos==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
       }],
-      ['chromeos==1 or toolkit_views==1', {
+      ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
       }],
       ['fastbuild!=0', {
