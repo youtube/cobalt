@@ -756,10 +756,11 @@ snd_pcm_t* AlsaPcmOutputStream::OpenDevice(const std::string& device_name,
 }
 
 bool AlsaPcmOutputStream::CloseDevice(snd_pcm_t* handle) {
+  std::string name = wrapper_->PcmName(handle);
   int error = wrapper_->PcmClose(handle);
   if (error < 0) {
-    LOG(ERROR) << "Cannot close audio device (" << wrapper_->PcmName(handle)
-               << "): " << wrapper_->StrError(error);
+    LOG(ERROR) << "Error closing audio device (" << name << "): "
+               << wrapper_->StrError(error);
     return false;
   }
 
