@@ -227,7 +227,9 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
   message_loop_.RunAllPending();
 
   // Now close it and test that everything was released.
-  EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle)) .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle)).WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
+      .WillOnce(Return(kTestDeviceName));
   EXPECT_CALL(mock_manager_, ReleaseStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
@@ -258,6 +260,8 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
   // Now close it and test that everything was released.
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
       .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
+      .WillOnce(Return(kTestDeviceName));
   EXPECT_CALL(mock_manager_, ReleaseStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
@@ -303,6 +307,8 @@ TEST_F(AlsaPcmOutputStreamTest, OpenClose) {
   // Now close it and test that everything was released.
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
       .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
+      .WillOnce(Return(kTestDeviceName));
   EXPECT_CALL(mock_manager_, ReleaseStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
@@ -346,6 +352,8 @@ TEST_F(AlsaPcmOutputStreamTest, PcmSetParamsFailed) {
       .WillOnce(Return(kTestFailedErrno));
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
       .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
+      .WillOnce(Return(kTestDeviceName));
   EXPECT_CALL(mock_alsa_wrapper_, StrError(kTestFailedErrno))
       .WillOnce(Return(kDummyMessage));
 
@@ -414,6 +422,8 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
   EXPECT_CALL(mock_callback, OnClose(test_stream_.get()));
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
       .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
+      .WillOnce(Return(kTestDeviceName));
   test_stream_->Close();
   message_loop_.RunAllPending();
 }
