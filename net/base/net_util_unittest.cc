@@ -1021,6 +1021,22 @@ TEST(NetUtilTest, GetSuggestedFilename) {
      "",
      L"\u65e5\u672c\u8a9e",  // Japanese Kanji.
      L"\u65e5\u672c\u8a9e"},
+    // Dotfiles. Ensures preceeding period(s) stripped.
+    {"http://www.google.com/.test.html",
+    "",
+    "",
+    L"",
+    L"test.html"},
+    {"http://www.google.com/.test",
+    "",
+    "",
+    L"",
+    L"test"},
+    {"http://www.google.com/..test",
+    "",
+    "",
+    L"",
+    L"test"},
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
 #if defined(OS_WIN)
