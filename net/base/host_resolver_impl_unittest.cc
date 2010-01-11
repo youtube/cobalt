@@ -13,6 +13,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/base/mock_network_change_notifier.h"
 #include "net/base/net_errors.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
@@ -185,7 +186,7 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
   resolver_proc->AddRule("just.testing", "192.168.1.42");
 
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache()));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL));
 
   HostResolver::RequestInfo info("just.testing", kPortnum);
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
@@ -217,7 +218,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   resolver_proc->AddRule("just.testing", "192.168.1.42");
 
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache()));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL));
 
   HostResolver::RequestInfo info("just.testing", kPortnum);
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
@@ -254,7 +255,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   {
     scoped_refptr<HostResolver> host_resolver(
-        new HostResolverImpl(resolver_proc, CreateDefaultCache()));
+        new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL));
     AddressList adrlist;
     const int kPortnum = 80;
 
@@ -289,7 +290,7 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
   resolver_proc->AllowDirectLookup("*");
 
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache()));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL));
   AddressList adrlist;
   const int kPortnum = 5555;
   HostResolver::RequestInfo info("127.1.2.3", kPortnum);
@@ -314,7 +315,7 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
   // Resolve a plain IPv6 address.  Don't worry about [brackets], because
   // the caller should have removed them.
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache()));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL));
   AddressList adrlist;
   const int kPortnum = 5555;
   HostResolver::RequestInfo info("2001:db8::1", kPortnum);
@@ -349,7 +350,7 @@ TEST_F(HostResolverImplTest, EmptyHost) {
   resolver_proc->AllowDirectLookup("*");
 
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache()));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL));
   AddressList adrlist;
   const int kPortnum = 5555;
   HostResolver::RequestInfo info("", kPortnum);
@@ -410,7 +411,7 @@ TEST_F(HostResolverImplTest, DeDupeRequests) {
       new CapturingHostResolverProc(NULL);
 
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache()));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -461,7 +462,7 @@ TEST_F(HostResolverImplTest, CancelMultipleRequests) {
       new CapturingHostResolverProc(NULL);
 
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache()));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -548,7 +549,7 @@ TEST_F(HostResolverImplTest, CancelWithinCallback) {
       new CapturingHostResolverProc(NULL);
 
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache()));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -609,7 +610,7 @@ TEST_F(HostResolverImplTest, DeleteWithinCallback) {
   // checks that the right things happened. Note that the verifier holds the
   // only reference to |host_resolver|, so it can delete it within callback.
   HostResolver* host_resolver =
-      new HostResolverImpl(resolver_proc, CreateDefaultCache());
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), NULL);
   DeleteWithinCallbackVerifier verifier(host_resolver);
 
   // Start 4 requests, duplicating hosts "a". Since the resolver_proc is
@@ -662,7 +663,7 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
 
   // Turn off caching for this host resolver.
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, NULL));
+      new HostResolverImpl(resolver_proc, NULL, NULL));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -727,7 +728,7 @@ class BypassCacheVerifier : public ResolveRequest::Delegate {
 
 TEST_F(HostResolverImplTest, BypassCache) {
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(NULL, CreateDefaultCache()));
+      new HostResolverImpl(NULL, CreateDefaultCache(), NULL));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -811,7 +812,7 @@ class CapturingObserver : public HostResolver::Observer {
 // synchronous.
 TEST_F(HostResolverImplTest, Observers) {
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(NULL, CreateDefaultCache()));
+      new HostResolverImpl(NULL, CreateDefaultCache(), NULL));
 
   CapturingObserver observer;
 
@@ -897,7 +898,7 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
   {
     // Create a host resolver and attach an observer.
     scoped_refptr<HostResolver> host_resolver(
-        new HostResolverImpl(NULL, CreateDefaultCache()));
+        new HostResolverImpl(NULL, CreateDefaultCache(), NULL));
     host_resolver->AddObserver(&observer);
 
     TestCompletionCallback callback;
@@ -958,6 +959,38 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
   HostResolver::RequestInfo info("host2", 60);
   EXPECT_TRUE(observer.cancel_log[1] ==
               CapturingObserver::StartOrCancelEntry(1, info));
+}
+
+// Test that IP address changes flush the cache.
+TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
+  scoped_refptr<MockNetworkChangeNotifier> mock_network_change_notifier(
+      new MockNetworkChangeNotifier);
+  scoped_refptr<HostResolver> host_resolver(
+      new HostResolverImpl(NULL, CreateDefaultCache(),
+                           mock_network_change_notifier));
+
+  AddressList addrlist;
+
+  // Resolve "host1".
+  HostResolver::RequestInfo info1("host1", 70);
+  TestCompletionCallback callback;
+  int rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // Resolve "host1" again -- this time it will be served from cache, but it
+  // should still notify of completion.
+  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  ASSERT_EQ(OK, rv);  // Should complete synchronously.
+
+  // Flush cache by triggering an IP address change.
+  mock_network_change_notifier->NotifyIPAddressChange();
+
+  // Resolve "host1" again -- this time it won't be served from cache, so it
+  // will complete asynchronously.
+  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  ASSERT_EQ(ERR_IO_PENDING, rv);  // Should complete asynchronously.
+  EXPECT_EQ(OK, callback.WaitForResult());
 }
 
 }  // namespace
