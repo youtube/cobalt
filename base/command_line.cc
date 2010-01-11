@@ -367,6 +367,7 @@ void CommandLine::AppendLooseValue(const std::wstring& value) {
   // TODO(evan): quoting?
   command_line_string_.append(L" ");
   command_line_string_.append(value);
+  loose_values_.push_back(value);
 }
 
 void CommandLine::AppendArguments(const CommandLine& other,
