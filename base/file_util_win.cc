@@ -125,8 +125,11 @@ bool ReplaceFile(const FilePath& from_path, const FilePath& to_path) {
                                     FILE_ATTRIBUTE_NORMAL, NULL);
   if (target_file != INVALID_HANDLE_VALUE)
     ::CloseHandle(target_file);
-  return ::ReplaceFile(to_path.value().c_str(), from_path.value().c_str(),
-                       NULL, 0, NULL, NULL) ? true : false;
+  // When writing to a network share, we may not be able to change the ACLs.
+  // Ignore ACL errors then (REPLACEFILE_IGNORE_MERGE_ERRORS).
+  return ::ReplaceFile(to_path.value().c_str(),
+      from_path.value().c_str(), NULL,
+      REPLACEFILE_IGNORE_MERGE_ERRORS, NULL, NULL) ? true : false;
 }
 
 bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
@@ -463,12 +466,16 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
                               FilePath* temp_file) {
   wchar_t temp_name[MAX_PATH + 1];
 
-  if (!GetTempFileName(dir.value().c_str(), L"", 0, temp_name))
-    return false;  // fail!
+  if (!GetTempFileName(dir.value().c_str(), L"", 0, temp_name)) {
+    PLOG(WARNING) << "Failed to get temporary file name in " << dir.value();
+    return false;
+  }
 
   DWORD path_len = GetLongPathName(temp_name, temp_name, MAX_PATH);
-  if (path_len > MAX_PATH + 1 || path_len == 0)
-    return false;  // fail!
+  if (path_len > MAX_PATH + 1 || path_len == 0) {
+    PLOG(WARNING) << "Failed to get long path name for " << temp_name;
+    return false;
+  }
 
   std::wstring temp_file_str;
   temp_file_str.assign(temp_name, path_len);
