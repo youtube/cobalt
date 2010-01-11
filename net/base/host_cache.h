@@ -79,6 +79,11 @@ class HostCache {
              const AddressList addrlist,
              base::TimeTicks now);
 
+  // Empties the cache.
+  void clear() {
+    entries_.clear();
+  }
+
   // Returns true if this HostCache can contain no entries.
   bool caching_is_disabled() const {
     return max_entries_ == 0;

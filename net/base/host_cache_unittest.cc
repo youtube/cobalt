@@ -319,6 +319,26 @@ TEST(HostCacheTest, NoCache) {
   EXPECT_EQ(0U, cache.size());
 }
 
+TEST(HostCacheTest, Clear) {
+  HostCache cache(kMaxCacheEntries, kSuccessEntryTTL, kFailureEntryTTL);
+
+  // Set t=0.
+  base::TimeTicks now;
+
+  EXPECT_EQ(0u, cache.size());
+
+  // Add three entries.
+  cache.Set(Key("foobar1.com"), OK, AddressList(), now);
+  cache.Set(Key("foobar2.com"), OK, AddressList(), now);
+  cache.Set(Key("foobar3.com"), OK, AddressList(), now);
+
+  EXPECT_EQ(3u, cache.size());
+
+  cache.clear();
+
+  EXPECT_EQ(0u, cache.size());
+}
+
 // Tests the less than and equal operators for HostCache::Key work.
 TEST(HostCacheTest, KeyComparators) {
   struct {
