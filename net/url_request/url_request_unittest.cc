@@ -102,6 +102,51 @@ class URLRequestTestHTTP : public URLRequestTest {
     server_ = NULL;
   }
 
+  void HTTPUploadDataOperationTest(const std::string& method) {
+    ASSERT_TRUE(NULL != server_.get());
+    const int kMsgSize = 20000;  // multiple of 10
+    const int kIterations = 50;
+    char *uploadBytes = new char[kMsgSize+1];
+    char *ptr = uploadBytes;
+    char marker = 'a';
+    for (int idx = 0; idx < kMsgSize/10; idx++) {
+      memcpy(ptr, "----------", 10);
+      ptr += 10;
+      if (idx % 100 == 0) {
+        ptr--;
+        *ptr++ = marker;
+        if (++marker > 'z')
+          marker = 'a';
+      }
+    }
+    uploadBytes[kMsgSize] = '\0';
+
+    scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+
+    for (int i = 0; i < kIterations; ++i) {
+      TestDelegate d;
+      URLRequest r(server_->TestServerPage("echo"), &d);
+      r.set_context(context);
+      r.set_method(method.c_str());
+
+      r.AppendBytesToUpload(uploadBytes, kMsgSize);
+
+      r.Start();
+      EXPECT_TRUE(r.is_pending());
+
+      MessageLoop::current()->Run();
+
+      ASSERT_EQ(1, d.response_started_count()) << "request failed: " <<
+          (int) r.status().status() << ", os error: " << r.status().os_error();
+
+      EXPECT_FALSE(d.received_data_before_response());
+      EXPECT_EQ(uploadBytes, d.data_received());
+      EXPECT_EQ(memcmp(uploadBytes, d.data_received().c_str(), kMsgSize), 0);
+      EXPECT_EQ(d.data_received().compare(uploadBytes), 0);
+    }
+    delete[] uploadBytes;
+  }
+
   static scoped_refptr<HTTPTestServer> server_;
 };
 
@@ -484,48 +529,11 @@ TEST_F(URLRequestTestHTTP, CancelTest5) {
 }
 
 TEST_F(URLRequestTestHTTP, PostTest) {
-  ASSERT_TRUE(NULL != server_.get());
-  const int kMsgSize = 20000;  // multiple of 10
-  const int kIterations = 50;
-  char *uploadBytes = new char[kMsgSize+1];
-  char *ptr = uploadBytes;
-  char marker = 'a';
-  for (int idx = 0; idx < kMsgSize/10; idx++) {
-    memcpy(ptr, "----------", 10);
-    ptr += 10;
-    if (idx % 100 == 0) {
-      ptr--;
-      *ptr++ = marker;
-      if (++marker > 'z')
-        marker = 'a';
-    }
-  }
-  uploadBytes[kMsgSize] = '\0';
+  HTTPUploadDataOperationTest("POST");
+}
 
-  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
-
-  for (int i = 0; i < kIterations; ++i) {
-    TestDelegate d;
-    URLRequest r(server_->TestServerPage("echo"), &d);
-    r.set_context(context);
-    r.set_method("POST");
-
-    r.AppendBytesToUpload(uploadBytes, kMsgSize);
-
-    r.Start();
-    EXPECT_TRUE(r.is_pending());
-
-    MessageLoop::current()->Run();
-
-    ASSERT_EQ(1, d.response_started_count()) << "request failed: " <<
-        (int) r.status().status() << ", os error: " << r.status().os_error();
-
-    EXPECT_FALSE(d.received_data_before_response());
-    EXPECT_EQ(uploadBytes, d.data_received());
-    EXPECT_EQ(memcmp(uploadBytes, d.data_received().c_str(), kMsgSize), 0);
-    EXPECT_EQ(d.data_received().compare(uploadBytes), 0);
-  }
-  delete[] uploadBytes;
+TEST_F(URLRequestTestHTTP, PutTest) {
+  HTTPUploadDataOperationTest("PUT");
 }
 
 TEST_F(URLRequestTestHTTP, PostEmptyTest) {
