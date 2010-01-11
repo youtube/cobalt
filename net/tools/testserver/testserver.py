@@ -131,6 +131,11 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.EchoTitleHandler,
       self.EchoAllHandler,
       self.EchoHandler] + self._get_handlers
+    self._put_handlers = [
+      self.WriteFile,
+      self.EchoTitleHandler,
+      self.EchoAllHandler,
+      self.EchoHandler] + self._get_handlers
 
     self._mime_types = {
       'gif': 'image/gif',
@@ -462,8 +467,8 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     return True
 
   def WriteFile(self):
-    """This is handler dumps the content of POST request to a disk file into
-    the data_dir/dump. Sub-directories are not supported."""
+    """This is handler dumps the content of POST/PUT request to a disk file
+    into the data_dir/dump. Sub-directories are not supported."""
 
     prefix='/writefile/'
     if not self.path.startswith(prefix):
@@ -520,7 +525,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       '<a href="http://localhost:8888/echo">back to referring page</a></div>'
       '<h1>Request Body:</h1><pre>')
 
-    if self.command == 'POST':
+    if self.command == 'POST' or self.command == 'PUT':
       length = int(self.headers.getheader('content-length'))
       qs = self.rfile.read(length)
       params = cgi.parse_qs(qs, keep_blank_values=1)
@@ -599,7 +604,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       return False
 
     # Consume a request body if present.
-    if self.command == 'POST':
+    if self.command == 'POST' or self.command == 'PUT' :
       self.rfile.read(int(self.headers.getheader('content-length')))
 
     file = self.path[len(prefix):]
@@ -1052,6 +1057,11 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       if handler():
         return
 
+  def do_PUT(self):
+    for handler in self._put_handlers:
+      if handler():
+        return
+
   # called by the redirect handling function when there is no parameter
   def sendRedirectHelp(self, redirect_name):
     self.send_response(200)
@@ -1062,9 +1072,9 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self.wfile.write('</body></html>')
 
 def MakeDumpDir(data_dir):
-  """Create directory named 'dump' where uploaded data via HTTP POST request
-  will be stored. If the directory already exists all files and subdirectories
-  will be deleted."""
+  """Create directory named 'dump' where uploaded data via HTTP POST/PUT
+  requests will be stored. If the directory already exists all files and
+  subdirectories will be deleted."""
   dump_dir = os.path.join(data_dir, 'dump');
   if os.path.isdir(dump_dir):
     shutil.rmtree(dump_dir)
