@@ -362,6 +362,11 @@ class URLRequest {
   // Indicate if this response was fetched from disk cache.
   bool was_cached() const { return response_info_.was_cached; }
 
+  // Returns true if the URLRequest was delivered with SPDY.
+  bool was_fetched_via_spdy() const {
+    return response_info_.was_fetched_via_spdy;
+  }
+
   // Get all response headers, as a HttpResponseHeaders object.  See comments
   // in HttpResponseHeaders class as to the format of the data.
   net::HttpResponseHeaders* response_headers() const;

@@ -31,6 +31,9 @@ class HttpResponseInfo {
   // reloading previously visited pages (without going over the network).
   bool was_cached;
 
+  // True if the request was fetched over a SPDY channel.
+  bool was_fetched_via_spdy;
+
   // The time at which the request was made that resulted in this response.
   // For cached responses, this is the last time the cache entry was validated.
   base::Time request_time;
