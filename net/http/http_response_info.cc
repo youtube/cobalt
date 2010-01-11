@@ -46,7 +46,8 @@ enum {
 };
 
 HttpResponseInfo::HttpResponseInfo()
-    : was_cached(false) {
+    : was_cached(false),
+      was_fetched_via_spdy(false) {
 }
 
 HttpResponseInfo::~HttpResponseInfo() {
