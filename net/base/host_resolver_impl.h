@@ -12,6 +12,7 @@
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
 #include "net/base/host_resolver_proc.h"
+#include "net/base/network_change_notifier.h"
 
 namespace net {
 
@@ -40,7 +41,8 @@ namespace net {
 // Thread safety: This class is not threadsafe, and must only be called
 // from one thread!
 //
-class HostResolverImpl : public HostResolver {
+class HostResolverImpl : public HostResolver,
+                         public NetworkChangeNotifier::Observer {
  public:
   // Creates a HostResolver that first uses the local cache |cache|, and then
   // falls back to |resolver_proc|.
@@ -52,7 +54,9 @@ class HostResolverImpl : public HostResolver {
   // thread-safe since it is run from multiple worker threads. If
   // |resolver_proc| is NULL then the default host resolver procedure is
   // used (which is SystemHostResolverProc except if overridden).
-  HostResolverImpl(HostResolverProc* resolver_proc, HostCache* cache);
+  HostResolverImpl(HostResolverProc* resolver_proc,
+                   HostCache* cache,
+                   const scoped_refptr<NetworkChangeNotifier>& notifier);
 
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
@@ -61,8 +65,8 @@ class HostResolverImpl : public HostResolver {
                       RequestHandle* out_req,
                       LoadLog* load_log);
   virtual void CancelRequest(RequestHandle req);
-  virtual void AddObserver(Observer* observer);
-  virtual void RemoveObserver(Observer* observer);
+  virtual void AddObserver(HostResolver::Observer* observer);
+  virtual void RemoveObserver(HostResolver::Observer* observer);
   virtual HostCache* GetHostCache();
 
   // TODO(eroman): temp hack for http://crbug.com/15513
@@ -78,7 +82,7 @@ class HostResolverImpl : public HostResolver {
   typedef std::vector<Request*> RequestsList;
   typedef HostCache::Key Key;
   typedef std::map<Key, scoped_refptr<Job> > JobMap;
-  typedef std::vector<Observer*> ObserversList;
+  typedef std::vector<HostResolver::Observer*> ObserversList;
 
   // If any completion callbacks are pending when the resolver is destroyed,
   // the host resolutions are cancelled, and the completion callbacks will not
@@ -119,6 +123,9 @@ class HostResolverImpl : public HostResolver {
                        int request_id,
                        const RequestInfo& info);
 
+  // NetworkChangeNotifier::Observer methods:
+  virtual void OnIPAddressChanged();
+
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;
 
@@ -145,6 +152,8 @@ class HostResolverImpl : public HostResolver {
 
   // TODO(eroman): temp hack for http://crbug.com/15513
   bool shutdown_;
+
+  const scoped_refptr<NetworkChangeNotifier> network_change_notifier_;
 
   DISALLOW_COPY_AND_ASSIGN(HostResolverImpl);
 };
