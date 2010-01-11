@@ -104,8 +104,8 @@
             '../third_party/cld/cld.gyp:*',
             '../third_party/gles2_book/gles2_book.gyp:*',
             '../tools/memory_watcher/memory_watcher.gyp:*',
-            # As of now Skia build has problems with Linux and/or 64 bits.
-            # TODO(sehr,brettw): Make this unconditional.
+            # As of now, build machines do not have GL headers to compile this
+            # TODO(sehr,brettw, neb): Make this unconditional.
             '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
           ],
         }, {
