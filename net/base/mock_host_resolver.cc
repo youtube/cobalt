@@ -102,7 +102,7 @@ void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
         base::TimeDelta::FromSeconds(0));
   }
 
-  impl_ = new HostResolverImpl(proc, cache);
+  impl_ = new HostResolverImpl(proc, cache, NULL);
 }
 
 //-----------------------------------------------------------------------------

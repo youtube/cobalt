@@ -15,6 +15,7 @@
 #include "net/base/host_resolver_proc.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/network_change_notifier.h"
 
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
@@ -22,7 +23,9 @@
 
 namespace net {
 
-HostResolver* CreateSystemHostResolver() {
+namespace {
+
+HostCache* CreateDefaultCache() {
   static const size_t kMaxHostCacheEntries = 100;
 
   HostCache* cache = new HostCache(
@@ -30,7 +33,14 @@ HostResolver* CreateSystemHostResolver() {
       base::TimeDelta::FromMinutes(1),
       base::TimeDelta::FromSeconds(1));
 
-  return new HostResolverImpl(NULL, cache);
+  return cache;
+}
+
+}  // anonymous namespace
+
+HostResolver* CreateSystemHostResolver() {
+  // TODO(willchan): Pass in the NetworkChangeNotifier.
+  return new HostResolverImpl(NULL, CreateDefaultCache(), NULL);
 }
 
 static int ResolveAddrInfo(HostResolverProc* resolver_proc,
@@ -279,16 +289,21 @@ class HostResolverImpl::Job
 
 //-----------------------------------------------------------------------------
 
-HostResolverImpl::HostResolverImpl(HostResolverProc* resolver_proc,
-                                   HostCache* cache)
+HostResolverImpl::HostResolverImpl(
+    HostResolverProc* resolver_proc,
+    HostCache* cache,
+    const scoped_refptr<NetworkChangeNotifier>& network_change_notifier)
     : cache_(cache),
       next_request_id_(0),
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
-      shutdown_(false) {
+      shutdown_(false),
+      network_change_notifier_(network_change_notifier) {
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
+  if (network_change_notifier_)
+    network_change_notifier_->AddObserver(this);
 }
 
 HostResolverImpl::~HostResolverImpl() {
@@ -300,6 +315,9 @@ HostResolverImpl::~HostResolverImpl() {
   // In case we are being deleted during the processing of a callback.
   if (cur_completing_job_)
     cur_completing_job_->Cancel();
+
+  if (network_change_notifier_)
+    network_change_notifier_->RemoveObserver(this);
 }
 
 // TODO(eroman): Don't create cache entries for hostnames which are simply IP
@@ -408,11 +426,11 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
   OnCancelRequest(req->load_log(), req->id(), req->info());
 }
 
-void HostResolverImpl::AddObserver(Observer* observer) {
+void HostResolverImpl::AddObserver(HostResolver::Observer* observer) {
   observers_.push_back(observer);
 }
 
-void HostResolverImpl::RemoveObserver(Observer* observer) {
+void HostResolverImpl::RemoveObserver(HostResolver::Observer* observer) {
   ObserversList::iterator it =
       std::find(observers_.begin(), observers_.end(), observer);
 
@@ -553,6 +571,11 @@ void HostResolverImpl::OnCancelRequest(LoadLog* load_log,
   }
 
   LoadLog::EndEvent(load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL);
+}
+
+void HostResolverImpl::OnIPAddressChanged() {
+  if (cache_.get())
+    cache_->clear();
 }
 
 }  // namespace net
