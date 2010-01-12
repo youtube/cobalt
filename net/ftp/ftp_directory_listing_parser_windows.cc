@@ -7,12 +7,13 @@
 #include <vector>
 
 #include "base/string_util.h"
+#include "net/ftp/ftp_util.h"
 
 namespace {
 
 bool WindowsDateListingToTime(const std::vector<string16>& columns,
                               base::Time* time) {
-  DCHECK_EQ(4U, columns.size());
+  DCHECK_LE(4U, columns.size());
 
   base::Time::Exploded time_exploded = { 0 };
 
@@ -68,11 +69,15 @@ FtpDirectoryListingParserWindows::FtpDirectoryListingParserWindows() {
 bool FtpDirectoryListingParserWindows::ConsumeLine(const string16& line) {
   std::vector<string16> columns;
   SplitString(CollapseWhitespace(line, false), ' ', &columns);
-  if (columns.size() != 4)
+
+  // We may receive file names containing spaces, which can make the number of
+  // columns arbitrarily large. We will handle that later. For now just make
+  // sure we have all the columns that should normally be there.
+  if (columns.size() < 4)
     return false;
 
   FtpDirectoryListingEntry entry;
-  entry.name = columns[3];
+  entry.name = FtpUtil::GetStringPartAfterColumns(line, 3);
 
   if (EqualsASCII(columns[2], "<DIR>")) {
     entry.type = FtpDirectoryListingEntry::DIRECTORY;
