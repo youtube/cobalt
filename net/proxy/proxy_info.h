@@ -68,9 +68,10 @@ class ProxyInfo {
     return proxy_list_.Fallback(proxy_retry_info);
   }
 
-  // Remove all proxies known to be bad from the proxy list.
-  void RemoveBadProxies(const ProxyRetryInfoMap& proxy_retry_info) {
-    proxy_list_.RemoveBadProxies(proxy_retry_info);
+  // De-prioritizes the proxies that we have cached as not working, by moving
+  // them to the end of the proxy list.
+  void DeprioritizeBadProxies(const ProxyRetryInfoMap& proxy_retry_info) {
+    proxy_list_.DeprioritizeBadProxies(proxy_retry_info);
   }
 
   // Delete any entry which doesn't have one of the specified proxy schemes.

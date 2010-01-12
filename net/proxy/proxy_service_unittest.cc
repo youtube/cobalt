@@ -404,7 +404,7 @@ TEST(ProxyServiceTest, ProxyFallback) {
   EXPECT_EQ(url, resolver->pending_requests()[0]->url());
 
   // Set the result in proxy resolver -- the second result is already known
-  // to be bad.
+  // to be bad, so we will not try to use it initially.
   resolver->pending_requests()[0]->results()->UseNamedProxy(
       "foopy3:7070;foopy1:8080;foopy2:9090");
   resolver->pending_requests()[0]->CompleteNow(OK);
@@ -419,10 +419,18 @@ TEST(ProxyServiceTest, ProxyFallback) {
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("foopy2:9090", info.proxy_server().ToURI());
 
-  // Fake another error, the last proxy is gone, the list should now be empty,
-  // so there is nothing left to try.
+  // We fake another error. At this point we have tried all of the
+  // proxy servers we thought were valid; next we try the proxy server
+  // that was in our bad proxies map (foopy1:8080).
   TestCompletionCallback callback5;
   rv = service->ReconsiderProxyAfterError(url, &info, &callback5, NULL, NULL);
+  EXPECT_EQ(OK, rv);
+  EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
+
+  // Fake another error, the last proxy is gone, the list should now be empty,
+  // so there is nothing left to try.
+  TestCompletionCallback callback6;
+  rv = service->ReconsiderProxyAfterError(url, &info, &callback6, NULL, NULL);
   EXPECT_EQ(ERR_FAILED, rv);
   EXPECT_FALSE(info.is_direct());
   EXPECT_TRUE(info.is_empty());
