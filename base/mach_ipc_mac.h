@@ -70,6 +70,8 @@
 #define PRINT_MACH_RESULT(result_, message_) \
   printf(message_" %s (%d)\n", mach_error_string(result_), result_ );
 
+namespace base {
+
 //==============================================================================
 // A wrapper class for mach_msg_port_descriptor_t (with same memory layout)
 // with convenient constructors and accessors
@@ -318,5 +320,7 @@ class MachPortSender {
 
   DISALLOW_COPY_AND_ASSIGN(MachPortSender);
 };
+
+}  // namespace base
 
 #endif // BASE_MACH_IPC_MAC_H_

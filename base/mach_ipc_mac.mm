@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include "base/logging.h"
 
+namespace base {
+
 //==============================================================================
 MachSendMessage::MachSendMessage(int32_t message_id) : MachMessage() {
   Initialize(message_id);
@@ -306,3 +308,5 @@ kern_return_t MachPortSender::SendMessage(MachSendMessage &message,
 
   return result;
 }
+
+}  // namespace base
