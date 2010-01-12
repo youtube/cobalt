@@ -274,6 +274,9 @@ class HttpCache::Transaction : public HttpTransaction {
   // Performs the needed work after writing data to the cache.
   int DoCacheWriteCompleted(int result);
 
+  // Sends a histogram with info about the response headers.
+  void HistogramHeaders(const HttpResponseHeaders* headers);
+
   // Called to signal completion of asynchronous IO.
   void OnIOComplete(int result);
 
