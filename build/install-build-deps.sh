@@ -239,7 +239,7 @@ fi
 # So just install from source if it isn't the default linker.
 
 case `ld --version` in
-*gold*) ;;
+*gold*2.2*) ;;
 * )
   echo "Gold is a new linker that links Chrome 5x faster than ld."
   echo "Don't use it if you need to link other apps (e.g. valgrind, wine)"
