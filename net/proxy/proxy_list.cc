@@ -31,8 +31,14 @@ void ProxyList::SetSingleProxyServer(const ProxyServer& proxy_server) {
     proxies_.push_back(proxy_server);
 }
 
-void ProxyList::RemoveBadProxies(const ProxyRetryInfoMap& proxy_retry_info) {
-  std::vector<ProxyServer> new_proxy_list;
+void ProxyList::DeprioritizeBadProxies(
+    const ProxyRetryInfoMap& proxy_retry_info) {
+  // Partition the proxy list in two:
+  //   (1) the known bad proxies
+  //   (2) everything else
+  std::vector<ProxyServer> good_proxies;
+  std::vector<ProxyServer> bad_proxies;
+
   std::vector<ProxyServer>::const_iterator iter = proxies_.begin();
   for (; iter != proxies_.end(); ++iter) {
     ProxyRetryInfoMap::const_iterator bad_proxy =
@@ -41,13 +47,16 @@ void ProxyList::RemoveBadProxies(const ProxyRetryInfoMap& proxy_retry_info) {
       // This proxy is bad. Check if it's time to retry.
       if (bad_proxy->second.bad_until >= TimeTicks::Now()) {
         // still invalid.
+        bad_proxies.push_back(*iter);
         continue;
       }
     }
-    new_proxy_list.push_back(*iter);
+    good_proxies.push_back(*iter);
   }
 
-  proxies_ = new_proxy_list;
+  // "proxies_ = good_proxies + bad_proxies"
+  proxies_.swap(good_proxies);
+  proxies_.insert(proxies_.end(), bad_proxies.begin(), bad_proxies.end());
 }
 
 void ProxyList::RemoveProxiesWithoutScheme(int scheme_bit_field) {

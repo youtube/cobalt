@@ -498,7 +498,7 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
 
   // Clean up the results list.
   if (result_code == OK)
-    result->RemoveBadProxies(proxy_retry_info_);
+    result->DeprioritizeBadProxies(proxy_retry_info_);
 
   LoadLog::EndEvent(load_log, LoadLog::TYPE_PROXY_SERVICE);
   return result_code;
