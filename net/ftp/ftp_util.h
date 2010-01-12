@@ -38,6 +38,10 @@ class FtpUtil {
                                   const string16& day,
                                   const string16& rest,
                                   base::Time* time);
+
+  // Skip |columns| columns from |text| (whitespace-delimited), and return the
+  // remaining part, without leading/trailing whitespace.
+  static string16 GetStringPartAfterColumns(const string16& text, int columns);
 };
 
 }  // namespace net

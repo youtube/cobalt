@@ -150,4 +150,31 @@ TEST(FtpUtilTest, LsDateListingToTime) {
   }
 }
 
+TEST(FtpUtilTest, GetStringPartAfterColumns) {
+  const struct {
+    const char* text;
+    int column;
+    const char* expected_result;
+  } kTestCases[] = {
+    { "", 0, "" },
+    { "", 1, "" },
+    { "foo abc", 0, "foo abc" },
+    { "foo abc", 1, "abc" },
+    { "  foo   abc", 0, "foo   abc" },
+    { "  foo   abc", 1, "abc" },
+    { "  foo   abc", 2, "" },
+    { "  foo   abc ", 0, "foo   abc" },
+    { "  foo   abc ", 1, "abc" },
+    { "  foo   abc ", 2, "" },
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kTestCases); i++) {
+    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s %d",
+                              i, kTestCases[i].text, kTestCases[i].column));
+
+    EXPECT_EQ(ASCIIToUTF16(kTestCases[i].expected_result),
+              net::FtpUtil::GetStringPartAfterColumns(
+                  ASCIIToUTF16(kTestCases[i].text), kTestCases[i].column));
+  }
+}
+
 }  // namespace

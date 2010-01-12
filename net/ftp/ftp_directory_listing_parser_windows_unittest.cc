@@ -46,6 +46,9 @@ TEST_F(FtpDirectoryListingParserWindowsTest, Good) {
     { "01-06-1979  02:42AM                458 Readme.txt",
       net::FtpDirectoryListingEntry::FILE, "Readme.txt", 458,
       1979, 1, 6, 2, 42 },
+    { "11-02-09  05:32PM       <DIR>          My Directory",
+      net::FtpDirectoryListingEntry::DIRECTORY, "My Directory", -1,
+      2009, 11, 2, 17, 32 },
   };
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, good_cases[i].input));

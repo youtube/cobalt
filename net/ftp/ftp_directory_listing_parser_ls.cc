@@ -42,22 +42,6 @@ bool LooksLikeUnixPermissionsListing(const string16& text) {
           (text.substr(10).empty() || text.substr(10) == ASCIIToUTF16("+")));
 }
 
-string16 GetStringPartAfterColumns(const string16& text, int columns) {
-  DCHECK_LE(1, columns);
-  int columns_so_far = 0;
-  size_t last = 0;
-  for (size_t i = 1; i < text.length(); ++i) {
-    if (!isspace(text[i - 1]) && isspace(text[i])) {
-      last = i;
-      if (++columns_so_far == columns)
-        break;
-    }
-  }
-  string16 result(text.substr(last));
-  TrimWhitespace(result, TRIM_ALL, &result);
-  return result;
-}
-
 bool DetectColumnOffset(const std::vector<string16>& columns, int* offset) {
   base::Time time;
 
@@ -164,7 +148,7 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
     return false;
   }
 
-  entry.name = GetStringPartAfterColumns(line, 6 + column_offset);
+  entry.name = FtpUtil::GetStringPartAfterColumns(line, 6 + column_offset);
   if (entry.type == FtpDirectoryListingEntry::SYMLINK) {
     string16::size_type pos = entry.name.rfind(ASCIIToUTF16(" -> "));
     if (pos == string16::npos)
