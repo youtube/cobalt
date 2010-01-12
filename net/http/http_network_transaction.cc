@@ -799,15 +799,23 @@ int HttpNetworkTransaction::DoSSLConnect() {
 int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
   SSLClientSocket* ssl_socket =
       reinterpret_cast<SSLClientSocket*>(connection_->socket());
+
+  SSLClientSocket::NextProtoStatus status =
+      SSLClientSocket::kNextProtoUnsupported;
   std::string proto;
-  SSLClientSocket::NextProtoStatus status = ssl_socket->GetNextProto(&proto);
+  // GetNextProto will fail and and trigger a NOTREACHED if we pass in a socket
+  // that hasn't had SSL_ImportFD called on it. If we get a certificate error
+  // here, then we know that we called SSL_ImportFD.
+  if (result == OK || IsCertificateError(result))
+    status = ssl_socket->GetNextProto(&proto);
   static const char kSpdyProto[] = "spdy";
-  const bool use_spdy = (status != SSLClientSocket::kNextProtoUnsupported &&
+  const bool use_spdy = (status == SSLClientSocket::kNextProtoNegotiated &&
                          proto == kSpdyProto);
 
   if (IsCertificateError(result)) {
     if (use_spdy) {
-      // We currently ignore certificate errors for spdy.
+      // TODO(agl/willchan/wtc): We currently ignore certificate errors for
+      // spdy but we shouldn't. http://crbug.com/32020
       result = OK;
     } else {
       result = HandleCertificateError(result);
