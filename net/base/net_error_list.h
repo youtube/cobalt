@@ -289,7 +289,7 @@ NET_ERROR(UNRECOGNIZED_FTP_DIRECTORY_LISTING_FORMAT, -334)
 NET_ERROR(INVALID_FLIP_STREAM, -335)
 
 // There are no supported proxies in the provided list.
-NET_ERROR(EMPTY_PROXY_LIST, -336)
+NET_ERROR(NO_SUPPORTED_PROXIES, -336)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
