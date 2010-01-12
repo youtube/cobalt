@@ -103,6 +103,8 @@
           'logging.h',
           'mac_util.h',
           'mac_util.mm',
+          'mach_ipc_mac.h',
+          'mach_ipc_mac.mm',
           'memory_debug.cc',
           'memory_debug.h',
           'message_loop.cc',

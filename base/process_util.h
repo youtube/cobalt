@@ -17,6 +17,7 @@
 // kinfo_proc is defined in <sys/sysctl.h>, but this forward declaration
 // is sufficient for the vector<kinfo_proc> below.
 struct kinfo_proc;
+#include <mach/mach.h>
 #elif defined(OS_POSIX)
 #include <dirent.h>
 #include <limits.h>
@@ -155,13 +156,25 @@ bool LaunchApp(const std::vector<std::string>& argv,
                const file_handle_mapping_vector& fds_to_remap,
                bool wait, ProcessHandle* process_handle);
 
-// Similar to above, but also (un)set environment variables in child process
+// Similar to the above, but also (un)set environment variables in child process
 // through |environ|.
 typedef std::vector<std::pair<std::string, std::string> > environment_vector;
 bool LaunchApp(const std::vector<std::string>& argv,
                const environment_vector& environ,
                const file_handle_mapping_vector& fds_to_remap,
                bool wait, ProcessHandle* process_handle);
+
+#if defined(OS_MACOSX)
+// Similar to the above, but also returns the new process's task_t if
+// |task_handle| is not NULL. If |task_handle| is not NULL, the caller is
+// responsible for calling |mach_port_deallocate()| on the returned handle.
+bool LaunchAppAndGetTask(const std::vector<std::string>& argv,
+                         const environment_vector& environ,
+                         const file_handle_mapping_vector& fds_to_remap,
+                         bool wait,
+                         task_t* task_handle,
+                         ProcessHandle* process_handle);
+#endif  // defined(OS_MACOSX)
 #endif  // defined(OS_POSIX)
 
 // Executes the application specified by cl. This function delegates to one
