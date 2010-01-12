@@ -611,14 +611,9 @@ int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
   // http://www.chromium.org/developers/design-documents/proxy-settings-fallback
 
   if (proxy_info_.is_empty()) {
-    // No proxies/direct to choose from. This can happen when:
-    //   a. We don't support any of the proxies in the returned list.
-    //   b. The proxy service returned us an empty list.
-    //      1. this can happen if all the proxies were marked as bad already.
-    //
-    // TODO(eroman): in case (b.1) it would be better to just try the bad
-    // proxies again rather than failing without having tried anything!
-    return ERR_EMPTY_PROXY_LIST;
+    // No proxies/direct to choose from. This happens when we don't support any
+    // of the proxies in the returned list.
+    return ERR_NO_SUPPORTED_PROXIES;
   }
 
   if (result != OK) {
