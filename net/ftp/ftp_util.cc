@@ -177,4 +177,23 @@ bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
   return true;
 }
 
+// static
+string16 FtpUtil::GetStringPartAfterColumns(const string16& text, int columns) {
+  size_t pos = 0;
+
+  for (int i = 0; i < columns; i++) {
+    // Skip the leading whitespace.
+    while (pos < text.length() && isspace(text[pos]))
+      pos++;
+
+    // Skip the actual text of i-th column.
+    while (pos < text.length() && !isspace(text[pos]))
+      pos++;
+  }
+
+  string16 result(text.substr(pos));
+  TrimWhitespace(result, TRIM_ALL, &result);
+  return result;
+}
+
 }  // namespace
