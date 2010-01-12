@@ -1174,6 +1174,15 @@ void FtpNetworkTransaction::RecordDataConnectionError(int result) {
     // Connection has been refused.
     NET_ERROR_CONNECTION_REFUSED = 4,
 
+    // No connection to the internet.
+    NET_ERROR_INTERNET_DISCONNECTED = 5,
+
+    // Could not resolve the destination address.
+    NET_ERROR_ADDRESS_NOT_FOUND = 6,
+
+    // A programming error in our network stack.
+    NET_ERROR_UNEXPECTED = 7,
+
     // Other kind of error.
     NET_ERROR_OTHER = 20,
 
@@ -1189,12 +1198,24 @@ void FtpNetworkTransaction::RecordDataConnectionError(int result) {
     case ERR_TIMED_OUT:
       type = NET_ERROR_TIMED_OUT;
       break;
-    case ERR_CONNECTION_RESET:
     case ERR_CONNECTION_ABORTED:
+    case ERR_CONNECTION_RESET:
+    case ERR_CONNECTION_CLOSED:
       type = NET_ERROR_CONNECTION_BROKEN;
       break;
+    case ERR_CONNECTION_FAILED:
     case ERR_CONNECTION_REFUSED:
       type = NET_ERROR_CONNECTION_REFUSED;
+      break;
+    case ERR_INTERNET_DISCONNECTED:
+      type = NET_ERROR_INTERNET_DISCONNECTED;
+      break;
+    case ERR_ADDRESS_INVALID:
+    case ERR_ADDRESS_UNREACHABLE:
+      type = NET_ERROR_ADDRESS_NOT_FOUND;
+      break;
+    case ERR_UNEXPECTED:
+      type = NET_ERROR_UNEXPECTED;
       break;
     default:
       type = NET_ERROR_OTHER;
