@@ -35,19 +35,25 @@
       # builds).
       'buildtype%': 'Dev',
 
-      # Compute the architecture that we're building for. Default to the
-      # architecture that we're building on.
-      'conditions': [
-        [ 'OS=="linux" or OS=="freebsd"', {
-          # This handles the Linux platforms we generally deal with. Anything
-          # else gets passed through, which probably won't work very well; such
-          # hosts should pass an explicit target_arch to gyp.
-          'target_arch%':
-            '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/")',
-        }, {  # OS!="linux"
-          'target_arch%': 'ia32',
-        }],
-      ],
+      'variables': {
+        # Compute the architecture that we're building on.
+        'conditions': [
+          [ 'OS=="linux" or OS=="freebsd"', {
+            # This handles the Linux platforms we generally deal with. Anything
+            # else gets passed through, which probably won't work very well; such
+            # hosts should pass an explicit target_arch to gyp.
+            'host_arch%':
+              '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/")',
+          }, {  # OS!="linux"
+            'host_arch%': 'ia32',
+          }],
+        ],
+      },
+      'host_arch%': '<(host_arch)',
+
+      # Default architecture we're building for is the architecture we're
+      # building on.
+      'target_arch%': '<(host_arch)',
 
       # We do want to build Chromium with Breakpad support in certain
       # situations. I.e. for Chrome bot.
@@ -79,6 +85,7 @@
     'branding%': '<(branding)',
     'buildtype%': '<(buildtype)',
     'target_arch%': '<(target_arch)',
+    'host_arch%': '<(host_arch)',
     'toolkit_views%': '<(toolkit_views)',
     'chromeos%': '<(chromeos)',
     'inside_chromium_build%': '<(inside_chromium_build)',
