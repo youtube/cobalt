@@ -10,6 +10,7 @@
 #include <unistd.h>
 #endif
 
+#include "base/histogram.h"
 #include "base/ref_counted.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -1550,6 +1551,8 @@ int HttpCache::Transaction::DoSuccessfulSendRequest() {
     DoneWritingToEntry(false);
   }
 
+  HistogramHeaders(new_response->headers);
+
   new_response_ = new_response;
   // Are we expecting a response to a conditional query?
   if (mode_ == READ_WRITE || mode_ == UPDATE) {
@@ -1678,6 +1681,47 @@ int HttpCache::Transaction::DoSendRequestComplete(int result) {
     response_.cert_request_info = response->cert_request_info;
   }
   return result;
+}
+
+// For a 200 response we'll add a histogram with one bit set per header:
+//   0x01 Content-Length
+//   0x02 Date
+//   0x04 Last-Modified
+//   0x08 Etag
+//   0x10 Accept-Ranges: bytes
+//   0x20 Accept-Ranges: none
+//
+// TODO(rvargas): remove after having some results.
+void HttpCache::Transaction::HistogramHeaders(
+    const HttpResponseHeaders* headers) {
+  if (headers->response_code() != 200)
+    return;
+
+  int64 content_length = headers->GetContentLength();
+  int value = 0;
+  if (content_length > 0)
+    value = 1;
+
+  Time date;
+  if (headers->GetDateValue(&date))
+    value += 2;
+  if (headers->GetLastModifiedValue(&date))
+    value += 4;
+
+  std::string etag;
+  headers->EnumerateHeader(NULL, "etag", &etag);
+  if (!etag.empty())
+    value += 8;
+
+  std::string accept_ranges("Accept-Ranges");
+  if (headers->HasHeaderValue(accept_ranges, "bytes"))
+    value += 0x10;
+  if (headers->HasHeaderValue(accept_ranges, "none"))
+    value += 0x20;
+
+  // |value| goes from 0 to 63. Actually, the max value should be 47 (0x2f)
+  // but we'll see.
+  UMA_HISTOGRAM_ENUMERATION("HttpCache.ResponseHeaders", value, 65);
 }
 
 void HttpCache::Transaction::OnIOComplete(int result) {
