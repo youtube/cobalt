@@ -408,7 +408,7 @@ static int GetProcessCPU(pid_t pid) {
   return total_cpu;
 }
 
-int ProcessMetrics::GetCPUUsage() {
+double ProcessMetrics::GetCPUUsage() {
   // This queries the /proc-specific scaling factor which is
   // conceptually the system hertz.  To dump this value on another
   // system, try

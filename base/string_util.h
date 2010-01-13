@@ -339,13 +339,11 @@ inline bool IsWhitespace(wchar_t c) {
   return wcschr(kWhitespaceWide, c) != NULL;
 }
 
-// TODO(mpcomplete): Decide if we should change these names to KIBI, etc,
-// or if we should actually use metric units, or leave as is.
 enum DataUnits {
   DATA_UNITS_BYTE = 0,
-  DATA_UNITS_KILOBYTE,
-  DATA_UNITS_MEGABYTE,
-  DATA_UNITS_GIGABYTE,
+  DATA_UNITS_KIBIBYTE,
+  DATA_UNITS_MEBIBYTE,
+  DATA_UNITS_GIBIBYTE,
 };
 
 // Return the unit type that is appropriate for displaying the amount of bytes
@@ -354,13 +352,13 @@ DataUnits GetByteDisplayUnits(int64 bytes);
 
 // Return a byte string in human-readable format, displayed in units appropriate
 // specified by 'units', with an optional unit suffix.
-// Ex: FormatBytes(512, DATA_UNITS_KILOBYTE, true) => "0.5 KB"
-// Ex: FormatBytes(10*1024, DATA_UNITS_MEGABYTE, false) => "0.1"
+// Ex: FormatBytes(512, DATA_UNITS_KIBIBYTE, true) => "0.5 KB"
+// Ex: FormatBytes(10*1024, DATA_UNITS_MEBIBYTE, false) => "0.1"
 std::wstring FormatBytes(int64 bytes, DataUnits units, bool show_units);
 
 // As above, but with "/s" units.
-// Ex: FormatSpeed(512, DATA_UNITS_KILOBYTE, true) => "0.5 KB/s"
-// Ex: FormatSpeed(10*1024, DATA_UNITS_MEGABYTE, false) => "0.1"
+// Ex: FormatSpeed(512, DATA_UNITS_KIBIBYTE, true) => "0.5 KB/s"
+// Ex: FormatSpeed(10*1024, DATA_UNITS_MEBIBYTE, false) => "0.1"
 std::wstring FormatSpeed(int64 bytes, DataUnits units, bool show_units);
 
 // Return a number formated with separators in the user's locale way.
