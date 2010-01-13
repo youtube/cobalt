@@ -429,10 +429,10 @@ class ProcessMetrics {
   // Returns the CPU usage in percent since the last time this method was
   // called. The first time this method is called it returns 0 and will return
   // the actual CPU info on subsequent calls.
-  // Note that on multi-processor machines, the CPU usage value is for all
-  // CPUs. So if you have 2 CPUs and your process is using all the cycles
-  // of 1 CPU and not the other CPU, this method returns 50.
-  int GetCPUUsage();
+  // On Windows, the CPU usage value is for all CPUs. So if you have 2 CPUs and
+  // your process is using all the cycles of 1 CPU and not the other CPU, this
+  // method returns 50.
+  double GetCPUUsage();
 
   // Retrieves accounting information for all I/O operations performed by the
   // process.

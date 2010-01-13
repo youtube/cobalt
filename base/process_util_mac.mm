@@ -248,7 +248,7 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   (r)->tv_usec = (a)->microseconds;       \
 } while (0)
 
-int ProcessMetrics::GetCPUUsage() {
+double ProcessMetrics::GetCPUUsage() {
   mach_port_t task = TaskForPid(process_);
   if (task == MACH_PORT_NULL)
     return 0;
@@ -307,8 +307,8 @@ int ProcessMetrics::GetCPUUsage() {
     return 0;
 
   // We add time_delta / 2 so the result is rounded.
-  int cpu = static_cast<int>((system_time_delta * 100 + time_delta / 2) /
-                             (time_delta));
+  double cpu = static_cast<double>(
+      (system_time_delta * 100.0 + time_delta / 2.0) / time_delta);
 
   last_system_time_ = task_time;
   last_time_ = time;
