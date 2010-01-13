@@ -256,8 +256,14 @@ class ClientSocketPoolBaseHelper
 
   // A Group is allocated per group_name when there are idle sockets or pending
   // requests.  Otherwise, the Group object is removed from the map.
+  // |active_socket_count| tracks the number of sockets held by clients.  Of
+  // this number of sockets held by clients, some of them may be released soon,
+  // since ReleaseSocket() was called of them, but the DoReleaseSocket() task
+  // has not run yet for them.  |num_releasing_sockets| tracks these values,
+  // which is useful for not starting up new ConnectJobs when sockets may become
+  // available really soon.
   struct Group {
-    Group() : active_socket_count(0) {}
+    Group() : active_socket_count(0), num_releasing_sockets(0) {}
 
     bool IsEmpty() const {
       return active_socket_count == 0 && idle_sockets.empty() && jobs.empty() &&
@@ -269,6 +275,10 @@ class ClientSocketPoolBaseHelper
           max_sockets_per_group;
     }
 
+    bool HasReleasingSockets() const {
+      return num_releasing_sockets > 0;
+    }
+
     RequestPriority TopPendingPriority() const {
       return pending_requests.front()->priority();
     }
@@ -278,6 +288,8 @@ class ClientSocketPoolBaseHelper
     RequestQueue pending_requests;
     RequestMap connecting_requests;
     int active_socket_count;  // number of active sockets used by clients
+    // Number of sockets being released within one loop through the MessageLoop.
+    int num_releasing_sockets;
   };
 
   typedef std::map<std::string, Group> GroupMap;
