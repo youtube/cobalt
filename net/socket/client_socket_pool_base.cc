@@ -190,6 +190,7 @@ int ClientSocketPoolBaseHelper::RequestSocket(
     return ERR_IO_PENDING;
   }
 
+  // Try to reuse a socket.
   while (!group.idle_sockets.empty()) {
     IdleSocket idle_socket = group.idle_sockets.back();
     group.idle_sockets.pop_back();
@@ -205,6 +206,13 @@ int ClientSocketPoolBaseHelper::RequestSocket(
     delete idle_socket.socket;
   }
 
+  // See if we already have enough connect jobs or sockets that will be released
+  // soon.
+  if (g_late_binding && group.HasReleasingSockets()) {
+    InsertRequestIntoQueue(request, &group.pending_requests);
+    return ERR_IO_PENDING;
+  }
+
   // We couldn't find a socket to reuse, so allocate and connect a new one.
 
   // If we aren't using late binding, the job lines up with a request so
@@ -214,7 +222,7 @@ int ClientSocketPoolBaseHelper::RequestSocket(
 
   scoped_ptr<ConnectJob> connect_job(
       connect_job_factory_->NewConnectJob(group_name, *request, this,
-                                         job_load_log));
+                                          job_load_log));
 
   int rv = connect_job->Connect();
 
@@ -285,6 +293,9 @@ void ClientSocketPoolBaseHelper::CancelRequest(
 
 void ClientSocketPoolBaseHelper::ReleaseSocket(const std::string& group_name,
                                                ClientSocket* socket) {
+  Group& group = group_map_[group_name];
+  group.num_releasing_sockets++;
+  DCHECK_LE(group.num_releasing_sockets, group.active_socket_count);
   // Run this asynchronously to allow the caller to finish before we let
   // another to begin doing work.  This also avoids nasty recursion issues.
   // NOTE: We cannot refer to the handle argument after this method returns.
@@ -409,6 +420,9 @@ void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
   CHECK(i != group_map_.end());
 
   Group& group = i->second;
+
+  group.num_releasing_sockets--;
+  DCHECK_GE(group.num_releasing_sockets, 0);
 
   CHECK(handed_out_socket_count_ > 0);
   handed_out_socket_count_--;

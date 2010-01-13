@@ -981,7 +981,16 @@ class RequestSocketCallback : public CallbackRunner< Tuple1<int> > {
 
     if (!within_callback_) {
       test_connect_job_factory_->set_job_type(next_job_type_);
+
+      // Don't allow reuse of the socket.  Disconnect it and then release it and
+      // run through the MessageLoop once to get it completely released.
+      handle_->socket()->Disconnect();
       handle_->Reset();
+      {
+        MessageLoop::ScopedNestableTaskAllower nestable(
+            MessageLoop::current());
+        MessageLoop::current()->RunAllPending();
+      }
       within_callback_ = true;
       TestCompletionCallback next_job_callback;
       int rv = InitHandle(
@@ -1000,9 +1009,12 @@ class RequestSocketCallback : public CallbackRunner< Tuple1<int> > {
           // We need to give it a little bit of time to run, so that all the
           // operations that happen on timers (e.g. cleanup of idle
           // connections) can execute.
-          MessageLoop::current()->SetNestableTasksAllowed(true);
-          PlatformThread::Sleep(10);
-          EXPECT_EQ(OK, next_job_callback.WaitForResult());
+          {
+            MessageLoop::ScopedNestableTaskAllower nestable(
+                MessageLoop::current());
+            PlatformThread::Sleep(10);
+            EXPECT_EQ(OK, next_job_callback.WaitForResult());
+          }
           break;
         default:
           FAIL() << "Unexpected job type: " << next_job_type_;
@@ -1037,7 +1049,6 @@ TEST_F(ClientSocketPoolBaseTest, RequestPendingJobTwice) {
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(OK, callback.WaitForResult());
-  handle.Reset();
 }
 
 TEST_F(ClientSocketPoolBaseTest, RequestPendingJobThenSynchronous) {
@@ -1052,7 +1063,6 @@ TEST_F(ClientSocketPoolBaseTest, RequestPendingJobThenSynchronous) {
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(OK, callback.WaitForResult());
-  handle.Reset();
 }
 
 // Make sure that pending requests get serviced after active requests get
@@ -1598,7 +1608,6 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, RequestPendingJobTwice) {
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(OK, callback.WaitForResult());
-  handle.Reset();
 }
 
 TEST_F(ClientSocketPoolBaseTest_LateBinding, RequestPendingJobThenSynchronous) {
@@ -1614,7 +1623,6 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, RequestPendingJobThenSynchronous) {
   ASSERT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(OK, callback.WaitForResult());
-  handle.Reset();
 }
 
 // Make sure that pending requests get serviced after active requests get
