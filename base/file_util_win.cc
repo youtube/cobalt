@@ -354,7 +354,7 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
   if (FAILED(i_persist_file.QueryFrom(i_shell_link)))
     return false;
 
-  if (FAILED(i_persist_file->Load(destination, 0)))
+  if (FAILED(i_persist_file->Load(destination, STGM_READWRITE)))
     return false;
 
   if (source && FAILED(i_shell_link->SetPath(source)))
