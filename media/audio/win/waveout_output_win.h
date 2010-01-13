@@ -29,7 +29,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // the audio manager who is creating this object and |device_id| which
   // is provided by the operating system.
   PCMWaveOutAudioOutputStream(AudioManagerWin* manager,
-                              int channels, int sampling_rate,
+                              int channels, int sampling_rate, int num_buffers,
                               char bits_per_sample, UINT device_id);
   virtual ~PCMWaveOutAudioOutputStream();
 
@@ -80,6 +80,9 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   // We use the callback mostly to periodically request more audio data.
   AudioSourceCallback* callback_;
 
+  // The number of buffers of size |buffer_size_| each to use.
+  const int num_buffers_;
+
   // The size in bytes of each audio buffer, we usually have two of these.
   size_t buffer_size_;
 
@@ -87,7 +90,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   float volume_;
 
   // Channels from 0 to 6.
-  int channels_;
+  const int channels_;
 
   // Number of bytes yet to be played in the hardware buffer.
   int pending_bytes_;

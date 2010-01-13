@@ -523,6 +523,36 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
   oas->Close();
 }
 
+// With the low latency mode, we have two buffers instead of 3 and we
+// should be able to handle 20ms buffers at 44KHz. See also the SyncSocketBasic
+// test below.
+// TODO(cpu): right now the best we can do is 50ms before it sounds choppy.
+TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44KssLowLatency) {
+  if (IsRunningHeadless())
+    return;
+  AudioManager* audio_man = AudioManager::GetAudioManager();
+  ASSERT_TRUE(NULL != audio_man);
+  if (!audio_man->HasAudioDevices())
+    return;
+  AudioOutputStream* oas =
+      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LOW_LATENCY, 1,
+                                 AudioManager::kAudioCDSampleRate, 16);
+  ASSERT_TRUE(NULL != oas);
+
+  SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
+                             200.0, AudioManager::kAudioCDSampleRate);
+  size_t bytes_50_ms = (AudioManager::kAudioCDSampleRate / 20) * sizeof(uint16);
+
+  EXPECT_TRUE(oas->Open(bytes_50_ms));
+  oas->SetVolume(1.0);
+
+  // Play the wave for .8 seconds.
+  oas->Start(&source);
+  ::Sleep(800);
+  oas->Stop();
+  oas->Close();
+}
+
 // Check that the pending bytes value is correct what the stream starts.
 TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
   if (IsRunningHeadless())
@@ -640,6 +670,8 @@ DWORD __stdcall SyncSocketThread(void* context) {
 // The emphasis is to test low-latency with buffers less than 100ms. With
 // the waveout api it seems not possible to go below 50ms. In this test
 // you should hear a continous 200Hz tone.
+//
+// TODO(cpu): This actually sounds choppy most of the time. Fix it.
 TEST(WinAudioTest, SyncSocketBasic) {
   if (IsRunningHeadless())
     return;
@@ -651,7 +683,7 @@ TEST(WinAudioTest, SyncSocketBasic) {
 
   int sample_rate = AudioManager::kAudioCDSampleRate;
   AudioOutputStream* oas =
-      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
+      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LOW_LATENCY, 1,
                                  sample_rate, 16);
   ASSERT_TRUE(NULL != oas);
 

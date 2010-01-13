@@ -193,7 +193,7 @@ TEST_F(AlsaPcmOutputStreamTest, ConstructedState) {
 
   // Bad format.
   test_stream_ = new AlsaPcmOutputStream(kTestDeviceName,
-                                         AudioManager::AUDIO_PCM_DELTA,
+                                         AudioManager::AUDIO_LAST_FORMAT,
                                          kTestChannels,
                                          kTestSampleRate,
                                          kTestBitsPerSample,
