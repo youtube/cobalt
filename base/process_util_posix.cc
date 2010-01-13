@@ -312,17 +312,9 @@ static pid_t fork_and_get_task(task_t* child_task) {
     case -1:
       return pid;
     case 0: {  // child
-      ReceivePort child_recv_port;
-
       MachSendMessage child_message(/* id= */0);
       if (!child_message.AddDescriptor(mach_task_self())) {
         LOG(ERROR) << "child AddDescriptor(mach_task_self()) failed.";
-        return pid;
-      }
-      mach_port_t raw_child_recv_port = child_recv_port.GetPort();
-      if (!child_message.AddDescriptor(raw_child_recv_port)) {
-        LOG(ERROR) << "child AddDescriptor(" << raw_child_recv_port
-                   << ") failed.";
         return pid;
       }
 
@@ -330,25 +322,6 @@ static pid_t fork_and_get_task(task_t* child_task) {
       err = child_sender.SendMessage(child_message, kTimeoutMs);
       if (err != KERN_SUCCESS) {
         LOG(ERROR) << "child SendMessage() failed: " << MachErrorCode(err);
-        return pid;
-      }
-
-      MachReceiveMessage parent_message;
-      err = child_recv_port.WaitForMessage(&parent_message, kTimeoutMs);
-      if (err != KERN_SUCCESS) {
-        LOG(ERROR) << "child WaitForMessage() failed: " << MachErrorCode(err);
-        return pid;
-      }
-
-      if (parent_message.GetTranslatedPort(0) == MACH_PORT_NULL) {
-        LOG(ERROR) << "child GetTranslatedPort(0) failed.";
-        return pid;
-      }
-      err = task_set_bootstrap_port(mach_task_self(),
-                                    parent_message.GetTranslatedPort(0));
-      if (err != KERN_SUCCESS) {
-        LOG(ERROR) << "child task_set_bootstrap_port() failed: "
-                   << MachErrorCode(err);
         return pid;
       }
       break;
@@ -366,24 +339,6 @@ static pid_t fork_and_get_task(task_t* child_task) {
         return pid;
       }
       *child_task = child_message.GetTranslatedPort(0);
-
-      if (child_message.GetTranslatedPort(1) == MACH_PORT_NULL) {
-        LOG(ERROR) << "parent GetTranslatedPort(1) failed.";
-        return pid;
-      }
-      MachPortSender parent_sender(child_message.GetTranslatedPort(1));
-
-      MachSendMessage parent_message(/* id= */0);
-      if (!parent_message.AddDescriptor(bootstrap_port)) {
-        LOG(ERROR) << "parent AddDescriptor(" << bootstrap_port << ") failed.";
-        return pid;
-      }
-
-      err = parent_sender.SendMessage(parent_message, kTimeoutMs);
-      if (err != KERN_SUCCESS) {
-        LOG(ERROR) << "parent SendMessage() failed: " << MachErrorCode(err);
-        return pid;
-      }
       break;
     }
   }
