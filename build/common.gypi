@@ -580,7 +580,13 @@
         # Enable -Werror by default, but put it in a variable so it can
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
         'variables': {
-          'no_strict_aliasing%': 0,
+          # Use -fno-strict-aliasing by default since gcc 4.4 has periodic
+          # issues that slip through the cracks. We could do this just for
+          # gcc 4.4 but it makes more sense to be consistent on all
+          # compilers in use. TODO(Craig): turn this off again when
+          # there is some 4.4 test infrastructure in place and existing
+          # aliasing issues have been fixed.
+          'no_strict_aliasing%': 1,
           'conditions': [['OS=="linux"', {'werror%': '-Werror',}],
                          ['OS=="freebsd"', {'werror%': '',}],
                          ['OS=="openbsd"', {'werror%': '',}],
