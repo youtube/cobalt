@@ -536,6 +536,14 @@ void ProxyService::PurgeMemory() {
     resolver_->PurgeMemory();
 }
 
+void ProxyService::ForceReloadProxyConfig() {
+  // Mark the current configuration as being un-initialized, then force it to
+  // start updating (normally this would happen lazily during the next
+  // call to ResolveProxy()).
+  config_.set_id(ProxyConfig::INVALID_ID);
+  UpdateConfig(NULL);
+}
+
 // static
 ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
     MessageLoop* io_loop, MessageLoop* file_loop) {
