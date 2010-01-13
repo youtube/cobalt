@@ -608,7 +608,7 @@ static uint64 FileTimeToUTC(const FILETIME& ftime) {
   return li.QuadPart;
 }
 
-int ProcessMetrics::GetCPUUsage() {
+double ProcessMetrics::GetCPUUsage() {
   FILETIME now;
   FILETIME creation_time;
   FILETIME exit_time;

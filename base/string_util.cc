@@ -874,9 +874,9 @@ DataUnits GetByteDisplayUnits(int64 bytes) {
   // This must match the DataUnits enum.
   static const int64 kUnitThresholds[] = {
     0,              // DATA_UNITS_BYTE,
-    3*1024,         // DATA_UNITS_KILOBYTE,
-    2*1024*1024,    // DATA_UNITS_MEGABYTE,
-    1024*1024*1024  // DATA_UNITS_GIGABYTE,
+    3*1024,         // DATA_UNITS_KIBIBYTE,
+    2*1024*1024,    // DATA_UNITS_MEBIBYTE,
+    1024*1024*1024  // DATA_UNITS_GIBIBYTE,
   };
 
   if (bytes < 0) {
@@ -890,7 +890,7 @@ DataUnits GetByteDisplayUnits(int64 bytes) {
       break;
   }
 
-  DCHECK(unit_index >= DATA_UNITS_BYTE && unit_index <= DATA_UNITS_GIGABYTE);
+  DCHECK(unit_index >= DATA_UNITS_BYTE && unit_index <= DATA_UNITS_GIBIBYTE);
   return DataUnits(unit_index);
 }
 
@@ -919,7 +919,7 @@ std::wstring FormatBytesInternal(int64 bytes,
     return std::wstring();
   }
 
-  DCHECK(units >= DATA_UNITS_BYTE && units <= DATA_UNITS_GIGABYTE);
+  DCHECK(units >= DATA_UNITS_BYTE && units <= DATA_UNITS_GIBIBYTE);
 
   // Put the quantity in the right units.
   double unit_amount = static_cast<double>(bytes);
