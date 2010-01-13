@@ -30,12 +30,6 @@
 //   or that we take locks inside WaveCallback() or QueueNextPacket().
 
 namespace {
-
-// We settled for a triple buffering scheme. It seems to strike a good balance
-// between how fast data needs to be provided versus memory usage.
-// Double buffering is insufficient for Vista and produces stutter.
-const size_t kNumBuffers = 3;
-
 // Sixty four MB is the maximum buffer size per AudioOutputStream.
 const size_t kMaxOpenBufferSize = 1024 * 1024 * 64;
 
@@ -48,13 +42,14 @@ WAVEHDR* GetNextBuffer(WAVEHDR* current) {
 }  // namespace
 
 PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
-    AudioManagerWin* manager, int channels, int sampling_rate,
+    AudioManagerWin* manager, int channels, int sampling_rate, int num_buffers,
     char bits_per_sample, UINT device_id)
     : state_(PCMA_BRAND_NEW),
       manager_(manager),
       device_id_(device_id),
       waveout_(NULL),
       callback_(NULL),
+      num_buffers_(num_buffers),
       buffer_(NULL),
       buffer_size_(0),
       volume_(1),
@@ -81,6 +76,8 @@ bool PCMWaveOutAudioOutputStream::Open(size_t buffer_size) {
     return false;
   if (buffer_size > kMaxOpenBufferSize)
     return false;
+  if (num_buffers_ < 2 || num_buffers_ > 5)
+    return false;
   // Open the device. We'll be getting callback in WaveCallback function. They
   // occur in a magic, time-critical thread that windows creates.
   MMRESULT result = ::waveOutOpen(&waveout_, device_id_, &format_,
@@ -102,7 +99,7 @@ bool PCMWaveOutAudioOutputStream::Open(size_t buffer_size) {
 void PCMWaveOutAudioOutputStream::SetupBuffers(size_t rq_size) {
   WAVEHDR* last = NULL;
   WAVEHDR* first = NULL;
-  for (int ix = 0; ix != kNumBuffers; ++ix) {
+  for (int ix = 0; ix != num_buffers_; ++ix) {
     size_t sz = sizeof(WAVEHDR) + rq_size;
     buffer_ =  reinterpret_cast<WAVEHDR*>(new char[sz]);
     buffer_->lpData = reinterpret_cast<char*>(buffer_) + sizeof(WAVEHDR);
@@ -125,7 +122,7 @@ void PCMWaveOutAudioOutputStream::SetupBuffers(size_t rq_size) {
 
 void PCMWaveOutAudioOutputStream::FreeBuffers() {
   WAVEHDR* current = buffer_;
-  for (int ix = 0; ix != kNumBuffers; ++ix) {
+  for (int ix = 0; ix != num_buffers_; ++ix) {
     WAVEHDR* next = GetNextBuffer(current);
     ::waveOutUnprepareHeader(waveout_, current, sizeof(WAVEHDR));
     delete[] reinterpret_cast<char*>(current);
@@ -144,7 +141,7 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   state_ = PCMA_PLAYING;
   pending_bytes_ = 0;
   WAVEHDR* buffer = buffer_;
-  for (int ix = 0; ix != kNumBuffers; ++ix) {
+  for (int ix = 0; ix != num_buffers_; ++ix) {
     QueueNextPacket(buffer);  // Read more data.
     pending_bytes_ += buffer->dwBufferLength;
     buffer = GetNextBuffer(buffer);
@@ -157,7 +154,7 @@ void PCMWaveOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   }
   // Send the buffers to the audio driver. Note that the device is paused
   // so we avoid entering the callback method while still here.
-  for (int ix = 0; ix != kNumBuffers; ++ix) {
+  for (int ix = 0; ix != num_buffers_; ++ix) {
     result = ::waveOutWrite(waveout_, buffer, sizeof(WAVEHDR));
     if (result != MMSYSERR_NOERROR) {
       HandleError(result);
