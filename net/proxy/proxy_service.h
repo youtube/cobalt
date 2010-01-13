@@ -125,6 +125,21 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
     return config_;
   }
 
+  // Returns the map of proxies which have been marked as "bad".
+  const ProxyRetryInfoMap& proxy_retry_info() const {
+    return proxy_retry_info_;
+  }
+
+  // Clears the list of bad proxy servers that has been cached.
+  void ClearBadProxiesCache() {
+    proxy_retry_info_.clear();
+  }
+
+  // Forces refetching the proxy configuration, and applying it.
+  // This re-does everything from fetching the system configuration,
+  // to downloading and testing the PAC files.
+  void ForceReloadProxyConfig();
+
   // Creates a proxy service that polls |proxy_config_service| to notice when
   // the proxy settings change. We take ownership of |proxy_config_service|.
   // Iff |use_v8_resolver| is true, then the V8 implementation is
