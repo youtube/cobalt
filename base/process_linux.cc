@@ -11,6 +11,8 @@
 
 namespace base {
 
+const int kPriorityAdjustment = 5;
+
 bool Process::IsProcessBackgrounded() const {
   DCHECK(process_);
   return saved_priority_ == kUnsetProcessPriority;
@@ -40,9 +42,11 @@ bool Process::SetProcessBackgrounded(bool background) {
       // User is not allowed to raise the priority back to where it is now.
       return false;
     }
-    int result = setpriority(PRIO_PROCESS, process_, current_priority + 1);
+    int result =
+        setpriority(
+            PRIO_PROCESS, process_, current_priority + kPriorityAdjustment);
     if (result == -1) {
-      // Failed to lower priority.
+      LOG(ERROR) << "Failed to lower priority, errno: " << errno;
       return false;
     }
     saved_priority_ = current_priority;
