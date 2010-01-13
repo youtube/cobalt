@@ -822,16 +822,22 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
     base::TimeDelta connect_duration =
         base::TimeTicks::Now() - ssl_connect_start_time_;
 
-    UMA_HISTOGRAM_CLIPPED_TIMES("Net.SSL_Connection_Latency",
-        connect_duration,
-        base::TimeDelta::FromMilliseconds(1),
-        base::TimeDelta::FromMinutes(10),
-        100);
-
     if (use_spdy) {
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SpdyConnectionLatency",
+          connect_duration,
+          base::TimeDelta::FromMilliseconds(1),
+          base::TimeDelta::FromMinutes(10),
+          100);
+
       UpdateConnectionTypeHistograms(CONNECTION_SPDY, true);
       next_state_ = STATE_SPDY_SEND_REQUEST;
     } else {
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
+          connect_duration,
+          base::TimeDelta::FromMilliseconds(1),
+          base::TimeDelta::FromMinutes(10),
+          100);
+
       next_state_ = STATE_SEND_REQUEST;
     }
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
