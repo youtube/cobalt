@@ -12,7 +12,7 @@
 #include <cryptohi.h>  // SEC_DerSignData()
 #include <keyhi.h>     // SECKEY_CreateSubjectPublicKeyInfo()
 
-#include "base/nss_init.h"
+#include "base/nss_util.h"
 #include "base/logging.h"
 
 namespace net {

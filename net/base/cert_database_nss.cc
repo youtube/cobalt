@@ -14,7 +14,7 @@
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
-#include "base/nss_init.h"
+#include "base/nss_util.h"
 
 namespace net {
 
