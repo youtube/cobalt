@@ -16,7 +16,7 @@
 #include "base/logging.h"
 #include "base/pickle.h"
 #include "base/time.h"
-#include "base/nss_init.h"
+#include "base/nss_util.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/ev_root_ca_metadata.h"
@@ -211,24 +211,6 @@ void GetCertChainInfo(CERTCertList* cert_list,
   }
 }
 
-// TODO(port): Implement this more simply, and put it in the right place
-base::Time PRTimeToBaseTime(PRTime prtime) {
-  PRExplodedTime prxtime;
-  PR_ExplodeTime(prtime, PR_GMTParameters, &prxtime);
-
-  base::Time::Exploded exploded;
-  exploded.year         = prxtime.tm_year;
-  exploded.month        = prxtime.tm_month + 1;
-  exploded.day_of_week  = prxtime.tm_wday;
-  exploded.day_of_month = prxtime.tm_mday;
-  exploded.hour         = prxtime.tm_hour;
-  exploded.minute       = prxtime.tm_min;
-  exploded.second       = prxtime.tm_sec;
-  exploded.millisecond  = prxtime.tm_usec / 1000;
-
-  return base::Time::FromUTCExploded(exploded);
-}
-
 typedef char* (*CERTGetNameFunc)(CERTName* name);
 
 void ParsePrincipal(CERTName* name,
@@ -292,7 +274,7 @@ void ParseDate(SECItem* der_date, base::Time* result) {
   PRTime prtime;
   SECStatus rv = DER_DecodeTimeChoice(&prtime, der_date);
   DCHECK(rv == SECSuccess);
-  *result = PRTimeToBaseTime(prtime);
+  *result = base::PRTimeToBaseTime(prtime);
 }
 
 void GetCertSubjectAltNamesOfType(X509Certificate::OSCertHandle cert_handle,

@@ -16,7 +16,7 @@
 
 #include "base/logging.h"
 #if defined(OS_LINUX)
-#include "base/nss_init.h"
+#include "base/nss_util.h"
 #endif
 
 // The Mac and Windows (CryptoAPI) versions of DESEncrypt are our own code.
