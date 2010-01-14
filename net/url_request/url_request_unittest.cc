@@ -10,7 +10,7 @@
 #include <windows.h>
 #include <shlobj.h>
 #elif defined(OS_LINUX)
-#include "base/nss_init.h"
+#include "base/nss_util.h"
 #endif
 
 #include <algorithm>

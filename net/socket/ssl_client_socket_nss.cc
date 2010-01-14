@@ -58,7 +58,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/nss_init.h"
+#include "base/nss_util.h"
 #include "base/string_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
