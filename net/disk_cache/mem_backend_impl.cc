@@ -144,6 +144,14 @@ bool MemBackendImpl::DoomEntry(const std::string& key) {
   return true;
 }
 
+int MemBackendImpl::DoomEntry(const std::string& key,
+                              CompletionCallback* callback) {
+  if (DoomEntry(key))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
 void MemBackendImpl::InternalDoomEntry(MemEntryImpl* entry) {
   // Only parent entries can be passed into this method.
   DCHECK(entry->type() == MemEntryImpl::kParentEntry);
