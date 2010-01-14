@@ -44,6 +44,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
     return flip_session_pool_;
   }
 
+  // Replace the current socket pool with a new one.  This effectively
+  // abandons the current pool.  This is only used for debugging.
+  void ReplaceTCPSocketPool();
+
   static void set_max_sockets_per_group(int socket_count);
 
   static uint16 fixed_http_port() { return g_fixed_http_port; }
