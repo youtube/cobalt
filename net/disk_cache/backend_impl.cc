@@ -494,6 +494,14 @@ bool BackendImpl::DoomEntry(const std::string& key) {
   return true;
 }
 
+int BackendImpl::DoomEntry(const std::string& key,
+                           CompletionCallback* callback) {
+  if (DoomEntry(key))
+    return net::OK;
+
+  return net::ERR_FAILED;
+}
+
 bool BackendImpl::DoomAllEntries() {
   if (!num_refs_) {
     PrepareForRestart();

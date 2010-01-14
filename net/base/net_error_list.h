@@ -302,5 +302,17 @@ NET_ERROR(CACHE_READ_FAILURE, -401)
 // The operation is not supported for this entry.
 NET_ERROR(CACHE_OPERATION_NOT_SUPPORTED, -403)
 
+// The disk cache is unable to open this entry.
+NET_ERROR(CACHE_OPEN_FAILURE, -404)
+
+// The disk cache is unable to create this entry.
+NET_ERROR(CACHE_CREATE_FAILURE, -405)
+
+// Multiple transactions are racing to create disk cache entries. This is an
+// internal error returned from the HttpCache to the HttpCacheTransaction that
+// tells the transaction to restart the entry-creation logic because the state
+// of the cache has changed.
+NET_ERROR(CACHE_RACE, -406)
+
 // The server's response was insecure (e.g. there was a cert error).
 NET_ERROR(INSECURE_RESPONSE, -501)
