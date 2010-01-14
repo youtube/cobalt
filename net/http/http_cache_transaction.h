@@ -150,11 +150,11 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoNetworkReadComplete(int result);
   int DoInitEntry();
   int DoOpenEntry();
-  int DoOpenEntryComplete();
+  int DoOpenEntryComplete(int result);
   int DoCreateEntry();
-  int DoCreateEntryComplete();
+  int DoCreateEntryComplete(int result);
   int DoDoomEntry();
-  int DoDoomEntryComplete();
+  int DoDoomEntryComplete(int result);
   int DoAddToEntry();
   int DoEntryAvailable();
   int DoPartialCacheValidation();
@@ -303,13 +303,14 @@ class HttpCache::Transaction : public HttpTransaction {
   bool enable_range_support_;
   bool truncated_;  // We don't have all the response data.
   bool server_responded_206_;
+  bool cache_pending_;  // We are waiting for the HttpCache.
   scoped_refptr<IOBuffer> read_buf_;
   int io_buf_len_;
   int read_offset_;
   int effective_load_flags_;
   scoped_ptr<PartialData> partial_;  // We are dealing with range requests.
   uint64 final_upload_progress_;
-  CompletionCallbackImpl<Transaction> network_callback_;
+  CompletionCallbackImpl<Transaction> io_callback_;
   scoped_refptr<CancelableCompletionCallback<Transaction> > cache_callback_;
   scoped_refptr<CancelableCompletionCallback<Transaction> >
       write_headers_callback_;
