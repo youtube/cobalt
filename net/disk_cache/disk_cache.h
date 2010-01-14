@@ -113,7 +113,14 @@ class Backend {
                           CompletionCallback* callback) = 0;
 
   // Marks the entry, specified by the given key, for deletion.
+  // Note: This method is deprecated.
   virtual bool DoomEntry(const std::string& key) = 0;
+
+  // Marks the entry, specified by the given key, for deletion. The return value
+  // is a net error code. If this method returns ERR_IO_PENDING, the |callback|
+  // will be invoked after the entry is doomed.
+  virtual int DoomEntry(const std::string& key,
+                        CompletionCallback* callback) = 0;
 
   // Marks all entries for deletion.
   // Note: This method is deprecated.

@@ -113,11 +113,12 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
       enable_range_support_(enable_range_support),
       truncated_(false),
       server_responded_206_(false),
+      cache_pending_(false),
       read_offset_(0),
       effective_load_flags_(0),
       final_upload_progress_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          network_callback_(this, &Transaction::OnIOComplete)),
+          io_callback_(this, &Transaction::OnIOComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           cache_callback_(new CancelableCompletionCallback<Transaction>(
                 this, &Transaction::OnIOComplete))),
@@ -142,8 +143,8 @@ HttpCache::Transaction::~Transaction() {
       }
 
       cache_->DoneWithEntry(entry_, this, cancel_request);
-    } else {
-      cache_->RemovePendingTransaction(this);
+    } else if (cache_pending_) {
+      cache_->RemovePendingTransaction(this, &io_callback_);
     }
   }
 
@@ -363,6 +364,7 @@ uint64 HttpCache::Transaction::GetUploadProgress() const {
 
 int HttpCache::Transaction::AddToEntry() {
   next_state_ = STATE_INIT_ENTRY;
+  cache_pending_ = false;
   return DoLoop(OK);
 }
 
@@ -377,44 +379,47 @@ int HttpCache::Transaction::DoInitEntry() {
     return OK;
   }
 
-  new_entry_ = cache_->FindActiveEntry(cache_key_);
-  if (!new_entry_) {
-    next_state_ = STATE_OPEN_ENTRY;
-    return OK;
-  }
-
-  if (mode_ == WRITE) {
-    next_state_ = STATE_CREATE_ENTRY;
-    return OK;
-  }
-
-  next_state_ = STATE_ADD_TO_ENTRY;
+  next_state_ = STATE_OPEN_ENTRY;
   return OK;
 }
 
 int HttpCache::Transaction::DoDoomEntry() {
   next_state_ = STATE_DOOM_ENTRY_COMPLETE;
-  cache_->DoomEntry(cache_key_);
-  return OK;
+  cache_pending_ = true;
+  // TODO(rvargas): Add a LoadLog event.
+  return cache_->DoomEntry(cache_key_, &io_callback_);
 }
 
-int HttpCache::Transaction::DoDoomEntryComplete() {
+int HttpCache::Transaction::DoDoomEntryComplete(int result) {
   next_state_ = STATE_CREATE_ENTRY;
+  cache_pending_ = false;
+  if (result == ERR_CACHE_RACE)
+    next_state_ = STATE_INIT_ENTRY;
+
   return OK;
 }
 
 int HttpCache::Transaction::DoOpenEntry() {
   DCHECK(!new_entry_);
   next_state_ = STATE_OPEN_ENTRY_COMPLETE;
+  cache_pending_ = true;
   LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
-  new_entry_ = cache_->OpenEntry(cache_key_);
-  return OK;
+  return cache_->OpenEntry(cache_key_, &new_entry_, &io_callback_);
 }
 
-int HttpCache::Transaction::DoOpenEntryComplete() {
+int HttpCache::Transaction::DoOpenEntryComplete(int result) {
+  // It is important that we go to STATE_ADD_TO_ENTRY whenever the result is
+  // OK, otherwise the cache will end up with an active entry without any
+  // transaction attached.
   LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
-  if (new_entry_) {
+  cache_pending_ = false;
+  if (result == OK) {
     next_state_ = STATE_ADD_TO_ENTRY;
+    return OK;
+  }
+
+  if (result == ERR_CACHE_RACE) {
+    next_state_ = STATE_INIT_ENTRY;
     return OK;
   }
 
@@ -440,15 +445,25 @@ int HttpCache::Transaction::DoOpenEntryComplete() {
 int HttpCache::Transaction::DoCreateEntry() {
   DCHECK(!new_entry_);
   next_state_ = STATE_CREATE_ENTRY_COMPLETE;
+  cache_pending_ = true;
   LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
-  new_entry_ = cache_->CreateEntry(cache_key_);
-  return OK;
+  return cache_->CreateEntry(cache_key_, &new_entry_, &io_callback_);
 }
 
-int HttpCache::Transaction::DoCreateEntryComplete() {
+int HttpCache::Transaction::DoCreateEntryComplete(int result) {
+  // It is important that we go to STATE_ADD_TO_ENTRY whenever the result is
+  // OK, otherwise the cache will end up with an active entry without any
+  // transaction attached.
   LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
+  cache_pending_ = false;
   next_state_ = STATE_ADD_TO_ENTRY;
-  if (!new_entry_) {
+
+  if (result == ERR_CACHE_RACE) {
+    next_state_ = STATE_INIT_ENTRY;
+    return OK;
+  }
+
+  if (result != OK) {
     // We have a race here: Maybe we failed to open the entry and decided to
     // create one, but by the time we called create, another transaction already
     // created the entry. If we want to eliminate this issue, we need an atomic
@@ -464,6 +479,7 @@ int HttpCache::Transaction::DoCreateEntryComplete() {
 
 int HttpCache::Transaction::DoAddToEntry() {
   DCHECK(new_entry_);
+  cache_pending_ = true;
   LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
   int rv = cache_->AddTransactionToEntry(new_entry_, this);
   new_entry_ = NULL;
@@ -472,6 +488,7 @@ int HttpCache::Transaction::DoAddToEntry() {
 
 int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
   LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
+  cache_pending_ = false;
   entry_ = entry;
 
   next_state_ = STATE_ENTRY_AVAILABLE;
@@ -613,24 +630,21 @@ int HttpCache::Transaction::DoLoop(int result) {
         rv = DoOpenEntry();
         break;
       case STATE_OPEN_ENTRY_COMPLETE:
-        DCHECK_EQ(OK, rv);
-        rv = DoOpenEntryComplete();
+        rv = DoOpenEntryComplete(rv);
         break;
       case STATE_CREATE_ENTRY:
         DCHECK_EQ(OK, rv);
         rv = DoCreateEntry();
         break;
       case STATE_CREATE_ENTRY_COMPLETE:
-        DCHECK_EQ(OK, rv);
-        rv = DoCreateEntryComplete();
+        rv = DoCreateEntryComplete(rv);
         break;
       case STATE_DOOM_ENTRY:
         DCHECK_EQ(OK, rv);
         rv = DoDoomEntry();
         break;
       case STATE_DOOM_ENTRY_COMPLETE:
-        DCHECK_EQ(OK, rv);
-        rv = DoDoomEntryComplete();
+        rv = DoDoomEntryComplete(rv);
         break;
       case STATE_ADD_TO_ENTRY:
         DCHECK_EQ(OK, rv);
@@ -1032,7 +1046,7 @@ int HttpCache::Transaction::DoSendRequest() {
     return rv;
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  rv = network_trans_->Start(request_, &network_callback_, load_log_);
+  rv = network_trans_->Start(request_, &io_callback_, load_log_);
   return rv;
 }
 
@@ -1042,7 +1056,7 @@ int HttpCache::Transaction::RestartNetworkRequest() {
   DCHECK_EQ(STATE_NONE, next_state_);
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  int rv = network_trans_->RestartIgnoringLastError(&network_callback_);
+  int rv = network_trans_->RestartIgnoringLastError(&io_callback_);
   if (rv != ERR_IO_PENDING)
     return DoLoop(rv);
   return rv;
@@ -1055,8 +1069,7 @@ int HttpCache::Transaction::RestartNetworkRequestWithCertificate(
   DCHECK_EQ(STATE_NONE, next_state_);
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  int rv = network_trans_->RestartWithCertificate(client_cert,
-                                                  &network_callback_);
+  int rv = network_trans_->RestartWithCertificate(client_cert, &io_callback_);
   if (rv != ERR_IO_PENDING)
     return DoLoop(rv);
   return rv;
@@ -1070,8 +1083,7 @@ int HttpCache::Transaction::RestartNetworkRequestWithAuth(
   DCHECK_EQ(STATE_NONE, next_state_);
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  int rv = network_trans_->RestartWithAuth(username, password,
-                                           &network_callback_);
+  int rv = network_trans_->RestartWithAuth(username, password, &io_callback_);
   if (rv != ERR_IO_PENDING)
     return DoLoop(rv);
   return rv;
@@ -1282,7 +1294,7 @@ int HttpCache::Transaction::ReadFromNetwork(IOBuffer* data, int data_len) {
 
 int HttpCache::Transaction::DoNetworkRead() {
   next_state_ = STATE_NETWORK_READ_COMPLETE;
-  return network_trans_->Read(read_buf_, io_buf_len_, &network_callback_);
+  return network_trans_->Read(read_buf_, io_buf_len_, &io_callback_);
 }
 
 int HttpCache::Transaction::ReadFromEntry(IOBuffer* data, int data_len) {
@@ -1442,8 +1454,9 @@ void HttpCache::Transaction::DoneWritingToEntry(bool success) {
 }
 
 void HttpCache::Transaction::DoomPartialEntry(bool delete_object) {
+  int rv = cache_->DoomEntry(cache_key_, NULL);
+  DCHECK_EQ(OK, rv);
   cache_->DoneWithEntry(entry_, this, false);
-  cache_->DoomEntry(cache_key_);
   entry_ = NULL;
   if (delete_object)
     partial_.reset(NULL);
@@ -1579,7 +1592,8 @@ int HttpCache::Transaction::DoUpdateCachedResponse() {
   response_.request_time = new_response_->request_time;
 
   if (response_.headers->HasHeaderValue("cache-control", "no-store")) {
-    cache_->DoomEntry(cache_key_);
+    int ret = cache_->DoomEntry(cache_key_, NULL);
+    DCHECK_EQ(OK, ret);
   } else {
     // If we are already reading, we already updated the headers for this
     // request; doing it again will change Content-Length.

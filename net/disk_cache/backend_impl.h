@@ -68,6 +68,7 @@ class BackendImpl : public Backend {
   virtual int CreateEntry(const std::string& key, Entry** entry,
                           CompletionCallback* callback);
   virtual bool DoomEntry(const std::string& key);
+  virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
   virtual bool DoomAllEntries();
   virtual int DoomAllEntries(CompletionCallback* callback);
   virtual bool DoomEntriesBetween(const base::Time initial_time,
