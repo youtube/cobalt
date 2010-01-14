@@ -132,8 +132,10 @@ class HttpCache : public HttpTransactionFactory,
   void set_type(CacheType type) { type_ = type; }
   CacheType type() { return type_; }
 
-  // Close All Idle Sockets.  This is for debugging.
-  void CloseIdleConnections();
+  // Close currently active sockets so that fresh page loads will not use any
+  // recycled connections.  For sockets currently in use, they may not close
+  // immediately, but they will not be reusable. This is for debugging.
+  void CloseCurrentConnections();
 
   void set_enable_range_support(bool value) {
     enable_range_support_ = value;

@@ -524,7 +524,7 @@ void HttpCache::OnProcessPendingQueue(ActiveEntry* entry) {
   AddTransactionToEntry(entry, next);
 }
 
-void HttpCache::CloseIdleConnections() {
+void HttpCache::CloseCurrentConnections() {
   net::HttpNetworkLayer* network =
       static_cast<net::HttpNetworkLayer*>(network_layer_.get());
   HttpNetworkSession* session = network->GetSession();
@@ -532,6 +532,7 @@ void HttpCache::CloseIdleConnections() {
     session->tcp_socket_pool()->CloseIdleSockets();
     if (session->flip_session_pool())
       session->flip_session_pool()->CloseAllSessions();
+    session->ReplaceTCPSocketPool();
   }
 }
 
