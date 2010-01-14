@@ -24,6 +24,7 @@
 #include "base/task.h"
 #include "base/weak_ptr.h"
 #include "net/base/cache_type.h"
+#include "net/base/completion_callback.h"
 #include "net/http/http_transaction_factory.h"
 
 namespace disk_cache {
@@ -145,10 +146,14 @@ class HttpCache : public HttpTransactionFactory,
 
   // Types --------------------------------------------------------------------
 
+  class BackendCallback;
   class Transaction;
+  class WorkItem;
   friend class Transaction;
+  struct NewEntry;  // Info for an entry under construction.
 
   typedef std::list<Transaction*> TransactionList;
+  typedef std::list<WorkItem*> WorkItemList;
 
   struct ActiveEntry {
     disk_cache::Entry* disk_entry;
@@ -163,40 +168,112 @@ class HttpCache : public HttpTransactionFactory,
   };
 
   typedef base::hash_map<std::string, ActiveEntry*> ActiveEntriesMap;
+  typedef base::hash_map<std::string, NewEntry*> NewEntriesMap;
   typedef std::set<ActiveEntry*> ActiveEntriesSet;
 
 
   // Methods ------------------------------------------------------------------
 
+  // Generates the cache key for this request.
   std::string GenerateCacheKey(const HttpRequestInfo*);
-  void DoomEntry(const std::string& key);
+
+  // Dooms the entry selected by |key|. |callback| is used for completion
+  // notification if this function returns ERR_IO_PENDING. The entry can be
+  // currently in use or not.
+  int DoomEntry(const std::string& key, CompletionCallback* callback);
+
+  // Dooms the entry selected by |key|. |callback| is used for completion
+  // notification if this function returns ERR_IO_PENDING. The entry should not
+  // be currently in use.
+  int AsyncDoomEntry(const std::string& key, CompletionCallback* callback);
+
+  // Closes a previously doomed entry.
   void FinalizeDoomedEntry(ActiveEntry* entry);
+
+  // Returns an entry that is currently in use and not doomed, or NULL.
   ActiveEntry* FindActiveEntry(const std::string& key);
-  ActiveEntry* ActivateEntry(const std::string& key, disk_cache::Entry*);
+
+  // Creates a new ActiveEntry and starts tracking it. |disk_entry| is the disk
+  // cache entry that corresponds to the desired |key|.
+  // TODO(rvargas): remove the |key| argument.
+  ActiveEntry* ActivateEntry(const std::string& key,
+                             disk_cache::Entry* disk_entry);
+
+  // Deletes an ActiveEntry.
   void DeactivateEntry(ActiveEntry* entry);
+
+  // Deletes an ActiveEntry using an exhaustive search.
   void SlowDeactivateEntry(ActiveEntry* entry);
-  ActiveEntry* OpenEntry(const std::string& key);
-  ActiveEntry* CreateEntry(const std::string& cache_key);
+
+  // Returns the NewEntry for the desired |key|. If an entry is not under
+  // construction already, a new NewEntry structure is created.
+  NewEntry* GetNewEntry(const std::string& key);
+
+  // Deletes a NewEntry.
+  void DeleteNewEntry(NewEntry* entry);
+
+  // Opens the disk cache entry associated with |key|, returning an ActiveEntry
+  // in |*entry|. |callback| is used for completion notification if this
+  // function returns ERR_IO_PENDING.
+  int OpenEntry(const std::string& key, ActiveEntry** entry,
+                CompletionCallback* callback);
+
+  // Creates the disk cache entry associated with |key|, returning an
+  // ActiveEntry in |*entry|. |callback| is used for completion notification if
+  // this function returns ERR_IO_PENDING.
+  int CreateEntry(const std::string& key, ActiveEntry** entry,
+                  CompletionCallback* callback);
+
+  // Destroys an ActiveEntry (active or doomed).
   void DestroyEntry(ActiveEntry* entry);
+
+  // Adds a transaction to an ActiveEntry.
   int AddTransactionToEntry(ActiveEntry* entry, Transaction* trans);
+
+  // Called when the transaction has finished working with this entry. |cancel|
+  // is true if the operation was cancelled by the caller instead of running
+  // to completion.
   void DoneWithEntry(ActiveEntry* entry, Transaction* trans, bool cancel);
+
+  // Called when the transaction has finished writting to this entry. |success|
+  // is false if the cache entry should be deleted.
   void DoneWritingToEntry(ActiveEntry* entry, bool success);
+
+  // Called when the transaction has finished reading from this entry.
   void DoneReadingFromEntry(ActiveEntry* entry, Transaction* trans);
+
+  // Convers the active writter transaction to a reader so that other
+  // transactions can start reading from this entry.
   void ConvertWriterToReader(ActiveEntry* entry);
-  void RemovePendingTransaction(Transaction* trans);
+
+  // Removes the transaction |trans|, waiting for |callback|, from the pending
+  // list of an entry (NewEntry, active or doomed entry).
+  void RemovePendingTransaction(Transaction* trans, CompletionCallback* cb);
+
+  // Removes the transaction |trans|, from the pending list of |entry|.
   bool RemovePendingTransactionFromEntry(ActiveEntry* entry,
                                          Transaction* trans);
-  void ProcessPendingQueue(ActiveEntry* entry);
 
+  // Removes the callback |cb|, from the pending list of |entry|.
+  bool RemovePendingCallbackFromNewEntry(NewEntry* entry,
+                                         CompletionCallback* cb);
+
+  // Resumes processing the pending list of |entry|.
+  void ProcessPendingQueue(ActiveEntry* entry);
 
   // Events (called via PostTask) ---------------------------------------------
 
   void OnProcessPendingQueue(ActiveEntry* entry);
 
+  // Callbacks ----------------------------------------------------------------
+
+  // Processes BackendCallback notifications.
+  void OnIOComplete(int result, NewEntry* entry);
+
 
   // Variables ----------------------------------------------------------------
 
-  // used when lazily constructing the disk_cache_
+  // Used when lazily constructing the disk_cache_.
   FilePath disk_cache_dir_;
 
   Mode mode_;
@@ -205,11 +282,14 @@ class HttpCache : public HttpTransactionFactory,
   scoped_ptr<HttpTransactionFactory> network_layer_;
   scoped_ptr<disk_cache::Backend> disk_cache_;
 
-  // The set of active entries indexed by cache key
+  // The set of active entries indexed by cache key.
   ActiveEntriesMap active_entries_;
 
-  // The set of doomed entries
+  // The set of doomed entries.
   ActiveEntriesSet doomed_entries_;
+
+  // The set of entries "under construction".
+  NewEntriesMap new_entries_;
 
   ScopedRunnableMethodFactory<HttpCache> task_factory_;
 
