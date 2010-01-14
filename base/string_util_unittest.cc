@@ -166,6 +166,24 @@ TEST(StringUtilTest, CollapseWhitespaceASCII) {
   }
 }
 
+TEST(StringUtilTest, ContainsOnlyWhitespaceASCII) {
+  EXPECT_TRUE(ContainsOnlyWhitespaceASCII(""));
+  EXPECT_TRUE(ContainsOnlyWhitespaceASCII(" "));
+  EXPECT_TRUE(ContainsOnlyWhitespaceASCII("\t"));
+  EXPECT_TRUE(ContainsOnlyWhitespaceASCII("\t \r \n  "));
+  EXPECT_FALSE(ContainsOnlyWhitespaceASCII("a"));
+  EXPECT_FALSE(ContainsOnlyWhitespaceASCII("\thello\r \n  "));
+}
+
+TEST(StringUtilTest, ContainsOnlyWhitespace) {
+  EXPECT_TRUE(ContainsOnlyWhitespace(ASCIIToUTF16("")));
+  EXPECT_TRUE(ContainsOnlyWhitespace(ASCIIToUTF16(" ")));
+  EXPECT_TRUE(ContainsOnlyWhitespace(ASCIIToUTF16("\t")));
+  EXPECT_TRUE(ContainsOnlyWhitespace(ASCIIToUTF16("\t \r \n  ")));
+  EXPECT_FALSE(ContainsOnlyWhitespace(ASCIIToUTF16("a")));
+  EXPECT_FALSE(ContainsOnlyWhitespace(ASCIIToUTF16("\thello\r \n  ")));
+}
+
 TEST(StringUtilTest, IsStringUTF8) {
   EXPECT_TRUE(IsStringUTF8("abc"));
   EXPECT_TRUE(IsStringUTF8("\xc2\x81"));

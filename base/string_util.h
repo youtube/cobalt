@@ -30,15 +30,18 @@ namespace base {
 // are listed below.  These functions are then implemented as inline calls
 // to the platform-specific equivalents in the platform-specific headers.
 
-// Compare the two strings s1 and s2 without regard to case using
+// Compares the two strings s1 and s2 without regard to case using
 // the current locale; returns 0 if they are equal, 1 if s1 > s2, and -1 if
 // s2 > s1 according to a lexicographic comparison.
 int strcasecmp(const char* s1, const char* s2);
 
-// Compare up to count characters of s1 and s2 without regard to case using
+// Compares up to count characters of s1 and s2 without regard to case using
 // the current locale; returns 0 if they are equal, 1 if s1 > s2, and -1 if
 // s2 > s1 according to a lexicographic comparison.
 int strncasecmp(const char* s1, const char* s2, size_t count);
+
+// Same as strncmp but for char16 strings.
+int strncmp16(const char16* s1, const char16* s2, size_t count);
 
 // Wrapper for vsnprintf that always null-terminates and always returns the
 // number of characters that would be in an untruncated formatted
@@ -195,6 +198,11 @@ string16 CollapseWhitespace(const string16& text,
                             bool trim_sequences_with_line_breaks);
 std::string CollapseWhitespaceASCII(const std::string& text,
                                     bool trim_sequences_with_line_breaks);
+
+// Returns true if the passed string is empty or contains only white-space
+// characters.
+bool ContainsOnlyWhitespaceASCII(const std::string& str);
+bool ContainsOnlyWhitespace(const string16& str);
 
 // These convert between ASCII (7-bit) and Wide/UTF16 strings.
 std::string WideToASCII(const std::wstring& wide);
