@@ -675,6 +675,7 @@ bool HttpCache::RemovePendingCallbackFromNewEntry(NewEntry* entry,
   WorkItemList::iterator it = pending_queue.begin();
   for (; it != pending_queue.end(); ++it) {
     if ((*it)->Matches(cb)) {
+      delete *it;
       pending_queue.erase(it);
       return true;
     }
