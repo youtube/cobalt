@@ -59,6 +59,7 @@
         ['OS=="mac"', {
           'dependencies': [
             '../third_party/ocmock/ocmock.gyp:*',
+            '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
           ],
         }],
         ['OS=="linux"', {
