@@ -369,6 +369,10 @@ class OCSPRequestSession
       request_->Cancel();
       delete request_;
       request_ = NULL;
+      // |io_loop_| may be NULL here if it called from
+      // WillDestroyCurrentMessageLoop().
+      if (io_loop_)
+        io_loop_->RemoveDestructionObserver(this);
       {
         AutoLock autolock(lock_);
         finished_ = true;
