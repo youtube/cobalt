@@ -51,4 +51,12 @@ void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
   max_sockets_per_group_ = socket_count;
 }
 
+void HttpNetworkSession::ReplaceTCPSocketPool() {
+  tcp_socket_pool_ = new TCPClientSocketPool(max_sockets_,
+                                             max_sockets_per_group_,
+                                             host_resolver_,
+                                             socket_factory_,
+                                             network_change_notifier_);
+}
+
 } //  namespace net
