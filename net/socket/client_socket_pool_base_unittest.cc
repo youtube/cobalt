@@ -117,8 +117,7 @@ class TestConnectJob : public ConnectJob {
                  ConnectJob::Delegate* delegate,
                  MockClientSocketFactory* client_socket_factory,
                  LoadLog* load_log)
-      : ConnectJob(group_name, request.handle(), timeout_duration,
-                   delegate, load_log),
+      : ConnectJob(group_name, timeout_duration, delegate, load_log),
         job_type_(job_type),
         client_socket_factory_(client_socket_factory),
         method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
@@ -429,8 +428,6 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
     pool_ = NULL;
     requests_.reset();
 
-    EnableLateBindingOfSockets(false);
-
     ClientSocketPoolTest::TearDown();
   }
 
@@ -518,29 +515,6 @@ TEST_F(ClientSocketPoolBaseTest, BasicSynchronous) {
   ExpectLogContains(log, 3, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
 }
 
-TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  TestSocketRequest req(&request_order_, &completion_count_);
-  int rv = InitHandle(req.handle(), "a", LOW, &req, pool_.get(), log);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
-  EXPECT_EQ(OK, req.WaitForResult());
-  EXPECT_TRUE(req.handle()->is_initialized());
-  EXPECT_TRUE(req.handle()->socket());
-  req.handle()->Reset();
-
-  EXPECT_EQ(4u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
-}
-
 TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
@@ -550,27 +524,6 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
   EXPECT_EQ(ERR_CONNECTION_FAILED,
             InitHandle(req.handle(), "a", kDefaultPriority, &req,
                        pool_.get(), log));
-
-  EXPECT_EQ(4u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
-}
-
-TEST_F(ClientSocketPoolBaseTest, InitConnectionAsynchronousFailure) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  TestSocketRequest req(&request_order_, &completion_count_);
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(req.handle(), "a", kDefaultPriority, &req,
-                       pool_.get(), log));
-  EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
-  EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 
   EXPECT_EQ(4u, log->entries().size());
   ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
@@ -883,26 +836,6 @@ TEST_F(ClientSocketPoolBaseTest, CancelRequestClearGroup) {
   req.handle()->Reset();
 }
 
-TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  TestSocketRequest req(&request_order_, &completion_count_);
-  TestSocketRequest req2(&request_order_, &completion_count_);
-
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(req.handle(), "a", kDefaultPriority, &req,
-                       pool_.get(), NULL));
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(req2.handle(), "a", kDefaultPriority, &req2,
-                       pool_.get(), NULL));
-
-  req.handle()->Reset();
-
-  EXPECT_EQ(OK, req2.WaitForResult());
-  req2.handle()->Reset();
-}
-
 TEST_F(ClientSocketPoolBaseTest, ConnectCancelConnect) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
@@ -1137,93 +1070,6 @@ TEST_F(ClientSocketPoolBaseTest, CancelActiveRequestThenRequestSocket) {
   EXPECT_EQ(2, client_socket_factory_.allocation_count());
 }
 
-// A pending asynchronous job completes, which will free up a socket slot.  The
-// next job finishes synchronously.  The callback for the asynchronous job
-// should be first though.
-TEST_F(ClientSocketPoolBaseTest, PendingJobCompletionOrder) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  // First two jobs are async.
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
-
-  // Start job 1 (async error).
-  TestSocketRequest req1(&request_order_, &completion_count_);
-  int rv = InitHandle(req1.handle(), "a", kDefaultPriority, &req1,
-                      pool_.get(), NULL);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  // Start job 2 (async error).
-  TestSocketRequest req2(&request_order_, &completion_count_);
-  rv = InitHandle(req2.handle(), "a", kDefaultPriority, &req2,
-                  pool_.get(), NULL);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  // The pending job is sync.
-  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
-
-  // Request 3 does not have a ConnectJob yet.  It's just pending.
-  TestSocketRequest req3(&request_order_, &completion_count_);
-  rv = InitHandle(
-      req3.handle(), "a", kDefaultPriority, &req3, pool_.get(), NULL);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  EXPECT_EQ(ERR_CONNECTION_FAILED, req1.WaitForResult());
-  EXPECT_EQ(ERR_CONNECTION_FAILED, req2.WaitForResult());
-  EXPECT_EQ(OK, req3.WaitForResult());
-
-  ASSERT_EQ(3U, request_order_.size());
-
-  // After job 1 finishes unsuccessfully, it will try to process the pending
-  // requests queue, so it starts up job 3 for request 3.  This job
-  // synchronously succeeds, so the request order is 1, 3, 2.
-  EXPECT_EQ(&req1, request_order_[0]);
-  EXPECT_EQ(&req2, request_order_[2]);
-  EXPECT_EQ(&req3, request_order_[1]);
-}
-
-// When a ConnectJob is coupled to a request, even if a free socket becomes
-// available, the request will be serviced by the ConnectJob.
-TEST_F(ClientSocketPoolBaseTest, ReleaseSockets) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-  EnableLateBindingOfSockets(false);
-
-  // Start job 1 (async OK)
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-
-  TestSocketRequest req1(&request_order_, &completion_count_);
-  int rv = InitHandle(req1.handle(), "a", kDefaultPriority, &req1,
-                      pool_.get(), NULL);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, req1.WaitForResult());
-
-  // Job 1 finished OK.  Start job 2 (also async OK).  Release socket 1.
-  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
-
-  TestSocketRequest req2(&request_order_, &completion_count_);
-  rv = InitHandle(req2.handle(), "a", kDefaultPriority, &req2,
-                  pool_.get(), NULL);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  req1.handle()->Reset();
-  MessageLoop::current()->RunAllPending();  // Run the DoReleaseSocket()
-
-  // Job 2 is pending. Start request 3 (which has no associated job since it
-  // will use the idle socket).
-
-  TestSocketRequest req3(&request_order_, &completion_count_);
-  rv = InitHandle(req3.handle(), "a", kDefaultPriority, &req3,
-                  pool_.get(), NULL);
-  EXPECT_EQ(OK, rv);
-
-  EXPECT_FALSE(req2.handle()->socket());
-  client_socket_factory_.SignalJobs();
-  EXPECT_EQ(OK, req2.WaitForResult());
-
-  ASSERT_EQ(2U, request_order_.size());
-  EXPECT_EQ(&req1, request_order_[0]);
-  EXPECT_EQ(&req2, request_order_[1]);
-  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
-}
-
 // Regression test for http://crbug.com/17985.
 TEST_F(ClientSocketPoolBaseTest, GroupWithPendingRequestsIsNotEmpty) {
   const int kMaxSockets = 3;
@@ -1263,70 +1109,10 @@ class ClientSocketPoolBaseTest_LateBinding : public ClientSocketPoolBaseTest {
  protected:
   virtual void SetUp() {
     ClientSocketPoolBaseTest::SetUp();
-    EnableLateBindingOfSockets(true);
   }
 };
 
-// Even though a timeout is specified, it doesn't time out on a synchronous
-// completion.
-TEST_F(ClientSocketPoolBaseTest_LateBinding,
-       ConnectJob_NoTimeoutOnSynchronousCompletion) {
-  TestConnectJobDelegate delegate;
-  ClientSocketHandle ignored;
-  TestClientSocketPoolBase::Request request(&ignored, NULL, LOWEST, NULL,
-                                            NULL);
-  scoped_ptr<TestConnectJob> job(
-      new TestConnectJob(TestConnectJob::kMockJob,
-                         "a",
-                         request,
-                         base::TimeDelta::FromMicroseconds(1),
-                         &delegate,
-                         &client_socket_factory_,
-                         NULL));
-  EXPECT_EQ(OK, job->Connect());
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, ConnectJob_TimedOut) {
-  TestConnectJobDelegate delegate;
-  ClientSocketHandle ignored;
-  TestClientSocketPoolBase::Request request(&ignored, NULL, LOWEST, NULL,
-                                            NULL);
-  // Deleted by TestConnectJobDelegate.
-  TestConnectJob* job =
-      new TestConnectJob(TestConnectJob::kMockPendingJob,
-                         "a",
-                         request,
-                         base::TimeDelta::FromMicroseconds(1),
-                         &delegate,
-                         &client_socket_factory_,
-                         NULL);
-  ASSERT_EQ(ERR_IO_PENDING, job->Connect());
-  PlatformThread::Sleep(1);
-  EXPECT_EQ(ERR_TIMED_OUT, delegate.WaitForResult());
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, BasicSynchronous) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  TestCompletionCallback callback;
-  ClientSocketHandle handle;
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  EXPECT_EQ(OK, InitHandle(&handle, "a", kDefaultPriority, &callback,
-                           pool_.get(), log));
-  EXPECT_TRUE(handle.is_initialized());
-  EXPECT_TRUE(handle.socket());
-  handle.Reset();
-
-  EXPECT_EQ(4u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, BasicAsynchronous) {
+TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
@@ -1341,38 +1127,22 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, BasicAsynchronous) {
   req.handle()->Reset();
 
   EXPECT_EQ(6u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 5, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContains(
+      *log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN));
+  EXPECT_TRUE(LogContains(
+      *log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
+      LoadLog::PHASE_BEGIN));
+  EXPECT_TRUE(LogContains(
+      *log, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE, LoadLog::PHASE_END));
+  EXPECT_TRUE(LogContains(
+      *log, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB, LoadLog::PHASE_BEGIN));
+  EXPECT_TRUE(LogContains(
+      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB, LoadLog::PHASE_END));
+  EXPECT_TRUE(LogContains(
+      *log, 5, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END));
 }
 
-TEST_F(ClientSocketPoolBaseTest_LateBinding, InitConnectionFailure) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockFailingJob);
-  TestSocketRequest req(&request_order_, &completion_count_);
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  EXPECT_EQ(ERR_CONNECTION_FAILED,
-            InitHandle(req.handle(), "a", kDefaultPriority, &req,
-                       pool_.get(), log));
-
-  EXPECT_EQ(4u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding,
+TEST_F(ClientSocketPoolBaseTest,
        InitConnectionAsynchronousFailure) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
@@ -1398,71 +1168,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding,
   ExpectLogContains(log, 5, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
 }
 
-TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingRequests) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-
-  ReleaseAllConnections(KEEP_ALIVE);
-
-  EXPECT_EQ(kDefaultMaxSocketsPerGroup,
-            client_socket_factory_.allocation_count());
-  EXPECT_EQ(requests_.size() - kDefaultMaxSocketsPerGroup, completion_count_);
-
-  EXPECT_EQ(1, GetOrderOfRequest(1));
-  EXPECT_EQ(2, GetOrderOfRequest(2));
-  EXPECT_EQ(6, GetOrderOfRequest(3));
-  EXPECT_EQ(4, GetOrderOfRequest(4));
-  EXPECT_EQ(3, GetOrderOfRequest(5));
-  EXPECT_EQ(5, GetOrderOfRequest(6));
-  EXPECT_EQ(7, GetOrderOfRequest(7));
-
-  // Make sure we test order of all requests made.
-  EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(8));
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingRequests_NoKeepAlive) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-
-  ReleaseAllConnections(NO_KEEP_ALIVE);
-
-  for (size_t i = kDefaultMaxSocketsPerGroup; i < requests_.size(); ++i)
-    EXPECT_EQ(OK, requests_[i]->WaitForResult());
-
-  EXPECT_EQ(static_cast<int>(requests_.size()),
-            client_socket_factory_.allocation_count());
-  EXPECT_EQ(requests_.size() - kDefaultMaxSocketsPerGroup, completion_count_);
-}
-
-// This test will start up a RequestSocket() and then immediately Cancel() it.
-// The pending connect job will be cancelled and should not call back into
-// ClientSocketPoolBase.
-TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequestClearGroup) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  TestSocketRequest req(&request_order_, &completion_count_);
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(req.handle(), "a", kDefaultPriority, &req,
-                       pool_.get(), NULL));
-  req.handle()->Reset();
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, TwoRequestsCancelOne) {
+TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
@@ -1513,67 +1219,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, TwoRequestsCancelOne) {
 
 }
 
-TEST_F(ClientSocketPoolBaseTest_LateBinding, ConnectCancelConnect) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  ClientSocketHandle handle;
-  TestCompletionCallback callback;
-  TestSocketRequest req(&request_order_, &completion_count_);
-
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(&handle, "a", kDefaultPriority, &callback,
-                       pool_.get(), NULL));
-
-  handle.Reset();
-
-  TestCompletionCallback callback2;
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(&handle, "a", kDefaultPriority, &callback2,
-                       pool_.get(), NULL));
-
-  EXPECT_EQ(OK, callback2.WaitForResult());
-  EXPECT_FALSE(callback.have_result());
-
-  handle.Reset();
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequest) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", HIGHEST));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOWEST));
-
-  // Cancel a request.
-  size_t index_to_cancel = kDefaultMaxSocketsPerGroup + 2;
-  EXPECT_FALSE(requests_[index_to_cancel]->handle()->is_initialized());
-  requests_[index_to_cancel]->handle()->Reset();
-
-  ReleaseAllConnections(KEEP_ALIVE);
-
-  EXPECT_EQ(kDefaultMaxSocketsPerGroup,
-            client_socket_factory_.allocation_count());
-  EXPECT_EQ(requests_.size() - kDefaultMaxSocketsPerGroup - 1,
-            completion_count_);
-
-  EXPECT_EQ(1, GetOrderOfRequest(1));
-  EXPECT_EQ(2, GetOrderOfRequest(2));
-  EXPECT_EQ(5, GetOrderOfRequest(3));
-  EXPECT_EQ(3, GetOrderOfRequest(4));
-  EXPECT_EQ(kRequestNotFound, GetOrderOfRequest(5));  // Canceled request.
-  EXPECT_EQ(4, GetOrderOfRequest(6));
-  EXPECT_EQ(6, GetOrderOfRequest(7));
-
-  // Make sure we test order of all requests made.
-  EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(8));
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequestLimitsJobs) {
+TEST_F(ClientSocketPoolBaseTest, CancelRequestLimitsJobs) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
@@ -1595,114 +1241,9 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, CancelRequestLimitsJobs) {
   EXPECT_EQ(kDefaultMaxSocketsPerGroup - 1, pool_->NumConnectJobsInGroup("a"));
 }
 
-TEST_F(ClientSocketPoolBaseTest_LateBinding, RequestPendingJobTwice) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  ClientSocketHandle handle;
-  RequestSocketCallback callback(
-      &handle, pool_.get(), connect_job_factory_,
-      TestConnectJob::kMockPendingJob);
-  int rv = InitHandle(
-      &handle, "a", kDefaultPriority, &callback, pool_.get(), NULL);
-  ASSERT_EQ(ERR_IO_PENDING, rv);
-
-  EXPECT_EQ(OK, callback.WaitForResult());
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, RequestPendingJobThenSynchronous) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  ClientSocketHandle handle;
-  RequestSocketCallback callback(
-      &handle, pool_.get(), connect_job_factory_, TestConnectJob::kMockJob);
-  int rv = InitHandle(
-      &handle, "a", kDefaultPriority, &callback,
-      pool_.get(), NULL);
-  ASSERT_EQ(ERR_IO_PENDING, rv);
-
-  EXPECT_EQ(OK, callback.WaitForResult());
-}
-
-// Make sure that pending requests get serviced after active requests get
-// cancelled.
-TEST_F(ClientSocketPoolBaseTest_LateBinding,
-       CancelActiveRequestWithPendingRequests) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-
-  // Now, kDefaultMaxSocketsPerGroup requests should be active.
-  // Let's cancel them.
-  for (int i = 0; i < kDefaultMaxSocketsPerGroup; ++i) {
-    ASSERT_FALSE(requests_[i]->handle()->is_initialized());
-    requests_[i]->handle()->Reset();
-  }
-
-  // Let's wait for the rest to complete now.
-  for (size_t i = kDefaultMaxSocketsPerGroup; i < requests_.size(); ++i) {
-    EXPECT_EQ(OK, requests_[i]->WaitForResult());
-    requests_[i]->handle()->Reset();
-  }
-
-  EXPECT_EQ(requests_.size() - kDefaultMaxSocketsPerGroup, completion_count_);
-}
-
-// Make sure that pending requests get serviced after active requests fail.
-TEST_F(ClientSocketPoolBaseTest_LateBinding,
-       FailingActiveRequestWithPendingRequests) {
-  const int kMaxSockets = 5;
-  CreatePool(kMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
-
-  const int kNumberOfRequests = 2 * kDefaultMaxSocketsPerGroup + 1;
-  ASSERT_LE(kNumberOfRequests, kMaxSockets);  // Otherwise the test hangs.
-
-  // Queue up all the requests
-  for (int i = 0; i < kNumberOfRequests; ++i)
-    EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-
-  for (int i = 0; i < kNumberOfRequests; ++i)
-    EXPECT_EQ(ERR_CONNECTION_FAILED, requests_[i]->WaitForResult());
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding,
-       CancelActiveRequestThenRequestSocket) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-
-  TestSocketRequest req(&request_order_, &completion_count_);
-  int rv = InitHandle(req.handle(), "a", kDefaultPriority, &req,
-                      pool_.get(), NULL);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  // Cancel the active request.
-  req.handle()->Reset();
-
-  rv = InitHandle(req.handle(), "a", kDefaultPriority, &req,
-                  pool_.get(), NULL);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(OK, req.WaitForResult());
-
-  EXPECT_FALSE(req.handle()->is_reused());
-  EXPECT_EQ(1U, completion_count_);
-  EXPECT_EQ(2, client_socket_factory_.allocation_count());
-}
-
 // When requests and ConnectJobs are not coupled, the request will get serviced
 // by whatever comes first.
-TEST_F(ClientSocketPoolBaseTest_LateBinding, ReleaseSockets) {
+TEST_F(ClientSocketPoolBaseTest, ReleaseSockets) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
   // Start job 1 (async OK)
@@ -1749,7 +1290,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, ReleaseSockets) {
 
 // The requests are not coupled to the jobs.  So, the requests should finish in
 // their priority / insertion order.
-TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingJobCompletionOrder) {
+TEST_F(ClientSocketPoolBaseTest, PendingJobCompletionOrder) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
   // First two jobs are async.
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
@@ -1782,7 +1323,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, PendingJobCompletionOrder) {
   EXPECT_EQ(&req3, request_order_[2]);
 }
 
-TEST_F(ClientSocketPoolBaseTest_LateBinding, DISABLED_LoadState) {
+TEST_F(ClientSocketPoolBaseTest, DISABLED_LoadState) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
   connect_job_factory_->set_job_type(
       TestConnectJob::kMockAdvancingLoadStateJob);
@@ -1803,43 +1344,7 @@ TEST_F(ClientSocketPoolBaseTest_LateBinding, DISABLED_LoadState) {
   EXPECT_EQ(LOAD_STATE_WAITING_FOR_CACHE, req2.handle()->GetLoadState());
 }
 
-// Regression test for http://crbug.com/17985.
-TEST_F(ClientSocketPoolBaseTest_LateBinding,
-       GroupWithPendingRequestsIsNotEmpty) {
-  const int kMaxSockets = 3;
-  const int kMaxSocketsPerGroup = 2;
-  CreatePool(kMaxSockets, kMaxSocketsPerGroup);
-
-  const RequestPriority kHighPriority = HIGHEST;
-
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-
-  // This is going to be a pending request in an otherwise empty group.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
-
-  // Reach the maximum socket limit.
-  EXPECT_EQ(OK, StartRequest("b", kDefaultPriority));
-
-  // Create a stalled group with high priorities.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kHighPriority));
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kHighPriority));
-  EXPECT_TRUE(pool_->base()->may_have_stalled_group());
-
-  // Release the first two sockets from "a", which will make room
-  // for requests from "c". After that "a" will have no active sockets
-  // and one pending request.
-  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
-  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
-
-  // Closing idle sockets should not get us into trouble, but in the bug
-  // we were hitting a CHECK here.
-  EXPECT_EQ(2, pool_->IdleSocketCountInGroup("a"));
-  pool_->CloseIdleSockets();
-  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
-}
-
-TEST_F(ClientSocketPoolBaseTest_LateBinding, CleanupTimedOutIdleSockets) {
+TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
   CreatePoolWithIdleTimeouts(
       kDefaultMaxSockets, kDefaultMaxSocketsPerGroup,
       base::TimeDelta(),  // Time out unused sockets immediately.
