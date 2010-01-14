@@ -32,14 +32,17 @@ const int kMaxNumLoadLogEntries = 50;
 namespace net {
 
 ConnectJob::ConnectJob(const std::string& group_name,
+                       const ClientSocketHandle* key_handle,
                        base::TimeDelta timeout_duration,
                        Delegate* delegate,
                        LoadLog* load_log)
     : group_name_(group_name),
+      key_handle_(key_handle),
       timeout_duration_(timeout_duration),
       delegate_(delegate),
       load_log_(load_log) {
   DCHECK(!group_name.empty());
+  DCHECK(key_handle);
   DCHECK(delegate);
 }
 
@@ -90,6 +93,8 @@ void ConnectJob::OnTimeout() {
 
 namespace internal {
 
+bool ClientSocketPoolBaseHelper::g_late_binding = false;
+
 ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
     int max_sockets,
     int max_sockets_per_group,
@@ -115,8 +120,8 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
 }
 
 ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
-  CancelAllConnectJobs();
-
+  if (g_late_binding)
+    CancelAllConnectJobs();
   // Clean up any idle sockets.  Assert that we have no remaining active
   // sockets or pending requests.  They should have all been cleaned up prior
   // to the manager being destroyed.
@@ -151,7 +156,7 @@ ClientSocketPoolBaseHelper::RemoveRequestFromQueue(
   const Request* req = *it;
 
   LoadLog::EndEvent(req->load_log(),
-                    LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE);
+      LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE);
 
   pending_requests->erase(it);
   return req;
@@ -203,13 +208,17 @@ int ClientSocketPoolBaseHelper::RequestSocket(
 
   // See if we already have enough connect jobs or sockets that will be released
   // soon.
-  if (group.HasReleasingSockets()) {
+  if (g_late_binding && group.HasReleasingSockets()) {
     InsertRequestIntoQueue(request, &group.pending_requests);
     return ERR_IO_PENDING;
   }
 
   // We couldn't find a socket to reuse, so allocate and connect a new one.
-  scoped_refptr<LoadLog> job_load_log = new LoadLog(kMaxNumLoadLogEntries);
+
+  // If we aren't using late binding, the job lines up with a request so
+  // just write directly into the request's LoadLog.
+  scoped_refptr<LoadLog> job_load_log = g_late_binding ?
+      new LoadLog(kMaxNumLoadLogEntries) : request->load_log();
 
   scoped_ptr<ConnectJob> connect_job(
       connect_job_factory_->NewConnectJob(group_name, *request, this,
@@ -217,7 +226,7 @@ int ClientSocketPoolBaseHelper::RequestSocket(
 
   int rv = connect_job->Connect();
 
-  if (rv != ERR_IO_PENDING && request->load_log())
+  if (g_late_binding && rv != ERR_IO_PENDING && request->load_log())
     request->load_log()->Append(job_load_log);
 
   if (rv == OK) {
@@ -227,8 +236,14 @@ int ClientSocketPoolBaseHelper::RequestSocket(
     connecting_socket_count_++;
 
     ConnectJob* job = connect_job.release();
-    CHECK(!ContainsKey(connect_job_map_, handle));
-    InsertRequestIntoQueue(request, &group.pending_requests);
+    if (g_late_binding) {
+      CHECK(!ContainsKey(connect_job_map_, handle));
+      InsertRequestIntoQueue(request, &group.pending_requests);
+    } else {
+      group.connecting_requests[handle] = request;
+      CHECK(!ContainsKey(connect_job_map_, handle));
+      connect_job_map_[handle] = job;
+    }
     group.jobs.insert(job);
   } else if (group.IsEmpty()) {
     group_map_.erase(group_name);
@@ -251,12 +266,27 @@ void ClientSocketPoolBaseHelper::CancelRequest(
       LoadLog::AddEvent(req->load_log(), LoadLog::TYPE_CANCELLED);
       LoadLog::EndEvent(req->load_log(), LoadLog::TYPE_SOCKET_POOL);
       delete req;
-      if (group.jobs.size() > group.pending_requests.size() + 1) {
+      if (g_late_binding &&
+          group.jobs.size() > group.pending_requests.size() + 1) {
         // TODO(willchan): Cancel the job in the earliest LoadState.
-        RemoveConnectJob(*group.jobs.begin(), &group);
+        RemoveConnectJob(handle, *group.jobs.begin(), &group);
         OnAvailableSocketSlot(group_name, &group);
       }
       return;
+    }
+  }
+
+  if (!g_late_binding) {
+    // It's invalid to cancel a non-existent request.
+    CHECK(ContainsKey(group.connecting_requests, handle));
+
+    RequestMap::iterator map_it = group.connecting_requests.find(handle);
+    if (map_it != group.connecting_requests.end()) {
+      scoped_refptr<LoadLog> log(map_it->second->load_log());
+      LoadLog::AddEvent(log, LoadLog::TYPE_CANCELLED);
+      LoadLog::EndEvent(log, LoadLog::TYPE_SOCKET_POOL);
+      RemoveConnectJob(handle, NULL, &group);
+      OnAvailableSocketSlot(group_name, &group);
     }
   }
 }
@@ -312,7 +342,7 @@ LoadState ClientSocketPoolBaseHelper::GetLoadState(
   RequestQueue::const_iterator it = group.pending_requests.begin();
   for (size_t i = 0; it != group.pending_requests.end(); ++it, ++i) {
     if ((*it)->handle() == handle) {
-      if (i < group.jobs.size()) {
+      if (g_late_binding && i < group.jobs.size()) {
         LoadState max_state = LOAD_STATE_IDLE;
         for (ConnectJobSet::const_iterator job_it = group.jobs.begin();
              job_it != group.jobs.end(); ++job_it) {
@@ -450,38 +480,67 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
   CHECK(group_it != group_map_.end());
   Group& group = group_it->second;
 
+  const ClientSocketHandle* const key_handle = job->key_handle();
   scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
 
-  scoped_refptr<LoadLog> job_load_log(job->load_log());
-  RemoveConnectJob(job, &group);
+  if (g_late_binding) {
+    scoped_refptr<LoadLog> job_load_log(job->load_log());
+    RemoveConnectJob(key_handle, job, &group);
 
-  LoadLog::EndEvent(job_load_log, LoadLog::TYPE_SOCKET_POOL);
-
-  if (result == OK) {
-    DCHECK(socket.get());
+    scoped_ptr<const Request> r;
     if (!group.pending_requests.empty()) {
-      scoped_ptr<const Request> r(RemoveRequestFromQueue(
+      r.reset(RemoveRequestFromQueue(
           group.pending_requests.begin(), &group.pending_requests));
+
       if (r->load_log())
         r->load_log()->Append(job_load_log);
-      HandOutSocket(
-          socket.release(), false /* unused socket */, r->handle(),
-          base::TimeDelta(), &group);
-      r->callback()->Run(result);
+
+      LoadLog::EndEvent(r->load_log(), LoadLog::TYPE_SOCKET_POOL);
+    }
+
+    if (result == OK) {
+      DCHECK(socket.get());
+      if (r.get()) {
+        HandOutSocket(
+            socket.release(), false /* unused socket */, r->handle(),
+            base::TimeDelta(), &group);
+        r->callback()->Run(result);
+      } else {
+        AddIdleSocket(socket.release(), false /* unused socket */, &group);
+        OnAvailableSocketSlot(group_name, &group);
+      }
     } else {
-      AddIdleSocket(socket.release(), false /* unused socket */, &group);
-      OnAvailableSocketSlot(group_name, &group);
+      DCHECK(!socket.get());
+      if (r.get())
+        r->callback()->Run(result);
+      MaybeOnAvailableSocketSlot(group_name);
     }
-  } else {
+
+    return;
+  }
+
+  RequestMap* request_map = &group.connecting_requests;
+  RequestMap::iterator it = request_map->find(key_handle);
+  CHECK(it != request_map->end());
+  const Request* request = it->second;
+  ClientSocketHandle* const handle = request->handle();
+  CompletionCallback* const callback = request->callback();
+
+  LoadLog::EndEvent(request->load_log(), LoadLog::TYPE_SOCKET_POOL);
+
+  RemoveConnectJob(key_handle, job, &group);
+
+  if (result != OK) {
     DCHECK(!socket.get());
-    if (!group.pending_requests.empty()) {
-      scoped_ptr<const Request> r(RemoveRequestFromQueue(
-          group.pending_requests.begin(), &group.pending_requests));
-      if (r->load_log())
-        r->load_log()->Append(job_load_log);
-      r->callback()->Run(result);
-    }
+    callback->Run(result);  // |group| is not necessarily valid after this.
+    // |group| may be invalid after the callback, we need to search
+    // |group_map_| again.
     MaybeOnAvailableSocketSlot(group_name);
+  } else {
+    DCHECK(socket.get());
+    HandOutSocket(socket.release(), false /* not reused */, handle,
+                  base::TimeDelta(), &group);
+    callback->Run(result);
   }
 }
 
@@ -489,13 +548,30 @@ void ClientSocketPoolBaseHelper::OnIPAddressChanged() {
   CloseIdleSockets();
 }
 
-void ClientSocketPoolBaseHelper::RemoveConnectJob(const ConnectJob *job,
-                                                  Group* group) {
+void ClientSocketPoolBaseHelper::EnableLateBindingOfSockets(bool enabled) {
+  g_late_binding = enabled;
+}
+
+void ClientSocketPoolBaseHelper::RemoveConnectJob(
+    const ClientSocketHandle* handle, const ConnectJob *job, Group* group) {
   CHECK(connecting_socket_count_ > 0);
   connecting_socket_count_--;
 
-  DCHECK(job);
-  delete job;
+  if (g_late_binding) {
+    DCHECK(job);
+    delete job;
+  } else {
+    ConnectJobMap::iterator it = connect_job_map_.find(handle);
+    CHECK(it != connect_job_map_.end());
+    job = it->second;
+    delete job;
+    connect_job_map_.erase(it);
+    RequestMap::iterator map_it = group->connecting_requests.find(handle);
+    CHECK(map_it != group->connecting_requests.end());
+    const Request* request = map_it->second;
+    delete request;
+    group->connecting_requests.erase(map_it);
+  }
 
   if (group) {
     DCHECK(ContainsKey(group->jobs, job));
@@ -602,5 +678,9 @@ bool ClientSocketPoolBaseHelper::ReachedMaxSocketsLimit() const {
 }
 
 }  // namespace internal
+
+void EnableLateBindingOfSockets(bool enabled) {
+  internal::ClientSocketPoolBaseHelper::EnableLateBindingOfSockets(enabled);
+}
 
 }  // namespace net
