@@ -529,6 +529,22 @@ std::string CollapseWhitespaceASCII(const std::string& text,
   return CollapseWhitespaceT(text, trim_sequences_with_line_breaks);
 }
 
+bool ContainsOnlyWhitespaceASCII(const std::string& str) {
+  for (std::string::const_iterator i(str.begin()); i != str.end(); ++i) {
+    if (!IsAsciiWhitespace(*i))
+      return false;
+  }
+  return true;
+}
+
+bool ContainsOnlyWhitespace(const string16& str) {
+  for (string16::const_iterator i(str.begin()); i != str.end(); ++i) {
+    if (!IsWhitespace(*i))
+      return false;
+  }
+  return true;
+}
+
 std::string WideToASCII(const std::wstring& wide) {
   DCHECK(IsStringASCII(wide)) << wide;
   return std::string(wide.begin(), wide.end());
