@@ -327,7 +327,6 @@ int KeySizeOfCipherSuite(SSLCipherSuite suite) {
 
 // Whitelist the cipher suites we want to enable.  We disable the following
 // cipher suites.
-// - SSL 2.0 cipher suites.
 // - Null encryption cipher suites.
 // - Weak cipher suites: < 80 bits of security strength.
 // - FORTEZZA cipher suites (obsolete).
@@ -341,6 +340,9 @@ int KeySizeOfCipherSuite(SSLCipherSuite suite) {
 // won't support any new cipher suites in that release.
 bool ShouldEnableCipherSuite(SSLCipherSuite suite) {
   switch (suite) {
+    case SSL_RSA_WITH_3DES_EDE_CBC_MD5:
+    case SSL_RSA_WITH_RC2_CBC_MD5:
+
     case SSL_RSA_WITH_3DES_EDE_CBC_SHA:
     case SSL_DH_DSS_WITH_3DES_EDE_CBC_SHA:       // **
     case SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA:       // **
