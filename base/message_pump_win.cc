@@ -351,6 +351,9 @@ bool MessagePumpForUI::ProcessMessageHelper(const MSG& msg) {
   if (msg.message == kMsgHaveWork && msg.hwnd == message_hwnd_)
     return ProcessPumpReplacementMessage();
 
+  if (CallMsgFilter(const_cast<MSG*>(&msg), kMessageFilterCode))
+    return true;
+
   WillProcessMessage(msg);
 
   if (state_->dispatcher) {

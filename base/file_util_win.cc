@@ -98,6 +98,15 @@ bool Delete(const FilePath& path, bool recursive) {
   return (err == 0 || err == ERROR_FILE_NOT_FOUND);
 }
 
+bool DeleteAfterReboot(const FilePath& path) {
+  if (path.value().length() >= MAX_PATH)
+    return false;
+
+  return MoveFileEx(path.value().c_str(), NULL,
+                    MOVEFILE_DELAY_UNTIL_REBOOT |
+                        MOVEFILE_REPLACE_EXISTING) != FALSE;
+}
+
 bool Move(const FilePath& from_path, const FilePath& to_path) {
   // NOTE: I suspect we could support longer paths, but that would involve
   // analyzing all our usage of files.
