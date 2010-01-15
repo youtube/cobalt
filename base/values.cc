@@ -95,6 +95,11 @@ Value* Value::CreateStringValue(const std::wstring& in_value) {
 }
 
 // static
+Value* Value::CreateStringValueFromUTF16(const string16& in_value) {
+  return new StringValue(in_value);
+}
+
+// static
 BinaryValue* Value::CreateBinaryValue(char* buffer, size_t size) {
   return BinaryValue::Create(buffer, size);
 }
@@ -116,6 +121,10 @@ bool Value::GetAsString(std::string* in_value) const {
 }
 
 bool Value::GetAsString(std::wstring* in_value) const {
+  return false;
+}
+
+bool Value::GetAsUTF16(string16* out_value) const {
   return false;
 }
 
@@ -209,6 +218,13 @@ StringValue::StringValue(const std::wstring& in_value)
       value_(WideToUTF8(in_value)) {
 }
 
+#if !defined(WCHAR_T_IS_UTF16)
+StringValue::StringValue(const string16& in_value)
+    : Value(TYPE_STRING),
+      value_(UTF16ToUTF8(in_value)) {
+}
+#endif
+
 StringValue::~StringValue() {
 }
 
@@ -221,6 +237,12 @@ bool StringValue::GetAsString(std::string* out_value) const {
 bool StringValue::GetAsString(std::wstring* out_value) const {
   if (out_value)
     *out_value = UTF8ToWide(value_);
+  return true;
+}
+
+bool StringValue::GetAsUTF16(string16* out_value) const {
+  if (out_value)
+    *out_value = UTF8ToUTF16(value_);
   return true;
 }
 
@@ -387,6 +409,11 @@ void DictionaryValue::SetString(const std::wstring& path,
   Set(path, CreateStringValue(in_value));
 }
 
+void DictionaryValue::SetStringFromUTF16(const std::wstring& path,
+                                         const string16& in_value) {
+  Set(path, CreateStringValueFromUTF16(in_value));
+}
+
 void DictionaryValue::SetWithoutPathExpansion(const std::wstring& key,
                                               Value* in_value) {
   // If there's an existing value here, we need to delete it, because
@@ -460,6 +487,15 @@ bool DictionaryValue::GetString(const std::wstring& path,
     return false;
 
   return value->GetAsString(out_value);
+}
+
+bool DictionaryValue::GetStringAsUTF16(const std::wstring& path,
+                                       string16* out_value) const {
+  Value* value;
+  if (!Get(path, &value))
+    return false;
+
+  return value->GetAsUTF16(out_value);
 }
 
 bool DictionaryValue::GetBinary(const std::wstring& path,
@@ -540,6 +576,16 @@ bool DictionaryValue::GetStringWithoutPathExpansion(
     return false;
 
   return value->GetAsString(out_value);
+}
+
+bool DictionaryValue::GetStringAsUTF16WithoutPathExpansion(
+    const std::wstring& path,
+    string16* out_value) const {
+  Value* value;
+  if (!GetWithoutPathExpansion(path, &value))
+    return false;
+
+  return value->GetAsUTF16(out_value);
 }
 
 bool DictionaryValue::GetDictionaryWithoutPathExpansion(
@@ -681,6 +727,14 @@ bool ListValue::GetString(size_t index, std::wstring* out_value) const {
     return false;
 
   return value->GetAsString(out_value);
+}
+
+bool ListValue::GetStringAsUTF16(size_t index, string16* out_value) const {
+  Value* value;
+  if (!Get(index, &value))
+    return false;
+
+  return value->GetAsUTF16(out_value);
 }
 
 bool ListValue::GetBinary(size_t index, BinaryValue** out_value) const {
