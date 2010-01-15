@@ -128,6 +128,15 @@ bool Delete(const FilePath& path, bool recursive);
 // Deprecated temporary compatibility function.
 bool Delete(const std::wstring& path, bool recursive);
 
+#if defined(OS_WIN)
+// Schedules to delete the given path, whether it's a file or a directory, until
+// the operating system is restarted.
+// Note:
+// 1) The file/directory to be deleted should exist in a temp folder.
+// 2) The directory to be deleted must be empty.
+bool DeleteAfterReboot(const FilePath& path);
+#endif
+
 // Moves the given path, whether it's a file or a directory.
 // If a simple rename is not possible, such as in the case where the paths are
 // on different volumes, this will attempt to copy and delete. Returns
