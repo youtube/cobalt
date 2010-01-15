@@ -157,6 +157,9 @@ class MessagePumpWin : public MessagePump {
 //
 class MessagePumpForUI : public MessagePumpWin {
  public:
+  // The application-defined code passed to the hook procedure.
+  static const int kMessageFilterCode = 0x5001;
+
   MessagePumpForUI();
   virtual ~MessagePumpForUI();
 

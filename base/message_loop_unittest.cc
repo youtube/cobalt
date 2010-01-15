@@ -1107,7 +1107,12 @@ class DispatcherImpl : public MessageLoopForUI::Dispatcher {
   virtual bool Dispatch(const MSG& msg) {
     ::TranslateMessage(&msg);
     ::DispatchMessage(&msg);
-    return (++dispatch_count_ != 2);
+    // Do not count WM_TIMER since it is not what we post and it will cause
+    // flakiness.
+    if (msg.message != WM_TIMER)
+      ++dispatch_count_;
+    // We treat WM_LBUTTONUP as the last message.
+    return msg.message != WM_LBUTTONUP;
   }
 
   int dispatch_count_;
@@ -1128,6 +1133,37 @@ void RunTest_Dispatcher(MessageLoop::Type message_loop_type) {
   DispatcherImpl dispatcher;
   MessageLoopForUI::current()->Run(&dispatcher);
   ASSERT_EQ(2, dispatcher.dispatch_count_);
+}
+
+LRESULT CALLBACK MsgFilterProc(int code, WPARAM wparam, LPARAM lparam) {
+  if (code == base::MessagePumpForUI::kMessageFilterCode) {
+    MSG* msg = reinterpret_cast<MSG*>(lparam);
+    if (msg->message == WM_LBUTTONDOWN)
+      return TRUE;
+  }
+  return FALSE;
+}
+
+void RunTest_DispatcherWithMessageHook(MessageLoop::Type message_loop_type) {
+  MessageLoop loop(message_loop_type);
+
+  class MyTask : public Task {
+  public:
+    virtual void Run() {
+      PostMessage(NULL, WM_LBUTTONDOWN, 0, 0);
+      PostMessage(NULL, WM_LBUTTONUP, 'A', 0);
+    }
+  };
+  Task* task = new MyTask();
+  MessageLoop::current()->PostDelayedTask(FROM_HERE, task, 100);
+  HHOOK msg_hook = SetWindowsHookEx(WH_MSGFILTER,
+                                    MsgFilterProc,
+                                    NULL,
+                                    GetCurrentThreadId());
+  DispatcherImpl dispatcher;
+  MessageLoopForUI::current()->Run(&dispatcher);
+  ASSERT_EQ(1, dispatcher.dispatch_count_);
+  UnhookWindowsHookEx(msg_hook);
 }
 
 class TestIOHandler : public MessageLoopForIO::IOHandler {
@@ -1421,6 +1457,11 @@ TEST(MessageLoopTest, NonNestableDelayedInNestedLoop) {
 TEST(MessageLoopTest, Dispatcher) {
   // This test requires a UI loop
   RunTest_Dispatcher(MessageLoop::TYPE_UI);
+}
+
+TEST(MessageLoopTest, DispatcherWithMessageHook) {
+  // This test requires a UI loop
+  RunTest_DispatcherWithMessageHook(MessageLoop::TYPE_UI);
 }
 
 TEST(MessageLoopTest, IOHandler) {
