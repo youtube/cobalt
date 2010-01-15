@@ -103,6 +103,39 @@ enum {
   errSSLServerAuthCompletedFlag = -9841
 };
 
+// When compiled against the Mac OS X 10.5 SDK, define symbolic constants for
+// cipher suites added in Mac OS X 10.6.
+#if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5
+enum {
+  // ECC cipher suites from RFC 4492.
+  TLS_ECDH_ECDSA_WITH_NULL_SHA           = 0xC001,
+  TLS_ECDH_ECDSA_WITH_RC4_128_SHA        = 0xC002,
+  TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA   = 0xC003,
+  TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA    = 0xC004,
+  TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA    = 0xC005,
+  TLS_ECDHE_ECDSA_WITH_NULL_SHA          = 0xC006,
+  TLS_ECDHE_ECDSA_WITH_RC4_128_SHA       = 0xC007,
+  TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA  = 0xC008,
+  TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA   = 0xC009,
+  TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA   = 0xC00A,
+  TLS_ECDH_RSA_WITH_NULL_SHA             = 0xC00B,
+  TLS_ECDH_RSA_WITH_RC4_128_SHA          = 0xC00C,
+  TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA     = 0xC00D,
+  TLS_ECDH_RSA_WITH_AES_128_CBC_SHA      = 0xC00E,
+  TLS_ECDH_RSA_WITH_AES_256_CBC_SHA      = 0xC00F,
+  TLS_ECDHE_RSA_WITH_NULL_SHA            = 0xC010,
+  TLS_ECDHE_RSA_WITH_RC4_128_SHA         = 0xC011,
+  TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA    = 0xC012,
+  TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA     = 0xC013,
+  TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA     = 0xC014,
+  TLS_ECDH_anon_WITH_NULL_SHA            = 0xC015,
+  TLS_ECDH_anon_WITH_RC4_128_SHA         = 0xC016,
+  TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA    = 0xC017,
+  TLS_ECDH_anon_WITH_AES_128_CBC_SHA     = 0xC018,
+  TLS_ECDH_anon_WITH_AES_256_CBC_SHA     = 0xC019,
+};
+#endif
+
 typedef OSStatus (*SSLSetSessionOptionFuncPtr)(SSLContextRef,
                                                SSLSetSessionOptionType,
                                                Boolean);
@@ -212,6 +245,11 @@ int KeySizeOfCipherSuite(SSLCipherSuite suite) {
     case SSL_RSA_WITH_NULL_MD5:
     case SSL_RSA_WITH_NULL_SHA:                  // **
     case SSL_FORTEZZA_DMS_WITH_NULL_SHA:         // **
+    case TLS_ECDH_ECDSA_WITH_NULL_SHA:
+    case TLS_ECDHE_ECDSA_WITH_NULL_SHA:
+    case TLS_ECDH_RSA_WITH_NULL_SHA:
+    case TLS_ECDHE_RSA_WITH_NULL_SHA:
+    case TLS_ECDH_anon_WITH_NULL_SHA:
       return 0;
     case SSL_RSA_EXPORT_WITH_RC4_40_MD5:
     case SSL_RSA_EXPORT_WITH_RC2_CBC_40_MD5:
@@ -238,14 +276,24 @@ int KeySizeOfCipherSuite(SSLCipherSuite suite) {
     case SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA:
     case SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
     case SSL_DH_anon_WITH_3DES_EDE_CBC_SHA:
+    case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA:
+    case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:
+    case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA:
+    case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:
+    case TLS_ECDH_anon_WITH_3DES_EDE_CBC_SHA:
       return 112;
     case SSL_RSA_WITH_RC4_128_MD5:
     case SSL_RSA_WITH_RC4_128_SHA:
     case SSL_RSA_WITH_IDEA_CBC_SHA:              // **
     case SSL_DH_anon_WITH_RC4_128_MD5:
+    case TLS_ECDH_ECDSA_WITH_RC4_128_SHA:
+    case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
+    case TLS_ECDH_RSA_WITH_RC4_128_SHA:
+    case TLS_ECDHE_RSA_WITH_RC4_128_SHA:
+    case TLS_ECDH_anon_WITH_RC4_128_SHA:
       return 128;
 
-    // TLS AES options (see RFC 3268)
+    // TLS AES options (see RFC 3268 and RFC 4492)
 
     case TLS_RSA_WITH_AES_128_CBC_SHA:
     case TLS_DH_DSS_WITH_AES_128_CBC_SHA:        // **
@@ -253,6 +301,11 @@ int KeySizeOfCipherSuite(SSLCipherSuite suite) {
     case TLS_DHE_DSS_WITH_AES_128_CBC_SHA:
     case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
     case TLS_DH_anon_WITH_AES_128_CBC_SHA:
+    case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA:
+    case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+    case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA:
+    case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
+    case TLS_ECDH_anon_WITH_AES_128_CBC_SHA:
       return 128;
     case TLS_RSA_WITH_AES_256_CBC_SHA:
     case TLS_DH_DSS_WITH_AES_256_CBC_SHA:        // **
@@ -260,10 +313,74 @@ int KeySizeOfCipherSuite(SSLCipherSuite suite) {
     case TLS_DHE_DSS_WITH_AES_256_CBC_SHA:
     case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
     case TLS_DH_anon_WITH_AES_256_CBC_SHA:
+    case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA:
+    case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+    case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA:
+    case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+    case TLS_ECDH_anon_WITH_AES_256_CBC_SHA:
       return 256;
 
     default:
       return -1;
+  }
+}
+
+// Whitelist the cipher suites we want to enable.  We disable the following
+// cipher suites.
+// - SSL 2.0 cipher suites.
+// - Null encryption cipher suites.
+// - Weak cipher suites: < 80 bits of security strength.
+// - FORTEZZA cipher suites (obsolete).
+// - IDEA cipher suites (RFC 5469 explains why).
+// - Anonymous cipher suites.
+//
+// Why don't we use a blacklist?  A blacklist that isn't updated for a new
+// Mac OS X release is a potential security issue because the new release
+// may have new null encryption or anonymous cipher suites, whereas a
+// whitelist that isn't updated for a new Mac OS X release just means we
+// won't support any new cipher suites in that release.
+bool ShouldEnableCipherSuite(SSLCipherSuite suite) {
+  switch (suite) {
+    case SSL_RSA_WITH_3DES_EDE_CBC_SHA:
+    case SSL_DH_DSS_WITH_3DES_EDE_CBC_SHA:       // **
+    case SSL_DH_RSA_WITH_3DES_EDE_CBC_SHA:       // **
+    case SSL_DHE_DSS_WITH_3DES_EDE_CBC_SHA:
+    case SSL_DHE_RSA_WITH_3DES_EDE_CBC_SHA:
+    case TLS_ECDH_ECDSA_WITH_3DES_EDE_CBC_SHA:
+    case TLS_ECDHE_ECDSA_WITH_3DES_EDE_CBC_SHA:
+    case TLS_ECDH_RSA_WITH_3DES_EDE_CBC_SHA:
+    case TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA:
+
+    case SSL_RSA_WITH_RC4_128_MD5:
+    case SSL_RSA_WITH_RC4_128_SHA:
+    case TLS_ECDH_ECDSA_WITH_RC4_128_SHA:
+    case TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
+    case TLS_ECDH_RSA_WITH_RC4_128_SHA:
+    case TLS_ECDHE_RSA_WITH_RC4_128_SHA:
+
+    case TLS_RSA_WITH_AES_128_CBC_SHA:
+    case TLS_DH_DSS_WITH_AES_128_CBC_SHA:        // **
+    case TLS_DH_RSA_WITH_AES_128_CBC_SHA:        // **
+    case TLS_DHE_DSS_WITH_AES_128_CBC_SHA:
+    case TLS_DHE_RSA_WITH_AES_128_CBC_SHA:
+    case TLS_ECDH_ECDSA_WITH_AES_128_CBC_SHA:
+    case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:
+    case TLS_ECDH_RSA_WITH_AES_128_CBC_SHA:
+    case TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA:
+
+    case TLS_RSA_WITH_AES_256_CBC_SHA:
+    case TLS_DH_DSS_WITH_AES_256_CBC_SHA:        // **
+    case TLS_DH_RSA_WITH_AES_256_CBC_SHA:        // **
+    case TLS_DHE_DSS_WITH_AES_256_CBC_SHA:
+    case TLS_DHE_RSA_WITH_AES_256_CBC_SHA:
+    case TLS_ECDH_ECDSA_WITH_AES_256_CBC_SHA:
+    case TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA:
+    case TLS_ECDH_RSA_WITH_AES_256_CBC_SHA:
+    case TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA:
+      return true;
+
+    default:
+      return false;
   }
 }
 
@@ -304,6 +421,52 @@ X509Certificate* GetServerCert(SSLContextRef ssl_context) {
   }
 
   return x509_cert;
+}
+
+// A class that wraps an array of enabled cipher suites that can be passed to
+// SSLSetEnabledCiphers.
+//
+// Used as a singleton.
+class EnabledCipherSuites {
+ public:
+  EnabledCipherSuites();
+
+  const SSLCipherSuite* ciphers() const {
+    return ciphers_.empty() ? NULL : &ciphers_[0];
+  }
+  size_t num_ciphers() const { return ciphers_.size(); }
+
+ private:
+  std::vector<SSLCipherSuite> ciphers_;
+
+  DISALLOW_COPY_AND_ASSIGN(EnabledCipherSuites);
+};
+
+EnabledCipherSuites::EnabledCipherSuites() {
+  SSLContextRef ssl_context;
+  OSStatus status = SSLNewContext(false, &ssl_context);
+  if (status != noErr)
+    return;
+
+  size_t num_supported_ciphers;
+  status = SSLGetNumberSupportedCiphers(ssl_context, &num_supported_ciphers);
+  if (status != noErr) {
+    SSLDisposeContext(ssl_context);
+    return;
+  }
+  DCHECK_NE(num_supported_ciphers, 0U);
+
+  std::vector<SSLCipherSuite> supported_ciphers(num_supported_ciphers);
+  status = SSLGetSupportedCiphers(ssl_context, &supported_ciphers[0],
+                                  &num_supported_ciphers);
+  SSLDisposeContext(ssl_context);
+  if (status != noErr)
+    return;
+
+  for (size_t i = 0; i < num_supported_ciphers; ++i) {
+    if (ShouldEnableCipherSuite(supported_ciphers[i]))
+      ciphers_.push_back(supported_ciphers[i]);
+  }
 }
 
 }  // namespace
@@ -496,6 +659,13 @@ int SSLClientSocketMac::InitializeSSLContext() {
   status = SSLSetProtocolVersionEnabled(ssl_context_,
                                         kTLSProtocol1,
                                         ssl_config_.tls1_enabled);
+  if (status)
+    return NetErrorFromOSStatus(status);
+
+  const EnabledCipherSuites* enabled_ciphers =
+      Singleton<EnabledCipherSuites>::get();
+  status = SSLSetEnabledCiphers(ssl_context_, enabled_ciphers->ciphers(),
+                                enabled_ciphers->num_ciphers());
   if (status)
     return NetErrorFromOSStatus(status);
 
