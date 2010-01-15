@@ -121,6 +121,8 @@ int MapSecurityError(int err) {
       return ERR_NAME_NOT_RESOLVED;
     case SEC_ERROR_INVALID_ARGS:
       return ERR_INVALID_ARGUMENT;
+    case SSL_ERROR_BAD_CERT_DOMAIN:
+      return ERR_CERT_COMMON_NAME_INVALID;
     case SEC_ERROR_INVALID_TIME:
     case SEC_ERROR_EXPIRED_CERTIFICATE:
       return ERR_CERT_DATE_INVALID;

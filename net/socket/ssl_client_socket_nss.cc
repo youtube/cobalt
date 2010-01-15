@@ -96,7 +96,9 @@ namespace net {
 
 namespace {
 
-int NetErrorFromNSPRError(PRErrorCode err) {
+// The default error mapping function.
+// Maps an NSPR error code to a network error code.
+int MapNSPRError(PRErrorCode err) {
   // TODO(port): fill this out as we learn what's important
   switch (err) {
     case PR_WOULD_BLOCK_ERROR:
@@ -119,22 +121,8 @@ int NetErrorFromNSPRError(PRErrorCode err) {
       return ERR_ADDRESS_INVALID;
 
     case SSL_ERROR_NO_CYPHER_OVERLAP:
+    case SSL_ERROR_UNSUPPORTED_VERSION:
       return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
-    case SSL_ERROR_BAD_CERT_DOMAIN:
-      return ERR_CERT_COMMON_NAME_INVALID;
-    case SEC_ERROR_EXPIRED_CERTIFICATE:
-      return ERR_CERT_DATE_INVALID;
-    case SEC_ERROR_BAD_SIGNATURE:
-      return ERR_CERT_INVALID;
-    case SSL_ERROR_REVOKED_CERT_ALERT:
-    case SEC_ERROR_REVOKED_CERTIFICATE:
-    case SEC_ERROR_REVOKED_KEY:
-      return ERR_CERT_REVOKED;
-    case SEC_ERROR_CA_CERT_INVALID:
-    case SEC_ERROR_UNKNOWN_ISSUER:
-    case SEC_ERROR_UNTRUSTED_CERT:
-    case SEC_ERROR_UNTRUSTED_ISSUER:
-      return ERR_CERT_AUTHORITY_INVALID;
     case SSL_ERROR_HANDSHAKE_FAILURE_ALERT:
       return ERR_SSL_PROTOCOL_ERROR;
 
@@ -144,16 +132,27 @@ int NetErrorFromNSPRError(PRErrorCode err) {
             " mapped to net::ERR_SSL_PROTOCOL_ERROR";
         return ERR_SSL_PROTOCOL_ERROR;
       }
-      if (IS_SEC_ERROR(err)) {
-        // TODO(port): Probably not the best mapping
-        LOG(WARNING) << "Unknown SEC error " << err <<
-            " mapped to net::ERR_CERT_INVALID";
-        return ERR_CERT_INVALID;
-      }
       LOG(WARNING) << "Unknown error " << err <<
           " mapped to net::ERR_FAILED";
       return ERR_FAILED;
     }
+  }
+}
+
+// Context-sensitive error mapping functions.
+
+int MapHandshakeError(PRErrorCode err) {
+  switch (err) {
+    // If the server closed on us, it is a protocol error.
+    // Some TLS-intolerant servers do this when we request TLS.
+    case PR_END_OF_FILE_ERROR:
+    // The handshake may fail because some signature (for example, the
+    // signature in the ServerKeyExchange message for an ephemeral
+    // Diffie-Hellman cipher suite) is invalid.
+    case SEC_ERROR_BAD_SIGNATURE:
+      return ERR_SSL_PROTOCOL_ERROR;
+    default:
+      return MapNSPRError(err);
   }
 }
 
@@ -1040,14 +1039,7 @@ int SSLClientSocketNSS::DoHandshake() {
     // Done!
   } else {
     PRErrorCode prerr = PR_GetError();
-
-    // If the server closed on us, it is a protocol error.
-    // Some TLS-intolerant servers do this when we request TLS.
-    if (prerr == PR_END_OF_FILE_ERROR) {
-      net_error = ERR_SSL_PROTOCOL_ERROR;
-    } else {
-      net_error = NetErrorFromNSPRError(prerr);
-    }
+    net_error = MapHandshakeError(prerr);
 
     // If not done, stay in this state
     if (net_error == ERR_IO_PENDING) {
@@ -1161,7 +1153,7 @@ int SSLClientSocketNSS::DoPayloadRead() {
     return ERR_IO_PENDING;
   }
   LeaveFunction("");
-  return NetErrorFromNSPRError(prerr);
+  return MapNSPRError(prerr);
 }
 
 int SSLClientSocketNSS::DoPayloadWrite() {
@@ -1178,7 +1170,7 @@ int SSLClientSocketNSS::DoPayloadWrite() {
     return ERR_IO_PENDING;
   }
   LeaveFunction("");
-  return NetErrorFromNSPRError(prerr);
+  return MapNSPRError(prerr);
 }
 
 }  // namespace net
