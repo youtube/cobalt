@@ -4,8 +4,10 @@
 
 #include <limits>
 
-#include "base/values.h"
 #include "base/scoped_ptr.h"
+#include "base/string_util.h"
+#include "base/string16.h"
+#include "base/values.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 class ValuesTest: public testing::Test {
@@ -132,18 +134,35 @@ TEST(ValuesTest, StringValue) {
   scoped_ptr<Value> wide_value(Value::CreateStringValue(L"wide"));
   ASSERT_TRUE(wide_value.get());
   ASSERT_TRUE(wide_value->IsType(Value::TYPE_STRING));
+  scoped_ptr<Value> utf16_value(
+      Value::CreateStringValueFromUTF16(ASCIIToUTF16("utf16")));
+  ASSERT_TRUE(utf16_value.get());
+  ASSERT_TRUE(utf16_value->IsType(Value::TYPE_STRING));
 
   // Test overloaded GetString.
   std::string narrow = "http://google.com";
   std::wstring wide = L"http://google.com";
+  string16 utf16 = ASCIIToUTF16("http://google.com");
   ASSERT_TRUE(narrow_value->GetAsString(&narrow));
   ASSERT_TRUE(narrow_value->GetAsString(&wide));
+  ASSERT_TRUE(narrow_value->GetAsUTF16(&utf16));
   ASSERT_EQ(std::string("narrow"), narrow);
   ASSERT_EQ(std::wstring(L"narrow"), wide);
+  ASSERT_EQ(ASCIIToUTF16("narrow"), utf16);
+
   ASSERT_TRUE(wide_value->GetAsString(&narrow));
   ASSERT_TRUE(wide_value->GetAsString(&wide));
+  ASSERT_TRUE(wide_value->GetAsUTF16(&utf16));
   ASSERT_EQ(std::string("wide"), narrow);
   ASSERT_EQ(std::wstring(L"wide"), wide);
+  ASSERT_EQ(ASCIIToUTF16("wide"), utf16);
+
+  ASSERT_TRUE(utf16_value->GetAsString(&narrow));
+  ASSERT_TRUE(utf16_value->GetAsString(&wide));
+  ASSERT_TRUE(utf16_value->GetAsUTF16(&utf16));
+  ASSERT_EQ(std::string("utf16"), narrow);
+  ASSERT_EQ(std::wstring(L"utf16"), wide);
+  ASSERT_EQ(ASCIIToUTF16("utf16"), utf16);
 }
 
 // This is a Value object that allows us to tell if it's been
@@ -331,6 +350,9 @@ TEST(ValuesTest, DeepCopy) {
   original_dict.Set(L"string", original_string);
   Value* original_wstring = Value::CreateStringValue(L"peek-a-boo");
   original_dict.Set(L"wstring", original_wstring);
+  Value* original_utf16 =
+      Value::CreateStringValueFromUTF16(ASCIIToUTF16("hello16"));
+  original_dict.Set(L"utf16", original_utf16);
 
   char* original_buffer = new char[42];
   memset(original_buffer, '!', 42);
@@ -389,10 +411,13 @@ TEST(ValuesTest, DeepCopy) {
   ASSERT_TRUE(copy_string->IsType(Value::TYPE_STRING));
   std::string copy_string_value;
   std::wstring copy_wstring_value;
+  string16 copy_utf16_value;
   ASSERT_TRUE(copy_string->GetAsString(&copy_string_value));
   ASSERT_TRUE(copy_string->GetAsString(&copy_wstring_value));
+  ASSERT_TRUE(copy_string->GetAsUTF16(&copy_utf16_value));
   ASSERT_EQ(std::string("hello"), copy_string_value);
   ASSERT_EQ(std::wstring(L"hello"), copy_wstring_value);
+  ASSERT_EQ(ASCIIToUTF16("hello"), copy_utf16_value);
 
   Value* copy_wstring = NULL;
   ASSERT_TRUE(copy_dict->Get(L"wstring", &copy_wstring));
@@ -401,8 +426,22 @@ TEST(ValuesTest, DeepCopy) {
   ASSERT_TRUE(copy_wstring->IsType(Value::TYPE_STRING));
   ASSERT_TRUE(copy_wstring->GetAsString(&copy_string_value));
   ASSERT_TRUE(copy_wstring->GetAsString(&copy_wstring_value));
+  ASSERT_TRUE(copy_wstring->GetAsUTF16(&copy_utf16_value));
   ASSERT_EQ(std::string("peek-a-boo"), copy_string_value);
   ASSERT_EQ(std::wstring(L"peek-a-boo"), copy_wstring_value);
+  ASSERT_EQ(ASCIIToUTF16("peek-a-boo"), copy_utf16_value);
+
+  Value* copy_utf16 = NULL;
+  ASSERT_TRUE(copy_dict->Get(L"utf16", &copy_utf16));
+  ASSERT_TRUE(copy_utf16);
+  ASSERT_NE(copy_utf16, original_utf16);
+  ASSERT_TRUE(copy_utf16->IsType(Value::TYPE_STRING));
+  ASSERT_TRUE(copy_utf16->GetAsString(&copy_string_value));
+  ASSERT_TRUE(copy_utf16->GetAsString(&copy_wstring_value));
+  ASSERT_TRUE(copy_utf16->GetAsUTF16(&copy_utf16_value));
+  ASSERT_EQ(std::string("hello16"), copy_string_value);
+  ASSERT_EQ(std::wstring(L"hello16"), copy_wstring_value);
+  ASSERT_EQ(ASCIIToUTF16("hello16"), copy_utf16_value);
 
   Value* copy_binary = NULL;
   ASSERT_TRUE(copy_dict->Get(L"binary", &copy_binary));

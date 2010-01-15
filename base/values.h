@@ -27,6 +27,8 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/string16.h"
+#include "build/build_config.h"
 
 class Value;
 class FundamentalValue;
@@ -54,6 +56,7 @@ class Value {
   static Value* CreateRealValue(double in_value);
   static Value* CreateStringValue(const std::string& in_value);
   static Value* CreateStringValue(const std::wstring& in_value);
+  static Value* CreateStringValueFromUTF16(const string16& in_value);
 
   // This one can return NULL if the input isn't valid.  If the return value
   // is non-null, the new object has taken ownership of the buffer pointer.
@@ -89,6 +92,7 @@ class Value {
   virtual bool GetAsReal(double* out_value) const;
   virtual bool GetAsString(std::string* out_value) const;
   virtual bool GetAsString(std::wstring* out_value) const;
+  virtual bool GetAsUTF16(string16* out_value) const;
 
   // This creates a deep copy of the entire Value tree, and returns a pointer
   // to the copy.  The caller gets ownership of the copy, of course.
@@ -146,11 +150,17 @@ class StringValue : public Value {
   // Initializes a StringValue with a wide character string.
   explicit StringValue(const std::wstring& in_value);
 
+#if !defined(WCHAR_T_IS_UTF16)
+  // Initializes a StringValue with a string16.
+  explicit StringValue(const string16& in_value);
+#endif
+
   ~StringValue();
 
   // Subclassed methods
   bool GetAsString(std::string* out_value) const;
   bool GetAsString(std::wstring* out_value) const;
+  bool GetAsUTF16(string16* out_value) const;
   Value* DeepCopy() const;
   virtual bool Equals(const Value* other) const;
 
@@ -233,6 +243,7 @@ class DictionaryValue : public Value {
   void SetReal(const std::wstring& path, double in_value);
   void SetString(const std::wstring& path, const std::string& in_value);
   void SetString(const std::wstring& path, const std::wstring& in_value);
+  void SetStringFromUTF16(const std::wstring& path, const string16& in_value);
 
   // Like Set(), but without special treatment of '.'.  This allows e.g. URLs to
   // be used as paths.
@@ -255,6 +266,7 @@ class DictionaryValue : public Value {
   bool GetReal(const std::wstring& path, double* out_value) const;
   bool GetString(const std::wstring& path, std::string* out_value) const;
   bool GetString(const std::wstring& path, std::wstring* out_value) const;
+  bool GetStringAsUTF16(const std::wstring& path, string16* out_value) const;
   bool GetBinary(const std::wstring& path, BinaryValue** out_value) const;
   bool GetDictionary(const std::wstring& path,
                      DictionaryValue** out_value) const;
@@ -270,6 +282,8 @@ class DictionaryValue : public Value {
                                      std::string* out_value) const;
   bool GetStringWithoutPathExpansion(const std::wstring& path,
                                      std::wstring* out_value) const;
+  bool GetStringAsUTF16WithoutPathExpansion(const std::wstring& path,
+                                            string16* out_value) const;
   bool GetDictionaryWithoutPathExpansion(const std::wstring& path,
                                          DictionaryValue** out_value) const;
   bool GetListWithoutPathExpansion(const std::wstring& path,
@@ -358,6 +372,7 @@ class ListValue : public Value {
   bool GetReal(size_t index, double* out_value) const;
   bool GetString(size_t index, std::string* out_value) const;
   bool GetString(size_t index, std::wstring* out_value) const;
+  bool GetStringAsUTF16(size_t index, string16* out_value) const;
   bool GetBinary(size_t index, BinaryValue** out_value) const;
   bool GetDictionary(size_t index, DictionaryValue** out_value) const;
   bool GetList(size_t index, ListValue** out_value) const;
