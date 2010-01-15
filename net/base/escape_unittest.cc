@@ -58,7 +58,17 @@ TEST(EscapeTest, EscapeTextForFormSubmission) {
   };
   for (size_t i = 0; i < arraysize(escape_cases); ++i) {
     EscapeCase value = escape_cases[i];
-    EXPECT_EQ(value.output, EscapeQueryParamValueUTF8(value.input));
+    EXPECT_EQ(value.output, EscapeQueryParamValueUTF8(value.input, true));
+  }
+
+  const EscapeCase escape_cases_no_plus[] = {
+    {L"foo", L"foo"},
+    {L"foo bar", L"foo%20bar"},
+    {L"foo++", L"foo%2B%2B"}
+  };
+  for (size_t i = 0; i < arraysize(escape_cases_no_plus); ++i) {
+    EscapeCase value = escape_cases_no_plus[i];
+    EXPECT_EQ(value.output, EscapeQueryParamValueUTF8(value.input, false));
   }
 
   // Test all the values in we're supposed to be escaping.
@@ -70,7 +80,7 @@ TEST(EscapeTest, EscapeTextForFormSubmission) {
   for (int i = 0; i < 256; ++i) {
     std::string in;
     in.push_back(i);
-    std::string out = EscapeQueryParamValue(in);
+    std::string out = EscapeQueryParamValue(in, true);
     if (0 == i) {
       EXPECT_EQ(out, std::string("%00"));
     } else if (32 == i) {
@@ -94,9 +104,14 @@ TEST(EscapeTest, EscapeTextForFormSubmission) {
     test_str.push_back(i);
   }
   string16 wide;
-  EXPECT_TRUE(EscapeQueryParamValue(test_str, base::kCodepageUTF8, &wide));
+  EXPECT_TRUE(EscapeQueryParamValue(test_str, base::kCodepageUTF8, true,
+                                    &wide));
   EXPECT_EQ(UTF16ToWideHack(wide),
-            EscapeQueryParamValueUTF8(UTF16ToWideHack(test_str)));
+            EscapeQueryParamValueUTF8(UTF16ToWideHack(test_str), true));
+  EXPECT_TRUE(EscapeQueryParamValue(test_str, base::kCodepageUTF8, false,
+                                    &wide));
+  EXPECT_EQ(UTF16ToWideHack(wide),
+            EscapeQueryParamValueUTF8(UTF16ToWideHack(test_str), false));
 }
 
 TEST(EscapeTest, EscapePath) {
