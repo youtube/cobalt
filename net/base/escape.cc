@@ -190,14 +190,11 @@ std::string EscapeQueryParamValue(const std::string& text, bool use_plus) {
   return Escape(text, kQueryCharmap, use_plus);
 }
 
-std::string EscapeQueryParamValue(const std::string& text) {
-  return Escape(text, kQueryCharmap, true);
-}
-
 // Convert the string to a sequence of bytes and then % escape anything
 // except alphanumerics and !'()*-._~
-std::wstring EscapeQueryParamValueUTF8(const std::wstring& text) {
-  return UTF8ToWide(Escape(WideToUTF8(text), kQueryCharmap, true));
+std::wstring EscapeQueryParamValueUTF8(const std::wstring& text,
+                                       bool use_plus) {
+  return UTF8ToWide(Escape(WideToUTF8(text), kQueryCharmap, use_plus));
 }
 
 // non-printable, non-7bit, and (including space)  "#%:<>?[\]^`{|}
@@ -239,7 +236,7 @@ std::string EscapeExternalHandlerValue(const std::string& text) {
 }
 
 bool EscapeQueryParamValue(const string16& text, const char* codepage,
-                           string16* escaped) {
+                           bool use_plus, string16* escaped) {
   // TODO(brettw) bug 1201094: this function should be removed, this "SKIP"
   // behavior is wrong when the character can't be encoded properly.
   std::string encoded;
@@ -247,7 +244,7 @@ bool EscapeQueryParamValue(const string16& text, const char* codepage,
                              base::OnStringConversionError::SKIP, &encoded))
     return false;
 
-  escaped->assign(UTF8ToUTF16(Escape(encoded, kQueryCharmap, true)));
+  escaped->assign(UTF8ToUTF16(Escape(encoded, kQueryCharmap, use_plus)));
   return true;
 }
 

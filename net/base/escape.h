@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_BASE_ESCAPE_H__
-#define NET_BASE_ESCAPE_H__
+#ifndef NET_BASE_ESCAPE_H_
+#define NET_BASE_ESCAPE_H_
 
 #include <string>
 
@@ -117,16 +117,15 @@ string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
 //
 // TODO(brettw) bug 1201094: This function should be removed. See the bug for
 // why and what callers should do instead.
-std::string EscapeQueryParamValue(const std::string& text);
 std::string EscapeQueryParamValue(const std::string& text, bool use_plus);
 bool EscapeQueryParamValue(const string16& text, const char* codepage,
-                           string16* escaped);
+                           bool use_plus, string16* escaped);
 
 // A specialized version of EscapeQueryParamValue for wide strings that
 // assumes the codepage is UTF8.  This is provided as a convenience.
 //
 // TODO(brettw) bug 1201094: This function should be removed. See the bug for
 // why and what callers should do instead.
-std::wstring EscapeQueryParamValueUTF8(const std::wstring& text);
+std::wstring EscapeQueryParamValueUTF8(const std::wstring& text, bool use_plus);
 
-#endif  // #ifndef NET_BASE_ESCAPE_H__
+#endif  // NET_BASE_ESCAPE_H_
