@@ -227,6 +227,7 @@ bool WideToLatin1(const std::wstring& wide, std::string* latin1);
 // add a new function for that.
 bool IsString8Bit(const std::wstring& str);
 bool IsStringUTF8(const std::string& str);
+bool IsStringWideUTF8(const std::wstring& str);
 bool IsStringASCII(const std::wstring& str);
 bool IsStringASCII(const base::StringPiece& str);
 bool IsStringASCII(const string16& str);
