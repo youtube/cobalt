@@ -24,6 +24,8 @@
 #include "base/logging.h"
 #include "base/singleton.h"
 #include "base/third_party/dmg_fp/dmg_fp.h"
+#include "base/utf_string_conversion_utils.h"
+#include "base/third_party/icu/icu_utf.h"
 
 namespace {
 
@@ -611,140 +613,19 @@ bool IsStringASCII(const base::StringPiece& str) {
   return DoIsStringASCII(str);
 }
 
-// Helper functions that determine whether the given character begins a
-// UTF-8 sequence of bytes with the given length. A character satisfies
-// "IsInUTF8Sequence" if it is anything but the first byte in a multi-byte
-// character.
-static inline bool IsBegin2ByteUTF8(int c) {
-  return (c & 0xE0) == 0xC0;
-}
-static inline bool IsBegin3ByteUTF8(int c) {
-  return (c & 0xF0) == 0xE0;
-}
-static inline bool IsBegin4ByteUTF8(int c) {
-  return (c & 0xF8) == 0xF0;
-}
-static inline bool IsInUTF8Sequence(int c) {
-  return (c & 0xC0) == 0x80;
-}
-
-// This function was copied from Mozilla, with modifications. The original code
-// was 'IsUTF8' in xpcom/string/src/nsReadableUtils.cpp. The license block for
-// this function is:
-//   This function subject to the Mozilla Public License Version
-//   1.1 (the "License"); you may not use this code except in compliance with
-//   the License. You may obtain a copy of the License at
-//   http://www.mozilla.org/MPL/
-//
-//   Software distributed under the License is distributed on an "AS IS" basis,
-//   WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
-//   for the specific language governing rights and limitations under the
-//   License.
-//
-//   The Original Code is mozilla.org code.
-//
-//   The Initial Developer of the Original Code is
-//   Netscape Communications Corporation.
-//   Portions created by the Initial Developer are Copyright (C) 2000
-//   the Initial Developer. All Rights Reserved.
-//
-//   Contributor(s):
-//     Scott Collins <scc@mozilla.org> (original author)
-//
-// This is a template so that it can be run on wide and 8-bit strings. We want
-// to run it on wide strings when we have input that we think may have
-// originally been UTF-8, but has been converted to wide characters because
-// that's what we (and Windows) use internally.
-template<typename CHAR>
-static bool IsStringUTF8T(const CHAR* str, size_t length) {
-  bool overlong = false;
-  bool surrogate = false;
-  bool nonchar = false;
-
-  // overlong byte upper bound
-  typename ToUnsigned<CHAR>::Unsigned olupper = 0;
-
-  // surrogate byte lower bound
-  typename ToUnsigned<CHAR>::Unsigned slower = 0;
-
-  // incremented when inside a multi-byte char to indicate how many bytes
-  // are left in the sequence
-  int positions_left = 0;
-
-  for (uintptr_t i = 0; i < length; i++) {
-    // This whole function assume an unsigned value so force its conversion to
-    // an unsigned value.
-    typename ToUnsigned<CHAR>::Unsigned c = str[i];
-    if (c < 0x80)
-      continue;  // ASCII
-
-    if (c <= 0xC1) {
-      // [80-BF] where not expected, [C0-C1] for overlong
-      return false;
-    } else if (IsBegin2ByteUTF8(c)) {
-      positions_left = 1;
-    } else if (IsBegin3ByteUTF8(c)) {
-      positions_left = 2;
-      if (c == 0xE0) {
-        // to exclude E0[80-9F][80-BF]
-        overlong = true;
-        olupper = 0x9F;
-      } else if (c == 0xED) {
-        // ED[A0-BF][80-BF]: surrogate codepoint
-        surrogate = true;
-        slower = 0xA0;
-      } else if (c == 0xEF) {
-        // EF BF [BE-BF] : non-character
-        // TODO(jungshik): EF B7 [90-AF] should be checked as well.
-        nonchar = true;
-      }
-    } else if (c <= 0xF4) {
-      positions_left = 3;
-      nonchar = true;
-      if (c == 0xF0) {
-        // to exclude F0[80-8F][80-BF]{2}
-        overlong = true;
-        olupper = 0x8F;
-      } else if (c == 0xF4) {
-        // to exclude F4[90-BF][80-BF]
-        // actually not surrogates but codepoints beyond 0x10FFFF
-        surrogate = true;
-        slower = 0x90;
-      }
-    } else {
-      return false;
-    }
-
-    // eat the rest of this multi-byte character
-    while (positions_left) {
-      positions_left--;
-      i++;
-      c = str[i];
-      if (!c)
-        return false;  // end of string but not end of character sequence
-
-      // non-character : EF BF [BE-BF] or F[0-7] [89AB]F BF [BE-BF]
-      if (nonchar && ((!positions_left && c < 0xBE) ||
-                      (positions_left == 1 && c != 0xBF) ||
-                      (positions_left == 2 && 0x0F != (0x0F & c) ))) {
-        nonchar = false;
-      }
-      if (!IsInUTF8Sequence(c) || (overlong && c <= olupper) ||
-          (surrogate && slower <= c) || (nonchar && !positions_left) ) {
-        return false;
-      }
-      overlong = surrogate = false;
-    }
-  }
-  return true;
-}
-
 bool IsStringUTF8(const std::string& str) {
-  return IsStringUTF8T(str.data(), str.length());
-}
+  const char *src = str.data();
+  int32 src_len = static_cast<int32>(str.length());
+  int32 char_index = 0;
 
-bool IsStringWideUTF8(const std::wstring& str) {
-  return IsStringUTF8T(str.data(), str.length());
+  while (char_index < src_len) {
+    int32 code_point;
+    CBU8_NEXT(src, char_index, src_len, code_point);
+    if (!base::IsValidCodepoint(code_point))
+      return false;
+  }
+
+  return true;
 }
 
 template<typename Iter>
