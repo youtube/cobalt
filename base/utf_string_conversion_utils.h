@@ -12,12 +12,11 @@
 namespace base {
 
 inline bool IsValidCodepoint(uint32 code_point) {
-  // Excludes non-characters (U+FDD0..U+FDEF, and all codepoints ending in
-  // 0xFFFE or 0xFFFF), surrogate code points (U+D800..U+DFFF), and codepoints
-  // larger than U+10FFFF (the highest codepoint allowed).
-  return code_point < 0xD800u || (code_point >= 0xE000u &&
-      code_point < 0xFDD0u) || (code_point > 0xFDEFu &&
-      code_point <= 0x10FFFFu && (code_point & 0xFFFEu) != 0xFFFEu);
+  // Excludes the surrogate code points ([0xD800, 0xDFFF]) and
+  // codepoints larger than 0x10FFFF (the highest codepoint allowed).
+  // Non-characters and unassigned codepoints are allowed.
+  return code_point < 0xD800u ||
+         (code_point >= 0xE000u && code_point <= 0x10FFFFu);
 }
 
 // ReadUnicodeCharacter --------------------------------------------------------
