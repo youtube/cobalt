@@ -62,10 +62,9 @@ IllegalCharacters::IllegalCharacters() {
   DCHECK(U_SUCCESS(status));
   // Add non-characters. If this becomes a performance bottleneck by
   // any chance, do not add these to |set| and change IsFilenameLegal()
-  // to check |ucs4 & 0xFFFEu == 0xFFFEu|, in addition to calling
+  // to check |ucs4 & 0xFFFEu == 0xFFFEu|, in addiition to calling
   // containsNone().
   set->add(0xFDD0, 0xFDEF);
-  set->add(0xFFFD);  // Standard replacement character.
   for (int i = 0; i <= 0x10; ++i) {
     int plane_base = 0x10000 * i;
     set->add(plane_base + 0xFFFE, plane_base + 0xFFFF);
