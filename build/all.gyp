@@ -48,11 +48,6 @@
             '../v8/tools/gyp/v8.gyp:*',
           ],
         }],
-        ['chrome_frame_define==1', {
-          'dependencies': [
-            '../chrome_frame/chrome_frame.gyp:*',
-          ],
-        }],
         ['OS=="mac" or OS=="linux" or OS=="freebsd"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
@@ -95,6 +90,7 @@
           'dependencies': [
             '../breakpad/breakpad.gyp:*',
             '../chrome/app/locales/locales.gyp:*',
+            '../chrome_frame/chrome_frame.gyp:*',
             '../courgette/courgette.gyp:*',
             '../gears/gears.gyp:*',
             '../gpu/demos/demos.gyp:*',
@@ -212,6 +208,7 @@
             # mini_installer_tests depends on mini_installer. This should be
             # defined in installer.gyp.
             '../chrome/installer/mini_installer.gyp:mini_installer',
+            '../chrome/installer/mini_installer.gyp:chrome_frame_mini_installer',
             '../courgette/courgette.gyp:courgette_unittests',
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
@@ -241,6 +238,7 @@
             # mini_installer_tests depends on mini_installer. This should be
             # defined in installer.gyp.
             '../chrome/installer/mini_installer.gyp:mini_installer',
+            '../chrome/installer/mini_installer.gyp:chrome_frame_mini_installer',
             '../courgette/courgette.gyp:courgette_unittests',
             '../chrome/chrome.gyp:chrome',
             '../chrome_frame/chrome_frame.gyp:npchrome_frame',
