@@ -149,12 +149,6 @@
     # to compile as shared by default
     'library%': 'static_library',
 
-    # The Google Update appid.
-    'google_update_appid%': '{8A69D345-D564-463c-AFF1-A69D9E530F96}',
-
-    # Whether to add the experimental build define.
-    'chrome_frame_define%': 0,
-
     # Whether usage of OpenMAX is enabled.
     'enable_openmax%': 0,
 
@@ -320,9 +314,6 @@
         'defines': ['GOOGLE_CHROME_BUILD'],
       }, {  # else: branding!="Chrome"
         'defines': ['CHROMIUM_BUILD'],
-      }],
-      ['chrome_frame_define', {
-        'defines': ['CHROME_FRAME_BUILD'],
       }],
       ['toolkit_views==1 or chromeos==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
