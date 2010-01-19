@@ -740,8 +740,41 @@ int SocketStream::DoSSLConnect() {
 }
 
 int SocketStream::DoSSLConnectComplete(int result) {
-  if (IsCertificateError(result))
-    result = HandleCertificateError(result);
+  if (IsCertificateError(result)) {
+    if (socket_->IsConnectedAndIdle()) {
+      result = HandleCertificateError(result);
+    } else {
+      // SSLClientSocket for Mac will report socket is not connected,
+      // if it returns cert verification error.  It didn't perform
+      // SSLHandshake yet.
+      // So, we should restart establishing connection with the
+      // certificate in allowed bad certificates in |ssl_config_|.
+      // See also net/http/http_network_transaction.cc
+      //  HandleCertificateError() and RestartIgnoringLastError().
+      SSLClientSocket* ssl_socket =
+        reinterpret_cast<SSLClientSocket*>(socket_.get());
+      SSLInfo ssl_info;
+      ssl_socket->GetSSLInfo(&ssl_info);
+      SSLConfig::CertAndStatus bad_cert;
+      bad_cert.cert = ssl_info.cert;
+      bad_cert.cert_status = ssl_info.cert_status;
+      if (ssl_config_.IsAllowedBadCert(ssl_info.cert)) {
+        // If we already have the certificate in the set of allowed bad
+        // certificates, we did try it and failed again, so we should not
+        // retry again: the connection should fail at last.
+        next_state_ = STATE_CLOSE;
+        return result;
+      }
+      // Add the bad certificate to the set of allowed certificates in the
+      // SSL info object.
+      ssl_config_.allowed_bad_certs.push_back(bad_cert);
+      // Restart connection ignoring the bad certificate.
+      socket_->Disconnect();
+      socket_.reset();
+      next_state_ = STATE_TCP_CONNECT;
+      return OK;
+    }
+  }
 
   if (result == OK)
     result = DidEstablishConnection();
