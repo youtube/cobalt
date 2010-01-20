@@ -416,7 +416,6 @@
         'proxy/proxy_service.h',
         'proxy/single_threaded_proxy_resolver.cc',
         'proxy/single_threaded_proxy_resolver.h',
-        'socket/client_socket.cc',
         'socket/client_socket.h',
         'socket/client_socket_factory.cc',
         'socket/client_socket_factory.h',
