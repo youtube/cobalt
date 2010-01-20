@@ -647,8 +647,7 @@ void URLRequestHttpJob::AddExtraHeaders() {
 
   URLRequestContext* context = request_->context();
   if (context) {
-    if (context->AllowSendingCookies(request_))
-      request_info_.extra_headers += AssembleRequestCookies();
+    request_info_.extra_headers += AssembleRequestCookies();
 
     // Only add default Accept-Language and Accept-Charset if the request
     // didn't have them specified.
@@ -675,7 +674,8 @@ std::string URLRequestHttpJob::AssembleRequestCookies() {
       options.set_include_httponly();
       std::string cookies = request_->context()->cookie_store()->
           GetCookiesWithOptions(request_->url(), options);
-      if (!cookies.empty())
+      if (context->InterceptRequestCookies(request_, cookies) &&
+          !cookies.empty())
         return "Cookie: " + cookies + "\r\n";
     }
   }
@@ -691,7 +691,7 @@ void URLRequestHttpJob::FetchResponseCookies() {
 
   void* iter = NULL;
   while (response_info_->headers->EnumerateHeader(&iter, name, &value))
-    if (request_->context()->InterceptCookie(request_, &value))
+    if (request_->context()->InterceptResponseCookie(request_, value))
       response_cookies_.push_back(value);
 }
 

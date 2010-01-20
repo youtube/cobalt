@@ -105,16 +105,17 @@ class URLRequestContext :
     referrer_charset_ = charset;
   }
 
-  // Called for each cookie returning for the given request. A pointer to
-  // the cookie is passed so that it can be modified. Returns true if the
-  // cookie was not dropped (it could still be modified though).
-  virtual bool InterceptCookie(const URLRequest* request, std::string* cookie) {
+  // Called before adding cookies to requests. Returns true if cookie can
+  // be added to the request. The cookie might still be modified though.
+  virtual bool InterceptRequestCookies(const URLRequest* request,
+                                       const std::string& cookies) const {
     return true;
   }
 
-  // Called before adding cookies to sent requests. Allows overriding
-  // requests to block sending of cookies.
-  virtual bool AllowSendingCookies(const URLRequest* request) const {
+  // Called before adding cookies from respones to the cookie monster. Returns
+  // true if the cookie can be added. The cookie might still be modified though.
+  virtual bool InterceptResponseCookie(const URLRequest* request,
+                                       const std::string& cookie) const {
     return true;
   }
 
