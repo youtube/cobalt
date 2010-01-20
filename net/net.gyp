@@ -452,8 +452,6 @@
         'socket_stream/socket_stream_metrics.h',
         'socket_stream/socket_stream_throttle.cc',
         'socket_stream/socket_stream_throttle.h',
-        'third_party/parseftp/ParseFTPList.cpp',
-        'third_party/parseftp/ParseFTPList.h',
         'url_request/request_tracker.h',
         'url_request/url_request.cc',
         'url_request/url_request.h',
