@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 
 #include "base/eintr_wrapper.h"
 #include "base/message_loop.h"
@@ -31,10 +32,19 @@ const int kInvalidSocket = -1;
 // Return 0 on success, -1 on failure.
 // Too small a function to bother putting in a library?
 int SetNonBlocking(int fd) {
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (-1 == flags)
-      return flags;
-    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+  int flags = fcntl(fd, F_GETFL, 0);
+  if (-1 == flags)
+    return flags;
+  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+// DisableNagle turns off buffering in the kernel. By default, TCP sockets will
+// wait up to 200ms for more data to complete a packet before transmitting.
+// After calling this function, the kernel will not wait. See TCP_NODELAY in
+// `man 7 tcp`.
+int DisableNagle(int fd) {
+  int on = 1;
+  return setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
 }
 
 // Convert values from <errno.h> to values from "net/base/net_errors.h"
@@ -342,8 +352,16 @@ int TCPClientSocketLibevent::CreateSocket(const addrinfo* ai) {
   if (socket_ == kInvalidSocket)
     return MapPosixError(errno);
 
-  if (SetNonBlocking(socket_))
-    return MapPosixError(errno);
+  if (SetNonBlocking(socket_)) {
+    const int err = MapPosixError(errno);
+    close(socket_);
+    socket_ = kInvalidSocket;
+    return err;
+  }
+
+  // This mirrors the behaviour on Windows. See the comment in
+  // tcp_client_socket_win.cc after searching for "NODELAY".
+  DisableNagle(socket_);  // If DisableNagle fails, we don't care.
 
   return OK;
 }
