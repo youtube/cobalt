@@ -562,6 +562,10 @@ bool SSLClientSocketMac::IsConnectedAndIdle() const {
   return completed_handshake_ && transport_->IsConnectedAndIdle();
 }
 
+int SSLClientSocketMac::GetPeerName(struct sockaddr* name, socklen_t* namelen) {
+  return transport_->GetPeerName(name, namelen);
+}
+
 int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   DCHECK(completed_handshake_);

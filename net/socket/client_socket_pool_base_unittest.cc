@@ -57,12 +57,10 @@ class MockClientSocket : public ClientSocket {
   virtual bool IsConnected() const { return connected_; }
   virtual bool IsConnectedAndIdle() const { return connected_; }
 
-#if defined(OS_LINUX)
   virtual int GetPeerName(struct sockaddr* /* name */,
                           socklen_t* /* namelen */) {
-    return 0;
+    return ERR_UNEXPECTED;
   }
-#endif
 
  private:
   bool connected_;
