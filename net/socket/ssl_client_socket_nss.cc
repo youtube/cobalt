@@ -447,6 +447,10 @@ bool SSLClientSocketNSS::IsConnectedAndIdle() const {
   return ret;
 }
 
+int SSLClientSocketNSS::GetPeerName(struct sockaddr* name, socklen_t* namelen) {
+  return transport_->GetPeerName(name, namelen);
+}
+
 int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
                              CompletionCallback* callback) {
   EnterFunction(buf_len);
