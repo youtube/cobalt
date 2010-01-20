@@ -51,15 +51,23 @@ function start(location) {
 
   document.getElementById("title").innerText = header.innerText;
 }
+
+function onListingParsingError() {
+  var box = document.getElementById("listingParsingErrorBox");
+  box.innerHTML = box.innerHTML.replace("LOCATION", document.location + "?raw");
+  box.style.display = "";
+}
 </script>
 
 <title id="title"></title>
 <style>
   h1 { white-space: nowrap; }
   td.detailsColumn { text-align: right; padding-left: 30px; white-space: nowrap; }
+  #listingParsingErrorBox { border: 1px solid black; background: #fae691; padding: 10px; display: none }
 </style>
 </head>
 <body>
+<div id="listingParsingErrorBox" i18n-values=".innerHTML:listingParsingErrorBoxText"></div>
 <span id="parentDirText" style="display:none" i18n-content="parentDirText"></span>
 <h1 id="header" i18n-content="header"></h1>
 <hr/>
