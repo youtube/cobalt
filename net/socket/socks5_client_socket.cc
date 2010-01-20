@@ -443,11 +443,9 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
   return OK;
 }
 
-#if defined(OS_LINUX)
 int SOCKS5ClientSocket::GetPeerName(struct sockaddr* name,
                                     socklen_t* namelen) {
   return transport_->GetPeerName(name, namelen);
 }
-#endif
 
 }  // namespace net
