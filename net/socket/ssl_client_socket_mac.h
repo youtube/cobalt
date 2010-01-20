@@ -43,6 +43,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
+  virtual int GetPeerName(struct sockaddr* name, socklen_t* namelen);
 
   // Socket methods:
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
