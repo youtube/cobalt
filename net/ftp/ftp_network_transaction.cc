@@ -1177,8 +1177,8 @@ void FtpNetworkTransaction::RecordDataConnectionError(int result) {
     // No connection to the internet.
     NET_ERROR_INTERNET_DISCONNECTED = 5,
 
-    // Could not resolve the destination address.
-    NET_ERROR_ADDRESS_NOT_FOUND = 6,
+    // Could not reach the destination address.
+    NET_ERROR_ADDRESS_UNREACHABLE = 6,
 
     // A programming error in our network stack.
     NET_ERROR_UNEXPECTED = 7,
@@ -1212,7 +1212,7 @@ void FtpNetworkTransaction::RecordDataConnectionError(int result) {
       break;
     case ERR_ADDRESS_INVALID:
     case ERR_ADDRESS_UNREACHABLE:
-      type = NET_ERROR_ADDRESS_NOT_FOUND;
+      type = NET_ERROR_ADDRESS_UNREACHABLE;
       break;
     case ERR_UNEXPECTED:
       type = NET_ERROR_UNEXPECTED;
