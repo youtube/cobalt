@@ -182,8 +182,11 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self.send_header('Content-type', 'text/html')
     self.send_header('Cache-Control', 'max-age=0')
     self.end_headers()
-    self.wfile.write("Time to die")
-    self.server.stop = True
+    if options.never_die:
+      self.wfile.write('I cannot die!! BWAHAHA')
+    else:
+      self.wfile.write('Goodbye cruel world!')
+      self.server.stop = True
 
     return True
 
@@ -639,9 +642,11 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.send_response(int(status_code))
 
       for line in f:
-        # "name: value"
-        name, value = re.findall('(\S+):\s*(.*)', line)[0]
-        self.send_header(name, value)
+        header_values = re.findall('(\S+):\s*(.*)', line)
+        if len(header_values) > 0:
+          # "name: value"
+          name, value = header_values[0]
+          self.send_header(name, value)
       f.close()
     else:
       # Could be more generic once we support mime-type sniffing, but for
@@ -1172,20 +1177,25 @@ if __name__ == '__main__':
   option_parser.add_option("-f", '--ftp', action='store_const',
                            const=SERVER_FTP, default=SERVER_HTTP,
                            dest='server_type',
-                           help='FTP or HTTP server default HTTP')
+                           help='FTP or HTTP server: default is HTTP.')
   option_parser.add_option('--forking', action='store_true', default=False,
                            dest='forking',
-                           help='Serve each request in a separate process')
+                           help='Serve each request in a separate process.')
   option_parser.add_option('', '--port', default='8888', type='int',
-                           help='Port used by the server')
+                           help='Port used by the server.')
   option_parser.add_option('', '--data-dir', dest='data_dir',
-                           help='Directory from which to read the files')
+                           help='Directory from which to read the files.')
   option_parser.add_option('', '--https', dest='cert',
                            help='Specify that https should be used, specify '
                            'the path to the cert containing the private key '
-                           'the server should use')
+                           'the server should use.')
   option_parser.add_option('', '--file-root-url', default='/files/',
                            help='Specify a root URL for files served.')
+  option_parser.add_option('', '--never-die', default=False,
+                           action="store_true",
+                           help='Prevent the server from dying when visiting '
+                           'a /kill URL. Useful for manually running some '
+                           'tests.')
   options, args = option_parser.parse_args()
 
   sys.exit(main(options, args))
