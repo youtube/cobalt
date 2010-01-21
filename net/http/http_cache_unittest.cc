@@ -3331,6 +3331,47 @@ TEST(HttpCache, RangeGET_FastFlakyServer) {
   RemoveMockTransaction(&transaction);
 }
 
+// Tests that when the server gives us less data than expected, we don't keep
+// asking for more data.
+TEST(HttpCache, RangeGET_FastFlakyServer2) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+
+  // First, check with an empty cache (WRITE mode).
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.request_headers = "Range: bytes = 40-49\r\n" EXTRA_HEADER;
+  transaction.data = "rg: 40-";  // Less than expected.
+  transaction.handler = NULL;
+  std::string headers(transaction.response_headers);
+  headers.append("Content-Range: bytes 40-49/80\n");
+  transaction.response_headers = headers.c_str();
+
+  AddMockTransaction(&transaction);
+
+  // Write to the cache.
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Now verify that even in READ_WRITE mode, we forward the bad response to
+  // the caller.
+  transaction.request_headers = "Range: bytes = 60-69\r\n" EXTRA_HEADER;
+  transaction.data = "rg: 60-";  // Less than expected.
+  headers = kRangeGET_TransactionOK.response_headers;
+  headers.append("Content-Range: bytes 60-69/80\n");
+  transaction.response_headers = headers.c_str();
+
+  RunTransactionTest(cache.http_cache(), transaction);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&transaction);
+}
+
 #ifdef NDEBUG
 // This test hits a NOTREACHED so it is a release mode only test.
 TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
