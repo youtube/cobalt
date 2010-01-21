@@ -306,14 +306,8 @@ bool PathExists(const FilePath& path) {
 bool PathIsWritable(const FilePath& path) {
   FilePath test_path(path);
   stat_wrapper_t file_info;
-  if (CallStat(test_path.value().c_str(), &file_info) != 0) {
-    // If the path doesn't exist, test the parent dir.
-    test_path = test_path.DirName();
-    // If the parent dir doesn't exist, then return false (the path is not
-    // directly writable).
-    if (CallStat(test_path.value().c_str(), &file_info) != 0)
-      return false;
-  }
+  if (CallStat(test_path.value().c_str(), &file_info) != 0)
+    return false;
   if (S_IWOTH & file_info.st_mode)
     return true;
   if (getegid() == file_info.st_gid && (S_IWGRP & file_info.st_mode))
