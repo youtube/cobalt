@@ -10,6 +10,7 @@
 #include "base/string_util.h"
 #include "net/http/http_auth_handler_basic.h"
 #include "net/http/http_auth_handler_digest.h"
+#include "net/http/http_auth_handler_negotiate.h"
 #include "net/http/http_auth_handler_ntlm.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
@@ -67,6 +68,8 @@ void HttpAuth::CreateAuthHandler(const std::string& challenge,
     tmp_handler = new HttpAuthHandlerBasic();
   } else if (LowerCaseEqualsASCII(props.scheme(), "digest")) {
     tmp_handler = new HttpAuthHandlerDigest();
+  } else if (LowerCaseEqualsASCII(props.scheme(), "negotiate")) {
+    tmp_handler = new HttpAuthHandlerNegotiate();
   } else if (LowerCaseEqualsASCII(props.scheme(), "ntlm")) {
     tmp_handler = new HttpAuthHandlerNTLM();
   }
