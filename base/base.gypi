@@ -197,6 +197,8 @@
           'stl_util-inl.h',
           'string_piece.cc',
           'string_piece.h',
+          'string_split.cc',
+          'string_split.h',
           'string_tokenizer.h',
           'string_util.cc',
           'string_util.h',

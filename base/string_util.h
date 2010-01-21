@@ -530,6 +530,8 @@ template<typename Char> struct CaseInsensitiveCompareASCII {
   }
 };
 
+// TODO(timsteele): Move these split string functions into their own API on
+// string_split.cc/.h files.
 //-----------------------------------------------------------------------------
 
 // Splits |str| into a vector of strings delimited by |s|. Append the results
