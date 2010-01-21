@@ -185,7 +185,7 @@
     'linux_strip_binary%': 0,
 
     # Enable TCMalloc.
-    'linux_use_tcmalloc%': 1,
+    'linux_use_tcmalloc%': 0,
 
     'linux_fpic%': 0,
 
