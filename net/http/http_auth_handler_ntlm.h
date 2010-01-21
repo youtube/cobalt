@@ -19,6 +19,7 @@
 #define SECURITY_WIN32 1
 #include <windows.h>
 #include <security.h>
+#include "net/http/http_auth_sspi_win.h"
 #endif
 
 #include <string>
@@ -105,7 +106,7 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
                    uint32* out_token_len);
 
 #if defined(NTLM_SSPI)
-  void ResetSecurityContext();
+  HttpAuthSSPI auth_sspi_;
 #endif
 
 #if defined(NTLM_PORTABLE)
@@ -120,12 +121,6 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
   // The base64-encoded string following "NTLM" in the "WWW-Authenticate" or
   // "Proxy-Authenticate" response header.
   std::string auth_data_;
-
-#if defined(NTLM_SSPI)
-  ULONG max_token_len_;
-  CredHandle cred_;
-  CtxtHandle ctxt_;
-#endif
 };
 
 }  // namespace net

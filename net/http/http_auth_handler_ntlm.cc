@@ -15,6 +15,20 @@ std::string HttpAuthHandlerNTLM::GenerateCredentials(
     const std::wstring& password,
     const HttpRequestInfo* request,
     const ProxyInfo* proxy) {
+#if defined(NTLM_SSPI)
+  std::string auth_credentials;
+
+  int rv = auth_sspi_.GenerateCredentials(
+      username,
+      password,
+      origin_,
+      request,
+      proxy,
+      &auth_credentials);
+  if (rv == OK)
+    return auth_credentials;
+  return std::string();
+#else  // !defined(NTLM_SSPI)
   // TODO(wtc): See if we can use char* instead of void* for in_buf and
   // out_buf.  This change will need to propagate to GetNextToken,
   // GenerateType1Msg, and GenerateType3Msg, and perhaps further.
@@ -76,6 +90,7 @@ std::string HttpAuthHandlerNTLM::GenerateCredentials(
   if (!ok)
     return std::string();
   return std::string("NTLM ") + encode_output;
+#endif
 }
 
 // The NTLM challenge header looks like:
@@ -86,6 +101,10 @@ bool HttpAuthHandlerNTLM::ParseChallenge(
   scheme_ = "ntlm";
   score_ = 3;
   properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
+
+#if defined(NTLM_SSPI)
+  return auth_sspi_.ParseChallenge(challenge_begin, challenge_end);
+#else
   auth_data_.clear();
 
   // Verify the challenge's auth-scheme.
@@ -103,6 +122,7 @@ bool HttpAuthHandlerNTLM::ParseChallenge(
   auth_data_.assign(challenge_begin, challenge_end);
 
   return true;
+#endif
 }
 
 }  // namespace net
