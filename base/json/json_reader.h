@@ -34,7 +34,12 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
+
+// Chromium and Chromium OS check out gtest to different places, so we're
+// unable to compile on both if we include gtest_prod.h here.  Instead, include
+// its only contents -- this will need to be updated if the macro ever changes.
+#define FRIEND_TEST(test_case_name, test_name)\
+friend class test_case_name##_##test_name##_Test
 
 class Value;
 
