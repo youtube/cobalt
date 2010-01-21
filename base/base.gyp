@@ -116,6 +116,7 @@
         'stack_container_unittest.cc',
         'stats_table_unittest.cc',
         'string_piece_unittest.cc',
+        'string_split_unittest.cc',
         'string_tokenizer_unittest.cc',
         'string_util_unittest.cc',
         'sys_info_unittest.cc',
