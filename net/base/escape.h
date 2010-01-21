@@ -92,6 +92,8 @@ class UnescapeRule {
 // conversions need to take place, it only unescapes.
 std::string UnescapeURLComponent(const std::string& escaped_text,
                                  UnescapeRule::Type rules);
+string16 UnescapeURLComponent(const string16& escaped_text,
+                              UnescapeRule::Type rules);
 
 // Unescapes the given substring as a URL, and then tries to interpret the
 // result as being encoded as UTF-8. If the result is convertable into UTF-8, it
@@ -105,6 +107,10 @@ std::string UnescapeURLComponent(const std::string& escaped_text,
 string16 UnescapeAndDecodeUTF8URLComponent(const std::string& text,
                                            UnescapeRule::Type rules,
                                            size_t* offset_for_adjustment);
+
+// Unescape the following ampersand character codes from |text|:
+// &lt; &gt; &amp; &quot; &#39;
+string16 UnescapeForHTML(const string16& text);
 
 // Deprecated ------------------------------------------------------------------
 
