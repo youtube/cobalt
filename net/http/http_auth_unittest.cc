@@ -80,11 +80,10 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
     const char* challenge_realm;
   } tests[] = {
     {
-      "WWW-Authenticate: Negotiate\r\n"
+      // TODO(cbentzel): Add tests for both Negotiate and NTLM once Negotiate
+      // is supported on all platforms.
       "WWW-Authenticate: NTLM\r\n",
 
-      // We don't support Negotiate, so pick NTLM.  Either way, realm is
-      // empty.
       "",
     },
     {
