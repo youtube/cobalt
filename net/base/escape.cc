@@ -108,9 +108,10 @@ const char kUrlUnescape[128] = {
      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
 };
 
-std::string UnescapeURLImpl(const std::string& escaped_text,
-                            UnescapeRule::Type rules,
-                            size_t* offset_for_adjustment) {
+template<typename STR>
+STR UnescapeURLImpl(const STR& escaped_text,
+                    UnescapeRule::Type rules,
+                    size_t* offset_for_adjustment) {
   size_t offset_temp = string16::npos;
   if (!offset_for_adjustment)
     offset_for_adjustment = &offset_temp;
@@ -124,13 +125,22 @@ std::string UnescapeURLImpl(const std::string& escaped_text,
   // The output of the unescaping is always smaller than the input, so we can
   // reserve the input size to make sure we have enough buffer and don't have
   // to allocate in the loop below.
-  std::string result;
+  STR result;
   result.reserve(escaped_text.length());
 
   for (size_t i = 0, max = escaped_text.size(); i < max; ++i) {
-    if (escaped_text[i] == '%' && i + 2 < max) {
-      const std::string::value_type most_sig_digit(escaped_text[i + 1]);
-      const std::string::value_type least_sig_digit(escaped_text[i + 2]);
+    if (static_cast<unsigned char>(escaped_text[i]) >= 128) {
+      // Non ASCII character, append as is.
+      result.push_back(escaped_text[i]);
+      continue;
+    }
+
+    char current_char = static_cast<char>(escaped_text[i]);
+    if (current_char == '%' && i + 2 < max) {
+      const typename STR::value_type most_sig_digit(
+          static_cast<typename STR::value_type>(escaped_text[i + 1]));
+      const typename STR::value_type least_sig_digit(
+          static_cast<typename STR::value_type>(escaped_text[i + 2]));
       if (IsHex(most_sig_digit) && IsHex(least_sig_digit)) {
         unsigned char value = HexToInt(most_sig_digit) * 16 +
             HexToInt(least_sig_digit);
@@ -272,11 +282,17 @@ std::string UnescapeURLComponent(const std::string& escaped_text,
   return UnescapeURLImpl(escaped_text, rules, NULL);
 }
 
+string16 UnescapeURLComponent(const string16& escaped_text,
+                              UnescapeRule::Type rules) {
+  return UnescapeURLImpl(escaped_text, rules, NULL);
+}
+
+
 template <class str>
 void AppendEscapedCharForHTMLImpl(typename str::value_type c, str* output) {
   static const struct {
     char key;
-    const char *replacement;
+    const char* replacement;
   } kCharsToEscape[] = {
     { '<', "&lt;" },
     { '>', "&gt;" },
@@ -322,4 +338,39 @@ std::string EscapeForHTML(const std::string& input) {
 
 string16 EscapeForHTML(const string16& input) {
   return EscapeForHTMLImpl(input);
+}
+
+string16 UnescapeForHTML(const string16& input) {
+  static const struct {
+    const wchar_t* ampersand_code;
+    const char replacement;
+  } kEscapeToChars[] = {
+    { L"&lt;", '<' },
+    { L"&gt;", '>' },
+    { L"&amp;", '&' },
+    { L"&quot;", '"' },
+    { L"&#39;", '\''},
+  };
+
+  if (input.find(WideToUTF16(L"&")) == std::string::npos)
+    return input;
+
+  string16 ampersand_chars[ARRAYSIZE_UNSAFE(kEscapeToChars)];
+  string16 text(input);
+  for (string16::iterator iter = text.begin(); iter != text.end(); ++iter) {
+    if (*iter == '&') {
+      // Potential ampersand encode char.
+      size_t index = iter - text.begin();
+      for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kEscapeToChars); i++) {
+        if (ampersand_chars[i].empty())
+          ampersand_chars[i] = WideToUTF16(kEscapeToChars[i].ampersand_code);
+        if (text.find(ampersand_chars[i], index) == index) {
+          text.replace(iter, iter + ampersand_chars[i].length(),
+                       1, kEscapeToChars[i].replacement);
+          break;
+        }
+      }
+    }
+  }
+  return text;
 }
