@@ -1527,8 +1527,12 @@ int HttpCache::Transaction::DoCacheWriteDataComplete(int result) {
   if (result < 0)
     return result;
 
-  if (partial_.get())
-    return DoPartialNetworkReadCompleted(result);
+  if (partial_.get()) {
+    // This may be the last request.
+    if (!(result == 0 && !truncated_ &&
+         (partial_->IsLastRange() || mode_ == WRITE)))
+      return DoPartialNetworkReadCompleted(result);
+  }
 
   if (result == 0)  // End of file.
     DoneWritingToEntry(true);
