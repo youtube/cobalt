@@ -357,6 +357,9 @@ void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
 }
 
 void URLRequest::ResponseStarted() {
+  if (!status_.is_success())
+    net::LoadLog::AddErrorCode(load_log_, status_.os_error());
+
   net::LoadLog::EndEvent(load_log_, net::LoadLog::TYPE_URL_REQUEST_START);
 
   URLRequestJob* job = GetJobManager()->MaybeInterceptResponse(this);
@@ -430,6 +433,10 @@ std::string URLRequest::StripPostSpecificHeaders(const std::string& headers) {
 }
 
 int URLRequest::Redirect(const GURL& location, int http_status_code) {
+  if (net::LoadLog::IsUnbounded(load_log_)) {
+    net::LoadLog::AddString(load_log_, StringPrintf("Redirected (%d) to %s",
+        http_status_code, location.spec().c_str()));
+  }
   if (redirect_limit_ <= 0) {
     DLOG(INFO) << "disallowing redirect: exceeds limit";
     return net::ERR_TOO_MANY_REDIRECTS;
