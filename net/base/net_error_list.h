@@ -291,6 +291,9 @@ NET_ERROR(INVALID_FLIP_STREAM, -335)
 // There are no supported proxies in the provided list.
 NET_ERROR(NO_SUPPORTED_PROXIES, -336)
 
+// There is a FLIP protocol framing error.
+NET_ERROR(FLIP_PROTOCOL_ERROR, -337)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
