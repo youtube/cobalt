@@ -11,6 +11,7 @@ namespace switches {
 const char kAlsaDevice[] = "alsa-device";
 #endif
 
-const char kVideoH264Annexb[] = "video-h264-annexb";
+const char kEnableH264AnnexbFilter[] = "enable-h264-annexb-filter";
+const char kEnableOpenMax[] = "enable-openmax";
 
 }  // namespace switches
