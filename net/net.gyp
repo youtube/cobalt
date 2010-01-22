@@ -524,11 +524,6 @@
             'dependencies': [
               'tld_cleanup',
             ],
-            'link_settings': {
-              'libraries': [
-                '-lIphlpapi.lib',
-              ],
-            },
           },
           {  # else: OS != "win"
             'sources!': [
