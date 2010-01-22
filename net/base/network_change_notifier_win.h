@@ -6,7 +6,6 @@
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_WIN_H_
 
 #include "base/basictypes.h"
-#include "base/object_watcher.h"
 #include "net/base/network_change_notifier_helper.h"
 
 namespace net {
@@ -14,11 +13,6 @@ namespace net {
 class NetworkChangeNotifierWin : public NetworkChangeNotifier {
  public:
   NetworkChangeNotifierWin();
-
-  // Called by NetworkChangeNotifierWin::Impl.
-  void OnIPAddressChanged() { helper_.OnIPAddressChanged(); }
-
-  // NetworkChangeNotifier methods:
 
   virtual void AddObserver(Observer* observer) {
     helper_.AddObserver(observer);
@@ -29,12 +23,11 @@ class NetworkChangeNotifierWin : public NetworkChangeNotifier {
   }
 
  private:
-  class Impl;
-
   virtual ~NetworkChangeNotifierWin();
 
+  void OnIPAddressChanged() { helper_.OnIPAddressChanged(); }
+
   internal::NetworkChangeNotifierHelper helper_;
-  scoped_ptr<Impl> impl_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierWin);
 };
