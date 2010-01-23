@@ -38,7 +38,7 @@
       'variables': {
         # Compute the architecture that we're building on.
         'conditions': [
-          [ 'OS=="linux" or OS=="freebsd"', {
+          [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
             # This handles the Linux platforms we generally deal with. Anything
             # else gets passed through, which probably won't work very well; such
             # hosts should pass an explicit target_arch to gyp.
