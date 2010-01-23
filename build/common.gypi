@@ -187,8 +187,6 @@
     # Enable TCMalloc.
     'linux_use_tcmalloc%': 0,
 
-    'linux_fpic%': 0,
-
     # Set to select the Title Case versions of strings in GRD files.
     'use_titlecase_in_grd_files%': 0,
 
@@ -806,11 +804,6 @@
                   }],
                 ],
               }],
-            ],
-          }],
-          ['linux_fpic==1', {
-            'cflags': [
-              '-fPIC',
             ],
           }],
           ['sysroot!=""', {
