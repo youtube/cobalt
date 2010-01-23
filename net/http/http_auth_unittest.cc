@@ -15,6 +15,7 @@ namespace net {
 TEST(HttpAuthTest, ChooseBestChallenge) {
   static const struct {
     const char* headers;
+    const char* challenge_scheme;
     const char* challenge_realm;
   } tests[] = {
     {
@@ -22,6 +23,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
       "www-authenticate: Basic realm=\"BasicRealm\"\n",
 
       // Basic is the only challenge type, pick it.
+      "basic",
       "BasicRealm",
     },
     {
@@ -29,6 +31,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
       "www-authenticate: Fake realm=\"FooBar\"\n",
 
       // Fake is the only challenge type, but it is unsupported.
+      "",
       "",
     },
     {
@@ -38,6 +41,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
       "www-authenticate: Digest realm=\"DigestRealm\", nonce=\"aaaaaaaaaa\"\n",
 
       // Pick Digset over Basic
+      "digest",
       "DigestRealm",
     },
     {
@@ -46,6 +50,21 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
 
       // Handle null header value.
       "",
+      "",
+    },
+    {
+      "WWW-Authenticate: Negotiate\n"
+      "WWW-Authenticate: NTLM\n",
+
+      // Negotiate is not currently support on non-Windows platforms, so
+      // the choice varies depending on platform.
+#if defined(OS_WIN)
+      "negotiate",
+      "",
+#else
+      "ntlm",
+      "",
+#endif
     }
   };
   GURL origin("http://www.example.com");
@@ -55,7 +74,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
     std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
     headers_with_status_line += tests[i].headers;
     scoped_refptr<net::HttpResponseHeaders> headers(
-       new net::HttpResponseHeaders(
+        new net::HttpResponseHeaders(
             net::HttpUtil::AssembleRawHeaders(
                 headers_with_status_line.c_str(),
                 headers_with_status_line.length())));
@@ -67,8 +86,10 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
                                   &handler);
 
     if (handler) {
+      EXPECT_STREQ(tests[i].challenge_scheme, handler->scheme().c_str());
       EXPECT_STREQ(tests[i].challenge_realm, handler->realm().c_str());
     } else {
+      EXPECT_STREQ("", tests[i].challenge_scheme);
       EXPECT_STREQ("", tests[i].challenge_realm);
     }
   }
@@ -80,8 +101,6 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
     const char* challenge_realm;
   } tests[] = {
     {
-      // TODO(cbentzel): Add tests for both Negotiate and NTLM once Negotiate
-      // is supported on all platforms.
       "WWW-Authenticate: NTLM\r\n",
 
       "",
@@ -108,7 +127,7 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
     std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
     headers_with_status_line += tests[i].headers;
     scoped_refptr<net::HttpResponseHeaders> headers(
-       new net::HttpResponseHeaders(
+        new net::HttpResponseHeaders(
             net::HttpUtil::AssembleRawHeaders(
                 headers_with_status_line.c_str(),
                 headers_with_status_line.length())));
