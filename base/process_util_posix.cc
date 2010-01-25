@@ -182,6 +182,9 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
 #elif defined(OS_FREEBSD)
   static const rlim_t kSystemDefaultMaxFds = 8192;
   static const char fd_dir[] = "/dev/fd";
+#elif defined(OS_OPENBSD)
+  static const rlim_t kSystemDefaultMaxFds = 256;
+  static const char fd_dir[] = "/dev/fd";
 #endif
   std::set<int> saved_fds;
 

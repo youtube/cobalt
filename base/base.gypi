@@ -277,7 +277,7 @@
           '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
         ],
         'conditions': [
-          [ 'OS != "linux" and OS != "freebsd"', {
+          [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd"', {
               'sources/': [
                 ['exclude', '/xdg_mime/'],
                 ['exclude', '/xdg_user_dirs/'],
