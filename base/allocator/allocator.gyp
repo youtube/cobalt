@@ -310,7 +310,7 @@
             '<(tcmalloc_dir)/src/profiler.cc',
           ],
         }],
-        ['OS=="linux" or OS=="freebsd"', {
+        ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
           'sources!': [
             '<(tcmalloc_dir)/src/system-alloc.h',
             '<(tcmalloc_dir)/src/windows/port.cc',
