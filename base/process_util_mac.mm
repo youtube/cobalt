@@ -255,8 +255,8 @@ double ProcessMetrics::GetCPUUsage() {
 
   kern_return_t kr;
 
-  // TODO(thakis): Libtop doesn't use thread info. How can they get away
-  // without it?
+  // Libtop explicitly loops over the threads (libtop_pinfo_update_cpu_usage()
+  // in libtop.c), but this is more concise and gives the same results:
   task_thread_times_info thread_info_data;
   mach_msg_type_number_t thread_info_count = TASK_THREAD_TIMES_INFO_COUNT;
   kr = task_info(task,
@@ -307,8 +307,7 @@ double ProcessMetrics::GetCPUUsage() {
     return 0;
 
   // We add time_delta / 2 so the result is rounded.
-  double cpu = static_cast<double>(
-      (system_time_delta * 100.0 + time_delta / 2.0) / time_delta);
+  double cpu = static_cast<double>((system_time_delta * 100.0) / time_delta);
 
   last_system_time_ = task_time;
   last_time_ = time;
