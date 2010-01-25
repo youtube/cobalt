@@ -37,7 +37,7 @@
         'i18n/word_iterator.h',
       ],
       'conditions': [
-        ['OS == "linux" or OS == "freebsd"', {
+        ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           'dependencies': [
             '../build/linux/system.gyp:gtk',
           ],
@@ -157,7 +157,7 @@
         '../testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        ['OS == "linux" or OS == "freebsd"', {
+        ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           'sources!': [
             'file_version_info_unittest.cc',
             'worker_pool_linux_unittest.cc',
@@ -175,7 +175,7 @@
             '../build/linux/system.gyp:nss',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:xdisplaycheck',
           ],
-        }, {  # OS != "linux" and OS != "freebsd"
+        }, {  # OS != "linux" and OS != "freebsd" and OS != "openbsd"
           'sources!': [
             'message_pump_glib_unittest.cc',
           ]
@@ -238,7 +238,7 @@
         ],
       },
       'conditions': [
-        ['OS == "linux" or OS == "freebsd"', {
+        ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           'dependencies': [
             # Needed to handle the #include chain:
             #   base/test/perf_test_suite.h
@@ -267,7 +267,7 @@
         },
       ],
     }],
-    [ 'OS == "linux" or OS == "freebsd"', {
+    [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
       'targets': [
         {
           'target_name': 'linux_versioninfo',

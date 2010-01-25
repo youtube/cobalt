@@ -85,7 +85,8 @@ int CountFilesCreatedAfter(const FilePath& path,
 
   DIR* dir = opendir(path.value().c_str());
   if (dir) {
-#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD)
+#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
+    !defined(OS_OPENBSD)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
@@ -628,7 +629,8 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
   if (!dir)
     return false;
 
-#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD)
+#if !defined(OS_LINUX) && !defined(OS_MACOSX) && !defined(OS_FREEBSD) && \
+    !defined(OS_OPENBSD)
   #error Port warning: depending on the definition of struct dirent, \
          additional space for pathname may be needed
 #endif
