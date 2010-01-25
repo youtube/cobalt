@@ -11,6 +11,13 @@
 #include "base/hash_tables.h"
 #include "base/logging.h"
 
+// Ownership semantics - own pointer means the pointer is deleted in Remove()
+// & during destruction
+enum IDMapOwnershipSemantics {
+  IDMapExternalPointer,
+  IDMapOwnPointer
+};
+
 // This object maintains a list of IDs that can be quickly converted to
 // pointers to objects. It is implemented as a hash table, optimized for
 // relatively small data sets (in the common case, there will be exactly one
@@ -19,22 +26,30 @@
 // Items can be inserted into the container with arbitrary ID, but the caller
 // must ensure they are unique. Inserting IDs and relying on automatically
 // generated ones is not allowed because they can collide.
-template<class T>
+//
+// This class does not have a virtual destructor, do not inherit from it when
+// ownership semantics are set to own because pointers will leak.
+template<typename T, IDMapOwnershipSemantics OS = IDMapExternalPointer>
 class IDMap {
  private:
-  typedef base::hash_map<int32, T*> HashTable;
+  typedef int32 KeyType;
+  typedef base::hash_map<KeyType, T*> HashTable;
 
  public:
   IDMap() : iteration_depth_(0), next_id_(1), check_on_null_data_(false) {
+  }
+
+  ~IDMap() {
+    Releaser<OS, 0>::release_all(&data_);
   }
 
   // Sets whether Add should CHECK if passed in NULL data. Default is false.
   void set_check_on_null_data(bool value) { check_on_null_data_ = value; }
 
   // Adds a view with an automatically generated unique ID. See AddWithID.
-  int32 Add(T* data) {
+  KeyType Add(T* data) {
     CHECK(!check_on_null_data_ || data);
-    int32 this_id = next_id_;
+    KeyType this_id = next_id_;
     DCHECK(data_.find(this_id) == data_.end()) << "Inserting duplicate item";
     data_[this_id] = data;
     next_id_++;
@@ -45,30 +60,32 @@ class IDMap {
   // the list. The caller either must generate all unique IDs itself and use
   // this function, or allow this object to generate IDs and call Add. These
   // two methods may not be mixed, or duplicate IDs may be generated
-  void AddWithID(T* data, int32 id) {
+  void AddWithID(T* data, KeyType id) {
     CHECK(!check_on_null_data_ || data);
     DCHECK(data_.find(id) == data_.end()) << "Inserting duplicate item";
     data_[id] = data;
   }
 
-  void Remove(int32 id) {
+  void Remove(KeyType id) {
     typename HashTable::iterator i = data_.find(id);
     if (i == data_.end()) {
       NOTREACHED() << "Attempting to remove an item not in the list";
       return;
     }
 
-    if (iteration_depth_ == 0)
+    if (iteration_depth_ == 0) {
+      Releaser<OS, 0>::release(i->second);
       data_.erase(i);
-    else
+    } else {
       removed_ids_.insert(id);
+    }
   }
 
   bool IsEmpty() const {
     return data_.empty();
   }
 
-  T* Lookup(int32 id) const {
+  T* Lookup(KeyType id) const {
     typename HashTable::const_iterator i = data_.find(id);
     if (i == data_.end())
       return NULL;
@@ -100,7 +117,7 @@ class IDMap {
       return iter_ == map_->data_.end();
     }
 
-    int32 GetCurrentKey() const {
+    KeyType GetCurrentKey() const {
       return iter_->first;
     }
 
@@ -130,9 +147,28 @@ class IDMap {
   typedef Iterator<const T> const_iterator;
 
  private:
+
+  // The dummy parameter is there because C++ standard does not allow
+  // explicitly specialized templates inside classes
+  template<IDMapOwnershipSemantics OI, int dummy> struct Releaser {
+    static inline void release(T* ptr) {}
+    static inline void release_all(HashTable* table) {}
+  };
+
+  template<int dummy> struct Releaser<IDMapOwnPointer, dummy> {
+    static inline void release(T* ptr) { delete ptr;}
+    static inline void release_all(HashTable* table) {
+      for (typename HashTable::iterator i = table->begin();
+           i != table->end(); ++i) {
+        delete i->second;
+      }
+      table->clear();
+    }
+  };
+
   void Compact() {
     DCHECK_EQ(0, iteration_depth_);
-    for (std::set<int32>::const_iterator i = removed_ids_.begin();
+    for (std::set<KeyType>::const_iterator i = removed_ids_.begin();
          i != removed_ids_.end(); ++i) {
       Remove(*i);
     }
@@ -146,10 +182,10 @@ class IDMap {
   // Keep set of IDs that should be removed after the outermost iteration has
   // finished. This way we manage to not invalidate the iterator when an element
   // is removed.
-  std::set<int32> removed_ids_;
+  std::set<KeyType> removed_ids_;
 
   // The next ID that we will return from Add()
-  int32 next_id_;
+  KeyType next_id_;
 
   HashTable data_;
 
