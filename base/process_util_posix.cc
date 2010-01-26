@@ -471,7 +471,7 @@ ProcessMetrics::ProcessMetrics(ProcessHandle process,
       last_system_time_(0)
 #if defined(OS_LINUX)
       , last_cpu_(0)
-#elif defined (OS_MACOSX)
+#elif defined(OS_MACOSX)
       , port_provider_(port_provider)
 #endif
 {
@@ -544,7 +544,7 @@ bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
     *child_exited = true;
 
   if (WIFSIGNALED(status)) {
-    switch(WTERMSIG(status)) {
+    switch (WTERMSIG(status)) {
       case SIGSEGV:
       case SIGILL:
       case SIGABRT:

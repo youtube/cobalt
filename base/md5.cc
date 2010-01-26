@@ -33,7 +33,7 @@ struct Context {
 /*
  * Note: this code is harmless on little-endian machines.
  */
-static void byteReverse (unsigned char *buf, unsigned longs){
+static void byteReverse(unsigned char *buf, unsigned longs){
         uint32 t;
         do {
                 t = (uint32)((unsigned)buf[3]<<8 | buf[2]) << 16 |
@@ -175,7 +175,7 @@ void MD5Update(MD5Context *pCtx, const void *inbuf, size_t len){
 
         /* Handle any leading odd-sized chunks */
 
-        if ( t ) {
+        if (t) {
                 unsigned char *p = (unsigned char *)ctx->in + t;
 
                 t = 64-t;
@@ -257,7 +257,7 @@ std::string MD5DigestToBase16(const MD5Digest& digest){
   ret.resize(32);
 
   int j = 0;
-  for(int i = 0; i < 16; i ++){
+  for (int i = 0; i < 16; i ++) {
     int a = digest.a[i];
     ret[j++] = zEncode[(a>>4)&0xf];
     ret[j++] = zEncode[a & 0xf];

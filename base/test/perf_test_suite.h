@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_PERF_TEST_SUITE_H_
-#define BASE_PERF_TEST_SUITE_H_
+#ifndef BASE_TEST_PERF_TEST_SUITE_H_
+#define BASE_TEST_PERF_TEST_SUITE_H_
 
 #include "base/command_line.h"
 #include "base/debug_util.h"
@@ -48,4 +48,4 @@ class PerfTestSuite : public TestSuite {
   }
 };
 
-#endif  // BASE_PERF_TEST_SUITE_H_
+#endif  // BASE_TEST_PERF_TEST_SUITE_H_
