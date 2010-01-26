@@ -20,4 +20,4 @@ double RandDouble();
 
 }  // namespace base
 
-#endif // BASE_RAND_UTIL_H_
+#endif  // BASE_RAND_UTIL_H_

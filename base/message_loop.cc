@@ -72,7 +72,7 @@ static LPTOP_LEVEL_EXCEPTION_FILTER GetTopSEHFilter() {
 MessageLoop* MessageLoop::current() {
   // TODO(darin): sadly, we cannot enable this yet since people call us even
   // when they have no intention of using us.
-  //DCHECK(loop) << "Ouch, did you forget to initialize me?";
+  // DCHECK(loop) << "Ouch, did you forget to initialize me?";
   return lazy_tls_ptr.Pointer()->Get();
 }
 

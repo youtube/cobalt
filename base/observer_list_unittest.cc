@@ -62,7 +62,7 @@ class ThreadSafeDisrupter : public Foo {
 
 class AddInObserve : public Foo {
  public:
-  AddInObserve(ObserverList<Foo>* observer_list)
+  explicit AddInObserve(ObserverList<Foo>* observer_list)
       : added(false),
         observer_list(observer_list),
         adder(1) {

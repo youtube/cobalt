@@ -11,7 +11,7 @@
 #include "base/basictypes.h"
 
 class Version {
-public:
+ public:
   // The version string must be made up of 1 or more uint16's separated
   // by '.'. Returns NULL if string is not in this format.
   // Caller is responsible for freeing the Version object once done.
@@ -30,7 +30,7 @@ public:
 
   const std::vector<uint16>& components() const { return components_; }
 
-private:
+ private:
   Version() {}
   bool InitFromString(const std::string& version_str);
 

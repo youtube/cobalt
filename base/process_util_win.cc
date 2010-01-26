@@ -765,7 +765,7 @@ size_t GetSystemCommitCharge() {
   GetSystemInfo(&system_info);
 
   PERFORMANCE_INFORMATION info;
-  if (! InternalGetPerformanceInfo(&info, sizeof(info))) {
+  if (!InternalGetPerformanceInfo(&info, sizeof(info))) {
     LOG(ERROR) << "Failed to fetch internal performance info.";
     return 0;
   }
