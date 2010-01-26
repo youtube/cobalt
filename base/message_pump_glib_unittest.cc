@@ -296,7 +296,7 @@ namespace {
 // while making sure there is always work to do and events in the queue.
 class ConcurrentHelper : public base::RefCounted<ConcurrentHelper>  {
  public:
-  ConcurrentHelper(EventInjector* injector)
+  explicit ConcurrentHelper(EventInjector* injector)
       : injector_(injector),
         event_count_(kStartingEventCount),
         task_count_(kStartingTaskCount) {

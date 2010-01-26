@@ -171,7 +171,7 @@ struct Tuple4 {
 
 template <class A, class B, class C, class D, class E>
 struct Tuple5 {
-public:
+ public:
   typedef A TypeA;
   typedef B TypeB;
   typedef C TypeC;
@@ -211,7 +211,7 @@ public:
 
 template <class A, class B, class C, class D, class E, class F>
 struct Tuple6 {
-public:
+ public:
   typedef A TypeA;
   typedef B TypeB;
   typedef C TypeC;
@@ -257,7 +257,7 @@ public:
 
 template <class A, class B, class C, class D, class E, class F, class G>
 struct Tuple7 {
-public:
+ public:
   typedef A TypeA;
   typedef B TypeB;
   typedef C TypeC;
@@ -609,9 +609,8 @@ inline void DispatchToMethod(ObjT* obj, Method method,
   (obj->*method)(in.a, in.b, in.c, in.d, &out->a);
 }
 
-template<class ObjT, class Method,
-         class InA, class InB, class InC, class InD, class InE,
-         class OutA>
+template<class ObjT, class Method, class InA, class InB, class InC, class InD,
+         class InE, class OutA>
 inline void DispatchToMethod(ObjT* obj, Method method,
                              const Tuple5<InA, InB, InC, InD, InE>& in,
                              Tuple1<OutA>* out) {

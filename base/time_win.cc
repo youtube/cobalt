@@ -113,7 +113,7 @@ Time Time::Now() {
   //
   // To avoid any drift, we periodically resync the counters to the system
   // clock.
-  while(true) {
+  while (true) {
     TimeTicks ticks = TimeTicks::Now();
 
     // Calculate the time elapsed since we started our timer

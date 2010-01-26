@@ -78,7 +78,7 @@ namespace {
 
 class ScopedSetLocale {
  public:
-  ScopedSetLocale(const char* locale) {
+  explicit ScopedSetLocale(const char* locale) {
     old_locale_ = setlocale(LC_ALL, NULL);
     setlocale(LC_ALL, locale);
   }

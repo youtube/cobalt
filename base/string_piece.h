@@ -55,8 +55,14 @@ class StringPiece {
   size_type length() const { return length_; }
   bool empty() const { return length_ == 0; }
 
-  void clear() { ptr_ = NULL; length_ = 0; }
-  void set(const char* data, size_type len) { ptr_ = data; length_ = len; }
+  void clear() {
+    ptr_ = NULL;
+    length_ = 0;
+  }
+  void set(const char* data, size_type len) {
+    ptr_ = data;
+    length_ = len;
+  }
   void set(const char* str) {
     ptr_ = str;
     length_ = str ? strlen(str) : 0;
