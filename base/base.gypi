@@ -394,6 +394,10 @@
             '../build/util/build_util.gyp:lastchange',
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:nss',
+            'symbolize'
+          ],
+          'defines': [
+            'USE_SYMBOLIZE',
           ],
           'cflags': [
             '-Wno-write-strings',
@@ -599,6 +603,21 @@
               'msvs_target_platform': 'x64',
             },
           },
+        },
+      ],
+    }],
+    [ 'OS == "linux" or OS == "freebsd"', {
+      'targets': [
+        {
+          'target_name': 'symbolize',
+          'type': '<(library)',
+          'cflags': [
+            '-Wno-sign-compare',
+          ],
+          'sources': [
+            'third_party/symbolize/symbolize.cc',
+            'third_party/symbolize/demangle.cc',
+          ],
         },
       ],
     }],
