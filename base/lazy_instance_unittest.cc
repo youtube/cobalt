@@ -41,7 +41,9 @@ int SlowConstructor::constructed = 0;
 
 class SlowDelegate : public base::DelegateSimpleThread::Delegate {
  public:
-  SlowDelegate(base::LazyInstance<SlowConstructor>* lazy) : lazy_(lazy) { }
+  explicit SlowDelegate(base::LazyInstance<SlowConstructor>* lazy)
+      : lazy_(lazy) {}
+
   virtual void Run() {
     EXPECT_EQ(12, lazy_->Get().some_int());
     EXPECT_EQ(12, lazy_->Pointer()->some_int());

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_TEST_FILE_UTIL_H_
-#define BASE_TEST_FILE_UTIL_H_
+#ifndef BASE_TEST_TEST_FILE_UTIL_H_
+#define BASE_TEST_TEST_FILE_UTIL_H_
 
 // File utility functions used only by tests.
 
@@ -33,4 +33,4 @@ bool CopyRecursiveDirNoCache(const FilePath& source_dir,
 
 }  // namespace file_util
 
-#endif  // BASE_TEST_FILE_UTIL_H_
+#endif  // BASE_TEST_TEST_FILE_UTIL_H_

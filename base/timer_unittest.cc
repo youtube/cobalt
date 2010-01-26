@@ -34,7 +34,7 @@ class OneShotTimerTester {
 
 class OneShotSelfDeletingTimerTester {
  public:
-  OneShotSelfDeletingTimerTester(bool* did_run) :
+  explicit OneShotSelfDeletingTimerTester(bool* did_run) :
       did_run_(did_run),
       timer_(new base::OneShotTimer<OneShotSelfDeletingTimerTester>()) {
   }
@@ -54,8 +54,10 @@ class OneShotSelfDeletingTimerTester {
 
 class RepeatingTimerTester {
  public:
-  RepeatingTimerTester(bool* did_run) : did_run_(did_run), counter_(10) {
+  explicit RepeatingTimerTester(bool* did_run)
+      : did_run_(did_run), counter_(10) {
   }
+
   void Start() {
     timer_.Start(TimeDelta::FromMilliseconds(10), this,
                  &RepeatingTimerTester::Run);

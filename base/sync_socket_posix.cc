@@ -63,7 +63,7 @@ bool SyncSocket::CreatePair(SyncSocket* pair[2]) {
   pair[1] = tmp_sockets[1];
   return true;
 
-cleanup:
+ cleanup:
   if (handles[0] != kInvalidHandle)
     (void) close(handles[0]);
   if (handles[1] != kInvalidHandle)
