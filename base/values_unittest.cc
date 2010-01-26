@@ -169,7 +169,7 @@ TEST(ValuesTest, StringValue) {
 // properly deleted by modifying the value of external flag on destruction.
 class DeletionTestValue : public Value {
  public:
-  DeletionTestValue(bool* deletion_flag) : Value(TYPE_NULL) {
+  explicit DeletionTestValue(bool* deletion_flag) : Value(TYPE_NULL) {
     Init(deletion_flag);  // Separate function so that we can use ASSERT_*
   }
 

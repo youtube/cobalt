@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef BASE_TEST_SUITE_H_
-#define BASE_TEST_SUITE_H_
+#ifndef BASE_TEST_TEST_SUITE_H_
+#define BASE_TEST_TEST_SUITE_H_
 
 // Defines a basic test suite framework for running gtest based tests.  You can
 // instantiate this class in your main function and call its Run method to run
@@ -229,4 +229,4 @@ class TestSuite {
   base::AtExitManager at_exit_manager_;
 };
 
-#endif  // BASE_TEST_SUITE_H_
+#endif  // BASE_TEST_TEST_SUITE_H_

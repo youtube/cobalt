@@ -85,7 +85,7 @@ class BaseTimer_Helper {
   // We have access to the timer_ member so we can orphan this task.
   class TimerTask : public Task {
    public:
-    TimerTask(TimeDelta delay) : timer_(NULL), delay_(delay) {
+    explicit TimerTask(TimeDelta delay) : timer_(NULL), delay_(delay) {
     }
     virtual ~TimerTask() {}
     BaseTimer_Helper* timer_;

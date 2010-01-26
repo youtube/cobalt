@@ -17,7 +17,7 @@ struct LogEventProviderTraits {
     logging::LogEventProvider* ptr =
         reinterpret_cast<logging::LogEventProvider*>(buffer_);
     // We are protected by a memory barrier.
-    new (ptr) logging::LogEventProvider();
+    new(ptr) logging::LogEventProvider();
     return ptr;
   }
 
