@@ -137,8 +137,8 @@ dev_list="apache2 bison fakeroot flex g++ g++-multilib gperf libapache2-mod-php5
           libasound2-dev libbz2-dev libcairo2-dev libgconf2-dev libgl1-mesa-dev
           libglu1-mesa-dev libglib2.0-dev libgtk2.0-dev libjpeg62-dev
           libnspr4-dev libnss3-dev libpam0g-dev libsqlite3-dev libxslt1-dev
-          lighttpd mesa-common-dev msttcorefonts patch perl php5-cgi pkg-config
-          python rpm subversion wdiff"
+          libxss-dev lighttpd mesa-common-dev msttcorefonts patch perl php5-cgi
+          pkg-config python rpm subversion wdiff"
 
 # Full list of required run-time libraries
 lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libexpat1
