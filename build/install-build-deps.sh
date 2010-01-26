@@ -8,6 +8,30 @@
 # See http://code.google.com/p/chromium/wiki/LinuxBuildInstructions
 # and http://code.google.com/p/chromium/wiki/LinuxBuild64Bit
 
+usage() {
+  echo "Usage: $0 [--options]"
+  echo "Options:"
+  echo "--[no-]syms: enable or disable installation of debugging symbols"
+  echo "--[no-]gold: enable or disable installation of gold linker"
+  echo "--[no-]lib32: enable or disable installation of 32 bit libraries"
+  echo "Script will prompt interactively if options not given."
+  exit 1
+}
+
+while test "$1" != ""
+do
+  case "$1" in
+  --syms)     do_inst_syms=1;;
+  --no-syms)  do_inst_syms=0;;
+  --gold)     do_inst_gold=1;;
+  --no-gold)  do_inst_gold=0;;
+  --lib32)    do_inst_lib32=1;;
+  --no-lib32) do_inst_lib32=0;;
+  *) usage;;
+  esac
+  shift
+done
+
 install_gold() {
   # Gold is optional; it's a faster replacement for ld,
   # and makes life on 2GB machines much more pleasant.
@@ -172,13 +196,19 @@ yes_no() {
   done
 }
 
-echo "This script installs all tools and libraries needed to build Chromium."
-echo ""
-echo "For most of the libraries, it can also install debugging symbols, which"
-echo "will allow you to debug code in the system libraries. Most developers"
-echo "won't need these symbols."
-echo -n "Do you want me to install them for you (y/N) "
-if yes_no 1; then
+if test "$do_inst_syms" = ""
+then
+  echo "This script installs all tools and libraries needed to build Chromium."
+  echo ""
+  echo "For most of the libraries, it can also install debugging symbols, which"
+  echo "will allow you to debug code in the system libraries. Most developers"
+  echo "won't need these symbols."
+  echo -n "Do you want me to install them for you (y/N) "
+  if yes_no 1; then
+    do_inst_syms=1
+  fi
+fi
+if test "$do_inst_syms" = "1"; then
   echo "Installing debugging symbols."
 else
   echo "Skipping installation of debugging symbols."
@@ -241,10 +271,17 @@ fi
 case `ld --version` in
 *gold*2.2*) ;;
 * )
-  echo "Gold is a new linker that links Chrome 5x faster than ld."
-  echo "Don't use it if you need to link other apps (e.g. valgrind, wine)"
-  echo -n "REPLACE SYSTEM LINKER ld with gold and back up ld? (y/N) "
-  if yes_no 1; then
+  if test "$do_inst_gold" = ""
+  then
+    echo "Gold is a new linker that links Chrome 5x faster than ld."
+    echo "Don't use it if you need to link other apps (e.g. valgrind, wine)"
+    echo -n "REPLACE SYSTEM LINKER ld with gold and back up ld? (y/N) "
+    if yes_no 1; then
+      do_inst_gold=1
+    fi
+  fi
+  if test "$do_inst_gold" = "1"
+  then
     # If the system provides gold, just install it.
     if apt-cache show binutils-gold >/dev/null; then
       echo "Installing binutils-gold. Backing up ld as ld.single."
@@ -261,18 +298,25 @@ esac
 
 # Install 32bit backwards compatibility support for 64bit systems
 if [ "$(uname -m)" = "x86_64" ]; then
-  echo "Installing 32bit libraries that are not already provided by the system"
-  echo
-  echo "While we only need to install a relatively small number of library"
-  echo "files, we temporarily need to download a lot of large *.deb packages"
-  echo "that contain these files. We will create new *.deb packages that"
-  echo "include just the 32bit libraries. These files will then be found on"
-  echo "your system in places like /lib32, /usr/lib32, /usr/lib/debug/lib32,"
-  echo "/usr/lib/debug/usr/lib32. If you ever need to uninstall these files,"
-  echo "look for packages named *-ia32.deb."
-  echo "Do you want me to download all packages needed to build new 32bit"
-  echo -n "package files (Y/n) "
-  if ! yes_no 0; then
+  if test "$do_inst_lib32" = ""
+  then
+    echo "Installing 32bit libraries not already provided by the system"
+    echo
+    echo "While we only need to install a relatively small number of library"
+    echo "files, we temporarily need to download a lot of large *.deb packages"
+    echo "that contain these files. We will create new *.deb packages that"
+    echo "include just the 32bit libraries. These files will then be found on"
+    echo "your system in places like /lib32, /usr/lib32, /usr/lib/debug/lib32,"
+    echo "/usr/lib/debug/usr/lib32. If you ever need to uninstall these files,"
+    echo "look for packages named *-ia32.deb."
+    echo "Do you want me to download all packages needed to build new 32bit"
+    echo -n "package files (Y/n) "
+    if ! yes_no 0; then
+      do_inst_lib32=1
+    fi
+  fi
+  if test "$do_inst_lib32" != "1"
+  then
     echo "Exiting without installing any 32bit libraries."
     exit 0
   fi
