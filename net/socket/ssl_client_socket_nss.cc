@@ -47,6 +47,9 @@
 
 #include "net/socket/ssl_client_socket_nss.h"
 
+#if defined(USE_SYSTEM_SSL)
+#include <dlfcn.h>
+#endif
 #include <certdb.h>
 #include <keyhi.h>
 #include <nspr.h>
@@ -59,6 +62,7 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/nss_util.h"
+#include "base/singleton.h"
 #include "base/string_util.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
@@ -95,6 +99,57 @@ namespace net {
 #endif
 
 namespace {
+
+class NSSSSLInitSingleton {
+ public:
+  NSSSSLInitSingleton() {
+    base::EnsureNSSInit();
+
+    NSS_SetDomesticPolicy();
+
+#if defined(USE_SYSTEM_SSL)
+    // Use late binding to avoid scary but benign warning
+    // "Symbol `SSL_ImplementedCiphers' has different size in shared object,
+    //  consider re-linking"
+    const PRUint16* pSSL_ImplementedCiphers = static_cast<const PRUint16*>(
+        dlsym(RTLD_DEFAULT, "SSL_ImplementedCiphers"));
+    if (pSSL_ImplementedCiphers == NULL) {
+      NOTREACHED() << "Can't get list of supported ciphers";
+      return;
+    }
+#else
+#define pSSL_ImplementedCiphers SSL_ImplementedCiphers
+#endif
+
+    // Explicitly enable exactly those ciphers with keys of at least 80 bits
+    for (int i = 0; i < SSL_NumImplementedCiphers; i++) {
+      SSLCipherSuiteInfo info;
+      if (SSL_GetCipherSuiteInfo(pSSL_ImplementedCiphers[i], &info,
+                                 sizeof(info)) == SECSuccess) {
+        SSL_CipherPrefSetDefault(pSSL_ImplementedCiphers[i],
+                                 (info.effectiveKeyBits >= 80));
+      }
+    }
+
+    // Enable SSL.
+    SSL_OptionSetDefault(SSL_SECURITY, PR_TRUE);
+
+    // All other SSL options are set per-session by SSLClientSocket.
+  }
+
+  ~NSSSSLInitSingleton() {
+    // Have to clear the cache, or NSS_Shutdown fails with SEC_ERROR_BUSY.
+    SSL_ClearSessionCache();
+  }
+};
+
+// Initialize the NSS SSL library if it isn't already initialized.  This must
+// be called before any other NSS SSL functions.  This function is
+// thread-safe, and the NSS SSL library will only ever be initialized once.
+// The NSS SSL library will be properly shut down on program exit.
+void EnsureNSSSSLInit() {
+  Singleton<NSSSSLInitSingleton>::get();
+}
 
 // The default error mapping function.
 // Maps an NSPR error code to a network error code.
@@ -193,8 +248,9 @@ SSLClientSocketNSS::~SSLClientSocketNSS() {
 
 int SSLClientSocketNSS::Init() {
   EnterFunction("");
-  // Initialize NSS in a threadsafe way.
-  base::EnsureNSSInit();
+  // Initialize the NSS SSL library in a threadsafe way.  This also
+  // initializes the NSS base library.
+  EnsureNSSSSLInit();
   // We must call EnsureOCSPInit() here, on the IO thread, to get the IO loop
   // by MessageLoopForIO::current().
   // X509Certificate::Verify() runs on a worker thread of CertVerifier.
@@ -576,7 +632,7 @@ SSLClientSocketNSS::GetNextProto(std::string* proto) {
   }
   // We don't check for truncation because sizeof(buf) is large enough to hold
   // the maximum protocol size.
-  switch(state) {
+  switch (state) {
     case SSL_NEXT_PROTO_NO_SUPPORT:
       proto->clear();
       return kNextProtoUnsupported;
