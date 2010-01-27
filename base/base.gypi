@@ -289,8 +289,6 @@
                 'directory_watcher_inotify.cc',
                 'linux_util.cc',
                 'message_pump_glib.cc',
-                'nss_util.cc',
-                'nss_util.h',
               ],
           },],
           [ 'OS != "linux"', {
@@ -322,13 +320,19 @@
               ],
             },
           ],
-          [ 'OS != "mac"', {
+          [ 'OS == "mac"', {
+              'sources!': [
+                # TODO(wtc): Remove nss_util.{cc,h} when http://crbug.com/30689
+                # is fixed.
+                'nss_util.cc',
+                'nss_util.h',
+              ],
+          }, {  # OS != "mac"
               'sources!': [
                 'crypto/cssm_init.cc',
                 'crypto/cssm_init.h',
               ],
-            }
-          ],
+          },],
           [ 'OS == "win"', {
               'include_dirs': [
                 '../chrome/third_party/wtl/include',
@@ -432,7 +436,11 @@
               ],
             },
         },],
-        [ 'OS != "win"', {
+        [ 'OS == "win"', {
+            'dependencies': [
+              '../third_party/nss/nss.gyp:nss',
+            ],
+        }, {  # OS != "win"
             'dependencies': ['../third_party/libevent/libevent.gyp:libevent'],
             'sources!': [
               'third_party/purify/pure_api.c',
@@ -451,8 +459,7 @@
               'win_util.cc',
               'wmi_util.cc',
             ],
-          },
-        ],
+        },],
       ],
       'sources': [
         'crypto/cssm_init.cc',
