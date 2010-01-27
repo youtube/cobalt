@@ -285,6 +285,13 @@
         '../base/base.gyp:base_i18n',
         '../testing/gtest.gyp:gtest',
       ],
+      'conditions': [
+        ['OS=="linux" or OS=="freebsd"', {
+          'dependencies': [
+            '../build/linux/system.gyp:gtk',
+          ],
+        }],
+      ],
       'sources': [
         'omx/omx_unittest.cc',
         'omx/run_all_unittests.cc',
@@ -358,6 +365,7 @@
           ],
           'link_settings': {
             'libraries': [
+              '-ldl',
               '-lX11',
               '-lXrender',
               '-lXext',
