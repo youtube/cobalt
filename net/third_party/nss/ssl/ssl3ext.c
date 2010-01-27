@@ -514,13 +514,14 @@ ssl3_ClientSendNextProtoNegoXtn(sslSocket * ss,
 
     if (append && maxBytes >= extension_length) {
 	SECStatus rv;
+	TLSExtensionData *xtnData;
 	rv = ssl3_AppendHandshakeNumber(ss, next_proto_neg_xtn, 2);
 	if (rv != SECSuccess)
 	    goto loser;
 	rv = ssl3_AppendHandshakeNumber(ss, 0, 2);
 	if (rv != SECSuccess)
 	    goto loser;
-	TLSExtensionData *xtnData = &ss->xtnData;
+	xtnData = &ss->xtnData;
 	xtnData->advertised[xtnData->numAdvertised++] = next_proto_neg_xtn;
     } else if (maxBytes < extension_length) {
 	return 0;
