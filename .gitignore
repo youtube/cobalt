@@ -39,6 +39,7 @@
 /testserver.log
 /third_party/GTM
 /third_party/WebKit
+/third_party/chromeos_text_input
 /third_party/cygwin
 /third_party/ffmpeg/binaries
 /third_party/ffmpeg/source/patched-ffmpeg-mt
