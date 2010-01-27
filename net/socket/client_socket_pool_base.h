@@ -65,7 +65,6 @@ class ConnectJob {
 
   // A |timeout_duration| of 0 corresponds to no timeout.
   ConnectJob(const std::string& group_name,
-             const ClientSocketHandle* key_handle,
              base::TimeDelta timeout_duration,
              Delegate* delegate,
              LoadLog* load_log);
@@ -73,7 +72,6 @@ class ConnectJob {
 
   // Accessors
   const std::string& group_name() const { return group_name_; }
-  const ClientSocketHandle* key_handle() const { return key_handle_; }
   LoadLog* load_log() { return load_log_; }
 
   // Releases |socket_| to the client.  On connection error, this should return
@@ -102,8 +100,6 @@ class ConnectJob {
   void OnTimeout();
 
   const std::string group_name_;
-  // Temporarily needed until we switch to late binding.
-  const ClientSocketHandle* const key_handle_;
   const base::TimeDelta timeout_duration_;
   // Timer to abort jobs that take too long.
   base::OneShotTimer<ConnectJob> timer_;
@@ -209,14 +205,6 @@ class ClientSocketPoolBaseHelper
   // NetworkChangeNotifier::Observer methods:
   virtual void OnIPAddressChanged();
 
-  // Enables late binding of sockets.  In this mode, socket requests are
-  // decoupled from socket connection jobs.  A socket request may initiate a
-  // socket connection job, but there is no guarantee that that socket
-  // connection will service the request (for example, a released socket may
-  // service the request sooner, or a higher priority request may come in
-  // afterward and receive the socket from the job).
-  static void EnableLateBindingOfSockets(bool enabled);
-
   // For testing.
   bool may_have_stalled_group() const { return may_have_stalled_group_; }
 
@@ -267,7 +255,7 @@ class ClientSocketPoolBaseHelper
 
     bool IsEmpty() const {
       return active_socket_count == 0 && idle_sockets.empty() && jobs.empty() &&
-          pending_requests.empty() && connecting_requests.empty();
+          pending_requests.empty();
     }
 
     bool HasAvailableSocketSlot(int max_sockets_per_group) const {
@@ -286,7 +274,6 @@ class ClientSocketPoolBaseHelper
     std::deque<IdleSocket> idle_sockets;
     std::set<const ConnectJob*> jobs;
     RequestQueue pending_requests;
-    RequestMap connecting_requests;
     int active_socket_count;  // number of active sockets used by clients
     // Number of sockets being released within one loop through the MessageLoop.
     int num_releasing_sockets;
@@ -294,7 +281,6 @@ class ClientSocketPoolBaseHelper
 
   typedef std::map<std::string, Group> GroupMap;
 
-  typedef std::map<const ClientSocketHandle*, ConnectJob*> ConnectJobMap;
   typedef std::set<const ConnectJob*> ConnectJobSet;
 
   static void InsertRequestIntoQueue(const Request* r,
@@ -321,14 +307,8 @@ class ClientSocketPoolBaseHelper
     CleanupIdleSockets(false);
   }
 
-  // Removes the ConnectJob corresponding to |handle| from the
-  // |connect_job_map_| or |connect_job_set_| depending on whether or not late
-  // binding is enabled.  |job| must be non-NULL when late binding is
-  // enabled.  Also updates |group| if non-NULL.  When late binding is disabled,
-  // this will also delete the Request from |group->connecting_requests|.
-  void RemoveConnectJob(const ClientSocketHandle* handle,
-                        const ConnectJob* job,
-                        Group* group);
+  // Removes |job| from |connect_job_set_|.  Also updates |group| if non-NULL.
+  void RemoveConnectJob(const ConnectJob* job, Group* group);
 
   // Same as OnAvailableSocketSlot except it looks up the Group first to see if
   // it's there.
@@ -361,8 +341,6 @@ class ClientSocketPoolBaseHelper
   bool ReachedMaxSocketsLimit() const;
 
   GroupMap group_map_;
-
-  ConnectJobMap connect_job_map_;
 
   // Timer used to periodically prune idle sockets that timed out or can't be
   // reused.
@@ -406,9 +384,6 @@ class ClientSocketPoolBaseHelper
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
 
   const scoped_refptr<NetworkChangeNotifier> network_change_notifier_;
-
-  // Controls whether or not we use late binding of sockets.
-  static bool g_late_binding;
 };
 
 }  // namespace internal
@@ -577,14 +552,6 @@ class ClientSocketPoolBase {
 
   DISALLOW_COPY_AND_ASSIGN(ClientSocketPoolBase);
 };
-
-// Enables late binding of sockets.  In this mode, socket requests are
-// decoupled from socket connection jobs.  A socket request may initiate a
-// socket connection job, but there is no guarantee that that socket
-// connection will service the request (for example, a released socket may
-// service the request sooner, or a higher priority request may come in
-// afterward and receive the socket from the job).
-void EnableLateBindingOfSockets(bool enabled);
 
 }  // namespace net
 
