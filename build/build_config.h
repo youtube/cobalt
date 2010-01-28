@@ -49,14 +49,15 @@
 
 // For access to standard POSIXish features, use OS_POSIX instead of a
 // more specific macro.
-#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD)
+#if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) || \
+    defined(OS_OPENBSD)
 #define OS_POSIX 1
 // Use base::DataPack for name/value pairs.
 #define USE_BASE_DATA_PACK 1
 #endif
 
 // Use tcmalloc
-#if defined(OS_WIN) && ! defined(NO_TCMALLOC)
+#if defined(OS_WIN) && !defined(NO_TCMALLOC)
 #define USE_TCMALLOC 1
 #endif
 
