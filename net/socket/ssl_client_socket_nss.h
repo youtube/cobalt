@@ -123,8 +123,11 @@ class SSLClientSocketNSS : public SSLClientSocket {
   scoped_refptr<IOBuffer> user_write_buf_;
   int user_write_buf_len_;
 
-  // Set when handshake finishes.
+  // Set when handshake finishes.  The server certificate is first received
+  // from NSS as an NSS certificate handle (server_cert_nss_), and then
+  // converted into an X509Certificate object (server_cert_).
   scoped_refptr<X509Certificate> server_cert_;
+  CERTCertificate* server_cert_nss_;
   CertVerifyResult server_cert_verify_result_;
 
   // Stores client authentication information between ClientAuthHandler and
@@ -152,7 +155,12 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   scoped_refptr<LoadLog> load_log_;
 
-  static bool nss_options_initialized_;
+#if defined(OS_WIN)
+  // A CryptoAPI in-memory certificate store that we import server
+  // certificates into so that we can verify and display the certificates
+  // using CryptoAPI.
+  static HCERTSTORE cert_store_;
+#endif
 };
 
 }  // namespace net

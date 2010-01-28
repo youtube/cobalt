@@ -213,17 +213,22 @@ int MapHandshakeError(PRErrorCode err) {
 
 }  // namespace
 
-bool SSLClientSocketNSS::nss_options_initialized_ = false;
+#if defined(OS_WIN)
+// static
+HCERTSTORE SSLClientSocketNSS::cert_store_ = NULL;
+#endif
 
 SSLClientSocketNSS::SSLClientSocketNSS(ClientSocket* transport_socket,
                                        const std::string& hostname,
                                        const SSLConfig& ssl_config)
-    :
-      buffer_send_callback_(this, &SSLClientSocketNSS::BufferSendComplete),
-      buffer_recv_callback_(this, &SSLClientSocketNSS::BufferRecvComplete),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(buffer_send_callback_(
+          this, &SSLClientSocketNSS::BufferSendComplete)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(buffer_recv_callback_(
+          this, &SSLClientSocketNSS::BufferRecvComplete)),
       transport_send_busy_(false),
       transport_recv_busy_(false),
-      handshake_io_callback_(this, &SSLClientSocketNSS::OnHandshakeIOComplete),
+      ALLOW_THIS_IN_INITIALIZER_LIST(handshake_io_callback_(
+          this, &SSLClientSocketNSS::OnHandshakeIOComplete)),
       transport_(transport_socket),
       hostname_(hostname),
       ssl_config_(ssl_config),
@@ -232,6 +237,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocket* transport_socket,
       user_write_callback_(NULL),
       user_read_buf_len_(0),
       user_write_buf_len_(0),
+      server_cert_nss_(NULL),
       client_auth_cert_needed_(false),
       completed_handshake_(false),
       next_handshake_state_(STATE_NONE),
@@ -251,10 +257,12 @@ int SSLClientSocketNSS::Init() {
   // Initialize the NSS SSL library in a threadsafe way.  This also
   // initializes the NSS base library.
   EnsureNSSSSLInit();
+#if !defined(OS_WIN)
   // We must call EnsureOCSPInit() here, on the IO thread, to get the IO loop
   // by MessageLoopForIO::current().
   // X509Certificate::Verify() runs on a worker thread of CertVerifier.
   EnsureOCSPInit();
+#endif
 
   LeaveFunction("");
   return OK;
@@ -467,6 +475,10 @@ void SSLClientSocketNSS::Disconnect() {
   user_write_buf_        = NULL;
   user_write_buf_len_    = 0;
   server_cert_           = NULL;
+  if (server_cert_nss_) {
+    CERT_DestroyCertificate(server_cert_nss_);
+    server_cert_nss_     = NULL;
+  }
   server_cert_verify_result_.Reset();
   completed_handshake_   = false;
   nss_bufs_              = NULL;
@@ -570,10 +582,56 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
   // does not necessarily get called if we are continuing a cached SSL
   // session.
   if (server_cert_ == NULL) {
-    X509Certificate::OSCertHandle nss_cert = SSL_PeerCertificate(nss_fd_);
-    if (nss_cert) {
+    server_cert_nss_ = SSL_PeerCertificate(nss_fd_);
+    if (server_cert_nss_) {
+#if defined(OS_WIN)
+      // TODO(wtc): close cert_store_ at shutdown.
+      if (!cert_store_)
+        cert_store_ = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL);
+
+      PCCERT_CONTEXT cert_context = NULL;
+      BOOL ok = CertAddEncodedCertificateToStore(
+          cert_store_,
+          X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+          server_cert_nss_->derCert.data,
+          server_cert_nss_->derCert.len,
+          CERT_STORE_ADD_USE_EXISTING,
+          &cert_context);
+      DCHECK(ok);
       server_cert_ = X509Certificate::CreateFromHandle(
-          nss_cert, X509Certificate::SOURCE_FROM_NETWORK);
+          cert_context, X509Certificate::SOURCE_FROM_NETWORK);
+
+      // Add each of the intermediate certificates in the server's chain to
+      // the server's X509Certificate object. This makes them available to
+      // X509Certificate::Verify() for chain building.
+      // TODO(wtc): Since X509Certificate::CreateFromHandle may return a
+      // cached X509Certificate object, we may be adding intermediate CA
+      // certificates to it repeatedly!
+      CERTCertList* cert_list = CERT_GetCertChainFromCert(
+          server_cert_nss_, PR_Now(), certUsageSSLCA);
+      if (cert_list) {
+        for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+             !CERT_LIST_END(node, cert_list);
+             node = CERT_LIST_NEXT(node)) {
+          cert_context = NULL;
+          ok = CertAddEncodedCertificateToStore(
+              cert_store_,
+              X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+              node->cert->derCert.data,
+              node->cert->derCert.len,
+              CERT_STORE_ADD_USE_EXISTING,
+              &cert_context);
+          DCHECK(ok);
+          if (node->cert != server_cert_nss_)
+            server_cert_->AddIntermediateCertificate(cert_context);
+        }
+        CERT_DestroyCertList(cert_list);
+      }
+#else
+      server_cert_ = X509Certificate::CreateFromHandle(
+          CERT_DupCertificate(server_cert_nss_),
+          X509Certificate::SOURCE_FROM_NETWORK);
+#endif
     }
   }
   return server_cert_;
@@ -1009,6 +1067,11 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
     CERTDistNames* ca_names,
     CERTCertificate** result_certificate,
     SECKEYPrivateKey** result_private_key) {
+#if defined(OS_WIN)
+  // Not implemented.  Send no client certificate.
+  PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
+  return SECFailure;
+#else
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
   that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
@@ -1065,6 +1128,7 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
   }
 
   return SECFailure;
+#endif
 }
 
 // static
@@ -1147,13 +1211,13 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
     // purposes.  See https://bugzilla.mozilla.org/show_bug.cgi?id=508081 and
     // http://crbug.com/15630 for more info.
     CERTCertList* cert_list = CERT_GetCertChainFromCert(
-        server_cert_->os_cert_handle(), PR_Now(), certUsageSSLCA);
+        server_cert_nss_, PR_Now(), certUsageSSLCA);
     if (cert_list) {
       for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
            !CERT_LIST_END(node, cert_list);
            node = CERT_LIST_NEXT(node)) {
         if (node->cert->slot || node->cert->isRoot || node->cert->isperm ||
-            node->cert == server_cert_->os_cert_handle()) {
+            node->cert == server_cert_nss_) {
           // Some certs we don't want to remember are:
           // - found on a token.
           // - the root cert.
