@@ -311,7 +311,7 @@ if [ "$(uname -m)" = "x86_64" ]; then
     echo "look for packages named *-ia32.deb."
     echo "Do you want me to download all packages needed to build new 32bit"
     echo -n "package files (Y/n) "
-    if ! yes_no 0; then
+    if yes_no 0; then
       do_inst_lib32=1
     fi
   fi
