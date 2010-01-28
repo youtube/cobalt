@@ -38,6 +38,7 @@ enum NativeLibraryType {
 };
 struct NativeLibraryStruct {
   NativeLibraryType type;
+  CFBundleRefNum bundle_resource_ref;
   union {
     CFBundleRef bundle;
     void* dylib;
