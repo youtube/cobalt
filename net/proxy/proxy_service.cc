@@ -597,11 +597,22 @@ void ProxyService::UpdateConfig(LoadLog* load_log) {
   ProxyConfig latest;
 
   // Fetch the proxy settings.
+  TimeTicks start_time = TimeTicks::Now();
   LoadLog::BeginEvent(load_log,
       LoadLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
   int rv = config_service_->GetProxyConfig(&latest);
   LoadLog::EndEvent(load_log,
       LoadLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
+  TimeTicks end_time = TimeTicks::Now();
+
+  // Record how long the call to config_service_->GetConfig() above took.
+  // On some setups of Windows, we have reports that querying the system
+  // proxy settings can take multiple seconds (http://crbug.com/12189).
+  UMA_HISTOGRAM_CUSTOM_TIMES("Net.ProxyPollConfigurationTime",
+                             end_time - start_time,
+                             TimeDelta::FromMilliseconds(1),
+                             TimeDelta::FromSeconds(30),
+                             50);
 
   if (rv != OK) {
     if (is_first_update) {
