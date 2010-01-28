@@ -173,6 +173,8 @@
         [ 'OS == "win"', {
             'sources/': [ ['exclude', '_(mac|linux|posix)\\.cc$'] ],
             'dependencies': [
+              # For nss_memio.{c,h}, which require only NSPR.
+              '../third_party/nss/nss.gyp:nspr',
               'tld_cleanup',
             ],
           },
@@ -189,8 +191,6 @@
             'sources!': [
               'base/cert_database_nss.cc',
               'base/keygen_handler_nss.cc',
-              'base/nss_memio.c',
-              'base/nss_memio.h',
               'base/x509_certificate_nss.cc',
             ],
             # Get U_STATIC_IMPLEMENTATION and -I directories on Linux.
@@ -202,6 +202,12 @@
         ],
         [ 'OS == "mac"', {
             'sources/': [ ['exclude', '_(linux|win)\\.cc$'] ],
+            'sources!': [
+              # TODO(wtc): Remove nss_memio.{c,h} when http://crbug.com/30689
+              # is fixed.
+              'base/nss_memio.c',
+              'base/nss_memio.h',
+            ],
             'link_settings': {
               'libraries': [
                 '$(SDKROOT)/System/Library/Frameworks/Security.framework',
@@ -522,6 +528,8 @@
               'socket/tcp_client_socket_libevent.cc',
             ],
             'dependencies': [
+              '../third_party/nss/nss.gyp:nss',
+              'third_party/nss/nss.gyp:ssl',
               'tld_cleanup',
             ],
           },
@@ -538,8 +546,6 @@
             'sources!': [
               'ocsp/nss_ocsp.cc',
               'ocsp/nss_ocsp.h',
-              'socket/ssl_client_socket_nss.cc',
-              'socket/ssl_client_socket_nss.h',
             ],
             # Get U_STATIC_IMPLEMENTATION and -I directories on Linux.
             'dependencies': [
@@ -550,6 +556,12 @@
         ],
         [ 'OS == "mac"', {
             'sources/': [ ['exclude', '_(linux|win)\\.cc$'] ],
+            'sources!': [
+              # TODO(wtc): Remove ssl_client_socket_nss.{cc,h} when
+              # http://crbug.com/30689 is fixed.
+              'socket/ssl_client_socket_nss.cc',
+              'socket/ssl_client_socket_nss.h',
+            ],
             'link_settings': {
               'libraries': [
                 '$(SDKROOT)/System/Library/Frameworks/Security.framework',
