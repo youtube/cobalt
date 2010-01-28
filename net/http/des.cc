@@ -4,7 +4,7 @@
 
 #include "net/http/des.h"
 
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
 #include <nss.h>
 #include <pk11pub.h>
 #elif defined(OS_MACOSX)
@@ -15,7 +15,7 @@
 #endif
 
 #include "base/logging.h"
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
 #include "base/nss_util.h"
 #endif
 
@@ -85,7 +85,7 @@ void DESMakeKey(const uint8* raw, uint8* key) {
   key[7] = DESSetKeyParity((raw[6] << 1));
 }
 
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
 
 void DESEncrypt(const uint8* key, const uint8* src, uint8* hash) {
   CK_MECHANISM_TYPE cipher_mech = CKM_DES_ECB;

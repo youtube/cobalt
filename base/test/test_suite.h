@@ -212,13 +212,13 @@ class TestSuite {
 
     icu_util::Initialize();
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
+#if defined(USE_NSS)
     // Trying to repeatedly initialize and cleanup NSS and NSPR may result in
     // a deadlock. Such repeated initialization will happen when using test
     // isolation. Prevent problems by initializing NSS here, so that the cleanup
     // will be done only on process exit.
     base::EnsureNSSInit();
-#endif  // defined(OS_POSIX) && !defined(OS_MACOSX)
+#endif  // defined(USE_NSS)
   }
 
   virtual void Shutdown() {
