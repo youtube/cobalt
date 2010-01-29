@@ -579,6 +579,13 @@ int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
 
   pac_request_ = NULL;
 
+  if (result != OK) {
+    DLOG(ERROR) << "Failed to resolve proxy: " << result;
+    // Fall-back to direct when there were runtime errors in the PAC script,
+    // or some other failure with the settings.
+    proxy_info_.UseDirect();
+  }
+
   // Remove unsupported proxies from the list.
   proxy_info_.RemoveProxiesWithoutScheme(
       ProxyServer::SCHEME_DIRECT | ProxyServer::SCHEME_HTTP |
@@ -614,13 +621,6 @@ int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
     // No proxies/direct to choose from. This happens when we don't support any
     // of the proxies in the returned list.
     return ERR_NO_SUPPORTED_PROXIES;
-  }
-
-  if (result != OK) {
-    DLOG(ERROR) << "Failed to resolve proxy: " << result;
-    // Fall-back to direct when there were runtime errors in the PAC script,
-    // or some other failure with the settings.
-    proxy_info_.UseDirect();
   }
 
   next_state_ = STATE_INIT_CONNECTION;
