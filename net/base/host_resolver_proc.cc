@@ -6,7 +6,7 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 #include <resolv.h>
 #endif
 
@@ -16,7 +16,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/sys_addrinfo.h"
 
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX)
 #include "base/singleton.h"
 #include "base/thread_local_storage.h"
 #endif
@@ -77,9 +77,9 @@ int HostResolverProc::ResolveUsingPrevious(const std::string& host,
   return SystemHostResolverProc(host, address_family, addrlist);
 }
 
-#if defined(OS_LINUX)
-// On Linux changes to /etc/resolv.conf can go unnoticed thus resulting in
-// DNS queries failing either because nameservers are unknown on startup
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
+// On Linux/BSD, changes to /etc/resolv.conf can go unnoticed thus resulting
+// in DNS queries failing either because nameservers are unknown on startup
 // or because nameserver info has changed as a result of e.g. connecting to
 // a new network. Some distributions patch glibc to stat /etc/resolv.conf
 // to try to automatically detect such changes but these patches are not
@@ -89,6 +89,9 @@ int HostResolverProc::ResolveUsingPrevious(const std::string& host,
 // We adopt the Mozilla solution here which is to call res_ninit when
 // lookups fail and to rate limit the reloading to once per second per
 // thread.
+//
+// OpenBSD does not have thread-safe res_ninit/res_nclose so we can't do
+// the same trick there.
 
 // Keep a timer per calling thread to rate limit the calling of res_ninit.
 class DnsReloadTimer {
@@ -145,7 +148,7 @@ class DnsReloadTimer {
 // static
 ThreadLocalStorage::Slot DnsReloadTimer::tls_index_(base::LINKER_INITIALIZED);
 
-#endif  // defined(OS_LINUX)
+#endif  // defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
 
 int SystemHostResolverProc(const std::string& host,
                            AddressFamily address_family,
@@ -174,7 +177,7 @@ int SystemHostResolverProc(const std::string& host,
       hints.ai_family = AF_UNSPEC;
   }
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) || defined(OS_OPENBSD)
   // DO NOT USE AI_ADDRCONFIG ON WINDOWS.
   //
   // The following comment in <winsock2.h> is the best documentation I found
@@ -195,6 +198,8 @@ int SystemHostResolverProc(const std::string& host,
   //   The IPv4 or IPv6 loopback address is not considered a valid global
   //   address.
   // See http://crbug.com/5234.
+  //
+  // OpenBSD does not support it, either.
   hints.ai_flags = 0;
 #else
   hints.ai_flags = AI_ADDRCONFIG;
@@ -204,7 +209,7 @@ int SystemHostResolverProc(const std::string& host,
   hints.ai_socktype = SOCK_STREAM;
 
   int err = getaddrinfo(host.c_str(), NULL, &hints, &ai);
-#if defined(OS_LINUX)
+#if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
   net::DnsReloadTimer* dns_timer = Singleton<net::DnsReloadTimer>::get();
   // If we fail, re-initialise the resolver just in case there have been any
   // changes to /etc/resolv.conf and retry. See http://crbug.com/11380 for info.
