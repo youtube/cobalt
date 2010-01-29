@@ -4,7 +4,7 @@
 
 #include "net/base/ev_root_ca_metadata.h"
 
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
 #include <cert.h>
 #include <pkcs11n.h>
 #include <secerr.h>
@@ -232,7 +232,7 @@ bool EVRootCAMetadata::GetPolicyOID(
 
 EVRootCAMetadata::EVRootCAMetadata() {
   // Constructs the object from the raw metadata in ev_root_ca_metadata.
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
   for (size_t i = 0; i < arraysize(ev_root_ca_metadata); i++) {
     const EVMetadata& metadata = ev_root_ca_metadata[i];
     PRUint8 buf[1024];

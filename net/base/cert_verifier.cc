@@ -4,7 +4,7 @@
 
 #include "net/base/cert_verifier.h"
 
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
 #include <private/pprthred.h>  // PR_DetatchThread
 #endif
 
@@ -38,7 +38,7 @@ class CertVerifier::Request :
   void DoVerify() {
     // Running on the worker thread
     error_ = cert_->Verify(hostname_, flags_, &result_);
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
     // Detach the thread from NSPR.
     // Calling NSS functions attaches the thread to NSPR, which stores
     // the NSPR thread ID in thread-specific data.
