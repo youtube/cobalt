@@ -28,6 +28,10 @@
 
 //-----------------------------------------------------------------------------
 
+// TODO(eroman): Add a regression test for http://crbug.com/32316 -- when the
+// proxy service returns an error, we should fallback to DIRECT instead of
+// failing with ERR_NO_SUPPORTED_PROXIES.
+
 namespace net {
 
 // Create a proxy service which fails on all requests (falls back to direct).
