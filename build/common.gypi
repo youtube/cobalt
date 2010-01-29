@@ -1048,7 +1048,7 @@
         ],
         'conditions': [
           ['OS!="win"', {
-            'sources/': [ ['exclude', '_win\\.cc$'],
+            'sources/': [ ['exclude', '_win(_unittest)?\\.cc$'],
                           ['exclude', '/win/'],
                           ['exclude', '/win_[^/]*\\.cc$'] ],
           }],
