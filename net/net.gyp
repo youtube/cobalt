@@ -163,7 +163,7 @@
         '../base/base.gyp:base',
       ],
       'conditions': [
-        [ 'OS == "linux"', {
+        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           'dependencies': [
             '../build/linux/system.gyp:gconf',
             '../build/linux/system.gyp:gdk',
@@ -171,7 +171,6 @@
           ],
         }],
         [ 'OS == "win"', {
-            'sources/': [ ['exclude', '_(mac|linux|posix)\\.cc$'] ],
             'dependencies': [
               # For nss_memio.{c,h}, which require only NSPR.
               '../third_party/nss/nss.gyp:nspr',
@@ -184,24 +183,17 @@
             ],
           },
         ],
-        [ 'OS == "linux"', {
-            'sources/': [ ['exclude', '_(mac|win)\\.cc$'] ],
+        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           },
-          {  # else: OS != "linux"
+          {  # else: OS is not in the above list
             'sources!': [
               'base/cert_database_nss.cc',
               'base/keygen_handler_nss.cc',
               'base/x509_certificate_nss.cc',
             ],
-            # Get U_STATIC_IMPLEMENTATION and -I directories on Linux.
-            'dependencies': [
-              '../third_party/icu/icu.gyp:icui18n',
-              '../third_party/icu/icu.gyp:icuuc',
-            ],
           },
         ],
         [ 'OS == "mac"', {
-            'sources/': [ ['exclude', '_(linux|win)\\.cc$'] ],
             'sources!': [
               # TODO(wtc): Remove nss_memio.{c,h} when http://crbug.com/30689
               # is fixed.
@@ -514,7 +506,7 @@
             '../v8/tools/gyp/v8.gyp:v8',
           ],
         }],
-        [ 'OS == "linux"', {
+        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           'dependencies': [
             '../build/linux/system.gyp:gconf',
             '../build/linux/system.gyp:gdk',
@@ -522,7 +514,6 @@
           ],
         }],
         [ 'OS == "win"', {
-            'sources/': [ ['exclude', '_(mac|linux|posix)\\.cc$'] ],
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
               'socket/tcp_client_socket_libevent.cc',
@@ -539,23 +530,16 @@
             ],
           },
         ],
-        [ 'OS == "linux"', {
-            'sources/': [ ['exclude', '_(mac|win)\\.cc$'] ],
+        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           },
           {  # else: OS != "linux"
             'sources!': [
               'ocsp/nss_ocsp.cc',
               'ocsp/nss_ocsp.h',
             ],
-            # Get U_STATIC_IMPLEMENTATION and -I directories on Linux.
-            'dependencies': [
-              '../third_party/icu/icu.gyp:icui18n',
-              '../third_party/icu/icu.gyp:icuuc',
-            ],
           },
         ],
         [ 'OS == "mac"', {
-            'sources/': [ ['exclude', '_(linux|win)\\.cc$'] ],
             'sources!': [
               # TODO(wtc): Remove ssl_client_socket_nss.{cc,h} when
               # http://crbug.com/30689 is fixed.
@@ -688,12 +672,7 @@
         'websockets/websocket_unittest.cc',
       ],
       'conditions': [
-        [ 'OS == "win"', {
-            'sources/': [ ['exclude', '_(mac|linux|posix)_unittest\\.cc$'] ],
-          },
-        ],
-        [ 'OS == "linux"', {
-            'sources/': [ ['exclude', '_(mac|win)_unittest\\.cc$'] ],
+        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
             'dependencies': [
               '../build/linux/system.gyp:gtk',
             ],
@@ -702,7 +681,7 @@
             ],
           },
         ],
-        ['OS == "linux" or OS == "freebsd"', {
+        ['OS == "linux"', {
           'conditions': [
             ['linux_use_tcmalloc==1', {
               'dependencies': [
@@ -711,10 +690,6 @@
             }],
           ],
         }],
-        [ 'OS == "mac"', {
-            'sources/': [ ['exclude', '_(linux|win)_unittest\\.cc$'] ],
-          },
-        ],
         # This is needed to trigger the dll copy step on windows.
         # TODO(mark): Specifying this here shouldn't be necessary.
         [ 'OS == "win"', {
