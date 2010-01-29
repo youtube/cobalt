@@ -9,7 +9,7 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #include <shlobj.h>
-#elif defined(OS_LINUX)
+#elif defined(USE_NSS)
 #include "base/nss_util.h"
 #endif
 

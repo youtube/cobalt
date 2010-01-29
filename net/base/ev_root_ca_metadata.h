@@ -7,7 +7,7 @@
 
 #include "build/build_config.h"
 
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
 #include <secoidt.h>
 #endif
 
@@ -25,7 +25,7 @@ namespace net {
 // extended-validation (EV) certificates.
 class EVRootCAMetadata {
  public:
-#if defined(OS_LINUX)
+#if defined(USE_NSS)
   typedef SECOidTag PolicyOID;
 #else
   typedef const char* PolicyOID;
