@@ -101,20 +101,20 @@ TEST_F(TCPClientSocketTest, Connect) {
 
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
   int rv = sock_->Connect(&callback, log);
-  EXPECT_TRUE(net::LogContains(
-      *log, 0, net::LoadLog::TYPE_TCP_CONNECT, net::LoadLog::PHASE_BEGIN));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 0, net::LoadLog::TYPE_TCP_CONNECT));
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
-    EXPECT_FALSE(net::LogContains(
-        *log, -1, net::LoadLog::TYPE_TCP_CONNECT, net::LoadLog::PHASE_END));
+    EXPECT_FALSE(net::LogContainsEndEvent(
+        *log, -1, net::LoadLog::TYPE_TCP_CONNECT));
 
     rv = callback.WaitForResult();
     EXPECT_EQ(rv, OK);
   }
 
   EXPECT_TRUE(sock_->IsConnected());
-  EXPECT_TRUE(net::LogContains(
-      *log, -1, net::LoadLog::TYPE_TCP_CONNECT, net::LoadLog::PHASE_END));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, -1, net::LoadLog::TYPE_TCP_CONNECT));
 
   sock_->Disconnect();
   EXPECT_FALSE(sock_->IsConnected());

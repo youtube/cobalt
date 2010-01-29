@@ -108,8 +108,8 @@ TEST(ProxyServiceTest, Direct) {
 
   // Check the LoadLog was filled correctly.
   EXPECT_EQ(5u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 4, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_PROXY_SERVICE));
+  EXPECT_TRUE(LogContainsEndEvent(*log, 4, LoadLog::TYPE_PROXY_SERVICE));
 }
 
 TEST(ProxyServiceTest, PAC) {
@@ -147,12 +147,12 @@ TEST(ProxyServiceTest, PAC) {
 
   // Check the LoadLog was filled correctly.
   EXPECT_EQ(7u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 4, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 6, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_PROXY_SERVICE));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 4, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
+  EXPECT_TRUE(LogContainsEndEvent(*log, 6, LoadLog::TYPE_PROXY_SERVICE));
 }
 
 // Test that the proxy resolver does not see the URL's username/password
@@ -1267,13 +1267,14 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
 
   // Check the LoadLog for request 1 (which was cancelled) got filled properly.
   EXPECT_EQ(6u, log1->entries().size());
-  ExpectLogContains(log1, 0, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log1, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
-                    LoadLog::PHASE_BEGIN);
+  EXPECT_TRUE(LogContainsBeginEvent(*log1, 0, LoadLog::TYPE_PROXY_SERVICE));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log1, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
   // Note that TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC is never completed before
   // the cancellation occured.
-  ExpectLogContains(log1, 4, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
-  ExpectLogContains(log1, 5, LoadLog::TYPE_PROXY_SERVICE, LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsEvent(
+      *log1, 4, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(*log1, 5, LoadLog::TYPE_PROXY_SERVICE));
 }
 
 // Test that if auto-detect fails, we fall-back to the custom pac.

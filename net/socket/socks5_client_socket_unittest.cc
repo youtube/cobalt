@@ -125,15 +125,13 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
   int rv = user_sock_->Connect(&callback_, log);
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(user_sock_->IsConnected());
-  EXPECT_TRUE(
-      LogContains(*log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS5_CONNECT));
 
   rv = callback_.WaitForResult();
 
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
-  EXPECT_TRUE(LogContains(
-      *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
+  EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS5_CONNECT));
 
   scoped_refptr<IOBuffer> buffer = new IOBuffer(payload_write.size());
   memcpy(buffer->data(), payload_write.data(), payload_write.size());
@@ -238,13 +236,11 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(LogContains(
-        *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
+    EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS5_CONNECT));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
-    EXPECT_TRUE(LogContains(
-        *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
+    EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS5_CONNECT));
   }
 
   // Test for partial greet response read
@@ -262,13 +258,11 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(LogContains(
-        *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
+    EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS5_CONNECT));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
-    EXPECT_TRUE(LogContains(
-        *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
+    EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS5_CONNECT));
   }
 
   // Test for partial handshake request write.
@@ -287,13 +281,11 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(LogContains(
-        *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
+    EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS5_CONNECT));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
-    EXPECT_TRUE(LogContains(
-        *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
+    EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS5_CONNECT));
   }
 
   // Test for partial handshake response read
@@ -306,20 +298,19 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     MockRead data_reads[] = {
         MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
         MockRead(true, kSOCKS5OkResponse, kSplitPoint),
-        MockRead(true, kSOCKS5OkResponse + kSplitPoint, arraysize(kSOCKS5OkResponse) - kSplitPoint)
+        MockRead(true, kSOCKS5OkResponse + kSplitPoint,
+                 arraysize(kSOCKS5OkResponse) - kSplitPoint)
     };
 
     user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
     scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(LogContains(
-        *log, 0, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_BEGIN));
+    EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS5_CONNECT));
     rv = callback_.WaitForResult();
     EXPECT_EQ(OK, rv);
     EXPECT_TRUE(user_sock_->IsConnected());
-    EXPECT_TRUE(LogContains(
-        *log, -1, LoadLog::TYPE_SOCKS5_CONNECT, LoadLog::PHASE_END));
+    EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS5_CONNECT));
   }
 }
 
