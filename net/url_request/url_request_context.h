@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,6 +35,7 @@ class URLRequestContext :
   URLRequestContext()
       : http_transaction_factory_(NULL),
         ftp_transaction_factory_(NULL),
+        cookie_policy_(NULL),
         cookie_store_(NULL),
         transport_security_state_(NULL) {
   }
@@ -67,7 +68,12 @@ class URLRequestContext :
   net::CookieStore* cookie_store() { return cookie_store_.get(); }
 
   // Gets the cookie policy for this context.
-  net::CookiePolicy* cookie_policy() { return &cookie_policy_; }
+  net::CookiePolicy* cookie_policy() const {
+    return cookie_policy_;
+  }
+  void set_cookie_policy(net::CookiePolicy* cookie_policy) {
+    cookie_policy_ = cookie_policy;
+  }
 
   net::TransportSecurityState* transport_security_state() {
       return transport_security_state_; }
@@ -131,8 +137,8 @@ class URLRequestContext :
   scoped_refptr<net::SSLConfigService> ssl_config_service_;
   net::HttpTransactionFactory* http_transaction_factory_;
   net::FtpTransactionFactory* ftp_transaction_factory_;
+  net::CookiePolicy* cookie_policy_;
   scoped_refptr<net::CookieStore> cookie_store_;
-  net::CookiePolicy cookie_policy_;
   scoped_refptr<net::TransportSecurityState> transport_security_state_;
   net::FtpAuthCache ftp_auth_cache_;
   std::string accept_language_;
