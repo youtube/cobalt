@@ -905,14 +905,14 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
   // Check that the LoadLog was filled as expected.
   // (We attempted to both Open and Create entries, but both failed).
   EXPECT_EQ(4u, log->entries().size());
-  net::ExpectLogContains(log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
-                         net::LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
-                         net::LoadLog::PHASE_END);
-  net::ExpectLogContains(log, 2, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY,
-                         net::LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 3, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY,
-                         net::LoadLog::PHASE_END);
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 2, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 3, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
@@ -988,18 +988,18 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
 
   // Check that the LoadLog was filled as expected.
   EXPECT_EQ(6u, log->entries().size());
-  net::ExpectLogContains(log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
-                         net::LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
-                         net::LoadLog::PHASE_END);
-  net::ExpectLogContains(log, 2, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY,
-                         net::LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 3, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY,
-                         net::LoadLog::PHASE_END);
-  net::ExpectLogContains(log, 4, net::LoadLog::TYPE_HTTP_CACHE_WAITING,
-                         net::LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 5, net::LoadLog::TYPE_HTTP_CACHE_WAITING,
-                         net::LoadLog::PHASE_END);
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 2, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 3, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 4, net::LoadLog::TYPE_HTTP_CACHE_WAITING));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 5, net::LoadLog::TYPE_HTTP_CACHE_WAITING));
 
   // force this transaction to read from the cache
   MockTransaction transaction(kSimpleGET_Transaction);
@@ -1011,18 +1011,18 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
 
   // Check that the LoadLog was filled as expected.
   EXPECT_EQ(6u, log->entries().size());
-  net::ExpectLogContains(log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
-                         net::LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY,
-                         net::LoadLog::PHASE_END);
-  net::ExpectLogContains(log, 2, net::LoadLog::TYPE_HTTP_CACHE_WAITING,
-                         net::LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 3, net::LoadLog::TYPE_HTTP_CACHE_WAITING,
-                         net::LoadLog::PHASE_END);
-  net::ExpectLogContains(log, 4, net::LoadLog::TYPE_HTTP_CACHE_READ_INFO,
-                         net::LoadLog::PHASE_BEGIN);
-  net::ExpectLogContains(log, 5, net::LoadLog::TYPE_HTTP_CACHE_READ_INFO,
-                         net::LoadLog::PHASE_END);
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 0, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 1, net::LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 2, net::LoadLog::TYPE_HTTP_CACHE_WAITING));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 3, net::LoadLog::TYPE_HTTP_CACHE_WAITING));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 4, net::LoadLog::TYPE_HTTP_CACHE_READ_INFO));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 5, net::LoadLog::TYPE_HTTP_CACHE_READ_INFO));
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
