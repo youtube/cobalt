@@ -218,22 +218,14 @@ TEST_F(URLRequestTestHTTP, GetTest_NoCache) {
 
     // The first part of the log will be for URL_REQUEST_START.
     // After that, there should be an HTTP_TRANSACTION_READ_BODY
-    EXPECT_TRUE(
-        net::LogContains(*r.load_log(), 0,
-                         net::LoadLog::TYPE_URL_REQUEST_START,
-                         net::LoadLog::PHASE_BEGIN));
-    EXPECT_TRUE(
-        net::LogContains(*r.load_log(), -3,
-                         net::LoadLog::TYPE_URL_REQUEST_START,
-                         net::LoadLog::PHASE_END));
-    EXPECT_TRUE(
-        net::LogContains(*r.load_log(), -2,
-                         net::LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY,
-                         net::LoadLog::PHASE_BEGIN));
-    EXPECT_TRUE(
-        net::LogContains(*r.load_log(), -1,
-                         net::LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY,
-                         net::LoadLog::PHASE_END));
+    EXPECT_TRUE(net::LogContainsBeginEvent(
+        *r.load_log(), 0, net::LoadLog::TYPE_URL_REQUEST_START));
+    EXPECT_TRUE(net::LogContainsEndEvent(
+        *r.load_log(), -3, net::LoadLog::TYPE_URL_REQUEST_START));
+    EXPECT_TRUE(net::LogContainsBeginEvent(
+        *r.load_log(), -2, net::LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY));
+    EXPECT_TRUE(net::LogContainsEndEvent(
+        *r.load_log(), -1, net::LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY));
   }
 }
 
