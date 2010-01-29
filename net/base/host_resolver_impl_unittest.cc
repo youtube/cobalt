@@ -194,10 +194,8 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
   EXPECT_EQ(OK, err);
 
   EXPECT_EQ(2u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-                    LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_TRUE(LogContainsEndEvent(*log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL));
 
   const struct addrinfo* ainfo = adrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -226,8 +224,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   EXPECT_EQ(ERR_IO_PENDING, err);
 
   EXPECT_EQ(1u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-                    LoadLog::PHASE_BEGIN);
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL));
 
   MessageLoop::current()->Run();
 
@@ -235,8 +232,7 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
   ASSERT_EQ(OK, callback_result_);
 
   EXPECT_EQ(2u, log->entries().size());
-  ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-                    LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsEndEvent(*log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL));
 
   const struct addrinfo* ainfo = adrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -273,11 +269,10 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
   resolver_proc->Signal();
 
   EXPECT_EQ(3u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
-  ExpectLogContains(log, 2, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-                    LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_TRUE(LogContainsEvent(
+      *log, 1, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(*log, 2, LoadLog::TYPE_HOST_RESOLVER_IMPL));
 
   EXPECT_FALSE(callback_called_);
 }
@@ -827,18 +822,17 @@ TEST_F(HostResolverImplTest, Observers) {
   EXPECT_EQ(OK, rv);
 
   EXPECT_EQ(6u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 4, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 5, LoadLog::TYPE_HOST_RESOLVER_IMPL,
-                    LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 2, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 3, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 4, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 5, LoadLog::TYPE_HOST_RESOLVER_IMPL));
 
   EXPECT_EQ(1U, observer.start_log.size());
   EXPECT_EQ(1U, observer.finish_log.size());
