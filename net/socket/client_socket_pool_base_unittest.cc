@@ -484,12 +484,13 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_TimedOut) {
   EXPECT_EQ(ERR_TIMED_OUT, delegate.WaitForResult());
 
   EXPECT_EQ(3u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB_TIMED_OUT,
-                    LoadLog::PHASE_NONE);
-  ExpectLogContains(log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 0, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEvent(
+      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB_TIMED_OUT,
+      LoadLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
 }
 
 TEST_F(ClientSocketPoolBaseTest, BasicSynchronous) {
@@ -505,12 +506,12 @@ TEST_F(ClientSocketPoolBaseTest, BasicSynchronous) {
   handle.Reset();
 
   EXPECT_EQ(4u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(*log, 3, LoadLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
@@ -524,12 +525,12 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
                        pool_.get(), log));
 
   EXPECT_EQ(4u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(*log, 3, LoadLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, TotalLimit) {
@@ -1125,19 +1126,17 @@ TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
   req.handle()->Reset();
 
   EXPECT_EQ(6u, log->entries().size());
-  EXPECT_TRUE(LogContains(
-      *log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN));
-  EXPECT_TRUE(LogContains(
-      *log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-      LoadLog::PHASE_BEGIN));
-  EXPECT_TRUE(LogContains(
-      *log, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE, LoadLog::PHASE_END));
-  EXPECT_TRUE(LogContains(
-      *log, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB, LoadLog::PHASE_BEGIN));
-  EXPECT_TRUE(LogContains(
-      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB, LoadLog::PHASE_END));
-  EXPECT_TRUE(LogContains(
-      *log, 5, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END));
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 5, LoadLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest,
@@ -1154,16 +1153,16 @@ TEST_F(ClientSocketPoolBaseTest,
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 
   EXPECT_EQ(6u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 5, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(*log, 5, LoadLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
@@ -1185,35 +1184,36 @@ TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
   req.handle()->Reset();
 
   EXPECT_EQ(5u, log1->entries().size());
-  ExpectLogContains(log1, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log1, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log1, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log1, 3, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE);
-  ExpectLogContains(log1, 4, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log1, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log1, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log1, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+  EXPECT_TRUE(LogContainsEvent(
+      *log1, 3, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(*log1, 4, LoadLog::TYPE_SOCKET_POOL));
 
   // At this point, request 2 is just waiting for the connect job to finish.
   EXPECT_EQ(2u, log2->entries().size());
-  ExpectLogContains(log2, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log2, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-                    LoadLog::PHASE_BEGIN);
+  EXPECT_TRUE(LogContainsBeginEvent(*log2, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log2, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
 
   EXPECT_EQ(OK, req2.WaitForResult());
   req2.handle()->Reset();
 
   // Now request 2 has actually finished.
   EXPECT_EQ(6u, log2->entries().size());
-  ExpectLogContains(log2, 0, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log2, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log1, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log2, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log2, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log2, 5, LoadLog::TYPE_SOCKET_POOL, LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(*log2, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log2, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log1, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log2, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log2, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(*log2, 5, LoadLog::TYPE_SOCKET_POOL));
 
 }
 

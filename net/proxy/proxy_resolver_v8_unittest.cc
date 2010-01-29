@@ -435,18 +435,18 @@ TEST(ProxyResolverV8Test, LoadLog) {
   // isInNet() and isResolvable().
 
   EXPECT_EQ(6u, log->entries().size());
-  ExpectLogContains(log, 0, LoadLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 1, LoadLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 2, LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 3, LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE,
-                    LoadLog::PHASE_END);
-  ExpectLogContains(log, 4, LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(log, 5, LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE,
-                    LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 0, LoadLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 1, LoadLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 2, LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 3, LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *log, 4, LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 5, LoadLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE));
 }
 
 // Try loading a PAC script that ends with a comment and has no terminal

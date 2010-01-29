@@ -210,13 +210,10 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
 
   // The first and last entries of the LoadLog should be for
   // SOCKET_STREAM_CONNECT.
-  ExpectLogContains(socket_stream->load_log(), 0,
-                    LoadLog::TYPE_SOCKET_STREAM_CONNECT,
-                    LoadLog::PHASE_BEGIN);
-  ExpectLogContains(socket_stream->load_log(),
-                    socket_stream->load_log()->entries().size() - 1,
-                    LoadLog::TYPE_SOCKET_STREAM_CONNECT,
-                    LoadLog::PHASE_END);
+  EXPECT_TRUE(LogContainsBeginEvent(
+      *socket_stream->load_log(), 0, LoadLog::TYPE_SOCKET_STREAM_CONNECT));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *socket_stream->load_log(), -1, LoadLog::TYPE_SOCKET_STREAM_CONNECT));
 }
 
 }  // namespace net
