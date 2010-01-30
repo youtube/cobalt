@@ -41,9 +41,24 @@ namespace net {
 // Thread safety: This class is not threadsafe, and must only be called
 // from one thread!
 //
+// The HostResolverImpl enforces |max_jobs_| as the maximum number of concurrent
+// threads.
+//
+// Requests are ordered in the queue based on their priority.
+
 class HostResolverImpl : public HostResolver,
                          public NetworkChangeNotifier::Observer {
  public:
+  // The index into |job_pools_| for the various job pools. Pools with a higher
+  // index have lower priority.
+  //
+  // Note: This is currently unused, since there is a single pool
+  //       for all requests.
+  enum JobPoolIndex {
+    POOL_NORMAL = 0,
+    POOL_COUNT,
+  };
+
   // Creates a HostResolver that first uses the local cache |cache|, and then
   // falls back to |resolver_proc|.
   //
@@ -54,9 +69,13 @@ class HostResolverImpl : public HostResolver,
   // thread-safe since it is run from multiple worker threads. If
   // |resolver_proc| is NULL then the default host resolver procedure is
   // used (which is SystemHostResolverProc except if overridden).
+  //
+  // |max_jobs| specifies the maximum number of threads that the host resolver
+  // will use. Use SetPoolConstraints() to specify finer-grain settings.
   HostResolverImpl(HostResolverProc* resolver_proc,
                    HostCache* cache,
-                   const scoped_refptr<NetworkChangeNotifier>& notifier);
+                   const scoped_refptr<NetworkChangeNotifier>& notifier,
+                   size_t max_jobs);
 
   // HostResolver methods:
   virtual int Resolve(const RequestInfo& info,
@@ -76,8 +95,24 @@ class HostResolverImpl : public HostResolver,
     default_address_family_ = address_family;
   }
 
+  // Applies a set of constraints for requests that belong to the specified
+  // pool. NOTE: Don't call this after requests have been already been started.
+  //
+  //  |pool_index| -- Specifies which pool these constraints should be applied
+  //                  to.
+  //  |max_outstanding_jobs| -- How many concurrent jobs are allowed for this
+  //                            pool.
+  //  |max_pending_requests| -- How many requests can be enqueued for this pool
+  //                            before we start dropping requests. Dropped
+  //                            requests fail with
+  //                            ERR_HOST_RESOLVER_QUEUE_TOO_LARGE.
+  void SetPoolConstraints(JobPoolIndex pool_index,
+                          size_t max_outstanding_jobs,
+                          size_t max_pending_requests);
+
  private:
   class Job;
+  class JobPool;
   class Request;
   typedef std::vector<Request*> RequestsList;
   typedef HostCache::Key Key;
@@ -126,11 +161,39 @@ class HostResolverImpl : public HostResolver,
   // NetworkChangeNotifier::Observer methods:
   virtual void OnIPAddressChanged();
 
+  // Returns true if the constraints for |pool| are met, and a new job can be
+  // created for this pool.
+  bool CanCreateJobForPool(const JobPool& pool) const;
+
+  // Returns the index of the pool that request |req| maps to.
+  static JobPoolIndex GetJobPoolIndexForRequest(const Request* req);
+
+  JobPool* GetPoolForRequest(const Request* req) {
+    return job_pools_[GetJobPoolIndexForRequest(req)];
+  }
+
+  // Starts up to 1 job given the current pool constraints. This job
+  // may have multiple requests attached to it.
+  void ProcessQueuedRequests();
+
+  // Attaches |req| to a new job, and starts it. Returns that job.
+  Job* CreateAndStartJob(Request* req);
+
+  // Adds a pending request |req| to |pool|.
+  int EnqueueRequest(JobPool* pool, Request* req);
+
   // Cache of host resolution results.
   scoped_ptr<HostCache> cache_;
 
   // Map from hostname to outstanding job.
   JobMap jobs_;
+
+  // Maximum number of concurrent jobs allowed, across all pools.
+  size_t max_jobs_;
+
+  // The information to track pending requests for a JobPool, as well as
+  // how many outstanding jobs the pool already has, and its constraints.
+  JobPool* job_pools_[POOL_COUNT];
 
   // The job that OnJobComplete() is currently processing (needed in case
   // HostResolver gets deleted from within the callback).

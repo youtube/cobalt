@@ -11,6 +11,7 @@
 #include "googleurl/src/gurl.h"
 #include "net/base/address_family.h"
 #include "net/base/completion_callback.h"
+#include "net/base/request_priority.h"
 
 class MessageLoop;
 
@@ -40,7 +41,8 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
           address_family_(ADDRESS_FAMILY_UNSPECIFIED),
           port_(port),
           allow_cached_response_(true),
-          is_speculative_(false) {}
+          is_speculative_(false),
+          priority_(MEDIUM) {}
 
     const int port() const { return port_; }
     const std::string& hostname() const { return hostname_; }
@@ -55,6 +57,9 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
 
     bool is_speculative() const { return is_speculative_; }
     void set_is_speculative(bool b) { is_speculative_ = b; }
+
+    RequestPriority priority() const { return priority_; }
+    void set_priority(RequestPriority priority) { priority_ = priority; }
 
     const GURL& referrer() const { return referrer_; }
     void set_referrer(const GURL& referrer) { referrer_ = referrer; }
@@ -74,6 +79,9 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
 
     // Whether this request was started by the DNS prefetcher.
     bool is_speculative_;
+
+    // The priority for the request.
+    RequestPriority priority_;
 
     // Optional data for consumption by observers. This is the URL of the
     // page that lead us to the navigation, for DNS prefetcher's benefit.
