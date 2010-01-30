@@ -512,9 +512,9 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   // Get the Set-Cookie values, and send them to our cookie database.
   if (!(request_info_.load_flags & net::LOAD_DO_NOT_SAVE_COOKIES)) {
     URLRequestContext* ctx = request_->context();
-    if (ctx && ctx->cookie_store() && ctx->cookie_policy() &&
+    if (ctx && ctx->cookie_store() && (!ctx->cookie_policy() ||
         ctx->cookie_policy()->CanSetCookie(
-            request_->url(), request_->first_party_for_cookies())) {
+            request_->url(), request_->first_party_for_cookies()))) {
       FetchResponseCookies();
       net::CookieOptions options;
       options.set_include_httponly();
@@ -668,9 +668,9 @@ std::string URLRequestHttpJob::AssembleRequestCookies() {
   URLRequestContext* context = request_->context();
   if (context) {
     // Add in the cookie header.  TODO might we need more than one header?
-    if (context->cookie_store() && context->cookie_policy() &&
+    if (context->cookie_store() && (!context->cookie_policy() ||
         context->cookie_policy()->CanGetCookies(
-            request_->url(), request_->first_party_for_cookies())) {
+            request_->url(), request_->first_party_for_cookies()))) {
       net::CookieOptions options;
       options.set_include_httponly();
       std::string cookies = request_->context()->cookie_store()->
