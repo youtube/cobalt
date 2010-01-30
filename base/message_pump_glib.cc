@@ -220,7 +220,8 @@ void MessagePumpForUI::RunWithDispatcher(Delegate* delegate,
 int MessagePumpForUI::HandlePrepare() {
   // We know we have work, but we haven't called HandleDispatch yet. Don't let
   // the pump block so that we can do some processing.
-  if (state_->has_work)
+  if (state_ &&  // state_ may be null during tests.
+      state_->has_work)
     return 0;
 
   // We don't think we have work to do, but make sure not to block
@@ -229,6 +230,9 @@ int MessagePumpForUI::HandlePrepare() {
 }
 
 bool MessagePumpForUI::HandleCheck() {
+  if (!state_)  // state_ may be null during tests.
+    return false;
+
   // We should only ever have a single message on the wakeup pipe, since we
   // are only signaled when the queue went from empty to non-empty.  The glib
   // poll will tell us whether there was data, so this read shouldn't block.
@@ -317,7 +321,8 @@ void MessagePumpForUI::EventDispatcher(GdkEvent* event, gpointer data) {
   MessagePumpForUI* message_pump = reinterpret_cast<MessagePumpForUI*>(data);
 
   message_pump->WillProcessEvent(event);
-  if (message_pump->state_->dispatcher) {
+  if (message_pump->state_ &&  // state_ may be null during tests.
+      message_pump->state_->dispatcher) {
     if (!message_pump->state_->dispatcher->Dispatch(event))
       message_pump->state_->should_quit = true;
   } else {
