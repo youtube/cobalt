@@ -4,6 +4,10 @@
 
 #include "net/base/host_resolver_impl.h"
 
+#include <cmath>
+#include <deque>
+
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/debug_util.h"
 #include "base/message_loop.h"
@@ -39,8 +43,15 @@ HostCache* CreateDefaultCache() {
 }  // anonymous namespace
 
 HostResolver* CreateSystemHostResolver() {
+  // Maximum of 50 concurrent threads.
+  // TODO(eroman): Adjust this, do some A/B experiments.
+  static const size_t kMaxJobs = 50u;
+
   // TODO(willchan): Pass in the NetworkChangeNotifier.
-  return new HostResolverImpl(NULL, CreateDefaultCache(), NULL);
+  HostResolverImpl* resolver = new HostResolverImpl(
+      NULL, CreateDefaultCache(), NULL, kMaxJobs);
+
+  return resolver;
 }
 
 static int ResolveAddrInfo(HostResolverProc* resolver_proc,
@@ -212,6 +223,13 @@ class HostResolverImpl::Job
     return requests_;
   }
 
+  // Returns the first request attached to the job.
+  const Request* initial_request() const {
+    DCHECK_EQ(origin_loop_, MessageLoop::current());
+    DCHECK(!requests_.empty());
+    return requests_[0];
+  }
+
  private:
   friend class base::RefCountedThreadSafe<HostResolverImpl::Job>;
 
@@ -289,16 +307,172 @@ class HostResolverImpl::Job
 
 //-----------------------------------------------------------------------------
 
+// We rely on the priority enum values being sequential having starting at 0,
+// and increasing for lower priorities.
+COMPILE_ASSERT(HIGHEST == 0u &&
+               LOWEST > HIGHEST &&
+               NUM_PRIORITIES > LOWEST,
+               priority_indexes_incompatible);
+
+// JobPool contains all the information relating to queued requests, including
+// the limits on how many jobs are allowed to be used for this category of
+// requests.
+class HostResolverImpl::JobPool {
+ public:
+  JobPool(size_t max_outstanding_jobs, size_t max_pending_requests)
+      : num_outstanding_jobs_(0u) {
+    SetConstraints(max_outstanding_jobs, max_pending_requests);
+  }
+
+  ~JobPool() {
+    // Free the pending requests.
+    for (size_t i = 0; i < arraysize(pending_requests_); ++i)
+      STLDeleteElements(&pending_requests_[i]);
+  }
+
+  // Sets the constraints for this pool. See SetPoolConstraints() for the
+  // specific meaning of these parameters.
+  void SetConstraints(size_t max_outstanding_jobs,
+                      size_t max_pending_requests) {
+    CHECK(max_outstanding_jobs != 0u);
+    max_outstanding_jobs_ = max_outstanding_jobs;
+    max_pending_requests_ = max_pending_requests;
+  }
+
+  // Returns the number of pending requests enqueued to this pool.
+  // A pending request is one waiting to be attached to a job.
+  size_t GetNumPendingRequests() const {
+    size_t total = 0u;
+    for (size_t i = 0u; i < arraysize(pending_requests_); ++i)
+      total += pending_requests_[i].size();
+    return total;
+  }
+
+  bool HasPendingRequests() const {
+    return GetNumPendingRequests() > 0u;
+  }
+
+  // Enqueues a request to this pool. As a result of enqueing this request,
+  // the queue may have reached its maximum size. In this case, a request is
+  // evicted from the queue, and returned. Otherwise returns NULL. The caller
+  // is responsible for freeing the evicted request.
+  Request* InsertPendingRequest(Request* req) {
+    PendingRequestsQueue& q = pending_requests_[req->info().priority()];
+    q.push_back(req);
+
+    // If the queue is too big, kick out the lowest priority oldest request.
+    if (GetNumPendingRequests() > max_pending_requests_) {
+      // Iterate over the queues from lowest priority to highest priority.
+      for (int i = static_cast<int>(arraysize(pending_requests_)) - 1;
+           i >= 0; --i) {
+        PendingRequestsQueue& q = pending_requests_[i];
+        if (!q.empty()) {
+          Request* req = q.front();
+          q.pop_front();
+          return req;
+        }
+      }
+    }
+
+    return NULL;
+  }
+
+  // Erases |req| from this container. Caller is responsible for freeing
+  // |req| afterwards.
+  void RemovePendingRequest(Request* req) {
+    PendingRequestsQueue& q = pending_requests_[req->info().priority()];
+    PendingRequestsQueue::iterator it = std::find(q.begin(), q.end(), req);
+    DCHECK(it != q.end());
+    q.erase(it);
+  }
+
+  // Removes and returns the highest priority pending request.
+  Request* RemoveTopPendingRequest() {
+    DCHECK(HasPendingRequests());
+
+    for (size_t i = 0u; i < arraysize(pending_requests_); ++i) {
+      PendingRequestsQueue& q = pending_requests_[i];
+      if (!q.empty()) {
+        Request* req = q.front();
+        q.pop_front();
+        return req;
+      }
+    }
+
+    NOTREACHED();
+    return NULL;
+  }
+
+  // Keeps track of a job that was just added/removed, and belongs to this pool.
+  void AdjustNumOutstandingJobs(int offset) {
+    DCHECK(offset == 1 || (offset == -1 && num_outstanding_jobs_ > 0u));
+    num_outstanding_jobs_ += offset;
+  }
+
+  // Returns true if a new job can be created for this pool.
+  bool CanCreateJob() const {
+    return num_outstanding_jobs_ + 1u <= max_outstanding_jobs_;
+  }
+
+  // Removes any pending requests from the queue which are for the
+  // same hostname/address-family as |job|, and attaches them to |job|.
+  void MoveRequestsToJob(Job* job) {
+    for (size_t i = 0u; i < arraysize(pending_requests_); ++i) {
+      PendingRequestsQueue& q = pending_requests_[i];
+      PendingRequestsQueue::iterator req_it = q.begin();
+      while (req_it != q.end()) {
+        Request* req = *req_it;
+        Key req_key(req->info().hostname(), req->info().address_family());
+        if (req_key == job->key()) {
+          // Job takes ownership of |req|.
+          job->AddRequest(req);
+          req_it = q.erase(req_it);
+        } else {
+          ++req_it;
+        }
+      }
+    }
+  }
+
+ private:
+  typedef std::deque<Request*> PendingRequestsQueue;
+
+  // Maximum number of concurrent jobs allowed to be started for requests
+  // belonging to this pool.
+  size_t max_outstanding_jobs_;
+
+  // The current number of running jobs that were started for requests
+  // belonging to this pool.
+  size_t num_outstanding_jobs_;
+
+  // The maximum number of requests we allow to be waiting on a job,
+  // for this pool.
+  size_t max_pending_requests_;
+
+  // The requests which are waiting to be started for this pool.
+  PendingRequestsQueue pending_requests_[NUM_PRIORITIES];
+};
+
+//-----------------------------------------------------------------------------
+
 HostResolverImpl::HostResolverImpl(
     HostResolverProc* resolver_proc,
     HostCache* cache,
-    const scoped_refptr<NetworkChangeNotifier>& network_change_notifier)
+    const scoped_refptr<NetworkChangeNotifier>& network_change_notifier,
+    size_t max_jobs)
     : cache_(cache),
+      max_jobs_(max_jobs),
       next_request_id_(0),
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
       shutdown_(false),
       network_change_notifier_(network_change_notifier) {
+  DCHECK_GT(max_jobs, 0u);
+
+  // It is cumbersome to expose all of the constraints in the constructor,
+  // so we choose some defaults, which users can override later.
+  job_pools_[POOL_NORMAL] = new JobPool(max_jobs, 100u * max_jobs);
+
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
@@ -318,6 +492,10 @@ HostResolverImpl::~HostResolverImpl() {
 
   if (network_change_notifier_)
     network_change_notifier_->RemoveObserver(this);
+
+  // Delete the job pools.
+  for (size_t i = 0u; i < arraysize(job_pools_); ++i)
+    delete job_pools_[i];
 }
 
 // TODO(eroman): Don't create cache entries for hostnames which are simply IP
@@ -394,13 +572,12 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   if (job) {
     job->AddRequest(req);
   } else {
-    // Create a new job for this request.
-    job = new Job(this, key);
-    job->AddRequest(req);
-    AddOutstandingJob(job);
-    // TODO(eroman): Bound the total number of concurrent jobs.
-    // http://crbug.com/9598
-    job->Start();
+    JobPool* pool = GetPoolForRequest(req);
+    if (CanCreateJobForPool(*pool)) {
+      CreateAndStartJob(req);
+    } else {
+      return EnqueueRequest(pool, req);
+    }
   }
 
   // Completion happens during OnJobComplete(Job*).
@@ -420,7 +597,19 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
   }
   Request* req = reinterpret_cast<Request*>(req_handle);
   DCHECK(req);
-  DCHECK(req->job());
+
+  scoped_ptr<Request> request_deleter;  // Frees at end of function.
+
+  if (!req->job()) {
+    // If the request was not attached to a job yet, it must have been
+    // enqueued into a pool. Remove it from that pool's queue.
+    // Otherwise if it was attached to a job, the job is responsible for
+    // deleting it.
+    JobPool* pool = GetPoolForRequest(req);
+    pool->RemovePendingRequest(req);
+    request_deleter.reset(req);
+  }
+
   // NULL out the fields of req, to mark it as cancelled.
   req->MarkAsCancelled();
   OnCancelRequest(req->load_log(), req->id(), req->info());
@@ -453,10 +642,23 @@ void HostResolverImpl::Shutdown() {
   jobs_.clear();
 }
 
+void HostResolverImpl::SetPoolConstraints(JobPoolIndex pool_index,
+                                          size_t max_outstanding_jobs,
+                                          size_t max_pending_requests) {
+  CHECK(pool_index >= 0);
+  CHECK(pool_index < POOL_COUNT);
+  CHECK(jobs_.empty()) << "Can only set constraints during setup";
+  JobPool* pool = job_pools_[pool_index];
+  pool->SetConstraints(max_outstanding_jobs, max_pending_requests);
+}
+
 void HostResolverImpl::AddOutstandingJob(Job* job) {
   scoped_refptr<Job>& found_job = jobs_[job->key()];
   DCHECK(!found_job);
   found_job = job;
+
+  JobPool* pool = GetPoolForRequest(job->initial_request());
+  pool->AdjustNumOutstandingJobs(1);
 }
 
 HostResolverImpl::Job* HostResolverImpl::FindOutstandingJob(const Key& key) {
@@ -471,6 +673,9 @@ void HostResolverImpl::RemoveOutstandingJob(Job* job) {
   DCHECK(it != jobs_.end());
   DCHECK_EQ(it->second.get(), job);
   jobs_.erase(it);
+
+  JobPool* pool = GetPoolForRequest(job->initial_request());
+  pool->AdjustNumOutstandingJobs(-1);
 }
 
 void HostResolverImpl::OnJobComplete(Job* job,
@@ -486,6 +691,9 @@ void HostResolverImpl::OnJobComplete(Job* job,
   // HostResolver is deleted by a callback invocation.
   DCHECK(!cur_completing_job_);
   cur_completing_job_ = job;
+
+  // Try to start any queued requests now that a job-slot has freed up.
+  ProcessQueuedRequests();
 
   // Complete all of the requests that were attached to the job.
   for (RequestsList::const_iterator it = job->requests().begin();
@@ -576,6 +784,76 @@ void HostResolverImpl::OnCancelRequest(LoadLog* load_log,
 void HostResolverImpl::OnIPAddressChanged() {
   if (cache_.get())
     cache_->clear();
+}
+
+// static
+HostResolverImpl::JobPoolIndex HostResolverImpl::GetJobPoolIndexForRequest(
+    const Request* req) {
+  return POOL_NORMAL;
+}
+
+bool HostResolverImpl::CanCreateJobForPool(const JobPool& pool) const {
+  DCHECK_LE(jobs_.size(), max_jobs_);
+
+  // We can't create another job if it would exceed the global total.
+  if (jobs_.size() + 1 > max_jobs_)
+    return false;
+
+  // Check whether the pool's constraints are met.
+  return pool.CanCreateJob();
+}
+
+void HostResolverImpl::ProcessQueuedRequests() {
+  // Find the highest priority request that can be scheduled.
+  Request* top_req = NULL;
+  for (size_t i = 0; i < arraysize(job_pools_); ++i) {
+    JobPool* pool = job_pools_[i];
+    if (pool->HasPendingRequests() && CanCreateJobForPool(*pool)) {
+      top_req = pool->RemoveTopPendingRequest();
+      break;
+    }
+  }
+
+  if (!top_req)
+    return;
+
+  scoped_refptr<Job> job = CreateAndStartJob(top_req);
+
+  // Search for any other pending request which can piggy-back off this job.
+  for (size_t pool_i = 0; pool_i < POOL_COUNT; ++pool_i) {
+    JobPool* pool = job_pools_[pool_i];
+    pool->MoveRequestsToJob(job);
+  }
+}
+
+HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {
+  DCHECK(CanCreateJobForPool(*GetPoolForRequest(req)));
+  Key key(req->info().hostname(), req->info().address_family());
+  scoped_refptr<Job> job = new Job(this, key);
+  job->AddRequest(req);
+  AddOutstandingJob(job);
+  job->Start();
+  return job.get();
+}
+
+int HostResolverImpl::EnqueueRequest(JobPool* pool, Request* req) {
+  scoped_ptr<Request> req_evicted_from_queue(
+      pool->InsertPendingRequest(req));
+
+  // If the queue has become too large, we need to kick something out.
+  if (req_evicted_from_queue.get()) {
+    Request* r = req_evicted_from_queue.get();
+    int error = ERR_HOST_RESOLVER_QUEUE_TOO_LARGE;
+
+    OnFinishRequest(r->load_log(), r->id(), r->info(), error);
+
+    if (r == req)
+      return error;
+
+    r->OnComplete(error, AddressList());
+  }
+
+  return ERR_IO_PENDING;
 }
 
 }  // namespace net
