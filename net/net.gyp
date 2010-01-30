@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2010 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -41,7 +41,6 @@
         'base/cookie_monster.cc',
         'base/cookie_monster.h',
         'base/cookie_options.h',
-        'base/cookie_policy.cc',
         'base/cookie_policy.h',
         'base/cookie_store.h',
         'base/data_url.cc',
@@ -141,6 +140,8 @@
         'base/ssl_config_service_win.cc',
         'base/ssl_config_service_win.h',
         'base/ssl_info.h',
+        'base/static_cookie_policy.cc',
+        'base/static_cookie_policy.h',
         'base/transport_security_state.cc',
         'base/transport_security_state.h',
         'base/sys_addrinfo.h',
@@ -572,7 +573,6 @@
       'sources': [
         'base/address_list_unittest.cc',
         'base/cookie_monster_unittest.cc',
-        'base/cookie_policy_unittest.cc',
         'base/data_url_unittest.cc',
         'base/directory_lister_unittest.cc',
         'base/dns_util_unittest.cc',
@@ -599,6 +599,7 @@
         'base/ssl_client_auth_cache_unittest.cc',
         'base/ssl_config_service_mac_unittest.cc',
         'base/ssl_config_service_win_unittest.cc',
+        'base/static_cookie_policy_unittest.cc',
         'base/transport_security_state_unittest.cc',
         'base/telnet_server_unittest.cc',
         'base/test_certificate_data.h',
