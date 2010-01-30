@@ -13,7 +13,8 @@ enum RequestPriority {
   HIGHEST = 0,   // 0 must be the highest priority.
   MEDIUM,
   LOW,
-  LOWEST
+  LOWEST,
+  NUM_PRIORITIES,
 };
 
 }  // namespace net
