@@ -63,10 +63,12 @@ class URLRequestContext :
     return ftp_transaction_factory_;
   }
 
-  // Gets the cookie store for this context (may be null).
+  // Gets the cookie store for this context (may be null, in which case
+  // cookies are not stored).
   net::CookieStore* cookie_store() { return cookie_store_.get(); }
 
-  // Gets the cookie policy for this context (may be null).
+  // Gets the cookie policy for this context (may be null, in which case
+  // cookies are allowed).
   net::CookiePolicy* cookie_policy() { return cookie_policy_; }
 
   net::TransportSecurityState* transport_security_state() {

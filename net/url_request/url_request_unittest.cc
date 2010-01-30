@@ -1173,8 +1173,7 @@ TEST_F(URLRequestTestHTTP, BasicAuth) {
 
 // Check that Set-Cookie headers in 401 responses are respected.
 // http://crbug.com/6450
-// TODO(darin): Fix Me
-TEST_F(URLRequestTestHTTP, DISABLED_BasicAuthWithCookies) {
+TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   ASSERT_TRUE(NULL != server_.get());
 
   GURL url_requiring_auth =
@@ -1228,8 +1227,7 @@ TEST_F(URLRequestTestHTTP, DISABLED_BasicAuthWithCookies) {
   }
 }
 
-// TODO(darin): Fix Me.
-TEST_F(URLRequestTest, DISABLED_DoNotSendCookies) {
+TEST_F(URLRequestTest, DoNotSendCookies) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
@@ -1270,8 +1268,7 @@ TEST_F(URLRequestTest, DISABLED_DoNotSendCookies) {
   }
 }
 
-// TODO(darin): fix me.
-TEST_F(URLRequestTest, DISABLED_DoNotSaveCookies) {
+TEST_F(URLRequestTest, DoNotSaveCookies) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
