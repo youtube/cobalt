@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,6 @@
 
 #include "base/ref_counted.h"
 #include "base/string_util.h"
-#include "net/base/cookie_policy.h"
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
 #include "net/base/ssl_config_service.h"
@@ -22,6 +21,7 @@
 #include "net/url_request/request_tracker.h"
 
 namespace net {
+class CookiePolicy;
 class FtpTransactionFactory;
 class HttpTransactionFactory;
 class SocketStream;
@@ -35,7 +35,7 @@ class URLRequestContext :
   URLRequestContext()
       : http_transaction_factory_(NULL),
         ftp_transaction_factory_(NULL),
-        cookie_store_(NULL),
+        cookie_policy_(NULL),
         transport_security_state_(NULL) {
   }
 
@@ -63,11 +63,11 @@ class URLRequestContext :
     return ftp_transaction_factory_;
   }
 
-  // Gets the cookie store for this context.
+  // Gets the cookie store for this context (may be null).
   net::CookieStore* cookie_store() { return cookie_store_.get(); }
 
-  // Gets the cookie policy for this context.
-  net::CookiePolicy* cookie_policy() { return &cookie_policy_; }
+  // Gets the cookie policy for this context (may be null).
+  net::CookiePolicy* cookie_policy() { return cookie_policy_; }
 
   net::TransportSecurityState* transport_security_state() {
       return transport_security_state_; }
@@ -132,7 +132,7 @@ class URLRequestContext :
   net::HttpTransactionFactory* http_transaction_factory_;
   net::FtpTransactionFactory* ftp_transaction_factory_;
   scoped_refptr<net::CookieStore> cookie_store_;
-  net::CookiePolicy cookie_policy_;
+  net::CookiePolicy* cookie_policy_;
   scoped_refptr<net::TransportSecurityState> transport_security_state_;
   net::FtpAuthCache ftp_auth_cache_;
   std::string accept_language_;
