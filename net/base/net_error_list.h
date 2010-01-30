@@ -121,6 +121,10 @@ NET_ERROR(BAD_SSL_CLIENT_AUTH_CERT, -117)
 // A connection attempt timed out.
 NET_ERROR(CONNECTION_TIMED_OUT, -118)
 
+// There are too many pending DNS resolves, so a request in the queue was
+// aborted.
+NET_ERROR(HOST_RESOLVER_QUEUE_TOO_LARGE, -119)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
