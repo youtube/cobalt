@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,6 +13,7 @@
 #include "base/rand_util.h"
 #include "base/string_util.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cookie_policy.h"
 #include "net/base/filter.h"
 #include "net/base/https_prober.h"
 #include "net/base/transport_security_state.h"
@@ -511,7 +512,7 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   // Get the Set-Cookie values, and send them to our cookie database.
   if (!(request_info_.load_flags & net::LOAD_DO_NOT_SAVE_COOKIES)) {
     URLRequestContext* ctx = request_->context();
-    if (ctx && ctx->cookie_store() &&
+    if (ctx && ctx->cookie_store() && ctx->cookie_policy() &&
         ctx->cookie_policy()->CanSetCookie(
             request_->url(), request_->first_party_for_cookies())) {
       FetchResponseCookies();
@@ -667,7 +668,7 @@ std::string URLRequestHttpJob::AssembleRequestCookies() {
   URLRequestContext* context = request_->context();
   if (context) {
     // Add in the cookie header.  TODO might we need more than one header?
-    if (context->cookie_store() &&
+    if (context->cookie_store() && context->cookie_policy() &&
         context->cookie_policy()->CanGetCookies(
             request_->url(), request_->first_party_for_cookies())) {
       net::CookieOptions options;
