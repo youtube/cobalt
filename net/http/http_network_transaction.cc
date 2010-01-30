@@ -677,6 +677,7 @@ int HttpNetworkTransaction::DoInitConnection() {
   DCHECK(!connection_group.empty());
 
   HostResolver::RequestInfo resolve_info(host, port);
+  resolve_info.set_priority(request_->priority);
 
   // The referrer is used by the DNS prefetch system to correlate resolutions
   // with the page that triggered them. It doesn't impact the actual addresses
@@ -751,6 +752,7 @@ int HttpNetworkTransaction::DoSOCKSConnect() {
   HostResolver::RequestInfo req_info(request_->url.HostNoBrackets(),
                                      request_->url.EffectiveIntPort());
   req_info.set_referrer(request_->referrer);
+  req_info.set_priority(request_->priority);
 
   if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_SOCKS5)
     s = new SOCKS5ClientSocket(s, req_info);
@@ -1134,6 +1136,7 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
 
   HostResolver::RequestInfo req_info(request_->url.HostNoBrackets(),
                                      request_->url.EffectiveIntPort());
+  req_info.set_priority(request_->priority);
   const scoped_refptr<FlipSessionPool> spdy_pool =
       session_->flip_session_pool();
   scoped_refptr<FlipSession> spdy_session;
