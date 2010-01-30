@@ -269,10 +269,15 @@
       'target_name': 'omx_test',
       'type': 'executable',
       'dependencies': [
-        'omx_wrapper',
-        '../base/base.gyp:base',
+        'media',
+        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+        '../third_party/openmax/openmax.gyp:il',
       ],
       'sources': [
+        'tools/omx_test/color_space_util.cc',
+        'tools/omx_test/color_space_util.h',
+        'tools/omx_test/file_reader_util.cc',
+        'tools/omx_test/file_reader_util.h',
         'tools/omx_test/omx_test.cc',
       ],
     },
