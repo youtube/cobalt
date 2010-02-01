@@ -12,6 +12,7 @@
 #include <mach/task.h>
 #include <malloc/malloc.h>
 #include <spawn.h>
+#include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -22,6 +23,7 @@
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/sys_info.h"
 #include "base/sys_string_conversions.h"
 #include "base/time.h"
 
@@ -423,7 +425,25 @@ void EnableTerminationOnOutOfMemory() {
   // Nevertheless this is better than nothing for now.
   // TODO(avi):Do better. http://crbug.com/12673
 
+  int32 major;
+  int32 minor;
+  int32 bugfix;
+  SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
+  bool zone_allocators_protected = ((major == 10 && minor > 6) || major > 10);
+
   malloc_zone_t* default_zone = malloc_default_zone();
+
+  vm_address_t page_start;
+  vm_size_t len;
+  if (zone_allocators_protected) {
+    // See http://trac.webkit.org/changeset/53362/trunk/WebKitTools/DumpRenderTree/mac
+    page_start = reinterpret_cast<vm_address_t>(default_zone) &
+        static_cast<vm_size_t>(~(getpagesize() - 1));
+    len = reinterpret_cast<vm_address_t>(default_zone) -
+        page_start + sizeof(malloc_zone_t);
+    mprotect(reinterpret_cast<void*>(page_start), len, PROT_READ | PROT_WRITE);
+  }
+
   g_old_malloc = default_zone->malloc;
   g_old_calloc = default_zone->calloc;
   g_old_valloc = default_zone->valloc;
@@ -435,6 +455,10 @@ void EnableTerminationOnOutOfMemory() {
   default_zone->calloc = oom_killer_calloc;
   default_zone->valloc = oom_killer_valloc;
   default_zone->realloc = oom_killer_realloc;
+
+  if (zone_allocators_protected) {
+    mprotect(reinterpret_cast<void*>(page_start), len, PROT_READ);
+  }
 }
 
 }  // namespace base
