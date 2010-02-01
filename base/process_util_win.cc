@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <io.h>
 #include <windows.h>
+#include <userenv.h>
 #include <psapi.h>
 
 #include <ios>
@@ -16,6 +17,9 @@
 #include "base/logging.h"
 #include "base/scoped_handle_win.h"
 #include "base/scoped_ptr.h"
+
+// userenv.dll is required for CreateEnvironmentBlock().
+#pragma comment(lib, "userenv.lib")
 
 namespace base {
 
@@ -154,6 +158,42 @@ bool LaunchApp(const std::wstring& cmdline,
     WaitForSingleObject(process_info.hProcess, INFINITE);
 
   // If the caller wants the process handle, we won't close it.
+  if (process_handle) {
+    *process_handle = process_info.hProcess;
+  } else {
+    CloseHandle(process_info.hProcess);
+  }
+  return true;
+}
+
+
+bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
+                     bool start_hidden, ProcessHandle* process_handle) {
+  STARTUPINFO startup_info = {0};
+  startup_info.cb = sizeof(startup_info);
+  PROCESS_INFORMATION process_info;
+  if (start_hidden) {
+    startup_info.dwFlags = STARTF_USESHOWWINDOW;
+    startup_info.wShowWindow = SW_HIDE;
+  }
+  DWORD flags = CREATE_UNICODE_ENVIRONMENT;
+  void* enviroment_block = NULL;
+
+  if(!CreateEnvironmentBlock(&enviroment_block, token, FALSE))
+    return false;
+
+  BOOL launched =
+      CreateProcessAsUser(token, NULL, const_cast<wchar_t*>(cmdline.c_str()),
+                          NULL, NULL, FALSE, flags, enviroment_block,
+                          NULL, &startup_info, &process_info);
+
+  DestroyEnvironmentBlock(enviroment_block);
+
+  if (!launched)
+    return false;
+
+  CloseHandle(process_info.hThread);
+
   if (process_handle) {
     *process_handle = process_info.hProcess;
   } else {
