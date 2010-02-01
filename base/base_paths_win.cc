@@ -80,6 +80,12 @@ bool PathProviderWin(int key, FilePath* result) {
         return false;
       cur = FilePath(system_buffer);
       break;
+    case base::DIR_PROFILE:
+      if (FAILED(SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, SHGFP_TYPE_CURRENT,
+                                 system_buffer)))
+        return false;
+      cur = FilePath(system_buffer);
+      break;
     case base::DIR_LOCAL_APP_DATA_LOW:
       if (win_util::GetWinVersion() < win_util::WINVERSION_VISTA) {
         return false;
