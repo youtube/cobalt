@@ -188,6 +188,15 @@ TEST_F(ProcessUtilTest, GetAppOutput) {
   ASSERT_TRUE(base::GetAppOutput(other_cmd_line, &output));
   EXPECT_EQ("", output);
 }
+
+TEST_F(ProcessUtilTest, LaunchAsUser) {
+  base::UserTokenHandle token;
+  ASSERT_TRUE(OpenProcessToken(GetCurrentProcess(), TOKEN_ALL_ACCESS, &token));
+  std::wstring cmdline =
+      this->MakeCmdLine(L"SimpleChildProcess", false).command_line_string();
+  EXPECT_TRUE(base::LaunchAppAsUser(token, cmdline, false, NULL));
+}
+
 #endif  // defined(OS_WIN)
 
 #if defined(OS_POSIX)

@@ -21,6 +21,7 @@ namespace base {
 #if defined(OS_WIN)
 typedef HANDLE ProcessHandle;
 typedef DWORD ProcessId;
+typedef HANDLE UserTokenHandle;
 const ProcessHandle kNullProcessHandle = NULL;
 #elif defined(OS_POSIX)
 // On POSIX, our ProcessHandle will just be the PID.
