@@ -140,6 +140,20 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_map);
 //       that it doesn't leak!
 bool LaunchApp(const std::wstring& cmdline,
                bool wait, bool start_hidden, ProcessHandle* process_handle);
+
+// Runs the given application name with the given command line as if the user
+// represented by |token| had launched it. The caveats about |cmdline| and
+// |process_handle| explained for LaunchApp above apply as well.
+//
+// Whether the application is visible on the interactive desktop depends on
+// the token belonging to an interactive logon session.
+//
+// To avoid hard to diagnose problems, this function internally loads the
+// environment variables associated with the user and if this operation fails
+// the entire call fails as well.
+bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
+                     bool start_hidden, ProcessHandle* process_handle);
+
 #elif defined(OS_POSIX)
 // Runs the application specified in argv[0] with the command line argv.
 // Before launching all FDs open in the parent process will be marked as
