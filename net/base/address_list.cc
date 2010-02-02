@@ -16,7 +16,7 @@ namespace {
 // Make a deep copy of |info|. This copy should be deleted using
 // DeleteCopyOfAddrinfo(), and NOT freeaddrinfo().
 struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info) {
-  struct addrinfo* copy = new struct addrinfo;
+  struct addrinfo* copy = new addrinfo;
 
   // Copy all the fields (some of these are pointers, we will fix that next).
   memcpy(copy, info, sizeof(addrinfo));
@@ -124,8 +124,8 @@ void AddressList::Reset() {
 
 // static
 AddressList AddressList::CreateIPv6Address(unsigned char data[16]) {
-  struct addrinfo* ai = new struct addrinfo;
-  memset(ai, 0, sizeof(struct addrinfo));
+  struct addrinfo* ai = new addrinfo;
+  memset(ai, 0, sizeof(addrinfo));
 
   ai->ai_family = AF_INET6;
   ai->ai_socktype = SOCK_STREAM;
