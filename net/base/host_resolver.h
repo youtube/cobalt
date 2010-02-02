@@ -147,10 +147,6 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   // Unregisters an observer previously added by AddObserver().
   virtual void RemoveObserver(Observer* observer) = 0;
 
-  // Returns the host cache, or NULL if this implementation does not use
-  // a HostCache.
-  virtual HostCache* GetHostCache() = 0;
-
   // TODO(eroman): temp hack for http://crbug.com/18373
   virtual void Shutdown() = 0;
 
@@ -159,6 +155,11 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   // results to AF_INET by passing in ADDRESS_FAMILY_IPV4, or to
   // AF_INET6 by passing in ADDRESS_FAMILY_IPV6.
   virtual void SetDefaultAddressFamily(AddressFamily address_family) {}
+
+  // Returns true if this HostResolver is an instance of HostResolverImpl.
+  // Used primarily to expose additional functionality on the
+  // about:net-internals page.
+  virtual bool IsHostResolverImpl() { return false; }
 
  protected:
   friend class base::RefCountedThreadSafe<HostResolver>;
