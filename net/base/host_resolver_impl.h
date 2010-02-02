@@ -86,7 +86,6 @@ class HostResolverImpl : public HostResolver,
   virtual void CancelRequest(RequestHandle req);
   virtual void AddObserver(HostResolver::Observer* observer);
   virtual void RemoveObserver(HostResolver::Observer* observer);
-  virtual HostCache* GetHostCache();
 
   // TODO(eroman): temp hack for http://crbug.com/15513
   virtual void Shutdown();
@@ -94,6 +93,22 @@ class HostResolverImpl : public HostResolver,
   virtual void SetDefaultAddressFamily(AddressFamily address_family) {
     default_address_family_ = address_family;
   }
+
+  virtual bool IsHostResolverImpl() { return true; }
+
+  // Returns the cache this resolver uses, or NULL if caching is disabled.
+  HostCache* cache() { return cache_.get(); }
+
+  // Clears the request trace log.
+  void ClearRequestsTrace();
+
+  // Starts/ends capturing requests to a trace log.
+  void EnableRequestsTracing(bool enable);
+
+  bool IsRequestsTracingEnabled() const;
+
+  // Returns a copy of the requests trace log, or NULL if there is none.
+  scoped_refptr<LoadLog> GetRequestsTrace();
 
   // Applies a set of constraints for requests that belong to the specified
   // pool. NOTE: Don't call this after requests have been already been started.
@@ -114,6 +129,7 @@ class HostResolverImpl : public HostResolver,
   class Job;
   class JobPool;
   class Request;
+  class RequestsTrace;
   typedef std::vector<Request*> RequestsList;
   typedef HostCache::Key Key;
   typedef std::map<Key, scoped_refptr<Job> > JobMap;
@@ -206,6 +222,10 @@ class HostResolverImpl : public HostResolver,
   // Observers are the only consumers of this ID number.
   int next_request_id_;
 
+  // Monotonically increasing ID number to assign to the next job.
+  // The only consumer of this ID is the requests tracing code.
+  int next_job_id_;
+
   // The procedure to use for resolving host names. This will be NULL, except
   // in the case of unit-tests which inject custom host resolving behaviors.
   scoped_refptr<HostResolverProc> resolver_proc_;
@@ -217,6 +237,8 @@ class HostResolverImpl : public HostResolver,
   bool shutdown_;
 
   const scoped_refptr<NetworkChangeNotifier> network_change_notifier_;
+
+  scoped_refptr<RequestsTrace> requests_trace_;
 
   DISALLOW_COPY_AND_ASSIGN(HostResolverImpl);
 };
