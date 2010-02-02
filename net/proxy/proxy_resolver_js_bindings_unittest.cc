@@ -37,7 +37,6 @@ class MockHostResolverWithMultipleResults : public HostResolver {
   virtual void CancelRequest(RequestHandle req) {}
   virtual void AddObserver(Observer* observer) {}
   virtual void RemoveObserver(Observer* observer) {}
-  virtual HostCache* GetHostCache() { return NULL; }
   virtual void Shutdown() {}
 
  private:
