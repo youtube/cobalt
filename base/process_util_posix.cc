@@ -16,6 +16,7 @@
 #include <limits>
 #include <set>
 
+#include "base/compiler_specific.h"
 #include "base/debug_util.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
@@ -223,7 +224,9 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
       if (saved_fds.find(fd) != saved_fds.end())
         continue;
 
-      HANDLE_EINTR(close(fd));
+      // Since we're just trying to close anything we can find,
+      // ignore any error return values of close().
+      int unused ALLOW_UNUSED = HANDLE_EINTR(close(fd));
     }
     return;
   }
@@ -249,8 +252,10 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
     // own use and will complain if we try to close them.  All of
     // these FDs are >= |max_fds|, so we can check against that here
     // before closing.  See https://bugs.kde.org/show_bug.cgi?id=191758
-    if (fd < static_cast<int>(max_fds))
-      HANDLE_EINTR(close(fd));
+    if (fd < static_cast<int>(max_fds)) {
+      int ret = HANDLE_EINTR(close(fd));
+      DPCHECK(ret == 0);
+    }
   }
 }
 
@@ -436,8 +441,10 @@ bool LaunchApp(
     _exit(127);
   } else {
     // Parent process
-    if (wait)
-      HANDLE_EINTR(waitpid(pid, 0, 0));
+    if (wait) {
+      pid_t ret = HANDLE_EINTR(waitpid(pid, 0, 0));
+      DPCHECK(ret > 0);
+    }
 
     if (process_handle)
       *process_handle = pid;
