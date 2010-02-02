@@ -481,9 +481,10 @@ int ReadFile(const FilePath& filename, char* data, int size) {
   if (fd < 0)
     return -1;
 
-  int ret_value = HANDLE_EINTR(read(fd, data, size));
-  HANDLE_EINTR(close(fd));
-  return ret_value;
+  ssize_t bytes_read = HANDLE_EINTR(read(fd, data, size));
+  if (int ret = HANDLE_EINTR(close(fd)) < 0)
+    return ret;
+  return bytes_read;
 }
 
 int WriteFile(const FilePath& filename, const char* data, int size) {
@@ -491,9 +492,10 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
   if (fd < 0)
     return -1;
 
-  int rv = WriteFileDescriptor(fd, data, size);
-  HANDLE_EINTR(close(fd));
-  return rv;
+  int bytes_written = WriteFileDescriptor(fd, data, size);
+  if (int ret = HANDLE_EINTR(close(fd)) < 0)
+    return ret;
+  return bytes_written;
 }
 
 int WriteFileDescriptor(const int fd, const char* data, int size) {
