@@ -238,7 +238,8 @@ MULTIPROCESS_TEST_MAIN(ProcessUtilsLeakFDChildProcess) {
   int written = HANDLE_EINTR(write(write_pipe, &num_open_files,
                                    sizeof(num_open_files)));
   DCHECK_EQ(static_cast<size_t>(written), sizeof(num_open_files));
-  HANDLE_EINTR(close(write_pipe));
+  int ret = HANDLE_EINTR(close(write_pipe));
+  DPCHECK(ret == 0);
 
   return 0;
 }
@@ -254,7 +255,8 @@ int ProcessUtilTest::CountOpenFDsInChild() {
                                           fd_mapping_vec,
                                           false);
   CHECK(handle);
-  HANDLE_EINTR(close(fds[1]));
+  int ret = HANDLE_EINTR(close(fds[1]));
+  DPCHECK(ret == 0);
 
   // Read number of open files in client process from pipe;
   int num_open_files = -1;
@@ -264,7 +266,8 @@ int ProcessUtilTest::CountOpenFDsInChild() {
 
   CHECK(WaitForSingleProcess(handle, 1000));
   base::CloseProcessHandle(handle);
-  HANDLE_EINTR(close(fds[0]));
+  ret = HANDLE_EINTR(close(fds[0]));
+  DPCHECK(ret == 0);
 
   return num_open_files;
 }
@@ -282,9 +285,13 @@ TEST_F(ProcessUtilTest, FDRemapping) {
 
   ASSERT_EQ(fds_after, fds_before);
 
-  HANDLE_EINTR(close(sockets[0]));
-  HANDLE_EINTR(close(sockets[1]));
-  HANDLE_EINTR(close(dev_null));
+  int ret;
+  ret = HANDLE_EINTR(close(sockets[0]));
+  DPCHECK(ret == 0);
+  ret = HANDLE_EINTR(close(sockets[1]));
+  DPCHECK(ret == 0);
+  ret = HANDLE_EINTR(close(dev_null));
+  DPCHECK(ret == 0);
 }
 
 TEST_F(ProcessUtilTest, GetAppOutput) {
