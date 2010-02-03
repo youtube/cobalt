@@ -75,17 +75,12 @@ URLRequestHttpJob::URLRequestHttpJob(URLRequest* request)
     : URLRequestJob(request),
       context_(request->context()),
       response_info_(NULL),
-      response_cookies_save_index_(0),
       proxy_auth_state_(net::AUTH_STATE_DONT_NEED_AUTH),
       server_auth_state_(net::AUTH_STATE_DONT_NEED_AUTH),
-      ALLOW_THIS_IN_INITIALIZER_LIST(can_get_cookies_callback_(
-          this, &URLRequestHttpJob::OnCanGetCookiesCompleted)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(can_set_cookie_callback_(
-          this, &URLRequestHttpJob::OnCanSetCookieCompleted)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(start_callback_(
-          this, &URLRequestHttpJob::OnStartCompleted)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(read_callback_(
-          this, &URLRequestHttpJob::OnReadCompleted)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          start_callback_(this, &URLRequestHttpJob::OnStartCompleted)),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          read_callback_(this, &URLRequestHttpJob::OnReadCompleted)),
       read_in_progress_(false),
       transaction_(NULL),
       sdch_dictionary_advertised_(false),
@@ -151,7 +146,8 @@ void URLRequestHttpJob::Start() {
   }
 
   AddExtraHeaders();
-  AddCookieHeaderAndStart();
+
+  StartTransaction();
 }
 
 void URLRequestHttpJob::Kill() {
@@ -204,11 +200,11 @@ bool URLRequestHttpJob::GetResponseCookies(
   if (!response_info_)
     return false;
 
-  // TODO(darin): Why are we extracting response cookies again?  Perhaps we
-  // should just leverage response_cookies_.
+  if (response_cookies_.empty())
+    FetchResponseCookies();
 
   cookies->clear();
-  FetchResponseCookies(response_info_, cookies);
+  cookies->swap(response_cookies_);
   return true;
 }
 
@@ -324,8 +320,6 @@ void URLRequestHttpJob::SetAuth(const std::wstring& username,
 void URLRequestHttpJob::RestartTransactionWithAuth(
     const std::wstring& username,
     const std::wstring& password) {
-  username_ = username;
-  password_ = password;
 
   // These will be reset in OnStartCompleted.
   response_info_ = NULL;
@@ -333,12 +327,27 @@ void URLRequestHttpJob::RestartTransactionWithAuth(
 
   // Update the cookies, since the cookie store may have been updated from the
   // headers in the 401/407. Since cookies were already appended to
-  // extra_headers, we need to strip them out before adding them again.
+  // extra_headers by AddExtraHeaders(), we need to strip them out.
   static const char* const cookie_name[] = { "cookie" };
   request_info_.extra_headers = net::HttpUtil::StripHeaders(
       request_info_.extra_headers, cookie_name, arraysize(cookie_name));
+  // TODO(eroman): this ordering is inconsistent with non-restarted request,
+  // where cookies header appears second from the bottom.
+  request_info_.extra_headers += AssembleRequestCookies();
 
-  AddCookieHeaderAndStart();
+  // No matter what, we want to report our status as IO pending since we will
+  // be notifying our consumer asynchronously via OnStartCompleted.
+  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
+
+  int rv = transaction_->RestartWithAuth(username, password,
+                                         &start_callback_);
+  if (rv == net::ERR_IO_PENDING)
+    return;
+
+  // The transaction started synchronously, but we need to notify the
+  // URLRequest delegate via the message loop.
+  MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
+      this, &URLRequestHttpJob::OnStartCompleted, rv));
 }
 
 void URLRequestHttpJob::CancelAuth() {
@@ -429,41 +438,6 @@ bool URLRequestHttpJob::ReadRawData(net::IOBuffer* buf, int buf_size,
   return false;
 }
 
-void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
-  // If the request was destroyed, then there is no more work to do.
-  if (request_ && request_->delegate()) {
-    if (policy == net::OK && request_->context()->cookie_store()) {
-      net::CookieOptions options;
-      options.set_include_httponly();
-      std::string cookies =
-          request_->context()->cookie_store()->GetCookiesWithOptions(
-              request_->url(), options);
-      if (request_->context()->InterceptRequestCookies(request_, cookies) &&
-          !cookies.empty())
-        request_info_.extra_headers += "Cookie: " + cookies + "\r\n";
-    }
-    StartTransaction();
-  }
-  Release();  // Balance AddRef taken in AddCookieHeaderAndStart
-}
-
-void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
-  // If the request was destroyed, then there is no more work to do.
-  if (request_ && request_->delegate()) {
-    if (policy == net::OK && request_->context()->cookie_store()) {
-      // OK to save the current response cookie now.
-      net::CookieOptions options;
-      options.set_include_httponly();
-      request_->context()->cookie_store()->SetCookieWithOptions(
-          request_->url(), response_cookies_[response_cookies_save_index_],
-          options);
-    }
-    response_cookies_save_index_++;
-    SaveNextCookie();
-  }
-  Release();  // Balance AddRef taken in SaveNextCookie
-}
-
 void URLRequestHttpJob::OnStartCompleted(int result) {
   // If the request was destroyed, then there is no more work to do.
   if (!request_ || !request_->delegate())
@@ -478,7 +452,7 @@ void URLRequestHttpJob::OnStartCompleted(int result) {
   SetStatus(URLRequestStatus());
 
   if (result == net::OK) {
-    SaveCookiesAndNotifyHeadersComplete();
+    NotifyHeadersComplete();
   } else if (ShouldTreatAsCertificateError(result)) {
     // We encountered an SSL certificate error.  Ask our delegate to decide
     // what we should do.
@@ -535,6 +509,21 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   // also need this info.
   is_cached_content_ = response_info_->was_cached;
 
+  // Get the Set-Cookie values, and send them to our cookie database.
+  if (!(request_info_.load_flags & net::LOAD_DO_NOT_SAVE_COOKIES)) {
+    URLRequestContext* ctx = request_->context();
+    if (ctx && ctx->cookie_store() && (!ctx->cookie_policy() ||
+        ctx->cookie_policy()->CanSetCookie(
+            request_->url(), request_->first_party_for_cookies()))) {
+      FetchResponseCookies();
+      net::CookieOptions options;
+      options.set_include_httponly();
+      ctx->cookie_store()->SetCookiesWithOptions(request_->url(),
+                                                 response_cookies_,
+                                                 options);
+    }
+  }
+
   ProcessStrictTransportSecurityHeader();
 
   if (SdchManager::Global() &&
@@ -579,28 +568,25 @@ void URLRequestHttpJob::DestroyTransaction() {
 void URLRequestHttpJob::StartTransaction() {
   // NOTE: This method assumes that request_info_ is already setup properly.
 
-  // If we already have a transaction, then we should restart the transaction
-  // with auth provided by username_ and password_.
+  // Create a transaction.
+  DCHECK(!transaction_.get());
 
-  int rv;
-  if (transaction_.get()) {
-    rv = transaction_->RestartWithAuth(username_, password_, &start_callback_);
-    username_.clear();
-    password_.clear();
-  } else {
-    DCHECK(request_->context());
-    DCHECK(request_->context()->http_transaction_factory());
+  DCHECK(request_->context());
+  DCHECK(request_->context()->http_transaction_factory());
 
-    rv = request_->context()->http_transaction_factory()->CreateTransaction(
-        &transaction_);
-    if (rv == net::OK) {
-      rv = transaction_->Start(
-          &request_info_, &start_callback_, request_->load_log());
-    }
+  // No matter what, we want to report our status as IO pending since we will
+  // be notifying our consumer asynchronously via OnStartCompleted.
+  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
+
+  int rv = request_->context()->http_transaction_factory()->CreateTransaction(
+      &transaction_);
+
+  if (rv == net::OK) {
+    rv = transaction_->Start(
+        &request_info_, &start_callback_, request_->load_log());
+    if (rv == net::ERR_IO_PENDING)
+      return;
   }
-
-  if (rv == net::ERR_IO_PENDING)
-    return;
 
   // The transaction started synchronously, but we need to notify the
   // URLRequest delegate via the message loop.
@@ -662,6 +648,8 @@ void URLRequestHttpJob::AddExtraHeaders() {
 
   URLRequestContext* context = request_->context();
   if (context) {
+    request_info_.extra_headers += AssembleRequestCookies();
+
     // Only add default Accept-Language and Accept-Charset if the request
     // didn't have them specified.
     net::HttpUtil::AppendHeaderIfMissing("Accept-Language",
@@ -673,87 +661,39 @@ void URLRequestHttpJob::AddExtraHeaders() {
   }
 }
 
-void URLRequestHttpJob::AddCookieHeaderAndStart() {
-  // No matter what, we want to report our status as IO pending since we will
-  // be notifying our consumer asynchronously via OnStartCompleted.
-  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
+std::string URLRequestHttpJob::AssembleRequestCookies() {
+  if (request_info_.load_flags & net::LOAD_DO_NOT_SEND_COOKIES)
+    return std::string();
 
-  AddRef();  // Balanced in OnCanGetCookiesCompleted
-
-  int policy = net::OK;
-
-  if (request_info_.load_flags & net::LOAD_DO_NOT_SEND_COOKIES) {
-    policy = net::ERR_ACCESS_DENIED;
-  } else if (request_->context()->cookie_policy()) {
-    policy = request_->context()->cookie_policy()->CanGetCookies(
-        request_->url(),
-        request_->first_party_for_cookies(),
-        &can_get_cookies_callback_);
-    if (policy == net::ERR_IO_PENDING)
-      return;  // Wait for completion callback
+  URLRequestContext* context = request_->context();
+  if (context) {
+    // Add in the cookie header.  TODO might we need more than one header?
+    if (context->cookie_store() && (!context->cookie_policy() ||
+        context->cookie_policy()->CanGetCookies(
+            request_->url(), request_->first_party_for_cookies()))) {
+      net::CookieOptions options;
+      options.set_include_httponly();
+      std::string cookies = request_->context()->cookie_store()->
+          GetCookiesWithOptions(request_->url(), options);
+      if (context->InterceptRequestCookies(request_, cookies) &&
+          !cookies.empty())
+        return "Cookie: " + cookies + "\r\n";
+    }
   }
-
-  OnCanGetCookiesCompleted(policy);
+  return std::string();
 }
 
-void URLRequestHttpJob::SaveCookiesAndNotifyHeadersComplete() {
-  DCHECK(transaction_.get());
+void URLRequestHttpJob::FetchResponseCookies() {
+  DCHECK(response_info_);
+  DCHECK(response_cookies_.empty());
 
-  const net::HttpResponseInfo* response_info = transaction_->GetResponseInfo();
-  DCHECK(response_info);
-
-  response_cookies_.clear();
-  response_cookies_save_index_ = 0;
-
-  FetchResponseCookies(response_info, &response_cookies_);
-
-  // Now, loop over the response cookies, and attempt to persist each.
-  SaveNextCookie();
-}
-
-void URLRequestHttpJob::SaveNextCookie() {
-  if (response_cookies_save_index_ == response_cookies_.size()) {
-    response_cookies_.clear();
-    response_cookies_save_index_ = 0;
-    SetStatus(URLRequestStatus());  // Clear the IO_PENDING status
-    NotifyHeadersComplete();
-    return;
-  }
-
-  // No matter what, we want to report our status as IO pending since we will
-  // be notifying our consumer asynchronously via OnStartCompleted.
-  SetStatus(URLRequestStatus(URLRequestStatus::IO_PENDING, 0));
-
-  AddRef();  // Balanced in OnCanSetCookieCompleted
-
-  int policy = net::OK;
-
-  if (request_info_.load_flags & net::LOAD_DO_NOT_SAVE_COOKIES) {
-    policy = net::ERR_ACCESS_DENIED;
-  } else if (request_->context()->cookie_policy()) {
-    policy = request_->context()->cookie_policy()->CanSetCookie(
-        request_->url(),
-        request_->first_party_for_cookies(),
-        response_cookies_[response_cookies_save_index_],
-        &can_set_cookie_callback_);
-    if (policy == net::ERR_IO_PENDING)
-      return;  // Wait for completion callback
-  }
-
-  OnCanSetCookieCompleted(policy);
-}
-
-void URLRequestHttpJob::FetchResponseCookies(
-    const net::HttpResponseInfo* response_info,
-    std::vector<std::string>* cookies) {
   std::string name = "Set-Cookie";
   std::string value;
 
   void* iter = NULL;
-  while (response_info->headers->EnumerateHeader(&iter, name, &value)) {
+  while (response_info_->headers->EnumerateHeader(&iter, name, &value))
     if (request_->context()->InterceptResponseCookie(request_, value))
-      cookies->push_back(value);
-  }
+      response_cookies_.push_back(value);
 }
 
 class HTTPSProberDelegate : public net::HTTPSProberDelegate {
