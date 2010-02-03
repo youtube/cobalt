@@ -279,7 +279,6 @@
         'conditions': [
           [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd"', {
               'sources/': [
-                ['exclude', '/xdg_mime/'],
                 ['exclude', '/xdg_user_dirs/'],
                 ['exclude', '_nss\.cc$'],
               ],
@@ -398,7 +397,8 @@
             '../build/util/build_util.gyp:lastchange',
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:nss',
-            'symbolize'
+            'symbolize',
+            'xdg_mime',
           ],
           'defines': [
             'USE_SYMBOLIZE',
@@ -486,22 +486,6 @@
         'third_party/nss/sha512.cc',
         'third_party/purify/pure.h',
         'third_party/purify/pure_api.c',
-        'third_party/xdg_mime/xdgmime.c',
-        'third_party/xdg_mime/xdgmime.h',
-        'third_party/xdg_mime/xdgmimealias.c',
-        'third_party/xdg_mime/xdgmimealias.h',
-        'third_party/xdg_mime/xdgmimecache.c',
-        'third_party/xdg_mime/xdgmimecache.h',
-        'third_party/xdg_mime/xdgmimeglob.c',
-        'third_party/xdg_mime/xdgmimeglob.h',
-        'third_party/xdg_mime/xdgmimeicon.c',
-        'third_party/xdg_mime/xdgmimeicon.h',
-        'third_party/xdg_mime/xdgmimeint.c',
-        'third_party/xdg_mime/xdgmimeint.h',
-        'third_party/xdg_mime/xdgmimemagic.c',
-        'third_party/xdg_mime/xdgmimemagic.h',
-        'third_party/xdg_mime/xdgmimeparent.c',
-        'third_party/xdg_mime/xdgmimeparent.h',
         'third_party/xdg_user_dirs/xdg_user_dir_lookup.cc',
         'third_party/xdg_user_dirs/xdg_user_dir_lookup.h',
         'auto_reset.h',
@@ -614,6 +598,8 @@
       ],
     }],
     [ 'OS == "linux" or OS == "freebsd"', {
+      # TODO: these third-party targets should be in a separate .gyp file
+      # so it can set chromium_code=0 to turn off our aggressive warnings.
       'targets': [
         {
           'target_name': 'symbolize',
@@ -624,6 +610,28 @@
           'sources': [
             'third_party/symbolize/symbolize.cc',
             'third_party/symbolize/demangle.cc',
+          ],
+        },
+        {
+          'target_name': 'xdg_mime',
+          'type': '<(library)',
+          'sources': [
+            'third_party/xdg_mime/xdgmime.c',
+            'third_party/xdg_mime/xdgmime.h',
+            'third_party/xdg_mime/xdgmimealias.c',
+            'third_party/xdg_mime/xdgmimealias.h',
+            'third_party/xdg_mime/xdgmimecache.c',
+            'third_party/xdg_mime/xdgmimecache.h',
+            'third_party/xdg_mime/xdgmimeglob.c',
+            'third_party/xdg_mime/xdgmimeglob.h',
+            'third_party/xdg_mime/xdgmimeicon.c',
+            'third_party/xdg_mime/xdgmimeicon.h',
+            'third_party/xdg_mime/xdgmimeint.c',
+            'third_party/xdg_mime/xdgmimeint.h',
+            'third_party/xdg_mime/xdgmimemagic.c',
+            'third_party/xdg_mime/xdgmimemagic.h',
+            'third_party/xdg_mime/xdgmimeparent.c',
+            'third_party/xdg_mime/xdgmimeparent.h',
           ],
         },
       ],
