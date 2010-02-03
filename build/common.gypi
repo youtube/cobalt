@@ -280,6 +280,15 @@
           'NACL_WIN64',
         ],
       }],
+      # Compute based on OS and target architecture whether the GPU
+      # plugin / process is supported.
+      [ 'OS=="win" or (OS=="linux" and target_arch!="arm") or OS=="mac"', {
+        # Enable a variable used elsewhere throughout the GYP files to determine
+        # whether to compile in the sources for the GPU plugin / process.
+        'enable_gpu%': 1,
+      }, {  # GPU plugin not supported
+        'enable_gpu%': 0,
+      }],
     ],
 
     # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
@@ -346,7 +355,7 @@
           }],
         ],
       }],
-      ['OS=="win" or (OS=="linux" and target_arch!="arm")', {
+      ['enable_gpu==1', {
         'defines': [
           'ENABLE_GPU=1',
         ],
