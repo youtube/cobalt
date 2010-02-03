@@ -395,7 +395,38 @@ void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
     delete socket;
   }
 
+  const bool more_releasing_sockets = group.num_releasing_sockets > 0;
+
   OnAvailableSocketSlot(group_name, &group);
+
+  // If there are no more releasing sockets, then we might have to process
+  // multiple available socket slots, since we stalled their processing until
+  // all sockets have been released.
+  if (more_releasing_sockets)
+    return;
+
+  while (true) {
+    // We can't activate more sockets since we're already at our global limit.
+    if (ReachedMaxSocketsLimit())
+      return;
+    
+    // |group| might now be deleted.
+    i = group_map_.find(group_name);
+    if (i == group_map_.end())
+      return;
+
+    group = i->second;
+    
+    // If we already have enough ConnectJobs to satisfy the pending requests,
+    // don't bother starting up more.
+    if (group.pending_requests.size() <= group.jobs.size())
+      return;
+
+    if (!group.HasAvailableSocketSlot(max_sockets_per_group_))
+      return;
+
+    OnAvailableSocketSlot(group_name, &group);
+  }
 }
 
 // Search for the highest priority pending request, amongst the groups that
