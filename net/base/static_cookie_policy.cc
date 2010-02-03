@@ -6,44 +6,40 @@
 
 #include "base/logging.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/net_errors.h"
 #include "net/base/registry_controlled_domain.h"
 
 namespace net {
 
-int StaticCookiePolicy::CanGetCookies(const GURL& url,
-                                      const GURL& first_party_for_cookies,
-                                      CompletionCallback* callback) {
+bool StaticCookiePolicy::CanGetCookies(const GURL& url,
+                                       const GURL& first_party_for_cookies) {
   switch (type_) {
     case StaticCookiePolicy::ALLOW_ALL_COOKIES:
-      return OK;
+      return true;
     case StaticCookiePolicy::BLOCK_THIRD_PARTY_COOKIES:
-      return OK;
+      return true;
     case StaticCookiePolicy::BLOCK_ALL_COOKIES:
-      return ERR_ACCESS_DENIED;
+      return false;
     default:
       NOTREACHED();
-      return ERR_ACCESS_DENIED;
+      return false;
   }
 }
 
-int StaticCookiePolicy::CanSetCookie(const GURL& url,
-                                     const GURL& first_party_for_cookies,
-                                     const std::string& cookie_line,
-                                     CompletionCallback* callback) {
+bool StaticCookiePolicy::CanSetCookie(const GURL& url,
+                                      const GURL& first_party_for_cookies) {
   switch (type_) {
     case StaticCookiePolicy::ALLOW_ALL_COOKIES:
-      return OK;
+      return true;
     case StaticCookiePolicy::BLOCK_THIRD_PARTY_COOKIES:
       if (first_party_for_cookies.is_empty())
-        return OK;  // Empty first-party URL indicates a first-party request.
-      return RegistryControlledDomainService::SameDomainOrHost(
-          url, first_party_for_cookies) ? OK : ERR_ACCESS_DENIED;
+        return true;  // Empty first-party URL indicates a first-party request.
+      return net::RegistryControlledDomainService::SameDomainOrHost(
+          url, first_party_for_cookies);
     case StaticCookiePolicy::BLOCK_ALL_COOKIES:
-      return ERR_ACCESS_DENIED;
+      return false;
     default:
       NOTREACHED();
-      return ERR_ACCESS_DENIED;
+      return false;
   }
 }
 
