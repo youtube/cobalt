@@ -14,6 +14,18 @@ class ClientSocket;
 class SSLClientSocket;
 struct SSLConfig;
 
+// Callback function to create new SSLClientSocket objects.
+typedef SSLClientSocket* (*SSLClientSocketFactory)(
+    ClientSocket* transport_socket,
+    const std::string& hostname,
+    const SSLConfig& ssl_config);
+
+// Creates SSLClientSocketNSS objects.
+SSLClientSocket* SSLClientSocketNSSFactory(
+    ClientSocket* transport_socket,
+    const std::string& hostname,
+    const SSLConfig& ssl_config);
+
 // An interface used to instantiate ClientSocket objects.  Used to facilitate
 // testing code with mock socket implementations.
 class ClientSocketFactory {
@@ -30,6 +42,10 @@ class ClientSocketFactory {
 
   // Returns the default ClientSocketFactory.
   static ClientSocketFactory* GetDefaultFactory();
+
+  // Instructs the default ClientSocketFactory to use |factory| to create
+  // SSLClientSocket objects.
+  static void SetSSLClientSocketFactory(SSLClientSocketFactory factory);
 };
 
 }  // namespace net
