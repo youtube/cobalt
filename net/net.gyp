@@ -434,6 +434,7 @@
         'socket/ssl_client_socket.h',
         'socket/ssl_client_socket_mac.cc',
         'socket/ssl_client_socket_mac.h',
+        'socket/ssl_client_socket_nss_factory.cc',
         'socket/ssl_client_socket_nss.cc',
         'socket/ssl_client_socket_nss.h',
         'socket/ssl_client_socket_win.cc',
@@ -528,6 +529,7 @@
           {  # else: OS != "win"
             'sources!': [
               'proxy/proxy_resolver_winhttp.cc',
+              'socket/ssl_client_socket_nss_factory.cc',
             ],
           },
         ],
