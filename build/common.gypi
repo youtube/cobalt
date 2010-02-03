@@ -78,6 +78,10 @@
       # Set to 1 to enable fast builds. It disables debug info for fastest
       # compilation.
       'fastbuild%': 0,
+
+      # Set to 1 compile with -fPIC cflag on linux. This is a must for shared
+      # libraries on linux x86-64 and arm.
+      'linux_fpic%': 0,
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -90,6 +94,7 @@
     'chromeos%': '<(chromeos)',
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
+    'linux_fpic%': '<(linux_fpic)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -186,8 +191,6 @@
 
     # Enable TCMalloc.
     'linux_use_tcmalloc%': 0,
-
-    'linux_fpic%': 0,
 
     # Set to select the Title Case versions of strings in GRD files.
     'use_titlecase_in_grd_files%': 0,
