@@ -62,17 +62,12 @@ class URLRequestHttpJob : public URLRequestJob {
   void DestroyTransaction();
   void StartTransaction();
   void AddExtraHeaders();
-  void AddCookieHeaderAndStart();
-  void SaveCookiesAndNotifyHeadersComplete();
-  void SaveNextCookie();
-  void FetchResponseCookies(const net::HttpResponseInfo* response_info,
-                            std::vector<std::string>* cookies);
+  std::string AssembleRequestCookies();
+  void FetchResponseCookies();
 
   // Process the Strict-Transport-Security header, if one exists.
   void ProcessStrictTransportSecurityHeader();
 
-  void OnCanGetCookiesCompleted(int result);
-  void OnCanSetCookieCompleted(int result);
   void OnStartCompleted(int result);
   void OnReadCompleted(int result);
 
@@ -87,19 +82,12 @@ class URLRequestHttpJob : public URLRequestJob {
 
   net::HttpRequestInfo request_info_;
   const net::HttpResponseInfo* response_info_;
-
   std::vector<std::string> response_cookies_;
-  size_t response_cookies_save_index_;
 
   // Auth states for proxy and origin server.
   net::AuthState proxy_auth_state_;
   net::AuthState server_auth_state_;
 
-  std::wstring username_;
-  std::wstring password_;
-
-  net::CompletionCallbackImpl<URLRequestHttpJob> can_get_cookies_callback_;
-  net::CompletionCallbackImpl<URLRequestHttpJob> can_set_cookie_callback_;
   net::CompletionCallbackImpl<URLRequestHttpJob> start_callback_;
   net::CompletionCallbackImpl<URLRequestHttpJob> read_callback_;
 
