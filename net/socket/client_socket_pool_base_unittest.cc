@@ -1389,6 +1389,47 @@ TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
   EXPECT_TRUE(req.handle()->is_reused());
 }
 
+// Make sure that we process all pending requests even when we're stalling 
+// because of multiple releasing disconnected sockets.
+TEST_F(ClientSocketPoolBaseTest, MultipleReleasingDisconnectedSockets) {
+  CreatePoolWithIdleTimeouts(
+      kDefaultMaxSockets, kDefaultMaxSocketsPerGroup,
+      base::TimeDelta(),  // Time out unused sockets immediately.
+      base::TimeDelta::FromDays(1));  // Don't time out used sockets.
+
+  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
+
+  // Startup 4 connect jobs.  Two of them will be pending.
+
+  TestSocketRequest req(&request_order_, &completion_count_);
+  int rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), NULL);
+  EXPECT_EQ(OK, rv);
+
+  TestSocketRequest req2(&request_order_, &completion_count_);
+  rv = InitHandle(req2.handle(), "a", LOWEST, &req2, pool_.get(), NULL);
+  EXPECT_EQ(OK, rv);
+
+  TestSocketRequest req3(&request_order_, &completion_count_);
+  rv = InitHandle(req3.handle(), "a", LOWEST, &req3, pool_.get(), NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  TestSocketRequest req4(&request_order_, &completion_count_);
+  rv = InitHandle(req4.handle(), "a", LOWEST, &req4, pool_.get(), NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  // Release two disconnected sockets.
+
+  req.handle()->socket()->Disconnect();
+  req.handle()->Reset();
+  req2.handle()->socket()->Disconnect();
+  req2.handle()->Reset();
+
+  EXPECT_EQ(OK, req3.WaitForResult());
+  EXPECT_FALSE(req3.handle()->is_reused());
+  EXPECT_EQ(OK, req4.WaitForResult());
+  EXPECT_FALSE(req4.handle()->is_reused());
+}
+
 }  // namespace
 
 }  // namespace net
