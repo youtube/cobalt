@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -115,6 +115,8 @@
 #define FILE_PATH_USES_DRIVE_LETTERS
 #define FILE_PATH_USES_WIN_SEPARATORS
 #endif  // OS_WIN
+
+class Pickle;
 
 // An abstraction to isolate users from the differences between native
 // pathnames on different platforms.
@@ -281,6 +283,15 @@ class FilePath {
   // It has "Hack" in its name so people feel bad about using it.
   // TODO(port): remove these functions.
   static FilePath FromWStringHack(const std::wstring& wstring);
+
+  // Static helper method to write a StringType to a pickle.
+  static void WriteStringTypeToPickle(Pickle* pickle,
+                                      const FilePath::StringType& path);
+  static bool ReadStringTypeFromPickle(Pickle* pickle, void** iter,
+                                       FilePath::StringType* path);
+
+  void WriteToPickle(Pickle* pickle);
+  bool ReadFromPickle(Pickle* pickle, void** iter);
 
   // Compare two strings in the same way the file system does.
   // Note that these always ignore case, even on file systems that are case-
