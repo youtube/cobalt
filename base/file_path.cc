@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #endif
 
 #include "base/logging.h"
+#include "base/pickle.h"
 
 // These includes are just for the *Hack functions, and should be removed
 // when those functions are removed.
@@ -1049,6 +1050,43 @@ FilePath FilePath::StripTrailingSeparators() const {
   new_path.StripTrailingSeparatorsInternal();
 
   return new_path;
+}
+
+// static.
+void FilePath::WriteStringTypeToPickle(Pickle* pickle,
+                                       const FilePath::StringType& path) {
+#if defined(WCHAR_T_IS_UTF16)
+  pickle->WriteWString(path);
+#elif defined(WCHAR_T_IS_UTF32)
+  pickle->WriteString(path);
+#else
+  NOTIMPLEMENTED() << "Impossible encoding situation!";
+#endif
+}
+
+// static.
+bool FilePath::ReadStringTypeFromPickle(Pickle* pickle, void** iter,
+                                        FilePath::StringType* path) {
+#if defined(WCHAR_T_IS_UTF16)
+  if (!pickle->ReadWString(iter, path))
+    return false;
+#elif defined(WCHAR_T_IS_UTF32)
+  if (!pickle->ReadString(iter, path))
+    return false;
+#else
+  NOTIMPLEMENTED() << "Impossible encoding situation!";
+  return false;
+#endif
+
+  return true;
+}
+
+void FilePath::WriteToPickle(Pickle* pickle) {
+  WriteStringTypeToPickle(pickle, value());
+}
+
+bool FilePath::ReadFromPickle(Pickle* pickle, void** iter) {
+  return ReadStringTypeFromPickle(pickle, iter, &path_);
 }
 
 void FilePath::StripTrailingSeparatorsInternal() {
