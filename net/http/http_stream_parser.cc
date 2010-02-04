@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -210,7 +210,7 @@ int HttpStreamParser::DoSendBody(int result) {
   if (result > 0)
     request_body_->DidConsume(result);
 
-  if (request_body_->position() < request_body_->size()) {
+  if (!request_body_->eof()) {
     int buf_len = static_cast<int>(request_body_->buf_len());
     result = connection_->socket()->Write(request_body_->buf(), buf_len,
                                           &io_callback_);
