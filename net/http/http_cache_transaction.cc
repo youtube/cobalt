@@ -130,7 +130,14 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
                  Invalid_number_of_validation_headers);
 }
 
+#if defined(OS_WIN)
+#pragma optimize("", off)
+#pragma warning(disable:4748)
+#endif
 HttpCache::Transaction::~Transaction() {
+  // TODO(rvargas): remove this after finding the cause for bug 31723.
+  char local_obj[sizeof(*this)];
+  memcpy(local_obj, this, sizeof(local_obj));
   if (cache_) {
     if (entry_) {
       bool cancel_request = reading_ && enable_range_support_;
@@ -157,6 +164,10 @@ HttpCache::Transaction::~Transaction() {
   // cache_ pointer to signal that we are dead.  See DoCacheReadCompleted.
   cache_.reset();
 }
+#if defined(OS_WIN)
+#pragma warning(default:4748)
+#pragma optimize("", on)
+#endif
 
 int HttpCache::Transaction::Start(const HttpRequestInfo* request,
                                   CompletionCallback* callback,
