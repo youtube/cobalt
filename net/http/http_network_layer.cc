@@ -20,12 +20,14 @@ namespace net {
 
 // static
 HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
+    NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service) {
   DCHECK(proxy_service);
 
   return new HttpNetworkLayer(ClientSocketFactory::GetDefaultFactory(),
+                              network_change_notifier,
                               host_resolver, proxy_service, ssl_config_service);
 }
 
@@ -40,11 +42,14 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
 //-----------------------------------------------------------------------------
 bool HttpNetworkLayer::force_flip_ = false;
 
-HttpNetworkLayer::HttpNetworkLayer(ClientSocketFactory* socket_factory,
-                                   HostResolver* host_resolver,
-                                   ProxyService* proxy_service,
-                                   SSLConfigService* ssl_config_service)
+HttpNetworkLayer::HttpNetworkLayer(
+    ClientSocketFactory* socket_factory,
+    NetworkChangeNotifier* network_change_notifier,
+    HostResolver* host_resolver,
+    ProxyService* proxy_service,
+    SSLConfigService* ssl_config_service)
     : socket_factory_(socket_factory),
+      network_change_notifier_(network_change_notifier),
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
@@ -57,6 +62,7 @@ HttpNetworkLayer::HttpNetworkLayer(ClientSocketFactory* socket_factory,
 
 HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
     : socket_factory_(ClientSocketFactory::GetDefaultFactory()),
+      network_change_notifier_(NULL),
       ssl_config_service_(NULL),
       session_(session),
       flip_session_pool_(session->flip_session_pool()),
@@ -94,9 +100,10 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
     DCHECK(proxy_service_);
     FlipSessionPool* flip_pool = new FlipSessionPool;
     session_ = new HttpNetworkSession(
-        host_resolver_, proxy_service_, socket_factory_,
-        ssl_config_service_, flip_pool);
+        network_change_notifier_, host_resolver_, proxy_service_,
+        socket_factory_, ssl_config_service_, flip_pool);
     // These were just temps for lazy-initializing HttpNetworkSession.
+    network_change_notifier_ = NULL;
     host_resolver_ = NULL;
     proxy_service_ = NULL;
     socket_factory_ = NULL;

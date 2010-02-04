@@ -17,11 +17,13 @@ namespace net {
 
 class ClientSocketFactory;
 class FlipSessionPool;
+class NetworkChangeNotifier;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
 class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
  public:
   HttpNetworkSession(
+      NetworkChangeNotifier* network_change_notifier,
       HostResolver* host_resolver,
       ProxyService* proxy_service,
       ClientSocketFactory* client_socket_factory,
@@ -75,7 +77,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
 
   HttpAuthCache auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
-  const scoped_refptr<NetworkChangeNotifier> network_change_notifier_;
+  NetworkChangeNotifier* const network_change_notifier_;
   scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
   ClientSocketFactory* socket_factory_;
   scoped_refptr<HostResolver> host_resolver_;

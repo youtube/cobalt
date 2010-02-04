@@ -124,7 +124,8 @@ class HttpCache::BackendCallback : public CallbackRunner<Tuple1<int> > {
 
 //-----------------------------------------------------------------------------
 
-HttpCache::HttpCache(HostResolver* host_resolver,
+HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
+                     HostResolver* host_resolver,
                      ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
                      const FilePath& cache_dir,
@@ -133,7 +134,8 @@ HttpCache::HttpCache(HostResolver* host_resolver,
       mode_(NORMAL),
       type_(DISK_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(
-          host_resolver, proxy_service, ssl_config_service)),
+          network_change_notifier, host_resolver, proxy_service,
+          ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       enable_range_support_(true),
       cache_size_(cache_size) {
@@ -151,14 +153,16 @@ HttpCache::HttpCache(HttpNetworkSession* session,
       cache_size_(cache_size) {
 }
 
-HttpCache::HttpCache(HostResolver* host_resolver,
+HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
+                     HostResolver* host_resolver,
                      ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
                      int cache_size)
     : mode_(NORMAL),
       type_(MEMORY_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(
-          host_resolver, proxy_service, ssl_config_service)),
+          network_change_notifier, host_resolver, proxy_service,
+          ssl_config_service)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       enable_range_support_(true),
       cache_size_(cache_size) {

@@ -978,11 +978,10 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
 
 // Test that IP address changes flush the cache.
 TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
-  scoped_refptr<MockNetworkChangeNotifier> mock_network_change_notifier(
-      new MockNetworkChangeNotifier);
+  MockNetworkChangeNotifier mock_network_change_notifier;
   scoped_refptr<HostResolver> host_resolver(
       new HostResolverImpl(NULL, CreateDefaultCache(),
-                           mock_network_change_notifier,
+                           &mock_network_change_notifier,
                            kMaxJobs));
 
   AddressList addrlist;
@@ -1000,7 +999,7 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   ASSERT_EQ(OK, rv);  // Should complete synchronously.
 
   // Flush cache by triggering an IP address change.
-  mock_network_change_notifier->NotifyIPAddressChange();
+  mock_network_change_notifier.NotifyIPAddressChange();
 
   // Resolve "host1" again -- this time it won't be served from cache, so it
   // will complete asynchronously.

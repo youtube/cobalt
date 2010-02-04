@@ -69,12 +69,13 @@ class HostResolverImpl : public HostResolver,
   // thread-safe since it is run from multiple worker threads. If
   // |resolver_proc| is NULL then the default host resolver procedure is
   // used (which is SystemHostResolverProc except if overridden).
-  //
+  // |notifier| must outlive HostResolverImpl.  It can optionally be NULL, in
+  // which case HostResolverImpl will not respond to network changes.
   // |max_jobs| specifies the maximum number of threads that the host resolver
   // will use. Use SetPoolConstraints() to specify finer-grain settings.
   HostResolverImpl(HostResolverProc* resolver_proc,
                    HostCache* cache,
-                   const scoped_refptr<NetworkChangeNotifier>& notifier,
+                   NetworkChangeNotifier* notifier,
                    size_t max_jobs);
 
   // HostResolver methods:
@@ -236,7 +237,7 @@ class HostResolverImpl : public HostResolver,
   // TODO(eroman): temp hack for http://crbug.com/15513
   bool shutdown_;
 
-  const scoped_refptr<NetworkChangeNotifier> network_change_notifier_;
+  NetworkChangeNotifier* const network_change_notifier_;
 
   scoped_refptr<RequestsTrace> requests_trace_;
 
