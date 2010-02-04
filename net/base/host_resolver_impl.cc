@@ -53,8 +53,6 @@ HostResolver* CreateSystemHostResolver(
   HostResolverImpl* resolver = new HostResolverImpl(
       NULL, CreateDefaultCache(), network_change_notifier, kMaxJobs);
 
-  if (!HostResolverProc::IPv6Supported())
-    resolver->SetDefaultAddressFamily(net::ADDRESS_FAMILY_IPV4);
   return resolver;
 }
 
