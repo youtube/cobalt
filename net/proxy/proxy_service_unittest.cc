@@ -1791,11 +1791,10 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   MockAsyncProxyResolverExpectsBytes* resolver =
       new MockAsyncProxyResolverExpectsBytes;
 
-  scoped_refptr<MockNetworkChangeNotifier> network_change_notifier(
-      new MockNetworkChangeNotifier());
+  MockNetworkChangeNotifier network_change_notifier;
 
   scoped_refptr<ProxyService> service(
-      new ProxyService(config_service, resolver, network_change_notifier));
+      new ProxyService(config_service, resolver, &network_change_notifier));
 
   MockProxyScriptFetcher* fetcher = new MockProxyScriptFetcher;
   service->SetProxyScriptFetcher(fetcher);
@@ -1840,7 +1839,7 @@ TEST(ProxyServiceTest, NetworkChangeTriggersPacRefetch) {
   // going to return the same PAC URL as before, but this URL needs to be
   // refetched on the new network.
 
-  network_change_notifier->NotifyIPAddressChange();
+  network_change_notifier.NotifyIPAddressChange();
 
   // Start a second request.
   ProxyInfo info2;
