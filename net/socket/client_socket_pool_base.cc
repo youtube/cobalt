@@ -96,7 +96,7 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
     base::TimeDelta unused_idle_socket_timeout,
     base::TimeDelta used_idle_socket_timeout,
     ConnectJobFactory* connect_job_factory,
-    const scoped_refptr<NetworkChangeNotifier>& network_change_notifier)
+    NetworkChangeNotifier* network_change_notifier)
     : idle_socket_count_(0),
       connecting_socket_count_(0),
       handed_out_socket_count_(0),
