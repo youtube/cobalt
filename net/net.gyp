@@ -525,6 +525,11 @@
               'third_party/nss/nss.gyp:ssl',
               'tld_cleanup',
             ],
+            'link_settings': {
+              'libraries': [
+                '-lIphlpapi.lib',
+              ],
+            },
           },
           {  # else: OS != "win"
             'sources!': [
