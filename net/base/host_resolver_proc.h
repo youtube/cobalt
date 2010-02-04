@@ -32,9 +32,6 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
                       AddressFamily address_family,
                       AddressList* addrlist) = 0;
 
-  // Test to see if IPv6 is supported.
-  static bool IPv6Supported();
-
  protected:
   friend class base::RefCountedThreadSafe<HostResolverProc>;
 
