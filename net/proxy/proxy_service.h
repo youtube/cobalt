@@ -306,7 +306,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
   // The (possibly NULL) network change notifier that we use to decide when
   // to refetch PAC scripts or re-run WPAD.
-  scoped_refptr<NetworkChangeNotifier> network_change_notifier_;
+  NetworkChangeNotifier* const network_change_notifier_;
 
   DISALLOW_COPY_AND_ASSIGN(ProxyService);
 };

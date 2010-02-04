@@ -5,7 +5,6 @@
 #include "net/http/http_network_session.h"
 
 #include "base/logging.h"
-#include "net/base/network_change_notifier.h"
 #include "net/flip/flip_session_pool.h"
 
 namespace net {
@@ -21,13 +20,13 @@ uint16 HttpNetworkSession::g_fixed_http_port = 0;
 uint16 HttpNetworkSession::g_fixed_https_port = 0;
 
 HttpNetworkSession::HttpNetworkSession(
+    NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     ClientSocketFactory* client_socket_factory,
     SSLConfigService* ssl_config_service,
     FlipSessionPool* flip_session_pool)
-    : network_change_notifier_(
-          NetworkChangeNotifier::CreateDefaultNetworkChangeNotifier()),
+    : network_change_notifier_(network_change_notifier),
       tcp_socket_pool_(new TCPClientSocketPool(
           max_sockets_, max_sockets_per_group_,
           host_resolver, client_socket_factory, network_change_notifier_)),

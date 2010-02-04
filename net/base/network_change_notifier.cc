@@ -15,8 +15,8 @@
 namespace net {
 
 // static
-scoped_refptr<NetworkChangeNotifier>
-    NetworkChangeNotifier::CreateDefaultNetworkChangeNotifier() {
+NetworkChangeNotifier*
+NetworkChangeNotifier::CreateDefaultNetworkChangeNotifier() {
 #if defined(OS_WIN)
   return new NetworkChangeNotifierWin();
 #elif defined(OS_LINUX)

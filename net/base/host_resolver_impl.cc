@@ -43,14 +43,15 @@ HostCache* CreateDefaultCache() {
 
 }  // anonymous namespace
 
-HostResolver* CreateSystemHostResolver() {
+HostResolver* CreateSystemHostResolver(
+    NetworkChangeNotifier* network_change_notifier) {
   // Maximum of 50 concurrent threads.
   // TODO(eroman): Adjust this, do some A/B experiments.
   static const size_t kMaxJobs = 50u;
 
   // TODO(willchan): Pass in the NetworkChangeNotifier.
   HostResolverImpl* resolver = new HostResolverImpl(
-      NULL, CreateDefaultCache(), NULL, kMaxJobs);
+      NULL, CreateDefaultCache(), network_change_notifier, kMaxJobs);
 
   return resolver;
 }
@@ -525,7 +526,7 @@ class HostResolverImpl::JobPool {
 HostResolverImpl::HostResolverImpl(
     HostResolverProc* resolver_proc,
     HostCache* cache,
-    const scoped_refptr<NetworkChangeNotifier>& network_change_notifier,
+    NetworkChangeNotifier* network_change_notifier,
     size_t max_jobs)
     : cache_(cache),
       max_jobs_(max_jobs),
