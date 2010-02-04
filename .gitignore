@@ -15,6 +15,7 @@
 /chrome/Hammer
 /chrome/Release
 /chrome/app/theme/google_chrome
+/chrome/browser/renderer_host/translate
 /chrome/installer/linux
 /chrome/personalization/
 /chrome/test/data/firefox2_profile/searchplugins
