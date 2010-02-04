@@ -20,6 +20,7 @@ namespace net {
 class AddressList;
 class HostCache;
 class LoadLog;
+class NetworkChangeNotifier;
 
 // This class represents the task of resolving hostnames (or IP address
 // literal) to an AddressList object.
@@ -219,7 +220,10 @@ class SingleRequestHostResolver {
 // Creates a HostResolver implementation that queries the underlying system.
 // (Except if a unit-test has changed the global HostResolverProc using
 // ScopedHostResolverProc to intercept requests to the system).
-HostResolver* CreateSystemHostResolver();
+// |network_change_notifier| must outlive HostResolver.  It can optionally be
+// NULL, in which case HostResolver will not respond to network changes.
+HostResolver* CreateSystemHostResolver(
+    NetworkChangeNotifier* network_change_notifier);
 
 }  // namespace net
 

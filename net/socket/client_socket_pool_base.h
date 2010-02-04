@@ -168,7 +168,7 @@ class ClientSocketPoolBaseHelper
       base::TimeDelta unused_idle_socket_timeout,
       base::TimeDelta used_idle_socket_timeout,
       ConnectJobFactory* connect_job_factory,
-      const scoped_refptr<NetworkChangeNotifier>& network_change_notifier);
+      NetworkChangeNotifier* network_change_notifier);
 
   // See ClientSocketPool::RequestSocket for documentation on this function.
   // Note that |request| must be heap allocated.  If ERR_IO_PENDING is returned,
@@ -383,7 +383,7 @@ class ClientSocketPoolBaseHelper
 
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
 
-  const scoped_refptr<NetworkChangeNotifier> network_change_notifier_;
+  NetworkChangeNotifier* const network_change_notifier_;
 };
 
 }  // namespace internal
@@ -443,7 +443,7 @@ class ClientSocketPoolBase {
       base::TimeDelta unused_idle_socket_timeout,
       base::TimeDelta used_idle_socket_timeout,
       ConnectJobFactory* connect_job_factory,
-      const scoped_refptr<NetworkChangeNotifier>& network_change_notifier)
+      NetworkChangeNotifier* network_change_notifier)
       : helper_(new internal::ClientSocketPoolBaseHelper(
           max_sockets, max_sockets_per_group,
           unused_idle_socket_timeout, used_idle_socket_timeout,

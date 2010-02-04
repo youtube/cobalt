@@ -17,15 +17,17 @@ class ClientSocketFactory;
 class FlipSessionPool;
 class HostResolver;
 class HttpNetworkSession;
+class NetworkChangeNotifier;
 class ProxyInfo;
 class ProxyService;
 class SSLConfigService;
 
 class HttpNetworkLayer : public HttpTransactionFactory {
  public:
-  // |socket_factory|, |proxy_service| and |host_resolver| must remain valid
-  // for the lifetime of HttpNetworkLayer.
+  // |socket_factory|, |network_change_notifier|, |proxy_service| and
+  // |host_resolver| must remain valid for the lifetime of HttpNetworkLayer.
   HttpNetworkLayer(ClientSocketFactory* socket_factory,
+                   NetworkChangeNotifier* network_change_notifier,
                    HostResolver* host_resolver, ProxyService* proxy_service,
                    SSLConfigService* ssl_config_service);
   // Construct a HttpNetworkLayer with an existing HttpNetworkSession which
@@ -36,6 +38,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   // This function hides the details of how a network layer gets instantiated
   // and allows other implementations to be substituted.
   static HttpTransactionFactory* CreateFactory(
+      NetworkChangeNotifier* network_change_notifier,
       HostResolver* host_resolver,
       ProxyService* proxy_service,
       SSLConfigService* ssl_config_service);
@@ -64,6 +67,8 @@ class HttpNetworkLayer : public HttpTransactionFactory {
  private:
   // The factory we will use to create network sockets.
   ClientSocketFactory* socket_factory_;
+
+  NetworkChangeNotifier* network_change_notifier_;
 
   // The host resolver and proxy service that will be used when lazily
   // creating |session_|.

@@ -38,6 +38,7 @@ class HostResolver;
 class HttpNetworkSession;
 class HttpRequestInfo;
 class HttpResponseInfo;
+class NetworkChangeNotifier;
 class ProxyService;
 class SSLConfigService;
 
@@ -63,7 +64,8 @@ class HttpCache : public HttpTransactionFactory,
   // Initialize the cache from the directory where its data is stored. The
   // disk cache is initialized lazily (by CreateTransaction) in this case. If
   // |cache_size| is zero, a default value will be calculated automatically.
-  HttpCache(HostResolver* host_resolver,
+  HttpCache(NetworkChangeNotifier* network_change_notifier,
+            HostResolver* host_resolver,
             ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             const FilePath& cache_dir,
@@ -81,7 +83,8 @@ class HttpCache : public HttpTransactionFactory,
   // Initialize using an in-memory cache. The cache is initialized lazily
   // (by CreateTransaction) in this case. If |cache_size| is zero, a default
   // value will be calculated automatically.
-  HttpCache(HostResolver* host_resolver,
+  HttpCache(NetworkChangeNotifier* network_change_notifier,
+            HostResolver* host_resolver,
             ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             int cache_size);
