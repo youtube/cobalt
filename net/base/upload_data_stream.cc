@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,7 +18,8 @@ UploadDataStream::UploadDataStream(const UploadData* data)
       next_element_offset_(0),
       next_element_remaining_(0),
       total_size_(data->GetContentLength()),
-      current_position_(0) {
+      current_position_(0),
+      eof_(false) {
   FillBuf();
 }
 
@@ -28,6 +29,7 @@ UploadDataStream::~UploadDataStream() {
 void UploadDataStream::DidConsume(size_t num_bytes) {
   // TODO(vandebo): Change back to a DCHECK when issue 27870 is resolved.
   CHECK(num_bytes <= buf_len_);
+  DCHECK(!eof_);
 
   buf_len_ -= num_bytes;
   if (buf_len_)
@@ -106,6 +108,9 @@ void UploadDataStream::FillBuf() {
       next_element_stream_.Close();
     }
   }
+
+  if (next_element_ == end && !buf_len_)
+    eof_ = true;
 }
 
 }  // namespace net

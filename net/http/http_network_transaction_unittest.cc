@@ -1,10 +1,13 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <math.h>  // ceil
+#include <vector>
 
 #include "base/compiler_specific.h"
+#include "base/file_path.h"
+#include "base/file_util.h"
 #include "net/base/completion_callback.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/request_priority.h"
@@ -3964,6 +3967,59 @@ TEST_F(HttpNetworkTransactionTest, LargeContentLengthThenClose) {
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.0 200 OK", out.status_line);
   EXPECT_EQ("", out.response_data);
+}
+
+TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/upload");
+  request.upload_data = new UploadData;
+  request.load_flags = 0;
+
+  FilePath temp_file_path;
+  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
+  const uint64 kFakeSize = 100000;  // file is actually blank
+
+  std::vector<UploadData::Element> elements;
+  UploadData::Element element;
+  element.SetToFilePath(temp_file_path);
+  element.SetContentLength(kFakeSize);
+  elements.push_back(element);
+  request.upload_data->set_elements(elements);
+  EXPECT_EQ(kFakeSize, request.upload_data->GetContentLength());
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.0 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(false, OK),
+  };
+  StaticSocketDataProvider data(data_reads, NULL);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response != NULL);
+
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.0 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  rv = ReadTransaction(trans.get(), &response_data);
+  EXPECT_EQ(OK, rv);
+  EXPECT_EQ("hello world", response_data);
+
+  file_util::Delete(temp_file_path, false);
 }
 
 }  // namespace net
