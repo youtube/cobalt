@@ -278,6 +278,8 @@
         'tools/omx_test/color_space_util.h',
         'tools/omx_test/file_reader_util.cc',
         'tools/omx_test/file_reader_util.h',
+        'tools/omx_test/file_writer_util.cc',
+        'tools/omx_test/file_writer_util.h',
         'tools/omx_test/omx_test.cc',
       ],
     },
@@ -314,6 +316,8 @@
         'omx/input_buffer.h',
         'omx/omx_codec.cc',
         'omx/omx_codec.h',
+        'omx/omx_configurator.cc',
+        'omx/omx_configurator.h',
       ],
       'export_dependent_settings': [
         '../third_party/openmax/openmax.gyp:il',
