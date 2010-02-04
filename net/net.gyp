@@ -611,6 +611,7 @@
         'base/telnet_server_unittest.cc',
         'base/test_certificate_data.h',
         'base/test_completion_callback_unittest.cc',
+        'base/upload_data_stream_unittest.cc',
         'base/x509_certificate_unittest.cc',
         'disk_cache/addr_unittest.cc',
         'disk_cache/backend_unittest.cc',

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,10 @@
 
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/ref_counted.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
@@ -24,7 +26,8 @@ class UploadData : public base::RefCounted<UploadData> {
   class Element {
    public:
     Element() : type_(TYPE_BYTES), file_range_offset_(0),
-                file_range_length_(kuint64max) {
+                file_range_length_(kuint64max),
+                override_content_length_(false) {
     }
 
     Type type() const { return type_; }
@@ -55,11 +58,22 @@ class UploadData : public base::RefCounted<UploadData> {
     uint64 GetContentLength() const;
 
    private:
+    // Allows tests to override the result of GetContentLength.
+    void SetContentLength(uint64 content_length) {
+      override_content_length_ = true;
+      content_length_ = content_length;
+    }
+
     Type type_;
     std::vector<char> bytes_;
     FilePath file_path_;
     uint64 file_range_offset_;
     uint64 file_range_length_;
+    bool override_content_length_;
+    uint64 content_length_;
+
+    FRIEND_TEST(UploadDataStreamTest, FileSmallerThanLength);
+    FRIEND_TEST(HttpNetworkTransactionTest, UploadFileSmallerThanLength);
   };
 
   void AppendBytes(const char* bytes, int bytes_len) {

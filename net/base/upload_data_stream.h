@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -27,10 +27,19 @@ class UploadDataStream {
   void DidConsume(size_t num_bytes);
 
   // Returns the total size of the data stream and the current position.
+  // size() is not to be used to determine whether the stream has ended
+  // because it is possible for the stream to end before its size is reached,
+  // for example, if the file is truncated.
   uint64 size() const { return total_size_; }
   uint64 position() const { return current_position_; }
 
+  // Returns whether there is no more data to read, regardless of whether
+  // position < size.
+  bool eof() const { return eof_; }
+
  private:
+  // Fills the buffer with any remaining data and sets eof_ if there was nothing
+  // left to fill the buffer with.
   void FillBuf();
 
   const UploadData* data_;
@@ -61,6 +70,9 @@ class UploadDataStream {
   // Size and current read position within the stream.
   uint64 total_size_;
   uint64 current_position_;
+
+  // Whether there is no data left to read.
+  bool eof_;
 
   DISALLOW_EVIL_CONSTRUCTORS(UploadDataStream);
 };
