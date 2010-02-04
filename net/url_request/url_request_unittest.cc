@@ -2072,7 +2072,8 @@ TEST_F(URLRequestTestFTP, FLAKY_FTPDirectoryListing) {
   }
 }
 
-TEST_F(URLRequestTestFTP, FTPGetTestAnonymous) {
+// Flaky, see http://crbug.com/25045.
+TEST_F(URLRequestTestFTP, FLAKY_FTPGetTestAnonymous) {
   ASSERT_TRUE(NULL != server_.get());
   FilePath app_path;
   PathService::Get(base::DIR_SOURCE_ROOT, &app_path);
