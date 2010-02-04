@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -18,6 +18,9 @@ uint64 UploadData::GetContentLength() const {
 }
 
 uint64 UploadData::Element::GetContentLength() const {
+  if (override_content_length_)
+    return content_length_;
+
   if (type_ == TYPE_BYTES)
     return static_cast<uint64>(bytes_.size());
 
