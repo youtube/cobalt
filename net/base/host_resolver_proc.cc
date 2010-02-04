@@ -227,27 +227,4 @@ int SystemHostResolverProc(const std::string& host,
   return OK;
 }
 
-// TODO(jar): The following is a simple estimate of ipv6 support.  We may need
-// to do a test resolution, and a test connection, to REALLY verify support.
-// static
-bool HostResolverProc::IPv6Supported() {
-#if defined(OS_POSIX)
-  int test_socket;
-#else
-  SOCKET test_socket;
-#endif
-
-  test_socket = socket(AF_INET6, SOCK_STREAM, 0);
-  if (test_socket == -1)
-    return false;
-
-#if defined(OS_POSIX)
-  close(test_socket);
-#else
-  closesocket(test_socket);
-#endif
-
-  return true;
-}
-
 }  // namespace net
