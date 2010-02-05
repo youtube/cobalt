@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1609,14 +1609,21 @@ std::string HttpNetworkTransaction::BuildAuthorizationHeader(
   DCHECK(HaveAuth(target));
 
   // Add a Authorization/Proxy-Authorization header line.
-  std::string credentials = auth_handler_[target]->GenerateCredentials(
+  std::string auth_token;
+  int rv = auth_handler_[target]->GenerateAuthToken(
       auth_identity_[target].username,
       auth_identity_[target].password,
       request_,
-      &proxy_info_);
+      &proxy_info_,
+      &auth_token);
+  if (rv == OK)
+    return HttpAuth::GetAuthorizationHeaderName(target) +
+      ": "  + auth_token + "\r\n";
 
-  return HttpAuth::GetAuthorizationHeaderName(target) +
-      ": "  + credentials + "\r\n";
+  // TODO(cbentzel): Evict username and password from cache on non-OK return?
+  // TODO(cbentzel): Never use this scheme again if
+  //                 ERR_UNSUPPORTED_AUTH_SCHEME is returned.
+  return std::string();
 }
 
 GURL HttpNetworkTransaction::AuthOrigin(HttpAuth::Target target) const {

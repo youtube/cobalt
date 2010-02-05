@@ -30,11 +30,17 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   virtual bool IsFinalRound();
 
-  virtual std::string GenerateCredentials(const std::wstring& username,
-                                          const std::wstring& password,
-                                          const HttpRequestInfo* request,
-                                          const ProxyInfo* proxy);
+  virtual bool AllowDefaultCredentials();
 
+  virtual int GenerateAuthToken(const std::wstring& username,
+                                const std::wstring& password,
+                                const HttpRequestInfo* request,
+                                const ProxyInfo* proxy,
+                                std::string* auth_token);
+
+  virtual int GenerateDefaultAuthToken(const HttpRequestInfo* request,
+                                       const ProxyInfo* proxy,
+                                       std::string* auth_token);
 
  protected:
   virtual bool Init(std::string::const_iterator challenge_begin,

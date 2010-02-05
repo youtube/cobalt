@@ -1,8 +1,9 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/string_util.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_auth_cache.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,11 +24,20 @@ class MockAuthHandler : public HttpAuthHandler {
     properties_ = 0;
   }
 
- virtual std::string GenerateCredentials(const std::wstring&,
-                                          const std::wstring&,
-                                          const HttpRequestInfo*,
-                                          const ProxyInfo*) {
-    return "mock-credentials";  // Unused.
+  virtual int GenerateAuthToken(const std::wstring&,
+                                const std::wstring&,
+                                const HttpRequestInfo*,
+                                const ProxyInfo*,
+                                std::string* auth_token) {
+    *auth_token = "mock-credentials";
+    return OK;
+  }
+
+  virtual int GenerateDefaultAuthToken(const HttpRequestInfo*,
+                                       const ProxyInfo*,
+                                       std::string* auth_token) {
+    *auth_token = "mock-credentials";
+    return OK;
   }
 
  protected:
@@ -52,12 +62,12 @@ TEST(HttpAuthCacheTest, Basic) {
   scoped_refptr<HttpAuthHandler> realm1_handler =
       new MockAuthHandler("basic", "Realm1", HttpAuth::AUTH_SERVER);
   cache.Add(origin, realm1_handler, L"realm1-user", L"realm1-password",
-      "/foo/bar/index.html");
+            "/foo/bar/index.html");
 
   scoped_refptr<HttpAuthHandler> realm2_handler =
       new MockAuthHandler("basic", "Realm2", HttpAuth::AUTH_SERVER);
   cache.Add(origin, realm2_handler, L"realm2-user", L"realm2-password",
-      "/foo2/index.html");
+            "/foo2/index.html");
 
   scoped_refptr<HttpAuthHandler> realm3_handler =
       new MockAuthHandler("basic", "Realm3", HttpAuth::AUTH_PROXY);
@@ -227,7 +237,8 @@ class HttpAuthCacheEvictionTest : public testing::Test {
   }
 
   void AddPathToRealm(int realm_i, int path_i) {
-    scoped_refptr<HttpAuthHandler> handler = new MockAuthHandler("basic",
+    scoped_refptr<HttpAuthHandler> handler = new MockAuthHandler(
+        "basic",
         GenerateRealm(realm_i), HttpAuth::AUTH_SERVER);
     std::string path = GeneratePath(realm_i, path_i);
     cache_.Add(origin_, handler, L"username", L"password", path);
