@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -86,12 +86,12 @@
 
 // Amount of time to wait if we've exhausted the data source.  This is to avoid
 // busy looping.
-static const int kNoDataSleepMilliseconds = 10;
+static const uint32 kNoDataSleepMilliseconds = 10;
 
 // According to the linux nanosleep manpage, nanosleep on linux can miss the
 // deadline by up to 10ms because the kernel timeslice is 10ms.  Give a 2x
 // buffer to compensate for the timeslice, and any additional slowdowns.
-static const int kSleepErrorMilliseconds = 20;
+static const uint32 kSleepErrorMilliseconds = 20;
 
 // Set to 0 during debugging if you want error messages due to underrun
 // events or other recoverable errors.
@@ -107,14 +107,14 @@ const char AlsaPcmOutputStream::kPlugPrefix[] = "plug:";
 
 // Since we expect to only be able to wake up with a resolution of
 // kSleepErrorMilliseconds, double that for our minimum required latency.
-const int AlsaPcmOutputStream::kMinLatencyMicros =
+const uint32 AlsaPcmOutputStream::kMinLatencyMicros =
     kSleepErrorMilliseconds * 2 * 1000;
 
 namespace {
 
 // ALSA is currently limited to 48Khz.
 // TODO(fbarchard): Resample audio from higher frequency to 48000.
-const int kMaxSampleRate = 48000;
+const uint32 kMaxSampleRate = 48000;
 
 snd_pcm_format_t BitsToFormat(char bits_per_sample) {
   switch (bits_per_sample) {
@@ -152,7 +152,7 @@ snd_pcm_format_t BitsToFormat(char bits_per_sample) {
 // TODO(ajwong): The source data should have enough info to tell us if we want
 // surround41 versus surround51, etc., instead of needing us to guess base don
 // channel number.  Fix API to pass that data down.
-const char* GuessSpecificDeviceName(int channels) {
+const char* GuessSpecificDeviceName(uint32 channels) {
   switch (channels) {
     case 8:
       return "surround71";
@@ -177,10 +177,10 @@ const char* GuessSpecificDeviceName(int channels) {
 // Reorder PCM from AAC layout to Alsa layout.
 // TODO(fbarchard): Switch layout when ffmpeg is updated.
 template<class Format>
-static void Swizzle50Layout(Format* b, size_t filled) {
-  static const int kNumSurroundChannels = 5;
+static void Swizzle50Layout(Format* b, uint32 filled) {
+  static const uint32 kNumSurroundChannels = 5;
   Format aac[kNumSurroundChannels];
-  for (size_t i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
+  for (uint32 i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
     memcpy(aac, b, sizeof(aac));
     b[0] = aac[1];  // L
     b[1] = aac[2];  // R
@@ -191,10 +191,10 @@ static void Swizzle50Layout(Format* b, size_t filled) {
 }
 
 template<class Format>
-static void Swizzle51Layout(Format* b, size_t filled) {
-  static const int kNumSurroundChannels = 6;
+static void Swizzle51Layout(Format* b, uint32 filled) {
+  static const uint32 kNumSurroundChannels = 6;
   Format aac[kNumSurroundChannels];
-  for (size_t i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
+  for (uint32 i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
     memcpy(aac, b, sizeof(aac));
     b[0] = aac[1];  // L
     b[1] = aac[2];  // R
@@ -235,9 +235,9 @@ std::ostream& operator<<(std::ostream& os,
 
 AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
                                          AudioManager::Format format,
-                                         int channels,
-                                         int sample_rate,
-                                         int bits_per_sample,
+                                         uint32 channels,
+                                         uint32 sample_rate,
+                                         uint32 bits_per_sample,
                                          AlsaWrapper* wrapper,
                                          AudioManagerLinux* manager,
                                          MessageLoop* message_loop)
@@ -287,7 +287,7 @@ AlsaPcmOutputStream::~AlsaPcmOutputStream() {
   // where the stream is not always stopped and closed, causing this to fail.
 }
 
-bool AlsaPcmOutputStream::Open(size_t packet_size) {
+bool AlsaPcmOutputStream::Open(uint32 packet_size) {
   DCHECK_EQ(MessageLoop::current(), client_thread_loop_);
 
   DCHECK_EQ(0U, packet_size % bytes_per_frame_)
@@ -371,7 +371,7 @@ void AlsaPcmOutputStream::GetVolume(double* volume) {
   *volume = shared_data_.volume();
 }
 
-void AlsaPcmOutputStream::OpenTask(size_t packet_size) {
+void AlsaPcmOutputStream::OpenTask(uint32 packet_size) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // Initialize the configuration variables.
@@ -434,8 +434,8 @@ void AlsaPcmOutputStream::StartTask() {
   // the maximum number of full packets that can fit into the buffer.
   //
   // TODO(ajwong): Handle EAGAIN.
-  const int num_preroll = latency_micros_ / micros_per_packet_;
-  for (int i = 0; i < num_preroll; ++i) {
+  const uint32 num_preroll = latency_micros_ / micros_per_packet_;
+  for (uint32 i = 0; i < num_preroll; ++i) {
     BufferPacket(packet_.get());
     WritePacket(packet_.get());
   }
@@ -621,12 +621,12 @@ void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
 
   // Calculate when we should have enough buffer for another packet of data.
   // Make sure to take into consideration down-mixing.
-  int frames_leftover =
+  uint32 frames_leftover =
       FramesInPacket(*current_packet, bytes_per_output_frame_);
-  int frames_avail_wanted =
+  uint32 frames_avail_wanted =
       (frames_leftover > 0) ? frames_leftover : frames_per_packet_;
-  int frames_until_empty_enough = frames_avail_wanted - GetAvailableFrames();
-  int next_fill_time_ms =
+  uint32 frames_until_empty_enough = frames_avail_wanted - GetAvailableFrames();
+  uint32 next_fill_time_ms =
       FramesToMillis(frames_until_empty_enough, sample_rate_);
 
   // Adjust for timer resolution issues.
@@ -659,20 +659,20 @@ void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
   }
 }
 
-snd_pcm_sframes_t AlsaPcmOutputStream::FramesInPacket(const Packet& packet,
-                                                      int bytes_per_frame) {
+uint32 AlsaPcmOutputStream::FramesInPacket(const Packet& packet,
+                                           uint32 bytes_per_frame) {
   return (packet.size - packet.used) / bytes_per_frame;
 }
 
-int64 AlsaPcmOutputStream::FramesToMicros(int frames, int sample_rate) {
+uint32 AlsaPcmOutputStream::FramesToMicros(uint32 frames, uint32 sample_rate) {
   return frames * base::Time::kMicrosecondsPerSecond / sample_rate;
 }
 
-int64 AlsaPcmOutputStream::FramesToMillis(int frames, int sample_rate) {
+uint32 AlsaPcmOutputStream::FramesToMillis(uint32 frames, uint32 sample_rate) {
   return frames * base::Time::kMillisecondsPerSecond / sample_rate;
 }
 
-std::string AlsaPcmOutputStream::FindDeviceForChannels(int channels) {
+std::string AlsaPcmOutputStream::FindDeviceForChannels(uint32 channels) {
   // Constants specified by the ALSA API for device hints.
   static const int kGetAllDevices = -1;
   static const char kPcmInterfaceName[] = "pcm";
@@ -721,7 +721,7 @@ std::string AlsaPcmOutputStream::FindDeviceForChannels(int channels) {
 }
 
 snd_pcm_t* AlsaPcmOutputStream::OpenDevice(const std::string& device_name,
-                                           int channels,
+                                           uint32 channels,
                                            unsigned int latency) {
   snd_pcm_t* handle = NULL;
   int error = wrapper_->PcmOpen(&handle, device_name.c_str(),
@@ -822,7 +822,7 @@ snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
   // downmixing.
   //
   // TODO(ajwong): We need a SupportsFolding() function.
-  int default_channels = channels_;
+  uint32 default_channels = channels_;
   if (default_channels >= 5 && default_channels <= 6) {
     should_downmix_ = true;
     default_channels = 2;
@@ -921,10 +921,10 @@ void AlsaPcmOutputStream::SharedData::set_volume(float v) {
   volume_ = v;
 }
 
-size_t AlsaPcmOutputStream::SharedData::OnMoreData(AudioOutputStream* stream,
+uint32 AlsaPcmOutputStream::SharedData::OnMoreData(AudioOutputStream* stream,
                                                    void* dest,
-                                                   size_t max_size,
-                                                   int pending_bytes) {
+                                                   uint32 max_size,
+                                                   uint32 pending_bytes) {
   AutoLock l(lock_);
   if (source_callback_) {
     return source_callback_->OnMoreData(stream, dest, max_size, pending_bytes);

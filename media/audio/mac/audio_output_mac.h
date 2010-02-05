@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,7 +29,7 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   virtual ~PCMQueueOutAudioOutputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open(size_t packet_size);
+  virtual bool Open(uint32 packet_size);
   virtual void Close();
   virtual void Start(AudioSourceCallback* callback);
   virtual void Stop();
@@ -38,7 +38,7 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
 
  private:
   // The audio is double buffered.
-  static const size_t kNumBuffers = 2;
+  static const uint32 kNumBuffers = 2;
 
   // The OS calls back here when an audio buffer has been processed.
   static void RenderCallback(void* p_this, AudioQueueRef queue,
@@ -61,7 +61,7 @@ class PCMQueueOutAudioOutputStream : public AudioOutputStream {
   // Volume level from 0 to 1.
   float volume_;
   // Number of bytes yet to be played in audio buffer.
-  int pending_bytes_;
+  uint32 pending_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(PCMQueueOutAudioOutputStream);
 };

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,7 +34,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   virtual ~PCMWaveOutAudioOutputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open(size_t packet_size);
+  virtual bool Open(uint32 packet_size);
   virtual void Close();
   virtual void Start(AudioSourceCallback* callback);
   virtual void Stop();
@@ -64,7 +64,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   void HandleError(MMRESULT error);
   // Allocates and prepares the memory that will be used for playback. Only
   // two buffers are created.
-  void SetupBuffers(size_t rq_size);
+  void SetupBuffers(uint32 rq_size);
   // Deallocates the memory allocated in SetupBuffers.
   void FreeBuffers();
 
@@ -84,7 +84,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   const int num_buffers_;
 
   // The size in bytes of each audio buffer, we usually have two of these.
-  size_t buffer_size_;
+  uint32 buffer_size_;
 
   // Volume level from 0 to 1.
   float volume_;
@@ -93,7 +93,7 @@ class PCMWaveOutAudioOutputStream : public AudioOutputStream {
   const int channels_;
 
   // Number of bytes yet to be played in the hardware buffer.
-  int pending_bytes_;
+  uint32 pending_bytes_;
 
   // The id assigned by the operating system to the selected wave output
   // hardware device. Usually this is just -1 which means 'default device'.
