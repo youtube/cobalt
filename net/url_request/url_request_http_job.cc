@@ -432,7 +432,7 @@ bool URLRequestHttpJob::ReadRawData(net::IOBuffer* buf, int buf_size,
 void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
-    if (policy == net::OK && request_->context()->cookie_store()) {
+    if (request_->context()->cookie_store() && policy == net::OK) {
       net::CookieOptions options;
       options.set_include_httponly();
       std::string cookies =
@@ -450,10 +450,14 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
 void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
-    if (policy == net::OK && request_->context()->cookie_store()) {
+    if (request_->context()->cookie_store() &&
+            (policy == net::OK ||
+             policy == net::OK_FOR_SESSION_ONLY)) {
       // OK to save the current response cookie now.
       net::CookieOptions options;
       options.set_include_httponly();
+      if (policy == net::OK_FOR_SESSION_ONLY)
+        options.set_force_session();
       request_->context()->cookie_store()->SetCookieWithOptions(
           request_->url(), response_cookies_[response_cookies_save_index_],
           options);
