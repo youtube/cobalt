@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -58,7 +58,7 @@ class AlsaPcmOutputStream :
   static const char kPlugPrefix[];
 
   // The minimum latency that is accepted by the device.
-  static const int kMinLatencyMicros;
+  static const uint32 kMinLatencyMicros;
 
   // Create a PCM Output stream for the ALSA device identified by
   // |device_name|.  The AlsaPcmOutputStream uses |wrapper| to communicate with
@@ -69,15 +69,15 @@ class AlsaPcmOutputStream :
   // If unsure of what to use for |device_name|, use |kAutoSelectDevice|.
   AlsaPcmOutputStream(const std::string& device_name,
                       AudioManager::Format format,
-                      int channels,
-                      int sample_rate,
-                      int bits_per_sample,
+                      uint32 channels,
+                      uint32 sample_rate,
+                      uint32 bits_per_sample,
                       AlsaWrapper* wrapper,
                       AudioManagerLinux* manager,
                       MessageLoop* message_loop);
 
   // Implementation of AudioOutputStream.
-  virtual bool Open(size_t packet_size);
+  virtual bool Open(uint32 packet_size);
   virtual void Close();
   virtual void Start(AudioSourceCallback* callback);
   virtual void Stop();
@@ -112,15 +112,15 @@ class AlsaPcmOutputStream :
   // TODO(ajwong): There are now about 3 buffer/packet implementations. Factor
   // them out.
   struct Packet {
-    explicit Packet(int new_capacity)
+    explicit Packet(uint32 new_capacity)
         : capacity(new_capacity),
           size(0),
           used(0),
           buffer(new char[capacity]) {
     }
-    size_t capacity;
-    size_t size;
-    size_t used;
+    uint32 capacity;
+    uint32 size;
+    uint32 used;
     scoped_array<char> buffer;
   };
 
@@ -136,7 +136,7 @@ class AlsaPcmOutputStream :
   friend std::ostream& ::operator<<(std::ostream& os, InternalState);
 
   // Various tasks that complete actions started in the public API.
-  void OpenTask(size_t packet_size);
+  void OpenTask(uint32 packet_size);
   void StartTask();
   void CloseTask();
 
@@ -148,20 +148,19 @@ class AlsaPcmOutputStream :
   void ScheduleNextWrite(Packet* current_packet);
 
   // Utility functions for talking with the ALSA API.
-  static snd_pcm_sframes_t FramesInPacket(const Packet& packet,
-                                          int bytes_per_frame);
-  static int64 FramesToMicros(int frames, int sample_rate);
-  static int64 FramesToMillis(int frames, int sample_rate);
-  std::string FindDeviceForChannels(int channels);
+  static uint32 FramesInPacket(const Packet& packet, uint32 bytes_per_frame);
+  static uint32 FramesToMicros(uint32 frames, uint32 sample_rate);
+  static uint32 FramesToMillis(uint32 frames, uint32 sample_rate);
+  std::string FindDeviceForChannels(uint32 channels);
   snd_pcm_t* OpenDevice(const std::string& device_name,
-                        int channels,
-                        unsigned int latency);
+                        uint32 channels,
+                        uint32 latency);
   bool CloseDevice(snd_pcm_t* handle);
   snd_pcm_sframes_t GetAvailableFrames();
 
   // Attempts to find the best matching linux audio device for the given number
   // of channels.  This function will set |device_name_| and |should_downmix_|.
-  snd_pcm_t* AutoSelectDevice(unsigned int latency);
+  snd_pcm_t* AutoSelectDevice(uint32 latency);
 
   // Thread-asserting accessors for member variables.
   AudioManagerLinux* manager();
@@ -191,8 +190,8 @@ class AlsaPcmOutputStream :
     // is passed into the output stream, but ownership is not transfered which
     // requires a synchronization on access of the |source_callback_| to avoid
     // using a deleted callback.
-    size_t OnMoreData(AudioOutputStream* stream, void* dest,
-                      size_t max_size, int pending_bytes);
+    uint32 OnMoreData(AudioOutputStream* stream, void* dest,
+                      uint32 max_size, uint32 pending_bytes);
     void OnClose(AudioOutputStream* stream);
     void OnError(AudioOutputStream* stream, int code);
 
@@ -217,17 +216,17 @@ class AlsaPcmOutputStream :
   // since they are constants.
   const std::string requested_device_name_;
   const snd_pcm_format_t pcm_format_;
-  const int channels_;
-  const int sample_rate_;
-  const int bytes_per_sample_;
-  const int bytes_per_frame_;
+  const uint32 channels_;
+  const uint32 sample_rate_;
+  const uint32 bytes_per_sample_;
+  const uint32 bytes_per_frame_;
 
   // Device configuration data. Populated after OpenTask() completes.
   std::string device_name_;
   bool should_downmix_;
-  int latency_micros_;
-  int micros_per_packet_;
-  int bytes_per_output_frame_;
+  uint32 latency_micros_;
+  uint32 micros_per_packet_;
+  uint32 bytes_per_output_frame_;
 
   // Flag indicating the code should stop reading from the data source or
   // writing to the ALSA device.  This is set because the device has entered
@@ -246,7 +245,7 @@ class AlsaPcmOutputStream :
   snd_pcm_t* playback_handle_;
 
   scoped_ptr<Packet> packet_;
-  int frames_per_packet_;
+  uint32 frames_per_packet_;
 
   // Used to check which message loop is allowed to call the public APIs.
   MessageLoop* client_thread_loop_;

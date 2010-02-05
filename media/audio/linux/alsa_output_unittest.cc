@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -53,8 +53,8 @@ class MockAlsaWrapper : public AlsaWrapper {
 
 class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD4(OnMoreData, size_t(AudioOutputStream* stream, void* dest,
-                                  size_t max_size, int pending_bytes));
+  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream, void* dest,
+                                  uint32 max_size, uint32 pending_bytes));
   MOCK_METHOD1(OnClose, void(AudioOutputStream* stream));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
@@ -112,8 +112,8 @@ class AlsaPcmOutputStreamTest : public testing::Test {
   static const AudioManager::Format kTestFormat;
   static const char kTestDeviceName[];
   static const char kDummyMessage[];
-  static const int kTestFramesPerPacket;
-  static const size_t kTestPacketSize;
+  static const uint32 kTestFramesPerPacket;
+  static const uint32 kTestPacketSize;
   static const int kTestFailedErrno;
   static snd_pcm_t* const kFakeHandle;
 
@@ -147,8 +147,8 @@ const AudioManager::Format AlsaPcmOutputStreamTest::kTestFormat =
     AudioManager::AUDIO_PCM_LINEAR;
 const char AlsaPcmOutputStreamTest::kTestDeviceName[] = "TestDevice";
 const char AlsaPcmOutputStreamTest::kDummyMessage[] = "dummy";
-const int AlsaPcmOutputStreamTest::kTestFramesPerPacket = 1000;
-const size_t AlsaPcmOutputStreamTest::kTestPacketSize =
+const uint32 AlsaPcmOutputStreamTest::kTestFramesPerPacket = 1000;
+const uint32 AlsaPcmOutputStreamTest::kTestPacketSize =
     AlsaPcmOutputStreamTest::kTestFramesPerPacket *
     AlsaPcmOutputStreamTest::kTestBytesPerFrame;
 const int AlsaPcmOutputStreamTest::kTestFailedErrno = -EACCES;

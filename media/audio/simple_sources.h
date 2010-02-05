@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,8 +25,8 @@ class SineWaveAudioSource : public AudioOutputStream::AudioSourceCallback {
   virtual ~SineWaveAudioSource() {}
 
   // Implementation of AudioSourceCallback.
-  virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size, int pending_bytes);
+  virtual uint32 OnMoreData(AudioOutputStream* stream,
+                            void* dest, uint32 max_size, uint32 pending_bytes);
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
@@ -45,11 +45,11 @@ class PushAudioOutput {
 
   // Write audio data to the audio device. It will be played eventually.
   // Returns false on failure.
-  virtual bool Write(const void* data, size_t len) = 0;
+  virtual bool Write(const void* data, uint32 len) = 0;
 
   // Returns the number of bytes that have been buffered but not yet given
   // to the audio device.
-  virtual size_t UnProcessedBytes() = 0;
+  virtual uint32 UnProcessedBytes() = 0;
 };
 
 // A fairly basic class to connect a push model provider PushAudioOutput to
@@ -61,19 +61,19 @@ class PushSource : public AudioOutputStream::AudioSourceCallback,
   // Construct the audio source. Pass the same |packet_size| specified in the
   // AudioOutputStream::Open() here.
   // TODO(hclam): |packet_size| is not used anymore, remove it.
-  explicit PushSource(size_t packet_size);
+  explicit PushSource(uint32 packet_size);
   virtual ~PushSource();
 
   // Write one buffer. The ideal size is |packet_size| but smaller sizes are
   // accepted.
-  virtual bool Write(const void* data, size_t len);
+  virtual bool Write(const void* data, uint32 len);
 
   // Return the total number of bytes not given to the audio device yet.
-  virtual size_t UnProcessedBytes();
+  virtual uint32 UnProcessedBytes();
 
   // Implementation of AudioSourceCallback.
-  virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size, int pending_bytes);
+  virtual uint32 OnMoreData(AudioOutputStream* stream,
+                            void* dest, uint32 max_size, uint32 pending_bytes);
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
@@ -81,17 +81,17 @@ class PushSource : public AudioOutputStream::AudioSourceCallback,
   // Defines the unit of playback. We own the memory pointed by |buffer|.
   struct Packet {
     char* buffer;
-    size_t size;
+    uint32 size;
   };
 
   // Free acquired resources.
   void CleanUp();
 
-  const size_t packet_size_;
+  const uint32 packet_size_;
   typedef std::list<Packet> PacketList;
   PacketList packets_;
-  size_t buffered_bytes_;
-  size_t front_buffer_consumed_;
+  uint32 buffered_bytes_;
+  uint32 front_buffer_consumed_;
   // Serialize access to packets_ and buffered_bytes_ using this lock.
   Lock lock_;
 };

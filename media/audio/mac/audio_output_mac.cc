@@ -1,13 +1,13 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "media/audio/mac/audio_manager_mac.h"
 #include "media/audio/mac/audio_output_mac.h"
 
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "media/audio/audio_util.h"
+#include "media/audio/mac/audio_manager_mac.h"
 
 // Overview of operation:
 // 1) An object of PCMQueueOutAudioOutputStream is created by the AudioManager
@@ -78,7 +78,7 @@ void PCMQueueOutAudioOutputStream::HandleError(OSStatus err) {
   NOTREACHED() << "error code " << err;
 }
 
-bool PCMQueueOutAudioOutputStream::Open(size_t packet_size) {
+bool PCMQueueOutAudioOutputStream::Open(uint32 packet_size) {
   if (0 == packet_size) {
     // TODO(cpu) : Impelement default buffer computation.
     return false;
@@ -92,7 +92,7 @@ bool PCMQueueOutAudioOutputStream::Open(size_t packet_size) {
     return false;
   }
   // Allocate the hardware-managed buffers.
-  for (size_t ix = 0; ix != kNumBuffers; ++ix) {
+  for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
     err = AudioQueueAllocateBuffer(audio_queue_, packet_size, &buffer_[ix]);
     if (err != noErr) {
       HandleError(err);
@@ -113,7 +113,7 @@ void PCMQueueOutAudioOutputStream::Close() {
   // might be NULL.
   if (audio_queue_) {
     OSStatus err = 0;
-    for (size_t ix = 0; ix != kNumBuffers; ++ix) {
+    for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
       if (buffer_[ix]) {
         err = AudioQueueFreeBuffer(audio_queue_, buffer_[ix]);
         if (err != noErr) {
@@ -168,10 +168,10 @@ void PCMQueueOutAudioOutputStream::GetVolume(double* volume) {
 // TODO(fbarchard): Switch layout when ffmpeg is updated.
 namespace {
 template<class Format>
-static void SwizzleLayout(Format* b, size_t filled) {
+static void SwizzleLayout(Format* b, uint32 filled) {
   static const int kNumSurroundChannels = 6;
   Format aac[kNumSurroundChannels];
-  for (size_t i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
+  for (uint32 i = 0; i < filled; i += sizeof(aac), b += kNumSurroundChannels) {
     memcpy(aac, b, sizeof(aac));
     b[0] = aac[1];  // L
     b[1] = aac[2];  // R
@@ -200,8 +200,8 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
 
   // Adjust the number of pending bytes by subtracting the amount played.
   audio_stream->pending_bytes_ -= buffer->mAudioDataByteSize;
-  size_t capacity = buffer->mAudioDataBytesCapacity;
-  size_t filled = source->OnMoreData(audio_stream, buffer->mAudioData,
+  uint32 capacity = buffer->mAudioDataBytesCapacity;
+  uint32 filled = source->OnMoreData(audio_stream, buffer->mAudioData,
                                      capacity, audio_stream->pending_bytes_);
 
   // In order to keep the callback running, we need to provide a positive amount
@@ -253,12 +253,12 @@ void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
   source_ = callback;
   pending_bytes_ = 0;
   // Ask the source to pre-fill all our buffers before playing.
-  for (size_t ix = 0; ix != kNumBuffers; ++ix) {
+  for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
     buffer_[ix]->mAudioDataByteSize = 0;
     RenderCallback(this, NULL, buffer_[ix]);
   }
   // Queue the buffers to the audio driver, sounds starts now.
-  for (size_t ix = 0; ix != kNumBuffers; ++ix) {
+  for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
     err = AudioQueueEnqueueBuffer(audio_queue_, buffer_[ix], 0, NULL);
     if (err != noErr) {
       HandleError(err);

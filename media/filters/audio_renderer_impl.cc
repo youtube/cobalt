@@ -1,11 +1,12 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "media/filters/audio_renderer_impl.h"
 
 #include <math.h>
 
 #include "media/base/filter_host.h"
-#include "media/filters/audio_renderer_impl.h"
 
 namespace media {
 
@@ -50,8 +51,8 @@ void AudioRendererImpl::SetVolume(float volume) {
     stream_->SetVolume(volume);
 }
 
-size_t AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,
-                                     size_t len, int pending_bytes) {
+uint32 AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,
+                                     uint32 len, uint32 pending_bytes) {
   // TODO(scherkus): handle end of stream.
   if (!stream_)
     return 0;
@@ -59,7 +60,7 @@ size_t AudioRendererImpl::OnMoreData(AudioOutputStream* stream, void* dest_void,
   // TODO(scherkus): Maybe change OnMoreData to pass in char/uint8 or similar.
   // TODO(fbarchard): Waveout_output_win.h should handle zero length buffers
   //                  without clicking.
-  pending_bytes = static_cast<int>(ceil(pending_bytes * GetPlaybackRate()));
+  pending_bytes = static_cast<uint32>(ceil(pending_bytes * GetPlaybackRate()));
   base::TimeDelta delay =  base::TimeDelta::FromMicroseconds(
       base::Time::kMicrosecondsPerSecond * pending_bytes / bytes_per_second_);
   return FillBuffer(static_cast<uint8*>(dest_void), len, delay);

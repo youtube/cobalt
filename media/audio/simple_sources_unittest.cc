@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,7 +12,7 @@
 
 namespace {
 
-void GenerateRandomData(char* buffer, size_t len) {
+void GenerateRandomData(char* buffer, uint32 len) {
   static bool called = false;
   if (!called) {
     called = true;
@@ -21,7 +21,7 @@ void GenerateRandomData(char* buffer, size_t len) {
     LOG(INFO) << "Random seed: " << seed;
   }
 
-  for (size_t i = 0; i < len; i++) {
+  for (uint32 i = 0; i < len; i++) {
     buffer[i] = static_cast<char>(rand());
   }
 }
@@ -30,13 +30,13 @@ void GenerateRandomData(char* buffer, size_t len) {
 
 // To test write size smaller than read size.
 TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
-  const size_t kDataSize = 40960;
+  const uint32 kDataSize = 40960;
   scoped_array<char> data(new char[kDataSize]);
   GenerateRandomData(data.get(), kDataSize);
 
   // Choose two prime numbers for read and write sizes.
-  const size_t kWriteSize = 283;
-  const size_t kReadSize = 293;
+  const uint32 kWriteSize = 283;
+  const uint32 kReadSize = 293;
   scoped_array<char> read_data(new char[kReadSize]);
 
   // Create a PushSource that assumes the hardware audio buffer size is always
@@ -45,15 +45,15 @@ TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
   EXPECT_EQ(0u, push_source.UnProcessedBytes());
 
   // Write everything into this push source.
-  for (size_t i = 0; i < kDataSize; i += kWriteSize) {
-    size_t size = std::min(kDataSize - i, kWriteSize);
+  for (uint32 i = 0; i < kDataSize; i += kWriteSize) {
+    uint32 size = std::min(kDataSize - i, kWriteSize);
     EXPECT_TRUE(push_source.Write(data.get() + i, size));
   }
   EXPECT_EQ(kDataSize, push_source.UnProcessedBytes());
 
   // Read everything from the push source.
-  for (size_t i = 0; i < kDataSize; i += kReadSize) {
-    size_t size = std::min(kDataSize - i , kReadSize);
+  for (uint32 i = 0; i < kDataSize; i += kReadSize) {
+    uint32 size = std::min(kDataSize - i , kReadSize);
     EXPECT_EQ(size, push_source.OnMoreData(NULL, read_data.get(), size, 0));
     EXPECT_EQ(0, memcmp(data.get() + i, read_data.get(), size));
   }
@@ -67,8 +67,8 @@ TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
 // do not affect the result. We also test that AudioManager::GetLastMockBuffer
 // works.
 TEST(SimpleSources, SineWaveAudio16MonoTest) {
-  const size_t samples = 1024;
-  const size_t bytes_per_sample = 2;
+  const uint32 samples = 1024;
+  const uint32 bytes_per_sample = 2;
   const int freq = 200;
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
@@ -93,7 +93,7 @@ TEST(SimpleSources, SineWaveAudio16MonoTest) {
           FakeAudioOutputStream::GetLastFakeStream()->buffer());
   ASSERT_TRUE(NULL != last_buffer);
 
-  size_t half_period = AudioManager::kTelephoneSampleRate / (freq * 2);
+  uint32 half_period = AudioManager::kTelephoneSampleRate / (freq * 2);
 
   // Spot test positive incursion of sine wave.
   EXPECT_EQ(0, last_buffer[0]);

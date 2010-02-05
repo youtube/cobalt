@@ -1,12 +1,12 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#include "media/audio/win/waveout_output_win.h"
 
 #include <windows.h>
 #include <mmsystem.h>
 #pragma comment(lib, "winmm.lib")
-
-#include "media/audio/win/waveout_output_win.h"
 
 #include "base/basictypes.h"
 #include "base/logging.h"
@@ -31,7 +31,7 @@
 
 namespace {
 // Sixty four MB is the maximum buffer size per AudioOutputStream.
-const size_t kMaxOpenBufferSize = 1024 * 1024 * 64;
+const uint32 kMaxOpenBufferSize = 1024 * 1024 * 64;
 
 // Our sound buffers are allocated once and kept in a linked list using the
 // the WAVEHDR::dwUser variable. The last buffer points to the first buffer.
@@ -71,7 +71,7 @@ PCMWaveOutAudioOutputStream::~PCMWaveOutAudioOutputStream() {
   DCHECK(NULL == waveout_);
 }
 
-bool PCMWaveOutAudioOutputStream::Open(size_t buffer_size) {
+bool PCMWaveOutAudioOutputStream::Open(uint32 buffer_size) {
   if (state_ != PCMA_BRAND_NEW)
     return false;
   if (buffer_size > kMaxOpenBufferSize)
@@ -96,11 +96,11 @@ bool PCMWaveOutAudioOutputStream::Open(size_t buffer_size) {
   return true;
 }
 
-void PCMWaveOutAudioOutputStream::SetupBuffers(size_t rq_size) {
+void PCMWaveOutAudioOutputStream::SetupBuffers(uint32 rq_size) {
   WAVEHDR* last = NULL;
   WAVEHDR* first = NULL;
   for (int ix = 0; ix != num_buffers_; ++ix) {
-    size_t sz = sizeof(WAVEHDR) + rq_size;
+    uint32 sz = sizeof(WAVEHDR) + rq_size;
     buffer_ =  reinterpret_cast<WAVEHDR*>(new char[sz]);
     buffer_->lpData = reinterpret_cast<char*>(buffer_) + sizeof(WAVEHDR);
     buffer_->dwBufferLength = rq_size;
@@ -235,8 +235,8 @@ void PCMWaveOutAudioOutputStream::QueueNextPacket(WAVEHDR *buffer) {
   // If we are down sampling to a smaller number of channels, we need to
   // scale up the amount of pending bytes.
   // TODO(fbarchard): Handle used 0 by queueing more.
-  int scaled_pending_bytes = pending_bytes_ * channels_ / format_.nChannels;
-  size_t used = callback_->OnMoreData(this, buffer->lpData, buffer_size_,
+  uint32 scaled_pending_bytes = pending_bytes_ * channels_ / format_.nChannels;
+  uint32 used = callback_->OnMoreData(this, buffer->lpData, buffer_size_,
                                       scaled_pending_bytes);
   if (used <= buffer_size_) {
     buffer->dwBufferLength = used * format_.nChannels / channels_;
