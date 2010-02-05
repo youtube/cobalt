@@ -492,13 +492,23 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
           load_log,
           std::string("Resolved proxy list: ") + result->ToPacString());
     }
-  } else {
-    LoadLog::AddErrorCode(load_log, result_code);
-  }
-
-  // Clean up the results list.
-  if (result_code == OK)
     result->DeprioritizeBadProxies(proxy_retry_info_);
+  } else {
+    LoadLog::AddStringLiteral(
+        load_log,
+        "Got an error from proxy resolver, falling-back to DIRECT.");
+    LoadLog::AddErrorCode(load_log, result_code);
+
+    // Fall-back to direct when the proxy resolver fails. This corresponds
+    // with a javascript runtime error in the PAC script.
+    //
+    // This implicit fall-back to direct matches Firefox 3.5 and
+    // Internet Explorer 8. For more information, see:
+    //
+    // http://www.chromium.org/developers/design-documents/proxy-settings-fallback
+    result->UseDirect();
+    result_code = OK;
+  }
 
   LoadLog::EndEvent(load_log, LoadLog::TYPE_PROXY_SERVICE);
   return result_code;
