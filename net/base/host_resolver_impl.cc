@@ -267,6 +267,10 @@ class HostResolverImpl::Job
     return key_;
   }
 
+  int id() const {
+    return id_;
+  }
+
   // Called from origin thread.
   const RequestsList& requests() const {
     return requests_;
@@ -720,6 +724,35 @@ void HostResolverImpl::EnableRequestsTracing(bool enable) {
     requests_trace_->Add(StringPrintf(
         "Current num outstanding jobs: %d",
         static_cast<int>(jobs_.size())));
+
+    // Dump all of the outstanding jobs.
+    if (!jobs_.empty()) {
+      for (JobMap::iterator job_it = jobs_.begin();
+           job_it != jobs_.end(); ++job_it) {
+        Job* job = job_it->second;
+
+        requests_trace_->Add(StringPrintf(
+            "Outstanding job j%d for {host='%s', address_family=%d}",
+            job->id(),
+            job->key().hostname.c_str(),
+            static_cast<int>(job->key().address_family)));
+
+        // Dump all of the requests attached to this job.
+        for (RequestsList::const_iterator req_it = job->requests().begin();
+             req_it != job->requests().end(); ++req_it) {
+          Request* req = *req_it;
+            requests_trace_->Add(StringPrintf(
+              "  %sOutstanding request r%d is attached to job j%d "
+              "{priority=%d, speculative=%d, referrer='%s'}",
+              req->was_cancelled() ? "[CANCELLED] " : "",
+              req->id(),
+              job->id(),
+              static_cast<int>(req->info().priority()),
+              static_cast<int>(req->info().is_speculative()),
+              req->info().referrer().spec().c_str()));
+        }
+      }
+    }
 
     size_t total = 0u;
     for (size_t i = 0; i < arraysize(job_pools_); ++i)
