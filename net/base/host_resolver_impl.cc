@@ -283,6 +283,11 @@ class HostResolverImpl::Job
     return requests_[0];
   }
 
+  // Returns true if |req_info| can be fulfilled by this job.
+  bool CanServiceRequest(const RequestInfo& req_info) const {
+    return key_ == resolver_->GetEffectiveKeyForRequest(req_info);
+  }
+
  private:
   friend class base::RefCountedThreadSafe<HostResolverImpl::Job>;
 
@@ -487,15 +492,15 @@ class HostResolverImpl::JobPool {
   }
 
   // Removes any pending requests from the queue which are for the
-  // same hostname/address-family as |job|, and attaches them to |job|.
+  // same (hostname / effective address-family) as |job|, and attaches them to
+  // |job|.
   void MoveRequestsToJob(Job* job) {
     for (size_t i = 0u; i < arraysize(pending_requests_); ++i) {
       PendingRequestsQueue& q = pending_requests_[i];
       PendingRequestsQueue::iterator req_it = q.begin();
       while (req_it != q.end()) {
         Request* req = *req_it;
-        Key req_key(req->info().hostname(), req->info().address_family());
-        if (req_key == job->key()) {
+        if (job->CanServiceRequest(req->info())) {
           // Job takes ownership of |req|.
           job->AddRequest(req);
           req_it = q.erase(req_it);
@@ -589,9 +594,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
 
   // Build a key that identifies the request in the cache and in the
   // outstanding jobs map.
-  Key key(info.hostname(), info.address_family());
-  if (key.address_family == ADDRESS_FAMILY_UNSPECIFIED)
-    key.address_family = default_address_family_;
+  Key key = GetEffectiveKeyForRequest(info);
 
   // If we have an unexpired cache entry, use it.
   if (info.allow_cached_response() && cache_.get()) {
@@ -982,9 +985,17 @@ void HostResolverImpl::ProcessQueuedRequests() {
   }
 }
 
+HostResolverImpl::Key HostResolverImpl::GetEffectiveKeyForRequest(
+    const RequestInfo& info) const {
+  AddressFamily effective_address_family = info.address_family();
+  if (effective_address_family == ADDRESS_FAMILY_UNSPECIFIED)
+    effective_address_family = default_address_family_;
+  return Key(info.hostname(), effective_address_family);
+}
+
 HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {
   DCHECK(CanCreateJobForPool(*GetPoolForRequest(req)));
-  Key key(req->info().hostname(), req->info().address_family());
+  Key key = GetEffectiveKeyForRequest(req->info());
   scoped_refptr<Job> job = new Job(next_job_id_++, this, key, requests_trace_);
   job->AddRequest(req);
   AddOutstandingJob(job);
