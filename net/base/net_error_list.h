@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -304,6 +304,13 @@ NET_ERROR(NO_SUPPORTED_PROXIES, -336)
 
 // There is a FLIP protocol framing error.
 NET_ERROR(FLIP_PROTOCOL_ERROR, -337)
+
+// Credentials could not be estalished during HTTP Authentication.
+NET_ERROR(INVALID_AUTH_CREDENTIALS, -338)
+
+// An HTTP Authentication scheme was tried which is not supported on this
+// machine.
+NET_ERROR(UNSUPPORTED_AUTH_SCHEME, -339)
 
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
