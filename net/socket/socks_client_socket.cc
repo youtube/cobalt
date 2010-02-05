@@ -355,8 +355,10 @@ int SOCKSClientSocket::DoHandshakeReadComplete(int result) {
   if (result == 0)
     return ERR_CONNECTION_CLOSED;
 
-  if (bytes_received_ + result > kReadHeaderSize)
-    return ERR_INVALID_RESPONSE;
+  if (bytes_received_ + result > kReadHeaderSize) {
+    // TODO(eroman): Describe failure in LoadLog.
+    return ERR_SOCKS_CONNECTION_FAILED;
+  }
 
   buffer_.append(handshake_buf_->data(), result);
   bytes_received_ += result;
@@ -370,28 +372,27 @@ int SOCKSClientSocket::DoHandshakeReadComplete(int result) {
 
   if (response->reserved_null != 0x00) {
     LOG(ERROR) << "Unknown response from SOCKS server.";
-    return ERR_INVALID_RESPONSE;
+    return ERR_SOCKS_CONNECTION_FAILED;
   }
 
-  // TODO(arindam): Add SOCKS specific failure codes in net_error_list.h
   switch (response->code) {
     case kServerResponseOk:
       completed_handshake_ = true;
       return OK;
     case kServerResponseRejected:
       LOG(ERROR) << "SOCKS request rejected or failed";
-      return ERR_FAILED;
+      return ERR_SOCKS_CONNECTION_FAILED;
     case kServerResponseNotReachable:
       LOG(ERROR) << "SOCKS request failed because client is not running "
                  << "identd (or not reachable from the server)";
-      return ERR_NAME_NOT_RESOLVED;
+      return ERR_SOCKS_CONNECTION_HOST_UNREACHABLE;
     case kServerResponseMismatchedUserId:
       LOG(ERROR) << "SOCKS request failed because client's identd could "
                  << "not confirm the user ID string in the request";
-      return ERR_FAILED;
+      return ERR_SOCKS_CONNECTION_FAILED;
     default:
       LOG(ERROR) << "SOCKS server sent unknown response";
-      return ERR_INVALID_RESPONSE;
+      return ERR_SOCKS_CONNECTION_FAILED;
   }
 
   // Note: we ignore the last 6 bytes as specified by the SOCKS protocol
