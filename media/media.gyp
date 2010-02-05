@@ -312,12 +312,12 @@
         '../third_party/openmax/openmax.gyp:il',
       ],
       'sources': [
-        'omx/input_buffer.cc',
-        'omx/input_buffer.h',
         'omx/omx_codec.cc',
         'omx/omx_codec.h',
         'omx/omx_configurator.cc',
         'omx/omx_configurator.h',
+        'omx/omx_input_buffer.cc',
+        'omx/omx_input_buffer.h',
       ],
       'export_dependent_settings': [
         '../third_party/openmax/openmax.gyp:il',
