@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,87 @@
 #include "net/http/http_auth.h"
 
 namespace net {
+namespace {
+
+int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
+                                       const SEC_WCHAR* package) {
+  switch (status) {
+    case SEC_E_OK:
+      return OK;
+    case SEC_E_INSUFFICIENT_MEMORY:
+      return ERR_OUT_OF_MEMORY;
+    case SEC_E_INTERNAL_ERROR:
+      return ERR_UNEXPECTED;
+    case SEC_E_NO_CREDENTIALS:
+    case SEC_E_NOT_OWNER:
+    case SEC_E_UNKNOWN_CREDENTIALS:
+      return ERR_INVALID_AUTH_CREDENTIALS;
+    case SEC_E_SECPKG_NOT_FOUND:
+      // This indicates that the SSPI configuration does not match expectations
+      LOG(ERROR) << "Received SEC_E_SECPKG_NOT_FOUND for " << package;
+      return ERR_UNSUPPORTED_AUTH_SCHEME;
+    default:
+      LOG(ERROR) << "Unexpected SECURITY_STATUS " << status;
+      return ERR_UNEXPECTED;
+  }
+}
+
+int AcquireCredentials(const SEC_WCHAR* package,
+                       const std::wstring& domain,
+                       const std::wstring& user,
+                       const std::wstring& password,
+                       CredHandle* cred) {
+  SEC_WINNT_AUTH_IDENTITY identity;
+  identity.Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
+  identity.User =
+      reinterpret_cast<unsigned short*>(const_cast<wchar_t*>(user.c_str()));
+  identity.UserLength = user.size();
+  identity.Domain =
+      reinterpret_cast<unsigned short*>(const_cast<wchar_t*>(domain.c_str()));
+  identity.DomainLength = domain.size();
+  identity.Password =
+      reinterpret_cast<unsigned short*>(const_cast<wchar_t*>(password.c_str()));
+  identity.PasswordLength = password.size();
+
+  TimeStamp expiry;
+
+  // Pass the username/password to get the credentials handle.
+  SECURITY_STATUS status = AcquireCredentialsHandle(
+      NULL,  // pszPrincipal
+      const_cast<SEC_WCHAR*>(package),  // pszPackage
+      SECPKG_CRED_OUTBOUND,  // fCredentialUse
+      NULL,  // pvLogonID
+      &identity,  // pAuthData
+      NULL,  // pGetKeyFn (not used)
+      NULL,  // pvGetKeyArgument (not used)
+      cred,  // phCredential
+      &expiry);  // ptsExpiry
+
+  return MapAcquireCredentialsStatusToError(status, package);
+}
+
+int AcquireDefaultCredentials(const SEC_WCHAR* package, CredHandle* cred) {
+  TimeStamp expiry;
+
+  // Pass the username/password to get the credentials handle.
+  // Note: Since the 5th argument is NULL, it uses the default
+  // cached credentials for the logged in user, which can be used
+  // for a single sign-on.
+  SECURITY_STATUS status = AcquireCredentialsHandle(
+      NULL,  // pszPrincipal
+      const_cast<SEC_WCHAR*>(package),  // pszPackage
+      SECPKG_CRED_OUTBOUND,  // fCredentialUse
+      NULL,  // pvLogonID
+      NULL,  // pAuthData
+      NULL,  // pGetKeyFn (not used)
+      NULL,  // pvGetKeyArgument (not used)
+      cred,  // phCredential
+      &expiry);  // ptsExpiry
+
+  return MapAcquireCredentialsStatusToError(status, package);
+}
+
+}  // anonymous namespace
 
 HttpAuthSSPI::HttpAuthSSPI(const std::string& scheme,
                            SEC_WCHAR* security_package)
@@ -73,28 +154,26 @@ bool HttpAuthSSPI::ParseChallenge(std::string::const_iterator challenge_begin,
   encoded_auth_token.erase(encoded_length);
 
   std::string decoded_auth_token;
-  bool rv = base::Base64Decode(encoded_auth_token, &decoded_auth_token);
-  if (rv) {
-    decoded_server_auth_token_ = decoded_auth_token;
+  bool base64_rv = base::Base64Decode(encoded_auth_token, &decoded_auth_token);
+  if (!base64_rv) {
+    LOG(ERROR) << "Base64 decoding of auth token failed.";
+    return false;
   }
-  return rv;
+  decoded_server_auth_token_ = decoded_auth_token;
+  return true;
 }
 
-int HttpAuthSSPI::GenerateCredentials(const std::wstring& username,
-                                      const std::wstring& password,
-                                      const GURL& origin,
-                                      const HttpRequestInfo* request,
-                                      const ProxyInfo* proxy,
-                                      std::string* out_credentials) {
-  // |username| may be in the form "DOMAIN\user".  Parse it into the two
-  // components.
-  std::wstring domain;
-  std::wstring user;
-  SplitDomainAndUser(username, &domain, &user);
+int HttpAuthSSPI::GenerateAuthToken(const std::wstring* username,
+                                    const std::wstring* password,
+                                    const GURL& origin,
+                                    const HttpRequestInfo* request,
+                                    const ProxyInfo* proxy,
+                                    std::string* auth_token) {
+  DCHECK((username == NULL) == (password == NULL));
 
   // Initial challenge.
   if (!IsFinalRound()) {
-    int rv = OnFirstRound(domain, user, password);
+    int rv = OnFirstRound(username, password);
     if (rv != OK)
       return rv;
   }
@@ -114,23 +193,38 @@ int HttpAuthSSPI::GenerateCredentials(const std::wstring& username,
   // Base64 encode data in output buffer and prepend the scheme.
   std::string encode_input(static_cast<char*>(out_buf), out_buf_len);
   std::string encode_output;
-  bool ok = base::Base64Encode(encode_input, &encode_output);
+  bool base64_rv = base::Base64Encode(encode_input, &encode_output);
   // OK, we are done with |out_buf|
   free(out_buf);
-  if (!ok)
-    return rv;
-  *out_credentials = scheme_ + " " + encode_output;
+  if (!base64_rv) {
+    LOG(ERROR) << "Base64 encoding of auth token failed.";
+    return ERR_UNEXPECTED;
+  }
+  *auth_token = scheme_ + " " + encode_output;
   return OK;
 }
 
-int HttpAuthSSPI::OnFirstRound(const std::wstring& domain,
-                               const std::wstring& user,
-                               const std::wstring& password) {
+int HttpAuthSSPI::OnFirstRound(const std::wstring* username,
+                               const std::wstring* password) {
+  DCHECK((username == NULL) == (password == NULL));
+
   int rv = DetermineMaxTokenLength(security_package_, &max_token_length_);
-  if (rv != OK) {
+  if (rv != OK)
     return rv;
+
+  if (username) {
+    std::wstring domain;
+    std::wstring user;
+    SplitDomainAndUser(*username, &domain, &user);
+    rv = AcquireCredentials(security_package_, domain, user, *password, &cred_);
+    if (rv != OK)
+      return rv;
+  } else {
+    rv = AcquireDefaultCredentials(security_package_, &cred_);
+    if (rv != OK)
+      return rv;
   }
-  rv = AcquireCredentials(security_package_, domain, user, password, &cred_);
+
   return rv;
 }
 
@@ -204,7 +298,7 @@ int HttpAuthSSPI::GetNextSecurityToken(
   // and SEC_E_OK on the second call.  On failure, the function returns an
   // error code.
   if (status != SEC_I_CONTINUE_NEEDED && status != SEC_E_OK) {
-    LOG(ERROR) << "InitializeSecurityContext failed: " << status;
+    LOG(ERROR) << "InitializeSecurityContext failed " << status;
     ResetSecurityContext();
     free(out_buffer.pvBuffer);
     return ERR_UNEXPECTED;  // TODO(wtc): map error code.
@@ -221,6 +315,9 @@ int HttpAuthSSPI::GetNextSecurityToken(
 void SplitDomainAndUser(const std::wstring& combined,
                         std::wstring* domain,
                         std::wstring* user) {
+  // |combined| may be in the form "user" or "DOMAIN\user".
+  // Separatethe two parts if they exist.
+  // TODO(cbentzel): I believe user@domain is also a valid form.
   size_t backslash_idx = combined.find(L'\\');
   if (backslash_idx == std::wstring::npos) {
     domain->clear();
@@ -233,54 +330,36 @@ void SplitDomainAndUser(const std::wstring& combined,
 
 int DetermineMaxTokenLength(const std::wstring& package,
                             ULONG* max_token_length) {
-  PSecPkgInfo pkg_info;
+  PSecPkgInfo pkg_info = NULL;
   SECURITY_STATUS status = QuerySecurityPackageInfo(
       const_cast<wchar_t *>(package.c_str()), &pkg_info);
   if (status != SEC_E_OK) {
-    LOG(ERROR) << "Security package " << package << " not found";
-    return ERR_UNEXPECTED;
+    // The documentation at
+    // http://msdn.microsoft.com/en-us/library/aa379359(VS.85).aspx
+    // only mentions that a non-zero (or non-SEC_E_OK) value is returned
+    // if the function fails. In practice, it appears to return
+    // SEC_E_SECPKG_NOT_FOUND for invalid/unknown packages.
+    LOG(ERROR) << "Security package " << package << " not found."
+               << " Status code: " << status;
+    if (status == SEC_E_SECPKG_NOT_FOUND)
+      return ERR_UNSUPPORTED_AUTH_SCHEME;
+    else
+      return ERR_UNEXPECTED;
   }
   *max_token_length = pkg_info->cbMaxToken;
-  FreeContextBuffer(pkg_info);
-  return OK;
-}
-
-int AcquireCredentials(const SEC_WCHAR* package,
-                       const std::wstring& domain,
-                       const std::wstring& user,
-                       const std::wstring& password,
-                       CredHandle* cred) {
-  SEC_WINNT_AUTH_IDENTITY identity;
-  identity.Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
-  identity.User =
-      reinterpret_cast<unsigned short*>(const_cast<wchar_t*>(user.c_str()));
-  identity.UserLength = user.size();
-  identity.Domain =
-      reinterpret_cast<unsigned short*>(const_cast<wchar_t*>(domain.c_str()));
-  identity.DomainLength = domain.size();
-  identity.Password =
-      reinterpret_cast<unsigned short*>(const_cast<wchar_t*>(password.c_str()));
-  identity.PasswordLength = password.size();
-
-  TimeStamp expiry;
-
-  // Pass the username/password to get the credentials handle.
-  // Note: If the 5th argument is NULL, it uses the default cached credentials
-  // for the logged in user, which can be used for single sign-on.
-  SECURITY_STATUS status = AcquireCredentialsHandle(
-      NULL,  // pszPrincipal
-      const_cast<SEC_WCHAR*>(package),  // pszPackage
-      SECPKG_CRED_OUTBOUND,  // fCredentialUse
-      NULL,  // pvLogonID
-      &identity,  // pAuthData
-      NULL,  // pGetKeyFn (not used)
-      NULL,  // pvGetKeyArgument (not used)
-      cred,  // phCredential
-      &expiry);  // ptsExpiry
-
-  if (status != SEC_E_OK)
+  status = FreeContextBuffer(pkg_info);
+  if (status != SEC_E_OK) {
+    // The documentation at
+    // http://msdn.microsoft.com/en-us/library/aa375416(VS.85).aspx
+    // only mentions that a non-zero (or non-SEC_E_OK) value is returned
+    // if the function fails, and does not indicate what the failure conditions
+    // are.
+    LOG(ERROR) << "Unexpected problem freeing context buffer. Status code: "
+               << status;
     return ERR_UNEXPECTED;
+  }
   return OK;
 }
+
 
 }  // namespace net

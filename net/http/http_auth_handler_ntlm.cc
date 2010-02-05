@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,24 +10,20 @@
 
 namespace net {
 
-std::string HttpAuthHandlerNTLM::GenerateCredentials(
+int HttpAuthHandlerNTLM::GenerateAuthToken(
     const std::wstring& username,
     const std::wstring& password,
     const HttpRequestInfo* request,
-    const ProxyInfo* proxy) {
+    const ProxyInfo* proxy,
+    std::string* auth_token) {
 #if defined(NTLM_SSPI)
-  std::string auth_credentials;
-
-  int rv = auth_sspi_.GenerateCredentials(
-      username,
-      password,
+  return auth_sspi_.GenerateAuthToken(
+      &username,
+      &password,
       origin_,
       request,
       proxy,
-      &auth_credentials);
-  if (rv == OK)
-    return auth_credentials;
-  return std::string();
+      auth_token);
 #else  // !defined(NTLM_SSPI)
   // TODO(wtc): See if we can use char* instead of void* for in_buf and
   // out_buf.  This change will need to propagate to GetNextToken,
@@ -58,7 +54,7 @@ std::string HttpAuthHandlerNTLM::GenerateCredentials(
     in_buf = NULL;
     int rv = InitializeBeforeFirstChallenge();
     if (rv != OK)
-      return std::string();
+      return rv;
   } else {
     // Decode |auth_data_| into the input buffer.
     int len = auth_data_.length();
@@ -71,25 +67,30 @@ std::string HttpAuthHandlerNTLM::GenerateCredentials(
       len--;
     auth_data_.erase(len);
 
-    if (!base::Base64Decode(auth_data_, &decoded_auth_data))
-      return std::string();  // Improper base64 encoding
+    if (!base::Base64Decode(auth_data_, &decoded_auth_data)) {
+      LOG(ERROR) << "Unexpected problem Base64 decoding.";
+      return ERR_UNEXPECTED;
+    }
     in_buf_len = decoded_auth_data.length();
     in_buf = decoded_auth_data.data();
   }
 
   int rv = GetNextToken(in_buf, in_buf_len, &out_buf, &out_buf_len);
   if (rv != OK)
-    return std::string();
+    return rv;
 
   // Base64 encode data in output buffer and prepend "NTLM ".
   std::string encode_input(static_cast<char*>(out_buf), out_buf_len);
   std::string encode_output;
-  bool ok = base::Base64Encode(encode_input, &encode_output);
+  bool base64_rv = base::Base64Encode(encode_input, &encode_output);
   // OK, we are done with |out_buf|
   free(out_buf);
-  if (!ok)
-    return std::string();
-  return std::string("NTLM ") + encode_output;
+  if (!base64_rv) {
+    LOG(ERROR) << "Unexpected problem Base64 encoding.";
+    return ERR_UNEXPECTED;
+  }
+  *auth_token = std::string("NTLM ") + encode_output;
+  return OK;
 #endif
 }
 
