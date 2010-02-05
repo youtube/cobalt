@@ -204,7 +204,7 @@ TEST_F(SOCKS5ClientSocketTest, LargeHostNameFails) {
   // the transport socket first) because the hostname is too long.
   TestCompletionCallback callback;
   int rv = user_sock_->Connect(&callback, NULL);
-  EXPECT_EQ(ERR_INVALID_URL, rv);
+  EXPECT_EQ(ERR_SOCKS_CONNECTION_FAILED, rv);
 }
 
 TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
