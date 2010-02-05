@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -274,7 +274,7 @@ class SdchManager {
   // supported domain (i.e., not blacklisted, and either the specific supported
   // domain, or all domains were assumed supported).  If it is blacklist, reduce
   // by 1 the number of times it will be reported as blacklisted.
-  const bool IsInSupportedDomain(const GURL& url);
+  bool IsInSupportedDomain(const GURL& url);
 
   // Schedule the URL fetching to load a dictionary. This will always return
   // before the dictionary is actually loaded and added.

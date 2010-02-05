@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -122,7 +122,7 @@ void SdchManager::EnableSdchSupport(const std::string& domain) {
   global_->sdch_enabled_ = true;
 }
 
-const bool SdchManager::IsInSupportedDomain(const GURL& url) {
+bool SdchManager::IsInSupportedDomain(const GURL& url) {
   if (!sdch_enabled_ )
     return false;
   if (!supported_domain_.empty() &&

@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2010 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -602,6 +602,12 @@
           '-pthread',
           '-fno-exceptions',
           '-Wall',
+          # TODO(evan): turn this back on once the v8 change lands.
+          #'-Wextra',
+          # Don't warn about unused function params.  We use those everywhere.
+          '-Wno-unused-parameter',
+          # Don't warn about the "struct foo f = {0};" initialization pattern.
+          '-Wno-missing-field-initializers',
           '-D_FILE_OFFSET_BITS=64',
           # Don't export any symbols (for example, to plugins we dlopen()).
           # Note: this is *required* to make some plugins work.
