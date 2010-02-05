@@ -391,6 +391,45 @@ const char kWhitespaceASCII[] = {
 const char kUtf8ByteOrderMark[] = "\xEF\xBB\xBF";
 
 template<typename STR>
+bool RemoveCharsT(const STR& input,
+                  const typename STR::value_type remove_chars[],
+                  STR* output) {
+  bool removed = false;
+  size_t found;
+
+  *output = input;
+
+  found = output->find_first_of(remove_chars);
+  while (found != STR::npos) {
+    removed = true;
+    output->replace(found, 1, STR());
+    found = output->find_first_of(remove_chars, found);
+  }
+
+  return removed;
+}
+
+bool RemoveChars(const std::wstring& input,
+                 const wchar_t remove_chars[],
+                 std::wstring* output) {
+  return RemoveCharsT(input, remove_chars, output);
+}
+
+#if !defined(WCHAR_T_IS_UTF16)
+bool RemoveChars(const string16& input,
+                 const char16 remove_chars[],
+                 string16* output) {
+  return RemoveCharsT(input, remove_chars, output);
+}
+#endif
+
+bool RemoveChars(const std::string& input,
+                 const char remove_chars[],
+                 std::string* output) {
+  return RemoveCharsT(input, remove_chars, output);
+}
+
+template<typename STR>
 TrimPositions TrimStringT(const STR& input,
                           const typename STR::value_type trim_chars[],
                           TrimPositions positions,

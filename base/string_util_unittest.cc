@@ -1468,4 +1468,20 @@ TEST(StringUtilTest, HexEncode) {
   EXPECT_EQ(hex.compare("01FF02FE038081"), 0);
 }
 
+TEST(StringUtilTest, RemoveChars) {
+  const char kRemoveChars[] = {'-', '/', '+', '*'};
+  std::string input = "A-+bc/d!*";
+  EXPECT_TRUE(RemoveChars(input, kRemoveChars, &input));
+  EXPECT_EQ("Abcd!", input);
+
+  // No characters match kRemoveChars.
+  EXPECT_FALSE(RemoveChars(input, kRemoveChars, &input));
+  EXPECT_EQ("Abcd!", input);
+
+  // Empty string.
+  input.clear();
+  EXPECT_FALSE(RemoveChars(input, kRemoveChars, &input));
+  EXPECT_EQ(std::string(), input);
+}
+
 }  // namaspace base

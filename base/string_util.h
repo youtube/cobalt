@@ -143,6 +143,19 @@ extern const char kWhitespaceASCII[];
 
 extern const char kUtf8ByteOrderMark[];
 
+// Removes characters in remove_chars from anywhere in input.  Returns true if
+// any characters were removed.
+// NOTE: Safe to use the same variable for both input and output.
+bool RemoveChars(const std::wstring& input,
+                 const wchar_t remove_chars[],
+                 std::wstring* output);
+bool RemoveChars(const string16& input,
+                 const char16 remove_chars[],
+                 string16* output);
+bool RemoveChars(const std::string& input,
+                 const char remove_chars[],
+                 std::string* output);
+
 // Removes characters in trim_chars from the beginning and end of input.
 // NOTE: Safe to use the same variable for both input and output.
 bool TrimString(const std::wstring& input,
