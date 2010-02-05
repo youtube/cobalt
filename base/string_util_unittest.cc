@@ -1469,7 +1469,7 @@ TEST(StringUtilTest, HexEncode) {
 }
 
 TEST(StringUtilTest, RemoveChars) {
-  const char kRemoveChars[] = {'-', '/', '+', '*'};
+  const char* kRemoveChars = "-/+*";
   std::string input = "A-+bc/d!*";
   EXPECT_TRUE(RemoveChars(input, kRemoveChars, &input));
   EXPECT_EQ("Abcd!", input);
