@@ -192,7 +192,8 @@ class HostResolverImpl::Job
         origin_loop_(MessageLoop::current()),
         resolver_proc_(resolver->effective_resolver_proc()),
         requests_trace_(requests_trace),
-        error_(OK) {
+        error_(OK),
+        had_non_speculative_request_(false) {
     if (requests_trace_) {
       requests_trace_->Add(StringPrintf(
           "Created job j%d for {hostname='%s', address_family=%d}",
@@ -211,12 +212,17 @@ class HostResolverImpl::Job
 
     req->set_job(this);
     requests_.push_back(req);
+
+    if (!req->info().is_speculative())
+      had_non_speculative_request_ = true;
   }
 
   // Called from origin loop.
   void Start() {
     if (requests_trace_)
       requests_trace_->Add(StringPrintf("Starting job j%d", id_));
+
+    start_time_ = base::TimeTicks::Now();
 
     // Dispatch the job to a worker thread.
     if (!WorkerPool::PostTask(FROM_HERE,
@@ -269,6 +275,10 @@ class HostResolverImpl::Job
 
   int id() const {
     return id_;
+  }
+
+  base::TimeTicks start_time() const {
+    return start_time_;
   }
 
   // Called from origin thread.
@@ -337,8 +347,20 @@ class HostResolverImpl::Job
     //DCHECK_EQ(origin_loop_, MessageLoop::current());
     DCHECK(error_ || results_.head());
 
-    if (requests_trace_)
-      requests_trace_->Add(StringPrintf("Completing job j%d", id_));
+    base::TimeDelta job_duration = base::TimeTicks::Now() - start_time_;
+
+    if (requests_trace_) {
+      requests_trace_->Add(StringPrintf(
+          "Completing job j%d (took %d milliseconds)",
+          id_,
+          static_cast<int>(job_duration.InMilliseconds())));
+    }
+
+    if (had_non_speculative_request_) {
+      // TODO(eroman): Add histogram for job times of non-speculative
+      // requests.
+    }
+
 
     if (was_cancelled())
       return;
@@ -377,7 +399,17 @@ class HostResolverImpl::Job
 
   // Assigned on the worker thread, read on the origin thread.
   int error_;
+
+  // True if a non-speculative request was ever attached to this job
+  // (regardless of whether or not it was later cancelled.
+  // This boolean is used for histogramming the duration of jobs used to
+  // service non-speculative requests.
+  bool had_non_speculative_request_;
+
   AddressList results_;
+
+  // The time when the job was started.
+  base::TimeTicks start_time_;
 
   DISALLOW_COPY_AND_ASSIGN(Job);
 };
@@ -735,10 +767,13 @@ void HostResolverImpl::EnableRequestsTracing(bool enable) {
         Job* job = job_it->second;
 
         requests_trace_->Add(StringPrintf(
-            "Outstanding job j%d for {host='%s', address_family=%d}",
+            "Outstanding job j%d for {host='%s', address_family=%d}, "
+            "which was started at t=%d",
             job->id(),
             job->key().hostname.c_str(),
-            static_cast<int>(job->key().address_family)));
+            static_cast<int>(job->key().address_family),
+            static_cast<int>((job->start_time() - base::TimeTicks())
+                .InMilliseconds())));
 
         // Dump all of the requests attached to this job.
         for (RequestsList::const_iterator req_it = job->requests().begin();
