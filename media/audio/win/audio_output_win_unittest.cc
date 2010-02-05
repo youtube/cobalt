@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -38,8 +38,8 @@ class TestSourceBasic : public AudioOutputStream::AudioSourceCallback {
         was_closed_(0) {
   }
   // AudioSourceCallback::OnMoreData implementation:
-  virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size, int pending_bytes) {
+  virtual uint32 OnMoreData(AudioOutputStream* stream,
+                            void* dest, uint32 max_size, uint32 pending_bytes) {
     ++callback_count_;
     // Touch the first byte to make sure memory is good.
     if (max_size)
@@ -94,8 +94,8 @@ class TestSourceTripleBuffer : public TestSourceBasic {
     buffer_address_[2] = NULL;
   }
   // Override of TestSourceBasic::OnMoreData.
-  virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size, int pending_bytes) {
+  virtual uint32 OnMoreData(AudioOutputStream* stream,
+                            void* dest, uint32 max_size, uint32 pending_bytes) {
     // Call the base, which increments the callback_count_.
     TestSourceBasic::OnMoreData(stream, dest, max_size, 0);
     if (callback_count() % kNumBuffers == 2) {
@@ -113,7 +113,7 @@ class TestSourceTripleBuffer : public TestSourceBasic {
   }
 
  private:
-  bool CompareExistingIfNotNULL(size_t index, void* address) {
+  bool CompareExistingIfNotNULL(uint32 index, void* address) {
     void*& entry = buffer_address_[index];
     if (!entry)
       entry = address;
@@ -130,8 +130,8 @@ class TestSourceLaggy : public TestSourceBasic {
   TestSourceLaggy(int laggy_after_buffer, int lag_in_ms)
       : laggy_after_buffer_(laggy_after_buffer), lag_in_ms_(lag_in_ms) {
   }
-  virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size, int pending_bytes) {
+  virtual uint32 OnMoreData(AudioOutputStream* stream,
+                            void* dest, uint32 max_size, uint32 pending_bytes) {
     // Call the base, which increments the callback_count_.
     TestSourceBasic::OnMoreData(stream, dest, max_size, 0);
     if (callback_count() > kNumBuffers) {
@@ -146,8 +146,8 @@ class TestSourceLaggy : public TestSourceBasic {
 
 class MockAudioSource : public AudioOutputStream::AudioSourceCallback {
  public:
-  MOCK_METHOD4(OnMoreData, size_t(AudioOutputStream* stream, void* dest,
-                                  size_t max_size, int pending_bytes));
+  MOCK_METHOD4(OnMoreData, uint32(AudioOutputStream* stream, void* dest,
+                                  uint32 max_size, uint32 pending_bytes));
   MOCK_METHOD1(OnClose, void(AudioOutputStream* stream));
   MOCK_METHOD2(OnError, void(AudioOutputStream* stream, int code));
 };
@@ -186,18 +186,18 @@ class ReadOnlyMappedFile {
     return ((start_ > 0) && (size_ > 0));
   }
   // Returns the size in bytes of the mapped memory.
-  size_t size() const {
+  uint32 size() const {
     return size_;
   }
   // Returns the memory backing the file.
-  const void* GetChunkAt(size_t offset) {
+  const void* GetChunkAt(uint32 offset) {
     return &start_[offset];
   }
 
  private:
   HANDLE fmap_;
   char* start_;
-  size_t size_;
+  uint32 size_;
 };
 
 // ============================================================================
@@ -353,7 +353,7 @@ TEST(WinAudioTest, PCMWaveStreamPlaySlowLoop) {
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
                              200.0, AudioManager::kAudioCDSampleRate);
-  size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
   oas->SetVolume(1.0);
@@ -384,7 +384,7 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44Kss) {
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
                              200.0, AudioManager::kAudioCDSampleRate);
-  size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
   oas->SetVolume(1.0);
@@ -412,7 +412,7 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone22Kss) {
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
                              200.0, AudioManager::kAudioCDSampleRate/2);
-  size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 20) * 2;
+  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 20) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
 
@@ -456,17 +456,17 @@ TEST(WinAudioTest, PushSourceFile16KHz)  {
   ASSERT_TRUE(NULL != oas);
 
   // compute buffer size for 100ms of audio. Which is 3200 bytes.
-  const size_t kSize50ms = 2 * (16000 / 1000) * 100;
+  const uint32 kSize50ms = 2 * (16000 / 1000) * 100;
   EXPECT_TRUE(oas->Open(kSize50ms));
 
-  size_t offset = 0;
-  const size_t kMaxStartOffset = file_reader.size() - kSize50ms;
+  uint32 offset = 0;
+  const uint32 kMaxStartOffset = file_reader.size() - kSize50ms;
 
   // We buffer and play at the same time, buffering happens every ~10ms and the
   // consuming of the buffer happens every ~50ms. We do 100 buffers which
   // effectively wrap around the file more than once.
   PushSource push_source(kSize50ms);
-  for (size_t ix = 0; ix != 100; ++ix) {
+  for (uint32 ix = 0; ix != 100; ++ix) {
     push_source.Write(file_reader.GetChunkAt(offset), kSize50ms);
     if (ix == 2) {
       // For glitch free, start playing after some buffers are in.
@@ -502,7 +502,7 @@ TEST(WinAudioTest, PCMWaveStreamPlayTwice200HzTone44Kss) {
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
                              200.0, AudioManager::kAudioCDSampleRate);
-  size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
 
   EXPECT_TRUE(oas->Open(bytes_100_ms));
   oas->SetVolume(1.0);
@@ -541,7 +541,7 @@ TEST(WinAudioTest, PCMWaveStreamPlay200HzTone44KssLowLatency) {
 
   SineWaveAudioSource source(SineWaveAudioSource::FORMAT_16BIT_LINEAR_PCM, 1,
                              200.0, AudioManager::kAudioCDSampleRate);
-  size_t bytes_50_ms = (AudioManager::kAudioCDSampleRate / 20) * sizeof(uint16);
+  uint32 bytes_50_ms = (AudioManager::kAudioCDSampleRate / 20) * sizeof(uint16);
 
   EXPECT_TRUE(oas->Open(bytes_50_ms));
   oas->SetVolume(1.0);
@@ -567,7 +567,7 @@ TEST(WinAudioTest, PCMWaveStreamPendingBytes) {
   ASSERT_TRUE(NULL != oas);
 
   NiceMock<MockAudioSource> source;
-  size_t bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
+  uint32 bytes_100_ms = (AudioManager::kAudioCDSampleRate / 10) * 2;
   EXPECT_TRUE(oas->Open(bytes_100_ms));
 
   // We expect the amount of pending bytes will reaching 2 times of
@@ -610,10 +610,10 @@ class SyncSocketSource : public AudioOutputStream::AudioSourceCallback {
   }
 
   // AudioSourceCallback::OnMoreData implementation:
-  virtual size_t OnMoreData(AudioOutputStream* stream,
-                            void* dest, size_t max_size, int pending_bytes) {
+  virtual uint32 OnMoreData(AudioOutputStream* stream,
+                            void* dest, uint32 max_size, uint32 pending_bytes) {
     socket_->Send(&pending_bytes, sizeof(pending_bytes));
-    size_t got = socket_->Receive(dest, max_size);
+    uint32 got = socket_->Receive(dest, max_size);
     return got;
   }
   // AudioSourceCallback::OnClose implementation:
@@ -631,7 +631,7 @@ struct SyncThreadContext {
   base::SyncSocket* socket;
   int sample_rate;
   double sine_freq;
-  size_t packet_size;
+  uint32 packet_size;
 };
 
 // This thread provides the data that the SyncSocketSource above needs
@@ -688,7 +688,7 @@ TEST(WinAudioTest, SyncSocketBasic) {
   ASSERT_TRUE(NULL != oas);
 
   // compute buffer size for 20ms of audio, 882 samples (mono).
-  const size_t kSamples20ms = sample_rate / 50 * sizeof(uint16);
+  const uint32 kSamples20ms = sample_rate / 50 * sizeof(uint16);
   ASSERT_TRUE(oas->Open(kSamples20ms));
 
   base::SyncSocket* sockets[2];

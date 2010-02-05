@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -43,8 +43,8 @@ class AudioRendererImpl : public AudioRendererBase,
   virtual void SetVolume(float volume);
 
   // AudioSourceCallback implementation.
-  virtual size_t OnMoreData(AudioOutputStream* stream, void* dest,
-                            size_t len, int pending_bytes);
+  virtual uint32 OnMoreData(AudioOutputStream* stream, void* dest,
+                            uint32 len, uint32 pending_bytes);
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
