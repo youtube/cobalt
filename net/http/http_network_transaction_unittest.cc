@@ -31,16 +31,7 @@
 
 //-----------------------------------------------------------------------------
 
-// TODO(eroman): Add a regression test for http://crbug.com/32316 -- when the
-// proxy service returns an error, we should fallback to DIRECT instead of
-// failing with ERR_NO_SUPPORTED_PROXIES.
-
 namespace net {
-
-// Create a proxy service which fails on all requests (falls back to direct).
-ProxyService* CreateNullProxyService() {
-  return ProxyService::CreateNull();
-}
 
 // Helper to manage the lifetimes of the dependencies for a
 // HttpNetworkTransaction.
@@ -49,7 +40,7 @@ class SessionDependencies {
   // Default set of dependencies -- "null" proxy service.
   SessionDependencies()
       : host_resolver(new MockHostResolver),
-        proxy_service(CreateNullProxyService()),
+        proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
         flip_session_pool(new FlipSessionPool) {}
 

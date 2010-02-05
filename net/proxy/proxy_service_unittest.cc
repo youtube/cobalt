@@ -330,7 +330,10 @@ TEST(ProxyServiceTest, ProxyResolverFails) {
   // Fail the first resolve request in MockAsyncProxyResolver.
   resolver->pending_requests()[0]->CompleteNow(ERR_FAILED);
 
-  EXPECT_EQ(ERR_FAILED, callback1.WaitForResult());
+  // Although the proxy resolver failed the request, ProxyService implicitly
+  // falls-back to DIRECT.
+  EXPECT_EQ(OK, callback1.WaitForResult());
+  EXPECT_TRUE(info.is_direct());
 
   // The second resolve request will try to run through the proxy resolver,
   // regardless of whether the first request failed in it.
@@ -642,10 +645,11 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
   // This simulates a javascript runtime error in the PAC script.
   resolver->pending_requests()[0]->CompleteNow(ERR_FAILED);
 
-  // No proxy servers are returned, since we failed.
-  EXPECT_EQ(ERR_FAILED, callback3.WaitForResult());
-  EXPECT_FALSE(info2.is_direct());
-  EXPECT_TRUE(info2.is_empty());
+  // Although the resolver failed, the ProxyService will implicitly fall-back
+  // to a DIRECT connection.
+  EXPECT_EQ(OK, callback3.WaitForResult());
+  EXPECT_TRUE(info2.is_direct());
+  EXPECT_FALSE(info2.is_empty());
 
   // The PAC script will work properly next time and successfully return a
   // proxy list. Since we have not marked the configuration as bad, it should
