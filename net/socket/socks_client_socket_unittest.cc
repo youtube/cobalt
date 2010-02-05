@@ -103,7 +103,6 @@ class HangingHostResolver : public HostResolver {
 
   virtual void AddObserver(Observer* observer) {}
   virtual void RemoveObserver(Observer* observer) {}
-  virtual void Shutdown() {}
 
   bool HasOutstandingRequest() {
     return outstanding_request_ != NULL;
