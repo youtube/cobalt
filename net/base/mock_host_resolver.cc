@@ -66,10 +66,6 @@ void MockHostResolverBase::RemoveObserver(Observer* observer) {
   impl_->RemoveObserver(observer);
 }
 
-void MockHostResolverBase::Shutdown() {
-  impl_->Shutdown();
-}
-
 void MockHostResolverBase::Reset(HostResolverProc* interceptor) {
   synchronous_mode_ = false;
 
