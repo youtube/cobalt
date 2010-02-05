@@ -88,14 +88,14 @@ class HostResolverImpl : public HostResolver,
   virtual void AddObserver(HostResolver::Observer* observer);
   virtual void RemoveObserver(HostResolver::Observer* observer);
 
-  // TODO(eroman): temp hack for http://crbug.com/15513
-  virtual void Shutdown();
-
   virtual void SetDefaultAddressFamily(AddressFamily address_family) {
     default_address_family_ = address_family;
   }
 
   virtual bool IsHostResolverImpl() { return true; }
+
+  // TODO(eroman): hack for http://crbug.com/15513
+  void Shutdown();
 
   // Returns the cache this resolver uses, or NULL if caching is disabled.
   HostCache* cache() { return cache_.get(); }
@@ -239,7 +239,7 @@ class HostResolverImpl : public HostResolver,
   // Address family to use when the request doesn't specify one.
   AddressFamily default_address_family_;
 
-  // TODO(eroman): temp hack for http://crbug.com/15513
+  // TODO(eroman): hack for http://crbug.com/15513
   bool shutdown_;
 
   NetworkChangeNotifier* const network_change_notifier_;

@@ -47,8 +47,6 @@ class MockHostResolverBase : public HostResolver {
   virtual void CancelRequest(RequestHandle req);
   virtual void AddObserver(Observer* observer);
   virtual void RemoveObserver(Observer* observer);
-  // TODO(eroman): temp hack for http://crbug.com/18373
-  virtual void Shutdown();
 
   RuleBasedHostResolverProc* rules() { return rules_; }
 
