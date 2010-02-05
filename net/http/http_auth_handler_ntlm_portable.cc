@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -657,6 +657,12 @@ bool HttpAuthHandlerNTLM::IsFinalRound() {
   return !auth_data_.empty();
 }
 
+bool HttpAuthHandlerNTLM::AllowDefaultCredentials() {
+  // Default credentials are not supported in the portable implementation of
+  // NTLM, but are supported in the SSPI implementation.
+  return false;
+}
+
 // static
 HttpAuthHandlerNTLM::GenerateRandomProc
 HttpAuthHandlerNTLM::SetGenerateRandomProc(
@@ -702,6 +708,15 @@ int HttpAuthHandlerNTLM::GetNextToken(const void* in_token,
 
 int HttpAuthHandlerNTLM::InitializeBeforeFirstChallenge() {
   return OK;
+}
+
+int HttpAuthHandlerNTLM::GenerateDefaultAuthToken(
+    const HttpRequestInfo* request,
+    const ProxyInfo* proxy,
+    std::string* auth_token) {
+  NOTREACHED();
+  LOG(ERROR) << ErrorToString(ERR_NOT_IMPLEMENTED);
+  return ERR_NOT_IMPLEMENTED;
 }
 
 }  // namespace net

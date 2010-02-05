@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/md5.h"
 #include "base/rand_util.h"
 #include "base/string_util.h"
+#include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_request_info.h"
@@ -77,11 +78,12 @@ std::string HttpAuthHandlerDigest::AlgorithmToString(int algorithm) {
   }
 }
 
-std::string HttpAuthHandlerDigest::GenerateCredentials(
+int HttpAuthHandlerDigest::GenerateAuthToken(
     const std::wstring& username,
     const std::wstring& password,
     const HttpRequestInfo* request,
-    const ProxyInfo* proxy) {
+    const ProxyInfo* proxy,
+    std::string* auth_token) {
   // Generate a random client nonce.
   std::string cnonce = GenerateNonce();
 
@@ -97,11 +99,21 @@ std::string HttpAuthHandlerDigest::GenerateCredentials(
   std::string path;
   GetRequestMethodAndPath(request, proxy, &method, &path);
 
-  return AssembleCredentials(method, path,
-                             // TODO(eroman): is this the right encoding?
-                             WideToUTF8(username),
-                             WideToUTF8(password),
-                             cnonce, nonce_count);
+  *auth_token = AssembleCredentials(method, path,
+                                    // TODO(eroman): is this the right encoding?
+                                    WideToUTF8(username),
+                                    WideToUTF8(password),
+                                    cnonce, nonce_count);
+  return OK;
+}
+
+int HttpAuthHandlerDigest::GenerateDefaultAuthToken(
+    const HttpRequestInfo* request,
+    const ProxyInfo* proxy,
+    std::string* auth_token) {
+  NOTREACHED();
+  LOG(ERROR) << ErrorToString(ERR_NOT_IMPLEMENTED);
+  return ERR_NOT_IMPLEMENTED;
 }
 
 void HttpAuthHandlerDigest::GetRequestMethodAndPath(

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,10 +12,17 @@ namespace net {
 // Code for handling http basic authentication.
 class HttpAuthHandlerBasic : public HttpAuthHandler {
  public:
-  virtual std::string GenerateCredentials(const std::wstring& username,
-                                          const std::wstring& password,
-                                          const HttpRequestInfo*,
-                                          const ProxyInfo*);
+  virtual int GenerateAuthToken(const std::wstring& username,
+                                const std::wstring& password,
+                                const HttpRequestInfo*,
+                                const ProxyInfo*,
+                                std::string* auth_token);
+
+  virtual int GenerateDefaultAuthToken(const HttpRequestInfo* request,
+                                       const ProxyInfo* proxy,
+                                       std::string* auth_token);
+
+
  protected:
   virtual bool Init(std::string::const_iterator challenge_begin,
                     std::string::const_iterator challenge_end);
