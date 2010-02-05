@@ -223,7 +223,7 @@ int SOCKS5ClientSocket::DoGreetWrite() {
     LoadLog::AddStringLiteral(load_log_,
         "Failed sending request because hostname is "
         "longer than 255 characters");
-    return ERR_INVALID_URL;
+    return ERR_SOCKS_CONNECTION_FAILED;
   }
 
   if (buffer_.empty()) {
@@ -266,8 +266,11 @@ int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
   if (result < 0)
     return result;
 
-  if (result == 0)
-    return ERR_CONNECTION_CLOSED;  // Unexpected socket close
+  if (result == 0) {
+    LoadLog::AddStringLiteral(
+        load_log_, "Connection unexpected closed while reading greeting.");
+    return ERR_SOCKS_CONNECTION_FAILED;
+  }
 
   bytes_received_ += result;
   buffer_.append(handshake_buf_->data(), result);
@@ -281,13 +284,13 @@ int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
     LoadLog::AddStringLiteral(load_log_, "Unexpected SOCKS version");
     LoadLog::AddString(load_log_, StringPrintf(
         "buffer_[0] = 0x%x", static_cast<int>(buffer_[0])));
-    return ERR_INVALID_RESPONSE;
+    return ERR_SOCKS_CONNECTION_FAILED;
   }
   if (buffer_[1] != 0x00) {
     LoadLog::AddStringLiteral(load_log_, "Unexpected authentication method");
     LoadLog::AddString(load_log_, StringPrintf(
         "buffer_[1] = 0x%x", static_cast<int>(buffer_[1])));
-    return ERR_INVALID_RESPONSE;  // Unknown error
+    return ERR_SOCKS_CONNECTION_FAILED;
   }
 
   buffer_.clear();
@@ -374,8 +377,11 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
     return result;
 
   // The underlying socket closed unexpectedly.
-  if (result == 0)
-    return ERR_CONNECTION_CLOSED;
+  if (result == 0) {
+    LoadLog::AddStringLiteral(
+        load_log_, "Connection unexpected closed while reading handshake.");
+    return ERR_SOCKS_CONNECTION_FAILED;
+  }
 
   buffer_.append(handshake_buf_->data(), result);
   bytes_received_ += result;
@@ -389,7 +395,7 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
           "buffer_[0] = 0x%x; buffer_[2] = 0x%x",
           static_cast<int>(buffer_[0]),
           static_cast<int>(buffer_[2])));
-      return ERR_INVALID_RESPONSE;
+      return ERR_SOCKS_CONNECTION_FAILED;
     }
     if (buffer_[1] != 0x00) {
       LoadLog::AddStringLiteral(load_log_,
@@ -401,7 +407,7 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
         LoadLog::AddString(load_log_, StringPrintf(
             "buffer_[1] = 0x%x", static_cast<int>(buffer_[1])));
       }
-      return ERR_FAILED;
+      return ERR_SOCKS_CONNECTION_FAILED;
     }
 
     // We check the type of IP/Domain the server returns and accordingly
@@ -421,7 +427,7 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
       LoadLog::AddStringLiteral(load_log_, "Unknown address type in response");
       LoadLog::AddString(load_log_, StringPrintf(
           "buffer_[3] = 0x%x", static_cast<int>(buffer_[3])));
-      return ERR_INVALID_RESPONSE;
+      return ERR_SOCKS_CONNECTION_FAILED;
     }
 
     read_header_size += 2;  // for the port.

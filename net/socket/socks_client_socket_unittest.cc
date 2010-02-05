@@ -176,12 +176,12 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
     // Failure of the server response code
     {
       { 0x01, 0x5A, 0x00, 0x00, 0, 0, 0, 0 },
-      ERR_INVALID_RESPONSE,
+      ERR_SOCKS_CONNECTION_FAILED,
     },
     // Failure of the null byte
     {
       { 0x00, 0x5B, 0x00, 0x00, 0, 0, 0, 0 },
-      ERR_FAILED,
+      ERR_SOCKS_CONNECTION_FAILED,
     },
   };
 
