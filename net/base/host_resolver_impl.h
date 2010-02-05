@@ -193,6 +193,11 @@ class HostResolverImpl : public HostResolver,
   // may have multiple requests attached to it.
   void ProcessQueuedRequests();
 
+  // Returns the (hostname, address_family) key to use for |info|, choosing an
+  // "effective" address family by inheriting the resolver's default address
+  // family when the request leaves it unspecified.
+  Key GetEffectiveKeyForRequest(const RequestInfo& info) const;
+
   // Attaches |req| to a new job, and starts it. Returns that job.
   Job* CreateAndStartJob(Request* req);
 
