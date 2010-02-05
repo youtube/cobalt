@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -556,14 +556,21 @@ int SocketStream::DoWriteTunnelHeaders() {
     // HttpRequestInfo.
     // TODO(ukai): Add support other authentication scheme.
     if (auth_handler_.get() && auth_handler_->scheme() == "basic") {
-      std::string credentials = auth_handler_->GenerateCredentials(
+      std::string auth_token;
+      int rv = auth_handler_->GenerateAuthToken(
           auth_identity_.username,
           auth_identity_.password,
           NULL,
-          &proxy_info_);
+          &proxy_info_,
+          &auth_token);
+      // TODO(cbentzel): Should do something different if credentials
+      // can't be generated. In this case, only Basic is allowed which
+      // should only fail if Base64 encoding fails.
+      if (rv != OK)
+        auth_token = std::string();
       authorization_headers.append(
           HttpAuth::GetAuthorizationHeaderName(HttpAuth::AUTH_PROXY) +
-          ": " + credentials + "\r\n");
+          ": " + auth_token + "\r\n");
     }
 
     tunnel_request_headers_->headers_ = StringPrintf(

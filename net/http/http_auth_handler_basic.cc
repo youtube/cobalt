@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include "base/base64.h"
 #include "base/string_util.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_auth.h"
 
 namespace net {
@@ -41,17 +42,31 @@ bool HttpAuthHandlerBasic::Init(std::string::const_iterator challenge_begin,
   return challenge_tok.valid();
 }
 
-std::string HttpAuthHandlerBasic::GenerateCredentials(
+int HttpAuthHandlerBasic::GenerateAuthToken(
     const std::wstring& username,
     const std::wstring& password,
     const HttpRequestInfo*,
-    const ProxyInfo*) {
+    const ProxyInfo*,
+    std::string* auth_token) {
   // TODO(eroman): is this the right encoding of username/password?
   std::string base64_username_password;
   if (!base::Base64Encode(WideToUTF8(username) + ":" + WideToUTF8(password),
-                          &base64_username_password))
-    return std::string();  // FAIL
-  return std::string("Basic ") + base64_username_password;
+                          &base64_username_password)) {
+    LOG(ERROR) << "Unexpected problem Base64 encoding.";
+    return ERR_UNEXPECTED;
+  }
+  *auth_token = "Basic " + base64_username_password;
+  return OK;
 }
+
+int HttpAuthHandlerBasic::GenerateDefaultAuthToken(
+    const HttpRequestInfo* request,
+    const ProxyInfo* proxy,
+    std::string* auth_token) {
+  NOTREACHED();
+  LOG(ERROR) << ErrorToString(ERR_NOT_IMPLEMENTED);
+  return ERR_NOT_IMPLEMENTED;
+}
+
 
 }  // namespace net

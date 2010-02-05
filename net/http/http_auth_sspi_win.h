@@ -35,17 +35,22 @@ class HttpAuthSSPI {
   bool ParseChallenge(std::string::const_iterator challenge_begin,
                       std::string::const_iterator challenge_end);
 
-  int GenerateCredentials(const std::wstring& username,
-                          const std::wstring& password,
-                          const GURL& origin,
-                          const HttpRequestInfo* request,
-                          const ProxyInfo* proxy,
-                          std::string* out_credentials);
+  // Generates an authentication token.
+  // The return value is an error code. If it's not |OK|, the value of
+  // |*auth_token| is unspecified.
+  // If this is the first round of a multiple round scheme, credentials are
+  // obtained using |*username| and |*password|. If |username| and |password|
+  // are NULL, the default credentials are used instead.
+  int GenerateAuthToken(const std::wstring* username,
+                        const std::wstring* password,
+                        const GURL& origin,
+                        const HttpRequestInfo* request,
+                        const ProxyInfo* proxy,
+                        std::string* auth_token);
 
  private:
-  int OnFirstRound(const std::wstring& domain,
-                   const std::wstring& user,
-                   const std::wstring& password);
+  int OnFirstRound(const std::wstring* username,
+                   const std::wstring* password);
 
   int GetNextSecurityToken(
       const GURL& origin,
@@ -79,13 +84,6 @@ void SplitDomainAndUser(const std::wstring& combined,
 // |max_token_length| must be non-NULL.
 int DetermineMaxTokenLength(const std::wstring& package,
                             ULONG* max_token_length);
-
-// Acquire credentials for a user.
-int AcquireCredentials(const SEC_WCHAR* package,
-                       const std::wstring& domain,
-                       const std::wstring& user,
-                       const std::wstring& password,
-                       CredHandle* cred);
 
 }  // namespace net
 #endif  // NET_HTTP_HTTP_AUTH_SSPI_WIN_H_
