@@ -1522,6 +1522,35 @@ TEST_F(URLRequestTest, CancelTest_DuringCookiePolicy) {
   context->set_cookie_policy(NULL);
 }
 
+TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
+  scoped_refptr<HTTPTestServer> server =
+      HTTPTestServer::CreateServer(L"", NULL);
+  ASSERT_TRUE(NULL != server.get());
+  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+
+  TestCookiePolicy cookie_policy(TestCookiePolicy::FORCE_SESSION);
+  context->set_cookie_policy(&cookie_policy);
+
+  // Set up a cookie.
+  {
+    TestDelegate d;
+    URLRequest req(server->TestServerPage(
+        "set-cookie?A=1;expires=\"Fri, 05 Feb 2010 23:42:01 GMT\""), &d);
+    req.set_context(context);
+    req.Start();  // Triggers an asynchronous cookie policy check.
+
+    MessageLoop::current()->Run();
+  }
+
+  // Now, check the cookie store.
+  net::CookieMonster::CookieList cookies =
+      context->cookie_store()->GetCookieMonster()->GetAllCookies();
+  EXPECT_EQ(1U, cookies.size());
+  EXPECT_FALSE(cookies[0].second.IsPersistent());
+
+  context->set_cookie_policy(NULL);
+}
+
 // In this test, we do a POST which the server will 302 redirect.
 // The subsequent transaction should use GET, and should not send the
 // Content-Type header.
