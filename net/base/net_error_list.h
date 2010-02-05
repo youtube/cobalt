@@ -125,6 +125,13 @@ NET_ERROR(CONNECTION_TIMED_OUT, -118)
 // aborted.
 NET_ERROR(HOST_RESOLVER_QUEUE_TOO_LARGE, -119)
 
+// Failed establishing a connection to the SOCKS proxy server for a target host.
+NET_ERROR(SOCKS_CONNECTION_FAILED, -120)
+
+// The SOCKS proxy server failed establishing connection to the target host
+// because that host is unreachable.
+NET_ERROR(SOCKS_CONNECTION_HOST_UNREACHABLE, -121)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.

@@ -1585,7 +1585,18 @@ int HttpNetworkTransaction::ReconsiderProxyAfterError(int error) {
     case ERR_CONNECTION_ABORTED:
     case ERR_TIMED_OUT:
     case ERR_TUNNEL_CONNECTION_FAILED:
+    case ERR_SOCKS_CONNECTION_FAILED:
       break;
+    case ERR_SOCKS_CONNECTION_HOST_UNREACHABLE:
+      // Remap the SOCKS-specific "host unreachable" error to a more
+      // generic error code (this way consumers like the link doctor
+      // know to substitute their error page).
+      //
+      // Note that if the host resolving was done by the SOCSK5 proxy, we can't
+      // differentiate between a proxy-side "host not found" versus a proxy-side
+      // "address unreachable" error, and will report both of these failures as
+      // ERR_ADDRESS_UNREACHABLE.
+      return ERR_ADDRESS_UNREACHABLE;
     default:
       return error;
   }
