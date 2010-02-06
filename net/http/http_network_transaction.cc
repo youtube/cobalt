@@ -20,9 +20,6 @@
 #include "net/base/net_util.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/upload_data_stream.h"
-#include "net/flip/flip_session.h"
-#include "net/flip/flip_session_pool.h"
-#include "net/flip/flip_stream.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_basic_stream.h"
@@ -36,6 +33,9 @@
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/spdy/spdy_session.h"
+#include "net/spdy/spdy_session_pool.h"
+#include "net/spdy/spdy_stream.h"
 
 using base::Time;
 

@@ -15,7 +15,7 @@
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/upload_data.h"
-#include "net/flip/flip_session_pool.h"
+#include "net/spdy/spdy_session_pool.h"
 #include "net/http/http_auth_handler_ntlm.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
