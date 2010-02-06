@@ -5,7 +5,7 @@
 #include "net/http/http_network_session.h"
 
 #include "base/logging.h"
-#include "net/flip/flip_session_pool.h"
+#include "net/spdy/spdy_session_pool.h"
 
 namespace net {
 
