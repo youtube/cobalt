@@ -1538,4 +1538,49 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports) {
   explicitly_allowed_ports = ports;
 }
 
+enum IPv6SupportStatus {
+  kIPv6CannotCreateSockets,
+  kIPv6CanCreateSockets,
+  kIPv6SupportMax  // Bounding values for enumeration.
+};
+
+static void IPv6SupportResults(IPv6SupportStatus result) {
+  UMA_HISTOGRAM_ENUMERATION("Net.IPv6Status", result, kIPv6SupportMax);
+}
+
+// TODO(jar): The following is a simple estimate of IPv6 support.  We may need
+// to do a test resolution, and a test connection, to REALLY verify support.
+// static
+#if defined(OS_POSIX)
+bool IPv6Supported() {
+  int test_socket;
+
+  test_socket = socket(AF_INET6, SOCK_STREAM, 0);
+  if (test_socket == -1) {
+    IPv6SupportResults(kIPv6CannotCreateSockets);
+    return false;
+  }
+
+  close(test_socket);
+  IPv6SupportResults(kIPv6CanCreateSockets);
+  return true;
+}
+#else  // defined(OS_POSIX)
+bool IPv6Supported() {
+  EnsureWinsockInit();
+  SOCKET test_socket;
+
+  test_socket = socket(AF_INET6, SOCK_STREAM, 0);
+  if (test_socket == INVALID_SOCKET) {
+    IPv6SupportResults(kIPv6CannotCreateSockets);
+    return false;
+  }
+
+  closesocket(test_socket);
+  IPv6SupportResults(kIPv6CanCreateSockets);
+  return true;
+}
+#endif  // defined(OS_POSIX)
+
+
 }  // namespace net
