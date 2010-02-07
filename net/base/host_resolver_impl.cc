@@ -10,7 +10,6 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/debug_util.h"
-#include "base/field_trial.h"
 #include "base/lock.h"
 #include "base/message_loop.h"
 #include "base/stl_util-inl.h"
@@ -21,7 +20,6 @@
 #include "net/base/host_resolver_proc.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
 
 #if defined(OS_WIN)
@@ -54,23 +52,6 @@ HostResolver* CreateSystemHostResolver(
   // TODO(willchan): Pass in the NetworkChangeNotifier.
   HostResolverImpl* resolver = new HostResolverImpl(
       NULL, CreateDefaultCache(), network_change_notifier, kMaxJobs);
-
-  // Measure impact of allowing IPv6 support without probing.
-  const FieldTrial::Probability kDivisor = 100;
-  const FieldTrial::Probability kProbability = 50;  // 50% probability.
-  FieldTrial* trial = new FieldTrial("IPv6_Probe", kDivisor);
-  int skip_group = trial->AppendGroup("_IPv6_probe_skipped", kProbability);
-  trial->AppendGroup("_IPv6_probe_done",
-                     FieldTrial::kAllRemainingProbability);
-  if (trial->group() == skip_group)
-    return resolver;  // Return without doing probe.
-
-  // Perform probe.
-  // Some users report confused OS handling of IPv6, leading to large latency.
-  // If we can show that IPv6 is not supproted, then disabliing it will wark
-  // around such problems.
-  if (!IPv6Supported())
-    resolver->SetDefaultAddressFamily(net::ADDRESS_FAMILY_IPV4);
 
   return resolver;
 }
