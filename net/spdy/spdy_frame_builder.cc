@@ -7,12 +7,12 @@
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_protocol.h"
 
-namespace flip {
+namespace spdy {
 
-// We mark a read only FlipFrameBuilder with a special capacity_.
+// We mark a read only SpdyFrameBuilder with a special capacity_.
 static const size_t kCapacityReadOnly = std::numeric_limits<size_t>::max();
 
-FlipFrameBuilder::FlipFrameBuilder()
+SpdyFrameBuilder::SpdyFrameBuilder()
     : buffer_(NULL),
       capacity_(0),
       length_(0),
@@ -20,19 +20,19 @@ FlipFrameBuilder::FlipFrameBuilder()
   Resize(kInitialPayload);
 }
 
-FlipFrameBuilder::FlipFrameBuilder(const char* data, int data_len)
+SpdyFrameBuilder::SpdyFrameBuilder(const char* data, int data_len)
     : buffer_(const_cast<char*>(data)),
       capacity_(kCapacityReadOnly),
       length_(data_len),
       variable_buffer_offset_(0) {
 }
 
-FlipFrameBuilder::~FlipFrameBuilder() {
+SpdyFrameBuilder::~SpdyFrameBuilder() {
   if (capacity_ != kCapacityReadOnly)
     delete[] buffer_;
 }
 
-bool FlipFrameBuilder::ReadUInt16(void** iter, uint16* result) const {
+bool SpdyFrameBuilder::ReadUInt16(void** iter, uint16* result) const {
   DCHECK(iter);
   if (!*iter)
     *iter = const_cast<char*>(buffer_);
@@ -46,7 +46,7 @@ bool FlipFrameBuilder::ReadUInt16(void** iter, uint16* result) const {
   return true;
 }
 
-bool FlipFrameBuilder::ReadUInt32(void** iter, uint32* result) const {
+bool SpdyFrameBuilder::ReadUInt32(void** iter, uint32* result) const {
   DCHECK(iter);
   if (!*iter)
     *iter = const_cast<char*>(buffer_);
@@ -60,7 +60,7 @@ bool FlipFrameBuilder::ReadUInt32(void** iter, uint32* result) const {
   return true;
 }
 
-bool FlipFrameBuilder::ReadString(void** iter, std::string* result) const {
+bool SpdyFrameBuilder::ReadString(void** iter, std::string* result) const {
   DCHECK(iter);
 
   uint16 len;
@@ -77,7 +77,7 @@ bool FlipFrameBuilder::ReadString(void** iter, std::string* result) const {
   return true;
 }
 
-bool FlipFrameBuilder::ReadBytes(void** iter, const char** data,
+bool SpdyFrameBuilder::ReadBytes(void** iter, const char** data,
                                  uint16 length) const {
   DCHECK(iter);
   DCHECK(data);
@@ -91,7 +91,7 @@ bool FlipFrameBuilder::ReadBytes(void** iter, const char** data,
   return true;
 }
 
-bool FlipFrameBuilder::ReadData(void** iter, const char** data,
+bool SpdyFrameBuilder::ReadData(void** iter, const char** data,
                                 uint16* length) const {
   DCHECK(iter);
   DCHECK(data);
@@ -103,7 +103,7 @@ bool FlipFrameBuilder::ReadData(void** iter, const char** data,
   return ReadBytes(iter, data, *length);
 }
 
-char* FlipFrameBuilder::BeginWrite(size_t length) {
+char* SpdyFrameBuilder::BeginWrite(size_t length) {
   size_t offset = length_;
   size_t needed_size = length_ + length;
   if (needed_size > capacity_ && !Resize(std::max(capacity_ * 2, needed_size)))
@@ -116,10 +116,10 @@ char* FlipFrameBuilder::BeginWrite(size_t length) {
   return buffer_ + offset;
 }
 
-void FlipFrameBuilder::EndWrite(char* dest, int length) {
+void SpdyFrameBuilder::EndWrite(char* dest, int length) {
 }
 
-bool FlipFrameBuilder::WriteBytes(const void* data, uint16 data_len) {
+bool SpdyFrameBuilder::WriteBytes(const void* data, uint16 data_len) {
   DCHECK(capacity_ != kCapacityReadOnly);
 
   char* dest = BeginWrite(data_len);
@@ -133,7 +133,7 @@ bool FlipFrameBuilder::WriteBytes(const void* data, uint16 data_len) {
   return true;
 }
 
-bool FlipFrameBuilder::WriteString(const std::string& value) {
+bool SpdyFrameBuilder::WriteString(const std::string& value) {
   if (value.size() > 0xffff)
     return false;
 
@@ -143,9 +143,9 @@ bool FlipFrameBuilder::WriteString(const std::string& value) {
   return WriteBytes(value.data(), static_cast<uint16>(value.size()));
 }
 
-char* FlipFrameBuilder::BeginWriteData(uint16 length) {
+char* SpdyFrameBuilder::BeginWriteData(uint16 length) {
   DCHECK_EQ(variable_buffer_offset_, 0U) <<
-    "There can only be one variable buffer in a FlipFrameBuilder";
+    "There can only be one variable buffer in a SpdyFrameBuilder";
 
   if (!WriteUInt16(length))
     return false;
@@ -162,7 +162,7 @@ char* FlipFrameBuilder::BeginWriteData(uint16 length) {
   return data_ptr;
 }
 
-bool FlipFrameBuilder::Resize(size_t new_capacity) {
+bool SpdyFrameBuilder::Resize(size_t new_capacity) {
   if (new_capacity < capacity_)
     return true;
 
@@ -178,4 +178,4 @@ bool FlipFrameBuilder::Resize(size_t new_capacity) {
   return true;
 }
 
-}  // namespace flip
+}  // namespace spdy

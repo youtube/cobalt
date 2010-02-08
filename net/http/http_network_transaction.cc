@@ -516,40 +516,40 @@ int HttpNetworkTransaction::DoLoop(int result) {
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.send_request", request_, request_->url.spec());
         LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_FLIP_TRANSACTION_SEND_REQUEST);
+                            LoadLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST);
         rv = DoSpdySendRequest();
         break;
       case STATE_SPDY_SEND_REQUEST_COMPLETE:
         rv = DoSpdySendRequestComplete(rv);
         TRACE_EVENT_END("http.send_request", request_, request_->url.spec());
         LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_FLIP_TRANSACTION_SEND_REQUEST);
+                          LoadLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST);
         break;
       case STATE_SPDY_READ_HEADERS:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_headers", request_, request_->url.spec());
         LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_FLIP_TRANSACTION_READ_HEADERS);
+                            LoadLog::TYPE_SPDY_TRANSACTION_READ_HEADERS);
         rv = DoSpdyReadHeaders();
         break;
       case STATE_SPDY_READ_HEADERS_COMPLETE:
         rv = DoSpdyReadHeadersComplete(rv);
         TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
         LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_FLIP_TRANSACTION_READ_HEADERS);
+                          LoadLog::TYPE_SPDY_TRANSACTION_READ_HEADERS);
         break;
       case STATE_SPDY_READ_BODY:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_body", request_, request_->url.spec());
         LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_FLIP_TRANSACTION_READ_BODY);
+                            LoadLog::TYPE_SPDY_TRANSACTION_READ_BODY);
         rv = DoSpdyReadBody();
         break;
       case STATE_SPDY_READ_BODY_COMPLETE:
         rv = DoSpdyReadBodyComplete(rv);
         TRACE_EVENT_END("http.read_body", request_, request_->url.spec());
         LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_FLIP_TRANSACTION_READ_BODY);
+                          LoadLog::TYPE_SPDY_TRANSACTION_READ_BODY);
         break;
       default:
         NOTREACHED() << "bad state";
@@ -660,9 +660,9 @@ int HttpNetworkTransaction::DoInitConnection() {
     resolve_info.set_allow_cached_response(false);
   }
 
-  // Check first if we have a flip session for this group.  If so, then go
+  // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
-  if (session_->flip_session_pool()->HasSession(resolve_info))
+  if (session_->spdy_session_pool()->HasSession(resolve_info))
     return OK;
 
   int rv = connection_->Init(connection_group, resolve_info, request_->priority,
@@ -679,7 +679,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
 
   DCHECK_EQ(OK, result);
 
-  // If we don't have an initialized connection, that means we have a flip
+  // If we don't have an initialized connection, that means we have a spdy
   // connection waiting for us.
   if (!connection_->is_initialized()) {
     next_state_ = STATE_SPDY_SEND_REQUEST;
@@ -1107,14 +1107,14 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
   HostResolver::RequestInfo req_info(request_->url.HostNoBrackets(),
                                      request_->url.EffectiveIntPort());
   req_info.set_priority(request_->priority);
-  const scoped_refptr<FlipSessionPool> spdy_pool =
-      session_->flip_session_pool();
-  scoped_refptr<FlipSession> spdy_session;
+  const scoped_refptr<SpdySessionPool> spdy_pool =
+      session_->spdy_session_pool();
+  scoped_refptr<SpdySession> spdy_session;
 
   if (spdy_pool->HasSession(req_info)) {
     spdy_session = spdy_pool->Get(req_info, session_);
   } else {
-    spdy_session = spdy_pool->GetFlipSessionFromSocket(
+    spdy_session = spdy_pool->GetSpdySessionFromSocket(
         req_info, session_, connection_.release());
   }
 

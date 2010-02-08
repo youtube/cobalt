@@ -31,13 +31,13 @@ namespace {
 
 // Diagnostics function to dump the headers of a request.
 // TODO(mbelshe): Remove this function.
-void DumpFlipHeaders(const flip::FlipHeaderBlock& headers) {
+void DumpSpdyHeaders(const spdy::SpdyHeaderBlock& headers) {
   // Because this function gets called on every request,
   // take extra care to optimize it away if logging is turned off.
   if (logging::LOG_INFO < logging::GetMinLogLevel())
     return;
 
-  flip::FlipHeaderBlock::const_iterator it = headers.begin();
+  spdy::SpdyHeaderBlock::const_iterator it = headers.begin();
   while (it != headers.end()) {
     std::string val = (*it).second;
     std::string::size_type pos = 0;
@@ -62,21 +62,21 @@ const int kReadBufferSize = 2 * 1024;
 const int kReadBufferSize = 8 * 1024;
 #endif
 
-// Convert a FlipHeaderBlock into an HttpResponseInfo.
-// |headers| input parameter with the FlipHeaderBlock.
+// Convert a SpdyHeaderBlock into an HttpResponseInfo.
+// |headers| input parameter with the SpdyHeaderBlock.
 // |info| output parameter for the HttpResponseInfo.
 // Returns true if successfully converted.  False if there was a failure
-// or if the FlipHeaderBlock was invalid.
-bool FlipHeadersToHttpResponse(const flip::FlipHeaderBlock& headers,
+// or if the SpdyHeaderBlock was invalid.
+bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
                                HttpResponseInfo* response) {
   std::string version;
   std::string status;
 
   // The "status" and "version" headers are required.
-  flip::FlipHeaderBlock::const_iterator it;
+  spdy::SpdyHeaderBlock::const_iterator it;
   it = headers.find("status");
   if (it == headers.end()) {
-    LOG(ERROR) << "FlipHeaderBlock without status header.";
+    LOG(ERROR) << "SpdyHeaderBlock without status header.";
     return false;
   }
   status = it->second;
@@ -84,7 +84,7 @@ bool FlipHeadersToHttpResponse(const flip::FlipHeaderBlock& headers,
   // Grab the version.  If not provided by the server,
   it = headers.find("version");
   if (it == headers.end()) {
-    LOG(ERROR) << "FlipHeaderBlock without version header.";
+    LOG(ERROR) << "SpdyHeaderBlock without version header.";
     return false;
   }
   version = it->second;
@@ -125,10 +125,10 @@ bool FlipHeadersToHttpResponse(const flip::FlipHeaderBlock& headers,
   return true;
 }
 
-// Create a FlipHeaderBlock for a Flip SYN_STREAM Frame from
+// Create a SpdyHeaderBlock for a Spdy SYN_STREAM Frame from
 // a HttpRequestInfo block.
-void CreateFlipHeadersFromHttpRequest(
-    const HttpRequestInfo& info, flip::FlipHeaderBlock* headers) {
+void CreateSpdyHeadersFromHttpRequest(
+    const HttpRequestInfo& info, spdy::SpdyHeaderBlock* headers) {
   static const char kHttpProtocolVersion[] = "HTTP/1.1";
 
   HttpUtil::HeadersIterator it(info.extra_headers.begin(),
@@ -168,7 +168,7 @@ void CreateFlipHeadersFromHttpRequest(
 
 void AdjustSocketBufferSizes(ClientSocket* socket) {
   // Adjust socket buffer sizes.
-  // FLIP uses one socket, and we want a really big buffer.
+  // SPDY uses one socket, and we want a really big buffer.
   // This greatly helps on links with packet loss - we can even
   // outperform Vista's dynamic window sizing algorithm.
   // TODO(mbelshe): more study.
@@ -180,17 +180,17 @@ void AdjustSocketBufferSizes(ClientSocket* socket) {
 }  // namespace
 
 // static
-bool FlipSession::use_ssl_ = true;
+bool SpdySession::use_ssl_ = true;
 
-FlipSession::FlipSession(const std::string& host, HttpNetworkSession* session)
+SpdySession::SpdySession(const std::string& host, HttpNetworkSession* session)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
-          connect_callback_(this, &FlipSession::OnTCPConnect)),
+          connect_callback_(this, &SpdySession::OnTCPConnect)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          ssl_connect_callback_(this, &FlipSession::OnSSLConnect)),
+          ssl_connect_callback_(this, &SpdySession::OnSSLConnect)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          read_callback_(this, &FlipSession::OnReadComplete)),
+          read_callback_(this, &SpdySession::OnReadComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          write_callback_(this, &FlipSession::OnWriteComplete)),
+          write_callback_(this, &SpdySession::OnWriteComplete)),
       domain_(host),
       session_(session),
       connection_(new ClientSocketHandle),
@@ -208,7 +208,7 @@ FlipSession::FlipSession(const std::string& host, HttpNetworkSession* session)
       streams_abandoned_count_(0) {
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 
-  flip_framer_.set_visitor(this);
+  spdy_framer_.set_visitor(this);
 
   session_->ssl_config_service()->GetSSLConfig(&ssl_config_);
 
@@ -224,17 +224,17 @@ FlipSession::FlipSession(const std::string& host, HttpNetworkSession* session)
   ssl_config_.next_protos = "\007http1.1\004spdy";
 }
 
-FlipSession::~FlipSession() {
+SpdySession::~SpdySession() {
   // Cleanup all the streams.
   CloseAllStreams(net::ERR_ABORTED);
 
   if (connection_->is_initialized()) {
-    // With Flip we can't recycle sockets.
+    // With Spdy we can't recycle sockets.
     connection_->socket()->Disconnect();
   }
 
   // TODO(willchan): Don't hardcode port 80 here.
-  DCHECK(!session_->flip_session_pool()->HasSession(
+  DCHECK(!session_->spdy_session_pool()->HasSession(
       HostResolver::RequestInfo(domain_, 80)));
 
   // Record per-session histograms here.
@@ -252,9 +252,9 @@ FlipSession::~FlipSession() {
       0, 300, 50);
 }
 
-void FlipSession::InitializeWithSocket(ClientSocketHandle* connection) {
-  static StatsCounter flip_sessions("flip.sessions");
-  flip_sessions.Increment();
+void SpdySession::InitializeWithSocket(ClientSocketHandle* connection) {
+  static StatsCounter spdy_sessions("spdy.sessions");
+  spdy_sessions.Increment();
 
   AdjustSocketBufferSizes(connection->socket());
 
@@ -267,11 +267,11 @@ void FlipSession::InitializeWithSocket(ClientSocketHandle* connection) {
   ReadSocket();
 }
 
-net::Error FlipSession::Connect(const std::string& group_name,
+net::Error SpdySession::Connect(const std::string& group_name,
                                 const HostResolver::RequestInfo& host,
                                 RequestPriority priority,
                                 LoadLog* load_log) {
-  DCHECK(priority >= FLIP_PRIORITY_HIGHEST && priority <= FLIP_PRIORITY_LOWEST);
+  DCHECK(priority >= SPDY_PRIORITY_HIGHEST && priority <= SPDY_PRIORITY_LOWEST);
 
   // If the connect process is started, let the caller continue.
   if (state_ > IDLE)
@@ -279,8 +279,8 @@ net::Error FlipSession::Connect(const std::string& group_name,
 
   state_ = CONNECTING;
 
-  static StatsCounter flip_sessions("flip.sessions");
-  flip_sessions.Increment();
+  static StatsCounter spdy_sessions("spdy.sessions");
+  spdy_sessions.Increment();
 
   int rv = connection_->Init(group_name, host, priority, &connect_callback_,
                             session_->tcp_socket_pool(), load_log);
@@ -293,14 +293,14 @@ net::Error FlipSession::Connect(const std::string& group_name,
   return static_cast<net::Error>(rv);
 }
 
-scoped_refptr<FlipStream> FlipSession::GetOrCreateStream(
+scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     const HttpRequestInfo& request,
     const UploadDataStream* upload_data,
     LoadLog* log) {
   const GURL& url = request.url;
   const std::string& path = url.PathForRequest();
 
-  scoped_refptr<FlipStream> stream;
+  scoped_refptr<SpdyStream> stream;
 
   // Check if we have a push stream for this path.
   if (request.method == "GET") {
@@ -319,17 +319,17 @@ scoped_refptr<FlipStream> FlipSession::GetOrCreateStream(
     DCHECK(!it->second);
     // Server will assign a stream id when the push stream arrives.  Use 0 for
     // now.
-    LoadLog::AddEvent(log, LoadLog::TYPE_FLIP_STREAM_ADOPTED_PUSH_STREAM);
-    FlipStream* stream = new FlipStream(this, 0, true, log);
+    LoadLog::AddEvent(log, LoadLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM);
+    SpdyStream* stream = new SpdyStream(this, 0, true, log);
     stream->set_path(path);
     it->second = stream;
     return it->second;
   }
 
-  const flip::FlipStreamId stream_id = GetNewStreamId();
+  const spdy::SpdyStreamId stream_id = GetNewStreamId();
 
   // If we still don't have a stream, activate one now.
-  stream = new FlipStream(this, stream_id, false, log);
+  stream = new SpdyStream(this, stream_id, false, log);
   stream->set_priority(request.priority);
   stream->set_path(path);
   ActivateStream(stream);
@@ -337,37 +337,37 @@ scoped_refptr<FlipStream> FlipSession::GetOrCreateStream(
   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyPriorityCount",
       static_cast<int>(request.priority), 0, 10, 11);
 
-  LOG(INFO) << "FlipStream: Creating stream " << stream_id << " for " << url;
+  LOG(INFO) << "SpdyStream: Creating stream " << stream_id << " for " << url;
 
   // TODO(mbelshe): Optimize memory allocations
-  DCHECK(request.priority >= FLIP_PRIORITY_HIGHEST &&
-         request.priority <= FLIP_PRIORITY_LOWEST);
+  DCHECK(request.priority >= SPDY_PRIORITY_HIGHEST &&
+         request.priority <= SPDY_PRIORITY_LOWEST);
 
-  // Convert from HttpRequestHeaders to Flip Headers.
-  flip::FlipHeaderBlock headers;
-  CreateFlipHeadersFromHttpRequest(request, &headers);
+  // Convert from HttpRequestHeaders to Spdy Headers.
+  spdy::SpdyHeaderBlock headers;
+  CreateSpdyHeadersFromHttpRequest(request, &headers);
 
-  flip::FlipControlFlags flags = flip::CONTROL_FLAG_NONE;
+  spdy::SpdyControlFlags flags = spdy::CONTROL_FLAG_NONE;
   if (!request.upload_data || !upload_data->size())
-    flags = flip::CONTROL_FLAG_FIN;
+    flags = spdy::CONTROL_FLAG_FIN;
 
   // Create a SYN_STREAM packet and add to the output queue.
-  scoped_ptr<flip::FlipSynStreamControlFrame> syn_frame(
-      flip_framer_.CreateSynStream(stream_id, request.priority, flags, false,
+  scoped_ptr<spdy::SpdySynStreamControlFrame> syn_frame(
+      spdy_framer_.CreateSynStream(stream_id, request.priority, flags, false,
                                    &headers));
-  int length = flip::FlipFrame::size() + syn_frame->length();
+  int length = spdy::SpdyFrame::size() + syn_frame->length();
   IOBuffer* buffer = new IOBuffer(length);
   memcpy(buffer->data(), syn_frame->data(), length);
-  queue_.push(FlipIOBuffer(buffer, length, request.priority, stream));
+  queue_.push(SpdyIOBuffer(buffer, length, request.priority, stream));
 
-  static StatsCounter flip_requests("flip.requests");
-  flip_requests.Increment();
+  static StatsCounter spdy_requests("spdy.requests");
+  spdy_requests.Increment();
 
   LOG(INFO) << "FETCHING: " << request.url.spec();
   streams_initiated_count_++;
 
-  LOG(INFO) << "FLIP SYN_STREAM HEADERS ----------------------------------";
-  DumpFlipHeaders(headers);
+  LOG(INFO) << "SPDY SYN_STREAM HEADERS ----------------------------------";
+  DumpSpdyHeaders(headers);
 
   // Schedule to write to the socket after we've made it back
   // to the message loop so that we can aggregate multiple
@@ -380,7 +380,7 @@ scoped_refptr<FlipStream> FlipSession::GetOrCreateStream(
   return stream;
 }
 
-int FlipSession::WriteStreamData(flip::FlipStreamId stream_id,
+int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
                                  net::IOBuffer* data, int len) {
   LOG(INFO) << "Writing Stream Data for stream " << stream_id << " (" << len
             << " bytes)";
@@ -389,32 +389,32 @@ int FlipSession::WriteStreamData(flip::FlipStreamId stream_id,
   // Chop the world into 2-packet chunks.  This is somewhat arbitrary, but
   // is reasonably small and ensures that we elicit ACKs quickly from TCP
   // (because TCP tries to only ACK every other packet).
-  const int kMaxFlipFrameChunkSize = (2 * kMss) - flip::FlipFrame::size();
+  const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::size();
 
   // Find our stream
   DCHECK(IsStreamActive(stream_id));
-  scoped_refptr<FlipStream> stream = active_streams_[stream_id];
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK(stream->stream_id() == stream_id);
   if (!stream)
-    return ERR_INVALID_FLIP_STREAM;
+    return ERR_INVALID_SPDY_STREAM;
 
   // TODO(mbelshe):  Setting of the FIN is assuming that the caller will pass
   //                 all data to write in a single chunk.  Is this always true?
 
   // Set the flags on the upload.
-  flip::FlipDataFlags flags = flip::DATA_FLAG_FIN;
-  if (len > kMaxFlipFrameChunkSize) {
-    len = kMaxFlipFrameChunkSize;
-    flags = flip::DATA_FLAG_NONE;
+  spdy::SpdyDataFlags flags = spdy::DATA_FLAG_FIN;
+  if (len > kMaxSpdyFrameChunkSize) {
+    len = kMaxSpdyFrameChunkSize;
+    flags = spdy::DATA_FLAG_NONE;
   }
 
   // TODO(mbelshe): reduce memory copies here.
-  scoped_ptr<flip::FlipDataFrame> frame(
-      flip_framer_.CreateDataFrame(stream_id, data->data(), len, flags));
-  int length = flip::FlipFrame::size() + frame->length();
+  scoped_ptr<spdy::SpdyDataFrame> frame(
+      spdy_framer_.CreateDataFrame(stream_id, data->data(), len, flags));
+  int length = spdy::SpdyFrame::size() + frame->length();
   IOBufferWithSize* buffer = new IOBufferWithSize(length);
   memcpy(buffer->data(), frame->data(), length);
-  queue_.push(FlipIOBuffer(buffer, length, stream->priority(), stream));
+  queue_.push(SpdyIOBuffer(buffer, length, stream->priority(), stream));
 
   // Whenever we queue onto the socket we need to ensure that we will write to
   // it later.
@@ -423,7 +423,7 @@ int FlipSession::WriteStreamData(flip::FlipStreamId stream_id,
   return ERR_IO_PENDING;
 }
 
-bool FlipSession::CancelStream(flip::FlipStreamId stream_id) {
+bool SpdySession::CancelStream(spdy::SpdyStreamId stream_id) {
   LOG(INFO) << "Cancelling stream " << stream_id;
   if (!IsStreamActive(stream_id))
     return false;
@@ -434,18 +434,18 @@ bool FlipSession::CancelStream(flip::FlipStreamId stream_id) {
   // TODO(mbelshe): Write a method for tearing down a stream
   //                that cleans it out of the active list, the pending list,
   //                etc.
-  scoped_refptr<FlipStream> stream = active_streams_[stream_id];
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   DeactivateStream(stream_id);
   return true;
 }
 
-bool FlipSession::IsStreamActive(flip::FlipStreamId stream_id) const {
+bool SpdySession::IsStreamActive(spdy::SpdyStreamId stream_id) const {
   return ContainsKey(active_streams_, stream_id);
 }
 
-LoadState FlipSession::GetLoadState() const {
+LoadState SpdySession::GetLoadState() const {
   // NOTE: The application only queries the LoadState via the
-  //       FlipNetworkTransaction, and details are only needed when
+  //       SpdyNetworkTransaction, and details are only needed when
   //       we're in the process of connecting.
 
   // If we're connecting, defer to the connection to give us the actual
@@ -458,8 +458,8 @@ LoadState FlipSession::GetLoadState() const {
   return LOAD_STATE_IDLE;
 }
 
-void FlipSession::OnTCPConnect(int result) {
-  LOG(INFO) << "Flip socket connected (result=" << result << ")";
+void SpdySession::OnTCPConnect(int result) {
+  LOG(INFO) << "Spdy socket connected (result=" << result << ")";
 
   // We shouldn't be coming through this path if we didn't just open a fresh
   // socket (or have an error trying to do so).
@@ -484,7 +484,7 @@ void FlipSession::OnTCPConnect(int result) {
         socket, "" /* request_->url.HostNoBrackets() */ , ssl_config_);
     connection_->set_socket(socket);
     is_secure_ = true;
-    // TODO(willchan): Plumb LoadLog into FLIP code.
+    // TODO(willchan): Plumb LoadLog into SPDY code.
     int status = connection_->socket()->Connect(&ssl_connect_callback_, NULL);
     if (status != ERR_IO_PENDING)
       OnSSLConnect(status);
@@ -499,7 +499,7 @@ void FlipSession::OnTCPConnect(int result) {
   }
 }
 
-void FlipSession::OnSSLConnect(int result) {
+void SpdySession::OnSSLConnect(int result) {
   // TODO(mbelshe): We need to replicate the functionality of
   //   HttpNetworkTransaction::DoSSLConnectComplete here, where it calls
   //   HandleCertificateError() and such.
@@ -520,12 +520,12 @@ void FlipSession::OnSSLConnect(int result) {
   }
 }
 
-void FlipSession::OnReadComplete(int bytes_read) {
+void SpdySession::OnReadComplete(int bytes_read) {
   // Parse a frame.  For now this code requires that the frame fit into our
   // buffer (32KB).
   // TODO(mbelshe): support arbitrarily large frames!
 
-  LOG(INFO) << "Flip socket read: " << bytes_read << " bytes";
+  LOG(INFO) << "Spdy socket read: " << bytes_read << " bytes";
 
   read_pending_ = false;
 
@@ -538,34 +538,34 @@ void FlipSession::OnReadComplete(int bytes_read) {
     return;
   }
 
-  // The FlipFramer will use callbacks onto |this| as it parses frames.
+  // The SpdyFramer will use callbacks onto |this| as it parses frames.
   // When errors occur, those callbacks can lead to teardown of all references
   // to |this|, so maintain a reference to self during this call for safe
   // cleanup.
-  scoped_refptr<FlipSession> self(this);
+  scoped_refptr<SpdySession> self(this);
 
   char *data = read_buffer_->data();
   while (bytes_read &&
-         flip_framer_.error_code() == flip::FlipFramer::FLIP_NO_ERROR) {
-    uint32 bytes_processed = flip_framer_.ProcessInput(data, bytes_read);
+         spdy_framer_.error_code() == spdy::SpdyFramer::SPDY_NO_ERROR) {
+    uint32 bytes_processed = spdy_framer_.ProcessInput(data, bytes_read);
     bytes_read -= bytes_processed;
     data += bytes_processed;
-    if (flip_framer_.state() == flip::FlipFramer::FLIP_DONE)
-      flip_framer_.Reset();
+    if (spdy_framer_.state() == spdy::SpdyFramer::SPDY_DONE)
+      spdy_framer_.Reset();
   }
 
   if (state_ != CLOSED)
     ReadSocket();
 }
 
-void FlipSession::OnWriteComplete(int result) {
+void SpdySession::OnWriteComplete(int result) {
   DCHECK(write_pending_);
   DCHECK(in_flight_write_.size());
   DCHECK(result != 0);  // This shouldn't happen for write.
 
   write_pending_ = false;
 
-  LOG(INFO) << "Flip write complete (result=" << result << ") for stream: "
+  LOG(INFO) << "Spdy write complete (result=" << result << ") for stream: "
             << in_flight_write_.stream()->stream_id();
 
   if (result >= 0) {
@@ -577,7 +577,7 @@ void FlipSession::OnWriteComplete(int result) {
 
     // We only notify the stream when we've fully written the pending frame.
     if (!in_flight_write_.buffer()->BytesRemaining()) {
-      scoped_refptr<FlipStream> stream = in_flight_write_.stream();
+      scoped_refptr<SpdyStream> stream = in_flight_write_.stream();
       DCHECK(stream.get());
 
       // Report the number of bytes written to the caller, but exclude the
@@ -585,8 +585,8 @@ void FlipSession::OnWriteComplete(int result) {
       // bytes written is the compressed size, not the original size.
       if (result > 0) {
         result = in_flight_write_.buffer()->size();
-        DCHECK_GT(result, static_cast<int>(flip::FlipFrame::size()));
-        result -= static_cast<int>(flip::FlipFrame::size());
+        DCHECK_GT(result, static_cast<int>(spdy::SpdyFrame::size()));
+        result -= static_cast<int>(spdy::SpdyFrame::size());
       }
 
       // It is possible that the stream was cancelled while we were writing
@@ -610,7 +610,7 @@ void FlipSession::OnWriteComplete(int result) {
   }
 }
 
-void FlipSession::ReadSocket() {
+void SpdySession::ReadSocket() {
   if (read_pending_)
     return;
 
@@ -640,21 +640,21 @@ void FlipSession::ReadSocket() {
       // callbacks.
       read_pending_ = true;
       MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-          this, &FlipSession::OnReadComplete, bytes_read));
+          this, &SpdySession::OnReadComplete, bytes_read));
       break;
   }
 }
 
-void FlipSession::WriteSocketLater() {
+void SpdySession::WriteSocketLater() {
   if (delayed_write_pending_)
     return;
 
   delayed_write_pending_ = true;
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &FlipSession::WriteSocket));
+      this, &SpdySession::WriteSocket));
 }
 
-void FlipSession::WriteSocket() {
+void SpdySession::WriteSocket() {
   // This function should only be called via WriteSocketLater.
   DCHECK(delayed_write_pending_);
   delayed_write_pending_ = false;
@@ -672,18 +672,18 @@ void FlipSession::WriteSocket() {
   // returns error (or ERR_IO_PENDING).
   while (in_flight_write_.buffer() || queue_.size()) {
     if (!in_flight_write_.buffer()) {
-      // Grab the next FlipFrame to send.
-      FlipIOBuffer next_buffer = queue_.top();
+      // Grab the next SpdyFrame to send.
+      SpdyIOBuffer next_buffer = queue_.top();
       queue_.pop();
 
       // We've deferred compression until just before we write it to the socket,
       // which is now.  At this time, we don't compress our data frames.
-      flip::FlipFrame uncompressed_frame(next_buffer.buffer()->data(), false);
+      spdy::SpdyFrame uncompressed_frame(next_buffer.buffer()->data(), false);
       size_t size;
       if (uncompressed_frame.is_control_frame()) {
-        scoped_ptr<flip::FlipFrame> compressed_frame(
-            flip_framer_.CompressFrame(&uncompressed_frame));
-        size = compressed_frame->length() + flip::FlipFrame::size();
+        scoped_ptr<spdy::SpdyFrame> compressed_frame(
+            spdy_framer_.CompressFrame(&uncompressed_frame));
+        size = compressed_frame->length() + spdy::SpdyFrame::size();
 
         DCHECK(size > 0);
 
@@ -692,9 +692,9 @@ void FlipSession::WriteSocket() {
         memcpy(buffer->data(), compressed_frame->data(), size);
 
         // Attempt to send the frame.
-        in_flight_write_ = FlipIOBuffer(buffer, size, 0, next_buffer.stream());
+        in_flight_write_ = SpdyIOBuffer(buffer, size, 0, next_buffer.stream());
       } else {
-        size = uncompressed_frame.length() + flip::FlipFrame::size();
+        size = uncompressed_frame.length() + spdy::SpdyFrame::size();
         in_flight_write_ = next_buffer;
       }
     } else {
@@ -717,18 +717,18 @@ void FlipSession::WriteSocket() {
   }
 }
 
-void FlipSession::CloseAllStreams(net::Error code) {
-  LOG(INFO) << "Closing all FLIP Streams";
+void SpdySession::CloseAllStreams(net::Error code) {
+  LOG(INFO) << "Closing all SPDY Streams";
 
-  static StatsCounter abandoned_streams("flip.abandoned_streams");
-  static StatsCounter abandoned_push_streams("flip.abandoned_push_streams");
+  static StatsCounter abandoned_streams("spdy.abandoned_streams");
+  static StatsCounter abandoned_push_streams("spdy.abandoned_push_streams");
 
   if (active_streams_.size()) {
     abandoned_streams.Add(active_streams_.size());
 
     // Create a copy of the list, since aborting streams can invalidate
     // our list.
-    FlipStream** list = new FlipStream*[active_streams_.size()];
+    SpdyStream** list = new SpdyStream*[active_streams_.size()];
     ActiveStreamMap::const_iterator it;
     int index = 0;
     for (it = active_streams_.begin(); it != active_streams_.end(); ++it)
@@ -754,7 +754,7 @@ void FlipSession::CloseAllStreams(net::Error code) {
   }
 }
 
-int FlipSession::GetNewStreamId() {
+int SpdySession::GetNewStreamId() {
   int id = stream_hi_water_mark_;
   stream_hi_water_mark_ += 2;
   if (stream_hi_water_mark_ > 0x7fff)
@@ -762,9 +762,9 @@ int FlipSession::GetNewStreamId() {
   return id;
 }
 
-void FlipSession::CloseSessionOnError(net::Error err) {
+void SpdySession::CloseSessionOnError(net::Error err) {
   DCHECK_LT(err, OK);
-  LOG(INFO) << "Flip::CloseSessionOnError(" << err << ")";
+  LOG(INFO) << "spdy::CloseSessionOnError(" << err << ")";
 
   // Don't close twice.  This can occur because we can have both
   // a read and a write outstanding, and each can complete with
@@ -773,24 +773,24 @@ void FlipSession::CloseSessionOnError(net::Error err) {
     state_ = CLOSED;
     error_ = err;
     CloseAllStreams(err);
-    session_->flip_session_pool()->Remove(this);
+    session_->spdy_session_pool()->Remove(this);
   }
 }
 
-void FlipSession::ActivateStream(FlipStream* stream) {
-  const flip::FlipStreamId id = stream->stream_id();
+void SpdySession::ActivateStream(SpdyStream* stream) {
+  const spdy::SpdyStreamId id = stream->stream_id();
   DCHECK(!IsStreamActive(id));
 
   active_streams_[id] = stream;
 }
 
-void FlipSession::DeactivateStream(flip::FlipStreamId id) {
+void SpdySession::DeactivateStream(spdy::SpdyStreamId id) {
   DCHECK(IsStreamActive(id));
 
   // Verify it is not on the pushed_streams_ list.
   ActiveStreamList::iterator it;
   for (it = pushed_streams_.begin(); it != pushed_streams_.end(); ++it) {
-    scoped_refptr<FlipStream> curr = *it;
+    scoped_refptr<SpdyStream> curr = *it;
     if (id == curr->stream_id()) {
       pushed_streams_.erase(it);
       break;
@@ -800,12 +800,12 @@ void FlipSession::DeactivateStream(flip::FlipStreamId id) {
   active_streams_.erase(id);
 }
 
-scoped_refptr<FlipStream> FlipSession::GetPushStream(const std::string& path) {
-  static StatsCounter used_push_streams("flip.claimed_push_streams");
+scoped_refptr<SpdyStream> SpdySession::GetPushStream(const std::string& path) {
+  static StatsCounter used_push_streams("spdy.claimed_push_streams");
 
   LOG(INFO) << "Looking for push stream: " << path;
 
-  scoped_refptr<FlipStream> stream;
+  scoped_refptr<SpdyStream> stream;
 
   // We just walk a linear list here.
   ActiveStreamList::iterator it;
@@ -823,7 +823,7 @@ scoped_refptr<FlipStream> FlipSession::GetPushStream(const std::string& path) {
   return stream;
 }
 
-void FlipSession::GetSSLInfo(SSLInfo* ssl_info) {
+void SpdySession::GetSSLInfo(SSLInfo* ssl_info) {
   if (is_secure_) {
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_->socket());
@@ -831,15 +831,15 @@ void FlipSession::GetSSLInfo(SSLInfo* ssl_info) {
   }
 }
 
-void FlipSession::OnError(flip::FlipFramer* framer) {
-  LOG(ERROR) << "FlipSession error: " << framer->error_code();
-  CloseSessionOnError(net::ERR_FLIP_PROTOCOL_ERROR);
+void SpdySession::OnError(spdy::SpdyFramer* framer) {
+  LOG(ERROR) << "SpdySession error: " << framer->error_code();
+  CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR);
 }
 
-void FlipSession::OnStreamFrameData(flip::FlipStreamId stream_id,
+void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                     const char* data,
                                     size_t len) {
-  LOG(INFO) << "Flip data for stream " << stream_id << ", " << len << " bytes";
+  LOG(INFO) << "Spdy data for stream " << stream_id << ", " << len << " bytes";
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
     // NOTE:  it may just be that the stream was cancelled.
@@ -847,16 +847,16 @@ void FlipSession::OnStreamFrameData(flip::FlipStreamId stream_id,
     return;
   }
 
-  scoped_refptr<FlipStream> stream = active_streams_[stream_id];
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   bool success = stream->OnDataReceived(data, len);
   // |len| == 0 implies a closed stream.
   if (!success || !len)
     DeactivateStream(stream_id);
 }
 
-void FlipSession::OnSyn(const flip::FlipSynStreamControlFrame* frame,
-                        const flip::FlipHeaderBlock* headers) {
-  flip::FlipStreamId stream_id = frame->stream_id();
+void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame* frame,
+                        const spdy::SpdyHeaderBlock* headers) {
+  spdy::SpdyStreamId stream_id = frame->stream_id();
 
   // Server-initiated streams should have even sequence numbers.
   if ((stream_id & 0x1) != 0) {
@@ -871,10 +871,10 @@ void FlipSession::OnSyn(const flip::FlipSynStreamControlFrame* frame,
 
   streams_pushed_count_++;
 
-  LOG(INFO) << "FlipSession: Syn received for stream: " << stream_id;
+  LOG(INFO) << "SpdySession: Syn received for stream: " << stream_id;
 
-  LOG(INFO) << "FLIP SYN RESPONSE HEADERS -----------------------";
-  DumpFlipHeaders(*headers);
+  LOG(INFO) << "SPDY SYN RESPONSE HEADERS -----------------------";
+  DumpSpdyHeaders(*headers);
 
   // TODO(mbelshe): DCHECK that this is a GET method?
 
@@ -888,7 +888,7 @@ void FlipSession::OnSyn(const flip::FlipSynStreamControlFrame* frame,
     return;
   }
 
-  scoped_refptr<FlipStream> stream;
+  scoped_refptr<SpdyStream> stream;
 
   // Check if we already have a delegate awaiting this stream.
   PendingStreamMap::iterator it;
@@ -904,15 +904,15 @@ void FlipSession::OnSyn(const flip::FlipSynStreamControlFrame* frame,
     stream->set_stream_id(stream_id);
   } else {
     // TODO(mbelshe): can we figure out how to use a LoadLog here?
-    stream = new FlipStream(this, stream_id, true, NULL);
+    stream = new SpdyStream(this, stream_id, true, NULL);
 
     // A new HttpResponseInfo object needs to be generated so the call to
     // OnResponseReceived below has something to fill in.
-    // When a FlipNetworkTransaction is created for this resource, the
+    // When a SpdyNetworkTransaction is created for this resource, the
     // response_info is copied over and this version is destroyed.
     //
     // TODO(cbentzel): Minimize allocations and copies of HttpResponseInfo
-    // object. Should it just be part of FlipStream?
+    // object. Should it just be part of SpdyStream?
     HttpResponseInfo* response_info = new HttpResponseInfo();
     stream->set_response_info_pointer(response_info);
   }
@@ -926,9 +926,9 @@ void FlipSession::OnSyn(const flip::FlipSynStreamControlFrame* frame,
 
   // TODO(mbelshe): For now we convert from our nice hash map back
   // to a string of headers; this is because the HttpResponseInfo
-  // is a bit rigid for its http (non-flip) design.
+  // is a bit rigid for its http (non-spdy) design.
   HttpResponseInfo response;
-  if (FlipHeadersToHttpResponse(*headers, &response)) {
+  if (SpdyHeadersToHttpResponse(*headers, &response)) {
     GetSSLInfo(&response.ssl_info);
     stream->OnResponseReceived(response);
   } else {
@@ -939,14 +939,14 @@ void FlipSession::OnSyn(const flip::FlipSynStreamControlFrame* frame,
 
   LOG(INFO) << "Got pushed stream for " << stream->path();
 
-  static StatsCounter push_requests("flip.pushed_streams");
+  static StatsCounter push_requests("spdy.pushed_streams");
   push_requests.Increment();
 }
 
-void FlipSession::OnSynReply(const flip::FlipSynReplyControlFrame* frame,
-                             const flip::FlipHeaderBlock* headers) {
+void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame* frame,
+                             const spdy::SpdyHeaderBlock* headers) {
   DCHECK(headers);
-  flip::FlipStreamId stream_id = frame->stream_id();
+  spdy::SpdyStreamId stream_id = frame->stream_id();
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
     // NOTE:  it may just be that the stream was cancelled.
@@ -954,13 +954,13 @@ void FlipSession::OnSynReply(const flip::FlipSynReplyControlFrame* frame,
     return;
   }
 
-  LOG(INFO) << "FLIP SYN_REPLY RESPONSE HEADERS for stream: " << stream_id;
-  DumpFlipHeaders(*headers);
+  LOG(INFO) << "SPDY SYN_REPLY RESPONSE HEADERS for stream: " << stream_id;
+  DumpSpdyHeaders(*headers);
 
   // We record content declared as being pushed so that we don't
   // request a duplicate stream which is already scheduled to be
   // sent to us.
-  flip::FlipHeaderBlock::const_iterator it;
+  spdy::SpdyHeaderBlock::const_iterator it;
   it = headers->find("X-Associated-Content");
   if (it != headers->end()) {
     const std::string& content = it->second;
@@ -985,11 +985,11 @@ void FlipSession::OnSynReply(const flip::FlipSynReplyControlFrame* frame,
     } while (start < content.length());
   }
 
-  scoped_refptr<FlipStream> stream = active_streams_[stream_id];
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK(stream->stream_id() == stream_id);
   CHECK(!stream->cancelled());
   HttpResponseInfo response;
-  if (FlipHeadersToHttpResponse(*headers, &response)) {
+  if (SpdyHeadersToHttpResponse(*headers, &response)) {
     GetSSLInfo(&response.ssl_info);
     stream->OnResponseReceived(response);
   } else {
@@ -998,54 +998,54 @@ void FlipSession::OnSynReply(const flip::FlipSynReplyControlFrame* frame,
   }
 }
 
-void FlipSession::OnControl(const flip::FlipControlFrame* frame) {
-  flip::FlipHeaderBlock headers;
+void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
+  spdy::SpdyHeaderBlock headers;
   uint32 type = frame->type();
-  if (type == flip::SYN_STREAM || type == flip::SYN_REPLY) {
-    if (!flip_framer_.ParseHeaderBlock(frame, &headers)) {
-      LOG(WARNING) << "Could not parse Flip Control Frame Header";
+  if (type == spdy::SYN_STREAM || type == spdy::SYN_REPLY) {
+    if (!spdy_framer_.ParseHeaderBlock(frame, &headers)) {
+      LOG(WARNING) << "Could not parse Spdy Control Frame Header";
       // TODO(mbelshe):  Error the session?
       return;
     }
   }
 
   switch (type) {
-    case flip::SYN_STREAM:
-      LOG(INFO) << "Flip SynStream for stream " << frame->stream_id();
-      OnSyn(reinterpret_cast<const flip::FlipSynStreamControlFrame*>(frame),
+    case spdy::SYN_STREAM:
+      LOG(INFO) << "Spdy SynStream for stream " << frame->stream_id();
+      OnSyn(reinterpret_cast<const spdy::SpdySynStreamControlFrame*>(frame),
             &headers);
       break;
-    case flip::SYN_REPLY:
-      LOG(INFO) << "Flip SynReply for stream " << frame->stream_id();
+    case spdy::SYN_REPLY:
+      LOG(INFO) << "Spdy SynReply for stream " << frame->stream_id();
       OnSynReply(
-          reinterpret_cast<const flip::FlipSynReplyControlFrame*>(frame),
+          reinterpret_cast<const spdy::SpdySynReplyControlFrame*>(frame),
           &headers);
       break;
-    case flip::FIN_STREAM:
-      LOG(INFO) << "Flip Fin for stream " << frame->stream_id();
-      OnFin(reinterpret_cast<const flip::FlipFinStreamControlFrame*>(frame));
+    case spdy::FIN_STREAM:
+      LOG(INFO) << "Spdy Fin for stream " << frame->stream_id();
+      OnFin(reinterpret_cast<const spdy::SpdyFinStreamControlFrame*>(frame));
       break;
     default:
       DCHECK(false);  // Error!
   }
 }
 
-void FlipSession::OnFin(const flip::FlipFinStreamControlFrame* frame) {
-  flip::FlipStreamId stream_id = frame->stream_id();
+void SpdySession::OnFin(const spdy::SpdyFinStreamControlFrame* frame) {
+  spdy::SpdyStreamId stream_id = frame->stream_id();
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
     // NOTE:  it may just be that the stream was cancelled.
     LOG(WARNING) << "Received FIN for invalid stream" << stream_id;
     return;
   }
-  scoped_refptr<FlipStream> stream = active_streams_[stream_id];
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK(stream->stream_id() == stream_id);
   CHECK(!stream->cancelled());
   if (frame->status() == 0) {
     stream->OnDataReceived(NULL, 0);
   } else {
-    LOG(ERROR) << "Flip stream closed: " << frame->status();
-    // TODO(mbelshe): Map from Flip-protocol errors to something sensical.
+    LOG(ERROR) << "Spdy stream closed: " << frame->status();
+    // TODO(mbelshe): Map from Spdy-protocol errors to something sensical.
     //                For now, it doesn't matter much - it is a protocol error.
     stream->OnClose(ERR_FAILED);
   }

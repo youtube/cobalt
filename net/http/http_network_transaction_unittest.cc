@@ -42,20 +42,20 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
-        flip_session_pool(new FlipSessionPool) {}
+        spdy_session_pool(new SpdySessionPool) {}
 
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
       : host_resolver(new MockHostResolver),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
-        flip_session_pool(new FlipSessionPool) {}
+        spdy_session_pool(new SpdySessionPool) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
-  scoped_refptr<FlipSessionPool> flip_session_pool;
+  scoped_refptr<SpdySessionPool> spdy_session_pool;
 };
 
 ProxyService* CreateFixedProxyService(const std::string& proxy) {
@@ -71,7 +71,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
-                                session_deps->flip_session_pool);
+                                session_deps->spdy_session_pool);
 }
 
 class HttpNetworkTransactionTest : public PlatformTest {
