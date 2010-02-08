@@ -10,6 +10,7 @@
 #include "base/scoped_vector.h"
 #include "net/base/load_log.h"
 #include "net/base/load_log_unittest.h"
+#include "net/base/load_log_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/request_priority.h"
 #include "net/base/test_completion_callback.h"
@@ -1125,18 +1126,14 @@ TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
   EXPECT_TRUE(req.handle()->socket());
   req.handle()->Reset();
 
-  EXPECT_EQ(6u, log->entries().size());
+  EXPECT_EQ(4u, log->entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(
-      *log, 5, LoadLog::TYPE_SOCKET_POOL));
+      *log, 3, LoadLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest,
@@ -1152,17 +1149,13 @@ TEST_F(ClientSocketPoolBaseTest,
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 
-  EXPECT_EQ(6u, log->entries().size());
+  EXPECT_EQ(4u, log->entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(
-      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(*log, 5, LoadLog::TYPE_SOCKET_POOL));
+      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(*log, 3, LoadLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
@@ -1183,37 +1176,27 @@ TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
 
   req.handle()->Reset();
 
-  EXPECT_EQ(5u, log1->entries().size());
+  EXPECT_EQ(3u, log1->entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(*log1, 0, LoadLog::TYPE_SOCKET_POOL));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      *log1, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
-  EXPECT_TRUE(LogContainsEndEvent(
-      *log1, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
   EXPECT_TRUE(LogContainsEvent(
-      *log1, 3, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
-  EXPECT_TRUE(LogContainsEndEvent(*log1, 4, LoadLog::TYPE_SOCKET_POOL));
+      *log1, 1, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(*log1, 2, LoadLog::TYPE_SOCKET_POOL));
 
   // At this point, request 2 is just waiting for the connect job to finish.
-  EXPECT_EQ(2u, log2->entries().size());
+  EXPECT_EQ(1u, log2->entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(*log2, 0, LoadLog::TYPE_SOCKET_POOL));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      *log2, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
 
   EXPECT_EQ(OK, req2.WaitForResult());
   req2.handle()->Reset();
 
   // Now request 2 has actually finished.
-  EXPECT_EQ(6u, log2->entries().size());
+  EXPECT_EQ(4u, log2->entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(*log2, 0, LoadLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log2, 1, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
+      *log2, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log1, 2, LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      *log2, 3, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(
-      *log2, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(*log2, 5, LoadLog::TYPE_SOCKET_POOL));
+      *log2, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(*log2, 3, LoadLog::TYPE_SOCKET_POOL));
 
 }
 
@@ -1384,9 +1367,13 @@ TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
   // used socket.  Request it to make sure that it's used.
 
   pool_->CleanupTimedOutIdleSockets();
-  rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), NULL);
+  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), log);
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(req.handle()->is_reused());
+  EXPECT_TRUE(LogContainsEntryWithType(
+      *log, 1, LoadLog::Entry::TYPE_STRING_LITERAL))
+      << LoadLogUtil::PrettyPrintAsEventTree(log);
 }
 
 // Make sure that we process all pending requests even when we're stalling 
@@ -1428,6 +1415,38 @@ TEST_F(ClientSocketPoolBaseTest, MultipleReleasingDisconnectedSockets) {
   EXPECT_FALSE(req3.handle()->is_reused());
   EXPECT_EQ(OK, req4.WaitForResult());
   EXPECT_FALSE(req4.handle()->is_reused());
+}
+
+TEST_F(ClientSocketPoolBaseTest,
+       ReleasingDisconnectedSocketsMaintainsPriorityOrder) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", kDefaultPriority));
+
+  EXPECT_EQ(OK, requests_[0]->WaitForResult());
+  EXPECT_EQ(OK, requests_[1]->WaitForResult());
+  EXPECT_EQ(2u, completion_count_);
+
+  // Releases one connection.
+  EXPECT_TRUE(ReleaseOneConnection(NO_KEEP_ALIVE));
+  EXPECT_EQ(OK, requests_[2]->WaitForResult());
+
+  EXPECT_TRUE(ReleaseOneConnection(NO_KEEP_ALIVE));
+  EXPECT_EQ(OK, requests_[3]->WaitForResult());
+  EXPECT_EQ(4u, completion_count_);
+
+  EXPECT_EQ(1, GetOrderOfRequest(1));
+  EXPECT_EQ(2, GetOrderOfRequest(2));
+  EXPECT_EQ(3, GetOrderOfRequest(3));
+  EXPECT_EQ(4, GetOrderOfRequest(4));
+
+  // Make sure we test order of all requests made.
+  EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(5));
 }
 
 }  // namespace
