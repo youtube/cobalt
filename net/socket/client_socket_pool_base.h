@@ -34,7 +34,6 @@
 #include "base/timer.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
-#include "net/base/load_log.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
@@ -45,6 +44,7 @@
 namespace net {
 
 class ClientSocketHandle;
+class LoadLog;
 
 // ConnectJob provides an abstract interface for "connecting" a socket.
 // The connection may involve host resolution, tcp connection, ssl connection,
@@ -127,11 +127,9 @@ class ClientSocketPoolBaseHelper
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
             RequestPriority priority,
-            LoadLog* load_log)
-        : handle_(handle), callback_(callback), priority_(priority),
-          load_log_(load_log) {}
+            LoadLog* load_log);
 
-    virtual ~Request() {}
+    virtual ~Request();
 
     ClientSocketHandle* handle() const { return handle_; }
     CompletionCallback* callback() const { return callback_; }
@@ -325,7 +323,8 @@ class ClientSocketPoolBaseHelper
                      bool reused,
                      ClientSocketHandle* handle,
                      base::TimeDelta time_idle,
-                     Group* group);
+                     Group* group,
+                     LoadLog* load_log);
 
   // Adds |socket| to the list of idle sockets for |group|.  |used| indicates
   // whether or not the socket has previously been used.
@@ -339,6 +338,12 @@ class ClientSocketPoolBaseHelper
   // Returns true if we can't create any more sockets due to the total limit.
   // TODO(phajdan.jr): Also take idle sockets into account.
   bool ReachedMaxSocketsLimit() const;
+
+  // This is the internal implementation of RequestSocket().  It differs in that
+  // it does not handle logging into LoadLog of the queueing status of
+  // |request|.
+  int RequestSocketInternal(const std::string& group_name,
+                            const Request* request);
 
   GroupMap group_map_;
 
@@ -465,12 +470,9 @@ class ClientSocketPoolBase {
                     LoadLog* load_log) {
     scoped_ptr<Request> request(
         new Request(handle, callback, priority, params, load_log));
-    LoadLog::BeginEvent(load_log, LoadLog::TYPE_SOCKET_POOL);
     int rv = helper_->RequestSocket(group_name, request.get());
     if (rv == ERR_IO_PENDING)
       request.release();
-    else
-      LoadLog::EndEvent(load_log, LoadLog::TYPE_SOCKET_POOL);
     return rv;
   }
 
