@@ -29,7 +29,7 @@ namespace net {
 
 class ClientSocketFactory;
 class ClientSocketHandle;
-class FlipStream;
+class SpdyStream;
 class HttpNetworkSession;
 class HttpStream;
 
@@ -290,7 +290,7 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   scoped_ptr<ClientSocketHandle> connection_;
   scoped_ptr<HttpStream> http_stream_;
-  scoped_refptr<FlipStream> spdy_stream_;
+  scoped_refptr<SpdyStream> spdy_stream_;
   bool reused_socket_;
 
   // True if we've validated the headers that the stream parser has returned.
