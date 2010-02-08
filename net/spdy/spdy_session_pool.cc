@@ -12,19 +12,19 @@ namespace net {
 // The maximum number of sessions to open to a single domain.
 static const size_t kMaxSessionsPerDomain = 1;
 
-FlipSessionPool::FlipSessionPool() {}
-FlipSessionPool::~FlipSessionPool() {
+SpdySessionPool::SpdySessionPool() {}
+SpdySessionPool::~SpdySessionPool() {
   CloseAllSessions();
 }
 
-scoped_refptr<FlipSession> FlipSessionPool::Get(
+scoped_refptr<SpdySession> SpdySessionPool::Get(
     const HostResolver::RequestInfo& info, HttpNetworkSession* session) {
   const std::string& domain = info.hostname();
-  scoped_refptr<FlipSession> flip_session;
-  FlipSessionList* list = GetSessionList(domain);
+  scoped_refptr<SpdySession> spdy_session;
+  SpdySessionList* list = GetSessionList(domain);
   if (list) {
     if (list->size() >= kMaxSessionsPerDomain) {
-      flip_session = list->front();
+      spdy_session = list->front();
       list->pop_front();
     }
   } else {
@@ -32,70 +32,70 @@ scoped_refptr<FlipSession> FlipSessionPool::Get(
   }
 
   DCHECK(list);
-  if (!flip_session)
-    flip_session = new FlipSession(domain, session);
+  if (!spdy_session)
+    spdy_session = new SpdySession(domain, session);
 
-  DCHECK(flip_session);
-  list->push_back(flip_session);
+  DCHECK(spdy_session);
+  list->push_back(spdy_session);
   DCHECK(list->size() <= kMaxSessionsPerDomain);
-  return flip_session;
+  return spdy_session;
 }
 
-scoped_refptr<FlipSession> FlipSessionPool::GetFlipSessionFromSocket(
+scoped_refptr<SpdySession> SpdySessionPool::GetSpdySessionFromSocket(
     const HostResolver::RequestInfo& info,
     HttpNetworkSession* session,
     ClientSocketHandle* connection) {
   const std::string& domain = info.hostname();
-  FlipSessionList* list = GetSessionList(domain);
+  SpdySessionList* list = GetSessionList(domain);
   if (!list)
     list = AddSessionList(domain);
   DCHECK(list->empty());
-  scoped_refptr<FlipSession> flip_session(new FlipSession(domain, session));
-  flip_session->InitializeWithSocket(connection);
-  list->push_back(flip_session);
-  return flip_session;
+  scoped_refptr<SpdySession> spdy_session(new SpdySession(domain, session));
+  spdy_session->InitializeWithSocket(connection);
+  list->push_back(spdy_session);
+  return spdy_session;
 }
 
-bool FlipSessionPool::HasSession(const HostResolver::RequestInfo& info) const {
+bool SpdySessionPool::HasSession(const HostResolver::RequestInfo& info) const {
   const std::string& domain = info.hostname();
   if (GetSessionList(domain))
     return true;
   return false;
 }
 
-void FlipSessionPool::Remove(const scoped_refptr<FlipSession>& session) {
+void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
   std::string domain = session->domain();
-  FlipSessionList* list = GetSessionList(domain);
+  SpdySessionList* list = GetSessionList(domain);
   CHECK(list);
   list->remove(session);
   if (list->empty())
     RemoveSessionList(domain);
 }
 
-FlipSessionPool::FlipSessionList*
-    FlipSessionPool::AddSessionList(const std::string& domain) {
+SpdySessionPool::SpdySessionList*
+    SpdySessionPool::AddSessionList(const std::string& domain) {
   DCHECK(sessions_.find(domain) == sessions_.end());
-  return sessions_[domain] = new FlipSessionList();
+  return sessions_[domain] = new SpdySessionList();
 }
 
-FlipSessionPool::FlipSessionList*
-    FlipSessionPool::GetSessionList(const std::string& domain) {
-  FlipSessionsMap::iterator it = sessions_.find(domain);
+SpdySessionPool::SpdySessionList*
+    SpdySessionPool::GetSessionList(const std::string& domain) {
+  SpdySessionsMap::iterator it = sessions_.find(domain);
   if (it == sessions_.end())
     return NULL;
   return it->second;
 }
 
-const FlipSessionPool::FlipSessionList*
-    FlipSessionPool::GetSessionList(const std::string& domain) const {
-  FlipSessionsMap::const_iterator it = sessions_.find(domain);
+const SpdySessionPool::SpdySessionList*
+    SpdySessionPool::GetSessionList(const std::string& domain) const {
+  SpdySessionsMap::const_iterator it = sessions_.find(domain);
   if (it == sessions_.end())
     return NULL;
   return it->second;
 }
 
-void FlipSessionPool::RemoveSessionList(const std::string& domain) {
-  FlipSessionList* list = GetSessionList(domain);
+void SpdySessionPool::RemoveSessionList(const std::string& domain) {
+  SpdySessionList* list = GetSessionList(domain);
   if (list) {
     delete list;
     sessions_.erase(domain);
@@ -104,13 +104,13 @@ void FlipSessionPool::RemoveSessionList(const std::string& domain) {
   }
 }
 
-void FlipSessionPool::CloseAllSessions() {
+void SpdySessionPool::CloseAllSessions() {
   while (sessions_.size()) {
-    FlipSessionList* list = sessions_.begin()->second;
+    SpdySessionList* list = sessions_.begin()->second;
     DCHECK(list);
     sessions_.erase(sessions_.begin()->first);
     while (list->size()) {
-      scoped_refptr<FlipSession> session = list->front();
+      scoped_refptr<SpdySession> session = list->front();
       list->pop_front();
       session->CloseAllStreams(net::ERR_ABORTED);
     }

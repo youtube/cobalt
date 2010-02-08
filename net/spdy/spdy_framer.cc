@@ -15,7 +15,7 @@
 #include "third_party/zlib/zlib.h"
 #endif
 
-namespace flip {
+namespace spdy {
 
 // The initial size of the control frame buffer; this is used internally
 // as we parse through control frames.
@@ -25,9 +25,9 @@ static const size_t kControlFrameBufferInitialSize = 32 * 1024;
 static const size_t kControlFrameBufferMaxSize = 64 * 1024;
 
 // By default is compression on or off.
-bool FlipFramer::compression_default_ = true;
+bool SpdyFramer::compression_default_ = true;
 
-#ifdef DEBUG_FLIP_STATE_CHANGES
+#ifdef DEBUG_SPDY_STATE_CHANGES
 #define CHANGE_STATE(newstate) \
 { \
   do { \
@@ -41,9 +41,9 @@ bool FlipFramer::compression_default_ = true;
 #define CHANGE_STATE(newstate) (state_ = newstate)
 #endif
 
-FlipFramer::FlipFramer()
-    : state_(FLIP_RESET),
-      error_code_(FLIP_NO_ERROR),
+SpdyFramer::SpdyFramer()
+    : state_(SPDY_RESET),
+      error_code_(SPDY_NO_ERROR),
       remaining_payload_(0),
       remaining_control_payload_(0),
       current_frame_buffer_(NULL),
@@ -53,7 +53,7 @@ FlipFramer::FlipFramer()
       visitor_(NULL) {
 }
 
-FlipFramer::~FlipFramer() {
+SpdyFramer::~SpdyFramer() {
   if (compressor_.get()) {
     deflateEnd(compressor_.get());
   }
@@ -63,9 +63,9 @@ FlipFramer::~FlipFramer() {
   delete [] current_frame_buffer_;
 }
 
-void FlipFramer::Reset() {
-  state_ = FLIP_RESET;
-  error_code_ = FLIP_NO_ERROR;
+void SpdyFramer::Reset() {
+  state_ = SPDY_RESET;
+  error_code_ = SPDY_NO_ERROR;
   remaining_payload_ = 0;
   remaining_control_payload_ = 0;
   current_frame_len_ = 0;
@@ -77,96 +77,96 @@ void FlipFramer::Reset() {
   }
 }
 
-const char* FlipFramer::StateToString(int state) {
+const char* SpdyFramer::StateToString(int state) {
   switch (state) {
-    case FLIP_ERROR:
+    case SPDY_ERROR:
       return "ERROR";
-    case FLIP_DONE:
+    case SPDY_DONE:
       return "DONE";
-    case FLIP_AUTO_RESET:
+    case SPDY_AUTO_RESET:
       return "AUTO_RESET";
-    case FLIP_RESET:
+    case SPDY_RESET:
       return "RESET";
-    case FLIP_READING_COMMON_HEADER:
+    case SPDY_READING_COMMON_HEADER:
       return "READING_COMMON_HEADER";
-    case FLIP_INTERPRET_CONTROL_FRAME_COMMON_HEADER:
+    case SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER:
       return "INTERPRET_CONTROL_FRAME_COMMON_HEADER";
-    case FLIP_CONTROL_FRAME_PAYLOAD:
+    case SPDY_CONTROL_FRAME_PAYLOAD:
       return "CONTROL_FRAME_PAYLOAD";
-    case FLIP_IGNORE_REMAINING_PAYLOAD:
+    case SPDY_IGNORE_REMAINING_PAYLOAD:
       return "IGNORE_REMAINING_PAYLOAD";
-    case FLIP_FORWARD_STREAM_FRAME:
+    case SPDY_FORWARD_STREAM_FRAME:
       return "FORWARD_STREAM_FRAME";
   }
   return "UNKNOWN_STATE";
 }
 
-size_t FlipFramer::BytesSafeToRead() const {
+size_t SpdyFramer::BytesSafeToRead() const {
   switch (state_) {
-    case FLIP_ERROR:
-    case FLIP_DONE:
-    case FLIP_AUTO_RESET:
-    case FLIP_RESET:
+    case SPDY_ERROR:
+    case SPDY_DONE:
+    case SPDY_AUTO_RESET:
+    case SPDY_RESET:
       return 0;
-    case FLIP_READING_COMMON_HEADER:
-      DCHECK(current_frame_len_ < FlipFrame::size());
-      return FlipFrame::size() - current_frame_len_;
-    case FLIP_INTERPRET_CONTROL_FRAME_COMMON_HEADER:
+    case SPDY_READING_COMMON_HEADER:
+      DCHECK(current_frame_len_ < SpdyFrame::size());
+      return SpdyFrame::size() - current_frame_len_;
+    case SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER:
       return 0;
-    case FLIP_CONTROL_FRAME_PAYLOAD:
-    case FLIP_IGNORE_REMAINING_PAYLOAD:
-    case FLIP_FORWARD_STREAM_FRAME:
+    case SPDY_CONTROL_FRAME_PAYLOAD:
+    case SPDY_IGNORE_REMAINING_PAYLOAD:
+    case SPDY_FORWARD_STREAM_FRAME:
       return remaining_payload_;
   }
   // We should never get to here.
   return 0;
 }
 
-void FlipFramer::set_error(FlipError error) {
+void SpdyFramer::set_error(SpdyError error) {
   DCHECK(visitor_);
   error_code_ = error;
-  CHANGE_STATE(FLIP_ERROR);
+  CHANGE_STATE(SPDY_ERROR);
   visitor_->OnError(this);
 }
 
-const char* FlipFramer::ErrorCodeToString(int error_code) {
+const char* SpdyFramer::ErrorCodeToString(int error_code) {
   switch (error_code) {
-    case FLIP_NO_ERROR:
+    case SPDY_NO_ERROR:
       return "NO_ERROR";
-    case FLIP_UNKNOWN_CONTROL_TYPE:
+    case SPDY_UNKNOWN_CONTROL_TYPE:
       return "UNKNOWN_CONTROL_TYPE";
-    case FLIP_INVALID_CONTROL_FRAME:
+    case SPDY_INVALID_CONTROL_FRAME:
       return "INVALID_CONTROL_FRAME";
-    case FLIP_CONTROL_PAYLOAD_TOO_LARGE:
+    case SPDY_CONTROL_PAYLOAD_TOO_LARGE:
       return "CONTROL_PAYLOAD_TOO_LARGE";
-    case FLIP_ZLIB_INIT_FAILURE:
+    case SPDY_ZLIB_INIT_FAILURE:
       return "ZLIB_INIT_FAILURE";
-    case FLIP_UNSUPPORTED_VERSION:
+    case SPDY_UNSUPPORTED_VERSION:
       return "UNSUPPORTED_VERSION";
-    case FLIP_DECOMPRESS_FAILURE:
+    case SPDY_DECOMPRESS_FAILURE:
       return "DECOMPRESS_FAILURE";
   }
   return "UNKNOWN_STATE";
 }
 
-size_t FlipFramer::ProcessInput(const char* data, size_t len) {
+size_t SpdyFramer::ProcessInput(const char* data, size_t len) {
   DCHECK(visitor_);
   DCHECK(data);
 
   size_t original_len = len;
   while (len != 0) {
     switch (state_) {
-      case FLIP_ERROR:
-      case FLIP_DONE:
+      case SPDY_ERROR:
+      case SPDY_DONE:
         goto bottom;
 
-      case FLIP_AUTO_RESET:
-      case FLIP_RESET:
+      case SPDY_AUTO_RESET:
+      case SPDY_RESET:
         Reset();
-        CHANGE_STATE(FLIP_READING_COMMON_HEADER);
+        CHANGE_STATE(SPDY_READING_COMMON_HEADER);
         continue;
 
-      case FLIP_READING_COMMON_HEADER: {
+      case SPDY_READING_COMMON_HEADER: {
         int bytes_read = ProcessCommonHeader(data, len);
         len -= bytes_read;
         data += bytes_read;
@@ -176,20 +176,20 @@ size_t FlipFramer::ProcessInput(const char* data, size_t len) {
       // Arguably, this case is not necessary, as no bytes are consumed here.
       // I felt it was a nice partitioning, however (which probably indicates
       // that it should be refactored into its own function!)
-      case FLIP_INTERPRET_CONTROL_FRAME_COMMON_HEADER:
+      case SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER:
         ProcessControlFrameHeader();
         continue;
 
-      case FLIP_CONTROL_FRAME_PAYLOAD: {
+      case SPDY_CONTROL_FRAME_PAYLOAD: {
         int bytes_read = ProcessControlFramePayload(data, len);
         len -= bytes_read;
         data += bytes_read;
       }
         // intentional fallthrough
-      case FLIP_IGNORE_REMAINING_PAYLOAD:
+      case SPDY_IGNORE_REMAINING_PAYLOAD:
         // control frame has too-large payload
         // intentional fallthrough
-      case FLIP_FORWARD_STREAM_FRAME: {
+      case SPDY_FORWARD_STREAM_FRAME: {
         int bytes_read = ProcessDataFramePayload(data, len);
         len -= bytes_read;
         data += bytes_read;
@@ -203,17 +203,17 @@ size_t FlipFramer::ProcessInput(const char* data, size_t len) {
   return original_len - len;
 }
 
-size_t FlipFramer::ProcessCommonHeader(const char* data, size_t len) {
-  // This should only be called when we're in the FLIP_READING_COMMON_HEADER
+size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
+  // This should only be called when we're in the SPDY_READING_COMMON_HEADER
   // state.
-  DCHECK(state_ == FLIP_READING_COMMON_HEADER);
+  DCHECK(state_ == SPDY_READING_COMMON_HEADER);
 
   int original_len = len;
-  FlipFrame current_frame(current_frame_buffer_, false);
+  SpdyFrame current_frame(current_frame_buffer_, false);
 
   do {
-    if (current_frame_len_ < FlipFrame::size()) {
-      size_t bytes_desired = FlipFrame::size() - current_frame_len_;
+    if (current_frame_len_ < SpdyFrame::size()) {
+      size_t bytes_desired = SpdyFrame::size() - current_frame_len_;
       size_t bytes_to_append = std::min(bytes_desired, len);
       char* header_buffer = current_frame_buffer_;
       memcpy(&header_buffer[current_frame_len_], data, bytes_to_append);
@@ -221,14 +221,14 @@ size_t FlipFramer::ProcessCommonHeader(const char* data, size_t len) {
       data += bytes_to_append;
       len -= bytes_to_append;
       // Check for an empty data frame.
-      if (current_frame_len_ == FlipFrame::size() &&
+      if (current_frame_len_ == SpdyFrame::size() &&
           !current_frame.is_control_frame() &&
           current_frame.length() == 0) {
         if (current_frame.flags() & CONTROL_FLAG_FIN) {
-          FlipDataFrame data_frame(current_frame_buffer_, false);
+          SpdyDataFrame data_frame(current_frame_buffer_, false);
           visitor_->OnStreamFrameData(data_frame.stream_id(), NULL, 0);
         }
-        CHANGE_STATE(FLIP_RESET);
+        CHANGE_STATE(SPDY_RESET);
       }
       break;
     }
@@ -237,65 +237,65 @@ size_t FlipFramer::ProcessCommonHeader(const char* data, size_t len) {
     // This is just a sanity check for help debugging early frame errors.
     if (remaining_payload_ > 1000000u) {
       LOG(ERROR) <<
-          "Unexpectedly large frame.  Flip session is likely corrupt.";
+          "Unexpectedly large frame.  Spdy session is likely corrupt.";
     }
 
     // if we're here, then we have the common header all received.
     if (!current_frame.is_control_frame())
-      CHANGE_STATE(FLIP_FORWARD_STREAM_FRAME);
+      CHANGE_STATE(SPDY_FORWARD_STREAM_FRAME);
     else
-      CHANGE_STATE(FLIP_INTERPRET_CONTROL_FRAME_COMMON_HEADER);
+      CHANGE_STATE(SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER);
   } while (false);
 
   return original_len - len;
 }
 
-void FlipFramer::ProcessControlFrameHeader() {
-  DCHECK_EQ(FLIP_NO_ERROR, error_code_);
-  DCHECK_LE(FlipFrame::size(), current_frame_len_);
-  FlipControlFrame current_control_frame(current_frame_buffer_, false);
+void SpdyFramer::ProcessControlFrameHeader() {
+  DCHECK_EQ(SPDY_NO_ERROR, error_code_);
+  DCHECK_LE(SpdyFrame::size(), current_frame_len_);
+  SpdyControlFrame current_control_frame(current_frame_buffer_, false);
   // Do some sanity checking on the control frame sizes.
   switch (current_control_frame.type()) {
     case SYN_STREAM:
       if (current_control_frame.length() <
-          FlipSynStreamControlFrame::size() - FlipControlFrame::size())
-        set_error(FLIP_INVALID_CONTROL_FRAME);
+          SpdySynStreamControlFrame::size() - SpdyControlFrame::size())
+        set_error(SPDY_INVALID_CONTROL_FRAME);
       break;
     case SYN_REPLY:
       if (current_control_frame.length() <
-          FlipSynReplyControlFrame::size() - FlipControlFrame::size())
-        set_error(FLIP_INVALID_CONTROL_FRAME);
+          SpdySynReplyControlFrame::size() - SpdyControlFrame::size())
+        set_error(SPDY_INVALID_CONTROL_FRAME);
       break;
     case FIN_STREAM:
       if (current_control_frame.length() !=
-          FlipFinStreamControlFrame::size() - FlipFrame::size())
-        set_error(FLIP_INVALID_CONTROL_FRAME);
+          SpdyFinStreamControlFrame::size() - SpdyFrame::size())
+        set_error(SPDY_INVALID_CONTROL_FRAME);
       break;
     case NOOP:
       // NOOP.  Swallow it.
-      CHANGE_STATE(FLIP_AUTO_RESET);
+      CHANGE_STATE(SPDY_AUTO_RESET);
       return;
     default:
-      set_error(FLIP_UNKNOWN_CONTROL_TYPE);
+      set_error(SPDY_UNKNOWN_CONTROL_TYPE);
       break;
   }
 
   // We only support version 1 of this protocol.
-  if (current_control_frame.version() != kFlipProtocolVersion)
-    set_error(FLIP_UNSUPPORTED_VERSION);
+  if (current_control_frame.version() != kSpdyProtocolVersion)
+    set_error(SPDY_UNSUPPORTED_VERSION);
 
   remaining_control_payload_ = current_control_frame.length();
   if (remaining_control_payload_ > kControlFrameBufferMaxSize)
-    set_error(FLIP_CONTROL_PAYLOAD_TOO_LARGE);
+    set_error(SPDY_CONTROL_PAYLOAD_TOO_LARGE);
 
   if (error_code_)
     return;
 
   ExpandControlFrameBuffer(remaining_control_payload_);
-  CHANGE_STATE(FLIP_CONTROL_FRAME_PAYLOAD);
+  CHANGE_STATE(SPDY_CONTROL_FRAME_PAYLOAD);
 }
 
-size_t FlipFramer::ProcessControlFramePayload(const char* data, size_t len) {
+size_t SpdyFramer::ProcessControlFramePayload(const char* data, size_t len) {
   size_t original_len = len;
   do {
     if (remaining_control_payload_) {
@@ -310,7 +310,7 @@ size_t FlipFramer::ProcessControlFramePayload(const char* data, size_t len) {
       if (remaining_control_payload_)
         break;
     }
-    FlipControlFrame control_frame(current_frame_buffer_, false);
+    SpdyControlFrame control_frame(current_frame_buffer_, false);
     visitor_->OnControl(&control_frame);
 
     // If this is a FIN, tell the caller.
@@ -318,18 +318,18 @@ size_t FlipFramer::ProcessControlFramePayload(const char* data, size_t len) {
         control_frame.flags() & CONTROL_FLAG_FIN)
       visitor_->OnStreamFrameData(control_frame.stream_id(), NULL, 0);
 
-    CHANGE_STATE(FLIP_IGNORE_REMAINING_PAYLOAD);
+    CHANGE_STATE(SPDY_IGNORE_REMAINING_PAYLOAD);
   } while (false);
   return original_len - len;
 }
 
-size_t FlipFramer::ProcessDataFramePayload(const char* data, size_t len) {
+size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
   size_t original_len = len;
 
-  FlipDataFrame current_data_frame(current_frame_buffer_, false);
+  SpdyDataFrame current_data_frame(current_frame_buffer_, false);
   if (remaining_payload_) {
     size_t amount_to_forward = std::min(remaining_payload_, len);
-    if (amount_to_forward && state_ != FLIP_IGNORE_REMAINING_PAYLOAD) {
+    if (amount_to_forward && state_ != SPDY_IGNORE_REMAINING_PAYLOAD) {
       if (current_data_frame.flags() & DATA_FLAG_COMPRESSED) {
         // TODO(mbelshe): Assert that the decompressor is init'ed.
         if (!InitializeDecompressor())
@@ -346,7 +346,7 @@ size_t FlipFramer::ProcessDataFramePayload(const char* data, size_t len) {
 
         int rv = inflate(decompressor_.get(), Z_SYNC_FLUSH);
         if (rv != Z_OK) {
-          set_error(FLIP_DECOMPRESS_FAILURE);
+          set_error(SPDY_DECOMPRESS_FAILURE);
           return 0;
         }
         size_t decompressed_size = decompressed_max_size -
@@ -376,39 +376,39 @@ size_t FlipFramer::ProcessDataFramePayload(const char* data, size_t len) {
       visitor_->OnStreamFrameData(current_data_frame.stream_id(), NULL,
                                   0);
   } else {
-    CHANGE_STATE(FLIP_AUTO_RESET);
+    CHANGE_STATE(SPDY_AUTO_RESET);
   }
   return original_len - len;
 }
 
-void FlipFramer::ExpandControlFrameBuffer(size_t size) {
+void SpdyFramer::ExpandControlFrameBuffer(size_t size) {
   DCHECK(size < kControlFrameBufferMaxSize);
   if (size < current_frame_capacity_)
     return;
 
-  int alloc_size = size + FlipFrame::size();
+  int alloc_size = size + SpdyFrame::size();
   char* new_buffer = new char[alloc_size];
   memcpy(new_buffer, current_frame_buffer_, current_frame_len_);
   current_frame_capacity_ = alloc_size;
   current_frame_buffer_ = new_buffer;
 }
 
-bool FlipFramer::ParseHeaderBlock(const FlipFrame* frame,
-                                  FlipHeaderBlock* block) {
-  FlipControlFrame control_frame(frame->data(), false);
+bool SpdyFramer::ParseHeaderBlock(const SpdyFrame* frame,
+                                  SpdyHeaderBlock* block) {
+  SpdyControlFrame control_frame(frame->data(), false);
   uint32 type = control_frame.type();
   if (type != SYN_STREAM && type != SYN_REPLY)
     return false;
 
   // Find the header data within the control frame.
-  scoped_ptr<FlipFrame> decompressed_frame(DecompressFrame(frame));
+  scoped_ptr<SpdyFrame> decompressed_frame(DecompressFrame(frame));
   if (!decompressed_frame.get())
     return false;
-  FlipSynStreamControlFrame syn_frame(decompressed_frame->data(), false);
+  SpdySynStreamControlFrame syn_frame(decompressed_frame->data(), false);
   const char *header_data = syn_frame.header_block();
   int header_length = syn_frame.header_block_len();
 
-  FlipFrameBuilder builder(header_data, header_length);
+  SpdyFrameBuilder builder(header_data, header_length);
   void* iter = NULL;
   uint16 num_headers;
   if (builder.ReadUInt16(&iter, &num_headers)) {
@@ -430,65 +430,65 @@ bool FlipFramer::ParseHeaderBlock(const FlipFrame* frame,
   return false;
 }
 
-FlipSynStreamControlFrame* FlipFramer::CreateSynStream(
-    FlipStreamId stream_id, int priority, FlipControlFlags flags,
-    bool compressed, FlipHeaderBlock* headers) {
-  FlipFrameBuilder frame;
+SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
+    SpdyStreamId stream_id, int priority, SpdyControlFlags flags,
+    bool compressed, SpdyHeaderBlock* headers) {
+  SpdyFrameBuilder frame;
 
-  frame.WriteUInt16(kControlFlagMask | kFlipProtocolVersion);
+  frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
   frame.WriteUInt16(SYN_STREAM);
   frame.WriteUInt32(0);  // Placeholder for the length and flags
   frame.WriteUInt32(stream_id);
   frame.WriteUInt16(ntohs(priority) << 6);  // Priority.
 
   frame.WriteUInt16(headers->size());  // Number of headers.
-  FlipHeaderBlock::iterator it;
+  SpdyHeaderBlock::iterator it;
   for (it = headers->begin(); it != headers->end(); ++it) {
     frame.WriteString(it->first);
     frame.WriteString(it->second);
   }
 
   // Write the length and flags.
-  size_t length = frame.length() - FlipFrame::size();
+  size_t length = frame.length() - SpdyFrame::size();
   DCHECK(length < static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
   flags_length.length_ = htonl(static_cast<uint32>(length));
   flags_length.flags_[0] = flags;
   frame.WriteBytesToOffset(4, &flags_length, sizeof(flags_length));
 
-  scoped_ptr<FlipFrame> syn_frame(frame.take());
+  scoped_ptr<SpdyFrame> syn_frame(frame.take());
   if (compressed) {
-    return reinterpret_cast<FlipSynStreamControlFrame*>(
+    return reinterpret_cast<SpdySynStreamControlFrame*>(
         CompressFrame(syn_frame.get()));
   }
-  return reinterpret_cast<FlipSynStreamControlFrame*>(syn_frame.release());
+  return reinterpret_cast<SpdySynStreamControlFrame*>(syn_frame.release());
 }
 
 /* static */
-FlipFinStreamControlFrame* FlipFramer::CreateFinStream(FlipStreamId stream_id,
+SpdyFinStreamControlFrame* SpdyFramer::CreateFinStream(SpdyStreamId stream_id,
                                                        int status) {
-  FlipFrameBuilder frame;
-  frame.WriteUInt16(kControlFlagMask | kFlipProtocolVersion);
+  SpdyFrameBuilder frame;
+  frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
   frame.WriteUInt16(FIN_STREAM);
   frame.WriteUInt32(8);
   frame.WriteUInt32(stream_id);
   frame.WriteUInt32(status);
-  return reinterpret_cast<FlipFinStreamControlFrame*>(frame.take());
+  return reinterpret_cast<SpdyFinStreamControlFrame*>(frame.take());
 }
 
-FlipSynReplyControlFrame* FlipFramer::CreateSynReply(FlipStreamId stream_id,
-    FlipControlFlags flags, bool compressed, FlipHeaderBlock* headers) {
+SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(SpdyStreamId stream_id,
+    SpdyControlFlags flags, bool compressed, SpdyHeaderBlock* headers) {
 
-  FlipFrameBuilder frame;
+  SpdyFrameBuilder frame;
 
-  frame.WriteUInt16(kControlFlagMask | kFlipProtocolVersion);
+  frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
   frame.WriteUInt16(SYN_REPLY);
   frame.WriteUInt32(0);  // Placeholder for the length and flags.
   frame.WriteUInt32(stream_id);
   frame.WriteUInt16(0);  // Unused
 
   frame.WriteUInt16(headers->size());  // Number of headers.
-  FlipHeaderBlock::iterator it;
+  SpdyHeaderBlock::iterator it;
   for (it = headers->begin(); it != headers->end(); ++it) {
     // TODO(mbelshe): Headers need to be sorted.
     frame.WriteString(it->first);
@@ -496,25 +496,25 @@ FlipSynReplyControlFrame* FlipFramer::CreateSynReply(FlipStreamId stream_id,
   }
 
   // Write the length
-  size_t length = frame.length() - FlipFrame::size();
+  size_t length = frame.length() - SpdyFrame::size();
   DCHECK(length < static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
   flags_length.length_ = htonl(static_cast<uint32>(length));
   flags_length.flags_[0] = flags;
   frame.WriteBytesToOffset(4, &flags_length, sizeof(flags_length));
 
-  scoped_ptr<FlipFrame> reply_frame(frame.take());
+  scoped_ptr<SpdyFrame> reply_frame(frame.take());
   if (compressed) {
-    return reinterpret_cast<FlipSynReplyControlFrame*>(
+    return reinterpret_cast<SpdySynReplyControlFrame*>(
         CompressFrame(reply_frame.get()));
   }
-  return reinterpret_cast<FlipSynReplyControlFrame*>(reply_frame.release());
+  return reinterpret_cast<SpdySynReplyControlFrame*>(reply_frame.release());
 }
 
-FlipDataFrame* FlipFramer::CreateDataFrame(FlipStreamId stream_id,
+SpdyDataFrame* SpdyFramer::CreateDataFrame(SpdyStreamId stream_id,
                                            const char* data,
-                                           uint32 len, FlipDataFlags flags) {
-  FlipFrameBuilder frame;
+                                           uint32 len, SpdyDataFlags flags) {
+  SpdyFrameBuilder frame;
 
   frame.WriteUInt32(stream_id);
 
@@ -525,19 +525,19 @@ FlipDataFrame* FlipFramer::CreateDataFrame(FlipStreamId stream_id,
   frame.WriteBytes(&flags_length, sizeof(flags_length));
 
   frame.WriteBytes(data, len);
-  scoped_ptr<FlipFrame> data_frame(frame.take());
+  scoped_ptr<SpdyFrame> data_frame(frame.take());
   if (flags & DATA_FLAG_COMPRESSED)
-    return reinterpret_cast<FlipDataFrame*>(CompressFrame(data_frame.get()));
-  return reinterpret_cast<FlipDataFrame*>(data_frame.release());
+    return reinterpret_cast<SpdyDataFrame*>(CompressFrame(data_frame.get()));
+  return reinterpret_cast<SpdyDataFrame*>(data_frame.release());
 }
 
 /* static */
-FlipControlFrame* FlipFramer::CreateNopFrame() {
-  FlipFrameBuilder frame;
-  frame.WriteUInt16(kControlFlagMask | kFlipProtocolVersion);
+SpdyControlFrame* SpdyFramer::CreateNopFrame() {
+  SpdyFrameBuilder frame;
+  frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
   frame.WriteUInt16(NOOP);
   frame.WriteUInt32(0);
-  return reinterpret_cast<FlipControlFrame*>(frame.take());
+  return reinterpret_cast<SpdyControlFrame*>(frame.take());
 }
 
 static const int kCompressorLevel = Z_DEFAULT_COMPRESSION;
@@ -559,7 +559,7 @@ static const char dictionary[] =
   ".1statusversionurl";
 static uLong dictionary_id = 0;
 
-bool FlipFramer::InitializeCompressor() {
+bool SpdyFramer::InitializeCompressor() {
   if (compressor_.get())
     return true;  // Already initialized.
 
@@ -576,7 +576,7 @@ bool FlipFramer::InitializeCompressor() {
   return success == Z_OK;
 }
 
-bool FlipFramer::InitializeDecompressor() {
+bool SpdyFramer::InitializeDecompressor() {
   if (decompressor_.get())
     return true;  // Already initialized.
 
@@ -598,19 +598,19 @@ bool FlipFramer::InitializeDecompressor() {
   return success == Z_OK;
 }
 
-bool FlipFramer::GetFrameBoundaries(const FlipFrame* frame,
+bool SpdyFramer::GetFrameBoundaries(const SpdyFrame* frame,
                                     int* payload_length,
                                     int* header_length,
                                     const char** payload) const {
   if (frame->is_control_frame()) {
-    const FlipControlFrame* control_frame =
-        reinterpret_cast<const FlipControlFrame*>(frame);
+    const SpdyControlFrame* control_frame =
+        reinterpret_cast<const SpdyControlFrame*>(frame);
     switch (control_frame->type()) {
       case SYN_STREAM:
       case SYN_REPLY:
         {
-          const FlipSynStreamControlFrame *syn_frame =
-              reinterpret_cast<const FlipSynStreamControlFrame*>(frame);
+          const SpdySynStreamControlFrame *syn_frame =
+              reinterpret_cast<const SpdySynStreamControlFrame*>(frame);
           *payload_length = syn_frame->header_block_len();
           *header_length = syn_frame->size();
           *payload = frame->data() + *header_length;
@@ -621,23 +621,23 @@ bool FlipFramer::GetFrameBoundaries(const FlipFrame* frame,
         return false;  // We can't compress this frame!
     }
   } else {
-    *header_length = FlipFrame::size();
+    *header_length = SpdyFrame::size();
     *payload_length = frame->length();
-    *payload = frame->data() + FlipFrame::size();
+    *payload = frame->data() + SpdyFrame::size();
   }
   DCHECK(static_cast<size_t>(*header_length) <=
-      FlipFrame::size() + *payload_length);
+      SpdyFrame::size() + *payload_length);
   return true;
 }
 
 
-FlipFrame* FlipFramer::CompressFrame(const FlipFrame* frame) {
+SpdyFrame* SpdyFramer::CompressFrame(const SpdyFrame* frame) {
   int payload_length;
   int header_length;
   const char* payload;
 
-  static StatsCounter pre_compress_bytes("flip.PreCompressSize");
-  static StatsCounter post_compress_bytes("flip.PostCompressSize");
+  static StatsCounter pre_compress_bytes("spdy.PreCompressSize");
+  static StatsCounter post_compress_bytes("spdy.PostCompressSize");
 
   if (!enable_compression_)
     return DuplicateFrame(frame);
@@ -653,8 +653,8 @@ FlipFrame* FlipFramer::CompressFrame(const FlipFrame* frame) {
   // Create an output frame.
   int compressed_max_size = deflateBound(compressor_.get(), payload_length);
   int new_frame_size = header_length + compressed_max_size;
-  FlipFrame* new_frame = new FlipFrame(new_frame_size);
-  memcpy(new_frame->data(), frame->data(), frame->length() + FlipFrame::size());
+  SpdyFrame* new_frame = new SpdyFrame(new_frame_size);
+  memcpy(new_frame->data(), frame->data(), frame->length() + SpdyFrame::size());
 
   compressor_->next_in = reinterpret_cast<Bytef*>(const_cast<char*>(payload));
   compressor_->avail_in = payload_length;
@@ -664,7 +664,7 @@ FlipFrame* FlipFramer::CompressFrame(const FlipFrame* frame) {
 
   // Data packets have a 'compressed flag
   if (!new_frame->is_control_frame()) {
-    FlipDataFrame* data_frame = reinterpret_cast<FlipDataFrame*>(new_frame);
+    SpdyDataFrame* data_frame = reinterpret_cast<SpdyDataFrame*>(new_frame);
     data_frame->set_flags(data_frame->flags() | DATA_FLAG_COMPRESSED);
   }
 
@@ -676,7 +676,7 @@ FlipFrame* FlipFramer::CompressFrame(const FlipFrame* frame) {
   }
 
   int compressed_size = compressed_max_size - compressor_->avail_out;
-  new_frame->set_length(header_length + compressed_size - FlipFrame::size());
+  new_frame->set_length(header_length + compressed_size - SpdyFrame::size());
 
   pre_compress_bytes.Add(payload_length);
   post_compress_bytes.Add(new_frame->length());
@@ -684,13 +684,13 @@ FlipFrame* FlipFramer::CompressFrame(const FlipFrame* frame) {
   return new_frame;
 }
 
-FlipFrame* FlipFramer::DecompressFrame(const FlipFrame* frame) {
+SpdyFrame* SpdyFramer::DecompressFrame(const SpdyFrame* frame) {
   int payload_length;
   int header_length;
   const char* payload;
 
-  static StatsCounter pre_decompress_bytes("flip.PreDeCompressSize");
-  static StatsCounter post_decompress_bytes("flip.PostDeCompressSize");
+  static StatsCounter pre_decompress_bytes("spdy.PreDeCompressSize");
+  static StatsCounter post_decompress_bytes("spdy.PostDeCompressSize");
 
   if (!enable_compression_)
     return DuplicateFrame(frame);
@@ -699,8 +699,8 @@ FlipFrame* FlipFramer::DecompressFrame(const FlipFrame* frame) {
     return NULL;
 
   if (!frame->is_control_frame()) {
-    const FlipDataFrame* data_frame =
-        reinterpret_cast<const FlipDataFrame*>(frame);
+    const SpdyDataFrame* data_frame =
+        reinterpret_cast<const SpdyDataFrame*>(frame);
     if ((data_frame->flags() & DATA_FLAG_COMPRESSED) == 0)
       return DuplicateFrame(frame);
   }
@@ -714,8 +714,8 @@ FlipFrame* FlipFramer::DecompressFrame(const FlipFrame* frame) {
   // the input data.
   int decompressed_max_size = kControlFrameBufferInitialSize;
   int new_frame_size = header_length + decompressed_max_size;
-  FlipFrame* new_frame = new FlipFrame(new_frame_size);
-  memcpy(new_frame->data(), frame->data(), frame->length() + FlipFrame::size());
+  SpdyFrame* new_frame = new SpdyFrame(new_frame_size);
+  memcpy(new_frame->data(), frame->data(), frame->length() + SpdyFrame::size());
 
   decompressor_->next_in = reinterpret_cast<Bytef*>(const_cast<char*>(payload));
   decompressor_->avail_in = payload_length;
@@ -740,12 +740,12 @@ FlipFrame* FlipFramer::DecompressFrame(const FlipFrame* frame) {
 
   // Unset the compressed flag for data frames.
   if (!new_frame->is_control_frame()) {
-    FlipDataFrame* data_frame = reinterpret_cast<FlipDataFrame*>(new_frame);
+    SpdyDataFrame* data_frame = reinterpret_cast<SpdyDataFrame*>(new_frame);
     data_frame->set_flags(data_frame->flags() & ~DATA_FLAG_COMPRESSED);
   }
 
   int decompressed_size = decompressed_max_size - decompressor_->avail_out;
-  new_frame->set_length(header_length + decompressed_size - FlipFrame::size());
+  new_frame->set_length(header_length + decompressed_size - SpdyFrame::size());
 
   pre_decompress_bytes.Add(frame->length());
   post_decompress_bytes.Add(new_frame->length());
@@ -753,20 +753,20 @@ FlipFrame* FlipFramer::DecompressFrame(const FlipFrame* frame) {
   return new_frame;
 }
 
-FlipFrame* FlipFramer::DuplicateFrame(const FlipFrame* frame) {
-  int size = FlipFrame::size() + frame->length();
-  FlipFrame* new_frame = new FlipFrame(size);
+SpdyFrame* SpdyFramer::DuplicateFrame(const SpdyFrame* frame) {
+  int size = SpdyFrame::size() + frame->length();
+  SpdyFrame* new_frame = new SpdyFrame(size);
   memcpy(new_frame->data(), frame->data(), size);
   return new_frame;
 }
 
-void FlipFramer::set_enable_compression(bool value) {
+void SpdyFramer::set_enable_compression(bool value) {
   enable_compression_ = value;
 }
 
-void FlipFramer::set_enable_compression_default(bool value) {
+void SpdyFramer::set_enable_compression_default(bool value) {
   compression_default_ = value;
 }
 
-}  // namespace flip
+}  // namespace spdy
 

@@ -12,18 +12,18 @@
 
 namespace net {
 
-class FlipSessionTest : public PlatformTest {
+class SpdySessionTest : public PlatformTest {
  public:
 };
 
-// Test the FlipIOBuffer class.
-TEST_F(FlipSessionTest, FlipIOBuffer) {
-  std::priority_queue<FlipIOBuffer> queue_;
+// Test the SpdyIOBuffer class.
+TEST_F(SpdySessionTest, SpdyIOBuffer) {
+  std::priority_queue<SpdyIOBuffer> queue_;
   const size_t kQueueSize = 100;
 
   // Insert 100 items; pri 100 to 1.
   for (size_t index = 0; index < kQueueSize; ++index) {
-    FlipIOBuffer buffer(new IOBuffer(), 0, kQueueSize - index, NULL);
+    SpdyIOBuffer buffer(new IOBuffer(), 0, kQueueSize - index, NULL);
     queue_.push(buffer);
   }
 
@@ -32,14 +32,14 @@ TEST_F(FlipSessionTest, FlipIOBuffer) {
   IOBufferWithSize* buffers[kNumDuplicates];
   for (size_t index = 0; index < kNumDuplicates; ++index) {
     buffers[index] = new IOBufferWithSize(index+1);
-    queue_.push(FlipIOBuffer(buffers[index], buffers[index]->size(), 0, NULL));
+    queue_.push(SpdyIOBuffer(buffers[index], buffers[index]->size(), 0, NULL));
   }
 
   EXPECT_EQ(kQueueSize + kNumDuplicates, queue_.size());
 
   // Verify the P0 items come out in FIFO order.
   for (size_t index = 0; index < kNumDuplicates; ++index) {
-    FlipIOBuffer buffer = queue_.top();
+    SpdyIOBuffer buffer = queue_.top();
     EXPECT_EQ(0, buffer.priority());
     EXPECT_EQ(index + 1, buffer.size());
     queue_.pop();
@@ -47,7 +47,7 @@ TEST_F(FlipSessionTest, FlipIOBuffer) {
 
   int priority = 1;
   while (queue_.size()) {
-    FlipIOBuffer buffer = queue_.top();
+    SpdyIOBuffer buffer = queue_.top();
     EXPECT_EQ(priority++, buffer.priority());
     queue_.pop();
   }

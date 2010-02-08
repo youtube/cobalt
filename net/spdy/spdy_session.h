@@ -28,23 +28,23 @@
 
 namespace net {
 
-class FlipStream;
+class SpdyStream;
 class HttpNetworkSession;
 class HttpRequestInfo;
 class HttpResponseInfo;
 class LoadLog;
 class SSLInfo;
 
-class FlipSession : public base::RefCounted<FlipSession>,
-                    public flip::FlipFramerVisitorInterface {
+class SpdySession : public base::RefCounted<SpdySession>,
+                    public spdy::SpdyFramerVisitorInterface {
  public:
-  // Get the domain for this FlipSession.
+  // Get the domain for this SpdySession.
   const std::string& domain() const { return domain_; }
 
-  // Connect the FLIP Socket.
+  // Connect the Spdy Socket.
   // Returns net::Error::OK on success.
   // Note that this call does not wait for the connect to complete. Callers can
-  // immediately start using the FlipSession while it connects.
+  // immediately start using the SpdySession while it connects.
   net::Error Connect(const std::string& group_name,
                      const HostResolver::RequestInfo& host,
                      RequestPriority priority,
@@ -56,19 +56,19 @@ class FlipSession : public base::RefCounted<FlipSession>,
   // might also not have initiated the stream yet, but indicated it will via
   // X-Associated-Content.
   // Returns the new or existing stream.  Never returns NULL.
-  scoped_refptr<FlipStream> GetOrCreateStream(const HttpRequestInfo& request,
+  scoped_refptr<SpdyStream> GetOrCreateStream(const HttpRequestInfo& request,
       const UploadDataStream* upload_data, LoadLog* log);
 
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
-  int WriteStreamData(flip::FlipStreamId stream_id, net::IOBuffer* data,
+  int WriteStreamData(spdy::SpdyStreamId stream_id, net::IOBuffer* data,
                       int len);
 
   // Cancel a stream.
-  bool CancelStream(flip::FlipStreamId stream_id);
+  bool CancelStream(spdy::SpdyStreamId stream_id);
 
   // Check if a stream is active.
-  bool IsStreamActive(flip::FlipStreamId stream_id) const;
+  bool IsStreamActive(spdy::SpdyStreamId stream_id) const;
 
   // The LoadState is used for informing the user of the current network
   // status, such as "resolving host", "connecting", etc.
@@ -79,7 +79,7 @@ class FlipSession : public base::RefCounted<FlipSession>,
   static bool SSLMode() { return use_ssl_; }
 
  protected:
-  friend class FlipSessionPool;
+  friend class SpdySessionPool;
 
   enum State {
     IDLE,
@@ -89,41 +89,41 @@ class FlipSession : public base::RefCounted<FlipSession>,
   };
 
   // Provide access to the framer for testing.
-  flip::FlipFramer* GetFramer() { return &flip_framer_; }
+  spdy::SpdyFramer* GetFramer() { return &spdy_framer_; }
 
-  // Create a new FlipSession.
+  // Create a new SpdySession.
   // |host| is the hostname that this session connects to.
-  FlipSession(const std::string& host, HttpNetworkSession* session);
+  SpdySession(const std::string& host, HttpNetworkSession* session);
 
   // Closes all open streams.  Used as part of shutdown.
   void CloseAllStreams(net::Error code);
 
  private:
-  friend class base::RefCounted<FlipSession>;
+  friend class base::RefCounted<SpdySession>;
 
-  typedef std::map<int, scoped_refptr<FlipStream> > ActiveStreamMap;
-  typedef std::list<scoped_refptr<FlipStream> > ActiveStreamList;
-  typedef std::map<std::string, scoped_refptr<FlipStream> > PendingStreamMap;
-  typedef std::priority_queue<FlipIOBuffer> OutputQueue;
+  typedef std::map<int, scoped_refptr<SpdyStream> > ActiveStreamMap;
+  typedef std::list<scoped_refptr<SpdyStream> > ActiveStreamList;
+  typedef std::map<std::string, scoped_refptr<SpdyStream> > PendingStreamMap;
+  typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
-  virtual ~FlipSession();
+  virtual ~SpdySession();
 
-  // Used by FlipSessionPool to initialize with a pre-existing socket.
+  // Used by SpdySessionPool to initialize with a pre-existing socket.
   void InitializeWithSocket(ClientSocketHandle* connection);
 
-  // FlipFramerVisitorInterface
-  virtual void OnError(flip::FlipFramer*);
-  virtual void OnStreamFrameData(flip::FlipStreamId stream_id,
+  // SpdyFramerVisitorInterface
+  virtual void OnError(spdy::SpdyFramer*);
+  virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len);
-  virtual void OnControl(const flip::FlipControlFrame* frame);
+  virtual void OnControl(const spdy::SpdyControlFrame* frame);
 
   // Control frame handlers.
-  void OnSyn(const flip::FlipSynStreamControlFrame* frame,
-             const flip::FlipHeaderBlock* headers);
-  void OnSynReply(const flip::FlipSynReplyControlFrame* frame,
-                  const flip::FlipHeaderBlock* headers);
-  void OnFin(const flip::FlipFinStreamControlFrame* frame);
+  void OnSyn(const spdy::SpdySynStreamControlFrame* frame,
+             const spdy::SpdyHeaderBlock* headers);
+  void OnSynReply(const spdy::SpdySynReplyControlFrame* frame,
+                  const spdy::SpdyHeaderBlock* headers);
+  void OnFin(const spdy::SpdyFinStreamControlFrame* frame);
 
   // IO Callbacks
   void OnTCPConnect(int result);
@@ -148,21 +148,21 @@ class FlipSession : public base::RefCounted<FlipSession>,
   void CloseSessionOnError(net::Error err);
 
   // Track active streams in the active stream list.
-  void ActivateStream(FlipStream* stream);
-  void DeactivateStream(flip::FlipStreamId id);
+  void ActivateStream(SpdyStream* stream);
+  void DeactivateStream(spdy::SpdyStreamId id);
 
   // Check if we have a pending pushed-stream for this url
   // Returns the stream if found (and returns it from the pending
   // list), returns NULL otherwise.
-  scoped_refptr<FlipStream> GetPushStream(const std::string& url);
+  scoped_refptr<SpdyStream> GetPushStream(const std::string& url);
 
   void GetSSLInfo(SSLInfo* ssl_info);
 
-  // Callbacks for the Flip session.
-  CompletionCallbackImpl<FlipSession> connect_callback_;
-  CompletionCallbackImpl<FlipSession> ssl_connect_callback_;
-  CompletionCallbackImpl<FlipSession> read_callback_;
-  CompletionCallbackImpl<FlipSession> write_callback_;
+  // Callbacks for the Spdy session.
+  CompletionCallbackImpl<SpdySession> connect_callback_;
+  CompletionCallbackImpl<SpdySession> ssl_connect_callback_;
+  CompletionCallbackImpl<SpdySession> read_callback_;
+  CompletionCallbackImpl<SpdySession> write_callback_;
 
   // The domain this session is connected to.
   std::string domain_;
@@ -185,7 +185,7 @@ class FlipSession : public base::RefCounted<FlipSession>,
   //                one list, but not the other.
 
   // Map from stream id to all active streams.  Streams are active in the sense
-  // that they have a consumer (typically FlipNetworkTransaction and regardless
+  // that they have a consumer (typically SpdyNetworkTransaction and regardless
   // of whether or not there is currently any ongoing IO [might be waiting for
   // the server to start pushing the stream]) or there are still network events
   // incoming even though the consumer has already gone away (cancellation).
@@ -206,16 +206,16 @@ class FlipSession : public base::RefCounted<FlipSession>,
 
   // The packet we are currently sending.
   bool write_pending_;            // Will be true when a write is in progress.
-  FlipIOBuffer in_flight_write_;  // This is the write buffer in progress.
+  SpdyIOBuffer in_flight_write_;  // This is the write buffer in progress.
 
   // Flag if we have a pending message scheduled for WriteSocket.
   bool delayed_write_pending_;
 
-  // Flag if we're using an SSL connection for this FlipSession.
+  // Flag if we're using an SSL connection for this SpdySession.
   bool is_secure_;
 
-  // Flip Frame state.
-  flip::FlipFramer flip_framer_;
+  // Spdy Frame state.
+  spdy::SpdyFramer spdy_framer_;
 
   // If an error has occurred on the session, the session is effectively
   // dead.  Record this error here.  When no error has occurred, |error_| will

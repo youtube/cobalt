@@ -8,20 +8,20 @@
 namespace net {
 
 // static
-uint64 FlipIOBuffer::order_ = 0;
+uint64 SpdyIOBuffer::order_ = 0;
 
-FlipIOBuffer::FlipIOBuffer(
-    IOBuffer* buffer, int size, int priority, FlipStream* stream)
+SpdyIOBuffer::SpdyIOBuffer(
+    IOBuffer* buffer, int size, int priority, SpdyStream* stream)
   : buffer_(new DrainableIOBuffer(buffer, size)),
     priority_(priority),
     position_(++order_),
     stream_(stream) {}
 
-FlipIOBuffer::FlipIOBuffer() : priority_(0), position_(0), stream_(NULL) {}
+SpdyIOBuffer::SpdyIOBuffer() : priority_(0), position_(0), stream_(NULL) {}
 
-FlipIOBuffer::~FlipIOBuffer() {}
+SpdyIOBuffer::~SpdyIOBuffer() {}
 
-void FlipIOBuffer::release() {
+void SpdyIOBuffer::release() {
   buffer_ = NULL;
   stream_ = NULL;
 }

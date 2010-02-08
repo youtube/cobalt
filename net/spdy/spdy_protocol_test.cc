@@ -9,34 +9,34 @@
 #include "net/spdy/spdy_framer.h"
 #include "testing/platform_test.h"
 
-using flip::FlipDataFrame;
-using flip::FlipFrame;
-using flip::FlipControlFrame;
-using flip::FlipSynStreamControlFrame;
-using flip::FlipSynReplyControlFrame;
-using flip::FlipFinStreamControlFrame;
-using flip::FlipFramer;
-using flip::FlipHeaderBlock;
-using flip::FlagsAndLength;
-using flip::kLengthMask;
-using flip::kStreamIdMask;
-using flip::kFlipProtocolVersion;
-using flip::SYN_STREAM;
-using flip::SYN_REPLY;
-using flip::FIN_STREAM;
-using flip::CONTROL_FLAG_FIN;
-using flip::CONTROL_FLAG_NONE;
+using spdy::SpdyDataFrame;
+using spdy::SpdyFrame;
+using spdy::SpdyControlFrame;
+using spdy::SpdySynStreamControlFrame;
+using spdy::SpdySynReplyControlFrame;
+using spdy::SpdyFinStreamControlFrame;
+using spdy::SpdyFramer;
+using spdy::SpdyHeaderBlock;
+using spdy::FlagsAndLength;
+using spdy::kLengthMask;
+using spdy::kStreamIdMask;
+using spdy::kSpdyProtocolVersion;
+using spdy::SYN_STREAM;
+using spdy::SYN_REPLY;
+using spdy::FIN_STREAM;
+using spdy::CONTROL_FLAG_FIN;
+using spdy::CONTROL_FLAG_NONE;
 
 namespace {
 
 // Test our protocol constants
-TEST(FlipProtocolTest, ProtocolConstants) {
-  EXPECT_EQ(8u, FlipFrame::size());
-  EXPECT_EQ(8u, FlipDataFrame::size());
-  EXPECT_EQ(12u, FlipControlFrame::size());
-  EXPECT_EQ(14u, FlipSynStreamControlFrame::size());
-  EXPECT_EQ(14u, FlipSynReplyControlFrame::size());
-  EXPECT_EQ(16u, FlipFinStreamControlFrame::size());
+TEST(SpdyProtocolTest, ProtocolConstants) {
+  EXPECT_EQ(8u, SpdyFrame::size());
+  EXPECT_EQ(8u, SpdyDataFrame::size());
+  EXPECT_EQ(12u, SpdyControlFrame::size());
+  EXPECT_EQ(14u, SpdySynStreamControlFrame::size());
+  EXPECT_EQ(14u, SpdySynReplyControlFrame::size());
+  EXPECT_EQ(16u, SpdyFinStreamControlFrame::size());
   EXPECT_EQ(4u, sizeof(FlagsAndLength));
   EXPECT_EQ(1, SYN_STREAM);
   EXPECT_EQ(2, SYN_REPLY);
@@ -44,8 +44,8 @@ TEST(FlipProtocolTest, ProtocolConstants) {
 }
 
 // Test some of the protocol helper functions
-TEST(FlipProtocolTest, FrameStructs) {
-  FlipFrame frame(FlipFrame::size());
+TEST(SpdyProtocolTest, FrameStructs) {
+  SpdyFrame frame(SpdyFrame::size());
   frame.set_length(12345);
   frame.set_flags(10);
   EXPECT_EQ(12345u, frame.length());
@@ -59,19 +59,19 @@ TEST(FlipProtocolTest, FrameStructs) {
   EXPECT_EQ(false, frame.is_control_frame());
 }
 
-TEST(FlipProtocolTest, DataFrameStructs) {
-  FlipDataFrame data_frame;
+TEST(SpdyProtocolTest, DataFrameStructs) {
+  SpdyDataFrame data_frame;
   data_frame.set_stream_id(12345);
   EXPECT_EQ(12345u, data_frame.stream_id());
 }
 
-TEST(FlipProtocolTest, ControlFrameStructs) {
-  FlipFramer framer;
-  FlipHeaderBlock headers;
+TEST(SpdyProtocolTest, ControlFrameStructs) {
+  SpdyFramer framer;
+  SpdyHeaderBlock headers;
 
-  scoped_ptr<FlipSynStreamControlFrame> syn_frame(
+  scoped_ptr<SpdySynStreamControlFrame> syn_frame(
       framer.CreateSynStream(123, 2, CONTROL_FLAG_FIN, false, &headers));
-  EXPECT_EQ(kFlipProtocolVersion, syn_frame->version());
+  EXPECT_EQ(kSpdyProtocolVersion, syn_frame->version());
   EXPECT_EQ(true, syn_frame->is_control_frame());
   EXPECT_EQ(SYN_STREAM, syn_frame->type());
   EXPECT_EQ(123u, syn_frame->stream_id());
@@ -79,18 +79,18 @@ TEST(FlipProtocolTest, ControlFrameStructs) {
   EXPECT_EQ(2, syn_frame->header_block_len());
   EXPECT_EQ(1u, syn_frame->flags());
 
-  scoped_ptr<FlipSynReplyControlFrame> syn_reply(
+  scoped_ptr<SpdySynReplyControlFrame> syn_reply(
       framer.CreateSynReply(123, CONTROL_FLAG_NONE, false, &headers));
-  EXPECT_EQ(kFlipProtocolVersion, syn_reply->version());
+  EXPECT_EQ(kSpdyProtocolVersion, syn_reply->version());
   EXPECT_EQ(true, syn_reply->is_control_frame());
   EXPECT_EQ(SYN_REPLY, syn_reply->type());
   EXPECT_EQ(123u, syn_reply->stream_id());
   EXPECT_EQ(2, syn_reply->header_block_len());
   EXPECT_EQ(0, syn_reply->flags());
 
-  scoped_ptr<FlipFinStreamControlFrame> fin_frame(
+  scoped_ptr<SpdyFinStreamControlFrame> fin_frame(
       framer.CreateFinStream(123, 444));
-  EXPECT_EQ(kFlipProtocolVersion, fin_frame->version());
+  EXPECT_EQ(kSpdyProtocolVersion, fin_frame->version());
   EXPECT_EQ(true, fin_frame->is_control_frame());
   EXPECT_EQ(FIN_STREAM, fin_frame->type());
   EXPECT_EQ(123u, fin_frame->stream_id());
@@ -100,8 +100,8 @@ TEST(FlipProtocolTest, ControlFrameStructs) {
   EXPECT_EQ(0, fin_frame->flags());
 }
 
-TEST(FlipProtocolTest, TestDataFrame) {
-  FlipDataFrame frame;
+TEST(SpdyProtocolTest, TestDataFrame) {
+  SpdyDataFrame frame;
 
   // Set the stream ID to various values.
   frame.set_stream_id(0);
@@ -113,7 +113,7 @@ TEST(FlipProtocolTest, TestDataFrame) {
 
   // Set length to various values.  Make sure that when you set_length(x),
   // length() == x.  Also make sure the flags are unaltered.
-  memset(frame.data(), '1', FlipDataFrame::size());
+  memset(frame.data(), '1', SpdyDataFrame::size());
   int8 flags = frame.flags();
   frame.set_length(0);
   EXPECT_EQ(0u, frame.length());
@@ -127,7 +127,7 @@ TEST(FlipProtocolTest, TestDataFrame) {
 
   // Set flags to various values.  Make sure that when you set_flags(x),
   // flags() == x.  Also make sure the length is unaltered.
-  memset(frame.data(), '1', FlipDataFrame::size());
+  memset(frame.data(), '1', SpdyDataFrame::size());
   uint32 length = frame.length();
   frame.set_flags(0);
   EXPECT_EQ(0u, frame.flags());
@@ -145,8 +145,8 @@ TEST(FlipProtocolTest, TestDataFrame) {
 // Make sure that overflows both die in debug mode, and do not cause problems
 // in opt mode.  Note:  Chrome doesn't die on DCHECK failures, so the
 // EXPECT_DEBUG_DEATH doesn't work.
-TEST(FlipProtocolDeathTest, TestDataFrame) {
-  FlipDataFrame frame;
+TEST(SpdyProtocolDeathTest, TestDataFrame) {
+  SpdyDataFrame frame;
 
   frame.set_stream_id(0);
 #ifndef WIN32
@@ -161,9 +161,9 @@ TEST(FlipProtocolDeathTest, TestDataFrame) {
   EXPECT_EQ(0, frame.flags());
 }
 
-TEST(FlipProtocolDeathTest, TestFlipControlFrame) {
-  FlipControlFrame frame(FlipControlFrame::size());
-  memset(frame.data(), '1', FlipControlFrame::size());
+TEST(SpdyProtocolDeathTest, TestSpdyControlFrame) {
+  SpdyControlFrame frame(SpdyControlFrame::size());
+  memset(frame.data(), '1', SpdyControlFrame::size());
 
   // Set the stream ID to various values.
   frame.set_stream_id(0);

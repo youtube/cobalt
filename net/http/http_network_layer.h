@@ -14,12 +14,12 @@
 namespace net {
 
 class ClientSocketFactory;
-class FlipSessionPool;
 class HostResolver;
 class HttpNetworkSession;
 class NetworkChangeNotifier;
 class ProxyInfo;
 class ProxyService;
+class SpdySessionPool;
 class SSLConfigService;
 
 class HttpNetworkLayer : public HttpTransactionFactory {
@@ -56,13 +56,13 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   virtual HttpNetworkSession* GetSession();
   virtual void Suspend(bool suspend);
 
-  // Enable the flip protocol.
-  // Without calling this function, FLIP is disabled.  The mode can be:
+  // Enable the spdy protocol.
+  // Without calling this function, SPDY is disabled.  The mode can be:
   //   ""            : (default) SSL and compression are enabled.
   //   "no-ssl"      : disables SSL.
   //   "no-compress" : disables compression.
   //   "none"        : disables both SSL and compression.
-  static void EnableFlip(const std::string& mode);
+  static void EnableSpdy(const std::string& mode);
 
  private:
   // The factory we will use to create network sockets.
@@ -79,10 +79,10 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   scoped_refptr<SSLConfigService> ssl_config_service_;
 
   scoped_refptr<HttpNetworkSession> session_;
-  scoped_refptr<FlipSessionPool> flip_session_pool_;
+  scoped_refptr<SpdySessionPool> spdy_session_pool_;
 
   bool suspended_;
-  static bool force_flip_;
+  static bool force_spdy_;
 };
 
 }  // namespace net

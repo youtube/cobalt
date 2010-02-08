@@ -22,36 +22,36 @@
 typedef struct z_stream_s z_stream;  // Forward declaration for zlib.
 
 namespace net {
-class FlipNetworkTransactionTest;
 class HttpNetworkLayer;
+class SpdyNetworkTransactionTest;
 }
 
-namespace flip {
+namespace spdy {
 
-class FlipFramer;
-class FlipFramerTest;
+class SpdyFramer;
+class SpdyFramerTest;
 
 namespace test {
-class TestFlipVisitor;
-void FramerSetEnableCompressionHelper(FlipFramer* framer, bool compress);
+class TestSpdyVisitor;
+void FramerSetEnableCompressionHelper(SpdyFramer* framer, bool compress);
 }  // namespace test
 
 // A datastructure for holding a set of headers from either a
 // SYN_STREAM or SYN_REPLY frame.
-typedef std::map<std::string, std::string> FlipHeaderBlock;
+typedef std::map<std::string, std::string> SpdyHeaderBlock;
 
-// FlipFramerVisitorInterface is a set of callbacks for the FlipFramer.
+// SpdyFramerVisitorInterface is a set of callbacks for the SpdyFramer.
 // Implement this interface to receive event callbacks as frames are
 // decoded from the framer.
-class FlipFramerVisitorInterface {
+class SpdyFramerVisitorInterface {
  public:
-  virtual ~FlipFramerVisitorInterface() {}
+  virtual ~SpdyFramerVisitorInterface() {}
 
-  // Called if an error is detected in the FlipFrame protocol.
-  virtual void OnError(FlipFramer* framer) = 0;
+  // Called if an error is detected in the SpdyFrame protocol.
+  virtual void OnError(SpdyFramer* framer) = 0;
 
   // Called when a Control Frame is received.
-  virtual void OnControl(const FlipControlFrame* frame) = 0;
+  virtual void OnControl(const SpdyControlFrame* frame) = 0;
 
   // Called when data is received.
   // |stream_id| The stream receiving data.
@@ -59,48 +59,48 @@ class FlipFramerVisitorInterface {
   // |len| The length of the data buffer.
   // When the other side has finished sending data on this stream,
   // this method will be called with a zero-length buffer.
-  virtual void OnStreamFrameData(flip::FlipStreamId stream_id,
+  virtual void OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len) = 0;
 };
 
-class FlipFramer {
+class SpdyFramer {
  public:
-  // Flip states.
+  // SPDY states.
   // TODO(mbelshe): Can we move these into the implementation
   //                and avoid exposing through the header.  (Needed for test)
-  enum FlipState {
-    FLIP_ERROR,
-    FLIP_DONE,
-    FLIP_RESET,
-    FLIP_AUTO_RESET,
-    FLIP_READING_COMMON_HEADER,
-    FLIP_INTERPRET_CONTROL_FRAME_COMMON_HEADER,
-    FLIP_CONTROL_FRAME_PAYLOAD,
-    FLIP_IGNORE_REMAINING_PAYLOAD,
-    FLIP_FORWARD_STREAM_FRAME
+  enum SpdyState {
+    SPDY_ERROR,
+    SPDY_DONE,
+    SPDY_RESET,
+    SPDY_AUTO_RESET,
+    SPDY_READING_COMMON_HEADER,
+    SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER,
+    SPDY_CONTROL_FRAME_PAYLOAD,
+    SPDY_IGNORE_REMAINING_PAYLOAD,
+    SPDY_FORWARD_STREAM_FRAME
   };
 
-  // Flip error codes.
-  enum FlipError {
-    FLIP_NO_ERROR,
-    FLIP_UNKNOWN_CONTROL_TYPE,       // Control frame is an unknown type.
-    FLIP_INVALID_CONTROL_FRAME,      // Control frame is mal-formatted.
-    FLIP_CONTROL_PAYLOAD_TOO_LARGE,  // Control frame payload was too large.
-    FLIP_ZLIB_INIT_FAILURE,          // The Zlib library could not initialize.
-    FLIP_UNSUPPORTED_VERSION,        // Control frame has unsupported version.
-    FLIP_DECOMPRESS_FAILURE,         // There was an error decompressing.
+  // SPDY error codes.
+  enum SpdyError {
+    SPDY_NO_ERROR,
+    SPDY_UNKNOWN_CONTROL_TYPE,       // Control frame is an unknown type.
+    SPDY_INVALID_CONTROL_FRAME,      // Control frame is mal-formatted.
+    SPDY_CONTROL_PAYLOAD_TOO_LARGE,  // Control frame payload was too large.
+    SPDY_ZLIB_INIT_FAILURE,          // The Zlib library could not initialize.
+    SPDY_UNSUPPORTED_VERSION,        // Control frame has unsupported version.
+    SPDY_DECOMPRESS_FAILURE,         // There was an error decompressing.
   };
 
   // Create a new Framer.
-  FlipFramer();
-  virtual ~FlipFramer();
+  SpdyFramer();
+  virtual ~SpdyFramer();
 
   // Set callbacks to be called from the framer.  A visitor must be set, or
   // else the framer will likely crash.  It is acceptable for the visitor
   // to do nothing.  If this is called multiple times, only the last visitor
   // will be used.
-  void set_visitor(FlipFramerVisitorInterface* visitor) {
+  void set_visitor(SpdyFramerVisitorInterface* visitor) {
     visitor_ = visitor;
   }
 
@@ -114,46 +114,46 @@ class FlipFramer {
   void Reset();
 
   // Check the state of the framer.
-  FlipError error_code() const { return error_code_; }
-  FlipState state() const { return state_; }
+  SpdyError error_code() const { return error_code_; }
+  SpdyState state() const { return state_; }
 
   bool MessageFullyRead() {
-    return state_ == FLIP_DONE || state_ == FLIP_AUTO_RESET;
+    return state_ == SPDY_DONE || state_ == SPDY_AUTO_RESET;
   }
-  bool HasError() { return state_ == FLIP_ERROR; }
+  bool HasError() { return state_ == SPDY_ERROR; }
 
   // Further parsing utilities.
-  // Given a control frame, parse out a FlipHeaderBlock.  Only
+  // Given a control frame, parse out a SpdyHeaderBlock.  Only
   // valid for SYN_STREAM and SYN_REPLY frames.
   // Returns true if successfully parsed, false otherwise.
-  bool ParseHeaderBlock(const FlipFrame* frame, FlipHeaderBlock* block);
+  bool ParseHeaderBlock(const SpdyFrame* frame, SpdyHeaderBlock* block);
 
-  // Create a FlipSynStreamControlFrame.
+  // Create a SpdySynStreamControlFrame.
   // |stream_id| is the stream for this frame.
   // |priority| is the priority (0-3) for this frame.
   // |flags| is the flags to use with the data.
   //    To mark this frame as the last frame, enable CONTROL_FLAG_FIN.
   // |compressed| specifies whether the frame should be compressed.
   // |headers| is the header block to include in the frame.
-  FlipSynStreamControlFrame* CreateSynStream(FlipStreamId stream_id,
+  SpdySynStreamControlFrame* CreateSynStream(SpdyStreamId stream_id,
                                              int priority,
-                                             FlipControlFlags flags,
+                                             SpdyControlFlags flags,
                                              bool compressed,
-                                             FlipHeaderBlock* headers);
+                                             SpdyHeaderBlock* headers);
 
-  static FlipFinStreamControlFrame* CreateFinStream(FlipStreamId stream_id,
+  static SpdyFinStreamControlFrame* CreateFinStream(SpdyStreamId stream_id,
                                                     int status);
 
-  // Create a FlipSynReplyControlFrame.
+  // Create a SpdySynReplyControlFrame.
   // |stream_id| is the stream for this frame.
   // |flags| is the flags to use with the data.
   //    To mark this frame as the last frame, enable CONTROL_FLAG_FIN.
   // |compressed| specifies whether the frame should be compressed.
   // |headers| is the header block to include in the frame.
-  FlipSynReplyControlFrame* CreateSynReply(FlipStreamId stream_id,
-                                           FlipControlFlags flags,
+  SpdySynReplyControlFrame* CreateSynReply(SpdyStreamId stream_id,
+                                           SpdyControlFlags flags,
                                            bool compressed,
-                                           FlipHeaderBlock* headers);
+                                           SpdyHeaderBlock* headers);
 
   // Create a data frame.
   // |stream_id| is the stream  for this frame
@@ -162,13 +162,13 @@ class FlipFramer {
   // |flags| is the flags to use with the data.
   //    To create a compressed frame, enable DATA_FLAG_COMPRESSED.
   //    To mark this frame as the last data frame, enable DATA_FLAG_FIN.
-  FlipDataFrame* CreateDataFrame(FlipStreamId stream_id, const char* data,
-                                 uint32 len, FlipDataFlags flags);
+  SpdyDataFrame* CreateDataFrame(SpdyStreamId stream_id, const char* data,
+                                 uint32 len, SpdyDataFlags flags);
 
-  static FlipControlFrame* CreateNopFrame();
+  static SpdyControlFrame* CreateNopFrame();
 
   // NOTES about frame compression.
-  // We want flip to compress headers across the entire session.  As long as
+  // We want spdy to compress headers across the entire session.  As long as
   // the session is over TCP, frames are sent serially.  The client & server
   // can each compress frames in the same order and then compress them in that
   // order, and the remote can do the reverse.  However, we ultimately want
@@ -178,33 +178,33 @@ class FlipFramer {
   // not build its state in a serial (stream based) manner....  For now, we're
   // using zlib anyway.
 
-  // Compresses a FlipFrame.
-  // On success, returns a new FlipFrame with the payload compressed.
-  // Compression state is maintained as part of the FlipFramer.
+  // Compresses a SpdyFrame.
+  // On success, returns a new SpdyFrame with the payload compressed.
+  // Compression state is maintained as part of the SpdyFramer.
   // Returned frame must be freed with free().
   // On failure, returns NULL.
-  FlipFrame* CompressFrame(const FlipFrame* frame);
+  SpdyFrame* CompressFrame(const SpdyFrame* frame);
 
-  // Decompresses a FlipFrame.
-  // On success, returns a new FlipFrame with the payload decompressed.
-  // Compression state is maintained as part of the FlipFramer.
+  // Decompresses a SpdyFrame.
+  // On success, returns a new SpdyFrame with the payload decompressed.
+  // Compression state is maintained as part of the SpdyFramer.
   // Returned frame must be freed with free().
   // On failure, returns NULL.
-  FlipFrame* DecompressFrame(const FlipFrame* frame);
+  SpdyFrame* DecompressFrame(const SpdyFrame* frame);
 
   // Create a copy of a frame.
-  FlipFrame* DuplicateFrame(const FlipFrame* frame);
+  SpdyFrame* DuplicateFrame(const SpdyFrame* frame);
 
   // For debugging.
   static const char* StateToString(int state);
   static const char* ErrorCodeToString(int error_code);
 
  protected:
-  FRIEND_TEST(FlipFramerTest, HeaderBlockBarfsOnOutOfOrderHeaders);
-  friend class net::FlipNetworkTransactionTest;
+  FRIEND_TEST(SpdyFramerTest, HeaderBlockBarfsOnOutOfOrderHeaders);
+  friend class net::SpdyNetworkTransactionTest;
   friend class net::HttpNetworkLayer;  // This is temporary for the server.
-  friend class test::TestFlipVisitor;
-  friend void test::FramerSetEnableCompressionHelper(FlipFramer* framer,
+  friend class test::TestSpdyVisitor;
+  friend void test::FramerSetEnableCompressionHelper(SpdyFramer* framer,
                                                      bool compress);
 
   // For ease of testing we can tweak compression on/off.
@@ -227,18 +227,18 @@ class FlipFramer {
   size_t BytesSafeToRead() const;
 
   // Set the error code and moves the framer into the error state.
-  void set_error(FlipError error);
+  void set_error(SpdyError error);
 
   // Expands the control frame buffer to accomodate a particular payload size.
   void ExpandControlFrameBuffer(size_t size);
 
   // Given a frame, breakdown the variable payload length, the static header
   // header length, and variable payload pointer.
-  bool GetFrameBoundaries(const FlipFrame* frame, int* payload_length,
+  bool GetFrameBoundaries(const SpdyFrame* frame, int* payload_length,
                           int* header_length, const char** payload) const;
 
-  FlipState state_;
-  FlipError error_code_;
+  SpdyState state_;
+  SpdyError error_code_;
   size_t remaining_payload_;
   size_t remaining_control_payload_;
 
@@ -249,12 +249,12 @@ class FlipFramer {
   bool enable_compression_;
   scoped_ptr<z_stream> compressor_;
   scoped_ptr<z_stream> decompressor_;
-  FlipFramerVisitorInterface* visitor_;
+  SpdyFramerVisitorInterface* visitor_;
 
   static bool compression_default_;
 };
 
-}  // namespace flip
+}  // namespace spdy
 
 #endif  // NET_SPDY_SPDY_FRAMER_H_
 

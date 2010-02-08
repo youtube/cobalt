@@ -40,7 +40,7 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
 }
 
 //-----------------------------------------------------------------------------
-bool HttpNetworkLayer::force_flip_ = false;
+bool HttpNetworkLayer::force_spdy_ = false;
 
 HttpNetworkLayer::HttpNetworkLayer(
     ClientSocketFactory* socket_factory,
@@ -54,7 +54,7 @@ HttpNetworkLayer::HttpNetworkLayer(
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
       session_(NULL),
-      flip_session_pool_(NULL),
+      spdy_session_pool_(NULL),
       suspended_(false) {
   DCHECK(proxy_service_);
   DCHECK(ssl_config_service_.get());
@@ -65,7 +65,7 @@ HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
       network_change_notifier_(NULL),
       ssl_config_service_(NULL),
       session_(session),
-      flip_session_pool_(session->flip_session_pool()),
+      spdy_session_pool_(session->spdy_session_pool()),
       suspended_(false) {
   DCHECK(session_.get());
 }
@@ -77,8 +77,8 @@ int HttpNetworkLayer::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
   if (suspended_)
     return ERR_NETWORK_IO_SUSPENDED;
 
-  if (force_flip_)
-    trans->reset(new FlipNetworkTransaction(GetSession()));
+  if (force_spdy_)
+    trans->reset(new SpdyNetworkTransaction(GetSession()));
   else
     trans->reset(new HttpNetworkTransaction(GetSession()));
   return OK;
@@ -98,10 +98,10 @@ void HttpNetworkLayer::Suspend(bool suspend) {
 HttpNetworkSession* HttpNetworkLayer::GetSession() {
   if (!session_) {
     DCHECK(proxy_service_);
-    FlipSessionPool* flip_pool = new FlipSessionPool;
+    SpdySessionPool* spdy_pool = new SpdySessionPool;
     session_ = new HttpNetworkSession(
         network_change_notifier_, host_resolver_, proxy_service_,
-        socket_factory_, ssl_config_service_, flip_pool);
+        socket_factory_, ssl_config_service_, spdy_pool);
     // These were just temps for lazy-initializing HttpNetworkSession.
     network_change_notifier_ = NULL;
     host_resolver_ = NULL;
@@ -112,33 +112,33 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
 }
 
 // static
-void HttpNetworkLayer::EnableFlip(const std::string& mode) {
+void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kDisableSSL[] = "no-ssl";
   static const char kDisableCompression[] = "no-compress";
   static const char kEnableNPN[] = "npn";
 
-  std::vector<std::string> flip_options;
-  SplitString(mode, ',', &flip_options);
+  std::vector<std::string> spdy_options;
+  SplitString(mode, ',', &spdy_options);
 
-  // Force flip mode (use FlipNetworkTransaction for all http requests).
-  force_flip_ = true;
+  // Force spdy mode (use SpdyNetworkTransaction for all http requests).
+  force_spdy_ = true;
 
-  for (std::vector<std::string>::iterator it = flip_options.begin();
-       it != flip_options.end(); ++it) {
+  for (std::vector<std::string>::iterator it = spdy_options.begin();
+       it != spdy_options.end(); ++it) {
     const std::string& option = *it;
 
     // Disable SSL
     if (option == kDisableSSL) {
-      FlipSession::SetSSLMode(false);
+      SpdySession::SetSSLMode(false);
     } else if (option == kDisableCompression) {
-      flip::FlipFramer::set_enable_compression_default(false);
+      spdy::SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {
       HttpNetworkTransaction::SetNextProtos("\007http1.1\004spdy");
-      force_flip_ = false;
-    } else if (option.empty() && it == flip_options.begin()) {
+      force_spdy_ = false;
+    } else if (option.empty() && it == spdy_options.begin()) {
       continue;
     } else {
-      LOG(DFATAL) << "Unrecognized flip option: " << option;
+      LOG(DFATAL) << "Unrecognized spdy option: " << option;
     }
   }
 }
