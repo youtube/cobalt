@@ -31,7 +31,7 @@ ProxyService* CreateNullProxyService() {
 }
 
 // Helper to manage the lifetimes of the dependencies for a
-// FlipNetworkTransaction.
+// SpdyNetworkTransaction.
 class SessionDependencies {
  public:
   // Default set of dependencies -- "null" proxy service.
@@ -39,7 +39,7 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(CreateNullProxyService()),
         ssl_config_service(new SSLConfigServiceDefaults),
-        flip_session_pool(new FlipSessionPool) {
+        spdy_session_pool(new SpdySessionPool) {
     // Note: The CancelledTransaction test does cleanup by running all tasks
     // in the message loop (RunAllPending).  Unfortunately, that doesn't clean
     // up tasks on the host resolver thread; and TCPConnectJob is currently
@@ -54,13 +54,13 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
-        flip_session_pool(new FlipSessionPool) {}
+        spdy_session_pool(new SpdySessionPool) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
-  scoped_refptr<FlipSessionPool> flip_session_pool;
+  scoped_refptr<SpdySessionPool> spdy_session_pool;
 };
 
 ProxyService* CreateFixedProxyService(const std::string& proxy) {
@@ -76,7 +76,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
-                                session_deps->flip_session_pool);
+                                session_deps->spdy_session_pool);
 }
 
 // Chop a frame into an array of MockWrites.
@@ -260,7 +260,7 @@ class DelayedSocketData : public StaticSocketDataProvider,
   ScopedRunnableMethodFactory<DelayedSocketData> factory_;
 };
 
-class FlipNetworkTransactionTest : public PlatformTest {
+class SpdyNetworkTransactionTest : public PlatformTest {
  protected:
   virtual void SetUp() {
     // By default, all tests turn off compression.
@@ -283,7 +283,7 @@ class FlipNetworkTransactionTest : public PlatformTest {
   };
 
   void EnableCompression(bool enabled) {
-    flip::FlipFramer::set_enable_compression_default(enabled);
+    spdy::SpdyFramer::set_enable_compression_default(enabled);
   }
 
   TransactionHelperResult TransactionHelper(const HttpRequestInfo& request,
@@ -292,11 +292,11 @@ class FlipNetworkTransactionTest : public PlatformTest {
     TransactionHelperResult out;
 
     // We disable SSL for this test.
-    FlipSession::SetSSLMode(false);
+    SpdySession::SetSSLMode(false);
 
     SessionDependencies session_deps;
-    scoped_ptr<FlipNetworkTransaction> trans(
-        new FlipNetworkTransaction(CreateSession(&session_deps)));
+    scoped_ptr<SpdyNetworkTransaction> trans(
+        new SpdyNetworkTransaction(CreateSession(&session_deps)));
 
     session_deps.socket_factory.AddSocketDataProvider(data);
 
@@ -333,15 +333,15 @@ class FlipNetworkTransactionTest : public PlatformTest {
 
 //-----------------------------------------------------------------------------
 
-// Verify FlipNetworkTransaction constructor.
-TEST_F(FlipNetworkTransactionTest, Constructor) {
+// Verify SpdyNetworkTransaction constructor.
+TEST_F(SpdyNetworkTransactionTest, Constructor) {
   SessionDependencies session_deps;
   scoped_refptr<HttpNetworkSession> session =
       CreateSession(&session_deps);
-  scoped_ptr<HttpTransaction> trans(new FlipNetworkTransaction(session));
+  scoped_ptr<HttpTransaction> trans(new SpdyNetworkTransaction(session));
 }
 
-TEST_F(FlipNetworkTransactionTest, Get) {
+TEST_F(SpdyNetworkTransactionTest, Get) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
               arraysize(kGetSyn)),
@@ -369,7 +369,7 @@ TEST_F(FlipNetworkTransactionTest, Get) {
 }
 
 // Test that a simple POST works.
-TEST_F(FlipNetworkTransactionTest, Post) {
+TEST_F(SpdyNetworkTransactionTest, Post) {
   static const char upload[] = { "hello world" };
 
   // Setup the request
@@ -404,7 +404,7 @@ TEST_F(FlipNetworkTransactionTest, Post) {
 }
 
 // Test that a simple POST works.
-TEST_F(FlipNetworkTransactionTest, EmptyPost) {
+TEST_F(SpdyNetworkTransactionTest, EmptyPost) {
 static const unsigned char kEmptyPostSyn[] = {
   0x80, 0x01, 0x00, 0x01,                                      // header
   0x01, 0x00, 0x00, 0x46,                                      // flags, len
@@ -451,7 +451,7 @@ static const unsigned char kEmptyPostSyn[] = {
 }
 
 // Test that the transaction doesn't crash when we don't have a reply.
-TEST_F(FlipNetworkTransactionTest, ResponseWithoutSynReply) {
+TEST_F(SpdyNetworkTransactionTest, ResponseWithoutSynReply) {
   MockRead reads[] = {
     MockRead(true, reinterpret_cast<const char*>(kPostBodyFrame),
              arraysize(kPostBodyFrame)),
@@ -468,7 +468,7 @@ TEST_F(FlipNetworkTransactionTest, ResponseWithoutSynReply) {
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
 }
 
-TEST_F(FlipNetworkTransactionTest, CancelledTransaction) {
+TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
               arraysize(kGetSyn)),
@@ -479,8 +479,8 @@ TEST_F(FlipNetworkTransactionTest, CancelledTransaction) {
     MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
              arraysize(kGetSynReply)),
     // This following read isn't used by the test, except during the
-    // RunAllPending() call at the end since the FlipSession survives the
-    // FlipNetworkTransaction and still tries to continue Read()'ing.  Any
+    // RunAllPending() call at the end since the SpdySession survives the
+    // SpdyNetworkTransaction and still tries to continue Read()'ing.  Any
     // MockRead will do here.
     MockRead(true, 0, 0)  // EOF
   };
@@ -491,11 +491,11 @@ TEST_F(FlipNetworkTransactionTest, CancelledTransaction) {
   request.load_flags = 0;
 
   // We disable SSL for this test.
-  FlipSession::SetSSLMode(false);
+  SpdySession::SetSSLMode(false);
 
   SessionDependencies session_deps;
-  scoped_ptr<FlipNetworkTransaction> trans(
-      new FlipNetworkTransaction(CreateSession(&session_deps)));
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(CreateSession(&session_deps)));
 
   StaticSocketDataProvider data(reads, writes);
   session_deps.socket_factory.AddSocketDataProvider(&data);
@@ -513,7 +513,7 @@ TEST_F(FlipNetworkTransactionTest, CancelledTransaction) {
 
 // Verify that various SynReply headers parse correctly through the
 // HTTP layer.
-TEST_F(FlipNetworkTransactionTest, SynReplyHeaders) {
+TEST_F(SpdyNetworkTransactionTest, SynReplyHeaders) {
   // This uses a multi-valued cookie header.
   static const unsigned char syn_reply1[] = {
     0x80, 0x01, 0x00, 0x02,
@@ -632,7 +632,7 @@ TEST_F(FlipNetworkTransactionTest, SynReplyHeaders) {
 }
 
 // Verify that we don't crash on invalid SynReply responses.
-TEST_F(FlipNetworkTransactionTest, InvalidSynReply) {
+TEST_F(SpdyNetworkTransactionTest, InvalidSynReply) {
   static const unsigned char kSynReplyMissingStatus[] = {
     0x80, 0x01, 0x00, 0x02,
     0x00, 0x00, 0x00, 0x3f,
@@ -693,7 +693,7 @@ TEST_F(FlipNetworkTransactionTest, InvalidSynReply) {
 }
 
 // Verify that we don't crash on some corrupt frames.
-TEST_F(FlipNetworkTransactionTest, CorruptFrameSessionError) {
+TEST_F(SpdyNetworkTransactionTest, CorruptFrameSessionError) {
   static const unsigned char kSynReplyMassiveLength[] = {
     0x80, 0x01, 0x00, 0x02,
     0x0f, 0x11, 0x11, 0x26,   // This is the length field with a big number
@@ -734,11 +734,11 @@ TEST_F(FlipNetworkTransactionTest, CorruptFrameSessionError) {
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(reads, 1, writes));
     TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
-    EXPECT_EQ(ERR_FLIP_PROTOCOL_ERROR, out.rv);
+    EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
   }
 }
 
-TEST_F(FlipNetworkTransactionTest, ServerPush) {
+TEST_F(SpdyNetworkTransactionTest, ServerPush) {
   // Reply with the X-Associated-Content header.
   static const unsigned char syn_reply[] = {
     0x80, 0x01, 0x00, 0x02,
@@ -802,7 +802,7 @@ TEST_F(FlipNetworkTransactionTest, ServerPush) {
   };
 
   // We disable SSL for this test.
-  FlipSession::SetSSLMode(false);
+  SpdySession::SetSSLMode(false);
 
   enum TestTypes {
     // Simulate that the server sends the first request, notifying the client
@@ -810,7 +810,7 @@ TEST_F(FlipNetworkTransactionTest, ServerPush) {
     // request for the second stream before the push data arrives.
     PUSH_AFTER_REQUEST,
     // Simulate that the server is sending the pushed stream data before the
-    // client requests it.  The FlipSession will buffer the response and then
+    // client requests it.  The SpdySession will buffer the response and then
     // deliver the data when the client does make the request.
     PUSH_BEFORE_REQUEST,
     DONE
@@ -826,7 +826,7 @@ TEST_F(FlipNetworkTransactionTest, ServerPush) {
 
     // Issue the first request
     {
-      FlipNetworkTransaction trans(session.get());
+      SpdyNetworkTransaction trans(session.get());
 
       // Issue the first request.
       HttpRequestInfo request;
@@ -857,7 +857,7 @@ TEST_F(FlipNetworkTransactionTest, ServerPush) {
 
     // Issue a second request for the X-Associated-Content.
     {
-      FlipNetworkTransaction trans(session.get());
+      SpdyNetworkTransaction trans(session.get());
 
       HttpRequestInfo request;
       request.method = "GET";
@@ -896,7 +896,7 @@ TEST_F(FlipNetworkTransactionTest, ServerPush) {
 }
 
 // Test that we shutdown correctly on write errors.
-TEST_F(FlipNetworkTransactionTest, WriteError) {
+TEST_F(SpdyNetworkTransactionTest, WriteError) {
   MockWrite writes[] = {
     // We'll write 10 bytes successfully
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn), 10),
@@ -925,7 +925,7 @@ TEST_F(FlipNetworkTransactionTest, WriteError) {
 }
 
 // Test that partial writes work.
-TEST_F(FlipNetworkTransactionTest, PartialWrite) {
+TEST_F(SpdyNetworkTransactionTest, PartialWrite) {
   // Chop the SYN_STREAM frame into 5 chunks.
   const int kChunks = 5;
   scoped_array<MockWrite> writes(ChopFrame(
@@ -951,7 +951,7 @@ TEST_F(FlipNetworkTransactionTest, PartialWrite) {
   EXPECT_EQ("hello!", out.response_data);
 }
 
-TEST_F(FlipNetworkTransactionTest, DISABLED_ConnectFailure) {
+TEST_F(SpdyNetworkTransactionTest, DISABLED_ConnectFailure) {
   MockConnect connects[]  = {
     MockConnect(true, ERR_NAME_NOT_RESOLVED),
     MockConnect(false, ERR_NAME_NOT_RESOLVED),
@@ -987,7 +987,7 @@ TEST_F(FlipNetworkTransactionTest, DISABLED_ConnectFailure) {
 
 // In this test, we enable compression, but get a uncompressed SynReply from
 // the server.  Verify that teardown is all clean.
-TEST_F(FlipNetworkTransactionTest, DecompressFailureOnSynReply) {
+TEST_F(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSynCompressed),
               arraysize(kGetSynCompressed)),
@@ -1019,7 +1019,7 @@ TEST_F(FlipNetworkTransactionTest, DecompressFailureOnSynReply) {
 }
 
 // Test that the LoadLog contains good data for a simple GET request.
-TEST_F(FlipNetworkTransactionTest, LoadLog) {
+TEST_F(SpdyNetworkTransactionTest, LoadLog) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
               arraysize(kGetSyn)),
@@ -1055,29 +1055,29 @@ TEST_F(FlipNetworkTransactionTest, LoadLog) {
   int pos = 0;
   // We know the first event at position 0.
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      *log, 0, net::LoadLog::TYPE_FLIP_TRANSACTION_INIT_CONNECTION));
+      *log, 0, net::LoadLog::TYPE_SPDY_TRANSACTION_INIT_CONNECTION));
   // For the rest of the events, allow additional events in the middle,
   // but expect these to be logged in order.
   pos = net::ExpectLogContainsSomewhere(log, 0,
-      net::LoadLog::TYPE_FLIP_TRANSACTION_INIT_CONNECTION,
+      net::LoadLog::TYPE_SPDY_TRANSACTION_INIT_CONNECTION,
       net::LoadLog::PHASE_END);
   pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_FLIP_TRANSACTION_SEND_REQUEST,
+      net::LoadLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST,
       net::LoadLog::PHASE_BEGIN);
   pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_FLIP_TRANSACTION_SEND_REQUEST,
+      net::LoadLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST,
       net::LoadLog::PHASE_END);
   pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_FLIP_TRANSACTION_READ_HEADERS,
+      net::LoadLog::TYPE_SPDY_TRANSACTION_READ_HEADERS,
       net::LoadLog::PHASE_BEGIN);
   pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_FLIP_TRANSACTION_READ_HEADERS,
+      net::LoadLog::TYPE_SPDY_TRANSACTION_READ_HEADERS,
       net::LoadLog::PHASE_END);
   pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_FLIP_TRANSACTION_READ_BODY,
+      net::LoadLog::TYPE_SPDY_TRANSACTION_READ_BODY,
       net::LoadLog::PHASE_BEGIN);
   pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_FLIP_TRANSACTION_READ_BODY,
+      net::LoadLog::TYPE_SPDY_TRANSACTION_READ_BODY,
       net::LoadLog::PHASE_END);
 }
 

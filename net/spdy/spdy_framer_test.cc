@@ -11,17 +11,17 @@
 #include "net/spdy/spdy_frame_builder.h"
 #include "testing/platform_test.h"
 
-namespace flip {
+namespace spdy {
 
 namespace test {
 
-void FramerSetEnableCompressionHelper(FlipFramer* framer, bool compress) {
+void FramerSetEnableCompressionHelper(SpdyFramer* framer, bool compress) {
   framer->set_enable_compression(compress);
 }
 
-class TestFlipVisitor : public FlipFramerVisitorInterface  {
+class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
  public:
-  TestFlipVisitor()
+  TestSpdyVisitor()
     : error_count_(0),
       syn_frame_count_(0),
       syn_reply_frame_count_(0),
@@ -31,11 +31,11 @@ class TestFlipVisitor : public FlipFramerVisitorInterface  {
       zero_length_data_frame_count_(0) {
   }
 
-  void OnError(FlipFramer* f) {
+  void OnError(SpdyFramer* f) {
     error_count_++;
   }
 
-  void OnStreamFrameData(FlipStreamId stream_id,
+  void OnStreamFrameData(SpdyStreamId stream_id,
                          const char* data,
                          size_t len) {
     if (len == 0)
@@ -51,8 +51,8 @@ class TestFlipVisitor : public FlipFramerVisitorInterface  {
     std::cerr << "\", " << len << ")\n";
   }
 
-  void OnControl(const FlipControlFrame* frame) {
-    FlipHeaderBlock headers;
+  void OnControl(const SpdyControlFrame* frame) {
+    SpdyHeaderBlock headers;
     bool parsed_headers = false;
     switch (frame->type()) {
       case SYN_STREAM:
@@ -82,7 +82,7 @@ class TestFlipVisitor : public FlipFramerVisitorInterface  {
     size_t input_remaining = size;
     const char* input_ptr = reinterpret_cast<const char*>(input);
     while (input_remaining > 0 &&
-           framer_.error_code() == FlipFramer::FLIP_NO_ERROR) {
+           framer_.error_code() == SpdyFramer::SPDY_NO_ERROR) {
       // To make the tests more interesting, we feed random (amd small) chunks
       // into the framer.  This simulates getting strange-sized reads from
       // the socket.
@@ -92,12 +92,12 @@ class TestFlipVisitor : public FlipFramerVisitorInterface  {
       size_t bytes_processed = framer_.ProcessInput(input_ptr, bytes_read);
       input_remaining -= bytes_processed;
       input_ptr += bytes_processed;
-      if (framer_.state() == FlipFramer::FLIP_DONE)
+      if (framer_.state() == SpdyFramer::SPDY_DONE)
         framer_.Reset();
     }
   }
 
-  FlipFramer framer_;
+  SpdyFramer framer_;
   // Counters from the visitor callbacks.
   int error_count_;
   int syn_frame_count_;
@@ -110,39 +110,39 @@ class TestFlipVisitor : public FlipFramerVisitorInterface  {
 
 }  // namespace test
 
-}  // namespace flip
+}  // namespace spdy
 
-using flip::FlipFrame;
-using flip::FlipFrameBuilder;
-using flip::FlipFramer;
-using flip::FlipHeaderBlock;
-using flip::FlipSynStreamControlFrame;
-using flip::kControlFlagMask;
-using flip::CONTROL_FLAG_NONE;
-using flip::SYN_STREAM;
-using flip::test::FramerSetEnableCompressionHelper;
-using flip::test::TestFlipVisitor;
+using spdy::SpdyFrame;
+using spdy::SpdyFrameBuilder;
+using spdy::SpdyFramer;
+using spdy::SpdyHeaderBlock;
+using spdy::SpdySynStreamControlFrame;
+using spdy::kControlFlagMask;
+using spdy::CONTROL_FLAG_NONE;
+using spdy::SYN_STREAM;
+using spdy::test::FramerSetEnableCompressionHelper;
+using spdy::test::TestSpdyVisitor;
 
 namespace {
 
-class FlipFramerTest : public PlatformTest {
+class SpdyFramerTest : public PlatformTest {
  public:
   virtual void TearDown() {}
 };
 
-// Test that we can encode and decode a FlipHeaderBlock.
-TEST_F(FlipFramerTest, HeaderBlock) {
-  FlipHeaderBlock headers;
+// Test that we can encode and decode a SpdyHeaderBlock.
+TEST_F(SpdyFramerTest, HeaderBlock) {
+  SpdyHeaderBlock headers;
   headers["alpha"] = "beta";
   headers["gamma"] = "charlie";
-  FlipFramer framer;
+  SpdyFramer framer;
 
   // Encode the header block into a SynStream frame.
-  scoped_ptr<FlipSynStreamControlFrame> frame(
+  scoped_ptr<SpdySynStreamControlFrame> frame(
       framer.CreateSynStream(1, 1, CONTROL_FLAG_NONE, true, &headers));
   EXPECT_TRUE(frame.get() != NULL);
 
-  FlipHeaderBlock new_headers;
+  SpdyHeaderBlock new_headers;
   framer.ParseHeaderBlock(frame.get(), &new_headers);
 
   EXPECT_EQ(headers.size(), new_headers.size());
@@ -150,8 +150,8 @@ TEST_F(FlipFramerTest, HeaderBlock) {
   EXPECT_EQ(headers["gamma"], new_headers["gamma"]);
 }
 
-TEST_F(FlipFramerTest, OutOfOrderHeaders) {
-  FlipFrameBuilder frame;
+TEST_F(SpdyFramerTest, OutOfOrderHeaders) {
+  SpdyFrameBuilder frame;
 
   frame.WriteUInt16(kControlFlagMask | 1);
   frame.WriteUInt16(SYN_STREAM);
@@ -160,23 +160,23 @@ TEST_F(FlipFramerTest, OutOfOrderHeaders) {
   frame.WriteUInt16(0);  // Priority.
 
   frame.WriteUInt16(2);  // Number of headers.
-  FlipHeaderBlock::iterator it;
+  SpdyHeaderBlock::iterator it;
   frame.WriteString("gamma");
   frame.WriteString("gamma");
   frame.WriteString("alpha");
   frame.WriteString("alpha");
   // write the length
-  frame.WriteUInt32ToOffset(4, frame.length() - FlipFrame::size());
+  frame.WriteUInt32ToOffset(4, frame.length() - SpdyFrame::size());
 
-  FlipHeaderBlock new_headers;
-  scoped_ptr<FlipFrame> control_frame(frame.take());
-  FlipFramer framer;
+  SpdyHeaderBlock new_headers;
+  scoped_ptr<SpdyFrame> control_frame(frame.take());
+  SpdyFramer framer;
   FramerSetEnableCompressionHelper(&framer, false);
   EXPECT_TRUE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
 }
 
-TEST_F(FlipFramerTest, DuplicateHeader) {
-  FlipFrameBuilder frame;
+TEST_F(SpdyFramerTest, DuplicateHeader) {
+  SpdyFrameBuilder frame;
 
   frame.WriteUInt16(kControlFlagMask | 1);
   frame.WriteUInt16(SYN_STREAM);
@@ -185,24 +185,24 @@ TEST_F(FlipFramerTest, DuplicateHeader) {
   frame.WriteUInt16(0);  // Priority.
 
   frame.WriteUInt16(2);  // Number of headers.
-  FlipHeaderBlock::iterator it;
+  SpdyHeaderBlock::iterator it;
   frame.WriteString("name");
   frame.WriteString("value1");
   frame.WriteString("name");
   frame.WriteString("value2");
   // write the length
-  frame.WriteUInt32ToOffset(4, frame.length() - FlipFrame::size());
+  frame.WriteUInt32ToOffset(4, frame.length() - SpdyFrame::size());
 
-  FlipHeaderBlock new_headers;
-  scoped_ptr<FlipFrame> control_frame(frame.take());
-  FlipFramer framer;
+  SpdyHeaderBlock new_headers;
+  scoped_ptr<SpdyFrame> control_frame(frame.take());
+  SpdyFramer framer;
   FramerSetEnableCompressionHelper(&framer, false);
   // This should fail because duplicate headers are verboten by the spec.
   EXPECT_FALSE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
 }
 
-TEST_F(FlipFramerTest, MultiValueHeader) {
-  FlipFrameBuilder frame;
+TEST_F(SpdyFramerTest, MultiValueHeader) {
+  SpdyFrameBuilder frame;
 
   frame.WriteUInt16(kControlFlagMask | 1);
   frame.WriteUInt16(SYN_STREAM);
@@ -211,74 +211,74 @@ TEST_F(FlipFramerTest, MultiValueHeader) {
   frame.WriteUInt16(0);  // Priority.
 
   frame.WriteUInt16(2);  // Number of headers.
-  FlipHeaderBlock::iterator it;
+  SpdyHeaderBlock::iterator it;
   frame.WriteString("name");
   std::string value("value1\0value2");
   frame.WriteString(value);
   // write the length
-  frame.WriteUInt32ToOffset(4, frame.length() - FlipFrame::size());
+  frame.WriteUInt32ToOffset(4, frame.length() - SpdyFrame::size());
 
-  FlipHeaderBlock new_headers;
-  scoped_ptr<FlipFrame> control_frame(frame.take());
-  FlipFramer framer;
+  SpdyHeaderBlock new_headers;
+  scoped_ptr<SpdyFrame> control_frame(frame.take());
+  SpdyFramer framer;
   FramerSetEnableCompressionHelper(&framer, false);
   EXPECT_TRUE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
   EXPECT_TRUE(new_headers.find("name") != new_headers.end());
   EXPECT_EQ(value, new_headers.find("name")->second);
 }
 
-TEST_F(FlipFramerTest, BasicCompression) {
-  FlipHeaderBlock headers;
-  headers["server"] = "FlipServer 1.0";
+TEST_F(SpdyFramerTest, BasicCompression) {
+  SpdyHeaderBlock headers;
+  headers["server"] = "SpdyServer 1.0";
   headers["date"] = "Mon 12 Jan 2009 12:12:12 PST";
   headers["status"] = "200";
   headers["version"] = "HTTP/1.1";
   headers["content-type"] = "text/html";
   headers["content-length"] = "12";
 
-  FlipFramer framer;
+  SpdyFramer framer;
   FramerSetEnableCompressionHelper(&framer, true);
-  scoped_ptr<FlipSynStreamControlFrame>
+  scoped_ptr<SpdySynStreamControlFrame>
       frame1(framer.CreateSynStream(1, 1, CONTROL_FLAG_NONE, true, &headers));
-  scoped_ptr<FlipSynStreamControlFrame>
+  scoped_ptr<SpdySynStreamControlFrame>
       frame2(framer.CreateSynStream(1, 1, CONTROL_FLAG_NONE, true, &headers));
 
   // Expect the second frame to be more compact than the first.
   EXPECT_LE(frame2->length(), frame1->length());
 
   // Decompress the first frame
-  scoped_ptr<FlipFrame> frame3(framer.DecompressFrame(frame1.get()));
+  scoped_ptr<SpdyFrame> frame3(framer.DecompressFrame(frame1.get()));
 
   // Decompress the second frame
-  scoped_ptr<FlipFrame> frame4(framer.DecompressFrame(frame2.get()));
+  scoped_ptr<SpdyFrame> frame4(framer.DecompressFrame(frame2.get()));
 
   // Expect frames 3 & 4 to be the same.
   EXPECT_EQ(0,
       memcmp(frame3->data(), frame4->data(),
-      FlipFrame::size() + frame3->length()));
+      SpdyFrame::size() + frame3->length()));
 }
 
-TEST_F(FlipFramerTest, DecompressUncompressedFrame) {
-  FlipHeaderBlock headers;
-  headers["server"] = "FlipServer 1.0";
+TEST_F(SpdyFramerTest, DecompressUncompressedFrame) {
+  SpdyHeaderBlock headers;
+  headers["server"] = "SpdyServer 1.0";
   headers["date"] = "Mon 12 Jan 2009 12:12:12 PST";
   headers["status"] = "200";
   headers["version"] = "HTTP/1.1";
   headers["content-type"] = "text/html";
   headers["content-length"] = "12";
 
-  FlipFramer framer;
+  SpdyFramer framer;
   FramerSetEnableCompressionHelper(&framer, true);
-  scoped_ptr<FlipSynStreamControlFrame>
+  scoped_ptr<SpdySynStreamControlFrame>
       frame1(framer.CreateSynStream(1, 1, CONTROL_FLAG_NONE, false, &headers));
 
   // Decompress the frame
-  scoped_ptr<FlipFrame> frame2(framer.DecompressFrame(frame1.get()));
+  scoped_ptr<SpdyFrame> frame2(framer.DecompressFrame(frame1.get()));
 
   EXPECT_EQ(NULL, frame2.get());
 }
 
-TEST_F(FlipFramerTest, Basic) {
+TEST_F(SpdyFramerTest, Basic) {
   const unsigned char input[] = {
     0x80, 0x01, 0x00, 0x01,   // SYN Stream #1
     0x00, 0x00, 0x00, 0x10,
@@ -321,7 +321,7 @@ TEST_F(FlipFramerTest, Basic) {
     0x00, 0x00, 0x00, 0x00,
   };
 
-  TestFlipVisitor visitor;
+  TestSpdyVisitor visitor;
   visitor.SimulateInFramer(input, sizeof(input));
 
   EXPECT_EQ(0, visitor.error_count_);
@@ -334,7 +334,7 @@ TEST_F(FlipFramerTest, Basic) {
 }
 
 // Test that the FIN flag on a data frame signifies EOF.
-TEST_F(FlipFramerTest, FinOnDataFrame) {
+TEST_F(SpdyFramerTest, FinOnDataFrame) {
   const unsigned char input[] = {
     0x80, 0x01, 0x00, 0x01,   // SYN Stream #1
     0x00, 0x00, 0x00, 0x10,
@@ -361,7 +361,7 @@ TEST_F(FlipFramerTest, FinOnDataFrame) {
       0xde, 0xad, 0xbe, 0xef,
   };
 
-  TestFlipVisitor visitor;
+  TestSpdyVisitor visitor;
   visitor.SimulateInFramer(input, sizeof(input));
 
   EXPECT_EQ(0, visitor.error_count_);
@@ -374,7 +374,7 @@ TEST_F(FlipFramerTest, FinOnDataFrame) {
 }
 
 // Test that the FIN flag on a SYN reply frame signifies EOF.
-TEST_F(FlipFramerTest, FinOnSynReplyFrame) {
+TEST_F(SpdyFramerTest, FinOnSynReplyFrame) {
   const unsigned char input[] = {
     0x80, 0x01, 0x00, 0x01,   // SYN Stream #1
     0x00, 0x00, 0x00, 0x10,
@@ -391,7 +391,7 @@ TEST_F(FlipFramerTest, FinOnSynReplyFrame) {
     0x00, 0x02, 'b', 'b',
   };
 
-  TestFlipVisitor visitor;
+  TestSpdyVisitor visitor;
   visitor.SimulateInFramer(input, sizeof(input));
 
   EXPECT_EQ(0, visitor.error_count_);

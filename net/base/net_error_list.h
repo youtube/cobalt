@@ -296,14 +296,14 @@ NET_ERROR(ENCODING_CONVERSION_FAILED, -333)
 // The server sent an FTP directory listing in a format we do not understand.
 NET_ERROR(UNRECOGNIZED_FTP_DIRECTORY_LISTING_FORMAT, -334)
 
-// Attempted use of an unknown FLIP stream id.
-NET_ERROR(INVALID_FLIP_STREAM, -335)
+// Attempted use of an unknown SPDY stream id.
+NET_ERROR(INVALID_SPDY_STREAM, -335)
 
 // There are no supported proxies in the provided list.
 NET_ERROR(NO_SUPPORTED_PROXIES, -336)
 
-// There is a FLIP protocol framing error.
-NET_ERROR(FLIP_PROTOCOL_ERROR, -337)
+// There is a SPDY protocol framing error.
+NET_ERROR(SPDY_PROTOCOL_ERROR, -337)
 
 // Credentials could not be estalished during HTTP Authentication.
 NET_ERROR(INVALID_AUTH_CREDENTIALS, -338)

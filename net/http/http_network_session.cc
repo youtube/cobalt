@@ -25,7 +25,7 @@ HttpNetworkSession::HttpNetworkSession(
     ProxyService* proxy_service,
     ClientSocketFactory* client_socket_factory,
     SSLConfigService* ssl_config_service,
-    FlipSessionPool* flip_session_pool)
+    SpdySessionPool* spdy_session_pool)
     : network_change_notifier_(network_change_notifier),
       tcp_socket_pool_(new TCPClientSocketPool(
           max_sockets_, max_sockets_per_group_,
@@ -34,7 +34,7 @@ HttpNetworkSession::HttpNetworkSession(
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
-      flip_session_pool_(flip_session_pool) {
+      spdy_session_pool_(spdy_session_pool) {
   DCHECK(proxy_service);
   DCHECK(ssl_config_service);
 }

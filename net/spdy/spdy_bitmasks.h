@@ -5,12 +5,12 @@
 #ifndef NET_SPDY_SPDY_BITMASKS_H_
 #define NET_SPDY_SPDY_BITMASKS_H_
 
-namespace flip {
+namespace spdy {
 
-// StreamId mask from the FlipHeader
+// StreamId mask from the SpdyHeader
 const unsigned int kStreamIdMask = 0x7fffffff;
 
-// Control flag mask from the FlipHeader
+// Control flag mask from the SpdyHeader
 const unsigned int kControlFlagMask = 0x8000;
 
 // Priority mask from the SYN_FRAME
@@ -19,6 +19,6 @@ const unsigned int kPriorityMask = 0xc0;
 // Mask the lower 24 bits.
 const unsigned int kLengthMask = 0xffffff;
 
-}  // flip
+}  // namespace spdy
 
 #endif  // NET_SPDY_SPDY_BITMASKS_H_

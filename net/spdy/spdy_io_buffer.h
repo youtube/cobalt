@@ -10,13 +10,13 @@
 
 namespace net {
 
-class FlipStream;
+class SpdyStream;
 
-// A class for managing FLIP IO buffers.  These buffers need to be prioritized
-// so that the FlipSession sends them in the right order.  Further, they need
-// to track the FlipStream which they are associated with so that incremental
+// A class for managing SPDY IO buffers.  These buffers need to be prioritized
+// so that the SpdySession sends them in the right order.  Further, they need
+// to track the SpdyStream which they are associated with so that incremental
 // completion of the IO can notify the appropriate stream of completion.
-class FlipIOBuffer {
+class SpdyIOBuffer {
  public:
   // Constructor
   // |buffer| is the actual data buffer.
@@ -24,19 +24,19 @@ class FlipIOBuffer {
   // |priority| is the priority of this buffer.  Lower numbers are higher
   //            priority.
   // |stream| is a pointer to the stream which is managing this buffer.
-  FlipIOBuffer(IOBuffer* buffer, int size, int priority, FlipStream* stream);
-  FlipIOBuffer();
-  ~FlipIOBuffer();
+  SpdyIOBuffer(IOBuffer* buffer, int size, int priority, SpdyStream* stream);
+  SpdyIOBuffer();
+  ~SpdyIOBuffer();
 
   // Accessors.
   DrainableIOBuffer* buffer() const { return buffer_; }
   size_t size() const { return buffer_->size(); }
   void release();
   int priority() const { return priority_; }
-  const scoped_refptr<FlipStream>& stream() const { return stream_; }
+  const scoped_refptr<SpdyStream>& stream() const { return stream_; }
 
   // Comparison operator to support sorting.
-  bool operator<(const FlipIOBuffer& other) const {
+  bool operator<(const SpdyIOBuffer& other) const {
     if (priority_ != other.priority_)
       return priority_ > other.priority_;
     return position_ > other.position_;
@@ -46,7 +46,7 @@ class FlipIOBuffer {
   scoped_refptr<DrainableIOBuffer> buffer_;
   int priority_;
   uint64 position_;
-  scoped_refptr<FlipStream> stream_;
+  scoped_refptr<SpdyStream> stream_;
   static uint64 order_;  // Maintains a FIFO order for equal priorities.
 };
 

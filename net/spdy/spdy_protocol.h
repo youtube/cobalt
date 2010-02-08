@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file contains some protocol structures for use with Flip.
+// This file contains some protocol structures for use with Spdy.
 
 #ifndef NET_SPDY_SPDY_PROTOCOL_H_
 #define NET_SPDY_SPDY_PROTOCOL_H_
@@ -79,17 +79,17 @@
 
 // TODO(fenix): add ChangePriority support.
 
-namespace flip {
+namespace spdy {
 
-// This implementation of Flip is version 1.
-const int kFlipProtocolVersion = 1;
+// This implementation of Spdy is version 1.
+const int kSpdyProtocolVersion = 1;
 
 // Note: all protocol data structures are on-the-wire format.  That means that
 //       data is stored in network-normalized order.  Readers must use the
 //       accessors provided or call ntohX() functions.
 
-// Types of Flip Control Frames.
-enum FlipControlType {
+// Types of Spdy Control Frames.
+enum SpdyControlType {
   SYN_STREAM = 1,
   SYN_REPLY,
   FIN_STREAM,
@@ -97,24 +97,24 @@ enum FlipControlType {
 };
 
 // Flags on data packets
-enum FlipDataFlags {
+enum SpdyDataFlags {
   DATA_FLAG_NONE = 0,
   DATA_FLAG_FIN = 1,
   DATA_FLAG_COMPRESSED = 2  // TODO(mbelshe): remove me.
 };
 
 // Flags on control packets
-enum FlipControlFlags {
+enum SpdyControlFlags {
   CONTROL_FLAG_NONE = 0,
   CONTROL_FLAG_FIN = 1
 };
 
-// A FLIP stream id is a 31 bit entity.
-typedef uint32 FlipStreamId;
+// A Spdy stream id is a 31 bit entity.
+typedef uint32 SpdyStreamId;
 
-// FLIP Priorities. (there are only 2 bits)
-#define FLIP_PRIORITY_LOWEST 3
-#define FLIP_PRIORITY_HIGHEST 0
+// Spdy Priorities. (there are only 2 bits)
+#define SPDY_PRIORITY_LOWEST 3
+#define SPDY_PRIORITY_HIGHEST 0
 
 // -------------------------------------------------------------------------
 // These structures mirror the protocol structure definitions.
@@ -130,71 +130,71 @@ union FlagsAndLength {
   uint32 length_;   // 24 bits
 };
 
-// The basic FLIP Frame structure.
-struct FlipFrameBlock {
+// The basic Spdy Frame structure.
+struct SpdyFrameBlock {
   union {
     struct {
       uint16 version_;
       uint16 type_;
     } control_;
     struct {
-      FlipStreamId stream_id_;
+      SpdyStreamId stream_id_;
     } data_;
   };
   FlagsAndLength flags_length_;
 };
 
 // A Control Frame structure.
-struct FlipControlFrameBlock : FlipFrameBlock {
-  FlipStreamId stream_id_;
+struct SpdyControlFrameBlock : SpdyFrameBlock {
+  SpdyStreamId stream_id_;
 };
 
 // A SYN_STREAM Control Frame structure.
-struct FlipSynStreamControlFrameBlock : FlipControlFrameBlock {
+struct SpdySynStreamControlFrameBlock : SpdyControlFrameBlock {
   uint8 priority_;
   uint8 unused_;
 };
 
 // A SYN_REPLY Control Frame structure.
-struct FlipSynReplyControlFrameBlock : FlipControlFrameBlock {
+struct SpdySynReplyControlFrameBlock : SpdyControlFrameBlock {
   uint16 unused_;
 };
 
 // A FNI_STREAM Control Frame structure.
-struct FlipFinStreamControlFrameBlock : FlipControlFrameBlock {
+struct SpdyFinStreamControlFrameBlock : SpdyControlFrameBlock {
   uint32 status_;
 };
 
 #pragma pack(pop)
 
 // -------------------------------------------------------------------------
-// Wrapper classes for various FLIP frames.
+// Wrapper classes for various Spdy frames.
 
-// All Flip Frame types derive from this FlipFrame class.
-class FlipFrame {
+// All Spdy Frame types derive from this SpdyFrame class.
+class SpdyFrame {
  public:
-  // Create a FlipFrame for a given sized buffer.
-  explicit FlipFrame(size_t size) : frame_(NULL), owns_buffer_(true) {
-    DCHECK_GE(size, sizeof(struct FlipFrameBlock));
+  // Create a SpdyFrame for a given sized buffer.
+  explicit SpdyFrame(size_t size) : frame_(NULL), owns_buffer_(true) {
+    DCHECK_GE(size, sizeof(struct SpdyFrameBlock));
     char* buffer = new char[size];
     memset(buffer, 0, size);
-    frame_ = reinterpret_cast<struct FlipFrameBlock*>(buffer);
+    frame_ = reinterpret_cast<struct SpdyFrameBlock*>(buffer);
   }
 
-  // Create a FlipFrame using a pre-created buffer.
+  // Create a SpdyFrame using a pre-created buffer.
   // If |owns_buffer| is true, this class takes ownership of the buffer
   // and will delete it on cleanup.  The buffer must have been created using
   // new char[].
   // If |owns_buffer| is false, the caller retains ownership of the buffer and
   // is responsible for making sure the buffer outlives this frame.  In other
   // words, this class does NOT create a copy of the buffer.
-  FlipFrame(char* data, bool owns_buffer)
-      : frame_(reinterpret_cast<struct FlipFrameBlock*>(data)),
+  SpdyFrame(char* data, bool owns_buffer)
+      : frame_(reinterpret_cast<struct SpdyFrameBlock*>(data)),
         owns_buffer_(owns_buffer) {
     DCHECK(frame_);
   }
 
-  virtual ~FlipFrame() {
+  virtual ~SpdyFrame() {
     if (owns_buffer_) {
       char* buffer = reinterpret_cast<char*>(frame_);
       delete [] buffer;
@@ -224,164 +224,164 @@ class FlipFrame {
         kControlFlagMask;
   }
 
-  // Returns the size of the FlipFrameBlock structure.
-  // Note: this is not the size of the FlipFrame class.
-  // Every FlipFrame* class has a static size() method for accessing
+  // Returns the size of the SpdyFrameBlock structure.
+  // Note: this is not the size of the SpdyFrame class.
+  // Every SpdyFrame* class has a static size() method for accessing
   // the size of the data structure which will be sent over the wire.
-  // Note:  this is not the same as sizeof(FlipFrame).
-  static size_t size() { return sizeof(struct FlipFrameBlock); }
+  // Note:  this is not the same as sizeof(SpdyFrame).
+  static size_t size() { return sizeof(struct SpdyFrameBlock); }
 
  protected:
-  FlipFrameBlock* frame_;
+  SpdyFrameBlock* frame_;
 
  private:
   bool owns_buffer_;
-  DISALLOW_COPY_AND_ASSIGN(FlipFrame);
+  DISALLOW_COPY_AND_ASSIGN(SpdyFrame);
 };
 
 // A Data Frame.
-class FlipDataFrame : public FlipFrame {
+class SpdyDataFrame : public SpdyFrame {
  public:
-  FlipDataFrame() : FlipFrame(size()) {}
-  FlipDataFrame(char* data, bool owns_buffer)
-      : FlipFrame(data, owns_buffer) {}
-  virtual ~FlipDataFrame() {}
+  SpdyDataFrame() : SpdyFrame(size()) {}
+  SpdyDataFrame(char* data, bool owns_buffer)
+      : SpdyFrame(data, owns_buffer) {}
+  virtual ~SpdyDataFrame() {}
 
-  FlipStreamId stream_id() const {
+  SpdyStreamId stream_id() const {
     return ntohl(frame_->data_.stream_id_) & kStreamIdMask;
   }
 
   // Note that setting the stream id sets the control bit to false.
   // As stream id should always be set, this means the control bit
   // should always be set correctly.
-  void set_stream_id(FlipStreamId id) {
+  void set_stream_id(SpdyStreamId id) {
     DCHECK_EQ(0u, (id & ~kStreamIdMask));
     frame_->data_.stream_id_ = htonl(id & kStreamIdMask);
   }
 
-  // Returns the size of the FlipFrameBlock structure.
-  // Note: this is not the size of the FlipDataFrame class.
-  static size_t size() { return FlipFrame::size(); }
+  // Returns the size of the SpdyFrameBlock structure.
+  // Note: this is not the size of the SpdyDataFrame class.
+  static size_t size() { return SpdyFrame::size(); }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(FlipDataFrame);
+  DISALLOW_COPY_AND_ASSIGN(SpdyDataFrame);
 };
 
 // A Control Frame.
-class FlipControlFrame : public FlipFrame {
+class SpdyControlFrame : public SpdyFrame {
  public:
-  explicit FlipControlFrame(size_t size) : FlipFrame(size) {}
-  FlipControlFrame(char* data, bool owns_buffer)
-      : FlipFrame(data, owns_buffer) {}
-  virtual ~FlipControlFrame() {}
+  explicit SpdyControlFrame(size_t size) : SpdyFrame(size) {}
+  SpdyControlFrame(char* data, bool owns_buffer)
+      : SpdyFrame(data, owns_buffer) {}
+  virtual ~SpdyControlFrame() {}
 
   uint16 version() const {
     const int kVersionMask = 0x7fff;
     return ntohs(block()->control_.version_) & kVersionMask;
   }
-  FlipControlType type() const {
+  SpdyControlType type() const {
     uint16 type = ntohs(block()->control_.type_);
     DCHECK(type >= SYN_STREAM && type <= NOOP);
-    return static_cast<FlipControlType>(type);
+    return static_cast<SpdyControlType>(type);
   }
-  FlipStreamId stream_id() const {
+  SpdyStreamId stream_id() const {
     return ntohl(block()->stream_id_) & kStreamIdMask;
   }
 
-  void set_stream_id(FlipStreamId id) {
+  void set_stream_id(SpdyStreamId id) {
     block()->stream_id_ = htonl(id & kStreamIdMask);
   }
 
-  // Returns the size of the FlipControlFrameBlock structure.
-  // Note: this is not the size of the FlipControlFrame class.
-  static size_t size() { return sizeof(FlipControlFrameBlock); }
+  // Returns the size of the SpdyControlFrameBlock structure.
+  // Note: this is not the size of the SpdyControlFrame class.
+  static size_t size() { return sizeof(SpdyControlFrameBlock); }
 
  private:
-  struct FlipControlFrameBlock* block() const {
-    return static_cast<FlipControlFrameBlock*>(frame_);
+  struct SpdyControlFrameBlock* block() const {
+    return static_cast<SpdyControlFrameBlock*>(frame_);
   }
-  DISALLOW_COPY_AND_ASSIGN(FlipControlFrame);
+  DISALLOW_COPY_AND_ASSIGN(SpdyControlFrame);
 };
 
 // A SYN_STREAM frame.
-class FlipSynStreamControlFrame : public FlipControlFrame {
+class SpdySynStreamControlFrame : public SpdyControlFrame {
  public:
-  FlipSynStreamControlFrame() : FlipControlFrame(size()) {}
-  FlipSynStreamControlFrame(char* data, bool owns_buffer)
-      : FlipControlFrame(data, owns_buffer) {}
-  virtual ~FlipSynStreamControlFrame() {}
+  SpdySynStreamControlFrame() : SpdyControlFrame(size()) {}
+  SpdySynStreamControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+  virtual ~SpdySynStreamControlFrame() {}
 
   uint8 priority() const { return (block()->priority_ & kPriorityMask) >> 6; }
 
   // The number of bytes in the header block beyond the frame header length.
   int header_block_len() const {
-    return length() - (size() - FlipFrame::size());
+    return length() - (size() - SpdyFrame::size());
   }
 
   const char* header_block() const {
     return reinterpret_cast<const char*>(block()) + size();
   }
 
-  // Returns the size of the FlipSynStreamControlFrameBlock structure.
-  // Note: this is not the size of the FlipSynStreamControlFrame class.
-  static size_t size() { return sizeof(FlipSynStreamControlFrameBlock); }
+  // Returns the size of the SpdySynStreamControlFrameBlock structure.
+  // Note: this is not the size of the SpdySynStreamControlFrame class.
+  static size_t size() { return sizeof(SpdySynStreamControlFrameBlock); }
 
  private:
-  struct FlipSynStreamControlFrameBlock* block() const {
-    return static_cast<FlipSynStreamControlFrameBlock*>(frame_);
+  struct SpdySynStreamControlFrameBlock* block() const {
+    return static_cast<SpdySynStreamControlFrameBlock*>(frame_);
   }
-  DISALLOW_COPY_AND_ASSIGN(FlipSynStreamControlFrame);
+  DISALLOW_COPY_AND_ASSIGN(SpdySynStreamControlFrame);
 };
 
 // A SYN_REPLY frame.
-class FlipSynReplyControlFrame : public FlipControlFrame {
+class SpdySynReplyControlFrame : public SpdyControlFrame {
  public:
-  FlipSynReplyControlFrame() : FlipControlFrame(size()) {}
-  FlipSynReplyControlFrame(char* data, bool owns_buffer)
-      : FlipControlFrame(data, owns_buffer) {}
-  virtual ~FlipSynReplyControlFrame() {}
+  SpdySynReplyControlFrame() : SpdyControlFrame(size()) {}
+  SpdySynReplyControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+  virtual ~SpdySynReplyControlFrame() {}
 
   int header_block_len() const {
-    return length() - (size() - FlipFrame::size());
+    return length() - (size() - SpdyFrame::size());
   }
 
   const char* header_block() const {
     return reinterpret_cast<const char*>(block()) + size();
   }
 
-  // Returns the size of the FlipSynReplyControlFrameBlock structure.
-  // Note: this is not the size of the FlipSynReplyControlFrame class.
-  static size_t size() { return sizeof(FlipSynReplyControlFrameBlock); }
+  // Returns the size of the SpdySynReplyControlFrameBlock structure.
+  // Note: this is not the size of the SpdySynReplyControlFrame class.
+  static size_t size() { return sizeof(SpdySynReplyControlFrameBlock); }
 
  private:
-  struct FlipSynReplyControlFrameBlock* block() const {
-    return static_cast<FlipSynReplyControlFrameBlock*>(frame_);
+  struct SpdySynReplyControlFrameBlock* block() const {
+    return static_cast<SpdySynReplyControlFrameBlock*>(frame_);
   }
-  DISALLOW_COPY_AND_ASSIGN(FlipSynReplyControlFrame);
+  DISALLOW_COPY_AND_ASSIGN(SpdySynReplyControlFrame);
 };
 
 // A FIN_STREAM frame.
-class FlipFinStreamControlFrame : public FlipControlFrame {
+class SpdyFinStreamControlFrame : public SpdyControlFrame {
  public:
-  FlipFinStreamControlFrame() : FlipControlFrame(size()) {}
-  FlipFinStreamControlFrame(char* data, bool owns_buffer)
-      : FlipControlFrame(data, owns_buffer) {}
-  virtual ~FlipFinStreamControlFrame() {}
+  SpdyFinStreamControlFrame() : SpdyControlFrame(size()) {}
+  SpdyFinStreamControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+  virtual ~SpdyFinStreamControlFrame() {}
 
   uint32 status() const { return ntohl(block()->status_); }
   void set_status(uint32 status) { block()->status_ = htonl(status); }
 
-  // Returns the size of the FlipFinStreamControlFrameBlock structure.
-  // Note: this is not the size of the FlipFinStreamControlFrame class.
-  static size_t size() { return sizeof(FlipFinStreamControlFrameBlock); }
+  // Returns the size of the SpdyFinStreamControlFrameBlock structure.
+  // Note: this is not the size of the SpdyFinStreamControlFrame class.
+  static size_t size() { return sizeof(SpdyFinStreamControlFrameBlock); }
 
  private:
-  struct FlipFinStreamControlFrameBlock* block() const {
-    return static_cast<FlipFinStreamControlFrameBlock*>(frame_);
+  struct SpdyFinStreamControlFrameBlock* block() const {
+    return static_cast<SpdyFinStreamControlFrameBlock*>(frame_);
   }
-  DISALLOW_COPY_AND_ASSIGN(FlipFinStreamControlFrame);
+  DISALLOW_COPY_AND_ASSIGN(SpdyFinStreamControlFrame);
 };
 
-}  // namespace flip
+}  // namespace spdy
 
 #endif  // NET_SPDY_SPDY_PROTOCOL_H_

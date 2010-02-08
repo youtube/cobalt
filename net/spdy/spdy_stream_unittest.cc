@@ -20,19 +20,19 @@
 
 namespace net {
 
-class FlipSessionPoolPeer {
+class SpdySessionPoolPeer {
  public:
-  explicit FlipSessionPoolPeer(const scoped_refptr<FlipSessionPool>& pool)
+  explicit SpdySessionPoolPeer(const scoped_refptr<SpdySessionPool>& pool)
       : pool_(pool) {}
 
-  void RemoveFlipSession(const scoped_refptr<FlipSession>& session) {
+  void RemoveSpdySession(const scoped_refptr<SpdySession>& session) {
     pool_->Remove(session);
   }
 
  private:
-  const scoped_refptr<FlipSessionPool> pool_;
+  const scoped_refptr<SpdySessionPool> pool_;
 
-  DISALLOW_COPY_AND_ASSIGN(FlipSessionPoolPeer);
+  DISALLOW_COPY_AND_ASSIGN(SpdySessionPoolPeer);
 };
 
 namespace {
@@ -43,7 +43,7 @@ ProxyService* CreateNullProxyService() {
 }
 
 // Helper to manage the lifetimes of the dependencies for a
-// FlipNetworkTransaction.
+// SpdyNetworkTransaction.
 class SessionDependencies {
  public:
   // Default set of dependencies -- "null" proxy service.
@@ -51,20 +51,20 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(CreateNullProxyService()),
         ssl_config_service(new SSLConfigServiceDefaults),
-        flip_session_pool(new FlipSessionPool) {}
+        spdy_session_pool(new SpdySessionPool) {}
 
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
       : host_resolver(new MockHostResolver),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
-        flip_session_pool(new FlipSessionPool) {}
+        spdy_session_pool(new SpdySessionPool) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
-  scoped_refptr<FlipSessionPool> flip_session_pool;
+  scoped_refptr<SpdySessionPool> spdy_session_pool;
 };
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
@@ -73,19 +73,19 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
-                                session_deps->flip_session_pool);
+                                session_deps->spdy_session_pool);
 }
 
-class FlipStreamTest : public testing::Test {
+class SpdyStreamTest : public testing::Test {
  protected:
-  FlipStreamTest()
+  SpdyStreamTest()
       : session_(CreateSession(&session_deps_)),
-        pool_peer_(session_->flip_session_pool()) {}
+        pool_peer_(session_->spdy_session_pool()) {}
 
-  scoped_refptr<FlipSession> CreateFlipSession() {
+  scoped_refptr<SpdySession> CreateSpdySession() {
     HostResolver::RequestInfo resolve_info("www.google.com", 80);
-    scoped_refptr<FlipSession> session(
-        session_->flip_session_pool()->Get(resolve_info, session_));
+    scoped_refptr<SpdySession> session(
+        session_->spdy_session_pool()->Get(resolve_info, session_));
     return session;
   }
 
@@ -95,27 +95,27 @@ class FlipStreamTest : public testing::Test {
 
   SessionDependencies session_deps_;
   scoped_refptr<HttpNetworkSession> session_;
-  FlipSessionPoolPeer pool_peer_;
+  SpdySessionPoolPeer pool_peer_;
 };
 
 // Needs fixing, see http://crbug.com/28622
-TEST_F(FlipStreamTest, SendRequest) {
-  scoped_refptr<FlipSession> session(CreateFlipSession());
+TEST_F(SpdyStreamTest, SendRequest) {
+  scoped_refptr<SpdySession> session(CreateSpdySession());
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
   TestCompletionCallback callback;
   HttpResponseInfo response;
 
-  scoped_refptr<FlipStream> stream(new FlipStream(session, 1, false, NULL));
+  scoped_refptr<SpdyStream> stream(new SpdyStream(session, 1, false, NULL));
   EXPECT_EQ(ERR_IO_PENDING, stream->SendRequest(NULL, &response, &callback));
 
-  // Need to manually remove the flip session since normally it gets removed on
+  // Need to manually remove the spdy session since normally it gets removed on
   // socket close/error, but we aren't communicating over a socket here.
-  pool_peer_.RemoveFlipSession(session);
+  pool_peer_.RemoveSpdySession(session);
 }
 
-// TODO(willchan): Write a longer test for FlipStream that exercises all
+// TODO(willchan): Write a longer test for SpdyStream that exercises all
 // methods.
 
 }  // namespace

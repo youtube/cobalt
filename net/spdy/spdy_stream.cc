@@ -11,7 +11,7 @@
 
 namespace net {
 
-FlipStream::FlipStream(FlipSession* session, flip::FlipStreamId stream_id,
+SpdyStream::SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id,
                        bool pushed, LoadLog* log)
     : stream_id_(stream_id),
       priority_(0),
@@ -33,8 +33,8 @@ FlipStream::FlipStream(FlipSession* session, flip::FlipStreamId stream_id,
       recv_bytes_(0),
       histograms_recorded_(false) {}
 
-FlipStream::~FlipStream() {
-  DLOG(INFO) << "Deleting FlipStream for stream " << stream_id_;
+SpdyStream::~SpdyStream() {
+  DLOG(INFO) << "Deleting SpdyStream for stream " << stream_id_;
 
   // TODO(willchan): We're still calling CancelStream() too many times, because
   // inactive pending/pushed streams will still have stream_id_ set.
@@ -45,19 +45,19 @@ FlipStream::~FlipStream() {
   }
 }
 
-uint64 FlipStream::GetUploadProgress() const {
+uint64 SpdyStream::GetUploadProgress() const {
   if (!request_body_stream_.get())
     return 0;
 
   return request_body_stream_->position();
 }
 
-const HttpResponseInfo* FlipStream::GetResponseInfo() const {
+const HttpResponseInfo* SpdyStream::GetResponseInfo() const {
   return response_;
 }
 
-int FlipStream::ReadResponseHeaders(CompletionCallback* callback) {
-  // Note: The FlipStream may have already received the response headers, so
+int SpdyStream::ReadResponseHeaders(CompletionCallback* callback) {
+  // Note: The SpdyStream may have already received the response headers, so
   //       this call may complete synchronously.
   CHECK(callback);
   CHECK(io_state_ == STATE_NONE);
@@ -73,7 +73,7 @@ int FlipStream::ReadResponseHeaders(CompletionCallback* callback) {
   return ERR_IO_PENDING;
 }
 
-int FlipStream::ReadResponseBody(
+int SpdyStream::ReadResponseBody(
     IOBuffer* buf, int buf_len, CompletionCallback* callback) {
   DCHECK_EQ(io_state_, STATE_NONE);
   CHECK(buf);
@@ -118,7 +118,7 @@ int FlipStream::ReadResponseBody(
   return ERR_IO_PENDING;
 }
 
-int FlipStream::SendRequest(UploadDataStream* upload_data,
+int SpdyStream::SendRequest(UploadDataStream* upload_data,
                             HttpResponseInfo* response,
                             CompletionCallback* callback) {
   CHECK(callback);
@@ -158,14 +158,14 @@ int FlipStream::SendRequest(UploadDataStream* upload_data,
   return result;
 }
 
-void FlipStream::Cancel() {
+void SpdyStream::Cancel() {
   cancelled_ = true;
   user_callback_ = NULL;
 
   session_->CancelStream(stream_id_);
 }
 
-void FlipStream::OnResponseReceived(const HttpResponseInfo& response) {
+void SpdyStream::OnResponseReceived(const HttpResponseInfo& response) {
   metrics_.StartStream();
 
   CHECK(!response_->headers);
@@ -179,7 +179,7 @@ void FlipStream::OnResponseReceived(const HttpResponseInfo& response) {
     CHECK(pushed_);
     io_state_ = STATE_READ_HEADERS;
   } else if (io_state_ == STATE_READ_HEADERS_COMPLETE) {
-    // This FlipStream could be in this state in both true and false pushed_
+    // This SpdyStream could be in this state in both true and false pushed_
     // conditions.
     // The false pushed_ condition (client request) will always go through
     // this state.
@@ -196,9 +196,9 @@ void FlipStream::OnResponseReceived(const HttpResponseInfo& response) {
     DoCallback(rv);
 }
 
-bool FlipStream::OnDataReceived(const char* data, int length) {
+bool SpdyStream::OnDataReceived(const char* data, int length) {
   DCHECK_GE(length, 0);
-  LOG(INFO) << "FlipStream: Data (" << length << " bytes) received for "
+  LOG(INFO) << "SpdyStream: Data (" << length << " bytes) received for "
             << stream_id_;
 
   // If we don't have a response, then the SYN_REPLY did not come through.
@@ -236,7 +236,7 @@ bool FlipStream::OnDataReceived(const char* data, int length) {
     response_body_.push_back(io_buffer);
   }
 
-  // Note that data may be received for a FlipStream prior to the user calling
+  // Note that data may be received for a SpdyStream prior to the user calling
   // ReadResponseBody(), therefore user_callback_ may be NULL.  This may often
   // happen for server initiated streams.
   if (user_callback_) {
@@ -255,7 +255,7 @@ bool FlipStream::OnDataReceived(const char* data, int length) {
   return true;
 }
 
-void FlipStream::OnWriteComplete(int status) {
+void SpdyStream::OnWriteComplete(int status) {
   // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
   // should discontinue the DoLoop.
 
@@ -265,7 +265,7 @@ void FlipStream::OnWriteComplete(int status) {
   DoLoop(status);
 }
 
-void FlipStream::OnClose(int status) {
+void SpdyStream::OnClose(int status) {
   response_complete_ = true;
   response_status_ = status;
   stream_id_ = 0;
@@ -276,7 +276,7 @@ void FlipStream::OnClose(int status) {
   UpdateHistograms();
 }
 
-int FlipStream::DoLoop(int result) {
+int SpdyStream::DoLoop(int result) {
   do {
     State state = io_state_;
     io_state_ = STATE_NONE;
@@ -285,34 +285,34 @@ int FlipStream::DoLoop(int result) {
       case STATE_SEND_HEADERS:
         CHECK(result == OK);
         LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_FLIP_STREAM_SEND_HEADERS);
+                            LoadLog::TYPE_SPDY_STREAM_SEND_HEADERS);
         result = DoSendHeaders();
         break;
       case STATE_SEND_HEADERS_COMPLETE:
         LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_FLIP_STREAM_SEND_HEADERS);
+                          LoadLog::TYPE_SPDY_STREAM_SEND_HEADERS);
         result = DoSendHeadersComplete(result);
         break;
       case STATE_SEND_BODY:
         CHECK(result == OK);
         LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_FLIP_STREAM_SEND_BODY);
+                            LoadLog::TYPE_SPDY_STREAM_SEND_BODY);
         result = DoSendBody();
         break;
       case STATE_SEND_BODY_COMPLETE:
         LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_FLIP_STREAM_SEND_BODY);
+                          LoadLog::TYPE_SPDY_STREAM_SEND_BODY);
         result = DoSendBodyComplete(result);
         break;
       case STATE_READ_HEADERS:
         CHECK(result == OK);
         LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_FLIP_STREAM_READ_HEADERS);
+                            LoadLog::TYPE_SPDY_STREAM_READ_HEADERS);
         result = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
         LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_FLIP_STREAM_READ_HEADERS);
+                          LoadLog::TYPE_SPDY_STREAM_READ_HEADERS);
         result = DoReadHeadersComplete(result);
         break;
 
@@ -322,12 +322,12 @@ int FlipStream::DoLoop(int result) {
       // to do this is for consistency with the Http code.
       case STATE_READ_BODY:
         LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_FLIP_STREAM_READ_BODY);
+                            LoadLog::TYPE_SPDY_STREAM_READ_BODY);
         result = DoReadBody();
         break;
       case STATE_READ_BODY_COMPLETE:
         LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_FLIP_STREAM_READ_BODY);
+                          LoadLog::TYPE_SPDY_STREAM_READ_BODY);
         result = DoReadBodyComplete(result);
         break;
       case STATE_DONE:
@@ -342,7 +342,7 @@ int FlipStream::DoLoop(int result) {
   return result;
 }
 
-void FlipStream::DoCallback(int rv) {
+void SpdyStream::DoCallback(int rv) {
   CHECK(rv != ERR_IO_PENDING);
   CHECK(user_callback_);
 
@@ -352,8 +352,8 @@ void FlipStream::DoCallback(int rv) {
   c->Run(rv);
 }
 
-int FlipStream::DoSendHeaders() {
-  // The FlipSession will always call us back when the send is complete.
+int SpdyStream::DoSendHeaders() {
+  // The SpdySession will always call us back when the send is complete.
   // TODO(willchan): This code makes the assumption that for the non-push stream
   // case, the client code calls SendRequest() after creating the stream and
   // before yielding back to the MessageLoop.  This is true in the current code,
@@ -363,7 +363,7 @@ int FlipStream::DoSendHeaders() {
   return ERR_IO_PENDING;
 }
 
-int FlipStream::DoSendHeadersComplete(int result) {
+int SpdyStream::DoSendHeadersComplete(int result) {
   if (result < 0)
     return result;
 
@@ -381,7 +381,7 @@ int FlipStream::DoSendHeadersComplete(int result) {
 
 // DoSendBody is called to send the optional body for the request.  This call
 // will also be called as each write of a chunk of the body completes.
-int FlipStream::DoSendBody() {
+int SpdyStream::DoSendBody() {
   // If we're already in the STATE_SENDING_BODY state, then we've already
   // sent a portion of the body.  In that case, we need to first consume
   // the bytes written in the body stream.  Note that the bytes written is
@@ -394,7 +394,7 @@ int FlipStream::DoSendBody() {
                                    buf_len);
 }
 
-int FlipStream::DoSendBodyComplete(int result) {
+int SpdyStream::DoSendBodyComplete(int result) {
   if (result < 0)
     return result;
 
@@ -410,28 +410,28 @@ int FlipStream::DoSendBodyComplete(int result) {
   return OK;
 }
 
-int FlipStream::DoReadHeaders() {
+int SpdyStream::DoReadHeaders() {
   io_state_ = STATE_READ_HEADERS_COMPLETE;
   return response_->headers ? OK : ERR_IO_PENDING;
 }
 
-int FlipStream::DoReadHeadersComplete(int result) {
+int SpdyStream::DoReadHeadersComplete(int result) {
   return result;
 }
 
-int FlipStream::DoReadBody() {
-  // TODO(mbelshe): merge FlipStreamParser with FlipStream and then this
+int SpdyStream::DoReadBody() {
+  // TODO(mbelshe): merge SpdyStreamParser with SpdyStream and then this
   // makes sense.
   return ERR_IO_PENDING;
 }
 
-int FlipStream::DoReadBodyComplete(int result) {
-  // TODO(mbelshe): merge FlipStreamParser with FlipStream and then this
+int SpdyStream::DoReadBodyComplete(int result) {
+  // TODO(mbelshe): merge SpdyStreamParser with SpdyStream and then this
   // makes sense.
   return ERR_IO_PENDING;
 }
 
-void FlipStream::UpdateHistograms() {
+void SpdyStream::UpdateHistograms() {
   if (histograms_recorded_)
     return;
 
