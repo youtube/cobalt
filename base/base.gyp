@@ -306,10 +306,12 @@
                 '<(template_input_path)',
                 '<(version_path)',
                 '<(branding_path)',
-                '<(lastchange_path)',
               ],
               'outputs': [
                 '<(SHARED_INTERMEDIATE_DIR)/base/file_version_info_linux.h',
+              ],
+              'dependencies': [
+                '../../build/util/build_util.gyp:lastchange',
               ],
               'action': [
                 'python',
