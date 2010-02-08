@@ -16,7 +16,7 @@
 namespace net {
 
 class ClientSocketFactory;
-class FlipSessionPool;
+class SpdySessionPool;
 class NetworkChangeNotifier;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
@@ -28,7 +28,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
       ProxyService* proxy_service,
       ClientSocketFactory* client_socket_factory,
       SSLConfigService* ssl_config_service,
-      FlipSessionPool* flip_session_pool);
+      SpdySessionPool* spdy_session_pool);
 
   HttpAuthCache* auth_cache() { return &auth_cache_; }
   SSLClientAuthCache* ssl_client_auth_cache() {
@@ -42,8 +42,8 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   HostResolver* host_resolver() { return host_resolver_; }
   ProxyService* proxy_service() { return proxy_service_; }
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
-  const scoped_refptr<FlipSessionPool>& flip_session_pool() {
-    return flip_session_pool_;
+  const scoped_refptr<SpdySessionPool>& spdy_session_pool() {
+    return spdy_session_pool_;
   }
 
   // Replace the current socket pool with a new one.  This effectively
@@ -83,7 +83,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
-  scoped_refptr<FlipSessionPool> flip_session_pool_;
+  scoped_refptr<SpdySessionPool> spdy_session_pool_;
 };
 
 }  // namespace net

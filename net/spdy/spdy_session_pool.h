@@ -16,25 +16,25 @@
 namespace net {
 
 class ClientSocketHandle;
-class FlipSession;
 class HttpNetworkSession;
+class SpdySession;
 
-// This is a very simple pool for open FlipSessions.
+// This is a very simple pool for open SpdySessions.
 // TODO(mbelshe): Make this production ready.
-class FlipSessionPool : public base::RefCounted<FlipSessionPool> {
+class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
  public:
-  FlipSessionPool();
+  SpdySessionPool();
 
-  // Either returns an existing FlipSession or creates a new FlipSession for
+  // Either returns an existing SpdySession or creates a new SpdySession for
   // use.
-  scoped_refptr<FlipSession> Get(
+  scoped_refptr<SpdySession> Get(
       const HostResolver::RequestInfo& info, HttpNetworkSession* session);
 
-  // Builds a FlipSession from an existing socket.  Users should try calling
-  // Get() first to use an existing FlipSession so we don't get multiple
-  // FlipSessions per domain.  Note that ownership of |connection| is
-  // transferred from the caller to the FlipSession.
-  scoped_refptr<FlipSession> GetFlipSessionFromSocket(
+  // Builds a SpdySession from an existing socket.  Users should try calling
+  // Get() first to use an existing SpdySession so we don't get multiple
+  // SpdySessions per domain.  Note that ownership of |connection| is
+  // transferred from the caller to the SpdySession.
+  scoped_refptr<SpdySession> GetSpdySessionFromSocket(
       const HostResolver::RequestInfo& info,
       HttpNetworkSession* session,
       ClientSocketHandle* connection);
@@ -43,32 +43,32 @@ class FlipSessionPool : public base::RefCounted<FlipSessionPool> {
   // should be creating a new session.
   bool HasSession(const HostResolver::RequestInfo& info) const;
 
-  // Close all Flip Sessions; used for debugging.
+  // Close all Spdy Sessions; used for debugging.
   void CloseAllSessions();
 
  private:
-  friend class base::RefCounted<FlipSessionPool>;
-  friend class FlipSession;  // Needed for Remove().
-  friend class FlipSessionPoolPeer;  // For testing.
+  friend class base::RefCounted<SpdySessionPool>;
+  friend class SpdySession;  // Needed for Remove().
+  friend class SpdySessionPoolPeer;  // For testing.
 
-  typedef std::list<scoped_refptr<FlipSession> > FlipSessionList;
-  typedef std::map<std::string, FlipSessionList*> FlipSessionsMap;
+  typedef std::list<scoped_refptr<SpdySession> > SpdySessionList;
+  typedef std::map<std::string, SpdySessionList*> SpdySessionsMap;
 
-  virtual ~FlipSessionPool();
+  virtual ~SpdySessionPool();
 
-  // Removes a FlipSession from the FlipSessionPool.
-  void Remove(const scoped_refptr<FlipSession>& session);
+  // Removes a SpdySession from the SpdySessionPool.
+  void Remove(const scoped_refptr<SpdySession>& session);
 
   // Helper functions for manipulating the lists.
-  FlipSessionList* AddSessionList(const std::string& domain);
-  FlipSessionList* GetSessionList(const std::string& domain);
-  const FlipSessionList* GetSessionList(const std::string& domain) const;
+  SpdySessionList* AddSessionList(const std::string& domain);
+  SpdySessionList* GetSessionList(const std::string& domain);
+  const SpdySessionList* GetSessionList(const std::string& domain) const;
   void RemoveSessionList(const std::string& domain);
 
   // This is our weak session pool - one session per domain.
-  FlipSessionsMap sessions_;
+  SpdySessionsMap sessions_;
 
-  DISALLOW_COPY_AND_ASSIGN(FlipSessionPool);
+  DISALLOW_COPY_AND_ASSIGN(SpdySessionPool);
 };
 
 }  // namespace net

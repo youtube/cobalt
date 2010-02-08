@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_FLIP_FRAME_BUILDER_H_
-#define NET_FLIP_FRAME_BUILDER_H_
+#ifndef NET_SPDY_FRAME_BUILDER_H_
+#define NET_SPDY_FRAME_BUILDER_H_
 
 #ifdef WIN32
 #include <winsock2.h>  // for htonl() functions
@@ -16,44 +16,44 @@
 #include "base/logging.h"
 #include "net/spdy/spdy_protocol.h"
 
-namespace flip {
+namespace spdy {
 
 // This class provides facilities for basic binary value packing and unpacking
-// into Flip frames.
+// into Spdy frames.
 //
-// The FlipFrameBuilder supports appending primitive values (int, string, etc)
-// to a frame instance.  The FlipFrameBuilder grows its internal memory buffer
+// The SpdyFrameBuilder supports appending primitive values (int, string, etc)
+// to a frame instance.  The SpdyFrameBuilder grows its internal memory buffer
 // dynamically to hold the sequence of primitive values.   The internal memory
-// buffer is exposed as the "data" of the FlipFrameBuilder.
+// buffer is exposed as the "data" of the SpdyFrameBuilder.
 //
-// When reading from a FlipFrameBuilder the consumer must know what value types
-// to read and in what order to read them as the FlipFrameBuilder does not keep
+// When reading from a SpdyFrameBuilder the consumer must know what value types
+// to read and in what order to read them as the SpdyFrameBuilder does not keep
 // track of the type of data written to it.
-class FlipFrameBuilder {
+class SpdyFrameBuilder {
  public:
-  FlipFrameBuilder();
-  ~FlipFrameBuilder();
+  SpdyFrameBuilder();
+  ~SpdyFrameBuilder();
 
-  // Initializes a FlipFrameBuilder from a const block of data.  The data is
+  // Initializes a SpdyFrameBuilder from a const block of data.  The data is
   // not copied; instead the data is merely referenced by this
-  // FlipFrameBuilder.  Only const methods should be used when initialized
+  // SpdyFrameBuilder.  Only const methods should be used when initialized
   // this way.
-  FlipFrameBuilder(const char* data, int data_len);
+  SpdyFrameBuilder(const char* data, int data_len);
 
-  // Returns the size of the FlipFrameBuilder's data.
+  // Returns the size of the SpdyFrameBuilder's data.
   int length() const { return length_; }
 
-  // Takes the buffer from the FlipFrameBuilder.
-  FlipFrame* take() {
-    FlipFrame* rv = new FlipFrame(buffer_, true);
+  // Takes the buffer from the SpdyFrameBuilder.
+  SpdyFrame* take() {
+    SpdyFrame* rv = new SpdyFrame(buffer_, true);
     buffer_ = NULL;
     capacity_ = 0;
     length_ = 0;
     return rv;
   }
 
-  // Methods for reading the payload of the FlipFrameBuilder.  To read from the
-  // start of the FlipFrameBuilder, initialize *iter to NULL.  If successful,
+  // Methods for reading the payload of the SpdyFrameBuilder.  To read from the
+  // start of the SpdyFrameBuilder, initialize *iter to NULL.  If successful,
   // these methods return true.  Otherwise, false is returned to indicate that
   // the result could not be extracted.
   bool ReadUInt16(void** iter, uint16* result) const;
@@ -63,7 +63,7 @@ class FlipFrameBuilder {
   bool ReadData(void** iter, const char** data, uint16* length) const;
 
   // Methods for adding to the payload.  These values are appended to the end
-  // of the FlipFrameBuilder payload.  When reading values, you must read them
+  // of the SpdyFrameBuilder payload.  When reading values, you must read them
   // in the order they were added.  Note - binary integers are converted from
   // host to network form.
   bool WriteUInt16(uint16 value) {
@@ -92,14 +92,14 @@ class FlipFrameBuilder {
     return true;
   }
 
-  // Allows the caller to write data directly into the FlipFrameBuilder.
+  // Allows the caller to write data directly into the SpdyFrameBuilder.
   // This saves a copy when the data is not already available in a buffer.
   // The caller must not write more than the length it declares it will.
   // Use ReadData to get the data.
   // Returns NULL on failure.
   //
   // The returned pointer will only be valid until the next write operation
-  // on this FlipFrameBuilder.
+  // on this SpdyFrameBuilder.
   char* BeginWriteData(uint16 length);
 
   // Returns true if the given iterator could point to data with the given
@@ -157,7 +157,7 @@ class FlipFrameBuilder {
   size_t variable_buffer_offset_;  // IF non-zero, then offset to a buffer.
 };
 
-}  // namespace flip
+}  // namespace spdy
 
-#endif  // NET_FLIP_FRAME_BUILDER_H_
+#endif  // NET_SPDY_FRAME_BUILDER_H_
 

@@ -21,38 +21,38 @@
 
 namespace net {
 
-class FlipSession;
 class HttpRequestInfo;
 class HttpResponseInfo;
+class SpdySession;
 class UploadData;
 class UploadDataStream;
 
-// The FlipStream is used by the FlipSession to represent each stream known
-// on the FlipSession.
+// The SpdyStream is used by the SpdySession to represent each stream known
+// on the SpdySession.
 // Streams can be created either by the client or by the server.  When they
-// are initiated by the client, both the FlipSession and client object (such as
-// a FlipNetworkTransaction) will maintain a reference to the stream.  When
-// initiated by the server, only the FlipSession will maintain any reference,
+// are initiated by the client, both the SpdySession and client object (such as
+// a SpdyNetworkTransaction) will maintain a reference to the stream.  When
+// initiated by the server, only the SpdySession will maintain any reference,
 // until such a time as a client object requests a stream for the path.
-class FlipStream : public base::RefCounted<FlipStream> {
+class SpdyStream : public base::RefCounted<SpdyStream> {
  public:
-  // FlipStream constructor
-  FlipStream(FlipSession* session, flip::FlipStreamId stream_id, bool pushed,
+  // SpdyStream constructor
+  SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed,
              LoadLog* log);
 
   // Ideally I'd use two abstract classes as interfaces for these two sections,
   // but since we're ref counted, I can't make both abstract classes inherit
   // from RefCounted or we'll have two separate ref counts for the same object.
   // TODO(willchan): Consider using linked_ptr here orcreating proxy wrappers
-  // for FlipStream to provide the appropriate interface.
+  // for SpdyStream to provide the appropriate interface.
 
   // ===================================================
-  // Interface for [Http|Flip]NetworkTransaction to use.
+  // Interface for [Http|Spdy]NetworkTransaction to use.
 
   // Sends the request.  If |upload_data| is non-NULL, sends that in the request
   // body.  |callback| is used when this completes asynchronously.  Note that
   // the actual SYN_STREAM packet will have already been sent by this point.
-  // Also note that FlipStream takes ownership of |upload_data|.
+  // Also note that SpdyStream takes ownership of |upload_data|.
   int SendRequest(UploadDataStream* upload_data,
                   HttpResponseInfo* response,
                   CompletionCallback* callback);
@@ -80,10 +80,10 @@ class FlipStream : public base::RefCounted<FlipStream> {
   bool pushed() const { return pushed_; }
 
   // =================================
-  // Interface for FlipSession to use.
+  // Interface for SpdySession to use.
 
-  flip::FlipStreamId stream_id() const { return stream_id_; }
-  void set_stream_id(flip::FlipStreamId stream_id) { stream_id_ = stream_id; }
+  spdy::SpdyStreamId stream_id() const { return stream_id_; }
+  void set_stream_id(spdy::SpdyStreamId stream_id) { stream_id_ = stream_id; }
 
   // For pushed streams, we track a path to identify them.
   const std::string& path() const { return path_; }
@@ -92,12 +92,12 @@ class FlipStream : public base::RefCounted<FlipStream> {
   int priority() const { return priority_; }
   void set_priority(int priority) { priority_ = priority; }
 
-  // Called by the FlipSession when a response (e.g. a SYN_REPLY) has been
+  // Called by the SpdySession when a response (e.g. a SYN_REPLY) has been
   // received for this stream.  |path| is the path of the URL for a server
   // initiated stream, otherwise is empty.
   void OnResponseReceived(const HttpResponseInfo& response);
 
-  // Called by the FlipSession when response data has been received for this
+  // Called by the SpdySession when response data has been received for this
   // stream.  This callback may be called multiple times as data arrives
   // from the network, and will never be called prior to OnResponseReceived.
   // |buffer| contains the data received.  The stream must copy any data
@@ -107,13 +107,13 @@ class FlipStream : public base::RefCounted<FlipStream> {
   // Returns true on success and false on error.
   bool OnDataReceived(const char* buffer, int bytes);
 
-  // Called by the FlipSession when a write has completed.  This callback
+  // Called by the SpdySession when a write has completed.  This callback
   // will be called multiple times for each write which completes.  Writes
   // include the SYN_STREAM write and also DATA frame writes.
   // |result| is the number of bytes written or a net error code.
   void OnWriteComplete(int status);
 
-  // Called by the FlipSession when the request is finished.  This callback
+  // Called by the SpdySession when the request is finished.  This callback
   // will always be called at the end of the request and signals to the
   // stream that the stream has no more network events.  No further callbacks
   // to the stream will be made after this call.
@@ -127,7 +127,7 @@ class FlipStream : public base::RefCounted<FlipStream> {
   }
 
  private:
-  friend class base::RefCounted<FlipStream>;
+  friend class base::RefCounted<SpdyStream>;
 
   enum State {
     STATE_NONE,
@@ -142,7 +142,7 @@ class FlipStream : public base::RefCounted<FlipStream> {
     STATE_DONE
   };
 
-  ~FlipStream();
+  ~SpdyStream();
 
   // Try to make progress sending/receiving the request/response.
   int DoLoop(int result);
@@ -164,7 +164,7 @@ class FlipStream : public base::RefCounted<FlipStream> {
   // be called after the stream has completed.
   void UpdateHistograms();
 
-  flip::FlipStreamId stream_id_;
+  spdy::SpdyStreamId stream_id_;
   std::string path_;
   int priority_;
   const bool pushed_;
@@ -174,7 +174,7 @@ class FlipStream : public base::RefCounted<FlipStream> {
   bool download_finished_;
   ScopedBandwidthMetrics metrics_;
 
-  scoped_refptr<FlipSession> session_;
+  scoped_refptr<SpdySession> session_;
 
   HttpResponseInfo* response_;
   scoped_ptr<UploadDataStream> request_body_stream_;
@@ -203,7 +203,7 @@ class FlipStream : public base::RefCounted<FlipStream> {
   int recv_bytes_;
   bool histograms_recorded_;
 
-  DISALLOW_COPY_AND_ASSIGN(FlipStream);
+  DISALLOW_COPY_AND_ASSIGN(SpdyStream);
 };
 
 }  // namespace net

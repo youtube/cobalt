@@ -810,8 +810,8 @@ void HttpCache::CloseCurrentConnections() {
   HttpNetworkSession* session = network->GetSession();
   if (session) {
     session->tcp_socket_pool()->CloseIdleSockets();
-    if (session->flip_session_pool())
-      session->flip_session_pool()->CloseAllSessions();
+    if (session->spdy_session_pool())
+      session->spdy_session_pool()->CloseAllSessions();
     session->ReplaceTCPSocketPool();
   }
 }
