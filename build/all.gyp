@@ -114,7 +114,7 @@
         }],
         ['chromeos==1', {
           'dependencies': [
-            '../third_party/chromeos_text_input/text_input.gyp:*',
+            '../chrome/browser/chromeos/text_input/text_input.gyp:*',
           ],
         }],
       ],
