@@ -5,8 +5,10 @@
 #include "net/socket/client_socket_pool_base.h"
 
 #include "base/compiler_specific.h"
+#include "base/format_macros.h"
 #include "base/message_loop.h"
 #include "base/stl_util-inl.h"
+#include "base/string_util.h"
 #include "base/time.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
@@ -90,6 +92,16 @@ void ConnectJob::OnTimeout() {
 
 namespace internal {
 
+ClientSocketPoolBaseHelper::Request::Request(
+    ClientSocketHandle* handle,
+    CompletionCallback* callback,
+    RequestPriority priority,
+    LoadLog* load_log)
+    : handle_(handle), callback_(callback), priority_(priority),
+      load_log_(load_log) {}
+
+ClientSocketPoolBaseHelper::Request::~Request() {}
+
 ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
     int max_sockets,
     int max_sockets_per_group,
@@ -135,9 +147,6 @@ ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
 // static
 void ClientSocketPoolBaseHelper::InsertRequestIntoQueue(
     const Request* r, RequestQueue* pending_requests) {
-  LoadLog::BeginEvent(r->load_log(),
-      LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE);
-
   RequestQueue::iterator it = pending_requests->begin();
   while (it != pending_requests->end() && r->priority() >= (*it)->priority())
     ++it;
@@ -149,15 +158,24 @@ const ClientSocketPoolBaseHelper::Request*
 ClientSocketPoolBaseHelper::RemoveRequestFromQueue(
     RequestQueue::iterator it, RequestQueue* pending_requests) {
   const Request* req = *it;
-
-  LoadLog::EndEvent(req->load_log(),
-                    LoadLog::TYPE_SOCKET_POOL_WAITING_IN_QUEUE);
-
   pending_requests->erase(it);
   return req;
 }
 
 int ClientSocketPoolBaseHelper::RequestSocket(
+    const std::string& group_name,
+    const Request* request) {
+  LoadLog::BeginEvent(request->load_log(), LoadLog::TYPE_SOCKET_POOL);
+  Group& group = group_map_[group_name];
+  int rv = RequestSocketInternal(group_name, request);
+  if (rv != ERR_IO_PENDING)
+    LoadLog::EndEvent(request->load_log(), LoadLog::TYPE_SOCKET_POOL);
+  else
+    InsertRequestIntoQueue(request, &group.pending_requests);
+  return rv;
+}
+
+int ClientSocketPoolBaseHelper::RequestSocketInternal(
     const std::string& group_name,
     const Request* request) {
   DCHECK_GE(request->priority(), 0);
@@ -175,13 +193,14 @@ int ClientSocketPoolBaseHelper::RequestSocket(
       // a scan of all groups, so just flip a flag here, and do the check later.
       may_have_stalled_group_ = true;
 
-      LoadLog::AddEvent(request->load_log(),
+      LoadLog::AddEvent(
+          request->load_log(),
           LoadLog::TYPE_SOCKET_POOL_STALLED_MAX_SOCKETS);
     } else {
-      LoadLog::AddEvent(request->load_log(),
+      LoadLog::AddEvent(
+          request->load_log(),
           LoadLog::TYPE_SOCKET_POOL_STALLED_MAX_SOCKETS_PER_GROUP);
     }
-    InsertRequestIntoQueue(request, &group.pending_requests);
     return ERR_IO_PENDING;
   }
 
@@ -195,7 +214,8 @@ int ClientSocketPoolBaseHelper::RequestSocket(
       base::TimeDelta idle_time =
           base::TimeTicks::Now() - idle_socket.start_time;
       HandOutSocket(
-          idle_socket.socket, idle_socket.used, handle, idle_time, &group);
+          idle_socket.socket, idle_socket.used, handle, idle_time, &group,
+          request->load_log());
       return OK;
     }
     delete idle_socket.socket;
@@ -204,7 +224,6 @@ int ClientSocketPoolBaseHelper::RequestSocket(
   // See if we already have enough connect jobs or sockets that will be released
   // soon.
   if (group.HasReleasingSockets()) {
-    InsertRequestIntoQueue(request, &group.pending_requests);
     return ERR_IO_PENDING;
   }
 
@@ -222,12 +241,11 @@ int ClientSocketPoolBaseHelper::RequestSocket(
 
   if (rv == OK) {
     HandOutSocket(connect_job->ReleaseSocket(), false /* not reused */,
-                  handle, base::TimeDelta(), &group);
+                  handle, base::TimeDelta(), &group, request->load_log());
   } else if (rv == ERR_IO_PENDING) {
     connecting_socket_count_++;
 
     ConnectJob* job = connect_job.release();
-    InsertRequestIntoQueue(request, &group.pending_requests);
     group.jobs.insert(job);
   } else if (group.IsEmpty()) {
     group_map_.erase(group_name);
@@ -485,7 +503,7 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
         r->load_log()->Append(job_load_log);
       HandOutSocket(
           socket.release(), false /* unused socket */, r->handle(),
-          base::TimeDelta(), &group);
+          base::TimeDelta(), &group, r->load_log());
       r->callback()->Run(result);
     } else {
       AddIdleSocket(socket.release(), false /* unused socket */, &group);
@@ -554,13 +572,13 @@ void ClientSocketPoolBaseHelper::OnAvailableSocketSlot(
 
 void ClientSocketPoolBaseHelper::ProcessPendingRequest(
     const std::string& group_name, Group* group) {
-  scoped_ptr<const Request> r(RemoveRequestFromQueue(
-        group->pending_requests.begin(), &group->pending_requests));
-
-  int rv = RequestSocket(group_name, r.get());
+  scoped_ptr<const Request> r(*group->pending_requests.begin());
+  int rv = RequestSocketInternal(group_name, r.get());
 
   if (rv != ERR_IO_PENDING) {
     LoadLog::EndEvent(r->load_log(), LoadLog::TYPE_SOCKET_POOL);
+    RemoveRequestFromQueue(group->pending_requests.begin(),
+                           &group->pending_requests);
     r->callback()->Run(rv);
     if (rv != OK) {
       // |group| may be invalid after the callback, we need to search
@@ -577,11 +595,21 @@ void ClientSocketPoolBaseHelper::HandOutSocket(
     bool reused,
     ClientSocketHandle* handle,
     base::TimeDelta idle_time,
-    Group* group) {
+    Group* group,
+    LoadLog* load_log) {
   DCHECK(socket);
   handle->set_socket(socket);
   handle->set_is_reused(reused);
   handle->set_idle_time(idle_time);
+
+  if (reused)
+    LoadLog::AddStringLiteral(load_log, "Reusing socket.");
+  if (idle_time != base::TimeDelta()) {
+    LoadLog::AddString(
+        load_log,
+        StringPrintf("Socket sat idle for %" PRId64 " milliseconds",
+                     idle_time.InMilliseconds()));
+  }
 
   handed_out_socket_count_++;
   group->active_socket_count++;
