@@ -283,6 +283,11 @@ GURL SimplifyUrlForRequest(const GURL& url);
 
 void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports);
 
+// Perform a simplistic test to see if IPv6 is supported by trying to create an
+// IPv6 socket.
+// TODO(jar): Make test more in-depth as needed.
+bool IPv6Supported();
+
 }  // namespace net
 
 #endif  // NET_BASE_NET_UTIL_H_
