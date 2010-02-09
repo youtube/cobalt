@@ -284,11 +284,8 @@ int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
 }
 
 MockRead StaticSocketDataProvider::GetNextRead() {
-  MockRead rv = reads_[read_index_];
-  if (reads_[read_index_].result != OK ||
-      reads_[read_index_].data_len != 0)
-    read_index_++;  // Don't advance past an EOF.
-  return rv;
+  DCHECK(!at_read_eof());
+  return reads_[read_index_++];
 }
 
 MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
@@ -296,6 +293,8 @@ MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
     // Not using mock writes; succeed synchronously.
     return MockWriteResult(false, data.length());
   }
+
+  DCHECK(!at_write_eof());
 
   // Check that what we are writing matches the expectation.
   // Then give the mocked return value.

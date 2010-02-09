@@ -121,28 +121,33 @@ class SocketDataProvider {
 // writes.
 class StaticSocketDataProvider : public SocketDataProvider {
  public:
-  StaticSocketDataProvider() : reads_(NULL), read_index_(0),
-      writes_(NULL), write_index_(0) {}
-  StaticSocketDataProvider(MockRead* r, MockWrite* w) : reads_(r),
-      read_index_(0), writes_(w), write_index_(0) {}
+  StaticSocketDataProvider() : reads_(NULL), read_index_(0), read_count_(0),
+      writes_(NULL), write_index_(0), write_count_(0) {}
+  StaticSocketDataProvider(MockRead* reads, size_t reads_count,
+                           MockWrite* writes, size_t writes_count)
+      : reads_(reads),
+        read_index_(0),
+        read_count_(reads_count),
+        writes_(writes),
+        write_index_(0),
+        write_count_(writes_count) {
+  }
 
   // SocketDataProvider methods:
   virtual MockRead GetNextRead();
   virtual MockWriteResult OnWrite(const std::string& data);
   virtual void Reset();
 
-  // If the test wishes to verify that all data is consumed, it can include
-  // a EOF MockRead or MockWrite, which is a zero-length Read or Write.
-  // The test can then call at_read_eof() or at_write_eof() to verify that
-  // all data has been consumed.
-  bool at_read_eof() const { return reads_[read_index_].data_len == 0; }
-  bool at_write_eof() const { return writes_[write_index_].data_len == 0; }
+  bool at_read_eof() const { return read_index_ >= read_count_; }
+  bool at_write_eof() const { return write_index_ >= write_count_; }
 
  private:
   MockRead* reads_;
-  int read_index_;
+  size_t read_index_;
+  size_t read_count_;
   MockWrite* writes_;
-  int write_index_;
+  size_t write_index_;
+  size_t write_count_;
 
   DISALLOW_COPY_AND_ASSIGN(StaticSocketDataProvider);
 };
