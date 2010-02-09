@@ -797,25 +797,33 @@
       'target_name': 'net_resources',
       'type': 'none',
       'msvs_guid': '8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942',
+      'variables': {
+        'grit_cmd': ['python', '../tools/grit/grit.py'],
+        'grit_info_cmd': ['python', '../tools/grit/grit_info.py'],
+        'input_paths': [
+          'base/net_resources.grd',
+        ],
+      },
       'rules': [
         {
           'rule_name': 'grit',
           'extension': 'grd',
           'inputs': [
-            '../tools/grit/grit.py',
+            '<!@(<(grit_info_cmd) --inputs <(input_paths))',
           ],
           'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/net/grit/<(RULE_INPUT_ROOT).h',
-            '<(SHARED_INTERMEDIATE_DIR)/net/<(RULE_INPUT_ROOT).rc',
-            '<(SHARED_INTERMEDIATE_DIR)/net/<(RULE_INPUT_ROOT).pak',
+            '<!@(<(grit_info_cmd) '
+            '--outputs \'<(SHARED_INTERMEDIATE_DIR)/net\' <(input_paths))',
           ],
           'action':
-            ['python', '<@(_inputs)', '-i', '<(RULE_INPUT_PATH)', 'build', '-o', '<(SHARED_INTERMEDIATE_DIR)/net'],
+            ['<@(grit_cmd)',
+             '-i', '<(RULE_INPUT_PATH)', 'build',
+             '-o', '<(SHARED_INTERMEDIATE_DIR)/net'],
           'message': 'Generating resources from <(RULE_INPUT_PATH)',
         },
       ],
       'sources': [
-        'base/net_resources.grd',
+        '<@(input_paths)',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
