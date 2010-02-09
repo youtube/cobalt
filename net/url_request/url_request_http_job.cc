@@ -432,7 +432,9 @@ bool URLRequestHttpJob::ReadRawData(net::IOBuffer* buf, int buf_size,
 void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
-    if (request_->context()->cookie_store() && policy == net::OK) {
+    if (policy != net::OK) {
+      request_->delegate()->OnGetCookiesBlocked(request_);
+    } else if (request_->context()->cookie_store()) {
       net::CookieOptions options;
       options.set_include_httponly();
       std::string cookies =
@@ -442,7 +444,12 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
           !cookies.empty())
         request_info_.extra_headers += "Cookie: " + cookies + "\r\n";
     }
-    StartTransaction();
+    // We may have been canceled within OnGetCookiesBlocked.
+    if (GetStatus().is_success()) {
+      StartTransaction();
+    } else {
+      NotifyCanceled();
+    }
   }
   Release();  // Balance AddRef taken in AddCookieHeaderAndStart
 }
@@ -450,9 +457,10 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
 void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
-    if (request_->context()->cookie_store() &&
-            (policy == net::OK ||
-             policy == net::OK_FOR_SESSION_ONLY)) {
+    if (policy != net::OK &&
+        policy != net::OK_FOR_SESSION_ONLY) {
+      request_->delegate()->OnSetCookieBlocked(request_);
+    } else if (request_->context()->cookie_store()) {
       // OK to save the current response cookie now.
       net::CookieOptions options;
       options.set_include_httponly();
@@ -463,7 +471,12 @@ void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
           options);
     }
     response_cookies_save_index_++;
-    SaveNextCookie();
+    // We may have been canceled within OnSetCookieBlocked.
+    if (GetStatus().is_success()) {
+      SaveNextCookie();
+    } else {
+      NotifyCanceled();
+    }
   }
   Release();  // Balance AddRef taken in SaveNextCookie
 }
