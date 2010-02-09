@@ -1241,6 +1241,8 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
     req.set_context(context);
     req.Start();
     MessageLoop::current()->Run();
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Verify that the cookie is set.
@@ -1253,6 +1255,8 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
 
     EXPECT_TRUE(d.data_received().find("CookieToNotSend=1")
                 != std::string::npos);
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Verify that the cookie isn't sent when LOAD_DO_NOT_SEND_COOKIES is set.
@@ -1266,6 +1270,8 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
 
     EXPECT_TRUE(d.data_received().find("Cookie: CookieToNotSend=1")
                 == std::string::npos);
+    EXPECT_EQ(1, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 }
 
@@ -1283,6 +1289,9 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
     req.set_context(context);
     req.Start();
     MessageLoop::current()->Run();
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Try to set-up another cookie and update the previous cookie.
@@ -1295,6 +1304,9 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
     req.Start();
 
     MessageLoop::current()->Run();
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(2, d.blocked_set_cookie_count());
   }
 
   // Verify the cookies weren't saved or updated.
@@ -1309,6 +1321,9 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
                 == std::string::npos);
     EXPECT_TRUE(d.data_received().find("CookieToNotUpdate=2")
                 != std::string::npos);
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 }
 
@@ -1325,6 +1340,9 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
     req.set_context(context);
     req.Start();
     MessageLoop::current()->Run();
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Verify that the cookie is set.
@@ -1337,6 +1355,9 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
 
     EXPECT_TRUE(d.data_received().find("CookieToNotSend=1")
                 != std::string::npos);
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Verify that the cookie isn't sent.
@@ -1354,6 +1375,9 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
                 == std::string::npos);
 
     context->set_cookie_policy(NULL);
+
+    EXPECT_EQ(1, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 }
 
@@ -1371,6 +1395,9 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
     req.set_context(context);
     req.Start();
     MessageLoop::current()->Run();
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Try to set-up another cookie and update the previous cookie.
@@ -1387,6 +1414,9 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
     MessageLoop::current()->Run();
 
     context->set_cookie_policy(NULL);
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(2, d.blocked_set_cookie_count());
   }
 
 
@@ -1402,6 +1432,9 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
                 == std::string::npos);
     EXPECT_TRUE(d.data_received().find("CookieToNotUpdate=2")
                 != std::string::npos);
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 }
 
@@ -1418,6 +1451,9 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
     req.set_context(context);
     req.Start();
     MessageLoop::current()->Run();
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Verify that the cookie is set.
@@ -1430,6 +1466,9 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
 
     EXPECT_TRUE(d.data_received().find("CookieToNotSend=1")
                 != std::string::npos);
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Verify that the cookie isn't sent.
@@ -1448,6 +1487,9 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
                 == std::string::npos);
 
     context->set_cookie_policy(NULL);
+
+    EXPECT_EQ(1, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 }
 
@@ -1465,6 +1507,9 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
     req.set_context(context);
     req.Start();
     MessageLoop::current()->Run();
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Try to set-up another cookie and update the previous cookie.
@@ -1482,6 +1527,9 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
     MessageLoop::current()->Run();
 
     context->set_cookie_policy(NULL);
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(2, d.blocked_set_cookie_count());
   }
 
   // Verify the cookies weren't saved or updated.
@@ -1496,10 +1544,13 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
                 == std::string::npos);
     EXPECT_TRUE(d.data_received().find("CookieToNotUpdate=2")
                 != std::string::npos);
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 }
 
-TEST_F(URLRequestTest, CancelTest_DuringCookiePolicy) {
+TEST_F(URLRequestTest, CancelTest_During_CookiePolicy) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
@@ -1516,7 +1567,78 @@ TEST_F(URLRequestTest, CancelTest_DuringCookiePolicy) {
     req.set_context(context);
     req.Start();  // Triggers an asynchronous cookie policy check.
 
-    // But, now we cancel the request.  This should not cause a crash.
+    // But, now we cancel the request by letting it go out of scope.  This
+    // should not cause a crash.
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
+  }
+
+  context->set_cookie_policy(NULL);
+
+  // Let the cookie policy complete.  Make sure it handles the destruction of
+  // the URLRequest properly.
+  MessageLoop::current()->RunAllPending();
+}
+
+TEST_F(URLRequestTest, CancelTest_During_OnGetCookiesBlocked) {
+  scoped_refptr<HTTPTestServer> server =
+      HTTPTestServer::CreateServer(L"", NULL);
+  ASSERT_TRUE(NULL != server.get());
+  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+
+  TestCookiePolicy cookie_policy(TestCookiePolicy::NO_GET_COOKIES);
+  context->set_cookie_policy(&cookie_policy);
+
+  // Set up a cookie.
+  {
+    TestDelegate d;
+    d.set_cancel_in_get_cookies_blocked(true);
+    URLRequest req(server->TestServerPage("set-cookie?A=1&B=2&C=3"),
+                   &d);
+    req.set_context(context);
+    req.Start();  // Triggers an asynchronous cookie policy check.
+
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+
+    EXPECT_EQ(1, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
+  }
+
+  context->set_cookie_policy(NULL);
+}
+
+TEST_F(URLRequestTest, CancelTest_During_OnSetCookieBlocked) {
+  scoped_refptr<HTTPTestServer> server =
+      HTTPTestServer::CreateServer(L"", NULL);
+  ASSERT_TRUE(NULL != server.get());
+  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+
+  TestCookiePolicy cookie_policy(TestCookiePolicy::NO_SET_COOKIE);
+  context->set_cookie_policy(&cookie_policy);
+
+  // Set up a cookie.
+  {
+    TestDelegate d;
+    d.set_cancel_in_set_cookie_blocked(true);
+    URLRequest req(server->TestServerPage("set-cookie?A=1&B=2&C=3"),
+                   &d);
+    req.set_context(context);
+    req.Start();  // Triggers an asynchronous cookie policy check.
+
+    MessageLoop::current()->Run();
+
+    EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
+
+    // Even though the response will contain 3 set-cookie headers, we expect
+    // only one to be blocked as that first one will cause OnSetCookieBlocked
+    // to be called, which will cancel the request.  Once canceled, it should
+    // not attempt to set further cookies.
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(1, d.blocked_set_cookie_count());
   }
 
   context->set_cookie_policy(NULL);
@@ -1540,6 +1662,9 @@ TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
     req.Start();  // Triggers an asynchronous cookie policy check.
 
     MessageLoop::current()->Run();
+
+    EXPECT_EQ(0, d.blocked_get_cookies_count());
+    EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
 
   // Now, check the cookie store.

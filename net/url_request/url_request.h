@@ -187,6 +187,14 @@ class URLRequest {
       request->Cancel();
     }
 
+    // Called when unable to get cookies due to policy.
+    virtual void OnGetCookiesBlocked(URLRequest* request) {
+    }
+
+    // Called when unable to set a cookie due to policy.
+    virtual void OnSetCookieBlocked(URLRequest* request) {
+    }
+
     // After calling Start(), the delegate will receive an OnResponseStarted
     // callback when the request has completed.  If an error occurred, the
     // request->status() will be set.  On success, all redirects have been
