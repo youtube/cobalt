@@ -20,12 +20,6 @@ typedef SSLClientSocket* (*SSLClientSocketFactory)(
     const std::string& hostname,
     const SSLConfig& ssl_config);
 
-// Creates SSLClientSocketNSS objects.
-SSLClientSocket* SSLClientSocketNSSFactory(
-    ClientSocket* transport_socket,
-    const std::string& hostname,
-    const SSLConfig& ssl_config);
-
 // An interface used to instantiate ClientSocket objects.  Used to facilitate
 // testing code with mock socket implementations.
 class ClientSocketFactory {
