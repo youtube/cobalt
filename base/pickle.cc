@@ -195,20 +195,6 @@ bool Pickle::ReadUInt64(void** iter, uint64* result) const {
   return true;
 }
 
-bool Pickle::ReadIntPtr(void** iter, intptr_t* result) const {
-  DCHECK(iter);
-  if (!*iter)
-    *iter = const_cast<char*>(payload());
-
-  if (!IteratorHasRoomFor(*iter, sizeof(*result)))
-    return false;
-
-  memcpy(result, *iter, sizeof(*result));
-
-  UpdateIter(iter, sizeof(*result));
-  return true;
-}
-
 bool Pickle::ReadString(void** iter, std::string* result) const {
   DCHECK(iter);
 
