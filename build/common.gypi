@@ -402,6 +402,50 @@
          }],  # OS==win
         ],  # conditions for coverage
       }],  # coverage!=0
+      ['chromium_code==0', {
+        'includes': [
+          'external_code.gypi',
+        ],
+      }, {
+        # In Chromium code, we define __STDC_FORMAT_MACROS in order to get the
+        # C99 macros on Mac and Linux.
+        'defines': [
+          '__STDC_FORMAT_MACROS',
+        ],
+        'conditions': [
+          ['OS!="win"', {
+            'sources/': [ ['exclude', '_win(_unittest)?\\.cc$'],
+                          ['exclude', '/win/'],
+                          ['exclude', '/win_[^/]*\\.cc$'] ],
+          }],
+          ['OS!="mac"', {
+            'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.cc$'],
+                          ['exclude', '/(cocoa|mac)/'],
+                          ['exclude', '\.mm$' ] ],
+          }],
+          ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
+            'sources/': [
+              ['exclude', '_(chromeos|gtk|linux|x|x11)(_unittest)?\\.cc$'],
+              ['exclude', '/gtk/'],
+              ['exclude', '/(gtk|x11)_[^/]*\\.cc$'] ],
+          }],
+          # We use "POSIX" to refer to all non-Windows operating systems.
+          ['OS=="win"', {
+            'sources/': [ ['exclude', '_posix\\.cc$'] ],
+          }],
+          # Though Skia is conceptually shared by Linux and Windows,
+          # the only _skia files in our tree are Linux-specific.
+          ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
+            'sources/': [ ['exclude', '_skia\\.cc$'] ],
+          }],
+          ['chromeos!=1', {
+            'sources/': [ ['exclude', '_chromeos\\.cc$'] ]
+          }],
+          ['OS!="win" and (toolkit_views==0 and chromeos==0)', {
+            'sources/': [ ['exclude', '_views\\.cc$'] ]
+          }],
+        ],
+      }],
     ],  # conditions for 'target_defaults'
     'default_configuration': 'Debug',
     'configurations': {
@@ -1049,54 +1093,6 @@
             'AdditionalIncludeDirectories': ['<(DEPTH)'],
           },
         },
-      },
-    }],
-    ['chromium_code==0', {
-      # This section must follow the other condition sections above because
-      # external_code.gypi expects to be merged into those settings.
-      'includes': [
-        'external_code.gypi',
-      ],
-    }, {
-      'target_defaults': {
-        # In Chromium code, we define __STDC_FORMAT_MACROS in order to get the
-        # C99 macros on Mac and Linux.
-        'defines': [
-          '__STDC_FORMAT_MACROS',
-        ],
-        'conditions': [
-          ['OS!="win"', {
-            'sources/': [ ['exclude', '_win(_unittest)?\\.cc$'],
-                          ['exclude', '/win/'],
-                          ['exclude', '/win_[^/]*\\.cc$'] ],
-          }],
-          ['OS!="mac"', {
-            'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.cc$'],
-                          ['exclude', '/(cocoa|mac)/'],
-                          ['exclude', '\.mm$' ] ],
-          }],
-          ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
-            'sources/': [
-              ['exclude', '_(chromeos|gtk|linux|x|x11)(_unittest)?\\.cc$'],
-              ['exclude', '/gtk/'],
-              ['exclude', '/(gtk|x11)_[^/]*\\.cc$'] ],
-          }],
-          # We use "POSIX" to refer to all non-Windows operating systems.
-          ['OS=="win"', {
-            'sources/': [ ['exclude', '_posix\\.cc$'] ],
-          }],
-          # Though Skia is conceptually shared by Linux and Windows,
-          # the only _skia files in our tree are Linux-specific.
-          ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
-            'sources/': [ ['exclude', '_skia\\.cc$'] ],
-          }],
-          ['chromeos!=1', {
-            'sources/': [ ['exclude', '_chromeos\\.cc$'] ]
-          }],
-          ['OS!="win" and (toolkit_views==0 and chromeos==0)', {
-            'sources/': [ ['exclude', '_views\\.cc$'] ]
-          }],
-        ],
       },
     }],
     # Disable native client on FreeBSD/OpenBSD for now
