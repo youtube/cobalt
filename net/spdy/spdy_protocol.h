@@ -15,7 +15,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "spdy_bitmasks.h"  // cross-google3 directory naming.
+#include "net/spdy/spdy_bitmasks.h"
 
 //  Data Frame Format
 //  +----------------------------------+
@@ -93,7 +93,8 @@ enum SpdyControlType {
   SYN_STREAM = 1,
   SYN_REPLY,
   FIN_STREAM,
-  NOOP
+  NOOP,
+  NUM_CONTROL_FRAME_TYPES
 };
 
 // Flags on data packets
@@ -109,10 +110,21 @@ enum SpdyControlFlags {
   CONTROL_FLAG_FIN = 1
 };
 
-// A Spdy stream id is a 31 bit entity.
+// Status codes, as used in control frames (primarily FIN_STREAM).
+enum SpdyStatusCodes {
+  INVALID = 0,
+  PROTOCOL_ERROR = 1,
+  INVALID_STREAM = 2,
+  REFUSED_STREAM = 3
+};
+
+// A SPDY stream id is a 31 bit entity.
 typedef uint32 SpdyStreamId;
 
-// Spdy Priorities. (there are only 2 bits)
+// A SPDY priority is a number between 0 and 4.
+typedef uint8 SpdyPriority;
+
+// SPDY Priorities. (there are only 2 bits)
 #define SPDY_PRIORITY_LOWEST 3
 #define SPDY_PRIORITY_HIGHEST 0
 
@@ -130,7 +142,7 @@ union FlagsAndLength {
   uint32 length_;   // 24 bits
 };
 
-// The basic Spdy Frame structure.
+// The basic SPDY Frame structure.
 struct SpdyFrameBlock {
   union {
     struct {
@@ -146,12 +158,15 @@ struct SpdyFrameBlock {
 
 // A Control Frame structure.
 struct SpdyControlFrameBlock : SpdyFrameBlock {
+  // Note: technically, this probably should be moved to the
+  //       various control frame subclasses.  Not all control
+  //       frames will always have stream_ids.
   SpdyStreamId stream_id_;
 };
 
 // A SYN_STREAM Control Frame structure.
 struct SpdySynStreamControlFrameBlock : SpdyControlFrameBlock {
-  uint8 priority_;
+  SpdyPriority priority_;
   uint8 unused_;
 };
 
@@ -168,7 +183,7 @@ struct SpdyFinStreamControlFrameBlock : SpdyControlFrameBlock {
 #pragma pack(pop)
 
 // -------------------------------------------------------------------------
-// Wrapper classes for various Spdy frames.
+// Wrapper classes for various SPDY frames.
 
 // All Spdy Frame types derive from this SpdyFrame class.
 class SpdyFrame {
@@ -225,7 +240,6 @@ class SpdyFrame {
   }
 
   // Returns the size of the SpdyFrameBlock structure.
-  // Note: this is not the size of the SpdyFrame class.
   // Every SpdyFrame* class has a static size() method for accessing
   // the size of the data structure which will be sent over the wire.
   // Note:  this is not the same as sizeof(SpdyFrame).
@@ -275,21 +289,42 @@ class SpdyControlFrame : public SpdyFrame {
       : SpdyFrame(data, owns_buffer) {}
   virtual ~SpdyControlFrame() {}
 
+  // Callers can use this method to check if the frame appears to be a valid
+  // frame.  Does not guarantee that there are no errors.
+  bool AppearsToBeAValidControlFrame() const {
+    // Right now we only check if the frame has an out-of-bounds type.
+    uint16 type = ntohs(block()->control_.type_);
+    return (type >= SYN_STREAM && type < NUM_CONTROL_FRAME_TYPES);
+  }
+
   uint16 version() const {
     const int kVersionMask = 0x7fff;
     return ntohs(block()->control_.version_) & kVersionMask;
   }
+
+  void set_version(uint16 version) {
+    const uint16 kControlBit = 0x80;
+    DCHECK_EQ(0, version & kControlBit);
+    mutable_block()->control_.version_ = kControlBit | htons(version);
+  }
+
   SpdyControlType type() const {
     uint16 type = ntohs(block()->control_.type_);
-    DCHECK(type >= SYN_STREAM && type <= NOOP);
+    DCHECK(type >= SYN_STREAM && type < NUM_CONTROL_FRAME_TYPES);
     return static_cast<SpdyControlType>(type);
   }
+
+  void set_type(SpdyControlType type) {
+    DCHECK(type >= SYN_STREAM && type < NUM_CONTROL_FRAME_TYPES);
+    mutable_block()->control_.type_ = htons(type);
+  }
+
   SpdyStreamId stream_id() const {
     return ntohl(block()->stream_id_) & kStreamIdMask;
   }
 
   void set_stream_id(SpdyStreamId id) {
-    block()->stream_id_ = htonl(id & kStreamIdMask);
+    mutable_block()->stream_id_ = htonl(id & kStreamIdMask);
   }
 
   // Returns the size of the SpdyControlFrameBlock structure.
@@ -297,7 +332,10 @@ class SpdyControlFrame : public SpdyFrame {
   static size_t size() { return sizeof(SpdyControlFrameBlock); }
 
  private:
-  struct SpdyControlFrameBlock* block() const {
+  const struct SpdyControlFrameBlock* block() const {
+    return static_cast<SpdyControlFrameBlock*>(frame_);
+  }
+  struct SpdyControlFrameBlock* mutable_block() {
     return static_cast<SpdyControlFrameBlock*>(frame_);
   }
   DISALLOW_COPY_AND_ASSIGN(SpdyControlFrame);
@@ -311,7 +349,9 @@ class SpdySynStreamControlFrame : public SpdyControlFrame {
       : SpdyControlFrame(data, owns_buffer) {}
   virtual ~SpdySynStreamControlFrame() {}
 
-  uint8 priority() const { return (block()->priority_ & kPriorityMask) >> 6; }
+  SpdyPriority priority() const {
+    return (block()->priority_ & kPriorityMask) >> 6;
+  }
 
   // The number of bytes in the header block beyond the frame header length.
   int header_block_len() const {
@@ -327,7 +367,10 @@ class SpdySynStreamControlFrame : public SpdyControlFrame {
   static size_t size() { return sizeof(SpdySynStreamControlFrameBlock); }
 
  private:
-  struct SpdySynStreamControlFrameBlock* block() const {
+  const struct SpdySynStreamControlFrameBlock* block() const {
+    return static_cast<SpdySynStreamControlFrameBlock*>(frame_);
+  }
+  struct SpdySynStreamControlFrameBlock* mutable_block() {
     return static_cast<SpdySynStreamControlFrameBlock*>(frame_);
   }
   DISALLOW_COPY_AND_ASSIGN(SpdySynStreamControlFrame);
@@ -354,7 +397,10 @@ class SpdySynReplyControlFrame : public SpdyControlFrame {
   static size_t size() { return sizeof(SpdySynReplyControlFrameBlock); }
 
  private:
-  struct SpdySynReplyControlFrameBlock* block() const {
+  const struct SpdySynReplyControlFrameBlock* block() const {
+    return static_cast<SpdySynReplyControlFrameBlock*>(frame_);
+  }
+  struct SpdySynReplyControlFrameBlock* mutable_block() {
     return static_cast<SpdySynReplyControlFrameBlock*>(frame_);
   }
   DISALLOW_COPY_AND_ASSIGN(SpdySynReplyControlFrame);
@@ -369,14 +415,17 @@ class SpdyFinStreamControlFrame : public SpdyControlFrame {
   virtual ~SpdyFinStreamControlFrame() {}
 
   uint32 status() const { return ntohl(block()->status_); }
-  void set_status(uint32 status) { block()->status_ = htonl(status); }
+  void set_status(uint32 status) { mutable_block()->status_ = htonl(status); }
 
   // Returns the size of the SpdyFinStreamControlFrameBlock structure.
   // Note: this is not the size of the SpdyFinStreamControlFrame class.
   static size_t size() { return sizeof(SpdyFinStreamControlFrameBlock); }
 
  private:
-  struct SpdyFinStreamControlFrameBlock* block() const {
+  const struct SpdyFinStreamControlFrameBlock* block() const {
+    return static_cast<SpdyFinStreamControlFrameBlock*>(frame_);
+  }
+  struct SpdyFinStreamControlFrameBlock* mutable_block() {
     return static_cast<SpdyFinStreamControlFrameBlock*>(frame_);
   }
   DISALLOW_COPY_AND_ASSIGN(SpdyFinStreamControlFrame);
