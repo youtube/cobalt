@@ -215,6 +215,7 @@
         'filters/file_data_source_unittest.cc',
         'filters/video_decoder_impl_unittest.cc',
         'filters/video_renderer_base_unittest.cc',
+        'omx/omx_input_buffer_unittest.cc',
       ],
       'conditions': [
         ['OS=="linux" or OS=="freebsd"', {
