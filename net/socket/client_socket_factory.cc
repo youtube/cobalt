@@ -35,7 +35,6 @@ SSLClientSocket* DefaultSSLClientSocketFactory(
 #endif
 }
 
-// True if we should use NSS instead of the system SSL library for SSL.
 SSLClientSocketFactory g_ssl_factory = DefaultSSLClientSocketFactory;
 
 class DefaultClientSocketFactory : public ClientSocketFactory {
