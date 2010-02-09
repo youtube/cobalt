@@ -62,7 +62,8 @@ TEST_F(HttpNetworkLayerTest, GET) {
                    "Connection: keep-alive\r\n"
                    "User-Agent: Foo/1.0\r\n\r\n"),
   };
-  net::StaticSocketDataProvider data(data_reads, data_writes);
+  net::StaticSocketDataProvider data(data_reads, arraysize(data_reads),
+                                     data_writes, arraysize(data_reads));
   mock_socket_factory.AddSocketDataProvider(&data);
 
   net::HttpNetworkLayer factory(&mock_socket_factory, NULL,
