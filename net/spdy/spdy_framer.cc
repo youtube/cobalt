@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/spdy/spdy_framer.h"
+
 #include "base/scoped_ptr.h"
 #include "base/stats_counters.h"
 
-#include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_bitmasks.h"
 
@@ -133,8 +134,6 @@ const char* SpdyFramer::ErrorCodeToString(int error_code) {
   switch (error_code) {
     case SPDY_NO_ERROR:
       return "NO_ERROR";
-    case SPDY_UNKNOWN_CONTROL_TYPE:
-      return "UNKNOWN_CONTROL_TYPE";
     case SPDY_INVALID_CONTROL_FRAME:
       return "INVALID_CONTROL_FRAME";
     case SPDY_CONTROL_PAYLOAD_TOO_LARGE:
@@ -145,8 +144,10 @@ const char* SpdyFramer::ErrorCodeToString(int error_code) {
       return "UNSUPPORTED_VERSION";
     case SPDY_DECOMPRESS_FAILURE:
       return "DECOMPRESS_FAILURE";
+    case SPDY_COMPRESS_FAILURE:
+      return "COMPRESS_FAILURE";
   }
-  return "UNKNOWN_STATE";
+  return "UNKNOWN_ERROR";
 }
 
 size_t SpdyFramer::ProcessInput(const char* data, size_t len) {
@@ -228,7 +229,7 @@ size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
           SpdyDataFrame data_frame(current_frame_buffer_, false);
           visitor_->OnStreamFrameData(data_frame.stream_id(), NULL, 0);
         }
-        CHANGE_STATE(SPDY_RESET);
+        CHANGE_STATE(SPDY_AUTO_RESET);
       }
       break;
     }
@@ -254,6 +255,23 @@ void SpdyFramer::ProcessControlFrameHeader() {
   DCHECK_EQ(SPDY_NO_ERROR, error_code_);
   DCHECK_LE(SpdyFrame::size(), current_frame_len_);
   SpdyControlFrame current_control_frame(current_frame_buffer_, false);
+
+  // We check version before we check validity: version can never be 'invalid',
+  // it can only be unsupported.
+  if (current_control_frame.version() != kSpdyProtocolVersion) {
+    set_error(SPDY_UNSUPPORTED_VERSION);
+    return;
+  }
+
+  // Next up, check to see if we have valid data.  This should be after version
+  // checking (otherwise if the the type were out of bounds due to a version
+  // upgrade we would misclassify the error) and before checking the type
+  // (type can definitely be out of bounds)
+  if (!current_control_frame.AppearsToBeAValidControlFrame()) {
+    set_error(SPDY_INVALID_CONTROL_FRAME);
+    return;
+  }
+
   // Do some sanity checking on the control frame sizes.
   switch (current_control_frame.type()) {
     case SYN_STREAM:
@@ -276,20 +294,25 @@ void SpdyFramer::ProcessControlFrameHeader() {
       CHANGE_STATE(SPDY_AUTO_RESET);
       return;
     default:
-      set_error(SPDY_UNKNOWN_CONTROL_TYPE);
+      LOG(WARNING) << "Valid spdy control frame with unknown type: "
+                   << current_control_frame.type()
+                   << ".  This should never happen";
+      DCHECK(false);
+      set_error(SPDY_INVALID_CONTROL_FRAME);
       break;
   }
 
   // We only support version 1 of this protocol.
-  if (current_control_frame.version() != kSpdyProtocolVersion)
+  if (current_control_frame.version() != kSpdyProtocolVersion) {
     set_error(SPDY_UNSUPPORTED_VERSION);
+    return;
+  }
 
   remaining_control_payload_ = current_control_frame.length();
-  if (remaining_control_payload_ > kControlFrameBufferMaxSize)
+  if (remaining_control_payload_ > kControlFrameBufferMaxSize) {
     set_error(SPDY_CONTROL_PAYLOAD_TOO_LARGE);
-
-  if (error_code_)
     return;
+  }
 
   ExpandControlFrameBuffer(remaining_control_payload_);
   CHANGE_STATE(SPDY_CONTROL_FRAME_PAYLOAD);
@@ -336,7 +359,7 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
           return NULL;
 
         size_t decompressed_max_size = amount_to_forward * 100;
-        scoped_ptr<char> decompressed(new char[decompressed_max_size]);
+        scoped_array<char> decompressed(new char[decompressed_max_size]);
         decompressor_->next_in = reinterpret_cast<Bytef*>(
             const_cast<char*>(data));
         decompressor_->avail_in = amount_to_forward;
@@ -389,6 +412,7 @@ void SpdyFramer::ExpandControlFrameBuffer(size_t size) {
   int alloc_size = size + SpdyFrame::size();
   char* new_buffer = new char[alloc_size];
   memcpy(new_buffer, current_frame_buffer_, current_frame_len_);
+  delete [] current_frame_buffer_;
   current_frame_capacity_ = alloc_size;
   current_frame_buffer_ = new_buffer;
 }
@@ -495,7 +519,7 @@ SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(SpdyStreamId stream_id,
     frame.WriteString(it->second);
   }
 
-  // Write the length
+  // Write the length and flags.
   size_t length = frame.length() - SpdyFrame::size();
   DCHECK(length < static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
@@ -543,7 +567,7 @@ SpdyControlFrame* SpdyFramer::CreateNopFrame() {
 static const int kCompressorLevel = Z_DEFAULT_COMPRESSION;
 // This is just a hacked dictionary to use for shrinking HTTP-like headers.
 // TODO(mbelshe): Use a scientific methodology for computing the dictionary.
-static const char dictionary[] =
+const char SpdyFramer::kDictionary[] =
   "optionsgetheadpostputdeletetraceacceptaccept-charsetaccept-encodingaccept-"
   "languageauthorizationexpectfromhostif-modified-sinceif-matchif-none-matchi"
   "f-rangeif-unmodifiedsincemax-forwardsproxy-authorizationrangerefererteuser"
@@ -557,6 +581,8 @@ static const char dictionary[] =
   "pOctNovDecchunkedtext/htmlimage/pngimage/jpgimage/gifapplication/xmlapplic"
   "ation/xhtmltext/plainpublicmax-agecharset=iso-8859-1utf-8gzipdeflateHTTP/1"
   ".1statusversionurl";
+const int SpdyFramer::kDictionarySize = arraysize(kDictionary);
+
 static uLong dictionary_id = 0;
 
 bool SpdyFramer::InitializeCompressor() {
@@ -569,8 +595,8 @@ bool SpdyFramer::InitializeCompressor() {
   int success = deflateInit(compressor_.get(), kCompressorLevel);
   if (success == Z_OK)
     success = deflateSetDictionary(compressor_.get(),
-                                   reinterpret_cast<const Bytef*>(dictionary),
-                                   sizeof(dictionary));
+                                   reinterpret_cast<const Bytef*>(kDictionary),
+                                   kDictionarySize);
   if (success != Z_OK)
     compressor_.reset(NULL);
   return success == Z_OK;
@@ -588,8 +614,8 @@ bool SpdyFramer::InitializeDecompressor() {
   if (dictionary_id == 0) {
     dictionary_id = adler32(0L, Z_NULL, 0);
     dictionary_id = adler32(dictionary_id,
-                            reinterpret_cast<const Bytef*>(dictionary),
-                            sizeof(dictionary));
+                            reinterpret_cast<const Bytef*>(kDictionary),
+                            kDictionarySize);
   }
 
   int success = inflateInit(decompressor_.get());
@@ -602,6 +628,7 @@ bool SpdyFramer::GetFrameBoundaries(const SpdyFrame* frame,
                                     int* payload_length,
                                     int* header_length,
                                     const char** payload) const {
+  size_t frame_size;
   if (frame->is_control_frame()) {
     const SpdyControlFrame* control_frame =
         reinterpret_cast<const SpdyControlFrame*>(frame);
@@ -611,8 +638,9 @@ bool SpdyFramer::GetFrameBoundaries(const SpdyFrame* frame,
         {
           const SpdySynStreamControlFrame *syn_frame =
               reinterpret_cast<const SpdySynStreamControlFrame*>(frame);
+          frame_size = SpdySynStreamControlFrame::size();
           *payload_length = syn_frame->header_block_len();
-          *header_length = syn_frame->size();
+          *header_length = frame_size;
           *payload = frame->data() + *header_length;
         }
         break;
@@ -621,7 +649,8 @@ bool SpdyFramer::GetFrameBoundaries(const SpdyFrame* frame,
         return false;  // We can't compress this frame!
     }
   } else {
-    *header_length = SpdyFrame::size();
+    frame_size = SpdyFrame::size();
+    *header_length = frame_size;
     *payload_length = frame->length();
     *payload = frame->data() + SpdyFrame::size();
   }
@@ -727,8 +756,8 @@ SpdyFrame* SpdyFramer::DecompressFrame(const SpdyFrame* frame) {
   if (rv == Z_NEED_DICT) {
     // Need to try again with the right dictionary.
     if (decompressor_->adler == dictionary_id) {
-      rv = inflateSetDictionary(decompressor_.get(), (const Bytef*)dictionary,
-                                sizeof(dictionary));
+      rv = inflateSetDictionary(decompressor_.get(), (const Bytef*)kDictionary,
+                                kDictionarySize);
       if (rv == Z_OK)
         rv = inflate(decompressor_.get(), Z_SYNC_FLUSH);
     }
