@@ -218,12 +218,14 @@ void NetworkChangeNotifierThread::Init() {
 }  // namespace
 
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
-    : notifier_thread_(
-          new NetworkChangeNotifierThread(MessageLoop::current(), this)) {
-  base::Thread::Options thread_options;
-  thread_options.message_loop_type = MessageLoop::TYPE_UI;
-  notifier_thread_->StartWithOptions(thread_options);
-}
+// http://crbug.com/34926: This might be slowing down Mac startup.  Disable the
+// helper thread to see if that improves mac startup times.
+//    : notifier_thread_(
+//          new NetworkChangeNotifierThread(MessageLoop::current(), this)) {
+//  base::Thread::Options thread_options;
+//  thread_options.message_loop_type = MessageLoop::TYPE_UI;
+//  notifier_thread_->StartWithOptions(thread_options);
+      : notifier_thread_(NULL) {}
 
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {}
 
