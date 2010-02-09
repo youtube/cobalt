@@ -160,7 +160,8 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
     MockRead("Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
     MockRead("\r\n"),
   };
-  StaticSocketDataProvider data1(data_reads1, data_writes1);
+  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                 data_writes1, arraysize(data_writes1));
   mock_socket_factory.AddSocketDataProvider(&data1);
 
   MockWrite data_writes2[] = {
@@ -174,7 +175,8 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
     MockRead("Proxy-agent: Apache/2.2.8\r\n"),
     MockRead("\r\n"),
   };
-  StaticSocketDataProvider data2(data_reads2, data_writes2);
+  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
+                                 data_writes2, arraysize(data_writes2));
   mock_socket_factory.AddSocketDataProvider(&data2);
 
   TestCompletionCallback callback;

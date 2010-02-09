@@ -84,7 +84,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
 // |length| is the length of the frame to chop.
 // |num_chunks| is the number of chunks to create.
 MockWrite* ChopFrame(const char* data, int length, int num_chunks) {
-  MockWrite* chunks = new MockWrite[num_chunks + 1];
+  MockWrite* chunks = new MockWrite[num_chunks];
   int chunk_size = length / num_chunks;
   for (int index = 0; index < num_chunks; index++) {
     const char* ptr = data + (index * chunk_size);
@@ -92,7 +92,6 @@ MockWrite* ChopFrame(const char* data, int length, int num_chunks) {
       chunk_size += length % chunk_size;  // The last chunk takes the remainder.
     chunks[index] = MockWrite(true, ptr, chunk_size);
   }
-  chunks[num_chunks] = MockWrite(true, 0, 0);
   return chunks;
 }
 
@@ -198,15 +197,17 @@ static const unsigned char kPostBodyFrame[] = {
 class DelayedSocketData : public StaticSocketDataProvider,
                           public base::RefCounted<DelayedSocketData> {
  public:
-  // |reads| the list of MockRead completions.
   // |write_delay| the number of MockWrites to complete before allowing
   //               a MockRead to complete.
+  // |reads| the list of MockRead completions.
   // |writes| the list of MockWrite completions.
   // Note: All MockReads and MockWrites must be async.
   // Note: The MockRead and MockWrite lists musts end with a EOF
   //       e.g. a MockRead(true, 0, 0);
-  DelayedSocketData(MockRead* reads, int write_delay, MockWrite* writes)
-    : StaticSocketDataProvider(reads, writes),
+  DelayedSocketData(int write_delay,
+                    MockRead* reads, size_t reads_count,
+                    MockWrite* writes, size_t writes_count)
+    : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
       write_delay_(write_delay),
       ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
     DCHECK_GE(write_delay_, 0);
@@ -220,9 +221,10 @@ class DelayedSocketData : public StaticSocketDataProvider,
   // Note: All MockReads and MockWrites must be async.
   // Note: The MockRead and MockWrite lists musts end with a EOF
   //       e.g. a MockRead(true, 0, 0);
-  DelayedSocketData(const MockConnect& connect, MockRead* reads,
-                    int write_delay, MockWrite* writes)
-    : StaticSocketDataProvider(reads, writes),
+  DelayedSocketData(const MockConnect& connect, int write_delay,
+                    MockRead* reads, size_t reads_count,
+                    MockWrite* writes, size_t writes_count)
+    : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
       write_delay_(write_delay),
       ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
     DCHECK_GE(write_delay_, 0);
@@ -345,7 +347,6 @@ TEST_F(SpdyNetworkTransactionTest, Get) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
               arraysize(kGetSyn)),
-    MockWrite(true, 0, 0)  // EOF
   };
 
   MockRead reads[] = {
@@ -361,7 +362,8 @@ TEST_F(SpdyNetworkTransactionTest, Get) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(reads, 1, writes));
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
   TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
@@ -384,7 +386,6 @@ TEST_F(SpdyNetworkTransactionTest, Post) {
               arraysize(kPostSyn)),
     MockWrite(true, reinterpret_cast<const char*>(kPostUploadFrame),
               arraysize(kPostUploadFrame)),
-    MockWrite(true, 0, 0)  // EOF
   };
 
   MockRead reads[] = {
@@ -396,7 +397,8 @@ TEST_F(SpdyNetworkTransactionTest, Post) {
   };
 
   scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(reads, 2, writes));
+      new DelayedSocketData(2, reads, arraysize(reads),
+                            writes, arraysize(writes)));
   TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
@@ -430,7 +432,6 @@ static const unsigned char kEmptyPostSyn[] = {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kEmptyPostSyn),
               arraysize(kEmptyPostSyn)),
-    MockWrite(true, 0, 0)  // EOF
   };
 
   MockRead reads[] = {
@@ -442,7 +443,8 @@ static const unsigned char kEmptyPostSyn[] = {
   };
 
   scoped_refptr<DelayedSocketData> data(
-    new DelayedSocketData(reads, 1, writes));
+    new DelayedSocketData(1, reads, arraysize(reads),
+                          writes, arraysize(writes)));
 
   TransactionHelperResult out = TransactionHelper(request, data, NULL);
   EXPECT_EQ(OK, out.rv);
@@ -463,7 +465,7 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithoutSynReply) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(reads, 1, NULL));
+      new DelayedSocketData(1, reads, arraysize(reads), NULL, 0));
   TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
 }
@@ -497,7 +499,8 @@ TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
   scoped_ptr<SpdyNetworkTransaction> trans(
       new SpdyNetworkTransaction(CreateSession(&session_deps)));
 
-  StaticSocketDataProvider data(reads, writes);
+  StaticSocketDataProvider data(reads, arraysize(reads),
+                                writes, arraysize(writes));
   session_deps.socket_factory.AddSocketDataProvider(&data);
 
   TestCompletionCallback callback;
@@ -595,7 +598,6 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeaders) {
     MockWrite writes[] = {
       MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
                 arraysize(kGetSyn)),
-      MockWrite(true, 0, 0)  // EOF
     };
 
     MockRead reads[] = {
@@ -611,7 +613,8 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeaders) {
     request.url = GURL("http://www.google.com/");
     request.load_flags = 0;
     scoped_refptr<DelayedSocketData> data(
-        new DelayedSocketData(reads, 1, writes));
+        new DelayedSocketData(1, reads, arraysize(reads),
+                              writes, arraysize(writes)));
     TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
     EXPECT_EQ(OK, out.rv);
     EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
@@ -686,7 +689,8 @@ TEST_F(SpdyNetworkTransactionTest, InvalidSynReply) {
     request.url = GURL("http://www.google.com/");
     request.load_flags = 0;
     scoped_refptr<DelayedSocketData> data(
-        new DelayedSocketData(reads, 1, writes));
+        new DelayedSocketData(1, reads, arraysize(reads),
+                              writes, arraysize(writes)));
     TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
     EXPECT_EQ(ERR_INVALID_RESPONSE, out.rv);
   }
@@ -732,7 +736,8 @@ TEST_F(SpdyNetworkTransactionTest, CorruptFrameSessionError) {
     request.url = GURL("http://www.google.com/");
     request.load_flags = 0;
     scoped_refptr<DelayedSocketData> data(
-        new DelayedSocketData(reads, 1, writes));
+        new DelayedSocketData(1, reads, arraysize(reads),
+                              writes, arraysize(writes)));
     TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
     EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
   }
@@ -784,7 +789,6 @@ TEST_F(SpdyNetworkTransactionTest, ServerPush) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
               arraysize(kGetSyn)),
-    MockWrite(true, 0, 0)  // EOF
   };
 
   MockRead reads[] = {
@@ -821,7 +825,8 @@ TEST_F(SpdyNetworkTransactionTest, ServerPush) {
     SessionDependencies session_deps;
     scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
     scoped_refptr<DelayedSocketData> data(
-        new DelayedSocketData(reads, 1, writes));
+        new DelayedSocketData(1, reads, arraysize(reads),
+                              writes, arraysize(writes)));
     session_deps.socket_factory.AddSocketDataProvider(data.get());
 
     // Issue the first request
@@ -918,7 +923,8 @@ TEST_F(SpdyNetworkTransactionTest, WriteError) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(reads, 2, writes));
+      new DelayedSocketData(2, reads, arraysize(reads),
+                            writes, arraysize(writes)));
   TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
   EXPECT_EQ(ERR_FAILED, out.rv);
   data->Reset();
@@ -944,7 +950,8 @@ TEST_F(SpdyNetworkTransactionTest, PartialWrite) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(reads, kChunks, writes.get()));
+      new DelayedSocketData(kChunks, reads, arraysize(reads),
+                            writes.get(), kChunks));
   TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
@@ -979,7 +986,8 @@ TEST_F(SpdyNetworkTransactionTest, DISABLED_ConnectFailure) {
     request.url = GURL("http://www.google.com/");
     request.load_flags = 0;
     scoped_refptr<DelayedSocketData> data(
-        new DelayedSocketData(connects[index], reads, 1, writes));
+        new DelayedSocketData(connects[index], 1, reads, arraysize(reads),
+                              writes, arraysize(writes)));
     TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
     EXPECT_EQ(connects[index].result, out.rv);
   }
@@ -1010,7 +1018,8 @@ TEST_F(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(reads, 1, writes));
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
   TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
   data->Reset();
@@ -1023,7 +1032,6 @@ TEST_F(SpdyNetworkTransactionTest, LoadLog) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
               arraysize(kGetSyn)),
-    MockWrite(true, 0, 0)  // EOF
   };
 
   MockRead reads[] = {
@@ -1041,7 +1049,8 @@ TEST_F(SpdyNetworkTransactionTest, LoadLog) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(reads, 1, writes));
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
   TransactionHelperResult out = TransactionHelper(request, data.get(),
                                                   log);
   EXPECT_EQ(OK, out.rv);

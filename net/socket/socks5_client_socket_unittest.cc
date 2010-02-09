@@ -32,7 +32,9 @@ class SOCKS5ClientSocketTest : public PlatformTest {
   SOCKS5ClientSocketTest();
   // Create a SOCKSClientSocket on top of a MockSocket.
   SOCKS5ClientSocket* BuildMockSocket(MockRead reads[],
+                                      size_t reads_count,
                                       MockWrite writes[],
+                                      size_t writes_count,
                                       const std::string& hostname,
                                       int port);
 
@@ -67,11 +69,14 @@ void SOCKS5ClientSocketTest::SetUp() {
 
 SOCKS5ClientSocket* SOCKS5ClientSocketTest::BuildMockSocket(
     MockRead reads[],
+    size_t reads_count,
     MockWrite writes[],
+    size_t writes_count,
     const std::string& hostname,
     int port) {
   TestCompletionCallback callback;
-  data_.reset(new StaticSocketDataProvider(reads, writes));
+  data_.reset(new StaticSocketDataProvider(reads, reads_count,
+                                           writes, writes_count));
   tcp_sock_ = new MockTCPClientSocket(address_list_, data_.get());
 
   int rv = tcp_sock_->Connect(&callback, NULL);
@@ -115,7 +120,9 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
       MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)),
       MockRead(true, payload_read.data(), payload_read.size()) };
 
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes, "localhost", 80));
+  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                   data_writes, arraysize(data_writes),
+                                   "localhost", 80));
 
   // At this state the TCP connection is completed but not the SOCKS handshake.
   EXPECT_TRUE(tcp_sock_->IsConnected());
@@ -177,7 +184,9 @@ TEST_F(SOCKS5ClientSocketTest, ConnectAndDisconnectTwice) {
         MockRead(false, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse))
     };
 
-    user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
+    user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                     data_writes, arraysize(data_writes),
+                                     hostname, 80));
 
     int rv = user_sock_->Connect(&callback_, NULL);
     EXPECT_EQ(OK, rv);
@@ -197,7 +206,8 @@ TEST_F(SOCKS5ClientSocketTest, LargeHostNameFails) {
   // Create a SOCKS socket, with mock transport socket.
   MockWrite data_writes[] = {MockWrite()};
   MockRead data_reads[] = {MockRead()};
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes,
+  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                   data_writes, arraysize(data_writes),
                                    large_host_name, 80));
 
   // Try to connect -- should fail (without having read/written anything to
@@ -232,7 +242,9 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     MockRead data_reads[] = {
         MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
         MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
-    user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
+    user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                     data_writes, arraysize(data_writes),
+                                     hostname, 80));
     scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -254,7 +266,9 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
         MockRead(true, partial1, arraysize(partial1)),
         MockRead(true, partial2, arraysize(partial2)),
         MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
-    user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
+    user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                     data_writes, arraysize(data_writes),
+                                     hostname, 80));
     scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -277,7 +291,9 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     MockRead data_reads[] = {
         MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
         MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
-    user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
+    user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                     data_writes, arraysize(data_writes),
+                                     hostname, 80));
     scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
@@ -302,7 +318,9 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
                  arraysize(kSOCKS5OkResponse) - kSplitPoint)
     };
 
-    user_sock_.reset(BuildMockSocket(data_reads, data_writes, hostname, 80));
+    user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                     data_writes, arraysize(data_writes),
+                                     hostname, 80));
     scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
     int rv = user_sock_->Connect(&callback_, log);
     EXPECT_EQ(ERR_IO_PENDING, rv);
