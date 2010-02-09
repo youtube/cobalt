@@ -13,7 +13,7 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "net/socket/client_socket_handle.h"
+#include "net/base/completion_callback.h"
 
 namespace net {
 
