@@ -574,8 +574,8 @@ class FtpNetworkTransactionTest : public PlatformTest {
     };
     // For compatibility with FileZilla, the transaction code will use two data
     // sockets for directory requests. For more info see http://crbug.com/25316.
-    StaticSocketDataProvider data1(data_reads, NULL);
-    StaticSocketDataProvider data2(data_reads, NULL);
+    StaticSocketDataProvider data1(data_reads, arraysize(data_reads), NULL, 0);
+    StaticSocketDataProvider data2(data_reads, arraysize(data_reads), NULL, 0);
     mock_socket_factory_.AddSocketDataProvider(ctrl_socket);
     mock_socket_factory_.AddSocketDataProvider(&data1);
     mock_socket_factory_.AddSocketDataProvider(&data2);
@@ -707,7 +707,8 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionAcceptedDataConnection) {
   MockRead data_reads[] = {
     MockRead(mock_data.c_str()),
   };
-  StaticSocketDataProvider data_socket1(data_reads, NULL);
+  StaticSocketDataProvider data_socket1(data_reads, arraysize(data_reads),
+                                        NULL, 0);
   mock_socket_factory_.AddSocketDataProvider(&ctrl_socket);
   mock_socket_factory_.AddSocketDataProvider(&data_socket1);
   FtpRequestInfo request_info = GetRequestInfo("ftp://host/file");
@@ -791,7 +792,8 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafeHost) {
   MockRead data_reads[] = {
     MockRead(mock_data.c_str()),
   };
-  StaticSocketDataProvider data_socket1(data_reads, NULL);
+  StaticSocketDataProvider data_socket1(data_reads, arraysize(data_reads),
+                                        NULL, 0);
   mock_socket_factory_.AddSocketDataProvider(&ctrl_socket);
   mock_socket_factory_.AddSocketDataProvider(&data_socket1);
   FtpRequestInfo request_info = GetRequestInfo("ftp://host/file");
@@ -857,7 +859,8 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartUser) {
   MockWrite ctrl_writes[] = {
     MockWrite("QUIT\r\n"),
   };
-  StaticSocketDataProvider ctrl_socket2(ctrl_reads, ctrl_writes);
+  StaticSocketDataProvider ctrl_socket2(ctrl_reads, arraysize(ctrl_reads),
+                                        ctrl_writes, arraysize(ctrl_writes));
   mock_socket_factory_.AddSocketDataProvider(&ctrl_socket2);
   ASSERT_EQ(ERR_IO_PENDING, transaction_.RestartWithAuth(L"foo\nownz0red",
                                                          L"innocent",
@@ -888,7 +891,8 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartPassword) {
     MockWrite("USER innocent\r\n"),
     MockWrite("QUIT\r\n"),
   };
-  StaticSocketDataProvider ctrl_socket2(ctrl_reads, ctrl_writes);
+  StaticSocketDataProvider ctrl_socket2(ctrl_reads, arraysize(ctrl_reads),
+                                        ctrl_writes, arraysize(ctrl_writes));
   mock_socket_factory_.AddSocketDataProvider(&ctrl_socket2);
   ASSERT_EQ(ERR_IO_PENDING, transaction_.RestartWithAuth(L"innocent",
                                                          L"foo\nownz0red",

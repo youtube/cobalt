@@ -29,7 +29,8 @@ class SOCKSClientSocketTest : public PlatformTest {
  public:
   SOCKSClientSocketTest();
   // Create a SOCKSClientSocket on top of a MockSocket.
-  SOCKSClientSocket* BuildMockSocket(MockRead reads[], MockWrite writes[],
+  SOCKSClientSocket* BuildMockSocket(MockRead reads[], size_t reads_count,
+                                     MockWrite writes[], size_t writes_count,
                                      HostResolver* host_resolver,
                                      const std::string& hostname, int port);
   virtual void SetUp();
@@ -57,13 +58,16 @@ void SOCKSClientSocketTest::SetUp() {
 
 SOCKSClientSocket* SOCKSClientSocketTest::BuildMockSocket(
     MockRead reads[],
+    size_t reads_count,
     MockWrite writes[],
+    size_t writes_count,
     HostResolver* host_resolver,
     const std::string& hostname,
     int port) {
 
   TestCompletionCallback callback;
-  data_.reset(new StaticSocketDataProvider(reads, writes));
+  data_.reset(new StaticSocketDataProvider(reads, reads_count,
+                                           writes, writes_count));
   tcp_sock_ = new MockTCPClientSocket(address_list_, data_.get());
 
   int rv = tcp_sock_->Connect(&callback, NULL);
@@ -126,8 +130,9 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
       MockRead(true, kSOCKSOkReply, arraysize(kSOCKSOkReply)),
       MockRead(true, payload_read.data(), payload_read.size()) };
 
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes, host_resolver_,
-                                   "localhost", 80));
+  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                   data_writes, arraysize(data_writes),
+                                   host_resolver_, "localhost", 80));
 
   // At this state the TCP connection is completed but not the SOCKS handshake.
   EXPECT_TRUE(tcp_sock_->IsConnected());
@@ -192,8 +197,9 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
     MockRead data_reads[] = {
         MockRead(false, tests[i].fail_reply, arraysize(tests[i].fail_reply)) };
 
-    user_sock_.reset(BuildMockSocket(data_reads, data_writes, host_resolver_,
-                                     "localhost", 80));
+    user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                     data_writes, arraysize(data_writes),
+                                     host_resolver_, "localhost", 80));
     scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
     int rv = user_sock_->Connect(&callback_, log);
@@ -219,8 +225,9 @@ TEST_F(SOCKSClientSocketTest, PartialServerReads) {
       MockRead(true, kSOCKSPartialReply1, arraysize(kSOCKSPartialReply1)),
       MockRead(true, kSOCKSPartialReply2, arraysize(kSOCKSPartialReply2)) };
 
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes, host_resolver_,
-                                   "localhost", 80));
+  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                   data_writes, arraysize(data_writes),
+                                   host_resolver_, "localhost", 80));
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
@@ -249,8 +256,9 @@ TEST_F(SOCKSClientSocketTest, PartialClientWrites) {
   MockRead data_reads[] = {
       MockRead(true, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
 
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes, host_resolver_,
-                                   "localhost", 80));
+  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                   data_writes, arraysize(data_writes),
+                                   host_resolver_, "localhost", 80));
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
@@ -272,8 +280,9 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
       // close connection unexpectedly
       MockRead(false, 0) };
 
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes, host_resolver_,
-                                   "localhost", 80));
+  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                   data_writes, arraysize(data_writes),
+                                   host_resolver_, "localhost", 80));
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
@@ -300,8 +309,9 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
   MockRead data_reads[] = {
       MockRead(false, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
 
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes, host_resolver_,
-                                   hostname, 80));
+  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                   data_writes, arraysize(data_writes),
+                                   host_resolver_, hostname, 80));
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
@@ -330,8 +340,9 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
   MockRead data_reads[] = {
       MockRead(false, kSOCKSOkReply, arraysize(kSOCKSOkReply)) };
 
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes, host_resolver_,
-                                   hostname, 80));
+  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                   data_writes, arraysize(data_writes),
+                                   host_resolver_, hostname, 80));
   scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
 
   int rv = user_sock_->Connect(&callback_, log);
@@ -354,8 +365,9 @@ TEST_F(SOCKSClientSocketTest, DisconnectWhileHostResolveInProgress) {
   MockWrite data_writes[] = { MockWrite(false, "", 0) };
   MockRead data_reads[] = { MockRead(false, "", 0) };
 
-  user_sock_.reset(BuildMockSocket(data_reads, data_writes, hanging_resolver,
-                                   "foo", 80));
+  user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
+                                   data_writes, arraysize(data_writes),
+                                   hanging_resolver, "foo", 80));
 
   // Start connecting (will get stuck waiting for the host to resolve).
   int rv = user_sock_->Connect(&callback_, NULL);
