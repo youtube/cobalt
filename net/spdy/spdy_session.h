@@ -123,7 +123,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
              const spdy::SpdyHeaderBlock* headers);
   void OnSynReply(const spdy::SpdySynReplyControlFrame* frame,
                   const spdy::SpdyHeaderBlock* headers);
-  void OnFin(const spdy::SpdyFinStreamControlFrame* frame);
+  void OnFin(const spdy::SpdyRstStreamControlFrame* frame);
 
   // IO Callbacks
   void OnTCPConnect(int result);

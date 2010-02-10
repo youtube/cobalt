@@ -43,6 +43,8 @@
 //  +----------------------------------+
 //  |X|       Stream-ID(31bits)        |
 //  +----------------------------------+
+//  |X|Associated-To-Stream-ID (31bits)|
+//  +----------------------------------+
 //  |Pri| unused      | Length (16bits)|
 //  +----------------------------------+
 //
@@ -57,7 +59,7 @@
 //  | unused (16 bits)| Length (16bits)|
 //  +----------------------------------+
 //
-//  Control Frame: FIN_STREAM
+//  Control Frame: RST_STREAM
 //  +----------------------------------+
 //  |1|000000000000001|0000000000000011|
 //  +----------------------------------+
@@ -65,19 +67,9 @@
 //  +----------------------------------+
 //  |X|       Stream-ID(31bits)        |
 //  +----------------------------------+
-//  |             Status (32 bits)     |
+//  |        Status code (32 bits)     |
 //  +----------------------------------+
 //
-//  Control Frame: SetMaxStreams
-//  +----------------------------------+
-//  |1|000000000000001|0000000000000100|
-//  +----------------------------------+
-//  | flags (8)  |  Length (24 bits)   |  >= 4
-//  +----------------------------------+
-//  |X|       Stream-ID(31bits)        |
-//  +----------------------------------+
-
-// TODO(fenix): add ChangePriority support.
 
 namespace spdy {
 
@@ -92,8 +84,12 @@ const int kSpdyProtocolVersion = 1;
 enum SpdyControlType {
   SYN_STREAM = 1,
   SYN_REPLY,
-  FIN_STREAM,
+  RST_STREAM,
+  HELLO,
   NOOP,
+  PING,
+  GOAWAY,
+  HEADERS,
   NUM_CONTROL_FRAME_TYPES
 };
 
@@ -107,15 +103,19 @@ enum SpdyDataFlags {
 // Flags on control packets
 enum SpdyControlFlags {
   CONTROL_FLAG_NONE = 0,
-  CONTROL_FLAG_FIN = 1
+  CONTROL_FLAG_FIN = 1,
+  CONTROL_FLAG_UNIDIRECTIONAL = 2
 };
 
-// Status codes, as used in control frames (primarily FIN_STREAM).
+// Status codes, as used in control frames (primarily RST_STREAM).
 enum SpdyStatusCodes {
   INVALID = 0,
   PROTOCOL_ERROR = 1,
   INVALID_STREAM = 2,
-  REFUSED_STREAM = 3
+  REFUSED_STREAM = 3,
+  UNSUPPORTED_VERSION = 4,
+  CANCEL = 5,
+  INTERNAL_ERROR = 6
 };
 
 // A SPDY stream id is a 31 bit entity.
@@ -166,6 +166,7 @@ struct SpdyControlFrameBlock : SpdyFrameBlock {
 
 // A SYN_STREAM Control Frame structure.
 struct SpdySynStreamControlFrameBlock : SpdyControlFrameBlock {
+  SpdyStreamId associated_stream_id_;
   SpdyPriority priority_;
   uint8 unused_;
 };
@@ -176,7 +177,7 @@ struct SpdySynReplyControlFrameBlock : SpdyControlFrameBlock {
 };
 
 // A FNI_STREAM Control Frame structure.
-struct SpdyFinStreamControlFrameBlock : SpdyControlFrameBlock {
+struct SpdyRstStreamControlFrameBlock : SpdyControlFrameBlock {
   uint32 status_;
 };
 
@@ -349,6 +350,14 @@ class SpdySynStreamControlFrame : public SpdyControlFrame {
       : SpdyControlFrame(data, owns_buffer) {}
   virtual ~SpdySynStreamControlFrame() {}
 
+  SpdyStreamId associated_stream_id() const {
+    return ntohl(block()->associated_stream_id_) & kStreamIdMask;
+  }
+
+  void set_associated_stream_id(SpdyStreamId id) {
+    mutable_block()->associated_stream_id_ = htonl(id & kStreamIdMask);
+  }
+
   SpdyPriority priority() const {
     return (block()->priority_ & kPriorityMask) >> 6;
   }
@@ -406,29 +415,29 @@ class SpdySynReplyControlFrame : public SpdyControlFrame {
   DISALLOW_COPY_AND_ASSIGN(SpdySynReplyControlFrame);
 };
 
-// A FIN_STREAM frame.
-class SpdyFinStreamControlFrame : public SpdyControlFrame {
+// A RST_STREAM frame.
+class SpdyRstStreamControlFrame : public SpdyControlFrame {
  public:
-  SpdyFinStreamControlFrame() : SpdyControlFrame(size()) {}
-  SpdyFinStreamControlFrame(char* data, bool owns_buffer)
+  SpdyRstStreamControlFrame() : SpdyControlFrame(size()) {}
+  SpdyRstStreamControlFrame(char* data, bool owns_buffer)
       : SpdyControlFrame(data, owns_buffer) {}
-  virtual ~SpdyFinStreamControlFrame() {}
+  virtual ~SpdyRstStreamControlFrame() {}
 
   uint32 status() const { return ntohl(block()->status_); }
   void set_status(uint32 status) { mutable_block()->status_ = htonl(status); }
 
-  // Returns the size of the SpdyFinStreamControlFrameBlock structure.
-  // Note: this is not the size of the SpdyFinStreamControlFrame class.
-  static size_t size() { return sizeof(SpdyFinStreamControlFrameBlock); }
+  // Returns the size of the SpdyRstStreamControlFrameBlock structure.
+  // Note: this is not the size of the SpdyRstStreamControlFrame class.
+  static size_t size() { return sizeof(SpdyRstStreamControlFrameBlock); }
 
  private:
-  const struct SpdyFinStreamControlFrameBlock* block() const {
-    return static_cast<SpdyFinStreamControlFrameBlock*>(frame_);
+  const struct SpdyRstStreamControlFrameBlock* block() const {
+    return static_cast<SpdyRstStreamControlFrameBlock*>(frame_);
   }
-  struct SpdyFinStreamControlFrameBlock* mutable_block() {
-    return static_cast<SpdyFinStreamControlFrameBlock*>(frame_);
+  struct SpdyRstStreamControlFrameBlock* mutable_block() {
+    return static_cast<SpdyRstStreamControlFrameBlock*>(frame_);
   }
-  DISALLOW_COPY_AND_ASSIGN(SpdyFinStreamControlFrame);
+  DISALLOW_COPY_AND_ASSIGN(SpdyRstStreamControlFrame);
 };
 
 }  // namespace spdy

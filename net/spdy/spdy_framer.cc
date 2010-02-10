@@ -284,9 +284,9 @@ void SpdyFramer::ProcessControlFrameHeader() {
           SpdySynReplyControlFrame::size() - SpdyControlFrame::size())
         set_error(SPDY_INVALID_CONTROL_FRAME);
       break;
-    case FIN_STREAM:
+    case RST_STREAM:
       if (current_control_frame.length() !=
-          SpdyFinStreamControlFrame::size() - SpdyFrame::size())
+          SpdyRstStreamControlFrame::size() - SpdyFrame::size())
         set_error(SPDY_INVALID_CONTROL_FRAME);
       break;
     case NOOP:
@@ -428,9 +428,26 @@ bool SpdyFramer::ParseHeaderBlock(const SpdyFrame* frame,
   scoped_ptr<SpdyFrame> decompressed_frame(DecompressFrame(frame));
   if (!decompressed_frame.get())
     return false;
-  SpdySynStreamControlFrame syn_frame(decompressed_frame->data(), false);
-  const char *header_data = syn_frame.header_block();
-  int header_length = syn_frame.header_block_len();
+
+  const char *header_data = NULL;
+  int header_length = 0;
+
+  switch (type) {
+    case SYN_STREAM:
+      {
+        SpdySynStreamControlFrame syn_frame(decompressed_frame->data(), false);
+        header_data = syn_frame.header_block();
+        header_length = syn_frame.header_block_len();
+      }
+      break;
+    case SYN_REPLY:
+      {
+        SpdySynReplyControlFrame syn_frame(decompressed_frame->data(), false);
+        header_data = syn_frame.header_block();
+        header_length = syn_frame.header_block_len();
+      }
+      break;
+  }
 
   SpdyFrameBuilder builder(header_data, header_length);
   void* iter = NULL;
@@ -455,14 +472,15 @@ bool SpdyFramer::ParseHeaderBlock(const SpdyFrame* frame,
 }
 
 SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
-    SpdyStreamId stream_id, int priority, SpdyControlFlags flags,
-    bool compressed, SpdyHeaderBlock* headers) {
+    SpdyStreamId stream_id, SpdyStreamId associated_stream_id, int priority,
+    SpdyControlFlags flags, bool compressed, SpdyHeaderBlock* headers) {
   SpdyFrameBuilder frame;
 
   frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
   frame.WriteUInt16(SYN_STREAM);
   frame.WriteUInt32(0);  // Placeholder for the length and flags
   frame.WriteUInt32(stream_id);
+  frame.WriteUInt32(associated_stream_id);
   frame.WriteUInt16(ntohs(priority) << 6);  // Priority.
 
   frame.WriteUInt16(headers->size());  // Number of headers.
@@ -489,15 +507,15 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
 }
 
 /* static */
-SpdyFinStreamControlFrame* SpdyFramer::CreateFinStream(SpdyStreamId stream_id,
+SpdyRstStreamControlFrame* SpdyFramer::CreateRstStream(SpdyStreamId stream_id,
                                                        int status) {
   SpdyFrameBuilder frame;
   frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
-  frame.WriteUInt16(FIN_STREAM);
+  frame.WriteUInt16(RST_STREAM);
   frame.WriteUInt32(8);
   frame.WriteUInt32(stream_id);
   frame.WriteUInt32(status);
-  return reinterpret_cast<SpdyFinStreamControlFrame*>(frame.take());
+  return reinterpret_cast<SpdyRstStreamControlFrame*>(frame.take());
 }
 
 SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(SpdyStreamId stream_id,
@@ -634,11 +652,20 @@ bool SpdyFramer::GetFrameBoundaries(const SpdyFrame* frame,
         reinterpret_cast<const SpdyControlFrame*>(frame);
     switch (control_frame->type()) {
       case SYN_STREAM:
-      case SYN_REPLY:
         {
           const SpdySynStreamControlFrame *syn_frame =
               reinterpret_cast<const SpdySynStreamControlFrame*>(frame);
           frame_size = SpdySynStreamControlFrame::size();
+          *payload_length = syn_frame->header_block_len();
+          *header_length = frame_size;
+          *payload = frame->data() + *header_length;
+        }
+        break;
+      case SYN_REPLY:
+        {
+          const SpdySynReplyControlFrame *syn_frame =
+              reinterpret_cast<const SpdySynReplyControlFrame*>(frame);
+          frame_size = SpdySynReplyControlFrame::size();
           *payload_length = syn_frame->header_block_len();
           *header_length = frame_size;
           *payload = frame->data() + *header_length;
@@ -654,8 +681,6 @@ bool SpdyFramer::GetFrameBoundaries(const SpdyFrame* frame,
     *payload_length = frame->length();
     *payload = frame->data() + SpdyFrame::size();
   }
-  DCHECK(static_cast<size_t>(*header_length) <=
-      SpdyFrame::size() + *payload_length);
   return true;
 }
 
