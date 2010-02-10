@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -45,6 +45,18 @@ int GetTestModeForEntry(const std::string& key) {
   const MockTransaction* t = FindMockTransaction(url);
   DCHECK(t);
   return t->test_mode;
+}
+
+// We can override the test mode for a given operation by setting this global
+// variable. Just remember to reset it after the test!.
+int g_test_mode = 0;
+
+// Returns the test mode after considering the global override.
+int GetEffectiveTestMode(int test_mode) {
+  if (!g_test_mode)
+    return test_mode;
+
+  return g_test_mode;
 }
 
 //-----------------------------------------------------------------------------
@@ -108,7 +120,8 @@ class MockDiskEntry : public disk_cache::Entry,
     int num = std::min(buf_len, static_cast<int>(data_[index].size()) - offset);
     memcpy(buf->data(), &data_[index][offset], num);
 
-    if (!callback || (test_mode_ & TEST_MODE_SYNC_CACHE_READ))
+    if (!callback ||
+        (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_READ))
       return num;
 
     CallbackLater(callback, num);
@@ -130,7 +143,8 @@ class MockDiskEntry : public disk_cache::Entry,
     if (buf_len)
       memcpy(&data_[index][offset], buf->data(), buf_len);
 
-    if (!callback || (test_mode_ & TEST_MODE_SYNC_CACHE_WRITE))
+    if (!callback ||
+        (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_WRITE))
       return buf_len;
 
     CallbackLater(callback, buf_len);
@@ -156,7 +170,8 @@ class MockDiskEntry : public disk_cache::Entry,
                        buf_len);
     memcpy(buf->data(), &data_[1][real_offset], num);
 
-    if (!completion_callback || (test_mode_ & TEST_MODE_SYNC_CACHE_READ))
+    if (!completion_callback ||
+        (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_READ))
       return num;
 
     CallbackLater(completion_callback, num);
@@ -189,7 +204,8 @@ class MockDiskEntry : public disk_cache::Entry,
       data_[1].resize(real_offset + buf_len);
 
     memcpy(&data_[1][real_offset], buf->data(), buf_len);
-    if (!completion_callback || (test_mode_ & TEST_MODE_SYNC_CACHE_WRITE))
+    if (!completion_callback ||
+        (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_WRITE))
       return buf_len;
 
     CallbackLater(completion_callback, buf_len);
@@ -241,7 +257,7 @@ class MockDiskEntry : public disk_cache::Entry,
 
     cancel_ = false;
     DCHECK(completion_callback);
-    if (test_mode_ & TEST_MODE_SYNC_CACHE_READ)
+    if (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_READ)
       return net::OK;
 
     // The pending operation is already in the message loop (and hopefuly
@@ -3565,7 +3581,7 @@ TEST(HttpCache, Set_Truncated_Flag) {
   AddMockTransaction(&transaction);
   MockHttpRequest request(transaction);
 
-  Context* c = new Context();
+  scoped_ptr<Context> c(new Context());
   int rv = cache.http_cache()->CreateTransaction(&c->trans);
   EXPECT_EQ(net::OK, rv);
 
@@ -3584,8 +3600,22 @@ TEST(HttpCache, Set_Truncated_Flag) {
     rv = c->callback.WaitForResult();
   EXPECT_EQ(buf->size(), rv);
 
+  // We want to cancel the request when the transaction is busy.
+  rv = c->trans->Read(buf, buf->size(), &c->callback);
+  EXPECT_EQ(net::ERR_IO_PENDING, rv);
+  EXPECT_FALSE(c->callback.have_result());
+
+  g_test_mode = TEST_MODE_SYNC_ALL;
+
   // Destroy the transaction.
-  delete c;
+  c->trans.reset();
+  g_test_mode = 0;
+
+  // Make sure that we don't invoke the callback. We may have an issue if the
+  // UrlRequestJob is killed directly (without cancelling the UrlRequest) so we
+  // could end up with the transaction being deleted twice if we send any
+  // notification from the transaction destructor (see http://crbug.com/31723).
+  EXPECT_FALSE(c->callback.have_result());
 
   // Verify that the entry is marked as incomplete.
   disk_cache::Entry* entry;
