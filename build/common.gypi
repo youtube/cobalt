@@ -7,10 +7,10 @@
 # since gyp_chromium is automatically forcing its inclusion.
 {
   'variables': {
-    # .gyp files should set chromium_code to 1 if they build Chromium-specific
-    # code, as opposed to external code.  This variable is used to control
-    # such things as the set of warnings to enable, and whether warnings are
-    # treated as errors.
+    # .gyp files or targets should set chromium_code to 1 if they build
+    # Chromium-specific code, as opposed to external code.  This variable is
+    # used to control such things as the set of warnings to enable, and
+    # whether warnings are treated as errors.
     'chromium_code%': 0,
 
     # Variables expected to be overriden on the GYP command line (-D) or by
@@ -307,6 +307,17 @@
   },
   'target_defaults': {
     'variables': {
+      # The condition that operates on chromium_code is in a target_conditions
+      # section, and will not have access to the default fallback value of
+      # chromium_code at the top of this file, or to the chromium_code
+      # variable placed at the root variables scope of .gyp files, because
+      # those variables are not set at target scope.  As a workaround,
+      # if chromium_code is not set at target scope, define it in target scope
+      # to contain whatever value it has during early variable expansion.
+      # That's enough to make it available during target conditional
+      # processing.
+      'chromium_code%': '<(chromium_code)',
+
       # See http://gcc.gnu.org/onlinedocs/gcc-4.4.2/gcc/Optimize-Options.html
       'mac_release_optimization%': '3', # Use -O3 unless overridden
       'mac_debug_optimization%': '0',   # Use -O0 unless overridden
@@ -402,6 +413,8 @@
          }],  # OS==win
         ],  # conditions for coverage
       }],  # coverage!=0
+    ],  # conditions for 'target_defaults'
+    'target_conditions': [
       ['chromium_code==0', {
         'conditions': [
           [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
@@ -473,7 +486,7 @@
           }],
         ],
       }],
-    ],  # conditions for 'target_defaults'
+    ],  # target_conditions for 'target_defaults'
     'default_configuration': 'Debug',
     'configurations': {
       # VCLinkerTool LinkIncremental values below:
