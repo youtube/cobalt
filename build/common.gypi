@@ -461,7 +461,7 @@
           ['OS!="mac"', {
             'sources/': [ ['exclude', '_(cocoa|mac)(_unittest)?\\.cc$'],
                           ['exclude', '/(cocoa|mac)/'],
-                          ['exclude', '\.mm$' ] ],
+                          ['exclude', '\.mm?$' ] ],
           }],
           ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
             'sources/': [
