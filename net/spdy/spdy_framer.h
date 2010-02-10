@@ -131,19 +131,21 @@ class SpdyFramer {
   bool ParseHeaderBlock(const SpdyFrame* frame, SpdyHeaderBlock* block);
 
   // Create a SpdySynStreamControlFrame.
-  // |stream_id| is the stream for this frame.
-  // |priority| is the priority (0-3) for this frame.
+  // |stream_id| is the id for this stream.
+  // |associated_stream_id| is the associated stream id for this stream.
+  // |priority| is the priority (0-3) for this stream.
   // |flags| is the flags to use with the data.
   //    To mark this frame as the last frame, enable CONTROL_FLAG_FIN.
   // |compressed| specifies whether the frame should be compressed.
   // |headers| is the header block to include in the frame.
   SpdySynStreamControlFrame* CreateSynStream(SpdyStreamId stream_id,
+                                             SpdyStreamId associated_stream_id,
                                              int priority,
                                              SpdyControlFlags flags,
                                              bool compressed,
                                              SpdyHeaderBlock* headers);
 
-  static SpdyFinStreamControlFrame* CreateFinStream(SpdyStreamId stream_id,
+  static SpdyRstStreamControlFrame* CreateRstStream(SpdyStreamId stream_id,
                                                     int status);
 
   // Create a SpdySynReplyControlFrame.
