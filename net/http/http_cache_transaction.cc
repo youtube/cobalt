@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -138,6 +138,11 @@ HttpCache::Transaction::~Transaction() {
   // TODO(rvargas): remove this after finding the cause for bug 31723.
   char local_obj[sizeof(*this)];
   memcpy(local_obj, this, sizeof(local_obj));
+
+  // We may have to issue another IO, but we should never invoke the callback_
+  // after this point.
+  callback_ = NULL;
+
   if (cache_) {
     if (entry_) {
       bool cancel_request = reading_ && enable_range_support_;
