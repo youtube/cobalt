@@ -14,7 +14,7 @@ using spdy::SpdyFrame;
 using spdy::SpdyControlFrame;
 using spdy::SpdySynStreamControlFrame;
 using spdy::SpdySynReplyControlFrame;
-using spdy::SpdyFinStreamControlFrame;
+using spdy::SpdyRstStreamControlFrame;
 using spdy::SpdyFramer;
 using spdy::SpdyHeaderBlock;
 using spdy::FlagsAndLength;
@@ -23,7 +23,7 @@ using spdy::kStreamIdMask;
 using spdy::kSpdyProtocolVersion;
 using spdy::SYN_STREAM;
 using spdy::SYN_REPLY;
-using spdy::FIN_STREAM;
+using spdy::RST_STREAM;
 using spdy::CONTROL_FLAG_FIN;
 using spdy::CONTROL_FLAG_NONE;
 
@@ -34,13 +34,13 @@ TEST(SpdyProtocolTest, ProtocolConstants) {
   EXPECT_EQ(8u, SpdyFrame::size());
   EXPECT_EQ(8u, SpdyDataFrame::size());
   EXPECT_EQ(12u, SpdyControlFrame::size());
-  EXPECT_EQ(14u, SpdySynStreamControlFrame::size());
+  EXPECT_EQ(18u, SpdySynStreamControlFrame::size());
   EXPECT_EQ(14u, SpdySynReplyControlFrame::size());
-  EXPECT_EQ(16u, SpdyFinStreamControlFrame::size());
+  EXPECT_EQ(16u, SpdyRstStreamControlFrame::size());
   EXPECT_EQ(4u, sizeof(FlagsAndLength));
   EXPECT_EQ(1, SYN_STREAM);
   EXPECT_EQ(2, SYN_REPLY);
-  EXPECT_EQ(3, FIN_STREAM);
+  EXPECT_EQ(3, RST_STREAM);
 }
 
 // Test some of the protocol helper functions
@@ -70,14 +70,18 @@ TEST(SpdyProtocolTest, ControlFrameStructs) {
   SpdyHeaderBlock headers;
 
   scoped_ptr<SpdySynStreamControlFrame> syn_frame(
-      framer.CreateSynStream(123, 2, CONTROL_FLAG_FIN, false, &headers));
+      framer.CreateSynStream(123, 456, 2, CONTROL_FLAG_FIN, false, &headers));
   EXPECT_EQ(kSpdyProtocolVersion, syn_frame->version());
   EXPECT_EQ(true, syn_frame->is_control_frame());
   EXPECT_EQ(SYN_STREAM, syn_frame->type());
   EXPECT_EQ(123u, syn_frame->stream_id());
+  EXPECT_EQ(456u, syn_frame->associated_stream_id());
   EXPECT_EQ(2u, syn_frame->priority());
   EXPECT_EQ(2, syn_frame->header_block_len());
   EXPECT_EQ(1u, syn_frame->flags());
+  syn_frame->set_associated_stream_id(999u);
+  EXPECT_EQ(123u, syn_frame->stream_id());
+  EXPECT_EQ(999u, syn_frame->associated_stream_id());
 
   scoped_ptr<SpdySynReplyControlFrame> syn_reply(
       framer.CreateSynReply(123, CONTROL_FLAG_NONE, false, &headers));
@@ -88,11 +92,11 @@ TEST(SpdyProtocolTest, ControlFrameStructs) {
   EXPECT_EQ(2, syn_reply->header_block_len());
   EXPECT_EQ(0, syn_reply->flags());
 
-  scoped_ptr<SpdyFinStreamControlFrame> fin_frame(
-      framer.CreateFinStream(123, 444));
+  scoped_ptr<SpdyRstStreamControlFrame> fin_frame(
+      framer.CreateRstStream(123, 444));
   EXPECT_EQ(kSpdyProtocolVersion, fin_frame->version());
   EXPECT_EQ(true, fin_frame->is_control_frame());
-  EXPECT_EQ(FIN_STREAM, fin_frame->type());
+  EXPECT_EQ(RST_STREAM, fin_frame->type());
   EXPECT_EQ(123u, fin_frame->stream_id());
   EXPECT_EQ(444u, fin_frame->status());
   fin_frame->set_status(555);
