@@ -403,8 +403,35 @@
         ],  # conditions for coverage
       }],  # coverage!=0
       ['chromium_code==0', {
-        'includes': [
-          'external_code.gypi',
+        'conditions': [
+          [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+            'cflags!': [
+              '-Wall',
+              '-Wextra',
+              '-Werror',
+            ],
+          }],
+          [ 'OS=="win"', {
+            'defines': [
+              '_CRT_SECURE_NO_DEPRECATE',
+              '_CRT_NONSTDC_NO_WARNINGS',
+              '_CRT_NONSTDC_NO_DEPRECATE',
+              '_SCL_SECURE_NO_DEPRECATE',
+            ],
+            'msvs_disabled_warnings': [4800],
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                'WarnAsError': 'false',
+                'Detect64BitPortabilityProblems': 'false',
+              },
+            },
+          }],
+          [ 'OS=="mac"', {
+            'xcode_settings': {
+              'GCC_TREAT_WARNINGS_AS_ERRORS': 'NO',
+              'WARNING_CFLAGS!': ['-Wall'],
+            },
+          }],
         ],
       }, {
         # In Chromium code, we define __STDC_FORMAT_MACROS in order to get the
