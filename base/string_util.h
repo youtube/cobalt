@@ -217,6 +217,13 @@ std::string CollapseWhitespaceASCII(const std::string& text,
 bool ContainsOnlyWhitespaceASCII(const std::string& str);
 bool ContainsOnlyWhitespace(const string16& str);
 
+// Returns true if |input| is empty or contains only characters found in
+// |characters|.
+bool ContainsOnlyChars(const std::wstring& input,
+                       const std::wstring& characters);
+bool ContainsOnlyChars(const string16& input, const string16& characters);
+bool ContainsOnlyChars(const std::string& input, const std::string& characters);
+
 // These convert between ASCII (7-bit) and Wide/UTF16 strings.
 std::string WideToASCII(const std::wstring& wide);
 std::wstring ASCIIToWide(const base::StringPiece& ascii);
