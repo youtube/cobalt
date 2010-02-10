@@ -65,7 +65,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
         DCHECK(parsed_headers);
         syn_reply_frame_count_++;
         break;
-      case FIN_STREAM:
+      case RST_STREAM:
         fin_frame_count_++;
         break;
       default:
@@ -103,7 +103,7 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
   int syn_frame_count_;
   int syn_reply_frame_count_;
   int data_bytes_;
-  int fin_frame_count_;  // The count of FIN_STREAM type frames received.
+  int fin_frame_count_;  // The count of RST_STREAM type frames received.
   int fin_flag_count_;  // The count of frames with the FIN flag set.
   int zero_length_data_frame_count_;  // The count of zero-length data frames.
 };
@@ -139,7 +139,7 @@ TEST_F(SpdyFramerTest, HeaderBlock) {
 
   // Encode the header block into a SynStream frame.
   scoped_ptr<SpdySynStreamControlFrame> frame(
-      framer.CreateSynStream(1, 1, CONTROL_FLAG_NONE, true, &headers));
+      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true, &headers));
   EXPECT_TRUE(frame.get() != NULL);
 
   SpdyHeaderBlock new_headers;
@@ -182,6 +182,7 @@ TEST_F(SpdyFramerTest, DuplicateHeader) {
   frame.WriteUInt16(SYN_STREAM);
   frame.WriteUInt32(0);  // Placeholder for the length.
   frame.WriteUInt32(3);  // stream_id
+  frame.WriteUInt32(0);  // associated stream id
   frame.WriteUInt16(0);  // Priority.
 
   frame.WriteUInt16(2);  // Number of headers.
@@ -208,6 +209,7 @@ TEST_F(SpdyFramerTest, MultiValueHeader) {
   frame.WriteUInt16(SYN_STREAM);
   frame.WriteUInt32(0);  // Placeholder for the length.
   frame.WriteUInt32(3);  // stream_id
+  frame.WriteUInt32(0);  // associated stream id
   frame.WriteUInt16(0);  // Priority.
 
   frame.WriteUInt16(2);  // Number of headers.
@@ -239,9 +241,11 @@ TEST_F(SpdyFramerTest, BasicCompression) {
   SpdyFramer framer;
   FramerSetEnableCompressionHelper(&framer, true);
   scoped_ptr<SpdySynStreamControlFrame>
-      frame1(framer.CreateSynStream(1, 1, CONTROL_FLAG_NONE, true, &headers));
+      frame1(framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true,
+                                    &headers));
   scoped_ptr<SpdySynStreamControlFrame>
-      frame2(framer.CreateSynStream(1, 1, CONTROL_FLAG_NONE, true, &headers));
+      frame2(framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true,
+                                    &headers));
 
   // Expect the second frame to be more compact than the first.
   EXPECT_LE(frame2->length(), frame1->length());
@@ -270,7 +274,8 @@ TEST_F(SpdyFramerTest, DecompressUncompressedFrame) {
   SpdyFramer framer;
   FramerSetEnableCompressionHelper(&framer, true);
   scoped_ptr<SpdySynStreamControlFrame>
-      frame1(framer.CreateSynStream(1, 1, CONTROL_FLAG_NONE, false, &headers));
+      frame1(framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, false,
+                                    &headers));
 
   // Decompress the frame
   scoped_ptr<SpdyFrame> frame2(framer.DecompressFrame(frame1.get()));
@@ -281,8 +286,9 @@ TEST_F(SpdyFramerTest, DecompressUncompressedFrame) {
 TEST_F(SpdyFramerTest, Basic) {
   const unsigned char input[] = {
     0x80, 0x01, 0x00, 0x01,   // SYN Stream #1
-    0x00, 0x00, 0x00, 0x10,
+    0x00, 0x00, 0x00, 0x14,
     0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x01,
     0x00, 0x02, 'h', 'h',
     0x00, 0x02, 'v', 'v',
@@ -294,8 +300,9 @@ TEST_F(SpdyFramerTest, Basic) {
       0xde, 0xad, 0xbe, 0xef,
 
     0x80, 0x01, 0x00, 0x01,   // SYN Stream #3
-    0x00, 0x00, 0x00, 0x08,
+    0x00, 0x00, 0x00, 0x0c,
     0x00, 0x00, 0x00, 0x03,
+    0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00,
 
     0x00, 0x00, 0x00, 0x03,   // DATA on Stream #3
@@ -307,7 +314,7 @@ TEST_F(SpdyFramerTest, Basic) {
     0x00, 0x00, 0x00, 0x04,
       0xde, 0xad, 0xbe, 0xef,
 
-    0x80, 0x01, 0x00, 0x03,   // FIN on Stream #1
+    0x80, 0x01, 0x00, 0x03,   // RST_STREAM on Stream #1
     0x00, 0x00, 0x00, 0x08,
     0x00, 0x00, 0x00, 0x01,
     0x00, 0x00, 0x00, 0x00,
@@ -315,7 +322,7 @@ TEST_F(SpdyFramerTest, Basic) {
     0x00, 0x00, 0x00, 0x03,   // DATA on Stream #3
     0x00, 0x00, 0x00, 0x00,
 
-    0x80, 0x01, 0x00, 0x03,   // FIN on Stream #3
+    0x80, 0x01, 0x00, 0x03,   // RST_STREAM on Stream #3
     0x00, 0x00, 0x00, 0x08,
     0x00, 0x00, 0x00, 0x03,
     0x00, 0x00, 0x00, 0x00,
@@ -337,8 +344,9 @@ TEST_F(SpdyFramerTest, Basic) {
 TEST_F(SpdyFramerTest, FinOnDataFrame) {
   const unsigned char input[] = {
     0x80, 0x01, 0x00, 0x01,   // SYN Stream #1
-    0x00, 0x00, 0x00, 0x10,
+    0x00, 0x00, 0x00, 0x14,
     0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x01,
     0x00, 0x02, 'h', 'h',
     0x00, 0x02, 'v', 'v',
@@ -377,15 +385,17 @@ TEST_F(SpdyFramerTest, FinOnDataFrame) {
 TEST_F(SpdyFramerTest, FinOnSynReplyFrame) {
   const unsigned char input[] = {
     0x80, 0x01, 0x00, 0x01,   // SYN Stream #1
-    0x00, 0x00, 0x00, 0x10,
+    0x00, 0x00, 0x00, 0x14,
     0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x01,
     0x00, 0x02, 'h', 'h',
     0x00, 0x02, 'v', 'v',
 
     0x80, 0x01, 0x00, 0x02,   // SYN REPLY Stream #1
-    0x01, 0x00, 0x00, 0x10,
+    0x01, 0x00, 0x00, 0x14,
     0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x01,
     0x00, 0x02, 'a', 'a',
     0x00, 0x02, 'b', 'b',

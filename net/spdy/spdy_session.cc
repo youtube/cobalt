@@ -353,7 +353,7 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
 
   // Create a SYN_STREAM packet and add to the output queue.
   scoped_ptr<spdy::SpdySynStreamControlFrame> syn_frame(
-      spdy_framer_.CreateSynStream(stream_id, request.priority, flags, false,
+      spdy_framer_.CreateSynStream(stream_id, 0, request.priority, flags, false,
                                    &headers));
   int length = spdy::SpdyFrame::size() + syn_frame->length();
   IOBuffer* buffer = new IOBuffer(length);
@@ -428,7 +428,7 @@ bool SpdySession::CancelStream(spdy::SpdyStreamId stream_id) {
   if (!IsStreamActive(stream_id))
     return false;
 
-  // TODO(mbelshe): We should send a FIN_STREAM control frame here
+  // TODO(mbelshe): We should send a RST_STREAM control frame here
   //                so that the server can cancel a large send.
 
   // TODO(mbelshe): Write a method for tearing down a stream
@@ -1021,16 +1021,16 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
           reinterpret_cast<const spdy::SpdySynReplyControlFrame*>(frame),
           &headers);
       break;
-    case spdy::FIN_STREAM:
+    case spdy::RST_STREAM:
       LOG(INFO) << "Spdy Fin for stream " << frame->stream_id();
-      OnFin(reinterpret_cast<const spdy::SpdyFinStreamControlFrame*>(frame));
+      OnFin(reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
       break;
     default:
       DCHECK(false);  // Error!
   }
 }
 
-void SpdySession::OnFin(const spdy::SpdyFinStreamControlFrame* frame) {
+void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame* frame) {
   spdy::SpdyStreamId stream_id = frame->stream_id();
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
