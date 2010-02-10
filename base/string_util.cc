@@ -584,6 +584,32 @@ bool ContainsOnlyWhitespace(const string16& str) {
   return true;
 }
 
+template<typename STR>
+static bool ContainsOnlyCharsT(const STR& input, const STR& characters) {
+  for (typename STR::const_iterator iter = input.begin();
+       iter != input.end(); ++iter) {
+    if (characters.find(*iter) == STR::npos)
+      return false;
+  }
+  return true;
+}
+
+bool ContainsOnlyChars(const std::wstring& input,
+                       const std::wstring& characters) {
+  return ContainsOnlyCharsT(input, characters);
+}
+
+#if !defined(WCHAR_T_IS_UTF16)
+bool ContainsOnlyChars(const string16& input, const string16& characters) {
+  return ContainsOnlyCharsT(input, characters);
+}
+#endif
+
+bool ContainsOnlyChars(const std::string& input,
+                       const std::string& characters) {
+  return ContainsOnlyCharsT(input, characters);
+}
+
 std::string WideToASCII(const std::wstring& wide) {
   DCHECK(IsStringASCII(wide)) << wide;
   return std::string(wide.begin(), wide.end());
