@@ -8,9 +8,11 @@
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/task.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_change_notifier_helper.h"
 
+class MessageLoop;
 namespace base {
 class Thread;
 }  // namespace base
@@ -38,10 +40,19 @@ class NetworkChangeNotifierMac : public NetworkChangeNotifier {
   
   virtual ~NetworkChangeNotifierMac();
 
+  // Initializes the notifier thread.  The SystemConfiguration calls in this
+  // function can lead to contention early on, so we invoke this function later
+  // on in startup to keep it fast.
+  // See http://crbug.com/34926 for details.
+  void InitializeNotifierThread(MessageLoop* loop);
+
   // Receives the OS X network change notifications on this thread.
-  const scoped_ptr<base::Thread> notifier_thread_;
+  scoped_ptr<base::Thread> notifier_thread_;
 
   internal::NetworkChangeNotifierHelper helper_;
+
+  // Used to initialize the notifier thread.
+  ScopedRunnableMethodFactory<NetworkChangeNotifierMac> method_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };

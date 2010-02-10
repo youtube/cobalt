@@ -28,6 +28,7 @@
 #include <SystemConfiguration/SCSchemaDefinitions.h>
 #include <algorithm>
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "base/scoped_cftyperef.h"
 #include "base/thread.h"
 
@@ -218,15 +219,26 @@ void NetworkChangeNotifierThread::Init() {
 }  // namespace
 
 NetworkChangeNotifierMac::NetworkChangeNotifierMac()
-// http://crbug.com/34926: This might be slowing down Mac startup.  Disable the
-// helper thread to see if that improves mac startup times.
-//    : notifier_thread_(
-//          new NetworkChangeNotifierThread(MessageLoop::current(), this)) {
-//  base::Thread::Options thread_options;
-//  thread_options.message_loop_type = MessageLoop::TYPE_UI;
-//  notifier_thread_->StartWithOptions(thread_options);
-      : notifier_thread_(NULL) {}
+    : notifier_thread_(NULL),
+      method_factory_(this) {
+  // TODO(willchan): Look to see if there's a better signal for when it's ok to
+  // initialize this, rather than just delaying it by a fixed time.
+  const int kNotifierThreadInitializationDelayMS = 1000;
+  MessageLoop* loop = MessageLoop::current();
+  loop->PostDelayedTask(
+      FROM_HERE,
+      method_factory_.NewRunnableMethod(
+          &NetworkChangeNotifierMac::InitializeNotifierThread, loop),
+      kNotifierThreadInitializationDelayMS);
+}
 
 NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {}
+
+void NetworkChangeNotifierMac::InitializeNotifierThread(MessageLoop* loop) {
+  notifier_thread_.reset(new NetworkChangeNotifierThread(loop, this));
+  base::Thread::Options thread_options;
+  thread_options.message_loop_type = MessageLoop::TYPE_UI;
+  notifier_thread_->StartWithOptions(thread_options);
+}
 
 }  // namespace net
