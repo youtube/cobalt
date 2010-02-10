@@ -37,7 +37,6 @@
         '../third_party/WebKit/WebKit/chromium/WebKit.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
         '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
-        '../webkit/tools/test_shell/test_shell.gyp:*',
         '../webkit/webkit.gyp:*',
         'util/build_util.gyp:*',
         'temp_gyp/googleurl.gyp:*',
@@ -213,12 +212,12 @@
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
             '../printing/printing.gyp:printing_unittests',
-            '../webkit/tools/test_shell/test_shell.gyp:npapi_layout_test_plugin',
+            '../webkit/webkit.gyp:npapi_layout_test_plugin',
             # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
             # This should:
             # 1) not be the case. OR.
             # 2) be expressed in the ui tests dependencies.
-            '../webkit/tools/test_shell/test_shell.gyp:test_shell_common',
+            '../webkit/webkit.gyp:test_shell_common',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_net_tests',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_perftests',
