@@ -48,6 +48,15 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
                          const UploadDataStream* upload_data_stream,
                          bool using_proxy,
                          std::string* request_headers) {
+  // Headers that will be stripped from request_info->extra_headers to prevent,
+  // e.g., plugins from overriding headers that are controlled using other
+  // means. Otherwise a plugin could set a referrer although sending the
+  // referrer is inhibited.
+  // TODO(jochen): check whether also other headers should be stripped.
+  static const char* const kExtraHeadersToBeStripped[] = {
+    "Referer"
+  };
+
   const std::string path = using_proxy ?
       HttpUtil::SpecForRequest(request_info->url) :
       HttpUtil::PathForRequest(request_info->url);
@@ -98,7 +107,8 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
 
   // TODO(darin): Need to prune out duplicate headers.
 
-  *request_headers += request_info->extra_headers;
+  *request_headers += HttpUtil::StripHeaders(request_info->extra_headers,
+      kExtraHeadersToBeStripped, arraysize(kExtraHeadersToBeStripped));
   *request_headers += "\r\n";
 }
 
