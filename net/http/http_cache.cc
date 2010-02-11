@@ -555,7 +555,7 @@ int HttpCache::AddTransactionToEntry(ActiveEntry* entry, Transaction* trans) {
   if (!entry->writer && !entry->pending_queue.empty())
     ProcessPendingQueue(entry);
 
-  return trans->EntryAvailable(entry);
+  return OK;
 }
 
 void HttpCache::DoneWithEntry(ActiveEntry* entry, Transaction* trans,
@@ -602,7 +602,8 @@ void HttpCache::DoneWritingToEntry(ActiveEntry* entry, bool success) {
     // We need to do something about these pending entries, which now need to
     // be added to a new entry.
     while (!pending_queue.empty()) {
-      pending_queue.front()->AddToEntry();
+      // ERR_CACHE_RACE causes the transaction to restart the whole process.
+      pending_queue.front()->io_callback()->Run(ERR_CACHE_RACE);
       pending_queue.pop_front();
     }
   }
@@ -718,7 +719,10 @@ void HttpCache::OnProcessPendingQueue(ActiveEntry* entry) {
 
   entry->pending_queue.erase(entry->pending_queue.begin());
 
-  AddTransactionToEntry(entry, next);
+  int rv = AddTransactionToEntry(entry, next);
+  if (rv != ERR_IO_PENDING) {
+    next->io_callback()->Run(rv);
+  }
 }
 
 void HttpCache::OnIOComplete(int result, NewEntry* new_entry) {
