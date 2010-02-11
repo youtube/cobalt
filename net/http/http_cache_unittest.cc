@@ -1106,14 +1106,31 @@ TEST(HttpCache, SimpleGET_LoadPreferringCache_Miss) {
 TEST(HttpCache, SimpleGET_LoadBypassCache) {
   MockHttpCache cache;
 
-  // write to the cache
+  // Write to the cache.
   RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
 
-  // force this transaction to write to the cache again
+  // Force this transaction to write to the cache again.
   MockTransaction transaction(kSimpleGET_Transaction);
   transaction.load_flags |= net::LOAD_BYPASS_CACHE;
 
-  RunTransactionTest(cache.http_cache(), transaction);
+  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
+
+  RunTransactionTestWithLog(cache.http_cache(), transaction, log);
+
+  // Check that the LoadLog was filled as expected.
+  EXPECT_EQ(6u, log->entries().size());
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 0, net::LoadLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 1, net::LoadLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 2, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 3, net::LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      *log, 4, net::LoadLog::TYPE_HTTP_CACHE_WAITING));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      *log, 5, net::LoadLog::TYPE_HTTP_CACHE_WAITING));
 
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
