@@ -402,11 +402,12 @@ int HttpCache::Transaction::DoInitEntry() {
 int HttpCache::Transaction::DoDoomEntry() {
   next_state_ = STATE_DOOM_ENTRY_COMPLETE;
   cache_pending_ = true;
-  // TODO(rvargas): Add a LoadLog event.
+  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
   return cache_->DoomEntry(cache_key_, &io_callback_);
 }
 
 int HttpCache::Transaction::DoDoomEntryComplete(int result) {
+  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
   next_state_ = STATE_CREATE_ENTRY;
   cache_pending_ = false;
   if (result == ERR_CACHE_RACE)
