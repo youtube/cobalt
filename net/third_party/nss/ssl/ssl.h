@@ -36,7 +36,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: ssl.h,v 1.31 2009/11/25 05:24:25 wtc%google.com Exp $ */
+/* $Id: ssl.h,v 1.35 2010/02/04 03:21:11 wtc%google.com Exp $ */
 
 #ifndef __ssl_h_
 #define __ssl_h_
@@ -117,10 +117,11 @@ SSL_IMPORT PRFileDesc *SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd);
 #define SSL_ENABLE_DEFLATE             19 /* Enable TLS compression with    */
                                           /* DEFLATE (off by default)       */
 #define SSL_ENABLE_RENEGOTIATION       20 /* Values below (default: never)  */
-#define SSL_REQUIRE_SAFE_NEGOTIATION   21 /* Peer must use renegotiation    */
-                                          /* extension in ALL handshakes.   */
+#define SSL_REQUIRE_SAFE_NEGOTIATION   21 /* Peer must send Signalling      */
+					  /* Cipher Suite Value (SCSV) or   */
+                                          /* Renegotiation  Info (RI)       */
+					  /* extension in ALL handshakes.   */
                                           /* default: off                   */
-					  /* NOT YET IMPLEMENTED in 3.12.5  */
 
 #ifdef SSL_DEPRECATED_FUNCTION 
 /* Old deprecated function names */
@@ -184,11 +185,14 @@ SSL_IMPORT SECStatus SSL_CipherPolicyGet(PRInt32 cipher, PRInt32 *policy);
 /* Never renegotiate at all.                                               */
 #define SSL_RENEGOTIATE_NEVER        ((PRBool)0)
 /* Renegotiate without restriction, whether or not the peer's client hello */
-/* bears the renegotiation info extension (like we always did in the past).*/
+/* bears the renegotiation info extension.  Vulnerable, as in the past.    */
 #define SSL_RENEGOTIATE_UNRESTRICTED ((PRBool)1)
-/*  Only renegotiate if the peer's hello bears the TLS renegotiation_info  */
-/*  extension.  Cannot renegotiate in SSL 3.0 sessions.                    */
-#define SSL_RENEGOTIATE_REQUIRES_XTN ((PRBool)2) /*  (NOT YET IMPLEMENTED) */
+/* Only renegotiate if the peer's hello bears the TLS renegotiation_info   */
+/* extension. This is safe renegotiation.                                  */
+#define SSL_RENEGOTIATE_REQUIRES_XTN ((PRBool)2) 
+/* Disallow all renegotiation in server sockets only, but allow clients    */
+/* to continue to renegotiate with vulnerable servers.                     */
+#define SSL_RENEGOTIATE_CLIENT_ONLY  ((PRBool)3)
 
 /*
 ** Reset the handshake state for fd. This will make the complete SSL
@@ -282,6 +286,61 @@ SSL_IMPORT SECStatus SSL_GetClientAuthDataHook(PRFileDesc *fd,
 
 
 /*
+** SNI extension processing callback function.
+** It is called when SSL socket receives SNI extension in ClientHello message.
+** Upon this callback invocation, application is responsible to reconfigure the
+** socket with the data for a particular server name.
+** There are three potential outcomes of this function invocation:
+**    * application does not recognize the name or the type and wants the
+**    "unrecognized_name" alert be sent to the client. In this case the callback
+**    function must return SSL_SNI_SEND_ALERT status.
+**    * application does not recognize  the name, but wants to continue with
+**    the handshake using the current socket configuration. In this case,
+**    no socket reconfiguration is needed and the function should return
+**    SSL_SNI_CURRENT_CONFIG_IS_USED.
+**    * application recognizes the name and reconfigures the socket with
+**    appropriate certs, key, etc. There are many ways to reconfigure. NSS
+**    provides SSL_ReconfigFD function that can be used to update the socket
+**    data from model socket. To continue with the rest of the handshake, the
+**    implementation function should return an index of a name it has chosen.
+** LibSSL will ignore any SNI extension received in a ClientHello message
+** if application does not register a SSLSNISocketConfig callback.
+** Each type field of SECItem indicates the name type.
+** NOTE: currently RFC3546 defines only one name type: sni_host_name.
+** Client is allowed to send only one name per known type. LibSSL will
+** send an "unrecognized_name" alert if SNI extension name list contains more
+** then one name of a type.
+*/
+typedef PRInt32 (PR_CALLBACK *SSLSNISocketConfig)(PRFileDesc *fd,
+                                            const SECItem *srvNameArr,
+                                                  PRUint32 srvNameArrSize,
+                                                  void *arg);
+
+/*
+** SSLSNISocketConfig should return an index within 0 and srvNameArrSize-1
+** when it has reconfigured the socket fd to use certs and keys, etc
+** for a specific name. There are two other allowed return values. One
+** tells libSSL to use the default cert and key.  The other tells libSSL
+** to send the "unrecognized_name" alert.  These values are:
+**/
+#define SSL_SNI_CURRENT_CONFIG_IS_USED           -1
+#define SSL_SNI_SEND_ALERT                       -2
+
+/*
+** Set application implemented SNISocketConfig callback.
+*/
+SSL_IMPORT SECStatus SSL_SNISocketConfigHook(PRFileDesc *fd, 
+                                             SSLSNISocketConfig f,
+                                             void *arg);
+
+/*
+** Reconfigure fd SSL socket with model socket parameters. Sets
+** server certs and keys, list of trust anchor, socket options
+** and all SSL socket call backs and parameters.
+*/
+SSL_IMPORT PRFileDesc *SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd);
+
+/*
  * Set the client side argument for SSL to retrieve PKCS #11 pin.
  *	fd - the file descriptor for the connection in question
  *	a - pkcs11 application specific data
@@ -298,7 +357,7 @@ SSL_IMPORT SECStatus SSL_BadCertHook(PRFileDesc *fd, SSLBadCertHandler f,
 				     void *arg);
 
 /*
-** Configure ssl for running a secure server. Needs the
+** Configure SSL socket for running a secure server. Needs the
 ** certificate for the server and the servers private key. The arguments
 ** are copied.
 */
@@ -307,7 +366,7 @@ SSL_IMPORT SECStatus SSL_ConfigSecureServer(
 				SECKEYPrivateKey *key, SSLKEAType kea);
 
 /*
-** Configure a secure servers session-id cache. Define the maximum number
+** Configure a secure server's session-id cache. Define the maximum number
 ** of entries in the cache, the longevity of the entires, and the directory
 ** where the cache files will be placed.  These values can be zero, and 
 ** if so, the implementation will choose defaults.
@@ -318,6 +377,18 @@ SSL_IMPORT SECStatus SSL_ConfigServerSessionIDCache(int      maxCacheEntries,
 					            PRUint32 timeout,
 					            PRUint32 ssl3_timeout,
 				              const char *   directory);
+
+/* Configure a secure server's session-id cache. Depends on value of
+ * enableMPCache, configures malti-proc or single proc cache. */
+SSL_IMPORT SECStatus SSL_ConfigServerSessionIDCacheWithOpt(
+                                                           PRUint32 timeout,
+                                                       PRUint32 ssl3_timeout,
+                                                     const char *   directory,
+                                                          int maxCacheEntries,
+                                                      int maxCertCacheEntries,
+                                                    int maxSrvNameCacheEntries,
+                                                           PRBool enableMPCache);
+
 /*
 ** Like SSL_ConfigServerSessionIDCache, with one important difference.
 ** If the application will run multiple processes (as opposed to, or in 
@@ -393,9 +464,15 @@ SSL_IMPORT SECStatus SSL_RedoHandshake(PRFileDesc *fd);
 #endif
 
 /*
- * Allow the application to pass a URL or hostname into the SSL library
+ * Allow the application to pass a URL or hostname into the SSL library.
  */
 SSL_IMPORT SECStatus SSL_SetURL(PRFileDesc *fd, const char *url);
+
+/*
+ * Allow an application to define a set of trust anchors for peer
+ * cert validation.
+ */
+SSL_IMPORT SECStatus SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *list);
 
 /*
 ** Return the number of bytes that SSL has waiting in internal buffers.
@@ -435,7 +512,6 @@ SSL_IMPORT SECStatus SSL_SetSockPeerID(PRFileDesc *fd, const char *peerID);
 SSL_IMPORT CERTCertificate * SSL_RevealCert(PRFileDesc * socket);
 SSL_IMPORT void * SSL_RevealPinArg(PRFileDesc * socket);
 SSL_IMPORT char * SSL_RevealURL(PRFileDesc * socket);
-
 
 /* This callback may be passed to the SSL library via a call to
  * SSL_GetClientAuthDataHook() for each SSL client socket.
@@ -499,6 +575,9 @@ SSL_IMPORT SECStatus SSL_GetChannelInfo(PRFileDesc *fd, SSLChannelInfo *info,
 SSL_IMPORT SECStatus SSL_GetCipherSuiteInfo(PRUint16 cipherSuite, 
                                         SSLCipherSuiteInfo *info, PRUintn len);
 
+/* Returnes negotiated through SNI host info. */
+SSL_IMPORT SECItem *SSL_GetNegotiatedHostInfo(PRFileDesc *fd);
+
 /*
 ** Return a new reference to the certificate that was most recently sent
 ** to the peer on this SSL/TLS connection, or NULL if none has been sent.
@@ -535,6 +614,14 @@ SSL_IMPORT SECStatus SSL_CanBypass(CERTCertificate *cert,
 				   PRUint32 protocolmask,
 				   PRUint16 *ciphers, int nciphers,
                                    PRBool *pcanbypass, void *pwArg);
+
+/*
+** Did the handshake with the peer negotiate the given extension?
+** Output parameter valid only if function returns SECSuccess
+*/
+SSL_IMPORT SECStatus SSL_HandshakeNegotiatedExtension(PRFileDesc * socket,
+                                                      SSLExtensionType extId,
+                                                      PRBool *yes);
 
 SEC_END_PROTOS
 

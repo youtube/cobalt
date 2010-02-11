@@ -37,7 +37,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslt.h,v 1.13 2009/11/07 18:23:06 wtc%google.com Exp $ */
+/* $Id: sslt.h,v 1.16 2010/02/04 03:21:11 wtc%google.com Exp $ */
 
 #ifndef __sslt_h_
 #define __sslt_h_
@@ -188,5 +188,25 @@ typedef struct SSLCipherSuiteInfoStr {
     PRUintn              reservedBits :29;
 
 } SSLCipherSuiteInfo;
+
+typedef enum {
+    SSL_sni_host_name                    = 0,
+    SSL_sni_type_total
+} SSLSniNameType;
+
+/* Supported extensions. */
+/* Update SSL_MAX_EXTENSIONS whenever a new extension type is added. */
+typedef enum {
+    ssl_server_name_xtn              = 0,
+#ifdef NSS_ENABLE_ECC
+    ssl_elliptic_curves_xtn          = 10,
+    ssl_ec_point_formats_xtn         = 11,
+#endif
+    ssl_session_ticket_xtn           = 35,
+    ssl_next_proto_neg_xtn           = 13172,
+    ssl_renegotiation_info_xtn       = 0xff01	/* experimental number */
+} SSLExtensionType;
+
+#define SSL_MAX_EXTENSIONS             6
 
 #endif /* __sslt_h_ */
