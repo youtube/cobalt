@@ -71,17 +71,12 @@ class HttpCache::Transaction : public HttpTransaction {
 
   const std::string& key() const { return cache_key_; }
 
-  // Associates this transaction with a cache entry.
-  int AddToEntry();
-
-  // Called by the HttpCache when the given disk cache entry becomes accessible
-  // to the transaction.  Returns network error code.
-  int EntryAvailable(ActiveEntry* entry);
-
   // This transaction is being deleted and we are not done writing to the cache.
   // We need to indicate that the response data was truncated.  Returns true on
   // success.
   bool AddTruncatedFlag();
+
+  CompletionCallback* io_callback() { return &io_callback_; }
 
  private:
   static const size_t kNumValidationHeaders = 2;
@@ -109,7 +104,7 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_DOOM_ENTRY,
     STATE_DOOM_ENTRY_COMPLETE,
     STATE_ADD_TO_ENTRY,
-    STATE_ENTRY_AVAILABLE,
+    STATE_ADD_TO_ENTRY_COMPLETE,
     STATE_PARTIAL_CACHE_VALIDATION,
     STATE_UPDATE_CACHED_RESPONSE,
     STATE_UPDATE_CACHED_RESPONSE_COMPLETE,
@@ -156,7 +151,7 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoDoomEntry();
   int DoDoomEntryComplete(int result);
   int DoAddToEntry();
-  int DoEntryAvailable();
+  int DoAddToEntryComplete(int result);
   int DoPartialCacheValidation();
   int DoUpdateCachedResponse();
   int DoUpdateCachedResponseComplete(int result);
@@ -182,6 +177,9 @@ class HttpCache::Transaction : public HttpTransaction {
   // Returns true if the request should be handled exclusively by the network
   // layer (skipping the cache entirely).
   bool ShouldPassThrough();
+
+  // Associates this transaction with a cache entry.
+  int AddToEntry();
 
   // Called to begin reading from the cache.  Returns network error code.
   int BeginCacheRead();
