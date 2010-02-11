@@ -145,10 +145,12 @@
         '<(tcmalloc_dir)/src/static_vars.h',
         '<(tcmalloc_dir)/src/symbolize.cc',
         '<(tcmalloc_dir)/src/symbolize.h',
+        '<(tcmalloc_dir)/src/symbolize_linux.cc',
         '<(tcmalloc_dir)/src/system-alloc.cc',
         '<(tcmalloc_dir)/src/system-alloc.h',
         '<(tcmalloc_dir)/src/tcmalloc.cc',
         '<(tcmalloc_dir)/src/tcmalloc_guard.h',
+        '<(tcmalloc_dir)/src/tcmalloc_linux.cc',
         '<(tcmalloc_dir)/src/thread_cache.cc',
         '<(tcmalloc_dir)/src/thread_cache.h',
         '<(tcmalloc_dir)/src/windows/config.h',
@@ -184,6 +186,10 @@
         # Included by allocator_shim.cc for maximal inlining.
         'generic_allocators.cc',
         'win_allocator.cc',
+        '<(tcmalloc_dir)/src/tcmalloc.cc',
+
+        # Unneeded on Windows, symbolize_linux.cc used there instead.
+        '<(tcmalloc_dir)/src/symbolize.cc',
 
         # We simply don't use these, but list them above so that IDE
         # users can view the full available source for reference, etc.
@@ -285,8 +291,9 @@
             '<(tcmalloc_dir)/src/system-alloc.cc',
             '<(tcmalloc_dir)/src/system-alloc.h',
 
-            # included by allocator_shim.cc
-            '<(tcmalloc_dir)/src/tcmalloc.cc',
+            # don't use linux forked version
+            '<(tcmalloc_dir)/src/tcmalloc_linux.cc',
+            '<(tcmalloc_dir)/src/symbolize_linux.cc',
 
             # heap-profiler/checker/cpuprofiler
             '<(tcmalloc_dir)/src/base/thread_lister.c',
@@ -320,6 +327,17 @@
             '<(jemalloc_dir)/qr.h',
             '<(jemalloc_dir)/rb.h',
 
+            # TODO(willchan):  Return to using this when page_heap_linux.cc
+            # becomes unnecessary.
+            '<(tcmalloc_dir)/src/page_heap.cc',
+          ],
+          # TODO(willchan):  This is actually just a branched copy of the
+          # vanilla upstream page_heap.cc.  The current forked copy of
+          # page_heap.cc has Windows-specific code in it so Linux can't
+          # use it.  These need to be refactored so we can track changes
+          # to the upstream page_heap.cc without duplication.
+          'sources': [
+            '<(tcmalloc_dir)/src/page_heap_linux.cc',
           ],
           'cflags!': [
             '-fvisibility=hidden',
