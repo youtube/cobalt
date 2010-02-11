@@ -39,7 +39,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslimpl.h,v 1.70 2009/11/21 03:40:49 wtc%google.com Exp $ */
+/* $Id: sslimpl.h,v 1.76 2010/02/04 03:08:45 wtc%google.com Exp $ */
 
 #ifndef __sslimpl_h_
 #define __sslimpl_h_
@@ -137,7 +137,7 @@ extern int Debug;
 #endif
 #define ssl_InMonitor(m) PZ_InMonitor(m)
 
-#define LSB(x) ((unsigned char) (x & 0xff))
+#define LSB(x) ((unsigned char) ((x) & 0xff))
 #define MSB(x) ((unsigned char) (((unsigned)(x)) >> 8))
 
 /************************************************************************/
@@ -561,6 +561,9 @@ typedef struct {
     SECItem            msItem;
     unsigned char      key_block[NUM_MIXERS * MD5_LENGTH];
     unsigned char      raw_master_secret[56];
+    SECItem            srvVirtName;    /* for server: name that was negotiated
+                                        * with a client. For client - is
+                                        * always set to NULL.*/
 } ssl3CipherSpec;
 
 typedef enum {	never_cached, 
@@ -656,6 +659,7 @@ struct sslSessionIDStr {
 	     * ClientHello message.  This field is used by clients.
 	     */
 	    NewSessionTicket  sessionTicket;
+            SECItem           srvName;
 	} ssl3;
     } u;
 };
@@ -730,16 +734,23 @@ typedef struct SessionTicketDataStr      SessionTicketData;
 
 struct TLSExtensionDataStr {
     /* registered callbacks that send server hello extensions */
-    ssl3HelloExtensionSender serverSenders[MAX_EXTENSIONS];
+    ssl3HelloExtensionSender serverSenders[SSL_MAX_EXTENSIONS];
     /* Keep track of the extensions that are negotiated. */
     PRUint16 numAdvertised;
     PRUint16 numNegotiated;
-    PRUint16 advertised[MAX_EXTENSIONS];
-    PRUint16 negotiated[MAX_EXTENSIONS];
+    PRUint16 advertised[SSL_MAX_EXTENSIONS];
+    PRUint16 negotiated[SSL_MAX_EXTENSIONS];
 
     /* SessionTicket Extension related data. */
     PRBool ticketTimestampVerified;
     PRBool emptySessionTicket;
+
+    /* SNI Extension related data
+     * Names data is not coppied from the input buffer. It can not be
+     * used outside the scope where input buffer is defined and that
+     * is beyond ssl3_HandleClientHello function. */
+    SECItem *sniNameArr;
+    PRUint32 sniNameArrSize;
 };
 
 /*
@@ -770,9 +781,16 @@ const ssl3CipherSuiteDef *suite_def;
     PRBool                rehandshake; /* immediately start another handshake 
                                         * when this one finishes */
     PRBool                usedStepDownKey;  /* we did a server key exchange. */
+    PRBool                sendingSCSV; /* instead of empty RI */
     sslBuffer             msgState;    /* current state for handshake messages*/
                                        /* protected by recvBufLock */
     sslBuffer             messages;    /* Accumulated handshake messages */
+    PRUint16              finishedBytes; /* size of single finished below */
+    union {
+	TLSFinished       tFinished[2]; /* client, then server */
+	SSL3Hashes        sFinished[2];
+	SSL3Opaque        data[72];
+    }                     finishedMsgs;
 #ifdef NSS_ENABLE_ECC
     PRUint32              negotiatedECCurves; /* bit mask */
 #endif /* NSS_ENABLE_ECC */
@@ -877,6 +895,7 @@ typedef struct SessionTicketStr {
     ClientIdentity        client_identity;
     SECItem               peer_cert;
     uint32                timestamp;
+    SECItem               srvName; /* negotiated server name */
 }  SessionTicket;
 
 /*
@@ -1022,6 +1041,7 @@ struct sslSocketStr {
     unsigned long    recvdCloseNotify;    /* received SSL EOF. */
     unsigned long    TCPconnected;       
     unsigned long    appDataBuffered;
+    unsigned long    peerRequestedProtection; /* from old renegotiation */
 
     /* version of the protocol to use */
     SSL3ProtocolVersion version;
@@ -1050,6 +1070,8 @@ const unsigned char *  preferredCipher;
     void                     *authCertificateArg;
     SSLGetClientAuthData      getClientAuthData;
     void                     *getClientAuthDataArg;
+    SSLSNISocketConfig        sniSocketConfig;
+    void                     *sniSocketConfigArg;
     SSLBadCertHandler         handleBadCert;
     void                     *badCertArg;
     SSLHandshakeCallback      handshakeCallback;
@@ -1130,6 +1152,7 @@ extern NSSRWLock *             ssl_global_data_lock;
 extern char                    ssl_debug;
 extern char                    ssl_trace;
 extern FILE *                  ssl_trace_iob;
+extern FILE *                  ssl_keylog_iob;
 extern CERTDistNames *         ssl3_server_ca_list;
 extern PRUint32                ssl_sid_timeout;
 extern PRUint32                ssl3_sid_timeout;
@@ -1501,6 +1524,23 @@ extern SECStatus ssl3_ServerHandleNextProtoNegoXtn(sslSocket *ss,
  */
 extern PRInt32 ssl3_SendSessionTicketXtn(sslSocket *ss, PRBool append,
 			PRUint32 maxBytes);
+
+/* ClientHello and ServerHello extension senders.
+ * The code is in ssl3ext.c.
+ */
+extern PRInt32 ssl3_SendServerNameXtn(sslSocket *ss, PRBool append,
+                     PRUint32 maxBytes);
+
+/* Assigns new cert, cert chain and keys to ss->serverCerts
+ * struct. If certChain is NULL, tries to find one. Aborts if
+ * fails to do so. If cert and keyPair are NULL - unconfigures
+ * sslSocket of kea type.*/
+extern SECStatus ssl_ConfigSecureServer(sslSocket *ss, CERTCertificate *cert,
+                                        CERTCertificateList *certChain,
+                                        ssl3KeyPair *keyPair, SSLKEAType kea);
+/* Return key type for the cert */
+extern SSLKEAType ssl_FindCertKEAType(CERTCertificate * cert);
+
 #ifdef NSS_ENABLE_ECC
 extern PRInt32 ssl3_SendSupportedCurvesXtn(sslSocket *ss,
 			PRBool append, PRUint32 maxBytes);

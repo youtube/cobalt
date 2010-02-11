@@ -40,7 +40,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: sslsock.c,v 1.60 2009/11/25 05:24:25 wtc%google.com Exp $ */
+/* $Id: sslsock.c,v 1.64 2010/01/28 06:19:13 nelson%bolyard.com Exp $ */
 #include "seccomon.h"
 #include "cert.h"
 #include "keyhi.h"
@@ -182,7 +182,7 @@ static sslOptions ssl_defaults = {
     PR_FALSE,   /* noLocks            */
     PR_FALSE,   /* enableSessionTickets */
     PR_FALSE,   /* enableDeflate      */
-    0,          /* enableRenegotiation (default: never) */
+    2,          /* enableRenegotiation (default: requires extension) */
     PR_FALSE,   /* requireSafeNegotiation */
 };
 
@@ -199,6 +199,7 @@ int                     ssl_lock_readers	= 1;	/* default true. */
 char                    ssl_debug;
 char                    ssl_trace;
 FILE *                  ssl_trace_iob;
+FILE *                  ssl_keylog_iob;
 char lockStatus[] = "Locks are ENABLED.  ";
 #define LOCKSTATUS_OFFSET 10 /* offset of ENABLED */
 
@@ -305,7 +306,7 @@ ssl_DupSocket(sslSocket *os)
 	    int i;
 	    sslServerCerts * oc = os->serverCerts;
 	    sslServerCerts * sc = ss->serverCerts;
-
+            
 	    for (i=kt_null; i < kt_kea_size; i++, oc++, sc++) {
 		if (oc->serverCert && oc->serverCertChain) {
 		    sc->serverCert      = CERT_DupCertificate(oc->serverCert);
@@ -334,6 +335,8 @@ ssl_DupSocket(sslSocket *os)
 	    ss->authCertificateArg    = os->authCertificateArg;
 	    ss->getClientAuthData     = os->getClientAuthData;
 	    ss->getClientAuthDataArg  = os->getClientAuthDataArg;
+            ss->sniSocketConfig       = os->sniSocketConfig;
+            ss->sniSocketConfigArg    = os->sniSocketConfigArg;
 	    ss->handleBadCert         = os->handleBadCert;
 	    ss->badCertArg            = os->badCertArg;
 	    ss->handshakeCallback     = os->handshakeCallback;
@@ -438,6 +441,11 @@ ssl_DestroySocketContents(sslSocket *ss)
     if (ss->opt.nextProtoNego.data) {
 	PORT_Free(ss->opt.nextProtoNego.data);
 	ss->opt.nextProtoNego.data = NULL;
+    }
+    PORT_Assert(!ss->xtnData.sniNameArr);
+    if (ss->xtnData.sniNameArr) {
+        PORT_Free(ss->xtnData.sniNameArr);
+        ss->xtnData.sniNameArr = NULL;
     }
 }
 
@@ -1319,6 +1327,119 @@ SSL_GetNextProto(PRFileDesc *fd, int *state, unsigned char *buf,
     }
 
     return SECSuccess;
+}
+
+PRFileDesc *
+SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
+{
+    PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
+    PR_NOT_REACHED("not implemented");
+    return NULL;
+
+#if 0
+    sslSocket * sm = NULL, *ss = NULL;
+    int i;
+    sslServerCerts * mc = sm->serverCerts;
+    sslServerCerts * sc = ss->serverCerts;
+
+    if (model == NULL) {
+        PR_SetError(SEC_ERROR_INVALID_ARGS, 0);
+        return NULL;
+    }
+    sm = ssl_FindSocket(model);
+    if (sm == NULL) {
+        SSL_DBG(("%d: SSL[%d]: bad model socket in ssl_ReconfigFD", 
+                 SSL_GETPID(), model));
+        return NULL;
+    }
+    ss = ssl_FindSocket(fd);
+    PORT_Assert(ss);
+    if (ss == NULL) {
+        PORT_SetError(SEC_ERROR_INVALID_ARGS);
+        return NULL;
+    }
+    
+    ss->opt  = sm->opt;
+    PORT_Memcpy(ss->cipherSuites, sm->cipherSuites, sizeof sm->cipherSuites);
+
+    if (!ss->opt.useSecurity) {
+        PORT_SetError(SEC_ERROR_INVALID_ARGS);
+        return NULL;
+    }
+    /* This int should be SSLKEAType, but CC on Irix complains,
+     * during the for loop.
+     */
+    for (i=kt_null; i < kt_kea_size; i++, mc++, sc++) {
+        if (mc->serverCert && mc->serverCertChain) {
+            if (sc->serverCert) {
+                CERT_DestroyCertificate(sc->serverCert);
+            }
+            sc->serverCert      = CERT_DupCertificate(mc->serverCert);
+            if (sc->serverCertChain) {
+                CERT_DestroyCertificateList(sc->serverCertChain);
+            }
+            sc->serverCertChain = CERT_DupCertList(mc->serverCertChain);
+            if (!sc->serverCertChain)
+                goto loser;
+        }
+        if (mc->serverKeyPair) {
+            if (sc->serverKeyPair) {
+                ssl3_FreeKeyPair(sc->serverKeyPair);
+            }
+            sc->serverKeyPair = ssl3_GetKeyPairRef(mc->serverKeyPair);
+            sc->serverKeyBits = mc->serverKeyBits;
+        }
+    }
+    if (sm->stepDownKeyPair) {
+        if (ss->stepDownKeyPair) {
+            ssl3_FreeKeyPair(ss->stepDownKeyPair);
+        }
+        ss->stepDownKeyPair = ssl3_GetKeyPairRef(sm->stepDownKeyPair);
+    }
+    if (sm->ephemeralECDHKeyPair) {
+        if (ss->ephemeralECDHKeyPair) {
+            ssl3_FreeKeyPair(ss->ephemeralECDHKeyPair);
+        }
+        ss->ephemeralECDHKeyPair =
+            ssl3_GetKeyPairRef(sm->ephemeralECDHKeyPair);
+    }
+    /* copy trust anchor names */
+    if (sm->ssl3.ca_list) {
+        if (ss->ssl3.ca_list) {
+            CERT_FreeDistNames(ss->ssl3.ca_list);
+        }
+        ss->ssl3.ca_list = CERT_DupDistNames(sm->ssl3.ca_list);
+        if (!ss->ssl3.ca_list) {
+            goto loser;
+        }
+    }
+    
+    if (sm->authCertificate)
+        ss->authCertificate       = sm->authCertificate;
+    if (sm->authCertificateArg)
+        ss->authCertificateArg    = sm->authCertificateArg;
+    if (sm->getClientAuthData)
+        ss->getClientAuthData     = sm->getClientAuthData;
+    if (sm->getClientAuthDataArg)
+        ss->getClientAuthDataArg  = sm->getClientAuthDataArg;
+    if (sm->sniSocketConfig)
+        ss->sniSocketConfig       = sm->sniSocketConfig;
+    if (sm->sniSocketConfigArg)
+        ss->sniSocketConfigArg    = sm->sniSocketConfigArg;
+    if (sm->handleBadCert)
+        ss->handleBadCert         = sm->handleBadCert;
+    if (sm->badCertArg)
+        ss->badCertArg            = sm->badCertArg;
+    if (sm->handshakeCallback)
+        ss->handshakeCallback     = sm->handshakeCallback;
+    if (sm->handshakeCallbackData)
+        ss->handshakeCallbackData = sm->handshakeCallbackData;
+    if (sm->pkcs11PinArg)
+        ss->pkcs11PinArg          = sm->pkcs11PinArg;
+    return fd;
+loser:
+    return NULL;
+#endif
 }
 
 /************************************************************************/
@@ -2223,6 +2344,15 @@ ssl_NewSocket(PRBool makeLocks)
 	    ssl_trace = atoi(ev);
 	    SSL_TRACE(("SSL: tracing set to %d", ssl_trace));
 	}
+	ev = getenv("SSLKEYLOGFILE");
+	if (ev && ev[0]) {
+	    ssl_keylog_iob = fopen(ev, "a");
+	    if (ftell(ssl_keylog_iob) == 0) {
+		fputs("# pre-master secret log file, generated by NSS\n",
+		      ssl_keylog_iob);
+	    }
+	    SSL_TRACE(("SSL: logging pre-master secrets to %s", ev));
+	}
 #endif /* TRACE */
 	ev = getenv("SSLDEBUG");
 	if (ev && ev[0]) {
@@ -2247,19 +2377,12 @@ ssl_NewSocket(PRBool makeLocks)
 	if (ev) {
 	    if (ev[0] == '1' || LOWER(ev[0]) == 'u')
 	    	ssl_defaults.enableRenegotiation = SSL_RENEGOTIATE_UNRESTRICTED;
-#ifdef LATER
-	    /* When SSL_RENEGOTIATE_REQUIRES_XTN is implemented, it will be 
-	     * the default.  Until then, NEVER will be the default. 
-	     */
 	    else if (ev[0] == '0' || LOWER(ev[0]) == 'n')
 	    	ssl_defaults.enableRenegotiation = SSL_RENEGOTIATE_NEVER;
+	    else if (ev[0] == '3' || LOWER(ev[0]) == 'c')
+	    	ssl_defaults.enableRenegotiation = SSL_RENEGOTIATE_CLIENT_ONLY;
 	    else
 	    	ssl_defaults.enableRenegotiation = SSL_RENEGOTIATE_REQUIRES_XTN;
-#else
-	    else
-	    	ssl_defaults.enableRenegotiation = SSL_RENEGOTIATE_NEVER;
-#endif
-
 	    SSL_TRACE(("SSL: enableRenegotiation set to %d", 
 	               ssl_defaults.enableRenegotiation));
 	}
@@ -2309,6 +2432,8 @@ ssl_NewSocket(PRBool makeLocks)
 	/* Provide default implementation of hooks */
 	ss->authCertificate    = SSL_AuthCertificate;
 	ss->authCertificateArg = (void *)ss->dbHandle;
+        ss->sniSocketConfig    = NULL;
+        ss->sniSocketConfigArg = NULL;
 	ss->getClientAuthData  = NULL;
 	ss->handleBadCert      = NULL;
 	ss->badCertArg         = NULL;

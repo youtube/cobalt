@@ -38,7 +38,7 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
-/* $Id: ssl3prot.h,v 1.15 2009/11/07 18:23:06 wtc%google.com Exp $ */
+/* $Id: ssl3prot.h,v 1.18 2010/02/03 02:25:35 alexei.volkov.bugs%sun.com Exp $ */
 
 #ifndef __ssl3proto_h_
 #define __ssl3proto_h_
@@ -344,20 +344,8 @@ typedef struct {
     unsigned char *mac;
 } EncryptedSessionTicket;
 
-/* Supported extensions. */
-/* Update MAX_EXTENSIONS whenever a new extension type is added. */
-typedef enum {
-    server_name_xtn              = 0,
-#ifdef NSS_ENABLE_ECC
-    elliptic_curves_xtn          = 10,
-    ec_point_formats_xtn         = 11,
-#endif
-    session_ticket_xtn           = 35,
-    next_proto_neg_xtn           = 13172
-} ExtensionType;
-
-#define MAX_EXTENSIONS             5
-
 #define TLS_EX_SESS_TICKET_MAC_LENGTH       32
+
+#define TLS_STE_NO_SERVER_NAME        -1
 
 #endif /* __ssl3proto_h_ */
