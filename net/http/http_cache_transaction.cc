@@ -497,28 +497,32 @@ int HttpCache::Transaction::DoCreateEntryComplete(int result) {
 int HttpCache::Transaction::DoAddToEntry() {
   DCHECK(new_entry_);
   cache_pending_ = true;
+  next_state_ = STATE_ADD_TO_ENTRY_COMPLETE;
   LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
-  int rv = cache_->AddTransactionToEntry(new_entry_, this);
-  new_entry_ = NULL;
-  return rv;
+  return cache_->AddTransactionToEntry(new_entry_, this);
 }
 
-int HttpCache::Transaction::EntryAvailable(ActiveEntry* entry) {
+int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
+  DCHECK(new_entry_);
   cache_pending_ = false;
-  entry_ = entry;
 
-  next_state_ = STATE_ENTRY_AVAILABLE;
-  if (new_entry_) {
-    // We are inside AddTransactionToEntry() so avoid reentering DoLoop().
-    DCHECK_EQ(new_entry_, entry);
+  if (result == ERR_CACHE_RACE) {
+    new_entry_ = NULL;
+    next_state_ = STATE_INIT_ENTRY;
     return OK;
   }
-  return DoLoop(OK);
-}
 
-int HttpCache::Transaction::DoEntryAvailable() {
-  DCHECK(!new_entry_);
+  if (result != OK) {
+    // If there is a failure, the cache should have taken care of new_entry_.
+    NOTREACHED();
+    new_entry_ = NULL;
+    return result;
+  }
+
+  entry_ = new_entry_;
+  new_entry_ = NULL;
+
   if (mode_ == WRITE) {
     if (partial_.get())
       partial_->RestoreHeaders(&custom_request_->extra_headers);
@@ -667,9 +671,8 @@ int HttpCache::Transaction::DoLoop(int result) {
         DCHECK_EQ(OK, rv);
         rv = DoAddToEntry();
         break;
-      case STATE_ENTRY_AVAILABLE:
-        DCHECK_EQ(OK, rv);
-        rv = DoEntryAvailable();
+      case STATE_ADD_TO_ENTRY_COMPLETE:
+        rv = DoAddToEntryComplete(rv);
         break;
       case STATE_PARTIAL_CACHE_VALIDATION:
         DCHECK_EQ(OK, rv);
