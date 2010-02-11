@@ -584,6 +584,11 @@ bool FileEnumerator::IsDirectory(const FindInfo& info) {
   return S_ISDIR(info.stat.st_mode);
 }
 
+// static
+FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
+  return FilePath(find_info.filename);
+}
+
 FilePath FileEnumerator::Next() {
   ++current_directory_entry_;
 
