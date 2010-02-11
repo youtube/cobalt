@@ -180,15 +180,15 @@ class HttpCache : public HttpTransactionFactory,
   // Generates the cache key for this request.
   std::string GenerateCacheKey(const HttpRequestInfo*);
 
-  // Dooms the entry selected by |key|. |callback| is used for completion
-  // notification if this function returns ERR_IO_PENDING. The entry can be
+  // Dooms the entry selected by |key|. |trans| will be notified via its IO
+  // callback if this method returns ERR_IO_PENDING. The entry can be
   // currently in use or not.
-  int DoomEntry(const std::string& key, CompletionCallback* callback);
+  int DoomEntry(const std::string& key, Transaction* trans);
 
-  // Dooms the entry selected by |key|. |callback| is used for completion
-  // notification if this function returns ERR_IO_PENDING. The entry should not
+  // Dooms the entry selected by |key|. |trans| will be notified via its IO
+  // callback if this method returns ERR_IO_PENDING. The entry should not
   // be currently in use.
-  int AsyncDoomEntry(const std::string& key, CompletionCallback* callback);
+  int AsyncDoomEntry(const std::string& key, Transaction* trans);
 
   // Closes a previously doomed entry.
   void FinalizeDoomedEntry(ActiveEntry* entry);
@@ -216,21 +216,25 @@ class HttpCache : public HttpTransactionFactory,
   void DeleteNewEntry(NewEntry* entry);
 
   // Opens the disk cache entry associated with |key|, returning an ActiveEntry
-  // in |*entry|. |callback| is used for completion notification if this
-  // function returns ERR_IO_PENDING.
+  // in |*entry|. |trans| will be notified via its IO callback if this method
+  // returns ERR_IO_PENDING.
   int OpenEntry(const std::string& key, ActiveEntry** entry,
-                CompletionCallback* callback);
+                Transaction* trans);
 
   // Creates the disk cache entry associated with |key|, returning an
-  // ActiveEntry in |*entry|. |callback| is used for completion notification if
-  // this function returns ERR_IO_PENDING.
+  // ActiveEntry in |*entry|. |trans| will be notified via its IO callback if
+  // this method returns ERR_IO_PENDING.
   int CreateEntry(const std::string& key, ActiveEntry** entry,
-                  CompletionCallback* callback);
+                  Transaction* trans);
 
   // Destroys an ActiveEntry (active or doomed).
   void DestroyEntry(ActiveEntry* entry);
 
-  // Adds a transaction to an ActiveEntry.
+  // Adds a transaction to an ActiveEntry. If this method returns ERR_IO_PENDING
+  // the transaction will be notified about completion via its IO callback. This
+  // method returns ERR_CACHE_RACE to signal the transaction that it cannot be
+  // added to the provided entry, and it should retry the process with another
+  // one (in this case, the entry is no longer valid).
   int AddTransactionToEntry(ActiveEntry* entry, Transaction* trans);
 
   // Called when the transaction has finished working with this entry. |cancel|
@@ -249,17 +253,17 @@ class HttpCache : public HttpTransactionFactory,
   // transactions can start reading from this entry.
   void ConvertWriterToReader(ActiveEntry* entry);
 
-  // Removes the transaction |trans|, waiting for |callback|, from the pending
-  // list of an entry (NewEntry, active or doomed entry).
-  void RemovePendingTransaction(Transaction* trans, CompletionCallback* cb);
+  // Removes the transaction |trans|, from the pending list of an entry
+  // (NewEntry, active or doomed entry).
+  void RemovePendingTransaction(Transaction* trans);
 
   // Removes the transaction |trans|, from the pending list of |entry|.
   bool RemovePendingTransactionFromEntry(ActiveEntry* entry,
                                          Transaction* trans);
 
-  // Removes the callback |cb|, from the pending list of |entry|.
-  bool RemovePendingCallbackFromNewEntry(NewEntry* entry,
-                                         CompletionCallback* cb);
+  // Removes the transaction |trans|, from the pending list of |entry|.
+  bool RemovePendingTransactionFromNewEntry(NewEntry* entry,
+                                            Transaction* trans);
 
   // Resumes processing the pending list of |entry|.
   void ProcessPendingQueue(ActiveEntry* entry);
