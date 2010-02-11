@@ -307,6 +307,12 @@ bool GetFileSize(const FilePath& file_path, int64* file_size);
 // Deprecated temporary compatibility function.
 bool GetFileSize(const std::wstring& file_path, int64* file_size);
 
+// Returns true if the given path's base name is ".".
+bool IsDot(const FilePath& path);
+
+// Returns true if the given path's base name is "..".
+bool IsDotDot(const FilePath& path);
+
 // Used to hold information about a given file path.  See GetFileInfo below.
 struct FileInfo {
   // The size of the file in bytes.  Undefined when is_directory is true.
@@ -457,15 +463,12 @@ class FileEnumerator {
   // Looks inside a FindInfo and determines if it's a directory.
   static bool IsDirectory(const FindInfo& info);
 
+  static FilePath GetFilename(const FindInfo& find_info);
+
  private:
   // Returns true if the given path should be skipped in enumeration.
   bool ShouldSkip(const FilePath& path);
 
-  // Returns true if the given path's base name is ".".
-  bool IsDot(const FilePath& path);
-
-  // Returns true if the given path's base name is "..".
-  bool IsDotDot(const FilePath& path);
 
 #if defined(OS_WIN)
   WIN32_FIND_DATA find_data_;

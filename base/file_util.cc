@@ -209,6 +209,14 @@ bool GetFileSize(const FilePath& file_path, int64* file_size) {
   return true;
 }
 
+bool IsDot(const FilePath& path) {
+  return FILE_PATH_LITERAL(".") == path.BaseName().value();
+}
+
+bool IsDotDot(const FilePath& path) {
+  return FILE_PATH_LITERAL("..") == path.BaseName().value();
+}
+
 bool CloseFile(FILE* file) {
   if (file == NULL)
     return true;
@@ -419,14 +427,6 @@ int WriteFile(const std::wstring& filename, const char* data, int size) {
 bool FileEnumerator::ShouldSkip(const FilePath& path) {
   FilePath::StringType basename = path.BaseName().value();
   return IsDot(path) || (IsDotDot(path) && !(INCLUDE_DOT_DOT & file_type_));
-}
-
-bool FileEnumerator::IsDot(const FilePath& path) {
-  return FILE_PATH_LITERAL(".") == path.BaseName().value();
-}
-
-bool FileEnumerator::IsDotDot(const FilePath& path) {
-  return FILE_PATH_LITERAL("..") == path.BaseName().value();
 }
 
 }  // namespace
