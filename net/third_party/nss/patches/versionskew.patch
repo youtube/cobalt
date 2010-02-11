@@ -1,0 +1,47 @@
+diff --git a/mozilla/security/nss/lib/ssl/sslsecur.c b/mozilla/security/nss/lib/ssl/sslsecur.c
+index 8f79135..80c2ba6 100644
+--- a/mozilla/security/nss/lib/ssl/sslsecur.c
++++ b/mozilla/security/nss/lib/ssl/sslsecur.c
+@@ -1307,6 +1307,10 @@ SSL_SetURL(PRFileDesc *fd, const char *url)
+ SECStatus
+ SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *certList)
+ {
++    PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
++    PR_NOT_REACHED("not implemented");
++    return SECFailure;
++#if 0
+     sslSocket *   ss = ssl_FindSocket(fd);
+     CERTDistNames *names = NULL;
+ 
+@@ -1334,6 +1338,7 @@ SSL_SetTrustAnchors(PRFileDesc *fd, CERTCertList *certList)
+     ssl_Release1stHandshakeLock(ss);
+ 
+     return SECSuccess;
++#endif
+ }
+ 
+ /*
+diff --git a/mozilla/security/nss/lib/ssl/sslsock.c b/mozilla/security/nss/lib/ssl/sslsock.c
+index aab48d6..01ef3bd 100644
+--- a/mozilla/security/nss/lib/ssl/sslsock.c
++++ b/mozilla/security/nss/lib/ssl/sslsock.c
+@@ -1258,6 +1258,11 @@ SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd)
+ PRFileDesc *
+ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
+ {
++    PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
++    PR_NOT_REACHED("not implemented");
++    return NULL;
++
++#if 0
+     sslSocket * sm = NULL, *ss = NULL;
+     int i;
+     sslServerCerts * mc = sm->serverCerts;
+@@ -1360,6 +1365,7 @@ SSL_ReconfigFD(PRFileDesc *model, PRFileDesc *fd)
+     return fd;
+ loser:
+     return NULL;
++#endif
+ }
+ 
+ /************************************************************************/
