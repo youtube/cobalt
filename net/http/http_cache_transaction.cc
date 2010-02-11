@@ -156,7 +156,7 @@ HttpCache::Transaction::~Transaction() {
 
       cache_->DoneWithEntry(entry_, this, cancel_request);
     } else if (cache_pending_) {
-      cache_->RemovePendingTransaction(this, &io_callback_);
+      cache_->RemovePendingTransaction(this);
     }
   }
 
@@ -403,7 +403,7 @@ int HttpCache::Transaction::DoDoomEntry() {
   next_state_ = STATE_DOOM_ENTRY_COMPLETE;
   cache_pending_ = true;
   LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
-  return cache_->DoomEntry(cache_key_, &io_callback_);
+  return cache_->DoomEntry(cache_key_, this);
 }
 
 int HttpCache::Transaction::DoDoomEntryComplete(int result) {
@@ -421,7 +421,7 @@ int HttpCache::Transaction::DoOpenEntry() {
   next_state_ = STATE_OPEN_ENTRY_COMPLETE;
   cache_pending_ = true;
   LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
-  return cache_->OpenEntry(cache_key_, &new_entry_, &io_callback_);
+  return cache_->OpenEntry(cache_key_, &new_entry_, this);
 }
 
 int HttpCache::Transaction::DoOpenEntryComplete(int result) {
@@ -464,7 +464,7 @@ int HttpCache::Transaction::DoCreateEntry() {
   next_state_ = STATE_CREATE_ENTRY_COMPLETE;
   cache_pending_ = true;
   LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
-  return cache_->CreateEntry(cache_key_, &new_entry_, &io_callback_);
+  return cache_->CreateEntry(cache_key_, &new_entry_, this);
 }
 
 int HttpCache::Transaction::DoCreateEntryComplete(int result) {
