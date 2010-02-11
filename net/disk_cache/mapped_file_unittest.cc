@@ -19,26 +19,18 @@ volatile bool g_cache_tests_error;
 // Implementation of FileIOCallback for the tests.
 class FileCallbackTest: public disk_cache::FileIOCallback {
  public:
-  explicit FileCallbackTest(int id) : id_(id), reuse_(0) {}
-  explicit FileCallbackTest(int id, bool reuse)
-      : id_(id), reuse_(reuse_ ? 0 : 1) {}
+  explicit FileCallbackTest(int id) : id_(id) {}
   ~FileCallbackTest() {}
 
   virtual void OnFileIOComplete(int bytes_copied);
  private:
   int id_;
-  int reuse_;
 };
 
 void FileCallbackTest::OnFileIOComplete(int bytes_copied) {
   if (id_ > g_cache_tests_max_id) {
     NOTREACHED();
     g_cache_tests_error = true;
-  } else if (reuse_) {
-    DCHECK(1 == reuse_);
-    if (2 == reuse_)
-      g_cache_tests_error = true;
-    reuse_++;
   }
 
   g_cache_tests_received++;
