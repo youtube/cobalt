@@ -35,17 +35,13 @@ class ListerDelegate : public net::DirectoryLister::DirectoryListerDelegate {
             !file_util::FileEnumerator::IsDirectory(file_list_[current])) {
           continue;
         }
+        EXPECT_FALSE(file_util::IsDotDot(
+            file_util::FileEnumerator::GetFilename(file_list_[current])));
         EXPECT_EQ(file_util::FileEnumerator::IsDirectory(file_list_[previous]),
                   file_util::FileEnumerator::IsDirectory(file_list_[current]));
-#if defined(OS_WIN)
         EXPECT_TRUE(file_util::LocaleAwareCompareFilenames(
-                        FilePath(file_list_[previous].cFileName),
-                        FilePath(file_list_[current].cFileName)));
-#elif defined(OS_POSIX)
-        EXPECT_TRUE(file_util::LocaleAwareCompareFilenames(
-                        FilePath(file_list_[previous].filename),
-                        FilePath(file_list_[current].filename)));
-#endif
+            file_util::FileEnumerator::GetFilename(file_list_[previous]),
+            file_util::FileEnumerator::GetFilename(file_list_[current])));
       }
     }
   }

@@ -751,6 +751,11 @@ bool FileEnumerator::IsDirectory(const FindInfo& info) {
   return (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 }
 
+// static
+FilePath FileEnumerator::GetFilename(const FindInfo& find_info) {
+  return FilePath(find_info.cFileName);
+}
+
 FilePath FileEnumerator::Next() {
   if (!is_in_find_op_) {
     if (pending_paths_.empty())

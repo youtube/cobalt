@@ -41,18 +41,21 @@ class DirectoryDataEvent : public Task {
 // comparison function on the filenames for sorting in the user's locale.
 static bool CompareFindInfo(const file_util::FileEnumerator::FindInfo& a,
                             const file_util::FileEnumerator::FindInfo& b) {
+  // Parent directory before all else.
+  if (file_util::IsDotDot(file_util::FileEnumerator::GetFilename(a)))
+    return true;
+  if (file_util::IsDotDot(file_util::FileEnumerator::GetFilename(b)))
+    return false;
+
+  // Directories before regular files.
   bool a_is_directory = file_util::FileEnumerator::IsDirectory(a);
   bool b_is_directory = file_util::FileEnumerator::IsDirectory(b);
   if (a_is_directory != b_is_directory)
     return a_is_directory;
 
-#if defined(OS_WIN)
-  return file_util::LocaleAwareCompareFilenames(FilePath(a.cFileName),
-                                                FilePath(b.cFileName));
-#elif defined(OS_POSIX)
-  return file_util::LocaleAwareCompareFilenames(FilePath(a.filename),
-                                                FilePath(b.filename));
-#endif
+  return file_util::LocaleAwareCompareFilenames(
+      file_util::FileEnumerator::GetFilename(a),
+      file_util::FileEnumerator::GetFilename(b));
 }
 
 DirectoryLister::DirectoryLister(const FilePath& dir,
