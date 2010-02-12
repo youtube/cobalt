@@ -8,9 +8,8 @@
 // generate a perfect hash map.  The benefit of this approach is that no time is
 // spent on program initialization to generate the map of this data.
 //
-// After running this program, "effective_tld_names.gperf" is generated.  Run
-// gperf using the following command line:
-//   gperf -a -L "C++" -C -c -o -t -k '*' -NFindDomain -D -m 5 effective_tld_names.gperf > effective_tld_names.c
+// Running this program finds "effective_tld_names.cc" in the expected location
+// in the source checkout and generates "effective_tld_names.gperf" next to it.
 //
 // Any errors or warnings from this program are recorded in tld_cleanup.log.
 //
