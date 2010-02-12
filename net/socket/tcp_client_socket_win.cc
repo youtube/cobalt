@@ -146,6 +146,8 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
   WSABUF write_buffer_;
   scoped_refptr<IOBuffer> read_iobuffer_;
   scoped_refptr<IOBuffer> write_iobuffer_;
+  // TODO(vandebo) remove when bug 27870 is resolved.
+  size_t write_buffer_length_;
 
   // Throttle the read size based on our current slow start state.
   // Returns the throttled read size.
@@ -490,7 +492,8 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   DCHECK_NE(socket_, INVALID_SOCKET);
   DCHECK(!waiting_write_);
   DCHECK(!write_callback_);
-  DCHECK_GT(buf_len, 0);
+  //TODO(vandebo) change back to a DCHECK when 27870 is resolved
+  CHECK(buf_len > 0);
   DCHECK(!core_->write_iobuffer_);
 
   static StatsCounter reads("tcp.writes");
@@ -498,6 +501,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
 
   core_->write_buffer_.len = buf_len;
   core_->write_buffer_.buf = buf->data();
+  core_->write_buffer_length_ = static_cast<size_t>(buf_len);
 
   TRACE_EVENT_BEGIN("socket.write", this, "");
   // TODO(wtc): Remove the CHECK after enough testing.
@@ -688,6 +692,10 @@ void TCPClientSocketWin::DidCompleteWrite() {
   WSAResetEvent(core_->write_overlapped_.hEvent);
   TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", num_bytes));
   waiting_write_ = false;
+  if (ok) {
+    CHECK(num_bytes <= core_->write_buffer_length_) <<
+        core_->write_buffer_length_;
+  }
   core_->write_iobuffer_ = NULL;
   DoWriteCallback(ok ? num_bytes : MapWinsockError(WSAGetLastError()));
 }
