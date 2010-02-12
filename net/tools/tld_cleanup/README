@@ -1,3 +1,12 @@
-When updating src/net/base/effective_tld_names.dat, re-run tld_cleanup which
-will re-generate src/net/base/effective_tld_names.cc.  Check in the updated
-effective_tld_names.dat and effective_tld_names.cc together.
+When updating src/net/base/effective_tld_names.dat:
+
+1. Build tld_cleanup.exe (the "(net)" > "tld_cleanup" project)
+2. Run it (no arguments needed), typically from src/chrome/Release or
+   src/chrome/Debug. It will re-generate
+   src/net/base/effective_tld_names.gperf.
+3. Run gperf on the new effective_tld_names.gperf:
+     gperf -a -L "C++" -C -c -o -t -k '*' -NFindDomain -D -m 5 \
+        effective_tld_names.gperf > effective_tld_names.cc
+   It will produce a new effective_tld_names.cc.
+4. Check in the updated effective_tld_names.dat, effective_tld_names.gperf,
+   and effective_tld_names.cc together.
