@@ -352,8 +352,8 @@ void ThreadData::RunOnAllThreads(void (*function)()) {
   HANDLE completion_handle = CreateEvent(NULL, false, false, NULL);
   // Tell all other threads to run.
   for (size_t i = 0; i < message_loops.size(); ++i)
-    message_loops[i]->PostTask(FROM_HERE,
-        new RunTheStatic(function, completion_handle, counter));
+    message_loops[i]->PostTask(
+        FROM_HERE, new RunTheStatic(function, completion_handle, counter));
 
   // Also run Task on our thread.
   RunTheStatic local_task(function, completion_handle, counter);

@@ -107,8 +107,8 @@ class AddRemoveThread : public PlatformThread::Delegate,
 
   void ThreadMain() {
     loop_ = new MessageLoop();  // Fire up a message loop.
-    loop_->PostTask(FROM_HERE,
-      factory_->NewRunnableMethod(&AddRemoveThread::AddTask));
+    loop_->PostTask(
+        FROM_HERE, factory_->NewRunnableMethod(&AddRemoveThread::AddTask));
     loop_->Run();
     //LOG(ERROR) << "Loop 0x" << std::hex << loop_ << " done. " <<
     //    count_observes_ << ", " << count_addtask_;
