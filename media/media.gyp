@@ -251,6 +251,18 @@
       ],
     },
     {
+      'target_name': 'ffmpeg_tests',
+      'type': 'executable',
+      'dependencies': [
+        'media',
+        '../base/base.gyp:base',
+        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+      ],
+      'sources': [
+        'test/ffmpeg_tests/ffmpeg_tests.cc',
+      ],
+    },
+    {
       'target_name': 'wav_ola_test',
       'type': 'executable',
       'dependencies': [
