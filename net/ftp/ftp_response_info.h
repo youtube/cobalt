@@ -11,7 +11,10 @@ namespace net {
 
 class FtpResponseInfo {
  public:
-  FtpResponseInfo() : needs_auth(false), is_directory_listing(false) {
+  FtpResponseInfo()
+      : needs_auth(false),
+        expected_content_size(-1),
+        is_directory_listing(false) {
   }
 
   // True if authentication failed and valid authentication credentials are
@@ -25,6 +28,10 @@ class FtpResponseInfo {
   // The time at which the response headers were received.  For cached
   // responses, this time could be "far" in the past.
   base::Time response_time;
+
+  // Expected content size, in bytes, as reported by SIZE command. Only valid
+  // for file downloads. -1 means unknown size.
+  int64 expected_content_size;
 
   // True if the response data is of a directory listing.
   bool is_directory_listing;
