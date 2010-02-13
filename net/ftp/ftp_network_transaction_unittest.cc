@@ -499,7 +499,33 @@ class FtpSocketDataProviderEvilPasv : public FtpSocketDataProviderFileDownload {
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderEvilPasv);
 };
 
-class FtpSocketDataProviderEvilLogin : public FtpSocketDataProviderFileDownload {
+class FtpSocketDataProviderEvilSize : public FtpSocketDataProviderFileDownload {
+ public:
+  FtpSocketDataProviderEvilSize(const char* size_response, State expected_state)
+      : size_response_(size_response),
+        expected_state_(expected_state) {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_SIZE:
+        return Verify("SIZE /file\r\n", data, expected_state_, size_response_);
+      default:
+        return FtpSocketDataProviderFileDownload::OnWrite(data);
+    }
+  }
+
+ private:
+  const char* size_response_;
+  const State expected_state_;
+
+  DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderEvilSize);
+};
+
+class FtpSocketDataProviderEvilLogin
+    : public FtpSocketDataProviderFileDownload {
  public:
   FtpSocketDataProviderEvilLogin(const char* expected_user,
                                 const char* expected_password)
@@ -594,6 +620,12 @@ class FtpNetworkTransactionTest : public PlatformTest {
       EXPECT_EQ(static_cast<int>(mock_data.length()),
                 callback_.WaitForResult());
       EXPECT_EQ(mock_data, std::string(io_buffer->data(), mock_data.length()));
+      if (transaction_.GetResponseInfo()->is_directory_listing) {
+        EXPECT_EQ(-1, transaction_.GetResponseInfo()->expected_content_size);
+      } else {
+        // We pass an artificial value of 18 as a response to the SIZE command.
+        EXPECT_EQ(18, transaction_.GetResponseInfo()->expected_content_size);
+      }
     }
     EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
   }
@@ -904,6 +936,15 @@ TEST_F(FtpNetworkTransactionTest, Escaping) {
   FtpSocketDataProviderEscaping ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/%20%21%22%23%24%25%79%80%81",
                      OK);
+}
+
+// Test for http://crbug.com/23794.
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilSize) {
+  // Try to overflow int64 in the response.
+  FtpSocketDataProviderEvilSize ctrl_socket(
+      "213 99999999999999999999999999999999\r\n",
+      FtpSocketDataProvider::PRE_QUIT);
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_INVALID_RESPONSE);
 }
 
 // Regression test for http://crbug.com/25023.

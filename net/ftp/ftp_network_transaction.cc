@@ -59,7 +59,6 @@ FtpNetworkTransaction::FtpNetworkTransaction(
       read_ctrl_buf_(new IOBuffer(kCtrlBufLen)),
       ctrl_response_buffer_(new FtpCtrlResponseBuffer()),
       read_data_buf_len_(0),
-      file_data_len_(0),
       last_error_(OK),
       system_type_(SYSTEM_TYPE_UNKNOWN),
       retr_failed_(false),
@@ -308,7 +307,6 @@ void FtpNetworkTransaction::ResetStateForRestart() {
   ctrl_response_buffer_.reset(new FtpCtrlResponseBuffer());
   read_data_buf_ = NULL;
   read_data_buf_len_ = 0;
-  file_data_len_ = 0;
   if (write_buf_)
     write_buf_->SetOffset(0);
   last_error_ = OK;
@@ -889,10 +887,12 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
     case ERROR_CLASS_OK:
       if (response.lines.size() != 1)
         return Stop(ERR_INVALID_RESPONSE);
-      if (!StringToInt(response.lines[0], &file_data_len_))
+      int64 size;
+      if (!StringToInt64(response.lines[0], &size))
         return Stop(ERR_INVALID_RESPONSE);
-      if (file_data_len_ < 0)
+      if (size < 0)
         return Stop(ERR_INVALID_RESPONSE);
+      response_.expected_content_size = size;
       break;
     case ERROR_CLASS_INFO_NEEDED:
       break;
