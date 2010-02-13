@@ -190,7 +190,6 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   scoped_refptr<IOBuffer> read_data_buf_;
   int read_data_buf_len_;
-  int file_data_len_;
 
   // Buffer holding the command line to be written to the control socket.
   scoped_refptr<IOBufferWithSize> write_command_buf_;
