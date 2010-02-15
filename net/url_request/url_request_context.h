@@ -23,6 +23,7 @@
 namespace net {
 class CookiePolicy;
 class FtpTransactionFactory;
+class HttpAuthHandlerFactory;
 class HttpTransactionFactory;
 class SocketStream;
 }
@@ -76,6 +77,12 @@ class URLRequestContext :
 
   // Gets the FTP authentication cache for this context.
   net::FtpAuthCache* ftp_auth_cache() { return &ftp_auth_cache_; }
+
+  // Gets the HTTP Authentication Handler Factory for this context.
+  // The factory is only valid for the lifetime of this URLRequestContext
+  net::HttpAuthHandlerFactory* http_auth_handler_factory() {
+    return http_auth_handler_factory_;
+  }
 
   // Gets the value of 'Accept-Charset' header field.
   const std::string& accept_charset() const { return accept_charset_; }
@@ -133,6 +140,7 @@ class URLRequestContext :
   scoped_refptr<net::SSLConfigService> ssl_config_service_;
   net::HttpTransactionFactory* http_transaction_factory_;
   net::FtpTransactionFactory* ftp_transaction_factory_;
+  net::HttpAuthHandlerFactory* http_auth_handler_factory_;
   scoped_refptr<net::CookieStore> cookie_store_;
   net::CookiePolicy* cookie_policy_;
   scoped_refptr<net::TransportSecurityState> transport_security_state_;

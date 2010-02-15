@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include "net/base/ssl_config_service.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
+#include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
@@ -51,6 +52,7 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(CreateNullProxyService()),
         ssl_config_service(new SSLConfigServiceDefaults),
+        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
         spdy_session_pool(new SpdySessionPool) {}
 
   // Custom proxy service dependency.
@@ -58,12 +60,14 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
+        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
         spdy_session_pool(new SpdySessionPool) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
+  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   scoped_refptr<SpdySessionPool> spdy_session_pool;
 };
 
@@ -73,7 +77,8 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
-                                session_deps->spdy_session_pool);
+                                session_deps->spdy_session_pool,
+                                session_deps->http_auth_handler_factory.get());
 }
 
 class SpdyStreamTest : public testing::Test {

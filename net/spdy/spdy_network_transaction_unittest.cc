@@ -12,6 +12,7 @@
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/upload_data.h"
+#include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/proxy/proxy_config_service_fixed.h"
@@ -39,6 +40,7 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(CreateNullProxyService()),
         ssl_config_service(new SSLConfigServiceDefaults),
+        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
         spdy_session_pool(new SpdySessionPool) {
     // Note: The CancelledTransaction test does cleanup by running all tasks
     // in the message loop (RunAllPending).  Unfortunately, that doesn't clean
@@ -54,12 +56,14 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
+        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
         spdy_session_pool(new SpdySessionPool) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
+  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   scoped_refptr<SpdySessionPool> spdy_session_pool;
 };
 
@@ -76,7 +80,8 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
-                                session_deps->spdy_session_pool);
+                                session_deps->spdy_session_pool,
+                                session_deps->http_auth_handler_factory.get());
 }
 
 // Chop a frame into an array of MockWrites.

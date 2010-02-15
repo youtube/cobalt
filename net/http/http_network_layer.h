@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,7 @@ namespace net {
 
 class ClientSocketFactory;
 class HostResolver;
+class HttpAuthHandlerFactory;
 class HttpNetworkSession;
 class NetworkChangeNotifier;
 class ProxyInfo;
@@ -29,7 +30,8 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   HttpNetworkLayer(ClientSocketFactory* socket_factory,
                    NetworkChangeNotifier* network_change_notifier,
                    HostResolver* host_resolver, ProxyService* proxy_service,
-                   SSLConfigService* ssl_config_service);
+                   SSLConfigService* ssl_config_service,
+                   HttpAuthHandlerFactory* http_auth_handler_factory);
   // Construct a HttpNetworkLayer with an existing HttpNetworkSession which
   // contains a valid ProxyService.
   explicit HttpNetworkLayer(HttpNetworkSession* session);
@@ -41,7 +43,8 @@ class HttpNetworkLayer : public HttpTransactionFactory {
       NetworkChangeNotifier* network_change_notifier,
       HostResolver* host_resolver,
       ProxyService* proxy_service,
-      SSLConfigService* ssl_config_service);
+      SSLConfigService* ssl_config_service,
+      HttpAuthHandlerFactory* http_auth_handler_factory);
   // Create a transaction factory that instantiate a network layer over an
   // existing network session. Network session contains some valuable
   // information (e.g. authentication data) that we want to share across
@@ -80,6 +83,8 @@ class HttpNetworkLayer : public HttpTransactionFactory {
 
   scoped_refptr<HttpNetworkSession> session_;
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
+
+  HttpAuthHandlerFactory* http_auth_handler_factory_;
 
   bool suspended_;
   static bool force_spdy_;

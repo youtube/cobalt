@@ -16,14 +16,16 @@ class HttpRequestInfo;
 class ProxyInfo;
 
 // HttpAuthHandler is the interface for the authentication schemes
-// (basic, digest, ...)
-// The registry mapping auth-schemes to implementations is hardcoded in
-// HttpAuth::CreateAuthHandler().
+// (basic, digest, NTLM, Negotiate).
+// HttpAuthHandler objects are typically created by an HttpAuthHandlerFactory.
 class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
  public:
-  // Initialize the handler by parsing a challenge string.
-  bool InitFromChallenge(std::string::const_iterator begin,
-                         std::string::const_iterator end,
+  // Initializes the handler using a challenge issued by a server.
+  // |challenge| must be non-NULL and have already tokenized the
+  // authentication scheme, but none of the tokens occuring after the
+  // authentication scheme. |target| and |origin| are both stored
+  // for later use, and are not part of the initial challenge.
+  bool InitFromChallenge(HttpAuth::ChallengeTokenizer* challenge,
                          HttpAuth::Target target,
                          const GURL& origin);
 
@@ -109,11 +111,13 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
 
   virtual ~HttpAuthHandler() { }
 
-  // Initialize the handler by parsing a challenge string.
+  // Initializes the handler using a challenge issued by a server.
+  // |challenge| must be non-NULL and have already tokenized the
+  // authentication scheme, but none of the tokens occuring after the
+  // authentication scheme.
   // Implementations are expcted to initialize the following members:
   // scheme_, realm_, score_, properties_
-  virtual bool Init(std::string::const_iterator challenge_begin,
-                    std::string::const_iterator challenge_end) = 0;
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) = 0;
 
   // The lowercase auth-scheme {"basic", "digest", "ntlm", ...}
   std::string scheme_;

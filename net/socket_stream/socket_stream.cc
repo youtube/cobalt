@@ -43,6 +43,7 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       delegate_(delegate),
       max_pending_send_allowed_(kMaxPendingSendAllowed),
       next_state_(STATE_NONE),
+      http_auth_handler_factory_(NULL),
       factory_(ClientSocketFactory::GetDefaultFactory()),
       proxy_mode_(kDirectConnection),
       proxy_url_(url),
@@ -107,9 +108,10 @@ void SocketStream::set_context(URLRequestContext* context) {
     }
   }
 
-  if (context_)
+  if (context_) {
     host_resolver_ = context_->host_resolver();
-
+    http_auth_handler_factory_ = context_->http_auth_handler_factory();
+  }
 }
 
 void SocketStream::Connect() {
@@ -869,8 +871,9 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
   }
 
   auth_identity_.invalid = true;
-  HttpAuth::ChooseBestChallenge(headers, HttpAuth::AUTH_PROXY, auth_origin,
-                                &auth_handler_);
+  HttpAuth::ChooseBestChallenge(http_auth_handler_factory_, headers,
+                                HttpAuth::AUTH_PROXY,
+                                auth_origin, &auth_handler_);
   if (!auth_handler_) {
     LOG(ERROR) << "Can't perform auth to the proxy " << auth_origin;
     return ERR_TUNNEL_CONNECTION_FAILED;

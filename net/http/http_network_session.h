@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,6 +16,7 @@
 namespace net {
 
 class ClientSocketFactory;
+class HttpAuthHandlerFactory;
 class SpdySessionPool;
 class NetworkChangeNotifier;
 
@@ -28,7 +29,8 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
       ProxyService* proxy_service,
       ClientSocketFactory* client_socket_factory,
       SSLConfigService* ssl_config_service,
-      SpdySessionPool* spdy_session_pool);
+      SpdySessionPool* spdy_session_pool,
+      HttpAuthHandlerFactory* http_auth_handler_factory);
 
   HttpAuthCache* auth_cache() { return &auth_cache_; }
   SSLClientAuthCache* ssl_client_auth_cache() {
@@ -44,6 +46,9 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   SSLConfigService* ssl_config_service() { return ssl_config_service_; }
   const scoped_refptr<SpdySessionPool>& spdy_session_pool() {
     return spdy_session_pool_;
+  }
+  HttpAuthHandlerFactory* http_auth_handler_factory() {
+    return http_auth_handler_factory_;
   }
 
   // Replace the current socket pool with a new one.  This effectively
@@ -84,6 +89,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
+  HttpAuthHandlerFactory* http_auth_handler_factory_;
 };
 
 }  // namespace net

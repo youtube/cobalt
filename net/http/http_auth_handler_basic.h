@@ -6,12 +6,24 @@
 #define NET_HTTP_HTTP_AUTH_HANDLER_BASIC_H_
 
 #include "net/http/http_auth_handler.h"
+#include "net/http/http_auth_handler_factory.h"
 
 namespace net {
 
 // Code for handling http basic authentication.
 class HttpAuthHandlerBasic : public HttpAuthHandler {
  public:
+  class Factory : public HttpAuthHandlerFactory {
+   public:
+    Factory();
+    virtual ~Factory();
+
+    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
+                                  HttpAuth::Target target,
+                                  const GURL& origin,
+                                  scoped_refptr<HttpAuthHandler>* handler);
+  };
+
   virtual int GenerateAuthToken(const std::wstring& username,
                                 const std::wstring& password,
                                 const HttpRequestInfo*,
@@ -22,10 +34,8 @@ class HttpAuthHandlerBasic : public HttpAuthHandler {
                                        const ProxyInfo* proxy,
                                        std::string* auth_token);
 
-
  protected:
-  virtual bool Init(std::string::const_iterator challenge_begin,
-                    std::string::const_iterator challenge_end);
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
 
  private:
   ~HttpAuthHandlerBasic() {}
