@@ -790,12 +790,15 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
                          proto == kSpdyProto);
 
   if (IsCertificateError(result)) {
-    if (use_spdy) {
-      // TODO(agl/willchan/wtc): We currently ignore certificate errors for
-      // spdy but we shouldn't. http://crbug.com/32020
-      result = OK;
-    } else {
-      result = HandleCertificateError(result);
+    result = HandleCertificateError(result);
+    // TODO(wtc): We currently ignore certificate errors for
+    // spdy but we shouldn't. http://crbug.com/32020
+    if ((result == OK || use_spdy) &&
+        !connection_->socket()->IsConnectedAndIdle()) {
+        connection_->socket()->Disconnect();
+        connection_->Reset();
+        next_state_ = STATE_INIT_CONNECTION;
+        return OK;
     }
   }
 
@@ -1379,6 +1382,20 @@ void HttpNetworkTransaction::LogBlockedTunnelResponse(
 
 int HttpNetworkTransaction::HandleCertificateError(int error) {
   DCHECK(using_ssl_);
+  DCHECK(IsCertificateError(error));
+
+  SSLClientSocket* ssl_socket =
+    reinterpret_cast<SSLClientSocket*>(connection_->socket());
+  ssl_socket->GetSSLInfo(&response_.ssl_info);
+
+  // Add the bad certificate to the set of allowed certificates in the
+  // SSL info object. This data structure will be consulted after calling
+  // RestartIgnoringLastError(). And the user will be asked interactively
+  // before RestartIgnoringLastError() is ever called.
+  SSLConfig::CertAndStatus bad_cert;
+  bad_cert.cert = response_.ssl_info.cert;
+  bad_cert.cert_status = response_.ssl_info.cert_status;
+  ssl_config_.allowed_bad_certs.push_back(bad_cert);
 
   const int kCertFlags = LOAD_IGNORE_CERT_COMMON_NAME_INVALID |
                          LOAD_IGNORE_CERT_DATE_INVALID |
@@ -1399,21 +1416,6 @@ int HttpNetworkTransaction::HandleCertificateError(int error) {
           error = OK;
         break;
     }
-  }
-
-  if (error != OK) {
-    SSLClientSocket* ssl_socket =
-        reinterpret_cast<SSLClientSocket*>(connection_->socket());
-    ssl_socket->GetSSLInfo(&response_.ssl_info);
-
-    // Add the bad certificate to the set of allowed certificates in the
-    // SSL info object. This data structure will be consulted after calling
-    // RestartIgnoringLastError(). And the user will be asked interactively
-    // before RestartIgnoringLastError() is ever called.
-    SSLConfig::CertAndStatus bad_cert;
-    bad_cert.cert = response_.ssl_info.cert;
-    bad_cert.cert_status = response_.ssl_info.cert_status;
-    ssl_config_.allowed_bad_certs.push_back(bad_cert);
   }
   return error;
 }
