@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,12 +23,14 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
     NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
     ProxyService* proxy_service,
-    SSLConfigService* ssl_config_service) {
+    SSLConfigService* ssl_config_service,
+    HttpAuthHandlerFactory* http_auth_handler_factory) {
   DCHECK(proxy_service);
 
   return new HttpNetworkLayer(ClientSocketFactory::GetDefaultFactory(),
                               network_change_notifier,
-                              host_resolver, proxy_service, ssl_config_service);
+                              host_resolver, proxy_service, ssl_config_service,
+                              http_auth_handler_factory);
 }
 
 // static
@@ -47,7 +49,8 @@ HttpNetworkLayer::HttpNetworkLayer(
     NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
     ProxyService* proxy_service,
-    SSLConfigService* ssl_config_service)
+    SSLConfigService* ssl_config_service,
+    HttpAuthHandlerFactory* http_auth_handler_factory)
     : socket_factory_(socket_factory),
       network_change_notifier_(network_change_notifier),
       host_resolver_(host_resolver),
@@ -55,6 +58,7 @@ HttpNetworkLayer::HttpNetworkLayer(
       ssl_config_service_(ssl_config_service),
       session_(NULL),
       spdy_session_pool_(NULL),
+      http_auth_handler_factory_(http_auth_handler_factory),
       suspended_(false) {
   DCHECK(proxy_service_);
   DCHECK(ssl_config_service_.get());
@@ -66,6 +70,7 @@ HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
       ssl_config_service_(NULL),
       session_(session),
       spdy_session_pool_(session->spdy_session_pool()),
+      http_auth_handler_factory_(NULL),
       suspended_(false) {
   DCHECK(session_.get());
 }
@@ -101,12 +106,14 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
     SpdySessionPool* spdy_pool = new SpdySessionPool;
     session_ = new HttpNetworkSession(
         network_change_notifier_, host_resolver_, proxy_service_,
-        socket_factory_, ssl_config_service_, spdy_pool);
+        socket_factory_, ssl_config_service_, spdy_pool,
+        http_auth_handler_factory_);
     // These were just temps for lazy-initializing HttpNetworkSession.
     network_change_notifier_ = NULL;
     host_resolver_ = NULL;
     proxy_service_ = NULL;
     socket_factory_ = NULL;
+    http_auth_handler_factory_ = NULL;
   }
   return session_;
 }

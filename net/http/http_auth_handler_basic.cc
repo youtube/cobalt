@@ -21,25 +21,23 @@ namespace net {
 //
 // We allow it to be compatibility with certain embedded webservers that don't
 // include a realm (see http://crbug.com/20984.)
-bool HttpAuthHandlerBasic::Init(std::string::const_iterator challenge_begin,
-                                std::string::const_iterator challenge_end) {
+bool HttpAuthHandlerBasic::Init(HttpAuth::ChallengeTokenizer* challenge) {
   scheme_ = "basic";
   score_ = 1;
   properties_ = 0;
 
   // Verify the challenge's auth-scheme.
-  HttpAuth::ChallengeTokenizer challenge_tok(challenge_begin, challenge_end);
-  if (!challenge_tok.valid() ||
-      !LowerCaseEqualsASCII(challenge_tok.scheme(), "basic"))
+  if (!challenge->valid() ||
+      !LowerCaseEqualsASCII(challenge->scheme(), "basic"))
     return false;
 
   // Extract the realm (may be missing).
-  while (challenge_tok.GetNext()) {
-    if (LowerCaseEqualsASCII(challenge_tok.name(), "realm"))
-      realm_ = challenge_tok.unquoted_value();
+  while (challenge->GetNext()) {
+    if (LowerCaseEqualsASCII(challenge->name(), "realm"))
+      realm_ = challenge->unquoted_value();
   }
 
-  return challenge_tok.valid();
+  return challenge->valid();
 }
 
 int HttpAuthHandlerBasic::GenerateAuthToken(
@@ -68,5 +66,24 @@ int HttpAuthHandlerBasic::GenerateDefaultAuthToken(
   return ERR_NOT_IMPLEMENTED;
 }
 
+HttpAuthHandlerBasic::Factory::Factory() {
+}
+
+HttpAuthHandlerBasic::Factory::~Factory() {
+}
+
+int HttpAuthHandlerBasic::Factory::CreateAuthHandler(
+    HttpAuth::ChallengeTokenizer* challenge,
+    HttpAuth::Target target,
+    const GURL& origin,
+    scoped_refptr<HttpAuthHandler>* handler) {
+  // TODO(cbentzel): Move towards model of parsing in the factory
+  //                 method and only constructing when valid.
+  scoped_refptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerBasic());
+  if (!tmp_handler->InitFromChallenge(challenge, target, origin))
+    return ERR_INVALID_RESPONSE;
+  handler->swap(tmp_handler);
+  return OK;
+}
 
 }  // namespace net

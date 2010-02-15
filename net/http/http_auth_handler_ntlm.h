@@ -27,12 +27,24 @@
 #include "base/basictypes.h"
 #include "base/string16.h"
 #include "net/http/http_auth_handler.h"
+#include "net/http/http_auth_handler_factory.h"
 
 namespace net {
 
 // Code for handling HTTP NTLM authentication.
 class HttpAuthHandlerNTLM : public HttpAuthHandler {
  public:
+  class Factory : public HttpAuthHandlerFactory {
+   public:
+    Factory();
+    virtual ~Factory();
+
+    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
+                                  HttpAuth::Target target,
+                                  const GURL& origin,
+                                  scoped_refptr<HttpAuthHandler>* handler);
+  };
+
 #if defined(NTLM_PORTABLE)
   // A function that generates n random bytes in the output buffer.
   typedef void (*GenerateRandomProc)(uint8* output, size_t n);
@@ -81,9 +93,8 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
                                        std::string* auth_token);
 
  protected:
-  virtual bool Init(std::string::const_iterator challenge_begin,
-                    std::string::const_iterator challenge_end) {
-    return ParseChallenge(challenge_begin, challenge_end);
+  virtual bool Init(HttpAuth::ChallengeTokenizer* tok) {
+    return ParseChallenge(tok);
   }
 
   // This function acquires a credentials handle in the SSPI implementation.
@@ -102,8 +113,7 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
 
   // Parse the challenge, saving the results into this instance.
   // Returns true on success.
-  bool ParseChallenge(std::string::const_iterator challenge_begin,
-                      std::string::const_iterator challenge_end);
+  bool ParseChallenge(HttpAuth::ChallengeTokenizer* tok);
 
   // Given an input token received from the server, generate the next output
   // token to be sent to the server.

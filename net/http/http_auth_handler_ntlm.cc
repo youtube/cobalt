@@ -56,17 +56,6 @@ int HttpAuthHandlerNTLM::GenerateAuthToken(
     if (rv != OK)
       return rv;
   } else {
-    // Decode |auth_data_| into the input buffer.
-    int len = auth_data_.length();
-
-    // Strip off any padding.
-    // (See https://bugzilla.mozilla.org/show_bug.cgi?id=230351.)
-    //
-    // Our base64 decoder requires that the length be a multiple of 4.
-    while (len > 0 && len % 4 != 0 && auth_data_[len - 1] == '=')
-      len--;
-    auth_data_.erase(len);
-
     if (!base::Base64Decode(auth_data_, &decoded_auth_data)) {
       LOG(ERROR) << "Unexpected problem Base64 decoding.";
       return ERR_UNEXPECTED;
@@ -97,33 +86,45 @@ int HttpAuthHandlerNTLM::GenerateAuthToken(
 // The NTLM challenge header looks like:
 //   WWW-Authenticate: NTLM auth-data
 bool HttpAuthHandlerNTLM::ParseChallenge(
-    std::string::const_iterator challenge_begin,
-    std::string::const_iterator challenge_end) {
+    HttpAuth::ChallengeTokenizer* tok) {
   scheme_ = "ntlm";
   score_ = 3;
   properties_ = ENCRYPTS_IDENTITY | IS_CONNECTION_BASED;
 
 #if defined(NTLM_SSPI)
-  return auth_sspi_.ParseChallenge(challenge_begin, challenge_end);
+  return auth_sspi_.ParseChallenge(tok);
 #else
   auth_data_.clear();
 
   // Verify the challenge's auth-scheme.
-  HttpAuth::ChallengeTokenizer challenge_tok(challenge_begin, challenge_end);
-  if (!challenge_tok.valid() ||
-      !LowerCaseEqualsASCII(challenge_tok.scheme(), "ntlm"))
+  if (!tok->valid() || !LowerCaseEqualsASCII(tok->scheme(), "ntlm"))
     return false;
 
-  // Extract the auth-data.  We can't use challenge_tok.GetNext() because
-  // auth-data is base64-encoded and may contain '=' padding at the end,
-  // which would be mistaken for a name=value pair.
-  challenge_begin += 4;  // Skip over "NTLM".
-  HttpUtil::TrimLWS(&challenge_begin, &challenge_end);
-
-  auth_data_.assign(challenge_begin, challenge_end);
-
+  tok->set_expect_base64_token(true);
+  if (tok->GetNext())
+    auth_data_.assign(tok->value_begin(), tok->value_end());
   return true;
-#endif
+#endif  // defined(NTLM_SSPI)
+}
+
+HttpAuthHandlerNTLM::Factory::Factory() {
+}
+
+HttpAuthHandlerNTLM::Factory::~Factory() {
+}
+
+int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
+    HttpAuth::ChallengeTokenizer* challenge,
+    HttpAuth::Target target,
+    const GURL& origin,
+    scoped_refptr<HttpAuthHandler>* handler) {
+  // TODO(cbentzel): Move towards model of parsing in the factory
+  //                 method and only constructing when valid.
+  scoped_refptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerNTLM());
+  if (!tmp_handler->InitFromChallenge(challenge, target, origin))
+    return ERR_INVALID_RESPONSE;
+  handler->swap(tmp_handler);
+  return OK;
 }
 
 }  // namespace net

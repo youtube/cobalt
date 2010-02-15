@@ -25,12 +25,12 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
     { L"", L"", "Basic Og==" },
   };
   GURL origin("http://www.example.com");
+  HttpAuthHandlerBasic::Factory factory;
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::string challenge = "Basic realm=\"Atlantis\"";
-    scoped_refptr<HttpAuthHandlerBasic> basic = new HttpAuthHandlerBasic;
-    bool ok = basic->InitFromChallenge(challenge.begin(), challenge.end(),
-                                       HttpAuth::AUTH_SERVER, origin);
-    EXPECT_TRUE(ok);
+    scoped_refptr<HttpAuthHandler> basic = new HttpAuthHandlerBasic;
+    EXPECT_EQ(OK, factory.CreateAuthHandlerFromString(
+        challenge, HttpAuth::AUTH_SERVER, origin, &basic));
     std::string credentials;
     int rv = basic->GenerateAuthToken(tests[i].username,
                                         tests[i].password,
@@ -45,32 +45,33 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
 TEST(HttpAuthHandlerBasicTest, InitFromChallenge) {
   static const struct {
     const char* challenge;
-    bool expected_success;
+    int expected_rv;
     const char* expected_realm;
   } tests[] = {
     // No realm (we allow this even though realm is supposed to be required
     // according to RFC 2617.)
     {
       "Basic",
-      true,
+      OK,
       "",
     },
 
     // Realm is empty string.
     {
       "Basic realm=\"\"",
-      true,
+      OK,
       "",
     },
   };
+  HttpAuthHandlerBasic::Factory factory;
   GURL origin("http://www.example.com");
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::string challenge = tests[i].challenge;
-    scoped_refptr<HttpAuthHandlerBasic> basic = new HttpAuthHandlerBasic;
-    bool ok = basic->InitFromChallenge(challenge.begin(), challenge.end(),
-                                       HttpAuth::AUTH_SERVER, origin);
-    EXPECT_EQ(tests[i].expected_success, ok);
-    if (ok)
+    scoped_refptr<HttpAuthHandler> basic = new HttpAuthHandlerBasic;
+    int rv = factory.CreateAuthHandlerFromString(
+        challenge, HttpAuth::AUTH_SERVER, origin, &basic);
+    EXPECT_EQ(tests[i].expected_rv, rv);
+    if (rv == OK)
       EXPECT_EQ(tests[i].expected_realm, basic->realm());
   }
 }
