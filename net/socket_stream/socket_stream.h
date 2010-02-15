@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,6 +30,7 @@ namespace net {
 class AuthChallengeInfo;
 class ClientSocketFactory;
 class HostResolver;
+class HttpAuthHandlerFactory;
 class LoadLog;
 class SSLConfigService;
 class SingleRequestHostResolver;
@@ -266,6 +267,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   State next_state_;
   scoped_refptr<HostResolver> host_resolver_;
+  HttpAuthHandlerFactory* http_auth_handler_factory_;
   ClientSocketFactory* factory_;
 
   ProxyMode proxy_mode_;
