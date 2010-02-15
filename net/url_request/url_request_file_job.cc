@@ -273,15 +273,12 @@ void URLRequestFileJob::DidRead(int result) {
   NotifyReadComplete(result);
 }
 
-bool URLRequestFileJob::IsRedirectResponse(
-    GURL* location, int* http_status_code) {
+bool URLRequestFileJob::IsRedirectResponse(GURL* location,
+                                           int* http_status_code) {
 #if defined(OS_WIN)
-  std::wstring extension =
-      file_util::GetFileExtensionFromPath(file_path_.value());
-
   // Follow a Windows shortcut.
   // We just resolve .lnk file, ignore others.
-  if (!LowerCaseEqualsASCII(extension, "lnk"))
+  if (!LowerCaseEqualsASCII(file_path_.Extension(), ".lnk"))
     return false;
 
   FilePath new_path = file_path_;
