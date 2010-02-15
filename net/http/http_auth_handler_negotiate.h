@@ -10,6 +10,7 @@
 #include <string>
 
 #include "net/http/http_auth_handler.h"
+#include "net/http/http_auth_handler_factory.h"
 
 #if defined(OS_WIN)
 #include "net/http/http_auth_sspi_win.h"
@@ -24,6 +25,17 @@ namespace net {
 
 class HttpAuthHandlerNegotiate : public HttpAuthHandler {
  public:
+  class Factory : public HttpAuthHandlerFactory {
+   public:
+    Factory();
+    virtual ~Factory();
+
+    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
+                                  HttpAuth::Target target,
+                                  const GURL& origin,
+                                  scoped_refptr<HttpAuthHandler>* handler);
+  };
+
   HttpAuthHandlerNegotiate();
 
   virtual bool NeedsIdentity();
@@ -43,8 +55,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                        std::string* auth_token);
 
  protected:
-  virtual bool Init(std::string::const_iterator challenge_begin,
-                    std::string::const_iterator challenge_end);
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
 
  private:
   ~HttpAuthHandlerNegotiate();

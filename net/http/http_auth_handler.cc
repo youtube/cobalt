@@ -5,20 +5,19 @@
 #include "net/http/http_auth_handler.h"
 
 #include "base/logging.h"
-#include "net/base/net_errors.h"
 
 namespace net {
 
-bool HttpAuthHandler::InitFromChallenge(std::string::const_iterator begin,
-                                        std::string::const_iterator end,
-                                        HttpAuth::Target target,
-                                        const GURL& origin) {
+bool HttpAuthHandler::InitFromChallenge(
+    HttpAuth::ChallengeTokenizer* challenge,
+    HttpAuth::Target target,
+    const GURL& origin) {
   origin_ = origin;
   target_ = target;
   score_ = -1;
   properties_ = -1;
 
-  bool ok = Init(begin, end);
+  bool ok = Init(challenge);
 
   // Init() is expected to set the scheme, realm, score, and properties.  The
   // realm may be empty.

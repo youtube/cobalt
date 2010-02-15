@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -127,6 +127,7 @@ HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
                      HostResolver* host_resolver,
                      ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
+                     HttpAuthHandlerFactory* http_auth_handler_factory,
                      const FilePath& cache_dir,
                      int cache_size)
     : disk_cache_dir_(cache_dir),
@@ -134,7 +135,7 @@ HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
       type_(DISK_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(
           network_change_notifier, host_resolver, proxy_service,
-          ssl_config_service)),
+          ssl_config_service, http_auth_handler_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       enable_range_support_(true),
       cache_size_(cache_size) {
@@ -156,12 +157,13 @@ HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
                      HostResolver* host_resolver,
                      ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
+                     HttpAuthHandlerFactory* http_auth_handler_factory,
                      int cache_size)
     : mode_(NORMAL),
       type_(MEMORY_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(
           network_change_notifier, host_resolver, proxy_service,
-          ssl_config_service)),
+          ssl_config_service, http_auth_handler_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       enable_range_support_(true),
       cache_size_(cache_size) {

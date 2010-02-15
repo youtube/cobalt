@@ -129,30 +129,19 @@ void HttpAuthSSPI::ResetSecurityContext() {
   }
 }
 
-bool HttpAuthSSPI::ParseChallenge(std::string::const_iterator challenge_begin,
-                                  std::string::const_iterator challenge_end) {
+bool HttpAuthSSPI::ParseChallenge(HttpAuth::ChallengeTokenizer* tok) {
   // Verify the challenge's auth-scheme.
-  HttpAuth::ChallengeTokenizer challenge_tok(challenge_begin, challenge_end);
-  if (!challenge_tok.valid() ||
-      !LowerCaseEqualsASCII(challenge_tok.scheme(),
-                            StringToLowerASCII(scheme_).c_str()))
+  if (!tok->valid() ||
+      !LowerCaseEqualsASCII(tok->scheme(), StringToLowerASCII(scheme_).c_str()))
     return false;
-  // Extract the auth-data.  We can't use challenge_tok.GetNext() because
-  // auth-data is base64-encoded and may contain '=' padding at the end,
-  // which would be mistaken for a name=value pair.
-  challenge_begin += scheme_.length();  // Skip over scheme name.
-  HttpUtil::TrimLWS(&challenge_begin, &challenge_end);
-  std::string encoded_auth_token(challenge_begin, challenge_end);
-  int encoded_length = encoded_auth_token.length();
-  // Strip off any padding.
-  // (See https://bugzilla.mozilla.org/show_bug.cgi?id=230351.)
-  //
-  // Our base64 decoder requires that the length be a multiple of 4.
-  while (encoded_length > 0 && encoded_length % 4 != 0 &&
-         encoded_auth_token[encoded_length - 1] == '=')
-    encoded_length--;
-  encoded_auth_token.erase(encoded_length);
 
+  tok->set_expect_base64_token(true);
+  if (!tok->GetNext()) {
+    decoded_server_auth_token_.clear();
+    return true;
+  }
+
+  std::string encoded_auth_token = tok->value();
   std::string decoded_auth_token;
   bool base64_rv = base::Base64Decode(encoded_auth_token, &decoded_auth_token);
   if (!base64_rv) {
