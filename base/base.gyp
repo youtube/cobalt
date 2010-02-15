@@ -36,13 +36,6 @@
         'i18n/word_iterator.cc',
         'i18n/word_iterator.h',
       ],
-      'conditions': [
-        ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
-          'dependencies': [
-            '../build/linux/system.gyp:gtk',
-          ],
-        }],
-      ],
     },
     {
       'target_name': 'base_unittests',
