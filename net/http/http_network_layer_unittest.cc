@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,7 +17,7 @@ class HttpNetworkLayerTest : public PlatformTest {
 TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
   net::HttpNetworkLayer factory(
       NULL, NULL, new net::MockHostResolver, net::ProxyService::CreateNull(),
-      new net::SSLConfigServiceDefaults);
+      new net::SSLConfigServiceDefaults, NULL);
 
   scoped_ptr<net::HttpTransaction> trans;
   int rv = factory.CreateTransaction(&trans);
@@ -28,7 +28,7 @@ TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
 TEST_F(HttpNetworkLayerTest, Suspend) {
   net::HttpNetworkLayer factory(
       NULL, NULL, new net::MockHostResolver, net::ProxyService::CreateNull(),
-      new net::SSLConfigServiceDefaults);
+      new net::SSLConfigServiceDefaults, NULL);
 
   scoped_ptr<net::HttpTransaction> trans;
   int rv = factory.CreateTransaction(&trans);
@@ -69,7 +69,8 @@ TEST_F(HttpNetworkLayerTest, GET) {
   net::HttpNetworkLayer factory(&mock_socket_factory, NULL,
                                 new net::MockHostResolver,
                                 net::ProxyService::CreateNull(),
-                                new net::SSLConfigServiceDefaults);
+                                new net::SSLConfigServiceDefaults,
+                                NULL);
 
   TestCompletionCallback callback;
 

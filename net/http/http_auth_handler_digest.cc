@@ -216,8 +216,7 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
 // send the realm (See http://crbug.com/20984 for an instance where a
 // webserver was not sending the realm with a BASIC challenge).
 bool HttpAuthHandlerDigest::ParseChallenge(
-    std::string::const_iterator challenge_begin,
-    std::string::const_iterator challenge_end) {
+    HttpAuth::ChallengeTokenizer* challenge) {
   scheme_ = "digest";
   score_ = 2;
   properties_ = ENCRYPTS_IDENTITY;
@@ -228,24 +227,23 @@ bool HttpAuthHandlerDigest::ParseChallenge(
   qop_ = QOP_UNSPECIFIED;
   realm_ = nonce_ = domain_ = opaque_ = std::string();
 
-  HttpAuth::ChallengeTokenizer props(challenge_begin, challenge_end);
-
-  if (!props.valid() || !LowerCaseEqualsASCII(props.scheme(), "digest"))
+  if (!challenge->valid() ||
+      !LowerCaseEqualsASCII(challenge->scheme(), "digest"))
     return false; // FAIL -- Couldn't match auth-scheme.
 
   // Loop through all the properties.
-  while (props.GetNext()) {
-    if (props.value().empty()) {
+  while (challenge->GetNext()) {
+    if (challenge->value().empty()) {
       DLOG(INFO) << "Invalid digest property";
       return false;
     }
 
-    if (!ParseChallengeProperty(props.name(), props.unquoted_value()))
+    if (!ParseChallengeProperty(challenge->name(), challenge->unquoted_value()))
       return false; // FAIL -- couldn't parse a property.
   }
 
   // Check if tokenizer failed.
-  if (!props.valid())
+  if (!challenge->valid())
     return false; // FAIL
 
   // Check that a minimum set of properties were provided.
@@ -293,6 +291,26 @@ bool HttpAuthHandlerDigest::ParseChallengeProperty(const std::string& name,
     // TODO(eroman): perhaps we should fail instead of silently skipping?
   }
   return true;
+}
+
+HttpAuthHandlerDigest::Factory::Factory() {
+}
+
+HttpAuthHandlerDigest::Factory::~Factory() {
+}
+
+int HttpAuthHandlerDigest::Factory::CreateAuthHandler(
+    HttpAuth::ChallengeTokenizer* challenge,
+    HttpAuth::Target target,
+    const GURL& origin,
+    scoped_refptr<HttpAuthHandler>* handler) {
+  // TODO(cbentzel): Move towards model of parsing in the factory
+  //                 method and only constructing when valid.
+  scoped_refptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerDigest());
+  if (!tmp_handler->InitFromChallenge(challenge, target, origin))
+    return ERR_INVALID_RESPONSE;
+  handler->swap(tmp_handler);
+  return OK;
 }
 
 }  // namespace net

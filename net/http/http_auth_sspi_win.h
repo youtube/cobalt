@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include "net/http/http_auth.h"
+
 class GURL;
 
 namespace net {
@@ -32,8 +34,7 @@ class HttpAuthSSPI {
   bool NeedsIdentity() const;
   bool IsFinalRound() const;
 
-  bool ParseChallenge(std::string::const_iterator challenge_begin,
-                      std::string::const_iterator challenge_end);
+  bool ParseChallenge(HttpAuth::ChallengeTokenizer* tok);
 
   // Generates an authentication token.
   // The return value is an error code. If it's not |OK|, the value of

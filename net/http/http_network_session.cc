@@ -1,10 +1,11 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_network_session.h"
 
 #include "base/logging.h"
+#include "net/http/http_auth_handler_factory.h"
 #include "net/spdy/spdy_session_pool.h"
 
 namespace net {
@@ -25,7 +26,8 @@ HttpNetworkSession::HttpNetworkSession(
     ProxyService* proxy_service,
     ClientSocketFactory* client_socket_factory,
     SSLConfigService* ssl_config_service,
-    SpdySessionPool* spdy_session_pool)
+    SpdySessionPool* spdy_session_pool,
+    HttpAuthHandlerFactory* http_auth_handler_factory)
     : network_change_notifier_(network_change_notifier),
       tcp_socket_pool_(new TCPClientSocketPool(
           max_sockets_, max_sockets_per_group_,
@@ -34,7 +36,8 @@ HttpNetworkSession::HttpNetworkSession(
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
-      spdy_session_pool_(spdy_session_pool) {
+      spdy_session_pool_(spdy_session_pool),
+      http_auth_handler_factory_(http_auth_handler_factory) {
   DCHECK(proxy_service);
   DCHECK(ssl_config_service);
 }

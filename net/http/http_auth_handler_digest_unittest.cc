@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -104,7 +104,8 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
     std::string challenge(tests[i].challenge);
 
     scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest;
-    bool ok = digest->ParseChallenge(challenge.begin(), challenge.end());
+    HttpAuth::ChallengeTokenizer tok(challenge.begin(), challenge.end());
+    bool ok = digest->ParseChallenge(&tok);
 
     EXPECT_EQ(tests[i].parsed_success, ok);
     EXPECT_STREQ(tests[i].parsed_realm, digest->realm_.c_str());
@@ -252,8 +253,8 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest;
     std::string challenge = tests[i].challenge;
-    EXPECT_TRUE(digest->InitFromChallenge(
-        challenge.begin(), challenge.end(), HttpAuth::AUTH_SERVER, origin));
+    HttpAuth::ChallengeTokenizer tok(challenge.begin(), challenge.end());
+    EXPECT_TRUE(digest->InitFromChallenge(&tok, HttpAuth::AUTH_SERVER, origin));
 
     std::string creds = digest->AssembleCredentials(tests[i].req_method,
         tests[i].req_path, tests[i].username, tests[i].password,

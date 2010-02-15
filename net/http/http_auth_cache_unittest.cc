@@ -41,7 +41,7 @@ class MockAuthHandler : public HttpAuthHandler {
   }
 
  protected:
-  virtual bool Init(std::string::const_iterator, std::string::const_iterator) {
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) {
     return false;  // Unused.
   }
 

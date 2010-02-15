@@ -1825,8 +1825,9 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   if (target != HttpAuth::AUTH_SERVER ||
       !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA)) {
     // Find the best authentication challenge that we support.
-    HttpAuth::ChooseBestChallenge(headers, target, auth_origin,
-                                  &auth_handler_[target]);
+    HttpAuth::ChooseBestChallenge(session_->http_auth_handler_factory(),
+                                  headers, target,
+                                  auth_origin, &auth_handler_[target]);
   }
 
   if (!auth_handler_[target]) {

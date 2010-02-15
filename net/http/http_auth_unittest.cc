@@ -1,12 +1,14 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "base/ref_counted.h"
+#include "base/scoped_ptr.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_handler.h"
+#include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 
@@ -69,6 +71,9 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
   };
   GURL origin("http://www.example.com");
 
+  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
+      HttpAuthHandlerFactory::CreateDefault());
+
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     // Make a HttpResponseHeaders object.
     std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
@@ -80,7 +85,8 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
                 headers_with_status_line.length())));
 
     scoped_refptr<HttpAuthHandler> handler;
-    HttpAuth::ChooseBestChallenge(headers.get(),
+    HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(),
+                                  headers.get(),
                                   HttpAuth::AUTH_SERVER,
                                   origin,
                                   &handler);
@@ -122,6 +128,9 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
   GURL origin("http://www.example.com");
 
   scoped_refptr<HttpAuthHandler> handler;
+  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
+      HttpAuthHandlerFactory::CreateDefault());
+
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     // Make a HttpResponseHeaders object.
     std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
@@ -133,7 +142,8 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
                 headers_with_status_line.length())));
 
     scoped_refptr<HttpAuthHandler> old_handler = handler;
-    HttpAuth::ChooseBestChallenge(headers.get(),
+    HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(),
+                                  headers.get(),
                                   HttpAuth::AUTH_SERVER,
                                   origin,
                                   &handler);
@@ -230,6 +240,20 @@ TEST(HttpAuthTest, ChallengeTokenizerNoProperty) {
   EXPECT_FALSE(challenge.GetNext());
 }
 
+// Use a challenge with Base64 encoded token.
+TEST(HttpAuthTest, ChallengeTokenizerBase64) {
+  std::string challenge_str = "NTLM  SGVsbG8sIFdvcmxkCg===";
+  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
+                                         challenge_str.end());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("NTLM"), challenge.scheme());
+  challenge.set_expect_base64_token(true);
+  EXPECT_TRUE(challenge.GetNext());
+  // Notice the two equal statements below due to padding removal.
+  EXPECT_EQ(std::string("SGVsbG8sIFdvcmxkCg=="), challenge.value());
+  EXPECT_FALSE(challenge.GetNext());
+}
+
 TEST(HttpAuthTest, GetChallengeHeaderName) {
   std::string name;
 
@@ -248,58 +272,6 @@ TEST(HttpAuthTest, GetAuthorizationHeaderName) {
 
   name = HttpAuth::GetAuthorizationHeaderName(HttpAuth::AUTH_PROXY);
   EXPECT_STREQ("Proxy-Authorization", name.c_str());
-}
-
-TEST(HttpAuthTest, CreateAuthHandler) {
-  GURL server_origin("http://www.example.com");
-  GURL proxy_origin("http://cache.example.com:3128");
-  {
-    scoped_refptr<HttpAuthHandler> handler;
-    HttpAuth::CreateAuthHandler("Basic realm=\"FooBar\"",
-                                HttpAuth::AUTH_SERVER,
-                                server_origin,
-                                &handler);
-    EXPECT_FALSE(handler.get() == NULL);
-    EXPECT_STREQ("basic", handler->scheme().c_str());
-    EXPECT_STREQ("FooBar", handler->realm().c_str());
-    EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
-    EXPECT_FALSE(handler->encrypts_identity());
-    EXPECT_FALSE(handler->is_connection_based());
-  }
-  {
-    scoped_refptr<HttpAuthHandler> handler;
-    HttpAuth::CreateAuthHandler("UNSUPPORTED realm=\"FooBar\"",
-                                HttpAuth::AUTH_SERVER,
-                                server_origin,
-                                &handler);
-    EXPECT_TRUE(handler.get() == NULL);
-  }
-  {
-    scoped_refptr<HttpAuthHandler> handler;
-    HttpAuth::CreateAuthHandler("Digest realm=\"FooBar\", nonce=\"xyz\"",
-                                HttpAuth::AUTH_PROXY,
-                                proxy_origin,
-                                &handler);
-    EXPECT_FALSE(handler.get() == NULL);
-    EXPECT_STREQ("digest", handler->scheme().c_str());
-    EXPECT_STREQ("FooBar", handler->realm().c_str());
-    EXPECT_EQ(HttpAuth::AUTH_PROXY, handler->target());
-    EXPECT_TRUE(handler->encrypts_identity());
-    EXPECT_FALSE(handler->is_connection_based());
-  }
-  {
-    scoped_refptr<HttpAuthHandler> handler;
-    HttpAuth::CreateAuthHandler("NTLM",
-                                HttpAuth::AUTH_SERVER,
-                                server_origin,
-                                &handler);
-    EXPECT_FALSE(handler.get() == NULL);
-    EXPECT_STREQ("ntlm", handler->scheme().c_str());
-    EXPECT_STREQ("", handler->realm().c_str());
-    EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
-    EXPECT_TRUE(handler->encrypts_identity());
-    EXPECT_TRUE(handler->is_connection_based());
-  }
 }
 
 }  // namespace net
