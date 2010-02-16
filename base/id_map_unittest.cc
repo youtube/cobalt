@@ -67,10 +67,21 @@ TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingCurrentElement) {
   map.Add(&obj2);
   map.Add(&obj3);
 
-  for (IDMap<TestObject>::const_iterator iter(&map);
-       !iter.IsAtEnd(); iter.Advance()) {
-    map.Remove(iter.GetCurrentKey());
+  {
+    IDMap<TestObject>::const_iterator iter(&map);
+    while (!iter.IsAtEnd()) {
+      map.Remove(iter.GetCurrentKey());
+      iter.Advance();
+    }
+
+    // Test that while an iterator is still in scope, we get the map emptiness
+    // right (http://crbug.com/35571).
+    EXPECT_TRUE(map.IsEmpty());
+    EXPECT_EQ(0U, map.size());
   }
+
+  EXPECT_TRUE(map.IsEmpty());
+  EXPECT_EQ(0U, map.size());
 }
 
 TEST_F(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
