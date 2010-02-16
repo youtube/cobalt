@@ -73,7 +73,7 @@ class SharedMemory {
   // If name is the empty string, use a unique name.
   // Returns true on success, false on failure.
   bool Create(const std::wstring& name, bool read_only, bool open_existing,
-              size_t size);
+              uint32 size);
 
   // Deletes resources associated with a shared memory segment based on name.
   // Not all platforms require this call.
@@ -88,7 +88,7 @@ class SharedMemory {
   // Maps the shared memory into the caller's address space.
   // Returns true on success, false otherwise.  The memory address
   // is accessed via the memory() accessor.
-  bool Map(size_t bytes);
+  bool Map(uint32 bytes);
 
   // Unmaps the shared memory from the caller's address space.
   // Returns true if successful; returns false on error or if the
@@ -100,7 +100,7 @@ class SharedMemory {
   // shared memory, and not to those that opened shared memory
   // created externally.
   // Returns 0 if not opened or unknown.
-  size_t max_size() const { return max_size_; }
+  uint32 max_size() const { return max_size_; }
 
   // Gets a pointer to the opened memory space if it has been
   // Mapped via Map().  Returns NULL if it is not mapped.
@@ -161,7 +161,7 @@ class SharedMemory {
 
  private:
 #if defined(OS_POSIX)
-  bool CreateOrOpen(const std::wstring &name, int posix_flags, size_t size);
+  bool CreateOrOpen(const std::wstring &name, int posix_flags, uint32 size);
   bool FilePathForMemoryName(const std::wstring& memname, FilePath* path);
   void LockOrUnlockCommon(int function);
 
@@ -179,7 +179,7 @@ class SharedMemory {
 #endif
   void*              memory_;
   bool               read_only_;
-  size_t             max_size_;
+  uint32             max_size_;
 #if !defined(OS_POSIX)
   SharedMemoryLock   lock_;
 #endif
