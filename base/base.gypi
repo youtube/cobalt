@@ -576,12 +576,13 @@
       ],
     }],
     [ 'OS == "linux" or OS == "freebsd"', {
-      # TODO: these third-party targets should be in a separate .gyp file
-      # so it can set chromium_code=0 to turn off our aggressive warnings.
       'targets': [
         {
           'target_name': 'symbolize',
           'type': '<(library)',
+          'variables': {
+            'chromium_code': 0,
+          },
           'cflags': [
             '-Wno-sign-compare',
           ],
@@ -596,6 +597,9 @@
         {
           'target_name': 'xdg_mime',
           'type': '<(library)',
+          'variables': {
+            'chromium_code': 0,
+          },
           'cflags!': [
             '-Wextra',
           ],
