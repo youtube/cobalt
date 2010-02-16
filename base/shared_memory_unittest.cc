@@ -33,7 +33,7 @@ class MultipleThreadMain : public PlatformThread::Delegate {
   // PlatformThread::Delegate interface.
   void ThreadMain() {
     ScopedNSAutoreleasePool pool;  // noop if not OSX
-    const int kDataSize = 1024;
+    const uint32 kDataSize = 1024;
     SharedMemory memory;
     bool rv = memory.Create(s_test_name_, false, true, kDataSize);
     EXPECT_TRUE(rv);
@@ -77,7 +77,7 @@ class MultipleLockThread : public PlatformThread::Delegate {
 
   // PlatformThread::Delegate interface.
   void ThreadMain() {
-    const int kDataSize = sizeof(int);
+    const uint32 kDataSize = sizeof(int);
     SharedMemoryHandle handle = NULL;
     {
       SharedMemory memory1;
@@ -115,7 +115,7 @@ class MultipleLockThread : public PlatformThread::Delegate {
 }  // namespace
 
 TEST(SharedMemoryTest, OpenClose) {
-  const int kDataSize = 1024;
+  const uint32 kDataSize = 1024;
   std::wstring test_name = L"SharedMemoryOpenCloseTest";
 
   // Open two handles to a memory segment, confirm that they are mapped
@@ -234,7 +234,7 @@ TEST(SharedMemoryTest, AnonymousPrivate) {
   int i, j;
   int count = 4;
   bool rv;
-  const int kDataSize = 8192;
+  const uint32 kDataSize = 8192;
 
   scoped_array<SharedMemory> memories(new SharedMemory[count]);
   scoped_array<int*> pointers(new int*[count]);
@@ -288,7 +288,7 @@ class SharedMemoryProcessTest : public MultiProcessTest {
   static int TaskTestMain() {
     int errors = 0;
     ScopedNSAutoreleasePool pool;  // noop if not OSX
-    const int kDataSize = 1024;
+    const uint32 kDataSize = 1024;
     SharedMemory memory;
     bool rv = memory.Create(s_test_name_, false, true, kDataSize);
     EXPECT_TRUE(rv);
