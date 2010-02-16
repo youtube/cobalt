@@ -72,6 +72,16 @@ if __name__ == '__main__':
 
   args.extend(['-I' + i for i in additional_include_files(args)])
 
+  # There shouldn't be a circular dependency relationship between .gyp files,
+  # but in Chromium's .gyp files, on non-Mac platforms, circular relationships
+  # currently exist.  The check for circular dependencies is currently
+  # bypassed on other platforms, but is left enabled on the Mac, where a
+  # violation of the rule causes Xcode to misbehave badly.
+  # TODO(mark): Find and kill remaining circular dependencies, and remove this
+  # option.  http://crbug.com/35878.
+  if sys.platform != 'darwin':
+    args.append('--no-circular-check')
+
   print 'Updating projects from gyp files...'
   sys.stdout.flush()
 
