@@ -78,7 +78,7 @@ void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
 }
 
 bool SharedMemory::Create(const std::wstring &name, bool read_only,
-                          bool open_existing, size_t size) {
+                          bool open_existing, uint32 size) {
   read_only_ = read_only;
 
   int posix_flags = 0;
@@ -144,7 +144,7 @@ bool SharedMemory::FilePathForMemoryName(const std::wstring& memname,
 // In case we want to delete it later, it may be useful to save the value
 // of mem_filename after FilePathForMemoryName().
 bool SharedMemory::CreateOrOpen(const std::wstring &name,
-                                int posix_flags, size_t size) {
+                                int posix_flags, uint32 size) {
   DCHECK(mapped_file_ == -1);
 
   file_util::ScopedFILE file_closer;
@@ -206,7 +206,7 @@ bool SharedMemory::CreateOrOpen(const std::wstring &name,
     struct stat stat;
     if (fstat(fileno(fp), &stat) != 0)
       return false;
-    const size_t current_size = stat.st_size;
+    const uint32 current_size = stat.st_size;
     if (current_size != size) {
       if (ftruncate(fileno(fp), size) != 0)
         return false;
@@ -233,7 +233,7 @@ bool SharedMemory::CreateOrOpen(const std::wstring &name,
   return true;
 }
 
-bool SharedMemory::Map(size_t bytes) {
+bool SharedMemory::Map(uint32 bytes) {
   if (mapped_file_ == -1)
     return false;
 

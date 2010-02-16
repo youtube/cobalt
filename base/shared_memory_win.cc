@@ -62,7 +62,7 @@ void SharedMemory::CloseHandle(const SharedMemoryHandle& handle) {
 }
 
 bool SharedMemory::Create(const std::wstring &name, bool read_only,
-                          bool open_existing, size_t size) {
+                          bool open_existing, uint32 size) {
   DCHECK(mapped_file_ == NULL);
 
   name_ = name;
@@ -102,7 +102,7 @@ bool SharedMemory::Open(const std::wstring &name, bool read_only) {
   return false;
 }
 
-bool SharedMemory::Map(size_t bytes) {
+bool SharedMemory::Map(uint32 bytes) {
   if (mapped_file_ == NULL)
     return false;
 
