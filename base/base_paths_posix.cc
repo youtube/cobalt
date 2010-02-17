@@ -20,6 +20,8 @@ namespace base {
 
 #if defined(OS_LINUX)
 const char kSelfExe[] = "/proc/self/exe";
+#elif defined(OS_SOLARIS)
+const char kSelfExe[] = getexecname();
 #elif defined(OS_FREEBSD)
 const char kSelfExe[] = "/proc/curproc/file";
 #endif
