@@ -159,6 +159,10 @@
         '../testing/gmock.gyp:gmock',
         '../testing/gtest.gyp:gtest',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+        '../third_party/openmax/openmax.gyp:il',
+      ],
+      'sources!': [
+        '../third_party/openmax/omx_stub.cc',
       ],
       'sources': [
         'audio/audio_util_unittest.cc',
@@ -192,6 +196,9 @@
         'filters/file_data_source_unittest.cc',
         'filters/video_decoder_impl_unittest.cc',
         'filters/video_renderer_base_unittest.cc',
+        'omx/mock_omx.cc',
+        'omx/mock_omx.h',
+        'omx/omx_codec_unittest.cc',
         'omx/omx_input_buffer_unittest.cc',
       ],
       'conditions': [
@@ -268,8 +275,8 @@
         'tools/omx_test/color_space_util.h',
         'tools/omx_test/file_reader_util.cc',
         'tools/omx_test/file_reader_util.h',
-        'tools/omx_test/file_writer_util.cc',
-        'tools/omx_test/file_writer_util.h',
+        'tools/omx_test/file_sink.cc',
+        'tools/omx_test/file_sink.h',
         'tools/omx_test/omx_test.cc',
       ],
     },
