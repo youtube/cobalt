@@ -182,6 +182,8 @@ TEST_F(FFmpegGlueTest, OpenClose) {
   mock_ffmpeg_.CheckPoint(2);
 }
 
+// This test is crashing on build bot. See bug:
+// http://code.google.com/p/chromium/issues/detail?id=36037.
 TEST_F(FFmpegGlueTest, DISABLED_Write) {
   scoped_ptr<StrictMock<MockProtocol> > protocol(
       new StrictMock<MockProtocol>());
@@ -200,6 +202,8 @@ TEST_F(FFmpegGlueTest, DISABLED_Write) {
   protocol_->url_close(&context);
 }
 
+// This test is crashing on build bot. See bug:
+// http://code.google.com/p/chromium/issues/detail?id=36037.
 TEST_F(FFmpegGlueTest, DISABLED_Read) {
   scoped_ptr<StrictMock<MockProtocol> > protocol(
       new StrictMock<MockProtocol>());
@@ -226,6 +230,8 @@ TEST_F(FFmpegGlueTest, DISABLED_Read) {
   protocol_->url_close(&context);
 }
 
+// This test is crashing on build bot. See bug:
+// http://code.google.com/p/chromium/issues/detail?id=36037.
 TEST_F(FFmpegGlueTest, DISABLED_Seek) {
   scoped_ptr<StrictMock<MockProtocol> > protocol(
       new StrictMock<MockProtocol>());
@@ -302,6 +308,8 @@ TEST_F(FFmpegGlueTest, DISABLED_Seek) {
   protocol_->url_close(&context);
 }
 
+// This test is crashing on build bot. See bug:
+// http://code.google.com/p/chromium/issues/detail?id=36037.
 TEST_F(FFmpegGlueTest, DISABLED_Destroy) {
   // Create our protocol and add them to the glue layer.
   scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol(
