@@ -465,9 +465,16 @@
           }],
           ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
             'sources/': [
-              ['exclude', '_(chromeos|gtk|linux|x|x11)(_unittest)?\\.cc$'],
+              ['exclude', '_(chromeos|gtk|x|x11)(_unittest)?\\.cc$'],
               ['exclude', '/gtk/'],
-              ['exclude', '/(gtk|x11)_[^/]*\\.cc$'] ],
+              ['exclude', '/(gtk|x11)_[^/]*\\.cc$'],
+            ],
+          }],
+          ['OS!="linux"', {
+            'sources/': [
+              ['exclude', '_linux(_unittest)?\\.cc$'],
+              ['exclude', '/linux/'],
+            ],
           }],
           # We use "POSIX" to refer to all non-Windows operating systems.
           ['OS=="win"', {

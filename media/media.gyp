@@ -7,14 +7,6 @@
     'chromium_code': 1,
     'player_x11_renderer%': 'x11',
   },
-  'target_defaults': {
-    'conditions': [
-      ['OS!="linux"', {'sources/': [['exclude', '/linux/']]}],
-      ['OS!="freebsd"', {'sources/': [['exclude', '/freebsd/']]}],
-      ['OS!="mac"', {'sources/': [['exclude', '/mac/']]}],
-      ['OS!="win"', {'sources/': [['exclude', '/win/']]}],
-    ],
-  },
   'targets': [
     {
       'target_name': 'media',
@@ -140,19 +132,9 @@
       },
       'conditions': [
         ['OS =="linux"', {
-          'sources/': [ ['exclude', '_(mac|win)\\.cc$'],
-                        ['exclude', '\\.mm?$' ] ],
           'link_settings': {
             'libraries': [
               '-lasound',
-            ],
-          },
-        }],
-        ['OS =="freebsd"', {
-          'sources/': [ ['exclude', '_(mac|win)\\.cc$'],
-                        ['exclude', '\\.mm?$' ] ],
-          'link_settings': {
-            'libraries': [
             ],
           },
         }],
@@ -163,12 +145,6 @@
               '$(SDKROOT)/System/Library/Frameworks/CoreAudio.framework',
             ],
           },
-          'sources/': [ ['exclude', '_(linux|win)\\.cc$'],
-          ],
-        }],
-        [ 'OS == "win"', {
-          'sources/': [ ['exclude', '_(linux|mac|posix)\\.cc$'],
-                        ['exclude', '\\.mm?$' ] ],
         }],
       ],
     },
