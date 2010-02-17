@@ -182,7 +182,7 @@ TEST_F(FFmpegGlueTest, OpenClose) {
   mock_ffmpeg_.CheckPoint(2);
 }
 
-TEST_F(FFmpegGlueTest, Write) {
+TEST_F(FFmpegGlueTest, DISABLED_Write) {
   scoped_ptr<StrictMock<MockProtocol> > protocol(
       new StrictMock<MockProtocol>());
   URLContext context;
@@ -200,7 +200,7 @@ TEST_F(FFmpegGlueTest, Write) {
   protocol_->url_close(&context);
 }
 
-TEST_F(FFmpegGlueTest, Read) {
+TEST_F(FFmpegGlueTest, DISABLED_Read) {
   scoped_ptr<StrictMock<MockProtocol> > protocol(
       new StrictMock<MockProtocol>());
   URLContext context;
@@ -226,7 +226,7 @@ TEST_F(FFmpegGlueTest, Read) {
   protocol_->url_close(&context);
 }
 
-TEST_F(FFmpegGlueTest, Seek) {
+TEST_F(FFmpegGlueTest, DISABLED_Seek) {
   scoped_ptr<StrictMock<MockProtocol> > protocol(
       new StrictMock<MockProtocol>());
   URLContext context;
@@ -302,7 +302,7 @@ TEST_F(FFmpegGlueTest, Seek) {
   protocol_->url_close(&context);
 }
 
-TEST_F(FFmpegGlueTest, Destroy) {
+TEST_F(FFmpegGlueTest, DISABLED_Destroy) {
   // Create our protocol and add them to the glue layer.
   scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol(
       new StrictMock<Destroyable<MockProtocol> >());
