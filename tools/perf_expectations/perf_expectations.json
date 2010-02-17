@@ -12,7 +12,7 @@
  "linux-release-hardy/startup/warm/t": {"delta": 0, "var": 20},
  "mac-release-10.5/dhtml/times/t": {"delta": 0, "var": 60},
  "mac-release-10.5/intl1/times/t": {"delta": -410, "var": 120},
- "mac-release-10.5/intl2/times/t": {"delta": -160, "var": 120},
+ "mac-release-10.5/intl2/times/t": {"delta": -300, "var": 120},
  "mac-release-10.5/morejs/times/t": {"delta": -35, "var": 80},
  "mac-release-10.5/moz/times/t": {"delta": 80, "var": 80},
  "mac-release-10.5/startup/warm/t": {"delta": 0, "var": 20},
