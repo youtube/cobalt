@@ -5,7 +5,7 @@
 {
   'variables': {
     'conditions': [
-      ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+      ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
         'os_include': 'linux'
       }],
       ['OS=="mac"', {'os_include': 'mac'}],
@@ -17,7 +17,7 @@
     {
       'target_name': 'libxml',
       'conditions': [
-        ['(OS=="linux" or OS=="freebsd" or OS=="openbsd") and use_system_libxml', {
+        ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris") and use_system_libxml', {
           'type': 'settings',
           'direct_dependent_settings': {
             'cflags': [
