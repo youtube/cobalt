@@ -46,7 +46,14 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
           priority_(MEDIUM) {}
 
     int port() const { return port_; }
+    void set_port(int port) {
+      port_ = port;
+    }
+
     const std::string& hostname() const { return hostname_; }
+    void set_hostname(const std::string& hostname) {
+      hostname_ = hostname;
+    }
 
     AddressFamily address_family() const { return address_family_; }
     void set_address_family(AddressFamily address_family) {
