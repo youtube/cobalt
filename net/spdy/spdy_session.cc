@@ -211,17 +211,6 @@ SpdySession::SpdySession(const std::string& host, HttpNetworkSession* session)
   spdy_framer_.set_visitor(this);
 
   session_->ssl_config_service()->GetSSLConfig(&ssl_config_);
-
-  // TODO(agl): This is a temporary hack for testing reasons. In the medium
-  // term we'll want to use NPN for all HTTPS connections and use the protocol
-  // suggested.
-  //
-  // In the event that the server supports Next Protocol Negotiation, but
-  // doesn't support either of these protocols, we'll request the first
-  // protocol in the list. Because of that, HTTP is listed first because it's
-  // what we'll actually fallback to in the case that the server doesn't
-  // support SPDY.
-  ssl_config_.next_protos = "\007http1.1\004spdy";
 }
 
 SpdySession::~SpdySession() {
