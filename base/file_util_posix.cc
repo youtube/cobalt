@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@
 #include <sys/errno.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
@@ -456,6 +457,13 @@ bool GetFileInfo(const FilePath& file_path, FileInfo* results) {
   results->size = file_info.st_size;
   results->last_modified = base::Time::FromTimeT(file_info.st_mtime);
   return true;
+}
+
+bool SetLastModifiedTime(const FilePath& file_path, base::Time last_modified) {
+  struct timeval times[2];
+  times[0] = last_modified.ToTimeVal();
+  times[1] = last_modified.ToTimeVal();
+  return (utimes(file_path.value().c_str(), times) == 0);
 }
 
 bool GetInode(const FilePath& path, ino_t* inode) {

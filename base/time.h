@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,6 +25,11 @@
 #include <time.h>
 
 #include "base/basictypes.h"
+
+#if defined(OS_POSIX)
+// For struct timeval.
+#include <sys/time.h>
+#endif
 
 #if defined(OS_WIN)
 // For FILETIME in FromFileTime, until it moves to a new converter class.
@@ -241,6 +246,9 @@ class Time {
   static Time FromDoubleT(double dt);
   double ToDoubleT() const;
 
+#if defined(OS_POSIX)
+  struct timeval ToTimeVal() const;
+#endif
 
 #if defined(OS_WIN)
   static Time FromFileTime(FILETIME ft);
