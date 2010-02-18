@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -587,6 +587,16 @@ bool GetFileInfo(const FilePath& file_path, FileInfo* results) {
   results->last_modified = base::Time::FromFileTime(attr.ftLastWriteTime);
 
   return true;
+}
+
+bool SetLastModifiedTime(const FilePath& file_path, base::Time last_modified) {
+  FILETIME timestamp(last_modified.ToFileTime());
+  ScopedHandle file_handle(
+      CreateFile(file_path.value().c_str(), FILE_WRITE_ATTRIBUTES,
+                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+  BOOL ret = SetFileTime(file_handle.Get(), NULL, &timestamp, &timestamp);
+  return ret != 0;
 }
 
 FILE* OpenFile(const FilePath& filename, const char* mode) {
