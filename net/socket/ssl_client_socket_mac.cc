@@ -13,6 +13,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
 
 // Welcome to Mac SSL. We've been waiting for you.
@@ -93,19 +94,21 @@ namespace net {
 
 namespace {
 
+#if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5
 // Declarations needed to call the 10.5.7 and later SSLSetSessionOption()
 // function when building with the 10.5.0 SDK.
 typedef enum {
-  kSSLSessionOptionBreakOnServerAuthFlag
+  kSSLSessionOptionBreakOnServerAuth,
+  kSSLSessionOptionBreakOnCertRequested,
 } SSLSetSessionOptionType;
 
 enum {
-  errSSLServerAuthCompletedFlag = -9841
+  errSSLServerAuthCompleted = -9841,
+  errSSLClientCertRequested = -9842,
 };
 
 // When compiled against the Mac OS X 10.5 SDK, define symbolic constants for
 // cipher suites added in Mac OS X 10.6.
-#if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5
 enum {
   // ECC cipher suites from RFC 4492.
   TLS_ECDH_ECDSA_WITH_NULL_SHA           = 0xC001,
@@ -173,12 +176,16 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSSLXCertChainInvalid:
     case errSSLBadCert:
       return ERR_CERT_INVALID;
-    case errSSLPeerCertRevoked:
-      return ERR_CERT_REVOKED;
 
     case errSSLClosedGraceful:
     case noErr:
       return OK;
+
+    case errSSLPeerCertUnknown...errSSLPeerBadCert:
+    case errSSLPeerInsufficientSecurity...errSSLPeerUnknownCA:
+      // (Note that all errSSLPeer* codes indicate errors reported by the
+      // peer, so the cert-related ones refer to my _client_ cert.)
+      return ERR_BAD_SSL_CLIENT_AUTH_CERT;
 
     case errSSLBadRecordMac:
     case errSSLBufferOverflow:
@@ -425,6 +432,16 @@ X509Certificate* GetServerCert(SSLContextRef ssl_context) {
   return x509_cert;
 }
 
+// Dynamically look up a pointer to a function exported by a bundle.
+template <typename FNTYPE>
+FNTYPE LookupFunction(CFStringRef bundleName, CFStringRef fnName) {
+  CFBundleRef bundle = CFBundleGetBundleWithIdentifier(bundleName);
+  if (!bundle)
+    return NULL;
+  return reinterpret_cast<FNTYPE>(
+      CFBundleGetFunctionPointerForName(bundle, fnName));
+}
+
 // A class that wraps an array of enabled cipher suites that can be passed to
 // SSLSetEnabledCiphers.
 //
@@ -634,7 +651,10 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
 
 void SSLClientSocketMac::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
-  // TODO(wtc): implement this.
+  // I'm being asked for available client certs (identities).
+  cert_request_info->host_and_port = hostname_;
+  cert_request_info->client_certs.clear();
+  X509Certificate::GetSSLClientCertificates(&cert_request_info->client_certs);
 }
 
 SSLClientSocket::NextProtoStatus
@@ -706,42 +726,46 @@ int SSLClientSocketMac::InitializeSSLContext() {
   // the session would be cached before we verified the certificate, leaving
   // the potential for a session in which the certificate failed to validate
   // to still be able to be resumed.
-  CFBundleRef bundle =
-      CFBundleGetBundleWithIdentifier(CFSTR("com.apple.security"));
-  if (bundle) {
-    SSLSetSessionOptionFuncPtr ssl_set_session_options =
-        reinterpret_cast<SSLSetSessionOptionFuncPtr>(
-            CFBundleGetFunctionPointerForName(bundle,
-                CFSTR("SSLSetSessionOption")));
-    if (ssl_set_session_options) {
+  SSLSetSessionOptionFuncPtr ssl_set_session_options =
+      LookupFunction<SSLSetSessionOptionFuncPtr>(CFSTR("com.apple.security"),
+                                                 CFSTR("SSLSetSessionOption"));
+  if (ssl_set_session_options) {
+    status = ssl_set_session_options(ssl_context_,
+                                     kSSLSessionOptionBreakOnServerAuth,
+                                     true);
+    if (!status)
       status = ssl_set_session_options(ssl_context_,
-                                       kSSLSessionOptionBreakOnServerAuthFlag,
+                                       kSSLSessionOptionBreakOnCertRequested,
                                        true);
+    if (status)
+      return NetErrorFromOSStatus(status);
+
+    // Concatenate the hostname and peer address to use as the peer ID. To
+    // resume a session, we must connect to the same server on the same port
+    // using the same hostname (i.e., localhost and 127.0.0.1 are considered
+    // different peers, which puts us through certificate validation again
+    // and catches hostname/certificate name mismatches.
+    struct sockaddr_storage addr;
+    socklen_t addr_length = sizeof(struct sockaddr_storage);
+    memset(&addr, 0, sizeof(addr));
+    if (!transport_->GetPeerName(reinterpret_cast<struct sockaddr*>(&addr),
+                                 &addr_length)) {
+      // Assemble the socket hostname and address into a single buffer.
+      std::vector<char> peer_id(hostname_.begin(), hostname_.end());
+      peer_id.insert(peer_id.end(), reinterpret_cast<char*>(&addr),
+                     reinterpret_cast<char*>(&addr) + addr_length);
+
+      // SSLSetPeerID() treats peer_id as a binary blob, and makes its
+      // own copy.
+      status = SSLSetPeerID(ssl_context_, &peer_id[0], peer_id.size());
       if (status)
         return NetErrorFromOSStatus(status);
-
-      // Concatenate the hostname and peer address to use as the peer ID. To
-      // resume a session, we must connect to the same server on the same port
-      // using the same hostname (i.e., localhost and 127.0.0.1 are considered
-      // different peers, which puts us through certificate validation again
-      // and catches hostname/certificate name mismatches.
-      struct sockaddr_storage addr;
-      socklen_t addr_length = sizeof(struct sockaddr_storage);
-      memset(&addr, 0, sizeof(addr));
-      if (!transport_->GetPeerName(reinterpret_cast<struct sockaddr*>(&addr),
-                                   &addr_length)) {
-        // Assemble the socket hostname and address into a single buffer.
-        std::vector<char> peer_id(hostname_.begin(), hostname_.end());
-        peer_id.insert(peer_id.end(), reinterpret_cast<char*>(&addr),
-                       reinterpret_cast<char*>(&addr) + addr_length);
-
-        // SSLSetPeerID() treats peer_id as a binary blob, and makes its
-        // own copy.
-        status = SSLSetPeerID(ssl_context_, &peer_id[0], peer_id.size());
-        if (status)
-          return NetErrorFromOSStatus(status);
-      }
     }
+  } else {
+    // If I can't break on cert-requested, then set the cert up-front:
+    status = SetClientCert();
+    if (status)
+      return NetErrorFromOSStatus(status);
   }
 
   return OK;
@@ -877,14 +901,14 @@ int SSLClientSocketMac::DoHandshakeStart() {
   if (status == errSSLWouldBlock)
     next_handshake_state_ = STATE_HANDSHAKE_START;
 
-  if (status == noErr || status == errSSLServerAuthCompletedFlag) {
+  if (status == noErr || status == errSSLServerAuthCompleted) {
     // TODO(hawk): we verify the certificate chain even on resumed sessions
     // so that we have the certificate status (valid, expired but overridden
     // by the user, EV, etc.) available. Eliminate this step once we have
     // a certificate validation result cache.
     next_handshake_state_ = STATE_VERIFY_CERT;
-    if (status == errSSLServerAuthCompletedFlag) {
-      // Override errSSLServerAuthCompletedFlag as it's not actually an error,
+    if (status == errSSLServerAuthCompleted) {
+      // Override errSSLServerAuthCompleted as it's not actually an error,
       // but rather an indication that we're only half way through the
       // handshake.
       handshake_interrupted_ = true;
@@ -946,18 +970,50 @@ int SSLClientSocketMac::DoVerifyCertComplete(int result) {
   return result;
 }
 
+int SSLClientSocketMac::SetClientCert() {
+  if (!ssl_config_.send_client_cert || !ssl_config_.client_cert)
+    return noErr;
+
+  scoped_cftyperef<CFArrayRef> cert_refs(
+      ssl_config_.client_cert->CreateClientCertificateChain());
+  OSStatus result = SSLSetCertificate(ssl_context_, cert_refs);
+  if (result)
+    LOG(ERROR) << "SSLSetCertificate returned OSStatus " << result;
+  return result;
+}
+
 int SSLClientSocketMac::DoHandshakeFinish() {
   OSStatus status = SSLHandshake(ssl_context_);
 
-  if (status == errSSLWouldBlock)
-    next_handshake_state_ = STATE_HANDSHAKE_FINISH;
-
-  if (status == errSSLClosedGraceful)
-    return ERR_SSL_PROTOCOL_ERROR;
-
-  if (status == noErr) {
-    completed_handshake_ = true;
-    DCHECK(next_handshake_state_ == STATE_NONE);
+  switch (status) {
+    case errSSLWouldBlock:
+      next_handshake_state_ = STATE_HANDSHAKE_FINISH;
+      break;
+    case errSSLClientCertRequested:
+      status = SetClientCert();
+      next_handshake_state_ = STATE_HANDSHAKE_FINISH;
+      break;
+    case errSSLClosedGraceful:
+      return ERR_SSL_PROTOCOL_ERROR;
+    case errSSLClosedAbort:
+    case errSSLPeerHandshakeFail: {
+      // See if the server aborted due to client cert checking.
+      SSLClientCertificateState clientState;
+      if (SSLGetClientCertificateState(ssl_context_, &clientState) == noErr &&
+          clientState > kSSLClientCertNone) {
+        if (clientState == kSSLClientCertRequested &&
+            !ssl_config_.send_client_cert)
+          return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+        return ERR_BAD_SSL_CLIENT_AUTH_CERT;
+      }
+      break;
+    }
+    case noErr:
+      completed_handshake_ = true;
+      DCHECK(next_handshake_state_ == STATE_NONE);
+      break;
+    default:
+      break;
   }
 
   return NetErrorFromOSStatus(status);
@@ -979,14 +1035,23 @@ int SSLClientSocketMac::DoPayloadRead() {
   if (processed > 0)
     return processed;
 
-  if (status == errSSLClosedNoNotify) {
-    // TODO(wtc): Unless we have received the close_notify alert, we need to
-    // return an error code indicating that the SSL connection ended
-    // uncleanly, a potential truncation attack.  See http://crbug.com/18586.
-    return OK;
-  }
+  switch (status) {
+    case errSSLClosedNoNotify:
+      // TODO(wtc): Unless we have received the close_notify alert, we need to
+      // return an error code indicating that the SSL connection ended
+      // uncleanly, a potential truncation attack.  See http://crbug.com/18586.
+      return OK;
 
-  return NetErrorFromOSStatus(status);
+    case errSSLServerAuthCompleted:
+    case errSSLClientCertRequested:
+      // Server wants to renegotiate, probably to ask for a client cert.
+      // We don't support this yet, so abort.
+      // TODO(snej): Work around the SecureTransport issues.
+      return ERR_BAD_SSL_CLIENT_AUTH_CERT;
+
+    default:
+      return NetErrorFromOSStatus(status);
+  }
 }
 
 int SSLClientSocketMac::DoPayloadWrite() {

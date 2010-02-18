@@ -356,6 +356,56 @@ void GetCertDateForOID(X509Certificate::OSCertHandle cert_handle,
   }
 }
 
+// Returns true if this cert supports a given extended key usage.
+bool CertSupportsUsage(SecCertificateRef cert, const CSSM_OID& usage_oid) {
+  CSSMFields fields;
+  if (GetCertFields(cert, &fields) != noErr)
+    return false;
+  for (unsigned f = 0; f < fields.num_of_fields; ++f) {
+    const CSSM_FIELD &field = fields.fields[f];
+    if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_ExtendedKeyUsage)) {
+      const CSSM_X509_EXTENSION* ext =
+          reinterpret_cast<const CSSM_X509_EXTENSION*>(field.FieldValue.Data);
+      const CE_ExtendedKeyUsage* usage =
+          reinterpret_cast<const CE_ExtendedKeyUsage*>(ext->value.parsedValue);
+      for (unsigned p = 0; p < usage->numPurposes; ++p) {
+        if (CSSMOIDEqual(&usage->purposes[p], &usage_oid))
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Creates a SecPolicyRef for the given OID, with optional value.
+OSStatus CreatePolicy(const CSSM_OID* policy_OID,
+                      void* option_data,
+                      size_t option_length,
+                      SecPolicyRef* policy) {
+  SecPolicySearchRef search;
+  OSStatus err = SecPolicySearchCreate(CSSM_CERT_X_509v3, policy_OID, NULL,
+                                       &search);
+  if (err)
+    return err;
+  err = SecPolicySearchCopyNext(search, policy);
+  CFRelease(search);
+  if (err)
+    return err;
+
+  if (option_data) {
+    CSSM_DATA options_data = {
+      option_length,
+      reinterpret_cast<uint8_t*>(option_data)
+    };
+    err = SecPolicySetValue(*policy, &options_data);
+    if (err) {
+      CFRelease(*policy);
+      return err;
+    }
+  }
+  return noErr;
+}
+
 }  // namespace
 
 void X509Certificate::Initialize() {
@@ -419,29 +469,20 @@ int X509Certificate::Verify(const std::string& hostname, int flags,
   // Create an SSL SecPolicyRef, and configure it to perform hostname
   // validation. The hostname check does 99% of what we want, with the
   // exception of dotted IPv4 addreses, which we handle ourselves below.
-  SecPolicySearchRef ssl_policy_search_ref = NULL;
-  OSStatus status = SecPolicySearchCreate(CSSM_CERT_X_509v3,
-                                          &CSSMOID_APPLE_TP_SSL,
-                                          NULL,
-                                          &ssl_policy_search_ref);
-  if (status)
-    return NetErrorFromOSStatus(status);
-  scoped_cftyperef<SecPolicySearchRef>
-      scoped_ssl_policy_search_ref(ssl_policy_search_ref);
-  SecPolicyRef ssl_policy = NULL;
-  status = SecPolicySearchCopyNext(ssl_policy_search_ref, &ssl_policy);
+  CSSM_APPLE_TP_SSL_OPTIONS tp_ssl_options = {
+    CSSM_APPLE_TP_SSL_OPTS_VERSION,
+    hostname.size(),
+    hostname.data(),
+    0
+  };
+  SecPolicyRef ssl_policy;
+  OSStatus status = CreatePolicy(&CSSMOID_APPLE_TP_SSL,
+                                 &tp_ssl_options,
+                                 sizeof(tp_ssl_options),
+                                 &ssl_policy);
   if (status)
     return NetErrorFromOSStatus(status);
   scoped_cftyperef<SecPolicyRef> scoped_ssl_policy(ssl_policy);
-  CSSM_APPLE_TP_SSL_OPTIONS tp_ssl_options = { CSSM_APPLE_TP_SSL_OPTS_VERSION };
-  tp_ssl_options.ServerName = hostname.data();
-  tp_ssl_options.ServerNameLen = hostname.size();
-  CSSM_DATA tp_ssl_options_data_value;
-  tp_ssl_options_data_value.Data = reinterpret_cast<uint8*>(&tp_ssl_options);
-  tp_ssl_options_data_value.Length = sizeof(tp_ssl_options);
-  status = SecPolicySetValue(ssl_policy, &tp_ssl_options_data_value);
-  if (status)
-    return NetErrorFromOSStatus(status);
 
   // Create and configure a SecTrustRef, which takes our certificate(s)
   // and our SSL SecPolicyRef. SecTrustCreateWithCertificates() takes an
@@ -689,6 +730,127 @@ X509Certificate::Fingerprint X509Certificate::CalculateFingerprint(
   CC_SHA1(cert_data.Data, cert_data.Length, sha1.data);
 
   return sha1;
+}
+
+// static
+OSStatus X509Certificate::CreateSSLClientPolicy(SecPolicyRef* out_policy) {
+  CSSM_APPLE_TP_SSL_OPTIONS tp_ssl_options = {
+    CSSM_APPLE_TP_SSL_OPTS_VERSION,
+    0,
+    NULL,
+    CSSM_APPLE_TP_SSL_CLIENT
+  };
+  return CreatePolicy(&CSSMOID_APPLE_TP_SSL,
+                      &tp_ssl_options,
+                      sizeof(tp_ssl_options),
+                      out_policy);
+}
+
+// static
+bool X509Certificate::GetSSLClientCertificates (
+    std::vector<scoped_refptr<X509Certificate> >* certs) {
+  SecIdentitySearchRef search = nil;
+  OSStatus err = SecIdentitySearchCreate(NULL, CSSM_KEYUSE_SIGN, &search);
+  fprintf(stderr,"====Created SecIdentitySearch %p\n",search);//TEMP
+  scoped_cftyperef<SecIdentitySearchRef> scoped_search(search);
+  while (!err) {
+    SecIdentityRef identity = NULL;
+    err = SecIdentitySearchCopyNext(search, &identity);
+    if (err)
+      break;
+    scoped_cftyperef<SecIdentityRef> scoped_identity(identity);
+
+    SecCertificateRef cert_handle;
+    err = SecIdentityCopyCertificate(identity, &cert_handle);
+    if (err != noErr)
+      continue;
+
+    scoped_refptr<X509Certificate> cert(
+        CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT));
+    // cert_handle is adoped by cert, so I don't need to release it myself.
+    if (cert->HasExpired() ||
+        !CertSupportsUsage(cert_handle, CSSMOID_ClientAuth))
+      continue;
+
+    // Skip duplicates (a cert may be in multiple keychains).
+    X509Certificate::Fingerprint fingerprint = cert->fingerprint();
+    unsigned i;
+    for (i = 0; i < certs->size(); ++i) {
+      if ((*certs)[i]->fingerprint().Equals(fingerprint))
+        break;
+    }
+    if (i < certs->size())
+      continue;
+
+    // The cert passes, so add it to the vector.
+    certs->push_back(cert);
+  }
+
+  if (err != errSecItemNotFound) {
+    LOG(ERROR) << "SecIdentitySearch error " << err;
+    return false;
+  }
+  return true;
+}
+
+CFArrayRef X509Certificate::CreateClientCertificateChain() {
+  // Initialize the result array with just the IdentityRef of the receiver:
+  OSStatus result;
+  SecIdentityRef identity;
+  result = SecIdentityCreateWithCertificate(NULL, cert_handle_, &identity);
+  if (result) {
+    LOG(ERROR) << "SecIdentityCreateWithCertificate error " << result;
+    return NULL;
+  }
+  scoped_cftyperef<CFMutableArrayRef> chain(
+      CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks));
+  CFArrayAppendValue(chain, identity);
+
+  {
+    // Create an SSL policy ref configured for client cert evaluation.
+    SecPolicyRef ssl_policy;
+    result = CreateSSLClientPolicy(&ssl_policy);
+    if (result)
+      goto exit;
+    scoped_cftyperef<SecPolicyRef> scoped_ssl_policy(ssl_policy);
+
+    // Use a SecTrust object to find the intermediate certs in the trust chain.
+    scoped_cftyperef<CFArrayRef> input_certs(
+        CFArrayCreate(NULL, (const void**)&cert_handle_, 1,
+                      &kCFTypeArrayCallBacks));
+    SecTrustRef trust_ref = NULL;
+    result = SecTrustCreateWithCertificates(input_certs,
+                                            ssl_policy,
+                                            &trust_ref);
+    if (result)
+      goto exit;
+    scoped_cftyperef<SecTrustRef> trust(trust_ref);
+
+    SecTrustResultType status;
+    CFArrayRef trust_chain = NULL;
+    CSSM_TP_APPLE_EVIDENCE_INFO* status_chain;
+    result = SecTrustEvaluate(trust, &status);
+    if (result)
+      goto exit;
+    result = SecTrustGetResult(trust, &status, &trust_chain, &status_chain);
+    if (result)
+      goto exit;
+
+    // Append the intermediate certs from SecTrust to the result array:
+    if (trust_chain) {
+      int chain_count = CFArrayGetCount(trust_chain);
+      if (chain_count > 1) {
+        CFArrayAppendArray(chain,
+                           trust_chain,
+                           CFRangeMake(1, chain_count - 1));
+      }
+      CFRelease(trust_chain);
+    }
+  }
+exit:
+  if (result)
+    LOG(ERROR) << "CreateIdentityCertificateChain error " << result;
+  return chain.release();
 }
 
 }  // namespace net
