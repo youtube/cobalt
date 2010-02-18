@@ -71,6 +71,8 @@ class SSLClientSocketMac : public SSLClientSocket {
   int DoVerifyCertComplete(int result);
   int DoHandshakeFinish();
 
+  int SetClientCert();
+
   static OSStatus SSLReadCallback(SSLConnectionRef connection,
                                   void* data,
                                   size_t* data_length);
