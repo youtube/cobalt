@@ -166,11 +166,18 @@ bool LaunchApp(const std::wstring& cmdline,
   return true;
 }
 
-
 bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
                      bool start_hidden, ProcessHandle* process_handle) {
+  return LaunchAppAsUser(token, cmdline, start_hidden, process_handle, false);
+}
+
+bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
+                     bool start_hidden, ProcessHandle* process_handle,
+                     bool empty_desktop_name) {
   STARTUPINFO startup_info = {0};
   startup_info.cb = sizeof(startup_info);
+  if (empty_desktop_name)
+    startup_info.lpDesktop = L"";
   PROCESS_INFORMATION process_info;
   if (start_hidden) {
     startup_info.dwFlags = STARTF_USESHOWWINDOW;
