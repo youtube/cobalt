@@ -224,6 +224,18 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   }
 #endif
 
+#if defined(OS_MACOSX)
+  // Creates a security policy for SSL client certificates.
+  static OSStatus CreateSSLClientPolicy(SecPolicyRef* outPolicy);
+
+  // Adds all available SSL client identity certs to the given vector.
+  static bool GetSSLClientCertificates(
+      std::vector<scoped_refptr<X509Certificate> >* certs);
+
+  // Creates the chain of certs to use for this client identity cert.
+  CFArrayRef CreateClientCertificateChain();
+#endif
+
   // Verifies the certificate against the given hostname.  Returns OK if
   // successful or an error code upon failure.
   //
