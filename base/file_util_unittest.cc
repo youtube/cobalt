@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1387,6 +1387,30 @@ TEST_F(FileUtilTest, Contains) {
   EXPECT_FALSE(file_util::ContainsPath(foo,
       foo_caps.Append(FILE_PATH_LITERAL("bar.txt"))));
 #endif
+}
+
+TEST_F(FileUtilTest, LastModified) {
+  FilePath data_dir = test_dir_.Append(FILE_PATH_LITERAL("FilePathTest"));
+
+  // Create a fresh, empty copy of this directory.
+  if (file_util::PathExists(data_dir)) {
+    ASSERT_TRUE(file_util::Delete(data_dir, true));
+  }
+  ASSERT_TRUE(file_util::CreateDirectory(data_dir));
+
+  FilePath foobar(data_dir.Append(FILE_PATH_LITERAL("foobar.txt")));
+  std::string data("hello");
+  ASSERT_TRUE(file_util::WriteFile(foobar, data.c_str(), data.length()));
+
+  base::Time modification_time;
+  // Note that this timestamp is divisible by two (seconds) - FAT stores
+  // modification times with 2s resolution.
+  ASSERT_TRUE(base::Time::FromString(L"Tue, 15 Nov 1994, 12:45:26 GMT",
+              &modification_time));
+  ASSERT_TRUE(file_util::SetLastModifiedTime(foobar, modification_time));
+  file_util::FileInfo file_info;
+  ASSERT_TRUE(file_util::GetFileInfo(foobar, &file_info));
+  ASSERT_TRUE(file_info.last_modified == modification_time);
 }
 
 }  // namespace
