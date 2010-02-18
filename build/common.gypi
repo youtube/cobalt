@@ -812,11 +812,6 @@
               # can be removed at link time with --gc-sections.
               '-fdata-sections',
               '-ffunction-sections',
-              # We don't use exceptions.  The eh_frame section is used for those
-              # and for symbolizing backtraces.  By passing this flag we drop
-              # the eh_frame section completely, we shaving off 2.5mb from
-              # our resulting binary.
-              '-fno-asynchronous-unwind-tables',
             ],
             'ldflags': [
               '-Wl,--gc-sections',
