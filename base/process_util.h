@@ -154,6 +154,13 @@ bool LaunchApp(const std::wstring& cmdline,
 bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
                      bool start_hidden, ProcessHandle* process_handle);
 
+// Has the same behavior as LaunchAppAsUser, but offers the boolean option to
+// use an empty string for the desktop name.
+bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
+                     bool start_hidden, ProcessHandle* process_handle,
+                     bool empty_desktop_name);
+
+
 #elif defined(OS_POSIX)
 // Runs the application specified in argv[0] with the command line argv.
 // Before launching all FDs open in the parent process will be marked as
