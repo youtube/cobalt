@@ -202,7 +202,7 @@
         'omx/omx_input_buffer_unittest.cc',
       ],
       'conditions': [
-        ['OS=="linux" or OS=="freebsd"', {
+        ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
           'dependencies': [
             # Needed for the following #include chain:
             #   base/run_all_unittests.cc
@@ -290,7 +290,7 @@
         '../testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        ['OS=="linux" or OS=="freebsd"', {
+        ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
           'dependencies': [
             '../build/linux/system.gyp:gtk',
           ],

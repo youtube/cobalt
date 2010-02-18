@@ -32,6 +32,9 @@
 #elif defined(__OpenBSD__)
 #define OS_OPENBSD 1
 #define TOOLKIT_GTK
+#elif defined(__Solaris__)
+#define OS_SOLARIS 1
+#define TOOLKIT_GTK
 #else
 #error Please add support for your platform in build/build_config.h
 #endif
@@ -42,7 +45,8 @@
 #define TOOLKIT_USES_GTK 1
 #endif
 
-#if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD)
+#if defined(OS_LINUX) || defined(OS_FREEBSD) || defined(OS_OPENBSD) || \
+    defined(OS_SOLARIS)
 #define USE_NSS 1  // Use NSS for crypto.
 #define USE_X11 1  // Use X for graphics.
 #endif
@@ -50,7 +54,7 @@
 // For access to standard POSIXish features, use OS_POSIX instead of a
 // more specific macro.
 #if defined(OS_MACOSX) || defined(OS_LINUX) || defined(OS_FREEBSD) || \
-    defined(OS_OPENBSD)
+    defined(OS_OPENBSD) || defined(OS_SOLARIS)
 #define OS_POSIX 1
 // Use base::DataPack for name/value pairs.
 #define USE_BASE_DATA_PACK 1
