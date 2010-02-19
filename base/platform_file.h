@@ -12,8 +12,6 @@
 
 #include <string>
 
-#include "base/ref_counted.h"
-
 class FilePath;
 
 namespace base {
@@ -54,41 +52,6 @@ PlatformFile CreatePlatformFile(const std::wstring& name,
 
 // Closes a file handle
 bool ClosePlatformFile(PlatformFile file);
-
-// Get the length of an underlying file. Returns false on error. Otherwise
-// *size is set to the length of the file, in bytes.
-bool GetPlatformFileSize(PlatformFile file, uint64* size);
-
-// This is a reference counted PlatformFile. When the ref count drops to zero,
-// the file handle is closed. See the comments in base/ref_counted.h for
-// details on how to use it.
-class RefCountedPlatformFile :
-    public base::RefCountedThreadSafe<RefCountedPlatformFile> {
- public:
-  RefCountedPlatformFile(PlatformFile f) : file_(f) { }
-
-  ~RefCountedPlatformFile() {
-    if (file_ != kInvalidPlatformFileValue) {
-      ClosePlatformFile(file_);
-      file_ = kInvalidPlatformFileValue;
-    }
-  }
-
-  PlatformFile get() const {
-    return file_;
-  }
-
-  PlatformFile release() {
-    PlatformFile f = file_;
-    file_ = kInvalidPlatformFileValue;
-    return f;
-  }
-
- private:
-  PlatformFile file_;
-
-  DISALLOW_COPY_AND_ASSIGN(RefCountedPlatformFile);
-};
 
 }  // namespace base
 
