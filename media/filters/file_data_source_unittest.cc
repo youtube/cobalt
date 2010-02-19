@@ -5,6 +5,7 @@
 #include <string>
 
 #include "base/base_paths.h"
+#include "base/callback.h"
 #include "base/file_path.h"
 #include "base/path_service.h"
 #include "base/string_util.h"

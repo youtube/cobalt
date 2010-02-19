@@ -1,6 +1,6 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.  Use of this
-// source code is governed by a BSD-style license that can be found in the
-// LICENSE file.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 //
 // A new breed of mock media filters, this time using gmock!  Feel free to add
 // actions if you need interesting side-effects (i.e., copying data to the
@@ -15,6 +15,7 @@
 
 #include <string>
 
+#include "base/callback.h"
 #include "media/base/factory.h"
 #include "media/base/filters.h"
 #include "testing/gmock/include/gmock/gmock.h"

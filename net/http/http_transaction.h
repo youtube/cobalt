@@ -5,6 +5,8 @@
 #ifndef NET_HTTP_HTTP_TRANSACTION_H_
 #define NET_HTTP_HTTP_TRANSACTION_H_
 
+#include <string>
+
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 
