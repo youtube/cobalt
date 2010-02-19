@@ -1010,7 +1010,7 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailPasv) {
                         FtpSocketDataProvider::PRE_PASV,
                         FtpSocketDataProvider::PRE_QUIT,
                         "500 failed pasv\r\n",
-                        ERR_FAILED);
+                        ERR_FTP_PASV_COMMAND_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionMalformedMdtm) {
@@ -1040,7 +1040,7 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailPasv2) {
                         FtpSocketDataProvider::PRE_PASV2,
                         FtpSocketDataProvider::PRE_QUIT,
                         "500 failed pasv2\r\n",
-                        ERR_FAILED);
+                        ERR_FTP_PASV_COMMAND_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailCwd) {
@@ -1140,7 +1140,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailPasv) {
                         FtpSocketDataProvider::PRE_PASV,
                         FtpSocketDataProvider::PRE_QUIT,
                         "500 failed pasv\r\n",
-                        ERR_FAILED);
+                        ERR_FTP_PASV_COMMAND_FAILED);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailMdtm) {
