@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "base/callback.h"
 #include "net/base/load_log.h"
 #include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"

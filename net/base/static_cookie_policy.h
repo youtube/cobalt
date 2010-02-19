@@ -5,6 +5,8 @@
 #ifndef NET_BASE_STATIC_COOKIE_POLICY_H_
 #define NET_BASE_STATIC_COOKIE_POLICY_H_
 
+#include <string>
+
 #include "base/basictypes.h"
 #include "net/base/cookie_policy.h"
 

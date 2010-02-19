@@ -25,6 +25,7 @@
 #include <deque>
 #include <vector>
 
+#include "base/callback.h"
 #include "base/waitable_event.h"
 #include "media/base/buffers.h"
 #include "media/base/factory.h"

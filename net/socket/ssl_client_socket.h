@@ -5,6 +5,8 @@
 #ifndef NET_SOCKET_SSL_CLIENT_SOCKET_H_
 #define NET_SOCKET_SSL_CLIENT_SOCKET_H_
 
+#include <string>
+
 #include "net/socket/client_socket.h"
 
 namespace net {

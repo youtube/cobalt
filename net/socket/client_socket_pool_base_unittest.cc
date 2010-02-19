@@ -4,6 +4,7 @@
 
 #include "net/socket/client_socket_pool_base.h"
 
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
 #include "base/platform_thread.h"
@@ -1376,7 +1377,7 @@ TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
       << LoadLogUtil::PrettyPrintAsEventTree(log);
 }
 
-// Make sure that we process all pending requests even when we're stalling 
+// Make sure that we process all pending requests even when we're stalling
 // because of multiple releasing disconnected sockets.
 TEST_F(ClientSocketPoolBaseTest, MultipleReleasingDisconnectedSockets) {
   CreatePoolWithIdleTimeouts(
