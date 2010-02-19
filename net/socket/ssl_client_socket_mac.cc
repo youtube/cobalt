@@ -100,7 +100,7 @@ namespace {
 typedef enum {
   kSSLSessionOptionBreakOnServerAuth,
   kSSLSessionOptionBreakOnCertRequested,
-} SSLSetSessionOptionType;
+} SSLSessionOption;
 
 enum {
   errSSLServerAuthCompleted = -9841,
@@ -140,7 +140,7 @@ enum {
 #endif
 
 typedef OSStatus (*SSLSetSessionOptionFuncPtr)(SSLContextRef,
-                                               SSLSetSessionOptionType,
+                                               SSLSessionOption,
                                                Boolean);
 // For an explanation of the Mac OS X error codes, please refer to:
 // http://developer.apple.com/mac/library/documentation/Security/Reference/secureTransportRef/Reference/reference.html
