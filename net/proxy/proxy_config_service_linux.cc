@@ -163,7 +163,9 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
     // connections.
     return !no_proxy.empty();
   }
-  config->ParseNoProxyList(no_proxy);
+  // Note that this uses "suffix" matching. So a bypass of "google.com"
+  // is understood to mean a bypass of "*google.com".
+  config->bypass_rules.ParseFromStringUsingSuffixMatching(no_proxy);
   return true;
 }
 
@@ -943,10 +945,16 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   }
 
   // Now the bypass list.
+  std::vector<std::string> ignore_hosts_list;
   gconf_getter_->GetStringList("/system/http_proxy/ignore_hosts",
-                               &config->proxy_bypass);
+                               &ignore_hosts_list);
+
+  config->bypass_rules.Clear();
+  for (size_t i = 0; i < ignore_hosts_list.size(); ++i)
+    config->bypass_rules.AddRuleFromString(ignore_hosts_list[i]);
+
   // Note that there are no settings with semantics corresponding to
-  // config->proxy_bypass_local_names.
+  // bypass of local names.
 
   return true;
 }

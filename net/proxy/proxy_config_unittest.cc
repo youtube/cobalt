@@ -71,26 +71,14 @@ TEST(ProxyConfigTest, Equals) {
   EXPECT_TRUE(config1.Equals(config2));
   EXPECT_TRUE(config2.Equals(config1));
 
-  // Test |ProxyConfig::proxy_bypass|.
+  // Test |ProxyConfig::bypass_rules|.
 
-  config2.proxy_bypass.push_back("*.google.com");
-
-  EXPECT_FALSE(config1.Equals(config2));
-  EXPECT_FALSE(config2.Equals(config1));
-
-  config1.proxy_bypass.push_back("*.google.com");
-
-  EXPECT_TRUE(config1.Equals(config2));
-  EXPECT_TRUE(config2.Equals(config1));
-
-  // Test |ProxyConfig::proxy_bypass_local_names|.
-
-  config1.proxy_bypass_local_names = true;
+  config2.bypass_rules.AddRuleFromString("*.google.com");
 
   EXPECT_FALSE(config1.Equals(config2));
   EXPECT_FALSE(config2.Equals(config1));
 
-  config2.proxy_bypass_local_names = true;
+  config1.bypass_rules.AddRuleFromString("*.google.com");
 
   EXPECT_TRUE(config1.Equals(config2));
   EXPECT_TRUE(config2.Equals(config1));
@@ -252,39 +240,6 @@ TEST(ProxyConfigTest, ParseProxyRules) {
   }
 }
 
-TEST(ProxyConfigTest, ParseProxyBypassList) {
-  struct bypass_test {
-    const char* proxy_bypass_input;
-    const char* flattened_output;
-  };
-
-  const struct {
-    const char* proxy_bypass_input;
-    const char* flattened_output;
-  } tests[] = {
-    {
-      "*",
-      "*\n"
-    },
-    {
-      ".google.com, .foo.com:42",
-      "*.google.com\n*.foo.com:42\n"
-    },
-    {
-      ".google.com, foo.com:99, 1.2.3.4:22, 127.0.0.1/8",
-      "*.google.com\n*foo.com:99\n1.2.3.4:22\n127.0.0.1/8\n"
-    }
-  };
-
-  ProxyConfig config;
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    config.ParseNoProxyList(tests[i].proxy_bypass_input);
-    EXPECT_EQ(tests[i].flattened_output,
-              FlattenProxyBypass(config.proxy_bypass));
-  }
-}
-
 std::string ProxyConfigToString(const ProxyConfig& config) {
   std::ostringstream stream;
   stream << config;
@@ -303,8 +258,7 @@ TEST(ProxyConfigTest, ToString) {
               "  Custom PAC script: [None]\n"
               "Manual settings:\n"
               "  Proxy server: single-proxy:81\n"
-              "  Bypass list: [None]\n"
-              "  Bypass local names: No",
+              "  Bypass list: [None]",
               ProxyConfigToString(config));
   }
 
@@ -320,8 +274,7 @@ TEST(ProxyConfigTest, ToString) {
               "  Custom PAC script: http://custom/pac.js\n"
               "Manual settings:\n"
               "  Proxy server: single-proxy:81\n"
-              "  Bypass list: [None]\n"
-              "  Bypass local names: No",
+              "  Bypass list: [None]",
               ProxyConfigToString(config));
   }
 
@@ -330,9 +283,9 @@ TEST(ProxyConfigTest, ToString) {
     ProxyConfig config;
     config.auto_detect = false;
     config.proxy_rules.ParseFromString("http://single-proxy:81");
-    config.proxy_bypass.push_back("google.com");
-    config.proxy_bypass.push_back("bypass2.net:1730");
-    config.proxy_bypass_local_names = true;
+    config.bypass_rules.AddRuleFromString("google.com");
+    config.bypass_rules.AddRuleFromString("bypass2.net:1730");
+    config.bypass_rules.AddRuleToBypassLocal();
 
     EXPECT_EQ("Automatic settings:\n"
               "  Auto-detect: No\n"
@@ -342,7 +295,7 @@ TEST(ProxyConfigTest, ToString) {
               "  Bypass list: \n"
               "    google.com\n"
               "    bypass2.net:1730\n"
-              "  Bypass local names: Yes",
+              "    <local>",
               ProxyConfigToString(config));
   }
 
@@ -360,8 +313,7 @@ TEST(ProxyConfigTest, ToString) {
               "  Proxy server: \n"
               "    HTTP: proxy-for-http:1801\n"
               "    HTTPS: proxy-for-https:1802\n"
-              "  Bypass list: [None]\n"
-              "  Bypass local names: No",
+              "  Bypass list: [None]",
               ProxyConfigToString(config));
   }
 
@@ -379,8 +331,7 @@ TEST(ProxyConfigTest, ToString) {
               "  Proxy server: \n"
               "    HTTP: proxy-for-http:1801\n"
               "    SOCKS: socks4://socks-server:6083\n"
-              "  Bypass list: [None]\n"
-              "  Bypass local names: No",
+              "  Bypass list: [None]",
               ProxyConfigToString(config));
   }
 
@@ -394,8 +345,7 @@ TEST(ProxyConfigTest, ToString) {
               "  Custom PAC script: [None]\n"
               "Manual settings:\n"
               "  Proxy server: [None]\n"
-              "  Bypass list: [None]\n"
-              "  Bypass local names: No",
+              "  Bypass list: [None]",
               ProxyConfigToString(config));
   }
 }
