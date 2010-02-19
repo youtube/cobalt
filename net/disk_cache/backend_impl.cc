@@ -129,12 +129,7 @@ bool DelayedCacheCleanup(const FilePath& full_path) {
     return false;
   }
 
-#if defined(OS_WIN)
   WorkerPool::PostTask(FROM_HERE, new CleanupTask(path, name_str), true);
-#elif defined(OS_POSIX)
-  // TODO(rvargas): Use the worker pool.
-  MessageLoop::current()->PostTask(FROM_HERE, new CleanupTask(path, name_str));
-#endif
   return true;
 }
 
@@ -1165,8 +1160,13 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry, bool* dirty) {
     return ERR_INVALID_ADDRESS;
   }
 
+  Time start = Time::Now();
   if (!cache_entry->entry()->Load())
     return ERR_READ_FAILURE;
+
+  if (IsLoaded()) {
+    CACHE_UMA(AGE_MS, "LoadTime", GetSizeGroup(), start);
+  }
 
   if (!cache_entry->SanityCheck()) {
     LOG(WARNING) << "Messed up entry found.";
@@ -1622,7 +1622,9 @@ bool BackendImpl::CheckIndex() {
 
   AdjustMaxCacheSize(data_->header.table_len);
 
-  if (data_->header.num_bytes < 0) {
+  if (data_->header.num_bytes < 0 ||
+      (max_size_ < kint32max - kDefaultCacheSize &&
+       data_->header.num_bytes > max_size_ + kDefaultCacheSize)) {
     LOG(ERROR) << "Invalid cache (current) size";
     return false;
   }
