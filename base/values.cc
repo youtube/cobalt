@@ -354,6 +354,10 @@ bool DictionaryValue::HasKey(const std::wstring& key) const {
   return current_entry != dictionary_.end();
 }
 
+bool DictionaryValue::HasKeyASCII(const std::string& key) const {
+  return HasKey(ASCIIToWide(key));
+}
+
 void DictionaryValue::Clear() {
   ValueMap::iterator dict_iterator = dictionary_.begin();
   while (dict_iterator != dictionary_.end()) {
@@ -469,6 +473,26 @@ bool DictionaryValue::GetReal(const std::wstring& path,
     return false;
 
   return value->GetAsReal(out_value);
+}
+
+bool DictionaryValue::GetString(const std::string& path,
+                                string16* out_value) const {
+  return GetStringAsUTF16(ASCIIToWide(path), out_value);
+}
+
+bool DictionaryValue::GetStringASCII(const std::string& path,
+                                     std::string* out_value) const {
+  std::string out;
+  if (!GetString(ASCIIToWide(path), &out))
+    return false;
+
+  if (!IsStringASCII(out)) {
+    NOTREACHED();
+    return false;
+  }
+
+  out_value->assign(out);
+  return true;
 }
 
 bool DictionaryValue::GetString(const std::wstring& path,
