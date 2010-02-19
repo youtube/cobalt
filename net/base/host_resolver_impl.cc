@@ -49,7 +49,6 @@ HostResolver* CreateSystemHostResolver(
   // TODO(eroman): Adjust this, do some A/B experiments.
   static const size_t kMaxJobs = 50u;
 
-  // TODO(willchan): Pass in the NetworkChangeNotifier.
   HostResolverImpl* resolver = new HostResolverImpl(
       NULL, CreateDefaultCache(), network_change_notifier, kMaxJobs);
 
