@@ -54,11 +54,12 @@ ProxyConfig::ProxyRules MakeProxyPerSchemeRules(
                         "", proxy_http, proxy_https, proxy_ftp, socks_proxy);
 }
 
-std::string FlattenProxyBypass(const BypassList& proxy_bypass) {
+std::string FlattenProxyBypass(const ProxyBypassRules& bypass_rules) {
   std::string flattened_proxy_bypass;
-  for (BypassList::const_iterator it = proxy_bypass.begin();
-       it != proxy_bypass.end(); ++it) {
-    flattened_proxy_bypass += *it + "\n";
+  for (ProxyBypassRules::RuleList::const_iterator it =
+           bypass_rules.rules().begin();
+       it != bypass_rules.rules().end(); ++it) {
+    flattened_proxy_bypass += (*it)->ToString() + "\n";
   }
   return flattened_proxy_bypass;
 }
