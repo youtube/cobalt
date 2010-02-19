@@ -726,7 +726,7 @@ int SSLClientSocketMac::InitializeSSLContext() {
   // the session would be cached before we verified the certificate, leaving
   // the potential for a session in which the certificate failed to validate
   // to still be able to be resumed.
-  SSLSetSessionOptionFuncPtr ssl_set_session_options =
+  static SSLSetSessionOptionFuncPtr ssl_set_session_options =
       LookupFunction<SSLSetSessionOptionFuncPtr>(CFSTR("com.apple.security"),
                                                  CFSTR("SSLSetSessionOption"));
   if (ssl_set_session_options) {
