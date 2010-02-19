@@ -5,6 +5,7 @@
 // TODO(scherkus): clean up PipelineImpl... too many crazy function names,
 // potential deadlocks, etc...
 
+#include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/condition_variable.h"
 #include "base/stl_util-inl.h"

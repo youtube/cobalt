@@ -4,6 +4,7 @@
 
 #include <deque>
 
+#include "base/callback.h"
 #include "base/thread.h"
 #include "media/base/filters.h"
 #include "media/base/mock_ffmpeg.h"
