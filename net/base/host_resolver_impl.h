@@ -92,7 +92,7 @@ class HostResolverImpl : public HostResolver,
     default_address_family_ = address_family;
   }
 
-  virtual bool IsHostResolverImpl() { return true; }
+  virtual HostResolverImpl* GetAsHostResolverImpl() { return this; }
 
   // TODO(eroman): hack for http://crbug.com/15513
   void Shutdown();

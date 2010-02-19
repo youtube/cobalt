@@ -37,6 +37,10 @@ void MappedHostResolver::RemoveObserver(Observer* observer) {
   impl_->RemoveObserver(observer);
 }
 
+HostResolverImpl* MappedHostResolver::GetAsHostResolverImpl() {
+  return impl_->GetAsHostResolverImpl();
+}
+
 MappedHostResolver::~MappedHostResolver() {
 }
 

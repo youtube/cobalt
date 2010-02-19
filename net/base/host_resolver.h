@@ -19,6 +19,7 @@ namespace net {
 
 class AddressList;
 class HostCache;
+class HostResolverImpl;
 class LoadLog;
 class NetworkChangeNotifier;
 
@@ -161,10 +162,10 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   // AF_INET6 by passing in ADDRESS_FAMILY_IPV6.
   virtual void SetDefaultAddressFamily(AddressFamily address_family) {}
 
-  // Returns true if this HostResolver is an instance of HostResolverImpl.
-  // Used primarily to expose additional functionality on the
-  // about:net-internals page.
-  virtual bool IsHostResolverImpl() { return false; }
+  // Returns |this| cast to a HostResolverImpl*, or NULL if the subclass
+  // is not compatible with HostResolverImpl. Used primarily to expose
+  // additional functionality on the about:net-internals page.
+  virtual HostResolverImpl* GetAsHostResolverImpl() { return NULL; }
 
  protected:
   friend class base::RefCountedThreadSafe<HostResolver>;
