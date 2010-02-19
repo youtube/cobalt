@@ -4086,4 +4086,146 @@ TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
   file_util::Delete(temp_file_path, false);
 }
 
+// Tests that changes to Auth realms are treated like auth rejections.
+TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  // First transaction will request a resource and receive a Basic challenge
+  // with realm="first_realm".
+  MockWrite data_writes1[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "\r\n"),
+  };
+  MockRead data_reads1[] = {
+    MockRead("HTTP/1.1 401 Unauthorized\r\n"
+             "WWW-Authenticate: Basic realm=\"first_realm\"\r\n"
+             "\r\n"),
+  };
+
+  // After calling trans->RestartWithAuth(), provide an Authentication header
+  // for first_realm. The server will reject and provide a challenge with
+  // second_realm.
+  MockWrite data_writes2[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "Authorization: Basic Zmlyc3Q6YmF6\r\n"
+              "\r\n"),
+  };
+  MockRead data_reads2[] = {
+    MockRead("HTTP/1.1 401 Unauthorized\r\n"
+             "WWW-Authenticate: Basic realm=\"second_realm\"\r\n"
+             "\r\n"),
+  };
+
+  // This again fails, and goes back to first_realm. Make sure that the
+  // entry is removed from cache.
+  MockWrite data_writes3[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "Authorization: Basic c2Vjb25kOmZvdQ==\r\n"
+              "\r\n"),
+  };
+  MockRead data_reads3[] = {
+    MockRead("HTTP/1.1 401 Unauthorized\r\n"
+             "WWW-Authenticate: Basic realm=\"first_realm\"\r\n"
+             "\r\n"),
+  };
+
+  // Try one last time (with the correct password) and get the resource.
+  MockWrite data_writes4[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "Authorization: Basic Zmlyc3Q6YmFy\r\n"
+              "\r\n"),
+  };
+  MockRead data_reads4[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"
+             "Content-Type: text/html; charset=iso-8859-1\r\n"
+             "Content-Length: 100\r\n"
+             "\r\n"),
+  };
+
+  StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                 data_writes1, arraysize(data_writes1));
+  StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
+                                 data_writes2, arraysize(data_writes2));
+  StaticSocketDataProvider data3(data_reads3, arraysize(data_reads3),
+                                 data_writes3, arraysize(data_writes3));
+  StaticSocketDataProvider data4(data_reads4, arraysize(data_reads4),
+                                 data_writes4, arraysize(data_writes4));
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+  session_deps.socket_factory.AddSocketDataProvider(&data3);
+  session_deps.socket_factory.AddSocketDataProvider(&data4);
+
+  TestCompletionCallback callback1;
+
+  // Issue the first request with Authorize headers. There should be a
+  // password prompt for first_realm waiting to be filled in after the
+  // transaction completes.
+  int rv = trans->Start(&request, &callback1, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  ASSERT_FALSE(response->auth_challenge.get() == NULL);
+  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
+  EXPECT_EQ(L"first_realm", response->auth_challenge->realm);
+  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+
+  // Issue the second request with an incorrect password. There should be a
+  // password prompt for second_realm waiting to be filled in after the
+  // transaction completes.
+  TestCompletionCallback callback2;
+  rv = trans->RestartWithAuth(L"first", L"baz", &callback2);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback2.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  ASSERT_FALSE(response->auth_challenge.get() == NULL);
+  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
+  EXPECT_EQ(L"second_realm", response->auth_challenge->realm);
+  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+
+  // Issue the third request with another incorrect password. There should be
+  // a password prompt for first_realm waiting to be filled in. If the password
+  // prompt is not present, it indicates that the HttpAuthCacheEntry for
+  // first_realm was not correctly removed.
+  TestCompletionCallback callback3;
+  rv = trans->RestartWithAuth(L"second", L"fou", &callback3);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback3.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  ASSERT_FALSE(response->auth_challenge.get() == NULL);
+  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
+  EXPECT_EQ(L"first_realm", response->auth_challenge->realm);
+  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+
+  // Issue the fourth request with the correct password and username.
+  TestCompletionCallback callback4;
+  rv = trans->RestartWithAuth(L"first", L"bar", &callback4);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback4.WaitForResult();
+  EXPECT_EQ(OK, rv);
+  response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+}
+
 }  // namespace net
