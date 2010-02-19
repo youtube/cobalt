@@ -14,6 +14,8 @@
 
 namespace net {
 
+class ProxyBypassRules;
+
 ProxyConfig::ProxyRules MakeProxyRules(
     ProxyConfig::ProxyRules::Type type,
     const char* single_proxy,
@@ -35,10 +37,8 @@ ProxyConfig::ProxyRules MakeProxyPerSchemeRules(
     const char* proxy_ftp,
     const char* socks_proxy);
 
-typedef std::vector<std::string> BypassList;
-
 // Joins the proxy bypass list using "\n" to make it into a single string.
-std::string FlattenProxyBypass(const BypassList& proxy_bypass);
+std::string FlattenProxyBypass(const ProxyBypassRules& bypass_rules);
 
 }  // namespace net
 

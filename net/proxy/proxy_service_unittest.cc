@@ -674,212 +674,33 @@ TEST(ProxyServiceTest, ProxyFallback_BadConfig) {
 }
 
 TEST(ProxyServiceTest, ProxyBypassList) {
-  // Test what happens when a proxy bypass list is specified.
+  // Test that the proxy bypass rules are consulted.
 
-  ProxyInfo info;
+  TestCompletionCallback callback[2];
+  ProxyInfo info[2];
   ProxyConfig config;
   config.proxy_rules.ParseFromString("foopy1:8080;foopy2:9090");
   config.auto_detect = false;
-  config.proxy_bypass_local_names = true;
+  config.bypass_rules.ParseFromString("*.org");
 
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config),
-        new MockAsyncProxyResolver(),
-        NULL));
-    GURL url("http://www.google.com/");
-    // Get the proxy information.
-    TestCompletionCallback callback;
-    int rv = service->ResolveProxy(url, &info, &callback, NULL, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_FALSE(info.is_direct());
-  }
+  scoped_refptr<ProxyService> service(new ProxyService(
+      new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
 
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config),
-        new MockAsyncProxyResolver(),
-        NULL));
-    GURL test_url("http://local");
-    TestCompletionCallback callback;
-    int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_TRUE(info.is_direct());
-  }
+  int rv;
+  GURL url1("http://www.webkit.org");
+  GURL url2("http://www.webkit.com");
 
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("*.org");
-  config.proxy_bypass_local_names = true;
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    GURL test_url("http://www.webkit.org");
-    TestCompletionCallback callback;
-    int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_TRUE(info.is_direct());
-  }
+  // Request for a .org domain should bypass proxy.
+  rv = service->ResolveProxy(url1, &info[0], &callback[0], NULL, NULL);
+  EXPECT_EQ(OK, rv);
+  EXPECT_TRUE(info[0].is_direct());
 
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("*.org");
-  config.proxy_bypass.push_back("7*");
-  config.proxy_bypass_local_names = true;
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    GURL test_url("http://74.125.19.147");
-    TestCompletionCallback callback;
-    int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_TRUE(info.is_direct());
-  }
-
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("*.org");
-  config.proxy_bypass_local_names = true;
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    GURL test_url("http://www.msn.com");
-    TestCompletionCallback callback;
-    int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_FALSE(info.is_direct());
-  }
-
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("*.MSN.COM");
-  config.proxy_bypass_local_names = true;
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    GURL test_url("http://www.msnbc.msn.com");
-    TestCompletionCallback callback;
-    int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_TRUE(info.is_direct());
-  }
-
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("*.msn.com");
-  config.proxy_bypass_local_names = true;
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    GURL test_url("HTTP://WWW.MSNBC.MSN.COM");
-    TestCompletionCallback callback;
-    int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_TRUE(info.is_direct());
-  }
+  // Request for a .com domain hits the proxy.
+  rv = service->ResolveProxy(url2, &info[1], &callback[1], NULL, NULL);
+  EXPECT_EQ(OK, rv);
+  EXPECT_EQ("foopy1:8080", info[1].proxy_server().ToURI());
 }
 
-TEST(ProxyServiceTest, ProxyBypassListWithPorts) {
-  // Test port specification in bypass list entries.
-  ProxyInfo info;
-  ProxyConfig config;
-  config.proxy_rules.ParseFromString("foopy1:8080;foopy2:9090");
-  config.auto_detect = false;
-  config.proxy_bypass_local_names = false;
-
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("*.example.com:99");
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    {
-      GURL test_url("http://www.example.com:99");
-      TestCompletionCallback callback;
-      int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-      EXPECT_EQ(OK, rv);
-      EXPECT_TRUE(info.is_direct());
-    }
-    {
-      GURL test_url("http://www.example.com:100");
-      TestCompletionCallback callback;
-      int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-      EXPECT_EQ(OK, rv);
-      EXPECT_FALSE(info.is_direct());
-    }
-    {
-      GURL test_url("http://www.example.com");
-      TestCompletionCallback callback;
-      int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-      EXPECT_EQ(OK, rv);
-      EXPECT_FALSE(info.is_direct());
-    }
-  }
-
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("*.example.com:80");
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    GURL test_url("http://www.example.com");
-    TestCompletionCallback callback;
-    int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_TRUE(info.is_direct());
-  }
-
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("*.example.com");
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    GURL test_url("http://www.example.com:99");
-    TestCompletionCallback callback;
-    int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-    EXPECT_EQ(OK, rv);
-    EXPECT_TRUE(info.is_direct());
-  }
-
-  // IPv6 with port.
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("[3ffe:2a00:100:7031::1]:99");
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    {
-      GURL test_url("http://[3ffe:2a00:100:7031::1]:99/");
-      TestCompletionCallback callback;
-      int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-      EXPECT_EQ(OK, rv);
-      EXPECT_TRUE(info.is_direct());
-    }
-    {
-      GURL test_url("http://[3ffe:2a00:100:7031::1]/");
-      TestCompletionCallback callback;
-      int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-      EXPECT_EQ(OK, rv);
-      EXPECT_FALSE(info.is_direct());
-    }
-  }
-
-  // IPv6 without port. The bypass entry ought to work without the
-  // brackets, but the bypass matching logic in ProxyService is
-  // currently limited.
-  config.proxy_bypass.clear();
-  config.proxy_bypass.push_back("[3ffe:2a00:100:7031::1]");
-  {
-    scoped_refptr<ProxyService> service(new ProxyService(
-        new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
-    {
-      GURL test_url("http://[3ffe:2a00:100:7031::1]:99/");
-      TestCompletionCallback callback;
-      int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-      EXPECT_EQ(OK, rv);
-      EXPECT_TRUE(info.is_direct());
-    }
-    {
-      GURL test_url("http://[3ffe:2a00:100:7031::1]/");
-      TestCompletionCallback callback;
-      int rv = service->ResolveProxy(test_url, &info, &callback, NULL, NULL);
-      EXPECT_EQ(OK, rv);
-      EXPECT_TRUE(info.is_direct());
-    }
-  }
-}
 
 TEST(ProxyServiceTest, PerProtocolProxyTests) {
   ProxyConfig config;
@@ -1491,7 +1312,7 @@ TEST(ProxyServiceTest, BypassDoesntApplyToPac) {
   config.auto_detect = true;
   config.pac_url = GURL("http://foopy/proxy.pac");
   config.proxy_rules.ParseFromString("http=foopy:80");  // Not used.
-  config.proxy_bypass.push_back("www.google.com");
+  config.bypass_rules.ParseFromString("www.google.com");
 
   MockProxyConfigService* config_service = new MockProxyConfigService(config);
   MockAsyncProxyResolverExpectsBytes* resolver =
@@ -1642,47 +1463,6 @@ TEST(ProxyServiceTest, ResetProxyConfigService) {
       GURL("http://request2"), &info, &callback2, NULL, NULL);
   EXPECT_EQ(OK, rv);
   EXPECT_EQ("foopy2:8080", info.proxy_server().ToURI());
-}
-
-TEST(ProxyServiceTest, IsLocalName) {
-  const struct {
-    const char* url;
-    bool expected_is_local;
-  } tests[] = {
-    // Single-component hostnames are considered local.
-    {"http://localhost/x", true},
-    {"http://www", true},
-
-    // IPv4 loopback interface.
-    {"http://127.0.0.1/x", true},
-    {"http://127.0.0.1:80/x", true},
-
-    // IPv6 loopback interface.
-    {"http://[::1]:80/x", true},
-    {"http://[0:0::1]:6233/x", true},
-    {"http://[0:0:0:0:0:0:0:1]/x", true},
-
-    // Non-local URLs.
-    {"http://foo.com/", false},
-    {"http://localhost.i/", false},
-    {"http://www.google.com/", false},
-    {"http://192.168.0.1/", false},
-
-    // Try with different protocols.
-    {"ftp://127.0.0.1/x", true},
-    {"ftp://foobar.com/x", false},
-
-    // This is a bit of a gray-area, but GURL does not strip trailing dots
-    // in host-names, so the following are considered non-local.
-    {"http://www./x", false},
-    {"http://localhost./x", false},
-  };
-
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, tests[i].url));
-    bool is_local = ProxyService::IsLocalName(GURL(tests[i].url));
-    EXPECT_EQ(tests[i].expected_is_local, is_local);
-  }
 }
 
 // Check that after we have done the auto-detect test, and the configuration

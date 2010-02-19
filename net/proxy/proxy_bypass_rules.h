@@ -1,0 +1,130 @@
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef NET_PROXY_PROXY_BYPASS_RULES_H_
+#define NET_PROXY_PROXY_BYPASS_RULES_H_
+
+#include <string>
+#include <vector>
+
+#include "base/ref_counted.h"
+#include "googleurl/src/gurl.h"
+
+namespace net {
+
+// ProxyBypassRules describes the set of URLs that should bypass the proxy
+// settings, as a list of rules. A URL is said to match the bypass rules
+// if it matches any one of these rules.
+class ProxyBypassRules {
+ public:
+  // Interface for an individual proxy bypass rule.
+  class Rule : public base::RefCounted<Rule> {
+   public:
+    Rule() {}
+    virtual ~Rule() {}
+
+    // Returns true if |url| matches the rule.
+    virtual bool Matches(const GURL& url) const = 0;
+
+    // Returns a string representation of this rule. This is used both for
+    // visualizing the rules, and also to test equality of a rules list.
+    virtual std::string ToString() const = 0;
+
+    bool Equals(const Rule& rule) const {
+      return ToString() == rule.ToString();
+    }
+
+   private:
+    DISALLOW_COPY_AND_ASSIGN(Rule);
+  };
+
+  typedef std::vector<scoped_refptr<Rule> > RuleList;
+
+  // Note: This class supports copy constructor and assignment.
+
+  ~ProxyBypassRules();
+
+  // Returns the current list of rules.
+  const RuleList& rules() const { return rules_; }
+
+  // Returns true if |url| matches any of the proxy bypass rules.
+  bool Matches(const GURL& url) const;
+
+  // Returns true if |*this| is equal to |other|; in other words, whether they
+  // describe the same set of rules.
+  bool Equals(const ProxyBypassRules& other) const;
+
+  // Initializes the list of rules by parsing the string |raw|. |raw| is a
+  // comma separated list of rules. See AddRuleFromString() to see the list
+  // of supported formats.
+  void ParseFromString(const std::string& raw);
+
+  // This is a variant of ParseFromString, which interprets hostname patterns
+  // as suffix tests rather than hostname tests (so "google.com" would actually
+  // match "*google.com"). This is only currently used for the linux no_proxy
+  // evironment variable. It is less flexible, since with the suffix matching
+  // format you can't match an individual host.
+  // NOTE: Use ParseFromString() unless you truly need this behavior.
+  void ParseFromStringUsingSuffixMatching(const std::string& raw);
+
+  // Adds a rule that matches a URL when all of the following are true:
+  //  (a) The URL's scheme matches |optional_scheme|, if
+  //      |!optional_scheme.empty()|
+  //  (b) The URL's hostname matches |hostname_pattern|.
+  //  (c) The URL's (effective) port number matches |optional_port| if
+  //      |optional_port != -1|
+  // Returns true if the rule was successfully added.
+  bool AddRuleForHostname(const std::string& optional_scheme,
+                          const std::string& hostname_pattern,
+                          int optional_port);
+
+  // Adds a rule that bypasses all "local" hostnames.
+  // This matches IE's interpretation of the
+  // "Bypass proxy server for local addresses" settings checkbox. Fully
+  // qualified domain names or IP addresses are considered non-local,
+  // regardless of what they map to (except for the loopback addresses).
+  void AddRuleToBypassLocal();
+
+  // Adds a rule given by the string |raw|. The format of |raw| can be any of
+  // the following:
+  //
+  //   [ <scheme> "://" ] <hostname_pattern> [ ":" <port> ]
+  //   "." <hostname_suffix_pattern> [ ":" <port> ]
+  //   [ <scheme> "://" ] <ip_literal> [ ":" <port> ]
+  //   "<local>"
+  //
+  // Note that <ip_literal> can be either an IPv4 literal, or an IPv6 literal
+  // but if it is an IPv6 literal it MUST be surrounded by square brackets,
+  // as in "[::1]".
+  //
+  // Also note that "<local>" means to bypass all local hostnames. (See
+  // AddRuleToBypassLocal() for details).
+  //
+  // Returns true if the rule was successfully added.
+  //
+  // TODO(eroman): support IPv6 literals without brackets.
+  // TODO(eroman): support CIDR-style IP masks. (http://crbug.com/9835).
+  //
+  bool AddRuleFromString(const std::string& raw);
+
+  // Removes all the rules.
+  void Clear();
+
+ private:
+  // The following are variants of ParseFromString() and AddRuleFromString(),
+  // which additionally prefix hostname patterns with a wildcard if
+  // |use_hostname_suffix_matching| was true.
+  void ParseFromStringInternal(const std::string& raw,
+                               bool use_hostname_suffix_matching);
+  bool AddRuleFromStringInternal(const std::string& raw,
+                                 bool use_hostname_suffix_matching);
+  bool AddRuleFromStringInternalWithLogging(const std::string& raw,
+                                            bool use_hostname_suffix_matching);
+
+  RuleList rules_;
+};
+
+}  // namespace net
+
+#endif  // NET_PROXY_PROXY_BYPASS_RULES_H_
