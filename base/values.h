@@ -214,6 +214,9 @@ class DictionaryValue : public Value {
   virtual bool Equals(const Value* other) const;
 
   // Returns true if the current dictionary has a value for the given key.
+  bool HasKeyASCII(const std::string& key) const;
+  // Deprecated version of the above.  TODO: add a string16 version for Unicode.
+  // http://code.google.com/p/chromium/issues/detail?id=23581
   bool HasKey(const std::wstring& key) const;
 
   // Returns the number of Values in this dictionary.
@@ -264,6 +267,10 @@ class DictionaryValue : public Value {
   bool GetBoolean(const std::wstring& path, bool* out_value) const;
   bool GetInteger(const std::wstring& path, int* out_value) const;
   bool GetReal(const std::wstring& path, double* out_value) const;
+  bool GetString(const std::string& path, string16* out_value) const;
+  bool GetStringASCII(const std::string& path, std::string* out_value) const;
+  // TODO: deprecate wstring accessors.
+  // http://code.google.com/p/chromium/issues/detail?id=23581
   bool GetString(const std::wstring& path, std::string* out_value) const;
   bool GetString(const std::wstring& path, std::wstring* out_value) const;
   bool GetStringAsUTF16(const std::wstring& path, string16* out_value) const;
