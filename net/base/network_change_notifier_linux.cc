@@ -4,9 +4,88 @@
 
 #include "net/base/network_change_notifier_linux.h"
 
+#include <errno.h>
+#include <sys/socket.h>
+
+#include "base/basictypes.h"
+#include "base/logging.h"
+#include "base/message_loop.h"
+#include "net/base/net_errors.h"
+#include "net/base/network_change_notifier_netlink_linux.h"
+
 namespace net {
 
-NetworkChangeNotifierLinux::NetworkChangeNotifierLinux() {}
-NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {}
+namespace {
+
+const int kInvalidSocket = -1;
+
+}  // namespace
+
+NetworkChangeNotifierLinux::NetworkChangeNotifierLinux()
+    : netlink_fd_(kInvalidSocket),
+      loop_(MessageLoopForIO::current()) {
+  netlink_fd_ = InitializeNetlinkSocket();
+  if (netlink_fd_ < 0) {
+    netlink_fd_ = kInvalidSocket;
+    return;
+  }
+
+  ListenForNotifications();
+}
+
+NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {
+  if (netlink_fd_ != kInvalidSocket) {
+    if (close(netlink_fd_) != 0)
+      PLOG(ERROR) << "Failed to close socket";
+    netlink_fd_ = kInvalidSocket;
+    netlink_watcher_.StopWatchingFileDescriptor();
+  }
+}
+
+void NetworkChangeNotifierLinux::OnFileCanReadWithoutBlocking(int fd) {
+  DCHECK_EQ(fd, netlink_fd_);
+
+  ListenForNotifications();
+}
+
+void NetworkChangeNotifierLinux::OnFileCanWriteWithoutBlocking(int /* fd */) {
+  NOTREACHED();
+}
+
+void NetworkChangeNotifierLinux::ListenForNotifications() {
+  char buf[4096];
+  int rv = ReadNotificationMessage(buf, arraysize(buf));
+  while (rv > 0 ) {
+    if (HandleNetlinkMessage(buf, rv))
+      helper_.OnIPAddressChanged();
+    rv = ReadNotificationMessage(buf, arraysize(buf));
+  }
+
+  if (rv == ERR_IO_PENDING) {
+    rv = loop_->WatchFileDescriptor(
+        netlink_fd_, false, MessageLoopForIO::WATCH_READ, &netlink_watcher_,
+        this);
+    LOG_IF(ERROR, !rv) << "Failed to watch netlink socket: " << netlink_fd_;
+  }
+}
+
+int NetworkChangeNotifierLinux::ReadNotificationMessage(char* buf, size_t len) {
+  DCHECK_NE(len, 0u);
+  DCHECK(buf);
+
+  memset(buf, 0, sizeof(buf));
+  int rv = recv(netlink_fd_, buf, len, 0);
+  if (rv > 0) {
+    return rv;
+  } else {
+    DCHECK_NE(rv, 0);
+    if (errno != EAGAIN && errno != EWOULDBLOCK) {
+      PLOG(DFATAL) << "recv";
+      return ERR_FAILED;
+    }
+
+    return ERR_IO_PENDING;
+  }
+}
 
 }  // namespace net
