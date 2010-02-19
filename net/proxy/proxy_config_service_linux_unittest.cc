@@ -367,7 +367,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     GURL pac_url;
     ProxyConfig::ProxyRules proxy_rules;
     const char* proxy_bypass_list;  // newline separated
-    bool bypass_local_names;
   } tests[] = {
     {
       TEST_DESC("No proxying"),
@@ -385,7 +384,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL(),                     // pac_url
       ProxyConfig::ProxyRules(),  // proxy_rules
       "",                         // proxy_bypass_list
-      false,                      // bypass_local_names
     },
 
     {
@@ -404,7 +402,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL(),                     // pac_url
       ProxyConfig::ProxyRules(),  // proxy_rules
       "",                         // proxy_bypass_list
-      false,                      // bypass_local_names
     },
 
     {
@@ -423,7 +420,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL("http://wpad/wpad.dat"),  // pac_url
       ProxyConfig::ProxyRules(),     // proxy_rules
       "",                            // proxy_bypass_list
-      false,                         // bypass_local_names
     },
 
     {
@@ -442,7 +438,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL(),                        // pac_url
       ProxyConfig::ProxyRules(),     // proxy_rules
       "",                            // proxy_bypass_list
-      false,                         // bypass_local_names
     },
 
     {
@@ -461,7 +456,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL(),                                  // pac_url
       MakeSingleProxyRules("www.google.com"),  // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -480,7 +474,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL(),                                  // pac_url
       ProxyConfig::ProxyRules(),               // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -500,7 +493,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       MakeProxyPerSchemeRules("www.google.com",       // proxy_rules
                               "", ""),
       "",                                             // proxy_bypass_list
-      false,                                          // bypass_local_names
     },
 
     {
@@ -519,7 +511,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL(),                                         // pac_url
       MakeSingleProxyRules("www.google.com:88"),      // proxy_rules
       "",                                             // proxy_bypass_list
-      false,                                          // bypass_local_names
     },
 
     {
@@ -543,7 +534,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
                               "www.foo.com:110",
                               "ftp.foo.com:121"),
       "",                                             // proxy_bypass_list
-      false,                                          // bypass_local_names
     },
 
     {
@@ -562,7 +552,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL(),                                         // pac_url
       MakeSingleProxyRules("socks4://socks.com:99"),  // proxy_rules
       "",                                             // proxy_bypass_list
-      false,                                          // bypass_local_names
     },
 
     {
@@ -580,7 +569,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       GURL(),                                         // pac_url
       MakeSingleProxyRules("www.google.com"),         // proxy_rules
       "*.google.com\n",                               // proxy_bypass_list
-      false,                                          // bypass_local_names
     },
   };
 
@@ -600,8 +588,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     EXPECT_EQ(tests[i].auto_detect, config.auto_detect);
     EXPECT_EQ(tests[i].pac_url, config.pac_url);
     EXPECT_EQ(tests[i].proxy_bypass_list,
-              FlattenProxyBypass(config.proxy_bypass));
-    EXPECT_EQ(tests[i].bypass_local_names, config.proxy_bypass_local_names);
+              FlattenProxyBypass(config.bypass_rules));
     EXPECT_EQ(tests[i].proxy_rules, config.proxy_rules);
   }
 }
@@ -620,7 +607,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     GURL pac_url;
     ProxyConfig::ProxyRules proxy_rules;
     const char* proxy_bypass_list;  // newline separated
-    bool bypass_local_names;
   } tests[] = {
     {
       TEST_DESC("No proxying"),
@@ -639,7 +625,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                     // pac_url
       ProxyConfig::ProxyRules(),  // proxy_rules
       "",                         // proxy_bypass_list
-      false,                      // bypass_local_names
     },
 
     {
@@ -659,7 +644,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                     // pac_url
       ProxyConfig::ProxyRules(),  // proxy_rules
       "",                         // proxy_bypass_list
-      false,                      // bypass_local_names
     },
 
     {
@@ -679,7 +663,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL("http://wpad/wpad.dat"),  // pac_url
       ProxyConfig::ProxyRules(),     // proxy_rules
       "",                            // proxy_bypass_list
-      false,                         // bypass_local_names
     },
 
     {
@@ -699,7 +682,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                     // pac_url
       ProxyConfig::ProxyRules(),  // proxy_rules
       "",                         // proxy_bypass_list
-      false,                      // bypass_local_names
     },
 
     {
@@ -719,7 +701,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                                  // pac_url
       MakeSingleProxyRules("www.google.com"),  // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -739,7 +720,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                                  // pac_url
       MakeSingleProxyRules("www.google.com:99"),  // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -759,7 +739,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                                  // pac_url
       MakeSingleProxyRules("www.google.com:99"),  // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -780,7 +759,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       MakeProxyPerSchemeRules("www.google.com", "www.foo.com:110",
                               "ftp.foo.com:121"),
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -800,7 +778,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                                  // pac_url
       MakeSingleProxyRules("socks4://socks.com:888"),  // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -820,7 +797,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                                  // pac_url
       MakeSingleProxyRules("socks5://socks.com:888"),  // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -840,7 +816,6 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                                  // pac_url
       MakeSingleProxyRules("socks4://socks.com"),  // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -859,8 +834,8 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                     // pac_url
       MakeSingleProxyRules("www.google.com"),  // proxy_rules
       // proxy_bypass_list
-      "*.google.com\n*foo.com:99\n1.2.3.4:22\n127.0.0.1/8\n",
-      false,                        // bypass_local_names
+      // TODO(eroman): 127.0.0.1/8 is unsupported, so it was dropped
+      "*.google.com\n*foo.com:99\n1.2.3.4:22\n",
     },
   };
 
@@ -880,8 +855,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     EXPECT_EQ(tests[i].auto_detect, config.auto_detect);
     EXPECT_EQ(tests[i].pac_url, config.pac_url);
     EXPECT_EQ(tests[i].proxy_bypass_list,
-              FlattenProxyBypass(config.proxy_bypass));
-    EXPECT_EQ(tests[i].bypass_local_names, config.proxy_bypass_local_names);
+              FlattenProxyBypass(config.bypass_rules));
     EXPECT_EQ(tests[i].proxy_rules, config.proxy_rules);
   }
 }
@@ -930,7 +904,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     GURL pac_url;
     ProxyConfig::ProxyRules proxy_rules;
     const char* proxy_bypass_list;  // newline separated
-    bool bypass_local_names;
   } tests[] = {
     {
       TEST_DESC("No proxying"),
@@ -943,7 +916,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       GURL(),                     // pac_url
       ProxyConfig::ProxyRules(),  // proxy_rules
       "",                         // proxy_bypass_list
-      false,                      // bypass_local_names
     },
 
     {
@@ -957,7 +929,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       GURL(),                     // pac_url
       ProxyConfig::ProxyRules(),  // proxy_rules
       "",                         // proxy_bypass_list
-      false,                      // bypass_local_names
     },
 
     {
@@ -972,7 +943,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       GURL("http://wpad/wpad.dat"),  // pac_url
       ProxyConfig::ProxyRules(),     // proxy_rules
       "",                            // proxy_bypass_list
-      false,                         // bypass_local_names
     },
 
     {
@@ -989,7 +959,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
                               "www.foo.com",
                               "ftp.foo.com"),  // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1005,7 +974,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", ""),         // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1021,7 +989,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com:88",
                               "", ""),         // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1036,7 +1003,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", ""),         // proxy_rules
       "*.google.com\n",                        // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1051,7 +1017,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", ""),         // proxy_rules
       "*.google.com\n*.kde.org\n",             // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1066,7 +1031,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", ""),         // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1081,7 +1045,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", ""),         // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1096,7 +1059,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", ""),         // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1110,7 +1072,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", ""),         // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1124,7 +1085,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", ""),         // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1138,7 +1098,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", ""),         // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1153,7 +1112,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", "ftp.foo.com"),  // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1167,7 +1125,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       GURL("http:// foo"),                     // pac_url
       ProxyConfig::ProxyRules(),               // proxy_rules
       "",                                      // proxy_bypass_list
-      false,                                   // bypass_local_names
     },
 
     {
@@ -1182,7 +1139,6 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       MakeProxyPerSchemeRules("www.google.com",
                               "", "ftp.foo.com"),  // proxy_rules
       "",                                          // proxy_bypass_list
-      false,                                       // bypass_local_names
     },
   };
 
@@ -1206,8 +1162,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     EXPECT_EQ(tests[i].auto_detect, config.auto_detect);
     EXPECT_EQ(tests[i].pac_url, config.pac_url);
     EXPECT_EQ(tests[i].proxy_bypass_list,
-              FlattenProxyBypass(config.proxy_bypass));
-    EXPECT_EQ(tests[i].bypass_local_names, config.proxy_bypass_local_names);
+              FlattenProxyBypass(config.bypass_rules));
     EXPECT_EQ(tests[i].proxy_rules, config.proxy_rules);
   }
 }

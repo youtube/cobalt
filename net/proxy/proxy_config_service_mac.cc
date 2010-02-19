@@ -140,7 +140,7 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
                         " to be a CFStringRef but it was not";
 
       } else {
-        config->proxy_bypass.push_back(
+        config->bypass_rules.AddRuleFromString(
             base::SysCFStringRefToUTF8(bypass_item_ref));
       }
     }
@@ -148,10 +148,11 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
 
   // proxy bypass boolean
 
-  config->proxy_bypass_local_names =
-      GetBoolFromDictionary(config_dict.get(),
+  if (GetBoolFromDictionary(config_dict.get(),
                             kSCPropNetProxiesExcludeSimpleHostnames,
-                            false);
+                            false)) {
+    config->bypass_rules.AddRuleToBypassLocal();
+  }
 
   return OK;
 }

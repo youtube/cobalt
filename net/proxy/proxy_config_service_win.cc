@@ -55,10 +55,7 @@ void ProxyConfigServiceWin::SetFromIEConfig(
     StringTokenizer proxy_server_bypass_list(proxy_bypass, "; \t\n\r");
     while (proxy_server_bypass_list.GetNext()) {
       std::string bypass_url_domain = proxy_server_bypass_list.token();
-      if (bypass_url_domain == "<local>")
-        config->proxy_bypass_local_names = true;
-      else
-        config->proxy_bypass.push_back(bypass_url_domain);
+      config->bypass_rules.AddRuleFromString(bypass_url_domain);
     }
   }
   if (ie_config.lpszAutoConfigUrl)
