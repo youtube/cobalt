@@ -11,6 +11,8 @@
 //   200-299 Certificate errors
 //   300-399 HTTP errors
 //   400-499 Cache errors
+//   500-599 ?
+//   600-699 FTP errors
 //
 
 // An asynchronous IO operation is not yet complete.  This usually does not
@@ -337,3 +339,6 @@ NET_ERROR(CACHE_RACE, -406)
 
 // The server's response was insecure (e.g. there was a cert error).
 NET_ERROR(INSECURE_RESPONSE, -501)
+//
+// The FTP PASV command failed.
+NET_ERROR(FTP_PASV_COMMAND_FAILED, -600)
