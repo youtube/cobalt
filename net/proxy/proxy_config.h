@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "googleurl/src/gurl.h"
+#include "net/proxy/proxy_bypass_rules.h"
 #include "net/proxy/proxy_server.h"
 
 namespace net {
@@ -104,20 +105,7 @@ class ProxyConfig {
   };
 
   ProxyRules proxy_rules;
-
-  // Parses entries from a comma-separated list of hosts for which proxy
-  // configurations should be bypassed. Clears proxy_bypass and sets it to the
-  // resulting list.
-  void ParseNoProxyList(const std::string& no_proxy);
-
-  // Indicates a list of hosts that should bypass any proxy configuration.  For
-  // these hosts, a direct connection should always be used.
-  // The form <host>:<port> is also supported, meaning that only
-  // connections on the specified port should be direct.
-  std::vector<std::string> proxy_bypass;
-
-  // Indicates whether local names (no dots) bypass proxies.
-  bool proxy_bypass_local_names;
+  ProxyBypassRules bypass_rules;
 
   // Returns true if the given config is equivalent to this config.
   bool Equals(const ProxyConfig& other) const;

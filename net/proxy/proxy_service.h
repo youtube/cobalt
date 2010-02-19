@@ -178,7 +178,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
  private:
   friend class base::RefCountedThreadSafe<ProxyService>;
-  FRIEND_TEST(ProxyServiceTest, IsLocalName);
   FRIEND_TEST(ProxyServiceTest, UpdateConfigAfterFailedAutodetect);
   FRIEND_TEST(ProxyServiceTest, UpdateConfigFromPACToDirect);
   friend class PacRequest;
@@ -252,15 +251,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   int DidFinishResolvingProxy(ProxyInfo* result,
                               int result_code,
                               LoadLog* load_log);
-
-  // Returns true if the URL passed in should not go through the proxy server.
-  // 1. If the proxy settings say to bypass local names, and |IsLocalName(url)|.
-  // 2. The URL matches one of the entities in the proxy bypass list.
-  bool ShouldBypassProxyForURL(const GURL& url);
-
-  // Returns true if |url| is to an intranet site (using non-FQDN as the
-  // heuristic).
-  static bool IsLocalName(const GURL& url);
 
   // NetworkChangeNotifier::Observer methods:
   virtual void OnIPAddressChanged();
