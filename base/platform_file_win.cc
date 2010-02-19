@@ -75,4 +75,12 @@ bool ClosePlatformFile(PlatformFile file) {
   return (CloseHandle(file) == 0);
 }
 
+bool GetPlatformFileSize(PlatformFile file, uint64* out_size) {
+  LARGE_INTEGER size;
+  if (!GetFileSizeEx(file, &size))
+    return false;
+  *out_size = size.QuadPart;
+  return true;
+}
+
 }  // namespace disk_cache
