@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.  Use of this
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.  Use of this
 // source code is governed by a BSD-style license that can be found in the
 // LICENSE file.
 
@@ -503,6 +503,9 @@ int FtpNetworkTransaction::DoCtrlResolveHost() {
   port = request_->url.EffectiveIntPort();
 
   HostResolver::RequestInfo info(host, port);
+  // TODO(wtc): Until we support the FTP extensions for IPv6 specified in
+  // RFC 2428, we have to turn off IPv6 in FTP.  See http://crbug.com/32945.
+  info.set_address_family(ADDRESS_FAMILY_IPV4);
   // No known referrer.
   return resolver_.Resolve(info, &addresses_, &io_callback_, load_log_);
 }
