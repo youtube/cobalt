@@ -865,9 +865,9 @@ int FtpNetworkTransaction::ProcessResponsePASV(
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_FTP_PASV_COMMAND_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
-      return Stop(ERR_FAILED);
+      return Stop(ERR_FTP_PASV_COMMAND_FAILED);
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
