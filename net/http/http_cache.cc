@@ -12,6 +12,7 @@
 #include <unistd.h>
 #endif
 
+#include "base/callback.h"
 #include "base/format_macros.h"
 #include "base/message_loop.h"
 #include "base/pickle.h"

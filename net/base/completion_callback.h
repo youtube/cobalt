@@ -5,7 +5,7 @@
 #ifndef NET_BASE_COMPLETION_CALLBACK_H__
 #define NET_BASE_COMPLETION_CALLBACK_H__
 
-#include "base/task.h"
+#include "base/callback.h"
 
 namespace net {
 
