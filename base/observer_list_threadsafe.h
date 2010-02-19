@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/observer_list.h"

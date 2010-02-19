@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "base/scoped_vector.h"

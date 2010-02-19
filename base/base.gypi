@@ -40,6 +40,7 @@
           'basictypes.h',
           'bits.h',
           'bzip2_error_handler.cc',
+          'callback.h',
           'cancellation_flag.h',
           'cancellation_flag.cc',
           'chrome_application_mac.h',
