@@ -158,6 +158,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       using_ssl_(false),
       proxy_mode_(kDirectConnection),
       establishing_tunnel_(false),
+      use_spdy_(false),
       embedded_identity_used_(false),
       read_buf_len_(0),
       next_state_(STATE_NONE) {
@@ -191,7 +192,13 @@ int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
 int HttpNetworkTransaction::RestartIgnoringLastError(
     CompletionCallback* callback) {
   if (connection_->socket()->IsConnectedAndIdle()) {
-    next_state_ = STATE_SEND_REQUEST;
+    // TODO(wtc): Should we update any of the connection histograms that we
+    // update in DoSSLConnectComplete if |result| is OK?
+    if (use_spdy_) {
+      next_state_ = STATE_SPDY_SEND_REQUEST;
+    } else {
+      next_state_ = STATE_SEND_REQUEST;
+    }
   } else {
     connection_->socket()->Disconnect();
     connection_->Reset();
@@ -326,11 +333,12 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
   State next_state = STATE_NONE;
 
   // Are we using SPDY or HTTP?
-  if (spdy_stream_.get()) {
+  if (use_spdy_) {
     DCHECK(!http_stream_.get());
     DCHECK(spdy_stream_->GetResponseInfo()->headers);
     next_state = STATE_SPDY_READ_BODY;
   } else {
+    DCHECK(!spdy_stream_.get());
     scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
     DCHECK(headers.get());
     next_state = STATE_READ_BODY;
@@ -786,19 +794,20 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
   if (result == OK || IsCertificateError(result))
     status = ssl_socket->GetNextProto(&proto);
   static const char kSpdyProto[] = "spdy";
-  const bool use_spdy = (status == SSLClientSocket::kNextProtoNegotiated &&
-                         proto == kSpdyProto);
+  use_spdy_ = (status == SSLClientSocket::kNextProtoNegotiated &&
+               proto == kSpdyProto);
 
   if (IsCertificateError(result)) {
     result = HandleCertificateError(result);
     // TODO(wtc): We currently ignore certificate errors for
     // spdy but we shouldn't. http://crbug.com/32020
-    if ((result == OK || use_spdy) &&
-        !connection_->socket()->IsConnectedAndIdle()) {
-        connection_->socket()->Disconnect();
-        connection_->Reset();
-        next_state_ = STATE_INIT_CONNECTION;
-        return OK;
+    if (use_spdy_)
+      result = OK;
+    if (result == OK && !connection_->socket()->IsConnectedAndIdle()) {
+      connection_->socket()->Disconnect();
+      connection_->Reset();
+      next_state_ = STATE_INIT_CONNECTION;
+      return result;
     }
   }
 
@@ -807,7 +816,7 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
     base::TimeDelta connect_duration =
         base::TimeTicks::Now() - ssl_connect_start_time_;
 
-    if (use_spdy) {
+    if (use_spdy_) {
       UMA_HISTOGRAM_CUSTOM_TIMES("Net.SpdyConnectionLatency",
           connect_duration,
           base::TimeDelta::FromMilliseconds(1),
