@@ -44,6 +44,7 @@ namespace {
 const int kCleanUpMargin = 1024 * 1024;
 const int kHighUse = 10;  // Reuse count to be on the HIGH_USE list.
 const int kTargetTime = 24 * 7;  // Time to be evicted (hours since last use).
+const int kMaxDelayedTrims = 60;
 
 int LowWaterAdjust(int high_water) {
   if (high_water < kCleanUpMargin)
@@ -67,17 +68,18 @@ void Eviction::Init(BackendImpl* backend) {
   first_trim_ = true;
   trimming_ = false;
   delay_trim_ = false;
+  trim_delays_ = 0;
 }
 
 void Eviction::TrimCache(bool empty) {
-  if (new_eviction_)
-    return TrimCacheV2(empty);
-
   if (backend_->disabled_ || trimming_)
     return;
 
-  if (!empty && backend_->IsLoaded())
+  if (!empty && !ShouldTrim())
     return PostDelayedTrim();
+
+  if (new_eviction_)
+    return TrimCacheV2(empty);
 
   Trace("*** Trim Cache ***");
   trimming_ = true;
@@ -111,7 +113,12 @@ void Eviction::TrimCache(bool empty) {
     }
   }
 
-  CACHE_UMA(AGE_MS, "TotalTrimTime", backend_->GetSizeGroup(), start);
+  if (empty) {
+    CACHE_UMA(AGE_MS, "TotalClearTimeV1", 0, start);
+  } else {
+    CACHE_UMA(AGE_MS, "TotalTrimTimeV1", backend_->GetSizeGroup(), start);
+  }
+
   trimming_ = false;
   Trace("*** Trim Cache end ***");
   return;
@@ -153,13 +160,26 @@ void Eviction::PostDelayedTrim() {
   if (delay_trim_)
     return;
   delay_trim_ = true;
+  trim_delays_++;
   MessageLoop::current()->PostDelayedTask(FROM_HERE,
       factory_.NewRunnableMethod(&Eviction::DelayedTrim), 1000);
 }
 
 void Eviction::DelayedTrim() {
   delay_trim_ = false;
+  if (trim_delays_ < kMaxDelayedTrims && backend_->IsLoaded())
+    return PostDelayedTrim();
+
   TrimCache(false);
+}
+
+bool Eviction::ShouldTrim() {
+  if (trim_delays_ < kMaxDelayedTrims && backend_->IsLoaded())
+    return false;
+
+  UMA_HISTOGRAM_COUNTS("DiskCache.TrimDelays", trim_delays_);
+  trim_delays_ = 0;
+  return true;
 }
 
 void Eviction::ReportTrimTimes(EntryImpl* entry) {
@@ -223,12 +243,6 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
 // -----------------------------------------------------------------------
 
 void Eviction::TrimCacheV2(bool empty) {
-  if (backend_->disabled_ || trimming_)
-    return;
-
-  if (!empty && backend_->IsLoaded())
-    return PostDelayedTrim();
-
   Trace("*** Trim Cache ***");
   trimming_ = true;
   Time start = Time::Now();
@@ -300,7 +314,12 @@ void Eviction::TrimCacheV2(bool empty) {
         factory_.NewRunnableMethod(&Eviction::TrimDeleted, empty));
   }
 
-  CACHE_UMA(AGE_MS, "TotalTrimTime", backend_->GetSizeGroup(), start);
+  if (empty) {
+    CACHE_UMA(AGE_MS, "TotalClearTimeV2", 0, start);
+  } else {
+    CACHE_UMA(AGE_MS, "TotalTrimTimeV2", backend_->GetSizeGroup(), start);
+  }
+
   Trace("*** Trim Cache end ***");
   trimming_ = false;
   return;
