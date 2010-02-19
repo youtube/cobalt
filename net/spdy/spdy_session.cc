@@ -249,6 +249,10 @@ void SpdySession::InitializeWithSocket(ClientSocketHandle* connection) {
 
   state_ = CONNECTED;
   connection_.reset(connection);
+  // InitializeWithSocket is called only when we use NPN (next protocol
+  // negotiation), which is a TLS extension, so |connection| must contain an
+  // SSLClientSocket.
+  is_secure_ = true;
 
   // This is a newly initialized session that no client should have a handle to
   // yet, so there's no need to start writing data as in OnTCPConnect(), but we
