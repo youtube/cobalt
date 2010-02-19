@@ -113,6 +113,8 @@
         'base/network_change_notifier_linux.h',
         'base/network_change_notifier_mac.cc',
         'base/network_change_notifier_mac.h',
+        'base/network_change_notifier_netlink_linux.cc',
+        'base/network_change_notifier_netlink_linux.h',
         'base/network_change_notifier_win.cc',
         'base/network_change_notifier_win.h',
         'base/nss_memio.c',
