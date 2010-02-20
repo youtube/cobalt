@@ -468,9 +468,12 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
   }
 }
 
-int TCPClientSocketLibevent::GetPeerName(struct sockaddr* name,
-                                         socklen_t* namelen) {
-  return ::getpeername(socket_, name, namelen);
+int TCPClientSocketLibevent::GetPeerAddress(AddressList* address) const {
+  DCHECK(address);
+  if (!current_ai_)
+    return ERR_UNEXPECTED;
+  address->Copy(current_ai_, false);
+  return OK;
 }
 
 }  // namespace net

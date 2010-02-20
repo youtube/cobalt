@@ -449,9 +449,8 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
   return OK;
 }
 
-int SOCKS5ClientSocket::GetPeerName(struct sockaddr* name,
-                                    socklen_t* namelen) {
-  return transport_->GetPeerName(name, namelen);
+int SOCKS5ClientSocket::GetPeerAddress(AddressList* address) const {
+  return transport_->GetPeerAddress(address);
 }
 
 }  // namespace net

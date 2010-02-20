@@ -5,10 +5,14 @@
 #include "net/socket/ssl_client_socket_mac.h"
 
 #include <CoreServices/CoreServices.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 #include "base/scoped_cftyperef.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
+#include "net/base/address_list.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_log.h"
@@ -579,8 +583,8 @@ bool SSLClientSocketMac::IsConnectedAndIdle() const {
   return completed_handshake_ && transport_->IsConnectedAndIdle();
 }
 
-int SSLClientSocketMac::GetPeerName(struct sockaddr* name, socklen_t* namelen) {
-  return transport_->GetPeerName(name, namelen);
+int SSLClientSocketMac::GetPeerAddress(AddressList* address) const {
+  return transport_->GetPeerAddress(address);
 }
 
 int SSLClientSocketMac::Read(IOBuffer* buf, int buf_len,
@@ -745,22 +749,20 @@ int SSLClientSocketMac::InitializeSSLContext() {
     // using the same hostname (i.e., localhost and 127.0.0.1 are considered
     // different peers, which puts us through certificate validation again
     // and catches hostname/certificate name mismatches.
-    struct sockaddr_storage addr;
-    socklen_t addr_length = sizeof(struct sockaddr_storage);
-    memset(&addr, 0, sizeof(addr));
-    if (!transport_->GetPeerName(reinterpret_cast<struct sockaddr*>(&addr),
-                                 &addr_length)) {
-      // Assemble the socket hostname and address into a single buffer.
-      std::vector<char> peer_id(hostname_.begin(), hostname_.end());
-      peer_id.insert(peer_id.end(), reinterpret_cast<char*>(&addr),
-                     reinterpret_cast<char*>(&addr) + addr_length);
+    AddressList address;
+    int rv = transport_->GetPeerAddress(&address);
+    if (rv != OK)
+      return rv;
+    const struct addrinfo* ai = address.head();
+    std::string peer_id(hostname_);
+    peer_id += std::string(reinterpret_cast<char*>(ai->ai_addr),
+                           ai->ai_addrlen);
 
-      // SSLSetPeerID() treats peer_id as a binary blob, and makes its
-      // own copy.
-      status = SSLSetPeerID(ssl_context_, &peer_id[0], peer_id.size());
-      if (status)
-        return NetErrorFromOSStatus(status);
-    }
+    // SSLSetPeerID() treats peer_id as a binary blob, and makes its
+    // own copy.
+    status = SSLSetPeerID(ssl_context_, peer_id.data(), peer_id.length());
+    if (status)
+      return NetErrorFromOSStatus(status);
   } else {
     // If I can't break on cert-requested, then set the cert up-front:
     status = SetClientCert();

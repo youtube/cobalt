@@ -566,8 +566,8 @@ bool SSLClientSocketWin::IsConnectedAndIdle() const {
   return completed_handshake() && transport_->IsConnectedAndIdle();
 }
 
-int SSLClientSocketWin::GetPeerName(struct sockaddr* name, socklen_t* namelen) {
-  return transport_->GetPeerName(name, namelen);
+int SSLClientSocketWin::GetPeerAddress(AddressList* address) const {
+  return transport_->GetPeerAddress(address);
 }
 
 int SSLClientSocketWin::Read(IOBuffer* buf, int buf_len,
