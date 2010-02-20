@@ -492,11 +492,11 @@ void FFmpegDemuxer::DemuxTask() {
   DCHECK_LT(packet->stream_index, static_cast<int>(packet_streams_.size()));
   FFmpegDemuxerStream* demuxer_stream = packet_streams_[packet->stream_index];
   if (demuxer_stream) {
-    using switches::kEnableH264AnnexbFilter;
+    using switches::kEnableOpenMax;
     AVCodecContext* stream_context =
         format_context_->streams[packet->stream_index]->codec;
     if (stream_context->codec_id == CODEC_ID_H264 &&
-        CommandLine::ForCurrentProcess()->HasSwitch(kEnableH264AnnexbFilter)) {
+        CommandLine::ForCurrentProcess()->HasSwitch(kEnableOpenMax)) {
       // TODO(ajwong): Unittest this branch of the if statement.
       // Also, move this code into the FFmpegDemuxerStream, so that the decoder
       // can enable a filter in the stream as needed.
