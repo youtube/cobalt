@@ -15,7 +15,6 @@ namespace switches {
 extern const char kAlsaDevice[];
 #endif
 
-extern const char kEnableH264AnnexbFilter[];
 extern const char kEnableOpenMax[];
 
 }  // namespace switches
