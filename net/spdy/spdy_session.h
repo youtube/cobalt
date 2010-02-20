@@ -108,8 +108,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   virtual ~SpdySession();
 
-  // Used by SpdySessionPool to initialize with a pre-existing socket.
-  void InitializeWithSocket(ClientSocketHandle* connection);
+  // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
+  void InitializeWithSSLSocket(ClientSocketHandle* connection);
 
   // SpdyFramerVisitorInterface
   virtual void OnError(spdy::SpdyFramer*);
