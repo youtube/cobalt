@@ -9,6 +9,8 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
+#include "net/base/address_family.h"
+#include "net/base/host_resolver_proc.h"
 #include "net/base/ssl_info.h"
 #include "net/socket/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -47,9 +49,9 @@ bool MockClientSocket::IsConnectedAndIdle() const {
   return connected_;
 }
 
-int MockClientSocket::GetPeerName(struct sockaddr* name, socklen_t* namelen) {
-  memset(reinterpret_cast<char *>(name), 0, *namelen);
-  return net::OK;
+int MockClientSocket::GetPeerAddress(AddressList* address) const {
+  return net::SystemHostResolverProc("localhost", ADDRESS_FAMILY_UNSPECIFIED,
+                                     address);
 }
 
 void MockClientSocket::RunCallbackAsync(net::CompletionCallback* callback,
@@ -370,12 +372,14 @@ void MockClientSocketFactory::ResetNextMockIndexes() {
 }
 
 MockTCPClientSocket* MockClientSocketFactory::GetMockTCPClientSocket(
-    int index) const {
+    size_t index) const {
+  DCHECK_LT(index, tcp_client_sockets_.size());
   return tcp_client_sockets_[index];
 }
 
 MockSSLClientSocket* MockClientSocketFactory::GetMockSSLClientSocket(
-    int index) const {
+    size_t index) const {
+  DCHECK_LT(index, ssl_client_sockets_.size());
   return ssl_client_sockets_[index];
 }
 

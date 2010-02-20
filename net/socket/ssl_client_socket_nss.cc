@@ -64,12 +64,14 @@
 #include "base/nss_util.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
+#include "net/base/address_list.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/ocsp/nss_ocsp.h"
 
 static const int kRecvBufferSize = 4096;
@@ -313,15 +315,12 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   }
 
   // Tell NSS who we're connected to
-  PRNetAddr peername;
-  socklen_t len = sizeof(PRNetAddr);
-  int err = transport_->GetPeerName((struct sockaddr *)&peername, &len);
-  if (err) {
-    DLOG(ERROR) << "GetPeerName failed";
-    // TODO(wtc): Change GetPeerName to return a network error code.
-    return ERR_UNEXPECTED;
-  }
-  memio_SetPeerName(nss_fd_, &peername);
+  AddressList peer_address;
+  int err = transport_->GetPeerAddress(&peer_address);
+  if (err != OK)
+    return err;
+  const struct addrinfo* ai = peer_address.head();
+  memio_SetPeerName(nss_fd_, ai->ai_addr, ai->ai_addrlen);
 
   // Grab pointer to buffers
   nss_bufs_ = memio_GetSecret(nss_fd_);
@@ -429,9 +428,10 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   // Set the peer ID for session reuse.  This is necessary when we create an
   // SSL tunnel through a proxy -- GetPeerName returns the proxy's address
   // rather than the destination server's address in that case.
-  // TODO(wtc): port in peername is not the server's port when a proxy is used.
+  // TODO(wtc): port in |peer_address| is not the server's port when a proxy is
+  // used.
   std::string peer_id = StringPrintf("%s:%d", hostname_.c_str(),
-                                     PR_ntohs(PR_NetAddrInetPort(&peername)));
+                                     peer_address.GetPort());
   rv = SSL_SetSockPeerID(nss_fd_, const_cast<char*>(peer_id.c_str()));
   if (rv != SECSuccess)
     LOG(INFO) << "SSL_SetSockPeerID failed: peer_id=" << peer_id;
@@ -515,8 +515,8 @@ bool SSLClientSocketNSS::IsConnectedAndIdle() const {
   return ret;
 }
 
-int SSLClientSocketNSS::GetPeerName(struct sockaddr* name, socklen_t* namelen) {
-  return transport_->GetPeerName(name, namelen);
+int SSLClientSocketNSS::GetPeerAddress(AddressList* address) const {
+  return transport_->GetPeerAddress(address);
 }
 
 int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
