@@ -1136,7 +1136,10 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
   if (spdy_pool->HasSession(req_info)) {
     spdy_session = spdy_pool->Get(req_info, session_);
   } else {
-    spdy_session = spdy_pool->GetSpdySessionFromSocket(
+    // SPDY is negotiated using the TLS next protocol negotiation (NPN)
+    // extension, so |connection_| must contain an SSLClientSocket.
+    DCHECK(using_ssl_);
+    spdy_session = spdy_pool->GetSpdySessionFromSSLSocket(
         req_info, session_, connection_.release());
   }
 

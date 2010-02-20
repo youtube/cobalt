@@ -41,7 +41,7 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
   return spdy_session;
 }
 
-scoped_refptr<SpdySession> SpdySessionPool::GetSpdySessionFromSocket(
+scoped_refptr<SpdySession> SpdySessionPool::GetSpdySessionFromSSLSocket(
     const HostResolver::RequestInfo& info,
     HttpNetworkSession* session,
     ClientSocketHandle* connection) {
@@ -51,7 +51,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetSpdySessionFromSocket(
     list = AddSessionList(domain);
   DCHECK(list->empty());
   scoped_refptr<SpdySession> spdy_session(new SpdySession(domain, session));
-  spdy_session->InitializeWithSocket(connection);
+  spdy_session->InitializeWithSSLSocket(connection);
   list->push_back(spdy_session);
   return spdy_session;
 }
