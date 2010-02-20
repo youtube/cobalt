@@ -30,11 +30,11 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   scoped_refptr<SpdySession> Get(
       const HostResolver::RequestInfo& info, HttpNetworkSession* session);
 
-  // Builds a SpdySession from an existing socket.  Users should try calling
-  // Get() first to use an existing SpdySession so we don't get multiple
-  // SpdySessions per domain.  Note that ownership of |connection| is
+  // Builds a SpdySession from an existing SSL socket.  Users should try
+  // calling Get() first to use an existing SpdySession so we don't get
+  // multiple SpdySessions per domain.  Note that ownership of |connection| is
   // transferred from the caller to the SpdySession.
-  scoped_refptr<SpdySession> GetSpdySessionFromSocket(
+  scoped_refptr<SpdySession> GetSpdySessionFromSSLSocket(
       const HostResolver::RequestInfo& info,
       HttpNetworkSession* session,
       ClientSocketHandle* connection);
