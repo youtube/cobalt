@@ -33,7 +33,7 @@ class TCPClientSocketLibevent : public ClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerName(struct sockaddr* name, socklen_t* namelen);
+  virtual int GetPeerAddress(AddressList* address) const;
 
   // Socket methods:
   // Multiple outstanding requests are not supported.

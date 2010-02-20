@@ -67,7 +67,7 @@ class MockHostResolverWithMultipleResults : public HostResolver {
 
     // Make a copy of the concatenated list.
     AddressList concatenated;
-    concatenated.Copy(result.head());
+    concatenated.Copy(result.head(), true);
 
     // Restore |result| (so it is freed properly).
     result_head->ai_next = NULL;

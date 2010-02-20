@@ -245,11 +245,11 @@ class MockClientSocketFactory : public ClientSocketFactory {
 
   // Return |index|-th MockTCPClientSocket (starting from 0) that the factory
   // created.
-  MockTCPClientSocket* GetMockTCPClientSocket(int index) const;
+  MockTCPClientSocket* GetMockTCPClientSocket(size_t index) const;
 
   // Return |index|-th MockSSLClientSocket (starting from 0) that the factory
   // created.
-  MockSSLClientSocket* GetMockSSLClientSocket(int index) const;
+  MockSSLClientSocket* GetMockSSLClientSocket(size_t index) const;
 
   // ClientSocketFactory
   virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses);
@@ -276,7 +276,7 @@ class MockClientSocket : public net::SSLClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerName(struct sockaddr* name, socklen_t* namelen);
+  virtual int GetPeerAddress(AddressList* address) const;
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);

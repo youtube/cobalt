@@ -23,8 +23,14 @@ class AddressList {
   // object.
   void Adopt(struct addrinfo* head);
 
-  // Copies the given addrinfo rather than adopting it.
-  void Copy(const struct addrinfo* head);
+  // Copies the given addrinfo rather than adopting it. If |recursive| is true,
+  // all linked struct addrinfos will be copied as well. Otherwise only the head
+  // will be copied, and the rest of linked entries will be ignored.
+  void Copy(const struct addrinfo* head, bool recursive);
+
+  // Appends a copy of |head| and all its linked addrinfos to the stored
+  // addrinfo.
+  void Append(const struct addrinfo* head);
 
   // Sets the port of all addresses in the list to |port| (that is the
   // sin[6]_port field for the sockaddrs).

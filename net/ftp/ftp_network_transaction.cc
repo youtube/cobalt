@@ -1104,14 +1104,14 @@ int FtpNetworkTransaction::ProcessResponseQUIT(
 
 int FtpNetworkTransaction::DoDataConnect() {
   next_state_ = STATE_DATA_CONNECT_COMPLETE;
-  AddressList data_addresses;
-  // TODO(phajdan.jr): Use exactly same IP address as the control socket.
-  // If the DNS name resolves to several different IPs, and they are different
-  // physical servers, this will break. However, that configuration is very rare
-  // in practice.
-  data_addresses.Copy(addresses_.head());
-  data_addresses.SetPort(data_connection_port_);
-  data_socket_.reset(socket_factory_->CreateTCPClientSocket(data_addresses));
+  AddressList data_address;
+  // Connect to the same host as the control socket to prevent PASV port
+  // scanning attacks.
+  int rv = ctrl_socket_->GetPeerAddress(&data_address);
+  if (rv != OK)
+    return Stop(rv);
+  data_address.SetPort(data_connection_port_);
+  data_socket_.reset(socket_factory_->CreateTCPClientSocket(data_address));
   return data_socket_->Connect(&io_callback_, load_log_);
 }
 

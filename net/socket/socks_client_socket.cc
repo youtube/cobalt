@@ -398,9 +398,8 @@ int SOCKSClientSocket::DoHandshakeReadComplete(int result) {
   // Note: we ignore the last 6 bytes as specified by the SOCKS protocol
 }
 
-int SOCKSClientSocket::GetPeerName(struct sockaddr* name,
-                                   socklen_t* namelen) {
-  return transport_->GetPeerName(name, namelen);
+int SOCKSClientSocket::GetPeerAddress(AddressList* address) const {
+  return transport_->GetPeerAddress(address);
 }
 
 }  // namespace net
