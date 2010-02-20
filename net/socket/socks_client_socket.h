@@ -52,7 +52,7 @@ class SOCKSClientSocket : public ClientSocket {
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
-  virtual int GetPeerName(struct sockaddr* name, socklen_t* namelen);
+  virtual int GetPeerAddress(AddressList* address) const;
 
  private:
   FRIEND_TEST(SOCKSClientSocketTest, CompleteHandshake);

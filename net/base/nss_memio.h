@@ -6,11 +6,15 @@
 #ifndef __MEMIO_H
 #define __MEMIO_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include "prio.h"
+
+struct sockaddr;
 
 /* Opaque structure.  Really just a more typesafe alias for PRFilePrivate. */
 struct memio_Private;
@@ -38,7 +42,8 @@ typedef struct memio_Private memio_Private;
 PRFileDesc *memio_CreateIOLayer(int bufsize);
 
 /* Must call before trying to make an ssl connection */
-void memio_SetPeerName(PRFileDesc *fd, const PRNetAddr *peername);
+void memio_SetPeerName(PRFileDesc *fd, const struct sockaddr *peername,
+                       size_t peername_len);
 
 /* Return a private pointer needed by the following
  * four functions.  (We could have passed a PRFileDesc to

@@ -5,6 +5,8 @@
 #ifndef NET_SOCKET_TCP_CLIENT_SOCKET_WIN_H_
 #define NET_SOCKET_TCP_CLIENT_SOCKET_WIN_H_
 
+#include <winsock2.h>
+
 #include "base/object_watcher.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
@@ -28,7 +30,7 @@ class TCPClientSocketWin : public ClientSocket {
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
-  virtual int GetPeerName(struct sockaddr* name, socklen_t* namelen);
+  virtual int GetPeerAddress(AddressList* address) const;
 
   // Socket methods:
   // Multiple outstanding requests are not supported.

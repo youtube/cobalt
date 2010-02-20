@@ -610,14 +610,14 @@ class FtpNetworkTransactionTest : public PlatformTest {
     ASSERT_EQ(ERR_IO_PENDING,
               transaction_.Start(&request_info, &callback_, NULL));
     EXPECT_NE(LOAD_STATE_IDLE, transaction_.GetLoadState());
-    EXPECT_EQ(expected_result, callback_.WaitForResult());
+    ASSERT_EQ(expected_result, callback_.WaitForResult());
     EXPECT_EQ(FtpSocketDataProvider::QUIT, ctrl_socket->state());
     if (expected_result == OK) {
       scoped_refptr<IOBuffer> io_buffer(new IOBuffer(kBufferSize));
       memset(io_buffer->data(), 0, kBufferSize);
       ASSERT_EQ(ERR_IO_PENDING,
                 transaction_.Read(io_buffer.get(), kBufferSize, &callback_));
-      EXPECT_EQ(static_cast<int>(mock_data.length()),
+      ASSERT_EQ(static_cast<int>(mock_data.length()),
                 callback_.WaitForResult());
       EXPECT_EQ(mock_data, std::string(io_buffer->data(), mock_data.length()));
       if (transaction_.GetResponseInfo()->is_directory_listing) {
@@ -653,7 +653,7 @@ TEST_F(FtpNetworkTransactionTest, FailedLookup) {
   EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
   ASSERT_EQ(ERR_IO_PENDING,
             transaction_.Start(&request_info, &callback_, NULL));
-  EXPECT_EQ(ERR_NAME_NOT_RESOLVED, callback_.WaitForResult());
+  ASSERT_EQ(ERR_NAME_NOT_RESOLVED, callback_.WaitForResult());
   EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
 }
 
@@ -748,7 +748,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionAcceptedDataConnection) {
   // Start the transaction.
   ASSERT_EQ(ERR_IO_PENDING,
             transaction_.Start(&request_info, &callback_, NULL));
-  EXPECT_EQ(OK, callback_.WaitForResult());
+  ASSERT_EQ(OK, callback_.WaitForResult());
 
   // The transaction fires the callback when we can start reading data.
   EXPECT_EQ(FtpSocketDataProvider::PRE_QUIT, ctrl_socket.state());
@@ -758,7 +758,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionAcceptedDataConnection) {
   ASSERT_EQ(ERR_IO_PENDING,
             transaction_.Read(io_buffer.get(), kBufferSize, &callback_));
   EXPECT_EQ(LOAD_STATE_READING_RESPONSE, transaction_.GetLoadState());
-  EXPECT_EQ(static_cast<int>(mock_data.length()),
+  ASSERT_EQ(static_cast<int>(mock_data.length()),
             callback_.WaitForResult());
   EXPECT_EQ(LOAD_STATE_READING_RESPONSE, transaction_.GetLoadState());
   EXPECT_EQ(mock_data, std::string(io_buffer->data(), mock_data.length()));
@@ -775,7 +775,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionAcceptedDataConnection) {
 
   // Make sure the transaction finishes cleanly.
   EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
-  EXPECT_EQ(OK, callback_.WaitForResult());
+  ASSERT_EQ(OK, callback_.WaitForResult());
   EXPECT_EQ(FtpSocketDataProvider::QUIT, ctrl_socket.state());
   EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
 }
@@ -833,7 +833,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafeHost) {
   // Start the transaction.
   ASSERT_EQ(ERR_IO_PENDING,
             transaction_.Start(&request_info, &callback_, NULL));
-  EXPECT_EQ(OK, callback_.WaitForResult());
+  ASSERT_EQ(OK, callback_.WaitForResult());
 
   // The transaction fires the callback when we can start reading data. That
   // means that the data socket should be open.
@@ -843,11 +843,13 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafeHost) {
   ASSERT_TRUE(data_socket->IsConnected());
 
   // Even if the PASV response specified some other address, we connect
-  // to the address we used for control connection.
-  EXPECT_EQ("127.0.0.1", NetAddressToString(data_socket->addresses().head()));
-
-  // Make sure we have only one host entry in the AddressList.
-  EXPECT_FALSE(data_socket->addresses().head()->ai_next);
+  // to the address we used for control connection (which could be 127.0.0.1
+  // or ::1 depending on whether we use IPv6).
+  const struct addrinfo* addrinfo = data_socket->addresses().head();
+  while (addrinfo) {
+    EXPECT_NE("1.2.3.4", NetAddressToString(addrinfo));
+    addrinfo = addrinfo->ai_next;
+  }
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilLoginBadUsername) {
@@ -881,7 +883,7 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartUser) {
 
   ASSERT_EQ(ERR_IO_PENDING,
             transaction_.Start(&request_info, &callback_, NULL));
-  EXPECT_EQ(ERR_FAILED, callback_.WaitForResult());
+  ASSERT_EQ(ERR_FAILED, callback_.WaitForResult());
 
   MockRead ctrl_reads[] = {
     MockRead("220 host TestFTPd\r\n"),
@@ -911,7 +913,7 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartPassword) {
 
   ASSERT_EQ(ERR_IO_PENDING,
             transaction_.Start(&request_info, &callback_, NULL));
-  EXPECT_EQ(ERR_FAILED, callback_.WaitForResult());
+  ASSERT_EQ(ERR_FAILED, callback_.WaitForResult());
 
   MockRead ctrl_reads[] = {
     MockRead("220 host TestFTPd\r\n"),
