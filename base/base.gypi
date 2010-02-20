@@ -178,7 +178,6 @@
           'scoped_nsautorelease_pool.mm',
           'scoped_nsdisable_screen_updates.h',
           'scoped_nsobject.h',
-          'scoped_open_process.h',
           'scoped_ptr.h',
           'scoped_temp_dir.cc',
           'scoped_temp_dir.h',
