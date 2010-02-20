@@ -333,12 +333,11 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
   State next_state = STATE_NONE;
 
   // Are we using SPDY or HTTP?
-  if (use_spdy_) {
+  if (spdy_stream_.get()) {
     DCHECK(!http_stream_.get());
     DCHECK(spdy_stream_->GetResponseInfo()->headers);
     next_state = STATE_SPDY_READ_BODY;
   } else {
-    DCHECK(!spdy_stream_.get());
     scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
     DCHECK(headers.get());
     next_state = STATE_READ_BODY;
