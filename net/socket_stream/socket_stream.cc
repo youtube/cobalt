@@ -252,7 +252,7 @@ void SocketStream::SetClientSocketFactory(
 }
 
 void SocketStream::CopyAddrInfo(struct addrinfo* head) {
-  addresses_.Copy(head);
+  addresses_.Copy(head, true);
 }
 
 int SocketStream::DidEstablishConnection() {
