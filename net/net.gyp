@@ -323,7 +323,6 @@
         'http/http_auth_handler_factory.cc',
         'http/http_auth_handler_factory.h',
         'http/http_auth_handler_negotiate.h',
-        'http/http_auth_handler_negotiate.cc',
         'http/http_auth_handler_negotiate_posix.cc',
         'http/http_auth_handler_negotiate_win.cc',
         'http/http_auth_handler_ntlm.cc',

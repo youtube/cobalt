@@ -34,9 +34,19 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                   HttpAuth::Target target,
                                   const GURL& origin,
                                   scoped_refptr<HttpAuthHandler>* handler);
+   private:
+#if defined(OS_WIN)
+    ULONG max_token_length_;
+    bool first_creation_;
+    bool is_unsupported_;
+#endif  // defined(OS_WIN)
   };
 
+#if defined(OS_WIN)
+  explicit HttpAuthHandlerNegotiate(ULONG max_token_length);
+#else
   HttpAuthHandlerNegotiate();
+#endif
 
   virtual bool NeedsIdentity();
 
