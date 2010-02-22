@@ -112,7 +112,7 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   void SetTimes(base::Time last_used, base::Time last_modified);
 
   // Generates a histogram for the time spent working on this operation.
-  void ReportIOTime(Operation op, const base::Time& start);
+  void ReportIOTime(Operation op, const base::TimeTicks& start);
 
  private:
   enum {

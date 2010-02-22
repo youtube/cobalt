@@ -38,6 +38,7 @@
 #include "net/disk_cache/trace.h"
 
 using base::Time;
+using base::TimeTicks;
 
 namespace {
 
@@ -83,7 +84,7 @@ void Eviction::TrimCache(bool empty) {
 
   Trace("*** Trim Cache ***");
   trimming_ = true;
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   Rankings::ScopedRankingsBlock node(rankings_);
   Rankings::ScopedRankingsBlock next(rankings_,
       rankings_->GetPrev(node.get(), Rankings::NO_USE));
@@ -104,7 +105,7 @@ void Eviction::TrimCache(bool empty) {
       if (!empty) {
         backend_->OnEvent(Stats::TRIM_ENTRY);
 
-        if ((Time::Now() - start).InMilliseconds() > 20) {
+        if ((TimeTicks::Now() - start).InMilliseconds() > 20) {
           MessageLoop::current()->PostTask(FROM_HERE,
               factory_.NewRunnableMethod(&Eviction::TrimCache, false));
           break;
@@ -245,7 +246,7 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
 void Eviction::TrimCacheV2(bool empty) {
   Trace("*** Trim Cache ***");
   trimming_ = true;
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
 
   const int kListsToSearch = 3;
   Rankings::ScopedRankingsBlock next[kListsToSearch];
@@ -296,7 +297,7 @@ void Eviction::TrimCacheV2(bool empty) {
         if (!EvictEntry(node.get(), empty))
           continue;
 
-        if (!empty && (Time::Now() - start).InMilliseconds() > 20) {
+        if (!empty && (TimeTicks::Now() - start).InMilliseconds() > 20) {
           MessageLoop::current()->PostTask(FROM_HERE,
               factory_.NewRunnableMethod(&Eviction::TrimCache, false));
           break;
@@ -415,7 +416,7 @@ void Eviction::TrimDeleted(bool empty) {
   if (backend_->disabled_)
     return;
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   Rankings::ScopedRankingsBlock node(rankings_);
   Rankings::ScopedRankingsBlock next(rankings_,
     rankings_->GetPrev(node.get(), Rankings::DELETED));
