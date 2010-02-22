@@ -43,6 +43,12 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
                                   HttpAuth::Target target,
                                   const GURL& origin,
                                   scoped_refptr<HttpAuthHandler>* handler);
+   private:
+#if defined(NTLM_SSPI)
+    ULONG max_token_length_;
+    bool first_creation_;
+    bool is_unsupported_;
+#endif  // defined(NTLM_SSPI)
   };
 
 #if defined(NTLM_PORTABLE)
@@ -74,7 +80,12 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
   };
 #endif
 
+#if defined(NTLM_PORTABLE)
   HttpAuthHandlerNTLM();
+#endif
+#if defined(NTLM_SSPI)
+  HttpAuthHandlerNTLM(ULONG max_token_length);
+#endif
 
   virtual bool NeedsIdentity();
 

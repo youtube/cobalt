@@ -28,7 +28,8 @@ class ProxyInfo;
 class HttpAuthSSPI {
  public:
   HttpAuthSSPI(const std::string& scheme,
-               SEC_WCHAR* security_package);
+               SEC_WCHAR* security_package,
+               ULONG max_token_length);
   ~HttpAuthSSPI();
 
   bool NeedsIdentity() const;
@@ -79,10 +80,20 @@ void SplitDomainAndUser(const std::wstring& combined,
                         std::wstring* domain,
                         std::wstring* user);
 
-// Determines the max token length for a particular SSPI package.
-// If the return value is not OK, than the value of max_token_length
-// is undefined.
-// |max_token_length| must be non-NULL.
+// Determines the maximum token length in bytes for a particular SSPI package.
+//
+// If the return value is OK, |*max_token_length| contains the maximum token
+// length in bytes.
+//
+// If the return value is ERR_INVALID_ARGUMENT, |max_token_length| is NULL.
+//
+// If the return value is ERR_UNSUPPORTED_AUTH_SCHEME, |package| is not an
+// known SSPI authentication scheme on this system. |*max_token_length| is not
+// changed.
+//
+// If the return value is ERR_UNEXPECTED, there was an unanticipated problem
+// in the underlying SSPI call. The details are logged, and |*max_token_length|
+// is not changed.
 int DetermineMaxTokenLength(const std::wstring& package,
                             ULONG* max_token_length);
 
