@@ -20,7 +20,7 @@ REWRITE_PREFIX = ['-I',
 
 def RewritePath(path, sysroot):
   """Rewrites a path by prefixing it with the sysroot if it is absolute."""
-  if os.path.isabs(path):
+  if os.path.isabs(path) and not path.startswith(sysroot):
     path = path.lstrip('/')
     return os.path.join(sysroot, path)
   else:
