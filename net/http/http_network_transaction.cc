@@ -158,7 +158,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       using_ssl_(false),
       proxy_mode_(kDirectConnection),
       establishing_tunnel_(false),
-      use_spdy_(false),
+      using_spdy_(false),
       embedded_identity_used_(false),
       read_buf_len_(0),
       next_state_(STATE_NONE) {
@@ -194,7 +194,7 @@ int HttpNetworkTransaction::RestartIgnoringLastError(
   if (connection_->socket()->IsConnectedAndIdle()) {
     // TODO(wtc): Should we update any of the connection histograms that we
     // update in DoSSLConnectComplete if |result| is OK?
-    if (use_spdy_) {
+    if (using_spdy_) {
       next_state_ = STATE_SPDY_SEND_REQUEST;
     } else {
       next_state_ = STATE_SEND_REQUEST;
@@ -333,11 +333,12 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
   State next_state = STATE_NONE;
 
   // Are we using SPDY or HTTP?
-  if (spdy_stream_.get()) {
+  if (using_spdy_) {
     DCHECK(!http_stream_.get());
     DCHECK(spdy_stream_->GetResponseInfo()->headers);
     next_state = STATE_SPDY_READ_BODY;
   } else {
+    DCHECK(!spdy_stream_.get());
     scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
     DCHECK(headers.get());
     next_state = STATE_READ_BODY;
@@ -593,7 +594,6 @@ int HttpNetworkTransaction::DoResolveProxy() {
 }
 
 int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
-
   pac_request_ = NULL;
 
   if (result != OK)
@@ -621,6 +621,7 @@ int HttpNetworkTransaction::DoInitConnection() {
   next_state_ = STATE_INIT_CONNECTION_COMPLETE;
 
   using_ssl_ = request_->url.SchemeIs("https");
+  using_spdy_ = false;
 
   if (proxy_info_.is_direct())
     proxy_mode_ = kDirectConnection;
@@ -679,8 +680,10 @@ int HttpNetworkTransaction::DoInitConnection() {
 
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
-  if (session_->spdy_session_pool()->HasSession(resolve_info))
+  if (session_->spdy_session_pool()->HasSession(resolve_info)) {
+    using_spdy_ = true;
     return OK;
+  }
 
   int rv = connection_->Init(connection_group, resolve_info, request_->priority,
                              &io_callback_, session_->tcp_socket_pool(),
@@ -696,9 +699,8 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
 
   DCHECK_EQ(OK, result);
 
-  // If we don't have an initialized connection, that means we have a spdy
-  // connection waiting for us.
-  if (!connection_->is_initialized()) {
+  if (using_spdy_) {
+    DCHECK(!connection_->is_initialized());
     next_state_ = STATE_SPDY_SEND_REQUEST;
     return OK;
   }
@@ -793,14 +795,14 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
   if (result == OK || IsCertificateError(result))
     status = ssl_socket->GetNextProto(&proto);
   static const char kSpdyProto[] = "spdy";
-  use_spdy_ = (status == SSLClientSocket::kNextProtoNegotiated &&
-               proto == kSpdyProto);
+  using_spdy_ = (status == SSLClientSocket::kNextProtoNegotiated &&
+                 proto == kSpdyProto);
 
   if (IsCertificateError(result)) {
     result = HandleCertificateError(result);
     // TODO(wtc): We currently ignore certificate errors for
     // spdy but we shouldn't. http://crbug.com/32020
-    if (use_spdy_)
+    if (using_spdy_)
       result = OK;
     if (result == OK && !connection_->socket()->IsConnectedAndIdle()) {
       connection_->socket()->Disconnect();
@@ -815,7 +817,7 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
     base::TimeDelta connect_duration =
         base::TimeTicks::Now() - ssl_connect_start_time_;
 
-    if (use_spdy_) {
+    if (using_spdy_) {
       UMA_HISTOGRAM_CUSTOM_TIMES("Net.SpdyConnectionLatency",
           connect_duration,
           base::TimeDelta::FromMilliseconds(1),
