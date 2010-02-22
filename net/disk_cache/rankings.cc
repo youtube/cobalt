@@ -11,6 +11,7 @@
 #include "net/disk_cache/histogram_macros.h"
 
 using base::Time;
+using base::TimeTicks;
 
 // This is used by crash_cache.exe to generate unit test files.
 disk_cache::RankCrashes g_rankings_crash = disk_cache::NO_CRASH;
@@ -207,7 +208,7 @@ bool Rankings::GetRanking(CacheRankingsBlock* rankings) {
   if (!rankings->address().is_initialized())
     return false;
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   if (!rankings->Load())
     return false;
 
@@ -406,7 +407,7 @@ void Rankings::Remove(CacheRankingsBlock* node, List list) {
 // but the net effect is just an assert on debug when attempting to remove the
 // entry. Otherwise we'll need reentrant transactions, which is an overkill.
 void Rankings::UpdateRank(CacheRankingsBlock* node, bool modified, List list) {
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   Remove(node, list);
   Insert(node, modified, list);
   CACHE_UMA(AGE_MS, "UpdateRank", 0, start);

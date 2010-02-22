@@ -17,6 +17,7 @@
 
 using base::Time;
 using base::TimeDelta;
+using base::TimeTicks;
 
 namespace {
 
@@ -29,7 +30,8 @@ class SyncCallback: public disk_cache::FileIOCallback {
  public:
   SyncCallback(disk_cache::EntryImpl* entry, net::IOBuffer* buffer,
                net::CompletionCallback* callback )
-      : entry_(entry), callback_(callback), buf_(buffer), start_(Time::Now()) {
+      : entry_(entry), callback_(callback), buf_(buffer),
+        start_(TimeTicks::Now()) {
     entry->AddRef();
     entry->IncrementIoCount();
   }
@@ -41,7 +43,7 @@ class SyncCallback: public disk_cache::FileIOCallback {
   disk_cache::EntryImpl* entry_;
   net::CompletionCallback* callback_;
   scoped_refptr<net::IOBuffer> buf_;
-  Time start_;
+  TimeTicks start_;
 
   DISALLOW_EVIL_CONSTRUCTORS(SyncCallback);
 };
@@ -199,7 +201,7 @@ int EntryImpl::ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
   if (buf_len < 0)
     return net::ERR_INVALID_ARGUMENT;
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
 
   if (offset + buf_len > entry_size)
     buf_len = entry_size - offset;
@@ -270,7 +272,7 @@ int EntryImpl::WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
     return net::ERR_FAILED;
   }
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
 
   // Read the size at this point (it may change inside prepare).
   int entry_size = entry_.Data()->data_size[index];
@@ -355,7 +357,7 @@ int EntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
   if (net::OK != result)
     return result;
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   result = sparse_->StartIO(SparseControl::kReadOperation, offset, buf, buf_len,
                             completion_callback);
   ReportIOTime(kSparseRead, start);
@@ -369,7 +371,7 @@ int EntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
   if (net::OK != result)
     return result;
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   result = sparse_->StartIO(SparseControl::kWriteOperation, offset, buf,
                             buf_len, completion_callback);
   ReportIOTime(kSparseWrite, start);
@@ -596,7 +598,7 @@ void EntryImpl::SetTimes(base::Time last_used, base::Time last_modified) {
   node_.set_modified();
 }
 
-void EntryImpl::ReportIOTime(Operation op, const base::Time& start) {
+void EntryImpl::ReportIOTime(Operation op, const base::TimeTicks& start) {
   int group = backend_->GetSizeGroup();
   switch (op) {
     case kRead:
