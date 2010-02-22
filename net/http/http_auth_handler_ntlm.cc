@@ -107,24 +107,4 @@ bool HttpAuthHandlerNTLM::ParseChallenge(
 #endif  // defined(NTLM_SSPI)
 }
 
-HttpAuthHandlerNTLM::Factory::Factory() {
-}
-
-HttpAuthHandlerNTLM::Factory::~Factory() {
-}
-
-int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
-    HttpAuth::ChallengeTokenizer* challenge,
-    HttpAuth::Target target,
-    const GURL& origin,
-    scoped_refptr<HttpAuthHandler>* handler) {
-  // TODO(cbentzel): Move towards model of parsing in the factory
-  //                 method and only constructing when valid.
-  scoped_refptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerNTLM());
-  if (!tmp_handler->InitFromChallenge(challenge, target, origin))
-    return ERR_INVALID_RESPONSE;
-  handler->swap(tmp_handler);
-  return OK;
-}
-
 }  // namespace net

@@ -98,10 +98,11 @@ int AcquireDefaultCredentials(const SEC_WCHAR* package, CredHandle* cred) {
 }  // anonymous namespace
 
 HttpAuthSSPI::HttpAuthSSPI(const std::string& scheme,
-                           SEC_WCHAR* security_package)
+                           SEC_WCHAR* security_package,
+                           ULONG max_token_length)
     : scheme_(scheme),
       security_package_(security_package),
-      max_token_length_(0) {
+      max_token_length_(max_token_length) {
   SecInvalidateHandle(&cred_);
   SecInvalidateHandle(&ctxt_);
 }
@@ -196,11 +197,7 @@ int HttpAuthSSPI::GenerateAuthToken(const std::wstring* username,
 int HttpAuthSSPI::OnFirstRound(const std::wstring* username,
                                const std::wstring* password) {
   DCHECK((username == NULL) == (password == NULL));
-
-  int rv = DetermineMaxTokenLength(security_package_, &max_token_length_);
-  if (rv != OK)
-    return rv;
-
+  int rv = OK;
   if (username) {
     std::wstring domain;
     std::wstring user;
@@ -335,7 +332,7 @@ int DetermineMaxTokenLength(const std::wstring& package,
     else
       return ERR_UNEXPECTED;
   }
-  *max_token_length = pkg_info->cbMaxToken;
+  int token_length = pkg_info->cbMaxToken;
   status = FreeContextBuffer(pkg_info);
   if (status != SEC_E_OK) {
     // The documentation at
@@ -347,8 +344,8 @@ int DetermineMaxTokenLength(const std::wstring& package,
                << status;
     return ERR_UNEXPECTED;
   }
+  *max_token_length = token_length;
   return OK;
 }
-
 
 }  // namespace net
