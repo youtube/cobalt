@@ -27,6 +27,7 @@
 
 using base::Time;
 using base::TimeDelta;
+using base::TimeTicks;
 
 namespace {
 
@@ -350,7 +351,7 @@ bool BackendImpl::OpenEntry(const std::string& key, Entry** entry) {
   if (disabled_)
     return false;
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   uint32 hash = Hash(key);
 
   EntryImpl* cache_entry = MatchEntry(key, hash, false);
@@ -390,7 +391,7 @@ bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
   DCHECK(entry);
   *entry = NULL;
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   uint32 hash = Hash(key);
 
   scoped_refptr<EntryImpl> parent;
@@ -1160,7 +1161,7 @@ int BackendImpl::NewEntry(Addr address, EntryImpl** entry, bool* dirty) {
     return ERR_INVALID_ADDRESS;
   }
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   if (!cache_entry->entry()->Load())
     return ERR_READ_FAILURE;
 

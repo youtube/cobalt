@@ -12,6 +12,7 @@
 #include "net/disk_cache/file_lock.h"
 
 using base::Time;
+using base::TimeTicks;
 
 namespace {
 
@@ -41,7 +42,7 @@ bool CreateMapBlock(int target, int size, disk_cache::BlockFileHeader* header,
     return false;
   }
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   // We are going to process the map on 32-block chunks (32 bits), and on every
   // chunk, iterate through the 8 nibbles where the new block can be located.
   int current = header->hints[target - 1];
@@ -67,7 +68,7 @@ bool CreateMapBlock(int target, int size, disk_cache::BlockFileHeader* header,
       if (target != size) {
         header->empty[target - size - 1]++;
       }
-      HISTOGRAM_TIMES("DiskCache.CreateBlock", Time::Now() - start);
+      HISTOGRAM_TIMES("DiskCache.CreateBlock", TimeTicks::Now() - start);
       return true;
     }
   }
@@ -86,7 +87,7 @@ void DeleteMapBlock(int index, int size, disk_cache::BlockFileHeader* header) {
     NOTREACHED();
     return;
   }
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   int byte_index = index / 8;
   uint8* byte_map = reinterpret_cast<uint8*>(header->allocation_map);
   uint8 map_block = byte_map[byte_index];
@@ -115,7 +116,7 @@ void DeleteMapBlock(int index, int size, disk_cache::BlockFileHeader* header) {
   }
   header->num_entries--;
   DCHECK(header->num_entries >= 0);
-  HISTOGRAM_TIMES("DiskCache.DeleteBlock", Time::Now() - start);
+  HISTOGRAM_TIMES("DiskCache.DeleteBlock", TimeTicks::Now() - start);
 }
 
 // Restores the "empty counters" and allocation hints.
@@ -314,7 +315,7 @@ MappedFile* BlockFiles::FileForNewBlock(FileType block_type, int block_count) {
   MappedFile* file = block_files_[block_type - 1];
   BlockFileHeader* header = reinterpret_cast<BlockFileHeader*>(file->buffer());
 
-  Time start = Time::Now();
+  TimeTicks start = TimeTicks::Now();
   while (NeedToGrowBlockFile(header, block_count)) {
     if (kMaxBlocks == header->max_entries) {
       file = NextFile(file);
@@ -328,7 +329,7 @@ MappedFile* BlockFiles::FileForNewBlock(FileType block_type, int block_count) {
       return NULL;
     break;
   }
-  HISTOGRAM_TIMES("DiskCache.GetFileForNewBlock", Time::Now() - start);
+  HISTOGRAM_TIMES("DiskCache.GetFileForNewBlock", TimeTicks::Now() - start);
   return file;
 }
 
