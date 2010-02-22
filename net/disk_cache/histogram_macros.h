@@ -17,13 +17,13 @@
 
 // HISTOGRAM_AGE will collect time elapsed since |initial_time|, with a
 // granularity of hours and normal values of a few months.
-#define UMA_HISTOGRAM_AGE(name, initial_time)\
+#define UMA_HISTOGRAM_AGE(name, initial_time) \
     UMA_HISTOGRAM_COUNTS_10000(name, (Time::Now() - initial_time).InHours())
 
 // HISTOGRAM_AGE_MS will collect time elapsed since |initial_time|, with the
 // normal resolution of the UMA_HISTOGRAM_TIMES.
 #define UMA_HISTOGRAM_AGE_MS(name, initial_time)\
-    UMA_HISTOGRAM_TIMES(name, Time::Now() - initial_time)
+    UMA_HISTOGRAM_TIMES(name, TimeTicks::Now() - initial_time)
 
 #define UMA_HISTOGRAM_CACHE_ERROR(name, sample) \
     UMA_HISTOGRAM_ENUMERATION(name, sample, 50)
