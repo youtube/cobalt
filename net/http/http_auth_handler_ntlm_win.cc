@@ -19,7 +19,8 @@
 
 namespace net {
 
-HttpAuthHandlerNTLM::HttpAuthHandlerNTLM() :  auth_sspi_("NTLM", NTLMSP_NAME) {
+HttpAuthHandlerNTLM::HttpAuthHandlerNTLM(ULONG max_token_length) :
+    auth_sspi_("NTLM", NTLMSP_NAME, max_token_length) {
 }
 
 HttpAuthHandlerNTLM::~HttpAuthHandlerNTLM() {
@@ -58,6 +59,41 @@ int HttpAuthHandlerNTLM::GenerateDefaultAuthToken(
       request,
       proxy,
       auth_token);
+}
+
+HttpAuthHandlerNTLM::Factory::Factory() :
+    max_token_length_(0),
+    first_creation_(true),
+    is_unsupported_(false) {
+}
+
+HttpAuthHandlerNTLM::Factory::~Factory() {
+}
+
+int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
+    HttpAuth::ChallengeTokenizer* challenge,
+    HttpAuth::Target target,
+    const GURL& origin,
+    scoped_refptr<HttpAuthHandler>* handler) {
+  if (is_unsupported_)
+    return ERR_UNSUPPORTED_AUTH_SCHEME;
+
+  if (max_token_length_ == 0) {
+    int rv = DetermineMaxTokenLength(NTLMSP_NAME, &max_token_length_);
+    if (rv == ERR_UNSUPPORTED_AUTH_SCHEME)
+      is_unsupported_ = true;
+    if (rv != OK)
+      return rv;
+  }
+
+  // TODO(cbentzel): Move towards model of parsing in the factory
+  //                 method and only constructing when valid.
+  scoped_refptr<HttpAuthHandler> tmp_handler(
+      new HttpAuthHandlerNTLM(max_token_length_));
+  if (!tmp_handler->InitFromChallenge(challenge, target, origin))
+    return ERR_INVALID_RESPONSE;
+  handler->swap(tmp_handler);
+  return OK;
 }
 
 }  // namespace net
