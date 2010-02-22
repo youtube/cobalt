@@ -311,9 +311,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   // the real request/response of the transaction.
   bool establishing_tunnel_;
 
-  // True if SPDY has been negotiated using the TLS next protocol negotiation
-  // (NPN) extension.
-  bool use_spdy_;
+  // True if this network transaction is using SPDY instead of HTTP.
+  bool using_spdy_;
 
   // True if we've used the username/password embedded in the URL.  This
   // makes sure we use the embedded identity only once for the transaction,
