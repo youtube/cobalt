@@ -74,6 +74,7 @@ bool ContainsPath(const FilePath& parent, const FilePath& child);
 //-----------------------------------------------------------------------------
 // Functions that involve filesystem access or modification:
 
+// Returns the number of files matching the current path that were
 // created on or after the given |file_time|.  Doesn't count ".." or ".".
 //
 // Note for POSIX environments: a file created before |file_time|
