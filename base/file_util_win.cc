@@ -306,6 +306,10 @@ bool CreateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *working_dir, const wchar_t *arguments,
                         const wchar_t *description, const wchar_t *icon,
                         int icon_index, const wchar_t* app_id) {
+  // Length of arguments and description must be less than MAX_PATH.
+  DCHECK(lstrlen(arguments) < MAX_PATH);
+  DCHECK(lstrlen(description) < MAX_PATH);
+
   ScopedComPtr<IShellLink> i_shell_link;
   ScopedComPtr<IPersistFile> i_persist_file;
 
@@ -353,6 +357,10 @@ bool UpdateShortcutLink(const wchar_t *source, const wchar_t *destination,
                         const wchar_t *working_dir, const wchar_t *arguments,
                         const wchar_t *description, const wchar_t *icon,
                         int icon_index, const wchar_t* app_id) {
+  // Length of arguments and description must be less than MAX_PATH.
+  DCHECK(lstrlen(arguments) < MAX_PATH);
+  DCHECK(lstrlen(description) < MAX_PATH);
+
   // Get pointer to the IPersistFile interface and load existing link
   ScopedComPtr<IShellLink> i_shell_link;
   if (FAILED(i_shell_link.CreateInstance(CLSID_ShellLink, NULL,
