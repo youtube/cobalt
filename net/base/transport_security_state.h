@@ -48,8 +48,10 @@ class TransportSecurityState :
 
     DomainState()
         : mode(MODE_STRICT),
+          created(base::Time::Now()),
           include_subdomains(false) { }
 
+    base::Time created;  // when this host entry was first created
     base::Time expiry;  // the absolute time (UTC) when this record expires
     bool include_subdomains;  // subdomains included?
   };
@@ -60,6 +62,9 @@ class TransportSecurityState :
   // Returns true if |host| has TransportSecurity enabled. If that case,
   // *result is filled out.
   bool IsEnabledForHost(DomainState* result, const std::string& host);
+
+  // Deletes all records created since a given time.
+  void DeleteSince(const base::Time& time);
 
   // Returns |true| if |value| parses as a valid *-Transport-Security
   // header value.  The values of max-age and and includeSubDomains are
@@ -79,7 +84,7 @@ class TransportSecurityState :
   void SetDelegate(Delegate*);
 
   bool Serialise(std::string* output);
-  bool Deserialise(const std::string& state);
+  bool Deserialise(const std::string& state, bool* dirty);
 
  private:
   friend class base::RefCountedThreadSafe<TransportSecurityState>;
