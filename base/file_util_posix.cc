@@ -60,18 +60,6 @@ static const char* kTempFileName = "com.google.chrome.XXXXXX";
 static const char* kTempFileName = "org.chromium.XXXXXX";
 #endif
 
-std::wstring GetDirectoryFromPath(const std::wstring& path) {
-  if (EndsWithSeparator(path)) {
-    return FilePath::FromWStringHack(path)
-        .StripTrailingSeparators()
-        .ToWStringHack();
-  } else {
-    char full_path[PATH_MAX];
-    base::strlcpy(full_path, WideToUTF8(path).c_str(), arraysize(full_path));
-    return UTF8ToWide(dirname(full_path));
-  }
-}
-
 bool AbsolutePath(FilePath* path) {
   char full_path[PATH_MAX];
   if (realpath(path->value().c_str(), full_path) == NULL)
