@@ -190,8 +190,10 @@ TEST_F(TransportSecurityStateTest, Serialise1) {
   scoped_refptr<net::TransportSecurityState> state(
       new net::TransportSecurityState);
   std::string output;
+  bool dirty;
   state->Serialise(&output);
-  EXPECT_TRUE(state->Deserialise(output));
+  EXPECT_TRUE(state->Deserialise(output, &dirty));
+  EXPECT_FALSE(dirty);
 }
 
 TEST_F(TransportSecurityStateTest, Serialise2) {
@@ -209,8 +211,9 @@ TEST_F(TransportSecurityStateTest, Serialise2) {
   state->EnableHost("google.com", domain_state);
 
   std::string output;
+  bool dirty;
   state->Serialise(&output);
-  EXPECT_TRUE(state->Deserialise(output));
+  EXPECT_TRUE(state->Deserialise(output, &dirty));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "google.com"));
   EXPECT_EQ(domain_state.mode, net::TransportSecurityState::DomainState::MODE_STRICT);
@@ -238,10 +241,50 @@ TEST_F(TransportSecurityStateTest, Serialise3) {
   state->EnableHost("google.com", domain_state);
 
   std::string output;
+  bool dirty;
   state->Serialise(&output);
-  EXPECT_TRUE(state->Deserialise(output));
+  EXPECT_TRUE(state->Deserialise(output, &dirty));
 
   EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "google.com"));
   EXPECT_EQ(domain_state.mode,
             net::TransportSecurityState::DomainState::MODE_OPPORTUNISTIC);
 }
+
+TEST_F(TransportSecurityStateTest, DeleteSince) {
+  scoped_refptr<net::TransportSecurityState> state(
+      new net::TransportSecurityState);
+
+  net::TransportSecurityState::DomainState domain_state;
+  const base::Time current_time(base::Time::Now());
+  const base::Time expiry = current_time + base::TimeDelta::FromSeconds(1000);
+  const base::Time older = current_time - base::TimeDelta::FromSeconds(1000);
+
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "google.com"));
+  domain_state.mode = net::TransportSecurityState::DomainState::MODE_STRICT;
+  domain_state.expiry = expiry;
+  state->EnableHost("google.com", domain_state);
+
+  state->DeleteSince(expiry);
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "google.com"));
+  state->DeleteSince(older);
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "google.com"));
+}
+
+TEST_F(TransportSecurityStateTest, SerialiseOld) {
+  scoped_refptr<net::TransportSecurityState> state(
+      new net::TransportSecurityState);
+  // This is an old-style piece of transport state JSON, which has no creation
+  // date.
+  std::string output =
+      "{ "
+        "\"NiyD+3J1r6z1wjl2n1ALBu94Zj9OsEAMo0kCN8js0Uk=\": {"
+          "\"expiry\": 1266815027.983453, "
+          "\"include_subdomains\": false, "
+          "\"mode\": \"strict\" "
+        "}"
+      "}";
+  bool dirty;
+  EXPECT_TRUE(state->Deserialise(output, &dirty));
+  EXPECT_TRUE(dirty);
+}
+
