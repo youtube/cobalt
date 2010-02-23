@@ -281,6 +281,12 @@ bool HttpCache::WriteResponseInfo(disk_cache::Entry* disk_entry,
                                true) == len;
 }
 
+void HttpCache::WriteMetadata(const GURL& url,
+                              base::Time expected_response_time, IOBuffer* buf,
+                              int buf_len) {
+  // TODO(rvargas): Implement me.
+}
+
 // Generate a key that can be used inside the cache.
 std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
   // Strip out the reference, username, and password sections of the URL.

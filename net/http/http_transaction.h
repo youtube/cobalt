@@ -91,6 +91,9 @@ class HttpTransaction {
   virtual int Read(IOBuffer* buf, int buf_len,
                    CompletionCallback* callback) = 0;
 
+  // Stops further caching of this request by the HTTP cache, if there is any.
+  virtual void StopCaching() = 0;
+
   // Returns the response info for this transaction or NULL if the response
   // info is not available.
   virtual const HttpResponseInfo* GetResponseInfo() const = 0;
