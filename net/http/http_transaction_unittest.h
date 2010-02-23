@@ -283,6 +283,8 @@ class MockNetworkTransaction : public net::HttpTransaction {
     return net::ERR_IO_PENDING;
   }
 
+  virtual void StopCaching() {}
+
   virtual const net::HttpResponseInfo* GetResponseInfo() const {
     return &response_;
   }

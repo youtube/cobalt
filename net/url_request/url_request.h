@@ -464,6 +464,13 @@ class URLRequest {
   // will be set to an error.
   bool Read(net::IOBuffer* buf, int max_bytes, int *bytes_read);
 
+  // If this request is being cached by the HTTP cache, stop subsequent caching.
+  // Note that this method has no effect on other (simultaneous or not) requests
+  // for the same resource. The typical example is a request that results in
+  // the data being stored to disk (downloaded instead of rendered) so we don't
+  // want to store it twice.
+  void StopCaching();
+
   // This method may be called to follow a redirect that was deferred in
   // response to an OnReceivedRedirect call.
   void FollowDeferredRedirect();

@@ -429,6 +429,11 @@ bool URLRequestHttpJob::ReadRawData(net::IOBuffer* buf, int buf_size,
   return false;
 }
 
+void URLRequestHttpJob::StopCaching() {
+  if (transaction_.get())
+    transaction_->StopCaching();
+}
+
 void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
