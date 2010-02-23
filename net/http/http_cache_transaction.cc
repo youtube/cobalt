@@ -356,6 +356,9 @@ int HttpCache::Transaction::Read(IOBuffer* buf, int buf_len,
   return rv;
 }
 
+void HttpCache::Transaction::StopCaching() {
+}
+
 const HttpResponseInfo* HttpCache::Transaction::GetResponseInfo() const {
   // Null headers means we encountered an error or haven't a response yet
   if (auth_response_.headers)
@@ -376,6 +379,16 @@ uint64 HttpCache::Transaction::GetUploadProgress() const {
   if (network_trans_.get())
     return network_trans_->GetUploadProgress();
   return final_upload_progress_;
+}
+
+int HttpCache::Transaction::ReadMetadata(IOBuffer* buf, int buf_len,
+                                         CompletionCallback* callback) {
+  return ERR_NOT_IMPLEMENTED;
+}
+
+int HttpCache::Transaction::WriteMetadata(IOBuffer* buf, int buf_len,
+                                          CompletionCallback* callback) {
+  return ERR_NOT_IMPLEMENTED;
 }
 
 int HttpCache::Transaction::AddToEntry() {

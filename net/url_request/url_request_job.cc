@@ -190,6 +190,10 @@ bool URLRequestJob::Read(net::IOBuffer* buf, int buf_size, int *bytes_read) {
   return rv;
 }
 
+void URLRequestJob::StopCaching() {
+  // Nothing to do here.
+}
+
 bool URLRequestJob::ReadRawDataForFilter(int *bytes_read) {
   bool rv = false;
 

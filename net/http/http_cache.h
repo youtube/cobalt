@@ -27,6 +27,8 @@
 #include "net/base/completion_callback.h"
 #include "net/http/http_transaction_factory.h"
 
+class GURL;
+
 namespace disk_cache {
 class Backend;
 class Entry;
@@ -39,6 +41,7 @@ class HttpAuthHandlerFactory;
 class HttpNetworkSession;
 class HttpRequestInfo;
 class HttpResponseInfo;
+class IOBuffer;
 class NetworkChangeNotifier;
 class ProxyService;
 class SSLConfigService;
@@ -131,6 +134,13 @@ class HttpCache : public HttpTransactionFactory,
   static bool ParseResponseInfo(const char* data, int len,
                                 HttpResponseInfo* response_info,
                                 bool* response_truncated);
+
+  // Writes |buf_len| bytes of metadata stored in |buf| to the cache entry
+  // referenced by |url|, as long as the entry's |expected_response_time| has
+  // not changed. This method returns without blocking, and the operation will
+  // be performed asynchronously without any completion notification.
+  void WriteMetadata(const GURL& url, base::Time expected_response_time,
+                     IOBuffer* buf, int buf_len);
 
   // Get/Set the cache's mode.
   void set_mode(Mode value) { mode_ = value; }

@@ -347,6 +347,11 @@ bool URLRequest::Read(net::IOBuffer* dest, int dest_size, int *bytes_read) {
   return job_->Read(dest, dest_size, bytes_read);
 }
 
+void URLRequest::StopCaching() {
+  DCHECK(job_);
+  job_->StopCaching();
+}
+
 void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
   URLRequestJob* job = GetJobManager()->MaybeInterceptRedirect(this, location);
   if (job) {

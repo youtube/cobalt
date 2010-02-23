@@ -7,6 +7,7 @@
 
 #include "base/time.h"
 #include "net/base/auth.h"
+#include "net/base/io_buffer.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
 #include "net/http/http_response_headers.h"
@@ -60,6 +61,9 @@ class HttpResponseInfo {
 
   // The "Vary" header data for this response.
   HttpVaryData vary_data;
+
+  // Any metadata asociated with this resource's cached data.
+  scoped_refptr<IOBufferWithSize> metadata;
 
   // Initializes from the representation stored in the given pickle.
   bool InitFromPickle(const Pickle& pickle, bool* response_truncated);
