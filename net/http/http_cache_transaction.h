@@ -34,6 +34,7 @@ class HttpCache::Transaction : public HttpTransaction {
                               CompletionCallback* callback);
   virtual bool IsReadyToRestartForAuth();
   virtual int Read(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+  virtual void StopCaching();
   virtual const HttpResponseInfo* GetResponseInfo() const;
   virtual LoadState GetLoadState() const;
   virtual uint64 GetUploadProgress(void) const;
@@ -70,6 +71,31 @@ class HttpCache::Transaction : public HttpTransaction {
   Mode mode() const { return mode_; }
 
   const std::string& key() const { return cache_key_; }
+
+  // Reads up to |buf_len| bytes of meta-data into the provided buffer |buf|,
+  // from the HTTP cache entry that backs this transaction (if any).
+  // Returns the number of bytes actually read, or a net error code. If the
+  // operation cannot complete immediately, returns ERR_IO_PENDING, grabs a
+  // reference to the buffer (until completion), and notifies the caller using
+  // the provided |callback| when the operatiopn finishes.
+  int ReadMetadata(IOBuffer* buf, int buf_len, CompletionCallback* callback);
+
+  // Writes |buf_len| bytes of meta-data from the provided buffer |buf|. to the
+  // HTTP cache entry that backs this transaction (if any).
+  // Returns the number of bytes actually written, or a net error code. If the
+  // operation cannot complete immediately, returns ERR_IO_PENDING, grabs a
+  // reference to the buffer (until completion), and notifies the caller using
+  // the provided |callback| when the operatiopn finishes.
+  //
+  // The first time this method is called for a given transaction, previous
+  // meta-data will be overwritten with the provided data, and subsequent
+  // invocations will keep appending to the cached entry.
+  //
+  // In order to guarantee that the metadata is set to the correct entry, the
+  // response (or response info) must be evaluated by the caller, for instance
+  // to make sure that the response_time is as expected, before calling this
+  // method.
+  int WriteMetadata(IOBuffer* buf, int buf_len, CompletionCallback* callback);
 
   // This transaction is being deleted and we are not done writing to the cache.
   // We need to indicate that the response data was truncated.  Returns true on
