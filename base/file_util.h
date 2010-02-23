@@ -44,33 +44,10 @@ namespace file_util {
 
 // Returns true if the given path ends with a path separator character.
 bool EndsWithSeparator(const FilePath& path);
-// These two versions are both deprecated. TODO(estade): remove them.
-bool EndsWithSeparator(std::wstring* path);
-bool EndsWithSeparator(const std::wstring& path);
 
 // Makes sure that |path| ends with a separator IFF path is a directory that
 // exists. Returns true if |path| is an existing directory, false otherwise.
 bool EnsureEndsWithSeparator(FilePath* path);
-
-// Strips the topmost directory from the end of 'dir'.  Assumes 'dir' does not
-// refer to a file.
-// If 'dir' is a root directory, return without change.
-// Deprecated. Use FilePath::DirName instead.
-void UpOneDirectory(std::wstring* dir);
-// Strips the topmost directory from the end of 'dir'.  Assumes 'dir' does not
-// refer to a file.
-// If 'dir' is a root directory, the result becomes empty string.
-// Deprecated. Use FilePath::DirName instead.
-void UpOneDirectoryOrEmpty(std::wstring* dir);
-
-// Returns the filename portion of 'path', without any leading \'s or /'s.
-// Deprecated. Use FilePath::BaseName instead.
-std::wstring GetFilenameFromPath(const std::wstring& path);
-
-// Deprecated compatibility function.  Use FilePath::Extension.
-FilePath::StringType GetFileExtensionFromPath(const FilePath& path);
-// Deprecated temporary compatibility function.
-std::wstring GetFileExtensionFromPath(const std::wstring& path);
 
 // Returns the directory component of a path, without the trailing
 // path separator, or an empty string on error. The function does not
@@ -89,19 +66,10 @@ void AppendToPath(std::wstring* path, const std::wstring& new_ending);
 // Convert provided relative path into an absolute path.  Returns false on
 // error. On POSIX, this function fails if the path does not exist.
 bool AbsolutePath(FilePath* path);
-// Deprecated temporary compatibility function.
-bool AbsolutePath(std::wstring* path);
 
 // Returns true if |parent| contains |child|. Both paths are converted to
 // absolute paths before doing the comparison.
 bool ContainsPath(const FilePath& parent, const FilePath& child);
-
-// Deprecated compatibility function.  Use FilePath::InsertBeforeExtension.
-void InsertBeforeExtension(FilePath* path, const FilePath::StringType& suffix);
-
-// Deprecated compatibility function.  Use FilePath::ReplaceExtension.
-void ReplaceExtension(FilePath* file_name,
-                      const FilePath::StringType& extension);
 
 //-----------------------------------------------------------------------------
 // Functions that involve filesystem access or modification:
@@ -125,8 +93,6 @@ int CountFilesCreatedAfter(const FilePath& path,
 // WARNING: USING THIS WITH recursive==true IS EQUIVALENT
 //          TO "rm -rf", SO USE WITH CAUTION.
 bool Delete(const FilePath& path, bool recursive);
-// Deprecated temporary compatibility function.
-bool Delete(const std::wstring& path, bool recursive);
 
 #if defined(OS_WIN)
 // Schedules to delete the given path, whether it's a file or a directory, until
@@ -161,9 +127,6 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path);
 //
 // If you only need to copy a file use CopyFile, it's faster.
 bool CopyDirectory(const FilePath& from_path, const FilePath& to_path,
-                   bool recursive);
-// Deprecated temporary compatibility function.
-bool CopyDirectory(const std::wstring& from_path, const std::wstring& to_path,
                    bool recursive);
 
 // Returns true if the given path exists on the local filesystem,
@@ -200,8 +163,6 @@ bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2);
 // Read the file at |path| into |contents|, returning true on success.
 // Useful for unit tests.
 bool ReadFileToString(const FilePath& path, std::string* contents);
-// Deprecated version.
-bool ReadFileToString(const std::wstring& path, std::string* contents);
 
 #if defined(OS_POSIX)
 // Read exactly |bytes| bytes from file descriptor |fd|, storing the result
@@ -264,8 +225,6 @@ bool CopyAndDeleteDirectory(const FilePath& from_path,
 
 // Get the temporary directory provided by the system.
 bool GetTempDir(FilePath* path);
-// Deprecated temporary compatibility function.
-bool GetTempDir(std::wstring* path);
 // Get a temporary directory for shared memory files.
 // Only useful on POSIX; redirects to GetTempDir() on Windows.
 bool GetShmemTempDir(FilePath* path);
@@ -304,8 +263,6 @@ bool CreateDirectory(const FilePath& full_path);
 
 // Returns the file size. Returns true on success.
 bool GetFileSize(const FilePath& file_path, int64* file_size);
-// Deprecated temporary compatibility function.
-bool GetFileSize(const std::wstring& file_path, int64* file_size);
 
 // Returns true if the given path's base name is ".".
 bool IsDot(const FilePath& path);
@@ -329,8 +286,6 @@ struct FileInfo {
 
 // Returns information about the given file path.
 bool GetFileInfo(const FilePath& file_path, FileInfo* info);
-// Deprecated temporary compatibility function.
-bool GetFileInfo(const std::wstring& file_path, FileInfo* info);
 
 // Set the time of the last modification. Useful for unit tests.
 bool SetLastModifiedTime(const FilePath& file_path, base::Time last_modified);
@@ -342,9 +297,6 @@ bool GetInode(const FilePath& path, ino_t* inode);
 
 // Wrapper for fopen-like calls. Returns non-NULL FILE* on success.
 FILE* OpenFile(const FilePath& filename, const char* mode);
-// Deprecated temporary compatibility functions.
-FILE* OpenFile(const std::string& filename, const char* mode);
-FILE* OpenFile(const std::wstring& filename, const char* mode);
 
 // Closes file opened by OpenFile. Returns true on success.
 bool CloseFile(FILE* file);
@@ -356,14 +308,10 @@ bool TruncateFile(FILE* file);
 // Reads the given number of bytes from the file into the buffer.  Returns
 // the number of read bytes, or -1 on error.
 int ReadFile(const FilePath& filename, char* data, int size);
-// Deprecated temporary compatibility function.
-int ReadFile(const std::wstring& filename, char* data, int size);
 
 // Writes the given buffer into the file, overwriting any data that was
 // previously there.  Returns the number of bytes written, or -1 on error.
 int WriteFile(const FilePath& filename, const char* data, int size);
-// Deprecated temporary compatibility function.
-int WriteFile(const std::wstring& filename, const char* data, int size);
 #if defined(OS_POSIX)
 // Append the data to |fd|. Does not close |fd| when done.
 int WriteFileDescriptor(const int fd, const char* data, int size);
@@ -371,8 +319,6 @@ int WriteFileDescriptor(const int fd, const char* data, int size);
 
 // Gets the current working directory for the process.
 bool GetCurrentDirectory(FilePath* path);
-// Deprecated temporary compatibility function.
-bool GetCurrentDirectory(std::wstring* path);
 
 // Sets the current working directory for the process.
 bool SetCurrentDirectory(const FilePath& path);
@@ -563,5 +509,9 @@ bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
                               const base::Time& cutoff_time);
 
 }  // namespace file_util
+
+// Deprecated functions have been moved to this separate header file,
+// which must be included last after all the above definitions.
+#include "base/file_util_deprecated.h"
 
 #endif  // BASE_FILE_UTIL_H_
