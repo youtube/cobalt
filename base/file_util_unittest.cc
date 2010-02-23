@@ -311,6 +311,8 @@ static const struct dir_case {
 #endif
 };
 
+#if defined(OS_WIN)
+// This function is deprecated, and only exists on Windows anymore.
 TEST_F(FileUtilTest, GetDirectoryFromPath) {
   for (unsigned int i = 0; i < arraysize(dir_cases); ++i) {
     const dir_case& dir = dir_cases[i];
@@ -319,6 +321,7 @@ TEST_F(FileUtilTest, GetDirectoryFromPath) {
     EXPECT_EQ(dir.directory, parent);
   }
 }
+#endif
 
 TEST_F(FileUtilTest, CountFilesCreatedAfter) {
   // Create old file (that we don't want to count)
