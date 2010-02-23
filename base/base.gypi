@@ -381,6 +381,8 @@
                 'libraries': [
                   # We need rt for clock_gettime().
                   '-lrt',
+                  # For 'native_library_linux.cc'
+                  '-ldl',
                 ],
               },
             }],
