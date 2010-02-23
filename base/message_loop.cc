@@ -233,6 +233,15 @@ void MessageLoop::Quit() {
   }
 }
 
+void MessageLoop::QuitNow() {
+  DCHECK(current() == this);
+  if (state_) {
+    pump_->Quit();
+  } else {
+    NOTREACHED() << "Must be inside Run to call Quit";
+  }
+}
+
 void MessageLoop::PostTask(
     const tracked_objects::Location& from_here, Task* task) {
   PostTask_Helper(from_here, task, 0, true);

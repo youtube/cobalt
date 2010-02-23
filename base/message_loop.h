@@ -158,6 +158,10 @@ class MessageLoop : public base::MessagePump::Delegate {
   //
   void Quit();
 
+  // This method is a variant of Quit, that does not wait for pending messages
+  // to be processed before returning from Run.
+  void QuitNow();
+
   // Invokes Quit on the current MessageLoop when run.  Useful to schedule an
   // arbitrary MessageLoop to Quit.
   class QuitTask : public Task {
