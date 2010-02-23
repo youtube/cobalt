@@ -30,9 +30,15 @@ void TransportSecurityState::EnableHost(const std::string& host,
   char hashed[base::SHA256_LENGTH];
   base::SHA256HashString(canonicalised_host, hashed, sizeof(hashed));
 
+  // Use the original creation date if we already have this host.
+  DomainState state_copy(state);
+  DomainState existing_state;
+  if (IsEnabledForHost(&existing_state, host))
+    state_copy.created = existing_state.created;
+
   AutoLock lock(lock_);
 
-  enabled_hosts_[std::string(hashed, sizeof(hashed))] = state;
+  enabled_hosts_[std::string(hashed, sizeof(hashed))] = state_copy;
   DirtyNotify();
 }
 
@@ -209,6 +215,7 @@ bool TransportSecurityState::Serialise(std::string* output) {
        i = enabled_hosts_.begin(); i != enabled_hosts_.end(); ++i) {
     DictionaryValue* state = new DictionaryValue;
     state->SetBoolean(L"include_subdomains", i->second.include_subdomains);
+    state->SetReal(L"created", i->second.created.ToDoubleT());
     state->SetReal(L"expiry", i->second.expiry.ToDoubleT());
 
     switch (i->second.mode) {
@@ -234,7 +241,8 @@ bool TransportSecurityState::Serialise(std::string* output) {
   return true;
 }
 
-bool TransportSecurityState::Deserialise(const std::string& input) {
+bool TransportSecurityState::Deserialise(const std::string& input,
+                                         bool* dirty) {
   AutoLock lock(lock_);
 
   enabled_hosts_.clear();
@@ -246,6 +254,7 @@ bool TransportSecurityState::Deserialise(const std::string& input) {
 
   DictionaryValue* dict_value = reinterpret_cast<DictionaryValue*>(value.get());
   const base::Time current_time(base::Time::Now());
+  bool dirtied = false;
 
   for (DictionaryValue::key_iterator i = dict_value->begin_keys();
        i != dict_value->end_keys(); ++i) {
@@ -255,6 +264,7 @@ bool TransportSecurityState::Deserialise(const std::string& input) {
 
     bool include_subdomains;
     std::string mode_string;
+    double created;
     double expiry;
 
     if (!state->GetBoolean(L"include_subdomains", &include_subdomains) ||
@@ -277,8 +287,21 @@ bool TransportSecurityState::Deserialise(const std::string& input) {
     }
 
     base::Time expiry_time = base::Time::FromDoubleT(expiry);
-    if (expiry_time <= current_time)
+    base::Time created_time;
+    if (state->GetReal(L"created", &created)) {
+      created_time = base::Time::FromDoubleT(created);
+    } else {
+      // We're migrating an old entry with no creation date. Make sure we
+      // write the new date back in a reasonable time frame.
+      dirtied = true;
+      created_time = base::Time::Now();
+    }
+
+    if (expiry_time <= current_time) {
+      // Make sure we dirty the state if we drop an entry.
+      dirtied = true;
       continue;
+    }
 
     std::string hashed = ExternalStringToHashedDomain(*i);
     if (hashed.empty())
@@ -286,12 +309,33 @@ bool TransportSecurityState::Deserialise(const std::string& input) {
 
     DomainState new_state;
     new_state.mode = mode;
+    new_state.created = created_time;
     new_state.expiry = expiry_time;
     new_state.include_subdomains = include_subdomains;
     enabled_hosts_[hashed] = new_state;
   }
 
+  *dirty = dirtied;
   return true;
+}
+
+void TransportSecurityState::DeleteSince(const base::Time& time) {
+  bool dirtied = false;
+
+  AutoLock lock(lock_);
+
+  std::map<std::string, DomainState>::iterator i = enabled_hosts_.begin();
+  while (i != enabled_hosts_.end()) {
+    if (i->second.created >= time) {
+      dirtied = true;
+      enabled_hosts_.erase(i++);
+    } else {
+      i++;
+    }
+  }
+
+  if (dirtied)
+    DirtyNotify();
 }
 
 void TransportSecurityState::DirtyNotify() {
