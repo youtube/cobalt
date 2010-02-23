@@ -70,6 +70,7 @@
           'file_path.h',
           'file_util.cc',
           'file_util.h',
+          'file_util_deprecated.h',
           'file_util_linux.cc',
           'file_util_mac.mm',
           'file_util_posix.cc',
