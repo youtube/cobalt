@@ -380,6 +380,12 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
      LOG(INFO) << "SSL_ENABLE_DEFLATE failed.  Old system nss?";
 #endif
 
+#ifdef SSL_ENABLE_FALSE_START
+  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_FALSE_START, PR_TRUE);
+  if (rv != SECSuccess)
+     LOG(INFO) << "SSL_ENABLE_FALSE_START failed.  Old system nss?";
+#endif
+
 #ifdef SSL_ENABLE_RENEGOTIATION
   // We allow servers to request renegotiation. Since we're a client,
   // prohibiting this is rather a waste of time. Only servers are in a position
