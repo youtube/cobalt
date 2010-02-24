@@ -56,11 +56,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-template <typename ObserverType>
-class ObserverListThreadSafe;
-
-template <class ObserverType>
-class ObserverListBase {
+template <class ObserverType, bool check_empty = false>
+class ObserverList {
  public:
   // Enumeration of which observers are notified.
   enum NotificationType {
@@ -73,11 +70,49 @@ class ObserverListBase {
     NOTIFY_EXISTING_ONLY
   };
 
+  ObserverList() : notify_depth_(0), type_(NOTIFY_ALL) {}
+  ObserverList(NotificationType type) : notify_depth_(0), type_(type) {}
+  ~ObserverList() {
+    // When check_empty is true, assert that the list is empty on destruction.
+    if (check_empty) {
+      Compact();
+      DCHECK_EQ(observers_.size(), 0U);
+    }
+  }
+
+  // Add an observer to the list.
+  void AddObserver(ObserverType* obs) {
+    DCHECK(find(observers_.begin(), observers_.end(), obs) == observers_.end())
+        << "Observers can only be added once!";
+    observers_.push_back(obs);
+  }
+
+  // Remove an observer from the list.
+  void RemoveObserver(ObserverType* obs) {
+    typename ListType::iterator it =
+      std::find(observers_.begin(), observers_.end(), obs);
+    if (it != observers_.end()) {
+      if (notify_depth_) {
+        *it = 0;
+      } else {
+        observers_.erase(it);
+      }
+    }
+  }
+
+  size_t size() const {
+    return observers_.size();
+  }
+
+  ObserverType* GetElementAt(int index) const {
+    return observers_[index];
+  }
+
   // An iterator class that can be used to access the list of observers.  See
-  // also the FOR_EACH_OBSERVER macro defined below.
+  // also the FOREACH_OBSERVER macro defined below.
   class Iterator {
    public:
-    Iterator(ObserverListBase<ObserverType>& list)
+    Iterator(const ObserverList<ObserverType>& list)
         : list_(list),
           index_(0),
           max_index_(list.type_ == NOTIFY_ALL ?
@@ -101,60 +136,15 @@ class ObserverListBase {
     }
 
    private:
-    ObserverListBase<ObserverType>& list_;
+    const ObserverList<ObserverType>& list_;
     size_t index_;
     size_t max_index_;
   };
 
-  ObserverListBase() : notify_depth_(0), type_(NOTIFY_ALL) {}
-  explicit ObserverListBase(NotificationType type)
-      : notify_depth_(0), type_(type) {}
+ private:
+  typedef std::vector<ObserverType*> ListType;
 
-  // Add an observer to the list.
-  void AddObserver(ObserverType* obs) {
-    DCHECK(find(observers_.begin(), observers_.end(), obs) == observers_.end())
-        << "Observers can only be added once!";
-    observers_.push_back(obs);
-  }
-
-  // Remove an observer from the list.
-  void RemoveObserver(ObserverType* obs) {
-    typename ListType::iterator it =
-      std::find(observers_.begin(), observers_.end(), obs);
-    if (it != observers_.end()) {
-      if (notify_depth_) {
-        *it = 0;
-      } else {
-        observers_.erase(it);
-      }
-    }
-  }
-
-  bool HasObserver(ObserverType* observer) const {
-    for (size_t i = 0; i < observers_.size(); ++i) {
-      if (observers_[i] == observer)
-        return true;
-    }
-    return false;
-  }
-
-  void Clear() {
-    if (notify_depth_) {
-      for (typename ListType::iterator it = observers_.begin();
-           it != observers_.end(); ++it) {
-        *it = 0;
-      }
-    } else {
-      observers_.clear();
-    }
-  }
-
- protected:
-  size_t size() const {
-    return observers_.size();
-  }
-
-  void Compact() {
+  void Compact() const {
     typename ListType::iterator it = observers_.begin();
     while (it != observers_.end()) {
       if (*it) {
@@ -165,42 +155,19 @@ class ObserverListBase {
     }
   }
 
- private:
-  friend class ObserverListThreadSafe<ObserverType>;
-
-  typedef std::vector<ObserverType*> ListType;
-
-  ListType observers_;
-  int notify_depth_;
+  // These are marked mutable to facilitate having NotifyAll be const.
+  mutable ListType observers_;
+  mutable int notify_depth_;
   NotificationType type_;
 
-  friend class ObserverListBase::Iterator;
+  friend class ObserverList::Iterator;
 
-  DISALLOW_COPY_AND_ASSIGN(ObserverListBase);
-};
-
-template <class ObserverType, bool check_empty = false>
-class ObserverList : public ObserverListBase<ObserverType> {
- public:
-  typedef typename ObserverListBase<ObserverType>::NotificationType
-      NotificationType;
-
-  ObserverList() {}
-  explicit ObserverList(NotificationType type)
-      : ObserverListBase<ObserverType>(type) {}
-
-  ~ObserverList() {
-    // When check_empty is true, assert that the list is empty on destruction.
-    if (check_empty) {
-      ObserverListBase<ObserverType>::Compact();
-      DCHECK_EQ(ObserverListBase<ObserverType>::size(), 0U);
-    }
-  }
+  DISALLOW_EVIL_CONSTRUCTORS(ObserverList);
 };
 
 #define FOR_EACH_OBSERVER(ObserverType, observer_list, func)  \
   do {                                                        \
-    ObserverListBase<ObserverType>::Iterator it(observer_list);   \
+    ObserverList<ObserverType>::Iterator it(observer_list);   \
     ObserverType* obs;                                        \
     while ((obs = it.GetNext()) != NULL)                      \
       obs->func;                                              \
