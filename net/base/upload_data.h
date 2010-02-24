@@ -9,7 +9,6 @@
 
 #include "base/basictypes.h"
 #include "base/file_path.h"
-#include "base/platform_file.h"
 #include "base/ref_counted.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -27,8 +26,7 @@ class UploadData : public base::RefCounted<UploadData> {
   class Element {
    public:
     Element() : type_(TYPE_BYTES), file_range_offset_(0),
-                file_range_length_(0),
-                file_(base::kInvalidPlatformFileValue),
+                file_range_length_(kuint64max),
                 override_content_length_(false) {
     }
 
@@ -47,42 +45,19 @@ class UploadData : public base::RefCounted<UploadData> {
       SetToFilePathRange(path, 0, kuint64max);
     }
 
-    void SetToFilePathRange(const FilePath& path, uint64 offset, uint64 length);
+    void SetToFilePathRange(const FilePath& path,
+                            uint64 offset, uint64 length) {
+      type_ = TYPE_FILE;
+      file_path_ = path;
+      file_range_offset_ = offset;
+      file_range_length_ = length;
+    }
 
     // Returns the byte-length of the element.  For files that do not exist, 0
     // is returned.  This is done for consistency with Mozilla.
-    uint64 GetContentLength() const {
-      if (override_content_length_)
-        return content_length_;
-
-      if (type_ == TYPE_BYTES) {
-        return bytes_.size();
-      } else {
-        return file_range_length_;
-      }
-    }
-
-    // For a TYPE_FILE, return a handle to the file. The caller does not take
-    // ownership and should not close the file handle.
-    base::PlatformFile platform_file() const;
-
-    // For a TYPE_FILE, this closes the file handle. It's a fatal error to call
-    // platform_file() after this.
-    void Close();
+    uint64 GetContentLength() const;
 
    private:
-    // type_ == TYPE_BYTES:
-    //   bytes_ is valid
-    // type_ == TYPE_FILE:
-    //   file_path_ should always be valid.
-    //
-    //   platform_file() may be invalid, in which case file_range_* are 0 and
-    //   file_ is invalid. This occurs when we cannot open the requested file.
-    //
-    //   Else, then file_range_* are within range of the length of the file
-    //   that we found when opening the file. Also, the sum of offset and
-    //   length will not overflow a uint64. file_ will be handle to the file.
-
     // Allows tests to override the result of GetContentLength.
     void SetContentLength(uint64 content_length) {
       override_content_length_ = true;
@@ -94,7 +69,6 @@ class UploadData : public base::RefCounted<UploadData> {
     FilePath file_path_;
     uint64 file_range_offset_;
     uint64 file_range_length_;
-    base::PlatformFile file_;
     bool override_content_length_;
     uint64 content_length_;
 
@@ -134,9 +108,6 @@ class UploadData : public base::RefCounted<UploadData> {
   void swap_elements(std::vector<Element>* elements) {
     elements_.swap(*elements);
   }
-
-  // CloseFiles closes the file handles of all Elements of type TYPE_FILE.
-  void CloseFiles();
 
   // Identifies a particular upload instance, which is used by the cache to
   // formulate a cache key.  This value should be unique across browser
