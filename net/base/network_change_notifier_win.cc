@@ -3,11 +3,9 @@
 // found in the LICENSE file.
 
 #include "net/base/network_change_notifier_win.h"
-
 #include <iphlpapi.h>
 #include <windows.h>
 #include <winsock2.h>
-
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"

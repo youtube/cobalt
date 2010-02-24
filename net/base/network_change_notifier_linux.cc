@@ -57,7 +57,7 @@ void NetworkChangeNotifierLinux::ListenForNotifications() {
   int rv = ReadNotificationMessage(buf, arraysize(buf));
   while (rv > 0 ) {
     if (HandleNetlinkMessage(buf, rv))
-      FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
+      helper_.OnIPAddressChanged();
     rv = ReadNotificationMessage(buf, arraysize(buf));
   }
 

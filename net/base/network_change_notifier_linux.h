@@ -7,8 +7,7 @@
 
 #include "base/basictypes.h"
 #include "base/message_loop.h"
-#include "base/observer_list.h"
-#include "net/base/network_change_notifier.h"
+#include "net/base/network_change_notifier_helper.h"
 
 namespace net {
 
@@ -20,11 +19,11 @@ class NetworkChangeNotifierLinux
   // NetworkChangeNotifier methods:
 
   virtual void AddObserver(Observer* observer) {
-    observers_.AddObserver(observer);
+    helper_.AddObserver(observer);
   }
 
   virtual void RemoveObserver(Observer* observer) {
-    observers_.RemoveObserver(observer);
+    helper_.RemoveObserver(observer);
   }
 
   // MessageLoopForIO::Watcher methods:
@@ -47,7 +46,7 @@ class NetworkChangeNotifierLinux
   // Handles the netlink message and notifies the observers.
   void HandleNotifications(const char* buf, size_t len);
 
-  ObserverList<Observer, true> observers_;
+  internal::NetworkChangeNotifierHelper helper_;
 
   int netlink_fd_;  // This is the netlink socket descriptor.
   MessageLoopForIO* const loop_;
