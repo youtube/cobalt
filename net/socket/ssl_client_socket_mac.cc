@@ -764,6 +764,14 @@ int SSLClientSocketMac::InitializeSSLContext() {
     status = SSLSetPeerID(ssl_context_, peer_id.data(), peer_id.length());
     if (status)
       return NetErrorFromOSStatus(status);
+
+    // Although we disable OS level certificate verification above,
+    // passing the domain name enables the server_name TLS extension (SNI).
+    status = SSLSetPeerDomainName(ssl_context_,
+                                  hostname_.data(),
+                                  hostname_.length());
+    if (status)
+      return NetErrorFromOSStatus(status);
   } else {
     // If I can't break on cert-requested, then set the cert up-front:
     status = SetClientCert();
