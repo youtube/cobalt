@@ -6,25 +6,48 @@
 
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
+#include "net/proxy/proxy_info.h"
 
 namespace net {
 
-ProxyConfig::ProxyConfig()
-    : auto_detect(false),
-      id_(INVALID_ID) {
-}
-
-bool ProxyConfig::Equals(const ProxyConfig& other) const {
-  // The two configs can have different IDs.  We are just interested in if they
-  // have the same settings.
-  return auto_detect == other.auto_detect &&
-         pac_url == other.pac_url &&
-         proxy_rules == other.proxy_rules &&
+bool ProxyConfig::ProxyRules::Equals(const ProxyRules& other) const {
+  return type == other.type &&
+         single_proxy == other.single_proxy &&
+         proxy_for_http == other.proxy_for_http &&
+         proxy_for_https == other.proxy_for_https &&
+         proxy_for_ftp == other.proxy_for_ftp &&
+         socks_proxy == other.socks_proxy &&
          bypass_rules.Equals(other.bypass_rules);
 }
 
-bool ProxyConfig::MayRequirePACResolver() const {
-  return auto_detect || pac_url.is_valid();
+void ProxyConfig::ProxyRules::Apply(const GURL& url, ProxyInfo* result) {
+  if (empty() || bypass_rules.Matches(url)) {
+    result->UseDirect();
+    return;
+  }
+
+  switch (type) {
+    case ProxyRules::TYPE_SINGLE_PROXY: {
+      result->UseProxyServer(single_proxy);
+      return;
+    }
+    case ProxyRules::TYPE_PROXY_PER_SCHEME: {
+      const ProxyServer* entry = MapUrlSchemeToProxy(url.scheme());
+      if (entry) {
+        result->UseProxyServer(*entry);
+      } else {
+        // We failed to find a matching proxy server for the current URL
+        // scheme. Default to direct.
+        result->UseDirect();
+      }
+      return;
+    }
+    default: {
+      result->UseDirect();
+      NOTREACHED();
+      return;
+    }
+  }
 }
 
 void ProxyConfig::ProxyRules::ParseFromString(const std::string& proxy_rules) {
@@ -96,6 +119,21 @@ ProxyServer* ProxyConfig::ProxyRules::MapSchemeToProxy(
   return NULL;  // No mapping for this scheme.
 }
 
+ProxyConfig::ProxyConfig() : auto_detect_(false), id_(INVALID_ID) {
+}
+
+bool ProxyConfig::Equals(const ProxyConfig& other) const {
+  // The two configs can have different IDs.  We are just interested in if they
+  // have the same settings.
+  return auto_detect_ == other.auto_detect_ &&
+         pac_url_ == other.pac_url_ &&
+         proxy_rules_.Equals(other.proxy_rules());
+}
+
+bool ProxyConfig::MayRequirePACResolver() const {
+  return auto_detect_ || has_pac_url();
+}
+
 }  // namespace net
 
 namespace {
@@ -145,10 +183,10 @@ std::ostream& operator<<(std::ostream& out,
 std::ostream& operator<<(std::ostream& out, const net::ProxyConfig& config) {
   // "Automatic" settings.
   out << "Automatic settings:\n";
-  out << "  Auto-detect: " << BoolToYesNoString(config.auto_detect) << "\n";
+  out << "  Auto-detect: " << BoolToYesNoString(config.auto_detect()) << "\n";
   out << "  Custom PAC script: ";
-  if (config.pac_url.is_valid())
-    out << config.pac_url;
+  if (config.has_pac_url())
+    out << config.pac_url();
   else
     out << "[None]";
   out << "\n";
@@ -157,34 +195,36 @@ std::ostream& operator<<(std::ostream& out, const net::ProxyConfig& config) {
   out << "Manual settings:\n";
   out << "  Proxy server: ";
 
-  switch (config.proxy_rules.type) {
+  switch (config.proxy_rules().type) {
     case net::ProxyConfig::ProxyRules::TYPE_NO_RULES:
       out << "[None]\n";
       break;
     case net::ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY:
-      out << config.proxy_rules.single_proxy;
+      out << config.proxy_rules().single_proxy;
       out << "\n";
       break;
     case net::ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME:
       out << "\n";
-      if (config.proxy_rules.proxy_for_http.is_valid())
-        out << "    HTTP: " << config.proxy_rules.proxy_for_http << "\n";
-      if (config.proxy_rules.proxy_for_https.is_valid())
-        out << "    HTTPS: " << config.proxy_rules.proxy_for_https << "\n";
-      if (config.proxy_rules.proxy_for_ftp.is_valid())
-        out << "    FTP: " << config.proxy_rules.proxy_for_ftp << "\n";
-      if (config.proxy_rules.socks_proxy.is_valid())
-        out << "    SOCKS: " << config.proxy_rules.socks_proxy << "\n";
+      if (config.proxy_rules().proxy_for_http.is_valid())
+        out << "    HTTP: " << config.proxy_rules().proxy_for_http << "\n";
+      if (config.proxy_rules().proxy_for_https.is_valid())
+        out << "    HTTPS: " << config.proxy_rules().proxy_for_https << "\n";
+      if (config.proxy_rules().proxy_for_ftp.is_valid())
+        out << "    FTP: " << config.proxy_rules().proxy_for_ftp << "\n";
+      if (config.proxy_rules().socks_proxy.is_valid())
+        out << "    SOCKS: " << config.proxy_rules().socks_proxy << "\n";
       break;
   }
 
   out << "  Bypass list: ";
-  if (config.bypass_rules.rules().empty()) {
+  if (config.proxy_rules().bypass_rules.rules().empty()) {
     out << "[None]";
   } else {
+    const net::ProxyBypassRules& bypass_rules =
+        config.proxy_rules().bypass_rules;
     net::ProxyBypassRules::RuleList::const_iterator it;
-    for (it = config.bypass_rules.rules().begin();
-         it != config.bypass_rules.rules().end(); ++it) {
+    for (it = bypass_rules.rules().begin();
+         it != bypass_rules.rules().end(); ++it) {
       out << "\n    " << (*it)->ToString();
     }
   }

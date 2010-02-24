@@ -365,8 +365,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     // Expected outputs (fields of the ProxyConfig).
     bool auto_detect;
     GURL pac_url;
-    ProxyConfig::ProxyRules proxy_rules;
-    const char* proxy_bypass_list;  // newline separated
+    ProxyRulesExpectation proxy_rules;
   } tests[] = {
     {
       TEST_DESC("No proxying"),
@@ -382,8 +381,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       false,                      // auto_detect
       GURL(),                     // pac_url
-      ProxyConfig::ProxyRules(),  // proxy_rules
-      "",                         // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -400,8 +398,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       true,                       // auto_detect
       GURL(),                     // pac_url
-      ProxyConfig::ProxyRules(),  // proxy_rules
-      "",                         // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -418,8 +415,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       false,                         // auto_detect
       GURL("http://wpad/wpad.dat"),  // pac_url
-      ProxyConfig::ProxyRules(),     // proxy_rules
-      "",                            // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -436,8 +432,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       false,                         // auto_detect
       GURL(),                        // pac_url
-      ProxyConfig::ProxyRules(),     // proxy_rules
-      "",                            // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -454,8 +449,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeSingleProxyRules("www.google.com"),  // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "www.google.com:80",  // single proxy
+          ""),                  // bypass rules
     },
 
     {
@@ -472,8 +468,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      ProxyConfig::ProxyRules(),               // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -490,9 +485,11 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       false,                                          // auto_detect
       GURL(),                                         // pac_url
-      MakeProxyPerSchemeRules("www.google.com",       // proxy_rules
-                              "", ""),
-      "",                                             // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -509,8 +506,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       false,                                          // auto_detect
       GURL(),                                         // pac_url
-      MakeSingleProxyRules("www.google.com:88"),      // proxy_rules
-      "",                                             // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "www.google.com:88",  // single proxy
+          ""),                  // bypass rules
     },
 
     {
@@ -530,10 +528,11 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       false,                                          // auto_detect
       GURL(),                                         // pac_url
-      MakeProxyPerSchemeRules("www.google.com:88",    // proxy_rules
-                              "www.foo.com:110",
-                              "ftp.foo.com:121"),
-      "",                                             // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:88",  // http
+          "www.foo.com:110",    // https
+          "ftp.foo.com:121",    // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -550,8 +549,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
       // Expected result.
       false,                                          // auto_detect
       GURL(),                                         // pac_url
-      MakeSingleProxyRules("socks4://socks.com:99"),  // proxy_rules
-      "",                                             // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "socks4://socks.com:99",  // single proxy
+          "")                       // bypass rules
     },
 
     {
@@ -567,8 +567,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
 
       false,                                          // auto_detect
       GURL(),                                         // pac_url
-      MakeSingleProxyRules("www.google.com"),         // proxy_rules
-      "*.google.com\n",                               // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "www.google.com:80",   // single proxy
+          "*.google.com"),       // bypass rules
     },
   };
 
@@ -585,11 +586,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     sync_config_getter.SetupAndInitialFetch();
     sync_config_getter.SyncGetProxyConfig(&config);
 
-    EXPECT_EQ(tests[i].auto_detect, config.auto_detect);
-    EXPECT_EQ(tests[i].pac_url, config.pac_url);
-    EXPECT_EQ(tests[i].proxy_bypass_list,
-              FlattenProxyBypass(config.bypass_rules));
-    EXPECT_EQ(tests[i].proxy_rules, config.proxy_rules);
+    EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
+    EXPECT_EQ(tests[i].pac_url, config.pac_url());
+    EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
   }
 }
 
@@ -605,8 +604,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     // Expected outputs (fields of the ProxyConfig).
     bool auto_detect;
     GURL pac_url;
-    ProxyConfig::ProxyRules proxy_rules;
-    const char* proxy_bypass_list;  // newline separated
+    ProxyRulesExpectation proxy_rules;
   } tests[] = {
     {
       TEST_DESC("No proxying"),
@@ -623,8 +621,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                      // auto_detect
       GURL(),                     // pac_url
-      ProxyConfig::ProxyRules(),  // proxy_rules
-      "",                         // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -642,8 +639,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       true,                       // auto_detect
       GURL(),                     // pac_url
-      ProxyConfig::ProxyRules(),  // proxy_rules
-      "",                         // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -661,8 +657,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                         // auto_detect
       GURL("http://wpad/wpad.dat"),  // pac_url
-      ProxyConfig::ProxyRules(),     // proxy_rules
-      "",                            // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -680,8 +675,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                       // auto_detect
       GURL(),                     // pac_url
-      ProxyConfig::ProxyRules(),  // proxy_rules
-      "",                         // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -699,8 +693,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeSingleProxyRules("www.google.com"),  // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "www.google.com:80",  // single proxy
+          ""),                  // bypass rules
     },
 
     {
@@ -718,8 +713,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeSingleProxyRules("www.google.com:99"),  // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "www.google.com:99",  // single
+          ""),                  // bypass rules
     },
 
     {
@@ -737,8 +733,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeSingleProxyRules("www.google.com:99"),  // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "www.google.com:99",  // single proxy
+          ""),                  // bypass rules
     },
 
     {
@@ -756,9 +753,11 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com", "www.foo.com:110",
-                              "ftp.foo.com:121"),
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "www.foo.com:110",    // https
+          "ftp.foo.com:121",    // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -776,8 +775,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeSingleProxyRules("socks4://socks.com:888"),  // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "socks4://socks.com:888",  // single proxy
+          ""),                       // bypass rules
     },
 
     {
@@ -795,8 +795,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeSingleProxyRules("socks5://socks.com:888"),  // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "socks5://socks.com:888",  // single proxy
+          ""),                       // bypass rules
     },
 
     {
@@ -814,8 +815,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeSingleProxyRules("socks4://socks.com"),  // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::Single(
+          "socks4://socks.com:1080",  // single proxy
+          ""),                        // bypass rules
     },
 
     {
@@ -832,10 +834,10 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
 
       false,                      // auto_detect
       GURL(),                     // pac_url
-      MakeSingleProxyRules("www.google.com"),  // proxy_rules
-      // proxy_bypass_list
-      // TODO(eroman): 127.0.0.1/8 is unsupported, so it was dropped
-      "*.google.com\n*foo.com:99\n1.2.3.4:22\n",
+      ProxyRulesExpectation::Single(
+          "www.google.com:80",
+          // TODO(eroman): 127.0.0.1/8 is unsupported, so it was dropped
+          "*.google.com,*foo.com:99,1.2.3.4:22"),
     },
   };
 
@@ -852,11 +854,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     sync_config_getter.SetupAndInitialFetch();
     sync_config_getter.SyncGetProxyConfig(&config);
 
-    EXPECT_EQ(tests[i].auto_detect, config.auto_detect);
-    EXPECT_EQ(tests[i].pac_url, config.pac_url);
-    EXPECT_EQ(tests[i].proxy_bypass_list,
-              FlattenProxyBypass(config.bypass_rules));
-    EXPECT_EQ(tests[i].proxy_rules, config.proxy_rules);
+    EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
+    EXPECT_EQ(tests[i].pac_url, config.pac_url());
+    EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
   }
 }
 
@@ -873,14 +873,14 @@ TEST_F(ProxyConfigServiceLinuxTest, GconfNotification) {
   gconf_getter->values.mode = "none";
   sync_config_getter.SetupAndInitialFetch();
   sync_config_getter.SyncGetProxyConfig(&config);
-  EXPECT_FALSE(config.auto_detect);
+  EXPECT_FALSE(config.auto_detect());
 
   // Now set to auto-detect.
   gconf_getter->values.mode = "auto";
   // Simulate gconf notification callback.
   service->OnCheckProxyConfigSettings();
   sync_config_getter.SyncGetProxyConfig(&config);
-  EXPECT_TRUE(config.auto_detect);
+  EXPECT_TRUE(config.auto_detect());
 }
 
 TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
@@ -902,7 +902,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     // Expected outputs (fields of the ProxyConfig).
     bool auto_detect;
     GURL pac_url;
-    ProxyConfig::ProxyRules proxy_rules;
+    ProxyRulesExpectation proxy_rules;
     const char* proxy_bypass_list;  // newline separated
   } tests[] = {
     {
@@ -914,8 +914,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       // Expected result.
       false,                      // auto_detect
       GURL(),                     // pac_url
-      ProxyConfig::ProxyRules(),  // proxy_rules
-      "",                         // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -927,8 +926,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       // Expected result.
       true,                       // auto_detect
       GURL(),                     // pac_url
-      ProxyConfig::ProxyRules(),  // proxy_rules
-      "",                         // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -941,8 +939,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       // Expected result.
       false,                         // auto_detect
       GURL("http://wpad/wpad.dat"),  // pac_url
-      ProxyConfig::ProxyRules(),     // proxy_rules
-      "",                            // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -955,10 +952,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "www.foo.com",
-                              "ftp.foo.com"),  // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "www.foo.com:80",     // https
+          "ftp.foo.com:80",     // http
+          ""),                  // bypass rules
     },
 
     {
@@ -971,9 +969,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", ""),         // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -986,9 +986,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       // Expected result.
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com:88",
-                              "", ""),         // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:88",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -1000,9 +1002,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", ""),         // proxy_rules
-      "*.google.com\n",                        // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "",                   // ftp
+          "*.google.com"),      // bypass rules
     },
 
     {
@@ -1014,9 +1018,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", ""),         // proxy_rules
-      "*.google.com\n*.kde.org\n",             // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",           // http
+          "",                            // https
+          "",                            // ftp
+          "*.google.com,*.kde.org"),     // bypass rules
     },
 
     {
@@ -1028,9 +1034,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", ""),         // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -1042,9 +1050,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", ""),         // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -1056,9 +1066,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", ""),         // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -1069,9 +1081,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", ""),         // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -1082,9 +1096,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", ""),         // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -1095,9 +1111,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", ""),         // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "",                   // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -1109,9 +1127,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", "ftp.foo.com"),  // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "ftp.foo.com:80",     // ftp
+          ""),                  // bypass rules
     },
 
     {
@@ -1123,8 +1143,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL("http:// foo"),                     // pac_url
-      ProxyConfig::ProxyRules(),               // proxy_rules
-      "",                                      // proxy_bypass_list
+      ProxyRulesExpectation::Empty(),
     },
 
     {
@@ -1136,9 +1155,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                       // auto_detect
       GURL(),                                      // pac_url
-      MakeProxyPerSchemeRules("www.google.com",
-                              "", "ftp.foo.com"),  // proxy_rules
-      "",                                          // proxy_bypass_list
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",  // http
+          "",                   // https
+          "ftp.foo.com:80",     // ftp
+          ""),                  // bypass rules
     },
   };
 
@@ -1159,11 +1180,9 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     sync_config_getter.SetupAndInitialFetch();
     sync_config_getter.SyncGetProxyConfig(&config);
 
-    EXPECT_EQ(tests[i].auto_detect, config.auto_detect);
-    EXPECT_EQ(tests[i].pac_url, config.pac_url);
-    EXPECT_EQ(tests[i].proxy_bypass_list,
-              FlattenProxyBypass(config.bypass_rules));
-    EXPECT_EQ(tests[i].proxy_rules, config.proxy_rules);
+    EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
+    EXPECT_EQ(tests[i].pac_url, config.pac_url());
+    EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
   }
 }
 

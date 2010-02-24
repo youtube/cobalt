@@ -9,59 +9,120 @@
 
 #include "net/proxy/proxy_config.h"
 
+#include "testing/gtest/include/gtest/gtest.h"
+
 namespace net {
 
-ProxyConfig::ProxyRules MakeProxyRules(
-    ProxyConfig::ProxyRules::Type type,
-    const char* single_proxy,
-    const char* proxy_for_http,
-    const char* proxy_for_https,
-    const char* proxy_for_ftp,
-    const char* socks_proxy) {
-  ProxyConfig::ProxyRules rules;
-  rules.type = type;
-  rules.single_proxy = ProxyServer::FromURI(single_proxy,
-                                            ProxyServer::SCHEME_HTTP);
-  rules.proxy_for_http = ProxyServer::FromURI(proxy_for_http,
-                                              ProxyServer::SCHEME_HTTP);
-  rules.proxy_for_https = ProxyServer::FromURI(proxy_for_https,
-                                               ProxyServer::SCHEME_HTTP);
-  rules.proxy_for_ftp = ProxyServer::FromURI(proxy_for_ftp,
-                                             ProxyServer::SCHEME_HTTP);
-  rules.socks_proxy = ProxyServer::FromURI(socks_proxy,
-                                           ProxyServer::SCHEME_SOCKS4);
-  return rules;
-}
+namespace {
 
-ProxyConfig::ProxyRules MakeSingleProxyRules(const char* single_proxy) {
-  return MakeProxyRules(ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
-                        single_proxy, "", "", "", "");
-}
+// Helper to verify that |expected_proxy| matches |actual_proxy|. If it does
+// not, then |*did_fail| is set to true, and |*failure_details| is filled with
+// a description of the failure.
+void MatchesProxyServerHelper(const char* failure_message,
+                              const char* expected_proxy,
+                              const ProxyServer& actual_proxy,
+                              ::testing::AssertionResult* failure_details,
+                              bool* did_fail) {
+  std::string actual_proxy_string;
+  if (actual_proxy.is_valid())
+    actual_proxy_string = actual_proxy.ToURI();
 
-ProxyConfig::ProxyRules MakeProxyPerSchemeRules(
-    const char* proxy_http,
-    const char* proxy_https,
-    const char* proxy_ftp) {
-  return MakeProxyRules(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
-                        "", proxy_http, proxy_https, proxy_ftp, "");
-}
-ProxyConfig::ProxyRules MakeProxyPerSchemeRules(
-    const char* proxy_http,
-    const char* proxy_https,
-    const char* proxy_ftp,
-    const char* socks_proxy) {
-  return MakeProxyRules(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
-                        "", proxy_http, proxy_https, proxy_ftp, socks_proxy);
+  if (std::string(expected_proxy) != actual_proxy_string) {
+    *failure_details
+        << failure_message << ". Was expecting: \"" << expected_proxy
+        << "\" but got: \"" << actual_proxy_string << "\"";
+    *did_fail = true;
+  }
 }
 
 std::string FlattenProxyBypass(const ProxyBypassRules& bypass_rules) {
   std::string flattened_proxy_bypass;
   for (ProxyBypassRules::RuleList::const_iterator it =
-           bypass_rules.rules().begin();
+       bypass_rules.rules().begin();
        it != bypass_rules.rules().end(); ++it) {
-    flattened_proxy_bypass += (*it)->ToString() + "\n";
+    if (!flattened_proxy_bypass.empty())
+      flattened_proxy_bypass += ",";
+    flattened_proxy_bypass += (*it)->ToString();
   }
   return flattened_proxy_bypass;
+}
+
+}  // namespace
+
+::testing::AssertionResult ProxyRulesExpectation::Matches(
+    const ProxyConfig::ProxyRules& rules) const {
+  ::testing::AssertionResult failure_details = ::testing::AssertionFailure();
+  bool failed = false;
+
+  if (rules.type != type) {
+    failure_details << "Type mismatch. Expected: "
+                    << type << " but was: " << rules.type;
+    failed = true;
+  }
+
+  MatchesProxyServerHelper("Bad single_proxy", single_proxy,
+                           rules.single_proxy, &failure_details, &failed);
+  MatchesProxyServerHelper("Bad proxy_for_http", proxy_for_http,
+                           rules.proxy_for_http, &failure_details, &failed);
+  MatchesProxyServerHelper("Bad proxy_for_https", proxy_for_https,
+                           rules.proxy_for_https, &failure_details, &failed);
+  MatchesProxyServerHelper("Bad proxy_for_socks", socks_proxy,
+                           rules.socks_proxy, &failure_details, &failed);
+
+  std::string actual_flattened_bypass = FlattenProxyBypass(rules.bypass_rules);
+  if (std::string(flattened_bypass_rules) != actual_flattened_bypass) {
+    failure_details
+        << "Bad bypass rules. Expected: \"" << flattened_bypass_rules
+        << "\" but got: \"" << actual_flattened_bypass << "\"";
+    failed = true;
+  }
+
+  return failed ? failure_details : ::testing::AssertionSuccess();
+}
+
+// static
+ProxyRulesExpectation ProxyRulesExpectation::Empty() {
+  return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_NO_RULES,
+                               "", "", "", "", "", "");
+}
+
+// static
+ProxyRulesExpectation ProxyRulesExpectation::EmptyWithBypass(
+    const char* flattened_bypass_rules) {
+  return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_NO_RULES,
+                               "", "", "", "", "", flattened_bypass_rules);
+}
+
+// static
+ProxyRulesExpectation ProxyRulesExpectation::Single(
+    const char* single_proxy,
+    const char* flattened_bypass_rules) {
+  return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
+                               single_proxy, "", "", "", "",
+                               flattened_bypass_rules);
+}
+
+// static
+ProxyRulesExpectation ProxyRulesExpectation::PerScheme(
+    const char* proxy_http,
+    const char* proxy_https,
+    const char* proxy_ftp,
+    const char* flattened_bypass_rules) {
+  return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+                               "", proxy_http, proxy_https, proxy_ftp, "",
+                               flattened_bypass_rules);
+}
+
+// static
+ProxyRulesExpectation ProxyRulesExpectation::PerSchemeWithSocks(
+    const char* proxy_http,
+    const char* proxy_https,
+    const char* proxy_ftp,
+    const char* socks_proxy,
+    const char* flattened_bypass_rules) {
+  return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+                               "", proxy_http, proxy_https, proxy_ftp,
+                               socks_proxy, flattened_bypass_rules);
 }
 
 }  // namespace net
