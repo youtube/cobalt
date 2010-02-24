@@ -658,7 +658,8 @@ void SSLClientSocketMac::GetSSLCertRequestInfo(
   // I'm being asked for available client certs (identities).
   cert_request_info->host_and_port = hostname_;
   cert_request_info->client_certs.clear();
-  X509Certificate::GetSSLClientCertificates(&cert_request_info->client_certs);
+  X509Certificate::GetSSLClientCertificates(hostname_,
+                                            &cert_request_info->client_certs);
 }
 
 SSLClientSocket::NextProtoStatus
