@@ -355,7 +355,7 @@ int HttpStreamParser::DoReadBody() {
 
   // Check to see if we're done reading.
   if (IsResponseBodyComplete())
-    return 0;
+    return ERR_END_OF_STREAM;
 
   DCHECK_EQ(0, read_buf_->offset());
   return connection_->socket()->Read(user_read_buf_, user_read_buf_len_,

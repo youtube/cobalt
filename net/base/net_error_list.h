@@ -134,6 +134,9 @@ NET_ERROR(SOCKS_CONNECTION_FAILED, -120)
 // because that host is unreachable.
 NET_ERROR(SOCKS_CONNECTION_HOST_UNREACHABLE, -121)
 
+// There is no more data left in the logical stream.
+NET_ERROR(END_OF_STREAM, -122)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
