@@ -43,13 +43,24 @@ class FileStream {
   // Note that if there are any pending async operations, they'll be aborted.
   void Close();
 
+  // Release performs the same actions as Close, but doesn't actually close the
+  // underlying PlatformFile.
+  void Release();
+
   // Call this method to open the FileStream.  The remaining methods
   // cannot be used unless this method returns OK.  If the file cannot be
   // opened then an error code is returned.
   // open_flags is a bitfield of base::PlatformFileFlags
   int Open(const FilePath& path, int open_flags);
 
-  // Returns true if Open succeeded and Close has not been called.
+  // Calling this method is functionally the same as constructing the object
+  // with the non-default constructor. This method can only be used if the
+  // FileSteam isn't currently open (i.e. was constructed with the default
+  // constructor).
+  int Open(base::PlatformFile file, int open_flags);
+
+  // Returns true if Open succeeded and neither Close nor Release have been
+  // called.
   bool IsOpen() const;
 
   // Adjust the position from where data is read.  Upon success, the stream
