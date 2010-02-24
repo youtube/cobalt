@@ -31,7 +31,7 @@ class MockProxyConfigService: public ProxyConfigService {
   MockProxyConfigService() {}  // Direct connect.
   explicit MockProxyConfigService(const ProxyConfig& pc) : config(pc) {}
   explicit MockProxyConfigService(const std::string& pac_url) {
-    config.pac_url = GURL(pac_url);
+    config.set_pac_url(GURL(pac_url));
   }
 
   virtual int GetProxyConfig(ProxyConfig* results) {
@@ -539,7 +539,7 @@ TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
 
   // Fake an error on the proxy, and also a new configuration on the proxy.
   config_service->config = ProxyConfig();
-  config_service->config.pac_url = GURL("http://foopy-new/proxy.pac");
+  config_service->config.set_pac_url(GURL("http://foopy-new/proxy.pac"));
 
   TestCompletionCallback callback2;
   rv = service->ReconsiderProxyAfterError(url, &info, &callback2, NULL, NULL);
@@ -568,7 +568,7 @@ TEST(ProxyServiceTest, ProxyFallback_NewSettings) {
 
   // We simulate a new configuration.
   config_service->config = ProxyConfig();
-  config_service->config.pac_url = GURL("http://foopy-new2/proxy.pac");
+  config_service->config.set_pac_url(GURL("http://foopy-new2/proxy.pac"));
 
   // We fake another error. It should go back to the first proxy.
   TestCompletionCallback callback4;
@@ -679,9 +679,9 @@ TEST(ProxyServiceTest, ProxyBypassList) {
   TestCompletionCallback callback[2];
   ProxyInfo info[2];
   ProxyConfig config;
-  config.proxy_rules.ParseFromString("foopy1:8080;foopy2:9090");
-  config.auto_detect = false;
-  config.bypass_rules.ParseFromString("*.org");
+  config.proxy_rules().ParseFromString("foopy1:8080;foopy2:9090");
+  config.set_auto_detect(false);
+  config.proxy_rules().bypass_rules.ParseFromString("*.org");
 
   scoped_refptr<ProxyService> service(new ProxyService(
       new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
@@ -704,8 +704,8 @@ TEST(ProxyServiceTest, ProxyBypassList) {
 
 TEST(ProxyServiceTest, PerProtocolProxyTests) {
   ProxyConfig config;
-  config.proxy_rules.ParseFromString("http=foopy1:8080;https=foopy2:8080");
-  config.auto_detect = false;
+  config.proxy_rules().ParseFromString("http=foopy1:8080;https=foopy2:8080");
+  config.set_auto_detect(false);
   {
     scoped_refptr<ProxyService> service(new ProxyService(
         new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
@@ -740,7 +740,7 @@ TEST(ProxyServiceTest, PerProtocolProxyTests) {
     EXPECT_EQ("foopy2:8080", info.proxy_server().ToURI());
   }
   {
-    config.proxy_rules.ParseFromString("foopy1:8080");
+    config.proxy_rules().ParseFromString("foopy1:8080");
     scoped_refptr<ProxyService> service(new ProxyService(
         new MockProxyConfigService(config), new MockAsyncProxyResolver, NULL));
     GURL test_url("http://www.microsoft.com");
@@ -757,10 +757,10 @@ TEST(ProxyServiceTest, PerProtocolProxyTests) {
 // fall back to the SOCKS proxy.
 TEST(ProxyServiceTest, DefaultProxyFallbackToSOCKS) {
   ProxyConfig config;
-  config.proxy_rules.ParseFromString("http=foopy1:8080;socks=foopy2:1080");
-  config.auto_detect = false;
+  config.proxy_rules().ParseFromString("http=foopy1:8080;socks=foopy2:1080");
+  config.set_auto_detect(false);
   EXPECT_EQ(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
-            config.proxy_rules.type);
+            config.proxy_rules().type);
 
   {
     scoped_refptr<ProxyService> service(new ProxyService(
@@ -1105,9 +1105,9 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
 // Test that if auto-detect fails, we fall-back to the custom pac.
 TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac) {
   ProxyConfig config;
-  config.auto_detect = true;
-  config.pac_url = GURL("http://foopy/proxy.pac");
-  config.proxy_rules.ParseFromString("http=foopy:80");  // Won't be used.
+  config.set_auto_detect(true);
+  config.set_pac_url(GURL("http://foopy/proxy.pac"));
+  config.proxy_rules().ParseFromString("http=foopy:80");  // Won't be used.
 
   MockProxyConfigService* config_service = new MockProxyConfigService(config);
   MockAsyncProxyResolverExpectsBytes* resolver =
@@ -1176,9 +1176,9 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac) {
 // the auto-detect script fails parsing rather than downloading.
 TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac2) {
   ProxyConfig config;
-  config.auto_detect = true;
-  config.pac_url = GURL("http://foopy/proxy.pac");
-  config.proxy_rules.ParseFromString("http=foopy:80");  // Won't be used.
+  config.set_auto_detect(true);
+  config.set_pac_url(GURL("http://foopy/proxy.pac"));
+  config.proxy_rules().ParseFromString("http=foopy:80");  // Won't be used.
 
   MockProxyConfigService* config_service = new MockProxyConfigService(config);
   MockAsyncProxyResolverExpectsBytes* resolver =
@@ -1252,9 +1252,9 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomPac2) {
 // are given, then we will try them in that order.
 TEST(ProxyServiceTest, FallbackFromAutodetectToCustomToManual) {
   ProxyConfig config;
-  config.auto_detect = true;
-  config.pac_url = GURL("http://foopy/proxy.pac");
-  config.proxy_rules.ParseFromString("http=foopy:80");
+  config.set_auto_detect(true);
+  config.set_pac_url(GURL("http://foopy/proxy.pac"));
+  config.proxy_rules().ParseFromString("http=foopy:80");
 
   MockProxyConfigService* config_service = new MockProxyConfigService(config);
   MockAsyncProxyResolverExpectsBytes* resolver =
@@ -1309,10 +1309,10 @@ TEST(ProxyServiceTest, FallbackFromAutodetectToCustomToManual) {
 // Test that the bypass rules are NOT applied when using autodetect.
 TEST(ProxyServiceTest, BypassDoesntApplyToPac) {
   ProxyConfig config;
-  config.auto_detect = true;
-  config.pac_url = GURL("http://foopy/proxy.pac");
-  config.proxy_rules.ParseFromString("http=foopy:80");  // Not used.
-  config.bypass_rules.ParseFromString("www.google.com");
+  config.set_auto_detect(true);
+  config.set_pac_url(GURL("http://foopy/proxy.pac"));
+  config.proxy_rules().ParseFromString("http=foopy:80");  // Not used.
+  config.proxy_rules().bypass_rules.ParseFromString("www.google.com");
 
   MockProxyConfigService* config_service = new MockProxyConfigService(config);
   MockAsyncProxyResolverExpectsBytes* resolver =
@@ -1380,7 +1380,7 @@ TEST(ProxyServiceTest, BypassDoesntApplyToPac) {
 // being deleted prior to the InitProxyResolver).
 TEST(ProxyServiceTest, DeleteWhileInitProxyResolverHasOutstandingFetch) {
   ProxyConfig config;
-  config.pac_url = GURL("http://foopy/proxy.pac");
+  config.set_pac_url(GURL("http://foopy/proxy.pac"));
 
   MockProxyConfigService* config_service = new MockProxyConfigService(config);
   MockAsyncProxyResolverExpectsBytes* resolver =
@@ -1440,8 +1440,8 @@ TEST(ProxyServiceTest, DeleteWhileInitProxyResolverHasOutstandingSet) {
 
 TEST(ProxyServiceTest, ResetProxyConfigService) {
   ProxyConfig config1;
-  config1.proxy_rules.ParseFromString("foopy1:8080");
-  config1.auto_detect = false;
+  config1.proxy_rules().ParseFromString("foopy1:8080");
+  config1.set_auto_detect(false);
   scoped_refptr<ProxyService> service(new ProxyService(
       new MockProxyConfigService(config1),
       new MockAsyncProxyResolverExpectsBytes,
@@ -1455,8 +1455,8 @@ TEST(ProxyServiceTest, ResetProxyConfigService) {
   EXPECT_EQ("foopy1:8080", info.proxy_server().ToURI());
 
   ProxyConfig config2;
-  config2.proxy_rules.ParseFromString("foopy2:8080");
-  config2.auto_detect = false;
+  config2.proxy_rules().ParseFromString("foopy2:8080");
+  config2.set_auto_detect(false);
   service->ResetConfigService(new MockProxyConfigService(config2));
   TestCompletionCallback callback2;
   rv = service->ResolveProxy(
@@ -1472,7 +1472,7 @@ TEST(ProxyServiceTest, ResetProxyConfigService) {
 // thought it had received a new configuration.
 TEST(ProxyServiceTest, UpdateConfigAfterFailedAutodetect) {
   ProxyConfig config;
-  config.auto_detect = true;
+  config.set_auto_detect(true);
 
   MockProxyConfigService* config_service = new MockProxyConfigService(config);
   MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
@@ -1518,7 +1518,7 @@ TEST(ProxyServiceTest, UpdateConfigAfterFailedAutodetect) {
 // that does NOT, we unset the variable |should_use_proxy_resolver_|.
 TEST(ProxyServiceTest, UpdateConfigFromPACToDirect) {
   ProxyConfig config;
-  config.auto_detect = true;
+  config.set_auto_detect(true);
 
   MockProxyConfigService* config_service = new MockProxyConfigService(config);
   MockAsyncProxyResolver* resolver = new MockAsyncProxyResolver;
@@ -1554,7 +1554,7 @@ TEST(ProxyServiceTest, UpdateConfigFromPACToDirect) {
   //
   // This new configuration no longer has auto_detect set, so
   // requests should complete synchronously now as direct-connect.
-  config.auto_detect = false;
+  config.set_auto_detect(false);
   config_service->config = config;
   service->UpdateConfig(NULL);
 

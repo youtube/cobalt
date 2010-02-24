@@ -49,10 +49,10 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
   // There appears to be no UI for this configuration option, and we're not sure
   // if Apple's proxy code even takes it into account. But the constant is in
   // the header file so we'll use it.
-  config->auto_detect =
+  config->set_auto_detect(
       GetBoolFromDictionary(config_dict.get(),
                             kSCPropNetProxiesProxyAutoDiscoveryEnable,
-                            false);
+                            false));
 
   // PAC file
 
@@ -64,7 +64,7 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
         kSCPropNetProxiesProxyAutoConfigURLString,
         CFStringGetTypeID());
     if (pac_url_ref)
-      config->pac_url = GURL(base::SysCFStringRefToUTF8(pac_url_ref));
+      config->set_pac_url(GURL(base::SysCFStringRefToUTF8(pac_url_ref)));
   }
 
   // proxies (for now ftp, http, https, and SOCKS)
@@ -78,8 +78,9 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
                                     kSCPropNetProxiesFTPProxy,
                                     kSCPropNetProxiesFTPPort);
     if (proxy_server.is_valid()) {
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
-      config->proxy_rules.proxy_for_ftp = proxy_server;
+      config->proxy_rules().type =
+          ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
+      config->proxy_rules().proxy_for_ftp = proxy_server;
     }
   }
   if (GetBoolFromDictionary(config_dict.get(),
@@ -91,8 +92,9 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
                                     kSCPropNetProxiesHTTPProxy,
                                     kSCPropNetProxiesHTTPPort);
     if (proxy_server.is_valid()) {
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
-      config->proxy_rules.proxy_for_http = proxy_server;
+      config->proxy_rules().type =
+          ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
+      config->proxy_rules().proxy_for_http = proxy_server;
     }
   }
   if (GetBoolFromDictionary(config_dict.get(),
@@ -104,8 +106,9 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
                                     kSCPropNetProxiesHTTPSProxy,
                                     kSCPropNetProxiesHTTPSPort);
     if (proxy_server.is_valid()) {
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
-      config->proxy_rules.proxy_for_https = proxy_server;
+      config->proxy_rules().type =
+          ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
+      config->proxy_rules().proxy_for_https = proxy_server;
     }
   }
   if (GetBoolFromDictionary(config_dict.get(),
@@ -117,8 +120,9 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
                                     kSCPropNetProxiesSOCKSProxy,
                                     kSCPropNetProxiesSOCKSPort);
     if (proxy_server.is_valid()) {
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
-      config->proxy_rules.socks_proxy = proxy_server;
+      config->proxy_rules().type =
+          ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
+      config->proxy_rules().socks_proxy = proxy_server;
     }
   }
 
@@ -140,7 +144,7 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
                         " to be a CFStringRef but it was not";
 
       } else {
-        config->bypass_rules.AddRuleFromString(
+        config->proxy_rules().bypass_rules.AddRuleFromString(
             base::SysCFStringRefToUTF8(bypass_item_ref));
       }
     }
@@ -151,7 +155,7 @@ int ProxyConfigServiceMac::GetProxyConfig(ProxyConfig* config) {
   if (GetBoolFromDictionary(config_dict.get(),
                             kSCPropNetProxiesExcludeSimpleHostnames,
                             false)) {
-    config->bypass_rules.AddRuleToBypassLocal();
+    config->proxy_rules().bypass_rules.AddRuleToBypassLocal();
   }
 
   return OK;

@@ -109,22 +109,22 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
   if (env_var_getter_->Getenv("auto_proxy", &auto_proxy)) {
     if (auto_proxy.empty()) {
       // Defined and empty => autodetect
-      config->auto_detect = true;
+      config->set_auto_detect(true);
     } else {
       // specified autoconfig URL
-      config->pac_url = GURL(auto_proxy);
+      config->set_pac_url(GURL(auto_proxy));
     }
     return true;
   }
   // "all_proxy" is a shortcut to avoid defining {http,https,ftp}_proxy.
   ProxyServer proxy_server;
   if (GetProxyFromEnvVar("all_proxy", &proxy_server)) {
-    config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
-    config->proxy_rules.single_proxy = proxy_server;
+    config->proxy_rules().type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
+    config->proxy_rules().single_proxy = proxy_server;
   } else {
     bool have_http = GetProxyFromEnvVar("http_proxy", &proxy_server);
     if (have_http)
-      config->proxy_rules.proxy_for_http = proxy_server;
+      config->proxy_rules().proxy_for_http = proxy_server;
     // It would be tempting to let http_proxy apply for all protocols
     // if https_proxy and ftp_proxy are not defined. Googling turns up
     // several documents that mention only http_proxy. But then the
@@ -132,16 +132,17 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
     // like other apps do this. So we will refrain.
     bool have_https = GetProxyFromEnvVar("https_proxy", &proxy_server);
     if (have_https)
-      config->proxy_rules.proxy_for_https = proxy_server;
+      config->proxy_rules().proxy_for_https = proxy_server;
     bool have_ftp = GetProxyFromEnvVar("ftp_proxy", &proxy_server);
     if (have_ftp)
-      config->proxy_rules.proxy_for_ftp = proxy_server;
+      config->proxy_rules().proxy_for_ftp = proxy_server;
     if (have_http || have_https || have_ftp) {
       // mustn't change type unless some rules are actually set.
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
+      config->proxy_rules().type =
+          ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
     }
   }
-  if (config->proxy_rules.empty()) {
+  if (config->proxy_rules().empty()) {
     // If the above were not defined, try for socks.
     ProxyServer::Scheme scheme = ProxyServer::SCHEME_SOCKS4;
     std::string env_version;
@@ -149,14 +150,14 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
         && env_version == "5")
       scheme = ProxyServer::SCHEME_SOCKS5;
     if (GetProxyFromEnvVarForScheme("SOCKS_SERVER", scheme, &proxy_server)) {
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
-      config->proxy_rules.single_proxy = proxy_server;
+      config->proxy_rules().type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
+      config->proxy_rules().single_proxy = proxy_server;
     }
   }
   // Look for the proxy bypass list.
   std::string no_proxy;
   env_var_getter_->Getenv("no_proxy", &no_proxy);
-  if (config->proxy_rules.empty()) {
+  if (config->proxy_rules().empty()) {
     // Having only "no_proxy" set, presumably to "*", makes it
     // explicit that env vars do specify a configuration: having no
     // rules specified only means the user explicitly asks for direct
@@ -165,7 +166,8 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
   }
   // Note that this uses "suffix" matching. So a bypass of "google.com"
   // is understood to mean a bypass of "*google.com".
-  config->bypass_rules.ParseFromStringUsingSuffixMatching(no_proxy);
+  config->proxy_rules().bypass_rules.ParseFromStringUsingSuffixMatching(
+      no_proxy);
   return true;
 }
 
@@ -864,11 +866,11 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
         GURL pac_url(pac_url_str);
         if (!pac_url.is_valid())
           return false;
-        config->pac_url = pac_url;
+        config->set_pac_url(pac_url);
         return true;
       }
     }
-    config->auto_detect = true;
+    config->set_auto_detect(true);
     return true;
   }
 
@@ -898,37 +900,37 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
     if (GetProxyFromGConf("/system/proxy/socks_", true, &proxy_server)) {
       // gconf settings do not appear to distinguish between socks
       // version. We default to version 4.
-      config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
-      config->proxy_rules.single_proxy = proxy_server;
+      config->proxy_rules().type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
+      config->proxy_rules().single_proxy = proxy_server;
     }
   }
-  if (config->proxy_rules.empty()) {
+  if (config->proxy_rules().empty()) {
     bool have_http = GetProxyFromGConf("/system/http_proxy/", false,
                                        &proxy_server);
     if (same_proxy) {
       if (have_http) {
-        config->proxy_rules.type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
-        config->proxy_rules.single_proxy = proxy_server;
+        config->proxy_rules().type = ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY;
+        config->proxy_rules().single_proxy = proxy_server;
       }
     } else {
       // Protocol specific settings.
       if (have_http)
-        config->proxy_rules.proxy_for_http = proxy_server;
+        config->proxy_rules().proxy_for_http = proxy_server;
       bool have_secure = GetProxyFromGConf("/system/proxy/secure_", false,
                                            &proxy_server);
       if (have_secure)
-        config->proxy_rules.proxy_for_https = proxy_server;
+        config->proxy_rules().proxy_for_https = proxy_server;
       bool have_ftp = GetProxyFromGConf("/system/proxy/ftp_", false,
                                         &proxy_server);
       if (have_ftp)
-        config->proxy_rules.proxy_for_ftp = proxy_server;
+        config->proxy_rules().proxy_for_ftp = proxy_server;
       if (have_http || have_secure || have_ftp)
-        config->proxy_rules.type =
+        config->proxy_rules().type =
             ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME;
     }
   }
 
-  if (config->proxy_rules.empty()) {
+  if (config->proxy_rules().empty()) {
     // Manual mode but we couldn't parse any rules.
     return false;
   }
@@ -949,9 +951,9 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   gconf_getter_->GetStringList("/system/http_proxy/ignore_hosts",
                                &ignore_hosts_list);
 
-  config->bypass_rules.Clear();
+  config->proxy_rules().bypass_rules.Clear();
   for (size_t i = 0; i < ignore_hosts_list.size(); ++i)
-    config->bypass_rules.AddRuleFromString(ignore_hosts_list[i]);
+    config->proxy_rules().bypass_rules.AddRuleFromString(ignore_hosts_list[i]);
 
   // Note that there are no settings with semantics corresponding to
   // bypass of local names.
