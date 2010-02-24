@@ -319,46 +319,9 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
     return ERR_IO_PENDING;
   }
 
-  if (!config_.proxy_rules.empty()) {
-    ApplyProxyRules(url, config_.proxy_rules, result);
-    return OK;
-  }
-
-  // otherwise, we have no proxy config
-  result->UseDirect();
+  // Use the manual proxy settings.
+  config_.proxy_rules().Apply(url, result);
   return OK;
-}
-
-void ProxyService::ApplyProxyRules(const GURL& url,
-                                   const ProxyConfig::ProxyRules& proxy_rules,
-                                   ProxyInfo* result) {
-  DCHECK(!proxy_rules.empty());
-
-  if (config_.bypass_rules.Matches(url)) {
-    result->UseDirect();
-    return;
-  }
-
-  switch (proxy_rules.type) {
-    case ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY:
-      result->UseProxyServer(proxy_rules.single_proxy);
-      break;
-    case ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME: {
-      const ProxyServer* entry = proxy_rules.MapUrlSchemeToProxy(url.scheme());
-      if (entry) {
-        result->UseProxyServer(*entry);
-      } else {
-        // We failed to find a matching proxy server for the current URL
-        // scheme. Default to direct.
-        result->UseDirect();
-      }
-      break;
-    }
-    default:
-      result->UseDirect();
-      NOTREACHED();
-      break;
-  }
 }
 
 ProxyService::~ProxyService() {

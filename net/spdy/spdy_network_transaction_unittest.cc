@@ -26,11 +26,6 @@ namespace net {
 
 namespace {
 
-// Create a proxy service which fails on all requests (falls back to direct).
-ProxyService* CreateNullProxyService() {
-  return ProxyService::CreateNull();
-}
-
 // Helper to manage the lifetimes of the dependencies for a
 // SpdyNetworkTransaction.
 class SessionDependencies {
@@ -38,7 +33,7 @@ class SessionDependencies {
   // Default set of dependencies -- "null" proxy service.
   SessionDependencies()
       : host_resolver(new MockHostResolver),
-        proxy_service(CreateNullProxyService()),
+        proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
         spdy_session_pool(new SpdySessionPool) {
@@ -66,13 +61,6 @@ class SessionDependencies {
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   scoped_refptr<SpdySessionPool> spdy_session_pool;
 };
-
-ProxyService* CreateFixedProxyService(const std::string& proxy) {
-  ProxyConfig proxy_config;
-  proxy_config.proxy_rules.ParseFromString(proxy);
-  return ProxyService::CreateFixed(proxy_config);
-}
-
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(NULL,
