@@ -14,7 +14,7 @@ class IOBuffer;
 
 class UploadDataStream {
  public:
-  explicit UploadDataStream(UploadData* data);
+  explicit UploadDataStream(const UploadData* data);
   ~UploadDataStream();
 
   // Returns the stream's buffer and buffer length.
@@ -42,7 +42,7 @@ class UploadDataStream {
   // left to fill the buffer with.
   void FillBuf();
 
-  UploadData* data_;
+  const UploadData* data_;
 
   // This buffer is filled with data to be uploaded.  The data to be sent is
   // always at the front of the buffer.  If we cannot send all of the buffer at
