@@ -956,13 +956,11 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   }
 
   if (result == ERR_CONNECTION_CLOSED) {
+    // For now, if we get at last some data, we do the best we can to make
+    // sense of it and send it back up the stack.
     int rv = HandleConnectionClosedBeforeEndOfHeaders();
     if (rv != OK)
       return rv;
-    // TODO(wtc): Traditionally this code has returned 0 when reading a closed
-    // socket.  That is partially corrected in classes that we call, but
-    // callers need to be updated.
-    result = 0;
   }
 
   if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
@@ -1062,11 +1060,16 @@ int HttpNetworkTransaction::DoReadBodyComplete(int result) {
     // TODO(wtc): Traditionally this code has returned 0 when reading a closed
     // socket.  That is partially corrected in classes that we call, but
     // callers need to be updated.
-    if (result == ERR_CONNECTION_CLOSED)
+    if (result == ERR_END_OF_STREAM || (!http_stream_->CanFindEndOfResponse() &&
+                                        result == ERR_CONNECTION_CLOSED)) {
       result = 0;
-  } else if (http_stream_->IsResponseBodyComplete()) {
+    }
+  }
+
+  if (http_stream_->IsResponseBodyComplete()) {
     done = true;
-    keep_alive = GetResponseHeaders()->IsKeepAlive();
+    if (http_stream_->CanFindEndOfResponse())
+        keep_alive = GetResponseHeaders()->IsKeepAlive();
   }
 
   // Clean up connection_->if we are done.

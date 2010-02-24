@@ -4022,15 +4022,39 @@ TEST_F(HttpNetworkTransactionTest, HTTPSViaProxyWithExtraData) {
 }
 
 TEST_F(HttpNetworkTransactionTest, LargeContentLengthThenClose) {
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
   MockRead data_reads[] = {
     MockRead("HTTP/1.0 200 OK\r\nContent-Length:6719476739\r\n\r\n"),
     MockRead(false, OK),
   };
-  SimpleGetHelperResult out = SimpleGetHelper(data_reads,
-                                              arraysize(data_reads));
-  EXPECT_EQ(OK, out.rv);
-  EXPECT_EQ("HTTP/1.0 200 OK", out.status_line);
-  EXPECT_EQ("", out.response_data);
+
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response != NULL);
+
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.0 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  rv = ReadTransaction(trans.get(), &response_data);
+  EXPECT_EQ(ERR_CONNECTION_CLOSED, rv);
 }
 
 TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
