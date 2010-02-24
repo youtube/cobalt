@@ -6,11 +6,11 @@
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_MAC_H_
 
 #include "base/basictypes.h"
+#include "base/observer_list.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/task.h"
 #include "net/base/network_change_notifier.h"
-#include "net/base/network_change_notifier_helper.h"
 
 class MessageLoop;
 namespace base {
@@ -23,16 +23,18 @@ class NetworkChangeNotifierMac : public NetworkChangeNotifier {
  public:
   NetworkChangeNotifierMac();
 
-  void OnIPAddressChanged() { helper_.OnIPAddressChanged(); }
+  void OnIPAddressChanged() {
+    FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
+  }
 
   // NetworkChangeNotifier methods:
 
   virtual void AddObserver(Observer* observer) {
-    helper_.AddObserver(observer);
+    observers_.AddObserver(observer);
   }
 
   virtual void RemoveObserver(Observer* observer) {
-    helper_.RemoveObserver(observer);
+    observers_.RemoveObserver(observer);
   }
 
  private:
@@ -49,7 +51,9 @@ class NetworkChangeNotifierMac : public NetworkChangeNotifier {
   // Receives the OS X network change notifications on this thread.
   scoped_ptr<base::Thread> notifier_thread_;
 
-  internal::NetworkChangeNotifierHelper helper_;
+  // TODO(willchan): Fix the URLRequestContextGetter leaks and flip the false to
+  // true so we assert that all observers have been removed.
+  ObserverList<Observer, false> observers_;
 
   // Used to initialize the notifier thread.
   ScopedRunnableMethodFactory<NetworkChangeNotifierMac> method_factory_;
