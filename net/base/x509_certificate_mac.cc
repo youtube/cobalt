@@ -10,6 +10,7 @@
 #include "base/scoped_cftyperef.h"
 #include "base/logging.h"
 #include "base/pickle.h"
+#include "base/sys_string_conversions.h"
 #include "net/base/cert_status_flags.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
@@ -354,27 +355,6 @@ void GetCertDateForOID(X509Certificate::OSCertHandle cert_handle,
       break;
     }
   }
-}
-
-// Returns true if this cert supports a given extended key usage.
-bool CertSupportsUsage(SecCertificateRef cert, const CSSM_OID& usage_oid) {
-  CSSMFields fields;
-  if (GetCertFields(cert, &fields) != noErr)
-    return false;
-  for (unsigned f = 0; f < fields.num_of_fields; ++f) {
-    const CSSM_FIELD &field = fields.fields[f];
-    if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_ExtendedKeyUsage)) {
-      const CSSM_X509_EXTENSION* ext =
-          reinterpret_cast<const CSSM_X509_EXTENSION*>(field.FieldValue.Data);
-      const CE_ExtendedKeyUsage* usage =
-          reinterpret_cast<const CE_ExtendedKeyUsage*>(ext->value.parsedValue);
-      for (unsigned p = 0; p < usage->numPurposes; ++p) {
-        if (CSSMOIDEqual(&usage->purposes[p], &usage_oid))
-          return true;
-      }
-    }
-  }
-  return false;
 }
 
 // Creates a SecPolicyRef for the given OID, with optional value.
@@ -732,6 +712,31 @@ X509Certificate::Fingerprint X509Certificate::CalculateFingerprint(
   return sha1;
 }
 
+bool X509Certificate::SupportsSSLClientAuth() const {
+  CSSMFields fields;
+  if (GetCertFields(cert_handle_, &fields) != noErr)
+    return false;
+  for (unsigned f = 0; f < fields.num_of_fields; ++f) {
+    const CSSM_FIELD& field = fields.fields[f];
+    const CSSM_X509_EXTENSION* ext =
+        reinterpret_cast<const CSSM_X509_EXTENSION*>(field.FieldValue.Data);
+    if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_ExtendedKeyUsage)) {
+      const CE_ExtendedKeyUsage* usage =
+          reinterpret_cast<const CE_ExtendedKeyUsage*>(ext->value.parsedValue);
+      for (unsigned p = 0; p < usage->numPurposes; ++p) {
+        if (CSSMOIDEqual(&usage->purposes[p], &CSSMOID_ClientAuth))
+          return true;
+      }
+    } else if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_NetscapeCertType)) {
+      uint16_t flags =
+          *reinterpret_cast<const uint16_t*>(ext->value.parsedValue);
+      if (flags & CE_NCT_SSL_Client)
+        return true;
+    }
+  }
+  return false;
+}
+
 // static
 OSStatus X509Certificate::CreateSSLClientPolicy(SecPolicyRef* out_policy) {
   CSSM_APPLE_TP_SSL_OPTIONS tp_ssl_options = {
@@ -748,7 +753,21 @@ OSStatus X509Certificate::CreateSSLClientPolicy(SecPolicyRef* out_policy) {
 
 // static
 bool X509Certificate::GetSSLClientCertificates (
+    const std::string& server_domain,
     std::vector<scoped_refptr<X509Certificate> >* certs) {
+  scoped_cftyperef<SecIdentityRef> preferred_identity;
+  if (!server_domain.empty()) {
+    // See if there's an identity preference for this domain:
+    scoped_cftyperef<CFStringRef> domain_str(
+        base::SysUTF8ToCFStringRef("https://" + server_domain));
+    SecIdentityRef identity = NULL;
+    if (SecIdentityCopyPreference(domain_str,
+                                  0,
+                                  NULL,
+                                  &identity) == noErr)
+      preferred_identity.reset(identity);
+  }
+
   SecIdentitySearchRef search = nil;
   OSStatus err = SecIdentitySearchCreate(NULL, CSSM_KEYUSE_SIGN, &search);
   fprintf(stderr,"====Created SecIdentitySearch %p\n",search);//TEMP
@@ -768,8 +787,7 @@ bool X509Certificate::GetSSLClientCertificates (
     scoped_refptr<X509Certificate> cert(
         CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT));
     // cert_handle is adoped by cert, so I don't need to release it myself.
-    if (cert->HasExpired() ||
-        !CertSupportsUsage(cert_handle, CSSMOID_ClientAuth))
+    if (cert->HasExpired() || !cert->SupportsSSLClientAuth())
       continue;
 
     // Skip duplicates (a cert may be in multiple keychains).
@@ -783,7 +801,12 @@ bool X509Certificate::GetSSLClientCertificates (
       continue;
 
     // The cert passes, so add it to the vector.
-    certs->push_back(cert);
+    // If it's the preferred identity, add it at the start (so it'll be
+    // selected by default in the UI.)
+    if (preferred_identity && CFEqual(preferred_identity, identity))
+      certs->insert(certs->begin(), cert);
+    else
+      certs->push_back(cert);
   }
 
   if (err != errSecItemNotFound) {
@@ -793,7 +816,7 @@ bool X509Certificate::GetSSLClientCertificates (
   return true;
 }
 
-CFArrayRef X509Certificate::CreateClientCertificateChain() {
+CFArrayRef X509Certificate::CreateClientCertificateChain() const {
   // Initialize the result array with just the IdentityRef of the receiver:
   OSStatus result;
   SecIdentityRef identity;
