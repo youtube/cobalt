@@ -43,11 +43,11 @@ void ProxyConfigServiceWin::SetFromIEConfig(
     ProxyConfig* config,
     const WINHTTP_CURRENT_USER_IE_PROXY_CONFIG& ie_config) {
   if (ie_config.fAutoDetect)
-    config->auto_detect = true;
+    config->set_auto_detect(true);
   if (ie_config.lpszProxy) {
     // lpszProxy may be a single proxy, or a proxy per scheme. The format
     // is compatible with ProxyConfig::ProxyRules's string format.
-    config->proxy_rules.ParseFromString(WideToASCII(ie_config.lpszProxy));
+    config->proxy_rules().ParseFromString(WideToASCII(ie_config.lpszProxy));
   }
   if (ie_config.lpszProxyBypass) {
     std::string proxy_bypass = WideToASCII(ie_config.lpszProxyBypass);
@@ -55,11 +55,11 @@ void ProxyConfigServiceWin::SetFromIEConfig(
     StringTokenizer proxy_server_bypass_list(proxy_bypass, "; \t\n\r");
     while (proxy_server_bypass_list.GetNext()) {
       std::string bypass_url_domain = proxy_server_bypass_list.token();
-      config->bypass_rules.AddRuleFromString(bypass_url_domain);
+      config->proxy_rules().bypass_rules.AddRuleFromString(bypass_url_domain);
     }
   }
   if (ie_config.lpszAutoConfigUrl)
-    config->pac_url = GURL(ie_config.lpszAutoConfigUrl);
+    config->set_pac_url(GURL(ie_config.lpszAutoConfigUrl));
 }
 
 }  // namespace net

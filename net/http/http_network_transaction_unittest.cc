@@ -63,7 +63,7 @@ class SessionDependencies {
 
 ProxyService* CreateFixedProxyService(const std::string& proxy) {
   net::ProxyConfig proxy_config;
-  proxy_config.proxy_rules.ParseFromString(proxy);
+  proxy_config.proxy_rules().ParseFromString(proxy);
   return ProxyService::CreateFixed(proxy_config);
 }
 

@@ -227,12 +227,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   // Completing synchronously means we don't need to query ProxyResolver.
   int TryToCompleteSynchronously(const GURL& url, ProxyInfo* result);
 
-  // Set |result| with the proxy to use for |url|, based on |rules|.
-  void ApplyProxyRules(const GURL& url,
-                       const ProxyConfig::ProxyRules& rules,
-                       ProxyInfo* result);
-
-  // Cancel all of the requests sent to the ProxyResolver. These will be
+  // Cancels all of the requests sent to the ProxyResolver. These will be
   // restarted when calling ResumeAllPendingRequests().
   void SuspendAllPendingRequests();
 
