@@ -172,8 +172,6 @@ class AddRemoveThread : public PlatformThread::Delegate,
   ScopedRunnableMethodFactory<AddRemoveThread>* factory_;
 };
 
-}  // namespace
-
 TEST(ObserverListTest, BasicTest) {
   ObserverList<Foo> observer_list;
   Adder a(1), b(-1), c(1), d(-1);
@@ -304,3 +302,50 @@ TEST(ObserverListTest, Existing) {
   FOR_EACH_OBSERVER(Foo, observer_list, Observe(1));
   EXPECT_EQ(1, b.adder.total);
 }
+
+class AddInClearObserve : public Foo {
+ public:
+  explicit AddInClearObserve(ObserverList<Foo>* list)
+      : list_(list), added_(false), adder_(1) {}
+
+  virtual void Observe(int /* x */) {
+    list_->Clear();
+    list_->AddObserver(&adder_);
+    added_ = true;
+  }
+
+  bool added() const { return added_; }
+  const Adder& adder() const { return adder_; }
+
+ private:
+  ObserverList<Foo>* const list_;
+
+  bool added_;
+  Adder adder_;
+};
+
+TEST(ObserverListTest, ClearNotifyAll) {
+  ObserverList<Foo> observer_list;
+  AddInClearObserve a(&observer_list);
+
+  observer_list.AddObserver(&a);
+
+  FOR_EACH_OBSERVER(Foo, observer_list, Observe(1));
+  EXPECT_TRUE(a.added());
+  EXPECT_EQ(1, a.adder().total)
+      << "Adder should observe once and have sum of 1.";
+}
+
+TEST(ObserverListTest, ClearNotifyExistingOnly) {
+  ObserverList<Foo> observer_list(ObserverList<Foo>::NOTIFY_EXISTING_ONLY);
+  AddInClearObserve a(&observer_list);
+
+  observer_list.AddObserver(&a);
+
+  FOR_EACH_OBSERVER(Foo, observer_list, Observe(1));
+  EXPECT_TRUE(a.added());
+  EXPECT_EQ(0, a.adder().total)
+      << "Adder should not observe, so sum should still be 0.";
+}
+
+}  // namespace
