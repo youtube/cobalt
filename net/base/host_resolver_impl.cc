@@ -20,7 +20,6 @@
 #include "net/base/host_resolver_proc.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
 
 #if defined(OS_WIN)
@@ -576,8 +575,7 @@ HostResolverImpl::HostResolverImpl(
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
       shutdown_(false),
-      network_change_notifier_(network_change_notifier),
-      ipv6_probe_monitoring_(false) {
+      network_change_notifier_(network_change_notifier) {
   DCHECK_GT(max_jobs, 0u);
 
   // It is cumbersome to expose all of the constraints in the constructor,
@@ -736,17 +734,6 @@ void HostResolverImpl::RemoveObserver(HostResolver::Observer* observer) {
   DCHECK(it != observers_.end());
 
   observers_.erase(it);
-}
-
-void HostResolverImpl::SetDefaultAddressFamily(AddressFamily address_family) {
-  ipv6_probe_monitoring_ = false;
-  default_address_family_ = address_family;
-}
-
-void HostResolverImpl::ProbeIPv6Support() {
-  DCHECK(!ipv6_probe_monitoring_);
-  ipv6_probe_monitoring_ = true;
-  OnIPAddressChanged();  // Give initial setup call.
 }
 
 void HostResolverImpl::Shutdown() {
@@ -990,14 +977,6 @@ void HostResolverImpl::OnCancelRequest(LoadLog* load_log,
 void HostResolverImpl::OnIPAddressChanged() {
   if (cache_.get())
     cache_->clear();
-  if (ipv6_probe_monitoring_) {
-    bool support = IPv6Supported();
-    default_address_family_ = support ? ADDRESS_FAMILY_UNSPECIFIED
-                                      : ADDRESS_FAMILY_IPV4;
-    LOG(INFO) << "IPv6Probe forced AddressFamily setting to "
-              << (support ? "ADDRESS_FAMILY_UNSPECIFIED"
-                          : "ADDRESS_FAMILY_IPV4");
-  }
 }
 
 // static
