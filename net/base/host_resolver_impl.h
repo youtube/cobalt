@@ -88,9 +88,12 @@ class HostResolverImpl : public HostResolver,
   virtual void AddObserver(HostResolver::Observer* observer);
   virtual void RemoveObserver(HostResolver::Observer* observer);
 
-  virtual void SetDefaultAddressFamily(AddressFamily address_family) {
-    default_address_family_ = address_family;
-  }
+  // Set address family, and disable IPv6 probe support.
+  virtual void SetDefaultAddressFamily(AddressFamily address_family);
+
+  // Continuously observe whether IPv6 is supported, and set the allowable
+  // address family to IPv4 iff IPv6 is not supported.
+  void ProbeIPv6Support();
 
   virtual HostResolverImpl* GetAsHostResolverImpl() { return this; }
 
@@ -243,6 +246,11 @@ class HostResolverImpl : public HostResolver,
   bool shutdown_;
 
   NetworkChangeNotifier* const network_change_notifier_;
+
+  // Indicate if probing is done after each network change event to set address
+  // family.
+  // When false, explicit setting of address family is used.
+  bool ipv6_probe_monitoring_;
 
   scoped_refptr<RequestsTrace> requests_trace_;
 
