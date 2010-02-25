@@ -42,7 +42,9 @@
 #define WidePRIu64 PRIu64
 #define WidePRIx64 PRIx64
 
+#if !defined(PRIuS)
 #define PRIuS "zu"
+#endif
 
 #else  // OS_WIN
 
@@ -62,7 +64,9 @@
 #define WidePRIu64 L"I64u"
 #define WidePRIx64 L"I64x"
 
+#if !defined(PRIuS)
 #define PRIuS "Iu"
+#endif
 
 #endif
 
