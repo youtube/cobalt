@@ -7,7 +7,8 @@
 
 #include "base/basictypes.h"
 #include "base/object_watcher.h"
-#include "net/base/network_change_notifier_helper.h"
+#include "base/observer_list.h"
+#include "net/base/network_change_notifier.h"
 
 namespace net {
 
@@ -16,16 +17,19 @@ class NetworkChangeNotifierWin : public NetworkChangeNotifier {
   NetworkChangeNotifierWin();
 
   // Called by NetworkChangeNotifierWin::Impl.
-  void OnIPAddressChanged() { helper_.OnIPAddressChanged(); }
+  void OnIPAddressChanged() {
+    FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
+  }
+
 
   // NetworkChangeNotifier methods:
 
   virtual void AddObserver(Observer* observer) {
-    helper_.AddObserver(observer);
+    observers_.AddObserver(observer);
   }
 
   virtual void RemoveObserver(Observer* observer) {
-    helper_.RemoveObserver(observer);
+    observers_.RemoveObserver(observer);
   }
 
  private:
@@ -33,7 +37,9 @@ class NetworkChangeNotifierWin : public NetworkChangeNotifier {
 
   virtual ~NetworkChangeNotifierWin();
 
-  internal::NetworkChangeNotifierHelper helper_;
+  // TODO(willchan): Fix the URLRequestContextGetter leaks and flip the false to
+  // true so we assert that all observers have been removed.
+  ObserverList<Observer, false> observers_;
   scoped_ptr<Impl> impl_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierWin);
