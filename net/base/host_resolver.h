@@ -170,7 +170,7 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
  protected:
   friend class base::RefCountedThreadSafe<HostResolver>;
 
-  HostResolver() {}
+  HostResolver() { }
 
   // If any completion callbacks are pending when the resolver is destroyed,
   // the host resolutions are cancelled, and the completion callbacks will not

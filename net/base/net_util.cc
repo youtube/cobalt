@@ -21,11 +21,9 @@
 #include <ws2tcpip.h>
 #include <wspiapi.h>  // Needed for Win2k compat.
 #elif defined(OS_POSIX)
-#include <fcntl.h>
-#include <ifaddrs.h>
 #include <netdb.h>
-#include <net/if.h>
 #include <sys/socket.h>
+#include <fcntl.h>
 #endif
 
 #include "base/base64.h"
@@ -259,7 +257,7 @@ bool DecodeBQEncoding(const std::string& part, RFC2047EncodingType enc_type,
 
 bool DecodeWord(const std::string& encoded_word,
                 const std::string& referrer_charset,
-                bool* is_rfc2047,
+                bool *is_rfc2047,
                 std::string* output) {
   if (!IsStringASCII(encoded_word)) {
     // Try UTF-8, referrer_charset and the native OS default charset in turn.
@@ -1543,21 +1541,15 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports) {
 enum IPv6SupportStatus {
   IPV6_CANNOT_CREATE_SOCKETS,
   IPV6_CAN_CREATE_SOCKETS,
-  IPV6_GETIFADDRS_FAILED,
-  IPV6_GLOBAL_ADDRESS_MISSING,
-  IPV6_GLOBAL_ADDRESS_PRESENT,
   IPV6_SUPPORT_MAX  // Bounding values for enumeration.
 };
 
 static void IPv6SupportResults(IPv6SupportStatus result) {
   static bool run_once = false;
-  if (run_once) {
-    run_once = true;
-    UMA_HISTOGRAM_ENUMERATION("Net.IPv6Status", result, IPV6_SUPPORT_MAX);
-  } else {
-    UMA_HISTOGRAM_ENUMERATION("Net.IPv6Status_retest", result,
-                              IPV6_SUPPORT_MAX);
-  }
+  if (run_once)
+    return;
+  run_once = true;
+  UMA_HISTOGRAM_ENUMERATION("Net.IPv6Status", result, IPV6_SUPPORT_MAX);
 }
 
 // TODO(jar): The following is a simple estimate of IPv6 support.  We may need
@@ -1565,58 +1557,27 @@ static void IPv6SupportResults(IPv6SupportStatus result) {
 // static
 bool IPv6Supported() {
 #if defined(OS_POSIX)
-  int test_socket = socket(AF_INET6, SOCK_STREAM, 0);
+  int test_socket;
+
+  test_socket = socket(AF_INET6, SOCK_STREAM, 0);
   if (test_socket == -1) {
     IPv6SupportResults(IPV6_CANNOT_CREATE_SOCKETS);
     return false;
   }
+
   close(test_socket);
-
-  // Check to see if any interface has a IPv6 address.
-  struct ifaddrs* interface_addr = NULL;
-  int rv = getifaddrs(&interface_addr);
-  if (rv != 0) {
-     IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
-     return true;  // Don't yet block IPv6.
-  }
-
-  bool found_ipv6 = false;
-  for (struct ifaddrs* interface = interface_addr;
-       interface != NULL;
-       interface = interface->ifa_next) {
-    if (!(IFF_UP & interface->ifa_flags))
-      continue;
-    if (IFF_LOOPBACK & interface->ifa_flags)
-      continue;
-    struct sockaddr* addr = interface->ifa_addr;
-    if (!addr)
-      continue;
-    if (addr->sa_family != AF_INET6)
-      continue;
-    // Safe cast since this is AF_INET6.
-    struct sockaddr_in6* addr_in6 =
-      reinterpret_cast<struct sockaddr_in6*>(addr);
-    struct in6_addr* sin6_addr = &addr_in6->sin6_addr;
-    if (IN6_IS_ADDR_LOOPBACK(sin6_addr) || IN6_IS_ADDR_LINKLOCAL(sin6_addr))
-      continue;
-    found_ipv6 = true;
-    break;
-  }
-  freeifaddrs(interface_addr);
-  if (!found_ipv6) {
-    IPv6SupportResults(IPV6_GLOBAL_ADDRESS_MISSING);
-    return false;
-  }
-
-  IPv6SupportResults(IPV6_GLOBAL_ADDRESS_PRESENT);
+  IPv6SupportResults(IPV6_CAN_CREATE_SOCKETS);
   return true;
 #elif defined(OS_WIN)
   EnsureWinsockInit();
-  SOCKET test_socket = socket(AF_INET6, SOCK_STREAM, 0);
+  SOCKET test_socket;
+
+  test_socket = socket(AF_INET6, SOCK_STREAM, 0);
   if (test_socket == INVALID_SOCKET) {
     IPv6SupportResults(IPV6_CANNOT_CREATE_SOCKETS);
     return false;
   }
+
   closesocket(test_socket);
   IPv6SupportResults(IPV6_CAN_CREATE_SOCKETS);
   return true;
@@ -1625,5 +1586,6 @@ bool IPv6Supported() {
   return true;
 #endif  // defined(various platforms)
 }
+
 
 }  // namespace net
