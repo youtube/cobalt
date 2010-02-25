@@ -25,9 +25,58 @@ namespace net {
 class HttpRequestInfo;
 class ProxyInfo;
 
+// SSPILibrary is introduced so unit tests can mock the calls to Windows' SSPI
+// implementation. The default implementation simply passes the arguments on to
+// the SSPI implementation provided by Secur32.dll.
+// NOTE(cbentzel): I considered replacing the Secur32.dll with a mock DLL, but
+// decided that it wasn't worth the effort as this is unlikely to be performance
+// sensitive code.
+class SSPILibrary {
+ public:
+  virtual ~SSPILibrary() {};
+
+  virtual SECURITY_STATUS AcquireCredentialsHandle(LPWSTR pszPrincipal,
+                                                   LPWSTR pszPackage,
+                                                   unsigned long fCredentialUse,
+                                                   void* pvLogonId,
+                                                   void* pvAuthData,
+                                                   SEC_GET_KEY_FN pGetKeyFn,
+                                                   void* pvGetKeyArgument,
+                                                   PCredHandle phCredential,
+                                                   PTimeStamp ptsExpiry) = 0;
+
+  virtual SECURITY_STATUS InitializeSecurityContext(PCredHandle phCredential,
+                                                    PCtxtHandle phContext,
+                                                    SEC_WCHAR* pszTargetName,
+                                                    unsigned long fContextReq,
+                                                    unsigned long Reserved1,
+                                                    unsigned long TargetDataRep,
+                                                    PSecBufferDesc pInput,
+                                                    unsigned long Reserved2,
+                                                    PCtxtHandle phNewContext,
+                                                    PSecBufferDesc pOutput,
+                                                    unsigned long* contextAttr,
+                                                    PTimeStamp ptsExpiry) = 0;
+
+  virtual SECURITY_STATUS QuerySecurityPackageInfo(LPWSTR pszPackageName,
+                                                   PSecPkgInfoW *pkgInfo) = 0;
+
+  virtual SECURITY_STATUS FreeCredentialsHandle(PCredHandle phCredential) = 0;
+
+  virtual SECURITY_STATUS DeleteSecurityContext(PCtxtHandle phContext) = 0;
+
+  virtual SECURITY_STATUS FreeContextBuffer(PVOID pvContextBuffer) = 0;
+
+  // Get the default SSPILibrary instance, which simply acts as a passthrough
+  // to the Windows SSPI implementation. The object returned is a singleton
+  // instance, and the caller should not delete it.
+  static SSPILibrary* GetDefault();
+};
+
 class HttpAuthSSPI {
  public:
-  HttpAuthSSPI(const std::string& scheme,
+  HttpAuthSSPI(SSPILibrary* sspi_library,
+               const std::string& scheme,
                SEC_WCHAR* security_package,
                ULONG max_token_length);
   ~HttpAuthSSPI();
@@ -62,6 +111,8 @@ class HttpAuthSSPI {
       int* out_token_len);
 
   void ResetSecurityContext();
+
+  SSPILibrary* library_;
   std::string scheme_;
   SEC_WCHAR* security_package_;
   std::string decoded_server_auth_token_;
@@ -82,10 +133,10 @@ void SplitDomainAndUser(const std::wstring& combined,
 
 // Determines the maximum token length in bytes for a particular SSPI package.
 //
+// |library| and |max_token_length| must be non-NULL pointers to valid objects.
+//
 // If the return value is OK, |*max_token_length| contains the maximum token
 // length in bytes.
-//
-// If the return value is ERR_INVALID_ARGUMENT, |max_token_length| is NULL.
 //
 // If the return value is ERR_UNSUPPORTED_AUTH_SCHEME, |package| is not an
 // known SSPI authentication scheme on this system. |*max_token_length| is not
@@ -94,9 +145,11 @@ void SplitDomainAndUser(const std::wstring& combined,
 // If the return value is ERR_UNEXPECTED, there was an unanticipated problem
 // in the underlying SSPI call. The details are logged, and |*max_token_length|
 // is not changed.
-int DetermineMaxTokenLength(const std::wstring& package,
+int DetermineMaxTokenLength(SSPILibrary* library,
+                            const std::wstring& package,
                             ULONG* max_token_length);
 
 }  // namespace net
+
 #endif  // NET_HTTP_HTTP_AUTH_SSPI_WIN_H_
 
