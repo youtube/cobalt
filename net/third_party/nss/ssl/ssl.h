@@ -128,17 +128,6 @@ SSL_IMPORT PRFileDesc *SSL_ImportFD(PRFileDesc *model, PRFileDesc *fd);
                                           /* Renegotiation  Info (RI)       */
 					  /* extension in ALL handshakes.   */
                                           /* default: off                   */
-#define SSL_ENABLE_FALSE_START	       22 /* Enable SSL false start (off by */
-					  /* default, applies only to       */
-					  /* clients). False start is a     */
-/* mode where an SSL client will start sending application data before      */
-/* verifying the server's Finished message. This means that we could end up */
-/* sending data to an imposter. However, the data will be encrypted and     */
-/* only the true server can derive the session key. Thus, so long as the    */
-/* cipher isn't broken this is safe. Because of this, False Start will only */
-/* occur on RSA or DH ciphersuites where the cipher's key length is >= 80   */
-/* bits. The advantage of False Start is that it saves a round trip for     */
-/* client-speaks-first protocols when performing a full handshake.          */
 
 #ifdef SSL_DEPRECATED_FUNCTION 
 /* Old deprecated function names */
