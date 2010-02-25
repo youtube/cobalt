@@ -15,6 +15,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/sys_addrinfo.h"
 #include "net/base/winsock_init.h"
 
 namespace net {
