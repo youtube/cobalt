@@ -62,6 +62,7 @@
 /third_party/pywebsocket
 /third_party/skia
 /third_party/swig
+/third_party/valgrind
 /third_party/xdg-utils
 /third_party/xulrunner-sdk
 /third_party/yasm/source/patched-yasm
