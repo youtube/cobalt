@@ -773,7 +773,7 @@ void SSLClientSocketNSS::OnHandshakeIOComplete(int result) {
 
 void SSLClientSocketNSS::OnSendComplete(int result) {
   EnterFunction(result);
-  if (next_handshake_state_ != STATE_NONE) {
+  if (next_handshake_state_ == STATE_HANDSHAKE) {
     // In handshake phase.
     OnHandshakeIOComplete(result);
     LeaveFunction("");
@@ -805,7 +805,7 @@ void SSLClientSocketNSS::OnSendComplete(int result) {
 
 void SSLClientSocketNSS::OnRecvComplete(int result) {
   EnterFunction(result);
-  if (next_handshake_state_ != STATE_NONE) {
+  if (next_handshake_state_ == STATE_HANDSHAKE) {
     // In handshake phase.
     OnHandshakeIOComplete(result);
     LeaveFunction("");
