@@ -58,6 +58,7 @@ static int MapSecurityError(SECURITY_STATUS err) {
     case SEC_E_ALGORITHM_MISMATCH:
       return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
     case SEC_E_INVALID_HANDLE:
+    case SEC_E_INVALID_TOKEN:
       return ERR_UNEXPECTED;
     case SEC_E_OK:
       return OK;
@@ -881,6 +882,13 @@ int SSLClientSocketWin::DidCallInitializeSecurityContext() {
 
   if (isc_status_ == SEC_I_INCOMPLETE_CREDENTIALS)
     return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+
+  if (isc_status_ == SEC_I_NO_RENEGOTIATION) {
+    // Received a no_renegotiation alert message.  Although this is just a
+    // warning, SChannel doesn't seem to allow us to continue after this
+    // point, so we have to return an error.  See http://crbug.com/36835.
+    return ERR_SSL_NO_RENEGOTIATION;
+  }
 
   DCHECK(isc_status_ == SEC_I_CONTINUE_NEEDED);
   if (in_buffers_[1].BufferType == SECBUFFER_EXTRA) {
