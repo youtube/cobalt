@@ -137,6 +137,9 @@ NET_ERROR(SOCKS_CONNECTION_HOST_UNREACHABLE, -121)
 // There is no more data left in the logical stream.
 NET_ERROR(END_OF_STREAM, -122)
 
+// The peer sent an SSL no_renegotiation alert message.
+NET_ERROR(SSL_NO_RENEGOTIATION, -123)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
