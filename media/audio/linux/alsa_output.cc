@@ -625,12 +625,21 @@ void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
       FramesInPacket(*current_packet, bytes_per_output_frame_);
   uint32 frames_avail_wanted =
       (frames_leftover > 0) ? frames_leftover : frames_per_packet_;
-  uint32 frames_until_empty_enough = frames_avail_wanted - GetAvailableFrames();
-  uint32 next_fill_time_ms =
-      FramesToMillis(frames_until_empty_enough, sample_rate_);
+  uint32 available_frames = GetAvailableFrames();
+  uint32 next_fill_time_ms = 0;
+
+  // It's possible to have more frames available than what we want, in which
+  // case we'll leave our |next_fill_time_ms| at 0ms.
+  if (available_frames < frames_avail_wanted) {
+    uint32 frames_until_empty_enough = frames_avail_wanted - available_frames;
+    next_fill_time_ms =
+        FramesToMillis(frames_until_empty_enough, sample_rate_);
+  }
 
   // Adjust for timer resolution issues.
-  if (next_fill_time_ms > kSleepErrorMilliseconds) {
+  if (next_fill_time_ms < kSleepErrorMilliseconds) {
+    next_fill_time_ms = 0;
+  } else {
     next_fill_time_ms -= kSleepErrorMilliseconds;
   }
 
@@ -644,7 +653,7 @@ void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
 
   // Only schedule more reads/writes if we are still in the playing state.
   if (shared_data_.state() == kIsPlaying) {
-    if (next_fill_time_ms <= 0) {
+    if (next_fill_time_ms == 0) {
       message_loop_->PostTask(
           FROM_HERE,
           NewRunnableMethod(this, &AlsaPcmOutputStream::WriteTask));
