@@ -43,11 +43,23 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
                                   HttpAuth::Target target,
                                   const GURL& origin,
                                   scoped_refptr<HttpAuthHandler>* handler);
+#if defined(NTLM_SSPI)
+    // Set the SSPILibrary to use. Typically the only callers which need to
+    // use this are unit tests which pass in a mocked-out version of the
+    // SSPI library.
+    // The caller is responsible for managing the lifetime of |*sspi_library|,
+    // and the lifetime must exceed that of this Factory object and all
+    // HttpAuthHandler's that this Factory object creates.
+    void set_sspi_library(SSPILibrary* sspi_library) {
+      sspi_library_ = sspi_library;
+    }
+#endif  // defined(NTLM_SSPI)
    private:
 #if defined(NTLM_SSPI)
     ULONG max_token_length_;
     bool first_creation_;
     bool is_unsupported_;
+    SSPILibrary* sspi_library_;
 #endif  // defined(NTLM_SSPI)
   };
 
@@ -84,7 +96,7 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
   HttpAuthHandlerNTLM();
 #endif
 #if defined(NTLM_SSPI)
-  HttpAuthHandlerNTLM(ULONG max_token_length);
+  HttpAuthHandlerNTLM(SSPILibrary* sspi_library, ULONG max_token_length);
 #endif
 
   virtual bool NeedsIdentity();
