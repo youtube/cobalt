@@ -9,12 +9,14 @@
 
 #include "base/base64.h"
 #include "base/logging.h"
+#include "base/singleton.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/http/http_auth.h"
 
 namespace net {
+
 namespace {
 
 int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
@@ -40,7 +42,8 @@ int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
   }
 }
 
-int AcquireCredentials(const SEC_WCHAR* package,
+int AcquireCredentials(SSPILibrary* library,
+                       const SEC_WCHAR* package,
                        const std::wstring& domain,
                        const std::wstring& user,
                        const std::wstring& password,
@@ -60,7 +63,7 @@ int AcquireCredentials(const SEC_WCHAR* package,
   TimeStamp expiry;
 
   // Pass the username/password to get the credentials handle.
-  SECURITY_STATUS status = AcquireCredentialsHandle(
+  SECURITY_STATUS status = library->AcquireCredentialsHandle(
       NULL,  // pszPrincipal
       const_cast<SEC_WCHAR*>(package),  // pszPackage
       SECPKG_CRED_OUTBOUND,  // fCredentialUse
@@ -74,14 +77,15 @@ int AcquireCredentials(const SEC_WCHAR* package,
   return MapAcquireCredentialsStatusToError(status, package);
 }
 
-int AcquireDefaultCredentials(const SEC_WCHAR* package, CredHandle* cred) {
+int AcquireDefaultCredentials(SSPILibrary* library, const SEC_WCHAR* package,
+                              CredHandle* cred) {
   TimeStamp expiry;
 
   // Pass the username/password to get the credentials handle.
   // Note: Since the 5th argument is NULL, it uses the default
   // cached credentials for the logged in user, which can be used
   // for a single sign-on.
-  SECURITY_STATUS status = AcquireCredentialsHandle(
+  SECURITY_STATUS status = library->AcquireCredentialsHandle(
       NULL,  // pszPrincipal
       const_cast<SEC_WCHAR*>(package),  // pszPackage
       SECPKG_CRED_OUTBOUND,  // fCredentialUse
@@ -97,12 +101,15 @@ int AcquireDefaultCredentials(const SEC_WCHAR* package, CredHandle* cred) {
 
 }  // anonymous namespace
 
-HttpAuthSSPI::HttpAuthSSPI(const std::string& scheme,
+HttpAuthSSPI::HttpAuthSSPI(SSPILibrary* library,
+                           const std::string& scheme,
                            SEC_WCHAR* security_package,
                            ULONG max_token_length)
-    : scheme_(scheme),
+    : library_(library),
+      scheme_(scheme),
       security_package_(security_package),
       max_token_length_(max_token_length) {
+  DCHECK(library_);
   SecInvalidateHandle(&cred_);
   SecInvalidateHandle(&ctxt_);
 }
@@ -110,7 +117,7 @@ HttpAuthSSPI::HttpAuthSSPI(const std::string& scheme,
 HttpAuthSSPI::~HttpAuthSSPI() {
   ResetSecurityContext();
   if (SecIsValidHandle(&cred_)) {
-    FreeCredentialsHandle(&cred_);
+    library_->FreeCredentialsHandle(&cred_);
     SecInvalidateHandle(&cred_);
   }
 }
@@ -125,7 +132,7 @@ bool HttpAuthSSPI::IsFinalRound() const {
 
 void HttpAuthSSPI::ResetSecurityContext() {
   if (SecIsValidHandle(&ctxt_)) {
-    DeleteSecurityContext(&ctxt_);
+    library_->DeleteSecurityContext(&ctxt_);
     SecInvalidateHandle(&ctxt_);
   }
 }
@@ -202,11 +209,12 @@ int HttpAuthSSPI::OnFirstRound(const std::wstring* username,
     std::wstring domain;
     std::wstring user;
     SplitDomainAndUser(*username, &domain, &user);
-    rv = AcquireCredentials(security_package_, domain, user, *password, &cred_);
+    rv = AcquireCredentials(library_, security_package_, domain,
+                            user, *password, &cred_);
     if (rv != OK)
       return rv;
   } else {
-    rv = AcquireDefaultCredentials(security_package_, &cred_);
+    rv = AcquireDefaultCredentials(library_, security_package_, &cred_);
     if (rv != OK)
       return rv;
   }
@@ -268,18 +276,19 @@ int HttpAuthSSPI::GetNextSecurityToken(
   wchar_t* target_name = const_cast<wchar_t*>(target.c_str());
 
   // This returns a token that is passed to the remote server.
-  status = InitializeSecurityContext(&cred_,  // phCredential
-                                     ctxt_ptr,  // phContext
-                                     target_name,  // pszTargetName
-                                     0,  // fContextReq
-                                     0,  // Reserved1 (must be 0)
-                                     SECURITY_NATIVE_DREP,  // TargetDataRep
-                                     in_buffer_desc_ptr,  // pInput
-                                     0,  // Reserved2 (must be 0)
-                                     &ctxt_,  // phNewContext
-                                     &out_buffer_desc,  // pOutput
-                                     &ctxt_attr,  // pfContextAttr
-                                     &expiry);  // ptsExpiry
+  status = library_->InitializeSecurityContext(
+      &cred_,  // phCredential
+      ctxt_ptr,  // phContext
+      target_name,  // pszTargetName
+      0,  // fContextReq
+      0,  // Reserved1 (must be 0)
+      SECURITY_NATIVE_DREP,  // TargetDataRep
+      in_buffer_desc_ptr,  // pInput
+      0,  // Reserved2 (must be 0)
+      &ctxt_,  // phNewContext
+      &out_buffer_desc,  // pOutput
+      &ctxt_attr,  // pfContextAttr
+      &expiry);  // ptsExpiry
   // On success, the function returns SEC_I_CONTINUE_NEEDED on the first call
   // and SEC_E_OK on the second call.  On failure, the function returns an
   // error code.
@@ -314,10 +323,13 @@ void SplitDomainAndUser(const std::wstring& combined,
   }
 }
 
-int DetermineMaxTokenLength(const std::wstring& package,
+int DetermineMaxTokenLength(SSPILibrary* library,
+                            const std::wstring& package,
                             ULONG* max_token_length) {
+  DCHECK(library);
+  DCHECK(max_token_length);
   PSecPkgInfo pkg_info = NULL;
-  SECURITY_STATUS status = QuerySecurityPackageInfo(
+  SECURITY_STATUS status = library->QuerySecurityPackageInfo(
       const_cast<wchar_t *>(package.c_str()), &pkg_info);
   if (status != SEC_E_OK) {
     // The documentation at
@@ -333,7 +345,7 @@ int DetermineMaxTokenLength(const std::wstring& package,
       return ERR_UNEXPECTED;
   }
   int token_length = pkg_info->cbMaxToken;
-  status = FreeContextBuffer(pkg_info);
+  status = library->FreeContextBuffer(pkg_info);
   if (status != SEC_E_OK) {
     // The documentation at
     // http://msdn.microsoft.com/en-us/library/aa375416(VS.85).aspx
@@ -346,6 +358,70 @@ int DetermineMaxTokenLength(const std::wstring& package,
   }
   *max_token_length = token_length;
   return OK;
+}
+
+class SSPILibraryDefault : public SSPILibrary {
+ public:
+  SSPILibraryDefault() {}
+  virtual ~SSPILibraryDefault() {}
+
+  virtual SECURITY_STATUS AcquireCredentialsHandle(LPWSTR pszPrincipal,
+                                                   LPWSTR pszPackage,
+                                                   unsigned long fCredentialUse,
+                                                   void* pvLogonId,
+                                                   void* pvAuthData,
+                                                   SEC_GET_KEY_FN pGetKeyFn,
+                                                   void* pvGetKeyArgument,
+                                                   PCredHandle phCredential,
+                                                   PTimeStamp ptsExpiry) {
+    return ::AcquireCredentialsHandle(pszPrincipal, pszPackage, fCredentialUse,
+                                      pvLogonId, pvAuthData, pGetKeyFn,
+                                      pvGetKeyArgument, phCredential,
+                                      ptsExpiry);
+  }
+
+  virtual SECURITY_STATUS InitializeSecurityContext(PCredHandle phCredential,
+                                                    PCtxtHandle phContext,
+                                                    SEC_WCHAR* pszTargetName,
+                                                    unsigned long fContextReq,
+                                                    unsigned long Reserved1,
+                                                    unsigned long TargetDataRep,
+                                                    PSecBufferDesc pInput,
+                                                    unsigned long Reserved2,
+                                                    PCtxtHandle phNewContext,
+                                                    PSecBufferDesc pOutput,
+                                                    unsigned long* contextAttr,
+                                                    PTimeStamp ptsExpiry) {
+    return ::InitializeSecurityContext(phCredential, phContext, pszTargetName,
+                                       fContextReq, Reserved1, TargetDataRep,
+                                       pInput, Reserved2, phNewContext, pOutput,
+                                       contextAttr, ptsExpiry);
+  }
+
+  virtual SECURITY_STATUS QuerySecurityPackageInfo(LPWSTR pszPackageName,
+                                                   PSecPkgInfoW *pkgInfo) {
+    return ::QuerySecurityPackageInfo(pszPackageName, pkgInfo);
+  }
+
+  virtual SECURITY_STATUS FreeCredentialsHandle(PCredHandle phCredential) {
+    return ::FreeCredentialsHandle(phCredential);
+  }
+
+  virtual SECURITY_STATUS DeleteSecurityContext(PCtxtHandle phContext) {
+    return ::DeleteSecurityContext(phContext);
+  }
+
+  virtual SECURITY_STATUS FreeContextBuffer(PVOID pvContextBuffer) {
+    return ::FreeContextBuffer(pvContextBuffer);
+  }
+
+ private:
+  friend struct DefaultSingletonTraits<SSPILibraryDefault>;
+};
+
+// static
+SSPILibrary* SSPILibrary::GetDefault() {
+  return Singleton<SSPILibraryDefault>::get();
 }
 
 }  // namespace net

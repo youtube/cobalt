@@ -19,8 +19,9 @@
 
 namespace net {
 
-HttpAuthHandlerNTLM::HttpAuthHandlerNTLM(ULONG max_token_length) :
-    auth_sspi_("NTLM", NTLMSP_NAME, max_token_length) {
+HttpAuthHandlerNTLM::HttpAuthHandlerNTLM(SSPILibrary* sspi_library,
+                                         ULONG max_token_length) :
+    auth_sspi_(sspi_library, "NTLM", NTLMSP_NAME, max_token_length) {
 }
 
 HttpAuthHandlerNTLM::~HttpAuthHandlerNTLM() {
@@ -64,7 +65,8 @@ int HttpAuthHandlerNTLM::GenerateDefaultAuthToken(
 HttpAuthHandlerNTLM::Factory::Factory() :
     max_token_length_(0),
     first_creation_(true),
-    is_unsupported_(false) {
+    is_unsupported_(false),
+    sspi_library_(SSPILibrary::GetDefault()) {
 }
 
 HttpAuthHandlerNTLM::Factory::~Factory() {
@@ -77,19 +79,18 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
     scoped_refptr<HttpAuthHandler>* handler) {
   if (is_unsupported_)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
-
   if (max_token_length_ == 0) {
-    int rv = DetermineMaxTokenLength(NTLMSP_NAME, &max_token_length_);
+    int rv = DetermineMaxTokenLength(sspi_library_, NTLMSP_NAME,
+                                     &max_token_length_);
     if (rv == ERR_UNSUPPORTED_AUTH_SCHEME)
       is_unsupported_ = true;
     if (rv != OK)
       return rv;
   }
-
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   scoped_refptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNTLM(max_token_length_));
+      new HttpAuthHandlerNTLM(sspi_library_, max_token_length_));
   if (!tmp_handler->InitFromChallenge(challenge, target, origin))
     return ERR_INVALID_RESPONSE;
   handler->swap(tmp_handler);
@@ -97,4 +98,3 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
 }
 
 }  // namespace net
-
