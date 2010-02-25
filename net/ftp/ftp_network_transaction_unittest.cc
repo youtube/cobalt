@@ -620,12 +620,6 @@ class FtpNetworkTransactionTest : public PlatformTest {
       ASSERT_EQ(static_cast<int>(mock_data.length()),
                 callback_.WaitForResult());
       EXPECT_EQ(mock_data, std::string(io_buffer->data(), mock_data.length()));
-      if (transaction_.GetResponseInfo()->is_directory_listing) {
-        EXPECT_EQ(-1, transaction_.GetResponseInfo()->expected_content_size);
-      } else {
-        // We pass an artificial value of 18 as a response to the SIZE command.
-        EXPECT_EQ(18, transaction_.GetResponseInfo()->expected_content_size);
-      }
     }
     EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
   }
@@ -660,6 +654,9 @@ TEST_F(FtpNetworkTransactionTest, FailedLookup) {
 TEST_F(FtpNetworkTransactionTest, DirectoryTransaction) {
   FtpSocketDataProviderDirectoryListing ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host", OK);
+
+  EXPECT_TRUE(transaction_.GetResponseInfo()->is_directory_listing);
+  EXPECT_EQ(-1, transaction_.GetResponseInfo()->expected_content_size);
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionMultilineWelcome) {
@@ -708,6 +705,9 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionTransferStarting) {
 TEST_F(FtpNetworkTransactionTest, DownloadTransaction) {
   FtpSocketDataProviderFileDownload ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
+
+  // We pass an artificial value of 18 as a response to the SIZE command.
+  EXPECT_EQ(18, transaction_.GetResponseInfo()->expected_content_size);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionMultilineWelcome) {
@@ -947,6 +947,17 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilSize) {
       "213 99999999999999999999999999999999\r\n",
       FtpSocketDataProvider::PRE_QUIT);
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_INVALID_RESPONSE);
+}
+
+// Test for http://crbug.com/36360.
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionBigSize) {
+  // Pass a valid, but large file size. The transaction should not fail.
+  FtpSocketDataProviderEvilSize ctrl_socket(
+      "213 3204427776\r\n",
+      FtpSocketDataProvider::PRE_MDTM);
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
+  EXPECT_EQ(3204427776LL,
+            transaction_.GetResponseInfo()->expected_content_size);
 }
 
 // Regression test for http://crbug.com/25023.
