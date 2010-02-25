@@ -34,16 +34,29 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                   HttpAuth::Target target,
                                   const GURL& origin,
                                   scoped_refptr<HttpAuthHandler>* handler);
+
+#if defined(OS_WIN)
+    // Set the SSPILibrary to use. Typically the only callers which need to
+    // use this are unit tests which pass in a mocked-out version of the
+    // SSPI library.
+    // The caller is responsible for managing the lifetime of |*sspi_library|,
+    // and the lifetime must exceed that of this Factory object and all
+    // HttpAuthHandler's that this Factory object creates.
+    void set_sspi_library(SSPILibrary* sspi_library) {
+      sspi_library_ = sspi_library;
+    }
+#endif  // defined(OS_WIN)
    private:
 #if defined(OS_WIN)
     ULONG max_token_length_;
     bool first_creation_;
     bool is_unsupported_;
+    SSPILibrary* sspi_library_;
 #endif  // defined(OS_WIN)
   };
 
 #if defined(OS_WIN)
-  explicit HttpAuthHandlerNegotiate(ULONG max_token_length);
+  HttpAuthHandlerNegotiate(SSPILibrary* sspi_library, ULONG max_token_length);
 #else
   HttpAuthHandlerNegotiate();
 #endif
