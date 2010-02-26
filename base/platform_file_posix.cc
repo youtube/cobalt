@@ -77,4 +77,12 @@ bool ClosePlatformFile(PlatformFile file) {
   return close(file);
 }
 
+bool GetPlatformFileSize(PlatformFile file, uint64* out_size) {
+  struct stat st;
+  if (fstat(file, &st))
+    return false;
+  *out_size = st.st_size;
+  return true;
+}
+
 }  // namespace base
