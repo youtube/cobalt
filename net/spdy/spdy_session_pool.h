@@ -9,15 +9,32 @@
 #include <list>
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
-#include "net/base/host_resolver.h"
 
 namespace net {
 
 class ClientSocketHandle;
 class HttpNetworkSession;
 class SpdySession;
+
+// TODO(willchan): Move this to net/base.
+struct HostPortPair {
+  HostPortPair() {}
+  HostPortPair(const std::string& in_host, uint16 in_port)
+      : host(in_host), port(in_port) {}
+
+  // Comparator function so this can be placed in a std::map.
+  bool operator<(const HostPortPair& other) const {
+    if (host != other.host)
+      return host < other.host;
+    return port < other.port;
+  }
+
+  std::string host;
+  uint16 port;
+};
 
 // This is a very simple pool for open SpdySessions.
 // TODO(mbelshe): Make this production ready.
@@ -28,20 +45,20 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   // Either returns an existing SpdySession or creates a new SpdySession for
   // use.
   scoped_refptr<SpdySession> Get(
-      const HostResolver::RequestInfo& info, HttpNetworkSession* session);
+      const HostPortPair& host_port_pair, HttpNetworkSession* session);
 
   // Builds a SpdySession from an existing SSL socket.  Users should try
   // calling Get() first to use an existing SpdySession so we don't get
   // multiple SpdySessions per domain.  Note that ownership of |connection| is
   // transferred from the caller to the SpdySession.
   scoped_refptr<SpdySession> GetSpdySessionFromSSLSocket(
-      const HostResolver::RequestInfo& info,
+      const HostPortPair& host_port_pair,
       HttpNetworkSession* session,
       ClientSocketHandle* connection);
 
   // TODO(willchan): Consider renaming to HasReusableSession, since perhaps we
   // should be creating a new session.
-  bool HasSession(const HostResolver::RequestInfo& info) const;
+  bool HasSession(const HostPortPair& host_port_pair)const;
 
   // Close all Spdy Sessions; used for debugging.
   void CloseAllSessions();
@@ -52,7 +69,7 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   friend class SpdySessionPoolPeer;  // For testing.
 
   typedef std::list<scoped_refptr<SpdySession> > SpdySessionList;
-  typedef std::map<std::string, SpdySessionList*> SpdySessionsMap;
+  typedef std::map<HostPortPair, SpdySessionList*> SpdySessionsMap;
 
   virtual ~SpdySessionPool();
 
@@ -60,10 +77,11 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   void Remove(const scoped_refptr<SpdySession>& session);
 
   // Helper functions for manipulating the lists.
-  SpdySessionList* AddSessionList(const std::string& domain);
-  SpdySessionList* GetSessionList(const std::string& domain);
-  const SpdySessionList* GetSessionList(const std::string& domain) const;
-  void RemoveSessionList(const std::string& domain);
+  SpdySessionList* AddSessionList(const HostPortPair& host_port_pair);
+  SpdySessionList* GetSessionList(const HostPortPair& host_port_pair);
+  const SpdySessionList* GetSessionList(
+      const HostPortPair& host_port_pair) const;
+  void RemoveSessionList(const HostPortPair& host_port_pair);
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;

@@ -18,22 +18,21 @@ SpdySessionPool::~SpdySessionPool() {
 }
 
 scoped_refptr<SpdySession> SpdySessionPool::Get(
-    const HostResolver::RequestInfo& info, HttpNetworkSession* session) {
-  const std::string& domain = info.hostname();
+    const HostPortPair& host_port_pair, HttpNetworkSession* session) {
   scoped_refptr<SpdySession> spdy_session;
-  SpdySessionList* list = GetSessionList(domain);
+  SpdySessionList* list = GetSessionList(host_port_pair);
   if (list) {
     if (list->size() >= kMaxSessionsPerDomain) {
       spdy_session = list->front();
       list->pop_front();
     }
   } else {
-    list = AddSessionList(domain);
+    list = AddSessionList(host_port_pair);
   }
 
   DCHECK(list);
   if (!spdy_session)
-    spdy_session = new SpdySession(domain, session);
+    spdy_session = new SpdySession(host_port_pair, session);
 
   DCHECK(spdy_session);
   list->push_back(spdy_session);
@@ -42,63 +41,61 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
 }
 
 scoped_refptr<SpdySession> SpdySessionPool::GetSpdySessionFromSSLSocket(
-    const HostResolver::RequestInfo& info,
+    const HostPortPair& host_port_pair,
     HttpNetworkSession* session,
     ClientSocketHandle* connection) {
-  const std::string& domain = info.hostname();
-  SpdySessionList* list = GetSessionList(domain);
+  SpdySessionList* list = GetSessionList(host_port_pair);
   if (!list)
-    list = AddSessionList(domain);
+    list = AddSessionList(host_port_pair);
   DCHECK(list->empty());
-  scoped_refptr<SpdySession> spdy_session(new SpdySession(domain, session));
+  scoped_refptr<SpdySession> spdy_session(
+      new SpdySession(host_port_pair, session));
   spdy_session->InitializeWithSSLSocket(connection);
   list->push_back(spdy_session);
   return spdy_session;
 }
 
-bool SpdySessionPool::HasSession(const HostResolver::RequestInfo& info) const {
-  const std::string& domain = info.hostname();
-  if (GetSessionList(domain))
+bool SpdySessionPool::HasSession(const HostPortPair& host_port_pair) const {
+  if (GetSessionList(host_port_pair))
     return true;
   return false;
 }
 
 void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
-  std::string domain = session->domain();
-  SpdySessionList* list = GetSessionList(domain);
+  SpdySessionList* list = GetSessionList(session->host_port_pair());
   CHECK(list);
   list->remove(session);
   if (list->empty())
-    RemoveSessionList(domain);
+    RemoveSessionList(session->host_port_pair());
 }
 
 SpdySessionPool::SpdySessionList*
-    SpdySessionPool::AddSessionList(const std::string& domain) {
-  DCHECK(sessions_.find(domain) == sessions_.end());
-  return sessions_[domain] = new SpdySessionList();
+    SpdySessionPool::AddSessionList(const HostPortPair& host_port_pair) {
+  DCHECK(sessions_.find(host_port_pair) == sessions_.end());
+  return sessions_[host_port_pair] = new SpdySessionList();
 }
 
 SpdySessionPool::SpdySessionList*
-    SpdySessionPool::GetSessionList(const std::string& domain) {
-  SpdySessionsMap::iterator it = sessions_.find(domain);
+    SpdySessionPool::GetSessionList(const HostPortPair& host_port_pair) {
+  SpdySessionsMap::iterator it = sessions_.find(host_port_pair);
   if (it == sessions_.end())
     return NULL;
   return it->second;
 }
 
 const SpdySessionPool::SpdySessionList*
-    SpdySessionPool::GetSessionList(const std::string& domain) const {
-  SpdySessionsMap::const_iterator it = sessions_.find(domain);
+    SpdySessionPool::GetSessionList(const HostPortPair& host_port_pair) const {
+  SpdySessionsMap::const_iterator it = sessions_.find(host_port_pair);
   if (it == sessions_.end())
     return NULL;
   return it->second;
 }
 
-void SpdySessionPool::RemoveSessionList(const std::string& domain) {
-  SpdySessionList* list = GetSessionList(domain);
+void SpdySessionPool::RemoveSessionList(const HostPortPair& host_port_pair) {
+  SpdySessionList* list = GetSessionList(host_port_pair);
   if (list) {
     delete list;
-    sessions_.erase(domain);
+    sessions_.erase(host_port_pair);
   } else {
     DCHECK(false) << "removing orphaned session list";
   }
