@@ -148,6 +148,12 @@ ssl_Do1stHandshake(sslSocket *ss)
 	    ss->gs.readOffset  = 0;
 	    break;
 	}
+	if (ss->version >= SSL_LIBRARY_VERSION_3_0 &&
+	    (ss->ssl3.hs.ws == wait_change_cipher ||
+	     ss->ssl3.hs.ws == wait_new_session_ticket) &&
+	    ssl3_CanFalseStart(ss)) {
+	    break;
+	}
 	rv = (*ss->handshake)(ss);
 	++loopCount;
     /* This code must continue to loop on SECWouldBlock, 
