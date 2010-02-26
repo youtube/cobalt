@@ -278,11 +278,20 @@ class FilePath {
   bool ReferencesParent() const;
 
   // Older Chromium code assumes that paths are always wstrings.
-  // This function converts a wstring to a FilePath, and is useful to smooth
-  // porting that old code to the FilePath API.
-  // It has "Hack" in its name so people feel bad about using it.
-  // TODO(port): remove these functions.
+  // These functions convert wstrings to/from FilePaths, and are
+  // useful to smooth porting that old code to the FilePath API.
+  // They have "Hack" in their names so people feel bad about using them.
+  // http://code.google.com/p/chromium/issues/detail?id=24672
+  //
+  // If you are trying to be a good citizen and remove these, ask yourself:
+  // - Am I interacting with other Chrome code that deals with files?  Then
+  //   try to convert the API into using FilePath.
+  // - Am I interacting with OS-native calls?  Then use value() to get at an
+  //   OS-native string format.
+  // - Am I using well-known file names, like "config.ini"?  Then use the
+  //   ASCII functions (we require paths to always be supersets of ASCII).
   static FilePath FromWStringHack(const std::wstring& wstring);
+  std::wstring ToWStringHack() const;
 
   // Static helper method to write a StringType to a pickle.
   static void WriteStringTypeToPickle(Pickle* pickle,
@@ -327,13 +336,6 @@ class FilePath {
   static int HFSFastUnicodeCompare(const StringType& string1,
                                    const StringType& string2);
 #endif
-
-  // Older Chromium code assumes that paths are always wstrings.
-  // This function produces a wstring from a FilePath, and is useful to smooth
-  // porting that old code to the FilePath API.
-  // It has "Hack" in its name so people feel bad about using it.
-  // TODO(port): remove these functions.
-  std::wstring ToWStringHack() const;
 
  private:
   // Remove trailing separators from this object.  If the path is absolute, it
