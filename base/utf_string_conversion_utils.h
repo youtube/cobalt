@@ -19,6 +19,14 @@ inline bool IsValidCodepoint(uint32 code_point) {
          (code_point >= 0xE000u && code_point <= 0x10FFFFu);
 }
 
+inline bool IsValidCharacter(uint32 code_point) {
+  // Excludes non-characters (U+FDD0..U+FDEF, and all codepoints ending in
+  // 0xFFFE or 0xFFFF) from the set of valid code points.
+  return code_point < 0xD800u || (code_point >= 0xE000u &&
+      code_point < 0xFDD0u) || (code_point > 0xFDEFu &&
+      code_point <= 0x10FFFFu && (code_point & 0xFFFEu) != 0xFFFEu);
+}
+
 // ReadUnicodeCharacter --------------------------------------------------------
 
 // Reads a UTF-8 stream, placing the next code point into the given output
