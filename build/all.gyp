@@ -226,9 +226,23 @@
             '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
             '../chrome_frame/chrome_frame.gyp:npchrome_frame',
           ],
-        },       
+        },
       ],  # targets
     }], # OS="win"
+    ['chromeos==1', {
+      'targets': [
+        {
+          'target_name': 'chromeos_builder',
+          'type': 'none',
+          'dependencies': [
+            '../chrome/chrome.gyp:chrome',
+            '../media/media.gyp:omx_test',
+            '../media/media.gyp:ffmpeg_tests',
+	    # TODO(jiesun): should we put candidate_window/session here?
+          ],
+        },
+      ],  # targets
+    }], # "chromeos==1"
   ], # conditions
 }
 
