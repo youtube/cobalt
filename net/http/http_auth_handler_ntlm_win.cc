@@ -79,6 +79,13 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
     scoped_refptr<HttpAuthHandler>* handler) {
   if (is_unsupported_)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
+  if (filter() && !filter()->IsValid(origin, target)) {
+    LOG(INFO) << "URL " << origin
+              << "fails filter validation for authentication method "
+              << "NTLM";
+
+    return ERR_INVALID_AUTH_CREDENTIALS;
+  }
   if (max_token_length_ == 0) {
     int rv = DetermineMaxTokenLength(sspi_library_, NTLMSP_NAME,
                                      &max_token_length_);
