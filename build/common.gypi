@@ -948,8 +948,8 @@
               }]
             ],
           }],
-          ['linux_use_tcmalloc==1', {
-            'defines': ['LINUX_USE_TCMALLOC'],
+          ['linux_use_tcmalloc==0', {
+            'defines': ['NO_TCMALLOC'],
           }],
         ],
       },
