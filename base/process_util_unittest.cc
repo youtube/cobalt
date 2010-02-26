@@ -250,7 +250,7 @@ int ProcessUtilTest::CountOpenFDsInChild() {
     NOTREACHED();
 
   file_handle_mapping_vector fd_mapping_vec;
-  fd_mapping_vec.push_back(std::pair<int,int>(fds[1], kChildPipe));
+  fd_mapping_vec.push_back(std::pair<int, int>(fds[1], kChildPipe));
   ProcessHandle handle = this->SpawnChild(L"ProcessUtilsLeakFDChildProcess",
                                           fd_mapping_vec,
                                           false);
@@ -408,11 +408,11 @@ TEST_F(ProcessUtilTest, ParseProcStatCPU) {
 // TODO(vandebo) make this work on Windows and Mac too.
 #if defined(OS_LINUX)
 
-#if defined(LINUX_USE_TCMALLOC)
+#if defined(USE_TCMALLOC)
 extern "C" {
 int tc_set_new_mode(int mode);
 }
-#endif  // defined(LINUX_USE_TCMALLOC)
+#endif  // defined(USE_TCMALLOC)
 
 class OutOfMemoryTest : public testing::Test {
  public:
@@ -427,13 +427,13 @@ class OutOfMemoryTest : public testing::Test {
     // Must call EnableTerminationOnOutOfMemory() because that is called from
     // chrome's main function and therefore hasn't been called yet.
     EnableTerminationOnOutOfMemory();
-#if defined(LINUX_USE_TCMALLOC)
+#if defined(USE_TCMALLOC)
     tc_set_new_mode(1);
   }
 
   virtual void TearDown() {
     tc_set_new_mode(0);
-#endif  // defined(LINUX_USE_TCMALLOC)
+#endif  // defined(USE_TCMALLOC)
   }
 
   void* value_;
