@@ -2,24 +2,38 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_HTTP_HTTP_AUTH_HANDLER_FACTORY_H
-#define NET_HTTP_HTTP_AUTH_HANDLER_FACTORY_H
+#ifndef NET_HTTP_HTTP_AUTH_HANDLER_FACTORY_H_
+#define NET_HTTP_HTTP_AUTH_HANDLER_FACTORY_H_
 
 #include <map>
+#include <string>
 
+#include "base/scoped_ptr.h"
 #include "net/http/http_auth.h"
+#include "net/http/http_auth_filter.h"
 
 class GURL;
 
 namespace net {
 
 class HttpAuthHandler;
+class HttpAuthHandlerRegistryFactory;
 
 // An HttpAuthHandlerFactory is used to create HttpAuthHandler objects.
 class HttpAuthHandlerFactory {
  public:
   HttpAuthHandlerFactory() {}
   virtual ~HttpAuthHandlerFactory() {}
+
+  // Sets an authentication filter.
+  void set_filter(HttpAuthFilter* filter) {
+    filter_.reset(filter);
+  }
+
+  // Retrieves the associated authentication filter.
+  const HttpAuthFilter* filter() const {
+    return filter_.get();
+  }
 
   // Creates an HttpAuthHandler object based on the authentication
   // challenge specified by |*challenge|. |challenge| must point to a valid
@@ -33,6 +47,11 @@ class HttpAuthHandlerFactory {
   //
   // If |*challenge| is improperly formed, |*handler| is set to NULL and
   // ERR_INVALID_RESPONSE is returned.
+  //
+  // For the NTLM and Negotiate handlers:
+  // If |origin| does not match the authentication method's filters for
+  // the specified |target|, ERR_INVALID_AUTH_CREDENTIALS is returned.
+  // NOTE: This will apply to ALL |origin| values if the filters are empty.
   //
   // |*challenge| should not be reused after a call to |CreateAuthHandler()|,
   virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
@@ -50,12 +69,15 @@ class HttpAuthHandlerFactory {
                                   const GURL& origin,
                                   scoped_refptr<HttpAuthHandler>* handler);
 
-  // Creates a standard HttpAuthHandlerFactory. The caller is responsible
-  // for deleting the factory.
-  // The default factory support Basic, Digest, NTLM, and Negotiate schemes.
-  static HttpAuthHandlerFactory* CreateDefault();
+  // Creates a standard HttpAuthHandlerRegistryFactory. The caller is
+  // responsible for deleting the factory.
+  // The default factory supports Basic, Digest, NTLM, and Negotiate schemes.
+  static HttpAuthHandlerRegistryFactory* CreateDefault();
 
  private:
+  // The authentication filter
+  scoped_ptr<HttpAuthFilter> filter_;
+
   DISALLOW_COPY_AND_ASSIGN(HttpAuthHandlerFactory);
 };
 
@@ -65,6 +87,12 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
  public:
   HttpAuthHandlerRegistryFactory();
   virtual ~HttpAuthHandlerRegistryFactory();
+
+  // Sets an authentication filter into the factory associated with |scheme|.
+  void SetFilter(const std::string& scheme, HttpAuthFilter* filter);
+
+  // Retrieves the authentication filter associated with |scheme|.
+  const HttpAuthFilter* GetFilter(const std::string& scheme) const;
 
   // Registers a |factory| that will be used for a particular HTTP
   // authentication scheme such as Basic, Digest, or Negotiate.
@@ -85,6 +113,9 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
                                 scoped_refptr<HttpAuthHandler>* handler);
 
  private:
+  // Retrieve the factory for the specified |scheme|
+  HttpAuthHandlerFactory* GetSchemeFactory(const std::string& scheme) const;
+
   typedef std::map<std::string, HttpAuthHandlerFactory*> FactoryMap;
 
   FactoryMap factory_map_;
@@ -93,4 +124,4 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
 
 }  // namespace net
 
-#endif  // NET_HTTP_HTTP_AUTH_HANDLER_FACTORY_H
+#endif  // NET_HTTP_HTTP_AUTH_HANDLER_FACTORY_H_
