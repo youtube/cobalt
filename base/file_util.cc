@@ -331,16 +331,21 @@ bool AbsolutePath(std::wstring* path_str) {
   *path_str = path.ToWStringHack();
   return true;
 }
+
+#if defined(OS_WIN)
+// This function is deprecated; see file_util_deprecated.h for details.
 void AppendToPath(std::wstring* path, const std::wstring& new_ending) {
   if (!path) {
     NOTREACHED();
     return;  // Don't crash in this function in release builds.
   }
 
-  if (!EndsWithSeparator(path))
+  if (!EndsWithSeparator(*path))
     path->push_back(FilePath::kSeparators[0]);
   path->append(new_ending);
 }
+#endif
+
 bool CopyDirectory(const std::wstring& from_path, const std::wstring& to_path,
                    bool recursive) {
   return CopyDirectory(FilePath::FromWStringHack(from_path),
@@ -349,9 +354,6 @@ bool CopyDirectory(const std::wstring& from_path, const std::wstring& to_path,
 }
 bool Delete(const std::wstring& path, bool recursive) {
   return Delete(FilePath::FromWStringHack(path), recursive);
-}
-bool EndsWithSeparator(std::wstring* path) {
-  return EndsWithSeparator(FilePath::FromWStringHack(*path));
 }
 bool EndsWithSeparator(const std::wstring& path) {
   return EndsWithSeparator(FilePath::FromWStringHack(path));
