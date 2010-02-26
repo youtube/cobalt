@@ -7,6 +7,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
+#include "net/http/http_auth_filter.h"
 #include "net/http/http_auth_handler_basic.h"
 #include "net/http/http_auth_handler_digest.h"
 #include "net/http/http_auth_handler_negotiate.h"
@@ -24,7 +25,7 @@ int HttpAuthHandlerFactory::CreateAuthHandlerFromString(
 }
 
 // static
-HttpAuthHandlerFactory* HttpAuthHandlerFactory::CreateDefault() {
+HttpAuthHandlerRegistryFactory* HttpAuthHandlerFactory::CreateDefault() {
   HttpAuthHandlerRegistryFactory* registry_factory =
       new HttpAuthHandlerRegistryFactory();
   registry_factory->RegisterSchemeFactory(
@@ -44,6 +45,21 @@ HttpAuthHandlerRegistryFactory::HttpAuthHandlerRegistryFactory() {
 HttpAuthHandlerRegistryFactory::~HttpAuthHandlerRegistryFactory() {
   STLDeleteContainerPairSecondPointers(factory_map_.begin(),
                                        factory_map_.end());
+}
+
+void HttpAuthHandlerRegistryFactory::SetFilter(const std::string& scheme,
+                                               HttpAuthFilter* filter) {
+  HttpAuthHandlerFactory* factory = GetSchemeFactory(scheme);
+  if (factory)
+    factory->set_filter(filter);
+}
+
+const HttpAuthFilter* HttpAuthHandlerRegistryFactory::GetFilter(
+    const std::string& scheme) const {
+  HttpAuthHandlerFactory* factory = GetSchemeFactory(scheme);
+  if (factory)
+    return factory->filter();
+  return NULL;
 }
 
 void HttpAuthHandlerRegistryFactory::RegisterSchemeFactory(
@@ -77,6 +93,16 @@ int HttpAuthHandlerRegistryFactory::CreateAuthHandler(
   }
   DCHECK(it->second);
   return it->second->CreateAuthHandler(challenge, target, origin, handler);
+}
+
+HttpAuthHandlerFactory* HttpAuthHandlerRegistryFactory::GetSchemeFactory(
+    const std::string& scheme) const {
+  std::string lower_scheme = StringToLowerASCII(scheme);
+  FactoryMap::const_iterator it = factory_map_.find(lower_scheme);
+  if (it == factory_map_.end()) {
+    return NULL;                  // |scheme| is not registered.
+  }
+  return it->second;
 }
 
 }  // namespace net
