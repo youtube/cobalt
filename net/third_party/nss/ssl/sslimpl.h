@@ -338,7 +338,6 @@ typedef struct sslOptionsStr {
     unsigned int enableDeflate          : 1;  /* 19 */
     unsigned int enableRenegotiation    : 2;  /* 20-21 */
     unsigned int requireSafeNegotiation : 1;  /* 22 */
-    unsigned int enableFalseStart       : 1;  /* 23 */
 } sslOptions;
 
 typedef enum { sslHandshakingUndetermined = 0,
@@ -1266,8 +1265,6 @@ extern PRBool    ssl_SocketIsBlocking(sslSocket *ss);
 extern void      ssl_SetAlwaysBlock(sslSocket *ss);
 
 extern SECStatus ssl_EnableNagleDelay(sslSocket *ss, PRBool enabled);
-
-extern PRBool    ssl3_CanFalseStart(sslSocket *ss);
 
 #define SSL_LOCK_READER(ss)		if (ss->recvLock) PZ_Lock(ss->recvLock)
 #define SSL_UNLOCK_READER(ss)		if (ss->recvLock) PZ_Unlock(ss->recvLock)
