@@ -145,6 +145,8 @@ const struct append_case {
 #endif
 };
 
+#if defined(OS_WIN)
+// This function is deprecated, but still used on Windows.
 TEST_F(FileUtilTest, AppendToPath) {
   for (unsigned int i = 0; i < arraysize(append_cases); ++i) {
     const append_case& value = append_cases[i];
@@ -157,6 +159,8 @@ TEST_F(FileUtilTest, AppendToPath) {
   file_util::AppendToPath(NULL, L"path");  // asserts in debug mode
 #endif
 }
+#endif  // defined(OS_WIN)
+
 
 static const struct InsertBeforeExtensionCase {
   const FilePath::CharType* path;
