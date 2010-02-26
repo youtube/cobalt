@@ -82,6 +82,12 @@
       # Set to 1 compile with -fPIC cflag on linux. This is a must for shared
       # libraries on linux x86-64 and arm.
       'linux_fpic%': 0,
+
+      # Set ARM-v7 compilation flags
+      'armv7%': 0,
+
+      # Set Neon compilation flags (only meaningful if armv7==1).
+      'arm_neon%': 1,
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -95,6 +101,8 @@
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
     'linux_fpic%': '<(linux_fpic)',
+    'armv7%': '<(armv7)',
+    'arm_neon%': '<(arm_neon)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -198,9 +206,6 @@
     # Used to disable Native Client at compile time, for platforms where it
     # isn't supported
     'disable_nacl%': 0,
-
-    # Set ARM-v7 compilation flags
-    'armv7%': 0,
 
     # Set Thumb compilation flags.
     'arm_thumb%': 0,
@@ -904,8 +909,14 @@
                     'cflags': [
                       '-march=armv7-a',
                       '-mtune=cortex-a8',
-                      '-mfpu=neon',
                       '-mfloat-abi=softfp',
+                    ],
+                    'conditions': [
+                      ['arm_neon==1', {
+                        'cflags': [ '-mfpu=neon', ],
+                      }, {
+                        'cflags': [ '-mfpu=vfpv3', ],
+                      }]
                     ],
                   }],
                 ],
