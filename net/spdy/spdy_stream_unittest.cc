@@ -88,9 +88,9 @@ class SpdyStreamTest : public testing::Test {
         pool_peer_(session_->spdy_session_pool()) {}
 
   scoped_refptr<SpdySession> CreateSpdySession() {
-    HostResolver::RequestInfo resolve_info("www.google.com", 80);
+    HostPortPair host_port_pair("www.google.com", 80);
     scoped_refptr<SpdySession> session(
-        session_->spdy_session_pool()->Get(resolve_info, session_));
+        session_->spdy_session_pool()->Get(host_port_pair, session_));
     return session;
   }
 

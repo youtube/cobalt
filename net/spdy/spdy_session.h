@@ -38,8 +38,7 @@ class SSLInfo;
 class SpdySession : public base::RefCounted<SpdySession>,
                     public spdy::SpdyFramerVisitorInterface {
  public:
-  // Get the domain for this SpdySession.
-  const std::string& domain() const { return domain_; }
+  const HostPortPair& host_port_pair() const { return host_port_pair_; }
 
   // Connect the Spdy Socket.
   // Returns net::Error::OK on success.
@@ -93,7 +92,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   // Create a new SpdySession.
   // |host| is the hostname that this session connects to.
-  SpdySession(const std::string& host, HttpNetworkSession* session);
+  SpdySession(const HostPortPair& host_port_pair, HttpNetworkSession* session);
 
   // Closes all open streams.  Used as part of shutdown.
   void CloseAllStreams(net::Error code);
@@ -165,7 +164,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   CompletionCallbackImpl<SpdySession> write_callback_;
 
   // The domain this session is connected to.
-  std::string domain_;
+  const HostPortPair host_port_pair_;
 
   SSLConfig ssl_config_;
 
