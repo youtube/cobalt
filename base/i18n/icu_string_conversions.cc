@@ -17,15 +17,6 @@
 namespace base {
 
 namespace {
-
-inline bool IsValidCodepoint(uint32 code_point) {
-  // Excludes the surrogate code points ([0xD800, 0xDFFF]) and
-  // codepoints larger than 0x10FFFF (the highest codepoint allowed).
-  // Non-characters and unassigned codepoints are allowed.
-  return code_point < 0xD800u ||
-         (code_point >= 0xE000u && code_point <= 0x10FFFFu);
-}
-
 // ToUnicodeCallbackSubstitute() is based on UCNV_TO_U_CALLBACK_SUSBSTITUTE
 // in source/common/ucnv_err.c.
 
