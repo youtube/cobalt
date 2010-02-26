@@ -49,9 +49,6 @@ bool EndsWithSeparator(const FilePath& path);
 // exists. Returns true if |path| is an existing directory, false otherwise.
 bool EnsureEndsWithSeparator(FilePath* path);
 
-// Appends new_ending to path, adding a separator between the two if necessary.
-void AppendToPath(std::wstring* path, const std::wstring& new_ending);
-
 // Convert provided relative path into an absolute path.  Returns false on
 // error. On POSIX, this function fails if the path does not exist.
 bool AbsolutePath(FilePath* path);
