@@ -678,9 +678,11 @@ int HttpNetworkTransaction::DoInitConnection() {
     resolve_info.set_allow_cached_response(false);
   }
 
+  HostPortPair host_port_pair(host, port);
+
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
-  if (session_->spdy_session_pool()->HasSession(resolve_info)) {
+  if (session_->spdy_session_pool()->HasSession(host_port_pair)) {
     using_spdy_ = true;
     return OK;
   }
@@ -1130,21 +1132,20 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
   // if one already exists, then screw it, use the existing one!  Otherwise,
   // use the existing TCP socket.
 
-  HostResolver::RequestInfo req_info(request_->url.HostNoBrackets(),
-                                     request_->url.EffectiveIntPort());
-  req_info.set_priority(request_->priority);
+  HostPortPair host_port_pair(request_->url.HostNoBrackets(),
+                              request_->url.EffectiveIntPort());
   const scoped_refptr<SpdySessionPool> spdy_pool =
       session_->spdy_session_pool();
   scoped_refptr<SpdySession> spdy_session;
 
-  if (spdy_pool->HasSession(req_info)) {
-    spdy_session = spdy_pool->Get(req_info, session_);
+  if (spdy_pool->HasSession(host_port_pair)) {
+    spdy_session = spdy_pool->Get(host_port_pair, session_);
   } else {
     // SPDY is negotiated using the TLS next protocol negotiation (NPN)
     // extension, so |connection_| must contain an SSLClientSocket.
     DCHECK(using_ssl_);
     spdy_session = spdy_pool->GetSpdySessionFromSSLSocket(
-        req_info, session_, connection_.release());
+        host_port_pair, session_, connection_.release());
   }
 
   CHECK(spdy_session.get());

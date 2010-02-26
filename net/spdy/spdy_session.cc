@@ -182,7 +182,8 @@ void AdjustSocketBufferSizes(ClientSocket* socket) {
 // static
 bool SpdySession::use_ssl_ = true;
 
-SpdySession::SpdySession(const std::string& host, HttpNetworkSession* session)
+SpdySession::SpdySession(const HostPortPair& host_port_pair,
+                         HttpNetworkSession* session)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           connect_callback_(this, &SpdySession::OnTCPConnect)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -191,7 +192,7 @@ SpdySession::SpdySession(const std::string& host, HttpNetworkSession* session)
           read_callback_(this, &SpdySession::OnReadComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           write_callback_(this, &SpdySession::OnWriteComplete)),
-      domain_(host),
+      host_port_pair_(host_port_pair),
       session_(session),
       connection_(new ClientSocketHandle),
       read_buffer_(new IOBuffer(kReadBufferSize)),
@@ -222,9 +223,7 @@ SpdySession::~SpdySession() {
     connection_->socket()->Disconnect();
   }
 
-  // TODO(willchan): Don't hardcode port 80 here.
-  DCHECK(!session_->spdy_session_pool()->HasSession(
-      HostResolver::RequestInfo(domain_, 80)));
+  DCHECK(!session_->spdy_session_pool()->HasSession(host_port_pair()));
 
   // Record per-session histograms here.
   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsPerSession",
@@ -273,7 +272,7 @@ net::Error SpdySession::Connect(const std::string& group_name,
   spdy_sessions.Increment();
 
   int rv = connection_->Init(group_name, host, priority, &connect_callback_,
-                            session_->tcp_socket_pool(), load_log);
+                             session_->tcp_socket_pool(), load_log);
   DCHECK(rv <= 0);
 
   // If the connect is pending, we still return ok.  The APIs enqueue
