@@ -366,13 +366,13 @@
                 'sources/': [ ['include', '_chromeos\\.cc$'] ]
               },
             ],
-            [ 'linux_use_tcmalloc==1', {
+            [ 'linux_use_tcmalloc==0', {
                 'defines': [
-                  'LINUX_USE_TCMALLOC',
+                  'NO_TCMALLOC',
                 ],
                 'direct_dependent_settings': {
                   'defines': [
-                    'LINUX_USE_TCMALLOC',
+                    'NO_TCMALLOC',
                   ],
                 },
               },

@@ -61,7 +61,7 @@
 #endif
 
 // Use tcmalloc
-#if defined(OS_WIN) && !defined(NO_TCMALLOC)
+#if (defined(OS_WIN) || defined(OS_LINUX)) && !defined(NO_TCMALLOC)
 #define USE_TCMALLOC 1
 #endif
 
