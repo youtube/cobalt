@@ -150,6 +150,10 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // Call the user callback.
   void DoCallback(int rv);
 
+  void ScheduleBufferedReadCallback();
+  void DoBufferedReadCallback();
+  bool ShouldWaitForMoreBufferedData() const;
+
   // The implementations of each state of the state machine.
   int DoSendHeaders();
   int DoSendHeadersComplete(int result);
@@ -202,6 +206,12 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   int send_bytes_;
   int recv_bytes_;
   bool histograms_recorded_;
+
+  // Is there a scheduled read callback pending.
+  bool buffered_read_callback_pending_;
+  // Has more data been received from the network during the wait for the
+  // scheduled read callback.
+  bool more_read_data_pending_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyStream);
 };
