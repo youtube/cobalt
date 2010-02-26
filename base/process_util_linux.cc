@@ -513,8 +513,7 @@ void OnNoMemory() {
 }  // namespace
 
 extern "C" {
-
-#if !defined(LINUX_USE_TCMALLOC)
+#if !defined(USE_TCMALLOC)
 
 extern "C" {
 void* __libc_malloc(size_t size);
@@ -539,7 +538,7 @@ void* __libc_memalign(size_t alignment, size_t size);
 // for this in process_util_unittest.cc.
 //
 // If we are using tcmalloc, then the problem is moot since tcmalloc handles
-// this for us. Thus this code is in a !defined(LINUX_USE_TCMALLOC) block.
+// this for us. Thus this code is in a !defined(USE_TCMALLOC) block.
 //
 // We call the real libc functions in this code by using __libc_malloc etc.
 // Previously we tried using dlsym(RTLD_NEXT, ...) but that failed depending on
@@ -590,7 +589,7 @@ int posix_memalign(void** ptr, size_t alignment, size_t size) {
   return 0;
 }
 
-#endif  // !defined(LINUX_USE_TCMALLOC)
+#endif  // !defined(USE_TCMALLOC)
 }  // extern C
 
 void EnableTerminationOnOutOfMemory() {
