@@ -730,6 +730,13 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
     HttpAuth::Target target,
     const GURL& origin,
     scoped_refptr<HttpAuthHandler>* handler) {
+  if (filter() && !filter()->IsValid(origin, target)) {
+    LOG(INFO) << "URL " << origin
+              << "fails filter validation for authentication method "
+              << "NTLM";
+
+    return ERR_INVALID_AUTH_CREDENTIALS;
+  }
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   scoped_refptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerNTLM());

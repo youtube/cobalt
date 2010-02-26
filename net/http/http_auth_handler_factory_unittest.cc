@@ -137,7 +137,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         server_origin,
         &handler);
     EXPECT_EQ(OK, rv);
-    EXPECT_FALSE(handler.get() == NULL);
+    ASSERT_FALSE(handler.get() == NULL);
     EXPECT_STREQ("ntlm", handler->scheme().c_str());
     EXPECT_STREQ("", handler->realm().c_str());
     EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
@@ -159,6 +159,151 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
     EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
     EXPECT_TRUE(handler->encrypts_identity());
     EXPECT_TRUE(handler->is_connection_based());
+  }
+#else  // !defined(OS_WIN)
+  {
+    scoped_refptr<HttpAuthHandler> handler;
+    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
+        "Negotiate",
+        HttpAuth::AUTH_SERVER,
+        server_origin,
+        &handler);
+    EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME, rv);
+    EXPECT_TRUE(handler.get() == NULL);
+  }
+#endif  // !defined(OS_WIN)
+}
+
+TEST(HttpAuthHandlerFactoryTest, DefaultFactoryWithFilters) {
+  std::string ntlm_server_whitelist = "*example.com";
+  std::string negotiate_server_whitelist = "*example.com";
+  std::string ntlm_server_whitelist2 = "*example.org";
+  std::string negotiate_server_whitelist2 = "*example.org";
+
+  HttpAuthHandlerRegistryFactory* http_auth_handler_registry_factory =
+      HttpAuthHandlerFactory::CreateDefault();
+  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
+      http_auth_handler_registry_factory);
+  HttpAuthFilterWhitelist* ntlm_whitelist = new HttpAuthFilterWhitelist;
+  HttpAuthFilterWhitelist* negotiate_whitelist = new HttpAuthFilterWhitelist;
+
+  ntlm_whitelist->SetFilters(ntlm_server_whitelist);
+  negotiate_whitelist->SetFilters(negotiate_server_whitelist);
+
+  http_auth_handler_registry_factory->SetFilter("ntlm", ntlm_whitelist);
+  http_auth_handler_registry_factory->SetFilter("negotiate",
+                                                negotiate_whitelist);
+
+  GURL server_origin("http://www.example.com");
+  GURL proxy_origin("http://cache.example.com:3128");
+  {
+    scoped_refptr<HttpAuthHandler> handler;
+    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
+        "Basic realm=\"FooBar\"",
+        HttpAuth::AUTH_SERVER,
+        server_origin,
+        &handler);
+    EXPECT_EQ(OK, rv);
+    EXPECT_FALSE(handler.get() == NULL);
+    EXPECT_STREQ("basic", handler->scheme().c_str());
+    EXPECT_STREQ("FooBar", handler->realm().c_str());
+    EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
+    EXPECT_FALSE(handler->encrypts_identity());
+    EXPECT_FALSE(handler->is_connection_based());
+  }
+  {
+    scoped_refptr<HttpAuthHandler> handler;
+    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
+        "UNSUPPORTED realm=\"FooBar\"",
+        HttpAuth::AUTH_SERVER,
+        server_origin,
+        &handler);
+    EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME, rv);
+    EXPECT_TRUE(handler.get() == NULL);
+  }
+  {
+    scoped_refptr<HttpAuthHandler> handler;
+    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
+        "Digest realm=\"FooBar\", nonce=\"xyz\"",
+        HttpAuth::AUTH_PROXY,
+        proxy_origin,
+        &handler);
+    EXPECT_EQ(OK, rv);
+    EXPECT_FALSE(handler.get() == NULL);
+    EXPECT_STREQ("digest", handler->scheme().c_str());
+    EXPECT_STREQ("FooBar", handler->realm().c_str());
+    EXPECT_EQ(HttpAuth::AUTH_PROXY, handler->target());
+    EXPECT_TRUE(handler->encrypts_identity());
+    EXPECT_FALSE(handler->is_connection_based());
+  }
+  {
+    scoped_refptr<HttpAuthHandler> handler;
+    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
+        "NTLM",
+        HttpAuth::AUTH_SERVER,
+        server_origin,
+        &handler);
+    EXPECT_EQ(OK, rv);
+    ASSERT_FALSE(handler.get() == NULL);
+    EXPECT_STREQ("ntlm", handler->scheme().c_str());
+    EXPECT_STREQ("", handler->realm().c_str());
+    EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
+    EXPECT_TRUE(handler->encrypts_identity());
+    EXPECT_TRUE(handler->is_connection_based());
+  }
+#if defined(OS_WIN)
+  {
+    scoped_refptr<HttpAuthHandler> handler;
+    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
+        "Negotiate",
+        HttpAuth::AUTH_SERVER,
+        server_origin,
+        &handler);
+    EXPECT_EQ(OK, rv);
+    EXPECT_FALSE(handler.get() == NULL);
+    EXPECT_STREQ("negotiate", handler->scheme().c_str());
+    EXPECT_STREQ("", handler->realm().c_str());
+    EXPECT_EQ(HttpAuth::AUTH_SERVER, handler->target());
+    EXPECT_TRUE(handler->encrypts_identity());
+    EXPECT_TRUE(handler->is_connection_based());
+  }
+#else  // !defined(OS_WIN)
+  {
+    scoped_refptr<HttpAuthHandler> handler;
+    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
+        "Negotiate",
+        HttpAuth::AUTH_SERVER,
+        server_origin,
+        &handler);
+    EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME, rv);
+    EXPECT_TRUE(handler.get() == NULL);
+  }
+#endif  // !defined(OS_WIN)
+
+  // Now change the whitelist and expect failures.
+  ntlm_whitelist->SetFilters(ntlm_server_whitelist2);
+  negotiate_whitelist->SetFilters(negotiate_server_whitelist2);
+
+  {
+    scoped_refptr<HttpAuthHandler> handler;
+    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
+        "NTLM",
+        HttpAuth::AUTH_SERVER,
+        server_origin,
+        &handler);
+    EXPECT_EQ(ERR_INVALID_AUTH_CREDENTIALS, rv);
+    ASSERT_TRUE(handler.get() == NULL);
+  }
+#if defined(OS_WIN)
+  {
+    scoped_refptr<HttpAuthHandler> handler;
+    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
+        "Negotiate",
+        HttpAuth::AUTH_SERVER,
+        server_origin,
+        &handler);
+    EXPECT_EQ(ERR_INVALID_AUTH_CREDENTIALS, rv);
+    ASSERT_TRUE(handler.get() == NULL);
   }
 #else  // !defined(OS_WIN)
   {
