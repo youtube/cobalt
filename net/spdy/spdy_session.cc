@@ -257,7 +257,7 @@ void SpdySession::InitializeWithSSLSocket(ClientSocketHandle* connection) {
 }
 
 net::Error SpdySession::Connect(const std::string& group_name,
-                                const HostResolver::RequestInfo& host,
+                                const TCPSocketParams& destination,
                                 RequestPriority priority,
                                 LoadLog* load_log) {
   DCHECK(priority >= SPDY_PRIORITY_HIGHEST && priority <= SPDY_PRIORITY_LOWEST);
@@ -271,8 +271,9 @@ net::Error SpdySession::Connect(const std::string& group_name,
   static StatsCounter spdy_sessions("spdy.sessions");
   spdy_sessions.Increment();
 
-  int rv = connection_->Init(group_name, host, priority, &connect_callback_,
-                             session_->tcp_socket_pool(), load_log);
+  int rv = connection_->Init(group_name, destination, priority,
+                             &connect_callback_, session_->tcp_socket_pool(),
+                             load_log);
   DCHECK(rv <= 0);
 
   // If the connect is pending, we still return ok.  The APIs enqueue
