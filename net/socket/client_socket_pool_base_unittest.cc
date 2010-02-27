@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,7 +29,8 @@ const int kDefaultMaxSockets = 4;
 const int kDefaultMaxSocketsPerGroup = 2;
 const net::RequestPriority kDefaultPriority = MEDIUM;
 
-typedef ClientSocketPoolBase<const void*> TestClientSocketPoolBase;
+typedef const void* TestSocketParams;
+typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
 
 class MockClientSocket : public ClientSocket {
  public:
@@ -335,7 +336,7 @@ class TestClientSocketPool : public ClientSocketPool {
 
 }  // namespace
 
-REGISTER_SOCKET_PARAMS_FOR_POOL(TestClientSocketPool, const void*);
+REGISTER_SOCKET_PARAMS_FOR_POOL(TestClientSocketPool, TestSocketParams);
 
 namespace {
 
@@ -408,7 +409,7 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
 
   int StartRequest(const std::string& group_name,
                    net::RequestPriority priority) {
-    return StartRequestUsingPool<TestClientSocketPool, const void*>(
+    return StartRequestUsingPool<TestClientSocketPool, TestSocketParams>(
         pool_.get(), group_name, priority, NULL);
   }
 
@@ -443,7 +444,7 @@ int InitHandle(ClientSocketHandle* handle,
                CompletionCallback* callback,
                TestClientSocketPool* pool,
                LoadLog* load_log) {
-  return handle->Init<const void*, TestClientSocketPool>(
+  return handle->Init<TestSocketParams, TestClientSocketPool>(
       group_name, NULL, priority, callback, pool, load_log);
 }
 
