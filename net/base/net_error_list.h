@@ -140,6 +140,10 @@ NET_ERROR(END_OF_STREAM, -122)
 // The peer sent an SSL no_renegotiation alert message.
 NET_ERROR(SSL_NO_RENEGOTIATION, -123)
 
+// Winsock sometimes reports more data written than passed.  This is probably
+// due to a broken LSP.
+NET_ERROR(WINSOCK_UNEXPECTED_WRITTEN_BYTES, -124)
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.

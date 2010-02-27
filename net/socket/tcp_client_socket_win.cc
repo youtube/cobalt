@@ -147,8 +147,7 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
   WSABUF write_buffer_;
   scoped_refptr<IOBuffer> read_iobuffer_;
   scoped_refptr<IOBuffer> write_iobuffer_;
-  // TODO(vandebo) remove when bug 27870 is resolved.
-  size_t write_buffer_length_;
+  int write_buffer_length_;
 
   // Throttle the read size based on our current slow start state.
   // Returns the throttled read size.
@@ -505,7 +504,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
 
   core_->write_buffer_.len = buf_len;
   core_->write_buffer_.buf = buf->data();
-  core_->write_buffer_length_ = static_cast<size_t>(buf_len);
+  core_->write_buffer_length_ = buf_len;
 
   TRACE_EVENT_BEGIN("socket.write", this, "");
   // TODO(wtc): Remove the CHECK after enough testing.
@@ -516,10 +515,18 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
                    &core_->write_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(core_->write_overlapped_.hEvent)) {
-      TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", num));
+      rv = static_cast<int>(num);
+      if (rv > buf_len || rv < 0) {
+        // It seems that some winsock interceptors report that more was written
+        // than was available. Treat this as an error.  http://crbug.com/27870
+        LOG(ERROR) << "Detected broken LSP: Asked to write " << buf_len
+                   << " bytes, but " << rv << " bytes reported.";
+        return ERR_WINSOCK_UNEXPECTED_WRITTEN_BYTES;
+      }
+      TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", rv));
       static StatsCounter write_bytes("tcp.write_bytes");
-      write_bytes.Add(num);
-      return static_cast<int>(num);
+      write_bytes.Add(rv);
+      return rv;
     }
   } else {
     int os_error = WSAGetLastError();
@@ -696,12 +703,22 @@ void TCPClientSocketWin::DidCompleteWrite() {
   WSAResetEvent(core_->write_overlapped_.hEvent);
   TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", num_bytes));
   waiting_write_ = false;
-  if (ok) {
-    CHECK(num_bytes <= core_->write_buffer_length_) <<
-        core_->write_buffer_length_;
+  int rv;
+  if (!ok) {
+    rv = MapWinsockError(WSAGetLastError());
+  } else {
+    rv = static_cast<int>(num_bytes);
+    if (rv > core_->write_buffer_length_ || rv < 0) {
+      // It seems that some winsock interceptors report that more was written
+      // than was available. Treat this as an error.  http://crbug.com/27870
+      LOG(ERROR) << "Detected broken LSP: Asked to write "
+                 << core_->write_buffer_length_ << " bytes, but " << rv
+                 << " bytes reported.";
+      rv = ERR_WINSOCK_UNEXPECTED_WRITTEN_BYTES;
+    }
   }
   core_->write_iobuffer_ = NULL;
-  DoWriteCallback(ok ? num_bytes : MapWinsockError(WSAGetLastError()));
+  DoWriteCallback(rv);
 }
 
 }  // namespace net
