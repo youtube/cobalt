@@ -33,6 +33,7 @@
 #include "net/socket/socks5_client_socket.h"
 #include "net/socket/socks_client_socket.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/socket/tcp_client_socket_pool.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_stream.h"
@@ -655,6 +656,14 @@ int HttpNetworkTransaction::DoInitConnection() {
     port = session_->fixed_http_port();
   }
 
+  // Check first if we have a spdy session for this group.  If so, then go
+  // straight to using that.
+  HostPortPair host_port_pair(host, port);
+  if (session_->spdy_session_pool()->HasSession(host_port_pair)) {
+    using_spdy_ = true;
+    return OK;
+  }
+
   // For a connection via HTTP proxy not using CONNECT, the connection
   // is to the proxy server only. For all other cases
   // (direct, HTTP proxy CONNECT, SOCKS), the connection is upto the
@@ -664,30 +673,14 @@ int HttpNetworkTransaction::DoInitConnection() {
 
   DCHECK(!connection_group.empty());
 
-  HostResolver::RequestInfo resolve_info(host, port);
-  resolve_info.set_priority(request_->priority);
-
-  // The referrer is used by the DNS prefetch system to correlate resolutions
-  // with the page that triggered them. It doesn't impact the actual addresses
-  // that we resolve to.
-  resolve_info.set_referrer(request_->referrer);
-
   // If the user is refreshing the page, bypass the host cache.
-  if (request_->load_flags & LOAD_BYPASS_CACHE ||
-      request_->load_flags & LOAD_DISABLE_CACHE) {
-    resolve_info.set_allow_cached_response(false);
-  }
+  bool disable_resolver_cache = request_->load_flags & LOAD_BYPASS_CACHE ||
+    request_->load_flags & LOAD_DISABLE_CACHE;
 
-  HostPortPair host_port_pair(host, port);
+  TCPSocketParams tcp_params(host, port, request_->priority, request_->referrer,
+                             disable_resolver_cache);
 
-  // Check first if we have a spdy session for this group.  If so, then go
-  // straight to using that.
-  if (session_->spdy_session_pool()->HasSession(host_port_pair)) {
-    using_spdy_ = true;
-    return OK;
-  }
-
-  int rv = connection_->Init(connection_group, resolve_info, request_->priority,
+  int rv = connection_->Init(connection_group, tcp_params, request_->priority,
                              &io_callback_, session_->tcp_socket_pool(),
                              load_log_);
   return rv;

@@ -20,7 +20,7 @@
 #include "net/base/upload_data_stream.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_handle.h"
-#include "testing/platform_test.h"
+#include "net/socket/tcp_client_socket_pool.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
@@ -45,7 +45,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Note that this call does not wait for the connect to complete. Callers can
   // immediately start using the SpdySession while it connects.
   net::Error Connect(const std::string& group_name,
-                     const HostResolver::RequestInfo& host,
+                     const TCPSocketParams& destination,
                      RequestPriority priority,
                      LoadLog* load_log);
 
