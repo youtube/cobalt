@@ -234,11 +234,16 @@
         {
           'target_name': 'chromeos_builder',
           'type': 'none',
+          'sources': [
+            # TODO(bradnelson): This is here to work around gyp issue 137.
+            #     Remove this sources list when that issue has been fixed.
+            'all.gyp',
+          ],
           'dependencies': [
             '../chrome/chrome.gyp:chrome',
             '../media/media.gyp:omx_test',
             '../media/media.gyp:ffmpeg_tests',
-	    # TODO(jiesun): should we put candidate_window/session here?
+            # TODO(jiesun): should we put candidate_window/session here?
           ],
         },
       ],  # targets
