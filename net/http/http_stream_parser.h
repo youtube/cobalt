@@ -120,9 +120,6 @@ class HttpStreamParser {
   // The request body data.
   scoped_ptr<UploadDataStream> request_body_;
 
-  // TODO(vandebo) expected_result is only for debugging. Bug 27870
-  int expected_request_body_result_;
-
   // Temporary buffer for reading.
   scoped_refptr<GrowableIOBuffer> read_buf_;
 
