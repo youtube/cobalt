@@ -643,6 +643,23 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
   return server_cert_;
 }
 
+// Log an informational message if the server does not support secure
+// renegotiation (RFC 5746).
+void SSLClientSocketNSS::CheckSecureRenegotiation() const {
+  // SSL_HandshakeNegotiatedExtension was added in NSS 3.12.6.
+  // Since SSL_MAX_EXTENSIONS was added at the same time, we can test
+  // SSL_MAX_EXTENSIONS for the presence of SSL_HandshakeNegotiatedExtension.
+#if defined(SSL_MAX_EXTENSIONS)
+  PRBool received_renego_info;
+  if (SSL_HandshakeNegotiatedExtension(nss_fd_, ssl_renegotiation_info_xtn,
+                                       &received_renego_info) == SECSuccess &&
+      !received_renego_info) {
+    LOG(INFO) << "The server " << hostname_
+              << " does not support SSL secure renegotiation.";
+  }
+#endif
+}
+
 void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   EnterFunction("");
   ssl_info->Reset();
@@ -1146,6 +1163,8 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
   that->UpdateServerCert();
+
+  that->CheckSecureRenegotiation();
 }
 
 int SSLClientSocketNSS::DoHandshake() {
