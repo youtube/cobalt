@@ -190,6 +190,7 @@
         'filters/audio_renderer_algorithm_ola_unittest.cc',
         'filters/audio_renderer_base_unittest.cc',
         'filters/bitstream_converter_unittest.cc',
+        'filters/decoder_base_unittest.cc',
         'filters/ffmpeg_demuxer_unittest.cc',
         'filters/ffmpeg_glue_unittest.cc',
         'filters/ffmpeg_video_decode_engine_unittest.cc',
