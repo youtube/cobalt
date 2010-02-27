@@ -62,6 +62,7 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   void InvalidateSessionIfBadCertificate();
   X509Certificate* UpdateServerCert();
+  void CheckSecureRenegotiation() const;
   void DoReadCallback(int result);
   void DoWriteCallback(int result);
   void DoConnectCallback(int result);
