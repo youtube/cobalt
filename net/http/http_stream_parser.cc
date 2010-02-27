@@ -20,7 +20,6 @@ HttpStreamParser::HttpStreamParser(ClientSocketHandle* connection,
       request_(NULL),
       request_headers_(NULL),
       request_body_(NULL),
-      expected_request_body_result_(0),
       read_buf_(read_buffer),
       read_buf_unused_offset_(0),
       response_header_start_offset_(-1),
@@ -208,15 +207,11 @@ int HttpStreamParser::DoSendHeaders(int result) {
 }
 
 int HttpStreamParser::DoSendBody(int result) {
-  if (result > 0) {
-    CHECK(result <= expected_request_body_result_) <<
-        expected_request_body_result_;
+  if (result > 0)
     request_body_->DidConsume(result);
-  }
 
   if (!request_body_->eof()) {
     int buf_len = static_cast<int>(request_body_->buf_len());
-    expected_request_body_result_ = buf_len;
     result = connection_->socket()->Write(request_body_->buf(), buf_len,
                                           &io_callback_);
   } else {
