@@ -258,7 +258,8 @@
             '../net/net.gyp:net_unittests',
             '../printing/printing.gyp:printing_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
-            # TODO(jiesun): should we put candidate_window/session here?
+            '../chrome/browser/chromeos/text_input/text_input.gyp:candidate_window',
+            # TODO(jiesun): should we put session here?
           ],
         },
       ],  # targets
