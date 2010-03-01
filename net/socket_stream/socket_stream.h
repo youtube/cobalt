@@ -145,7 +145,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
  protected:
   friend class base::RefCountedThreadSafe<SocketStream>;
-  ~SocketStream();
+  virtual ~SocketStream();
 
   Delegate* delegate_;
 
