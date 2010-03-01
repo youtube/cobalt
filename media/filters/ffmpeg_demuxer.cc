@@ -116,6 +116,12 @@ base::TimeDelta FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
     return timestamp;
   }
 
+  // Convert if the packet if there is bitstream filter.
+  if (bitstream_converter_.get() &&
+      !bitstream_converter_->ConvertPacket(packet)) {
+    LOG(ERROR) << "Format converstion failed.";
+  }
+
   // Enqueue the callback and attempt to satisfy a read immediately.
   scoped_refptr<Buffer> buffer =
       new AVPacketBuffer(packet, timestamp, duration);
@@ -195,6 +201,11 @@ void FFmpegDemuxerStream::FulfillPendingRead() {
 
   // Execute the callback.
   read_callback->Run(buffer);
+}
+
+void FFmpegDemuxerStream::SetBitstreamConverter(
+    BitstreamConverter* converter) {
+  bitstream_converter_.reset(converter);
 }
 
 // static
@@ -402,11 +413,38 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   // Create demuxer streams for all supported streams.
   base::TimeDelta max_duration;
   for (size_t i = 0; i < format_context_->nb_streams; ++i) {
-    CodecType codec_type = format_context_->streams[i]->codec->codec_type;
+    AVCodecContext* codec_context = format_context_->streams[i]->codec;
+    CodecType codec_type = codec_context->codec_type;
     if (codec_type == CODEC_TYPE_AUDIO || codec_type == CODEC_TYPE_VIDEO) {
       AVStream* stream = format_context_->streams[i];
       FFmpegDemuxerStream* demuxer_stream
           = new FFmpegDemuxerStream(this, stream);
+
+      // Initialize the bitstream if OpenMAX is enabled.
+      // TODO(hclam): Should be enabled by the decoder.
+      if (CommandLine::ForCurrentProcess()->HasSwitch(
+              switches::kEnableOpenMax)) {
+        // TODO(ajwong): Unittest this branch of the if statement.
+        // TODO(hclam): In addition to codec we should also check the container.
+        const char* filter_name = NULL;
+        if (stream->codec->codec_id == CODEC_ID_H264) {
+          filter_name = "h264_mp4toannexb";
+        } else if (stream->codec->codec_id == CODEC_ID_MPEG4) {
+          filter_name = "mpeg4video_es";
+        } else if (stream->codec->codec_id == CODEC_ID_WMV3) {
+          filter_name = "vc1_asftorcv";
+        } else if (stream->codec->codec_id == CODEC_ID_VC1) {
+          filter_name = "vc1_asftoannexg";
+        }
+
+        if (filter_name) {
+          BitstreamConverter* bitstream_converter =
+              new FFmpegBitstreamConverter(filter_name, codec_context);
+          CHECK(bitstream_converter->Initialize());
+          demuxer_stream->SetBitstreamConverter(bitstream_converter);
+        }
+      }
+
       DCHECK(demuxer_stream);
       streams_.push_back(demuxer_stream);
       packet_streams_.push_back(demuxer_stream);
@@ -492,26 +530,6 @@ void FFmpegDemuxer::DemuxTask() {
   DCHECK_LT(packet->stream_index, static_cast<int>(packet_streams_.size()));
   FFmpegDemuxerStream* demuxer_stream = packet_streams_[packet->stream_index];
   if (demuxer_stream) {
-    using switches::kEnableOpenMax;
-    AVCodecContext* stream_context =
-        format_context_->streams[packet->stream_index]->codec;
-    if (stream_context->codec_id == CODEC_ID_H264 &&
-        CommandLine::ForCurrentProcess()->HasSwitch(kEnableOpenMax)) {
-      // TODO(ajwong): Unittest this branch of the if statement.
-      // Also, move this code into the FFmpegDemuxerStream, so that the decoder
-      // can enable a filter in the stream as needed.
-      if (!bitstream_converter_.get()) {
-        bitstream_converter_.reset(
-            new FFmpegBitstreamConverter("h264_mp4toannexb", stream_context));
-        CHECK(bitstream_converter_->Initialize());
-      }
-
-      if (!bitstream_converter_->ConvertPacket(packet.get())) {
-        LOG(ERROR) << "Packet dropped: Format converstion failed.";
-        packet.reset();
-      }
-    }
-
     // Queue the packet with the appropriate stream.  The stream takes
     // ownership of the AVPacket.
     if (packet.get()) {
