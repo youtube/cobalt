@@ -39,8 +39,8 @@ void SocketStream::ResponseHeaders::Realloc(size_t new_size) {
 }
 
 SocketStream::SocketStream(const GURL& url, Delegate* delegate)
-    : url_(url),
-      delegate_(delegate),
+    : delegate_(delegate),
+      url_(url),
       max_pending_send_allowed_(kMaxPendingSendAllowed),
       next_state_(STATE_NONE),
       http_auth_handler_factory_(NULL),
