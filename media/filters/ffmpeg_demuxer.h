@@ -80,6 +80,9 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
   // AVStreamProvider implementation.
   virtual AVStream* GetAVStream() { return stream_; }
 
+  // Bitstream converter to convert input packet.
+  void SetBitstreamConverter(BitstreamConverter* converter);
+
  protected:
   virtual void* QueryInterface(const char* interface_id);
 
@@ -109,6 +112,9 @@ class FFmpegDemuxerStream : public DemuxerStream, public AVStreamProvider {
 
   typedef std::deque<Callback1<Buffer*>::Type*> ReadQueue;
   ReadQueue read_queue_;
+
+  // Used to translate bitstream formats.
+  scoped_ptr<BitstreamConverter> bitstream_converter_;
 
   DISALLOW_COPY_AND_ASSIGN(FFmpegDemuxerStream);
 };
@@ -193,9 +199,6 @@ class FFmpegDemuxer : public Demuxer,
 
   // Latest timestamp read on the demuxer thread.
   base::TimeDelta current_timestamp_;
-
-  // Used to translate bitstream formats. Lazily allocated.
-  scoped_ptr<BitstreamConverter> bitstream_converter_;
 
   // Two vector of streams:
   //   - |streams_| is indexed for the Demuxer interface GetStream(), which only
