@@ -129,7 +129,8 @@ void WebSocketJob::RestartWithAuth(
 void WebSocketJob::DetachDelegate() {
   state_ = CLOSED;
   delegate_ = NULL;
-  socket_->DetachDelegate();
+  if (socket_)
+    socket_->DetachDelegate();
   socket_ = NULL;
 }
 
