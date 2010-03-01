@@ -10,7 +10,7 @@
 
 namespace net {
 
-UploadDataStream::UploadDataStream(UploadData* data)
+UploadDataStream::UploadDataStream(const UploadData* data)
     : data_(data),
       buf_(new IOBuffer(kBufSize)),
       buf_len_(0),
@@ -67,19 +67,18 @@ void UploadDataStream::FillBuf() {
     } else {
       DCHECK(element.type() == UploadData::TYPE_FILE);
 
-      if (element.file_range_length() == 0) {
-        // If we failed to open the file, then the length is set to zero. The
-        // length used when calculating the POST size was also zero. This
-        // matches the behaviour of Mozilla.
-        next_element_remaining_ = 0;
-      } else {
-        if (!next_element_stream_.IsOpen()) {
-          // We ignore the return value of Open becuase we've already checked
-          // !IsOpen, above.
-          int flags = base::PLATFORM_FILE_READ |
-                      base::PLATFORM_FILE_WRITE;
-          next_element_stream_.Open(element.platform_file(), flags);
+      if (!next_element_stream_.IsOpen()) {
+        int flags = base::PLATFORM_FILE_OPEN |
+                    base::PLATFORM_FILE_READ;
+        int rv = next_element_stream_.Open(element.file_path(), flags);
+        // If the file does not exist, that's technically okay.. we'll just
+        // upload an empty file.  This is for consistency with Mozilla.
+        DLOG_IF(WARNING, rv != OK) << "Failed to open \""
+                                   << element.file_path().value()
+                                   << "\" for reading: " << rv;
 
+        next_element_remaining_ = 0;  // Default to reading nothing.
+        if (rv == OK) {
           uint64 offset = element.file_range_offset();
           if (offset && next_element_stream_.Seek(FROM_BEGIN, offset) < 0) {
             DLOG(WARNING) << "Failed to seek \"" << element.file_path().value()
@@ -91,18 +90,11 @@ void UploadDataStream::FillBuf() {
       }
 
       int rv = 0;
-      if (next_element_remaining_ > 0) {
-        int count =
-            static_cast<int>(std::min(next_element_remaining_,
-                                      static_cast<uint64>(size_remaining)));
-        rv = next_element_stream_.Read(buf_->data() + buf_len_, count, NULL);
-        if (rv < 1) {
-          // If the file was truncated between the time that we opened it and
-          // now, or if we got an error on reading, then we pad with NULs.
-          memset(buf_->data() + buf_len_, 0, count);
-          rv = count;
-        }
-
+      int count = static_cast<int>(std::min(
+          static_cast<uint64>(size_remaining), next_element_remaining_));
+      if (count > 0 &&
+          (rv = next_element_stream_.Read(buf_->data() + buf_len_,
+                                          count, NULL)) > 0) {
         buf_len_ += rv;
         next_element_remaining_ -= rv;
       } else {
@@ -113,14 +105,12 @@ void UploadDataStream::FillBuf() {
     if (advance_to_next_element) {
       ++next_element_;
       next_element_offset_ = 0;
-      next_element_stream_.Release();
+      next_element_stream_.Close();
     }
   }
 
-  if (next_element_ == end && !buf_len_) {
+  if (next_element_ == end && !buf_len_)
     eof_ = true;
-    data_->CloseFiles();
-  }
 }
 
 }  // namespace net
