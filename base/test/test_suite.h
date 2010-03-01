@@ -12,6 +12,7 @@
 #include "base/at_exit.h"
 #include "base/base_paths.h"
 #include "base/debug_on_start.h"
+#include "base/debug_util.h"
 #include "base/i18n/icu_util.h"
 #include "base/multiprocess_test.h"
 #include "base/nss_util.h"
@@ -146,12 +147,11 @@ class TestSuite {
   }
 
  protected:
-#if defined(OS_WIN)
-  // TODO(phajdan.jr): Clean up the windows-specific hacks.
+  // TODO(phajdan.jr): Clean this up.
   // See http://crbug.com/29997
 
   // By default, base::LogMessage::~LogMessage calls DebugUtil::BreakDebugger()
-  // when severity is LOG_FATAL. On Windows, this results in error dialogs
+  // when severity is LOG_FATAL. This results in error dialogs
   // which are not friendly to buildbots.
   // To avoid these problems, we override the LogMessage behaviour by
   // replacing the assert handler with UnitTestAssertHandler.
@@ -164,6 +164,7 @@ class TestSuite {
 
   // Disable crash dialogs so that it doesn't gum up the buildbot
   virtual void SuppressErrorDialogs() {
+#if defined(OS_WIN)
     UINT new_flags = SEM_FAILCRITICALERRORS |
                      SEM_NOGPFAULTERRORBOX |
                      SEM_NOOPENFILEERRORBOX;
@@ -172,8 +173,8 @@ class TestSuite {
     // http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx
     UINT existing_flags = SetErrorMode(new_flags);
     SetErrorMode(existing_flags | new_flags);
-  }
 #endif  // defined(OS_WIN)
+  }
 
   // Override these for custom initialization and shutdown handling.  Use these
   // instead of putting complex code in your constructor/destructor.
@@ -197,18 +198,14 @@ class TestSuite {
     // between production code and test code.
     bool result = base::Time::UseHighResolutionTimer(true);
     CHECK(result);
+#endif  // defined(OS_WIN)
 
     // In some cases, we do not want to see standard error dialogs.
-    if (!IsDebuggerPresent() &&
+    if (!DebugUtil::BeingDebugged() &&
         !CommandLine::ForCurrentProcess()->HasSwitch("show-error-dialogs")) {
       SuppressErrorDialogs();
-#if !defined(PURIFY)
-      // When the code in this file moved around, bug 6436 resurfaced.
-      // As a hack workaround, just #ifdef out this code for Purify builds.
       logging::SetLogAssertHandler(UnitTestAssertHandler);
-#endif  // !defined(PURIFY)
     }
-#endif  // defined(OS_WIN)
 
     icu_util::Initialize();
 
