@@ -101,6 +101,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   void SetUserData(const void* key, UserData* data);
 
   const GURL& url() const { return url_; }
+  bool is_secure() const;
   const AddressList& address_list() const { return addresses_; }
   Delegate* delegate() const { return delegate_; }
   int max_pending_send_allowed() const { return max_pending_send_allowed_; }
@@ -112,28 +113,28 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   // Opens the connection on the IO thread.
   // Once the connection is established, calls delegate's OnConnected.
-  void Connect();
+  virtual void Connect();
 
   // Requests to send |len| bytes of |data| on the connection.
   // Returns true if |data| is buffered in the job.
   // Returns false if size of buffered data would exceeds
   // |max_pending_send_allowed_| and |data| is not sent at all.
-  bool SendData(const char* data, int len);
+  virtual bool SendData(const char* data, int len);
 
   // Requests to close the connection.
   // Once the connection is closed, calls delegate's OnClose.
-  void Close();
+  virtual void Close();
 
   // Restarts with authentication info.
   // Should be used for response of OnAuthRequired.
-  void RestartWithAuth(
+  virtual void RestartWithAuth(
       const std::wstring& username,
       const std::wstring& password);
 
   // Detach delegate.  Call before delegate is deleted.
   // Once delegate is detached, close the socket stream and never call delegate
   // back.
-  void DetachDelegate();
+  virtual void DetachDelegate();
 
   // Sets an alternative HostResolver. For testing purposes only.
   void SetHostResolver(HostResolver* host_resolver);
@@ -141,6 +142,12 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   // Sets an alternative ClientSocketFactory.  Doesn't take ownership of
   // |factory|.  For testing purposes only.
   void SetClientSocketFactory(ClientSocketFactory* factory);
+
+ protected:
+  friend class base::RefCountedThreadSafe<SocketStream>;
+  ~SocketStream();
+
+  Delegate* delegate_;
 
  private:
   class RequestHeaders : public IOBuffer {
@@ -201,8 +208,6 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   typedef std::deque< scoped_refptr<IOBufferWithSize> > PendingDataQueue;
   friend class RequestTracker<SocketStream>;
-  friend class base::RefCountedThreadSafe<SocketStream>;
-  ~SocketStream();
 
   friend class WebSocketThrottleTest;
 
@@ -248,7 +253,6 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
 
   int HandleCertificateError(int result);
 
-  bool is_secure() const;
   SSLConfigService* ssl_config_service() const;
   ProxyService* proxy_service() const;
 
@@ -258,7 +262,6 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   scoped_refptr<LoadLog> load_log_;
 
   GURL url_;
-  Delegate* delegate_;
   int max_pending_send_allowed_;
   scoped_refptr<URLRequestContext> context_;
 
