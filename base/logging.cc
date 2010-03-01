@@ -47,7 +47,6 @@ typedef pthread_mutex_t* MutexHandle;
 #if defined(OS_POSIX)
 #include "base/safe_strerror_posix.h"
 #endif
-#include "base/process_util.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
@@ -329,19 +328,19 @@ void SetLogMessageHandler(LogMessageHandlerFunction handler) {
 }
 
 
-// Displays a message box to the user with the error message in it.
-// Used for fatal messages, where we close the app simultaneously.
-void DisplayDebugMessageInDialog(const std::string& str) {
+// Displays a message box to the user with the error message in it. For
+// Windows programs, it's possible that the message loop is messed up on
+// a fatal error, and creating a MessageBox will cause that message loop
+// to be run. Instead, we try to spawn another process that displays its
+// command line. We look for "Debug Message.exe" in the same directory as
+// the application. If it exists, we use it, otherwise, we use a regular
+// message box.
+void DisplayDebugMessage(const std::string& str) {
   if (str.empty())
     return;
 
 #if defined(OS_WIN)
-  // For Windows programs, it's possible that the message loop is
-  // messed up on a fatal error, and creating a MessageBox will cause
-  // that message loop to be run. Instead, we try to spawn another
-  // process that displays its command line. We look for "Debug
-  // Message.exe" in the same directory as the application. If it
-  // exists, we use it, otherwise, we use a regular message box.
+  // look for the debug dialog program next to our application
   wchar_t prog_name[MAX_PATH];
   GetModuleFileNameW(NULL, prog_name, MAX_PATH);
   wchar_t* backslash = wcsrchr(prog_name, '\\');
@@ -368,19 +367,9 @@ void DisplayDebugMessageInDialog(const std::string& str) {
     MessageBoxW(NULL, &cmdline[0], L"Fatal error",
                 MB_OK | MB_ICONHAND | MB_TOPMOST);
   }
-#elif defined(USE_X11)
-  // Shell out to xmessage, which behaves like debug_message.exe, but is
-  // way more retro.  We could use zenity/kdialog but then we're starting
-  // to get into needing to check the desktop env and this dialog should
-  // only be coming up in Very Bad situations.
-  std::vector<std::string> argv;
-  argv.push_back("xmessage");
-  argv.push_back(str);
-  base::LaunchApp(argv, base::file_handle_mapping_vector(), true /* wait */,
-                  NULL);
 #else
-  // http://code.google.com/p/chromium/issues/detail?id=37026
-  NOTIMPLEMENTED();
+  fprintf(stderr, "%s\n", str.c_str());
+  fflush(stderr);
 #endif
 }
 
@@ -592,7 +581,7 @@ LogMessage::~LogMessage() {
         // information, and displaying message boxes when the application is
         // hosed can cause additional problems.
 #ifndef NDEBUG
-        DisplayDebugMessageInDialog(stream_.str());
+        DisplayDebugMessage(stream_.str());
 #endif
         // Crash the process to generate a dump.
         DebugUtil::BreakDebugger();
@@ -603,7 +592,7 @@ LogMessage::~LogMessage() {
     if (log_report_handler) {
       log_report_handler(std::string(stream_.str()));
     } else {
-      DisplayDebugMessageInDialog(stream_.str());
+      DisplayDebugMessage(stream_.str());
     }
   }
 }
