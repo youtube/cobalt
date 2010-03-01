@@ -83,6 +83,9 @@
       # libraries on linux x86-64 and arm.
       'linux_fpic%': 0,
 
+      # Python version.
+      'python_ver%': '2.5',
+
       # Set ARM-v7 compilation flags
       'armv7%': 0,
 
@@ -101,6 +104,7 @@
     'inside_chromium_build%': '<(inside_chromium_build)',
     'fastbuild%': '<(fastbuild)',
     'linux_fpic%': '<(linux_fpic)',
+    'python_ver%': '<(python_ver)',
     'armv7%': '<(armv7)',
     'arm_neon%': '<(arm_neon)',
 
