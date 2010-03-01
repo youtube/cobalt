@@ -262,7 +262,7 @@ int ProcessUtilTest::CountOpenFDsInChild() {
   int num_open_files = -1;
   ssize_t bytes_read =
       HANDLE_EINTR(read(fds[0], &num_open_files, sizeof(num_open_files)));
-  CHECK_EQ(bytes_read, static_cast<ssize_t>(sizeof(num_open_files)));
+  CHECK(bytes_read == static_cast<ssize_t>(sizeof(num_open_files)));
 
   CHECK(WaitForSingleProcess(handle, 1000));
   base::CloseProcessHandle(handle);
