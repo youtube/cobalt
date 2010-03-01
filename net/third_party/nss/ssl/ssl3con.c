@@ -5657,17 +5657,7 @@ ssl3_RestartHandshakeAfterCertReq(sslSocket *         ss,
     return rv;
 }
 
-PRBool
-ssl3_CanFalseStart(sslSocket *ss) {
-    return ss->opt.enableFalseStart &&
-	   !ss->sec.isServer &&
-	   !ss->ssl3.hs.isResuming &&
-	   ss->ssl3.cwSpec &&
-	   ss->ssl3.cwSpec->cipher_def->secret_key_size >= 10 &&
-	   (ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_rsa ||
-	    ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_dh  ||
-	    ss->ssl3.hs.kea_def->exchKeyType == ssl_kea_ecdh);
-}
+
 
 /* Called from ssl3_HandleHandshakeMessage() when it has deciphered a complete
  * ssl3 Server Hello Done message.
@@ -5745,12 +5735,6 @@ ssl3_HandleServerHelloDone(sslSocket *ss)
 	ss->ssl3.hs.ws = wait_new_session_ticket;
     else
 	ss->ssl3.hs.ws = wait_change_cipher;
-
-    /* Do the handshake callback for sslv3 here. */
-    if (ss->handshakeCallback != NULL && ssl3_CanFalseStart(ss)) {
-	(ss->handshakeCallback)(ss->fd, ss->handshakeCallbackData);
-    }
-
     return SECSuccess;
 
 loser:
@@ -8525,7 +8509,7 @@ xmit_loser:
     ss->ssl3.hs.ws = idle_handshake;
 
     /* Do the handshake callback for sslv3 here. */
-    if (ss->handshakeCallback != NULL && !ssl3_CanFalseStart(ss)) {
+    if (ss->handshakeCallback != NULL) {
 	(ss->handshakeCallback)(ss->fd, ss->handshakeCallbackData);
     }
 
