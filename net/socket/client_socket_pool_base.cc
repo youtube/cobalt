@@ -413,14 +413,13 @@ void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
     delete socket;
   }
 
-  const bool more_releasing_sockets = group.num_releasing_sockets > 0;
-
   OnAvailableSocketSlot(group_name, &group);
 
   // If there are no more releasing sockets, then we might have to process
   // multiple available socket slots, since we stalled their processing until
   // all sockets have been released.
-  if (more_releasing_sockets)
+  i = group_map_.find(group_name);
+  if (i == group_map_.end() || i->second.num_releasing_sockets > 0)
     return;
 
   while (true) {
