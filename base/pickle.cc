@@ -377,7 +377,7 @@ void Pickle::TrimWriteData(int new_length) {
 bool Pickle::Resize(size_t new_capacity) {
   new_capacity = AlignInt(new_capacity, kPayloadUnit);
 
-  CHECK(capacity_ != kCapacityReadOnly);
+  CHECK_NE(capacity_, kCapacityReadOnly);
   void* p = realloc(header_, new_capacity);
   if (!p)
     return false;
