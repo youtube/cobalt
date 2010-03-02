@@ -8,13 +8,6 @@
 
 namespace net {
 
-KeygenHandler::KeygenHandler(int key_size_index,
-                             const std::string& challenge)
-    : key_size_index_(key_size_index),
-      challenge_(challenge) {
-  NOTIMPLEMENTED();
-}
-
 std::string KeygenHandler::GenKeyAndSignChallenge() {
   NOTIMPLEMENTED();
   return std::string();

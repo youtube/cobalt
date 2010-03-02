@@ -604,6 +604,7 @@
         'base/gzip_filter_unittest.cc',
         'base/host_cache_unittest.cc',
         'base/host_resolver_impl_unittest.cc',
+        'base/keygen_handler_unittest.cc',
         'base/load_log_unittest.cc',
         'base/load_log_unittest.h',
         'base/load_log_util_unittest.cc',
@@ -718,9 +719,13 @@
             }],
           ],
         }],
-        # This is needed to trigger the dll copy step on windows.
-        # TODO(mark): Specifying this here shouldn't be necessary.
         [ 'OS == "win"', {
+            'sources!': [
+              # Remove next line when KeygenHandler is implemented for Windows.
+              'base/keygen_handler_unittest.cc',
+            ],
+            # This is needed to trigger the dll copy step on windows.
+            # TODO(mark): Specifying this here shouldn't be necessary.
             'dependencies': [
               '../third_party/icu/icu.gyp:icudata',
             ],
