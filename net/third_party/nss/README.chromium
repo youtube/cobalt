@@ -9,6 +9,9 @@ Patches:
     patches/nextproto.patch
     http://codereview.chromium.org/415005
 
+  * False start support
+    patches/falsestart.patch
+
   * Commenting out a couple of functions because they need NSS symbols
     which may not exist in the system NSS library.
     patches/versionskew.patch
