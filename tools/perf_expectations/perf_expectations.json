@@ -4,7 +4,7 @@
  "linux-release/morejs/times/t": {"delta": -1, "var": 10},
  "linux-release/moz/times/t": {"delta": 0, "var": 10},
  "linux-release/startup/times/t": {"delta": 20, "var": 10},
- "linux-release-hardy/dhtml/times/t": {"delta": -17, "var": 10},
+ "linux-release-hardy/dhtml/times/t": {"delta": 0, "var": 10},
  "linux-release-hardy/intl1/times/t": {"delta": -5, "var": 7},
  "linux-release-hardy/intl2/times/t": {"delta": -5, "var": 10},
  "linux-release-hardy/morejs/times/t": {"delta": -4, "var": 100},
