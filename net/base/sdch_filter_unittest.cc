@@ -111,7 +111,7 @@ static bool FilterTestData(const std::string& source,
                            size_t input_block_length,
                            const size_t output_buffer_length,
                            Filter* filter, std::string* output) {
-  CHECK(input_block_length > 0);
+  CHECK_GT(input_block_length, 0u);
   Filter::FilterStatus status(Filter::FILTER_NEED_MORE_DATA);
   size_t source_index = 0;
   scoped_array<char> output_buffer(new char[output_buffer_length]);
@@ -375,8 +375,8 @@ TEST_F(SdchFilterTest, BasicBadDictionary) {
   // list of dictionaries, so the filter should error out immediately.
   std::string dictionary_hash_postfix("4abcd\0", 6);
 
-  CHECK(dictionary_hash_postfix.size() <
-        static_cast<size_t>(input_buffer_size));
+  CHECK_LT(dictionary_hash_postfix.size(),
+           static_cast<size_t>(input_buffer_size));
   memcpy(input_buffer, dictionary_hash_postfix.data(),
          dictionary_hash_postfix.size());
   filter->FlushStreamBuffer(dictionary_hash_postfix.size());
@@ -792,7 +792,7 @@ static std::string gzip_compress(const std::string &input) {
                       8,  // DEF_MEM_LEVEL
                       Z_DEFAULT_STRATEGY);
 
-  CHECK(code == Z_OK);
+  CHECK_EQ(Z_OK, code);
 
   // Fill in zlib control block
   zlib_stream.next_in = bit_cast<Bytef*>(input.data());
@@ -819,7 +819,7 @@ static std::string gzip_compress(const std::string &input) {
   // Header value we generate:
   const char kGZipHeader[] = { '\037', '\213', '\010', '\000', '\000',
                                '\000', '\000', '\000', '\002', '\377' };
-  CHECK(zlib_stream.avail_out > sizeof(kGZipHeader));
+  CHECK_GT(zlib_stream.avail_out, sizeof(kGZipHeader));
   memcpy(zlib_stream.next_out, kGZipHeader, sizeof(kGZipHeader));
   zlib_stream.next_out += sizeof(kGZipHeader);
   zlib_stream.avail_out -= sizeof(kGZipHeader);
@@ -860,9 +860,9 @@ TEST_F(SdchFilterTest, FilterChaining) {
 
   // First try with a large buffer (larger than test input, or compressed data).
   const size_t kLargeInputBufferSize(1000);  // Used internally in filters.
-  CHECK(kLargeInputBufferSize > gzip_compressed_sdch.size());
-  CHECK(kLargeInputBufferSize > sdch_compressed.size());
-  CHECK(kLargeInputBufferSize > expanded_.size());
+  CHECK_GT(kLargeInputBufferSize, gzip_compressed_sdch.size());
+  CHECK_GT(kLargeInputBufferSize, sdch_compressed.size());
+  CHECK_GT(kLargeInputBufferSize, expanded_.size());
   MockFilterContext filter_context(kLargeInputBufferSize);
   filter_context.SetURL(url);
   scoped_ptr<Filter> filter(Filter::Factory(filter_types, filter_context));
@@ -884,11 +884,11 @@ TEST_F(SdchFilterTest, FilterChaining) {
   // Next try with a mid-sized internal buffer size.
   const size_t kMidSizedInputBufferSize(100);
   // Buffer should be big enough to swallow whole gzip content.
-  CHECK(kMidSizedInputBufferSize > gzip_compressed_sdch.size());
+  CHECK_GT(kMidSizedInputBufferSize, gzip_compressed_sdch.size());
   // Buffer should be small enough that entire SDCH content can't fit.
   // We'll go even further, and force the chain to flush the buffer between the
   // two filters more than once (that is why we multiply by 2).
-  CHECK(kMidSizedInputBufferSize * 2 < sdch_compressed.size());
+  CHECK_LT(kMidSizedInputBufferSize * 2, sdch_compressed.size());
   filter_context.SetBufferSize(kMidSizedInputBufferSize);
   filter_context.SetURL(url);
   filter.reset(Filter::Factory(filter_types, filter_context));

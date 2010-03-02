@@ -310,7 +310,7 @@ int HttpStreamParser::DoReadHeadersComplete(int result) {
         io_state_ = STATE_DONE;
         int extra_bytes = read_buf_->offset() - read_buf_unused_offset_;
         if (extra_bytes) {
-          CHECK(extra_bytes > 0);
+          CHECK_GT(extra_bytes, 0);
           memmove(read_buf_->StartOfBuffer(),
                   read_buf_->StartOfBuffer() + read_buf_unused_offset_,
                   extra_bytes);
@@ -331,7 +331,7 @@ int HttpStreamParser::DoReadBody() {
   if (read_buf_->offset()) {
     int available = read_buf_->offset() - read_buf_unused_offset_;
     if (available) {
-      CHECK(available > 0);
+      CHECK_GT(available, 0);
       int bytes_from_buffer = std::min(available, user_read_buf_len_);
       memcpy(user_read_buf_->data(),
              read_buf_->StartOfBuffer() + read_buf_unused_offset_,
@@ -396,7 +396,7 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
       }
     }
 
-    CHECK(save_amount + additional_save_amount <= kMaxBufSize);
+    CHECK_LE(save_amount + additional_save_amount, kMaxBufSize);
     if (read_buf_->capacity() < save_amount + additional_save_amount) {
       read_buf_->SetCapacity(save_amount + additional_save_amount);
     }
