@@ -371,6 +371,10 @@ bool SpdyStream::ShouldWaitForMoreBufferedData() const {
 void SpdyStream::DoBufferedReadCallback() {
   buffered_read_callback_pending_ = false;
 
+  // If the response_status_ is not ok, we don't attempt to complete the read.
+  if (response_status_ != OK)
+    return;
+
   // When more_read_data_pending_ is true, it means that more data has
   // arrived since we started waiting.  Wait a little longer and continue
   // to buffer.
@@ -385,10 +389,8 @@ void SpdyStream::DoBufferedReadCallback() {
     CHECK(rv != ERR_IO_PENDING);
     user_buffer_ = NULL;
     user_buffer_len_ = 0;
-  }
-
-  if (user_callback_)
     DoCallback(rv);
+  }
 }
 
 void SpdyStream::DoCallback(int rv) {
