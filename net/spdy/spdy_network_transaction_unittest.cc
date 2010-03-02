@@ -1091,7 +1091,7 @@ TEST_F(SpdyNetworkTransactionTest, LoadLog) {
 // that when we read out the maximum amount of data (e.g. we received 50 bytes
 // on the network, but issued a Read for only 5 of those bytes) that the data
 // flow still works correctly.
-TEST_F(SpdyNetworkTransactionTest, FullBuffer) {
+TEST_F(SpdyNetworkTransactionTest, BufferFull) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
               arraysize(kGetSyn)),
@@ -1182,6 +1182,11 @@ TEST_F(SpdyNetworkTransactionTest, FullBuffer) {
 
   out.response_data.swap(content);
 
+  // Flush the MessageLoop while the SessionDependencies (in particular, the
+  // MockClientSocketFactory) are still alive.
+  MessageLoop::current()->RunAllPending();
+
+
   // Verify that we consumed all test data.
   EXPECT_TRUE(data->at_read_eof());
   EXPECT_TRUE(data->at_write_eof());
@@ -1189,6 +1194,335 @@ TEST_F(SpdyNetworkTransactionTest, FullBuffer) {
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("goodbye world", out.response_data);
+}
+
+// Verify that basic buffering works; when multiple data frames arrive
+// at the same time, ensure that we don't notify a read completion for
+// each data frame individually.
+TEST_F(SpdyNetworkTransactionTest, Buffering) {
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  // 4 data frames in a single read.
+  static const unsigned char kCombinedDataFrames[] = {
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x01, 0x00, 0x00, 0x07,                                      // FIN, length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply)),
+    MockRead(true, ERR_IO_PENDING),  // Force a pause
+    MockRead(true, reinterpret_cast<const char*>(kCombinedDataFrames),
+             arraysize(kCombinedDataFrames)),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+
+  // For this test, we can't use the TransactionHelper, because we are
+  // going to tightly control how the IOs fly.
+
+  TransactionHelperResult out;
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  SessionDependencies session_deps;
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(CreateSession(&session_deps)));
+
+  session_deps.socket_factory.AddSocketDataProvider(data);
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  out.rv = callback.WaitForResult();
+  EXPECT_EQ(out.rv, OK);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  out.status_line = response->headers->GetStatusLine();
+  out.response_info = *response;  // Make a copy so we can verify.
+
+  // Read Data
+  TestCompletionCallback read_callback;
+
+  std::string content;
+  int reads_completed = 0;
+  do {
+    // Read small chunks at a time.
+    const int kSmallReadSize = 14;
+    scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSmallReadSize);
+    rv = trans->Read(buf, kSmallReadSize, &read_callback);
+    if (rv == net::ERR_IO_PENDING) {
+      data->CompleteRead();
+      rv = read_callback.WaitForResult();
+    }
+    if (rv > 0) {
+      EXPECT_EQ(kSmallReadSize, rv);
+      content.append(buf->data(), rv);
+    } else if (rv < 0) {
+      FAIL() << "Unexpected read error: " << rv;
+    }
+    reads_completed++;
+  } while (rv > 0);
+
+  EXPECT_EQ(3, reads_completed);  // Reads are: 14 bytes, 14 bytes, 0 bytes.
+
+  out.response_data.swap(content);
+
+  // Flush the MessageLoop while the SessionDependencies (in particular, the
+  // MockClientSocketFactory) are still alive.
+  MessageLoop::current()->RunAllPending();
+
+  // Verify that we consumed all test data.
+  EXPECT_TRUE(data->at_read_eof());
+  EXPECT_TRUE(data->at_write_eof());
+
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("messagemessagemessagemessage", out.response_data);
+}
+
+// Verify the case where we buffer data but read it after it has been buffered.
+TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  // The Syn Reply and all data frames in a single read.
+  static const unsigned char kCombinedFrames[] = {
+    0x80, 0x01, 0x00, 0x02,                                      // header
+    0x00, 0x00, 0x00, 0x45,
+    0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x04,                                      // 4 headers
+    0x00, 0x05, 'h', 'e', 'l', 'l', 'o',
+    0x00, 0x03, 'b', 'y', 'e',
+    0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
+    0x00, 0x03, '2', '0', '0',
+    0x00, 0x03, 'u', 'r', 'l',
+    0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
+    0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
+    0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x01, 0x00, 0x00, 0x07,                                      // FIN, length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kCombinedFrames),
+             arraysize(kCombinedFrames)),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+
+  // For this test, we can't use the TransactionHelper, because we are
+  // going to tightly control how the IOs fly.
+
+  TransactionHelperResult out;
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  SessionDependencies session_deps;
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(CreateSession(&session_deps)));
+
+  session_deps.socket_factory.AddSocketDataProvider(data);
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  out.rv = callback.WaitForResult();
+  EXPECT_EQ(out.rv, OK);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  out.status_line = response->headers->GetStatusLine();
+  out.response_info = *response;  // Make a copy so we can verify.
+
+  // Read Data
+  TestCompletionCallback read_callback;
+
+  std::string content;
+  int reads_completed = 0;
+  do {
+    // Read small chunks at a time.
+    const int kSmallReadSize = 14;
+    scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSmallReadSize);
+    rv = trans->Read(buf, kSmallReadSize, &read_callback);
+    if (rv > 0) {
+      EXPECT_EQ(kSmallReadSize, rv);
+      content.append(buf->data(), rv);
+    } else if (rv < 0) {
+      FAIL() << "Unexpected read error: " << rv;
+    }
+    reads_completed++;
+  } while (rv > 0);
+
+  EXPECT_EQ(3, reads_completed);
+
+  out.response_data.swap(content);
+
+  // Flush the MessageLoop while the SessionDependencies (in particular, the
+  // MockClientSocketFactory) are still alive.
+  MessageLoop::current()->RunAllPending();
+
+  // Verify that we consumed all test data.
+  EXPECT_TRUE(data->at_read_eof());
+  EXPECT_TRUE(data->at_write_eof());
+
+  EXPECT_EQ(OK, out.rv);
+  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
+  EXPECT_EQ("messagemessagemessagemessage", out.response_data);
+}
+
+// Verify the case where we buffer data and close the connection.
+TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  // All data frames in a single read.
+  static const unsigned char kCombinedFrames[] = {
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    0x00, 0x00, 0x00, 0x01,                                      // header
+    0x00, 0x00, 0x00, 0x07,                                      // length
+    'm', 'e', 's', 's', 'a', 'g', 'e',
+    // NOTE: We didn't FIN the stream.
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply)),
+    MockRead(true, ERR_IO_PENDING),  // Force a wait
+    MockRead(true, reinterpret_cast<const char*>(kCombinedFrames),
+             arraysize(kCombinedFrames)),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+
+  // For this test, we can't use the TransactionHelper, because we are
+  // going to tightly control how the IOs fly.
+
+  TransactionHelperResult out;
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  SessionDependencies session_deps;
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(CreateSession(&session_deps)));
+
+  session_deps.socket_factory.AddSocketDataProvider(data);
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  out.rv = callback.WaitForResult();
+  EXPECT_EQ(out.rv, OK);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  out.status_line = response->headers->GetStatusLine();
+  out.response_info = *response;  // Make a copy so we can verify.
+
+  // Read Data
+  TestCompletionCallback read_callback;
+
+  std::string content;
+  int reads_completed = 0;
+  do {
+    // Read small chunks at a time.
+    const int kSmallReadSize = 14;
+    scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSmallReadSize);
+    rv = trans->Read(buf, kSmallReadSize, &read_callback);
+    if (rv == net::ERR_IO_PENDING) {
+      data->CompleteRead();
+      rv = read_callback.WaitForResult();
+    }
+    if (rv > 0) {
+      content.append(buf->data(), rv);
+    } else if (rv < 0) {
+      // This test intentionally closes the connection, and will get an error.
+      EXPECT_EQ(ERR_CONNECTION_CLOSED, rv);
+      break;
+    }
+    reads_completed++;
+  } while (rv > 0);
+
+  EXPECT_EQ(0, reads_completed);
+
+  out.response_data.swap(content);
+
+  // Flush the MessageLoop while the SessionDependencies (in particular, the
+  // MockClientSocketFactory) are still alive.
+  MessageLoop::current()->RunAllPending();
+
+  // Verify that we consumed all test data.
+  EXPECT_TRUE(data->at_read_eof());
+  EXPECT_TRUE(data->at_write_eof());
 }
 
 }  // namespace net
