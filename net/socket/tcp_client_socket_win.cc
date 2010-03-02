@@ -314,7 +314,8 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback,
   } else {
     TRACE_EVENT_END("socket.connect", this, "");
     LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
-    UpdateConnectionTypeHistograms(CONNECTION_ANY, rv >= 0);
+    if (rv == OK)
+      UpdateConnectionTypeHistograms(CONNECTION_ANY);
   }
 
   return rv;
@@ -677,7 +678,8 @@ void TCPClientSocketWin::DidCompleteConnect() {
   }
 
   if (result != ERR_IO_PENDING) {
-    UpdateConnectionTypeHistograms(CONNECTION_ANY, result >= 0);
+    if (result == OK)
+      UpdateConnectionTypeHistograms(CONNECTION_ANY);
     DoReadCallback(result);
   }
 }

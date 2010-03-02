@@ -20,7 +20,7 @@ namespace net {
 //
 // Each histogram has an unused bucket at the end to allow seamless future
 // expansion.
-void UpdateConnectionTypeHistograms(ConnectionType type, bool success) {
+void UpdateConnectionTypeHistograms(ConnectionType type) {
   static bool had_connection_type[NUM_OF_CONNECTION_TYPES];
 
   if (type >= 0 && type < NUM_OF_CONNECTION_TYPES) {
@@ -30,12 +30,8 @@ void UpdateConnectionTypeHistograms(ConnectionType type, bool success) {
           type, NUM_OF_CONNECTION_TYPES);
     }
 
-    if (success)
-      UMA_HISTOGRAM_ENUMERATION("Net.ConnectionTypeCount2",
-          type, NUM_OF_CONNECTION_TYPES);
-    else
-      UMA_HISTOGRAM_ENUMERATION("Net.ConnectionTypeFailCount2",
-          type, NUM_OF_CONNECTION_TYPES);
+    UMA_HISTOGRAM_ENUMERATION("Net.ConnectionTypeCount2",
+        type, NUM_OF_CONNECTION_TYPES);
   } else {
     NOTREACHED();  // Someone's logging an invalid type!
   }
