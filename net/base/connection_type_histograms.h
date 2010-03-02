@@ -33,8 +33,7 @@ enum ConnectionType {
 };
 
 // Update the connection type histograms.  |type| is the connection type.
-// |success| is whether or not the connection was successful or not.
-void UpdateConnectionTypeHistograms(ConnectionType type, bool success);
+void UpdateConnectionTypeHistograms(ConnectionType type);
 
 }  // namespace net
 
