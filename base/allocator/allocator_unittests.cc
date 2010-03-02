@@ -407,7 +407,7 @@ TEST(Allocators, Realloc1) {
     // Test again, but this time reallocing smaller first.
     for (int d = 0; d < s*2; ++d) {
       void* new_p = realloc(p, start_sizes[s] - deltas[d]);
-      CHECK(p == new_p);  // realloc should not allocate new memory
+      CHECK_EQ(p, new_p);  // realloc should not allocate new memory
     }
     free(p);
   }
