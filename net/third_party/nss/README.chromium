@@ -1,0 +1,22 @@
+This directory includes a copy of NSS's libssl from the CVS repo at:
+  :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot
+
+The snapshot was updated to the CVS tag: NSS_3_12_6_RC0
+
+Patches:
+
+  * Next protocol negotiation support.
+    patches/nextproto.patch
+    http://codereview.chromium.org/415005
+
+  * Commenting out a couple of functions because they need NSS symbols
+    which may not exist in the system NSS library.
+    patches/versionskew.patch
+
+  * Send empty renegotiation info extension instead of SCSV unless TLS is
+    disabled.
+    patches/renegoscsv.patch
+    https://bugzilla.mozilla.org/show_bug.cgi?id=549042
+
+The ssl/bodge directory contains files taken from the NSS repo that we required
+for building libssl outside of its usual build environment.
