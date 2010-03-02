@@ -107,8 +107,8 @@ bool EvictFileFromSystemCache(const FilePath& file) {
     file_handle.Set(NULL);
     file_handle.Set(CreateFile(file.value().c_str(), GENERIC_WRITE, 0, NULL,
                                OPEN_EXISTING, 0, NULL));
-    CHECK(SetFilePointer(file_handle, total_bytes, NULL, FILE_BEGIN) !=
-          INVALID_SET_FILE_POINTER);
+    CHECK_NE(SetFilePointer(file_handle, total_bytes, NULL, FILE_BEGIN),
+             INVALID_SET_FILE_POINTER);
     CHECK(::SetEndOfFile(file_handle));
   }
 

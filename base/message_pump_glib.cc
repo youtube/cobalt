@@ -130,7 +130,7 @@ MessagePumpForUI::MessagePumpForUI()
       wakeup_gpollfd_(new GPollFD) {
   // Create our wakeup pipe, which is used to flag when work was scheduled.
   int fds[2];
-  CHECK(pipe(fds) == 0);
+  CHECK_EQ(pipe(fds), 0);
   wakeup_pipe_read_  = fds[0];
   wakeup_pipe_write_ = fds[1];
   wakeup_gpollfd_->fd = wakeup_pipe_read_;
