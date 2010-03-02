@@ -455,12 +455,12 @@ void SpdySession::OnTCPConnect(int result) {
   // socket (or have an error trying to do so).
   DCHECK(!connection_->socket() || !connection_->is_reused());
 
-  UpdateConnectionTypeHistograms(CONNECTION_SPDY, result >= 0);
-
   if (result != net::OK) {
     DCHECK_LT(result, 0);
     CloseSessionOnError(static_cast<net::Error>(result));
     return;
+  } else {
+    UpdateConnectionTypeHistograms(CONNECTION_SPDY);
   }
 
   AdjustSocketBufferSizes(connection_->socket());

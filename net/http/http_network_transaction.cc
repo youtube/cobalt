@@ -687,10 +687,8 @@ int HttpNetworkTransaction::DoInitConnection() {
 }
 
 int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
-  if (result < 0) {
-    UpdateConnectionTypeHistograms(CONNECTION_HTTP, false);
+  if (result < 0)
     return ReconsiderProxyAfterError(result);
-  }
 
   DCHECK_EQ(OK, result);
 
@@ -711,7 +709,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   } else {
     // Now we have a TCP connected socket.  Perform other connection setup as
     // needed.
-    UpdateConnectionTypeHistograms(CONNECTION_HTTP, true);
+    UpdateConnectionTypeHistograms(CONNECTION_HTTP);
     if (proxy_mode_ == kSOCKSProxy)
       next_state_ = STATE_SOCKS_CONNECT;
     else if (using_ssl_ && proxy_mode_ == kDirectConnection) {
@@ -819,7 +817,7 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
           base::TimeDelta::FromMinutes(10),
           100);
 
-      UpdateConnectionTypeHistograms(CONNECTION_SPDY, true);
+      UpdateConnectionTypeHistograms(CONNECTION_SPDY);
       next_state_ = STATE_SPDY_SEND_REQUEST;
     } else {
       UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
