@@ -13,7 +13,7 @@ namespace {
 
 uint32 RandUint32() {
   uint32 number;
-  CHECK(rand_s(&number) == 0);
+  CHECK_EQ(rand_s(&number), 0);
   return number;
 }
 
