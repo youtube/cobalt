@@ -426,14 +426,14 @@ void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
     // We can't activate more sockets since we're already at our global limit.
     if (ReachedMaxSocketsLimit())
       return;
-    
+
     // |group| might now be deleted.
     i = group_map_.find(group_name);
     if (i == group_map_.end())
       return;
 
     group = i->second;
-    
+
     // If we already have enough ConnectJobs to satisfy the pending requests,
     // don't bother starting up more.
     if (group.pending_requests.size() <= group.jobs.size())
