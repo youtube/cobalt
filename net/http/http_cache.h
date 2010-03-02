@@ -163,6 +163,7 @@ class HttpCache : public HttpTransactionFactory,
   // Types --------------------------------------------------------------------
 
   class BackendCallback;
+  class MetadataWriter;
   class Transaction;
   class WorkItem;
   friend class Transaction;
