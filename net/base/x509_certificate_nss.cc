@@ -617,11 +617,16 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   base::EnsureNSSInit();
 
-  SECItem der_cert;
-  der_cert.data = reinterpret_cast<unsigned char*>(const_cast<char*>(data));
-  der_cert.len = length;
-  return CERT_NewTempCertificate(CERT_GetDefaultCertDB(), &der_cert,
-                                 NULL, PR_FALSE, PR_TRUE);
+  // Make a copy of |data| since CERT_DecodeCertPackage might modify it.
+  char* data_copy = new char[length];
+  memcpy(data_copy, data, length);
+
+  // Parse into a certificate structure.
+  CERTCertificate* cert = CERT_DecodeCertFromPackage(data_copy, length);
+  delete [] data_copy;
+  if (!cert)
+    LOG(ERROR) << "Couldn't parse a certificate from " << length << " bytes";
+  return cert;
 }
 
 // static

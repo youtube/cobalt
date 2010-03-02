@@ -195,6 +195,8 @@ NET_ERROR(CERT_AUTHORITY_INVALID, -202)
 //
 // MSDN describes this error as follows:
 //   "The SSL certificate contains errors."
+// NOTE: It's unclear how this differs from ERR_CERT_INVALID. For consistency,
+// use that code instead of this one from now on.
 //
 NET_ERROR(CERT_CONTAINS_ERRORS, -203)
 
@@ -349,6 +351,14 @@ NET_ERROR(CACHE_RACE, -406)
 
 // The server's response was insecure (e.g. there was a cert error).
 NET_ERROR(INSECURE_RESPONSE, -501)
+
+// The server responded to a <keygen> with a generated client cert that we
+// don't have the matching private key for.
+NET_ERROR(NO_PRIVATE_KEY_FOR_CERT, -502)
+
+// An error adding to the OS certificate database (e.g. OS X Keychain).
+NET_ERROR(ERR_ADD_USER_CERT_FAILED, -503)
+
 //
 // The FTP PASV command failed.
 NET_ERROR(FTP_PASV_COMMAND_FAILED, -600)
