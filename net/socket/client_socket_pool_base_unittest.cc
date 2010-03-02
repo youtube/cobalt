@@ -1443,6 +1443,59 @@ TEST_F(ClientSocketPoolBaseTest,
   EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(5));
 }
 
+class TestReleasingSocketRequest : public CallbackRunner< Tuple1<int> > {
+ public:
+  explicit TestReleasingSocketRequest(TestClientSocketPool* pool)
+      : pool_(pool) {}
+
+  ClientSocketHandle* handle() { return &handle_; }
+
+  int WaitForResult() {
+    return callback_.WaitForResult();
+  }
+
+  virtual void RunWithParams(const Tuple1<int>& params) {
+    callback_.RunWithParams(params);
+    handle_.Reset();
+    EXPECT_EQ(ERR_IO_PENDING,
+              InitHandle(&handle2_, "a", kDefaultPriority,
+                         &callback2_, pool_, NULL));
+  }
+
+ private:
+  TestClientSocketPool* const pool_;
+  ClientSocketHandle handle_;
+  ClientSocketHandle handle2_;
+  TestCompletionCallback callback_;
+  TestCompletionCallback callback2_;
+};
+
+// This test covers the case where, within the same DoReleaseSocket() callback,
+// we release the just acquired socket and start up a new request.  See bug
+// 36871 for details.
+TEST_F(ClientSocketPoolBaseTest, ReleasedSocketReleasesToo) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+
+  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
+
+  // Complete one request and release the socket.
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  EXPECT_EQ(OK, InitHandle(
+      &handle, "a", kDefaultPriority, &callback, pool_.get(), NULL));
+  handle.Reset();
+  
+  // Before the DoReleaseSocket() task has run, start up a
+  // TestReleasingSocketRequest.  This one will be ERR_IO_PENDING since
+  // num_releasing_sockets > 0 and there was no idle socket to use yet.
+  TestReleasingSocketRequest request(pool_.get());
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(request.handle(), "a", kDefaultPriority, &request,
+                       pool_.get(), NULL));
+
+  EXPECT_EQ(OK, request.WaitForResult());
+}
+
 }  // namespace
 
 }  // namespace net
