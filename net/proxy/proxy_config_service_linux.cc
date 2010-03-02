@@ -751,8 +751,8 @@ class GConfSettingGetterImplKDE
       while (event_ptr < event_buf + r) {
         inotify_event* event = reinterpret_cast<inotify_event*>(event_ptr);
         // The kernel always feeds us whole events.
-        CHECK(event_ptr + sizeof(inotify_event) <= event_buf + r);
-        CHECK(event->name + event->len <= event_buf + r);
+        CHECK_LE(event_ptr + sizeof(inotify_event), event_buf + r);
+        CHECK_LE(event->name + event->len, event_buf + r);
         if (!strcmp(event->name, "kioslaverc"))
           kioslaverc_touched = true;
         // Advance the pointer just past the end of the filename.

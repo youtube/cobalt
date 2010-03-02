@@ -63,7 +63,7 @@ int SpdyStream::ReadResponseHeaders(CompletionCallback* callback) {
   // Note: The SpdyStream may have already received the response headers, so
   //       this call may complete synchronously.
   CHECK(callback);
-  CHECK(io_state_ == STATE_NONE);
+  CHECK_EQ(STATE_NONE, io_state_);
   CHECK(!cancelled_);
 
   // The SYN_REPLY has already been received.
@@ -113,7 +113,7 @@ int SpdyStream::ReadResponseBody(
 
   CHECK(!user_callback_);
   CHECK(!user_buffer_);
-  CHECK(user_buffer_len_ == 0);
+  CHECK_EQ(0, user_buffer_len_);
 
   user_callback_ = callback;
   user_buffer_ = buf;
@@ -277,7 +277,7 @@ int SpdyStream::DoLoop(int result) {
     switch (state) {
       // State machine 1: Send headers and wait for response headers.
       case STATE_SEND_HEADERS:
-        CHECK(result == OK);
+        CHECK_EQ(OK, result);
         LoadLog::BeginEvent(load_log_,
                             LoadLog::TYPE_SPDY_STREAM_SEND_HEADERS);
         result = DoSendHeaders();
@@ -288,7 +288,7 @@ int SpdyStream::DoLoop(int result) {
         result = DoSendHeadersComplete(result);
         break;
       case STATE_SEND_BODY:
-        CHECK(result == OK);
+        CHECK_EQ(OK, result);
         LoadLog::BeginEvent(load_log_,
                             LoadLog::TYPE_SPDY_STREAM_SEND_BODY);
         result = DoSendBody();
@@ -299,7 +299,7 @@ int SpdyStream::DoLoop(int result) {
         result = DoSendBodyComplete(result);
         break;
       case STATE_READ_HEADERS:
-        CHECK(result == OK);
+        CHECK_EQ(OK, result);
         LoadLog::BeginEvent(load_log_,
                             LoadLog::TYPE_SPDY_STREAM_READ_HEADERS);
         result = DoReadHeaders();
@@ -386,7 +386,7 @@ void SpdyStream::DoBufferedReadCallback() {
   int rv = 0;
   if (user_buffer_) {
     rv = ReadResponseBody(user_buffer_, user_buffer_len_, user_callback_);
-    CHECK(rv != ERR_IO_PENDING);
+    CHECK_NE(rv, ERR_IO_PENDING);
     user_buffer_ = NULL;
     user_buffer_len_ = 0;
     DoCallback(rv);
@@ -394,7 +394,7 @@ void SpdyStream::DoBufferedReadCallback() {
 }
 
 void SpdyStream::DoCallback(int rv) {
-  CHECK(rv != ERR_IO_PENDING);
+  CHECK_NE(rv, ERR_IO_PENDING);
   CHECK(user_callback_);
 
   // Since Run may result in being called back, clear user_callback_ in advance.
@@ -418,7 +418,7 @@ int SpdyStream::DoSendHeadersComplete(int result) {
   if (result < 0)
     return result;
 
-  CHECK(result > 0);
+  CHECK_GT(result, 0);
 
   // There is no body, skip that state.
   if (!request_body_stream_.get()) {
@@ -449,7 +449,7 @@ int SpdyStream::DoSendBodyComplete(int result) {
   if (result < 0)
     return result;
 
-  CHECK(result != 0);
+  CHECK_NE(result, 0);
 
   request_body_stream_->DidConsume(result);
 
