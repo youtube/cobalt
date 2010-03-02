@@ -20,9 +20,14 @@ class CertDatabase {
  public:
   CertDatabase();
 
-  // Extract and Store User (Client) Certificate from a data blob.
-  // Return true if successful.
-  bool AddUserCert(const char* data, int len);
+  // Check whether this is a valid user cert that we have the private key for.
+  // Returns OK or a network error code such as ERR_CERT_CONTAINS_ERRORS.
+  int CheckUserCert(X509Certificate* cert);
+
+  // Store user (client) certificate. Assumes CheckUserCert has already passed.
+  // Returns OK, or ERR_ADD_USER_CERT_FAILED if there was a problem saving to
+  // the platform cert database, or possibly other network error codes.
+  int AddUserCert(X509Certificate* cert);
 
  private:
   void Init();
