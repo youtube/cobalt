@@ -402,7 +402,7 @@ TEST(Allocators, Realloc1) {
     // The larger the start-size, the larger the non-reallocing delta.
     for (int d = 0; d < s*2; ++d) {
       void* new_p = realloc(p, start_sizes[s] + deltas[d]);
-      CHECK(p == new_p);  // realloc should not allocate new memory
+      CHECK_EQ(p, new_p);  // realloc should not allocate new memory
     }
     // Test again, but this time reallocing smaller first.
     for (int d = 0; d < s*2; ++d) {
@@ -487,4 +487,3 @@ int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-
