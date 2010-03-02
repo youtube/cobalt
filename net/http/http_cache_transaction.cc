@@ -33,7 +33,8 @@ namespace net {
 // disk cache entry data indices.
 enum {
   kResponseInfoIndex,
-  kResponseContentIndex
+  kResponseContentIndex,
+  kMetadataIndex
 };
 
 //-----------------------------------------------------------------------------
@@ -381,14 +382,20 @@ uint64 HttpCache::Transaction::GetUploadProgress() const {
   return final_upload_progress_;
 }
 
-int HttpCache::Transaction::ReadMetadata(IOBuffer* buf, int buf_len,
-                                         CompletionCallback* callback) {
-  return ERR_NOT_IMPLEMENTED;
-}
-
 int HttpCache::Transaction::WriteMetadata(IOBuffer* buf, int buf_len,
                                           CompletionCallback* callback) {
-  return ERR_NOT_IMPLEMENTED;
+  DCHECK(buf);
+  DCHECK_GT(buf_len, 0);
+  DCHECK(callback);
+  if (!cache_ || !entry_)
+    return ERR_UNEXPECTED;
+
+  // We don't need to track this operation for anything.
+  // It could be possible to check if there is something already written and
+  // avoid writing again (it should be the same, right?), but let's allow the
+  // caller to "update" the contents with something new.
+  return entry_->disk_entry->WriteData(kMetadataIndex, 0, buf, buf_len,
+                                       callback, true);
 }
 
 int HttpCache::Transaction::AddToEntry() {
@@ -731,6 +738,13 @@ int HttpCache::Transaction::DoLoop(int result) {
       case STATE_CACHE_WRITE_RESPONSE_COMPLETE:
         rv = DoCacheWriteResponseComplete(rv);
         break;
+      case STATE_CACHE_READ_METADATA:
+        DCHECK_EQ(OK, rv);
+        rv = DoCacheReadMetadata();
+        break;
+      case STATE_CACHE_READ_METADATA_COMPLETE:
+        rv = DoCacheReadMetadataComplete(rv);
+        break;
       case STATE_CACHE_QUERY_DATA:
         DCHECK_EQ(OK, rv);
         rv = DoCacheQueryData();
@@ -917,6 +931,9 @@ int HttpCache::Transaction::BeginCacheRead() {
   if (truncated_)
     return ERR_CACHE_MISS;
 
+  if (entry_->disk_entry->GetDataSize(kMetadataIndex))
+    next_state_ = STATE_CACHE_READ_METADATA;
+
   return OK;
 }
 
@@ -927,6 +944,8 @@ int HttpCache::Transaction::BeginCacheValidation() {
        !RequiresValidation()) && !partial_.get()) {
     cache_->ConvertWriterToReader(entry_);
     mode_ = READ;
+    if (entry_ && entry_->disk_entry->GetDataSize(kMetadataIndex))
+      next_state_ = STATE_CACHE_READ_METADATA;
   } else {
     // Make the network request conditional, to see if we may reuse our cached
     // response.  If we cannot do so, then we just resort to a normal fetch.
@@ -1452,6 +1471,32 @@ int HttpCache::Transaction::DoCacheWriteResponseComplete(int result) {
   return OK;
 }
 
+int HttpCache::Transaction::DoCacheReadMetadata() {
+  DCHECK(entry_);
+  DCHECK(!response_.metadata);
+  next_state_ = STATE_CACHE_READ_METADATA_COMPLETE;
+
+  response_.metadata =
+      new IOBufferWithSize(entry_->disk_entry->GetDataSize(kMetadataIndex));
+
+  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  cache_callback_->AddRef();  // Balanced in DoCacheReadMetadataComplete.
+  return entry_->disk_entry->ReadData(kMetadataIndex, 0, response_.metadata,
+                                      response_.metadata->size(),
+                                      cache_callback_);
+}
+
+int HttpCache::Transaction::DoCacheReadMetadataComplete(int result) {
+  cache_callback_->Release();  // Balance the AddRef from DoCacheReadMetadata.
+  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  if (result != response_.metadata->size()) {
+    DLOG(ERROR) << "ReadData failed: " << result;
+    return ERR_CACHE_READ_FAILURE;
+  }
+
+  return OK;
+}
+
 int HttpCache::Transaction::AppendResponseDataToEntry(
     IOBuffer* data, int data_len, CompletionCallback* callback) {
   if (!entry_ || !data_len)
@@ -1469,6 +1514,8 @@ int HttpCache::Transaction::DoTruncateCachedData() {
 
   // Truncate the stream.
   int rv = WriteToEntry(kResponseContentIndex, 0, NULL, 0, NULL);
+  DCHECK(rv != ERR_IO_PENDING);
+  rv = WriteToEntry(kMetadataIndex, 0, NULL, 0, NULL);
   DCHECK(rv != ERR_IO_PENDING);
   return OK;
 }
@@ -1694,6 +1741,10 @@ int HttpCache::Transaction::DoTruncateCachedDataComplete(int result) {
 
 int HttpCache::Transaction::DoPartialHeadersReceived() {
   new_response_ = NULL;
+  if (entry_ && !partial_.get() &&
+      entry_->disk_entry->GetDataSize(kMetadataIndex))
+    next_state_ = STATE_CACHE_READ_METADATA;
+
   if (!partial_.get())
     return OK;
 

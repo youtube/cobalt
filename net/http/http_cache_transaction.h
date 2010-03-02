@@ -72,14 +72,6 @@ class HttpCache::Transaction : public HttpTransaction {
 
   const std::string& key() const { return cache_key_; }
 
-  // Reads up to |buf_len| bytes of meta-data into the provided buffer |buf|,
-  // from the HTTP cache entry that backs this transaction (if any).
-  // Returns the number of bytes actually read, or a net error code. If the
-  // operation cannot complete immediately, returns ERR_IO_PENDING, grabs a
-  // reference to the buffer (until completion), and notifies the caller using
-  // the provided |callback| when the operatiopn finishes.
-  int ReadMetadata(IOBuffer* buf, int buf_len, CompletionCallback* callback);
-
   // Writes |buf_len| bytes of meta-data from the provided buffer |buf|. to the
   // HTTP cache entry that backs this transaction (if any).
   // Returns the number of bytes actually written, or a net error code. If the
@@ -143,6 +135,8 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_CACHE_WRITE_RESPONSE,
     STATE_CACHE_WRITE_TRUNCATED_RESPONSE,
     STATE_CACHE_WRITE_RESPONSE_COMPLETE,
+    STATE_CACHE_READ_METADATA,
+    STATE_CACHE_READ_METADATA_COMPLETE,
     STATE_CACHE_QUERY_DATA,
     STATE_CACHE_QUERY_DATA_COMPLETE,
     STATE_CACHE_READ_DATA,
@@ -190,6 +184,8 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoCacheWriteResponse();
   int DoCacheWriteTruncatedResponse();
   int DoCacheWriteResponseComplete(int result);
+  int DoCacheReadMetadata();
+  int DoCacheReadMetadataComplete(int result);
   int DoCacheQueryData();
   int DoCacheQueryDataComplete(int result);
   int DoCacheReadData();

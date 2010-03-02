@@ -19,6 +19,7 @@
 #include "base/ref_counted.h"
 #include "base/string_util.h"
 #include "net/base/io_buffer.h"
+#include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache_transaction.h"
@@ -121,6 +122,82 @@ class HttpCache::BackendCallback : public CallbackRunner<Tuple1<int> > {
   NewEntry* entry_;
   DISALLOW_COPY_AND_ASSIGN(BackendCallback);
 };
+
+//-----------------------------------------------------------------------------
+
+// This class encapsulates a transaction whose only purpose is to write metadata
+// to a given entry.
+class HttpCache::MetadataWriter {
+ public:
+  explicit MetadataWriter(HttpCache::Transaction* trans)
+      : transaction_(trans),
+        ALLOW_THIS_IN_INITIALIZER_LIST(
+            callback_(this, &MetadataWriter::OnIOComplete)) {}
+  ~MetadataWriter() {}
+
+  // Implementes the bulk of HttpCache::WriteMetadata.
+  void Write(const GURL& url, base::Time expected_response_time, IOBuffer* buf,
+             int buf_len);
+
+ private:
+  void VerifyResponse(int result);
+  void SelfDestroy();
+  void OnIOComplete(int result);
+
+  scoped_ptr<HttpCache::Transaction> transaction_;
+  bool verified_;
+  scoped_refptr<IOBuffer> buf_;
+  int buf_len_;
+  base::Time expected_response_time_;
+  CompletionCallbackImpl<MetadataWriter> callback_;
+  HttpRequestInfo request_info_;
+  DISALLOW_COPY_AND_ASSIGN(MetadataWriter);
+};
+
+void HttpCache::MetadataWriter::Write(const GURL& url,
+                                      base::Time expected_response_time,
+                                      IOBuffer* buf, int buf_len) {
+  DCHECK_GT(buf_len, 0);
+  DCHECK(buf);
+  DCHECK(buf->data());
+  request_info_.url = url;
+  request_info_.method = "GET";
+  request_info_.load_flags = LOAD_ONLY_FROM_CACHE;
+
+  expected_response_time_ = expected_response_time;
+  buf_ = buf;
+  buf_len_ = buf_len;
+  verified_ = false;
+
+  int rv = transaction_->Start(&request_info_, &callback_, NULL);
+  if (rv != ERR_IO_PENDING)
+    VerifyResponse(rv);
+}
+
+void HttpCache::MetadataWriter::VerifyResponse(int result) {
+  verified_ = true;
+  if (result != OK)
+    return SelfDestroy();
+
+  const HttpResponseInfo* response_info = transaction_->GetResponseInfo();
+  DCHECK(response_info->was_cached);
+  if (response_info->response_time != expected_response_time_)
+    return SelfDestroy();
+
+  result = transaction_->WriteMetadata(buf_, buf_len_, &callback_);
+  if (result != ERR_IO_PENDING)
+    SelfDestroy();
+}
+
+void HttpCache::MetadataWriter::SelfDestroy() {
+  delete this;
+}
+
+void HttpCache::MetadataWriter::OnIOComplete(int result) {
+  if (!verified_)
+    return VerifyResponse(result);
+  SelfDestroy();
+}
 
 //-----------------------------------------------------------------------------
 
@@ -284,7 +361,16 @@ bool HttpCache::WriteResponseInfo(disk_cache::Entry* disk_entry,
 void HttpCache::WriteMetadata(const GURL& url,
                               base::Time expected_response_time, IOBuffer* buf,
                               int buf_len) {
-  // TODO(rvargas): Implement me.
+  if (!buf_len)
+    return;
+
+  GetBackend();
+  HttpCache::Transaction* trans =
+      new HttpCache::Transaction(this, enable_range_support_);
+  MetadataWriter* writer = new MetadataWriter(trans);
+
+  // The writer will self destruct when done.
+  writer->Write(url, expected_response_time, buf, buf_len);
 }
 
 // Generate a key that can be used inside the cache.
