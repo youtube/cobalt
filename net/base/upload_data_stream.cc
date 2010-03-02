@@ -27,8 +27,7 @@ UploadDataStream::~UploadDataStream() {
 }
 
 void UploadDataStream::DidConsume(size_t num_bytes) {
-  // TODO(vandebo): Change back to a DCHECK when issue 27870 is resolved.
-  CHECK(num_bytes <= buf_len_);
+  DCHECK_LE(num_bytes, buf_len_);
   DCHECK(!eof_);
 
   buf_len_ -= num_bytes;

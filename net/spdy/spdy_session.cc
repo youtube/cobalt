@@ -384,7 +384,7 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   // Find our stream
   DCHECK(IsStreamActive(stream_id));
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
-  CHECK(stream->stream_id() == stream_id);
+  CHECK_EQ(stream->stream_id(), stream_id);
   if (!stream)
     return ERR_INVALID_SPDY_STREAM;
 
@@ -890,7 +890,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame* frame,
 
   if (stream) {
     CHECK(stream->pushed());
-    CHECK(stream->stream_id() == 0);
+    CHECK_EQ(0u, stream->stream_id());
     stream->set_stream_id(stream_id);
   } else {
     // TODO(mbelshe): can we figure out how to use a LoadLog here?
@@ -976,7 +976,7 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame* frame,
   }
 
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
-  CHECK(stream->stream_id() == stream_id);
+  CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
   HttpResponseInfo response;
   if (SpdyHeadersToHttpResponse(*headers, &response)) {
@@ -1029,7 +1029,7 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame* frame) {
     return;
   }
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
-  CHECK(stream->stream_id() == stream_id);
+  CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
   if (frame->status() == 0) {
     stream->OnDataReceived(NULL, 0);
