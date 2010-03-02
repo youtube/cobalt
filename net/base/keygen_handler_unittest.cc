@@ -14,7 +14,7 @@ namespace net {
 
 namespace {
 
-TEST(KeygenHandlerTest, SmokeTest) {
+TEST(KeygenHandlerTest, FLAKY_SmokeTest) {
   KeygenHandler handler(2048, "some challenge");
   handler.set_stores_key(false);  // Don't leave the key-pair behind
   std::string result = handler.GenKeyAndSignChallenge();
