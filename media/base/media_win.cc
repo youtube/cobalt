@@ -96,4 +96,9 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
   return false;
 }
 
+bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
+  NOTIMPLEMENTED() << "OpenMAX is not used in Windows.";
+  return false;
+}
+
 }  // namespace media

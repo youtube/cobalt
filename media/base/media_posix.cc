@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,6 +12,10 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "third_party/ffmpeg/ffmpeg_stubs.h"
+#if defined(OS_LINUX)
+// OpenMAX IL stub is generated only on Linux.
+#include "third_party/openmax/il_stubs.h"
+#endif
 
 namespace tp_ffmpeg = third_party_ffmpeg;
 
@@ -29,6 +33,7 @@ const FilePath::CharType sumo_name[] = FILE_PATH_LITERAL("libffmpegsumo.so");
 #else
 #error "Do not know how to construct DSO name for this OS."
 #endif
+const FilePath::CharType openmax_name[] = FILE_PATH_LITERAL("libOmxCore.so");
 
 // Retrieves the DSOName for the given key.
 std::string GetDSOName(tp_ffmpeg::StubModules stub_key) {
@@ -67,5 +72,31 @@ bool InitializeMediaLibrary(const FilePath& module_dir) {
 
   return tp_ffmpeg::InitializeStubs(paths);
 }
+
+#if defined(OS_LINUX)
+namespace tp_openmax = third_party_openmax;
+bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
+  // TODO(ajwong): We need error resolution.
+  tp_openmax::StubPathMap paths;
+  for (int i = 0; i < static_cast<int>(tp_openmax::kNumStubModules); ++i) {
+    tp_openmax::StubModules module = static_cast<tp_openmax::StubModules>(i);
+
+    // Add the OpenMAX library first so it takes precedence.
+    paths[module].push_back(module_dir.Append(openmax_name).value());
+  }
+
+  bool result = tp_openmax::InitializeStubs(paths);
+  if (!result) {
+    LOG(FATAL) << "Cannot load " << openmax_name << "."
+               << " Make sure it exists for OpenMAX.";
+  }
+  return result;
+}
+#else
+bool InitializeOpenMaxLibrary(const FilePath& module_dir) {
+  NOTIMPLEMENTED() << "OpenMAX is only used in Linux.";
+  return false;
+}
+#endif
 
 }  // namespace media
