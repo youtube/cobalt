@@ -442,7 +442,7 @@ class HostResolverImpl::JobPool {
   // specific meaning of these parameters.
   void SetConstraints(size_t max_outstanding_jobs,
                       size_t max_pending_requests) {
-    CHECK(max_outstanding_jobs != 0u);
+    CHECK_NE(max_outstanding_jobs, 0u);
     max_outstanding_jobs_ = max_outstanding_jobs;
     max_pending_requests_ = max_pending_requests;
   }
@@ -816,8 +816,8 @@ scoped_refptr<LoadLog> HostResolverImpl::GetRequestsTrace() {
 void HostResolverImpl::SetPoolConstraints(JobPoolIndex pool_index,
                                           size_t max_outstanding_jobs,
                                           size_t max_pending_requests) {
-  CHECK(pool_index >= 0);
-  CHECK(pool_index < POOL_COUNT);
+  CHECK_GE(pool_index, 0);
+  CHECK_LT(pool_index, POOL_COUNT);
   CHECK(jobs_.empty()) << "Can only set constraints during setup";
   JobPool* pool = job_pools_[pool_index];
   pool->SetConstraints(max_outstanding_jobs, max_pending_requests);

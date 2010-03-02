@@ -400,10 +400,10 @@ void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
   group.num_releasing_sockets--;
   DCHECK_GE(group.num_releasing_sockets, 0);
 
-  CHECK(handed_out_socket_count_ > 0);
+  CHECK_GT(handed_out_socket_count_, 0);
   handed_out_socket_count_--;
 
-  CHECK(group.active_socket_count > 0);
+  CHECK_GT(group.active_socket_count, 0);
   group.active_socket_count--;
 
   const bool can_reuse = socket->IsConnectedAndIdle();
@@ -527,7 +527,7 @@ void ClientSocketPoolBaseHelper::OnIPAddressChanged() {
 
 void ClientSocketPoolBaseHelper::RemoveConnectJob(const ConnectJob *job,
                                                   Group* group) {
-  CHECK(connecting_socket_count_ > 0);
+  CHECK_GT(connecting_socket_count_, 0);
   connecting_socket_count_--;
 
   DCHECK(job);

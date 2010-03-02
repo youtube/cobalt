@@ -59,7 +59,7 @@ void ClientSocketHandle::OnIOComplete(int result) {
 }
 
 void ClientSocketHandle::HandleInitCompletion(int result) {
-  CHECK(ERR_IO_PENDING != result);
+  CHECK_NE(ERR_IO_PENDING, result);
   if (result != OK)
     ResetInternal(false);  // The request failed, so there's nothing to cancel.
 }
