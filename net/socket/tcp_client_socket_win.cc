@@ -35,7 +35,7 @@ bool ResetEventIfSignaled(WSAEVENT hEvent) {
   DWORD wait_rv = WaitForSingleObject(hEvent, 0);
   if (wait_rv == WAIT_TIMEOUT)
     return false;  // The event object is not signaled.
-  CHECK(wait_rv == WAIT_OBJECT_0);
+  CHECK_EQ(WAIT_OBJECT_0, wait_rv);
   BOOL ok = WSAResetEvent(hEvent);
   CHECK(ok);
   return true;
@@ -459,7 +459,8 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
 
   TRACE_EVENT_BEGIN("socket.read", this, "");
   // TODO(wtc): Remove the CHECK after enough testing.
-  CHECK(WaitForSingleObject(core_->read_overlapped_.hEvent, 0) == WAIT_TIMEOUT);
+  CHECK_EQ(WAIT_TIMEOUT,
+           WaitForSingleObject(core_->read_overlapped_.hEvent, 0));
   DWORD num, flags = 0;
   int rv = WSARecv(socket_, &core_->read_buffer_, 1, &num, &flags,
                    &core_->read_overlapped_, NULL);
@@ -496,8 +497,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   DCHECK_NE(socket_, INVALID_SOCKET);
   DCHECK(!waiting_write_);
   DCHECK(!write_callback_);
-  //TODO(vandebo) change back to a DCHECK when 27870 is resolved
-  CHECK(buf_len > 0);
+  DCHECK_GT(buf_len, 0);
   DCHECK(!core_->write_iobuffer_);
 
   static StatsCounter reads("tcp.writes");
@@ -509,8 +509,8 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
 
   TRACE_EVENT_BEGIN("socket.write", this, "");
   // TODO(wtc): Remove the CHECK after enough testing.
-  CHECK(
-      WaitForSingleObject(core_->write_overlapped_.hEvent, 0) == WAIT_TIMEOUT);
+  CHECK_EQ(WAIT_TIMEOUT,
+           WaitForSingleObject(core_->write_overlapped_.hEvent, 0));
   DWORD num;
   int rv = WSASend(socket_, &core_->write_buffer_, 1, &num, 0,
                    &core_->write_overlapped_, NULL);

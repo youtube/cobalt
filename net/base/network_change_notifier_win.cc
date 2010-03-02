@@ -51,7 +51,7 @@ NetworkChangeNotifierWin::Impl::~Impl() {
 void NetworkChangeNotifierWin::Impl::WatchForAddressChange() {
   HANDLE handle = NULL;
   DWORD ret = NotifyAddrChange(&handle, &addr_overlapped_);
-  CHECK(ret == ERROR_IO_PENDING);
+  CHECK_EQ(ERROR_IO_PENDING, ret);
   addr_watcher_.StartWatching(addr_overlapped_.hEvent, this);
 }
 
