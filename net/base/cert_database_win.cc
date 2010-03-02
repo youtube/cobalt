@@ -5,6 +5,7 @@
 #include "net/base/cert_database.h"
 
 #include "base/logging.h"
+#include "net/base/net_errors.h"
 
 namespace net {
 
@@ -12,9 +13,14 @@ CertDatabase::CertDatabase() {
   NOTIMPLEMENTED();
 }
 
-bool CertDatabase::AddUserCert(const char* data, int len) {
+int CertDatabase::CheckUserCert(X509Certificate* cert) {
   NOTIMPLEMENTED();
-  return false;
+  return ERR_NOT_IMPLEMENTED;
+}
+
+int CertDatabase::AddUserCert(X509Certificate* cert) {
+  NOTIMPLEMENTED();
+  return ERR_NOT_IMPLEMENTED;
 }
 
 void CertDatabase::Init() {
