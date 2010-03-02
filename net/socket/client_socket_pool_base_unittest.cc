@@ -1106,13 +1106,6 @@ TEST_F(ClientSocketPoolBaseTest, GroupWithPendingRequestsIsNotEmpty) {
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
 }
 
-class ClientSocketPoolBaseTest_LateBinding : public ClientSocketPoolBaseTest {
- protected:
-  virtual void SetUp() {
-    ClientSocketPoolBaseTest::SetUp();
-  }
-};
-
 TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
