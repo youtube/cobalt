@@ -101,13 +101,13 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int32 GetDataSize(int index) const {
-    DCHECK(index >= 0 && index < 2);
+    DCHECK(index >= 0 && index < 3);
     return static_cast<int32>(data_[index].size());
   }
 
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
                        net::CompletionCallback* callback) {
-    DCHECK(index >= 0 && index < 2);
+    DCHECK(index >= 0 && index < 3);
 
     if (fail_requests_)
       return net::ERR_CACHE_READ_FAILURE;
@@ -130,7 +130,7 @@ class MockDiskEntry : public disk_cache::Entry,
 
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
                         net::CompletionCallback* callback, bool truncate) {
-    DCHECK(index >= 0 && index < 2);
+    DCHECK(index >= 0 && index < 3);
     DCHECK(truncate);
 
     if (fail_requests_)
@@ -338,7 +338,7 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   std::string key_;
-  std::vector<char> data_[2];
+  std::vector<char> data_[3];
   int test_mode_;
   bool doomed_;
   bool sparse_;
@@ -4219,4 +4219,133 @@ TEST(HttpCache, UpdatesRequestResponseTimeOn304) {
             headers);
 
   RemoveMockTransaction(&mock_network_response);
+}
+
+// Tests that we can write metadata to an entry.
+TEST(HttpCache, WriteMetadata_OK) {
+  MockHttpCache cache;
+
+  // Write to the cache
+  net::HttpResponseInfo response;
+  RunTransactionTestWithResponseInfo(cache.http_cache(), kSimpleGET_Transaction,
+                                     &response);
+  EXPECT_TRUE(response.metadata.get() == NULL);
+
+  // Trivial call.
+  cache.http_cache()->WriteMetadata(GURL("foo"), Time::Now(), NULL, 0);
+
+  // Write meta data to the same entry.
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(50));
+  memset(buf->data(), 0, buf->size());
+  base::strlcpy(buf->data(), "Hi there", buf->size());
+  cache.http_cache()->WriteMetadata(GURL(kSimpleGET_Transaction.url),
+                                    response.response_time, buf, buf->size());
+
+  // Release the buffer before the operation takes place.
+  buf = NULL;
+
+  // Makes sure we finish pending operations.
+  MessageLoop::current()->RunAllPending();
+
+  RunTransactionTestWithResponseInfo(cache.http_cache(), kSimpleGET_Transaction,
+                                     &response);
+  ASSERT_TRUE(response.metadata.get() != NULL);
+  EXPECT_EQ(50, response.metadata->size());
+  EXPECT_EQ(0, strcmp(response.metadata->data(), "Hi there"));
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+}
+
+// Tests that we only write metadata to an entry if the time stamp matches.
+TEST(HttpCache, WriteMetadata_Fail) {
+  MockHttpCache cache;
+
+  // Write to the cache
+  net::HttpResponseInfo response;
+  RunTransactionTestWithResponseInfo(cache.http_cache(), kSimpleGET_Transaction,
+                                     &response);
+  EXPECT_TRUE(response.metadata.get() == NULL);
+
+  // Attempt to write meta data to the same entry.
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(50));
+  memset(buf->data(), 0, buf->size());
+  base::strlcpy(buf->data(), "Hi there", buf->size());
+  base::Time expected_time = response.response_time -
+                             base::TimeDelta::FromMilliseconds(20);
+  cache.http_cache()->WriteMetadata(GURL(kSimpleGET_Transaction.url),
+                                    expected_time, buf, buf->size());
+
+  // Makes sure we finish pending operations.
+  MessageLoop::current()->RunAllPending();
+
+  RunTransactionTestWithResponseInfo(cache.http_cache(), kSimpleGET_Transaction,
+                                     &response);
+  EXPECT_TRUE(response.metadata.get() == NULL);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+}
+
+// Tests that we can read metadata after validating the entry and with READ mode
+// transactions.
+TEST(HttpCache, ReadMetadata) {
+  MockHttpCache cache;
+
+  // Write to the cache
+  net::HttpResponseInfo response;
+  RunTransactionTestWithResponseInfo(cache.http_cache(),
+                                     kTypicalGET_Transaction, &response);
+  EXPECT_TRUE(response.metadata.get() == NULL);
+
+  // Write meta data to the same entry.
+  scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(50));
+  memset(buf->data(), 0, buf->size());
+  base::strlcpy(buf->data(), "Hi there", buf->size());
+  cache.http_cache()->WriteMetadata(GURL(kTypicalGET_Transaction.url),
+                                    response.response_time, buf, buf->size());
+
+  // Makes sure we finish pending operations.
+  MessageLoop::current()->RunAllPending();
+
+  // Start with a READ mode transaction.
+  MockTransaction trans1(kTypicalGET_Transaction);
+  trans1.load_flags = net::LOAD_ONLY_FROM_CACHE;
+
+  RunTransactionTestWithResponseInfo(cache.http_cache(), trans1, &response);
+  ASSERT_TRUE(response.metadata.get() != NULL);
+  EXPECT_EQ(50, response.metadata->size());
+  EXPECT_EQ(0, strcmp(response.metadata->data(), "Hi there"));
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  MessageLoop::current()->RunAllPending();
+
+  // Now make sure that the entry is re-validated with the server.
+  trans1.load_flags = net::LOAD_VALIDATE_CACHE;
+  trans1.status = "HTTP/1.1 304 Not Modified";
+  AddMockTransaction(&trans1);
+
+  response.metadata = NULL;
+  RunTransactionTestWithResponseInfo(cache.http_cache(), trans1, &response);
+  EXPECT_TRUE(response.metadata.get() != NULL);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(3, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+  MessageLoop::current()->RunAllPending();
+  RemoveMockTransaction(&trans1);
+
+  // Now return 200 when validating the entry so the metadata will be lost.
+  MockTransaction trans2(kTypicalGET_Transaction);
+  trans2.load_flags = net::LOAD_VALIDATE_CACHE;
+  RunTransactionTestWithResponseInfo(cache.http_cache(), trans2, &response);
+  EXPECT_TRUE(response.metadata.get() == NULL);
+
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(4, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
