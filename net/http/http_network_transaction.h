@@ -42,6 +42,10 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Sets the next protocol negotiation value used during the SSL handshake.
   static void SetNextProtos(const std::string& next_protos);
 
+  // Sets the HttpNetworkTransaction into a mode where it can ignore
+  // certificate errors.  This is for testing.
+  static void IgnoreCertificateErrors(bool enabled);
+
   // HttpTransaction methods:
   virtual int Start(const HttpRequestInfo* request_info,
                     CompletionCallback* callback,
@@ -257,6 +261,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   static std::string AuthTargetString(HttpAuth::Target target);
 
   static std::string* g_next_protos;
+
+  static bool g_ignore_certificate_errors;
 
   // The following three auth members are arrays of size two -- index 0 is
   // for the proxy server, and index 1 is for the origin server.
