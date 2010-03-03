@@ -1186,9 +1186,6 @@ void HttpNetworkTransaction::LogTCPConnectedMetrics(
   const base::TimeDelta time_to_obtain_connected_socket =
       base::TimeTicks::Now() - handle.init_time();
 
-  static const bool use_late_binding_histogram =
-      !FieldTrial::MakeName("", "SocketLateBinding").empty();
-
   if (handle.reuse_type() == ClientSocketHandle::UNUSED) {
     UMA_HISTOGRAM_CUSTOM_TIMES(
         "Net.HttpConnectionLatency",
@@ -1200,26 +1197,11 @@ void HttpNetworkTransaction::LogTCPConnectedMetrics(
   UMA_HISTOGRAM_ENUMERATION("Net.TCPSocketType", handle.reuse_type(),
       ClientSocketHandle::NUM_TYPES);
 
-  if (use_late_binding_histogram) {
-    UMA_HISTOGRAM_ENUMERATION(
-        FieldTrial::MakeName("Net.TCPSocketType", "SocketLateBinding"),
-        handle.reuse_type(), ClientSocketHandle::NUM_TYPES);
-  }
-
   UMA_HISTOGRAM_CLIPPED_TIMES(
       "Net.TransportSocketRequestTime",
       time_to_obtain_connected_socket,
       base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
       100);
-
-  if (use_late_binding_histogram) {
-    UMA_HISTOGRAM_CUSTOM_TIMES(
-        FieldTrial::MakeName("Net.TransportSocketRequestTime",
-                             "SocketLateBinding").data(),
-        time_to_obtain_connected_socket,
-        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-        100);
-  }
 
   switch (handle.reuse_type()) {
     case ClientSocketHandle::UNUSED:
@@ -1229,26 +1211,12 @@ void HttpNetworkTransaction::LogTCPConnectedMetrics(
           "Net.SocketIdleTimeBeforeNextUse_UnusedSocket",
           handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
           base::TimeDelta::FromMinutes(6), 100);
-      if (use_late_binding_histogram) {
-        UMA_HISTOGRAM_CUSTOM_TIMES(
-            FieldTrial::MakeName("Net.SocketIdleTimeBeforeNextUse_UnusedSocket",
-                                 "SocketLateBinding").data(),
-            handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
-            base::TimeDelta::FromMinutes(6), 100);
-      }
       break;
     case ClientSocketHandle::REUSED_IDLE:
       UMA_HISTOGRAM_CUSTOM_TIMES(
           "Net.SocketIdleTimeBeforeNextUse_ReusedSocket",
           handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
           base::TimeDelta::FromMinutes(6), 100);
-      if (use_late_binding_histogram) {
-        UMA_HISTOGRAM_CUSTOM_TIMES(
-            FieldTrial::MakeName("Net.SocketIdleTimeBeforeNextUse_ReusedSocket",
-                                 "SocketLateBinding").data(),
-            handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
-            base::TimeDelta::FromMinutes(6), 100);
-      }
       break;
     default:
       NOTREACHED();
