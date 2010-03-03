@@ -26,11 +26,11 @@ void UpdateConnectionTypeHistograms(ConnectionType type) {
   if (type >= 0 && type < NUM_OF_CONNECTION_TYPES) {
     if (!had_connection_type[type]) {
       had_connection_type[type] = true;
-      UMA_HISTOGRAM_ENUMERATION("Net.HadConnectionType2",
+      UMA_HISTOGRAM_ENUMERATION("Net.HadConnectionType3",
           type, NUM_OF_CONNECTION_TYPES);
     }
 
-    UMA_HISTOGRAM_ENUMERATION("Net.ConnectionTypeCount2",
+    UMA_HISTOGRAM_ENUMERATION("Net.ConnectionTypeCount3",
         type, NUM_OF_CONNECTION_TYPES);
   } else {
     NOTREACHED();  // Someone's logging an invalid type!
