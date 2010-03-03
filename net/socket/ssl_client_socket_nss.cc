@@ -655,7 +655,7 @@ void SSLClientSocketNSS::CheckSecureRenegotiation() const {
                                        &received_renego_info) == SECSuccess &&
       !received_renego_info) {
     LOG(INFO) << "The server " << hostname_
-              << " does not support SSL secure renegotiation.";
+              << " does not support the TLS renegotiation_info extension.";
   }
 #endif
 }
