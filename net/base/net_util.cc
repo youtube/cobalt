@@ -1080,6 +1080,16 @@ FilePath GetSuggestedFilename(const GURL& url,
     }
   }
 
+#if defined(OS_WIN)
+  { // Handle CreateFile() stripping trailing dots and spaces on filenames
+    // http://support.microsoft.com/kb/115827
+    std::string::size_type pos = filename.find_last_not_of(L" .");
+    if (pos == std::string::npos)
+      filename.resize(0);
+    else
+      filename.resize(++pos);
+  }
+#endif
   // Trim '.' once more.
   TrimString(filename, FILE_PATH_LITERAL("."), &filename);
 
