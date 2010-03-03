@@ -143,6 +143,7 @@ void BuildTunnelRequest(const HttpRequestInfo* request_info,
 //-----------------------------------------------------------------------------
 
 std::string* HttpNetworkTransaction::g_next_protos = NULL;
+bool HttpNetworkTransaction::g_ignore_certificate_errors = false;
 
 HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
     : pending_auth_target_(HttpAuth::AUTH_NONE),
@@ -172,6 +173,11 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
 void HttpNetworkTransaction::SetNextProtos(const std::string& next_protos) {
   delete g_next_protos;
   g_next_protos = new std::string(next_protos);
+}
+
+// static
+void HttpNetworkTransaction::IgnoreCertificateErrors(bool enabled) {
+  g_ignore_certificate_errors = enabled;
 }
 
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
@@ -776,27 +782,8 @@ int HttpNetworkTransaction::DoSSLConnect() {
 }
 
 int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
-  SSLClientSocket* ssl_socket =
-      reinterpret_cast<SSLClientSocket*>(connection_->socket());
-
-  SSLClientSocket::NextProtoStatus status =
-      SSLClientSocket::kNextProtoUnsupported;
-  std::string proto;
-  // GetNextProto will fail and and trigger a NOTREACHED if we pass in a socket
-  // that hasn't had SSL_ImportFD called on it. If we get a certificate error
-  // here, then we know that we called SSL_ImportFD.
-  if (result == OK || IsCertificateError(result))
-    status = ssl_socket->GetNextProto(&proto);
-  static const char kSpdyProto[] = "spdy";
-  using_spdy_ = (status == SSLClientSocket::kNextProtoNegotiated &&
-                 proto == kSpdyProto);
-
   if (IsCertificateError(result)) {
     result = HandleCertificateError(result);
-    // TODO(wtc): We currently ignore certificate errors for
-    // spdy but we shouldn't. http://crbug.com/32020
-    if (using_spdy_)
-      result = OK;
     if (result == OK && !connection_->socket()->IsConnectedAndIdle()) {
       connection_->socket()->Disconnect();
       connection_->Reset();
@@ -806,6 +793,14 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
   }
 
   if (result == OK) {
+    static const char kSpdyProto[] = "spdy";
+    std::string proto;
+    SSLClientSocket* ssl_socket =
+        reinterpret_cast<SSLClientSocket*>(connection_->socket());
+    SSLClientSocket::NextProtoStatus status = ssl_socket->GetNextProto(&proto);
+    using_spdy_ = (status == SSLClientSocket::kNextProtoNegotiated &&
+                   proto == kSpdyProto);
+
     DCHECK(ssl_connect_start_time_ != base::TimeTicks());
     base::TimeDelta connect_duration =
         base::TimeTicks::Now() - ssl_connect_start_time_;
@@ -1391,6 +1386,9 @@ void HttpNetworkTransaction::LogBlockedTunnelResponse(
 int HttpNetworkTransaction::HandleCertificateError(int error) {
   DCHECK(using_ssl_);
   DCHECK(IsCertificateError(error));
+
+  if (g_ignore_certificate_errors)
+    return OK;
 
   SSLClientSocket* ssl_socket =
     reinterpret_cast<SSLClientSocket*>(connection_->socket());
