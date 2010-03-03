@@ -122,9 +122,19 @@ int main(int argc, const char** argv) {
   av_register_all();
   av_register_protocol(&kFFmpegFileProtocol);
   AVFormatContext* format_context = NULL;
-  if (av_open_input_file(&format_context, in_path.c_str(), NULL, 0, NULL) < 0) {
-    std::cerr << "Error: Could not open input for "
-              << in_path << std::endl;
+  int result = av_open_input_file(&format_context, in_path.c_str(),
+                                  NULL, 0, NULL);
+  if (result < 0) {
+    switch (result) {
+      case AVERROR_NOFMT:
+        std::cerr << "Error: File format not supported "
+                  << in_path << std::endl;
+        break;
+      default:
+        std::cerr << "Error: Could not open input for "
+                  << in_path << std::endl;
+        break;
+    }
     return 1;
   }
 
