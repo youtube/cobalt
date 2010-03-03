@@ -101,7 +101,7 @@ class IDMap {
   template<class ReturnType>
   class Iterator {
    public:
-    Iterator(IDMap<T, OS>* map)
+    Iterator(IDMap<T>* map)
         : map_(map),
           iter_(map_->data_.begin()) {
       ++map_->iteration_depth_;
@@ -139,7 +139,7 @@ class IDMap {
       }
     }
 
-    IDMap<T, OS>* map_;
+    IDMap<T>* map_;
     typename HashTable::const_iterator iter_;
   };
 
