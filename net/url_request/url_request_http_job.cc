@@ -591,23 +591,12 @@ void URLRequestHttpJob::NotifyHeadersComplete() {
   URLRequestJob::NotifyHeadersComplete();
 }
 
-#if defined(OS_WIN)
-#pragma optimize("", off)
-#pragma warning(disable:4748)
-#endif
 void URLRequestHttpJob::DestroyTransaction() {
-  CHECK(transaction_.get());
-  // TODO(rvargas): remove this after finding the cause for bug 31723.
-  char local_obj[sizeof(*this)];
-  memcpy(local_obj, this, sizeof(local_obj));
+  DCHECK(transaction_.get());
 
   transaction_.reset();
   response_info_ = NULL;
 }
-#if defined(OS_WIN)
-#pragma warning(default:4748)
-#pragma optimize("", on)
-#endif
 
 void URLRequestHttpJob::StartTransaction() {
   // NOTE: This method assumes that request_info_ is already setup properly.
