@@ -645,18 +645,13 @@ bool SSLClientSocketWin::SetSendBufferSize(int32 size) {
 void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
   int rv = DoLoop(result);
 
-  // The SSL handshake has some round trips.  Any error, other than waiting
-  // for IO, means that we've failed and need to notify the caller.
+  // The SSL handshake has some round trips.  We need to notify the caller of
+  // success or any error, other than waiting for IO.
   if (rv != ERR_IO_PENDING) {
-    LoadLog::EndEvent(load_log_, LoadLog::TYPE_SSL_CONNECT);
-    load_log_ = NULL;
-
-    // If there is no connect callback available to call, it had better be
-    // because we are renegotiating (which occurs because we are in the middle
-    // of a Read when the renegotiation process starts).  We need to inform the
-    // caller of the SSL error, so we complete the Read here.
+    // If there is no connect callback available to call, we are renegotiating
+    // (which occurs because we are in the middle of a Read when the
+    // renegotiation process starts).  So we complete the Read here.
     if (!user_connect_callback_) {
-      DCHECK(renegotiating_);
       CompletionCallback* c = user_read_callback_;
       user_read_callback_ = NULL;
       user_read_buf_ = NULL;
@@ -664,6 +659,8 @@ void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
       c->Run(rv);
       return;
     }
+    LoadLog::EndEvent(load_log_, LoadLog::TYPE_SSL_CONNECT);
+    load_log_ = NULL;
     CompletionCallback* c = user_connect_callback_;
     user_connect_callback_ = NULL;
     c->Run(rv);
@@ -1285,7 +1282,8 @@ int SSLClientSocketWin::DoCompletedRenegotiation(int result) {
   // The user had a read in progress, which was usurped by the renegotiation.
   // Restart the read sequence.
   next_state_ = STATE_COMPLETED_HANDSHAKE;
-  DCHECK(result == OK);
+  if (result != OK)
+    return result;
   return DoPayloadRead();
 }
 
@@ -1322,6 +1320,8 @@ int SSLClientSocketWin::DidCompleteHandshake() {
 // Called when a renegotiation is completed.  |result| is the verification
 // result of the server certificate received during renegotiation.
 void SSLClientSocketWin::DidCompleteRenegotiation() {
+  DCHECK(!user_connect_callback_);
+  DCHECK(user_read_callback_);
   renegotiating_ = false;
   next_state_ = STATE_COMPLETED_RENEGOTIATION;
 }

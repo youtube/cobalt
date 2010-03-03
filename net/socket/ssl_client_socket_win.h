@@ -164,8 +164,6 @@ class SSLClientSocketWin : public SSLClientSocket {
   // state.
   bool writing_first_token_;
 
-  bool completed_handshake_;
-
   // Only used in the STATE_HANDSHAKE_READ_COMPLETE and
   // STATE_PAYLOAD_READ_COMPLETE states.  True if a 'result' argument of OK
   // should be ignored, to prevent it from being interpreted as EOF.
