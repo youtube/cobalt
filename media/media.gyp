@@ -317,6 +317,7 @@
         'omx/omx_input_buffer.cc',
         'omx/omx_input_buffer.h',
       ],
+      'hard_dependency': 1,
       'export_dependent_settings': [
         '../third_party/openmax/openmax.gyp:il',
       ],
