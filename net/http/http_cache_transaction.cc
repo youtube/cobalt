@@ -131,15 +131,7 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
                  Invalid_number_of_validation_headers);
 }
 
-#if defined(OS_WIN)
-#pragma optimize("", off)
-#pragma warning(disable:4748)
-#endif
 HttpCache::Transaction::~Transaction() {
-  // TODO(rvargas): remove this after finding the cause for bug 31723.
-  char local_obj[sizeof(*this)];
-  memcpy(local_obj, this, sizeof(local_obj));
-
   // We may have to issue another IO, but we should never invoke the callback_
   // after this point.
   callback_ = NULL;
@@ -170,10 +162,6 @@ HttpCache::Transaction::~Transaction() {
   // cache_ pointer to signal that we are dead.  See DoCacheReadCompleted.
   cache_.reset();
 }
-#if defined(OS_WIN)
-#pragma warning(default:4748)
-#pragma optimize("", on)
-#endif
 
 int HttpCache::Transaction::Start(const HttpRequestInfo* request,
                                   CompletionCallback* callback,
