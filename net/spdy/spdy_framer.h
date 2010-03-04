@@ -148,6 +148,13 @@ class SpdyFramer {
   static SpdyRstStreamControlFrame* CreateRstStream(SpdyStreamId stream_id,
                                                     int status);
 
+  // Creates an instance of SpdyGoAwayControlFrame. The GOAWAY frame is used
+  // prior to the shutting down of the TCP connection, and includes the
+  // stream_id of the last stream the sender of the frame is willing to process
+  // to completion.
+  static SpdyGoAwayControlFrame* CreateGoAway(
+      SpdyStreamId last_accepted_stream_id);
+
   // Create a SpdySynReplyControlFrame.
   // |stream_id| is the stream for this frame.
   // |flags| is the flags to use with the data.
