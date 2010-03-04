@@ -91,6 +91,9 @@
 
       # Set Neon compilation flags (only meaningful if armv7==1).
       'arm_neon%': 1,
+
+      # The system root for cross-compiles. Default: none.
+      'sysroot%': '',
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -107,6 +110,7 @@
     'python_ver%': '<(python_ver)',
     'armv7%': '<(armv7)',
     'arm_neon%': '<(arm_neon)',
+    'sysroot%': '<(sysroot)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -187,9 +191,6 @@
     # but that doesn't work as we'd like.
     'msvs_debug_link_incremental%': '2',
 
-    # The system root for cross-compiles. Default: none.
-    'sysroot%': '',
-
     # This is the location of the sandbox binary. Chrome looks for this before
     # running the zygote process. If found, and SUID, it will be used to
     # sandbox the zygote process and, thus, all renderer processes.
@@ -219,6 +220,8 @@
         # This will set gcc_version to XY if you are running gcc X.Y.*.
         # This is used to tweak build flags for gcc 4.4.
         'gcc_version%': '<!(python <(DEPTH)/build/compiler_version.py)',
+        # Figure out the python architecture to decide if we build pyauto.
+        'python_arch%': '<!(<(DEPTH)/build/linux/python_arch.sh <(sysroot)/usr/bin/python<(python_ver))',
         'conditions': [
           ['branding=="Chrome" or linux_chromium_breakpad==1', {
             'linux_breakpad%': 1,
