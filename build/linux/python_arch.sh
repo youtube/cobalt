@@ -6,8 +6,8 @@
 # This figures out the architecture of the version of Python we are building
 # pyautolib against.
 #
-#  python_arch.sh /usr/bin/python2.5
-#  python_arch.sh /path/to/sysroot/usr/bin/python2.4
+#  python_arch.sh /usr/lib/libpython2.5.so.1.0
+#  python_arch.sh /path/to/sysroot/usr/lib/libpython2.4.so.1.0
 #
 
 set -e
