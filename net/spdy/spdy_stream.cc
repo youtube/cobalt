@@ -371,8 +371,9 @@ bool SpdyStream::ShouldWaitForMoreBufferedData() const {
 void SpdyStream::DoBufferedReadCallback() {
   buffered_read_callback_pending_ = false;
 
-  // If the response_status_ is not ok, we don't attempt to complete the read.
-  if (response_status_ != OK)
+  // If the transaction is cancelled or errored out, we don't need to complete
+  // the read.
+  if (response_status_ != OK || cancelled_)
     return;
 
   // When more_read_data_pending_ is true, it means that more data has
