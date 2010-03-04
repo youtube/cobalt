@@ -848,6 +848,8 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame* frame,
                         const spdy::SpdyHeaderBlock* headers) {
   spdy::SpdyStreamId stream_id = frame->stream_id();
 
+  LOG(INFO) << "Spdy SynStream for stream " << stream_id;
+
   // Server-initiated streams should have even sequence numbers.
   if ((stream_id & 0x1) != 0) {
     LOG(ERROR) << "Received invalid OnSyn stream id " << stream_id;
@@ -937,6 +939,8 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame* frame,
                              const spdy::SpdyHeaderBlock* headers) {
   DCHECK(headers);
   spdy::SpdyStreamId stream_id = frame->stream_id();
+  LOG(INFO) << "Spdy SynReply for stream " << stream_id;
+
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
     // NOTE:  it may just be that the stream was cancelled.
@@ -1001,18 +1005,15 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
 
   switch (type) {
     case spdy::SYN_STREAM:
-      LOG(INFO) << "Spdy SynStream for stream " << frame->stream_id();
       OnSyn(reinterpret_cast<const spdy::SpdySynStreamControlFrame*>(frame),
             &headers);
       break;
     case spdy::SYN_REPLY:
-      LOG(INFO) << "Spdy SynReply for stream " << frame->stream_id();
       OnSynReply(
           reinterpret_cast<const spdy::SpdySynReplyControlFrame*>(frame),
           &headers);
       break;
     case spdy::RST_STREAM:
-      LOG(INFO) << "Spdy Fin for stream " << frame->stream_id();
       OnFin(reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
       break;
     default:
@@ -1022,6 +1023,8 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
 
 void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame* frame) {
   spdy::SpdyStreamId stream_id = frame->stream_id();
+  LOG(INFO) << "Spdy Fin for stream " << stream_id;
+
   bool valid_stream = IsStreamActive(stream_id);
   if (!valid_stream) {
     // NOTE:  it may just be that the stream was cancelled.
