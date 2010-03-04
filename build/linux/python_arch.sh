@@ -10,12 +10,16 @@
 #  python_arch.sh /path/to/sysroot/usr/lib/libpython2.4.so.1.0
 #
 
-set -e
-
 python=$(readlink -f "$1")
+if [ -z "$python" ]; then
+  echo unknown
+  exit 0;
+fi
 file_out=$(file "$python")
-
-set +e
+if [ -z "$file_out" ]; then
+  echo unknown
+  exit 0;
+fi
 
 echo $file_out | grep -qs "ARM"
 if [ $? -eq 0 ]; then
