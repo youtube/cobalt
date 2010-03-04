@@ -11,12 +11,12 @@
 #
 
 python=$(readlink -f "$1")
-if [ -z "$python" ]; then
+if [ ! -r "$python" ]; then
   echo unknown
   exit 0;
 fi
 file_out=$(file "$python")
-if [ -z "$file_out" ]; then
+if [ $? -ne 0 ]; then
   echo unknown
   exit 0;
 fi
