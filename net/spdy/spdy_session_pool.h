@@ -47,6 +47,12 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   scoped_refptr<SpdySession> Get(
       const HostPortPair& host_port_pair, HttpNetworkSession* session);
 
+  // Set the maximum concurrent sessions per domain.
+  static void set_max_sessions_per_domain(int max) {
+    if (max >= 1)
+      g_max_sessions_per_domain = max;
+  }
+
   // Builds a SpdySession from an existing SSL socket.  Users should try
   // calling Get() first to use an existing SpdySession so we don't get
   // multiple SpdySessions per domain.  Note that ownership of |connection| is
@@ -85,6 +91,8 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;
+
+  static int g_max_sessions_per_domain;
 
   DISALLOW_COPY_AND_ASSIGN(SpdySessionPool);
 };
