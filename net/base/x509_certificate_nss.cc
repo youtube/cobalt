@@ -472,9 +472,6 @@ void X509Certificate::Initialize() {
   ParseDate(&cert_handle_->validity.notAfter, &valid_expiry_);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
-
-  // Store the certificate in the cache in case we need it later.
-  X509Certificate::Cache::GetInstance()->Insert(this);
 }
 
 // static
@@ -627,6 +624,12 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
   if (!cert)
     LOG(ERROR) << "Couldn't parse a certificate from " << length << " bytes";
   return cert;
+}
+
+// static
+X509Certificate::OSCertHandle X509Certificate::DupOSCertHandle(
+    OSCertHandle cert_handle) {
+  return CERT_DupCertificate(cert_handle);
 }
 
 // static
