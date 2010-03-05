@@ -1150,7 +1150,9 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
     CERT_FreeNicknames(names);
   }
 
-  return SECFailure;
+  // Tell NSS to suspend the client authentication.  We will then abort the
+  // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
+  return SECWouldBlock;
 #endif
 }
 
@@ -1286,7 +1288,7 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
   }
 
   completed_handshake_ = true;
-  // TODO(ukai): we may not need this call because it is now harmless to have an
+  // TODO(ukai): we may not need this call because it is now harmless to have a
   // session with a bad cert.
   InvalidateSessionIfBadCertificate();
   // Exit DoHandshakeLoop and return the result to the caller to Connect.
