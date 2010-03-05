@@ -595,33 +595,7 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
       if (!cert_store_)
         cert_store_ = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL);
 
-      // Get each of the intermediate certificates in the server's chain.
-      // These will be added to the server's X509Certificate object, making
-      // them available to X509Certificate::Verify() for chain building.
-      X509Certificate::OSCertHandles intermediate_ca_certs;
       PCCERT_CONTEXT cert_context = NULL;
-      CERTCertList* cert_list = CERT_GetCertChainFromCert(
-          server_cert_nss_, PR_Now(), certUsageSSLCA);
-      if (cert_list) {
-        for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
-             !CERT_LIST_END(node, cert_list);
-             node = CERT_LIST_NEXT(node)) {
-          cert_context = NULL;
-          BOOL ok = CertAddEncodedCertificateToStore(
-              cert_store_,
-              X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-              node->cert->derCert.data,
-              node->cert->derCert.len,
-              CERT_STORE_ADD_USE_EXISTING,
-              &cert_context);
-          DCHECK(ok);
-          if (node->cert != server_cert_nss_)
-            intermediate_ca_certs.push_back(cert_context);
-        }
-        CERT_DestroyCertList(cert_list);
-      }
-
-      // Finally create the X509Certificate object.
       BOOL ok = CertAddEncodedCertificateToStore(
           cert_store_,
           X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
@@ -631,16 +605,38 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
           &cert_context);
       DCHECK(ok);
       server_cert_ = X509Certificate::CreateFromHandle(
-          cert_context,
-          X509Certificate::SOURCE_FROM_NETWORK,
-          intermediate_ca_certs);
-      for (size_t i = 0; i < intermediate_ca_certs.size(); ++i)
-        CertFreeCertificateContext(intermediate_ca_certs[i]);
+          cert_context, X509Certificate::SOURCE_FROM_NETWORK);
+
+      // Add each of the intermediate certificates in the server's chain to
+      // the server's X509Certificate object. This makes them available to
+      // X509Certificate::Verify() for chain building.
+      // TODO(wtc): Since X509Certificate::CreateFromHandle may return a
+      // cached X509Certificate object, we may be adding intermediate CA
+      // certificates to it repeatedly!
+      CERTCertList* cert_list = CERT_GetCertChainFromCert(
+          server_cert_nss_, PR_Now(), certUsageSSLCA);
+      if (cert_list) {
+        for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
+             !CERT_LIST_END(node, cert_list);
+             node = CERT_LIST_NEXT(node)) {
+          cert_context = NULL;
+          ok = CertAddEncodedCertificateToStore(
+              cert_store_,
+              X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+              node->cert->derCert.data,
+              node->cert->derCert.len,
+              CERT_STORE_ADD_USE_EXISTING,
+              &cert_context);
+          DCHECK(ok);
+          if (node->cert != server_cert_nss_)
+            server_cert_->AddIntermediateCertificate(cert_context);
+        }
+        CERT_DestroyCertList(cert_list);
+      }
 #else
       server_cert_ = X509Certificate::CreateFromHandle(
           CERT_DupCertificate(server_cert_nss_),
-          X509Certificate::SOURCE_FROM_NETWORK,
-          X509Certificate::OSCertHandles());
+          X509Certificate::SOURCE_FROM_NETWORK);
 #endif
     }
   }
@@ -1143,8 +1139,7 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
         privkey = PK11_FindKeyByAnyCert(cert, wincx);
         if (privkey) {
           X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
-              cert, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-              net::X509Certificate::OSCertHandles());
+              cert, X509Certificate::SOURCE_LONE_CERT_IMPORT);
           that->client_certs_.push_back(x509_cert);
           SECKEY_DestroyPrivateKey(privkey);
           continue;
