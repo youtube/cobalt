@@ -609,19 +609,11 @@ bool SetLastModifiedTime(const FilePath& file_path, base::Time last_modified) {
 
 FILE* OpenFile(const FilePath& filename, const char* mode) {
   std::wstring w_mode = ASCIIToWide(std::string(mode));
-  FILE* file;
-  if (_wfopen_s(&file, filename.value().c_str(), w_mode.c_str()) != 0) {
-    return NULL;
-  }
-  return file;
+  return _wfsopen(filename.value().c_str(), w_mode.c_str(), _SH_DENYNO);
 }
 
 FILE* OpenFile(const std::string& filename, const char* mode) {
-  FILE* file;
-  if (fopen_s(&file, filename.c_str(), mode) != 0) {
-    return NULL;
-  }
-  return file;
+  return _fsopen(filename.c_str(), mode, _SH_DENYNO);
 }
 
 int ReadFile(const FilePath& filename, char* data, int size) {
