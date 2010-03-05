@@ -12,6 +12,8 @@ namespace net {
 // The maximum number of sessions to open to a single domain.
 static const size_t kMaxSessionsPerDomain = 1;
 
+int SpdySessionPool::g_max_sessions_per_domain = kMaxSessionsPerDomain;
+
 SpdySessionPool::SpdySessionPool() {}
 SpdySessionPool::~SpdySessionPool() {
   CloseAllSessions();
@@ -22,7 +24,7 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
   scoped_refptr<SpdySession> spdy_session;
   SpdySessionList* list = GetSessionList(host_port_pair);
   if (list) {
-    if (list->size() >= kMaxSessionsPerDomain) {
+    if (list->size() >= static_cast<unsigned int>(g_max_sessions_per_domain)) {
       spdy_session = list->front();
       list->pop_front();
     }
@@ -36,7 +38,7 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
 
   DCHECK(spdy_session);
   list->push_back(spdy_session);
-  DCHECK(list->size() <= kMaxSessionsPerDomain);
+  DCHECK_LE(list->size(), static_cast<unsigned int>(g_max_sessions_per_domain));
   return spdy_session;
 }
 
