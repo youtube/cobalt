@@ -72,6 +72,8 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   typedef void* OSCertHandle;
 #endif
 
+  typedef std::vector<OSCertHandle> OSCertHandles;
+
   // Principal represent an X.509 principal.
   struct Principal {
     Principal() { }
@@ -152,10 +154,11 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // prefers the handle from the network because our HTTP cache isn't
   // caching the corresponding intermediate CA certificates yet
   // (http://crbug.com/7065).
-  //
+  // The list of intermediate certificates is ignored under NSS (i.e. Linux.)
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.
   static X509Certificate* CreateFromHandle(OSCertHandle cert_handle,
-                                           Source source);
+      Source source,
+      const OSCertHandles& intermediates);
 
   // Create an X509Certificate from the BER-encoded representation.
   // Returns NULL on failure.
@@ -210,19 +213,19 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   bool HasExpired() const;
 
 #if defined(OS_MACOSX) || defined(OS_WIN)
-  // Adds an untrusted intermediate certificate that may be needed for
-  // chain building.
-  void AddIntermediateCertificate(OSCertHandle cert) {
-    intermediate_ca_certs_.push_back(cert);
-  }
-
   // Returns intermediate certificates added via AddIntermediateCertificate().
   // Ownership follows the "get" rule: it is the caller's responsibility to
   // retain the elements of the result.
-  const std::vector<OSCertHandle>& GetIntermediateCertificates() const {
+  const OSCertHandles& GetIntermediateCertificates() const {
     return intermediate_ca_certs_;
   }
 #endif
+
+  // Returns true if I already contain the given intermediate cert.
+  bool HasIntermediateCertificate(OSCertHandle cert);
+
+  // Returns true if I already contain all the given intermediate certs.
+  bool HasIntermediateCertificates(const OSCertHandles& certs);
 
 #if defined(OS_MACOSX)
   // Does this certificate's usage allow SSL client authentication?
@@ -262,9 +265,14 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
   OSCertHandle os_cert_handle() const { return cert_handle_; }
 
+  // Returns true if two OSCertHandles refer to identical certificates.
+  static bool IsSameOSCert(OSCertHandle a, OSCertHandle b);
+
+
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
   FRIEND_TEST(X509CertificateTest, Cache);
+  FRIEND_TEST(X509CertificateTest, IntermediateCertificates);
 
   // A cache of X509Certificate objects.
   class Cache {
@@ -294,7 +302,8 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
   // Construct an X509Certificate from a handle to the certificate object
   // in the underlying crypto library.
-  X509Certificate(OSCertHandle cert_handle, Source source);
+  X509Certificate(OSCertHandle cert_handle, Source source,
+                  const OSCertHandles& intermediates);
 
   ~X509Certificate();
 
@@ -308,7 +317,10 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   static OSCertHandle CreateOSCertHandleFromBytes(const char* data,
                                                   int length);
 
-  // Frees an OS certificate handle.
+  // Duplicates (or adds a reference to) an OS certificate handle.
+  static OSCertHandle DupOSCertHandle(OSCertHandle cert_handle);
+
+  // Frees (or releases a reference to) an OS certificate handle.
   static void FreeOSCertHandle(OSCertHandle cert_handle);
 
   // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
@@ -335,8 +347,8 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
 #if defined(OS_MACOSX) || defined(OS_WIN)
   // Untrusted intermediate certificates associated with this certificate
-  // that may be needed for chain building.
-  std::vector<OSCertHandle> intermediate_ca_certs_;
+  // that may be needed for chain building. (NSS impl does not need these.)
+  OSCertHandles intermediate_ca_certs_;
 #endif
 
   // Where the certificate comes from.
