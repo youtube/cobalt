@@ -463,6 +463,9 @@ void X509Certificate::Initialize() {
   valid_expiry_ = Time::FromFileTime(cert_handle_->pCertInfo->NotAfter);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
+
+  // Store the certificate in the cache in case we need it later.
+  X509Certificate::Cache::GetInstance()->Insert(this);
 }
 
 // static
@@ -481,8 +484,7 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
       NULL, reinterpret_cast<const void **>(&cert_handle)))
     return NULL;
 
-  return CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT,
-                          OSCertHandles());
+  return CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT);
 }
 
 void X509Certificate::Persist(Pickle* pickle) {
@@ -742,13 +744,6 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     return NULL;
 
   return cert_handle;
-}
-
-
-// static
-X509Certificate::OSCertHandle X509Certificate::DupOSCertHandle(
-    OSCertHandle cert_handle) {
-  return CertDuplicateCertificateContext(cert_handle);
 }
 
 // static

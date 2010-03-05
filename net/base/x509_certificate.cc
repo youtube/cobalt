@@ -4,10 +4,6 @@
 
 #include "net/base/x509_certificate.h"
 
-#if defined(USE_NSS)
-#include <cert.h>
-#endif
-
 #include "base/histogram.h"
 #include "base/logging.h"
 #include "base/time.h"
@@ -27,33 +23,6 @@ bool IsNullFingerprint(const X509Certificate::Fingerprint& fingerprint) {
 }
 
 }  // namespace
-
-// static
-bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
-                                   X509Certificate::OSCertHandle b) {
-  DCHECK(a && b);
-  if (a == b)
-    return true;
-#if defined(OS_WIN)
-  return a->cbCertEncoded == b->cbCertEncoded &&
-      memcmp(a->pbCertEncoded, b->pbCertEncoded, a->cbCertEncoded) == 0;
-#elif defined(OS_MACOSX)
-  if (CFEqual(a, b))
-    return true;
-  CSSM_DATA a_data, b_data;
-  return SecCertificateGetData(a, &a_data) == noErr &&
-      SecCertificateGetData(b, &b_data) == noErr &&
-      a_data.Length == b_data.Length &&
-      memcmp(a_data.Data, b_data.Data, a_data.Length) == 0;
-#elif defined(USE_NSS)
-  return a->derCert.len == b->derCert.len &&
-      memcmp(a->derCert.data, b->derCert.data, a->derCert.len) == 0;
-#else
-  // TODO(snej): not implemented
-  UNREACHED();
-  return false;
-#endif
-}
 
 bool X509Certificate::FingerprintLessThan::operator()(
     const Fingerprint& lhs,
@@ -88,13 +57,14 @@ X509Certificate::Cache* X509Certificate::Cache::GetInstance() {
   return Singleton<X509Certificate::Cache>::get();
 }
 
-// Insert |cert| into the cache.  The cache does NOT AddRef |cert|.
-// Any existing certificate with the same fingerprint will be replaced.
+// Insert |cert| into the cache.  The cache does NOT AddRef |cert|.  The cache
+// must not already contain a certificate with the same fingerprint.
 void X509Certificate::Cache::Insert(X509Certificate* cert) {
   AutoLock lock(lock_);
 
   DCHECK(!IsNullFingerprint(cert->fingerprint())) <<
       "Only insert certs with real fingerprints.";
+  DCHECK(cache_.find(cert->fingerprint()) == cache_.end());
   cache_[cert->fingerprint()] = cert;
 };
 
@@ -163,10 +133,8 @@ bool X509Certificate::Policy::HasDeniedCert() const {
 }
 
 // static
-X509Certificate* X509Certificate::CreateFromHandle(
-    OSCertHandle cert_handle,
-    Source source,
-    const OSCertHandles& intermediates) {
+X509Certificate* X509Certificate::CreateFromHandle(OSCertHandle cert_handle,
+                                                   Source source) {
   DCHECK(cert_handle);
   DCHECK(source != SOURCE_UNUSED);
 
@@ -176,20 +144,18 @@ X509Certificate* X509Certificate::CreateFromHandle(
       cache->Find(CalculateFingerprint(cert_handle));
   if (cached_cert) {
     DCHECK(cached_cert->source_ != SOURCE_UNUSED);
-    if (cached_cert->source_ > source ||
-        (cached_cert->source_ == source &&
-         cached_cert->HasIntermediateCertificates(intermediates))) {
-      // Return the certificate with the same fingerprint from our cache.
-      // But we own the input OSCertHandle, which makes it our job to free it.
+    if (cached_cert->source_ >= source) {
+      // We've found a certificate with the same fingerprint in our cache.  We
+      // own the |cert_handle|, which makes it our job to free it.
       FreeOSCertHandle(cert_handle);
       DHISTOGRAM_COUNTS("X509CertificateReuseCount", 1);
       return cached_cert;
     }
-    // Else the new cert is better and will replace the old one in the cache.
+    // Kick out the old certificate from our cache.  The new one is better.
+    cache->Remove(cached_cert);
   }
-
   // Otherwise, allocate a new object.
-  return new X509Certificate(cert_handle, source, intermediates);
+  return new X509Certificate(cert_handle, source);
 }
 
 // static
@@ -199,25 +165,13 @@ X509Certificate* X509Certificate::CreateFromBytes(const char* data,
   if (!cert_handle)
     return NULL;
 
-  return CreateFromHandle(cert_handle,
-                          SOURCE_LONE_CERT_IMPORT,
-                          OSCertHandles());
+  return CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT);
 }
 
-X509Certificate::X509Certificate(OSCertHandle cert_handle,
-                                 Source source,
-                                 const OSCertHandles& intermediates)
+X509Certificate::X509Certificate(OSCertHandle cert_handle, Source source)
     : cert_handle_(cert_handle),
       source_(source) {
-#if defined(OS_MACOSX) || defined(OS_WIN)
-  // Copy/retain the intermediate cert handles.
-  for (size_t i = 0; i < intermediates.size(); ++i)
-    intermediate_ca_certs_.push_back(DupOSCertHandle(intermediates[i]));
-#endif
-  // Platform-specific initialization.
   Initialize();
-  // Store the certificate in the cache in case we need it later.
-  X509Certificate::Cache::GetInstance()->Insert(this);
 }
 
 X509Certificate::X509Certificate(const std::string& subject,
@@ -246,26 +200,6 @@ X509Certificate::~X509Certificate() {
 
 bool X509Certificate::HasExpired() const {
   return base::Time::Now() > valid_expiry();
-}
-
-bool X509Certificate::HasIntermediateCertificate(OSCertHandle cert) {
-#if defined(OS_MACOSX) || defined(OS_WIN)
-  for (size_t i = 0; i < intermediate_ca_certs_.size(); ++i) {
-    if (IsSameOSCert(cert, intermediate_ca_certs_[i]))
-      return true;
-  }
-  return false;
-#else
-  return true;
-#endif
-}
-
-bool X509Certificate::HasIntermediateCertificates(const OSCertHandles& certs) {
-  for (size_t i = 0; i < certs.size(); ++i) {
-    if (!HasIntermediateCertificate(certs[i]))
-      return false;
-  }
-  return true;
 }
 
 }  // namespace net
