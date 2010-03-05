@@ -405,9 +405,6 @@ void X509Certificate::Initialize() {
                     &valid_expiry_);
 
   fingerprint_ = CalculateFingerprint(cert_handle_);
-
-  // Store the certificate in the cache in case we need it later.
-  X509Certificate::Cache::GetInstance()->Insert(this);
 }
 
 // static
@@ -689,6 +686,14 @@ X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
 }
 
 // static
+X509Certificate::OSCertHandle X509Certificate::DupOSCertHandle(
+    OSCertHandle handle) {
+  if (!handle)
+    return NULL;
+  return reinterpret_cast<OSCertHandle>(const_cast<void*>(CFRetain(handle)));
+}
+
+// static
 void X509Certificate::FreeOSCertHandle(OSCertHandle cert_handle) {
   CFRelease(cert_handle);
 }
@@ -784,7 +789,8 @@ bool X509Certificate::GetSSLClientCertificates (
       continue;
 
     scoped_refptr<X509Certificate> cert(
-        CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT));
+        CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT,
+                         OSCertHandles()));
     // cert_handle is adoped by cert, so I don't need to release it myself.
     if (cert->HasExpired() || !cert->SupportsSSLClientAuth())
       continue;
