@@ -189,6 +189,7 @@ int NetErrorFromOSStatus(OSStatus status) {
     case errSSLPeerInsufficientSecurity...errSSLPeerUnknownCA:
       // (Note that all errSSLPeer* codes indicate errors reported by the
       // peer, so the cert-related ones refer to my _client_ cert.)
+      LOG(WARNING) << "Server rejected client cert (OSStatus=" << status << ")";
       return ERR_BAD_SSL_CLIENT_AUTH_CERT;
 
     case errSSLBadRecordMac:
@@ -734,7 +735,7 @@ int SSLClientSocketMac::InitializeSSLContext() {
   static SSLSetSessionOptionFuncPtr ssl_set_session_options =
       LookupFunction<SSLSetSessionOptionFuncPtr>(CFSTR("com.apple.security"),
                                                  CFSTR("SSLSetSessionOption"));
-  if (ssl_set_session_options) {
+  if (ssl_set_session_options && !ssl_config_.send_client_cert) {
     status = ssl_set_session_options(ssl_context_,
                                      kSSLSessionOptionBreakOnServerAuth,
                                      true);
@@ -773,7 +774,8 @@ int SSLClientSocketMac::InitializeSSLContext() {
     if (status)
       return NetErrorFromOSStatus(status);
   } else {
-    // If I can't break on cert-requested, then set the cert up-front:
+    // If I have a cert, set it up-front, otherwise the server may try to get
+    // it later by renegotiating, which SecureTransport doesn't support well.
     status = SetClientCert();
     if (status)
       return NetErrorFromOSStatus(status);
@@ -1009,12 +1011,14 @@ int SSLClientSocketMac::DoHandshakeFinish() {
     case errSSLClosedAbort:
     case errSSLPeerHandshakeFail: {
       // See if the server aborted due to client cert checking.
-      SSLClientCertificateState clientState;
-      if (SSLGetClientCertificateState(ssl_context_, &clientState) == noErr &&
-          clientState > kSSLClientCertNone) {
-        if (clientState == kSSLClientCertRequested &&
+      SSLClientCertificateState client_state;
+      if (SSLGetClientCertificateState(ssl_context_, &client_state) == noErr &&
+          client_state > kSSLClientCertNone) {
+        if (client_state == kSSLClientCertRequested &&
             !ssl_config_.send_client_cert)
           return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+        LOG(WARNING) << "Server aborted SSL handshake; client_state=" <<
+            client_state;
         return ERR_BAD_SSL_CLIENT_AUTH_CERT;
       }
       break;
@@ -1055,10 +1059,11 @@ int SSLClientSocketMac::DoPayloadRead() {
 
     case errSSLServerAuthCompleted:
     case errSSLClientCertRequested:
-      // Server wants to renegotiate, probably to ask for a client cert.
-      // We don't support this yet, so abort.
-      // TODO(snej): Work around the SecureTransport issues.
-      return ERR_BAD_SSL_CLIENT_AUTH_CERT;
+      // Server wants to renegotiate, probably to ask for a client cert,
+      // but SecureTransport doesn't support renegotiation so we have to close.
+      // Tell my caller the server wants a client cert so it can reconnect.
+      LOG(INFO) << "Server renegotiating for client cert; restarting...";
+      return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
 
     default:
       return NetErrorFromOSStatus(status);
