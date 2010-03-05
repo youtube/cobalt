@@ -16,6 +16,11 @@ class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
   ~TOOLS_SANITY_TEST_CONCURRENT_THREAD() {}
   void ThreadMain() {
     *value_ = true;
+
+    // Sleep for a few milliseconds so the two threads are more likely to live
+    // simultaneously. Otherwise we may miss the report due to mutex
+    // lock/unlock's inside thread creation code in pure-happens-before mode...
+    PlatformThread::Sleep(100);
   }
  private:
   bool* value_;
@@ -47,4 +52,3 @@ TEST(ToolsSanityTest, DataRace) {
   delete thread1;
   delete thread2;
 }
-
