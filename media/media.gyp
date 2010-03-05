@@ -285,6 +285,7 @@
       'target_name': 'omx_unittests',
       'type': 'executable',
       'dependencies': [
+        'media',
         'omx_wrapper',
         '../base/base.gyp:base',
         '../base/base.gyp:base_i18n',
