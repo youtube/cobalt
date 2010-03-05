@@ -125,6 +125,7 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.ContentTypeHandler,
       self.ServerRedirectHandler,
       self.ClientRedirectHandler,
+      self.MultipartHandler,
       self.DefaultResponseHandler]
     self._post_handlers = [
       self.WriteFile,
@@ -986,6 +987,28 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     self.wfile.write('<meta http-equiv="refresh" content="0;url=%s">' % dest)
     self.wfile.write('</head><body>Redirecting to %s</body></html>' % dest)
 
+    return True
+
+  def MultipartHandler(self):
+    """Send a multipart response (10 text/html pages)."""
+    test_name = "/multipart"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+
+    num_frames = 10
+    bound = '12345'
+    self.send_response(200)
+    self.send_header('Content-type',
+                     'multipart/x-mixed-replace;boundary=' + bound)
+    self.end_headers()
+
+    for i in xrange(num_frames):
+      self.wfile.write('--' + bound + '\r\n')
+      self.wfile.write('Content-type: text/html\r\n\r\n')
+      self.wfile.write('<title>page ' + str(i) + '</title>')
+      self.wfile.write('page ' + str(i))
+
+    self.wfile.write('--' + bound + '--')
     return True
 
   def DefaultResponseHandler(self):
