@@ -709,6 +709,13 @@ int SSLClientSocketMac::InitializeSSLContext() {
   if (status)
     return NetErrorFromOSStatus(status);
 
+  // Passing the domain name enables the server_name TLS extension (SNI).
+  status = SSLSetPeerDomainName(ssl_context_,
+                                hostname_.data(),
+                                hostname_.length());
+  if (status)
+    return NetErrorFromOSStatus(status);
+
   // Disable certificate verification within Secure Transport; we'll
   // be handling that ourselves.
   status = SSLSetEnableCertVerify(ssl_context_, false);
@@ -763,14 +770,6 @@ int SSLClientSocketMac::InitializeSSLContext() {
     // SSLSetPeerID() treats peer_id as a binary blob, and makes its
     // own copy.
     status = SSLSetPeerID(ssl_context_, peer_id.data(), peer_id.length());
-    if (status)
-      return NetErrorFromOSStatus(status);
-
-    // Although we disable OS level certificate verification above,
-    // passing the domain name enables the server_name TLS extension (SNI).
-    status = SSLSetPeerDomainName(ssl_context_,
-                                  hostname_.data(),
-                                  hostname_.length());
     if (status)
       return NetErrorFromOSStatus(status);
   } else {
