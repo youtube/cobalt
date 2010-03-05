@@ -770,7 +770,6 @@ bool X509Certificate::GetSSLClientCertificates (
 
   SecIdentitySearchRef search = nil;
   OSStatus err = SecIdentitySearchCreate(NULL, CSSM_KEYUSE_SIGN, &search);
-  fprintf(stderr,"====Created SecIdentitySearch %p\n",search);//TEMP
   scoped_cftyperef<SecIdentitySearchRef> scoped_search(search);
   while (!err) {
     SecIdentityRef identity = NULL;
