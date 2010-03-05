@@ -215,6 +215,10 @@
     # Set Thumb compilation flags.
     'arm_thumb%': 0,
 
+    # Set ARM fpu compilation flags (only meaningful if armv7==1 and
+    # arm_neon==0).
+    'arm_fpu%': 'vfpv3',
+
     'conditions': [
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
@@ -922,7 +926,7 @@
                       ['arm_neon==1', {
                         'cflags': [ '-mfpu=neon', ],
                       }, {
-                        'cflags': [ '-mfpu=vfpv3', ],
+                        'cflags': [ '-mfpu=<(arm_fpu)', ],
                       }]
                     ],
                   }],
