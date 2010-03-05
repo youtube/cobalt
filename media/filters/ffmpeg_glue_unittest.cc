@@ -35,10 +35,20 @@ class MockProtocol : public FFmpegURLProtocol {
 class FFmpegGlueTest : public ::testing::Test {
  public:
   FFmpegGlueTest() {
-    MockFFmpeg::set(&mock_ffmpeg_);
   }
 
-  virtual ~FFmpegGlueTest() {
+  virtual void SetUp() {
+    MockFFmpeg::set(&mock_ffmpeg_);
+
+    // Singleton should initialize FFmpeg.
+    CHECK(FFmpegGlue::get());
+
+    // Assign our static copy of URLProtocol for the rest of the tests.
+    protocol_ = MockFFmpeg::protocol();
+    CHECK(protocol_);
+  }
+
+  virtual void TearDown() {
     MockFFmpeg::set(NULL);
   }
 
@@ -67,13 +77,6 @@ class FFmpegGlueTest : public ::testing::Test {
 URLProtocol* FFmpegGlueTest::protocol_ = NULL;
 
 TEST_F(FFmpegGlueTest, InitializeFFmpeg) {
-  // Singleton should initialize FFmpeg.
-  FFmpegGlue* glue = FFmpegGlue::get();
-  EXPECT_TRUE(glue);
-
-  // Assign our static copy of URLProtocol for the rest of the tests.
-  protocol_ = MockFFmpeg::protocol();
-
   // Make sure URLProtocol was filled out correctly.
   EXPECT_STREQ("http", protocol_->name);
   EXPECT_TRUE(protocol_->url_close);
@@ -182,9 +185,7 @@ TEST_F(FFmpegGlueTest, OpenClose) {
   mock_ffmpeg_.CheckPoint(2);
 }
 
-// This test is crashing on build bot. See bug:
-// http://code.google.com/p/chromium/issues/detail?id=36037.
-TEST_F(FFmpegGlueTest, DISABLED_Write) {
+TEST_F(FFmpegGlueTest, Write) {
   scoped_ptr<StrictMock<MockProtocol> > protocol(
       new StrictMock<MockProtocol>());
   URLContext context;
@@ -202,9 +203,7 @@ TEST_F(FFmpegGlueTest, DISABLED_Write) {
   protocol_->url_close(&context);
 }
 
-// This test is crashing on build bot. See bug:
-// http://code.google.com/p/chromium/issues/detail?id=36037.
-TEST_F(FFmpegGlueTest, DISABLED_Read) {
+TEST_F(FFmpegGlueTest, Read) {
   scoped_ptr<StrictMock<MockProtocol> > protocol(
       new StrictMock<MockProtocol>());
   URLContext context;
@@ -230,9 +229,7 @@ TEST_F(FFmpegGlueTest, DISABLED_Read) {
   protocol_->url_close(&context);
 }
 
-// This test is crashing on build bot. See bug:
-// http://code.google.com/p/chromium/issues/detail?id=36037.
-TEST_F(FFmpegGlueTest, DISABLED_Seek) {
+TEST_F(FFmpegGlueTest, Seek) {
   scoped_ptr<StrictMock<MockProtocol> > protocol(
       new StrictMock<MockProtocol>());
   URLContext context;
@@ -308,9 +305,7 @@ TEST_F(FFmpegGlueTest, DISABLED_Seek) {
   protocol_->url_close(&context);
 }
 
-// This test is crashing on build bot. See bug:
-// http://code.google.com/p/chromium/issues/detail?id=36037.
-TEST_F(FFmpegGlueTest, DISABLED_Destroy) {
+TEST_F(FFmpegGlueTest, Destroy) {
   // Create our protocol and add them to the glue layer.
   scoped_ptr<StrictMock<Destroyable<MockProtocol> > > protocol(
       new StrictMock<Destroyable<MockProtocol> >());
