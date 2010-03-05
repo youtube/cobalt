@@ -68,6 +68,13 @@ static int MapSecurityError(SECURITY_STATUS err) {
   }
 }
 
+// Returns true if the two CERT_CONTEXTs contain the same certificate.
+bool SameCert(PCCERT_CONTEXT a, PCCERT_CONTEXT b) {
+  return a == b ||
+         (a->cbCertEncoded == b->cbCertEncoded &&
+         memcmp(a->pbCertEncoded, b->pbCertEncoded, b->cbCertEncoded) == 0);
+}
+
 //-----------------------------------------------------------------------------
 
 // A bitmask consisting of these bit flags encodes which versions of the SSL
@@ -411,8 +418,7 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
       continue;
     }
     scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
-        cert_context2, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-        net::X509Certificate::OSCertHandles());
+        cert_context2, X509Certificate::SOURCE_LONE_CERT_IMPORT);
     cert_request_info->client_certs.push_back(cert);
   }
 
@@ -1297,16 +1303,14 @@ int SSLClientSocketWin::DidCompleteHandshake() {
     return MapSecurityError(status);
   }
   if (renegotiating_ &&
-      X509Certificate::IsSameOSCert(server_cert_->os_cert_handle(),
-                                    server_cert_handle)) {
+      SameCert(server_cert_->os_cert_handle(), server_cert_handle)) {
     // We already verified the server certificate.  Either it is good or the
     // user has accepted the certificate error.
     CertFreeCertificateContext(server_cert_handle);
     DidCompleteRenegotiation();
   } else {
     server_cert_ = X509Certificate::CreateFromHandle(
-        server_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-        net::X509Certificate::OSCertHandles());
+        server_cert_handle, X509Certificate::SOURCE_FROM_NETWORK);
 
     next_state_ = STATE_VERIFY_CERT;
   }
