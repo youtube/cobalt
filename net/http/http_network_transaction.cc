@@ -1233,18 +1233,8 @@ void HttpNetworkTransaction::LogTCPConnectedMetrics(
 
 void HttpNetworkTransaction::LogIOErrorMetrics(
     const ClientSocketHandle& handle) {
-  static const bool use_late_binding_histogram =
-      !FieldTrial::MakeName("", "SocketLateBinding").empty();
-
   UMA_HISTOGRAM_ENUMERATION("Net.IOError_SocketReuseType",
        handle.reuse_type(), ClientSocketHandle::NUM_TYPES);
-
-  if (use_late_binding_histogram) {
-    UMA_HISTOGRAM_ENUMERATION(
-        FieldTrial::MakeName("Net.IOError_SocketReuseType",
-                             "SocketLateBinding"),
-        handle.reuse_type(), ClientSocketHandle::NUM_TYPES);
-  }
 
   switch (handle.reuse_type()) {
     case ClientSocketHandle::UNUSED:
@@ -1254,26 +1244,12 @@ void HttpNetworkTransaction::LogIOErrorMetrics(
           "Net.SocketIdleTimeOnIOError2_UnusedSocket",
           handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
           base::TimeDelta::FromMinutes(6), 100);
-      if (use_late_binding_histogram) {
-        UMA_HISTOGRAM_CUSTOM_TIMES(
-            FieldTrial::MakeName("Net.SocketIdleTimeOnIOError2_UnusedSocket",
-                                 "SocketLateBinding").data(),
-            handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
-            base::TimeDelta::FromMinutes(6), 100);
-      }
       break;
     case ClientSocketHandle::REUSED_IDLE:
       UMA_HISTOGRAM_CUSTOM_TIMES(
           "Net.SocketIdleTimeOnIOError2_ReusedSocket",
           handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
           base::TimeDelta::FromMinutes(6), 100);
-      if (use_late_binding_histogram) {
-        UMA_HISTOGRAM_CUSTOM_TIMES(
-            FieldTrial::MakeName("Net.SocketIdleTimeOnIOError2_ReusedSocket",
-                                 "SocketLateBinding").data(),
-            handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
-            base::TimeDelta::FromMinutes(6), 100);
-      }
       break;
     default:
       NOTREACHED();
@@ -1289,18 +1265,6 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
       total_duration,
       base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
       100);
-
-  static const bool use_late_binding_histogram =
-      !FieldTrial::MakeName("", "SocketLateBinding").empty();
-
-  if (use_late_binding_histogram) {
-    UMA_HISTOGRAM_CUSTOM_TIMES(
-        FieldTrial::MakeName("Net.Transaction_Connected_Under_10",
-                             "SocketLateBinding").data(),
-        total_duration,
-        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-        100);
-  }
 
   if (!reused_socket_) {
     UMA_HISTOGRAM_CLIPPED_TIMES(
