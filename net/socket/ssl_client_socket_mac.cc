@@ -411,22 +411,29 @@ X509Certificate* GetServerCert(SSLContextRef ssl_context) {
 
   DCHECK_GT(CFArrayGetCount(certs), 0);
 
+  SecCertificateRef server_cert = static_cast<SecCertificateRef>(
+      const_cast<void*>(CFArrayGetValueAtIndex(certs, 0)));
+  CFRetain(server_cert);
+  X509Certificate *x509_cert = X509Certificate::CreateFromHandle(
+      server_cert, X509Certificate::SOURCE_FROM_NETWORK);
+  if (!x509_cert)
+    return NULL;
+
   // Add each of the intermediate certificates in the server's chain to the
   // server's X509Certificate object. This makes them available to
   // X509Certificate::Verify() for chain building.
-  std::vector<SecCertificateRef> intermediate_ca_certs;
+  // TODO(wtc): Since X509Certificate::CreateFromHandle may return a cached
+  // X509Certificate object, we may be adding intermediate CA certificates to
+  // it repeatedly!
   CFIndex certs_length = CFArrayGetCount(certs);
   for (CFIndex i = 1; i < certs_length; ++i) {
     SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
         const_cast<void*>(CFArrayGetValueAtIndex(certs, i)));
-    intermediate_ca_certs.push_back(cert_ref);
+    CFRetain(cert_ref);
+    x509_cert->AddIntermediateCertificate(cert_ref);
   }
 
-  SecCertificateRef server_cert = static_cast<SecCertificateRef>(
-      const_cast<void*>(CFArrayGetValueAtIndex(certs, 0)));
-  CFRetain(server_cert);
-  return X509Certificate::CreateFromHandle(
-      server_cert, X509Certificate::SOURCE_FROM_NETWORK, intermediate_ca_certs);
+  return x509_cert;
 }
 
 // Dynamically look up a pointer to a function exported by a bundle.
