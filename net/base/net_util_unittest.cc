@@ -1592,9 +1592,9 @@ TEST(NetUtilTest, SimplifyUrlForRequest) {
       "ftp://user:pass@google.com:80/sup?yo#X#X",
       "ftp://google.com:80/sup?yo",
     },
-    { // Try an standard URL with unknow scheme.
+    { // Try an nonstandard URL
       "foobar://user:pass@google.com:80/sup?yo#X#X",
-      "foobar://google.com:80/sup?yo",
+      "foobar://user:pass@google.com:80/sup?yo#X#X",
     },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
