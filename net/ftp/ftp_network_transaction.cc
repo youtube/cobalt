@@ -1034,8 +1034,11 @@ int FtpNetworkTransaction::ProcessResponseMLSD(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
+      // We want the client to start reading the response at this point.
+      // It got here either through Start or RestartWithAuth. We want that
+      // method to complete. Not setting next state here will make DoLoop exit
+      // and in turn make Start/RestartWithAuth complete.
       response_.is_directory_listing = true;
-      next_state_ = STATE_CTRL_READ;
       break;
     case ERROR_CLASS_OK:
       response_.is_directory_listing = true;
@@ -1067,8 +1070,11 @@ int FtpNetworkTransaction::ProcessResponseLIST(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
+      // We want the client to start reading the response at this point.
+      // It got here either through Start or RestartWithAuth. We want that
+      // method to complete. Not setting next state here will make DoLoop exit
+      // and in turn make Start/RestartWithAuth complete.
       response_.is_directory_listing = true;
-      next_state_ = STATE_CTRL_READ;
       break;
     case ERROR_CLASS_OK:
       response_.is_directory_listing = true;
@@ -1135,7 +1141,13 @@ int FtpNetworkTransaction::DoDataRead() {
     // to be closed on our side too.
     data_socket_.reset();
 
-    // No more data so send QUIT Command now and wait for response.
+    if (ctrl_socket_->IsConnected()) {
+      // Wait for the server's response, we should get it before sending QUIT.
+      next_state_ = STATE_CTRL_READ;
+      return OK;
+    }
+
+    // We are no longer connected to the server, so just finish the transaction.
     return Stop(OK);
   }
 
