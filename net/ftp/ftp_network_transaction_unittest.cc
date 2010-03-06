@@ -356,29 +356,6 @@ class FtpSocketDataProviderEscaping : public FtpSocketDataProvider {
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderEscaping);
 };
 
-class FtpSocketDataProviderFileDownloadAcceptedDataConnection
-    : public FtpSocketDataProviderFileDownload {
- public:
-  FtpSocketDataProviderFileDownloadAcceptedDataConnection() {
-  }
-
-  virtual MockWriteResult OnWrite(const std::string& data) {
-    if (InjectFault())
-      return MockWriteResult(true, data.length());
-    switch (state()) {
-      case PRE_RETR:
-        return Verify("RETR /file\r\n", data, PRE_QUIT,
-                      "150 Accepted Data Connection\r\n");
-      default:
-        return FtpSocketDataProviderFileDownload::OnWrite(data);
-    }
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(
-      FtpSocketDataProviderFileDownloadAcceptedDataConnection);
-};
-
 class FtpSocketDataProviderFileDownloadTransferStarting
     : public FtpSocketDataProviderFileDownload {
  public:
@@ -596,6 +573,9 @@ class FtpNetworkTransactionTest : public PlatformTest {
                           int expected_result) {
     std::string mock_data("mock-data");
     MockRead data_reads[] = {
+      // Usually FTP servers close the data connection after the entire data has
+      // been received.
+      MockRead(false, ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ),
       MockRead(mock_data.c_str()),
     };
     // For compatibility with FileZilla, the transaction code will use two data
@@ -611,7 +591,6 @@ class FtpNetworkTransactionTest : public PlatformTest {
               transaction_.Start(&request_info, &callback_, NULL));
     EXPECT_NE(LOAD_STATE_IDLE, transaction_.GetLoadState());
     ASSERT_EQ(expected_result, callback_.WaitForResult());
-    EXPECT_EQ(FtpSocketDataProvider::QUIT, ctrl_socket->state());
     if (expected_result == OK) {
       scoped_refptr<IOBuffer> io_buffer(new IOBuffer(kBufferSize));
       memset(io_buffer->data(), 0, kBufferSize);
@@ -620,7 +599,16 @@ class FtpNetworkTransactionTest : public PlatformTest {
       ASSERT_EQ(static_cast<int>(mock_data.length()),
                 callback_.WaitForResult());
       EXPECT_EQ(mock_data, std::string(io_buffer->data(), mock_data.length()));
+
+      // Do another Read to detect that the data socket is now closed.
+      int rv = transaction_.Read(io_buffer.get(), kBufferSize, &callback_);
+      if (rv == ERR_IO_PENDING) {
+        EXPECT_EQ(0, callback_.WaitForResult());
+      } else {
+        EXPECT_EQ(0, rv);
+      }
     }
+    EXPECT_EQ(FtpSocketDataProvider::QUIT, ctrl_socket->state());
     EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
   }
 
@@ -731,53 +719,6 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionShortReads5) {
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionVMS) {
   FtpSocketDataProviderVMSFileDownload ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
-}
-
-TEST_F(FtpNetworkTransactionTest, DownloadTransactionAcceptedDataConnection) {
-  FtpSocketDataProviderFileDownloadAcceptedDataConnection ctrl_socket;
-  std::string mock_data("mock-data");
-  MockRead data_reads[] = {
-    MockRead(mock_data.c_str()),
-  };
-  StaticSocketDataProvider data_socket1(data_reads, arraysize(data_reads),
-                                        NULL, 0);
-  mock_socket_factory_.AddSocketDataProvider(&ctrl_socket);
-  mock_socket_factory_.AddSocketDataProvider(&data_socket1);
-  FtpRequestInfo request_info = GetRequestInfo("ftp://host/file");
-
-  // Start the transaction.
-  ASSERT_EQ(ERR_IO_PENDING,
-            transaction_.Start(&request_info, &callback_, NULL));
-  ASSERT_EQ(OK, callback_.WaitForResult());
-
-  // The transaction fires the callback when we can start reading data.
-  EXPECT_EQ(FtpSocketDataProvider::PRE_QUIT, ctrl_socket.state());
-  EXPECT_EQ(LOAD_STATE_SENDING_REQUEST, transaction_.GetLoadState());
-  scoped_refptr<IOBuffer> io_buffer(new IOBuffer(kBufferSize));
-  memset(io_buffer->data(), 0, kBufferSize);
-  ASSERT_EQ(ERR_IO_PENDING,
-            transaction_.Read(io_buffer.get(), kBufferSize, &callback_));
-  EXPECT_EQ(LOAD_STATE_READING_RESPONSE, transaction_.GetLoadState());
-  ASSERT_EQ(static_cast<int>(mock_data.length()),
-            callback_.WaitForResult());
-  EXPECT_EQ(LOAD_STATE_READING_RESPONSE, transaction_.GetLoadState());
-  EXPECT_EQ(mock_data, std::string(io_buffer->data(), mock_data.length()));
-
-  // FTP server should disconnect the data socket. It is also a signal for the
-  // FtpNetworkTransaction that the data transfer is finished.
-  ClientSocket* data_socket = mock_socket_factory_.GetMockTCPClientSocket(1);
-  ASSERT_TRUE(data_socket);
-  data_socket->Disconnect();
-
-  // We should issue Reads until one returns EOF...
-  ASSERT_EQ(ERR_IO_PENDING,
-            transaction_.Read(io_buffer.get(), kBufferSize, &callback_));
-
-  // Make sure the transaction finishes cleanly.
-  EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
-  ASSERT_EQ(OK, callback_.WaitForResult());
-  EXPECT_EQ(FtpSocketDataProvider::QUIT, ctrl_socket.state());
-  EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionTransferStarting) {
