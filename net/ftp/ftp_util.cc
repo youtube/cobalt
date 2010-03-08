@@ -10,6 +10,7 @@
 #include "base/string_tokenizer.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "base/utf_string_conversions.h"
 
 // For examples of Unix<->VMS path conversions, see the unit test file. On VMS
 // a path looks differently depending on whether it's a file or directory.
