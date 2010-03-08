@@ -4,9 +4,11 @@
 
 #include "net/http/http_auth_handler_digest.h"
 
+#include "base/logging.h"
 #include "base/md5.h"
 #include "base/rand_util.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/http/http_auth.h"

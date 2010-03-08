@@ -7,6 +7,7 @@
 #include "base/basictypes.h"
 #include "base/format_macros.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
