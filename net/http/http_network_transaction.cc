@@ -951,7 +951,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   }
 
   if (result == ERR_CONNECTION_CLOSED) {
-    // For now, if we get at last some data, we do the best we can to make
+    // For now, if we get at least some data, we do the best we can to make
     // sense of it and send it back up the stack.
     int rv = HandleConnectionClosedBeforeEndOfHeaders();
     if (rv != OK)
@@ -1049,22 +1049,13 @@ int HttpNetworkTransaction::DoReadBodyComplete(int result) {
       "We should never read a response body of a tunnel.";
 
   bool done = false, keep_alive = false;
-  if (result < 0) {
-    // Error or closed connection while reading the socket.
+  if (result <= 0)
     done = true;
-    // TODO(wtc): Traditionally this code has returned 0 when reading a closed
-    // socket.  That is partially corrected in classes that we call, but
-    // callers need to be updated.
-    if (result == ERR_END_OF_STREAM || (!http_stream_->CanFindEndOfResponse() &&
-                                        result == ERR_CONNECTION_CLOSED)) {
-      result = 0;
-    }
-  }
 
   if (http_stream_->IsResponseBodyComplete()) {
     done = true;
     if (http_stream_->CanFindEndOfResponse())
-        keep_alive = GetResponseHeaders()->IsKeepAlive();
+      keep_alive = GetResponseHeaders()->IsKeepAlive();
   }
 
   // Clean up connection_->if we are done.
