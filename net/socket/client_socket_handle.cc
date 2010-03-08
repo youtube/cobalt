@@ -60,6 +60,8 @@ void ClientSocketHandle::OnIOComplete(int result) {
 
 void ClientSocketHandle::HandleInitCompletion(int result) {
   CHECK_NE(ERR_IO_PENDING, result);
+  // TODO(vandebo) remove when bug 31096 is resolved
+  CHECK(socket_.get() || result != OK);
   if (result != OK)
     ResetInternal(false);  // The request failed, so there's nothing to cancel.
 }
