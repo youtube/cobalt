@@ -194,6 +194,9 @@ int HttpStreamParser::DoSendHeaders(int result) {
     if (request_headers_->BytesRemaining() == request_headers_->size()) {
       response_->request_time = base::Time::Now();
     }
+    // TODO(vandebo) remove when bug 31096 is resolved
+    CHECK(connection_);
+    CHECK(connection_->socket());
     result = connection_->socket()->Write(request_headers_,
                                           request_headers_->BytesRemaining(),
                                           &io_callback_);
