@@ -20,6 +20,9 @@ bool DNSDomainFromDot(const std::string& dotted, std::string* out);
 // characters as given in RFC 3490, 4.1, 3(a)
 bool IsSTD3ASCIIValidCharacter(char c);
 
+// Returns the hostname by trimming the ending dot, if one exists.
+std::string TrimEndingDot(const std::string& host);
+
 }  // namespace net
 
 #endif  // NET_BASE_DNS_UTIL_H_
