@@ -70,4 +70,12 @@ bool IsSTD3ASCIIValidCharacter(char c) {
   return true;
 }
 
+std::string TrimEndingDot(const std::string& host) {
+  std::string host_trimmed = host;
+  size_t len = host_trimmed.length();
+  if (len > 1 && host_trimmed[len - 1] == '.')
+    host_trimmed.erase(len - 1);
+  return host_trimmed;
+}
+
 }  // namespace net
