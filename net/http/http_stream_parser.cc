@@ -353,7 +353,7 @@ int HttpStreamParser::DoReadBody() {
 
   // Check to see if we're done reading.
   if (IsResponseBodyComplete())
-    return ERR_END_OF_STREAM;
+    return 0;
 
   DCHECK_EQ(0, read_buf_->offset());
   return connection_->socket()->Read(user_read_buf_, user_read_buf_len_,
@@ -361,7 +361,11 @@ int HttpStreamParser::DoReadBody() {
 }
 
 int HttpStreamParser::DoReadBodyComplete(int result) {
-  if (result == 0)
+  // If we didn't get a content-length and aren't using a chunked encoding,
+  // the only way to signal the end of a stream is to close the connection,
+  // so we don't treat that as an error, though in some cases we may not
+  // have completely received the resource.
+  if (result == 0 && !IsResponseBodyComplete() && CanFindEndOfResponse())
     result = ERR_CONNECTION_CLOSED;
 
   // Filter incoming data if appropriate.  FilterBuf may return an error.
@@ -378,7 +382,7 @@ int HttpStreamParser::DoReadBodyComplete(int result) {
   if (result > 0)
     response_body_read_ += result;
 
-  if (result < 0 || IsResponseBodyComplete()) {
+  if (result <= 0 || IsResponseBodyComplete()) {
     io_state_ = STATE_DONE;
 
     // Save the overflow data, which can be in two places.  There may be
