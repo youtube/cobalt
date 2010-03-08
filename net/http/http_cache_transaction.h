@@ -291,9 +291,6 @@ class HttpCache::Transaction : public HttpTransaction {
   // working with range requests.
   int DoPartialCacheReadCompleted(int result);
 
-  // Performs the needed work after writing data to the cache.
-  int DoCacheWriteCompleted(int result);
-
   // Sends a histogram with info about the response headers.
   void HistogramHeaders(const HttpResponseHeaders* headers);
 
