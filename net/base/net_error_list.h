@@ -134,8 +134,7 @@ NET_ERROR(SOCKS_CONNECTION_FAILED, -120)
 // because that host is unreachable.
 NET_ERROR(SOCKS_CONNECTION_HOST_UNREACHABLE, -121)
 
-// There is no more data left in the logical stream.
-NET_ERROR(END_OF_STREAM, -122)
+// Error number -122 is available for use.
 
 // The peer sent an SSL no_renegotiation alert message.
 NET_ERROR(SSL_NO_RENEGOTIATION, -123)
