@@ -317,14 +317,6 @@ void HttpCache::Suspend(bool suspend) {
 }
 
 // static
-bool HttpCache::ParseResponseInfo(const char* data, int len,
-                                  HttpResponseInfo* response_info,
-                                  bool* response_truncated) {
-  Pickle pickle(data, len);
-  return response_info->InitFromPickle(pickle, response_truncated);
-}
-
-// static
 bool HttpCache::ReadResponseInfo(disk_cache::Entry* disk_entry,
                                  HttpResponseInfo* response_info,
                                  bool* response_truncated) {
@@ -358,6 +350,14 @@ bool HttpCache::WriteResponseInfo(disk_cache::Entry* disk_entry,
                                true) == len;
 }
 
+// static
+bool HttpCache::ParseResponseInfo(const char* data, int len,
+                                  HttpResponseInfo* response_info,
+                                  bool* response_truncated) {
+  Pickle pickle(data, len);
+  return response_info->InitFromPickle(pickle, response_truncated);
+}
+
 void HttpCache::WriteMetadata(const GURL& url,
                               base::Time expected_response_time, IOBuffer* buf,
                               int buf_len) {
@@ -372,6 +372,20 @@ void HttpCache::WriteMetadata(const GURL& url,
   // The writer will self destruct when done.
   writer->Write(url, expected_response_time, buf, buf_len);
 }
+
+void HttpCache::CloseCurrentConnections() {
+  net::HttpNetworkLayer* network =
+      static_cast<net::HttpNetworkLayer*>(network_layer_.get());
+  HttpNetworkSession* session = network->GetSession();
+  if (session) {
+    session->tcp_socket_pool()->CloseIdleSockets();
+    if (session->spdy_session_pool())
+      session->spdy_session_pool()->CloseAllSessions();
+    session->ReplaceTCPSocketPool();
+  }
+}
+
+//-----------------------------------------------------------------------------
 
 // Generate a key that can be used inside the cache.
 std::string HttpCache::GenerateCacheKey(const HttpRequestInfo* request) {
@@ -477,6 +491,46 @@ HttpCache::ActiveEntry* HttpCache::FindActiveEntry(const std::string& key) {
   return it != active_entries_.end() ? it->second : NULL;
 }
 
+HttpCache::ActiveEntry* HttpCache::ActivateEntry(
+    const std::string& key,
+    disk_cache::Entry* disk_entry) {
+  DCHECK(!FindActiveEntry(key));
+  ActiveEntry* entry = new ActiveEntry(disk_entry);
+  active_entries_[key] = entry;
+  return entry;
+}
+
+void HttpCache::DeactivateEntry(ActiveEntry* entry) {
+  DCHECK(!entry->will_process_pending_queue);
+  DCHECK(!entry->doomed);
+  DCHECK(!entry->writer);
+  DCHECK(entry->readers.empty());
+  DCHECK(entry->pending_queue.empty());
+
+  std::string key = entry->disk_entry->GetKey();
+  if (key.empty())
+    return SlowDeactivateEntry(entry);
+
+  ActiveEntriesMap::iterator it = active_entries_.find(key);
+  DCHECK(it != active_entries_.end());
+  DCHECK(it->second == entry);
+
+  active_entries_.erase(it);
+  delete entry;
+}
+
+// We don't know this entry's key so we have to find it without it.
+void HttpCache::SlowDeactivateEntry(ActiveEntry* entry) {
+  for (ActiveEntriesMap::iterator it = active_entries_.begin();
+       it != active_entries_.end(); ++it) {
+    if (it->second == entry) {
+      active_entries_.erase(it);
+      delete entry;
+      break;
+    }
+  }
+}
+
 HttpCache::NewEntry* HttpCache::GetNewEntry(const std::string& key) {
   DCHECK(!FindActiveEntry(key));
 
@@ -570,46 +624,6 @@ void HttpCache::DestroyEntry(ActiveEntry* entry) {
     FinalizeDoomedEntry(entry);
   } else {
     DeactivateEntry(entry);
-  }
-}
-
-HttpCache::ActiveEntry* HttpCache::ActivateEntry(
-    const std::string& key,
-    disk_cache::Entry* disk_entry) {
-  DCHECK(!FindActiveEntry(key));
-  ActiveEntry* entry = new ActiveEntry(disk_entry);
-  active_entries_[key] = entry;
-  return entry;
-}
-
-void HttpCache::DeactivateEntry(ActiveEntry* entry) {
-  DCHECK(!entry->will_process_pending_queue);
-  DCHECK(!entry->doomed);
-  DCHECK(!entry->writer);
-  DCHECK(entry->readers.empty());
-  DCHECK(entry->pending_queue.empty());
-
-  std::string key = entry->disk_entry->GetKey();
-  if (key.empty())
-    return SlowDeactivateEntry(entry);
-
-  ActiveEntriesMap::iterator it = active_entries_.find(key);
-  DCHECK(it != active_entries_.end());
-  DCHECK(it->second == entry);
-
-  active_entries_.erase(it);
-  delete entry;
-}
-
-// We don't know this entry's key so we have to find it without it.
-void HttpCache::SlowDeactivateEntry(ActiveEntry* entry) {
-  for (ActiveEntriesMap::iterator it = active_entries_.begin();
-       it != active_entries_.end(); ++it) {
-    if (it->second == entry) {
-      active_entries_.erase(it);
-      delete entry;
-      break;
-    }
   }
 }
 
@@ -899,19 +913,5 @@ void HttpCache::OnIOComplete(int result, NewEntry* new_entry) {
     }
   }
 }
-
-void HttpCache::CloseCurrentConnections() {
-  net::HttpNetworkLayer* network =
-      static_cast<net::HttpNetworkLayer*>(network_layer_.get());
-  HttpNetworkSession* session = network->GetSession();
-  if (session) {
-    session->tcp_socket_pool()->CloseIdleSockets();
-    if (session->spdy_session_pool())
-      session->spdy_session_pool()->CloseAllSessions();
-    session->ReplaceTCPSocketPool();
-  }
-}
-
-//-----------------------------------------------------------------------------
 
 }  // namespace net
