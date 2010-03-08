@@ -7,6 +7,7 @@
 #include "base/compiler_specific.h"
 #include "base/histogram.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/escape.h"
 #include "net/base/load_log.h"
