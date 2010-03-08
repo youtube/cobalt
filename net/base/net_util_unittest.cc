@@ -8,6 +8,7 @@
 #include "base/format_macros.h"
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
+#include "base/utf_string_conversions.h"
 #include "base/time.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/sys_addrinfo.h"
