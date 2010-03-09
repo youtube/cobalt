@@ -8,7 +8,7 @@
 
 #include "base/basictypes.h"
 #include "base/string_piece.h"
-#include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "base/sys_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -32,8 +32,8 @@ TEST(SysStrings, SysWideToUTF8) {
   //
   // This is what XP does, but Vista has different behavior, so we don't bother
   // verifying it:
-  //EXPECT_EQ("\xE4\xBD\xA0\xED\xA0\x80zyxw",
-  //          SysWideToUTF8(L"\x4f60\xd800zyxw"));
+  // EXPECT_EQ("\xE4\xBD\xA0\xED\xA0\x80zyxw",
+  //           SysWideToUTF8(L"\x4f60\xd800zyxw"));
 
   // Test embedded NULLs.
   std::wstring wide_null(L"a");
@@ -59,7 +59,7 @@ TEST(SysStrings, SysUTF8ToWide) {
   //
   // This is what XP does, but Vista has different behavior, so we don't bother
   // verifying it:
-  //EXPECT_EQ(L"\x4f60zyxw", SysUTF8ToWide("\xe4\xbd\xa0\xe5\xa5zyxw"));
+  // EXPECT_EQ(L"\x4f60zyxw", SysUTF8ToWide("\xe4\xbd\xa0\xe5\xa5zyxw"));
 
   // Test embedded NULLs.
   std::string utf8_null("a");
@@ -107,8 +107,8 @@ TEST(SysStrings, SysWideToNativeMB) {
   //
   // This is what XP does, but Vista has different behavior, so we don't bother
   // verifying it:
-  //EXPECT_EQ("\xE4\xBD\xA0\xED\xA0\x80zyxw",
-  //          SysWideToNativeMB(L"\x4f60\xd800zyxw"));
+  // EXPECT_EQ("\xE4\xBD\xA0\xED\xA0\x80zyxw",
+  //           SysWideToNativeMB(L"\x4f60\xd800zyxw"));
 
   // Test embedded NULLs.
   std::wstring wide_null(L"a");
@@ -136,7 +136,7 @@ TEST(SysStrings, SysNativeMBToWide) {
   //
   // This is what XP does, but Vista has different behavior, so we don't bother
   // verifying it:
-  //EXPECT_EQ(L"\x4f60zyxw", SysNativeMBToWide("\xe4\xbd\xa0\xe5\xa5zyxw"));
+  // EXPECT_EQ(L"\x4f60zyxw", SysNativeMBToWide("\xe4\xbd\xa0\xe5\xa5zyxw"));
 
   // Test embedded NULLs.
   std::string utf8_null("a");

@@ -10,6 +10,7 @@
 
 #include "base/basictypes.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -30,7 +31,7 @@ string16 BuildString16(const wchar_t* s) {
 #elif defined(WCHAR_T_IS_UTF32)
   string16 u16;
   while (*s != 0) {
-    DCHECK(static_cast<unsigned int>(*s) <= 0xFFFFu);
+    DCHECK_LE(static_cast<unsigned int>(*s), 0xFFFFu);
     u16.push_back(*s++);
   }
   return u16;
@@ -455,7 +456,7 @@ struct IntToStringTest {
   const char* uexpected;
 };
 
-}
+}  // namespace
 
 TEST(StringUtilTest, IntToString) {
   static const IntToStringTest<int> int_tests[] = {
@@ -1491,4 +1492,4 @@ TEST(StringUtilTest, ContainsOnlyChars) {
   EXPECT_FALSE(ContainsOnlyChars("123a", "4321"));
 }
 
-}  // namaspace base
+}  // base
