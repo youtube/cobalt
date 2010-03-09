@@ -12,29 +12,13 @@
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "net/base/host_port_pair.h"
 
 namespace net {
 
 class ClientSocketHandle;
 class HttpNetworkSession;
 class SpdySession;
-
-// TODO(willchan): Move this to net/base.
-struct HostPortPair {
-  HostPortPair() {}
-  HostPortPair(const std::string& in_host, uint16 in_port)
-      : host(in_host), port(in_port) {}
-
-  // Comparator function so this can be placed in a std::map.
-  bool operator<(const HostPortPair& other) const {
-    if (host != other.host)
-      return host < other.host;
-    return port < other.port;
-  }
-
-  std::string host;
-  uint16 port;
-};
 
 // This is a very simple pool for open SpdySessions.
 // TODO(mbelshe): Make this production ready.

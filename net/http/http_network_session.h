@@ -9,6 +9,7 @@
 #include "net/base/host_resolver.h"
 #include "net/base/ssl_client_auth_cache.h"
 #include "net/base/ssl_config_service.h"
+#include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth_cache.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/tcp_client_socket_pool.h"
@@ -35,6 +36,13 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   HttpAuthCache* auth_cache() { return &auth_cache_; }
   SSLClientAuthCache* ssl_client_auth_cache() {
     return &ssl_client_auth_cache_;
+  }
+
+  const HttpAlternateProtocols& alternate_protocols() const {
+    return alternate_protocols_;
+  }
+  HttpAlternateProtocols* mutable_alternate_protocols() {
+    return &alternate_protocols_;
   }
 
   // TCP sockets come from the tcp_socket_pool().
@@ -82,6 +90,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
 
   HttpAuthCache auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
+  HttpAlternateProtocols alternate_protocols_;
   NetworkChangeNotifier* const network_change_notifier_;
   scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
   ClientSocketFactory* socket_factory_;
