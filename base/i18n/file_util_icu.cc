@@ -7,9 +7,11 @@
 #include "base/i18n/file_util_icu.h"
 
 #include "base/file_path.h"
+#include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "base/sys_string_conversions.h"
 #include "build/build_config.h"
 #include "unicode/coll.h"
