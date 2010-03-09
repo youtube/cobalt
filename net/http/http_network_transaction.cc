@@ -138,6 +138,55 @@ void BuildTunnelRequest(const HttpRequestInfo* request_info,
   *request_headers += "\r\n";
 }
 
+void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
+                              const HostPortPair& http_host_port_pair,
+                              HttpAlternateProtocols* alternate_protocols) {
+  std::string alternate_protocol_str;
+  if (!headers.EnumerateHeader(NULL, HttpAlternateProtocols::kHeader,
+                               &alternate_protocol_str)) {
+    // Header is not present.
+    return;
+  }
+
+  std::vector<std::string> port_protocol_vector;
+  SplitString(alternate_protocol_str, ':', &port_protocol_vector);
+  if (port_protocol_vector.size() != 2) {
+    DLOG(WARNING) << HttpAlternateProtocols::kHeader
+                  << " header has too many tokens: "
+                  << alternate_protocol_str;
+    return;
+  }
+
+  int port;
+  if (!StringToInt(port_protocol_vector[0], &port) ||
+      port <= 0 || port >= 1 << 16) {
+    DLOG(WARNING) << HttpAlternateProtocols::kHeader
+                  << " header has unrecognizable port: "
+                  << port_protocol_vector[0];
+    return;
+  }
+
+  if (port_protocol_vector[1] != HttpAlternateProtocols::kSpdyProtocol) {
+    // Currently, we only recognize the Spdy protocol.
+    DLOG(WARNING) << HttpAlternateProtocols::kHeader
+                  << " header has unrecognized protocol: "
+                  << port_protocol_vector[1];
+    return;
+  }
+
+  if (alternate_protocols->HasAlternateProtocolFor(http_host_port_pair)) {
+    const HttpAlternateProtocols::PortProtocolPair existing_alternate =
+        alternate_protocols->GetAlternateProtocolFor(http_host_port_pair);
+    // If we think the alternate protocol is broken, don't change it.
+    if (existing_alternate.protocol == HttpAlternateProtocols::BROKEN)
+      return;
+  }
+
+  alternate_protocols->SetAlternateProtocolFor(http_host_port_pair,
+                                               port,
+                                               HttpAlternateProtocols::SPDY);
+}
+
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -161,6 +210,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       proxy_mode_(kDirectConnection),
       establishing_tunnel_(false),
       using_spdy_(false),
+      alternate_protocol_mode_(kUnspecified),
       embedded_identity_used_(false),
       read_buf_len_(0),
       next_state_(STATE_NONE) {
@@ -652,6 +702,20 @@ int HttpNetworkTransaction::DoInitConnection() {
   } else {
     host = request_->url.HostNoBrackets();
     port = request_->url.EffectiveIntPort();
+    if (alternate_protocol_mode_ == kUnspecified) {
+      const HttpAlternateProtocols& alternate_protocols =
+          session_->alternate_protocols();
+      if (alternate_protocols.HasAlternateProtocolFor(host, port)) {
+        HttpAlternateProtocols::PortProtocolPair alternate =
+            alternate_protocols.GetAlternateProtocolFor(host, port);
+        if (alternate.protocol != HttpAlternateProtocols::BROKEN) {
+          DCHECK_EQ(HttpAlternateProtocols::SPDY, alternate.protocol);
+          port = alternate.port;
+          using_ssl_ = true;
+          alternate_protocol_mode_ = kUsingAlternateProtocol;
+        }
+      }
+    }
   }
 
   // Use the fixed testing ports if they've been provided.
@@ -693,8 +757,28 @@ int HttpNetworkTransaction::DoInitConnection() {
 }
 
 int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
-  if (result < 0)
+  if (result < 0) {
+    if (alternate_protocol_mode_ == kUsingAlternateProtocol) {
+      // Mark the alternate protocol as broken and fallback.
+
+      HostPortPair http_host_port_pair;
+      http_host_port_pair.host = request_->url.host();
+      http_host_port_pair.port = request_->url.EffectiveIntPort();
+
+      session_->mutable_alternate_protocols()->MarkBrokenAlternateProtocolFor(
+          http_host_port_pair);
+
+      alternate_protocol_mode_ = kDoNotUseAlternateProtocol;
+
+      if (connection_->socket())
+        connection_->socket()->Disconnect();
+      connection_->Reset();
+      next_state_ = STATE_INIT_CONNECTION;
+      return OK;
+    }
+
     return ReconsiderProxyAfterError(result);
+  }
 
   DCHECK_EQ(OK, result);
 
@@ -1018,6 +1102,14 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
     next_state_ = STATE_READ_HEADERS;
     return OK;
   }
+
+  HostPortPair http_host_port_pair;
+  http_host_port_pair.host = request_->url.host();
+  http_host_port_pair.port = request_->url.EffectiveIntPort();
+
+  ProcessAlternateProtocol(*response_.headers,
+                           http_host_port_pair,
+                           session_->mutable_alternate_protocols());
 
   int rv = HandleAuthChallenge();
   if (rv != OK)

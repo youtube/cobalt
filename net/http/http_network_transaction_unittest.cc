@@ -4252,4 +4252,174 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
 }
 
+TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
+  SessionDependencies session_deps;
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Alternate-Protocol: 443:SPDY\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(false, OK),
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads), NULL, 0);
+
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  TestCompletionCallback callback;
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  
+  HostPortPair http_host_port_pair;
+  http_host_port_pair.host = "www.google.com";
+  http_host_port_pair.port = 80;
+  const HttpAlternateProtocols& alternate_protocols =
+      session->alternate_protocols();
+  EXPECT_FALSE(
+      alternate_protocols.HasAlternateProtocolFor(http_host_port_pair));
+
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello world", response_data);
+
+  ASSERT_TRUE(alternate_protocols.HasAlternateProtocolFor(http_host_port_pair));
+  const HttpAlternateProtocols::PortProtocolPair alternate =
+      alternate_protocols.GetAlternateProtocolFor(http_host_port_pair);
+  HttpAlternateProtocols::PortProtocolPair expected_alternate;
+  expected_alternate.port = 443;
+  expected_alternate.protocol = HttpAlternateProtocols::SPDY;
+  EXPECT_TRUE(expected_alternate.Equals(alternate));
+}
+
+TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
+  SessionDependencies session_deps;
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  MockConnect mock_connect(true, ERR_CONNECTION_REFUSED);
+  StaticSocketDataProvider first_data;
+  first_data.set_connect_data(mock_connect);
+  session_deps.socket_factory.AddSocketDataProvider(&first_data);
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+  StaticSocketDataProvider second_data(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&second_data);
+
+  // TODO(willchan): Delete this extra data provider.  It's necessary due to a
+  // ClientSocketPoolBaseHelper bug that starts up too many ConnectJobs:
+  // http://crbug.com/37454.
+  session_deps.socket_factory.AddSocketDataProvider(&second_data);
+
+  TestCompletionCallback callback;
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HostPortPair http_host_port_pair;
+  http_host_port_pair.host = "www.google.com";
+  http_host_port_pair.port = 80;
+  HttpAlternateProtocols* alternate_protocols =
+      session->mutable_alternate_protocols();
+  alternate_protocols->SetAlternateProtocolFor(
+      http_host_port_pair, 1234 /* port is ignored by MockConnect anyway */,
+      HttpAlternateProtocols::SPDY);
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello world", response_data);
+
+  ASSERT_TRUE(
+      alternate_protocols->HasAlternateProtocolFor(http_host_port_pair));
+  const HttpAlternateProtocols::PortProtocolPair alternate =
+      alternate_protocols->GetAlternateProtocolFor(http_host_port_pair);
+  EXPECT_EQ(HttpAlternateProtocols::BROKEN, alternate.protocol);
+}
+
+// TODO(willchan): Redo this test to use TLS/NPN=>SPDY.  Currently, the code
+// says that it does SPDY, but it just does the TLS handshake, but the NPN
+// response does not indicate SPDY, so we just do standard HTTPS over the port.
+// We should add code such that we don't fallback to HTTPS, but fallback to HTTP
+// on the original port.
+TEST_F(HttpNetworkTransactionTest, UseAlternateProtocol) {
+  SessionDependencies session_deps;
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(true, OK);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  TestCompletionCallback callback;
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HostPortPair http_host_port_pair;
+  http_host_port_pair.host = "www.google.com";
+  http_host_port_pair.port = 80;
+  HttpAlternateProtocols* alternate_protocols =
+      session->mutable_alternate_protocols();
+  alternate_protocols->SetAlternateProtocolFor(
+      http_host_port_pair, 1234 /* port is ignored */,
+      HttpAlternateProtocols::SPDY);
+
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello world", response_data);
+}
+
 }  // namespace net
