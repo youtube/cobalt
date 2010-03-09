@@ -339,7 +339,7 @@
           },],
           [ 'OS == "win"', {
               'include_dirs': [
-                '../chrome/third_party/wtl/include',
+                '<(DEPTH)/third_party/wtl/include',
               ],
               'sources!': [
                 'event_recorder_stubs.cc',
