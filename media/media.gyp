@@ -335,7 +335,7 @@
             '../base/base.gyp:base',
           ],
           'include_dirs': [
-            '../chrome/third_party/wtl/include',
+            '<(DEPTH)/third_party/wtl/include',
           ],
           'sources': [
             'tools/player_wtl/list.h',
