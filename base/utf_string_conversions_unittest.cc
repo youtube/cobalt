@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
+#include "base/logging.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace base {
@@ -24,7 +26,7 @@ string16 BuildString16(const wchar_t* s) {
 #elif defined(WCHAR_T_IS_UTF32)
   string16 u16;
   while (*s != 0) {
-    DCHECK(static_cast<unsigned int>(*s) <= 0xFFFFu);
+    DCHECK_LE(static_cast<unsigned int>(*s), 0xFFFFu);
     u16.push_back(*s++);
   }
   return u16;
@@ -226,4 +228,4 @@ TEST(UTFStringConversionsTest, ConvertMultiString) {
   EXPECT_EQ(expected, converted);
 }
 
-}  // namaspace base
+}  // base
