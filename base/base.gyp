@@ -61,6 +61,7 @@
         'crypto/signature_verifier_unittest.cc',
         'data_pack_unittest.cc',
         'debug_util_unittest.cc',
+        'file_watcher_unittest.cc',
         'event_trace_consumer_win_unittest.cc',
         'event_trace_controller_win_unittest.cc',
         'event_trace_provider_win_unittest.cc',
