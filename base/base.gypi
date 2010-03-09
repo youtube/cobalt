@@ -290,6 +290,7 @@
               'sources!': [
                 'atomicops_internals_x86_gcc.cc',
                 'base_paths_posix.cc',
+                'file_watcher_inotify.cc',
                 'linux_util.cc',
                 'message_pump_glib.cc',
               ],
@@ -310,6 +311,17 @@
           ],
           [ 'OS != "openbsd"', {
               'sources/': [ ['exclude', '_openbsd\\.cc$'] ],
+            },
+          ],
+          [ 'GENERATOR == "quentin"', {
+              # Quentin builds don't have a recent enough glibc to include the
+              # inotify headers
+              'sources!': [
+                'file_watcher_inotify.cc',
+              ],
+              'sources': [
+                'file_watcher_stub.cc',
+              ],
             },
           ],
           [ 'OS == "mac"', {
@@ -406,6 +418,12 @@
           ],
         },],
         [ 'OS == "freebsd"', {
+            'sources!': [
+              'file_watcher_inotify.cc',
+            ],
+            'sources': [
+              'file_watcher_stub.cc',
+            ],
             'link_settings': {
               'libraries': [
                 '-L/usr/local/lib -lexecinfo',
@@ -485,6 +503,10 @@
         'base_drop_target.cc',
         'base_drop_target.h',
         'data_pack.cc',
+        'file_watcher.h',
+        'file_watcher_inotify.cc',
+        'file_watcher_mac.cc',
+        'file_watcher_win.cc',
         'dynamic_annotations.h',
         'dynamic_annotations.cc',
         'event_recorder.cc',
