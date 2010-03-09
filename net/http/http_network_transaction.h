@@ -103,6 +103,12 @@ class HttpNetworkTransaction : public HttpTransaction {
     kSOCKSProxy,  // If using a SOCKS proxy
   };
 
+  enum AlternateProtocolMode {
+    kUnspecified,  // Unspecified, check HttpAlternateProtocols
+    kUsingAlternateProtocol,  // Using an alternate protocol
+    kDoNotUseAlternateProtocol,  // Failed to connect once, do not try again.
+  };
+
   void DoCallback(int result);
   void OnIOComplete(int result);
 
@@ -320,6 +326,9 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   // True if this network transaction is using SPDY instead of HTTP.
   bool using_spdy_;
+
+  // True if this network transaction is using an alternate protocol to connect.
+  AlternateProtocolMode alternate_protocol_mode_;
 
   // True if we've used the username/password embedded in the URL.  This
   // makes sure we use the embedded identity only once for the transaction,
