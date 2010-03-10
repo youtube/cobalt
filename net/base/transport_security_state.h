@@ -12,6 +12,7 @@
 #include "base/lock.h"
 #include "base/ref_counted.h"
 #include "base/time.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 class GURL;
 
@@ -88,6 +89,7 @@ class TransportSecurityState :
 
  private:
   friend class base::RefCountedThreadSafe<TransportSecurityState>;
+  FRIEND_TEST(TransportSecurityStateTest, IsPreloaded);
 
   ~TransportSecurityState() {}
 
@@ -107,6 +109,8 @@ class TransportSecurityState :
   Delegate* delegate_;
 
   static std::string CanonicaliseHost(const std::string& host);
+  static bool isPreloadedSTS(const std::string& canonicalised_host,
+                             bool* out_include_subdomains);
 
   DISALLOW_COPY_AND_ASSIGN(TransportSecurityState);
 };
