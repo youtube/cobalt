@@ -201,7 +201,7 @@ FilePath GetHomeDir(EnvironmentVariableGetter* env) {
 std::string GetLinuxDistro() {
 #if defined(OS_CHROMEOS)
   return linux_distro;
-#else  // if defined(OS_LINUX)
+#elif defined(OS_LINUX)
   LinuxDistroHelper* distro_state_singleton = LinuxDistroHelper::Get();
   LinuxDistroState state = distro_state_singleton->State();
   if (STATE_DID_NOT_CHECK == state) {
@@ -231,6 +231,8 @@ std::string GetLinuxDistro() {
     // In STATE_CHECK_FINISHED, no more writing to |linux_distro|.
     return linux_distro;
   }
+#else
+  NOTIMPLEMENTED();
 #endif
 }
 
