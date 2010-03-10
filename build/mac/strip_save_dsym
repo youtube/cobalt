@@ -118,27 +118,42 @@ def macho_uuids(macho):
         else:
           state = 6
       elif state == 3:
-        uuid_match = re.match("^   uuid 0x(..) 0x(..) 0x(..) 0x(..) "
-                              "0x(..) 0x(..) 0x(..) 0x(..)$",
-                              otool_line)
-        if uuid_match:
-          state = 4
-          uuid = uuid_match.group(1) + uuid_match.group(2) + \
-                 uuid_match.group(3) + uuid_match.group(4) + "-" + \
-                 uuid_match.group(5) + uuid_match.group(6) + "-" + \
-                 uuid_match.group(7) + uuid_match.group(8) + "-"
-        else:
-          state = 6
-      elif state == 4:
-        uuid_match = re.match("^        0x(..) 0x(..) 0x(..) 0x(..) "
-                              "0x(..) 0x(..) 0x(..) 0x(..)$",
-                              otool_line)
-        if uuid_match:
+        # The UUID display format changed in the version of otool shipping
+        # with the Xcode 3.2.2 prerelease.  The new format is traditional:
+        #    uuid 4D7135B2-9C56-C5F5-5F49-A994258E0955
+        # The old format, from cctools-750 and older's otool, breaks the UUID
+        # up into a sequence of bytes:
+        #    uuid 0x4d 0x71 0x35 0xb2 0x9c 0x56 0xc5 0xf5
+        #         0x5f 0x49 0xa9 0x94 0x25 0x8e 0x09 0x55
+        new_uuid_match = re.match("^   uuid (.{8}-.{4}-.{4}-.{4}-.{12})$",
+                                  otool_line)
+        if new_uuid_match:
+          uuid = new_uuid_match.group(1)
+
+          # Skip state 4, there is no second line to read.
           state = 5
-          uuid += uuid_match.group(1) + uuid_match.group(2) + "-" + \
-                  uuid_match.group(3) + uuid_match.group(4) + \
-                  uuid_match.group(5) + uuid_match.group(6) + \
-                  uuid_match.group(7) + uuid_match.group(8)
+        else:
+          old_uuid_match = re.match("^   uuid 0x(..) 0x(..) 0x(..) 0x(..) "
+                                    "0x(..) 0x(..) 0x(..) 0x(..)$",
+                                    otool_line)
+          if old_uuid_match:
+            state = 4
+            uuid = old_uuid_match.group(1) + old_uuid_match.group(2) + \
+                   old_uuid_match.group(3) + old_uuid_match.group(4) + "-" + \
+                   old_uuid_match.group(5) + old_uuid_match.group(6) + "-" + \
+                   old_uuid_match.group(7) + old_uuid_match.group(8) + "-"
+          else:
+            state = 6
+      elif state == 4:
+        old_uuid_match = re.match("^        0x(..) 0x(..) 0x(..) 0x(..) "
+                                  "0x(..) 0x(..) 0x(..) 0x(..)$",
+                                  otool_line)
+        if old_uuid_match:
+          state = 5
+          uuid += old_uuid_match.group(1) + old_uuid_match.group(2) + "-" + \
+                  old_uuid_match.group(3) + old_uuid_match.group(4) + \
+                  old_uuid_match.group(5) + old_uuid_match.group(6) + \
+                  old_uuid_match.group(7) + old_uuid_match.group(8)
         else:
           state = 6
 
