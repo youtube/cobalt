@@ -17,6 +17,7 @@
 #include "net/base/load_flags.h"
 #include "net/base/load_states.h"
 #include "net/base/ssl_config_service.h"
+#include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_response_info.h"
@@ -262,11 +263,11 @@ class HttpNetworkTransaction : public HttpTransaction {
   // For proxy authentication the path is always empty string.
   std::string AuthPath(HttpAuth::Target target) const;
 
+  void MarkBrokenAlternateProtocolAndFallback();
+
   // Returns a string representation of a HttpAuth::Target value that can be
   // used in log messages.
   static std::string AuthTargetString(HttpAuth::Target target);
-
-  static std::string* g_next_protos;
 
   static bool g_ignore_certificate_errors;
 
@@ -327,8 +328,10 @@ class HttpNetworkTransaction : public HttpTransaction {
   // True if this network transaction is using SPDY instead of HTTP.
   bool using_spdy_;
 
-  // True if this network transaction is using an alternate protocol to connect.
   AlternateProtocolMode alternate_protocol_mode_;
+  
+  // Only valid if |alternate_protocol_mode_| == kUsingAlternateProtocol.
+  HttpAlternateProtocols::Protocol alternate_protocol_;
 
   // True if we've used the username/password embedded in the URL.  This
   // makes sure we use the embedded identity only once for the transaction,
