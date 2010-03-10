@@ -61,7 +61,7 @@
         'crypto/signature_verifier_unittest.cc',
         'data_pack_unittest.cc',
         'debug_util_unittest.cc',
-        'dir_reader_posix_unittest.cc',
+        'file_watcher_unittest.cc',
         'event_trace_consumer_win_unittest.cc',
         'event_trace_controller_win_unittest.cc',
         'event_trace_provider_win_unittest.cc',
@@ -70,7 +70,6 @@
         'file_path_unittest.cc',
         'file_util_unittest.cc',
         'file_version_info_unittest.cc',
-        'file_watcher_unittest.cc',
         'gfx/rect_unittest.cc',
         'gmock_unittest.cc',
         'histogram_unittest.cc',
@@ -182,7 +181,6 @@
             '../third_party/icu/icu.gyp:icudata',
           ],
           'sources!': [
-            'dir_reader_posix_unittest.cc',
             'file_descriptor_shuffle_unittest.cc',
           ],
         }, {  # OS != "win"
