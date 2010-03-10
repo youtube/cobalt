@@ -99,6 +99,7 @@
         'ref_counted_unittest.cc',
         'scoped_bstr_win_unittest.cc',
         'scoped_comptr_win_unittest.cc',
+        'scoped_native_library_unittest.cc',
         'scoped_ptr_unittest.cc',
         'scoped_temp_dir_unittest.cc',
         'scoped_variant_win_unittest.cc',
