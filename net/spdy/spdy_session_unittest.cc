@@ -4,17 +4,52 @@
 
 #include "net/spdy/spdy_io_buffer.h"
 
+#include "googleurl/src/gurl.h"
+#include "net/base/mock_host_resolver.h"
+#include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
+#include "net/http/http_network_session.h"
+#include "net/proxy/proxy_service.h"
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_session.h"
+#include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_stream.h"
 #include "testing/platform_test.h"
 
 namespace net {
 
-class SpdySessionTest : public PlatformTest {
+namespace {
+
+// Helper to manage the lifetimes of the dependencies for a
+// SpdyNetworkTransaction.
+class SessionDependencies {
  public:
+  // Default set of dependencies -- "null" proxy service.
+  SessionDependencies()
+      : host_resolver(new MockHostResolver),
+        proxy_service(ProxyService::CreateNull()),
+        ssl_config_service(new SSLConfigServiceDefaults),
+        spdy_session_pool(new SpdySessionPool) {
+  }
+
+  scoped_refptr<MockHostResolverBase> host_resolver;
+  scoped_refptr<ProxyService> proxy_service;
+  scoped_refptr<SSLConfigService> ssl_config_service;
+  MockClientSocketFactory socket_factory;
+  scoped_refptr<SpdySessionPool> spdy_session_pool;
 };
+
+HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
+  return new HttpNetworkSession(NULL,
+                                session_deps->host_resolver,
+                                session_deps->proxy_service,
+                                &session_deps->socket_factory,
+                                session_deps->ssl_config_service,
+                                session_deps->spdy_session_pool,
+                                NULL);
+}
+
+typedef PlatformTest SpdySessionTest;
 
 // Test the SpdyIOBuffer class.
 TEST_F(SpdySessionTest, SpdyIOBuffer) {
@@ -52,5 +87,55 @@ TEST_F(SpdySessionTest, SpdyIOBuffer) {
     queue_.pop();
   }
 }
+
+static const unsigned char kGoAway[] = {
+  0x80, 0x01, 0x00, 0x07,  // header
+  0x00, 0x00, 0x00, 0x04,  // flags, len
+  0x00, 0x00, 0x00, 0x00,  // last-accepted-stream-id
+};
+
+TEST_F(SpdySessionTest, GoAway) {
+  SessionDependencies session_deps;
+  session_deps.host_resolver->set_synchronous_mode(true);
+
+  MockConnect connect_data(false, OK);
+  MockRead reads[] = {
+    MockRead(false, reinterpret_cast<const char*>(kGoAway),
+             arraysize(kGoAway)),
+    MockRead(false, 0, 0)  // EOF
+  };
+  StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
+  data.set_connect_data(connect_data);
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  SSLSocketDataProvider ssl(false, OK);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  scoped_refptr<HttpNetworkSession> http_session(CreateSession(&session_deps));
+
+  const std::string kTestHost("www.foo.com");
+  const int kTestPort = 80;
+  HostPortPair test_host_port_pair;
+  test_host_port_pair.host = kTestHost;
+  test_host_port_pair.port = kTestPort;
+
+  scoped_refptr<SpdySessionPool> spdy_session_pool(
+      http_session->spdy_session_pool());
+  EXPECT_FALSE(spdy_session_pool->HasSession(test_host_port_pair));
+  scoped_refptr<SpdySession> session =
+      spdy_session_pool->Get(test_host_port_pair, http_session.get());
+  EXPECT_TRUE(spdy_session_pool->HasSession(test_host_port_pair));
+
+  TCPSocketParams tcp_params(kTestHost, kTestPort, MEDIUM, GURL(), false);
+  int rv = session->Connect(kTestHost, tcp_params, MEDIUM, NULL);
+  ASSERT_EQ(OK, rv);
+
+  // Flush the SpdySession::OnReadComplete() task.
+  MessageLoop::current()->RunAllPending();
+
+  EXPECT_FALSE(spdy_session_pool->HasSession(test_host_port_pair));
+}
+
+}  // namespace
 
 }  // namespace net
