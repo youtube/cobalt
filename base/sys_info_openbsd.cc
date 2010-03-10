@@ -4,6 +4,9 @@
 
 #include "base/sys_info.h"
 
+#include <sys/param.h>
+#include <sys/sysctl.h>
+
 #include "base/logging.h"
 
 namespace base {
