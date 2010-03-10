@@ -19,13 +19,6 @@ class StringPiece;
 // do the best it can and put the result in the output buffer. The versions that
 // return strings ignore this error and just return the best conversion
 // possible.
-//
-// Note that only the structural validity is checked and non-character
-// codepoints and unassigned are regarded as valid.
-// TODO(jungshik): Consider replacing an invalid input sequence with
-// the Unicode replacement character or adding |replacement_char| parameter.
-// Currently, it's skipped in the ouput, which could be problematic in
-// some situations.
 bool WideToUTF8(const wchar_t* src, size_t src_len, std::string* output);
 std::string WideToUTF8(const std::wstring& wide);
 bool UTF8ToWide(const char* src, size_t src_len, std::wstring* output);
