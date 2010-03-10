@@ -27,6 +27,11 @@ void TransportSecurityState::EnableHost(const std::string& host,
   const std::string canonicalised_host = CanonicaliseHost(host);
   if (canonicalised_host.empty())
     return;
+
+  bool temp;
+  if (isPreloadedSTS(canonicalised_host, &temp))
+    return;
+
   char hashed[base::SHA256_LENGTH];
   base::SHA256HashString(canonicalised_host, hashed, sizeof(hashed));
 
@@ -47,6 +52,14 @@ bool TransportSecurityState::IsEnabledForHost(DomainState* result,
   const std::string canonicalised_host = CanonicaliseHost(host);
   if (canonicalised_host.empty())
     return false;
+
+  bool include_subdomains;
+  if (isPreloadedSTS(canonicalised_host, &include_subdomains)) {
+    result->created = result->expiry = base::Time::FromTimeT(0);
+    result->mode = DomainState::MODE_STRICT;
+    result->include_subdomains = include_subdomains;
+    return true;
+  }
 
   base::Time current_time(base::Time::Now());
   AutoLock lock(lock_);
@@ -376,6 +389,38 @@ std::string TransportSecurityState::CanonicaliseHost(const std::string& host) {
   }
 
   return new_host;
+}
+
+// isPreloadedSTS returns true if the canonicalised hostname should always be
+// considered to have STS enabled.
+// static
+bool TransportSecurityState::isPreloadedSTS(
+    const std::string& canonicalised_host, bool *include_subdomains) {
+  // In the medium term this list is likely to just be hardcoded here. This,
+  // slightly odd, form removes the need for additional relocations records.
+  static const struct {
+    uint8 length;
+    bool include_subdomains;
+    char dns_name[30];
+  } preloadedSTS[] = {
+    {16, false, "\003www\006paypal\003com"},
+  };
+  static const size_t numPreloadedSTS =
+      sizeof(preloadedSTS) / sizeof(preloadedSTS[0]);
+
+  for (size_t i = 0; canonicalised_host[i]; i += canonicalised_host[i] + 1) {
+    for (size_t j = 0; j < numPreloadedSTS; j++) {
+      if (preloadedSTS[j].length == canonicalised_host.size() + 1 - i &&
+          (preloadedSTS[j].include_subdomains || i == 0) &&
+          memcmp(preloadedSTS[j].dns_name, &canonicalised_host[i],
+                 preloadedSTS[j].length) == 0) {
+        *include_subdomains = preloadedSTS[j].include_subdomains;
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 }  // namespace
