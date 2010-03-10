@@ -223,6 +223,26 @@
       }]]
     },
     {
+      'target_name': 'xext',
+      'type': 'settings',
+      'conditions': [
+        ['_toolset=="target"', {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(<(pkg-config) --cflags xext)',
+            ],
+          },
+          'link_settings': {
+            'ldflags': [
+              '<!@(<(pkg-config) --libs-only-L --libs-only-other xext)',
+            ],
+            'libraries': [
+              '<!@(<(pkg-config) --libs-only-l xext)',
+            ],
+          },
+      }]]
+    },
+    {
       'target_name': 'selinux',
       'type': 'settings',
       'conditions': [
