@@ -280,6 +280,7 @@ net::Error SpdySession::Connect(const std::string& group_name,
   // work until after the connect completes asynchronously later.
   if (rv == net::ERR_IO_PENDING)
     return net::OK;
+  OnTCPConnect(rv);
   return static_cast<net::Error>(rv);
 }
 
@@ -844,9 +845,9 @@ void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
     DeactivateStream(stream_id);
 }
 
-void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame* frame,
-                        const spdy::SpdyHeaderBlock* headers) {
-  spdy::SpdyStreamId stream_id = frame->stream_id();
+void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
+                        const spdy::SpdyHeaderBlock& headers) {
+  spdy::SpdyStreamId stream_id = frame.stream_id();
 
   LOG(INFO) << "Spdy SynStream for stream " << stream_id;
 
@@ -866,12 +867,12 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame* frame,
   LOG(INFO) << "SpdySession: Syn received for stream: " << stream_id;
 
   LOG(INFO) << "SPDY SYN RESPONSE HEADERS -----------------------";
-  DumpSpdyHeaders(*headers);
+  DumpSpdyHeaders(headers);
 
   // TODO(mbelshe): DCHECK that this is a GET method?
 
-  const std::string& path = ContainsKey(*headers, "path") ?
-      headers->find("path")->second : "";
+  const std::string& path = ContainsKey(headers, "path") ?
+      headers.find("path")->second : "";
 
   // Verify that the response had a URL for us.
   DCHECK(!path.empty());
@@ -920,7 +921,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame* frame,
   // to a string of headers; this is because the HttpResponseInfo
   // is a bit rigid for its http (non-spdy) design.
   HttpResponseInfo response;
-  if (SpdyHeadersToHttpResponse(*headers, &response)) {
+  if (SpdyHeadersToHttpResponse(headers, &response)) {
     GetSSLInfo(&response.ssl_info);
     stream->OnResponseReceived(response);
   } else {
@@ -935,10 +936,9 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame* frame,
   push_requests.Increment();
 }
 
-void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame* frame,
-                             const spdy::SpdyHeaderBlock* headers) {
-  DCHECK(headers);
-  spdy::SpdyStreamId stream_id = frame->stream_id();
+void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
+                             const spdy::SpdyHeaderBlock& headers) {
+  spdy::SpdyStreamId stream_id = frame.stream_id();
   LOG(INFO) << "Spdy SynReply for stream " << stream_id;
 
   bool valid_stream = IsStreamActive(stream_id);
@@ -949,14 +949,14 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame* frame,
   }
 
   LOG(INFO) << "SPDY SYN_REPLY RESPONSE HEADERS for stream: " << stream_id;
-  DumpSpdyHeaders(*headers);
+  DumpSpdyHeaders(headers);
 
   // We record content declared as being pushed so that we don't
   // request a duplicate stream which is already scheduled to be
   // sent to us.
   spdy::SpdyHeaderBlock::const_iterator it;
-  it = headers->find("X-Associated-Content");
-  if (it != headers->end()) {
+  it = headers.find("X-Associated-Content");
+  if (it != headers.end()) {
     const std::string& content = it->second;
     std::string::size_type start = 0;
     std::string::size_type end = 0;
@@ -983,7 +983,7 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame* frame,
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
   HttpResponseInfo response;
-  if (SpdyHeadersToHttpResponse(*headers, &response)) {
+  if (SpdyHeadersToHttpResponse(headers, &response)) {
     GetSSLInfo(&response.ssl_info);
     stream->OnResponseReceived(response);
   } else {
@@ -1005,24 +1005,27 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
 
   switch (type) {
     case spdy::SYN_STREAM:
-      OnSyn(reinterpret_cast<const spdy::SpdySynStreamControlFrame*>(frame),
-            &headers);
+      OnSyn(*reinterpret_cast<const spdy::SpdySynStreamControlFrame*>(frame),
+            headers);
       break;
     case spdy::SYN_REPLY:
       OnSynReply(
-          reinterpret_cast<const spdy::SpdySynReplyControlFrame*>(frame),
-          &headers);
+          *reinterpret_cast<const spdy::SpdySynReplyControlFrame*>(frame),
+          headers);
       break;
     case spdy::RST_STREAM:
-      OnFin(reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
+      OnFin(*reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
+      break;
+    case spdy::GOAWAY:
+      OnGoAway(*reinterpret_cast<const spdy::SpdyGoAwayControlFrame*>(frame));
       break;
     default:
       DCHECK(false);  // Error!
   }
 }
 
-void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame* frame) {
-  spdy::SpdyStreamId stream_id = frame->stream_id();
+void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
+  spdy::SpdyStreamId stream_id = frame.stream_id();
   LOG(INFO) << "Spdy Fin for stream " << stream_id;
 
   bool valid_stream = IsStreamActive(stream_id);
@@ -1034,16 +1037,27 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame* frame) {
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
-  if (frame->status() == 0) {
+  if (frame.status() == 0) {
     stream->OnDataReceived(NULL, 0);
   } else {
-    LOG(ERROR) << "Spdy stream closed: " << frame->status();
+    LOG(ERROR) << "Spdy stream closed: " << frame.status();
     // TODO(mbelshe): Map from Spdy-protocol errors to something sensical.
     //                For now, it doesn't matter much - it is a protocol error.
     stream->OnClose(ERR_FAILED);
   }
 
   DeactivateStream(stream_id);
+}
+
+void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
+  session_->spdy_session_pool()->Remove(this);
+
+  // TODO(willchan): Cancel any streams that are past the GoAway frame's
+  // |last_accepted_stream_id|.
+
+  // Don't bother killing any streams that are still reading.  They'll either
+  // complete successfully or get an ERR_CONNECTION_CLOSED when the socket is
+  // closed.
 }
 
 }  // namespace net
