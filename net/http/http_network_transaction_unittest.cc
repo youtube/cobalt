@@ -4253,11 +4253,13 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
 }
 
 TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
+  HttpNetworkTransaction::SetNextProtos("needs_to_be_set_for_this_test");
+
   SessionDependencies session_deps;
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
-    MockRead("Alternate-Protocol: 443:SPDY\r\n\r\n"),
+    MockRead("Alternate-Protocol: 443:npn-spdy\r\n\r\n"),
     MockRead("hello world"),
     MockRead(false, OK),
   };
@@ -4303,8 +4305,10 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
       alternate_protocols.GetAlternateProtocolFor(http_host_port_pair);
   HttpAlternateProtocols::PortProtocolPair expected_alternate;
   expected_alternate.port = 443;
-  expected_alternate.protocol = HttpAlternateProtocols::SPDY;
+  expected_alternate.protocol = HttpAlternateProtocols::NPN_SPDY;
   EXPECT_TRUE(expected_alternate.Equals(alternate));
+
+  HttpNetworkTransaction::SetNextProtos("");
 }
 
 TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
@@ -4345,7 +4349,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
       session->mutable_alternate_protocols();
   alternate_protocols->SetAlternateProtocolFor(
       http_host_port_pair, 1234 /* port is ignored by MockConnect anyway */,
-      HttpAlternateProtocols::SPDY);
+      HttpAlternateProtocols::NPN_SPDY);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
@@ -4374,7 +4378,55 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 // response does not indicate SPDY, so we just do standard HTTPS over the port.
 // We should add code such that we don't fallback to HTTPS, but fallback to HTTP
 // on the original port.
-TEST_F(HttpNetworkTransactionTest, UseAlternateProtocol) {
+//  TEST_F(HttpNetworkTransactionTest, UseAlternateProtocol) {
+//    SessionDependencies session_deps;
+//  
+//    HttpRequestInfo request;
+//    request.method = "GET";
+//    request.url = GURL("http://www.google.com/");
+//    request.load_flags = 0;
+//  
+//    MockRead data_reads[] = {
+//      MockRead("HTTP/1.1 200 OK\r\n\r\n"),
+//      MockRead("hello world"),
+//      MockRead(true, OK),
+//    };
+//    StaticSocketDataProvider data(data_reads, arraysize(data_reads), NULL, 0);
+//    session_deps.socket_factory.AddSocketDataProvider(&data);
+//  
+//    SSLSocketDataProvider ssl(true, OK);
+//    session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+//  
+//    TestCompletionCallback callback;
+//  
+//    scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+//  
+//    HostPortPair http_host_port_pair;
+//    http_host_port_pair.host = "www.google.com";
+//    http_host_port_pair.port = 80;
+//    HttpAlternateProtocols* alternate_protocols =
+//        session->mutable_alternate_protocols();
+//    alternate_protocols->SetAlternateProtocolFor(
+//        http_host_port_pair, 1234 /* port is ignored */,
+//        HttpAlternateProtocols::NPN_SPDY);
+//  
+//    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+//  
+//    int rv = trans->Start(&request, &callback, NULL);
+//    EXPECT_EQ(ERR_IO_PENDING, rv);
+//    EXPECT_EQ(OK, callback.WaitForResult());
+//  
+//    const HttpResponseInfo* response = trans->GetResponseInfo();
+//    ASSERT_TRUE(response != NULL);
+//    ASSERT_TRUE(response->headers != NULL);
+//    EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+//  
+//    std::string response_data;
+//    ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+//    EXPECT_EQ("hello world", response_data);
+//  }
+
+TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -4382,16 +4434,20 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocol) {
   request.url = GURL("http://www.google.com/");
   request.load_flags = 0;
 
+  StaticSocketDataProvider first_tcp_connect;
+  session_deps.socket_factory.AddSocketDataProvider(&first_tcp_connect);
+
+  SSLSocketDataProvider ssl(true, OK);
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n\r\n"),
     MockRead("hello world"),
     MockRead(true, OK),
   };
-  StaticSocketDataProvider data(data_reads, arraysize(data_reads), NULL, 0);
-  session_deps.socket_factory.AddSocketDataProvider(&data);
-
-  SSLSocketDataProvider ssl(true, OK);
-  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+  StaticSocketDataProvider fallback_data(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&fallback_data);
 
   TestCompletionCallback callback;
 
@@ -4404,7 +4460,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocol) {
       session->mutable_alternate_protocols();
   alternate_protocols->SetAlternateProtocolFor(
       http_host_port_pair, 1234 /* port is ignored */,
-      HttpAlternateProtocols::SPDY);
+      HttpAlternateProtocols::NPN_SPDY);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
