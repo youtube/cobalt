@@ -118,11 +118,12 @@ class SpdySession : public base::RefCounted<SpdySession>,
   virtual void OnControl(const spdy::SpdyControlFrame* frame);
 
   // Control frame handlers.
-  void OnSyn(const spdy::SpdySynStreamControlFrame* frame,
-             const spdy::SpdyHeaderBlock* headers);
-  void OnSynReply(const spdy::SpdySynReplyControlFrame* frame,
-                  const spdy::SpdyHeaderBlock* headers);
-  void OnFin(const spdy::SpdyRstStreamControlFrame* frame);
+  void OnSyn(const spdy::SpdySynStreamControlFrame& frame,
+             const spdy::SpdyHeaderBlock& headers);
+  void OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
+                  const spdy::SpdyHeaderBlock& headers);
+  void OnFin(const spdy::SpdyRstStreamControlFrame& frame);
+  void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
 
   // IO Callbacks
   void OnTCPConnect(int result);
