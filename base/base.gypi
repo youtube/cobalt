@@ -372,7 +372,7 @@
       },
       # Conditions that are not relevant for Win64 build
       'conditions': [
-        [ 'OS == "linux" or OS == "freebsd"', {
+        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           'conditions': [
             [ 'chromeos==1', {
                 'sources/': [ ['include', '_chromeos\\.cc$'] ]
@@ -417,7 +417,7 @@
             '../build/linux/system.gyp:gtk',
           ],
         },],
-        [ 'OS == "freebsd"', {
+        [ 'OS == "freebsd" or OS == "openbsd"', {
             'sources!': [
               'file_watcher_inotify.cc',
             ],
@@ -602,7 +602,7 @@
         },
       ],
     }],
-    [ 'OS == "linux" or OS == "freebsd"', {
+    [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
       'targets': [
         {
           'target_name': 'symbolize',

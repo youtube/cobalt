@@ -478,16 +478,14 @@ class ProcessMetrics {
   int64 last_time_;
   int64 last_system_time_;
 
-#if defined(OS_LINUX)
-  // Jiffie count at the last_time_ we updated.
-  int last_cpu_;
-#endif
-
 #if defined(OS_MACOSX)
   // Queries the port provider if it's set.
   mach_port_t TaskForPid(ProcessHandle process) const;
 
   PortProvider* port_provider_;
+#elif defined(OS_POSIX)
+  // Jiffie count at the last_time_ we updated.
+  int last_cpu_;
 #endif
 
   DISALLOW_EVIL_CONSTRUCTORS(ProcessMetrics);

@@ -269,7 +269,8 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
 void SetAllFDsToCloseOnExec() {
 #if defined(OS_LINUX)
   const char fd_dir[] = "/proc/self/fd";
-#elif defined(OS_MACOSX) || defined(OS_FREEBSD) || defined(OS_SOLARIS)
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD) || defined(OS_OPENBSD) || \
+    defined(OS_SOLARIS)
   const char fd_dir[] = "/dev/fd";
 #endif
   ScopedDIR dir_closer(opendir(fd_dir));
@@ -479,10 +480,10 @@ ProcessMetrics::ProcessMetrics(ProcessHandle process,
     : process_(process),
       last_time_(0),
       last_system_time_(0)
-#if defined(OS_LINUX)
-      , last_cpu_(0)
-#elif defined(OS_MACOSX)
+#if defined(OS_MACOSX)
       , port_provider_(port_provider)
+#elif defined(OS_POSIX)
+      , last_cpu_(0)
 #endif
 {
   processor_count_ = base::SysInfo::NumberOfProcessors();

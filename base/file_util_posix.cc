@@ -39,7 +39,7 @@
 
 namespace file_util {
 
-#if defined(OS_FREEBSD) || \
+#if defined(OS_OPENBSD) || defined(OS_FREEBSD) || \
     (defined(OS_MACOSX) && \
      MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
 typedef struct stat stat_wrapper_t;
