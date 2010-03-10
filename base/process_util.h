@@ -111,6 +111,12 @@ bool AdjustOOMScore(ProcessId process, int score);
 #endif
 
 #if defined(OS_POSIX)
+// Sets all file descriptors to close on exec except for stdin, stdout
+// and stderr.
+// TODO(agl): remove this function
+// WARNING: do not use. It's inherently race-prone in the face of
+// multi-threading.
+void SetAllFDsToCloseOnExec();
 // Close all file descriptors, expect those which are a destination in the
 // given multimap. Only call this function in a child process where you know
 // that there aren't any other threads.
