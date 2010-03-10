@@ -18,7 +18,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/debug_util.h"
-#include "base/dir_reader_posix.h"
 #include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/platform_thread.h"
@@ -29,13 +28,8 @@
 #include "base/time.h"
 #include "base/waitable_event.h"
 
-
 #if defined(OS_MACOSX)
-#include <crt_externs.h>
-#define environ (*_NSGetEnviron())
 #include "base/mach_ipc_mac.h"
-#else
-extern char** environ;
 #endif
 
 const int kMicrosecondsPerSecond = 1000000;
@@ -179,26 +173,24 @@ class ScopedDIRClose {
 };
 typedef scoped_ptr_malloc<DIR, ScopedDIRClose> ScopedDIR;
 
+void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
 #if defined(OS_LINUX)
   static const rlim_t kSystemDefaultMaxFds = 8192;
-  static const char kFDDir[] = "/proc/self/fd";
+  static const char fd_dir[] = "/proc/self/fd";
 #elif defined(OS_MACOSX)
   static const rlim_t kSystemDefaultMaxFds = 256;
-  static const char kFDDir[] = "/dev/fd";
+  static const char fd_dir[] = "/dev/fd";
 #elif defined(OS_SOLARIS)
   static const rlim_t kSystemDefaultMaxFds = 8192;
-  static const char kFDDir[] = "/dev/fd";
+  static const char fd_dir[] = "/dev/fd";
 #elif defined(OS_FREEBSD)
   static const rlim_t kSystemDefaultMaxFds = 8192;
-  static const char kFDDir[] = "/dev/fd";
+  static const char fd_dir[] = "/dev/fd";
 #elif defined(OS_OPENBSD)
   static const rlim_t kSystemDefaultMaxFds = 256;
-  static const char kFDDir[] = "/dev/fd";
+  static const char fd_dir[] = "/dev/fd";
 #endif
-
-void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
-  // DANGER: no calls to malloc are allowed from now on:
-  // http://crbug.com/36678
+  std::set<int> saved_fds;
 
   // Get the maximum number of FDs possible.
   struct rlimit nofile;
@@ -214,20 +206,25 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
   if (max_fds > INT_MAX)
     max_fds = INT_MAX;
 
-  DirReaderPosix fd_dir(kFDDir);
+  // Don't close stdin, stdout and stderr
+  saved_fds.insert(STDIN_FILENO);
+  saved_fds.insert(STDOUT_FILENO);
+  saved_fds.insert(STDERR_FILENO);
 
-  if (!fd_dir.IsValid()) {
+  for (base::InjectiveMultimap::const_iterator
+       i = saved_mapping.begin(); i != saved_mapping.end(); ++i) {
+    saved_fds.insert(i->dest);
+  }
+
+  ScopedDIR dir_closer(opendir(fd_dir));
+  DIR *dir = dir_closer.get();
+  if (NULL == dir) {
+    DLOG(ERROR) << "Unable to open " << fd_dir;
+
     // Fallback case: Try every possible fd.
     for (rlim_t i = 0; i < max_fds; ++i) {
       const int fd = static_cast<int>(i);
-      if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO)
-        continue;
-      InjectiveMultimap::const_iterator i;
-      for (i = saved_mapping.begin(); i != saved_mapping.end(); i++) {
-        if (fd == i->dest)
-          break;
-      }
-      if (i != saved_mapping.end())
+      if (saved_fds.find(fd) != saved_fds.end())
         continue;
 
       // Since we're just trying to close anything we can find,
@@ -236,27 +233,20 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
     }
     return;
   }
+  int dir_fd = dirfd(dir);
 
-  const int dir_fd = fd_dir.fd();
-
-  for ( ; fd_dir.Next(); ) {
+  struct dirent *ent;
+  while ((ent = readdir(dir))) {
     // Skip . and .. entries.
-    if (fd_dir.name()[0] == '.')
+    if (ent->d_name[0] == '.')
       continue;
 
     char *endptr;
     errno = 0;
-    const long int fd = strtol(fd_dir.name(), &endptr, 10);
-    if (fd_dir.name()[0] == 0 || *endptr || fd < 0 || errno)
+    const long int fd = strtol(ent->d_name, &endptr, 10);
+    if (ent->d_name[0] == 0 || *endptr || fd < 0 || errno)
       continue;
-    if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO)
-      continue;
-    InjectiveMultimap::const_iterator i;
-    for (i = saved_mapping.begin(); i != saved_mapping.end(); i++) {
-      if (fd == i->dest)
-        break;
-    }
-    if (i != saved_mapping.end())
+    if (saved_fds.find(fd) != saved_fds.end())
       continue;
     if (fd == dir_fd)
       continue;
@@ -268,6 +258,41 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
     if (fd < static_cast<int>(max_fds)) {
       int ret = HANDLE_EINTR(close(fd));
       DPCHECK(ret == 0);
+    }
+  }
+}
+
+// Sets all file descriptors to close on exec except for stdin, stdout
+// and stderr.
+// TODO(agl): Remove this function. It's fundamentally broken for multithreaded
+// apps.
+void SetAllFDsToCloseOnExec() {
+#if defined(OS_LINUX)
+  const char fd_dir[] = "/proc/self/fd";
+#elif defined(OS_MACOSX) || defined(OS_FREEBSD) || defined(OS_OPENBSD) || \
+    defined(OS_SOLARIS)
+  const char fd_dir[] = "/dev/fd";
+#endif
+  ScopedDIR dir_closer(opendir(fd_dir));
+  DIR *dir = dir_closer.get();
+  if (NULL == dir) {
+    DLOG(ERROR) << "Unable to open " << fd_dir;
+    return;
+  }
+
+  struct dirent *ent;
+  while ((ent = readdir(dir))) {
+    // Skip . and .. entries.
+    if (ent->d_name[0] == '.')
+      continue;
+    int i = atoi(ent->d_name);
+    // We don't close stdin, stdout or stderr.
+    if (i <= STDERR_FILENO)
+      continue;
+
+    int flags = fcntl(i, F_GETFD);
+    if ((flags == -1) || (fcntl(i, F_SETFD, flags | FD_CLOEXEC) == -1)) {
+      DLOG(ERROR) << "fcntl failure.";
     }
   }
 }
@@ -333,136 +358,13 @@ static pid_t fork_and_get_task(task_t* child_task) {
 }
 
 bool LaunchApp(const std::vector<std::string>& argv,
-               const environment_vector& env_changes,
+               const environment_vector& environ,
                const file_handle_mapping_vector& fds_to_remap,
                bool wait, ProcessHandle* process_handle) {
   return LaunchAppAndGetTask(
-      argv, env_changes, fds_to_remap, wait, NULL, process_handle);
+      argv, environ, fds_to_remap, wait, NULL, process_handle);
 }
 #endif  // defined(OS_MACOSX)
-
-// AlterEnvironment returns a modified environment vector, constructed from the
-// current environment and the list of changes given in |changes|. Each key in
-// the environment is matched against the first element of the pairs. In the
-// event of a match, the value is replaced by the second of the pair, unless
-// the second is empty, in which case the key-value is removed.
-//
-// The returned array is allocated using new[] and must be freed by the caller.
-static char** AlterEnvironment(const environment_vector& changes) {
-  unsigned count = 0;
-  unsigned size = 0;
-
-  // First assume that all of the current environment will be included.
-  for (unsigned i = 0; environ[i]; i++) {
-    const char *const pair = environ[i];
-    count++;
-    size += strlen(pair) + 1 /* terminating NUL */;
-  }
-
-  for (environment_vector::const_iterator
-       j = changes.begin(); j != changes.end(); j++) {
-    bool found = false;
-    const char *pair;
-
-    for (unsigned i = 0; environ[i]; i++) {
-      pair = environ[i];
-      const char *const equals = strchr(pair, '=');
-      if (!equals)
-        continue;
-      const unsigned keylen = equals - pair;
-      if (keylen == j->first.size() &&
-          memcmp(pair, j->first.data(), keylen) == 0) {
-        found = true;
-        break;
-      }
-    }
-
-    // if found, we'll either be deleting or replacing this element.
-    if (found) {
-      count--;
-      size -= strlen(pair) + 1;
-      if (j->second.size())
-        found = false;
-    }
-
-    // if !found, then we have a new element to add.
-    if (!found) {
-      count++;
-      size += j->first.size() + 1 /* '=' */ + j->second.size() + 1 /* NUL */;
-    }
-  }
-
-  uint8_t *buffer = new uint8_t[sizeof(char*) * count + size];
-  char **const ret = reinterpret_cast<char**>(buffer);
-  unsigned k = 0;
-  char *scratch = reinterpret_cast<char*>(buffer + sizeof(char*) * count);
-
-  for (unsigned i = 0; environ[i]; i++) {
-    const char *const pair = environ[i];
-    const char *const equals = strchr(pair, '=');
-    if (!equals) {
-      const unsigned len = strlen(pair);
-      ret[k++] = scratch;
-      memcpy(scratch, pair, len + 1);
-      scratch += len + 1;
-      continue;
-    }
-    const unsigned keylen = equals - pair;
-    bool handled = false;
-    for (environment_vector::const_iterator
-         j = changes.begin(); j != changes.end(); j++) {
-      if (j->first.size() == keylen &&
-          memcmp(j->first.data(), pair, keylen) == 0) {
-        if (!j->second.empty()) {
-          ret[k++] = scratch;
-          memcpy(scratch, pair, keylen + 1);
-          scratch += keylen + 1;
-          memcpy(scratch, j->second.c_str(), j->second.size() + 1);
-          scratch += j->second.size() + 1;
-        }
-        handled = true;
-        break;
-      }
-    }
-
-    if (!handled) {
-      const unsigned len = strlen(pair);
-      ret[k++] = scratch;
-      memcpy(scratch, pair, len + 1);
-      scratch += len + 1;
-    }
-  }
-
-  // Now handle new elements
-  for (environment_vector::const_iterator
-       j = changes.begin(); j != changes.end(); j++) {
-    bool found = false;
-    for (unsigned i = 0; environ[i]; i++) {
-      const char *const pair = environ[i];
-      const char *const equals = strchr(pair, '=');
-      if (!equals)
-        continue;
-      const unsigned keylen = equals - pair;
-      if (keylen == j->first.size() &&
-          memcmp(pair, j->first.data(), keylen) == 0) {
-        found = true;
-        break;
-      }
-    }
-
-    if (!found) {
-      ret[k++] = scratch;
-      memcpy(scratch, j->first.data(), j->first.size());
-      scratch += j->first.size();
-      *scratch++ = '=';
-      memcpy(scratch, j->second.c_str(), j->second.size() + 1);
-      scratch += j->second.size() + 1;
-     }
-  }
-
-  ret[k] = NULL;
-  return ret;
-}
 
 #if defined(OS_MACOSX)
 bool LaunchAppAndGetTask(
@@ -470,7 +372,7 @@ bool LaunchAppAndGetTask(
 bool LaunchApp(
 #endif
     const std::vector<std::string>& argv,
-    const environment_vector& env_changes,
+    const environment_vector& environ,
     const file_handle_mapping_vector& fds_to_remap,
     bool wait,
 #if defined(OS_MACOSX)
@@ -478,12 +380,6 @@ bool LaunchApp(
 #endif
     ProcessHandle* process_handle) {
   pid_t pid;
-  InjectiveMultimap fd_shuffle1, fd_shuffle2;
-  fd_shuffle1.reserve(fds_to_remap.size());
-  fd_shuffle2.reserve(fds_to_remap.size());
-  scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
-  scoped_array<char*> new_environ(AlterEnvironment(env_changes));
-
 #if defined(OS_MACOSX)
   if (task_handle == NULL) {
     pid = fork();
@@ -507,44 +403,45 @@ bool LaunchApp(
     RestoreDefaultExceptionHandler();
 #endif
 
-#if 0
-    // When debugging it can be helpful to check that we really aren't making
-    // any hidden calls to malloc.
-    void *malloc_thunk =
-        reinterpret_cast<void*>(reinterpret_cast<intptr_t>(malloc) & ~4095);
-    mprotect(malloc_thunk, 4096, PROT_READ | PROT_WRITE | PROT_EXEC);
-    memset(reinterpret_cast<void*>(malloc), 0xff, 8);
-#endif
-
-    // DANGER: no calls to malloc are allowed from now on:
-    // http://crbug.com/36678
-
+    InjectiveMultimap fd_shuffle;
     for (file_handle_mapping_vector::const_iterator
         it = fds_to_remap.begin(); it != fds_to_remap.end(); ++it) {
-      fd_shuffle1.push_back(InjectionArc(it->first, it->second, false));
-      fd_shuffle2.push_back(InjectionArc(it->first, it->second, false));
+      fd_shuffle.push_back(InjectionArc(it->first, it->second, false));
     }
 
-    environ = new_environ.get();
+    for (environment_vector::const_iterator it = environ.begin();
+         it != environ.end(); ++it) {
+      if (it->first.empty())
+        continue;
+
+      if (it->second.empty()) {
+        unsetenv(it->first.c_str());
+      } else {
+        setenv(it->first.c_str(), it->second.c_str(), 1);
+      }
+    }
 
     // Obscure fork() rule: in the child, if you don't end up doing exec*(),
     // you call _exit() instead of exit(). This is because _exit() does not
     // call any previously-registered (in the parent) exit handlers, which
     // might do things like block waiting for threads that don't even exist
     // in the child.
-
-    // fd_shuffle1 is mutated by this call because it cannot malloc.
-    if (!ShuffleFileDescriptors(&fd_shuffle1))
+    if (!ShuffleFileDescriptors(fd_shuffle))
       _exit(127);
 
-    CloseSuperfluousFds(fd_shuffle2);
+    // If we are using the SUID sandbox, it sets a magic environment variable
+    // ("SBX_D"), so we remove that variable from the environment here on the
+    // off chance that it's already set.
+    unsetenv("SBX_D");
 
+    CloseSuperfluousFds(fd_shuffle);
+
+    scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
     for (size_t i = 0; i < argv.size(); i++)
       argv_cstr[i] = const_cast<char*>(argv[i].c_str());
     argv_cstr[argv.size()] = NULL;
     execvp(argv_cstr[0], argv_cstr.get());
-    RAW_LOG(ERROR, "LaunchApp: failed to execvp:");
-    RAW_LOG(ERROR, argv_cstr[0]);
+    PLOG(ERROR) << "LaunchApp: execvp(" << argv_cstr[0] << ") failed";
     _exit(127);
   } else {
     // Parent process
@@ -737,12 +634,6 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
                                  bool do_search_path) {
   int pipe_fd[2];
   pid_t pid;
-  InjectiveMultimap fd_shuffle1, fd_shuffle2;
-  const std::vector<std::string>& argv = cl.argv();
-  scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
-
-  fd_shuffle1.reserve(3);
-  fd_shuffle2.reserve(3);
 
   // Either |do_search_path| should be false or |envp| should be null, but not
   // both.
@@ -761,8 +652,6 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
 #if defined(OS_MACOSX)
         RestoreDefaultExceptionHandler();
 #endif
-        // DANGER: no calls to malloc are allowed from now on:
-        // http://crbug.com/36678
 
         // Obscure fork() rule: in the child, if you don't end up doing exec*(),
         // you call _exit() instead of exit(). This is because _exit() does not
@@ -773,20 +662,18 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
         if (dev_null < 0)
           _exit(127);
 
-        fd_shuffle1.push_back(InjectionArc(pipe_fd[1], STDOUT_FILENO, true));
-        fd_shuffle1.push_back(InjectionArc(dev_null, STDERR_FILENO, true));
-        fd_shuffle1.push_back(InjectionArc(dev_null, STDIN_FILENO, true));
-        // Adding another element here? Remeber to increase the argument to
-        // reserve(), above.
+        InjectiveMultimap fd_shuffle;
+        fd_shuffle.push_back(InjectionArc(pipe_fd[1], STDOUT_FILENO, true));
+        fd_shuffle.push_back(InjectionArc(dev_null, STDERR_FILENO, true));
+        fd_shuffle.push_back(InjectionArc(dev_null, STDIN_FILENO, true));
 
-        std::copy(fd_shuffle1.begin(), fd_shuffle1.end(),
-                  std::back_inserter(fd_shuffle2));
-
-        if (!ShuffleFileDescriptors(&fd_shuffle1))
+        if (!ShuffleFileDescriptors(fd_shuffle))
           _exit(127);
 
-        CloseSuperfluousFds(fd_shuffle2);
+        CloseSuperfluousFds(fd_shuffle);
 
+        const std::vector<std::string> argv = cl.argv();
+        scoped_array<char*> argv_cstr(new char*[argv.size() + 1]);
         for (size_t i = 0; i < argv.size(); i++)
           argv_cstr[i] = const_cast<char*>(argv[i].c_str());
         argv_cstr[argv.size()] = NULL;
