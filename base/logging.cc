@@ -230,16 +230,6 @@ bool InitializeLogFileHandle() {
   return true;
 }
 
-#if defined(OS_POSIX) && !defined(OS_MACOSX)
-int GetLoggingFileDescriptor() {
-  // No locking needed, since this is only called by the zygote server,
-  // which is single-threaded.
-  if (log_file)
-    return fileno(log_file);
-  return -1;
-}
-#endif
-
 void InitLogMutex() {
 #if defined(OS_WIN)
   if (!log_mutex) {
