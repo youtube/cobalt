@@ -5,7 +5,7 @@
 #include <limits>
 
 #include "base/file_util.h"
-#include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "media/base/filter_host.h"
 #include "media/base/filters.h"
 #include "media/base/pipeline.h"
