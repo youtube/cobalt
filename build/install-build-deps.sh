@@ -134,14 +134,15 @@ fi
 
 # Packages need for development
 dev_list="apache2 bison fakeroot flex g++ g++-multilib gperf libapache2-mod-php5
-          libasound2-dev libbz2-dev libcairo2-dev libgconf2-dev libgl1-mesa-dev
-          libglu1-mesa-dev libglib2.0-dev libgtk2.0-dev libjpeg62-dev
-          libnspr4-dev libnss3-dev libpam0g-dev libsqlite3-dev libxslt1-dev
-          libxss-dev lighttpd mesa-common-dev msttcorefonts patch perl php5-cgi
-          pkg-config python python2.5-dev rpm subversion wdiff"
+          libasound2-dev libbz2-dev libcairo2-dev libdbus-glib-1-dev
+          libgconf2-dev libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev
+          libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev libpam0g-dev
+          libsqlite3-dev libxslt1-dev libxss-dev lighttpd mesa-common-dev
+          msttcorefonts patch perl php5-cgi pkg-config python python2.5-dev rpm
+          subversion wdiff"
 
 # Full list of required run-time libraries
-lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-dev libexpat1
+lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
           libfontconfig1 libfreetype6 libglib2.0-0 libgtk2.0-0 libnspr4-0d
           libnss3-1d libpango1.0-0 libpcre3 libpixman-1-0 libpng12-0 libstdc++6
           libsqlite3-0 libx11-6 libxau6 libxcb1 libxcomposite1
@@ -158,7 +159,7 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg libdbus-glib-1-2-dbg
           libxrender1-dbg zlib1g-dbg"
 
 # Standard 32bit compatibility libraries
-cmp_list="ia32-libs lib32asound2-dev lib32readline-dev lib32stdc++6 lib32z1
+cmp_list="ia32-libs lib32asound2-dev lib32readline5-dev lib32stdc++6 lib32z1
           lib32z1-dev libc6-dev-i386 libc6-i386"
 
 # Waits for the user to press 'Y' or 'N'. Either uppercase of lowercase is
