@@ -29,7 +29,6 @@
 #include "base/time.h"
 #include "base/waitable_event.h"
 
-
 #if defined(OS_MACOSX)
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())
