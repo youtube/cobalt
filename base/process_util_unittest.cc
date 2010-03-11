@@ -294,6 +294,107 @@ TEST_F(ProcessUtilTest, FDRemapping) {
   DPCHECK(ret == 0);
 }
 
+static std::string TestLaunchApp(const base::environment_vector& env_changes) {
+  std::vector<std::string> args;
+  base::file_handle_mapping_vector fds_to_remap;
+  ProcessHandle handle;
+
+  args.push_back("bash");
+  args.push_back("-c");
+  args.push_back("echo $BASE_TEST");
+
+  int fds[2];
+  PCHECK(pipe(fds) == 0);
+
+  fds_to_remap.push_back(std::make_pair(fds[1], 1));
+  EXPECT_TRUE(LaunchApp(args, env_changes, fds_to_remap,
+                        true /* wait for exit */, &handle));
+  PCHECK(close(fds[1]) == 0);
+
+  char buf[512];
+  const ssize_t n = HANDLE_EINTR(read(fds[0], buf, sizeof(buf)));
+  PCHECK(n > 0);
+  return std::string(buf, n);
+}
+
+static const char kLargeString[] =
+    "0123456789012345678901234567890123456789012345678901234567890123456789"
+    "0123456789012345678901234567890123456789012345678901234567890123456789"
+    "0123456789012345678901234567890123456789012345678901234567890123456789"
+    "0123456789012345678901234567890123456789012345678901234567890123456789"
+    "0123456789012345678901234567890123456789012345678901234567890123456789"
+    "0123456789012345678901234567890123456789012345678901234567890123456789"
+    "0123456789012345678901234567890123456789012345678901234567890123456789";
+
+TEST_F(ProcessUtilTest, LaunchApp) {
+  base::environment_vector env_changes;
+
+  env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
+                                       std::string("bar")));
+  EXPECT_EQ("bar\n", TestLaunchApp(env_changes));
+  env_changes.clear();
+
+  EXPECT_EQ(0, setenv("BASE_TEST", "testing", 1 /* override */));
+  EXPECT_EQ("testing\n", TestLaunchApp(env_changes));
+
+  env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
+                                       std::string("")));
+  EXPECT_EQ("\n", TestLaunchApp(env_changes));
+
+  env_changes[0].second = "foo";
+  EXPECT_EQ("foo\n", TestLaunchApp(env_changes));
+
+  env_changes.clear();
+  EXPECT_EQ(0, setenv("BASE_TEST", kLargeString, 1 /* override */));
+  EXPECT_EQ(std::string(kLargeString) + "\n", TestLaunchApp(env_changes));
+
+  env_changes.push_back(std::make_pair(std::string("BASE_TEST"),
+                                       std::string("wibble")));
+  EXPECT_EQ("wibble\n", TestLaunchApp(env_changes));
+}
+
+TEST_F(ProcessUtilTest, AlterEnvironment) {
+  static const char* empty[] = { NULL };
+  static const char* a2[] = { "A=2", NULL };
+  base::environment_vector changes;
+  char** e;
+
+  e = AlterEnvironment(changes, empty);
+  EXPECT_TRUE(e[0] == NULL);
+  delete[] e;
+
+  changes.push_back(std::make_pair(std::string("A"), std::string("1")));
+  e = AlterEnvironment(changes, empty);
+  EXPECT_EQ(std::string("A=1"), e[0]);
+  EXPECT_TRUE(e[1] == NULL);
+  delete[] e;
+
+  changes.clear();
+  changes.push_back(std::make_pair(std::string("A"), std::string("")));
+  e = AlterEnvironment(changes, empty);
+  EXPECT_TRUE(e[0] == NULL);
+  delete[] e;
+
+  changes.clear();
+  e = AlterEnvironment(changes, a2);
+  EXPECT_EQ(std::string("A=2"), e[0]);
+  EXPECT_TRUE(e[1] == NULL);
+  delete[] e;
+
+  changes.clear();
+  changes.push_back(std::make_pair(std::string("A"), std::string("1")));
+  e = AlterEnvironment(changes, a2);
+  EXPECT_EQ(std::string("A=1"), e[0]);
+  EXPECT_TRUE(e[1] == NULL);
+  delete[] e;
+
+  changes.clear();
+  changes.push_back(std::make_pair(std::string("A"), std::string("")));
+  e = AlterEnvironment(changes, a2);
+  EXPECT_TRUE(e[0] == NULL);
+  delete[] e;
+}
+
 TEST_F(ProcessUtilTest, GetAppOutput) {
   std::string output;
   EXPECT_TRUE(GetAppOutput(CommandLine(FilePath("true")), &output));
