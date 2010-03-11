@@ -175,8 +175,8 @@ bool ProxyBypassRules::AddRuleFromStringInternal(
   // If there is a forward slash in the input, it is probably a CIDR style
   // mask.
   if (raw.find('/') != std::string::npos) {
-    LOG(WARNING) << "TODO: support CIDR-style proxy bypass entries "
-                    "(http://crbug.com/9835)";
+    // TODO(eroman): support CIDR-style proxy bypass entries
+    // (http://crbug.com/9835)
     return false;
   }
 
@@ -220,9 +220,7 @@ bool ProxyBypassRules::AddRuleFromStringInternal(
 bool ProxyBypassRules::AddRuleFromStringInternalWithLogging(
     const std::string& raw,
     bool use_hostname_suffix_matching) {
-  bool ok = AddRuleFromStringInternal(raw, use_hostname_suffix_matching);
-  LOG_IF(WARNING, !ok) << "Unable to parse proxy bypass rule: " << raw;
-  return ok;
+  return AddRuleFromStringInternal(raw, use_hostname_suffix_matching);
 }
 
 }  // namespace net
