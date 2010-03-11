@@ -150,7 +150,7 @@ lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
           libxinerama1 libxrandr2 libxrender1 zlib1g"
 
 # Debugging symbols for all of the run-time libraries
-dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg libdbus-glib-1-2-dbg
+dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
           libfontconfig1-dbg libglib2.0-0-dbg libgtk2.0-0-dbg libnspr4-0d-dbg
           libnss3-1d-dbg libpango1.0-0-dbg libpcre3-dbg libpixman-1-0-dbg
           libx11-6-dbg libxau6-dbg libxcb1-dbg libxcomposite1-dbg
