@@ -7,7 +7,7 @@
 #include "net/base/platform_mime_util.h"
 
 #include "base/registry.h"
-#include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 
 namespace net {
 
