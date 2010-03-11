@@ -52,7 +52,7 @@ function runPerformanceTest(params) {
 
   db.transaction(
       function(tx) {
-        tx.executeSql('CREATE TABLE Test (ID INT, Foo TEXT)', [],
+        tx.executeSql('CREATE TABLE IF NOT EXISTS Test (ID INT, Foo TEXT)', [],
                       function(tx, data) {}, function(tx, error) {});
         tx.executeSql('DELETE FROM Test');
         if (params.insertRowsAtSetup) {
