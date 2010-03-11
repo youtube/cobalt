@@ -111,12 +111,6 @@ bool AdjustOOMScore(ProcessId process, int score);
 #endif
 
 #if defined(OS_POSIX)
-// Sets all file descriptors to close on exec except for stdin, stdout
-// and stderr.
-// TODO(agl): remove this function
-// WARNING: do not use. It's inherently race-prone in the face of
-// multi-threading.
-void SetAllFDsToCloseOnExec();
 // Close all file descriptors, expect those which are a destination in the
 // given multimap. Only call this function in a child process where you know
 // that there aren't any other threads.
@@ -184,6 +178,16 @@ bool LaunchApp(const std::vector<std::string>& argv,
                const environment_vector& environ,
                const file_handle_mapping_vector& fds_to_remap,
                bool wait, ProcessHandle* process_handle);
+
+// AlterEnvironment returns a modified environment vector, constructed from the
+// given environment and the list of changes given in |changes|. Each key in
+// the environment is matched against the first element of the pairs. In the
+// event of a match, the value is replaced by the second of the pair, unless
+// the second is empty, in which case the key-value is removed.
+//
+// The returned array is allocated using new[] and must be freed by the caller.
+char** AlterEnvironment(const environment_vector& changes,
+                        const char* const* const env);
 
 #if defined(OS_MACOSX)
 // Similar to the above, but also returns the new process's task_t if
