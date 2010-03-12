@@ -274,23 +274,23 @@
 #         ],
 #       },
 #     },
-#     {
-#       'target_name': 'dbus-glib',
-#       'type': 'settings',
-#       'direct_dependent_settings': {
-#         'cflags': [
-#           '<!@(<(pkg-config) --cflags dbus-glib-1)',
-#         ],
-#       },
-#       'link_settings': {
-#         'ldflags': [
-#           '<!@(<(pkg-config) --libs-only-L --libs-only-other dbus-glib-1)',
-#         ],
-#         'libraries': [
-#           '<!@(<(pkg-config) --libs-only-l dbus-glib-1)',
-#         ],
-#       },
-#     },
+     {
+       'target_name': 'dbus-glib',
+       'type': 'settings',
+       'direct_dependent_settings': {
+         'cflags': [
+           '<!@(<(pkg-config) --cflags dbus-glib-1)',
+         ],
+       },
+       'link_settings': {
+         'ldflags': [
+           '<!@(<(pkg-config) --libs-only-L --libs-only-other dbus-glib-1)',
+         ],
+         'libraries': [
+           '<!@(<(pkg-config) --libs-only-l dbus-glib-1)',
+         ],
+       },
+     },
   ],
 }
 
