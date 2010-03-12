@@ -18,8 +18,7 @@ struct SSLConfig {
   // Default to SSL 2.0 off, SSL 3.0 on, and TLS 1.0 on.
   SSLConfig()
       : rev_checking_enabled(true),  ssl2_enabled(false), ssl3_enabled(true),
-        tls1_enabled(true), send_client_cert(false), verify_ev_cert(false),
-        next_protos("\007http1.1") {
+        tls1_enabled(true), send_client_cert(false), verify_ev_cert(false) {
   }
 
   bool rev_checking_enabled;  // True if server certificate revocation

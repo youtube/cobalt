@@ -8447,6 +8447,14 @@ ssl3_HandleFinished(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
 	if (doStepUp || ss->writerThread == PR_GetCurrentThread()) {
 	    flags = ssl_SEND_FLAG_FORCE_INTO_BUFFER;
 	}
+
+	if (!isServer) {
+	    rv = ssl3_SendNextProto(ss);
+	    if (rv != SECSuccess) {
+		goto xmit_loser;        /* err code was set. */
+	    }
+	}
+
 	rv = ssl3_SendFinished(ss, flags);
 	if (rv != SECSuccess) {
 	    goto xmit_loser;	/* err is set. */
