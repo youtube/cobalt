@@ -540,9 +540,9 @@ int SSLClientSocketNSS::Read(IOBuffer* buf, int buf_len,
 
   int rv = DoReadLoop(OK);
 
-  if (rv == ERR_IO_PENDING)
+  if (rv == ERR_IO_PENDING) {
     user_read_callback_ = callback;
-  else {
+  } else {
     user_read_buf_ = NULL;
     user_read_buf_len_ = 0;
   }
@@ -565,9 +565,9 @@ int SSLClientSocketNSS::Write(IOBuffer* buf, int buf_len,
 
   int rv = DoWriteLoop(OK);
 
-  if (rv == ERR_IO_PENDING)
+  if (rv == ERR_IO_PENDING) {
     user_write_callback_ = callback;
-  else {
+  } else {
     user_write_buf_ = NULL;
     user_write_buf_len_ = 0;
   }
@@ -698,7 +698,7 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
 void SSLClientSocketNSS::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
   EnterFunction("");
-  cert_request_info->host_and_port = hostname_;
+  cert_request_info->host_and_port = hostname_;  // TODO(wtc): no port!
   cert_request_info->client_certs = client_certs_;
   LeaveFunction(cert_request_info->client_certs.size());
 }
@@ -1094,15 +1094,86 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
     CERTDistNames* ca_names,
     CERTCertificate** result_certificate,
     SECKEYPrivateKey** result_private_key) {
-#if defined(OS_WIN)
-  // Not implemented.  Send no client certificate.
-  PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
-  return SECFailure;
-#else
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
   that->client_auth_cert_needed_ = !that->ssl_config_.send_client_cert;
 
+#if defined(OS_WIN)
+  if (that->ssl_config_.send_client_cert) {
+    // TODO(wtc): SSLClientSocketNSS can't do SSL client authentication using
+    // CryptoAPI yet (http://crbug.com/37560), so client_cert must be NULL.
+    DCHECK(!that->ssl_config_.client_cert);
+    // Send no client certificate.
+    return SECFailure;
+  }
+
+  that->client_certs_.clear();
+
+  std::vector<CERT_NAME_BLOB> issuer_list(ca_names->nnames);
+  for (int i = 0; i < ca_names->nnames; ++i) {
+    issuer_list[i].cbData = ca_names->names[i].len;
+    issuer_list[i].pbData = ca_names->names[i].data;
+  }
+
+  // Client certificates of the user are in the "MY" system certificate store.
+  HCERTSTORE my_cert_store = CertOpenSystemStore(NULL, L"MY");
+  if (!my_cert_store) {
+    LOG(ERROR) << "Could not open the \"MY\" system certificate store: "
+               << GetLastError();
+    return SECFailure;
+  }
+
+  // Enumerate the client certificates.
+  CERT_CHAIN_FIND_BY_ISSUER_PARA find_by_issuer_para;
+  memset(&find_by_issuer_para, 0, sizeof(find_by_issuer_para));
+  find_by_issuer_para.cbSize = sizeof(find_by_issuer_para);
+  find_by_issuer_para.pszUsageIdentifier = szOID_PKIX_KP_CLIENT_AUTH;
+  find_by_issuer_para.cIssuer = ca_names->nnames;
+  find_by_issuer_para.rgIssuer = ca_names->nnames ? &issuer_list[0] : NULL;
+
+  PCCERT_CHAIN_CONTEXT chain_context = NULL;
+
+  for (;;) {
+    // Find a certificate chain.
+    chain_context = CertFindChainInStore(my_cert_store,
+                                         X509_ASN_ENCODING,
+                                         0,
+                                         CERT_CHAIN_FIND_BY_ISSUER,
+                                         &find_by_issuer_para,
+                                         chain_context);
+    if (!chain_context) {
+      DWORD err = GetLastError();
+      if (err != CRYPT_E_NOT_FOUND)
+        DLOG(ERROR) << "CertFindChainInStore failed: " << err;
+      break;
+    }
+
+    // Get the leaf certificate.
+    PCCERT_CONTEXT cert_context =
+        chain_context->rgpChain[0]->rgpElement[0]->pCertContext;
+    // Copy it to our own certificate store, so that we can close the "MY"
+    // certificate store before returning from this function.
+    PCCERT_CONTEXT cert_context2;
+    BOOL ok = CertAddCertificateContextToStore(cert_store_, cert_context,
+                                               CERT_STORE_ADD_USE_EXISTING,
+                                               &cert_context2);
+    if (!ok) {
+      NOTREACHED();
+      continue;
+    }
+    scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
+        cert_context2, X509Certificate::SOURCE_LONE_CERT_IMPORT,
+        net::X509Certificate::OSCertHandles());
+    that->client_certs_.push_back(cert);
+  }
+
+  BOOL ok = CertCloseStore(my_cert_store, CERT_CLOSE_STORE_CHECK_FLAG);
+  DCHECK(ok);
+
+  // Tell NSS to suspend the client authentication.  We will then abort the
+  // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
+  return SECWouldBlock;
+#else
   CERTCertificate* cert = NULL;
   SECKEYPrivateKey* privkey = NULL;
   void* wincx  = SSL_RevealPinArg(socket);
@@ -1304,7 +1375,7 @@ int SSLClientSocketNSS::DoVerifyCertComplete(int result) {
 int SSLClientSocketNSS::DoPayloadRead() {
   EnterFunction(user_read_buf_len_);
   DCHECK(user_read_buf_);
-  DCHECK(user_read_buf_len_ > 0);
+  DCHECK_GT(user_read_buf_len_, 0);
   int rv = PR_Read(nss_fd_, user_read_buf_->data(), user_read_buf_len_);
   if (client_auth_cert_needed_) {
     // We don't need to invalidate the non-client-authenticated SSL session
