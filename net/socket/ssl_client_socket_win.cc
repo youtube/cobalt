@@ -370,6 +370,8 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
   // Client certificates of the user are in the "MY" system certificate store.
   HCERTSTORE my_cert_store = CertOpenSystemStore(NULL, L"MY");
   if (!my_cert_store) {
+    LOG(ERROR) << "Could not open the \"MY\" system certificate store: "
+               << GetLastError();
     FreeContextBuffer(issuer_list.aIssuers);
     return;
   }

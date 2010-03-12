@@ -157,9 +157,12 @@ class SSLClientSocketNSS : public SSLClientSocket {
   scoped_refptr<LoadLog> load_log_;
 
 #if defined(OS_WIN)
-  // A CryptoAPI in-memory certificate store that we import server
-  // certificates into so that we can verify and display the certificates
-  // using CryptoAPI.
+  // A CryptoAPI in-memory certificate store.  We use it for two purposes:
+  // 1. Import server certificates into this store so that we can verify and
+  //    display the certificates using CryptoAPI.
+  // 2. Copy client certificates from the "MY" system certificate store into
+  //    this store so that we can close the system store when we finish
+  //    searching for client certificates.
   static HCERTSTORE cert_store_;
 #endif
 };
