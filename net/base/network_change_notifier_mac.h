@@ -51,7 +51,9 @@ class NetworkChangeNotifierMac : public NetworkChangeNotifier {
   // Receives the OS X network change notifications on this thread.
   scoped_ptr<base::Thread> notifier_thread_;
 
-  ObserverList<Observer, true> observers_;
+  // TODO(willchan): Fix the URLRequestContextGetter leaks and flip the false to
+  // true so we assert that all observers have been removed.
+  ObserverList<Observer, false> observers_;
 
   // Used to initialize the notifier thread.
   ScopedRunnableMethodFactory<NetworkChangeNotifierMac> method_factory_;
