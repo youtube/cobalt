@@ -437,9 +437,9 @@ void URLRequestHttpJob::StopCaching() {
 void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
-    if (policy != net::OK) {
+    if (policy == net::ERR_ACCESS_DENIED) {
       request_->delegate()->OnGetCookiesBlocked(request_);
-    } else if (request_->context()->cookie_store()) {
+    } else if (policy == net::OK && request_->context()->cookie_store()) {
       net::CookieOptions options;
       options.set_include_httponly();
       std::string cookies =
@@ -462,10 +462,10 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
 void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
-    if (policy != net::OK &&
-        policy != net::OK_FOR_SESSION_ONLY) {
+    if (policy == net::ERR_ACCESS_DENIED) {
       request_->delegate()->OnSetCookieBlocked(request_);
-    } else if (request_->context()->cookie_store()) {
+    } else if ((policy == net::OK || policy == net::OK_FOR_SESSION_ONLY) &&
+               request_->context()->cookie_store()) {
       // OK to save the current response cookie now.
       net::CookieOptions options;
       options.set_include_httponly();
@@ -705,7 +705,7 @@ void URLRequestHttpJob::AddCookieHeaderAndStart() {
   int policy = net::OK;
 
   if (request_info_.load_flags & net::LOAD_DO_NOT_SEND_COOKIES) {
-    policy = net::ERR_ACCESS_DENIED;
+    policy = net::ERR_FAILED;
   } else if (request_->context()->cookie_policy()) {
     policy = request_->context()->cookie_policy()->CanGetCookies(
         request_->url(),
@@ -751,7 +751,7 @@ void URLRequestHttpJob::SaveNextCookie() {
   int policy = net::OK;
 
   if (request_info_.load_flags & net::LOAD_DO_NOT_SAVE_COOKIES) {
-    policy = net::ERR_ACCESS_DENIED;
+    policy = net::ERR_FAILED;
   } else if (request_->context()->cookie_policy()) {
     policy = request_->context()->cookie_policy()->CanSetCookie(
         request_->url(),
