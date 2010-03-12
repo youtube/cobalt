@@ -43,10 +43,10 @@ namespace base {
 
 template <typename Type>
 struct DefaultLazyInstanceTraits {
-  static void New(void* instance) {
+  static Type* New(void* instance) {
     // Use placement new to initialize our instance in our preallocated space.
     // The parenthesis is very important here to force POD type initialization.
-    new (instance) Type();
+    return new (instance) Type();
   }
   static void Delete(void* instance) {
     // Explicitly call the destructor.
@@ -68,10 +68,14 @@ class LazyInstanceHelper {
   // Declaring a destructor (even if it's empty) will cause MSVC to register a
   // static initializer to register the empty destructor with atexit().
 
-  // Make sure that instance is created, creating or waiting for it to be
-  // created if neccessary.  Constructs with |ctor| in the space provided by
-  // |instance| and registers dtor for destruction at program exit.
-  void EnsureInstance(void* instance, void (*ctor)(void*), void (*dtor)(void*));
+  // Check if instance needs to be created. If so return true otherwise
+  // if another thread has beat us, wait for instance to be created and
+  // return false.
+  bool NeedsInstance();
+
+  // After creating an instance, call this to register the dtor to be called
+  // at program exit and to update the state to STATE_CREATED.
+  void CompleteInstance(void* instance, void (*dtor)(void*));
 
   base::subtle::Atomic32 state_;
 
@@ -95,25 +99,27 @@ class LazyInstance : public LazyInstanceHelper {
   }
 
   Type* Pointer() {
-    Type* instance = reinterpret_cast<Type*>(&buf_);
-
     // We will hopefully have fast access when the instance is already created.
-    if (base::subtle::NoBarrier_Load(&state_) != STATE_CREATED)
-      EnsureInstance(instance, Traits::New, Traits::Delete);
+    if ((base::subtle::NoBarrier_Load(&state_) != STATE_CREATED) &&
+        NeedsInstance()) {
+      // Create the instance in the space provided by |buf_|.
+      instance_ = Traits::New(buf_);
+      CompleteInstance(instance_, Traits::Delete);
+    }
 
     // This annotation helps race detectors recognize correct lock-less
     // synchronization between different threads calling Pointer().
-    // We suggest dynamic race detection tool that
-    // "ctor(instance)" in EnsureInstance(...) happens before
-    // "return instance" in Pointer().
-    // See the corresponding HAPPENS_BEFORE in EnsureInstance(...).
+    // We suggest dynamic race detection tool that "Traits::New" above
+    // and CompleteInstance(...) happens before "return instance_" below.
+    // See the corresponding HAPPENS_BEFORE in CompleteInstance(...).
     ANNOTATE_HAPPENS_AFTER(&state_);
 
-    return instance;
+    return instance_;
   }
 
  private:
   int8 buf_[sizeof(Type)];  // Preallocate the space for the Type instance.
+  Type *instance_;
 
   DISALLOW_COPY_AND_ASSIGN(LazyInstance);
 };
