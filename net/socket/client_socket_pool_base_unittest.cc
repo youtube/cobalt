@@ -1120,14 +1120,18 @@ TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
   EXPECT_TRUE(req.handle()->socket());
   req.handle()->Reset();
 
-  EXPECT_EQ(4u, log->entries().size());
+  EXPECT_EQ(6u, log->entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
       *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
       *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEvent(
+      *log, 3, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 3, LoadLog::TYPE_SOCKET_POOL));
+      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 5, LoadLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest,
@@ -1143,13 +1147,18 @@ TEST_F(ClientSocketPoolBaseTest,
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 
-  EXPECT_EQ(4u, log->entries().size());
+  EXPECT_EQ(6u, log->entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
       *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
       *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(*log, 3, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsEvent(
+      *log, 3, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log, 5, LoadLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
@@ -1184,13 +1193,18 @@ TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
   req2.handle()->Reset();
 
   // Now request 2 has actually finished.
-  EXPECT_EQ(4u, log2->entries().size());
+  EXPECT_EQ(6u, log2->entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(*log2, 0, LoadLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
       *log2, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
       *log2, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(*log2, 3, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsEvent(
+      *log2, 3, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log2, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      *log2, 5, LoadLog::TYPE_SOCKET_POOL));
 
 }
 
@@ -1484,7 +1498,7 @@ TEST_F(ClientSocketPoolBaseTest, ReleasedSocketReleasesToo) {
   EXPECT_EQ(OK, InitHandle(
       &handle, "a", kDefaultPriority, &callback, pool_.get(), NULL));
   handle.Reset();
-  
+
   // Before the DoReleaseSocket() task has run, start up a
   // TestReleasingSocketRequest.  This one will be ERR_IO_PENDING since
   // num_releasing_sockets > 0 and there was no idle socket to use yet.

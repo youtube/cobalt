@@ -28,8 +28,10 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/compiler_specific.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "base/task.h"
 #include "base/time.h"
 #include "base/timer.h"
 #include "net/base/address_list.h"
@@ -197,6 +199,12 @@ class ClientSocketPoolBaseHelper
   LoadState GetLoadState(const std::string& group_name,
                          const ClientSocketHandle* handle) const;
 
+  int ConnectRetryIntervalMs() const {
+    // TODO(mbelshe): Make this tuned dynamically based on measured RTT.
+    //                For now, just use the max retry interval.
+    return ClientSocketPool::kMaxConnectRetryIntervalMs;
+  }
+
   // ConnectJob::Delegate methods:
   virtual void OnConnectJobComplete(int result, ConnectJob* job);
 
@@ -246,10 +254,19 @@ class ClientSocketPoolBaseHelper
   // this number of sockets held by clients, some of them may be released soon,
   // since ReleaseSocket() was called of them, but the DoReleaseSocket() task
   // has not run yet for them.  |num_releasing_sockets| tracks these values,
-  // which is useful for not starting up new ConnectJobs when sockets may become
-  // available really soon.
+  // which is useful for not starting up new ConnectJobs when sockets may
+  // become available really soon.
   struct Group {
-    Group() : active_socket_count(0), num_releasing_sockets(0) {}
+    Group()
+        : active_socket_count(0),
+          num_releasing_sockets(0),
+          backup_job(NULL),
+          backup_task(NULL) {
+    }
+
+    ~Group() {
+      CleanupBackupJob();
+    }
 
     bool IsEmpty() const {
       return active_socket_count == 0 && idle_sockets.empty() && jobs.empty() &&
@@ -269,12 +286,26 @@ class ClientSocketPoolBaseHelper
       return pending_requests.front()->priority();
     }
 
+    void CleanupBackupJob() {
+      if (backup_job) {
+        delete backup_job;
+        backup_job = NULL;
+      }
+      if (backup_task) {
+        backup_task->Cancel();
+        backup_task = NULL;
+      }
+    }
+
     std::deque<IdleSocket> idle_sockets;
     std::set<const ConnectJob*> jobs;
     RequestQueue pending_requests;
     int active_socket_count;  // number of active sockets used by clients
     // Number of sockets being released within one loop through the MessageLoop.
     int num_releasing_sockets;
+    // A backup job in case the connect for this group takes too long.
+    ConnectJob* backup_job;
+    CancelableTask* backup_task;
   };
 
   typedef std::map<std::string, Group> GroupMap;
@@ -345,6 +376,12 @@ class ClientSocketPoolBaseHelper
   int RequestSocketInternal(const std::string& group_name,
                             const Request* request);
 
+  // Set a timer to create a backup socket if it takes too long to create one.
+  void StartBackupSocketTimer(const std::string& group_name);
+
+  // Called when the backup socket timer fires.
+  void OnBackupSocketTimerFired(const std::string& group_name);
+
   GroupMap group_map_;
 
   // Timer used to periodically prune idle sockets that timed out or can't be
@@ -389,6 +426,9 @@ class ClientSocketPoolBaseHelper
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
 
   NetworkChangeNotifier* const network_change_notifier_;
+
+  // A factory to pin the backup_job tasks.
+  ScopedRunnableMethodFactory<ClientSocketPoolBaseHelper> method_factory_;
 };
 
 }  // namespace internal
