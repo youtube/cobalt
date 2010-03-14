@@ -7,6 +7,7 @@
 #include "base/compiler_specific.h"
 #include "base/format_macros.h"
 #include "base/message_loop.h"
+#include "base/stats_counters.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/time.h"
@@ -118,7 +119,8 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
       used_idle_socket_timeout_(used_idle_socket_timeout),
       may_have_stalled_group_(false),
       connect_job_factory_(connect_job_factory),
-      network_change_notifier_(network_change_notifier) {
+      network_change_notifier_(network_change_notifier),
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   DCHECK_LE(0, max_sockets_per_group);
   DCHECK_LE(max_sockets_per_group, max_sockets);
 
@@ -133,7 +135,7 @@ ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
   // sockets or pending requests.  They should have all been cleaned up prior
   // to the manager being destroyed.
   CloseIdleSockets();
-  DCHECK(group_map_.empty());
+  CHECK(group_map_.empty());
   DCHECK_EQ(0, connecting_socket_count_);
 
   if (network_change_notifier_)
@@ -243,6 +245,17 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     HandOutSocket(connect_job->ReleaseSocket(), false /* not reused */,
                   handle, base::TimeDelta(), &group, request->load_log());
   } else if (rv == ERR_IO_PENDING) {
+    // If we don't have any sockets in this group, set a timer for potentially
+    // creating a new one.  If the SYN is lost, this backup socket may complete
+    // before the slow socket, improving end user latency.
+    if (group.IsEmpty() && !group.backup_job) {
+      group.backup_job = connect_job_factory_->NewConnectJob(group_name,
+                                                             *request,
+                                                             this,
+                                                             job_load_log);
+      StartBackupSocketTimer(group_name);
+    }
+
     connecting_socket_count_++;
 
     ConnectJob* job = connect_job.release();
@@ -252,6 +265,54 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
   }
 
   return rv;
+}
+
+void ClientSocketPoolBaseHelper::StartBackupSocketTimer(
+    const std::string& group_name) {
+  CHECK(ContainsKey(group_map_, group_name));
+  Group& group = group_map_[group_name];
+
+  // Only allow one timer pending to create a backup socket.
+  if (group.backup_task)
+    return;
+
+  group.backup_task = method_factory_.NewRunnableMethod(
+      &ClientSocketPoolBaseHelper::OnBackupSocketTimerFired, group_name);
+  MessageLoop::current()->PostDelayedTask(FROM_HERE, group.backup_task,
+                                          ConnectRetryIntervalMs());
+}
+
+void ClientSocketPoolBaseHelper::OnBackupSocketTimerFired(
+    const std::string& group_name) {
+  CHECK(ContainsKey(group_map_, group_name));
+
+  Group& group = group_map_[group_name];
+
+  CHECK(group.backup_task);
+  group.backup_task = NULL;
+
+  CHECK(group.backup_job);
+
+  // If our backup job is waiting on DNS, just reset the timer.
+  CHECK(group.jobs.size());
+  if ((*group.jobs.begin())->GetLoadState() == LOAD_STATE_RESOLVING_HOST) {
+    LoadLog::AddEvent(group.backup_job->load_log(),
+                      LoadLog::TYPE_SOCKET_BACKUP_TIMER_EXTENDED);
+    StartBackupSocketTimer(group_name);
+    return;
+  }
+
+  LoadLog::AddEvent(group.backup_job->load_log(),
+                    LoadLog::TYPE_SOCKET_BACKUP_CREATED);
+  SIMPLE_STATS_COUNTER("socket.backup_created");
+  int rv = group.backup_job->Connect();
+  if (rv == ERR_IO_PENDING) {
+    connecting_socket_count_++;
+    group.jobs.insert(group.backup_job);
+    group.backup_job = NULL;
+  } else {
+    OnConnectJobComplete(rv, group.backup_job);
+  }
 }
 
 void ClientSocketPoolBaseHelper::CancelRequest(
@@ -486,6 +547,10 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
   CHECK(group_it != group_map_.end());
   Group& group = group_it->second;
 
+  // We've had a connect on the socket; discard any pending backup job
+  // for this group and kill the pending task.
+  group.CleanupBackupJob();
+
   scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
 
   scoped_refptr<LoadLog> job_load_log(job->load_log());
@@ -631,6 +696,11 @@ void ClientSocketPoolBaseHelper::CancelAllConnectJobs() {
     Group& group = i->second;
     connecting_socket_count_ -= group.jobs.size();
     STLDeleteElements(&group.jobs);
+
+    if (group.backup_task) {
+      group.backup_task->Cancel();
+      group.backup_task = NULL;
+    }
 
     // Delete group if no longer needed.
     if (group.IsEmpty()) {
