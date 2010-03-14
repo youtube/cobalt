@@ -17,10 +17,6 @@
 #include "base/string16.h"
 #include "base/string_piece.h"  // For implicit conversions.
 
-// TODO(brettw) this dependency should be removed and callers that need
-// these functions should include this file directly.
-#include "base/utf_string_conversions.h"
-
 // Safe standard library wrappers for all platforms.
 
 namespace base {
