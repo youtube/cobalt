@@ -41,8 +41,6 @@ void TransportSecurityState::EnableHost(const std::string& host,
   if (IsEnabledForHost(&existing_state, host))
     state_copy.created = existing_state.created;
 
-  AutoLock lock(lock_);
-
   enabled_hosts_[std::string(hashed, sizeof(hashed))] = state_copy;
   DirtyNotify();
 }
@@ -62,7 +60,6 @@ bool TransportSecurityState::IsEnabledForHost(DomainState* result,
   }
 
   base::Time current_time(base::Time::Now());
-  AutoLock lock(lock_);
 
   for (size_t i = 0; canonicalised_host[i]; i += canonicalised_host[i] + 1) {
     char hashed_domain[base::SHA256_LENGTH];
@@ -194,8 +191,6 @@ bool TransportSecurityState::ParseHeader(const std::string& value,
 
 void TransportSecurityState::SetDelegate(
     TransportSecurityState::Delegate* delegate) {
-  AutoLock lock(lock_);
-
   delegate_ = delegate;
 }
 
@@ -221,8 +216,6 @@ static std::string ExternalStringToHashedDomain(const std::wstring& external) {
 }
 
 bool TransportSecurityState::Serialise(std::string* output) {
-  AutoLock lock(lock_);
-
   DictionaryValue toplevel;
   for (std::map<std::string, DomainState>::const_iterator
        i = enabled_hosts_.begin(); i != enabled_hosts_.end(); ++i) {
@@ -256,8 +249,6 @@ bool TransportSecurityState::Serialise(std::string* output) {
 
 bool TransportSecurityState::Deserialise(const std::string& input,
                                          bool* dirty) {
-  AutoLock lock(lock_);
-
   enabled_hosts_.clear();
 
   scoped_ptr<Value> value(
@@ -334,8 +325,6 @@ bool TransportSecurityState::Deserialise(const std::string& input,
 
 void TransportSecurityState::DeleteSince(const base::Time& time) {
   bool dirtied = false;
-
-  AutoLock lock(lock_);
 
   std::map<std::string, DomainState>::iterator i = enabled_hosts_.begin();
   while (i != enabled_hosts_.end()) {
