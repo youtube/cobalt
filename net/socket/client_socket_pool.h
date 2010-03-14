@@ -82,6 +82,9 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   virtual LoadState GetLoadState(const std::string& group_name,
                                  const ClientSocketHandle* handle) const = 0;
 
+  // Returns the maximum amount of time to wait before retrying a connect.
+  static const int kMaxConnectRetryIntervalMs = 250;
+
  protected:
   ClientSocketPool() {}
   virtual ~ClientSocketPool() {}
