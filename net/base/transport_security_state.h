@@ -102,9 +102,6 @@ class TransportSecurityState :
   // ('www.google.com') to the form used in DNS: "\x03www\x06google\x03com"
   std::map<std::string, DomainState> enabled_hosts_;
 
-  // Protect access to our data members with this lock.
-  Lock lock_;
-
   // Our delegate who gets notified when we are dirtied, or NULL.
   Delegate* delegate_;
 
