@@ -420,13 +420,15 @@ void Eviction::TrimDeleted(bool empty) {
   Rankings::ScopedRankingsBlock node(rankings_);
   Rankings::ScopedRankingsBlock next(rankings_,
     rankings_->GetPrev(node.get(), Rankings::DELETED));
+  bool deleted = false;
   for (int i = 0; (i < 4 || empty) && next.get(); i++) {
     node.reset(next.release());
     next.reset(rankings_->GetPrev(node.get(), Rankings::DELETED));
-    RemoveDeletedNode(node.get());
+    deleted |= RemoveDeletedNode(node.get());
   }
 
-  if (header_->lru.sizes[Rankings::DELETED] > header_->num_entries / 4)
+  if (deleted && !empty &&
+      header_->lru.sizes[Rankings::DELETED] > header_->num_entries / 4)
     MessageLoop::current()->PostTask(FROM_HERE,
         factory_.NewRunnableMethod(&Eviction::TrimDeleted, false));
 
@@ -449,10 +451,11 @@ bool Eviction::RemoveDeletedNode(CacheRankingsBlock* node) {
     // We ignore the failure; we're removing the entry anyway.
     entry->Update();
   }
+  bool doomed = (entry->entry()->Data()->state == ENTRY_DOOMED);
   entry->entry()->Data()->state = ENTRY_DOOMED;
   entry->Doom();
   entry->Release();
-  return true;
+  return !doomed;
 }
 
 bool Eviction::NodeIsOldEnough(CacheRankingsBlock* node, int list) {
