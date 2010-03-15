@@ -1458,6 +1458,9 @@ void DiskCacheBackendTest::BackendDoomAll() {
   EXPECT_TRUE(cache_->DoomAllEntries());
   ASSERT_EQ(0, cache_->GetEntryCount());
 
+  // We should stop posting tasks at some point (if we post any).
+  MessageLoop::current()->RunAllPending();
+
   disk_cache::Entry *entry3, *entry4;
   ASSERT_TRUE(cache_->CreateEntry("third", &entry3));
   ASSERT_TRUE(cache_->CreateEntry("fourth", &entry4));
