@@ -70,7 +70,6 @@
         'file_path_unittest.cc',
         'file_util_unittest.cc',
         'file_version_info_unittest.cc',
-        'file_watcher_unittest.cc',
         'gmock_unittest.cc',
         'histogram_unittest.cc',
         'hmac_unittest.cc',
