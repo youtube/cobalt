@@ -209,6 +209,9 @@ ssl3_GatherCompleteHandshake(sslSocket *ss, int flags)
 	    return ss->recvdCloseNotify ? 0 : rv;
 	}
 
+	/* If we kicked off a false start in ssl3_HandleServerHelloDone, break
+	 * out of this loop early without finishing the handshake.
+	 */
 	if (ss->opt.enableFalseStart) {
 	    ssl_GetSSL3HandshakeLock(ss);
 	    canFalseStart = (ss->ssl3.hs.ws == wait_change_cipher ||
