@@ -17,12 +17,12 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
+#include "net/base/net_log.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_auth_handler.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/tcp_client_socket.h"
-#include "net/url_request/request_tracker.h"
 #include "net/url_request/url_request_context.h"
 
 namespace net {
@@ -31,7 +31,6 @@ class AuthChallengeInfo;
 class ClientSocketFactory;
 class HostResolver;
 class HttpAuthHandlerFactory;
-class LoadLog;
 class SSLConfigService;
 class SingleRequestHostResolver;
 class SocketStreamMetrics;
@@ -109,7 +108,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   URLRequestContext* context() const { return context_.get(); }
   void set_context(URLRequestContext* context);
 
-  LoadLog* load_log() const { return load_log_; }
+  BoundNetLog* net_log() { return &net_log_; }
 
   // Opens the connection on the IO thread.
   // Once the connection is established, calls delegate's OnConnected.
@@ -207,7 +206,6 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   };
 
   typedef std::deque< scoped_refptr<IOBufferWithSize> > PendingDataQueue;
-  friend class RequestTracker<SocketStream>;
 
   friend class WebSocketThrottleTest;
 
@@ -256,10 +254,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   SSLConfigService* ssl_config_service() const;
   ProxyService* proxy_service() const;
 
-  void GetInfoForTracker(
-      RequestTracker<SocketStream>::RecentRequestInfo* info) const;
-
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
 
   GURL url_;
   int max_pending_send_allowed_;
@@ -321,8 +316,6 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   SocketStreamThrottle* throttle_;
 
   scoped_ptr<SocketStreamMetrics> metrics_;
-
-  RequestTracker<SocketStream>::Node request_tracker_node_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStream);
 };

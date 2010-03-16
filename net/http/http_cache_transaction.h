@@ -8,6 +8,7 @@
 #ifndef NET_HTTP_HTTP_CACHE_TRANSACTION_H_
 #define NET_HTTP_HTTP_CACHE_TRANSACTION_H_
 
+#include "net/base/net_log.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_transaction.h"
@@ -25,7 +26,8 @@ class HttpCache::Transaction : public HttpTransaction {
   virtual ~Transaction();
 
   // HttpTransaction methods:
-  virtual int Start(const HttpRequestInfo*, CompletionCallback*, LoadLog*);
+  virtual int Start(const HttpRequestInfo*, CompletionCallback*,
+                    const BoundNetLog&);
   virtual int RestartIgnoringLastError(CompletionCallback* callback);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
                                      CompletionCallback* callback);
@@ -194,7 +196,7 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoCacheWriteDataComplete(int result);
 
   // Sets request_ and fields derived from it.
-  void SetRequest(LoadLog* load_log, const HttpRequestInfo* request);
+  void SetRequest(const BoundNetLog& net_log, const HttpRequestInfo* request);
 
   // Returns true if the request should be handled exclusively by the network
   // layer (skipping the cache entirely).
@@ -299,7 +301,7 @@ class HttpCache::Transaction : public HttpTransaction {
 
   State next_state_;
   const HttpRequestInfo* request_;
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
   scoped_ptr<HttpRequestInfo> custom_request_;
   // If extra_headers specified a "if-modified-since" or "if-none-match",
   // |external_validation_| contains the value of those headers.

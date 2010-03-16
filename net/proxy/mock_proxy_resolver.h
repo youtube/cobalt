@@ -97,7 +97,7 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
                              ProxyInfo* results,
                              CompletionCallback* callback,
                              RequestHandle* request_handle,
-                             LoadLog* /*load_log*/) {
+                             const BoundNetLog& /*net_log*/) {
     scoped_refptr<Request> request = new Request(this, url, results, callback);
     pending_requests_.push_back(request);
 

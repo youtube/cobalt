@@ -16,6 +16,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/load_states.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth.h"
@@ -50,7 +51,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   // HttpTransaction methods:
   virtual int Start(const HttpRequestInfo* request_info,
                     CompletionCallback* callback,
-                    LoadLog* load_log);
+                    const BoundNetLog& net_log);
   virtual int RestartIgnoringLastError(CompletionCallback* callback);
   virtual int RestartWithCertificate(X509Certificate* client_cert,
                                      CompletionCallback* callback);
@@ -295,7 +296,7 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   scoped_refptr<HttpNetworkSession> session_;
 
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
   const HttpRequestInfo* request_;
   HttpResponseInfo response_;
 
@@ -329,7 +330,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   bool using_spdy_;
 
   AlternateProtocolMode alternate_protocol_mode_;
-  
+
   // Only valid if |alternate_protocol_mode_| == kUsingAlternateProtocol.
   HttpAlternateProtocols::Protocol alternate_protocol_;
 

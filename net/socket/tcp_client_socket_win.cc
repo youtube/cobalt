@@ -13,7 +13,7 @@
 #include "base/trace_event.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
-#include "net/base/load_log.h"
+#include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/winsock_init.h"
@@ -288,19 +288,19 @@ TCPClientSocketWin::~TCPClientSocketWin() {
 }
 
 int TCPClientSocketWin::Connect(CompletionCallback* callback,
-                                LoadLog* load_log) {
+                                const BoundNetLog& net_log) {
   // If already connected, then just return OK.
   if (socket_ != INVALID_SOCKET)
     return OK;
 
-  DCHECK(!load_log_);
+  DCHECK(!net_log_.net_log());
 
   static StatsCounter connects("tcp.connect");
   connects.Increment();
 
   TRACE_EVENT_BEGIN("socket.connect", this, "");
 
-  LoadLog::BeginEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
+  net_log.BeginEvent(NetLog::TYPE_TCP_CONNECT);
 
   int rv = DoConnect();
 
@@ -308,12 +308,12 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback,
     // Synchronous operation not supported.
     DCHECK(callback);
 
-    load_log_ = load_log;
+    net_log_ = net_log;
     waiting_connect_ = true;
     read_callback_ = callback;
   } else {
     TRACE_EVENT_END("socket.connect", this, "");
-    LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
+    net_log.EndEvent(NetLog::TYPE_TCP_CONNECT);
     if (rv == OK)
       UpdateConnectionTypeHistograms(CONNECTION_ANY);
   }
@@ -658,23 +658,23 @@ void TCPClientSocketWin::DidCompleteConnect() {
       const struct addrinfo* next = current_ai_->ai_next;
       Disconnect();
       current_ai_ = next;
-      scoped_refptr<LoadLog> load_log;
-      load_log.swap(load_log_);
+      BoundNetLog net_log(net_log_);
+      net_log_ = BoundNetLog();
       TRACE_EVENT_END("socket.connect", this, "");
-      LoadLog::EndEvent(load_log, LoadLog::TYPE_TCP_CONNECT);
-      result = Connect(read_callback_, load_log);
+      net_log.EndEvent(NetLog::TYPE_TCP_CONNECT);
+      result = Connect(read_callback_, net_log);
     } else {
       result = MapConnectError(os_error);
       TRACE_EVENT_END("socket.connect", this, "");
-      LoadLog::EndEvent(load_log_, LoadLog::TYPE_TCP_CONNECT);
-      load_log_ = NULL;
+      net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT);
+      net_log_ = BoundNetLog();
     }
   } else {
     NOTREACHED();
     result = ERR_UNEXPECTED;
     TRACE_EVENT_END("socket.connect", this, "");
-    LoadLog::EndEvent(load_log_, LoadLog::TYPE_TCP_CONNECT);
-    load_log_ = NULL;
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT);
+    net_log_ = BoundNetLog();
   }
 
   if (result != ERR_IO_PENDING) {

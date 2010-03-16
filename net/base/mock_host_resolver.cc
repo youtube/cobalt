@@ -46,12 +46,12 @@ int MockHostResolverBase::Resolve(const RequestInfo& info,
                                   AddressList* addresses,
                                   CompletionCallback* callback,
                                   RequestHandle* out_req,
-                                  LoadLog* load_log) {
+                                  const BoundNetLog& net_log) {
   if (synchronous_mode_) {
     callback = NULL;
     out_req = NULL;
   }
-  return impl_->Resolve(info, addresses, callback, out_req, load_log);
+  return impl_->Resolve(info, addresses, callback, out_req, net_log);
 }
 
 void MockHostResolverBase::CancelRequest(RequestHandle req) {

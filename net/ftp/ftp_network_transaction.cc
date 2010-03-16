@@ -10,8 +10,8 @@
 #include "base/utf_string_conversions.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/escape.h"
-#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/ftp/ftp_network_session.h"
 #include "net/ftp/ftp_request_info.h"
@@ -73,8 +73,8 @@ FtpNetworkTransaction::~FtpNetworkTransaction() {
 
 int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
                                  CompletionCallback* callback,
-                                 LoadLog* load_log) {
-  load_log_ = load_log;
+                                 const BoundNetLog& net_log) {
+  net_log_ = net_log;
   request_ = request_info;
 
   if (request_->url.has_username()) {
@@ -508,7 +508,7 @@ int FtpNetworkTransaction::DoCtrlResolveHost() {
   // RFC 2428, we have to turn off IPv6 in FTP.  See http://crbug.com/32945.
   info.set_address_family(ADDRESS_FAMILY_IPV4);
   // No known referrer.
-  return resolver_.Resolve(info, &addresses_, &io_callback_, load_log_);
+  return resolver_.Resolve(info, &addresses_, &io_callback_, net_log_);
 }
 
 int FtpNetworkTransaction::DoCtrlResolveHostComplete(int result) {
@@ -520,7 +520,7 @@ int FtpNetworkTransaction::DoCtrlResolveHostComplete(int result) {
 int FtpNetworkTransaction::DoCtrlConnect() {
   next_state_ = STATE_CTRL_CONNECT_COMPLETE;
   ctrl_socket_.reset(socket_factory_->CreateTCPClientSocket(addresses_));
-  return ctrl_socket_->Connect(&io_callback_, load_log_);
+  return ctrl_socket_->Connect(&io_callback_, net_log_);
 }
 
 int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
@@ -1119,7 +1119,7 @@ int FtpNetworkTransaction::DoDataConnect() {
     return Stop(rv);
   data_address.SetPort(data_connection_port_);
   data_socket_.reset(socket_factory_->CreateTCPClientSocket(data_address));
-  return data_socket_->Connect(&io_callback_, load_log_);
+  return data_socket_->Connect(&io_callback_, net_log_);
 }
 
 int FtpNetworkTransaction::DoDataConnectComplete(int result) {

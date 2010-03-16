@@ -62,9 +62,7 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       throttle_(
           SocketStreamThrottle::GetSocketStreamThrottleForScheme(
               url.scheme())),
-      metrics_(new SocketStreamMetrics(url)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          request_tracker_node_(this)) {
+      metrics_(new SocketStreamMetrics(url)) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
@@ -96,15 +94,16 @@ void SocketStream::set_context(URLRequestContext* context) {
   context_ = context;
 
   if (prev_context != context) {
-    if (prev_context)
-      prev_context->socket_stream_tracker()->Remove(this);
+    net_log_.AddEvent(NetLog::TYPE_REQUEST_ALIVE);
+    net_log_ = BoundNetLog();
+
     if (context) {
-      if (!load_log_) {
-        // Create the LoadLog -- we waited until now to create it so we know
-        // what constraints the URLRequestContext is enforcing on log levels.
-        load_log_ = context->socket_stream_tracker()->CreateLoadLog();
-      }
-      context->socket_stream_tracker()->Add(this);
+      net_log_ = BoundNetLog::Make(
+          context->net_log(),
+          NetLog::SOURCE_SOCKET_STREAM);
+
+      net_log_.BeginEventWithString(NetLog::TYPE_REQUEST_ALIVE,
+                                    url_.possibly_invalid_spec());
     }
   }
 
@@ -127,7 +126,7 @@ void SocketStream::Connect() {
   // Open a connection asynchronously, so that delegate won't be called
   // back before returning Connect().
   next_state_ = STATE_RESOLVE_PROXY;
-  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_SOCKET_STREAM_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT);
   MessageLoop::current()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &SocketStream::DoLoop, OK));
@@ -213,7 +212,7 @@ void SocketStream::DetachDelegate() {
   if (!delegate_)
     return;
   delegate_ = NULL;
-  LoadLog::AddEvent(load_log_, LoadLog::TYPE_CANCELLED);
+  net_log_.AddEvent(NetLog::TYPE_CANCELLED);
   Close();
 }
 
@@ -263,7 +262,7 @@ int SocketStream::DidEstablishConnection() {
   next_state_ = STATE_READ_WRITE;
   metrics_->OnConnected();
 
-  LoadLog::EndEvent(load_log_, LoadLog::TYPE_SOCKET_STREAM_CONNECT);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT);
   if (delegate_)
     delegate_->OnConnected(this, max_pending_send_allowed_);
 
@@ -273,7 +272,7 @@ int SocketStream::DidEstablishConnection() {
 int SocketStream::DidReceiveData(int result) {
   DCHECK(read_buf_);
   DCHECK_GT(result, 0);
-  LoadLog::AddEvent(load_log_, LoadLog::TYPE_SOCKET_STREAM_RECEIVED);
+  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_RECEIVED);
   int len = result;
   metrics_->OnRead(len);
   result = throttle_->OnRead(this, read_buf_->data(), len, &io_callback_);
@@ -287,7 +286,7 @@ int SocketStream::DidReceiveData(int result) {
 
 int SocketStream::DidSendData(int result) {
   DCHECK_GT(result, 0);
-  LoadLog::AddEvent(load_log_, LoadLog::TYPE_SOCKET_STREAM_SENT);
+  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_SENT);
   int len = result;
   metrics_->OnWrite(len);
   result = throttle_->OnWrite(this, current_write_buf_->data(), len,
@@ -411,7 +410,7 @@ void SocketStream::DoLoop(int result) {
     // close the connection.
     if (state != STATE_READ_WRITE && result < ERR_IO_PENDING) {
       DCHECK_EQ(next_state_, STATE_CLOSE);
-      LoadLog::EndEvent(load_log_, LoadLog::TYPE_SOCKET_STREAM_CONNECT);
+      net_log_.EndEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT);
     }
   } while (result != ERR_IO_PENDING);
 }
@@ -426,7 +425,7 @@ int SocketStream::DoResolveProxy() {
   }
 
   return proxy_service()->ResolveProxy(
-      proxy_url_, &proxy_info_, &io_callback_, &pac_request_, load_log_);
+      proxy_url_, &proxy_info_, &io_callback_, &pac_request_, net_log_);
 }
 
 int SocketStream::DoResolveProxyComplete(int result) {
@@ -485,7 +484,7 @@ int SocketStream::DoResolveHost() {
   DCHECK(host_resolver_.get());
   resolver_.reset(new SingleRequestHostResolver(host_resolver_.get()));
   return resolver_->Resolve(resolve_info, &addresses_, &io_callback_,
-                            load_log_);
+                            net_log_);
 }
 
 int SocketStream::DoResolveHostComplete(int result) {
@@ -506,7 +505,7 @@ int SocketStream::DoTcpConnect() {
   DCHECK(factory_);
   socket_.reset(factory_->CreateTCPClientSocket(addresses_));
   metrics_->OnStartConnection();
-  return socket_->Connect(&io_callback_, load_log_);
+  return socket_->Connect(&io_callback_, net_log_);
 }
 
 int SocketStream::DoTcpConnectComplete(int result) {
@@ -722,7 +721,7 @@ int SocketStream::DoSOCKSConnect() {
     s = new SOCKSClientSocket(s, req_info, host_resolver_.get());
   socket_.reset(s);
   metrics_->OnSOCKSProxy();
-  return socket_->Connect(&io_callback_, load_log_);
+  return socket_->Connect(&io_callback_, net_log_);
 }
 
 int SocketStream::DoSOCKSConnectComplete(int result) {
@@ -745,7 +744,7 @@ int SocketStream::DoSSLConnect() {
       socket_.release(), url_.HostNoBrackets(), ssl_config_));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   metrics_->OnSSLConnection();
-  return socket_->Connect(&io_callback_, load_log_);
+  return socket_->Connect(&io_callback_, net_log_);
 }
 
 int SocketStream::DoSSLConnectComplete(int result) {
@@ -947,12 +946,6 @@ SSLConfigService* SocketStream::ssl_config_service() const {
 
 ProxyService* SocketStream::proxy_service() const {
   return context_->proxy_service();
-}
-
-void SocketStream::GetInfoForTracker(
-    RequestTracker<SocketStream>::RecentRequestInfo* info) const {
-  info->original_url = url_;
-  info->load_log = load_log_;
 }
 
 }  // namespace net

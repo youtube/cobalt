@@ -13,7 +13,7 @@
 #include "base/string_util.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/load_flags.h"
-#include "net/base/load_log.h"
+#include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_request_info.h"
@@ -259,7 +259,7 @@ void SpdySession::InitializeWithSSLSocket(ClientSocketHandle* connection) {
 net::Error SpdySession::Connect(const std::string& group_name,
                                 const TCPSocketParams& destination,
                                 RequestPriority priority,
-                                LoadLog* load_log) {
+                                const BoundNetLog& net_log) {
   DCHECK(priority >= SPDY_PRIORITY_HIGHEST && priority <= SPDY_PRIORITY_LOWEST);
 
   // If the connect process is started, let the caller continue.
@@ -273,7 +273,7 @@ net::Error SpdySession::Connect(const std::string& group_name,
 
   int rv = connection_->Init(group_name, destination, priority,
                              &connect_callback_, session_->tcp_socket_pool(),
-                             load_log);
+                             net_log);
   DCHECK(rv <= 0);
 
   // If the connect is pending, we still return ok.  The APIs enqueue
@@ -287,7 +287,7 @@ net::Error SpdySession::Connect(const std::string& group_name,
 scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     const HttpRequestInfo& request,
     const UploadDataStream* upload_data,
-    LoadLog* log) {
+    const BoundNetLog& log) {
   const GURL& url = request.url;
   const std::string& path = url.PathForRequest();
 
@@ -310,7 +310,7 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     DCHECK(!it->second);
     // Server will assign a stream id when the push stream arrives.  Use 0 for
     // now.
-    LoadLog::AddEvent(log, LoadLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM);
+    log.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM);
     SpdyStream* stream = new SpdyStream(this, 0, true, log);
     stream->set_path(path);
     it->second = stream;
@@ -475,7 +475,7 @@ void SpdySession::OnTCPConnect(int result) {
         socket, "" /* request_->url.HostNoBrackets() */ , ssl_config_);
     connection_->set_socket(socket);
     is_secure_ = true;
-    // TODO(willchan): Plumb LoadLog into SPDY code.
+    // TODO(willchan): Plumb NetLog into SPDY code.
     int status = connection_->socket()->Connect(&ssl_connect_callback_, NULL);
     if (status != ERR_IO_PENDING)
       OnSSLConnect(status);
@@ -896,7 +896,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     CHECK_EQ(0u, stream->stream_id());
     stream->set_stream_id(stream_id);
   } else {
-    // TODO(mbelshe): can we figure out how to use a LoadLog here?
+    // TODO(mbelshe): can we figure out how to use a NetLog here?
     stream = new SpdyStream(this, stream_id, true, NULL);
 
     // A new HttpResponseInfo object needs to be generated so the call to

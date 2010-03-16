@@ -14,11 +14,11 @@
 #include "base/string_util.h"
 #include "net/base/cookie_store.h"
 #include "net/base/host_resolver.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/transport_security_state.h"
 #include "net/ftp/ftp_auth_cache.h"
 #include "net/proxy/proxy_service.h"
-#include "net/url_request/request_tracker.h"
 
 namespace net {
 class CookiePolicy;
@@ -34,10 +34,15 @@ class URLRequestContext :
     public base::RefCountedThreadSafe<URLRequestContext> {
  public:
   URLRequestContext()
-      : http_transaction_factory_(NULL),
+      : net_log_(NULL),
+        http_transaction_factory_(NULL),
         ftp_transaction_factory_(NULL),
         cookie_policy_(NULL),
         transport_security_state_(NULL) {
+  }
+
+  net::NetLog* net_log() const {
+    return net_log_;
   }
 
   net::HostResolver* host_resolver() const {
@@ -90,16 +95,6 @@ class URLRequestContext :
   // Gets the value of 'Accept-Language' header field.
   const std::string& accept_language() const { return accept_language_; }
 
-  // Gets the tracker for URLRequests associated with this context.
-  RequestTracker<URLRequest>* url_request_tracker() {
-    return &url_request_tracker_;
-  }
-
-  // Gets the tracker for SocketStreams associated with this context.
-  RequestTracker<net::SocketStream>* socket_stream_tracker() {
-    return &socket_stream_tracker_;
-  }
-
   // Gets the UA string to use for the given URL.  Pass an invalid URL (such as
   // GURL()) to get the default UA string.  Subclasses should override this
   // method to provide a UA string.
@@ -135,6 +130,7 @@ class URLRequestContext :
 
   // The following members are expected to be initialized and owned by
   // subclasses.
+  net::NetLog* net_log_;
   scoped_refptr<net::HostResolver> host_resolver_;
   scoped_refptr<net::ProxyService> proxy_service_;
   scoped_refptr<net::SSLConfigService> ssl_config_service_;
@@ -151,12 +147,6 @@ class URLRequestContext :
   // used in communication with a server but is used to construct a suggested
   // filename for file download.
   std::string referrer_charset_;
-
-  // Tracks the requests associated with this context.
-  RequestTracker<URLRequest> url_request_tracker_;
-
-  // Trakcs the socket streams associated with this context.
-  RequestTracker<net::SocketStream> socket_stream_tracker_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(URLRequestContext);

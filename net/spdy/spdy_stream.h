@@ -15,7 +15,7 @@
 #include "net/base/bandwidth_metrics.h"
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
-#include "net/base/load_log.h"
+#include "net/base/net_log.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
 
@@ -38,7 +38,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
  public:
   // SpdyStream constructor
   SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed,
-             LoadLog* log);
+             const BoundNetLog& log);
 
   // Ideally I'd use two abstract classes as interfaces for these two sections,
   // but since we're ref counted, I can't make both abstract classes inherit
@@ -198,7 +198,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
 
   bool cancelled_;
 
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
 
   base::TimeTicks send_time_;
   base::TimeTicks recv_first_byte_time_;
