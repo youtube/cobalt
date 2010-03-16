@@ -21,6 +21,7 @@
 #include "net/base/host_resolver_proc.h"
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_util.h"
 #include "net/base/network_change_notifier.h"
 
 #if defined(OS_WIN)
@@ -192,7 +193,8 @@ class HostResolverImpl::Job
  public:
   Job(int id, HostResolverImpl* resolver, const Key& key,
       RequestsTrace* requests_trace)
-      : id_(id), key_(key),
+      : id_(id),
+        key_(key),
         resolver_(resolver),
         origin_loop_(MessageLoop::current()),
         resolver_proc_(resolver->effective_resolver_proc()),
@@ -421,6 +423,91 @@ class HostResolverImpl::Job
 
 //-----------------------------------------------------------------------------
 
+// This class represents a request to the worker pool for a "probe for IPv6
+// support" call.
+class HostResolverImpl::IPv6ProbeJob
+    : public base::RefCountedThreadSafe<HostResolverImpl::IPv6ProbeJob> {
+ public:
+  explicit IPv6ProbeJob(HostResolverImpl* resolver)
+      : resolver_(resolver),
+        origin_loop_(MessageLoop::current()) {
+  }
+
+  void Start() {
+    DCHECK(IsOnOriginThread());
+    const bool IS_SLOW = true;
+    WorkerPool::PostTask(
+        FROM_HERE, NewRunnableMethod(this, &IPv6ProbeJob::DoProbe), IS_SLOW);
+  }
+
+  // Cancels the current job.
+  void Cancel() {
+    DCHECK(IsOnOriginThread());
+    resolver_ = NULL;  // Read/write ONLY on origin thread.
+    {
+      AutoLock locked(origin_loop_lock_);
+      // Origin loop may be destroyed before we can use it!
+      origin_loop_ = NULL;
+    }
+  }
+
+  bool was_cancelled() const {
+    DCHECK(IsOnOriginThread());
+    return resolver_ == NULL;
+  }
+
+ private:
+  friend class base::RefCountedThreadSafe<HostResolverImpl::IPv6ProbeJob>;
+
+  ~IPv6ProbeJob() {
+  }
+
+  // Run on worker thread.
+  void DoProbe() {
+    // Do actual testing on this thread, as it takes 40-100ms.
+    AddressFamily family = IPv6Supported() ? ADDRESS_FAMILY_UNSPECIFIED
+                                           : ADDRESS_FAMILY_IPV4;
+
+    Task* reply = NewRunnableMethod(this, &IPv6ProbeJob::OnProbeComplete,
+                                    family);
+
+    // The origin loop could go away while we are trying to post to it, so we
+    // need to call its PostTask method inside a lock.  See ~HostResolver.
+    {
+      AutoLock locked(origin_loop_lock_);
+      if (origin_loop_) {
+        origin_loop_->PostTask(FROM_HERE, reply);
+        return;
+      }
+    }
+
+    // We didn't post, so delete the reply.
+    delete reply;
+  }
+
+  // Callback for when DoProbe() completes (runs on origin thread).
+  void OnProbeComplete(AddressFamily address_family) {
+    DCHECK(IsOnOriginThread());
+    if (!was_cancelled())
+      resolver_->IPv6ProbeSetDefaultAddressFamily(address_family);
+  }
+
+  bool IsOnOriginThread() const {
+    return !MessageLoop::current() || origin_loop_ == MessageLoop::current();
+  }
+
+  // Used/set only on origin thread.
+  HostResolverImpl* resolver_;
+
+  // Used to post ourselves onto the origin thread.
+  Lock origin_loop_lock_;
+  MessageLoop* origin_loop_;
+
+  DISALLOW_COPY_AND_ASSIGN(IPv6ProbeJob);
+};
+
+//-----------------------------------------------------------------------------
+
 // We rely on the priority enum values being sequential having starting at 0,
 // and increasing for lower priorities.
 COMPILE_ASSERT(HIGHEST == 0u &&
@@ -581,7 +668,8 @@ HostResolverImpl::HostResolverImpl(
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
       shutdown_(false),
-      network_change_notifier_(network_change_notifier) {
+      network_change_notifier_(network_change_notifier),
+      ipv6_probe_monitoring_(false) {
   DCHECK_GT(max_jobs, 0u);
 
   // It is cumbersome to expose all of the constraints in the constructor,
@@ -598,6 +686,8 @@ HostResolverImpl::HostResolverImpl(
 HostResolverImpl::~HostResolverImpl() {
   // Cancel the outstanding jobs. Those jobs may contain several attached
   // requests, which will also be cancelled.
+  DiscardIPv6ProbeJob();
+
   for (JobMap::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
     it->second->Cancel();
 
@@ -740,6 +830,18 @@ void HostResolverImpl::RemoveObserver(HostResolver::Observer* observer) {
   DCHECK(it != observers_.end());
 
   observers_.erase(it);
+}
+
+void HostResolverImpl::SetDefaultAddressFamily(AddressFamily address_family) {
+  ipv6_probe_monitoring_ = false;
+  DiscardIPv6ProbeJob();
+  default_address_family_ = address_family;
+}
+
+void HostResolverImpl::ProbeIPv6Support() {
+  DCHECK(!ipv6_probe_monitoring_);
+  ipv6_probe_monitoring_ = true;
+  OnIPAddressChanged();  // Give initial setup call.
 }
 
 void HostResolverImpl::Shutdown() {
@@ -975,6 +1077,32 @@ void HostResolverImpl::OnCancelRequest(const BoundNetLog& net_log,
 void HostResolverImpl::OnIPAddressChanged() {
   if (cache_.get())
     cache_->clear();
+  if (ipv6_probe_monitoring_) {
+    DiscardIPv6ProbeJob();
+    ipv6_probe_job_ = new IPv6ProbeJob(this);
+    ipv6_probe_job_->Start();
+  }
+}
+
+void HostResolverImpl::DiscardIPv6ProbeJob() {
+  if (ipv6_probe_job_.get()) {
+    ipv6_probe_job_->Cancel();
+    ipv6_probe_job_ = NULL;
+  }
+}
+
+void HostResolverImpl::IPv6ProbeSetDefaultAddressFamily(
+    AddressFamily address_family) {
+  DCHECK(address_family == ADDRESS_FAMILY_UNSPECIFIED ||
+         address_family == ADDRESS_FAMILY_IPV4);
+  if (default_address_family_ != address_family)
+      LOG(INFO) << "IPv6Probe forced AddressFamily setting to "
+                << ((address_family == ADDRESS_FAMILY_UNSPECIFIED)
+                        ? "ADDRESS_FAMILY_UNSPECIFIED"
+                        : "ADDRESS_FAMILY_IPV4");
+  default_address_family_ = address_family;
+  // Drop reference since the job has called us back.
+  DiscardIPv6ProbeJob();
 }
 
 // static
