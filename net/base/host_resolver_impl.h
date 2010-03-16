@@ -89,9 +89,12 @@ class HostResolverImpl : public HostResolver,
   virtual void AddObserver(HostResolver::Observer* observer);
   virtual void RemoveObserver(HostResolver::Observer* observer);
 
-  virtual void SetDefaultAddressFamily(AddressFamily address_family) {
-    default_address_family_ = address_family;
-  }
+  // Set address family, and disable IPv6 probe support.
+  virtual void SetDefaultAddressFamily(AddressFamily address_family);
+
+  // Continuously observe whether IPv6 is supported, and set the allowable
+  // address family to IPv4 iff IPv6 is not supported.
+  void ProbeIPv6Support();
 
   virtual HostResolverImpl* GetAsHostResolverImpl() { return this; }
 
@@ -130,6 +133,7 @@ class HostResolverImpl : public HostResolver,
  private:
   class Job;
   class JobPool;
+  class IPv6ProbeJob;
   class Request;
   class RequestsTrace;
   typedef std::vector<Request*> RequestsList;
@@ -178,6 +182,12 @@ class HostResolverImpl : public HostResolver,
 
   // NetworkChangeNotifier::Observer methods:
   virtual void OnIPAddressChanged();
+
+  // Notify IPv6ProbeJob not to call back, and discard reference to the job.
+  void DiscardIPv6ProbeJob();
+
+  // Callback from IPv6 probe activity.
+  void IPv6ProbeSetDefaultAddressFamily(AddressFamily address_family);
 
   // Returns true if the constraints for |pool| are met, and a new job can be
   // created for this pool.
@@ -246,6 +256,14 @@ class HostResolverImpl : public HostResolver,
   NetworkChangeNotifier* const network_change_notifier_;
 
   scoped_refptr<RequestsTrace> requests_trace_;
+
+  // Indicate if probing is done after each network change event to set address
+  // family.
+  // When false, explicit setting of address family is used.
+  bool ipv6_probe_monitoring_;
+
+  // The last un-cancelled IPv6ProbeJob (if any).
+  scoped_refptr<IPv6ProbeJob> ipv6_probe_job_;
 
   DISALLOW_COPY_AND_ASSIGN(HostResolverImpl);
 };
