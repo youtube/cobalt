@@ -49,7 +49,7 @@ class ProxyResolverV8 : public ProxyResolver {
                              ProxyInfo* results,
                              CompletionCallback* /*callback*/,
                              RequestHandle* /*request*/,
-                             LoadLog* load_log);
+                             const BoundNetLog& net_log);
   virtual void CancelRequest(RequestHandle request);
   virtual void PurgeMemory();
 

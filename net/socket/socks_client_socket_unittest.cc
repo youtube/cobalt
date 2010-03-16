@@ -5,8 +5,8 @@
 #include "net/socket/socks_client_socket.h"
 
 #include "net/base/address_list.h"
-#include "net/base/load_log.h"
-#include "net/base/load_log_unittest.h"
+#include "net/base/net_log.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
@@ -92,7 +92,7 @@ class HangingHostResolver : public HostResolver {
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      LoadLog* load_log) {
+                      const BoundNetLog& net_log) {
     EXPECT_FALSE(HasOutstandingRequest());
     outstanding_request_ = reinterpret_cast<RequestHandle>(1);
     *out_req = outstanding_request_;
@@ -138,18 +138,19 @@ TEST_F(SOCKSClientSocketTest, CompleteHandshake) {
   EXPECT_TRUE(tcp_sock_->IsConnected());
   EXPECT_FALSE(user_sock_->IsConnected());
 
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  int rv = user_sock_->Connect(&callback_, log);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int rv = user_sock_->Connect(&callback_, log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_TRUE(
-      LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS_CONNECT));
+      LogContainsBeginEvent(log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
   EXPECT_FALSE(user_sock_->IsConnected());
   rv = callback_.WaitForResult();
 
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKSClientSocket::kSOCKS4, user_sock_->socks_version_);
-  EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
 
   scoped_refptr<IOBuffer> buffer = new IOBuffer(payload_write.size());
   memcpy(buffer->data(), payload_write.data(), payload_write.size());
@@ -200,16 +201,18 @@ TEST_F(SOCKSClientSocketTest, HandshakeFailures) {
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      host_resolver_, "localhost", 80));
-    scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+    CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
 
-    int rv = user_sock_->Connect(&callback_, log);
+    int rv = user_sock_->Connect(&callback_, log.bound());
     EXPECT_EQ(ERR_IO_PENDING, rv);
-    EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS_CONNECT));
+    EXPECT_TRUE(LogContainsBeginEvent(
+        log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
     rv = callback_.WaitForResult();
     EXPECT_EQ(tests[i].fail_code, rv);
     EXPECT_FALSE(user_sock_->IsConnected());
     EXPECT_TRUE(tcp_sock_->IsConnected());
-    EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS_CONNECT));
+    EXPECT_TRUE(LogContainsEndEvent(
+        log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
   }
 }
 
@@ -228,16 +231,18 @@ TEST_F(SOCKSClientSocketTest, PartialServerReads) {
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
                                    host_resolver_, "localhost", 80));
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
 
-  int rv = user_sock_->Connect(&callback_, log);
+
+  int rv = user_sock_->Connect(&callback_, log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 0, LoadLog::TYPE_SOCKS_CONNECT));
+      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
-  EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Tests scenario when the client sends the handshake request in
@@ -259,15 +264,17 @@ TEST_F(SOCKSClientSocketTest, PartialClientWrites) {
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
                                    host_resolver_, "localhost", 80));
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
 
-  int rv = user_sock_->Connect(&callback_, log);
+  int rv = user_sock_->Connect(&callback_, log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
-  EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Tests the case when the server sends a smaller sized handshake data
@@ -283,15 +290,18 @@ TEST_F(SOCKSClientSocketTest, FailedSocketRead) {
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
                                    host_resolver_, "localhost", 80));
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
 
-  int rv = user_sock_->Connect(&callback_, log);
+
+  int rv = user_sock_->Connect(&callback_, log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
   rv = callback_.WaitForResult();
   EXPECT_EQ(ERR_CONNECTION_CLOSED, rv);
   EXPECT_FALSE(user_sock_->IsConnected());
-  EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Tries to connect to an unknown DNS and on failure should revert to SOCKS4A.
@@ -312,16 +322,18 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AFailedDNS) {
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
                                    host_resolver_, hostname, 80));
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
 
-  int rv = user_sock_->Connect(&callback_, log);
+  int rv = user_sock_->Connect(&callback_, log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKSClientSocket::kSOCKS4a, user_sock_->socks_version_);
-  EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Tries to connect to a domain that resolves to IPv6.
@@ -343,16 +355,18 @@ TEST_F(SOCKSClientSocketTest, SOCKS4AIfDomainInIPv6) {
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                    data_writes, arraysize(data_writes),
                                    host_resolver_, hostname, 80));
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
 
-  int rv = user_sock_->Connect(&callback_, log);
+  int rv = user_sock_->Connect(&callback_, log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 0, NetLog::TYPE_SOCKS_CONNECT));
   rv = callback_.WaitForResult();
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(user_sock_->IsConnected());
   EXPECT_EQ(SOCKSClientSocket::kSOCKS4a, user_sock_->socks_version_);
-  EXPECT_TRUE(LogContainsEndEvent(*log, -1, LoadLog::TYPE_SOCKS_CONNECT));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), -1, NetLog::TYPE_SOCKS_CONNECT));
 }
 
 // Calls Disconnect() while a host resolve is in progress. The outstanding host

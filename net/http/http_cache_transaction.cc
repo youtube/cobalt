@@ -16,8 +16,8 @@
 #include "base/time.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
-#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_request_info.h"
@@ -165,7 +165,7 @@ HttpCache::Transaction::~Transaction() {
 
 int HttpCache::Transaction::Start(const HttpRequestInfo* request,
                                   CompletionCallback* callback,
-                                  LoadLog* load_log) {
+                                  const BoundNetLog& net_log) {
   DCHECK(request);
   DCHECK(callback);
 
@@ -178,7 +178,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
   if (!cache_)
     return ERR_UNEXPECTED;
 
-  SetRequest(load_log, request);
+  SetRequest(net_log, request);
 
   int rv;
 
@@ -580,7 +580,7 @@ int HttpCache::Transaction::DoSendRequest() {
     return rv;
 
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
-  rv = network_trans_->Start(request_, &io_callback_, load_log_);
+  rv = network_trans_->Start(request_, &io_callback_, net_log_);
   return rv;
 }
 
@@ -686,7 +686,7 @@ int HttpCache::Transaction::DoOpenEntry() {
   DCHECK(!new_entry_);
   next_state_ = STATE_OPEN_ENTRY_COMPLETE;
   cache_pending_ = true;
-  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
   return cache_->OpenEntry(cache_key_, &new_entry_, this);
 }
 
@@ -694,7 +694,7 @@ int HttpCache::Transaction::DoOpenEntryComplete(int result) {
   // It is important that we go to STATE_ADD_TO_ENTRY whenever the result is
   // OK, otherwise the cache will end up with an active entry without any
   // transaction attached.
-  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY);
   cache_pending_ = false;
   if (result == OK) {
     next_state_ = STATE_ADD_TO_ENTRY;
@@ -729,7 +729,7 @@ int HttpCache::Transaction::DoCreateEntry() {
   DCHECK(!new_entry_);
   next_state_ = STATE_CREATE_ENTRY_COMPLETE;
   cache_pending_ = true;
-  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
   return cache_->CreateEntry(cache_key_, &new_entry_, this);
 }
 
@@ -737,7 +737,7 @@ int HttpCache::Transaction::DoCreateEntryComplete(int result) {
   // It is important that we go to STATE_ADD_TO_ENTRY whenever the result is
   // OK, otherwise the cache will end up with an active entry without any
   // transaction attached.
-  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY);
   cache_pending_ = false;
   next_state_ = STATE_ADD_TO_ENTRY;
 
@@ -763,12 +763,12 @@ int HttpCache::Transaction::DoCreateEntryComplete(int result) {
 int HttpCache::Transaction::DoDoomEntry() {
   next_state_ = STATE_DOOM_ENTRY_COMPLETE;
   cache_pending_ = true;
-  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
   return cache_->DoomEntry(cache_key_, this);
 }
 
 int HttpCache::Transaction::DoDoomEntryComplete(int result) {
-  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY);
   next_state_ = STATE_CREATE_ENTRY;
   cache_pending_ = false;
   if (result == ERR_CACHE_RACE)
@@ -781,12 +781,12 @@ int HttpCache::Transaction::DoAddToEntry() {
   DCHECK(new_entry_);
   cache_pending_ = true;
   next_state_ = STATE_ADD_TO_ENTRY_COMPLETE;
-  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WAITING);
   return cache_->AddTransactionToEntry(new_entry_, this);
 }
 
 int HttpCache::Transaction::DoAddToEntryComplete(int result) {
-  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_WAITING);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_WAITING);
   DCHECK(new_entry_);
   cache_pending_ = false;
 
@@ -966,7 +966,7 @@ int HttpCache::Transaction::DoCacheReadResponse() {
   io_buf_len_ = entry_->disk_entry->GetDataSize(kResponseInfoIndex);
   read_buf_ = new IOBuffer(io_buf_len_);
 
-  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
   cache_callback_->AddRef();  // Balanced in DoCacheReadResponseComplete.
   return entry_->disk_entry->ReadData(kResponseInfoIndex, 0, read_buf_,
                                       io_buf_len_, cache_callback_);
@@ -974,7 +974,7 @@ int HttpCache::Transaction::DoCacheReadResponse() {
 
 int HttpCache::Transaction::DoCacheReadResponseComplete(int result) {
   cache_callback_->Release();  // Balance the AddRef from DoCacheReadResponse.
-  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
   if (result != io_buf_len_ ||
       !HttpCache::ParseResponseInfo(read_buf_->data(), io_buf_len_,
                                     &response_, &truncated_)) {
@@ -1044,7 +1044,7 @@ int HttpCache::Transaction::DoCacheReadMetadata() {
   response_.metadata =
       new IOBufferWithSize(entry_->disk_entry->GetDataSize(kMetadataIndex));
 
-  LoadLog::BeginEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
   cache_callback_->AddRef();  // Balanced in DoCacheReadMetadataComplete.
   return entry_->disk_entry->ReadData(kMetadataIndex, 0, response_.metadata,
                                       response_.metadata->size(),
@@ -1053,7 +1053,7 @@ int HttpCache::Transaction::DoCacheReadMetadata() {
 
 int HttpCache::Transaction::DoCacheReadMetadataComplete(int result) {
   cache_callback_->Release();  // Balance the AddRef from DoCacheReadMetadata.
-  LoadLog::EndEvent(load_log_, LoadLog::TYPE_HTTP_CACHE_READ_INFO);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_READ_INFO);
   if (result != response_.metadata->size()) {
     DLOG(ERROR) << "ReadData failed: " << result;
     return ERR_CACHE_READ_FAILURE;
@@ -1142,9 +1142,9 @@ int HttpCache::Transaction::DoCacheWriteDataComplete(int result) {
 
 //-----------------------------------------------------------------------------
 
-void HttpCache::Transaction::SetRequest(LoadLog* load_log,
+void HttpCache::Transaction::SetRequest(const BoundNetLog& net_log,
                                         const HttpRequestInfo* request) {
-  load_log_ = load_log;
+  net_log_ = net_log;
   request_ = request;
   effective_load_flags_ = request_->load_flags;
 

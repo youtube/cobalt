@@ -10,13 +10,14 @@
 #include "base/scoped_ptr.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_log.h"
 #include "net/socket/client_socket.h"
 
 struct event;  // From libevent
 
 namespace net {
 
-class LoadLog;
+class BoundNetLog;
 
 // A client socket that uses TCP as the transport layer.
 class TCPClientSocketLibevent : public ClientSocket {
@@ -29,7 +30,7 @@ class TCPClientSocketLibevent : public ClientSocket {
   virtual ~TCPClientSocketLibevent();
 
   // ClientSocket methods:
-  virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
+  virtual int Connect(CompletionCallback* callback, const BoundNetLog& net_log);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -129,7 +130,7 @@ class TCPClientSocketLibevent : public ClientSocket {
   // External callback; called when write is complete.
   CompletionCallback* write_callback_;
 
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(TCPClientSocketLibevent);
 };

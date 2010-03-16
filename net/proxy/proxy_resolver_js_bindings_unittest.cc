@@ -6,6 +6,7 @@
 #include "net/base/address_list.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
@@ -26,7 +27,7 @@ class MockHostResolverWithMultipleResults : public HostResolver {
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      LoadLog* load_log) {
+                      const BoundNetLog& net_log) {
     // Build up the result list (in reverse).
     AddressList temp_list = ResolveIPLiteral("200.100.1.2");
     temp_list = PrependAddressToList("172.22.34.1", temp_list);
@@ -149,11 +150,13 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
   // depending if the address family was IPV4_ONLY or not.
   HostResolver::RequestInfo info("foo", 80);
   AddressList address_list;
-  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, NULL, NULL, NULL));
+  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, NULL, NULL,
+                                       BoundNetLog()));
   EXPECT_EQ("192.168.2.1", NetAddressToString(address_list.head()));
 
   info.set_address_family(ADDRESS_FAMILY_IPV4);
-  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, NULL, NULL, NULL));
+  EXPECT_EQ(OK, host_resolver->Resolve(info, &address_list, NULL, NULL,
+                                       BoundNetLog()));
   EXPECT_EQ("192.168.1.1", NetAddressToString(address_list.head()));
 
   // Now the actual test.

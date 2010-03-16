@@ -67,7 +67,7 @@
 #include "net/base/address_list.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
-#include "net/base/load_log.h"
+#include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
@@ -271,7 +271,7 @@ int SSLClientSocketNSS::Init() {
 }
 
 int SSLClientSocketNSS::Connect(CompletionCallback* callback,
-                                LoadLog* load_log) {
+                                const BoundNetLog& net_log) {
   EnterFunction("");
   DCHECK(transport_.get());
   DCHECK(next_handshake_state_ == STATE_NONE);
@@ -281,7 +281,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback,
   DCHECK(!user_read_buf_);
   DCHECK(!user_write_buf_);
 
-  LoadLog::BeginEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+  net_log.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   if (Init() != OK) {
     NOTREACHED() << "Couldn't initialize nss";
@@ -289,7 +289,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback,
 
   int rv = InitializeSSLOptions();
   if (rv != OK) {
-    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
     return rv;
   }
 
@@ -297,9 +297,9 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback,
   rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
-    load_log_ = load_log;
+    net_log_ = net_log;
   } else {
-    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
   }
 
   LeaveFunction("");
@@ -791,8 +791,8 @@ void SSLClientSocketNSS::OnHandshakeIOComplete(int result) {
   EnterFunction(result);
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    LoadLog::EndEvent(load_log_, net::LoadLog::TYPE_SSL_CONNECT);
-    load_log_ = NULL;
+    net_log_.EndEvent(net::NetLog::TYPE_SSL_CONNECT);
+    net_log_ = BoundNetLog();
     DoConnectCallback(rv);
   }
   LeaveFunction("");

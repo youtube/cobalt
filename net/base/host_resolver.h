@@ -18,9 +18,9 @@ class MessageLoop;
 namespace net {
 
 class AddressList;
+class BoundNetLog;
 class HostCache;
 class HostResolverImpl;
-class LoadLog;
 class NetworkChangeNotifier;
 
 // This class represents the task of resolving hostnames (or IP address
@@ -137,12 +137,12 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   // the async request. This handle is not valid after the request has
   // completed.
   //
-  // Profiling information for the request is saved to |load_log| if non-NULL.
+  // Profiling information for the request is saved to |net_log| if non-NULL.
   virtual int Resolve(const RequestInfo& info,
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      LoadLog* load_log) = 0;
+                      const BoundNetLog& net_log) = 0;
 
   // Cancels the specified request. |req| is the handle returned by Resolve().
   // After a request is cancelled, its completion callback will not be called.
@@ -198,7 +198,7 @@ class SingleRequestHostResolver {
   int Resolve(const HostResolver::RequestInfo& info,
               AddressList* addresses,
               CompletionCallback* callback,
-              LoadLog* load_log);
+              const BoundNetLog& net_log);
 
   // Cancels the in-progress request, if any. This prevents the callback
   // from being invoked. Resolve() can be called again after cancelling.

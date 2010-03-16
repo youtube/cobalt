@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/base/mock_host_resolver.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/http/http_network_layer.h"
 #include "net/http/http_transaction_unittest.h"
@@ -84,7 +85,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
   request_info.user_agent = "Foo/1.0";
   request_info.load_flags = net::LOAD_NORMAL;
 
-  rv = trans->Start(&request_info, &callback, NULL);
+  rv = trans->Start(&request_info, &callback, net::BoundNetLog());
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::OK, rv);

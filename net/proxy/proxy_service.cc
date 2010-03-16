@@ -11,7 +11,7 @@
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/load_log.h"
+#include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/proxy/init_proxy_resolver.h"
@@ -37,7 +37,7 @@ using base::TimeTicks;
 
 namespace net {
 
-static const size_t kMaxNumLoadLogEntries = 100;
+static const size_t kMaxNumNetLogEntries = 100;
 
 // Config getter that fails every time.
 class ProxyConfigServiceNull : public ProxyConfigService {
@@ -58,7 +58,7 @@ class ProxyResolverNull : public ProxyResolver {
                              ProxyInfo* results,
                              CompletionCallback* callback,
                              RequestHandle* request,
-                             LoadLog* load_log) {
+                             const BoundNetLog& net_log) {
     return ERR_NOT_IMPLEMENTED;
   }
 
@@ -83,7 +83,7 @@ class ProxyService::PacRequest
              const GURL& url,
              ProxyInfo* results,
              CompletionCallback* user_callback,
-             LoadLog* load_log)
+             const BoundNetLog& net_log)
       : service_(service),
         user_callback_(user_callback),
         ALLOW_THIS_IN_INITIALIZER_LIST(io_callback_(
@@ -92,7 +92,7 @@ class ProxyService::PacRequest
         url_(url),
         resolve_job_(NULL),
         config_id_(ProxyConfig::INVALID_ID),
-        load_log_(load_log) {
+        net_log_(net_log) {
     DCHECK(user_callback);
   }
 
@@ -104,7 +104,7 @@ class ProxyService::PacRequest
     config_id_ = service_->config_.id();
 
     return resolver()->GetProxyForURL(
-        url_, results_, &io_callback_, &resolve_job_, load_log_);
+        url_, results_, &io_callback_, &resolve_job_, net_log_);
   }
 
   bool is_started() const {
@@ -129,7 +129,7 @@ class ProxyService::PacRequest
   }
 
   void Cancel() {
-    LoadLog::AddEvent(load_log_, LoadLog::TYPE_CANCELLED);
+    net_log_.AddEvent(NetLog::TYPE_CANCELLED);
 
     if (is_started())
       CancelResolveJob();
@@ -139,7 +139,7 @@ class ProxyService::PacRequest
     user_callback_ = NULL;
     results_ = NULL;
 
-    LoadLog::EndEvent(load_log_, LoadLog::TYPE_PROXY_SERVICE);
+    net_log_.EndEvent(NetLog::TYPE_PROXY_SERVICE);
   }
 
   // Returns true if Cancel() has been called.
@@ -158,10 +158,10 @@ class ProxyService::PacRequest
     resolve_job_ = NULL;
     config_id_ = ProxyConfig::INVALID_ID;
 
-    return service_->DidFinishResolvingProxy(results_, result_code, load_log_);
+    return service_->DidFinishResolvingProxy(results_, result_code, net_log_);
   }
 
-  LoadLog* load_log() const { return load_log_; }
+  BoundNetLog* net_log() { return &net_log_; }
 
  private:
   friend class base::RefCounted<ProxyService::PacRequest>;
@@ -192,7 +192,7 @@ class ProxyService::PacRequest
   GURL url_;
   ProxyResolver::RequestHandle resolve_job_;
   ProxyConfig::ID config_id_;  // The config id when the resolve was started.
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
 };
 
 // ProxyService ---------------------------------------------------------------
@@ -206,6 +206,7 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
       should_use_proxy_resolver_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(init_proxy_resolver_callback_(
           this, &ProxyService::OnInitProxyResolverComplete)),
+      init_proxy_resolver_log_(kMaxNumNetLogEntries),
       network_change_notifier_(network_change_notifier) {
   // Register to receive network change notifications.
   if (network_change_notifier_)
@@ -266,10 +267,10 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
                                ProxyInfo* result,
                                CompletionCallback* callback,
                                PacRequest** pac_request,
-                               LoadLog* load_log) {
+                               const BoundNetLog& net_log) {
   DCHECK(callback);
 
-  LoadLog::BeginEvent(load_log, LoadLog::TYPE_PROXY_SERVICE);
+  net_log.BeginEvent(NetLog::TYPE_PROXY_SERVICE);
 
   // Strip away any reference fragments and the username/password, as they
   // are not relevant to proxy resolution.
@@ -277,13 +278,13 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
 
   // Check if the request can be completed right away. This is the case when
   // using a direct connection, or when the config is bad.
-  UpdateConfigIfOld(load_log);
+  UpdateConfigIfOld(net_log);
   int rv = TryToCompleteSynchronously(url, result);
   if (rv != ERR_IO_PENDING)
-    return DidFinishResolvingProxy(result, rv, load_log);
+    return DidFinishResolvingProxy(result, rv, net_log);
 
   scoped_refptr<PacRequest> req =
-      new PacRequest(this, url, result, callback, load_log);
+      new PacRequest(this, url, result, callback, net_log);
 
   bool resolver_is_ready = !IsInitializingProxyResolver();
 
@@ -293,8 +294,7 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
     if (rv != ERR_IO_PENDING)
       return req->QueryDidComplete(rv);
   } else {
-    LoadLog::BeginEvent(req->load_log(),
-        LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
+    req->net_log()->BeginEvent(NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
   }
 
   DCHECK_EQ(ERR_IO_PENDING, rv);
@@ -335,6 +335,10 @@ ProxyService::~ProxyService() {
        ++it) {
     (*it)->Cancel();
   }
+
+  // Make sure that InitProxyResolver gets destroyed BEFORE the
+  // CapturingNetLog it is using is deleted.
+  init_proxy_resolver_.reset();
 }
 
 void ProxyService::SuspendAllPendingRequests() {
@@ -345,8 +349,8 @@ void ProxyService::SuspendAllPendingRequests() {
     if (req->is_started()) {
       req->CancelResolveJob();
 
-      LoadLog::BeginEvent(req->load_log(),
-          LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
+      req->net_log()->BeginEvent(
+          NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
     }
   }
 }
@@ -364,8 +368,7 @@ void ProxyService::ResumeAllPendingRequests() {
        ++it) {
     PacRequest* req = it->get();
     if (!req->is_started() && !req->was_cancelled()) {
-      LoadLog::EndEvent(req->load_log(),
-          LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
+      req->net_log()->EndEvent(NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
 
       // Note that we re-check for synchronous completion, in case we are
       // no longer using a ProxyResolver (can happen if we fell-back to manual).
@@ -396,14 +399,14 @@ int ProxyService::ReconsiderProxyAfterError(const GURL& url,
                                             ProxyInfo* result,
                                             CompletionCallback* callback,
                                             PacRequest** pac_request,
-                                            LoadLog* load_log) {
+                                            const BoundNetLog& net_log) {
   // Check to see if we have a new config since ResolveProxy was called.  We
   // want to re-run ResolveProxy in two cases: 1) we have a new config, or 2) a
   // direct connection failed and we never tried the current config.
 
   bool re_resolve = result->config_id_ != config_.id();
   if (!re_resolve) {
-    UpdateConfig(load_log);
+    UpdateConfig(net_log);
     if (result->config_id_ != config_.id()) {
       // A new configuration!
       re_resolve = true;
@@ -413,7 +416,7 @@ int ProxyService::ReconsiderProxyAfterError(const GURL& url,
     // If we have a new config or the config was never tried, we delete the
     // list of bad proxies and we try again.
     proxy_retry_info_.clear();
-    return ResolveProxy(url, result, callback, pac_request, load_log);
+    return ResolveProxy(url, result, callback, pac_request, net_log);
   }
 
   // We don't have new proxy settings to try, try to fallback to the next proxy
@@ -446,21 +449,19 @@ void ProxyService::RemovePendingRequest(PacRequest* req) {
 
 int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
                                           int result_code,
-                                          LoadLog* load_log) {
+                                          const BoundNetLog& net_log) {
   // Log the result of the proxy resolution.
   if (result_code == OK) {
     // When full logging is enabled, dump the proxy list.
-    if (LoadLog::IsUnbounded(load_log)) {
-      LoadLog::AddString(
-          load_log,
+    if (net_log.HasListener()) {
+      net_log.AddString(
           std::string("Resolved proxy list: ") + result->ToPacString());
     }
     result->DeprioritizeBadProxies(proxy_retry_info_);
   } else {
-    LoadLog::AddStringLiteral(
-        load_log,
+    net_log.AddStringLiteral(
         "Got an error from proxy resolver, falling-back to DIRECT.");
-    LoadLog::AddErrorCode(load_log, result_code);
+    net_log.AddErrorCode(result_code);
 
     // Fall-back to direct when the proxy resolver fails. This corresponds
     // with a javascript runtime error in the PAC script.
@@ -473,7 +474,7 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
     result_code = OK;
   }
 
-  LoadLog::EndEvent(load_log, LoadLog::TYPE_PROXY_SERVICE);
+  net_log.EndEvent(NetLog::TYPE_PROXY_SERVICE);
   return result_code;
 }
 
@@ -564,18 +565,17 @@ ProxyResolver* ProxyService::CreateNonV8ProxyResolver() {
 #endif
 }
 
-void ProxyService::UpdateConfig(LoadLog* load_log) {
+void ProxyService::UpdateConfig(const BoundNetLog& net_log) {
   bool is_first_update = !config_has_been_initialized();
 
   ProxyConfig latest;
 
   // Fetch the proxy settings.
   TimeTicks start_time = TimeTicks::Now();
-  LoadLog::BeginEvent(load_log,
-      LoadLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
+  net_log.BeginEvent(
+      NetLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
   int rv = config_service_->GetProxyConfig(&latest);
-  LoadLog::EndEvent(load_log,
-      LoadLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
+  net_log.EndEvent(NetLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
   TimeTicks end_time = TimeTicks::Now();
 
   // Record how long the call to config_service_->GetConfig() above took.
@@ -636,23 +636,24 @@ void ProxyService::StartInitProxyResolver() {
   init_proxy_resolver_.reset(
       new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get()));
 
-  init_proxy_resolver_log_ = new LoadLog(kMaxNumLoadLogEntries);
+  init_proxy_resolver_log_.Clear();
 
   int rv = init_proxy_resolver_->Init(
-      config_, &init_proxy_resolver_callback_, init_proxy_resolver_log_);
+      config_, &init_proxy_resolver_callback_,
+      init_proxy_resolver_log_.bound());
 
   if (rv != ERR_IO_PENDING)
     OnInitProxyResolverComplete(rv);
 }
 
-void ProxyService::UpdateConfigIfOld(LoadLog* load_log) {
+void ProxyService::UpdateConfigIfOld(const BoundNetLog& net_log) {
   // The overhead of calling ProxyConfigService::GetProxyConfig is very low.
   const TimeDelta kProxyConfigMaxAge = TimeDelta::FromSeconds(5);
 
   // Periodically check for a new config.
   if (!config_has_been_initialized() ||
       (TimeTicks::Now() - config_last_update_time_) > kProxyConfigMaxAge)
-    UpdateConfig(load_log);
+    UpdateConfig(net_log);
 }
 
 
@@ -679,11 +680,11 @@ SyncProxyServiceHelper::SyncProxyServiceHelper(MessageLoop* io_message_loop,
 
 int SyncProxyServiceHelper::ResolveProxy(const GURL& url,
                                          ProxyInfo* proxy_info,
-                                         LoadLog* load_log) {
+                                         const BoundNetLog& net_log) {
   DCHECK(io_message_loop_ != MessageLoop::current());
 
   io_message_loop_->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &SyncProxyServiceHelper::StartAsyncResolve, url, load_log));
+      this, &SyncProxyServiceHelper::StartAsyncResolve, url, net_log));
 
   event_.Wait();
 
@@ -694,11 +695,11 @@ int SyncProxyServiceHelper::ResolveProxy(const GURL& url,
 }
 
 int SyncProxyServiceHelper::ReconsiderProxyAfterError(
-    const GURL& url, ProxyInfo* proxy_info, LoadLog* load_log) {
+    const GURL& url, ProxyInfo* proxy_info, const BoundNetLog& net_log) {
   DCHECK(io_message_loop_ != MessageLoop::current());
 
   io_message_loop_->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &SyncProxyServiceHelper::StartAsyncReconsider, url, load_log));
+      this, &SyncProxyServiceHelper::StartAsyncReconsider, url, net_log));
 
   event_.Wait();
 
@@ -709,18 +710,18 @@ int SyncProxyServiceHelper::ReconsiderProxyAfterError(
 }
 
 void SyncProxyServiceHelper::StartAsyncResolve(const GURL& url,
-                                               LoadLog* load_log) {
+                                               const BoundNetLog& net_log) {
   result_ = proxy_service_->ResolveProxy(
-      url, &proxy_info_, &callback_, NULL, load_log);
+      url, &proxy_info_, &callback_, NULL, net_log);
   if (result_ != net::ERR_IO_PENDING) {
     OnCompletion(result_);
   }
 }
 
 void SyncProxyServiceHelper::StartAsyncReconsider(const GURL& url,
-                                                  LoadLog* load_log) {
+                                                  const BoundNetLog& net_log) {
   result_ = proxy_service_->ReconsiderProxyAfterError(
-      url, &proxy_info_, &callback_, NULL, load_log);
+      url, &proxy_info_, &callback_, NULL, net_log);
   if (result_ != net::ERR_IO_PENDING) {
     OnCompletion(result_);
   }

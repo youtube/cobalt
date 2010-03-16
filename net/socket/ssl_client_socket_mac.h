@@ -13,13 +13,13 @@
 #include "base/scoped_ptr.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
 class CertVerifier;
-class LoadLog;
 
 // An SSL client socket implemented with Secure Transport.
 class SSLClientSocketMac : public SSLClientSocket {
@@ -39,7 +39,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   virtual NextProtoStatus GetNextProto(std::string* proto);
 
   // ClientSocket methods:
-  virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
+  virtual int Connect(CompletionCallback* callback, const BoundNetLog& net_log);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -127,7 +127,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   scoped_refptr<IOBuffer> read_io_buf_;
   scoped_refptr<IOBuffer> write_io_buf_;
 
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
 };
 
 }  // namespace net

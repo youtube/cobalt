@@ -15,8 +15,8 @@
 #include "net/base/address_list.h"
 #include "net/base/cert_verifier.h"
 #include "net/base/io_buffer.h"
-#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
 
@@ -518,26 +518,26 @@ SSLClientSocketMac::~SSLClientSocketMac() {
 }
 
 int SSLClientSocketMac::Connect(CompletionCallback* callback,
-                                LoadLog* load_log) {
+                                const BoundNetLog& net_log) {
   DCHECK(transport_.get());
   DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
 
-  LoadLog::BeginEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+  net_log.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   int rv = InitializeSSLContext();
   if (rv != OK) {
-    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
     return rv;
   }
 
   next_handshake_state_ = STATE_HANDSHAKE_START;
   rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING) {
-    load_log_ = load_log;
+    net_log_ = net_log;
     user_connect_callback_ = callback;
   } else {
-    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
   }
   return rv;
 }
@@ -816,8 +816,8 @@ void SSLClientSocketMac::OnHandshakeIOComplete(int result) {
   DCHECK(next_handshake_state_ != STATE_NONE);
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    LoadLog::EndEvent(load_log_, LoadLog::TYPE_SSL_CONNECT);
-    load_log_ = NULL;
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_ = BoundNetLog();
     DoConnectCallback(rv);
   }
 }
@@ -833,8 +833,8 @@ void SSLClientSocketMac::OnTransportReadComplete(int result) {
   if (next_handshake_state_ != STATE_NONE) {
     int rv = DoHandshakeLoop(result);
     if (rv != ERR_IO_PENDING) {
-      LoadLog::EndEvent(load_log_, LoadLog::TYPE_SSL_CONNECT);
-      load_log_ = NULL;
+      net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+      net_log_ = BoundNetLog();
       DoConnectCallback(rv);
     }
     return;

@@ -12,10 +12,10 @@
 
 namespace net {
 
+class BoundNetLog;
 class HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
-class LoadLog;
 class X509Certificate;
 
 // Represents a single HTTP transaction (i.e., a single request/response pair).
@@ -39,10 +39,10 @@ class HttpTransaction {
   //
   // NOTE: The transaction is not responsible for deleting the callback object.
   //
-  // Profiling information for the request is saved to |load_log| if non-NULL.
+  // Profiling information for the request is saved to |net_log| if non-NULL.
   virtual int Start(const HttpRequestInfo* request_info,
                     CompletionCallback* callback,
-                    LoadLog* load_log) = 0;
+                    const BoundNetLog& net_log) = 0;
 
   // Restarts the HTTP transaction, ignoring the last error.  This call can
   // only be made after a call to Start (or RestartIgnoringLastError) failed.
