@@ -348,14 +348,24 @@ bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
 }
 
 bool WaitForExitCode(ProcessHandle handle, int* exit_code) {
-  ScopedHandle closer(handle);  // Ensure that we always close the handle.
-  if (::WaitForSingleObject(handle, INFINITE) != WAIT_OBJECT_0) {
-    NOTREACHED();
+  bool success = WaitForExitCodeWithTimeout(handle, exit_code, INFINITE);
+  if (!success)
+    CloseProcessHandle(handle);
+  return success;
+}
+
+bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
+                                int64 timeout_milliseconds) {
+  if (::WaitForSingleObject(handle, timeout_milliseconds) != WAIT_OBJECT_0)
     return false;
-  }
   DWORD temp_code;  // Don't clobber out-parameters in case of failure.
   if (!::GetExitCodeProcess(handle, &temp_code))
     return false;
+
+  // Only close the handle on success, to give the caller a chance to forcefully
+  // terminate the process if he wants to.
+  CloseProcessHandle(handle);
+
   *exit_code = temp_code;
   return true;
 }
