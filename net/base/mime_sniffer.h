@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,6 +10,12 @@
 class GURL;
 
 namespace net {
+
+// The maximum number of bytes used by any internal mime sniffing routine. May
+// be useful for callers to determine an efficient buffer size to pass to
+// |SniffMimeType|.
+// This must be updated if any internal sniffing routine needs more bytes.
+const int kMaxBytesToSniff = 1024;
 
 // Examine the URL and the mime_type and decide whether we should sniff a
 // replacement mime type from the content.
