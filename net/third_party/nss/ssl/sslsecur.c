@@ -148,12 +148,6 @@ ssl_Do1stHandshake(sslSocket *ss)
 	    ss->gs.readOffset  = 0;
 	    break;
 	}
-	if (ss->version >= SSL_LIBRARY_VERSION_3_0 &&
-	    (ss->ssl3.hs.ws == wait_change_cipher ||
-	     ss->ssl3.hs.ws == wait_new_session_ticket) &&
-	    ssl3_CanFalseStart(ss)) {
-	    break;
-	}
 	rv = (*ss->handshake)(ss);
 	++loopCount;
     /* This code must continue to loop on SECWouldBlock, 
@@ -1205,8 +1199,17 @@ ssl_SecureSend(sslSocket *ss, const unsigned char *buf, int len, int flags)
     	ss->writerThread = PR_GetCurrentThread();
     /* If any of these is non-zero, the initial handshake is not done. */
     if (!ss->firstHsDone) {
+	PRBool canFalseStart = PR_FALSE;
 	ssl_Get1stHandshakeLock(ss);
-	if (ss->handshake || ss->nextHandshake || ss->securityHandshake) {
+	if (ss->version >= SSL_LIBRARY_VERSION_3_0 &&
+	    (ss->ssl3.hs.ws == wait_change_cipher ||
+	     ss->ssl3.hs.ws == wait_finished ||
+	     ss->ssl3.hs.ws == wait_new_session_ticket) &&
+	    ssl3_CanFalseStart(ss)) {
+	    canFalseStart = PR_TRUE;
+	}
+	if (!canFalseStart &&
+	    (ss->handshake || ss->nextHandshake || ss->securityHandshake)) {
 	    rv = ssl_Do1stHandshake(ss);
 	}
 	ssl_Release1stHandshakeLock(ss);
