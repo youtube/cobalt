@@ -268,6 +268,14 @@ bool DidProcessCrash(bool* child_exited, ProcessHandle handle);
 // and closes |handle| in any case.
 bool WaitForExitCode(ProcessHandle handle, int* exit_code);
 
+// Waits for process to exit. If it did exit within |timeout_milliseconds|,
+// then puts the exit code in |exit_code|, closes |handle|, and returns true.
+// In POSIX systems, if the process has been signaled then |exit_code| is set
+// to -1. Returns false on failure (the caller is then responsible for closing
+// |handle|).
+bool WaitForExitCodeWithTimeout(ProcessHandle handle, int* exit_code,
+                                int64 timeout_milliseconds);
+
 // Wait for all the processes based on the named executable to exit.  If filter
 // is non-null, then only processes selected by the filter are waited on.
 // Returns after all processes have exited or wait_milliseconds have expired.
