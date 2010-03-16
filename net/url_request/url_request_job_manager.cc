@@ -14,7 +14,7 @@
 #include "net/url_request/url_request_data_job.h"
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_file_job.h"
-#include "net/url_request/url_request_new_ftp_job.h"
+#include "net/url_request/url_request_ftp_job.h"
 #include "net/url_request/url_request_http_job.h"
 
 // The built-in set of protocol factories
@@ -31,7 +31,7 @@ static const SchemeToFactory kBuiltinFactories[] = {
   { "http", URLRequestHttpJob::Factory },
   { "https", URLRequestHttpJob::Factory },
   { "file", URLRequestFileJob::Factory },
-  { "ftp", URLRequestNewFtpJob::Factory },
+  { "ftp", URLRequestFtpJob::Factory },
   { "about", URLRequestAboutJob::Factory },
   { "data", URLRequestDataJob::Factory },
 };
