@@ -14,7 +14,7 @@
 #include "net/base/cert_verifier.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
-#include "net/base/load_log.h"
+#include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/ssl_info.h"
@@ -431,16 +431,16 @@ SSLClientSocketWin::GetNextProto(std::string* proto) {
 }
 
 int SSLClientSocketWin::Connect(CompletionCallback* callback,
-                                LoadLog* load_log) {
+                                const BoundNetLog& net_log) {
   DCHECK(transport_.get());
   DCHECK(next_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
 
-  LoadLog::BeginEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+  net_log.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   int rv = InitializeSSLContext();
   if (rv != OK) {
-    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
     return rv;
   }
 
@@ -449,9 +449,9 @@ int SSLClientSocketWin::Connect(CompletionCallback* callback,
   rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
-    load_log_ = load_log;
+    net_log_ = net_log;
   } else {
-    LoadLog::EndEvent(load_log, LoadLog::TYPE_SSL_CONNECT);
+    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
   }
   return rv;
 }
@@ -655,8 +655,8 @@ void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
       c->Run(rv);
       return;
     }
-    LoadLog::EndEvent(load_log_, LoadLog::TYPE_SSL_CONNECT);
-    load_log_ = NULL;
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_ = BoundNetLog();
     CompletionCallback* c = user_connect_callback_;
     user_connect_callback_ = NULL;
     c->Run(rv);

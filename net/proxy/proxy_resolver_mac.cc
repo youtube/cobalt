@@ -59,7 +59,7 @@ int ProxyResolverMac::GetProxyForURL(const GURL& query_url,
                                      ProxyInfo* results,
                                      CompletionCallback* /*callback*/,
                                      RequestHandle* /*request*/,
-                                     LoadLog* load_log) {
+                                     const BoundNetLog& net_log) {
   scoped_cftyperef<CFStringRef> query_ref(
       base::SysUTF8ToCFStringRef(query_url.spec()));
   scoped_cftyperef<CFURLRef> query_url_ref(

@@ -18,11 +18,11 @@ int MappedHostResolver::Resolve(const RequestInfo& info,
                                 AddressList* addresses,
                                 CompletionCallback* callback,
                                 RequestHandle* out_req,
-                                LoadLog* load_log) {
+                                const BoundNetLog& net_log) {
   // Modify the request before forwarding it to |impl_|.
   RequestInfo modified_info = info;
   RewriteRequest(&modified_info);
-  return impl_->Resolve(modified_info, addresses, callback, out_req, load_log);
+  return impl_->Resolve(modified_info, addresses, callback, out_req, net_log);
 }
 
 void MappedHostResolver::CancelRequest(RequestHandle req) {

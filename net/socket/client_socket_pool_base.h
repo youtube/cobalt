@@ -38,6 +38,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/request_priority.h"
 #include "net/socket/client_socket.h"
@@ -46,7 +47,6 @@
 namespace net {
 
 class ClientSocketHandle;
-class LoadLog;
 
 // ConnectJob provides an abstract interface for "connecting" a socket.
 // The connection may involve host resolution, tcp connection, ssl connection,
@@ -69,12 +69,12 @@ class ConnectJob {
   ConnectJob(const std::string& group_name,
              base::TimeDelta timeout_duration,
              Delegate* delegate,
-             LoadLog* load_log);
+             const BoundNetLog& net_log);
   virtual ~ConnectJob();
 
   // Accessors
   const std::string& group_name() const { return group_name_; }
-  LoadLog* load_log() { return load_log_; }
+  const BoundNetLog& net_log() { return net_log_; }
 
   // Releases |socket_| to the client.  On connection error, this should return
   // NULL.
@@ -107,7 +107,7 @@ class ConnectJob {
   base::OneShotTimer<ConnectJob> timer_;
   Delegate* delegate_;
   scoped_ptr<ClientSocket> socket_;
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(ConnectJob);
 };
@@ -129,20 +129,20 @@ class ClientSocketPoolBaseHelper
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
             RequestPriority priority,
-            LoadLog* load_log);
+            const BoundNetLog& net_log);
 
     virtual ~Request();
 
     ClientSocketHandle* handle() const { return handle_; }
     CompletionCallback* callback() const { return callback_; }
     RequestPriority priority() const { return priority_; }
-    LoadLog* load_log() const { return load_log_.get(); }
+    const BoundNetLog& net_log() const { return net_log_; }
 
    private:
     ClientSocketHandle* const handle_;
     CompletionCallback* const callback_;
     const RequestPriority priority_;
-    const scoped_refptr<LoadLog> load_log_;
+    BoundNetLog net_log_;
 
     DISALLOW_COPY_AND_ASSIGN(Request);
   };
@@ -156,7 +156,7 @@ class ClientSocketPoolBaseHelper
         const std::string& group_name,
         const Request& request,
         ConnectJob::Delegate* delegate,
-        LoadLog* load_log) const = 0;
+        const BoundNetLog& net_log) const = 0;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
@@ -355,7 +355,7 @@ class ClientSocketPoolBaseHelper
                      ClientSocketHandle* handle,
                      base::TimeDelta time_idle,
                      Group* group,
-                     LoadLog* load_log);
+                     const BoundNetLog& net_log);
 
   // Adds |socket| to the list of idle sockets for |group|.  |used| indicates
   // whether or not the socket has previously been used.
@@ -371,7 +371,7 @@ class ClientSocketPoolBaseHelper
   bool ReachedMaxSocketsLimit() const;
 
   // This is the internal implementation of RequestSocket().  It differs in that
-  // it does not handle logging into LoadLog of the queueing status of
+  // it does not handle logging into NetLog of the queueing status of
   // |request|.
   int RequestSocketInternal(const std::string& group_name,
                             const Request* request);
@@ -450,9 +450,9 @@ class ClientSocketPoolBase {
             CompletionCallback* callback,
             RequestPriority priority,
             const SocketParams& params,
-            LoadLog* load_log)
+            const BoundNetLog& net_log)
         : internal::ClientSocketPoolBaseHelper::Request(
-            handle, callback, priority, load_log),
+            handle, callback, priority, net_log),
           params_(params) {}
 
     const SocketParams& params() const { return params_; }
@@ -470,7 +470,7 @@ class ClientSocketPoolBase {
         const std::string& group_name,
         const Request& request,
         ConnectJob::Delegate* delegate,
-        LoadLog* load_log) const = 0;
+        const BoundNetLog& net_log) const = 0;
 
    private:
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
@@ -507,9 +507,9 @@ class ClientSocketPoolBase {
                     RequestPriority priority,
                     ClientSocketHandle* handle,
                     CompletionCallback* callback,
-                    LoadLog* load_log) {
+                    const BoundNetLog& net_log) {
     scoped_ptr<Request> request(
-        new Request(handle, callback, priority, params, load_log));
+        new Request(handle, callback, priority, params, net_log));
     int rv = helper_->RequestSocket(group_name, request.get());
     if (rv == ERR_IO_PENDING)
       request.release();
@@ -576,10 +576,10 @@ class ClientSocketPoolBase {
         const std::string& group_name,
         const internal::ClientSocketPoolBaseHelper::Request& request,
         ConnectJob::Delegate* delegate,
-        LoadLog* load_log) const {
+        const BoundNetLog& net_log) const {
       const Request* casted_request = static_cast<const Request*>(&request);
       return connect_job_factory_->NewConnectJob(
-          group_name, *casted_request, delegate, load_log);
+          group_name, *casted_request, delegate, net_log);
     }
 
     const scoped_ptr<ConnectJobFactory> connect_job_factory_;

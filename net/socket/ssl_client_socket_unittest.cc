@@ -7,8 +7,8 @@
 #include "net/base/address_list.h"
 #include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
-#include "net/base/load_log.h"
-#include "net/base/load_log_unittest.h"
+#include "net/base/net_log.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/test_completion_callback.h"
@@ -80,15 +80,15 @@ TEST_F(SSLClientSocketTest, Connect) {
 
   EXPECT_FALSE(sock->IsConnected());
 
-  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
-  rv = sock->Connect(&callback, log);
+  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+  rv = sock->Connect(&callback, log.bound());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      *log, 0, net::LoadLog::TYPE_SSL_CONNECT));
+      log.entries(), 0, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
     EXPECT_FALSE(net::LogContainsEndEvent(
-        *log, -1, net::LoadLog::TYPE_SSL_CONNECT));
+        log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
 
     rv = callback.WaitForResult();
     EXPECT_EQ(net::OK, rv);
@@ -96,7 +96,7 @@ TEST_F(SSLClientSocketTest, Connect) {
 
   EXPECT_TRUE(sock->IsConnected());
   EXPECT_TRUE(net::LogContainsEndEvent(
-      *log, -1, net::LoadLog::TYPE_SSL_CONNECT));
+      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
 
   sock->Disconnect();
   EXPECT_FALSE(sock->IsConnected());
@@ -124,15 +124,15 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 
   EXPECT_FALSE(sock->IsConnected());
 
-  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
-  rv = sock->Connect(&callback, log);
+  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+  rv = sock->Connect(&callback, log.bound());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      *log, 0, net::LoadLog::TYPE_SSL_CONNECT));
+      log.entries(), 0, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
     EXPECT_FALSE(net::LogContainsEndEvent(
-        *log, -1, net::LoadLog::TYPE_SSL_CONNECT));
+        log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
 
     rv = callback.WaitForResult();
     EXPECT_EQ(net::ERR_CERT_DATE_INVALID, rv);
@@ -143,7 +143,7 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
   // leave it connected.
 
   EXPECT_TRUE(net::LogContainsEndEvent(
-      *log, -1, net::LoadLog::TYPE_SSL_CONNECT));
+      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
 }
 
 TEST_F(SSLClientSocketTest, ConnectMismatched) {
@@ -169,15 +169,15 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   EXPECT_FALSE(sock->IsConnected());
 
-  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
-  rv = sock->Connect(&callback, log);
+  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
+  rv = sock->Connect(&callback, log.bound());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      *log, 0, net::LoadLog::TYPE_SSL_CONNECT));
+      log.entries(), 0, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::ERR_CERT_COMMON_NAME_INVALID) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
     EXPECT_FALSE(net::LogContainsEndEvent(
-        *log, -1, net::LoadLog::TYPE_SSL_CONNECT));
+        log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
 
     rv = callback.WaitForResult();
     EXPECT_EQ(net::ERR_CERT_COMMON_NAME_INVALID, rv);
@@ -188,7 +188,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
   // leave it connected.
 
   EXPECT_TRUE(net::LogContainsEndEvent(
-      *log, -1, net::LoadLog::TYPE_SSL_CONNECT));
+      log.entries(), -1, net::NetLog::TYPE_SSL_CONNECT));
 }
 
 // TODO(wtc): Add unit tests for IsConnectedAndIdle:

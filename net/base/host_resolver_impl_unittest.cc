@@ -12,10 +12,10 @@
 #include "base/string_util.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
-#include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/mock_network_change_notifier.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
@@ -262,13 +262,15 @@ TEST_F(HostResolverImplTest, SynchronousLookup) {
       CreateHostResolverImpl(resolver_proc));
 
   HostResolver::RequestInfo info("just.testing", kPortnum);
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, log);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, log.bound());
   EXPECT_EQ(OK, err);
 
-  EXPECT_EQ(2u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL));
-  EXPECT_TRUE(LogContainsEndEvent(*log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_EQ(2u, log.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   const struct addrinfo* ainfo = adrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -292,20 +294,23 @@ TEST_F(HostResolverImplTest, AsynchronousLookup) {
       CreateHostResolverImpl(resolver_proc));
 
   HostResolver::RequestInfo info("just.testing", kPortnum);
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL, log);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL,
+                                   log.bound());
   EXPECT_EQ(ERR_IO_PENDING, err);
 
-  EXPECT_EQ(1u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_EQ(1u, log.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   MessageLoop::current()->Run();
 
   ASSERT_TRUE(callback_called_);
   ASSERT_EQ(OK, callback_result_);
 
-  EXPECT_EQ(2u, log->entries().size());
-  EXPECT_TRUE(LogContainsEndEvent(*log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_EQ(2u, log.entries().size());
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   const struct addrinfo* ainfo = adrlist.head();
   EXPECT_EQ(static_cast<addrinfo*>(NULL), ainfo->ai_next);
@@ -321,7 +326,7 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
   scoped_refptr<WaitingHostResolverProc> resolver_proc =
       new WaitingHostResolverProc(NULL);
 
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   {
     scoped_refptr<HostResolver> host_resolver(
         CreateHostResolverImpl(resolver_proc));
@@ -329,7 +334,8 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
     const int kPortnum = 80;
 
     HostResolver::RequestInfo info("just.testing", kPortnum);
-    int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL, log);
+    int err = host_resolver->Resolve(info, &adrlist, &callback_, NULL,
+                                     log.bound());
     EXPECT_EQ(ERR_IO_PENDING, err);
 
     // Make sure we will exit the queue even when callback is not called.
@@ -341,11 +347,13 @@ TEST_F(HostResolverImplTest, CanceledAsynchronousLookup) {
 
   resolver_proc->Signal();
 
-  EXPECT_EQ(3u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_EQ(3u, log.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
   EXPECT_TRUE(LogContainsEvent(
-      *log, 1, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
-  EXPECT_TRUE(LogContainsEndEvent(*log, 2, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+      log.entries(), 1, NetLog::TYPE_CANCELLED, NetLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 2, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   EXPECT_FALSE(callback_called_);
 }
@@ -892,22 +900,23 @@ TEST_F(HostResolverImplTest, Observers) {
 
   // Resolve "host1".
   HostResolver::RequestInfo info1("host1", 70);
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log.bound());
   EXPECT_EQ(OK, rv);
 
-  EXPECT_EQ(6u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+  EXPECT_EQ(6u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 1, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART));
-  EXPECT_TRUE(LogContainsEndEvent(
-      *log, 2, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART));
+      log.entries(), 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 3, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH));
+      log.entries(), 1, NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 4, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH));
+      log.entries(), 2, NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 3, NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 5, LoadLog::TYPE_HOST_RESOLVER_IMPL));
+      log.entries(), 4, NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 5, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   EXPECT_EQ(1U, observer.start_log.size());
   EXPECT_EQ(1U, observer.finish_log.size());

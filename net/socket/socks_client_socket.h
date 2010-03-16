@@ -15,12 +15,13 @@
 #include "net/base/completion_callback.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/socket/client_socket.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace net {
 
-class LoadLog;
+class BoundNetLog;
 
 // The SOCKS client socket implementation
 class SOCKSClientSocket : public ClientSocket {
@@ -40,7 +41,7 @@ class SOCKSClientSocket : public ClientSocket {
   // ClientSocket methods:
 
   // Does the SOCKS handshake and completes the protocol.
-  virtual int Connect(CompletionCallback* callback, LoadLog* load_log);
+  virtual int Connect(CompletionCallback* callback, const BoundNetLog& net_log);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -125,7 +126,7 @@ class SOCKSClientSocket : public ClientSocket {
   AddressList addresses_;
   HostResolver::RequestInfo host_request_info_;
 
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(SOCKSClientSocket);
 };

@@ -26,8 +26,8 @@
 #include "net/base/cookie_monster.h"
 #include "net/base/cookie_policy.h"
 #include "net/base/load_flags.h"
-#include "net/base/load_log.h"
-#include "net/base/load_log_unittest.h"
+#include "net/base/net_log.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_module.h"
 #include "net/base/net_util.h"
@@ -217,16 +217,7 @@ TEST_F(URLRequestTestHTTP, GetTest_NoCache) {
     EXPECT_FALSE(d.received_data_before_response());
     EXPECT_NE(0, d.bytes_received());
 
-    // The first part of the log will be for URL_REQUEST_START.
-    // After that, there should be an HTTP_TRANSACTION_READ_BODY
-    EXPECT_TRUE(net::LogContainsBeginEvent(
-        *r.load_log(), 0, net::LoadLog::TYPE_URL_REQUEST_START));
-    EXPECT_TRUE(net::LogContainsEndEvent(
-        *r.load_log(), -3, net::LoadLog::TYPE_URL_REQUEST_START));
-    EXPECT_TRUE(net::LogContainsBeginEvent(
-        *r.load_log(), -2, net::LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY));
-    EXPECT_TRUE(net::LogContainsEndEvent(
-        *r.load_log(), -1, net::LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY));
+    // TODO(eroman): Add back the NetLog tests...
   }
 }
 
