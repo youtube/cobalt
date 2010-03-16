@@ -199,14 +199,15 @@ class ProxyService::PacRequest
 
 ProxyService::ProxyService(ProxyConfigService* config_service,
                            ProxyResolver* resolver,
-                           NetworkChangeNotifier* network_change_notifier)
+                           NetworkChangeNotifier* network_change_notifier,
+                           const BoundNetLog& init_proxy_resolver_log)
     : config_service_(config_service),
       resolver_(resolver),
       next_config_id_(1),
       should_use_proxy_resolver_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(init_proxy_resolver_callback_(
           this, &ProxyService::OnInitProxyResolverComplete)),
-      init_proxy_resolver_log_(kMaxNumNetLogEntries),
+      init_proxy_resolver_log_(init_proxy_resolver_log),
       network_change_notifier_(network_change_notifier) {
   // Register to receive network change notifications.
   if (network_change_notifier_)
@@ -219,6 +220,7 @@ ProxyService* ProxyService::Create(
     bool use_v8_resolver,
     URLRequestContext* url_request_context,
     NetworkChangeNotifier* network_change_notifier,
+    NetLog* net_log,
     MessageLoop* io_loop) {
   ProxyResolver* proxy_resolver;
 
@@ -238,7 +240,8 @@ ProxyService* ProxyService::Create(
   proxy_resolver = new SingleThreadedProxyResolver(proxy_resolver);
 
   ProxyService* proxy_service = new ProxyService(
-      proxy_config_service, proxy_resolver, network_change_notifier);
+      proxy_config_service, proxy_resolver, network_change_notifier,
+      BoundNetLog::Make(net_log, NetLog::SOURCE_INIT_PROXY_RESOLVER));
 
   if (proxy_resolver->expects_pac_bytes()) {
     // Configure PAC script downloads to be issued using |url_request_context|.
@@ -252,7 +255,8 @@ ProxyService* ProxyService::Create(
 
 // static
 ProxyService* ProxyService::CreateFixed(const ProxyConfig& pc) {
-  return Create(new ProxyConfigServiceFixed(pc), false, NULL, NULL, NULL);
+  return Create(new ProxyConfigServiceFixed(pc), false, NULL, NULL,
+                NULL, NULL);
 }
 
 // static
@@ -260,7 +264,8 @@ ProxyService* ProxyService::CreateNull() {
   // Use a configuration fetcher and proxy resolver which always fail.
   return new ProxyService(new ProxyConfigServiceNull,
                           new ProxyResolverNull,
-                          NULL);
+                          NULL,
+                          BoundNetLog());
 }
 
 int ProxyService::ResolveProxy(const GURL& raw_url,
@@ -636,11 +641,9 @@ void ProxyService::StartInitProxyResolver() {
   init_proxy_resolver_.reset(
       new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get()));
 
-  init_proxy_resolver_log_.Clear();
-
   int rv = init_proxy_resolver_->Init(
       config_, &init_proxy_resolver_callback_,
-      init_proxy_resolver_log_.bound());
+      init_proxy_resolver_log_);
 
   if (rv != ERR_IO_PENDING)
     OnInitProxyResolverComplete(rv);
