@@ -98,6 +98,9 @@ namespace net {
 
 namespace {
 
+// You can change this to LOG(WARNING) during development.
+#define SSL_LOG LOG(INFO) << "SSL: "
+
 #if MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_5
 // Declarations needed to call the 10.5.7 and later SSLSetSessionOption()
 // function when building with the 10.5.0 SDK.
@@ -549,6 +552,7 @@ void SSLClientSocketMac::Disconnect() {
     SSLClose(ssl_context_);
     SSLDisposeContext(ssl_context_);
     ssl_context_ = NULL;
+    SSL_LOG << "----- Disposed SSLContext";
   }
 
   // Shut down anything that may call us back.
@@ -650,10 +654,22 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
 void SSLClientSocketMac::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
   // I'm being asked for available client certs (identities).
+
+  CFArrayRef allowed_issuer_names = NULL;
+  if (SSLCopyDistinguishedNames(ssl_context_, &allowed_issuer_names) == noErr &&
+      allowed_issuer_names != NULL) {
+    SSL_LOG << "Server has " << CFArrayGetCount(allowed_issuer_names)
+            << " allowed issuer names";
+    CFRelease(allowed_issuer_names);
+    // TODO(snej): Filter GetSSLClientCertificates using this array.
+  }
+
   cert_request_info->host_and_port = hostname_;
   cert_request_info->client_certs.clear();
   X509Certificate::GetSSLClientCertificates(hostname_,
                                             &cert_request_info->client_certs);
+  SSL_LOG << "Asking user to choose between "
+          << cert_request_info->client_certs.size() << " client certs...";
 }
 
 SSLClientSocket::NextProtoStatus
@@ -663,6 +679,7 @@ SSLClientSocketMac::GetNextProto(std::string* proto) {
 }
 
 int SSLClientSocketMac::InitializeSSLContext() {
+  SSL_LOG << "----- InitializeSSLContext";
   OSStatus status = noErr;
 
   status = SSLNewContext(false, &ssl_context_);
@@ -739,10 +756,12 @@ int SSLClientSocketMac::InitializeSSLContext() {
     status = ssl_set_session_options(ssl_context_,
                                      kSSLSessionOptionBreakOnServerAuth,
                                      true);
-    if (!status)
+    if (!status) {
+      SSL_LOG << "Setting kSSLSessionOptionBreakOnCertRequested";
       status = ssl_set_session_options(ssl_context_,
                                        kSSLSessionOptionBreakOnCertRequested,
                                        true);
+    }
     if (status)
       return NetErrorFromOSStatus(status);
 
@@ -765,9 +784,10 @@ int SSLClientSocketMac::InitializeSSLContext() {
     status = SSLSetPeerID(ssl_context_, peer_id.data(), peer_id.length());
     if (status)
       return NetErrorFromOSStatus(status);
-  } else {
+  } else if (ssl_config_.send_client_cert) {
     // If I have a cert, set it up-front, otherwise the server may try to get
     // it later by renegotiating, which SecureTransport doesn't support well.
+    SSL_LOG << "Setting client cert in advance because send_client_cert is set";
     status = SetClientCert();
     if (status)
       return NetErrorFromOSStatus(status);
@@ -903,27 +923,49 @@ int SSLClientSocketMac::DoHandshakeLoop(int last_io_result) {
 
 int SSLClientSocketMac::DoHandshakeStart() {
   OSStatus status = SSLHandshake(ssl_context_);
-  if (status == errSSLWouldBlock)
-    next_handshake_state_ = STATE_HANDSHAKE_START;
 
-  if (status == noErr || status == errSSLServerAuthCompleted) {
-    // TODO(hawk): we verify the certificate chain even on resumed sessions
-    // so that we have the certificate status (valid, expired but overridden
-    // by the user, EV, etc.) available. Eliminate this step once we have
-    // a certificate validation result cache.
-    next_handshake_state_ = STATE_VERIFY_CERT;
-    if (status == errSSLServerAuthCompleted) {
+  switch (status) {
+    case errSSLWouldBlock:
+      next_handshake_state_ = STATE_HANDSHAKE_START;
+      break;
+
+    case noErr:
+      // TODO(hawk): we verify the certificate chain even on resumed sessions
+      // so that we have the certificate status (valid, expired but overridden
+      // by the user, EV, etc.) available. Eliminate this step once we have
+      // a certificate validation result cache. (Also applies to the
+      // errSSLServerAuthCompleted case below.)
+      next_handshake_state_ = STATE_VERIFY_CERT;
+      break;
+
+    case errSSLServerAuthCompleted:
       // Override errSSLServerAuthCompleted as it's not actually an error,
       // but rather an indication that we're only half way through the
       // handshake.
+      SSL_LOG << "Server auth completed (DoHandshakeStart)";
+      next_handshake_state_ = STATE_VERIFY_CERT;
       handshake_interrupted_ = true;
       status = noErr;
-    }
-  }
+      break;
 
-  if (status == errSSLClosedGraceful) {
-    // The server unexpectedly closed on us.
-    return ERR_SSL_PROTOCOL_ERROR;
+    case errSSLClientCertRequested:
+      SSL_LOG << "Received client cert request in DoHandshakeStart";
+      // For some reason it's possible for SSLHandshake to return this code
+      // without earlier having returned errSSLServerAuthCompleted.
+      // Currently this isn't an issue for us because we always respond by
+      // aborting the connection; but if we did decide to continue we should
+      // first go to STATE_VERIFY_CERT and not send the client cert until that
+      // succeeded. --snej
+
+      // If we knew the client cert, we would have set it already in
+      // InitializeSSLContext, instead of asking for this callback.
+      // So tell the caller that we need a client cert.
+      DCHECK(!ssl_config_.send_client_cert);
+      return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+
+    case errSSLClosedGraceful:
+      // The server unexpectedly closed on us.
+      return ERR_SSL_PROTOCOL_ERROR;
   }
 
   int net_error = NetErrorFromOSStatus(status);
@@ -941,6 +983,7 @@ int SSLClientSocketMac::DoVerifyCert() {
   if (!server_cert_)
     return ERR_UNEXPECTED;
 
+  SSL_LOG << "DoVerifyCert...";
   int flags = 0;
   if (ssl_config_.rev_checking_enabled)
     flags |= X509Certificate::VERIFY_REV_CHECKING_ENABLED;
@@ -956,6 +999,7 @@ int SSLClientSocketMac::DoVerifyCertComplete(int result) {
   DCHECK(verifier_.get());
   verifier_.reset();
 
+  SSL_LOG << "...DoVerifyCertComplete (result=" << result << ")";
   if (IsCertificateError(result) && ssl_config_.IsAllowedBadCert(server_cert_))
     result = OK;
 
@@ -968,6 +1012,7 @@ int SSLClientSocketMac::DoVerifyCertComplete(int result) {
   } else {
     // If the session was resumed or session resumption was disabled, we're
     // done with the handshake.
+    SSL_LOG << "Handshake finished! (DoVerifyCertComplete)";
     completed_handshake_ = true;
     DCHECK(next_handshake_state_ == STATE_NONE);
   }
@@ -981,6 +1026,7 @@ int SSLClientSocketMac::SetClientCert() {
 
   scoped_cftyperef<CFArrayRef> cert_refs(
       ssl_config_.client_cert->CreateClientCertificateChain());
+  SSL_LOG << "SSLSetCertificate(" << CFArrayGetCount(cert_refs) << " certs)";
   OSStatus result = SSLSetCertificate(ssl_context_, cert_refs);
   if (result)
     LOG(ERROR) << "SSLSetCertificate returned OSStatus " << result;
@@ -995,9 +1041,12 @@ int SSLClientSocketMac::DoHandshakeFinish() {
       next_handshake_state_ = STATE_HANDSHAKE_FINISH;
       break;
     case errSSLClientCertRequested:
-      status = SetClientCert();
-      next_handshake_state_ = STATE_HANDSHAKE_FINISH;
-      break;
+      SSL_LOG << "Server requested client cert (DoHandshakeFinish)";
+      // If we knew the client cert, we would have set it already in
+      // InitializeSSLContext, instead of asking for this callback.
+      // So tell the caller that we need a client cert.
+      DCHECK(!ssl_config_.send_client_cert);
+      return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
     case errSSLClosedGraceful:
       return ERR_SSL_PROTOCOL_ERROR;
     case errSSLClosedAbort:
@@ -1007,15 +1056,18 @@ int SSLClientSocketMac::DoHandshakeFinish() {
       if (SSLGetClientCertificateState(ssl_context_, &client_state) == noErr &&
           client_state > kSSLClientCertNone) {
         if (client_state == kSSLClientCertRequested &&
-            !ssl_config_.send_client_cert)
+            !ssl_config_.send_client_cert) {
+          SSL_LOG << "Server requested SSL cert during handshake";
           return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
-        LOG(WARNING) << "Server aborted SSL handshake; client_state=" <<
-            client_state;
+        }
+        LOG(WARNING) << "Server aborted SSL handshake; client_state="
+                     << client_state;
         return ERR_BAD_SSL_CLIENT_AUTH_CERT;
       }
       break;
     }
     case noErr:
+      SSL_LOG << "Handshake finished! (DoHandshakeFinish)";
       completed_handshake_ = true;
       DCHECK(next_handshake_state_ == STATE_NONE);
       break;
@@ -1054,7 +1106,7 @@ int SSLClientSocketMac::DoPayloadRead() {
       // Server wants to renegotiate, probably to ask for a client cert,
       // but SecureTransport doesn't support renegotiation so we have to close.
       // Tell my caller the server wants a client cert so it can reconnect.
-      LOG(INFO) << "Server renegotiating for client cert; restarting...";
+      SSL_LOG << "Server renegotiating; assuming it wants a client cert...";
       return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
 
     default:
