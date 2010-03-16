@@ -14,6 +14,7 @@
 #include "base/scoped_ptr.h"
 #include "net/base/address_list.h"
 #include "net/base/host_resolver.h"
+#include "net/base/net_log.h"
 #include "net/ftp/ftp_ctrl_response_buffer.h"
 #include "net/ftp/ftp_response_info.h"
 #include "net/ftp/ftp_transaction.h"
@@ -33,7 +34,7 @@ class FtpNetworkTransaction : public FtpTransaction {
   // FtpTransaction methods:
   virtual int Start(const FtpRequestInfo* request_info,
                     CompletionCallback* callback,
-                    LoadLog* load_log);
+                    const BoundNetLog& net_log);
   virtual int Stop(int error);
   virtual int RestartWithAuth(const std::wstring& username,
                               const std::wstring& password,
@@ -175,7 +176,7 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   scoped_refptr<FtpNetworkSession> session_;
 
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
   const FtpRequestInfo* request_;
   FtpResponseInfo response_;
 

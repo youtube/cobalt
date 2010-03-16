@@ -32,7 +32,7 @@ class SpdyStream;
 class HttpNetworkSession;
 class HttpRequestInfo;
 class HttpResponseInfo;
-class LoadLog;
+class BoundNetLog;
 class SSLInfo;
 
 class SpdySession : public base::RefCounted<SpdySession>,
@@ -47,7 +47,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   net::Error Connect(const std::string& group_name,
                      const TCPSocketParams& destination,
                      RequestPriority priority,
-                     LoadLog* load_log);
+                     const BoundNetLog& net_log);
 
   // Get a stream for a given |request|.  In the typical case, this will involve
   // the creation of a new stream (and will send the SYN frame).  If the server
@@ -56,7 +56,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // X-Associated-Content.
   // Returns the new or existing stream.  Never returns NULL.
   scoped_refptr<SpdyStream> GetOrCreateStream(const HttpRequestInfo& request,
-      const UploadDataStream* upload_data, LoadLog* log);
+      const UploadDataStream* upload_data, const BoundNetLog& log);
 
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.

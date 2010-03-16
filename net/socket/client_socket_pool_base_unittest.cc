@@ -9,9 +9,8 @@
 #include "base/message_loop.h"
 #include "base/platform_thread.h"
 #include "base/scoped_vector.h"
-#include "net/base/load_log.h"
-#include "net/base/load_log_unittest.h"
-#include "net/base/load_log_util.h"
+#include "net/base/net_log.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
 #include "net/base/request_priority.h"
 #include "net/base/test_completion_callback.h"
@@ -51,7 +50,7 @@ class MockClientSocket : public ClientSocket {
 
   // ClientSocket methods:
 
-  virtual int Connect(CompletionCallback* callback, LoadLog* load_log) {
+  virtual int Connect(CompletionCallback* callback, const BoundNetLog& net_log) {
     connected_ = true;
     return OK;
   }
@@ -116,8 +115,8 @@ class TestConnectJob : public ConnectJob {
                  base::TimeDelta timeout_duration,
                  ConnectJob::Delegate* delegate,
                  MockClientSocketFactory* client_socket_factory,
-                 LoadLog* load_log)
-      : ConnectJob(group_name, timeout_duration, delegate, load_log),
+                 const BoundNetLog& net_log)
+      : ConnectJob(group_name, timeout_duration, delegate, net_log),
         job_type_(job_type),
         client_socket_factory_(client_socket_factory),
         method_factory_(ALLOW_THIS_IN_INITIALIZER_LIST(this)),
@@ -250,14 +249,14 @@ class TestConnectJobFactory
       const std::string& group_name,
       const TestClientSocketPoolBase::Request& request,
       ConnectJob::Delegate* delegate,
-      LoadLog* load_log) const {
+      const BoundNetLog& net_log) const {
     return new TestConnectJob(job_type_,
                               group_name,
                               request,
                               timeout_duration_,
                               delegate,
                               client_socket_factory_,
-                              load_log);
+                              net_log);
   }
 
  private:
@@ -286,9 +285,9 @@ class TestClientSocketPool : public ClientSocketPool {
       net::RequestPriority priority,
       ClientSocketHandle* handle,
       CompletionCallback* callback,
-      LoadLog* load_log) {
+      const BoundNetLog& net_log) {
     return base_.RequestSocket(
-        group_name, params, priority, handle, callback, load_log);
+        group_name, params, priority, handle, callback, net_log);
   }
 
   virtual void CancelRequest(
@@ -443,9 +442,9 @@ int InitHandle(ClientSocketHandle* handle,
                net::RequestPriority priority,
                CompletionCallback* callback,
                TestClientSocketPool* pool,
-               LoadLog* load_log) {
+               const BoundNetLog& net_log) {
   return handle->Init<TestSocketParams, TestClientSocketPool>(
-      group_name, NULL, priority, callback, pool, load_log);
+      group_name, NULL, priority, callback, pool, net_log);
 }
 
 // Even though a timeout is specified, it doesn't time out on a synchronous
@@ -469,7 +468,8 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_NoTimeoutOnSynchronousCompletion) {
 TEST_F(ClientSocketPoolBaseTest, ConnectJob_TimedOut) {
   TestConnectJobDelegate delegate;
   ClientSocketHandle ignored;
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+
   TestClientSocketPoolBase::Request request(
       &ignored, NULL, kDefaultPriority, NULL, NULL);
   // Deleted by TestConnectJobDelegate.
@@ -480,19 +480,19 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_TimedOut) {
                          base::TimeDelta::FromMicroseconds(1),
                          &delegate,
                          &client_socket_factory_,
-                         log);
+                         log.bound());
   ASSERT_EQ(ERR_IO_PENDING, job->Connect());
   PlatformThread::Sleep(1);
   EXPECT_EQ(ERR_TIMED_OUT, delegate.WaitForResult());
 
-  EXPECT_EQ(3u, log->entries().size());
+  EXPECT_EQ(3u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 0, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 0, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEvent(
-      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB_TIMED_OUT,
-      LoadLog::PHASE_NONE));
+      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_TIMED_OUT,
+      NetLog::PHASE_NONE));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 2, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
 }
 
 TEST_F(ClientSocketPoolBaseTest, BasicSynchronous) {
@@ -500,45 +500,52 @@ TEST_F(ClientSocketPoolBaseTest, BasicSynchronous) {
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+
   EXPECT_EQ(OK, InitHandle(&handle, "a", kDefaultPriority,
-                           &callback, pool_.get(), log));
+                           &callback, pool_.get(), log.bound()));
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
   handle.Reset();
 
-  EXPECT_EQ(4u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_EQ(5u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 0, NetLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(*log, 3, LoadLog::TYPE_SOCKET_POOL));
+      log.entries(), 2, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEvent(
+      log.entries(), 3, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_ID,
+      NetLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 4, NetLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockFailingJob);
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+
   TestSocketRequest req(&request_order_, &completion_count_);
   EXPECT_EQ(ERR_CONNECTION_FAILED,
             InitHandle(req.handle(), "a", kDefaultPriority, &req,
-                       pool_.get(), log));
+                       pool_.get(), log.bound()));
 
-  EXPECT_EQ(4u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_EQ(5u, log.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(log.entries(), 0, NetLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(*log, 3, LoadLog::TYPE_SOCKET_POOL));
+      log.entries(), 2, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(log.entries(), 4, NetLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, TotalLimit) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
-  // TODO(eroman): Check that the LoadLog contains this event.
+  // TODO(eroman): Check that the NetLog contains this event.
 
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
   EXPECT_EQ(OK, StartRequest("b", kDefaultPriority));
@@ -574,7 +581,7 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimit) {
 TEST_F(ClientSocketPoolBaseTest, TotalLimitReachedNewGroup) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
-  // TODO(eroman): Check that the LoadLog contains this event.
+  // TODO(eroman): Check that the NetLog contains this event.
 
   // Reach all limits: max total sockets, and max sockets per group.
   EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
@@ -1111,8 +1118,8 @@ TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
   TestSocketRequest req(&request_order_, &completion_count_);
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  int rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), log);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(OK, req.WaitForResult());
@@ -1120,18 +1127,19 @@ TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
   EXPECT_TRUE(req.handle()->socket());
   req.handle()->Reset();
 
-  EXPECT_EQ(6u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_EQ(7u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 0, NetLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 2, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEvent(
-      *log, 3, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
+      log.entries(), 3, NetLog::TYPE_CANCELLED, NetLog::PHASE_NONE));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 4, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 5, LoadLog::TYPE_SOCKET_POOL));
+      log.entries(), 6, NetLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest,
@@ -1140,25 +1148,26 @@ TEST_F(ClientSocketPoolBaseTest,
 
   connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
   TestSocketRequest req(&request_order_, &completion_count_);
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   EXPECT_EQ(ERR_IO_PENDING,
             InitHandle(req.handle(), "a", kDefaultPriority, &req,
-                       pool_.get(), log));
+                       pool_.get(), log.bound()));
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 
-  EXPECT_EQ(6u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_EQ(7u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 0, NetLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 2, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEvent(
-      *log, 3, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
+      log.entries(), 3, NetLog::TYPE_CANCELLED, NetLog::PHASE_NONE));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+      log.entries(), 4, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 5, LoadLog::TYPE_SOCKET_POOL));
+      log.entries(), 6, NetLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
@@ -1168,44 +1177,33 @@ TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {
   TestSocketRequest req(&request_order_, &completion_count_);
   TestSocketRequest req2(&request_order_, &completion_count_);
 
-  scoped_refptr<LoadLog> log1(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log1(CapturingNetLog::kUnbounded);
   EXPECT_EQ(ERR_IO_PENDING,
             InitHandle(req.handle(), "a", kDefaultPriority, &req,
-                       pool_.get(), log1));
-  scoped_refptr<LoadLog> log2(new LoadLog(LoadLog::kUnbounded));
+                       pool_.get(), log1.bound()));
+  CapturingBoundNetLog log2(CapturingNetLog::kUnbounded);
   EXPECT_EQ(ERR_IO_PENDING,
             InitHandle(req2.handle(), "a", kDefaultPriority, &req2,
-                       pool_.get(), log2));
+                       pool_.get(), log2.bound()));
 
   req.handle()->Reset();
 
-  EXPECT_EQ(3u, log1->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log1, 0, LoadLog::TYPE_SOCKET_POOL));
+  EXPECT_EQ(4u, log1.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log1.entries(), 0, NetLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log1.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEvent(
-      *log1, 1, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
-  EXPECT_TRUE(LogContainsEndEvent(*log1, 2, LoadLog::TYPE_SOCKET_POOL));
+      log1.entries(), 2, NetLog::TYPE_CANCELLED, NetLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(log1.entries(), 3, NetLog::TYPE_SOCKET_POOL));
 
   // At this point, request 2 is just waiting for the connect job to finish.
-  EXPECT_EQ(1u, log2->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log2, 0, LoadLog::TYPE_SOCKET_POOL));
 
   EXPECT_EQ(OK, req2.WaitForResult());
   req2.handle()->Reset();
 
   // Now request 2 has actually finished.
-  EXPECT_EQ(6u, log2->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log2, 0, LoadLog::TYPE_SOCKET_POOL));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      *log2, 1, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(
-      *log2, 2, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEvent(
-      *log2, 3, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
-  EXPECT_TRUE(LogContainsEndEvent(
-      *log2, 4, LoadLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(
-      *log2, 5, LoadLog::TYPE_SOCKET_POOL));
-
+  // TODO(eroman): Add back log expectations.
 }
 
 TEST_F(ClientSocketPoolBaseTest, CancelRequestLimitsJobs) {
@@ -1375,13 +1373,12 @@ TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
   // used socket.  Request it to make sure that it's used.
 
   pool_->CleanupTimedOutIdleSockets();
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), log);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_.get(), log.bound());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(req.handle()->is_reused());
   EXPECT_TRUE(LogContainsEntryWithType(
-      *log, 1, LoadLog::Entry::TYPE_STRING_LITERAL))
-      << LoadLogUtil::PrettyPrintAsEventTree(log);
+      log.entries(), 1, NetLog::Entry::TYPE_STRING_LITERAL));
 }
 
 // Make sure that we process all pending requests even when we're stalling

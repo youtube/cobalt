@@ -35,8 +35,8 @@ enum {
   ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ = -10000,
 };
 
+class BoundNetLog;
 class ClientSocket;
-class LoadLog;
 class MockClientSocket;
 class SSLClientSocket;
 
@@ -272,7 +272,8 @@ class MockClientSocket : public net::SSLClientSocket {
   MockClientSocket();
 
   // ClientSocket methods:
-  virtual int Connect(net::CompletionCallback* callback, LoadLog* load_log) = 0;
+  virtual int Connect(net::CompletionCallback* callback,
+                      const BoundNetLog& net_log) = 0;
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
@@ -316,7 +317,7 @@ class MockTCPClientSocket : public MockClientSocket {
 
   // ClientSocket methods:
   virtual int Connect(net::CompletionCallback* callback,
-                      LoadLog* load_log);
+                      const BoundNetLog& net_log);
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const { return IsConnected(); }
 
@@ -362,7 +363,8 @@ class MockSSLClientSocket : public MockClientSocket {
 
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
 
-  virtual int Connect(net::CompletionCallback* callback, LoadLog* load_log);
+  virtual int Connect(net::CompletionCallback* callback,
+                      const BoundNetLog& net_log);
   virtual void Disconnect();
 
   // Socket methods:

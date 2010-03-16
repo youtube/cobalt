@@ -7,8 +7,8 @@
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
 #include "net/base/completion_callback.h"
-#include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/upload_data.h"
@@ -285,7 +285,7 @@ class SpdyNetworkTransactionTest : public PlatformTest {
 
   TransactionHelperResult TransactionHelper(const HttpRequestInfo& request,
                                             DelayedSocketData* data,
-                                            LoadLog* log) {
+                                            const BoundNetLog& log) {
     TransactionHelperResult out;
 
     // We disable SSL for this test.
@@ -1024,8 +1024,8 @@ TEST_F(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
   EnableCompression(false);
 }
 
-// Test that the LoadLog contains good data for a simple GET request.
-TEST_F(SpdyNetworkTransactionTest, LoadLog) {
+// Test that the NetLog contains good data for a simple GET request.
+TEST_F(SpdyNetworkTransactionTest, NetLog) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
               arraysize(kGetSyn)),
@@ -1039,7 +1039,7 @@ TEST_F(SpdyNetworkTransactionTest, LoadLog) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  scoped_refptr<net::LoadLog> log(new net::LoadLog(net::LoadLog::kUnbounded));
+  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
 
   HttpRequestInfo request;
   request.method = "GET";
@@ -1049,42 +1049,42 @@ TEST_F(SpdyNetworkTransactionTest, LoadLog) {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
   TransactionHelperResult out = TransactionHelper(request, data.get(),
-                                                  log);
+                                                  log.bound());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
 
-  // Check that the LoadLog was filled reasonably.
+  // Check that the NetLog was filled reasonably.
   // This test is intentionally non-specific about the exact ordering of
   // the log; instead we just check to make sure that certain events exist.
-  EXPECT_LT(0u, log->entries().size());
+  EXPECT_LT(0u, log.entries().size());
   int pos = 0;
   // We know the first event at position 0.
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      *log, 0, net::LoadLog::TYPE_SPDY_TRANSACTION_INIT_CONNECTION));
+      log.entries(), 0, net::NetLog::TYPE_SPDY_TRANSACTION_INIT_CONNECTION));
   // For the rest of the events, allow additional events in the middle,
   // but expect these to be logged in order.
-  pos = net::ExpectLogContainsSomewhere(log, 0,
-      net::LoadLog::TYPE_SPDY_TRANSACTION_INIT_CONNECTION,
-      net::LoadLog::PHASE_END);
-  pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST,
-      net::LoadLog::PHASE_BEGIN);
-  pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST,
-      net::LoadLog::PHASE_END);
-  pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_SPDY_TRANSACTION_READ_HEADERS,
-      net::LoadLog::PHASE_BEGIN);
-  pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_SPDY_TRANSACTION_READ_HEADERS,
-      net::LoadLog::PHASE_END);
-  pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_SPDY_TRANSACTION_READ_BODY,
-      net::LoadLog::PHASE_BEGIN);
-  pos = net::ExpectLogContainsSomewhere(log, pos + 1,
-      net::LoadLog::TYPE_SPDY_TRANSACTION_READ_BODY,
-      net::LoadLog::PHASE_END);
+  pos = net::ExpectLogContainsSomewhere(log.entries(), 0,
+      net::NetLog::TYPE_SPDY_TRANSACTION_INIT_CONNECTION,
+      net::NetLog::PHASE_END);
+  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+      net::NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST,
+      net::NetLog::PHASE_BEGIN);
+  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+      net::NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST,
+      net::NetLog::PHASE_END);
+  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+      net::NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS,
+      net::NetLog::PHASE_BEGIN);
+  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+      net::NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS,
+      net::NetLog::PHASE_END);
+  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+      net::NetLog::TYPE_SPDY_TRANSACTION_READ_BODY,
+      net::NetLog::PHASE_BEGIN);
+  pos = net::ExpectLogContainsSomewhere(log.entries(), pos + 1,
+      net::NetLog::TYPE_SPDY_TRANSACTION_READ_BODY,
+      net::NetLog::PHASE_END);
 }
 
 // Since we buffer the IO from the stream to the renderer, this test verifies

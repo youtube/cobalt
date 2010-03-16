@@ -83,7 +83,7 @@ MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
 }
 
 int MockTCPClientSocket::Connect(net::CompletionCallback* callback,
-                                 LoadLog* load_log) {
+                                 const BoundNetLog& net_log) {
   if (connected_)
     return net::OK;
   connected_ = true;
@@ -252,10 +252,10 @@ void MockSSLClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
 }
 
 int MockSSLClientSocket::Connect(net::CompletionCallback* callback,
-                                 LoadLog* load_log) {
+                                 const BoundNetLog& net_log) {
   ConnectCallback* connect_callback = new ConnectCallback(
       this, callback, data_->connect.result);
-  int rv = transport_->Connect(connect_callback, load_log);
+  int rv = transport_->Connect(connect_callback, net_log);
   if (rv == net::OK) {
     delete connect_callback;
     if (data_->connect.async) {

@@ -1,6 +1,6 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.  Use of this
-// source code is governed by a BSD-style license that can be found in the
-// LICENSE file.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 #include "net/proxy/proxy_resolver_js_bindings.h"
 
@@ -11,6 +11,7 @@
 #include "net/base/address_list.h"
 #include "net/base/host_resolver.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 
@@ -42,7 +43,8 @@ class SyncHostResolverBridge
 
     // Hack for tests -- run synchronously on current thread.
     if (!host_resolver_loop_)
-      return host_resolver_->Resolve(info, addresses, NULL, NULL, NULL);
+      return host_resolver_->Resolve(info, addresses, NULL, NULL,
+                                     BoundNetLog());
 
     // Otherwise start an async resolve on the resolver's thread.
     host_resolver_loop_->PostTask(FROM_HERE, NewRunnableMethod(this,
@@ -63,7 +65,7 @@ class SyncHostResolverBridge
                     net::AddressList* addresses) {
     DCHECK_EQ(host_resolver_loop_, MessageLoop::current());
     int error = host_resolver_->Resolve(
-        info, addresses, &callback_, NULL, NULL);
+        info, addresses, &callback_, NULL, BoundNetLog());
     if (error != ERR_IO_PENDING)
       OnResolveCompletion(error);  // Completed synchronously.
   }

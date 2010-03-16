@@ -12,6 +12,7 @@
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
 #include "net/base/host_resolver_proc.h"
+#include "net/base/net_log.h"
 #include "net/base/network_change_notifier.h"
 
 namespace net {
@@ -83,7 +84,7 @@ class HostResolverImpl : public HostResolver,
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      LoadLog* load_log);
+                      const BoundNetLog& net_log);
   virtual void CancelRequest(RequestHandle req);
   virtual void AddObserver(HostResolver::Observer* observer);
   virtual void RemoveObserver(HostResolver::Observer* observer);
@@ -108,8 +109,8 @@ class HostResolverImpl : public HostResolver,
 
   bool IsRequestsTracingEnabled() const;
 
-  // Returns a copy of the requests trace log, or NULL if there is none.
-  scoped_refptr<LoadLog> GetRequestsTrace();
+  // Gets a copy of the requests trace log.
+  bool GetRequestsTrace(std::vector<NetLog::Entry>* entries);
 
   // Applies a set of constraints for requests that belong to the specified
   // pool. NOTE: Don't call this after requests have been already been started.
@@ -160,18 +161,18 @@ class HostResolverImpl : public HostResolver,
   void OnJobComplete(Job* job, int error, const AddressList& addrlist);
 
   // Called when a request has just been started.
-  void OnStartRequest(LoadLog* load_log,
+  void OnStartRequest(const BoundNetLog& net_log,
                       int request_id,
                       const RequestInfo& info);
 
   // Called when a request has just completed (before its callback is run).
-  void OnFinishRequest(LoadLog* load_log,
+  void OnFinishRequest(const BoundNetLog& net_log,
                        int request_id,
                        const RequestInfo& info,
                        int error);
 
   // Called when a request has been cancelled.
-  void OnCancelRequest(LoadLog* load_log,
+  void OnCancelRequest(const BoundNetLog& net_log,
                        int request_id,
                        const RequestInfo& info);
 

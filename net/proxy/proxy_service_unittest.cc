@@ -10,8 +10,8 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/load_log.h"
-#include "net/base/load_log_unittest.h"
+#include "net/base/net_log.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/mock_network_change_notifier.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -98,18 +98,19 @@ TEST(ProxyServiceTest, Direct) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  int rv = service->ResolveProxy(url, &info, &callback, NULL, log);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int rv = service->ResolveProxy(url, &info, &callback, NULL, log.bound());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(resolver->pending_requests().empty());
-  EXPECT_TRUE(NULL == service->init_proxy_resolver_log());
 
   EXPECT_TRUE(info.is_direct());
 
-  // Check the LoadLog was filled correctly.
-  EXPECT_EQ(5u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_PROXY_SERVICE));
-  EXPECT_TRUE(LogContainsEndEvent(*log, 4, LoadLog::TYPE_PROXY_SERVICE));
+  // Check the NetLog was filled correctly.
+  EXPECT_EQ(5u, log.entries().size());
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 0, NetLog::TYPE_PROXY_SERVICE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 4, NetLog::TYPE_PROXY_SERVICE));
 }
 
 TEST(ProxyServiceTest, PAC) {
@@ -125,13 +126,13 @@ TEST(ProxyServiceTest, PAC) {
 
   ProxyInfo info;
   TestCompletionCallback callback;
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  int rv = service->ResolveProxy(url, &info, &callback, NULL, log);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+
+  int rv = service->ResolveProxy(url, &info, &callback, NULL, log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(GURL("http://foopy/proxy.pac"),
             resolver->pending_set_pac_script_request()->pac_url());
-  EXPECT_FALSE(NULL == service->init_proxy_resolver_log());
   resolver->pending_set_pac_script_request()->CompleteNow(OK);
 
   ASSERT_EQ(1u, resolver->pending_requests().size());
@@ -145,14 +146,16 @@ TEST(ProxyServiceTest, PAC) {
   EXPECT_FALSE(info.is_direct());
   EXPECT_EQ("foopy:80", info.proxy_server().ToURI());
 
-  // Check the LoadLog was filled correctly.
-  EXPECT_EQ(7u, log->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log, 0, LoadLog::TYPE_PROXY_SERVICE));
+  // Check the NetLog was filled correctly.
+  EXPECT_EQ(7u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
+      log.entries(), 0, NetLog::TYPE_PROXY_SERVICE));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log.entries(), 3, NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
   EXPECT_TRUE(LogContainsEndEvent(
-      *log, 4, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
-  EXPECT_TRUE(LogContainsEndEvent(*log, 6, LoadLog::TYPE_PROXY_SERVICE));
+      log.entries(), 4, NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 6, NetLog::TYPE_PROXY_SERVICE));
 }
 
 // Test that the proxy resolver does not see the URL's username/password
@@ -1036,9 +1039,9 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   ProxyInfo info1;
   TestCompletionCallback callback1;
   ProxyService::PacRequest* request1;
-  scoped_refptr<LoadLog> log1(new LoadLog(LoadLog::kUnbounded));
+  CapturingBoundNetLog log1(CapturingNetLog::kUnbounded);
   int rv = service->ResolveProxy(
-      GURL("http://request1"), &info1, &callback1, &request1, log1);
+      GURL("http://request1"), &info1, &callback1, &request1, log1.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // The first request should have triggered download of PAC script.
@@ -1090,16 +1093,18 @@ TEST(ProxyServiceTest, CancelWhilePACFetching) {
   EXPECT_FALSE(callback1.have_result());  // Cancelled.
   EXPECT_FALSE(callback2.have_result());  // Cancelled.
 
-  // Check the LoadLog for request 1 (which was cancelled) got filled properly.
-  EXPECT_EQ(6u, log1->entries().size());
-  EXPECT_TRUE(LogContainsBeginEvent(*log1, 0, LoadLog::TYPE_PROXY_SERVICE));
+  // Check the NetLog for request 1 (which was cancelled) got filled properly.
+  EXPECT_EQ(6u, log1.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
-      *log1, 3, LoadLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
+      log1.entries(), 0, NetLog::TYPE_PROXY_SERVICE));
+  EXPECT_TRUE(LogContainsBeginEvent(
+      log1.entries(), 3, NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC));
   // Note that TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC is never completed before
   // the cancellation occured.
   EXPECT_TRUE(LogContainsEvent(
-      *log1, 4, LoadLog::TYPE_CANCELLED, LoadLog::PHASE_NONE));
-  EXPECT_TRUE(LogContainsEndEvent(*log1, 5, LoadLog::TYPE_PROXY_SERVICE));
+      log1.entries(), 4, NetLog::TYPE_CANCELLED, NetLog::PHASE_NONE));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log1.entries(), 5, NetLog::TYPE_PROXY_SERVICE));
 }
 
 // Test that if auto-detect fails, we fall-back to the custom pac.

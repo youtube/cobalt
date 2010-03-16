@@ -9,8 +9,8 @@
 #include "base/singleton.h"
 #include "base/stats_counters.h"
 #include "net/base/load_flags.h"
-#include "net/base/load_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_cert_request_info.h"
 #include "net/base/upload_data.h"
 #include "net/http/http_response_headers.h"
@@ -44,8 +44,7 @@ URLRequest::URLRequest(const GURL& url, Delegate* delegate)
       enable_profiling_(false),
       redirect_limit_(kMaxRedirects),
       final_upload_progress_(0),
-      priority_(net::LOWEST),
-      ALLOW_THIS_IN_INITIALIZER_LIST(request_tracker_node_(this)) {
+      priority_(net::LOWEST) {
   SIMPLE_STATS_COUNTER("URLRequestCount");
 
   // Sanity check out environment.
@@ -256,7 +255,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
   DCHECK(!is_pending_);
   DCHECK(!job_);
 
-  net::LoadLog::BeginEvent(load_log_, net::LoadLog::TYPE_URL_REQUEST_START);
+  net_log_.BeginEvent(net::NetLog::TYPE_URL_REQUEST_START);
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
@@ -363,9 +362,9 @@ void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
 
 void URLRequest::ResponseStarted() {
   if (!status_.is_success())
-    net::LoadLog::AddErrorCode(load_log_, status_.os_error());
+    net_log_.AddErrorCode(status_.os_error());
 
-  net::LoadLog::EndEvent(load_log_, net::LoadLog::TYPE_URL_REQUEST_START);
+  net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START);
 
   URLRequestJob* job = GetJobManager()->MaybeInterceptResponse(this);
   if (job) {
@@ -438,8 +437,8 @@ std::string URLRequest::StripPostSpecificHeaders(const std::string& headers) {
 }
 
 int URLRequest::Redirect(const GURL& location, int http_status_code) {
-  if (net::LoadLog::IsUnbounded(load_log_)) {
-    net::LoadLog::AddString(load_log_, StringPrintf("Redirected (%d) to %s",
+  if (net_log_.HasListener()) {
+    net_log_.AddString(StringPrintf("Redirected (%d) to %s",
         http_status_code, location.spec().c_str()));
   }
   if (redirect_limit_ <= 0) {
@@ -504,18 +503,17 @@ void URLRequest::set_context(URLRequestContext* context) {
 
   context_ = context;
 
-  // If the context this request belongs to has changed, update the tracker(s).
+  // If the context this request belongs to has changed, update the tracker.
   if (prev_context != context) {
-    if (prev_context)
-      prev_context->url_request_tracker()->Remove(this);
-    if (context) {
-      if (!load_log_) {
-        // Create the LoadLog -- we waited until now to create it so we know
-        // what constraints the URLRequestContext is enforcing on log levels.
-        load_log_ = context->url_request_tracker()->CreateLoadLog();
-      }
+    net_log_.EndEvent(net::NetLog::TYPE_REQUEST_ALIVE);
+    net_log_ = net::BoundNetLog();
 
-      context->url_request_tracker()->Add(this);
+    if (context) {
+      net_log_ = net::BoundNetLog::Make(context->net_log(),
+                                        net::NetLog::SOURCE_URL_REQUEST);
+
+      net_log_.BeginEventWithString(net::NetLog::TYPE_REQUEST_ALIVE,
+                                    original_url_.possibly_invalid_spec());
     }
   }
 }
@@ -537,11 +535,4 @@ URLRequest::UserData* URLRequest::GetUserData(const void* key) const {
 
 void URLRequest::SetUserData(const void* key, UserData* data) {
   user_data_[key] = linked_ptr<UserData>(data);
-}
-
-void URLRequest::GetInfoForTracker(
-    RequestTracker<URLRequest>::RecentRequestInfo* info) const {
-  DCHECK(info);
-  info->original_url = original_url_;
-  info->load_log = load_log_;
 }

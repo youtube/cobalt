@@ -16,11 +16,10 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
-#include "net/base/load_log.h"
 #include "net/base/load_states.h"
+#include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/http/http_response_info.h"
-#include "net/url_request/request_tracker.h"
 #include "net/url_request/url_request_status.h"
 
 namespace base {
@@ -510,7 +509,7 @@ class URLRequest {
   URLRequestContext* context();
   void set_context(URLRequestContext* context);
 
-  net::LoadLog* load_log() { return load_log_; }
+  const net::BoundNetLog& net_log() const { return net_log_; }
 
   // Returns the expected content size if available
   int64 GetExpectedContentSize() const;
@@ -551,7 +550,6 @@ class URLRequest {
 
  private:
   friend class URLRequestJob;
-  friend class RequestTracker<URLRequest>;
 
   void StartJob(URLRequestJob* job);
 
@@ -573,18 +571,13 @@ class URLRequest {
   // Origin).
   static std::string StripPostSpecificHeaders(const std::string& headers);
 
-  // Gets the goodies out of this that we want to show the user later on the
-  // chrome://net-internals/ page.
-  void GetInfoForTracker(
-      RequestTracker<URLRequest>::RecentRequestInfo* info) const;
-
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket poool, etc.)
   scoped_refptr<URLRequestContext> context_;
 
   // Tracks the time spent in various load states throughout this request.
-  scoped_refptr<net::LoadLog> load_log_;
+  net::BoundNetLog net_log_;
 
   scoped_refptr<URLRequestJob> job_;
   scoped_refptr<net::UploadData> upload_;
@@ -631,7 +624,6 @@ class URLRequest {
   // this to determine which URLRequest to allocate sockets to first.
   net::RequestPriority priority_;
 
-  RequestTracker<URLRequest>::Node request_tracker_node_;
   base::LeakTracker<URLRequest> leak_tracker_;
 
   DISALLOW_COPY_AND_ASSIGN(URLRequest);

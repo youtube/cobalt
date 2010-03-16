@@ -9,8 +9,8 @@
 #include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
 #include "net/base/listen_socket.h"
-#include "net/base/load_log.h"
-#include "net/base/load_log_unittest.h"
+#include "net/base/net_log.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/winsock_init.h"
@@ -99,14 +99,14 @@ TEST_F(TCPClientSocketTest, Connect) {
   TestCompletionCallback callback;
   EXPECT_FALSE(sock_->IsConnected());
 
-  scoped_refptr<LoadLog> log(new LoadLog(LoadLog::kUnbounded));
-  int rv = sock_->Connect(&callback, log);
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  int rv = sock_->Connect(&callback, log.bound());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      *log, 0, net::LoadLog::TYPE_TCP_CONNECT));
+      log.entries(), 0, net::NetLog::TYPE_TCP_CONNECT));
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
     EXPECT_FALSE(net::LogContainsEndEvent(
-        *log, -1, net::LoadLog::TYPE_TCP_CONNECT));
+        log.entries(), -1, net::NetLog::TYPE_TCP_CONNECT));
 
     rv = callback.WaitForResult();
     EXPECT_EQ(rv, OK);
@@ -114,7 +114,7 @@ TEST_F(TCPClientSocketTest, Connect) {
 
   EXPECT_TRUE(sock_->IsConnected());
   EXPECT_TRUE(net::LogContainsEndEvent(
-      *log, -1, net::LoadLog::TYPE_TCP_CONNECT));
+      log.entries(), -1, net::NetLog::TYPE_TCP_CONNECT));
 
   sock_->Disconnect();
   EXPECT_FALSE(sock_->IsConnected());

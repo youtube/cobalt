@@ -55,7 +55,7 @@ class ClientSocketHandle {
   //
   // Init may be called multiple times.
   //
-  // Profiling information for the request is saved to |load_log| if non-NULL.
+  // Profiling information for the request is saved to |net_log| if non-NULL.
   //
   template <typename SocketParams, typename PoolType>
   int Init(const std::string& group_name,
@@ -63,7 +63,7 @@ class ClientSocketHandle {
            RequestPriority priority,
            CompletionCallback* callback,
            PoolType* pool,
-           LoadLog* load_log);
+           const BoundNetLog& net_log);
 
   // An initialized handle can be reset, which causes it to return to the
   // un-initialized state.  This releases the underlying socket, which in the
@@ -150,7 +150,7 @@ int ClientSocketHandle::Init(const std::string& group_name,
                              RequestPriority priority,
                              CompletionCallback* callback,
                              PoolType* pool,
-                             LoadLog* load_log) {
+                             const BoundNetLog& net_log) {
   CHECK(!group_name.empty());
   // Note that this will result in a link error if the SocketParams has not been
   // registered for the PoolType via REGISTER_SOCKET_PARAMS_FOR_POOL (defined in
@@ -161,7 +161,7 @@ int ClientSocketHandle::Init(const std::string& group_name,
   group_name_ = group_name;
   init_time_ = base::TimeTicks::Now();
   int rv = pool_->RequestSocket(
-      group_name, &socket_params, priority, this, &callback_, load_log);
+      group_name, &socket_params, priority, this, &callback_, net_log);
   if (rv == ERR_IO_PENDING) {
     user_callback_ = callback;
   } else {

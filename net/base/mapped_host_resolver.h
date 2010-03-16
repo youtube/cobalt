@@ -28,7 +28,7 @@ class MappedHostResolver : public HostResolver {
                       AddressList* addresses,
                       CompletionCallback* callback,
                       RequestHandle* out_req,
-                      LoadLog* load_log);
+                      const BoundNetLog& net_log);
   virtual void CancelRequest(RequestHandle req);
   virtual void AddObserver(Observer* observer);
   virtual void RemoveObserver(Observer* observer);
