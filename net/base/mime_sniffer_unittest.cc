@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -147,6 +147,9 @@ TEST(MimeSnifferTest, ChromeExtensionsTest) {
 
     // wrong magic
     { "Cr24\x02\x00\x00\x01", sizeof("Cr24\x02\x00\x00\x01")-1,
+      "http://www.example.com/foo.crx?monkey",
+      "", "application/octet-stream" },
+    { "PADDING_Cr24\x02\x00\x00\x00", sizeof("PADDING_Cr24\x02\x00\x00\x00")-1,
       "http://www.example.com/foo.crx?monkey",
       "", "application/octet-stream" },
   };
@@ -359,16 +362,33 @@ TEST(MimeSnifferTest, XMLTest) {
 
 }
 
-// Test content which is >= 512 bytes, and includes no open angle bracket.
+// Test content which is >= 1024 bytes, and includes no open angle bracket.
 // http://code.google.com/p/chromium/issues/detail?id=3521
 TEST(MimeSnifferTest, XMLTestLargeNoAngledBracket) {
-  // Make a large input, with 600 bytes of "x".
+  // Make a large input, with 1024 bytes of "x".
   std::string content;
-  content.resize(600);
+  content.resize(1024);
   std::fill(content.begin(), content.end(), 'x');
 
-  // content.size() >= kMaxBytesToSniff (512) so the sniff is unambiguous.
+  // content.size() >= 1024 so the sniff is unambiguous.
   std::string mime_type;
   EXPECT_TRUE(net::SniffMimeType(content.data(), content.size(), GURL(),
                                  "text/xml", &mime_type));
+  EXPECT_EQ("text/xml", mime_type);
+}
+
+// Test content which is >= 1024 bytes, and includes a binary looking byte.
+// http://code.google.com/p/chromium/issues/detail?id=15314
+TEST(MimeSnifferTest, LooksBinary) {
+  // Make a large input, with 1024 bytes of "x" and 1 byte of 0x01.
+  std::string content;
+  content.resize(1024);
+  std::fill(content.begin(), content.end(), 'x');
+  content[1000] = 0x01;
+
+  // content.size() >= 1024 so the sniff is unambiguous.
+  std::string mime_type;
+  EXPECT_TRUE(net::SniffMimeType(content.data(), content.size(), GURL(),
+                                 "text/plain", &mime_type));
+  EXPECT_EQ("application/octet-stream", mime_type);
 }
