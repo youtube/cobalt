@@ -47,13 +47,13 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   // If ERR_IO_PENDING is returned, then the callback will be used to notify the
   // client of completion.
   //
-  // Profiling information for the request is saved to |load_log| if non-NULL.
+  // Profiling information for the request is saved to |net_log| if non-NULL.
   virtual int RequestSocket(const std::string& group_name,
                             const void* params,
                             RequestPriority priority,
                             ClientSocketHandle* handle,
                             CompletionCallback* callback,
-                            LoadLog* load_log) = 0;
+                            const BoundNetLog& net_log) = 0;
 
   // Called to cancel a RequestSocket call that returned ERR_IO_PENDING.  The
   // same handle parameter must be passed to this method as was passed to the

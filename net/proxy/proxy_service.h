@@ -13,6 +13,7 @@
 #include "base/waitable_event.h"
 #include "net/base/completion_callback.h"
 #include "net/base/network_change_notifier.h"
+#include "net/base/net_log.h"
 #include "net/proxy/proxy_server.h"
 #include "net/proxy/proxy_info.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
@@ -24,7 +25,6 @@ class URLRequestContext;
 namespace net {
 
 class InitProxyResolver;
-class LoadLog;
 class ProxyConfigService;
 class ProxyResolver;
 class ProxyScriptFetcher;
@@ -64,12 +64,12 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   //   2.  PAC URL
   //   3.  named proxy
   //
-  // Profiling information for the request is saved to |load_log| if non-NULL.
+  // Profiling information for the request is saved to |net_log| if non-NULL.
   int ResolveProxy(const GURL& url,
                    ProxyInfo* results,
                    CompletionCallback* callback,
                    PacRequest** pac_request,
-                   LoadLog* load_log);
+                   const BoundNetLog& net_log);
 
   // This method is called after a failure to connect or resolve a host name.
   // It gives the proxy service an opportunity to reconsider the proxy to use.
@@ -82,12 +82,12 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   //
   // Returns ERR_FAILED if there is not another proxy config to try.
   //
-  // Profiling information for the request is saved to |load_log| if non-NULL.
+  // Profiling information for the request is saved to |net_log| if non-NULL.
   int ReconsiderProxyAfterError(const GURL& url,
                                 ProxyInfo* results,
                                 CompletionCallback* callback,
                                 PacRequest** pac_request,
-                                LoadLog* load_log);
+                                const BoundNetLog& net_log);
 
   // Call this method with a non-null |pac_request| to cancel the PAC request.
   void CancelPacRequest(PacRequest* pac_request);
@@ -111,7 +111,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   // Returns the log for the most recent WPAD + PAC initialization.
   // (This shows how much time was spent downloading and parsing the
   // PAC scripts for the current configuration).
-  LoadLog* init_proxy_resolver_log() const {
+  const CapturingBoundNetLog& init_proxy_resolver_log() const {
     return init_proxy_resolver_log_;
   }
 
@@ -199,7 +199,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
   // Checks to see if the proxy configuration changed, and then updates config_
   // to reference the new configuration.
-  void UpdateConfig(LoadLog* load_log);
+  void UpdateConfig(const BoundNetLog& net_log);
 
   // Assign |config| as the current configuration.
   void SetConfig(const ProxyConfig& config);
@@ -209,7 +209,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   void StartInitProxyResolver();
 
   // Tries to update the configuration if it hasn't been checked in a while.
-  void UpdateConfigIfOld(LoadLog* load_log);
+  void UpdateConfigIfOld(const BoundNetLog& net_log);
 
   // Returns true if the proxy resolver is being initialized for PAC
   // (downloading PAC script(s) + testing).
@@ -245,7 +245,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   // bad entries from the results list.
   int DidFinishResolvingProxy(ProxyInfo* result,
                               int result_code,
-                              LoadLog* load_log);
+                              const BoundNetLog& net_log);
 
   // NetworkChangeNotifier::Observer methods:
   virtual void OnIPAddressChanged();
@@ -287,7 +287,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   scoped_ptr<InitProxyResolver> init_proxy_resolver_;
 
   // Log from the *last* time |init_proxy_resolver_.Init()| was called, or NULL.
-  scoped_refptr<LoadLog> init_proxy_resolver_log_;
+  CapturingBoundNetLog init_proxy_resolver_log_;
 
   // The (possibly NULL) network change notifier that we use to decide when
   // to refetch PAC scripts or re-run WPAD.
@@ -303,17 +303,17 @@ class SyncProxyServiceHelper
   SyncProxyServiceHelper(MessageLoop* io_message_loop,
                          ProxyService* proxy_service);
 
-  int ResolveProxy(const GURL& url, ProxyInfo* proxy_info, LoadLog* load_log);
+  int ResolveProxy(const GURL& url, ProxyInfo* proxy_info, const BoundNetLog& net_log);
   int ReconsiderProxyAfterError(const GURL& url,
-                                ProxyInfo* proxy_info, LoadLog* load_log);
+                                ProxyInfo* proxy_info, const BoundNetLog& net_log);
 
  private:
   friend class base::RefCountedThreadSafe<SyncProxyServiceHelper>;
 
   ~SyncProxyServiceHelper() {}
 
-  void StartAsyncResolve(const GURL& url, LoadLog* load_log);
-  void StartAsyncReconsider(const GURL& url, LoadLog* load_log);
+  void StartAsyncResolve(const GURL& url, const BoundNetLog& net_log);
+  void StartAsyncReconsider(const GURL& url, const BoundNetLog& net_log);
 
   void OnCompletion(int result);
 

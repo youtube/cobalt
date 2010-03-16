@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "net/base/host_resolver_impl.h"
+#include "net/base/net_log.h"
 
 #include <cmath>
 #include <deque>
@@ -18,7 +19,7 @@
 #include "base/worker_pool.h"
 #include "net/base/address_list.h"
 #include "net/base/host_resolver_proc.h"
-#include "net/base/load_log.h"
+#include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
 
@@ -72,12 +73,12 @@ static int ResolveAddrInfo(HostResolverProc* resolver_proc,
 
 class HostResolverImpl::Request {
  public:
-  Request(LoadLog* load_log,
+  Request(const BoundNetLog& net_log,
           int id,
           const RequestInfo& info,
           CompletionCallback* callback,
           AddressList* addresses)
-      : load_log_(load_log),
+      : net_log_(net_log),
         id_(id),
         info_(info),
         job_(NULL),
@@ -116,8 +117,8 @@ class HostResolverImpl::Request {
     return job_;
   }
 
-  LoadLog* load_log() const {
-    return load_log_;
+  const BoundNetLog& net_log() {
+    return net_log_;
   }
 
   int id() const {
@@ -129,7 +130,7 @@ class HostResolverImpl::Request {
   }
 
  private:
-  scoped_refptr<LoadLog> load_log_;
+  BoundNetLog net_log_;
 
   // Unique ID for this request. Used by observers to identify requests.
   int id_;
@@ -155,26 +156,31 @@ class HostResolverImpl::Request {
 class HostResolverImpl::RequestsTrace
     : public base::RefCountedThreadSafe<HostResolverImpl::RequestsTrace> {
  public:
-  RequestsTrace() : log_(new LoadLog(LoadLog::kUnbounded)) {}
+  RequestsTrace() {}
 
   void Add(const std::string& msg) {
+    NetLog::Entry entry;
+    entry.type = NetLog::Entry::TYPE_STRING;
+    entry.time = base::TimeTicks::Now();
+    entry.string = msg;
+
     AutoLock l(lock_);
-    LoadLog::AddString(log_, msg);
+    entries_.push_back(entry);
   }
 
-  void Get(LoadLog* out) {
+  void Get(std::vector<NetLog::Entry>* entries) {
     AutoLock l(lock_);
-    out->Append(log_);
+    *entries = entries_;
   }
 
   void Clear() {
     AutoLock l(lock_);
-    log_ = new LoadLog(LoadLog::kUnbounded);
+    entries_.clear();
   }
 
  private:
   Lock lock_;
-  scoped_refptr<LoadLog> log_;
+  std::vector<NetLog::Entry> entries_;
 };
 
 //-----------------------------------------------------------------------------
@@ -613,15 +619,15 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
                               AddressList* addresses,
                               CompletionCallback* callback,
                               RequestHandle* out_req,
-                              LoadLog* load_log) {
+                              const BoundNetLog& net_log) {
   if (shutdown_)
     return ERR_UNEXPECTED;
 
   // Choose a unique ID number for observers to see.
   int request_id = next_request_id_++;
 
-  // Update the load log and notify registered observers.
-  OnStartRequest(load_log, request_id, info);
+  // Update the net log and notify registered observers.
+  OnStartRequest(net_log, request_id, info);
 
   // Build a key that identifies the request in the cache and in the
   // outstanding jobs map.
@@ -636,8 +642,8 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
       if (error == OK)
         addresses->SetFrom(cache_entry->addrlist, info.port());
 
-      // Update the load log and notify registered observers.
-      OnFinishRequest(load_log, request_id, info, error);
+      // Update the net log and notify registered observers.
+      OnFinishRequest(net_log, request_id, info, error);
 
       return error;
     }
@@ -657,15 +663,15 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     if (cache_.get())
       cache_->Set(key, error, addrlist, base::TimeTicks::Now());
 
-    // Update the load log and notify registered observers.
-    OnFinishRequest(load_log, request_id, info, error);
+    // Update the net log and notify registered observers.
+    OnFinishRequest(net_log, request_id, info, error);
 
     return error;
   }
 
   // Create a handle for this request, and pass it back to the user if they
   // asked for it (out_req != NULL).
-  Request* req = new Request(load_log, request_id, info, callback, addresses);
+  Request* req = new Request(net_log, request_id, info, callback, addresses);
   if (out_req)
     *out_req = reinterpret_cast<RequestHandle>(req);
 
@@ -719,7 +725,7 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
 
   // NULL out the fields of req, to mark it as cancelled.
   req->MarkAsCancelled();
-  OnCancelRequest(req->load_log(), req->id(), req->info());
+  OnCancelRequest(req->net_log(), req->id(), req->info());
 }
 
 void HostResolverImpl::AddObserver(HostResolver::Observer* observer) {
@@ -804,13 +810,11 @@ bool HostResolverImpl::IsRequestsTracingEnabled() const {
   return !!requests_trace_;  // Cast to bool.
 }
 
-scoped_refptr<LoadLog> HostResolverImpl::GetRequestsTrace() {
+bool HostResolverImpl::GetRequestsTrace(std::vector<NetLog::Entry>* entries) {
   if (!requests_trace_)
-    return NULL;
-
-  scoped_refptr<LoadLog> copy_of_log = new LoadLog(LoadLog::kUnbounded);
-  requests_trace_->Get(copy_of_log);
-  return copy_of_log;
+    return false;
+  requests_trace_->Get(entries);
+  return true;
 }
 
 void HostResolverImpl::SetPoolConstraints(JobPoolIndex pool_index,
@@ -873,8 +877,8 @@ void HostResolverImpl::OnJobComplete(Job* job,
     if (!req->was_cancelled()) {
       DCHECK_EQ(job, req->job());
 
-      // Update the load log and notify registered observers.
-      OnFinishRequest(req->load_log(), req->id(), req->info(), error);
+      // Update the net log and notify registered observers.
+      OnFinishRequest(req->net_log(), req->id(), req->info(), error);
 
       req->OnComplete(error, addrlist);
 
@@ -888,10 +892,10 @@ void HostResolverImpl::OnJobComplete(Job* job,
   cur_completing_job_ = NULL;
 }
 
-void HostResolverImpl::OnStartRequest(LoadLog* load_log,
+void HostResolverImpl::OnStartRequest(const BoundNetLog& net_log,
                                       int request_id,
                                       const RequestInfo& info) {
-  LoadLog::BeginEvent(load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL);
+  net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL);
 
   if (requests_trace_) {
     requests_trace_->Add(StringPrintf(
@@ -909,20 +913,18 @@ void HostResolverImpl::OnStartRequest(LoadLog* load_log,
 
   // Notify the observers of the start.
   if (!observers_.empty()) {
-    LoadLog::BeginEvent(
-        load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART);
+    net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART);
 
     for (ObserversList::iterator it = observers_.begin();
          it != observers_.end(); ++it) {
       (*it)->OnStartResolution(request_id, info);
     }
 
-    LoadLog::EndEvent(
-        load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART);
+    net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART);
   }
 }
 
-void HostResolverImpl::OnFinishRequest(LoadLog* load_log,
+void HostResolverImpl::OnFinishRequest(const BoundNetLog& net_log,
                                        int request_id,
                                        const RequestInfo& info,
                                        int error) {
@@ -933,8 +935,7 @@ void HostResolverImpl::OnFinishRequest(LoadLog* load_log,
 
   // Notify the observers of the completion.
   if (!observers_.empty()) {
-    LoadLog::BeginEvent(
-        load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH);
+    net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH);
 
     bool was_resolved = error == OK;
     for (ObserversList::iterator it = observers_.begin();
@@ -942,36 +943,33 @@ void HostResolverImpl::OnFinishRequest(LoadLog* load_log,
       (*it)->OnFinishResolutionWithStatus(request_id, was_resolved, info);
     }
 
-    LoadLog::EndEvent(
-        load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH);
+    net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH);
   }
 
-  LoadLog::EndEvent(load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL);
+  net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL);
 }
 
-void HostResolverImpl::OnCancelRequest(LoadLog* load_log,
+void HostResolverImpl::OnCancelRequest(const BoundNetLog& net_log,
                                        int request_id,
                                        const RequestInfo& info) {
-  LoadLog::AddEvent(load_log, LoadLog::TYPE_CANCELLED);
+  net_log.AddEvent(NetLog::TYPE_CANCELLED);
 
   if (requests_trace_)
     requests_trace_->Add(StringPrintf("Cancelled request r%d", request_id));
 
   // Notify the observers of the cancellation.
   if (!observers_.empty()) {
-    LoadLog::BeginEvent(
-        load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONCANCEL);
+    net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONCANCEL);
 
     for (ObserversList::iterator it = observers_.begin();
          it != observers_.end(); ++it) {
       (*it)->OnCancelResolution(request_id, info);
     }
 
-    LoadLog::EndEvent(
-        load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONCANCEL);
+    net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONCANCEL);
   }
 
-  LoadLog::EndEvent(load_log, LoadLog::TYPE_HOST_RESOLVER_IMPL);
+  net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL);
 }
 
 void HostResolverImpl::OnIPAddressChanged() {
@@ -1052,7 +1050,7 @@ int HostResolverImpl::EnqueueRequest(JobPool* pool, Request* req) {
     if (requests_trace_)
       requests_trace_->Add(StringPrintf("Evicted request r%d", r->id()));
 
-    OnFinishRequest(r->load_log(), r->id(), r->info(), error);
+    OnFinishRequest(r->net_log(), r->id(), r->info(), error);
 
     if (r == req)
       return error;

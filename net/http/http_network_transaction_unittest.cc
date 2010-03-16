@@ -194,7 +194,7 @@ class CaptureGroupNameSocketPool : public TCPClientSocketPool {
                             RequestPriority priority,
                             ClientSocketHandle* handle,
                             CompletionCallback* callback,
-                            LoadLog* load_log) {
+                            const BoundNetLog& net_log) {
     last_group_name_ = group_name;
     return ERR_IO_PENDING;
   }
@@ -4280,7 +4280,7 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
 
   int rv = trans->Start(&request, &callback, NULL);
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  
+
   HostPortPair http_host_port_pair;
   http_host_port_pair.host = "www.google.com";
   http_host_port_pair.port = 80;
@@ -4380,12 +4380,12 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 // on the original port.
 //  TEST_F(HttpNetworkTransactionTest, UseAlternateProtocol) {
 //    SessionDependencies session_deps;
-//  
+//
 //    HttpRequestInfo request;
 //    request.method = "GET";
 //    request.url = GURL("http://www.google.com/");
 //    request.load_flags = 0;
-//  
+//
 //    MockRead data_reads[] = {
 //      MockRead("HTTP/1.1 200 OK\r\n\r\n"),
 //      MockRead("hello world"),
@@ -4393,14 +4393,14 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 //    };
 //    StaticSocketDataProvider data(data_reads, arraysize(data_reads), NULL, 0);
 //    session_deps.socket_factory.AddSocketDataProvider(&data);
-//  
+//
 //    SSLSocketDataProvider ssl(true, OK);
 //    session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
-//  
+//
 //    TestCompletionCallback callback;
-//  
+//
 //    scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-//  
+//
 //    HostPortPair http_host_port_pair;
 //    http_host_port_pair.host = "www.google.com";
 //    http_host_port_pair.port = 80;
@@ -4409,18 +4409,18 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 //    alternate_protocols->SetAlternateProtocolFor(
 //        http_host_port_pair, 1234 /* port is ignored */,
 //        HttpAlternateProtocols::NPN_SPDY);
-//  
+//
 //    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
-//  
+//
 //    int rv = trans->Start(&request, &callback, NULL);
 //    EXPECT_EQ(ERR_IO_PENDING, rv);
 //    EXPECT_EQ(OK, callback.WaitForResult());
-//  
+//
 //    const HttpResponseInfo* response = trans->GetResponseInfo();
 //    ASSERT_TRUE(response != NULL);
 //    ASSERT_TRUE(response->headers != NULL);
 //    EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
-//  
+//
 //    std::string response_data;
 //    ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
 //    EXPECT_EQ("hello world", response_data);

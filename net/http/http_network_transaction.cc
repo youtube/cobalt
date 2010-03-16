@@ -240,10 +240,10 @@ void HttpNetworkTransaction::IgnoreCertificateErrors(bool enabled) {
 
 int HttpNetworkTransaction::Start(const HttpRequestInfo* request_info,
                                   CompletionCallback* callback,
-                                  LoadLog* load_log) {
+                                  const BoundNetLog& net_log) {
   SIMPLE_STATS_COUNTER("HttpNetworkTransaction.Count");
 
-  load_log_ = load_log;
+  net_log_ = net_log;
   request_ = request_info;
   start_time_ = base::Time::Now();
 
@@ -542,97 +542,83 @@ int HttpNetworkTransaction::DoLoop(int result) {
       case STATE_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.send_request", request_, request_->url.spec());
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
         rv = DoSendRequest();
         break;
       case STATE_SEND_REQUEST_COMPLETE:
         rv = DoSendRequestComplete(rv);
         TRACE_EVENT_END("http.send_request", request_, request_->url.spec());
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
         break;
       case STATE_READ_HEADERS:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_headers", request_, request_->url.spec());
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
         rv = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
         rv = DoReadHeadersComplete(rv);
         TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
         break;
       case STATE_READ_BODY:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_body", request_, request_->url.spec());
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY);
         rv = DoReadBody();
         break;
       case STATE_READ_BODY_COMPLETE:
         rv = DoReadBodyComplete(rv);
         TRACE_EVENT_END("http.read_body", request_, request_->url.spec());
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_HTTP_TRANSACTION_READ_BODY);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY);
         break;
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.drain_body_for_auth_restart",
                           request_, request_->url.spec());
-        LoadLog::BeginEvent(
-            load_log_,
-            LoadLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
+        net_log_.BeginEvent(
+            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
         rv = DoDrainBodyForAuthRestart();
         break;
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE:
         rv = DoDrainBodyForAuthRestartComplete(rv);
         TRACE_EVENT_END("http.drain_body_for_auth_restart",
                         request_, request_->url.spec());
-        LoadLog::EndEvent(
-            load_log_,
-            LoadLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
+        net_log_.EndEvent(
+            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
         break;
       case STATE_SPDY_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.send_request", request_, request_->url.spec());
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST);
         rv = DoSpdySendRequest();
         break;
       case STATE_SPDY_SEND_REQUEST_COMPLETE:
         rv = DoSpdySendRequestComplete(rv);
         TRACE_EVENT_END("http.send_request", request_, request_->url.spec());
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST);
         break;
       case STATE_SPDY_READ_HEADERS:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_headers", request_, request_->url.spec());
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_SPDY_TRANSACTION_READ_HEADERS);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS);
         rv = DoSpdyReadHeaders();
         break;
       case STATE_SPDY_READ_HEADERS_COMPLETE:
         rv = DoSpdyReadHeadersComplete(rv);
         TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_SPDY_TRANSACTION_READ_HEADERS);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS);
         break;
       case STATE_SPDY_READ_BODY:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_body", request_, request_->url.spec());
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_SPDY_TRANSACTION_READ_BODY);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_BODY);
         rv = DoSpdyReadBody();
         break;
       case STATE_SPDY_READ_BODY_COMPLETE:
         rv = DoSpdyReadBodyComplete(rv);
         TRACE_EVENT_END("http.read_body", request_, request_->url.spec());
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_SPDY_TRANSACTION_READ_BODY);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_BODY);
         break;
       default:
         NOTREACHED() << "bad state";
@@ -655,7 +641,7 @@ int HttpNetworkTransaction::DoResolveProxy() {
   }
 
   return session_->proxy_service()->ResolveProxy(
-      request_->url, &proxy_info_, &io_callback_, &pac_request_, load_log_);
+      request_->url, &proxy_info_, &io_callback_, &pac_request_, net_log_);
 }
 
 int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
@@ -761,7 +747,7 @@ int HttpNetworkTransaction::DoInitConnection() {
 
   int rv = connection_->Init(connection_group, tcp_params, request_->priority,
                              &io_callback_, session_->tcp_socket_pool(),
-                             load_log_);
+                             net_log_);
   return rv;
 }
 
@@ -827,7 +813,7 @@ int HttpNetworkTransaction::DoSOCKSConnect() {
   else
     s = new SOCKSClientSocket(s, req_info, session_->host_resolver());
   connection_->set_socket(s);
-  return connection_->socket()->Connect(&io_callback_, load_log_);
+  return connection_->socket()->Connect(&io_callback_, net_log_);
 }
 
 int HttpNetworkTransaction::DoSOCKSConnectComplete(int result) {
@@ -858,7 +844,7 @@ int HttpNetworkTransaction::DoSSLConnect() {
   s = session_->socket_factory()->CreateSSLClientSocket(
       s, request_->url.HostNoBrackets(), ssl_config_);
   connection_->set_socket(s);
-  return connection_->socket()->Connect(&io_callback_, load_log_);
+  return connection_->socket()->Connect(&io_callback_, net_log_);
 }
 
 int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
@@ -969,7 +955,7 @@ int HttpNetworkTransaction::DoSendRequest() {
   }
 
   headers_valid_ = false;
-  http_stream_.reset(new HttpBasicStream(connection_.get(), load_log_));
+  http_stream_.reset(new HttpBasicStream(connection_.get(), net_log_));
 
   return http_stream_->SendRequest(request_, request_headers_,
                                    request_body, &response_, &io_callback_);
@@ -1069,7 +1055,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
         next_state_ = STATE_SSL_CONNECT;
         // Reset for the real request and response headers.
         request_headers_.clear();
-        http_stream_.reset(new HttpBasicStream(connection_.get(), load_log_));
+        http_stream_.reset(new HttpBasicStream(connection_.get(), net_log_));
         headers_valid_ = false;
         establishing_tunnel_ = false;
         return OK;
@@ -1235,7 +1221,7 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
       new UploadDataStream(request_->upload_data) : NULL;
   headers_valid_ = false;
   spdy_stream_ = spdy_session->GetOrCreateStream(
-      *request_, upload_data, load_log_);
+      *request_, upload_data, net_log_);
   return spdy_stream_->SendRequest(upload_data, &response_, &io_callback_);
 }
 
@@ -1621,7 +1607,7 @@ int HttpNetworkTransaction::ReconsiderProxyAfterError(int error) {
   }
 
   int rv = session_->proxy_service()->ReconsiderProxyAfterError(
-      request_->url, &proxy_info_, &io_callback_, &pac_request_, load_log_);
+      request_->url, &proxy_info_, &io_callback_, &pac_request_, net_log_);
   if (rv == OK || rv == ERR_IO_PENDING) {
     // If the error was during connection setup, there is no socket to
     // disconnect.

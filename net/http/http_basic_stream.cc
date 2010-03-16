@@ -6,9 +6,10 @@
 
 namespace net {
 
-HttpBasicStream::HttpBasicStream(ClientSocketHandle* handle, LoadLog* load_log)
+HttpBasicStream::HttpBasicStream(ClientSocketHandle* handle,
+                                 const BoundNetLog& net_log)
     : read_buf_(new GrowableIOBuffer()),
-      parser_(new HttpStreamParser(handle, read_buf_, load_log)) {
+      parser_(new HttpStreamParser(handle, read_buf_, net_log)) {
 }
 
 int HttpBasicStream::SendRequest(const HttpRequestInfo* request,

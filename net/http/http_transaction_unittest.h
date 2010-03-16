@@ -119,9 +119,10 @@ class TestTransactionConsumer : public CallbackRunner< Tuple1<int> > {
   ~TestTransactionConsumer() {
   }
 
-  void Start(const net::HttpRequestInfo* request, net::LoadLog* load_log) {
+  void Start(const net::HttpRequestInfo* request,
+             const net::BoundNetLog& net_log) {
     state_ = STARTING;
-    int result = trans_->Start(request, this, load_log);
+    int result = trans_->Start(request, this, net_log);
     if (result != net::ERR_IO_PENDING)
       DidStart(result);
   }
@@ -212,7 +213,7 @@ class MockNetworkTransaction : public net::HttpTransaction {
 
   virtual int Start(const net::HttpRequestInfo* request,
                     net::CompletionCallback* callback,
-                    net::LoadLog* load_log) {
+                    const net::BoundNetLog& net_log) {
     const MockTransaction* t = FindMockTransaction(request->url);
     if (!t)
       return net::ERR_FAILED;

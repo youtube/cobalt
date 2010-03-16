@@ -13,7 +13,7 @@
 namespace net {
 
 SpdyStream::SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id,
-                       bool pushed, LoadLog* log)
+                       bool pushed, const BoundNetLog& log)
     : stream_id_(stream_id),
       priority_(0),
       pushed_(pushed),
@@ -29,7 +29,7 @@ SpdyStream::SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id,
       user_buffer_(NULL),
       user_buffer_len_(0),
       cancelled_(false),
-      load_log_(log),
+      net_log_(log),
       send_bytes_(0),
       recv_bytes_(0),
       histograms_recorded_(false),
@@ -278,35 +278,29 @@ int SpdyStream::DoLoop(int result) {
       // State machine 1: Send headers and wait for response headers.
       case STATE_SEND_HEADERS:
         CHECK_EQ(OK, result);
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_SPDY_STREAM_SEND_HEADERS);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_SEND_HEADERS);
         result = DoSendHeaders();
         break;
       case STATE_SEND_HEADERS_COMPLETE:
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_SPDY_STREAM_SEND_HEADERS);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_SEND_HEADERS);
         result = DoSendHeadersComplete(result);
         break;
       case STATE_SEND_BODY:
         CHECK_EQ(OK, result);
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_SPDY_STREAM_SEND_BODY);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_SEND_BODY);
         result = DoSendBody();
         break;
       case STATE_SEND_BODY_COMPLETE:
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_SPDY_STREAM_SEND_BODY);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_SEND_BODY);
         result = DoSendBodyComplete(result);
         break;
       case STATE_READ_HEADERS:
         CHECK_EQ(OK, result);
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_SPDY_STREAM_READ_HEADERS);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_READ_HEADERS);
         result = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_SPDY_STREAM_READ_HEADERS);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_READ_HEADERS);
         result = DoReadHeadersComplete(result);
         break;
 
@@ -315,13 +309,11 @@ int SpdyStream::DoLoop(int result) {
       // the OnDataReceived()/OnClose()/ReadResponseHeaders()/etc.  Only reason
       // to do this is for consistency with the Http code.
       case STATE_READ_BODY:
-        LoadLog::BeginEvent(load_log_,
-                            LoadLog::TYPE_SPDY_STREAM_READ_BODY);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_READ_BODY);
         result = DoReadBody();
         break;
       case STATE_READ_BODY_COMPLETE:
-        LoadLog::EndEvent(load_log_,
-                          LoadLog::TYPE_SPDY_STREAM_READ_BODY);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_READ_BODY);
         result = DoReadBodyComplete(result);
         break;
       case STATE_DONE:

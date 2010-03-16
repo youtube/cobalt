@@ -617,7 +617,7 @@ void URLRequestHttpJob::StartTransaction() {
         &transaction_);
     if (rv == net::OK) {
       rv = transaction_->Start(
-          &request_info_, &start_callback_, request_->load_log());
+          &request_info_, &start_callback_, request_->net_log());
     }
   }
 

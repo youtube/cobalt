@@ -6,9 +6,9 @@
 #include <vector>
 
 #include "base/callback.h"
-#include "net/base/load_log.h"
-#include "net/base/load_log_unittest.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/base/net_log.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket_stream/socket_stream.h"
@@ -211,12 +211,7 @@ TEST_F(SocketStreamTest, BasicAuthProxy) {
   EXPECT_EQ(SocketStreamEvent::EVENT_CONNECTED, events[1].event_type);
   EXPECT_EQ(SocketStreamEvent::EVENT_CLOSE, events[2].event_type);
 
-  // The first and last entries of the LoadLog should be for
-  // SOCKET_STREAM_CONNECT.
-  EXPECT_TRUE(LogContainsBeginEvent(
-      *socket_stream->load_log(), 0, LoadLog::TYPE_SOCKET_STREAM_CONNECT));
-  EXPECT_TRUE(LogContainsEndEvent(
-      *socket_stream->load_log(), -1, LoadLog::TYPE_SOCKET_STREAM_CONNECT));
+  // TODO(eroman): Add back NetLogTest here...
 }
 
 }  // namespace net
