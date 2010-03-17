@@ -26,7 +26,6 @@
 #include "net/socket/socks_client_socket.h"
 #include "net/socket/tcp_client_socket.h"
 #include "net/socket_stream/socket_stream_metrics.h"
-#include "net/socket_stream/socket_stream_throttle.h"
 #include "net/url_request/url_request.h"
 
 static const int kMaxPendingSendAllowed = 32768;  // 32 kilobytes.
@@ -59,16 +58,12 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       current_write_buf_(NULL),
       write_buf_offset_(0),
       write_buf_size_(0),
-      throttle_(
-          SocketStreamThrottle::GetSocketStreamThrottleForScheme(
-              url.scheme())),
       metrics_(new SocketStreamMetrics(url)) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
   DCHECK(delegate_);
-  DCHECK(throttle_);
 }
 
 SocketStream::~SocketStream() {
@@ -235,7 +230,6 @@ void SocketStream::Finish(int result) {
   if (delegate) {
     delegate->OnClose(this);
   }
-  throttle_->OnClose(this);
   Release();
 }
 
@@ -275,13 +269,12 @@ int SocketStream::DidReceiveData(int result) {
   net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_RECEIVED);
   int len = result;
   metrics_->OnRead(len);
-  result = throttle_->OnRead(this, read_buf_->data(), len, &io_callback_);
   if (delegate_) {
     // Notify recevied data to delegate.
     delegate_->OnReceivedData(this, read_buf_->data(), len);
   }
   read_buf_ = NULL;
-  return result;
+  return OK;
 }
 
 int SocketStream::DidSendData(int result) {
@@ -289,8 +282,6 @@ int SocketStream::DidSendData(int result) {
   net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_SENT);
   int len = result;
   metrics_->OnWrite(len);
-  result = throttle_->OnWrite(this, current_write_buf_->data(), len,
-                              &io_callback_);
   current_write_buf_ = NULL;
   if (delegate_)
     delegate_->OnSentData(this, len);
@@ -309,7 +300,7 @@ int SocketStream::DidSendData(int result) {
   } else {
     write_buf_offset_ += len;
   }
-  return result;
+  return OK;
 }
 
 void SocketStream::OnIOCompleted(int result) {
@@ -490,7 +481,7 @@ int SocketStream::DoResolveHost() {
 int SocketStream::DoResolveHostComplete(int result) {
   if (result == OK) {
     next_state_ = STATE_TCP_CONNECT;
-    result = throttle_->OnStartOpenConnection(this, &io_callback_);
+    result = delegate_->OnStartOpenConnection(this, &io_callback_);
     if (result == net::ERR_IO_PENDING)
       metrics_->OnWaitConnection();
   } else {
