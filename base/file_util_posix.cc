@@ -429,10 +429,16 @@ bool CreateDirectory(const FilePath& full_path) {
   // Iterate through the parents and create the missing ones.
   for (std::vector<FilePath>::reverse_iterator i = subpaths.rbegin();
        i != subpaths.rend(); ++i) {
-    if (!DirectoryExists(*i)) {
-      if (mkdir(i->value().c_str(), 0700) != 0)
-        return false;
-    }
+    if (DirectoryExists(*i))
+      continue;
+    if (mkdir(i->value().c_str(), 0700) == 0)
+      continue;
+    // Mkdir failed, but it might have failed with EEXIST, or some other error
+    // due to the the directory appearing out of thin air. This can occur if
+    // two processes are trying to create the same file system tree at the same
+    // time. Check to see if it exists and make sure it is a directory.
+    if (!DirectoryExists(*i))
+      return false;
   }
   return true;
 }
