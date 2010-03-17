@@ -453,8 +453,6 @@
         'socket_stream/socket_stream_job_manager.h',
         'socket_stream/socket_stream_metrics.cc',
         'socket_stream/socket_stream_metrics.h',
-        'socket_stream/socket_stream_throttle.cc',
-        'socket_stream/socket_stream_throttle.h',
         'spdy/spdy_bitmasks.h',
         'spdy/spdy_frame_builder.cc',
         'spdy/spdy_frame_builder.h',

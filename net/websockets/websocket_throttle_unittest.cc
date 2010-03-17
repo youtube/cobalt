@@ -10,6 +10,7 @@
 #include "net/base/sys_addrinfo.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket_stream/socket_stream.h"
+#include "net/websockets/websocket_job.h"
 #include "net/websockets/websocket_throttle.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -66,94 +67,205 @@ class WebSocketThrottleTest : public PlatformTest {
 };
 
 TEST_F(WebSocketThrottleTest, Throttle) {
-  WebSocketThrottle::Init();
   DummySocketStreamDelegate delegate;
-
-  WebSocketThrottle* throttle = Singleton<WebSocketThrottle>::get();
-
-  EXPECT_EQ(throttle,
-            SocketStreamThrottle::GetSocketStreamThrottleForScheme("ws"));
-  EXPECT_EQ(throttle,
-            SocketStreamThrottle::GetSocketStreamThrottleForScheme("wss"));
 
   // For host1: 1.2.3.4, 1.2.3.5, 1.2.3.6
   struct addrinfo* addr = AddAddr(1, 2, 3, 4, NULL);
   addr = AddAddr(1, 2, 3, 5, addr);
   addr = AddAddr(1, 2, 3, 6, addr);
+  scoped_refptr<WebSocketJob> w1 = new WebSocketJob(&delegate);
   scoped_refptr<SocketStream> s1 =
-      new SocketStream(GURL("ws://host1/"), &delegate);
+      new SocketStream(GURL("ws://host1/"), w1.get());
+  w1->InitSocketStream(s1.get());
   WebSocketThrottleTest::SetAddressList(s1, addr);
   DeleteAddrInfo(addr);
 
+  DLOG(INFO) << "socket1";
   TestCompletionCallback callback_s1;
-  EXPECT_EQ(OK, throttle->OnStartOpenConnection(s1, &callback_s1));
+  // Trying to open connection to host1 will start without wait.
+  EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, &callback_s1));
+
+  // Now connecting to host1, so waiting queue looks like
+  // Address | head -> tail
+  // 1.2.3.4 | w1
+  // 1.2.3.5 | w1
+  // 1.2.3.6 | w1
 
   // For host2: 1.2.3.4
   addr = AddAddr(1, 2, 3, 4, NULL);
+  scoped_refptr<WebSocketJob> w2 = new WebSocketJob(&delegate);
   scoped_refptr<SocketStream> s2 =
-      new SocketStream(GURL("ws://host2/"), &delegate);
+      new SocketStream(GURL("ws://host2/"), w2.get());
+  w2->InitSocketStream(s2.get());
   WebSocketThrottleTest::SetAddressList(s2, addr);
   DeleteAddrInfo(addr);
 
+  DLOG(INFO) << "socket2";
   TestCompletionCallback callback_s2;
-  EXPECT_EQ(ERR_IO_PENDING, throttle->OnStartOpenConnection(s2, &callback_s2));
+  // Trying to open connection to host2 will wait for w1.
+  EXPECT_EQ(ERR_IO_PENDING, w2->OnStartOpenConnection(s2, &callback_s2));
+  // Now waiting queue looks like
+  // Address | head -> tail
+  // 1.2.3.4 | w1 w2
+  // 1.2.3.5 | w1
+  // 1.2.3.6 | w1
 
   // For host3: 1.2.3.5
   addr = AddAddr(1, 2, 3, 5, NULL);
+  scoped_refptr<WebSocketJob> w3 = new WebSocketJob(&delegate);
   scoped_refptr<SocketStream> s3 =
-      new SocketStream(GURL("ws://host3/"), &delegate);
+      new SocketStream(GURL("ws://host3/"), w3.get());
+  w3->InitSocketStream(s3.get());
   WebSocketThrottleTest::SetAddressList(s3, addr);
   DeleteAddrInfo(addr);
 
+  DLOG(INFO) << "socket3";
   TestCompletionCallback callback_s3;
-  EXPECT_EQ(ERR_IO_PENDING, throttle->OnStartOpenConnection(s3, &callback_s3));
+  // Trying to open connection to host3 will wait for w1.
+  EXPECT_EQ(ERR_IO_PENDING, w3->OnStartOpenConnection(s3, &callback_s3));
+  // Address | head -> tail
+  // 1.2.3.4 | w1 w2
+  // 1.2.3.5 | w1    w3
+  // 1.2.3.6 | w1
 
   // For host4: 1.2.3.4, 1.2.3.6
   addr = AddAddr(1, 2, 3, 4, NULL);
   addr = AddAddr(1, 2, 3, 6, addr);
+  scoped_refptr<WebSocketJob> w4 = new WebSocketJob(&delegate);
   scoped_refptr<SocketStream> s4 =
-      new SocketStream(GURL("ws://host4/"), &delegate);
+      new SocketStream(GURL("ws://host4/"), w4.get());
+  w4->InitSocketStream(s4.get());
   WebSocketThrottleTest::SetAddressList(s4, addr);
   DeleteAddrInfo(addr);
 
+  DLOG(INFO) << "socket4";
   TestCompletionCallback callback_s4;
-  EXPECT_EQ(ERR_IO_PENDING, throttle->OnStartOpenConnection(s4, &callback_s4));
+  // Trying to open connection to host4 will wait for w1, w2.
+  EXPECT_EQ(ERR_IO_PENDING, w4->OnStartOpenConnection(s4, &callback_s4));
+  // Address | head -> tail
+  // 1.2.3.4 | w1 w2    w4
+  // 1.2.3.5 | w1    w3
+  // 1.2.3.6 | w1       w4
 
+  // For host5: 1.2.3.6
+  addr = AddAddr(1, 2, 3, 6, NULL);
+  scoped_refptr<WebSocketJob> w5 = new WebSocketJob(&delegate);
+  scoped_refptr<SocketStream> s5 =
+      new SocketStream(GURL("ws://host5/"), w5.get());
+  w5->InitSocketStream(s5.get());
+  WebSocketThrottleTest::SetAddressList(s5, addr);
+  DeleteAddrInfo(addr);
+
+  DLOG(INFO) << "socket5";
+  TestCompletionCallback callback_s5;
+  // Trying to open connection to host5 will wait for w1, w4
+  EXPECT_EQ(ERR_IO_PENDING, w5->OnStartOpenConnection(s5, &callback_s5));
+  // Address | head -> tail
+  // 1.2.3.4 | w1 w2    w4
+  // 1.2.3.5 | w1    w3
+  // 1.2.3.6 | w1       w4 w5
+
+  // For host6: 1.2.3.6
+  addr = AddAddr(1, 2, 3, 6, NULL);
+  scoped_refptr<WebSocketJob> w6 = new WebSocketJob(&delegate);
+  scoped_refptr<SocketStream> s6 =
+      new SocketStream(GURL("ws://host6/"), w6.get());
+  w6->InitSocketStream(s6.get());
+  WebSocketThrottleTest::SetAddressList(s6, addr);
+  DeleteAddrInfo(addr);
+
+  DLOG(INFO) << "socket6";
+  TestCompletionCallback callback_s6;
+  // Trying to open connection to host6 will wait for w1, w4, w5
+  EXPECT_EQ(ERR_IO_PENDING, w6->OnStartOpenConnection(s6, &callback_s6));
+  // Address | head -> tail
+  // 1.2.3.4 | w1 w2    w4
+  // 1.2.3.5 | w1    w3
+  // 1.2.3.6 | w1       w4 w5 w6
+
+  // Receive partial response on w1, still connecting.
+  DLOG(INFO) << "socket1 1";
   static const char kHeader[] = "HTTP/1.1 101 Web Socket Protocol\r\n";
-  EXPECT_EQ(OK,
-            throttle->OnRead(s1.get(), kHeader, sizeof(kHeader) - 1, NULL));
+  w1->OnReceivedData(s1.get(), kHeader, sizeof(kHeader) - 1);
   EXPECT_FALSE(callback_s2.have_result());
   EXPECT_FALSE(callback_s3.have_result());
   EXPECT_FALSE(callback_s4.have_result());
+  EXPECT_FALSE(callback_s5.have_result());
+  EXPECT_FALSE(callback_s6.have_result());
 
+  // Receive rest of handshake response on w1.
+  DLOG(INFO) << "socket1 2";
   static const char kHeader2[] =
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
       "WebSocket-Origin: http://www.google.com\r\n"
       "WebSocket-Location: ws://websocket.chromium.org\r\n"
       "\r\n";
-  EXPECT_EQ(OK,
-            throttle->OnRead(s1.get(), kHeader2, sizeof(kHeader2) - 1, NULL));
+  w1->OnReceivedData(s1.get(), kHeader2, sizeof(kHeader2) - 1);
   MessageLoopForIO::current()->RunAllPending();
+  // Now, w1 is open.
+  EXPECT_EQ(WebSocketJob::OPEN, w1->state());
+  // So, w2 and w3 can start connecting. w4 needs to wait w2 (1.2.3.4)
   EXPECT_TRUE(callback_s2.have_result());
   EXPECT_TRUE(callback_s3.have_result());
   EXPECT_FALSE(callback_s4.have_result());
+  // Address | head -> tail
+  // 1.2.3.4 |    w2    w4
+  // 1.2.3.5 |       w3
+  // 1.2.3.6 |          w4 w5 w6
 
-  throttle->OnClose(s1.get());
+  // Closing s1 doesn't change waiting queue.
+  DLOG(INFO) << "socket1 close";
+  w1->OnClose(s1.get());
   MessageLoopForIO::current()->RunAllPending();
   EXPECT_FALSE(callback_s4.have_result());
   s1->DetachDelegate();
+  // Address | head -> tail
+  // 1.2.3.4 |    w2    w4
+  // 1.2.3.5 |       w3
+  // 1.2.3.6 |          w4 w5 w6
 
-  throttle->OnClose(s2.get());
+  // w5 can close while waiting in queue.
+  DLOG(INFO) << "socket5 close";
+  // w5 close() closes SocketStream that change state to STATE_CLOSE, calls
+  // DoLoop(), so OnClose() callback will be called.
+  w5->OnClose(s5.get());
+  MessageLoopForIO::current()->RunAllPending();
+  EXPECT_FALSE(callback_s4.have_result());
+  // Address | head -> tail
+  // 1.2.3.4 |    w2    w4
+  // 1.2.3.5 |       w3
+  // 1.2.3.6 |          w4 w6
+  s5->DetachDelegate();
+
+  // w6 close abnormally (e.g. renderer finishes) while waiting in queue.
+  DLOG(INFO) << "socket6 close abnormally";
+  w6->DetachDelegate();
+  MessageLoopForIO::current()->RunAllPending();
+  EXPECT_FALSE(callback_s4.have_result());
+  // Address | head -> tail
+  // 1.2.3.4 |    w2    w4
+  // 1.2.3.5 |       w3
+  // 1.2.3.6 |          w4
+
+  // Closing s2 kicks w4 to start connecting.
+  DLOG(INFO) << "socket2 close";
+  w2->OnClose(s2.get());
   MessageLoopForIO::current()->RunAllPending();
   EXPECT_TRUE(callback_s4.have_result());
+  // Address | head -> tail
+  // 1.2.3.4 |          w4
+  // 1.2.3.5 |       w3
+  // 1.2.3.6 |          w4
   s2->DetachDelegate();
 
-  throttle->OnClose(s3.get());
+  DLOG(INFO) << "socket3 close";
+  w3->OnClose(s3.get());
   MessageLoopForIO::current()->RunAllPending();
   s3->DetachDelegate();
-  throttle->OnClose(s4.get());
+  w4->OnClose(s4.get());
   s4->DetachDelegate();
+  DLOG(INFO) << "Done";
 }
 
 }

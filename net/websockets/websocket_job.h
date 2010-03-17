@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/ref_counted.h"
+#include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
 
@@ -18,10 +19,9 @@ namespace net {
 
 // WebSocket protocol specific job on SocketStream.
 // It captures WebSocket handshake message and handles cookie operations.
-// Chome security policy doesn't allow renderer process (except dev tools)
+// Chrome security policy doesn't allow renderer process (except dev tools)
 // see HttpOnly cookies, so it injects cookie header in handshake request and
 // strips set-cookie headers in handshake response.
-// TODO(ukai): refactor to merge WebSocketThrottle functionality.
 // TODO(ukai): refactor websocket.cc to use this.
 class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
  public:
@@ -36,6 +36,7 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
 
   explicit WebSocketJob(SocketStream::Delegate* delegate);
 
+  State state() const { return state_; }
   virtual void Connect();
   virtual bool SendData(const char* data, int len);
   virtual void Close();
@@ -45,6 +46,8 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
   virtual void DetachDelegate();
 
   // SocketStream::Delegate methods.
+  virtual int OnStartOpenConnection(
+      SocketStream* socket, CompletionCallback* callback);
   virtual void OnConnected(
       SocketStream* socket, int max_pending_send_allowed);
   virtual void OnSentData(
@@ -58,6 +61,7 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
       const SocketStream* socket, int error);
 
  private:
+  friend class WebSocketThrottle;
   friend class WebSocketJobTest;
   virtual ~WebSocketJob();
 
@@ -74,8 +78,16 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
 
   GURL GetURLForCookies() const;
 
+  const AddressList& address_list() const;
+  void SetWaiting();
+  bool IsWaiting() const;
+  void Wakeup();
+
   SocketStream::Delegate* delegate_;
   State state_;
+  bool waiting_;
+  AddressList addresses_;
+  CompletionCallback* callback_;  // for throttling.
 
   std::string original_handshake_request_;
   int original_handshake_request_header_length_;
