@@ -53,6 +53,9 @@
       case net::MEDIA_CACHE:\
         UMA_HISTOGRAM_##type(my_name.data(), sample);\
         break;\
+      case net::APP_CACHE:\
+        UMA_HISTOGRAM_##type(my_name.data(), sample);\
+        break;\
       default:\
         NOTREACHED();\
         break;\
