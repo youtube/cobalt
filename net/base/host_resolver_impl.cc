@@ -435,9 +435,9 @@ class HostResolverImpl::IPv6ProbeJob
 
   void Start() {
     DCHECK(IsOnOriginThread());
-    const bool IS_SLOW = true;
+    const bool kIsSlow = true;
     WorkerPool::PostTask(
-        FROM_HERE, NewRunnableMethod(this, &IPv6ProbeJob::DoProbe), IS_SLOW);
+        FROM_HERE, NewRunnableMethod(this, &IPv6ProbeJob::DoProbe), kIsSlow);
   }
 
   // Cancels the current job.
@@ -1095,11 +1095,12 @@ void HostResolverImpl::IPv6ProbeSetDefaultAddressFamily(
     AddressFamily address_family) {
   DCHECK(address_family == ADDRESS_FAMILY_UNSPECIFIED ||
          address_family == ADDRESS_FAMILY_IPV4);
-  if (default_address_family_ != address_family)
-      LOG(INFO) << "IPv6Probe forced AddressFamily setting to "
-                << ((address_family == ADDRESS_FAMILY_UNSPECIFIED)
-                        ? "ADDRESS_FAMILY_UNSPECIFIED"
-                        : "ADDRESS_FAMILY_IPV4");
+  if (default_address_family_ != address_family) {
+    LOG(INFO) << "IPv6Probe forced AddressFamily setting to "
+              << ((address_family == ADDRESS_FAMILY_UNSPECIFIED)
+                  ? "ADDRESS_FAMILY_UNSPECIFIED"
+                  : "ADDRESS_FAMILY_IPV4");
+  }
   default_address_family_ = address_family;
   // Drop reference since the job has called us back.
   DiscardIPv6ProbeJob();
