@@ -1606,7 +1606,7 @@ bool IPv6Supported() {
       continue;
     // Safe cast since this is AF_INET6.
     struct sockaddr_in6* addr_in6 =
-      reinterpret_cast<struct sockaddr_in6*>(addr);
+        reinterpret_cast<struct sockaddr_in6*>(addr);
     struct in6_addr* sin6_addr = &addr_in6->sin6_addr;
     if (IN6_IS_ADDR_LOOPBACK(sin6_addr) || IN6_IS_ADDR_LINKLOCAL(sin6_addr))
       continue;
