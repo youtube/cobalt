@@ -32,8 +32,6 @@
         'base/cert_database_win.cc',
         'base/cert_status_flags.cc',
         'base/cert_status_flags.h',
-        'base/cert_test_util.cc',
-        'base/cert_test_util.h',
         'base/cert_verifier.cc',
         'base/cert_verifier.h',
         'base/cert_verify_result.h',
@@ -435,8 +433,6 @@
         'socket/ssl_client_socket_nss.h',
         'socket/ssl_client_socket_win.cc',
         'socket/ssl_client_socket_win.h',
-        'socket/ssl_test_util.cc',
-        'socket/ssl_test_util.h',
         'socket/tcp_client_socket.h',
         'socket/tcp_client_socket_libevent.cc',
         'socket/tcp_client_socket_libevent.h',
@@ -812,12 +808,23 @@
         '../testing/gtest.gyp:gtest',
       ],
       'sources': [
+        'base/cert_test_util.cc',
+        'base/cert_test_util.h',
         'disk_cache/disk_cache_test_util.cc',
         'disk_cache/disk_cache_test_util.h',
         'proxy/proxy_config_service_common_unittest.cc',
         'proxy/proxy_config_service_common_unittest.h',
         'socket/socket_test_util.cc',
         'socket/socket_test_util.h',
+        'socket/ssl_test_util.cc',
+        'socket/ssl_test_util.h',
+      ],
+      'conditions': [
+        ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+          'dependencies': [
+            '../build/linux/system.gyp:nss',
+          ],
+        }],
       ],
     },
     {
