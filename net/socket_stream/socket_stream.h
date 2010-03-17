@@ -18,6 +18,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_auth_handler.h"
@@ -34,7 +35,6 @@ class HttpAuthHandlerFactory;
 class SSLConfigService;
 class SingleRequestHostResolver;
 class SocketStreamMetrics;
-class SocketStreamThrottle;
 
 // SocketStream is used to implement Web Sockets.
 // It provides plain full-duplex stream with proxy and SSL support.
@@ -56,6 +56,11 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   class Delegate {
    public:
     virtual ~Delegate() {}
+
+    virtual int OnStartOpenConnection(SocketStream* socket,
+                                      CompletionCallback* callback) {
+      return OK;
+    }
 
     // Called when socket stream has been connected.  The socket stream accepts
     // at most |max_pending_send_allowed| so that a client of the socket stream
@@ -312,8 +317,6 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   int write_buf_offset_;
   int write_buf_size_;
   PendingDataQueue pending_write_bufs_;
-
-  SocketStreamThrottle* throttle_;
 
   scoped_ptr<SocketStreamMetrics> metrics_;
 
