@@ -94,6 +94,8 @@
         'pickle_unittest.cc',
         'pr_time_unittest.cc',
         'process_util_unittest.cc',
+        'process_util_unittest_mac.h',
+        'process_util_unittest_mac.mm',
         'rand_util_unittest.cc',
         'ref_counted_unittest.cc',
         'scoped_bstr_win_unittest.cc',
