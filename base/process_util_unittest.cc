@@ -29,9 +29,6 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #endif
-#if defined(OS_MACOSX)
-#include "base/process_util_unittest_mac.h"
-#endif
 
 namespace base {
 
@@ -509,8 +506,8 @@ TEST_F(ProcessUtilTest, ParseProcStatCPU) {
 
 #endif  // defined(OS_POSIX)
 
-// TODO(vandebo) make this work on Windows too.
-#if !defined(OS_WIN)
+// TODO(vandebo) make this work on Windows and Mac too.
+#if defined(OS_LINUX)
 
 #if defined(USE_TCMALLOC)
 extern "C" {
@@ -524,8 +521,7 @@ class OutOfMemoryTest : public testing::Test {
       : value_(NULL),
         // Make test size as large as possible minus a few pages so
         // that alignment or other rounding doesn't make it wrap.
-        test_size_(std::numeric_limits<std::size_t>::max() - 12 * 1024),
-        signed_test_size_(std::numeric_limits<ssize_t>::max()) {
+        test_size_(std::numeric_limits<std::size_t>::max() - 8192) {
   }
 
   virtual void SetUp() {
@@ -543,14 +539,9 @@ class OutOfMemoryTest : public testing::Test {
 
   void* value_;
   size_t test_size_;
-  ssize_t signed_test_size_;
 };
 
 TEST_F(OutOfMemoryTest, New) {
-  ASSERT_DEATH(value_ = operator new(test_size_), "");
-}
-
-TEST_F(OutOfMemoryTest, NewArray) {
   ASSERT_DEATH(value_ = new char[test_size_], "");
 }
 
@@ -570,7 +561,6 @@ TEST_F(OutOfMemoryTest, Valloc) {
   ASSERT_DEATH(value_ = valloc(test_size_), "");
 }
 
-#if defined(OS_LINUX)
 TEST_F(OutOfMemoryTest, Pvalloc) {
   ASSERT_DEATH(value_ = pvalloc(test_size_), "");
 }
@@ -595,35 +585,7 @@ TEST_F(OutOfMemoryTest, Posix_memalign) {
   // value, since we're asserting death.
   ASSERT_DEATH(EXPECT_EQ(ENOMEM, posix_memalign(&value_, 8, test_size_)), "");
 }
-#endif  // OS_LINUX
 
-#if defined(OS_MACOSX)
-
-// Since these allocation functions take a signed size, it's possible that
-// calling them just once won't be enough to exhaust memory.
-
-TEST_F(OutOfMemoryTest, CFAllocatorSystemDefault) {
-  ASSERT_DEATH(while ((value_ =
-      AllocateViaCFAllocatorSystemDefault(signed_test_size_))) {}, "");
-}
-
-TEST_F(OutOfMemoryTest, CFAllocatorMalloc) {
-  ASSERT_DEATH(while ((value_ =
-      AllocateViaCFAllocatorMalloc(signed_test_size_))) {}, "");
-}
-
-TEST_F(OutOfMemoryTest, CFAllocatorMallocZone) {
-  ASSERT_DEATH(while ((value_ =
-      AllocateViaCFAllocatorMallocZone(signed_test_size_))) {}, "");
-}
-
-TEST_F(OutOfMemoryTest, PsychoticallyBigObjCObject) {
-  ASSERT_DEATH(while ((value_ =
-      AllocatePsychoticallyBigObjCObject())) {}, "");
-}
-
-#endif  // OS_MACOSX
-
-#endif  // !defined(OS_WIN)
+#endif  // defined(OS_LINUX)
 
 }  // namespace base
