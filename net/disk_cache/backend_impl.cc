@@ -173,6 +173,16 @@ Backend* CreateCacheBackend(const FilePath& full_path, bool force,
   return BackendImpl::CreateBackend(full_path, force, max_bytes, type, kNone);
 }
 
+int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
+                       bool force, Backend** backend,
+                       CompletionCallback* callback) {
+  if (type == net::MEMORY_CACHE)
+    *backend = CreateInMemoryCacheBackend(max_bytes);
+  else
+    *backend = BackendImpl::CreateBackend(path, force, max_bytes, type, kNone);
+  return *backend ? net::OK : net::ERR_FAILED;
+}
+
 int PreferedCacheSize(int64 available) {
   // If there is not enough space to use kDefaultCacheSize, use 80% of the
   // available space.
