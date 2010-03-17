@@ -11,14 +11,12 @@
 #include <mach/mach_init.h>
 #include <mach/task.h>
 #include <malloc/malloc.h>
-#import <objc/runtime.h>
 #include <spawn.h>
 #include <sys/mman.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <new>
 #include <string>
 
 #include "base/debug_util.h"
@@ -357,10 +355,6 @@ size_t GetSystemCommitCharge() {
 
 namespace {
 
-bool g_oom_killer_enabled;
-
-// === C malloc/calloc/valloc/realloc ===
-
 typedef void* (*malloc_type)(struct _malloc_zone_t* zone,
                              size_t size);
 typedef void* (*calloc_type)(struct _malloc_zone_t* zone,
@@ -411,94 +405,25 @@ void* oom_killer_realloc(struct _malloc_zone_t* zone,
   return result;
 }
 
-// === C++ operator new ===
-
-void oom_killer_new() {
-  DebugUtil::BreakDebugger();
-}
-
-// === Core Foundation CFAllocators ===
-
-// This is the real structure of a CFAllocatorRef behind the scenes. See
-// http://opensource.apple.com/source/CF/CF-550/CFBase.c for details.
-struct ChromeCFAllocator {
-  _malloc_zone_t fake_malloc_zone;
-  void* allocator;
-  CFAllocatorContext context;
-};
-typedef ChromeCFAllocator* ChromeCFAllocatorRef;
-
-CFAllocatorAllocateCallBack g_old_cfallocator_system_default;
-CFAllocatorAllocateCallBack g_old_cfallocator_malloc;
-CFAllocatorAllocateCallBack g_old_cfallocator_malloc_zone;
-
-void* oom_killer_cfallocator_system_default(CFIndex alloc_size,
-                                            CFOptionFlags hint,
-                                            void* info) {
-  void* result = g_old_cfallocator_system_default(alloc_size, hint, info);
-  if (!result)
-    DebugUtil::BreakDebugger();
-  return result;
-}
-
-void* oom_killer_cfallocator_malloc(CFIndex alloc_size,
-                                    CFOptionFlags hint,
-                                    void* info) {
-  void* result = g_old_cfallocator_malloc(alloc_size, hint, info);
-  if (!result)
-    DebugUtil::BreakDebugger();
-  return result;
-}
-
-void* oom_killer_cfallocator_malloc_zone(CFIndex alloc_size,
-                                         CFOptionFlags hint,
-                                         void* info) {
-  void* result = g_old_cfallocator_malloc_zone(alloc_size, hint, info);
-  if (!result)
-    DebugUtil::BreakDebugger();
-  return result;
-}
-
 }  // namespace
 
-}  // namespace base
-
-// === Cocoa NSObject allocation ===
-
-@interface NSObject (ChromeOOMKiller)
-+ (id)OOMKiller_allocWithZone:(NSZone *)zone;
-@end
-
-@implementation NSObject (ChromeOOMKiller)
-
-+ (id)OOMKiller_allocWithZone:(NSZone *)zone {
-  id result = [self OOMKiller_allocWithZone:zone];
-  if (!result)
-    DebugUtil::BreakDebugger();
-  return result;
-}
-
-@end
-
-namespace base {
-
 void EnableTerminationOnOutOfMemory() {
-  if (g_oom_killer_enabled)
-    return;
+  CHECK(!g_old_malloc && !g_old_calloc && !g_old_valloc && !g_old_realloc)
+      << "EnableTerminationOnOutOfMemory() called twice!";
 
-  g_oom_killer_enabled = true;
-
-  // === C malloc/calloc/valloc/realloc ===
-
-  // This approach is not perfect, as requests for amounts of memory larger than
-  // MALLOC_ABSOLUTE_MAX_SIZE (currently SIZE_T_MAX - (2 * PAGE_SIZE)) will
-  // still fail with a NULL rather than dying (see
-  // http://opensource.apple.com/source/Libc/Libc-583/gen/malloc.c for details).
-  // Unfortunately, it's the best we can do. Also note that this does not affect
-  // allocations from non-default zones.
-
-  DCHECK(!g_old_malloc && !g_old_calloc && !g_old_valloc && !g_old_realloc)
-      << "Old allocators unexpectedly non-null";
+  // This approach is sub-optimal:
+  // - Requests for amounts of memory larger than MALLOC_ABSOLUTE_MAX_SIZE
+  //   (currently SIZE_T_MAX - (2 * PAGE_SIZE)) will still fail with a NULL
+  //   rather than dying (see
+  //   http://opensource.apple.com/source/Libc/Libc-583/gen/malloc.c for
+  //   details).
+  // - It is unclear whether allocations via the C++ operator new() are affected
+  //   by this (although it is likely).
+  // - This does not affect allocations from non-default zones.
+  // - It is unclear whether allocations from CoreFoundation's
+  //   kCFAllocatorDefault or +[NSObject alloc] are affected by this.
+  // Nevertheless this is better than nothing for now.
+  // TODO(avi):Do better. http://crbug.com/12673
 
   int32 major;
   int32 minor;
@@ -534,51 +459,6 @@ void EnableTerminationOnOutOfMemory() {
   if (zone_allocators_protected) {
     mprotect(reinterpret_cast<void*>(page_start), len, PROT_READ);
   }
-
-  // === C++ operator new ===
-
-  // Yes, operator new does call through to malloc, but this will catch failures
-  // that our imperfect handling of malloc cannot.
-
-  std::set_new_handler(oom_killer_new);
-
-  // === Core Foundation CFAllocators ===
-
-  // This will not catch allocation done by custom allocators, but will catch
-  // all allocation done by system-provided ones.
-
-  DCHECK(!g_old_cfallocator_system_default && !g_old_cfallocator_malloc &&
-        !g_old_cfallocator_malloc_zone)
-      << "Old allocators unexpectedly non-null";
-
-  ChromeCFAllocatorRef allocator = const_cast<ChromeCFAllocatorRef>(
-      reinterpret_cast<const ChromeCFAllocator*>(kCFAllocatorSystemDefault));
-  g_old_cfallocator_system_default = allocator->context.allocate;
-  allocator->context.allocate = oom_killer_cfallocator_system_default;
-
-  allocator = const_cast<ChromeCFAllocatorRef>(
-      reinterpret_cast<const ChromeCFAllocator*>(kCFAllocatorMalloc));
-  g_old_cfallocator_malloc = allocator->context.allocate;
-  allocator->context.allocate = oom_killer_cfallocator_malloc;
-
-  allocator = const_cast<ChromeCFAllocatorRef>(
-      reinterpret_cast<const ChromeCFAllocator*>(kCFAllocatorMallocZone));
-  g_old_cfallocator_malloc_zone = allocator->context.allocate;
-  allocator->context.allocate = oom_killer_cfallocator_malloc_zone;
-
-  // === Cocoa NSObject allocation ===
-
-  // Note that both +[NSObject new] and +[NSObject alloc] call through to
-  // +[NSObject allocWithZone:].
-
-  Class nsobject_class = [NSObject class];
-  Method m1 = class_getClassMethod(nsobject_class,
-                                   @selector(allocWithZone:));
-  CHECK(m1);
-  Method m2 = class_getClassMethod(nsobject_class,
-                                   @selector(OOMKiller_allocWithZone:));
-  CHECK(m2);
-  method_exchangeImplementations(m1, m2);
 }
 
 }  // namespace base
