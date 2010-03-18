@@ -1,9 +1,10 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/disk_cache/disk_cache_test_base.h"
 
+#include "net/base/test_completion_callback.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache_test_util.h"
 #include "net/disk_cache/mem_backend_impl.h"
@@ -110,4 +111,50 @@ void DiskCacheTestWithCache::SimulateCrash() {
 void DiskCacheTestWithCache::SetTestMode() {
   ASSERT_TRUE(implementation_ && !memory_only_);
   cache_impl_->SetUnitTestMode();
+}
+
+int DiskCacheTestWithCache::OpenEntry(const std::string& key,
+                                      disk_cache::Entry** entry) {
+  TestCompletionCallback cb;
+  int rv = cache_->OpenEntry(key, entry, &cb);
+  return cb.GetResult(rv);
+}
+
+int DiskCacheTestWithCache::CreateEntry(const std::string& key,
+                                        disk_cache::Entry** entry) {
+  TestCompletionCallback cb;
+  int rv = cache_->CreateEntry(key, entry, &cb);
+  return cb.GetResult(rv);
+}
+
+int DiskCacheTestWithCache::DoomEntry(const std::string& key) {
+  TestCompletionCallback cb;
+  int rv = cache_->DoomEntry(key, &cb);
+  return cb.GetResult(rv);
+}
+
+int DiskCacheTestWithCache::DoomAllEntries() {
+  TestCompletionCallback cb;
+  int rv = cache_->DoomAllEntries(&cb);
+  return cb.GetResult(rv);
+}
+
+int DiskCacheTestWithCache::DoomEntriesBetween(const base::Time initial_time,
+                                               const base::Time end_time) {
+  TestCompletionCallback cb;
+  int rv = cache_->DoomEntriesBetween(initial_time, end_time, &cb);
+  return cb.GetResult(rv);
+}
+
+int DiskCacheTestWithCache::DoomEntriesSince(const base::Time initial_time) {
+  TestCompletionCallback cb;
+  int rv = cache_->DoomEntriesSince(initial_time, &cb);
+  return cb.GetResult(rv);
+}
+
+int DiskCacheTestWithCache::OpenNextEntry(void** iter,
+                                          disk_cache::Entry** next_entry) {
+  TestCompletionCallback cb;
+  int rv = cache_->OpenNextEntry(iter, next_entry, &cb);
+  return cb.GetResult(rv);
 }
