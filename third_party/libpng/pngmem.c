@@ -1,11 +1,14 @@
 
 /* pngmem.c - stub functions for memory allocation
  *
- * Last changed in libpng 1.2.37 [June 4, 2009]
- * For conditions of distribution and use, see copyright notice in png.h
- * Copyright (c) 1998-2009 Glenn Randers-Pehrson
+ * Last changed in libpng 1.2.41 [February 25, 2010]
+ * Copyright (c) 1998-2010 Glenn Randers-Pehrson
  * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
  * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
+ *
+ * This code is released under the libpng license.
+ * For conditions of distribution and use, see the disclaimer
+ * and license in png.h
  *
  * This file provides a location for all memory allocation.  Users who
  * need special memory handling are expected to supply replacement
@@ -15,6 +18,7 @@
  */
 
 #define PNG_INTERNAL
+#define PNG_NO_PEDANTIC_WARNINGS
 #include "png.h"
 #if defined(PNG_READ_SUPPORTED) || defined(PNG_WRITE_SUPPORTED)
 
@@ -111,6 +115,16 @@ png_destroy_struct_2(png_voidp struct_ptr, png_free_ptr free_fn,
  * result, we would be truncating potentially larger memory requests
  * (which should cause a fatal error) and introducing major problems.
  */
+png_voidp /* PRIVATE */
+png_calloc(png_structp png_ptr, png_uint_32 size)
+{
+   png_voidp ret;
+
+   ret = (png_malloc(png_ptr, size));
+   if (ret != NULL)
+      png_memset(ret,0,(png_size_t)size);
+   return (ret);
+}
 
 png_voidp PNGAPI
 png_malloc(png_structp png_ptr, png_uint_32 size)
@@ -187,7 +201,7 @@ png_malloc_default(png_structp png_ptr, png_uint_32 size)
             {
 #ifndef PNG_USER_MEM_SUPPORTED
                if ((png_ptr->flags&PNG_FLAG_MALLOC_NULL_MEM_OK) == 0)
-                  png_error(png_ptr, "Out Of Memory."); /* Note "O" and "M" */
+                  png_error(png_ptr, "Out Of Memory."); /* Note "O", "M" */
                else
                   png_warning(png_ptr, "Out Of Memory.");
 #endif
@@ -215,7 +229,7 @@ png_malloc_default(png_structp png_ptr, png_uint_32 size)
             {
 #ifndef PNG_USER_MEM_SUPPORTED
                if ((png_ptr->flags&PNG_FLAG_MALLOC_NULL_MEM_OK) == 0)
-                  png_error(png_ptr, "Out Of memory."); /* Note "O" and "M" */
+                  png_error(png_ptr, "Out Of memory."); /* Note "O", "m" */
                else
                   png_warning(png_ptr, "Out Of memory.");
 #endif
@@ -428,6 +442,16 @@ png_destroy_struct_2(png_voidp struct_ptr, png_free_ptr free_fn,
  * have the ability to do that.
  */
 
+png_voidp PNGAPI
+png_calloc(png_structp png_ptr, png_uint_32 size)
+{
+   png_voidp ret;
+
+   ret = (png_malloc(png_ptr, size));
+   if (ret != NULL)
+      png_memset(ret,0,(png_size_t)size);
+   return (ret);
+}
 
 png_voidp PNGAPI
 png_malloc(png_structp png_ptr, png_uint_32 size)
@@ -535,7 +559,7 @@ png_free_default(png_structp png_ptr, png_voidp ptr)
 
 #endif /* Not Borland DOS special memory handler */
 
-#if defined(PNG_1_0_X)
+#ifdef PNG_1_0_X
 #  define png_malloc_warn png_malloc
 #else
 /* This function was added at libpng version 1.2.3.  The png_malloc_warn()
