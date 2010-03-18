@@ -218,6 +218,7 @@ static const char* const supported_media_codecs[] = {
 
 // Note: does not include javascript types list (see supported_javascript_types)
 static const char* const supported_non_image_types[] = {
+  "text/cache-manifest",
   "text/html",
   "text/xml",
   "text/xsl",
