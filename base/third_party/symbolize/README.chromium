@@ -1,5 +1,5 @@
-The directory contains google-glog's symbolization library.
-License can be found in symbolize.cc.
+Name: google-glog's symbolization library
+URL: http://code.google.com/p/google-glog/
 
 The following files are copied AS-IS from:
 http://code.google.com/p/google-glog/source/browse/#svn/trunk/src (r76)
