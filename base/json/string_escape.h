@@ -13,7 +13,7 @@
 
 namespace base {
 
-// Escape |str| appropriately for a JSON string litereal, _appending_ the
+// Escape |str| appropriately for a JSON string literal, _appending_ the
 // result to |dst|. This will create unicode escape sequences (\uXXXX).
 // If |put_in_quotes| is true, the result will be surrounded in double quotes.
 // The outputted literal, when interpreted by the browser, should result in a
@@ -22,10 +22,15 @@ void JsonDoubleQuote(const std::string& str,
                      bool put_in_quotes,
                      std::string* dst);
 
+// Same as above, but always returns the result double quoted.
+std::string GetDoubleQuotedJson(const std::string& str);
+
 void JsonDoubleQuote(const string16& str,
                      bool put_in_quotes,
                      std::string* dst);
 
+// Same as above, but always returns the result double quoted.
+std::string GetDoubleQuotedJson(const string16& str);
 
 }  // namespace base
 
