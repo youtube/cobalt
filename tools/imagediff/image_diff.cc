@@ -13,7 +13,6 @@
 #include <string>
 #include <iostream>
 
-#include "app/gfx/codec/png_codec.h"
 #include "base/basictypes.h"
 #include "base/command_line.h"
 #include "base/file_util.h"
@@ -21,6 +20,7 @@
 #include "base/process_util.h"
 #include "base/scoped_ptr.h"
 #include "base/utf_string_conversions.h"
+#include "gfx/codec/png_codec.h"
 
 #if defined(OS_WIN)
 #include "windows.h"
