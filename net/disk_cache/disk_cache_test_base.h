@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 #define NET_DISK_CACHE_DISK_CACHE_TEST_BASE_H_
 
 #include "base/basictypes.h"
+#include "base/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -15,6 +16,7 @@ namespace disk_cache {
 
 class Backend;
 class BackendImpl;
+class Entry;
 class MemBackendImpl;
 
 }  // namespace disk_cache
@@ -71,6 +73,16 @@ class DiskCacheTestWithCache : public DiskCacheTest {
   void DisableIntegrityCheck() {
     integrity_ = false;
   }
+
+  // Utility methods to access the cache and wait for each operation to finish.
+  int OpenEntry(const std::string& key, disk_cache::Entry** entry);
+  int CreateEntry(const std::string& key, disk_cache::Entry** entry);
+  int DoomEntry(const std::string& key);
+  int DoomAllEntries();
+  int DoomEntriesBetween(const base::Time initial_time,
+                         const base::Time end_time);
+  int DoomEntriesSince(const base::Time initial_time);
+  int OpenNextEntry(void** iter, disk_cache::Entry** next_entry);
 
   // cache_ will always have a valid object, regardless of how the cache was
   // initialized. The implementation pointers can be NULL.
