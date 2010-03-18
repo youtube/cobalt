@@ -89,7 +89,7 @@ void SocketStream::set_context(URLRequestContext* context) {
   context_ = context;
 
   if (prev_context != context) {
-    net_log_.AddEvent(NetLog::TYPE_REQUEST_ALIVE);
+    net_log_.EndEvent(NetLog::TYPE_REQUEST_ALIVE);
     net_log_ = BoundNetLog();
 
     if (context) {
