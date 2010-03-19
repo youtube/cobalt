@@ -101,7 +101,7 @@ void StackDumpSignalHandler(int signal) {
   _exit(1);
 }
 
-}  // namespace
+}  // anonymous namespace
 
 ProcessId GetCurrentProcId() {
   return getpid();
