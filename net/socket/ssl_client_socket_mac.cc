@@ -512,6 +512,7 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocket* transport_socket,
       next_handshake_state_(STATE_NONE),
       completed_handshake_(false),
       handshake_interrupted_(false),
+      client_cert_requested_(false),
       ssl_context_(NULL),
       pending_send_error_(OK) {
 }
@@ -678,6 +679,34 @@ SSLClientSocketMac::GetNextProto(std::string* proto) {
   return kNextProtoUnsupported;
 }
 
+OSStatus SSLClientSocketMac::EnableBreakOnAuth(bool enabled) {
+  // SSLSetSessionOption() was introduced in Mac OS X 10.5.7. It allows us
+  // to perform certificate validation during the handshake, which is
+  // required in order to properly enable session resumption.
+  //
+  // With the kSSLSessionOptionBreakOnServerAuth option set, SSLHandshake()
+  // will return errSSLServerAuthCompleted after receiving the server's
+  // Certificate during the handshake. That gives us an opportunity to verify
+  // the server certificate and then re-enter that handshake (assuming the
+  // certificate successfully validated).
+  // If the server also requests a client cert, SSLHandshake() will return
+  // errSSLClientCertRequested in addition to (or in some cases *instead of*)
+  // errSSLServerAuthCompleted.
+  static SSLSetSessionOptionFuncPtr ssl_set_session_options =
+      LookupFunction<SSLSetSessionOptionFuncPtr>(CFSTR("com.apple.security"),
+                                                 CFSTR("SSLSetSessionOption"));
+  if (!ssl_set_session_options)
+    return unimpErr;  // Return this if the API isn't available
+  OSStatus err = ssl_set_session_options(ssl_context_,
+                                         kSSLSessionOptionBreakOnServerAuth,
+                                         enabled);
+  if (err)
+    return err;
+  return ssl_set_session_options(ssl_context_,
+                                 kSSLSessionOptionBreakOnCertRequested,
+                                 enabled);
+}
+
 int SSLClientSocketMac::InitializeSSLContext() {
   SSL_LOG << "----- InitializeSSLContext";
   OSStatus status = noErr;
@@ -732,39 +761,15 @@ int SSLClientSocketMac::InitializeSSLContext() {
   if (status)
     return NetErrorFromOSStatus(status);
 
-  // SSLSetSessionOption() was introduced in Mac OS X 10.5.7. It allows us
-  // to perform certificate validation during the handshake, which is
-  // required in order to properly enable session resumption.
-  //
-  // With the kSSLSessionOptionBreakOnServerAuth option set, SSLHandshake()
-  // will return errSSLServerAuthCompleted after receiving the server's
-  // Certificate during the handshake. That gives us an opportunity to verify
-  // the server certificate and then re-enter that handshake (assuming the
-  // certificate successfully validated).
-  //
-  // If SSLSetSessionOption() is not present, we do not enable session
+  // If break-on-auth is not available, we do not enable session
   // resumption, because in that case we are verifying the server's certificate
   // after the handshake completes (but before any application data is
   // exchanged). If we were to enable session resumption in this situation,
   // the session would be cached before we verified the certificate, leaving
   // the potential for a session in which the certificate failed to validate
   // to still be able to be resumed.
-  static SSLSetSessionOptionFuncPtr ssl_set_session_options =
-      LookupFunction<SSLSetSessionOptionFuncPtr>(CFSTR("com.apple.security"),
-                                                 CFSTR("SSLSetSessionOption"));
-  if (ssl_set_session_options && !ssl_config_.send_client_cert) {
-    status = ssl_set_session_options(ssl_context_,
-                                     kSSLSessionOptionBreakOnServerAuth,
-                                     true);
-    if (!status) {
-      SSL_LOG << "Setting kSSLSessionOptionBreakOnCertRequested";
-      status = ssl_set_session_options(ssl_context_,
-                                       kSSLSessionOptionBreakOnCertRequested,
-                                       true);
-    }
-    if (status)
-      return NetErrorFromOSStatus(status);
-
+  status = EnableBreakOnAuth(true);
+  if (status == noErr) {
     // Concatenate the hostname and peer address to use as the peer ID. To
     // resume a session, we must connect to the same server on the same port
     // using the same hostname (i.e., localhost and 127.0.0.1 are considered
@@ -784,13 +789,8 @@ int SSLClientSocketMac::InitializeSSLContext() {
     status = SSLSetPeerID(ssl_context_, peer_id.data(), peer_id.length());
     if (status)
       return NetErrorFromOSStatus(status);
-  } else if (ssl_config_.send_client_cert) {
-    // If I have a cert, set it up-front, otherwise the server may try to get
-    // it later by renegotiating, which SecureTransport doesn't support well.
-    SSL_LOG << "Setting client cert in advance because send_client_cert is set";
-    status = SetClientCert();
-    if (status)
-      return NetErrorFromOSStatus(status);
+  } else if (status != unimpErr) {  // it's OK if the API isn't available
+    return NetErrorFromOSStatus(status);
   }
 
   return OK;
@@ -935,7 +935,9 @@ int SSLClientSocketMac::DoHandshakeStart() {
       // by the user, EV, etc.) available. Eliminate this step once we have
       // a certificate validation result cache. (Also applies to the
       // errSSLServerAuthCompleted case below.)
+      SSL_LOG << "Handshake completed (DoHandshakeStart), next verify cert";
       next_handshake_state_ = STATE_VERIFY_CERT;
+      HandshakeFinished();
       break;
 
     case errSSLServerAuthCompleted:
@@ -950,18 +952,15 @@ int SSLClientSocketMac::DoHandshakeStart() {
 
     case errSSLClientCertRequested:
       SSL_LOG << "Received client cert request in DoHandshakeStart";
-      // For some reason it's possible for SSLHandshake to return this code
-      // without earlier having returned errSSLServerAuthCompleted.
-      // Currently this isn't an issue for us because we always respond by
-      // aborting the connection; but if we did decide to continue we should
-      // first go to STATE_VERIFY_CERT and not send the client cert until that
-      // succeeded. --snej
-
-      // If we knew the client cert, we would have set it already in
-      // InitializeSSLContext, instead of asking for this callback.
-      // So tell the caller that we need a client cert.
-      DCHECK(!ssl_config_.send_client_cert);
-      return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+      // If we get this instead of errSSLServerAuthCompleted, the latter is
+      // implicit, and we should begin verification as well.
+      next_handshake_state_ = STATE_VERIFY_CERT;
+      handshake_interrupted_ = true;
+      status = noErr;
+      // We don't want to send a client cert now, because we haven't
+      // verified the server's cert yet. Remember it for later.
+      client_cert_requested_ = true;
+      break;
 
     case errSSLClosedGraceful:
       // The server unexpectedly closed on us.
@@ -1003,6 +1002,18 @@ int SSLClientSocketMac::DoVerifyCertComplete(int result) {
   if (IsCertificateError(result) && ssl_config_.IsAllowedBadCert(server_cert_))
     result = OK;
 
+  if (result == OK && client_cert_requested_) {
+    // It is now safe to send the server the client cert it asked for.
+    if (!ssl_config_.send_client_cert) {
+      // Caller hasn't specified a client cert, so let it know the server's
+      // asking for one, and abort the connection.
+      return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+    }
+    OSStatus status = SetClientCert();
+    if (status != noErr)
+      return NetErrorFromOSStatus(status);
+  }
+
   if (handshake_interrupted_) {
     // With session resumption enabled the full handshake (i.e., the handshake
     // in a non-resumed session) occurs in two steps. Continue on to the second
@@ -1042,11 +1053,12 @@ int SSLClientSocketMac::DoHandshakeFinish() {
       break;
     case errSSLClientCertRequested:
       SSL_LOG << "Server requested client cert (DoHandshakeFinish)";
-      // If we knew the client cert, we would have set it already in
-      // InitializeSSLContext, instead of asking for this callback.
-      // So tell the caller that we need a client cert.
-      DCHECK(!ssl_config_.send_client_cert);
-      return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+      if (!ssl_config_.send_client_cert)
+        return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
+      status = SetClientCert();
+      if (status == noErr)
+        next_handshake_state_ = STATE_HANDSHAKE_FINISH;
+      break;
     case errSSLClosedGraceful:
       return ERR_SSL_PROTOCOL_ERROR;
     case errSSLClosedAbort:
@@ -1068,6 +1080,7 @@ int SSLClientSocketMac::DoHandshakeFinish() {
     }
     case noErr:
       SSL_LOG << "Handshake finished! (DoHandshakeFinish)";
+      HandshakeFinished();
       completed_handshake_ = true;
       DCHECK(next_handshake_state_ == STATE_NONE);
       break;
@@ -1076,6 +1089,15 @@ int SSLClientSocketMac::DoHandshakeFinish() {
   }
 
   return NetErrorFromOSStatus(status);
+}
+
+void SSLClientSocketMac::HandshakeFinished() {
+  // After the handshake's finished, disable breaking on server or client
+  // auth. Otherwise it might be triggered during a subsequent renegotiation,
+  // and SecureTransport doesn't handle that very well (there's usually no way
+  // to proceed without aborting the connection, at least not on 10.5.)
+  SSL_LOG << "HandshakeFinished()";
+  EnableBreakOnAuth(false);
 }
 
 int SSLClientSocketMac::DoPayloadRead() {
