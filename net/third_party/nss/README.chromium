@@ -1,3 +1,6 @@
+Name: Network Security Services (NSS)
+URL: http://www.mozilla.org/projects/security/pki/nss/
+
 This directory includes a copy of NSS's libssl from the CVS repo at:
   :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot
 
