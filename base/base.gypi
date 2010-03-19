@@ -121,6 +121,7 @@
           'message_pump_win.h',
           'mime_util.h',
           'mime_util_linux.cc',
+          'move.h',
           'native_library.h',
           'native_library_linux.cc',
           'native_library_mac.mm',
