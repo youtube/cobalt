@@ -1,5 +1,8 @@
-This directory contains a partial snapshot of the libxml library from
-http://xmlsoft.org, with the patch in google.patch applied. google.patch
+Name: libxml
+URL: http://xmlsoft.org
+
+This directory contains a partial snapshot of the libxml library
+with the patch in google.patch applied. google.patch
 includes the following modifications : 
 * Modified encoding.c to fix memory leak (06/13/2008)
 * Modified win32/configure.js NOT to use iconv
