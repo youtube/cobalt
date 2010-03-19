@@ -55,6 +55,8 @@ class SSLClientSocketMac : public SSLClientSocket {
   // Initializes the SSLContext.  Returns a net error code.
   int InitializeSSLContext();
 
+  OSStatus EnableBreakOnAuth(bool enabled);
+
   void DoConnectCallback(int result);
   void DoReadCallback(int result);
   void DoWriteCallback(int result);
@@ -70,6 +72,7 @@ class SSLClientSocketMac : public SSLClientSocket {
   int DoVerifyCert();
   int DoVerifyCertComplete(int result);
   int DoHandshakeFinish();
+  void HandshakeFinished();
 
   int SetClientCert();
 
@@ -115,6 +118,7 @@ class SSLClientSocketMac : public SSLClientSocket {
 
   bool completed_handshake_;
   bool handshake_interrupted_;
+  bool client_cert_requested_;
   SSLContextRef ssl_context_;
 
   // These buffers hold data retrieved from/sent to the underlying transport
