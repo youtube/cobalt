@@ -61,13 +61,8 @@ class WebSocketThrottleTest : public PlatformTest {
     }
   }
 
-  static void MockSocketStreamConnect(
-      SocketStream* socket, struct addrinfo* head) {
+  static void SetAddressList(SocketStream* socket, struct addrinfo* head) {
     socket->CopyAddrInfo(head);
-    // Add reference to socket as done in SocketStream::Connect().
-    // Balanced with Release() in SocketStream::Finish() which will be
-    // called by SocketStream::DetachDelegate().
-    socket->AddRef();
   }
 };
 
@@ -82,7 +77,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<SocketStream> s1 =
       new SocketStream(GURL("ws://host1/"), w1.get());
   w1->InitSocketStream(s1.get());
-  WebSocketThrottleTest::MockSocketStreamConnect(s1, addr);
+  WebSocketThrottleTest::SetAddressList(s1, addr);
   DeleteAddrInfo(addr);
 
   DLOG(INFO) << "socket1";
@@ -102,7 +97,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<SocketStream> s2 =
       new SocketStream(GURL("ws://host2/"), w2.get());
   w2->InitSocketStream(s2.get());
-  WebSocketThrottleTest::MockSocketStreamConnect(s2, addr);
+  WebSocketThrottleTest::SetAddressList(s2, addr);
   DeleteAddrInfo(addr);
 
   DLOG(INFO) << "socket2";
@@ -121,7 +116,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<SocketStream> s3 =
       new SocketStream(GURL("ws://host3/"), w3.get());
   w3->InitSocketStream(s3.get());
-  WebSocketThrottleTest::MockSocketStreamConnect(s3, addr);
+  WebSocketThrottleTest::SetAddressList(s3, addr);
   DeleteAddrInfo(addr);
 
   DLOG(INFO) << "socket3";
@@ -140,7 +135,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<SocketStream> s4 =
       new SocketStream(GURL("ws://host4/"), w4.get());
   w4->InitSocketStream(s4.get());
-  WebSocketThrottleTest::MockSocketStreamConnect(s4, addr);
+  WebSocketThrottleTest::SetAddressList(s4, addr);
   DeleteAddrInfo(addr);
 
   DLOG(INFO) << "socket4";
@@ -158,7 +153,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<SocketStream> s5 =
       new SocketStream(GURL("ws://host5/"), w5.get());
   w5->InitSocketStream(s5.get());
-  WebSocketThrottleTest::MockSocketStreamConnect(s5, addr);
+  WebSocketThrottleTest::SetAddressList(s5, addr);
   DeleteAddrInfo(addr);
 
   DLOG(INFO) << "socket5";
@@ -176,7 +171,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   scoped_refptr<SocketStream> s6 =
       new SocketStream(GURL("ws://host6/"), w6.get());
   w6->InitSocketStream(s6.get());
-  WebSocketThrottleTest::MockSocketStreamConnect(s6, addr);
+  WebSocketThrottleTest::SetAddressList(s6, addr);
   DeleteAddrInfo(addr);
 
   DLOG(INFO) << "socket6";
