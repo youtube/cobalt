@@ -6,6 +6,8 @@
 #define BASE_PLATFORM_FILE_H_
 
 #include "build/build_config.h"
+#include "base/basictypes.h"
+
 #if defined(OS_WIN)
 #include <windows.h>
 #endif
@@ -52,6 +54,10 @@ PlatformFile CreatePlatformFile(const std::wstring& name,
 
 // Closes a file handle
 bool ClosePlatformFile(PlatformFile file);
+
+// Get the length of an underlying file. Returns false on error. Otherwise
+// *size is set to the length of the file, in bytes.
+bool GetPlatformFileSize(PlatformFile file, uint64* size);
 
 }  // namespace base
 
