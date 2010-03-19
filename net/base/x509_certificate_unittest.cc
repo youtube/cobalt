@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/file_path.h"
+#include "base/file_util.h"
+#include "base/path_service.h"
 #include "base/pickle.h"
 #include "net/base/cert_status_flags.h"
+#include "net/base/cert_test_util.h"
 #include "net/base/cert_verify_result.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_certificate_data.h"
@@ -22,6 +26,8 @@
 #endif
 
 using base::Time;
+
+namespace net {
 
 namespace {
 
@@ -70,9 +76,31 @@ unsigned char unosoft_hu_fingerprint[] = {
   0x25, 0x66, 0xf2, 0xec, 0x8b, 0x0f, 0xbf, 0xd8
 };
 
-}  // namespace
+// Returns a FilePath object representing the src/net/data/ssl/certificates
+// directory in the source tree.
+FilePath GetTestCertsDirectory() {
+  FilePath certs_dir;
+  PathService::Get(base::DIR_SOURCE_ROOT, &certs_dir);
+  certs_dir = certs_dir.AppendASCII("net");
+  certs_dir = certs_dir.AppendASCII("data");
+  certs_dir = certs_dir.AppendASCII("ssl");
+  certs_dir = certs_dir.AppendASCII("certificates");
+  return certs_dir;
+}
 
-namespace net {
+// Imports a certificate file in the src/net/data/ssl/certificates directory.
+// certs_dir represents the test certificates directory.  cert_file is the
+// name of the certificate file.
+X509Certificate* ImportCertFromFile(const FilePath& certs_dir,
+                                    const std::string& cert_file) {
+  FilePath cert_path = certs_dir.AppendASCII(cert_file);
+  std::string cert_data;
+  if (!file_util::ReadFileToString(cert_path, &cert_data))
+    return NULL;
+  return X509Certificate::CreateFromBytes(cert_data.data(), cert_data.size());
+}
+
+}  // namespace
 
 TEST(X509CertificateTest, GoogleCertParsing) {
   scoped_refptr<X509Certificate> google_cert = X509Certificate::CreateFromBytes(
@@ -272,12 +300,12 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
 #endif
 }
 
+// A certificate whose AIA extension contains an LDAP URL without a host name.
 // This certificate will expire on 2011-09-08.
 TEST(X509CertificateTest, UnoSoftCertParsing) {
+  FilePath certs_dir = GetTestCertsDirectory();
   scoped_refptr<X509Certificate> unosoft_hu_cert =
-      X509Certificate::CreateFromBytes(
-          reinterpret_cast<const char*>(unosoft_hu_der),
-          sizeof(unosoft_hu_der));
+      ImportCertFromFile(certs_dir, "unosoft_hu_cert.der");
 
   ASSERT_NE(static_cast<X509Certificate*>(NULL), unosoft_hu_cert);
 
@@ -293,6 +321,39 @@ TEST(X509CertificateTest, UnoSoftCertParsing) {
   EXPECT_NE(OK, error);
   EXPECT_NE(0, verify_result.cert_status & CERT_STATUS_AUTHORITY_INVALID);
 }
+
+#if defined(USE_NSS)
+// A regression test for http://crbug.com/31497.
+// This certificate will expire on 2012-04-08.
+// TODO(wtc): we can't run this test on Mac because MacTrustedCertificates
+// can hold only one additional trusted root certificate for unit tests.
+// TODO(wtc): we can't run this test on Windows because LoadTemporaryRootCert
+// isn't implemented (http//crbug.com/8470).
+TEST(X509CertificateTest, IntermediateCARequireExplicitPolicy) {
+  FilePath certs_dir = GetTestCertsDirectory();
+
+  scoped_refptr<X509Certificate> server_cert =
+      ImportCertFromFile(certs_dir, "www_us_army_mil_cert.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), server_cert);
+
+  // The intermediate CA certificate's policyConstraints extension has a
+  // requireExplicitPolicy field with SkipCerts=0.
+  scoped_refptr<X509Certificate> intermediate_cert =
+      ImportCertFromFile(certs_dir, "dod_ca_17_cert.der");
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), intermediate_cert);
+
+  FilePath root_cert_path = certs_dir.AppendASCII("dod_root_ca_2_cert.der");
+  scoped_refptr<X509Certificate> root_cert =
+      LoadTemporaryRootCert(root_cert_path);
+  ASSERT_NE(static_cast<X509Certificate*>(NULL), root_cert);
+
+  int flags = 0;
+  CertVerifyResult verify_result;
+  int error = server_cert->Verify("www.us.army.mil", flags, &verify_result);
+  EXPECT_EQ(OK, error);
+  EXPECT_EQ(0, verify_result.cert_status);
+}
+#endif
 
 // Tests X509Certificate::Cache via X509Certificate::CreateFromHandle.  We
 // call X509Certificate::CreateFromHandle several times and observe whether
