@@ -82,7 +82,6 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
   void SetWaiting();
   bool IsWaiting() const;
   void Wakeup();
-  void DoCallback();
 
   SocketStream::Delegate* delegate_;
   State state_;
