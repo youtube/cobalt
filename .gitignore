@@ -8,6 +8,8 @@
 *.user
 *.vcproj
 *.xcodeproj
+*~
+/_out
 /Makefile
 /breakpad/src/
 /build/util/support
