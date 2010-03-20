@@ -256,3 +256,4 @@ TEST_F(RTLTest, GetTextDirection) {
   // Japanese that uses multiple scripts
   EXPECT_EQ(base::i18n::LEFT_TO_RIGHT, GetTextDirection("ja"));
 }
+
