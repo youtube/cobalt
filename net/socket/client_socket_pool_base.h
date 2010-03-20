@@ -222,6 +222,8 @@ class ClientSocketPoolBaseHelper
   // sockets that timed out or can't be reused.  Made public for testing.
   void CleanupIdleSockets(bool force);
 
+  void enable_backup_jobs() { backup_jobs_enabled_ = true; };
+
  private:
   friend class base::RefCounted<ClientSocketPoolBaseHelper>;
 
@@ -427,6 +429,9 @@ class ClientSocketPoolBaseHelper
 
   NetworkChangeNotifier* const network_change_notifier_;
 
+  // TODO(vandebo) Remove when backup jobs move to TCPClientSocketPool
+  bool backup_jobs_enabled_;
+
   // A factory to pin the backup_job tasks.
   ScopedRunnableMethodFactory<ClientSocketPoolBaseHelper> method_factory_;
 };
@@ -554,6 +559,8 @@ class ClientSocketPoolBase {
   void CleanupIdleSockets(bool force) {
     return helper_->CleanupIdleSockets(force);
   }
+
+  void enable_backup_jobs() { helper_->enable_backup_jobs(); };
 
  private:
   // This adaptor class exists to bridge the
