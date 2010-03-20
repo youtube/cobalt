@@ -66,7 +66,7 @@
 //
 // WARNING: FilePaths should ALWAYS be displayed with LTR directionality, even
 // when the UI language is RTL. This means you always need to pass filepaths
-// through l10n_util::WrapPathWithLTRFormatting() before displaying it in the
+// through base::i18n::WrapPathWithLTRFormatting() before displaying it in the
 // RTL UI.
 //
 // This is a very common source of bugs, please try to keep this in mind.
