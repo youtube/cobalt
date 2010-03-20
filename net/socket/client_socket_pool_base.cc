@@ -116,6 +116,7 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
       may_have_stalled_group_(false),
       connect_job_factory_(connect_job_factory),
       network_change_notifier_(network_change_notifier),
+      backup_jobs_enabled_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   DCHECK_LE(0, max_sockets_per_group);
   DCHECK_LE(max_sockets_per_group, max_sockets);
@@ -243,7 +244,7 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     // If we don't have any sockets in this group, set a timer for potentially
     // creating a new one.  If the SYN is lost, this backup socket may complete
     // before the slow socket, improving end user latency.
-    if (group.IsEmpty() && !group.backup_job) {
+    if (group.IsEmpty() && !group.backup_job && backup_jobs_enabled_) {
       group.backup_job = connect_job_factory_->NewConnectJob(group_name,
                                                              *request,
                                                              this,
