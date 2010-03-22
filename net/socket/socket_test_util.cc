@@ -472,4 +472,18 @@ void ClientSocketPoolTest::ReleaseAllConnections(KeepAlive keep_alive) {
   } while (released_one);
 }
 
+const char kSOCKS5GreetRequest[] = { 0x05, 0x01, 0x00 };
+const int kSOCKS5GreetRequestLength = arraysize(kSOCKS5GreetRequest);
+
+const char kSOCKS5GreetResponse[] = { 0x05, 0x00 };
+const int kSOCKS5GreetResponseLength = arraysize(kSOCKS5GreetResponse);
+
+const char kSOCKS5OkRequest[] =
+    { 0x05, 0x01, 0x00, 0x03, 0x04, 'h', 'o', 's', 't', 0x00, 0x50 };
+const int kSOCKS5OkRequestLength = arraysize(kSOCKS5OkRequest);
+
+const char kSOCKS5OkResponse[] =
+    { 0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x00, 0x50 };
+const int kSOCKS5OkResponseLength = arraysize(kSOCKS5OkResponse);
+
 }  // namespace net

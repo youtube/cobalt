@@ -21,6 +21,7 @@
 
 namespace net {
 
+class ClientSocketHandle;
 class BoundNetLog;
 
 // The SOCKS client socket implementation
@@ -31,6 +32,11 @@ class SOCKSClientSocket : public ClientSocket {
   //
   // |req_info| contains the hostname and port to which the socket above will
   // communicate to via the socks layer. For testing the referrer is optional.
+  SOCKSClientSocket(ClientSocketHandle* transport_socket,
+                    const HostResolver::RequestInfo& req_info,
+                    HostResolver* host_resolver);
+
+  // Deprecated constructor (http://crbug.com/37810) that takes a ClientSocket.
   SOCKSClientSocket(ClientSocket* transport_socket,
                     const HostResolver::RequestInfo& req_info,
                     HostResolver* host_resolver);
@@ -96,7 +102,7 @@ class SOCKSClientSocket : public ClientSocket {
   CompletionCallbackImpl<SOCKSClientSocket> io_callback_;
 
   // Stores the underlying socket.
-  scoped_ptr<ClientSocket> transport_;
+  scoped_ptr<ClientSocketHandle> transport_;
 
   State next_state_;
   SocksVersion socks_version_;

@@ -422,11 +422,11 @@ class ClientSocketPoolTest : public testing::Test {
   virtual void TearDown();
 
   template <typename PoolType, typename SocketParams>
-  int StartRequestUsingPool(PoolType* socket_pool,
+  int StartRequestUsingPool(const scoped_refptr<PoolType>& socket_pool,
                             const std::string& group_name,
                             RequestPriority priority,
                             const SocketParams& socket_params) {
-    DCHECK(socket_pool);
+    DCHECK(socket_pool.get());
     TestSocketRequest* request = new TestSocketRequest(&request_order_,
                                                        &completion_count_);
     requests_.push_back(request);
@@ -455,6 +455,19 @@ class ClientSocketPoolTest : public testing::Test {
   std::vector<TestSocketRequest*> request_order_;
   size_t completion_count_;
 };
+
+// Constants for a successful SOCKS v5 handshake.
+extern const char kSOCKS5GreetRequest[];
+extern const int kSOCKS5GreetRequestLength;
+
+extern const char kSOCKS5GreetResponse[];
+extern const int kSOCKS5GreetResponseLength;
+
+extern const char kSOCKS5OkRequest[];
+extern const int kSOCKS5OkRequestLength;
+
+extern const char kSOCKS5OkResponse[];
+extern const int kSOCKS5OkResponseLength;
 
 }  // namespace net
 

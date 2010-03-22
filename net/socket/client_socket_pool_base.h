@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -94,6 +94,7 @@ class ConnectJob {
   void set_socket(ClientSocket* socket) { socket_.reset(socket); }
   ClientSocket* socket() { return socket_.get(); }
   void NotifyDelegateOfCompletion(int rv);
+  void ResetTimer(base::TimeDelta remainingTime);
 
  private:
   virtual int ConnectInternal() = 0;
@@ -158,6 +159,8 @@ class ClientSocketPoolBaseHelper
         ConnectJob::Delegate* delegate,
         const BoundNetLog& net_log) const = 0;
 
+    virtual base::TimeDelta ConnectionTimeout() const = 0;
+
    private:
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
   };
@@ -221,6 +224,10 @@ class ClientSocketPoolBaseHelper
   // Closes all idle sockets if |force| is true.  Else, only closes idle
   // sockets that timed out or can't be reused.  Made public for testing.
   void CleanupIdleSockets(bool force);
+
+  base::TimeDelta ConnectionTimeout() const {
+    return connect_job_factory_->ConnectionTimeout();
+  }
 
   void enable_backup_jobs() { backup_jobs_enabled_ = true; };
 
@@ -477,6 +484,8 @@ class ClientSocketPoolBase {
         ConnectJob::Delegate* delegate,
         const BoundNetLog& net_log) const = 0;
 
+    virtual base::TimeDelta ConnectionTimeout() const = 0;
+
    private:
     DISALLOW_COPY_AND_ASSIGN(ConnectJobFactory);
   };
@@ -490,11 +499,13 @@ class ClientSocketPoolBase {
   ClientSocketPoolBase(
       int max_sockets,
       int max_sockets_per_group,
+      const std::string& name,
       base::TimeDelta unused_idle_socket_timeout,
       base::TimeDelta used_idle_socket_timeout,
       ConnectJobFactory* connect_job_factory,
       NetworkChangeNotifier* network_change_notifier)
-      : helper_(new internal::ClientSocketPoolBaseHelper(
+      : name_(name),
+        helper_(new internal::ClientSocketPoolBaseHelper(
           max_sockets, max_sockets_per_group,
           unused_idle_socket_timeout, used_idle_socket_timeout,
           new ConnectJobFactoryAdaptor(connect_job_factory),
@@ -560,6 +571,12 @@ class ClientSocketPoolBase {
     return helper_->CleanupIdleSockets(force);
   }
 
+  base::TimeDelta ConnectionTimeout() const {
+    return helper_->ConnectionTimeout();
+  }
+
+  const std::string& name() const { return name_; }
+
   void enable_backup_jobs() { helper_->enable_backup_jobs(); };
 
  private:
@@ -589,8 +606,15 @@ class ClientSocketPoolBase {
           group_name, *casted_request, delegate, net_log);
     }
 
+    virtual base::TimeDelta ConnectionTimeout() const {
+      return connect_job_factory_->ConnectionTimeout();
+    }
+
     const scoped_ptr<ConnectJobFactory> connect_job_factory_;
   };
+
+  // Name of this pool.
+  const std::string name_;
 
   // One might ask why ClientSocketPoolBaseHelper is also refcounted if its
   // containing ClientSocketPool is already refcounted.  The reason is because
