@@ -21,6 +21,7 @@
 
 namespace net {
 
+class ClientSocketHandle;
 class BoundNetLog;
 
 // This ClientSocket is used to setup a SOCKSv5 handshake with a socks proxy.
@@ -36,6 +37,10 @@ class SOCKS5ClientSocket : public ClientSocket {
   // Although SOCKS 5 supports 3 different modes of addressing, we will
   // always pass it a hostname. This means the DNS resolving is done
   // proxy side.
+  SOCKS5ClientSocket(ClientSocketHandle* transport_socket,
+                     const HostResolver::RequestInfo& req_info);
+
+  // Deprecated constructor (http://crbug.com/37810) that takes a ClientSocket.
   SOCKS5ClientSocket(ClientSocket* transport_socket,
                      const HostResolver::RequestInfo& req_info);
 
@@ -106,7 +111,7 @@ class SOCKS5ClientSocket : public ClientSocket {
   CompletionCallbackImpl<SOCKS5ClientSocket> io_callback_;
 
   // Stores the underlying socket.
-  scoped_ptr<ClientSocket> transport_;
+  scoped_ptr<ClientSocketHandle> transport_;
 
   State next_state_;
 

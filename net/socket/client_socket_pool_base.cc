@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -76,6 +76,11 @@ void ConnectJob::NotifyDelegateOfCompletion(int rv) {
   net_log_.EndEvent(NetLog::TYPE_SOCKET_POOL_CONNECT_JOB);
 
   delegate->OnConnectJobComplete(rv, this);
+}
+
+void ConnectJob::ResetTimer(base::TimeDelta remaining_time) {
+  timer_.Stop();
+  timer_.Start(remaining_time, this, &ConnectJob::OnTimeout);
 }
 
 void ConnectJob::OnTimeout() {
@@ -324,6 +329,7 @@ void ClientSocketPoolBaseHelper::CancelRequest(
       req->net_log().AddEvent(NetLog::TYPE_CANCELLED);
       req->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL);
       delete req;
+      // Let one connect job connect and become idle for potential future use.
       if (group.jobs.size() > group.pending_requests.size() + 1) {
         // TODO(willchan): Cancel the job in the earliest LoadState.
         RemoveConnectJob(*group.jobs.begin(), &group);

@@ -13,6 +13,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
+#include "net/socket/client_socket_handle.h"
 
 namespace net {
 
@@ -46,7 +47,8 @@ const uint8 SOCKS5ClientSocket::kNullByte = 0x00;
 COMPILE_ASSERT(sizeof(struct in_addr) == 4, incorrect_system_size_of_IPv4);
 COMPILE_ASSERT(sizeof(struct in6_addr) == 16, incorrect_system_size_of_IPv6);
 
-SOCKS5ClientSocket::SOCKS5ClientSocket(ClientSocket* transport_socket,
+SOCKS5ClientSocket::SOCKS5ClientSocket(
+    ClientSocketHandle* transport_socket,
     const HostResolver::RequestInfo& req_info)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &SOCKS5ClientSocket::OnIOComplete)),
@@ -60,6 +62,22 @@ SOCKS5ClientSocket::SOCKS5ClientSocket(ClientSocket* transport_socket,
       host_request_info_(req_info) {
 }
 
+SOCKS5ClientSocket::SOCKS5ClientSocket(
+    ClientSocket* transport_socket,
+    const HostResolver::RequestInfo& req_info)
+    : ALLOW_THIS_IN_INITIALIZER_LIST(
+          io_callback_(this, &SOCKS5ClientSocket::OnIOComplete)),
+      transport_(new ClientSocketHandle()),
+      next_state_(STATE_NONE),
+      user_callback_(NULL),
+      completed_handshake_(false),
+      bytes_sent_(0),
+      bytes_received_(0),
+      read_header_size(kReadHeaderSize),
+      host_request_info_(req_info) {
+  transport_->set_socket(transport_socket);
+}
+
 SOCKS5ClientSocket::~SOCKS5ClientSocket() {
   Disconnect();
 }
@@ -67,7 +85,8 @@ SOCKS5ClientSocket::~SOCKS5ClientSocket() {
 int SOCKS5ClientSocket::Connect(CompletionCallback* callback,
                                 const BoundNetLog& net_log) {
   DCHECK(transport_.get());
-  DCHECK(transport_->IsConnected());
+  DCHECK(transport_->socket());
+  DCHECK(transport_->socket()->IsConnected());
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(!user_callback_);
 
@@ -93,7 +112,7 @@ int SOCKS5ClientSocket::Connect(CompletionCallback* callback,
 
 void SOCKS5ClientSocket::Disconnect() {
   completed_handshake_ = false;
-  transport_->Disconnect();
+  transport_->socket()->Disconnect();
 
   // Reset other states to make sure they aren't mistakenly used later.
   // These are the states initialized by Connect().
@@ -103,11 +122,11 @@ void SOCKS5ClientSocket::Disconnect() {
 }
 
 bool SOCKS5ClientSocket::IsConnected() const {
-  return completed_handshake_ && transport_->IsConnected();
+  return completed_handshake_ && transport_->socket()->IsConnected();
 }
 
 bool SOCKS5ClientSocket::IsConnectedAndIdle() const {
-  return completed_handshake_ && transport_->IsConnectedAndIdle();
+  return completed_handshake_ && transport_->socket()->IsConnectedAndIdle();
 }
 
 // Read is called by the transport layer above to read. This can only be done
@@ -118,7 +137,7 @@ int SOCKS5ClientSocket::Read(IOBuffer* buf, int buf_len,
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(!user_callback_);
 
-  return transport_->Read(buf, buf_len, callback);
+  return transport_->socket()->Read(buf, buf_len, callback);
 }
 
 // Write is called by the transport layer. This can only be done if the
@@ -129,15 +148,15 @@ int SOCKS5ClientSocket::Write(IOBuffer* buf, int buf_len,
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(!user_callback_);
 
-  return transport_->Write(buf, buf_len, callback);
+  return transport_->socket()->Write(buf, buf_len, callback);
 }
 
 bool SOCKS5ClientSocket::SetReceiveBufferSize(int32 size) {
-  return transport_->SetReceiveBufferSize(size);
+  return transport_->socket()->SetReceiveBufferSize(size);
 }
 
 bool SOCKS5ClientSocket::SetSendBufferSize(int32 size) {
-  return transport_->SetSendBufferSize(size);
+  return transport_->socket()->SetSendBufferSize(size);
 }
 
 void SOCKS5ClientSocket::DoCallback(int result) {
@@ -236,7 +255,8 @@ int SOCKS5ClientSocket::DoGreetWrite() {
   handshake_buf_ = new IOBuffer(handshake_buf_len);
   memcpy(handshake_buf_->data(), &buffer_.data()[bytes_sent_],
          handshake_buf_len);
-  return transport_->Write(handshake_buf_, handshake_buf_len, &io_callback_);
+  return transport_->socket()->Write(handshake_buf_, handshake_buf_len,
+                                     &io_callback_);
 }
 
 int SOCKS5ClientSocket::DoGreetWriteComplete(int result) {
@@ -258,7 +278,8 @@ int SOCKS5ClientSocket::DoGreetRead() {
   next_state_ = STATE_GREET_READ_COMPLETE;
   size_t handshake_buf_len = kGreetReadHeaderSize - bytes_received_;
   handshake_buf_ = new IOBuffer(handshake_buf_len);
-  return transport_->Read(handshake_buf_, handshake_buf_len, &io_callback_);
+  return transport_->socket()->Read(handshake_buf_, handshake_buf_len,
+                                    &io_callback_);
 }
 
 int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
@@ -335,7 +356,8 @@ int SOCKS5ClientSocket::DoHandshakeWrite() {
   handshake_buf_ = new IOBuffer(handshake_buf_len);
   memcpy(handshake_buf_->data(), &buffer_[bytes_sent_],
          handshake_buf_len);
-  return transport_->Write(handshake_buf_, handshake_buf_len, &io_callback_);
+  return transport_->socket()->Write(handshake_buf_, handshake_buf_len,
+                                     &io_callback_);
 }
 
 int SOCKS5ClientSocket::DoHandshakeWriteComplete(int result) {
@@ -368,7 +390,8 @@ int SOCKS5ClientSocket::DoHandshakeRead() {
 
   int handshake_buf_len = read_header_size - bytes_received_;
   handshake_buf_ = new IOBuffer(handshake_buf_len);
-  return transport_->Read(handshake_buf_, handshake_buf_len, &io_callback_);
+  return transport_->socket()->Read(handshake_buf_, handshake_buf_len,
+                                    &io_callback_);
 }
 
 int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
@@ -448,7 +471,7 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
 }
 
 int SOCKS5ClientSocket::GetPeerAddress(AddressList* address) const {
-  return transport_->GetPeerAddress(address);
+  return transport_->socket()->GetPeerAddress(address);
 }
 
 }  // namespace net

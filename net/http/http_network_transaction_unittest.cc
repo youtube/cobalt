@@ -182,9 +182,14 @@ std::string MockGetHostName() {
   return "WTC-WIN7";
 }
 
-class CaptureGroupNameSocketPool : public TCPClientSocketPool {
+template<typename EmulatedClientSocketPool, typename SocketSourceType>
+class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
  public:
-  CaptureGroupNameSocketPool() : TCPClientSocketPool(0, 0, NULL, NULL, NULL) {}
+  CaptureGroupNameSocketPool(HttpNetworkSession* session,
+                             SocketSourceType* socket_source)
+      : EmulatedClientSocketPool(0, 0, "CaptureGroupNameTestPool",
+                                 session->host_resolver(), socket_source,
+                                 NULL) {}
   const std::string last_group_name_received() const {
     return last_group_name_;
   }
@@ -216,11 +221,18 @@ class CaptureGroupNameSocketPool : public TCPClientSocketPool {
                                  const ClientSocketHandle* handle) const {
     return LOAD_STATE_IDLE;
   }
+  virtual base::TimeDelta ConnectionTimeout() const {
+    return base::TimeDelta();
+  }
 
  private:
   std::string last_group_name_;
 };
 
+typedef CaptureGroupNameSocketPool<TCPClientSocketPool, ClientSocketFactory>
+    CaptureGroupNameTCPSocketPool;
+typedef CaptureGroupNameSocketPool<SOCKSClientSocketPool, TCPClientSocketPool>
+    CaptureGroupNameSOCKSSocketPool;
 //-----------------------------------------------------------------------------
 
 TEST_F(HttpNetworkTransactionTest, Basic) {
@@ -3654,11 +3666,16 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
     SessionDependencies session_deps(
         CreateFixedProxyService(tests[i].proxy_server));
 
-    scoped_refptr<CaptureGroupNameSocketPool> conn_pool(
-        new CaptureGroupNameSocketPool());
-
     scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-    session->tcp_socket_pool_ = conn_pool.get();
+
+    scoped_refptr<CaptureGroupNameTCPSocketPool> tcp_conn_pool(
+        new CaptureGroupNameTCPSocketPool(session.get(),
+                                          session->socket_factory()));
+    session->tcp_socket_pool_ = tcp_conn_pool.get();
+    scoped_refptr<CaptureGroupNameSOCKSSocketPool> socks_conn_pool(
+        new CaptureGroupNameSOCKSSocketPool(session.get(),
+                                            tcp_conn_pool.get()));
+    session->socks_socket_pool_ = socks_conn_pool.get();
 
     scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
@@ -3671,8 +3688,9 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
 
     // We do not complete this request, the dtor will clean the transaction up.
     EXPECT_EQ(ERR_IO_PENDING, trans->Start(&request, &callback, NULL));
-    EXPECT_EQ(tests[i].expected_group_name,
-              conn_pool->last_group_name_received());
+    std::string allgroups = tcp_conn_pool->last_group_name_received() +
+                            socks_conn_pool->last_group_name_received();
+    EXPECT_EQ(tests[i].expected_group_name, allgroups);
   }
 }
 
