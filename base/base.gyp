@@ -58,6 +58,7 @@
         'cancellation_flag_unittest.cc',
         'command_line_unittest.cc',
         'condition_variable_unittest.cc',
+        'crypto/pbkdf2_unittest.cc',
         'crypto/rsa_private_key_unittest.cc',
         'crypto/signature_creator_unittest.cc',
         'crypto/signature_verifier_unittest.cc',
