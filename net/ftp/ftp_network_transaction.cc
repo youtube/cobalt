@@ -739,7 +739,7 @@ int FtpNetworkTransaction::ProcessResponsePWD(const FtpCtrlResponse& response) {
       }
       if (system_type_ == SYSTEM_TYPE_VMS)
         line = FtpUtil::VMSPathToUnix(line);
-      if (line[line.length() - 1] == '/')
+      if (line.length() && line[line.length() - 1] == '/')
         line.erase(line.length() - 1);
       current_remote_directory_ = line;
       next_state_ = STATE_CTRL_WRITE_TYPE;
