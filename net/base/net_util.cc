@@ -959,7 +959,8 @@ inline bool IsHostCharDigit(char c) {
   return (c >= '0') && (c <= '9');
 }
 
-bool IsCanonicalizedHostCompliant(const std::string& host) {
+bool IsCanonicalizedHostCompliant(const std::string& host,
+                                  const std::string& desired_tld) {
   if (host.empty())
     return false;
 
@@ -989,7 +990,8 @@ bool IsCanonicalizedHostCompliant(const std::string& host) {
     }
   }
 
-  return most_recent_component_started_alpha;
+  return most_recent_component_started_alpha ||
+      (!desired_tld.empty() && IsHostCharAlpha(desired_tld[0]));
 }
 
 std::string GetDirectoryListingEntry(const string16& name,
