@@ -1,3 +1,6 @@
+Name: SQLite
+URL: http://sqlite.org/
+
 Instructions for importing a new release of SQLite from sqlite.org.
 
 Note: our current base version is 3.6.18.
