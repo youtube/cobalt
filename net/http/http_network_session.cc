@@ -20,6 +20,8 @@ int HttpNetworkSession::max_sockets_per_group_ = 6;
 uint16 HttpNetworkSession::g_fixed_http_port = 0;
 uint16 HttpNetworkSession::g_fixed_https_port = 0;
 
+// TODO(vandebo) when we've completely converted to pools, the base TCP
+// pool name should get changed to TCP instead of Transport.
 HttpNetworkSession::HttpNetworkSession(
     NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
@@ -30,8 +32,15 @@ HttpNetworkSession::HttpNetworkSession(
     HttpAuthHandlerFactory* http_auth_handler_factory)
     : network_change_notifier_(network_change_notifier),
       tcp_socket_pool_(new TCPClientSocketPool(
-          max_sockets_, max_sockets_per_group_,
+          max_sockets_, max_sockets_per_group_, "Transport",
           host_resolver, client_socket_factory, network_change_notifier_)),
+      socks_socket_pool_(new SOCKSClientSocketPool(
+          max_sockets_, max_sockets_per_group_, "SOCKS", host_resolver,
+          new TCPClientSocketPool(max_sockets_, max_sockets_per_group_,
+                                  "TCPForSOCKS", host_resolver,
+                                  client_socket_factory,
+                                  network_change_notifier_),
+          network_change_notifier_)),
       socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
@@ -53,9 +62,12 @@ void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
   max_sockets_per_group_ = socket_count;
 }
 
+// TODO(vandebo) when we've completely converted to pools, the base TCP
+// pool name should get changed to TCP instead of Transport.
 void HttpNetworkSession::ReplaceTCPSocketPool() {
   tcp_socket_pool_ = new TCPClientSocketPool(max_sockets_,
                                              max_sockets_per_group_,
+                                             "Transport",
                                              host_resolver_,
                                              socket_factory_,
                                              network_change_notifier_);

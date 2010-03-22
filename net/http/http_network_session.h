@@ -12,6 +12,7 @@
 #include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth_cache.h"
 #include "net/proxy/proxy_service.h"
+#include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/tcp_client_socket_pool.h"
 
 namespace net {
@@ -46,8 +47,13 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   }
 
   // TCP sockets come from the tcp_socket_pool().
-  TCPClientSocketPool* tcp_socket_pool() { return tcp_socket_pool_; }
-  // SSL sockets come frmo the socket_factory().
+  const scoped_refptr<TCPClientSocketPool>& tcp_socket_pool() {
+    return tcp_socket_pool_;
+  }
+  const scoped_refptr<SOCKSClientSocketPool>& socks_socket_pool() {
+    return socks_socket_pool_;
+  }
+  // SSL sockets come from the socket_factory().
   ClientSocketFactory* socket_factory() { return socket_factory_; }
   HostResolver* host_resolver() { return host_resolver_; }
   ProxyService* proxy_service() { return proxy_service_; }
@@ -93,6 +99,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   HttpAlternateProtocols alternate_protocols_;
   NetworkChangeNotifier* const network_change_notifier_;
   scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
+  scoped_refptr<SOCKSClientSocketPool> socks_socket_pool_;
   ClientSocketFactory* socket_factory_;
   scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
