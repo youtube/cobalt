@@ -19,6 +19,14 @@
         '../third_party/icu/icu.gyp:icui18n',
         '../third_party/icu/icu.gyp:icuuc',
       ],
+      'conditions': [
+        ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+          'dependencies': [
+            # i18n/rtl.cc uses gtk
+            '../build/linux/system.gyp:gtk',
+          ],
+        }],
+      ],
       'export_dependent_settings': [
         'base',
       ],
