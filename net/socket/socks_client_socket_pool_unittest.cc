@@ -61,6 +61,8 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
         return;
       if (rv == OK)
         handle_->set_socket(socket_.get());
+      else
+        socket_.reset(NULL);
 
       socket_.release();
       handle_ = NULL;
@@ -131,7 +133,7 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
   ClientSocketFactory* client_socket_factory_;
   int release_count_;
   int cancel_count_;
-  std::vector<MockConnectJob*> job_list_;
+  ScopedVector<MockConnectJob> job_list_;
 
   DISALLOW_COPY_AND_ASSIGN(MockTCPClientSocketPool);
 };
@@ -221,9 +223,9 @@ TEST_F(SOCKSClientSocketPoolTest, Async) {
 }
 
 TEST_F(SOCKSClientSocketPoolTest, TCPConnectError) {
-  SocketDataProvider* socket_data = new StaticSocketDataProvider();
+  scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider());
   socket_data->set_connect_data(MockConnect(false, ERR_CONNECTION_REFUSED));
-  tcp_client_socket_factory_.AddSocketDataProvider(socket_data);
+  tcp_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   ClientSocketHandle handle;
   int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, pool_, NULL);
@@ -233,9 +235,9 @@ TEST_F(SOCKSClientSocketPoolTest, TCPConnectError) {
 }
 
 TEST_F(SOCKSClientSocketPoolTest, AsyncTCPConnectError) {
-  SocketDataProvider* socket_data = new StaticSocketDataProvider();
+  scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider());
   socket_data->set_connect_data(MockConnect(true, ERR_CONNECTION_REFUSED));
-  tcp_client_socket_factory_.AddSocketDataProvider(socket_data);
+  tcp_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
@@ -254,11 +256,10 @@ TEST_F(SOCKSClientSocketPoolTest, SOCKSConnectError) {
   MockRead failed_read[] = {
     MockRead(false, 0),
   };
-  SocketDataProvider* socket_data =
-      new StaticSocketDataProvider(failed_read, arraysize(failed_read),
-                                   NULL, 0);
+  scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
+        failed_read, arraysize(failed_read), NULL, 0));
   socket_data->set_connect_data(MockConnect(false, 0));
-  tcp_client_socket_factory_.AddSocketDataProvider(socket_data);
+  tcp_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   ClientSocketHandle handle;
   EXPECT_EQ(0, tcp_socket_pool_->release_count());
@@ -273,11 +274,10 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
   MockRead failed_read[] = {
     MockRead(true, 0),
   };
-  SocketDataProvider* socket_data =
-      new StaticSocketDataProvider(failed_read, arraysize(failed_read),
-                                   NULL, 0);
+  scoped_ptr<SocketDataProvider> socket_data(new StaticSocketDataProvider(
+        failed_read, arraysize(failed_read), NULL, 0));
   socket_data->set_connect_data(MockConnect(false, 0));
-  tcp_client_socket_factory_.AddSocketDataProvider(socket_data);
+  tcp_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   TestCompletionCallback callback;
   ClientSocketHandle handle;
