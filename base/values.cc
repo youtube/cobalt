@@ -816,7 +816,12 @@ int ListValue::Remove(const Value& value) {
       size_t index = i - list_.begin();
       delete *i;
       list_.erase(i);
-      return index;
+
+      // TODO(anyone): Returning a signed int type here is just wrong.
+      // Change this interface to return a size_t.
+      DCHECK(index <= INT_MAX);
+      int return_index = static_cast<int>(index);
+      return return_index;
     }
   }
   return -1;
