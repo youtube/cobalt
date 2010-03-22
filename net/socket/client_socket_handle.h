@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -62,7 +62,7 @@ class ClientSocketHandle {
            const SocketParams& socket_params,
            RequestPriority priority,
            CompletionCallback* callback,
-           PoolType* pool,
+           const scoped_refptr<PoolType>& pool,
            const BoundNetLog& net_log);
 
   // An initialized handle can be reset, which causes it to return to the
@@ -84,6 +84,9 @@ class ClientSocketHandle {
 
   // Returns the time tick when Init() was called.
   base::TimeTicks init_time() const { return init_time_; }
+
+  // Returns the time between Init() and when is_initialized() becomes true.
+  base::TimeDelta setup_time() const { return setup_time_; }
 
   // Used by ClientSocketPool to initialize the ClientSocketHandle.
   void set_is_reused(bool is_reused) { is_reused_ = is_reused; }
@@ -139,6 +142,7 @@ class ClientSocketHandle {
   CompletionCallback* user_callback_;
   base::TimeDelta idle_time_;
   base::TimeTicks init_time_;
+  base::TimeDelta setup_time_;
 
   DISALLOW_COPY_AND_ASSIGN(ClientSocketHandle);
 };
@@ -149,7 +153,7 @@ int ClientSocketHandle::Init(const std::string& group_name,
                              const SocketParams& socket_params,
                              RequestPriority priority,
                              CompletionCallback* callback,
-                             PoolType* pool,
+                             const scoped_refptr<PoolType>& pool,
                              const BoundNetLog& net_log) {
   CHECK(!group_name.empty());
   // Note that this will result in a link error if the SocketParams has not been

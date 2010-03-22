@@ -89,18 +89,12 @@ SOCKS5ClientSocket* SOCKS5ClientSocketTest::BuildMockSocket(
       HostResolver::RequestInfo(hostname, port));
 }
 
-const char kSOCKS5GreetRequest[] = { 0x05, 0x01, 0x00 };
-const char kSOCKS5GreetResponse[] = { 0x05, 0x00 };
-const char kSOCKS5OkResponse[] =
-    { 0x05, 0x00, 0x00, 0x01, 127, 0, 0, 1, 0x00, 0x50 };
-
-
 // Tests a complete SOCKS5 handshake and the disconnection.
 TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
   const std::string payload_write = "random data";
   const std::string payload_read = "moar random data";
 
-  const char kSOCKS5OkRequest[] = {
+  const char kOkRequest[] = {
     0x05,  // Version
     0x01,  // Command (CONNECT)
     0x00,  // Reserved.
@@ -112,12 +106,12 @@ TEST_F(SOCKS5ClientSocketTest, CompleteHandshake) {
   };
 
   MockWrite data_writes[] = {
-      MockWrite(true, kSOCKS5GreetRequest, arraysize(kSOCKS5GreetRequest)),
-      MockWrite(true, kSOCKS5OkRequest, arraysize(kSOCKS5OkRequest)),
+      MockWrite(true, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
+      MockWrite(true, kOkRequest, arraysize(kOkRequest)),
       MockWrite(true, payload_write.data(), payload_write.size()) };
   MockRead data_reads[] = {
-      MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
-      MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)),
+      MockRead(true, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
+      MockRead(true, kSOCKS5OkResponse, kSOCKS5OkResponseLength),
       MockRead(true, payload_read.data(), payload_read.size()) };
 
   user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
@@ -176,12 +170,12 @@ TEST_F(SOCKS5ClientSocketTest, ConnectAndDisconnectTwice) {
 
   for (int i = 0; i < 2; ++i) {
     MockWrite data_writes[] = {
-        MockWrite(false, kSOCKS5GreetRequest, arraysize(kSOCKS5GreetRequest)),
+        MockWrite(false, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
         MockWrite(false, request.data(), request.size())
     };
     MockRead data_reads[] = {
-        MockRead(false, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
-        MockRead(false, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse))
+        MockRead(false, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
+        MockRead(false, kSOCKS5OkResponse, kSOCKS5OkResponseLength)
     };
 
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
@@ -220,7 +214,7 @@ TEST_F(SOCKS5ClientSocketTest, LargeHostNameFails) {
 TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
   const std::string hostname = "www.google.com";
 
-  const char kSOCKS5OkRequest[] = {
+  const char kOkRequest[] = {
     0x05,  // Version
     0x01,  // Command (CONNECT)
     0x00,  // Reserved.
@@ -238,10 +232,10 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     MockWrite data_writes[] = {
         MockWrite(true, arraysize(partial1)),
         MockWrite(true, partial2, arraysize(partial2)),
-        MockWrite(true, kSOCKS5OkRequest, arraysize(kSOCKS5OkRequest)) };
+        MockWrite(true, kOkRequest, arraysize(kOkRequest)) };
     MockRead data_reads[] = {
-        MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
-        MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
+        MockRead(true, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
+        MockRead(true, kSOCKS5OkResponse, kSOCKS5OkResponseLength) };
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80));
@@ -260,12 +254,12 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
     const char partial1[] = { 0x05 };
     const char partial2[] = { 0x00 };
     MockWrite data_writes[] = {
-        MockWrite(true, kSOCKS5GreetRequest, arraysize(kSOCKS5GreetRequest)),
-        MockWrite(true, kSOCKS5OkRequest, arraysize(kSOCKS5OkRequest)) };
+        MockWrite(true, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
+        MockWrite(true, kOkRequest, arraysize(kOkRequest)) };
     MockRead data_reads[] = {
         MockRead(true, partial1, arraysize(partial1)),
         MockRead(true, partial2, arraysize(partial2)),
-        MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
+        MockRead(true, kSOCKS5OkResponse, kSOCKS5OkResponseLength) };
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80));
@@ -283,14 +277,14 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
   {
     const int kSplitPoint = 3;  // Break handshake write into two parts.
     MockWrite data_writes[] = {
-        MockWrite(true, kSOCKS5GreetRequest, arraysize(kSOCKS5GreetRequest)),
-        MockWrite(true, kSOCKS5OkRequest, kSplitPoint),
-        MockWrite(true, kSOCKS5OkRequest + kSplitPoint,
-                        arraysize(kSOCKS5OkRequest) - kSplitPoint)
+        MockWrite(true, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
+        MockWrite(true, kOkRequest, kSplitPoint),
+        MockWrite(true, kOkRequest + kSplitPoint,
+                  arraysize(kOkRequest) - kSplitPoint)
     };
     MockRead data_reads[] = {
-        MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
-        MockRead(true, kSOCKS5OkResponse, arraysize(kSOCKS5OkResponse)) };
+        MockRead(true, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
+        MockRead(true, kSOCKS5OkResponse, kSOCKS5OkResponseLength) };
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),
                                      data_writes, arraysize(data_writes),
                                      hostname, 80));
@@ -308,14 +302,14 @@ TEST_F(SOCKS5ClientSocketTest, PartialReadWrites) {
   {
     const int kSplitPoint = 6;  // Break the handshake read into two parts.
     MockWrite data_writes[] = {
-        MockWrite(true, kSOCKS5GreetRequest, arraysize(kSOCKS5GreetRequest)),
-        MockWrite(true, kSOCKS5OkRequest, arraysize(kSOCKS5OkRequest))
+        MockWrite(true, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength),
+        MockWrite(true, kOkRequest, arraysize(kOkRequest))
     };
     MockRead data_reads[] = {
-        MockRead(true, kSOCKS5GreetResponse, arraysize(kSOCKS5GreetResponse)),
+        MockRead(true, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength),
         MockRead(true, kSOCKS5OkResponse, kSplitPoint),
         MockRead(true, kSOCKS5OkResponse + kSplitPoint,
-                 arraysize(kSOCKS5OkResponse) - kSplitPoint)
+                 kSOCKS5OkResponseLength - kSplitPoint)
     };
 
     user_sock_.reset(BuildMockSocket(data_reads, arraysize(data_reads),

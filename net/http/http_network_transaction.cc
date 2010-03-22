@@ -30,8 +30,7 @@
 #include "net/http/http_response_info.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
-#include "net/socket/socks5_client_socket.h"
-#include "net/socket/socks_client_socket.h"
+#include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/socket/tcp_client_socket_pool.h"
 #include "net/spdy/spdy_session.h"
@@ -521,15 +520,6 @@ int HttpNetworkTransaction::DoLoop(int result) {
         rv = DoInitConnectionComplete(rv);
         TRACE_EVENT_END("http.init_conn", request_, request_->url.spec());
         break;
-      case STATE_SOCKS_CONNECT:
-        DCHECK_EQ(OK, rv);
-        TRACE_EVENT_BEGIN("http.socks_connect", request_, request_->url.spec());
-        rv = DoSOCKSConnect();
-        break;
-      case STATE_SOCKS_CONNECT_COMPLETE:
-        rv = DoSOCKSConnectComplete(rv);
-        TRACE_EVENT_END("http.socks_connect", request_, request_->url.spec());
-        break;
       case STATE_SSL_CONNECT:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.ssl_connect", request_, request_->url.spec());
@@ -674,6 +664,7 @@ int HttpNetworkTransaction::DoInitConnection() {
   using_ssl_ = request_->url.SchemeIs("https");
   using_spdy_ = false;
 
+  // TODO(vandebo) get rid of proxy_mode_, it's redundant
   if (proxy_info_.is_direct())
     proxy_mode_ = kDirectConnection;
   else if (proxy_info_.proxy_server().is_socks())
@@ -745,9 +736,24 @@ int HttpNetworkTransaction::DoInitConnection() {
   TCPSocketParams tcp_params(host, port, request_->priority, request_->referrer,
                              disable_resolver_cache);
 
-  int rv = connection_->Init(connection_group, tcp_params, request_->priority,
-                             &io_callback_, session_->tcp_socket_pool(),
-                             net_log_);
+  int rv;
+  if (proxy_mode_ != kSOCKSProxy) {
+    rv = connection_->Init(connection_group, tcp_params, request_->priority,
+                           &io_callback_, session_->tcp_socket_pool(),
+                           net_log_);
+  } else {
+    bool socks_v5 = proxy_info_.proxy_server().scheme() ==
+                    ProxyServer::SCHEME_SOCKS5;
+    SOCKSSocketParams socks_params(tcp_params, socks_v5,
+                                   request_->url.HostNoBrackets(),
+                                   request_->url.EffectiveIntPort(),
+                                   request_->priority, request_->referrer);
+
+    rv = connection_->Init(connection_group, socks_params, request_->priority,
+                           &io_callback_, session_->socks_socket_pool(),
+                           net_log_);
+  }
+
   return rv;
 }
 
@@ -770,7 +776,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     return OK;
   }
 
-  LogTCPConnectedMetrics(*connection_);
+  LogHttpConnectedMetrics(*connection_);
 
   // Set the reused_socket_ flag to indicate that we are using a keep-alive
   // connection.  This flag is used to handle errors that occur while we are
@@ -782,9 +788,8 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     // Now we have a TCP connected socket.  Perform other connection setup as
     // needed.
     UpdateConnectionTypeHistograms(CONNECTION_HTTP);
-    if (proxy_mode_ == kSOCKSProxy)
-      next_state_ = STATE_SOCKS_CONNECT;
-    else if (using_ssl_ && proxy_mode_ == kDirectConnection) {
+    if (using_ssl_ && (proxy_mode_ == kDirectConnection ||
+                       proxy_mode_ == kSOCKSProxy)) {
       next_state_ = STATE_SSL_CONNECT;
     } else {
       next_state_ = STATE_SEND_REQUEST;
@@ -794,41 +799,6 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   }
 
   return OK;
-}
-
-int HttpNetworkTransaction::DoSOCKSConnect() {
-  DCHECK_EQ(kSOCKSProxy, proxy_mode_);
-
-  next_state_ = STATE_SOCKS_CONNECT_COMPLETE;
-
-  // Add a SOCKS connection on top of our existing transport socket.
-  ClientSocket* s = connection_->release_socket();
-  HostResolver::RequestInfo req_info(request_->url.HostNoBrackets(),
-                                     request_->url.EffectiveIntPort());
-  req_info.set_referrer(request_->referrer);
-  req_info.set_priority(request_->priority);
-
-  if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_SOCKS5)
-    s = new SOCKS5ClientSocket(s, req_info);
-  else
-    s = new SOCKSClientSocket(s, req_info, session_->host_resolver());
-  connection_->set_socket(s);
-  return connection_->socket()->Connect(&io_callback_, net_log_);
-}
-
-int HttpNetworkTransaction::DoSOCKSConnectComplete(int result) {
-  DCHECK_EQ(kSOCKSProxy, proxy_mode_);
-
-  if (result == OK) {
-    if (using_ssl_) {
-      next_state_ = STATE_SSL_CONNECT;
-    } else {
-      next_state_ = STATE_SEND_REQUEST;
-    }
-  } else {
-    result = ReconsiderProxyAfterError(result);
-  }
-  return result;
 }
 
 int HttpNetworkTransaction::DoSSLConnect() {
@@ -1262,42 +1232,32 @@ int HttpNetworkTransaction::DoSpdyReadBodyComplete(int result) {
   return result;
 }
 
-void HttpNetworkTransaction::LogTCPConnectedMetrics(
+void HttpNetworkTransaction::LogHttpConnectedMetrics(
     const ClientSocketHandle& handle) {
-  const base::TimeDelta time_to_obtain_connected_socket =
-      base::TimeTicks::Now() - handle.init_time();
-
-  if (handle.reuse_type() == ClientSocketHandle::UNUSED) {
-    UMA_HISTOGRAM_CUSTOM_TIMES(
-        "Net.HttpConnectionLatency",
-        time_to_obtain_connected_socket,
-        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-        100);
-  }
-
-  UMA_HISTOGRAM_ENUMERATION("Net.TCPSocketType", handle.reuse_type(),
+  UMA_HISTOGRAM_ENUMERATION("Net.HttpSocketType", handle.reuse_type(),
       ClientSocketHandle::NUM_TYPES);
-
-  UMA_HISTOGRAM_CLIPPED_TIMES(
-      "Net.TransportSocketRequestTime",
-      time_to_obtain_connected_socket,
-      base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-      100);
 
   switch (handle.reuse_type()) {
     case ClientSocketHandle::UNUSED:
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.HttpConnectionLatency",
+                                 handle.setup_time(),
+                                 base::TimeDelta::FromMilliseconds(1),
+                                 base::TimeDelta::FromMinutes(10),
+                                 100);
       break;
     case ClientSocketHandle::UNUSED_IDLE:
-      UMA_HISTOGRAM_CUSTOM_TIMES(
-          "Net.SocketIdleTimeBeforeNextUse_UnusedSocket",
-          handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
-          base::TimeDelta::FromMinutes(6), 100);
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SocketIdleTimeBeforeNextUse_UnusedSocket",
+                                 handle.idle_time(),
+                                 base::TimeDelta::FromMilliseconds(1),
+                                 base::TimeDelta::FromMinutes(6),
+                                 100);
       break;
     case ClientSocketHandle::REUSED_IDLE:
-      UMA_HISTOGRAM_CUSTOM_TIMES(
-          "Net.SocketIdleTimeBeforeNextUse_ReusedSocket",
-          handle.idle_time(), base::TimeDelta::FromMilliseconds(1),
-          base::TimeDelta::FromMinutes(6), 100);
+      UMA_HISTOGRAM_CUSTOM_TIMES("Net.SocketIdleTimeBeforeNextUse_ReusedSocket",
+                                 handle.idle_time(),
+                                 base::TimeDelta::FromMilliseconds(1),
+                                 base::TimeDelta::FromMinutes(6),
+                                 100);
       break;
     default:
       NOTREACHED();
