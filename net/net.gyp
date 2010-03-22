@@ -604,6 +604,7 @@
         'base/host_cache_unittest.cc',
         'base/host_resolver_impl_unittest.cc',
         'base/keygen_handler_unittest.cc',
+        'base/leak_annotations.h',
         'base/listen_socket_unittest.cc',
         'base/listen_socket_unittest.h',
         'base/mapped_host_resolver_unittest.cc',
@@ -823,6 +824,15 @@
         ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           'dependencies': [
             '../build/linux/system.gyp:nss',
+          ],
+        }],
+        ['OS == "linux"', {
+          'conditions': [
+            ['linux_use_tcmalloc==1', {
+              'dependencies': [
+                '../base/allocator/allocator.gyp:allocator',
+              ],
+            }],
           ],
         }],
       ],
