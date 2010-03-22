@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -77,8 +77,6 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_RESOLVE_PROXY_COMPLETE,
     STATE_INIT_CONNECTION,
     STATE_INIT_CONNECTION_COMPLETE,
-    STATE_SOCKS_CONNECT,
-    STATE_SOCKS_CONNECT_COMPLETE,
     STATE_SSL_CONNECT,
     STATE_SSL_CONNECT_COMPLETE,
     STATE_SEND_REQUEST,
@@ -125,8 +123,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoResolveProxyComplete(int result);
   int DoInitConnection();
   int DoInitConnectionComplete(int result);
-  int DoSOCKSConnect();
-  int DoSOCKSConnectComplete(int result);
   int DoSSLConnect();
   int DoSSLConnectComplete(int result);
   int DoSendRequest();
@@ -145,7 +141,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoSpdyReadBodyComplete(int result);
 
   // Record histograms of latency until Connect() completes.
-  static void LogTCPConnectedMetrics(const ClientSocketHandle& handle);
+  static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
 
   // Record histogram of time until first byte of header is received.
   void LogTransactionConnectedMetrics() const;
