@@ -1127,4 +1127,15 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFileNotFound) {
                         ERR_FILE_NOT_FOUND);
 }
 
+// Test for http://crbug.com/38845.
+TEST_F(FtpNetworkTransactionTest, ZeroLengthDirInPWD) {
+  FtpSocketDataProviderFileDownload ctrl_socket;
+  TransactionFailHelper(&ctrl_socket,
+                        "ftp://host/file",
+                        FtpSocketDataProvider::PRE_PWD,
+                        FtpSocketDataProvider::PRE_TYPE,
+                        "257 \"\"\r\n",
+                        OK);
+}
+
 }  // namespace net
