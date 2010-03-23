@@ -3379,45 +3379,6 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeaders) {
   EXPECT_EQ(OK, rv);
 }
 
-TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeadersStripped) {
-  SessionDependencies session_deps;
-  scoped_ptr<HttpTransaction> trans(
-      new HttpNetworkTransaction(CreateSession(&session_deps)));
-
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.extra_headers = "referer: www.foo.com\nhEllo: Kitty\rFoO: bar\r\n";
-
-  MockWrite data_writes[] = {
-    MockWrite("GET / HTTP/1.1\r\n"
-              "Host: www.google.com\r\n"
-              "Connection: keep-alive\r\n"
-              "hEllo: Kitty\r\n"
-              "FoO: bar\r\n\r\n"),
-  };
-
-  // Lastly, the server responds with the actual content.
-  MockRead data_reads[] = {
-    MockRead("HTTP/1.0 200 OK\r\n"),
-    MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
-    MockRead("Content-Length: 100\r\n\r\n"),
-    MockRead(false, OK),
-  };
-
-  StaticSocketDataProvider data(data_reads, arraysize(data_reads),
-                                data_writes, arraysize(data_writes));
-  session_deps.socket_factory.AddSocketDataProvider(&data);
-
-  TestCompletionCallback callback;
-
-  int rv = trans->Start(&request, &callback, NULL);
-  EXPECT_EQ(ERR_IO_PENDING, rv);
-
-  rv = callback.WaitForResult();
-  EXPECT_EQ(OK, rv);
-}
-
 TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
   SessionDependencies session_deps(
       CreateFixedProxyService("socks4://myproxy:1080"));
