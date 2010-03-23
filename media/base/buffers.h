@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -120,68 +120,6 @@ class WritableBuffer : public Buffer  {
 
  protected:
   virtual ~WritableBuffer() {}
-};
-
-
-struct VideoSurface {
-  static const size_t kMaxPlanes = 3;
-
-  static const size_t kNumRGBPlanes = 1;
-  static const size_t kRGBPlane = 0;
-
-  static const size_t kNumYUVPlanes = 3;
-  static const size_t kYPlane = 0;
-  static const size_t kUPlane = 1;
-  static const size_t kVPlane = 2;
-
-  // Surface formats roughly based on FOURCC labels, see:
-  // http://www.fourcc.org/rgb.php
-  // http://www.fourcc.org/yuv.php
-  enum Format {
-    INVALID,     // Invalid format value.  Used for error reporting.
-    RGB555,      // 16bpp RGB packed 5:5:5
-    RGB565,      // 16bpp RGB packed 5:6:5
-    RGB24,       // 24bpp RGB packed 8:8:8
-    RGB32,       // 32bpp RGB packed with extra byte 8:8:8
-    RGBA,        // 32bpp RGBA packed 8:8:8:8
-    YV12,        // 12bpp YVU planar 1x1 Y, 2x2 VU samples
-    YV16,        // 16bpp YVU planar 1x1 Y, 2x1 VU samples
-    EMPTY,       // An empty frame.
-  };
-
-  // Surface format.
-  Format format;
-
-  // Width and height of surface.
-  size_t width;
-  size_t height;
-
-  // Number of planes, typically 1 for packed RGB formats and 3 for planar
-  // YUV formats.
-  size_t planes;
-
-  // Array of strides for each plane, typically greater or equal to the width
-  // of the surface divided by the horizontal sampling period.  Note that
-  // strides can be negative.
-  int32 strides[kMaxPlanes];
-
-  // Array of data pointers to each plane.
-  uint8* data[kMaxPlanes];
-};
-
-
-class VideoFrame : public StreamSample {
- public:
-  // Locks the underlying surface and fills out the given VideoSurface and
-  // returns true if successful, false otherwise.  Any additional calls to Lock
-  // will fail.
-  virtual bool Lock(VideoSurface* surface) = 0;
-
-  // Unlocks the underlying surface, the VideoSurface acquired from Lock is no
-  // longer guaranteed to be valid.
-  virtual void Unlock() = 0;
-
-  virtual bool IsEndOfStream() const = 0;
 };
 
 }  // namespace media
