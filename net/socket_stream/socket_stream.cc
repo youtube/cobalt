@@ -167,9 +167,8 @@ void SocketStream::Close() {
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
-  if (!socket_.get() || !socket_->IsConnected() || next_state_ == STATE_NONE)
-    return;
-  socket_->Disconnect();
+  if (socket_.get() && socket_->IsConnected())
+    socket_->Disconnect();
   next_state_ = STATE_CLOSE;
   // Close asynchronously, so that delegate won't be called
   // back before returning Close().
