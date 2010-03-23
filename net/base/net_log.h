@@ -118,6 +118,9 @@ class NetLog {
   // Returns a C-String symbolic name for |event_type|.
   static const char* EventTypeToString(EventType event_type);
 
+  // Returns a list of all the available EventTypes.
+  static std::vector<EventType> GetAllEventTypes();
+
  private:
   DISALLOW_COPY_AND_ASSIGN(NetLog);
 };
