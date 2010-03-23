@@ -233,6 +233,20 @@
             '../chrome_frame/chrome_frame.gyp:npchrome_frame',
           ],
         },
+        {
+          'target_name': 'chromium_builder_dbg_tsan_win',
+          'type': 'none',
+          'dependencies': [
+            '../app/app.gyp:app_unittests',
+            '../base/base.gyp:base_unittests',
+            'temp_gyp/googleurl.gyp:googleurl_unittests',
+            '../net/net.gyp:net_unittests',
+            '../ipc/ipc.gyp:ipc_tests',
+            '../media/media.gyp:media_unittests',
+            '../printing/printing.gyp:printing_unittests',
+            '../chrome/chrome.gyp:unit_tests',
+          ],
+        },
       ],  # targets
     }], # OS="win"
     ['chromeos==1', {
