@@ -1324,6 +1324,54 @@ void SplitStringDontTrim(const std::string& str,
   SplitStringT(str, s, false, r);
 }
 
+template <typename STR>
+static void SplitStringUsingSubstrT(const STR& str,
+                                    const STR& s,
+                                    std::vector<STR>* r) {
+  typename STR::size_type begin_index = 0;
+  while (true) {
+    const typename STR::size_type end_index = str.find(s, begin_index);
+    if (end_index == STR::npos) {
+      const STR term = str.substr(begin_index);
+      STR tmp;
+      TrimWhitespace(term, TRIM_ALL, &tmp);
+      r->push_back(tmp);
+      return;
+    }
+    const STR term = str.substr(begin_index, end_index - begin_index);
+    STR tmp;
+    TrimWhitespace(term, TRIM_ALL, &tmp);
+    r->push_back(tmp);
+    begin_index = end_index + s.size();
+  }
+}
+
+void SplitStringUsingSubstr(const string16& str,
+                            const string16& s,
+                            std::vector<string16>* r) {
+  SplitStringUsingSubstrT(str, s, r);
+}
+
+void SplitStringUsingSubstr(const std::string& str,
+                            const std::string& s,
+                            std::vector<std::string>* r) {
+  SplitStringUsingSubstrT(str, s, r);
+}
+
+std::vector<string16> SplitStringUsingSubstr(const string16& str,
+                                             const string16& s) {
+  std::vector<string16> result;
+  SplitStringUsingSubstr(str, s, &result);
+  return result;
+}
+
+std::vector<std::string> SplitStringUsingSubstr(const std::string& str,
+                                                const std::string& s) {
+  std::vector<std::string> result;
+  SplitStringUsingSubstr(str, s, &result);
+  return result;
+}
+
 template<typename STR>
 static size_t TokenizeT(const STR& str,
                         const STR& delimiters,
