@@ -12,30 +12,6 @@
 #include "net/url_request/url_request_context.h"
 #include "net/websockets/websocket_throttle.h"
 
-namespace {
-
-class CompletionCallbackRunner
-    : public base::RefCountedThreadSafe<CompletionCallbackRunner> {
- public:
-  explicit CompletionCallbackRunner(net::CompletionCallback* callback)
-      : callback_(callback) {
-    DCHECK(callback_);
-  }
-  void Run() {
-    callback_->Run(net::OK);
-  }
- private:
-  friend class base::RefCountedThreadSafe<CompletionCallbackRunner>;
-
-  virtual ~CompletionCallbackRunner() {}
-
-  net::CompletionCallback* callback_;
-
-  DISALLOW_COPY_AND_ASSIGN(CompletionCallbackRunner);
-};
-
-}
-
 namespace net {
 
 // lower-case header names.
@@ -158,10 +134,17 @@ void WebSocketJob::DetachDelegate() {
   Singleton<WebSocketThrottle>::get()->RemoveFromQueue(this);
   Singleton<WebSocketThrottle>::get()->WakeupSocketIfNecessary();
 
+  scoped_refptr<WebSocketJob> protect(this);
+
   delegate_ = NULL;
   if (socket_)
     socket_->DetachDelegate();
   socket_ = NULL;
+  if (callback_) {
+    waiting_ = false;
+    callback_ = NULL;
+    Release();  // Balanced with OnStartOpenConnection().
+  }
 }
 
 int WebSocketJob::OnStartOpenConnection(
@@ -173,6 +156,7 @@ int WebSocketJob::OnStartOpenConnection(
   if (!waiting_)
     return OK;
   callback_ = callback;
+  AddRef();  // Balanced when callback_ becomes NULL.
   return ERR_IO_PENDING;
 }
 
@@ -206,9 +190,16 @@ void WebSocketJob::OnClose(SocketStream* socket) {
   Singleton<WebSocketThrottle>::get()->RemoveFromQueue(this);
   Singleton<WebSocketThrottle>::get()->WakeupSocketIfNecessary();
 
+  scoped_refptr<WebSocketJob> protect(this);
+
   SocketStream::Delegate* delegate = delegate_;
   delegate_ = NULL;
   socket_ = NULL;
+  if (callback_) {
+    waiting_ = false;
+    callback_ = NULL;
+    Release();  // Balanced with OnStartOpenConnection().
+  }
   if (delegate)
     delegate->OnClose(socket);
 }
@@ -437,16 +428,24 @@ bool WebSocketJob::IsWaiting() const {
 }
 
 void WebSocketJob::Wakeup() {
+  if (!waiting_)
+    return;
   waiting_ = false;
   DCHECK(callback_);
-  // We wrap |callback_| to keep this alive while this is released.
-  scoped_refptr<CompletionCallbackRunner> runner =
-      new CompletionCallbackRunner(callback_);
-  callback_ = NULL;
   MessageLoopForIO::current()->PostTask(
       FROM_HERE,
-      NewRunnableMethod(runner.get(),
-                        &CompletionCallbackRunner::Run));
+      NewRunnableMethod(this,
+                        &WebSocketJob::DoCallback));
+}
+
+void WebSocketJob::DoCallback() {
+  // |callback_| may be NULL if OnClose() or DetachDelegate() was called.
+  if (callback_) {
+    net::CompletionCallback* callback = callback_;
+    callback_ = NULL;
+    callback->Run(net::OK);
+    Release();  // Balanced with OnStartOpenConnection().
+  }
 }
 
 }  // namespace net

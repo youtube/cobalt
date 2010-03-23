@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "base/ref_counted.h"
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/socket_stream/socket_stream_job.h"
@@ -82,6 +81,7 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
   void SetWaiting();
   bool IsWaiting() const;
   void Wakeup();
+  void DoCallback();
 
   SocketStream::Delegate* delegate_;
   State state_;
