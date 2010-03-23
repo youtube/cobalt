@@ -1092,7 +1092,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
     TestDelegate d;
     URLRequest req(server_->TestServerPage("echoheader?foo"), &d);
     req.set_context(context);
-    req.SetExtraRequestHeaders("foo:1");
+    req.SetExtraRequestHeaders("foo: 1");
     req.Start();
     MessageLoop::current()->Run();
   }
@@ -1102,7 +1102,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
     TestDelegate d;
     URLRequest req(server_->TestServerPage("echoheader?foo"), &d);
     req.set_context(context);
-    req.SetExtraRequestHeaders("foo:1");
+    req.SetExtraRequestHeaders("foo: 1");
     req.Start();
     MessageLoop::current()->Run();
 
@@ -1114,7 +1114,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
     TestDelegate d;
     URLRequest req(server_->TestServerPage("echoheader?foo"), &d);
     req.set_context(context);
-    req.SetExtraRequestHeaders("foo:2");
+    req.SetExtraRequestHeaders("foo: 2");
     req.Start();
     MessageLoop::current()->Run();
 

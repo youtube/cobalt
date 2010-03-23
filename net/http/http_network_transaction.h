@@ -33,6 +33,7 @@ class ClientSocketFactory;
 class ClientSocketHandle;
 class SpdyStream;
 class HttpNetworkSession;
+class HttpRequestHeaders;
 class HttpStream;
 
 class HttpNetworkTransaction : public HttpTransaction {
@@ -214,9 +215,10 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Returns true if we should try to add an Authorization header.
   bool ShouldApplyServerAuth() const;
 
-  // Builds either the proxy auth header, or the origin server auth header,
+  // Adds either the proxy auth header, or the origin server auth header,
   // as specified by |target|.
-  std::string BuildAuthorizationHeader(HttpAuth::Target target) const;
+  void AddAuthorizationHeader(
+      HttpAuth::Target target, HttpRequestHeaders* authorization_headers) const;
 
   // Returns a log message for all the response headers related to the auth
   // challenge.
