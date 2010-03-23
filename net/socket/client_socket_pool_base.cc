@@ -56,7 +56,8 @@ int ConnectJob::Connect() {
   if (timeout_duration_ != base::TimeDelta())
     timer_.Start(timeout_duration_, this, &ConnectJob::OnTimeout);
 
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_POOL_CONNECT_JOB);
+  net_log_.BeginEventWithString(NetLog::TYPE_SOCKET_POOL_CONNECT_JOB,
+                                group_name_);
 
   int rv = ConnectInternal();
 
