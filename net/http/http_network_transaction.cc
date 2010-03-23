@@ -4,11 +4,11 @@
 
 #include "net/http/http_network_transaction.h"
 
-#include "base/format_macros.h"
-#include "base/scoped_ptr.h"
 #include "base/compiler_specific.h"
 #include "base/field_trial.h"
+#include "base/format_macros.h"
 #include "base/histogram.h"
+#include "base/scoped_ptr.h"
 #include "base/stats_counters.h"
 #include "base/string_util.h"
 #include "base/trace_event.h"
@@ -25,6 +25,7 @@
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_chunked_decoder.h"
 #include "net/http/http_network_session.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
@@ -46,10 +47,63 @@ namespace {
 const std::string* g_next_protos = NULL;
 
 void BuildRequestHeaders(const HttpRequestInfo* request_info,
-                         const std::string& authorization_headers,
+                         const HttpRequestHeaders& authorization_headers,
                          const UploadDataStream* upload_data_stream,
                          bool using_proxy,
-                         std::string* request_headers) {
+                         HttpRequestHeaders* request_headers) {
+  const std::string path = using_proxy ?
+      HttpUtil::SpecForRequest(request_info->url) :
+      HttpUtil::PathForRequest(request_info->url);
+  request_headers->SetRequestLine(
+      request_info->method, path, "1.1");
+
+  request_headers->SetHeader(HttpRequestHeaders::kHost,
+                             GetHostAndOptionalPort(request_info->url));
+
+  // For compat with HTTP/1.0 servers and proxies:
+  if (using_proxy) {
+    request_headers->SetHeader(HttpRequestHeaders::kProxyConnection,
+                               "keep-alive");
+  } else {
+    request_headers->SetHeader(HttpRequestHeaders::kConnection, "keep-alive");
+  }
+
+  if (!request_info->user_agent.empty()) {
+    request_headers->SetHeader(HttpRequestHeaders::kUserAgent,
+                               request_info->user_agent);
+  }
+
+  // Our consumer should have made sure that this is a safe referrer.  See for
+  // instance WebCore::FrameLoader::HideReferrer.
+  if (request_info->referrer.is_valid()) {
+    request_headers->SetHeader(HttpRequestHeaders::kReferer,
+                               request_info->referrer.spec());
+  }
+
+  // Add a content length header?
+  if (upload_data_stream) {
+    request_headers->SetHeader(
+        HttpRequestHeaders::kContentLength,
+        Uint64ToString(upload_data_stream->size()));
+  } else if (request_info->method == "POST" || request_info->method == "PUT" ||
+             request_info->method == "HEAD") {
+    // An empty POST/PUT request still needs a content length.  As for HEAD,
+    // IE and Safari also add a content length header.  Presumably it is to
+    // support sending a HEAD request to an URL that only expects to be sent a
+    // POST or some other method that normally would have a message body.
+    request_headers->SetHeader(HttpRequestHeaders::kContentLength, "0");
+  }
+
+  // Honor load flags that impact proxy caches.
+  if (request_info->load_flags & LOAD_BYPASS_CACHE) {
+    request_headers->SetHeader(HttpRequestHeaders::kPragma, "no-cache");
+    request_headers->SetHeader(HttpRequestHeaders::kCacheControl, "no-cache");
+  } else if (request_info->load_flags & LOAD_VALIDATE_CACHE) {
+    request_headers->SetHeader(HttpRequestHeaders::kCacheControl, "max-age=0");
+  }
+
+  request_headers->MergeFrom(authorization_headers);
+
   // Headers that will be stripped from request_info->extra_headers to prevent,
   // e.g., plugins from overriding headers that are controlled using other
   // means. Otherwise a plugin could set a referrer although sending the
@@ -59,84 +113,46 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
     "Referer"
   };
 
-  const std::string path = using_proxy ?
-      HttpUtil::SpecForRequest(request_info->url) :
-      HttpUtil::PathForRequest(request_info->url);
-  *request_headers =
-      StringPrintf("%s %s HTTP/1.1\r\nHost: %s\r\n",
-                   request_info->method.c_str(), path.c_str(),
-                   GetHostAndOptionalPort(request_info->url).c_str());
+  // TODO(willchan): Change HttpRequestInfo::extra_headers to be a
+  // HttpRequestHeaders.
 
-  // For compat with HTTP/1.0 servers and proxies:
-  if (using_proxy)
-    *request_headers += "Proxy-";
-  *request_headers += "Connection: keep-alive\r\n";
+  std::vector<std::string> extra_headers_vector;
+  Tokenize(request_info->extra_headers, "\r\n", &extra_headers_vector);
+  HttpRequestHeaders extra_headers;
+  if (!extra_headers_vector.empty()) {
+    for (std::vector<std::string>::const_iterator it =
+         extra_headers_vector.begin(); it != extra_headers_vector.end(); ++it)
+      extra_headers.AddHeaderFromString(*it);
 
-  if (!request_info->user_agent.empty()) {
-    StringAppendF(request_headers, "User-Agent: %s\r\n",
-                  request_info->user_agent.c_str());
+    for (size_t i = 0; i < arraysize(kExtraHeadersToBeStripped); ++i)
+      extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
+
+    request_headers->MergeFrom(extra_headers);
   }
-
-  // Our consumer should have made sure that this is a safe referrer.  See for
-  // instance WebCore::FrameLoader::HideReferrer.
-  if (request_info->referrer.is_valid())
-    StringAppendF(request_headers, "Referer: %s\r\n",
-                  request_info->referrer.spec().c_str());
-
-  // Add a content length header?
-  if (upload_data_stream) {
-    StringAppendF(request_headers, "Content-Length: %" PRIu64 "\r\n",
-                  upload_data_stream->size());
-  } else if (request_info->method == "POST" || request_info->method == "PUT" ||
-             request_info->method == "HEAD") {
-    // An empty POST/PUT request still needs a content length.  As for HEAD,
-    // IE and Safari also add a content length header.  Presumably it is to
-    // support sending a HEAD request to an URL that only expects to be sent a
-    // POST or some other method that normally would have a message body.
-    *request_headers += "Content-Length: 0\r\n";
-  }
-
-  // Honor load flags that impact proxy caches.
-  if (request_info->load_flags & LOAD_BYPASS_CACHE) {
-    *request_headers += "Pragma: no-cache\r\nCache-Control: no-cache\r\n";
-  } else if (request_info->load_flags & LOAD_VALIDATE_CACHE) {
-    *request_headers += "Cache-Control: max-age=0\r\n";
-  }
-
-  if (!authorization_headers.empty()) {
-    *request_headers += authorization_headers;
-  }
-
-  // TODO(darin): Need to prune out duplicate headers.
-
-  *request_headers += HttpUtil::StripHeaders(request_info->extra_headers,
-      kExtraHeadersToBeStripped, arraysize(kExtraHeadersToBeStripped));
-  *request_headers += "\r\n";
 }
 
 // The HTTP CONNECT method for establishing a tunnel connection is documented
 // in draft-luotonen-web-proxy-tunneling-01.txt and RFC 2817, Sections 5.2 and
 // 5.3.
 void BuildTunnelRequest(const HttpRequestInfo* request_info,
-                        const std::string& authorization_headers,
-                        std::string* request_headers) {
+                        const HttpRequestHeaders& authorization_headers,
+                        HttpRequestHeaders* request_headers) {
   // RFC 2616 Section 9 says the Host request-header field MUST accompany all
   // HTTP/1.1 requests.  Add "Proxy-Connection: keep-alive" for compat with
   // HTTP/1.0 proxies such as Squid (required for NTLM authentication).
-  *request_headers = StringPrintf(
-      "CONNECT %s HTTP/1.1\r\nHost: %s\r\nProxy-Connection: keep-alive\r\n",
-      GetHostAndPort(request_info->url).c_str(),
-      GetHostAndOptionalPort(request_info->url).c_str());
+  request_headers->SetRequestLine(
+      "CONNECT", GetHostAndPort(request_info->url), "1.1");
+  request_headers->SetHeader(HttpRequestHeaders::kHost,
+                             GetHostAndOptionalPort(request_info->url));
+  request_headers->SetHeader(HttpRequestHeaders::kProxyConnection,
+                             "keep-alive");
 
-  if (!request_info->user_agent.empty())
-    StringAppendF(request_headers, "User-Agent: %s\r\n",
-                  request_info->user_agent.c_str());
-
-  if (!authorization_headers.empty()) {
-    *request_headers += authorization_headers;
+  if (!request_info->user_agent.empty()) {
+    request_headers->SetHeader(HttpRequestHeaders::kUserAgent,
+                               request_info->user_agent);
   }
 
-  *request_headers += "\r\n";
+  request_headers->MergeFrom(authorization_headers);
 }
 
 void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
@@ -904,24 +920,25 @@ int HttpNetworkTransaction::DoSendRequest() {
         (HaveAuth(HttpAuth::AUTH_SERVER) ||
          SelectPreemptiveAuth(HttpAuth::AUTH_SERVER));
 
-    std::string authorization_headers;
+    HttpRequestHeaders request_headers;
+    HttpRequestHeaders authorization_headers;
 
     // TODO(wtc): If BuildAuthorizationHeader fails (returns an authorization
     // header with no credentials), we should return an error to prevent
     // entering an infinite auth restart loop.  See http://crbug.com/21050.
     if (have_proxy_auth)
-      authorization_headers.append(
-          BuildAuthorizationHeader(HttpAuth::AUTH_PROXY));
+      AddAuthorizationHeader(HttpAuth::AUTH_PROXY, &authorization_headers);
     if (have_server_auth)
-      authorization_headers.append(
-          BuildAuthorizationHeader(HttpAuth::AUTH_SERVER));
+      AddAuthorizationHeader(HttpAuth::AUTH_SERVER, &authorization_headers);
 
     if (establishing_tunnel_) {
-      BuildTunnelRequest(request_, authorization_headers, &request_headers_);
+      BuildTunnelRequest(request_, authorization_headers, &request_headers);
     } else {
       BuildRequestHeaders(request_, authorization_headers, request_body,
-                          proxy_mode_ == kHTTPProxy, &request_headers_);
+                          proxy_mode_ == kHTTPProxy, &request_headers);
     }
+
+    request_headers_ = request_headers.ToString();
   }
 
   headers_valid_ = false;
@@ -1595,8 +1612,8 @@ bool HttpNetworkTransaction::ShouldApplyServerAuth() const {
       !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA);
 }
 
-std::string HttpNetworkTransaction::BuildAuthorizationHeader(
-    HttpAuth::Target target) const {
+void HttpNetworkTransaction::AddAuthorizationHeader(
+    HttpAuth::Target target, HttpRequestHeaders* authorization_headers) const {
   DCHECK(HaveAuth(target));
 
   // Add a Authorization/Proxy-Authorization header line.
@@ -1607,14 +1624,14 @@ std::string HttpNetworkTransaction::BuildAuthorizationHeader(
       request_,
       &proxy_info_,
       &auth_token);
-  if (rv == OK)
-    return HttpAuth::GetAuthorizationHeaderName(target) +
-      ": "  + auth_token + "\r\n";
+  if (rv == OK) {
+    authorization_headers->SetHeader(
+        HttpAuth::GetAuthorizationHeaderName(target), auth_token);
+  }
 
   // TODO(cbentzel): Evict username and password from cache on non-OK return?
   // TODO(cbentzel): Never use this scheme again if
   //                 ERR_UNSUPPORTED_AUTH_SCHEME is returned.
-  return std::string();
 }
 
 GURL HttpNetworkTransaction::AuthOrigin(HttpAuth::Target target) const {
