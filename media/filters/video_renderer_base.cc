@@ -5,7 +5,7 @@
 #include "base/callback.h"
 #include "media/base/buffers.h"
 #include "media/base/filter_host.h"
-#include "media/base/video_frame_impl.h"
+#include "media/base/video_frame.h"
 #include "media/filters/video_renderer_base.h"
 
 namespace media {
@@ -157,7 +157,7 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
 
   // Create a black frame so clients have something to render before we finish
   // prerolling.
-  VideoFrameImpl::CreateBlackFrame(width_, height_, &current_frame_);
+  VideoFrame::CreateBlackFrame(width_, height_, &current_frame_);
 
   // We're all good!  Consider ourselves paused (ThreadMain() should never
   // see us in the kUninitialized state).
@@ -322,7 +322,7 @@ void VideoRendererBase::OnReadComplete(VideoFrame* frame) {
       // our new location.
       state_ = kPaused;
       if (frames_.front()->IsEndOfStream()) {
-        VideoFrameImpl::CreateBlackFrame(width_, height_, &current_frame_);
+        VideoFrame::CreateBlackFrame(width_, height_, &current_frame_);
       } else {
         current_frame_ = frames_.front();
       }

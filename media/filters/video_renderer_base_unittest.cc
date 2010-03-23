@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include "media/base/data_buffer.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
-#include "media/base/video_frame_impl.h"
+#include "media/base/video_frame.h"
 #include "media/filters/video_renderer_base.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -185,8 +185,8 @@ TEST_F(VideoRendererBaseTest, Initialize_Successful) {
   while (!read_queue_.empty()) {
     const base::TimeDelta kZero;
     scoped_refptr<VideoFrame> frame;
-    VideoFrameImpl::CreateFrame(VideoSurface::RGB32, kWidth, kHeight, kZero,
-                                kZero, &frame);
+    VideoFrame::CreateFrame(VideoFrame::RGB32, kWidth, kHeight, kZero,
+                            kZero, &frame);
     read_queue_.front()->Run(frame);
     delete read_queue_.front();
     read_queue_.pop_front();
