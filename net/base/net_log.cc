@@ -17,6 +17,15 @@ const char* NetLog::EventTypeToString(EventType event) {
   return NULL;
 }
 
+// static
+std::vector<NetLog::EventType> NetLog::GetAllEventTypes() {
+  std::vector<NetLog::EventType> types;
+#define EVENT_TYPE(label) types.push_back(TYPE_ ## label);
+#include "net/base/net_log_event_type_list.h"
+#undef EVENT_TYPE
+  return types;
+}
+
 void BoundNetLog::AddEntry(const NetLog::Entry& entry) const {
   if (net_log_)
     net_log_->AddEntry(entry);
