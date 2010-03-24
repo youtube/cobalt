@@ -357,6 +357,34 @@ TEST_F(FileUtilTest, CountFilesCreatedAfter) {
   EXPECT_EQ(0, file_util::CountFilesCreatedAfter(test_dir_, now));
 }
 
+TEST_F(FileUtilTest, FileAndDirectorySize) {
+  // Create three files of 20, 30 and 3 chars (utf8). ComputeDirectorySize
+  // should return 53 bytes.
+  FilePath file_01 = test_dir_.Append(FPL("The file 01.txt"));
+  CreateTextFile(file_01, L"12345678901234567890");
+  int64 size_f1 = 0;
+  ASSERT_TRUE(file_util::GetFileSize(file_01, &size_f1));
+  EXPECT_EQ(20ll, size_f1);
+
+  FilePath subdir_path = test_dir_.Append(FPL("Level2"));
+  file_util::CreateDirectory(subdir_path);
+
+  FilePath file_02 = subdir_path.Append(FPL("The file 02.txt"));
+  CreateTextFile(file_02, L"123456789012345678901234567890");
+  int64 size_f2 = 0;
+  ASSERT_TRUE(file_util::GetFileSize(file_02, &size_f2));
+  EXPECT_EQ(30ll, size_f2);
+
+  FilePath subsubdir_path = subdir_path.Append(FPL("Level3"));
+  file_util::CreateDirectory(subsubdir_path);
+
+  FilePath file_03 = subsubdir_path.Append(FPL("The file 03.txt"));
+  CreateTextFile(file_03, L"123");
+
+  int64 computed_size = file_util::ComputeDirectorySize(test_dir_);
+  EXPECT_EQ(size_f1 + size_f2 + 3, computed_size);
+}
+
 // Tests that the Delete function works as expected, especially
 // the recursion flag.  Also coincidentally tests PathExists.
 TEST_F(FileUtilTest, Delete) {
