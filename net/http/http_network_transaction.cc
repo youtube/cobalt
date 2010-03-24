@@ -887,8 +887,12 @@ int HttpNetworkTransaction::DoSendRequest() {
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
 
   UploadDataStream* request_body = NULL;
-  if (!establishing_tunnel_ && request_->upload_data)
-    request_body = new UploadDataStream(request_->upload_data);
+  if (!establishing_tunnel_ && request_->upload_data) {
+    int error_code;
+    request_body = UploadDataStream::Create(request_->upload_data, &error_code);
+    if (!request_body)
+      return error_code;
+  }
 
   // This is constructed lazily (instead of within our Start method), so that
   // we have proxy info available.
@@ -1187,8 +1191,13 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
 
   CHECK(spdy_session.get());
 
-  UploadDataStream* upload_data = request_->upload_data ?
-      new UploadDataStream(request_->upload_data) : NULL;
+  UploadDataStream* upload_data = NULL;
+  if (request_->upload_data) {
+    int error_code = OK;
+    upload_data = UploadDataStream::Create(request_->upload_data, &error_code);
+    if (!upload_data)
+      return error_code;
+  }
   headers_valid_ = false;
   spdy_stream_ = spdy_session->GetOrCreateStream(
       *request_, upload_data, net_log_);

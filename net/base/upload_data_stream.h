@@ -14,7 +14,11 @@ class IOBuffer;
 
 class UploadDataStream {
  public:
-  explicit UploadDataStream(const UploadData* data);
+  // Returns a new instance of UploadDataStream if it can be created and
+  // initialized successfully. If not, NULL will be returned and the error
+  // code will be set if the output parameter error_code is not empty.
+  static UploadDataStream* Create(const UploadData* data, int* error_code);
+
   ~UploadDataStream();
 
   // Returns the stream's buffer and buffer length.
@@ -38,9 +42,14 @@ class UploadDataStream {
   bool eof() const { return eof_; }
 
  private:
+  // Protects from public access since now we have a static creator function
+  // which will do both creation and initialization and might return an error.
+  explicit UploadDataStream(const UploadData* data);
+
   // Fills the buffer with any remaining data and sets eof_ if there was nothing
   // left to fill the buffer with.
-  void FillBuf();
+  // Returns OK if the operation succeeds. Otherwise error code is returned.
+  int FillBuf();
 
   const UploadData* data_;
 
