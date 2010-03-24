@@ -116,7 +116,7 @@ __EOF__
   fi
 }
 
-if ! egrep -q 'Ubuntu (8\.04|8\.10|9\.04|9\.10)' /etc/issue; then
+if ! egrep -q 'Ubuntu (8\.04|8\.10|9\.04|9\.10|karmic|lucid)' /etc/issue; then
   echo "Only Ubuntu 8.04, 8.10, 9.04, and 9.10 are currently supported" >&2
   exit 1
 fi
