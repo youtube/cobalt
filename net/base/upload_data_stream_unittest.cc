@@ -9,6 +9,9 @@
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/scoped_ptr.h"
+#include "base/time.h"
+#include "net/base/net_errors.h"
 #include "net/base/upload_data.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
@@ -26,20 +29,28 @@ class UploadDataStreamTest : public PlatformTest {
  public:
   UploadDataStreamTest() : upload_data_(new UploadData) { }
 
+  void FileChangedHelper(const FilePath& file_path,
+                         const base::Time& time,
+                         bool error_expected);
+
   scoped_refptr<UploadData> upload_data_;
 };
 
 TEST_F(UploadDataStreamTest, EmptyUploadData) {
   upload_data_->AppendBytes("", 0);
-  UploadDataStream stream(upload_data_);
-  EXPECT_TRUE(stream.eof());
+  scoped_ptr<UploadDataStream> stream(
+      UploadDataStream::Create(upload_data_, NULL));
+  ASSERT_TRUE(stream.get());
+  EXPECT_TRUE(stream->eof());
 }
 
 TEST_F(UploadDataStreamTest, ConsumeAll) {
   upload_data_->AppendBytes(kTestData, kTestDataSize);
-  UploadDataStream stream(upload_data_);
-  while (!stream.eof()) {
-    stream.DidConsume(stream.buf_len());
+  scoped_ptr<UploadDataStream> stream(
+      UploadDataStream::Create(upload_data_, NULL));
+  ASSERT_TRUE(stream.get());
+  while (!stream->eof()) {
+    stream->DidConsume(stream->buf_len());
   }
 }
 
@@ -58,14 +69,54 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
   upload_data_->set_elements(elements);
   EXPECT_EQ(kFakeSize, upload_data_->GetContentLength());
 
-  UploadDataStream stream(upload_data_);
-  EXPECT_FALSE(stream.eof());
+  scoped_ptr<UploadDataStream> stream(
+      UploadDataStream::Create(upload_data_, NULL));
+  ASSERT_TRUE(stream.get());
+  EXPECT_FALSE(stream->eof());
   uint64 read_counter = 0;
-  while (!stream.eof()) {
-    read_counter += stream.buf_len();
-    stream.DidConsume(stream.buf_len());
+  while (!stream->eof()) {
+    read_counter += stream->buf_len();
+    stream->DidConsume(stream->buf_len());
   }
-  EXPECT_LT(read_counter, stream.size());
+  EXPECT_LT(read_counter, stream->size());
+
+  file_util::Delete(temp_file_path, false);
+}
+
+void UploadDataStreamTest::FileChangedHelper(const FilePath& file_path,
+                                             const base::Time& time,
+                                             bool error_expected) {
+  std::vector<UploadData::Element> elements;
+  UploadData::Element element;
+  element.SetToFilePathRange(file_path, 1, 2, time);
+  elements.push_back(element);
+  upload_data_->set_elements(elements);
+
+  int error_code;
+  scoped_ptr<UploadDataStream> stream(
+      UploadDataStream::Create(upload_data_, &error_code));
+  if (error_expected)
+    ASSERT_TRUE(!stream.get() && error_code == net::ERR_UPLOAD_FILE_CHANGED);
+  else
+    ASSERT_TRUE(stream.get() && error_code == net::OK);
+}
+
+TEST_F(UploadDataStreamTest, FileChanged) {
+  FilePath temp_file_path;
+  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file_path));
+  ASSERT_EQ(kTestDataSize, file_util::WriteFile(temp_file_path,
+                                                kTestData, kTestDataSize));
+
+  file_util::FileInfo file_info;
+  ASSERT_TRUE(file_util::GetFileInfo(temp_file_path, &file_info));
+
+  // Test file not changed.
+  FileChangedHelper(temp_file_path, file_info.last_modified, false);
+
+  // Test file changed.
+  FileChangedHelper(temp_file_path,
+                    file_info.last_modified - base::TimeDelta::FromSeconds(1),
+                    true);
 
   file_util::Delete(temp_file_path, false);
 }
