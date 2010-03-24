@@ -32,12 +32,13 @@ class FtpUtil {
 
   // Convert a "ls -l" date listing to time. The listing comes in three columns.
   // The first one contains month, the second one contains day of month.
-  // The first one is either a time (and then the current year is assumed),
-  // or is a year (and then we don't know the time).
+  // The first one is either a time (and then we guess the year based
+  // on |current_time|), or is a year (and then we don't know the time).
   static bool LsDateListingToTime(const string16& month,
                                   const string16& day,
                                   const string16& rest,
-                                  base::Time* time);
+                                  const base::Time& current_time,
+                                  base::Time* result);
 
   // Skip |columns| columns from |text| (whitespace-delimited), and return the
   // remaining part, without leading/trailing whitespace.
