@@ -96,6 +96,22 @@ class FtpNetworkTransaction : public FtpTransaction {
     SYSTEM_TYPE_VMS,
   };
 
+  // Data representation type, see RFC 959 section 3.1.1. Data Types.
+  // We only support the two most popular data types.
+  enum DataType {
+    DATA_TYPE_ASCII,
+    DATA_TYPE_IMAGE,
+  };
+
+  // In FTP we need to issue different commands depending on whether a resource
+  // is a file or directory. If we don't know that, we're going to autodetect
+  // it.
+  enum ResourceType {
+    RESOURCE_TYPE_UNKNOWN,
+    RESOURCE_TYPE_FILE,
+    RESOURCE_TYPE_DIRECTORY,
+  };
+
   // Resets the members of the transaction so it can be restarted.
   void ResetStateForRestart();
 
@@ -115,6 +131,9 @@ class FtpNetworkTransaction : public FtpTransaction {
   // Returns request path suitable to be included in an FTP command. If the path
   // will be used as a directory, |is_directory| should be true.
   std::string GetRequestPathForFtpCommand(bool is_directory) const;
+
+  // See if the request URL contains a typecode and make us respect it.
+  void DetectTypecode();
 
   // Runs the state transition loop.
   int DoLoop(int result);
@@ -203,6 +222,12 @@ class FtpNetworkTransaction : public FtpTransaction {
 
   SystemType system_type_;
 
+  // Data type to be used for the TYPE command.
+  DataType data_type_;
+
+  // Detected resource type (file or directory).
+  ResourceType resource_type_;
+
   // We get username and password as wstrings in RestartWithAuth, so they are
   // also kept as wstrings here.
   std::wstring username_;
@@ -211,8 +236,6 @@ class FtpNetworkTransaction : public FtpTransaction {
   // Current directory on the remote server, as returned by last PWD command,
   // with any trailing slash removed.
   std::string current_remote_directory_;
-
-  bool retr_failed_;
 
   int data_connection_port_;
 
