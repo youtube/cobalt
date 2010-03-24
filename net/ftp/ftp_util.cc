@@ -147,7 +147,9 @@ bool FtpUtil::ThreeLetterMonthToNumber(const string16& text, int* number) {
 
 // static
 bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
-                                  const string16& rest, base::Time* time) {
+                                  const string16& rest,
+                                  const base::Time& current_time,
+                                  base::Time* result) {
   base::Time::Exploded time_exploded = { 0 };
 
   if (!ThreeLetterMonthToNumber(month, &time_exploded.month))
@@ -167,14 +169,23 @@ bool FtpUtil::LsDateListingToTime(const string16& month, const string16& day,
     if (!StringToInt(rest.substr(3, 2), &time_exploded.minute))
       return false;
 
-    // Use current year.
-    base::Time::Exploded now_exploded;
-    base::Time::Now().LocalExplode(&now_exploded);
-    time_exploded.year = now_exploded.year;
+    // Guess the year.
+    base::Time::Exploded current_exploded;
+    current_time.LocalExplode(&current_exploded);
+
+    // If it's not possible for the parsed date to be in the current year,
+    // use the previous year.
+    if (time_exploded.month > current_exploded.month ||
+        (time_exploded.month == current_exploded.month &&
+         time_exploded.day_of_month > current_exploded.day_of_month)) {
+      time_exploded.year = current_exploded.year - 1;
+    } else {
+      time_exploded.year = current_exploded.year;
+    }
   }
 
   // We don't know the time zone of the listing, so just use local time.
-  *time = base::Time::FromLocalExploded(time_exploded);
+  *result = base::Time::FromLocalExploded(time_exploded);
   return true;
 }
 

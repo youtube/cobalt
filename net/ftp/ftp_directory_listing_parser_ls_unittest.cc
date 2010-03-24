@@ -13,8 +13,9 @@ namespace {
 typedef net::FtpDirectoryListingParserTest FtpDirectoryListingParserLsTest;
 
 TEST_F(FtpDirectoryListingParserLsTest, Good) {
-  base::Time::Exploded now_exploded;
-  base::Time::Now().LocalExplode(&now_exploded);
+  base::Time mock_current_time;
+  ASSERT_TRUE(base::Time::FromString(L"Tue, 15 Nov 1994 12:45:26 GMT",
+                                     &mock_current_time));
 
   const struct SingleLineTestData good_cases[] = {
     { "-rw-r--r--    1 ftp      ftp           528 Nov 01  2007 README",
@@ -22,13 +23,13 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
       2007, 11, 1, 0, 0 },
     { "drwxr-xr-x    3 ftp      ftp          4096 May 15 18:11 directory",
       net::FtpDirectoryListingEntry::DIRECTORY, "directory", -1,
-      now_exploded.year, 5, 15, 18, 11 },
+      1994, 5, 15, 18, 11 },
     { "lrwxrwxrwx 1 0  0 26 Sep 18 2008 pub -> vol/1/.CLUSTER/var_ftp/pub",
       net::FtpDirectoryListingEntry::SYMLINK, "pub", -1,
       2008, 9, 18, 0, 0 },
     { "lrwxrwxrwx 1 0  0 3 Oct 12 13:37 mirror -> pub",
       net::FtpDirectoryListingEntry::SYMLINK, "mirror", -1,
-      now_exploded.year, 10, 12, 13, 37 },
+      1994, 10, 12, 13, 37 },
     { "drwxrwsr-x    4 501      501          4096 Feb 20  2007 pub",
       net::FtpDirectoryListingEntry::DIRECTORY, "pub", -1,
       2007, 2, 20, 0, 0 },
@@ -37,13 +38,13 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
       2007, 4, 8, 0, 0 },
     { "drwx-wx-wt  2 root  wheel  512 Jul  1 02:15 incoming",
       net::FtpDirectoryListingEntry::DIRECTORY, "incoming", -1,
-      now_exploded.year, 7, 1, 2, 15 },
+      1994, 7, 1, 2, 15 },
     { "-rw-r--r-- 1 2 3 3447432 May 18  2009 Foo - Manual.pdf",
       net::FtpDirectoryListingEntry::FILE, "Foo - Manual.pdf", 3447432,
       2009, 5, 18, 0, 0 },
     { "d-wx-wx-wt+  4 ftp      989          512 Dec  8 15:54 incoming",
       net::FtpDirectoryListingEntry::DIRECTORY, "incoming", -1,
-      now_exploded.year, 12, 8, 15, 54 },
+      1993, 12, 8, 15, 54 },
 
     // Tests for the wu-ftpd variant:
     { "drwxr-xr-x   2 sys          512 Mar 27  2009 pub",
@@ -65,7 +66,7 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
       2006, 3, 1, 0, 0 },
     { "dr--r--r--  1 ftp      -----           0 Nov 17 17:08 kernels",
       net::FtpDirectoryListingEntry::DIRECTORY, "kernels", -1,
-      now_exploded.year, 11, 17, 17, 8 },
+      1993, 11, 17, 17, 8 },
 
     // Tests for "ls -l" style listing sent by Xplain FTP Server.
     { "drwxr-xr-x               folder        0 Jul 17  2006 online",
@@ -75,12 +76,16 @@ TEST_F(FtpDirectoryListingParserLsTest, Good) {
   for (size_t i = 0; i < arraysize(good_cases); i++) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s", i, good_cases[i].input));
 
-    net::FtpDirectoryListingParserLs parser;
+    net::FtpDirectoryListingParserLs parser(mock_current_time);
     RunSingleLineTestCase(&parser, good_cases[i]);
   }
 }
 
 TEST_F(FtpDirectoryListingParserLsTest, Bad) {
+  base::Time mock_current_time;
+  ASSERT_TRUE(base::Time::FromString(L"Tue, 15 Nov 1994 12:45:26 GMT",
+                                     &mock_current_time));
+
   const char* bad_cases[] = {
     "garbage",
     "-rw-r--r-- ftp ftp",
@@ -107,7 +112,7 @@ TEST_F(FtpDirectoryListingParserLsTest, Bad) {
     "drwxr-xr-x   folder     0 May 15 18:11",
   };
   for (size_t i = 0; i < arraysize(bad_cases); i++) {
-    net::FtpDirectoryListingParserLs parser;
+    net::FtpDirectoryListingParserLs parser(mock_current_time);
     EXPECT_FALSE(parser.ConsumeLine(UTF8ToUTF16(bad_cases[i]))) << bad_cases[i];
   }
 }

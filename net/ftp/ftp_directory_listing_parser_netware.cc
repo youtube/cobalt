@@ -31,8 +31,10 @@ bool LooksLikeNetwarePermissionsListing(const string16& text) {
 
 namespace net {
 
-FtpDirectoryListingParserNetware::FtpDirectoryListingParserNetware()
-    : received_first_line_(false) {
+FtpDirectoryListingParserNetware::FtpDirectoryListingParserNetware(
+    const base::Time& current_time)
+    : received_first_line_(false),
+      current_time_(current_time) {
 }
 
 bool FtpDirectoryListingParserNetware::ConsumeLine(const string16& line) {
@@ -75,7 +77,7 @@ bool FtpDirectoryListingParserNetware::ConsumeLine(const string16& line) {
 
   // Netware uses the same date listing format as Unix "ls -l".
   if (!FtpUtil::LsDateListingToTime(columns[4], columns[5], columns[6],
-                                    &entry.last_modified)) {
+                                    current_time_, &entry.last_modified)) {
     return false;
   }
 
