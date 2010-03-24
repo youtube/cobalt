@@ -71,6 +71,13 @@ bool ContainsPath(const FilePath& parent, const FilePath& child);
 int CountFilesCreatedAfter(const FilePath& path,
                            const base::Time& file_time);
 
+// Returns the total number of bytes used by all the files under |root_path|.
+// If the path does not exist the function returns 0.
+//
+// This function is implemented using the FileEnumerator class so it is not
+// particularly speedy in any platform.
+int64 ComputeDirectorySize(const FilePath& root_path);
+
 // Deletes the given path, whether it's a file or a directory.
 // If it's a directory, it's perfectly happy to delete all of the
 // directory's contents.  Passing true to recursive deletes
