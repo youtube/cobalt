@@ -81,30 +81,6 @@ int CloseContext(URLContext* h) {
   return 0;
 }
 
-int LockManagerOperation(void** lock, enum AVLockOp op) {
-  switch (op) {
-    case AV_LOCK_CREATE:
-      *lock = new Lock();
-      if (!*lock)
-        return 1;
-      return 0;
-
-    case AV_LOCK_OBTAIN:
-      static_cast<Lock*>(*lock)->Acquire();
-      return 0;
-
-    case AV_LOCK_RELEASE:
-      static_cast<Lock*>(*lock)->Release();
-      return 0;
-
-    case AV_LOCK_DESTROY:
-      delete static_cast<Lock*>(*lock);
-      *lock = NULL;
-      return 0;
-  }
-  return 1;
-}
-
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -131,14 +107,12 @@ FFmpegGlue::FFmpegGlue() {
   // Register our protocol glue code with FFmpeg.
   avcodec_init();
   av_register_protocol(&kFFmpegURLProtocol);
-  av_lockmgr_register(&LockManagerOperation);
 
   // Now register the rest of FFmpeg.
   av_register_all();
 }
 
 FFmpegGlue::~FFmpegGlue() {
-  av_lockmgr_register(NULL);
 }
 
 std::string FFmpegGlue::AddProtocol(FFmpegURLProtocol* protocol) {
