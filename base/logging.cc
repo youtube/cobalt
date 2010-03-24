@@ -458,12 +458,17 @@ LogMessage::~LogMessage() {
   if (severity_ < min_log_level)
     return;
 
-  std::string str_newline(stream_.str());
-#if defined(OS_WIN)
-  str_newline.append("\r\n");
-#else
-  str_newline.append("\n");
+#ifndef NDEBUG
+  if (severity_ == LOG_FATAL) {
+    // Include a stack trace on a fatal.
+    StackTrace trace;
+    stream_ << std::endl;  // Newline to separate from log message.
+    trace.OutputToStream(&stream_);
+  }
 #endif
+  stream_ << std::endl;
+  std::string str_newline(stream_.str());
+
   // Give any log message handler first dibs on the message.
   if (log_message_handler && log_message_handler(severity_, str_newline))
     return;
@@ -565,13 +570,6 @@ LogMessage::~LogMessage() {
     if (DebugUtil::BeingDebugged()) {
       DebugUtil::BreakDebugger();
     } else {
-#ifndef NDEBUG
-      // Dump a stack trace on a fatal.
-      StackTrace trace;
-      stream_ << "\n";  // Newline to separate from log message.
-      trace.OutputToStream(&stream_);
-#endif
-
       if (log_assert_handler) {
         // make a copy of the string for the handler out of paranoia
         log_assert_handler(std::string(stream_.str()));
