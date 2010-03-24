@@ -7,6 +7,7 @@
 
 #include <queue>
 
+#include "base/time.h"
 #include "net/ftp/ftp_directory_listing_parser.h"
 
 namespace net {
@@ -14,7 +15,10 @@ namespace net {
 // Parser for "ls -l"-style directory listing.
 class FtpDirectoryListingParserLs : public FtpDirectoryListingParser {
  public:
-  FtpDirectoryListingParserLs();
+  // Constructor. When the current time is needed to guess the year on partial
+  // date strings, |current_time| will be used. This allows passing a specific
+  // date during testing.
+  explicit FtpDirectoryListingParserLs(const base::Time& current_time);
 
   // FtpDirectoryListingParser methods:
   virtual FtpServerType GetServerType() const { return SERVER_LS; }
@@ -29,6 +33,9 @@ class FtpDirectoryListingParserLs : public FtpDirectoryListingParser {
   // True after we have received a "total n" listing header, where n is an
   // integer. Only one such header is allowed per listing.
   bool received_total_line_;
+
+  // Store the current time. We need it to correctly parse received dates.
+  const base::Time current_time_;
 
   std::queue<FtpDirectoryListingEntry> entries_;
 

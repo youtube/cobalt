@@ -42,12 +42,13 @@ bool LooksLikeUnixPermissionsListing(const string16& text) {
           (text.substr(10).empty() || text.substr(10) == ASCIIToUTF16("+")));
 }
 
-bool DetectColumnOffset(const std::vector<string16>& columns, int* offset) {
+bool DetectColumnOffset(const std::vector<string16>& columns,
+                        const base::Time& current_time, int* offset) {
   base::Time time;
 
   if (columns.size() >= 8 &&
       net::FtpUtil::LsDateListingToTime(columns[5], columns[6], columns[7],
-                                        &time)) {
+                                        current_time, &time)) {
     // Standard listing, exactly like ls -l.
     *offset = 2;
     return true;
@@ -55,7 +56,7 @@ bool DetectColumnOffset(const std::vector<string16>& columns, int* offset) {
 
   if (columns.size() >= 7 &&
       net::FtpUtil::LsDateListingToTime(columns[4], columns[5], columns[6],
-                                        &time)) {
+                                        current_time, &time)) {
     // wu-ftpd listing, no "number of links" column.
     *offset = 1;
     return true;
@@ -63,7 +64,7 @@ bool DetectColumnOffset(const std::vector<string16>& columns, int* offset) {
 
   if (columns.size() >= 6 &&
       net::FtpUtil::LsDateListingToTime(columns[3], columns[4], columns[5],
-                                        &time)) {
+                                        current_time, &time)) {
     // Xplain FTP Server listing for folders, like this:
     // drwxr-xr-x               folder        0 Jul 17  2006 online
     *offset = 0;
@@ -78,9 +79,11 @@ bool DetectColumnOffset(const std::vector<string16>& columns, int* offset) {
 
 namespace net {
 
-FtpDirectoryListingParserLs::FtpDirectoryListingParserLs()
+FtpDirectoryListingParserLs::FtpDirectoryListingParserLs(
+    const base::Time& current_time)
     : received_nonempty_line_(false),
-      received_total_line_(false) {
+      received_total_line_(false),
+      current_time_(current_time) {
 }
 
 bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
@@ -113,7 +116,7 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
   }
 
   int column_offset;
-  if (!DetectColumnOffset(columns, &column_offset))
+  if (!DetectColumnOffset(columns, current_time_, &column_offset))
     return false;
 
   // We may receive file names containing spaces, which can make the number of
@@ -144,6 +147,7 @@ bool FtpDirectoryListingParserLs::ConsumeLine(const string16& line) {
   if (!FtpUtil::LsDateListingToTime(columns[3 + column_offset],
                                     columns[4 + column_offset],
                                     columns[5 + column_offset],
+                                    current_time_,
                                     &entry.last_modified)) {
     return false;
   }
