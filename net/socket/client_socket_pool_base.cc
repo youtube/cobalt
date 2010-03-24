@@ -307,13 +307,12 @@ void ClientSocketPoolBaseHelper::OnBackupSocketTimerFired(
   group.backup_job->net_log().AddEvent(NetLog::TYPE_SOCKET_BACKUP_CREATED);
   SIMPLE_STATS_COUNTER("socket.backup_created");
   int rv = group.backup_job->Connect();
-  if (rv == ERR_IO_PENDING) {
-    connecting_socket_count_++;
-    group.jobs.insert(group.backup_job);
-    group.backup_job = NULL;
-  } else {
-    OnConnectJobComplete(rv, group.backup_job);
-  }
+  connecting_socket_count_++;
+  group.jobs.insert(group.backup_job);
+  ConnectJob* job = group.backup_job;
+  group.backup_job = NULL;
+  if (rv != ERR_IO_PENDING)
+    OnConnectJobComplete(rv, job);
 }
 
 void ClientSocketPoolBaseHelper::CancelRequest(
