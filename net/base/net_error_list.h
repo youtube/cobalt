@@ -58,6 +58,10 @@ NET_ERROR(INSUFFICIENT_RESOURCES, -12)
 // Memory allocation failed.
 NET_ERROR(OUT_OF_MEMORY, -13)
 
+// The file upload failed because the file's modification time was different
+// from the expectation.
+NET_ERROR(UPLOAD_FILE_CHANGED, -14)
+
 // A connection was closed (corresponding to a TCP FIN).
 NET_ERROR(CONNECTION_CLOSED, -100)
 
