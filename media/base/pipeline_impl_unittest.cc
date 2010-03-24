@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,6 +82,10 @@ class PipelineImplTest : public ::testing::Test {
 
     // Free allocated media formats (if any).
     STLDeleteElements(&stream_media_formats_);
+
+    // Release the filter factory to workaround a gMock bug.
+    // See: http://code.google.com/p/googlemock/issues/detail?id=79
+    mocks_ = NULL;
   }
 
  protected:
@@ -196,11 +200,29 @@ class PipelineImplTest : public ::testing::Test {
     message_loop_.RunAllPending();
   }
 
+  void CreateAudioStream() {
+    audio_stream_ = CreateStream("audio/x-foo");
+  }
+
+  void CreateVideoStream() {
+    video_stream_ = CreateStream("video/x-foo");
+  }
+
+  MockDemuxerStream* audio_stream() {
+    return audio_stream_;
+  }
+
+  MockDemuxerStream* video_stream() {
+    return video_stream_;
+  }
+
   // Fixture members.
   StrictMock<CallbackHelper> callbacks_;
   MessageLoop message_loop_;
   scoped_refptr<PipelineImpl> pipeline_;
   scoped_refptr<media::MockFilterFactory> mocks_;
+  scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream_;
+  scoped_refptr<StrictMock<MockDemuxerStream> > video_stream_;
 
   MediaFormat data_source_media_format_;
   MediaFormat audio_decoder_media_format_;
@@ -331,14 +353,13 @@ TEST_F(PipelineImplTest, NoStreams) {
 }
 
 TEST_F(PipelineImplTest, AudioStream) {
-  scoped_refptr<StrictMock<MockDemuxerStream> > stream =
-      CreateStream("audio/x-foo");
+  CreateAudioStream();
   MockDemuxerStreamVector streams;
-  streams.push_back(stream);
+  streams.push_back(audio_stream());
 
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta());
-  InitializeAudioDecoder(stream);
+  InitializeAudioDecoder(audio_stream());
   InitializeAudioRenderer();
 
   InitializePipeline();
@@ -349,14 +370,13 @@ TEST_F(PipelineImplTest, AudioStream) {
 }
 
 TEST_F(PipelineImplTest, VideoStream) {
-  scoped_refptr<StrictMock<MockDemuxerStream> > stream =
-      CreateStream("video/x-foo");
+  CreateVideoStream();
   MockDemuxerStreamVector streams;
-  streams.push_back(stream);
+  streams.push_back(video_stream());
 
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta());
-  InitializeVideoDecoder(stream);
+  InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
   InitializePipeline();
@@ -367,19 +387,17 @@ TEST_F(PipelineImplTest, VideoStream) {
 }
 
 TEST_F(PipelineImplTest, AudioVideoStream) {
-  scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream =
-      CreateStream("audio/x-foo");
-  scoped_refptr<StrictMock<MockDemuxerStream> > video_stream =
-      CreateStream("video/x-foo");
+  CreateAudioStream();
+  CreateVideoStream();
   MockDemuxerStreamVector streams;
-  streams.push_back(audio_stream);
-  streams.push_back(video_stream);
+  streams.push_back(audio_stream());
+  streams.push_back(video_stream());
 
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta());
-  InitializeAudioDecoder(audio_stream);
+  InitializeAudioDecoder(audio_stream());
   InitializeAudioRenderer();
-  InitializeVideoDecoder(video_stream);
+  InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
   InitializePipeline();
@@ -390,19 +408,17 @@ TEST_F(PipelineImplTest, AudioVideoStream) {
 }
 
 TEST_F(PipelineImplTest, Seek) {
-  scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream =
-      CreateStream("audio/x-foo");
-  scoped_refptr<StrictMock<MockDemuxerStream> > video_stream =
-      CreateStream("video/x-foo");
+  CreateAudioStream();
+  CreateVideoStream();
   MockDemuxerStreamVector streams;
-  streams.push_back(audio_stream);
-  streams.push_back(video_stream);
+  streams.push_back(audio_stream());
+  streams.push_back(video_stream());
 
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta::FromSeconds(3000));
-  InitializeAudioDecoder(audio_stream);
+  InitializeAudioDecoder(audio_stream());
   InitializeAudioRenderer();
-  InitializeVideoDecoder(video_stream);
+  InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
   // Every filter should receive a call to Seek().
@@ -436,14 +452,13 @@ TEST_F(PipelineImplTest, Seek) {
 }
 
 TEST_F(PipelineImplTest, SetVolume) {
-  scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream =
-      CreateStream("audio/x-foo");
+  CreateAudioStream();
   MockDemuxerStreamVector streams;
-  streams.push_back(audio_stream);
+  streams.push_back(audio_stream());
 
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta());
-  InitializeAudioDecoder(audio_stream);
+  InitializeAudioDecoder(audio_stream());
   InitializeAudioRenderer();
 
   // The audio renderer should receive a call to SetVolume().
@@ -456,15 +471,14 @@ TEST_F(PipelineImplTest, SetVolume) {
 }
 
 TEST_F(PipelineImplTest, Properties) {
-  scoped_refptr<StrictMock<MockDemuxerStream> > stream =
-      CreateStream("video/x-foo");
+  CreateVideoStream();
   MockDemuxerStreamVector streams;
-  streams.push_back(stream);
+  streams.push_back(video_stream());
 
   InitializeDataSource();
   const base::TimeDelta kDuration = base::TimeDelta::FromSeconds(100);
   InitializeDemuxer(&streams, kDuration);
-  InitializeVideoDecoder(stream);
+  InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
   InitializePipeline();
@@ -479,19 +493,17 @@ TEST_F(PipelineImplTest, Properties) {
 }
 
 TEST_F(PipelineImplTest, BroadcastMessage) {
-  scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream =
-      CreateStream("audio/x-foo");
-  scoped_refptr<StrictMock<MockDemuxerStream> > video_stream =
-      CreateStream("video/x-foo");
+  CreateAudioStream();
+  CreateVideoStream();
   MockDemuxerStreamVector streams;
-  streams.push_back(audio_stream);
-  streams.push_back(video_stream);
+  streams.push_back(audio_stream());
+  streams.push_back(video_stream());
 
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta());
-  InitializeAudioDecoder(audio_stream);
+  InitializeAudioDecoder(audio_stream());
   InitializeAudioRenderer();
-  InitializeVideoDecoder(video_stream);
+  InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
 
   InitializePipeline();
@@ -520,13 +532,11 @@ TEST_F(PipelineImplTest, BroadcastMessage) {
 }
 
 TEST_F(PipelineImplTest, EndedCallback) {
-  scoped_refptr<StrictMock<MockDemuxerStream> > audio_stream =
-      CreateStream("audio/x-foo");
-  scoped_refptr<StrictMock<MockDemuxerStream> > video_stream =
-      CreateStream("video/x-foo");
+  CreateAudioStream();
+  CreateVideoStream();
   MockDemuxerStreamVector streams;
-  streams.push_back(audio_stream);
-  streams.push_back(video_stream);
+  streams.push_back(audio_stream());
+  streams.push_back(video_stream());
 
   // Set our ended callback.
   pipeline_->SetPipelineEndedCallback(
@@ -535,9 +545,9 @@ TEST_F(PipelineImplTest, EndedCallback) {
 
   InitializeDataSource();
   InitializeDemuxer(&streams, base::TimeDelta());
-  InitializeAudioDecoder(audio_stream);
+  InitializeAudioDecoder(audio_stream());
   InitializeAudioRenderer();
-  InitializeVideoDecoder(video_stream);
+  InitializeVideoDecoder(video_stream());
   InitializeVideoRenderer();
   InitializePipeline();
 
