@@ -61,8 +61,11 @@ void FFmpegAudioDecoder::DoInitialize(DemuxerStream* demuxer_stream,
 
   // Serialize calls to avcodec_open().
   AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
-  if (!codec || avcodec_open(codec_context_, codec) < 0) {
-    return;
+  {
+    AutoLock auto_lock(FFmpegLock::get()->lock());
+    if (!codec || avcodec_open(codec_context_, codec) < 0) {
+      return;
+    }
   }
 
   // When calling avcodec_find_decoder(), |codec_context_| might be altered by
