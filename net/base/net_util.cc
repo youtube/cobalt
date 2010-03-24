@@ -1555,10 +1555,11 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports) {
 
 enum IPv6SupportStatus {
   IPV6_CANNOT_CREATE_SOCKETS,
-  IPV6_CAN_CREATE_SOCKETS,
+  IPV6_CAN_CREATE_SOCKETS,  // Deprecated: No longer used.
   IPV6_GETIFADDRS_FAILED,
   IPV6_GLOBAL_ADDRESS_MISSING,
   IPV6_GLOBAL_ADDRESS_PRESENT,
+  IPV6_INTERFACE_ARRAY_TOO_SHORT,
   IPV6_SUPPORT_MAX  // Bounding values for enumeration.
 };
 
@@ -1631,8 +1632,43 @@ bool IPv6Supported() {
     return false;
   }
   closesocket(test_socket);
-  IPv6SupportResults(IPV6_CAN_CREATE_SOCKETS);
-  return true;
+
+  // Check to see if any interface has a IPv6 address.
+  // Note: The original IPv6 socket can't be used here, as WSAIoctl() will fail.
+  test_socket = WSASocket(AF_INET, SOCK_DGRAM, 0, NULL, 0, 0);
+  DCHECK(test_socket != INVALID_SOCKET);
+  INTERFACE_INFO interfaces[128];
+  DWORD bytes_written = 0;
+  int rv = WSAIoctl(test_socket, SIO_GET_INTERFACE_LIST, NULL, 0, interfaces,
+                    sizeof(interfaces), &bytes_written, NULL, NULL);
+  closesocket(test_socket);
+
+  if (0 != rv) {
+    if (WSAGetLastError() == WSAEFAULT)
+      IPv6SupportResults(IPV6_INTERFACE_ARRAY_TOO_SHORT);
+    else
+      IPv6SupportResults(IPV6_GETIFADDRS_FAILED);
+    return true;  // Don't yet block IPv6.
+  }
+  size_t interface_count = bytes_written / sizeof(interfaces[0]);
+  for (size_t i = 0; i < interface_count; ++i) {
+    INTERFACE_INFO* interface = &interfaces[i];
+    if (!(IFF_UP & interface->iiFlags))
+      continue;
+    if (IFF_LOOPBACK & interface->iiFlags)
+      continue;
+    sockaddr* addr = &interface->iiAddress.Address;
+    if (addr->sa_family != AF_INET6)
+      continue;
+    struct in6_addr* sin6_addr = &interface->iiAddress.AddressIn6.sin6_addr;
+    if (IN6_IS_ADDR_LOOPBACK(sin6_addr) || IN6_IS_ADDR_LINKLOCAL(sin6_addr))
+      continue;
+    IPv6SupportResults(IPV6_GLOBAL_ADDRESS_PRESENT);
+    return true;
+  }
+
+  IPv6SupportResults(IPV6_GLOBAL_ADDRESS_MISSING);
+  return false;
 #else
   NOTIMPLEMENTED();
   return true;
