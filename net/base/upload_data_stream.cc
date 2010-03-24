@@ -4,11 +4,24 @@
 
 #include "net/base/upload_data_stream.h"
 
+#include "base/file_util.h"
 #include "base/logging.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
 namespace net {
+
+UploadDataStream* UploadDataStream::Create(const UploadData* data,
+                                           int* error_code) {
+  scoped_ptr<UploadDataStream> stream(new UploadDataStream(data));
+  int rv = stream->FillBuf();
+  if (error_code)
+    *error_code = rv;
+  if (rv != OK)
+    return NULL;
+
+  return stream.release();
+}
 
 UploadDataStream::UploadDataStream(const UploadData* data)
     : data_(data),
@@ -20,7 +33,6 @@ UploadDataStream::UploadDataStream(const UploadData* data)
       total_size_(data->GetContentLength()),
       current_position_(0),
       eof_(false) {
-  FillBuf();
 }
 
 UploadDataStream::~UploadDataStream() {
@@ -39,7 +51,7 @@ void UploadDataStream::DidConsume(size_t num_bytes) {
   current_position_ += num_bytes;
 }
 
-void UploadDataStream::FillBuf() {
+int UploadDataStream::FillBuf() {
   std::vector<UploadData::Element>::const_iterator end =
       data_->elements().end();
 
@@ -65,6 +77,18 @@ void UploadDataStream::FillBuf() {
       }
     } else {
       DCHECK(element.type() == UploadData::TYPE_FILE);
+
+      // If the underlying file has been changed, treat it as error.
+      // Note that the expected modification time from WebKit is based on
+      // time_t precision. So we have to convert both to time_t to compare.
+      if (!element.expected_file_modification_time().is_null()) {
+        file_util::FileInfo info;
+        if (file_util::GetFileInfo(element.file_path(), &info) &&
+            element.expected_file_modification_time().ToTimeT() !=
+                info.last_modified.ToTimeT()) {
+          return ERR_UPLOAD_FILE_CHANGED;
+        }
+      }
 
       if (!next_element_stream_.IsOpen()) {
         int flags = base::PLATFORM_FILE_OPEN |
@@ -110,6 +134,8 @@ void UploadDataStream::FillBuf() {
 
   if (next_element_ == end && !buf_len_)
     eof_ = true;
+
+  return OK;
 }
 
 }  // namespace net
