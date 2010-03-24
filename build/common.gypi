@@ -544,17 +544,12 @@
         'msvs_settings': {
           'VCLinkerTool': {
             'TargetMachine': '17', # x86 - 64
-          },
-        },
-        'msvs_settings': {
-          'VCLibrarianTool': {
             'AdditionalLibraryDirectories!':
               ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
             'AdditionalLibraryDirectories':
               ['<(DEPTH)/third_party/platformsdk_win7/files/Lib/x64'],
           },
-          'VCLinkerTool': {
-            'TargetMachine': '17',
+          'VCLibrarianTool': {
             'AdditionalLibraryDirectories!':
               ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
             'AdditionalLibraryDirectories':
