@@ -19,13 +19,33 @@ extern "C" {
 // Temporarily disable possible loss of data warning.
 // TODO(scherkus): fix and upstream the compiler warnings.
 MSVC_PUSH_DISABLE_WARNING(4244);
-#include "third_party/ffmpeg/source/patched-ffmpeg-mt/libavcodec/avcodec.h"
-#include "third_party/ffmpeg/source/patched-ffmpeg-mt/libavformat/avformat.h"
-#include "third_party/ffmpeg/source/patched-ffmpeg-mt/libavutil/log.h"
+#include "third_party/ffmpeg/include/libavcodec/avcodec.h"
+#include "third_party/ffmpeg/include/libavformat/avformat.h"
+#include "third_party/ffmpeg/include/libavutil/log.h"
 MSVC_POP_WARNING();
 }  // extern "C"
 
 namespace media {
+
+// FFmpegLock is used to serialize calls to avcodec_open(), avcodec_close(),
+// and av_find_stream_info() for an entire process because for whatever reason
+// it does Very Bad Things to other FFmpeg instances.
+//
+// TODO(scherkus): track down and upstream a fix to FFmpeg, if possible.
+class FFmpegLock : public Singleton<FFmpegLock> {
+ public:
+  Lock& lock();
+
+ private:
+  // Only allow Singleton to create and delete FFmpegLock.
+  friend struct DefaultSingletonTraits<FFmpegLock>;
+  FFmpegLock();
+  virtual ~FFmpegLock();
+
+  Lock lock_;
+  DISALLOW_COPY_AND_ASSIGN(FFmpegLock);
+};
+
 
 // Wraps FFmpeg's av_free() in a class that can be passed as a template argument
 // to scoped_ptr_malloc.
