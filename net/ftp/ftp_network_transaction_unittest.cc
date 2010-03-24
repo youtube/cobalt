@@ -50,7 +50,8 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
 
   FtpSocketDataProvider()
       : failure_injection_state_(NONE),
-        multiline_welcome_(false) {
+        multiline_welcome_(false),
+        data_type_('I') {
     Init();
   }
 
@@ -74,8 +75,8 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
         return Verify("PWD\r\n", data, PRE_TYPE,
                       "257 \"/\" is your current location\r\n");
       case PRE_TYPE:
-        return Verify("TYPE I\r\n", data, PRE_PASV,
-                      "200 TYPE is now 8-bit binary\r\n");
+        return Verify(std::string("TYPE ") + data_type_ + "\r\n", data,
+                      PRE_PASV, "200 TYPE set successfully\r\n");
       case PRE_PASV:
         return Verify("PASV\r\n", data, PRE_SIZE,
                       "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
@@ -112,6 +113,10 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
 
   void set_multiline_welcome(bool multiline) {
     multiline_welcome_ = multiline;
+  }
+
+  void set_data_type(char data_type) {
+    data_type_ = data_type;
   }
 
  protected:
@@ -152,6 +157,9 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
   // If true, we will send multiple 230 lines as response after PASS.
   bool multiline_welcome_;
 
+  // Data type to be used for TYPE command.
+  char data_type_;
+
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProvider);
 };
 
@@ -189,6 +197,36 @@ class FtpSocketDataProviderDirectoryListing : public FtpSocketDataProvider {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderDirectoryListing);
+};
+
+class FtpSocketDataProviderDirectoryListingWithTypecode
+    : public FtpSocketDataProvider {
+ public:
+  FtpSocketDataProviderDirectoryListingWithTypecode() {
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    if (InjectFault())
+      return MockWriteResult(true, data.length());
+    switch (state()) {
+      case PRE_PASV:
+        return Verify("PASV\r\n", data, PRE_CWD,
+                      "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
+      case PRE_CWD:
+        return Verify("CWD /\r\n", data, PRE_MLSD, "200 OK\r\n");
+      case PRE_MLSD:
+        return Verify("MLSD\r\n", data, PRE_QUIT,
+                      "150 Accepted data connection\r\n"
+                      "226 MLSD complete\r\n");
+      case PRE_LIST:
+        return Verify("LIST\r\n", data, PRE_QUIT, "200 OK\r\n");
+      default:
+        return FtpSocketDataProvider::OnWrite(data);
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderDirectoryListingWithTypecode);
 };
 
 class FtpSocketDataProviderVMSDirectoryListing : public FtpSocketDataProvider {
@@ -647,6 +685,14 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransaction) {
   EXPECT_EQ(-1, transaction_.GetResponseInfo()->expected_content_size);
 }
 
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionWithTypecode) {
+  FtpSocketDataProviderDirectoryListingWithTypecode ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host;type=d", OK);
+
+  EXPECT_TRUE(transaction_.GetResponseInfo()->is_directory_listing);
+  EXPECT_EQ(-1, transaction_.GetResponseInfo()->expected_content_size);
+}
+
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionMultilineWelcome) {
   FtpSocketDataProviderDirectoryListing ctrl_socket;
   ctrl_socket.set_multiline_welcome(true);
@@ -693,6 +739,23 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionTransferStarting) {
 TEST_F(FtpNetworkTransactionTest, DownloadTransaction) {
   FtpSocketDataProviderFileDownload ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
+
+  // We pass an artificial value of 18 as a response to the SIZE command.
+  EXPECT_EQ(18, transaction_.GetResponseInfo()->expected_content_size);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionWithTypecodeA) {
+  FtpSocketDataProviderFileDownload ctrl_socket;
+  ctrl_socket.set_data_type('A');
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file;type=a", OK);
+
+  // We pass an artificial value of 18 as a response to the SIZE command.
+  EXPECT_EQ(18, transaction_.GetResponseInfo()->expected_content_size);
+}
+
+TEST_F(FtpNetworkTransactionTest, DownloadTransactionWithTypecodeI) {
+  FtpSocketDataProviderFileDownload ctrl_socket;
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file;type=i", OK);
 
   // We pass an artificial value of 18 as a response to the SIZE command.
   EXPECT_EQ(18, transaction_.GetResponseInfo()->expected_content_size);

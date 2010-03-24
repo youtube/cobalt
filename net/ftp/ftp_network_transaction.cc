@@ -62,7 +62,10 @@ FtpNetworkTransaction::FtpNetworkTransaction(
       read_data_buf_len_(0),
       last_error_(OK),
       system_type_(SYSTEM_TYPE_UNKNOWN),
-      retr_failed_(false),
+      // Use image (binary) transfer by default. It should always work,
+      // whereas the ascii transfer may damage binary data.
+      data_type_(DATA_TYPE_IMAGE),
+      resource_type_(RESOURCE_TYPE_UNKNOWN),
       data_connection_port_(0),
       socket_factory_(socket_factory),
       next_state_(STATE_NONE) {
@@ -83,6 +86,8 @@ int FtpNetworkTransaction::Start(const FtpRequestInfo* request_info,
     username_ = L"anonymous";
     password_ = L"chrome@example.com";
   }
+
+  DetectTypecode();
 
   next_state_ = STATE_CTRL_INIT;
   int rv = DoLoop(OK);
@@ -311,7 +316,6 @@ void FtpNetworkTransaction::ResetStateForRestart() {
   if (write_buf_)
     write_buf_->SetOffset(0);
   last_error_ = OK;
-  retr_failed_ = false;
   data_connection_port_ = 0;
   ctrl_socket_.reset();
   data_socket_.reset();
@@ -337,8 +341,16 @@ void FtpNetworkTransaction::OnIOComplete(int result) {
 std::string FtpNetworkTransaction::GetRequestPathForFtpCommand(
     bool is_directory) const {
   std::string path(current_remote_directory_);
-  if (request_->url.has_path())
-    path.append(request_->url.path());
+  if (request_->url.has_path()) {
+    std::string gurl_path(request_->url.path());
+
+    // Get rid of the typecode, see RFC 1738 section 3.2.2. FTP url-path.
+    std::string::size_type pos = gurl_path.rfind(';');
+    if (pos != std::string::npos)
+      gurl_path.resize(pos);
+
+    path.append(gurl_path);
+  }
   // Make sure that if the path is expected to be a file, it won't end
   // with a trailing slash.
   if (!is_directory && path.length() > 1 && path[path.length() - 1] == '/')
@@ -358,6 +370,27 @@ std::string FtpNetworkTransaction::GetRequestPathForFtpCommand(
 
   DCHECK(IsValidFTPCommandString(path));
   return path;
+}
+
+void FtpNetworkTransaction::DetectTypecode() {
+  if (!request_->url.has_path())
+    return;
+  std::string gurl_path(request_->url.path());
+
+  // Extract the typecode, see RFC 1738 section 3.2.2. FTP url-path.
+  std::string::size_type pos = gurl_path.rfind(';');
+  if (pos == std::string::npos)
+    return;
+  std::string typecode_string(gurl_path.substr(pos));
+  if (typecode_string == ";type=a") {
+    data_type_ = DATA_TYPE_ASCII;
+    resource_type_ = RESOURCE_TYPE_FILE;
+  } else if (typecode_string == ";type=i") {
+    data_type_ = DATA_TYPE_IMAGE;
+    resource_type_ = RESOURCE_TYPE_FILE;
+  } else if (typecode_string == ";type=d") {
+    resource_type_ = RESOURCE_TYPE_DIRECTORY;
+  }
 }
 
 int FtpNetworkTransaction::DoLoop(int result) {
@@ -760,7 +793,15 @@ int FtpNetworkTransaction::ProcessResponsePWD(const FtpCtrlResponse& response) {
 
 // TYPE command.
 int FtpNetworkTransaction::DoCtrlWriteTYPE() {
-  std::string command = "TYPE I";
+  std::string command = "TYPE ";
+  if (data_type_ == DATA_TYPE_ASCII) {
+    command += "A";
+  } else if (data_type_ == DATA_TYPE_IMAGE) {
+    command += "I";
+  } else {
+    NOTREACHED();
+    return Stop(ERR_UNEXPECTED);
+  }
   next_state_ = STATE_CTRL_READ;
   return SendFtpCommand(command, COMMAND_TYPE);
 }
@@ -945,10 +986,9 @@ int FtpNetworkTransaction::ProcessResponseRETR(
       if (response.status_code != 550)
         return Stop(ERR_FAILED);
 
-      DCHECK(!retr_failed_);  // Should not get here twice.
-      retr_failed_ = true;
-
       // It's possible that RETR failed because the path is a directory.
+      resource_type_ = RESOURCE_TYPE_DIRECTORY;
+
       // We're going to try CWD next, but first send a PASV one more time,
       // because some FTP servers, including FileZilla, require that.
       // See http://crbug.com/25316.
@@ -1010,11 +1050,11 @@ int FtpNetworkTransaction::ProcessResponseCWD(const FtpCtrlResponse& response) {
     case ERROR_CLASS_TRANSIENT_ERROR:
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
-      if (retr_failed_ && response.status_code == 550) {
-        // Both RETR and CWD failed with codes 550. That means that the path
-        // we're trying to access is not a file, and not a directory. The most
-        // probable interpretation is that it doesn't exist (with FTP we can't
-        // be sure).
+      if (resource_type_ == RESOURCE_TYPE_DIRECTORY &&
+          response.status_code == 550) {
+        // We're assuming that the resource is a directory, but the server says
+        // it's not true. The most probable interpretation is that it doesn't
+        // exist (with FTP we can't be sure).
         return Stop(ERR_FILE_NOT_FOUND);
       }
       return Stop(ERR_FAILED);
@@ -1124,7 +1164,7 @@ int FtpNetworkTransaction::DoDataConnect() {
 
 int FtpNetworkTransaction::DoDataConnectComplete(int result) {
   RecordDataConnectionError(result);
-  if (retr_failed_) {
+  if (resource_type_ == RESOURCE_TYPE_DIRECTORY) {
     next_state_ = STATE_CTRL_WRITE_CWD;
   } else {
     next_state_ = STATE_CTRL_WRITE_SIZE;
