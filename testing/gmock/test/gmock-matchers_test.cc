@@ -37,6 +37,7 @@
 
 #include <string.h>
 #include <functional>
+#include <iostream>
 #include <list>
 #include <map>
 #include <set>
@@ -88,6 +89,8 @@ using testing::Matcher;
 using testing::MatcherCast;
 using testing::MatcherInterface;
 using testing::Matches;
+using testing::ExplainMatchResult;
+using testing::MatchResultListener;
 using testing::NanSensitiveDoubleEq;
 using testing::NanSensitiveFloatEq;
 using testing::Ne;
@@ -108,6 +111,7 @@ using testing::Truly;
 using testing::TypedEq;
 using testing::Value;
 using testing::_;
+using testing::internal::DummyMatchResultListener;
 using testing::internal::FloatingEqMatcher;
 using testing::internal::FormatMatcherDescriptionSyntaxError;
 using testing::internal::GetParamIndex;
@@ -115,8 +119,10 @@ using testing::internal::Interpolation;
 using testing::internal::Interpolations;
 using testing::internal::JoinAsTuple;
 using testing::internal::SkipPrefix;
+using testing::internal::StreamMatchResultListener;
 using testing::internal::String;
 using testing::internal::Strings;
+using testing::internal::StringMatchResultListener;
 using testing::internal::ValidateMatcherDescription;
 using testing::internal::kInvalidInterpolation;
 using testing::internal::kPercentInterpolation;
@@ -125,32 +131,31 @@ using testing::internal::linked_ptr;
 using testing::internal::scoped_ptr;
 using testing::internal::string;
 
-#ifdef GMOCK_HAS_REGEX
 using testing::ContainsRegex;
 using testing::MatchesRegex;
 using testing::internal::RE;
-#endif  // GMOCK_HAS_REGEX
 
 // For testing ExplainMatchResultTo().
 class GreaterThanMatcher : public MatcherInterface<int> {
  public:
   explicit GreaterThanMatcher(int rhs) : rhs_(rhs) {}
 
-  virtual bool Matches(int lhs) const { return lhs > rhs_; }
-
   virtual void DescribeTo(::std::ostream* os) const {
     *os << "is greater than " << rhs_;
   }
 
-  virtual void ExplainMatchResultTo(int lhs, ::std::ostream* os) const {
+  virtual bool MatchAndExplain(int lhs,
+                               MatchResultListener* listener) const {
     const int diff = lhs - rhs_;
     if (diff > 0) {
-      *os << "is " << diff << " more than " << rhs_;
+      *listener << "which is " << diff << " more than " << rhs_;
     } else if (diff == 0) {
-      *os << "is the same as " << rhs_;
+      *listener << "which is the same as " << rhs_;
     } else {
-      *os << "is " << -diff << " less than " << rhs_;
+      *listener << "which is " << -diff << " less than " << rhs_;
     }
+
+    return lhs > rhs_;
   }
 
  private:
@@ -185,11 +190,39 @@ string Explain(const MatcherType& m, const Value& x) {
   return ss.str();
 }
 
+TEST(MatchResultListenerTest, StreamingWorks) {
+  StringMatchResultListener listener;
+  listener << "hi" << 5;
+  EXPECT_EQ("hi5", listener.str());
+
+  // Streaming shouldn't crash when the underlying ostream is NULL.
+  DummyMatchResultListener dummy;
+  dummy << "hi" << 5;
+}
+
+TEST(MatchResultListenerTest, CanAccessUnderlyingStream) {
+  EXPECT_TRUE(DummyMatchResultListener().stream() == NULL);
+  EXPECT_TRUE(StreamMatchResultListener(NULL).stream() == NULL);
+
+  EXPECT_EQ(&std::cout, StreamMatchResultListener(&std::cout).stream());
+}
+
+TEST(MatchResultListenerTest, IsInterestedWorks) {
+  EXPECT_TRUE(StringMatchResultListener().IsInterested());
+  EXPECT_TRUE(StreamMatchResultListener(&std::cout).IsInterested());
+
+  EXPECT_FALSE(DummyMatchResultListener().IsInterested());
+  EXPECT_FALSE(StreamMatchResultListener(NULL).IsInterested());
+}
+
 // Makes sure that the MatcherInterface<T> interface doesn't
 // change.
 class EvenMatcherImpl : public MatcherInterface<int> {
  public:
-  virtual bool Matches(int x) const { return x % 2 == 0; }
+  virtual bool MatchAndExplain(int x,
+                               MatchResultListener* /* listener */) const {
+    return x % 2 == 0;
+  }
 
   virtual void DescribeTo(::std::ostream* os) const {
     *os << "is an even number";
@@ -200,8 +233,38 @@ class EvenMatcherImpl : public MatcherInterface<int> {
   // two methods is optional.
 };
 
-TEST(MatcherInterfaceTest, CanBeImplemented) {
+// Makes sure that the MatcherInterface API doesn't change.
+TEST(MatcherInterfaceTest, CanBeImplementedUsingPublishedAPI) {
   EvenMatcherImpl m;
+}
+
+// Tests implementing a monomorphic matcher using MatchAndExplain().
+
+class NewEvenMatcherImpl : public MatcherInterface<int> {
+ public:
+  virtual bool MatchAndExplain(int x, MatchResultListener* listener) const {
+    const bool match = x % 2 == 0;
+    // Verifies that we can stream to a listener directly.
+    *listener << "value % " << 2;
+    if (listener->stream() != NULL) {
+      // Verifies that we can stream to a listener's underlying stream
+      // too.
+      *listener->stream() << " == " << (x % 2);
+    }
+    return match;
+  }
+
+  virtual void DescribeTo(::std::ostream* os) const {
+    *os << "is an even number";
+  }
+};
+
+TEST(MatcherInterfaceTest, CanBeImplementedUsingNewAPI) {
+  Matcher<int> m = MakeMatcher(new NewEvenMatcherImpl);
+  EXPECT_TRUE(m.Matches(2));
+  EXPECT_FALSE(m.Matches(3));
+  EXPECT_EQ("value % 2 == 0", Explain(m, 2));
+  EXPECT_EQ("value % 2 == 1", Explain(m, 3));
 }
 
 // Tests default-constructing a matcher.
@@ -252,6 +315,18 @@ TEST(MatcherTest, CanDescribeItself) {
             Describe(Matcher<int>(new EvenMatcherImpl)));
 }
 
+// Tests Matcher<T>::MatchAndExplain().
+TEST(MatcherTest, MatchAndExplain) {
+  Matcher<int> m = GreaterThan(0);
+  StringMatchResultListener listener1;
+  EXPECT_TRUE(m.MatchAndExplain(42, &listener1));
+  EXPECT_EQ("which is 42 more than 0", listener1.str());
+
+  StringMatchResultListener listener2;
+  EXPECT_FALSE(m.MatchAndExplain(-9, &listener2));
+  EXPECT_EQ("which is 9 less than 0", listener2.str());
+}
+
 // Tests that a C-string literal can be implicitly converted to a
 // Matcher<string> or Matcher<const string&>.
 TEST(StringMatcherTest, CanBeImplicitlyConstructedFromCStringLiteral) {
@@ -284,13 +359,14 @@ TEST(MakeMatcherTest, ConstructsMatcherFromMatcherInterface) {
   Matcher<int> m = MakeMatcher(dummy_impl);
 }
 
-// Tests that MakePolymorphicMatcher() constructs a polymorphic
-// matcher from its implementation.
+// Tests that MakePolymorphicMatcher() can construct a polymorphic
+// matcher from its implementation using the old API.
 const int bar = 1;
 class ReferencesBarOrIsZeroImpl {
  public:
   template <typename T>
-  bool Matches(const T& x) const {
+  bool MatchAndExplain(const T& x,
+                       MatchResultListener* /* listener */) const {
     const void* p = &x;
     return p == &bar || x == 0;
   }
@@ -308,7 +384,7 @@ PolymorphicMatcher<ReferencesBarOrIsZeroImpl> ReferencesBarOrIsZero() {
   return MakePolymorphicMatcher(ReferencesBarOrIsZeroImpl());
 }
 
-TEST(MakePolymorphicMatcherTest, ConstructsMatcherFromImpl) {
+TEST(MakePolymorphicMatcherTest, ConstructsMatcherUsingOldAPI) {
   // Using a polymorphic matcher to match a reference type.
   Matcher<const int&> m1 = ReferencesBarOrIsZero();
   EXPECT_TRUE(m1.Matches(0));
@@ -322,6 +398,57 @@ TEST(MakePolymorphicMatcherTest, ConstructsMatcherFromImpl) {
   EXPECT_TRUE(m2.Matches(0.0));
   EXPECT_FALSE(m2.Matches(0.1));
   EXPECT_EQ("bar or zero", Describe(m2));
+}
+
+// Tests implementing a polymorphic matcher using MatchAndExplain().
+
+class PolymorphicIsEvenImpl {
+ public:
+  void DescribeTo(::std::ostream* os) const { *os << "is even"; }
+
+  void DescribeNegationTo(::std::ostream* os) const {
+    *os << "is odd";
+  }
+
+  template <typename T>
+  bool MatchAndExplain(const T& x, MatchResultListener* listener) const {
+    // Verifies that we can stream to the listener directly.
+    *listener << "% " << 2;
+    if (listener->stream() != NULL) {
+      // Verifies that we can stream to the listener's underlying stream
+      // too.
+      *listener->stream() << " == " << (x % 2);
+    }
+    return (x % 2) == 0;
+  }
+};
+
+PolymorphicMatcher<PolymorphicIsEvenImpl> PolymorphicIsEven() {
+  return MakePolymorphicMatcher(PolymorphicIsEvenImpl());
+}
+
+TEST(MakePolymorphicMatcherTest, ConstructsMatcherUsingNewAPI) {
+  // Using PolymorphicIsEven() as a Matcher<int>.
+  const Matcher<int> m1 = PolymorphicIsEven();
+  EXPECT_TRUE(m1.Matches(42));
+  EXPECT_FALSE(m1.Matches(43));
+  EXPECT_EQ("is even", Describe(m1));
+
+  const Matcher<int> not_m1 = Not(m1);
+  EXPECT_EQ("is odd", Describe(not_m1));
+
+  EXPECT_EQ("% 2 == 0", Explain(m1, 42));
+
+  // Using PolymorphicIsEven() as a Matcher<char>.
+  const Matcher<char> m2 = PolymorphicIsEven();
+  EXPECT_TRUE(m2.Matches('\x42'));
+  EXPECT_FALSE(m2.Matches('\x43'));
+  EXPECT_EQ("is even", Describe(m2));
+
+  const Matcher<char> not_m2 = Not(m2);
+  EXPECT_EQ("is odd", Describe(not_m2));
+
+  EXPECT_EQ("% 2 == 0", Explain(m2, '\x42'));
 }
 
 // Tests that MatcherCast<T>(m) works when m is a polymorphic matcher.
@@ -1050,21 +1177,41 @@ TEST(PairTest, CanDescribeSelf) {
 }
 
 TEST(PairTest, CanExplainMatchResultTo) {
-  const Matcher<std::pair<int, int> > m0 = Pair(0, 0);
-  EXPECT_EQ("", Explain(m0, std::make_pair(25, 42)));
+  // If neither field matches, Pair() should explain about the first
+  // field.
+  const Matcher<std::pair<int, int> > m = Pair(GreaterThan(0), GreaterThan(0));
+  EXPECT_EQ("whose first field does not match, which is 1 less than 0",
+            Explain(m, std::make_pair(-1, -2)));
 
-  const Matcher<std::pair<int, int> > m1 = Pair(GreaterThan(0), 0);
-  EXPECT_EQ("the first field is 25 more than 0",
-            Explain(m1, std::make_pair(25, 42)));
+  // If the first field matches but the second doesn't, Pair() should
+  // explain about the second field.
+  EXPECT_EQ("whose second field does not match, which is 2 less than 0",
+            Explain(m, std::make_pair(1, -2)));
 
-  const Matcher<std::pair<int, int> > m2 = Pair(0, GreaterThan(0));
-  EXPECT_EQ("the second field is 42 more than 0",
-            Explain(m2, std::make_pair(25, 42)));
+  // If the first field doesn't match but the second does, Pair()
+  // should explain about the first field.
+  EXPECT_EQ("whose first field does not match, which is 1 less than 0",
+            Explain(m, std::make_pair(-1, 2)));
 
-  const Matcher<std::pair<int, int> > m3 = Pair(GreaterThan(0), GreaterThan(0));
-  EXPECT_EQ("the first field is 25 more than 0"
-            ", and the second field is 42 more than 0",
-            Explain(m3, std::make_pair(25, 42)));
+  // If both fields match, Pair() should explain about them both.
+  EXPECT_EQ("whose both fields match, where the first field is a value "
+            "which is 1 more than 0, and the second field is a value "
+            "which is 2 more than 0",
+            Explain(m, std::make_pair(1, 2)));
+
+  // If only the first match has an explanation, only this explanation should
+  // be printed.
+  const Matcher<std::pair<int, int> > explain_first = Pair(GreaterThan(0), 0);
+  EXPECT_EQ("whose both fields match, where the first field is a value "
+            "which is 1 more than 0",
+            Explain(explain_first, std::make_pair(1, 0)));
+
+  // If only the second match has an explanation, only this explanation should
+  // be printed.
+  const Matcher<std::pair<int, int> > explain_second = Pair(0, GreaterThan(0));
+  EXPECT_EQ("whose both fields match, where the second field is a value "
+            "which is 1 more than 0",
+            Explain(explain_second, std::make_pair(0, 1)));
 }
 
 TEST(PairTest, MatchesCorrectly) {
@@ -1150,8 +1297,6 @@ TEST(EndsWithTest, CanDescribeSelf) {
   EXPECT_EQ("ends with \"Hi\"", Describe(m));
 }
 
-#ifdef GMOCK_HAS_REGEX
-
 // Tests MatchesRegex().
 
 TEST(MatchesRegexTest, MatchesStringMatchingGivenRegex) {
@@ -1170,8 +1315,8 @@ TEST(MatchesRegexTest, CanDescribeSelf) {
   Matcher<const std::string> m1 = MatchesRegex(string("Hi.*"));
   EXPECT_EQ("matches regular expression \"Hi.*\"", Describe(m1));
 
-  Matcher<const char*> m2 = MatchesRegex(new RE("[a-z].*"));
-  EXPECT_EQ("matches regular expression \"[a-z].*\"", Describe(m2));
+  Matcher<const char*> m2 = MatchesRegex(new RE("a.*"));
+  EXPECT_EQ("matches regular expression \"a.*\"", Describe(m2));
 }
 
 // Tests ContainsRegex().
@@ -1192,10 +1337,9 @@ TEST(ContainsRegexTest, CanDescribeSelf) {
   Matcher<const std::string> m1 = ContainsRegex("Hi.*");
   EXPECT_EQ("contains regular expression \"Hi.*\"", Describe(m1));
 
-  Matcher<const char*> m2 = ContainsRegex(new RE("[a-z].*"));
-  EXPECT_EQ("contains regular expression \"[a-z].*\"", Describe(m2));
+  Matcher<const char*> m2 = ContainsRegex(new RE("a.*"));
+  EXPECT_EQ("contains regular expression \"a.*\"", Describe(m2));
 }
-#endif  // GMOCK_HAS_REGEX
 
 // Tests for wide strings.
 #if GTEST_HAS_STD_WSTRING
@@ -1949,6 +2093,36 @@ TEST(ValueTest, WorksWithMonomorphicMatcher) {
   EXPECT_FALSE(Value(1, ref_n));
 }
 
+TEST(ExplainMatchResultTest, WorksWithPolymorphicMatcher) {
+  StringMatchResultListener listener1;
+  EXPECT_TRUE(ExplainMatchResult(PolymorphicIsEven(), 42, &listener1));
+  EXPECT_EQ("% 2 == 0", listener1.str());
+
+  StringMatchResultListener listener2;
+  EXPECT_FALSE(ExplainMatchResult(Ge(42), 1.5, &listener2));
+  EXPECT_EQ("", listener2.str());
+}
+
+TEST(ExplainMatchResultTest, WorksWithMonomorphicMatcher) {
+  const Matcher<int> is_even = PolymorphicIsEven();
+  StringMatchResultListener listener1;
+  EXPECT_TRUE(ExplainMatchResult(is_even, 42, &listener1));
+  EXPECT_EQ("% 2 == 0", listener1.str());
+
+  const Matcher<const double&> is_zero = Eq(0);
+  StringMatchResultListener listener2;
+  EXPECT_FALSE(ExplainMatchResult(is_zero, 1.5, &listener2));
+  EXPECT_EQ("", listener2.str());
+}
+
+MATCHER_P(Really, inner_matcher, "") {
+  return ExplainMatchResult(inner_matcher, arg, result_listener);
+}
+
+TEST(ExplainMatchResultTest, WorksInsideMATCHER) {
+  EXPECT_THAT(0, Really(Eq(0)));
+}
+
 TEST(AllArgsTest, WorksForTuple) {
   EXPECT_THAT(make_tuple(1, 2L), AllArgs(Lt()));
   EXPECT_THAT(make_tuple(2L, 1), Not(AllArgs(Lt())));
@@ -2041,8 +2215,8 @@ TEST(MatcherAssertionTest, WorksForByRefArguments) {
 // ASSERT_THAT("hello", starts_with_he) fails to compile with Nokia's
 // Symbian compiler: it tries to compile
 // template<T, U> class MatcherCastImpl { ...
-//   virtual bool Matches(T x) const {
-//     return source_matcher_.Matches(static_cast<U>(x));
+//   virtual bool MatchAndExplain(T x, ...) const {
+//     return source_matcher_.MatchAndExplain(static_cast<U>(x), ...);
 // with U == string and T == const char*
 // With ASSERT_THAT("hello"...) changed to ASSERT_THAT(string("hello") ... )
 // the compiler silently crashes with no output.
@@ -2385,7 +2559,14 @@ TEST(PointeeTest, CanExplainMatchResult) {
 
   const Matcher<int*> m2 = Pointee(GreaterThan(1));
   int n = 3;
-  EXPECT_EQ("points to a value that is 2 more than 1", Explain(m2, &n));
+  EXPECT_EQ("which points to 3, which is 2 more than 1",
+            Explain(m2, &n));
+}
+
+TEST(PointeeTest, AlwaysExplainsPointee) {
+  const Matcher<int*> m = Pointee(0);
+  int n = 42;
+  EXPECT_EQ("which points to 42", Explain(m, &n));
 }
 
 // An uncopyable class.
@@ -2512,8 +2693,9 @@ TEST(FieldTest, WorksForCompatibleMatcherType) {
 TEST(FieldTest, CanDescribeSelf) {
   Matcher<const AStruct&> m = Field(&AStruct::x, Ge(0));
 
-  EXPECT_EQ("the given field is greater than or equal to 0", Describe(m));
-  EXPECT_EQ("the given field is not greater than or equal to 0",
+  EXPECT_EQ("is an object whose given field is greater than or equal to 0",
+            Describe(m));
+  EXPECT_EQ("is an object whose given field is not greater than or equal to 0",
             DescribeNegation(m));
 }
 
@@ -2523,10 +2705,10 @@ TEST(FieldTest, CanExplainMatchResult) {
 
   AStruct a;
   a.x = 1;
-  EXPECT_EQ("", Explain(m, a));
+  EXPECT_EQ("whose given field is 1", Explain(m, a));
 
   m = Field(&AStruct::x, GreaterThan(0));
-  EXPECT_EQ("the given field is 1 more than 0", Explain(m, a));
+  EXPECT_EQ("whose given field is 1, which is 1 more than 0", Explain(m, a));
 }
 
 // Tests that Field() works when the argument is a pointer to const.
@@ -2542,6 +2724,16 @@ TEST(FieldForPointerTest, WorksForPointerToConst) {
 // Tests that Field() works when the argument is a pointer to non-const.
 TEST(FieldForPointerTest, WorksForPointerToNonConst) {
   Matcher<AStruct*> m = Field(&AStruct::x, Ge(0));
+
+  AStruct a;
+  EXPECT_TRUE(m.Matches(&a));
+  a.x = -1;
+  EXPECT_FALSE(m.Matches(&a));
+}
+
+// Tests that Field() works when the argument is a reference to a const pointer.
+TEST(FieldForPointerTest, WorksForReferenceToConstPointer) {
+  Matcher<AStruct* const&> m = Field(&AStruct::x, Ge(0));
 
   AStruct a;
   EXPECT_TRUE(m.Matches(&a));
@@ -2572,8 +2764,9 @@ TEST(FieldForPointerTest, WorksForArgumentOfSubType) {
 TEST(FieldForPointerTest, CanDescribeSelf) {
   Matcher<const AStruct*> m = Field(&AStruct::x, Ge(0));
 
-  EXPECT_EQ("the given field is greater than or equal to 0", Describe(m));
-  EXPECT_EQ("the given field is not greater than or equal to 0",
+  EXPECT_EQ("is an object whose given field is greater than or equal to 0",
+            Describe(m));
+  EXPECT_EQ("is an object whose given field is not greater than or equal to 0",
             DescribeNegation(m));
 }
 
@@ -2584,10 +2777,11 @@ TEST(FieldForPointerTest, CanExplainMatchResult) {
   AStruct a;
   a.x = 1;
   EXPECT_EQ("", Explain(m, static_cast<const AStruct*>(NULL)));
-  EXPECT_EQ("", Explain(m, &a));
+  EXPECT_EQ("which points to an object whose given field is 1", Explain(m, &a));
 
   m = Field(&AStruct::x, GreaterThan(0));
-  EXPECT_EQ("the given field is 1 more than 0", Explain(m, &a));
+  EXPECT_EQ("which points to an object whose given field is 1, "
+            "which is 1 more than 0", Explain(m, &a));
 }
 
 // A user-defined class for testing Property().
@@ -2706,9 +2900,10 @@ TEST(PropertyTest, WorksForCompatibleMatcherType) {
 TEST(PropertyTest, CanDescribeSelf) {
   Matcher<const AClass&> m = Property(&AClass::n, Ge(0));
 
-  EXPECT_EQ("the given property is greater than or equal to 0", Describe(m));
-  EXPECT_EQ("the given property is not greater than or equal to 0",
-            DescribeNegation(m));
+  EXPECT_EQ("is an object whose given property is greater than or equal to 0",
+            Describe(m));
+  EXPECT_EQ("is an object whose given property "
+            "is not greater than or equal to 0", DescribeNegation(m));
 }
 
 // Tests that Property() can explain the match result.
@@ -2717,10 +2912,10 @@ TEST(PropertyTest, CanExplainMatchResult) {
 
   AClass a;
   a.set_n(1);
-  EXPECT_EQ("", Explain(m, a));
+  EXPECT_EQ("whose given property is 1", Explain(m, a));
 
   m = Property(&AClass::n, GreaterThan(0));
-  EXPECT_EQ("the given property is 1 more than 0", Explain(m, a));
+  EXPECT_EQ("whose given property is 1, which is 1 more than 0", Explain(m, a));
 }
 
 // Tests that Property() works when the argument is a pointer to const.
@@ -2738,6 +2933,19 @@ TEST(PropertyForPointerTest, WorksForPointerToConst) {
 // Tests that Property() works when the argument is a pointer to non-const.
 TEST(PropertyForPointerTest, WorksForPointerToNonConst) {
   Matcher<AClass*> m = Property(&AClass::s, StartsWith("hi"));
+
+  AClass a;
+  a.set_s("hill");
+  EXPECT_TRUE(m.Matches(&a));
+
+  a.set_s("hole");
+  EXPECT_FALSE(m.Matches(&a));
+}
+
+// Tests that Property() works when the argument is a reference to a
+// const pointer.
+TEST(PropertyForPointerTest, WorksForReferenceToConstPointer) {
+  Matcher<AClass* const&> m = Property(&AClass::s, StartsWith("hi"));
 
   AClass a;
   a.set_s("hill");
@@ -2772,9 +2980,10 @@ TEST(PropertyForPointerTest, WorksForArgumentOfSubType) {
 TEST(PropertyForPointerTest, CanDescribeSelf) {
   Matcher<const AClass*> m = Property(&AClass::n, Ge(0));
 
-  EXPECT_EQ("the given property is greater than or equal to 0", Describe(m));
-  EXPECT_EQ("the given property is not greater than or equal to 0",
-            DescribeNegation(m));
+  EXPECT_EQ("is an object whose given property is greater than or equal to 0",
+            Describe(m));
+  EXPECT_EQ("is an object whose given property "
+            "is not greater than or equal to 0", DescribeNegation(m));
 }
 
 // Tests that Property() can explain the result of matching a pointer.
@@ -2784,10 +2993,12 @@ TEST(PropertyForPointerTest, CanExplainMatchResult) {
   AClass a;
   a.set_n(1);
   EXPECT_EQ("", Explain(m, static_cast<const AClass*>(NULL)));
-  EXPECT_EQ("", Explain(m, &a));
+  EXPECT_EQ("which points to an object whose given property is 1",
+            Explain(m, &a));
 
   m = Property(&AClass::n, GreaterThan(0));
-  EXPECT_EQ("the given property is 1 more than 0", Explain(m, &a));
+  EXPECT_EQ("which points to an object whose given property is 1, "
+            "which is 1 more than 0", Explain(m, &a));
 }
 
 // Tests ResultOf.
@@ -2807,10 +3018,10 @@ TEST(ResultOfTest, WorksForFunctionPointers) {
 TEST(ResultOfTest, CanDescribeItself) {
   Matcher<int> matcher = ResultOf(&IntToStringFunction, StrEq("foo"));
 
-  EXPECT_EQ("result of the given callable is equal to \"foo\"",
-            Describe(matcher));
-  EXPECT_EQ("result of the given callable is not equal to \"foo\"",
-            DescribeNegation(matcher));
+  EXPECT_EQ("is mapped by the given callable to a value that "
+            "is equal to \"foo\"", Describe(matcher));
+  EXPECT_EQ("is mapped by the given callable to a value that "
+            "is not equal to \"foo\"", DescribeNegation(matcher));
 }
 
 // Tests that ResultOf() can explain the match result.
@@ -2818,11 +3029,12 @@ int IntFunction(int input) { return input == 42 ? 80 : 90; }
 
 TEST(ResultOfTest, CanExplainMatchResult) {
   Matcher<int> matcher = ResultOf(&IntFunction, Ge(85));
-  EXPECT_EQ("", Explain(matcher, 36));
+  EXPECT_EQ("which is mapped by the given callable to 90",
+            Explain(matcher, 36));
 
   matcher = ResultOf(&IntFunction, GreaterThan(85));
-  EXPECT_EQ("result of the given callable is 5 more than 85",
-            Explain(matcher, 36));
+  EXPECT_EQ("which is mapped by the given callable to 90, "
+            "which is 5 more than 85", Explain(matcher, 36));
 }
 
 // Tests that ResultOf(f, ...) compiles and works as expected when f(x)
@@ -2958,8 +3170,11 @@ class DivisibleByImpl {
  public:
   explicit DivisibleByImpl(int a_divider) : divider_(a_divider) {}
 
+  // For testing using ExplainMatchResultTo() with polymorphic matchers.
   template <typename T>
-  bool Matches(const T& n) const {
+  bool MatchAndExplain(const T& n, MatchResultListener* listener) const {
+    *listener << "is " << (n % divider_) << " modulo "
+              << divider_;
     return (n % divider_) == 0;
   }
 
@@ -2977,14 +3192,6 @@ class DivisibleByImpl {
  private:
   int divider_;
 };
-
-// For testing using ExplainMatchResultTo() with polymorphic matchers.
-template <typename T>
-void ExplainMatchResultTo(const DivisibleByImpl& impl, const T& n,
-                          ::std::ostream* os) {
-  *os << "is " << (n % impl.divider()) << " modulo "
-      << impl.divider();
-}
 
 PolymorphicMatcher<DivisibleByImpl> DivisibleBy(int n) {
   return MakePolymorphicMatcher(DivisibleByImpl(n));
@@ -3025,7 +3232,7 @@ TEST(ExplainMatchResultTest, AllOf_True_True_2) {
 
 TEST(ExplainmatcherResultTest, MonomorphicMatcher) {
   const Matcher<int> m = GreaterThan(5);
-  EXPECT_EQ("is 1 more than 5", Explain(m, 6));
+  EXPECT_EQ("which is 1 more than 5", Explain(m, 6));
 }
 
 // The following two tests verify that values without a public copy
@@ -3335,6 +3542,16 @@ TEST(ValidateMatcherDescriptionTest,
               ElementsAre());
 }
 
+// The MATCHER*() macros trigger warning C4100 (unreferenced formal
+// parameter) in MSVC with -W4.  Unfortunately they cannot be fixed in
+// the macro definition, as the warnings are generated when the macro
+// is expanded and macro expansion cannot contain #pragma.  Therefore
+// we suppress them here.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4100)
+#endif
+
 // We use MATCHER_P3() to define a matcher for testing
 // ValidateMatcherDescription(); otherwise we'll end up with much
 // plumbing code.  This is not circular as
@@ -3344,6 +3561,10 @@ MATCHER_P3(EqInterpolation, start, end, index, "equals Interpolation%(*)s") {
   return arg.start_pos == start && arg.end_pos == end &&
       arg.param_index == index;
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 TEST(ValidateMatcherDescriptionTest, AcceptsPercentInterpolation) {
   const char* params[] = { "foo", NULL };
