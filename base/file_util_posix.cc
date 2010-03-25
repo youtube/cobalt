@@ -659,7 +659,7 @@ bool FileEnumerator::ReadDirectory(std::vector<DirectoryEntryInfo>* entries,
     if (ret < 0) {
       // Print the stat() error message unless it was ENOENT and we're
       // following symlinks.
-      if (!(ret == ENOENT && !show_links)) {
+      if (!(errno == ENOENT && !show_links)) {
         PLOG(ERROR) << "Couldn't stat "
                     << source.Append(dent->d_name).value();
       }
