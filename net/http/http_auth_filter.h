@@ -5,9 +5,11 @@
 #ifndef NET_HTTP_HTTP_AUTH_FILTER_H_
 #define NET_HTTP_HTTP_AUTH_FILTER_H_
 
+#include <list>
+#include <set>
 #include <string>
-#include <vector>
 
+#include "base/string_util.h"
 #include "net/http/http_auth.h"
 #include "net/proxy/proxy_bypass_rules.h"
 
@@ -27,7 +29,7 @@ class HttpAuthFilter {
 };
 
 // Whitelist HTTP authentication filter.
-// Explicit whitelists of domains are set via SetFilters().
+// Explicit whitelists of domains are set via SetWhitelist().
 //
 // Uses the ProxyBypassRules class to do whitelisting for servers.
 // All proxies are allowed.
@@ -36,13 +38,16 @@ class HttpAuthFilterWhitelist : public HttpAuthFilter {
   HttpAuthFilterWhitelist();
   virtual ~HttpAuthFilterWhitelist();
 
-  // Checks if (|url|, |target|) is supported by the authentication scheme.
-  // Only the host of |url| is examined.
-  bool IsValid(const GURL& url, HttpAuth::Target target) const;
+  // HttpAuthFilter methods:
+  virtual bool IsValid(const GURL& url, HttpAuth::Target target) const;
 
-  // Installs the whitelist filters.
+  // Installs the whitelist.
   // |server_whitelist| is parsed by ProxyBypassRules.
-  bool SetFilters(const std::string& server_whitelist);
+  void SetWhitelist(const std::string& server_whitelist);
+
+  // Updates the whitelist rules, from the command line and (on that platform)
+  // the Windows registry.  May be called periodically.
+  void UpdateRegistryWhitelist();
 
   // Adds an individual URL |filter| to the list, of the specified |target|.
   bool AddFilter(const std::string& filter, HttpAuth::Target target);
@@ -53,6 +58,10 @@ class HttpAuthFilterWhitelist : public HttpAuthFilter {
   const ProxyBypassRules& rules() const { return rules_; }
 
  private:
+  std::string extra_whitelist_entries_;
+
+  // We are using ProxyBypassRules because they have the functionality that we
+  // want, but we are not using it for proxy bypass.
   ProxyBypassRules rules_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpAuthFilterWhitelist);
