@@ -154,6 +154,10 @@ class HttpResponseHeaders
   // Both name and value are compared case insensitively.
   bool HasHeaderValue(const std::string& name, const std::string& value) const;
 
+  // Returns true if the response contains the specified header.
+  // The name is compared case insensitively.
+  bool HasHeader(const std::string& name) const;
+
   // Get the mime type and charset values in lower case form from the headers.
   // Empty strings are returned if the values are not present.
   void GetMimeTypeAndCharset(std::string* mime_type,

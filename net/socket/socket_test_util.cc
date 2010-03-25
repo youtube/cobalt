@@ -9,6 +9,7 @@
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/message_loop.h"
+#include "base/time.h"
 #include "net/base/address_family.h"
 #include "net/base/host_resolver_proc.h"
 #include "net/base/ssl_info.h"
@@ -287,6 +288,7 @@ int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
 
 MockRead StaticSocketDataProvider::GetNextRead() {
   DCHECK(!at_read_eof());
+  reads_[read_index_].time_stamp = base::Time::Now();
   return reads_[read_index_++];
 }
 
@@ -301,6 +303,7 @@ MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
   // Check that what we are writing matches the expectation.
   // Then give the mocked return value.
   net::MockWrite* w = &writes_[write_index_++];
+  w->time_stamp = base::Time::Now();
   int result = w->result;
   if (w->data) {
     // Note - we can simulate a partial write here.  If the expected data
@@ -319,6 +322,26 @@ MockWriteResult StaticSocketDataProvider::OnWrite(const std::string& data) {
       result = w->data_len;
   }
   return MockWriteResult(w->async, result);
+}
+
+const MockRead& StaticSocketDataProvider::PeekRead() const {
+  DCHECK(!at_read_eof());
+  return reads_[read_index_];
+}
+
+const MockWrite& StaticSocketDataProvider::PeekWrite() const {
+  DCHECK(!at_write_eof());
+  return writes_[write_index_];
+}
+
+const MockRead& StaticSocketDataProvider::PeekRead(size_t index) const {
+  DCHECK_LT(index, read_count_);
+  return reads_[index];
+}
+
+const MockWrite& StaticSocketDataProvider::PeekWrite(size_t index) const {
+  DCHECK_LT(index, write_count_);
+  return writes_[index];
 }
 
 void StaticSocketDataProvider::Reset() {

@@ -113,6 +113,7 @@ TEST_F(SpdyStreamTest, SendRequest) {
   HttpResponseInfo response;
 
   scoped_refptr<SpdyStream> stream(new SpdyStream(session, 1, false, NULL));
+  stream->SetRequestInfo(request);
   EXPECT_EQ(ERR_IO_PENDING, stream->SendRequest(NULL, &response, &callback));
 
   // Need to manually remove the spdy session since normally it gets removed on
