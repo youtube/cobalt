@@ -11,6 +11,7 @@
 #include "base/stats_counters.h"
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
+#include "base/time.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_log.h"
@@ -89,6 +90,8 @@ bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
   }
   version = it->second;
 
+  response->response_time = base::Time::Now();
+
   std::string raw_headers(version);
   raw_headers.push_back(' ');
   raw_headers.append(status);
@@ -140,7 +143,7 @@ void CreateSpdyHeadersFromHttpRequest(
       (*headers)[name] = it.values();
     } else {
       std::string new_value = (*headers)[name];
-      new_value += "\0";
+      new_value.append(1, '\0');  // +=() doesn't append 0's
       new_value += it.values();
       (*headers)[name] = new_value;
     }
@@ -298,6 +301,21 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     stream = GetPushStream(path);
     if (stream) {
       DCHECK(streams_pushed_and_claimed_count_ < streams_pushed_count_);
+      // Update the request time
+      stream->SetRequestTime(base::Time::Now());
+      // Change the request info, updating the response's request time too
+      stream->SetRequestInfo(request);
+      const HttpResponseInfo* response = stream->GetResponseInfo();
+      if (response && response->headers->HasHeader("vary")) {
+        // TODO(ahendrickson) -- What is the right thing to do if the server
+        // pushes data with a vary field?
+        void* iter = NULL;
+        std::string value;
+        response->headers->EnumerateHeader(&iter, "vary", &value);
+        LOG(ERROR) << "SpdyStream: "
+                   << "Received pushed stream ID " << stream->stream_id()
+                   << "with vary field value '" << value << "'";
+      }
       streams_pushed_and_claimed_count_++;
       return stream;
     }
@@ -307,11 +325,13 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
   PendingStreamMap::iterator it;
   it = pending_streams_.find(path);
   if (it != pending_streams_.end()) {
+    // Server has advertised a stream, but not yet sent it.
     DCHECK(!it->second);
     // Server will assign a stream id when the push stream arrives.  Use 0 for
     // now.
     log.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM);
     SpdyStream* stream = new SpdyStream(this, 0, true, log);
+    stream->SetRequestInfo(request);
     stream->set_path(path);
     it->second = stream;
     return it->second;
@@ -321,6 +341,7 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
 
   // If we still don't have a stream, activate one now.
   stream = new SpdyStream(this, stream_id, false, log);
+  stream->SetRequestInfo(request);
   stream->set_priority(request.priority);
   stream->set_path(path);
   ActivateStream(stream);
@@ -512,6 +533,7 @@ void SpdySession::OnSSLConnect(int result) {
 }
 
 void SpdySession::OnReadComplete(int bytes_read) {
+  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   // Parse a frame.  For now this code requires that the frame fit into our
   // buffer (32KB).
   // TODO(mbelshe): support arbitrarily large frames!
@@ -550,6 +572,7 @@ void SpdySession::OnReadComplete(int bytes_read) {
 }
 
 void SpdySession::OnWriteComplete(int result) {
+  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   DCHECK(write_pending_);
   DCHECK(in_flight_write_.size());
   DCHECK(result != 0);  // This shouldn't happen for write.
@@ -845,6 +868,29 @@ void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
     DeactivateStream(stream_id);
 }
 
+bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
+                          const scoped_refptr<SpdyStream> stream) {
+  // TODO(mbelshe): For now we convert from our nice hash map back
+  // to a string of headers; this is because the HttpResponseInfo
+  // is a bit rigid for its http (non-spdy) design.
+  HttpResponseInfo response;
+  // TODO(ahendrickson): This is recorded after the entire SYN_STREAM control
+  // frame has been received and processed.  Move to framer?
+  response.response_time = base::Time::Now();
+  if (SpdyHeadersToHttpResponse(headers, &response)) {
+    GetSSLInfo(&response.ssl_info);
+    response.request_time = stream->GetRequestTime();
+    response.vary_data.Init(*stream->GetRequestInfo(), *response.headers);
+    stream->OnResponseReceived(response);
+  } else {
+    const spdy::SpdyStreamId stream_id = stream->stream_id();
+    stream->OnClose(ERR_INVALID_RESPONSE);
+    DeactivateStream(stream_id);
+    return false;
+  }
+  return true;
+}
+
 void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
                         const spdy::SpdyHeaderBlock& headers) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
@@ -917,18 +963,8 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
 
   stream->set_path(path);
 
-  // TODO(mbelshe): For now we convert from our nice hash map back
-  // to a string of headers; this is because the HttpResponseInfo
-  // is a bit rigid for its http (non-spdy) design.
-  HttpResponseInfo response;
-  if (SpdyHeadersToHttpResponse(headers, &response)) {
-    GetSSLInfo(&response.ssl_info);
-    stream->OnResponseReceived(response);
-  } else {
-    stream->OnClose(ERR_INVALID_RESPONSE);
-    DeactivateStream(stream_id);
+  if (!Respond(headers, stream))
     return;
-  }
 
   LOG(INFO) << "Got pushed stream for " << stream->path();
 
@@ -982,17 +1018,12 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
-  HttpResponseInfo response;
-  if (SpdyHeadersToHttpResponse(headers, &response)) {
-    GetSSLInfo(&response.ssl_info);
-    stream->OnResponseReceived(response);
-  } else {
-    stream->OnClose(ERR_INVALID_RESPONSE);
-    DeactivateStream(stream_id);
-  }
+
+  Respond(headers, stream);
 }
 
 void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
+  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   spdy::SpdyHeaderBlock headers;
   uint32 type = frame->type();
   if (type == spdy::SYN_STREAM || type == spdy::SYN_REPLY) {
@@ -1050,6 +1081,7 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
 }
 
 void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
+  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   session_->spdy_session_pool()->Remove(this);
 
   // TODO(willchan): Cancel any streams that are past the GoAway frame's
