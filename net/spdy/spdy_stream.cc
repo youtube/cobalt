@@ -151,8 +151,6 @@ int SpdyStream::SendRequest(UploadDataStream* upload_data,
   CHECK(!cancelled_);
   CHECK(response);
 
-  DLOG(INFO) << "  * " << __FUNCTION__ << "()";
-
   if (response_) {
     *response = *response_;
     delete response_;
@@ -194,7 +192,6 @@ void SpdyStream::Cancel() {
 }
 
 void SpdyStream::OnResponseReceived(const HttpResponseInfo& response) {
-  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   metrics_.StartStream();
 
   CHECK(!response_->headers);
@@ -226,7 +223,6 @@ void SpdyStream::OnResponseReceived(const HttpResponseInfo& response) {
 }
 
 bool SpdyStream::OnDataReceived(const char* data, int length) {
-  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   DCHECK_GE(length, 0);
   LOG(INFO) << "SpdyStream: Data (" << length << " bytes) received for "
             << stream_id_;
@@ -277,7 +273,6 @@ bool SpdyStream::OnDataReceived(const char* data, int length) {
 }
 
 void SpdyStream::OnWriteComplete(int status) {
-  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
   // should discontinue the DoLoop.
 
@@ -288,7 +283,6 @@ void SpdyStream::OnWriteComplete(int status) {
 }
 
 void SpdyStream::OnClose(int status) {
-  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   response_complete_ = true;
   response_status_ = status;
   stream_id_ = 0;
@@ -301,8 +295,6 @@ void SpdyStream::OnClose(int status) {
 
 int SpdyStream::DoLoop(int result) {
   do {
-    DLOG(INFO) << "  * " << __FUNCTION__ << "() state = " << io_state_
-        << " result = " << result;
     State state = io_state_;
     io_state_ = STATE_NONE;
     switch (state) {
