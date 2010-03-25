@@ -235,7 +235,6 @@ FFmpegDemuxer::~FFmpegDemuxer() {
   // in the decoder filters. By reaching this point, all filters should have
   // stopped, so this is the only safe place to do the global clean up.
   // TODO(hclam): close the codecs in the corresponding decoders.
-  AutoLock auto_lock(FFmpegLock::get()->lock());
   if (!format_context_)
     return;
 
@@ -397,17 +396,12 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
   DCHECK(context);
   format_context_ = context;
 
-  // Serialize calls to av_find_stream_info().
-  {
-    AutoLock auto_lock(FFmpegLock::get()->lock());
-
-    // Fully initialize AVFormatContext by parsing the stream a little.
-    result = av_find_stream_info(format_context_);
-    if (result < 0) {
-      host()->SetError(DEMUXER_ERROR_COULD_NOT_PARSE);
-      callback->Run();
-      return;
-    }
+  // Fully initialize AVFormatContext by parsing the stream a little.
+  result = av_find_stream_info(format_context_);
+  if (result < 0) {
+    host()->SetError(DEMUXER_ERROR_COULD_NOT_PARSE);
+    callback->Run();
+    return;
   }
 
   // Create demuxer streams for all supported streams.
