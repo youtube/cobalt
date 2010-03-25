@@ -489,7 +489,6 @@ void HttpNetworkTransaction::DoCallback(int rv) {
 }
 
 void HttpNetworkTransaction::OnIOComplete(int result) {
-  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING)
     DoCallback(rv);
@@ -500,7 +499,6 @@ int HttpNetworkTransaction::DoLoop(int result) {
 
   int rv = result;
   do {
-    DLOG(INFO) << "  * " << __FUNCTION__ << "() state = " << next_state_;
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {

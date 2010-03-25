@@ -533,7 +533,6 @@ void SpdySession::OnSSLConnect(int result) {
 }
 
 void SpdySession::OnReadComplete(int bytes_read) {
-  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   // Parse a frame.  For now this code requires that the frame fit into our
   // buffer (32KB).
   // TODO(mbelshe): support arbitrarily large frames!
@@ -572,7 +571,6 @@ void SpdySession::OnReadComplete(int bytes_read) {
 }
 
 void SpdySession::OnWriteComplete(int result) {
-  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   DCHECK(write_pending_);
   DCHECK(in_flight_write_.size());
   DCHECK(result != 0);  // This shouldn't happen for write.
@@ -1023,7 +1021,6 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
 }
 
 void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
-  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   spdy::SpdyHeaderBlock headers;
   uint32 type = frame->type();
   if (type == spdy::SYN_STREAM || type == spdy::SYN_REPLY) {
@@ -1081,7 +1078,6 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
 }
 
 void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
-  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   session_->spdy_session_pool()->Remove(this);
 
   // TODO(willchan): Cancel any streams that are past the GoAway frame's
