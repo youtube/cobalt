@@ -68,6 +68,7 @@ using testing::AtMost;
 using testing::Between;
 using testing::Cardinality;
 using testing::CardinalityInterface;
+using testing::ContainsRegex;
 using testing::Const;
 using testing::DoAll;
 using testing::DoDefault;
@@ -86,12 +87,19 @@ using testing::Mock;
 using testing::Ne;
 using testing::Return;
 using testing::Sequence;
+using testing::internal::ExpectationTester;
 using testing::internal::g_gmock_mutex;
 using testing::internal::kErrorVerbosity;
 using testing::internal::kInfoVerbosity;
 using testing::internal::kWarningVerbosity;
-using testing::internal::ExpectationTester;
+using testing::internal::String;
 using testing::internal::string;
+
+#if GTEST_HAS_STREAM_REDIRECTION_
+using testing::HasSubstr;
+using testing::internal::CaptureStdout;
+using testing::internal::GetCapturedStdout;
+#endif  // GTEST_HAS_STREAM_REDIRECTION_
 
 class Result {};
 
@@ -510,13 +518,12 @@ TEST(ExpectCallSyntaxTest, DefaultCardinalityIsOnce) {
   }, "to be called once");
 }
 
-// TODO(wan@google.com): find a way to re-enable these tests.
-#if 0
+#if GTEST_HAS_STREAM_REDIRECTION_
 
 // Tests that Google Mock doesn't print a warning when the number of
 // WillOnce() is adequate.
 TEST(ExpectCallSyntaxTest, DoesNotWarnOnAdequateActionCount) {
-  CaptureTestStdout();
+  CaptureStdout();
   {
     MockB b;
 
@@ -546,14 +553,13 @@ TEST(ExpectCallSyntaxTest, DoesNotWarnOnAdequateActionCount) {
     b.DoB(2);
     b.DoB(3);
   }
-  const string& output = GetCapturedTestStdout();
-  EXPECT_EQ("", output);
+  EXPECT_STREQ("", GetCapturedStdout().c_str());
 }
 
 // Tests that Google Mock warns on having too many actions in an
 // expectation compared to its cardinality.
 TEST(ExpectCallSyntaxTest, WarnsOnTooManyActions) {
-  CaptureTestStdout();
+  CaptureStdout();
   {
     MockB b;
 
@@ -585,7 +591,7 @@ TEST(ExpectCallSyntaxTest, WarnsOnTooManyActions) {
     b.DoB(1);
     b.DoB(2);
   }
-  const string& output = GetCapturedTestStdout();
+  const String output = GetCapturedStdout();
   EXPECT_PRED_FORMAT2(
       IsSubstring,
       "Too many actions specified in EXPECT_CALL(b, DoB())...\n"
@@ -625,9 +631,9 @@ TEST(ExpectCallSyntaxTest, WarnsOnTooFewActions) {
       .Times(Between(2, 3))
       .WillOnce(Return(1));
 
-  CaptureTestStdout();
+  CaptureStdout();
   b.DoB();
-  const string& output = GetCapturedTestStdout();
+  const String output = GetCapturedStdout();
   EXPECT_PRED_FORMAT2(
       IsSubstring,
       "Too few actions specified in EXPECT_CALL(b, DoB())...\n"
@@ -637,7 +643,7 @@ TEST(ExpectCallSyntaxTest, WarnsOnTooFewActions) {
   b.DoB();
 }
 
-#endif  // 0
+#endif  // GTEST_HAS_STREAM_REDIRECTION_
 
 // Tests the semantics of ON_CALL().
 
@@ -791,8 +797,7 @@ TEST(ExpectCallTest, NthMatchTakesNthAction) {
   EXPECT_EQ(3, b.DoB());
 }
 
-// TODO(wan@google.com): find a way to re-enable these tests.
-#if 0
+#if GTEST_HAS_STREAM_REDIRECTION_
 
 // Tests that the default action is taken when the WillOnce(...) list is
 // exhausted and there is no WillRepeatedly().
@@ -805,29 +810,29 @@ TEST(ExpectCallTest, TakesDefaultActionWhenWillListIsExhausted) {
       .WillOnce(Return(1))
       .WillOnce(Return(2));
 
-  CaptureTestStdout();
+  CaptureStdout();
   EXPECT_EQ(0, b.DoB(1));  // Shouldn't generate a warning as the
                            // expectation has no action clause at all.
   EXPECT_EQ(1, b.DoB());
   EXPECT_EQ(2, b.DoB());
-  const string& output1 = GetCapturedTestStdout();
-  EXPECT_EQ("", output1);
+  const String output1 = GetCapturedStdout();
+  EXPECT_STREQ("", output1.c_str());
 
-  CaptureTestStdout();
+  CaptureStdout();
   EXPECT_EQ(0, b.DoB());
   EXPECT_EQ(0, b.DoB());
-  const string& output2 = GetCapturedTestStdout();
-  EXPECT_PRED2(RE::PartialMatch, output2,
-               "Actions ran out\\.\n"
-               "Called 3 times, but only 2 WillOnce\\(\\)s are specified - "
-               "returning default value\\.");
-  EXPECT_PRED2(RE::PartialMatch, output2,
-               "Actions ran out\\.\n"
-               "Called 4 times, but only 2 WillOnce\\(\\)s are specified - "
-               "returning default value\\.");
+  const String output2 = GetCapturedStdout();
+  EXPECT_THAT(output2.c_str(),
+              HasSubstr("Actions ran out in EXPECT_CALL(b, DoB())...\n"
+                        "Called 3 times, but only 2 WillOnce()s are specified"
+                        " - returning default value."));
+  EXPECT_THAT(output2.c_str(),
+              HasSubstr("Actions ran out in EXPECT_CALL(b, DoB())...\n"
+                        "Called 4 times, but only 2 WillOnce()s are specified"
+                        " - returning default value."));
 }
 
-#endif  // 0
+#endif  // GTEST_HAS_STREAM_REDIRECTION_
 
 // Tests that the WillRepeatedly() action is taken when the WillOnce(...)
 // list is exhausted.
@@ -978,8 +983,6 @@ TEST(UnexpectedCallTest, UnmatchedArguments) {
   b.DoB(1);
 }
 
-#ifdef GMOCK_HAS_REGEX
-
 // Tests that Google Mock explains that an expectation with
 // unsatisfied pre-requisites doesn't match the call.
 TEST(UnexpectedCallTest, UnsatisifiedPrerequisites) {
@@ -1010,30 +1013,32 @@ TEST(UnexpectedCallTest, UnsatisifiedPrerequisites) {
 
   // Verifies that the failure message contains the two unsatisfied
   // pre-requisites but not the satisfied one.
-  const char* const pattern =
-#if GMOCK_USES_PCRE
+#if GTEST_USES_PCRE
+  EXPECT_THAT(r.message(), ContainsRegex(
       // PCRE has trouble using (.|\n) to match any character, but
       // supports the (?s) prefix for using . to match any character.
       "(?s)the following immediate pre-requisites are not satisfied:\n"
       ".*: pre-requisite #0\n"
-      ".*: pre-requisite #1";
-#else
+      ".*: pre-requisite #1"));
+#elif GTEST_USES_POSIX_RE
+  EXPECT_THAT(r.message(), ContainsRegex(
       // POSIX RE doesn't understand the (?s) prefix, but has no trouble
       // with (.|\n).
       "the following immediate pre-requisites are not satisfied:\n"
       "(.|\n)*: pre-requisite #0\n"
-      "(.|\n)*: pre-requisite #1";
-#endif  // GMOCK_USES_PCRE
+      "(.|\n)*: pre-requisite #1"));
+#else
+  // We can only use Google Test's own simple regex.
+  EXPECT_THAT(r.message(), ContainsRegex(
+      "the following immediate pre-requisites are not satisfied:"));
+  EXPECT_THAT(r.message(), ContainsRegex(": pre-requisite #0"));
+  EXPECT_THAT(r.message(), ContainsRegex(": pre-requisite #1"));
+#endif  // GTEST_USES_PCRE
 
-  EXPECT_TRUE(
-      ::testing::internal::RE::PartialMatch(r.message(), pattern))
-              << " where the message is " << r.message();
   b.DoB(1);
   b.DoB(3);
   b.DoB(4);
 }
-
-#endif  // GMOCK_HAS_REGEX
 
 TEST(UndefinedReturnValueTest, ReturnValueIsMandatory) {
   MockA a;
@@ -1778,16 +1783,15 @@ class MockC {
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MockC);
 };
 
-// TODO(wan@google.com): find a way to re-enable these tests.
-#if 0
+#if GTEST_HAS_STREAM_REDIRECTION_
 
 // Tests that an uninteresting mock function call generates a warning
 // containing the stack trace.
 TEST(FunctionCallMessageTest, UninterestingCallGeneratesFyiWithStackTrace) {
   MockC c;
-  CaptureTestStdout();
+  CaptureStdout();
   c.VoidMethod(false, 5, "Hi", NULL, Printable(), Unprintable());
-  const string& output = GetCapturedTestStdout();
+  const String output = GetCapturedStdout();
   EXPECT_PRED_FORMAT2(IsSubstring, "GMOCK WARNING", output);
   EXPECT_PRED_FORMAT2(IsSubstring, "Stack trace:", output);
 #ifndef NDEBUG
@@ -1796,14 +1800,14 @@ TEST(FunctionCallMessageTest, UninterestingCallGeneratesFyiWithStackTrace) {
 
   // Verifies that a void mock function's name appears in the stack
   // trace.
-  EXPECT_PRED_FORMAT2(IsSubstring, "::MockC::VoidMethod(", output);
+  EXPECT_PRED_FORMAT2(IsSubstring, "VoidMethod(", output);
 
   // Verifies that a non-void mock function's name appears in the
   // stack trace.
-  CaptureTestStdout();
+  CaptureStdout();
   c.NonVoidMethod();
-  const string& output2 = GetCapturedTestStdout();
-  EXPECT_PRED_FORMAT2(IsSubstring, "::MockC::NonVoidMethod(", output2);
+  const String output2 = GetCapturedStdout();
+  EXPECT_PRED_FORMAT2(IsSubstring, "NonVoidMethod(", output2);
 #endif  // NDEBUG
 }
 
@@ -1812,26 +1816,27 @@ TEST(FunctionCallMessageTest, UninterestingCallGeneratesFyiWithStackTrace) {
 TEST(FunctionCallMessageTest, UninterestingCallPrintsArgumentsAndReturnValue) {
   // A non-void mock function.
   MockB b;
-  CaptureTestStdout();
+  CaptureStdout();
   b.DoB();
-  const string& output1 = GetCapturedTestStdout();
+  const String output1 = GetCapturedStdout();
   EXPECT_PRED_FORMAT2(
       IsSubstring,
       "Uninteresting mock function call - returning default value.\n"
       "    Function call: DoB()\n"
-      "          Returns: 0\n", output1);
+      "          Returns: 0\n", output1.c_str());
   // Makes sure the return value is printed.
 
   // A void mock function.
   MockC c;
-  CaptureTestStdout();
+  CaptureStdout();
   c.VoidMethod(false, 5, "Hi", NULL, Printable(), Unprintable());
-  const string& output2 = GetCapturedTestStdout();
-  EXPECT_PRED2(RE::PartialMatch, output2,
-               "Uninteresting mock function call - returning directly\\.\n"
-               "    Function call: VoidMethod"
-               "\\(false, 5, \"Hi\", NULL, @0x\\w+ "
-               "Printable, 4-byte object <0000 0000>\\)");
+  const String output2 = GetCapturedStdout();
+  EXPECT_THAT(output2.c_str(),
+              ContainsRegex(
+                  "Uninteresting mock function call - returning directly\\.\n"
+                  "    Function call: VoidMethod"
+                  "\\(false, 5, \"Hi\", NULL, @.+ "
+                  "Printable, 4-byte object <0000 0000>\\)"));
   // A void function has no return value to print.
 }
 
@@ -1843,18 +1848,21 @@ class GMockVerboseFlagTest : public testing::Test {
   // should_print is true, the output should match the given regex and
   // contain the given function name in the stack trace.  When it's
   // false, the output should be empty.)
-  void VerifyOutput(const string& output, bool should_print,
-                    const string& regex,
+  void VerifyOutput(const String& output, bool should_print,
+                    const string& expected_substring,
                     const string& function_name) {
     if (should_print) {
-      EXPECT_PRED2(RE::PartialMatch, output, regex);
+      EXPECT_THAT(output.c_str(), HasSubstr(expected_substring));
 #ifndef NDEBUG
       // We check the stack trace content in dbg-mode only, as opt-mode
       // may inline the call we are interested in seeing.
-      EXPECT_PRED_FORMAT2(IsSubstring, function_name, output);
+      EXPECT_THAT(output.c_str(), HasSubstr(function_name));
+#else
+      // Suppresses 'unused function parameter' warnings.
+      static_cast<void>(function_name);
 #endif  // NDEBUG
     } else {
-      EXPECT_EQ("", output);
+      EXPECT_STREQ("", output.c_str());
     }
   }
 
@@ -1866,27 +1874,27 @@ class GMockVerboseFlagTest : public testing::Test {
         .WillOnce(Return(true));
 
     // A void-returning function.
-    CaptureTestStdout();
+    CaptureStdout();
     a.DoA(5);
     VerifyOutput(
-        GetCapturedTestStdout(),
+        GetCapturedStdout(),
         should_print,
-        "Expected mock function call\\.\n"
-        "    Function call: DoA\\(5\\)\n"
-        "Stack trace:",
-        "MockA::DoA");
+        "Mock function call matches EXPECT_CALL(a, DoA(5))...\n"
+        "    Function call: DoA(5)\n"
+        "Stack trace:\n",
+        "DoA");
 
     // A non-void-returning function.
-    CaptureTestStdout();
+    CaptureStdout();
     a.Binary(2, 1);
     VerifyOutput(
-        GetCapturedTestStdout(),
+        GetCapturedStdout(),
         should_print,
-        "Expected mock function call\\.\n"
-        "    Function call: Binary\\(2, 1\\)\n"
+        "Mock function call matches EXPECT_CALL(a, Binary(_, 1))...\n"
+        "    Function call: Binary(2, 1)\n"
         "          Returns: true\n"
-        "Stack trace:",
-        "MockA::Binary");
+        "Stack trace:\n",
+        "Binary");
   }
 
   // Tests how the flag affects uninteresting calls.
@@ -1894,31 +1902,29 @@ class GMockVerboseFlagTest : public testing::Test {
     MockA a;
 
     // A void-returning function.
-    CaptureTestStdout();
+    CaptureStdout();
     a.DoA(5);
     VerifyOutput(
-        GetCapturedTestStdout(),
+        GetCapturedStdout(),
         should_print,
         "\nGMOCK WARNING:\n"
-        "Uninteresting mock function call - returning directly\\.\n"
-        "    Function call: DoA\\(5\\)\n"
-        "Stack trace:\n"
-        "[\\s\\S]*",
-        "MockA::DoA");
+        "Uninteresting mock function call - returning directly.\n"
+        "    Function call: DoA(5)\n"
+        "Stack trace:\n",
+        "DoA");
 
     // A non-void-returning function.
-    CaptureTestStdout();
+    CaptureStdout();
     a.Binary(2, 1);
     VerifyOutput(
-        GetCapturedTestStdout(),
+        GetCapturedStdout(),
         should_print,
         "\nGMOCK WARNING:\n"
-        "Uninteresting mock function call - returning default value\\.\n"
-        "    Function call: Binary\\(2, 1\\)\n"
+        "Uninteresting mock function call - returning default value.\n"
+        "    Function call: Binary(2, 1)\n"
         "          Returns: false\n"
-        "Stack trace:\n"
-        "[\\s\\S]*",
-        "MockA::Binary");
+        "Stack trace:\n",
+        "Binary");
   }
 };
 
@@ -1954,7 +1960,7 @@ TEST_F(GMockVerboseFlagTest, InvalidFlagIsTreatedAsWarning) {
   TestUninterestingCall(true);
 }
 
-#endif  // 0
+#endif  // GTEST_HAS_STREAM_REDIRECTION_
 
 // A helper class that generates a failure when printed.  We use it to
 // ensure that Google Mock doesn't print a value (even to an internal
