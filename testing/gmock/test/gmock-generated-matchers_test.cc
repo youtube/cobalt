@@ -68,6 +68,7 @@ using testing::Lt;
 using testing::MakeMatcher;
 using testing::Matcher;
 using testing::MatcherInterface;
+using testing::MatchResultListener;
 using testing::Ne;
 using testing::Not;
 using testing::Pointee;
@@ -136,6 +137,16 @@ TEST(ArgsTest, AcceptsDecreasingTemplateArgs) {
   EXPECT_THAT(t, Not(Args<2, 1>(Lt())));
 }
 
+// The MATCHER*() macros trigger warning C4100 (unreferenced formal
+// parameter) in MSVC with -W4.  Unfortunately they cannot be fixed in
+// the macro definition, as the warnings are generated when the macro
+// is expanded and macro expansion cannot contain #pragma.  Therefore
+// we suppress them here.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4100)
+#endif
+
 MATCHER(SumIsZero, "") {
   return get<0>(arg) + get<1>(arg) + get<2>(arg) == 0;
 }
@@ -167,9 +178,7 @@ TEST(ArgsTest, CanMatchTupleByReference) {
 
 // Validates that arg is printed as str.
 MATCHER_P(PrintsAs, str, "") {
-  typedef GMOCK_REMOVE_CONST_(GMOCK_REMOVE_REFERENCE_(arg_type)) RawTuple;
-  return
-      testing::internal::UniversalPrinter<RawTuple>::PrintToString(arg) == str;
+  return testing::PrintToString(arg) == str;
 }
 
 TEST(ArgsTest, AcceptsTenTemplateArgs) {
@@ -207,21 +216,22 @@ class GreaterThanMatcher : public MatcherInterface<int> {
  public:
   explicit GreaterThanMatcher(int rhs) : rhs_(rhs) {}
 
-  virtual bool Matches(int lhs) const { return lhs > rhs_; }
-
   virtual void DescribeTo(::std::ostream* os) const {
     *os << "is greater than " << rhs_;
   }
 
-  virtual void ExplainMatchResultTo(int lhs, ::std::ostream* os) const {
+  virtual bool MatchAndExplain(int lhs,
+                               MatchResultListener* listener) const {
     const int diff = lhs - rhs_;
     if (diff > 0) {
-      *os << "is " << diff << " more than " << rhs_;
+      *listener << "is " << diff << " more than " << rhs_;
     } else if (diff == 0) {
-      *os << "is the same as " << rhs_;
+      *listener << "is the same as " << rhs_;
     } else {
-      *os << "is " << -diff << " less than " << rhs_;
+      *listener << "is " << -diff << " less than " << rhs_;
     }
+
+    return lhs > rhs_;
   }
 
  private:
@@ -551,6 +561,44 @@ TEST(MatcherMacroTest, Works) {
   EXPECT_EQ("not (is even)", DescribeNegation(m));
   EXPECT_EQ("", Explain(m, 6));
   EXPECT_EQ("", Explain(m, 7));
+}
+
+// Tests explaining match result in a MATCHER* macro.
+
+MATCHER(IsEven2, "is even") {
+  if ((arg % 2) == 0) {
+    // Verifies that we can stream to result_listener, a listener
+    // supplied by the MATCHER macro implicitly.
+    *result_listener << "OK";
+    return true;
+  } else {
+    *result_listener << "% 2 == " << (arg % 2);
+    return false;
+  }
+}
+
+MATCHER_P2(EqSumOf, x, y, "") {
+  if (arg == (x + y)) {
+    *result_listener << "OK";
+    return true;
+  } else {
+    // Verifies that we can stream to the underlying stream of
+    // result_listener.
+    if (result_listener->stream() != NULL) {
+      *result_listener->stream() << "diff == " << (x + y - arg);
+    }
+    return false;
+  }
+}
+
+TEST(MatcherMacroTest, CanExplainMatchResult) {
+  const Matcher<int> m1 = IsEven2();
+  EXPECT_EQ("OK", Explain(m1, 4));
+  EXPECT_EQ("% 2 == 1", Explain(m1, 5));
+
+  const Matcher<int> m2 = EqSumOf(1, 2);
+  EXPECT_EQ("OK", Explain(m2, 3));
+  EXPECT_EQ("diff == -1", Explain(m2, 4));
 }
 
 // Tests that the description string supplied to MATCHER() must be
@@ -1051,5 +1099,9 @@ TEST(ContainsTest, WorksForTwoDimensionalNativeArray) {
   EXPECT_THAT(a, Not(Contains(ElementsAre(3, 4, 5))));
   EXPECT_THAT(a, Contains(Not(Contains(5))));
 }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 }  // namespace
