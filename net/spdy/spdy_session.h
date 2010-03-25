@@ -156,6 +156,11 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // list), returns NULL otherwise.
   scoped_refptr<SpdyStream> GetPushStream(const std::string& url);
 
+  // Creates an HttpResponseInfo instance, and calls OnResponseReceived().
+  // Returns true if successful.
+  bool Respond(const spdy::SpdyHeaderBlock& headers,
+               const scoped_refptr<SpdyStream> stream);
+
   void GetSSLInfo(SSLInfo* ssl_info);
 
   // Callbacks for the Spdy session.
