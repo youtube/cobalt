@@ -464,6 +464,10 @@ bool HttpResponseHeaders::HasHeaderValue(const std::string& name,
   return false;
 }
 
+bool HttpResponseHeaders::HasHeader(const std::string& name) const {
+  return FindHeader(0, name) != std::string::npos;
+}
+
 // Note: this implementation implicitly assumes that line_end points at a valid
 // sentinel character (such as '\0').
 // static
