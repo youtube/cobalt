@@ -22,6 +22,8 @@
 #include "net/spdy/spdy_protocol.h"
 #include "testing/platform_test.h"
 
+#define NET_TRACE(level, s)   DLOG(level) << s << __FUNCTION__ << "() "
+
 //-----------------------------------------------------------------------------
 
 namespace net {
@@ -691,21 +693,21 @@ class OrderedSocketData : public StaticSocketDataProvider,
       EndLoop();
     if ((next_read.sequence_number & ~MockRead::STOPLOOP) <=
         sequence_number_++) {
-      DLOG(INFO) << "  *** " << __FUNCTION__ << "() Stage "
-          << sequence_number_ - 1 << ": Read " << read_index();
+      NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_ - 1
+          << ": Read " << read_index();
       DumpMockRead(next_read);
       return StaticSocketDataProvider::GetNextRead();
     }
-    DLOG(INFO) << "  *** " << __FUNCTION__ << "() Stage "
-        << sequence_number_ - 1 << ": I/O Pending";
+    NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_ - 1
+        << ": I/O Pending";
     MockRead result = MockRead(true, ERR_IO_PENDING);
     DumpMockRead(result);
     return result;
   }
 
   virtual MockWriteResult OnWrite(const std::string& data) {
-    DLOG(INFO) << "  *** " << __FUNCTION__ << "() Stage "
-        << sequence_number_ << ": Write " << write_index();
+    NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
+        << ": Write " << write_index();
     DumpMockRead(PeekWrite());
     ++sequence_number_;
     MessageLoop::current()->PostDelayedTask(FROM_HERE,
@@ -714,7 +716,7 @@ class OrderedSocketData : public StaticSocketDataProvider,
   }
 
   virtual void Reset() {
-    DLOG(INFO) << "  *** " << __FUNCTION__ << "() Stage "
+    NET_TRACE(INFO, "  *** ") << "Stage "
         << sequence_number_ << ": Reset()";
     sequence_number_ = 0;
     loop_stop_stage_ = 0;
@@ -731,22 +733,21 @@ class OrderedSocketData : public StaticSocketDataProvider,
   void EndLoop() {
     // If we've already stopped the loop, don't do it again until we've advanced
     // to the next sequence_number.
-    DLOG(INFO) << "  *** " << __FUNCTION__ << "() Stage "
-        << sequence_number_ << ": EndLoop()";
+    NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_ << ": EndLoop()";
     if (loop_stop_stage_ > 0) {
       const MockRead& next_read = StaticSocketDataProvider::PeekRead();
       if ((next_read.sequence_number & ~MockRead::STOPLOOP) >
           loop_stop_stage_) {
-        DLOG(INFO) << "  *** " << __FUNCTION__ << "() Stage "
-            << sequence_number_ << ": Clearing stop index";
+        NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
+            << ": Clearing stop index";
         loop_stop_stage_ = 0;
       } else {
         return;
       }
     }
     // Record the sequence_number at which we stopped the loop.
-    DLOG(INFO) << "  *** " << __FUNCTION__ << "() Stage "
-        << sequence_number_ << ": Posting Quit at read " << read_index();
+    NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
+        << ": Posting Quit at read " << read_index();
     loop_stop_stage_ = sequence_number_;
     if (callback_)
       callback_->RunWithParams(Tuple1<int>(ERR_IO_PENDING));
@@ -754,8 +755,7 @@ class OrderedSocketData : public StaticSocketDataProvider,
 
   void CompleteRead() {
     if (socket()) {
-      DLOG(INFO) << "  *** " << __FUNCTION__ << "() Stage "
-          << sequence_number_;
+      NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_;
       socket()->OnReadComplete(GetNextRead());
     }
   }
@@ -1634,7 +1634,11 @@ TEST_F(SpdyNetworkTransactionTest, ServerPush) {
              arraysize(kPushBodyFrame3) - 1, 8),
     MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),  // 6
              arraysize(kPushBodyFrame4) - 1, 9),
-    MockRead(true, ERR_IO_PENDING, MockRead::STOPLOOP | 10)         // 7
+    MockRead(true, ERR_IO_PENDING, MockRead::STOPLOOP | 10),        // 7
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),  // 8
+             arraysize(kPushBodyFrame4) - 1, 11),
+    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),  // 9
+             arraysize(kPushBodyFrame4) - 1, 12)
   };
 
   // We disable SSL for this test.
@@ -1707,10 +1711,8 @@ TEST_F(SpdyNetworkTransactionTest, ServerPush) {
                 2,
                 &response2);
 
-    if (test_type != PUSH_DURING_REQUEST) {
-      // Complete the next read now and teardown.
-      data->CompleteRead();
-    }
+    // Complete the next read now and teardown.
+    data->CompleteRead();
     // Verify that we consumed all test data.
     EXPECT_TRUE(data->at_read_eof());
     EXPECT_TRUE(data->at_write_eof());
