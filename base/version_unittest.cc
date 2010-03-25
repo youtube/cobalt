@@ -6,14 +6,27 @@
 #include "base/version.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace {
+class VersionTest : public testing::Test {
+};
 
-TEST(Version, GetVersionFromString) {
+TEST_F(VersionTest, DefaultConstructor) {
+  Version v;
+  EXPECT_FALSE(v.is_valid_);
+}
+
+TEST_F(VersionTest, GetVersionFromString) {
   static const struct version_string {
     const char* input;
     size_t parts;
     bool success;
   } cases[] = {
+    {"", 0, false},
+    {" ", 0, false},
+    {"\t", 0, false},
+    {"\n", 0, false},
+    {"  ", 0, false},
+    {".", 0, false},
+    {" . ", 0, false},
     {"0", 1, true},
     {"0.0", 2, true},
     {"65537.0", 0, false},
@@ -29,12 +42,14 @@ TEST(Version, GetVersionFromString) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(cases); ++i) {
     scoped_ptr<Version> vers(Version::GetVersionFromString(cases[i].input));
     EXPECT_EQ(cases[i].success, vers.get() != NULL);
-    if (cases[i].success)
+    if (cases[i].success) {
+      EXPECT_TRUE(vers->is_valid_);
       EXPECT_EQ(cases[i].parts, vers->components().size());
+    }
   }
 }
 
-TEST(Version, Compare) {
+TEST_F(VersionTest, Compare) {
   static const struct version_compare {
     const char* lhs;
     const char* rhs;
@@ -57,6 +72,4 @@ TEST(Version, Compare) {
     EXPECT_EQ(lhs->CompareTo(*rhs), cases[i].expected) <<
           cases[i].lhs << " ? " << cases[i].rhs;
   }
-}
-
 }
