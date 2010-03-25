@@ -187,8 +187,8 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactoryWithFilters) {
   HttpAuthFilterWhitelist* ntlm_whitelist = new HttpAuthFilterWhitelist;
   HttpAuthFilterWhitelist* negotiate_whitelist = new HttpAuthFilterWhitelist;
 
-  ntlm_whitelist->SetFilters(ntlm_server_whitelist);
-  negotiate_whitelist->SetFilters(negotiate_server_whitelist);
+  ntlm_whitelist->SetWhitelist(ntlm_server_whitelist);
+  negotiate_whitelist->SetWhitelist(negotiate_server_whitelist);
 
   http_auth_handler_registry_factory->SetFilter("ntlm", ntlm_whitelist);
   http_auth_handler_registry_factory->SetFilter("negotiate",
@@ -281,8 +281,8 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactoryWithFilters) {
 #endif  // !defined(OS_WIN)
 
   // Now change the whitelist and expect failures.
-  ntlm_whitelist->SetFilters(ntlm_server_whitelist2);
-  negotiate_whitelist->SetFilters(negotiate_server_whitelist2);
+  ntlm_whitelist->SetWhitelist(ntlm_server_whitelist2);
+  negotiate_whitelist->SetWhitelist(negotiate_server_whitelist2);
 
   {
     scoped_refptr<HttpAuthHandler> handler;
