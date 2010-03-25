@@ -213,7 +213,8 @@ class TCPClientSocketWin::Core : public base::RefCounted<Core> {
 
 TCPClientSocketWin::Core::Core(
     TCPClientSocketWin* socket)
-    : socket_(socket),
+    : write_buffer_length_(0),
+      socket_(socket),
       ALLOW_THIS_IN_INITIALIZER_LIST(reader_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(writer_(this)),
       slow_start_throttle_(kInitialSlowStartThrottle) {
