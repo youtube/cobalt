@@ -269,8 +269,8 @@ TEST(HttpAuthTest, ChooseBestChallengeFiltered) {
                                                 negotiate_whitelist);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    ntlm_whitelist->SetFilters(tests[i].filter_string);
-    negotiate_whitelist->SetFilters(tests[i].filter_string);
+    ntlm_whitelist->SetWhitelist(tests[i].filter_string);
+    negotiate_whitelist->SetWhitelist(tests[i].filter_string);
     // Make a HttpResponseHeaders object.
     std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
     headers_with_status_line += tests[i].headers;
@@ -334,8 +334,8 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedFiltered) {
   HttpAuthFilterWhitelist* ntlm_whitelist = new HttpAuthFilterWhitelist;
   HttpAuthFilterWhitelist* negotiate_whitelist = new HttpAuthFilterWhitelist;
 
-  ntlm_whitelist->SetFilters(ntlm_server_whitelist);
-  negotiate_whitelist->SetFilters(negotiate_server_whitelist);
+  ntlm_whitelist->SetWhitelist(ntlm_server_whitelist);
+  negotiate_whitelist->SetWhitelist(negotiate_server_whitelist);
 
   http_auth_handler_registry_factory->SetFilter("ntlm", ntlm_whitelist);
   http_auth_handler_registry_factory->SetFilter("negotiate",
