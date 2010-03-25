@@ -318,6 +318,7 @@
         'http/http_auth_cache.h',
         'http/http_auth_filter.cc',
         'http/http_auth_filter.h',
+        'http/http_auth_filter_win.h',
         'http/http_auth_handler.cc',
         'http/http_auth_handler.h',
         'http/http_auth_handler_basic.cc',
