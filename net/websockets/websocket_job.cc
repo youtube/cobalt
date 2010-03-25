@@ -4,6 +4,9 @@
 
 #include "net/websockets/websocket_job.h"
 
+#include <algorithm>
+
+#include "base/string_tokenizer.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_errors.h"
 #include "net/base/cookie_policy.h"
@@ -67,6 +70,54 @@ static void FetchResponseCookies(
     }
   }
 }
+
+static bool GetHeaderName(std::string::const_iterator line_begin,
+                          std::string::const_iterator line_end,
+                          std::string::const_iterator* name_begin,
+                          std::string::const_iterator* name_end) {
+  std::string::const_iterator colon = std::find(line_begin, line_end, ':');
+  if (colon == line_end) {
+    return false;
+  }
+  *name_begin = line_begin;
+  *name_end = colon;
+  if (*name_begin == *name_end || HttpUtil::IsLWS(**name_begin))
+    return false;
+  HttpUtil::TrimLWS(name_begin, name_end);
+  return true;
+}
+
+// Similar to HttpUtil::StripHeaders, but it preserves malformed headers, that
+// is, lines that are not formatted as "<name>: <value>\r\n".
+static std::string FilterHeaders(
+    const std::string& headers,
+    const char* const headers_to_remove[],
+    size_t headers_to_remove_len) {
+  std::string filtered_headers;
+
+  StringTokenizer lines(headers.begin(), headers.end(), "\r\n");
+  while (lines.GetNext()) {
+    std::string::const_iterator line_begin = lines.token_begin();
+    std::string::const_iterator line_end = lines.token_end();
+    std::string::const_iterator name_begin;
+    std::string::const_iterator name_end;
+    bool should_remove = false;
+    if (GetHeaderName(line_begin, line_end, &name_begin, &name_end)) {
+      for (size_t i = 0; i < headers_to_remove_len; ++i) {
+        if (LowerCaseEqualsASCII(name_begin, name_end, headers_to_remove[i])) {
+          should_remove = true;
+          break;
+        }
+      }
+    }
+    if (!should_remove) {
+      filtered_headers.append(line_begin, line_end);
+      filtered_headers.append("\r\n");
+    }
+  }
+  return filtered_headers;
+}
+
 
 // static
 void WebSocketJob::EnsureInit() {
@@ -259,7 +310,8 @@ void WebSocketJob::OnCanGetCookiesCompleted(int policy) {
                           &handshake_request_status_line,
                           &handshake_request_header);
 
-    // Remove cookie headers.
+    // Remove cookie headers.  We should not send out malformed headers, so
+    // use HttpUtil::StripHeaders() instead of FilterHeaders().
     handshake_request_header = HttpUtil::StripHeaders(
         handshake_request_header,
         kCookieHeaders, arraysize(kCookieHeaders));
@@ -345,11 +397,11 @@ void WebSocketJob::SaveNextCookie() {
                           handshake_response_header_length_,
                           &handshake_response_status_line,
                           &handshake_response_header);
-    // Remove cookie headers.
+    // Remove cookie headers, with malformed headers preserved.
+    // Actual handshake should be done in WebKit.
     std::string filtered_handshake_response_header =
-        HttpUtil::StripHeaders(
-            handshake_response_header,
-            kSetCookieHeaders, arraysize(kSetCookieHeaders));
+        FilterHeaders(handshake_response_header,
+                      kSetCookieHeaders, arraysize(kSetCookieHeaders));
     std::string remaining_data =
         std::string(handshake_response_.data() +
                     handshake_response_header_length_,
