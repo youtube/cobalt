@@ -16,12 +16,12 @@
 #include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
+#include "net/http/http_request_info.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
 
 namespace net {
 
-class HttpRequestInfo;
 class HttpResponseInfo;
 class SpdySession;
 class UploadData;
@@ -74,8 +74,6 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // Returns the number of bytes uploaded.
   uint64 GetUploadProgress() const;
 
-  const HttpResponseInfo* GetResponseInfo() const;
-
   // Is this stream a pushed stream from the server.
   bool pushed() const { return pushed_; }
 
@@ -91,6 +89,12 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
 
   int priority() const { return priority_; }
   void set_priority(int priority) { priority_ = priority; }
+
+  const HttpResponseInfo* GetResponseInfo() const;
+  const HttpRequestInfo* GetRequestInfo() const;
+  void SetRequestInfo(const HttpRequestInfo& request);
+  base::Time GetRequestTime() const;
+  void SetRequestTime(base::Time t);
 
   // Called by the SpdySession when a response (e.g. a SYN_REPLY) has been
   // received for this stream.  |path| is the path of the URL for a server
@@ -179,6 +183,13 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   ScopedBandwidthMetrics metrics_;
 
   scoped_refptr<SpdySession> session_;
+
+  // The request to send.
+  HttpRequestInfo request_;
+
+  // The time at which the request was made that resulted in this response.
+  // For cached responses, this time could be "far" in the past.
+  base::Time request_time_;
 
   HttpResponseInfo* response_;
   scoped_ptr<UploadDataStream> request_body_stream_;

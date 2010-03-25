@@ -50,29 +50,55 @@ struct MockConnect {
 };
 
 struct MockRead {
+  // Flag to indicate that the message loop should be terminated.
+  enum {
+    STOPLOOP = 1 << 31
+  };
+
   // Default
-  MockRead() : async(false), result(0), data(NULL), data_len(0) {}
+  MockRead() : async(false), result(0), data(NULL), data_len(0),
+      sequence_number(0), time_stamp(base::Time::Now()) {}
 
   // Read failure (no data).
   MockRead(bool async, int result) : async(async) , result(result), data(NULL),
-      data_len(0) { }
+      data_len(0), sequence_number(0), time_stamp(base::Time::Now()) { }
+
+  // Read failure (no data), with sequence information.
+  MockRead(bool async, int result, int seq) : async(async) , result(result),
+      data(NULL), data_len(0), sequence_number(seq),
+      time_stamp(base::Time::Now()) { }
 
   // Asynchronous read success (inferred data length).
   explicit MockRead(const char* data) : async(true),  result(0), data(data),
-      data_len(strlen(data)) { }
+      data_len(strlen(data)), sequence_number(0),
+      time_stamp(base::Time::Now()) { }
 
   // Read success (inferred data length).
   MockRead(bool async, const char* data) : async(async), result(0), data(data),
-      data_len(strlen(data)) { }
+      data_len(strlen(data)), sequence_number(0),
+      time_stamp(base::Time::Now()) { }
 
   // Read success.
   MockRead(bool async, const char* data, int data_len) : async(async),
-      result(0), data(data), data_len(data_len) { }
+      result(0), data(data), data_len(data_len), sequence_number(0),
+      time_stamp(base::Time::Now()) { }
+
+  // Read success with sequence information.
+  MockRead(bool async, const char* data, int data_len, int seq) : async(async),
+      result(0), data(data), data_len(data_len), sequence_number(seq),
+      time_stamp(base::Time::Now()) { }
 
   bool async;
   int result;
   const char* data;
   int data_len;
+
+  // For OrderedSocketData in spdy_network_transaction_unittest.cc, which only
+  // allows reads to occur in a particular sequence.  If a read occurs before
+  // the given |sequence_number| is reached, an ERR_IO_PENDING is returned.
+  int sequence_number;      // The sequence number at which a read is allowed
+                            // to occur.
+  base::Time time_stamp;    // The time stamp at which the operation occurred.
 };
 
 // MockWrite uses the same member fields as MockRead, but with different
@@ -138,6 +164,17 @@ class StaticSocketDataProvider : public SocketDataProvider {
   virtual MockRead GetNextRead();
   virtual MockWriteResult OnWrite(const std::string& data);
   virtual void Reset();
+
+  // These functions get access to the next available read and write data.
+  const MockRead& PeekRead() const;
+  const MockWrite& PeekWrite() const;
+  // These functions get random access to the read and write data, for timing.
+  const MockRead& PeekRead(size_t index) const;
+  const MockWrite& PeekWrite(size_t index) const;
+  size_t read_index() const { return read_index_; }
+  size_t write_index() const { return write_index_; }
+  size_t read_count() const { return read_count_; }
+  size_t write_count() const { return write_count_; }
 
   bool at_read_eof() const { return read_index_ >= read_count_; }
   bool at_write_eof() const { return write_index_ >= write_count_; }

@@ -20,6 +20,7 @@ SpdyStream::SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id,
       download_finished_(false),
       metrics_(Singleton<BandwidthMetrics>::get()),
       session_(session),
+      request_time_(base::Time::Now()),
       response_(NULL),
       request_body_stream_(NULL),
       response_complete_(false),
@@ -57,6 +58,28 @@ uint64 SpdyStream::GetUploadProgress() const {
 
 const HttpResponseInfo* SpdyStream::GetResponseInfo() const {
   return response_;
+}
+
+const HttpRequestInfo* SpdyStream::GetRequestInfo() const {
+  return &request_;
+}
+
+void SpdyStream::SetRequestInfo(const HttpRequestInfo& request) {
+  request_ = request;
+}
+
+base::Time SpdyStream::GetRequestTime() const {
+  return request_time_;
+}
+
+void SpdyStream::SetRequestTime(base::Time t) {
+  request_time_ = t;
+
+  // This should only get called in the case of a request occuring
+  // during server push that has already begun but hasn't finished,
+  // so we set the response's request time to be the actual one
+  if (response_)
+    response_->request_time = request_time_;
 }
 
 int SpdyStream::ReadResponseHeaders(CompletionCallback* callback) {
@@ -128,6 +151,8 @@ int SpdyStream::SendRequest(UploadDataStream* upload_data,
   CHECK(!cancelled_);
   CHECK(response);
 
+  DLOG(INFO) << "  * " << __FUNCTION__ << "()";
+
   if (response_) {
     *response = *response_;
     delete response_;
@@ -169,6 +194,7 @@ void SpdyStream::Cancel() {
 }
 
 void SpdyStream::OnResponseReceived(const HttpResponseInfo& response) {
+  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   metrics_.StartStream();
 
   CHECK(!response_->headers);
@@ -200,6 +226,7 @@ void SpdyStream::OnResponseReceived(const HttpResponseInfo& response) {
 }
 
 bool SpdyStream::OnDataReceived(const char* data, int length) {
+  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   DCHECK_GE(length, 0);
   LOG(INFO) << "SpdyStream: Data (" << length << " bytes) received for "
             << stream_id_;
@@ -250,6 +277,7 @@ bool SpdyStream::OnDataReceived(const char* data, int length) {
 }
 
 void SpdyStream::OnWriteComplete(int status) {
+  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
   // should discontinue the DoLoop.
 
@@ -260,6 +288,7 @@ void SpdyStream::OnWriteComplete(int status) {
 }
 
 void SpdyStream::OnClose(int status) {
+  DLOG(INFO) << "  >> " << __FUNCTION__ << "()";
   response_complete_ = true;
   response_status_ = status;
   stream_id_ = 0;
@@ -272,6 +301,8 @@ void SpdyStream::OnClose(int status) {
 
 int SpdyStream::DoLoop(int result) {
   do {
+    DLOG(INFO) << "  * " << __FUNCTION__ << "() state = " << io_state_
+        << " result = " << result;
     State state = io_state_;
     io_state_ = STATE_NONE;
     switch (state) {
