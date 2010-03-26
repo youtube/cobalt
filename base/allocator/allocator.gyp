@@ -332,9 +332,19 @@
               # Do the same for heap leak checker.
               '-Wl,-u_Z21InitialMallocHook_NewPKvj,-u_Z22InitialMallocHook_MMapPKvS0_jiiix,-u_Z22InitialMallocHook_SbrkPKvi',
               '-Wl,-u_Z21InitialMallocHook_NewPKvm,-u_Z22InitialMallocHook_MMapPKvS0_miiil,-u_Z22InitialMallocHook_SbrkPKvl',
+            ]},
+          }],
+          [ 'linux_use_heapchecker==0', {
+            # Do not compile and link the heapchecker source.
+            'sources!': [
+              '<(tcmalloc_dir)/src/heap-checker-bcad.cc',
+              '<(tcmalloc_dir)/src/heap-checker.cc',
             ],
-          },
-        }],
+            # Disable the heap checker in tcmalloc.
+            'cflags': [
+              '-DNO_HEAP_CHECK',
+            ],
+          }],
       ],
     },
     {
