@@ -1635,10 +1635,8 @@ TEST_F(SpdyNetworkTransactionTest, ServerPush) {
     MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),  // 6
              arraysize(kPushBodyFrame4) - 1, 9),
     MockRead(true, ERR_IO_PENDING, MockRead::STOPLOOP | 10),        // 7
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),  // 8
-             arraysize(kPushBodyFrame4) - 1, 11),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),  // 9
-             arraysize(kPushBodyFrame4) - 1, 12)
+    // So we can do a final CompleteRead(), which cleans up memory.
+    MockRead(true, NULL, 0, 11)                                     // 8
   };
 
   // We disable SSL for this test.
@@ -1713,6 +1711,7 @@ TEST_F(SpdyNetworkTransactionTest, ServerPush) {
 
     // Complete the next read now and teardown.
     data->CompleteRead();
+
     // Verify that we consumed all test data.
     EXPECT_TRUE(data->at_read_eof());
     EXPECT_TRUE(data->at_write_eof());
