@@ -214,7 +214,8 @@ base::TimeDelta PipelineImpl::GetCurrentTime() const {
   // |state_| is only accessed on |message_loop_|.
   AutoLock auto_lock(lock_);
   base::TimeDelta elapsed = clock_.Elapsed();
-  if (state_ == kEnded || elapsed > duration_) {
+  if (state_ == kEnded ||
+      (duration_.ToInternalValue() && (elapsed > duration_))) {
     return duration_;
   }
   return elapsed;
