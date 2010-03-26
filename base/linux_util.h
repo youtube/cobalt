@@ -61,6 +61,7 @@ enum DesktopEnvironment {
   // them as two different desktop environments here.
   DESKTOP_ENVIRONMENT_KDE3,
   DESKTOP_ENVIRONMENT_KDE4,
+  DESKTOP_ENVIRONMENT_XFCE,
 };
 
 // Return an entry from the DesktopEnvironment enum with a best guess

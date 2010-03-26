@@ -974,6 +974,7 @@ ProxyConfigServiceLinux::Delegate::Delegate(
     case base::DESKTOP_ENVIRONMENT_KDE4:
       gconf_getter_.reset(new GConfSettingGetterImplKDE(env_var_getter));
       break;
+    case base::DESKTOP_ENVIRONMENT_XFCE:
     case base::DESKTOP_ENVIRONMENT_OTHER:
       break;
   }

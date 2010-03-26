@@ -274,6 +274,8 @@ DesktopEnvironment GetDesktopEnvironment(EnvironmentVariableGetter* env) {
         return DESKTOP_ENVIRONMENT_KDE4;
       return DESKTOP_ENVIRONMENT_KDE3;
     }
+    else if (desktop_session == "xfce4")
+      return DESKTOP_ENVIRONMENT_XFCE;
   }
 
   // Fall back on some older environment variables.
@@ -300,6 +302,8 @@ const char* GetDesktopEnvironmentName(DesktopEnvironment env) {
       return "KDE3";
     case DESKTOP_ENVIRONMENT_KDE4:
       return "KDE4";
+    case DESKTOP_ENVIRONMENT_XFCE:
+      return "XFCE";
   }
   return NULL;
 }
