@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/dynamic_annotations.h"
 #include "base/message_loop.h"
 #include "base/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,7 +24,7 @@ class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
     PlatformThread::Sleep(100);
   }
  private:
-  bool* value_;
+  bool *value_;
 };
 
 }
@@ -32,6 +33,71 @@ class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
 TEST(ToolsSanityTest, MemoryLeak) {
   int *leak = new int[256];  // Leak some memory intentionally.
   leak[4] = 1;  // Make sure the allocated memory is used.
+}
+
+void ReadValueOutOfArrayBoundsLeft(char *ptr) {
+  LOG(INFO) << "Reading a byte out of bounds: " << ptr[-2];
+}
+
+void ReadValueOutOfArrayBoundsRight(char *ptr, size_t size) {
+  LOG(INFO) << "Reading a byte out of bounds: " << ptr[size + 1];
+}
+
+// This is harmless if you run it under Valgrind thanks to redzones.
+void WriteValueOutOfArrayBoundsLeft(char *ptr) {
+  ptr[-1] = 42;
+}
+
+// This is harmless if you run it under Valgrind thanks to redzones.
+void WriteValueOutOfArrayBoundsRight(char *ptr, size_t size) {
+  ptr[size] = 42;
+}
+
+void MakeSomeErrors(char *ptr, size_t size) {
+  ReadValueOutOfArrayBoundsLeft(ptr);
+  ReadValueOutOfArrayBoundsRight(ptr, size);
+  WriteValueOutOfArrayBoundsLeft(ptr);
+  WriteValueOutOfArrayBoundsRight(ptr, size);
+}
+
+TEST(ToolsSanityTest, AccessesToNewMemory) {
+  // This test may corrupt memory if not run under Valgrind.
+  if (!RunningOnValgrind())
+    return;
+
+  char *foo = new char[10];
+  MakeSomeErrors(foo, 10);
+  delete [] foo;
+  foo[5] = 0;  // Use after delete. This won't break anything under Valgrind.
+}
+
+TEST(ToolsSanityTest, AccessesToMallocMemory) {
+  // This test may corrupt memory if not run under Valgrind.
+  if (!RunningOnValgrind())
+    return;
+
+  char *foo = reinterpret_cast<char*>(malloc(10));
+  MakeSomeErrors(foo, 10);
+  free(foo);
+  foo[5] = 0;  // Use after free. This won't break anything under Valgrind.
+}
+
+TEST(ToolsSanityTest, ArrayDeletedWithoutBraces) {
+  // This test may corrupt memory if not run under Valgrind.
+  if (!RunningOnValgrind())
+    return;
+
+  int *foo = new int[10];
+  delete foo;
+}
+
+TEST(ToolsSanityTest, SingleElementDeletedWithBraces) {
+  // This test may corrupt memory if not run under Valgrind.
+  if (!RunningOnValgrind())
+    return;
+
+  int *foo = new int;
+  delete [] foo;
 }
 
 // A data race detector should report an error in this test.
