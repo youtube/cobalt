@@ -5,6 +5,7 @@
 #include "net/base/x509_certificate.h"
 
 #include <CommonCrypto/CommonDigest.h>
+#include <Security/Security.h>
 #include <time.h>
 
 #include "base/scoped_cftyperef.h"
@@ -79,11 +80,6 @@ namespace {
 
 typedef OSStatus (*SecTrustCopyExtendedResultFuncPtr)(SecTrustRef,
                                                       CFDictionaryRef*);
-
-inline bool CSSMOIDEqual(const CSSM_OID* oid1, const CSSM_OID* oid2) {
-  return oid1->Length == oid2->Length &&
-      (memcmp(oid1->Data, oid2->Data, oid1->Length) == 0);
-}
 
 int NetErrorFromOSStatus(OSStatus status) {
   switch (status) {
@@ -171,64 +167,6 @@ bool OverrideHostnameMismatch(const std::string& hostname,
       override_hostname_mismatch = (*name == hostname);
   }
   return override_hostname_mismatch;
-}
-
-void ParsePrincipal(const CSSM_X509_NAME* name,
-                    X509Certificate::Principal* principal) {
-  std::vector<std::string> common_names, locality_names, state_names,
-      country_names;
-
-  // TODO(jcampan): add business_category and serial_number.
-  const CSSM_OID* kOIDs[] = { &CSSMOID_CommonName,
-                              &CSSMOID_LocalityName,
-                              &CSSMOID_StateProvinceName,
-                              &CSSMOID_CountryName,
-                              &CSSMOID_StreetAddress,
-                              &CSSMOID_OrganizationName,
-                              &CSSMOID_OrganizationalUnitName,
-                              &CSSMOID_DNQualifier };  // This should be "DC"
-                                                       // but is undoubtedly
-                                                       // wrong. TODO(avi):
-                                                       // Find the right OID.
-
-  std::vector<std::string>* values[] = {
-      &common_names, &locality_names,
-      &state_names, &country_names,
-      &(principal->street_addresses),
-      &(principal->organization_names),
-      &(principal->organization_unit_names),
-      &(principal->domain_components) };
-  DCHECK(arraysize(kOIDs) == arraysize(values));
-
-  for (size_t rdn = 0; rdn < name->numberOfRDNs; ++rdn) {
-    CSSM_X509_RDN rdn_struct = name->RelativeDistinguishedName[rdn];
-    for (size_t pair = 0; pair < rdn_struct.numberOfPairs; ++pair) {
-      CSSM_X509_TYPE_VALUE_PAIR pair_struct =
-          rdn_struct.AttributeTypeAndValue[pair];
-      for (size_t oid = 0; oid < arraysize(kOIDs); ++oid) {
-        if (CSSMOIDEqual(&pair_struct.type, kOIDs[oid])) {
-          std::string value =
-              std::string(reinterpret_cast<std::string::value_type*>
-                              (pair_struct.value.Data),
-                          pair_struct.value.Length);
-          values[oid]->push_back(value);
-          break;
-        }
-      }
-    }
-  }
-
-  // We don't expect to have more than one CN, L, S, and C.
-  std::vector<std::string>* single_value_lists[4] = {
-      &common_names, &locality_names, &state_names, &country_names };
-  std::string* single_values[4] = {
-      &principal->common_name, &principal->locality_name,
-      &principal->state_or_province_name, &principal->country_name };
-  for (size_t i = 0; i < arraysize(single_value_lists); ++i) {
-    DCHECK(single_value_lists[i]->size() <= 1);
-    if (single_value_lists[i]->size() > 0)
-      *(single_values[i]) = (*(single_value_lists[i]))[0];
-  }
 }
 
 struct CSSMFields {
@@ -386,17 +324,51 @@ OSStatus CreatePolicy(const CSSM_OID* policy_OID,
   return noErr;
 }
 
+// Gets the issuer for a given cert, starting with the cert itself and
+// including the intermediate and finally root certificates (if any).
+// This function calls SecTrust but doesn't actually pay attention to the trust
+// result: it shouldn't be used to determine trust, just to traverse the chain.
+// Caller is responsible for releasing the value stored into *out_cert_chain.
+OSStatus CopyCertChain(SecCertificateRef cert_handle,
+                       CFArrayRef* out_cert_chain) {
+  DCHECK(cert_handle && out_cert_chain);
+  // Create an SSL policy ref configured for client cert evaluation.
+  SecPolicyRef ssl_policy;
+  OSStatus result = X509Certificate::CreateSSLClientPolicy(&ssl_policy);
+  if (result)
+    return result;
+  scoped_cftyperef<SecPolicyRef> scoped_ssl_policy(ssl_policy);
+
+  // Create a SecTrustRef.
+  scoped_cftyperef<CFArrayRef> input_certs(
+      CFArrayCreate(NULL, (const void**)&cert_handle, 1,
+                    &kCFTypeArrayCallBacks));
+  SecTrustRef trust_ref = NULL;
+  result = SecTrustCreateWithCertificates(input_certs, ssl_policy, &trust_ref);
+  if (result)
+    return result;
+  scoped_cftyperef<SecTrustRef> trust(trust_ref);
+
+  // Evaluate trust, which creates the cert chain.
+  SecTrustResultType status;
+  CSSM_TP_APPLE_EVIDENCE_INFO* status_chain;
+  result = SecTrustEvaluate(trust, &status);
+  if (result)
+    return result;
+  return SecTrustGetResult(trust, &status, out_cert_chain, &status_chain);
+}
+
 }  // namespace
 
 void X509Certificate::Initialize() {
   const CSSM_X509_NAME* name;
   OSStatus status = SecCertificateGetSubject(cert_handle_, &name);
   if (!status) {
-    ParsePrincipal(name, &subject_);
+    subject_.Parse(name);
   }
   status = SecCertificateGetIssuer(cert_handle_, &name);
   if (!status) {
-    ParsePrincipal(name, &issuer_);
+    issuer_.Parse(name);
   }
 
   GetCertDateForOID(cert_handle_, CSSMOID_X509V1ValidityNotBefore,
@@ -742,6 +714,34 @@ bool X509Certificate::SupportsSSLClientAuth() const {
   return false;
 }
 
+bool X509Certificate::IsIssuedBy(
+    const std::vector<CertPrincipal>& valid_issuers) {
+  // Get the cert's issuer chain.
+  CFArrayRef cert_chain = NULL;
+  OSStatus result;
+  result = CopyCertChain(os_cert_handle(), &cert_chain);
+  if (result != noErr)
+    return false;
+  scoped_cftyperef<CFArrayRef> scoped_cert_chain(cert_chain);
+
+  // Check all the certs in the chain for a match.
+  int n = CFArrayGetCount(cert_chain);
+  for (int i = 0; i < n; ++i) {
+    SecCertificateRef cert_handle = reinterpret_cast<SecCertificateRef>(
+        const_cast<void*>(CFArrayGetValueAtIndex(cert_chain, i)));
+    CFRetain(cert_handle);
+    scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
+        cert_handle,
+        X509Certificate::SOURCE_LONE_CERT_IMPORT,
+        X509Certificate::OSCertHandles());
+    for (unsigned j = 0; j < valid_issuers.size(); j++) {
+      if (cert->subject().Matches(valid_issuers[j]))
+        return true;
+    }
+  }
+  return false;
+}
+
 // static
 OSStatus X509Certificate::CreateSSLClientPolicy(SecPolicyRef* out_policy) {
   CSSM_APPLE_TP_SSL_OPTIONS tp_ssl_options = {
@@ -759,6 +759,7 @@ OSStatus X509Certificate::CreateSSLClientPolicy(SecPolicyRef* out_policy) {
 // static
 bool X509Certificate::GetSSLClientCertificates (
     const std::string& server_domain,
+    const std::vector<Principal>& valid_issuers,
     std::vector<scoped_refptr<X509Certificate> >* certs) {
   scoped_cftyperef<SecIdentityRef> preferred_identity;
   if (!server_domain.empty()) {
@@ -768,11 +769,12 @@ bool X509Certificate::GetSSLClientCertificates (
     SecIdentityRef identity = NULL;
     if (SecIdentityCopyPreference(domain_str,
                                   0,
-                                  NULL,
+                                  NULL, // validIssuers argument is ignored :(
                                   &identity) == noErr)
       preferred_identity.reset(identity);
   }
 
+  // Now enumerate the identities in the available keychains.
   SecIdentitySearchRef search = nil;
   OSStatus err = SecIdentitySearchCreate(NULL, CSSM_KEYUSE_SIGN, &search);
   scoped_cftyperef<SecIdentitySearchRef> scoped_search(search);
@@ -805,10 +807,20 @@ bool X509Certificate::GetSSLClientCertificates (
     if (i < certs->size())
       continue;
 
+    bool is_preferred = preferred_identity &&
+        CFEqual(preferred_identity, identity);
+
+    // Make sure the issuer matches valid_issuers, if given.
+    // But an explicit cert preference overrides this.
+    if (!is_preferred &&
+        valid_issuers.size() > 0 &&
+        !cert->IsIssuedBy(valid_issuers))
+      continue;
+
     // The cert passes, so add it to the vector.
     // If it's the preferred identity, add it at the start (so it'll be
     // selected by default in the UI.)
-    if (preferred_identity && CFEqual(preferred_identity, identity))
+    if (is_preferred)
       certs->insert(certs->begin(), cert);
     else
       certs->push_back(cert);
@@ -834,46 +846,20 @@ CFArrayRef X509Certificate::CreateClientCertificateChain() const {
       CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks));
   CFArrayAppendValue(chain, identity);
 
-  {
-    // Create an SSL policy ref configured for client cert evaluation.
-    SecPolicyRef ssl_policy;
-    result = CreateSSLClientPolicy(&ssl_policy);
-    if (result)
-      goto exit;
-    scoped_cftyperef<SecPolicyRef> scoped_ssl_policy(ssl_policy);
+  CFArrayRef cert_chain = NULL;
+  result = CopyCertChain(cert_handle_, &cert_chain);
+  if (result)
+    goto exit;
 
-    // Use a SecTrust object to find the intermediate certs in the trust chain.
-    scoped_cftyperef<CFArrayRef> input_certs(
-        CFArrayCreate(NULL, (const void**)&cert_handle_, 1,
-                      &kCFTypeArrayCallBacks));
-    SecTrustRef trust_ref = NULL;
-    result = SecTrustCreateWithCertificates(input_certs,
-                                            ssl_policy,
-                                            &trust_ref);
-    if (result)
-      goto exit;
-    scoped_cftyperef<SecTrustRef> trust(trust_ref);
-
-    SecTrustResultType status;
-    CFArrayRef trust_chain = NULL;
-    CSSM_TP_APPLE_EVIDENCE_INFO* status_chain;
-    result = SecTrustEvaluate(trust, &status);
-    if (result)
-      goto exit;
-    result = SecTrustGetResult(trust, &status, &trust_chain, &status_chain);
-    if (result)
-      goto exit;
-
-    // Append the intermediate certs from SecTrust to the result array:
-    if (trust_chain) {
-      int chain_count = CFArrayGetCount(trust_chain);
-      if (chain_count > 1) {
-        CFArrayAppendArray(chain,
-                           trust_chain,
-                           CFRangeMake(1, chain_count - 1));
-      }
-      CFRelease(trust_chain);
+  // Append the intermediate certs from SecTrust to the result array:
+  if (cert_chain) {
+    int chain_count = CFArrayGetCount(cert_chain);
+    if (chain_count > 1) {
+      CFArrayAppendArray(chain,
+                         cert_chain,
+                         CFRangeMake(1, chain_count - 1));
     }
+    CFRelease(cert_chain);
   }
 exit:
   if (result)
