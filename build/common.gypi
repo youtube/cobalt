@@ -704,8 +704,7 @@
           '-pthread',
           '-fno-exceptions',
           '-Wall',
-          # TODO(evan): turn this back on once the v8 change lands.
-          #'-Wextra',
+          '-Wextra',
           # Don't warn about unused function params.  We use those everywhere.
           '-Wno-unused-parameter',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
