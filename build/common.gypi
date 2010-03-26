@@ -704,7 +704,8 @@
           '-pthread',
           '-fno-exceptions',
           '-Wall',
-          '-Wextra',
+          # TODO(evan): turn this back on once all the builds work.
+          # '-Wextra',
           # Don't warn about unused function params.  We use those everywhere.
           '-Wno-unused-parameter',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
