@@ -32,6 +32,8 @@
         'audio/linux/alsa_output.h',
         'audio/linux/alsa_wrapper.cc',
         'audio/linux/alsa_wrapper.h',
+        'audio/openbsd/audio_manager_openbsd.cc',
+        'audio/openbsd/audio_manager_openbsd.h',
         'audio/mac/audio_manager_mac.cc',
         'audio/mac/audio_manager_mac.h',
         'audio/mac/audio_output_mac.cc',
@@ -131,14 +133,29 @@
         ],
       },
       'conditions': [
-        ['OS =="linux"', {
+        ['OS=="linux" or OS=="freebsd"', {
           'link_settings': {
             'libraries': [
               '-lasound',
             ],
           },
         }],
-        ['OS =="mac"', {
+        ['OS=="openbsd"', {
+          'sources/': [ ['exclude', 'alsa_' ],
+                        ['exclude', 'audio_manager_linux' ],
+                        ['exclude', '\\.mm?$' ] ],
+          'link_settings': {
+            'libraries': [
+            ],
+          },
+        }],
+        ['OS!="openbsd"', {
+          'sources!': [
+            'audio/openbsd/audio_manager_openbsd.cc',
+            'audio/openbsd/audio_manager_openbsd.h',
+          ],
+        }],
+        ['OS=="mac"', {
           'link_settings': {
             'libraries': [
               '$(SDKROOT)/System/Library/Frameworks/AudioToolbox.framework',
@@ -203,7 +220,7 @@
         'omx/omx_input_buffer_unittest.cc',
       ],
       'conditions': [
-        ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
+        ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
           'dependencies': [
             # Needed for the following #include chain:
             #   base/run_all_unittests.cc
@@ -292,7 +309,7 @@
         '../testing/gtest.gyp:gtest',
       ],
       'conditions': [
-        ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
+        ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
           'dependencies': [
             '../build/linux/system.gyp:gtk',
           ],
@@ -362,7 +379,7 @@
         },
       ],
     }],
-    ['OS=="linux"', {
+    ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
       'targets': [
         {
           'target_name': 'player_x11',
