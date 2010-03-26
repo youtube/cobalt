@@ -161,6 +161,9 @@
         'base/x509_certificate_mac.cc',
         'base/x509_certificate_nss.cc',
         'base/x509_certificate_win.cc',
+        'base/x509_cert_types.cc',
+        'base/x509_cert_types.h',
+        'base/x509_cert_types_mac.cc',
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
@@ -633,6 +636,7 @@
         'base/test_completion_callback_unittest.cc',
         'base/upload_data_stream_unittest.cc',
         'base/x509_certificate_unittest.cc',
+        'base/x509_cert_types_unittest.cc',
         'disk_cache/addr_unittest.cc',
         'disk_cache/backend_unittest.cc',
         'disk_cache/bitmap_unittest.cc',
