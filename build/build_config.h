@@ -65,6 +65,11 @@
 #define USE_TCMALLOC 1
 #endif
 
+// Use heapchecker.
+#if (defined(OS_WIN) || defined(OS_LINUX)) && !defined(NO_HEAPCHECKER)
+#define USE_HEAPCHECKER 1
+#endif
+
 // Compiler detection.
 #if defined(__GNUC__)
 #define COMPILER_GCC 1
