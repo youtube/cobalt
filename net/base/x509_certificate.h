@@ -15,15 +15,13 @@
 #include "base/ref_counted.h"
 #include "base/singleton.h"
 #include "base/time.h"
-#include "net/base/x509_cert_types.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 #if defined(OS_WIN)
 #include <windows.h>
 #include <wincrypt.h>
 #elif defined(OS_MACOSX)
-#include <CoreFoundation/CFArray.h>
-#include <Security/SecBase.h>
+#include <Security/Security.h>
 #elif defined(USE_NSS)
 // Forward declaration; real one in <cert.h>
 struct CERTCertificateStr;
@@ -38,6 +36,28 @@ class CertVerifyResult;
 // X509Certificate represents an X.509 certificate used by SSL.
 class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
  public:
+  // SHA-1 fingerprint (160 bits) of a certificate.
+  struct Fingerprint {
+    bool Equals(const Fingerprint& other) const {
+      return memcmp(data, other.data, sizeof(data)) == 0;
+    }
+
+    unsigned char data[20];
+  };
+
+  class FingerprintLessThan
+      : public std::binary_function<Fingerprint, Fingerprint, bool> {
+   public:
+    bool operator() (const Fingerprint& lhs, const Fingerprint& rhs) const;
+  };
+
+  // Predicate functor used in maps when X509Certificate is used as the key.
+  class LessThan
+      : public std::binary_function<X509Certificate*, X509Certificate*, bool> {
+   public:
+    bool operator() (X509Certificate* lhs,  X509Certificate* rhs) const;
+  };
+
   // A handle to the certificate object in the underlying crypto library.
   // We assume that OSCertHandle is a pointer type on all platforms and
   // NULL is an invalid OSCertHandle.
@@ -54,18 +74,62 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
 
   typedef std::vector<OSCertHandle> OSCertHandles;
 
-  // Legacy names for types now defined in x509_cert_types.h.
-  // TODO(snej): Clean up existing code using these names to use the new names.
-  typedef CertPrincipal Principal;
-  typedef CertPolicy Policy;
-  typedef SHA1Fingerprint Fingerprint;
-  typedef SHA1FingerprintLessThan FingerprintLessThan;
+  // Principal represent an X.509 principal.
+  struct Principal {
+    Principal() { }
+    explicit Principal(const std::string& name) : common_name(name) { }
 
-  // Predicate functor used in maps when X509Certificate is used as the key.
-  class LessThan
-      : public std::binary_function<X509Certificate*, X509Certificate*, bool> {
+    // The different attributes for a principal.  They may be "".
+    // Note that some of them can have several values.
+
+    std::string common_name;
+    std::string locality_name;
+    std::string state_or_province_name;
+    std::string country_name;
+
+    std::vector<std::string> street_addresses;
+    std::vector<std::string> organization_names;
+    std::vector<std::string> organization_unit_names;
+    std::vector<std::string> domain_components;
+  };
+
+  // This class is useful for maintaining policies about which certificates are
+  // permitted or forbidden for a particular purpose.
+  class Policy {
    public:
-    bool operator() (X509Certificate* lhs,  X509Certificate* rhs) const;
+    // The judgments this policy can reach.
+    enum Judgment {
+      // We don't have policy information for this certificate.
+      UNKNOWN,
+
+      // This certificate is allowed.
+      ALLOWED,
+
+      // This certificate is denied.
+      DENIED,
+    };
+
+    // Returns the judgment this policy makes about this certificate.
+    Judgment Check(X509Certificate* cert) const;
+
+    // Causes the policy to allow this certificate.
+    void Allow(X509Certificate* cert);
+
+    // Causes the policy to deny this certificate.
+    void Deny(X509Certificate* cert);
+
+    // Returns true if this policy has allowed at least one certificate.
+    bool HasAllowedCert() const;
+
+    // Returns true if this policy has denied at least one certificate.
+    bool HasDeniedCert() const;
+
+   private:
+    // The set of fingerprints of allowed certificates.
+    std::set<Fingerprint, FingerprintLessThan> allowed_;
+
+    // The set of fingerprints of denied certificates.
+    std::set<Fingerprint, FingerprintLessThan> denied_;
   };
 
   // Where the certificate comes from.  The enumeration constants are
@@ -167,9 +231,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // Does this certificate's usage allow SSL client authentication?
   bool SupportsSSLClientAuth() const;
 
-  // Do any of the given issuer names appear in this cert's chain of trust?
-  bool IsIssuedBy(const std::vector<CertPrincipal>& valid_issuers);
-
   // Creates a security policy for SSL client certificates.
   static OSStatus CreateSSLClientPolicy(SecPolicyRef* outPolicy);
 
@@ -177,11 +238,8 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // |server_domain| is a hint for which domain the cert is to be sent to
   // (a cert previously specified as the default for that domain will be given
   // precedence and returned first in the output vector.)
-  // If valid_issuers is non-empty, only certs that were transitively issued by
-  // one of the given names will be included in the list.
   static bool GetSSLClientCertificates(
       const std::string& server_domain,
-      const std::vector<CertPrincipal>& valid_issuers,
       std::vector<scoped_refptr<X509Certificate> >* certs);
 
   // Creates the chain of certs to use for this client identity cert.
