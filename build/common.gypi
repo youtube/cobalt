@@ -205,6 +205,9 @@
     # Enable TCMalloc.
     'linux_use_tcmalloc%': 1,
 
+    # Disable TCMalloc's heapchecker.
+    'linux_use_heapchecker%': 0,
+
     # Set to select the Title Case versions of strings in GRD files.
     'use_titlecase_in_grd_files%': 0,
 
@@ -965,8 +968,14 @@
               }]
             ],
           }],
+          ['linux_use_heapchecker==1', {
+            'variables': {'linux_use_tcmalloc%': 1},
+          }],
           ['linux_use_tcmalloc==0', {
             'defines': ['NO_TCMALLOC'],
+          }],
+          ['linux_use_heapchecker==0', {
+            'defines': ['NO_HEAPCHECKER'],
           }],
         ],
       },
