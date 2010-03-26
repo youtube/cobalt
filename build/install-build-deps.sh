@@ -139,7 +139,7 @@ dev_list="apache2 bison fakeroot flex g++ g++-multilib gperf libapache2-mod-php5
           libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev libpam0g-dev
           libsqlite3-dev libxslt1-dev libxss-dev lighttpd mesa-common-dev
           msttcorefonts patch perl php5-cgi pkg-config python python2.5-dev rpm
-          subversion wdiff"
+          subversion ttf-dejavu-core ttf-kochi-gothic ttf-kochi-mincho wdiff"
 
 # Full list of required run-time libraries
 lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
