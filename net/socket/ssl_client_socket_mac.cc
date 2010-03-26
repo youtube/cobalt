@@ -655,32 +655,19 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
 void SSLClientSocketMac::GetSSLCertRequestInfo(
     SSLCertRequestInfo* cert_request_info) {
   // I'm being asked for available client certs (identities).
-  // First, get the cert issuer names allowed by the server.
-  std::vector<CertPrincipal> valid_issuers;
-  CFArrayRef valid_issuer_names = NULL;
-  if (SSLCopyDistinguishedNames(ssl_context_, &valid_issuer_names) == noErr &&
-      valid_issuer_names != NULL) {
-    SSL_LOG << "Server has " << CFArrayGetCount(valid_issuer_names)
-            << " valid issuer names";
-    int n = CFArrayGetCount(valid_issuer_names);
-    for (int i = 0; i < n; i++) {
-      // Parse each name into a CertPrincipal object.
-      CFDataRef issuer = reinterpret_cast<CFDataRef>(
-          CFArrayGetValueAtIndex(valid_issuer_names, i));
-      CertPrincipal p;
-      if (p.ParseDistinguishedName(CFDataGetBytePtr(issuer),
-                                   CFDataGetLength(issuer))) {
-        valid_issuers.push_back(p);
-      }
-    }
-    CFRelease(valid_issuer_names);
+
+  CFArrayRef allowed_issuer_names = NULL;
+  if (SSLCopyDistinguishedNames(ssl_context_, &allowed_issuer_names) == noErr &&
+      allowed_issuer_names != NULL) {
+    SSL_LOG << "Server has " << CFArrayGetCount(allowed_issuer_names)
+            << " allowed issuer names";
+    CFRelease(allowed_issuer_names);
+    // TODO(snej): Filter GetSSLClientCertificates using this array.
   }
 
-  // Now get the available client certs whose issuers are allowed by the server.
   cert_request_info->host_and_port = hostname_;
   cert_request_info->client_certs.clear();
   X509Certificate::GetSSLClientCertificates(hostname_,
-                                            valid_issuers,
                                             &cert_request_info->client_certs);
   SSL_LOG << "Asking user to choose between "
           << cert_request_info->client_certs.size() << " client certs...";
