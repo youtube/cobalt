@@ -37,7 +37,6 @@
         '../third_party/sqlite/sqlite.gyp:*',
         '../third_party/WebKit/WebKit/chromium/WebKit.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
-        '../webkit/tools/pepper_test_plugin/pepper_test_plugin.gyp:*',
         '../webkit/webkit.gyp:*',
         'util/build_util.gyp:*',
         'temp_gyp/googleurl.gyp:*',
