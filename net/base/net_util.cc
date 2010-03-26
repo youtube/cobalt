@@ -131,6 +131,13 @@ static const int kRestrictedPorts[] = {
   3659, // apple-sasl / PasswordServer
   4045, // lockd
   6000, // X11
+  6665, // Alternate IRC [Apple addition]
+  6666, // Alternate IRC [Apple addition]
+  6667, // Standard IRC [Apple addition]
+  6668, // Alternate IRC [Apple addition]
+  6669, // Alternate IRC [Apple addition]
+  0xFFFF, // Used to block all invalid port numbers (see
+          // third_party/WebKit/WebCore/platform/KURLGoogle.cpp, port())
 };
 
 // FTP overrides the following restricted ports.
