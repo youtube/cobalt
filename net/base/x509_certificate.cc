@@ -4,7 +4,9 @@
 
 #include "net/base/x509_certificate.h"
 
-#if defined(USE_NSS)
+#if defined(OS_MACOSX)
+#include <Security/Security.h>
+#elif defined(USE_NSS)
 #include <cert.h>
 #endif
 
@@ -56,8 +58,8 @@ bool X509Certificate::IsSameOSCert(X509Certificate::OSCertHandle a,
 }
 
 bool X509Certificate::FingerprintLessThan::operator()(
-    const Fingerprint& lhs,
-    const Fingerprint& rhs) const {
+    const SHA1Fingerprint& lhs,
+    const SHA1Fingerprint& rhs) const {
   for (size_t i = 0; i < sizeof(lhs.data); ++i) {
     if (lhs.data[i] < rhs.data[i])
       return true;
@@ -120,47 +122,6 @@ X509Certificate* X509Certificate::Cache::Find(const Fingerprint& fingerprint) {
 
   return pos->second;
 };
-
-X509Certificate::Policy::Judgment X509Certificate::Policy::Check(
-    X509Certificate* cert) const {
-  // It shouldn't matter which set we check first, but we check denied first
-  // in case something strange has happened.
-
-  if (denied_.find(cert->fingerprint()) != denied_.end()) {
-    // DCHECK that the order didn't matter.
-    DCHECK(allowed_.find(cert->fingerprint()) == allowed_.end());
-    return DENIED;
-  }
-
-  if (allowed_.find(cert->fingerprint()) != allowed_.end()) {
-    // DCHECK that the order didn't matter.
-    DCHECK(denied_.find(cert->fingerprint()) == denied_.end());
-    return ALLOWED;
-  }
-
-  // We don't have a policy for this cert.
-  return UNKNOWN;
-}
-
-void X509Certificate::Policy::Allow(X509Certificate* cert) {
-  // Put the cert in the allowed set and (maybe) remove it from the denied set.
-  denied_.erase(cert->fingerprint());
-  allowed_.insert(cert->fingerprint());
-}
-
-void X509Certificate::Policy::Deny(X509Certificate* cert) {
-  // Put the cert in the denied set and (maybe) remove it from the allowed set.
-  allowed_.erase(cert->fingerprint());
-  denied_.insert(cert->fingerprint());
-}
-
-bool X509Certificate::Policy::HasAllowedCert() const {
-  return !allowed_.empty();
-}
-
-bool X509Certificate::Policy::HasDeniedCert() const {
-  return !denied_.empty();
-}
 
 // static
 X509Certificate* X509Certificate::CreateFromHandle(
