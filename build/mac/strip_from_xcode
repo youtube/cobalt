@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2008 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -19,16 +19,19 @@ if [ "${CONFIGURATION}" != "Release" ] ; then
   exit 0
 fi
 
+declare -a FLAGS
+
 # MACH_O_TYPE is not set for a command-line tool, so check PRODUCT_TYPE too.
 # Weird.
 if [ "${MACH_O_TYPE}" = "mh_execute" ] || \
    [ "${PRODUCT_TYPE}" = "com.apple.product-type.tool" ] ; then
-  # Strip everything
-  STRIPFLAGS=
+  # Strip everything (no special flags).  No-op.
+  true
 elif [ "${MACH_O_TYPE}" = "mh_dylib" ] || \
        "${MACH_O_TYPE}" = "mh_bundle" ]; then
   # Strip debugging symbols and local symbols
-  STRIPFLAGS="-S -x"
+  FLAGS[${#FLAGS[@]}]=-S
+  FLAGS[${#FLAGS[@]}]=-x
 elif [ "${MACH_O_TYPE}" = "staticlib" ] ; then
   # Don't strip static libraries.
   exit 0
@@ -38,5 +41,22 @@ else
   exit 0
 fi
 
-exec "$(dirname ${0})/strip_save_dsym" ${STRIPFLAGS} \
+if [ -n "${STRIPFLAGS}" ] ; then
+  # Pick up the standard STRIPFLAGS Xcode setting, used for "Additional Strip
+  # Flags".
+  for stripflag in "${STRIPFLAGS}" ; do
+    FLAGS[${#FLAGS[@]}]="${stripflag}"
+  done
+fi
+
+if [ -n "${CHROMIUM_STRIP_SAVE_FILE}" ] ; then
+  # An Xcode project can communicate a file listing symbols to saved in this
+  # environment variable by setting it as a build setting.  This isn't a
+  # standard Xcode setting.  It's used in preference to STRIPFLAGS to
+  # eliminate quoting ambiguity concerns.
+  FLAGS[${#FLAGS[@]}]=-s
+  FLAGS[${#FLAGS[@]}]="${CHROMIUM_STRIP_SAVE_FILE}"
+fi
+
+exec "$(dirname ${0})/strip_save_dsym" "${FLAGS[@]}" \
      "${BUILT_PRODUCTS_DIR}/${EXECUTABLE_PATH}"
