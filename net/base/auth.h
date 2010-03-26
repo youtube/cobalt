@@ -16,6 +16,17 @@ namespace net {
 class AuthChallengeInfo :
     public base::RefCountedThreadSafe<AuthChallengeInfo> {
  public:
+  bool operator==(const AuthChallengeInfo& that) const {
+    return (this->is_proxy == that.is_proxy &&
+            this->host_and_port == that.host_and_port &&
+            this->scheme == that.scheme &&
+            this->realm == that.realm);
+  }
+
+  bool operator!=(const AuthChallengeInfo& that) const {
+    return !(*this == that);
+  }
+
   bool is_proxy;  // true for Proxy-Authenticate, false for WWW-Authenticate.
   std::wstring host_and_port;  // <host>:<port> of the server asking for auth
                                // (could be the proxy).
