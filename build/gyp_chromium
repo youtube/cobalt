@@ -82,6 +82,12 @@ if __name__ == '__main__':
   if sys.platform != 'darwin':
     args.append('--no-circular-check')
 
+  # If CHROMIUM_GYP_SYNTAX_CHECK is set to 1, it will invoke gyp with --check
+  # to enfore syntax checking.
+  syntax_check = os.environ.get('CHROMIUM_GYP_SYNTAX_CHECK')
+  if syntax_check and int(syntax_check):
+    args.append('--check')
+
   print 'Updating projects from gyp files...'
   sys.stdout.flush()
 
