@@ -28,9 +28,10 @@ class URLRequestSimpleJob : public URLRequestJob {
                        std::string* charset,
                        std::string* data) const = 0;
 
- private:
+ protected:
   void StartAsync();
 
+ private:
   std::string mime_type_;
   std::string charset_;
   std::string data_;
