@@ -12,7 +12,7 @@
       'WholeProgramOptimization': 'true',
     },
     'VCLibrarianTool': {
-      'AdditionalOptions': ['/ltcg'],
+      'AdditionalOptions': ['/ltcg', '/expectedoutputsize:120000000'],
     },
     'VCLinkerTool': {
       'LinkTimeCodeGeneration': '1',
