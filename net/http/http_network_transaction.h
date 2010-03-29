@@ -237,6 +237,11 @@ class HttpNetworkTransaction : public HttpTransaction {
   void InvalidateRejectedAuthFromCache(HttpAuth::Target target,
                                        const GURL& auth_origin);
 
+  // Returns true if we can use the default credentials for the
+  // authentication.
+  bool CanUseDefaultCredentials(HttpAuth::Target target,
+                                const GURL& auth_origin) const;
+
   // Sets auth_identity_[target] to the next identity that the transaction
   // should try. It chooses candidates by searching the auth cache
   // and the URL for a username:password. Returns true if an identity
@@ -334,6 +339,10 @@ class HttpNetworkTransaction : public HttpTransaction {
   // makes sure we use the embedded identity only once for the transaction,
   // preventing an infinite auth restart loop.
   bool embedded_identity_used_;
+
+  // True if default credentials have already been tried for this transaction
+  // in response to an HTTP authentication challenge.
+  bool default_credentials_used_;
 
   SSLConfig ssl_config_;
 
