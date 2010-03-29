@@ -809,8 +809,10 @@ class SpdyNetworkTransactionTest : public PlatformTest {
 
     TestCompletionCallback callback;
 
-    int rv = trans->Start(&request, &callback, log);
-    EXPECT_EQ(ERR_IO_PENDING, rv);
+    out.rv = trans->Start(&request, &callback, log);
+    EXPECT_LT(out.rv, 0);  // We expect an IO Pending or some sort of error.
+    if (out.rv != ERR_IO_PENDING)
+      return out;
 
     out.rv = callback.WaitForResult();
     if (out.rv != OK)
@@ -822,8 +824,8 @@ class SpdyNetworkTransactionTest : public PlatformTest {
     out.status_line = response->headers->GetStatusLine();
     out.response_info = *response;  // Make a copy so we can verify.
 
-    rv = ReadTransaction(trans.get(), &out.response_data);
-    EXPECT_EQ(OK, rv);
+    out.rv = ReadTransaction(trans.get(), &out.response_data);
+    EXPECT_EQ(OK, out.rv);
 
     // Verify that we consumed all test data.
     EXPECT_TRUE(data->at_read_eof());
@@ -1804,7 +1806,7 @@ TEST_F(SpdyNetworkTransactionTest, PartialWrite) {
   EXPECT_EQ("hello!", out.response_data);
 }
 
-TEST_F(SpdyNetworkTransactionTest, DISABLED_ConnectFailure) {
+TEST_F(SpdyNetworkTransactionTest, ConnectFailure) {
   MockConnect connects[]  = {
     MockConnect(true, ERR_NAME_NOT_RESOLVED),
     MockConnect(false, ERR_NAME_NOT_RESOLVED),
