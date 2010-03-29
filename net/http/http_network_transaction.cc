@@ -29,6 +29,7 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_util.h"
+#include "net/http/url_security_manager.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/ssl_client_socket.h"
@@ -219,6 +220,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       using_spdy_(false),
       alternate_protocol_mode_(kUnspecified),
       embedded_identity_used_(false),
+      default_credentials_used_(false),
       read_buf_len_(0),
       next_state_(STATE_NONE) {
   session->ssl_config_service()->GetSSLConfig(&ssl_config_);
@@ -335,20 +337,25 @@ void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
   // to know about it. If an entry for (origin, handler->realm()) already
   // exists, we update it.
   //
-  // If auth_identity_[target].source is HttpAuth::IDENT_SRC_NONE,
-  // auth_identity_[target] contains no identity because identity is not
-  // required yet.
+  // If auth_identity_[target].source is HttpAuth::IDENT_SRC_NONE or
+  // HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS, auth_identity_[target] contains
+  // no identity because identity is not required yet or we're using default
+  // credentials.
   //
   // TODO(wtc): For NTLM_SSPI, we add the same auth entry to the cache in
   // round 1 and round 2, which is redundant but correct.  It would be nice
   // to add an auth entry to the cache only once, preferrably in round 1.
   // See http://crbug.com/21015.
-  bool has_auth_identity =
-      auth_identity_[target].source != HttpAuth::IDENT_SRC_NONE;
-  if (has_auth_identity) {
-    session_->auth_cache()->Add(AuthOrigin(target), auth_handler_[target],
-        auth_identity_[target].username, auth_identity_[target].password,
-        AuthPath(target));
+  switch (auth_identity_[target].source) {
+    case HttpAuth::IDENT_SRC_NONE:
+    case HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS:
+      break;
+    default:
+      session_->auth_cache()->Add(
+          AuthOrigin(target), auth_handler_[target],
+          auth_identity_[target].username, auth_identity_[target].password,
+          AuthPath(target));
+      break;
   }
 
   bool keep_alive = false;
@@ -1610,12 +1617,17 @@ std::string HttpNetworkTransaction::BuildAuthorizationHeader(
 
   // Add a Authorization/Proxy-Authorization header line.
   std::string auth_token;
-  int rv = auth_handler_[target]->GenerateAuthToken(
-      auth_identity_[target].username,
-      auth_identity_[target].password,
-      request_,
-      &proxy_info_,
-      &auth_token);
+  int rv;
+  if (auth_identity_[target].source ==
+      HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS) {
+    rv = auth_handler_[target]->GenerateDefaultAuthToken(
+        request_, &proxy_info_, &auth_token);
+  } else {
+    rv = auth_handler_[target]->GenerateAuthToken(
+        auth_identity_[target].username,
+        auth_identity_[target].password,
+        request_, &proxy_info_, &auth_token);
+  }
   if (rv == OK)
     return HttpAuth::GetAuthorizationHeaderName(target) +
       ": "  + auth_token + "\r\n";
@@ -1694,7 +1706,23 @@ bool HttpNetworkTransaction::SelectPreemptiveAuth(HttpAuth::Target target) {
     auth_handler_[target] = entry->handler();
     return true;
   }
+
+  // TODO(cbentzel): Preemptively use default credentials if they have worked
+  // for the origin/path in the past to save a round trip.
+
   return false;
+}
+
+bool HttpNetworkTransaction::CanUseDefaultCredentials(
+    HttpAuth::Target target,
+    const GURL& auth_origin) const {
+  if (target == HttpAuth::AUTH_PROXY)
+    return true;
+
+  URLSecurityManager* security_manager = session_->GetURLSecurityManager();
+  if (!security_manager)
+    return false;
+  return security_manager->CanUseDefaultCredentials(auth_origin);
 }
 
 bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
@@ -1733,19 +1761,33 @@ bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
     //    is the same realm that we have a cached identity for. However if
     //    we use that identity, it would get sent over the wire in
     //    clear text (which isn't what the user agreed to when entering it).
-    if (entry->handler()->scheme() != auth_handler_[target]->scheme()) {
-      LOG(WARNING) << "The scheme of realm " << auth_handler_[target]->realm()
-                   << " has changed from " << entry->handler()->scheme()
-                   << " to " << auth_handler_[target]->scheme();
-      return false;
+    if (entry->handler()->scheme() == auth_handler_[target]->scheme()) {
+      auth_identity_[target].source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
+      auth_identity_[target].invalid = false;
+      auth_identity_[target].username = entry->username();
+      auth_identity_[target].password = entry->password();
+      return true;
     }
+    LOG(WARNING) << "The scheme of realm " << auth_handler_[target]->realm()
+                 << " has changed from " << entry->handler()->scheme()
+                 << " to " << auth_handler_[target]->scheme();
+    // Fall through.
+  }
 
-    auth_identity_[target].source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
+  // Use default credentials (single sign on) if this is the first attempt
+  // at identity.  Do not allow multiple times as it will infinite loop.
+  // We use default credentials after checking the auth cache so that if
+  // single sign-on doesn't work, we won't try default credentials for future
+  // transactions.
+  if (auth_handler_[target]->SupportsDefaultCredentials() &&
+      !default_credentials_used_ &&
+      CanUseDefaultCredentials(target, auth_origin)) {
+    auth_identity_[target].source = HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS;
     auth_identity_[target].invalid = false;
-    auth_identity_[target].username = entry->username();
-    auth_identity_[target].password = entry->password();
+    default_credentials_used_ = true;
     return true;
   }
+
   return false;
 }
 

@@ -65,7 +65,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   virtual bool IsFinalRound();
 
-  virtual bool AllowDefaultCredentials();
+  virtual bool SupportsDefaultCredentials();
 
   virtual int GenerateAuthToken(const std::wstring& username,
                                 const std::wstring& password,
