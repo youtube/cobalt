@@ -764,6 +764,10 @@ void SpdySession::CloseAllStreams(net::Error code) {
     abandoned_push_streams.Add(pushed_streams_.size());
     pushed_streams_.clear();
   }
+
+  // We also need to drain the queue.
+  while (queue_.size())
+    queue_.pop();
 }
 
 int SpdySession::GetNewStreamId() {
