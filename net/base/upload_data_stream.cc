@@ -11,8 +11,7 @@
 
 namespace net {
 
-UploadDataStream* UploadDataStream::Create(const UploadData* data,
-                                           int* error_code) {
+UploadDataStream* UploadDataStream::Create(UploadData* data, int* error_code) {
   scoped_ptr<UploadDataStream> stream(new UploadDataStream(data));
   int rv = stream->FillBuf();
   if (error_code)
@@ -23,11 +22,11 @@ UploadDataStream* UploadDataStream::Create(const UploadData* data,
   return stream.release();
 }
 
-UploadDataStream::UploadDataStream(const UploadData* data)
+UploadDataStream::UploadDataStream(UploadData* data)
     : data_(data),
       buf_(new IOBuffer(kBufSize)),
       buf_len_(0),
-      next_element_(data->elements().begin()),
+      next_element_(data->elements()->begin()),
       next_element_offset_(0),
       next_element_remaining_(0),
       total_size_(data->GetContentLength()),
@@ -52,13 +51,13 @@ void UploadDataStream::DidConsume(size_t num_bytes) {
 }
 
 int UploadDataStream::FillBuf() {
-  std::vector<UploadData::Element>::const_iterator end =
-      data_->elements().end();
+  std::vector<UploadData::Element>::iterator end =
+      data_->elements()->end();
 
   while (buf_len_ < kBufSize && next_element_ != end) {
     bool advance_to_next_element = false;
 
-    const UploadData::Element& element = *next_element_;
+    UploadData::Element& element = *next_element_;
 
     size_t size_remaining = kBufSize - buf_len_;
     if (element.type() == UploadData::TYPE_BYTES) {
@@ -78,57 +77,51 @@ int UploadDataStream::FillBuf() {
     } else {
       DCHECK(element.type() == UploadData::TYPE_FILE);
 
-      // If the underlying file has been changed, treat it as error.
-      // Note that the expected modification time from WebKit is based on
-      // time_t precision. So we have to convert both to time_t to compare.
-      if (!element.expected_file_modification_time().is_null()) {
-        file_util::FileInfo info;
-        if (file_util::GetFileInfo(element.file_path(), &info) &&
-            element.expected_file_modification_time().ToTimeT() !=
-                info.last_modified.ToTimeT()) {
-          return ERR_UPLOAD_FILE_CHANGED;
-        }
-      }
-
-      if (!next_element_stream_.IsOpen()) {
-        int flags = base::PLATFORM_FILE_OPEN |
-                    base::PLATFORM_FILE_READ;
-        int rv = next_element_stream_.Open(element.file_path(), flags);
-        // If the file does not exist, that's technically okay.. we'll just
-        // upload an empty file.  This is for consistency with Mozilla.
-        DLOG_IF(WARNING, rv != OK) << "Failed to open \""
-                                   << element.file_path().value()
-                                   << "\" for reading: " << rv;
-
-        next_element_remaining_ = 0;  // Default to reading nothing.
-        if (rv == OK) {
-          uint64 offset = element.file_range_offset();
-          if (offset && next_element_stream_.Seek(FROM_BEGIN, offset) < 0) {
-            DLOG(WARNING) << "Failed to seek \"" << element.file_path().value()
-                          << "\" to offset: " << offset;
-          } else {
-            next_element_remaining_ = element.file_range_length();
+      if (!next_element_remaining_) {
+        // If the underlying file has been changed, treat it as error.
+        // Note that the expected modification time from WebKit is based on
+        // time_t precision. So we have to convert both to time_t to compare.
+        if (!element.expected_file_modification_time().is_null()) {
+          file_util::FileInfo info;
+          if (file_util::GetFileInfo(element.file_path(), &info) &&
+              element.expected_file_modification_time().ToTimeT() !=
+                  info.last_modified.ToTimeT()) {
+            return ERR_UPLOAD_FILE_CHANGED;
           }
         }
+        next_element_remaining_ = element.GetContentLength();
+        next_element_stream_.reset(element.NewFileStreamForReading());
       }
 
       int rv = 0;
-      int count = static_cast<int>(std::min(
-          static_cast<uint64>(size_remaining), next_element_remaining_));
-      if (count > 0 &&
-          (rv = next_element_stream_.Read(buf_->data() + buf_len_,
-                                          count, NULL)) > 0) {
+      int count =
+          static_cast<int>(std::min(next_element_remaining_,
+                                    static_cast<uint64>(size_remaining)));
+      if (count > 0) {
+        if (next_element_stream_.get())
+          rv = next_element_stream_->Read(buf_->data() + buf_len_, count, NULL);
+        if (rv <= 0) {
+          // If there's less data to read than we initially observed, then
+          // pad with zero.  Otherwise the server will hang waiting for the
+          // rest of the data.
+          memset(buf_->data() + buf_len_, 0, count);
+          rv = count;
+        }
         buf_len_ += rv;
-        next_element_remaining_ -= rv;
-      } else {
+      }
+
+      if (static_cast<int>(next_element_remaining_) == rv) {
         advance_to_next_element = true;
+      } else {
+        next_element_remaining_ -= rv;
       }
     }
 
     if (advance_to_next_element) {
       ++next_element_;
       next_element_offset_ = 0;
-      next_element_stream_.Close();
+      next_element_remaining_ = 0;
+      next_element_stream_.reset();
     }
   }
 
