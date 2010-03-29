@@ -658,7 +658,7 @@ bool HttpAuthHandlerNTLM::IsFinalRound() {
   return !auth_data_.empty();
 }
 
-bool HttpAuthHandlerNTLM::AllowDefaultCredentials() {
+bool HttpAuthHandlerNTLM::SupportsDefaultCredentials() {
   // Default credentials are not supported in the portable implementation of
   // NTLM, but are supported in the SSPI implementation.
   return false;

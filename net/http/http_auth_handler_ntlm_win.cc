@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,17 +36,8 @@ bool HttpAuthHandlerNTLM::IsFinalRound() {
   return auth_sspi_.IsFinalRound();
 }
 
-bool HttpAuthHandlerNTLM::AllowDefaultCredentials() {
-  // NOTE: Temporarily disabled. SSO is a potential security risk with NTLM.
-  // TODO(cbentzel): Add a pointer to Firefox documentation about risk.
-
-  // TODO(cbentzel): Add a blanket command line flag to enable/disable?
-  // TODO(cbentzel): Add a whitelist regexp command line flag?
-  // TODO(cbentzel): Resolve the origin_ (helpful if doing already) and see if
-  //                 it is in private IP space?
-  // TODO(cbentzel): Compare origin_ to this machine's hostname and allow if
-  //                 it matches at least two or three layers deep?
-  return false;
+bool HttpAuthHandlerNTLM::SupportsDefaultCredentials() {
+  return true;
 }
 
 int HttpAuthHandlerNTLM::GenerateDefaultAuthToken(
@@ -54,16 +45,16 @@ int HttpAuthHandlerNTLM::GenerateDefaultAuthToken(
     const ProxyInfo* proxy,
     std::string* auth_token) {
   return auth_sspi_.GenerateAuthToken(
-      NULL, // username
-      NULL, // password
+      NULL,  // username
+      NULL,  // password
       origin_,
       request,
       proxy,
       auth_token);
 }
 
-HttpAuthHandlerNTLM::Factory::Factory() :
-    max_token_length_(0),
+HttpAuthHandlerNTLM::Factory::Factory()
+  : max_token_length_(0),
     first_creation_(true),
     is_unsupported_(false),
     sspi_library_(SSPILibrary::GetDefault()) {
