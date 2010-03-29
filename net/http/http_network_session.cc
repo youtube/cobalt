@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "net/http/url_security_manager.h"
 #include "net/spdy/spdy_session_pool.h"
 
 namespace net {
@@ -54,6 +55,14 @@ HttpNetworkSession::HttpNetworkSession(
 HttpNetworkSession::~HttpNetworkSession() {
 }
 
+URLSecurityManager* HttpNetworkSession::GetURLSecurityManager() {
+  // Create the URL security manager lazily in the first call.
+  // This is called on a single thread.
+  if (!url_security_manager_.get())
+    url_security_manager_.reset(URLSecurityManager::Create());
+  return url_security_manager_.get();
+}
+
 // static
 void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
   DCHECK(0 < socket_count);
@@ -73,4 +82,4 @@ void HttpNetworkSession::ReplaceTCPSocketPool() {
                                              network_change_notifier_);
 }
 
-} //  namespace net
+}  //  namespace net
