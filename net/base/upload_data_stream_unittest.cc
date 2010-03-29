@@ -78,7 +78,9 @@ TEST_F(UploadDataStreamTest, FileSmallerThanLength) {
     read_counter += stream->buf_len();
     stream->DidConsume(stream->buf_len());
   }
-  EXPECT_LT(read_counter, stream->size());
+  // UpdateDataStream will pad out the file with 0 bytes so that the HTTP
+  // transaction doesn't hang.  Therefore we expected the full size.
+  EXPECT_EQ(read_counter, stream->size());
 
   file_util::Delete(temp_file_path, false);
 }
