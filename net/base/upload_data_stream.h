@@ -17,7 +17,7 @@ class UploadDataStream {
   // Returns a new instance of UploadDataStream if it can be created and
   // initialized successfully. If not, NULL will be returned and the error
   // code will be set if the output parameter error_code is not empty.
-  static UploadDataStream* Create(const UploadData* data, int* error_code);
+  static UploadDataStream* Create(UploadData* data, int* error_code);
 
   ~UploadDataStream();
 
@@ -44,14 +44,14 @@ class UploadDataStream {
  private:
   // Protects from public access since now we have a static creator function
   // which will do both creation and initialization and might return an error.
-  explicit UploadDataStream(const UploadData* data);
+  explicit UploadDataStream(UploadData* data);
 
   // Fills the buffer with any remaining data and sets eof_ if there was nothing
   // left to fill the buffer with.
   // Returns OK if the operation succeeds. Otherwise error code is returned.
   int FillBuf();
 
-  const UploadData* data_;
+  UploadData* data_;
 
   // This buffer is filled with data to be uploaded.  The data to be sent is
   // always at the front of the buffer.  If we cannot send all of the buffer at
@@ -62,7 +62,7 @@ class UploadDataStream {
   size_t buf_len_;
 
   // Iterator to the upload element to be written to the send buffer next.
-  std::vector<UploadData::Element>::const_iterator next_element_;
+  std::vector<UploadData::Element>::iterator next_element_;
 
   // The byte offset into next_element_'s data buffer if the next element is
   // a TYPE_BYTES element.
@@ -70,7 +70,7 @@ class UploadDataStream {
 
   // A stream to the currently open file, for next_element_ if the next element
   // is a TYPE_FILE element.
-  FileStream next_element_stream_;
+  scoped_ptr<FileStream> next_element_stream_;
 
   // The number of bytes remaining to be read from the currently open file
   // if the next element is of TYPE_FILE.

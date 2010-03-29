@@ -8,6 +8,7 @@
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/scoped_ptr.h"
 #include "net/base/completion_callback.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/request_priority.h"
@@ -4126,6 +4127,154 @@ TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
   EXPECT_EQ("hello world", response_data);
 
   file_util::Delete(temp_file_path, false);
+}
+
+TEST_F(HttpNetworkTransactionTest, UploadUnreadableFile) {
+  // If we try to upload an unreadable file, the network stack should report
+  // the file size as zero and upload zero bytes for that file.
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  FilePath temp_file;
+  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file));
+  std::string temp_file_content("Unreadable file.");
+  ASSERT_TRUE(file_util::WriteFile(temp_file, temp_file_content.c_str(),
+                                   temp_file_content.length()));
+  ASSERT_TRUE(file_util::MakeFileUnreadable(temp_file));
+
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/upload");
+  request.upload_data = new UploadData;
+  request.load_flags = 0;
+
+  std::vector<UploadData::Element> elements;
+  UploadData::Element element;
+  element.SetToFilePath(temp_file);
+  elements.push_back(element);
+  request.upload_data->set_elements(elements);
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.0 200 OK\r\n\r\n"),
+    MockRead(false, OK),
+  };
+  MockWrite data_writes[] = {
+    MockWrite("POST /upload HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "Content-Length: 0\r\n\r\n"),
+    MockWrite(false, OK),
+  };
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads), data_writes,
+                                arraysize(data_writes));
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response != NULL);
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.0 200 OK", response->headers->GetStatusLine());
+
+  file_util::Delete(temp_file, false);
+}
+
+TEST_F(HttpNetworkTransactionTest, UnreadableUploadFileAfterAuthRestart) {
+  SessionDependencies session_deps;
+  scoped_ptr<HttpTransaction> trans(
+      new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+  FilePath temp_file;
+  ASSERT_TRUE(file_util::CreateTemporaryFile(&temp_file));
+  std::string temp_file_contents("Unreadable file.");
+  std::string unreadable_contents(temp_file_contents.length(), '\0');
+  ASSERT_TRUE(file_util::WriteFile(temp_file, temp_file_contents.c_str(),
+                                   temp_file_contents.length()));
+
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/upload");
+  request.upload_data = new UploadData;
+  request.load_flags = 0;
+
+  std::vector<UploadData::Element> elements;
+  UploadData::Element element;
+  element.SetToFilePath(temp_file);
+  elements.push_back(element);
+  request.upload_data->set_elements(elements);
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 401 Unauthorized\r\n"),
+    MockRead("WWW-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
+    MockRead("Content-Length: 0\r\n\r\n"),  // No response body.
+
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Content-Length: 0\r\n\r\n"),
+    MockRead(false, OK),
+  };
+  MockWrite data_writes[] = {
+    MockWrite("POST /upload HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "Content-Length: 16\r\n\r\n"),
+    MockWrite(false, temp_file_contents.c_str()),
+
+    MockWrite("POST /upload HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n"
+              "Content-Length: 16\r\n"
+              "Authorization: Basic Zm9vOmJhcg==\r\n\r\n"),
+    MockWrite(false, unreadable_contents.c_str(), temp_file_contents.length()),
+    MockWrite(false, OK),
+  };
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads), data_writes,
+                                arraysize(data_writes));
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  TestCompletionCallback callback1;
+
+  int rv = trans->Start(&request, &callback1, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback1.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response != NULL);
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 401 Unauthorized", response->headers->GetStatusLine());
+
+  // The password prompt info should have been set in response->auth_challenge.
+  EXPECT_TRUE(response->auth_challenge.get() != NULL);
+  EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
+  EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
+  EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+
+  // Now make the file unreadable and try again.
+  ASSERT_TRUE(file_util::MakeFileUnreadable(temp_file));
+
+  TestCompletionCallback callback2;
+
+  rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+
+  rv = callback2.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  response = trans->GetResponseInfo();
+  EXPECT_TRUE(response != NULL);
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_TRUE(response->auth_challenge.get() == NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  file_util::Delete(temp_file, false);
 }
 
 // Tests that changes to Auth realms are treated like auth rejections.
