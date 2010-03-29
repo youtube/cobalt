@@ -1289,7 +1289,8 @@ void DiskCacheBackendTest::BackendDisable2() {
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
 
-TEST_F(DiskCacheBackendTest, DisableSuccess2) {
+// http://code.google.com/p/chromium/issues/detail?id=38562
+TEST_F(DiskCacheBackendTest, DISABLED_DisableSuccess2) {
   ASSERT_TRUE(CopyTestCache(L"list_loop"));
   DisableFirstCleanup();
   SetDirectMode();
