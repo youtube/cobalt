@@ -74,10 +74,12 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // single-round schemes.
   virtual bool IsFinalRound() { return true; }
 
-  // Returns whether the default credentials may be used for the |origin| passed
-  // into |InitFromChallenge|. If true, the user does not need to be prompted
-  // for username and password to establish credentials.
-  virtual bool AllowDefaultCredentials() { return false; }
+  // Returns whether the authentication scheme supports the use of default
+  // credentials.  If true, the user does not need to be prompted for
+  // username and password to establish credentials.
+  // NOTE: SSO is a potential security risk.
+  // TODO(cbentzel): Add a pointer to Firefox documentation about risk.
+  virtual bool SupportsDefaultCredentials() { return false; }
 
   // TODO(cbentzel): Separate providing credentials from generating the
   // authentication token in the API.
@@ -96,7 +98,7 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // The return value is an error code. If the code is not |OK|, the value of
   // |*auth_token| is unspecified.
   // |auth_token| is a return value and must be non-NULL.
-  // This should only be called after |AllowDefaultCredentials| returns true.
+  // This should only be called if |SupportsDefaultCredentials| returns true.
   virtual int GenerateDefaultAuthToken(const HttpRequestInfo* request,
                                        const ProxyInfo* proxy,
                                        std::string* auth_token) = 0;

@@ -19,49 +19,53 @@ class HttpResponseHeaders;
 class HttpAuth {
  public:
 
-   // Http authentication can be done the the proxy server, origin server,
-   // or both. This enum tracks who the target is.
-   enum Target {
-     AUTH_NONE = -1,
-     // We depend on the valid targets (!= AUTH_NONE) being usable as indexes
-     // in an array, so start from 0.
-     AUTH_PROXY = 0,
-     AUTH_SERVER = 1,
-   };
+  // Http authentication can be done the the proxy server, origin server,
+  // or both. This enum tracks who the target is.
+  enum Target {
+    AUTH_NONE = -1,
+    // We depend on the valid targets (!= AUTH_NONE) being usable as indexes
+    // in an array, so start from 0.
+    AUTH_PROXY = 0,
+    AUTH_SERVER = 1,
+  };
 
-   // Describes where the identity used for authentication came from.
-   enum IdentitySource {
-     // Came from nowhere -- the identity is not initialized.
-     IDENT_SRC_NONE,
+  // Describes where the identity used for authentication came from.
+  enum IdentitySource {
+    // Came from nowhere -- the identity is not initialized.
+    IDENT_SRC_NONE,
 
-     // The identity came from the auth cache, by doing a path-based
-     // lookup (premptive authorization).
-     IDENT_SRC_PATH_LOOKUP,
+    // The identity came from the auth cache, by doing a path-based
+    // lookup (premptive authorization).
+    IDENT_SRC_PATH_LOOKUP,
 
-     // The identity was extracted from a URL of the form:
-     // http://<username>:<password>@host:port
-     IDENT_SRC_URL,
+    // The identity was extracted from a URL of the form:
+    // http://<username>:<password>@host:port
+    IDENT_SRC_URL,
 
-     // The identity was retrieved from the auth cache, by doing a
-     // realm lookup.
-     IDENT_SRC_REALM_LOOKUP,
+    // The identity was retrieved from the auth cache, by doing a
+    // realm lookup.
+    IDENT_SRC_REALM_LOOKUP,
 
-     // The identity was provided by RestartWithAuth -- it likely
-     // came from a prompt (or maybe the password manager).
-     IDENT_SRC_EXTERNAL,
-   };
+    // The identity was provided by RestartWithAuth -- it likely
+    // came from a prompt (or maybe the password manager).
+    IDENT_SRC_EXTERNAL,
 
-   // Helper structure used by HttpNetworkTransaction to track
-   // the current identity being used for authorization.
-   struct Identity {
-     Identity() : source(IDENT_SRC_NONE), invalid(true) { }
+    // The identity used the default credentials for the computer,
+    // on schemes that support single sign-on.
+    IDENT_SRC_DEFAULT_CREDENTIALS,
+  };
 
-     IdentitySource source;
-     bool invalid;
-     // TODO(wtc): |username| and |password| should be string16.
-     std::wstring username;
-     std::wstring password;
-   };
+  // Helper structure used by HttpNetworkTransaction to track
+  // the current identity being used for authorization.
+  struct Identity {
+    Identity() : source(IDENT_SRC_NONE), invalid(true) { }
+
+    IdentitySource source;
+    bool invalid;
+    // TODO(wtc): |username| and |password| should be string16.
+    std::wstring username;
+    std::wstring password;
+  };
 
   // Get the name of the header containing the auth challenge
   // (either WWW-Authenticate or Proxy-Authenticate).
