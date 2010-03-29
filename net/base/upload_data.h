@@ -9,7 +9,9 @@
 
 #include "base/basictypes.h"
 #include "base/file_path.h"
+#include "base/logging.h"
 #include "base/ref_counted.h"
+#include "net/base/file_stream.h"
 #include "base/time.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -28,7 +30,14 @@ class UploadData : public base::RefCounted<UploadData> {
    public:
     Element() : type_(TYPE_BYTES), file_range_offset_(0),
                 file_range_length_(kuint64max),
-                override_content_length_(false) {
+                override_content_length_(false),
+                content_length_computed_(false),
+                file_stream_(NULL) {
+    }
+
+    ~Element() {
+      // In the common case |file__stream_| will be null.
+      delete file_stream_;
     }
 
     Type type() const { return type_; }
@@ -65,7 +74,14 @@ class UploadData : public base::RefCounted<UploadData> {
 
     // Returns the byte-length of the element.  For files that do not exist, 0
     // is returned.  This is done for consistency with Mozilla.
-    uint64 GetContentLength() const;
+    // Once called, this function will always return the same value.
+    uint64 GetContentLength();
+
+    // Returns a FileStream opened for reading for this element, positioned at
+    // |file_range_offset_|.  The caller gets ownership and is responsible
+    // for cleaning up the FileStream. Returns NULL if this element is not of
+    // type TYPE_FILE or if the file is not openable.
+    FileStream* NewFileStreamForReading();
 
    private:
     // Allows tests to override the result of GetContentLength.
@@ -81,7 +97,9 @@ class UploadData : public base::RefCounted<UploadData> {
     uint64 file_range_length_;
     base::Time expected_file_modification_time_;
     bool override_content_length_;
+    bool content_length_computed_;
     uint64 content_length_;
+    FileStream* file_stream_;
 
     FRIEND_TEST(UploadDataStreamTest, FileSmallerThanLength);
     FRIEND_TEST(HttpNetworkTransactionTest, UploadFileSmallerThanLength);
@@ -108,10 +126,10 @@ class UploadData : public base::RefCounted<UploadData> {
   }
 
   // Returns the total size in bytes of the data to upload.
-  uint64 GetContentLength() const;
+  uint64 GetContentLength();
 
-  const std::vector<Element>& elements() const {
-    return elements_;
+  std::vector<Element>* elements() {
+    return &elements_;
   }
 
   void set_elements(const std::vector<Element>& elements) {
