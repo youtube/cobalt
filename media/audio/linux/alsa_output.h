@@ -133,7 +133,7 @@ class AlsaPcmOutputStream :
     kIsStopped,
     kIsClosed
   };
-  friend std::ostream& ::operator<<(std::ostream& os, InternalState);
+  friend std::ostream& operator<<(std::ostream& os, InternalState);
 
   // Various tasks that complete actions started in the public API.
   void OpenTask(uint32 packet_size);
