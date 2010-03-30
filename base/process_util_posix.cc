@@ -221,12 +221,12 @@ void CloseSuperfluousFds(const base::InjectiveMultimap& saved_mapping) {
       const int fd = static_cast<int>(i);
       if (fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO)
         continue;
-      InjectiveMultimap::const_iterator i;
-      for (i = saved_mapping.begin(); i != saved_mapping.end(); i++) {
-        if (fd == i->dest)
+      InjectiveMultimap::const_iterator j;
+      for (j = saved_mapping.begin(); j != saved_mapping.end(); j++) {
+        if (fd == j->dest)
           break;
       }
-      if (i != saved_mapping.end())
+      if (j != saved_mapping.end())
         continue;
 
       // Since we're just trying to close anything we can find,
