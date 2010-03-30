@@ -1307,7 +1307,8 @@ TEST_F(DiskCacheBackendTest, NewEvictionDisableSuccess2) {
   BackendDisable2();
 }
 
-TEST_F(DiskCacheBackendTest, DisableFailure2) {
+// http://code.google.com/p/chromium/issues/detail?id=38562
+TEST_F(DiskCacheBackendTest, DISABLED_DisableFailure2) {
   ASSERT_TRUE(CopyTestCache(L"list_loop"));
   DisableFirstCleanup();
   SetDirectMode();
