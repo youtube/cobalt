@@ -259,3 +259,17 @@ TEST(PickleTest, ZeroLength) {
   // We can't assert that outdata is NULL.
 }
 
+// Check that ReadBytes works properly with an iterator initialized to NULL.
+TEST(PickleTest, ReadBytes) {
+  Pickle pickle;
+  int data = 0x7abcd;
+  EXPECT_TRUE(pickle.WriteBytes(&data, sizeof(data)));
+
+  void* iter = NULL;
+  const char* outdata_char;
+  EXPECT_TRUE(pickle.ReadBytes(&iter, &outdata_char, sizeof(data)));
+
+  int outdata;
+  memcpy(&outdata, outdata_char, sizeof(outdata));
+  EXPECT_EQ(data, outdata);
+}
