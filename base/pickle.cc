@@ -250,6 +250,8 @@ bool Pickle::ReadBytes(void** iter, const char** data, int length) const {
   DCHECK(iter);
   DCHECK(data);
   *data = 0;
+  if (!*iter)
+    *iter = const_cast<char*>(payload());
 
   if (!IteratorHasRoomFor(*iter, length))
     return false;
