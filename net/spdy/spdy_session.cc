@@ -544,8 +544,11 @@ void SpdySession::OnReadComplete(int bytes_read) {
   if (bytes_read <= 0) {
     // Session is tearing down.
     net::Error error = static_cast<net::Error>(bytes_read);
-    if (error == OK)
+    if (bytes_read == 0) {
+      LOG(INFO) << "Spdy socket closed by server[" <<
+          host_port_pair().ToString() << "].";
       error = ERR_CONNECTION_CLOSED;
+    }
     CloseSessionOnError(error);
     return;
   }
@@ -730,7 +733,7 @@ void SpdySession::WriteSocket() {
 }
 
 void SpdySession::CloseAllStreams(net::Error code) {
-  LOG(INFO) << "Closing all SPDY Streams";
+  LOG(INFO) << "Closing all SPDY Streams for " << host_port_pair().ToString();
 
   static StatsCounter abandoned_streams("spdy.abandoned_streams");
   static StatsCounter abandoned_push_streams("spdy.abandoned_push_streams");
@@ -780,7 +783,8 @@ int SpdySession::GetNewStreamId() {
 
 void SpdySession::CloseSessionOnError(net::Error err) {
   DCHECK_LT(err, OK);
-  LOG(INFO) << "spdy::CloseSessionOnError(" << err << ")";
+  LOG(INFO) << "spdy::CloseSessionOnError(" << err << ") for " <<
+      host_port_pair().ToString();
 
   // Don't close twice.  This can occur because we can have both
   // a read and a write outstanding, and each can complete with
@@ -1082,6 +1086,8 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
 }
 
 void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
+  LOG(INFO) << "Spdy GOAWAY for session[" << this << "] for " <<
+      host_port_pair().ToString();
   session_->spdy_session_pool()->Remove(this);
 
   // TODO(willchan): Cancel any streams that are past the GoAway frame's
