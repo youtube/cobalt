@@ -11,6 +11,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "media/ffmpeg/ffmpeg_common.h"
 #include "third_party/ffmpeg/ffmpeg_stubs.h"
 #if defined(OS_LINUX)
 // OpenMAX IL stub is generated only on Linux.
@@ -23,12 +24,26 @@ namespace media {
 
 namespace {
 
+// Handy to prevent shooting ourselves in the foot with macro wizardry.
+#if !defined(LIBAVCODEC_VERSION_MAJOR) || \
+    !defined(LIBAVFORMAT_VERSION_MAJOR) || \
+    !defined(LIBAVUTIL_VERSION_MAJOR)
+#error FFmpeg headers not included!
+#endif
+
+#define STRINGIZE(x) #x
+#define STRINGIZE_MACRO(x) STRINGIZE(x)
+
+#define AVCODEC_VERSION STRINGIZE_MACRO(LIBAVCODEC_VERSION_MAJOR)
+#define AVFORMAT_VERSION STRINGIZE_MACRO(LIBAVFORMAT_VERSION_MAJOR)
+#define AVUTIL_VERSION STRINGIZE_MACRO(LIBAVUTIL_VERSION_MAJOR)
+
 #if defined(OS_MACOSX)
-#define DSO_NAME(MODULE, VERSION) ("lib" MODULE "." #VERSION ".dylib")
+#define DSO_NAME(MODULE, VERSION) ("lib" MODULE "." VERSION ".dylib")
 const FilePath::CharType sumo_name[] =
     FILE_PATH_LITERAL("libffmpegsumo.dylib");
 #elif defined(OS_POSIX)
-#define DSO_NAME(MODULE, VERSION) ("lib" MODULE ".so." #VERSION)
+#define DSO_NAME(MODULE, VERSION) ("lib" MODULE ".so." VERSION)
 const FilePath::CharType sumo_name[] = FILE_PATH_LITERAL("libffmpegsumo.so");
 #else
 #error "Do not know how to construct DSO name for this OS."
@@ -41,11 +56,11 @@ std::string GetDSOName(tp_ffmpeg::StubModules stub_key) {
   // set a constant that we can switch implementations based off of.
   switch (stub_key) {
     case tp_ffmpeg::kModuleAvcodec52:
-      return FILE_PATH_LITERAL(DSO_NAME("avcodec", 52));
+      return FILE_PATH_LITERAL(DSO_NAME("avcodec", AVCODEC_VERSION));
     case tp_ffmpeg::kModuleAvformat52:
-      return FILE_PATH_LITERAL(DSO_NAME("avformat", 52));
+      return FILE_PATH_LITERAL(DSO_NAME("avformat", AVFORMAT_VERSION));
     case tp_ffmpeg::kModuleAvutil50:
-      return FILE_PATH_LITERAL(DSO_NAME("avutil", 50));
+      return FILE_PATH_LITERAL(DSO_NAME("avutil", AVUTIL_VERSION));
     default:
       LOG(DFATAL) << "Invalid stub module requested: " << stub_key;
       return FILE_PATH_LITERAL("");
