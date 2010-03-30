@@ -6,25 +6,10 @@
 // software decoding quality and performance of FFmpeg meets a mimimum
 // standard.
 
-#include "build/build_config.h"
-
-// For pipe _setmode to binary
-#if defined(OS_WIN)
-#include <fcntl.h>
-#include <io.h>
-#endif
-
-#ifdef DEBUG
-#define SHOW_VERBOSE 1
-#else
-#define SHOW_VERBOSE 0
-#endif
-
 #include <iomanip>
 #include <iostream>
 #include <string>
 
-#include "base/at_exit.h"
 #include "base/basictypes.h"
 #include "base/command_line.h"
 #include "base/file_path.h"
@@ -37,6 +22,12 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/ffmpeg/file_protocol.h"
 #include "media/filters/ffmpeg_video_decoder.h"
+
+#ifdef DEBUG
+#define SHOW_VERBOSE 1
+#else
+#define SHOW_VERBOSE 0
+#endif
 
 #if defined(OS_WIN)
 // warning: disable warning about exception handler.
@@ -94,7 +85,6 @@ int main(int argc, const char** argv) {
   if (filenames.size() > 1) {
     out_path = WideToUTF8(filenames[1]);
   }
-  CodecType target_codec = CODEC_TYPE_VIDEO;
 
   // Default flags that match Chrome defaults.
   int video_threads = 2;
@@ -141,17 +131,7 @@ int main(int argc, const char** argv) {
   // Open output file.
   FILE *output = NULL;
   if (!out_path.empty()) {
-    // TODO(fbarchard): Add pipe:1 for piping to stderr.
-    if (!strncmp(out_path.c_str(), "pipe:", 5) ||
-        !strcmp(out_path.c_str(), "-")) {
-      output = stdout;
-      log_out = &std::cerr;
-#if defined(OS_WIN)
-      _setmode(_fileno(stdout), _O_BINARY);
-#endif
-    } else {
-      output = file_util::OpenFile(out_path.c_str(), "wb");
-    }
+    output = file_util::OpenFile(out_path.c_str(), "wb");
     if (!output) {
       std::cerr << "Error: Could not open output "
                 << out_path << std::endl;
@@ -166,21 +146,28 @@ int main(int argc, const char** argv) {
     return 1;
   }
 
-  // Find our target stream.
-  int target_stream = -1;
+  // Find our target stream(s)
+  int video_stream = -1;
+  int audio_stream = -1;
   for (size_t i = 0; i < format_context->nb_streams; ++i) {
     AVCodecContext* codec_context = format_context->streams[i]->codec;
 
-    // See if we found our target codec.
-    if (codec_context->codec_type == target_codec && target_stream < 0) {
+    if (codec_context->codec_type == CODEC_TYPE_VIDEO && video_stream < 0) {
 #if SHOW_VERBOSE
-      *log_out << "* ";
+      *log_out << "V ";
 #endif
-      target_stream = i;
+      video_stream = i;
     } else {
+      if (codec_context->codec_type == CODEC_TYPE_AUDIO && audio_stream < 0) {
+#if SHOW_VERBOSE
+        *log_out << "A ";
+#endif
+        audio_stream = i;
+      } else {
 #if SHOW_VERBOSE
       *log_out << "  ";
 #endif
+      }
     }
 
 #if SHOW_VERBOSE
@@ -193,6 +180,12 @@ int main(int argc, const char** argv) {
                << codec->long_name << ")" << std::endl;
     }
 #endif
+  }
+  int target_stream = video_stream;
+  CodecType target_codec = CODEC_TYPE_VIDEO;
+  if (target_stream < 0) {
+    target_stream = audio_stream;
+    target_codec = CODEC_TYPE_AUDIO;
   }
 
   // Only continue if we found our target stream.
@@ -407,12 +400,26 @@ int main(int argc, const char** argv) {
   }
 
   if (sum > 0) {
-    // Calculate the average frames per second.
-    double fps = frames * 1000.0 / sum;
-    // Print our results.
-    log_out->setf(std::ios::fixed);
-    log_out->precision(2);
-    *log_out << "FPS:" << std::setw(11) << fps << std::endl;
+    if (target_codec == CODEC_TYPE_AUDIO) {
+      // Calculate the average milliseconds per frame.
+      // Audio decoding is usually in the millisecond or range, and
+      // best expressed in time (ms) rather than FPS, which can approach
+      // infinity.
+      double ms = sum / frames;
+      // Print our results.
+      log_out->setf(std::ios::fixed);
+      log_out->precision(2);
+      *log_out << "TIME PER FRAME (MS):" << std::setw(11) << ms << std::endl;
+    } else if (target_codec == CODEC_TYPE_VIDEO) {
+      // Calculate the average frames per second.
+      // Video decoding is expressed in Frames Per Second - a term easily
+      // understood and should exceed a typical target of 30 fps.
+      double fps = frames * 1000.0 / sum;
+      // Print our results.
+      log_out->setf(std::ios::fixed);
+      log_out->precision(2);
+      *log_out << "FPS:" << std::setw(11) << fps << std::endl;
+    }
   }
 
 #if SHOW_VERBOSE
@@ -458,7 +465,7 @@ int main(int argc, const char** argv) {
     *log_out << "   MD5 Hash: " << MD5DigestToBase16(digest)
              << " " << in_path << std::endl;
   }
-#endif // SHOW_VERBOSE
+#endif  // SHOW_VERBOSE
 #if defined(OS_WIN)
   } __except(EXCEPTION_EXECUTE_HANDLER) {
     *log_out << "  Exception:" << std::setw(11) << GetExceptionCode()
