@@ -730,7 +730,7 @@
           '-fvisibility-inlines-hidden',
         ],
         'ldflags': [
-          '-pthread',
+          '-pthread', '-Wl,-z,noexecstack',
         ],
         'scons_variable_settings': {
           'LIBPATH': ['$LIB_DIR'],
