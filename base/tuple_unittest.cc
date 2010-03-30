@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "base/tuple.h"
+
+#include "base/compiler_specific.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -28,7 +30,7 @@ struct Addz {
 }  // namespace
 
 TEST(TupleTest, Basic) {
-  Tuple0 t0 = MakeTuple();
+  Tuple0 t0 ALLOW_UNUSED = MakeTuple();
   Tuple1<int> t1(1);
   Tuple2<int, const char*> t2 = MakeTuple(1, static_cast<const char*>("wee"));
   Tuple3<int, int, int> t3(1, 2, 3);
