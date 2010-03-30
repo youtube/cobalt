@@ -1,3 +1,4 @@
+*.Makefile
 *.mk
 *.ncb
 *.pyc
@@ -17,6 +18,7 @@
 /chrome/Hammer
 /chrome/Release
 /chrome/app/theme/google_chrome
+/chrome/browser/autofill/internal
 /chrome/browser/renderer_host/translate
 /chrome/installer/linux
 /chrome/personalization/
@@ -42,6 +44,7 @@
 /testserver.log
 /third_party/GTM
 /third_party/WebKit
+/third_party/adobe/flash/binaries
 /third_party/chromeos_login_manager
 /third_party/chromeos_text_input
 /third_party/cros
