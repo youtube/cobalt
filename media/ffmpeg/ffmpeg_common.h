@@ -19,9 +19,10 @@ extern "C" {
 // Temporarily disable possible loss of data warning.
 // TODO(scherkus): fix and upstream the compiler warnings.
 MSVC_PUSH_DISABLE_WARNING(4244);
-#include "third_party/ffmpeg/source/patched-ffmpeg-mt/libavcodec/avcodec.h"
-#include "third_party/ffmpeg/source/patched-ffmpeg-mt/libavformat/avformat.h"
-#include "third_party/ffmpeg/source/patched-ffmpeg-mt/libavutil/log.h"
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/avutil.h>
+#include <libavutil/log.h>
 MSVC_POP_WARNING();
 }  // extern "C"
 
