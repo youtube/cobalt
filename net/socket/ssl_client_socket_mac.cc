@@ -774,15 +774,29 @@ int SSLClientSocketMac::InitializeSSLContext() {
   if (status)
     return NetErrorFromOSStatus(status);
 
-  // If break-on-auth is not available, we do not enable session
-  // resumption, because in that case we are verifying the server's certificate
-  // after the handshake completes (but before any application data is
-  // exchanged). If we were to enable session resumption in this situation,
-  // the session would be cached before we verified the certificate, leaving
-  // the potential for a session in which the certificate failed to validate
-  // to still be able to be resumed.
+  if (ssl_config_.send_client_cert) {
+    // Provide the client cert up-front if we have one, even though we'll get
+    // notified later when the server requests it, and set it again; this is
+    // seemingly redundant but works around a problem with SecureTransport
+    // and provides correct behavior on both 10.5 and 10.6:
+    // http://lists.apple.com/archives/apple-cdsa/2010/Feb/msg00058.html
+    // http://code.google.com/p/chromium/issues/detail?id=38905
+    SSL_LOG << "Setting client cert in advance because send_client_cert is set";
+    status = SetClientCert();
+    if (status)
+      return NetErrorFromOSStatus(status);
+  }
+
   status = EnableBreakOnAuth(true);
   if (status == noErr) {
+    // Only enable session resumption if break-on-auth is available,
+    // because without break-on-auth we are verifying the server's certificate
+    // after the handshake completes (but before any application data is
+    // exchanged). If we were to enable session resumption in this situation,
+    // the session would be cached before we verified the certificate, leaving
+    // the potential for a session in which the certificate failed to validate
+    // to still be able to be resumed.
+
     // Concatenate the hostname and peer address to use as the peer ID. To
     // resume a session, we must connect to the same server on the same port
     // using the same hostname (i.e., localhost and 127.0.0.1 are considered
@@ -1016,15 +1030,13 @@ int SSLClientSocketMac::DoVerifyCertComplete(int result) {
     result = OK;
 
   if (result == OK && client_cert_requested_) {
-    // It is now safe to send the server the client cert it asked for.
     if (!ssl_config_.send_client_cert) {
       // Caller hasn't specified a client cert, so let it know the server's
       // asking for one, and abort the connection.
       return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
     }
-    OSStatus status = SetClientCert();
-    if (status != noErr)
-      return NetErrorFromOSStatus(status);
+    // (We already called SetClientCert during InitializeSSLContext;
+    // no need to do so again.)
   }
 
   if (handshake_interrupted_) {
@@ -1068,9 +1080,9 @@ int SSLClientSocketMac::DoHandshakeFinish() {
       SSL_LOG << "Server requested client cert (DoHandshakeFinish)";
       if (!ssl_config_.send_client_cert)
         return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
-      status = SetClientCert();
-      if (status == noErr)
-        next_handshake_state_ = STATE_HANDSHAKE_FINISH;
+      // (We already called SetClientCert during InitializeSSLContext.)
+      status = noErr;
+      next_handshake_state_ = STATE_HANDSHAKE_FINISH;
       break;
     case errSSLClosedGraceful:
       return ERR_SSL_PROTOCOL_ERROR;
