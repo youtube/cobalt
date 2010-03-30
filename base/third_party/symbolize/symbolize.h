@@ -60,9 +60,23 @@
 
 #ifdef HAVE_SYMBOLIZE
 
-#if defined(__ELF__)  // defined by gcc on Linux
+#if defined(__ELF__)  // defined by gcc
+#if defined(__OpenBSD__)
+#include <sys/exec_elf.h>
+#else
 #include <elf.h>
+#endif
 #include <link.h>  // For ElfW() macro.
+
+// For systems where SIZEOF_VOID_P is not defined, determine it
+// based on __LP64__ (defined by gcc on 64-bit systems)
+#if !defined(SIZEOF_VOID_P)
+# if defined(__LP64__)
+#  define SIZEOF_VOID_P 8
+# else
+#  define SIZEOF_VOID_P 4
+# endif
+#endif
 
 // If there is no ElfW macro, let's define it by ourself.
 #ifndef ElfW
