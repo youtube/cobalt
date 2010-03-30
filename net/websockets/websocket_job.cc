@@ -331,12 +331,16 @@ void WebSocketJob::OnCanGetCookiesCompleted(int policy) {
       }
     }
 
-    // Simply ignore rest data in original request header after
-    // original_handshake_request_header_length_, because websocket protocol
-    // doesn't allow sending message before handshake is completed.
-    // TODO(ukai): report as error?
+    // draft-hixie-thewebsocketprotocol-76 or later will send /key3/
+    // after handshake request header.
+    std::string additional_data =
+      std::string(original_handshake_request_.data() +
+                  original_handshake_request_header_length_,
+                  original_handshake_request_.size() -
+                  original_handshake_request_header_length_);
     handshake_request_ =
-          handshake_request_status_line + handshake_request_header + "\r\n";
+        handshake_request_status_line + handshake_request_header + "\r\n" +
+        additional_data;
 
     handshake_request_sent_ = 0;
     socket_->SendData(handshake_request_.data(),
