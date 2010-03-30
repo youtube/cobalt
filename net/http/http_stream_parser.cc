@@ -215,9 +215,6 @@ int HttpStreamParser::DoSendHeaders(int result) {
           bytes_remaining > 1)
         --bytes_remaining;  // Leave one byte for next packet.
     }
-    // TODO(vandebo) remove when bug 31096 is resolved
-    CHECK(connection_);
-    CHECK(connection_->socket());
     result = connection_->socket()->Write(request_headers_,
                                           bytes_remaining,
                                           &io_callback_);
