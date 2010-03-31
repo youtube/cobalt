@@ -319,8 +319,22 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
   int err = transport_->GetPeerAddress(&peer_address);
   if (err != OK)
     return err;
+
   const struct addrinfo* ai = peer_address.head();
-  memio_SetPeerName(nss_fd_, ai->ai_addr, ai->ai_addrlen);
+
+  PRNetAddr peername;
+  memset(&peername, 0, sizeof(peername));
+  DCHECK_LE(ai->ai_addrlen, sizeof(peername));
+  size_t len = std::min(static_cast<size_t>(ai->ai_addrlen), sizeof(peername));
+  memcpy(&peername, ai->ai_addr, len);
+
+  // Adjust the address family field for BSD, whose sockaddr
+  // structure has a one-byte length and one-byte address family
+  // field at the beginning.  PRNetAddr has a two-byte address
+  // family field at the beginning.
+  peername.raw.family = ai->ai_addr->sa_family;
+
+  memio_SetPeerName(nss_fd_, &peername);
 
   // Grab pointer to buffers
   nss_bufs_ = memio_GetSecret(nss_fd_);
