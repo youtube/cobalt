@@ -5,7 +5,7 @@
 #include "net/http/http_stream_parser.h"
 
 #include "base/compiler_specific.h"
-#include "base/field_trial.h"
+#include "base/histogram.h"
 #include "base/trace_event.h"
 #include "net/base/io_buffer.h"
 #include "net/http/http_request_info.h"
@@ -186,17 +186,6 @@ int HttpStreamParser::DoLoop(int result) {
 
 int HttpStreamParser::DoSendHeaders(int result) {
   request_headers_->DidConsume(result);
-
-  // Set up a field trial to see if splitting the first packet helps with
-  // latency (loss of the first packet may otherwise cause an RTO of 3 seconds
-  // at least on Windows... but with two packets, the probability of loss
-  // without any ack to alert us should be lower, and receipt of a first ack
-  // will lower the RTO dramatically, so recovery will be fast.).
-  static const FieldTrial* kTrial = FieldTrialList::Find("PacketSplit");
-  static const bool kForceSecondPacket(kTrial && (kTrial->group() == 0));
-  if (kForceSecondPacket)
-    DCHECK_EQ(kTrial->group_name(), "_first_packet_split");
-
   int bytes_remaining = request_headers_->BytesRemaining();
   if (bytes_remaining > 0) {
     // Record our best estimate of the 'request time' as the time when we send
@@ -204,16 +193,33 @@ int HttpStreamParser::DoSendHeaders(int result) {
     if (bytes_remaining == request_headers_->size()) {
       response_->request_time = base::Time::Now();
 
-      // Note that we ONLY ensure second packet when this is a fresh connection,
-      // as a reused connection (re: reuse_type()) already had traffic, and
-      // hence has an RTO which will provide for a fast packet-loss recovery.
-      // We also avoid splitting out a second packet if we have a request_body_
-      // to send, as it will provide the desired second packet (see bug 38703).
-      if (kForceSecondPacket &&
-          connection_->reuse_type() != ClientSocketHandle::REUSED_IDLE &&
-          (request_body_ == NULL || !request_body_->size()) &&
-          bytes_remaining > 1)
-        --bytes_remaining;  // Leave one byte for next packet.
+      // We'll record the count of uncoalesced packets IFF coalescing will help,
+      // and otherwise we'll use an enum to tell why it won't help.
+      enum COALESCE_POTENTIAL {
+        NO_ADVANTAGE = 0,   // Coalescing won't reduce packet count.
+        HEADER_ONLY = 1,    // There is only a header packet (can't coalesce).
+        COALESCE_POTENTIAL_MAX = 30 // Various cases of coalasced savings.
+      };
+      size_t coalesce = HEADER_ONLY;
+      if (request_body_ != NULL) {
+        const size_t kBytesPerPacket = 1430;
+        uint64 body_packets = (request_body_->size() + kBytesPerPacket - 1) /
+            kBytesPerPacket;
+        uint64 header_packets = (bytes_remaining + kBytesPerPacket - 1) /
+            kBytesPerPacket;
+        uint64 coalesced_packets = (request_body_->size() + bytes_remaining +
+                                    kBytesPerPacket - 1) / kBytesPerPacket;
+        if (coalesced_packets < header_packets + body_packets) {
+          if (coalesced_packets > COALESCE_POTENTIAL_MAX)
+            coalesce = COALESCE_POTENTIAL_MAX;
+          else
+            coalesce = static_cast<size_t>(header_packets + body_packets);
+        } else {
+          coalesce = NO_ADVANTAGE;
+        }
+      }
+      UMA_HISTOGRAM_ENUMERATION("Net.CoalescePotential", coalesce,
+                                COALESCE_POTENTIAL_MAX);
     }
     result = connection_->socket()->Write(request_headers_,
                                           bytes_remaining,
