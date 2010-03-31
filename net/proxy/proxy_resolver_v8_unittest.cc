@@ -416,6 +416,34 @@ TEST(ProxyResolverV8Test, V8Bindings) {
   EXPECT_EQ("foobar", bindings->dns_resolves_ex[1]);
 }
 
+// Test calling a binding (myIpAddress()) from the script's global scope.
+// http://crbug.com/40026
+TEST(ProxyResolverV8Test, BindingCalledDuringInitialization) {
+  ProxyResolverV8WithMockBindings resolver;
+
+  int result = resolver.SetPacScriptFromDisk("binding_from_global.js");
+  EXPECT_EQ(OK, result);
+
+  MockJSBindings* bindings = resolver.mock_js_bindings();
+
+  // myIpAddress() got called during initialization of the script.
+  EXPECT_EQ(1, bindings->my_ip_address_count);
+
+  ProxyInfo proxy_info;
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+
+  EXPECT_EQ(OK, result);
+  EXPECT_FALSE(proxy_info.is_direct());
+  EXPECT_EQ("127.0.0.1:80", proxy_info.proxy_server().ToURI());
+
+  // Check that no other bindings were called.
+  EXPECT_EQ(0U, bindings->errors.size());
+  ASSERT_EQ(0U, bindings->alerts.size());
+  ASSERT_EQ(0U, bindings->dns_resolves.size());
+  EXPECT_EQ(0, bindings->my_ip_address_ex_count);
+  ASSERT_EQ(0U, bindings->dns_resolves_ex.size());
+}
+
 // Test that calls to the myIpAddress() and dnsResolve() bindings get
 // logged to the NetLog parameter.
 TEST(ProxyResolverV8Test, NetLog) {
