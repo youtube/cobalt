@@ -214,7 +214,7 @@ class ProxyResolverV8::Context {
     return OK;
   }
 
-  void SetCurrentRequestNetLog(BoundNetLog* net_log) {
+  void SetCurrentRequestNetLog(const BoundNetLog& net_log) {
     current_request_net_log_ = net_log;
   }
 
@@ -293,14 +293,14 @@ class ProxyResolverV8::Context {
     Context* context =
         static_cast<Context*>(v8::External::Cast(*args.Data())->Value());
 
-    context->current_request_net_log_->BeginEvent(
+    context->current_request_net_log_.BeginEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS);
 
     // We shouldn't be called with any arguments, but will not complain if
     // we are.
     std::string result = context->js_bindings_->MyIpAddress();
 
-    context->current_request_net_log_->EndEvent(
+    context->current_request_net_log_.EndEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS);
 
     if (result.empty())
@@ -314,14 +314,14 @@ class ProxyResolverV8::Context {
     Context* context =
         static_cast<Context*>(v8::External::Cast(*args.Data())->Value());
 
-    context->current_request_net_log_->BeginEvent(
+    context->current_request_net_log_.BeginEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX);
 
     // We shouldn't be called with any arguments, but will not complain if
     // we are.
     std::string result = context->js_bindings_->MyIpAddressEx();
 
-    context->current_request_net_log_->EndEvent(
+    context->current_request_net_log_.EndEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX);
 
     return StdStringToV8String(result);
@@ -341,12 +341,12 @@ class ProxyResolverV8::Context {
         return v8::Undefined();
     }
 
-    context->current_request_net_log_->BeginEvent(
+    context->current_request_net_log_.BeginEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE);
 
     std::string result = context->js_bindings_->DnsResolve(host);
 
-    context->current_request_net_log_->EndEvent(
+    context->current_request_net_log_.EndEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE);
 
     // DnsResolve() returns empty string on failure.
@@ -367,19 +367,19 @@ class ProxyResolverV8::Context {
         return v8::Undefined();
     }
 
-    context->current_request_net_log_->BeginEvent(
+    context->current_request_net_log_.BeginEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX);
 
     std::string result = context->js_bindings_->DnsResolveEx(host);
 
-    context->current_request_net_log_->EndEvent(
+    context->current_request_net_log_.EndEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX);
 
     return StdStringToV8String(result);
   }
 
   ProxyResolverJSBindings* js_bindings_;
-  BoundNetLog* current_request_net_log_;
+  BoundNetLog current_request_net_log_;
   v8::Persistent<v8::External> v8_this_;
   v8::Persistent<v8::Context> v8_context_;
 };
@@ -404,12 +404,10 @@ int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
   if (!context_.get())
     return ERR_FAILED;
 
-  BoundNetLog log(net_log);
-
   // Otherwise call into V8.
-  context_->SetCurrentRequestNetLog(&log);
+  context_->SetCurrentRequestNetLog(net_log);
   int rv = context_->ResolveProxy(query_url, results);
-  context_->SetCurrentRequestNetLog(NULL);
+  context_->SetCurrentRequestNetLog(BoundNetLog());
 
   return rv;
 }
