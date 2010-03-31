@@ -535,6 +535,8 @@
         'message_pump_libevent.h',
         'message_pump_mac.h',
         'message_pump_mac.mm',
+        'nigori.h',
+        'nigori.cc',
         'nsimage_cache_mac.h',
         'nsimage_cache_mac.mm',
         'nss_util.cc',
