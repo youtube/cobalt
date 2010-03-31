@@ -359,17 +359,11 @@ PRFileDesc *memio_CreateIOLayer(int bufsize)
     return fd;
 }
 
-void memio_SetPeerName(PRFileDesc *fd, const struct sockaddr *peername,
-                       size_t peername_len)
+void memio_SetPeerName(PRFileDesc *fd, const PRNetAddr *peername)
 {
     PRFileDesc *memiofd = PR_GetIdentitiesLayer(fd, memio_identity);
-    struct PRFilePrivate *secret =  memiofd->secret;
-    size_t len;
-
-    memset(&secret->peername, 0, sizeof(secret->peername));
-    PR_ASSERT(peername_len <= sizeof(secret->peername));
-    len = PR_MIN(peername_len, sizeof(secret->peername));
-    memcpy(&secret->peername, peername, len);
+    struct PRFilePrivate *secret = memiofd->secret;
+    secret->peername = *peername;
 }
 
 memio_Private *memio_GetSecret(PRFileDesc *fd)
