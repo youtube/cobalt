@@ -47,7 +47,7 @@ class StoppableHTTPServer(BaseHTTPServer.HTTPServer):
 
   def serve_forever(self):
     self.stop = False
-    self.nonce = None
+    self.nonce_time = None
     while not self.stop:
       self.handle_request()
     self.socket.close()
@@ -814,27 +814,34 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     return True
 
-  def AuthDigestHandler(self):
-    """This handler tests 'Digest' authentication.  It just sends a page with
-    title 'user/pass' if you succeed."""
+  def GetNonce(self, force_reset=False):
+   """Returns a nonce that's stable per request path for the server's lifetime.
 
+   This is a fake implementation. A real implementation would only use a given
+   nonce a single time (hence the name n-once). However, for the purposes of
+   unittesting, we don't care about the security of the nonce.
+
+   Args:
+     force_reset: Iff set, the nonce will be changed. Useful for testing the
+         "stale" response.
+   """
+   if force_reset or not self.server.nonce_time:
+     self.server.nonce_time = time.time()
+   return _new_md5('privatekey%s%d' %
+                   (self.path, self.server.nonce_time)).hexdigest()
+
+  def AuthDigestHandler(self):
+    """This handler tests 'Digest' authentication.
+
+    It just sends a page with title 'user/pass' if you succeed.
+
+    A stale response is sent iff "stale" is present in the request path.
+    """
     if not self._ShouldHandleRequest("/auth-digest"):
       return False
 
-    # Periodically generate a new nonce.  Technically we should incorporate
-    # the request URL into this, but we don't care for testing.
-    nonce_life = 10
-    stale = False
-    if (not self.server.nonce or
-        (time.time() - self.server.nonce_time > nonce_life)):
-      if self.server.nonce:
-        stale = True
-      self.server.nonce_time = time.time()
-      self.server.nonce = \
-          _new_md5(time.ctime(self.server.nonce_time) +
-                   'privatekey').hexdigest()
-
-    nonce = self.server.nonce
+    stale = 'stale' in self.path
+    nonce = self.GetNonce(force_reset=stale)
     opaque = _new_md5('opaque').hexdigest()
     password = 'secret'
     realm = 'testrealm'
