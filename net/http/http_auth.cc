@@ -84,6 +84,9 @@ void HttpAuth::ChallengeTokenizer::Init(std::string::const_iterator begin,
 //   name="value"
 //   name=value
 //   name=
+// Due to buggy implementations found in some embedded devices, we also
+// accept values with missing close quotemark (http://crbug.com/39836):
+//   name="value
 bool HttpAuth::ChallengeTokenizer::GetNext() {
   if (!props_.GetNext())
     return false;
@@ -123,13 +126,13 @@ bool HttpAuth::ChallengeTokenizer::GetNext() {
   name_end_ = equals;
   value_begin_ = equals + 1;
 
+  value_is_quoted_ = false;
   if (value_begin_ != value_end_ && HttpUtil::IsQuote(*value_begin_)) {
     // Trim surrounding quotemarks off the value
-    if (*value_begin_ != *(value_end_ - 1))
-      return valid_ = false;  // Malformed -- mismatching quotes.
-    value_is_quoted_ = true;
-  } else {
-    value_is_quoted_ = false;
+    if (*value_begin_ != *(value_end_ - 1) || value_begin_ + 1 == value_end_)
+      value_begin_ = equals + 2;  // Gracefully recover from mismatching quotes.
+    else
+      value_is_quoted_ = true;
   }
   return true;
 }

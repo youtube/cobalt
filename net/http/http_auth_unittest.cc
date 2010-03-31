@@ -401,6 +401,82 @@ TEST(HttpAuthTest, ChallengeTokenizerNoQuotes) {
   EXPECT_FALSE(challenge.GetNext());
 }
 
+// Use a name=value property with mismatching quote marks.
+TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotes) {
+  std::string challenge_str = "Basic realm=\"foobar@baz.com";
+  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
+                                          challenge_str.end());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("Basic"), challenge.scheme());
+  EXPECT_TRUE(challenge.GetNext());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("realm"), challenge.name());
+  EXPECT_EQ(std::string("foobar@baz.com"), challenge.value());
+  EXPECT_EQ(std::string("foobar@baz.com"), challenge.unquoted_value());
+  EXPECT_FALSE(challenge.value_is_quoted());
+  EXPECT_FALSE(challenge.GetNext());
+}
+
+// Use a name= property without a value and with mismatching quote marks.
+TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesNoValue) {
+  std::string challenge_str = "Basic realm=\"";
+  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
+                                          challenge_str.end());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("Basic"), challenge.scheme());
+  EXPECT_TRUE(challenge.GetNext());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("realm"), challenge.name());
+  EXPECT_EQ(std::string(""), challenge.value());
+  EXPECT_FALSE(challenge.value_is_quoted());
+  EXPECT_FALSE(challenge.GetNext());
+}
+
+// Use a name=value property with mismatching quote marks and spaces in the
+// value.
+TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesSpaces) {
+  std::string challenge_str = "Basic realm=\"foo bar";
+  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
+                                          challenge_str.end());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("Basic"), challenge.scheme());
+  EXPECT_TRUE(challenge.GetNext());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("realm"), challenge.name());
+  EXPECT_EQ(std::string("foo bar"), challenge.value());
+  EXPECT_EQ(std::string("foo bar"), challenge.unquoted_value());
+  EXPECT_FALSE(challenge.value_is_quoted());
+  EXPECT_FALSE(challenge.GetNext());
+}
+
+// Use multiple name=value properties with mismatching quote marks in the last
+// value.
+TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesMultiple) {
+  std::string challenge_str = "Digest qop=, algorithm=md5, realm=\"foo";
+  HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
+                                          challenge_str.end());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("Digest"), challenge.scheme());
+  EXPECT_TRUE(challenge.GetNext());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("qop"), challenge.name());
+  EXPECT_EQ(std::string(""), challenge.value());
+  EXPECT_FALSE(challenge.value_is_quoted());
+  EXPECT_TRUE(challenge.GetNext());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("algorithm"), challenge.name());
+  EXPECT_EQ(std::string("md5"), challenge.value());
+  EXPECT_EQ(std::string("md5"), challenge.unquoted_value());
+  EXPECT_FALSE(challenge.value_is_quoted());
+  EXPECT_TRUE(challenge.GetNext());
+  EXPECT_TRUE(challenge.valid());
+  EXPECT_EQ(std::string("realm"), challenge.name());
+  EXPECT_EQ(std::string("foo"), challenge.value());
+  EXPECT_EQ(std::string("foo"), challenge.unquoted_value());
+  EXPECT_FALSE(challenge.value_is_quoted());
+  EXPECT_FALSE(challenge.GetNext());
+}
+
 // Use a name= property which has no value.
 TEST(HttpAuthTest, ChallengeTokenizerNoValue) {
   std::string challenge_str = "Digest qop=";
