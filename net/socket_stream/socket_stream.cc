@@ -167,6 +167,12 @@ void SocketStream::Close() {
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
+  // If next_state_ is STATE_NONE, the socket was not opened, or already
+  // closed.  So, return immediately.
+  // Otherwise, it might call Finish() more than once, so breaks balance
+  // of AddRef() and Release() in Connect() and Finish(), respectively.
+  if (next_state_ == STATE_NONE)
+    return;
   if (socket_.get() && socket_->IsConnected())
     socket_->Disconnect();
   next_state_ = STATE_CLOSE;
