@@ -1345,7 +1345,8 @@ void DiskCacheBackendTest::BackendDisable3() {
   EXPECT_EQ(1, cache_->GetEntryCount());
 }
 
-TEST_F(DiskCacheBackendTest, DisableSuccess3) {
+// http://code.google.com/p/chromium/issues/detail?id=38562
+TEST_F(DiskCacheBackendTest, DISABLED_DisableSuccess3) {
   ASSERT_TRUE(CopyTestCache(L"bad_rankings2"));
   DisableFirstCleanup();
   SetMaxSize(20 * 1024 * 1024);
@@ -1353,7 +1354,8 @@ TEST_F(DiskCacheBackendTest, DisableSuccess3) {
   BackendDisable3();
 }
 
-TEST_F(DiskCacheBackendTest, NewEvictionDisableSuccess3) {
+// http://code.google.com/p/chromium/issues/detail?id=38562
+TEST_F(DiskCacheBackendTest, DISABLED_NewEvictionDisableSuccess3) {
   ASSERT_TRUE(CopyTestCache(L"bad_rankings2"));
   DisableFirstCleanup();
   SetMaxSize(20 * 1024 * 1024);
