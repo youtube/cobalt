@@ -360,7 +360,7 @@ NET_ERROR(INSECURE_RESPONSE, -501)
 NET_ERROR(NO_PRIVATE_KEY_FOR_CERT, -502)
 
 // An error adding to the OS certificate database (e.g. OS X Keychain).
-NET_ERROR(ERR_ADD_USER_CERT_FAILED, -503)
+NET_ERROR(ADD_USER_CERT_FAILED, -503)
 
 //
 // The FTP PASV command failed.

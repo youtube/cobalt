@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,6 +50,21 @@ DERTemplate CERTPublicKeyAndChallengeTemplate[] = {
     offsetof(CERTPublicKeyAndChallenge, challenge), },
   { 0, }
 };
+
+void StoreKeyLocationInCache(const SECItem& public_key_info,
+                             PK11SlotInfo *slot) {
+  KeygenHandler::Cache* cache = KeygenHandler::Cache::GetInstance();
+  KeygenHandler::KeyLocation key_location;
+  const char* slot_name = PK11_GetSlotName(slot);
+  key_location.slot_name.assign(slot_name);
+  cache->Insert(std::string(reinterpret_cast<char*>(public_key_info.data),
+                public_key_info.len), key_location);
+}
+
+bool KeygenHandler::KeyLocation::Equals(
+    const net::KeygenHandler::KeyLocation& location) const {
+  return slot_name == location.slot_name;
+}
 
 // This function is largely copied from the Firefox's
 // <keygen> implementation in security/manager/ssl/src/nsKeygenHandler.cpp
@@ -194,21 +209,23 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     goto failure;
   }
 
+  StoreKeyLocationInCache(spkiItem, slot);
+
  failure:
   if (!isSuccess) {
     LOG(ERROR) << "SSL Keygen failed!";
   } else {
-    LOG(INFO) << "SSl Keygen succeeded!";
+    LOG(INFO) << "SSL Keygen succeeded!";
   }
 
   // Do cleanups
   if (privateKey) {
-    if (!isSuccess || !stores_key_) {
-      PK11_DestroyTokenObject(privateKey->pkcs11Slot,privateKey->pkcs11ID);
-      SECKEY_DestroyPrivateKey(privateKey);
-    }
     // On successful keygen we need to keep the private key, of course,
     // or we won't be able to use the client certificate.
+    if (!isSuccess || !stores_key_) {
+      PK11_DestroyTokenObject(privateKey->pkcs11Slot, privateKey->pkcs11ID);
+    }
+    SECKEY_DestroyPrivateKey(privateKey);
   }
 
   if (publicKey) {
