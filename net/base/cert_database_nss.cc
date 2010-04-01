@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,11 +16,12 @@
 #include "base/scoped_ptr.h"
 #include "base/nss_util.h"
 #include "net/base/net_errors.h"
+#include "net/base/x509_certificate.h"
 
 namespace net {
 
 CertDatabase::CertDatabase() {
-  Init();
+  base::EnsureNSSInit();
 }
 
 int CertDatabase::CheckUserCert(X509Certificate* cert_obj) {
@@ -74,14 +75,10 @@ int CertDatabase::AddUserCert(X509Certificate* cert_obj) {
                                NULL);
   if (!slot) {
     LOG(ERROR) << "Couldn't import user certificate.";
-    return ERR_ERR_ADD_USER_CERT_FAILED;
+    return ERR_ADD_USER_CERT_FAILED;
   }
   PK11_FreeSlot(slot);
   return OK;
-}
-
-void CertDatabase::Init() {
-  base::EnsureNSSInit();
 }
 
 }  // namespace net

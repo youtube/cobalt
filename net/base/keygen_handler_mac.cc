@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -88,6 +88,11 @@ static OSStatus SignData(CSSM_DATA data,
                          CSSM_DATA* signature);
 
 
+bool KeygenHandler::KeyLocation::Equals(
+    const KeygenHandler::KeyLocation& location) const {
+  return keychain_path == location.keychain_path;
+}
+
 std::string KeygenHandler::GenKeyAndSignChallenge() {
   std::string result;
   OSStatus err;
@@ -154,7 +159,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     base::Base64Encode(input, &result);
   }
 
-failure:
+ failure:
   if (err) {
     LOG(ERROR) << "SSL Keygen failed! OSStatus = " << err;
   } else {
@@ -199,7 +204,7 @@ static OSStatus CreateRSAKeyPair(int size_in_bits,
       CSSM_KEYUSE_ENCRYPT | CSSM_KEYUSE_VERIFY | CSSM_KEYUSE_WRAP,
       CSSM_KEYATTR_EXTRACTABLE | CSSM_KEYATTR_PERMANENT,
       // private key usage and attributes:
-      CSSM_KEYUSE_DECRYPT | CSSM_KEYUSE_SIGN | CSSM_KEYUSE_UNWRAP,                               // private key
+      CSSM_KEYUSE_DECRYPT | CSSM_KEYUSE_SIGN | CSSM_KEYUSE_UNWRAP,
       CSSM_KEYATTR_EXTRACTABLE | CSSM_KEYATTR_PERMANENT |
           CSSM_KEYATTR_SENSITIVE,
       NULL,
