@@ -288,7 +288,7 @@
           '$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework/Frameworks',
         ],
         'conditions': [
-          [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd"', {
+          [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"', {
               'sources/': [
                 ['exclude', '/xdg_user_dirs/'],
                 ['exclude', '_nss\.cc$'],
@@ -588,7 +588,7 @@
         },
       ],
     }],
-    [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+    [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
       'targets': [
         {
           'target_name': 'symbolize',
@@ -596,6 +596,14 @@
           'variables': {
             'chromium_code': 0,
           },
+          'conditions': [
+            [ 'OS == "solaris"', {
+              'include_dirs': [
+                '/usr/gnu/include',
+                '/usr/gnu/include/libelf',
+              ],
+            },],
+          ],
           'cflags': [
             '-Wno-sign-compare',
           ],
