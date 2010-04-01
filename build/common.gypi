@@ -689,7 +689,7 @@
     },
   },
   'conditions': [
-    ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+    ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
       'target_defaults': {
         # Enable -Werror by default, but put it in a variable so it can
         # be disabled in ~/.gyp/include.gypi on the valgrind builders.
@@ -996,6 +996,10 @@
         ],
       },
     }],
+    ['OS=="solaris"', {
+      'cflags!': ['-fvisibility=hidden'],
+      'cflags_cc!': ['-fvisibility-inlines-hidden'],
+    }],
     ['OS=="mac"', {
       'target_defaults': {
         'variables': {
@@ -1170,8 +1174,7 @@
         },
       },
     }],
-    # Disable native client on FreeBSD/OpenBSD for now
-    ['disable_nacl==1 or OS=="freebsd" or OS=="openbsd"', {
+    ['disable_nacl==1 or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
       'target_defaults': {
         'defines': [
           'DISABLE_NACL',
