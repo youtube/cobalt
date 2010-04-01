@@ -1,13 +1,15 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_CERT_DATABASE_H_
 #define NET_BASE_CERT_DATABASE_H_
 
-#include "net/base/x509_certificate.h"
+#include "base/basictypes.h"
 
 namespace net {
+
+class X509Certificate;
 
 // This class provides functions to manipulate the local
 // certificate store.
@@ -30,7 +32,6 @@ class CertDatabase {
   int AddUserCert(X509Certificate* cert);
 
  private:
-  void Init();
   DISALLOW_COPY_AND_ASSIGN(CertDatabase);
 };
 
