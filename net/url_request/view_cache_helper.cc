@@ -163,7 +163,7 @@ void ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
       data->assign(FormatEntryDetails(entry));
       entry->Close();
     } else {
-      data->assign("no matching cache entry for: " + key);
+      data->assign("no matching cache entry for: " + EscapeForHTML(key));
     }
   }
 }
