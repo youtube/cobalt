@@ -44,9 +44,6 @@ class NetworkChangeNotifierLinux
   // recv() would block.  Otherwise, it returns a net error code.
   int ReadNotificationMessage(char* buf, size_t len);
 
-  // Handles the netlink message and notifies the observers.
-  void HandleNotifications(const char* buf, size_t len);
-
   ObserverList<Observer, true> observers_;
 
   int netlink_fd_;  // This is the netlink socket descriptor.
