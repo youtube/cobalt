@@ -76,6 +76,7 @@
         'base/https_prober.cc',
         'base/io_buffer.cc',
         'base/io_buffer.h',
+        'base/keygen_handler.cc',
         'base/keygen_handler.h',
         'base/keygen_handler_mac.cc',
         'base/keygen_handler_nss.cc',
@@ -737,10 +738,6 @@
           ],
         }],
         [ 'OS == "win"', {
-            'sources!': [
-              # Remove next line when KeygenHandler is implemented for Windows.
-              'base/keygen_handler_unittest.cc',
-            ],
             # This is needed to trigger the dll copy step on windows.
             # TODO(mark): Specifying this here shouldn't be necessary.
             'dependencies': [
