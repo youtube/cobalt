@@ -64,10 +64,15 @@ class WebSocketThrottleTest : public PlatformTest {
   static void MockSocketStreamConnect(
       SocketStream* socket, struct addrinfo* head) {
     socket->CopyAddrInfo(head);
-    // Add reference to socket as done in SocketStream::Connect().
-    // Balanced with Release() in SocketStream::Finish() which will be
-    // called by SocketStream::DetachDelegate().
-    socket->AddRef();
+    // In SocketStream::Connect(), it adds reference to socket, which is
+    // balanced with SocketStream::Finish() that is finally called from
+    // SocketStream::Close() or SocketStream::DetachDelegate(), when
+    // next_state_ is not STATE_NONE.
+    // If next_state_ is STATE_NONE, SocketStream::Close() or
+    // SocketStream::DetachDelegate() won't call SocketStream::Finish(),
+    // so Release() won't be called.  Thus, we don't need socket->AddRef()
+    // here.
+    DCHECK_EQ(socket->next_state_, SocketStream::STATE_NONE);
   }
 };
 
@@ -271,6 +276,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   w4->OnClose(s4.get());
   s4->DetachDelegate();
   DLOG(INFO) << "Done";
+  MessageLoopForIO::current()->RunAllPending();
 }
 
 }
