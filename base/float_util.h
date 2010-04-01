@@ -10,6 +10,10 @@
 #include <float.h>
 #include <math.h>
 
+#if defined(OS_SOLARIS)
+#include <ieeefp.h>
+#endif
+
 namespace base {
 
 inline bool IsFinite(const double& number) {

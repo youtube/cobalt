@@ -32,6 +32,14 @@ struct kinfo_proc;
 #include "base/file_path.h"
 #include "base/process.h"
 
+#ifndef NAME_MAX  // Solaris and some BSDs have no NAME_MAX
+#ifdef MAXNAMLEN
+#define NAME_MAX MAXNAMLEN
+#else
+#define NAME_MAX 256
+#endif
+#endif
+
 #if defined(OS_WIN)
 typedef PROCESSENTRY32 ProcessEntry;
 typedef IO_COUNTERS IoCounters;
