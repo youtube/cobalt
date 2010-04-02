@@ -37,8 +37,6 @@
 extern char** environ;
 #endif
 
-const int kMicrosecondsPerSecond = 1000000;
-
 namespace base {
 
 namespace {
@@ -46,9 +44,9 @@ namespace {
 int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
                        bool* success) {
   // This POSIX version of this function only guarantees that we wait no less
-  // than |wait_milliseconds| for the proces to exit.  The child process may
-  // exit sometime before the timeout has ended but we may still block for
-  // up to 0.25 seconds after the fact.
+  // than |wait_milliseconds| for the process to exit.  The child process may
+  // exit sometime before the timeout has ended but we may still block for up
+  // to 256 milliseconds after the fact.
   //
   // waitpid() has no direct support on POSIX for specifying a timeout, you can
   // either ask it to block indefinitely or return immediately (WNOHANG).
@@ -58,7 +56,9 @@ int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
   //
   // Our strategy is to call waitpid() once up front to check if the process
   // has already exited, otherwise to loop for wait_milliseconds, sleeping for
-  // at most 0.25 secs each time using usleep() and then calling waitpid().
+  // at most 256 milliseconds each time using usleep() and then calling
+  // waitpid().  The amount of time we sleep starts out at 1 milliseconds, and
+  // we double it every 4 sleep cycles.
   //
   // usleep() is speced to exit if a signal is received for which a handler
   // has been installed.  This means that when a SIGCHLD is sent, it will exit
@@ -68,26 +68,32 @@ int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
   // the application itself it would probably be best to examine other routes.
   int status = -1;
   pid_t ret_pid = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
-  static const int64 kQuarterSecondInMicroseconds = kMicrosecondsPerSecond / 4;
+  static const int64 kMaxSleepInMicroseconds = 1 << 18;  // ~256 milliseconds.
+  int64 max_sleep_time_usecs = 1 << 10;  // ~1 milliseconds.
+  int64 double_sleep_time = 0;
 
   // If the process hasn't exited yet, then sleep and try again.
-  Time wakeup_time = Time::Now() + TimeDelta::FromMilliseconds(
-      wait_milliseconds);
+  Time wakeup_time = Time::Now() +
+      TimeDelta::FromMilliseconds(wait_milliseconds);
   while (ret_pid == 0) {
     Time now = Time::Now();
     if (now > wakeup_time)
       break;
     // Guaranteed to be non-negative!
     int64 sleep_time_usecs = (wakeup_time - now).InMicroseconds();
-    // Don't sleep for more than 0.25 secs at a time.
-    if (sleep_time_usecs > kQuarterSecondInMicroseconds) {
-      sleep_time_usecs = kQuarterSecondInMicroseconds;
-    }
+    // Sleep for a bit while we wait for the process to finish.
+    if (sleep_time_usecs > max_sleep_time_usecs)
+      sleep_time_usecs = max_sleep_time_usecs;
 
     // usleep() will return 0 and set errno to EINTR on receipt of a signal
     // such as SIGCHLD.
     usleep(sleep_time_usecs);
     ret_pid = HANDLE_EINTR(waitpid(handle, &status, WNOHANG));
+
+    if ((max_sleep_time_usecs < kMaxSleepInMicroseconds) &&
+        (double_sleep_time++ % 4 == 0)) {
+      max_sleep_time_usecs *= 2;
+    }
   }
 
   if (success)
@@ -737,7 +743,11 @@ bool CrashAwareSleep(ProcessHandle handle, int64 wait_milliseconds) {
 }
 
 int64 TimeValToMicroseconds(const struct timeval& tv) {
-  return tv.tv_sec * kMicrosecondsPerSecond + tv.tv_usec;
+  static const int kMicrosecondsPerSecond = 1000000;
+  int64 ret = tv.tv_sec;  // Avoid (int * int) integer overflow.
+  ret *= kMicrosecondsPerSecond;
+  ret += tv.tv_usec;
+  return ret;
 }
 
 // Executes the application specified by |cl| and wait for it to exit. Stores
