@@ -20,13 +20,17 @@ void DeleteCache(const FilePath& path, bool remove_folder) {
                                  /* recursive */ false,
                                  file_util::FileEnumerator::FILES);
   for (FilePath file = iter.Next(); !file.value().empty(); file = iter.Next()) {
-    if (!file_util::Delete(file, /* recursive */ false))
-      NOTREACHED();
+    if (!file_util::Delete(file, /* recursive */ false)) {
+      LOG(WARNING) << "Unable to delete cache.";
+      return;
+    }
   }
 
   if (remove_folder) {
-    if (!file_util::Delete(path, /* recursive */ false))
-      NOTREACHED();
+    if (!file_util::Delete(path, /* recursive */ false)) {
+      LOG(WARNING) << "Unable to delete cache folder.";
+      return;
+    }
   }
 }
 
