@@ -478,6 +478,26 @@ bool SpdyFramer::ParseHeaderBlock(const SpdyFrame* frame,
   return false;
 }
 
+/* static */
+bool SpdyFramer::ParseSettings(const SpdySettingsControlFrame* frame,
+                               SpdySettings* settings) {
+  DCHECK_EQ(frame->type(), SETTINGS);
+  DCHECK(settings);
+
+  SpdyFrameBuilder parser(frame->header_block(), frame->header_block_len());
+  void* iter = NULL;
+  for (size_t index = 0; index < frame->num_entries(); ++index) {
+    uint32 id;
+    uint32 value;
+    if (!parser.ReadUInt32(&iter, &id))
+      return false;
+    if (!parser.ReadUInt32(&iter, &value))
+      return false;
+    settings->insert(settings->end(), std::make_pair(id, value));
+  }
+  return true;
+}
+
 SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
     SpdyStreamId stream_id, SpdyStreamId associated_stream_id, int priority,
     SpdyControlFlags flags, bool compressed, SpdyHeaderBlock* headers) {
@@ -535,6 +555,25 @@ SpdyGoAwayControlFrame* SpdyFramer::CreateGoAway(
   frame.WriteUInt32(go_away_size);
   frame.WriteUInt32(last_accepted_stream_id);
   return reinterpret_cast<SpdyGoAwayControlFrame*>(frame.take());
+}
+
+/* static */
+SpdySettingsControlFrame* SpdyFramer::CreateSettings(
+    const SpdySettings& values) {
+  SpdyFrameBuilder frame;
+  frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
+  frame.WriteUInt16(SETTINGS);
+  size_t settings_size = SpdySettingsControlFrame::size() - SpdyFrame::size() +
+      8 * values.size();
+  frame.WriteUInt32(settings_size);
+  frame.WriteUInt32(values.size());
+  SpdySettings::const_iterator it = values.begin();
+  while (it != values.end()) {
+    frame.WriteUInt32(it->first.id_);
+    frame.WriteUInt32(it->second);
+    ++it;
+  }
+  return reinterpret_cast<SpdySettingsControlFrame*>(frame.take());
 }
 
 SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(SpdyStreamId stream_id,

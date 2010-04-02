@@ -10,6 +10,7 @@
 #else
 #include <arpa/inet.h>
 #endif
+#include <list>
 #include <map>
 #include <string>
 
@@ -39,6 +40,9 @@ void FramerSetEnableCompressionHelper(SpdyFramer* framer, bool compress);
 // A datastructure for holding a set of headers from either a
 // SYN_STREAM or SYN_REPLY frame.
 typedef std::map<std::string, std::string> SpdyHeaderBlock;
+
+// A datastructure for holding a set of ID/value pairs for a SETTINGS frame.
+typedef std::list<std::pair<spdy::SettingsFlagsAndId, uint32> > SpdySettings;
 
 // SpdyFramerVisitorInterface is a set of callbacks for the SpdyFramer.
 // Implement this interface to receive event callbacks as frames are
@@ -154,6 +158,16 @@ class SpdyFramer {
   // to completion.
   static SpdyGoAwayControlFrame* CreateGoAway(
       SpdyStreamId last_accepted_stream_id);
+
+  // Creates an instance of SpdySettingsControlFrame. The SETTINGS frame is
+  // used to communicate name/value pairs relevant to the communication channel.
+  // TODO(mbelshe): add the name/value pairs!!
+  static SpdySettingsControlFrame* CreateSettings(const SpdySettings& values);
+
+  // Given a SpdySettingsControlFrame, extract the settings.
+  // Returns true on successful parse, false otherwise.
+  static bool ParseSettings(const SpdySettingsControlFrame* frame,
+      SpdySettings* settings);
 
   // Create a SpdySynReplyControlFrame.
   // |stream_id| is the stream for this frame.
