@@ -19,6 +19,9 @@ const unsigned int kPriorityMask = 0xc0;
 // Mask the lower 24 bits.
 const unsigned int kLengthMask = 0xffffff;
 
+// Mask the Id from a SETTINGS id.
+const unsigned int kSettingsIdMask = 0xffffff;
+
 }  // namespace spdy
 
 #endif  // NET_SPDY_SPDY_BITMASKS_H_

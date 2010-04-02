@@ -9,26 +9,30 @@
 #include "net/spdy/spdy_framer.h"
 #include "testing/platform_test.h"
 
-using spdy::SpdyDataFrame;
-using spdy::SpdyFrame;
-using spdy::SpdyControlFrame;
-using spdy::SpdyControlType;
-using spdy::SpdyGoAwayControlFrame;
-using spdy::SpdySynStreamControlFrame;
-using spdy::SpdySynReplyControlFrame;
-using spdy::SpdyRstStreamControlFrame;
-using spdy::SpdyFramer;
-using spdy::SpdyHeaderBlock;
-using spdy::FlagsAndLength;
-using spdy::kLengthMask;
-using spdy::kStreamIdMask;
-using spdy::kSpdyProtocolVersion;
-using spdy::GOAWAY;
-using spdy::SYN_STREAM;
-using spdy::SYN_REPLY;
-using spdy::RST_STREAM;
 using spdy::CONTROL_FLAG_FIN;
 using spdy::CONTROL_FLAG_NONE;
+using spdy::GOAWAY;
+using spdy::RST_STREAM;
+using spdy::SETTINGS;
+using spdy::SYN_REPLY;
+using spdy::SYN_STREAM;
+using spdy::FlagsAndLength;
+using spdy::SpdyControlFrame;
+using spdy::SpdyControlType;
+using spdy::SpdyDataFrame;
+using spdy::SpdyFrame;
+using spdy::SpdyFramer;
+using spdy::SpdyHeaderBlock;
+using spdy::SpdyGoAwayControlFrame;
+using spdy::SpdyRstStreamControlFrame;
+using spdy::SpdySettings;
+using spdy::SpdySettingsControlFrame;
+using spdy::SpdySynReplyControlFrame;
+using spdy::SpdySynStreamControlFrame;
+using spdy::SettingsFlagsAndId;
+using spdy::kLengthMask;
+using spdy::kSpdyProtocolVersion;
+using spdy::kStreamIdMask;
 
 namespace {
 
@@ -41,10 +45,12 @@ TEST(SpdyProtocolTest, ProtocolConstants) {
   EXPECT_EQ(14u, SpdySynReplyControlFrame::size());
   EXPECT_EQ(16u, SpdyRstStreamControlFrame::size());
   EXPECT_EQ(12u, SpdyGoAwayControlFrame::size());
+  EXPECT_EQ(12u, SpdySettingsControlFrame::size());
   EXPECT_EQ(4u, sizeof(FlagsAndLength));
   EXPECT_EQ(1, SYN_STREAM);
   EXPECT_EQ(2, SYN_REPLY);
   EXPECT_EQ(3, RST_STREAM);
+  EXPECT_EQ(4, SETTINGS);
   EXPECT_EQ(7, GOAWAY);
 }
 
@@ -158,6 +164,53 @@ TEST(SpdyProtocolTest, TestDataFrame) {
   EXPECT_EQ(length, frame.length());
 }
 
+// Test various types of SETTINGS frames.
+TEST(SpdyProtocolTest, TestSpdySettingsFrame) {
+  SpdyFramer framer;
+
+  // Create a settings frame with no settings.
+  SpdySettings settings;
+  scoped_ptr<SpdySettingsControlFrame> settings_frame(
+      framer.CreateSettings(settings));
+  EXPECT_EQ(kSpdyProtocolVersion, settings_frame->version());
+  EXPECT_TRUE(settings_frame->is_control_frame());
+  EXPECT_EQ(SETTINGS, settings_frame->type());
+  EXPECT_EQ(0u, settings_frame->num_entries());
+
+  // We'll add several different ID/Flag combinations and then verify
+  // that they encode and decode properly.
+  SettingsFlagsAndId ids[] = {
+    0x00000000,
+    0xffffffff,
+    0xff000001,
+    0x01000002,
+  };
+
+  for (size_t index = 0; index < arraysize(ids); ++index) {
+    settings.insert(settings.end(), std::make_pair(ids[index], index));
+    settings_frame.reset(framer.CreateSettings(settings));
+    EXPECT_EQ(kSpdyProtocolVersion, settings_frame->version());
+    EXPECT_TRUE(settings_frame->is_control_frame());
+    EXPECT_EQ(SETTINGS, settings_frame->type());
+    EXPECT_EQ(index + 1, settings_frame->num_entries());
+
+    SpdySettings parsed_settings;
+    EXPECT_TRUE(framer.ParseSettings(settings_frame.get(), &parsed_settings));
+    EXPECT_EQ(parsed_settings.size(), settings.size());
+    SpdySettings::const_iterator it = parsed_settings.begin();
+    int pos = 0;
+    while (it != parsed_settings.end()) {
+      SettingsFlagsAndId parsed = it->first;
+      uint32 value = it->second;
+      EXPECT_EQ(parsed.flags(), ids[pos].flags());
+      EXPECT_EQ(parsed.id(), ids[pos].id());
+      EXPECT_EQ(value, static_cast<uint32>(pos));
+      ++it;
+      ++pos;
+    }
+  }
+}
+
 // Make sure that overflows both die in debug mode, and do not cause problems
 // in opt mode.  Note:  The EXPECT_DEBUG_DEATH call does not work on Win32 yet,
 // so we comment it out.
@@ -232,8 +285,5 @@ TEST(SpdyProtocolDeathTest, TestSpdyControlFrameType) {
     EXPECT_TRUE(frame.is_control_frame());
   }
 }
-
-
-
 
 }  // namespace
