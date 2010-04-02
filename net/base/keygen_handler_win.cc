@@ -85,7 +85,7 @@ bool EncodeChallenge(const std::string& challenge, std::vector<BYTE>* output) {
   CERT_NAME_VALUE challenge_nv;
   challenge_nv.dwValueType = CERT_RDN_IA5_STRING;
   challenge_nv.Value.pbData = const_cast<BYTE*>(
-      reinterpret_cast<const BYTE*>(challenge.c_str()));
+      reinterpret_cast<const BYTE*>(challenge.data()));
   challenge_nv.Value.cbData = challenge.size();
 
   return EncodeAndAppendType(X509_ANY_STRING, &challenge_nv, output);

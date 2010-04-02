@@ -229,13 +229,13 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
   }
 
   if (publicKey) {
-    PK11_DestroyTokenObject(publicKey->pkcs11Slot, publicKey->pkcs11ID);
+    if (!isSuccess || !stores_key_) {
+      PK11_DestroyTokenObject(publicKey->pkcs11Slot, publicKey->pkcs11ID);
+    }
+    SECKEY_DestroyPublicKey(publicKey);
   }
   if (spkInfo) {
     SECKEY_DestroySubjectPublicKeyInfo(spkInfo);
-  }
-  if (publicKey) {
-    SECKEY_DestroyPublicKey(publicKey);
   }
   if (arena) {
     PORT_FreeArena(arena, PR_TRUE);
