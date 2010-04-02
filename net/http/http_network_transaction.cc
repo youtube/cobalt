@@ -1056,6 +1056,8 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
         http_stream_.reset(new HttpBasicStream(connection_.get(), net_log_));
         headers_valid_ = false;
         establishing_tunnel_ = false;
+        // TODO(mbelshe): We should put in a test case to trip this code path.
+        response_ = HttpResponseInfo();
         return OK;
 
       // We aren't able to CONNECT to the remote host through the proxy.  We
