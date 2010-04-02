@@ -73,11 +73,11 @@ TEST(KeygenHandlerTest, Cache) {
   std::string key1("abcd");
   cache->Insert(key1, location1);
 
-  // The cache should have stored location1 at key1
+  // The cache should have stored location1 at key1.
   EXPECT_TRUE(cache->Find(key1, &location2));
 
   // The cache should have retrieved it into location2, and their equality
-  // should be reflexive
+  // should be reflexive.
   EXPECT_TRUE(location1.Equals(location2));
   EXPECT_TRUE(location2.Equals(location1));
 
@@ -85,11 +85,11 @@ TEST(KeygenHandlerTest, Cache) {
   KeygenHandler::KeyLocation location3 = ValidKeyLocation();
   EXPECT_FALSE(location1.Equals(location2));
 
-  // The cache should miss for an unregistered key
+  // The cache should miss for an unregistered key.
   std::string key2("def");
   EXPECT_FALSE(cache->Find(key2, &location2));
 
-  // A cache miss should leave the original location unmolested
+  // A cache miss should leave the original location unmolested.
   EXPECT_TRUE(location2.Equals(location3));
 }
 
