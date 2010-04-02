@@ -45,10 +45,6 @@ class HttpAuthFilterWhitelist : public HttpAuthFilter {
   // |server_whitelist| is parsed by ProxyBypassRules.
   void SetWhitelist(const std::string& server_whitelist);
 
-  // Updates the whitelist rules, from the command line and (on that platform)
-  // the Windows registry.  May be called periodically.
-  void UpdateRegistryWhitelist();
-
   // Adds an individual URL |filter| to the list, of the specified |target|.
   bool AddFilter(const std::string& filter, HttpAuth::Target target);
 
@@ -58,8 +54,6 @@ class HttpAuthFilterWhitelist : public HttpAuthFilter {
   const ProxyBypassRules& rules() const { return rules_; }
 
  private:
-  std::string extra_whitelist_entries_;
-
   // We are using ProxyBypassRules because they have the functionality that we
   // want, but we are not using it for proxy bypass.
   ProxyBypassRules rules_;
