@@ -452,7 +452,13 @@ void FFmpegDemuxer::InitializeTask(DataSource* data_source,
     callback->Run();
     return;
   }
-
+  if (max_duration.InMicroseconds() == 0 &&
+      format_context_->duration != static_cast<int64_t>(AV_NOPTS_VALUE)) {
+    // If we could not obtain duration from an A/V stream, and file duration
+    // has been set: use the file duration as |max_duration|.
+    const AVRational av_time_base = {1, AV_TIME_BASE};
+    max_duration = ConvertTimestamp(av_time_base, format_context_->duration);
+  }
   // Good to go: set the duration and notify we're done initializing.
   host()->SetDuration(max_duration);
   callback->Run();
