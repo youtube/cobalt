@@ -70,13 +70,13 @@
 //  |        Status code (32 bits)     |
 //  +----------------------------------+
 //
-//  Control Frame: HELLO
+//  Control Frame: SETTINGS
 //  +----------------------------------+
 //  |1|000000000000001|0000000000000100|
 //  +----------------------------------+
 //  | flags (8)  |  Length (24 bits)   |
 //  +----------------------------------+
-//  |     Unused     |# of entries (16)|
+//  |        # of entries (32)         |
 //  +----------------------------------+
 //
 //  Control Frame: NOOP
@@ -118,7 +118,7 @@ enum SpdyControlType {
   SYN_STREAM = 1,
   SYN_REPLY,
   RST_STREAM,
-  HELLO,
+  SETTINGS,
   NOOP,
   PING,
   GOAWAY,
@@ -126,7 +126,7 @@ enum SpdyControlType {
   NUM_CONTROL_FRAME_TYPES
 };
 
-// Flags on data packets
+// Flags on data packets.
 enum SpdyDataFlags {
   DATA_FLAG_NONE = 0,
   DATA_FLAG_FIN = 1,
@@ -138,6 +138,26 @@ enum SpdyControlFlags {
   CONTROL_FLAG_NONE = 0,
   CONTROL_FLAG_FIN = 1,
   CONTROL_FLAG_UNIDIRECTIONAL = 2
+};
+
+// Flags on the SETTINGS control frame.
+enum SpdySettingsControlFlags {
+  SETTINGS_FLAG_CLEAR_PREVIOUSLY_PERSISTED_SETTINGS = 0x1
+};
+
+// Flags for settings within a SETTINGS frame.
+enum SpdySettingsFlags {
+  SETTINGS_FLAG_PLEASE_PERSIST = 0x1,
+  SETTINGS_FLAG_PERSISTED = 0x2
+};
+
+// List of known settings.
+enum SpdySettingsIds {
+  SETTINGS_UPLOAD_BANDWIDTH = 0x1,
+  SETTINGS_DOWNLOAD_BANDWIDTH = 0x2,
+  SETTINGS_ROUND_TRIP_TIME = 0x3,
+  SETTINGS_MAX_CONCURRENT_STREAMS = 0x4,
+  SETTINGS_CURRENT_CWND = 0x5
 };
 
 // Status codes, as used in control frames (primarily RST_STREAM).
@@ -209,9 +229,25 @@ struct SpdyRstStreamControlFrameBlock : SpdyFrameBlock {
   uint32 status_;
 };
 
-// A GOAWAY Control Frame structure
+// A GOAWAY Control Frame structure.
 struct SpdyGoAwayControlFrameBlock : SpdyFrameBlock {
   SpdyStreamId last_accepted_stream_id_;
+};
+
+// A structure for the 8 bit flags and 24 bit ID fields.
+union SettingsFlagsAndId {
+  uint8 flags_[4];  // 8 bits
+  uint32 id_;       // 24 bits
+
+  SettingsFlagsAndId(uint32 val) : id_(val) {};
+  uint8 flags() const { return flags_[0]; }
+  uint32 id() const { return (ntohl(id_) & kSettingsIdMask); };
+};
+
+// A SETTINGS Control Frame structure.
+struct SpdySettingsControlFrameBlock : SpdyFrameBlock {
+  uint32 num_entries_;
+  // Variable data here.
 };
 
 #pragma pack(pop)
@@ -508,6 +544,42 @@ class SpdyGoAwayControlFrame : public SpdyControlFrame {
     return static_cast<SpdyGoAwayControlFrameBlock*>(frame_);
   }
   DISALLOW_COPY_AND_ASSIGN(SpdyGoAwayControlFrame);
+};
+
+class SpdySettingsControlFrame : public SpdyControlFrame {
+ public:
+  SpdySettingsControlFrame() : SpdyControlFrame(size()) {}
+  SpdySettingsControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+
+  SpdyStreamId num_entries() const {
+    return ntohl(block()->num_entries_);
+  }
+
+  void set_num_entries(int val) {
+    mutable_block()->num_entries_ = htonl(val);
+  }
+
+  int header_block_len() const {
+    return length() - (size() - SpdyFrame::size());
+  }
+
+  const char* header_block() const {
+    return reinterpret_cast<const char*>(block()) + size();
+  }
+
+  // Returns the size of the SpdySettingsControlFrameBlock structure.
+  // Note: this is not the size of the SpdySettingsControlFrameBlock class.
+  static size_t size() { return sizeof(SpdySettingsControlFrameBlock); }
+
+ private:
+  const struct SpdySettingsControlFrameBlock* block() const {
+    return static_cast<SpdySettingsControlFrameBlock*>(frame_);
+  }
+  struct SpdySettingsControlFrameBlock* mutable_block() {
+    return static_cast<SpdySettingsControlFrameBlock*>(frame_);
+  }
+  DISALLOW_COPY_AND_ASSIGN(SpdySettingsControlFrame);
 };
 
 }  // namespace spdy
