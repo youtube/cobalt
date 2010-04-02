@@ -10,6 +10,7 @@
 #include "base/scoped_comptr_win.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
+#include "net/http/http_auth_filter.h"
 
 // The Windows implementation of URLSecurityManager uses WinINet/IE's
 // URL security zone manager.  See the MSDN page "URL Security Zones" at
@@ -20,7 +21,7 @@ namespace net {
 
 class URLSecurityManagerWin : public URLSecurityManager {
  public:
-  URLSecurityManagerWin();
+  explicit URLSecurityManagerWin(const HttpAuthFilter* whitelist);
 
   // URLSecurityManager methods:
   virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const;
@@ -29,7 +30,8 @@ class URLSecurityManagerWin : public URLSecurityManager {
   ScopedComPtr<IInternetSecurityManager> security_manager_;
 };
 
-URLSecurityManagerWin::URLSecurityManagerWin() {
+URLSecurityManagerWin::URLSecurityManagerWin(const HttpAuthFilter* whitelist)
+    : URLSecurityManager(whitelist) {
   HRESULT hr = CoInternetCreateSecurityManager(NULL,
                                                security_manager_.Receive(),
                                                NULL);
@@ -39,6 +41,10 @@ URLSecurityManagerWin::URLSecurityManagerWin() {
 
 bool URLSecurityManagerWin::CanUseDefaultCredentials(
     const GURL& auth_origin) const {
+  // The whitelist overrides everything, if it exists.
+  if (whitelist_)
+    return whitelist_->IsValid(auth_origin, HttpAuth::AUTH_SERVER);
+
   if (!security_manager_) {
     NOTREACHED();  // The code in the constructor failed.
     return false;
@@ -94,8 +100,9 @@ bool URLSecurityManagerWin::CanUseDefaultCredentials(
 }
 
 // static
-URLSecurityManager* URLSecurityManager::Create() {
-  return new URLSecurityManagerWin;
+URLSecurityManager* URLSecurityManager::Create(
+    const HttpAuthFilter* whitelist) {
+  return new URLSecurityManagerWin(whitelist);
 }
 
 }  //  namespace net
