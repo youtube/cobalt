@@ -383,6 +383,12 @@
                 },
               },
             ],
+            [ 'linux_use_tcmalloc==1', {
+                'dependencies': [
+                  'allocator/allocator.gyp:allocator',
+                ],
+              },
+            ],
             [ 'OS == "linux"', {
               'link_settings': {
                 'libraries': [
