@@ -170,14 +170,6 @@
             'file_version_info_unittest.cc',
             'worker_pool_linux_unittest.cc',
           ],
-          'conditions': [
-            [ 'linux_use_tcmalloc==1', {
-                'dependencies': [
-                  'allocator/allocator.gyp:allocator',
-                ],
-              },
-            ],
-          ],
           'dependencies': [
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:nss',
