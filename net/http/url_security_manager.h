@@ -9,6 +9,8 @@ class GURL;
 
 namespace net {
 
+class HttpAuthFilter;
+
 // The URL security manager controls the policies (allow, deny, prompt user)
 // regarding URL actions (e.g., sending the default credentials to a server).
 //
@@ -19,14 +21,19 @@ namespace net {
 // keys.
 class URLSecurityManager {
  public:
+  // The UrlSecurityManager does not take ownership of the HttpAuthFilter.
+  explicit URLSecurityManager(const HttpAuthFilter* whitelist);
   virtual ~URLSecurityManager() {}
 
   // Creates a platform-dependent instance of URLSecurityManager.
-  static URLSecurityManager* Create();
+  static URLSecurityManager* Create(const HttpAuthFilter* whitelist);
 
   // Returns true if we can send the default credentials to the server at
   // |auth_origin| for HTTP NTLM or Negotiate authentication.
   virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const = 0;
+
+ protected:
+  const HttpAuthFilter* whitelist_;
 };
 
 }  // namespace net

@@ -369,6 +369,7 @@
         'http/http_transaction.h',
         'http/http_transaction_factory.h',
         'http/url_security_manager.h',
+        'http/url_security_manager.cc',
         'http/url_security_manager_posix.cc',
         'http/url_security_manager_win.cc',
         'http/http_util.cc',

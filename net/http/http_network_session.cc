@@ -58,8 +58,10 @@ HttpNetworkSession::~HttpNetworkSession() {
 URLSecurityManager* HttpNetworkSession::GetURLSecurityManager() {
   // Create the URL security manager lazily in the first call.
   // This is called on a single thread.
-  if (!url_security_manager_.get())
-    url_security_manager_.reset(URLSecurityManager::Create());
+  if (!url_security_manager_.get()) {
+    url_security_manager_.reset(
+        URLSecurityManager::Create(http_auth_handler_factory_->filter()));
+  }
   return url_security_manager_.get();
 }
 
