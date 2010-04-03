@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -13,8 +13,11 @@
 #include <sys/inotify.h>
 #include <unistd.h>
 
+#include <map>
+
 #include "base/file_path.h"
 #include "base/file_util.h"
+#include "base/linux_util.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_tokenizer.h"
@@ -78,7 +81,7 @@ bool ProxyConfigServiceLinux::Delegate::GetProxyFromEnvVarForScheme(
     const char* variable, ProxyServer::Scheme scheme,
     ProxyServer* result_server) {
   std::string env_value;
-  if (env_var_getter_->Getenv(variable, &env_value)) {
+  if (env_var_getter_->GetEnv(variable, &env_value)) {
     if (!env_value.empty()) {
       env_value = FixupProxyHostScheme(scheme, env_value);
       ProxyServer proxy_server =
@@ -106,7 +109,7 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
   // extension has ever used this, but it still sounds like a good
   // idea.
   std::string auto_proxy;
-  if (env_var_getter_->Getenv("auto_proxy", &auto_proxy)) {
+  if (env_var_getter_->GetEnv("auto_proxy", &auto_proxy)) {
     if (auto_proxy.empty()) {
       // Defined and empty => autodetect
       config->set_auto_detect(true);
@@ -146,7 +149,7 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
     // If the above were not defined, try for socks.
     ProxyServer::Scheme scheme = ProxyServer::SCHEME_SOCKS4;
     std::string env_version;
-    if (env_var_getter_->Getenv("SOCKS_VERSION", &env_version)
+    if (env_var_getter_->GetEnv("SOCKS_VERSION", &env_version)
         && env_version == "5")
       scheme = ProxyServer::SCHEME_SOCKS5;
     if (GetProxyFromEnvVarForScheme("SOCKS_SERVER", scheme, &proxy_server)) {
@@ -156,7 +159,7 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromEnv(ProxyConfig* config) {
   }
   // Look for the proxy bypass list.
   std::string no_proxy;
-  env_var_getter_->Getenv("no_proxy", &no_proxy);
+  env_var_getter_->GetEnv("no_proxy", &no_proxy);
   if (config->proxy_rules().empty()) {
     // Having only "no_proxy" set, presumably to "*", makes it
     // explicit that env vars do specify a configuration: having no
@@ -408,15 +411,14 @@ class GConfSettingGetterImplKDE
     : public ProxyConfigServiceLinux::GConfSettingGetter,
       public base::MessagePumpLibevent::Watcher {
  public:
-  explicit GConfSettingGetterImplKDE(
-      base::EnvironmentVariableGetter* env_var_getter)
+  explicit GConfSettingGetterImplKDE(base::EnvVarGetter* env_var_getter)
       : inotify_fd_(-1), notify_delegate_(NULL), indirect_manual_(false),
         auto_no_pac_(false), reversed_exception_(false), file_loop_(NULL) {
     // We don't save the env var getter for later use since we don't own it.
     // Instead we use it here and save the result we actually care about.
     std::string kde_home;
-    if (!env_var_getter->Getenv("KDE_HOME", &kde_home)) {
-      if (!env_var_getter->Getenv("HOME", &kde_home))
+    if (!env_var_getter->GetEnv("KDE_HOME", &kde_home)) {
+      if (!env_var_getter->GetEnv("HOME", &kde_home))
         // User has no $HOME? Give up. Later we'll report the failure.
         return;
       kde_home = FilePath(kde_home).Append(FILE_PATH_LITERAL(".kde")).value();
@@ -961,8 +963,7 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   return true;
 }
 
-ProxyConfigServiceLinux::Delegate::Delegate(
-    base::EnvironmentVariableGetter* env_var_getter)
+ProxyConfigServiceLinux::Delegate::Delegate(base::EnvVarGetter* env_var_getter)
     : env_var_getter_(env_var_getter),
       glib_default_loop_(NULL), io_loop_(NULL) {
   // Figure out which GConfSettingGetterImpl to use, if any.
@@ -980,8 +981,7 @@ ProxyConfigServiceLinux::Delegate::Delegate(
   }
 }
 
-ProxyConfigServiceLinux::Delegate::Delegate(
-    base::EnvironmentVariableGetter* env_var_getter,
+ProxyConfigServiceLinux::Delegate::Delegate(base::EnvVarGetter* env_var_getter,
     GConfSettingGetter* gconf_getter)
     : env_var_getter_(env_var_getter), gconf_getter_(gconf_getter),
       glib_default_loop_(NULL), io_loop_(NULL) {
@@ -1119,16 +1119,16 @@ void ProxyConfigServiceLinux::Delegate::OnDestroy() {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux()
-    : delegate_(new Delegate(base::EnvironmentVariableGetter::Create())) {
+    : delegate_(new Delegate(base::EnvVarGetter::Create())) {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
-    base::EnvironmentVariableGetter* env_var_getter)
+    base::EnvVarGetter* env_var_getter)
     : delegate_(new Delegate(env_var_getter)) {
 }
 
 ProxyConfigServiceLinux::ProxyConfigServiceLinux(
-    base::EnvironmentVariableGetter* env_var_getter,
+    base::EnvVarGetter* env_var_getter,
     GConfSettingGetter* gconf_getter)
     : delegate_(new Delegate(env_var_getter, gconf_getter)) {
 }
