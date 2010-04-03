@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,12 +31,12 @@ class SysInfo {
   static int64 AmountOfFreeDiskSpace(const FilePath& path);
 
   // Return true if the given environment variable is defined.
-  // TODO: find a better place for HasEnvVar.
+  // DEPRECATED in favor of EnvVarGetter in base/env_var.h.
   static bool HasEnvVar(const wchar_t* var);
 
   // Return the value of the given environment variable
   // or an empty string if not defined.
-  // TODO: find a better place for GetEnvVar.
+  // DEPRECATED in favor of EnvVarGetter in base/env_var.h.
   static std::wstring GetEnvVar(const wchar_t* var);
 
   // Returns the name of the host operating system.
