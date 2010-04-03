@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,6 +8,7 @@
 
 #include <unistd.h>
 
+#include "base/env_var.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/linux_util.h"
@@ -62,8 +63,7 @@ bool PathProviderPosix(int key, FilePath* result) {
                  << "Try running from your chromium/src directory.";
       return false;
     case base::DIR_USER_CACHE:
-      scoped_ptr<base::EnvironmentVariableGetter> env(
-          base::EnvironmentVariableGetter::Create());
+      scoped_ptr<base::EnvVarGetter> env(base::EnvVarGetter::Create());
       FilePath cache_dir(base::GetXDGDirectory(env.get(), "XDG_CACHE_HOME",
                                                ".cache"));
       *result = cache_dir;

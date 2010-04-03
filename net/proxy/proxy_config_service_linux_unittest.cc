@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -77,9 +77,9 @@ struct SettingsTable {
   map_type settings;
 };
 
-class MockEnvironmentVariableGetter : public base::EnvironmentVariableGetter {
+class MockEnvVarGetter : public base::EnvVarGetter {
  public:
-  MockEnvironmentVariableGetter() {
+  MockEnvVarGetter() {
 #define ENTRY(x) table.settings[#x] = &values.x
     ENTRY(DESKTOP_SESSION);
     ENTRY(KDE_HOME);
@@ -101,7 +101,7 @@ class MockEnvironmentVariableGetter : public base::EnvironmentVariableGetter {
     values = zero_values;
   }
 
-  virtual bool Getenv(const char* variable_name, std::string* result) {
+  virtual bool GetEnv(const char* variable_name, std::string* result) {
     const char* env_value = table.Get(variable_name);
     if (env_value) {
       // Note that the variable may be defined but empty.
@@ -576,8 +576,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
                               tests[i].description.c_str()));
-    MockEnvironmentVariableGetter* env_getter =
-        new MockEnvironmentVariableGetter;
+    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
     MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
     SynchConfigGetter sync_config_getter(
         new ProxyConfigServiceLinux(env_getter, gconf_getter));
@@ -844,8 +843,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
                               tests[i].description.c_str()));
-    MockEnvironmentVariableGetter* env_getter =
-        new MockEnvironmentVariableGetter;
+    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
     MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
     SynchConfigGetter sync_config_getter(
         new ProxyConfigServiceLinux(env_getter, gconf_getter));
@@ -861,8 +859,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
 }
 
 TEST_F(ProxyConfigServiceLinuxTest, GconfNotification) {
-  MockEnvironmentVariableGetter* env_getter =
-      new MockEnvironmentVariableGetter;
+  MockEnvVarGetter* env_getter = new MockEnvVarGetter;
   MockGConfSettingGetter* gconf_getter = new MockGConfSettingGetter;
   ProxyConfigServiceLinux* service =
       new ProxyConfigServiceLinux(env_getter, gconf_getter);
@@ -1166,8 +1163,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SCOPED_TRACE(StringPrintf("Test[%" PRIuS "] %s", i,
                               tests[i].description.c_str()));
-    MockEnvironmentVariableGetter* env_getter =
-        new MockEnvironmentVariableGetter;
+    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
     // Force the KDE getter to be used and tell it where the test is.
     env_getter->values.DESKTOP_SESSION = "kde4";
     env_getter->values.KDE_HOME = kde_home_.value().c_str();
