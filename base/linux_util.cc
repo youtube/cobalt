@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/env_var.h"
 #include "base/lock.h"
 #include "base/path_service.h"
 #include "base/process_util.h"
@@ -22,36 +23,6 @@
 #include "base/third_party/xdg_user_dirs/xdg_user_dir_lookup.h"
 
 namespace {
-
-class EnvironmentVariableGetterImpl
-    : public base::EnvironmentVariableGetter {
- public:
-  virtual bool Getenv(const char* variable_name, std::string* result) {
-    const char* env_value = ::getenv(variable_name);
-    if (env_value) {
-      // Note that the variable may be defined but empty.
-      *result = env_value;
-      return true;
-    }
-    // Some commonly used variable names are uppercase while others
-    // are lowercase, which is inconsistent. Let's try to be helpful
-    // and look for a variable name with the reverse case.
-    char first_char = variable_name[0];
-    std::string alternate_case_var;
-    if (first_char >= 'a' && first_char <= 'z')
-      alternate_case_var = StringToUpperASCII(std::string(variable_name));
-    else if (first_char >= 'A' && first_char <= 'Z')
-      alternate_case_var = StringToLowerASCII(std::string(variable_name));
-    else
-      return false;
-    env_value = ::getenv(alternate_case_var.c_str());
-    if (env_value) {
-      *result = env_value;
-      return true;
-    }
-    return false;
-  }
-};
 
 // Not needed for OS_CHROMEOS.
 #if defined(OS_LINUX)
@@ -148,7 +119,7 @@ bool ProcPathGetInode(ino_t* inode_out, const char* path, bool log = false) {
   return true;
 }
 
-}  // anonymous namespace
+}  // namespace
 
 namespace base {
 
@@ -181,9 +152,9 @@ std::string linux_distro =
     "Unknown";
 #endif
 
-FilePath GetHomeDir(EnvironmentVariableGetter* env) {
+FilePath GetHomeDir(EnvVarGetter* env) {
   std::string home_dir;
-  if (env->Getenv("HOME", &home_dir) && !home_dir.empty())
+  if (env->GetEnv("HOME", &home_dir) && !home_dir.empty())
     return FilePath(home_dir);
 
   home_dir = g_get_home_dir();
@@ -236,16 +207,16 @@ std::string GetLinuxDistro() {
 #endif
 }
 
-FilePath GetXDGDirectory(EnvironmentVariableGetter* env,
-                         const char* env_name, const char* fallback_dir) {
+FilePath GetXDGDirectory(EnvVarGetter* env, const char* env_name,
+                         const char* fallback_dir) {
   std::string env_value;
-  if (env->Getenv(env_name, &env_value) && !env_value.empty())
+  if (env->GetEnv(env_name, &env_value) && !env_value.empty())
     return FilePath(env_value);
   return GetHomeDir(env).Append(fallback_dir);
 }
 
-FilePath GetXDGUserDirectory(EnvironmentVariableGetter* env,
-                             const char* dir_name, const char* fallback_dir) {
+FilePath GetXDGUserDirectory(EnvVarGetter* env, const char* dir_name,
+                             const char* fallback_dir) {
   char* xdg_dir = xdg_user_dir_lookup(dir_name);
   if (xdg_dir) {
     FilePath rv(xdg_dir);
@@ -255,22 +226,16 @@ FilePath GetXDGUserDirectory(EnvironmentVariableGetter* env,
   return GetHomeDir(env).Append(fallback_dir);
 }
 
-// static
-EnvironmentVariableGetter* EnvironmentVariableGetter::Create() {
-  return new EnvironmentVariableGetterImpl();
-}
-
-DesktopEnvironment GetDesktopEnvironment(EnvironmentVariableGetter* env) {
+DesktopEnvironment GetDesktopEnvironment(EnvVarGetter* env) {
   std::string desktop_session;
-  if (env->Getenv("DESKTOP_SESSION", &desktop_session)) {
+  if (env->GetEnv("DESKTOP_SESSION", &desktop_session)) {
     if (desktop_session == "gnome")
       return DESKTOP_ENVIRONMENT_GNOME;
     else if (desktop_session == "kde4")
       return DESKTOP_ENVIRONMENT_KDE4;
     else if (desktop_session == "kde") {
       // This may mean KDE4 on newer systems, so we have to check.
-      std::string dummy;
-      if (env->Getenv("KDE_SESSION_VERSION", &dummy))
+      if (env->HasEnv("KDE_SESSION_VERSION"))
         return DESKTOP_ENVIRONMENT_KDE4;
       return DESKTOP_ENVIRONMENT_KDE3;
     }
@@ -280,11 +245,10 @@ DesktopEnvironment GetDesktopEnvironment(EnvironmentVariableGetter* env) {
 
   // Fall back on some older environment variables.
   // Useful particularly in the DESKTOP_SESSION=default case.
-  std::string dummy;
-  if (env->Getenv("GNOME_DESKTOP_SESSION_ID", &dummy)) {
+  if (env->HasEnv("GNOME_DESKTOP_SESSION_ID")) {
     return DESKTOP_ENVIRONMENT_GNOME;
-  } else if (env->Getenv("KDE_FULL_SESSION", &dummy)) {
-    if (env->Getenv("KDE_SESSION_VERSION", &dummy))
+  } else if (env->HasEnv("KDE_FULL_SESSION")) {
+    if (env->HasEnv("KDE_SESSION_VERSION"))
       return DESKTOP_ENVIRONMENT_KDE4;
     return DESKTOP_ENVIRONMENT_KDE3;
   }
@@ -308,7 +272,7 @@ const char* GetDesktopEnvironmentName(DesktopEnvironment env) {
   return NULL;
 }
 
-const char* GetDesktopEnvironmentName(EnvironmentVariableGetter* env) {
+const char* GetDesktopEnvironmentName(EnvVarGetter* env) {
   return GetDesktopEnvironmentName(GetDesktopEnvironment(env));
 }
 
