@@ -554,6 +554,11 @@ TEST(NetUtilTest, GetIdentityFromURL) {
       L"username",
       L"p@ssword",
     },
+    { // Special URL characters should be unescaped.
+      "http://username:p%3fa%26s%2fs%23@google.com",
+      L"username",
+      L"p?a&s/s#",
+    },
     { // Username contains %20.
       "http://use rname:password@google.com",
       L"use rname",
