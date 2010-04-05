@@ -13,6 +13,7 @@
 #include <list>
 #include <map>
 #include <string>
+#include <utility>
 
 #include "base/basictypes.h"
 #include "base/logging.h"
