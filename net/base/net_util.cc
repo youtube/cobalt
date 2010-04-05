@@ -1278,7 +1278,8 @@ std::string GetHostName() {
 void GetIdentityFromURL(const GURL& url,
                         std::wstring* username,
                         std::wstring* password) {
-  UnescapeRule::Type flags = UnescapeRule::SPACES;
+  UnescapeRule::Type flags =
+      UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS;
   *username = UTF16ToWideHack(UnescapeAndDecodeUTF8URLComponent(url.username(),
                                                                 flags, NULL));
   *password = UTF16ToWideHack(UnescapeAndDecodeUTF8URLComponent(url.password(),
