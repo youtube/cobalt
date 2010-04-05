@@ -462,6 +462,8 @@ SECStatus RetryPKIXVerifyCertWithWorkarounds(
     int new_nss_error = PORT_GetError();
     if (new_nss_error == SEC_ERROR_INVALID_ARGS ||
         new_nss_error == SEC_ERROR_UNKNOWN_AIA_LOCATION_TYPE ||
+        new_nss_error == SEC_ERROR_BAD_HTTP_RESPONSE ||
+        new_nss_error == SEC_ERROR_BAD_LDAP_RESPONSE ||
         !IS_SEC_ERROR(new_nss_error)) {
       // Use the original error code because of cert_pi_useAIACertFetch's
       // bad error reporting.

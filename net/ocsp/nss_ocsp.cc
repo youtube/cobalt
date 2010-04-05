@@ -97,6 +97,11 @@ class OCSPInitSingleton : public MessageLoop::DestructionObserver {
       : io_loop_(MessageLoopForIO::current()) {
     DCHECK(io_loop_);
     io_loop_->AddDestructionObserver(this);
+
+    // NSS calls the functions in the function table to download certificates
+    // or CRLs or talk to OCSP responders over HTTP.  These functions must
+    // set an NSS/NSPR error code when they fail.  Otherwise NSS will get the
+    // residual error code from an earlier failed function call.
     client_fcn_.version = 1;
     SEC_HttpClientFcnV1Struct *ft = &client_fcn_.fcnTable.ftable1;
     ft->createSessionFcn = OCSPCreateSession;
@@ -421,8 +426,10 @@ class OCSPServerSession {
     // We dont' support "https" because we haven't thought about
     // whether it's safe to re-enter this code from talking to an OCSP
     // responder over SSL.
-    if (strcmp(http_protocol_variant, "http") != 0)
+    if (strcmp(http_protocol_variant, "http") != 0) {
+      PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
       return NULL;
+    }
 
     // TODO(ukai): If |host| is an IPv6 literal, we need to quote it with
     //  square brackets [].
@@ -455,6 +462,10 @@ SECStatus OCSPCreateSession(const char* host, PRUint16 portnum,
   DCHECK(!MessageLoop::current());
   if (OCSPInitSingleton::url_request_context() == NULL) {
     LOG(ERROR) << "No URLRequestContext for OCSP handler.";
+    // The application failed to call SetURLRequestContextForOCSP, so we
+    // can't create and use URLRequest.  PR_NOT_IMPLEMENTED_ERROR is not an
+    // accurate error code for this error condition, but is close enough.
+    PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
     return SECFailure;
   }
   *pSession = new OCSPServerSession(host, portnum);
@@ -532,20 +543,21 @@ SECStatus OCSPAddHeader(SEC_HTTP_REQUEST_SESSION request,
 // It is helper routine for OCSP trySendAndReceiveFcn.
 // |http_response_data_len| could be used as input parameter.  If it has
 // non-zero value, it is considered as maximum size of |http_response_data|.
-bool OCSPSetResponse(OCSPRequestSession* req,
-                     PRUint16* http_response_code,
-                     const char** http_response_content_type,
-                     const char** http_response_headers,
-                     const char** http_response_data,
-                     PRUint32* http_response_data_len) {
+SECStatus OCSPSetResponse(OCSPRequestSession* req,
+                          PRUint16* http_response_code,
+                          const char** http_response_content_type,
+                          const char** http_response_headers,
+                          const char** http_response_data,
+                          PRUint32* http_response_data_len) {
   DCHECK(req->Finished());
   const std::string& data = req->http_response_data();
   if (http_response_data_len && *http_response_data_len) {
     if (*http_response_data_len < data.size()) {
-      LOG(ERROR) << "data size too large: " << *http_response_data_len
+      LOG(ERROR) << "response body too large: " << *http_response_data_len
                  << " < " << data.size();
       *http_response_data_len = data.size();
-      return false;
+      PORT_SetError(SEC_ERROR_BAD_HTTP_RESPONSE);
+      return SECFailure;
     }
   }
   LOG(INFO) << "OCSP response "
@@ -563,7 +575,7 @@ bool OCSPSetResponse(OCSPRequestSession* req,
     *http_response_data = data.data();
   if (http_response_data_len)
     *http_response_data_len = data.size();
-  return true;
+  return SECSuccess;
 }
 
 SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
@@ -599,7 +611,7 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
       http_response_content_type,
       http_response_headers,
       http_response_data,
-      http_response_data_len) ? SECSuccess : SECFailure;
+      http_response_data_len);
 
  failed:
   if (http_response_data_len) {
@@ -607,6 +619,7 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
     // means the failure was unrelated to the acceptable response data length.
     *http_response_data_len = 0;
   }
+  PORT_SetError(SEC_ERROR_BAD_HTTP_RESPONSE);  // Simple approximation.
   return SECFailure;
 }
 
