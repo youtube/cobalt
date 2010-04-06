@@ -1,11 +1,11 @@
 #!/bin/sh
 
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2010 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
-# Helper script to run dump_syms on Chrome Linux executables and "fixup" the
-# generated sigs (due to changes to the binary from stripping).
+# Helper script to run dump_syms on Chrome Linux executables and strip
+# them if needed.
 
 set -e
 
@@ -22,29 +22,15 @@ fi
 
 SCRIPTDIR="$(readlink -f "$(dirname "$0")")"
 DUMPSYMS="$1"
-KEEP_STRIPPED_BINARY="$2"
+STRIP_BINARY="$2"
 INFILE="$3"
 OUTFILE="$4"
-
-STRIPPED=$(mktemp -q -t stripped-XXXXX)
-if [ $? -ne 0 ]; then
-  echo "ERROR: Could not create temp stripped '$INFILE'" >&2
-  exit 1
-fi
 
 # Dump the symbols from the given binary.
 if [ ! -e "$OUTFILE" -o "$INFILE" -nt "$OUTFILE" ]; then
   "$DUMPSYMS" "$INFILE" > "$OUTFILE"
 fi
 
-# Strip the binary and calculate the signature of that, since that's what ships.
-strip "$INFILE" -o "$STRIPPED"
-NEWSIG=$("$SCRIPTDIR/dump_signature.py" "$STRIPPED")
-if [ "$KEEP_STRIPPED_BINARY" != "0" ]; then
-  mv "$STRIPPED" "$INFILE"
-else
-  rm "$STRIPPED"
+if [ "$STRIP_BINARY" != "0" ]; then
+  strip "$INFILE"
 fi
-
-# Replace the old signature with the stripped signature in the symbols file.
-sed -i "1s/ [0-9A-F]* / $NEWSIG /" "$OUTFILE"
