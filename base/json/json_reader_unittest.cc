@@ -468,23 +468,30 @@ TEST(JSONReaderTest, Reading) {
 TEST(JSONReaderTest, ErrorMessages) {
   // Error strings should not be modified in case of success.
   std::string error_message;
+  int error_code = 0;
   scoped_ptr<Value> root;
-  root.reset(JSONReader::ReadAndReturnError("[42]", false, &error_message));
+  root.reset(JSONReader::ReadAndReturnError("[42]", false,
+                                            &error_code, &error_message));
   EXPECT_TRUE(error_message.empty());
+  EXPECT_EQ(0, error_code);
 
   // Test line and column counting
   const char* big_json = "[\n0,\n1,\n2,\n3,4,5,6 7,\n8,\n9\n]";
   // error here --------------------------------^
-  root.reset(JSONReader::ReadAndReturnError(big_json, false, &error_message));
+  root.reset(JSONReader::ReadAndReturnError(big_json, false,
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(5, 9, JSONReader::kSyntaxError),
             error_message);
+  EXPECT_EQ(JSONReader::JSON_SYNTAX_ERROR, error_code);
 
   // Test each of the error conditions
-  root.reset(JSONReader::ReadAndReturnError("{},{}", false, &error_message));
+  root.reset(JSONReader::ReadAndReturnError("{},{}", false,
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 3,
       JSONReader::kUnexpectedDataAfterRoot), error_message);
+  EXPECT_EQ(JSONReader::JSON_UNEXPECTED_DATA_AFTER_ROOT, error_code);
 
   std::string nested_json;
   for (int i = 0; i < 101; ++i) {
@@ -492,56 +499,66 @@ TEST(JSONReaderTest, ErrorMessages) {
     nested_json.append(1, ']');
   }
   root.reset(JSONReader::ReadAndReturnError(nested_json, false,
-                                            &error_message));
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 101, JSONReader::kTooMuchNesting),
             error_message);
+  EXPECT_EQ(JSONReader::JSON_TOO_MUCH_NESTING, error_code);
 
-  root.reset(JSONReader::ReadAndReturnError("42", false, &error_message));
+  root.reset(JSONReader::ReadAndReturnError("42", false,
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 1,
       JSONReader::kBadRootElementType), error_message);
+  EXPECT_EQ(JSONReader::JSON_BAD_ROOT_ELEMENT_TYPE, error_code);
 
-  root.reset(JSONReader::ReadAndReturnError("[1,]", false, &error_message));
+  root.reset(JSONReader::ReadAndReturnError("[1,]", false,
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 4, JSONReader::kTrailingComma),
             error_message);
+  EXPECT_EQ(JSONReader::JSON_TRAILING_COMMA, error_code);
 
   root.reset(JSONReader::ReadAndReturnError("{foo:\"bar\"}", false,
-                                            &error_message));
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 2,
       JSONReader::kUnquotedDictionaryKey), error_message);
+  EXPECT_EQ(JSONReader::JSON_UNQUOTED_DICTIONARY_KEY, error_code);
 
   root.reset(JSONReader::ReadAndReturnError("{\"foo\":\"bar\",}", false,
-                                            &error_message));
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 14, JSONReader::kTrailingComma),
             error_message);
 
-  root.reset(JSONReader::ReadAndReturnError("[nu]", false, &error_message));
+  root.reset(JSONReader::ReadAndReturnError("[nu]", false,
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 2, JSONReader::kSyntaxError),
             error_message);
+  EXPECT_EQ(JSONReader::JSON_SYNTAX_ERROR, error_code);
 
   root.reset(JSONReader::ReadAndReturnError("[\"xxx\\xq\"]", false,
-                                            &error_message));
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 7, JSONReader::kInvalidEscape),
             error_message);
+  EXPECT_EQ(JSONReader::JSON_INVALID_ESCAPE, error_code);
 
   root.reset(JSONReader::ReadAndReturnError("[\"xxx\\uq\"]", false,
-                                            &error_message));
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 7, JSONReader::kInvalidEscape),
             error_message);
+  EXPECT_EQ(JSONReader::JSON_INVALID_ESCAPE, error_code);
 
   root.reset(JSONReader::ReadAndReturnError("[\"xxx\\q\"]", false,
-                                            &error_message));
+                                            &error_code, &error_message));
   EXPECT_FALSE(root.get());
   EXPECT_EQ(JSONReader::FormatErrorMessage(1, 7, JSONReader::kInvalidEscape),
             error_message);
-
+  EXPECT_EQ(JSONReader::JSON_INVALID_ESCAPE, error_code);
 }
 
 }  // namespace base
