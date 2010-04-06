@@ -78,6 +78,24 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
   base::CloseProcessHandle(handle);
 }
 
+TEST_F(ProcessUtilTest, DidProcessCrash) {
+  remove("SlowChildProcess.die");
+  ProcessHandle handle = this->SpawnChild(L"SlowChildProcess");
+  ASSERT_NE(base::kNullProcessHandle, handle);
+
+  bool child_exited = true;
+  EXPECT_FALSE(base::DidProcessCrash(&child_exited, handle));
+  EXPECT_FALSE(child_exited);
+
+  FILE *fp = fopen("SlowChildProcess.die", "w");
+  fclose(fp);
+  EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
+
+  EXPECT_FALSE(base::DidProcessCrash(&child_exited, handle));
+
+  base::CloseProcessHandle(handle);
+}
+
 // Ensure that the priority of a process is restored correctly after
 // backgrounding and restoring.
 // Note: a platform may not be willing or able to lower the priority of

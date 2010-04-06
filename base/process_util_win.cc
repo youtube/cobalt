@@ -318,18 +318,32 @@ bool KillProcess(ProcessHandle process, int exit_code, bool wait) {
 bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
   DWORD exitcode = 0;
 
-  if (child_exited)
-    *child_exited = true;  // On Windows it an error to call this function if
-                           // the child hasn't already exited.
   if (!::GetExitCodeProcess(handle, &exitcode)) {
     NOTREACHED();
+    // Assume the child has exited.
+    if (child_exited)
+      *child_exited = true;
     return false;
   }
   if (exitcode == STILL_ACTIVE) {
-    // The process is likely not dead or it used 0x103 as exit code.
+    DWORD wait_result = WaitForSingleObject(handle, 0);
+    if (wait_result == WAIT_TIMEOUT) {
+      if (child_exited)
+        *child_exited = false;
+      return false;
+    }
+
+    DCHECK_EQ(WAIT_OBJECT_0, wait_result);
+
+    // Strange, the process used 0x103 (STILL_ACTIVE) as exit code.
     NOTREACHED();
+
     return false;
   }
+
+  // We're sure the child has exited.
+  if (child_exited)
+    *child_exited = true;
 
   // Warning, this is not generic code; it heavily depends on the way
   // the rest of the code kills a process.
