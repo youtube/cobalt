@@ -58,9 +58,10 @@ void JsonDoubleQuoteT(const STR& str,
   for (typename STR::const_iterator it = str.begin(); it != str.end(); ++it) {
     typename ToUnsigned<typename STR::value_type>::Unsigned c = *it;
     if (!JsonSingleEscapeChar(c, dst)) {
-      if (c < 32 || c > 126) {
-        // Technically, we could also pass through c > 126 as UTF8, but this is
-        // also optional.  It would also be a pain to implement here.
+      if (c < 32 || c > 126 || c == '<' || c == '>') {
+        // 1. Escaping <, > to prevent script execution.
+        // 2. Technically, we could also pass through c > 126 as UTF8, but this
+        //    is also optional.  It would also be a pain to implement here.
         unsigned int as_uint = static_cast<unsigned int>(c);
         StringAppendF(dst, "\\u%04X", as_uint);
       } else {
