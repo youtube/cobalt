@@ -1,6 +1,6 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.  Use of this
-// source code is governed by a BSD-style license that can be found in the
-// LICENSE file.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // VideoRendererBase creates its own thread for the sole purpose of timing frame
 // presentation.  It handles reading from the decoder and stores the results in
@@ -73,6 +73,10 @@ class VideoRendererBase : public VideoRenderer,
   // Implementors should avoid doing any sort of heavy work in this method and
   // instead post a task to a common/worker thread to handle rendering.  Slowing
   // down the video thread may result in losing synchronization with audio.
+  //
+  // IMPORTANT: This method is called on the video renderer thread, which is
+  // different from the thread OnInitialize(), OnStop(), and the rest of the
+  // class executes on.
   virtual void OnFrameAvailable() = 0;
 
  private:
