@@ -60,7 +60,8 @@ function start(location) {
 
 function onListingParsingError() {
   var box = document.getElementById("listingParsingErrorBox");
-  box.innerHTML = box.innerHTML.replace("LOCATION", document.location + "?raw");
+  box.innerHTML = box.innerHTML.replace("LOCATION", encodeURI(document.location)
+      + "?raw");
   box.style.display = "";
 }
 </script>
