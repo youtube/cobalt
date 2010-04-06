@@ -18,6 +18,7 @@ const struct json_narrow_test_data {
   {"a\b\f\n\r\t\v\1\\.\"z",
       "a\\b\\f\\n\\r\\t\\u000B\\u0001\\\\.\\\"z"},
   {"b\x0f\x7f\xf0\xff!", "b\\u000F\\u007F\\u00F0\\u00FF!"},
+  {"c<>d", "c\\u003C\\u003Ed"},
 };
 
 }  // namespace
@@ -62,6 +63,7 @@ const struct json_wide_test_data {
   {L"a\b\f\n\r\t\v\1\\.\"z",
       "a\\b\\f\\n\\r\\t\\u000B\\u0001\\\\.\\\"z"},
   {L"b\x0f\x7f\xf0\xff!", "b\\u000F\\u007F\\u00F0\\u00FF!"},
+  {L"c<>d", "c\\u003C\\u003Ed"},
 };
 
 }  // namespace
