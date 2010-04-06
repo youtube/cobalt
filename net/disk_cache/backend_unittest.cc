@@ -1559,32 +1559,51 @@ TEST_F(DiskCacheTest, MultipleInstances) {
   }
 }
 
-// Test the four regions of the curve that determines the max cache size.
+// Test the six regions of the curve that determines the max cache size.
 TEST_F(DiskCacheTest, AutomaticMaxSize) {
   const int kDefaultSize = 80 * 1024 * 1024;
   int64 large_size = kDefaultSize;
+  int64 largest_size = kint32max;
 
-  EXPECT_EQ(kDefaultSize, disk_cache::PreferedCacheSize(large_size));
-  EXPECT_EQ((kDefaultSize / 2) * 8 / 10,
-            disk_cache::PreferedCacheSize(large_size / 2));
+  // Region 1: expected = available * 0.8
+  EXPECT_EQ((kDefaultSize - 1) * 8 / 10,
+            disk_cache::PreferedCacheSize(large_size - 1));
+  EXPECT_EQ(kDefaultSize * 8 / 10,
+            disk_cache::PreferedCacheSize(large_size));
+  EXPECT_EQ(kDefaultSize - 1,
+            disk_cache::PreferedCacheSize(large_size * 10 / 8 - 1));
 
-  EXPECT_EQ(kDefaultSize, disk_cache::PreferedCacheSize(large_size * 2));
-  EXPECT_EQ(kDefaultSize, disk_cache::PreferedCacheSize(large_size * 4));
-  EXPECT_EQ(kDefaultSize, disk_cache::PreferedCacheSize(large_size * 10));
+  // Region 2: expected = default_size
+  EXPECT_EQ(kDefaultSize,
+            disk_cache::PreferedCacheSize(large_size * 10 / 8));
+  EXPECT_EQ(kDefaultSize,
+            disk_cache::PreferedCacheSize(large_size * 10 - 1));
 
-  EXPECT_EQ(kDefaultSize * 2, disk_cache::PreferedCacheSize(large_size * 20));
-  EXPECT_EQ(kDefaultSize * 5 / 2,
-            disk_cache::PreferedCacheSize(large_size * 50 / 2));
+  // Region 3: expected = available * 0.1
+  EXPECT_EQ(kDefaultSize,
+            disk_cache::PreferedCacheSize(large_size * 10));
+  EXPECT_EQ((kDefaultSize * 25 - 1) / 10,
+            disk_cache::PreferedCacheSize(large_size * 25 - 1));
 
-  EXPECT_EQ(kDefaultSize * 5 / 2,
-            disk_cache::PreferedCacheSize(large_size * 51 / 2));
-  EXPECT_EQ(kDefaultSize * 5 / 2,
-            disk_cache::PreferedCacheSize(large_size * 100 / 2));
-  EXPECT_EQ(kDefaultSize * 5 / 2,
-            disk_cache::PreferedCacheSize(large_size * 500 / 2));
+  // Region 4: expected = default_size * 2.5
+  EXPECT_EQ(kDefaultSize * 25 / 10,
+            disk_cache::PreferedCacheSize(large_size * 25));
+  EXPECT_EQ(kDefaultSize * 25 / 10,
+            disk_cache::PreferedCacheSize(large_size * 100 - 1));
+  EXPECT_EQ(kDefaultSize * 25 / 10,
+            disk_cache::PreferedCacheSize(large_size * 100));
+  EXPECT_EQ(kDefaultSize * 25 / 10,
+            disk_cache::PreferedCacheSize(large_size * 250 - 1));
 
-  EXPECT_EQ(kDefaultSize * 6 / 2,
-            disk_cache::PreferedCacheSize(large_size * 600 / 2));
-  EXPECT_EQ(kDefaultSize * 7 / 2,
-            disk_cache::PreferedCacheSize(large_size * 700 / 2));
+  // Region 5: expected = available * 0.1
+  EXPECT_EQ(kDefaultSize * 25 / 10,
+            disk_cache::PreferedCacheSize(large_size * 250));
+  EXPECT_EQ(kint32max - 1,
+            disk_cache::PreferedCacheSize(largest_size * 100 - 1));
+
+  // Region 6: expected = kint32max
+  EXPECT_EQ(kint32max,
+            disk_cache::PreferedCacheSize(largest_size * 100));
+  EXPECT_EQ(kint32max,
+            disk_cache::PreferedCacheSize(largest_size * 10000));
 }

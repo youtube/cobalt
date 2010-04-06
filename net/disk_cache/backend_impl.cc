@@ -183,30 +183,33 @@ int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
   return *backend ? net::OK : net::ERR_FAILED;
 }
 
+// Returns the preferred maximum number of bytes for the cache given the
+// number of available bytes.
 int PreferedCacheSize(int64 available) {
-  // If there is not enough space to use kDefaultCacheSize, use 80% of the
-  // available space.
-  if (available < kDefaultCacheSize)
+  // Return 80% of the available space if there is not enough space to use
+  // kDefaultCacheSize.
+  if (available < kDefaultCacheSize * 10 / 8)
     return static_cast<int32>(available * 8 / 10);
 
-  // Don't use more than 10% of the available space.
-  if (available < 10 * kDefaultCacheSize)
+  // Return kDefaultCacheSize if it uses 80% to 10% of the available space.
+  if (available < kDefaultCacheSize * 10)
     return kDefaultCacheSize;
 
-  // Use 10% of the free space until we reach 2.5 * kDefaultCacheSize.
+  // Return 10% of the available space if the target size
+  // (2.5 * kDefaultCacheSize) is more than 10%.
   if (available < static_cast<int64>(kDefaultCacheSize) * 25)
     return static_cast<int32>(available / 10);
 
-  // After reaching our target size (2.5 * kDefaultCacheSize), attempt to use
-  // 1% of the availabe space.
-  if (available < static_cast<int64>(kDefaultCacheSize) * 100)
+  // Return the target size (2.5 * kDefaultCacheSize) if it uses 10% to 1%
+  // of the available space.
+  if (available < static_cast<int64>(kDefaultCacheSize) * 250)
     return kDefaultCacheSize * 5 / 2;
 
-  int64 one_percent = available / 100;
-  if (one_percent > kint32max)
-    return kint32max;
+  // Return 1% of the available space if it does not exceed kint32max.
+  if (available < static_cast<int64>(kint32max) * 100)
+    return static_cast<int32>(available / 100);
 
-  return static_cast<int32>(one_percent);
+  return kint32max;
 }
 
 // ------------------------------------------------------------------------
