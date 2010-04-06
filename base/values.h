@@ -431,9 +431,11 @@ class ValueSerializer {
 
   // This method deserializes the subclass-specific format into a Value object.
   // If the return value is non-NULL, the caller takes ownership of returned
-  // Value. If the return value is NULL, and if error_message is non-NULL,
-  // error_message should be filled with a message describing the error.
-  virtual Value* Deserialize(std::string* error_message) = 0;
+  // Value. If the return value is NULL, and if error_code is non-NULL,
+  // error_code will be set with the underlying error.
+  // If |error_message| is non-null, it will be filled in with a formatted
+  // error message including the location of the error if appropriate.
+  virtual Value* Deserialize(int* error_code, std::string* error_str) = 0;
 };
 
 #endif  // BASE_VALUES_H_
