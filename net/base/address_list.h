@@ -1,11 +1,9 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef NET_BASE_ADDRESS_LIST_H_
 #define NET_BASE_ADDRESS_LIST_H_
-
-#include <string>
 
 #include "base/ref_counted.h"
 
@@ -47,13 +45,6 @@ class AddressList {
   // If |src| already has the desired port this operation is cheap (just adds
   // a reference to |src|'s data.) Otherwise we will make a copy.
   void SetFrom(const AddressList& src, int port);
-
-  // Gets the canonical name for the address.
-  // If the canonical name exists, |*canonical_name| is filled in with the
-  // value and true is returned. If it does not exist, |*canonical_name| is
-  // not altered and false is returned.
-  // |canonical_name| must be a non-null value.
-  bool GetCanonicalName(std::string* canonical_name) const;
 
   // Clears all data from this address list. This leaves the list in the same
   // empty state as when first constructed.

@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -73,8 +73,7 @@ class CapturingHostResolverProc : public HostResolverProc {
  public:
   struct CaptureEntry {
     CaptureEntry(const std::string& hostname, AddressFamily address_family)
-        : hostname(hostname),
-          address_family(address_family) {}
+        : hostname(hostname), address_family(address_family) {}
     std::string hostname;
     AddressFamily address_family;
   };
@@ -91,15 +90,13 @@ class CapturingHostResolverProc : public HostResolverProc {
 
   virtual int Resolve(const std::string& hostname,
                       AddressFamily address_family,
-                      HostResolverFlags host_resolver_flags,
                       AddressList* addrlist) {
     event_.Wait();
     {
       AutoLock l(lock_);
       capture_list_.push_back(CaptureEntry(hostname, address_family));
     }
-    return ResolveUsingPrevious(hostname, address_family,
-                                host_resolver_flags, addrlist);
+    return ResolveUsingPrevious(hostname, address_family, addrlist);
   }
 
   CaptureList GetCaptureList() const {
@@ -137,7 +134,6 @@ class EchoingHostResolverProc : public HostResolverProc {
 
   virtual int Resolve(const std::string& hostname,
                       AddressFamily address_family,
-                      HostResolverFlags host_resolver_flags,
                       AddressList* addrlist) {
     // Encode the request's hostname and address_family in the output address.
     std::string ip_literal = StringPrintf("192.%d.%d.%d",
@@ -147,7 +143,6 @@ class EchoingHostResolverProc : public HostResolverProc {
 
     return SystemHostResolverProc(ip_literal,
                                   ADDRESS_FAMILY_UNSPECIFIED,
-                                  host_resolver_flags,
                                   addrlist);
   }
 };
@@ -1495,8 +1490,6 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_Synchronous) {
   EXPECT_EQ("192.1.98.1", NetAddressToString(addrlist[2].head()));
   EXPECT_EQ("192.1.98.1", NetAddressToString(addrlist[3].head()));
 }
-
-// TODO(cbentzel): Test a mix of requests with different HostResolverFlags.
 
 }  // namespace
 
