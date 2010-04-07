@@ -677,6 +677,21 @@ TEST_F(FtpNetworkTransactionTest, FailedLookup) {
   EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
 }
 
+// Check that when determining the host, the square brackets decorating IPv6
+// literals in URLs are stripped.
+TEST_F(FtpNetworkTransactionTest, StripBracketsFromIPv6Literals) {
+  host_resolver_->rules()->AddSimulatedFailure("[::1]");
+
+  // We start a transaction that is expected to fail with ERR_INVALID_RESPONSE.
+  // The important part of this test is to make sure that we don't fail with
+  // ERR_NAME_NOT_RESOLVED, since that would mean the decorated hostname
+  // was used.
+  FtpSocketDataProviderEvilSize ctrl_socket(
+      "213 99999999999999999999999999999999\r\n",
+      FtpSocketDataProvider::PRE_QUIT);
+  ExecuteTransaction(&ctrl_socket, "ftp://[::1]/file", ERR_INVALID_RESPONSE);
+}
+
 TEST_F(FtpNetworkTransactionTest, DirectoryTransaction) {
   FtpSocketDataProviderDirectoryListing ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host", OK);
