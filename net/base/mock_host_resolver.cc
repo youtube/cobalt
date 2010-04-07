@@ -149,8 +149,11 @@ void RuleBasedHostResolverProc::AddRuleForAddressFamily(
 
 void RuleBasedHostResolverProc::AddIPv6Rule(const std::string& host_pattern,
                                             const std::string& ipv6_literal) {
-  Rule rule(Rule::kResolverTypeIPV6Literal, host_pattern,
-            ADDRESS_FAMILY_UNSPECIFIED, ipv6_literal, 0);
+  Rule rule(Rule::kResolverTypeIPV6Literal,
+            host_pattern,
+            ADDRESS_FAMILY_UNSPECIFIED,
+            ipv6_literal,
+            0);
   rules_.push_back(rule);
 }
 
@@ -180,6 +183,7 @@ void RuleBasedHostResolverProc::AddSimulatedFailure(
 
 int RuleBasedHostResolverProc::Resolve(const std::string& host,
                                        AddressFamily address_family,
+                                       HostResolverFlags host_resolver_flags,
                                        AddressList* addrlist) {
   RuleList::iterator r;
   for (r = rules_.begin(); r != rules_.end(); ++r) {
@@ -202,6 +206,7 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
         case Rule::kResolverTypeSystem:
           return SystemHostResolverProc(effective_host,
                                         address_family,
+                                        host_resolver_flags,
                                         addrlist);
         case Rule::kResolverTypeIPV6Literal:
           return ResolveIPV6LiteralUsingGURL(effective_host, addrlist);
@@ -211,7 +216,8 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
       }
     }
   }
-  return ResolveUsingPrevious(host, address_family, addrlist);
+  return ResolveUsingPrevious(host, address_family,
+                              host_resolver_flags, addrlist);
 }
 
 //-----------------------------------------------------------------------------
