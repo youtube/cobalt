@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -60,16 +60,13 @@ HostResolver* CreateSystemHostResolver(
 static int ResolveAddrInfo(HostResolverProc* resolver_proc,
                            const std::string& host,
                            AddressFamily address_family,
-                           HostResolverFlags host_resolver_flags,
                            AddressList* out) {
   if (resolver_proc) {
     // Use the custom procedure.
-    return resolver_proc->Resolve(host, address_family,
-                                  host_resolver_flags, out);
+    return resolver_proc->Resolve(host, address_family, out);
   } else {
     // Use the system procedure (getaddrinfo).
-    return SystemHostResolverProc(host, address_family,
-                                  host_resolver_flags, out);
+    return SystemHostResolverProc(host, address_family, out);
   }
 }
 
@@ -326,7 +323,6 @@ class HostResolverImpl::Job
     error_ = ResolveAddrInfo(resolver_proc_,
                              key_.hostname,
                              key_.address_family,
-                             key_.host_resolver_flags,
                              &results_);
 
     if (requests_trace_) {
@@ -747,8 +743,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
   if (!callback) {
     AddressList addrlist;
     int error = ResolveAddrInfo(
-        effective_resolver_proc(), key.hostname, key.address_family,
-        key.host_resolver_flags, &addrlist);
+        effective_resolver_proc(), key.hostname, key.address_family, &addrlist);
     if (error == OK) {
       addrlist.SetPort(info.port());
       *addresses = addrlist;
@@ -1156,8 +1151,7 @@ HostResolverImpl::Key HostResolverImpl::GetEffectiveKeyForRequest(
   AddressFamily effective_address_family = info.address_family();
   if (effective_address_family == ADDRESS_FAMILY_UNSPECIFIED)
     effective_address_family = default_address_family_;
-  return Key(info.hostname(), effective_address_family,
-             info.host_resolver_flags());
+  return Key(info.hostname(), effective_address_family);
 }
 
 HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {
