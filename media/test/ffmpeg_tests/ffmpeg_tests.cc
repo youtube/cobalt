@@ -207,6 +207,13 @@ int main(int argc, const char** argv) {
     return 1;
   }
 
+  // TODO(fbarchard): On next ffmpeg roll, retest if this work around is needed.
+  if (codec_context->codec_id == CODEC_ID_THEORA) {
+    std::cerr << "Warning: Disabling threads to avoid Theora bug "
+              << in_path << std::endl;
+    video_threads = 1;
+  }
+
   codec_context->flags2 |= CODEC_FLAG2_FAST;
 
   // Initialize threaded decode.
