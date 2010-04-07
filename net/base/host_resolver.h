@@ -41,6 +41,7 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
     RequestInfo(const std::string& hostname, int port)
         : hostname_(hostname),
           address_family_(ADDRESS_FAMILY_UNSPECIFIED),
+          host_resolver_flags_(0),
           port_(port),
           allow_cached_response_(true),
           is_speculative_(false),
@@ -61,6 +62,13 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
       address_family_ = address_family;
     }
 
+    HostResolverFlags host_resolver_flags() const {
+      return host_resolver_flags_;
+    }
+    void set_host_resolver_flags(HostResolverFlags host_resolver_flags) {
+      host_resolver_flags_ = host_resolver_flags;
+    }
+
     bool allow_cached_response() const { return allow_cached_response_; }
     void set_allow_cached_response(bool b) { allow_cached_response_ = b; }
 
@@ -79,6 +87,9 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
 
     // The address family to restrict results to.
     AddressFamily address_family_;
+
+    // Flags for the address.
+    HostResolverFlags host_resolver_flags_;
 
     // The port number to set in the result's sockaddrs.
     int port_;
