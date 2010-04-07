@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,29 +37,22 @@ class HostCache {
   };
 
   struct Key {
-    Key(const std::string& hostname, AddressFamily address_family,
-        HostResolverFlags host_resolver_flags)
-        : hostname(hostname),
-          address_family(address_family),
-          host_resolver_flags(host_resolver_flags) {}
+    Key(const std::string& hostname, AddressFamily address_family)
+        : hostname(hostname), address_family(address_family) {}
 
     bool operator==(const Key& other) const {
-      return (other.address_family == address_family &&
-              other.host_resolver_flags == host_resolver_flags &&
-              other.hostname == hostname);
+      return other.hostname == hostname &&
+             other.address_family == address_family;
     }
 
     bool operator<(const Key& other) const {
-      if (address_family != other.address_family)
-        return address_family < other.address_family;
-      if (host_resolver_flags != other.host_resolver_flags)
-        return host_resolver_flags < other.host_resolver_flags;
-      return hostname < other.hostname;
+      if (address_family == other.address_family)
+        return hostname < other.hostname;
+      return address_family < other.address_family;
     }
 
     std::string hostname;
     AddressFamily address_family;
-    HostResolverFlags host_resolver_flags;
   };
 
   typedef std::map<Key, scoped_refptr<Entry> > EntryMap;

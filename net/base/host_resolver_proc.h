@@ -30,7 +30,6 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
   // a list of socket addresses. Otherwise returns a network error code.
   virtual int Resolve(const std::string& host,
                       AddressFamily address_family,
-                      HostResolverFlags host_resolver_flags,
                       AddressList* addrlist) = 0;
 
  protected:
@@ -41,7 +40,6 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
   // Asks the fallback procedure (if set) to do the resolve.
   int ResolveUsingPrevious(const std::string& host,
                            AddressFamily address_family,
-                           HostResolverFlags host_resolver_flags,
                            AddressList* addrlist);
 
  private:
@@ -80,7 +78,6 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
 // network error code.
 int SystemHostResolverProc(const std::string& host,
                            AddressFamily address_family,
-                           HostResolverFlags host_resolver_flags,
                            AddressList* addrlist);
 
 }  // namespace net
