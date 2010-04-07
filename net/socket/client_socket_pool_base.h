@@ -391,6 +391,13 @@ class ClientSocketPoolBaseHelper
   // Called when the backup socket timer fires.
   void OnBackupSocketTimerFired(const std::string& group_name);
 
+  // Closes one idle socket.  Picks the first one encountered.
+  // TODO(willchan): Consider a better algorithm for doing this.  Perhaps we
+  // should keep an ordered list of idle sockets, and close them in order.
+  // Requires maintaining more state.  It's not clear if it's worth it since
+  // I'm not sure if we hit this situation often.
+  void CloseOneIdleSocket();
+
   GroupMap group_map_;
 
   // Timer used to periodically prune idle sockets that timed out or can't be
@@ -427,9 +434,13 @@ class ClientSocketPoolBaseHelper
   // |max_sockets_per_group_| limit. So choosing the next request involves
   // selecting the highest priority request across *all* groups.
   //
-  // Since reaching the maximum number of sockets is an edge case, we make note
-  // of when it happens, and thus avoid doing the slower "scan all groups"
-  // in the common case.
+  // |may_have_stalled_group_| is not conclusive, since when we cancel pending
+  // requests, we may reach the situation where we have the maximum number of 
+  // sockets, but not request is stalled because of the global socket limit
+  // (although some requests may be blocked on the socket per group limit).
+  // We don't strictly maintain |may_have_stalled_group_|, since that would
+  // require a linear search through all groups in |group_map_| to see if one 
+  // of them is stalled.
   bool may_have_stalled_group_;
 
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
