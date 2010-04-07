@@ -1122,7 +1122,11 @@ void SSLClientSocketMac::HandshakeFinished() {
   // and SecureTransport doesn't handle that very well (there's usually no way
   // to proceed without aborting the connection, at least not on 10.5.)
   SSL_LOG << "HandshakeFinished()";
-  EnableBreakOnAuth(false);
+  OSStatus status = EnableBreakOnAuth(false);
+  if (status != noErr)
+    SSL_LOG << "EnableBreakOnAuth failed: " << status;
+  // Note- this will actually always return an error, up through OS 10.6.3,
+  // because the option can't be changed after the context opens.
 }
 
 int SSLClientSocketMac::DoPayloadRead() {
@@ -1152,6 +1156,14 @@ int SSLClientSocketMac::DoPayloadRead() {
     case errSSLClientCertRequested:
       // Server wants to renegotiate, probably to ask for a client cert,
       // but SecureTransport doesn't support renegotiation so we have to close.
+      if (ssl_config_.send_client_cert) {
+        // We already gave SecureTransport a client cert. At this point there's
+        // nothing we can do; the renegotiation will fail regardless, due to
+        // bugs in Apple's SecureTransport library.
+        SSL_LOG << "Server renegotiating (status=" << status
+                << "), but I've already set a client cert. Fatal error.";
+        return ERR_SSL_PROTOCOL_ERROR;
+      }
       // Tell my caller the server wants a client cert so it can reconnect.
       SSL_LOG << "Server renegotiating; assuming it wants a client cert...";
       return ERR_SSL_CLIENT_AUTH_CERT_NEEDED;
