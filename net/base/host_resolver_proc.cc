@@ -67,18 +67,14 @@ HostResolverProc* HostResolverProc::GetDefault() {
   return default_proc_;
 }
 
-int HostResolverProc::ResolveUsingPrevious(
-    const std::string& host,
-    AddressFamily address_family,
-    HostResolverFlags host_resolver_flags,
-    AddressList* addrlist) {
+int HostResolverProc::ResolveUsingPrevious(const std::string& host,
+                                           AddressFamily address_family,
+                                           AddressList* addrlist) {
   if (previous_proc_)
-    return previous_proc_->Resolve(host, address_family,
-                                   host_resolver_flags, addrlist);
+    return previous_proc_->Resolve(host, address_family, addrlist);
 
   // Final fallback is the system resolver.
-  return SystemHostResolverProc(host, address_family,
-                                host_resolver_flags, addrlist);
+  return SystemHostResolverProc(host, address_family, addrlist);
 }
 
 #if defined(OS_POSIX) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
@@ -156,7 +152,6 @@ ThreadLocalStorage::Slot DnsReloadTimer::tls_index_(base::LINKER_INITIALIZED);
 
 int SystemHostResolverProc(const std::string& host,
                            AddressFamily address_family,
-                           HostResolverFlags host_resolver_flags,
                            AddressList* addrlist) {
   // The result of |getaddrinfo| for empty hosts is inconsistent across systems.
   // On Windows it gives the default interface's address, whereas on Linux it
@@ -209,9 +204,6 @@ int SystemHostResolverProc(const std::string& host,
 #else
   hints.ai_flags = AI_ADDRCONFIG;
 #endif
-
-  if (host_resolver_flags & HOST_RESOLVER_FLAGS_CANONNAME)
-    hints.ai_flags |= AI_CANONNAME;
 
   // Restrict result set to only this socket type to avoid duplicates.
   hints.ai_socktype = SOCK_STREAM;

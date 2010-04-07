@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -48,7 +48,6 @@ class MockHostResolverWithMultipleResults : public HostResolver {
     AddressList result;
     int rv = SystemHostResolverProc(ip_literal,
                                     ADDRESS_FAMILY_UNSPECIFIED,
-                                    0,
                                     &result);
     EXPECT_EQ(OK, rv);
     EXPECT_EQ(NULL, result.head()->ai_next);

@@ -128,7 +128,6 @@ class RuleBasedHostResolverProc : public HostResolverProc {
   // HostResolverProc methods:
   virtual int Resolve(const std::string& host,
                       AddressFamily address_family,
-                      HostResolverFlags host_resolver_flags,
                       AddressList* addrlist);
 
  private:
@@ -153,11 +152,9 @@ class WaitingHostResolverProc : public HostResolverProc {
   // HostResolverProc methods:
   virtual int Resolve(const std::string& host,
                       AddressFamily address_family,
-                      HostResolverFlags host_resolver_flags,
                       AddressList* addrlist) {
     event_.Wait();
-    return ResolveUsingPrevious(host, address_family, host_resolver_flags,
-                                addrlist);
+    return ResolveUsingPrevious(host, address_family, addrlist);
   }
 
  private:
