@@ -266,6 +266,7 @@
             '../base/base.gyp:base_unittests',
             '../chrome/chrome.gyp:browser_tests',
             '../chrome/chrome.gyp:chrome',
+            '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:memory_test',
             '../chrome/chrome.gyp:page_cycler_tests',
             '../chrome/chrome.gyp:startup_tests',
