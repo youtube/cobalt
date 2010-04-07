@@ -533,7 +533,7 @@ int FtpNetworkTransaction::DoCtrlResolveHost() {
   std::string host;
   int port;
 
-  host = request_->url.host();
+  host = request_->url.HostNoBrackets();
   port = request_->url.EffectiveIntPort();
 
   HostResolver::RequestInfo info(host, port);
