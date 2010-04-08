@@ -29,30 +29,26 @@ HttpNetworkSession::HttpNetworkSession(
     ProxyService* proxy_service,
     ClientSocketFactory* client_socket_factory,
     SSLConfigService* ssl_config_service,
-    SpdySessionPool* spdy_session_pool,
     HttpAuthHandlerFactory* http_auth_handler_factory)
     : network_change_notifier_(network_change_notifier),
-      tcp_socket_pool_(new TCPClientSocketPool(
-          max_sockets_, max_sockets_per_group_, "Transport",
-          host_resolver, client_socket_factory, network_change_notifier_)),
-      socks_socket_pool_(new SOCKSClientSocketPool(
-          max_sockets_, max_sockets_per_group_, "SOCKS", host_resolver,
-          new TCPClientSocketPool(max_sockets_, max_sockets_per_group_,
-                                  "TCPForSOCKS", host_resolver,
-                                  client_socket_factory,
-                                  network_change_notifier_),
-          network_change_notifier_)),
       socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
+      tcp_socket_pool_(CreateNewTCPSocketPool()),
+      socks_socket_pool_(CreateNewSOCKSSocketPool()),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
-      spdy_session_pool_(spdy_session_pool),
+      spdy_session_pool_(new SpdySessionPool()),
       http_auth_handler_factory_(http_auth_handler_factory) {
   DCHECK(proxy_service);
   DCHECK(ssl_config_service);
+
+  if (network_change_notifier)
+    network_change_notifier_->AddObserver(this);
 }
 
 HttpNetworkSession::~HttpNetworkSession() {
+  if (network_change_notifier_)
+    network_change_notifier_->RemoveObserver(this);
 }
 
 URLSecurityManager* HttpNetworkSession::GetURLSecurityManager() {
@@ -67,21 +63,44 @@ URLSecurityManager* HttpNetworkSession::GetURLSecurityManager() {
 
 // static
 void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
-  DCHECK(0 < socket_count);
+  DCHECK_LT(0, socket_count);
   // The following is a sanity check... but we should NEVER be near this value.
-  DCHECK(100 > socket_count);
+  DCHECK_GT(100, socket_count);
   max_sockets_per_group_ = socket_count;
 }
 
-// TODO(vandebo) when we've completely converted to pools, the base TCP
-// pool name should get changed to TCP instead of Transport.
-void HttpNetworkSession::ReplaceTCPSocketPool() {
-  tcp_socket_pool_ = new TCPClientSocketPool(max_sockets_,
-                                             max_sockets_per_group_,
-                                             "Transport",
-                                             host_resolver_,
-                                             socket_factory_,
-                                             network_change_notifier_);
+void HttpNetworkSession::Flush() {
+  host_resolver()->Flush();
+  tcp_socket_pool()->CloseIdleSockets();
+  tcp_socket_pool_ = CreateNewTCPSocketPool();
+  socks_socket_pool()->CloseIdleSockets();
+  socks_socket_pool_ = CreateNewSOCKSSocketPool();
+  spdy_session_pool_->CloseAllSessions();
+  spdy_session_pool_ = new SpdySessionPool;
+}
+
+void HttpNetworkSession::OnIPAddressChanged() {
+  Flush();
+}
+
+scoped_refptr<TCPClientSocketPool>
+HttpNetworkSession::CreateNewTCPSocketPool() {
+  // TODO(vandebo) when we've completely converted to pools, the base TCP
+  // pool name should get changed to TCP instead of Transport.
+  return new TCPClientSocketPool(max_sockets_,
+                                 max_sockets_per_group_,
+                                 "Transport",
+                                 host_resolver_,
+                                 socket_factory_);
+}
+
+scoped_refptr<SOCKSClientSocketPool>
+HttpNetworkSession::CreateNewSOCKSSocketPool() {
+  return new SOCKSClientSocketPool(
+      max_sockets_, max_sockets_per_group_, "SOCKS", host_resolver_,
+      new TCPClientSocketPool(max_sockets_, max_sockets_per_group_,
+                              "TCPForSOCKS", host_resolver_,
+                              socket_factory_));
 }
 
 }  //  namespace net
