@@ -161,13 +161,11 @@ SOCKSClientSocketPool::SOCKSClientSocketPool(
     int max_sockets_per_group,
     const std::string& name,
     const scoped_refptr<HostResolver>& host_resolver,
-    const scoped_refptr<TCPClientSocketPool>& tcp_pool,
-    NetworkChangeNotifier* network_change_notifier)
+    const scoped_refptr<TCPClientSocketPool>& tcp_pool)
     : base_(max_sockets, max_sockets_per_group, name,
             base::TimeDelta::FromSeconds(kUnusedIdleSocketTimeout),
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
-            new SOCKSConnectJobFactory(tcp_pool, host_resolver),
-            network_change_notifier) {}
+            new SOCKSConnectJobFactory(tcp_pool, host_resolver)) {}
 
 SOCKSClientSocketPool::~SOCKSClientSocketPool() {}
 

@@ -679,8 +679,6 @@ HostResolverImpl::HostResolverImpl(
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
-  if (network_change_notifier_)
-    network_change_notifier_->AddObserver(this);
 }
 
 HostResolverImpl::~HostResolverImpl() {
@@ -694,9 +692,6 @@ HostResolverImpl::~HostResolverImpl() {
   // In case we are being deleted during the processing of a callback.
   if (cur_completing_job_)
     cur_completing_job_->Cancel();
-
-  if (network_change_notifier_)
-    network_change_notifier_->RemoveObserver(this);
 
   // Delete the job pools.
   for (size_t i = 0u; i < arraysize(job_pools_); ++i)
@@ -841,7 +836,7 @@ void HostResolverImpl::SetDefaultAddressFamily(AddressFamily address_family) {
 void HostResolverImpl::ProbeIPv6Support() {
   DCHECK(!ipv6_probe_monitoring_);
   ipv6_probe_monitoring_ = true;
-  OnIPAddressChanged();  // Give initial setup call.
+  Flush();  // Give initial setup call.
 }
 
 void HostResolverImpl::Shutdown() {
@@ -1074,7 +1069,7 @@ void HostResolverImpl::OnCancelRequest(const BoundNetLog& net_log,
   net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL);
 }
 
-void HostResolverImpl::OnIPAddressChanged() {
+void HostResolverImpl::Flush() {
   if (cache_.get())
     cache_->clear();
   if (ipv6_probe_monitoring_) {
