@@ -39,9 +39,8 @@ TEST(SimpleSourcesTest, PushSourceSmallerWrite) {
   const uint32 kReadSize = 293;
   scoped_array<char> read_data(new char[kReadSize]);
 
-  // Create a PushSource that assumes the hardware audio buffer size is always
-  // bigger than the write size.
-  PushSource push_source(kReadSize);
+  // Create a PushSource.
+  PushSource push_source;
   EXPECT_EQ(0u, push_source.UnProcessedBytes());
 
   // Write everything into this push source.
