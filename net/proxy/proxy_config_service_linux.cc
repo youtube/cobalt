@@ -416,15 +416,41 @@ class GConfSettingGetterImplKDE
         auto_no_pac_(false), reversed_exception_(false), file_loop_(NULL) {
     // We don't save the env var getter for later use since we don't own it.
     // Instead we use it here and save the result we actually care about.
-    std::string kde_home;
-    if (!env_var_getter->GetEnv("KDE_HOME", &kde_home)) {
-      if (!env_var_getter->GetEnv("HOME", &kde_home))
+    std::string home;
+    if (env_var_getter->GetEnv("KDE_HOME", &home) && !home.empty()) {
+      // $KDE_HOME is set. Use it unconditionally.
+      kde_config_dir_ = KDEHomeToConfigPath(FilePath(home));
+    } else {
+      // $KDE_HOME is unset. Try to figure out what to use. This seems to be
+      // the common case on most distributions.
+      if (!env_var_getter->GetEnv("HOME", &home))
         // User has no $HOME? Give up. Later we'll report the failure.
         return;
-      kde_home = FilePath(kde_home).Append(FILE_PATH_LITERAL(".kde")).value();
+      if (base::GetDesktopEnvironment(env_var_getter) ==
+          base::DESKTOP_ENVIRONMENT_KDE3) {
+        // KDE3 always uses .kde for its configuration.
+        FilePath kde_path = FilePath(home).Append(".kde");
+        kde_config_dir_ = KDEHomeToConfigPath(kde_path);
+      } else {
+        // Some distributions patch KDE4 to use .kde4 instead of .kde, so that
+        // both can be installed side-by-side. They will probably continue to
+        // use .kde4, even when they no longer provide KDE3, for backwards-
+        // compatibility. So if there is a .kde4 directory, use that instead of
+        // .kde for the proxy config.
+        // Note that we should currently be running in the UI thread, because in
+        // the gconf version, that is the only thread that can access the proxy
+        // settings (a gconf restriction). As noted below, the initial read of
+        // the proxy settings will be done in this thread anyway, so we check
+        // for .kde4 here in this thread as well.
+        FilePath kde4_path = FilePath(home).Append(".kde4");
+        if (file_util::DirectoryExists(kde4_path)) {
+          kde_config_dir_ = KDEHomeToConfigPath(kde4_path);
+        } else {
+          FilePath kde_path = FilePath(home).Append(".kde");
+          kde_config_dir_ = KDEHomeToConfigPath(kde_path);
+        }
+      }
     }
-    kde_config_dir_ = FilePath(kde_home).Append(
-        FILE_PATH_LITERAL("share")).Append(FILE_PATH_LITERAL("config"));
   }
 
   virtual ~GConfSettingGetterImplKDE() {
@@ -536,6 +562,10 @@ class GConfSettingGetterImplKDE
     indirect_manual_ = false;
     auto_no_pac_ = false;
     reversed_exception_ = false;
+  }
+
+  FilePath KDEHomeToConfigPath(const FilePath& kde_home) {
+    return kde_home.Append("share").Append("config");
   }
 
   void AddProxy(std::string prefix, std::string value) {
@@ -652,8 +682,7 @@ class GConfSettingGetterImplKDE
   // Reads kioslaverc one line at a time and calls AddKDESetting() to add
   // each relevant name-value pair to the appropriate value table.
   void UpdateCachedSettings() {
-    FilePath kioslaverc = kde_config_dir_.Append(
-        FILE_PATH_LITERAL("kioslaverc"));
+    FilePath kioslaverc = kde_config_dir_.Append("kioslaverc");
     file_util::ScopedFILE input(file_util::OpenFile(kioslaverc, "r"));
     if (!input.get())
       return;
@@ -1009,7 +1038,7 @@ void ProxyConfigServiceLinux::Delegate::SetupAndFetchInitialConfig(
   // the ProxyService.
 
   // Note: It would be nice to prioritize environment variables
-  // and only fallback to gconf if env vars were unset. But
+  // and only fall back to gconf if env vars were unset. But
   // gnome-terminal "helpfully" sets http_proxy and no_proxy, and it
   // does so even if the proxy mode is set to auto, which would
   // mislead us.
