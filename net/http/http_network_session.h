@@ -8,6 +8,7 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/base/host_resolver.h"
+#include "net/base/network_change_notifier.h"
 #include "net/base/ssl_client_auth_cache.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_alternate_protocols.h"
@@ -25,7 +26,9 @@ class NetworkChangeNotifier;
 class URLSecurityManager;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
-class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
+class HttpNetworkSession
+    : public base::RefCounted<HttpNetworkSession>,
+      public NetworkChangeNotifier::Observer {
  public:
   HttpNetworkSession(
       NetworkChangeNotifier* network_change_notifier,
@@ -33,7 +36,6 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
       ProxyService* proxy_service,
       ClientSocketFactory* client_socket_factory,
       SSLConfigService* ssl_config_service,
-      SpdySessionPool* spdy_session_pool,
       HttpAuthHandlerFactory* http_auth_handler_factory);
 
   HttpAuthCache* auth_cache() { return &auth_cache_; }
@@ -70,9 +72,11 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   // Returns a pointer to the URL security manager.
   URLSecurityManager* GetURLSecurityManager();
 
-  // Replace the current socket pool with a new one.  This effectively
-  // abandons the current pool.  This is only used for debugging.
-  void ReplaceTCPSocketPool();
+  // Flushes cached data in the HttpNetworkSession.
+  void Flush();
+
+  // NetworkChangeNotifier::Observer methods:
+  virtual void OnIPAddressChanged();
 
   static void set_max_sockets_per_group(int socket_count);
 
@@ -87,6 +91,9 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   FRIEND_TEST(HttpNetworkTransactionTest, GroupNameForProxyConnections);
 
   ~HttpNetworkSession();
+
+  scoped_refptr<TCPClientSocketPool> CreateNewTCPSocketPool();
+  scoped_refptr<SOCKSClientSocketPool> CreateNewSOCKSSocketPool();
 
   // Total limit of sockets. Not a constant to allow experiments.
   static int max_sockets_;
@@ -103,10 +110,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
   NetworkChangeNotifier* const network_change_notifier_;
-  scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
-  scoped_refptr<SOCKSClientSocketPool> socks_socket_pool_;
   ClientSocketFactory* socket_factory_;
   scoped_refptr<HostResolver> host_resolver_;
+  scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
+  scoped_refptr<SOCKSClientSocketPool> socks_socket_pool_;
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
