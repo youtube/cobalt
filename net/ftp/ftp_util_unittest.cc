@@ -94,6 +94,7 @@ TEST(FtpUtilTest, VMSPathToUnix) {
     { "[.a.b.c]",    "a/b/c"      },
     { "[.a.b.c]d",   "a/b/c/d"    },
     { "[.a.b.c.d]",  "a/b/c/d"    },
+    { "[.",          ""           },
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kTestCases); i++) {
     EXPECT_EQ(kTestCases[i].expected_output,
