@@ -43,23 +43,20 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
-        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool) {}
+        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()) {}
 
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
       : host_resolver(new MockHostResolver),
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
-        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool) {}
+        http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
   scoped_refptr<SSLConfigService> ssl_config_service;
   MockClientSocketFactory socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
-  scoped_refptr<SpdySessionPool> spdy_session_pool;
 };
 
 ProxyService* CreateFixedProxyService(const std::string& proxy) {
@@ -75,7 +72,6 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
-                                session_deps->spdy_session_pool,
                                 session_deps->http_auth_handler_factory.get());
 }
 
@@ -189,8 +185,7 @@ class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
   CaptureGroupNameSocketPool(HttpNetworkSession* session,
                              SocketSourceType* socket_source)
       : EmulatedClientSocketPool(0, 0, "CaptureGroupNameTestPool",
-                                 session->host_resolver(), socket_source,
-                                 NULL) {}
+                                 session->host_resolver(), socket_source) {}
   const std::string last_group_name_received() const {
     return last_group_name_;
   }

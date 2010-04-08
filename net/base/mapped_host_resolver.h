@@ -32,6 +32,7 @@ class MappedHostResolver : public HostResolver {
   virtual void CancelRequest(RequestHandle req);
   virtual void AddObserver(Observer* observer);
   virtual void RemoveObserver(Observer* observer);
+  virtual void Flush() { impl_->Flush(); }
   virtual HostResolverImpl* GetAsHostResolverImpl();
 
   // Adds a rule to this mapper. The format of the rule can be one of:
