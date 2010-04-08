@@ -29,7 +29,8 @@ namespace {
 struct EnvVarValues {
   // The strange capitalization is so that the field matches the
   // environment variable name exactly.
-  const char *DESKTOP_SESSION, *KDE_HOME,
+  const char *DESKTOP_SESSION, *HOME,
+      *KDE_HOME, *KDE_SESSION_VERSION,
       *auto_proxy, *all_proxy,
       *http_proxy, *https_proxy, *ftp_proxy,
       *SOCKS_SERVER, *SOCKS_VERSION,
@@ -82,7 +83,9 @@ class MockEnvVarGetter : public base::EnvVarGetter {
   MockEnvVarGetter() {
 #define ENTRY(x) table.settings[#x] = &values.x
     ENTRY(DESKTOP_SESSION);
+    ENTRY(HOME);
     ENTRY(KDE_HOME);
+    ENTRY(KDE_SESSION_VERSION);
     ENTRY(auto_proxy);
     ENTRY(all_proxy);
     ENTRY(http_proxy);
@@ -325,23 +328,34 @@ class ProxyConfigServiceLinuxTest : public PlatformTest {
   virtual void SetUp() {
     PlatformTest::SetUp();
     // Set up a temporary KDE home directory.
-    std::string prefix("ProxyConfigServiceLinuxTest_kde_home");
-    file_util::CreateNewTempDirectory(prefix, &kde_home_);
+    std::string prefix("ProxyConfigServiceLinuxTest_user_home");
+    file_util::CreateNewTempDirectory(prefix, &user_home_);
+    kde_home_ = user_home_.Append(FILE_PATH_LITERAL(".kde"));
     FilePath path = kde_home_.Append(FILE_PATH_LITERAL("share"));
-    file_util::CreateDirectory(path);
     path = path.Append(FILE_PATH_LITERAL("config"));
     file_util::CreateDirectory(path);
     kioslaverc_ = path.Append(FILE_PATH_LITERAL("kioslaverc"));
+    // Set up paths but do not create the directory for .kde4.
+    kde4_home_ = user_home_.Append(FILE_PATH_LITERAL(".kde4"));
+    path = kde4_home_.Append(FILE_PATH_LITERAL("share"));
+    kde4_config_ = path.Append(FILE_PATH_LITERAL("config"));
+    kioslaverc4_ = kde4_config_.Append(FILE_PATH_LITERAL("kioslaverc"));
   }
 
   virtual void TearDown() {
     // Delete the temporary KDE home directory.
-    file_util::Delete(kde_home_, true);
+    file_util::Delete(user_home_, true);
     PlatformTest::TearDown();
   }
 
+  FilePath user_home_;
+  // KDE3 paths.
   FilePath kde_home_;
   FilePath kioslaverc_;
+  // KDE4 paths.
+  FilePath kde4_home_;
+  FilePath kde4_config_;
+  FilePath kioslaverc4_;
 };
 
 // Builds an identifier for each test in an array.
@@ -402,7 +416,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     },
 
     {
-      TEST_DESC("Valid PAC url"),
+      TEST_DESC("Valid PAC URL"),
       { // Input.
         "auto",                      // mode
         "http://wpad/wpad.dat",      // autoconfig_url
@@ -419,7 +433,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicGConfTest) {
     },
 
     {
-      TEST_DESC("Invalid PAC url"),
+      TEST_DESC("Invalid PAC URL"),
       { // Input.
         "auto",                      // mode
         "wpad.dat",                  // autoconfig_url
@@ -609,7 +623,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("No proxying"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         NULL,  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -627,7 +643,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("Auto detect"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         "",    // auto_proxy
         NULL,  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -642,10 +660,12 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     },
 
     {
-      TEST_DESC("Valid PAC url"),
+      TEST_DESC("Valid PAC URL"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         "http://wpad/wpad.dat",  // auto_proxy
         NULL,  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -660,10 +680,12 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
     },
 
     {
-      TEST_DESC("Invalid PAC url"),
+      TEST_DESC("Invalid PAC URL"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         "wpad.dat",  // auto_proxy
         NULL,  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -681,7 +703,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("Single-host in proxy list"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "www.google.com",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -701,7 +725,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("Single-host, different port"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "www.google.com:99",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -721,7 +747,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("Tolerate a scheme"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "http://www.google.com:99",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -741,7 +769,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("Per-scheme proxy rules"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         NULL,  // all_proxy
         "www.google.com:80", "www.foo.com:110", "ftp.foo.com:121",  // per-proto
@@ -763,7 +793,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("socks"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -783,7 +815,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("socks5"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -803,7 +837,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("socks default port"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "",  // all_proxy
         NULL, NULL, NULL,  // per-proto proxies
@@ -823,7 +859,9 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       TEST_DESC("bypass"),
       { // Input.
         NULL,  // DESKTOP_SESSION
+        NULL,  // HOME
         NULL,  // KDE_HOME
+        NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "www.google.com",  // all_proxy
         NULL, NULL, NULL,  // per-proto
@@ -927,7 +965,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     },
 
     {
-      TEST_DESC("Valid PAC url"),
+      TEST_DESC("Valid PAC URL"),
 
       // Input.
       "[Proxy Settings]\nProxyType=2\n"
@@ -1179,6 +1217,80 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     EXPECT_EQ(tests[i].auto_detect, config.auto_detect());
     EXPECT_EQ(tests[i].pac_url, config.pac_url());
     EXPECT_TRUE(tests[i].proxy_rules.Matches(config.proxy_rules()));
+  }
+}
+
+TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
+  // Auto detect proxy settings.
+  std::string slaverc3 = "[Proxy Settings]\nProxyType=3\n";
+  // Valid PAC URL.
+  std::string slaverc4 = "[Proxy Settings]\nProxyType=2\n"
+                             "Proxy Config Script=http://wpad/wpad.dat\n";
+  GURL slaverc4_pac_url("http://wpad/wpad.dat");
+
+  // Overwrite the .kde kioslaverc file.
+  file_util::WriteFile(kioslaverc_, slaverc3.c_str(), slaverc3.length());
+
+  // If .kde4 exists it will mess up the first test. It should not, as
+  // we created the directory for $HOME in the test setup.
+  CHECK(!file_util::DirectoryExists(kde4_home_));
+
+  { SCOPED_TRACE("KDE4, no .kde4 directory, verify fallback");
+    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
+    env_getter->values.DESKTOP_SESSION = "kde4";
+    env_getter->values.HOME = user_home_.value().c_str();
+    SynchConfigGetter sync_config_getter(
+        new ProxyConfigServiceLinux(env_getter));
+    ProxyConfig config;
+    sync_config_getter.SetupAndInitialFetch();
+    sync_config_getter.SyncGetProxyConfig(&config);
+    EXPECT_TRUE(config.auto_detect());
+    EXPECT_EQ(GURL(), config.pac_url());
+  }
+
+  // Now create .kde4 and put a kioslaverc in the config directory.
+  file_util::CreateDirectory(kde4_config_);
+  file_util::WriteFile(kioslaverc4_, slaverc4.c_str(), slaverc4.length());
+  CHECK(file_util::PathExists(kioslaverc4_));
+
+  { SCOPED_TRACE("KDE4, .kde4 directory present, use it");
+    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
+    env_getter->values.DESKTOP_SESSION = "kde4";
+    env_getter->values.HOME = user_home_.value().c_str();
+    SynchConfigGetter sync_config_getter(
+        new ProxyConfigServiceLinux(env_getter));
+    ProxyConfig config;
+    sync_config_getter.SetupAndInitialFetch();
+    sync_config_getter.SyncGetProxyConfig(&config);
+    EXPECT_FALSE(config.auto_detect());
+    EXPECT_EQ(slaverc4_pac_url, config.pac_url());
+  }
+
+  { SCOPED_TRACE("KDE3, .kde4 directory present, ignore it");
+    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
+    env_getter->values.DESKTOP_SESSION = "kde";
+    env_getter->values.HOME = user_home_.value().c_str();
+    SynchConfigGetter sync_config_getter(
+        new ProxyConfigServiceLinux(env_getter));
+    ProxyConfig config;
+    sync_config_getter.SetupAndInitialFetch();
+    sync_config_getter.SyncGetProxyConfig(&config);
+    EXPECT_TRUE(config.auto_detect());
+    EXPECT_EQ(GURL(), config.pac_url());
+  }
+
+  { SCOPED_TRACE("KDE4, .kde4 directory present, KDE_HOME set to .kde");
+    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
+    env_getter->values.DESKTOP_SESSION = "kde4";
+    env_getter->values.HOME = user_home_.value().c_str();
+    env_getter->values.KDE_HOME = kde_home_.value().c_str();
+    SynchConfigGetter sync_config_getter(
+        new ProxyConfigServiceLinux(env_getter));
+    ProxyConfig config;
+    sync_config_getter.SetupAndInitialFetch();
+    sync_config_getter.SyncGetProxyConfig(&config);
+    EXPECT_TRUE(config.auto_detect());
+    EXPECT_EQ(GURL(), config.pac_url());
   }
 }
 
