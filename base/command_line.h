@@ -37,6 +37,9 @@ class CommandLine {
   explicit CommandLine(ArgumentsOnly args_only);
 
 #if defined(OS_WIN)
+  // The type of native command line arguments.
+  typedef std::wstring StringType;
+
   // Initialize by parsing the given command-line string.
   // The program name is assumed to be the first item in the string.
   void ParseFromString(const std::wstring& command_line);
@@ -46,6 +49,9 @@ class CommandLine {
     return cmd;
   }
 #elif defined(OS_POSIX)
+  // The type of native command line arguments.
+  typedef std::string StringType;
+
   // Initialize from an argv vector.
   void InitFromArgv(int argc, const char* const* argv);
   void InitFromArgv(const std::vector<std::string>& argv);
@@ -122,6 +128,11 @@ class CommandLine {
 
   // Get the number of switches in this process.
   size_t GetSwitchCount() const { return switches_.size(); }
+
+  // Get a copy of all switches, along with their values
+  std::map<std::string, StringType> GetSwitches() const {
+    return switches_;
+  }
 
   // Get the remaining arguments to the command.
   // WARNING: this is incorrect on POSIX; we must do string conversions.
@@ -204,19 +215,11 @@ class CommandLine {
 #if defined(OS_WIN)
   // The quoted, space-separated command-line string.
   std::wstring command_line_string_;
-
   // The name of the program.
   std::wstring program_;
-
-  // The type of native command line arguments.
-  typedef std::wstring StringType;
-
 #elif defined(OS_POSIX)
   // The argv array, with the program name in argv_[0].
   std::vector<std::string> argv_;
-
-  // The type of native command line arguments.
-  typedef std::string StringType;
 #endif
 
   // Returns true and fills in |switch_string| and |switch_value|
