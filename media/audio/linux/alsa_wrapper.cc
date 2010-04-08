@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -69,6 +69,10 @@ int AlsaWrapper::PcmSetParams(snd_pcm_t* handle, snd_pcm_format_t format,
 
 snd_pcm_sframes_t AlsaWrapper::PcmAvailUpdate(snd_pcm_t* handle) {
   return snd_pcm_avail_update(handle);
+}
+
+snd_pcm_state_t AlsaWrapper::PcmState(snd_pcm_t* handle) {
+  return snd_pcm_state(handle);
 }
 
 const char* AlsaWrapper::StrError(int errnum) {
