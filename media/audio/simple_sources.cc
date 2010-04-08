@@ -50,9 +50,8 @@ void SineWaveAudioSource::OnError(AudioOutputStream* stream, int code) {
 //////////////////////////////////////////////////////////////////////////////
 // PushSource implementation.
 
-PushSource::PushSource(uint32 packet_size)
-    : packet_size_(packet_size),
-      buffered_bytes_(0),
+PushSource::PushSource()
+    : buffered_bytes_(0),
       front_buffer_consumed_(0) {
 }
 
@@ -115,12 +114,18 @@ uint32 PushSource::UnProcessedBytes() {
   return buffered_bytes_;
 }
 
+void PushSource::ClearAll() {
+  // Cleanup() will discard all the data.
+  CleanUp();
+}
+
 void PushSource::CleanUp() {
   AutoLock auto_lock(lock_);
   PacketList::const_iterator it;
   for (it = packets_.begin(); it != packets_.end(); ++it) {
     delete [] it->buffer;
-    buffered_bytes_ -= it->size;
   }
   packets_.clear();
+  buffered_bytes_ = 0;
+  front_buffer_consumed_ = 0;
 }

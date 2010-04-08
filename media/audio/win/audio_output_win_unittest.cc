@@ -465,7 +465,7 @@ TEST(WinAudioTest, PushSourceFile16KHz)  {
   // We buffer and play at the same time, buffering happens every ~10ms and the
   // consuming of the buffer happens every ~50ms. We do 100 buffers which
   // effectively wrap around the file more than once.
-  PushSource push_source(kSize50ms);
+  PushSource push_source;
   for (uint32 ix = 0; ix != 100; ++ix) {
     push_source.Write(file_reader.GetChunkAt(offset), kSize50ms);
     if (ix == 2) {

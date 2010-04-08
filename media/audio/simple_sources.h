@@ -58,14 +58,10 @@ class PushAudioOutput {
 class PushSource : public AudioOutputStream::AudioSourceCallback,
                    public PushAudioOutput {
  public:
-  // Construct the audio source. Pass the same |packet_size| specified in the
-  // AudioOutputStream::Open() here.
-  // TODO(hclam): |packet_size| is not used anymore, remove it.
-  explicit PushSource(uint32 packet_size);
+  explicit PushSource();
   virtual ~PushSource();
 
-  // Write one buffer. The ideal size is |packet_size| but smaller sizes are
-  // accepted.
+  // Write one buffer.
   virtual bool Write(const void* data, uint32 len);
 
   // Return the total number of bytes not given to the audio device yet.
@@ -77,6 +73,9 @@ class PushSource : public AudioOutputStream::AudioSourceCallback,
   virtual void OnClose(AudioOutputStream* stream);
   virtual void OnError(AudioOutputStream* stream, int code);
 
+  // Discard all buffered data and reset to initial state.
+  void ClearAll();
+
  private:
   // Defines the unit of playback. We own the memory pointed by |buffer|.
   struct Packet {
@@ -87,7 +86,6 @@ class PushSource : public AudioOutputStream::AudioSourceCallback,
   // Free acquired resources.
   void CleanUp();
 
-  const uint32 packet_size_;
   typedef std::list<Packet> PacketList;
   PacketList packets_;
   uint32 buffered_bytes_;
