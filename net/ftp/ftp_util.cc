@@ -100,7 +100,7 @@ std::string FtpUtil::VMSPathToUnix(const std::string& vms_path) {
   std::replace(result.begin(), result.end(), ']', '/');
 
   // Make sure the result doesn't end with a slash.
-  if (result[result.length() - 1] == '/')
+  if (result.length() && result[result.length() - 1] == '/')
     result = result.substr(0, result.length() - 1);
 
   return result;
