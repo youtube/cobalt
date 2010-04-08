@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -85,8 +85,8 @@ class Value {
 
   // These methods allow the convenient retrieval of settings.
   // If the current setting object can be converted into the given type,
-  // the value is returned through the "value" parameter and true is returned;
-  // otherwise, false is returned and "value" is unchanged.
+  // the value is returned through the |out_value| parameter and true is
+  // returned;  otherwise, false is returned and |out_value| is unchanged.
   virtual bool GetAsBoolean(bool* out_value) const;
   virtual bool GetAsInteger(int* out_value) const;
   virtual bool GetAsReal(double* out_value) const;
@@ -256,8 +256,8 @@ class DictionaryValue : public Value {
   // A path has the form "<key>" or "<key>.<key>.[...]", where "." indexes
   // into the next DictionaryValue down.  If the path can be resolved
   // successfully, the value for the last key in the path will be returned
-  // through the "value" parameter, and the function will return true.
-  // Otherwise, it will return false and "value" will be untouched.
+  // through the |out_value| parameter, and the function will return true.
+  // Otherwise, it will return false and |out_value| will be untouched.
   // Note that the dictionary always owns the value that's returned.
   bool Get(const std::wstring& path, Value** out_value) const;
 
@@ -369,14 +369,14 @@ class ListValue : public Value {
   // the value is a null pointer.
   bool Set(size_t index, Value* in_value);
 
-  // Gets the Value at the given index.  Modifies value (and returns true)
+  // Gets the Value at the given index.  Modifies |out_value| (and returns true)
   // only if the index falls within the current list range.
-  // Note that the list always owns the Value passed out via out_value.
+  // Note that the list always owns the Value passed out via |out_value|.
   bool Get(size_t index, Value** out_value) const;
 
-  // Convenience forms of Get().  Modifies value (and returns true) only if
-  // the index is valid and the Value at that index can be returned in
-  // the specified form.
+  // Convenience forms of Get().  Modifies |out_value| (and returns true)
+  // only if the index is valid and the Value at that index can be returned
+  // in the specified form.
   bool GetBoolean(size_t index, bool* out_value) const;
   bool GetInteger(size_t index, int* out_value) const;
   bool GetReal(size_t index, double* out_value) const;
