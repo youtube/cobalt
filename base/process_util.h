@@ -73,9 +73,9 @@ struct IoCounters {
 // Do not change the enumeration values or you will break third-party
 // installers.
 enum {
-  PROCESS_END_NORMAL_TERMINATON = 0,
-  PROCESS_END_KILLED_BY_USER    = 1,
-  PROCESS_END_PROCESS_WAS_HUNG  = 2
+  PROCESS_END_NORMAL_TERMINATION = 0,
+  PROCESS_END_KILLED_BY_USER     = 1,
+  PROCESS_END_PROCESS_WAS_HUNG   = 2
 };
 
 // Returns the id of the current process.
