@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -722,7 +722,7 @@ double ProcessMetrics::GetCPUUsage() {
   return cpu;
 }
 
-bool ProcessMetrics::GetIOCounters(IO_COUNTERS* io_counters) const {
+bool ProcessMetrics::GetIOCounters(base::IoCounters* io_counters) const {
   return GetProcessIoCounters(process_, io_counters) != FALSE;
 }
 
