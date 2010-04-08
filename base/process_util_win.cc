@@ -186,7 +186,7 @@ bool LaunchAppAsUser(UserTokenHandle token, const std::wstring& cmdline,
   DWORD flags = CREATE_UNICODE_ENVIRONMENT;
   void* enviroment_block = NULL;
 
-  if(!CreateEnvironmentBlock(&enviroment_block, token, FALSE))
+  if (!CreateEnvironmentBlock(&enviroment_block, token, FALSE))
     return false;
 
   BOOL launched =
@@ -348,7 +348,7 @@ bool DidProcessCrash(bool* child_exited, ProcessHandle handle) {
   // Warning, this is not generic code; it heavily depends on the way
   // the rest of the code kills a process.
 
-  if (exitcode == PROCESS_END_NORMAL_TERMINATON ||
+  if (exitcode == PROCESS_END_NORMAL_TERMINATION ||
       exitcode == PROCESS_END_KILLED_BY_USER ||
       exitcode == PROCESS_END_PROCESS_WAS_HUNG ||
       exitcode == 0xC0000354 ||     // STATUS_DEBUGGER_INACTIVE.
