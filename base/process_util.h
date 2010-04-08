@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -29,6 +29,7 @@ struct kinfo_proc;
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/file_descriptor_shuffle.h"
 #include "base/file_path.h"
 #include "base/process.h"
 
@@ -40,11 +41,17 @@ struct kinfo_proc;
 #endif
 #endif
 
+namespace base {
+
 #if defined(OS_WIN)
-typedef PROCESSENTRY32 ProcessEntry;
-typedef IO_COUNTERS IoCounters;
+
+struct ProcessEntry : public PROCESSENTRY32 {
+};
+struct IoCounters : public IO_COUNTERS {
+};
+
 #elif defined(OS_POSIX)
-// TODO(port): we should not rely on a Win32 structure.
+
 struct ProcessEntry {
   base::ProcessId pid;
   base::ProcessId ppid;
@@ -60,10 +67,7 @@ struct IoCounters {
   uint64_t OtherTransferCount;
 };
 
-#include "base/file_descriptor_shuffle.h"
-#endif
-
-namespace base {
+#endif  // defined(OS_POSIX)
 
 // A minimalistic but hopefully cross-platform set of exit codes.
 // Do not change the enumeration values or you will break third-party
