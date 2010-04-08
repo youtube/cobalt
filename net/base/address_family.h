@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,13 @@ enum AddressFamily {
   ADDRESS_FAMILY_IPV6,          // AF_INET6
 };
 
-}  // namesapce net
+// HostResolverFlags is a bitflag enum wrapper around the addrinfo.ai_flags
+// supported by host resolver procedures.
+enum {
+  HOST_RESOLVER_CANONNAME = 1 << 0,  // 0x1, AI_CANONNAME
+};
+typedef int HostResolverFlags;
+
+}  // namespace net
 
 #endif  // NET_BASE_ADDRESS_FAMILY_H_
