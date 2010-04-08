@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,7 +20,7 @@ const base::TimeDelta kFailureEntryTTL = base::TimeDelta::FromSeconds(0);
 
 // Builds a key for |hostname|, defaulting the address family to unspecified.
 HostCache::Key Key(const std::string& hostname) {
-  return HostCache::Key(hostname, ADDRESS_FAMILY_UNSPECIFIED);
+  return HostCache::Key(hostname, ADDRESS_FAMILY_UNSPECIFIED, 0);
 }
 
 }  // namespace
@@ -276,8 +276,8 @@ TEST(HostCacheTest, AddressFamilyIsPartOfKey) {
   // t=0.
   base::TimeTicks now;
 
-  HostCache::Key key1("foobar.com", ADDRESS_FAMILY_UNSPECIFIED);
-  HostCache::Key key2("foobar.com", ADDRESS_FAMILY_IPV4);
+  HostCache::Key key1("foobar.com", ADDRESS_FAMILY_UNSPECIFIED, 0);
+  HostCache::Key key2("foobar.com", ADDRESS_FAMILY_IPV4, 0);
 
   const HostCache::Entry* entry1 = NULL;  // Entry for key1
   const HostCache::Entry* entry2 = NULL;  // Entry for key2
@@ -300,6 +300,42 @@ TEST(HostCacheTest, AddressFamilyIsPartOfKey) {
 
   // Even though the hostnames were the same, we should have two unique
   // entries (because the address families differ).
+  EXPECT_NE(entry1, entry2);
+}
+
+// Tests that the same hostname can be duplicated in the cache, so long as
+// the HostResolverFlags differ.
+TEST(HostCacheTest, HostResolverFlagsArePartOfKey) {
+  HostCache cache(kMaxCacheEntries, kSuccessEntryTTL, kFailureEntryTTL);
+
+  // t=0.
+  base::TimeTicks now;
+
+  HostCache::Key key1("foobar.com", ADDRESS_FAMILY_IPV4, 0);
+  HostCache::Key key2("foobar.com", ADDRESS_FAMILY_IPV4,
+                      HOST_RESOLVER_CANONNAME);
+
+  const HostCache::Entry* entry1 = NULL;  // Entry for key1
+  const HostCache::Entry* entry2 = NULL;  // Entry for key2
+
+  EXPECT_EQ(0U, cache.size());
+
+  // Add an entry for ("foobar.com", IPV4, NONE) at t=0.
+  EXPECT_TRUE(cache.Lookup(key1, base::TimeTicks()) == NULL);
+  cache.Set(key1, OK, AddressList(), now);
+  entry1 = cache.Lookup(key1, base::TimeTicks());
+  EXPECT_FALSE(entry1 == NULL);
+  EXPECT_EQ(1U, cache.size());
+
+  // Add an entry for ("foobar.com", IPV4, CANONNAME) at t=0.
+  EXPECT_TRUE(cache.Lookup(key2, base::TimeTicks()) == NULL);
+  cache.Set(key2, OK, AddressList(), now);
+  entry2 = cache.Lookup(key2, base::TimeTicks());
+  EXPECT_FALSE(entry2 == NULL);
+  EXPECT_EQ(2U, cache.size());
+
+  // Even though the hostnames were the same, we should have two unique
+  // entries (because the HostResolverFlags differ).
   EXPECT_NE(entry1, entry2);
 }
 
@@ -353,33 +389,52 @@ TEST(HostCacheTest, KeyComparators) {
     int expected_comparison;
   } tests[] = {
     {
-      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
-      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED, 0),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED, 0),
       0
     },
     {
-      HostCache::Key("host1", ADDRESS_FAMILY_IPV4),
-      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
+      HostCache::Key("host1", ADDRESS_FAMILY_IPV4, 0),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED, 0),
       1
     },
     {
-      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
-      HostCache::Key("host1", ADDRESS_FAMILY_IPV4),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED, 0),
+      HostCache::Key("host1", ADDRESS_FAMILY_IPV4, 0),
       -1
     },
     {
-      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
-      HostCache::Key("host2", ADDRESS_FAMILY_UNSPECIFIED),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED, 0),
+      HostCache::Key("host2", ADDRESS_FAMILY_UNSPECIFIED, 0),
       -1
     },
     {
-      HostCache::Key("host1", ADDRESS_FAMILY_IPV4),
-      HostCache::Key("host2", ADDRESS_FAMILY_UNSPECIFIED),
+      HostCache::Key("host1", ADDRESS_FAMILY_IPV4, 0),
+      HostCache::Key("host2", ADDRESS_FAMILY_UNSPECIFIED, 0),
       1
     },
     {
-      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED),
-      HostCache::Key("host2", ADDRESS_FAMILY_IPV4),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED, 0),
+      HostCache::Key("host2", ADDRESS_FAMILY_IPV4, 0),
+      -1
+    },
+        {
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED, 0),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED,
+                     HOST_RESOLVER_CANONNAME),
+      -1
+    },
+    {
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED,
+                     HOST_RESOLVER_CANONNAME),
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED, 0),
+      1
+    },
+    {
+      HostCache::Key("host1", ADDRESS_FAMILY_UNSPECIFIED,
+                     HOST_RESOLVER_CANONNAME),
+      HostCache::Key("host2", ADDRESS_FAMILY_UNSPECIFIED,
+                     HOST_RESOLVER_CANONNAME),
       -1
     },
   };
