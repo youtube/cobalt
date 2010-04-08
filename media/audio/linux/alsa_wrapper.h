@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -35,6 +35,7 @@ class AlsaWrapper {
                            unsigned int latency);
   virtual const char* PcmName(snd_pcm_t* handle);
   virtual snd_pcm_sframes_t PcmAvailUpdate(snd_pcm_t* handle);
+  virtual snd_pcm_state_t PcmState(snd_pcm_t* handle);
 
   virtual const char* StrError(int errnum);
 

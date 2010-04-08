@@ -91,7 +91,9 @@ class AlsaPcmOutputStream :
   FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_FallbackDevices);
   FRIEND_TEST(AlsaPcmOutputStreamTest, AutoSelectDevice_HintFail);
   FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_Negative);
   FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_StopStream);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_Underrun);
   FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_UnfinishedPacket);
   FRIEND_TEST(AlsaPcmOutputStreamTest, ConstructedState);
   FRIEND_TEST(AlsaPcmOutputStreamTest, LatencyFloor);

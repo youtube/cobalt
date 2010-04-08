@@ -474,21 +474,25 @@ void AlsaPcmOutputStream::BufferPacket(Packet* packet) {
   if (packet->used >= packet->size) {
     // Before making a request to source for data. We need to determine the
     // delay (in bytes) for the requested data to be played.
-    snd_pcm_sframes_t delay;
-    int error = wrapper_->PcmDelay(playback_handle_, &delay);
-    if (error < 0) {
-      error = wrapper_->PcmRecover(playback_handle_,
-                                   error,
-                                   kPcmRecoverIsSilent);
-      if (error < 0) {
-        LOG(ERROR) << "Failed querying delay: " << wrapper_->StrError(error);
-      }
+    snd_pcm_sframes_t delay = 0;
 
-      // TODO(hclam): If we cannot query the delay, we may want to stop
-      // the playback and report an error.
-      delay = 0;
-    } else {
-      delay *= bytes_per_output_frame_;
+    // Don't query ALSA's delay if we have underrun since it'll be jammed at
+    // some non-zero value and potentially even negative!
+    if (wrapper_->PcmState(playback_handle_) != SND_PCM_STATE_XRUN) {
+      int error = wrapper_->PcmDelay(playback_handle_, &delay);
+      if (error >= 0) {
+        // Convert frames to bytes, but watch out for those negatives!
+        delay = (delay < 0 ? 0 : delay) * bytes_per_output_frame_;
+      } else {
+        // Assume a delay of zero and attempt to recover the device.
+        delay = 0;
+        error = wrapper_->PcmRecover(playback_handle_,
+                                     error,
+                                     kPcmRecoverIsSilent);
+        if (error < 0) {
+          LOG(ERROR) << "Failed querying delay: " << wrapper_->StrError(error);
+        }
+      }
     }
 
     packet->used = 0;
