@@ -202,6 +202,7 @@
             '../chrome/chrome.gyp:nacl_ui_tests',
             '../chrome/chrome.gyp:page_cycler_tests',
             '../chrome/chrome.gyp:plugin_tests',
+            '../chrome/chrome.gyp:selenium_tests',
             '../chrome/chrome.gyp:startup_tests',
             '../chrome/chrome.gyp:sync_unit_tests',
             '../chrome/chrome.gyp:tab_switching_test',
