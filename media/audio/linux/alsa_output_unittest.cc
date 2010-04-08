@@ -47,6 +47,7 @@ class MockAlsaWrapper : public AlsaWrapper {
                                  unsigned int latency));
   MOCK_METHOD1(PcmName, const char*(snd_pcm_t* handle));
   MOCK_METHOD1(PcmAvailUpdate, snd_pcm_sframes_t (snd_pcm_t* handle));
+  MOCK_METHOD1(PcmState, snd_pcm_state_t (snd_pcm_t* handle));
 
   MOCK_METHOD1(StrError, const char*(int errnum));
 };
@@ -400,6 +401,9 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
 
   // Expect the pre-roll.
   MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmState(kFakeHandle))
+      .Times(2)
+      .WillRepeatedly(Return(SND_PCM_STATE_RUNNING));
   EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(kFakeHandle, _))
       .Times(2)
       .WillRepeatedly(DoAll(SetArgumentPointee<1>(0), Return(0)));
@@ -494,11 +498,53 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket) {
 
   // Return a partially filled packet.
   MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmState(_))
+      .WillOnce(Return(SND_PCM_STATE_RUNNING));
   EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(_, _))
       .WillOnce(DoAll(SetArgumentPointee<1>(1), Return(0)));
   EXPECT_CALL(mock_callback,
               OnMoreData(test_stream_.get(), packet_.buffer.get(),
                          packet_.capacity, kTestBytesPerFrame))
+      .WillOnce(Return(10));
+
+  test_stream_->shared_data_.set_source_callback(&mock_callback);
+  test_stream_->BufferPacket(&packet_);
+
+  EXPECT_EQ(0u, packet_.used);
+  EXPECT_EQ(10u, packet_.size);
+}
+
+TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Negative) {
+  packet_.used = packet_.size;
+
+  // Simulate where the underrun has occurred right after checking the delay.
+  MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmState(_))
+      .WillOnce(Return(SND_PCM_STATE_RUNNING));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(_, _))
+      .WillOnce(DoAll(SetArgumentPointee<1>(-1), Return(0)));
+  EXPECT_CALL(mock_callback,
+              OnMoreData(test_stream_.get(), packet_.buffer.get(),
+                         packet_.capacity, 0))
+      .WillOnce(Return(10));
+
+  test_stream_->shared_data_.set_source_callback(&mock_callback);
+  test_stream_->BufferPacket(&packet_);
+
+  EXPECT_EQ(0u, packet_.used);
+  EXPECT_EQ(10u, packet_.size);
+}
+
+TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Underrun) {
+  packet_.used = packet_.size;
+
+  // If ALSA has underrun then we should assume a delay of zero.
+  MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmState(_))
+      .WillOnce(Return(SND_PCM_STATE_XRUN));
+  EXPECT_CALL(mock_callback,
+              OnMoreData(test_stream_.get(), packet_.buffer.get(),
+                         packet_.capacity, 0))
       .WillOnce(Return(10));
 
   test_stream_->shared_data_.set_source_callback(&mock_callback);
