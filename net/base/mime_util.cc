@@ -239,7 +239,11 @@ static const char* const supported_non_image_types[] = {
   "application/json",
   "application/x-x509-user-cert",
   "multipart/x-mixed-replace"
+  // Note: ADDING a new type here will probably render it AS HTML. This can
+  // result in cross site scripting.
 };
+COMPILE_ASSERT(arraysize(supported_non_image_types) == 16,
+               supported_non_images_types_must_equal_16);
 
 //  Mozilla 1.8 and WinIE 7 both accept text/javascript and text/ecmascript.
 //  Mozilla 1.8 accepts application/javascript, application/ecmascript, and
