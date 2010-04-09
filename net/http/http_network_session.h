@@ -16,6 +16,7 @@
 #include "net/proxy/proxy_service.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/tcp_client_socket_pool.h"
+#include "net/spdy/spdy_settings_storage.h"
 
 namespace net {
 
@@ -48,6 +49,14 @@ class HttpNetworkSession
   }
   HttpAlternateProtocols* mutable_alternate_protocols() {
     return &alternate_protocols_;
+  }
+
+  // Access to the SpdySettingsStorage
+  const SpdySettingsStorage& spdy_settings() const {
+    return spdy_settings_;
+  }
+  SpdySettingsStorage* mutable_spdy_settings() {
+    return &spdy_settings_;
   }
 
   // TCP sockets come from the tcp_socket_pool().
@@ -119,6 +128,7 @@ class HttpNetworkSession
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
   scoped_ptr<URLSecurityManager> url_security_manager_;
+  SpdySettingsStorage spdy_settings_;
 };
 
 }  // namespace net

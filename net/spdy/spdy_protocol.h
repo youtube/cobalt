@@ -241,7 +241,13 @@ union SettingsFlagsAndId {
 
   SettingsFlagsAndId(uint32 val) : id_(val) {};
   uint8 flags() const { return flags_[0]; }
+  void set_flags(uint8 flags) { flags_[0] = flags; }
   uint32 id() const { return (ntohl(id_) & kSettingsIdMask); };
+  void set_id(uint32 id) {
+    DCHECK_EQ(0u, (id & ~kSettingsIdMask));
+    id = htonl(id & kSettingsIdMask);
+    id_ = flags() | id;
+  }
 };
 
 // A SETTINGS Control Frame structure.
