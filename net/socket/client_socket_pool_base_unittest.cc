@@ -337,6 +337,8 @@ class TestClientSocketPool : public ClientSocketPool {
 
   void CleanupTimedOutIdleSockets() { base_.CleanupIdleSockets(false); }
 
+  void EnableBackupJobs() { base_.EnableBackupJobs(); }
+
  private:
   ~TestClientSocketPool() {}
 
@@ -839,6 +841,39 @@ TEST_F(ClientSocketPoolBaseTest, CloseIdleSocketAtSocketLimit) {
   // preference of the waiting request.
 
   EXPECT_EQ(OK, callback.WaitForResult());
+}
+
+// Regression test for http://crbug.com/40952.
+TEST_F(ClientSocketPoolBaseTest, CloseIdleSocketAtSocketLimitDeleteGroup) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  pool_->EnableBackupJobs();
+  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
+
+  for (int i = 0; i < kDefaultMaxSockets; ++i) {
+    ClientSocketHandle handle;
+    TestCompletionCallback callback;
+    EXPECT_EQ(OK,
+              InitHandle(&handle, IntToString(i), kDefaultPriority, &callback,
+                         pool_, NULL));
+  }
+
+  // Flush all the DoReleaseSocket tasks.
+  MessageLoop::current()->RunAllPending();
+
+  // Stall a group.  Set a pending job so it'll trigger a backup job if we don't
+  // reuse a socket.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+
+  // "0" is special here, since it should be the first entry in the sorted map,
+  // which is the one which we would close an idle socket for.  We shouldn't
+  // close an idle socket though, since we should reuse the idle socket.
+  EXPECT_EQ(OK,
+            InitHandle(&handle, "0", kDefaultPriority, &callback, pool_, NULL));
+
+  EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
+  EXPECT_EQ(kDefaultMaxSockets - 1, pool_->IdleSocketCount());
 }
 
 TEST_F(ClientSocketPoolBaseTest, PendingRequests) {
