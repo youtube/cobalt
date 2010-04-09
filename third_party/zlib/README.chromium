@@ -1,7 +1,6 @@
 Name: zlib
 URL: http://zlib.net/
 Version: 1.2.3
-License: zlib
 
 Description:
 General purpose compression library
