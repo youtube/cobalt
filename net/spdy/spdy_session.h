@@ -91,7 +91,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   spdy::SpdyFramer* GetFramer() { return &spdy_framer_; }
 
   // Create a new SpdySession.
-  // |host| is the hostname that this session connects to.
+  // |host_port_pair| is the host/port that this session connects to.
+  // |session| is the HttpNetworkSession
   SpdySession(const HostPortPair& host_port_pair, HttpNetworkSession* session);
 
   // Closes all open streams.  Used as part of shutdown.
@@ -124,12 +125,16 @@ class SpdySession : public base::RefCounted<SpdySession>,
                   const spdy::SpdyHeaderBlock& headers);
   void OnFin(const spdy::SpdyRstStreamControlFrame& frame);
   void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
+  void OnSettings(const spdy::SpdySettingsControlFrame& frame);
 
   // IO Callbacks
   void OnTCPConnect(int result);
   void OnSSLConnect(int result);
   void OnReadComplete(int result);
   void OnWriteComplete(int result);
+
+  // Send relevant SETTINGS.  This is generally called on connection setup.
+  void SendSettings();
 
   // Start reading from the socket.
   void ReadSocket();
@@ -140,6 +145,13 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   // Get a new stream id.
   int GetNewStreamId();
+
+  // Queue a frame for sending.
+  // |frame| is the frame to send.
+  // |priority| is the priority for insertion into the queue.
+  // |stream| is the stream which this IO is associated with (or NULL).
+  void QueueFrame(spdy::SpdyFrame* frame, spdy::SpdyPriority priority,
+                  SpdyStream* stream);
 
   // Closes this session.  This will close all active streams and mark
   // the session as permanently closed.
