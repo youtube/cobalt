@@ -294,10 +294,6 @@ void AppendHeadersToSpdyFrame(const char* const extra_headers[],
                               spdy::SpdyHeaderBlock* headers) {
   std::string this_header;
   std::string this_value;
-
-  if (!extra_header_count)
-    return;
-
   // Sanity check: Non-NULL header list.
   DCHECK(NULL != extra_headers) << "NULL header value pair list";
   // Sanity check: Non-NULL header map.
@@ -498,14 +494,6 @@ int ConstructSpdyReply(const char* const extra_headers[],
                                   &buffer_left);
   }
   return packet_size;
-}
-
-// Construct an expected SPDY SETTINGS frame.
-// |settings| are the settings to set.
-// Returns the constructed frame.  The caller takes ownership of the frame.
-spdy::SpdyFrame* ConstructSpdySettings(spdy::SpdySettings settings) {
-  spdy::SpdyFramer framer;
-  return framer.CreateSettings(settings);
 }
 
 // Construct a single SPDY header entry, for validation.
@@ -804,28 +792,16 @@ class SpdyNetworkTransactionTest : public PlatformTest {
   TransactionHelperResult TransactionHelper(const HttpRequestInfo& request,
                                             DelayedSocketData* data,
                                             const BoundNetLog& log) {
-    SessionDependencies session_deps;
-    HttpNetworkSession* session = CreateSession(&session_deps);
-    return TransactionHelperWithSession(request, data, log, &session_deps,
-                                        session);
-  }
-
-  TransactionHelperResult TransactionHelperWithSession(
-      const HttpRequestInfo& request, DelayedSocketData* data,
-      const BoundNetLog& log, SessionDependencies* session_deps,
-      HttpNetworkSession* session) {
-    CHECK(session);
-    CHECK(session_deps);
-
     TransactionHelperResult out;
 
     // We disable SSL for this test.
     SpdySession::SetSSLMode(false);
 
+    SessionDependencies session_deps;
     scoped_ptr<SpdyNetworkTransaction> trans(
-        new SpdyNetworkTransaction(session));
+        new SpdyNetworkTransaction(CreateSession(&session_deps)));
 
-    session_deps->socket_factory.AddSocketDataProvider(data);
+    session_deps.socket_factory.AddSocketDataProvider(data);
 
     TestCompletionCallback callback;
 
@@ -2476,239 +2452,6 @@ TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
   // Flush the MessageLoop; this will cause the buffered IO task
   // to run for the final time.
   MessageLoop::current()->RunAllPending();
-}
-
-// Test that if the server requests persistence of settings, that we save
-// the settings in the SpdySettingsStorage.
-TEST_F(SpdyNetworkTransactionTest, SettingsSaved) {
-  static const SpdyHeaderInfo kSynReplyInfo = {
-    spdy::SYN_REPLY,                              // Syn Reply
-    1,                                            // Stream ID
-    0,                                            // Associated Stream ID
-    3,                                            // Priority
-    spdy::CONTROL_FLAG_NONE,                      // Control Flags
-    false,                                        // Compressed
-    200,                                          // Status
-    NULL,                                         // Data
-    0,                                            // Data Length
-    spdy::DATA_FLAG_NONE                          // Data Flags
-  };
-  static const char* const kExtraHeaders[] = {
-    "status",   "200",
-    "version",  "HTTP/1.1"
-  };
-
-  SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-
-  // Verify that no settings exist initially.
-  HostPortPair host_port_pair("www.google.com", 80);
-  EXPECT_TRUE(session->spdy_settings().Get(host_port_pair).empty());
-
-  // Construct the request.
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-
-  MockWrite writes[] = {
-    MockWrite(true, req->data(), req->length() + spdy::SpdyFrame::size()),
-  };
-
-  // Construct the reply.
-  scoped_ptr<spdy::SpdyFrame> reply(
-    ConstructSpdyPacket(&kSynReplyInfo,
-                        kExtraHeaders,
-                        arraysize(kExtraHeaders) / 2,
-                        NULL,
-                        0));
-
-  unsigned int kSampleId1 = 0x1;
-  unsigned int kSampleValue1 = 0x0a0a0a0a;
-  unsigned int kSampleId2 = 0x2;
-  unsigned int kSampleValue2 = 0x0b0b0b0b;
-  unsigned int kSampleId3 = 0xababab;
-  unsigned int kSampleValue3 = 0x0c0c0c0c;
-  scoped_ptr<spdy::SpdyFrame> settings_frame;
-  {
-    // Construct the SETTINGS frame.
-    spdy::SpdySettings settings;
-    spdy::SettingsFlagsAndId setting(0);
-    // First add a persisted setting
-    setting.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-    setting.set_id(kSampleId1);
-    settings.push_back(std::make_pair(setting, kSampleValue1));
-    // Next add a non-persisted setting
-    setting.set_flags(0);
-    setting.set_id(kSampleId2);
-    settings.push_back(std::make_pair(setting, kSampleValue2));
-    // Next add another persisted setting
-    setting.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-    setting.set_id(kSampleId3);
-    settings.push_back(std::make_pair(setting, kSampleValue3));
-    settings_frame.reset(ConstructSpdySettings(settings));
-  }
-
-  MockRead reads[] = {
-    MockRead(true, reply->data(), reply->length() + spdy::SpdyFrame::size()),
-    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
-             arraysize(kGetBodyFrame)),
-    MockRead(true, settings_frame->data(),
-             settings_frame->length() + spdy::SpdyFrame::size()),
-    MockRead(true, 0, 0)  // EOF
-  };
-
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
-
-  scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(1, reads, arraysize(reads),
-                            writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelperWithSession(request,
-                                                             data.get(),
-                                                             NULL,
-                                                             &session_deps,
-                                                             session.get());
-  EXPECT_EQ(OK, out.rv);
-  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
-  EXPECT_EQ("hello!", out.response_data);
-
-  {
-    // Verify we had two persisted settings.
-    spdy::SpdySettings saved_settings =
-        session->spdy_settings().Get(host_port_pair);
-    ASSERT_EQ(2u, saved_settings.size());
-
-    // Verify the first persisted setting.
-    spdy::SpdySetting setting = saved_settings.front();
-    saved_settings.pop_front();
-    EXPECT_EQ(spdy::SETTINGS_FLAG_PERSISTED, setting.first.flags());
-    EXPECT_EQ(kSampleId1, setting.first.id());
-    EXPECT_EQ(kSampleValue1, setting.second);
-
-    // Verify the second persisted setting.
-    setting = saved_settings.front();
-    saved_settings.pop_front();
-    EXPECT_EQ(spdy::SETTINGS_FLAG_PERSISTED, setting.first.flags());
-    EXPECT_EQ(kSampleId3, setting.first.id());
-    EXPECT_EQ(kSampleValue3, setting.second);
-  }
-}
-
-// Test that when there are settings saved that they are sent back to the
-// server upon session establishment.
-TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
-  static const SpdyHeaderInfo kSynReplyInfo = {
-    spdy::SYN_REPLY,                              // Syn Reply
-    1,                                            // Stream ID
-    0,                                            // Associated Stream ID
-    3,                                            // Priority
-    spdy::CONTROL_FLAG_NONE,                      // Control Flags
-    false,                                        // Compressed
-    200,                                          // Status
-    NULL,                                         // Data
-    0,                                            // Data Length
-    spdy::DATA_FLAG_NONE                          // Data Flags
-  };
-  static const char* kExtraHeaders[] = {
-    "status",   "200",
-    "version",  "HTTP/1.1"
-  };
-
-  SessionDependencies session_deps;
-  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-
-  // Verify that no settings exist initially.
-  HostPortPair host_port_pair("www.google.com", 80);
-  EXPECT_TRUE(session->spdy_settings().Get(host_port_pair).empty());
-
-  unsigned int kSampleId1 = 0x1;
-  unsigned int kSampleValue1 = 0x0a0a0a0a;
-  unsigned int kSampleId2 = 0xababab;
-  unsigned int kSampleValue2 = 0x0c0c0c0c;
-  // Manually insert settings into the SpdySettingsStorage here.
-  {
-    spdy::SpdySettings settings;
-    spdy::SettingsFlagsAndId setting(0);
-    // First add a persisted setting
-    setting.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-    setting.set_id(kSampleId1);
-    settings.push_back(std::make_pair(setting, kSampleValue1));
-    // Next add another persisted setting
-    setting.set_flags(spdy::SETTINGS_FLAG_PLEASE_PERSIST);
-    setting.set_id(kSampleId2);
-    settings.push_back(std::make_pair(setting, kSampleValue2));
-
-    session->mutable_spdy_settings()->Set(host_port_pair, settings);
-  }
-
-  EXPECT_EQ(2u, session->spdy_settings().Get(host_port_pair).size());
-
-  // Construct the SETTINGS frame.
-  const spdy::SpdySettings& settings =
-      session->spdy_settings().Get(host_port_pair);
-  scoped_ptr<spdy::SpdyFrame> settings_frame(ConstructSpdySettings(settings));
-
-  // Construct the request.
-  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-
-  MockWrite writes[] = {
-    MockWrite(true, settings_frame->data(),
-              settings_frame->length() + spdy::SpdyFrame::size()),
-    MockWrite(true, req->data(), req->length() + spdy::SpdyFrame::size()),
-  };
-
-  // Construct the reply.
-  scoped_ptr<spdy::SpdyFrame> reply(
-    ConstructSpdyPacket(&kSynReplyInfo,
-                        kExtraHeaders,
-                        arraysize(kExtraHeaders) / 2,
-                        NULL,
-                        0));
-
-  MockRead reads[] = {
-    MockRead(true, reply->data(), reply->length() + spdy::SpdyFrame::size()),
-    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
-             arraysize(kGetBodyFrame)),
-    MockRead(true, 0, 0)  // EOF
-  };
-
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
-
-  scoped_refptr<DelayedSocketData> data(
-      new DelayedSocketData(2, reads, arraysize(reads),
-                            writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelperWithSession(request,
-                                                             data.get(),
-                                                             NULL,
-                                                             &session_deps,
-                                                             session.get());
-  EXPECT_EQ(OK, out.rv);
-  EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
-  EXPECT_EQ("hello!", out.response_data);
-
-  {
-    // Verify we had two persisted settings.
-    spdy::SpdySettings saved_settings =
-        session->spdy_settings().Get(host_port_pair);
-    ASSERT_EQ(2u, saved_settings.size());
-
-    // Verify the first persisted setting.
-    spdy::SpdySetting setting = saved_settings.front();
-    saved_settings.pop_front();
-    EXPECT_EQ(spdy::SETTINGS_FLAG_PERSISTED, setting.first.flags());
-    EXPECT_EQ(kSampleId1, setting.first.id());
-    EXPECT_EQ(kSampleValue1, setting.second);
-
-    // Verify the second persisted setting.
-    setting = saved_settings.front();
-    saved_settings.pop_front();
-    EXPECT_EQ(spdy::SETTINGS_FLAG_PERSISTED, setting.first.flags());
-    EXPECT_EQ(kSampleId2, setting.first.id());
-    EXPECT_EQ(kSampleValue2, setting.second);
-  }
 }
 
 }  // namespace net
