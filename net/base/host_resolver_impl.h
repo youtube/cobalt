@@ -113,7 +113,7 @@ class HostResolverImpl : public HostResolver {
   bool IsRequestsTracingEnabled() const;
 
   // Gets a copy of the requests trace log.
-  bool GetRequestsTrace(std::vector<NetLog::Entry>* entries);
+  bool GetRequestsTrace(CapturingNetLog::EntryList* entries);
 
   // Applies a set of constraints for requests that belong to the specified
   // pool. NOTE: Don't call this after requests have been already been started.

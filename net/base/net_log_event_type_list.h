@@ -13,6 +13,11 @@
 // log context around it.)
 EVENT_TYPE(CANCELLED)
 
+// TODO(eroman): These are placeholders used by the deprecated
+// BoundNetLog::AddString() / BoundNetLog::AddStringLiteral().
+EVENT_TYPE(TODO_STRING)
+EVENT_TYPE(TODO_STRING_LITERAL)
+
 // Marks the creation/destruction of a request (URLRequest or SocketStream).
 // In the begin phase of this event, the message will contain a string which
 // is the URL.
@@ -139,6 +144,13 @@ EVENT_TYPE(SOCKET_POOL_CONNECT_JOB_ID)
 
 // Measures the time between URLRequest::Start() and
 // URLRequest::ResponseStarted().
+//
+// For the BEGIN phase, the |extra_parameters| of the event will be of type
+// NetLogStringParameter, and will contain the URL.
+//
+// For the END phase, the |extra_parameters| of the event will be of type
+// NetLogIntegerParameter, and will contain the net error code. Altenately,
+// the extra_parameters may be NULL indicating no error code.
 EVENT_TYPE(URL_REQUEST_START)
 
 // ------------------------------------------------------------------------
@@ -227,6 +239,13 @@ EVENT_TYPE(HTTP_STREAM_PARSER_READ_HEADERS)
 
 // Measures the time between SocketStream::Connect() and
 // SocketStream::DidEstablishConnection()
+//
+// For the BEGIN phase, the |extra_parameters| of the event will be of type
+// NetLogStringParameter, and will contain the URL.
+//
+// For the END phase, the |extra_parameters| of the event will be of type
+// NetLogIntegerParameter, and will contain the net error code. Altenately,
+// the extra_parameters may be NULL indicating no error code.
 EVENT_TYPE(SOCKET_STREAM_CONNECT)
 
 // A message sent on the SocketStream.

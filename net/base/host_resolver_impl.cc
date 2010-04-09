@@ -163,16 +163,16 @@ class HostResolverImpl::RequestsTrace
   RequestsTrace() {}
 
   void Add(const std::string& msg) {
-    NetLog::Entry entry;
-    entry.type = NetLog::Entry::TYPE_STRING;
-    entry.time = base::TimeTicks::Now();
-    entry.string = msg;
-
+    CapturingNetLog::Entry entry(NetLog::TYPE_TODO_STRING,
+                                 base::TimeTicks::Now(),
+                                 NetLog::Source(),
+                                 NetLog::PHASE_NONE,
+                                 new NetLogStringParameter(msg));
     AutoLock l(lock_);
     entries_.push_back(entry);
   }
 
-  void Get(std::vector<NetLog::Entry>* entries) {
+  void Get(CapturingNetLog::EntryList* entries) {
     AutoLock l(lock_);
     *entries = entries_;
   }
@@ -184,7 +184,7 @@ class HostResolverImpl::RequestsTrace
 
  private:
   Lock lock_;
-  std::vector<NetLog::Entry> entries_;
+  CapturingNetLog::EntryList entries_;
 };
 
 //-----------------------------------------------------------------------------
@@ -912,7 +912,7 @@ bool HostResolverImpl::IsRequestsTracingEnabled() const {
   return !!requests_trace_;  // Cast to bool.
 }
 
-bool HostResolverImpl::GetRequestsTrace(std::vector<NetLog::Entry>* entries) {
+bool HostResolverImpl::GetRequestsTrace(CapturingNetLog::EntryList* entries) {
   if (!requests_trace_)
     return false;
   requests_trace_->Get(entries);

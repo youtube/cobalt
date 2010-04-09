@@ -835,7 +835,7 @@ TEST_F(ClientSocketPoolBaseTest, CloseIdleSocketAtSocketLimit) {
             InitHandle(&handle, "foo", kDefaultPriority, &callback, pool_,
                        NULL));
 
-  // But if we wait for it, the released idle sockets will be closed in 
+  // But if we wait for it, the released idle sockets will be closed in
   // preference of the waiting request.
 
   EXPECT_EQ(OK, callback.WaitForResult());
@@ -1407,7 +1407,7 @@ TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(req.handle()->is_reused());
   EXPECT_TRUE(LogContainsEntryWithType(
-      log.entries(), 1, NetLog::Entry::TYPE_STRING_LITERAL));
+      log.entries(), 1, NetLog::TYPE_TODO_STRING_LITERAL));
 }
 
 // Make sure that we process all pending requests even when we're stalling
