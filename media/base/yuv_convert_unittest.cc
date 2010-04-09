@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -156,7 +156,8 @@ TEST(YUVScaleTest, YV12) {
                          kWidth / 2,                   // UvStride
                          kScaledWidth * kBpp,          // RgbStride
                          media::YV12,
-                         media::ROTATE_0);
+                         media::ROTATE_0,
+                         media::FILTER_NONE);
   }
 
   unsigned int rgb_hash = DJB2Hash(rgb_scaled_bytes.get(), size_of_rgb_scaled,
@@ -203,7 +204,8 @@ TEST(YUVScaleTest, YV16) {
                          kWidth / 2,                   // UvStride
                          kScaledWidth * kBpp,          // RgbStride
                          media::YV16,
-                         media::ROTATE_0);
+                         media::ROTATE_0,
+                         media::FILTER_NONE);
   }
 
   unsigned int rgb_hash = DJB2Hash(rgb_scaled_bytes.get(), size_of_rgb_scaled,
