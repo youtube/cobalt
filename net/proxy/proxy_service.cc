@@ -464,9 +464,9 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
     }
     result->DeprioritizeBadProxies(proxy_retry_info_);
   } else {
-    net_log.AddStringLiteral(
-        "Got an error from proxy resolver, falling-back to DIRECT.");
-    net_log.AddErrorCode(result_code);
+    net_log.AddString(StringPrintf(
+        "Got an error from proxy resolver (%d), falling-back to DIRECT.",
+        result_code));
 
     // Fall-back to direct when the proxy resolver fails. This corresponds
     // with a javascript runtime error in the PAC script.

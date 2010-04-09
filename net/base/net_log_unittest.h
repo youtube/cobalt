@@ -30,18 +30,16 @@ inline ::testing::AssertionResult LogContainsEventHelper(
   size_t j = (i < 0) ? entries.size() + i : i;
   if (j >= entries.size())
     return ::testing::AssertionFailure() << j << " is out of bounds.";
-  const NetLog::Entry& entry = entries[j];
-  if (entry.type != NetLog::Entry::TYPE_EVENT)
-    return ::testing::AssertionFailure() << "Not a TYPE_EVENT entry";
-  if (expected_event != entry.event.type) {
+  const CapturingNetLog::Entry& entry = entries[j];
+  if (expected_event != entry.type) {
     return ::testing::AssertionFailure()
-        << "Actual event: " << NetLog::EventTypeToString(entry.event.type)
+        << "Actual event: " << NetLog::EventTypeToString(entry.type)
         << ". Expected event: " << NetLog::EventTypeToString(expected_event)
         << ".";
   }
-  if (expected_phase != entry.event.phase) {
+  if (expected_phase != entry.phase) {
     return ::testing::AssertionFailure()
-        << "Actual phase: " << entry.event.phase
+        << "Actual phase: " << entry.phase
         << ". Expected phase: " << expected_phase << ".";
   }
   if (check_time) {
@@ -94,12 +92,12 @@ inline ::testing::AssertionResult LogContainsEndEvent(
 inline ::testing::AssertionResult LogContainsEntryWithType(
     const CapturingNetLog::EntryList& entries,
     int i, // Negative indices are reverse indices.
-    NetLog::Entry::Type type) {
+    NetLog::EventType type) {
   // Negative indices are reverse indices.
   size_t j = (i < 0) ? entries.size() + i : i;
   if (j >= entries.size())
     return ::testing::AssertionFailure() << j << " is out of bounds.";
-  const NetLog::Entry& entry = entries[j];
+  const CapturingNetLog::Entry& entry = entries[j];
   if (entry.type != type)
     return ::testing::AssertionFailure() << "Type does not match.";
   return ::testing::AssertionSuccess();
@@ -116,10 +114,9 @@ inline size_t ExpectLogContainsSomewhere(
     NetLog::EventPhase expected_phase) {
   size_t i = 0;
   for (; i < entries.size(); ++i) {
-    const NetLog::Entry& entry = entries[i];
-    if (entry.type == NetLog::Entry::TYPE_EVENT &&
-        entry.event.type == expected_event &&
-        entry.event.phase == expected_phase)
+    const CapturingNetLog::Entry& entry = entries[i];
+    if (entry.type == expected_event &&
+        entry.phase == expected_phase)
       break;
   }
   EXPECT_LT(i, entries.size());

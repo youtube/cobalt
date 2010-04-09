@@ -97,8 +97,7 @@ void SocketStream::set_context(URLRequestContext* context) {
           context->net_log(),
           NetLog::SOURCE_SOCKET_STREAM);
 
-      net_log_.BeginEventWithString(NetLog::TYPE_REQUEST_ALIVE,
-                                    url_.possibly_invalid_spec());
+      net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE);
     }
   }
 
@@ -121,7 +120,8 @@ void SocketStream::Connect() {
   // Open a connection asynchronously, so that delegate won't be called
   // back before returning Connect().
   next_state_ = STATE_RESOLVE_PROXY;
-  net_log_.BeginEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT);
+  net_log_.BeginEventWithString(NetLog::TYPE_SOCKET_STREAM_CONNECT,
+                                url_.possibly_invalid_spec());
   MessageLoop::current()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &SocketStream::DoLoop, OK));
@@ -406,7 +406,7 @@ void SocketStream::DoLoop(int result) {
     // close the connection.
     if (state != STATE_READ_WRITE && result < ERR_IO_PENDING) {
       DCHECK_EQ(next_state_, STATE_CLOSE);
-      net_log_.EndEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT);
+      net_log_.EndEventWithInteger(NetLog::TYPE_SOCKET_STREAM_CONNECT, result);
     }
   } while (result != ERR_IO_PENDING);
 }
