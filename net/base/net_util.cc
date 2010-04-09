@@ -1563,7 +1563,7 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports) {
 
 enum IPv6SupportStatus {
   IPV6_CANNOT_CREATE_SOCKETS,
-  IPV6_CAN_CREATE_SOCKETS,  // Deprecated: No longer used.
+  IPV6_CAN_CREATE_SOCKETS,
   IPV6_GETIFADDRS_FAILED,
   IPV6_GLOBAL_ADDRESS_MISSING,
   IPV6_GLOBAL_ADDRESS_PRESENT,
@@ -1641,9 +1641,13 @@ bool IPv6Supported() {
   }
   closesocket(test_socket);
 
+  // TODO(jar): Bug 40851: The remainder of probe is not working.
+  IPv6SupportResults(IPV6_CAN_CREATE_SOCKETS);  // Record status.
+  return true;  // Don't disable IPv6 yet.
+
   // Check to see if any interface has a IPv6 address.
   // Note: The original IPv6 socket can't be used here, as WSAIoctl() will fail.
-  test_socket = WSASocket(AF_INET, SOCK_DGRAM, 0, NULL, 0, 0);
+  test_socket = socket(AF_INET, SOCK_STREAM, 0);
   DCHECK(test_socket != INVALID_SOCKET);
   INTERFACE_INFO interfaces[128];
   DWORD bytes_written = 0;
