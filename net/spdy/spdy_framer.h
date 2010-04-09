@@ -43,7 +43,8 @@ void FramerSetEnableCompressionHelper(SpdyFramer* framer, bool compress);
 typedef std::map<std::string, std::string> SpdyHeaderBlock;
 
 // A datastructure for holding a set of ID/value pairs for a SETTINGS frame.
-typedef std::list<std::pair<spdy::SettingsFlagsAndId, uint32> > SpdySettings;
+typedef std::pair<spdy::SettingsFlagsAndId, uint32> SpdySetting;
+typedef std::list<SpdySetting> SpdySettings;
 
 // SpdyFramerVisitorInterface is a set of callbacks for the SpdyFramer.
 // Implement this interface to receive event callbacks as frames are

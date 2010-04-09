@@ -25,6 +25,7 @@
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_frame_builder.h"
 #include "net/spdy/spdy_protocol.h"
+#include "net/spdy/spdy_settings_storage.h"
 #include "net/spdy/spdy_stream.h"
 #include "net/tools/dump_cache/url_to_filename_encoder.h"
 
@@ -215,6 +216,8 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
   spdy_framer_.set_visitor(this);
 
   session_->ssl_config_service()->GetSSLConfig(&ssl_config_);
+
+  SendSettings();
 }
 
 SpdySession::~SpdySession() {
@@ -367,10 +370,7 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
   scoped_ptr<spdy::SpdySynStreamControlFrame> syn_frame(
       spdy_framer_.CreateSynStream(stream_id, 0, request.priority, flags, false,
                                    &headers));
-  int length = spdy::SpdyFrame::size() + syn_frame->length();
-  IOBuffer* buffer = new IOBuffer(length);
-  memcpy(buffer->data(), syn_frame->data(), length);
-  queue_.push(SpdyIOBuffer(buffer, length, request.priority, stream));
+  QueueFrame(syn_frame.get(), request.priority, stream);
 
   static StatsCounter spdy_requests("spdy.requests");
   spdy_requests.Increment();
@@ -380,14 +380,6 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
 
   LOG(INFO) << "SPDY SYN_STREAM HEADERS ----------------------------------";
   DumpSpdyHeaders(headers);
-
-  // Schedule to write to the socket after we've made it back
-  // to the message loop so that we can aggregate multiple
-  // requests.
-  // TODO(mbelshe): Should we do the "first" request immediately?
-  //                maybe we should only 'do later' for subsequent
-  //                requests.
-  WriteSocketLater();
 
   return stream;
 }
@@ -423,15 +415,7 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   // TODO(mbelshe): reduce memory copies here.
   scoped_ptr<spdy::SpdyDataFrame> frame(
       spdy_framer_.CreateDataFrame(stream_id, data->data(), len, flags));
-  int length = spdy::SpdyFrame::size() + frame->length();
-  IOBufferWithSize* buffer = new IOBufferWithSize(length);
-  memcpy(buffer->data(), frame->data(), length);
-  queue_.push(SpdyIOBuffer(buffer, length, stream->priority(), stream));
-
-  // Whenever we queue onto the socket we need to ensure that we will write to
-  // it later.
-  WriteSocketLater();
-
+  QueueFrame(frame.get(), stream->priority(), stream);
   return ERR_IO_PENDING;
 }
 
@@ -580,8 +564,10 @@ void SpdySession::OnWriteComplete(int result) {
 
   write_pending_ = false;
 
-  LOG(INFO) << "Spdy write complete (result=" << result << ") for stream: "
-            << in_flight_write_.stream()->stream_id();
+  scoped_refptr<SpdyStream> stream = in_flight_write_.stream();
+
+  LOG(INFO) << "Spdy write complete (result=" << result << ")"
+            << (stream ? " for stream " + stream->stream_id() : "");
 
   if (result >= 0) {
     // It should not be possible to have written more bytes than our
@@ -593,21 +579,22 @@ void SpdySession::OnWriteComplete(int result) {
     // We only notify the stream when we've fully written the pending frame.
     if (!in_flight_write_.buffer()->BytesRemaining()) {
       scoped_refptr<SpdyStream> stream = in_flight_write_.stream();
-      DCHECK(stream.get());
+      if (stream) {
+        // Report the number of bytes written to the caller, but exclude the
+        // frame size overhead.  NOTE: if this frame was compressed the
+        // reported bytes written is the compressed size, not the original
+        // size.
+        if (result > 0) {
+          result = in_flight_write_.buffer()->size();
+          DCHECK_GT(result, static_cast<int>(spdy::SpdyFrame::size()));
+          result -= static_cast<int>(spdy::SpdyFrame::size());
+        }
 
-      // Report the number of bytes written to the caller, but exclude the
-      // frame size overhead.  NOTE:  if this frame was compressed the reported
-      // bytes written is the compressed size, not the original size.
-      if (result > 0) {
-        result = in_flight_write_.buffer()->size();
-        DCHECK_GT(result, static_cast<int>(spdy::SpdyFrame::size()));
-        result -= static_cast<int>(spdy::SpdyFrame::size());
+        // It is possible that the stream was cancelled while we were writing
+        // to the socket.
+        if (!stream->cancelled())
+          stream->OnWriteComplete(result);
       }
-
-      // It is possible that the stream was cancelled while we were writing
-      // to the socket.
-      if (!stream->cancelled())
-        stream->OnWriteComplete(result);
 
       // Cleanup the write which just completed.
       in_flight_write_.release();
@@ -662,6 +649,9 @@ void SpdySession::ReadSocket() {
 
 void SpdySession::WriteSocketLater() {
   if (delayed_write_pending_)
+    return;
+
+  if (state_ < CONNECTED)
     return;
 
   delayed_write_pending_ = true;
@@ -779,6 +769,17 @@ int SpdySession::GetNewStreamId() {
   if (stream_hi_water_mark_ > 0x7fff)
     stream_hi_water_mark_ = 1;
   return id;
+}
+
+void SpdySession::QueueFrame(spdy::SpdyFrame* frame,
+                             spdy::SpdyPriority priority,
+                             SpdyStream* stream) {
+  int length = spdy::SpdyFrame::size() + frame->length();
+  IOBuffer* buffer = new IOBuffer(length);
+  memcpy(buffer->data(), frame->data(), length);
+  queue_.push(SpdyIOBuffer(buffer, length, priority, stream));
+
+  WriteSocketLater();
 }
 
 void SpdySession::CloseSessionOnError(net::Error err) {
@@ -1040,6 +1041,16 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
   }
 
   switch (type) {
+    case spdy::GOAWAY:
+      OnGoAway(*reinterpret_cast<const spdy::SpdyGoAwayControlFrame*>(frame));
+      break;
+    case spdy::SETTINGS:
+      OnSettings(
+          *reinterpret_cast<const spdy::SpdySettingsControlFrame*>(frame));
+      break;
+    case spdy::RST_STREAM:
+      OnFin(*reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
+      break;
     case spdy::SYN_STREAM:
       OnSyn(*reinterpret_cast<const spdy::SpdySynStreamControlFrame*>(frame),
             headers);
@@ -1048,12 +1059,6 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
       OnSynReply(
           *reinterpret_cast<const spdy::SpdySynReplyControlFrame*>(frame),
           headers);
-      break;
-    case spdy::RST_STREAM:
-      OnFin(*reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
-      break;
-    case spdy::GOAWAY:
-      OnGoAway(*reinterpret_cast<const spdy::SpdyGoAwayControlFrame*>(frame));
       break;
     default:
       DCHECK(false);  // Error!
@@ -1096,6 +1101,26 @@ void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
   // Don't bother killing any streams that are still reading.  They'll either
   // complete successfully or get an ERR_CONNECTION_CLOSED when the socket is
   // closed.
+}
+
+void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
+  spdy::SpdySettings settings;
+  if (spdy_framer_.ParseSettings(&frame, &settings)) {
+    SpdySettingsStorage* settings_storage = session_->mutable_spdy_settings();
+    settings_storage->Set(host_port_pair_, settings);
+  }
+}
+
+void SpdySession::SendSettings() {
+  const SpdySettingsStorage& settings_storage = session_->spdy_settings();
+  const spdy::SpdySettings& settings = settings_storage.Get(host_port_pair_);
+  if (settings.empty())
+    return;
+
+  // Create the SETTINGS frame and send it.
+  scoped_ptr<spdy::SpdySettingsControlFrame> settings_frame(
+      spdy_framer_.CreateSettings(settings));
+  QueueFrame(settings_frame.get(), 0, NULL);
 }
 
 }  // namespace net
