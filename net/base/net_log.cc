@@ -4,6 +4,7 @@
 
 #include "net/base/net_log.h"
 #include "base/logging.h"
+#include "base/string_util.h"
 
 namespace net {
 
@@ -26,9 +27,23 @@ std::vector<NetLog::EventType> NetLog::GetAllEventTypes() {
   return types;
 }
 
-void BoundNetLog::AddEntry(const NetLog::Entry& entry) const {
-  if (net_log_)
-    net_log_->AddEntry(entry);
+void BoundNetLog::AddEntry(NetLog::EventType type,
+                           NetLog::EventPhase phase,
+                           NetLog::EventParameters* extra_parameters) const {
+  if (net_log_) {
+    net_log_->AddEntry(type, base::TimeTicks::Now(), source_, phase,
+                       extra_parameters);
+  }
+}
+
+void BoundNetLog::AddEntryWithTime(
+    NetLog::EventType type,
+    const base::TimeTicks& time,
+    NetLog::EventPhase phase,
+    NetLog::EventParameters* extra_parameters) const {
+  if (net_log_) {
+    net_log_->AddEntry(type, time, source_, phase, extra_parameters);
+  }
 }
 
 bool BoundNetLog::HasListener() const {
@@ -38,91 +53,72 @@ bool BoundNetLog::HasListener() const {
 }
 
 void BoundNetLog::AddEvent(NetLog::EventType event_type) const {
-  if (net_log_) {
-    NetLog::Entry entry;
-    entry.source = source_;
-    entry.type = NetLog::Entry::TYPE_EVENT;
-    entry.time = base::TimeTicks::Now();
-    entry.event = NetLog::Event(event_type, NetLog::PHASE_NONE);
-    AddEntry(entry);
-  }
+  AddEventWithParameters(event_type, NULL);
 }
 
-void BoundNetLog::BeginEvent(NetLog::EventType event_type) const {
-  if (net_log_) {
-    NetLog::Entry entry;
-    entry.source = source_;
-    entry.type = NetLog::Entry::TYPE_EVENT;
-    entry.time = base::TimeTicks::Now();
-    entry.event = NetLog::Event(event_type, NetLog::PHASE_BEGIN);
-    AddEntry(entry);
-  }
-}
-
-void BoundNetLog::BeginEventWithString(NetLog::EventType event_type,
-                                       const std::string& string) const {
-  NetLog::Entry entry;
-  entry.source = source_;
-  entry.type = NetLog::Entry::TYPE_EVENT;
-  entry.time = base::TimeTicks::Now();
-  entry.event = NetLog::Event(event_type, NetLog::PHASE_BEGIN);
-  entry.string = string;
-  AddEntry(entry);
+void BoundNetLog::AddEventWithParameters(
+    NetLog::EventType event_type,
+    NetLog::EventParameters* params) const {
+  AddEntry(event_type, NetLog::PHASE_NONE, params);
 }
 
 void BoundNetLog::AddEventWithInteger(NetLog::EventType event_type,
                                       int integer) const {
-  NetLog::Entry entry;
-  entry.source = source_;
-  entry.type = NetLog::Entry::TYPE_EVENT;
-  entry.time = base::TimeTicks::Now();
-  entry.event = NetLog::Event(event_type, NetLog::PHASE_NONE);
-  entry.error_code = integer;
-  AddEntry(entry);
+  scoped_refptr<NetLog::EventParameters> params =
+      new NetLogIntegerParameter(integer);
+  AddEventWithParameters(event_type, params);
+}
+
+void BoundNetLog::BeginEvent(NetLog::EventType event_type) const {
+  BeginEventWithParameters(event_type, NULL);
+}
+
+void BoundNetLog::BeginEventWithParameters(
+    NetLog::EventType event_type,
+    NetLog::EventParameters* params) const {
+  AddEntry(event_type, NetLog::PHASE_BEGIN, params);
+}
+
+void BoundNetLog::BeginEventWithString(NetLog::EventType event_type,
+                                       const std::string& string) const {
+  scoped_refptr<NetLog::EventParameters> params =
+      new NetLogStringParameter(string);
+  BeginEventWithParameters(event_type, params);
 }
 
 void BoundNetLog::EndEvent(NetLog::EventType event_type) const {
-  if (net_log_) {
-    NetLog::Entry entry;
-    entry.source = source_;
-    entry.type = NetLog::Entry::TYPE_EVENT;
-    entry.time = base::TimeTicks::Now();
-    entry.event = NetLog::Event(event_type, NetLog::PHASE_END);
-    AddEntry(entry);
-  }
+  EndEventWithParameters(event_type, NULL);
 }
 
-void BoundNetLog::AddStringLiteral(const char* literal) const {
-  if (net_log_) {
-    NetLog::Entry entry;
-    entry.source = source_;
-    entry.type = NetLog::Entry::TYPE_STRING_LITERAL;
-    entry.time = base::TimeTicks::Now();
-    entry.literal = literal;
-    AddEntry(entry);
-  }
+void BoundNetLog::EndEventWithParameters(
+    NetLog::EventType event_type,
+    NetLog::EventParameters* params) const {
+  AddEntry(event_type, NetLog::PHASE_END, params);
+}
+
+void BoundNetLog::EndEventWithInteger(NetLog::EventType event_type,
+                                      int integer) const {
+  scoped_refptr<NetLog::EventParameters> params =
+      new NetLogIntegerParameter(integer);
+  EndEventWithParameters(event_type, params);
 }
 
 void BoundNetLog::AddString(const std::string& string) const {
-  if (net_log_) {
-    NetLog::Entry entry;
-    entry.source = source_;
-    entry.type = NetLog::Entry::TYPE_STRING;
-    entry.time = base::TimeTicks::Now();
-    entry.string = string;
-    AddEntry(entry);
-  }
+  // We pass TYPE_TODO_STRING since we have no event type to associate this
+  // with. (AddString() is deprecated, and should be replaced with
+  // AddEventWithParameters()).
+  scoped_refptr<NetLog::EventParameters> params =
+      new NetLogStringParameter(string);
+  AddEventWithParameters(NetLog::TYPE_TODO_STRING, params);
 }
 
-void BoundNetLog::AddErrorCode(int error) const {
-  if (net_log_) {
-    NetLog::Entry entry;
-    entry.source = source_;
-    entry.type = NetLog::Entry::TYPE_ERROR_CODE;
-    entry.time = base::TimeTicks::Now();
-    entry.error_code = error;
-    AddEntry(entry);
-  }
+void BoundNetLog::AddStringLiteral(const char* literal) const {
+  // We pass TYPE_TODO_STRING_LITERAL since we have no event type to associate
+  // this with. (AddString() is deprecated, and should be replaced with
+  // AddEventWithParameters()).
+  scoped_refptr<NetLog::EventParameters> params =
+      new NetLogStringLiteralParameter(literal);
+  AddEventWithParameters(NetLog::TYPE_TODO_STRING_LITERAL, params);
 }
 
 // static
@@ -135,7 +131,24 @@ BoundNetLog BoundNetLog::Make(NetLog* net_log,
   return BoundNetLog(source, net_log);
 }
 
-void CapturingNetLog::AddEntry(const Entry& entry) {
+NetLogStringParameter::NetLogStringParameter(const std::string& value)
+    : value_(value) {
+}
+
+std::string NetLogIntegerParameter::ToString() const {
+  return IntToString(value_);
+}
+
+std::string NetLogStringLiteralParameter::ToString() const {
+  return std::string(value_);
+}
+
+void CapturingNetLog::AddEntry(EventType type,
+                               const base::TimeTicks& time,
+                               const Source& source,
+                               EventPhase phase,
+                               EventParameters* extra_parameters) {
+  Entry entry(type, time, source, phase, extra_parameters);
   if (entries_.size() + 1 < max_num_entries_)
     entries_.push_back(entry);
 }
@@ -154,9 +167,9 @@ void CapturingBoundNetLog::Clear() {
 
 void CapturingBoundNetLog::AppendTo(const BoundNetLog& net_log) const {
   for (size_t i = 0; i < entries().size(); ++i) {
-    NetLog::Entry entry = entries()[i];
-    entry.source = net_log.source();
-    net_log.AddEntry(entry);
+    const CapturingNetLog::Entry& entry = entries()[i];
+    net_log.AddEntryWithTime(entry.type, entry.time, entry.phase,
+                             entry.extra_parameters);
   }
 }
 

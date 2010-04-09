@@ -259,7 +259,8 @@ void URLRequest::StartJob(URLRequestJob* job) {
   DCHECK(!is_pending_);
   DCHECK(!job_);
 
-  net_log_.BeginEvent(net::NetLog::TYPE_URL_REQUEST_START);
+  net_log_.BeginEventWithString(net::NetLog::TYPE_URL_REQUEST_START,
+                                original_url().possibly_invalid_spec());
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
@@ -365,10 +366,12 @@ void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
 }
 
 void URLRequest::ResponseStarted() {
-  if (!status_.is_success())
-    net_log_.AddErrorCode(status_.os_error());
-
-  net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START);
+  if (!status_.is_success()) {
+    net_log_.EndEventWithInteger(net::NetLog::TYPE_URL_REQUEST_START,
+                                 status_.os_error());
+  } else {
+    net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START);
+  }
 
   URLRequestJob* job = GetJobManager()->MaybeInterceptResponse(this);
   if (job) {
@@ -515,9 +518,7 @@ void URLRequest::set_context(URLRequestContext* context) {
     if (context) {
       net_log_ = net::BoundNetLog::Make(context->net_log(),
                                         net::NetLog::SOURCE_URL_REQUEST);
-
-      net_log_.BeginEventWithString(net::NetLog::TYPE_REQUEST_ALIVE,
-                                    original_url_.possibly_invalid_spec());
+      net_log_.BeginEvent(net::NetLog::TYPE_REQUEST_ALIVE);
     }
   }
 }
