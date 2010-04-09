@@ -10,6 +10,9 @@
 *.vcproj
 *.xcodeproj
 *~
+.metadata
+.project
+.cproject
 /_out
 /Makefile
 /breakpad/src/
