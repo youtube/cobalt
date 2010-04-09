@@ -298,6 +298,11 @@ void SpdyFramer::ProcessControlFrameHeader() {
           SpdyGoAwayControlFrame::size() - SpdyFrame::size())
         set_error(SPDY_INVALID_CONTROL_FRAME);
       break;
+    case SETTINGS:
+      if (current_control_frame.length() <
+          SpdySettingsControlFrame::size() - SpdyControlFrame::size())
+        set_error(SPDY_INVALID_CONTROL_FRAME);
+      break;
     default:
       LOG(WARNING) << "Valid spdy control frame with unknown type: "
                    << current_control_frame.type();
