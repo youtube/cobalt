@@ -182,6 +182,23 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
   CHECK(handle);
   Group& group = group_map_[group_name];
 
+  // Try to reuse a socket.
+  while (!group.idle_sockets.empty()) {
+    IdleSocket idle_socket = group.idle_sockets.back();
+    group.idle_sockets.pop_back();
+    DecrementIdleCount();
+    if (idle_socket.socket->IsConnectedAndIdle()) {
+      // We found one we can reuse!
+      base::TimeDelta idle_time =
+          base::TimeTicks::Now() - idle_socket.start_time;
+      HandOutSocket(
+          idle_socket.socket, idle_socket.used, handle, idle_time, &group,
+          request->net_log());
+      return OK;
+    }
+    delete idle_socket.socket;
+  }
+
   // Can we make another active socket now?
   if (!group.HasAvailableSocketSlot(max_sockets_per_group_)) {
     request->net_log().AddEvent(
@@ -199,23 +216,6 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
       request->net_log().AddEvent(NetLog::TYPE_SOCKET_POOL_STALLED_MAX_SOCKETS);
       return ERR_IO_PENDING;
     }
-  }
-
-  // Try to reuse a socket.
-  while (!group.idle_sockets.empty()) {
-    IdleSocket idle_socket = group.idle_sockets.back();
-    group.idle_sockets.pop_back();
-    DecrementIdleCount();
-    if (idle_socket.socket->IsConnectedAndIdle()) {
-      // We found one we can reuse!
-      base::TimeDelta idle_time =
-          base::TimeTicks::Now() - idle_socket.start_time;
-      HandOutSocket(
-          idle_socket.socket, idle_socket.used, handle, idle_time, &group,
-          request->net_log());
-      return OK;
-    }
-    delete idle_socket.socket;
   }
 
   // See if we already have enough connect jobs or sockets that will be released
