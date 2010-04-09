@@ -223,7 +223,7 @@ class ClientSocketPoolBaseHelper
     return connect_job_factory_->ConnectionTimeout();
   }
 
-  void enable_backup_jobs() { backup_jobs_enabled_ = true; };
+  void EnableBackupJobs() { backup_jobs_enabled_ = true; };
 
  private:
   friend class base::RefCounted<ClientSocketPoolBaseHelper>;
@@ -578,7 +578,7 @@ class ClientSocketPoolBase {
 
   const std::string& name() const { return name_; }
 
-  void enable_backup_jobs() { helper_->enable_backup_jobs(); };
+  void EnableBackupJobs() { helper_->EnableBackupJobs(); };
 
  private:
   // This adaptor class exists to bridge the
