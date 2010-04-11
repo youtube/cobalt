@@ -20,7 +20,7 @@
 // Header for low level row functions.
 #include "media/base/yuv_row.h"
 
-#if USE_MMX
+#if USE_SSE
 #if defined(_MSC_VER)
 #include <intrin.h>
 #else
@@ -67,7 +67,7 @@ void ConvertYUVToRGB32(const uint8* y_buf,
 // 4 pixels are blended at a time.
 static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
                        int width, int scaled_y_fraction) {
-#if USE_MMX
+#if USE_SSE
   __m128i zero = _mm_setzero_si128();
   __m128i y1_fraction = _mm_set1_epi16(
       static_cast<unsigned short>(scaled_y_fraction >> 8));
