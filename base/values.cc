@@ -832,6 +832,16 @@ void ListValue::Append(Value* in_value) {
   list_.push_back(in_value);
 }
 
+bool ListValue::AppendIfNotPresent(Value* in_value) {
+  DCHECK(in_value);
+  for (ValueVector::iterator i(list_.begin()); i != list_.end(); ++i) {
+    if ((*i)->Equals(in_value))
+      return false;
+  }
+  list_.push_back(in_value);
+  return true;
+}
+
 bool ListValue::Insert(size_t index, Value* in_value) {
   DCHECK(in_value);
   if (index > list_.size())
