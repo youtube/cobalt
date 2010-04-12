@@ -13,7 +13,9 @@
 namespace net {
 
 class NetworkChangeNotifierLinux
-    : public NetworkChangeNotifier, public MessageLoopForIO::Watcher {
+    : public NetworkChangeNotifier,
+      public MessageLoopForIO::Watcher,
+      public MessageLoop::DestructionObserver {
  public:
   NetworkChangeNotifierLinux();
 
@@ -32,6 +34,10 @@ class NetworkChangeNotifierLinux
   virtual void OnFileCanReadWithoutBlocking(int fd);
   virtual void OnFileCanWriteWithoutBlocking(int /* fd */);
 
+  // MessageLoop::DestructionObserver methods:
+
+  virtual void WillDestroyCurrentMessageLoop();
+
  private:
   virtual ~NetworkChangeNotifierLinux();
 
@@ -44,10 +50,13 @@ class NetworkChangeNotifierLinux
   // recv() would block.  Otherwise, it returns a net error code.
   int ReadNotificationMessage(char* buf, size_t len);
 
+  // Stops watching the netlink file descriptor.
+  void StopWatching();
+
   ObserverList<Observer, true> observers_;
 
   int netlink_fd_;  // This is the netlink socket descriptor.
-  MessageLoopForIO* const loop_;
+  MessageLoopForIO* loop_;
   MessageLoopForIO::FileDescriptorWatcher netlink_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierLinux);

@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 
 #include "base/basictypes.h"
+#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "net/base/net_errors.h"
@@ -31,15 +32,14 @@ NetworkChangeNotifierLinux::NetworkChangeNotifierLinux()
   }
 
   ListenForNotifications();
+  loop_->AddDestructionObserver(this);
 }
 
 NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {
-  if (netlink_fd_ != kInvalidSocket) {
-    if (close(netlink_fd_) != 0)
-      PLOG(ERROR) << "Failed to close socket";
-    netlink_fd_ = kInvalidSocket;
-    netlink_watcher_.StopWatchingFileDescriptor();
-  }
+  StopWatching();
+
+  if (loop_)
+    loop_->RemoveDestructionObserver(this);
 }
 
 void NetworkChangeNotifierLinux::OnFileCanReadWithoutBlocking(int fd) {
@@ -50,6 +50,11 @@ void NetworkChangeNotifierLinux::OnFileCanReadWithoutBlocking(int fd) {
 
 void NetworkChangeNotifierLinux::OnFileCanWriteWithoutBlocking(int /* fd */) {
   NOTREACHED();
+}
+
+void NetworkChangeNotifierLinux::WillDestroyCurrentMessageLoop() {
+  StopWatching();
+  loop_ = NULL;
 }
 
 void NetworkChangeNotifierLinux::ListenForNotifications() {
@@ -85,6 +90,15 @@ int NetworkChangeNotifierLinux::ReadNotificationMessage(char* buf, size_t len) {
     }
 
     return ERR_IO_PENDING;
+  }
+}
+
+void NetworkChangeNotifierLinux::StopWatching() {
+  if (netlink_fd_ != kInvalidSocket) {
+    if (HANDLE_EINTR(close(netlink_fd_)) != 0)
+      PLOG(ERROR) << "Failed to close socket";
+    netlink_fd_ = kInvalidSocket;
+    netlink_watcher_.StopWatchingFileDescriptor();
   }
 }
 
