@@ -53,6 +53,7 @@ class FtpNetworkTransaction : public FtpTransaction {
     COMMAND_ACCT,
     COMMAND_SYST,
     COMMAND_TYPE,
+    COMMAND_EPSV,
     COMMAND_PASV,
     COMMAND_PWD,
     COMMAND_SIZE,
@@ -61,7 +62,7 @@ class FtpNetworkTransaction : public FtpTransaction {
     COMMAND_MLSD,
     COMMAND_LIST,
     COMMAND_MDTM,
-    COMMAND_QUIT
+    COMMAND_QUIT,
   };
 
   enum ErrorClass {
@@ -164,6 +165,8 @@ class FtpNetworkTransaction : public FtpTransaction {
   int ProcessResponsePWD(const FtpCtrlResponse& response);
   int DoCtrlWriteTYPE();
   int ProcessResponseTYPE(const FtpCtrlResponse& response);
+  int DoCtrlWriteEPSV();
+  int ProcessResponseEPSV(const FtpCtrlResponse& response);
   int DoCtrlWritePASV();
   int ProcessResponsePASV(const FtpCtrlResponse& response);
   int DoCtrlWriteRETR();
@@ -228,6 +231,10 @@ class FtpNetworkTransaction : public FtpTransaction {
   // Detected resource type (file or directory).
   ResourceType resource_type_;
 
+  // Initially we favour EPSV over PASV for transfers but should any
+  // EPSV fail, we fall back to PASV for the duration of connection.
+  bool use_epsv_;
+
   // We get username and password as wstrings in RestartWithAuth, so they are
   // also kept as wstrings here.
   std::wstring username_;
@@ -261,6 +268,7 @@ class FtpNetworkTransaction : public FtpTransaction {
     STATE_CTRL_WRITE_ACCT,
     STATE_CTRL_WRITE_SYST,
     STATE_CTRL_WRITE_TYPE,
+    STATE_CTRL_WRITE_EPSV,
     STATE_CTRL_WRITE_PASV,
     STATE_CTRL_WRITE_PWD,
     STATE_CTRL_WRITE_RETR,

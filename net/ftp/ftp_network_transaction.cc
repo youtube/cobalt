@@ -43,6 +43,66 @@ bool IsValidFTPCommandString(const std::string& input) {
   return true;
 }
 
+// From RFC 2428 Section 3:
+//   The text returned in response to the EPSV command MUST be:
+//     <some text> (<d><d><d><tcp-port><d>)
+//   <d> is a delimiter character, ideally to be |
+bool ExtractPortFromEPSVResponse(const net::FtpCtrlResponse& response,
+                                 int* port) {
+  if (response.lines.size() != 1)
+    return false;
+  const char* ptr = response.lines[0].c_str();
+  while (*ptr && *ptr != '(')
+    ++ptr;
+  if (!*ptr)
+    return false;
+  char sep = *(++ptr);
+  if (!sep || isdigit(sep) || *(++ptr) != sep || *(++ptr) != sep)
+    return false;
+  if (!isdigit(*(++ptr)))
+    return false;
+  *port = *ptr - '0';
+  while (isdigit(*(++ptr))) {
+    *port *= 10;
+    *port += *ptr - '0';
+  }
+  if (*ptr != sep)
+    return false;
+
+  return true;
+}
+
+// There are two way we can receive IP address and port.
+// (127,0,0,1,23,21) IP address and port encapsulated in ().
+// 127,0,0,1,23,21  IP address and port without ().
+//
+// See RFC 959, Section 4.1.2
+bool ExtractPortFromPASVResponse(const net::FtpCtrlResponse& response,
+                                 int* port) {
+  if (response.lines.size() != 1)
+    return false;
+  const char* ptr = response.lines[0].c_str();
+  while (*ptr && *ptr != '(')  // Try with bracket.
+    ++ptr;
+  if (*ptr) {
+    ++ptr;
+  } else {
+    ptr = response.lines[0].c_str();  // Try without bracket.
+    while (*ptr && *ptr != ',')
+      ++ptr;
+    while (*ptr && *ptr != ' ')
+      --ptr;
+  }
+  int i0, i1, i2, i3, p0, p1;
+  if (sscanf_s(ptr, "%d,%d,%d,%d,%d,%d", &i0, &i1, &i2, &i3, &p0, &p1) != 6)
+    return false;
+
+  // Ignore the IP address supplied in the response. We are always going
+  // to connect back to the same server to prevent FTP PASV port scanning.
+  *port = (p0 << 8) + p1;
+  return true;
+}
+
 }  // namespace
 
 namespace net {
@@ -66,6 +126,7 @@ FtpNetworkTransaction::FtpNetworkTransaction(
       // whereas the ascii transfer may damage binary data.
       data_type_(DATA_TYPE_IMAGE),
       resource_type_(RESOURCE_TYPE_UNKNOWN),
+      use_epsv_(true),
       data_connection_port_(0),
       socket_factory_(socket_factory),
       next_state_(STATE_NONE) {
@@ -251,6 +312,9 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
       break;
     case COMMAND_TYPE:
       rv = ProcessResponseTYPE(response);
+      break;
+    case COMMAND_EPSV:
+      rv = ProcessResponseEPSV(response);
       break;
     case COMMAND_PASV:
       rv = ProcessResponsePASV(response);
@@ -460,6 +524,10 @@ int FtpNetworkTransaction::DoLoop(int result) {
         DCHECK(rv == OK);
         rv = DoCtrlWriteTYPE();
         break;
+      case STATE_CTRL_WRITE_EPSV:
+        DCHECK(rv == OK);
+        rv = DoCtrlWriteEPSV();
+        break;
       case STATE_CTRL_WRITE_PASV:
         DCHECK(rv == OK);
         rv = DoCtrlWritePASV();
@@ -492,7 +560,6 @@ int FtpNetworkTransaction::DoLoop(int result) {
         DCHECK(rv == OK);
         rv = DoCtrlWriteQUIT();
         break;
-
       case STATE_DATA_CONNECT:
         DCHECK(rv == OK);
         rv = DoDataConnect();
@@ -537,9 +604,6 @@ int FtpNetworkTransaction::DoCtrlResolveHost() {
   port = request_->url.EffectiveIntPort();
 
   HostResolver::RequestInfo info(host, port);
-  // TODO(wtc): Until we support the FTP extensions for IPv6 specified in
-  // RFC 2428, we have to turn off IPv6 in FTP.  See http://crbug.com/32945.
-  info.set_address_family(ADDRESS_FAMILY_IPV4);
   // No known referrer.
   return resolver_.Resolve(info, &addresses_, &io_callback_, net_log_);
 }
@@ -812,7 +876,7 @@ int FtpNetworkTransaction::ProcessResponseTYPE(
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
-      next_state_ = STATE_CTRL_WRITE_PASV;
+      next_state_ = use_epsv_ ? STATE_CTRL_WRITE_EPSV : STATE_CTRL_WRITE_PASV;
       break;
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
@@ -855,6 +919,40 @@ int FtpNetworkTransaction::ProcessResponseACCT(
   return OK;
 }
 
+// EPSV command
+int FtpNetworkTransaction::DoCtrlWriteEPSV() {
+  const std::string command = "EPSV";
+  next_state_ = STATE_CTRL_READ;
+  return SendFtpCommand(command, COMMAND_EPSV);
+}
+
+int FtpNetworkTransaction::ProcessResponseEPSV(
+    const FtpCtrlResponse& response) {
+  switch (GetErrorClass(response.status_code)) {
+    case ERROR_CLASS_INITIATED:
+      return Stop(ERR_INVALID_RESPONSE);
+    case ERROR_CLASS_OK:
+      if (!ExtractPortFromEPSVResponse( response, &data_connection_port_))
+        return Stop(ERR_INVALID_RESPONSE);
+      if (data_connection_port_ < 1024 ||
+          !IsPortAllowedByFtp(data_connection_port_))
+        return Stop(ERR_UNSAFE_PORT);
+      next_state_ = STATE_DATA_CONNECT;
+      break;
+    case ERROR_CLASS_INFO_NEEDED:
+      return Stop(ERR_INVALID_RESPONSE);
+    case ERROR_CLASS_TRANSIENT_ERROR:
+    case ERROR_CLASS_PERMANENT_ERROR:
+      use_epsv_ = false;
+      next_state_ = STATE_CTRL_WRITE_PASV;
+      return OK;
+    default:
+      NOTREACHED();
+      return Stop(ERR_UNEXPECTED);
+  }
+  return OK;
+}
+
 // PASV command
 int FtpNetworkTransaction::DoCtrlWritePASV() {
   std::string command = "PASV";
@@ -862,47 +960,18 @@ int FtpNetworkTransaction::DoCtrlWritePASV() {
   return SendFtpCommand(command, COMMAND_PASV);
 }
 
-// There are two way we can receive IP address and port.
-// TODO(phajdan.jr): Figure out how this should work for IPv6.
-// (127,0,0,1,23,21) IP address and port encapsulated in ().
-// 127,0,0,1,23,21  IP address and port without ().
 int FtpNetworkTransaction::ProcessResponsePASV(
     const FtpCtrlResponse& response) {
   switch (GetErrorClass(response.status_code)) {
     case ERROR_CLASS_INITIATED:
       return Stop(ERR_INVALID_RESPONSE);
     case ERROR_CLASS_OK:
-      const char* ptr;
-      int i0, i1, i2, i3, p0, p1;
-      if (response.lines.size() != 1)
+      if (!ExtractPortFromPASVResponse(response, &data_connection_port_))
         return Stop(ERR_INVALID_RESPONSE);
-      ptr = response.lines[0].c_str();  // Try with bracket.
-      while (*ptr && *ptr != '(')
-        ++ptr;
-      if (*ptr) {
-        ++ptr;
-      } else {
-        ptr = response.lines[0].c_str();  // Try without bracket.
-        while (*ptr && *ptr != ',')
-          ++ptr;
-        while (*ptr && *ptr != ' ')
-          --ptr;
-      }
-      if (sscanf_s(ptr, "%d,%d,%d,%d,%d,%d",
-                   &i0, &i1, &i2, &i3, &p0, &p1) == 6) {
-        // Ignore the IP address supplied in the response. We are always going
-        // to connect back to the same server to prevent FTP PASV port scanning.
-
-        data_connection_port_ = (p0 << 8) + p1;
-
-        if (data_connection_port_ < 1024 ||
-            !IsPortAllowedByFtp(data_connection_port_))
-          return Stop(ERR_UNSAFE_PORT);
-
-        next_state_ = STATE_DATA_CONNECT;
-      } else {
-        return Stop(ERR_INVALID_RESPONSE);
-      }
+      if (data_connection_port_ < 1024 ||
+          !IsPortAllowedByFtp(data_connection_port_))
+        return Stop(ERR_UNSAFE_PORT);
+      next_state_ = STATE_DATA_CONNECT;
       break;
     case ERROR_CLASS_INFO_NEEDED:
       return Stop(ERR_INVALID_RESPONSE);
@@ -973,7 +1042,7 @@ int FtpNetworkTransaction::ProcessResponseRETR(
       next_state_ = STATE_CTRL_WRITE_QUIT;
       break;
     case ERROR_CLASS_INFO_NEEDED:
-      next_state_ = STATE_CTRL_WRITE_PASV;
+      next_state_ = use_epsv_ ? STATE_CTRL_WRITE_EPSV : STATE_CTRL_WRITE_PASV;
       break;
     case ERROR_CLASS_TRANSIENT_ERROR:
       if (response.status_code == 421 || response.status_code == 425 ||
@@ -992,7 +1061,7 @@ int FtpNetworkTransaction::ProcessResponseRETR(
       // We're going to try CWD next, but first send a PASV one more time,
       // because some FTP servers, including FileZilla, require that.
       // See http://crbug.com/25316.
-      next_state_ = STATE_CTRL_WRITE_PASV;
+      next_state_ = use_epsv_ ? STATE_CTRL_WRITE_EPSV : STATE_CTRL_WRITE_PASV;
       break;
     default:
       NOTREACHED();
