@@ -401,6 +401,10 @@ class ListValue : public Value {
   // Appends a Value to the end of the list.
   void Append(Value* in_value);
 
+  // Appends a Value if it's not already present.
+  // Returns true if successful, or false if the value was already present.
+  bool AppendIfNotPresent(Value* in_value);
+
   // Insert a Value at index.
   // Returns true if successful, or false if the index was out of range.
   bool Insert(size_t index, Value* in_value);
