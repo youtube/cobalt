@@ -20,12 +20,16 @@
 // Header for low level row functions.
 #include "media/base/yuv_row.h"
 
-#if USE_SSE
+#if USE_MMX
 #if defined(_MSC_VER)
 #include <intrin.h>
 #else
-#include <emmintrin.h>
+#include <mmintrin.h>
 #endif
+#endif
+
+#if USE_SSE
+#include <emmintrin.h>
 #endif
 
 namespace media {
@@ -63,11 +67,12 @@ void ConvertYUVToRGB32(const uint8* y_buf,
   EMMS();
 }
 
+#if USE_MMX
+#if USE_SSE
 // FilterRows combines two rows of the image using linear interpolation.
-// 4 pixels are blended at a time.
+// SSE2 version blends 8 pixels at a time.
 static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
                        int width, int scaled_y_fraction) {
-#if USE_SSE
   __m128i zero = _mm_setzero_si128();
   __m128i y1_fraction = _mm_set1_epi16(
       static_cast<unsigned short>(scaled_y_fraction >> 8));
@@ -92,30 +97,60 @@ static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
       ybuf += 8;
     } while (ybuf < end);
   }
-#else
-  int y0_fraction = kFractionMax - 1 - scaled_y_fraction;
-  int y1_fraction = scaled_y_fraction;
-  uint8* end = ybuf + width;
-  while (ybuf < end) {
-    ybuf[0] = (y0_ptr[0] * (y0_fraction) +
-               y1_ptr[0] * (y1_fraction)) >> kFractionBits;
-    ybuf[1] = (y0_ptr[1] * (y0_fraction) +
-               y1_ptr[1] * (y1_fraction)) >> kFractionBits;
-    ybuf[2] = (y0_ptr[2] * (y0_fraction) +
-               y1_ptr[2] * (y1_fraction)) >> kFractionBits;
-    ybuf[3] = (y0_ptr[3] * (y0_fraction) +
-               y1_ptr[3] * (y1_fraction)) >> kFractionBits;
-    y0_ptr += 4;
-    y1_ptr += 4;
-    ybuf += 4;
-  }
-#endif
+}
 
-  // Value at |ybuf[width]| must be the same as at |ybuf[width-1]|.
-  if (width > 1) {
-    end[0] = end[-1];
+#else
+// MMX version blends 4 pixels at a time.
+static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
+                       int width, int scaled_y_fraction) {
+  __m64 zero = _mm_setzero_si64();
+  __m64 y1_fraction = _mm_set1_pi16(
+      static_cast<short>(scaled_y_fraction >> 8));
+  __m64 y0_fraction = _mm_set1_pi16(
+      static_cast<short>((scaled_y_fraction >> 8) ^ 255));
+
+  uint8* end = ybuf + width;
+  if (ybuf < end) {
+    do {
+      __m64 y0 = _mm_cvtsi32_si64(*reinterpret_cast<const int *>(y0_ptr));
+      __m64 y1 = _mm_cvtsi32_si64(*reinterpret_cast<const int *>(y1_ptr));
+      y0 = _mm_unpacklo_pi8 (y0, zero);
+      y1 = _mm_unpacklo_pi8 (y1, zero);
+      y0 = _mm_mullo_pi16(y0, y0_fraction);
+      y1 = _mm_mullo_pi16(y1, y1_fraction);
+      y0 = _mm_add_pi16(y0, y1);  // 8.8 fixed point result
+      y0 = _mm_srli_pi16(y0, 8);
+      y0 = _mm_packs_pu16(y0, y0);
+      *reinterpret_cast<int *>(ybuf) = _mm_cvtsi64_si32(y0);
+      y0_ptr += 4;
+      y1_ptr += 4;
+      ybuf += 4;
+    } while (ybuf < end);
   }
 }
+
+#endif  // USE_SSE
+#else  // no MMX or SSE
+// C version blends 4 pixels at a time.
+static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
+                       int width, int scaled_y_fraction) {
+  int y0_fraction = 65535 - scaled_y_fraction;
+  int y1_fraction = scaled_y_fraction;
+  uint8* end = ybuf + width;
+  if (ybuf < end) {
+    do {
+
+      ybuf[0] = (y0_ptr[0] * (y0_fraction) + y1_ptr[0] * (y1_fraction)) >> 16;
+      ybuf[1] = (y0_ptr[1] * (y0_fraction) + y1_ptr[1] * (y1_fraction)) >> 16;
+      ybuf[2] = (y0_ptr[2] * (y0_fraction) + y1_ptr[2] * (y1_fraction)) >> 16;
+      ybuf[3] = (y0_ptr[3] * (y0_fraction) + y1_ptr[3] * (y1_fraction)) >> 16;
+      y0_ptr += 4;
+      y1_ptr += 4;
+      ybuf += 4;
+    } while (ybuf < end);
+  }
+}
+#endif  // USE_MMX
 
 // Scale a frame of YUV to 32 bit ARGB.
 void ScaleYUVToRGB32(const uint8* y_buf,
@@ -198,8 +233,8 @@ void ScaleYUVToRGB32(const uint8* y_buf,
     }
   }
 
-  // Need padding in the end because FilterRows() may override up to 7
-  // pixels after the end.
+  // Need padding because FilterRows() may write up to 15 extra pixels
+  // after the end for SSE2 version.
   uint8 ybuf[kFilterBufferSize + 16];
   uint8 ubuf[kFilterBufferSize / 2 + 16];
   uint8 vbuf[kFilterBufferSize / 2 + 16];
@@ -224,15 +259,17 @@ void ScaleYUVToRGB32(const uint8* y_buf,
     const uint8* y_ptr = y0_ptr;
     const uint8* u_ptr = u0_ptr;
     const uint8* v_ptr = v0_ptr;
-    // TODO(sergeyu): Avoid filtering when fraction is 0.
-    if (filter == media::FILTER_BILINEAR && y + 1 < scaled_height) {
-      FilterRows(ybuf, y0_ptr, y1_ptr, width, scaled_y_fraction);
-      y_ptr = ybuf;
-
-      if ((y >> y_shift) + 1 < scaled_height >> y_shift) {
-        FilterRows(ubuf, u0_ptr, u1_ptr, width / 2, scaled_uv_fraction);
+    // Apply vertical filtering if necessary.
+    if (filter == media::FILTER_BILINEAR && yscale_fixed != kFractionMax) {
+      if (scaled_y_fraction && ((y + 1) < scaled_height)) {
+        FilterRows(ybuf, y0_ptr, y1_ptr, width, scaled_y_fraction);
+        y_ptr = ybuf;
+      }
+      if (scaled_uv_fraction &&
+        (((y >> y_shift) + 1) < (scaled_height >> y_shift))) {
+        FilterRows(ubuf, u0_ptr, u1_ptr, (width + 1) / 2, scaled_uv_fraction);
         u_ptr = ubuf;
-        FilterRows(vbuf, v0_ptr, v1_ptr, width / 2, scaled_uv_fraction);
+        FilterRows(vbuf, v0_ptr, v1_ptr, (width + 1) / 2, scaled_uv_fraction);
         v_ptr = vbuf;
       }
     }
