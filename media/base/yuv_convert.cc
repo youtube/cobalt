@@ -28,7 +28,7 @@
 #endif
 #endif
 
-#if USE_SSE
+#if USE_SSE || USE_MMX
 #include <emmintrin.h>
 #endif
 
@@ -75,17 +75,17 @@ static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
                        int width, int scaled_y_fraction) {
   __m128i zero = _mm_setzero_si128();
   __m128i y1_fraction = _mm_set1_epi16(
-      static_cast<unsigned short>(scaled_y_fraction >> 8));
+      static_cast<uint16>(scaled_y_fraction >> 8));
   __m128i y0_fraction = _mm_set1_epi16(
-      static_cast<unsigned short>((scaled_y_fraction >> 8) ^ 255));
+      static_cast<uint16>((scaled_y_fraction >> 8) ^ 255));
 
   uint8* end = ybuf + width;
   if (ybuf < end) {
     do {
       __m128i y0 = _mm_loadl_epi64(reinterpret_cast<__m128i const*>(y0_ptr));
       __m128i y1 = _mm_loadl_epi64(reinterpret_cast<__m128i const*>(y1_ptr));
-      y0 = _mm_unpacklo_epi8 (y0, zero);
-      y1 = _mm_unpacklo_epi8 (y1, zero);
+      y0 = _mm_unpacklo_epi8(y0, zero);
+      y1 = _mm_unpacklo_epi8(y1, zero);
       y0 = _mm_mullo_epi16(y0, y0_fraction);
       y1 = _mm_mullo_epi16(y1, y1_fraction);
       y0 = _mm_add_epi16(y0, y1);  // 8.8 fixed point result
@@ -105,17 +105,17 @@ static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
                        int width, int scaled_y_fraction) {
   __m64 zero = _mm_setzero_si64();
   __m64 y1_fraction = _mm_set1_pi16(
-      static_cast<short>(scaled_y_fraction >> 8));
+      static_cast<int16>(scaled_y_fraction >> 8));
   __m64 y0_fraction = _mm_set1_pi16(
-      static_cast<short>((scaled_y_fraction >> 8) ^ 255));
+      static_cast<int16>((scaled_y_fraction >> 8) ^ 255));
 
   uint8* end = ybuf + width;
   if (ybuf < end) {
     do {
       __m64 y0 = _mm_cvtsi32_si64(*reinterpret_cast<const int *>(y0_ptr));
       __m64 y1 = _mm_cvtsi32_si64(*reinterpret_cast<const int *>(y1_ptr));
-      y0 = _mm_unpacklo_pi8 (y0, zero);
-      y1 = _mm_unpacklo_pi8 (y1, zero);
+      y0 = _mm_unpacklo_pi8(y0, zero);
+      y1 = _mm_unpacklo_pi8(y1, zero);
       y0 = _mm_mullo_pi16(y0, y0_fraction);
       y1 = _mm_mullo_pi16(y1, y1_fraction);
       y0 = _mm_add_pi16(y0, y1);  // 8.8 fixed point result
@@ -139,7 +139,6 @@ static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
   uint8* end = ybuf + width;
   if (ybuf < end) {
     do {
-
       ybuf[0] = (y0_ptr[0] * (y0_fraction) + y1_ptr[0] * (y1_fraction)) >> 16;
       ybuf[1] = (y0_ptr[1] * (y0_fraction) + y1_ptr[1] * (y1_fraction)) >> 16;
       ybuf[2] = (y0_ptr[2] * (y0_fraction) + y1_ptr[2] * (y1_fraction)) >> 16;
