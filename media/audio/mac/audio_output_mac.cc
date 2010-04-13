@@ -257,6 +257,7 @@ void PCMQueueOutAudioOutputStream::Start(AudioSourceCallback* callback) {
     buffer_[ix]->mAudioDataByteSize = 0;
     RenderCallback(this, NULL, buffer_[ix]);
   }
+
   // Queue the buffers to the audio driver, sounds starts now.
   for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
     err = AudioQueueEnqueueBuffer(audio_queue_, buffer_[ix], 0, NULL);
