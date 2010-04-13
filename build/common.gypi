@@ -405,7 +405,7 @@
               'GCC_GENERATE_TEST_COVERAGE_FILES': 'YES',  # -ftest-coverage
             },
             # Add -lgcov for types executable, shared_library, and
-            # loadable_module; not for static_library.  
+            # loadable_module; not for static_library.
             # This is a delayed conditional.
             'target_conditions': [
               ['_type!="static_library"', {
@@ -890,8 +890,11 @@
                 ],
               }],
             ],
+            # -mmmx allows mmintrin.h to be used for mmx intrinsics.
+            # video playback is mmx and sse2 optimized.
             'cflags': [
               '-m32',
+              '-mmmx',
             ],
             'ldflags': [
               '-m32',
