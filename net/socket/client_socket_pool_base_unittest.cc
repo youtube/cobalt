@@ -9,7 +9,6 @@
 #include "base/message_loop.h"
 #include "base/platform_thread.h"
 #include "base/scoped_vector.h"
-#include "base/string_util.h"
 #include "net/base/net_log.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
@@ -337,8 +336,6 @@ class TestClientSocketPool : public ClientSocketPool {
 
   void CleanupTimedOutIdleSockets() { base_.CleanupIdleSockets(false); }
 
-  void EnableBackupJobs() { base_.EnableBackupJobs(); }
-
  private:
   ~TestClientSocketPool() {}
 
@@ -575,7 +572,7 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimit) {
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("f", kDefaultPriority));
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("g", kDefaultPriority));
 
-  ReleaseAllConnections(NO_KEEP_ALIVE);
+  ReleaseAllConnections(KEEP_ALIVE);
 
   EXPECT_EQ(static_cast<int>(requests_.size()),
             client_socket_factory_.allocation_count());
@@ -611,7 +608,7 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitReachedNewGroup) {
   // Now create a new group and verify that we don't starve it.
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kDefaultPriority));
 
-  ReleaseAllConnections(NO_KEEP_ALIVE);
+  ReleaseAllConnections(KEEP_ALIVE);
 
   EXPECT_EQ(static_cast<int>(requests_.size()),
             client_socket_factory_.allocation_count());
@@ -642,8 +639,11 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitRespectsPriority) {
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", MEDIUM));
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("b", HIGHEST));
 
-  ReleaseAllConnections(NO_KEEP_ALIVE);
+  ReleaseAllConnections(KEEP_ALIVE);
 
+  // We're re-using one socket for group "a", and one for "b".
+  EXPECT_EQ(static_cast<int>(requests_.size()) - 2,
+            client_socket_factory_.allocation_count());
   EXPECT_EQ(requests_.size() - kDefaultMaxSockets, completion_count_);
 
   // First 4 requests don't have to wait, and finish in order.
@@ -677,9 +677,10 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitRespectsGroupLimit) {
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("a", LOW));
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("b", HIGHEST));
 
-  ReleaseAllConnections(NO_KEEP_ALIVE);
+  ReleaseAllConnections(KEEP_ALIVE);
 
-  EXPECT_EQ(static_cast<int>(requests_.size()),
+  // We're re-using one socket for group "a", and one for "b".
+  EXPECT_EQ(static_cast<int>(requests_.size()) - 2,
             client_socket_factory_.allocation_count());
   EXPECT_EQ(requests_.size() - kDefaultMaxSockets, completion_count_);
 
@@ -724,7 +725,7 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitCountsConnectingSockets) {
   connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("e", kDefaultPriority));
 
-  ReleaseAllConnections(NO_KEEP_ALIVE);
+  ReleaseAllConnections(KEEP_ALIVE);
 
   EXPECT_EQ(static_cast<int>(requests_.size()),
             client_socket_factory_.allocation_count());
@@ -765,7 +766,7 @@ TEST_F(ClientSocketPoolBaseTest, MayHaveStalledGroupReset) {
   // After releasing first connection for "a", we're still at the
   // maximum sockets limit, but every group's pending queue is empty,
   // so we reset the flag.
-  EXPECT_TRUE(ReleaseOneConnection(NO_KEEP_ALIVE));
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
   EXPECT_FALSE(pool_->base()->may_have_stalled_group());
 
   // Requesting additional socket while at the total limit should
@@ -780,100 +781,15 @@ TEST_F(ClientSocketPoolBaseTest, MayHaveStalledGroupReset) {
 
   // We're at the maximum socket limit, and still have one request pending
   // for "d". Flag should be "on".
-  EXPECT_TRUE(ReleaseOneConnection(NO_KEEP_ALIVE));
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
   EXPECT_TRUE(pool_->base()->may_have_stalled_group());
 
   // Now every group's pending queue should be empty again.
-  EXPECT_TRUE(ReleaseOneConnection(NO_KEEP_ALIVE));
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
   EXPECT_FALSE(pool_->base()->may_have_stalled_group());
 
-  ReleaseAllConnections(NO_KEEP_ALIVE);
+  ReleaseAllConnections(KEEP_ALIVE);
   EXPECT_FALSE(pool_->base()->may_have_stalled_group());
-}
-
-TEST_F(ClientSocketPoolBaseTest, CloseIdleSocketAtSocketLimit) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
-
-  for (int i = 0; i < kDefaultMaxSockets; ++i) {
-    ClientSocketHandle handle;
-    TestCompletionCallback callback;
-    EXPECT_EQ(OK,
-              InitHandle(&handle, IntToString(i), kDefaultPriority, &callback,
-                         pool_, NULL));
-  }
-
-  // Stall a group
-  ClientSocketHandle handle;
-  TestCompletionCallback callback;
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(&handle, "foo", kDefaultPriority, &callback, pool_,
-                       NULL));
-
-  // Cancel the stalled request.
-  handle.Reset();
-
-  // Flush all the DoReleaseSocket tasks.
-  MessageLoop::current()->RunAllPending();
-
-  EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
-  EXPECT_EQ(kDefaultMaxSockets, pool_->IdleSocketCount());
-
-  for (int i = 0; i < kDefaultMaxSockets; ++i) {
-    ClientSocketHandle handle;
-    TestCompletionCallback callback;
-    EXPECT_EQ(OK,
-              InitHandle(&handle, StringPrintf("Take 2: %d", i),
-                         kDefaultPriority, &callback, pool_, NULL));
-  }
-
-  EXPECT_EQ(2 * kDefaultMaxSockets, client_socket_factory_.allocation_count());
-  EXPECT_EQ(0, pool_->IdleSocketCount());
-
-  // Before the next round of DoReleaseSocket tasks run, we will hit the
-  // socket limit.
-
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(&handle, "foo", kDefaultPriority, &callback, pool_,
-                       NULL));
-
-  // But if we wait for it, the released idle sockets will be closed in
-  // preference of the waiting request.
-
-  EXPECT_EQ(OK, callback.WaitForResult());
-}
-
-// Regression test for http://crbug.com/40952.
-TEST_F(ClientSocketPoolBaseTest, CloseIdleSocketAtSocketLimitDeleteGroup) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-  pool_->EnableBackupJobs();
-  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
-
-  for (int i = 0; i < kDefaultMaxSockets; ++i) {
-    ClientSocketHandle handle;
-    TestCompletionCallback callback;
-    EXPECT_EQ(OK,
-              InitHandle(&handle, IntToString(i), kDefaultPriority, &callback,
-                         pool_, NULL));
-  }
-
-  // Flush all the DoReleaseSocket tasks.
-  MessageLoop::current()->RunAllPending();
-
-  // Stall a group.  Set a pending job so it'll trigger a backup job if we don't
-  // reuse a socket.
-  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
-  ClientSocketHandle handle;
-  TestCompletionCallback callback;
-
-  // "0" is special here, since it should be the first entry in the sorted map,
-  // which is the one which we would close an idle socket for.  We shouldn't
-  // close an idle socket though, since we should reuse the idle socket.
-  EXPECT_EQ(OK,
-            InitHandle(&handle, "0", kDefaultPriority, &callback, pool_, NULL));
-
-  EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
-  EXPECT_EQ(kDefaultMaxSockets - 1, pool_->IdleSocketCount());
 }
 
 TEST_F(ClientSocketPoolBaseTest, PendingRequests) {
@@ -1196,8 +1112,9 @@ TEST_F(ClientSocketPoolBaseTest, GroupWithPendingRequestsIsNotEmpty) {
 
   // Closing idle sockets should not get us into trouble, but in the bug
   // we were hitting a CHECK here.
-  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
+  EXPECT_EQ(2, pool_->IdleSocketCountInGroup("a"));
   pool_->CloseIdleSockets();
+  EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
 }
 
 TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
