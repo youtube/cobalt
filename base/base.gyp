@@ -268,65 +268,6 @@
         },
       ],
     }],
-    [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
-      'targets': [
-        {
-          'target_name': 'linux_versioninfo',
-          'type': '<(library)',
-          'sources': [
-            'file_version_info_linux.cc',
-          ],
-          'include_dirs': [
-            '..',
-            '<(SHARED_INTERMEDIATE_DIR)',
-          ],
-          'actions': [
-            {
-              'action_name': 'linux_version',
-              'variables': {
-                'lastchange_path':
-                  '<(SHARED_INTERMEDIATE_DIR)/build/LASTCHANGE',
-                'version_py_path': '../chrome/tools/build/version.py',
-                'version_path': '../chrome/VERSION',
-                'template_input_path': 'file_version_info_linux.h.version',
-              },
-              'conditions': [
-                [ 'branding == "Chrome"', {
-                  'variables': {
-                     'branding_path':
-                       '../chrome/app/theme/google_chrome/BRANDING',
-                  },
-                }, { # else branding!="Chrome"
-                  'variables': {
-                     'branding_path':
-                       '../chrome/app/theme/chromium/BRANDING',
-                  },
-                }],
-              ],
-              'inputs': [
-                '<(template_input_path)',
-                '<(version_path)',
-                '<(branding_path)',
-                '<(lastchange_path)',
-              ],
-              'outputs': [
-                '<(SHARED_INTERMEDIATE_DIR)/base/file_version_info_linux.h',
-              ],
-              'action': [
-                'python',
-                '<(version_py_path)',
-                '-f', '<(version_path)',
-                '-f', '<(branding_path)',
-                '-f', '<(lastchange_path)',
-                '<(template_input_path)',
-                '<@(_outputs)',
-              ],
-              'message': 'Generating version information',
-            },
-          ],
-        },
-      ],
-    }],
   ],
 }
 
