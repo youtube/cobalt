@@ -9,6 +9,16 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/mac/audio_manager_mac.h"
 
+namespace {
+
+// A custom data structure to store information an AudioQueue buffer.
+struct AudioQueueUserData {
+  AudioQueueUserData() : empty_buffer(false) {}
+  bool empty_buffer;
+};
+
+}  // namespace
+
 // Overview of operation:
 // 1) An object of PCMQueueOutAudioOutputStream is created by the AudioManager
 // factory: audio_man->MakeAudioStream(). This just fills some structure.
@@ -98,6 +108,8 @@ bool PCMQueueOutAudioOutputStream::Open(uint32 packet_size) {
       HandleError(err);
       return false;
     }
+    // Allocate memory for user data.
+    buffer_[ix]->mUserData = new AudioQueueUserData();
   }
   // Set initial volume here.
   err = AudioQueueSetParameter(audio_queue_, kAudioQueueParam_Volume, 1.0);
@@ -115,6 +127,9 @@ void PCMQueueOutAudioOutputStream::Close() {
     OSStatus err = 0;
     for (uint32 ix = 0; ix != kNumBuffers; ++ix) {
       if (buffer_[ix]) {
+        // Free user data.
+        delete static_cast<AudioQueueUserData*>(buffer_[ix]->mUserData);
+        // Free AudioQueue buffer.
         err = AudioQueueFreeBuffer(audio_queue_, buffer_[ix]);
         if (err != noErr) {
           HandleError(err);
@@ -199,7 +214,8 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
     return;
 
   // Adjust the number of pending bytes by subtracting the amount played.
-  audio_stream->pending_bytes_ -= buffer->mAudioDataByteSize;
+  if (!static_cast<AudioQueueUserData*>(buffer->mUserData)->empty_buffer)
+    audio_stream->pending_bytes_ -= buffer->mAudioDataByteSize;
   uint32 capacity = buffer->mAudioDataBytesCapacity;
   uint32 filled = source->OnMoreData(audio_stream, buffer->mAudioData,
                                      capacity, audio_stream->pending_bytes_);
@@ -211,10 +227,13 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
     CHECK(audio_stream->silence_bytes_ <= static_cast<int>(capacity));
     filled = audio_stream->silence_bytes_;
     memset(buffer->mAudioData, 0, filled);
+    static_cast<AudioQueueUserData*>(buffer->mUserData)->empty_buffer = true;
   } else if (filled > capacity) {
     // User probably overran our buffer.
     audio_stream->HandleError(0);
     return;
+  } else {
+    static_cast<AudioQueueUserData*>(buffer->mUserData)->empty_buffer = false;
   }
 
   // Handle channel order for 5.1 audio.
@@ -229,8 +248,11 @@ void PCMQueueOutAudioOutputStream::RenderCallback(void* p_this,
   }
 
   buffer->mAudioDataByteSize = filled;
-  // Incremnet bytes by amount filled into audio buffer.
-  audio_stream->pending_bytes_ += filled;
+
+  // Incremnet bytes by amount filled into audio buffer if this is not a
+  // silence buffer.
+  if (!static_cast<AudioQueueUserData*>(buffer->mUserData)->empty_buffer)
+    audio_stream->pending_bytes_ += filled;
   if (NULL == queue)
     return;
   // Queue the audio data to the audio driver.
