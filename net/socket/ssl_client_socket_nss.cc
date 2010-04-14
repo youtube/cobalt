@@ -113,6 +113,9 @@ class NSSSSLInitSingleton {
     // Use late binding to avoid scary but benign warning
     // "Symbol `SSL_ImplementedCiphers' has different size in shared object,
     //  consider re-linking"
+    // TODO(wtc): Use the new SSL_GetImplementedCiphers and
+    // SSL_GetNumImplementedCiphers functions when we require NSS 3.12.6.
+    // See https://bugzilla.mozilla.org/show_bug.cgi?id=496993.
     const PRUint16* pSSL_ImplementedCiphers = static_cast<const PRUint16*>(
         dlsym(RTLD_DEFAULT, "SSL_ImplementedCiphers"));
     if (pSSL_ImplementedCiphers == NULL) {
@@ -177,10 +180,14 @@ int MapNSPRError(PRErrorCode err) {
     case PR_ADDRESS_NOT_AVAILABLE_ERROR:
       return ERR_ADDRESS_INVALID;
 
+    case SSL_ERROR_SSL_DISABLED:
+      return ERR_NO_SSL_VERSIONS_ENABLED;
     case SSL_ERROR_NO_CYPHER_OVERLAP:
     case SSL_ERROR_UNSUPPORTED_VERSION:
       return ERR_SSL_VERSION_OR_CIPHER_MISMATCH;
     case SSL_ERROR_HANDSHAKE_FAILURE_ALERT:
+    case SSL_ERROR_HANDSHAKE_UNEXPECTED_ALERT:
+    case SSL_ERROR_ILLEGAL_PARAMETER_ALERT:
       return ERR_SSL_PROTOCOL_ERROR;
 
     default: {
@@ -894,6 +901,8 @@ static PRErrorCode MapErrorToNSS(int result) {
       return PR_HOST_UNREACHABLE_ERROR;  // Also PR_NETWORK_UNREACHABLE_ERROR.
     case ERR_ADDRESS_INVALID:
       return PR_ADDRESS_NOT_AVAILABLE_ERROR;
+    case ERR_NAME_NOT_RESOLVED:
+      return PR_DIRECTORY_LOOKUP_ERROR;
     default:
       LOG(WARNING) << "MapErrorToNSS " << result
                    << " mapped to PR_UNKNOWN_ERROR";
@@ -1223,8 +1232,8 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
         continue;
       // Only check unexpired certs.
       if (CERT_CheckCertValidTimes(cert, PR_Now(), PR_TRUE) ==
-          secCertTimeValid &&
-          NSS_CmpCertChainWCANames(cert, ca_names) == SECSuccess) {
+          secCertTimeValid && (!ca_names->nnames ||
+          NSS_CmpCertChainWCANames(cert, ca_names) == SECSuccess)) {
         privkey = PK11_FindKeyByAnyCert(cert, wincx);
         if (privkey) {
           X509Certificate* x509_cert = X509Certificate::CreateFromHandle(
@@ -1422,6 +1431,7 @@ int SSLClientSocketNSS::DoPayloadWrite() {
   }
   PRErrorCode prerr = PR_GetError();
   if (prerr == PR_WOULD_BLOCK_ERROR) {
+    LeaveFunction("");
     return ERR_IO_PENDING;
   }
   LeaveFunction("");
