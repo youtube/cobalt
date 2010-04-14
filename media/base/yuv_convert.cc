@@ -134,7 +134,7 @@ static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
 // C version blends 4 pixels at a time.
 static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
                        int width, int scaled_y_fraction) {
-  int y0_fraction = 65535 - scaled_y_fraction;
+  int y0_fraction = 65536 - scaled_y_fraction;
   int y1_fraction = scaled_y_fraction;
   uint8* end = ybuf + width;
   if (ybuf < end) {
@@ -206,7 +206,6 @@ void ScaleYUVToRGB32(const uint8* y_buf,
     return;
   int scaled_dx = width * kFractionMax / scaled_width;
   int scaled_dy = height * kFractionMax / scaled_height;
-
   int scaled_dx_uv = scaled_dx;
 
   if ((view_rotate == ROTATE_90) ||
@@ -259,18 +258,30 @@ void ScaleYUVToRGB32(const uint8* y_buf,
     const uint8* u_ptr = u0_ptr;
     const uint8* v_ptr = v0_ptr;
     // Apply vertical filtering if necessary.
-    if (filter == media::FILTER_BILINEAR && yscale_fixed != kFractionMax) {
-      if (scaled_y_fraction && ((y + 1) < scaled_height)) {
+    // TODO(fbarchard): Remove memcpy when not necessary.
+    if (filter == media::FILTER_BILINEAR) {
+      if (yscale_fixed != kFractionMax &&
+          scaled_y_fraction && ((y + 1) < scaled_height)) {
         FilterRows(ybuf, y0_ptr, y1_ptr, width, scaled_y_fraction);
-        y_ptr = ybuf;
+      } else {
+        memcpy(ybuf, y0_ptr, width);
       }
-      if (scaled_uv_fraction &&
-        (((y >> y_shift) + 1) < (scaled_height >> y_shift))) {
-        FilterRows(ubuf, u0_ptr, u1_ptr, (width + 1) / 2, scaled_uv_fraction);
-        u_ptr = ubuf;
-        FilterRows(vbuf, v0_ptr, v1_ptr, (width + 1) / 2, scaled_uv_fraction);
-        v_ptr = vbuf;
+      y_ptr = ybuf;
+      ybuf[width] = ybuf[width-1];
+      int uv_width = (width + 1) / 2;
+      if (yscale_fixed != kFractionMax &&
+          scaled_uv_fraction &&
+          (((y >> y_shift) + 1) < (scaled_height >> y_shift))) {
+        FilterRows(ubuf, u0_ptr, u1_ptr, uv_width, scaled_uv_fraction);
+        FilterRows(vbuf, v0_ptr, v1_ptr, uv_width, scaled_uv_fraction);
+      } else {
+        memcpy(ubuf, u0_ptr, uv_width);
+        memcpy(vbuf, v0_ptr, uv_width);
       }
+      u_ptr = ubuf;
+      v_ptr = vbuf;
+      ubuf[(width + 1) / 2] = ybuf[(width + 1) / 2 -1];
+      vbuf[(width + 1) / 2] = vbuf[(width + 1) / 2 -1];
     }
     if (scaled_dx == kFractionMax) {  // Not scaled
       FastConvertYUVToRGB32Row(y_ptr, u_ptr, v_ptr,
