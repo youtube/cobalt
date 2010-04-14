@@ -80,9 +80,11 @@
           'file_util_mac.mm',
           'file_util_posix.cc',
           'file_util_win.cc',
-          'file_version_info.cc',
           'file_version_info.h',
+          'file_version_info_mac.h',
           'file_version_info_mac.mm',
+          'file_version_info_win.cc',
+          'file_version_info_win.h',
           'fix_wp64.h',
           'float_util.h',
           'foundation_utils_mac.h',
@@ -301,7 +303,7 @@
                 'linux_util.cc',
                 'message_pump_glib.cc',
               ],
-          },],
+          }],
           [ 'OS != "linux"', {
               'sources!': [
                 # Not automatically excluded by the *linux.cc rules.
