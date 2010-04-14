@@ -47,7 +47,7 @@ int HttpAuthHandlerNTLM::GenerateDefaultAuthToken(
   return auth_sspi_.GenerateAuthToken(
       NULL,  // username
       NULL,  // password
-      origin_,
+      CreateSPN(origin_),
       request,
       proxy,
       auth_token);

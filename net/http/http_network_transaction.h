@@ -84,6 +84,8 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_SEND_REQUEST_COMPLETE,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
+    STATE_RESOLVE_CANONICAL_NAME,
+    STATE_RESOLVE_CANONICAL_NAME_COMPLETE,
     STATE_READ_BODY,
     STATE_READ_BODY_COMPLETE,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART,
@@ -130,6 +132,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoSendRequestComplete(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
+  int DoResolveCanonicalName();
+  int DoResolveCanonicalNameComplete(int result);
   int DoReadBody();
   int DoReadBodyComplete(int result);
   int DoDrainBodyForAuthRestart();

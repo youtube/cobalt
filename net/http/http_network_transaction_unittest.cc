@@ -65,7 +65,6 @@ ProxyService* CreateFixedProxyService(const std::string& proxy) {
   return ProxyService::CreateFixed(proxy_config);
 }
 
-
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
   return new HttpNetworkSession(NULL,
                                 session_deps->host_resolver,
@@ -4677,6 +4676,203 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
   std::string response_data;
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello world", response_data);
+}
+
+// MockAuthHandlerCanonical is used by the ResolveCanonicalName
+// HttpNetworkTransaction unit test below. Callers set up expectations for
+// whether the canonical name needs to be resolved.
+class MockAuthHandlerCanonical : public HttpAuthHandler {
+ public:
+  enum Resolve {
+    RESOLVE_INIT,
+    RESOLVE_SKIP,
+    RESOLVE_SYNC,
+    RESOLVE_ASYNC,
+    RESOLVE_TESTED,
+  };
+
+  MockAuthHandlerCanonical() : resolve_(RESOLVE_INIT), user_callback_(NULL) {}
+  virtual ~MockAuthHandlerCanonical() {}
+
+  void SetResolveExpectation(Resolve resolve) {
+    EXPECT_EQ(RESOLVE_INIT, resolve_);
+    resolve_ = resolve;
+  }
+
+  void ResetResolveExpectation() {
+    EXPECT_EQ(RESOLVE_TESTED, resolve_);
+    resolve_ = RESOLVE_INIT;
+  }
+
+  virtual bool NeedsCanonicalName() {
+    switch (resolve_) {
+      case RESOLVE_SYNC:
+      case RESOLVE_ASYNC:
+        return true;
+      case RESOLVE_SKIP:
+        resolve_ = RESOLVE_TESTED;
+        return false;
+      default:
+        NOTREACHED();
+        return false;
+    }
+  }
+
+  virtual int ResolveCanonicalName(HostResolver* host_resolver,
+                                   CompletionCallback* callback,
+                                   const BoundNetLog& net_log) {
+    EXPECT_NE(RESOLVE_TESTED, resolve_);
+    int rv = OK;
+    switch (resolve_) {
+      case RESOLVE_SYNC:
+        resolve_ = RESOLVE_TESTED;
+        break;
+      case RESOLVE_ASYNC:
+        EXPECT_TRUE(user_callback_ == NULL);
+        rv = ERR_IO_PENDING;
+        user_callback_ = callback;
+        MessageLoop::current()->PostTask(
+            FROM_HERE,
+            NewRunnableMethod(
+                this, &MockAuthHandlerCanonical::OnResolveCanonicalName));
+        break;
+      default:
+        NOTREACHED();
+        break;
+    }
+    return rv;
+  }
+
+  void OnResolveCanonicalName() {
+    EXPECT_EQ(RESOLVE_ASYNC, resolve_);
+    EXPECT_TRUE(user_callback_ != NULL);
+    resolve_ = RESOLVE_TESTED;
+    CompletionCallback* callback = user_callback_;
+    user_callback_ = NULL;
+    callback->Run(OK);
+  }
+
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) {
+    scheme_ = "mock";
+    score_ = 1;
+    properties_ = 0;
+    return true;
+  }
+
+  virtual int GenerateAuthToken(const std::wstring& username,
+                                const std::wstring& password,
+                                const HttpRequestInfo* request,
+                                const ProxyInfo* proxy,
+                                std::string* auth_token) {
+    auth_token->assign("Mock AUTH myserver.example.com");
+    return OK;
+  }
+
+  virtual int GenerateDefaultAuthToken(const HttpRequestInfo* request,
+                                       const ProxyInfo* proxy,
+                                       std::string* auth_token) {
+    auth_token->assign("Mock DEFAULT_AUTH myserver.example.com");
+    return OK;
+  }
+
+  // The Factory class simply returns the same handler each time
+  // CreateAuthHandler is called.
+  class Factory : public HttpAuthHandlerFactory {
+   public:
+    Factory() {}
+    virtual ~Factory() {}
+
+    void set_mock_handler(MockAuthHandlerCanonical* mock_handler) {
+      mock_handler_ = mock_handler;
+    }
+    MockAuthHandlerCanonical* mock_handler() const {
+      return mock_handler_.get();
+    }
+
+    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
+                                  HttpAuth::Target target,
+                                  const GURL& origin,
+                                  scoped_refptr<HttpAuthHandler>* handler) {
+      *handler = mock_handler_;
+      return OK;
+    }
+
+   private:
+    scoped_refptr<MockAuthHandlerCanonical> mock_handler_;
+  };
+
+ private:
+  Resolve resolve_;
+  CompletionCallback* user_callback_;
+};
+
+// Tests that ResolveCanonicalName is handled correctly by the
+// HttpNetworkTransaction.
+TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
+  SessionDependencies session_deps;
+  scoped_refptr<MockAuthHandlerCanonical> auth_handler(
+      new MockAuthHandlerCanonical());
+  auth_handler->Init(NULL);
+  MockAuthHandlerCanonical::Factory* auth_factory(
+      new MockAuthHandlerCanonical::Factory());
+  auth_factory->set_mock_handler(auth_handler);
+  session_deps.http_auth_handler_factory.reset(auth_factory);
+
+  for (int i = 0; i < 2; ++i) {
+    scoped_ptr<HttpTransaction> trans(
+        new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+    // Set up expectations for this pass of the test. Many of the EXPECT calls
+    // are contained inside the MockAuthHandlerCanonical codebase in response to
+    // the expectations.
+    MockAuthHandlerCanonical::Resolve resolve = (i == 0) ?
+        MockAuthHandlerCanonical::RESOLVE_SYNC :
+        MockAuthHandlerCanonical::RESOLVE_ASYNC;
+    auth_handler->SetResolveExpectation(resolve);
+    HttpRequestInfo request;
+    request.method = "GET";
+    request.url = GURL("http://myserver/");
+    request.load_flags = 0;
+
+    MockWrite data_writes1[] = {
+      MockWrite("GET / HTTP/1.1\r\n"
+                "Host: myserver\r\n"
+                "Connection: keep-alive\r\n\r\n"),
+    };
+
+    MockRead data_reads1[] = {
+      MockRead("HTTP/1.1 401 Unauthorized\r\n"),
+      MockRead("WWW-Authenticate: Mock myserver.example.com\r\n"),
+      MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
+      MockRead("Content-Length: 14\r\n\r\n"),
+      MockRead("Unauthorized\r\n"),
+    };
+
+    StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                   data_writes1, arraysize(data_writes1));
+    session_deps.socket_factory.AddSocketDataProvider(&data1);
+
+    TestCompletionCallback callback1;
+
+    int rv = trans->Start(&request, &callback1, NULL);
+    EXPECT_EQ(ERR_IO_PENDING, rv);
+
+    rv = callback1.WaitForResult();
+    EXPECT_EQ(OK, rv);
+
+    const HttpResponseInfo* response = trans->GetResponseInfo();
+    EXPECT_FALSE(response == NULL);
+
+    // The password prompt is set after the canonical name is resolved.
+    // If it isn't present or is incorrect, it indicates that the scheme
+    // did not complete correctly.
+    EXPECT_FALSE(response->auth_challenge.get() == NULL);
+
+    EXPECT_EQ(L"myserver:80", response->auth_challenge->host_and_port);
+    EXPECT_EQ(L"", response->auth_challenge->realm);
+    EXPECT_EQ(L"mock", response->auth_challenge->scheme);
+    auth_handler->ResetResolveExpectation();
+  }
 }
 
 }  // namespace net

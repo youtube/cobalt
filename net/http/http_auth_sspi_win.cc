@@ -12,7 +12,6 @@
 #include "base/singleton.h"
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_util.h"
 #include "net/http/http_auth.h"
 
 namespace net {
@@ -162,7 +161,7 @@ bool HttpAuthSSPI::ParseChallenge(HttpAuth::ChallengeTokenizer* tok) {
 
 int HttpAuthSSPI::GenerateAuthToken(const std::wstring* username,
                                     const std::wstring* password,
-                                    const GURL& origin,
+                                    const std::wstring& spn,
                                     const HttpRequestInfo* request,
                                     const ProxyInfo* proxy,
                                     std::string* auth_token) {
@@ -178,7 +177,7 @@ int HttpAuthSSPI::GenerateAuthToken(const std::wstring* username,
   void* out_buf;
   int out_buf_len;
   int rv = GetNextSecurityToken(
-      origin,
+      spn,
       static_cast<void *>(const_cast<char *>(
           decoded_server_auth_token_.c_str())),
       decoded_server_auth_token_.length(),
@@ -223,7 +222,7 @@ int HttpAuthSSPI::OnFirstRound(const std::wstring* username,
 }
 
 int HttpAuthSSPI::GetNextSecurityToken(
-    const GURL& origin,
+    const std::wstring& spn,
     const void * in_token,
     int in_token_len,
     void** out_token,
@@ -269,17 +268,11 @@ int HttpAuthSSPI::GetNextSecurityToken(
   if (!out_buffer.pvBuffer)
     return ERR_OUT_OF_MEMORY;
 
-  // The service principal name of the destination server.  See
-  // http://msdn.microsoft.com/en-us/library/ms677949%28VS.85%29.aspx
-  std::wstring target(L"HTTP/");
-  target.append(ASCIIToWide(GetHostAndPort(origin)));
-  wchar_t* target_name = const_cast<wchar_t*>(target.c_str());
-
   // This returns a token that is passed to the remote server.
   status = library_->InitializeSecurityContext(
       &cred_,  // phCredential
       ctxt_ptr,  // phContext
-      target_name,  // pszTargetName
+      const_cast<wchar_t *>(spn.c_str()),  // pszTargetName
       0,  // fContextReq
       0,  // Reserved1 (must be 0)
       SECURITY_NATIVE_DREP,  // TargetDataRep
