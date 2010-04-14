@@ -9,6 +9,7 @@
 #include "base/string_util.h"
 #include "base/utf_string_conversions.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_util.h"
 
 namespace net {
 
@@ -22,7 +23,7 @@ int HttpAuthHandlerNTLM::GenerateAuthToken(
   return auth_sspi_.GenerateAuthToken(
       &username,
       &password,
-      origin_,
+      CreateSPN(origin_),
       request,
       proxy,
       auth_token);
@@ -107,6 +108,15 @@ bool HttpAuthHandlerNTLM::ParseChallenge(
     auth_data_.assign(tok->value_begin(), tok->value_end());
   return true;
 #endif  // defined(NTLM_SSPI)
+}
+
+// static
+std::wstring HttpAuthHandlerNTLM::CreateSPN(const GURL& origin) {
+  // The service principal name of the destination server.  See
+  // http://msdn.microsoft.com/en-us/library/ms677949%28VS.85%29.aspx
+  std::wstring target(L"HTTP/");
+  target.append(ASCIIToWide(GetHostAndPort(origin)));
+  return target;
 }
 
 }  // namespace net
