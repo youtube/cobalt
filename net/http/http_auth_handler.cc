@@ -5,6 +5,7 @@
 #include "net/http/http_auth_handler.h"
 
 #include "base/logging.h"
+#include "net/base/net_errors.h"
 
 namespace net {
 
@@ -26,6 +27,14 @@ bool HttpAuthHandler::InitFromChallenge(
   DCHECK(!ok || properties_ != -1);
 
   return ok;
+}
+
+int HttpAuthHandler::ResolveCanonicalName(net::HostResolver* host_resolver,
+                                          CompletionCallback* callback,
+                                          const BoundNetLog& net_log) {
+  NOTREACHED();
+  LOG(ERROR) << ErrorToString(ERR_NOT_IMPLEMENTED);
+  return ERR_NOT_IMPLEMENTED;
 }
 
 }  // namespace net

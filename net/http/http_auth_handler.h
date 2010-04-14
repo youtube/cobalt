@@ -8,10 +8,13 @@
 #include <string>
 
 #include "base/ref_counted.h"
+#include "net/base/completion_callback.h"
 #include "net/http/http_auth.h"
 
 namespace net {
 
+class BoundNetLog;
+class HostResolver;
 class HttpRequestInfo;
 class ProxyInfo;
 
@@ -81,6 +84,11 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // TODO(cbentzel): Add a pointer to Firefox documentation about risk.
   virtual bool SupportsDefaultCredentials() { return false; }
 
+  // Returns whether the canonical DNS name for the origin host needs to be
+  // resolved. The Negotiate auth scheme typically uses the canonical DNS
+  // name when constructing the Kerberos SPN.
+  virtual bool NeedsCanonicalName() { return false; }
+
   // TODO(cbentzel): Separate providing credentials from generating the
   // authentication token in the API.
 
@@ -103,6 +111,14 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
                                        const ProxyInfo* proxy,
                                        std::string* auth_token) = 0;
 
+  // Resolves the canonical name for the |origin_| host. The canonical
+  // name is used by the Negotiate scheme to generate a valid Kerberos
+  // SPN.
+  // The return value is a net error code.
+  virtual int ResolveCanonicalName(HostResolver* host_resolver,
+                                   CompletionCallback* callback,
+                                   const BoundNetLog& net_log);
+
  protected:
   enum Property {
     ENCRYPTS_IDENTITY = 1 << 0,
@@ -121,14 +137,14 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // scheme_, realm_, score_, properties_
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) = 0;
 
-  // The lowercase auth-scheme {"basic", "digest", "ntlm", ...}
+  // The lowercase auth-scheme {"basic", "digest", "ntlm", "negotiate"}
   std::string scheme_;
 
   // The realm.  Used by "basic" and "digest".
   std::string realm_;
 
   // The {scheme, host, port} for the authentication target.  Used by "ntlm"
-  // to construct the service principal name.
+  // and "negotiate" to construct the service principal name.
   GURL origin_;
 
   // The score for this challenge. Higher numbers are better.

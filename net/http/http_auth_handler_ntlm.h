@@ -145,6 +145,9 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
                    void** out_token,
                    uint32* out_token_len);
 
+  // Create an NTLM SPN to identify the |origin| server.
+  static std::wstring CreateSPN(const GURL& origin);
+
 #if defined(NTLM_SSPI)
   HttpAuthSSPI auth_sspi_;
 #endif
