@@ -379,7 +379,9 @@
                 'DebugInformationFormat': '0',
               }
             }
-         }],  # OS==win
+          }, { # else: OS != "win"
+            'cflags': [ '-g1' ],
+          }],
         ],  # conditions for fastbuild.
       }],  # fastbuild!=0
       ['selinux==1', {
