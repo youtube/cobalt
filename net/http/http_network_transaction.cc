@@ -574,6 +574,12 @@ int HttpNetworkTransaction::DoLoop(int result) {
         TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
         net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
         break;
+      case STATE_RESOLVE_CANONICAL_NAME:
+        rv = DoResolveCanonicalName();
+        break;
+      case STATE_RESOLVE_CANONICAL_NAME_COMPLETE:
+        rv = DoResolveCanonicalNameComplete(rv);
+        break;
       case STATE_READ_BODY:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_body", request_, request_->url.spec());
@@ -1114,6 +1120,23 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
 
   headers_valid_ = true;
   return OK;
+}
+
+int HttpNetworkTransaction::DoResolveCanonicalName() {
+  HttpAuthHandler* auth_handler = auth_handler_[pending_auth_target_];
+  DCHECK(auth_handler);
+  next_state_ = STATE_RESOLVE_CANONICAL_NAME_COMPLETE;
+  return auth_handler->ResolveCanonicalName(session_->host_resolver(),
+                                            &io_callback_, net_log_);
+}
+
+int HttpNetworkTransaction::DoResolveCanonicalNameComplete(int result) {
+  // The STATE_RESOLVE_CANONICAL_NAME state ends the Start sequence when the
+  // canonical name of the server needs to be determined. Normally
+  // DoReadHeadersComplete completes the sequence. The next state is
+  // intentionally not set as it should be STATE_NONE;
+  DCHECK_EQ(STATE_NONE, next_state_);
+  return result;
 }
 
 int HttpNetworkTransaction::DoReadBody() {
@@ -1917,6 +1940,13 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
     // pass the challenge information back to the client.
     PopulateAuthChallenge(target, auth_origin);
   }
+
+  // SPN determination (for Negotiate) requires a DNS lookup to find the
+  // canonical name. This needs to be done asynchronously to prevent blocking
+  // the IO thread.
+  if (auth_handler_[target]->NeedsCanonicalName())
+    next_state_ = STATE_RESOLVE_CANONICAL_NAME;
+
   return OK;
 }
 

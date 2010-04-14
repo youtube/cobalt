@@ -18,8 +18,6 @@
 
 #include "net/http/http_auth.h"
 
-class GURL;
-
 namespace net {
 
 class HttpRequestInfo;
@@ -89,12 +87,14 @@ class HttpAuthSSPI {
   // Generates an authentication token.
   // The return value is an error code. If it's not |OK|, the value of
   // |*auth_token| is unspecified.
+  // |spn| is the Service Principal Name of the server that the token is
+  // being generated for.
   // If this is the first round of a multiple round scheme, credentials are
   // obtained using |*username| and |*password|. If |username| and |password|
   // are NULL, the default credentials are used instead.
   int GenerateAuthToken(const std::wstring* username,
                         const std::wstring* password,
-                        const GURL& origin,
+                        const std::wstring& spn,
                         const HttpRequestInfo* request,
                         const ProxyInfo* proxy,
                         std::string* auth_token);
@@ -104,7 +104,7 @@ class HttpAuthSSPI {
                    const std::wstring* password);
 
   int GetNextSecurityToken(
-      const GURL& origin,
+      const std::wstring& spn,
       const void* in_token,
       int in_token_len,
       void** out_token,
