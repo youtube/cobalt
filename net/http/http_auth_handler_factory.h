@@ -105,6 +105,13 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
   void RegisterSchemeFactory(const std::string& scheme,
                              HttpAuthHandlerFactory* factory);
 
+  // Retrieve the factory for the specified |scheme|. If no factory exists
+  // for the |scheme|, NULL is returned. The returned factory must not be
+  // deleted by the caller, and it is guaranteed to be valid until either
+  // a new factory is registered for the same scheme, or until this
+  // registry factory is destroyed.
+  HttpAuthHandlerFactory* GetSchemeFactory(const std::string& scheme) const;
+
   // Creates an auth handler by dispatching out to the registered factories
   // based on the first token in |challenge|.
   virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
@@ -113,9 +120,6 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
                                 scoped_refptr<HttpAuthHandler>* handler);
 
  private:
-  // Retrieve the factory for the specified |scheme|
-  HttpAuthHandlerFactory* GetSchemeFactory(const std::string& scheme) const;
-
   typedef std::map<std::string, HttpAuthHandlerFactory*> FactoryMap;
 
   FactoryMap factory_map_;

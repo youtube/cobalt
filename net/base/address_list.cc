@@ -135,7 +135,7 @@ int AddressList::GetPort() const {
 
 bool AddressList::GetCanonicalName(std::string* canonical_name) const {
   DCHECK(canonical_name);
-  if (!data_->head || !data_->head->ai_canonname)
+  if (!data_ || !data_->head->ai_canonname)
     return false;
   canonical_name->assign(data_->head->ai_canonname);
   return true;
