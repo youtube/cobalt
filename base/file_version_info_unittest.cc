@@ -8,6 +8,10 @@
 #include "base/file_version_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if defined(OS_WIN)
+#include "base/file_version_info_win.h"
+#endif
+
 namespace {
 
 class FileVersionInfoTest : public testing::Test {
@@ -24,7 +28,7 @@ FilePath GetTestDataPath() {
 
 }
 
-#ifdef OS_WIN
+#if defined(OS_WIN)
 TEST(FileVersionInfoTest, HardCodedProperties) {
   const wchar_t* kDLLNames[] = {
     L"FileVersionInfoTest1.dll"
@@ -76,7 +80,7 @@ TEST(FileVersionInfoTest, HardCodedProperties) {
 }
 #endif
 
-#ifdef OS_WIN
+#if defined(OS_WIN)
 TEST(FileVersionInfoTest, IsOfficialBuild) {
   const wchar_t* kDLLNames[] = {
     L"FileVersionInfoTest1.dll",
@@ -103,6 +107,7 @@ TEST(FileVersionInfoTest, IsOfficialBuild) {
 }
 #endif
 
+#if defined(OS_WIN)
 TEST(FileVersionInfoTest, CustomProperties) {
   FilePath dll_path = GetTestDataPath();
   dll_path = dll_path.AppendASCII("FileVersionInfoTest1.dll");
@@ -112,22 +117,23 @@ TEST(FileVersionInfoTest, CustomProperties) {
 
   // Test few existing properties.
   std::wstring str;
-#ifdef OS_WIN
-  EXPECT_TRUE(version_info->GetValue(L"Custom prop 1",  &str));
+  FileVersionInfoWin* version_info_win =
+      static_cast<FileVersionInfoWin*>(version_info.get());
+  EXPECT_TRUE(version_info_win->GetValue(L"Custom prop 1",  &str));
   EXPECT_EQ(L"Un", str);
-  EXPECT_EQ(L"Un", version_info->GetStringValue(L"Custom prop 1"));
+  EXPECT_EQ(L"Un", version_info_win->GetStringValue(L"Custom prop 1"));
 
-  EXPECT_TRUE(version_info->GetValue(L"Custom prop 2",  &str));
+  EXPECT_TRUE(version_info_win->GetValue(L"Custom prop 2",  &str));
   EXPECT_EQ(L"Deux", str);
-  EXPECT_EQ(L"Deux", version_info->GetStringValue(L"Custom prop 2"));
+  EXPECT_EQ(L"Deux", version_info_win->GetStringValue(L"Custom prop 2"));
 
-  EXPECT_TRUE(version_info->GetValue(L"Custom prop 3",  &str));
+  EXPECT_TRUE(version_info_win->GetValue(L"Custom prop 3",  &str));
   EXPECT_EQ(L"1600 Amphitheatre Parkway Mountain View, CA 94043", str);
   EXPECT_EQ(L"1600 Amphitheatre Parkway Mountain View, CA 94043",
-            version_info->GetStringValue(L"Custom prop 3"));
-#endif
+            version_info_win->GetStringValue(L"Custom prop 3"));
 
   // Test an non-existing property.
-  EXPECT_FALSE(version_info->GetValue(L"Unknown property",  &str));
-  EXPECT_EQ(L"", version_info->GetStringValue(L"Unknown property"));
+  EXPECT_FALSE(version_info_win->GetValue(L"Unknown property",  &str));
+  EXPECT_EQ(L"", version_info_win->GetStringValue(L"Unknown property"));
 }
+#endif
