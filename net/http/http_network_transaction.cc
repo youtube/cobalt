@@ -46,6 +46,7 @@ namespace net {
 namespace {
 
 const std::string* g_next_protos = NULL;
+bool g_use_alternate_protocols = false;
 
 void BuildRequestHeaders(const HttpRequestInfo* request_info,
                          const HttpRequestHeaders& authorization_headers,
@@ -160,7 +161,7 @@ void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
                               const HostPortPair& http_host_port_pair,
                               HttpAlternateProtocols* alternate_protocols) {
   if (!g_next_protos || g_next_protos->empty()) {
-    // This implies that NPN is not suppoted.  We don't currently support any
+    // This implies that NPN is not supported.  We don't currently support any
     // alternate protocols that don't use NPN.
     return;
   }
@@ -192,7 +193,7 @@ void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
 
   if (port_protocol_vector[1] !=
       HttpAlternateProtocols::kProtocolStrings[
-      HttpAlternateProtocols::NPN_SPDY]) {
+      HttpAlternateProtocols::NPN_SPDY_1]) {
     // Currently, we only recognize the npn-spdy protocol.
     DLOG(WARNING) << HttpAlternateProtocols::kHeader
                   << " header has unrecognized protocol: "
@@ -209,7 +210,7 @@ void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
   }
 
   alternate_protocols->SetAlternateProtocolFor(
-      http_host_port_pair, port, HttpAlternateProtocols::NPN_SPDY);
+      http_host_port_pair, port, HttpAlternateProtocols::NPN_SPDY_1);
 }
 
 }  // namespace
@@ -234,7 +235,9 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       proxy_mode_(kDirectConnection),
       establishing_tunnel_(false),
       using_spdy_(false),
-      alternate_protocol_mode_(kUnspecified),
+      alternate_protocol_mode_(
+          g_use_alternate_protocols ? kUnspecified :
+          kDoNotUseAlternateProtocol),
       embedded_identity_used_(false),
       default_credentials_used_(false),
       read_buf_len_(0),
@@ -242,6 +245,11 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
   session->ssl_config_service()->GetSSLConfig(&ssl_config_);
   if (g_next_protos)
     ssl_config_.next_protos = *g_next_protos;
+}
+
+// static
+void HttpNetworkTransaction::SetUseAlternateProtocols(bool value) {
+  g_use_alternate_protocols = value;
 }
 
 // static
@@ -723,10 +731,10 @@ int HttpNetworkTransaction::DoInitConnection() {
         HttpAlternateProtocols::PortProtocolPair alternate =
             alternate_protocols.GetAlternateProtocolFor(host, port);
         if (alternate.protocol != HttpAlternateProtocols::BROKEN) {
-          DCHECK_EQ(HttpAlternateProtocols::NPN_SPDY, alternate.protocol);
+          DCHECK_EQ(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
           port = alternate.port;
           using_ssl_ = true;
-          alternate_protocol_ = HttpAlternateProtocols::NPN_SPDY;
+          alternate_protocol_ = HttpAlternateProtocols::NPN_SPDY_1;
           alternate_protocol_mode_ = kUsingAlternateProtocol;
         }
       }
@@ -863,9 +871,9 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
                  proto == kSpdyProto);
 
   if (alternate_protocol_mode_ == kUsingAlternateProtocol &&
-      alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY &&
+      alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY_1 &&
       !using_spdy_) {
-    // We tried using the NPN_SPDY alternate protocol, but failed, so we
+    // We tried using the NPN_SPDY_1 alternate protocol, but failed, so we
     // fallback.
     MarkBrokenAlternateProtocolAndFallback();
     return OK;
