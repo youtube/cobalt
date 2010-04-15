@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -85,29 +85,28 @@ MessageLoop::MessageLoop(Type type)
   DCHECK(!current()) << "should only have one message loop per thread";
   lazy_tls_ptr.Pointer()->Set(this);
 
+// TODO(rvargas): Get rid of the OS guards.
 #if defined(OS_WIN)
-  // TODO(rvargas): Get rid of the OS guards.
-  if (type_ == TYPE_DEFAULT) {
-    pump_ = new base::MessagePumpDefault();
-  } else if (type_ == TYPE_IO) {
-    pump_ = new base::MessagePumpForIO();
-  } else {
-    DCHECK(type_ == TYPE_UI);
-    pump_ = new base::MessagePumpForUI();
-  }
-#elif defined(OS_POSIX)
-  if (type_ == TYPE_UI) {
-#if defined(OS_MACOSX)
-    pump_ = base::MessagePumpMac::Create();
+#define MESSAGE_PUMP_UI new base::MessagePumpForUI()
+#define MESSAGE_PUMP_IO new base::MessagePumpForIO()
+#elif defined(OS_MACOSX)
+#define MESSAGE_PUMP_UI base::MessagePumpMac::Create()
+#define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
+#elif defined(OS_POSIX)  // POSIX but not MACOSX.
+#define MESSAGE_PUMP_UI new base::MessagePumpForUI()
+#define MESSAGE_PUMP_IO new base::MessagePumpLibevent()
 #else
-    pump_ = new base::MessagePumpForUI();
+#error Not implemented
 #endif
+
+  if (type_ == TYPE_UI) {
+    pump_ = MESSAGE_PUMP_UI;
   } else if (type_ == TYPE_IO) {
-    pump_ = new base::MessagePumpLibevent();
+    pump_ = MESSAGE_PUMP_IO;
   } else {
+    DCHECK_EQ(TYPE_DEFAULT, type_);
     pump_ = new base::MessagePumpDefault();
   }
-#endif  // OS_POSIX
 }
 
 MessageLoop::~MessageLoop() {
