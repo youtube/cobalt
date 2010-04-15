@@ -80,6 +80,7 @@
         'base/yuv_convert.h',
         'base/yuv_row_win.cc',
         'base/yuv_row_posix.cc',
+        'base/yuv_row_table.cc',
         'base/yuv_row.h',
         'ffmpeg/ffmpeg_common.cc',
         'ffmpeg/ffmpeg_common.h',
