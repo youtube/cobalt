@@ -887,19 +887,13 @@ std::wstring FormatBytesInternal(int64 bytes,
   for (int i = 0; i < units; ++i)
     unit_amount /= 1024.0;
 
-  wchar_t tmp[64];
-  // If the first decimal digit is 0, don't show it.
-  double int_part;
-  double fractional_part = modf(unit_amount, &int_part);
-  modf(fractional_part * 10, &int_part);
-  if (int_part == 0) {
-    base::swprintf(tmp, arraysize(tmp),
-                   L"%lld", static_cast<int64>(unit_amount));
-  } else {
-    base::swprintf(tmp, arraysize(tmp), L"%.1lf", unit_amount);
-  }
+  wchar_t buf[64];
+  if (bytes != 0 && units != DATA_UNITS_BYTE && unit_amount < 100)
+    base::swprintf(buf, arraysize(buf), L"%.1lf", unit_amount);
+  else
+    base::swprintf(buf, arraysize(buf), L"%.0lf", unit_amount);
 
-  std::wstring ret(tmp);
+  std::wstring ret(buf);
   if (show_units) {
     ret += L" ";
     ret += suffix[units];

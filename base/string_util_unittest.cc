@@ -362,20 +362,32 @@ TEST(StringUtilTest, FormatBytes) {
     const wchar_t* expected;
     const wchar_t* expected_with_units;
   } cases[] = {
+    // Expected behavior: we show one post-decimal digit when we have
+    // under two pre-decimal digits, except in cases where it makes no
+    // sense (zero or bytes).
+    // Since we switch units once we cross the 1000 mark, this keeps
+    // the display of file sizes or bytes consistently around three
+    // digits.
     {0, DATA_UNITS_BYTE, L"0", L"0 B"},
     {512, DATA_UNITS_BYTE, L"512", L"512 B"},
     {512, DATA_UNITS_KIBIBYTE, L"0.5", L"0.5 kB"},
     {1024*1024, DATA_UNITS_KIBIBYTE, L"1024", L"1024 kB"},
-    {1024*1024, DATA_UNITS_MEBIBYTE, L"1", L"1 MB"},
-    {1024*1024*1024, DATA_UNITS_GIBIBYTE, L"1", L"1 GB"},
-    {10LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, L"10", L"10 GB"},
+    {1024*1024, DATA_UNITS_MEBIBYTE, L"1.0", L"1.0 MB"},
+    {1024*1024*1024, DATA_UNITS_GIBIBYTE, L"1.0", L"1.0 GB"},
+    {10LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, L"10.0", L"10.0 GB"},
+    {99LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, L"99.0", L"99.0 GB"},
+    {105LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, L"105", L"105 GB"},
+    {105LL*1024*1024*1024 + 500LL*1024*1024, DATA_UNITS_GIBIBYTE,
+     L"105", L"105 GB"},
     {~(1LL<<63), DATA_UNITS_GIBIBYTE, L"8589934592", L"8589934592 GB"},
-    // Make sure the first digit of the fractional part works.
-    {1024*1024 + 103, DATA_UNITS_KIBIBYTE, L"1024.1", L"1024.1 kB"},
+
+    {99*1024 + 103, DATA_UNITS_KIBIBYTE, L"99.1", L"99.1 kB"},
+    {1024*1024 + 103, DATA_UNITS_KIBIBYTE, L"1024", L"1024 kB"},
     {1024*1024 + 205 * 1024, DATA_UNITS_MEBIBYTE, L"1.2", L"1.2 MB"},
     {1024*1024*1024 + (927 * 1024*1024), DATA_UNITS_GIBIBYTE,
      L"1.9", L"1.9 GB"},
-    {10LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, L"10", L"10 GB"},
+    {10LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, L"10.0", L"10.0 GB"},
+    {100LL*1024*1024*1024, DATA_UNITS_GIBIBYTE, L"100", L"100 GB"},
 #ifdef NDEBUG
     {-1, DATA_UNITS_BYTE, L"", L""},
 #endif
