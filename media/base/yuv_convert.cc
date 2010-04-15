@@ -44,14 +44,14 @@ void ConvertYUVToRGB32(const uint8* y_buf,
                        const uint8* u_buf,
                        const uint8* v_buf,
                        uint8* rgb_buf,
-                       int source_width,
-                       int source_height,
+                       int width,
+                       int height,
                        int y_pitch,
                        int uv_pitch,
                        int rgb_pitch,
                        YUVType yuv_type) {
   unsigned int y_shift = yuv_type;
-  for (int y = 0; y < source_height; ++y) {
+  for (int y = 0; y < height; ++y) {
     uint8* rgb_row = rgb_buf + y * rgb_pitch;
     const uint8* y_ptr = y_buf + y * y_pitch;
     const uint8* u_ptr = u_buf + (y >> y_shift) * uv_pitch;
@@ -61,7 +61,7 @@ void ConvertYUVToRGB32(const uint8* y_buf,
                              u_ptr,
                              v_ptr,
                              rgb_row,
-                             source_width);
+                             width);
   }
 
   // MMX used for FastConvertYUVToRGB32Row requires emms instruction.
@@ -134,9 +134,6 @@ static void FilterRows(uint8* ybuf, const uint8* y0_ptr, const uint8* y1_ptr,
                        int source_width, int source_y_fraction) {
   int y1_fraction = source_y_fraction >> 8;
   int y0_fraction = 256 - (source_y_fraction >> 8);
-
-  int y0_fraction = kFractionMax - source_y_fraction;
-  int y1_fraction = source_y_fraction;
   uint8* end = ybuf + source_width;
   if (ybuf < end) {
     do {
