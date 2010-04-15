@@ -42,6 +42,9 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   virtual ~HttpNetworkTransaction();
 
+  // Controls whether or not we use the Alternate-Protocol header.
+  static void SetUseAlternateProtocols(bool value);
+
   // Sets the next protocol negotiation value used during the SSL handshake.
   static void SetNextProtos(const std::string& next_protos);
 
