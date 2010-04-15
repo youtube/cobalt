@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "base/string_util.h"
 #include "media/audio/linux/alsa_output.h"
 #include "media/audio/linux/alsa_wrapper.h"
@@ -46,8 +47,8 @@ class MockAlsaWrapper : public AlsaWrapper {
                                  unsigned int rate, int soft_resample,
                                  unsigned int latency));
   MOCK_METHOD1(PcmName, const char*(snd_pcm_t* handle));
-  MOCK_METHOD1(PcmAvailUpdate, snd_pcm_sframes_t (snd_pcm_t* handle));
-  MOCK_METHOD1(PcmState, snd_pcm_state_t (snd_pcm_t* handle));
+  MOCK_METHOD1(PcmAvailUpdate, snd_pcm_sframes_t(snd_pcm_t* handle));
+  MOCK_METHOD1(PcmState, snd_pcm_state_t(snd_pcm_t* handle));
 
   MOCK_METHOD1(StrError, const char*(int errnum));
 };
