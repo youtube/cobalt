@@ -1,5 +1,5 @@
 #!/usr/bin/python2.4
-# Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+# Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -22,9 +22,13 @@ import shutil
 import SocketServer
 import sys
 import time
+import urllib2
+
+import pyftpdlib.ftpserver
 import tlslite
 import tlslite.api
-import pyftpdlib.ftpserver
+
+import chromiumsync
 
 try:
   import hashlib
@@ -125,12 +129,14 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.ContentTypeHandler,
       self.ServerRedirectHandler,
       self.ClientRedirectHandler,
+      self.ChromiumSyncTimeHandler,
       self.MultipartHandler,
       self.DefaultResponseHandler]
     self._post_handlers = [
       self.WriteFile,
       self.EchoTitleHandler,
       self.EchoAllHandler,
+      self.ChromiumSyncCommandHandler,
       self.EchoHandler] + self._get_handlers
     self._put_handlers = [
       self.WriteFile,
@@ -149,6 +155,8 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     BaseHTTPServer.BaseHTTPRequestHandler.__init__(self, request,
                                                    client_address,
                                                    socket_server)
+  # Class variable; shared across requests.
+  _sync_handler = chromiumsync.TestServer()
 
   def _ShouldHandleRequest(self, handler_name):
     """Determines if the path can be handled by the handler.
@@ -996,6 +1004,39 @@ class TestPageHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
     return True
 
+  def ChromiumSyncTimeHandler(self):
+    """Handle Chromium sync .../time requests.
+
+    The syncer sometimes checks server reachability by examining /time.
+    """
+    test_name = "/chromiumsync/time"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+
+    self.send_response(200)
+    self.send_header('Content-type', 'text/html')
+    self.end_headers()
+    return True
+
+  def ChromiumSyncCommandHandler(self):
+    """Handle a chromiumsync command arriving via http.
+
+    This covers all sync protocol commands: authentication, getupdates, and
+    commit.
+    """
+    test_name = "/chromiumsync/command"
+    if not self._ShouldHandleRequest(test_name):
+      return False
+
+    length = int(self.headers.getheader('content-length'))
+    raw_request = self.rfile.read(length)
+
+    http_response, raw_reply = self._sync_handler.HandleCommand(raw_request)
+    self.send_response(http_response)
+    self.end_headers()
+    self.wfile.write(raw_reply)
+    return True
+
   def MultipartHandler(self):
     """Send a multipart response (10 text/html pages)."""
     test_name = "/multipart"
@@ -1125,12 +1166,23 @@ def MakeDataDir():
     # Create the default path to our data dir, relative to the exe dir.
     my_data_dir = os.path.dirname(sys.argv[0])
     my_data_dir = os.path.join(my_data_dir, "..", "..", "..", "..",
-                                   "test", "data")
+                               "test", "data")
 
     #TODO(ibrar): Must use Find* funtion defined in google\tools
     #i.e my_data_dir = FindUpward(my_data_dir, "test", "data")
 
   return my_data_dir
+
+def TryKillingOldServer(port):
+  # Note that an HTTP /kill request to the FTP server has the effect of
+  # killing it.
+  for protocol in ["http", "https"]:
+    try:
+      urllib2.urlopen("%s://localhost:%d/kill" % (protocol, port)).read()
+      print "Killed old server instance on port %d (via %s)" % (port, protocol)
+    except urllib2.URLError:
+      # Common case, indicates no server running.
+      pass
 
 def main(options, args):
   # redirect output to a log file so it doesn't spam the unit test output
@@ -1138,6 +1190,9 @@ def main(options, args):
   sys.stderr = sys.stdout = logfile
 
   port = options.port
+
+  # Try to free up the port if there's an orphaned old instance.
+  TryKillingOldServer(port)
 
   if options.server_type == SERVER_HTTP:
     if options.cert:
