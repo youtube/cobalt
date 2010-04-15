@@ -10,10 +10,11 @@
 
 #include <string>
 
-class EnvVarGetter;
 class FilePath;
 
 namespace base {
+
+class EnvVarGetter;
 
 static const char kFindInodeSwitch[] = "--find-inode";
 
