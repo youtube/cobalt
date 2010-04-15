@@ -7,7 +7,7 @@
     # Files/paths to include.  Specify these before the excludes, since rules
     # are in order.
     {
-      'regexp' : '^CHROMIUM/(base|courgette|media|net|printing|chrome|v8|webkit/glue)/',
+      'regexp' : '^CHROMIUM/(base|courgette|media|net|printing|chrome|v8|webkit/glue|native_client)/',
       'include' : 1,
     },
     # Don't include subversion or mercurial SCM dirs
@@ -25,9 +25,9 @@
       'regexp' : '.*/third_party/',
       'include' : 0,
     },
-    # Don't include windows, posix, or linux specific files
+    # Don't include posix or linux specific files
     {
-      'regexp' : '.*(_|/)(linux|posix|win)(\\.|_)',
+      'regexp' : '.*(_|/)(linux|posix)(\\.|_)',
       'include' : 0,
     },
 
