@@ -4454,12 +4454,13 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
 
 TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
   HttpNetworkTransaction::SetNextProtos("needs_to_be_set_for_this_test");
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
 
   SessionDependencies session_deps;
 
   MockRead data_reads[] = {
     MockRead("HTTP/1.1 200 OK\r\n"),
-    MockRead("Alternate-Protocol: 443:npn-spdy\r\n\r\n"),
+    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
     MockRead("hello world"),
     MockRead(false, OK),
   };
@@ -4505,13 +4506,15 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
       alternate_protocols.GetAlternateProtocolFor(http_host_port_pair);
   HttpAlternateProtocols::PortProtocolPair expected_alternate;
   expected_alternate.port = 443;
-  expected_alternate.protocol = HttpAlternateProtocols::NPN_SPDY;
+  expected_alternate.protocol = HttpAlternateProtocols::NPN_SPDY_1;
   EXPECT_TRUE(expected_alternate.Equals(alternate));
 
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
   HttpNetworkTransaction::SetNextProtos("");
 }
 
 TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -4549,7 +4552,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
       session->mutable_alternate_protocols();
   alternate_protocols->SetAlternateProtocolFor(
       http_host_port_pair, 1234 /* port is ignored by MockConnect anyway */,
-      HttpAlternateProtocols::NPN_SPDY);
+      HttpAlternateProtocols::NPN_SPDY_1);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
@@ -4571,6 +4574,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
   const HttpAlternateProtocols::PortProtocolPair alternate =
       alternate_protocols->GetAlternateProtocolFor(http_host_port_pair);
   EXPECT_EQ(HttpAlternateProtocols::BROKEN, alternate.protocol);
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
 
 // TODO(willchan): Redo this test to use TLS/NPN=>SPDY.  Currently, the code
@@ -4608,7 +4612,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 //        session->mutable_alternate_protocols();
 //    alternate_protocols->SetAlternateProtocolFor(
 //        http_host_port_pair, 1234 /* port is ignored */,
-//        HttpAlternateProtocols::NPN_SPDY);
+//        HttpAlternateProtocols::NPN_SPDY_1);
 //
 //    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 //
@@ -4627,6 +4631,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 //  }
 
 TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -4660,7 +4665,7 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
       session->mutable_alternate_protocols();
   alternate_protocols->SetAlternateProtocolFor(
       http_host_port_pair, 1234 /* port is ignored */,
-      HttpAlternateProtocols::NPN_SPDY);
+      HttpAlternateProtocols::NPN_SPDY_1);
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
@@ -4676,6 +4681,7 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
   std::string response_data;
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello world", response_data);
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
 
 // MockAuthHandlerCanonical is used by the ResolveCanonicalName
