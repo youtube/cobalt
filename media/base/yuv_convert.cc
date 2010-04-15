@@ -28,7 +28,7 @@
 #endif
 #endif
 
-#if USE_SSE || USE_MMX
+#if USE_SSE
 #include <emmintrin.h>
 #endif
 
