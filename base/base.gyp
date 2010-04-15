@@ -170,6 +170,9 @@
             'file_version_info_unittest.cc',
             'worker_pool_linux_unittest.cc',
           ],
+          'sources': [
+            'linux_util_unittest.cc',
+          ],
           'dependencies': [
             '../build/linux/system.gyp:gtk',
             '../build/linux/system.gyp:nss',

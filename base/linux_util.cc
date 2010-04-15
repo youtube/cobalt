@@ -229,18 +229,18 @@ FilePath GetXDGUserDirectory(EnvVarGetter* env, const char* dir_name,
 DesktopEnvironment GetDesktopEnvironment(EnvVarGetter* env) {
   std::string desktop_session;
   if (env->GetEnv("DESKTOP_SESSION", &desktop_session)) {
-    if (desktop_session == "gnome")
+    if (desktop_session == "gnome") {
       return DESKTOP_ENVIRONMENT_GNOME;
-    else if (desktop_session == "kde4")
+    } else if (desktop_session == "kde4") {
       return DESKTOP_ENVIRONMENT_KDE4;
-    else if (desktop_session == "kde") {
+    } else if (desktop_session == "kde") {
       // This may mean KDE4 on newer systems, so we have to check.
       if (env->HasEnv("KDE_SESSION_VERSION"))
         return DESKTOP_ENVIRONMENT_KDE4;
       return DESKTOP_ENVIRONMENT_KDE3;
-    }
-    else if (desktop_session == "xfce4")
+    } else if (desktop_session.find("xfce") != std::string::npos) {
       return DESKTOP_ENVIRONMENT_XFCE;
+    }
   }
 
   // Fall back on some older environment variables.
