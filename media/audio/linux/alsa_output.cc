@@ -78,6 +78,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
+#include "base/message_loop.h"
 #include "base/stl_util-inl.h"
 #include "base/time.h"
 #include "media/audio/audio_util.h"
