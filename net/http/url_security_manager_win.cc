@@ -10,28 +10,34 @@
 #include "base/scoped_comptr_win.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
-#include "net/http/http_auth_filter.h"
 
 // The Windows implementation of URLSecurityManager uses WinINet/IE's
 // URL security zone manager.  See the MSDN page "URL Security Zones" at
 // http://msdn.microsoft.com/en-us/library/ms537021(VS.85).aspx for more
 // info on the Internet Security Manager and Internet Zone Manager objects.
+//
+// On Windows, we honor the WinINet/IE settings and group policy related to
+// URL Security Zones.  See the Microsoft Knowledge Base article 182569
+// "Internet Explorer security zones registry entries for advanced users"
+// (http://support.microsoft.com/kb/182569) for more info on these registry
+// keys.
 
 namespace net {
 
 class URLSecurityManagerWin : public URLSecurityManager {
  public:
-  explicit URLSecurityManagerWin(const HttpAuthFilter* whitelist);
+  URLSecurityManagerWin();
 
   // URLSecurityManager methods:
   virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const;
 
  private:
   ScopedComPtr<IInternetSecurityManager> security_manager_;
+
+  DISALLOW_COPY_AND_ASSIGN(URLSecurityManagerWin);
 };
 
-URLSecurityManagerWin::URLSecurityManagerWin(const HttpAuthFilter* whitelist)
-    : URLSecurityManager(whitelist) {
+URLSecurityManagerWin::URLSecurityManagerWin() {
   HRESULT hr = CoInternetCreateSecurityManager(NULL,
                                                security_manager_.Receive(),
                                                NULL);
@@ -41,10 +47,6 @@ URLSecurityManagerWin::URLSecurityManagerWin(const HttpAuthFilter* whitelist)
 
 bool URLSecurityManagerWin::CanUseDefaultCredentials(
     const GURL& auth_origin) const {
-  // The whitelist overrides everything, if it exists.
-  if (whitelist_)
-    return whitelist_->IsValid(auth_origin, HttpAuth::AUTH_SERVER);
-
   if (!security_manager_) {
     NOTREACHED();  // The code in the constructor failed.
     return false;
@@ -101,8 +103,11 @@ bool URLSecurityManagerWin::CanUseDefaultCredentials(
 
 // static
 URLSecurityManager* URLSecurityManager::Create(
-    const HttpAuthFilter* whitelist) {
-  return new URLSecurityManagerWin(whitelist);
+    HttpAuthFilter* whitelist) {
+  // If we have a whitelist, just use that.
+  if (whitelist)
+    return new URLSecurityManagerWhitelist(whitelist);
+  return new URLSecurityManagerWin();
 }
 
 }  //  namespace net

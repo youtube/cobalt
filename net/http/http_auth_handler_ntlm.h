@@ -31,6 +31,8 @@
 
 namespace net {
 
+class URLSecurityManager;
+
 // Code for handling HTTP NTLM authentication.
 class HttpAuthHandlerNTLM : public HttpAuthHandler {
  public:
@@ -96,14 +98,15 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
   HttpAuthHandlerNTLM();
 #endif
 #if defined(NTLM_SSPI)
-  HttpAuthHandlerNTLM(SSPILibrary* sspi_library, ULONG max_token_length);
+  HttpAuthHandlerNTLM(SSPILibrary* sspi_library, ULONG max_token_length,
+                      const URLSecurityManager* url_security_manager);
 #endif
 
   virtual bool NeedsIdentity();
 
   virtual bool IsFinalRound();
 
-  virtual bool SupportsDefaultCredentials();
+  virtual bool AllowsDefaultCredentials();
 
   virtual int GenerateAuthToken(const std::wstring& username,
                                 const std::wstring& password,
@@ -164,6 +167,10 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
   // The base64-encoded string following "NTLM" in the "WWW-Authenticate" or
   // "Proxy-Authenticate" response header.
   std::string auth_data_;
+
+#if defined(NTLM_SSPI)
+  const URLSecurityManager* url_security_manager_;
+#endif
 };
 
 }  // namespace net
