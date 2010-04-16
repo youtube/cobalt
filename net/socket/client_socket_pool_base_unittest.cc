@@ -792,6 +792,33 @@ TEST_F(ClientSocketPoolBaseTest, MayHaveStalledGroupReset) {
   EXPECT_FALSE(pool_->base()->may_have_stalled_group());
 }
 
+TEST_F(ClientSocketPoolBaseTest, CorrectlyCountStalledGroups) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
+
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
+
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+
+  EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
+
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("b", kDefaultPriority));
+  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kDefaultPriority));
+
+  EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
+
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
+  EXPECT_EQ(kDefaultMaxSockets + 1, client_socket_factory_.allocation_count());
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
+  EXPECT_EQ(kDefaultMaxSockets + 2, client_socket_factory_.allocation_count());
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
+  EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
+  EXPECT_EQ(kDefaultMaxSockets + 2, client_socket_factory_.allocation_count());
+}
+
 TEST_F(ClientSocketPoolBaseTest, PendingRequests) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
