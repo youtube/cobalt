@@ -266,6 +266,8 @@ int SSLClientSocketNSS::Init() {
   // Initialize the NSS SSL library in a threadsafe way.  This also
   // initializes the NSS base library.
   EnsureNSSSSLInit();
+  if (!NSS_IsInitialized())
+    return ERR_UNEXPECTED;
 #if !defined(OS_WIN)
   // We must call EnsureOCSPInit() here, on the IO thread, to get the IO loop
   // by MessageLoopForIO::current().
@@ -290,11 +292,13 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback,
 
   net_log.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
-  if (Init() != OK) {
-    NOTREACHED() << "Couldn't initialize nss";
+  int rv = Init();
+  if (rv != OK) {
+    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    return rv;
   }
 
-  int rv = InitializeSSLOptions();
+  rv = InitializeSSLOptions();
   if (rv != OK) {
     net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
     return rv;
