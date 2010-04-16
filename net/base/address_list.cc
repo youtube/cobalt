@@ -19,6 +19,7 @@ namespace {
 // DeleteCopyOfAddrinfo(), and NOT freeaddrinfo().
 struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info,
                                       bool recursive) {
+  DCHECK(info);
   struct addrinfo* copy = new addrinfo;
 
   // Copy all the fields (some of these are pointers, we will fix that next).
@@ -50,6 +51,7 @@ struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info,
 
 // Free an addrinfo that was created by CreateCopyOfAddrinfo().
 void FreeMyAddrinfo(struct addrinfo* info) {
+  DCHECK(info);
   if (info->ai_canonname)
     free(info->ai_canonname);  // Allocated by strdup.
 
@@ -67,6 +69,7 @@ void FreeMyAddrinfo(struct addrinfo* info) {
 
 // Returns the address to port field in |info|.
 uint16* GetPortField(const struct addrinfo* info) {
+  DCHECK(info);
   if (info->ai_family == AF_INET) {
     DCHECK_EQ(sizeof(sockaddr_in), info->ai_addrlen);
     struct sockaddr_in* sockaddr =
@@ -106,6 +109,7 @@ void AddressList::Copy(const struct addrinfo* head, bool recursive) {
 }
 
 void AddressList::Append(const struct addrinfo* head) {
+  DCHECK(head);
   struct addrinfo* new_head;
   if (data_->is_system_created) {
     new_head = CreateCopyOfAddrinfo(data_->head, true);
@@ -118,6 +122,7 @@ void AddressList::Append(const struct addrinfo* head) {
   struct addrinfo* copy_ptr = new_head;
   while (copy_ptr->ai_next)
     copy_ptr = copy_ptr->ai_next;
+  DCHECK(!head->ai_canonname);
   copy_ptr->ai_next = CreateCopyOfAddrinfo(head, true);
 }
 
@@ -174,6 +179,11 @@ AddressList AddressList::CreateIPv6Address(unsigned char data[16]) {
   memcpy(&addr6->sin6_addr, data, 16);
 
   return AddressList(new Data(ai, false /*is_system_created*/));
+}
+
+AddressList::Data::Data(struct addrinfo* ai, bool is_system_created)
+    : head(ai), is_system_created(is_system_created) {
+  DCHECK(head);
 }
 
 AddressList::Data::~Data() {
