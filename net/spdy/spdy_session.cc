@@ -685,9 +685,15 @@ void SpdySession::WriteSocket() {
       // which is now.  At this time, we don't compress our data frames.
       spdy::SpdyFrame uncompressed_frame(next_buffer.buffer()->data(), false);
       size_t size;
-      if (uncompressed_frame.is_control_frame()) {
+      if (spdy_framer_.IsCompressible(&uncompressed_frame)) {
         scoped_ptr<spdy::SpdyFrame> compressed_frame(
             spdy_framer_.CompressFrame(&uncompressed_frame));
+        if (!compressed_frame.get()) {
+          LOG(ERROR) << "SPDY Compression failure";
+          CloseSessionOnError(net::ERR_SPDY_PROTOCOL_ERROR);
+          return;
+        }
+
         size = compressed_frame->length() + spdy::SpdyFrame::size();
 
         DCHECK(size > 0);
