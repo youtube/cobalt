@@ -5,6 +5,7 @@
 #include "net/base/x509_certificate.h"
 
 #include <cert.h>
+#include <nss.h>
 #include <pk11pub.h>
 #include <prerror.h>
 #include <prtime.h>
@@ -721,6 +722,9 @@ bool X509Certificate::VerifyEV() const {
 X509Certificate::OSCertHandle X509Certificate::CreateOSCertHandleFromBytes(
     const char* data, int length) {
   base::EnsureNSSInit();
+
+  if (!NSS_IsInitialized())
+    return NULL;
 
   // Make a copy of |data| since CERT_DecodeCertPackage might modify it.
   char* data_copy = new char[length];
