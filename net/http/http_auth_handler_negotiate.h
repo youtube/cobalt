@@ -20,6 +20,7 @@
 namespace net {
 
 class SingleRequestHostResolver;
+class URLSecurityManager;
 
 // Handler for WWW-Authenticate: Negotiate protocol.
 //
@@ -78,16 +79,18 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
 #if defined(OS_WIN)
   HttpAuthHandlerNegotiate(SSPILibrary* sspi_library, ULONG max_token_length,
+                           const URLSecurityManager* url_security_manager,
                            bool disable_cname_lookup, bool use_port);
 #else
-  HttpAuthHandlerNegotiate();
+  explicit HttpAuthHandlerNegotiate(
+      const URLSecurityManager* url_security_manager);
 #endif
 
   virtual bool NeedsIdentity();
 
   virtual bool IsFinalRound();
 
-  virtual bool SupportsDefaultCredentials();
+  virtual bool AllowsDefaultCredentials();
 
   virtual bool NeedsCanonicalName();
 
@@ -124,6 +127,8 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   bool use_port_;
   std::wstring spn_;
 #endif
+
+  const URLSecurityManager* url_security_manager_;
 };
 
 }  // namespace net

@@ -51,16 +51,6 @@ HttpNetworkSession::~HttpNetworkSession() {
     network_change_notifier_->RemoveObserver(this);
 }
 
-URLSecurityManager* HttpNetworkSession::GetURLSecurityManager() {
-  // Create the URL security manager lazily in the first call.
-  // This is called on a single thread.
-  if (!url_security_manager_.get()) {
-    url_security_manager_.reset(
-        URLSecurityManager::Create(http_auth_handler_factory_->filter()));
-  }
-  return url_security_manager_.get();
-}
-
 // static
 void HttpNetworkSession::set_max_sockets_per_group(int socket_count) {
   DCHECK_LT(0, socket_count);
