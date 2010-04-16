@@ -891,6 +891,15 @@
                   '-mfpmath=sse',
                 ],
               }],
+              # ChromeOS targets Pinetrail, which is ssse3, but most of the
+              # benefit comes from sse2 so this setting allows ChromeOS
+              # to build on other CPUs.  In the future -march=atom would help
+              # but requires a newer compiler.
+              ['chromeos==1', {
+                'cflags': [
+                  '-msse2',
+                ],
+              }],
             ],
             # -mmmx allows mmintrin.h to be used for mmx intrinsics.
             # video playback is mmx and sse2 optimized.
