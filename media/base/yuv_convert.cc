@@ -240,6 +240,9 @@ void ScaleYUVToRGB32(const uint8* y_buf,
   for (int y = 0; y < height; ++y) {
     uint8* dest_pixel = rgb_buf + y * rgb_pitch;
     int source_y_subpixel = (y * yscale_fixed);
+    if (yscale_fixed >= (kFractionMax * 2)) {
+      source_y_subpixel += kFractionMax / 2;  // For 1/2 or less, center filter.
+    }
     int source_y = source_y_subpixel >> kFractionBits;
 
     const uint8* y0_ptr = y_buf + source_y * y_pitch;
