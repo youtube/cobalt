@@ -888,6 +888,24 @@ SpdyFrame* SpdyFramer::DuplicateFrame(const SpdyFrame* frame) {
   return new_frame;
 }
 
+bool SpdyFramer::IsCompressible(const SpdyFrame* frame) const {
+  // The important frames to compress are those which contain large
+  // amounts of compressible data - namely the headers in the SYN_STREAM
+  // and SYN_REPLY.
+  // TODO(mbelshe): Reconcile this with the spec when the spec is
+  // explicit about which frames compress and which do not.
+  if (frame->is_control_frame()) {
+    const SpdyControlFrame* control_frame =
+        reinterpret_cast<const SpdyControlFrame*>(frame);
+    return control_frame->type() == SYN_STREAM ||
+           control_frame->type() == SYN_REPLY;
+  }
+
+  const SpdyDataFrame* data_frame =
+      reinterpret_cast<const SpdyDataFrame*>(frame);
+  return (data_frame->flags() & DATA_FLAG_COMPRESSED) != 0;
+}
+
 void SpdyFramer::set_enable_compression(bool value) {
   enable_compression_ = value;
 }

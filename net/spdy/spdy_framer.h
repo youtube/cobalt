@@ -223,6 +223,9 @@ class SpdyFramer {
   // Returned frame must be freed with "delete".
   SpdyFrame* DuplicateFrame(const SpdyFrame* frame);
 
+  // Returns true if a frame could be compressed.
+  bool IsCompressible(const SpdyFrame* frame) const;
+
   // For debugging.
   static const char* StateToString(int state);
   static const char* ErrorCodeToString(int error_code);
