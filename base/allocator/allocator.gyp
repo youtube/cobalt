@@ -206,7 +206,6 @@
         '<(tcmalloc_dir)/src/base/spinlock_win32-inl.h',
         '<(tcmalloc_dir)/src/base/stl_allocator.h',
         '<(tcmalloc_dir)/src/base/thread_annotations.h',
-        '<(tcmalloc_dir)/src/debugallocation.cc',
         '<(tcmalloc_dir)/src/getpc.h',
         '<(tcmalloc_dir)/src/google/heap-checker.h',
         '<(tcmalloc_dir)/src/google/heap-profiler.h',
@@ -301,6 +300,9 @@
             '<(tcmalloc_dir)/src/profile-handler.cc',
             '<(tcmalloc_dir)/src/profile-handler.h',
             '<(tcmalloc_dir)/src/profiler.cc',
+
+            # debugallocation
+            '<(tcmalloc_dir)/src/debugallocation.cc',
           ],
         }],
         ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
@@ -332,19 +334,33 @@
               # Do the same for heap leak checker.
               '-Wl,-u_Z21InitialMallocHook_NewPKvj,-u_Z22InitialMallocHook_MMapPKvS0_jiiix,-u_Z22InitialMallocHook_SbrkPKvi',
               '-Wl,-u_Z21InitialMallocHook_NewPKvm,-u_Z22InitialMallocHook_MMapPKvS0_miiil,-u_Z22InitialMallocHook_SbrkPKvl',
-            ]},
-          }],
-          [ 'linux_use_heapchecker==0', {
-            # Do not compile and link the heapchecker source.
-            'sources!': [
-              '<(tcmalloc_dir)/src/heap-checker-bcad.cc',
-              '<(tcmalloc_dir)/src/heap-checker.cc',
-            ],
-            # Disable the heap checker in tcmalloc.
-            'cflags': [
-              '-DNO_HEAP_CHECK',
-            ],
-          }],
+          ]},
+        }],
+        [ 'linux_use_debugallocation==1', {
+          'sources!': [
+            # debugallocation.cc #includes tcmalloc.cc,
+            # so only one of them should be used.
+            '<(tcmalloc_dir)/src/tcmalloc.cc',
+          ],
+          'cflags': [
+            '-DTCMALLOC_FOR_DEBUGALLOCATION',
+          ],
+        }, { # linux_use_debugallocation != 1
+          'sources!': [
+            '<(tcmalloc_dir)/src/debugallocation.cc',
+          ],
+        }],
+        [ 'linux_use_heapchecker==0', {
+          # Do not compile and link the heapchecker source.
+          'sources!': [
+            '<(tcmalloc_dir)/src/heap-checker-bcad.cc',
+            '<(tcmalloc_dir)/src/heap-checker.cc',
+          ],
+          # Disable the heap checker in tcmalloc.
+          'cflags': [
+            '-DNO_HEAP_CHECK',
+          ],
+        }],
       ],
     },
     {
