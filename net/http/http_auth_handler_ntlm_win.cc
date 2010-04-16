@@ -14,14 +14,17 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/http/http_auth_sspi_win.h"
+#include "net/http/url_security_manager.h"
 
 #pragma comment(lib, "secur32.lib")
 
 namespace net {
 
-HttpAuthHandlerNTLM::HttpAuthHandlerNTLM(SSPILibrary* sspi_library,
-                                         ULONG max_token_length) :
-    auth_sspi_(sspi_library, "NTLM", NTLMSP_NAME, max_token_length) {
+HttpAuthHandlerNTLM::HttpAuthHandlerNTLM(
+    SSPILibrary* sspi_library, ULONG max_token_length,
+    const URLSecurityManager* url_security_manager)
+    : auth_sspi_(sspi_library, "NTLM", NTLMSP_NAME, max_token_length),
+      url_security_manager_(url_security_manager) {
 }
 
 HttpAuthHandlerNTLM::~HttpAuthHandlerNTLM() {
@@ -36,8 +39,12 @@ bool HttpAuthHandlerNTLM::IsFinalRound() {
   return auth_sspi_.IsFinalRound();
 }
 
-bool HttpAuthHandlerNTLM::SupportsDefaultCredentials() {
-  return true;
+bool HttpAuthHandlerNTLM::AllowsDefaultCredentials() {
+  if (target_ == HttpAuth::AUTH_PROXY)
+    return true;
+  if (!url_security_manager_)
+    return false;
+  return url_security_manager_->CanUseDefaultCredentials(origin_);
 }
 
 int HttpAuthHandlerNTLM::GenerateDefaultAuthToken(
@@ -81,7 +88,8 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   scoped_refptr<HttpAuthHandler> tmp_handler(
-      new HttpAuthHandlerNTLM(sspi_library_, max_token_length_));
+      new HttpAuthHandlerNTLM(sspi_library_, max_token_length_,
+                              url_security_manager()));
   if (!tmp_handler->InitFromChallenge(challenge, target, origin))
     return ERR_INVALID_RESPONSE;
   handler->swap(tmp_handler);

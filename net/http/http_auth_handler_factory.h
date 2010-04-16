@@ -10,7 +10,7 @@
 
 #include "base/scoped_ptr.h"
 #include "net/http/http_auth.h"
-#include "net/http/http_auth_filter.h"
+#include "net/http/url_security_manager.h"
 
 class GURL;
 
@@ -22,17 +22,19 @@ class HttpAuthHandlerRegistryFactory;
 // An HttpAuthHandlerFactory is used to create HttpAuthHandler objects.
 class HttpAuthHandlerFactory {
  public:
-  HttpAuthHandlerFactory() {}
+  HttpAuthHandlerFactory() : url_security_manager_(NULL) {}
   virtual ~HttpAuthHandlerFactory() {}
 
-  // Sets an authentication filter.
-  void set_filter(HttpAuthFilter* filter) {
-    filter_.reset(filter);
+  // Sets an URL security manager.  HttpAuthHandlerFactory doesn't own the URL
+  // security manager, and the URL security manager should outlive this object.
+  void set_url_security_manager(
+      const URLSecurityManager* url_security_manager) {
+    url_security_manager_ = url_security_manager;
   }
 
-  // Retrieves the associated authentication filter.
-  const HttpAuthFilter* filter() const {
-    return filter_.get();
+  // Retrieves the associated URL security manager.
+  const URLSecurityManager* url_security_manager() const {
+    return url_security_manager_;
   }
 
   // Creates an HttpAuthHandler object based on the authentication
@@ -75,8 +77,8 @@ class HttpAuthHandlerFactory {
   static HttpAuthHandlerRegistryFactory* CreateDefault();
 
  private:
-  // The authentication filter
-  scoped_ptr<HttpAuthFilter> filter_;
+  // The URL security manager
+  const URLSecurityManager* url_security_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpAuthHandlerFactory);
 };
@@ -88,11 +90,9 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
   HttpAuthHandlerRegistryFactory();
   virtual ~HttpAuthHandlerRegistryFactory();
 
-  // Sets an authentication filter into the factory associated with |scheme|.
-  void SetFilter(const std::string& scheme, HttpAuthFilter* filter);
-
-  // Retrieves the authentication filter associated with |scheme|.
-  const HttpAuthFilter* GetFilter(const std::string& scheme) const;
+  // Sets an URL security manager into the factory associated with |scheme|.
+  void SetURLSecurityManager(const std::string& scheme,
+                             const URLSecurityManager* url_security_manager);
 
   // Registers a |factory| that will be used for a particular HTTP
   // authentication scheme such as Basic, Digest, or Negotiate.

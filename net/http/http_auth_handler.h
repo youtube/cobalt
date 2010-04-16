@@ -77,12 +77,12 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // single-round schemes.
   virtual bool IsFinalRound() { return true; }
 
-  // Returns whether the authentication scheme supports the use of default
-  // credentials.  If true, the user does not need to be prompted for
-  // username and password to establish credentials.
+  // Returns whether the default credentials may be used for the |origin| passed
+  // into |InitFromChallenge|. If true, the user does not need to be prompted
+  // for username and password to establish credentials.
   // NOTE: SSO is a potential security risk.
   // TODO(cbentzel): Add a pointer to Firefox documentation about risk.
-  virtual bool SupportsDefaultCredentials() { return false; }
+  virtual bool AllowsDefaultCredentials() { return false; }
 
   // Returns whether the canonical DNS name for the origin host needs to be
   // resolved. The Negotiate auth scheme typically uses the canonical DNS
