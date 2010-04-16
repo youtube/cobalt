@@ -246,11 +246,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   void InvalidateRejectedAuthFromCache(HttpAuth::Target target,
                                        const GURL& auth_origin);
 
-  // Returns true if we can use the default credentials for the
-  // authentication.
-  bool CanUseDefaultCredentials(HttpAuth::Target target,
-                                const GURL& auth_origin) const;
-
   // Sets auth_identity_[target] to the next identity that the transaction
   // should try. It chooses candidates by searching the auth cache
   // and the URL for a username:password. Returns true if an identity

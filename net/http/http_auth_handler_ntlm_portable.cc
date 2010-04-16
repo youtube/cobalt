@@ -658,7 +658,7 @@ bool HttpAuthHandlerNTLM::IsFinalRound() {
   return !auth_data_.empty();
 }
 
-bool HttpAuthHandlerNTLM::SupportsDefaultCredentials() {
+bool HttpAuthHandlerNTLM::AllowsDefaultCredentials() {
   // Default credentials are not supported in the portable implementation of
   // NTLM, but are supported in the SSPI implementation.
   return false;
@@ -731,16 +731,11 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
     HttpAuth::Target target,
     const GURL& origin,
     scoped_refptr<HttpAuthHandler>* handler) {
-  if (filter() && !filter()->IsValid(origin, target)) {
-    LOG(INFO) << "URL " << origin
-              << "fails filter validation for authentication method "
-              << "NTLM";
-
-    return ERR_INVALID_AUTH_CREDENTIALS;
-  }
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
-  scoped_refptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerNTLM());
+  // NOTE: Default credentials are not supported for the portable implementation
+  // of NTLM.
+  scoped_refptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerNTLM);
   if (!tmp_handler->InitFromChallenge(challenge, target, origin))
     return ERR_INVALID_RESPONSE;
   handler->swap(tmp_handler);

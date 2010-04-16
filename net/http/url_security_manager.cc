@@ -4,10 +4,19 @@
 
 #include "net/http/url_security_manager.h"
 
+#include "net/http/http_auth_filter.h"
+
 namespace net {
 
-URLSecurityManager::URLSecurityManager(const HttpAuthFilter* whitelist)
-    : whitelist_(whitelist) {
+URLSecurityManagerWhitelist::URLSecurityManagerWhitelist(
+    HttpAuthFilter* whitelist) : whitelist_(whitelist) {
+}
+
+bool URLSecurityManagerWhitelist::CanUseDefaultCredentials(
+    const GURL& auth_origin) const {
+  if (whitelist_.get())
+    return whitelist_->IsValid(auth_origin, HttpAuth::AUTH_SERVER);
+  return false;
 }
 
 }  //  namespace net
