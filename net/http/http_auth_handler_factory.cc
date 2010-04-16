@@ -47,19 +47,12 @@ HttpAuthHandlerRegistryFactory::~HttpAuthHandlerRegistryFactory() {
                                        factory_map_.end());
 }
 
-void HttpAuthHandlerRegistryFactory::SetFilter(const std::string& scheme,
-                                               HttpAuthFilter* filter) {
+void HttpAuthHandlerRegistryFactory::SetURLSecurityManager(
+    const std::string& scheme,
+    const URLSecurityManager* security_manager) {
   HttpAuthHandlerFactory* factory = GetSchemeFactory(scheme);
   if (factory)
-    factory->set_filter(filter);
-}
-
-const HttpAuthFilter* HttpAuthHandlerRegistryFactory::GetFilter(
-    const std::string& scheme) const {
-  HttpAuthHandlerFactory* factory = GetSchemeFactory(scheme);
-  if (factory)
-    return factory->filter();
-  return NULL;
+    factory->set_url_security_manager(security_manager);
 }
 
 void HttpAuthHandlerRegistryFactory::RegisterSchemeFactory(

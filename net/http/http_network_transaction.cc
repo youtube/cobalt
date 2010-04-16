@@ -1763,18 +1763,6 @@ bool HttpNetworkTransaction::SelectPreemptiveAuth(HttpAuth::Target target) {
   return false;
 }
 
-bool HttpNetworkTransaction::CanUseDefaultCredentials(
-    HttpAuth::Target target,
-    const GURL& auth_origin) const {
-  if (target == HttpAuth::AUTH_PROXY)
-    return true;
-
-  URLSecurityManager* security_manager = session_->GetURLSecurityManager();
-  if (!security_manager)
-    return false;
-  return security_manager->CanUseDefaultCredentials(auth_origin);
-}
-
 bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
     HttpAuth::Target target,
     const GURL& auth_origin) {
@@ -1829,9 +1817,8 @@ bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
   // We use default credentials after checking the auth cache so that if
   // single sign-on doesn't work, we won't try default credentials for future
   // transactions.
-  if (auth_handler_[target]->SupportsDefaultCredentials() &&
-      !default_credentials_used_ &&
-      CanUseDefaultCredentials(target, auth_origin)) {
+  if (!default_credentials_used_ &&
+      auth_handler_[target]->AllowsDefaultCredentials()) {
     auth_identity_[target].source = HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS;
     auth_identity_[target].invalid = false;
     default_credentials_used_ = true;
