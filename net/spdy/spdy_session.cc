@@ -560,14 +560,15 @@ void SpdySession::OnReadComplete(int bytes_read) {
 void SpdySession::OnWriteComplete(int result) {
   DCHECK(write_pending_);
   DCHECK(in_flight_write_.size());
-  DCHECK(result != 0);  // This shouldn't happen for write.
+  DCHECK_NE(result, 0);  // This shouldn't happen for write.
 
   write_pending_ = false;
 
   scoped_refptr<SpdyStream> stream = in_flight_write_.stream();
 
   LOG(INFO) << "Spdy write complete (result=" << result << ")"
-            << (stream ? " for stream " + stream->stream_id() : "");
+            << (stream ? std::string(" for stream ") +
+                IntToString(stream->stream_id()) : "");
 
   if (result >= 0) {
     // It should not be possible to have written more bytes than our
@@ -675,7 +676,7 @@ void SpdySession::WriteSocket() {
 
   // Loop sending frames until we've sent everything or until the write
   // returns error (or ERR_IO_PENDING).
-  while (in_flight_write_.buffer() || queue_.size()) {
+  while (in_flight_write_.buffer() || !queue_.empty()) {
     if (!in_flight_write_.buffer()) {
       // Grab the next SpdyFrame to send.
       SpdyIOBuffer next_buffer = queue_.top();
@@ -696,7 +697,7 @@ void SpdySession::WriteSocket() {
 
         size = compressed_frame->length() + spdy::SpdyFrame::size();
 
-        DCHECK(size > 0);
+        DCHECK_GT(size, 0u);
 
         // TODO(mbelshe): We have too much copying of data here.
         IOBufferWithSize* buffer = new IOBufferWithSize(size);
