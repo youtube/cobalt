@@ -821,8 +821,7 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
 
   const bool https = response_info_->ssl_info.is_valid();
   const bool valid_https =
-      https &&
-      !(response_info_->ssl_info.cert_status & net::CERT_STATUS_ALL_ERRORS);
+      https && !net::IsCertStatusError(response_info_->ssl_info.cert_status);
 
   std::string name = "Strict-Transport-Security";
   std::string value;
