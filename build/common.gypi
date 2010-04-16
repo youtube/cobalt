@@ -229,6 +229,9 @@
     # arm_neon==0).
     'arm_fpu%': 'vfpv3',
 
+    # Enable new NPDevice API.
+    'enable_new_npdevice_api%': 0,
+    
     'conditions': [
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
@@ -1237,6 +1240,13 @@
             },
           },
         },
+      },
+    }],
+    ['enable_new_npdevice_api==1', {
+      'target_defaults': {
+        'defines': [
+          'ENABLE_NEW_NPDEVICE_API',
+        ],
       },
     }],
   ],
