@@ -231,8 +231,9 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
   int rv = connect_job->Connect();
 
   if (rv != ERR_IO_PENDING) {
-    request->net_log().AddEventWithInteger(NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_ID,
-                                           job_net_log.source().id);
+    request->net_log().AddEventWithInteger(
+        NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_ID,
+        job_net_log.source().id);
   }
 
   if (rv == OK) {
@@ -515,14 +516,17 @@ int ClientSocketPoolBaseHelper::FindTopStalledGroup(Group** group,
     const RequestQueue& queue = group.pending_requests;
     if (queue.empty())
       continue;
-    bool has_slot = group.HasAvailableSocketSlot(max_sockets_per_group_);
-    if (has_slot)
+    bool has_unused_slot =
+        group.HasAvailableSocketSlot(max_sockets_per_group_) &&
+        group.pending_requests.size() > group.jobs.size();
+    if (has_unused_slot) {
       stalled_group_count++;
-    bool has_higher_priority = !top_group ||
-        group.TopPendingPriority() < top_group->TopPendingPriority();
-    if (has_slot && has_higher_priority) {
-      top_group = &group;
-      top_group_name = &i->first;
+      bool has_higher_priority = !top_group ||
+          group.TopPendingPriority() < top_group->TopPendingPriority();
+      if (has_higher_priority) {
+        top_group = &group;
+        top_group_name = &i->first;
+      }
     }
   }
   if (top_group) {
