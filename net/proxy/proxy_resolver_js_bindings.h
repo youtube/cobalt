@@ -48,11 +48,8 @@ class ProxyResolverJSBindings {
   //   - Send script alert()s to LOG(INFO)
   //   - Use the provided host resolver to service dnsResolve().
   //
-  // |host_resolver| will be used in async mode on |host_resolver_loop|. If
-  // |host_resolver_loop| is NULL, then |host_resolver| will be used in sync
-  // mode on the PAC thread.
-  static ProxyResolverJSBindings* CreateDefault(
-      HostResolver* host_resolver, MessageLoop* host_resolver_loop);
+  // Note that |host_resolver| will be used in sync mode mode.
+  static ProxyResolverJSBindings* CreateDefault(HostResolver* host_resolver);
 };
 
 }  // namespace net
