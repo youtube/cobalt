@@ -189,8 +189,7 @@ TEST(ProxyResolverPerfTest, ProxyResolverMac) {
 
 TEST(ProxyResolverPerfTest, ProxyResolverV8) {
   net::ProxyResolverJSBindings* js_bindings =
-      net::ProxyResolverJSBindings::CreateDefault(
-          new net::MockHostResolver, NULL);
+      net::ProxyResolverJSBindings::CreateDefault(new net::MockHostResolver);
 
   net::ProxyResolverV8 resolver(js_bindings);
   PacPerfSuiteRunner runner(&resolver, "ProxyResolverV8");

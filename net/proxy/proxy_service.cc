@@ -30,6 +30,7 @@
 #include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_v8.h"
 #include "net/proxy/single_threaded_proxy_resolver.h"
+#include "net/proxy/sync_host_resolver_bridge.h"
 #include "net/url_request/url_request_context.h"
 
 using base::TimeDelta;
@@ -222,22 +223,31 @@ ProxyService* ProxyService::Create(
     NetworkChangeNotifier* network_change_notifier,
     NetLog* net_log,
     MessageLoop* io_loop) {
-  ProxyResolver* proxy_resolver;
+  ProxyResolver* proxy_resolver = NULL;
 
   if (use_v8_resolver) {
+    // Use the IO thread's host resolver (but since it is not threadsafe,
+    // bridge requests from the PAC thread over to the IO thread).
+    SyncHostResolverBridge* sync_host_resolver =
+        new SyncHostResolverBridge(url_request_context->host_resolver(),
+                                   io_loop);
+
     // Send javascript errors and alerts to LOG(INFO).
-    HostResolver* host_resolver = url_request_context->host_resolver();
     ProxyResolverJSBindings* js_bindings =
-        ProxyResolverJSBindings::CreateDefault(host_resolver, io_loop);
+        ProxyResolverJSBindings::CreateDefault(sync_host_resolver);
 
-    proxy_resolver = new ProxyResolverV8(js_bindings);
+    // Wrap the (synchronous) ProxyResolver implementation in a single-threaded
+    // asynchronous resolver. This version of SingleThreadedProxyResolver
+    // additionally aborts any synchronous host resolves to avoid deadlock
+    // during shutdown.
+    proxy_resolver =
+        new SingleThreadedProxyResolverUsingBridgedHostResolver(
+            new ProxyResolverV8(js_bindings),
+            sync_host_resolver);
   } else {
-    proxy_resolver = CreateNonV8ProxyResolver();
+    proxy_resolver =
+        new SingleThreadedProxyResolver(CreateNonV8ProxyResolver());
   }
-
-  // Wrap the (synchronous) ProxyResolver implementation in a single-threaded
-  // runner. This will dispatch requests to a threadpool of size 1.
-  proxy_resolver = new SingleThreadedProxyResolver(proxy_resolver);
 
   ProxyService* proxy_service = new ProxyService(
       proxy_config_service, proxy_resolver, network_change_notifier,
