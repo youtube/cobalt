@@ -83,7 +83,7 @@ TEST(ProxyResolverJSBindingsTest, DnsResolve) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver));
 
   // Empty string is not considered a valid host (even though on some systems
   // requesting this will resolve to localhost).
@@ -105,8 +105,7 @@ TEST(ProxyResolverJSBindingsTest, DnsResolve) {
 TEST(ProxyResolverJSBindingsTest, MyIpAddress) {
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(
-          new MockHostResolver, NULL));
+      ProxyResolverJSBindings::CreateDefault(new MockHostResolver));
 
   // Our IP address is always going to be 127.0.0.1, since we are using a
   // mock host resolver.
@@ -132,8 +131,7 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(
-          host_resolver, NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver));
 
   // Make it so requests resolve to particular address patterns based on family:
   //  IPV4_ONLY --> 192.168.1.*
@@ -179,7 +177,7 @@ TEST(ProxyResolverJSBindingsTest, ExFunctionsReturnList) {
 
   // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
   scoped_ptr<ProxyResolverJSBindings> bindings(
-      ProxyResolverJSBindings::CreateDefault(host_resolver, NULL));
+      ProxyResolverJSBindings::CreateDefault(host_resolver));
 
   EXPECT_EQ("192.168.1.1;172.22.34.1;200.100.1.2",
             bindings->MyIpAddressEx());
