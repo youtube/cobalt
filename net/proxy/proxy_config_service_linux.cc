@@ -652,6 +652,8 @@ class GConfSettingGetterImplKDE
       char* value = getenv(it->second.c_str());
       if (value)
         it->second = value;
+      else
+        string_table_.erase(it);
     }
   }
 
