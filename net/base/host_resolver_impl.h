@@ -47,7 +47,8 @@ namespace net {
 //
 // Requests are ordered in the queue based on their priority.
 
-class HostResolverImpl : public HostResolver {
+class HostResolverImpl : public HostResolver,
+                         public NetworkChangeNotifier::Observer {
  public:
   // The index into |job_pools_| for the various job pools. Pools with a higher
   // index have lower priority.
@@ -87,7 +88,6 @@ class HostResolverImpl : public HostResolver {
   virtual void CancelRequest(RequestHandle req);
   virtual void AddObserver(HostResolver::Observer* observer);
   virtual void RemoveObserver(HostResolver::Observer* observer);
-  virtual void Flush();
 
   // Set address family, and disable IPv6 probe support.
   virtual void SetDefaultAddressFamily(AddressFamily address_family);
@@ -179,6 +179,9 @@ class HostResolverImpl : public HostResolver {
   void OnCancelRequest(const BoundNetLog& net_log,
                        int request_id,
                        const RequestInfo& info);
+
+  // NetworkChangeNotifier::Observer methods:
+  virtual void OnIPAddressChanged();
 
   // Notify IPv6ProbeJob not to call back, and discard reference to the job.
   void DiscardIPv6ProbeJob();
