@@ -1392,6 +1392,8 @@ std::wstring FormatUrl(const GURL& url,
   url_parse::Parsed parsed_temp;
   if (!new_parsed)
     new_parsed = &parsed_temp;
+  else
+    *new_parsed = url_parse::Parsed();
   size_t offset_temp = std::wstring::npos;
   if (!offset_for_adjustment)
     offset_for_adjustment = &offset_temp;
@@ -1432,9 +1434,20 @@ std::wstring FormatUrl(const GURL& url,
       std::back_inserter(url_string));
 
   const wchar_t* const kHTTP = L"http://";
+  const char* const kFTP = "ftp.";
   const size_t kHTTPSize = std::wstring(kHTTP).size();
-  bool omit_http = ((format_types & kFormatUrlOmitHTTP) != 0 &&
-                    url_string == kHTTP);
+  // The omnibox treats ftp.foo.com as ftp://foo.com. This means that if we
+  // trimmed http off a string that starts with http://ftp and the user tried to
+  // reload the page the user would end up with a scheme of ftp://. For example,
+  // 'http://ftp.foo.com' -> 'ftp.foo.com' -> 'ftp://foo.com'. For this reason
+  // don't strip http off url's whose scheme is http and the host starts with
+  // 'ftp.'.
+  bool omit_http =
+      ((format_types & kFormatUrlOmitHTTP) != 0 &&
+       url_string == kHTTP && (!parsed.host.is_valid() ||
+                               (parsed.host.is_nonempty() &&
+                                spec.compare(parsed.host.begin,
+                                             std::string(kFTP).size(), kFTP))));
 
   new_parsed->scheme = parsed.scheme;
 
