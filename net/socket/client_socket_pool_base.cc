@@ -110,7 +110,8 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
     int max_sockets_per_group,
     base::TimeDelta unused_idle_socket_timeout,
     base::TimeDelta used_idle_socket_timeout,
-    ConnectJobFactory* connect_job_factory)
+    ConnectJobFactory* connect_job_factory,
+    NetworkChangeNotifier* network_change_notifier)
     : idle_socket_count_(0),
       connecting_socket_count_(0),
       handed_out_socket_count_(0),
@@ -120,10 +121,14 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
       used_idle_socket_timeout_(used_idle_socket_timeout),
       may_have_stalled_group_(false),
       connect_job_factory_(connect_job_factory),
+      network_change_notifier_(network_change_notifier),
       backup_jobs_enabled_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
   DCHECK_LE(0, max_sockets_per_group);
   DCHECK_LE(max_sockets_per_group, max_sockets);
+
+  if (network_change_notifier_)
+    network_change_notifier_->AddObserver(this);
 }
 
 ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
@@ -135,6 +140,9 @@ ClientSocketPoolBaseHelper::~ClientSocketPoolBaseHelper() {
   CloseIdleSockets();
   CHECK(group_map_.empty());
   DCHECK_EQ(0, connecting_socket_count_);
+
+  if (network_change_notifier_)
+    network_change_notifier_->RemoveObserver(this);
 }
 
 // InsertRequestIntoQueue inserts the request into the queue based on
@@ -581,6 +589,10 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
     }
     MaybeOnAvailableSocketSlot(group_name);
   }
+}
+
+void ClientSocketPoolBaseHelper::OnIPAddressChanged() {
+  CloseIdleSockets();
 }
 
 void ClientSocketPoolBaseHelper::RemoveConnectJob(const ConnectJob *job,

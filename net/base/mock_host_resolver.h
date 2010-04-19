@@ -47,11 +47,8 @@ class MockHostResolverBase : public HostResolver {
   virtual void CancelRequest(RequestHandle req);
   virtual void AddObserver(Observer* observer);
   virtual void RemoveObserver(Observer* observer);
-  virtual void Flush();
 
   RuleBasedHostResolverProc* rules() { return rules_; }
-
-  const HostCache* cache() const { return impl_->cache(); }
 
   // Controls whether resolutions complete synchronously or asynchronously.
   void set_synchronous_mode(bool is_synchronous) {
