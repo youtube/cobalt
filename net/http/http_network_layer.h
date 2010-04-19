@@ -20,6 +20,7 @@ class HttpNetworkSession;
 class NetworkChangeNotifier;
 class ProxyInfo;
 class ProxyService;
+class SpdySessionPool;
 class SSLConfigService;
 
 class HttpNetworkLayer : public HttpTransactionFactory {
@@ -81,6 +82,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   scoped_refptr<SSLConfigService> ssl_config_service_;
 
   scoped_refptr<HttpNetworkSession> session_;
+  scoped_refptr<SpdySessionPool> spdy_session_pool_;
 
   HttpAuthHandlerFactory* http_auth_handler_factory_;
 

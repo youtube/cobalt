@@ -1043,6 +1043,38 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
               CapturingObserver::StartOrCancelEntry(1, info));
 }
 
+// Test that IP address changes flush the cache.
+TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
+  MockNetworkChangeNotifier mock_network_change_notifier;
+  scoped_refptr<HostResolver> host_resolver(
+      new HostResolverImpl(NULL, CreateDefaultCache(),
+                           &mock_network_change_notifier,
+                           kMaxJobs));
+
+  AddressList addrlist;
+
+  // Resolve "host1".
+  HostResolver::RequestInfo info1("host1", 70);
+  TestCompletionCallback callback;
+  int rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // Resolve "host1" again -- this time it will be served from cache, but it
+  // should still notify of completion.
+  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  ASSERT_EQ(OK, rv);  // Should complete synchronously.
+
+  // Flush cache by triggering an IP address change.
+  mock_network_change_notifier.NotifyIPAddressChange();
+
+  // Resolve "host1" again -- this time it won't be served from cache, so it
+  // will complete asynchronously.
+  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  ASSERT_EQ(ERR_IO_PENDING, rv);  // Should complete asynchronously.
+  EXPECT_EQ(OK, callback.WaitForResult());
+}
+
 // Tests that when the maximum threads is set to 1, requests are dequeued
 // in order of priority.
 TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {

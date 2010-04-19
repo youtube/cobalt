@@ -371,8 +371,12 @@ void HttpCache::CloseCurrentConnections() {
   net::HttpNetworkLayer* network =
       static_cast<net::HttpNetworkLayer*>(network_layer_.get());
   HttpNetworkSession* session = network->GetSession();
-  if (session)
-    session->Flush();
+  if (session) {
+    session->tcp_socket_pool()->CloseIdleSockets();
+    if (session->spdy_session_pool())
+      session->spdy_session_pool()->CloseAllSessions();
+    session->ReplaceTCPSocketPool();
+  }
 }
 
 //-----------------------------------------------------------------------------
