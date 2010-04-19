@@ -131,6 +131,11 @@ TEST_F(SpdySessionTest, GoAway) {
   MessageLoop::current()->RunAllPending();
 
   EXPECT_FALSE(spdy_session_pool->HasSession(test_host_port_pair));
+
+  scoped_refptr<SpdySession> session2 =
+      spdy_session_pool->Get(test_host_port_pair, http_session.get());
+
+  session = NULL;
 }
 
 }  // namespace
