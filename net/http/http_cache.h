@@ -28,6 +28,7 @@
 #include "net/http/http_transaction_factory.h"
 
 class GURL;
+class ViewCacheHelper;
 
 namespace disk_cache {
 class Backend;
@@ -157,6 +158,18 @@ class HttpCache : public HttpTransactionFactory,
   void set_enable_range_support(bool value) {
     enable_range_support_ = value;
   }
+
+ protected:
+  // Disk cache entry data indices.
+  enum {
+    kResponseInfoIndex = 0,
+    kResponseContentIndex,
+    kMetadataIndex,
+
+    // Must remain at the end of the enum.
+    kNumCacheEntryDataIndices
+  };
+  friend class ::ViewCacheHelper;
 
  private:
 
