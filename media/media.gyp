@@ -252,6 +252,18 @@
       ],
     },
     {
+      'target_name': 'scaler_bench',
+      'type': 'executable',
+      'dependencies': [
+        'media',
+        '../base/base.gyp:base',
+        '../skia/skia.gyp:skia',
+      ],
+      'sources': [
+        'tools/scaler_bench/scaler_bench.cc',
+      ],
+    },
+    {
       'target_name': 'ffmpeg_tests',
       'type': 'executable',
       'dependencies': [
