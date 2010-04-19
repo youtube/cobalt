@@ -1389,6 +1389,11 @@ TEST(NetUtilTest, FormatUrl) {
      "https://www.google.com/", L"en", net::kFormatUrlOmitHTTP,
      UnescapeRule::NORMAL, L"https://www.google.com/",
      8},
+
+    {"omit http starts with ftp.",
+     "http://ftp.google.com/", L"en", net::kFormatUrlOmitHTTP,
+     UnescapeRule::NORMAL, L"http://ftp.google.com/",
+     7},
   };
 
   for (size_t i = 0; i < arraysize(tests); ++i) {
@@ -1491,6 +1496,36 @@ TEST(NetUtilTest, FormatUrlParsed) {
   EXPECT_EQ(L"/a", formatted.substr(parsed.path.begin, parsed.path.len));
   EXPECT_EQ(L"b=c", formatted.substr(parsed.query.begin, parsed.query.len));
   EXPECT_EQ(L"d", formatted.substr(parsed.ref.begin, parsed.ref.len));
+
+  // omit http starts with ftp case.
+  formatted = net::FormatUrl(
+      GURL("http://ftp.host:8000/a?b=c#d"),
+      L"", net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, &parsed, NULL, NULL);
+  EXPECT_EQ(L"http://ftp.host:8000/a?b=c#d", formatted);
+  EXPECT_TRUE(parsed.scheme.is_valid());
+  EXPECT_FALSE(parsed.username.is_valid());
+  EXPECT_FALSE(parsed.password.is_valid());
+  EXPECT_EQ(L"http", formatted.substr(parsed.scheme.begin, parsed.scheme.len));
+  EXPECT_EQ(L"ftp.host", formatted.substr(parsed.host.begin, parsed.host.len));
+  EXPECT_EQ(L"8000", formatted.substr(parsed.port.begin, parsed.port.len));
+  EXPECT_EQ(L"/a", formatted.substr(parsed.path.begin, parsed.path.len));
+  EXPECT_EQ(L"b=c", formatted.substr(parsed.query.begin, parsed.query.len));
+  EXPECT_EQ(L"d", formatted.substr(parsed.ref.begin, parsed.ref.len));
+
+  // omit http starts with 'f' case.
+  formatted = net::FormatUrl(
+      GURL("http://f/"),
+      L"", net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, &parsed, NULL, NULL);
+  EXPECT_EQ(L"f/", formatted);
+  EXPECT_FALSE(parsed.scheme.is_valid());
+  EXPECT_FALSE(parsed.username.is_valid());
+  EXPECT_FALSE(parsed.password.is_valid());
+  EXPECT_FALSE(parsed.port.is_valid());
+  EXPECT_TRUE(parsed.path.is_valid());
+  EXPECT_FALSE(parsed.query.is_valid());
+  EXPECT_FALSE(parsed.ref.is_valid());
+  EXPECT_EQ(L"f", formatted.substr(parsed.host.begin, parsed.host.len));
+  EXPECT_EQ(L"/", formatted.substr(parsed.path.begin, parsed.path.len));
 }
 
 TEST(NetUtilTest, FormatUrlAdjustOffset) {
@@ -1627,6 +1662,18 @@ TEST(NetUtilTest, FormatUrlAdjustOffset) {
     net::FormatUrl(GURL("http://www.google.com"), L"en",
         net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, NULL, NULL, &offset);
     EXPECT_EQ(omit_http_cases[i].output_offset, offset);
+  }
+
+  const AdjustOffsetCase omit_http_start_with_ftp[] = {
+    {0, 0},
+    {3, 3},
+    {8, 8},
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(omit_http_start_with_ftp); ++i) {
+    size_t offset = omit_http_start_with_ftp[i].input_offset;
+    net::FormatUrl(GURL("http://ftp.google.com"), L"en",
+        net::kFormatUrlOmitHTTP, UnescapeRule::NORMAL, NULL, NULL, &offset);
+    EXPECT_EQ(omit_http_start_with_ftp[i].output_offset, offset);
   }
 
   const AdjustOffsetCase omit_all_cases[] = {
