@@ -136,7 +136,14 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kDisableCompression) {
       spdy::SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {
-      HttpNetworkTransaction::SetNextProtos("\007http1.1\004spdy");
+      // Except for the first element, the order is irrelevant.  First element
+      // specifies the fallback in case nothing matches
+      // (SSLClientSocket::kNextProtoNoOverlap).  Otherwise, the SSL library
+      // will choose the first overlapping protocol in the server's list, since
+      // it presumedly has a better understanding of which protocol we should
+      // use, therefore the rest of the ordering here is not important.
+      HttpNetworkTransaction::SetNextProtos(
+          "\008http/1.1\007http1.1\006spdy/1\004spdy");
       force_spdy_ = false;
     } else if (option.empty() && it == spdy_options.begin()) {
       continue;

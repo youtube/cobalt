@@ -39,7 +39,7 @@ class SSLClientSocket : public ClientSocket {
   enum NextProto {
     kProtoUnknown = 0,
     kProtoHTTP11 = 1,
-    kProtoSPDY = 2,
+    kProtoSPDY1 = 2,
   };
 
   // Gets the SSL connection information of the socket.
@@ -60,10 +60,10 @@ class SSLClientSocket : public ClientSocket {
   virtual NextProtoStatus GetNextProto(std::string* proto) = 0;
 
   static NextProto NextProtoFromString(const std::string& proto_string) {
-    if (proto_string == "http1.1") {
+    if (proto_string == "http1.1" || proto_string == "http/1.1") {
       return kProtoHTTP11;
-    } else if (proto_string == "spdy") {
-      return kProtoSPDY;
+    } else if (proto_string == "spdy" || proto_string == "spdy/1") {
+      return kProtoSPDY1;
     } else {
       return kProtoUnknown;
     }
