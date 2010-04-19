@@ -870,9 +870,9 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
   // here, then we know that we called SSL_ImportFD.
   if (result == OK || IsCertificateError(result))
     status = ssl_socket->GetNextProto(&proto);
-  static const char kSpdyProto[] = "spdy";
   using_spdy_ = (status == SSLClientSocket::kNextProtoNegotiated &&
-                 proto == kSpdyProto);
+                 SSLClientSocket::NextProtoFromString(proto) ==
+                 SSLClientSocket::kProtoSPDY1);
 
   if (alternate_protocol_mode_ == kUsingAlternateProtocol &&
       alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY_1 &&
