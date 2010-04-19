@@ -30,15 +30,6 @@ using base::Time;
 
 namespace net {
 
-// disk cache entry data indices.
-enum {
-  kResponseInfoIndex,
-  kResponseContentIndex,
-  kMetadataIndex
-};
-
-//-----------------------------------------------------------------------------
-
 struct HeaderNameAndValue {
   const char* name;
   const char* value;

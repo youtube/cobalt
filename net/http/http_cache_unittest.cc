@@ -62,6 +62,8 @@ int GetEffectiveTestMode(int test_mode) {
 //-----------------------------------------------------------------------------
 // mock disk cache (a very basic memory cache implementation)
 
+static const int kNumCacheEntryDataIndices = 3;
+
 class MockDiskEntry : public disk_cache::Entry,
                       public base::RefCounted<MockDiskEntry> {
  public:
@@ -101,13 +103,13 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int32 GetDataSize(int index) const {
-    DCHECK(index >= 0 && index < 3);
+    DCHECK(index >= 0 && index < kNumCacheEntryDataIndices);
     return static_cast<int32>(data_[index].size());
   }
 
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
                        net::CompletionCallback* callback) {
-    DCHECK(index >= 0 && index < 3);
+    DCHECK(index >= 0 && index < kNumCacheEntryDataIndices);
 
     if (fail_requests_)
       return net::ERR_CACHE_READ_FAILURE;
@@ -130,7 +132,7 @@ class MockDiskEntry : public disk_cache::Entry,
 
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
                         net::CompletionCallback* callback, bool truncate) {
-    DCHECK(index >= 0 && index < 3);
+    DCHECK(index >= 0 && index < kNumCacheEntryDataIndices);
     DCHECK(truncate);
 
     if (fail_requests_)
@@ -338,7 +340,7 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   std::string key_;
-  std::vector<char> data_[3];
+  std::vector<char> data_[kNumCacheEntryDataIndices];
   int test_mode_;
   bool doomed_;
   bool sparse_;
