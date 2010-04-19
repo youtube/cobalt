@@ -32,12 +32,6 @@
 
 namespace net {
 
-// disk cache entry data indices.
-enum {
-  kResponseInfoIndex,
-  kResponseContentIndex
-};
-
 //-----------------------------------------------------------------------------
 
 HttpCache::ActiveEntry::ActiveEntry(disk_cache::Entry* e)
