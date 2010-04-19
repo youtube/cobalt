@@ -167,9 +167,6 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   // Unregisters an observer previously added by AddObserver().
   virtual void RemoveObserver(Observer* observer) = 0;
 
-  // Gives the HostResolver an opportunity to flush state.
-  virtual void Flush() {}
-
   // Sets the default AddressFamily to use when requests have left it
   // unspecified. For example, this could be used to restrict resolution
   // results to AF_INET by passing in ADDRESS_FAMILY_IPV4, or to

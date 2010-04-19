@@ -12,6 +12,7 @@
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_network_transaction.h"
 #include "net/spdy/spdy_session.h"
+#include "net/spdy/spdy_session_pool.h"
 
 namespace net {
 
@@ -56,6 +57,7 @@ HttpNetworkLayer::HttpNetworkLayer(
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
       session_(NULL),
+      spdy_session_pool_(NULL),
       http_auth_handler_factory_(http_auth_handler_factory),
       suspended_(false) {
   DCHECK(proxy_service_);
@@ -67,6 +69,7 @@ HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
       network_change_notifier_(NULL),
       ssl_config_service_(NULL),
       session_(session),
+      spdy_session_pool_(session->spdy_session_pool()),
       http_auth_handler_factory_(NULL),
       suspended_(false) {
   DCHECK(session_.get());
@@ -94,15 +97,16 @@ void HttpNetworkLayer::Suspend(bool suspend) {
   suspended_ = suspend;
 
   if (suspend && session_)
-    session_->Flush();
+    session_->tcp_socket_pool()->CloseIdleSockets();
 }
 
 HttpNetworkSession* HttpNetworkLayer::GetSession() {
   if (!session_) {
     DCHECK(proxy_service_);
+    SpdySessionPool* spdy_pool = new SpdySessionPool;
     session_ = new HttpNetworkSession(
         network_change_notifier_, host_resolver_, proxy_service_,
-        socket_factory_, ssl_config_service_,
+        socket_factory_, ssl_config_service_, spdy_pool,
         http_auth_handler_factory_);
     // These were just temps for lazy-initializing HttpNetworkSession.
     network_change_notifier_ = NULL;
