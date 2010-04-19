@@ -25,6 +25,12 @@ struct PublicKeyAndChallenge {
   CSSM_DATA challenge_string;
 };
 
+// This is a copy of the built-in kSecAsn1IA5StringTemplate, but without the
+// 'streamable' flag, which was causing bogus data to be written.
+const SecAsn1Template kIA5StringTemplate[] = {
+    { SEC_ASN1_IA5_STRING, 0, NULL, sizeof(CSSM_DATA) }
+};
+
 static const SecAsn1Template kPublicKeyAndChallengeTemplate[] = {
   {
     SEC_ASN1_SEQUENCE,
@@ -40,7 +46,7 @@ static const SecAsn1Template kPublicKeyAndChallengeTemplate[] = {
   {
     SEC_ASN1_INLINE,
     offsetof(PublicKeyAndChallenge, challenge_string),
-    kSecAsn1IA5StringTemplate
+    kIA5StringTemplate
   },
   {
     0
