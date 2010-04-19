@@ -229,8 +229,6 @@ SpdySession::~SpdySession() {
     connection_->socket()->Disconnect();
   }
 
-  DCHECK(!session_->spdy_session_pool()->HasSession(host_port_pair()));
-
   // Record per-session histograms here.
   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsPerSession",
       streams_initiated_count_,
