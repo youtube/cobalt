@@ -66,7 +66,8 @@ static std::string FormatEntryInfo(disk_cache::Entry* entry,
   return row;
 }
 
-static std::string FormatEntryDetails(disk_cache::Entry* entry) {
+static std::string FormatEntryDetails(disk_cache::Entry* entry,
+                                      int num_entry_data_indices) {
   std::string result = EscapeForHTML(entry->GetKey());
 
   net::HttpResponseInfo response;
@@ -91,7 +92,7 @@ static std::string FormatEntryDetails(disk_cache::Entry* entry) {
     result.append("</pre>");
   }
 
-  for (int i = 0; i < 2; ++i) {
+  for (int i = 0; i < num_entry_data_indices; ++i) {
     result.append("<hr><pre>");
 
     int data_size = entry->GetDataSize(i);
@@ -160,7 +161,8 @@ void ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
   } else {
     disk_cache::Entry* entry;
     if (disk_cache->OpenEntry(key, &entry)) {
-      data->assign(FormatEntryDetails(entry));
+      data->assign(FormatEntryDetails(
+          entry, net::HttpCache::kNumCacheEntryDataIndices));
       entry->Close();
     } else {
       data->assign("no matching cache entry for: " + EscapeForHTML(key));
