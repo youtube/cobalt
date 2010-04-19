@@ -583,10 +583,14 @@ int HttpNetworkTransaction::DoLoop(int result) {
         net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
         break;
       case STATE_RESOLVE_CANONICAL_NAME:
+        DCHECK_EQ(OK, rv);
+        net_log_.BeginEvent(
+            NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME);
         rv = DoResolveCanonicalName();
         break;
       case STATE_RESOLVE_CANONICAL_NAME_COMPLETE:
         rv = DoResolveCanonicalNameComplete(rv);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME);
         break;
       case STATE_READ_BODY:
         DCHECK_EQ(OK, rv);
