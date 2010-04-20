@@ -687,6 +687,8 @@
         'http/http_transaction_unittest.h',
         'http/http_util_unittest.cc',
         'http/http_vary_data_unittest.cc',
+        'http/mock_sspi_library_win.h',
+        'http/mock_sspi_library_win.cc',
         'proxy/init_proxy_resolver_unittest.cc',
         'proxy/mock_proxy_resolver.h',
         'proxy/proxy_bypass_rules_unittest.cc',
