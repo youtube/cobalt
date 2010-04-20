@@ -856,6 +856,7 @@ void HostResolverImpl::Shutdown() {
   for (JobMap::iterator it = jobs_.begin(); it != jobs_.end(); ++it)
     it->second->Cancel();
   jobs_.clear();
+  DiscardIPv6ProbeJob();
 }
 
 void HostResolverImpl::ClearRequestsTrace() {
@@ -1083,6 +1084,9 @@ void HostResolverImpl::OnIPAddressChanged() {
   if (cache_.get())
     cache_->clear();
   if (ipv6_probe_monitoring_) {
+    DCHECK(!shutdown_);
+    if (shutdown_)
+      return;
     DiscardIPv6ProbeJob();
     ipv6_probe_job_ = new IPv6ProbeJob(this);
     ipv6_probe_job_->Start();
