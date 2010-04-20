@@ -270,7 +270,7 @@ TEST_F(PipelineImplTest, NotStarted) {
 
   EXPECT_TRUE(kZero == pipeline_->GetCurrentTime());
   EXPECT_TRUE(kZero == pipeline_->GetBufferedTime());
-  EXPECT_TRUE(kZero == pipeline_->GetDuration());
+  EXPECT_TRUE(kZero == pipeline_->GetMediaDuration());
 
   EXPECT_EQ(0, pipeline_->GetBufferedBytes());
   EXPECT_EQ(0, pipeline_->GetTotalBytes());
@@ -485,7 +485,7 @@ TEST_F(PipelineImplTest, Properties) {
   EXPECT_TRUE(pipeline_->IsInitialized());
   EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
   EXPECT_EQ(kDuration.ToInternalValue(),
-            pipeline_->GetDuration().ToInternalValue());
+            pipeline_->GetMediaDuration().ToInternalValue());
   EXPECT_EQ(kTotalBytes, pipeline_->GetTotalBytes());
   EXPECT_EQ(kBufferedBytes, pipeline_->GetBufferedBytes());
   EXPECT_EQ(kDuration.ToInternalValue(),

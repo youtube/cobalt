@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
@@ -240,7 +240,7 @@ base::TimeDelta PipelineImpl::GetBufferedTime() const {
       static_cast<int64>(duration_.InMilliseconds() * ratio));
 }
 
-base::TimeDelta PipelineImpl::GetDuration() const {
+base::TimeDelta PipelineImpl::GetMediaDuration() const {
   AutoLock auto_lock(lock_);
   return duration_;
 }
@@ -361,6 +361,11 @@ void PipelineImpl::SetError(PipelineError error) {
 base::TimeDelta PipelineImpl::GetTime() const {
   DCHECK(IsRunning());
   return GetCurrentTime();
+}
+
+base::TimeDelta PipelineImpl::GetDuration() const {
+  DCHECK(IsRunning());
+  return GetMediaDuration();
 }
 
 void PipelineImpl::SetTime(base::TimeDelta time) {
