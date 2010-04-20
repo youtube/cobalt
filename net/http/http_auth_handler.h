@@ -15,8 +15,8 @@ namespace net {
 
 class BoundNetLog;
 class HostResolver;
-class HttpRequestInfo;
 class ProxyInfo;
+struct HttpRequestInfo;
 
 // HttpAuthHandler is the interface for the authentication schemes
 // (basic, digest, NTLM, Negotiate).

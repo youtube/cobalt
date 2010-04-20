@@ -54,6 +54,11 @@ class HttpUtil {
   static bool ParseRanges(const std::string& headers,
                           std::vector<HttpByteRange>* ranges);
 
+  // Same thing as ParseRanges except the Range header is known and its value
+  // is directly passed in, rather than requiring searching through a string.
+  static bool ParseRangeHeader(const std::string& range_specifier,
+                               std::vector<HttpByteRange>* ranges);
+
   // Scans the '\r\n'-delimited headers for the given header name.  Returns
   // true if a match is found.  Input is assumed to be well-formed.
   // TODO(darin): kill this

@@ -30,7 +30,7 @@ namespace net {
 
 class SpdyStream;
 class HttpNetworkSession;
-class HttpRequestInfo;
+struct HttpRequestInfo;
 class HttpResponseInfo;
 class BoundNetLog;
 class SSLInfo;

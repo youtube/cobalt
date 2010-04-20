@@ -97,7 +97,7 @@ class MockHttpRequest : public net::HttpRequestInfo {
   explicit MockHttpRequest(const MockTransaction& t) {
     url = GURL(t.url);
     method = t.method;
-    extra_headers = t.request_headers;
+    extra_headers.AddHeadersFromString(t.request_headers);
     load_flags = t.load_flags;
   }
 };

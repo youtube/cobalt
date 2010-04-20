@@ -13,7 +13,7 @@
 namespace net {
 
 class BoundNetLog;
-class HttpRequestInfo;
+struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class X509Certificate;
