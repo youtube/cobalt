@@ -147,6 +147,12 @@ NET_ERROR(SSL_NO_RENEGOTIATION, -123)
 // due to a broken LSP.
 NET_ERROR(WINSOCK_UNEXPECTED_WRITTEN_BYTES, -124)
 
+// An SSL peer sent us a fatal decompression_failure alert. This typically
+// occurs when a peer selects DEFLATE compression in the mismaken belief that
+// it supports it.
+NET_ERROR(SSL_DECOMPRESSION_FAILURE_ALERT, -125)
+
+
 // Certificate error codes
 //
 // The values of certificate error codes must be consecutive.
@@ -362,6 +368,5 @@ NET_ERROR(NO_PRIVATE_KEY_FOR_CERT, -502)
 // An error adding to the OS certificate database (e.g. OS X Keychain).
 NET_ERROR(ADD_USER_CERT_FAILED, -503)
 
-//
 // The FTP PASV command failed.
 NET_ERROR(FTP_PASV_COMMAND_FAILED, -600)
