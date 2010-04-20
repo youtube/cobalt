@@ -199,10 +199,18 @@ void VideoRendererBase::ThreadMain() {
       state = state_;
       playback_rate = playback_rate_;
 
-      // Calculate how long until we should advance the frame, which is
-      // typically negative but for playback rates < 1.0f may be long enough
-      // that it makes more sense to idle and check again.
-      remaining_time = current_frame_->GetTimestamp() - host()->GetTime();
+      if (current_frame_->GetTimestamp() > host()->GetDuration()) {
+        // This is a special case when the stream is badly formatted that
+        // we get video frame with timestamp greater than the duration.
+        // In this case we should proceed anyway and try to obtain the
+        // end-of-stream packet.
+        remaining_time = base::TimeDelta();
+      } else {
+        // Calculate how long until we should advance the frame, which is
+        // typically negative but for playback rates < 1.0f may be long enough
+        // that it makes more sense to idle and check again.
+        remaining_time = current_frame_->GetTimestamp() - host()->GetTime();
+      }
     }
     if (state == kStopped) {
       return;

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -133,7 +133,7 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Get the duration of the media in microseconds.  If the duration has not
   // been determined yet, then returns 0.
-  virtual base::TimeDelta GetDuration() const = 0;
+  virtual base::TimeDelta GetMediaDuration() const = 0;
 
   // Get the total number of bytes that are buffered on the client and ready to
   // be played.

@@ -146,6 +146,10 @@ TEST_F(VideoRendererBaseTest, Initialize_Successful) {
   // VideoRendererBase... it makes mocking much harder.
   EXPECT_CALL(host_, GetTime()).WillRepeatedly(Return(base::TimeDelta()));
 
+  // Expects the video renderer to get duration from the host.
+  EXPECT_CALL(host_, GetDuration())
+      .WillRepeatedly(Return(base::TimeDelta()));
+
   InSequence s;
 
   // We expect the video size to be set.
