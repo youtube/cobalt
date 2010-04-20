@@ -22,6 +22,7 @@
 #include "net/base/net_util.h"
 #include "net/base/sdch_manager.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_transaction.h"
@@ -31,6 +32,8 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_error_job.h"
 #include "net/url_request/url_request_redirect_job.h"
+
+static const char kAvailDictionaryHeader[] = "Avail-Dictionary";
 
 // TODO(darin): make sure the port blocking code is not lost
 // static
@@ -130,7 +133,7 @@ void URLRequestHttpJob::SetUpload(net::UploadData* upload) {
 void URLRequestHttpJob::SetExtraRequestHeaders(
     const std::string& headers) {
   DCHECK(!transaction_.get()) << "cannot change once started";
-  request_info_.extra_headers = headers;
+  request_info_.extra_headers.AddHeadersFromString(headers);
 }
 
 void URLRequestHttpJob::Start() {
@@ -146,8 +149,9 @@ void URLRequestHttpJob::Start() {
   request_info_.priority = request_->priority();
 
   if (request_->context()) {
-    request_info_.user_agent =
-        request_->context()->GetUserAgent(request_->url());
+    request_info_.extra_headers.SetHeader(
+        net::HttpRequestHeaders::kUserAgent,
+        request_->context()->GetUserAgent(request_->url()));
   }
 
   AddExtraHeaders();
@@ -334,9 +338,8 @@ void URLRequestHttpJob::RestartTransactionWithAuth(
   // Update the cookies, since the cookie store may have been updated from the
   // headers in the 401/407. Since cookies were already appended to
   // extra_headers, we need to strip them out before adding them again.
-  static const char* const cookie_name[] = { "cookie" };
-  request_info_.extra_headers = net::HttpUtil::StripHeaders(
-      request_info_.extra_headers, cookie_name, arraysize(cookie_name));
+  request_info_.extra_headers.RemoveHeader(
+      net::HttpRequestHeaders::kCookie);
 
   AddCookieHeaderAndStart();
 }
@@ -446,8 +449,10 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
           request_->context()->cookie_store()->GetCookiesWithOptions(
               request_->url(), options);
       if (request_->context()->InterceptRequestCookies(request_, cookies) &&
-          !cookies.empty())
-        request_info_.extra_headers += "Cookie: " + cookies + "\r\n";
+          !cookies.empty()) {
+        request_info_.extra_headers.SetHeader(
+            net::HttpRequestHeaders::kCookie, cookies);
+      }
     }
     // We may have been canceled within OnGetCookiesBlocked.
     if (GetStatus().is_success()) {
@@ -665,14 +670,16 @@ void URLRequestHttpJob::AddExtraHeaders() {
   // these headers.  Some proxies deliberately corrupt Accept-Encoding headers.
   if (!advertise_sdch) {
     // Tell the server what compression formats we support (other than SDCH).
-    request_info_.extra_headers += "Accept-Encoding: gzip,deflate\r\n";
+    request_info_.extra_headers.SetHeader(
+        net::HttpRequestHeaders::kAcceptEncoding, "gzip,deflate");
   } else {
     // Include SDCH in acceptable list.
-    request_info_.extra_headers += "Accept-Encoding: "
-        "gzip,deflate,sdch\r\n";
+    request_info_.extra_headers.SetHeader(
+        net::HttpRequestHeaders::kAcceptEncoding, "gzip,deflate,sdch");
     if (!avail_dictionaries.empty()) {
-      request_info_.extra_headers += "Avail-Dictionary: "
-          + avail_dictionaries + "\r\n";
+      request_info_.extra_headers.SetHeader(
+          kAvailDictionaryHeader,
+          avail_dictionaries);
       sdch_dictionary_advertised_ = true;
       // Since we're tagging this transaction as advertising a dictionary, we'll
       // definately employ an SDCH filter (or tentative sdch filter) when we get
@@ -686,12 +693,18 @@ void URLRequestHttpJob::AddExtraHeaders() {
   if (context) {
     // Only add default Accept-Language and Accept-Charset if the request
     // didn't have them specified.
-    net::HttpUtil::AppendHeaderIfMissing("Accept-Language",
-                                         context->accept_language(),
-                                         &request_info_.extra_headers);
-    net::HttpUtil::AppendHeaderIfMissing("Accept-Charset",
-                                         context->accept_charset(),
-                                         &request_info_.extra_headers);
+    if (!request_info_.extra_headers.HasHeader(
+        net::HttpRequestHeaders::kAcceptLanguage)) {
+      request_info_.extra_headers.SetHeader(
+          net::HttpRequestHeaders::kAcceptLanguage,
+          context->accept_language());
+    }
+    if (!request_info_.extra_headers.HasHeader(
+        net::HttpRequestHeaders::kAcceptCharset)) {
+      request_info_.extra_headers.SetHeader(
+          net::HttpRequestHeaders::kAcceptCharset,
+          context->accept_charset());
+    }
   }
 }
 

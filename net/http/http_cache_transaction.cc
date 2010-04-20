@@ -69,16 +69,17 @@ static const HeaderNameAndValue kForceValidateHeaders[] = {
   { NULL, NULL }
 };
 
-static bool HeaderMatches(const HttpUtil::HeadersIterator& h,
+static bool HeaderMatches(const HttpRequestHeaders& headers,
                           const HeaderNameAndValue* search) {
   for (; search->name; ++search) {
-    if (!LowerCaseEqualsASCII(h.name_begin(), h.name_end(), search->name))
+    std::string header_value;
+    if (!headers.GetHeader(search->name, &header_value))
       continue;
 
     if (!search->value)
       return true;
 
-    HttpUtil::ValuesIterator v(h.values_begin(), h.values_end(), ',');
+    HttpUtil::ValuesIterator v(header_value.begin(), header_value.end(), ',');
     while (v.GetNext()) {
       if (LowerCaseEqualsASCII(v.value_begin(), v.value_end(), search->value))
         return true;
@@ -1176,45 +1177,37 @@ void HttpCache::Transaction::SetRequest(const BoundNetLog& net_log,
     { kForceValidateHeaders, LOAD_VALIDATE_CACHE },
   };
 
-  std::string new_extra_headers;
   bool range_found = false;
   bool external_validation_error = false;
 
-  // scan request headers to see if we have any that would impact our load flags
-  HttpUtil::HeadersIterator it(request_->extra_headers.begin(),
-                               request_->extra_headers.end(),
-                               "\r\n");
-  while (it.GetNext()) {
-    if (!LowerCaseEqualsASCII(it.name(), "range")) {
-      new_extra_headers.append(it.name_begin(), it.values_end());
-      new_extra_headers.append("\r\n");
+  if (request_->extra_headers.HasHeader(HttpRequestHeaders::kRange)) {
+    if (enable_range_support_) {
+      range_found = true;
     } else {
-      if (enable_range_support_) {
-        range_found = true;
-      } else {
-        effective_load_flags_ |= LOAD_DISABLE_CACHE;
-        continue;
-      }
+      effective_load_flags_ |= LOAD_DISABLE_CACHE;
     }
-    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kSpecialHeaders); ++i) {
-      if (HeaderMatches(it, kSpecialHeaders[i].search)) {
-        effective_load_flags_ |= kSpecialHeaders[i].load_flag;
-        break;
-      }
-    }
+  }
 
-    // Check for conditionalization headers which may correspond with a
-    // cache validation request.
-    for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kValidationHeaders); ++i) {
-      const ValidationHeaderInfo& info = kValidationHeaders[i];
-      if (LowerCaseEqualsASCII(it.name_begin(), it.name_end(),
-                               info.request_header_name)) {
-        if (!external_validation_.values[i].empty() || it.values().empty())
-          external_validation_error = true;
-        external_validation_.values[i] = it.values();
-        external_validation_.initialized = true;
-        break;
-      }
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kSpecialHeaders); ++i) {
+    if (HeaderMatches(request_->extra_headers, kSpecialHeaders[i].search)) {
+      effective_load_flags_ |= kSpecialHeaders[i].load_flag;
+      break;
+    }
+  }
+
+  // Check for conditionalization headers which may correspond with a
+  // cache validation request.
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kValidationHeaders); ++i) {
+    const ValidationHeaderInfo& info = kValidationHeaders[i];
+    std::string validation_value;
+    if (request_->extra_headers.GetHeader(
+        info.request_header_name, &validation_value)) {
+      if (!external_validation_.values[i].empty() ||
+          validation_value.empty())
+        external_validation_error = true;
+      external_validation_.values[i] = validation_value;
+      external_validation_.initialized = true;
+      break;
     }
   }
 
@@ -1238,9 +1231,9 @@ void HttpCache::Transaction::SetRequest(const BoundNetLog& net_log,
       // We will be modifying the actual range requested to the server, so
       // let's remove the header here.
       custom_request_.reset(new HttpRequestInfo(*request_));
+      custom_request_->extra_headers.RemoveHeader(HttpRequestHeaders::kRange);
       request_ = custom_request_.get();
-      custom_request_->extra_headers = new_extra_headers;
-      partial_->SetHeaders(new_extra_headers);
+      partial_->SetHeaders(custom_request_->extra_headers);
     } else {
       // The range is invalid or we cannot handle it properly.
       LOG(INFO) << "Invalid byte range found.";
@@ -1502,12 +1495,12 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
     if (partial_.get() && !partial_->IsCurrentRangeCached()) {
       // We don't want to switch to WRITE mode if we don't have this block of a
       // byte-range request because we may have other parts cached.
-      custom_request_->extra_headers.append("If-Range: ");
+      custom_request_->extra_headers.SetHeader(
+          HttpRequestHeaders::kIfRange, etag_value);
     } else {
-      custom_request_->extra_headers.append("If-None-Match: ");
+      custom_request_->extra_headers.SetHeader(
+          HttpRequestHeaders::kIfNoneMatch, etag_value);
     }
-    custom_request_->extra_headers.append(etag_value);
-    custom_request_->extra_headers.append("\r\n");
     // For byte-range requests, make sure that we use only one way to validate
     // the request.
     if (partial_.get() && !partial_->IsCurrentRangeCached())
@@ -1516,12 +1509,12 @@ bool HttpCache::Transaction::ConditionalizeRequest() {
 
   if (!last_modified_value.empty()) {
     if (partial_.get() && !partial_->IsCurrentRangeCached()) {
-      custom_request_->extra_headers.append("If-Range: ");
+      custom_request_->extra_headers.SetHeader(
+          HttpRequestHeaders::kIfRange, last_modified_value);
     } else {
-      custom_request_->extra_headers.append("If-Modified-Since: ");
+      custom_request_->extra_headers.SetHeader(
+          HttpRequestHeaders::kIfModifiedSince, last_modified_value);
     }
-    custom_request_->extra_headers.append(last_modified_value);
-    custom_request_->extra_headers.append("\r\n");
   }
 
   return true;

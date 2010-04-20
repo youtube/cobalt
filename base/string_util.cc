@@ -1352,20 +1352,6 @@ void SplitStringUsingSubstr(const std::string& str,
   SplitStringUsingSubstrT(str, s, r);
 }
 
-std::vector<string16> SplitStringUsingSubstr(const string16& str,
-                                             const string16& s) {
-  std::vector<string16> result;
-  SplitStringUsingSubstr(str, s, &result);
-  return result;
-}
-
-std::vector<std::string> SplitStringUsingSubstr(const std::string& str,
-                                                const std::string& s) {
-  std::vector<std::string> result;
-  SplitStringUsingSubstr(str, s, &result);
-  return result;
-}
-
 template<typename STR>
 static size_t TokenizeT(const STR& str,
                         const STR& delimiters,

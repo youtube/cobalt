@@ -10,11 +10,17 @@ namespace net {
 
 namespace {
 
-TEST(HttpRequestHeaders, SetRequestLine) {
+TEST(HttpRequestHeaders, HasHeader) {
   HttpRequestHeaders headers;
-  headers.SetRequestLine(
-      HttpRequestHeaders::kGetMethod, "/foo", "1.1");
-  EXPECT_EQ("GET /foo HTTP/1.1\r\n\r\n", headers.ToString());
+  headers.SetHeader("Foo", "bar");
+  EXPECT_TRUE(headers.HasHeader("foo"));
+  EXPECT_TRUE(headers.HasHeader("Foo"));
+  EXPECT_FALSE(headers.HasHeader("Fo"));
+
+  const HttpRequestHeaders& headers_ref = headers;
+  EXPECT_TRUE(headers_ref.HasHeader("foo"));
+  EXPECT_TRUE(headers_ref.HasHeader("Foo"));
+  EXPECT_FALSE(headers_ref.HasHeader("Fo"));
 }
 
 TEST(HttpRequestHeaders, SetHeader) {
@@ -50,6 +56,8 @@ TEST(HttpRequestHeaders, SetHeaderTwiceSamePrefix) {
   headers.SetHeader("FooBar", "smokes");
   headers.SetHeader("Foo", "crack");
   EXPECT_EQ("FooBar: smokes\r\nFoo: crack\r\n\r\n", headers.ToString());
+  const HttpRequestHeaders& headers_ref = headers;
+  EXPECT_EQ("FooBar: smokes\r\nFoo: crack\r\n\r\n", headers_ref.ToString());
 }
 
 TEST(HttpRequestHeaders, SetEmptyHeader) {
@@ -133,6 +141,18 @@ TEST(HttpRequestHeaders, MergeFrom) {
   headers2.SetHeader("C", "c");
   headers.MergeFrom(headers2);
   EXPECT_EQ("A: A\r\nB: b\r\nC: c\r\n\r\n", headers.ToString());
+}
+
+TEST(HttpRequestHeaders, CopyFrom) {
+  HttpRequestHeaders headers;
+  headers.SetHeader("A", "A");
+  headers.SetHeader("B", "B");
+
+  HttpRequestHeaders headers2;
+  headers2.SetHeader("B", "b");
+  headers2.SetHeader("C", "c");
+  headers.CopyFrom(headers2);
+  EXPECT_EQ("B: b\r\nC: c\r\n\r\n", headers.ToString());
 }
 
 }  // namespace

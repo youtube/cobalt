@@ -11,7 +11,7 @@ class Pickle;
 
 namespace net {
 
-class HttpRequestInfo;
+struct HttpRequestInfo;
 class HttpResponseHeaders;
 
 // Used to implement the HTTP/1.1 Vary header.  This class contains a MD5 hash
