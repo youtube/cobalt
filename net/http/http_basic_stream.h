@@ -20,7 +20,7 @@ namespace net {
 
 class BoundNetLog;
 class ClientSocketHandle;
-class HttpRequestInfo;
+struct HttpRequestInfo;
 class HttpResponseInfo;
 class UploadDataStream;
 

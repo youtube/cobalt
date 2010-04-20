@@ -2924,7 +2924,8 @@ TEST_F(HttpNetworkTransactionTest, ResetStateForRestart) {
     std::string temp("HTTP/1.1 200 OK\nVary: foo, bar\n\n");
     std::replace(temp.begin(), temp.end(), '\n', '\0');
     scoped_refptr<HttpResponseHeaders> headers = new HttpResponseHeaders(temp);
-    request.extra_headers = "Foo: 1\nbar: 23";
+    request.extra_headers.SetHeader("Foo", "1");
+    request.extra_headers.SetHeader("bar", "23");
     EXPECT_TRUE(response->vary_data.Init(request, *headers));
   }
 
@@ -3083,7 +3084,8 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_UserAgent) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
-  request.user_agent = "Chromium Ultra Awesome X Edition";
+  request.extra_headers.SetHeader(HttpRequestHeaders::kUserAgent,
+                                  "Chromium Ultra Awesome X Edition");
 
   MockWrite data_writes[] = {
     MockWrite("GET / HTTP/1.1\r\n"
@@ -3349,7 +3351,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeaders) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
-  request.extra_headers = "FooHeader: Bar\r\n";
+  request.extra_headers.SetHeader("FooHeader", "Bar");
 
   MockWrite data_writes[] = {
     MockWrite("GET / HTTP/1.1\r\n"
@@ -3387,7 +3389,9 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeadersStripped) {
   HttpRequestInfo request;
   request.method = "GET";
   request.url = GURL("http://www.google.com/");
-  request.extra_headers = "referer: www.foo.com\nhEllo: Kitty\rFoO: bar\r\n";
+  request.extra_headers.SetHeader("referer", "www.foo.com");
+  request.extra_headers.SetHeader("hEllo", "Kitty");
+  request.extra_headers.SetHeader("FoO", "bar");
 
   MockWrite data_writes[] = {
     MockWrite("GET / HTTP/1.1\r\n"

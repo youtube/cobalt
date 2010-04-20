@@ -15,6 +15,7 @@
 #include "net/base/ssl_cert_request_info.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_byte_range.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
@@ -726,20 +727,21 @@ bool RangeTransactionServer::modified_ = false;
 bool RangeTransactionServer::bad_200_ = false;
 
 // A dummy extra header that must be preserved on a given request.
-#define EXTRA_HEADER "Extra: header\r\n"
+#define EXTRA_HEADER "Extra: header"
+static const char kExtraHeaderKey[] = "Extra";
 
 // Static.
 void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
                                           std::string* response_status,
                                           std::string* response_headers,
                                           std::string* response_data) {
-  if (request->extra_headers.empty()) {
+  if (request->extra_headers.IsEmpty()) {
     response_status->assign("HTTP/1.1 416 Requested Range Not Satisfiable");
     return;
   }
 
   // We want to make sure we don't delete extra headers.
-  EXPECT_TRUE(request->extra_headers.find(EXTRA_HEADER) != std::string::npos);
+  EXPECT_TRUE(request->extra_headers.HasHeader(kExtraHeaderKey));
 
   if (not_modified_) {
     response_status->assign("HTTP/1.1 304 Not Modified");
@@ -747,7 +749,10 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
   }
 
   std::vector<net::HttpByteRange> ranges;
-  if (!net::HttpUtil::ParseRanges(request->extra_headers, &ranges) ||
+  std::string range_header;
+  if (!request->extra_headers.GetHeader(
+      net::HttpRequestHeaders::kRange, &range_header) ||
+      !net::HttpUtil::ParseRangeHeader(range_header, &ranges) ||
       ranges.size() != 1)
     return;
   // We can handle this range request.
@@ -763,19 +768,11 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
 
   EXPECT_LT(end, 80);
 
-  size_t if_range_header = request->extra_headers.find("If-Range");
-  if (std::string::npos != if_range_header) {
-    // Check that If-Range isn't specified twice.
-    EXPECT_EQ(std::string::npos,
-              request->extra_headers.find("If-Range", if_range_header + 1));
-  }
-
   std::string content_range = StringPrintf("Content-Range: bytes %d-%d/80\n",
                                            start, end);
   response_headers->append(content_range);
 
-  if (request->extra_headers.find("If-None-Match") == std::string::npos ||
-      modified_) {
+  if (!request->extra_headers.HasHeader("If-None-Match") || modified_) {
     EXPECT_EQ(9, (end - start) % 10);
     std::string data;
     for (int block_start = start; block_start < end; block_start += 10)
@@ -819,33 +816,25 @@ const MockTransaction kRangeGET_TransactionOK = {
   0
 };
 
-// Returns true if the response headers (|response|) match a partial content
+// Verifies the response headers (|response|) match a partial content
 // response for the range starting at |start| and ending at |end|.
-bool Verify206Response(std::string response, int start, int end) {
+void Verify206Response(std::string response, int start, int end) {
   std::string raw_headers(net::HttpUtil::AssembleRawHeaders(response.data(),
                                                             response.size()));
   scoped_refptr<net::HttpResponseHeaders> headers =
       new net::HttpResponseHeaders(raw_headers);
 
-  if (206 != headers->response_code())
-    return false;
+  ASSERT_EQ(206, headers->response_code());
 
   int64 range_start, range_end, object_size;
-  if (!headers->GetContentRange(&range_start, &range_end, &object_size))
-    return false;
+  ASSERT_TRUE(
+      headers->GetContentRange(&range_start, &range_end, &object_size));
   int64 content_length = headers->GetContentLength();
 
   int length = end - start + 1;
-  if (content_length != length)
-    return false;
-
-  if (range_start != start)
-    return false;
-
-  if (range_end != end)
-    return false;
-
-  return true;
+  ASSERT_EQ(length, content_length);
+  ASSERT_EQ(start, range_start);
+  ASSERT_EQ(end, range_end);
 }
 
 // Helper to represent a network HTTP response.
@@ -1220,7 +1209,7 @@ static void PreserveRequestHeaders_Handler(
     std::string* response_status,
     std::string* response_headers,
     std::string* response_data) {
-  EXPECT_TRUE(request->extra_headers.find(EXTRA_HEADER) != std::string::npos);
+  EXPECT_TRUE(request->extra_headers.HasHeader(kExtraHeaderKey));
 }
 
 // Tests that we don't remove extra headers for simple requests.
@@ -1252,7 +1241,7 @@ TEST(HttpCache, ConditionalizedGET_PreserveRequestHeaders) {
 
   MockTransaction transaction(kETagGET_Transaction);
   transaction.handler = PreserveRequestHeaders_Handler;
-  transaction.request_headers = "If-None-Match: \"foopy\"\n"
+  transaction.request_headers = "If-None-Match: \"foopy\"\r\n"
                                 EXTRA_HEADER;
   AddMockTransaction(&transaction);
 
@@ -1703,8 +1692,8 @@ static void ETagGet_ConditionalRequest_Handler(
     std::string* response_status,
     std::string* response_headers,
     std::string* response_data) {
-  EXPECT_TRUE(request->extra_headers.find("If-None-Match") !=
-                  std::string::npos);
+  EXPECT_TRUE(
+      request->extra_headers.HasHeader(net::HttpRequestHeaders::kIfNoneMatch));
   response_status->assign("HTTP/1.1 304 Not Modified");
   response_headers->assign(kETagGET_Transaction.response_headers);
   response_data->clear();
@@ -1738,8 +1727,8 @@ static void ETagGet_ConditionalRequest_NoStore_Handler(
     std::string* response_status,
     std::string* response_headers,
     std::string* response_data) {
-  EXPECT_TRUE(request->extra_headers.find("If-None-Match") !=
-              std::string::npos);
+  EXPECT_TRUE(
+      request->extra_headers.HasHeader(net::HttpRequestHeaders::kIfNoneMatch));
   response_status->assign("HTTP/1.1 304 Not Modified");
   response_headers->assign("Cache-Control: no-store\n");
   response_data->clear();
@@ -2004,7 +1993,7 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache4) {
   };
 
   const char* kExtraRequestHeaders =
-      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT";
 
   // We will control the network layer's responses for |kUrl| using
   // |mock_network_response|.
@@ -2048,7 +2037,7 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache5) {
   };
 
   const char* kExtraRequestHeaders =
-      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT";
 
   // We will control the network layer's responses for |kUrl| using
   // |mock_network_response|.
@@ -2156,8 +2145,8 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache8) {
   };
 
   const char* kExtraRequestHeaders =
-    "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n"
-    "If-None-Match: \"Foo1\"\n";
+    "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\r\n"
+    "If-None-Match: \"Foo1\"\r\n";
 
   ConditionalizedRequestUpdatesCacheHelper(
       kNetResponse1, kNetResponse2, kNetResponse2, kExtraRequestHeaders);
@@ -2371,9 +2360,9 @@ TEST(HttpCache, RangeGET_SkipsCache2) {
   cache.http_cache()->set_enable_range_support(true);
 
   MockTransaction transaction(kRangeGET_Transaction);
-  transaction.request_headers = "If-None-Match: foo\n"
+  transaction.request_headers = "If-None-Match: foo\r\n"
                                 EXTRA_HEADER
-                                "Range: bytes = 40-49\n";
+                                "\r\nRange: bytes = 40-49";
   RunTransactionTest(cache.http_cache(), transaction);
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
@@ -2381,18 +2370,18 @@ TEST(HttpCache, RangeGET_SkipsCache2) {
   EXPECT_EQ(0, cache.disk_cache()->create_count());
 
   transaction.request_headers =
-      "If-Modified-Since: Wed, 28 Nov 2007 00:45:20 GMT\n"
+      "If-Modified-Since: Wed, 28 Nov 2007 00:45:20 GMT\r\n"
       EXTRA_HEADER
-      "Range: bytes = 40-49\n";
+      "\r\nRange: bytes = 40-49";
   RunTransactionTest(cache.http_cache(), transaction);
 
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(0, cache.disk_cache()->create_count());
 
-  transaction.request_headers = "If-Range: bla\n"
+  transaction.request_headers = "If-Range: bla\r\n"
                                 EXTRA_HEADER
-                                "Range: bytes = 40-49\n";
+                                "\r\nRange: bytes = 40-49\n";
   RunTransactionTest(cache.http_cache(), transaction);
 
   EXPECT_EQ(3, cache.network_layer()->transaction_count());
@@ -2437,7 +2426,7 @@ TEST(HttpCache, RangeGET_OK) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2446,7 +2435,7 @@ TEST(HttpCache, RangeGET_OK) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2460,7 +2449,7 @@ TEST(HttpCache, RangeGET_OK) {
   transaction.data = "rg: 30-39 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 30, 39));
+  Verify206Response(headers, 30, 39);
   EXPECT_EQ(3, cache.network_layer()->transaction_count());
   EXPECT_EQ(2, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2473,7 +2462,7 @@ TEST(HttpCache, RangeGET_OK) {
   transaction.data = "rg: 20-29 rg: 30-39 rg: 40-49 rg: 50-59 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 20, 59));
+  Verify206Response(headers, 20, 59);
   EXPECT_EQ(5, cache.network_layer()->transaction_count());
   EXPECT_EQ(3, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2495,7 +2484,7 @@ TEST(HttpCache, RangeGET_SyncOK) {
   std::string headers;
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2503,7 +2492,7 @@ TEST(HttpCache, RangeGET_SyncOK) {
   // Read from the cache (40-49).
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2516,7 +2505,7 @@ TEST(HttpCache, RangeGET_SyncOK) {
   transaction.data = "rg: 30-39 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 30, 39));
+  Verify206Response(headers, 30, 39);
   EXPECT_EQ(3, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2529,7 +2518,7 @@ TEST(HttpCache, RangeGET_SyncOK) {
   transaction.data = "rg: 20-29 rg: 30-39 rg: 40-49 rg: 50-59 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 20, 59));
+  Verify206Response(headers, 20, 59);
   EXPECT_EQ(5, cache.network_layer()->transaction_count());
   EXPECT_EQ(2, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2548,7 +2537,7 @@ TEST(HttpCache, RangeGET_304) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2559,7 +2548,7 @@ TEST(HttpCache, RangeGET_304) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2578,7 +2567,7 @@ TEST(HttpCache, RangeGET_ModifiedResult) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2589,7 +2578,7 @@ TEST(HttpCache, RangeGET_ModifiedResult) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2617,7 +2606,7 @@ TEST(HttpCache, UnknownRangeGET_1) {
   transaction.data = "rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 70, 79));
+  Verify206Response(headers, 70, 79);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2630,7 +2619,7 @@ TEST(HttpCache, UnknownRangeGET_1) {
   transaction.data = "rg: 60-69 rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 60, 79));
+  Verify206Response(headers, 60, 79);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2657,7 +2646,7 @@ TEST(HttpCache, UnknownRangeGET_2) {
   transaction.data = "rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 70, 79));
+  Verify206Response(headers, 70, 79);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2670,7 +2659,7 @@ TEST(HttpCache, UnknownRangeGET_2) {
   transaction.data = "rg: 60-69 rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 60, 79));
+  Verify206Response(headers, 60, 79);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2719,7 +2708,7 @@ TEST(HttpCache, GET_Previous206) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2754,7 +2743,7 @@ TEST(HttpCache, GET_Previous206_NotModified) {
   // Write to the cache (0-9).
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 0, 9));
+  Verify206Response(headers, 0, 9);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2788,7 +2777,7 @@ TEST(HttpCache, GET_Previous206_NewContent) {
   transaction.data = "rg: 00-09 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 0, 9));
+  Verify206Response(headers, 0, 9);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2892,7 +2881,7 @@ TEST(HttpCache, RangeGET_Previous206_NotSparse_2) {
                                  &headers);
 
   // We are expecting a 206.
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(2, cache.disk_cache()->create_count());
@@ -2927,7 +2916,7 @@ TEST(HttpCache, RangeGET_Previous200) {
   RunTransactionTestWithResponse(cache.http_cache(), transaction2, &headers);
 
   // We are expecting a 206.
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2939,7 +2928,7 @@ TEST(HttpCache, RangeGET_Previous200) {
   handler.set_not_modified(false);
   transaction2.request_headers = kRangeGET_TransactionOK.request_headers;
   RunTransactionTestWithResponse(cache.http_cache(), transaction2, &headers);
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(3, cache.network_layer()->transaction_count());
   EXPECT_EQ(2, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -2963,7 +2952,7 @@ TEST(HttpCache, RangeRequestResultsIn200) {
   transaction.data = "rg: 70-79 ";
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 70, 79));
+  Verify206Response(headers, 70, 79);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -3002,7 +2991,7 @@ TEST(HttpCache, RangeGET_MoreThanCurrentSize) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -3243,7 +3232,7 @@ TEST(HttpCache, RangeGET_InvalidResponse3) {
   AddMockTransaction(&transaction);
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 50, 59));
+  Verify206Response(headers, 50, 59);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -3256,7 +3245,7 @@ TEST(HttpCache, RangeGET_InvalidResponse3) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
@@ -3334,7 +3323,7 @@ TEST(HttpCache, RangeHEAD) {
   std::string headers;
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 70, 79));
+  Verify206Response(headers, 70, 79);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(0, cache.disk_cache()->create_count());
@@ -3876,7 +3865,7 @@ TEST(HttpCache, RangeGET_IncompleteResource) {
   RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
                                  &headers);
 
-  EXPECT_TRUE(Verify206Response(headers, 40, 49));
+  Verify206Response(headers, 40, 49);
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(2, cache.disk_cache()->create_count());

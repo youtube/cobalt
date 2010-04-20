@@ -23,7 +23,8 @@ struct TestTransaction {
     std::replace(temp.begin(), temp.end(), '\n', '\0');
     response = new net::HttpResponseHeaders(temp);
 
-    request.extra_headers = request_headers;
+    request.extra_headers.Clear();
+    request.extra_headers.AddHeadersFromString(request_headers);
   }
 };
 
@@ -54,13 +55,13 @@ TEST(HttpVaryDataTest, MultipleInit) {
 
   // Init to something valid.
   TestTransaction t1;
-  t1.Init("Foo: 1\nbar: 23", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
+  t1.Init("Foo: 1\r\nbar: 23", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
   EXPECT_TRUE(v.Init(t1.request, *t1.response));
   EXPECT_TRUE(v.is_valid());
 
   // Now overwrite by initializing to something invalid.
   TestTransaction t2;
-  t2.Init("Foo: 1\nbar: 23", "HTTP/1.1 200 OK\nVary: *\n\n");
+  t2.Init("Foo: 1\r\nbar: 23", "HTTP/1.1 200 OK\nVary: *\n\n");
   EXPECT_FALSE(v.Init(t2.request, *t2.response));
   EXPECT_FALSE(v.is_valid());
 }
@@ -80,10 +81,10 @@ TEST(HttpVaryDataTest, DoesVary) {
 
 TEST(HttpVaryDataTest, DoesVary2) {
   TestTransaction a;
-  a.Init("Foo: 1\nbar: 23", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
+  a.Init("Foo: 1\r\nbar: 23", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
 
   TestTransaction b;
-  b.Init("Foo: 12\nbar: 3", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
+  b.Init("Foo: 12\r\nbar: 3", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
 
   net::HttpVaryData v;
   EXPECT_TRUE(v.Init(a.request, *a.response));
@@ -106,10 +107,10 @@ TEST(HttpVaryDataTest, DoesntVary) {
 
 TEST(HttpVaryDataTest, DoesntVary2) {
   TestTransaction a;
-  a.Init("Foo: 1\nbAr: 2", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
+  a.Init("Foo: 1\r\nbAr: 2", "HTTP/1.1 200 OK\nVary: foo, bar\n\n");
 
   TestTransaction b;
-  b.Init("Foo: 1\nbaR: 2", "HTTP/1.1 200 OK\nVary: foo\nVary: bar\n\n");
+  b.Init("Foo: 1\r\nbaR: 2", "HTTP/1.1 200 OK\nVary: foo\nVary: bar\n\n");
 
   net::HttpVaryData v;
   EXPECT_TRUE(v.Init(a.request, *a.response));

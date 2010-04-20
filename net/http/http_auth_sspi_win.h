@@ -20,7 +20,7 @@
 
 namespace net {
 
-class HttpRequestInfo;
+struct HttpRequestInfo;
 class ProxyInfo;
 
 // SSPILibrary is introduced so unit tests can mock the calls to Windows' SSPI
@@ -152,4 +152,3 @@ int DetermineMaxTokenLength(SSPILibrary* library,
 }  // namespace net
 
 #endif  // NET_HTTP_HTTP_AUTH_SSPI_WIN_H_
-

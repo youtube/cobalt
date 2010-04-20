@@ -12,6 +12,8 @@
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 
+namespace net {
+
 namespace {
 
 // The headers that we have to process.
@@ -19,13 +21,28 @@ const char kLengthHeader[] = "Content-Length";
 const char kRangeHeader[] = "Content-Range";
 const int kDataStream = 1;
 
+void AddRangeHeader(int64 start, int64 end, HttpRequestHeaders* headers) {
+  DCHECK(start >= 0 || end >= 0);
+  std::string my_start, my_end;
+  if (start >= 0)
+    my_start = Int64ToString(start);
+  if (end >= 0)
+    my_end = Int64ToString(end);
+
+  headers->SetHeader(
+      HttpRequestHeaders::kRange,
+      StringPrintf("bytes=%s-%s", my_start.c_str(), my_end.c_str()));
 }
 
-namespace net {
+}  // namespace
 
-bool PartialData::Init(const std::string& headers) {
+bool PartialData::Init(const HttpRequestHeaders& headers) {
+  std::string range_header;
+  if (!headers.GetHeader(HttpRequestHeaders::kRange, &range_header))
+    return false;
+
   std::vector<HttpByteRange> ranges;
-  if (!HttpUtil::ParseRanges(headers, &ranges) || ranges.size() != 1)
+  if (!HttpUtil::ParseRangeHeader(range_header, &ranges) || ranges.size() != 1)
     return false;
 
   // We can handle this range request.
@@ -38,23 +55,23 @@ bool PartialData::Init(const std::string& headers) {
   return true;
 }
 
-void PartialData::SetHeaders(const std::string& headers) {
-  DCHECK(extra_headers_.empty());
-  extra_headers_ = headers;
+void PartialData::SetHeaders(const HttpRequestHeaders& headers) {
+  DCHECK(extra_headers_.IsEmpty());
+  extra_headers_.CopyFrom(headers);
 }
 
-void PartialData::RestoreHeaders(std::string* headers) const {
+void PartialData::RestoreHeaders(HttpRequestHeaders* headers) const {
   DCHECK(current_range_start_ >= 0 || byte_range_.IsSuffixByteRange());
   int64 end = byte_range_.IsSuffixByteRange() ?
               byte_range_.suffix_length() : byte_range_.last_byte_position();
 
-  headers->assign(extra_headers_);
+  headers->CopyFrom(extra_headers_);
   if (byte_range_.IsValid())
     AddRangeHeader(current_range_start_, end, headers);
 }
 
 int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
-                                        std::string* headers) {
+                                        HttpRequestHeaders* headers) {
   DCHECK(current_range_start_ >= 0);
 
   // Scan the disk cache for the first cached portion within this range.
@@ -86,7 +103,7 @@ int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
     return cached_min_len_;
   }
 
-  headers->assign(extra_headers_);
+  headers->CopyFrom(extra_headers_);
 
   if (!cached_min_len_) {
     // We don't have anything else stored.
@@ -320,19 +337,6 @@ void PartialData::OnCacheReadCompleted(int result) {
 void PartialData::OnNetworkReadCompleted(int result) {
   if (result > 0)
     current_range_start_ += result;
-}
-
-// Static.
-void PartialData::AddRangeHeader(int64 start, int64 end, std::string* headers) {
-  DCHECK(start >= 0 || end >= 0);
-  std::string my_start, my_end;
-  if (start >= 0)
-    my_start = Int64ToString(start);
-  if (end >= 0)
-    my_end = Int64ToString(end);
-
-  headers->append(StringPrintf("Range: bytes=%s-%s\r\n", my_start.c_str(),
-                               my_end.c_str()));
 }
 
 }  // namespace net
