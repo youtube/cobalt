@@ -18,7 +18,7 @@
 namespace net {
 
 class ClientSocketHandle;
-class HttpRequestInfo;
+struct HttpRequestInfo;
 
 class HttpStreamParser {
  public:

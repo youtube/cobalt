@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// HttpRequestHeaders manages the request headers (including the request line).
+// HttpRequestHeaders manages the request headers.
 // It maintains these in a vector of header key/value pairs, thereby maintaining
 // the order of the headers.  This means that any lookups are linear time
 // operations.
@@ -19,23 +19,74 @@ namespace net {
 
 class HttpRequestHeaders {
  public:
+  struct HeaderKeyValuePair {
+    HeaderKeyValuePair() {}
+    HeaderKeyValuePair(const base::StringPiece& key,
+                       const base::StringPiece& value)
+        : key(key.data(), key.size()), value(value.data(), value.size()) {}
+
+    std::string key;
+    std::string value;
+  };
+
+  typedef std::vector<HeaderKeyValuePair> HeaderVector;
+
+  class Iterator {
+   public:
+    explicit Iterator(const HttpRequestHeaders& headers);
+    ~Iterator();
+
+    // Advances the iterator to the next header, if any.  Returns true if there
+    // is a next header.  Use name() and value() methods to access the resultant
+    // header name and value.
+    bool GetNext();
+
+    // These two accessors are only valid if GetNext() returned true.
+    const std::string& name() const { return curr_->key; }
+    const std::string& value() const { return curr_->value; }
+
+   private:
+    bool started_;
+    HttpRequestHeaders::HeaderVector::const_iterator curr_;
+    const HttpRequestHeaders::HeaderVector::const_iterator end_;
+
+    DISALLOW_COPY_AND_ASSIGN(Iterator);
+  };
+
   static const char kGetMethod[];
 
+  static const char kAcceptCharset[];
+  static const char kAcceptEncoding[];
+  static const char kAcceptLanguage[];
   static const char kCacheControl[];
   static const char kConnection[];
+  static const char kCookie[];
   static const char kContentLength[];
   static const char kHost[];
+  static const char kIfModifiedSince[];
+  static const char kIfNoneMatch[];
+  static const char kIfRange[];
   static const char kPragma[];
   static const char kProxyConnection[];
+  static const char kRange[];
   static const char kReferer[];
   static const char kUserAgent[];
 
   HttpRequestHeaders();
   ~HttpRequestHeaders();
 
-  void SetRequestLine(const base::StringPiece& method,
-                      const base::StringPiece& path,
-                      const base::StringPiece& version);
+  bool IsEmpty() const { return headers_.empty(); }
+
+  bool HasHeader(const base::StringPiece& key) const {
+    return FindHeader(key) != headers_.end();
+  }
+
+  // Gets the first header that matches |key|.  If found, returns true and
+  // writes the value to |out|.
+  bool GetHeader(const base::StringPiece& key, std::string* out) const;
+
+  // Clears all the headers.
+  void Clear();
 
   // Sets the header value pair for |key| and |value|.  If |key| already exists,
   // then the header value is modified, but the key is untouched, and the order
@@ -59,8 +110,18 @@ class HttpRequestHeaders {
   // field-content.
   void AddHeaderFromString(const base::StringPiece& header_line);
 
+  // Same thing as AddHeaderFromString() except that |headers| is a "\r\n"
+  // delimited string of header lines.  It will split up the string by "\r\n"
+  // and call AddHeaderFromString() on each.
+  void AddHeadersFromString(const base::StringPiece& headers);
+
   // Calls SetHeader() on each header from |other|, maintaining order.
   void MergeFrom(const HttpRequestHeaders& other);
+
+  // Copies from |other| to |this|.
+  void CopyFrom(const HttpRequestHeaders& other) {
+    *this = other;
+  }
 
   // Serializes HttpRequestHeaders to a string representation.  Joins all the
   // header keys and values with ": ", and inserts "\r\n" between each header
@@ -68,28 +129,16 @@ class HttpRequestHeaders {
   std::string ToString() const;
 
  private:
-  struct HeaderKeyValuePair {
-    HeaderKeyValuePair() {}
-    HeaderKeyValuePair(const base::StringPiece& key,
-                       const base::StringPiece& value)
-        : key(key.data(), key.size()), value(value.data(), value.size()) {}
-
-    std::string key;
-    std::string value;
-  };
-
-  typedef std::vector<HeaderKeyValuePair> HeaderVector;
-
   HeaderVector::iterator FindHeader(const base::StringPiece& key);
   HeaderVector::const_iterator FindHeader(const base::StringPiece& key) const;
 
-  std::string method_;
-  std::string path_;
-  std::string version_;
-
   HeaderVector headers_;
 
-  DISALLOW_COPY_AND_ASSIGN(HttpRequestHeaders);
+  // Allow the copy construction and operator= to facilitate copying in
+  // HttpRequestInfo.
+  // TODO(willchan): Investigate to see if we can remove the need to copy
+  // HttpRequestInfo.
+  // DISALLOW_COPY_AND_ASSIGN(HttpRequestHeaders);
 };
 
 }  // namespace net

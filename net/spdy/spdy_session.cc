@@ -133,19 +133,21 @@ bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
 // a HttpRequestInfo block.
 void CreateSpdyHeadersFromHttpRequest(
     const HttpRequestInfo& info, spdy::SpdyHeaderBlock* headers) {
+  // TODO(willchan): It's not really necessary to convert from
+  // HttpRequestHeaders to spdy::SpdyHeaderBlock.
+
   static const char kHttpProtocolVersion[] = "HTTP/1.1";
 
-  HttpUtil::HeadersIterator it(info.extra_headers.begin(),
-                               info.extra_headers.end(),
-                               "\r\n");
+  HttpRequestHeaders::Iterator it(info.extra_headers);
+
   while (it.GetNext()) {
     std::string name = StringToLowerASCII(it.name());
     if (headers->find(name) == headers->end()) {
-      (*headers)[name] = it.values();
+      (*headers)[name] = it.value();
     } else {
       std::string new_value = (*headers)[name];
       new_value.append(1, '\0');  // +=() doesn't append 0's
-      new_value += it.values();
+      new_value += it.value();
       (*headers)[name] = new_value;
     }
   }
@@ -156,8 +158,6 @@ void CreateSpdyHeadersFromHttpRequest(
   (*headers)["method"] = info.method;
   (*headers)["url"] = info.url.spec();
   (*headers)["version"] = kHttpProtocolVersion;
-  if (info.user_agent.length())
-    (*headers)["user-agent"] = info.user_agent;
   if (!info.referrer.is_empty())
     (*headers)["referer"] = info.referrer.spec();
 

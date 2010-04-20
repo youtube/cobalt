@@ -8,6 +8,7 @@
 
 #include "base/pickle.h"
 #include "base/string_util.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
@@ -97,33 +98,18 @@ std::string HttpVaryData::GetRequestValue(
     const HttpRequestInfo& request_info,
     const std::string& request_header) {
   // Some special cases:
-  if (LowerCaseEqualsASCII(request_header, "referer"))
+  if (!base::strcasecmp(request_header.c_str(), HttpRequestHeaders::kReferer))
     return request_info.referrer.spec();
-  if (LowerCaseEqualsASCII(request_header, "user-agent"))
-    return request_info.user_agent;
-
-  std::string result;
-
-  // Check extra headers:
-  HttpUtil::HeadersIterator it(request_info.extra_headers.begin(),
-                               request_info.extra_headers.end(),
-                               "\r\n");
-  while (it.GetNext()) {
-    size_t name_len = it.name_end() - it.name_begin();
-    if (request_header.size() == name_len &&
-        std::equal(it.name_begin(), it.name_end(), request_header.begin(),
-                   CaseInsensitiveCompare<char>())) {
-      if (!result.empty())
-        result.append(1, ',');
-      result.append(it.values());
-    }
-  }
 
   // Unfortunately, we do not have access to all of the request headers at this
   // point.  Most notably, we do not have access to an Authorization header if
   // one will be added to the request.
 
-  return result;
+  std::string result;
+  if (request_info.extra_headers.GetHeader(request_header, &result))
+    return result;
+
+  return "";
 }
 
 // static

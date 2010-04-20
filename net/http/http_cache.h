@@ -40,7 +40,7 @@ namespace net {
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkSession;
-class HttpRequestInfo;
+struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class NetworkChangeNotifier;

@@ -17,7 +17,7 @@
 
 namespace net {
 
-class HttpRequestInfo;
+struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class UploadDataStream;
