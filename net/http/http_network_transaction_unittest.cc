@@ -4886,4 +4886,112 @@ TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
   }
 }
 
+class TLSDecompressionFailureSocketDataProvider : public SocketDataProvider {
+ public:
+  TLSDecompressionFailureSocketDataProvider(bool fail_all)
+      : fail_all_(fail_all) {
+  }
+
+  virtual MockRead GetNextRead() {
+    if (fail_all_)
+      return MockRead(false /* async */, ERR_SSL_DECOMPRESSION_FAILURE_ALERT);
+
+    return MockRead(false /* async */,
+                    "HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nok.\r\n");
+  }
+
+  virtual MockWriteResult OnWrite(const std::string& data) {
+    return MockWriteResult(false /* async */, data.size());
+  }
+
+  void Reset() {
+  }
+
+ private:
+  const bool fail_all_;
+};
+
+// Test that we restart a connection when we see a decompression failure from
+// the peer during the handshake. (In the real world we'll restart with SSLv3
+// and we won't offer DEFLATE in that case.)
+TEST_F(HttpNetworkTransactionTest, RestartAfterTLSDecompressionFailure) {
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://tlsdecompressionfailure.example.com/");
+  request.load_flags = 0;
+
+  SessionDependencies session_deps;
+  TLSDecompressionFailureSocketDataProvider socket_data_provider1(
+      false /* fail all reads */);
+  TLSDecompressionFailureSocketDataProvider socket_data_provider2(false);
+  SSLSocketDataProvider ssl_socket_data_provider1(
+    false, ERR_SSL_DECOMPRESSION_FAILURE_ALERT);
+  SSLSocketDataProvider ssl_socket_data_provider2(false, OK);
+  session_deps.socket_factory.AddSocketDataProvider(&socket_data_provider1);
+  session_deps.socket_factory.AddSocketDataProvider(&socket_data_provider2);
+  session_deps.socket_factory.AddSSLSocketDataProvider(
+      &ssl_socket_data_provider1);
+  session_deps.socket_factory.AddSSLSocketDataProvider(
+      &ssl_socket_data_provider2);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("ok.", response_data);
+}
+
+// Test that we restart a connection if we get a decompression failure from the
+// peer while reading the first bytes from the connection. This occurs when the
+// peer cannot handle DEFLATE but we're using False Start, so we don't notice
+// in the handshake.
+TEST_F(HttpNetworkTransactionTest,
+       RestartAfterTLSDecompressionFailureWithFalseStart) {
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://tlsdecompressionfailure2.example.com/");
+  request.load_flags = 0;
+
+  SessionDependencies session_deps;
+  TLSDecompressionFailureSocketDataProvider socket_data_provider1(
+      true /* fail all reads */);
+  TLSDecompressionFailureSocketDataProvider socket_data_provider2(false);
+  SSLSocketDataProvider ssl_socket_data_provider1(false, OK);
+  SSLSocketDataProvider ssl_socket_data_provider2(false, OK);
+  session_deps.socket_factory.AddSocketDataProvider(&socket_data_provider1);
+  session_deps.socket_factory.AddSocketDataProvider(&socket_data_provider2);
+  session_deps.socket_factory.AddSSLSocketDataProvider(
+      &ssl_socket_data_provider1);
+  session_deps.socket_factory.AddSSLSocketDataProvider(
+      &ssl_socket_data_provider2);
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("ok.", response_data);
+}
+
 }  // namespace net

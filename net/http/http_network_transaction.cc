@@ -10,6 +10,7 @@
 #include "base/histogram.h"
 #include "base/scoped_ptr.h"
 #include "base/stats_counters.h"
+#include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/trace_event.h"
 #include "build/build_config.h"
@@ -47,6 +48,10 @@ namespace {
 
 const std::string* g_next_protos = NULL;
 bool g_use_alternate_protocols = false;
+
+// A set of host:port strings. These are servers which we have needed to back
+// off to SSLv3 for.
+std::set<std::string>* g_tls_intolerant_servers = NULL;
 
 void BuildRequestHeaders(const HttpRequestInfo* request_info,
                          const HttpRequestHeaders& authorization_headers,
@@ -245,6 +250,8 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
   session->ssl_config_service()->GetSSLConfig(&ssl_config_);
   if (g_next_protos)
     ssl_config_.next_protos = *g_next_protos;
+  if (!g_tls_intolerant_servers)
+    g_tls_intolerant_servers = new std::set<std::string>;
 }
 
 // static
@@ -845,6 +852,12 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
 int HttpNetworkTransaction::DoSSLConnect() {
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
 
+  if (ContainsKey(*g_tls_intolerant_servers, GetHostAndPort(request_->url))) {
+    LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
+                 << GetHostAndPort(request_->url);
+    ssl_config_.tls1_enabled = false;
+  }
+
   if (request_->load_flags & LOAD_VERIFY_EV_CERT)
     ssl_config_.verify_ev_cert = true;
 
@@ -1022,6 +1035,21 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
       result = HandleCertificateRequest(result);
       if (result == OK)
         return result;
+    } else if (result == ERR_SSL_DECOMPRESSION_FAILURE_ALERT &&
+               ssl_config_.tls1_enabled) {
+      // Some buggy servers select DEFLATE compression when offered and then
+      // fail to ever decompress anything. They will send a fatal alert telling
+      // us this. Normally we would pick this up during the handshake because
+      // our Finished message is compressed and we'll never get the server's
+      // Finished if it fails to process ours.
+      //
+      // However, with False Start, we'll believe that the handshake is
+      // complete as soon as we've /sent/ our Finished message. In this case,
+      // we only find out that the server is buggy here, when we try to read
+      // the initial reply.
+      g_tls_intolerant_servers->insert(GetHostAndPort(request_->url));
+      ResetConnectionAndRequestForResend();
+      return OK;
     }
   }
 
@@ -1522,13 +1550,12 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
   switch (error) {
     case ERR_SSL_PROTOCOL_ERROR:
     case ERR_SSL_VERSION_OR_CIPHER_MISMATCH:
+    case ERR_SSL_DECOMPRESSION_FAILURE_ALERT:
       if (ssl_config_.tls1_enabled) {
         // This could be a TLS-intolerant server or an SSL 3.0 server that
         // chose a TLS-only cipher suite.  Turn off TLS 1.0 and retry.
-        ssl_config_.tls1_enabled = false;
-        connection_->socket()->Disconnect();
-        connection_->Reset();
-        next_state_ = STATE_INIT_CONNECTION;
+        g_tls_intolerant_servers->insert(GetHostAndPort(request_->url));
+        ResetConnectionAndRequestForResend();
         error = OK;
       }
       break;
