@@ -10,6 +10,7 @@
 #include "base/basictypes.h"
 #include "net/base/completion_callback.h"
 #include "net/http/http_byte_range.h"
+#include "net/http/http_request_headers.h"
 
 namespace disk_cache {
 class Entry;
@@ -36,19 +37,19 @@ class PartialData {
         truncated_(false) {}
   ~PartialData() {}
 
-  // Performs initialization of the object by parsing the request |headers|
+  // Performs initialization of the object by examining the request |headers|
   // and verifying that we can process the requested range. Returns true if
   // we can process the requested range, and false otherwise.
-  bool Init(const std::string& headers);
+  bool Init(const HttpRequestHeaders& headers);
 
   // Sets the headers that we should use to make byte range requests. This is a
   // subset of the request extra headers, with byte-range related headers
   // removed.
-  void SetHeaders(const std::string& headers);
+  void SetHeaders(const HttpRequestHeaders& headers);
 
   // Restores the byte-range headers, by appending the byte range to the headers
   // provided to SetHeaders().
-  void RestoreHeaders(std::string* headers) const;
+  void RestoreHeaders(HttpRequestHeaders* headers) const;
 
   // Builds the required |headers| to perform the proper cache validation for
   // the next range to be fetched. Returns 0 when there is no need to perform
@@ -56,7 +57,8 @@ class PartialData {
   // should be actually returned to the user), a positive number to indicate
   // that |headers| should be used to validate the cache, or an appropriate
   // error code.
-  int PrepareCacheValidation(disk_cache::Entry* entry, std::string* headers);
+  int PrepareCacheValidation(disk_cache::Entry* entry,
+                             HttpRequestHeaders* headers);
 
   // Returns true if the current range is stored in the cache.
   bool IsCurrentRangeCached() const;
@@ -105,14 +107,13 @@ class PartialData {
   void OnNetworkReadCompleted(int result);
 
  private:
-  static void AddRangeHeader(int64 start, int64 end, std::string* headers);
-
   int64 current_range_start_;
   int64 cached_start_;
   int64 resource_size_;
   int cached_min_len_;
   HttpByteRange byte_range_;  // The range requested by the user.
-  std::string extra_headers_;  // The clean set of extra headers (no ranges).
+  // The clean set of extra headers (no ranges).
+  HttpRequestHeaders extra_headers_;
   bool range_present_;  // True if next range entry is already stored.
   bool final_range_;
   bool sparse_entry_;

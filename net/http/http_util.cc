@@ -202,6 +202,12 @@ bool HttpUtil::ParseRanges(const std::string& headers,
   if (ranges_specifier.empty())
     return false;
 
+  return ParseRangeHeader(ranges_specifier, ranges);
+}
+
+// static
+bool HttpUtil::ParseRangeHeader(const std::string& ranges_specifier,
+                                std::vector<HttpByteRange>* ranges) {
   size_t equal_char_offset = ranges_specifier.find('=');
   if (equal_char_offset == std::string::npos)
     return false;

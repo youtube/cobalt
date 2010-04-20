@@ -57,13 +57,13 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
                          const HttpRequestHeaders& authorization_headers,
                          const UploadDataStream* upload_data_stream,
                          bool using_proxy,
+                         std::string* request_line,
                          HttpRequestHeaders* request_headers) {
   const std::string path = using_proxy ?
       HttpUtil::SpecForRequest(request_info->url) :
       HttpUtil::PathForRequest(request_info->url);
-  request_headers->SetRequestLine(
-      request_info->method, path, "1.1");
-
+  *request_line = StringPrintf(
+      "%s %s HTTP/1.1\r\n", request_info->method.c_str(), path.c_str());
   request_headers->SetHeader(HttpRequestHeaders::kHost,
                              GetHostAndOptionalPort(request_info->url));
 
@@ -73,11 +73,6 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
                                "keep-alive");
   } else {
     request_headers->SetHeader(HttpRequestHeaders::kConnection, "keep-alive");
-  }
-
-  if (!request_info->user_agent.empty()) {
-    request_headers->SetHeader(HttpRequestHeaders::kUserAgent,
-                               request_info->user_agent);
   }
 
   // Our consumer should have made sure that this is a safe referrer.  See for
@@ -120,22 +115,11 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
     "Referer"
   };
 
-  // TODO(willchan): Change HttpRequestInfo::extra_headers to be a
-  // HttpRequestHeaders.
-
-  std::vector<std::string> extra_headers_vector;
-  Tokenize(request_info->extra_headers, "\r\n", &extra_headers_vector);
-  HttpRequestHeaders extra_headers;
-  if (!extra_headers_vector.empty()) {
-    for (std::vector<std::string>::const_iterator it =
-         extra_headers_vector.begin(); it != extra_headers_vector.end(); ++it)
-      extra_headers.AddHeaderFromString(*it);
-
+  HttpRequestHeaders stripped_extra_headers;
+  stripped_extra_headers.CopyFrom(request_info->extra_headers);
     for (size_t i = 0; i < arraysize(kExtraHeadersToBeStripped); ++i)
-      extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
-
-    request_headers->MergeFrom(extra_headers);
-  }
+      stripped_extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
+  request_headers->MergeFrom(stripped_extra_headers);
 }
 
 // The HTTP CONNECT method for establishing a tunnel connection is documented
@@ -143,21 +127,22 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
 // 5.3.
 void BuildTunnelRequest(const HttpRequestInfo* request_info,
                         const HttpRequestHeaders& authorization_headers,
+                        std::string* request_line,
                         HttpRequestHeaders* request_headers) {
   // RFC 2616 Section 9 says the Host request-header field MUST accompany all
   // HTTP/1.1 requests.  Add "Proxy-Connection: keep-alive" for compat with
   // HTTP/1.0 proxies such as Squid (required for NTLM authentication).
-  request_headers->SetRequestLine(
-      "CONNECT", GetHostAndPort(request_info->url), "1.1");
+  *request_line = StringPrintf(
+      "CONNECT %s HTTP/1.1\r\n", GetHostAndPort(request_info->url).c_str());
   request_headers->SetHeader(HttpRequestHeaders::kHost,
                              GetHostAndOptionalPort(request_info->url));
   request_headers->SetHeader(HttpRequestHeaders::kProxyConnection,
                              "keep-alive");
 
-  if (!request_info->user_agent.empty()) {
-    request_headers->SetHeader(HttpRequestHeaders::kUserAgent,
-                               request_info->user_agent);
-  }
+  std::string user_agent;
+  if (request_info->extra_headers.GetHeader(HttpRequestHeaders::kUserAgent,
+                                            &user_agent))
+    request_headers->SetHeader(HttpRequestHeaders::kUserAgent, user_agent);
 
   request_headers->MergeFrom(authorization_headers);
 }
@@ -962,6 +947,7 @@ int HttpNetworkTransaction::DoSendRequest() {
         (HaveAuth(HttpAuth::AUTH_SERVER) ||
          SelectPreemptiveAuth(HttpAuth::AUTH_SERVER));
 
+    std::string request_line;
     HttpRequestHeaders request_headers;
     HttpRequestHeaders authorization_headers;
 
@@ -974,13 +960,15 @@ int HttpNetworkTransaction::DoSendRequest() {
       AddAuthorizationHeader(HttpAuth::AUTH_SERVER, &authorization_headers);
 
     if (establishing_tunnel_) {
-      BuildTunnelRequest(request_, authorization_headers, &request_headers);
+      BuildTunnelRequest(request_, authorization_headers, &request_line,
+                         &request_headers);
     } else {
       BuildRequestHeaders(request_, authorization_headers, request_body,
-                          proxy_mode_ == kHTTPProxy, &request_headers);
+                          proxy_mode_ == kHTTPProxy, &request_line,
+                          &request_headers);
     }
 
-    request_headers_ = request_headers.ToString();
+    request_headers_ = request_line + request_headers.ToString();
   }
 
   headers_valid_ = false;

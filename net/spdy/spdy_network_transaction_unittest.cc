@@ -1193,9 +1193,8 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
     {
       &syn_reply_info,
       true,
-      { 2, 4 },
-      { { "cookie",   "val1",
-          "cookie",   "val2",
+      { 1, 4 },
+      { { "cookie",   "val1,val2",
           NULL
         },
         { "vary",     "cookie",
@@ -1254,8 +1253,6 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
-    char modified_syn_header[64];
-
     // Construct the request.
     scoped_ptr<spdy::SpdyFrame> frame_req(
       ConstructSpdyGet(test_cases[i].extra_headers[0],
@@ -1292,17 +1289,12 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
     request.load_flags = 0;
 
     // Attach the headers to the request.
-    int hdrCount = test_cases[i].num_headers[0];
-    int len = 0;
+    int header_count = test_cases[i].num_headers[0];
 
-    for (int ct = 0; ct < hdrCount; ct++) {
-      len = ConstructSpdyHeader(test_cases[i].extra_headers[0],
-                                test_cases[i].num_headers[0],
-                                modified_syn_header,
-                                64,
-                                ct);
-
-      request.extra_headers.append(modified_syn_header);
+    for (int ct = 0; ct < header_count; ct++) {
+      const char* header_key = test_cases[i].extra_headers[0][ct * 2];
+      const char* header_value = test_cases[i].extra_headers[0][ct * 2 + 1];
+      request.extra_headers.SetHeader(header_key, header_value);
     }
 
     scoped_refptr<DelayedSocketData> data(
