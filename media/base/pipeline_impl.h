@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -80,7 +80,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetVolume(float volume);
   virtual base::TimeDelta GetCurrentTime() const;
   virtual base::TimeDelta GetBufferedTime() const;
-  virtual base::TimeDelta GetDuration() const;
+  virtual base::TimeDelta GetMediaDuration() const;
   virtual int64 GetBufferedBytes() const;
   virtual int64 GetTotalBytes() const;
   virtual void GetVideoSize(size_t* width_out, size_t* height_out) const;
@@ -141,6 +141,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // FilterHost implementation.
   virtual void SetError(PipelineError error);
   virtual base::TimeDelta GetTime() const;
+  virtual base::TimeDelta GetDuration() const;
   virtual void SetTime(base::TimeDelta time);
   virtual void SetDuration(base::TimeDelta duration);
   virtual void SetBufferedTime(base::TimeDelta buffered_time);
