@@ -234,6 +234,9 @@
             '../chrome_frame/chrome_frame.gyp:chrome_frame_tests',
             '../chrome_frame/chrome_frame.gyp:chrome_frame_unittests',
             '../chrome_frame/chrome_frame.gyp:npchrome_frame',
+            # Only build OSMesa on buildbots. It builds a software GL renderer
+            # that can be used where native GL is not available.
+            '../third_party/mesa/mesa.gyp:osmesa',
           ],
         },
         {
