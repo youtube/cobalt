@@ -147,7 +147,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
       // it presumedly has a better understanding of which protocol we should
       // use, therefore the rest of the ordering here is not important.
       HttpNetworkTransaction::SetNextProtos(
-          "\008http/1.1\007http1.1\006spdy/1\004spdy");
+          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
       force_spdy_ = false;
     } else if (option.empty() && it == spdy_options.begin()) {
       continue;
