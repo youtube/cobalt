@@ -788,6 +788,10 @@ void SpdySession::QueueFrame(spdy::SpdyFrame* frame,
 }
 
 void SpdySession::CloseSessionOnError(net::Error err) {
+  // Closing all streams can have a side-effect of dropping the last reference
+  // to |this|.  Hold a reference through this function.
+  scoped_refptr<SpdySession> self(this);
+
   DCHECK_LT(err, OK);
   LOG(INFO) << "spdy::CloseSessionOnError(" << err << ") for " <<
       host_port_pair().ToString();
