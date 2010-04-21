@@ -519,7 +519,8 @@ inline bool MakeFileUnreadable(const FilePath& path) {
 #elif defined(OS_WIN)
   PACL old_dacl;
   PSECURITY_DESCRIPTOR security_descriptor;
-  if (GetNamedSecurityInfo(path.value().c_str(), SE_FILE_OBJECT,
+  if (GetNamedSecurityInfo(const_cast<wchar_t*>(path.value().c_str()),
+                           SE_FILE_OBJECT,
                            DACL_SECURITY_INFORMATION, NULL, NULL, &old_dacl,
                            NULL, &security_descriptor) != ERROR_SUCCESS)
     return false;
