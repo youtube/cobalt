@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "base/hash_tables.h"
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
 #include "base/singleton.h"
@@ -53,10 +54,17 @@ WebSocketThrottle::~WebSocketThrottle() {
 void WebSocketThrottle::PutInQueue(WebSocketJob* job) {
   queue_.push_back(job);
   const AddressList& address_list = job->address_list();
+  base::hash_set<std::string> address_set;
   for (const struct addrinfo* addrinfo = address_list.head();
        addrinfo != NULL;
        addrinfo = addrinfo->ai_next) {
     std::string addrkey = AddrinfoToHashkey(addrinfo);
+
+    // If |addrkey| is already processed, don't do it again.
+    if (address_set.find(addrkey) != address_set.end())
+      continue;
+    address_set.insert(addrkey);
+
     ConnectingAddressMap::iterator iter = addr_map_.find(addrkey);
     if (iter == addr_map_.end()) {
       ConnectingQueue* queue = new ConnectingQueue();
@@ -65,6 +73,7 @@ void WebSocketThrottle::PutInQueue(WebSocketJob* job) {
     } else {
       iter->second->push_back(job);
       job->SetWaiting();
+      DLOG(INFO) << "Waiting on " << addrkey;
     }
   }
 }
@@ -83,12 +92,19 @@ void WebSocketThrottle::RemoveFromQueue(WebSocketJob* job) {
   if (!in_queue)
     return;
   const AddressList& address_list = job->address_list();
+  base::hash_set<std::string> address_set;
   for (const struct addrinfo* addrinfo = address_list.head();
        addrinfo != NULL;
        addrinfo = addrinfo->ai_next) {
     std::string addrkey = AddrinfoToHashkey(addrinfo);
+    // If |addrkey| is already processed, don't do it again.
+    if (address_set.find(addrkey) != address_set.end())
+      continue;
+    address_set.insert(addrkey);
+
     ConnectingAddressMap::iterator iter = addr_map_.find(addrkey);
     DCHECK(iter != addr_map_.end());
+
     ConnectingQueue* queue = iter->second;
     // Job may not be front of queue when job is closed early while waiting.
     for (ConnectingQueue::iterator iter = queue->begin();
