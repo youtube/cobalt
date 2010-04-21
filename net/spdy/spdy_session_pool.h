@@ -53,18 +53,17 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   // Close all Spdy Sessions; used for debugging.
   void CloseAllSessions();
 
+  // Removes a SpdySession from the SpdySessionPool.
+  void Remove(const scoped_refptr<SpdySession>& session);
+
  private:
   friend class base::RefCounted<SpdySessionPool>;
-  friend class SpdySession;  // Needed for Remove().
   friend class SpdySessionPoolPeer;  // For testing.
 
   typedef std::list<scoped_refptr<SpdySession> > SpdySessionList;
   typedef std::map<HostPortPair, SpdySessionList*> SpdySessionsMap;
 
   virtual ~SpdySessionPool();
-
-  // Removes a SpdySession from the SpdySessionPool.
-  void Remove(const scoped_refptr<SpdySession>& session);
 
   // Helper functions for manipulating the lists.
   SpdySessionList* AddSessionList(const HostPortPair& host_port_pair);
