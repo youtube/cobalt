@@ -42,7 +42,21 @@ bool PathProviderPosix(int key, FilePath* result) {
       *result = FilePath(bin_dir);
       return true;
     }
-    case base::DIR_SOURCE_ROOT:
+    case base::DIR_SOURCE_ROOT: {
+      // Allow passing this in the environment, for more flexibility in build
+      // tree configurations (sub-project builds, gyp --output_dir, etc.)
+      scoped_ptr<base::EnvVarGetter> env(base::EnvVarGetter::Create());
+      std::string cr_source_root;
+      if (env->GetEnv("CR_SOURCE_ROOT", &cr_source_root)) {
+        path = FilePath(cr_source_root);
+        if (file_util::PathExists(path.Append("base/base_paths_posix.cc"))) {
+          *result = path;
+          return true;
+        } else {
+          LOG(WARNING) << "CR_SOURCE_ROOT is set, but it appears to not "
+                       << "point to the correct source root directory.";
+        }
+      }
       // On POSIX, unit tests execute two levels deep from the source root.
       // For example:  sconsbuild/{Debug|Release}/net_unittest
       if (PathService::Get(base::DIR_EXE, &path)) {
@@ -62,6 +76,7 @@ bool PathProviderPosix(int key, FilePath* result) {
       LOG(ERROR) << "Couldn't find your source root.  "
                  << "Try running from your chromium/src directory.";
       return false;
+    }
     case base::DIR_USER_CACHE:
       scoped_ptr<base::EnvVarGetter> env(base::EnvVarGetter::Create());
       FilePath cache_dir(base::GetXDGDirectory(env.get(), "XDG_CACHE_HOME",
