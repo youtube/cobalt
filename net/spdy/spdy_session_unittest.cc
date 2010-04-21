@@ -138,7 +138,12 @@ TEST_F(SpdySessionTest, GoAway) {
   scoped_refptr<SpdySession> session2 =
       spdy_session_pool->Get(test_host_port_pair, http_session.get());
 
+  // Delete the first session.
   session = NULL;
+
+  // Delete the second session.
+  spdy_session_pool->Remove(session2);
+  session2 = NULL;
 }
 
 }  // namespace
