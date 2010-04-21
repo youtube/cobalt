@@ -279,4 +279,29 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   MessageLoopForIO::current()->RunAllPending();
 }
 
+TEST_F(WebSocketThrottleTest, NoThrottleForDuplicateAddress) {
+  DummySocketStreamDelegate delegate;
+
+  // For localhost: 127.0.0.1, 127.0.0.1
+  struct addrinfo* addr = AddAddr(127, 0, 0, 1, NULL);
+  addr = AddAddr(127, 0, 0, 1, addr);
+  scoped_refptr<WebSocketJob> w1 = new WebSocketJob(&delegate);
+  scoped_refptr<SocketStream> s1 =
+      new SocketStream(GURL("ws://localhost/"), w1.get());
+  w1->InitSocketStream(s1.get());
+  WebSocketThrottleTest::MockSocketStreamConnect(s1, addr);
+  DeleteAddrInfo(addr);
+
+  DLOG(INFO) << "socket1";
+  TestCompletionCallback callback_s1;
+  // Trying to open connection to localhost will start without wait.
+  EXPECT_EQ(OK, w1->OnStartOpenConnection(s1, &callback_s1));
+
+  DLOG(INFO) << "socket1 close";
+  w1->OnClose(s1.get());
+  s1->DetachDelegate();
+  DLOG(INFO) << "Done";
+  MessageLoopForIO::current()->RunAllPending();
+}
+
 }
