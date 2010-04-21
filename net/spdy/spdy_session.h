@@ -38,6 +38,11 @@ class SSLInfo;
 class SpdySession : public base::RefCounted<SpdySession>,
                     public spdy::SpdyFramerVisitorInterface {
  public:
+  // Create a new SpdySession.
+  // |host_port_pair| is the host/port that this session connects to.
+  // |session| is the HttpNetworkSession
+  SpdySession(const HostPortPair& host_port_pair, HttpNetworkSession* session);
+
   const HostPortPair& host_port_pair() const { return host_port_pair_; }
 
   // Connect the Spdy Socket.
@@ -58,6 +63,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
   scoped_refptr<SpdyStream> GetOrCreateStream(const HttpRequestInfo& request,
       const UploadDataStream* upload_data, const BoundNetLog& log);
 
+  // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
+  void InitializeWithSSLSocket(ClientSocketHandle* connection);
+
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
   int WriteStreamData(spdy::SpdyStreamId stream_id, net::IOBuffer* data,
@@ -73,12 +81,15 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // status, such as "resolving host", "connecting", etc.
   LoadState GetLoadState() const;
 
+  // Closes all open streams.  Used as part of shutdown.
+  void CloseAllStreams(net::Error code);
+
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
   static bool SSLMode() { return use_ssl_; }
 
- protected:
-  friend class SpdySessionPool;
+ private:
+  friend class base::RefCounted<SpdySession>;
 
   enum State {
     IDLE,
@@ -87,29 +98,12 @@ class SpdySession : public base::RefCounted<SpdySession>,
     CLOSED
   };
 
-  // Provide access to the framer for testing.
-  spdy::SpdyFramer* GetFramer() { return &spdy_framer_; }
-
-  // Create a new SpdySession.
-  // |host_port_pair| is the host/port that this session connects to.
-  // |session| is the HttpNetworkSession
-  SpdySession(const HostPortPair& host_port_pair, HttpNetworkSession* session);
-
-  // Closes all open streams.  Used as part of shutdown.
-  void CloseAllStreams(net::Error code);
-
- private:
-  friend class base::RefCounted<SpdySession>;
-
   typedef std::map<int, scoped_refptr<SpdyStream> > ActiveStreamMap;
   typedef std::list<scoped_refptr<SpdyStream> > ActiveStreamList;
   typedef std::map<std::string, scoped_refptr<SpdyStream> > PendingStreamMap;
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
   virtual ~SpdySession();
-
-  // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
-  void InitializeWithSSLSocket(ClientSocketHandle* connection);
 
   // SpdyFramerVisitorInterface
   virtual void OnError(spdy::SpdyFramer*);
