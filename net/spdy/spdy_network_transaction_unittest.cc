@@ -288,6 +288,12 @@ static const unsigned char kPostBodyFrame[] = {
   'h', 'e', 'l', 'l', 'o', '!',                                  // "hello"
 };
 
+static const unsigned char kGoAway[] = {
+  0x80, 0x01, 0x00, 0x07,  // header
+  0x00, 0x00, 0x00, 0x04,  // flags, len
+  0x00, 0x00, 0x00, 0x00,  // last-accepted-stream-id
+};
+
 // Adds headers and values to a map.
 // |extra_headers| is an array of { name, value } pairs, arranged as strings
 // where the even entries are the header names, and the odd entries are the
@@ -2705,6 +2711,29 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
     EXPECT_EQ(kSampleId2, setting.first.id());
     EXPECT_EQ(kSampleValue2, setting.second);
   }
+}
+
+TEST_F(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGoAway),
+             arraysize(kGoAway)),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+  EXPECT_EQ(ERR_CONNECTION_CLOSED, out.rv);
 }
 
 }  // namespace net
