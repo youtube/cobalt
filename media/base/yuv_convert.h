@@ -31,8 +31,10 @@ enum Rotate {
 
 // Filter affects how scaling looks.
 enum ScaleFilter {
-  FILTER_NONE,        // No filter (point sampled).
-  FILTER_BILINEAR,    // Bilinear filter.
+  FILTER_NONE = 0,        // No filter (point sampled).
+  FILTER_BILINEAR_H = 1,  // Bilinear horizontal filter.
+  FILTER_BILINEAR_V = 2,  // Bilinear vertical filter.
+  FILTER_BILINEAR = 3,    // Bilinear filter.
 };
 
 // Convert a frame of YUV to 32 bit ARGB.
