@@ -391,24 +391,11 @@ std::wstring GetFileExtensionFromPath(const std::wstring& path) {
   return UTF8ToWide(extension);
 #endif
 }
-bool GetFileInfo(const std::wstring& file_path, FileInfo* results) {
-  return GetFileInfo(FilePath::FromWStringHack(file_path), results);
-}
 std::wstring GetFilenameFromPath(const std::wstring& path) {
   if (path.empty() || EndsWithSeparator(path))
     return std::wstring();
 
   return FilePath::FromWStringHack(path).BaseName().ToWStringHack();
-}
-bool GetFileSize(const std::wstring& file_path, int64* file_size) {
-  return GetFileSize(FilePath::FromWStringHack(file_path), file_size);
-}
-bool GetTempDir(std::wstring* path_str) {
-  FilePath path;
-  if (!GetTempDir(&path))
-    return false;
-  *path_str = path.ToWStringHack();
-  return true;
 }
 FILE* OpenFile(const std::wstring& filename, const char* mode) {
   return OpenFile(FilePath::FromWStringHack(filename), mode);
