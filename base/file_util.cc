@@ -375,13 +375,6 @@ bool Delete(const std::wstring& path, bool recursive) {
 bool EndsWithSeparator(const std::wstring& path) {
   return EndsWithSeparator(FilePath::FromWStringHack(path));
 }
-bool GetCurrentDirectory(std::wstring* path_str) {
-  FilePath path;
-  if (!GetCurrentDirectory(&path))
-    return false;
-  *path_str = path.ToWStringHack();
-  return true;
-}
 std::wstring GetFileExtensionFromPath(const std::wstring& path) {
   FilePath::StringType extension =
       GetFileExtensionFromPath(FilePath::FromWStringHack(path));
