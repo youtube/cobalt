@@ -217,7 +217,6 @@
         'omx/mock_omx.cc',
         'omx/mock_omx.h',
         'omx/omx_codec_unittest.cc',
-        'omx/omx_input_buffer_unittest.cc',
       ],
       'conditions': [
         ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
@@ -332,8 +331,6 @@
         'omx/omx_codec.h',
         'omx/omx_configurator.cc',
         'omx/omx_configurator.h',
-        'omx/omx_input_buffer.cc',
-        'omx/omx_input_buffer.h',
       ],
       'hard_dependency': 1,
       'export_dependent_settings': [
