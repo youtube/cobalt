@@ -123,7 +123,7 @@
           'message_pump_win.cc',
           'message_pump_win.h',
           'mime_util.h',
-          'mime_util_linux.cc',
+          'mime_util_xdg.cc',
           'move.h',
           'native_library.h',
           'native_library_linux.cc',
@@ -279,6 +279,8 @@
           'worker_pool_mac.h',
           'worker_pool_mac.mm',
           'worker_pool_win.cc',
+          'xdg_util.h',
+          'xdg_util.cc',
         ],
         'include_dirs': [
           '..',
@@ -294,18 +296,20 @@
           [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"', {
               'sources/': [
                 ['exclude', '/xdg_user_dirs/'],
+                ['exclude', '/xdg_[^/]*\\.cc$'],
                 ['exclude', '_nss\.cc$'],
               ],
               'sources!': [
                 'atomicops_internals_x86_gcc.cc',
                 'base_paths_posix.cc',
-                'linux_util.cc',
                 'message_pump_glib.cc',
+                'xdg_util.cc',
               ],
           }],
           [ 'OS != "linux"', {
               'sources!': [
                 # Not automatically excluded by the *linux.cc rules.
+                'linux_util.cc',
                 'setproctitle_linux.c',
                 'setproctitle_linux.h',
               ],

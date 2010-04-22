@@ -496,7 +496,7 @@
           }],
           ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
             'sources/': [
-              ['exclude', '_(chromeos|gtk|x|x11)(_unittest)?\\.cc$'],
+              ['exclude', '_(chromeos|gtk|x|x11|xdg)(_unittest)?\\.cc$'],
               ['exclude', '/gtk/'],
               ['exclude', '/(gtk|x11)_[^/]*\\.cc$'],
             ],
