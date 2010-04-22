@@ -10,6 +10,7 @@
 #include <fnmatch.h>
 #include <libgen.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/errno.h>
 #include <sys/mman.h>
@@ -21,6 +22,8 @@
 
 #if defined(OS_MACOSX)
 #include <AvailabilityMacros.h>
+#else
+#include <glib.h>
 #endif
 
 #include <fstream>
@@ -726,6 +729,23 @@ bool GetTempDir(FilePath* path) {
 bool GetShmemTempDir(FilePath* path) {
   *path = FilePath("/dev/shm");
   return true;
+}
+
+FilePath GetHomeDir() {
+  const char* home_dir = getenv("HOME");
+  if (home_dir && home_dir[0])
+    return FilePath(home_dir);
+
+  home_dir = g_get_home_dir();
+  if (home_dir && home_dir[0])
+    return FilePath(home_dir);
+
+  FilePath rv;
+  if (file_util::GetTempDir(&rv))
+    return rv;
+
+  // Last resort.
+  return FilePath("/tmp");
 }
 
 bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
