@@ -355,6 +355,7 @@ class MockTCPClientSocket : public MockClientSocket {
   // ClientSocket methods:
   virtual int Connect(net::CompletionCallback* callback,
                       const BoundNetLog& net_log);
+  virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const { return IsConnected(); }
 
