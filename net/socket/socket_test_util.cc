@@ -95,6 +95,11 @@ int MockTCPClientSocket::Connect(net::CompletionCallback* callback,
   return data_->connect_data().result;
 }
 
+void MockTCPClientSocket::Disconnect() {
+  MockClientSocket::Disconnect();
+  pending_callback_ = NULL;
+}
+
 bool MockTCPClientSocket::IsConnected() const {
   return connected_ && !peer_closed_connection_;
 }
