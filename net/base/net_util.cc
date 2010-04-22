@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -707,30 +707,10 @@ bool IDNToUnicodeOneComponent(const char16* comp,
   return false;
 }
 
-// If |component| is valid, its begin is incremented by |delta|.
-void AdjustComponent(int delta, url_parse::Component* component) {
-  if (!component->is_valid())
-    return;
-
-  DCHECK(delta >= 0 || component->begin >= -delta);
-  component->begin += delta;
-}
-
-// Adjusts all the components of |parsed| by |delta|, except for the scheme.
-void AdjustComponents(int delta, url_parse::Parsed* parsed) {
-  AdjustComponent(delta, &(parsed->username));
-  AdjustComponent(delta, &(parsed->password));
-  AdjustComponent(delta, &(parsed->host));
-  AdjustComponent(delta, &(parsed->port));
-  AdjustComponent(delta, &(parsed->path));
-  AdjustComponent(delta, &(parsed->query));
-  AdjustComponent(delta, &(parsed->ref));
-}
-
 // Helper for FormatUrl().
 std::wstring FormatViewSourceUrl(const GURL& url,
                                  const std::wstring& languages,
-                                 net::FormatUrlTypes format_types,
+                                 bool omit_username_password,
                                  UnescapeRule::Type unescape_rules,
                                  url_parse::Parsed* new_parsed,
                                  size_t* prefix_end,
@@ -745,7 +725,8 @@ std::wstring FormatViewSourceUrl(const GURL& url,
   size_t* temp_offset_ptr = (*offset_for_adjustment < kViewSourceLengthPlus1) ?
       NULL : &temp_offset;
   std::wstring result = net::FormatUrl(real_url, languages,
-      format_types, unescape_rules, new_parsed, prefix_end, temp_offset_ptr);
+      omit_username_password, unescape_rules, new_parsed, prefix_end,
+      temp_offset_ptr);
   result.insert(0, kWideViewSource);
 
   // Adjust position values.
@@ -756,7 +737,20 @@ std::wstring FormatViewSourceUrl(const GURL& url,
     new_parsed->scheme.begin = 0;
     new_parsed->scheme.len = kViewSourceLengthPlus1 - 1;
   }
-  AdjustComponents(kViewSourceLengthPlus1, new_parsed);
+  if (new_parsed->username.is_nonempty())
+    new_parsed->username.begin += kViewSourceLengthPlus1;
+  if (new_parsed->password.is_nonempty())
+    new_parsed->password.begin += kViewSourceLengthPlus1;
+  if (new_parsed->host.is_nonempty())
+    new_parsed->host.begin += kViewSourceLengthPlus1;
+  if (new_parsed->port.is_nonempty())
+    new_parsed->port.begin += kViewSourceLengthPlus1;
+  if (new_parsed->path.is_nonempty())
+    new_parsed->path.begin += kViewSourceLengthPlus1;
+  if (new_parsed->query.is_nonempty())
+    new_parsed->query.begin += kViewSourceLengthPlus1;
+  if (new_parsed->ref.is_nonempty())
+    new_parsed->ref.begin += kViewSourceLengthPlus1;
   if (prefix_end)
     *prefix_end += kViewSourceLengthPlus1;
   if (temp_offset_ptr) {
@@ -769,12 +763,6 @@ std::wstring FormatViewSourceUrl(const GURL& url,
 }  // namespace
 
 namespace net {
-
-const FormatUrlType kFormatUrlOmitNothing          = 0;
-const FormatUrlType kFormatUrlOmitUsernamePassword = 1 << 0;
-const FormatUrlType kFormatUrlOmitHTTP             = 1 << 1;
-const FormatUrlType kFormatUrlOmitAll = kFormatUrlOmitUsernamePassword |
-                                        kFormatUrlOmitHTTP;
 
 std::set<int> explicitly_allowed_ports;
 
@@ -1384,7 +1372,7 @@ void AppendFormattedComponent(const std::string& spec,
 
 std::wstring FormatUrl(const GURL& url,
                        const std::wstring& languages,
-                       FormatUrlTypes format_types,
+                       bool omit_username_password,
                        UnescapeRule::Type unescape_rules,
                        url_parse::Parsed* new_parsed,
                        size_t* prefix_end,
@@ -1392,8 +1380,6 @@ std::wstring FormatUrl(const GURL& url,
   url_parse::Parsed parsed_temp;
   if (!new_parsed)
     new_parsed = &parsed_temp;
-  else
-    *new_parsed = url_parse::Parsed();
   size_t offset_temp = std::wstring::npos;
   if (!offset_for_adjustment)
     offset_for_adjustment = &offset_temp;
@@ -1415,7 +1401,7 @@ std::wstring FormatUrl(const GURL& url,
   // Rejects view-source:view-source:... to avoid deep recursive call.
   if (url.SchemeIs(kViewSource) &&
       !StartsWithASCII(url.possibly_invalid_spec(), kViewSourceTwice, false)) {
-    return FormatViewSourceUrl(url, languages, format_types,
+    return FormatViewSourceUrl(url, languages, omit_username_password,
         unescape_rules, new_parsed, prefix_end, offset_for_adjustment);
   }
 
@@ -1432,26 +1418,9 @@ std::wstring FormatUrl(const GURL& url,
       spec.begin() + parsed.CountCharactersBefore(url_parse::Parsed::USERNAME,
                                                   true),
       std::back_inserter(url_string));
-
-  const wchar_t* const kHTTP = L"http://";
-  const char* const kFTP = "ftp.";
-  const size_t kHTTPSize = std::wstring(kHTTP).size();
-  // The omnibox treats ftp.foo.com as ftp://foo.com. This means that if we
-  // trimmed http off a string that starts with http://ftp and the user tried to
-  // reload the page the user would end up with a scheme of ftp://. For example,
-  // 'http://ftp.foo.com' -> 'ftp.foo.com' -> 'ftp://foo.com'. For this reason
-  // don't strip http off url's whose scheme is http and the host starts with
-  // 'ftp.'.
-  bool omit_http =
-      ((format_types & kFormatUrlOmitHTTP) != 0 &&
-       url_string == kHTTP && (!parsed.host.is_valid() ||
-                               (parsed.host.is_nonempty() &&
-                                spec.compare(parsed.host.begin,
-                                             std::string(kFTP).size(), kFTP))));
-
   new_parsed->scheme = parsed.scheme;
 
-  if ((format_types & kFormatUrlOmitUsernamePassword) != 0) {
+  if (omit_username_password) {
     // Remove the username and password fields. We don't want to display those
     // to the user since they can be used for attacks,
     // e.g. "http://google.com:search@evil.ru/"
@@ -1549,26 +1518,6 @@ std::wstring FormatUrl(const GURL& url,
       // output string, so reset it.
       *offset_for_adjustment = std::wstring::npos;
     }
-  }
-
-  // If we need to strip out http do it after the fact. This way we don't need
-  // to worry about how offset_for_adjustment is interpreted.
-  if (omit_http && !url_string.compare(0, kHTTPSize, kHTTP)) {
-    url_string = url_string.substr(kHTTPSize);
-    if (*offset_for_adjustment != std::wstring::npos) {
-      if (*offset_for_adjustment < kHTTPSize)
-        *offset_for_adjustment = std::wstring::npos;
-      else
-        *offset_for_adjustment -= kHTTPSize;
-    }
-    if (prefix_end)
-      *prefix_end -= kHTTPSize;
-
-    // Adjust new_parsed.
-    DCHECK(new_parsed->scheme.is_valid());
-    int delta = -(new_parsed->scheme.len + 3);  // +3 for ://.
-    new_parsed->scheme.reset();
-    AdjustComponents(delta, new_parsed);
   }
 
   return url_string;
