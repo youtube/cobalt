@@ -226,6 +226,10 @@ bool GetTempDir(FilePath* path);
 // Only useful on POSIX; redirects to GetTempDir() on Windows.
 bool GetShmemTempDir(FilePath* path);
 
+// Get the home directory.  This is more complicated than just getenv("HOME")
+// as it knows to fall back on getpwent() etc.
+FilePath GetHomeDir();
+
 // Creates a temporary file. The full path is placed in |path|, and the
 // function returns true if was successful in creating the file. The file will
 // be empty and all handles closed after this function returns.
