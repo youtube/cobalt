@@ -98,6 +98,10 @@ namespace net {
 
 namespace {
 
+// Pause if we have 2MB of data in flight, resume once we're down below 1MB.
+const unsigned int kWriteSizePauseLimit = 2 * 1024 * 1024;
+const unsigned int kWriteSizeResumeLimit = 1 * 1024 * 1024;
+
 // You can change this to LOG(WARNING) during development.
 #define SSL_LOG LOG(INFO) << "SSL: "
 
@@ -910,8 +914,13 @@ void SSLClientSocketMac::OnTransportWriteComplete(int result) {
   if (!send_buffer_.empty())
     SSLWriteCallback(this, NULL, NULL);
 
-  // Since SSLWriteCallback() lies to return noErr even if transport_->Write()
-  // returns ERR_IO_PENDING, we don't need to call any callbacks here.
+  // If paused because too much data is in flight, try writing again and make
+  // the promised callback.
+  if (user_write_buf_ && send_buffer_.size() < kWriteSizeResumeLimit) {
+    int rv = DoPayloadWrite();
+    if (rv != ERR_IO_PENDING)
+      DoWriteCallback(rv);
+  }
 }
 
 // This is the main loop driving the state machine. Most calls coming from the
@@ -1174,6 +1183,10 @@ int SSLClientSocketMac::DoPayloadRead() {
 }
 
 int SSLClientSocketMac::DoPayloadWrite() {
+  // Too much data in flight?
+  if (send_buffer_.size() > kWriteSizePauseLimit)
+    return ERR_IO_PENDING;
+
   size_t processed = 0;
   OSStatus status = SSLWrite(ssl_context_,
                              user_write_buf_->data(),
