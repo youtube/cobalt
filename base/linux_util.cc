@@ -20,7 +20,6 @@
 #include "base/process_util.h"
 #include "base/singleton.h"
 #include "base/string_util.h"
-#include "base/third_party/xdg_user_dirs/xdg_user_dir_lookup.h"
 
 namespace {
 
@@ -152,23 +151,6 @@ std::string linux_distro =
     "Unknown";
 #endif
 
-FilePath GetHomeDir(EnvVarGetter* env) {
-  std::string home_dir;
-  if (env->GetEnv("HOME", &home_dir) && !home_dir.empty())
-    return FilePath(home_dir);
-
-  home_dir = g_get_home_dir();
-  if (!home_dir.empty())
-    return FilePath(home_dir);
-
-  FilePath rv;
-  if (PathService::Get(base::DIR_TEMP, &rv))
-    return rv;
-
-  // Last resort.
-  return FilePath("/tmp");
-}
-
 std::string GetLinuxDistro() {
 #if defined(OS_CHROMEOS)
   return linux_distro;
@@ -205,75 +187,6 @@ std::string GetLinuxDistro() {
 #else
   NOTIMPLEMENTED();
 #endif
-}
-
-FilePath GetXDGDirectory(EnvVarGetter* env, const char* env_name,
-                         const char* fallback_dir) {
-  std::string env_value;
-  if (env->GetEnv(env_name, &env_value) && !env_value.empty())
-    return FilePath(env_value);
-  return GetHomeDir(env).Append(fallback_dir);
-}
-
-FilePath GetXDGUserDirectory(EnvVarGetter* env, const char* dir_name,
-                             const char* fallback_dir) {
-  char* xdg_dir = xdg_user_dir_lookup(dir_name);
-  if (xdg_dir) {
-    FilePath rv(xdg_dir);
-    free(xdg_dir);
-    return rv;
-  }
-  return GetHomeDir(env).Append(fallback_dir);
-}
-
-DesktopEnvironment GetDesktopEnvironment(EnvVarGetter* env) {
-  std::string desktop_session;
-  if (env->GetEnv("DESKTOP_SESSION", &desktop_session)) {
-    if (desktop_session == "gnome") {
-      return DESKTOP_ENVIRONMENT_GNOME;
-    } else if (desktop_session == "kde4") {
-      return DESKTOP_ENVIRONMENT_KDE4;
-    } else if (desktop_session == "kde") {
-      // This may mean KDE4 on newer systems, so we have to check.
-      if (env->HasEnv("KDE_SESSION_VERSION"))
-        return DESKTOP_ENVIRONMENT_KDE4;
-      return DESKTOP_ENVIRONMENT_KDE3;
-    } else if (desktop_session.find("xfce") != std::string::npos) {
-      return DESKTOP_ENVIRONMENT_XFCE;
-    }
-  }
-
-  // Fall back on some older environment variables.
-  // Useful particularly in the DESKTOP_SESSION=default case.
-  if (env->HasEnv("GNOME_DESKTOP_SESSION_ID")) {
-    return DESKTOP_ENVIRONMENT_GNOME;
-  } else if (env->HasEnv("KDE_FULL_SESSION")) {
-    if (env->HasEnv("KDE_SESSION_VERSION"))
-      return DESKTOP_ENVIRONMENT_KDE4;
-    return DESKTOP_ENVIRONMENT_KDE3;
-  }
-
-  return DESKTOP_ENVIRONMENT_OTHER;
-}
-
-const char* GetDesktopEnvironmentName(DesktopEnvironment env) {
-  switch (env) {
-    case DESKTOP_ENVIRONMENT_OTHER:
-      return NULL;
-    case DESKTOP_ENVIRONMENT_GNOME:
-      return "GNOME";
-    case DESKTOP_ENVIRONMENT_KDE3:
-      return "KDE3";
-    case DESKTOP_ENVIRONMENT_KDE4:
-      return "KDE4";
-    case DESKTOP_ENVIRONMENT_XFCE:
-      return "XFCE";
-  }
-  return NULL;
-}
-
-const char* GetDesktopEnvironmentName(EnvVarGetter* env) {
-  return GetDesktopEnvironmentName(GetDesktopEnvironment(env));
 }
 
 bool FileDescriptorGetInode(ino_t* inode_out, int fd) {
