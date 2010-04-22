@@ -17,7 +17,8 @@ const size_t FFmpegAudioDecoder::kOutputBufferSize =
     AVCODEC_MAX_AUDIO_FRAME_SIZE;
 
 FFmpegAudioDecoder::FFmpegAudioDecoder()
-    : codec_context_(NULL) {
+    : codec_context_(NULL),
+      estimated_next_timestamp_(StreamSample::kInvalidTimestamp) {
 }
 
 FFmpegAudioDecoder::~FFmpegAudioDecoder() {
@@ -132,32 +133,23 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input, Task* done_cb) {
     uint8* data = result_buffer->GetWritableData();
     memcpy(data, output_buffer, output_buffer_size);
 
-    // Determine the duration if the demuxer couldn't figure it out, otherwise
-    // copy it over.
-    if (input->GetDuration().ToInternalValue() == 0) {
-      result_buffer->SetDuration(CalculateDuration(output_buffer_size));
-    } else {
-      DCHECK(input->GetDuration() != StreamSample::kInvalidTimestamp);
-      result_buffer->SetDuration(input->GetDuration());
-    }
+    // We don't trust the demuxer, so always calculate the duration based on
+    // the actual number of samples decoded.
+    base::TimeDelta duration = CalculateDuration(output_buffer_size);
+    result_buffer->SetDuration(duration);
 
-    // Use our estimate for the timestamp if |input| does not have one.
-    // Otherwise, copy over the timestamp.
+    // Use an estimated timestamp unless the incoming buffer has a valid one.
     if (input->GetTimestamp() == StreamSample::kInvalidTimestamp) {
       result_buffer->SetTimestamp(estimated_next_timestamp_);
+
+      // Keep the estimated timestamp invalid until we get an incoming buffer
+      // with a valid timestamp.  This can happen during seeks, etc...
+      if (estimated_next_timestamp_ != StreamSample::kInvalidTimestamp) {
+        estimated_next_timestamp_ += duration;
+      }
     } else {
       result_buffer->SetTimestamp(input->GetTimestamp());
-    }
-
-    // Only use the timestamp of |result_buffer| to estimate the next timestamp
-    // if it is valid (i.e. != StreamSample::kInvalidTimestamp).  Otherwise the
-    // error will stack together and we will get a series of incorrect
-    // timestamps.  In this case, this will maintain a series of zero
-    // timestamps.
-    if (result_buffer->GetTimestamp() != StreamSample::kInvalidTimestamp) {
-      // Update our estimated timestamp for the next packet.
-      estimated_next_timestamp_ = result_buffer->GetTimestamp() +
-          result_buffer->GetDuration();
+      estimated_next_timestamp_ = input->GetTimestamp() + duration;
     }
 
     EnqueueResult(result_buffer);
