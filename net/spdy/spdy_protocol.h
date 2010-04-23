@@ -558,7 +558,7 @@ class SpdySettingsControlFrame : public SpdyControlFrame {
   SpdySettingsControlFrame(char* data, bool owns_buffer)
       : SpdyControlFrame(data, owns_buffer) {}
 
-  SpdyStreamId num_entries() const {
+  uint32 num_entries() const {
     return ntohl(block()->num_entries_);
   }
 
