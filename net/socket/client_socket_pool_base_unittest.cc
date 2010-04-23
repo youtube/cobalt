@@ -50,7 +50,7 @@ class MockClientSocket : public ClientSocket {
 
   // ClientSocket methods:
 
-  virtual int Connect(CompletionCallback* callback, const BoundNetLog& net_log) {
+  virtual int Connect(CompletionCallback* callback) {
     connected_ = true;
     return OK;
   }
@@ -63,8 +63,13 @@ class MockClientSocket : public ClientSocket {
     return ERR_UNEXPECTED;
   }
 
+  virtual const BoundNetLog& NetLog() const {
+    return net_log_;
+  }
+
  private:
   bool connected_;
+  BoundNetLog net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(MockClientSocket);
 };
@@ -75,7 +80,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
  public:
   MockClientSocketFactory() : allocation_count_(0) {}
 
-  virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses) {
+  virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses,
+                                              NetLog* /* net_log */) {
     allocation_count_++;
     return NULL;
   }
@@ -133,7 +139,7 @@ class TestConnectJob : public ConnectJob {
 
   virtual int ConnectInternal() {
     AddressList ignored;
-    client_socket_factory_->CreateTCPClientSocket(ignored);
+    client_socket_factory_->CreateTCPClientSocket(ignored, NULL);
     set_socket(new MockClientSocket());
     switch (job_type_) {
       case kMockJob:
@@ -196,7 +202,7 @@ class TestConnectJob : public ConnectJob {
     int result = ERR_CONNECTION_FAILED;
     if (succeed) {
       result = OK;
-      socket()->Connect(NULL, NULL);
+      socket()->Connect(NULL);
     } else {
       set_socket(NULL);
     }
@@ -520,18 +526,22 @@ TEST_F(ClientSocketPoolBaseTest, BasicSynchronous) {
   EXPECT_TRUE(handle.socket());
   handle.Reset();
 
-  EXPECT_EQ(5u, log.entries().size());
+  EXPECT_EQ(7u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
       log.entries(), 0, NetLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_ID));
+  EXPECT_TRUE(LogContainsBeginEvent(
       log.entries(), 2, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 3, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 4, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_ID));
   EXPECT_TRUE(LogContainsEvent(
-      log.entries(), 3, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB_ID,
+      log.entries(), 5, NetLog::TYPE_SOCKET_POOL_SOCKET_ID,
       NetLog::PHASE_NONE));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 4, NetLog::TYPE_SOCKET_POOL));
+      log.entries(), 6, NetLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
@@ -545,13 +555,13 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
             InitHandle(req.handle(), "a", kDefaultPriority, &req, pool_,
                        log.bound()));
 
-  EXPECT_EQ(5u, log.entries().size());
+  EXPECT_EQ(6u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(log.entries(), 0, NetLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(
       log.entries(), 2, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(log.entries(), 4, NetLog::TYPE_SOCKET_POOL));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 3, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(log.entries(), 5, NetLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, TotalLimit) {
@@ -1158,15 +1168,15 @@ TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
   EXPECT_TRUE(req.handle()->socket());
   req.handle()->Reset();
 
-  EXPECT_EQ(5u, log.entries().size());
+  EXPECT_EQ(7u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
       log.entries(), 0, NetLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(
       log.entries(), 2, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 4, NetLog::TYPE_SOCKET_POOL));
+      log.entries(), 3, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 5, NetLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest,
@@ -1182,15 +1192,15 @@ TEST_F(ClientSocketPoolBaseTest,
   EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
   EXPECT_EQ(ERR_CONNECTION_FAILED, req.WaitForResult());
 
-  EXPECT_EQ(5u, log.entries().size());
+  EXPECT_EQ(6u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
       log.entries(), 0, NetLog::TYPE_SOCKET_POOL));
   EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 1, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
-  EXPECT_TRUE(LogContainsEndEvent(
       log.entries(), 2, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 4, NetLog::TYPE_SOCKET_POOL));
+      log.entries(), 3, NetLog::TYPE_SOCKET_POOL_CONNECT_JOB));
+  EXPECT_TRUE(LogContainsEndEvent(
+      log.entries(), 5, NetLog::TYPE_SOCKET_POOL));
 }
 
 TEST_F(ClientSocketPoolBaseTest, TwoRequestsCancelOne) {

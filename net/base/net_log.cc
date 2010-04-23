@@ -86,6 +86,13 @@ void BoundNetLog::BeginEventWithString(NetLog::EventType event_type,
   BeginEventWithParameters(event_type, params);
 }
 
+void BoundNetLog::BeginEventWithInteger(NetLog::EventType event_type,
+                                        int integer) const {
+  scoped_refptr<NetLog::EventParameters> params =
+      new NetLogIntegerParameter(integer);
+  BeginEventWithParameters(event_type, params);
+}
+
 void BoundNetLog::EndEvent(NetLog::EventType event_type) const {
   EndEventWithParameters(event_type, NULL);
 }
@@ -153,7 +160,7 @@ void CapturingNetLog::AddEntry(EventType type,
     entries_.push_back(entry);
 }
 
-int CapturingNetLog::NextID() {
+uint32 CapturingNetLog::NextID() {
   return next_id_++;
 }
 

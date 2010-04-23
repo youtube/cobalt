@@ -480,7 +480,7 @@ void SpdySession::OnTCPConnect(int result) {
     connection_->set_socket(socket);
     is_secure_ = true;
     // TODO(willchan): Plumb NetLog into SPDY code.
-    int status = connection_->socket()->Connect(&ssl_connect_callback_, NULL);
+    int status = connection_->socket()->Connect(&ssl_connect_callback_);
     if (status != ERR_IO_PENDING)
       OnSSLConnect(status);
   } else {

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -122,7 +122,8 @@ bool ShouldTryNextAddress(int os_error) {
 
 //-----------------------------------------------------------------------------
 
-TCPClientSocketLibevent::TCPClientSocketLibevent(const AddressList& addresses)
+TCPClientSocketLibevent::TCPClientSocketLibevent(const AddressList& addresses,
+                                                 net::NetLog* net_log)
     : socket_(kInvalidSocket),
       addresses_(addresses),
       current_ai_(addresses_.head()),
@@ -130,25 +131,25 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(const AddressList& addresses)
       read_watcher_(this),
       write_watcher_(this),
       read_callback_(NULL),
-      write_callback_(NULL) {
+      write_callback_(NULL),
+      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
 }
 
 TCPClientSocketLibevent::~TCPClientSocketLibevent() {
   Disconnect();
+  net_log_.AddEvent(NetLog::TYPE_TCP_SOCKET_DONE);
 }
 
-int TCPClientSocketLibevent::Connect(CompletionCallback* callback,
-                                     const BoundNetLog& net_log) {
+int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
   // If already connected, then just return OK.
   if (socket_ != kInvalidSocket)
     return OK;
 
   DCHECK(!waiting_connect_);
-  DCHECK(!net_log_.net_log());
 
   TRACE_EVENT_BEGIN("socket.connect", this, "");
 
-  net_log.BeginEvent(NetLog::TYPE_TCP_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT);
 
   int rv = DoConnect();
 
@@ -156,12 +157,11 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback,
     // Synchronous operation not supported.
     DCHECK(callback);
 
-    net_log_ = net_log;
     waiting_connect_ = true;
     write_callback_ = callback;
   } else {
     TRACE_EVENT_END("socket.connect", this, "");
-    net_log.EndEvent(NetLog::TYPE_TCP_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT);
   }
 
   return rv;
@@ -277,6 +277,7 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
   int nread = HANDLE_EINTR(read(socket_, buf->data(), buf_len));
   if (nread >= 0) {
     TRACE_EVENT_END("socket.read", this, StringPrintf("%d bytes", nread));
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED, nread);
     return nread;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -311,6 +312,7 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
   int nwrite = HANDLE_EINTR(write(socket_, buf->data(), buf_len));
   if (nwrite >= 0) {
     TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", nwrite));
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT, nwrite);
     return nwrite;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK)
@@ -403,11 +405,9 @@ void TCPClientSocketLibevent::DidCompleteConnect() {
     const addrinfo* next = current_ai_->ai_next;
     Disconnect();
     current_ai_ = next;
-    BoundNetLog net_log = net_log_;
-    net_log_ = BoundNetLog();
     TRACE_EVENT_END("socket.connect", this, "");
-    net_log.EndEvent(NetLog::TYPE_TCP_CONNECT);
-    result = Connect(write_callback_, net_log);
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT);
+    result = Connect(write_callback_);
   } else {
     result = MapConnectError(os_error);
     bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
@@ -415,7 +415,6 @@ void TCPClientSocketLibevent::DidCompleteConnect() {
     waiting_connect_ = false;
     TRACE_EVENT_END("socket.connect", this, "");
     net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT);
-    net_log_ = BoundNetLog();
   }
 
   if (result != ERR_IO_PENDING) {
@@ -433,6 +432,7 @@ void TCPClientSocketLibevent::DidCompleteRead() {
     TRACE_EVENT_END("socket.read", this,
                     StringPrintf("%d bytes", bytes_transferred));
     result = bytes_transferred;
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED, result);
   } else {
     result = MapPosixError(errno);
   }
@@ -456,6 +456,7 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
     result = bytes_transferred;
     TRACE_EVENT_END("socket.write", this,
                     StringPrintf("%d bytes", bytes_transferred));
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT, result);
   } else {
     result = MapPosixError(errno);
   }

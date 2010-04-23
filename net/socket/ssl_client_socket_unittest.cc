@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -68,8 +68,9 @@ TEST_F(SSLClientSocketTest, Connect) {
   int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
-  net::ClientSocket *transport = new net::TCPClientSocket(addr);
-  rv = transport->Connect(&callback, NULL);
+  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
@@ -80,10 +81,9 @@ TEST_F(SSLClientSocketTest, Connect) {
 
   EXPECT_FALSE(sock->IsConnected());
 
-  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
-  rv = sock->Connect(&callback, log.bound());
+  rv = sock->Connect(&callback);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_SSL_CONNECT));
+      log.entries(), 2, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
@@ -112,8 +112,9 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
   int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
-  net::ClientSocket *transport = new net::TCPClientSocket(addr);
-  rv = transport->Connect(&callback, NULL);
+  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
@@ -124,10 +125,9 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 
   EXPECT_FALSE(sock->IsConnected());
 
-  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
-  rv = sock->Connect(&callback, log.bound());
+  rv = sock->Connect(&callback);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_SSL_CONNECT));
+      log.entries(), 2, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
@@ -157,8 +157,9 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
   int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
-  net::ClientSocket *transport = new net::TCPClientSocket(addr);
-  rv = transport->Connect(&callback, NULL);
+  net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
+  net::ClientSocket* transport = new net::TCPClientSocket(addr, &log);
+  rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
@@ -169,10 +170,9 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   EXPECT_FALSE(sock->IsConnected());
 
-  net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
-  rv = sock->Connect(&callback, log.bound());
+  rv = sock->Connect(&callback);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_SSL_CONNECT));
+      log.entries(), 2, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::ERR_CERT_COMMON_NAME_INVALID) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
@@ -209,8 +209,8 @@ TEST_F(SSLClientSocketTest, Read) {
   rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
-  net::ClientSocket *transport = new net::TCPClientSocket(addr);
-  rv = transport->Connect(&callback, NULL);
+  net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
+  rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
@@ -220,7 +220,7 @@ TEST_F(SSLClientSocketTest, Read) {
                                              server_.kHostName,
                                              kDefaultSSLConfig));
 
-  rv = sock->Connect(&callback, NULL);
+  rv = sock->Connect(&callback);
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
 
@@ -271,8 +271,8 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
   rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
 
-  net::ClientSocket *transport = new net::TCPClientSocket(addr);
-  rv = transport->Connect(&callback, NULL);
+  net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
+  rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
@@ -282,7 +282,7 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
                                              server_.kHostName,
                                              kDefaultSSLConfig));
 
-  rv = sock->Connect(&callback, NULL);
+  rv = sock->Connect(&callback);
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
 
@@ -330,8 +330,8 @@ TEST_F(SSLClientSocketTest, Read_SmallChunks) {
   int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
-  net::ClientSocket *transport = new net::TCPClientSocket(addr);
-  rv = transport->Connect(&callback, NULL);
+  net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
+  rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
@@ -340,7 +340,7 @@ TEST_F(SSLClientSocketTest, Read_SmallChunks) {
       socket_factory_->CreateSSLClientSocket(transport,
           server_.kHostName, kDefaultSSLConfig));
 
-  rv = sock->Connect(&callback, NULL);
+  rv = sock->Connect(&callback);
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
 
@@ -384,8 +384,8 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
   int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
   EXPECT_EQ(net::OK, rv);
 
-  net::ClientSocket *transport = new net::TCPClientSocket(addr);
-  rv = transport->Connect(&callback, NULL);
+  net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
+  rv = transport->Connect(&callback);
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   EXPECT_EQ(net::OK, rv);
@@ -394,7 +394,7 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
       socket_factory_->CreateSSLClientSocket(transport,
           server_.kHostName, kDefaultSSLConfig));
 
-  rv = sock->Connect(&callback, NULL);
+  rv = sock->Connect(&callback);
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
 

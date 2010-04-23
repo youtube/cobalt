@@ -67,17 +67,21 @@ class NetLog {
     SOURCE_SOCKET_STREAM,
     SOURCE_INIT_PROXY_RESOLVER,
     SOURCE_CONNECT_JOB,
+    SOURCE_SOCKET,
   };
 
   // Identifies the entity that generated this log. The |id| field should
   // uniquely identify the source, and is used by log observers to infer
   // message groupings. Can use NetLog::NextID() to create unique IDs.
   struct Source {
-    Source() : type(SOURCE_NONE), id(-1) {}
-    Source(SourceType type, int id) : type(type), id(id) {}
+    static const uint32 kInvalidId = 0;
+
+    Source() : type(SOURCE_NONE), id(kInvalidId) {}
+    Source(SourceType type, uint32 id) : type(type), id(id) {}
+    bool is_valid() { return id != kInvalidId; }
 
     SourceType type;
-    int id;
+    uint32 id;
   };
 
   // Base class for associating additional parameters with an event. Log
@@ -115,7 +119,7 @@ class NetLog {
                         EventParameters* extra_parameters) = 0;
 
   // Returns a unique ID which can be used as a source ID.
-  virtual int NextID() = 0;
+  virtual uint32 NextID() = 0;
 
   // Returns true if more complicated messages should be sent to the log.
   // TODO(eroman): This is a carry-over from refactoring; figure out
@@ -141,7 +145,7 @@ class BoundNetLog {
   // TODO(eroman): This is a complete hack to allow passing in NULL in
   // place of a BoundNetLog. I added this while refactoring to simplify the
   // task of updating all the callers.
-  BoundNetLog(int) : net_log_(NULL) {}
+  BoundNetLog(uint32) : net_log_(NULL) {}
 
   BoundNetLog(const NetLog::Source& source, NetLog* net_log)
       : source_(source), net_log_(net_log) {
@@ -167,6 +171,7 @@ class BoundNetLog {
                                 NetLog::EventParameters* params) const;
   void BeginEventWithString(NetLog::EventType event_type,
                             const std::string& string) const;
+  void BeginEventWithInteger(NetLog::EventType event_type, int integer) const;
   void AddEventWithInteger(NetLog::EventType event_type, int integer) const;
   void EndEvent(NetLog::EventType event_type) const;
   void EndEventWithParameters(NetLog::EventType event_type,
@@ -278,7 +283,7 @@ class CapturingNetLog : public NetLog {
                         const Source& source,
                         EventPhase phase,
                         EventParameters* extra_parameters);
-  virtual int NextID();
+  virtual uint32 NextID();
   virtual bool HasListener() const { return true; }
 
   // Returns the list of all entries in the log.
@@ -287,7 +292,7 @@ class CapturingNetLog : public NetLog {
   void Clear();
 
  private:
-  int next_id_;
+  uint32 next_id_;
   size_t max_num_entries_;
   EntryList entries_;
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -253,7 +253,8 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocket* transport_socket,
       completed_handshake_(false),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
-      nss_bufs_(NULL) {
+      nss_bufs_(NULL),
+      net_log_(transport_socket->NetLog()) {
   EnterFunction("");
 }
 
@@ -281,8 +282,7 @@ int SSLClientSocketNSS::Init() {
   return OK;
 }
 
-int SSLClientSocketNSS::Connect(CompletionCallback* callback,
-                                const BoundNetLog& net_log) {
+int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   EnterFunction("");
   DCHECK(transport_.get());
   DCHECK(next_handshake_state_ == STATE_NONE);
@@ -292,17 +292,17 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback,
   DCHECK(!user_read_buf_);
   DCHECK(!user_write_buf_);
 
-  net_log.BeginEvent(NetLog::TYPE_SSL_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   int rv = Init();
   if (rv != OK) {
-    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
     return rv;
   }
 
   rv = InitializeSSLOptions();
   if (rv != OK) {
-    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
     return rv;
   }
 
@@ -310,9 +310,8 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback,
   rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
-    net_log_ = net_log;
   } else {
-    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
   }
 
   LeaveFunction("");
@@ -819,7 +818,6 @@ void SSLClientSocketNSS::OnHandshakeIOComplete(int result) {
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
     net_log_.EndEvent(net::NetLog::TYPE_SSL_CONNECT);
-    net_log_ = BoundNetLog();
     DoConnectCallback(rv);
   }
   LeaveFunction("");

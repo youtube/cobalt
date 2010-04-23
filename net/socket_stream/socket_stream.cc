@@ -499,9 +499,10 @@ int SocketStream::DoResolveHostComplete(int result) {
 int SocketStream::DoTcpConnect() {
   next_state_ = STATE_TCP_CONNECT_COMPLETE;
   DCHECK(factory_);
-  socket_.reset(factory_->CreateTCPClientSocket(addresses_));
+  socket_.reset(factory_->CreateTCPClientSocket(addresses_,
+                                                 net_log_.net_log()));
   metrics_->OnStartConnection();
-  return socket_->Connect(&io_callback_, net_log_);
+  return socket_->Connect(&io_callback_);
 }
 
 int SocketStream::DoTcpConnectComplete(int result) {
@@ -717,7 +718,7 @@ int SocketStream::DoSOCKSConnect() {
     s = new SOCKSClientSocket(s, req_info, host_resolver_.get());
   socket_.reset(s);
   metrics_->OnSOCKSProxy();
-  return socket_->Connect(&io_callback_, net_log_);
+  return socket_->Connect(&io_callback_);
 }
 
 int SocketStream::DoSOCKSConnectComplete(int result) {
@@ -740,7 +741,7 @@ int SocketStream::DoSSLConnect() {
       socket_.release(), url_.HostNoBrackets(), ssl_config_));
   next_state_ = STATE_SSL_CONNECT_COMPLETE;
   metrics_->OnSSLConnection();
-  return socket_->Connect(&io_callback_, net_log_);
+  return socket_->Connect(&io_callback_);
 }
 
 int SocketStream::DoSSLConnectComplete(int result) {

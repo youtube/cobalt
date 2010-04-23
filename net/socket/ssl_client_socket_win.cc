@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -322,7 +322,8 @@ SSLClientSocketWin::SSLClientSocketWin(ClientSocket* transport_socket,
       writing_first_token_(false),
       ignore_ok_result_(false),
       renegotiating_(false),
-      need_more_data_(false) {
+      need_more_data_(false),
+      net_log_(transport_socket->NetLog()) {
   memset(&stream_sizes_, 0, sizeof(stream_sizes_));
   memset(in_buffers_, 0, sizeof(in_buffers_));
   memset(&send_buffer_, 0, sizeof(send_buffer_));
@@ -430,17 +431,16 @@ SSLClientSocketWin::GetNextProto(std::string* proto) {
   return kNextProtoUnsupported;
 }
 
-int SSLClientSocketWin::Connect(CompletionCallback* callback,
-                                const BoundNetLog& net_log) {
+int SSLClientSocketWin::Connect(CompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(next_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
 
-  net_log.BeginEvent(NetLog::TYPE_SSL_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   int rv = InitializeSSLContext();
   if (rv != OK) {
-    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
     return rv;
   }
 
@@ -449,9 +449,8 @@ int SSLClientSocketWin::Connect(CompletionCallback* callback,
   rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
-    net_log_ = net_log;
   } else {
-    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
   }
   return rv;
 }
@@ -656,7 +655,6 @@ void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
       return;
     }
     net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
-    net_log_ = BoundNetLog();
     CompletionCallback* c = user_connect_callback_;
     user_connect_callback_ = NULL;
     c->Run(rv);
