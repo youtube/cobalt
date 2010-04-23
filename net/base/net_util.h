@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,6 +82,9 @@ std::string GetHostName();
 void GetIdentityFromURL(const GURL& url,
                         std::wstring* username,
                         std::wstring* password);
+
+// Returns either the host from |url|, or, if the host is empty, the full spec.
+std::string GetHostOrSpecFromURL(const GURL& url);
 
 // Return the value of the HTTP response header with name 'name'.  'headers'
 // should be in the format that URLRequest::GetResponseHeaders() returns.
