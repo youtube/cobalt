@@ -38,6 +38,7 @@
 /chrome_frame/tools/test/reference_build
 /data
 /googleurl
+/gpu/gles2_conform_test
 /native_client
 /out
 /rlz/binaries
@@ -58,6 +59,7 @@
 /third_party/ffmpeg/source/patched-ffmpeg-mt
 /third_party/forge
 /third_party/googlemac
+/third_party/gles2_conform
 /third_party/hunspell
 /third_party/icu
 /third_party/lighttpd
