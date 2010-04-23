@@ -36,6 +36,22 @@ struct Parsed;
 
 namespace net {
 
+// Used by FormatUrl to specify handling of certain parts of the url.
+typedef uint32 FormatUrlType;
+typedef uint32 FormatUrlTypes;
+
+// Nothing is ommitted.
+extern const FormatUrlType kFormatUrlOmitNothing;
+
+// If set, any username and password are removed.
+extern const FormatUrlType kFormatUrlOmitUsernamePassword;
+
+// If the scheme is 'http://', it's removed.
+extern const FormatUrlType kFormatUrlOmitHTTP;
+
+// Convenience for omitting all unecessary types.
+extern const FormatUrlType kFormatUrlOmitAll;
+
 // Holds a list of ports that should be accepted despite bans.
 extern std::set<int> explicitly_allowed_ports;
 
@@ -248,13 +264,12 @@ void AppendFormattedHost(const GURL& url,
                          size_t* offset_for_adjustment);
 
 // Creates a string representation of |url|. The IDN host name may be in Unicode
-// if |languages| accepts the Unicode representation. If
-// |omit_username_password| is true, any username and password are removed.
-// |unescape_rules| defines how to clean the URL for human readability.
-// You will generally want |UnescapeRule::SPACES| for display to the user if you
-// can handle spaces, or |UnescapeRule::NORMAL| if not. If the path part and the
-// query part seem to be encoded in %-encoded UTF-8, decodes %-encoding and
-// UTF-8.
+// if |languages| accepts the Unicode representation. |format_type| is a bitmask
+// of FormatUrlTypes, see it for details. |unescape_rules| defines how to clean
+// the URL for human readability. You will generally want |UnescapeRule::SPACES|
+// for display to the user if you can handle spaces, or |UnescapeRule::NORMAL|
+// if not. If the path part and the query part seem to be encoded in %-encoded
+// UTF-8, decodes %-encoding and UTF-8.
 //
 // The last three parameters may be NULL.
 // |new_parsed| will be set to the parsing parameters of the resultant URL.
@@ -270,18 +285,17 @@ void AppendFormattedHost(const GURL& url,
 // std::wstring::npos.
 std::wstring FormatUrl(const GURL& url,
                        const std::wstring& languages,
-                       bool omit_username_password,
+                       FormatUrlTypes format_types,
                        UnescapeRule::Type unescape_rules,
                        url_parse::Parsed* new_parsed,
                        size_t* prefix_end,
                        size_t* offset_for_adjustment);
 
-// Creates a string representation of |url| for display to the user.
-// This is a shorthand of the above function with omit_username_password=true,
-// unescape=SPACES, new_parsed=NULL, and prefix_end=NULL.
+// This is a convenience for FormatUrl with
+// format_types=kFormatUrlOmitUsernamePassword and unescape=SPACES.
 inline std::wstring FormatUrl(const GURL& url, const std::wstring& languages) {
-  return FormatUrl(url, languages, true, UnescapeRule::SPACES, NULL, NULL,
-                   NULL);
+  return FormatUrl(url, languages, kFormatUrlOmitUsernamePassword,
+                   UnescapeRule::SPACES, NULL, NULL, NULL);
 }
 
 // Strip the portions of |url| that aren't core to the network request.
