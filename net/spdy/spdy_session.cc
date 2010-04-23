@@ -210,7 +210,8 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
       streams_initiated_count_(0),
       streams_pushed_count_(0),
       streams_pushed_and_claimed_count_(0),
-      streams_abandoned_count_(0) {
+      streams_abandoned_count_(0),
+      in_session_pool_(true) {
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 
   spdy_framer_.set_visitor(this);
@@ -803,7 +804,7 @@ void SpdySession::CloseSessionOnError(net::Error err) {
     state_ = CLOSED;
     error_ = err;
     CloseAllStreams(err);
-    session_->spdy_session_pool()->Remove(this);
+    RemoveFromPool();
   }
 }
 
@@ -828,6 +829,13 @@ void SpdySession::DeactivateStream(spdy::SpdyStreamId id) {
   }
 
   active_streams_.erase(id);
+}
+
+void SpdySession::RemoveFromPool() {
+  if (in_session_pool_) {
+    session_->spdy_session_pool()->Remove(this);
+    in_session_pool_ = false;
+  }
 }
 
 scoped_refptr<SpdyStream> SpdySession::GetPushStream(const std::string& path) {
@@ -1102,7 +1110,7 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
 void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
   LOG(INFO) << "Spdy GOAWAY for session[" << this << "] for " <<
       host_port_pair().ToString();
-  session_->spdy_session_pool()->Remove(this);
+  RemoveFromPool();
 
   // TODO(willchan): Cancel any streams that are past the GoAway frame's
   // |last_accepted_stream_id|.
