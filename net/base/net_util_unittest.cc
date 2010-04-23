@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -1630,4 +1630,13 @@ TEST(NetUtilTest, SetExplicitlyAllowedPortsTest) {
     net::SetExplicitlyAllowedPorts(valid[i]);
     EXPECT_EQ(i, net::explicitly_allowed_ports.size());
   }
+}
+
+TEST(NetUtilTest, GetHostOrSpecFromURL) {
+  EXPECT_EQ("example.com",
+            net::GetHostOrSpecFromURL(GURL("http://example.com/test")));
+  EXPECT_EQ("example.com",
+            net::GetHostOrSpecFromURL(GURL("http://example.com./test")));
+  EXPECT_EQ("file:///tmp/test.html",
+            net::GetHostOrSpecFromURL(GURL("file:///tmp/test.html")));
 }
