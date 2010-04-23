@@ -63,6 +63,8 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
                                 PRUint32* http_response_data_len);
 SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request);
 
+char* GetAlternateOCSPAIAInfo(CERTCertificate *cert);
+
 class OCSPInitSingleton : public MessageLoop::DestructionObserver {
  public:
   // Called on IO thread.
@@ -115,6 +117,20 @@ class OCSPInitSingleton : public MessageLoop::DestructionObserver {
     ft->freeFcn = OCSPFree;
     SECStatus status = SEC_RegisterDefaultHttpClient(&client_fcn_);
     if (status != SECSuccess) {
+      NOTREACHED() << "Error initializing OCSP: " << PR_GetError();
+    }
+
+    // Work around NSS bug 524013.  NSS incorrectly thinks the CRLs for
+    // Network Solutions Certificate Authority have bad signatures, which
+    // causes certificates issued by that CA to be reported as revoked.
+    // By using OCSP for those certificates, which don't have AIA
+    // extensions, we can work around this bug.  See http://crbug.com/41730.
+    CERT_StringFromCertFcn old_callback = NULL;
+    status = CERT_RegisterAlternateOCSPAIAInfoCallBack(
+        GetAlternateOCSPAIAInfo, &old_callback);
+    if (status == SECSuccess) {
+      DCHECK(!old_callback);
+    } else {
       NOTREACHED() << "Error initializing OCSP: " << PR_GetError();
     }
   }
@@ -630,6 +646,68 @@ SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
   req->Cancel();
   req->Release();
   return SECSuccess;
+}
+
+// Data for GetAlternateOCSPAIAInfo.
+
+// CN=Network Solutions Certificate Authority,O=Network Solutions L.L.C.,C=US
+const unsigned char network_solutions_ca_name[] = {
+  0x30, 0x62, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04,
+  0x06, 0x13, 0x02, 0x55, 0x53, 0x31, 0x21, 0x30, 0x1f, 0x06,
+  0x03, 0x55, 0x04, 0x0a, 0x13, 0x18, 0x4e, 0x65, 0x74, 0x77,
+  0x6f, 0x72, 0x6b, 0x20, 0x53, 0x6f, 0x6c, 0x75, 0x74, 0x69,
+  0x6f, 0x6e, 0x73, 0x20, 0x4c, 0x2e, 0x4c, 0x2e, 0x43, 0x2e,
+  0x31, 0x30, 0x30, 0x2e, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13,
+  0x27, 0x4e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x20, 0x53,
+  0x6f, 0x6c, 0x75, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x20, 0x43,
+  0x65, 0x72, 0x74, 0x69, 0x66, 0x69, 0x63, 0x61, 0x74, 0x65,
+  0x20, 0x41, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74, 0x79
+};
+const unsigned int network_solutions_ca_name_len = 100;
+
+const unsigned char network_solutions_ca_key_id[] = {
+  0x3c, 0x41, 0xe2, 0x8f, 0x08, 0x08, 0xa9, 0x4c, 0x25, 0x89,
+  0x8d, 0x6d, 0xc5, 0x38, 0xd0, 0xfc, 0x85, 0x8c, 0x62, 0x17
+};
+const unsigned int network_solutions_ca_key_id_len = 20;
+
+// An entry in our OCSP responder table.  |issuer| and |issuer_key_id| are
+// the key.  |ocsp_url| is the value.
+struct OCSPResponderTableEntry {
+  SECItem issuer;
+  SECItem issuer_key_id;
+  const char *ocsp_url;
+};
+
+const OCSPResponderTableEntry g_ocsp_responder_table[] = {
+  {
+    {
+      siBuffer,
+      const_cast<unsigned char*>(network_solutions_ca_name),
+      network_solutions_ca_name_len
+    },
+    {
+      siBuffer,
+      const_cast<unsigned char*>(network_solutions_ca_key_id),
+      network_solutions_ca_key_id_len
+    },
+    "http://ocsp.netsolssl.com"
+  }
+};
+
+char* GetAlternateOCSPAIAInfo(CERTCertificate *cert) {
+  if (cert && !cert->isRoot && cert->authKeyID) {
+    for (unsigned int i=0; i < arraysize(g_ocsp_responder_table); i++) {
+      if (SECITEM_CompareItem(&g_ocsp_responder_table[i].issuer,
+                              &cert->derIssuer) == SECEqual &&
+          SECITEM_CompareItem(&g_ocsp_responder_table[i].issuer_key_id,
+                              &cert->authKeyID->keyID) == SECEqual) {
+        return PORT_Strdup(g_ocsp_responder_table[i].ocsp_url);
+      }
+    }
+  }
+
+  return NULL;
 }
 
 }  // anonymous namespace
