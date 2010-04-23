@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -272,7 +272,8 @@ void TCPClientSocketWin::Core::WriteDelegate::OnObjectSignaled(
 
 //-----------------------------------------------------------------------------
 
-TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses)
+TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
+                                       net::NetLog* net_log)
     : socket_(INVALID_SOCKET),
       addresses_(addresses),
       current_ai_(addresses_.head()),
@@ -280,28 +281,27 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses)
       waiting_read_(false),
       waiting_write_(false),
       read_callback_(NULL),
-      write_callback_(NULL) {
+      write_callback_(NULL),
+      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
   EnsureWinsockInit();
 }
 
 TCPClientSocketWin::~TCPClientSocketWin() {
   Disconnect();
+  net_log_.AddEvent(NetLog::TYPE_TCP_SOCKET_DONE);
 }
 
-int TCPClientSocketWin::Connect(CompletionCallback* callback,
-                                const BoundNetLog& net_log) {
+int TCPClientSocketWin::Connect(CompletionCallback* callback) {
   // If already connected, then just return OK.
   if (socket_ != INVALID_SOCKET)
     return OK;
-
-  DCHECK(!net_log_.net_log());
 
   static StatsCounter connects("tcp.connect");
   connects.Increment();
 
   TRACE_EVENT_BEGIN("socket.connect", this, "");
 
-  net_log.BeginEvent(NetLog::TYPE_TCP_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT);
 
   int rv = DoConnect();
 
@@ -309,12 +309,11 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback,
     // Synchronous operation not supported.
     DCHECK(callback);
 
-    net_log_ = net_log;
     waiting_connect_ = true;
     read_callback_ = callback;
   } else {
     TRACE_EVENT_END("socket.connect", this, "");
-    net_log.EndEvent(NetLog::TYPE_TCP_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT);
     if (rv == OK)
       UpdateConnectionTypeHistograms(CONNECTION_ANY);
   }
@@ -478,6 +477,7 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       base::MemoryDebug::MarkAsInitialized(core_->read_buffer_.buf, num);
       static StatsCounter read_bytes("tcp.read_bytes");
       read_bytes.Add(num);
+      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED, num);
       return static_cast<int>(num);
     }
   } else {
@@ -528,6 +528,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
       TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", rv));
       static StatsCounter write_bytes("tcp.write_bytes");
       write_bytes.Add(rv);
+      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT, rv);
       return rv;
     }
   } else {
@@ -659,23 +660,19 @@ void TCPClientSocketWin::DidCompleteConnect() {
       const struct addrinfo* next = current_ai_->ai_next;
       Disconnect();
       current_ai_ = next;
-      BoundNetLog net_log(net_log_);
-      net_log_ = BoundNetLog();
       TRACE_EVENT_END("socket.connect", this, "");
-      net_log.EndEvent(NetLog::TYPE_TCP_CONNECT);
-      result = Connect(read_callback_, net_log);
+      net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT);
+      result = Connect(read_callback_);
     } else {
       result = MapConnectError(os_error);
       TRACE_EVENT_END("socket.connect", this, "");
       net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT);
-      net_log_ = BoundNetLog();
     }
   } else {
     NOTREACHED();
     result = ERR_UNEXPECTED;
     TRACE_EVENT_END("socket.connect", this, "");
     net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT);
-    net_log_ = BoundNetLog();
   }
 
   if (result != ERR_IO_PENDING) {
@@ -694,6 +691,8 @@ void TCPClientSocketWin::DidCompleteRead() {
   TRACE_EVENT_END("socket.read", this, StringPrintf("%d bytes", num_bytes));
   waiting_read_ = false;
   core_->read_iobuffer_ = NULL;
+  if (ok)
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED, num_bytes);
   DoReadCallback(ok ? num_bytes : MapWinsockError(WSAGetLastError()));
 }
 
@@ -718,6 +717,8 @@ void TCPClientSocketWin::DidCompleteWrite() {
                  << core_->write_buffer_length_ << " bytes, but " << rv
                  << " bytes reported.";
       rv = ERR_WINSOCK_UNEXPECTED_WRITTEN_BYTES;
+    } else {
+      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT, rv);
     }
   }
   core_->write_iobuffer_ = NULL;

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -40,8 +40,8 @@ SSLClientSocketFactory g_ssl_factory = DefaultSSLClientSocketFactory;
 class DefaultClientSocketFactory : public ClientSocketFactory {
  public:
   virtual ClientSocket* CreateTCPClientSocket(
-      const AddressList& addresses) {
-    return new TCPClientSocket(addresses);
+      const AddressList& addresses, NetLog* net_log) {
+    return new TCPClientSocket(addresses, net_log);
   }
 
   virtual SSLClientSocket* CreateSSLClientSocket(

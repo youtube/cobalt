@@ -18,9 +18,10 @@
 
 namespace net {
 
-MockClientSocket::MockClientSocket()
+MockClientSocket::MockClientSocket(net::NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
-      connected_(false) {
+      connected_(false),
+      net_log_(NetLog::Source(), net_log) {
 }
 
 void MockClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
@@ -69,8 +70,10 @@ void MockClientSocket::RunCallback(net::CompletionCallback* callback,
 }
 
 MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
+                                         net::NetLog* net_log,
                                          net::SocketDataProvider* data)
-    : addresses_(addresses),
+    : MockClientSocket(net_log),
+      addresses_(addresses),
       data_(data),
       read_offset_(0),
       read_data_(false, net::ERR_UNEXPECTED),
@@ -83,8 +86,7 @@ MockTCPClientSocket::MockTCPClientSocket(const net::AddressList& addresses,
   data_->Reset();
 }
 
-int MockTCPClientSocket::Connect(net::CompletionCallback* callback,
-                                 const BoundNetLog& net_log) {
+int MockTCPClientSocket::Connect(net::CompletionCallback* callback) {
   if (connected_)
     return net::OK;
   connected_ = true;
@@ -244,7 +246,8 @@ MockSSLClientSocket::MockSSLClientSocket(
     const std::string& hostname,
     const net::SSLConfig& ssl_config,
     net::SSLSocketDataProvider* data)
-    : transport_(transport_socket),
+    : MockClientSocket(transport_socket->NetLog().net_log()),
+      transport_(transport_socket),
       data_(data) {
   DCHECK(data_);
 }
@@ -257,11 +260,10 @@ void MockSSLClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
   ssl_info->Reset();
 }
 
-int MockSSLClientSocket::Connect(net::CompletionCallback* callback,
-                                 const BoundNetLog& net_log) {
+int MockSSLClientSocket::Connect(net::CompletionCallback* callback) {
   ConnectCallback* connect_callback = new ConnectCallback(
       this, callback, data_->connect.result);
-  int rv = transport_->Connect(connect_callback, net_log);
+  int rv = transport_->Connect(connect_callback);
   if (rv == net::OK) {
     delete connect_callback;
     if (data_->connect.async) {
@@ -412,10 +414,10 @@ MockSSLClientSocket* MockClientSocketFactory::GetMockSSLClientSocket(
 }
 
 ClientSocket* MockClientSocketFactory::CreateTCPClientSocket(
-    const AddressList& addresses) {
+    const AddressList& addresses, net::NetLog* net_log) {
   SocketDataProvider* data_provider = mock_data_.GetNext();
   MockTCPClientSocket* socket =
-      new MockTCPClientSocket(addresses, data_provider);
+      new MockTCPClientSocket(addresses, net_log, data_provider);
   data_provider->set_socket(socket);
   tcp_client_sockets_.push_back(socket);
   return socket;

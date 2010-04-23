@@ -37,8 +37,8 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
           ALLOW_THIS_IN_INITIALIZER_LIST(
               connect_callback_(this, &MockConnectJob::OnConnect)) {}
 
-    int Connect(const BoundNetLog& net_log) {
-      int rv = socket_->Connect(&connect_callback_, net_log);
+    int Connect() {
+      int rv = socket_->Connect(&connect_callback_);
       if (rv == OK) {
         user_callback_ = NULL;
         OnConnect(OK);
@@ -103,10 +103,10 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
                             CompletionCallback* callback,
                             const BoundNetLog& net_log) {
     ClientSocket* socket = client_socket_factory_->CreateTCPClientSocket(
-        AddressList());
+        AddressList(), net_log.net_log());
     MockConnectJob* job = new MockConnectJob(socket, handle, callback);
     job_list_.push_back(job);
-    return job->Connect(net_log);
+    return job->Connect();
   }
 
   virtual void CancelRequest(const std::string& group_name,

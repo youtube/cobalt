@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -59,7 +59,8 @@ SOCKS5ClientSocket::SOCKS5ClientSocket(
       bytes_sent_(0),
       bytes_received_(0),
       read_header_size(kReadHeaderSize),
-      host_request_info_(req_info) {
+      host_request_info_(req_info),
+      net_log_(transport_socket->socket()->NetLog()) {
 }
 
 SOCKS5ClientSocket::SOCKS5ClientSocket(
@@ -74,7 +75,8 @@ SOCKS5ClientSocket::SOCKS5ClientSocket(
       bytes_sent_(0),
       bytes_received_(0),
       read_header_size(kReadHeaderSize),
-      host_request_info_(req_info) {
+      host_request_info_(req_info),
+      net_log_(transport_socket->NetLog()) {
   transport_->set_socket(transport_socket);
 }
 
@@ -82,8 +84,7 @@ SOCKS5ClientSocket::~SOCKS5ClientSocket() {
   Disconnect();
 }
 
-int SOCKS5ClientSocket::Connect(CompletionCallback* callback,
-                                const BoundNetLog& net_log) {
+int SOCKS5ClientSocket::Connect(CompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(transport_->socket());
   DCHECK(transport_->socket()->IsConnected());
@@ -94,8 +95,7 @@ int SOCKS5ClientSocket::Connect(CompletionCallback* callback,
   if (completed_handshake_)
     return OK;
 
-  net_log_ = net_log;
-  net_log.BeginEvent(NetLog::TYPE_SOCKS5_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_SOCKS5_CONNECT);
 
   next_state_ = STATE_GREET_WRITE;
   buffer_.clear();
@@ -104,8 +104,7 @@ int SOCKS5ClientSocket::Connect(CompletionCallback* callback,
   if (rv == ERR_IO_PENDING) {
     user_callback_ = callback;
   } else {
-    net_log.EndEvent(NetLog::TYPE_SOCKS5_CONNECT);
-    net_log_ = BoundNetLog();
+    net_log_.EndEvent(NetLog::TYPE_SOCKS5_CONNECT);
   }
   return rv;
 }
@@ -118,7 +117,6 @@ void SOCKS5ClientSocket::Disconnect() {
   // These are the states initialized by Connect().
   next_state_ = STATE_NONE;
   user_callback_ = NULL;
-  net_log_ = BoundNetLog();
 }
 
 bool SOCKS5ClientSocket::IsConnected() const {
@@ -175,7 +173,6 @@ void SOCKS5ClientSocket::OnIOComplete(int result) {
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING) {
     net_log_.EndEvent(NetLog::TYPE_SOCKS5_CONNECT);
-    net_log_ = BoundNetLog();
     DoCallback(rv);
   }
 }

@@ -853,7 +853,7 @@ int HttpNetworkTransaction::DoSSLConnect() {
   s = session_->socket_factory()->CreateSSLClientSocket(
       s, request_->url.HostNoBrackets(), ssl_config_);
   connection_->set_socket(s);
-  return connection_->socket()->Connect(&io_callback_, net_log_);
+  return connection_->socket()->Connect(&io_callback_);
 }
 
 int HttpNetworkTransaction::DoSSLConnectComplete(int result) {

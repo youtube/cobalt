@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,16 +25,18 @@ class TCPClientSocketLibevent : public ClientSocket {
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a
   // connection.
-  explicit TCPClientSocketLibevent(const AddressList& addresses);
+  explicit TCPClientSocketLibevent(const AddressList& addresses,
+                                   net::NetLog* net_log);
 
   virtual ~TCPClientSocketLibevent();
 
   // ClientSocket methods:
-  virtual int Connect(CompletionCallback* callback, const BoundNetLog& net_log);
+  virtual int Connect(CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
   virtual int GetPeerAddress(AddressList* address) const;
+  virtual const BoundNetLog& NetLog() const { return net_log_; }
 
   // Socket methods:
   // Multiple outstanding requests are not supported.
