@@ -616,8 +616,9 @@ int FtpNetworkTransaction::DoCtrlResolveHostComplete(int result) {
 
 int FtpNetworkTransaction::DoCtrlConnect() {
   next_state_ = STATE_CTRL_CONNECT_COMPLETE;
-  ctrl_socket_.reset(socket_factory_->CreateTCPClientSocket(addresses_));
-  return ctrl_socket_->Connect(&io_callback_, net_log_);
+  ctrl_socket_.reset(socket_factory_->CreateTCPClientSocket(
+        addresses_, net_log_.net_log()));
+  return ctrl_socket_->Connect(&io_callback_);
 }
 
 int FtpNetworkTransaction::DoCtrlConnectComplete(int result) {
@@ -1227,8 +1228,9 @@ int FtpNetworkTransaction::DoDataConnect() {
   if (rv != OK)
     return Stop(rv);
   data_address.SetPort(data_connection_port_);
-  data_socket_.reset(socket_factory_->CreateTCPClientSocket(data_address));
-  return data_socket_->Connect(&io_callback_, net_log_);
+  data_socket_.reset(socket_factory_->CreateTCPClientSocket(
+        data_address, net_log_.net_log()));
+  return data_socket_->Connect(&io_callback_);
 }
 
 int FtpNetworkTransaction::DoDataConnectComplete(int result) {

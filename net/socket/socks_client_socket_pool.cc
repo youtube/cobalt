@@ -128,7 +128,7 @@ int SOCKSConnectJob::DoSOCKSConnect() {
                                         socks_params_.destination(),
                                         resolver_));
   }
-  return socket_->Connect(&callback_, net_log());
+  return socket_->Connect(&callback_);
 }
 
 int SOCKSConnectJob::DoSOCKSConnectComplete(int result) {

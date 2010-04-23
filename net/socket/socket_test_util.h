@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,6 +17,7 @@
 #include "net/base/address_list.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/client_socket_factory.h"
@@ -35,7 +36,6 @@ enum {
   ERR_TEST_PEER_CLOSE_AFTER_NEXT_MOCK_READ = -10000,
 };
 
-class BoundNetLog;
 class ClientSocket;
 class MockClientSocket;
 class SSLClientSocket;
@@ -289,7 +289,8 @@ class MockClientSocketFactory : public ClientSocketFactory {
   MockSSLClientSocket* GetMockSSLClientSocket(size_t index) const;
 
   // ClientSocketFactory
-  virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses);
+  virtual ClientSocket* CreateTCPClientSocket(const AddressList& addresses,
+                                              NetLog* net_log);
   virtual SSLClientSocket* CreateSSLClientSocket(
       ClientSocket* transport_socket,
       const std::string& hostname,
@@ -306,15 +307,15 @@ class MockClientSocketFactory : public ClientSocketFactory {
 
 class MockClientSocket : public net::SSLClientSocket {
  public:
-  MockClientSocket();
+  explicit MockClientSocket(net::NetLog* net_log);
 
   // ClientSocket methods:
-  virtual int Connect(net::CompletionCallback* callback,
-                      const BoundNetLog& net_log) = 0;
+  virtual int Connect(net::CompletionCallback* callback) = 0;
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const;
   virtual int GetPeerAddress(AddressList* address) const;
+  virtual const BoundNetLog& NetLog() const { return net_log_;}
 
   // SSLClientSocket methods:
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
@@ -345,16 +346,17 @@ class MockClientSocket : public net::SSLClientSocket {
 
   // True if Connect completed successfully and Disconnect hasn't been called.
   bool connected_;
+
+  net::BoundNetLog net_log_;
 };
 
 class MockTCPClientSocket : public MockClientSocket {
  public:
-  MockTCPClientSocket(const net::AddressList& addresses,
+  MockTCPClientSocket(const net::AddressList& addresses, net::NetLog* net_log,
                       net::SocketDataProvider* socket);
 
   // ClientSocket methods:
-  virtual int Connect(net::CompletionCallback* callback,
-                      const BoundNetLog& net_log);
+  virtual int Connect(net::CompletionCallback* callback);
   virtual void Disconnect();
   virtual bool IsConnected() const;
   virtual bool IsConnectedAndIdle() const { return IsConnected(); }
@@ -401,8 +403,7 @@ class MockSSLClientSocket : public MockClientSocket {
 
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
 
-  virtual int Connect(net::CompletionCallback* callback,
-                      const BoundNetLog& net_log);
+  virtual int Connect(net::CompletionCallback* callback);
   virtual void Disconnect();
 
   // Socket methods:
