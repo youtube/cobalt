@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -53,6 +53,7 @@
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
 #include "googleurl/src/url_parse.h"
+#include "net/base/dns_util.h"
 #include "net/base/escape.h"
 #include "net/base/net_module.h"
 #if defined(OS_WIN)
@@ -1284,6 +1285,10 @@ void GetIdentityFromURL(const GURL& url,
                                                                 flags, NULL));
   *password = UTF16ToWideHack(UnescapeAndDecodeUTF8URLComponent(url.password(),
                                                                 flags, NULL));
+}
+
+std::string GetHostOrSpecFromURL(const GURL& url) {
+  return url.has_host() ? net::TrimEndingDot(url.host()) : url.spec();
 }
 
 void AppendFormattedHost(const GURL& url,
