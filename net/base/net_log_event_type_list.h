@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -90,11 +90,14 @@ EVENT_TYPE(PROXY_RESOLVER_V8_DNS_RESOLVE_EX)
 EVENT_TYPE(WAITING_FOR_SINGLE_PROXY_RESOLVER_THREAD)
 
 // ------------------------------------------------------------------------
-// ClientSocket::Connect
+// ClientSocket
 // ------------------------------------------------------------------------
 
 // The start/end of a TCP connect().
 EVENT_TYPE(TCP_CONNECT)
+
+// Marks the destruction of a TCP socket.
+EVENT_TYPE(TCP_SOCKET_DONE)
 
 // The start/end of a SOCKS connect().
 EVENT_TYPE(SOCKS_CONNECT)
@@ -104,6 +107,12 @@ EVENT_TYPE(SOCKS5_CONNECT)
 
 // The start/end of a SSL connect().
 EVENT_TYPE(SSL_CONNECT)
+
+// The specified number of bytes were sent on the socket.
+EVENT_TYPE(SOCKET_BYTES_SENT)
+
+// The specified number of bytes were received on the socket.
+EVENT_TYPE(SOCKET_BYTES_RECEIVED)
 
 // ------------------------------------------------------------------------
 // ClientSocketPoolBase::ConnectJob
@@ -134,9 +143,16 @@ EVENT_TYPE(SOCKET_BACKUP_CREATED)
 // A backup socket is created due to slow connect
 EVENT_TYPE(SOCKET_BACKUP_TIMER_EXTENDED)
 
-// Identifies the NetLog::Source() for the ConnectJob that this socket ended
-// up binding to.
+// Identifies the NetLog::Source() for a ConnectJob.  The begin event
+// is sent to the request that triggered the ConnectJob, the end event
+// is sent to the request that received the connected socket.  Because of
+// late binding, they may not be the same. Therefore the ID for the
+// ConnectJob NetLog is sent in both events.
 EVENT_TYPE(SOCKET_POOL_CONNECT_JOB_ID)
+
+// Identifies the NetLog::Source() for the Socket assigned to the pending
+// request.
+EVENT_TYPE(SOCKET_POOL_SOCKET_ID)
 
 // ------------------------------------------------------------------------
 // URLRequest

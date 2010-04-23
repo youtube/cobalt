@@ -1,4 +1,4 @@
-// Copyright (c) 2008-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -518,34 +518,33 @@ SSLClientSocketMac::SSLClientSocketMac(ClientSocket* transport_socket,
       handshake_interrupted_(false),
       client_cert_requested_(false),
       ssl_context_(NULL),
-      pending_send_error_(OK) {
+      pending_send_error_(OK),
+      net_log_(transport_socket->NetLog()) {
 }
 
 SSLClientSocketMac::~SSLClientSocketMac() {
   Disconnect();
 }
 
-int SSLClientSocketMac::Connect(CompletionCallback* callback,
-                                const BoundNetLog& net_log) {
+int SSLClientSocketMac::Connect(CompletionCallback* callback) {
   DCHECK(transport_.get());
   DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
 
-  net_log.BeginEvent(NetLog::TYPE_SSL_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
 
   int rv = InitializeSSLContext();
   if (rv != OK) {
-    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
     return rv;
   }
 
   next_handshake_state_ = STATE_HANDSHAKE_START;
   rv = DoHandshakeLoop(OK);
   if (rv == ERR_IO_PENDING) {
-    net_log_ = net_log;
     user_connect_callback_ = callback;
   } else {
-    net_log.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
   }
   return rv;
 }
@@ -868,7 +867,6 @@ void SSLClientSocketMac::OnHandshakeIOComplete(int result) {
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
     net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
-    net_log_ = BoundNetLog();
     DoConnectCallback(rv);
   }
 }
@@ -885,7 +883,6 @@ void SSLClientSocketMac::OnTransportReadComplete(int result) {
     int rv = DoHandshakeLoop(result);
     if (rv != ERR_IO_PENDING) {
       net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
-      net_log_ = BoundNetLog();
       DoConnectCallback(rv);
     }
     return;
