@@ -109,6 +109,8 @@ class ConnectJob {
   Delegate* delegate_;
   scoped_ptr<ClientSocket> socket_;
   BoundNetLog net_log_;
+  // A ConnectJob is idle until Connect() has been called.
+  bool idle_;
 
   DISALLOW_COPY_AND_ASSIGN(ConnectJob);
 };
