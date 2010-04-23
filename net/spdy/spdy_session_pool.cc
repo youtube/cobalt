@@ -65,6 +65,7 @@ bool SpdySessionPool::HasSession(const HostPortPair& host_port_pair) const {
 
 void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
   SpdySessionList* list = GetSessionList(session->host_port_pair());
+  DCHECK(list);  // We really shouldn't remove if we've already been removed.
   if (!list)
     return;
   list->remove(session);

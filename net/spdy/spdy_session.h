@@ -157,6 +157,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
   void ActivateStream(SpdyStream* stream);
   void DeactivateStream(spdy::SpdyStreamId id);
 
+  // Removes this session from the session pool.
+  void RemoveFromPool();
+
   // Check if we have a pending pushed-stream for this url
   // Returns the stream if found (and returns it from the pending
   // list), returns NULL otherwise.
@@ -239,6 +242,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   int streams_pushed_count_;
   int streams_pushed_and_claimed_count_;
   int streams_abandoned_count_;
+
+  bool in_session_pool_;  // True if the session is currently in the pool.
 
   static bool use_ssl_;
 };
