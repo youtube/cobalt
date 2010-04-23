@@ -152,6 +152,7 @@ VideoFrame::VideoFrame(VideoFrame::Format format,
   width_ = width;
   height_ = height;
   planes_ = 0;
+  repeat_count_ = 0;
   memset(&strides_, 0, sizeof(strides_));
   memset(&data_, 0, sizeof(data_));
 }
