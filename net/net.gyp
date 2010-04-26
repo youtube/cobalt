@@ -718,6 +718,7 @@
         'spdy/spdy_protocol_test.cc',
         'spdy/spdy_session_unittest.cc',
         'spdy/spdy_stream_unittest.cc',
+        'spdy/spdy_test_util.h',
         'url_request/url_request_unittest.cc',
         'url_request/url_request_unittest.h',
         'websockets/websocket_handshake_draft75_unittest.cc',
