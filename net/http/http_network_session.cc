@@ -12,7 +12,7 @@
 namespace net {
 
 // static
-int HttpNetworkSession::max_sockets_ = 100;
+int HttpNetworkSession::max_sockets_ = 256;
 
 // static
 int HttpNetworkSession::max_sockets_per_group_ = 6;
