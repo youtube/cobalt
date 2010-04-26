@@ -256,10 +256,6 @@ MockSSLClientSocket::~MockSSLClientSocket() {
   Disconnect();
 }
 
-void MockSSLClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
-  ssl_info->Reset();
-}
-
 int MockSSLClientSocket::Connect(net::CompletionCallback* callback) {
   ConnectCallback* connect_callback = new ConnectCallback(
       this, callback, data_->connect.result);
@@ -291,6 +287,16 @@ int MockSSLClientSocket::Read(net::IOBuffer* buf, int buf_len,
 int MockSSLClientSocket::Write(net::IOBuffer* buf, int buf_len,
                                net::CompletionCallback* callback) {
   return transport_->Write(buf, buf_len, callback);
+}
+
+void MockSSLClientSocket::GetSSLInfo(net::SSLInfo* ssl_info) {
+  ssl_info->Reset();
+}
+
+SSLClientSocket::NextProtoStatus MockSSLClientSocket::GetNextProto(
+    std::string* proto) {
+  *proto = data_->next_proto;
+  return data_->next_proto_status;
 }
 
 MockRead StaticSocketDataProvider::GetNextRead() {
@@ -384,6 +390,51 @@ void DynamicSocketDataProvider::SimulateRead(const char* data) {
     EXPECT_TRUE(reads_.empty()) << "Unconsumed read: " << reads_.front().data;
   }
   reads_.push_back(MockRead(data));
+}
+
+DelayedSocketData::DelayedSocketData(
+    int write_delay, MockRead* reads, size_t reads_count,
+    MockWrite* writes, size_t writes_count)
+    : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
+      write_delay_(write_delay),
+      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
+  DCHECK_GE(write_delay_, 0);
+}
+
+DelayedSocketData::DelayedSocketData(
+    const MockConnect& connect, int write_delay, MockRead* reads,
+    size_t reads_count, MockWrite* writes, size_t writes_count)
+    : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
+      write_delay_(write_delay),
+      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
+  DCHECK_GE(write_delay_, 0);
+  set_connect_data(connect);
+}
+
+MockRead DelayedSocketData::GetNextRead() {
+  if (write_delay_)
+    return MockRead(true, ERR_IO_PENDING);
+  return StaticSocketDataProvider::GetNextRead();
+}
+
+MockWriteResult DelayedSocketData::OnWrite(const std::string& data) {
+  MockWriteResult rv = StaticSocketDataProvider::OnWrite(data);
+  // Now that our write has completed, we can allow reads to continue.
+  if (!--write_delay_)
+    MessageLoop::current()->PostDelayedTask(FROM_HERE,
+      factory_.NewRunnableMethod(&DelayedSocketData::CompleteRead), 100);
+  return rv;
+}
+
+void DelayedSocketData::Reset() {
+  set_socket(NULL);
+  factory_.RevokeAll();
+  StaticSocketDataProvider::Reset();
+}
+
+void DelayedSocketData::CompleteRead() {
+  if (socket())
+    socket()->OnReadComplete(GetNextRead());
 }
 
 void MockClientSocketFactory::AddSocketDataProvider(
