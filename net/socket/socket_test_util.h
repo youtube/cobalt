@@ -229,9 +229,51 @@ class DynamicSocketDataProvider : public SocketDataProvider {
 // SSLSocketDataProviders only need to keep track of the return code from calls
 // to Connect().
 struct SSLSocketDataProvider {
-  SSLSocketDataProvider(bool async, int result) : connect(async, result) { }
+  SSLSocketDataProvider(bool async, int result)
+      : connect(async, result),
+        next_proto_status(SSLClientSocket::kNextProtoUnsupported) { }
 
   MockConnect connect;
+  SSLClientSocket::NextProtoStatus next_proto_status;
+  std::string next_proto;
+};
+
+// A DataProvider where the client must write a request before the reads (e.g.
+// the response) will complete.
+class DelayedSocketData : public StaticSocketDataProvider,
+                          public base::RefCounted<DelayedSocketData> {
+ public:
+  // |write_delay| the number of MockWrites to complete before allowing
+  //               a MockRead to complete.
+  // |reads| the list of MockRead completions.
+  // |writes| the list of MockWrite completions.
+  // Note: All MockReads and MockWrites must be async.
+  // Note: The MockRead and MockWrite lists musts end with a EOF
+  //       e.g. a MockRead(true, 0, 0);
+  DelayedSocketData(int write_delay,
+                    MockRead* reads, size_t reads_count,
+                    MockWrite* writes, size_t writes_count);
+
+  // |connect| the result for the connect phase.
+  // |reads| the list of MockRead completions.
+  // |write_delay| the number of MockWrites to complete before allowing
+  //               a MockRead to complete.
+  // |writes| the list of MockWrite completions.
+  // Note: All MockReads and MockWrites must be async.
+  // Note: The MockRead and MockWrite lists musts end with a EOF
+  //       e.g. a MockRead(true, 0, 0);
+  DelayedSocketData(const MockConnect& connect, int write_delay,
+                    MockRead* reads, size_t reads_count,
+                    MockWrite* writes, size_t writes_count);
+
+  virtual MockRead GetNextRead();
+  virtual MockWriteResult OnWrite(const std::string& data);
+  virtual void Reset();
+  void CompleteRead();
+
+ private:
+  int write_delay_;
+  ScopedRunnableMethodFactory<DelayedSocketData> factory_;
 };
 
 // Holds an array of SocketDataProvider elements.  As Mock{TCP,SSL}ClientSocket
@@ -401,8 +443,7 @@ class MockSSLClientSocket : public MockClientSocket {
       net::SSLSocketDataProvider* socket);
   ~MockSSLClientSocket();
 
-  virtual void GetSSLInfo(net::SSLInfo* ssl_info);
-
+  // ClientSocket methods:
   virtual int Connect(net::CompletionCallback* callback);
   virtual void Disconnect();
 
@@ -411,6 +452,10 @@ class MockSSLClientSocket : public MockClientSocket {
                    net::CompletionCallback* callback);
   virtual int Write(net::IOBuffer* buf, int buf_len,
                     net::CompletionCallback* callback);
+
+  // SSLClientSocket methods:
+  virtual void GetSSLInfo(net::SSLInfo* ssl_info);
+  virtual NextProtoStatus GetNextProto(std::string* proto);
 
   // This MockSocket does not implement the manual async IO feature.
   virtual void OnReadComplete(const MockRead& data) { NOTIMPLEMENTED(); }

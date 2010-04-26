@@ -20,6 +20,7 @@
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
+#include "net/spdy/spdy_test_util.h"
 #include "testing/platform_test.h"
 
 #define NET_TRACE(level, s)   DLOG(level) << s << __FUNCTION__ << "() "
@@ -192,107 +193,6 @@ void DumpMockRead(const MockRead& r) {
 }
 
 // ----------------------------------------------------------------------------
-
-static const unsigned char kGetSyn[] = {
-  0x80, 0x01, 0x00, 0x01,                                        // header
-  0x01, 0x00, 0x00, 0x49,                                        // FIN, len
-  0x00, 0x00, 0x00, 0x01,                                        // stream id
-  0x00, 0x00, 0x00, 0x00,                                        // associated
-  0xc0, 0x00, 0x00, 0x03,                                        // 3 headers
-  0x00, 0x06, 'm', 'e', 't', 'h', 'o', 'd',
-  0x00, 0x03, 'G', 'E', 'T',
-  0x00, 0x03, 'u', 'r', 'l',
-  0x00, 0x16, 'h', 't', 't', 'p', ':', '/', '/', 'w', 'w', 'w',
-              '.', 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o',
-              'm', '/',
-  0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-  0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
-};
-
-static const unsigned char kGetSynCompressed[] = {
-  0x80, 0x01, 0x00, 0x01, 0x01, 0x00, 0x00, 0x47,
-  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
-  0xc0, 0x00, 0x38, 0xea, 0xdf, 0xa2, 0x51, 0xb2,
-  0x62, 0x60, 0x66, 0x60, 0xcb, 0x05, 0xe6, 0xc3,
-  0xfc, 0x14, 0x06, 0x66, 0x77, 0xd7, 0x10, 0x06,
-  0x66, 0x90, 0xa0, 0x58, 0x46, 0x49, 0x49, 0x81,
-  0x95, 0xbe, 0x3e, 0x30, 0xe2, 0xf5, 0xd2, 0xf3,
-  0xf3, 0xd3, 0x73, 0x52, 0xf5, 0x92, 0xf3, 0x73,
-  0xf5, 0x19, 0xd8, 0xa1, 0x1a, 0x19, 0x38, 0x60,
-  0xe6, 0x01, 0x00, 0x00, 0x00, 0xff, 0xff
-};
-
-static const unsigned char kGetSynReply[] = {
-  0x80, 0x01, 0x00, 0x02,                                        // header
-  0x00, 0x00, 0x00, 0x45,
-  0x00, 0x00, 0x00, 0x01,
-  0x00, 0x00, 0x00, 0x04,                                        // 4 headers
-  0x00, 0x05, 'h', 'e', 'l', 'l', 'o',                           // "hello"
-  0x00, 0x03, 'b', 'y', 'e',                                     // "bye"
-  0x00, 0x06, 's', 't', 'a', 't', 'u', 's',                      // "status"
-  0x00, 0x03, '2', '0', '0',                                     // "200"
-  0x00, 0x03, 'u', 'r', 'l',                                     // "url"
-  0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',  // "/index...
-  0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',                 // "version"
-  0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',            // "HTTP/1.1"
-};
-
-static const unsigned char kGetBodyFrame[] = {
-  0x00, 0x00, 0x00, 0x01,                                        // header
-  0x01, 0x00, 0x00, 0x06,                                        // FIN, length
-  'h', 'e', 'l', 'l', 'o', '!',                                  // "hello"
-};
-
-static const unsigned char kPostSyn[] = {
-  0x80, 0x01, 0x00, 0x01,                                      // header
-  0x00, 0x00, 0x00, 0x4a,                                      // flags, len
-  0x00, 0x00, 0x00, 0x01,                                      // stream id
-  0x00, 0x00, 0x00, 0x00,                                      // associated
-  0xc0, 0x00, 0x00, 0x03,                                      // 4 headers
-  0x00, 0x06, 'm', 'e', 't', 'h', 'o', 'd',
-  0x00, 0x04, 'P', 'O', 'S', 'T',
-  0x00, 0x03, 'u', 'r', 'l',
-  0x00, 0x16, 'h', 't', 't', 'p', ':', '/', '/', 'w', 'w', 'w',
-              '.', 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o',
-              'm', '/',
-  0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-  0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
-};
-
-static const unsigned char kPostUploadFrame[] = {
-  0x00, 0x00, 0x00, 0x01,                                        // header
-  0x01, 0x00, 0x00, 0x0c,                                        // FIN flag
-  'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '\0'
-};
-
-// The response
-static const unsigned char kPostSynReply[] = {
-  0x80, 0x01, 0x00, 0x02,                                        // header
-  0x00, 0x00, 0x00, 0x45,
-  0x00, 0x00, 0x00, 0x01,
-  0x00, 0x00, 0x00, 0x04,                                        // 4 headers
-  0x00, 0x05, 'h', 'e', 'l', 'l', 'o',                           // "hello"
-  0x00, 0x03, 'b', 'y', 'e',                                     // "bye"
-  0x00, 0x06, 's', 't', 'a', 't', 'u', 's',                      // "status"
-  0x00, 0x03, '2', '0', '0',                                     // "200"
-  0x00, 0x03, 'u', 'r', 'l',                                     // "url"
-  // "/index.php"
-  0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
-  0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',                 // "version"
-  0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',            // "HTTP/1.1"
-};
-
-static const unsigned char kPostBodyFrame[] = {
-  0x00, 0x00, 0x00, 0x01,                                        // header
-  0x01, 0x00, 0x00, 0x06,                                        // FIN, length
-  'h', 'e', 'l', 'l', 'o', '!',                                  // "hello"
-};
-
-static const unsigned char kGoAway[] = {
-  0x80, 0x01, 0x00, 0x07,  // header
-  0x00, 0x00, 0x00, 0x04,  // flags, len
-  0x00, 0x00, 0x00, 0x00,  // last-accepted-stream-id
-};
 
 // Adds headers and values to a map.
 // |extra_headers| is an array of { name, value } pairs, arranged as strings
@@ -593,76 +493,6 @@ spdy::SpdyFrame* ConstructSpdyGet(const char* const extra_headers[],
 }
 
 }  // namespace
-
-// A DataProvider where the client must write a request before the reads (e.g.
-// the response) will complete.
-class DelayedSocketData : public StaticSocketDataProvider,
-                          public base::RefCounted<DelayedSocketData> {
- public:
-  // |write_delay| the number of MockWrites to complete before allowing
-  //               a MockRead to complete.
-  // |reads| the list of MockRead completions.
-  // |writes| the list of MockWrite completions.
-  // Note: All MockReads and MockWrites must be async.
-  // Note: The MockRead and MockWrite lists musts end with a EOF
-  //       e.g. a MockRead(true, 0, 0);
-  DelayedSocketData(int write_delay,
-                    MockRead* reads, size_t reads_count,
-                    MockWrite* writes, size_t writes_count)
-      : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
-        write_delay_(write_delay),
-        ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
-    DCHECK_GE(write_delay_, 0);
-  }
-
-  // |connect| the result for the connect phase.
-  // |reads| the list of MockRead completions.
-  // |write_delay| the number of MockWrites to complete before allowing
-  //               a MockRead to complete.
-  // |writes| the list of MockWrite completions.
-  // Note: All MockReads and MockWrites must be async.
-  // Note: The MockRead and MockWrite lists musts end with a EOF
-  //       e.g. a MockRead(true, 0, 0);
-  DelayedSocketData(const MockConnect& connect, int write_delay,
-                    MockRead* reads, size_t reads_count,
-                    MockWrite* writes, size_t writes_count)
-      : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
-        write_delay_(write_delay),
-        ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
-    DCHECK_GE(write_delay_, 0);
-    set_connect_data(connect);
-  }
-
-  virtual MockRead GetNextRead() {
-    if (write_delay_)
-      return MockRead(true, ERR_IO_PENDING);
-    return StaticSocketDataProvider::GetNextRead();
-  }
-
-  virtual MockWriteResult OnWrite(const std::string& data) {
-    MockWriteResult rv = StaticSocketDataProvider::OnWrite(data);
-    // Now that our write has completed, we can allow reads to continue.
-    if (!--write_delay_)
-      MessageLoop::current()->PostDelayedTask(FROM_HERE,
-        factory_.NewRunnableMethod(&DelayedSocketData::CompleteRead), 100);
-    return rv;
-  }
-
-  virtual void Reset() {
-    set_socket(NULL);
-    factory_.RevokeAll();
-    StaticSocketDataProvider::Reset();
-  }
-
-  void CompleteRead() {
-    if (socket())
-      socket()->OnReadComplete(GetNextRead());
-  }
-
- private:
-  int write_delay_;
-  ScopedRunnableMethodFactory<DelayedSocketData> factory_;
-};
 
 // A DataProvider where the reads are ordered.
 // If a read is requested before its sequence number is reached, we return an

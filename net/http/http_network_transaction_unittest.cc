@@ -16,7 +16,6 @@
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/upload_data.h"
-#include "net/spdy/spdy_session_pool.h"
 #include "net/http/http_auth_handler_ntlm.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
@@ -27,6 +26,10 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/spdy/spdy_framer.h"
+#include "net/spdy/spdy_session.h"
+#include "net/spdy/spdy_session_pool.h"
+#include "net/spdy/spdy_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 
@@ -80,7 +83,12 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
 
 class HttpNetworkTransactionTest : public PlatformTest {
  public:
+  virtual void SetUp() {
+    spdy::SpdyFramer::set_enable_compression_default(false);
+  }
+
   virtual void TearDown() {
+    spdy::SpdyFramer::set_enable_compression_default(true);
     // Empty the current queue.
     MessageLoop::current()->RunAllPending();
     PlatformTest::TearDown();
@@ -3674,7 +3682,12 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
     {
       "",  // no proxy (direct)
       "http://www.google.com/direct",
-      "http://www.google.com/",
+      "www.google.com:80",
+    },
+    {
+      "",  // no proxy (direct)
+      "http://[2001:1418:13:1::25]/direct",
+      "[2001:1418:13:1::25]:80",
     },
     {
       "http_proxy",
@@ -3684,32 +3697,57 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
     {
       "socks4://socks_proxy:1080",
       "http://www.google.com/socks4_direct",
-      "proxy/socks4://socks_proxy:1080/http://www.google.com/",
+      "proxy/socks4://socks_proxy:1080/www.google.com:80",
     },
 
     // SSL Tests
     {
       "",
       "https://www.google.com/direct_ssl",
-      "https://www.google.com/",
+      "www.google.com:443",
     },
     {
       "http_proxy",
       "https://www.google.com/http_connect_ssl",
-      "proxy/http_proxy:80/https://www.google.com/",
+      "proxy/http_proxy:80/www.google.com:443",
     },
     {
       "socks4://socks_proxy:1080",
       "https://www.google.com/socks4_ssl",
-      "proxy/socks4://socks_proxy:1080/https://www.google.com/",
+      "proxy/socks4://socks_proxy:1080/www.google.com:443",
     },
+    {
+      "",  // no proxy (direct)
+      "http://host.with.alternate/direct",
+      "host.with.alternate:443",
+    },
+
+    // TODO(willchan): Uncomment these tests when they work.
+//    {
+//      "http_proxy",
+//      "http://host.with.alternate/direct",
+//      "proxy/http_proxy:80/host.with.alternate:443",
+//    },
+//    {
+//      "socks4://socks_proxy:1080",
+//      "http://host.with.alternate/direct",
+//      "proxy/socks4://socks_proxy:1080/host.with.alternate:443",
+//    },
   };
+
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     SessionDependencies session_deps(
         CreateFixedProxyService(tests[i].proxy_server));
 
     scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+    HttpAlternateProtocols* alternate_protocols =
+        session->mutable_alternate_protocols();
+    alternate_protocols->SetAlternateProtocolFor(
+        HostPortPair("host.with.alternate", 80), 443,
+        HttpAlternateProtocols::NPN_SPDY_1);
 
     scoped_refptr<CaptureGroupNameTCPSocketPool> tcp_conn_pool(
         new CaptureGroupNameTCPSocketPool(session.get(),
@@ -3735,6 +3773,8 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
                             socks_conn_pool->last_group_name_received();
     EXPECT_EQ(tests[i].expected_group_name, allgroups);
   }
+
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
 
 TEST_F(HttpNetworkTransactionTest, ReconsiderProxyAfterFailedConnection) {
@@ -4641,6 +4681,8 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 
 TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpNetworkTransaction::SetNextProtos(
+          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -4690,6 +4732,183 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
   std::string response_data;
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello world", response_data);
+  HttpNetworkTransaction::SetNextProtos("");
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpNetworkTransaction::SetNextProtos(
+          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+  SessionDependencies session_deps;
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+
+  StaticSocketDataProvider first_transaction(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&first_transaction);
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/1";
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  MockWrite spdy_writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  MockRead spdy_reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply)),
+    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
+             arraysize(kGetBodyFrame)),
+    MockRead(true, 0, 0),
+  };
+
+  scoped_refptr<DelayedSocketData> spdy_data(
+      new DelayedSocketData(
+          1,  // wait for one write to finish before reading.
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  TestCompletionCallback callback;
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello world", response_data);
+
+  trans.reset(new HttpNetworkTransaction(session));
+
+  rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello!", response_data);
+
+  HttpNetworkTransaction::SetNextProtos("");
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest,
+       UseAlternateProtocolForNpnSpdyWithExistingSpdySession) {
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpNetworkTransaction::SetNextProtos(
+          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+  SessionDependencies session_deps;
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+
+  StaticSocketDataProvider first_transaction(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&first_transaction);
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/1";
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  MockWrite spdy_writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  MockRead spdy_reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply)),
+    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
+             arraysize(kGetBodyFrame)),
+    MockRead(true, 0, 0),
+  };
+
+  scoped_refptr<DelayedSocketData> spdy_data(
+      new DelayedSocketData(
+          1,  // wait for one write to finish before reading.
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  TestCompletionCallback callback;
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello world", response_data);
+
+  // Set up an initial SpdySession in the pool to reuse.
+  scoped_refptr<SpdySession> spdy_session =
+      session->spdy_session_pool()->Get(HostPortPair("www.google.com", 443),
+                                        session);
+  TCPSocketParams tcp_params("www.google.com", 443, MEDIUM, GURL(), false);
+  spdy_session->Connect(
+      "www.google.com:443", tcp_params, MEDIUM, BoundNetLog());
+
+  trans.reset(new HttpNetworkTransaction(session));
+
+  rv = trans->Start(&request, &callback, NULL);
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello!", response_data);
+
+  HttpNetworkTransaction::SetNextProtos("");
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
 
