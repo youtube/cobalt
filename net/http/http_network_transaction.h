@@ -369,6 +369,12 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   // The next state in the state machine.
   State next_state_;
+
+  // The hostname and port of the peer.  This is not necessarily the one
+  // specified by the URL, due to Alternate-Protocol or proxies.
+  HostPortPair peer_;
+
+  DISALLOW_COPY_AND_ASSIGN(HttpNetworkTransaction);
 };
 
 }  // namespace net
