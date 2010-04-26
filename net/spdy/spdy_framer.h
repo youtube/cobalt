@@ -25,6 +25,7 @@ typedef struct z_stream_s z_stream;  // Forward declaration for zlib.
 
 namespace net {
 class HttpNetworkLayer;
+class HttpNetworkTransactionTest;
 class SpdyNetworkTransactionTest;
 }
 
@@ -237,6 +238,7 @@ class SpdyFramer {
  protected:
   FRIEND_TEST(SpdyFramerTest, HeaderBlockBarfsOnOutOfOrderHeaders);
   friend class net::SpdyNetworkTransactionTest;
+  friend class net::HttpNetworkTransactionTest;
   friend class net::HttpNetworkLayer;  // This is temporary for the server.
   friend class test::TestSpdyVisitor;
   friend void test::FramerSetEnableCompressionHelper(SpdyFramer* framer,
@@ -292,4 +294,3 @@ class SpdyFramer {
 }  // namespace spdy
 
 #endif  // NET_SPDY_SPDY_FRAMER_H_
-
