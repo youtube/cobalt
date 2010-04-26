@@ -48,7 +48,24 @@
             'host_arch%': 'ia32',
           }],
         ],
+
+        # Whether we're building a ChromeOS build.  We set the initial
+        # value at this level of nesting so it's available for the
+        # toolkit_views test below.
+        'chromeos%': '0',
       },
+
+      # Set default value of toolkit_views on for Windows and Chrome OS.
+      # We set it at this level of nesting so the value is available for
+      # other conditionals below.
+      'conditions': [
+        ['OS=="win" or chromeos==1', {
+          'toolkit_views%': 1,
+        }, {
+          'toolkit_views%': 0,
+        }],
+      ],
+
       'host_arch%': '<(host_arch)',
 
       # Default architecture we're building for is the architecture we're
@@ -62,13 +79,8 @@
       'linux_chromium_dump_symbols%': 0,
       # Also see linux_strip_binary below.
 
-      # By default, Linux does not use views. To turn on views in Linux,
-      # set the variable GYP_DEFINES to "toolkit_views=1", or modify
-      # ~/.gyp/include.gypi .
-      'toolkit_views%': 0,
-
-      # Defaults to a desktop build, overridden via command line/env.
-      'chromeos%': 0,
+      # Copy conditionally-set chromeos variable out one scope.
+      'chromeos%': '<(chromeos)',
 
       # This variable tells WebCore.gyp and JavaScriptCore.gyp whether they are
       # are built under a chromium full build (1) or a webkit.org chromium
