@@ -740,6 +740,8 @@ std::wstring FormatViewSourceUrl(const GURL& url,
   const wchar_t* const kWideViewSource = L"view-source:";
   const size_t kViewSourceLengthPlus1 = 12;
 
+  // 'view-source' requires http, so don't strip it.
+  format_types &= ~net::kFormatUrlOmitHTTP;
   GURL real_url(url.possibly_invalid_spec().substr(kViewSourceLengthPlus1));
   size_t temp_offset = (*offset_for_adjustment == std::wstring::npos) ?
       std::wstring::npos : (*offset_for_adjustment - kViewSourceLengthPlus1);
