@@ -167,7 +167,7 @@ class HostResolverImpl::RequestsTrace
                                  base::TimeTicks::Now(),
                                  NetLog::Source(),
                                  NetLog::PHASE_NONE,
-                                 new NetLogStringParameter(msg));
+                                 new NetLogStringParameter("todo", msg));
     AutoLock l(lock_);
     entries_.push_back(entry);
   }
