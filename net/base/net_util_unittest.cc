@@ -1375,6 +1375,12 @@ TEST(NetUtilTest, FormatUrl) {
      default_format_type, UnescapeRule::NORMAL,
      L"view-source:view-source:http://xn--qcka1pmc.jp/", 12},
 
+    // view-source should not omit http.
+    {"view-source omit http",
+     "view-source:http://a.b/c", L"en", net::kFormatUrlOmitAll,
+     UnescapeRule::NORMAL, L"view-source:http://a.b/c",
+     19},
+
     // -------- omit http: --------
     {"omit http with user name",
      "http://user@example.com/foo", L"", net::kFormatUrlOmitAll,
