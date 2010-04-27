@@ -37,6 +37,7 @@
         '../third_party/ots/ots.gyp:*',
         '../third_party/sqlite/sqlite.gyp:*',
         '../third_party/WebKit/WebKit/chromium/WebKit.gyp:*',
+        '../third_party/WebKit/WebKitTools/DumpRenderTree/DumpRenderTree.gyp/DumpRenderTree.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
         '../webkit/webkit.gyp:*',
         'util/build_util.gyp:*',
