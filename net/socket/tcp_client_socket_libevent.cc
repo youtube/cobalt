@@ -277,7 +277,8 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
   int nread = HANDLE_EINTR(read(socket_, buf->data(), buf_len));
   if (nread >= 0) {
     TRACE_EVENT_END("socket.read", this, StringPrintf("%d bytes", nread));
-    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED, nread);
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
+                                 "num_bytes", nread);
     return nread;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK) {
@@ -312,7 +313,8 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
   int nwrite = HANDLE_EINTR(write(socket_, buf->data(), buf_len));
   if (nwrite >= 0) {
     TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", nwrite));
-    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT, nwrite);
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT,
+                                 "num_bytes", nwrite);
     return nwrite;
   }
   if (errno != EAGAIN && errno != EWOULDBLOCK)
@@ -432,7 +434,8 @@ void TCPClientSocketLibevent::DidCompleteRead() {
     TRACE_EVENT_END("socket.read", this,
                     StringPrintf("%d bytes", bytes_transferred));
     result = bytes_transferred;
-    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED, result);
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
+                                 "num_bytes", result);
   } else {
     result = MapPosixError(errno);
   }
@@ -456,7 +459,8 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
     result = bytes_transferred;
     TRACE_EVENT_END("socket.write", this,
                     StringPrintf("%d bytes", bytes_transferred));
-    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT, result);
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT,
+                                 "num_bytes", result);
   } else {
     result = MapPosixError(errno);
   }

@@ -17,26 +17,6 @@
 
 namespace net {
 
-namespace {
-
-// Returns a string description of |socks_error|, or NULL if |socks_error| is
-// not a valid SOCKS reply.
-const char* MapSOCKSReplyToErrorString(char socks_error) {
-  switch(socks_error) {
-    case 1: return "(1) General SOCKS server failure";
-    case 2: return "(2) Connection not allowed by ruleset";
-    case 3: return "(3) Network unreachable";
-    case 4: return "(4) Host unreachable";
-    case 5: return "(5) Connection refused";
-    case 6: return "(6) TTL expired";
-    case 7: return "(7) Command not supported";
-    case 8: return "(8) Address type not supported";
-    default: return NULL;
-  }
-}
-
-}  // namespace
-
 const unsigned int SOCKS5ClientSocket::kGreetReadHeaderSize = 2;
 const unsigned int SOCKS5ClientSocket::kWriteHeaderSize = 10;
 const unsigned int SOCKS5ClientSocket::kReadHeaderSize = 5;
@@ -236,8 +216,7 @@ int SOCKS5ClientSocket::DoGreetWrite() {
   // Since we only have 1 byte to send the hostname length in, if the
   // URL has a hostname longer than 255 characters we can't send it.
   if (0xFF < host_request_info_.hostname().size()) {
-    net_log_.AddStringLiteral("Failed sending request because hostname is "
-        "longer than 255 characters");
+    net_log_.AddEvent(NetLog::TYPE_SOCKS_HOSTNAME_TOO_BIG);
     return ERR_SOCKS_CONNECTION_FAILED;
   }
 
@@ -284,8 +263,7 @@ int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
     return result;
 
   if (result == 0) {
-    net_log_.AddStringLiteral(
-        "Connection unexpected closed while reading greeting.");
+    net_log_.AddEvent(NetLog::TYPE_SOCKS_UNEXPECTEDLY_CLOSED_DURING_GREETING);
     return ERR_SOCKS_CONNECTION_FAILED;
   }
 
@@ -298,15 +276,13 @@ int SOCKS5ClientSocket::DoGreetReadComplete(int result) {
 
   // Got the greet data.
   if (buffer_[0] != kSOCKS5Version) {
-    net_log_.AddStringLiteral("Unexpected SOCKS version");
-    net_log_.AddString(StringPrintf(
-        "buffer_[0] = 0x%x", static_cast<int>(buffer_[0])));
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKS_UNEXPECTED_VERSION,
+                                 "version", buffer_[0]);
     return ERR_SOCKS_CONNECTION_FAILED;
   }
   if (buffer_[1] != 0x00) {
-    net_log_.AddStringLiteral("Unexpected authentication method");
-    net_log_.AddString(StringPrintf(
-        "buffer_[1] = 0x%x", static_cast<int>(buffer_[1])));
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKS_UNEXPECTED_AUTH,
+                                 "method", buffer_[1]);
     return ERR_SOCKS_CONNECTION_FAILED;
   }
 
@@ -397,8 +373,7 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
 
   // The underlying socket closed unexpectedly.
   if (result == 0) {
-    net_log_.AddStringLiteral(
-        "Connection unexpected closed while reading handshake.");
+    net_log_.AddEvent(NetLog::TYPE_SOCKS_UNEXPECTEDLY_CLOSED_DURING_HANDSHAKE);
     return ERR_SOCKS_CONNECTION_FAILED;
   }
 
@@ -409,22 +384,13 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
   // and accordingly increase them
   if (bytes_received_ == kReadHeaderSize) {
     if (buffer_[0] != kSOCKS5Version || buffer_[2] != kNullByte) {
-      net_log_.AddStringLiteral("Unexpected SOCKS version.");
-      net_log_.AddString(StringPrintf(
-          "buffer_[0] = 0x%x; buffer_[2] = 0x%x",
-          static_cast<int>(buffer_[0]),
-          static_cast<int>(buffer_[2])));
+      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKS_UNEXPECTED_VERSION,
+                                   "version", buffer_[0]);
       return ERR_SOCKS_CONNECTION_FAILED;
     }
     if (buffer_[1] != 0x00) {
-      net_log_.AddStringLiteral("SOCKS server returned a failure code:");
-      const char* error_string = MapSOCKSReplyToErrorString(buffer_[1]);
-      if (error_string) {
-        net_log_.AddStringLiteral(error_string);
-      } else {
-        net_log_.AddString(StringPrintf(
-            "buffer_[1] = 0x%x", static_cast<int>(buffer_[1])));
-      }
+      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKS_SERVER_ERROR,
+                                   "error_code", buffer_[1]);
       return ERR_SOCKS_CONNECTION_FAILED;
     }
 
@@ -442,9 +408,8 @@ int SOCKS5ClientSocket::DoHandshakeReadComplete(int result) {
     else if (address_type == kEndPointResolvedIPv6)
       read_header_size += sizeof(struct in6_addr) - 1;
     else {
-      net_log_.AddStringLiteral("Unknown address type in response");
-      net_log_.AddString(StringPrintf(
-          "buffer_[3] = 0x%x", static_cast<int>(buffer_[3])));
+      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKS_UNKNOWN_ADDRESS_TYPE,
+                                   "address_type", buffer_[3]);
       return ERR_SOCKS_CONNECTION_FAILED;
     }
 
