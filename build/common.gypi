@@ -268,7 +268,7 @@
           }, {
             'linux_dump_symbols%': 0,
           }],
-          ['toolkit_views==0 and chromeos==0', {
+          ['toolkit_views==0', {
             # GTK wants Title Case strings
             'use_titlecase_in_grd_files%': 1,
           }],
@@ -388,7 +388,7 @@
       }, {  # else: branding!="Chrome"
         'defines': ['CHROMIUM_BUILD'],
       }],
-      ['toolkit_views==1 or chromeos==1', {
+      ['toolkit_views==1', {
         'defines': ['TOOLKIT_VIEWS=1'],
       }],
       ['chromeos==1', {
@@ -545,7 +545,7 @@
           ['chromeos!=1', {
             'sources/': [ ['exclude', '_chromeos\\.cc$'] ]
           }],
-          ['OS!="win" and (toolkit_views==0 and chromeos==0)', {
+          ['toolkit_views==0', {
             'sources/': [ ['exclude', '_views\\.cc$'] ]
           }],
         ],
@@ -923,7 +923,7 @@
                   '-mfpmath=sse',
                 ],
               }],
-              # ChromeOS targets Pinetrail, which is ssse3, but most of the
+              # ChromeOS targets Pinetrail, which is sse3, but most of the
               # benefit comes from sse2 so this setting allows ChromeOS
               # to build on other CPUs.  In the future -march=atom would help
               # but requires a newer compiler.
