@@ -1,10 +1,11 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "base/logging.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
+#include "media/base/data_buffer.h"
 #include "media/base/seekable_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -47,16 +48,22 @@ TEST_F(SeekableBufferTest, RandomReadWrite) {
     // Write a random amount of data.
     size_t write_size = GetRandomInt(kBufferSize);
     write_size = std::min(write_size, kDataSize - write_position);
-    bool should_append = buffer_.Append(write_size, data_ + write_position);
+    bool should_append = buffer_.Append(data_ + write_position, write_size);
     write_position += write_size;
     EXPECT_GE(write_position, read_position);
     EXPECT_EQ(write_position - read_position, buffer_.forward_bytes());
     EXPECT_EQ(should_append, buffer_.forward_bytes() < kBufferSize)
         << "Incorrect buffer full reported";
 
+    // Peek a random amount of data.
+    size_t copy_size = GetRandomInt(kBufferSize);
+    size_t bytes_copied = buffer_.Peek(write_buffer_, copy_size);
+    EXPECT_GE(copy_size, bytes_copied);
+    EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, bytes_copied));
+
     // Read a random amount of data.
     size_t read_size = GetRandomInt(kBufferSize);
-    size_t bytes_read = buffer_.Read(read_size, write_buffer_);
+    size_t bytes_read = buffer_.Read(write_buffer_, read_size);
     EXPECT_GE(read_size, bytes_read);
     EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, bytes_read));
     read_position += bytes_read;
@@ -71,7 +78,7 @@ TEST_F(SeekableBufferTest, ReadWriteSeek) {
   for (int i = 0; i < 10; ++i) {
     // Write until buffer is full.
     for (size_t j = 0; j < kBufferSize; j += kWriteSize) {
-      bool should_append = buffer_.Append(kWriteSize, data_ + j);
+      bool should_append = buffer_.Append(data_ + j, kWriteSize);
       EXPECT_EQ(j < kBufferSize - kWriteSize, should_append)
           << "Incorrect buffer full reported";
       EXPECT_EQ(j + kWriteSize, buffer_.forward_bytes());
@@ -83,7 +90,7 @@ TEST_F(SeekableBufferTest, ReadWriteSeek) {
     size_t forward_bytes = kBufferSize;
     for (size_t j = 0; j < kBufferSize; j += kWriteSize) {
       // Read.
-      EXPECT_EQ(kReadSize, buffer_.Read(kReadSize, write_buffer_));
+      EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
       forward_bytes -= kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
       EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
@@ -95,8 +102,13 @@ TEST_F(SeekableBufferTest, ReadWriteSeek) {
       read_position += 2 * kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
 
+      // Copy.
+      EXPECT_EQ(kReadSize, buffer_.Peek(write_buffer_, kReadSize));
+      EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
+      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+
       // Read.
-      EXPECT_EQ(kReadSize, buffer_.Read(kReadSize, write_buffer_));
+      EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
       forward_bytes -= kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
       EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
@@ -108,15 +120,25 @@ TEST_F(SeekableBufferTest, ReadWriteSeek) {
       read_position -= 3 * kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
 
+      // Copy.
+      EXPECT_EQ(kReadSize, buffer_.Peek(write_buffer_, kReadSize));
+      EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
+      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+
       // Read.
-      EXPECT_EQ(kReadSize, buffer_.Read(kReadSize, write_buffer_));
+      EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
       forward_bytes -= kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
       EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
       read_position += kReadSize;
 
+      // Copy.
+      EXPECT_EQ(kReadSize, buffer_.Peek(write_buffer_, kReadSize));
+      EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
+      EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
+
       // Read.
-      EXPECT_EQ(kReadSize, buffer_.Read(kReadSize, write_buffer_));
+      EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
       forward_bytes -= kReadSize;
       EXPECT_EQ(forward_bytes, buffer_.forward_bytes());
       EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, kReadSize));
@@ -136,14 +158,14 @@ TEST_F(SeekableBufferTest, BufferFull) {
 
   // Write and expect the buffer to be not full.
   for (size_t i = 0; i < kBufferSize - kWriteSize; i += kWriteSize) {
-    EXPECT_TRUE(buffer_.Append(kWriteSize, data_ + i));
+    EXPECT_TRUE(buffer_.Append(data_ + i, kWriteSize));
     EXPECT_EQ(i + kWriteSize, buffer_.forward_bytes());
   }
 
   // Write until we have kMaxWriteSize bytes in the buffer. Buffer is full in
   // these writes.
   for (size_t i = buffer_.forward_bytes(); i < kMaxWriteSize; i += kWriteSize) {
-    EXPECT_FALSE(buffer_.Append(kWriteSize, data_ + i));
+    EXPECT_FALSE(buffer_.Append(data_ + i, kWriteSize));
     EXPECT_EQ(i + kWriteSize, buffer_.forward_bytes());
   }
 
@@ -153,7 +175,7 @@ TEST_F(SeekableBufferTest, BufferFull) {
     // Read a random amount of data.
     size_t read_size = GetRandomInt(kBufferSize);
     size_t forward_bytes = buffer_.forward_bytes();
-    size_t bytes_read = buffer_.Read(read_size, write_buffer_);
+    size_t bytes_read = buffer_.Read(write_buffer_, read_size);
     EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, bytes_read));
     if (read_size > forward_bytes)
       EXPECT_EQ(forward_bytes, bytes_read);
@@ -166,7 +188,7 @@ TEST_F(SeekableBufferTest, BufferFull) {
 
   // Expects we have no bytes left.
   EXPECT_EQ(0u, buffer_.forward_bytes());
-  EXPECT_EQ(0u, buffer_.Read(1, write_buffer_));
+  EXPECT_EQ(0u, buffer_.Read(write_buffer_, 1));
 }
 
 TEST_F(SeekableBufferTest, SeekBackward) {
@@ -180,12 +202,12 @@ TEST_F(SeekableBufferTest, SeekBackward) {
   // Write into buffer until it's full.
   for (size_t i = 0; i < kBufferSize; i += kWriteSize) {
     // Write a random amount of data.
-    buffer_.Append(kWriteSize, data_ + i);
+    buffer_.Append(data_ + i, kWriteSize);
   }
 
   // Read until buffer is empty.
   for (size_t i = 0; i < kBufferSize; i += kReadSize) {
-    EXPECT_EQ(kReadSize, buffer_.Read(kReadSize, write_buffer_));
+    EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
     EXPECT_EQ(0, memcmp(write_buffer_, data_ + i, kReadSize));
   }
 
@@ -195,7 +217,7 @@ TEST_F(SeekableBufferTest, SeekBackward) {
 
   // Read again.
   for (size_t i = 0; i < kBufferSize; i += kReadSize) {
-    EXPECT_EQ(kReadSize, buffer_.Read(kReadSize, write_buffer_));
+    EXPECT_EQ(kReadSize, buffer_.Read(write_buffer_, kReadSize));
     EXPECT_EQ(0, memcmp(write_buffer_, data_ + i, kReadSize));
   }
 }
@@ -209,7 +231,7 @@ TEST_F(SeekableBufferTest, SeekForward) {
       size_t write_size = GetRandomInt(kBufferSize);
       write_size = std::min(write_size, kDataSize - write_position);
 
-      bool should_append = buffer_.Append(write_size, data_ + write_position);
+      bool should_append = buffer_.Append(data_ + write_position, write_size);
       write_position += write_size;
       EXPECT_GE(write_position, read_position);
       EXPECT_EQ(write_position - read_position, buffer_.forward_bytes());
@@ -226,7 +248,7 @@ TEST_F(SeekableBufferTest, SeekForward) {
 
     // Read a random amount of data.
     size_t read_size = GetRandomInt(kBufferSize);
-    size_t bytes_read = buffer_.Read(read_size, write_buffer_);
+    size_t bytes_read = buffer_.Read(write_buffer_, read_size);
     EXPECT_GE(read_size, bytes_read);
     EXPECT_EQ(0, memcmp(write_buffer_, data_ + read_position, bytes_read));
     read_position += bytes_read;
@@ -236,13 +258,65 @@ TEST_F(SeekableBufferTest, SeekForward) {
 }
 
 TEST_F(SeekableBufferTest, AllMethods) {
-  EXPECT_EQ(0u, buffer_.Read(0, write_buffer_));
-  EXPECT_EQ(0u, buffer_.Read(1, write_buffer_));
+  EXPECT_EQ(0u, buffer_.Read(write_buffer_, 0));
+  EXPECT_EQ(0u, buffer_.Read(write_buffer_, 1));
   EXPECT_TRUE(buffer_.Seek(0));
   EXPECT_FALSE(buffer_.Seek(-1));
   EXPECT_FALSE(buffer_.Seek(1));
   EXPECT_EQ(0u, buffer_.forward_bytes());
   EXPECT_EQ(0u, buffer_.backward_bytes());
+}
+
+
+TEST_F(SeekableBufferTest, GetTime) {
+  const struct {
+    int64 first_time_useconds;
+    int64 duration_useconds;
+    size_t consume_bytes;
+    int64 expected_time;
+  } tests[] = {
+    // Timestamps of 0 are treated as garbage.
+    { 0, 1000000, 0, 0 },
+    { 0, 4000000, 0, 0 },
+    { 0, 8000000, 0, 0 },
+    { 0, 1000000, 4, 0 },
+    { 0, 4000000, 4, 0 },
+    { 0, 8000000, 4, 0 },
+    { 0, 1000000, kWriteSize, 0 },
+    { 0, 4000000, kWriteSize, 0 },
+    { 0, 8000000, kWriteSize, 0 },
+    { 5, 1000000, 0, 5 },
+    { 5, 4000000, 0, 5 },
+    { 5, 8000000, 0, 5 },
+    { 5, 1000000, kWriteSize / 2, 500005 },
+    { 5, 4000000, kWriteSize / 2, 2000005 },
+    { 5, 8000000, kWriteSize / 2, 4000005 },
+    { 5, 1000000, kWriteSize, 1000005 },
+    { 5, 4000000, kWriteSize, 4000005 },
+    { 5, 8000000, kWriteSize, 8000005 },
+  };
+
+  scoped_refptr<media::DataBuffer> buffer = new media::DataBuffer(kWriteSize);
+  memcpy(buffer->GetWritableData(), data_, kWriteSize);
+  buffer->SetDataSize(kWriteSize);
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    buffer->SetTimestamp(base::TimeDelta::FromMicroseconds(
+        tests[i].first_time_useconds));
+    buffer->SetDuration(base::TimeDelta::FromMicroseconds(
+        tests[i].duration_useconds));
+    buffer_.Append(buffer.get());
+    EXPECT_TRUE(buffer_.Seek(tests[i].consume_bytes));
+
+    int64 actual = buffer_.current_time().ToInternalValue();
+
+    EXPECT_EQ(tests[i].expected_time, actual) << "With test = { start:"
+        << tests[i].first_time_useconds << ", duration:"
+        << tests[i].duration_useconds << ", consumed:"
+        << tests[i].consume_bytes << "}\n";
+
+    buffer_.Clear();
+  }
 }
 
 }  // namespace
