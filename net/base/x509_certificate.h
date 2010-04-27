@@ -293,6 +293,12 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   OSCertHandles intermediate_ca_certs_;
 #endif
 
+#if defined(OS_MACOSX)
+  // Blocks multiple threads from verifying the cert simultaneously.
+  // (Marked mutable because it's used in a const method.)
+  mutable Lock verification_lock_;
+#endif
+
   // Where the certificate comes from.
   Source source_;
 
