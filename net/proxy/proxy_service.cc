@@ -469,14 +469,15 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
   if (result_code == OK) {
     // When full logging is enabled, dump the proxy list.
     if (net_log.HasListener()) {
-      net_log.AddString(
-          std::string("Resolved proxy list: ") + result->ToPacString());
+      net_log.AddEventWithString(
+          NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
+          "pac_string", result->ToPacString());
     }
     result->DeprioritizeBadProxies(proxy_retry_info_);
   } else {
-    net_log.AddString(StringPrintf(
-        "Got an error from proxy resolver (%d), falling-back to DIRECT.",
-        result_code));
+    net_log.AddEventWithInteger(
+        NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
+        "net_error", result_code);
 
     // Fall-back to direct when the proxy resolver fails. This corresponds
     // with a javascript runtime error in the PAC script.
