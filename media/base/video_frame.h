@@ -36,6 +36,12 @@ class VideoFrame : public StreamSample {
     EMPTY,       // An empty frame.
   };
 
+  enum BufferType {
+    TYPE_SYSTEM_MEMORY,
+    TYPE_OMX_BUFFER_HEAD,
+    TYPE_EGL_IMAGE,
+  };
+
  public:
   // Creates a new frame with given parameters. Buffers for the frame are
   // allocated but not initialized.
@@ -54,6 +60,8 @@ class VideoFrame : public StreamSample {
   // the YUV equivalent of RGB(0,0,0).
   static void CreateBlackFrame(int width, int height,
                                scoped_refptr<VideoFrame>* frame_out);
+
+  virtual BufferType type() const { return TYPE_SYSTEM_MEMORY; }
 
   Format format() const { return format_; }
 
@@ -80,7 +88,7 @@ class VideoFrame : public StreamSample {
     repeat_count_ = repeat_count;
   }
 
- private:
+ protected:
   // Clients must use the static CreateFrame() method to create a new frame.
   VideoFrame(Format format,
              size_t video_width,
