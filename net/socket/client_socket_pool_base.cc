@@ -298,9 +298,12 @@ void ClientSocketPoolBaseHelper::OnBackupSocketTimerFired(
 
   CHECK(group.backup_job);
 
-  // If our backup job is waiting on DNS, just reset the timer.
+  // If our backup job is waiting on DNS, or if we can't create any sockets
+  // right now due to limits, just reset the timer.
   CHECK(group.jobs.size());
-  if ((*group.jobs.begin())->GetLoadState() == LOAD_STATE_RESOLVING_HOST) {
+  if (ReachedMaxSocketsLimit() ||
+      !group.HasAvailableSocketSlot(max_sockets_per_group_) ||
+      (*group.jobs.begin())->GetLoadState() == LOAD_STATE_RESOLVING_HOST) {
     group.backup_job->net_log().EndEvent(
         NetLog::TYPE_SOCKET_BACKUP_TIMER_EXTENDED);
     StartBackupSocketTimer(group_name);
@@ -723,7 +726,10 @@ bool ClientSocketPoolBaseHelper::ReachedMaxSocketsLimit() const {
   // Each connecting socket will eventually connect and be handed out.
   int total = handed_out_socket_count_ + connecting_socket_count_;
   DCHECK_LE(total, max_sockets_);
-  return total == max_sockets_;
+  if (total < max_sockets_)
+    return false;
+  LOG(WARNING) << "ReachedMaxSocketsLimit: " << total << "/" << max_sockets_;
+  return true;
 }
 
 }  // namespace internal
