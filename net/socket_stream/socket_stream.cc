@@ -121,7 +121,7 @@ void SocketStream::Connect() {
   // back before returning Connect().
   next_state_ = STATE_RESOLVE_PROXY;
   net_log_.BeginEventWithString(NetLog::TYPE_SOCKET_STREAM_CONNECT,
-                                url_.possibly_invalid_spec());
+                                "url", url_.possibly_invalid_spec());
   MessageLoop::current()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &SocketStream::DoLoop, OK));
@@ -406,7 +406,8 @@ void SocketStream::DoLoop(int result) {
     // close the connection.
     if (state != STATE_READ_WRITE && result < ERR_IO_PENDING) {
       DCHECK_EQ(next_state_, STATE_CLOSE);
-      net_log_.EndEventWithInteger(NetLog::TYPE_SOCKET_STREAM_CONNECT, result);
+      net_log_.EndEventWithInteger(NetLog::TYPE_SOCKET_STREAM_CONNECT,
+                                   "net_error", result);
     }
   } while (result != ERR_IO_PENDING);
 }

@@ -477,7 +477,8 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
       base::MemoryDebug::MarkAsInitialized(core_->read_buffer_.buf, num);
       static StatsCounter read_bytes("tcp.read_bytes");
       read_bytes.Add(num);
-      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED, num);
+      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
+                                   "num_bytes", num);
       return static_cast<int>(num);
     }
   } else {
@@ -528,7 +529,8 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
       TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", rv));
       static StatsCounter write_bytes("tcp.write_bytes");
       write_bytes.Add(rv);
-      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT, rv);
+      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT,
+                                   "num_bytes", rv);
       return rv;
     }
   } else {
@@ -691,8 +693,10 @@ void TCPClientSocketWin::DidCompleteRead() {
   TRACE_EVENT_END("socket.read", this, StringPrintf("%d bytes", num_bytes));
   waiting_read_ = false;
   core_->read_iobuffer_ = NULL;
-  if (ok)
-    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED, num_bytes);
+  if (ok) {
+    net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
+                                 "num_bytes", num_bytes);
+  }
   DoReadCallback(ok ? num_bytes : MapWinsockError(WSAGetLastError()));
 }
 
@@ -718,7 +722,8 @@ void TCPClientSocketWin::DidCompleteWrite() {
                  << " bytes reported.";
       rv = ERR_WINSOCK_UNEXPECTED_WRITTEN_BYTES;
     } else {
-      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT, rv);
+      net_log_.AddEventWithInteger(NetLog::TYPE_SOCKET_BYTES_SENT,
+                                   "num_bytes", rv);
     }
   }
   core_->write_iobuffer_ = NULL;
