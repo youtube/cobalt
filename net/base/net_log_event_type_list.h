@@ -13,10 +13,8 @@
 // log context around it.)
 EVENT_TYPE(CANCELLED)
 
-// TODO(eroman): These are placeholders used by the deprecated
-// BoundNetLog::AddString() / BoundNetLog::AddStringLiteral().
+// TODO(eroman): remove the remaining consumers of this.
 EVENT_TYPE(TODO_STRING)
-EVENT_TYPE(TODO_STRING_LITERAL)
 
 // Marks the creation/destruction of a request (URLRequest or SocketStream).
 // In the begin phase of this event, the message will contain a string which
@@ -48,11 +46,34 @@ EVENT_TYPE(INIT_PROXY_RESOLVER)
 
 // The start/end of download of a PAC script. This could be the well-known
 // WPAD URL (if testing auto-detect), or a custom PAC URL.
+//
+// The START event has the parameters:
+//   {
+//     "url": <URL string of script being fetched>
+//   }
+//
+// If the fetch failed, then the END phase has these parameters:
+//   {
+//      "error_code": <Net error code integer>
+//   }
 EVENT_TYPE(INIT_PROXY_RESOLVER_FETCH_PAC_SCRIPT)
 
 // The start/end of the testing of a PAC script (trying to parse the fetched
 // file as javascript).
+//
+// If the parsing of the script failed, the END phase will have parameters:
+//   {
+//      "error_code": <Net error code integer>
+//   }
 EVENT_TYPE(INIT_PROXY_RESOLVER_SET_PAC_SCRIPT)
+
+// This event means that initialization failed because there was no
+// configured script fetcher. (This indicates a configuration error).
+EVENT_TYPE(INIT_PROXY_RESOLVER_HAS_NO_FETCHER)
+
+// This event is emitted after deciding to fall-back to the next PAC
+// script in the list.
+EVENT_TYPE(INIT_PROXY_RESOLVER_FALLING_BACK_TO_NEXT_PAC_URL)
 
 // ------------------------------------------------------------------------
 // ProxyService
@@ -68,6 +89,18 @@ EVENT_TYPE(PROXY_SERVICE_WAITING_FOR_INIT_PAC)
 
 // The time taken to fetch the system proxy configuration.
 EVENT_TYPE(PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES)
+
+// This event is emitted to show what the PAC script returned. It can contain
+// extra parameters that are either:
+//   {
+//      "pac_string": <List of valid proxy servers, in PAC format>
+//   }
+//
+//  Or if the the resolver failed:
+//   {
+//      "net_error": <Net error code that resolver failed with>
+//   }
+EVENT_TYPE(PROXY_SERVICE_RESOLVED_PROXY_LIST)
 
 // ------------------------------------------------------------------------
 // Proxy Resolver
@@ -105,13 +138,62 @@ EVENT_TYPE(SOCKS_CONNECT)
 // The start/end of a SOCKS5 connect().
 EVENT_TYPE(SOCKS5_CONNECT)
 
+// This event is emitted when the SOCKS connect fails because the provided
+// was longer than 255 characters.
+EVENT_TYPE(SOCKS_HOSTNAME_TOO_BIG)
+
+// These events are emitted when insufficient data was read while
+// trying to establish a connection to the SOCKS proxy server
+// (during the greeting phase or handshake phase, respectively).
+EVENT_TYPE(SOCKS_UNEXPECTEDLY_CLOSED_DURING_GREETING)
+EVENT_TYPE(SOCKS_UNEXPECTEDLY_CLOSED_DURING_HANDSHAKE)
+
+// This event indicates that a bad version number was received in the
+// proxy server's response. The extra parameters show its value:
+//   {
+//     "version": <Integer version number in the response>
+//   }
+EVENT_TYPE(SOCKS_UNEXPECTED_VERSION)
+
+// This event indicates that the SOCKS proxy server returned an error while
+// trying to create a connection. The following parameters will be attached
+// to the event:
+//   {
+//     "error_code": <Integer error code returned by the server>
+//   }
+EVENT_TYPE(SOCKS_SERVER_ERROR)
+
+// This event indicates that the SOCKS proxy server asked for an authentication
+// method that we don't support. The following parameters are attached to the
+// event:
+//   {
+//     "method": <Integer method code>
+//   }
+EVENT_TYPE(SOCKS_UNEXPECTED_AUTH)
+
+// This event indicates that the SOCKS proxy server's response indicated an
+// address type which we are not prepared to handle.
+// The following parameters are attached to the event:
+//   {
+//     "address_type": <Integer code for the address type>
+//   }
+EVENT_TYPE(SOCKS_UNKNOWN_ADDRESS_TYPE)
+
 // The start/end of a SSL connect().
 EVENT_TYPE(SSL_CONNECT)
 
 // The specified number of bytes were sent on the socket.
+// The following parameters are attached:
+//   {
+//     "num_bytes": <Number of bytes that were just sent>
+//   }
 EVENT_TYPE(SOCKET_BYTES_SENT)
 
 // The specified number of bytes were received on the socket.
+// The following parameters are attached:
+//   {
+//     "num_bytes": <Number of bytes that were just sent>
+//   }
 EVENT_TYPE(SOCKET_BYTES_RECEIVED)
 
 // ------------------------------------------------------------------------
@@ -137,6 +219,21 @@ EVENT_TYPE(SOCKET_POOL_STALLED_MAX_SOCKETS)
 // The request stalled because there are too many sockets in the group.
 EVENT_TYPE(SOCKET_POOL_STALLED_MAX_SOCKETS_PER_GROUP)
 
+// Indicates that we reused an existing socket. Attached to the event are
+// the parameters:
+//   {
+//     "idle_ms": <The number of milliseconds the socket was sitting idle for>
+//   }
+EVENT_TYPE(SOCKET_POOL_REUSED_AN_EXISTING_SOCKET)
+
+// This event simply describes the host:port that were requested from the
+// socket pool. Its parameters are:
+//   {
+//     "host_and_port": <String encoding the host and port>
+//   }
+EVENT_TYPE(TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKET)
+
+
 // A backup socket is created due to slow connect
 EVENT_TYPE(SOCKET_BACKUP_CREATED)
 
@@ -147,11 +244,17 @@ EVENT_TYPE(SOCKET_BACKUP_TIMER_EXTENDED)
 // is sent to the request that triggered the ConnectJob, the end event
 // is sent to the request that received the connected socket.  Because of
 // late binding, they may not be the same. Therefore the ID for the
-// ConnectJob NetLog is sent in both events.
+// ConnectJob NetLog is sent in both events. The event parameters are:
+//   {
+//      "source_id": <ID of the connect job that was bound to this source>
+//   }
 EVENT_TYPE(SOCKET_POOL_CONNECT_JOB_ID)
 
 // Identifies the NetLog::Source() for the Socket assigned to the pending
-// request.
+// request. The event parameters are:
+//   {
+//      "source_id": <ID of the socket that was bound to this source>
+//   }
 EVENT_TYPE(SOCKET_POOL_SOCKET_ID)
 
 // ------------------------------------------------------------------------
@@ -161,13 +264,24 @@ EVENT_TYPE(SOCKET_POOL_SOCKET_ID)
 // Measures the time between URLRequest::Start() and
 // URLRequest::ResponseStarted().
 //
-// For the BEGIN phase, the |extra_parameters| of the event will be of type
-// NetLogStringParameter, and will contain the URL.
+// For the BEGIN phase, the following parameters are attached:
+//   {
+//      "url": <String of URL being loaded>
+//   }
 //
-// For the END phase, the |extra_parameters| of the event will be of type
-// NetLogIntegerParameter, and will contain the net error code. Altenately,
-// the extra_parameters may be NULL indicating no error code.
+// For the END phase, if there was an error, the following parameters are
+// attached:
+//   {
+//      "net_error": <Net error code of the failure>
+//   }
 EVENT_TYPE(URL_REQUEST_START)
+
+// This event is sent once a URLRequest receives a redirect. The parameters
+// attached to the event are:
+//   {
+//     "location": <The URL that was redirected to>
+//   }
+EVENT_TYPE(URL_REQUEST_REDIRECTED)
 
 // ------------------------------------------------------------------------
 // HttpCache
@@ -260,12 +374,16 @@ EVENT_TYPE(HTTP_STREAM_PARSER_READ_HEADERS)
 // Measures the time between SocketStream::Connect() and
 // SocketStream::DidEstablishConnection()
 //
-// For the BEGIN phase, the |extra_parameters| of the event will be of type
-// NetLogStringParameter, and will contain the URL.
+// For the BEGIN phase, the following parameters are attached:
+//   {
+//      "url": <String of URL being loaded>
+//   }
 //
-// For the END phase, the |extra_parameters| of the event will be of type
-// NetLogIntegerParameter, and will contain the net error code. Altenately,
-// the extra_parameters may be NULL indicating no error code.
+// For the END phase, if there was an error, the following parameters are
+// attached:
+//   {
+//      "net_error": <Net error code of the failure>
+//   }
 EVENT_TYPE(SOCKET_STREAM_CONNECT)
 
 // A message sent on the SocketStream.

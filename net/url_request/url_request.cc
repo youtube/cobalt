@@ -260,7 +260,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
   DCHECK(!job_);
 
   net_log_.BeginEventWithString(net::NetLog::TYPE_URL_REQUEST_START,
-                                original_url().possibly_invalid_spec());
+                                "url", original_url().possibly_invalid_spec());
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
@@ -368,7 +368,7 @@ void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
 void URLRequest::ResponseStarted() {
   if (!status_.is_success()) {
     net_log_.EndEventWithInteger(net::NetLog::TYPE_URL_REQUEST_START,
-                                 status_.os_error());
+                                 "net_error", status_.os_error());
   } else {
     net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START);
   }
@@ -445,8 +445,8 @@ std::string URLRequest::StripPostSpecificHeaders(const std::string& headers) {
 
 int URLRequest::Redirect(const GURL& location, int http_status_code) {
   if (net_log_.HasListener()) {
-    net_log_.AddString(StringPrintf("Redirected (%d) to %s",
-        http_status_code, location.spec().c_str()));
+    net_log_.AddEventWithString(net::NetLog::TYPE_URL_REQUEST_REDIRECTED,
+                                "location", location.possibly_invalid_spec());
   }
   if (redirect_limit_ <= 0) {
     DLOG(INFO) << "disallowing redirect: exceeds limit";

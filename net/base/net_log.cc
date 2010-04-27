@@ -5,6 +5,7 @@
 #include "net/base/net_log.h"
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/values.h"
 
 namespace net {
 
@@ -63,9 +64,18 @@ void BoundNetLog::AddEventWithParameters(
 }
 
 void BoundNetLog::AddEventWithInteger(NetLog::EventType event_type,
-                                      int integer) const {
+                                      const char* name,
+                                      int value) const {
   scoped_refptr<NetLog::EventParameters> params =
-      new NetLogIntegerParameter(integer);
+      new NetLogIntegerParameter(name, value);
+  AddEventWithParameters(event_type, params);
+}
+
+void BoundNetLog::AddEventWithString(NetLog::EventType event_type,
+                                     const char* name,
+                                     const std::string& value) const {
+  scoped_refptr<NetLog::EventParameters> params =
+      new NetLogStringParameter(name, value);
   AddEventWithParameters(event_type, params);
 }
 
@@ -80,16 +90,18 @@ void BoundNetLog::BeginEventWithParameters(
 }
 
 void BoundNetLog::BeginEventWithString(NetLog::EventType event_type,
-                                       const std::string& string) const {
+                                       const char* name,
+                                       const std::string& value) const {
   scoped_refptr<NetLog::EventParameters> params =
-      new NetLogStringParameter(string);
+      new NetLogStringParameter(name, value);
   BeginEventWithParameters(event_type, params);
 }
 
 void BoundNetLog::BeginEventWithInteger(NetLog::EventType event_type,
-                                        int integer) const {
+                                        const char* name,
+                                        int value) const {
   scoped_refptr<NetLog::EventParameters> params =
-      new NetLogIntegerParameter(integer);
+      new NetLogIntegerParameter(name, value);
   BeginEventWithParameters(event_type, params);
 }
 
@@ -104,28 +116,11 @@ void BoundNetLog::EndEventWithParameters(
 }
 
 void BoundNetLog::EndEventWithInteger(NetLog::EventType event_type,
-                                      int integer) const {
+                                      const char* name,
+                                      int value) const {
   scoped_refptr<NetLog::EventParameters> params =
-      new NetLogIntegerParameter(integer);
+      new NetLogIntegerParameter(name, value);
   EndEventWithParameters(event_type, params);
-}
-
-void BoundNetLog::AddString(const std::string& string) const {
-  // We pass TYPE_TODO_STRING since we have no event type to associate this
-  // with. (AddString() is deprecated, and should be replaced with
-  // AddEventWithParameters()).
-  scoped_refptr<NetLog::EventParameters> params =
-      new NetLogStringParameter(string);
-  AddEventWithParameters(NetLog::TYPE_TODO_STRING, params);
-}
-
-void BoundNetLog::AddStringLiteral(const char* literal) const {
-  // We pass TYPE_TODO_STRING_LITERAL since we have no event type to associate
-  // this with. (AddString() is deprecated, and should be replaced with
-  // AddEventWithParameters()).
-  scoped_refptr<NetLog::EventParameters> params =
-      new NetLogStringLiteralParameter(literal);
-  AddEventWithParameters(NetLog::TYPE_TODO_STRING_LITERAL, params);
 }
 
 // static
@@ -138,16 +133,21 @@ BoundNetLog BoundNetLog::Make(NetLog* net_log,
   return BoundNetLog(source, net_log);
 }
 
-NetLogStringParameter::NetLogStringParameter(const std::string& value)
-    : value_(value) {
+NetLogStringParameter::NetLogStringParameter(const char* name,
+                                             const std::string& value)
+    : name_(name), value_(value) {
 }
 
-std::string NetLogIntegerParameter::ToString() const {
-  return IntToString(value_);
+Value* NetLogIntegerParameter::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetInteger(ASCIIToWide(name_), value_);
+  return dict;
 }
 
-std::string NetLogStringLiteralParameter::ToString() const {
-  return std::string(value_);
+Value* NetLogStringParameter::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+  dict->SetString(ASCIIToWide(name_), value_);
+  return dict;
 }
 
 void CapturingNetLog::AddEntry(EventType type,
