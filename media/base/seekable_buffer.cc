@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "base/logging.h"
-#include "base/stl_util-inl.h"
+#include "media/base/data_buffer.h"
 
 namespace media {
 
@@ -22,20 +22,36 @@ SeekableBuffer::SeekableBuffer(size_t backward_capacity,
 }
 
 SeekableBuffer::~SeekableBuffer() {
-  STLDeleteElements(&buffers_);
 }
 
-size_t SeekableBuffer::Read(size_t size, uint8* data) {
+void SeekableBuffer::Clear() {
+  buffers_.clear();
+  current_buffer_ = buffers_.begin();
+  current_buffer_offset_ = 0;
+  backward_bytes_ = 0;
+  forward_bytes_ = 0;
+  current_time_ = base::TimeDelta();
+}
+
+
+size_t SeekableBuffer::Read(uint8* data, size_t size) {
   DCHECK(data);
-  return InternalRead(size, data);
+  return InternalRead(data, size, true);
 }
 
-bool SeekableBuffer::Append(size_t size, const uint8* data) {
+size_t SeekableBuffer::Peek(uint8* data, size_t size) {
+  DCHECK(data);
+  return InternalRead(data, size, false);
+}
+
+bool SeekableBuffer::Append(Buffer* buffer_in) {
+  if (buffers_.empty() && buffer_in->GetTimestamp().InMicroseconds() > 0) {
+    current_time_ = buffer_in->GetTimestamp();
+  }
+
   // Since the forward capacity is only used to check the criteria for buffer
   // full, we always append data to the buffer.
-  Buffer* buffer = new Buffer(size);
-  memcpy(buffer->data.get(), data, size);
-  buffers_.push_back(buffer);
+  buffers_.push_back(scoped_refptr<Buffer>(buffer_in));
 
   // After we have written the first buffer, update |current_buffer_| to point
   // to it.
@@ -45,7 +61,7 @@ bool SeekableBuffer::Append(size_t size, const uint8* data) {
   }
 
   // Update the |forward_bytes_| counter since we have more bytes.
-  forward_bytes_ += size;
+  forward_bytes_ += buffer_in->GetDataSize();
 
   // Advise the user to stop append if the amount of forward bytes exceeds
   // the forward capacity. A false return value means the user should stop
@@ -53,6 +69,13 @@ bool SeekableBuffer::Append(size_t size, const uint8* data) {
   if (forward_bytes_ >= forward_capacity_)
     return false;
   return true;
+}
+
+bool SeekableBuffer::Append(const uint8* data, size_t size) {
+  DataBuffer* data_buffer = new DataBuffer(size);
+  memcpy(data_buffer->GetWritableData(), data, size);
+  data_buffer->SetDataSize(size);
+  return Append(data_buffer);
 }
 
 bool SeekableBuffer::Seek(int32 offset) {
@@ -69,7 +92,7 @@ bool SeekableBuffer::SeekForward(size_t size) {
     return false;
 
   // Do a read of |size| bytes.
-  size_t taken = InternalRead(size, NULL);
+  size_t taken = InternalRead(NULL, size, true);
   DCHECK_EQ(taken, size);
   return true;
 }
@@ -114,9 +137,12 @@ bool SeekableBuffer::SeekBackward(size_t size) {
       --current_buffer_;
       // Set the offset into the current buffer to be the buffer size as we
       // are preparing for rewind for next iteration.
-      current_buffer_offset_ = (*current_buffer_)->size;
+      current_buffer_offset_ = (*current_buffer_)->GetDataSize();
     }
   }
+
+  UpdateCurrentTime(current_buffer_, current_buffer_offset_);
+
   DCHECK_EQ(taken, size);
   return true;
 }
@@ -127,66 +153,96 @@ void SeekableBuffer::EvictBackwardBuffers() {
     BufferQueue::iterator i = buffers_.begin();
     if (i == current_buffer_)
       break;
-    Buffer* buffer = *i;
-    backward_bytes_ -= buffer->size;
+    scoped_refptr<Buffer> buffer = *i;
+    backward_bytes_ -= buffer->GetDataSize();
     DCHECK_GE(backward_bytes_, 0u);
 
-    delete buffer;
     buffers_.erase(i);
   }
 }
 
-size_t SeekableBuffer::InternalRead(size_t size, uint8* data) {
+size_t SeekableBuffer::InternalRead(uint8* data, size_t size,
+                                    bool advance_position) {
   // Counts how many bytes are actually read from the buffer queue.
   size_t taken = 0;
 
+  BufferQueue::iterator current_buffer = current_buffer_;
+  size_t current_buffer_offset = current_buffer_offset_;
+
   while (taken < size) {
-    // |current_buffer_| is valid since the first time this buffer is appended
+    // |current_buffer| is valid since the first time this buffer is appended
     // with data.
-    if (current_buffer_ == buffers_.end()) {
-      DCHECK_EQ(0u, forward_bytes_);
+    if (current_buffer == buffers_.end())
       break;
-    }
-    Buffer* buffer = *current_buffer_;
+
+    scoped_refptr<Buffer> buffer = *current_buffer;
 
     // Find the right amount to copy from the current buffer referenced by
     // |buffer|. We shall copy no more than |size| bytes in total and each
     // single step copied no more than the current buffer size.
     size_t copied = std::min(size - taken,
-                             buffer->size - current_buffer_offset_);
+                             buffer->GetDataSize() - current_buffer_offset);
 
     // |data| is NULL if we are seeking forward, so there's no need to copy.
     if (data)
-      memcpy(data + taken, buffer->data.get() + current_buffer_offset_, copied);
+      memcpy(data + taken, buffer->GetData() + current_buffer_offset, copied);
 
     // Increase total number of bytes copied, which regulates when to end this
     // loop.
     taken += copied;
 
     // We have read |copied| bytes from the current buffer. Advances the offset.
-    current_buffer_offset_ += copied;
-
-    // We have less forward bytes and more backward bytes. Updates these
-    // counters by |copied|.
-    forward_bytes_ -= copied;
-    backward_bytes_ += copied;
-    DCHECK_GE(forward_bytes_, 0u);
+    current_buffer_offset += copied;
 
     // The buffer has been consumed.
-    if (current_buffer_offset_ == buffer->size) {
-      BufferQueue::iterator next = current_buffer_;
+    if (current_buffer_offset == buffer->GetDataSize()) {
+      if (advance_position) {
+        // Next buffer may not have timestamp, so we need to update current
+        // timestamp before switching to the next buffer.
+        UpdateCurrentTime(current_buffer, current_buffer_offset);
+      }
+
+      BufferQueue::iterator next = current_buffer;
       ++next;
       // If we are at the last buffer, don't advance.
       if (next == buffers_.end())
         break;
 
       // Advances the iterator.
-      current_buffer_ = next;
-      current_buffer_offset_ = 0;
+      current_buffer = next;
+      current_buffer_offset = 0;
     }
   }
-  EvictBackwardBuffers();
+
+  if (advance_position) {
+    // We have less forward bytes and more backward bytes. Updates these
+    // counters by |taken|.
+    forward_bytes_ -= taken;
+    backward_bytes_ += taken;
+    DCHECK_GE(forward_bytes_, 0u);
+    DCHECK(current_buffer_ != buffers_.end() || forward_bytes_ == 0u);
+
+    current_buffer_ = current_buffer;
+    current_buffer_offset_ = current_buffer_offset;
+
+    UpdateCurrentTime(current_buffer_, current_buffer_offset_);
+    EvictBackwardBuffers();
+  }
+
   return taken;
+}
+
+void SeekableBuffer::UpdateCurrentTime(BufferQueue::iterator buffer,
+                                       size_t offset) {
+  // Garbage values are unavoidable, so this check will remain.
+  if (buffer != buffers_.end() &&
+      (*buffer)->GetTimestamp().InMicroseconds() > 0) {
+    int64 time_offset = ((*buffer)->GetDuration().InMicroseconds() *
+                         offset) / (*buffer)->GetDataSize();
+
+    current_time_ = (*buffer)->GetTimestamp() +
+        base::TimeDelta::FromMicroseconds(time_offset);
+  }
 }
 
 }  // namespace media
