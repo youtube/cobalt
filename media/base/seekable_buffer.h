@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -37,7 +37,8 @@
 
 #include "base/basictypes.h"
 #include "base/lock.h"
-#include "base/scoped_ptr.h"
+#include "base/ref_counted.h"
+#include "media/base/buffers.h"
 
 namespace media {
 
@@ -49,19 +50,28 @@ class SeekableBuffer {
 
   ~SeekableBuffer();
 
-  // Reads a maximum of |size| bytes into |buffer| from the current read
+  // Clears the buffer queue.
+  void Clear();
+
+  // Reads a maximum of |size| bytes into |data| from the current read
   // position. Returns the number of bytes read.
   // The current read position will advance by the amount of bytes read. If
   // reading caused backward_bytes() to exceed backward_capacity(), an eviction
   // of the backward buffer will be done internally.
-  size_t Read(size_t size, uint8* buffer);
+  size_t Read(uint8* data, size_t size);
 
-  // Appends |data| with |size| bytes to this buffer. If this buffer becomes
-  // full or is already full then returns false, otherwise returns true.
-  // Append operations are always successful. A return value of false only means
-  // that forward_bytes() is greater than or equals to forward_capacity(). Data
-  // appended is still in this buffer but user is advised not to write any more.
-  bool Append(size_t size, const uint8* data);
+  // Copies up to |size| bytes from current position to |data|. Returns
+  // number of bytes copied. Doesn't advance current position.
+  size_t Peek(uint8* data, size_t size);
+
+  // Appends |buffer_in| to this buffer. Returns false if forward_bytes() is
+  // greater than or equals to forward_capacity(), true otherwise. The data
+  // is added to the buffer in any case.
+  bool Append(Buffer* buffer_in);
+
+  // Appends |size| bytes of |data| to the buffer. Result is the same
+  // as for Append(Buffer*).
+  bool Append(const uint8* data, size_t size);
 
   // Moves the read position by |offset| bytes. If |offset| is positive, the
   // current read position is moved forward. If negative, the current read
@@ -90,18 +100,18 @@ class SeekableBuffer {
   // direction.
   size_t backward_capacity() const { return backward_capacity_; }
 
- private:
-  // A structure that contains a block of data.
-  struct Buffer {
-    explicit Buffer(size_t len) : data(new uint8[len]), size(len) {}
-    // Pointer to data.
-    scoped_array<uint8> data;
-    // Size of this block.
-    size_t size;
-  };
+  // Returns the current timestamp, taking into account current offset. The
+  // value calculated based on the timestamp of the current buffer. If
+  // timestamp for the current buffer is set to 0 or the data was added with
+  // Append(const uint*, size_t), then returns value that corresponds to the
+  // last position in a buffer that had timestamp set. 0 is returned if no
+  // buffers we read from had timestamp set.
+  // TODO(sergeyu): Use StreamSample::kInvalidTimestamp here.
+  base::TimeDelta current_time() const { return current_time_; }
 
+ private:
   // Definition of the buffer queue.
-  typedef std::list<Buffer*> BufferQueue;
+  typedef std::list<scoped_refptr<Buffer> > BufferQueue;
 
   // A helper method to evict buffers in the backward direction until backward
   // bytes is within the backward capacity.
@@ -112,7 +122,7 @@ class SeekableBuffer {
   // of bytes read. The current read position will be moved forward by the
   // number of bytes read. If |data| is NULL, only the current read position
   // will advance but no data will be copied.
-  size_t InternalRead(size_t size, uint8* data);
+  size_t InternalRead(uint8* data, size_t size, bool advance_position);
 
   // A helper method that moves the current read position forward by |size|
   // bytes.
@@ -128,6 +138,10 @@ class SeekableBuffer {
   // the seek operation failed. The current read position is not updated.
   bool SeekBackward(size_t size);
 
+  // Updates |current_time_| with the time that corresponds to the
+  // specified position in the buffer.
+  void UpdateCurrentTime(BufferQueue::iterator buffer, size_t offset);
+
   BufferQueue::iterator current_buffer_;
   BufferQueue buffers_;
   size_t current_buffer_offset_;
@@ -137,6 +151,12 @@ class SeekableBuffer {
 
   size_t forward_capacity_;
   size_t forward_bytes_;
+
+  // Keeps track of the most recent time we've seen in case the |buffers_| is
+  // empty when our owner asks what time it is.
+  base::TimeDelta current_time_;
+
+  DISALLOW_COPY_AND_ASSIGN(SeekableBuffer);
 };
 
 }  // namespace media
