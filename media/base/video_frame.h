@@ -80,14 +80,6 @@ class VideoFrame : public StreamSample {
   // StreamSample interface.
   virtual bool IsEndOfStream() const;
 
-  int GetRepeatCount() const {
-    return repeat_count_;
-  }
-
-  void SetRepeatCount(int repeat_count) {
-    repeat_count_ = repeat_count;
-  }
-
  protected:
   // Clients must use the static CreateFrame() method to create a new frame.
   VideoFrame(Format format,
@@ -118,9 +110,6 @@ class VideoFrame : public StreamSample {
 
   // Array of data pointers to each plane.
   uint8* data_[kMaxPlanes];
-
-  // Display meta data
-  int repeat_count_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoFrame);
 };
