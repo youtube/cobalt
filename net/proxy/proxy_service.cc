@@ -201,14 +201,14 @@ class ProxyService::PacRequest
 ProxyService::ProxyService(ProxyConfigService* config_service,
                            ProxyResolver* resolver,
                            NetworkChangeNotifier* network_change_notifier,
-                           const BoundNetLog& init_proxy_resolver_log)
+                           NetLog* net_log)
     : config_service_(config_service),
       resolver_(resolver),
       next_config_id_(1),
       should_use_proxy_resolver_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(init_proxy_resolver_callback_(
           this, &ProxyService::OnInitProxyResolverComplete)),
-      init_proxy_resolver_log_(init_proxy_resolver_log),
+      net_log_(net_log),
       network_change_notifier_(network_change_notifier) {
   // Register to receive network change notifications.
   if (network_change_notifier_)
@@ -251,7 +251,7 @@ ProxyService* ProxyService::Create(
 
   ProxyService* proxy_service = new ProxyService(
       proxy_config_service, proxy_resolver, network_change_notifier,
-      BoundNetLog::Make(net_log, NetLog::SOURCE_INIT_PROXY_RESOLVER));
+      net_log);
 
   if (proxy_resolver->expects_pac_bytes()) {
     // Configure PAC script downloads to be issued using |url_request_context|.
@@ -275,7 +275,7 @@ ProxyService* ProxyService::CreateNull() {
   return new ProxyService(new ProxyConfigServiceNull,
                           new ProxyResolverNull,
                           NULL,
-                          BoundNetLog());
+                          NULL);
 }
 
 int ProxyService::ResolveProxy(const GURL& raw_url,
@@ -520,7 +520,7 @@ ProxyScriptFetcher* ProxyService::GetProxyScriptFetcher() const {
 void ProxyService::ResetConfigService(
     ProxyConfigService* new_proxy_config_service) {
   config_service_.reset(new_proxy_config_service);
-  UpdateConfig(NULL);
+  UpdateConfig(BoundNetLog());
 }
 
 void ProxyService::PurgeMemory() {
@@ -533,7 +533,7 @@ void ProxyService::ForceReloadProxyConfig() {
   // start updating (normally this would happen lazily during the next
   // call to ResolveProxy()).
   config_.set_id(ProxyConfig::INVALID_ID);
-  UpdateConfig(NULL);
+  UpdateConfig(BoundNetLog());
 }
 
 // static
@@ -653,11 +653,11 @@ void ProxyService::StartInitProxyResolver() {
   DCHECK(!init_proxy_resolver_.get());
 
   init_proxy_resolver_.reset(
-      new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get()));
+      new InitProxyResolver(resolver_.get(), proxy_script_fetcher_.get(),
+                            net_log_));
 
   int rv = init_proxy_resolver_->Init(
-      config_, &init_proxy_resolver_callback_,
-      init_proxy_resolver_log_);
+      config_, &init_proxy_resolver_callback_);
 
   if (rv != ERR_IO_PENDING)
     OnInitProxyResolverComplete(rv);

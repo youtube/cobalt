@@ -731,7 +731,8 @@ TEST_F(SpdyNetworkTransactionTest, Get) {
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+  TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                  BoundNetLog());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
@@ -766,7 +767,8 @@ TEST_F(SpdyNetworkTransactionTest, Post) {
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(2, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+  TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                  BoundNetLog());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
@@ -814,7 +816,7 @@ static const unsigned char kEmptyPostSyn[] = {
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
 
-  TransactionHelperResult out = TransactionHelper(request, data, NULL);
+  TransactionHelperResult out = TransactionHelper(request, data, BoundNetLog());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
@@ -834,7 +836,8 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithoutSynReply) {
   request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads), NULL, 0));
-  TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+  TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                  BoundNetLog());
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
 }
 
@@ -873,7 +876,7 @@ TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   trans.reset();  // Cancel the transaction.
 
@@ -983,7 +986,8 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeaders) {
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+    TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                    BoundNetLog());
     EXPECT_EQ(OK, out.rv);
     EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
     EXPECT_EQ("hello!", out.response_data);
@@ -1136,7 +1140,8 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+    TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                    BoundNetLog());
     EXPECT_EQ(OK, out.rv) << i;
     EXPECT_EQ("HTTP/1.1 200 OK", out.status_line) << i;
     EXPECT_EQ("hello!", out.response_data) << i;
@@ -1233,7 +1238,8 @@ TEST_F(SpdyNetworkTransactionTest, InvalidSynReply) {
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+    TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                    BoundNetLog());
     EXPECT_EQ(ERR_INVALID_RESPONSE, out.rv);
   }
 }
@@ -1280,7 +1286,8 @@ TEST_F(SpdyNetworkTransactionTest, CorruptFrameSessionError) {
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+    TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                    BoundNetLog());
     EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
   }
 }
@@ -1351,7 +1358,7 @@ static void MakeRequest(scoped_refptr<HttpNetworkSession> session,
   data->SetCompletionCallback(&callback);
   // Sends a request.  In pass 1, this goes on the wire; in pass 2, it is
   // preempted by the push data.
-  int rv = trans.Start(&request, &callback, NULL);
+  int rv = trans.Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   // In the case where we are pushing beforehand, complete the next read now.
@@ -1625,7 +1632,8 @@ TEST_F(SpdyNetworkTransactionTest, WriteError) {
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(2, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+  TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                  BoundNetLog());
   EXPECT_EQ(ERR_FAILED, out.rv);
   data->Reset();
 }
@@ -1652,7 +1660,8 @@ TEST_F(SpdyNetworkTransactionTest, PartialWrite) {
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(kChunks, reads, arraysize(reads),
                             writes.get(), kChunks));
-  TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+  TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                  BoundNetLog());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
@@ -1688,7 +1697,8 @@ TEST_F(SpdyNetworkTransactionTest, ConnectFailure) {
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(connects[index], 1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+    TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                    BoundNetLog());
     EXPECT_EQ(connects[index].result, out.rv);
   }
 }
@@ -1720,7 +1730,8 @@ TEST_F(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+  TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                  BoundNetLog());
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
   data->Reset();
 
@@ -1851,7 +1862,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -1957,7 +1968,7 @@ TEST_F(SpdyNetworkTransactionTest, Buffering) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -2074,7 +2085,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -2179,7 +2190,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -2274,7 +2285,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -2397,7 +2408,7 @@ TEST_F(SpdyNetworkTransactionTest, SettingsSaved) {
                             writes, arraysize(writes)));
   TransactionHelperResult out = TransactionHelperWithSession(request,
                                                              data.get(),
-                                                             NULL,
+                                                             BoundNetLog(),
                                                              &session_deps,
                                                              session.get());
   EXPECT_EQ(OK, out.rv);
@@ -2514,7 +2525,7 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
                             writes, arraysize(writes)));
   TransactionHelperResult out = TransactionHelperWithSession(request,
                                                              data.get(),
-                                                             NULL,
+                                                             BoundNetLog(),
                                                              &session_deps,
                                                              session.get());
   EXPECT_EQ(OK, out.rv);
@@ -2562,7 +2573,8 @@ TEST_F(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(), NULL);
+  TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                  BoundNetLog());
   EXPECT_EQ(ERR_CONNECTION_CLOSED, out.rv);
 }
 

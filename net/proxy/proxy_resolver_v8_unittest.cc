@@ -138,7 +138,8 @@ TEST(ProxyResolverV8Test, ReturnEmptyString) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
 
   EXPECT_EQ(OK, result);
   EXPECT_TRUE(proxy_info.is_direct());
@@ -158,7 +159,7 @@ TEST(ProxyResolverV8Test, Basic) {
   {
     ProxyInfo proxy_info;
     result = resolver.GetProxyForURL(GURL("http://query.com/path"),
-                                         &proxy_info, NULL, NULL, NULL);
+                                     &proxy_info, NULL, NULL, BoundNetLog());
     EXPECT_EQ(OK, result);
     EXPECT_EQ("http.query.com.path.query.com:80",
               proxy_info.proxy_server().ToURI());
@@ -166,7 +167,8 @@ TEST(ProxyResolverV8Test, Basic) {
   {
     ProxyInfo proxy_info;
     int result = resolver.GetProxyForURL(GURL("ftp://query.com:90/path"),
-                                         &proxy_info, NULL, NULL, NULL);
+                                         &proxy_info, NULL, NULL,
+                                         BoundNetLog());
     EXPECT_EQ(OK, result);
     // Note that FindProxyForURL(url, host) does not expect |host| to contain
     // the port number.
@@ -204,7 +206,8 @@ TEST(ProxyResolverV8Test, BadReturnType) {
     EXPECT_EQ(OK, result);
 
     ProxyInfo proxy_info;
-    result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+    result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                     BoundNetLog());
 
     EXPECT_EQ(ERR_PAC_SCRIPT_FAILED, result);
 
@@ -224,7 +227,8 @@ TEST(ProxyResolverV8Test, NoEntryPoint) {
   EXPECT_EQ(ERR_PAC_SCRIPT_FAILED, result);
 
   ProxyInfo proxy_info;
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
 
   EXPECT_EQ(ERR_FAILED, result);
 }
@@ -236,7 +240,8 @@ TEST(ProxyResolverV8Test, ParseError) {
   EXPECT_EQ(ERR_PAC_SCRIPT_FAILED, result);
 
   ProxyInfo proxy_info;
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
 
   EXPECT_EQ(ERR_FAILED, result);
 
@@ -259,7 +264,8 @@ TEST(ProxyResolverV8Test, SideEffects) {
   // The PAC script increments a counter each time we invoke it.
   for (int i = 0; i < 3; ++i) {
     ProxyInfo proxy_info;
-    result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+    result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                     BoundNetLog());
     EXPECT_EQ(OK, result);
     EXPECT_EQ(StringPrintf("sideffect_%d:80", i),
               proxy_info.proxy_server().ToURI());
@@ -272,7 +278,8 @@ TEST(ProxyResolverV8Test, SideEffects) {
 
   for (int i = 0; i < 3; ++i) {
     ProxyInfo proxy_info;
-    result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+    result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                     BoundNetLog());
     EXPECT_EQ(OK, result);
     EXPECT_EQ(StringPrintf("sideffect_%d:80", i),
               proxy_info.proxy_server().ToURI());
@@ -286,7 +293,8 @@ TEST(ProxyResolverV8Test, UnhandledException) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
 
   EXPECT_EQ(ERR_PAC_SCRIPT_FAILED, result);
 
@@ -306,7 +314,8 @@ TEST(ProxyResolverV8Test, DISABLED_ReturnUnicode) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
 
   // The result from this resolve was unparseable, because it
   // wasn't ascii.
@@ -320,7 +329,8 @@ TEST(ProxyResolverV8Test, JavascriptLibrary) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
 
   // If the javascript side of this unit-test fails, it will throw a javascript
   // exception. Otherwise it will return "PROXY success:80".
@@ -338,7 +348,8 @@ TEST(ProxyResolverV8Test, NoSetPacScript) {
   ProxyInfo proxy_info;
 
   // Resolve should fail, as we are not yet initialized with a script.
-  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  int result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                       BoundNetLog());
   EXPECT_EQ(ERR_FAILED, result);
 
   // Initialize it.
@@ -346,20 +357,23 @@ TEST(ProxyResolverV8Test, NoSetPacScript) {
   EXPECT_EQ(OK, result);
 
   // Resolve should now succeed.
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
   EXPECT_EQ(OK, result);
 
   // Clear it, by initializing with an empty string.
   resolver.SetPacScriptByData(std::string(), NULL);
 
   // Resolve should fail again now.
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
   EXPECT_EQ(ERR_FAILED, result);
 
   // Load a good script once more.
   result = resolver.SetPacScriptFromDisk("direct.js");
   EXPECT_EQ(OK, result);
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
   EXPECT_EQ(OK, result);
 
   EXPECT_EQ(0U, resolver.mock_js_bindings()->alerts.size());
@@ -373,7 +387,8 @@ TEST(ProxyResolverV8Test, V8Bindings) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
 
   EXPECT_EQ(OK, result);
   EXPECT_TRUE(proxy_info.is_direct());
@@ -430,7 +445,8 @@ TEST(ProxyResolverV8Test, BindingCalledDuringInitialization) {
   EXPECT_EQ(1, bindings->my_ip_address_count);
 
   ProxyInfo proxy_info;
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
 
   EXPECT_EQ(OK, result);
   EXPECT_FALSE(proxy_info.is_direct());
@@ -528,7 +544,8 @@ TEST(ProxyResolverV8Test, DNSResolutionFailure) {
   EXPECT_EQ(OK, result);
 
   ProxyInfo proxy_info;
-  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL, NULL);
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
 
   EXPECT_EQ(OK, result);
   EXPECT_FALSE(proxy_info.is_direct());

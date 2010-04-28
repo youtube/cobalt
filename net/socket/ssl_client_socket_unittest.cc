@@ -65,7 +65,7 @@ TEST_F(SSLClientSocketTest, Connect) {
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
-  int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL, net::BoundNetLog());
   EXPECT_EQ(net::OK, rv);
 
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
@@ -109,7 +109,7 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kBadHTTPSPort);
-  int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL, net::BoundNetLog());
   EXPECT_EQ(net::OK, rv);
 
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
@@ -154,7 +154,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   net::HostResolver::RequestInfo info(server_.kMismatchedHostName,
                                       server_.kOKHTTPSPort);
-  int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL, net::BoundNetLog());
   EXPECT_EQ(net::OK, rv);
 
   net::CapturingNetLog log(net::CapturingNetLog::kUnbounded);
@@ -203,7 +203,7 @@ TEST_F(SSLClientSocketTest, Read) {
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
-  int rv = resolver_->Resolve(info, &addr, &callback, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, &callback, NULL, net::BoundNetLog());
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -265,7 +265,7 @@ TEST_F(SSLClientSocketTest, Read_FullDuplex) {
   TestCompletionCallback callback2;  // Used for Write only.
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
-  int rv = resolver_->Resolve(info, &addr, &callback, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, &callback, NULL, net::BoundNetLog());
   EXPECT_EQ(net::ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -327,7 +327,7 @@ TEST_F(SSLClientSocketTest, Read_SmallChunks) {
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
-  int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL, net::BoundNetLog());
   EXPECT_EQ(net::OK, rv);
 
   net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);
@@ -381,7 +381,7 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
   TestCompletionCallback callback;
 
   net::HostResolver::RequestInfo info(server_.kHostName, server_.kOKHTTPSPort);
-  int rv = resolver_->Resolve(info, &addr, NULL, NULL, NULL);
+  int rv = resolver_->Resolve(info, &addr, NULL, NULL, net::BoundNetLog());
   EXPECT_EQ(net::OK, rv);
 
   net::ClientSocket* transport = new net::TCPClientSocket(addr, NULL);

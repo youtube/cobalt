@@ -109,7 +109,8 @@ class PacPerfSuiteRunner {
     {
       net::ProxyInfo proxy_info;
       int result = resolver_->GetProxyForURL(
-          GURL("http://www.warmup.com"), &proxy_info, NULL, NULL, NULL);
+          GURL("http://www.warmup.com"), &proxy_info, NULL, NULL,
+          net::BoundNetLog());
       ASSERT_EQ(net::OK, result);
     }
 
@@ -124,7 +125,8 @@ class PacPerfSuiteRunner {
       // Resolve.
       net::ProxyInfo proxy_info;
       int result = resolver_->GetProxyForURL(GURL(query.query_url),
-                                             &proxy_info, NULL, NULL, NULL);
+                                             &proxy_info, NULL, NULL,
+                                             net::BoundNetLog());
 
       // Check that the result was correct. Note that ToPacString() and
       // ASSERT_EQ() are fast, so they won't skew the results.
