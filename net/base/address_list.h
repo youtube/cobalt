@@ -59,8 +59,19 @@ class AddressList {
   // empty state as when first constructed.
   void Reset();
 
-  // Used by unit-tests to manually set the TCP socket address.
-  static AddressList CreateIPv6Address(unsigned char data[16]);
+  // Used by unit-tests to manually create an IPv4 AddressList. |data| should
+  // be an IPv4 address in network order (big endian).
+  // If |canonical_name| is non-empty, it will be duplicated in the
+  // ai_canonname field of the addrinfo struct.
+  static AddressList CreateIPv4Address(unsigned char data[4],
+                                       const std::string& canonical_name);
+
+  // Used by unit-tests to manually create an IPv6 AddressList. |data| should
+  // be an IPv6 address in network order (big endian).
+  // If |canonical_name| is non-empty, it will be duplicated in the
+  // ai_canonname field of the addrinfo struct.
+  static AddressList CreateIPv6Address(unsigned char data[16],
+                                       const std::string& canonical_name);
 
   // Get access to the head of the addrinfo list.
   const struct addrinfo* head() const { return data_->head; }
