@@ -70,14 +70,15 @@ void InitTrace(void) {
 }
 
 void DestroyTrace(void) {
-  DCHECK(s_trace_buffer);
   delete s_trace_buffer;
   s_trace_buffer = NULL;
   s_trace_object = NULL;
 }
 
 void Trace(const char* format, ...) {
-  DCHECK(s_trace_buffer);
+  if (!s_trace_buffer)
+    return;
+
   va_list ap;
   va_start(ap, format);
 

@@ -1080,6 +1080,14 @@ bool BackendImpl::InitBackingStore(bool* file_created) {
     LOG(ERROR) << "Unable to map Index file";
     return false;
   }
+
+  if (index_->GetLength() < sizeof(Index)) {
+    // We verify this again on CheckIndex() but it's easier to make sure now
+    // that the header is there.
+    LOG(ERROR) << "Corrupt Index file";
+    return false;
+  }
+
   return true;
 }
 
