@@ -674,6 +674,7 @@
         'http/http_auth_handler_basic_unittest.cc',
         'http/http_auth_handler_digest_unittest.cc',
         'http/http_auth_handler_factory_unittest.cc',
+        'http/http_auth_handler_negotiate_unittest.cc',
         'http/http_auth_sspi_win_unittest.cc',
         'http/http_auth_unittest.cc',
         'http/http_byte_range_unittest.cc',
