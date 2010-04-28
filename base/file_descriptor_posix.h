@@ -24,6 +24,15 @@ struct FileDescriptor {
       : fd(ifd),
         auto_close(iauto_close) { }
 
+  bool operator==(const FileDescriptor& other) const {
+    return (fd == other.fd && auto_close == other.auto_close);
+  }
+
+  // A comparison operator so that we can use these as keys in a std::map.
+  bool operator<(const FileDescriptor& other) const {
+    return other.fd < fd;
+  }
+
   int fd;
   // If true, this file descriptor should be closed after it has been used. For
   // example an IPC system might interpret this flag as indicating that the
