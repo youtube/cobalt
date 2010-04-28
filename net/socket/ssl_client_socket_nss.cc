@@ -292,17 +292,17 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   DCHECK(!user_read_buf_);
   DCHECK(!user_write_buf_);
 
-  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
 
   int rv = Init();
   if (rv != OK) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
     return rv;
   }
 
   rv = InitializeSSLOptions();
   if (rv != OK) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
     return rv;
   }
 
@@ -311,7 +311,7 @@ int SSLClientSocketNSS::Connect(CompletionCallback* callback) {
   if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
   } else {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
   }
 
   LeaveFunction("");
@@ -817,7 +817,7 @@ void SSLClientSocketNSS::OnHandshakeIOComplete(int result) {
   EnterFunction(result);
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEvent(net::NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(net::NetLog::TYPE_SSL_CONNECT, NULL);
     DoConnectCallback(rv);
   }
   LeaveFunction("");

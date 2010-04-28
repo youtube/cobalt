@@ -301,29 +301,29 @@ int SpdyStream::DoLoop(int result) {
       // State machine 1: Send headers and wait for response headers.
       case STATE_SEND_HEADERS:
         CHECK_EQ(OK, result);
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_SEND_HEADERS);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_SEND_HEADERS, NULL);
         result = DoSendHeaders();
         break;
       case STATE_SEND_HEADERS_COMPLETE:
-        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_SEND_HEADERS);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_SEND_HEADERS, NULL);
         result = DoSendHeadersComplete(result);
         break;
       case STATE_SEND_BODY:
         CHECK_EQ(OK, result);
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_SEND_BODY);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_SEND_BODY, NULL);
         result = DoSendBody();
         break;
       case STATE_SEND_BODY_COMPLETE:
-        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_SEND_BODY);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_SEND_BODY, NULL);
         result = DoSendBodyComplete(result);
         break;
       case STATE_READ_HEADERS:
         CHECK_EQ(OK, result);
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_READ_HEADERS);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_READ_HEADERS, NULL);
         result = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
-        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_READ_HEADERS);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_READ_HEADERS, NULL);
         result = DoReadHeadersComplete(result);
         break;
 
@@ -332,11 +332,11 @@ int SpdyStream::DoLoop(int result) {
       // the OnDataReceived()/OnClose()/ReadResponseHeaders()/etc.  Only reason
       // to do this is for consistency with the Http code.
       case STATE_READ_BODY:
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_READ_BODY);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_STREAM_READ_BODY, NULL);
         result = DoReadBody();
         break;
       case STATE_READ_BODY_COMPLETE:
-        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_READ_BODY);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_STREAM_READ_BODY, NULL);
         result = DoReadBodyComplete(result);
         break;
       case STATE_DONE:

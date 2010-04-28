@@ -331,7 +331,7 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     DCHECK(!it->second);
     // Server will assign a stream id when the push stream arrives.  Use 0 for
     // now.
-    log.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM);
+    log.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM, NULL);
     SpdyStream* stream = new SpdyStream(this, 0, true, log);
     stream->SetRequestInfo(request);
     stream->set_path(path);

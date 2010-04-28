@@ -294,14 +294,14 @@ class ProxyResolverV8::Context {
         static_cast<Context*>(v8::External::Cast(*args.Data())->Value());
 
     context->current_request_net_log_.BeginEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS);
+        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS, NULL);
 
     // We shouldn't be called with any arguments, but will not complain if
     // we are.
     std::string result = context->js_bindings_->MyIpAddress();
 
     context->current_request_net_log_.EndEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS);
+        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS, NULL);
 
     if (result.empty())
       result = "127.0.0.1";
@@ -315,14 +315,14 @@ class ProxyResolverV8::Context {
         static_cast<Context*>(v8::External::Cast(*args.Data())->Value());
 
     context->current_request_net_log_.BeginEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX);
+        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX, NULL);
 
     // We shouldn't be called with any arguments, but will not complain if
     // we are.
     std::string result = context->js_bindings_->MyIpAddressEx();
 
     context->current_request_net_log_.EndEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX);
+        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX, NULL);
 
     return StdStringToV8String(result);
   }
@@ -342,12 +342,12 @@ class ProxyResolverV8::Context {
     }
 
     context->current_request_net_log_.BeginEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE);
+        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
 
     std::string result = context->js_bindings_->DnsResolve(host);
 
     context->current_request_net_log_.EndEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE);
+        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
 
     // DnsResolve() returns empty string on failure.
     return result.empty() ? v8::Null() : StdStringToV8String(result);
@@ -368,12 +368,12 @@ class ProxyResolverV8::Context {
     }
 
     context->current_request_net_log_.BeginEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX);
+        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX, NULL);
 
     std::string result = context->js_bindings_->DnsResolveEx(host);
 
     context->current_request_net_log_.EndEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX);
+        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX, NULL);
 
     return StdStringToV8String(result);
   }

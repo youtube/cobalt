@@ -130,7 +130,7 @@ class ProxyService::PacRequest
   }
 
   void Cancel() {
-    net_log_.AddEvent(NetLog::TYPE_CANCELLED);
+    net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
 
     if (is_started())
       CancelResolveJob();
@@ -140,7 +140,7 @@ class ProxyService::PacRequest
     user_callback_ = NULL;
     results_ = NULL;
 
-    net_log_.EndEvent(NetLog::TYPE_PROXY_SERVICE);
+    net_log_.EndEvent(NetLog::TYPE_PROXY_SERVICE, NULL);
   }
 
   // Returns true if Cancel() has been called.
@@ -285,7 +285,7 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
                                const BoundNetLog& net_log) {
   DCHECK(callback);
 
-  net_log.BeginEvent(NetLog::TYPE_PROXY_SERVICE);
+  net_log.BeginEvent(NetLog::TYPE_PROXY_SERVICE, NULL);
 
   // Strip away any reference fragments and the username/password, as they
   // are not relevant to proxy resolution.
@@ -309,7 +309,8 @@ int ProxyService::ResolveProxy(const GURL& raw_url,
     if (rv != ERR_IO_PENDING)
       return req->QueryDidComplete(rv);
   } else {
-    req->net_log()->BeginEvent(NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
+    req->net_log()->BeginEvent(NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
+                               NULL);
   }
 
   DCHECK_EQ(ERR_IO_PENDING, rv);
@@ -365,7 +366,7 @@ void ProxyService::SuspendAllPendingRequests() {
       req->CancelResolveJob();
 
       req->net_log()->BeginEvent(
-          NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
+          NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC, NULL);
     }
   }
 }
@@ -383,7 +384,8 @@ void ProxyService::ResumeAllPendingRequests() {
        ++it) {
     PacRequest* req = it->get();
     if (!req->is_started() && !req->was_cancelled()) {
-      req->net_log()->EndEvent(NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC);
+      req->net_log()->EndEvent(NetLog::TYPE_PROXY_SERVICE_WAITING_FOR_INIT_PAC,
+                               NULL);
 
       // Note that we re-check for synchronous completion, in case we are
       // no longer using a ProxyResolver (can happen if we fell-back to manual).
@@ -469,15 +471,15 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
   if (result_code == OK) {
     // When full logging is enabled, dump the proxy list.
     if (net_log.HasListener()) {
-      net_log.AddEventWithString(
+      net_log.AddEvent(
           NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
-          "pac_string", result->ToPacString());
+          new NetLogStringParameter("pac_string", result->ToPacString()));
     }
     result->DeprioritizeBadProxies(proxy_retry_info_);
   } else {
-    net_log.AddEventWithInteger(
+    net_log.AddEvent(
         NetLog::TYPE_PROXY_SERVICE_RESOLVED_PROXY_LIST,
-        "net_error", result_code);
+        new NetLogIntegerParameter("net_error", result_code));
 
     // Fall-back to direct when the proxy resolver fails. This corresponds
     // with a javascript runtime error in the PAC script.
@@ -490,7 +492,7 @@ int ProxyService::DidFinishResolvingProxy(ProxyInfo* result,
     result_code = OK;
   }
 
-  net_log.EndEvent(NetLog::TYPE_PROXY_SERVICE);
+  net_log.EndEvent(NetLog::TYPE_PROXY_SERVICE, NULL);
   return result_code;
 }
 
@@ -589,9 +591,10 @@ void ProxyService::UpdateConfig(const BoundNetLog& net_log) {
   // Fetch the proxy settings.
   TimeTicks start_time = TimeTicks::Now();
   net_log.BeginEvent(
-      NetLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
+      NetLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES, NULL);
   int rv = config_service_->GetProxyConfig(&latest);
-  net_log.EndEvent(NetLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES);
+  net_log.EndEvent(NetLog::TYPE_PROXY_SERVICE_POLL_CONFIG_SERVICE_FOR_CHANGES,
+                   NULL);
   TimeTicks end_time = TimeTicks::Now();
 
   // Record how long the call to config_service_->GetConfig() above took.

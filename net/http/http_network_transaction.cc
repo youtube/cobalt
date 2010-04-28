@@ -554,52 +554,53 @@ int HttpNetworkTransaction::DoLoop(int result) {
       case STATE_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.send_request", request_, request_->url.spec());
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST, NULL);
         rv = DoSendRequest();
         break;
       case STATE_SEND_REQUEST_COMPLETE:
         rv = DoSendRequestComplete(rv);
         TRACE_EVENT_END("http.send_request", request_, request_->url.spec());
-        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST, NULL);
         break;
       case STATE_READ_HEADERS:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_headers", request_, request_->url.spec());
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS, NULL);
         rv = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
         rv = DoReadHeadersComplete(rv);
         TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
-        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS, NULL);
         break;
       case STATE_RESOLVE_CANONICAL_NAME:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME);
+            NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME, NULL);
         rv = DoResolveCanonicalName();
         break;
       case STATE_RESOLVE_CANONICAL_NAME_COMPLETE:
         rv = DoResolveCanonicalNameComplete(rv);
-        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME,
+                          NULL);
         break;
       case STATE_READ_BODY:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_body", request_, request_->url.spec());
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY, NULL);
         rv = DoReadBody();
         break;
       case STATE_READ_BODY_COMPLETE:
         rv = DoReadBodyComplete(rv);
         TRACE_EVENT_END("http.read_body", request_, request_->url.spec());
-        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY, NULL);
         break;
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.drain_body_for_auth_restart",
                           request_, request_->url.spec());
         net_log_.BeginEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
+            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART, NULL);
         rv = DoDrainBodyForAuthRestart();
         break;
       case STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE:
@@ -607,40 +608,40 @@ int HttpNetworkTransaction::DoLoop(int result) {
         TRACE_EVENT_END("http.drain_body_for_auth_restart",
                         request_, request_->url.spec());
         net_log_.EndEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART);
+            NetLog::TYPE_HTTP_TRANSACTION_DRAIN_BODY_FOR_AUTH_RESTART, NULL);
         break;
       case STATE_SPDY_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.send_request", request_, request_->url.spec());
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST, NULL);
         rv = DoSpdySendRequest();
         break;
       case STATE_SPDY_SEND_REQUEST_COMPLETE:
         rv = DoSpdySendRequestComplete(rv);
         TRACE_EVENT_END("http.send_request", request_, request_->url.spec());
-        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_SEND_REQUEST, NULL);
         break;
       case STATE_SPDY_READ_HEADERS:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_headers", request_, request_->url.spec());
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS, NULL);
         rv = DoSpdyReadHeaders();
         break;
       case STATE_SPDY_READ_HEADERS_COMPLETE:
         rv = DoSpdyReadHeadersComplete(rv);
         TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
-        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_HEADERS, NULL);
         break;
       case STATE_SPDY_READ_BODY:
         DCHECK_EQ(OK, rv);
         TRACE_EVENT_BEGIN("http.read_body", request_, request_->url.spec());
-        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_BODY);
+        net_log_.BeginEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_BODY, NULL);
         rv = DoSpdyReadBody();
         break;
       case STATE_SPDY_READ_BODY_COMPLETE:
         rv = DoSpdyReadBodyComplete(rv);
         TRACE_EVENT_END("http.read_body", request_, request_->url.spec());
-        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_BODY);
+        net_log_.EndEvent(NetLog::TYPE_SPDY_TRANSACTION_READ_BODY, NULL);
         break;
       default:
         NOTREACHED() << "bad state";

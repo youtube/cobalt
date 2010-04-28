@@ -7,7 +7,7 @@
 
 #include <cstddef>
 #include <vector>
-#include "net/base/net_log.h"
+#include "net/base/capturing_net_log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
