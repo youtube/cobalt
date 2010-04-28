@@ -108,6 +108,12 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                    CompletionCallback* callback,
                                    const BoundNetLog& net_log);
 
+#if defined(OS_WIN)
+  // These are public for unit tests
+  std::wstring CreateSPN(const AddressList& address_list, const GURL& orign);
+  const std::wstring& spn() const { return spn_; }
+#endif  // defined(OS_WIN)
+
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
 
@@ -116,8 +122,6 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
 #if defined(OS_WIN)
   void OnResolveCanonicalName(int result);
-  std::wstring CreateSPN(const AddressList& address_list, const GURL& orign);
-
   HttpAuthSSPI auth_sspi_;
   AddressList address_list_;
   scoped_ptr<SingleRequestHostResolver> single_resolve_;
