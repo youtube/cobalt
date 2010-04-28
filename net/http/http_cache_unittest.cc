@@ -3423,7 +3423,7 @@ TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
   EXPECT_EQ(net::OK, rv);
   ASSERT_TRUE(trans.get());
 
-  rv = trans->Start(&request, &callback, NULL);
+  rv = trans->Start(&request, &callback, net::BoundNetLog());
   if (rv == net::ERR_IO_PENDING)
     rv = callback.WaitForResult();
   ASSERT_EQ(net::ERR_CACHE_MISS, rv);
