@@ -106,6 +106,9 @@
 
       # The system root for cross-compiles. Default: none.
       'sysroot%': '',
+
+      # On Linux, we build with sse2 for Chromium builds.
+      'disable_sse2%': 0,
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -123,6 +126,7 @@
     'armv7%': '<(armv7)',
     'arm_neon%': '<(arm_neon)',
     'sysroot%': '<(sysroot)',
+    'disable_sse2%': '<(disable_sse2)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -916,7 +920,7 @@
             # compiler optimized the code, since the value is always kept
             # in its specified precision.
             'conditions': [
-              ['branding=="Chromium"', {
+              ['branding=="Chromium" and disable_sse2==0', {
                 'cflags': [
                   '-march=pentium4',
                   '-msse2',
@@ -927,7 +931,7 @@
               # benefit comes from sse2 so this setting allows ChromeOS
               # to build on other CPUs.  In the future -march=atom would help
               # but requires a newer compiler.
-              ['chromeos==1', {
+              ['chromeos==1 and disable_sse2==0', {
                 'cflags': [
                   '-msse2',
                 ],
