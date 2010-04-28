@@ -199,7 +199,8 @@ TEST_F(SOCKSClientSocketPoolTest, Simple) {
   tcp_client_socket_factory_.AddSocketDataProvider(data.data_provider());
 
   ClientSocketHandle handle;
-  int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, pool_, NULL);
+  int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, pool_,
+                       BoundNetLog());
   EXPECT_EQ(OK, rv);
   EXPECT_TRUE(handle.is_initialized());
   EXPECT_TRUE(handle.socket());
@@ -212,7 +213,7 @@ TEST_F(SOCKSClientSocketPoolTest, Async) {
   TestCompletionCallback callback;
   ClientSocketHandle handle;
   int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, pool_,
-                       NULL);
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -228,7 +229,8 @@ TEST_F(SOCKSClientSocketPoolTest, TCPConnectError) {
   tcp_client_socket_factory_.AddSocketDataProvider(socket_data.get());
 
   ClientSocketHandle handle;
-  int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, pool_, NULL);
+  int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, pool_,
+                       BoundNetLog());
   EXPECT_EQ(ERR_CONNECTION_REFUSED, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -242,7 +244,7 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncTCPConnectError) {
   TestCompletionCallback callback;
   ClientSocketHandle handle;
   int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, pool_,
-                       NULL);
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -263,7 +265,8 @@ TEST_F(SOCKSClientSocketPoolTest, SOCKSConnectError) {
 
   ClientSocketHandle handle;
   EXPECT_EQ(0, tcp_socket_pool_->release_count());
-  int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, pool_, NULL);
+  int rv = handle.Init("a", ignored_socket_params_, LOW, NULL, pool_,
+                       BoundNetLog());
   EXPECT_EQ(ERR_SOCKS_CONNECTION_FAILED, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());
@@ -283,7 +286,7 @@ TEST_F(SOCKSClientSocketPoolTest, AsyncSOCKSConnectError) {
   ClientSocketHandle handle;
   EXPECT_EQ(0, tcp_socket_pool_->release_count());
   int rv = handle.Init("a", ignored_socket_params_, LOW, &callback, pool_,
-                       NULL);
+                       BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_FALSE(handle.is_initialized());
   EXPECT_FALSE(handle.socket());

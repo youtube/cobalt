@@ -170,7 +170,8 @@ class ResolveRequest {
         ALLOW_THIS_IN_INITIALIZER_LIST(
             callback_(this, &ResolveRequest::OnLookupFinished)) {
     // Start the request.
-    int err = resolver->Resolve(info_, &addrlist_, &callback_, &req_, NULL);
+    int err = resolver->Resolve(info_, &addrlist_, &callback_, &req_,
+                                BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, err);
   }
 
@@ -181,7 +182,8 @@ class ResolveRequest {
         ALLOW_THIS_IN_INITIALIZER_LIST(
             callback_(this, &ResolveRequest::OnLookupFinished)) {
     // Start the request.
-    int err = resolver->Resolve(info, &addrlist_, &callback_, &req_, NULL);
+    int err = resolver->Resolve(info, &addrlist_, &callback_, &req_,
+                                BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, err);
   }
 
@@ -374,7 +376,7 @@ TEST_F(HostResolverImplTest, NumericIPv4Address) {
   AddressList adrlist;
   const int kPortnum = 5555;
   HostResolver::RequestInfo info("127.1.2.3", kPortnum);
-  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, NULL);
+  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, err);
 
   const struct addrinfo* ainfo = adrlist.head();
@@ -399,7 +401,7 @@ TEST_F(HostResolverImplTest, NumericIPv6Address) {
   AddressList adrlist;
   const int kPortnum = 5555;
   HostResolver::RequestInfo info("2001:db8::1", kPortnum);
-  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, NULL);
+  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, BoundNetLog());
   // On computers without IPv6 support, getaddrinfo cannot convert IPv6
   // address literals to addresses (getaddrinfo returns EAI_NONAME).  So this
   // test has to allow host_resolver->Resolve to fail.
@@ -434,7 +436,7 @@ TEST_F(HostResolverImplTest, EmptyHost) {
   AddressList adrlist;
   const int kPortnum = 5555;
   HostResolver::RequestInfo info("", kPortnum);
-  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, NULL);
+  int err = host_resolver->Resolve(info, &adrlist, NULL, NULL, BoundNetLog());
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, err);
 }
 
@@ -786,7 +788,8 @@ class BypassCacheVerifier : public ResolveRequest::Delegate {
       AddressList addrlist;
 
       HostResolver::RequestInfo info("a", 70);
-      int error = resolver->Resolve(info, &addrlist, junk_callback, NULL, NULL);
+      int error = resolver->Resolve(info, &addrlist, junk_callback, NULL,
+                                    BoundNetLog());
       EXPECT_EQ(OK, error);
 
       // Ok good. Now make sure that if we ask to bypass the cache, it can no
@@ -933,7 +936,7 @@ TEST_F(HostResolverImplTest, Observers) {
   // Resolve "host1" again -- this time it  will be served from cache, but it
   // should still notify of completion.
   TestCompletionCallback callback;
-  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, BoundNetLog());
   ASSERT_EQ(OK, rv);  // Should complete synchronously.
 
   EXPECT_EQ(2U, observer.start_log.size());
@@ -947,7 +950,7 @@ TEST_F(HostResolverImplTest, Observers) {
   // Resolve "host2", setting referrer to "http://foobar.com"
   HostResolver::RequestInfo info2("host2", 70);
   info2.set_referrer(GURL("http://foobar.com"));
-  rv = host_resolver->Resolve(info2, &addrlist, NULL, NULL, NULL);
+  rv = host_resolver->Resolve(info2, &addrlist, NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
 
   EXPECT_EQ(3U, observer.start_log.size());
@@ -963,7 +966,7 @@ TEST_F(HostResolverImplTest, Observers) {
 
   // Resolve "host3"
   HostResolver::RequestInfo info3("host3", 70);
-  host_resolver->Resolve(info3, &addrlist, NULL, NULL, NULL);
+  host_resolver->Resolve(info3, &addrlist, NULL, NULL, BoundNetLog());
 
   // No effect this time, since observer was removed.
   EXPECT_EQ(3U, observer.start_log.size());
@@ -993,7 +996,8 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
     HostResolver::RequestInfo info1("host1", 70);
     HostResolver::RequestHandle req = NULL;
     AddressList addrlist;
-    int rv = host_resolver->Resolve(info1, &addrlist, &callback, &req, NULL);
+    int rv = host_resolver->Resolve(info1, &addrlist, &callback, &req,
+                                    BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_TRUE(NULL != req);
 
@@ -1016,7 +1020,8 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
 
     // Start an async request for (host2:60)
     HostResolver::RequestInfo info2("host2", 60);
-    rv = host_resolver->Resolve(info2, &addrlist, &callback, NULL, NULL);
+    rv = host_resolver->Resolve(info2, &addrlist, &callback, NULL,
+                                BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
     EXPECT_TRUE(NULL != req);
 
@@ -1056,13 +1061,14 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   // Resolve "host1".
   HostResolver::RequestInfo info1("host1", 70);
   TestCompletionCallback callback;
-  int rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  int rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL,
+                                  BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
   // Resolve "host1" again -- this time it will be served from cache, but it
   // should still notify of completion.
-  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, BoundNetLog());
   ASSERT_EQ(OK, rv);  // Should complete synchronously.
 
   // Flush cache by triggering an IP address change.
@@ -1070,7 +1076,7 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
 
   // Resolve "host1" again -- this time it won't be served from cache, so it
   // will complete asynchronously.
-  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, NULL);
+  rv = host_resolver->Resolve(info1, &addrlist, &callback, NULL, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);  // Should complete asynchronously.
   EXPECT_EQ(OK, callback.WaitForResult());
 }
@@ -1110,7 +1116,7 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
   // Start all of the requests.
   for (size_t i = 0; i < arraysize(req); ++i) {
     int rv = host_resolver->Resolve(req[i], &addrlist[i],
-                                    &callback[i], NULL, NULL);
+                                    &callback[i], NULL, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
   }
 
@@ -1192,7 +1198,7 @@ TEST_F(HostResolverImplTest, CancelPendingRequest) {
   // Start all of the requests.
   for (size_t i = 0; i < arraysize(req); ++i) {
     int rv = host_resolver->Resolve(req[i], &addrlist[i],
-                                    &callback[i], &handle[i], NULL);
+                                    &callback[i], &handle[i], BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
   }
 
@@ -1267,7 +1273,7 @@ TEST_F(HostResolverImplTest, QueueOverflow) {
   // Start all of the requests.
   for (size_t i = 0; i < arraysize(req); ++i) {
     int rv = host_resolver->Resolve(req[i], &addrlist[i],
-                                    &callback[i], &handle[i], NULL);
+                                    &callback[i], &handle[i], BoundNetLog());
     if (i == 4u)
       EXPECT_EQ(ERR_HOST_RESOLVER_QUEUE_TOO_LARGE, rv);
     else
@@ -1333,7 +1339,7 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv4) {
   // Start all of the requests.
   for (size_t i = 0; i < arraysize(req); ++i) {
     int rv = host_resolver->Resolve(req[i], &addrlist[i],
-                                    &callback[i], &handle[i], NULL);
+                                    &callback[i], &handle[i], BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv) << i;
   }
 
@@ -1402,7 +1408,7 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
   // Start all of the requests.
   for (size_t i = 0; i < arraysize(req); ++i) {
     int rv = host_resolver->Resolve(req[i], &addrlist[i],
-                                    &callback[i], &handle[i], NULL);
+                                    &callback[i], &handle[i], BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv) << i;
   }
 
@@ -1468,7 +1474,7 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_Synchronous) {
   // Start and run all of the requests synchronously.
   for (size_t i = 0; i < arraysize(req); ++i) {
     int rv = host_resolver->Resolve(req[i], &addrlist[i],
-                                    NULL, NULL, NULL);
+                                    NULL, NULL, BoundNetLog());
     EXPECT_EQ(OK, rv) << i;
   }
 

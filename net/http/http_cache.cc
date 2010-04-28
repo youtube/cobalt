@@ -163,7 +163,7 @@ void HttpCache::MetadataWriter::Write(const GURL& url,
   buf_len_ = buf_len;
   verified_ = false;
 
-  int rv = transaction_->Start(&request_info_, &callback_, NULL);
+  int rv = transaction_->Start(&request_info_, &callback_, BoundNetLog());
   if (rv != ERR_IO_PENDING)
     VerifyResponse(rv);
 }

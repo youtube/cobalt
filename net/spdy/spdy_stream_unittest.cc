@@ -112,7 +112,8 @@ TEST_F(SpdyStreamTest, SendRequest) {
   TestCompletionCallback callback;
   HttpResponseInfo response;
 
-  scoped_refptr<SpdyStream> stream(new SpdyStream(session, 1, false, NULL));
+  scoped_refptr<SpdyStream> stream(new SpdyStream(session, 1, false,
+                                                  BoundNetLog()));
   stream->SetRequestInfo(request);
   EXPECT_EQ(ERR_IO_PENDING, stream->SendRequest(NULL, &response, &callback));
 
