@@ -26,6 +26,8 @@
         'base/address_list.h',
         'base/auth.h',
         'base/cache_type.h',
+        'base/capturing_net_log.cc',
+        'base/capturing_net_log.h',
         'base/cert_database.h',
         'base/cert_database_mac.cc',
         'base/cert_database_nss.cc',

@@ -1003,7 +1003,7 @@ void HostResolverImpl::OnJobComplete(Job* job,
 void HostResolverImpl::OnStartRequest(const BoundNetLog& net_log,
                                       int request_id,
                                       const RequestInfo& info) {
-  net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL);
+  net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL, NULL);
 
   if (requests_trace_) {
     requests_trace_->Add(StringPrintf(
@@ -1021,14 +1021,14 @@ void HostResolverImpl::OnStartRequest(const BoundNetLog& net_log,
 
   // Notify the observers of the start.
   if (!observers_.empty()) {
-    net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART);
+    net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART, NULL);
 
     for (ObserversList::iterator it = observers_.begin();
          it != observers_.end(); ++it) {
       (*it)->OnStartResolution(request_id, info);
     }
 
-    net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART);
+    net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART, NULL);
   }
 }
 
@@ -1043,7 +1043,7 @@ void HostResolverImpl::OnFinishRequest(const BoundNetLog& net_log,
 
   // Notify the observers of the completion.
   if (!observers_.empty()) {
-    net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH);
+    net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH, NULL);
 
     bool was_resolved = error == OK;
     for (ObserversList::iterator it = observers_.begin();
@@ -1051,33 +1051,33 @@ void HostResolverImpl::OnFinishRequest(const BoundNetLog& net_log,
       (*it)->OnFinishResolutionWithStatus(request_id, was_resolved, info);
     }
 
-    net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH);
+    net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH, NULL);
   }
 
-  net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL);
+  net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL, NULL);
 }
 
 void HostResolverImpl::OnCancelRequest(const BoundNetLog& net_log,
                                        int request_id,
                                        const RequestInfo& info) {
-  net_log.AddEvent(NetLog::TYPE_CANCELLED);
+  net_log.AddEvent(NetLog::TYPE_CANCELLED, NULL);
 
   if (requests_trace_)
     requests_trace_->Add(StringPrintf("Cancelled request r%d", request_id));
 
   // Notify the observers of the cancellation.
   if (!observers_.empty()) {
-    net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONCANCEL);
+    net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONCANCEL, NULL);
 
     for (ObserversList::iterator it = observers_.begin();
          it != observers_.end(); ++it) {
       (*it)->OnCancelResolution(request_id, info);
     }
 
-    net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONCANCEL);
+    net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONCANCEL, NULL);
   }
 
-  net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL);
+  net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL, NULL);
 }
 
 void HostResolverImpl::OnIPAddressChanged() {
