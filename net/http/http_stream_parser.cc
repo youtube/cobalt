@@ -149,12 +149,12 @@ int HttpStreamParser::DoLoop(int result) {
         break;
       case STATE_READ_HEADERS:
         TRACE_EVENT_BEGIN("http.read_headers", request_, request_->url.spec());
-        net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS, NULL);
         result = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
         result = DoReadHeadersComplete(result);
-        net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS, NULL);
         TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
         break;
       case STATE_BODY_PENDING:

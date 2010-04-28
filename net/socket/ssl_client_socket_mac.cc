@@ -531,11 +531,11 @@ int SSLClientSocketMac::Connect(CompletionCallback* callback) {
   DCHECK(next_handshake_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
 
-  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
 
   int rv = InitializeSSLContext();
   if (rv != OK) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
     return rv;
   }
 
@@ -544,7 +544,7 @@ int SSLClientSocketMac::Connect(CompletionCallback* callback) {
   if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
   } else {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
   }
   return rv;
 }
@@ -866,7 +866,7 @@ void SSLClientSocketMac::OnHandshakeIOComplete(int result) {
   DCHECK(next_handshake_state_ != STATE_NONE);
   int rv = DoHandshakeLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
     DoConnectCallback(rv);
   }
 }
@@ -882,7 +882,7 @@ void SSLClientSocketMac::OnTransportReadComplete(int result) {
   if (next_handshake_state_ != STATE_NONE) {
     int rv = DoHandshakeLoop(result);
     if (rv != ERR_IO_PENDING) {
-      net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+      net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
       DoConnectCallback(rv);
     }
     return;

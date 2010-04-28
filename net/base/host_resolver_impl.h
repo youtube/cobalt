@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/scoped_ptr.h"
+#include "net/base/capturing_net_log.h"
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
 #include "net/base/host_resolver_proc.h"

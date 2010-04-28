@@ -89,7 +89,7 @@ void SocketStream::set_context(URLRequestContext* context) {
   context_ = context;
 
   if (prev_context != context) {
-    net_log_.EndEvent(NetLog::TYPE_REQUEST_ALIVE);
+    net_log_.EndEvent(NetLog::TYPE_REQUEST_ALIVE, NULL);
     net_log_ = BoundNetLog();
 
     if (context) {
@@ -97,7 +97,7 @@ void SocketStream::set_context(URLRequestContext* context) {
           context->net_log(),
           NetLog::SOURCE_SOCKET_STREAM);
 
-      net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE);
+      net_log_.BeginEvent(NetLog::TYPE_REQUEST_ALIVE, NULL);
     }
   }
 
@@ -120,8 +120,9 @@ void SocketStream::Connect() {
   // Open a connection asynchronously, so that delegate won't be called
   // back before returning Connect().
   next_state_ = STATE_RESOLVE_PROXY;
-  net_log_.BeginEventWithString(NetLog::TYPE_SOCKET_STREAM_CONNECT,
-                                "url", url_.possibly_invalid_spec());
+  net_log_.BeginEvent(
+      NetLog::TYPE_SOCKET_STREAM_CONNECT,
+      new NetLogStringParameter("url", url_.possibly_invalid_spec()));
   MessageLoop::current()->PostTask(
       FROM_HERE,
       NewRunnableMethod(this, &SocketStream::DoLoop, OK));
@@ -212,7 +213,7 @@ void SocketStream::DetachDelegate() {
   if (!delegate_)
     return;
   delegate_ = NULL;
-  net_log_.AddEvent(NetLog::TYPE_CANCELLED);
+  net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
   Close();
 }
 
@@ -261,7 +262,7 @@ int SocketStream::DidEstablishConnection() {
   next_state_ = STATE_READ_WRITE;
   metrics_->OnConnected();
 
-  net_log_.EndEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT, NULL);
   if (delegate_)
     delegate_->OnConnected(this, max_pending_send_allowed_);
 
@@ -271,7 +272,7 @@ int SocketStream::DidEstablishConnection() {
 int SocketStream::DidReceiveData(int result) {
   DCHECK(read_buf_);
   DCHECK_GT(result, 0);
-  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_RECEIVED);
+  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_RECEIVED, NULL);
   int len = result;
   metrics_->OnRead(len);
   if (delegate_) {
@@ -284,7 +285,7 @@ int SocketStream::DidReceiveData(int result) {
 
 int SocketStream::DidSendData(int result) {
   DCHECK_GT(result, 0);
-  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_SENT);
+  net_log_.AddEvent(NetLog::TYPE_SOCKET_STREAM_SENT, NULL);
   int len = result;
   metrics_->OnWrite(len);
   current_write_buf_ = NULL;
@@ -406,8 +407,8 @@ void SocketStream::DoLoop(int result) {
     // close the connection.
     if (state != STATE_READ_WRITE && result < ERR_IO_PENDING) {
       DCHECK_EQ(next_state_, STATE_CLOSE);
-      net_log_.EndEventWithInteger(NetLog::TYPE_SOCKET_STREAM_CONNECT,
-                                   "net_error", result);
+      net_log_.EndEvent(NetLog::TYPE_SOCKET_STREAM_CONNECT,
+                        new NetLogIntegerParameter("net_error", result));
     }
   } while (result != ERR_IO_PENDING);
 }
