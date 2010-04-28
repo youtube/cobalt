@@ -102,13 +102,6 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_NONE
   };
 
-  enum ProxyMode {
-    kDirectConnection,  // If using a direct connection
-    kHTTPProxy,  // If using a proxy for HTTP (not HTTPS)
-    kHTTPProxyUsingTunnel,  // If using a tunnel for HTTPS
-    kSOCKSProxy,  // If using a SOCKS proxy
-  };
-
   enum AlternateProtocolMode {
     kUnspecified,  // Unspecified, check HttpAlternateProtocols
     kUsingAlternateProtocol,  // Using an alternate protocol
@@ -322,7 +315,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   bool logged_response_time;
 
   bool using_ssl_;     // True if handling a HTTPS request
-  ProxyMode proxy_mode_;
 
   // True while establishing a tunnel.  This allows the HTTP CONNECT
   // request/response to reuse the STATE_SEND_REQUEST,

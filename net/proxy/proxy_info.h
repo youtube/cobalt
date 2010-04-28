@@ -50,6 +50,20 @@ class ProxyInfo {
     return proxy_list_.Get().is_direct();
   }
 
+  // Returns true if the first valid proxy server is a http proxy.
+  bool is_http() const {
+    if (is_empty())
+      return false;
+    return proxy_server().is_http();
+  }
+
+  // Returns true if the first valid proxy server is a socks server.
+  bool is_socks() const {
+    if (is_empty())
+      return false;
+    return proxy_server().is_socks();
+  }
+
   // Returns true if this proxy info has no proxies left to try.
   bool is_empty() const {
     return proxy_list_.IsEmpty();
