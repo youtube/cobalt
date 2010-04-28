@@ -715,7 +715,7 @@ class FtpNetworkTransactionTest : public PlatformTest {
     FtpRequestInfo request_info = GetRequestInfo(request);
     EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
     ASSERT_EQ(ERR_IO_PENDING,
-              transaction_.Start(&request_info, &callback_, NULL));
+              transaction_.Start(&request_info, &callback_, BoundNetLog()));
     EXPECT_NE(LOAD_STATE_IDLE, transaction_.GetLoadState());
     ASSERT_EQ(expected_result, callback_.WaitForResult());
     if (expected_result == OK) {
@@ -761,7 +761,7 @@ TEST_F(FtpNetworkTransactionTest, FailedLookup) {
   host_resolver_->rules()->AddSimulatedFailure("badhost");
   EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
   ASSERT_EQ(ERR_IO_PENDING,
-            transaction_.Start(&request_info, &callback_, NULL));
+            transaction_.Start(&request_info, &callback_, BoundNetLog()));
   ASSERT_EQ(ERR_NAME_NOT_RESOLVED, callback_.WaitForResult());
   EXPECT_EQ(LOAD_STATE_IDLE, transaction_.GetLoadState());
 }
@@ -962,7 +962,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilPasvUnsafeHost) {
 
   // Start the transaction.
   ASSERT_EQ(ERR_IO_PENDING,
-            transaction_.Start(&request_info, &callback_, NULL));
+            transaction_.Start(&request_info, &callback_, BoundNetLog()));
   ASSERT_EQ(OK, callback_.WaitForResult());
 
   // The transaction fires the callback when we can start reading data. That
@@ -1085,7 +1085,7 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartUser) {
   FtpRequestInfo request_info = GetRequestInfo("ftp://host/file");
 
   ASSERT_EQ(ERR_IO_PENDING,
-            transaction_.Start(&request_info, &callback_, NULL));
+            transaction_.Start(&request_info, &callback_, BoundNetLog()));
   ASSERT_EQ(ERR_FAILED, callback_.WaitForResult());
 
   MockRead ctrl_reads[] = {
@@ -1115,7 +1115,7 @@ TEST_F(FtpNetworkTransactionTest, EvilRestartPassword) {
   FtpRequestInfo request_info = GetRequestInfo("ftp://host/file");
 
   ASSERT_EQ(ERR_IO_PENDING,
-            transaction_.Start(&request_info, &callback_, NULL));
+            transaction_.Start(&request_info, &callback_, BoundNetLog()));
   ASSERT_EQ(ERR_FAILED, callback_.WaitForResult());
 
   MockRead ctrl_reads[] = {

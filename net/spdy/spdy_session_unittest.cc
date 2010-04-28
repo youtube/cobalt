@@ -127,7 +127,7 @@ TEST_F(SpdySessionTest, GoAway) {
   EXPECT_TRUE(spdy_session_pool->HasSession(test_host_port_pair));
 
   TCPSocketParams tcp_params(kTestHost, kTestPort, MEDIUM, GURL(), false);
-  int rv = session->Connect(kTestHost, tcp_params, MEDIUM, NULL);
+  int rv = session->Connect(kTestHost, tcp_params, MEDIUM, BoundNetLog());
   ASSERT_EQ(OK, rv);
 
   // Flush the SpdySession::OnReadComplete() task.

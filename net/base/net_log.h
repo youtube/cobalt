@@ -137,11 +137,6 @@ class BoundNetLog {
  public:
   BoundNetLog() : net_log_(NULL) {}
 
-  // TODO(eroman): This is a complete hack to allow passing in NULL in
-  // place of a BoundNetLog. I added this while refactoring to simplify the
-  // task of updating all the callers.
-  BoundNetLog(uint32) : net_log_(NULL) {}
-
   BoundNetLog(const NetLog::Source& source, NetLog* net_log)
       : source_(source), net_log_(net_log) {
   }

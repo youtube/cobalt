@@ -102,7 +102,7 @@ bool V8ObjectToString(v8::Handle<v8::Value> object, std::string* result) {
 class ProxyResolverV8::Context {
  public:
   explicit Context(ProxyResolverJSBindings* js_bindings)
-      : js_bindings_(js_bindings), current_request_net_log_(NULL) {
+      : js_bindings_(js_bindings) {
     DCHECK(js_bindings != NULL);
   }
 
