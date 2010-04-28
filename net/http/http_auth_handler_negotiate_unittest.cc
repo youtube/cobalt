@@ -70,7 +70,7 @@ TEST(HttpAuthHandlerNegotiateTest, CnameSync) {
                                       "canonical.example.com");
   TestCompletionCallback callback;
   EXPECT_EQ(OK, auth_handler->ResolveCanonicalName(mock_resolver, &callback,
-                                                   NULL));
+                                                   BoundNetLog()));
   EXPECT_EQ(L"HTTP/canonical.example.com", auth_handler->spn());
 }
 
@@ -87,7 +87,7 @@ TEST(HttpAuthHandlerNegotiateTest, CnameAsync) {
   TestCompletionCallback callback;
   EXPECT_EQ(ERR_IO_PENDING, auth_handler->ResolveCanonicalName(mock_resolver,
                                                                &callback,
-                                                               NULL));
+                                                               BoundNetLog()));
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_EQ(L"HTTP/canonical.example.com", auth_handler->spn());
 }

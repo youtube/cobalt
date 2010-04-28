@@ -516,7 +516,7 @@ class ClientSocketPoolTest : public testing::Test {
     requests_.push_back(request);
     int rv = request->handle()->Init(
         group_name, socket_params, priority, request,
-        socket_pool, NULL);
+        socket_pool, BoundNetLog());
     if (rv != ERR_IO_PENDING)
       request_order_.push_back(request);
     return rv;

@@ -967,7 +967,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     stream->set_stream_id(stream_id);
   } else {
     // TODO(mbelshe): can we figure out how to use a NetLog here?
-    stream = new SpdyStream(this, stream_id, true, NULL);
+    stream = new SpdyStream(this, stream_id, true, BoundNetLog());
 
     // A new HttpResponseInfo object needs to be generated so the call to
     // OnResponseReceived below has something to fill in.

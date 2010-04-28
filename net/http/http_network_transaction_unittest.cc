@@ -121,7 +121,7 @@ class HttpNetworkTransactionTest : public PlatformTest {
 
     TestCompletionCallback callback;
 
-    int rv = trans->Start(&request, &callback, NULL);
+    int rv = trans->Start(&request, &callback, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     out.rv = callback.WaitForResult();
@@ -412,7 +412,7 @@ TEST_F(HttpNetworkTransactionTest, Head) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -469,7 +469,7 @@ TEST_F(HttpNetworkTransactionTest, ReuseConnection) {
 
     TestCompletionCallback callback;
 
-    int rv = trans->Start(&request, &callback, NULL);
+    int rv = trans->Start(&request, &callback, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback.WaitForResult();
@@ -511,7 +511,7 @@ TEST_F(HttpNetworkTransactionTest, Ignores100) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -553,7 +553,7 @@ TEST_F(HttpNetworkTransactionTest, Ignores1xx) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -590,7 +590,7 @@ TEST_F(HttpNetworkTransactionTest, Incomplete100ThenEOF) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -620,7 +620,7 @@ TEST_F(HttpNetworkTransactionTest, EmptyResponse) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -664,7 +664,7 @@ void HttpNetworkTransactionTest::KeepAliveConnectionResendRequestTest(
 
     scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
-    int rv = trans->Start(&request, &callback, NULL);
+    int rv = trans->Start(&request, &callback, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback.WaitForResult();
@@ -714,7 +714,7 @@ TEST_F(HttpNetworkTransactionTest, NonKeepAliveConnectionReset) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -802,7 +802,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuth) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -862,7 +862,7 @@ TEST_F(HttpNetworkTransactionTest, DoNotSendAuth) {
   session_deps.socket_factory.AddSocketDataProvider(&data);
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -918,7 +918,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAlive) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -991,7 +991,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveNoBody) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -1072,7 +1072,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveLargeBody) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -1163,7 +1163,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveImpatientServer) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -1246,7 +1246,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -1328,7 +1328,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyCancelTunnel) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -1381,7 +1381,7 @@ void HttpNetworkTransactionTest::ConnectStatusHelperWithExpectedStatus(
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -1643,7 +1643,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -1782,7 +1782,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -1957,7 +1957,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -2051,7 +2051,7 @@ TEST_F(HttpNetworkTransactionTest, LargeHeadersNoBody) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -2099,7 +2099,7 @@ TEST_F(HttpNetworkTransactionTest, DontRecycleTCPSocketForSSLTunnel) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -2148,7 +2148,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocket) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -2205,7 +2205,7 @@ TEST_F(HttpNetworkTransactionTest, RecycleSocketAfterZeroContentLength) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -2301,7 +2301,7 @@ TEST_F(HttpNetworkTransactionTest, ResendRequestOnWriteBodyError) {
 
     TestCompletionCallback callback;
 
-    int rv = trans->Start(&request[i], &callback, NULL);
+    int rv = trans->Start(&request[i], &callback, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback.WaitForResult();
@@ -2376,7 +2376,7 @@ TEST_F(HttpNetworkTransactionTest, AuthIdentityInURL) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -2474,7 +2474,7 @@ TEST_F(HttpNetworkTransactionTest, WrongAuthIdentityInURL) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -2567,7 +2567,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     TestCompletionCallback callback1;
 
-    int rv = trans->Start(&request, &callback1, NULL);
+    int rv = trans->Start(&request, &callback1, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback1.WaitForResult();
@@ -2652,7 +2652,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     TestCompletionCallback callback1;
 
-    int rv = trans->Start(&request, &callback1, NULL);
+    int rv = trans->Start(&request, &callback1, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback1.WaitForResult();
@@ -2717,7 +2717,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     TestCompletionCallback callback1;
 
-    int rv = trans->Start(&request, &callback1, NULL);
+    int rv = trans->Start(&request, &callback1, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback1.WaitForResult();
@@ -2779,7 +2779,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     TestCompletionCallback callback1;
 
-    int rv = trans->Start(&request, &callback1, NULL);
+    int rv = trans->Start(&request, &callback1, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback1.WaitForResult();
@@ -2868,7 +2868,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
 
     TestCompletionCallback callback1;
 
-    int rv = trans->Start(&request, &callback1, NULL);
+    int rv = trans->Start(&request, &callback1, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback1.WaitForResult();
@@ -2988,7 +2988,7 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificate) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3065,7 +3065,7 @@ TEST_F(HttpNetworkTransactionTest, HTTPSBadCertificateViaProxy) {
     scoped_ptr<HttpTransaction> trans(
         new HttpNetworkTransaction(CreateSession(&session_deps)));
 
-    int rv = trans->Start(&request, &callback, NULL);
+    int rv = trans->Start(&request, &callback, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback.WaitForResult();
@@ -3116,7 +3116,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_UserAgent) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3155,7 +3155,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_Referer) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3192,7 +3192,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_PostContentLengthZero) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3229,7 +3229,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_PutContentLengthZero) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3266,7 +3266,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_HeadContentLengthZero) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3305,7 +3305,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_CacheControlNoCache) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3344,7 +3344,7 @@ TEST_F(HttpNetworkTransactionTest,
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3382,7 +3382,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeaders) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3423,7 +3423,7 @@ TEST_F(HttpNetworkTransactionTest, BuildRequest_ExtraHeadersStripped) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3466,7 +3466,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_HTTP_GET) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3522,7 +3522,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS4_SSL_GET) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3587,7 +3587,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_HTTP_GET) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3657,7 +3657,7 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_SSL_GET) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3768,7 +3768,7 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
     TestCompletionCallback callback;
 
     // We do not complete this request, the dtor will clean the transaction up.
-    EXPECT_EQ(ERR_IO_PENDING, trans->Start(&request, &callback, NULL));
+    EXPECT_EQ(ERR_IO_PENDING, trans->Start(&request, &callback, BoundNetLog()));
     std::string allgroups = tcp_conn_pool->last_group_name_received() +
                             socks_conn_pool->last_group_name_received();
     EXPECT_EQ(tests[i].expected_group_name, allgroups);
@@ -3794,7 +3794,7 @@ TEST_F(HttpNetworkTransactionTest, ReconsiderProxyAfterFailedConnection) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3870,7 +3870,7 @@ TEST_F(HttpNetworkTransactionTest, ResolveMadeWithReferrer) {
 
   // Run the request until it fails reading from the socket.
   TestCompletionCallback callback;
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
   EXPECT_EQ(ERR_FAILED, rv);
@@ -3895,7 +3895,7 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   AddressList addrlist;
   int rv = session_deps.host_resolver->Resolve(
       HostResolver::RequestInfo("www.google.com", 80), &addrlist,
-      NULL, NULL, NULL);
+      NULL, NULL, BoundNetLog());
   EXPECT_EQ(OK, rv);
 
   // Verify that it was added to host cache, by doing a subsequent async lookup
@@ -3903,7 +3903,7 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   TestCompletionCallback resolve_callback;
   rv = session_deps.host_resolver->Resolve(
       HostResolver::RequestInfo("www.google.com", 80), &addrlist,
-      &resolve_callback, NULL, NULL);
+      &resolve_callback, NULL, BoundNetLog());
   ASSERT_EQ(OK, rv);
 
   // Inject a failure the next time that "www.google.com" is resolved. This way
@@ -3925,7 +3925,7 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
 
   // Run the request.
   TestCompletionCallback callback;
-  rv = trans->Start(&request, &callback, NULL);
+  rv = trans->Start(&request, &callback, BoundNetLog());
   ASSERT_EQ(ERR_IO_PENDING, rv);
   rv = callback.WaitForResult();
 
@@ -3956,7 +3956,7 @@ TEST_F(HttpNetworkTransactionTest, RequestWriteError) {
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(CreateSession(&session_deps)));
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -3986,7 +3986,7 @@ TEST_F(HttpNetworkTransactionTest, ConnectionClosedAfterStartOfHeaders) {
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(CreateSession(&session_deps)));
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -4058,7 +4058,7 @@ TEST_F(HttpNetworkTransactionTest, DrainResetOK) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -4115,7 +4115,7 @@ TEST_F(HttpNetworkTransactionTest, HTTPSViaProxyWithExtraData) {
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(CreateSession(&session_deps)));
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -4142,7 +4142,7 @@ TEST_F(HttpNetworkTransactionTest, LargeContentLengthThenClose) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   EXPECT_EQ(OK, callback.WaitForResult());
@@ -4191,7 +4191,7 @@ TEST_F(HttpNetworkTransactionTest, UploadFileSmallerThanLength) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -4254,7 +4254,7 @@ TEST_F(HttpNetworkTransactionTest, UploadUnreadableFile) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback.WaitForResult();
@@ -4322,7 +4322,7 @@ TEST_F(HttpNetworkTransactionTest, UnreadableUploadFileAfterAuthRestart) {
 
   TestCompletionCallback callback1;
 
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   rv = callback1.WaitForResult();
@@ -4448,7 +4448,7 @@ TEST_F(HttpNetworkTransactionTest, ChangeAuthRealms) {
   // Issue the first request with Authorize headers. There should be a
   // password prompt for first_realm waiting to be filled in after the
   // transaction completes.
-  int rv = trans->Start(&request, &callback1, NULL);
+  int rv = trans->Start(&request, &callback1, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   rv = callback1.WaitForResult();
   EXPECT_EQ(OK, rv);
@@ -4528,7 +4528,7 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   HostPortPair http_host_port_pair;
@@ -4605,7 +4605,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -4665,7 +4665,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 //
 //    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 //
-//    int rv = trans->Start(&request, &callback, NULL);
+//    int rv = trans->Start(&request, &callback, BoundNetLog());
 //    EXPECT_EQ(ERR_IO_PENDING, rv);
 //    EXPECT_EQ(OK, callback.WaitForResult());
 //
@@ -4720,7 +4720,7 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -4788,7 +4788,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
   scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -4803,7 +4803,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
 
   trans.reset(new HttpNetworkTransaction(session));
 
-  rv = trans->Start(&request, &callback, NULL);
+  rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -4873,7 +4873,7 @@ TEST_F(HttpNetworkTransactionTest,
 
   scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -4896,7 +4896,7 @@ TEST_F(HttpNetworkTransactionTest,
 
   trans.reset(new HttpNetworkTransaction(session));
 
-  rv = trans->Start(&request, &callback, NULL);
+  rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -5088,7 +5088,7 @@ TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
 
     TestCompletionCallback callback1;
 
-    int rv = trans->Start(&request, &callback1, NULL);
+    int rv = trans->Start(&request, &callback1, BoundNetLog());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     rv = callback1.WaitForResult();
@@ -5161,7 +5161,7 @@ TEST_F(HttpNetworkTransactionTest, RestartAfterTLSDecompressionFailure) {
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
@@ -5203,7 +5203,7 @@ TEST_F(HttpNetworkTransactionTest,
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, NULL);
+  int rv = trans->Start(&request, &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   EXPECT_EQ(OK, callback.WaitForResult());
 
