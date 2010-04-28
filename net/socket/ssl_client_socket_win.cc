@@ -436,11 +436,11 @@ int SSLClientSocketWin::Connect(CompletionCallback* callback) {
   DCHECK(next_state_ == STATE_NONE);
   DCHECK(!user_connect_callback_);
 
-  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT);
+  net_log_.BeginEvent(NetLog::TYPE_SSL_CONNECT, NULL);
 
   int rv = InitializeSSLContext();
   if (rv != OK) {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
     return rv;
   }
 
@@ -450,7 +450,7 @@ int SSLClientSocketWin::Connect(CompletionCallback* callback) {
   if (rv == ERR_IO_PENDING) {
     user_connect_callback_ = callback;
   } else {
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
   }
   return rv;
 }
@@ -654,7 +654,7 @@ void SSLClientSocketWin::OnHandshakeIOComplete(int result) {
       c->Run(rv);
       return;
     }
-    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT);
+    net_log_.EndEvent(NetLog::TYPE_SSL_CONNECT, NULL);
     CompletionCallback* c = user_connect_callback_;
     user_connect_callback_ = NULL;
     c->Run(rv);

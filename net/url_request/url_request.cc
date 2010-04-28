@@ -259,8 +259,10 @@ void URLRequest::StartJob(URLRequestJob* job) {
   DCHECK(!is_pending_);
   DCHECK(!job_);
 
-  net_log_.BeginEventWithString(net::NetLog::TYPE_URL_REQUEST_START,
-                                "url", original_url().possibly_invalid_spec());
+  net_log_.BeginEvent(
+      net::NetLog::TYPE_URL_REQUEST_START,
+      new net::NetLogStringParameter(
+          "url", original_url().possibly_invalid_spec()));
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
@@ -367,10 +369,11 @@ void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
 
 void URLRequest::ResponseStarted() {
   if (!status_.is_success()) {
-    net_log_.EndEventWithInteger(net::NetLog::TYPE_URL_REQUEST_START,
-                                 "net_error", status_.os_error());
+    net_log_.EndEvent(
+        net::NetLog::TYPE_URL_REQUEST_START,
+        new net::NetLogIntegerParameter("net_error", status_.os_error()));
   } else {
-    net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START);
+    net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START, NULL);
   }
 
   URLRequestJob* job = GetJobManager()->MaybeInterceptResponse(this);
@@ -445,8 +448,10 @@ std::string URLRequest::StripPostSpecificHeaders(const std::string& headers) {
 
 int URLRequest::Redirect(const GURL& location, int http_status_code) {
   if (net_log_.HasListener()) {
-    net_log_.AddEventWithString(net::NetLog::TYPE_URL_REQUEST_REDIRECTED,
-                                "location", location.possibly_invalid_spec());
+    net_log_.AddEvent(
+        net::NetLog::TYPE_URL_REQUEST_REDIRECTED,
+        new net::NetLogStringParameter(
+            "location", location.possibly_invalid_spec()));
   }
   if (redirect_limit_ <= 0) {
     DLOG(INFO) << "disallowing redirect: exceeds limit";
@@ -512,13 +517,13 @@ void URLRequest::set_context(URLRequestContext* context) {
 
   // If the context this request belongs to has changed, update the tracker.
   if (prev_context != context) {
-    net_log_.EndEvent(net::NetLog::TYPE_REQUEST_ALIVE);
+    net_log_.EndEvent(net::NetLog::TYPE_REQUEST_ALIVE, NULL);
     net_log_ = net::BoundNetLog();
 
     if (context) {
       net_log_ = net::BoundNetLog::Make(context->net_log(),
                                         net::NetLog::SOURCE_URL_REQUEST);
-      net_log_.BeginEvent(net::NetLog::TYPE_REQUEST_ALIVE);
+      net_log_.BeginEvent(net::NetLog::TYPE_REQUEST_ALIVE, NULL);
     }
   }
 }
