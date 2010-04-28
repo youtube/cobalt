@@ -241,6 +241,21 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
   MessageLoop::current()->RunAllPending();
 }
 
+#if defined(OS_WIN) || defined(OS_MACOSX)
+// This test fails on linux. TODO(rvargas): Find out why (bug 41563).
+TEST_F(DiskCacheTest, TruncatedIndex) {
+  FilePath path = GetCacheFilePath();
+  ASSERT_TRUE(DeleteCache(path));
+  FilePath index = path.AppendASCII("Index");
+  ASSERT_EQ(5, file_util::WriteFile(index, "hello", 5));
+  scoped_ptr<disk_cache::Backend> backend;
+  backend.reset(disk_cache::BackendImpl::CreateBackend(path, false, 0,
+                                                       net::DISK_CACHE,
+                                                       disk_cache::kNone));
+  ASSERT_TRUE(backend.get() == NULL);
+}
+#endif
+
 void DiskCacheBackendTest::BackendSetSize() {
   SetDirectMode();
   const int cache_size = 0x10000;  // 64 kB
