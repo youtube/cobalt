@@ -13,6 +13,14 @@ namespace net {
 
 namespace {
 
+char* do_strdup(const char* src) {
+#if defined(OS_WIN)
+  return _strdup(src);
+#else
+  return strdup(src);
+#endif
+}
+
 // Make a copy of |info| (the dynamically-allocated parts are copied as well).
 // If |recursive| is true, chained entries via ai_next are copied too.
 // Copy returned by this function should be deleted using
@@ -27,11 +35,7 @@ struct addrinfo* CreateCopyOfAddrinfo(const struct addrinfo* info,
 
   // ai_canonname is a NULL-terminated string.
   if (info->ai_canonname) {
-#ifdef OS_WIN
-    copy->ai_canonname = _strdup(info->ai_canonname);
-#else
-    copy->ai_canonname = strdup(info->ai_canonname);
-#endif
+    copy->ai_canonname = do_strdup(info->ai_canonname);
   }
 
   // ai_addr is a buffer of length ai_addrlen.
@@ -162,21 +166,45 @@ void AddressList::Reset() {
 }
 
 // static
-AddressList AddressList::CreateIPv6Address(unsigned char data[16]) {
+AddressList AddressList::CreateIPv4Address(unsigned char data[4],
+                                           const std::string& canonical_name) {
   struct addrinfo* ai = new addrinfo;
   memset(ai, 0, sizeof(addrinfo));
+  ai->ai_family = AF_INET;
+  ai->ai_socktype = SOCK_STREAM;
+  const size_t sockaddr_in_size = sizeof(struct sockaddr_in);
+  ai->ai_addrlen = sockaddr_in_size;
+  if (!canonical_name.empty())
+    ai->ai_canonname = do_strdup(canonical_name.c_str());
 
+  struct sockaddr_in* addr = reinterpret_cast<struct sockaddr_in*>(
+      new char[sockaddr_in_size]);
+  memset(addr, 0, sockaddr_in_size);
+  addr->sin_family = AF_INET;
+  memcpy(&addr->sin_addr, data, 4);
+  ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr);
+
+  return AddressList(new Data(ai, false /*is_system_created*/));
+}
+
+// static
+AddressList AddressList::CreateIPv6Address(unsigned char data[16],
+                                           const std::string& canonical_name) {
+  struct addrinfo* ai = new addrinfo;
+  memset(ai, 0, sizeof(addrinfo));
   ai->ai_family = AF_INET6;
   ai->ai_socktype = SOCK_STREAM;
-  ai->ai_addrlen = sizeof(struct sockaddr_in6);
+  const size_t sockaddr_in6_size = sizeof(struct sockaddr_in6);
+  ai->ai_addrlen = sockaddr_in6_size;
+  if (!canonical_name.empty())
+    ai->ai_canonname = do_strdup(canonical_name.c_str());
 
   struct sockaddr_in6* addr6 = reinterpret_cast<struct sockaddr_in6*>(
-      new char[ai->ai_addrlen]);
-  memset(addr6, 0, sizeof(struct sockaddr_in6));
-
-  ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr6);
+      new char[sockaddr_in6_size]);
+  memset(addr6, 0, sockaddr_in6_size);
   addr6->sin6_family = AF_INET6;
   memcpy(&addr6->sin6_addr, data, 16);
+  ai->ai_addr = reinterpret_cast<struct sockaddr*>(addr6);
 
   return AddressList(new Data(ai, false /*is_system_created*/));
 }
