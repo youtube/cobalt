@@ -13,10 +13,14 @@
 namespace net {
 
 namespace {
-// Fills |addrlist| with a socket address for |host| which should be an
-// IPv6 literal. Returns OK on success.
-int ResolveIPV6LiteralUsingGURL(const std::string& host,
-                                AddressList* addrlist) {
+
+// Fills |*addrlist| with a socket address for |host| which should be an
+// IPv6 literal without enclosing brackets. If |canonical_name| is non-empty
+// it is used as the DNS canonical name for the host. Returns OK on success,
+// ERR_UNEXPECTED otherwise.
+int CreateIPv6Address(const std::string& host,
+                      const std::string& canonical_name,
+                      AddressList* addrlist) {
   // GURL expects the hostname to be surrounded with brackets.
   std::string host_brackets = "[" + host + "]";
   url_parse::Component host_comp(0, host_brackets.size());
@@ -31,7 +35,26 @@ int ResolveIPV6LiteralUsingGURL(const std::string& host,
     return ERR_UNEXPECTED;
   }
 
-  *addrlist = AddressList::CreateIPv6Address(ipv6_addr);
+  *addrlist = AddressList::CreateIPv6Address(ipv6_addr, canonical_name);
+  return OK;
+}
+
+// Fills |*addrlist| with a socket address for |host| which should be an
+// IPv4 literal. If |canonical_name| is non-empty it is used as the DNS
+// canonical name for the host. Returns OK on success, ERR_UNEXPECTED otherwise.
+int CreateIPv4Address(const std::string& host,
+                      const std::string& canonical_name,
+                      AddressList* addrlist) {
+  unsigned char ipv4_addr[4];
+  url_parse::Component host_comp(0, host.size());
+  int num_components;
+  url_canon::CanonHostInfo::Family family = url_canon::IPv4AddressToNumber(
+      host.data(), host_comp, ipv4_addr, &num_components);
+  if (family != url_canon::CanonHostInfo::IPV4) {
+    LOG(WARNING) << "Not an IPv4 literal: " << host;
+    return ERR_UNEXPECTED;
+  }
+  *addrlist = AddressList::CreateIPv4Address(ipv4_addr, canonical_name);
   return OK;
 }
 
@@ -104,23 +127,30 @@ struct RuleBasedHostResolverProc::Rule {
     kResolverTypeFail,
     kResolverTypeSystem,
     kResolverTypeIPV6Literal,
+    kResolverTypeIPV4Literal,
   };
 
   ResolverType resolver_type;
   std::string host_pattern;
   AddressFamily address_family;
+  HostResolverFlags host_resolver_flags;
   std::string replacement;
+  std::string canonical_name;
   int latency_ms;  // In milliseconds.
 
   Rule(ResolverType resolver_type,
        const std::string& host_pattern,
        AddressFamily address_family,
+       HostResolverFlags host_resolver_flags,
        const std::string& replacement,
+       const std::string& canonical_name,
        int latency_ms)
       : resolver_type(resolver_type),
         host_pattern(host_pattern),
         address_family(address_family),
+        host_resolver_flags(host_resolver_flags),
         replacement(replacement),
+        canonical_name(canonical_name),
         latency_ms(latency_ms) {}
 };
 
@@ -143,16 +173,32 @@ void RuleBasedHostResolverProc::AddRuleForAddressFamily(
     const std::string& replacement) {
   DCHECK(!replacement.empty());
   Rule rule(Rule::kResolverTypeSystem, host_pattern,
-            address_family, replacement, 0);
+            address_family, 0, replacement, "", 0);
+  rules_.push_back(rule);
+}
+
+void RuleBasedHostResolverProc::AddIPv4Rule(const std::string& host_pattern,
+                                            const std::string& ipv4_literal,
+                                            const std::string& canonical_name) {
+  Rule rule(Rule::kResolverTypeIPV4Literal,
+            host_pattern,
+            ADDRESS_FAMILY_UNSPECIFIED,
+            canonical_name.empty() ? 0 : HOST_RESOLVER_CANONNAME,
+            ipv4_literal,
+            canonical_name,
+            0);
   rules_.push_back(rule);
 }
 
 void RuleBasedHostResolverProc::AddIPv6Rule(const std::string& host_pattern,
-                                            const std::string& ipv6_literal) {
+                                            const std::string& ipv6_literal,
+                                            const std::string& canonical_name) {
   Rule rule(Rule::kResolverTypeIPV6Literal,
             host_pattern,
             ADDRESS_FAMILY_UNSPECIFIED,
+            canonical_name.empty() ? 0 : HOST_RESOLVER_CANONNAME,
             ipv6_literal,
+            canonical_name,
             0);
   rules_.push_back(rule);
 }
@@ -163,21 +209,21 @@ void RuleBasedHostResolverProc::AddRuleWithLatency(
     int latency_ms) {
   DCHECK(!replacement.empty());
   Rule rule(Rule::kResolverTypeSystem, host_pattern,
-            ADDRESS_FAMILY_UNSPECIFIED, replacement, latency_ms);
+            ADDRESS_FAMILY_UNSPECIFIED, 0, replacement, "", latency_ms);
   rules_.push_back(rule);
 }
 
 void RuleBasedHostResolverProc::AllowDirectLookup(
     const std::string& host_pattern) {
   Rule rule(Rule::kResolverTypeSystem, host_pattern,
-            ADDRESS_FAMILY_UNSPECIFIED, "", 0);
+            ADDRESS_FAMILY_UNSPECIFIED, 0, "", "", 0);
   rules_.push_back(rule);
 }
 
 void RuleBasedHostResolverProc::AddSimulatedFailure(
     const std::string& host_pattern) {
   Rule rule(Rule::kResolverTypeFail, host_pattern,
-            ADDRESS_FAMILY_UNSPECIFIED, "", 0);
+            ADDRESS_FAMILY_UNSPECIFIED, 0, "", "", 0);
   rules_.push_back(rule);
 }
 
@@ -190,8 +236,14 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
     bool matches_address_family =
         r->address_family == ADDRESS_FAMILY_UNSPECIFIED ||
         r->address_family == address_family;
-
-    if (matches_address_family && MatchPatternASCII(host, r->host_pattern)) {
+    // Flags match if all of the bitflags in host_resolver_flags are enabled
+    // in the rule's host_resolver_flags. However, the rule may have additional
+    // flags specified, in which case the flags should still be considered a
+    // match.
+    bool matches_flags = (r->host_resolver_flags & host_resolver_flags) ==
+        host_resolver_flags;
+    if (matches_flags && matches_address_family &&
+        MatchPatternASCII(host, r->host_pattern)) {
       if (r->latency_ms != 0)
         PlatformThread::Sleep(r->latency_ms);
 
@@ -209,7 +261,9 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
                                         host_resolver_flags,
                                         addrlist);
         case Rule::kResolverTypeIPV6Literal:
-          return ResolveIPV6LiteralUsingGURL(effective_host, addrlist);
+          return CreateIPv6Address(effective_host, r->canonical_name, addrlist);
+        case Rule::kResolverTypeIPV4Literal:
+          return CreateIPv4Address(effective_host, r->canonical_name, addrlist);
         default:
           NOTREACHED();
           return ERR_UNEXPECTED;
