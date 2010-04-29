@@ -5,8 +5,10 @@
 #ifndef NET_HTTP_HTTP_NETWORK_SESSION_H_
 #define NET_HTTP_HTTP_NETWORK_SESSION_H_
 
+#include <map>
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/host_resolver.h"
 #include "net/base/ssl_client_auth_cache.h"
 #include "net/base/ssl_config_service.h"
@@ -21,8 +23,9 @@ namespace net {
 
 class ClientSocketFactory;
 class HttpAuthHandlerFactory;
-class SpdySessionPool;
+class HttpNetworkSessionPeer;
 class NetworkChangeNotifier;
+class SpdySessionPool;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
 class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
@@ -60,9 +63,13 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   const scoped_refptr<TCPClientSocketPool>& tcp_socket_pool() {
     return tcp_socket_pool_;
   }
-  const scoped_refptr<SOCKSClientSocketPool>& socks_socket_pool() {
-    return socks_socket_pool_;
-  }
+
+  const scoped_refptr<SOCKSClientSocketPool>& GetSocketPoolForSOCKSProxy(
+      const HostPortPair& socks_proxy);
+
+  const scoped_refptr<TCPClientSocketPool>& GetSocketPoolForHTTPProxy(
+      const HostPortPair& http_proxy);
+
   // SSL sockets come from the socket_factory().
   ClientSocketFactory* socket_factory() { return socket_factory_; }
   HostResolver* host_resolver() { return host_resolver_; }
@@ -81,35 +88,30 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
 
   static void set_max_sockets_per_group(int socket_count);
 
-  static uint16 fixed_http_port() { return g_fixed_http_port; }
-  static void set_fixed_http_port(uint16 port) { g_fixed_http_port = port; }
+  static uint16 fixed_http_port();
+  static void set_fixed_http_port(uint16 port);
 
-  static uint16 fixed_https_port() { return g_fixed_https_port; }
-  static void set_fixed_https_port(uint16 port) { g_fixed_https_port = port; }
+  static uint16 fixed_https_port();
+  static void set_fixed_https_port(uint16 port);
 
  private:
+  typedef std::map<HostPortPair, scoped_refptr<TCPClientSocketPool> >
+      HTTPProxySocketPoolMap;
+  typedef std::map<HostPortPair, scoped_refptr<SOCKSClientSocketPool> >
+      SOCKSSocketPoolMap;
+
   friend class base::RefCounted<HttpNetworkSession>;
-  FRIEND_TEST(HttpNetworkTransactionTest, GroupNameForProxyConnections);
+  friend class HttpNetworkSessionPeer;
 
   ~HttpNetworkSession();
-
-  // Total limit of sockets. Not a constant to allow experiments.
-  static int max_sockets_;
-
-  // Default to allow up to 6 connections per host. Experiment and tuning may
-  // try other values (greater than 0).  Too large may cause many problems, such
-  // as home routers blocking the connections!?!?
-  static int max_sockets_per_group_;
-
-  static uint16 g_fixed_http_port;
-  static uint16 g_fixed_https_port;
 
   HttpAuthCache auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
   NetworkChangeNotifier* const network_change_notifier_;
   scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
-  scoped_refptr<SOCKSClientSocketPool> socks_socket_pool_;
+  HTTPProxySocketPoolMap http_proxy_socket_pool_;
+  SOCKSSocketPoolMap socks_socket_pool_;
   ClientSocketFactory* socket_factory_;
   scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;

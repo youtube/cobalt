@@ -168,14 +168,17 @@ class SOCKSClientSocketPoolTest : public ClientSocketPoolTest {
   };
 
   SOCKSClientSocketPoolTest()
-      : ignored_tcp_socket_params_("proxy", 80, MEDIUM, GURL(), false),
+      : ignored_tcp_socket_params_(
+            HostPortPair("proxy", 80), MEDIUM, GURL(), false),
         tcp_socket_pool_(new MockTCPClientSocketPool(
             kMaxSockets, kMaxSocketsPerGroup, "MockTCP",
             &tcp_client_socket_factory_, &tcp_notifier_)),
-        ignored_socket_params_(ignored_tcp_socket_params_, true, "host", 80,
-            MEDIUM, GURL()),
-        pool_(new SOCKSClientSocketPool(kMaxSockets, kMaxSocketsPerGroup,
-            "SOCKSUnitTest", NULL, tcp_socket_pool_.get(), &socks_notifier_)) {
+        ignored_socket_params_(ignored_tcp_socket_params_, true,
+                               HostPortPair("host", 80),
+                               MEDIUM, GURL()),
+        pool_(new SOCKSClientSocketPool(
+            kMaxSockets, kMaxSocketsPerGroup, "SOCKSUnitTest", NULL,
+            tcp_socket_pool_.get(), &socks_notifier_)) {
   }
 
   int StartRequest(const std::string& group_name, RequestPriority priority) {
