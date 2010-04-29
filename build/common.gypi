@@ -248,6 +248,12 @@
     # Enable new NPDevice API.
     'enable_new_npdevice_api%': 0,
     
+    # Enable OpenGL ES.
+    'enable_gles%': 0,
+
+    # Enable EGLImage support in OpenMAX
+    'enable_eglimage%': 0,
+
     'conditions': [
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
@@ -337,15 +343,6 @@
       }, {  # GPU plugin not supported
         'enable_gpu%': 0,
       }],
-      # Compute based on OS, target architecture and device whether GLES
-      # is supported
-      [ 'OS=="linux" and target_arch=="arm" and chromeos==1', {
-        # Enable a variable used elsewhere throughout the GYP files to determine
-        # whether to compile in the sources for the GLES support.
-        'enable_gles%': 1,
-      }, {  # GLES not supported
-        'enable_gles%': 0,
-      }],
     ],
 
     # NOTE: When these end up in the Mac bundle, we need to replace '-' for '_'
@@ -433,6 +430,11 @@
       ['enable_gles==1', {
         'defines': [
           'ENABLE_GLES=1',
+        ],
+      }],
+      ['enable_eglimage==1', {
+        'defines': [
+          'ENABLE_EGLIMAGE=1',
         ],
       }],
       ['coverage!=0', {
