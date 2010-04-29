@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -17,6 +17,7 @@
 #include "net/base/completion_callback.h"
 
 class FilePath;
+class MessageLoop;
 
 namespace net {
 class IOBuffer;
@@ -56,14 +57,16 @@ Backend* CreateInMemoryCacheBackend(int max_bytes);
 // If |force| is true, and there is a problem with the cache initialization, the
 // files will be deleted and a new set will be created. |max_bytes| is the
 // maximum size the cache can grow to. If zero is passed in as |max_bytes|, the
-// cache will determine the value to use. The returned pointer can be NULL if a
-// fatal error is found. The actual return value of the function is a net error
-// code. If this function returns ERR_IO_PENDING, the |callback| will be invoked
-// when a backend is available or a fatal error condition is reached. The
-// pointer to receive the |backend| must remain valid until the operation
-// completes.
+// cache will determine the value to use. |thread| can be used to perform IO
+// operations if a dedicated thread is required; a valid value is expected for
+// any backend that performs operations on a disk. The returned pointer can be
+// NULL if a fatal error is found. The actual return value of the function is a
+// net error code. If this function returns ERR_IO_PENDING, the |callback| will
+// be invoked when a backend is available or a fatal error condition is reached.
+// The pointer to receive the |backend| must remain valid until the operation
+// completes (the callback is notified).
 int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
-                       bool force, Backend** backend,
+                       bool force, MessageLoop* thread, Backend** backend,
                        CompletionCallback* callback);
 
 // The root interface for a disk cache instance.
