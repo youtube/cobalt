@@ -250,6 +250,7 @@ SSLClientSocketNSS::SSLClientSocketNSS(ClientSocket* transport_socket,
       user_write_buf_len_(0),
       server_cert_nss_(NULL),
       client_auth_cert_needed_(false),
+      handshake_callback_called_(false),
       completed_handshake_(false),
       next_handshake_state_(STATE_NONE),
       nss_fd_(NULL),
@@ -1267,6 +1268,8 @@ void SSLClientSocketNSS::HandshakeCallback(PRFileDesc* socket,
                                            void* arg) {
   SSLClientSocketNSS* that = reinterpret_cast<SSLClientSocketNSS*>(arg);
 
+  that->set_handshake_callback_called();
+
   that->UpdateServerCert();
 
   that->CheckSecureRenegotiation();
@@ -1288,9 +1291,15 @@ int SSLClientSocketNSS::DoHandshake() {
       LOG(WARNING) << "Couldn't invalidate SSL session: " << PR_GetError();
     }
   } else if (rv == SECSuccess) {
-    // SSL handshake is completed.  Let's verify the certificate.
-    GotoState(STATE_VERIFY_CERT);
-    // Done!
+    if (handshake_callback_called_) {
+      // SSL handshake is completed.  Let's verify the certificate.
+      GotoState(STATE_VERIFY_CERT);
+      // Done!
+    } else {
+      // SSL_ForceHandshake returned SECSuccess prematurely.
+      rv = SECFailure;
+      net_error = ERR_SSL_PROTOCOL_ERROR;
+    }
   } else {
     PRErrorCode prerr = PR_GetError();
     net_error = MapHandshakeError(prerr);
