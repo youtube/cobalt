@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -174,7 +174,7 @@ Backend* CreateCacheBackend(const FilePath& full_path, bool force,
 }
 
 int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
-                       bool force, Backend** backend,
+                       bool force, MessageLoop* thread, Backend** backend,
                        CompletionCallback* callback) {
   if (type == net::MEMORY_CACHE)
     *backend = CreateInMemoryCacheBackend(max_bytes);

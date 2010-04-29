@@ -201,8 +201,10 @@ HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
                      SSLConfigService* ssl_config_service,
                      HttpAuthHandlerFactory* http_auth_handler_factory,
                      const FilePath& cache_dir,
+                     MessageLoop* cache_thread,
                      int cache_size)
     : disk_cache_dir_(cache_dir),
+      cache_thread_(cache_thread),
       mode_(NORMAL),
       type_(DISK_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(
@@ -215,8 +217,10 @@ HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
 
 HttpCache::HttpCache(HttpNetworkSession* session,
                      const FilePath& cache_dir,
+                     MessageLoop* cache_thread,
                      int cache_size)
     : disk_cache_dir_(cache_dir),
+      cache_thread_(cache_thread),
       mode_(NORMAL),
       type_(DISK_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(session)),
@@ -287,6 +291,13 @@ disk_cache::Backend* HttpCache::GetBackend() {
     disk_cache_dir_ = FilePath();  // Reclaim memory.
   }
   return disk_cache_.get();
+}
+
+int HttpCache::GetBackend(disk_cache::Backend** backend,
+                          CompletionCallback* callback) {
+  DCHECK(callback != NULL);
+  *backend = GetBackend();
+  return OK;
 }
 
 int HttpCache::CreateTransaction(scoped_ptr<HttpTransaction>* trans) {
