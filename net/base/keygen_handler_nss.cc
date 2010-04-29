@@ -12,6 +12,7 @@
 #include <keyhi.h>     // SECKEY_CreateSubjectPublicKeyInfo()
 
 #include "base/base64.h"
+#include "base/nss_util_internal.h"
 #include "base/nss_util.h"
 #include "base/logging.h"
 
@@ -97,7 +98,7 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
   // Ensure NSS is initialized.
   base::EnsureNSSInit();
 
-  slot = PK11_GetInternalKeySlot();
+  slot = base::GetDefaultNSSKeySlot();
   if (!slot) {
     LOG(ERROR) << "Couldn't get Internal key slot!";
     isSuccess = false;
