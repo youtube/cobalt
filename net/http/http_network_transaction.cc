@@ -127,13 +127,14 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
 // 5.3.
 void BuildTunnelRequest(const HttpRequestInfo* request_info,
                         const HttpRequestHeaders& authorization_headers,
+                        const HostPortPair& endpoint,
                         std::string* request_line,
                         HttpRequestHeaders* request_headers) {
   // RFC 2616 Section 9 says the Host request-header field MUST accompany all
   // HTTP/1.1 requests.  Add "Proxy-Connection: keep-alive" for compat with
   // HTTP/1.0 proxies such as Squid (required for NTLM authentication).
   *request_line = StringPrintf(
-      "CONNECT %s HTTP/1.1\r\n", GetHostAndPort(request_info->url).c_str());
+      "CONNECT %s HTTP/1.1\r\n", endpoint.ToString().c_str());
   request_headers->SetHeader(HttpRequestHeaders::kHost,
                              GetHostAndOptionalPort(request_info->url));
   request_headers->SetHeader(HttpRequestHeaders::kProxyConnection,
@@ -705,20 +706,18 @@ int HttpNetworkTransaction::DoInitConnection() {
   endpoint_ = HostPortPair(request_->url.HostNoBrackets(),
                            request_->url.EffectiveIntPort());
 
-  if (proxy_info_.is_direct()) {
-    if (alternate_protocol_mode_ == kUnspecified) {
-      const HttpAlternateProtocols& alternate_protocols =
-          session_->alternate_protocols();
-      if (alternate_protocols.HasAlternateProtocolFor(endpoint_)) {
-        HttpAlternateProtocols::PortProtocolPair alternate =
-            alternate_protocols.GetAlternateProtocolFor(endpoint_);
-        if (alternate.protocol != HttpAlternateProtocols::BROKEN) {
-          DCHECK_EQ(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
-          endpoint_.port = alternate.port;
-          using_ssl_ = true;
-          alternate_protocol_ = HttpAlternateProtocols::NPN_SPDY_1;
-          alternate_protocol_mode_ = kUsingAlternateProtocol;
-        }
+  if (alternate_protocol_mode_ == kUnspecified) {
+    const HttpAlternateProtocols& alternate_protocols =
+        session_->alternate_protocols();
+    if (alternate_protocols.HasAlternateProtocolFor(endpoint_)) {
+      HttpAlternateProtocols::PortProtocolPair alternate =
+          alternate_protocols.GetAlternateProtocolFor(endpoint_);
+      if (alternate.protocol != HttpAlternateProtocols::BROKEN) {
+        DCHECK_EQ(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
+        endpoint_.port = alternate.port;
+        using_ssl_ = true;
+        alternate_protocol_ = HttpAlternateProtocols::NPN_SPDY_1;
+        alternate_protocol_mode_ = kUsingAlternateProtocol;
       }
     }
   }
@@ -961,8 +960,8 @@ int HttpNetworkTransaction::DoSendRequest() {
       AddAuthorizationHeader(HttpAuth::AUTH_SERVER, &authorization_headers);
 
     if (establishing_tunnel_) {
-      BuildTunnelRequest(request_, authorization_headers, &request_line,
-                         &request_headers);
+      BuildTunnelRequest(request_, authorization_headers, endpoint_,
+                         &request_line, &request_headers);
     } else {
       BuildRequestHeaders(request_, authorization_headers, request_body,
                           !using_ssl_ && proxy_info_.is_http(), &request_line,
