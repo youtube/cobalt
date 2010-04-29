@@ -13,6 +13,7 @@
 #include "base/path_service.h"
 #include "base/platform_thread.h"
 #include "base/process_util.h"
+#include "base/scoped_ptr.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_LINUX)
@@ -33,7 +34,15 @@
 #include "base/process_util_unittest_mac.h"
 #endif
 
-namespace base {
+namespace {
+
+#if defined(OS_WIN)
+const wchar_t* const kProcessName = L"base_unittests.exe";
+#else
+const wchar_t* const kProcessName = L"base_unittests";
+#endif  // defined(OS_WIN)
+
+}  // namespace
 
 class ProcessUtilTest : public MultiProcessTest {
 #if defined(OS_POSIX)
@@ -48,10 +57,10 @@ MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
 }
 
 TEST_F(ProcessUtilTest, SpawnChild) {
-  ProcessHandle handle = this->SpawnChild(L"SimpleChildProcess");
+  base::ProcessHandle handle = this->SpawnChild(L"SimpleChildProcess");
 
   ASSERT_NE(base::kNullProcessHandle, handle);
-  EXPECT_TRUE(WaitForSingleProcess(handle, 5000));
+  EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
   base::CloseProcessHandle(handle);
 }
 
@@ -70,7 +79,7 @@ MULTIPROCESS_TEST_MAIN(SlowChildProcess) {
 
 TEST_F(ProcessUtilTest, KillSlowChild) {
   remove("SlowChildProcess.die");
-  ProcessHandle handle = this->SpawnChild(L"SlowChildProcess");
+  base::ProcessHandle handle = this->SpawnChild(L"SlowChildProcess");
   ASSERT_NE(base::kNullProcessHandle, handle);
   FILE *fp = fopen("SlowChildProcess.die", "w");
   fclose(fp);
@@ -80,7 +89,7 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
 
 TEST_F(ProcessUtilTest, DidProcessCrash) {
   remove("SlowChildProcess.die");
-  ProcessHandle handle = this->SpawnChild(L"SlowChildProcess");
+  base::ProcessHandle handle = this->SpawnChild(L"SlowChildProcess");
   ASSERT_NE(base::kNullProcessHandle, handle);
 
   bool child_exited = true;
@@ -92,7 +101,6 @@ TEST_F(ProcessUtilTest, DidProcessCrash) {
   EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
 
   EXPECT_FALSE(base::DidProcessCrash(&child_exited, handle));
-
   base::CloseProcessHandle(handle);
 }
 
@@ -101,8 +109,8 @@ TEST_F(ProcessUtilTest, DidProcessCrash) {
 // Note: a platform may not be willing or able to lower the priority of
 // a process. The calls to SetProcessBackground should be noops then.
 TEST_F(ProcessUtilTest, SetProcessBackgrounded) {
-  ProcessHandle handle = this->SpawnChild(L"SimpleChildProcess");
-  Process process(handle);
+  base::ProcessHandle handle = this->SpawnChild(L"SimpleChildProcess");
+  base::Process process(handle);
   int old_priority = process.GetPriority();
   process.SetProcessBackgrounded(true);
   process.SetProcessBackgrounded(false);
@@ -113,7 +121,7 @@ TEST_F(ProcessUtilTest, SetProcessBackgrounded) {
 // TODO(estade): if possible, port these 2 tests.
 #if defined(OS_WIN)
 TEST_F(ProcessUtilTest, EnableLFH) {
-  ASSERT_TRUE(EnableLowFragmentationHeap());
+  ASSERT_TRUE(base::EnableLowFragmentationHeap());
   if (IsDebuggerPresent()) {
     // Under these conditions, LFH can't be enabled. There's no point to test
     // anything.
@@ -144,13 +152,13 @@ TEST_F(ProcessUtilTest, EnableLFH) {
 }
 
 TEST_F(ProcessUtilTest, CalcFreeMemory) {
-  ProcessMetrics* metrics =
-      ProcessMetrics::CreateProcessMetrics(::GetCurrentProcess());
-  ASSERT_TRUE(NULL != metrics);
+  scoped_ptr<base::ProcessMetrics> metrics(
+      base::ProcessMetrics::CreateProcessMetrics(::GetCurrentProcess()));
+  ASSERT_TRUE(NULL != metrics.get());
 
   // Typical values here is ~1900 for total and ~1000 for largest. Obviously
   // it depends in what other tests have done to this process.
-  FreeMBytes free_mem1 = {0};
+  base::FreeMBytes free_mem1 = {0};
   EXPECT_TRUE(metrics->CalculateFreeMemory(&free_mem1));
   EXPECT_LT(10u, free_mem1.total);
   EXPECT_LT(10u, free_mem1.largest);
@@ -161,21 +169,16 @@ TEST_F(ProcessUtilTest, CalcFreeMemory) {
 
   // Allocate 20M and check again. It should have gone down.
   const int kAllocMB = 20;
-  char* alloc = new char[kAllocMB * 1024 * 1024];
-  EXPECT_TRUE(NULL != alloc);
-
+  scoped_array<char> alloc(new char[kAllocMB * 1024 * 1024]);
   size_t expected_total = free_mem1.total - kAllocMB;
   size_t expected_largest = free_mem1.largest;
 
-  FreeMBytes free_mem2 = {0};
+  base::FreeMBytes free_mem2 = {0};
   EXPECT_TRUE(metrics->CalculateFreeMemory(&free_mem2));
   EXPECT_GE(free_mem2.total, free_mem2.largest);
   EXPECT_GE(expected_total, free_mem2.total);
   EXPECT_GE(expected_largest, free_mem2.largest);
   EXPECT_TRUE(NULL != free_mem2.largest_ptr);
-
-  delete[] alloc;
-  delete metrics;
 }
 
 TEST_F(ProcessUtilTest, GetAppOutput) {
@@ -221,6 +224,9 @@ TEST_F(ProcessUtilTest, LaunchAsUser) {
 #endif  // defined(OS_WIN)
 
 #if defined(OS_POSIX)
+
+namespace {
+
 // Returns the maximum number of files that a process can have open.
 // Returns 0 on error.
 int GetMaxFilesOpenInProcess() {
@@ -240,6 +246,9 @@ int GetMaxFilesOpenInProcess() {
 }
 
 const int kChildPipe = 20;  // FD # for write end of pipe in child process.
+
+}  // namespace
+
 MULTIPROCESS_TEST_MAIN(ProcessUtilsLeakFDChildProcess) {
   // This child process counts the number of open FDs, it then writes that
   // number out to a pipe connected to the parent.
@@ -270,11 +279,10 @@ int ProcessUtilTest::CountOpenFDsInChild() {
   if (pipe(fds) < 0)
     NOTREACHED();
 
-  file_handle_mapping_vector fd_mapping_vec;
+  base::file_handle_mapping_vector fd_mapping_vec;
   fd_mapping_vec.push_back(std::pair<int, int>(fds[1], kChildPipe));
-  ProcessHandle handle = this->SpawnChild(L"ProcessUtilsLeakFDChildProcess",
-                                          fd_mapping_vec,
-                                          false);
+  base::ProcessHandle handle = this->SpawnChild(
+      L"ProcessUtilsLeakFDChildProcess", fd_mapping_vec, false);
   CHECK(handle);
   int ret = HANDLE_EINTR(close(fds[1]));
   DPCHECK(ret == 0);
@@ -285,7 +293,7 @@ int ProcessUtilTest::CountOpenFDsInChild() {
       HANDLE_EINTR(read(fds[0], &num_open_files, sizeof(num_open_files)));
   CHECK_EQ(bytes_read, static_cast<ssize_t>(sizeof(num_open_files)));
 
-  CHECK(WaitForSingleProcess(handle, 1000));
+  CHECK(base::WaitForSingleProcess(handle, 1000));
   base::CloseProcessHandle(handle);
   ret = HANDLE_EINTR(close(fds[0]));
   DPCHECK(ret == 0);
@@ -296,7 +304,7 @@ int ProcessUtilTest::CountOpenFDsInChild() {
 TEST_F(ProcessUtilTest, FDRemapping) {
   int fds_before = CountOpenFDsInChild();
 
-  // open some dummy fds to make sure they don't propogate over to the
+  // open some dummy fds to make sure they don't propagate over to the
   // child process.
   int dev_null = open("/dev/null", O_RDONLY);
   int sockets[2];
@@ -315,10 +323,12 @@ TEST_F(ProcessUtilTest, FDRemapping) {
   DPCHECK(ret == 0);
 }
 
-static std::string TestLaunchApp(const base::environment_vector& env_changes) {
+namespace {
+
+std::string TestLaunchApp(const base::environment_vector& env_changes) {
   std::vector<std::string> args;
   base::file_handle_mapping_vector fds_to_remap;
-  ProcessHandle handle;
+  base::ProcessHandle handle;
 
   args.push_back("bash");
   args.push_back("-c");
@@ -328,7 +338,7 @@ static std::string TestLaunchApp(const base::environment_vector& env_changes) {
   PCHECK(pipe(fds) == 0);
 
   fds_to_remap.push_back(std::make_pair(fds[1], 1));
-  EXPECT_TRUE(LaunchApp(args, env_changes, fds_to_remap,
+  EXPECT_TRUE(base::LaunchApp(args, env_changes, fds_to_remap,
                         true /* wait for exit */, &handle));
   PCHECK(close(fds[1]) == 0);
 
@@ -338,7 +348,7 @@ static std::string TestLaunchApp(const base::environment_vector& env_changes) {
   return std::string(buf, n);
 }
 
-static const char kLargeString[] =
+const char kLargeString[] =
     "0123456789012345678901234567890123456789012345678901234567890123456789"
     "0123456789012345678901234567890123456789012345678901234567890123456789"
     "0123456789012345678901234567890123456789012345678901234567890123456789"
@@ -346,6 +356,8 @@ static const char kLargeString[] =
     "0123456789012345678901234567890123456789012345678901234567890123456789"
     "0123456789012345678901234567890123456789012345678901234567890123456789"
     "0123456789012345678901234567890123456789012345678901234567890123456789";
+
+}  // namespace
 
 TEST_F(ProcessUtilTest, LaunchApp) {
   base::environment_vector env_changes;
@@ -375,59 +387,59 @@ TEST_F(ProcessUtilTest, LaunchApp) {
 }
 
 TEST_F(ProcessUtilTest, AlterEnvironment) {
-  static const char* empty[] = { NULL };
-  static const char* a2[] = { "A=2", NULL };
+  const char* const empty[] = { NULL };
+  const char* const a2[] = { "A=2", NULL };
   base::environment_vector changes;
   char** e;
 
-  e = AlterEnvironment(changes, empty);
+  e = base::AlterEnvironment(changes, empty);
   EXPECT_TRUE(e[0] == NULL);
   delete[] e;
 
   changes.push_back(std::make_pair(std::string("A"), std::string("1")));
-  e = AlterEnvironment(changes, empty);
+  e = base::AlterEnvironment(changes, empty);
   EXPECT_EQ(std::string("A=1"), e[0]);
   EXPECT_TRUE(e[1] == NULL);
   delete[] e;
 
   changes.clear();
   changes.push_back(std::make_pair(std::string("A"), std::string("")));
-  e = AlterEnvironment(changes, empty);
+  e = base::AlterEnvironment(changes, empty);
   EXPECT_TRUE(e[0] == NULL);
   delete[] e;
 
   changes.clear();
-  e = AlterEnvironment(changes, a2);
+  e = base::AlterEnvironment(changes, a2);
   EXPECT_EQ(std::string("A=2"), e[0]);
   EXPECT_TRUE(e[1] == NULL);
   delete[] e;
 
   changes.clear();
   changes.push_back(std::make_pair(std::string("A"), std::string("1")));
-  e = AlterEnvironment(changes, a2);
+  e = base::AlterEnvironment(changes, a2);
   EXPECT_EQ(std::string("A=1"), e[0]);
   EXPECT_TRUE(e[1] == NULL);
   delete[] e;
 
   changes.clear();
   changes.push_back(std::make_pair(std::string("A"), std::string("")));
-  e = AlterEnvironment(changes, a2);
+  e = base::AlterEnvironment(changes, a2);
   EXPECT_TRUE(e[0] == NULL);
   delete[] e;
 }
 
 TEST_F(ProcessUtilTest, GetAppOutput) {
   std::string output;
-  EXPECT_TRUE(GetAppOutput(CommandLine(FilePath("true")), &output));
+  EXPECT_TRUE(base::GetAppOutput(CommandLine(FilePath("true")), &output));
   EXPECT_STREQ("", output.c_str());
 
-  EXPECT_FALSE(GetAppOutput(CommandLine(FilePath("false")), &output));
+  EXPECT_FALSE(base::GetAppOutput(CommandLine(FilePath("false")), &output));
 
   std::vector<std::string> argv;
   argv.push_back("/bin/echo");
   argv.push_back("-n");
   argv.push_back("foobar42");
-  EXPECT_TRUE(GetAppOutput(CommandLine(argv), &output));
+  EXPECT_TRUE(base::GetAppOutput(CommandLine(argv), &output));
   EXPECT_STREQ("foobar42", output.c_str());
 }
 
@@ -444,35 +456,35 @@ TEST_F(ProcessUtilTest, GetAppOutputRestricted) {
   // need absolute paths).
   argv.push_back("exit 0");   // argv[2]; equivalent to "true"
   std::string output = "abc";
-  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 100));
+  EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 100));
   EXPECT_STREQ("", output.c_str());
 
   // On failure, should not touch |output|. As above, but for |false|.
   argv[2] = "exit 1";  // equivalent to "false"
   output = "abc";
-  EXPECT_FALSE(GetAppOutputRestricted(CommandLine(argv),
+  EXPECT_FALSE(base::GetAppOutputRestricted(CommandLine(argv),
                                       &output, 100));
   EXPECT_STREQ("abc", output.c_str());
 
   // Amount of output exactly equal to space allowed.
   argv[2] = "echo 123456789";  // (the sh built-in doesn't take "-n")
   output.clear();
-  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 10));
+  EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 10));
   EXPECT_STREQ("123456789\n", output.c_str());
 
   // Amount of output greater than space allowed.
   output.clear();
-  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 5));
+  EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 5));
   EXPECT_STREQ("12345", output.c_str());
 
   // Amount of output less than space allowed.
   output.clear();
-  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 15));
+  EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 15));
   EXPECT_STREQ("123456789\n", output.c_str());
 
   // Zero space allowed.
   output = "abc";
-  EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 0));
+  EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 0));
   EXPECT_STREQ("", output.c_str());
 }
 
@@ -486,21 +498,21 @@ TEST_F(ProcessUtilTest, GetAppOutputRestrictedNoZombies) {
   // 10.5) times with an output buffer big enough to capture all output.
   for (int i = 0; i < 300; i++) {
     std::string output;
-    EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 100));
+    EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 100));
     EXPECT_STREQ("123456789012345678901234567890\n", output.c_str());
   }
 
   // Ditto, but with an output buffer too small to capture all output.
   for (int i = 0; i < 300; i++) {
     std::string output;
-    EXPECT_TRUE(GetAppOutputRestricted(CommandLine(argv), &output, 10));
+    EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 10));
     EXPECT_STREQ("1234567890", output.c_str());
   }
 }
 
 #if defined(OS_LINUX)
 TEST_F(ProcessUtilTest, GetParentProcessId) {
-  base::ProcessId ppid = GetParentProcessId(GetCurrentProcId());
+  base::ProcessId ppid = base::GetParentProcessId(base::GetCurrentProcId());
   EXPECT_EQ(ppid, getppid());
 }
 
@@ -512,7 +524,7 @@ TEST_F(ProcessUtilTest, ParseProcStatCPU) {
       "20 0 1 0 121946157 15077376 314 18446744073709551615 4194304 "
       "4246868 140733983044336 18446744073709551615 140244213071219 "
       "0 0 0 138047495 0 0 0 17 1 0 0 0 0 0";
-  EXPECT_EQ(12 + 16, ParseProcStatCPU(kTopStat));
+  EXPECT_EQ(12 + 16, base::ParseProcStatCPU(kTopStat));
 
   // cat /proc/self/stat on a random other machine I have.
   const char kSelfStat[] = "5364 (cat) R 5354 5364 5354 34819 5364 "
@@ -521,7 +533,7 @@ TEST_F(ProcessUtilTest, ParseProcStatCPU) {
       "16 0 1 0 1676099790 2957312 114 4294967295 134512640 134528148 "
       "3221224832 3221224344 3086339742 0 0 0 0 0 0 0 17 0 0 0";
 
-  EXPECT_EQ(0, ParseProcStatCPU(kSelfStat));
+  EXPECT_EQ(0, base::ParseProcStatCPU(kSelfStat));
 }
 #endif
 
@@ -549,7 +561,7 @@ class OutOfMemoryTest : public testing::Test {
   virtual void SetUp() {
     // Must call EnableTerminationOnOutOfMemory() because that is called from
     // chrome's main function and therefore hasn't been called yet.
-    EnableTerminationOnOutOfMemory();
+    base::EnableTerminationOnOutOfMemory();
 #if defined(USE_TCMALLOC)
     tc_set_new_mode(1);
   }
@@ -622,26 +634,24 @@ TEST_F(OutOfMemoryTest, Posix_memalign) {
 
 TEST_F(OutOfMemoryTest, CFAllocatorSystemDefault) {
   ASSERT_DEATH(while ((value_ =
-      AllocateViaCFAllocatorSystemDefault(signed_test_size_))) {}, "");
+      base::AllocateViaCFAllocatorSystemDefault(signed_test_size_))) {}, "");
 }
 
 TEST_F(OutOfMemoryTest, CFAllocatorMalloc) {
   ASSERT_DEATH(while ((value_ =
-      AllocateViaCFAllocatorMalloc(signed_test_size_))) {}, "");
+      base::AllocateViaCFAllocatorMalloc(signed_test_size_))) {}, "");
 }
 
 TEST_F(OutOfMemoryTest, CFAllocatorMallocZone) {
   ASSERT_DEATH(while ((value_ =
-      AllocateViaCFAllocatorMallocZone(signed_test_size_))) {}, "");
+      base::AllocateViaCFAllocatorMallocZone(signed_test_size_))) {}, "");
 }
 
 TEST_F(OutOfMemoryTest, PsychoticallyBigObjCObject) {
   ASSERT_DEATH(while ((value_ =
-      AllocatePsychoticallyBigObjCObject())) {}, "");
+      base::AllocatePsychoticallyBigObjCObject())) {}, "");
 }
 
 #endif  // OS_MACOSX
 
 #endif  // !defined(OS_WIN)
-
-}  // namespace base
