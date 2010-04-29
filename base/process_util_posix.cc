@@ -25,7 +25,6 @@
 #include "base/process_util.h"
 #include "base/rand_util.h"
 #include "base/scoped_ptr.h"
-#include "base/sys_info.h"
 #include "base/time.h"
 #include "base/waitable_event.h"
 
@@ -577,37 +576,6 @@ bool LaunchApp(const CommandLine& cl,
   return LaunchApp(cl.argv(), no_files, wait, process_handle);
 }
 
-#if !defined(OS_MACOSX)
-ProcessMetrics::ProcessMetrics(ProcessHandle process)
-#else
-ProcessMetrics::ProcessMetrics(ProcessHandle process,
-                               ProcessMetrics::PortProvider* port_provider)
-#endif
-    : process_(process),
-      last_time_(0),
-      last_system_time_(0)
-#if defined(OS_MACOSX)
-      , port_provider_(port_provider)
-#elif defined(OS_POSIX)
-      , last_cpu_(0)
-#endif
-{
-  processor_count_ = base::SysInfo::NumberOfProcessors();
-}
-
-// static
-#if !defined(OS_MACOSX)
-ProcessMetrics* ProcessMetrics::CreateProcessMetrics(ProcessHandle process) {
-  return new ProcessMetrics(process);
-}
-#else
-ProcessMetrics* ProcessMetrics::CreateProcessMetrics(
-    ProcessHandle process,
-    ProcessMetrics::PortProvider* port_provider) {
-  return new ProcessMetrics(process, port_provider);
-}
-#endif
-
 ProcessMetrics::~ProcessMetrics() { }
 
 void EnableTerminationOnHeapCorruption() {
@@ -875,28 +843,6 @@ bool GetAppOutputRestricted(const CommandLine& cl,
   // Run |execve()| with the empty environment.
   char* const empty_environ = NULL;
   return GetAppOutputInternal(cl, &empty_environ, output, max_output, false);
-}
-
-int GetProcessCount(const std::wstring& executable_name,
-                    const ProcessFilter* filter) {
-  int count = 0;
-
-  NamedProcessIterator iter(executable_name, filter);
-  while (iter.NextProcessEntry())
-    ++count;
-  return count;
-}
-
-bool KillProcesses(const std::wstring& executable_name, int exit_code,
-                   const ProcessFilter* filter) {
-  bool result = true;
-  const ProcessEntry* entry;
-
-  NamedProcessIterator iter(executable_name, filter);
-  while ((entry = iter.NextProcessEntry()) != NULL)
-    result = KillProcess((*entry).pid, exit_code, true) && result;
-
-  return result;
 }
 
 bool WaitForProcessesToExit(const std::wstring& executable_name,

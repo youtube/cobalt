@@ -48,10 +48,8 @@ void RestoreDefaultExceptionHandler() {
                            EXCEPTION_DEFAULT, THREAD_STATE_NONE);
 }
 
-NamedProcessIterator::NamedProcessIterator(const std::wstring& executable_name,
-                                           const ProcessFilter* filter)
-    : executable_name_(executable_name),
-      index_of_kinfo_proc_(0),
+ProcessIterator::ProcessIterator(const ProcessFilter* filter)
+    : index_of_kinfo_proc_(0),
       filter_(filter) {
   // Get a snapshot of all of my processes (yes, as we loop it can go stale, but
   // but trying to find where we were in a constantly changing list is basically
@@ -75,7 +73,7 @@ NamedProcessIterator::NamedProcessIterator(const std::wstring& executable_name,
       size_t num_of_kinfo_proc = len / sizeof(struct kinfo_proc);
       // Leave some spare room for process table growth (more could show up
       // between when we check and now)
-      num_of_kinfo_proc += 4;
+      num_of_kinfo_proc += 16;
       kinfo_procs_.resize(num_of_kinfo_proc);
       len = num_of_kinfo_proc * sizeof(struct kinfo_proc);
       // Load the list of processes
@@ -102,38 +100,21 @@ NamedProcessIterator::NamedProcessIterator(const std::wstring& executable_name,
   }
 }
 
-NamedProcessIterator::~NamedProcessIterator() {
+ProcessIterator::~ProcessIterator() {
 }
 
-const ProcessEntry* NamedProcessIterator::NextProcessEntry() {
-  bool result = false;
-  do {
-    result = CheckForNextProcess();
-  } while (result && !IncludeEntry());
-
-  if (result) {
-    return &entry_;
-  }
-
-  return NULL;
-}
-
-bool NamedProcessIterator::CheckForNextProcess() {
-  std::string executable_name_utf8(base::SysWideToUTF8(executable_name_));
-
+bool ProcessIterator::CheckForNextProcess() {
   std::string data;
-  std::string exec_name;
-
   for (; index_of_kinfo_proc_ < kinfo_procs_.size(); ++index_of_kinfo_proc_) {
-    kinfo_proc* kinfo = &kinfo_procs_[index_of_kinfo_proc_];
+    kinfo_proc& kinfo = kinfo_procs_[index_of_kinfo_proc_];
 
     // Skip processes just awaiting collection
-    if ((kinfo->kp_proc.p_pid > 0) && (kinfo->kp_proc.p_stat == SZOMB))
+    if ((kinfo.kp_proc.p_pid > 0) && (kinfo.kp_proc.p_stat == SZOMB))
       continue;
 
-    int mib[] = { CTL_KERN, KERN_PROCARGS, kinfo->kp_proc.p_pid };
+    int mib[] = { CTL_KERN, KERN_PROCARGS, kinfo.kp_proc.p_pid };
 
-    // Found out what size buffer we need
+    // Find out what size buffer we need.
     size_t data_len = 0;
     if (sysctl(mib, arraysize(mib), NULL, &data_len, NULL, 0) < 0) {
       LOG(ERROR) << "failed to figure out the buffer size for a commandline";
@@ -154,32 +135,26 @@ bool NamedProcessIterator::CheckForNextProcess() {
       LOG(ERROR) << "command line data didn't match expected format";
       continue;
     }
+    entry_.pid_ = kinfo.kp_proc.p_pid;
+    entry_.ppid_ = kinfo.kp_eproc.e_ppid;
+    entry_.gid_ = kinfo.kp_eproc.e_pgid;
     size_t last_slash = data.rfind('/', exec_name_end);
     if (last_slash == std::string::npos)
-      exec_name = data.substr(0, exec_name_end);
+      entry_.exe_file_.assign(data, 0, exec_name_end);
     else
-      exec_name = data.substr(last_slash + 1, exec_name_end - last_slash - 1);
-
-    // Check the name
-    if (executable_name_utf8 == exec_name) {
-      entry_.pid = kinfo->kp_proc.p_pid;
-      entry_.ppid = kinfo->kp_eproc.e_ppid;
-      base::strlcpy(entry_.szExeFile, exec_name.c_str(),
-                    sizeof(entry_.szExeFile));
-      // Start w/ the next entry next time through
-      ++index_of_kinfo_proc_;
-      // Done
-      return true;
-    }
+      entry_.exe_file_.assign(data, last_slash + 1,
+                              exec_name_end - last_slash - 1);
+    // Start w/ the next entry next time through
+    ++index_of_kinfo_proc_;
+    // Done
+    return true;
   }
   return false;
 }
 
 bool NamedProcessIterator::IncludeEntry() {
-  // Don't need to check the name, we did that w/in CheckForNextProcess.
-  if (!filter_)
-    return true;
-  return filter_->Includes(entry_.pid, entry_.ppid);
+  return (base::SysWideToUTF8(executable_name_) == entry().exe_file() &&
+          ProcessIterator::IncludeEntry());
 }
 
 
@@ -192,6 +167,23 @@ bool NamedProcessIterator::IncludeEntry() {
 // call). Child processes ipc their port, so return something if available,
 // otherwise return 0.
 //
+
+ProcessMetrics::ProcessMetrics(ProcessHandle process,
+                               ProcessMetrics::PortProvider* port_provider)
+    : process_(process),
+      last_time_(0),
+      last_system_time_(0),
+      port_provider_(port_provider) {
+  processor_count_ = base::SysInfo::NumberOfProcessors();
+}
+
+// static
+ProcessMetrics* ProcessMetrics::CreateProcessMetrics(
+    ProcessHandle process,
+    ProcessMetrics::PortProvider* port_provider) {
+  return new ProcessMetrics(process, port_provider);
+}
+
 bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
   return false;
 }
