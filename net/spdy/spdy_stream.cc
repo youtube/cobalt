@@ -489,13 +489,17 @@ int SpdyStream::DoReadHeadersComplete(int result) {
 int SpdyStream::DoReadBody() {
   // TODO(mbelshe): merge SpdyStreamParser with SpdyStream and then this
   // makes sense.
+  if (response_complete_) {
+    io_state_ = STATE_READ_BODY_COMPLETE;
+    return OK;
+  }
   return ERR_IO_PENDING;
 }
 
 int SpdyStream::DoReadBodyComplete(int result) {
   // TODO(mbelshe): merge SpdyStreamParser with SpdyStream and then this
   // makes sense.
-  return ERR_IO_PENDING;
+  return result;
 }
 
 void SpdyStream::UpdateHistograms() {
