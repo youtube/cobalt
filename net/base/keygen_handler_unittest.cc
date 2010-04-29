@@ -8,6 +8,7 @@
 
 #include "base/base64.h"
 #include "base/logging.h"
+#include "base/nss_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -28,7 +29,19 @@ KeygenHandler::KeyLocation ValidKeyLocation() {
   return result;
 }
 
-TEST(KeygenHandlerTest, FLAKY_SmokeTest) {
+class KeygenHandlerTest : public ::testing::Test {
+ public:
+  KeygenHandlerTest() {}
+  virtual ~KeygenHandlerTest() {}
+
+  virtual void SetUp() {
+#if defined(OS_CHROMEOS)
+  base::OpenPersistentNSSDB();
+#endif
+  }
+};
+
+TEST_F(KeygenHandlerTest, FLAKY_SmokeTest) {
   KeygenHandler handler(2048, "some challenge");
   handler.set_stores_key(false);  // Don't leave the key-pair behind
   std::string result = handler.GenKeyAndSignChallenge();
@@ -65,7 +78,7 @@ TEST(KeygenHandlerTest, FLAKY_SmokeTest) {
   //    openssl asn1parse -inform DER
 }
 
-TEST(KeygenHandlerTest, Cache) {
+TEST_F(KeygenHandlerTest, Cache) {
   KeygenHandler::Cache* cache = KeygenHandler::Cache::GetInstance();
   KeygenHandler::KeyLocation location1;
   KeygenHandler::KeyLocation location2;
