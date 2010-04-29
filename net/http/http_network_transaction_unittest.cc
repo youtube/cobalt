@@ -3805,12 +3805,11 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
       "www.google.com:443",
     },
 
-// TODO(willchan): Uncomment these tests when they work.
-//    {
-//      "http_proxy",
-//      "http://host.with.alternate/direct",
-//      "proxy/http_proxy:80/host.with.alternate:443",
-//    },
+    {
+      "http_proxy",
+      "http://host.with.alternate/direct",
+      "host.with.alternate:443",
+    },
   };
 
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
@@ -3860,12 +3859,11 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
       "socks5/www.google.com:443",
     },
 
-// TODO(willchan): Uncomment these tests when they work.
-//    {
-//      "socks4://socks_proxy:1080",
-//      "http://host.with.alternate/direct",
-//      "proxy/socks4://socks_proxy:1080/host.with.alternate:443",
-//    },
+    {
+      "socks4://socks_proxy:1080",
+      "http://host.with.alternate/direct",
+      "socks4/host.with.alternate:443",
+    },
   };
 
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
