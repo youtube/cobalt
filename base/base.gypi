@@ -154,6 +154,7 @@
           'process.h',
           'process_linux.cc',
           'process_posix.cc',
+          'process_util.cc',
           'process_util.h',
           'process_util_linux.cc',
           'process_util_mac.mm',

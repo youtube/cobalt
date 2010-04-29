@@ -24,6 +24,7 @@ struct kinfo_proc;
 #include <sys/types.h>
 #endif
 
+#include <list>
 #include <string>
 #include <utility>
 #include <vector>
@@ -46,16 +47,25 @@ namespace base {
 #if defined(OS_WIN)
 
 struct ProcessEntry : public PROCESSENTRY32 {
+  ProcessId pid() const { return th32ProcessID; }
+  ProcessId parent_pid() const { return th32ParentProcessID; }
+  const wchar_t* exe_file() const { return szExeFile; }
 };
+
 struct IoCounters : public IO_COUNTERS {
 };
 
 #elif defined(OS_POSIX)
 
 struct ProcessEntry {
-  base::ProcessId pid;
-  base::ProcessId ppid;
-  char szExeFile[NAME_MAX + 1];
+  ProcessId pid_;
+  ProcessId ppid_;
+  ProcessId gid_;
+  std::string exe_file_;
+
+  ProcessId pid() const { return pid_; }
+  ProcessId parent_pid() const { return ppid_; }
+  const char* exe_file() const { return exe_file_.c_str(); }
 };
 
 struct IoCounters {
@@ -126,7 +136,7 @@ bool AdjustOOMScore(ProcessId process, int score);
 // Close all file descriptors, expect those which are a destination in the
 // given multimap. Only call this function in a child process where you know
 // that there aren't any other threads.
-void CloseSuperfluousFds(const base::InjectiveMultimap& saved_map);
+void CloseSuperfluousFds(const InjectiveMultimap& saved_map);
 #endif
 
 #if defined(OS_WIN)
@@ -239,7 +249,7 @@ class ProcessFilter {
  public:
   // Returns true to indicate set-inclusion and false otherwise.  This method
   // should not have side-effects and should be idempotent.
-  virtual bool Includes(ProcessId pid, ProcessId parent_pid) const = 0;
+  virtual bool Includes(const ProcessEntry& entry) const = 0;
 };
 
 // Returns the number of processes on the machine that are running from the
@@ -312,15 +322,14 @@ bool CleanupProcesses(const std::wstring& executable_name,
                       int exit_code,
                       const ProcessFilter* filter);
 
-// This class provides a way to iterate through the list of processes
-// on the current machine that were started from the given executable
-// name.  To use, create an instance and then call NextProcessEntry()
-// until it returns false.
-class NamedProcessIterator {
+// This class provides a way to iterate through a list of processes on the
+// current machine with a specified filter.
+// To use, create an instance and then call NextProcessEntry() until it returns
+// false.
+class ProcessIterator {
  public:
-  NamedProcessIterator(const std::wstring& executable_name,
-                       const ProcessFilter* filter);
-  ~NamedProcessIterator();
+  explicit ProcessIterator(const ProcessFilter* filter);
+  virtual ~ProcessIterator();
 
   // If there's another process that matches the given executable name,
   // returns a const pointer to the corresponding PROCESSENTRY32.
@@ -329,19 +338,22 @@ class NamedProcessIterator {
   // is called again or this NamedProcessIterator goes out of scope.
   const ProcessEntry* NextProcessEntry();
 
+  // Takes a snapshot of all the ProcessEntry found.
+  std::list<ProcessEntry> Snapshot();
+
+ protected:
+  virtual bool IncludeEntry();
+  const ProcessEntry& entry() { return entry_; }
+
  private:
   // Determines whether there's another process (regardless of executable)
   // left in the list of all processes.  Returns true and sets entry_ to
   // that process's info if there is one, false otherwise.
   bool CheckForNextProcess();
 
-  bool IncludeEntry();
-
   // Initializes a PROCESSENTRY32 data structure so that it's ready for
   // use with Process32First/Process32Next.
   void InitProcessEntry(ProcessEntry* entry);
-
-  std::wstring executable_name_;
 
 #if defined(OS_WIN)
   HANDLE snapshot_;
@@ -355,7 +367,26 @@ class NamedProcessIterator {
   ProcessEntry entry_;
   const ProcessFilter* filter_;
 
-  DISALLOW_EVIL_CONSTRUCTORS(NamedProcessIterator);
+  DISALLOW_COPY_AND_ASSIGN(ProcessIterator);
+};
+
+// This class provides a way to iterate through the list of processes
+// on the current machine that were started from the given executable
+// name.  To use, create an instance and then call NextProcessEntry()
+// until it returns false.
+class NamedProcessIterator : public ProcessIterator {
+ public:
+  NamedProcessIterator(const std::wstring& executable_name,
+                       const ProcessFilter* filter);
+  virtual ~NamedProcessIterator();
+
+ protected:
+  virtual bool IncludeEntry();
+
+ private:
+  std::wstring executable_name_;
+
+  DISALLOW_COPY_AND_ASSIGN(NamedProcessIterator);
 };
 
 // Working Set (resident) memory usage broken down by
@@ -435,7 +466,7 @@ class ProcessMetrics {
   // only returns valid metrics if |process| is the current process.
   static ProcessMetrics* CreateProcessMetrics(ProcessHandle process,
                                               PortProvider* port_provider);
-#endif
+#endif  // !defined(OS_MACOSX)
 
   ~ProcessMetrics();
 
@@ -487,7 +518,7 @@ class ProcessMetrics {
   explicit ProcessMetrics(ProcessHandle process);
 #else
   ProcessMetrics(ProcessHandle process, PortProvider* port_provider);
-#endif
+#endif  // !defined(OS_MACOSX)
 
   ProcessHandle process_;
 
@@ -506,9 +537,9 @@ class ProcessMetrics {
 #elif defined(OS_POSIX)
   // Jiffie count at the last_time_ we updated.
   int last_cpu_;
-#endif
+#endif  // defined(OS_MACOSX)
 
-  DISALLOW_EVIL_CONSTRUCTORS(ProcessMetrics);
+  DISALLOW_COPY_AND_ASSIGN(ProcessMetrics);
 };
 
 // Returns the memory commited by the system in KBytes.
@@ -553,7 +584,7 @@ void RaiseProcessToHighPriority();
 // in the child after forking will restore the standard exception handler.
 // See http://crbug.com/20371/ for more details.
 void RestoreDefaultExceptionHandler();
-#endif
+#endif  // defined(OS_MACOSX)
 
 }  // namespace base
 
