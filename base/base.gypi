@@ -117,6 +117,7 @@
           'memory_debug.h',
           'message_loop.cc',
           'message_loop.h',
+          'message_loop_proxy.h',
           'message_pump.h',
           'message_pump_default.cc',
           'message_pump_default.h',
