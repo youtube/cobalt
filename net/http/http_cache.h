@@ -28,6 +28,7 @@
 #include "net/http/http_transaction_factory.h"
 
 class GURL;
+class MessageLoop;
 class ViewCacheHelper;
 
 namespace disk_cache {
@@ -69,12 +70,14 @@ class HttpCache : public HttpTransactionFactory,
   // Initialize the cache from the directory where its data is stored. The
   // disk cache is initialized lazily (by CreateTransaction) in this case. If
   // |cache_size| is zero, a default value will be calculated automatically.
+  // The |cache_thread| is the thread where disk operations should take place.
   HttpCache(NetworkChangeNotifier* network_change_notifier,
             HostResolver* host_resolver,
             ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
             const FilePath& cache_dir,
+            MessageLoop* cache_thread,
             int cache_size);
 
   // Initialize the cache from the directory where its data is stored. The
@@ -83,8 +86,9 @@ class HttpCache : public HttpTransactionFactory,
   // Provide an existing HttpNetworkSession, the cache can construct a
   // network layer with a shared HttpNetworkSession in order for multiple
   // network layers to share information (e.g. authenication data).
+  // The |cache_thread| is the thread where disk operations should take place.
   HttpCache(HttpNetworkSession* session, const FilePath& cache_dir,
-            int cache_size);
+            MessageLoop* cache_thread, int cache_size);
 
   // Initialize using an in-memory cache. The cache is initialized lazily
   // (by CreateTransaction) in this case. If |cache_size| is zero, a default
@@ -108,7 +112,15 @@ class HttpCache : public HttpTransactionFactory,
   // Returns the cache backend for this HttpCache instance. If the backend
   // is not initialized yet, this method will initialize it. If the return
   // value is NULL then the backend cannot be initialized.
+  // This method is deprecated.
   disk_cache::Backend* GetBackend();
+
+  // Retrieves the cache backend for this HttpCache instance. If the backend
+  // is not initialized yet, this method will initialize it. The return value is
+  // a network error code, and it could be ERR_IO_PENDING, in which case the
+  // |callback| will be notified when the operation completes. The pointer that
+  // receives the |backend| must remain valid until the operation completes.
+  int GetBackend(disk_cache::Backend** backend, CompletionCallback* callback);
 
   // HttpTransactionFactory implementation:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
@@ -200,7 +212,6 @@ class HttpCache : public HttpTransactionFactory,
   typedef base::hash_map<std::string, ActiveEntry*> ActiveEntriesMap;
   typedef base::hash_map<std::string, NewEntry*> NewEntriesMap;
   typedef std::set<ActiveEntry*> ActiveEntriesSet;
-
 
   // Methods ------------------------------------------------------------------
 
@@ -309,6 +320,7 @@ class HttpCache : public HttpTransactionFactory,
 
   // Used when lazily constructing the disk_cache_.
   FilePath disk_cache_dir_;
+  MessageLoop* cache_thread_;
 
   Mode mode_;
   CacheType type_;
