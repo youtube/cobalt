@@ -12,6 +12,7 @@
 #endif
 
 #include <string>
+#include "net/base/host_port_pair.h"
 
 namespace net {
 
@@ -65,7 +66,12 @@ class ProxyServer {
   int port() const;
 
   // Returns the <host>":"<port> string for the proxy server.
+  // TODO(willchan): Remove in favor of host_port_pair().
   std::string host_and_port() const;
+
+  // TODO(willchan): Change to const HostPortPair& after refactoring |host_| and
+  // |port_| here.
+  HostPortPair host_port_pair() const;
 
   // Parse from an input with format:
   //   [<scheme>"://"]<server>[":"<port>]
