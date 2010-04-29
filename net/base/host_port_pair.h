@@ -15,11 +15,12 @@ struct HostPortPair {
   // If |in_host| represents an IPv6 address, it should not bracket the address.
   HostPortPair(const std::string& in_host, uint16 in_port);
 
+  // TODO(willchan): Define a functor instead.
   // Comparator function so this can be placed in a std::map.
   bool operator<(const HostPortPair& other) const {
-    if (host != other.host)
-      return host < other.host;
-    return port < other.port;
+    if (port != other.port)
+      return port < other.port;
+    return host < other.host;
   }
 
   // ToString() will convert the HostPortPair to "host:port".  If |host| is an
