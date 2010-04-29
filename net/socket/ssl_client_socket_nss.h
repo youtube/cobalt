@@ -58,6 +58,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   virtual bool SetReceiveBufferSize(int32 size);
   virtual bool SetSendBufferSize(int32 size);
 
+  void set_handshake_callback_called() { handshake_callback_called_ = true; }
+
  private:
   // Initializes NSS SSL options.  Returns a net error code.
   int InitializeSSLOptions();
@@ -140,6 +142,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
 
   scoped_ptr<CertVerifier> verifier_;
 
+  // True if NSS has called HandshakeCallback.
+  bool handshake_callback_called_;
+
+  // True if the SSL handshake has been completed.
   bool completed_handshake_;
 
   enum State {
