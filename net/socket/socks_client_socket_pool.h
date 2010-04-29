@@ -11,6 +11,7 @@
 #include "base/compiler_specific.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/host_resolver.h"
 #include "net/proxy/proxy_server.h"
 #include "net/socket/client_socket_pool_base.h"
@@ -25,10 +26,10 @@ class ConnectJobFactory;
 class SOCKSSocketParams {
  public:
   SOCKSSocketParams(const TCPSocketParams& proxy_server, bool socks_v5,
-                    const std::string& destination_host, int destination_port,
+                    const HostPortPair& host_port_pair,
                     RequestPriority priority, const GURL& referrer)
       : tcp_params_(proxy_server),
-        destination_(destination_host, destination_port),
+        destination_(host_port_pair.host, host_port_pair.port),
         socks_v5_(socks_v5) {
     // The referrer is used by the DNS prefetch system to correlate resolutions
     // with the page that triggered them. It doesn't impact the actual addresses

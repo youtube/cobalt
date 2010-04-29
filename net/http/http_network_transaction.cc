@@ -701,27 +701,20 @@ int HttpNetworkTransaction::DoInitConnection() {
   // Determine the host and port to connect to.
   std::string connection_group;
 
-  // |endpoint| indicates the final destination endpoint.
-  HostPortPair endpoint;
-  endpoint.host = request_->url.HostNoBrackets();
-  endpoint.port = request_->url.EffectiveIntPort();
+  // |endpoint_| indicates the final destination endpoint.
+  endpoint_ = HostPortPair(request_->url.HostNoBrackets(),
+                           request_->url.EffectiveIntPort());
 
-  if (!proxy_info_.is_direct()) {
-    ProxyServer proxy_server = proxy_info_.proxy_server();
-    connection_group = "proxy/" + proxy_server.ToURI() + "/";
-    peer_.host = proxy_server.HostNoBrackets();
-    peer_.port = proxy_server.port();
-  } else {
-    peer_ = endpoint;
+  if (proxy_info_.is_direct()) {
     if (alternate_protocol_mode_ == kUnspecified) {
       const HttpAlternateProtocols& alternate_protocols =
           session_->alternate_protocols();
-      if (alternate_protocols.HasAlternateProtocolFor(peer_)) {
+      if (alternate_protocols.HasAlternateProtocolFor(endpoint_)) {
         HttpAlternateProtocols::PortProtocolPair alternate =
-            alternate_protocols.GetAlternateProtocolFor(peer_);
+            alternate_protocols.GetAlternateProtocolFor(endpoint_);
         if (alternate.protocol != HttpAlternateProtocols::BROKEN) {
           DCHECK_EQ(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
-          peer_.port = alternate.port;
+          endpoint_.port = alternate.port;
           using_ssl_ = true;
           alternate_protocol_ = HttpAlternateProtocols::NPN_SPDY_1;
           alternate_protocol_mode_ = kUsingAlternateProtocol;
@@ -733,52 +726,66 @@ int HttpNetworkTransaction::DoInitConnection() {
   // Use the fixed testing ports if they've been provided.
   if (using_ssl_) {
     if (session_->fixed_https_port() != 0)
-      peer_.port = session_->fixed_https_port();
+      endpoint_.port = session_->fixed_https_port();
   } else if (session_->fixed_http_port() != 0) {
-    peer_.port = session_->fixed_http_port();
+    endpoint_.port = session_->fixed_http_port();
   }
 
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
-  if (session_->spdy_session_pool()->HasSession(peer_)) {
+  if (session_->spdy_session_pool()->HasSession(endpoint_)) {
     using_spdy_ = true;
     return OK;
   }
 
-  // For a connection via HTTP proxy not using CONNECT, the connection
-  // is to the proxy server only. For all other cases
-  // (direct, HTTP proxy CONNECT, SOCKS), the connection is up to the
-  // url endpoint. Hence we append the url data into the connection_group.
-  // Note that the url endpoint may be different in the Alternate-Protocol case.
-  if (proxy_info_.is_direct())
-    connection_group = peer_.ToString();
-  else if (using_ssl_ || proxy_info_.is_socks())
-    connection_group.append(endpoint.ToString());
-
+  connection_group = endpoint_.ToString();
   DCHECK(!connection_group.empty());
 
   // If the user is refreshing the page, bypass the host cache.
   bool disable_resolver_cache = request_->load_flags & LOAD_BYPASS_CACHE ||
     request_->load_flags & LOAD_DISABLE_CACHE;
 
-  TCPSocketParams tcp_params(peer_.host, peer_.port, request_->priority,
-                             request_->referrer, disable_resolver_cache);
-
   int rv;
-  if (!proxy_info_.is_socks()) {
+  if (!proxy_info_.is_direct()) {
+    ProxyServer proxy_server = proxy_info_.proxy_server();
+    HostPortPair proxy_host_port_pair(proxy_server.HostNoBrackets(),
+                                      proxy_server.port());
+
+    TCPSocketParams tcp_params(proxy_host_port_pair, request_->priority,
+                               request_->referrer, disable_resolver_cache);
+
+    if (proxy_info_.is_socks()) {
+      const char* socks_version;
+      bool socks_v5;
+      if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_SOCKS5) {
+        socks_version = "5";
+        socks_v5 = true;
+      } else {
+        socks_version = "4";
+        socks_v5 = false;
+      }
+
+      connection_group =
+          StringPrintf("socks%s/%s", socks_version, connection_group.c_str());
+
+      SOCKSSocketParams socks_params(tcp_params, socks_v5, endpoint_,
+                                     request_->priority, request_->referrer);
+
+      rv = connection_->Init(
+          connection_group, socks_params, request_->priority,
+          &io_callback_,
+          session_->GetSocketPoolForSOCKSProxy(proxy_host_port_pair), net_log_);
+    } else {
+      rv = connection_->Init(
+          connection_group, tcp_params, request_->priority,
+          &io_callback_,
+          session_->GetSocketPoolForHTTPProxy(proxy_host_port_pair), net_log_);
+    }
+  } else {
+    TCPSocketParams tcp_params(endpoint_, request_->priority,
+                               request_->referrer, disable_resolver_cache);
     rv = connection_->Init(connection_group, tcp_params, request_->priority,
                            &io_callback_, session_->tcp_socket_pool(),
-                           net_log_);
-  } else {
-    bool socks_v5 = proxy_info_.proxy_server().scheme() ==
-                    ProxyServer::SCHEME_SOCKS5;
-    SOCKSSocketParams socks_params(tcp_params, socks_v5,
-                                   request_->url.HostNoBrackets(),
-                                   request_->url.EffectiveIntPort(),
-                                   request_->priority, request_->referrer);
-
-    rv = connection_->Init(connection_group, socks_params, request_->priority,
-                           &io_callback_, session_->socks_socket_pool(),
                            net_log_);
   }
 
@@ -1248,15 +1255,15 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
       session_->spdy_session_pool();
   scoped_refptr<SpdySession> spdy_session;
 
-  if (spdy_pool->HasSession(peer_)) {
-    spdy_session = spdy_pool->Get(peer_, session_);
+  if (spdy_pool->HasSession(endpoint_)) {
+    spdy_session = spdy_pool->Get(endpoint_, session_);
   } else {
     // SPDY is negotiated using the TLS next protocol negotiation (NPN)
     // extension, so |connection_| must contain an SSLClientSocket.
     DCHECK(using_ssl_);
     CHECK(connection_->socket());
     spdy_session = spdy_pool->GetSpdySessionFromSSLSocket(
-        peer_, session_, connection_.release());
+        endpoint_, session_, connection_.release());
   }
 
   CHECK(spdy_session.get());

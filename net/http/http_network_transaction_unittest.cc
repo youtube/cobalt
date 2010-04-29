@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "net/http/http_network_transaction.h"
+
 #include <math.h>  // ceil
 #include <vector>
 
+#include "base/basictypes.h"
 #include "base/compiler_specific.h"
 #include "base/file_path.h"
 #include "base/file_util.h"
@@ -19,7 +22,6 @@
 #include "net/http/http_auth_handler_ntlm.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
-#include "net/http/http_network_transaction.h"
 #include "net/http/http_stream.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/proxy/proxy_config_service_fixed.h"
@@ -36,6 +38,34 @@
 //-----------------------------------------------------------------------------
 
 namespace net {
+
+class HttpNetworkSessionPeer {
+ public:
+  explicit HttpNetworkSessionPeer(
+      const scoped_refptr<HttpNetworkSession>& session)
+      : session_(session) {}
+
+  void SetTCPSocketPool(const scoped_refptr<TCPClientSocketPool>& pool) {
+    session_->tcp_socket_pool_ = pool;
+  }
+
+  void SetSocketPoolForSOCKSProxy(
+      const HostPortPair& socks_proxy,
+      const scoped_refptr<SOCKSClientSocketPool>& pool) {
+    session_->socks_socket_pool_[socks_proxy] = pool;
+  }
+
+  void SetSocketPoolForHTTPProxy(
+      const HostPortPair& http_proxy,
+      const scoped_refptr<TCPClientSocketPool>& pool) {
+    session_->http_proxy_socket_pool_[http_proxy] = pool;
+  }
+
+ private:
+  const scoped_refptr<HttpNetworkSession> session_;
+
+  DISALLOW_COPY_AND_ASSIGN(HttpNetworkSessionPeer);
+};
 
 // Helper to manage the lifetimes of the dependencies for a
 // HttpNetworkTransaction.
@@ -190,13 +220,12 @@ std::string MockGetHostName() {
   return "WTC-WIN7";
 }
 
-template<typename EmulatedClientSocketPool, typename SocketSourceType>
+template<typename EmulatedClientSocketPool>
 class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
  public:
-  CaptureGroupNameSocketPool(HttpNetworkSession* session,
-                             SocketSourceType* socket_source)
+  CaptureGroupNameSocketPool(HttpNetworkSession* session)
       : EmulatedClientSocketPool(0, 0, "CaptureGroupNameTestPool",
-                                 session->host_resolver(), socket_source,
+                                 session->host_resolver(), NULL,
                                  NULL) {}
   const std::string last_group_name_received() const {
     return last_group_name_;
@@ -237,9 +266,9 @@ class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
   std::string last_group_name_;
 };
 
-typedef CaptureGroupNameSocketPool<TCPClientSocketPool, ClientSocketFactory>
+typedef CaptureGroupNameSocketPool<TCPClientSocketPool>
     CaptureGroupNameTCPSocketPool;
-typedef CaptureGroupNameSocketPool<SOCKSClientSocketPool, TCPClientSocketPool>
+typedef CaptureGroupNameSocketPool<SOCKSClientSocketPool>
     CaptureGroupNameSOCKSSocketPool;
 //-----------------------------------------------------------------------------
 
@@ -3673,61 +3702,165 @@ TEST_F(HttpNetworkTransactionTest, SOCKS5_SSL_GET) {
 }
 
 // Tests that for connection endpoints the group names are correctly set.
-TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
-  const struct {
-    const std::string proxy_server;
-    const std::string url;
-    const std::string expected_group_name;
-  } tests[] = {
+
+struct GroupNameTest {
+  std::string proxy_server;
+  std::string url;
+  std::string expected_group_name;
+};
+
+scoped_refptr<HttpNetworkSession> SetupSessionForGroupNameTests(
+    const std::string& proxy_server) {
+  SessionDependencies session_deps(CreateFixedProxyService(proxy_server));
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+
+  HttpAlternateProtocols* alternate_protocols =
+      session->mutable_alternate_protocols();
+  alternate_protocols->SetAlternateProtocolFor(
+      HostPortPair("host.with.alternate", 80), 443,
+      HttpAlternateProtocols::NPN_SPDY_1);
+
+  return session;
+}
+
+int GroupNameTransactionHelper(
+    const std::string& url,
+    const scoped_refptr<HttpNetworkSession>& session) {
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL(url);
+  request.load_flags = 0;
+
+  TestCompletionCallback callback;
+
+  // We do not complete this request, the dtor will clean the transaction up.
+  return trans->Start(&request, &callback, BoundNetLog());
+}
+
+TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
+  const GroupNameTest tests[] = {
     {
-      "",  // no proxy (direct)
+      "",  // unused
       "http://www.google.com/direct",
       "www.google.com:80",
     },
     {
-      "",  // no proxy (direct)
+      "",  // unused
       "http://[2001:1418:13:1::25]/direct",
       "[2001:1418:13:1::25]:80",
-    },
-    {
-      "http_proxy",
-      "http://www.google.com/http_proxy_normal",
-      "proxy/http_proxy:80/",
-    },
-    {
-      "socks4://socks_proxy:1080",
-      "http://www.google.com/socks4_direct",
-      "proxy/socks4://socks_proxy:1080/www.google.com:80",
     },
 
     // SSL Tests
     {
-      "",
+      "",  // unused
       "https://www.google.com/direct_ssl",
       "www.google.com:443",
     },
     {
-      "http_proxy",
-      "https://www.google.com/http_connect_ssl",
-      "proxy/http_proxy:80/www.google.com:443",
+      "",  // unused
+      "https://[2001:1418:13:1::25]/direct",
+      "[2001:1418:13:1::25]:443",
     },
     {
-      "socks4://socks_proxy:1080",
-      "https://www.google.com/socks4_ssl",
-      "proxy/socks4://socks_proxy:1080/www.google.com:443",
-    },
-    {
-      "",  // no proxy (direct)
+      "",  // unused
       "http://host.with.alternate/direct",
       "host.with.alternate:443",
     },
+  };
 
-    // TODO(willchan): Uncomment these tests when they work.
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    scoped_refptr<HttpNetworkSession> session(
+        SetupSessionForGroupNameTests(tests[i].proxy_server));
+
+    HttpNetworkSessionPeer peer(session);
+    scoped_refptr<CaptureGroupNameTCPSocketPool> tcp_conn_pool(
+        new CaptureGroupNameTCPSocketPool(session.get()));
+    peer.SetTCPSocketPool(tcp_conn_pool);
+
+    EXPECT_EQ(ERR_IO_PENDING,
+              GroupNameTransactionHelper(tests[i].url, session));
+    EXPECT_EQ(tests[i].expected_group_name,
+              tcp_conn_pool->last_group_name_received());
+  }
+
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
+  const GroupNameTest tests[] = {
+    {
+      "http_proxy",
+      "http://www.google.com/http_proxy_normal",
+      "www.google.com:80",
+    },
+
+    // SSL Tests
+    {
+      "http_proxy",
+      "https://www.google.com/http_connect_ssl",
+      "www.google.com:443",
+    },
+
+// TODO(willchan): Uncomment these tests when they work.
 //    {
 //      "http_proxy",
 //      "http://host.with.alternate/direct",
 //      "proxy/http_proxy:80/host.with.alternate:443",
 //    },
+  };
+
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    scoped_refptr<HttpNetworkSession> session(
+        SetupSessionForGroupNameTests(tests[i].proxy_server));
+
+    HttpNetworkSessionPeer peer(session);
+
+    scoped_refptr<CaptureGroupNameTCPSocketPool> http_proxy_pool(
+        new CaptureGroupNameTCPSocketPool(session.get()));
+    peer.SetSocketPoolForHTTPProxy(
+        HostPortPair("http_proxy", 80), http_proxy_pool);
+
+    EXPECT_EQ(ERR_IO_PENDING,
+              GroupNameTransactionHelper(tests[i].url, session));
+    EXPECT_EQ(tests[i].expected_group_name,
+              http_proxy_pool->last_group_name_received());
+  }
+
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+}
+
+TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
+  const GroupNameTest tests[] = {
+    {
+      "socks4://socks_proxy:1080",
+      "http://www.google.com/socks4_direct",
+      "socks4/www.google.com:80",
+    },
+    {
+      "socks5://socks_proxy:1080",
+      "http://www.google.com/socks5_direct",
+      "socks5/www.google.com:80",
+    },
+
+    // SSL Tests
+    {
+      "socks4://socks_proxy:1080",
+      "https://www.google.com/socks4_ssl",
+      "socks4/www.google.com:443",
+    },
+    {
+      "socks5://socks_proxy:1080",
+      "https://www.google.com/socks5_ssl",
+      "socks5/www.google.com:443",
+    },
+
+// TODO(willchan): Uncomment these tests when they work.
 //    {
 //      "socks4://socks_proxy:1080",
 //      "http://host.with.alternate/direct",
@@ -3738,40 +3871,21 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForProxyConnections) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    SessionDependencies session_deps(
-        CreateFixedProxyService(tests[i].proxy_server));
+    scoped_refptr<HttpNetworkSession> session(
+        SetupSessionForGroupNameTests(tests[i].proxy_server));
+    HttpNetworkSessionPeer peer(session);
 
-    scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
-
-    HttpAlternateProtocols* alternate_protocols =
-        session->mutable_alternate_protocols();
-    alternate_protocols->SetAlternateProtocolFor(
-        HostPortPair("host.with.alternate", 80), 443,
-        HttpAlternateProtocols::NPN_SPDY_1);
-
-    scoped_refptr<CaptureGroupNameTCPSocketPool> tcp_conn_pool(
-        new CaptureGroupNameTCPSocketPool(session.get(),
-                                          session->socket_factory()));
-    session->tcp_socket_pool_ = tcp_conn_pool.get();
     scoped_refptr<CaptureGroupNameSOCKSSocketPool> socks_conn_pool(
-        new CaptureGroupNameSOCKSSocketPool(session.get(),
-                                            tcp_conn_pool.get()));
-    session->socks_socket_pool_ = socks_conn_pool.get();
+        new CaptureGroupNameSOCKSSocketPool(session.get()));
+    peer.SetSocketPoolForSOCKSProxy(
+        HostPortPair("socks_proxy", 1080), socks_conn_pool);
 
     scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
 
-    HttpRequestInfo request;
-    request.method = "GET";
-    request.url = GURL(tests[i].url);
-    request.load_flags = 0;
-
-    TestCompletionCallback callback;
-
-    // We do not complete this request, the dtor will clean the transaction up.
-    EXPECT_EQ(ERR_IO_PENDING, trans->Start(&request, &callback, BoundNetLog()));
-    std::string allgroups = tcp_conn_pool->last_group_name_received() +
-                            socks_conn_pool->last_group_name_received();
-    EXPECT_EQ(tests[i].expected_group_name, allgroups);
+    EXPECT_EQ(ERR_IO_PENDING,
+              GroupNameTransactionHelper(tests[i].url, session));
+    EXPECT_EQ(tests[i].expected_group_name,
+              socks_conn_pool->last_group_name_received());
   }
 
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
