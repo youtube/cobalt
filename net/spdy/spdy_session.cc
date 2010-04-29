@@ -1015,7 +1015,7 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   // request a duplicate stream which is already scheduled to be
   // sent to us.
   spdy::SpdyHeaderBlock::const_iterator it;
-  it = headers.find("X-Associated-Content");
+  it = headers.find("x-associated-content");
   if (it != headers.end()) {
     const std::string& content = it->second;
     std::string::size_type start = 0;
