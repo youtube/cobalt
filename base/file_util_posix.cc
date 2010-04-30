@@ -401,20 +401,39 @@ bool CreateTemporaryFileInDir(const FilePath& dir, FilePath* temp_file) {
   return ((fd >= 0) && !close(fd));
 }
 
+static bool CreateTemporaryDirInDirImpl(const FilePath& base_dir,
+                                        const FilePath::StringType& name_tmpl,
+                                        FilePath* new_dir) {
+  CHECK(name_tmpl.find("XXXXXX") != FilePath::StringType::npos)
+    << "Directory name template must contain \"XXXXXX\".";
+
+  FilePath sub_dir = base_dir.Append(name_tmpl);
+  std::string sub_dir_string = sub_dir.value();
+
+  // this should be OK since mkdtemp just replaces characters in place
+  char* buffer = const_cast<char*>(sub_dir_string.c_str());
+  char* dtemp = mkdtemp(buffer);
+  if (!dtemp)
+    return false;
+  *new_dir = FilePath(dtemp);
+  return true;
+}
+
+bool CreateTemporaryDirInDir(const FilePath& base_dir,
+                             const FilePath::StringType& prefix,
+                             FilePath* new_dir) {
+  FilePath::StringType mkdtemp_template = prefix;
+  mkdtemp_template.append(FILE_PATH_LITERAL("XXXXXX"));
+  return CreateTemporaryDirInDirImpl(base_dir, mkdtemp_template, new_dir);
+}
+
 bool CreateNewTempDirectory(const FilePath::StringType& prefix,
                             FilePath* new_temp_path) {
   FilePath tmpdir;
   if (!GetTempDir(&tmpdir))
     return false;
-  tmpdir = tmpdir.Append(kTempFileName);
-  std::string tmpdir_string = tmpdir.value();
-  // this should be OK since mkdtemp just replaces characters in place
-  char* buffer = const_cast<char*>(tmpdir_string.c_str());
-  char* dtemp = mkdtemp(buffer);
-  if (!dtemp)
-    return false;
-  *new_temp_path = FilePath(dtemp);
-  return true;
+
+  return CreateTemporaryDirInDirImpl(tmpdir, kTempFileName, new_temp_path);
 }
 
 bool CreateDirectory(const FilePath& full_path) {
