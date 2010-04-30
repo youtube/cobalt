@@ -1301,8 +1301,7 @@ void DiskCacheBackendTest::BackendDisable2() {
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
 
-// http://code.google.com/p/chromium/issues/detail?id=38562
-TEST_F(DiskCacheBackendTest, DISABLED_DisableSuccess2) {
+TEST_F(DiskCacheBackendTest, DisableSuccess2) {
   ASSERT_TRUE(CopyTestCache(L"list_loop"));
   DisableFirstCleanup();
   SetDirectMode();
@@ -1319,8 +1318,7 @@ TEST_F(DiskCacheBackendTest, NewEvictionDisableSuccess2) {
   BackendDisable2();
 }
 
-// http://code.google.com/p/chromium/issues/detail?id=38562
-TEST_F(DiskCacheBackendTest, DISABLED_DisableFailure2) {
+TEST_F(DiskCacheBackendTest, DisableFailure2) {
   ASSERT_TRUE(CopyTestCache(L"list_loop"));
   DisableFirstCleanup();
   SetDirectMode();
@@ -1329,8 +1327,7 @@ TEST_F(DiskCacheBackendTest, DISABLED_DisableFailure2) {
   BackendDisable2();
 }
 
-// http://code.google.com/p/chromium/issues/detail?id=38562
-TEST_F(DiskCacheBackendTest, DISABLED_NewEvictionDisableFailure2) {
+TEST_F(DiskCacheBackendTest, NewEvictionDisableFailure2) {
   ASSERT_TRUE(CopyTestCache(L"list_loop"));
   DisableFirstCleanup();
   SetDirectMode();
@@ -1357,8 +1354,7 @@ void DiskCacheBackendTest::BackendDisable3() {
   EXPECT_EQ(1, cache_->GetEntryCount());
 }
 
-// http://code.google.com/p/chromium/issues/detail?id=38562
-TEST_F(DiskCacheBackendTest, DISABLED_DisableSuccess3) {
+TEST_F(DiskCacheBackendTest, DisableSuccess3) {
   ASSERT_TRUE(CopyTestCache(L"bad_rankings2"));
   DisableFirstCleanup();
   SetMaxSize(20 * 1024 * 1024);
@@ -1366,8 +1362,7 @@ TEST_F(DiskCacheBackendTest, DISABLED_DisableSuccess3) {
   BackendDisable3();
 }
 
-// http://code.google.com/p/chromium/issues/detail?id=38562
-TEST_F(DiskCacheBackendTest, DISABLED_NewEvictionDisableSuccess3) {
+TEST_F(DiskCacheBackendTest, NewEvictionDisableSuccess3) {
   ASSERT_TRUE(CopyTestCache(L"bad_rankings2"));
   DisableFirstCleanup();
   SetMaxSize(20 * 1024 * 1024);
@@ -1432,9 +1427,7 @@ TEST_F(DiskCacheBackendTest, DisableSuccess4) {
   BackendDisable4();
 }
 
-// Flaky, http://crbug.com/21110.
-// TODO(rvargas): Add more debugging code to help identify the root cause.
-TEST_F(DiskCacheBackendTest, FLAKY_NewEvictionDisableSuccess4) {
+TEST_F(DiskCacheBackendTest, NewEvictionDisableSuccess4) {
   ASSERT_TRUE(CopyTestCache(L"bad_rankings"));
   DisableFirstCleanup();
   SetDirectMode();
