@@ -1141,6 +1141,17 @@ TEST_F(FileUtilTest, CreateNewTempDirectoryTest) {
   EXPECT_TRUE(file_util::Delete(temp_dir, false));
 }
 
+TEST_F(FileUtilTest, CreateNewTemporaryDirInDirTest) {
+  FilePath new_dir;
+  ASSERT_TRUE(file_util::CreateTemporaryDirInDir(
+                  test_dir_,
+                  FILE_PATH_LITERAL("CreateNewTemporaryDirInDirTest"),
+                  &new_dir));
+  EXPECT_TRUE(file_util::PathExists(new_dir));
+  EXPECT_TRUE(test_dir_.IsParent(new_dir));
+  EXPECT_TRUE(file_util::Delete(new_dir, false));
+}
+
 TEST_F(FileUtilTest, GetShmemTempDirTest) {
   FilePath dir;
   EXPECT_TRUE(file_util::GetShmemTempDir(&dir));

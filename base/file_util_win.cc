@@ -500,12 +500,9 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
   return true;
 }
 
-bool CreateNewTempDirectory(const FilePath::StringType& prefix,
-                            FilePath* new_temp_path) {
-  FilePath system_temp_dir;
-  if (!GetTempDir(&system_temp_dir))
-    return false;
-
+bool CreateTemporaryDirInDir(const FilePath& base_dir,
+                             const FilePath::StringType& prefix,
+                             FilePath* new_dir) {
   FilePath path_to_create;
   srand(static_cast<uint32>(time(NULL)));
 
@@ -513,12 +510,13 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
   while (count < 50) {
     // Try create a new temporary directory with random generated name. If
     // the one exists, keep trying another path name until we reach some limit.
-    path_to_create = system_temp_dir;
+    path_to_create = base_dir;
+
     std::wstring new_dir_name;
     new_dir_name.assign(prefix);
     new_dir_name.append(IntToWString(rand() % kint16max));
-    path_to_create = path_to_create.Append(new_dir_name);
 
+    path_to_create = path_to_create.Append(new_dir_name);
     if (::CreateDirectory(path_to_create.value().c_str(), NULL))
       break;
     count++;
@@ -528,8 +526,17 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
     return false;
   }
 
-  *new_temp_path = path_to_create;
+  *new_dir = path_to_create;
   return true;
+}
+
+bool CreateNewTempDirectory(const FilePath::StringType& prefix,
+                            FilePath* new_temp_path) {
+  FilePath system_temp_dir;
+  if (!GetTempDir(&system_temp_dir))
+    return false;
+
+  return CreateTemporaryDirInDir(system_temp_dir, prefix, new_temp_path);
 }
 
 bool CreateDirectory(const FilePath& full_path) {
