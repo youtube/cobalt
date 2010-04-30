@@ -122,7 +122,7 @@ class URLRequestTestHTTP : public URLRequestTest {
     }
     uploadBytes[kMsgSize] = '\0';
 
-    scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+    scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
 
     for (int i = 0; i < kIterations; ++i) {
       TestDelegate d;
@@ -484,7 +484,7 @@ TEST_F(URLRequestTestHTTP, CancelTest4) {
 
 TEST_F(URLRequestTestHTTP, CancelTest5) {
   ASSERT_TRUE(NULL != server_.get());
-  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+  scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
 
   // populate cache
   {
@@ -1085,7 +1085,7 @@ TEST_F(URLRequestTestHTTP, CancelDeferredRedirect) {
 TEST_F(URLRequestTestHTTP, VaryHeader) {
   ASSERT_TRUE(NULL != server_.get());
 
-  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+  scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
 
   // populate the cache
   {
@@ -1123,7 +1123,7 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
 }
 
 TEST_F(URLRequestTestHTTP, BasicAuth) {
-  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+  scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
   ASSERT_TRUE(NULL != server_.get());
 
   // populate the cache
@@ -1174,7 +1174,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   // Request a page that will give a 401 containing a Set-Cookie header.
   // Verify that when the transaction is restarted, it includes the new cookie.
   {
-    scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+    scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
     TestDelegate d;
     d.set_username(L"user");
     d.set_password(L"secret");
@@ -1195,7 +1195,7 @@ TEST_F(URLRequestTestHTTP, BasicAuthWithCookies) {
   // Same test as above, except this time the restart is initiated earlier
   // (without user intervention since identity is embedded in the URL).
   {
-    scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+    scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
     TestDelegate d;
 
     GURL::Replacements replacements;
@@ -1223,7 +1223,7 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+  scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
 
   // Set up a cookie.
   {
@@ -1272,7 +1272,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestContext> context = new URLRequestTestContext();
+  scoped_refptr<URLRequestContext> context = new TestURLRequestContext();
 
   // Set up a cookie.
   {
@@ -1325,7 +1325,7 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+  scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
   // Set up a cookie.
   {
@@ -1379,7 +1379,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+  scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
   // Set up a cookie.
   {
@@ -1436,7 +1436,7 @@ TEST_F(URLRequestTest, DoNotSendCookies_ViaPolicy_Async) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+  scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
   // Set up a cookie.
   {
@@ -1491,7 +1491,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies_ViaPolicy_Async) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+  scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
   // Set up a cookie.
   {
@@ -1548,7 +1548,7 @@ TEST_F(URLRequestTest, CancelTest_During_CookiePolicy) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+  scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
   TestCookiePolicy cookie_policy(TestCookiePolicy::ASYNC);
   context->set_cookie_policy(&cookie_policy);
@@ -1579,7 +1579,7 @@ TEST_F(URLRequestTest, CancelTest_During_OnGetCookiesBlocked) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+  scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
   TestCookiePolicy cookie_policy(TestCookiePolicy::NO_GET_COOKIES);
   context->set_cookie_policy(&cookie_policy);
@@ -1608,7 +1608,7 @@ TEST_F(URLRequestTest, CancelTest_During_OnSetCookieBlocked) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+  scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
   TestCookiePolicy cookie_policy(TestCookiePolicy::NO_SET_COOKIE);
   context->set_cookie_policy(&cookie_policy);
@@ -1642,7 +1642,7 @@ TEST_F(URLRequestTest, CookiePolicy_ForceSession) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
-  scoped_refptr<URLRequestTestContext> context = new URLRequestTestContext();
+  scoped_refptr<TestURLRequestContext> context = new TestURLRequestContext();
 
   TestCookiePolicy cookie_policy(TestCookiePolicy::FORCE_SESSION);
   context->set_cookie_policy(&cookie_policy);
@@ -2478,7 +2478,7 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptLanguage) {
   ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   TestURLRequest req(server_->TestServerPage("echoheader?Accept-Language"), &d);
-  req.set_context(new URLRequestTestContext());
+  req.set_context(new TestURLRequestContext());
   req.Start();
   MessageLoop::current()->Run();
   EXPECT_EQ(req.context()->accept_language(), d.data_received());
@@ -2491,7 +2491,7 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptLanguage) {
   TestDelegate d;
   TestURLRequest
       req(server_->TestServerPage("echoheaderoverride?Accept-Language"), &d);
-  req.set_context(new URLRequestTestContext());
+  req.set_context(new TestURLRequestContext());
   req.SetExtraRequestHeaders("Accept-Language: ru");
   req.Start();
   MessageLoop::current()->Run();
@@ -2503,7 +2503,7 @@ TEST_F(URLRequestTestHTTP, DefaultAcceptCharset) {
   ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
   TestURLRequest req(server_->TestServerPage("echoheader?Accept-Charset"), &d);
-  req.set_context(new URLRequestTestContext());
+  req.set_context(new TestURLRequestContext());
   req.Start();
   MessageLoop::current()->Run();
   EXPECT_EQ(req.context()->accept_charset(), d.data_received());
@@ -2516,7 +2516,7 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptCharset) {
   TestDelegate d;
   TestURLRequest
       req(server_->TestServerPage("echoheaderoverride?Accept-Charset"), &d);
-  req.set_context(new URLRequestTestContext());
+  req.set_context(new TestURLRequestContext());
   req.SetExtraRequestHeaders("Accept-Charset: koi-8r");
   req.Start();
   MessageLoop::current()->Run();
