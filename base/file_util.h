@@ -249,6 +249,13 @@ FILE* CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* path);
 bool CreateTemporaryFileInDir(const FilePath& dir,
                               FilePath* temp_file);
 
+// Create a directory within another directory.
+// Extra characters will be appended to |name_tmpl| to ensure that the
+// new directory does not have the same name as an existing directory.
+bool CreateTemporaryDirInDir(const FilePath& base_dir,
+                             const FilePath::StringType& prefix,
+                             FilePath* new_dir);
+
 // Create a new directory under TempPath. If prefix is provided, the new
 // directory name is in the format of prefixyyyy.
 // NOTE: prefix is ignored in the POSIX implementation.
