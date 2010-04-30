@@ -63,6 +63,8 @@
 /third_party/hunspell
 /third_party/icu
 /third_party/lighttpd
+/third_party/mingw-w64
+/third_party/nss
 /third_party/ots
 /third_party/pefile
 /third_party/personalization
