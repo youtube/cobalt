@@ -102,6 +102,7 @@ int WaitpidWithTimeout(ProcessHandle handle, int64 wait_milliseconds,
 }
 
 void StackDumpSignalHandler(int signal) {
+  LOG(ERROR) << "Received signal " << signal;
   StackTrace().PrintBacktrace();
   _exit(1);
 }
@@ -592,11 +593,13 @@ bool EnableInProcessStackDumping() {
   sigemptyset(&action.sa_mask);
   bool success = (sigaction(SIGPIPE, &action, NULL) == 0);
 
-  // TODO(phajdan.jr): Catch other crashy signals, like SIGABRT.
-  success &= (signal(SIGSEGV, &StackDumpSignalHandler) != SIG_ERR);
   success &= (signal(SIGILL, &StackDumpSignalHandler) != SIG_ERR);
-  success &= (signal(SIGBUS, &StackDumpSignalHandler) != SIG_ERR);
+  success &= (signal(SIGABRT, &StackDumpSignalHandler) != SIG_ERR);
   success &= (signal(SIGFPE, &StackDumpSignalHandler) != SIG_ERR);
+  success &= (signal(SIGBUS, &StackDumpSignalHandler) != SIG_ERR);
+  success &= (signal(SIGSEGV, &StackDumpSignalHandler) != SIG_ERR);
+  success &= (signal(SIGSYS, &StackDumpSignalHandler) != SIG_ERR);
+
   return success;
 }
 
