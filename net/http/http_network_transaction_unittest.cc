@@ -25,6 +25,8 @@
 #include "net/http/http_stream.h"
 #include "net/http/http_transaction_unittest.h"
 #include "net/proxy/proxy_config_service_fixed.h"
+#include "net/proxy/proxy_resolver.h"
+#include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/socket_test_util.h"
 #include "net/socket/ssl_client_socket.h"
@@ -4930,6 +4932,144 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   HttpNetworkTransaction::SetNextProtos("");
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
+
+class CapturingProxyResolver : public ProxyResolver {
+ public:
+  CapturingProxyResolver() : ProxyResolver(false /* expects_pac_bytes */) {}
+  virtual ~CapturingProxyResolver() {}
+
+  virtual int GetProxyForURL(const GURL& url,
+                             ProxyInfo* results,
+                             CompletionCallback* callback,
+                             RequestHandle* request,
+                             const BoundNetLog& net_log) {
+    resolved_.push_back(url);
+    return ERR_NOT_IMPLEMENTED;
+  }
+
+  virtual void CancelRequest(RequestHandle request) {
+    NOTREACHED();
+  }
+
+  const std::vector<GURL>& resolved() const { return resolved_; }
+
+ private:
+  virtual int SetPacScript(const GURL& /*pac_url*/,
+                           const std::string& /*pac_bytes*/,
+                           CompletionCallback* /*callback*/) {
+    return ERR_NOT_IMPLEMENTED;
+  }
+
+  std::vector<GURL> resolved_;
+
+  DISALLOW_COPY_AND_ASSIGN(CapturingProxyResolver);
+};
+
+// TODO(willchan): Enable this test after I refactor the OrderedSocketData out
+// of SpdyNetworkTransaction.  Currently, I need to the CONNECT, read the
+// response, and then send the request, and then read the response.
+// DelayedSocketDataProvider doesn't permit this yet.
+#if 0
+TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpNetworkTransaction::SetNextProtos(
+          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+
+  ProxyConfig proxy_config;
+  proxy_config.proxy_rules().ParseFromString("myproxy:80");
+  
+  CapturingProxyResolver* capturing_proxy_resolver =
+      new CapturingProxyResolver();
+  SessionDependencies session_deps(
+      new ProxyService(new ProxyConfigServiceFixed(proxy_config),
+                       capturing_proxy_resolver,
+                       NULL,
+                       NULL));
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(true, OK),
+  };
+
+  StaticSocketDataProvider first_transaction(
+      data_reads, arraysize(data_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&first_transaction);
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/1";
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  MockWrite spdy_writes[] = {
+    MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Proxy-Connection: keep-alive\r\n\r\n"),
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  MockRead spdy_reads[] = {
+    MockRead("HTTP/1.1 200 Connected\r\n\r\n"),
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply)),
+    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
+             arraysize(kGetBodyFrame)),
+    MockRead(true, 0, 0),
+  };
+
+  scoped_refptr<DelayedSocketData> spdy_data(
+      new DelayedSocketData(
+          1,  // wait for one write to finish before reading.
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  TestCompletionCallback callback;
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello world", response_data);
+
+  trans.reset(new HttpNetworkTransaction(session));
+
+  rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello!", response_data);
+  ASSERT_EQ(1u, capturing_proxy_resolver->resolved().size());
+  EXPECT_EQ("https://www.google.com:443/",
+            capturing_proxy_resolver->resolved()[0].spec());
+
+  HttpNetworkTransaction::SetNextProtos("");
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+}
+#endif
 
 TEST_F(HttpNetworkTransactionTest,
        UseAlternateProtocolForNpnSpdyWithExistingSpdySession) {
