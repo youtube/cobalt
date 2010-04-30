@@ -832,7 +832,9 @@
       'dependencies': [
         'net',
         '../base/base.gyp:base',
+        '../chrome/browser/sync/protocol/sync_proto.gyp:sync_proto',
         '../testing/gtest.gyp:gtest',
+        '../third_party/protobuf2/protobuf.gyp:py_proto',
       ],
       'sources': [
         'base/cert_test_util.cc',
