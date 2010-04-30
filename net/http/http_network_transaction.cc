@@ -14,6 +14,7 @@
 #include "base/string_util.h"
 #include "base/trace_event.h"
 #include "build/build_config.h"
+#include "googleurl/src/gurl.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
@@ -659,13 +660,44 @@ int HttpNetworkTransaction::DoResolveProxy() {
 
   next_state_ = STATE_RESOLVE_PROXY_COMPLETE;
 
+  // |endpoint_| indicates the final destination endpoint.
+  endpoint_ = HostPortPair(request_->url.HostNoBrackets(),
+                           request_->url.EffectiveIntPort());
+
+  GURL alternate_endpoint;
+
+  if (alternate_protocol_mode_ == kUnspecified) {
+    const HttpAlternateProtocols& alternate_protocols =
+        session_->alternate_protocols();
+    if (alternate_protocols.HasAlternateProtocolFor(endpoint_)) {
+      HttpAlternateProtocols::PortProtocolPair alternate =
+          alternate_protocols.GetAlternateProtocolFor(endpoint_);
+      if (alternate.protocol != HttpAlternateProtocols::BROKEN) {
+        DCHECK_EQ(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
+        endpoint_.port = alternate.port;
+        alternate_protocol_ = HttpAlternateProtocols::NPN_SPDY_1;
+        alternate_protocol_mode_ = kUsingAlternateProtocol;
+
+        url_canon::Replacements<char> replacements;
+        replacements.SetScheme("https",
+                               url_parse::Component(0, strlen("https")));
+        const std::string port_str = IntToString(endpoint_.port);
+        replacements.SetPort(port_str.c_str(),
+                             url_parse::Component(0, port_str.size()));
+        alternate_endpoint = request_->url.ReplaceComponents(replacements);
+      }
+    }
+  }
+
   if (request_->load_flags & LOAD_BYPASS_PROXY) {
     proxy_info_.UseDirect();
     return OK;
   }
 
   return session_->proxy_service()->ResolveProxy(
-      request_->url, &proxy_info_, &io_callback_, &pac_request_, net_log_);
+      alternate_protocol_mode_ == kUsingAlternateProtocol ?
+      alternate_endpoint : request_->url,
+      &proxy_info_, &io_callback_, &pac_request_, net_log_);
 }
 
 int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
@@ -695,32 +727,15 @@ int HttpNetworkTransaction::DoInitConnection() {
 
   next_state_ = STATE_INIT_CONNECTION_COMPLETE;
 
-  using_ssl_ = request_->url.SchemeIs("https");
+  using_ssl_ = request_->url.SchemeIs("https") ||
+      (alternate_protocol_mode_ == kUsingAlternateProtocol &&
+       alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY_1);
+
   using_spdy_ = false;
 
   // Build the string used to uniquely identify connections of this type.
   // Determine the host and port to connect to.
   std::string connection_group;
-
-  // |endpoint_| indicates the final destination endpoint.
-  endpoint_ = HostPortPair(request_->url.HostNoBrackets(),
-                           request_->url.EffectiveIntPort());
-
-  if (alternate_protocol_mode_ == kUnspecified) {
-    const HttpAlternateProtocols& alternate_protocols =
-        session_->alternate_protocols();
-    if (alternate_protocols.HasAlternateProtocolFor(endpoint_)) {
-      HttpAlternateProtocols::PortProtocolPair alternate =
-          alternate_protocols.GetAlternateProtocolFor(endpoint_);
-      if (alternate.protocol != HttpAlternateProtocols::BROKEN) {
-        DCHECK_EQ(HttpAlternateProtocols::NPN_SPDY_1, alternate.protocol);
-        endpoint_.port = alternate.port;
-        using_ssl_ = true;
-        alternate_protocol_ = HttpAlternateProtocols::NPN_SPDY_1;
-        alternate_protocol_mode_ = kUsingAlternateProtocol;
-      }
-    }
-  }
 
   // Use the fixed testing ports if they've been provided.
   if (using_ssl_) {
@@ -1129,7 +1144,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   }
 
   HostPortPair http_host_port_pair;
-  http_host_port_pair.host = request_->url.host();
+  http_host_port_pair.host = request_->url.HostNoBrackets();
   http_host_port_pair.port = request_->url.EffectiveIntPort();
 
   ProcessAlternateProtocol(*response_.headers,
@@ -1978,12 +1993,18 @@ void HttpNetworkTransaction::PopulateAuthChallenge(HttpAuth::Target target,
 }
 
 void HttpNetworkTransaction::MarkBrokenAlternateProtocolAndFallback() {
-  HostPortPair http_host_port_pair;
-  http_host_port_pair.host = request_->url.host();
-  http_host_port_pair.port = request_->url.EffectiveIntPort();
+  // We have to:
+  // * Reset the endpoint to be the unmodified URL specified destination.
+  // * Mark the endpoint as broken so we don't try again.
+  // * Set the alternate protocol mode to kDoNotUseAlternateProtocol so we
+  // ignore future Alternate-Protocol headers from the HostPortPair.
+  // * Reset the connection and go back to STATE_INIT_CONNECTION.
+
+  endpoint_ = HostPortPair(request_->url.HostNoBrackets(),
+                           request_->url.EffectiveIntPort());
 
   session_->mutable_alternate_protocols()->MarkBrokenAlternateProtocolFor(
-      http_host_port_pair);
+      endpoint_);
 
   alternate_protocol_mode_ = kDoNotUseAlternateProtocol;
   if (connection_->socket())
