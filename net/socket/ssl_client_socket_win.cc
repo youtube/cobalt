@@ -825,6 +825,12 @@ int SSLClientSocketWin::DoHandshakeReadComplete(int result) {
       &out_flags,
       &expiry);
 
+  if (isc_status_ == SEC_E_INVALID_TOKEN) {
+    // Peer sent us an SSL record type that's invalid during SSL handshake.
+    // TODO(wtc): move this to MapSecurityError after sufficient testing.
+    return ERR_SSL_PROTOCOL_ERROR;
+  }
+
   if (send_buffer_.cbBuffer != 0 &&
       (isc_status_ == SEC_E_OK ||
        isc_status_ == SEC_I_CONTINUE_NEEDED ||
