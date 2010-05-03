@@ -28,6 +28,9 @@ class MessageLoopProxy : public base::RefCountedThreadSafe<MessageLoopProxy> {
       const tracked_objects::Location& from_here,
       Task* task,
       int64 delay_ms) = 0;
+  // A method which checks if the caller is currently running in the thread that
+  // this proxy represents.
+  virtual bool BelongsToCurrentThread() = 0;
 
   template <class T>
   bool DeleteSoon(const tracked_objects::Location& from_here,
