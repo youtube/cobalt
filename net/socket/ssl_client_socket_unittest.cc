@@ -426,7 +426,6 @@ TEST_F(SSLClientSocketTest, Read_Interrupted) {
   EXPECT_GT(rv, 0);
 }
 
-#if !defined(OS_WIN)
 // Regression test for http://crbug.com/42538
 TEST_F(SSLClientSocketTest, PrematureApplicationData) {
   net::AddressList addr;
@@ -469,4 +468,3 @@ TEST_F(SSLClientSocketTest, PrematureApplicationData) {
   rv = sock->Connect(&callback);
   EXPECT_EQ(net::ERR_SSL_PROTOCOL_ERROR, rv);
 }
-#endif  // !defined(OS_WIN)
