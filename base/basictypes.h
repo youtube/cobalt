@@ -327,6 +327,17 @@ inline Dest bit_cast(const Source& source) {
   return dest;
 }
 
+// Used to explicitly mark the return value of a function as unused. If you are
+// really sure you don't want to do anything with the return value of a function
+// that has been marked WARN_UNUSED_RESULT, wrap it with this. Example:
+//
+//   scoped_ptr<MyType> my_var = ...;
+//   if (TakeOwnership(my_var.get()) == SUCCESS)
+//     IGNORE_RESULT(my_var.release());
+//
+#define IGNORE_RESULT(x) \
+  do { size_t unused = sizeof(x); unused = 0; } while (false)
+
 // The following enum should be used only as a constructor argument to indicate
 // that the variable has static storage class, and that the constructor should
 // do nothing to its state.  It indicates to the reader that it is legal to
