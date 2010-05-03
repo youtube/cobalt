@@ -36,7 +36,8 @@ install_gold() {
   # Gold is optional; it's a faster replacement for ld,
   # and makes life on 2GB machines much more pleasant.
 
-  # First make sure root can access this directory, as that's tripped up some folks.
+  # First make sure root can access this directory, as that's tripped
+  # up some folks.
   if sudo touch xyz.$$
   then
     sudo rm xyz.$$
@@ -116,8 +117,8 @@ __EOF__
   fi
 }
 
-if ! egrep -q 'Ubuntu (8\.04|8\.10|9\.04|9\.10|karmic|lucid)' /etc/issue; then
-  echo "Only Ubuntu 8.04, 8.10, 9.04, and 9.10 are currently supported" >&2
+if ! egrep -q 'Ubuntu (8\.04|8\.10|9\.04|9\.10|10\.04|karmic|lucid)' /etc/issue; then
+  echo "Only Ubuntu 8.04 (hardy) through 10.04 (lucid) are currently supported" >&2
   exit 1
 fi
 
@@ -133,12 +134,12 @@ if [ "x$(id -u)" != x0 ]; then
 fi
 
 # Packages need for development
-dev_list="apache2 bison fakeroot flex g++ g++-multilib gperf libapache2-mod-php5
+dev_list="apache2 bison fakeroot flex g++ gperf libapache2-mod-php5
           libasound2-dev libbz2-dev libcairo2-dev libdbus-glib-1-dev
           libgconf2-dev libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev
           libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev libpam0g-dev
           libsqlite3-dev libxslt1-dev libxss-dev lighttpd mesa-common-dev
-          msttcorefonts patch perl php5-cgi pkg-config python python2.5-dev rpm
+          msttcorefonts patch perl php5-cgi pkg-config python python-dev rpm
           subversion ttf-dejavu-core ttf-kochi-gothic ttf-kochi-mincho wdiff"
 
 # Full list of required run-time libraries
@@ -157,10 +158,6 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
           libxcursor1-dbg libxdamage1-dbg libxdmcp6-dbg libxext6-dbg
           libxfixes3-dbg libxi6-dbg libxinerama1-dbg libxrandr2-dbg
           libxrender1-dbg zlib1g-dbg"
-
-# Standard 32bit compatibility libraries
-cmp_list="ia32-libs lib32asound2-dev lib32readline5-dev lib32stdc++6 lib32z1
-          lib32z1-dev libc6-dev-i386 libc6-i386"
 
 # Waits for the user to press 'Y' or 'N'. Either uppercase of lowercase is
 # accepted. Returns 0 for 'Y' and 1 for 'N'. If an optional parameter has
@@ -224,19 +221,14 @@ sudo apt-get update
 # We then re-run "apt-get" with just the list of missing packages.
 echo "Finding missing packages..."
 packages="${dev_list} ${lib_list} ${dbg_list}"
-if [ "$(uname -m)" = "x86_64" ]; then
-  packages+=" ${cmp_list}"
-fi
 # Intentially leaving $packages unquoted so it's more readable.
 echo "Packages required: " $packages
 echo
 new_list_cmd="sudo apt-get install --reinstall $(echo $packages)"
-if new_list="$(yes n | LANG=C $new_list_cmd)"
-then
+if new_list="$(yes n | LANG=C $new_list_cmd)"; then
   # We probably never hit this following line.
   echo "No missing packages, and the packages are up-to-date."
-elif [ $? -eq 1 ]
-then
+elif [ $? -eq 1 ]; then
   # We expect apt-get to have exit status of 1.
   # This indicates that we canceled the install with "yes n|".
   new_list=$(echo "$new_list" |
@@ -264,10 +256,10 @@ else
   exit 100
 fi
 
-# Some operating systems already ship gold
-# (on Debian, you can probably do "apt-get install binutils-gold" to get it),
-# but though Ubuntu toyed with shipping it, they haven't yet.
-# So just install from source if it isn't the default linker.
+# Some operating systems already ship gold (on recent Debian and
+# Ubuntu you can do "apt-get install binutils-gold" to get it), but
+# older releases didn't.  So install from source if it isn't the
+# default linker.
 
 case `ld --version` in
 *gold*2.2*) ;;
@@ -303,6 +295,8 @@ if [ "$(uname -m)" = "x86_64" ]; then
   then
     echo "Installing 32bit libraries not already provided by the system"
     echo
+    echo "This is only needed to build a 32-bit Chrome on your 64-bit system."
+    echo
     echo "While we only need to install a relatively small number of library"
     echo "files, we temporarily need to download a lot of large *.deb packages"
     echo "that contain these files. We will create new *.deb packages that"
@@ -321,6 +315,13 @@ if [ "$(uname -m)" = "x86_64" ]; then
     echo "Exiting without installing any 32bit libraries."
     exit 0
   fi
+
+  # Standard 32bit compatibility libraries
+  echo "First, installing the limited existing 32-bit support..."
+  cmp_list="ia32-libs lib32asound2-dev lib32readline5-dev lib32stdc++6 lib32z1
+            lib32z1-dev libc6-dev-i386 libc6-i386 g++-multilib"
+  apt-get install $cmp_list
+
   tmp=/tmp/install-32bit.$$
   trap 'rm -rf "${tmp}"' EXIT INT TERM QUIT
   mkdir -p "${tmp}/apt/lists/partial" "${tmp}/cache" "${tmp}/partial"
