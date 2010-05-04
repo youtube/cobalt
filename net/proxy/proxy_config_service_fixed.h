@@ -6,6 +6,7 @@
 #define NET_PROXY_PROXY_CONFIG_SERVICE_FIXED_H_
 
 #include "net/base/net_errors.h"
+#include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service.h"
 
 namespace net {
