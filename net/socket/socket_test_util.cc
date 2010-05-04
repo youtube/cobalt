@@ -16,7 +16,97 @@
 #include "net/socket/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#define NET_TRACE(level, s)   DLOG(level) << s << __FUNCTION__ << "() "
+
 namespace net {
+
+namespace {
+
+inline char AsciifyHigh(char x) {
+  char nybble = static_cast<char>((x >> 4) & 0x0F);
+  return nybble + ((nybble < 0x0A) ? '0' : 'A' - 10);
+}
+
+inline char AsciifyLow(char x) {
+  char nybble = static_cast<char>((x >> 0) & 0x0F);
+  return nybble + ((nybble < 0x0A) ? '0' : 'A' - 10);
+}
+
+inline char Asciify(char x) {
+  if ((x < 0) || !isprint(x))
+    return '.';
+  return x;
+}
+
+void DumpData(const char* data, int data_len) {
+  if (logging::LOG_INFO < logging::GetMinLogLevel())
+    return;
+  DLOG(INFO) << "Length:  " << data_len;
+  const char* pfx = "Data:    ";
+  if (!data || (data_len <= 0)) {
+    DLOG(INFO) << pfx << "<None>";
+  } else {
+    int i;
+    for (i = 0; i <= (data_len - 4); i += 4) {
+      DLOG(INFO) << pfx
+                 << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
+                 << AsciifyHigh(data[i + 1]) << AsciifyLow(data[i + 1])
+                 << AsciifyHigh(data[i + 2]) << AsciifyLow(data[i + 2])
+                 << AsciifyHigh(data[i + 3]) << AsciifyLow(data[i + 3])
+                 << "  '"
+                 << Asciify(data[i + 0])
+                 << Asciify(data[i + 1])
+                 << Asciify(data[i + 2])
+                 << Asciify(data[i + 3])
+                 << "'";
+      pfx = "         ";
+    }
+    // Take care of any 'trailing' bytes, if data_len was not a multiple of 4.
+    switch (data_len - i) {
+      case 3:
+        DLOG(INFO) << pfx
+                   << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
+                   << AsciifyHigh(data[i + 1]) << AsciifyLow(data[i + 1])
+                   << AsciifyHigh(data[i + 2]) << AsciifyLow(data[i + 2])
+                   << "    '"
+                   << Asciify(data[i + 0])
+                   << Asciify(data[i + 1])
+                   << Asciify(data[i + 2])
+                   << " '";
+        break;
+      case 2:
+        DLOG(INFO) << pfx
+                   << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
+                   << AsciifyHigh(data[i + 1]) << AsciifyLow(data[i + 1])
+                   << "      '"
+                   << Asciify(data[i + 0])
+                   << Asciify(data[i + 1])
+                   << "  '";
+        break;
+      case 1:
+        DLOG(INFO) << pfx
+                   << AsciifyHigh(data[i + 0]) << AsciifyLow(data[i + 0])
+                   << "        '"
+                   << Asciify(data[i + 0])
+                   << "   '";
+        break;
+    }
+  }
+}
+
+void DumpMockRead(const MockRead& r) {
+  if (logging::LOG_INFO < logging::GetMinLogLevel())
+    return;
+  DLOG(INFO) << "Async:   " << r.async;
+  DLOG(INFO) << "Result:  " << r.result;
+  DumpData(r.data, r.data_len);
+  const char* stop = (r.sequence_number & MockRead::STOPLOOP) ? " (STOP)" : "";
+  DLOG(INFO) << "Stage:   " << (r.sequence_number & ~MockRead::STOPLOOP)
+             << stop;
+  DLOG(INFO) << "Time:    " << r.time_stamp.ToInternalValue();
+}
+
+}  // namespace
 
 MockClientSocket::MockClientSocket(net::NetLog* net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
@@ -435,6 +525,92 @@ void DelayedSocketData::Reset() {
 void DelayedSocketData::CompleteRead() {
   if (socket())
     socket()->OnReadComplete(GetNextRead());
+}
+
+OrderedSocketData::OrderedSocketData(
+    MockRead* reads, size_t reads_count, MockWrite* writes, size_t writes_count)
+    : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
+      sequence_number_(0), loop_stop_stage_(0), callback_(NULL),
+      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
+}
+
+OrderedSocketData::OrderedSocketData(
+    const MockConnect& connect,
+    MockRead* reads, size_t reads_count,
+    MockWrite* writes, size_t writes_count)
+    : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
+      sequence_number_(0), loop_stop_stage_(0), callback_(NULL),
+      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
+  set_connect_data(connect);
+}
+
+MockRead OrderedSocketData::GetNextRead() {
+  const MockRead& next_read = StaticSocketDataProvider::PeekRead();
+  if (next_read.sequence_number & MockRead::STOPLOOP)
+    EndLoop();
+  if ((next_read.sequence_number & ~MockRead::STOPLOOP) <=
+      sequence_number_++) {
+    NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_ - 1
+                              << ": Read " << read_index();
+    DumpMockRead(next_read);
+    return StaticSocketDataProvider::GetNextRead();
+  }
+  NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_ - 1
+                            << ": I/O Pending";
+  MockRead result = MockRead(true, ERR_IO_PENDING);
+  DumpMockRead(result);
+  return result;
+}
+
+MockWriteResult OrderedSocketData::OnWrite(const std::string& data) {
+  NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
+                            << ": Write " << write_index();
+  DumpMockRead(PeekWrite());
+  ++sequence_number_;
+  MessageLoop::current()->PostDelayedTask(
+      FROM_HERE,
+      factory_.NewRunnableMethod(&OrderedSocketData::CompleteRead), 100);
+  return StaticSocketDataProvider::OnWrite(data);
+}
+
+void OrderedSocketData::Reset() {
+  NET_TRACE(INFO, "  *** ") << "Stage "
+                            << sequence_number_ << ": Reset()";
+  sequence_number_ = 0;
+  loop_stop_stage_ = 0;
+  set_socket(NULL);
+  factory_.RevokeAll();
+  StaticSocketDataProvider::Reset();
+}
+
+void OrderedSocketData::EndLoop() {
+  // If we've already stopped the loop, don't do it again until we've advanced
+  // to the next sequence_number.
+  NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_ << ": EndLoop()";
+  if (loop_stop_stage_ > 0) {
+    const MockRead& next_read = StaticSocketDataProvider::PeekRead();
+    if ((next_read.sequence_number & ~MockRead::STOPLOOP) >
+        loop_stop_stage_) {
+      NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
+                                << ": Clearing stop index";
+      loop_stop_stage_ = 0;
+    } else {
+      return;
+    }
+  }
+  // Record the sequence_number at which we stopped the loop.
+  NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_
+                            << ": Posting Quit at read " << read_index();
+  loop_stop_stage_ = sequence_number_;
+  if (callback_)
+    callback_->RunWithParams(Tuple1<int>(ERR_IO_PENDING));
+}
+
+void OrderedSocketData::CompleteRead() {
+  if (socket()) {
+    NET_TRACE(INFO, "  *** ") << "Stage " << sequence_number_;
+    socket()->OnReadComplete(GetNextRead());
+  }
 }
 
 void MockClientSocketFactory::AddSocketDataProvider(

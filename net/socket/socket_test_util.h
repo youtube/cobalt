@@ -276,6 +276,57 @@ class DelayedSocketData : public StaticSocketDataProvider,
   ScopedRunnableMethodFactory<DelayedSocketData> factory_;
 };
 
+// A DataProvider where the reads are ordered.
+// If a read is requested before its sequence number is reached, we return an
+// ERR_IO_PENDING (that way we don't have to explicitly add a MockRead just to
+// wait).
+// The sequence number is incremented on every read and write operation.
+// The message loop may be interrupted by setting the high bit of the sequence
+// number in the MockRead's sequence number.  When that MockRead is reached,
+// we post a Quit message to the loop.  This allows us to interrupt the reading
+// of data before a complete message has arrived, and provides support for
+// testing server push when the request is issued while the response is in the
+// middle of being received.
+class OrderedSocketData : public StaticSocketDataProvider,
+                          public base::RefCounted<OrderedSocketData> {
+ public:
+  // |reads| the list of MockRead completions.
+  // |writes| the list of MockWrite completions.
+  // Note: All MockReads and MockWrites must be async.
+  // Note: The MockRead and MockWrite lists musts end with a EOF
+  //       e.g. a MockRead(true, 0, 0);
+  OrderedSocketData(MockRead* reads, size_t reads_count,
+                    MockWrite* writes, size_t writes_count);
+
+  // |connect| the result for the connect phase.
+  // |reads| the list of MockRead completions.
+  // |writes| the list of MockWrite completions.
+  // Note: All MockReads and MockWrites must be async.
+  // Note: The MockRead and MockWrite lists musts end with a EOF
+  //       e.g. a MockRead(true, 0, 0);
+  OrderedSocketData(const MockConnect& connect,
+                    MockRead* reads, size_t reads_count,
+                    MockWrite* writes, size_t writes_count);
+
+  virtual MockRead GetNextRead();
+  virtual MockWriteResult OnWrite(const std::string& data);
+  virtual void Reset();
+  void SetCompletionCallback(CompletionCallback* callback) {
+    callback_ = callback;
+  }
+
+  // Posts a quit message to the current message loop, if one is running.
+  void EndLoop();
+
+  void CompleteRead();
+
+ private:
+  int sequence_number_;
+  int loop_stop_stage_;
+  CompletionCallback* callback_;
+  ScopedRunnableMethodFactory<OrderedSocketData> factory_;
+};
+
 // Holds an array of SocketDataProvider elements.  As Mock{TCP,SSL}ClientSocket
 // objects get instantiated, they take their data from the i'th element of this
 // array.
