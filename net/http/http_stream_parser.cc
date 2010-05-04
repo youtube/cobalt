@@ -91,7 +91,7 @@ int HttpStreamParser::ReadResponseHeaders(CompletionCallback* callback) {
 }
 
 int HttpStreamParser::ReadResponseBody(IOBuffer* buf, int buf_len,
-                                      CompletionCallback* callback) {
+                                       CompletionCallback* callback) {
   DCHECK(io_state_ == STATE_BODY_PENDING || io_state_ == STATE_DONE);
   DCHECK(!user_callback_);
   DCHECK(callback);
@@ -204,9 +204,9 @@ int HttpStreamParser::DoSendHeaders(int result) {
       if (request_body_ != NULL) {
         const size_t kBytesPerPacket = 1430;
         uint64 body_packets = (request_body_->size() + kBytesPerPacket - 1) /
-            kBytesPerPacket;
+                              kBytesPerPacket;
         uint64 header_packets = (bytes_remaining + kBytesPerPacket - 1) /
-            kBytesPerPacket;
+                                kBytesPerPacket;
         uint64 coalesced_packets = (request_body_->size() + bytes_remaining +
                                     kBytesPerPacket - 1) / kBytesPerPacket;
         if (coalesced_packets < header_packets + body_packets) {

@@ -75,8 +75,10 @@ int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
   DCHECK(current_range_start_ >= 0);
 
   // Scan the disk cache for the first cached portion within this range.
-  int64 range_len = byte_range_.HasLastBytePosition() ?
-      byte_range_.last_byte_position() - current_range_start_ + 1 : kint32max;
+  int64 range_len =
+      byte_range_.HasLastBytePosition() ?
+      byte_range_.last_byte_position() - current_range_start_ + 1 :
+      kint32max;
   if (range_len > kint32max)
     range_len = kint32max;
   int len = static_cast<int32>(range_len);
@@ -211,7 +213,7 @@ bool PartialData::ResponseHeadersOK(const HttpResponseHeaders* headers) {
 
     // We must have a complete range here.
     return byte_range_.HasFirstBytePosition() &&
-           byte_range_.HasLastBytePosition();
+        byte_range_.HasLastBytePosition();
   }
 
   int64 start, end, total_length;
@@ -313,7 +315,7 @@ int PartialData::CacheRead(disk_cache::Entry* entry, IOBuffer* data,
 }
 
 int PartialData::CacheWrite(disk_cache::Entry* entry, IOBuffer* data,
-                           int data_len, CompletionCallback* callback) {
+                            int data_len, CompletionCallback* callback) {
   if (sparse_entry_) {
     return entry->WriteSparseData(current_range_start_, data, data_len,
                                   callback);

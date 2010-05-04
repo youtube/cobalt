@@ -33,10 +33,10 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
         challenge, HttpAuth::AUTH_SERVER, origin, &basic));
     std::string credentials;
     int rv = basic->GenerateAuthToken(tests[i].username,
-                                        tests[i].password,
-                                        NULL,
-                                        NULL,
-                                        &credentials);
+                                      tests[i].password,
+                                      NULL,
+                                      NULL,
+                                      &credentials);
     EXPECT_EQ(OK, rv);
     EXPECT_STREQ(tests[i].expected_credentials, credentials.c_str());
   }

@@ -35,8 +35,8 @@ void CheckPathIsValid(const std::string& path) {
 // |container| an ancestor of |path|?
 bool IsEnclosingPath(const std::string& container, const std::string& path) {
   DCHECK(container.empty() || *(container.end() - 1) == '/');
-  return (container.empty() && path.empty()) ||
-         (!container.empty() && StartsWithASCII(path, container, true));
+  return ((container.empty() && path.empty()) ||
+          (!container.empty() && StartsWithASCII(path, container, true)));
 }
 
 // Debug helper to check that |origin| arguments are properly formed.

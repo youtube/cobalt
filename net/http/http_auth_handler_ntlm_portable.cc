@@ -121,13 +121,12 @@ enum {
 
 // We send these flags with our type 1 message.
 enum {
-  NTLM_TYPE1_FLAGS =
-      NTLM_NegotiateUnicode |
-      NTLM_NegotiateOEM |
-      NTLM_RequestTarget |
-      NTLM_NegotiateNTLMKey |
-      NTLM_NegotiateAlwaysSign |
-      NTLM_NegotiateNTLM2Key
+  NTLM_TYPE1_FLAGS = (NTLM_NegotiateUnicode |
+                      NTLM_NegotiateOEM |
+                      NTLM_RequestTarget |
+                      NTLM_NegotiateNTLMKey |
+                      NTLM_NegotiateAlwaysSign |
+                      NTLM_NegotiateNTLM2Key)
 };
 
 static const char NTLM_SIGNATURE[] = "NTLMSSP";

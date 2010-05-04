@@ -18,8 +18,8 @@ class HttpAuthFilter;
 // regarding URL actions (e.g., sending the default credentials to a server).
 class URLSecurityManager {
  public:
-   URLSecurityManager() {}
-   virtual ~URLSecurityManager() {}
+  URLSecurityManager() {}
+  virtual ~URLSecurityManager() {}
 
   // Creates a platform-dependent instance of URLSecurityManager.
   // The URLSecurityManager takes ownership of the HttpAuthFilter.
