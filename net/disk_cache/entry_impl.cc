@@ -861,14 +861,13 @@ bool EntryImpl::Flush(int index, int size, bool async) {
   if (async) {
     if (!file->PostWrite(user_buffers_[index].get(), len, offset))
       return false;
+    // The buffer is deleted from the PostWrite operation.
+    ignore_result(user_buffers_[index].release());
   } else {
     if (!file->Write(user_buffers_[index].get(), len, offset, NULL, NULL))
       return false;
     user_buffers_[index].reset(NULL);
   }
-
-  // The buffer is deleted from the PostWrite operation.
-  user_buffers_[index].release();
 
   return true;
 }
@@ -895,7 +894,7 @@ uint32 EntryImpl::GetEntryFlags() {
 
 void EntryImpl::GetData(int index, char** buffer, Addr* address) {
   if (user_buffers_[index].get()) {
-    // The data is already in memory, just copy it an we're done.
+    // The data is already in memory, just copy it and we're done.
     int data_len = entry_.Data()->data_size[index];
     DCHECK(data_len <= kMaxBlockSize);
     *buffer = new char[data_len];
