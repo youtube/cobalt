@@ -19,14 +19,14 @@ namespace net {
 
 class HttpUtil {
  public:
-   // Returns the absolute path of the URL, to be used for the http request.
-   // The absolute path starts with a '/' and may contain a query.
-   static std::string PathForRequest(const GURL& url);
+  // Returns the absolute path of the URL, to be used for the http request.
+  // The absolute path starts with a '/' and may contain a query.
+  static std::string PathForRequest(const GURL& url);
 
-   // Returns the absolute URL, to be used for the http request. This url is
-   // made up of the protocol, host, [port], path, [query]. Everything else
-   // is stripped (username, password, reference).
-   static std::string SpecForRequest(const GURL& url);
+  // Returns the absolute URL, to be used for the http request. This url is
+  // made up of the protocol, host, [port], path, [query]. Everything else
+  // is stripped (username, password, reference).
+  static std::string SpecForRequest(const GURL& url);
 
   // Locates the next occurance of delimiter in line, skipping over quoted
   // strings (e.g., commas will not be treated as delimiters if they appear

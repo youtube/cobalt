@@ -112,15 +112,16 @@ void HttpUtil::ParseContentType(const string& content_type_str,
       size_t cur_param_end =
           FindDelimiter(content_type_str, cur_param_start, ';');
 
-      size_t param_name_start = content_type_str.find_first_not_of(HTTP_LWS,
-          cur_param_start);
+      size_t param_name_start = content_type_str.find_first_not_of(
+          HTTP_LWS, cur_param_start);
       param_name_start = std::min(param_name_start, cur_param_end);
 
       static const char charset_str[] = "charset=";
-      size_t charset_end_offset = std::min(param_name_start +
-          sizeof(charset_str) - 1, cur_param_end);
-      if (LowerCaseEqualsASCII(content_type_str.begin() + param_name_start,
-          content_type_str.begin() + charset_end_offset, charset_str)) {
+      size_t charset_end_offset = std::min(
+          param_name_start + sizeof(charset_str) - 1, cur_param_end);
+      if (LowerCaseEqualsASCII(
+              content_type_str.begin() + param_name_start,
+              content_type_str.begin() + charset_end_offset, charset_str)) {
         charset_val = param_name_start + sizeof(charset_str) - 1;
         charset_end = cur_param_end;
         type_has_charset = true;
@@ -160,9 +161,9 @@ void HttpUtil::ParseContentType(const string& content_type_str,
       content_type_str.find_first_of('/') != string::npos) {
     // Common case here is that mime_type is empty
     bool eq = !mime_type->empty() &&
-        LowerCaseEqualsASCII(content_type_str.begin() + type_val,
-                             content_type_str.begin() + type_end,
-                             mime_type->data());
+              LowerCaseEqualsASCII(content_type_str.begin() + type_val,
+                                   content_type_str.begin() + type_end,
+                                   mime_type->data());
     if (!eq) {
       mime_type->assign(content_type_str.begin() + type_val,
                         content_type_str.begin() + type_end);
@@ -242,11 +243,11 @@ bool HttpUtil::ParseRangeHeader(const std::string& ranges_specifier,
     HttpByteRange range;
     // Try to obtain first-byte-pos.
     if (!first_byte_pos.empty()) {
-        int64 first_byte_position = -1;
-        if (!StringToInt64(first_byte_pos, &first_byte_position))
-          return false;
-        range.set_first_byte_position(first_byte_position);
-      }
+      int64 first_byte_position = -1;
+      if (!StringToInt64(first_byte_pos, &first_byte_position))
+        return false;
+      range.set_first_byte_position(first_byte_position);
+    }
 
     std::string::const_iterator last_byte_pos_begin =
         byte_range_set_iterator.value_begin() + minus_char_offset + 1;

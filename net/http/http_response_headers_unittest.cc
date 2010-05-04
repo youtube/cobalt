@@ -277,9 +277,9 @@ TEST(HttpResponseHeadersTest, RepeatedSetCookie) {
 
 TEST(HttpResponseHeadersTest, GetNormalizedHeader) {
   std::string headers =
-    "HTTP/1.1 200 OK\n"
-    "Cache-control: private\n"
-    "cache-Control: no-store\n";
+      "HTTP/1.1 200 OK\n"
+      "Cache-control: private\n"
+      "cache-Control: no-store\n";
   HeadersToRaw(&headers);
   scoped_refptr<HttpResponseHeaders> parsed = new HttpResponseHeaders(headers);
 
@@ -468,9 +468,9 @@ TEST(HttpResponseHeadersTest, EnumerateHeader_Coalesced) {
   // Ensure that commas in quoted strings are not regarded as value separators.
   // Ensure that whitespace following a value is trimmed properly
   std::string headers =
-    "HTTP/1.1 200 OK\n"
-    "Cache-control:private , no-cache=\"set-cookie,server\" \n"
-    "cache-Control: no-store\n";
+      "HTTP/1.1 200 OK\n"
+      "Cache-control:private , no-cache=\"set-cookie,server\" \n"
+      "cache-Control: no-store\n";
   HeadersToRaw(&headers);
   scoped_refptr<HttpResponseHeaders> parsed = new HttpResponseHeaders(headers);
 
@@ -489,9 +489,9 @@ TEST(HttpResponseHeadersTest, EnumerateHeader_Challenge) {
   // Even though WWW-Authenticate has commas, it should not be treated as
   // coalesced values.
   std::string headers =
-    "HTTP/1.1 401 OK\n"
-    "WWW-Authenticate:Digest realm=foobar, nonce=x, domain=y\n"
-    "WWW-Authenticate:Basic realm=quatar\n";
+      "HTTP/1.1 401 OK\n"
+      "WWW-Authenticate:Digest realm=foobar, nonce=x, domain=y\n"
+      "WWW-Authenticate:Basic realm=quatar\n";
   HeadersToRaw(&headers);
   scoped_refptr<HttpResponseHeaders> parsed = new HttpResponseHeaders(headers);
 
@@ -508,9 +508,9 @@ TEST(HttpResponseHeadersTest, EnumerateHeader_DateValued) {
   // The comma in a date valued header should not be treated as a
   // field-value separator
   std::string headers =
-    "HTTP/1.1 200 OK\n"
-    "Date: Tue, 07 Aug 2007 23:10:55 GMT\n"
-    "Last-Modified: Wed, 01 Aug 2007 23:23:45 GMT\n";
+      "HTTP/1.1 200 OK\n"
+      "Date: Tue, 07 Aug 2007 23:10:55 GMT\n"
+      "Last-Modified: Wed, 01 Aug 2007 23:23:45 GMT\n";
   HeadersToRaw(&headers);
   scoped_refptr<HttpResponseHeaders> parsed = new HttpResponseHeaders(headers);
 
@@ -524,130 +524,130 @@ TEST(HttpResponseHeadersTest, EnumerateHeader_DateValued) {
 TEST(HttpResponseHeadersTest, GetMimeType) {
   const ContentTypeTestData tests[] = {
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html\n",
+      "Content-type: text/html\n",
       "text/html", true,
       "", false,
       "text/html" },
     // Multiple content-type headers should give us the last one.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html\n"
-        "Content-type: text/html\n",
+      "Content-type: text/html\n"
+      "Content-type: text/html\n",
       "text/html", true,
       "", false,
       "text/html, text/html" },
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/plain\n"
-        "Content-type: text/html\n"
-        "Content-type: text/plain\n"
-        "Content-type: text/html\n",
+      "Content-type: text/plain\n"
+      "Content-type: text/html\n"
+      "Content-type: text/plain\n"
+      "Content-type: text/html\n",
       "text/html", true,
       "", false,
       "text/plain, text/html, text/plain, text/html" },
     // Test charset parsing.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html\n"
-        "Content-type: text/html; charset=ISO-8859-1\n",
+      "Content-type: text/html\n"
+      "Content-type: text/html; charset=ISO-8859-1\n",
       "text/html", true,
       "iso-8859-1", true,
       "text/html, text/html; charset=ISO-8859-1" },
     // Test charset in double quotes.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html\n"
-        "Content-type: text/html; charset=\"ISO-8859-1\"\n",
+      "Content-type: text/html\n"
+      "Content-type: text/html; charset=\"ISO-8859-1\"\n",
       "text/html", true,
       "iso-8859-1", true,
       "text/html, text/html; charset=\"ISO-8859-1\"" },
     // If there are multiple matching content-type headers, we carry
     // over the charset value.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html;charset=utf-8\n"
-        "Content-type: text/html\n",
+      "Content-type: text/html;charset=utf-8\n"
+      "Content-type: text/html\n",
       "text/html", true,
       "utf-8", true,
       "text/html;charset=utf-8, text/html" },
     // Test single quotes.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html;charset='utf-8'\n"
-        "Content-type: text/html\n",
+      "Content-type: text/html;charset='utf-8'\n"
+      "Content-type: text/html\n",
       "text/html", true,
       "utf-8", true,
       "text/html;charset='utf-8', text/html" },
     // Last charset wins if matching content-type.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html;charset=utf-8\n"
-        "Content-type: text/html;charset=iso-8859-1\n",
+      "Content-type: text/html;charset=utf-8\n"
+      "Content-type: text/html;charset=iso-8859-1\n",
       "text/html", true,
       "iso-8859-1", true,
       "text/html;charset=utf-8, text/html;charset=iso-8859-1" },
     // Charset is ignored if the content types change.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/plain;charset=utf-8\n"
-        "Content-type: text/html\n",
+      "Content-type: text/plain;charset=utf-8\n"
+      "Content-type: text/html\n",
       "text/html", true,
       "", false,
       "text/plain;charset=utf-8, text/html" },
     // Empty content-type
     { "HTTP/1.1 200 OK\n"
-        "Content-type: \n",
+      "Content-type: \n",
       "", false,
       "", false,
       "" },
     // Emtpy charset
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html;charset=\n",
+      "Content-type: text/html;charset=\n",
       "text/html", true,
       "", false,
       "text/html;charset=" },
     // Multiple charsets, last one wins.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html;charset=utf-8; charset=iso-8859-1\n",
+      "Content-type: text/html;charset=utf-8; charset=iso-8859-1\n",
       "text/html", true,
       "iso-8859-1", true,
       "text/html;charset=utf-8; charset=iso-8859-1" },
     // Multiple params.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html; foo=utf-8; charset=iso-8859-1\n",
+      "Content-type: text/html; foo=utf-8; charset=iso-8859-1\n",
       "text/html", true,
       "iso-8859-1", true,
       "text/html; foo=utf-8; charset=iso-8859-1" },
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html ; charset=utf-8 ; bar=iso-8859-1\n",
+      "Content-type: text/html ; charset=utf-8 ; bar=iso-8859-1\n",
       "text/html", true,
       "utf-8", true,
       "text/html ; charset=utf-8 ; bar=iso-8859-1" },
     // Comma embeded in quotes.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html ; charset='utf-8,text/plain' ;\n",
+      "Content-type: text/html ; charset='utf-8,text/plain' ;\n",
       "text/html", true,
       "utf-8,text/plain", true,
       "text/html ; charset='utf-8,text/plain' ;" },
     // Charset with leading spaces.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html ; charset= 'utf-8' ;\n",
+      "Content-type: text/html ; charset= 'utf-8' ;\n",
       "text/html", true,
       "utf-8", true,
       "text/html ; charset= 'utf-8' ;" },
     // Media type comments in mime-type.
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html (html)\n",
+      "Content-type: text/html (html)\n",
       "text/html", true,
       "", false,
       "text/html (html)" },
     // Incomplete charset= param
     { "HTTP/1.1 200 OK\n"
-        "Content-type: text/html; char=\n",
+      "Content-type: text/html; char=\n",
       "text/html", true,
       "", false,
       "text/html; char=" },
     // Invalid media type: no slash
     { "HTTP/1.1 200 OK\n"
-        "Content-type: texthtml\n",
+      "Content-type: texthtml\n",
       "", false,
       "", false,
       "texthtml" },
     // Invalid media type: */*
     { "HTTP/1.1 200 OK\n"
-        "Content-type: */*\n",
+      "Content-type: */*\n",
       "", false,
       "", false,
       "*/*" },
@@ -1477,7 +1477,7 @@ TEST(HttpResponseHeadersTest, HasStrongValidators) {
         new HttpResponseHeaders(headers);
 
     EXPECT_EQ(tests[i].expected_result, parsed->HasStrongValidators()) <<
-      "Failed test case " << i;
+        "Failed test case " << i;
   }
 }
 

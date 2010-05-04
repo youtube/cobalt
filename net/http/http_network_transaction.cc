@@ -61,8 +61,8 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
                          std::string* request_line,
                          HttpRequestHeaders* request_headers) {
   const std::string path = using_proxy ?
-      HttpUtil::SpecForRequest(request_info->url) :
-      HttpUtil::PathForRequest(request_info->url);
+                           HttpUtil::SpecForRequest(request_info->url) :
+                           HttpUtil::PathForRequest(request_info->url);
   *request_line = StringPrintf(
       "%s %s HTTP/1.1\r\n", request_info->method.c_str(), path.c_str());
   request_headers->SetHeader(HttpRequestHeaders::kHost,
@@ -118,8 +118,8 @@ void BuildRequestHeaders(const HttpRequestInfo* request_info,
 
   HttpRequestHeaders stripped_extra_headers;
   stripped_extra_headers.CopyFrom(request_info->extra_headers);
-    for (size_t i = 0; i < arraysize(kExtraHeadersToBeStripped); ++i)
-      stripped_extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
+  for (size_t i = 0; i < arraysize(kExtraHeadersToBeStripped); ++i)
+    stripped_extra_headers.RemoveHeader(kExtraHeadersToBeStripped[i]);
   request_headers->MergeFrom(stripped_extra_headers);
 }
 
@@ -185,7 +185,7 @@ void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
 
   if (port_protocol_vector[1] !=
       HttpAlternateProtocols::kProtocolStrings[
-      HttpAlternateProtocols::NPN_SPDY_1]) {
+          HttpAlternateProtocols::NPN_SPDY_1]) {
     // Currently, we only recognize the npn-spdy protocol.
     DLOG(WARNING) << HttpAlternateProtocols::kHeader
                   << " header has unrecognized protocol: "
@@ -757,7 +757,7 @@ int HttpNetworkTransaction::DoInitConnection() {
 
   // If the user is refreshing the page, bypass the host cache.
   bool disable_resolver_cache = request_->load_flags & LOAD_BYPASS_CACHE ||
-    request_->load_flags & LOAD_DISABLE_CACHE;
+                                request_->load_flags & LOAD_DISABLE_CACHE;
 
   int rv;
   if (!proxy_info_.is_direct()) {
@@ -913,19 +913,19 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
 
     if (using_spdy_) {
       UMA_HISTOGRAM_CUSTOM_TIMES("Net.SpdyConnectionLatency",
-          connect_duration,
-          base::TimeDelta::FromMilliseconds(1),
-          base::TimeDelta::FromMinutes(10),
-          100);
+                                 connect_duration,
+                                 base::TimeDelta::FromMilliseconds(1),
+                                 base::TimeDelta::FromMinutes(10),
+                                 100);
 
       UpdateConnectionTypeHistograms(CONNECTION_SPDY);
       next_state_ = STATE_SPDY_SEND_REQUEST;
     } else {
       UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
-          connect_duration,
-          base::TimeDelta::FromMilliseconds(1),
-          base::TimeDelta::FromMinutes(10),
-          100);
+                                 connect_duration,
+                                 base::TimeDelta::FromMilliseconds(1),
+                                 base::TimeDelta::FromMinutes(10),
+                                 100);
 
       next_state_ = STATE_SEND_REQUEST;
     }
@@ -1109,12 +1109,12 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
         response_ = HttpResponseInfo();
         return OK;
 
-      // We aren't able to CONNECT to the remote host through the proxy.  We
-      // need to be very suspicious about the response because an active network
-      // attacker can force us into this state by masquerading as the proxy.
-      // The only safe thing to do here is to fail the connection because our
-      // client is expecting an SSL protected response.
-      // See http://crbug.com/7338.
+        // We aren't able to CONNECT to the remote host through the proxy.  We
+        // need to be very suspicious about the response because an active
+        // network attacker can force us into this state by masquerading as the
+        // proxy. The only safe thing to do here is to fail the connection
+        // because our client is expecting an SSL protected response.
+        // See http://crbug.com/7338.
       case 407:  // Proxy Authentication Required
         // We need this status code to allow proxy authentication.  Our
         // authentication code is smart enough to avoid being tricked by an
@@ -1335,7 +1335,7 @@ int HttpNetworkTransaction::DoSpdyReadBodyComplete(int result) {
 void HttpNetworkTransaction::LogHttpConnectedMetrics(
     const ClientSocketHandle& handle) {
   UMA_HISTOGRAM_ENUMERATION("Net.HttpSocketType", handle.reuse_type(),
-      ClientSocketHandle::NUM_TYPES);
+                            ClientSocketHandle::NUM_TYPES);
 
   switch (handle.reuse_type()) {
     case ClientSocketHandle::UNUSED:
@@ -1368,7 +1368,7 @@ void HttpNetworkTransaction::LogHttpConnectedMetrics(
 void HttpNetworkTransaction::LogIOErrorMetrics(
     const ClientSocketHandle& handle) {
   UMA_HISTOGRAM_ENUMERATION("Net.IOError_SocketReuseType",
-       handle.reuse_type(), ClientSocketHandle::NUM_TYPES);
+                            handle.reuse_type(), ClientSocketHandle::NUM_TYPES);
 
   switch (handle.reuse_type()) {
     case ClientSocketHandle::UNUSED:
@@ -1428,7 +1428,7 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
 
 void HttpNetworkTransaction::LogTransactionMetrics() const {
   base::TimeDelta duration = base::Time::Now() -
-      response_.request_time;
+                             response_.request_time;
   if (60 < duration.InMinutes())
     return;
 
@@ -1436,11 +1436,13 @@ void HttpNetworkTransaction::LogTransactionMetrics() const {
 
   UMA_HISTOGRAM_LONG_TIMES("Net.Transaction_Latency", duration);
   UMA_HISTOGRAM_CLIPPED_TIMES("Net.Transaction_Latency_Under_10", duration,
-      base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
-      100);
+                              base::TimeDelta::FromMilliseconds(1),
+                              base::TimeDelta::FromMinutes(10),
+                              100);
   UMA_HISTOGRAM_CLIPPED_TIMES("Net.Transaction_Latency_Total_Under_10",
-      total_duration, base::TimeDelta::FromMilliseconds(1),
-      base::TimeDelta::FromMinutes(10), 100);
+                              total_duration,
+                              base::TimeDelta::FromMilliseconds(1),
+                              base::TimeDelta::FromMinutes(10), 100);
   if (!reused_socket_) {
     UMA_HISTOGRAM_CLIPPED_TIMES(
         "Net.Transaction_Latency_Total_New_Connection_Under_10",
@@ -1461,7 +1463,7 @@ int HttpNetworkTransaction::HandleCertificateError(int error) {
   DCHECK(IsCertificateError(error));
 
   SSLClientSocket* ssl_socket =
-    reinterpret_cast<SSLClientSocket*>(connection_->socket());
+      reinterpret_cast<SSLClientSocket*>(connection_->socket());
   ssl_socket->GetSSLInfo(&response_.ssl_info);
 
   // Add the bad certificate to the set of allowed certificates in the
@@ -1523,7 +1525,7 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
   // If the user selected one of the certificate in client_certs for this
   // server before, use it automatically.
   X509Certificate* client_cert = session_->ssl_client_auth_cache()->
-      Lookup(GetHostAndPort(request_->url));
+                                 Lookup(GetHostAndPort(request_->url));
   if (client_cert) {
     const std::vector<scoped_refptr<X509Certificate> >& client_certs =
         response_.cert_request_info->client_certs;
@@ -1544,8 +1546,8 @@ int HttpNetworkTransaction::HandleCertificateRequest(int error) {
 
 int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
   if (ssl_config_.send_client_cert &&
-     (error == ERR_SSL_PROTOCOL_ERROR ||
-      error == ERR_BAD_SSL_CLIENT_AUTH_CERT)) {
+      (error == ERR_SSL_PROTOCOL_ERROR ||
+       error == ERR_BAD_SSL_CLIENT_AUTH_CERT)) {
     session_->ssl_client_auth_cache()->Remove(GetHostAndPort(request_->url));
   }
 
@@ -1897,7 +1899,7 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   if (status != 401 && status != 407)
     return OK;
   HttpAuth::Target target = status == 407 ?
-      HttpAuth::AUTH_PROXY : HttpAuth::AUTH_SERVER;
+                            HttpAuth::AUTH_PROXY : HttpAuth::AUTH_SERVER;
   GURL auth_origin = AuthOrigin(target);
 
   LOG(INFO) << "The " << AuthTargetString(target) << " "
