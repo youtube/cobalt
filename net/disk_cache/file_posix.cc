@@ -122,8 +122,8 @@ class InFlightIO {
   void PostRead(disk_cache::File* file, void* buf, size_t buf_len,
                 size_t offset, disk_cache::FileIOCallback* callback);
   void PostWrite(disk_cache::File* file, const void* buf, size_t buf_len,
-                size_t offset, disk_cache::FileIOCallback* callback,
-                bool delete_buffer);
+                 size_t offset, disk_cache::FileIOCallback* callback,
+                 bool delete_buffer);
 
   // Blocks the current thread until all IO operations tracked by this object
   // complete.
