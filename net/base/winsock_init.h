@@ -3,9 +3,7 @@
 // found in the LICENSE file.
 
 // Winsock initialization must happen before any Winsock calls are made.  The
-// EnsureWinsockInit method will make sure that WSAStartup has been called.  If
-// the call to WSAStartup caused Winsock to initialize, WSACleanup will be
-// called automatically on program shutdown.
+// EnsureWinsockInit method will make sure that WSAStartup has been called.
 
 #ifndef NET_BASE_WINSOCK_INIT_H_
 #define NET_BASE_WINSOCK_INIT_H_
