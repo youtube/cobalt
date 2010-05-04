@@ -2371,4 +2371,54 @@ TEST_F(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
   EXPECT_EQ(ERR_CONNECTION_CLOSED, out.rv);
 }
 
+TEST_F(SpdyNetworkTransactionTest, CloseWithActiveStream) {
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+              arraysize(kGetSynReply)),
+    MockRead(false, 0, 0)  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  TransactionHelperResult out;
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  BoundNetLog log;
+  SessionDependencies session_deps;
+  HttpNetworkSession* session = CreateSession(&session_deps);
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(session));
+
+  session_deps.socket_factory.AddSocketDataProvider(data);
+
+  TestCompletionCallback callback;
+
+  out.rv = trans->Start(&request, &callback, log);
+  EXPECT_EQ(out.rv, ERR_IO_PENDING);
+  out.rv = callback.WaitForResult();
+  EXPECT_EQ(out.rv, OK);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  out.rv = ReadTransaction(trans.get(), &out.response_data);
+  EXPECT_EQ(ERR_CONNECTION_CLOSED, out.rv);
+
+  // Verify that we consumed all test data.
+  EXPECT_TRUE(data->at_read_eof());
+  EXPECT_TRUE(data->at_write_eof());
+}
+
 }  // namespace net
