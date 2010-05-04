@@ -3759,17 +3759,17 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForDirectConnections) {
     {
       "",  // unused
       "https://www.google.com/direct_ssl",
-      "www.google.com:443",
+      "ssl/www.google.com:443",
     },
     {
       "",  // unused
       "https://[2001:1418:13:1::25]/direct",
-      "[2001:1418:13:1::25]:443",
+      "ssl/[2001:1418:13:1::25]:443",
     },
     {
       "",  // unused
       "http://host.with.alternate/direct",
-      "host.with.alternate:443",
+      "ssl/host.with.alternate:443",
     },
   };
 
@@ -3805,13 +3805,13 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
     {
       "http_proxy",
       "https://www.google.com/http_connect_ssl",
-      "www.google.com:443",
+      "ssl/www.google.com:443",
     },
 
     {
       "http_proxy",
       "http://host.with.alternate/direct",
-      "host.with.alternate:443",
+      "ssl/host.with.alternate:443",
     },
   };
 
@@ -3854,18 +3854,18 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForSOCKSConnections) {
     {
       "socks4://socks_proxy:1080",
       "https://www.google.com/socks4_ssl",
-      "socks4/www.google.com:443",
+      "socks4/ssl/www.google.com:443",
     },
     {
       "socks5://socks_proxy:1080",
       "https://www.google.com/socks5_ssl",
-      "socks5/www.google.com:443",
+      "socks5/ssl/www.google.com:443",
     },
 
     {
       "socks4://socks_proxy:1080",
       "http://host.with.alternate/direct",
-      "socks4/host.with.alternate:443",
+      "socks4/ssl/host.with.alternate:443",
     },
   };
 
