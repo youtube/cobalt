@@ -196,7 +196,7 @@ TEST(HttpAuthTest, ChallengeTokenizerNoQuotes) {
 TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotes) {
   std::string challenge_str = "Basic realm=\"foobar@baz.com";
   HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                          challenge_str.end());
+                                         challenge_str.end());
   EXPECT_TRUE(challenge.valid());
   EXPECT_EQ(std::string("Basic"), challenge.scheme());
   EXPECT_TRUE(challenge.GetNext());
@@ -212,7 +212,7 @@ TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotes) {
 TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesNoValue) {
   std::string challenge_str = "Basic realm=\"";
   HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                          challenge_str.end());
+                                         challenge_str.end());
   EXPECT_TRUE(challenge.valid());
   EXPECT_EQ(std::string("Basic"), challenge.scheme());
   EXPECT_TRUE(challenge.GetNext());
@@ -228,7 +228,7 @@ TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesNoValue) {
 TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesSpaces) {
   std::string challenge_str = "Basic realm=\"foo bar";
   HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                          challenge_str.end());
+                                         challenge_str.end());
   EXPECT_TRUE(challenge.valid());
   EXPECT_EQ(std::string("Basic"), challenge.scheme());
   EXPECT_TRUE(challenge.GetNext());
@@ -245,7 +245,7 @@ TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesSpaces) {
 TEST(HttpAuthTest, ChallengeTokenizerMismatchedQuotesMultiple) {
   std::string challenge_str = "Digest qop=, algorithm=md5, realm=\"foo";
   HttpAuth::ChallengeTokenizer challenge(challenge_str.begin(),
-                                          challenge_str.end());
+                                         challenge_str.end());
   EXPECT_TRUE(challenge.valid());
   EXPECT_EQ(std::string("Digest"), challenge.scheme());
   EXPECT_TRUE(challenge.GetNext());

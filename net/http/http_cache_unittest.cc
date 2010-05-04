@@ -300,8 +300,8 @@ class MockDiskEntry : public disk_cache::Entry,
   void CallbackLater(net::CompletionCallback* callback, int result) {
     if (ignore_callbacks_)
       return StoreAndDeliverCallbacks(true, this, callback, result);
-    MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(this,
-        &MockDiskEntry::RunCallback, callback, result));
+    MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
+        this, &MockDiskEntry::RunCallback, callback, result));
   }
   void RunCallback(net::CompletionCallback* callback, int result) {
     if (busy_) {
@@ -531,7 +531,7 @@ class MockDiskCache : public disk_cache::Backend {
     }
 
    private:
-     net::CompletionCallback* callback_;
+    net::CompletionCallback* callback_;
     int result_;
     DISALLOW_COPY_AND_ASSIGN(CallbackRunner);
   };
@@ -751,7 +751,7 @@ void RangeTransactionServer::RangeHandler(const net::HttpRequestInfo* request,
   std::vector<net::HttpByteRange> ranges;
   std::string range_header;
   if (!request->extra_headers.GetHeader(
-      net::HttpRequestHeaders::kRange, &range_header) ||
+          net::HttpRequestHeaders::kRange, &range_header) ||
       !net::HttpUtil::ParseRangeHeader(range_header, &ranges) ||
       ranges.size() != 1)
     return;
@@ -2145,8 +2145,8 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache8) {
   };
 
   const char* kExtraRequestHeaders =
-    "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\r\n"
-    "If-None-Match: \"Foo1\"\r\n";
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\r\n"
+      "If-None-Match: \"Foo1\"\r\n";
 
   ConditionalizedRequestUpdatesCacheHelper(
       kNetResponse1, kNetResponse2, kNetResponse2, kExtraRequestHeaders);
@@ -2174,8 +2174,8 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache9) {
 
   // The etag doesn't match what we have stored.
   const char* kExtraRequestHeaders =
-    "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n"
-    "If-None-Match: \"Foo2\"\n";
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n"
+      "If-None-Match: \"Foo2\"\n";
 
   ConditionalizedRequestUpdatesCacheHelper(
       kNetResponse1, kNetResponse2, kNetResponse1, kExtraRequestHeaders);
@@ -2203,8 +2203,8 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache10) {
 
   // The modification date doesn't match what we have stored.
   const char* kExtraRequestHeaders =
-    "If-Modified-Since: Fri, 08 Feb 2008 22:38:21 GMT\n"
-    "If-None-Match: \"Foo1\"\n";
+      "If-Modified-Since: Fri, 08 Feb 2008 22:38:21 GMT\n"
+      "If-None-Match: \"Foo1\"\n";
 
   ConditionalizedRequestUpdatesCacheHelper(
       kNetResponse1, kNetResponse2, kNetResponse1, kExtraRequestHeaders);
@@ -2232,8 +2232,8 @@ TEST(HttpCache, ConditionalizedRequestUpdatesCache11) {
 
   // Two dates, the second matches what we have stored.
   const char* kExtraRequestHeaders =
-    "If-Modified-Since: Mon, 04 Feb 2008 22:38:21 GMT\n"
-    "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
+      "If-Modified-Since: Mon, 04 Feb 2008 22:38:21 GMT\n"
+      "If-Modified-Since: Wed, 06 Feb 2008 22:38:21 GMT\n";
 
   ConditionalizedRequestUpdatesCacheHelper(
       kNetResponse1, kNetResponse2, kNetResponse1, kExtraRequestHeaders);
@@ -3885,12 +3885,12 @@ TEST(HttpCache, SyncRead) {
                             TEST_MODE_SYNC_CACHE_WRITE);
 
   MockHttpRequest r1(transaction),
-                  r2(transaction),
-                  r3(transaction);
+      r2(transaction),
+      r3(transaction);
 
   TestTransactionConsumer c1(cache.http_cache()),
-                          c2(cache.http_cache()),
-                          c3(cache.http_cache());
+      c2(cache.http_cache()),
+      c3(cache.http_cache());
 
   c1.Start(&r1, net::BoundNetLog());
 

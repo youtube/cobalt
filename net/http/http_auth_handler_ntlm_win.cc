@@ -61,10 +61,10 @@ int HttpAuthHandlerNTLM::GenerateDefaultAuthToken(
 }
 
 HttpAuthHandlerNTLM::Factory::Factory()
-  : max_token_length_(0),
-    first_creation_(true),
-    is_unsupported_(false),
-    sspi_library_(SSPILibrary::GetDefault()) {
+    : max_token_length_(0),
+      first_creation_(true),
+      is_unsupported_(false),
+      sspi_library_(SSPILibrary::GetDefault()) {
 }
 
 HttpAuthHandlerNTLM::Factory::~Factory() {

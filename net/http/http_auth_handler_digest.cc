@@ -172,7 +172,7 @@ std::string HttpAuthHandlerDigest::AssembleCredentials(
   std::string nc = StringPrintf("%08x", nonce_count);
 
   std::string authorization = std::string("Digest username=") +
-      HttpUtil::Quote(username);
+                              HttpUtil::Quote(username);
   authorization += ", realm=" + HttpUtil::Quote(realm_);
   authorization += ", nonce=" + HttpUtil::Quote(nonce_);
   authorization += ", uri=" + HttpUtil::Quote(path);

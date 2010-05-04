@@ -63,7 +63,7 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
 
     { // Check that md5-sess is recognized, as is single QOP
       "Digest nonce=\"xyz\", algorithm=\"md5-sess\", "
-          "realm=\"Oblivion\", qop=\"auth\"",
+      "realm=\"Oblivion\", qop=\"auth\"",
       true,
       "Oblivion",
       "xyz",
@@ -257,8 +257,11 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
     EXPECT_TRUE(digest->InitFromChallenge(&tok, HttpAuth::AUTH_SERVER, origin));
 
     std::string creds = digest->AssembleCredentials(tests[i].req_method,
-        tests[i].req_path, tests[i].username, tests[i].password,
-        tests[i].cnonce, tests[i].nonce_count);
+                                                    tests[i].req_path,
+                                                    tests[i].username,
+                                                    tests[i].password,
+                                                    tests[i].cnonce,
+                                                    tests[i].nonce_count);
 
     EXPECT_STREQ(tests[i].expected_creds, creds.c_str());
   }
