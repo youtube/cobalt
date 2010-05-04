@@ -66,16 +66,19 @@ TEST(AudioUtilTest, AdjustVolume_s16_one) {
   EXPECT_EQ(0, expected_test);
 }
 
-TEST(AudioUtilTest, AdjustVolume_s32) {
+TEST(AudioUtilTest, AdjustVolume_f32) {
   // Test AdjustVolume() on 32 bit samples.
-  int32 samples_s32[kNumberOfSamples] = { -4, 0x40, -32768, 123 };
-  int32 expected_s32[kNumberOfSamples] = { -1, 0x10, -8192, 30 };
-  bool result_s32 = media::AdjustVolume(samples_s32, sizeof(samples_s32),
+  float samples_f32[kNumberOfSamples] = { -4.0f, 0.5f, -.05f, 123.0f };
+  float expected_f32[kNumberOfSamples] = { -4.0f * 0.25f,
+                                           0.5f * 0.25f,
+                                           -.05f * 0.25f,
+                                           123.0f * 0.25f };
+  bool result_f32 = media::AdjustVolume(samples_f32, sizeof(samples_f32),
                                         4,  // channels.
-                                        sizeof(samples_s32[0]),
+                                        sizeof(samples_f32[0]),
                                         0.25f);
-  EXPECT_EQ(true, result_s32);
-  int expected_test = memcmp(samples_s32, expected_s32, sizeof(expected_s32));
+  EXPECT_EQ(true, result_f32);
+  int expected_test = memcmp(samples_f32, expected_f32, sizeof(expected_f32));
   EXPECT_EQ(0, expected_test);
 }
 
@@ -109,17 +112,17 @@ TEST(AudioUtilTest, FoldChannels_s16) {
   EXPECT_EQ(0, expected_test);
 }
 
-TEST(AudioUtilTest, FoldChannels_s32) {
+TEST(AudioUtilTest, FoldChannels_f32) {
   // Test FoldChannels() on 32 bit samples.
-  int32 samples_s32[6] = { 12, 1, 3, 7, 13, 17 };
-  int32 expected_s32[2] = { static_cast<int16>(12 * .707 + 1),
-                            static_cast<int16>(12 * .707 + 3) };
-  bool result_s32 = media::FoldChannels(samples_s32, sizeof(samples_s32),
+  float samples_f32[6] = { 12.0f, 1.0f, 3.0f, 7.0f, 13.0f, 17.0f };
+  float expected_f32[2] = { 12.0f * .707f + 1.0f,
+                            12.0f * .707f + 3.0f };
+  bool result_f32 = media::FoldChannels(samples_f32, sizeof(samples_f32),
                                         6,  // channels.
-                                        sizeof(samples_s32[0]),
+                                        sizeof(samples_f32[0]),
                                         1.00f);
-  EXPECT_EQ(true, result_s32);
-  int expected_test = memcmp(samples_s32, expected_s32, sizeof(expected_s32));
+  EXPECT_EQ(true, result_f32);
+  int expected_test = memcmp(samples_f32, expected_f32, sizeof(expected_f32));
   EXPECT_EQ(0, expected_test);
 }
 
