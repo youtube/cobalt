@@ -114,12 +114,12 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
           io_callback_(this, &Transaction::OnIOComplete)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           cache_callback_(new CancelableCompletionCallback<Transaction>(
-                this, &Transaction::OnIOComplete))),
+              this, &Transaction::OnIOComplete))),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           write_headers_callback_(new CancelableCompletionCallback<Transaction>(
-                this, &Transaction::OnIOComplete))) {
+              this, &Transaction::OnIOComplete))) {
   COMPILE_ASSERT(HttpCache::Transaction::kNumValidationHeaders ==
-                     ARRAYSIZE_UNSAFE(kValidationHeaders),
+                 ARRAYSIZE_UNSAFE(kValidationHeaders),
                  Invalid_number_of_validation_headers);
 }
 
@@ -902,7 +902,7 @@ int HttpCache::Transaction::DoOverwriteCachedResponse() {
   response_ = *new_response_;
   target_state_ = STATE_TRUNCATE_CACHED_DATA;
   next_state_ = truncated_ ? STATE_CACHE_WRITE_TRUNCATED_RESPONSE :
-                             STATE_CACHE_WRITE_RESPONSE;
+                STATE_CACHE_WRITE_RESPONSE;
   return OK;
 }
 
@@ -1122,7 +1122,7 @@ int HttpCache::Transaction::DoCacheWriteDataComplete(int result) {
   if (partial_.get()) {
     // This may be the last request.
     if (!(result == 0 && !truncated_ &&
-         (partial_->IsLastRange() || mode_ == WRITE)))
+          (partial_->IsLastRange() || mode_ == WRITE)))
       return DoPartialNetworkReadCompleted(result);
   }
 
@@ -1201,7 +1201,7 @@ void HttpCache::Transaction::SetRequest(const BoundNetLog& net_log,
     const ValidationHeaderInfo& info = kValidationHeaders[i];
     std::string validation_value;
     if (request_->extra_headers.GetHeader(
-        info.request_header_name, &validation_value)) {
+            info.request_header_name, &validation_value)) {
       if (!external_validation_.values[i].empty() ||
           validation_value.empty())
         external_validation_error = true;
@@ -1452,7 +1452,7 @@ bool HttpCache::Transaction::RequiresValidation() {
 
   // Since Vary header computation is fairly expensive, we save it for last.
   if (response_.vary_data.is_valid() &&
-          !response_.vary_data.MatchesRequest(*request_, *response_.headers))
+      !response_.vary_data.MatchesRequest(*request_, *response_.headers))
     return true;
 
   return false;
@@ -1682,7 +1682,7 @@ int HttpCache::Transaction::WriteResponseInfoToEntry(bool truncated) {
   // errors) and no SSL blocking page is shown.  An alternative would be to
   // reverse-map the cert status to a net error and replay the net error.
   if ((cache_->mode() != RECORD &&
-      response_.headers->HasHeaderValue("cache-control", "no-store")) ||
+       response_.headers->HasHeaderValue("cache-control", "no-store")) ||
       net::IsCertStatusError(response_.ssl_info.cert_status)) {
     DoneWritingToEntry(false);
     return OK;

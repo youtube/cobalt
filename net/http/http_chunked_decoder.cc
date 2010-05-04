@@ -116,11 +116,11 @@ int HttpChunkedDecoder::ScanForChunkRemaining(const char* buf, int buf_len) {
         reached_eof_ = true;
       }
     } else if (chunk_terminator_remaining_) {
-       if (buf_len) {
-         DLOG(ERROR) << "chunk data not terminated properly";
-         return ERR_INVALID_CHUNKED_ENCODING;
-       }
-       chunk_terminator_remaining_ = false;
+      if (buf_len) {
+        DLOG(ERROR) << "chunk data not terminated properly";
+        return ERR_INVALID_CHUNKED_ENCODING;
+      }
+      chunk_terminator_remaining_ = false;
     } else if (buf_len) {
       // Ignore any chunk-extensions.
       size_t index_of_semicolon = base::StringPiece(buf, buf_len).find(';');

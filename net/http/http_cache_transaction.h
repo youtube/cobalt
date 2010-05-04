@@ -332,7 +332,7 @@ class HttpCache::Transaction : public HttpTransaction {
   CompletionCallbackImpl<Transaction> io_callback_;
   scoped_refptr<CancelableCompletionCallback<Transaction> > cache_callback_;
   scoped_refptr<CancelableCompletionCallback<Transaction> >
-      write_headers_callback_;
+  write_headers_callback_;
 };
 
 }  // namespace net

@@ -269,9 +269,10 @@ class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
 };
 
 typedef CaptureGroupNameSocketPool<TCPClientSocketPool>
-    CaptureGroupNameTCPSocketPool;
+CaptureGroupNameTCPSocketPool;
 typedef CaptureGroupNameSocketPool<SOCKSClientSocketPool>
-    CaptureGroupNameSOCKSSocketPool;
+CaptureGroupNameSOCKSSocketPool;
+
 //-----------------------------------------------------------------------------
 
 TEST_F(HttpNetworkTransactionTest, Basic) {
@@ -1730,7 +1731,7 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyThenServer) {
 // Enter the correct password and authenticate successfully.
 TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
   HttpAuthHandlerNTLM::ScopedProcSetter proc_setter(MockGenerateRandom1,
-                                                         MockGetHostName);
+                                                    MockGetHostName);
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(CreateSession(&session_deps)));
@@ -1853,7 +1854,7 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
 // Enter a wrong password, and then the correct one.
 TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
   HttpAuthHandlerNTLM::ScopedProcSetter proc_setter(MockGenerateRandom2,
-                                                         MockGetHostName);
+                                                    MockGetHostName);
   SessionDependencies session_deps;
   scoped_ptr<HttpTransaction> trans(
       new HttpNetworkTransaction(CreateSession(&session_deps)));
@@ -4796,7 +4797,7 @@ TEST_F(HttpNetworkTransactionTest, MarkBrokenAlternateProtocol) {
 TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
   HttpNetworkTransaction::SetNextProtos(
-          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+      "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -4853,7 +4854,7 @@ TEST_F(HttpNetworkTransactionTest, FailNpnSpdyAndFallback) {
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
   HttpNetworkTransaction::SetNextProtos(
-          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+      "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -4977,7 +4978,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
 
   ProxyConfig proxy_config;
   proxy_config.proxy_rules().ParseFromString("myproxy:80");
-  
+
   CapturingProxyResolver* capturing_proxy_resolver =
       new CapturingProxyResolver();
   SessionDependencies session_deps(
@@ -5075,7 +5076,7 @@ TEST_F(HttpNetworkTransactionTest,
        UseAlternateProtocolForNpnSpdyWithExistingSpdySession) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
   HttpNetworkTransaction::SetNextProtos(
-          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+      "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
   SessionDependencies session_deps;
 
   HttpRequestInfo request;
@@ -5311,7 +5312,8 @@ TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
     // Set up expectations for this pass of the test. Many of the EXPECT calls
     // are contained inside the MockAuthHandlerCanonical codebase in response to
     // the expectations.
-    MockAuthHandlerCanonical::Resolve resolve = (i == 0) ?
+    MockAuthHandlerCanonical::Resolve resolve =
+        (i == 0) ?
         MockAuthHandlerCanonical::RESOLVE_SYNC :
         MockAuthHandlerCanonical::RESOLVE_ASYNC;
     auth_handler->SetResolveExpectation(resolve);
@@ -5400,7 +5402,7 @@ TEST_F(HttpNetworkTransactionTest, RestartAfterTLSDecompressionFailure) {
       false /* fail all reads */);
   TLSDecompressionFailureSocketDataProvider socket_data_provider2(false);
   SSLSocketDataProvider ssl_socket_data_provider1(
-    false, ERR_SSL_DECOMPRESSION_FAILURE_ALERT);
+      false, ERR_SSL_DECOMPRESSION_FAILURE_ALERT);
   SSLSocketDataProvider ssl_socket_data_provider2(false, OK);
   session_deps.socket_factory.AddSocketDataProvider(&socket_data_provider1);
   session_deps.socket_factory.AddSocketDataProvider(&socket_data_provider2);
