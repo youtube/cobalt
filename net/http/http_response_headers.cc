@@ -274,8 +274,9 @@ void HttpResponseHeaders::Parse(const std::string& raw_input) {
       find(line_begin, raw_input.end(), '\0');
   // has_headers = true, if there is any data following the status line.
   // Used by ParseStatusLine() to decide if a HTTP/0.9 is really a HTTP/1.0.
-  bool has_headers = line_end != raw_input.end() &&
-      (line_end + 1) != raw_input.end() && *(line_end + 1) != '\0';
+  bool has_headers = (line_end != raw_input.end() &&
+                      (line_end + 1) != raw_input.end() &&
+                      *(line_end + 1) != '\0');
   ParseStatusLine(line_begin, line_end, has_headers);
 
   if (line_end == raw_input.end()) {
@@ -1119,9 +1120,9 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
 
       // Obtain last-byte-pos.
       std::string::const_iterator last_byte_pos_begin =
-           byte_range_resp_spec.begin() + minus_position + 1;
+          byte_range_resp_spec.begin() + minus_position + 1;
       std::string::const_iterator last_byte_pos_end =
-           byte_range_resp_spec.end();
+          byte_range_resp_spec.end();
       HttpUtil::TrimLWS(&last_byte_pos_begin, &last_byte_pos_end);
 
       ok &= StringToInt64(
@@ -1150,8 +1151,8 @@ bool HttpResponseHeaders::GetContentRange(int64* first_byte_position,
   if (LowerCaseEqualsASCII(instance_length_begin, instance_length_end, "*")) {
     return false;
   } else if (!StringToInt64(
-                 std::string(instance_length_begin, instance_length_end),
-                 instance_length)) {
+      std::string(instance_length_begin, instance_length_end),
+      instance_length)) {
     *instance_length = -1;
     return false;
   }

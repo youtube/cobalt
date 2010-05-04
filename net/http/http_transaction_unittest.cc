@@ -105,7 +105,7 @@ static const MockTransaction* const kBuiltinMockTransactions[] = {
 };
 
 typedef base::hash_map<std::string, const MockTransaction*>
-    MockTransactionMap;
+MockTransactionMap;
 static MockTransactionMap mock_transactions;
 
 void AddMockTransaction(const MockTransaction* trans) {

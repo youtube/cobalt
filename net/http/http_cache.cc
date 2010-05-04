@@ -287,7 +287,7 @@ disk_cache::Backend* HttpCache::GetBackend() {
     disk_cache_.reset(disk_cache::CreateInMemoryCacheBackend(cache_size_));
   } else if (!disk_cache_dir_.empty()) {
     disk_cache_.reset(disk_cache::CreateCacheBackend(disk_cache_dir_, true,
-        cache_size_, type_));
+                                                     cache_size_, type_));
     disk_cache_dir_ = FilePath();  // Reclaim memory.
   }
   return disk_cache_.get();
@@ -807,7 +807,8 @@ void HttpCache::ProcessPendingQueue(ActiveEntry* entry) {
     return;
   entry->will_process_pending_queue = true;
 
-  MessageLoop::current()->PostTask(FROM_HERE,
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
       task_factory_.NewRunnableMethod(&HttpCache::OnProcessPendingQueue,
                                       entry));
 }
@@ -908,7 +909,7 @@ void HttpCache::OnIOComplete(int result, NewEntry* new_entry) {
         }
       }
     } else {
-       if (op == WI_CREATE_ENTRY && result != OK) {
+      if (op == WI_CREATE_ENTRY && result != OK) {
         // Failed Create followed by an Open.
         item->NotifyTransaction(ERR_CACHE_RACE, NULL);
         fail_requests = true;

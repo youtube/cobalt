@@ -36,9 +36,9 @@ bool HttpByteRange::HasLastBytePosition() const {
 bool HttpByteRange::IsValid() const {
   if (suffix_length_ > 0)
     return true;
-  return first_byte_position_ >= 0 &&
-         (last_byte_position_ == kPositionNotSpecified ||
-          last_byte_position_ >= first_byte_position_);
+  return (first_byte_position_ >= 0 &&
+          (last_byte_position_ == kPositionNotSpecified ||
+           last_byte_position_ >= first_byte_position_));
 }
 
 bool HttpByteRange::ComputeBounds(int64 size) {
@@ -52,9 +52,9 @@ bool HttpByteRange::ComputeBounds(int64 size) {
   if (!HasFirstBytePosition() &&
       !HasLastBytePosition() &&
       !IsSuffixByteRange()) {
-      first_byte_position_ = 0;
-      last_byte_position_ = size - 1;
-      return true;
+    first_byte_position_ = 0;
+    last_byte_position_ = size - 1;
+    return true;
   }
   if (!IsValid())
     return false;
