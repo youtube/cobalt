@@ -629,8 +629,7 @@ void SpdySession::ReadSocket() {
   switch (bytes_read) {
     case 0:
       // Socket is closed!
-      // TODO(mbelshe): Need to abort any active streams here.
-      DCHECK(!active_streams_.size());
+      CloseAllStreams(ERR_CONNECTION_CLOSED);
       return;
     case net::ERR_IO_PENDING:
       // Waiting for data.  Nothing to do now.
