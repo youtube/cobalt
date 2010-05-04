@@ -24,19 +24,14 @@ static int ScaleChannel(int channel, int volume) {
 }
 
 template<class Format, class Fixed, int bias>
-static void AdjustVolume(Format* buf_out, int sample_count, int fixed_volume) {
+void AdjustVolume(Format* buf_out,
+                  int sample_count,
+                  int fixed_volume) {
   for (int i = 0; i < sample_count; ++i) {
     buf_out[i] = static_cast<Format>(ScaleChannel<Fixed>(buf_out[i] - bias,
                                                          fixed_volume) + bias);
   }
 }
-
-static void AdjustVolumeFloat(float* buf_out, int sample_count, float volume) {
-  for (int i = 0; i < sample_count; ++i) {
-    buf_out[i] = buf_out[i] * volume;
-  }
-}
-
 
 // Channel order for AAC
 // From http://www.hydrogenaudio.org/forums/lofiversion/index.php/t40046.html
@@ -46,7 +41,8 @@ static const int kChannel_L = 1;
 static const int kChannel_R = 2;
 
 template<class Fixed, int min_value, int max_value>
-static int AddChannel(int val, int adder) {
+static int AddChannel(int val,
+               int adder) {
   Fixed sum = static_cast<Fixed>(val) + static_cast<Fixed>(adder);
   if (sum > max_value)
     return max_value;
@@ -66,9 +62,9 @@ static int AddChannel(int val, int adder) {
 
 template<class Format, class Fixed, int min_value, int max_value, int bias>
 static void FoldChannels(Format* buf_out,
-                         int sample_count,
-                         const float volume,
-                         int channels) {
+                  int sample_count,
+                  const float volume,
+                  int channels) {
   Format* buf_in = buf_out;
   const int center_volume = static_cast<int>(volume * 0.707f * 65536);
   const int fixed_volume = static_cast<int>(volume * 65536);
@@ -91,31 +87,6 @@ static void FoldChannels(Format* buf_out,
     buf_in += channels;
   }
 }
-
-static void FoldChannelsFloat(float* buf_out,
-                              int sample_count,
-                              const float volume,
-                              int channels) {
-  float* buf_in = buf_out;
-  const float center_volume = volume * 0.707f;
-
-  for (int i = 0; i < sample_count; ++i) {
-    float center = buf_in[kChannel_C];
-    float left = buf_in[kChannel_L];
-    float right = buf_in[kChannel_R];
-
-    center = center * center_volume;
-    left = left * volume;
-    right = right * volume;
-
-    buf_out[0] = left + center;
-    buf_out[1] = right + center;
-
-    buf_out += 2;
-    buf_in += channels;
-  }
-}
-
 }  // namespace
 
 // AdjustVolume() does an in place audio sample change.
@@ -146,10 +117,9 @@ bool AdjustVolume(void* buf,
                                     fixed_volume);
       return true;
     } else if (bytes_per_sample == 4) {
-      // 4 byte per sample is float.
-      AdjustVolumeFloat(reinterpret_cast<float*>(buf),
-                        sample_count,
-                        volume);
+      AdjustVolume<int32, int64, 0>(reinterpret_cast<int32*>(buf),
+                                    sample_count,
+                                    fixed_volume);
       return true;
     }
   }
@@ -180,9 +150,8 @@ bool FoldChannels(void* buf,
           channels);
       return true;
     } else if (bytes_per_sample == 4) {
-      // 4 byte per sample is float.
-      FoldChannelsFloat(
-          reinterpret_cast<float*>(buf),
+      FoldChannels<int32, int64, 0x80000000, 0x7fffffff, 0>(
+          reinterpret_cast<int32*>(buf),
           sample_count,
           volume,
           channels);

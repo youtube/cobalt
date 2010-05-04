@@ -5,7 +5,6 @@
 #include "media/audio/win/waveout_output_win.h"
 
 #include <windows.h>
-#include <mmreg.h>
 #include <mmsystem.h>
 #pragma comment(lib, "winmm.lib")
 
@@ -56,8 +55,7 @@ PCMWaveOutAudioOutputStream::PCMWaveOutAudioOutputStream(
       volume_(1),
       channels_(channels),
       pending_bytes_(0) {
-  format_.wFormatTag = bits_per_sample == 32 ?
-      WAVE_FORMAT_IEEE_FLOAT : WAVE_FORMAT_PCM;
+  format_.wFormatTag = WAVE_FORMAT_PCM;
   format_.nChannels = channels > 2 ? 2 : channels;
   format_.nSamplesPerSec = sampling_rate;
   format_.wBitsPerSample = bits_per_sample;
