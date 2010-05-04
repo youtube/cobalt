@@ -30,13 +30,14 @@ class SocketStream;
 class URLRequest;
 
 // Subclass to provide application-specific context for URLRequest instances.
-class URLRequestContext :
-    public base::RefCountedThreadSafe<URLRequestContext> {
+class URLRequestContext
+    : public base::RefCountedThreadSafe<URLRequestContext> {
  public:
   URLRequestContext()
       : net_log_(NULL),
         http_transaction_factory_(NULL),
         ftp_transaction_factory_(NULL),
+        http_auth_handler_factory_(NULL),
         cookie_policy_(NULL),
         transport_security_state_(NULL) {
   }
