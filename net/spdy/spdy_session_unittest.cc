@@ -172,7 +172,7 @@ static const uint8 kPush[] = {
 
 }  // namespace
 
-TEST_F(SpdySessionTest, GetPushStream) {
+TEST_F(SpdySessionTest, DISABLED_GetPushStream) {
   SpdySessionTest::TurnOffCompression();
 
   SessionDependencies session_deps;
