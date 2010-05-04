@@ -148,6 +148,24 @@ class ProxyConfig {
     return auto_detect_;
   }
 
+  // Helpers to construct some common proxy configurations.
+
+  static ProxyConfig CreateDirect() {
+    return ProxyConfig();
+  }
+
+  static ProxyConfig CreateAutoDetect() {
+    ProxyConfig config;
+    config.set_auto_detect(true);
+    return config;
+  }
+
+  static ProxyConfig CreateFromCustomPacURL(const GURL& pac_url) {
+    ProxyConfig config;
+    config.set_pac_url(pac_url);
+    return config;
+  }
+
  private:
   // True if the proxy configuration should be auto-detected.
   bool auto_detect_;
