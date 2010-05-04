@@ -333,10 +333,11 @@ inline Dest bit_cast(const Source& source) {
 //
 //   scoped_ptr<MyType> my_var = ...;
 //   if (TakeOwnership(my_var.get()) == SUCCESS)
-//     IGNORE_RESULT(my_var.release());
+//     ignore_result(my_var.release());
 //
-#define IGNORE_RESULT(x) \
-  do { size_t unused = sizeof(x); unused = 0; } while (false)
+template<typename T>
+inline void ignore_result(const T& ignored) {
+}
 
 // The following enum should be used only as a constructor argument to indicate
 // that the variable has static storage class, and that the constructor should
