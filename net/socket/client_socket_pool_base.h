@@ -176,8 +176,8 @@ class ClientSocketPoolBaseHelper
       NetworkChangeNotifier* network_change_notifier);
 
   // See ClientSocketPool::RequestSocket for documentation on this function.
-  // Note that |request| must be heap allocated.  If ERR_IO_PENDING is returned,
-  // then ClientSocketPoolBaseHelper takes ownership of |request|.
+  // ClientSocketPoolBaseHelper takes ownership of |request|, which must be
+  // heap allocated.
   int RequestSocket(const std::string& group_name, const Request* request);
 
   // See ClientSocketPool::CancelRequest for documentation on this function.
@@ -526,12 +526,8 @@ class ClientSocketPoolBase {
                     ClientSocketHandle* handle,
                     CompletionCallback* callback,
                     const BoundNetLog& net_log) {
-    scoped_ptr<Request> request(
-        new Request(handle, callback, priority, params, net_log));
-    int rv = helper_->RequestSocket(group_name, request.get());
-    if (rv == ERR_IO_PENDING)
-      request.release();
-    return rv;
+    Request* request = new Request(handle, callback, priority, params, net_log);
+    return helper_->RequestSocket(group_name, request);
   }
 
   void CancelRequest(const std::string& group_name,

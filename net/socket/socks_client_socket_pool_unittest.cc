@@ -49,7 +49,7 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
     bool CancelHandle(const ClientSocketHandle* handle) {
       if (handle != handle_)
         return false;
-      socket_.reset(NULL);
+      socket_.reset();
       handle_ = NULL;
       user_callback_ = NULL;
       return true;
@@ -60,11 +60,10 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
       if (!socket_.get())
         return;
       if (rv == OK)
-        handle_->set_socket(socket_.get());
+        handle_->set_socket(socket_.release());
       else
-        socket_.reset(NULL);
+        socket_.reset();
 
-      socket_.release();
       handle_ = NULL;
 
       if (user_callback_) {

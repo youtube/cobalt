@@ -175,10 +175,12 @@ int ClientSocketPoolBaseHelper::RequestSocket(
   request->net_log().BeginEvent(NetLog::TYPE_SOCKET_POOL, NULL);
   Group& group = group_map_[group_name];
   int rv = RequestSocketInternal(group_name, request);
-  if (rv != ERR_IO_PENDING)
+  if (rv != ERR_IO_PENDING) {
     request->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL, NULL);
-  else
+    delete request;
+  } else {
     InsertRequestIntoQueue(request, &group.pending_requests);
+  }
   return rv;
 }
 
@@ -654,21 +656,18 @@ void ClientSocketPoolBaseHelper::OnAvailableSocketSlot(
 
 void ClientSocketPoolBaseHelper::ProcessPendingRequest(
     const std::string& group_name, Group* group) {
-  scoped_ptr<const Request> r(*group->pending_requests.begin());
-  int rv = RequestSocketInternal(group_name, r.get());
+  int rv = RequestSocketInternal(group_name, *group->pending_requests.begin());
 
   if (rv != ERR_IO_PENDING) {
+    scoped_ptr<const Request> r(RemoveRequestFromQueue(
+          group->pending_requests.begin(), &group->pending_requests));
     r->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL, NULL);
-    RemoveRequestFromQueue(group->pending_requests.begin(),
-                           &group->pending_requests);
     r->callback()->Run(rv);
     if (rv != OK) {
       // |group| may be invalid after the callback, we need to search
       // |group_map_| again.
       MaybeOnAvailableSocketSlot(group_name);
     }
-  } else {
-    r.release();
   }
 }
 
