@@ -147,19 +147,11 @@ class TestSuite {
   }
 
  protected:
-  // TODO(phajdan.jr): Clean this up.
-  // See http://crbug.com/29997
-
-  // By default, base::LogMessage::~LogMessage calls DebugUtil::BreakDebugger()
-  // when severity is LOG_FATAL. This results in error dialogs
-  // which are not friendly to buildbots.
-  // To avoid these problems, we override the LogMessage behaviour by
-  // replacing the assert handler with UnitTestAssertHandler.
+  // By default fatal log messages (e.g. from DCHECKs) result in error dialogs
+  // which gum up buildbots. Use a minimalistic assert handler which just
+  // terminates the process.
   static void UnitTestAssertHandler(const std::string& str) {
-    // FAIL is a googletest macro, it marks the current test as failed.
-    // If throw_on_failure is set to true, it also ends the process.
-    ::testing::FLAGS_gtest_throw_on_failure = true;
-    FAIL() << str;
+    RAW_LOG(FATAL, str.c_str());
   }
 
   // Disable crash dialogs so that it doesn't gum up the buildbot
@@ -204,6 +196,7 @@ class TestSuite {
     if (!DebugUtil::BeingDebugged() &&
         !CommandLine::ForCurrentProcess()->HasSwitch("show-error-dialogs")) {
       SuppressErrorDialogs();
+      DebugUtil::SuppressDialogs();
       logging::SetLogAssertHandler(UnitTestAssertHandler);
     }
 
