@@ -854,11 +854,11 @@ scoped_refptr<SpdyStream> SpdySession::GetPushStream(const std::string& path) {
       pushed_streams_.erase(it);
       used_push_streams.Increment();
       LOG(INFO) << "Push Stream Claim for: " << path;
-      break;
+      return stream;
     }
   }
 
-  return stream;
+  return NULL;
 }
 
 void SpdySession::GetSSLInfo(SSLInfo* ssl_info) {

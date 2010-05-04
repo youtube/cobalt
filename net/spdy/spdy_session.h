@@ -25,6 +25,7 @@
 #include "net/spdy/spdy_io_buffer.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_session_pool.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"  // For FRIEND_TEST
 
 namespace net {
 
@@ -90,6 +91,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
  private:
   friend class base::RefCounted<SpdySession>;
+  FRIEND_TEST(SpdySessionTest, GetPushStream);
 
   enum State {
     IDLE,
