@@ -32,9 +32,11 @@ class VideoRendererBase : public VideoRenderer,
   virtual ~VideoRendererBase();
 
   // Helper method for subclasses to parse out video-related information from
-  // a MediaFormat.  Returns true if |width_out| and |height_out| were assigned.
+  // a MediaFormat.  Returns true if |width_out|, |height_out| and
+  // |uses_egl_image_out| were assigned.
   static bool ParseMediaFormat(const MediaFormat& media_format,
-                               int* width_out, int* height_out);
+                               int* width_out, int* height_out,
+                               bool* uses_egl_image_out);
 
   // MediaFilter implementation.
   virtual void Play(FilterCallback* callback);
@@ -101,9 +103,13 @@ class VideoRendererBase : public VideoRenderer,
 
   scoped_refptr<VideoDecoder> decoder_;
 
+  // TODO(wjia): can we move this to at least protected? Seems all derived
+  // classes have width_, height_, uses_egl_image_ and same logic to
+  // calculate those values.
   // Video dimensions parsed from the decoder's media format.
   int width_;
   int height_;
+  bool uses_egl_image_;
 
   // Queue of incoming frames as well as the current frame since the last time
   // OnFrameAvailable() was called.
