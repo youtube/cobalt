@@ -18,7 +18,6 @@ const char16 kLeftToRightEmbeddingMark = 0x202A;
 const char16 kRightToLeftEmbeddingMark = 0x202B;
 const char16 kPopDirectionalFormatting = 0x202C;
 
-// Represents the text direction returned by the GetTextDirection() function.
 enum TextDirection {
   UNKNOWN_DIRECTION,
   RIGHT_TO_LEFT,
@@ -37,20 +36,14 @@ void GetLanguageAndRegionFromOS(std::string* lang, std::string* region);
 // that this is called before any locale-dependent API is called.
 void SetICUDefaultLocale(const std::string& locale_string);
 
-// Returns the text direction for the default ICU locale. It is assumed
-// that SetICUDefaultLocale has been called to set the default locale to
-// the UI locale of Chrome. Its return is one of the following three:
-//  * LEFT_TO_RIGHT: Left-To-Right (e.g. English, Chinese, etc.);
-//  * RIGHT_TO_LEFT: Right-To-Left (e.g. Arabic, Hebrew, etc.), and;
-//  * UNKNOWN_DIRECTION: unknown (or error).
-TextDirection GetICUTextDirection();
-
-// Get the application text direction.  (This is just the ICU direction,
-// except on GTK.)
-TextDirection GetTextDirection();
-
 // Returns true if the application text direction is right-to-left.
 bool IsRTL();
+
+// Returns whether the text direction for the default ICU locale is RTL.  This
+// assumes that SetICUDefaultLocale has been called to set the default locale to
+// the UI locale of Chrome.
+// NOTE: Generally, you should call IsRTL() instead of this.
+bool ICUIsRTL();
 
 // Returns the text direction for |locale_name|.
 TextDirection GetTextDirectionForLocale(const char* locale_name);
