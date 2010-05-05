@@ -629,7 +629,7 @@ void SpdySession::ReadSocket() {
   switch (bytes_read) {
     case 0:
       // Socket is closed!
-      CloseAllStreams(ERR_CONNECTION_CLOSED);
+      CloseSessionOnError(ERR_CONNECTION_CLOSED);
       return;
     case net::ERR_IO_PENDING:
       // Waiting for data.  Nothing to do now.
