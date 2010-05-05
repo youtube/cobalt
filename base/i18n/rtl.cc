@@ -77,25 +77,21 @@ void SetICUDefaultLocale(const std::string& locale_string) {
   g_icu_text_direction = UNKNOWN_DIRECTION;
 }
 
-TextDirection GetICUTextDirection() {
+bool IsRTL() {
+#if defined(TOOLKIT_GTK)
+  GtkTextDirection gtk_dir = gtk_widget_get_default_direction();
+  return (gtk_dir == GTK_TEXT_DIR_RTL);
+#else
+  return ICUIsRTL();
+#endif
+}
+
+bool ICUIsRTL() {
   if (g_icu_text_direction == UNKNOWN_DIRECTION) {
     const icu::Locale& locale = icu::Locale::getDefault();
     g_icu_text_direction = GetTextDirectionForLocale(locale.getName());
   }
-  return g_icu_text_direction;
-}
-
-TextDirection GetTextDirection() {
-#if defined(TOOLKIT_GTK)
-  GtkTextDirection gtk_dir = gtk_widget_get_default_direction();
-  return (gtk_dir == GTK_TEXT_DIR_LTR) ? LEFT_TO_RIGHT : RIGHT_TO_LEFT;
-#else
-  return GetICUTextDirection();
-#endif
-}
-
-bool IsRTL() {
-  return GetTextDirection() == RIGHT_TO_LEFT;
+  return g_icu_text_direction == RIGHT_TO_LEFT;
 }
 
 TextDirection GetTextDirectionForLocale(const char* locale_name) {
@@ -142,7 +138,7 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text) {
 
 bool AdjustStringForLocaleDirection(const std::wstring& text,
                                     std::wstring* localized_text) {
-  if (GetTextDirection() == LEFT_TO_RIGHT || text.length() == 0)
+  if (!IsRTL() || text.empty())
     return false;
 
   // Marking the string as LTR if the locale is RTL and the string does not
@@ -184,6 +180,9 @@ bool StringContainsStrongRTLChars(const std::wstring& text) {
 }
 
 void WrapStringWithLTRFormatting(std::wstring* text) {
+  if (text->empty())
+    return;
+
   // Inserting an LRE (Left-To-Right Embedding) mark as the first character.
   text->insert(0, 1, static_cast<wchar_t>(kLeftToRightEmbeddingMark));
 
@@ -192,6 +191,9 @@ void WrapStringWithLTRFormatting(std::wstring* text) {
 }
 
 void WrapStringWithRTLFormatting(std::wstring* text) {
+  if (text->empty())
+    return;
+
   // Inserting an RLE (Right-To-Left Embedding) mark as the first character.
   text->insert(0, 1, static_cast<wchar_t>(kRightToLeftEmbeddingMark));
 
@@ -218,7 +220,7 @@ void WrapPathWithLTRFormatting(const FilePath& path,
 }
 
 std::wstring GetDisplayStringInLTRDirectionality(std::wstring* text) {
-  if (GetTextDirection() == RIGHT_TO_LEFT)
+  if (IsRTL())
     WrapStringWithLTRFormatting(text);
   return *text;
 }
