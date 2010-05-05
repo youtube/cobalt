@@ -393,6 +393,7 @@ bool TransportSecurityState::isPreloadedSTS(
     char dns_name[30];
   } preloadedSTS[] = {
     {16, false, "\003www\006paypal\003com"},
+    {16, false, "\003www\006elanex\003biz"},
   };
   static const size_t numPreloadedSTS =
       sizeof(preloadedSTS) / sizeof(preloadedSTS[0]);
