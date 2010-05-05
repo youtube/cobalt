@@ -33,6 +33,7 @@
 #include "base/time.h"
 
 #if defined(OS_POSIX)
+#include "base/eintr_wrapper.h"
 #include "base/file_descriptor_posix.h"
 #endif
 
@@ -348,8 +349,8 @@ typedef scoped_ptr_malloc<FILE, ScopedFILEClose> ScopedFILE;
 class ScopedFDClose {
  public:
   inline void operator()(int* x) const {
-    if (x) {
-      close(*x);
+    if (x && *x >= 0) {
+      HANDLE_EINTR(close(*x));
     }
   }
 };
