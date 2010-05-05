@@ -1727,9 +1727,25 @@ void HttpNetworkTransaction::AddAuthorizationHeader(
 }
 
 GURL HttpNetworkTransaction::AuthOrigin(HttpAuth::Target target) const {
-  return target == HttpAuth::AUTH_PROXY ?
-      GURL("http://" + proxy_info_.proxy_server().host_and_port()) :
-      request_->url.GetOrigin();
+  GURL origin = PossiblyInvalidAuthOrigin(target);
+  DCHECK(origin.is_valid());
+  return origin;
+}
+
+GURL HttpNetworkTransaction::PossiblyInvalidAuthOrigin(
+    HttpAuth::Target target) const {
+  switch (target) {
+    case HttpAuth::AUTH_PROXY:
+      if (!proxy_info_.proxy_server().is_valid() ||
+          proxy_info_.proxy_server().is_direct()) {
+        return GURL();  // There is no proxy server.
+      }
+      return GURL("http://" + proxy_info_.proxy_server().host_and_port());
+    case HttpAuth::AUTH_SERVER:
+      return request_->url.GetOrigin();
+    default:
+     return GURL();
+  }
 }
 
 std::string HttpNetworkTransaction::AuthPath(HttpAuth::Target target)
@@ -1903,7 +1919,7 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
     return OK;
   HttpAuth::Target target = status == 407 ?
                             HttpAuth::AUTH_PROXY : HttpAuth::AUTH_SERVER;
-  GURL auth_origin = AuthOrigin(target);
+  GURL auth_origin = PossiblyInvalidAuthOrigin(target);
 
   LOG(INFO) << "The " << AuthTargetString(target) << " "
             << auth_origin << " requested auth"
@@ -1911,6 +1927,7 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
 
   if (target == HttpAuth::AUTH_PROXY && proxy_info_.is_direct())
     return ERR_UNEXPECTED_PROXY_AUTH;
+  DCHECK(auth_origin.is_valid());
 
   // The auth we tried just failed, hence it can't be valid. Remove it from
   // the cache so it won't be used again.
