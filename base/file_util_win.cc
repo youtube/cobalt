@@ -539,13 +539,17 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
   return CreateTemporaryDirInDir(system_temp_dir, prefix, new_temp_path);
 }
 
+// TODO(skerner): Extra logging has been added to understand crbug/35198 .
+// Remove it once we get a log from a user who can reproduce the issue.
 bool CreateDirectory(const FilePath& full_path) {
+  LOG(INFO) << "Enter CreateDirectory: full_path = " << full_path.value();
   // If the path exists, we've succeeded if it's a directory, failed otherwise.
   const wchar_t* full_path_str = full_path.value().c_str();
   DWORD fileattr = ::GetFileAttributes(full_path_str);
+  LOG(INFO) << "::GetFileAttributes() returned " << fileattr;
   if (fileattr != INVALID_FILE_ATTRIBUTES) {
     if ((fileattr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-      DLOG(INFO) << "CreateDirectory(" << full_path_str << "), " <<
+      LOG(INFO) << "CreateDirectory(" << full_path_str << "), " <<
           "directory already exists.";
       return true;
     } else {
@@ -561,19 +565,27 @@ bool CreateDirectory(const FilePath& full_path) {
   // directories starting with the highest-level missing parent.
   FilePath parent_path(full_path.DirName());
   if (parent_path.value() == full_path.value()) {
+    LOG(INFO) << "Can't create directory: parent_path " <<
+        parent_path.value() << " should not equal full_path " <<
+        full_path.value();
     return false;
   }
   if (!CreateDirectory(parent_path)) {
-    DLOG(WARNING) << "Failed to create one of the parent directories.";
+    LOG(INFO) << "Failed to create one of the parent directories: " <<
+        parent_path.value();
     return false;
   }
 
+  LOG(INFO) << "About to call ::CreateDirectory() with full_path_str = " <<
+      full_path_str;
   if (!::CreateDirectory(full_path_str, NULL)) {
     DWORD error_code = ::GetLastError();
     if (error_code == ERROR_ALREADY_EXISTS && DirectoryExists(full_path)) {
       // This error code doesn't indicate whether we were racing with someone
       // creating the same directory, or a file with the same path, therefore
       // we check.
+      LOG(INFO) << "Race condition? Directory already exists: " <<
+          full_path.value();
       return true;
     } else {
       LOG(WARNING) << "Failed to create directory " << full_path_str <<
@@ -581,6 +593,7 @@ bool CreateDirectory(const FilePath& full_path) {
       return false;
     }
   } else {
+    LOG(INFO) << "::CreateDirectory() worked.";
     return true;
   }
 }
