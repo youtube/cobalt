@@ -900,14 +900,21 @@ bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
   // TODO(ahendrickson): This is recorded after the entire SYN_STREAM control
   // frame has been received and processed.  Move to framer?
   response.response_time = base::Time::Now();
+  int rv = OK;
+
   if (SpdyHeadersToHttpResponse(headers, &response)) {
     GetSSLInfo(&response.ssl_info);
     response.request_time = stream->GetRequestTime();
     response.vary_data.Init(*stream->GetRequestInfo(), *response.headers);
-    stream->OnResponseReceived(response);
+    rv = stream->OnResponseReceived(response);
   } else {
+    rv = ERR_INVALID_RESPONSE;
+  }
+
+  if (rv < 0) {
+    DCHECK_NE(rv, ERR_IO_PENDING);
     const spdy::SpdyStreamId stream_id = stream->stream_id();
-    stream->OnClose(ERR_INVALID_RESPONSE);
+    stream->OnClose(rv);
     DeactivateStream(stream_id);
     return false;
   }
