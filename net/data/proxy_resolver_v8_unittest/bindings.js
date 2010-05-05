@@ -10,16 +10,25 @@ MyObject.prototype.toString = function() {
   throw "exception from calling toString()";
 }
 
+function expectEquals(expectation, actual) {
+  if (!(expectation === actual)) {
+    throw "FAIL: expected: " + expectation + ", actual: " + actual;
+  }
+}
+
 function FindProxyForURL(url, host) {
   // Call dnsResolve with some wonky arguments.
-  dnsResolve();
-  dnsResolve(null);
-  dnsResolve(undefined);
-  dnsResolve("");
-  dnsResolve({foo: 'bar'});
-  dnsResolve(fn);
-  dnsResolve(['3']);
-  dnsResolve("arg1", "arg2", "arg3", "arg4");
+  // Those expected to fail (because we have passed a non-string parameter)
+  // will return |null|, whereas those that have called through to the C++
+  // bindings will return '127.0.0.1'.
+  expectEquals(null, dnsResolve());
+  expectEquals(null, dnsResolve(null));
+  expectEquals(null, dnsResolve(undefined));
+  expectEquals('127.0.0.1', dnsResolve(""));
+  expectEquals(null, dnsResolve({foo: 'bar'}));
+  expectEquals(null, dnsResolve(fn));
+  expectEquals(null, dnsResolve(['3']));
+  expectEquals('127.0.0.1', dnsResolve("arg1", "arg2", "arg3", "arg4"));
 
   // Call alert with some wonky arguments.
   alert();
