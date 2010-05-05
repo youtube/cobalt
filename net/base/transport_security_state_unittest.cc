@@ -325,6 +325,13 @@ TEST_F(TransportSecurityStateTest, Preloaded) {
   EXPECT_FALSE(domain_state.include_subdomains);
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "www2.paypal.com"));
   EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "a.www.paypal.com"));
+
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "elanex.biz"));
+  EXPECT_TRUE(state->IsEnabledForHost(&domain_state, "www.elanex.biz"));
+  EXPECT_EQ(domain_state.mode,
+            TransportSecurityState::DomainState::MODE_STRICT);
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "foo.elanex.biz"));
+  EXPECT_FALSE(state->IsEnabledForHost(&domain_state, "a.foo.elanex.biz"));
 }
 
 }  // namespace net
