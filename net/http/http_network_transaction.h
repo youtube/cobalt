@@ -258,6 +258,10 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Get the {scheme, host, port} for the authentication target
   GURL AuthOrigin(HttpAuth::Target target) const;
 
+  // Same as AuthOrigin(), but will return an invalid GURL if the target is
+  // invalid.
+  GURL PossiblyInvalidAuthOrigin(HttpAuth::Target target) const;
+
   // Get the absolute path of the resource needing authentication.
   // For proxy authentication the path is always empty string.
   std::string AuthPath(HttpAuth::Target target) const;
