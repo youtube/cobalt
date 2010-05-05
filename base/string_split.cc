@@ -15,7 +15,7 @@ bool SplitStringIntoKeyValues(
   key->clear();
   values->clear();
 
-  // find the key string
+  // Find the key string.
   size_t end_key_pos = line.find_first_of(key_value_delimiter);
   if (end_key_pos == std::string::npos) {
     DLOG(INFO) << "cannot parse key from line: " << line;
@@ -23,7 +23,7 @@ bool SplitStringIntoKeyValues(
   }
   key->assign(line, 0, end_key_pos);
 
-  // find the values string
+  // Find the values string.
   std::string remains(line, end_key_pos, line.size() - end_key_pos);
   size_t begin_values_pos = remains.find_first_not_of(key_value_delimiter);
   if (begin_values_pos == std::string::npos) {
@@ -33,7 +33,7 @@ bool SplitStringIntoKeyValues(
   std::string values_string(remains, begin_values_pos,
                             remains.size() - begin_values_pos);
 
-  // construct the values vector
+  // Construct the values vector.
   values->push_back(values_string);
   return true;
 }
@@ -50,6 +50,11 @@ bool SplitStringIntoKeyValuePairs(
 
   bool success = true;
   for (size_t i = 0; i < pairs.size(); ++i) {
+    // Empty pair. SplitStringIntoKeyValues is more strict about an empty pair
+    // line, so continue with the next pair.
+    if (pairs[i].empty())
+      continue;
+
     std::string key;
     std::vector<std::string> value;
     if (!SplitStringIntoKeyValues(pairs[i],
