@@ -44,8 +44,10 @@ SpdyStream::~SpdyStream() {
   // inactive pending/pushed streams will still have stream_id_ set.
   if (stream_id_) {
     session_->CancelStream(stream_id_);
-  } else if (!response_complete_) {
-    NOTREACHED();
+  } else {
+    // When the stream_id_ is 0, we expect that it is because
+    // we've cancelled or closed the stream and set the stream_id to 0.
+    DCHECK(response_complete_);
   }
 }
 
@@ -191,7 +193,9 @@ void SpdyStream::Cancel() {
   session_->CancelStream(stream_id_);
 }
 
-void SpdyStream::OnResponseReceived(const HttpResponseInfo& response) {
+int SpdyStream::OnResponseReceived(const HttpResponseInfo& response) {
+  int rv = OK;
+
   metrics_.StartStream();
 
   CHECK(!response_->headers);
@@ -213,13 +217,16 @@ void SpdyStream::OnResponseReceived(const HttpResponseInfo& response) {
     // client requests an X-Associated-Content piece of content prior
     // to when the server push happens.
   } else {
-    NOTREACHED();
+    // We're not expecting a response while in this state.  Error!
+    rv = ERR_SPDY_PROTOCOL_ERROR;
   }
 
-  int rv = DoLoop(OK);
+  rv = DoLoop(rv);
 
   if (user_callback_)
     DoCallback(rv);
+
+  return rv;
 }
 
 bool SpdyStream::OnDataReceived(const char* data, int length) {
@@ -275,6 +282,10 @@ bool SpdyStream::OnDataReceived(const char* data, int length) {
 void SpdyStream::OnWriteComplete(int status) {
   // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
   // should discontinue the DoLoop.
+
+  // It is possible that this stream was closed while we had a write pending.
+  if (response_complete_)
+    return;
 
   if (status > 0)
     send_bytes_ += status;
@@ -456,6 +467,8 @@ int SpdyStream::DoSendBody() {
   // data portion, of course.
   io_state_ = STATE_SEND_BODY_COMPLETE;
   int buf_len = static_cast<int>(request_body_stream_->buf_len());
+  if (!buf_len)
+    return OK;
   return session_->WriteStreamData(stream_id_,
                                    request_body_stream_->buf(),
                                    buf_len);
@@ -499,7 +512,7 @@ int SpdyStream::DoReadBody() {
 int SpdyStream::DoReadBodyComplete(int result) {
   // TODO(mbelshe): merge SpdyStreamParser with SpdyStream and then this
   // makes sense.
-  return result;
+  return OK;
 }
 
 void SpdyStream::UpdateHistograms() {

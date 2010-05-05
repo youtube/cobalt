@@ -99,7 +99,8 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // Called by the SpdySession when a response (e.g. a SYN_REPLY) has been
   // received for this stream.  |path| is the path of the URL for a server
   // initiated stream, otherwise is empty.
-  void OnResponseReceived(const HttpResponseInfo& response);
+  // Returns a status code.
+  int OnResponseReceived(const HttpResponseInfo& response);
 
   // Called by the SpdySession when response data has been received for this
   // stream.  This callback may be called multiple times as data arrives
