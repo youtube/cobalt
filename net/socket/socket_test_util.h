@@ -93,9 +93,9 @@ struct MockRead {
   const char* data;
   int data_len;
 
-  // For OrderedSocketData in spdy_network_transaction_unittest.cc, which only
-  // allows reads to occur in a particular sequence.  If a read occurs before
-  // the given |sequence_number| is reached, an ERR_IO_PENDING is returned.
+  // For OrderedSocketData, which only allows reads to occur in a particular
+  // sequence.  If a read occurs before the given |sequence_number| is reached,
+  // an ERR_IO_PENDING is returned.
   int sequence_number;      // The sequence number at which a read is allowed
                             // to occur.
   base::Time time_stamp;    // The time stamp at which the operation occurred.
@@ -324,6 +324,7 @@ class OrderedSocketData : public StaticSocketDataProvider,
   int sequence_number_;
   int loop_stop_stage_;
   CompletionCallback* callback_;
+  bool blocked_;
   ScopedRunnableMethodFactory<OrderedSocketData> factory_;
 };
 
