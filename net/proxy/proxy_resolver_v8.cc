@@ -332,14 +332,10 @@ class ProxyResolverV8::Context {
     Context* context =
         static_cast<Context*>(v8::External::Cast(*args.Data())->Value());
 
-    // We need at least one argument.
-    std::string host;
-    if (args.Length() == 0) {
-      host = "undefined";
-    } else {
-      if (!V8ObjectToString(args[0], &host))
-        return v8::Undefined();
-    }
+    // We need at least one string argument.
+    if (args.Length() == 0 || args[0].IsEmpty() || !args[0]->IsString())
+      return v8::Null();
+    std::string host = V8StringToStdString(args[0]->ToString());
 
     context->current_request_net_log_.BeginEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
@@ -358,14 +354,10 @@ class ProxyResolverV8::Context {
     Context* context =
         static_cast<Context*>(v8::External::Cast(*args.Data())->Value());
 
-    // We need at least one argument.
-    std::string host;
-    if (args.Length() == 0) {
-      host = "undefined";
-    } else {
-      if (!V8ObjectToString(args[0], &host))
-        return v8::Undefined();
-    }
+    // We need at least one string argument.
+    if (args.Length() == 0 || args[0].IsEmpty() || !args[0]->IsString())
+      return v8::Undefined();
+    std::string host = V8StringToStdString(args[0]->ToString());
 
     context->current_request_net_log_.BeginEvent(
         NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX, NULL);

@@ -383,6 +383,8 @@ TEST(ProxyResolverV8Test, NoSetPacScript) {
 // Test marshalling/un-marshalling of values between C++/V8.
 TEST(ProxyResolverV8Test, V8Bindings) {
   ProxyResolverV8WithMockBindings resolver;
+  MockJSBindings* bindings = resolver.mock_js_bindings();
+  bindings->dns_resolve_result = "127.0.0.1";
   int result = resolver.SetPacScriptFromDisk("bindings.js");
   EXPECT_EQ(OK, result);
 
@@ -393,7 +395,6 @@ TEST(ProxyResolverV8Test, V8Bindings) {
   EXPECT_EQ(OK, result);
   EXPECT_TRUE(proxy_info.is_direct());
 
-  MockJSBindings* bindings = resolver.mock_js_bindings();
   EXPECT_EQ(0U, resolver.mock_js_bindings()->errors.size());
 
   // Alert was called 5 times.
@@ -404,20 +405,11 @@ TEST(ProxyResolverV8Test, V8Bindings) {
   EXPECT_EQ("[object Object]", bindings->alerts[3]);
   EXPECT_EQ("exception from calling toString()", bindings->alerts[4]);
 
-  // DnsResolve was called 8 times.
-  ASSERT_EQ(8U, bindings->dns_resolves.size());
-  EXPECT_EQ("undefined", bindings->dns_resolves[0]);
-  EXPECT_EQ("null", bindings->dns_resolves[1]);
-  EXPECT_EQ("undefined", bindings->dns_resolves[2]);
-  EXPECT_EQ("", bindings->dns_resolves[3]);
-  EXPECT_EQ("[object Object]", bindings->dns_resolves[4]);
-  EXPECT_EQ("function fn() {}", bindings->dns_resolves[5]);
-
-  // TODO(eroman): This isn't quite right... should probably stringize
-  // to something like "['3']".
-  EXPECT_EQ("3", bindings->dns_resolves[6]);
-
-  EXPECT_EQ("arg1", bindings->dns_resolves[7]);
+  // DnsResolve was called 8 times, however only 2 of those were string
+  // parameters. (so 6 of them failed immediately).
+  ASSERT_EQ(2U, bindings->dns_resolves.size());
+  EXPECT_EQ("", bindings->dns_resolves[0]);
+  EXPECT_EQ("arg1", bindings->dns_resolves[1]);
 
   // MyIpAddress was called two times.
   EXPECT_EQ(2, bindings->my_ip_address_count);
