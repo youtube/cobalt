@@ -38,6 +38,7 @@ static const int kIdleMilliseconds = 10;
 VideoRendererBase::VideoRendererBase()
     : width_(0),
       height_(0),
+      uses_egl_image_(false),
       frame_available_(&lock_),
       state_(kUninitialized),
       thread_(kNullThreadHandle),
@@ -52,12 +53,19 @@ VideoRendererBase::~VideoRendererBase() {
 
 // static
 bool VideoRendererBase::ParseMediaFormat(const MediaFormat& media_format,
-                                         int* width_out, int* height_out) {
+                                         int* width_out, int* height_out,
+                                         bool* uses_egl_image_out) {
   std::string mime_type;
   if (!media_format.GetAsString(MediaFormat::kMimeType, &mime_type))
     return false;
-  if (mime_type.compare(mime_type::kUncompressedVideo) != 0)
+  if (mime_type.compare(mime_type::kUncompressedVideo) != 0 &&
+      mime_type.compare(mime_type::kUncompressedVideoEglImage) != 0)
     return false;
+
+  if (mime_type.compare(mime_type::kUncompressedVideoEglImage) == 0)
+    *uses_egl_image_out = true;
+  else
+    *uses_egl_image_out = false;
   if (!media_format.GetAsInteger(MediaFormat::kWidth, width_out))
     return false;
   if (!media_format.GetAsInteger(MediaFormat::kHeight, height_out))
@@ -139,7 +147,8 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   scoped_ptr<FilterCallback> c(callback);
 
   // Notify the pipeline of the video dimensions.
-  if (!ParseMediaFormat(decoder->media_format(), &width_, &height_)) {
+  if (!ParseMediaFormat(decoder->media_format(), &width_, &height_,
+                        &uses_egl_image_)) {
     host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
     callback->Run();
     return;
