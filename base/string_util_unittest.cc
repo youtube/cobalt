@@ -998,6 +998,11 @@ TEST(StringUtilTest, Invalid) {
 TEST(StringUtilTest, SplitString) {
   std::vector<std::wstring> r;
 
+  SplitString(L"", L',', &r);
+  ASSERT_EQ(1U, r.size());
+  EXPECT_EQ(r[0], L"");
+  r.clear();
+
   SplitString(L"a,b,c", L',', &r);
   ASSERT_EQ(3U, r.size());
   EXPECT_EQ(r[0], L"a");

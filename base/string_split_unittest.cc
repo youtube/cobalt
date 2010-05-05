@@ -85,12 +85,24 @@ class SplitStringIntoKeyValuePairsTest : public testing::Test {
   std::vector<std::pair<std::string, std::string> > kv_pairs;
 };
 
-TEST_F(SplitStringIntoKeyValuePairsTest, DISABLED_EmptyString) {
+TEST_F(SplitStringIntoKeyValuePairsTest, EmptyString) {
   EXPECT_TRUE(SplitStringIntoKeyValuePairs("",
                                            ':',   // Key-value delimiters
                                            ',',   // Key-value pair delims
                                            &kv_pairs));
   EXPECT_TRUE(kv_pairs.empty());
+}
+
+TEST_F(SplitStringIntoKeyValuePairsTest, EmptySecondPair) {
+  EXPECT_TRUE(SplitStringIntoKeyValuePairs("key1:value1,,key3:value3",
+                                           ':',   // Key-value delimiters
+                                           ',',   // Key-value pair delims
+                                           &kv_pairs));
+  ASSERT_EQ(2U, kv_pairs.size());
+  EXPECT_EQ("key1", kv_pairs[0].first);
+  EXPECT_EQ("value1", kv_pairs[0].second);
+  EXPECT_EQ("key3", kv_pairs[1].first);
+  EXPECT_EQ("value3", kv_pairs[1].second);
 }
 
 TEST_F(SplitStringIntoKeyValuePairsTest, EmptySecondValue) {
