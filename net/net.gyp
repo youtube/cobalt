@@ -692,6 +692,7 @@
         'http/http_vary_data_unittest.cc',
         'http/mock_sspi_library_win.h',
         'http/mock_sspi_library_win.cc',
+        'http/url_security_manager_unittest.cc',
         'proxy/init_proxy_resolver_unittest.cc',
         'proxy/mock_proxy_resolver.h',
         'proxy/proxy_bypass_rules_unittest.cc',
