@@ -531,7 +531,7 @@ OrderedSocketData::OrderedSocketData(
     MockRead* reads, size_t reads_count, MockWrite* writes, size_t writes_count)
     : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
       sequence_number_(0), loop_stop_stage_(0), callback_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
+      blocked_(false), ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
 }
 
 OrderedSocketData::OrderedSocketData(
@@ -540,11 +540,13 @@ OrderedSocketData::OrderedSocketData(
     MockWrite* writes, size_t writes_count)
     : StaticSocketDataProvider(reads, reads_count, writes, writes_count),
       sequence_number_(0), loop_stop_stage_(0), callback_(NULL),
-      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
+      blocked_(false), ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {
   set_connect_data(connect);
 }
 
 MockRead OrderedSocketData::GetNextRead() {
+  factory_.RevokeAll();
+  blocked_ = false;
   const MockRead& next_read = StaticSocketDataProvider::PeekRead();
   if (next_read.sequence_number & MockRead::STOPLOOP)
     EndLoop();
@@ -559,6 +561,7 @@ MockRead OrderedSocketData::GetNextRead() {
                             << ": I/O Pending";
   MockRead result = MockRead(true, ERR_IO_PENDING);
   DumpMockRead(result);
+  blocked_ = true;
   return result;
 }
 
@@ -567,9 +570,16 @@ MockWriteResult OrderedSocketData::OnWrite(const std::string& data) {
                             << ": Write " << write_index();
   DumpMockRead(PeekWrite());
   ++sequence_number_;
-  MessageLoop::current()->PostDelayedTask(
-      FROM_HERE,
-      factory_.NewRunnableMethod(&OrderedSocketData::CompleteRead), 100);
+  if (blocked_) {
+    // TODO(willchan): This 100ms delay seems to work around some weirdness.  We
+    // should probably fix the weirdness.  One example is in SpdyStream,
+    // DoSendRequest() will return ERR_IO_PENDING, and there's a race.  If the
+    // SYN_REPLY causes OnResponseReceived() to get called before
+    // SpdyStream::ReadResponseHeaders() is called, we hit a NOTREACHED().
+    MessageLoop::current()->PostDelayedTask(
+        FROM_HERE,
+        factory_.NewRunnableMethod(&OrderedSocketData::CompleteRead), 100);
+  }
   return StaticSocketDataProvider::OnWrite(data);
 }
 
