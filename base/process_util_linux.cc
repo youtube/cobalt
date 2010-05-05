@@ -500,8 +500,8 @@ namespace {
 
 void OnNoMemorySize(size_t size) {
   if (size != 0)
-    CHECK(false) << "Out of memory, size = " << size;
-  CHECK(false) << "Out of memory.";
+    LOG(FATAL) << "Out of memory, size = " << size;
+  LOG(FATAL) << "Out of memory.";
 }
 
 void OnNoMemory() {
