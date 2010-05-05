@@ -569,21 +569,21 @@ TEST_F(SpdyNetworkTransactionTest, Post) {
 
 // Test that a simple POST works.
 TEST_F(SpdyNetworkTransactionTest, EmptyPost) {
-static const unsigned char kEmptyPostSyn[] = {
-  0x80, 0x01, 0x00, 0x01,                                      // header
-  0x01, 0x00, 0x00, 0x4a,                                      // flags, len
-  0x00, 0x00, 0x00, 0x01,                                      // stream id
-  0x00, 0x00, 0x00, 0x00,                                      // associated
-  0xc0, 0x00, 0x00, 0x03,                                      // 4 headers
-  0x00, 0x06, 'm', 'e', 't', 'h', 'o', 'd',
-  0x00, 0x04, 'P', 'O', 'S', 'T',
-  0x00, 0x03, 'u', 'r', 'l',
-  0x00, 0x16, 'h', 't', 't', 'p', ':', '/', '/', 'w', 'w', 'w',
-              '.', 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o',
-              'm', '/',
-  0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-  0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
-};
+  static const unsigned char kEmptyPostSyn[] = {
+    0x80, 0x01, 0x00, 0x01,                                      // header
+    0x01, 0x00, 0x00, 0x4a,                                      // flags, len
+    0x00, 0x00, 0x00, 0x01,                                      // stream id
+    0x00, 0x00, 0x00, 0x00,                                      // associated
+    0xc0, 0x00, 0x00, 0x03,                                      // 4 headers
+    0x00, 0x06, 'm', 'e', 't', 'h', 'o', 'd',
+    0x00, 0x04, 'P', 'O', 'S', 'T',
+    0x00, 0x03, 'u', 'r', 'l',
+    0x00, 0x16, 'h', 't', 't', 'p', ':', '/', '/', 'w', 'w', 'w',
+                '.', 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o',
+                'm', '/',
+    0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
+    0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
+  };
 
   // Setup the request
   HttpRequestInfo request;
@@ -613,6 +613,40 @@ static const unsigned char kEmptyPostSyn[] = {
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
+}
+
+// While we're doing a post, the server sends back a SYN_REPLY.
+TEST_F(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
+  static const char upload[] = { "hello world" };
+
+  // Setup the request
+  HttpRequestInfo request;
+  request.method = "POST";
+  request.url = GURL("http://www.google.com/");
+  request.upload_data = new UploadData();
+  request.upload_data->AppendBytes(upload, sizeof(upload));
+
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kPostSyn),
+              arraysize(kPostSyn), 2),
+    MockWrite(true, reinterpret_cast<const char*>(kPostUploadFrame),
+              arraysize(kPostUploadFrame), 3),
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kPostSynReply),
+             arraysize(kPostSynReply), 2),
+    MockRead(true, reinterpret_cast<const char*>(kPostBodyFrame),
+             arraysize(kPostBodyFrame), 3),
+    MockRead(false, 0, 0)  // EOF
+  };
+
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(0, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  TransactionHelperResult out = TransactionHelper(request, data.get(),
+                                                  BoundNetLog());
+  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
 }
 
 // Test that the transaction doesn't crash when we don't have a reply.
