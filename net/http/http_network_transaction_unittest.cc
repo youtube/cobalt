@@ -4984,8 +4984,11 @@ class CapturingProxyResolver : public ProxyResolver {
                              CompletionCallback* callback,
                              RequestHandle* request,
                              const BoundNetLog& net_log) {
+    ProxyServer proxy_server(
+        ProxyServer::SCHEME_HTTP, "myproxy", 80);
+    results->UseProxyServer(proxy_server);
     resolved_.push_back(url);
-    return ERR_NOT_IMPLEMENTED;
+    return OK;
   }
 
   virtual void CancelRequest(RequestHandle request) {
@@ -4998,7 +5001,7 @@ class CapturingProxyResolver : public ProxyResolver {
   virtual int SetPacScript(const GURL& /*pac_url*/,
                            const std::string& /*pac_bytes*/,
                            CompletionCallback* /*callback*/) {
-    return ERR_NOT_IMPLEMENTED;
+    return OK;
   }
 
   std::vector<GURL> resolved_;
@@ -5006,18 +5009,14 @@ class CapturingProxyResolver : public ProxyResolver {
   DISALLOW_COPY_AND_ASSIGN(CapturingProxyResolver);
 };
 
-// TODO(willchan): Enable this test after I refactor the OrderedSocketData out
-// of SpdyNetworkTransaction.  Currently, I need to the CONNECT, read the
-// response, and then send the request, and then read the response.
-// DelayedSocketDataProvider doesn't permit this yet.
-#if 0
 TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   HttpNetworkTransaction::SetUseAlternateProtocols(true);
   HttpNetworkTransaction::SetNextProtos(
           "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
 
   ProxyConfig proxy_config;
-  proxy_config.proxy_rules().ParseFromString("myproxy:80");
+  proxy_config.set_auto_detect(true);
+  proxy_config.set_pac_url(GURL("http://fooproxyurl"));
 
   CapturingProxyResolver* capturing_proxy_resolver =
       new CapturingProxyResolver();
@@ -5051,23 +5050,24 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   MockWrite spdy_writes[] = {
     MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
-              "Proxy-Connection: keep-alive\r\n\r\n"),
+              "Proxy-Connection: keep-alive\r\n\r\n"),  // 0
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
+              arraysize(kGetSyn)),  // 3
   };
+
+  const char kCONNECTResponse[] = "HTTP/1.1 200 Connected\r\n\r\n";
 
   MockRead spdy_reads[] = {
-    MockRead("HTTP/1.1 200 Connected\r\n\r\n"),
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
-    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
-             arraysize(kGetBodyFrame)),
-    MockRead(true, 0, 0),
+    MockRead(true, kCONNECTResponse, arraysize(kCONNECTResponse) - 1, 1),  // 1
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),  // 2, 4
+             arraysize(kGetSynReply), 4),
+    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),  // 5
+             arraysize(kGetBodyFrame), 4),
+    MockRead(true, 0, 0, 4),  // 6
   };
 
-  scoped_refptr<DelayedSocketData> spdy_data(
-      new DelayedSocketData(
-          1,  // wait for one write to finish before reading.
+  scoped_refptr<OrderedSocketData> spdy_data(
+      new OrderedSocketData(
           spdy_reads, arraysize(spdy_reads),
           spdy_writes, arraysize(spdy_writes)));
   session_deps.socket_factory.AddSocketDataProvider(spdy_data);
@@ -5103,14 +5103,15 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
 
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello!", response_data);
-  ASSERT_EQ(1u, capturing_proxy_resolver->resolved().size());
-  EXPECT_EQ("https://www.google.com:443/",
+  ASSERT_EQ(2u, capturing_proxy_resolver->resolved().size());
+  EXPECT_EQ("http://www.google.com/",
             capturing_proxy_resolver->resolved()[0].spec());
+  EXPECT_EQ("https://www.google.com/",
+            capturing_proxy_resolver->resolved()[1].spec());
 
   HttpNetworkTransaction::SetNextProtos("");
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
-#endif
 
 TEST_F(HttpNetworkTransactionTest,
        UseAlternateProtocolForNpnSpdyWithExistingSpdySession) {
