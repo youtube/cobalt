@@ -107,7 +107,8 @@ TEST(TimeTicks, WinRollover) {
   }
 }
 
-TEST(TimeTicks, SubMillisecondTimers) {
+// Flaky, http://crbug.com/42850.
+TEST(TimeTicks, FLAKY_SubMillisecondTimers) {
   // Loop for a bit getting timers quickly.  We want to
   // see at least one case where we get a new sample in
   // less than one millisecond.
