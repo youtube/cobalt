@@ -9,9 +9,15 @@
 #include "base/ref_counted.h"
 #include "base/task.h"
 
+namespace base {
+
+struct MessageLoopProxyTraits;
+
 // This class provides a thread-safe refcounted interface to the Post* methods
 // of a message loop. This class can outlive the target message loop.
-class MessageLoopProxy : public base::RefCountedThreadSafe<MessageLoopProxy> {
+class MessageLoopProxy
+    : public base::RefCountedThreadSafe<MessageLoopProxy,
+                                        MessageLoopProxyTraits> {
  public:
   // These are the same methods in message_loop.h, but are guaranteed to either
   // get posted to the MessageLoop if it's still alive, or be deleted otherwise.
@@ -42,7 +48,27 @@ class MessageLoopProxy : public base::RefCountedThreadSafe<MessageLoopProxy> {
                    T* object) {
     return PostNonNestableTask(from_here, new ReleaseTask<T>(object));
   }
+
+  // Factory method for creating an implementation of MessageLoopProxy
+  // for the current thread.
+  static scoped_refptr<MessageLoopProxy> CreateForCurrentThread();
+
+ protected:
+  friend struct MessageLoopProxyTraits;
+  // Called when the proxy is about to be deleted. Subclasses can override this
+  // to provide deletion on specific threads.
+  virtual void OnDestruct() {
+    delete this;
+  }
 };
+
+struct MessageLoopProxyTraits {
+  static void Destruct(MessageLoopProxy* proxy) {
+    proxy->OnDestruct();
+  }
+};
+
+}  // namespace base
 
 #endif  // BASE_MESSAGE_LOOP_PROXY_H_
 
