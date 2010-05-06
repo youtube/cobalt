@@ -19,6 +19,7 @@
 #include "net/base/load_states.h"
 #include "net/base/net_log.h"
 #include "net/base/request_priority.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_response_info.h"
 #include "net/url_request/url_request_status.h"
 
@@ -337,7 +338,9 @@ class URLRequest {
   // by \r\n.
   void SetExtraRequestHeaders(const std::string& headers);
 
-  const std::string& extra_request_headers() { return extra_request_headers_; }
+  const net::HttpRequestHeaders& extra_request_headers() const {
+    return extra_request_headers_;
+  }
 
   // Returns the current load state for the request.
   net::LoadState GetLoadState() const;
@@ -571,10 +574,6 @@ class URLRequest {
   // passed values.
   void DoCancel(int os_error, const net::SSLInfo& ssl_info);
 
-  // Discard headers which have meaning in POST (Content-Length, Content-Type,
-  // Origin).
-  static std::string StripPostSpecificHeaders(const std::string& headers);
-
   // Contextual information used for this request (can be NULL). This contains
   // most of the dependencies which are shared between requests (disk cache,
   // cookie store, socket poool, etc.)
@@ -590,7 +589,7 @@ class URLRequest {
   GURL first_party_for_cookies_;
   std::string method_;  // "GET", "POST", etc. Should be all uppercase.
   std::string referrer_;
-  std::string extra_request_headers_;
+  net::HttpRequestHeaders extra_request_headers_;
   int load_flags_;  // Flags indicating the request type for the load;
                     // expected values are LOAD_* enums above.
 

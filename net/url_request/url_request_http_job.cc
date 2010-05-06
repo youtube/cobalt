@@ -131,9 +131,9 @@ void URLRequestHttpJob::SetUpload(net::UploadData* upload) {
 }
 
 void URLRequestHttpJob::SetExtraRequestHeaders(
-    const std::string& headers) {
+    const net::HttpRequestHeaders& headers) {
   DCHECK(!transaction_.get()) << "cannot change once started";
-  request_info_.extra_headers.AddHeadersFromString(headers);
+  request_info_.extra_headers.CopyFrom(headers);
 }
 
 void URLRequestHttpJob::Start() {
