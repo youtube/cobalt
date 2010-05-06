@@ -31,6 +31,8 @@
 
 namespace {
 
+const wchar_t bogus_content[] = L"I'm cannon fodder.";
+
 const file_util::FileEnumerator::FILE_TYPE FILES_AND_DIRECTORIES =
     static_cast<file_util::FileEnumerator::FILE_TYPE>(
         file_util::FileEnumerator::FILES |
@@ -385,34 +387,144 @@ TEST_F(FileUtilTest, FileAndDirectorySize) {
   EXPECT_EQ(size_f1 + size_f2 + 3, computed_size);
 }
 
-// Tests that the Delete function works as expected, especially
-// the recursion flag.  Also coincidentally tests PathExists.
-TEST_F(FileUtilTest, Delete) {
-  // Create a file
-  FilePath file_name = test_dir_.Append(FILE_PATH_LITERAL("Test File.txt"));
-  CreateTextFile(file_name, L"I'm cannon fodder.");
+TEST_F(FileUtilTest, DeleteNonExistent) {
+  FilePath non_existent = test_dir_.AppendASCII("bogus_file_dne.foobar");
+  ASSERT_FALSE(file_util::PathExists(non_existent));
 
+  EXPECT_TRUE(file_util::Delete(non_existent, false));
+  ASSERT_FALSE(file_util::PathExists(non_existent));
+  EXPECT_TRUE(file_util::Delete(non_existent, true));
+  ASSERT_FALSE(file_util::PathExists(non_existent));
+}
+
+TEST_F(FileUtilTest, DeleteFile) {
+  // Create a file
+  FilePath file_name = test_dir_.Append(FPL("Test DeleteFile 1.txt"));
+  CreateTextFile(file_name, bogus_content);
   ASSERT_TRUE(file_util::PathExists(file_name));
 
-  FilePath subdir_path = test_dir_.Append(FILE_PATH_LITERAL("Subdirectory"));
-  file_util::CreateDirectory(subdir_path);
+  // Make sure it's deleted
+  EXPECT_TRUE(file_util::Delete(file_name, false));
+  EXPECT_FALSE(file_util::PathExists(file_name));
 
+  // Test recursive case, create a new file
+  file_name = test_dir_.Append(FPL("Test DeleteFile 2.txt"));
+  CreateTextFile(file_name, bogus_content);
+  ASSERT_TRUE(file_util::PathExists(file_name));
+
+  // Make sure it's deleted
+  EXPECT_TRUE(file_util::Delete(file_name, true));
+  EXPECT_FALSE(file_util::PathExists(file_name));
+}
+
+#if defined(OS_WIN)
+// Tests that the Delete function works for wild cards, especially
+// with the recursion flag.  Also coincidentally tests PathExists.
+// TODO(erikkay): see if anyone's actually using this feature of the API
+TEST_F(FileUtilTest, DeleteWildCard) {
+  // Create a file and a directory
+  FilePath file_name = test_dir_.Append(FPL("Test DeleteWildCard.txt"));
+  CreateTextFile(file_name, bogus_content);
+  ASSERT_TRUE(file_util::PathExists(file_name));
+
+  FilePath subdir_path = test_dir_.Append(FPL("DeleteWildCardDir"));
+  file_util::CreateDirectory(subdir_path);
   ASSERT_TRUE(file_util::PathExists(subdir_path));
 
+  // Create the wildcard path
   FilePath directory_contents = test_dir_;
-#if defined(OS_WIN)
-  // TODO(erikkay): see if anyone's actually using this feature of the API
-  directory_contents = directory_contents.Append(FILE_PATH_LITERAL("*"));
+  directory_contents = directory_contents.Append(FPL("*"));
+
   // Delete non-recursively and check that only the file is deleted
-  ASSERT_TRUE(file_util::Delete(directory_contents, false));
+  EXPECT_TRUE(file_util::Delete(directory_contents, false));
   EXPECT_FALSE(file_util::PathExists(file_name));
   EXPECT_TRUE(file_util::PathExists(subdir_path));
-#endif
 
   // Delete recursively and make sure all contents are deleted
-  ASSERT_TRUE(file_util::Delete(directory_contents, true));
+  EXPECT_TRUE(file_util::Delete(directory_contents, true));
   EXPECT_FALSE(file_util::PathExists(file_name));
   EXPECT_FALSE(file_util::PathExists(subdir_path));
+}
+
+// TODO(erikkay): see if anyone's actually using this feature of the API
+TEST_F(FileUtilTest, DeleteNonExistantWildCard) {
+  // Create a file and a directory
+  FilePath subdir_path = test_dir_.Append(FPL("DeleteNonExistantWildCard"));
+  file_util::CreateDirectory(subdir_path);
+  ASSERT_TRUE(file_util::PathExists(subdir_path));
+
+  // Create the wildcard path
+  FilePath directory_contents = subdir_path;
+  directory_contents = directory_contents.Append(FPL("*"));
+
+  // Delete non-recursively and check nothing got deleted
+  EXPECT_TRUE(file_util::Delete(directory_contents, false));
+  EXPECT_TRUE(file_util::PathExists(subdir_path));
+
+  // Delete recursively and check nothing got deleted
+  EXPECT_TRUE(file_util::Delete(directory_contents, true));
+  EXPECT_TRUE(file_util::PathExists(subdir_path));
+}
+#endif
+
+// Tests non-recursive Delete() for a directory.
+TEST_F(FileUtilTest, DeleteDirNonRecursive) {
+  // Create a subdirectory and put a file and two directories inside.
+  FilePath test_subdir = test_dir_.Append(FPL("DeleteDirNonRecursive"));
+  file_util::CreateDirectory(test_subdir);
+  ASSERT_TRUE(file_util::PathExists(test_subdir));
+
+  FilePath file_name = test_subdir.Append(FPL("Test DeleteDir.txt"));
+  CreateTextFile(file_name, bogus_content);
+  ASSERT_TRUE(file_util::PathExists(file_name));
+
+  FilePath subdir_path1 = test_subdir.Append(FPL("TestSubDir1"));
+  file_util::CreateDirectory(subdir_path1);
+  ASSERT_TRUE(file_util::PathExists(subdir_path1));
+
+  FilePath subdir_path2 = test_subdir.Append(FPL("TestSubDir2"));
+  file_util::CreateDirectory(subdir_path2);
+  ASSERT_TRUE(file_util::PathExists(subdir_path2));
+
+  // Delete non-recursively and check that the empty dir got deleted
+  EXPECT_TRUE(file_util::Delete(subdir_path2, false));
+  EXPECT_FALSE(file_util::PathExists(subdir_path2));
+
+  // Delete non-recursively and check that nothing got deleted
+  EXPECT_FALSE(file_util::Delete(test_subdir, false));
+  EXPECT_TRUE(file_util::PathExists(test_subdir));
+  EXPECT_TRUE(file_util::PathExists(file_name));
+  EXPECT_TRUE(file_util::PathExists(subdir_path1));
+}
+
+// Tests recursive Delete() for a directory.
+TEST_F(FileUtilTest, DeleteDirRecursive) {
+  // Create a subdirectory and put a file and two directories inside.
+  FilePath test_subdir = test_dir_.Append(FPL("DeleteDirRecursive"));
+  file_util::CreateDirectory(test_subdir);
+  ASSERT_TRUE(file_util::PathExists(test_subdir));
+
+  FilePath file_name = test_subdir.Append(FPL("Test DeleteDirRecursive.txt"));
+  CreateTextFile(file_name, bogus_content);
+  ASSERT_TRUE(file_util::PathExists(file_name));
+
+  FilePath subdir_path1 = test_subdir.Append(FPL("TestSubDir1"));
+  file_util::CreateDirectory(subdir_path1);
+  ASSERT_TRUE(file_util::PathExists(subdir_path1));
+
+  FilePath subdir_path2 = test_subdir.Append(FPL("TestSubDir2"));
+  file_util::CreateDirectory(subdir_path2);
+  ASSERT_TRUE(file_util::PathExists(subdir_path2));
+
+  // Delete recursively and check that the empty dir got deleted
+  EXPECT_TRUE(file_util::Delete(subdir_path2, true));
+  EXPECT_FALSE(file_util::PathExists(subdir_path2));
+
+  // Delete recursively and check that everything got deleted
+  EXPECT_TRUE(file_util::Delete(test_subdir, true));
+  EXPECT_FALSE(file_util::PathExists(file_name));
+  EXPECT_FALSE(file_util::PathExists(subdir_path1));
+  EXPECT_FALSE(file_util::PathExists(test_subdir));
 }
 
 TEST_F(FileUtilTest, MoveFileNew) {
