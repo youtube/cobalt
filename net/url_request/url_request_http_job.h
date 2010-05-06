@@ -32,7 +32,7 @@ class URLRequestHttpJob : public URLRequestJob {
 
   // URLRequestJob methods:
   virtual void SetUpload(net::UploadData* upload);
-  virtual void SetExtraRequestHeaders(const std::string& headers);
+  virtual void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers);
   virtual void Start();
   virtual void Kill();
   virtual net::LoadState GetLoadState() const;

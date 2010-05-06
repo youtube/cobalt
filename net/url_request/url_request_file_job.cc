@@ -188,18 +188,23 @@ bool URLRequestFileJob::GetMimeType(std::string* mime_type) const {
   return net::GetMimeTypeFromFile(file_path_, mime_type);
 }
 
-void URLRequestFileJob::SetExtraRequestHeaders(const std::string& headers) {
-  // We only care about "Range" header here.
-  std::vector<net::HttpByteRange> ranges;
-  if (net::HttpUtil::ParseRanges(headers, &ranges)) {
-    if (ranges.size() == 1) {
-      byte_range_ = ranges[0];
-    } else {
-      // We don't support multiple range requests in one single URL request,
-      // because we need to do multipart encoding here.
-      // TODO(hclam): decide whether we want to support multiple range requests.
-      NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
-                 net::ERR_REQUEST_RANGE_NOT_SATISFIABLE));
+void URLRequestFileJob::SetExtraRequestHeaders(
+    const net::HttpRequestHeaders& headers) {
+  std::string range_header;
+  if (headers.GetHeader(net::HttpRequestHeaders::kRange, &range_header)) {
+    // We only care about "Range" header here.
+    std::vector<net::HttpByteRange> ranges;
+    if (net::HttpUtil::ParseRangeHeader(range_header, &ranges)) {
+      if (ranges.size() == 1) {
+        byte_range_ = ranges[0];
+      } else {
+        // We don't support multiple range requests in one single URL request,
+        // because we need to do multipart encoding here.
+        // TODO(hclam): decide whether we want to support multiple range
+        // requests.
+        NotifyDone(URLRequestStatus(URLRequestStatus::FAILED,
+                                    net::ERR_REQUEST_RANGE_NOT_SATISFIABLE));
+      }
     }
   }
 }
