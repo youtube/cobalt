@@ -98,6 +98,7 @@
         'linked_list_unittest.cc',
         'linked_ptr_unittest.cc',
         'mac_util_unittest.mm',
+        'message_loop_proxy_impl_unittest.cc',
         'message_loop_unittest.cc',
         'message_pump_glib_unittest.cc',
         'object_watcher_unittest.cc',
