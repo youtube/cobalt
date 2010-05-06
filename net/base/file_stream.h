@@ -34,6 +34,8 @@ class FileStream {
   // |file| is valid file handle.
   // |flags| is a bitfield of base::PlatformFileFlags when the file handle was
   // opened.
+  // The already opened file will not be automatically closed when FileStream
+  // is destructed.
   FileStream(base::PlatformFile file, int flags);
 
   ~FileStream();
@@ -128,6 +130,7 @@ class FileStream {
 
   base::PlatformFile file_;
   int open_flags_;
+  bool auto_closed_;
 
   DISALLOW_COPY_AND_ASSIGN(FileStream);
 };
