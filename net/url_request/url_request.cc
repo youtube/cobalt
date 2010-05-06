@@ -24,12 +24,25 @@ using net::UploadData;
 using std::string;
 using std::wstring;
 
-// Max number of http redirects to follow.  Same number as gecko.
-static const int kMaxRedirects = 20;
+namespace {
 
-static URLRequestJobManager* GetJobManager() {
+// Max number of http redirects to follow.  Same number as gecko.
+const int kMaxRedirects = 20;
+
+URLRequestJobManager* GetJobManager() {
   return Singleton<URLRequestJobManager>::get();
 }
+
+// Discard headers which have meaning in POST (Content-Length, Content-Type,
+// Origin).
+void StripPostSpecificHeaders(net::HttpRequestHeaders* headers) {
+  // These are headers that may be attached to a POST.
+  headers->RemoveHeader(net::HttpRequestHeaders::kContentLength);
+  headers->RemoveHeader(net::HttpRequestHeaders::kContentType);
+  headers->RemoveHeader(net::HttpRequestHeaders::kOrigin);
+}
+
+}  // namespace
 
 ///////////////////////////////////////////////////////////////////////////////
 // URLRequest
@@ -126,14 +139,13 @@ void URLRequest::SetExtraRequestHeaderByName(const string& name,
 
 void URLRequest::SetExtraRequestHeaders(const string& headers) {
   DCHECK(!is_pending_);
-  if (headers.empty()) {
-    extra_request_headers_.clear();
-  } else {
+  extra_request_headers_.Clear();
+  if (!headers.empty()) {
 #ifndef NDEBUG
     size_t crlf = headers.rfind("\r\n", headers.size() - 1);
     DCHECK(crlf != headers.size() - 2) << "headers must not end with CRLF";
 #endif
-    extra_request_headers_ = headers + "\r\n";
+    extra_request_headers_.AddHeadersFromString(headers);
   }
 
   // NOTE: This method will likely become non-trivial once the other setters
@@ -434,18 +446,6 @@ void URLRequest::OrphanJob() {
   job_ = NULL;
 }
 
-// static
-std::string URLRequest::StripPostSpecificHeaders(const std::string& headers) {
-  // These are headers that may be attached to a POST.
-  static const char* const kPostHeaders[] = {
-      "content-type",
-      "content-length",
-      "origin"
-  };
-  return net::HttpUtil::StripHeaders(
-      headers, kPostHeaders, arraysize(kPostHeaders));
-}
-
 int URLRequest::Redirect(const GURL& location, int http_status_code) {
   if (net_log_.HasListener()) {
     net_log_.AddEvent(
@@ -492,10 +492,7 @@ int URLRequest::Redirect(const GURL& location, int http_status_code) {
     // the inclusion of a multipart Content-Type header in GET can cause
     // problems with some servers:
     // http://code.google.com/p/chromium/issues/detail?id=843
-    //
-    // TODO(eroman): It would be better if this data was structured into
-    // specific fields/flags, rather than a stew of extra headers.
-    extra_request_headers_ = StripPostSpecificHeaders(extra_request_headers_);
+    StripPostSpecificHeaders(&extra_request_headers_);
   }
 
   if (!final_upload_progress_)

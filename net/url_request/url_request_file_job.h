@@ -30,7 +30,7 @@ class URLRequestFileJob : public URLRequestJob {
   virtual bool GetContentEncodings(
       std::vector<Filter::FilterType>* encoding_type);
   virtual bool GetMimeType(std::string* mime_type) const;
-  virtual void SetExtraRequestHeaders(const std::string& headers);
+  virtual void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers);
 
   static URLRequest::ProtocolFactory Factory;
 
