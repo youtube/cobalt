@@ -17,6 +17,7 @@
 
 namespace net {
 class AuthChallengeInfo;
+class HttpRequestHeaders;
 class HttpResponseInfo;
 class IOBuffer;
 class UploadData;
@@ -53,7 +54,7 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   virtual void SetUpload(net::UploadData* upload) { }
 
   // Sets extra request headers for Job types that support request headers.
-  virtual void SetExtraRequestHeaders(const std::string& headers) { }
+  virtual void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers) {}
 
   // If any error occurs while starting the Job, NotifyStartError should be
   // called.
