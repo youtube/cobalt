@@ -368,7 +368,7 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
       if (current_data_frame.flags() & DATA_FLAG_COMPRESSED) {
         // TODO(mbelshe): Assert that the decompressor is init'ed.
         if (!InitializeDecompressor())
-          return NULL;
+          return 0;
 
         size_t decompressed_max_size = amount_to_forward * 100;
         scoped_array<char> decompressed(new char[decompressed_max_size]);
