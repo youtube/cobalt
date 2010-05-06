@@ -73,11 +73,19 @@ bool Delete(const FilePath& path, bool recursive) {
   if (path.value().length() >= MAX_PATH)
     return false;
 
-  // If we're not recursing use DeleteFile; it should be faster. DeleteFile
-  // fails if passed a directory though, which is why we fall through on
-  // failure to the SHFileOperation.
-  if (!recursive && DeleteFile(path.value().c_str()) != 0)
-    return true;
+  if (!recursive) {
+    // If not recursing, then first check to see if |path| is a directory.
+    // If it is, then remove it with RemoveDirectory.
+    FileInfo file_info;
+    if (GetFileInfo(path, &file_info) && file_info.is_directory)
+      return RemoveDirectory(path.value().c_str()) != 0;
+
+    // Otherwise, it's a file, wildcard or non-existant. Try DeleteFile first
+    // because it should be faster. If DeleteFile fails, then we fall through
+    // to SHFileOperation, which will do the right thing.
+    if (DeleteFile(path.value().c_str()) != 0)
+      return true;
+  }
 
   // SHFILEOPSTRUCT wants the path to be terminated with two NULLs,
   // so we have to use wcscpy because wcscpy_s writes non-NULLs
@@ -93,9 +101,10 @@ bool Delete(const FilePath& path, bool recursive) {
   if (!recursive)
     file_operation.fFlags |= FOF_NORECURSION | FOF_FILESONLY;
   int err = SHFileOperation(&file_operation);
-  // Some versions of Windows return ERROR_FILE_NOT_FOUND when
-  // deleting an empty directory.
-  return (err == 0 || err == ERROR_FILE_NOT_FOUND);
+  // Some versions of Windows return ERROR_FILE_NOT_FOUND (0x2) when deleting
+  // an empty directory and some return 0x402 when they should be returning
+  // ERROR_FILE_NOT_FOUND. MSDN says Vista and up won't return 0x402.
+  return (err == 0 || err == ERROR_FILE_NOT_FOUND || err == 0x402);
 }
 
 bool DeleteAfterReboot(const FilePath& path) {
@@ -600,7 +609,7 @@ bool CreateDirectory(const FilePath& full_path) {
 
 bool GetFileInfo(const FilePath& file_path, FileInfo* results) {
   WIN32_FILE_ATTRIBUTE_DATA attr;
-  if (!GetFileAttributesEx(file_path.ToWStringHack().c_str(),
+  if (!GetFileAttributesEx(file_path.value().c_str(),
                            GetFileExInfoStandard, &attr)) {
     return false;
   }
