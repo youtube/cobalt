@@ -118,6 +118,8 @@
           'message_loop.cc',
           'message_loop.h',
           'message_loop_proxy.h',
+          'message_loop_proxy_impl.cc',
+          'message_loop_proxy_impl.h',
           'message_pump.h',
           'message_pump_default.cc',
           'message_pump_default.h',
