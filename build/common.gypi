@@ -378,6 +378,11 @@
       # See http://msdn.microsoft.com/en-us/library/aa652367(VS.71).aspx
       'win_release_RuntimeLibrary%': '0', # 0 = /MT (nondebug static)
       'win_debug_RuntimeLibrary%': '1',   # 1 = /MTd (debug static)
+      # See http://msdn.microsoft.com/en-us/library/8wtf2dfz(VS.71).aspx
+      'win_debug_RuntimeChecks%': '3',    # 3 = all checks enabled, 0 = off
+      # See http://msdn.microsoft.com/en-us/library/47238hez(VS.71).aspx
+      'win_debug_InlineFunctionExpansion%': '0',   # 0 = off
+      'win_release_InlineFunctionExpansion%': '2', # 2 = max
 
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
@@ -619,7 +624,8 @@
           'VCCLCompilerTool': {
             'Optimization': '<(win_debug_Optimization)',
             'PreprocessorDefinitions': ['_DEBUG'],
-            'BasicRuntimeChecks': '3',
+            'BasicRuntimeChecks': '<(win_debug_RuntimeChecks)',
+            'InlineFunctionExpansion': '<(win_debug_InlineFunctionExpansion)',
             'RuntimeLibrary': '<(win_debug_RuntimeLibrary)',
           },
           'VCLinkerTool': {
@@ -650,6 +656,7 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'Optimization': '<(win_release_Optimization)',
+            'InlineFunctionExpansion': '<(win_release_InlineFunctionExpansion)',
             'RuntimeLibrary': '<(win_release_RuntimeLibrary)',
           },
           'VCLinkerTool': {
