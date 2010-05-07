@@ -172,44 +172,9 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
 
   SetRequest(net_log, request);
 
-  int rv;
-
-  if (!ShouldPassThrough()) {
-    cache_key_ = cache_->GenerateCacheKey(request);
-
-    // Requested cache access mode.
-    if (effective_load_flags_ & LOAD_ONLY_FROM_CACHE) {
-      mode_ = READ;
-    } else if (effective_load_flags_ & LOAD_BYPASS_CACHE) {
-      mode_ = WRITE;
-    } else {
-      mode_ = READ_WRITE;
-    }
-
-    // Downgrade to UPDATE if the request has been externally conditionalized.
-    if (external_validation_.initialized) {
-      if (mode_ & WRITE) {
-        // Strip off the READ_DATA bit (and maybe add back a READ_META bit
-        // in case READ was off).
-        mode_ = UPDATE;
-      } else {
-        mode_ = NONE;
-      }
-    }
-  }
-
-  // If must use cache, then we must fail.  This can happen for back/forward
-  // navigations to a page generated via a form post.
-  if (!(mode_ & READ) && effective_load_flags_ & LOAD_ONLY_FROM_CACHE)
-    return ERR_CACHE_MISS;
-
-  if (mode_ == NONE) {
-    if (partial_.get())
-      partial_->RestoreHeaders(&custom_request_->extra_headers);
-    rv = BeginNetworkRequest();
-  } else {
-    rv = AddToEntry();
-  }
+  // We have to wait until the backend is initialized so we start the SM.
+  next_state_ = STATE_GET_BACKEND;
+  int rv = DoLoop(OK);
 
   // Setting this here allows us to check for the existance of a callback_ to
   // determine if we are still inside Start.
@@ -428,6 +393,13 @@ int HttpCache::Transaction::DoLoop(int result) {
     State state = next_state_;
     next_state_ = STATE_NONE;
     switch (state) {
+      case STATE_GET_BACKEND:
+        DCHECK_EQ(OK, rv);
+        rv = DoGetBackend();
+        break;
+      case STATE_GET_BACKEND_COMPLETE:
+        rv = DoGetBackendComplete(rv);
+        break;
       case STATE_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
         rv = DoSendRequest();
@@ -560,6 +532,58 @@ int HttpCache::Transaction::DoLoop(int result) {
     HandleResult(rv);
 
   return rv;
+}
+
+int HttpCache::Transaction::DoGetBackend() {
+  cache_pending_ = true;
+  next_state_ = STATE_GET_BACKEND_COMPLETE;
+  net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WAITING, NULL);
+  return cache_->GetBackendForTransaction(this);
+}
+
+int HttpCache::Transaction::DoGetBackendComplete(int result) {
+  DCHECK(result == OK || result == ERR_FAILED);
+  net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_WAITING, NULL);
+  cache_pending_ = false;
+
+  if (!ShouldPassThrough()) {
+    cache_key_ = cache_->GenerateCacheKey(request_);
+
+    // Requested cache access mode.
+    if (effective_load_flags_ & LOAD_ONLY_FROM_CACHE) {
+      mode_ = READ;
+    } else if (effective_load_flags_ & LOAD_BYPASS_CACHE) {
+      mode_ = WRITE;
+    } else {
+      mode_ = READ_WRITE;
+    }
+
+    // Downgrade to UPDATE if the request has been externally conditionalized.
+    if (external_validation_.initialized) {
+      if (mode_ & WRITE) {
+        // Strip off the READ_DATA bit (and maybe add back a READ_META bit
+        // in case READ was off).
+        mode_ = UPDATE;
+      } else {
+        mode_ = NONE;
+      }
+    }
+  }
+
+  // If must use cache, then we must fail.  This can happen for back/forward
+  // navigations to a page generated via a form post.
+  if (!(mode_ & READ) && effective_load_flags_ & LOAD_ONLY_FROM_CACHE)
+    return ERR_CACHE_MISS;
+
+  if (mode_ == NONE) {
+    if (partial_.get())
+      partial_->RestoreHeaders(&custom_request_->extra_headers);
+    next_state_ = STATE_SEND_REQUEST;
+  } else {
+    next_state_ = STATE_INIT_ENTRY;
+  }
+
+  return OK;
 }
 
 int HttpCache::Transaction::DoSendRequest() {
@@ -902,7 +926,7 @@ int HttpCache::Transaction::DoOverwriteCachedResponse() {
   response_ = *new_response_;
   target_state_ = STATE_TRUNCATE_CACHED_DATA;
   next_state_ = truncated_ ? STATE_CACHE_WRITE_TRUNCATED_RESPONSE :
-                STATE_CACHE_WRITE_RESPONSE;
+                             STATE_CACHE_WRITE_RESPONSE;
   return OK;
 }
 
@@ -1268,12 +1292,6 @@ bool HttpCache::Transaction::ShouldPassThrough() {
   return true;
 }
 
-int HttpCache::Transaction::AddToEntry() {
-  next_state_ = STATE_INIT_ENTRY;
-  cache_pending_ = false;
-  return DoLoop(OK);
-}
-
 int HttpCache::Transaction::BeginCacheRead() {
   // We don't support any combination of LOAD_ONLY_FROM_CACHE and byte ranges.
   if (response_.headers->response_code() == 206 || partial_.get()) {
@@ -1386,11 +1404,6 @@ int HttpCache::Transaction::BeginExternallyConditionalizedRequest() {
 
   next_state_ = STATE_SEND_REQUEST;
   return OK;
-}
-
-int HttpCache::Transaction::BeginNetworkRequest() {
-  next_state_ = STATE_SEND_REQUEST;
-  return DoLoop(OK);
 }
 
 int HttpCache::Transaction::RestartNetworkRequest() {
