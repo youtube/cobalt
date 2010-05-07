@@ -111,6 +111,8 @@ class HttpCache::Transaction : public HttpTransaction {
 
   enum State {
     STATE_NONE,
+    STATE_GET_BACKEND,
+    STATE_GET_BACKEND_COMPLETE,
     STATE_SEND_REQUEST,
     STATE_SEND_REQUEST_COMPLETE,
     STATE_SUCCESSFUL_SEND_REQUEST,
@@ -160,6 +162,8 @@ class HttpCache::Transaction : public HttpTransaction {
   // Each of these methods corresponds to a State value.  If there is an
   // argument, the value corresponds to the return of the previous state or
   // corresponding callback.
+  int DoGetBackend();
+  int DoGetBackendComplete(int result);
   int DoSendRequest();
   int DoSendRequestComplete(int result);
   int DoSuccessfulSendRequest();
@@ -202,9 +206,6 @@ class HttpCache::Transaction : public HttpTransaction {
   // layer (skipping the cache entirely).
   bool ShouldPassThrough();
 
-  // Associates this transaction with a cache entry.
-  int AddToEntry();
-
   // Called to begin reading from the cache.  Returns network error code.
   int BeginCacheRead();
 
@@ -224,9 +225,6 @@ class HttpCache::Transaction : public HttpTransaction {
   // conditionalized internally in response to LOAD_VALIDATE_CACHE).
   // Returns a network error code.
   int BeginExternallyConditionalizedRequest();
-
-  // Called to begin a network transaction.  Returns network error code.
-  int BeginNetworkRequest();
 
   // Called to restart a network transaction after an error.  Returns network
   // error code.
@@ -332,7 +330,7 @@ class HttpCache::Transaction : public HttpTransaction {
   CompletionCallbackImpl<Transaction> io_callback_;
   scoped_refptr<CancelableCompletionCallback<Transaction> > cache_callback_;
   scoped_refptr<CancelableCompletionCallback<Transaction> >
-  write_headers_callback_;
+      write_headers_callback_;
 };
 
 }  // namespace net

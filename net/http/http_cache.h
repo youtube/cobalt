@@ -26,6 +26,7 @@
 #include "net/base/cache_type.h"
 #include "net/base/completion_callback.h"
 #include "net/http/http_transaction_factory.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 class GURL;
 class MessageLoop;
@@ -184,6 +185,8 @@ class HttpCache : public HttpTransactionFactory,
   friend class ::ViewCacheHelper;
 
  private:
+  FRIEND_TEST(HttpCacheTest, SimpleGET_WaitForBackend);
+  FRIEND_TEST(HttpCacheTest, SimpleGET_WaitForBackend_CancelCreate);
 
   // Types --------------------------------------------------------------------
 
@@ -192,7 +195,7 @@ class HttpCache : public HttpTransactionFactory,
   class Transaction;
   class WorkItem;
   friend class Transaction;
-  struct NewEntry;  // Info for an entry under construction.
+  struct PendingOp;  // Info for an entry under construction.
 
   typedef std::list<Transaction*> TransactionList;
   typedef std::list<WorkItem*> WorkItemList;
@@ -210,10 +213,26 @@ class HttpCache : public HttpTransactionFactory,
   };
 
   typedef base::hash_map<std::string, ActiveEntry*> ActiveEntriesMap;
-  typedef base::hash_map<std::string, NewEntry*> NewEntriesMap;
+  typedef base::hash_map<std::string, PendingOp*> PendingOpsMap;
   typedef std::set<ActiveEntry*> ActiveEntriesSet;
 
+  typedef int (*CreateCacheBackendFn)(CacheType, const FilePath&, int,
+                                      bool, MessageLoop*, disk_cache::Backend**,
+                                      CompletionCallback*);
+
   // Methods ------------------------------------------------------------------
+
+  // Creates the |backend| object and notifies the |callback| when the operation
+  // completes. Returns an error code.
+  int CreateBackend(disk_cache::Backend** backend,
+                    CompletionCallback* callback);
+
+  // Makes sure that the backend creation is complete before allowing the
+  // provided transaction to use the object. Returns an error code.  |trans|
+  // will be notified via its IO callback if this method returns ERR_IO_PENDING.
+  // The transaction is free to use the backend directly at any time after
+  // receiving the notification.
+  int GetBackendForTransaction(Transaction* trans);
 
   // Generates the cache key for this request.
   std::string GenerateCacheKey(const HttpRequestInfo*);
@@ -246,12 +265,12 @@ class HttpCache : public HttpTransactionFactory,
   // Deletes an ActiveEntry using an exhaustive search.
   void SlowDeactivateEntry(ActiveEntry* entry);
 
-  // Returns the NewEntry for the desired |key|. If an entry is not under
-  // construction already, a new NewEntry structure is created.
-  NewEntry* GetNewEntry(const std::string& key);
+  // Returns the PendingOp for the desired |key|. If an entry is not under
+  // construction already, a new PendingOp structure is created.
+  PendingOp* GetPendingOp(const std::string& key);
 
-  // Deletes a NewEntry.
-  void DeleteNewEntry(NewEntry* entry);
+  // Deletes a PendingOp.
+  void DeletePendingOp(PendingOp* pending_op);
 
   // Opens the disk cache entry associated with |key|, returning an ActiveEntry
   // in |*entry|. |trans| will be notified via its IO callback if this method
@@ -292,16 +311,16 @@ class HttpCache : public HttpTransactionFactory,
   void ConvertWriterToReader(ActiveEntry* entry);
 
   // Removes the transaction |trans|, from the pending list of an entry
-  // (NewEntry, active or doomed entry).
+  // (PendingOp, active or doomed entry).
   void RemovePendingTransaction(Transaction* trans);
 
   // Removes the transaction |trans|, from the pending list of |entry|.
   bool RemovePendingTransactionFromEntry(ActiveEntry* entry,
                                          Transaction* trans);
 
-  // Removes the transaction |trans|, from the pending list of |entry|.
-  bool RemovePendingTransactionFromNewEntry(NewEntry* entry,
-                                            Transaction* trans);
+  // Removes the transaction |trans|, from the pending list of |pending_op|.
+  bool RemovePendingTransactionFromPendingOp(PendingOp* pending_op,
+                                             Transaction* trans);
 
   // Resumes processing the pending list of |entry|.
   void ProcessPendingQueue(ActiveEntry* entry);
@@ -313,7 +332,10 @@ class HttpCache : public HttpTransactionFactory,
   // Callbacks ----------------------------------------------------------------
 
   // Processes BackendCallback notifications.
-  void OnIOComplete(int result, NewEntry* entry);
+  void OnIOComplete(int result, PendingOp* entry);
+
+  // Processes the backend creation notification.
+  void OnBackendCreated(int result, PendingOp* pending_op);
 
 
   // Variables ----------------------------------------------------------------
@@ -321,6 +343,8 @@ class HttpCache : public HttpTransactionFactory,
   // Used when lazily constructing the disk_cache_.
   FilePath disk_cache_dir_;
   MessageLoop* cache_thread_;
+  disk_cache::Backend* temp_backend_;
+  bool building_backend_;
 
   Mode mode_;
   CacheType type_;
@@ -335,7 +359,7 @@ class HttpCache : public HttpTransactionFactory,
   ActiveEntriesSet doomed_entries_;
 
   // The set of entries "under construction".
-  NewEntriesMap new_entries_;
+  PendingOpsMap pending_ops_;
 
   ScopedRunnableMethodFactory<HttpCache> task_factory_;
 
@@ -344,6 +368,9 @@ class HttpCache : public HttpTransactionFactory,
 
   typedef base::hash_map<std::string, int> PlaybackCacheMap;
   scoped_ptr<PlaybackCacheMap> playback_cache_map_;
+
+  // Used for unit tests.
+  CreateCacheBackendFn create_backend_fn_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpCache);
 };

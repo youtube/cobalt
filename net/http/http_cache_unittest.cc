@@ -570,6 +570,13 @@ class MockHttpCache {
   net::HttpCache http_cache_;
 };
 
+// This version of the disk cache doesn't invoke CreateEntry callbacks.
+class MockDiskCacheNoCB : public MockDiskCache {
+  virtual int CreateEntry(const std::string& key, disk_cache::Entry** entry,
+                          net::CompletionCallback* callback) {
+    return net::ERR_IO_PENDING;
+  }
+};
 
 //-----------------------------------------------------------------------------
 // helpers
@@ -869,6 +876,168 @@ struct Context {
 //-----------------------------------------------------------------------------
 // tests
 
+namespace net {
+
+// This is a friend class of the HttpCache so that we can interact with it to
+// perform a few internal tests. We override the backend factory method so that
+// we can test the logic of backend instantiation.
+class HttpCacheTest : public testing::Test {
+ public:
+  // Controls whether to block the backend instantiation or not. If |block| is
+  // true, any blocked call will be notified via the provided callback.
+  void BlockCacheCreation(bool block) {
+    block_ = block;
+    if (!block_ && callback_) {
+      *backend_ = new MockDiskCache();
+      callback_->Run(OK);
+      callback_ = NULL;
+    }
+  }
+
+ protected:
+  virtual void SetUp() {
+    current_test_ = this;
+    backend_ = NULL;
+    callback_ = NULL;
+    block_ = false;
+  }
+
+  virtual void TearDown() { current_test_ = NULL; }
+
+  // Implements disk_cache::CreateCacheBackend().
+  static int MockCreateBackend(CacheType type, const FilePath& path,
+                               int max_bytes, bool force, MessageLoop* thread,
+                               disk_cache::Backend** backend,
+                               CompletionCallback* callback) {
+    if (current_test_ == NULL) {
+      EXPECT_TRUE(current_test_);
+      return ERR_FAILED;
+    }
+    if (!current_test_->block_) {
+      *backend = new MockDiskCache();
+      return OK;
+    }
+
+    current_test_->backend_ =  backend;
+    current_test_->callback_ = callback;
+    return ERR_IO_PENDING;
+  }
+
+ private:
+  static HttpCacheTest* current_test_;
+  disk_cache::Backend** backend_;
+  CompletionCallback* callback_;
+  bool block_;
+};
+
+// Static.
+HttpCacheTest* HttpCacheTest::current_test_ = NULL;
+
+// Tests that we queue requests when initializing the backend.
+TEST_F(HttpCacheTest, SimpleGET_WaitForBackend) {
+  MockHttpCache cache(NULL);
+  cache.http_cache()->create_backend_fn_ = MockCreateBackend;
+  cache.http_cache()->set_type(MEMORY_CACHE);
+  BlockCacheCreation(true);
+
+  MockHttpRequest request0(kSimpleGET_Transaction);
+  MockHttpRequest request1(kTypicalGET_Transaction);
+  MockHttpRequest request2(kETagGET_Transaction);
+
+  std::vector<Context*> context_list;
+  const int kNumTransactions = 3;
+
+  for (int i = 0; i < kNumTransactions; i++) {
+    context_list.push_back(new Context());
+    Context* c = context_list[i];
+
+    c->result = cache.http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(OK, c->result);
+  }
+
+  context_list[0]->result = context_list[0]->trans->Start(
+      &request0, &context_list[0]->callback, BoundNetLog());
+  context_list[1]->result = context_list[1]->trans->Start(
+      &request1, &context_list[1]->callback, BoundNetLog());
+  context_list[2]->result = context_list[2]->trans->Start(
+      &request2, &context_list[2]->callback, BoundNetLog());
+
+  // Just to make sure that everything is still pending.
+  MessageLoop::current()->RunAllPending();
+
+  // The first request should be creating the disk cache.
+  EXPECT_FALSE(context_list[0]->callback.have_result());
+
+  BlockCacheCreation(false);
+
+  MessageLoop::current()->RunAllPending();
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(3, cache.disk_cache()->create_count());
+
+  for (int i = 0; i < kNumTransactions; ++i) {
+    EXPECT_TRUE(context_list[i]->callback.have_result());
+    delete context_list[i];
+  }
+}
+
+// Tests that we can cancel requests that are queued waiting for the backend
+// to be initialized.
+TEST_F(HttpCacheTest, SimpleGET_WaitForBackend_CancelCreate) {
+  MockHttpCache cache(NULL);
+  cache.http_cache()->create_backend_fn_ = MockCreateBackend;
+  cache.http_cache()->set_type(MEMORY_CACHE);
+  BlockCacheCreation(true);
+
+  MockHttpRequest request0(kSimpleGET_Transaction);
+  MockHttpRequest request1(kTypicalGET_Transaction);
+  MockHttpRequest request2(kETagGET_Transaction);
+
+  std::vector<Context*> context_list;
+  const int kNumTransactions = 3;
+
+  for (int i = 0; i < kNumTransactions; i++) {
+    context_list.push_back(new Context());
+    Context* c = context_list[i];
+
+    c->result = cache.http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(OK, c->result);
+  }
+
+  context_list[0]->result = context_list[0]->trans->Start(
+      &request0, &context_list[0]->callback, BoundNetLog());
+  context_list[1]->result = context_list[1]->trans->Start(
+      &request1, &context_list[1]->callback, BoundNetLog());
+  context_list[2]->result = context_list[2]->trans->Start(
+      &request2, &context_list[2]->callback, BoundNetLog());
+
+  // Just to make sure that everything is still pending.
+  MessageLoop::current()->RunAllPending();
+
+  // The first request should be creating the disk cache.
+  EXPECT_FALSE(context_list[0]->callback.have_result());
+
+  // Cancel a request from the pending queue.
+  delete context_list[1];
+  context_list[1] = NULL;
+
+  // Cancel the request that is creating the entry.
+  delete context_list[0];
+  context_list[0] = NULL;
+
+  // Complete the last transaction.
+  BlockCacheCreation(false);
+
+  context_list[2]->result =
+      context_list[2]->callback.GetResult(context_list[2]->result);
+  ReadAndVerifyTransaction(context_list[2]->trans.get(), kETagGET_Transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  delete context_list[2];
+}
+
+}  // net namespace.
 
 TEST(HttpCache, CreateThenDestroy) {
   MockHttpCache cache;
@@ -912,19 +1081,34 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
 
   // Check that the NetLog was filled as expected.
   // (We attempted to both Open and Create entries, but both failed).
-  EXPECT_EQ(4u, log.entries().size());
+  EXPECT_EQ(6u, log.entries().size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(0, cache.disk_cache()->create_count());
+}
+
+TEST(HttpCache, SimpleGETNoDiskCache2) {
+  // This will initialize a cache object with NULL backend.
+  MockHttpCache cache(NULL);
+
+  // Read from the network, and don't use the cache.
+  RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_FALSE(cache.http_cache()->GetBackend());
 }
 
 TEST(HttpCache, SimpleGETWithDiskFailures) {
@@ -996,19 +1180,23 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
                             log.bound());
 
   // Check that the NetLog was filled as expected.
-  EXPECT_EQ(6u, log.entries().size());
+  EXPECT_EQ(8u, log.entries().size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 6, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      log.entries(), 7, net::NetLog::TYPE_HTTP_CACHE_WAITING));
 
   // force this transaction to read from the cache
   MockTransaction transaction(kSimpleGET_Transaction);
@@ -1019,19 +1207,23 @@ TEST(HttpCache, SimpleGET_LoadOnlyFromCache_Hit) {
   RunTransactionTestWithLog(cache.http_cache(), transaction, log.bound());
 
   // Check that the NetLog was filled as expected.
-  EXPECT_EQ(6u, log.entries().size());
+  EXPECT_EQ(8u, log.entries().size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
+      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_OPEN_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_READ_INFO));
+      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_READ_INFO));
+      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 6, net::NetLog::TYPE_HTTP_CACHE_READ_INFO));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      log.entries(), 7, net::NetLog::TYPE_HTTP_CACHE_READ_INFO));
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
@@ -1111,19 +1303,23 @@ TEST(HttpCache, SimpleGET_LoadBypassCache) {
   RunTransactionTestWithLog(cache.http_cache(), transaction, log.bound());
 
   // Check that the NetLog was filled as expected.
-  EXPECT_EQ(6u, log.entries().size());
+  EXPECT_EQ(8u, log.entries().size());
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
+      log.entries(), 0, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
+      log.entries(), 1, net::NetLog::TYPE_HTTP_CACHE_WAITING));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      log.entries(), 2, net::NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+      log.entries(), 3, net::NetLog::TYPE_HTTP_CACHE_DOOM_ENTRY));
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      log.entries(), 4, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
   EXPECT_TRUE(net::LogContainsEndEvent(
-      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+      log.entries(), 5, net::NetLog::TYPE_HTTP_CACHE_CREATE_ENTRY));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 6, net::NetLog::TYPE_HTTP_CACHE_WAITING));
+  EXPECT_TRUE(net::LogContainsEndEvent(
+      log.entries(), 7, net::NetLog::TYPE_HTTP_CACHE_WAITING));
 
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
@@ -1666,6 +1862,42 @@ TEST(HttpCache, SimpleGET_AbandonedCacheRead) {
   // Make sure we pump any pending events, which should include a call to
   // HttpCache::Transaction::OnCacheReadCompleted.
   MessageLoop::current()->RunAllPending();
+}
+
+// Tests that we can delete the HttpCache and deal with queued transactions
+// ("waiting for the backend" as opposed to Active or Doomed entries).
+TEST(HttpCache, SimpleGET_ManyWriters_DeleteCache) {
+  scoped_ptr<MockHttpCache> cache(new MockHttpCache(new MockDiskCacheNoCB()));
+
+  MockHttpRequest request(kSimpleGET_Transaction);
+
+  std::vector<Context*> context_list;
+  const int kNumTransactions = 5;
+
+  for (int i = 0; i < kNumTransactions; i++) {
+    context_list.push_back(new Context());
+    Context* c = context_list[i];
+
+    c->result = cache->http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(net::OK, c->result);
+
+    c->result = c->trans->Start(&request, &c->callback, net::BoundNetLog());
+  }
+
+  // The first request should be creating the disk cache entry and the others
+  // should be pending.
+
+  EXPECT_EQ(0, cache->network_layer()->transaction_count());
+  EXPECT_EQ(0, cache->disk_cache()->open_count());
+  EXPECT_EQ(0, cache->disk_cache()->create_count());
+
+  cache.reset();
+
+  // There is not much to do with the transactions at this point... they are
+  // waiting for a callback that will not fire.
+  for (int i = 0; i < kNumTransactions; ++i) {
+    delete context_list[i];
+  }
 }
 
 TEST(HttpCache, TypicalGET_ConditionalRequest) {
@@ -3885,12 +4117,12 @@ TEST(HttpCache, SyncRead) {
                             TEST_MODE_SYNC_CACHE_WRITE);
 
   MockHttpRequest r1(transaction),
-      r2(transaction),
-      r3(transaction);
+                  r2(transaction),
+                  r3(transaction);
 
   TestTransactionConsumer c1(cache.http_cache()),
-      c2(cache.http_cache()),
-      c3(cache.http_cache());
+                          c2(cache.http_cache()),
+                          c3(cache.http_cache());
 
   c1.Start(&r1, net::BoundNetLog());
 
