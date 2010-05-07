@@ -316,6 +316,10 @@ class HostResolverImpl::Job
     STLDeleteElements(&requests_);
   }
 
+  // WARNING: This code runs inside a worker pool. The shutdown code cannot
+  // wait for it to finish, so we must be very careful here about using other
+  // objects (like MessageLoops, Singletons, etc). During shutdown these objects
+  // may no longer exist.
   void DoLookup() {
     if (requests_trace_) {
       requests_trace_->Add(StringPrintf(
@@ -334,20 +338,15 @@ class HostResolverImpl::Job
           "[resolver thread] Completed job j%d", id_));
     }
 
-    Task* reply = NewRunnableMethod(this, &Job::OnLookupComplete);
-
     // The origin loop could go away while we are trying to post to it, so we
     // need to call its PostTask method inside a lock.  See ~HostResolver.
     {
       AutoLock locked(origin_loop_lock_);
       if (origin_loop_) {
-        origin_loop_->PostTask(FROM_HERE, reply);
-        reply = NULL;
+        origin_loop_->PostTask(FROM_HERE,
+                               NewRunnableMethod(this, &Job::OnLookupComplete));
       }
     }
-
-    // Does nothing if it got posted.
-    delete reply;
   }
 
   // Callback for when DoLookup() completes (runs on origin thread).
