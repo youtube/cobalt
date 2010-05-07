@@ -12,11 +12,13 @@ class FilePath;
 namespace base {
 namespace i18n {
 
-const char16 kRightToLeftMark = 0x200f;
-const char16 kLeftToRightMark = 0x200e;
+const char16 kRightToLeftMark = 0x200F;
+const char16 kLeftToRightMark = 0x200E;
 const char16 kLeftToRightEmbeddingMark = 0x202A;
 const char16 kRightToLeftEmbeddingMark = 0x202B;
 const char16 kPopDirectionalFormatting = 0x202C;
+const char16 kLeftToRightOverride = 0x202D;
+const char16 kRightToLeftOverride = 0x202E;
 
 enum TextDirection {
   UNKNOWN_DIRECTION,
@@ -108,6 +110,12 @@ void WrapPathWithLTRFormatting(const FilePath& path,
 // is returned.
 std::wstring GetDisplayStringInLTRDirectionality(std::wstring* text);
 
+// Strip the beginning (U+202A..U+202B, U+202D..U+202E) and/or ending (U+202C)
+// explicit bidi control characters from |text|, if there are any. Otherwise,
+// return the text itself. Explicit bidi control characters display and have
+// semantic effect. They can be deleted so they might not always appear in a
+// pair.
+const string16 StripWrappingBidiControlCharacters(const string16& text);
 }  // namespace i18n
 }  // namespace base
 

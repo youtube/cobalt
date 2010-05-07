@@ -225,6 +225,21 @@ std::wstring GetDisplayStringInLTRDirectionality(std::wstring* text) {
   return *text;
 }
 
+const string16 StripWrappingBidiControlCharacters(const string16& text) {
+  if (text.empty())
+    return text;
+  size_t begin_index = 0;
+  char16 begin = text[begin_index];
+  if (begin == kLeftToRightEmbeddingMark ||
+      begin == kRightToLeftEmbeddingMark ||
+      begin == kLeftToRightOverride ||
+      begin == kRightToLeftOverride)
+    ++begin_index;
+  size_t end_index = text.length() - 1;
+  if (text[end_index] == kPopDirectionalFormatting)
+    --end_index;
+  return text.substr(begin_index, end_index - begin_index + 1);
+}
+
 }  // namespace i18n
 }  // namespace base
-
