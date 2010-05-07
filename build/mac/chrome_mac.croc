@@ -25,9 +25,9 @@
       'regexp' : '.*/third_party/',
       'include' : 0,
     },
-    # Don't include windows or mac specific files
+    # Don't include linux or windows specific files
     {
-      'regexp' : '.*(_|/)(linux|win)(\\.|_)',
+      'regexp' : '.*(_|/)(linux|win|views)(\\.|_)',
       'include' : 0,
     },
 
