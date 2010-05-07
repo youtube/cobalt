@@ -120,11 +120,11 @@ class OCSPInitSingleton : public MessageLoop::DestructionObserver {
       NOTREACHED() << "Error initializing OCSP: " << PR_GetError();
     }
 
-    // Work around NSS bug 524013.  NSS incorrectly thinks the CRLs for
-    // Network Solutions Certificate Authority have bad signatures, which
-    // causes certificates issued by that CA to be reported as revoked.
-    // By using OCSP for those certificates, which don't have AIA
-    // extensions, we can work around this bug.  See http://crbug.com/41730.
+    // Work around NSS bugs 524013 and 564334.  NSS incorrectly thinks the
+    // CRLs for Network Solutions Certificate Authority have bad signatures,
+    // which causes certificates issued by that CA to be reported as revoked.
+    // By using OCSP for those certificates, which don't have AIA extensions,
+    // we can work around these bugs.  See http://crbug.com/41730.
     CERT_StringFromCertFcn old_callback = NULL;
     status = CERT_RegisterAlternateOCSPAIAInfoCallBack(
         GetAlternateOCSPAIAInfo, &old_callback);
@@ -651,6 +651,8 @@ SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
 // Data for GetAlternateOCSPAIAInfo.
 
 // CN=Network Solutions Certificate Authority,O=Network Solutions L.L.C.,C=US
+//
+// There are two CAs with this name.  Their key IDs are listed next.
 const unsigned char network_solutions_ca_name[] = {
   0x30, 0x62, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04,
   0x06, 0x13, 0x02, 0x55, 0x53, 0x31, 0x21, 0x30, 0x1f, 0x06,
@@ -665,11 +667,20 @@ const unsigned char network_solutions_ca_name[] = {
 };
 const unsigned int network_solutions_ca_name_len = 100;
 
+// This CA is an intermediate CA, subordinate to UTN-USERFirst-Hardware.
 const unsigned char network_solutions_ca_key_id[] = {
   0x3c, 0x41, 0xe2, 0x8f, 0x08, 0x08, 0xa9, 0x4c, 0x25, 0x89,
   0x8d, 0x6d, 0xc5, 0x38, 0xd0, 0xfc, 0x85, 0x8c, 0x62, 0x17
 };
 const unsigned int network_solutions_ca_key_id_len = 20;
+
+// This CA is a root CA.  It is also cross-certified by
+// UTN-USERFirst-Hardware.
+const unsigned char network_solutions_ca_key_id2[] = {
+  0x21, 0x30, 0xc9, 0xfb, 0x00, 0xd7, 0x4e, 0x98, 0xda, 0x87,
+  0xaa, 0x2a, 0xd0, 0xa7, 0x2e, 0xb1, 0x40, 0x31, 0xa7, 0x4c
+};
+const unsigned int network_solutions_ca_key_id2_len = 20;
 
 // An entry in our OCSP responder table.  |issuer| and |issuer_key_id| are
 // the key.  |ocsp_url| is the value.
@@ -690,6 +701,19 @@ const OCSPResponderTableEntry g_ocsp_responder_table[] = {
       siBuffer,
       const_cast<unsigned char*>(network_solutions_ca_key_id),
       network_solutions_ca_key_id_len
+    },
+    "http://ocsp.netsolssl.com"
+  },
+  {
+    {
+      siBuffer,
+      const_cast<unsigned char*>(network_solutions_ca_name),
+      network_solutions_ca_name_len
+    },
+    {
+      siBuffer,
+      const_cast<unsigned char*>(network_solutions_ca_key_id2),
+      network_solutions_ca_key_id2_len
     },
     "http://ocsp.netsolssl.com"
   }
