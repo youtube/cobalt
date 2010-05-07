@@ -9,39 +9,9 @@
 
 namespace {
 
-struct LogEventProviderTraits {
-  // WARNING: User has to deal with get() returning NULL.
-  static logging::LogEventProvider* New() {
-    if (base::subtle::NoBarrier_AtomicExchange(&dead_, 1))
-      return NULL;
-    logging::LogEventProvider* ptr =
-        reinterpret_cast<logging::LogEventProvider*>(buffer_);
-    // We are protected by a memory barrier.
-    new(ptr) logging::LogEventProvider();
-    return ptr;
-  }
-
-  static void Delete(logging::LogEventProvider* p) {
-    base::subtle::NoBarrier_Store(&dead_, 1);
-    MemoryBarrier();
-    p->logging::LogEventProvider::~LogEventProvider();
-  }
-
-  static const bool kRegisterAtExit = true;
-
- private:
-  static const size_t kBufferSize = (sizeof(logging::LogEventProvider) +
-                                     sizeof(intptr_t) - 1) / sizeof(intptr_t);
-  static intptr_t buffer_[kBufferSize];
-
-  // Signal the object was already deleted, so it is not revived.
-  static base::subtle::Atomic32 dead_;
-};
-
-intptr_t LogEventProviderTraits::buffer_[kBufferSize];
-base::subtle::Atomic32 LogEventProviderTraits::dead_ = 0;
-
-Singleton<logging::LogEventProvider, LogEventProviderTraits> log_provider;
+typedef StaticMemorySingletonTraits<logging::LogEventProvider>
+    LogEventSingletonTraits;
+Singleton<logging::LogEventProvider, LogEventSingletonTraits> log_provider;
 
 }  // namespace
 
