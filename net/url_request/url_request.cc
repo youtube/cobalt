@@ -137,16 +137,10 @@ void URLRequest::SetExtraRequestHeaderByName(const string& name,
   NOTREACHED() << "implement me!";
 }
 
-void URLRequest::SetExtraRequestHeaders(const string& headers) {
+void URLRequest::SetExtraRequestHeaders(
+    const net::HttpRequestHeaders& headers) {
   DCHECK(!is_pending_);
-  extra_request_headers_.Clear();
-  if (!headers.empty()) {
-#ifndef NDEBUG
-    size_t crlf = headers.rfind("\r\n", headers.size() - 1);
-    DCHECK(crlf != headers.size() - 2) << "headers must not end with CRLF";
-#endif
-    extra_request_headers_.AddHeadersFromString(headers);
-  }
+  extra_request_headers_ = headers;
 
   // NOTE: This method will likely become non-trivial once the other setters
   // for request headers are implemented.
