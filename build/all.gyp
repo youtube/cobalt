@@ -11,6 +11,7 @@
       'dependencies': [
         '../app/app.gyp:*',
         '../base/base.gyp:*',
+        '../chrome/browser/sync/tools/sync_tools.gyp:*',
         '../chrome/chrome.gyp:*',
         '../gfx/gfx.gyp:*',
         '../gpu/gpu.gyp:*',
