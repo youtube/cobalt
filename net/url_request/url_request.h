@@ -328,15 +328,10 @@ class URLRequest {
   void SetExtraRequestHeaderByName(const std::string& name,
                                    const std::string& value, bool overwrite);
 
-  // Sets all extra request headers, from a \r\n-delimited string.  Any extra
-  // request headers set by other methods are overwritten by this method.  This
-  // method may only be called before Start() is called.  It is an error to
-  // call it later.
-  //
-  // Note: \r\n is only used to separate the headers in the string if there
-  // are multiple headers.  The last header in the string must not be followed
-  // by \r\n.
-  void SetExtraRequestHeaders(const std::string& headers);
+  // Sets all extra request headers.  Any extra request headers set by other
+  // methods are overwritten by this method.  This method may only be called
+  // before Start() is called.  It is an error to call it later.
+  void SetExtraRequestHeaders(const net::HttpRequestHeaders& headers);
 
   const net::HttpRequestHeaders& extra_request_headers() const {
     return extra_request_headers_;
