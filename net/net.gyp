@@ -833,9 +833,7 @@
       'dependencies': [
         'net',
         '../base/base.gyp:base',
-        '../chrome/browser/sync/protocol/sync_proto.gyp:sync_proto',
         '../testing/gtest.gyp:gtest',
-        '../third_party/protobuf2/protobuf.gyp:py_proto',
       ],
       'sources': [
         'base/cert_test_util.cc',
@@ -850,6 +848,12 @@
         'socket/ssl_test_util.h',
       ],
       'conditions': [
+        ['inside_chromium_build==1', {
+          'dependencies': [
+            '../chrome/browser/sync/protocol/sync_proto.gyp:sync_proto',
+            '../third_party/protobuf2/protobuf.gyp:py_proto',
+          ],
+        }],
         ['OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           'dependencies': [
             '../build/linux/system.gyp:nss',
