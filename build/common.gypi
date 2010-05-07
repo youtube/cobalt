@@ -381,8 +381,8 @@
       # See http://msdn.microsoft.com/en-us/library/8wtf2dfz(VS.71).aspx
       'win_debug_RuntimeChecks%': '3',    # 3 = all checks enabled, 0 = off
       # See http://msdn.microsoft.com/en-us/library/47238hez(VS.71).aspx
-      'win_debug_InlineFunctionExpansion%': '0',   # 0 = off
-      'win_release_InlineFunctionExpansion%': '2', # 2 = max
+      'win_debug_InlineFunctionExpansion%': '',    # empty = default, 0 = off,
+      'win_release_InlineFunctionExpansion%': '2', # 1 = only __inline, 2 = max
 
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
@@ -625,8 +625,19 @@
             'Optimization': '<(win_debug_Optimization)',
             'PreprocessorDefinitions': ['_DEBUG'],
             'BasicRuntimeChecks': '<(win_debug_RuntimeChecks)',
-            'InlineFunctionExpansion': '<(win_debug_InlineFunctionExpansion)',
             'RuntimeLibrary': '<(win_debug_RuntimeLibrary)',
+            'conditions': [
+              # According to MSVS, InlineFunctionExpansion=0 means
+              # "default inlining", not "/Ob0".
+              # Thus, we have to handle InlineFunctionExpansion==0 separately.
+              ['win_debug_InlineFunctionExpansion==0', {
+                'AdditionalOptions': ['/Ob0'],
+              }],
+              ['win_debug_InlineFunctionExpansion!=""', {
+                'InlineFunctionExpansion':
+                  '<(win_debug_InlineFunctionExpansion)',
+              }],
+            ],
           },
           'VCLinkerTool': {
             'LinkIncremental': '<(msvs_debug_link_incremental)',
@@ -656,8 +667,19 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'Optimization': '<(win_release_Optimization)',
-            'InlineFunctionExpansion': '<(win_release_InlineFunctionExpansion)',
             'RuntimeLibrary': '<(win_release_RuntimeLibrary)',
+            'conditions': [
+              # According to MSVS, InlineFunctionExpansion=0 means
+              # "default inlining", not "/Ob0".
+              # Thus, we have to handle InlineFunctionExpansion==0 separately.
+              ['win_release_InlineFunctionExpansion==0', {
+                'AdditionalOptions': ['/Ob0'],
+              }],
+              ['win_release_InlineFunctionExpansion!=""', {
+                'InlineFunctionExpansion':
+                  '<(win_release_InlineFunctionExpansion)',
+              }],
+            ],
           },
           'VCLinkerTool': {
             'LinkIncremental': '1',
