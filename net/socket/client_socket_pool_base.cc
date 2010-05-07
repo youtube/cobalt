@@ -117,6 +117,7 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
     : idle_socket_count_(0),
       connecting_socket_count_(0),
       handed_out_socket_count_(0),
+      num_releasing_sockets_(0),
       max_sockets_(max_sockets),
       max_sockets_per_group_(max_sockets_per_group),
       unused_idle_socket_timeout_(unused_idle_socket_timeout),
@@ -358,6 +359,7 @@ void ClientSocketPoolBaseHelper::ReleaseSocket(const std::string& group_name,
                                                ClientSocket* socket) {
   Group& group = group_map_[group_name];
   group.num_releasing_sockets++;
+  num_releasing_sockets_++;
   DCHECK_LE(group.num_releasing_sockets, group.active_socket_count);
   // Run this asynchronously to allow the caller to finish before we let
   // another to begin doing work.  This also avoids nasty recursion issues.
@@ -482,6 +484,9 @@ void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
   CHECK_GT(group.active_socket_count, 0);
   group.active_socket_count--;
 
+  CHECK_GT(num_releasing_sockets_, 0);
+  num_releasing_sockets_--;
+
   const bool can_reuse = socket->IsConnectedAndIdle();
   if (can_reuse) {
     AddIdleSocket(socket, true /* used socket */, &group);
@@ -489,36 +494,35 @@ void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
     delete socket;
   }
 
-  OnAvailableSocketSlot(group_name, &group);
-
   // If there are no more releasing sockets, then we might have to process
   // multiple available socket slots, since we stalled their processing until
-  // all sockets have been released.
-  i = group_map_.find(group_name);
-  if (i == group_map_.end() || i->second.num_releasing_sockets > 0)
-    return;
+  // all sockets have been released.  Note that ProcessPendingRequest() will
+  // invoke user callbacks, so |num_releasing_sockets_| may change.
+  //
+  // This code has been known to infinite loop.  Set a counter and CHECK to make
+  // sure it doesn't get ridiculously high.
 
-  while (true) {
-    // We can't activate more sockets since we're already at our global limit.
-    if (ReachedMaxSocketsLimit())
+  int iterations = 0;
+  while (num_releasing_sockets_ == 0) {
+    CHECK_LT(iterations, 100000) << "Probably stuck in an infinite loop.";
+    std::string top_group_name;
+    Group* top_group = NULL;
+    int stalled_group_count = FindTopStalledGroup(&top_group, &top_group_name);
+    if (stalled_group_count >= 1) {
+      if (ReachedMaxSocketsLimit()) {
+        // We can't activate more sockets since we're already at our global
+        // limit.
+        may_have_stalled_group_ = true;
+        return;
+      }
+
+      ProcessPendingRequest(top_group_name, top_group);
+    } else {
+      may_have_stalled_group_ = false;
       return;
+    }
 
-    // |group| might now be deleted.
-    i = group_map_.find(group_name);
-    if (i == group_map_.end())
-      return;
-
-    group = i->second;
-
-    // If we already have enough ConnectJobs to satisfy the pending requests,
-    // don't bother starting up more.
-    if (group.pending_requests.size() <= group.jobs.size())
-      return;
-
-    if (!group.HasAvailableSocketSlot(max_sockets_per_group_))
-      return;
-
-    OnAvailableSocketSlot(group_name, &group);
+    iterations++;
   }
 }
 
@@ -640,7 +644,7 @@ void ClientSocketPoolBaseHelper::OnAvailableSocketSlot(
     std::string top_group_name;
     Group* top_group = NULL;
     int stalled_group_count = FindTopStalledGroup(&top_group, &top_group_name);
-    if (stalled_group_count <= 1)
+    if (stalled_group_count <= 1 && top_group->num_releasing_sockets == 0)
       may_have_stalled_group_ = false;
     if (stalled_group_count >= 1)
       ProcessPendingRequest(top_group_name, top_group);
