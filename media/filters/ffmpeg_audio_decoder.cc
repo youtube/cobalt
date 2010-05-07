@@ -10,6 +10,17 @@
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/filters/ffmpeg_demuxer.h"
 
+#if !defined(USE_SSE)
+#if defined(__SSE__) || defined(ARCH_CPU_X86_64) || _M_IX86_FP==1
+#define USE_SSE 1
+#else
+#define USE_SSE 0
+#endif
+#endif
+#if USE_SSE
+#include <emmintrin.h>
+#endif
+
 namespace media {
 
 // Size of the decoded audio buffer.
@@ -96,6 +107,53 @@ void FFmpegAudioDecoder::DoSeek(base::TimeDelta time, Task* done_cb) {
   delete done_cb;
 }
 
+// ConvertAudioF32ToS32() converts float audio (F32) to int (S32) in place.
+// This is a temporary solution.
+// The purpose of this short term fix is to enable WMApro, which decodes to
+// float.
+// The audio driver has been tested by passing the float audio thru.
+// FFmpeg for ChromeOS only exposes U8, S16 and F32.
+// To properly expose new audio sample types at the audio driver layer, a enum
+// should be created to represent all suppported types, including types
+// for Pepper.  FFmpeg should be queried for type and passed along.
+
+// TODO(fbarchard): Remove this function.  Expose all FFmpeg types to driver.
+// TODO(fbarchard): If this function is kept, move it to audio_util.cc
+
+#if USE_SSE
+const __m128 kFloatScaler = _mm_set1_ps( 2147483648.0f );
+static void FloatToIntSaturate(float* p) {
+  __m128 a = _mm_set1_ps(*p);
+  a = _mm_mul_ss(a, kFloatScaler);
+  *reinterpret_cast<int32*>(p) = _mm_cvtss_si32(a);
+}
+#else
+const float kFloatScaler = 2147483648.0f;
+const int kMinSample = std::numeric_limits<int32>::min();
+const int kMaxSample = std::numeric_limits<int32>::max();
+const float kMinSampleFloat =
+    static_cast<float>(std::numeric_limits<int32>::min());
+const float kMaxSampleFloat =
+    static_cast<float>(std::numeric_limits<int32>::max());
+static void FloatToIntSaturate(float* p) {
+  float f = *p * kFloatScaler + 0.5f;
+  int sample;
+  if (f <= kMinSampleFloat) {
+    sample = kMinSample;
+  } else if (f >= kMaxSampleFloat) {
+    sample = kMaxSample;
+  } else {
+    sample = static_cast<int32>(f);
+  }
+  *reinterpret_cast<int32*>(p) = sample;
+}
+#endif
+static void ConvertAudioF32ToS32(void* buffer, int buffer_size) {
+  for (int i = 0; i < buffer_size / 4; ++i) {
+    FloatToIntSaturate(reinterpret_cast<float*>(buffer) + i);
+  }
+}
+
 void FFmpegAudioDecoder::DoDecode(Buffer* input, Task* done_cb) {
   AutoTaskRunner done_runner(done_cb);
 
@@ -111,6 +169,10 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input, Task* done_cb) {
                                      output_buffer,
                                      &output_buffer_size,
                                      &packet);
+
+  if (codec_context_->sample_fmt == SAMPLE_FMT_FLT) {
+    ConvertAudioF32ToS32(output_buffer, output_buffer_size);
+  }
 
   // TODO(ajwong): Consider if kOutputBufferSize should just be an int instead
   // of a size_t.
