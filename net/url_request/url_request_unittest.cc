@@ -36,6 +36,7 @@
 #include "net/ftp/ftp_network_layer.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_network_layer.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/ssl_test_util.h"
@@ -687,9 +688,11 @@ TEST_F(URLRequestTest, FileTestFullSpecifiedRange) {
   {
     TestURLRequest r(temp_url, &d);
 
-    r.SetExtraRequestHeaders(
-        StringPrintf("Range: bytes=%" PRIuS "-%" PRIuS "\n",
-                     first_byte_position, last_byte_position));
+    net::HttpRequestHeaders headers;
+    headers.SetHeader(net::HttpRequestHeaders::kRange,
+                      StringPrintf("bytes=%" PRIuS "-%" PRIuS,
+                                   first_byte_position, last_byte_position));
+    r.SetExtraRequestHeaders(headers);
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
@@ -728,8 +731,11 @@ TEST_F(URLRequestTest, FileTestHalfSpecifiedRange) {
   {
     TestURLRequest r(temp_url, &d);
 
-    r.SetExtraRequestHeaders(StringPrintf("Range: bytes=%" PRIuS "-\n",
-                                          first_byte_position));
+    net::HttpRequestHeaders headers;
+    headers.SetHeader(net::HttpRequestHeaders::kRange,
+                      StringPrintf("bytes=%" PRIuS "-",
+                                   first_byte_position));
+    r.SetExtraRequestHeaders(headers);
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
@@ -762,7 +768,10 @@ TEST_F(URLRequestTest, FileTestMultipleRanges) {
   {
     TestURLRequest r(temp_url, &d);
 
-    r.SetExtraRequestHeaders(StringPrintf("Range: bytes=0-0,10-200,200-300\n"));
+    net::HttpRequestHeaders headers;
+    headers.SetHeader(net::HttpRequestHeaders::kRange,
+                      "bytes=0-0,10-200,200-300");
+    r.SetExtraRequestHeaders(headers);
     r.Start();
     EXPECT_TRUE(r.is_pending());
 
@@ -1092,7 +1101,9 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
     TestDelegate d;
     URLRequest req(server_->TestServerPage("echoheader?foo"), &d);
     req.set_context(context);
-    req.SetExtraRequestHeaders("foo: 1");
+    net::HttpRequestHeaders headers;
+    headers.SetHeader("foo", "1");
+    req.SetExtraRequestHeaders(headers);
     req.Start();
     MessageLoop::current()->Run();
   }
@@ -1102,7 +1113,9 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
     TestDelegate d;
     URLRequest req(server_->TestServerPage("echoheader?foo"), &d);
     req.set_context(context);
-    req.SetExtraRequestHeaders("foo: 1");
+    net::HttpRequestHeaders headers;
+    headers.SetHeader("foo", "1");
+    req.SetExtraRequestHeaders(headers);
     req.Start();
     MessageLoop::current()->Run();
 
@@ -1114,7 +1127,9 @@ TEST_F(URLRequestTestHTTP, VaryHeader) {
     TestDelegate d;
     URLRequest req(server_->TestServerPage("echoheader?foo"), &d);
     req.set_context(context);
-    req.SetExtraRequestHeaders("foo: 2");
+    net::HttpRequestHeaders headers;
+    headers.SetHeader("foo", "2");
+    req.SetExtraRequestHeaders(headers);
     req.Start();
     MessageLoop::current()->Run();
 
@@ -1683,7 +1698,8 @@ TEST_F(URLRequestTestHTTP, Post302RedirectGet) {
   req.set_upload(CreateSimpleUploadData(kData));
 
   // Set headers (some of which are specific to the POST).
-  req.SetExtraRequestHeaders(
+  net::HttpRequestHeaders headers;
+  headers.AddHeadersFromString(
     "Content-Type: multipart/form-data; "
     "boundary=----WebKitFormBoundaryAADeAA+NAAWMAAwZ\r\n"
     "Accept: text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,"
@@ -1692,6 +1708,7 @@ TEST_F(URLRequestTestHTTP, Post302RedirectGet) {
     "Accept-Charset: ISO-8859-1,*,utf-8\r\n"
     "Content-Length: 11\r\n"
     "Origin: http://localhost:1337/");
+  req.SetExtraRequestHeaders(headers);
   req.Start();
   MessageLoop::current()->Run();
 
@@ -1720,8 +1737,10 @@ TEST_F(URLRequestTestHTTP, Post307RedirectPost) {
       &d);
   req.set_method("POST");
   req.set_upload(CreateSimpleUploadData(kData).get());
-  req.SetExtraRequestHeaders(
-      "Content-Length: " + UintToString(sizeof(kData) - 1));
+  net::HttpRequestHeaders headers;
+  headers.SetHeader(net::HttpRequestHeaders::kContentLength,
+                    UintToString(arraysize(kData) - 1));
+  req.SetExtraRequestHeaders(headers);
   req.Start();
   MessageLoop::current()->Run();
   EXPECT_EQ("POST", req.method());
@@ -2492,7 +2511,9 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptLanguage) {
   TestURLRequest
       req(server_->TestServerPage("echoheaderoverride?Accept-Language"), &d);
   req.set_context(new TestURLRequestContext());
-  req.SetExtraRequestHeaders("Accept-Language: ru");
+  net::HttpRequestHeaders headers;
+  headers.SetHeader(net::HttpRequestHeaders::kAcceptLanguage, "ru");
+  req.SetExtraRequestHeaders(headers);
   req.Start();
   MessageLoop::current()->Run();
   EXPECT_EQ(std::string("ru"), d.data_received());
@@ -2517,7 +2538,9 @@ TEST_F(URLRequestTestHTTP, OverrideAcceptCharset) {
   TestURLRequest
       req(server_->TestServerPage("echoheaderoverride?Accept-Charset"), &d);
   req.set_context(new TestURLRequestContext());
-  req.SetExtraRequestHeaders("Accept-Charset: koi-8r");
+  net::HttpRequestHeaders headers;
+  headers.SetHeader(net::HttpRequestHeaders::kAcceptCharset, "koi-8r");
+  req.SetExtraRequestHeaders(headers);
   req.Start();
   MessageLoop::current()->Run();
   EXPECT_EQ(std::string("koi-8r"), d.data_received());
