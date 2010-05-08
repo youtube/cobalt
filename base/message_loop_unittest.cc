@@ -1376,19 +1376,17 @@ TEST(MessageLoopTest, PostDelayedTask_SharedTimer_SubPump) {
 #endif
 
 // TODO(darin): re-enable these tests once MessageLoop supports them again.
-#if 0
-TEST(MessageLoopTest, EnsureTaskDeletion) {
+TEST(MessageLoopTest, DISABLED_EnsureTaskDeletion) {
   RunTest_EnsureTaskDeletion(MessageLoop::TYPE_DEFAULT);
   RunTest_EnsureTaskDeletion(MessageLoop::TYPE_UI);
   RunTest_EnsureTaskDeletion(MessageLoop::TYPE_IO);
 }
 
-TEST(MessageLoopTest, EnsureTaskDeletion_Chain) {
+TEST(MessageLoopTest, DISABLED_EnsureTaskDeletion_Chain) {
   RunTest_EnsureTaskDeletion_Chain(MessageLoop::TYPE_DEFAULT);
   RunTest_EnsureTaskDeletion_Chain(MessageLoop::TYPE_UI);
   RunTest_EnsureTaskDeletion_Chain(MessageLoop::TYPE_IO);
 }
-#endif
 
 #if defined(OS_WIN)
 TEST(MessageLoopTest, Crasher) {
