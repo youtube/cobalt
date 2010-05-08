@@ -222,6 +222,50 @@ int MapHandshakeError(PRErrorCode err) {
   }
 }
 
+#if defined(OS_WIN)
+
+// A certificate for COMODO EV SGC CA, issued by AddTrust External CA Root,
+// causes CertGetCertificateChain to report CERT_TRUST_IS_NOT_VALID_FOR_USAGE.
+// It seems to be caused by the szOID_APPLICATION_CERT_POLICIES extension in
+// that certificate.
+//
+// This function is used in the workaround for http://crbug.com/43538
+bool IsProblematicComodoEVCACert(const CERTCertificate& cert) {
+  // Issuer:
+  // CN = AddTrust External CA Root
+  // OU = AddTrust External TTP Network
+  // O = AddTrust AB
+  // C = SE
+  static const uint8 kIssuer[] = {
+    0x30, 0x6f, 0x31, 0x0b, 0x30, 0x09, 0x06, 0x03, 0x55, 0x04,
+    0x06, 0x13, 0x02, 0x53, 0x45, 0x31, 0x14, 0x30, 0x12, 0x06,
+    0x03, 0x55, 0x04, 0x0a, 0x13, 0x0b, 0x41, 0x64, 0x64, 0x54,
+    0x72, 0x75, 0x73, 0x74, 0x20, 0x41, 0x42, 0x31, 0x26, 0x30,
+    0x24, 0x06, 0x03, 0x55, 0x04, 0x0b, 0x13, 0x1d, 0x41, 0x64,
+    0x64, 0x54, 0x72, 0x75, 0x73, 0x74, 0x20, 0x45, 0x78, 0x74,
+    0x65, 0x72, 0x6e, 0x61, 0x6c, 0x20, 0x54, 0x54, 0x50, 0x20,
+    0x4e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x31, 0x22, 0x30,
+    0x20, 0x06, 0x03, 0x55, 0x04, 0x03, 0x13, 0x19, 0x41, 0x64,
+    0x64, 0x54, 0x72, 0x75, 0x73, 0x74, 0x20, 0x45, 0x78, 0x74,
+    0x65, 0x72, 0x6e, 0x61, 0x6c, 0x20, 0x43, 0x41, 0x20, 0x52,
+    0x6f, 0x6f, 0x74
+  };
+
+  // Serial number: 79:0A:83:4D:48:40:6B:AB:6C:35:2A:D5:1F:42:83:FE.
+  static const uint8 kSerialNumber[] = {
+    0x79, 0x0a, 0x83, 0x4d, 0x48, 0x40, 0x6b, 0xab, 0x6c, 0x35,
+    0x2a, 0xd5, 0x1f, 0x42, 0x83, 0xfe
+  };
+
+  return cert.derIssuer.len == sizeof(kIssuer) &&
+         memcmp(cert.derIssuer.data, kIssuer, cert.derIssuer.len) == 0 &&
+         cert.serialNumber.len == sizeof(kSerialNumber) &&
+         memcmp(cert.serialNumber.data, kSerialNumber,
+                cert.serialNumber.len) == 0;
+}
+
+#endif
+
 }  // namespace
 
 #if defined(OS_WIN)
@@ -633,6 +677,15 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
         for (CERTCertListNode* node = CERT_LIST_HEAD(cert_list);
              !CERT_LIST_END(node, cert_list);
              node = CERT_LIST_NEXT(node)) {
+          if (node->cert == server_cert_nss_)
+            continue;
+          // Work around http://crbug.com/43538 by not importing the
+          // problematic COMODO EV SGC CA certificate.  CryptoAPI will
+          // download a good certificate for that CA, issued by COMODO
+          // Certification Authority, using the AIA extension in the server
+          // certificate.
+          if (IsProblematicComodoEVCACert(*node->cert))
+            continue;
           cert_context = NULL;
           BOOL ok = CertAddEncodedCertificateToStore(
               cert_store_,
@@ -642,8 +695,7 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
               CERT_STORE_ADD_USE_EXISTING,
               &cert_context);
           DCHECK(ok);
-          if (node->cert != server_cert_nss_)
-            intermediate_ca_certs.push_back(cert_context);
+          intermediate_ca_certs.push_back(cert_context);
         }
         CERT_DestroyCertList(cert_list);
       }
