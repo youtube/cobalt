@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "net/base/host_resolver_impl.h"
-#include "net/base/net_log.h"
 
 #include <cmath>
 #include <deque>
@@ -434,9 +433,12 @@ class HostResolverImpl::IPv6ProbeJob
   explicit IPv6ProbeJob(HostResolverImpl* resolver)
       : resolver_(resolver),
         origin_loop_(MessageLoop::current()) {
+    DCHECK(!was_cancelled());
   }
 
   void Start() {
+    if (was_cancelled())
+      return;
     DCHECK(IsOnOriginThread());
     const bool kIsSlow = true;
     WorkerPool::PostTask(
@@ -445,24 +447,31 @@ class HostResolverImpl::IPv6ProbeJob
 
   // Cancels the current job.
   void Cancel() {
+    if (was_cancelled())
+      return;
     DCHECK(IsOnOriginThread());
     resolver_ = NULL;  // Read/write ONLY on origin thread.
     {
       AutoLock locked(origin_loop_lock_);
       // Origin loop may be destroyed before we can use it!
-      origin_loop_ = NULL;
+      origin_loop_ = NULL;  // Write ONLY on origin thread.
     }
-  }
-
-  bool was_cancelled() const {
-    DCHECK(IsOnOriginThread());
-    return resolver_ == NULL;
   }
 
  private:
   friend class base::RefCountedThreadSafe<HostResolverImpl::IPv6ProbeJob>;
 
   ~IPv6ProbeJob() {
+  }
+
+  // Should be run on |orgin_thread_|, but that may not be well defined now.
+  bool was_cancelled() const {
+    if (!resolver_ || !origin_loop_) {
+      DCHECK(!resolver_);
+      DCHECK(!origin_loop_);
+      return true;
+    }
+    return false;
   }
 
   // Run on worker thread.
@@ -490,9 +499,10 @@ class HostResolverImpl::IPv6ProbeJob
 
   // Callback for when DoProbe() completes (runs on origin thread).
   void OnProbeComplete(AddressFamily address_family) {
+    if (was_cancelled())
+      return;
     DCHECK(IsOnOriginThread());
-    if (!was_cancelled())
-      resolver_->IPv6ProbeSetDefaultAddressFamily(address_family);
+    resolver_->IPv6ProbeSetDefaultAddressFamily(address_family);
   }
 
   bool IsOnOriginThread() const {
