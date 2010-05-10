@@ -472,6 +472,13 @@ int HttpCache::Transaction::DoLoop(int result) {
       case STATE_TRUNCATE_CACHED_DATA_COMPLETE:
         rv = DoTruncateCachedDataComplete(rv);
         break;
+      case STATE_TRUNCATE_CACHED_METADATA:
+        DCHECK_EQ(OK, rv);
+        rv = DoTruncateCachedMetadata();
+        break;
+      case STATE_TRUNCATE_CACHED_METADATA_COMPLETE:
+        rv = DoTruncateCachedMetadataComplete(rv);
+        break;
       case STATE_PARTIAL_HEADERS_RECEIVED:
         DCHECK_EQ(OK, rv);
         rv = DoPartialHeadersReceived();
@@ -932,18 +939,34 @@ int HttpCache::Transaction::DoOverwriteCachedResponse() {
 
 int HttpCache::Transaction::DoTruncateCachedData() {
   next_state_ = STATE_TRUNCATE_CACHED_DATA_COMPLETE;
+  cache_callback_->AddRef();  // Balanced in DoTruncateCachedDataComplete.
   if (!entry_)
     return OK;
 
   // Truncate the stream.
-  int rv = WriteToEntry(kResponseContentIndex, 0, NULL, 0, NULL);
-  DCHECK(rv != ERR_IO_PENDING);
-  rv = WriteToEntry(kMetadataIndex, 0, NULL, 0, NULL);
-  DCHECK(rv != ERR_IO_PENDING);
-  return OK;
+  return WriteToEntry(kResponseContentIndex, 0, NULL, 0, cache_callback_);
 }
 
 int HttpCache::Transaction::DoTruncateCachedDataComplete(int result) {
+  // Balance the AddRef from DoTruncateCachedData.
+  cache_callback_->Release();
+  next_state_ = STATE_TRUNCATE_CACHED_METADATA;
+  return OK;
+}
+
+int HttpCache::Transaction::DoTruncateCachedMetadata() {
+  next_state_ = STATE_TRUNCATE_CACHED_METADATA_COMPLETE;
+  cache_callback_->AddRef();  // Balanced in DoTruncateCachedMetadataComplete.
+  if (!entry_)
+    return OK;
+
+  return WriteToEntry(kMetadataIndex, 0, NULL, 0, cache_callback_);
+}
+
+int HttpCache::Transaction::DoTruncateCachedMetadataComplete(int result) {
+  // Balance the AddRef from DoTruncateCachedMetadata.
+  cache_callback_->Release();
+
   // If this response is a redirect, then we can stop writing now.  (We don't
   // need to cache the response body of a redirect.)
   if (response_.headers->IsRedirect(NULL))
