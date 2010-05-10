@@ -133,6 +133,8 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_OVERWRITE_CACHED_RESPONSE,
     STATE_TRUNCATE_CACHED_DATA,
     STATE_TRUNCATE_CACHED_DATA_COMPLETE,
+    STATE_TRUNCATE_CACHED_METADATA,
+    STATE_TRUNCATE_CACHED_METADATA_COMPLETE,
     STATE_PARTIAL_HEADERS_RECEIVED,
     STATE_CACHE_READ_RESPONSE,
     STATE_CACHE_READ_RESPONSE_COMPLETE,
@@ -184,6 +186,8 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoOverwriteCachedResponse();
   int DoTruncateCachedData();
   int DoTruncateCachedDataComplete(int result);
+  int DoTruncateCachedMetadata();
+  int DoTruncateCachedMetadataComplete(int result);
   int DoPartialHeadersReceived();
   int DoCacheReadResponse();
   int DoCacheReadResponseComplete(int result);
