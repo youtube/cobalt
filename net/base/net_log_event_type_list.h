@@ -311,6 +311,27 @@ EVENT_TYPE(HTTP_CACHE_WAITING)
 // Measures the time taken to send the request to the server.
 EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST)
 
+// This event is sent for a HTTP request.
+// The following parameters are attached:
+//   {
+//     "line": <The HTTP request line>
+//     "headers": <The HTTP request headers>
+//   }
+EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST_HEADERS)
+
+// This event is sent for a tunnel request.
+// The following parameters are attached:
+//   {
+//     "line": <The HTTP request line>
+//     "headers":
+//     {
+//       "header1": "value1",
+//       ...
+//       "headerX": "valueX"
+//     }
+//   }
+EVENT_TYPE(HTTP_TRANSACTION_SEND_TUNNEL_HEADERS)
+
 // Measures the time to read HTTP response headers from the server.
 EVENT_TYPE(HTTP_TRANSACTION_READ_HEADERS)
 
