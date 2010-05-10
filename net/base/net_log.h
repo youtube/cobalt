@@ -31,9 +31,7 @@ namespace net {
 // ******** The NetLog (and associated logging) is a work in progress ********
 //
 // TODO(eroman): Remove the 'const' qualitifer from the BoundNetLog methods.
-// TODO(eroman): Remove NetLogUtil. Pretty printing should only be done from
-//               javascript, and should be very context-aware.
-// TODO(eroman): Make the DNS jobs emit directly into the NetLog.
+// TODO(eroman): Make the DNS jobs emit into the NetLog.
 // TODO(eroman): Start a new Source each time URLRequest redirects
 //               (simpler to reason about each as a separate entity).
 // TODO(eroman): Add the URLRequest load flags to the start entry.
