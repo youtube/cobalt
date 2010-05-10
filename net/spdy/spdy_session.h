@@ -91,7 +91,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
  private:
   friend class base::RefCounted<SpdySession>;
-  FRIEND_TEST(SpdySessionTest, DISABLED_GetPushStream);
+  FRIEND_TEST(SpdySessionTest, GetPushStream);
 
   enum State {
     IDLE,

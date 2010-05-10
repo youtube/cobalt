@@ -127,9 +127,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
 
   bool cancelled() const { return cancelled_; }
 
-  void set_response_info_pointer(HttpResponseInfo* response_info) {
-    response_ = response_info;
-  }
+  void SetPushResponse(HttpResponseInfo* response_info);
 
  private:
   friend class base::RefCounted<SpdyStream>;
@@ -192,7 +190,18 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // For cached responses, this time could be "far" in the past.
   base::Time request_time_;
 
+  // The push_response_ is the HTTP response data which is part of
+  // a server-initiated SYN_STREAM. If a client request comes in
+  // which matches the push stream, the data in push_response_ will
+  // be copied over to the response_ object owned by the caller
+  // of the request.
+  scoped_ptr<HttpResponseInfo> push_response_;
+
+  // response_ is the HTTP response data object which is filled in
+  // when a SYN_REPLY comes in for the stream. It is not owned by this
+  // stream object.
   HttpResponseInfo* response_;
+
   scoped_ptr<UploadDataStream> request_body_stream_;
 
   bool response_complete_;  // TODO(mbelshe): fold this into the io_state.
