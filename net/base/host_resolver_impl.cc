@@ -155,70 +155,24 @@ class HostResolverImpl::Request {
 
 //-----------------------------------------------------------------------------
 
-// Threadsafe log.
-class HostResolverImpl::RequestsTrace
-    : public base::RefCountedThreadSafe<HostResolverImpl::RequestsTrace> {
- public:
-  RequestsTrace() {}
-
-  void Add(const std::string& msg) {
-    CapturingNetLog::Entry entry(NetLog::TYPE_TODO_STRING,
-                                 base::TimeTicks::Now(),
-                                 NetLog::Source(),
-                                 NetLog::PHASE_NONE,
-                                 new NetLogStringParameter("todo", msg));
-    AutoLock l(lock_);
-    entries_.push_back(entry);
-  }
-
-  void Get(CapturingNetLog::EntryList* entries) {
-    AutoLock l(lock_);
-    *entries = entries_;
-  }
-
-  void Clear() {
-    AutoLock l(lock_);
-    entries_.clear();
-  }
-
- private:
-  Lock lock_;
-  CapturingNetLog::EntryList entries_;
-};
-
-//-----------------------------------------------------------------------------
-
 // This class represents a request to the worker pool for a "getaddrinfo()"
 // call.
 class HostResolverImpl::Job
     : public base::RefCountedThreadSafe<HostResolverImpl::Job> {
  public:
-  Job(int id, HostResolverImpl* resolver, const Key& key,
-      RequestsTrace* requests_trace)
+  Job(int id, HostResolverImpl* resolver, const Key& key)
       : id_(id),
         key_(key),
         resolver_(resolver),
         origin_loop_(MessageLoop::current()),
         resolver_proc_(resolver->effective_resolver_proc()),
-        requests_trace_(requests_trace),
         error_(OK),
         had_non_speculative_request_(false) {
-    if (requests_trace_) {
-      requests_trace_->Add(StringPrintf(
-          "Created job j%d for {hostname='%s', address_family=%d}",
-          id_, key.hostname.c_str(),
-          static_cast<int>(key.address_family)));
-    }
   }
 
   // Attaches a request to this job. The job takes ownership of |req| and will
   // take care to delete it.
   void AddRequest(Request* req) {
-    if (requests_trace_) {
-      requests_trace_->Add(StringPrintf(
-          "Attached request r%d to job j%d", req->id(), id_));
-    }
-
     req->set_job(this);
     requests_.push_back(req);
 
@@ -228,9 +182,6 @@ class HostResolverImpl::Job
 
   // Called from origin loop.
   void Start() {
-    if (requests_trace_)
-      requests_trace_->Add(StringPrintf("Starting job j%d", id_));
-
     start_time_ = base::TimeTicks::Now();
 
     // Dispatch the job to a worker thread.
@@ -251,9 +202,6 @@ class HostResolverImpl::Job
   void Cancel() {
     HostResolver* resolver = resolver_;
     resolver_ = NULL;
-
-    if (requests_trace_)
-      requests_trace_->Add(StringPrintf("Cancelled job j%d", id_));
 
     // Mark the job as cancelled, so when worker thread completes it will
     // not try to post completion to origin loop.
@@ -320,22 +268,12 @@ class HostResolverImpl::Job
   // objects (like MessageLoops, Singletons, etc). During shutdown these objects
   // may no longer exist.
   void DoLookup() {
-    if (requests_trace_) {
-      requests_trace_->Add(StringPrintf(
-          "[resolver thread] Running job j%d", id_));
-    }
-
     // Running on the worker thread
     error_ = ResolveAddrInfo(resolver_proc_,
                              key_.hostname,
                              key_.address_family,
                              key_.host_resolver_flags,
                              &results_);
-
-    if (requests_trace_) {
-      requests_trace_->Add(StringPrintf(
-          "[resolver thread] Completed job j%d", id_));
-    }
 
     // The origin loop could go away while we are trying to post to it, so we
     // need to call its PostTask method inside a lock.  See ~HostResolver.
@@ -357,13 +295,6 @@ class HostResolverImpl::Job
     DCHECK(error_ || results_.head());
 
     base::TimeDelta job_duration = base::TimeTicks::Now() - start_time_;
-
-    if (requests_trace_) {
-      requests_trace_->Add(StringPrintf(
-          "Completing job j%d (took %d milliseconds)",
-          id_,
-          static_cast<int>(job_duration.InMilliseconds())));
-    }
 
     if (had_non_speculative_request_) {
       // TODO(eroman): Add histogram for job times of non-speculative
@@ -402,9 +333,6 @@ class HostResolverImpl::Job
   // ResolveAddrInfo, but that's OK... we'll use it anyways, and the owning
   // reference ensures that it remains valid until we are done.
   scoped_refptr<HostResolverProc> resolver_proc_;
-
-  // Thread safe log to write details into, or NULL.
-  scoped_refptr<RequestsTrace> requests_trace_;
 
   // Assigned on the worker thread, read on the origin thread.
   int error_;
@@ -868,72 +796,6 @@ void HostResolverImpl::Shutdown() {
   DiscardIPv6ProbeJob();
 }
 
-void HostResolverImpl::ClearRequestsTrace() {
-  if (requests_trace_)
-    requests_trace_->Clear();
-}
-
-void HostResolverImpl::EnableRequestsTracing(bool enable) {
-  requests_trace_ = enable ? new RequestsTrace : NULL;
-  if (enable) {
-    // Print the state of the world when logging was started.
-    requests_trace_->Add("Enabled tracing");
-    requests_trace_->Add(StringPrintf(
-        "Current num outstanding jobs: %d",
-        static_cast<int>(jobs_.size())));
-
-    // Dump all of the outstanding jobs.
-    if (!jobs_.empty()) {
-      for (JobMap::iterator job_it = jobs_.begin();
-           job_it != jobs_.end(); ++job_it) {
-        Job* job = job_it->second;
-
-        requests_trace_->Add(StringPrintf(
-            "Outstanding job j%d for {host='%s', address_family=%d}, "
-            "which was started at t=%d",
-            job->id(),
-            job->key().hostname.c_str(),
-            static_cast<int>(job->key().address_family),
-            static_cast<int>((job->start_time() - base::TimeTicks())
-                .InMilliseconds())));
-
-        // Dump all of the requests attached to this job.
-        for (RequestsList::const_iterator req_it = job->requests().begin();
-             req_it != job->requests().end(); ++req_it) {
-          Request* req = *req_it;
-            requests_trace_->Add(StringPrintf(
-              "  %sOutstanding request r%d is attached to job j%d "
-              "{priority=%d, speculative=%d, referrer='%s'}",
-              req->was_cancelled() ? "[CANCELLED] " : "",
-              req->id(),
-              job->id(),
-              static_cast<int>(req->info().priority()),
-              static_cast<int>(req->info().is_speculative()),
-              req->info().referrer().spec().c_str()));
-        }
-      }
-    }
-
-    size_t total = 0u;
-    for (size_t i = 0; i < arraysize(job_pools_); ++i)
-      total += job_pools_[i]->GetNumPendingRequests();
-
-    requests_trace_->Add(StringPrintf(
-        "Number of queued requests: %d", static_cast<int>(total)));
-  }
-}
-
-bool HostResolverImpl::IsRequestsTracingEnabled() const {
-  return !!requests_trace_;  // Cast to bool.
-}
-
-bool HostResolverImpl::GetRequestsTrace(CapturingNetLog::EntryList* entries) {
-  if (!requests_trace_)
-    return false;
-  requests_trace_->Get(entries);
-  return true;
-}
-
 void HostResolverImpl::SetPoolConstraints(JobPoolIndex pool_index,
                                           size_t max_outstanding_jobs,
                                           size_t max_pending_requests) {
@@ -1014,20 +876,6 @@ void HostResolverImpl::OnStartRequest(const BoundNetLog& net_log,
                                       const RequestInfo& info) {
   net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL, NULL);
 
-  if (requests_trace_) {
-    requests_trace_->Add(StringPrintf(
-        "Received request r%d for {hostname='%s', port=%d, priority=%d, "
-        "speculative=%d, address_family=%d, allow_cached=%d, referrer='%s'}",
-         request_id,
-         info.hostname().c_str(),
-         info.port(),
-         static_cast<int>(info.priority()),
-         static_cast<int>(info.is_speculative()),
-         static_cast<int>(info.address_family()),
-         static_cast<int>(info.allow_cached_response()),
-         info.referrer().spec().c_str()));
-  }
-
   // Notify the observers of the start.
   if (!observers_.empty()) {
     net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART, NULL);
@@ -1045,11 +893,6 @@ void HostResolverImpl::OnFinishRequest(const BoundNetLog& net_log,
                                        int request_id,
                                        const RequestInfo& info,
                                        int error) {
-  if (requests_trace_) {
-    requests_trace_->Add(StringPrintf(
-        "Finished request r%d with error=%d", request_id, error));
-  }
-
   // Notify the observers of the completion.
   if (!observers_.empty()) {
     net_log.BeginEvent(NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH, NULL);
@@ -1070,9 +913,6 @@ void HostResolverImpl::OnCancelRequest(const BoundNetLog& net_log,
                                        int request_id,
                                        const RequestInfo& info) {
   net_log.AddEvent(NetLog::TYPE_CANCELLED, NULL);
-
-  if (requests_trace_)
-    requests_trace_->Add(StringPrintf("Cancelled request r%d", request_id));
 
   // Notify the observers of the cancellation.
   if (!observers_.empty()) {
@@ -1176,7 +1016,7 @@ HostResolverImpl::Key HostResolverImpl::GetEffectiveKeyForRequest(
 HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {
   DCHECK(CanCreateJobForPool(*GetPoolForRequest(req)));
   Key key = GetEffectiveKeyForRequest(req->info());
-  scoped_refptr<Job> job = new Job(next_job_id_++, this, key, requests_trace_);
+  scoped_refptr<Job> job = new Job(next_job_id_++, this, key);
   job->AddRequest(req);
   AddOutstandingJob(job);
   job->Start();
@@ -1184,9 +1024,6 @@ HostResolverImpl::Job* HostResolverImpl::CreateAndStartJob(Request* req) {
 }
 
 int HostResolverImpl::EnqueueRequest(JobPool* pool, Request* req) {
-  if (requests_trace_)
-    requests_trace_->Add(StringPrintf("Queued request r%d", req->id()));
-
   scoped_ptr<Request> req_evicted_from_queue(
       pool->InsertPendingRequest(req));
 
@@ -1194,9 +1031,6 @@ int HostResolverImpl::EnqueueRequest(JobPool* pool, Request* req) {
   if (req_evicted_from_queue.get()) {
     Request* r = req_evicted_from_queue.get();
     int error = ERR_HOST_RESOLVER_QUEUE_TOO_LARGE;
-
-    if (requests_trace_)
-      requests_trace_->Add(StringPrintf("Evicted request r%d", r->id()));
 
     OnFinishRequest(r->net_log(), r->id(), r->info(), error);
 
