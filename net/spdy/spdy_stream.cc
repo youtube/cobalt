@@ -62,6 +62,13 @@ const HttpResponseInfo* SpdyStream::GetResponseInfo() const {
   return response_;
 }
 
+void SpdyStream::SetPushResponse(HttpResponseInfo* response_info) {
+  DCHECK(!response_);
+  DCHECK(!push_response_.get());
+  push_response_.reset(response_info);
+  response_ = response_info;
+}
+
 const HttpRequestInfo* SpdyStream::GetRequestInfo() const {
   return &request_;
 }
@@ -153,10 +160,22 @@ int SpdyStream::SendRequest(UploadDataStream* upload_data,
   CHECK(!cancelled_);
   CHECK(response);
 
-  if (response_) {
-    *response = *response_;
-    delete response_;
+  // SendRequest can be called in two cases.
+  //
+  // a) A client initiated request. In this case, response_ should be NULL
+  //    to start with.
+  // b) A client request which matches a response that the server has already
+  //    pushed. In this case, the value of |*push_response_| is copied over to
+  //    the new response object |*response|. |push_response_| is cleared
+  //    and |*push_response_| is deleted, and |response_| is reset to
+  //    |response|.
+  if (push_response_.get()) {
+    *response = *push_response_;
+    push_response_.reset(NULL);
+    response_ = NULL;
   }
+
+  DCHECK_EQ(static_cast<HttpResponseInfo*>(NULL), response_);
   response_ = response;
 
   if (upload_data) {
