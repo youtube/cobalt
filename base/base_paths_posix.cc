@@ -7,6 +7,10 @@
 #include "base/base_paths.h"
 
 #include <unistd.h>
+#if defined(OS_FREEBSD)
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#endif
 
 #include "base/env_var.h"
 #include "base/file_path.h"
@@ -23,8 +27,6 @@ namespace base {
 const char kSelfExe[] = "/proc/self/exe";
 #elif defined(OS_SOLARIS)
 const char kSelfExe[] = getexecname();
-#elif defined(OS_FREEBSD)
-const char kSelfExe[] = "/proc/curproc/file";
 #endif
 
 bool PathProviderPosix(int key, FilePath* result) {
@@ -32,6 +34,7 @@ bool PathProviderPosix(int key, FilePath* result) {
   switch (key) {
     case base::FILE_EXE:
     case base::FILE_MODULE: {  // TODO(evanm): is this correct?
+#if defined(OS_LINUX)
       char bin_dir[PATH_MAX + 1];
       int bin_dir_size = readlink(kSelfExe, bin_dir, PATH_MAX);
       if (bin_dir_size < 0 || bin_dir_size > PATH_MAX) {
@@ -41,6 +44,19 @@ bool PathProviderPosix(int key, FilePath* result) {
       bin_dir[bin_dir_size] = 0;
       *result = FilePath(bin_dir);
       return true;
+#elif defined(OS_FREEBSD)
+      int name[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+      char bin_dir[PATH_MAX + 1];
+      size_t length = sizeof(bin_dir);
+      int error = sysctl(name, 4, bin_dir, &length, NULL, 0);
+      if (error < 0 || length == 0 || strlen(bin_dir) == 0) {
+        NOTREACHED() << "Unable to resolve path.";
+        return false;
+      }
+      bin_dir[strlen(bin_dir)] = 0;
+      *result = FilePath(bin_dir);
+      return true;
+#endif
     }
     case base::DIR_SOURCE_ROOT: {
       // Allow passing this in the environment, for more flexibility in build
