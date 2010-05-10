@@ -189,7 +189,7 @@ static const char* const supported_media_types[] = {
   "audio/ogg",
   "application/ogg",
 
-#if defined(GOOGLE_CHROME_BUILD)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
   // MPEG-4.
   "video/mp4",
   "video/x-m4v",
@@ -208,7 +208,7 @@ static const char* const supported_media_types[] = {
 // Refer to http://wiki.whatwg.org/wiki/Video_type_parameters#Browser_Support
 // for more information.
 static const char* const supported_media_codecs[] = {
-#if defined(GOOGLE_CHROME_BUILD)
+#if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
   "avc1",
   "mp4a",
 #endif
