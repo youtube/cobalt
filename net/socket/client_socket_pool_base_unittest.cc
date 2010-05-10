@@ -830,6 +830,31 @@ TEST_F(ClientSocketPoolBaseTest, CorrectlyCountStalledGroups) {
   EXPECT_EQ(kDefaultMaxSockets + 2, client_socket_factory_.allocation_count());
 }
 
+TEST_F(ClientSocketPoolBaseTest, StallAndThenCancelAndTriggerAvailableSocket) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle, "a", kDefaultPriority, &callback, pool_,
+                       BoundNetLog()));
+
+  ClientSocketHandle handles[4];
+  for (size_t i = 0; i < arraysize(handles); ++i) {
+    TestCompletionCallback callback;
+    EXPECT_EQ(ERR_IO_PENDING,
+              InitHandle(&handles[i], "b", kDefaultPriority, &callback, pool_,
+                         BoundNetLog()));
+  }
+
+  // One will be stalled, cancel all the handles now.
+  // This should hit the OnAvailableSocketSlot() code where we previously had
+  // stalled groups, but no longer have any.
+  for (size_t i = 0; i < arraysize(handles); ++i)
+    handles[i].Reset();
+}
+
 TEST_F(ClientSocketPoolBaseTest, PendingRequests) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
 
@@ -1453,6 +1478,70 @@ TEST_F(ClientSocketPoolBaseTest, MultipleReleasingDisconnectedSockets) {
   EXPECT_FALSE(req3.handle()->is_reused());
   EXPECT_EQ(OK, req4.WaitForResult());
   EXPECT_FALSE(req4.handle()->is_reused());
+}
+
+// Regression test for http://crbug.com/42267.
+// When DoReleaseSocket() is processed for one socket, it is blocked because the
+// other stalled groups all have releasing sockets, so no progress can be made.
+TEST_F(ClientSocketPoolBaseTest, SocketLimitReleasingSockets) {
+  CreatePoolWithIdleTimeouts(
+      4 /* socket limit */, 4 /* socket limit per group */,
+      base::TimeDelta(),  // Time out unused sockets immediately.
+      base::TimeDelta::FromDays(1));  // Don't time out used sockets.
+
+  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
+
+  // Max out the socket limit with 2 per group.
+
+  scoped_ptr<TestSocketRequest> req_a[4];
+  scoped_ptr<TestSocketRequest> req_b[4];
+
+  for (int i = 0; i < 2; ++i) {
+    req_a[i].reset(new TestSocketRequest(&request_order_, &completion_count_));
+    req_b[i].reset(new TestSocketRequest(&request_order_, &completion_count_));
+    EXPECT_EQ(OK,
+              InitHandle(req_a[i]->handle(), "a", LOWEST, req_a[i].get(), pool_,
+                         BoundNetLog()));
+    EXPECT_EQ(OK,
+              InitHandle(req_b[i]->handle(), "b", LOWEST, req_b[i].get(), pool_,
+                         BoundNetLog()));
+  }
+  
+  // Make 4 pending requests, 2 per group.
+
+  for (int i = 2; i < 4; ++i) {
+    req_a[i].reset(new TestSocketRequest(&request_order_, &completion_count_));
+    req_b[i].reset(new TestSocketRequest(&request_order_, &completion_count_));
+    EXPECT_EQ(ERR_IO_PENDING,
+              InitHandle(req_a[i]->handle(), "a", LOWEST, req_a[i].get(), pool_,
+                         BoundNetLog()));
+    EXPECT_EQ(ERR_IO_PENDING,
+              InitHandle(req_b[i]->handle(), "b", LOWEST, req_b[i].get(), pool_,
+                         BoundNetLog()));
+  }
+
+  // Release b's socket first.  The order is important, because in
+  // DoReleaseSocket(), we'll process b's released socket, and since both b and
+  // a are stalled, but 'a' is lower lexicographically, we'll process group 'a'
+  // first, which has a releasing socket, so it refuses to start up another
+  // ConnectJob.  So, we used to infinite loop on this.
+  req_b[0]->handle()->socket()->Disconnect();
+  req_b[0]->handle()->Reset();
+  req_a[0]->handle()->socket()->Disconnect();
+  req_a[0]->handle()->Reset();
+
+  // Used to get stuck here.
+  MessageLoop::current()->RunAllPending();
+
+  req_b[1]->handle()->socket()->Disconnect();
+  req_b[1]->handle()->Reset();
+  req_a[1]->handle()->socket()->Disconnect();
+  req_a[1]->handle()->Reset();
+
+  for (int i = 2; i < 4; ++i) {
+    EXPECT_EQ(OK, req_b[i]->WaitForResult());
+    EXPECT_EQ(OK, req_a[i]->WaitForResult());
+  }
 }
 
 TEST_F(ClientSocketPoolBaseTest,
