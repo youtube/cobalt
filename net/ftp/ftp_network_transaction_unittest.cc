@@ -150,15 +150,25 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
   MockWriteResult Verify(const std::string& expected,
                          const std::string& data,
                          State next_state,
-                         const char* next_read) {
+                         const char* next_read,
+                         const size_t next_read_length) {
     EXPECT_EQ(expected, data);
     if (expected == data) {
       state_ = next_state;
-      SimulateRead(next_read);
+      SimulateRead(next_read, next_read_length);
       return MockWriteResult(true, data.length());
     }
     return MockWriteResult(true, ERR_UNEXPECTED);
   }
+
+  MockWriteResult Verify(const std::string& expected,
+                         const std::string& data,
+                         State next_state,
+                         const char* next_read) {
+    return Verify(expected, data, next_state,
+                  next_read, std::strlen(next_read));
+  }
+
 
  private:
   State state_;
@@ -552,18 +562,26 @@ class FtpSocketDataProviderFileDownloadRetrFail
 
 class FtpSocketDataProviderEvilEpsv : public FtpSocketDataProviderFileDownload {
  public:
-  explicit FtpSocketDataProviderEvilEpsv(const char* epsv_response,
-                                         State expected_state)
+  FtpSocketDataProviderEvilEpsv(const char* epsv_response,
+                                State expected_state)
       : epsv_response_(epsv_response),
-        expected_state_(expected_state) {
-  }
+        epsv_response_length_(std::strlen(epsv_response)),
+        expected_state_(expected_state) {}
+
+  FtpSocketDataProviderEvilEpsv(const char* epsv_response,
+                               size_t epsv_response_length,
+                               State expected_state)
+      : epsv_response_(epsv_response),
+        epsv_response_length_(epsv_response_length),
+        expected_state_(expected_state) {}
 
   virtual MockWriteResult OnWrite(const std::string& data) {
     if (InjectFault())
       return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_EPSV:
-        return Verify("EPSV\r\n", data, expected_state_, epsv_response_);
+        return Verify("EPSV\r\n", data, expected_state_,
+                      epsv_response_, epsv_response_length_);
       default:
         return FtpSocketDataProviderFileDownload::OnWrite(data);
     }
@@ -571,6 +589,7 @@ class FtpSocketDataProviderEvilEpsv : public FtpSocketDataProviderFileDownload {
 
  private:
   const char* epsv_response_;
+  const size_t epsv_response_length_;
   const State expected_state_;
 
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderEvilEpsv);
@@ -1007,9 +1026,10 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilEpsvReallyBadFormat4) {
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilEpsvReallyBadFormat5) {
-  FtpSocketDataProviderEvilEpsv ctrl_socket("227 Portscan (\0\0\031773\0)\r\n",
+  const char response[] = "227 Portscan (\0\0\031773\0)\r\n";
+  FtpSocketDataProviderEvilEpsv ctrl_socket(response, sizeof(response)-1,
                                             FtpSocketDataProvider::PRE_QUIT);
-  ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_UNEXPECTED);
+  ExecuteTransaction(&ctrl_socket, "ftp://host/file", ERR_INVALID_RESPONSE);
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionEvilEpsvUnsafePort1) {

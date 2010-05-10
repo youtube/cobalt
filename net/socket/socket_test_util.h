@@ -5,6 +5,7 @@
 #ifndef NET_SOCKET_SOCKET_TEST_UTIL_H_
 #define NET_SOCKET_SOCKET_TEST_UTIL_H_
 
+#include <cstring>
 #include <deque>
 #include <string>
 #include <vector>
@@ -211,7 +212,10 @@ class DynamicSocketDataProvider : public SocketDataProvider {
  protected:
   // The next time there is a read from this socket, it will return |data|.
   // Before calling SimulateRead next time, the previous data must be consumed.
-  void SimulateRead(const char* data);
+  void SimulateRead(const char* data, size_t length);
+  void SimulateRead(const char* data) {
+    SimulateRead(data, std::strlen(data));
+  }
 
  private:
   std::deque<MockRead> reads_;

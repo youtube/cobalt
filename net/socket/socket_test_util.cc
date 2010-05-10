@@ -475,11 +475,12 @@ void DynamicSocketDataProvider::Reset() {
   reads_.clear();
 }
 
-void DynamicSocketDataProvider::SimulateRead(const char* data) {
+void DynamicSocketDataProvider::SimulateRead(const char* data,
+                                             const size_t length) {
   if (!allow_unconsumed_reads_) {
     EXPECT_TRUE(reads_.empty()) << "Unconsumed read: " << reads_.front().data;
   }
-  reads_.push_back(MockRead(data));
+  reads_.push_back(MockRead(true, data, length));
 }
 
 DelayedSocketData::DelayedSocketData(
