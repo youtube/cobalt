@@ -105,17 +105,6 @@ class HostResolverImpl : public HostResolver,
   // Returns the cache this resolver uses, or NULL if caching is disabled.
   HostCache* cache() { return cache_.get(); }
 
-  // Clears the request trace log.
-  void ClearRequestsTrace();
-
-  // Starts/ends capturing requests to a trace log.
-  void EnableRequestsTracing(bool enable);
-
-  bool IsRequestsTracingEnabled() const;
-
-  // Gets a copy of the requests trace log.
-  bool GetRequestsTrace(CapturingNetLog::EntryList* entries);
-
   // Applies a set of constraints for requests that belong to the specified
   // pool. NOTE: Don't call this after requests have been already been started.
   //
@@ -136,7 +125,6 @@ class HostResolverImpl : public HostResolver,
   class JobPool;
   class IPv6ProbeJob;
   class Request;
-  class RequestsTrace;
   typedef std::vector<Request*> RequestsList;
   typedef HostCache::Key Key;
   typedef std::map<Key, scoped_refptr<Job> > JobMap;
@@ -255,8 +243,6 @@ class HostResolverImpl : public HostResolver,
   bool shutdown_;
 
   NetworkChangeNotifier* const network_change_notifier_;
-
-  scoped_refptr<RequestsTrace> requests_trace_;
 
   // Indicate if probing is done after each network change event to set address
   // family.
