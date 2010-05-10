@@ -11,7 +11,6 @@
 #include "net/disk_cache/cache_util.h"
 #include "net/disk_cache/file_lock.h"
 
-using base::Time;
 using base::TimeTicks;
 
 namespace {
