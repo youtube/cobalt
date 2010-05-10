@@ -189,6 +189,10 @@
     # Whether usage of OpenMAX is enabled.
     'enable_openmax%': 0,
 
+    # Whether proprietary audio/video codecs are assumed to be included with
+    # this build (only meaningful if branding!=Chrome).
+    'proprietary_codecs%': 0,
+
     # TODO(bradnelson): eliminate this when possible.
     # To allow local gyp files to prevent release.vsprops from being included.
     # Yes(1) means include release.vsprops.
@@ -399,6 +403,9 @@
       }],
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
+      }],
+      ['proprietary_codecs==1', {
+        'defines': ['USE_PROPRIETARY_CODECS'],
       }],
       ['fastbuild!=0', {
         'conditions': [
