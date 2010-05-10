@@ -111,6 +111,7 @@ class MockDiskEntry : public disk_cache::Entry,
   virtual int ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
                        net::CompletionCallback* callback) {
     DCHECK(index >= 0 && index < kNumCacheEntryDataIndices);
+    DCHECK(callback);
 
     if (fail_requests_)
       return net::ERR_CACHE_READ_FAILURE;
@@ -123,8 +124,7 @@ class MockDiskEntry : public disk_cache::Entry,
     int num = std::min(buf_len, static_cast<int>(data_[index].size()) - offset);
     memcpy(buf->data(), &data_[index][offset], num);
 
-    if (!callback ||
-        (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_READ))
+    if (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_READ)
       return num;
 
     CallbackLater(callback, num);
@@ -134,6 +134,7 @@ class MockDiskEntry : public disk_cache::Entry,
   virtual int WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
                         net::CompletionCallback* callback, bool truncate) {
     DCHECK(index >= 0 && index < kNumCacheEntryDataIndices);
+    DCHECK(callback);
     DCHECK(truncate);
 
     if (fail_requests_)
@@ -146,8 +147,7 @@ class MockDiskEntry : public disk_cache::Entry,
     if (buf_len)
       memcpy(&data_[index][offset], buf->data(), buf_len);
 
-    if (!callback ||
-        (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_WRITE))
+    if (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_WRITE)
       return buf_len;
 
     CallbackLater(callback, buf_len);
@@ -155,7 +155,8 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                             net::CompletionCallback* completion_callback) {
+                             net::CompletionCallback* callback) {
+    DCHECK(callback);
     if (!sparse_ || busy_)
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
     if (offset < 0)
@@ -173,18 +174,18 @@ class MockDiskEntry : public disk_cache::Entry,
                        buf_len);
     memcpy(buf->data(), &data_[1][real_offset], num);
 
-    if (!completion_callback ||
-        (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_READ))
+    if (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_READ)
       return num;
 
-    CallbackLater(completion_callback, num);
+    CallbackLater(callback, num);
     busy_ = true;
     delayed_ = false;
     return net::ERR_IO_PENDING;
   }
 
   virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* completion_callback) {
+                              net::CompletionCallback* callback) {
+    DCHECK(callback);
     if (busy_)
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
     if (!sparse_) {
@@ -207,11 +208,10 @@ class MockDiskEntry : public disk_cache::Entry,
       data_[1].resize(real_offset + buf_len);
 
     memcpy(&data_[1][real_offset], buf->data(), buf_len);
-    if (!completion_callback ||
-        (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_WRITE))
+    if (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_WRITE)
       return buf_len;
 
-    CallbackLater(completion_callback, buf_len);
+    CallbackLater(callback, buf_len);
     return net::ERR_IO_PENDING;
   }
 
@@ -380,6 +380,7 @@ class MockDiskCache : public disk_cache::Backend {
 
   virtual int OpenEntry(const std::string& key, disk_cache::Entry** entry,
                         net::CompletionCallback* callback) {
+    DCHECK(callback);
     if (fail_requests_)
       return net::ERR_CACHE_OPEN_FAILURE;
 
@@ -401,7 +402,7 @@ class MockDiskCache : public disk_cache::Backend {
     if (soft_failures_)
       it->second->set_fail_requests();
 
-    if (!callback || (GetTestModeForEntry(key) & TEST_MODE_SYNC_CACHE_START))
+    if (GetTestModeForEntry(key) & TEST_MODE_SYNC_CACHE_START)
       return net::OK;
 
     CallbackLater(callback, net::OK);
@@ -415,6 +416,7 @@ class MockDiskCache : public disk_cache::Backend {
 
   virtual int CreateEntry(const std::string& key, disk_cache::Entry** entry,
                           net::CompletionCallback* callback) {
+    DCHECK(callback);
     if (fail_requests_)
       return net::ERR_CACHE_CREATE_FAILURE;
 
@@ -438,7 +440,7 @@ class MockDiskCache : public disk_cache::Backend {
     if (soft_failures_)
       new_entry->set_fail_requests();
 
-    if (!callback || (GetTestModeForEntry(key) & TEST_MODE_SYNC_CACHE_START))
+    if (GetTestModeForEntry(key) & TEST_MODE_SYNC_CACHE_START)
       return net::OK;
 
     CallbackLater(callback, net::OK);
@@ -451,6 +453,7 @@ class MockDiskCache : public disk_cache::Backend {
 
   virtual int DoomEntry(const std::string& key,
                         net::CompletionCallback* callback) {
+    DCHECK(callback);
     EntryMap::iterator it = entries_.find(key);
     if (it != entries_.end()) {
       it->second->Release();
@@ -564,6 +567,56 @@ class MockHttpCache {
   }
   MockDiskCache* disk_cache() {
     return static_cast<MockDiskCache*>(http_cache_.GetBackend());
+  }
+
+  // Helper function for reading response info from the disk cache.
+  static bool ReadResponseInfo(disk_cache::Entry* disk_entry,
+                               net::HttpResponseInfo* response_info,
+                               bool* response_truncated) {
+    int size = disk_entry->GetDataSize(0);
+
+    TestCompletionCallback cb;
+    scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(size);
+    int rv = disk_entry->ReadData(0, 0, buffer, size, &cb);
+    rv = cb.GetResult(rv);
+    EXPECT_EQ(size, rv);
+
+    return net::HttpCache::ParseResponseInfo(buffer->data(), size,
+                                             response_info,
+                                             response_truncated);
+  }
+
+  // Helper function for writing response info into the disk cache.
+  static bool WriteResponseInfo(disk_cache::Entry* disk_entry,
+                                const net::HttpResponseInfo* response_info,
+                                bool skip_transient_headers,
+                                bool response_truncated) {
+    Pickle pickle;
+    response_info->Persist(
+        &pickle, skip_transient_headers, response_truncated);
+
+    TestCompletionCallback cb;
+    scoped_refptr<net::WrappedIOBuffer> data = new net::WrappedIOBuffer(
+        reinterpret_cast<const char*>(pickle.data()));
+    int len = static_cast<int>(pickle.size());
+
+    int rv =  disk_entry->WriteData(0, 0, data, len, &cb, true);
+    rv = cb.GetResult(rv);
+    return (rv == len);
+  }
+
+  // Helper function to synchronously open a backend entry.
+  bool OpenBackendEntry(const std::string& key, disk_cache::Entry** entry) {
+    TestCompletionCallback cb;
+    int rv = disk_cache()->OpenEntry(key, entry, &cb);
+    return (cb.GetResult(rv) == net::OK);
+  }
+
+  // Helper function to synchronously create a backend entry.
+  bool CreateBackendEntry(const std::string& key, disk_cache::Entry** entry) {
+    TestCompletionCallback cb;
+    int rv = disk_cache()->CreateEntry(key, entry, &cb);
+    return (cb.GetResult(rv) == net::OK);
   }
 
  private:
@@ -1151,8 +1204,7 @@ TEST(HttpCache, SimpleGETWithDiskFailures2) {
 
   // We have to open the entry again to propagate the failure flag.
   disk_cache::Entry* en;
-  ASSERT_EQ(net::OK, cache.disk_cache()->OpenEntry(kSimpleGET_Transaction.url,
-                                                   &en, NULL));
+  ASSERT_TRUE(cache.OpenBackendEntry(kSimpleGET_Transaction.url, &en));
   en->Close();
 
   ReadAndVerifyTransaction(c->trans.get(), kSimpleGET_Transaction);
@@ -3044,8 +3096,7 @@ TEST(HttpCache, GET_Previous206_NotSparse) {
 
   // Create a disk cache entry that stores 206 headers while not being sparse.
   disk_cache::Entry* entry;
-  ASSERT_EQ(net::OK, cache.disk_cache()->CreateEntry(kSimpleGET_Transaction.url,
-                                                     &entry, NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kSimpleGET_Transaction.url, &entry));
 
   std::string raw_headers(kRangeGET_TransactionOK.status);
   raw_headers.append("\n");
@@ -3055,12 +3106,14 @@ TEST(HttpCache, GET_Previous206_NotSparse) {
 
   net::HttpResponseInfo response;
   response.headers = new net::HttpResponseHeaders(raw_headers);
-  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, false));
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, false));
 
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            kRangeGET_TransactionOK.data, 500));
-  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+  TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
 
   // Now see that we don't use the stored entry.
@@ -3087,9 +3140,7 @@ TEST(HttpCache, RangeGET_Previous206_NotSparse_2) {
 
   // Create a disk cache entry that stores 206 headers while not being sparse.
   disk_cache::Entry* entry;
-  ASSERT_EQ(net::OK,
-            cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url,
-                                            &entry, NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   std::string raw_headers(kRangeGET_TransactionOK.status);
   raw_headers.append("\n");
@@ -3099,12 +3150,14 @@ TEST(HttpCache, RangeGET_Previous206_NotSparse_2) {
 
   net::HttpResponseInfo response;
   response.headers = new net::HttpResponseHeaders(raw_headers);
-  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, false));
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, false));
 
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(500));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            kRangeGET_TransactionOK.data, 500));
-  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+  TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
 
   // Now see that we don't use the stored entry.
@@ -3277,8 +3330,7 @@ TEST(HttpCache, RangeGET_Cancel) {
 
   // Verify that the entry has not been deleted.
   disk_cache::Entry* entry;
-  ASSERT_EQ(net::OK, cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url,
-                                                   &entry, NULL));
+  ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
   entry->Close();
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
@@ -3412,8 +3464,7 @@ TEST(HttpCache, RangeGET_InvalidResponse1) {
 
   // Verify that we don't have a cached entry.
   disk_cache::Entry* entry;
-  EXPECT_NE(net::OK, cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url,
-                                                   &entry, NULL));
+  EXPECT_FALSE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
@@ -3442,8 +3493,7 @@ TEST(HttpCache, RangeGET_InvalidResponse2) {
 
   // Verify that we don't have a cached entry.
   disk_cache::Entry* entry;
-  EXPECT_NE(net::OK, cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url,
-                                                   &entry, NULL));
+  EXPECT_FALSE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 }
@@ -3484,8 +3534,7 @@ TEST(HttpCache, RangeGET_InvalidResponse3) {
 
   // Verify that we cached the first response but not the second one.
   disk_cache::Entry* en;
-  ASSERT_EQ(net::OK, cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url,
-                                                   &en, NULL));
+  ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &en));
   int64 cached_start = 0;
   EXPECT_EQ(10, en->GetAvailableRange(40, 20, &cached_start));
   EXPECT_EQ(50, cached_start);
@@ -3522,7 +3571,7 @@ TEST(HttpCache, RangeGET_LargeValues) {
 
   // Verify that we have a cached entry.
   disk_cache::Entry* en;
-  ASSERT_TRUE(cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url, &en));
+  ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &en));
   en->Close();
 
   RemoveMockTransaction(&kRangeGET_TransactionOK);
@@ -3674,8 +3723,7 @@ TEST(HttpCache, RangeGET_OK_LoadOnlyFromCache) {
 TEST(HttpCache, WriteResponseInfo_Truncated) {
   MockHttpCache cache;
   disk_cache::Entry* entry;
-  ASSERT_EQ(net::OK, cache.disk_cache()->CreateEntry("http://www.google.com",
-                                                     &entry, NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry("http://www.google.com", &entry));
 
   std::string headers("HTTP/1.1 200 OK");
   headers = net::HttpUtil::AssembleRawHeaders(headers.data(), headers.size());
@@ -3683,15 +3731,15 @@ TEST(HttpCache, WriteResponseInfo_Truncated) {
   response.headers = new net::HttpResponseHeaders(headers);
 
   // Set the last argument for this to be an incomplete request.
-  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
   bool truncated = false;
-  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_TRUE(truncated);
 
   // And now test the opposite case.
-  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, false));
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, false));
   truncated = true;
-  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_FALSE(truncated);
   entry->Close();
 }
@@ -3861,11 +3909,10 @@ TEST(HttpCache, Set_Truncated_Flag) {
 
   // Verify that the entry is marked as incomplete.
   disk_cache::Entry* entry;
-  ASSERT_EQ(net::OK, cache.disk_cache()->OpenEntry(kSimpleGET_Transaction.url,
-                                                   &entry, NULL));
+  ASSERT_TRUE(cache.OpenBackendEntry(kSimpleGET_Transaction.url, &entry));
   net::HttpResponseInfo response;
   bool truncated = false;
-  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_TRUE(truncated);
   entry->Close();
 
@@ -3880,9 +3927,7 @@ TEST(HttpCache, GET_IncompleteResource) {
 
   // Create a disk cache entry that stores an incomplete resource.
   disk_cache::Entry* entry;
-  ASSERT_EQ(net::OK,
-            cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url, &entry,
-                                            NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   std::string raw_headers("HTTP/1.1 200 OK\n"
                           "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
@@ -3895,12 +3940,14 @@ TEST(HttpCache, GET_IncompleteResource) {
   net::HttpResponseInfo response;
   response.headers = new net::HttpResponseHeaders(raw_headers);
   // Set the last argument for this to be an incomplete request.
-  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
 
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            "rg: 00-09 rg: 10-19 ", 100));
-  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+  TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  EXPECT_EQ(len, cb.GetResult(rv));
 
   // Now make a regular request.
   std::string headers;
@@ -3928,7 +3975,7 @@ TEST(HttpCache, GET_IncompleteResource) {
   // Verify that the disk entry was updated.
   EXPECT_EQ(80, entry->GetDataSize(1));
   bool truncated = true;
-  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_FALSE(truncated);
   entry->Close();
 }
@@ -3941,9 +3988,7 @@ TEST(HttpCache, GET_IncompleteResource2) {
 
   // Create a disk cache entry that stores an incomplete resource.
   disk_cache::Entry* entry;
-  ASSERT_EQ(net::OK,
-            cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url, &entry,
-                                            NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
 
   // Content-length will be intentionally bad.
@@ -3958,12 +4003,14 @@ TEST(HttpCache, GET_IncompleteResource2) {
   net::HttpResponseInfo response;
   response.headers = new net::HttpResponseHeaders(raw_headers);
   // Set the last argument for this to be an incomplete request.
-  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
 
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            "rg: 00-09 rg: 10-19 ", 100));
-  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+  TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
 
   // Now make a regular request.
@@ -3989,8 +4036,7 @@ TEST(HttpCache, GET_IncompleteResource2) {
   RemoveMockTransaction(&kRangeGET_TransactionOK);
 
   // Verify that the disk entry was deleted.
-  ASSERT_NE(net::OK, cache.disk_cache()->OpenEntry(kRangeGET_TransactionOK.url,
-                                                   &entry, NULL));
+  ASSERT_FALSE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &entry));
 }
 
 // Tests that when we cancel a request that was interrupted, we mark it again
@@ -4002,9 +4048,7 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
 
   // Create a disk cache entry that stores an incomplete resource.
   disk_cache::Entry* entry;
-  ASSERT_EQ(net::OK,
-            cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url, &entry,
-                                            NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   std::string raw_headers("HTTP/1.1 200 OK\n"
                           "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
@@ -4018,12 +4062,14 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
   response.headers = new net::HttpResponseHeaders(raw_headers);
 
   // Set the last argument for this to be an incomplete request.
-  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
 
   scoped_refptr<net::IOBufferWithSize> buf(new net::IOBufferWithSize(100));
   int len = static_cast<int>(base::strlcpy(buf->data(), "rg: 00-09 rg: 10-19 ",
                                            buf->size()));
-  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+  TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  EXPECT_EQ(len, cb.GetResult(rv));
 
   // Now make a regular request.
   MockTransaction transaction(kRangeGET_TransactionOK);
@@ -4033,7 +4079,7 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
   Context* c = new Context();
   EXPECT_EQ(net::OK, cache.http_cache()->CreateTransaction(&c->trans));
 
-  int rv = c->trans->Start(&request, &c->callback, net::BoundNetLog());
+  rv = c->trans->Start(&request, &c->callback, net::BoundNetLog());
   EXPECT_EQ(net::OK, c->callback.GetResult(rv));
 
   // Read 20 bytes from the cache, and 10 from the net.
@@ -4055,7 +4101,7 @@ TEST(HttpCache, GET_CancelIncompleteResource) {
   // Verify that the disk entry was updated: now we have 30 bytes.
   EXPECT_EQ(30, entry->GetDataSize(1));
   bool truncated = false;
-  EXPECT_TRUE(net::HttpCache::ReadResponseInfo(entry, &response, &truncated));
+  EXPECT_TRUE(MockHttpCache::ReadResponseInfo(entry, &response, &truncated));
   EXPECT_TRUE(truncated);
   entry->Close();
 }
@@ -4068,9 +4114,7 @@ TEST(HttpCache, RangeGET_IncompleteResource) {
 
   // Create a disk cache entry that stores an incomplete resource.
   disk_cache::Entry* entry;
-  ASSERT_EQ(net::OK,
-            cache.disk_cache()->CreateEntry(kRangeGET_TransactionOK.url, &entry,
-                                            NULL));
+  ASSERT_TRUE(cache.CreateBackendEntry(kRangeGET_TransactionOK.url, &entry));
 
   // Content-length will be intentionally bogus.
   std::string raw_headers("HTTP/1.1 200 OK\n"
@@ -4084,12 +4128,14 @@ TEST(HttpCache, RangeGET_IncompleteResource) {
   net::HttpResponseInfo response;
   response.headers = new net::HttpResponseHeaders(raw_headers);
   // Set the last argument for this to be an incomplete request.
-  EXPECT_TRUE(net::HttpCache::WriteResponseInfo(entry, &response, true, true));
+  EXPECT_TRUE(MockHttpCache::WriteResponseInfo(entry, &response, true, true));
 
   scoped_refptr<net::IOBuffer> buf(new net::IOBuffer(100));
   int len = static_cast<int>(base::strlcpy(buf->data(),
                                            "rg: 00-09 rg: 10-19 ", 100));
-  EXPECT_EQ(len, entry->WriteData(1, 0, buf, len, NULL, true));
+  TestCompletionCallback cb;
+  int rv = entry->WriteData(1, 0, buf, len, &cb, true);
+  EXPECT_EQ(len, cb.GetResult(rv));
   entry->Close();
 
   // Now make a range request.
@@ -4249,8 +4295,7 @@ TEST(HttpCache, CacheControlNoStore) {
   EXPECT_EQ(2, cache.disk_cache()->create_count());
 
   disk_cache::Entry* entry;
-  EXPECT_NE(net::OK,
-            cache.disk_cache()->OpenEntry(transaction.url, &entry, NULL));
+  EXPECT_FALSE(cache.OpenBackendEntry(transaction.url, &entry));
 }
 
 TEST(HttpCache, CacheControlNoStore2) {
@@ -4278,8 +4323,7 @@ TEST(HttpCache, CacheControlNoStore2) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   disk_cache::Entry* entry;
-  EXPECT_NE(net::OK,
-            cache.disk_cache()->OpenEntry(transaction.url, &entry, NULL));
+  EXPECT_FALSE(cache.OpenBackendEntry(transaction.url, &entry));
 }
 
 TEST(HttpCache, CacheControlNoStore3) {
@@ -4308,8 +4352,7 @@ TEST(HttpCache, CacheControlNoStore3) {
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   disk_cache::Entry* entry;
-  EXPECT_NE(net::OK,
-            cache.disk_cache()->OpenEntry(transaction.url, &entry, NULL));
+  EXPECT_FALSE(cache.OpenBackendEntry(transaction.url, &entry));
 }
 
 // Ensure that we don't cache requests served over bad HTTPS.
