@@ -12,8 +12,11 @@
 #include "base/file_path.h"
 #include "base/file_util.h"
 #include "base/scoped_ptr.h"
+#include "net/base/capturing_net_log.h"
 #include "net/base/completion_callback.h"
 #include "net/base/mock_host_resolver.h"
+#include "net/base/net_log.h"
+#include "net/base/net_log_unittest.h"
 #include "net/base/request_priority.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/ssl_info.h"
@@ -153,7 +156,8 @@ class HttpNetworkTransactionTest : public PlatformTest {
 
     TestCompletionCallback callback;
 
-    int rv = trans->Start(&request, &callback, BoundNetLog());
+    CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+    int rv = trans->Start(&request, &callback, log.bound());
     EXPECT_EQ(ERR_IO_PENDING, rv);
 
     out.rv = callback.WaitForResult();
@@ -168,6 +172,9 @@ class HttpNetworkTransactionTest : public PlatformTest {
 
     rv = ReadTransaction(trans.get(), &out.response_data);
     EXPECT_EQ(OK, rv);
+    ExpectLogContainsSomewhere(
+        log.entries(), 0, NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
+        NetLog::PHASE_NONE);
 
     return out;
   }
