@@ -408,6 +408,9 @@ class ClientSocketPoolBaseHelper
   // Number of connected sockets we handed out across all groups.
   int handed_out_socket_count_;
 
+  // Number of sockets being released.
+  int num_releasing_sockets_;
+
   // The maximum total number of sockets. See ReachedMaxSocketsLimit.
   const int max_sockets_;
 
