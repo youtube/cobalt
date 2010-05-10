@@ -982,8 +982,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     //
     // TODO(cbentzel): Minimize allocations and copies of HttpResponseInfo
     // object. Should it just be part of SpdyStream?
-    HttpResponseInfo* response_info = new HttpResponseInfo();
-    stream->set_response_info_pointer(response_info);
+    stream->SetPushResponse(new HttpResponseInfo());
   }
 
   pushed_streams_.push_back(stream);

@@ -172,7 +172,7 @@ static const uint8 kPush[] = {
 
 }  // namespace
 
-TEST_F(SpdySessionTest, DISABLED_GetPushStream) {
+TEST_F(SpdySessionTest, GetPushStream) {
   SpdySessionTest::TurnOffCompression();
 
   SessionDependencies session_deps;
@@ -230,6 +230,16 @@ TEST_F(SpdySessionTest, DISABLED_GetPushStream) {
   EXPECT_EQ(test_push_path, second_stream->path());
   EXPECT_EQ(2U, second_stream->stream_id());
   EXPECT_EQ(0, second_stream->priority());
+
+  // Clean up
+  second_stream = NULL;
+  session = NULL;
+  spdy_session_pool->CloseAllSessions();
+
+  // RunAllPending needs to be called here because the
+  // ClientSocketPoolBase posts a task to clean up and destroy the
+  // underlying socket.
+  MessageLoop::current()->RunAllPending();
 }
 
 }  // namespace net
