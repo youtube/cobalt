@@ -13,6 +13,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/trace_event.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/connection_type_histograms.h"
@@ -204,6 +205,38 @@ void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
   alternate_protocols->SetAlternateProtocolFor(
       http_host_port_pair, port, HttpAlternateProtocols::NPN_SPDY_1);
 }
+
+class NetLogHttpRequestParameter : public NetLog::EventParameters {
+ public:
+  NetLogHttpRequestParameter(const std::string& line,
+                             const HttpRequestHeaders& headers)
+      : line_(line) {
+    headers_.CopyFrom(headers);
+  }
+
+  Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetString(L"line", line_);
+    ListValue* headers = new ListValue();
+    HttpRequestHeaders::Iterator iterator(headers_);
+    while (iterator.GetNext()) {
+      headers->Append(
+          new StringValue(StringPrintf("%s: %s",
+                                       iterator.name().c_str(),
+                                       iterator.value().c_str())));
+    }
+    dict->Set(L"headers", headers);
+    return dict;
+  }
+
+ private:
+  ~NetLogHttpRequestParameter() {}
+
+  const std::string line_;
+  HttpRequestHeaders headers_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogHttpRequestParameter);
+};
 
 }  // namespace
 
@@ -980,10 +1013,22 @@ int HttpNetworkTransaction::DoSendRequest() {
     if (establishing_tunnel_) {
       BuildTunnelRequest(request_, authorization_headers, endpoint_,
                          &request_line, &request_headers);
+      if (net_log_.HasListener()) {
+        net_log_.AddEvent(
+            NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+            new NetLogHttpRequestParameter(
+                request_line, request_headers));
+      }
     } else {
       BuildRequestHeaders(request_, authorization_headers, request_body,
                           !using_ssl_ && proxy_info_.is_http(), &request_line,
                           &request_headers);
+      if (net_log_.HasListener()) {
+        net_log_.AddEvent(
+            NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
+            new NetLogHttpRequestParameter(
+                request_line, request_headers));
+      }
     }
 
     request_headers_ = request_line + request_headers.ToString();
