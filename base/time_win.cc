@@ -233,42 +233,37 @@ DWORD timeGetTimeWrapper() {
   return timeGetTime();
 }
 
-
 DWORD (*tick_function)(void) = &timeGetTimeWrapper;
+
+// Accumulation of time lost due to rollover (in milliseconds).
+int64 rollover_ms = 0;
+
+// The last timeGetTime value we saw, to detect rollover.
+DWORD last_seen_now = 0;
+
+// Lock protecting rollover_ms and last_seen_now.
+// Note: this is a global object, and we usually avoid these. However, the time
+// code is low-level, and we don't want to use Singletons here (it would be too
+// easy to use a Singleton without even knowing it, and that may lead to many
+// gotchas). Its impact on startup time should be negligible due to low-level
+// nature of time code.
+Lock rollover_lock;
 
 // We use timeGetTime() to implement TimeTicks::Now().  This can be problematic
 // because it returns the number of milliseconds since Windows has started,
 // which will roll over the 32-bit value every ~49 days.  We try to track
 // rollover ourselves, which works if TimeTicks::Now() is called at least every
 // 49 days.
-class NowSingleton {
- public:
-  NowSingleton()
-    : rollover_(TimeDelta::FromMilliseconds(0)),
-      last_seen_(0) {
-  }
-
-  ~NowSingleton() {
-  }
-
-  TimeDelta Now() {
-    AutoLock locked(lock_);
-    // We should hold the lock while calling tick_function to make sure that
-    // we keep our last_seen_ stay correctly in sync.
-    DWORD now = tick_function();
-    if (now < last_seen_)
-      rollover_ += TimeDelta::FromMilliseconds(0x100000000I64);  // ~49.7 days.
-    last_seen_ = now;
-    return TimeDelta::FromMilliseconds(now) + rollover_;
-  }
-
- private:
-  Lock lock_;  // To protected last_seen_ and rollover_.
-  TimeDelta rollover_;  // Accumulation of time lost due to rollover.
-  DWORD last_seen_;  // The last timeGetTime value we saw, to detect rollover.
-
-  DISALLOW_COPY_AND_ASSIGN(NowSingleton);
-};
+TimeDelta RolloverProtectedNow() {
+  AutoLock locked(rollover_lock);
+  // We should hold the lock while calling tick_function to make sure that
+  // we keep last_seen_now stay correctly in sync.
+  DWORD now = tick_function();
+  if (now < last_seen_now)
+    rollover_ms += 0x100000000I64;  // ~49.7 days.
+  last_seen_now = now;
+  return TimeDelta::FromMilliseconds(now + rollover_ms);
+}
 
 // Overview of time counters:
 // (1) CPU cycle counter. (Retrieved via RDTSC)
@@ -334,7 +329,7 @@ class HighResNowSingleton {
     }
 
     // Just fallback to the slower clock.
-    return Singleton<NowSingleton>::get()->Now();
+    return RolloverProtectedNow();
   }
 
  private:
@@ -349,16 +344,16 @@ class HighResNowSingleton {
     skew_ = UnreliableNow() - ReliableNow();
   }
 
-  // Get the number of microseconds since boot in a reliable fashion
+  // Get the number of microseconds since boot in an unreliable fashion.
   int64 UnreliableNow() {
     LARGE_INTEGER now;
     QueryPerformanceCounter(&now);
     return static_cast<int64>(now.QuadPart / ticks_per_microsecond_);
   }
 
-  // Get the number of microseconds since boot in a reliable fashion
+  // Get the number of microseconds since boot in a reliable fashion.
   int64 ReliableNow() {
-    return Singleton<NowSingleton>::get()->Now().InMicroseconds();
+    return RolloverProtectedNow().InMicroseconds();
   }
 
   // Cached clock frequency -> microseconds. This assumes that the clock
@@ -381,7 +376,7 @@ TimeTicks::TickFunctionType TimeTicks::SetMockTickFunction(
 
 // static
 TimeTicks TimeTicks::Now() {
-  return TimeTicks() + Singleton<NowSingleton>::get()->Now();
+  return TimeTicks() + RolloverProtectedNow();
 }
 
 // static
