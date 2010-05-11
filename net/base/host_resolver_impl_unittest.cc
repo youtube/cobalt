@@ -911,19 +911,11 @@ TEST_F(HostResolverImplTest, Observers) {
   int rv = host_resolver->Resolve(info1, &addrlist, NULL, NULL, log.bound());
   EXPECT_EQ(OK, rv);
 
-  EXPECT_EQ(6u, log.entries().size());
+  EXPECT_EQ(2u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
       log.entries(), 0, NetLog::TYPE_HOST_RESOLVER_IMPL));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 1, NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART));
   EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 2, NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONSTART));
-  EXPECT_TRUE(LogContainsBeginEvent(
-      log.entries(), 3, NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH));
-  EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 4, NetLog::TYPE_HOST_RESOLVER_IMPL_OBSERVER_ONFINISH));
-  EXPECT_TRUE(LogContainsEndEvent(
-      log.entries(), 5, NetLog::TYPE_HOST_RESOLVER_IMPL));
+      log.entries(), 1, NetLog::TYPE_HOST_RESOLVER_IMPL));
 
   EXPECT_EQ(1U, observer.start_log.size());
   EXPECT_EQ(1U, observer.finish_log.size());

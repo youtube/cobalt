@@ -28,15 +28,6 @@ EVENT_TYPE(REQUEST_ALIVE)
 // The start/end of a host resolve (DNS) request.
 EVENT_TYPE(HOST_RESOLVER_IMPL)
 
-// The start/end of HostResolver::Observer::OnStartResolution.
-EVENT_TYPE(HOST_RESOLVER_IMPL_OBSERVER_ONSTART)
-
-// The start/end of HostResolver::Observer::OnFinishResolutionWithStatus
-EVENT_TYPE(HOST_RESOLVER_IMPL_OBSERVER_ONFINISH)
-
-// The start/end of HostResolver::Observer::OnCancelResolution.
-EVENT_TYPE(HOST_RESOLVER_IMPL_OBSERVER_ONCANCEL)
-
 // ------------------------------------------------------------------------
 // InitProxyResolver
 // ------------------------------------------------------------------------
