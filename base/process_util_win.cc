@@ -515,18 +515,29 @@ size_t ProcessMetrics::GetPeakWorkingSetSize() const {
   return 0;
 }
 
-size_t ProcessMetrics::GetPrivateBytes() const {
+bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
+                                    size_t* shared_bytes) {
   // PROCESS_MEMORY_COUNTERS_EX is not supported until XP SP2.
   // GetProcessMemoryInfo() will simply fail on prior OS. So the requested
   // information is simply not available. Hence, we will return 0 on unsupported
   // OSes. Unlike most Win32 API, we don't need to initialize the "cb" member.
   PROCESS_MEMORY_COUNTERS_EX pmcx;
-  if (GetProcessMemoryInfo(process_,
-                          reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmcx),
-                          sizeof(pmcx))) {
-      return pmcx.PrivateUsage;
+  if (private_bytes &&
+      GetProcessMemoryInfo(process_,
+                           reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmcx),
+                           sizeof(pmcx))) {
+    *private_bytes = pmcx.PrivateUsage;
   }
-  return 0;
+
+  if (shared_bytes) {
+    WorkingSetKBytes ws_usage;
+    if (!GetWorkingSetKBytes(&ws_usage))
+      return false;
+
+    *shared_bytes = ws_usage.shared * 1024;
+  }
+
+  return true;
 }
 
 void ProcessMetrics::GetCommittedKBytes(CommittedKBytes* usage) const {
