@@ -4053,9 +4053,9 @@ TEST_F(HttpNetworkTransactionTest, ResolveMadeWithReferrer) {
   EXPECT_TRUE(resolution_observer.did_complete_with_expected_referrer());
 }
 
-// Make sure that when the load flags contain LOAD_BYPASS_CACHE, the resolver's
-// host cache is bypassed.
-TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
+// Base test to make sure that when the load flags for a request specify to
+// bypass the cache, the DNS cache is not used.
+void BypassHostCacheOnRefreshHelper(int load_flags) {
   SessionDependencies session_deps;
 
   // Select a host resolver that does caching.
@@ -4094,7 +4094,7 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   // Issue a request, asking to bypass the cache(s).
   HttpRequestInfo request;
   request.method = "GET";
-  request.load_flags = LOAD_BYPASS_CACHE;
+  request.load_flags = load_flags;
   request.url = GURL("http://www.google.com/");
 
   // Run the request.
@@ -4106,6 +4106,20 @@ TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh) {
   // If we bypassed the cache, we would have gotten a failure while resolving
   // "www.google.com".
   EXPECT_EQ(ERR_NAME_NOT_RESOLVED, rv);
+}
+
+// There are multiple load flags that should trigger the host cache bypass.
+// Test each in isolation:
+TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh1) {
+  BypassHostCacheOnRefreshHelper(LOAD_BYPASS_CACHE);
+}
+
+TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh2) {
+  BypassHostCacheOnRefreshHelper(LOAD_VALIDATE_CACHE);
+}
+
+TEST_F(HttpNetworkTransactionTest, BypassHostCacheOnRefresh3) {
+  BypassHostCacheOnRefreshHelper(LOAD_DISABLE_CACHE);
 }
 
 // Make sure we can handle an error when writing the request.
