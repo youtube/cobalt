@@ -335,6 +335,9 @@ NET_ERROR(INVALID_AUTH_CREDENTIALS, -338)
 // machine.
 NET_ERROR(UNSUPPORTED_AUTH_SCHEME, -339)
 
+// Detecting the encoding of the response failed.
+NET_ERROR(ENCODING_DETECTION_FAILED, -340)
+
 // The cache does not have the requested entry.
 NET_ERROR(CACHE_MISS, -400)
 
