@@ -238,6 +238,34 @@ class NetLogHttpRequestParameter : public NetLog::EventParameters {
   DISALLOW_COPY_AND_ASSIGN(NetLogHttpRequestParameter);
 };
 
+class NetLogHttpResponseParameter : public NetLog::EventParameters {
+ public:
+  explicit NetLogHttpResponseParameter(
+      const scoped_refptr<HttpResponseHeaders>& headers)
+      : headers_(headers) {}
+
+  Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    ListValue* headers = new ListValue();
+    void* iterator = NULL;
+    std::string name;
+    std::string value;
+    while (headers_->EnumerateHeaderLines(&iterator, &name, &value)) {
+      headers->Append(
+          new StringValue(StringPrintf("%s: %s", name.c_str(), value.c_str())));
+    }
+    dict->Set(L"headers", headers);
+    return dict;
+  }
+
+ private:
+  ~NetLogHttpResponseParameter() {}
+
+  const scoped_refptr<HttpResponseHeaders> headers_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogHttpResponseParameter);
+};
+
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -1126,6 +1154,18 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
     int rv = HandleConnectionClosedBeforeEndOfHeaders();
     if (rv != OK)
       return rv;
+  }
+
+  if (net_log_.HasListener()) {
+    if (establishing_tunnel_) {
+      net_log_.AddEvent(
+          NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
+          new NetLogHttpResponseParameter(response_.headers));
+    } else {
+      net_log_.AddEvent(
+          NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
+          new NetLogHttpResponseParameter(response_.headers));
+    }
   }
 
   if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
