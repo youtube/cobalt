@@ -321,6 +321,21 @@ EVENT_TYPE(HTTP_TRANSACTION_SEND_TUNNEL_HEADERS)
 // Measures the time to read HTTP response headers from the server.
 EVENT_TYPE(HTTP_TRANSACTION_READ_HEADERS)
 
+// This event is sent on receipt of the HTTP response headers.
+// The following parameters are attached:
+//   {
+//     "headers": <The list of header:value pairs>
+//   }
+EVENT_TYPE(HTTP_TRANSACTION_READ_RESPONSE_HEADERS)
+
+// This event is sent on receipt of the HTTP response headers to a tunnel
+// request.
+// The following parameters are attached:
+//   {
+//     "headers": <The list of header:value pairs>
+//   }
+EVENT_TYPE(HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS)
+
 // Measures the time to resolve the canonical name for HTTP Negotiate
 // authentication scheme.
 EVENT_TYPE(HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME)
