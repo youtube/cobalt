@@ -210,10 +210,12 @@ std::string GetDirectoryListingHeader(const string16& title);
 // Currently, it's a script tag containing a call to a Javascript function
 // |addRow|.
 //
-// Its 1st parameter is derived from |name| and is the Javascript-string
-// escaped form of |name| (i.e \uXXXX). The 2nd parameter is the url-escaped
-// |raw_bytes| if it's not empty. If empty, the 2nd parameter is the
-// url-escaped |name| in UTF-8.
+// |name| is the file name to be displayed. |raw_bytes| will be used
+// as the actual target of the link (so for example, ftp links should use
+// server's encoding). If |raw_bytes| is an empty string, UTF-8 encoded |name|
+// will be used.
+//
+// Both |name| and |raw_bytes| are escaped internally.
 std::string GetDirectoryListingEntry(const string16& name,
                                      const std::string& raw_bytes,
                                      bool is_dir, int64 size,
