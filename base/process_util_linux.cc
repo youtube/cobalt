@@ -244,10 +244,19 @@ size_t ProcessMetrics::GetPeakWorkingSetSize() const {
   return 0;
 }
 
-size_t ProcessMetrics::GetPrivateBytes() const {
+bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
+                                    size_t* shared_bytes) {
   WorkingSetKBytes ws_usage;
-  GetWorkingSetKBytes(&ws_usage);
-  return ws_usage.priv << 10;
+  if (!GetWorkingSetKBytes(&ws_usage))
+    return false;
+
+  if (private_bytes)
+    *private_bytes = ws_usage.priv << 10;
+
+  if (shared_bytes)
+    *shared_bytes = ws_usage.shared * 1024;
+
+  return true;
 }
 
 // Private and Shared working set sizes are obtained from /proc/<pid>/smaps.
