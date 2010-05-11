@@ -481,10 +481,12 @@ class ProcessMetrics {
   size_t GetWorkingSetSize() const;
   // Returns the peak working set size, in bytes.
   size_t GetPeakWorkingSetSize() const;
-  // Returns private usage, in bytes. Private bytes is the amount
-  // of memory currently allocated to a process that cannot be shared.
-  // Note: returns 0 on unsupported OSes: prior to XP SP2.
-  size_t GetPrivateBytes() const;
+  // Returns private and sharedusage, in bytes. Private bytes is the amount of
+  // memory currently allocated to a process that cannot be shared. Returns
+  // false on platform specific error conditions.  Note: |private_bytes|
+  // returns 0 on unsupported OSes: prior to XP SP2.
+  bool GetMemoryBytes(size_t* private_bytes,
+                      size_t* shared_bytes);
   // Fills a CommittedKBytes with both resident and paged
   // memory usage as per definition of CommittedBytes.
   void GetCommittedKBytes(CommittedKBytes* usage) const;

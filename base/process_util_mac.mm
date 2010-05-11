@@ -222,10 +222,16 @@ size_t ProcessMetrics::GetPeakWorkingSetSize() const {
   return 0;
 }
 
-size_t ProcessMetrics::GetPrivateBytes() const {
-  return 0;
+// OSX appears to use a different system to get its memory.
+bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
+                                    size_t* shared_bytes) {
+  if (private_bytes)
+    *private_bytes = 0;
+  if (shared_bytes)
+    *shared_bytes = 0;
+  return true;
 }
-
+  
 void ProcessMetrics::GetCommittedKBytes(CommittedKBytes* usage) const {
 }
 
