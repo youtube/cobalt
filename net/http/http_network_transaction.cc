@@ -821,6 +821,7 @@ int HttpNetworkTransaction::DoInitConnection() {
 
   // If the user is refreshing the page, bypass the host cache.
   bool disable_resolver_cache = request_->load_flags & LOAD_BYPASS_CACHE ||
+                                request_->load_flags & LOAD_VALIDATE_CACHE ||
                                 request_->load_flags & LOAD_DISABLE_CACHE;
 
   int rv;
