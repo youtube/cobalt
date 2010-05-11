@@ -33,6 +33,8 @@
       'sources': [
         'i18n/file_util_icu.cc',
         'i18n/file_util_icu.h',
+        'i18n/icu_encoding_detection.cc',
+        'i18n/icu_encoding_detection.h',
         'i18n/icu_string_conversions.cc',
         'i18n/icu_string_conversions.h',
         'i18n/icu_util.cc',
