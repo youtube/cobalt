@@ -314,21 +314,16 @@ EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST)
 // This event is sent for a HTTP request.
 // The following parameters are attached:
 //   {
-//     "line": <The HTTP request line>
-//     "headers": <The HTTP request headers>
+//     "line": <The HTTP request line, CRLF terminated>
+//     "headers": <The list of header:value pairs>
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST_HEADERS)
 
 // This event is sent for a tunnel request.
 // The following parameters are attached:
 //   {
-//     "line": <The HTTP request line>
-//     "headers":
-//     {
-//       "header1": "value1",
-//       ...
-//       "headerX": "valueX"
-//     }
+//     "line": <The HTTP request line, CRLF terminated>
+//     "headers": <The list of header:value pairs>
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_SEND_TUNNEL_HEADERS)
 
