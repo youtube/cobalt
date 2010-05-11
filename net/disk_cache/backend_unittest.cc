@@ -13,6 +13,7 @@
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache_test_base.h"
 #include "net/disk_cache/disk_cache_test_util.h"
+#include "net/disk_cache/histogram_macros.h"
 #include "net/disk_cache/mapped_file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -1611,4 +1612,16 @@ TEST_F(DiskCacheTest, AutomaticMaxSize) {
             disk_cache::PreferedCacheSize(largest_size * 100));
   EXPECT_EQ(kint32max,
             disk_cache::PreferedCacheSize(largest_size * 10000));
+}
+
+// Tests that we can "migrate" a running instance from one experiment group to
+// another.
+TEST_F(DiskCacheBackendTest, Histograms) {
+  SetDirectMode();
+  InitCache();
+  disk_cache::BackendImpl* backend_ = cache_impl_;  // Needed be the macro.
+
+  for (int i = 1; i < 3; i++) {
+    CACHE_UMA(HOURS, "FillupTime", i, 28);
+  }
 }
