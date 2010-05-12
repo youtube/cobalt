@@ -130,11 +130,12 @@ TEST_F(SpdySessionTest, GoAway) {
       http_session->spdy_session_pool());
   EXPECT_FALSE(spdy_session_pool->HasSession(test_host_port_pair));
   scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(test_host_port_pair, http_session.get());
+      spdy_session_pool->Get(
+          test_host_port_pair, http_session.get(), BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(test_host_port_pair));
 
   TCPSocketParams tcp_params(kTestHost, kTestPort, MEDIUM, GURL(), false);
-  int rv = session->Connect(kTestHost, tcp_params, MEDIUM, BoundNetLog());
+  int rv = session->Connect(kTestHost, tcp_params, MEDIUM);
   ASSERT_EQ(OK, rv);
 
   // Flush the SpdySession::OnReadComplete() task.
@@ -143,7 +144,8 @@ TEST_F(SpdySessionTest, GoAway) {
   EXPECT_FALSE(spdy_session_pool->HasSession(test_host_port_pair));
 
   scoped_refptr<SpdySession> session2 =
-      spdy_session_pool->Get(test_host_port_pair, http_session.get());
+      spdy_session_pool->Get(
+          test_host_port_pair, http_session.get(), BoundNetLog());
 
   // Delete the first session.
   session = NULL;
@@ -203,7 +205,8 @@ TEST_F(SpdySessionTest, GetPushStream) {
       http_session->spdy_session_pool());
   EXPECT_FALSE(spdy_session_pool->HasSession(test_host_port_pair));
   scoped_refptr<SpdySession> session =
-      spdy_session_pool->Get(test_host_port_pair, http_session.get());
+      spdy_session_pool->Get(
+          test_host_port_pair, http_session.get(), BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(test_host_port_pair));
 
   // No push streams should exist in the beginning.
@@ -214,7 +217,7 @@ TEST_F(SpdySessionTest, GetPushStream) {
 
   // Read in the data which contains a server-issued SYN_STREAM.
   TCPSocketParams tcp_params(test_host_port_pair, MEDIUM, GURL(), false);
-  int rv = session->Connect(kTestHost, tcp_params, MEDIUM, BoundNetLog());
+  int rv = session->Connect(kTestHost, tcp_params, MEDIUM);
   ASSERT_EQ(OK, rv);
   MessageLoop::current()->RunAllPending();
 

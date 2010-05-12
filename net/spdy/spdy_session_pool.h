@@ -18,6 +18,7 @@ namespace net {
 
 class ClientSocketHandle;
 class HttpNetworkSession;
+class BoundNetLog;
 class SpdySession;
 
 // This is a very simple pool for open SpdySessions.
@@ -29,7 +30,8 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   // Either returns an existing SpdySession or creates a new SpdySession for
   // use.
   scoped_refptr<SpdySession> Get(
-      const HostPortPair& host_port_pair, HttpNetworkSession* session);
+      const HostPortPair& host_port_pair, HttpNetworkSession* session,
+      const BoundNetLog& net_log);
 
   // Set the maximum concurrent sessions per domain.
   static void set_max_sessions_per_domain(int max) {
@@ -44,7 +46,8 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   scoped_refptr<SpdySession> GetSpdySessionFromSSLSocket(
       const HostPortPair& host_port_pair,
       HttpNetworkSession* session,
-      ClientSocketHandle* connection);
+      ClientSocketHandle* connection,
+      const BoundNetLog& net_log);
 
   // TODO(willchan): Consider renaming to HasReusableSession, since perhaps we
   // should be creating a new session.

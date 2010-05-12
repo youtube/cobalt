@@ -20,7 +20,8 @@ SpdySessionPool::~SpdySessionPool() {
 }
 
 scoped_refptr<SpdySession> SpdySessionPool::Get(
-    const HostPortPair& host_port_pair, HttpNetworkSession* session) {
+    const HostPortPair& host_port_pair, HttpNetworkSession* session,
+    const BoundNetLog& net_log) {
   scoped_refptr<SpdySession> spdy_session;
   SpdySessionList* list = GetSessionList(host_port_pair);
   if (list) {
@@ -34,7 +35,7 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
 
   DCHECK(list);
   if (!spdy_session)
-    spdy_session = new SpdySession(host_port_pair, session);
+    spdy_session = new SpdySession(host_port_pair, session, net_log);
 
   DCHECK(spdy_session);
   list->push_back(spdy_session);
@@ -45,13 +46,14 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
 scoped_refptr<SpdySession> SpdySessionPool::GetSpdySessionFromSSLSocket(
     const HostPortPair& host_port_pair,
     HttpNetworkSession* session,
-    ClientSocketHandle* connection) {
+    ClientSocketHandle* connection,
+    const BoundNetLog& net_log) {
   SpdySessionList* list = GetSessionList(host_port_pair);
   if (!list)
     list = AddSessionList(host_port_pair);
   DCHECK(list->empty());
   scoped_refptr<SpdySession> spdy_session(
-      new SpdySession(host_port_pair, session));
+      new SpdySession(host_port_pair, session, net_log));
   spdy_session->InitializeWithSSLSocket(connection);
   list->push_back(spdy_session);
   return spdy_session;
