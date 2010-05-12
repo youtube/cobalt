@@ -551,13 +551,23 @@ class MockDiskCache : public disk_cache::Backend {
   bool soft_failures_;
 };
 
+class MockBackendFactory : public net::HttpCache::BackendFactory {
+ public:
+  virtual int CreateBackend(disk_cache::Backend** backend,
+                            net::CompletionCallback* callback) {
+    *backend = new MockDiskCache();
+    return net::OK;
+  }
+};
+
 class MockHttpCache {
  public:
-  MockHttpCache() : http_cache_(new MockNetworkLayer(), new MockDiskCache()) {
+  MockHttpCache()
+      : http_cache_(new MockNetworkLayer(), new MockBackendFactory()) {
   }
 
-  explicit MockHttpCache(disk_cache::Backend* disk_cache)
-      : http_cache_(new MockNetworkLayer(), disk_cache) {
+  explicit MockHttpCache(net::HttpCache::BackendFactory* disk_cache_factory)
+      : http_cache_(new MockNetworkLayer(), disk_cache_factory) {
   }
 
   net::HttpCache* http_cache() { return &http_cache_; }
@@ -629,6 +639,58 @@ class MockDiskCacheNoCB : public MockDiskCache {
                           net::CompletionCallback* callback) {
     return net::ERR_IO_PENDING;
   }
+};
+
+class MockBackendNoCbFactory : public net::HttpCache::BackendFactory {
+ public:
+  virtual int CreateBackend(disk_cache::Backend** backend,
+                            net::CompletionCallback* callback) {
+    *backend = new MockDiskCacheNoCB();
+    return net::OK;
+  }
+};
+
+// This backend factory allows us to control the backend instantiation.
+class MockBlockingBackendFactory : public net::HttpCache::BackendFactory {
+ public:
+  MockBlockingBackendFactory()
+      : backend_(NULL), callback_(NULL), block_(true), fail_(false) {}
+
+  virtual int CreateBackend(disk_cache::Backend** backend,
+                            net::CompletionCallback* callback) {
+    if (!block_) {
+      if (!fail_)
+        *backend = new MockDiskCache();
+      return Result();
+    }
+
+    backend_ =  backend;
+    callback_ = callback;
+    return net::ERR_IO_PENDING;
+  }
+
+  // Completes the backend creation. Any blocked call will be notified via the
+  // provided callback.
+  void FinishCreation() {
+    block_ = false;
+    if (callback_) {
+      if (!fail_)
+        *backend_ = new MockDiskCache();
+      net::CompletionCallback* cb = callback_;
+      callback_ = NULL;
+      cb->Run(Result());  // This object can be deleted here.
+    }
+  }
+
+  void set_fail(bool fail) { fail_ = fail; }
+
+ private:
+  int Result() { return fail_ ? net::ERR_FAILED : net::OK; }
+
+  disk_cache::Backend** backend_;
+  net::CompletionCallback* callback_;
+  bool block_;
+  bool fail_;
 };
 
 //-----------------------------------------------------------------------------
@@ -929,169 +991,6 @@ struct Context {
 //-----------------------------------------------------------------------------
 // tests
 
-namespace net {
-
-// This is a friend class of the HttpCache so that we can interact with it to
-// perform a few internal tests. We override the backend factory method so that
-// we can test the logic of backend instantiation.
-class HttpCacheTest : public testing::Test {
- public:
-  // Controls whether to block the backend instantiation or not. If |block| is
-  // true, any blocked call will be notified via the provided callback.
-  void BlockCacheCreation(bool block) {
-    block_ = block;
-    if (!block_ && callback_) {
-      *backend_ = new MockDiskCache();
-      callback_->Run(OK);
-      callback_ = NULL;
-    }
-  }
-
- protected:
-  virtual void SetUp() {
-    current_test_ = this;
-    backend_ = NULL;
-    callback_ = NULL;
-    block_ = false;
-  }
-
-  virtual void TearDown() { current_test_ = NULL; }
-
-  // Implements disk_cache::CreateCacheBackend().
-  static int MockCreateBackend(CacheType type, const FilePath& path,
-                               int max_bytes, bool force, MessageLoop* thread,
-                               disk_cache::Backend** backend,
-                               CompletionCallback* callback) {
-    if (current_test_ == NULL) {
-      EXPECT_TRUE(current_test_);
-      return ERR_FAILED;
-    }
-    if (!current_test_->block_) {
-      *backend = new MockDiskCache();
-      return OK;
-    }
-
-    current_test_->backend_ =  backend;
-    current_test_->callback_ = callback;
-    return ERR_IO_PENDING;
-  }
-
- private:
-  static HttpCacheTest* current_test_;
-  disk_cache::Backend** backend_;
-  CompletionCallback* callback_;
-  bool block_;
-};
-
-// Static.
-HttpCacheTest* HttpCacheTest::current_test_ = NULL;
-
-// Tests that we queue requests when initializing the backend.
-TEST_F(HttpCacheTest, SimpleGET_WaitForBackend) {
-  MockHttpCache cache(NULL);
-  cache.http_cache()->create_backend_fn_ = MockCreateBackend;
-  cache.http_cache()->set_type(MEMORY_CACHE);
-  BlockCacheCreation(true);
-
-  MockHttpRequest request0(kSimpleGET_Transaction);
-  MockHttpRequest request1(kTypicalGET_Transaction);
-  MockHttpRequest request2(kETagGET_Transaction);
-
-  std::vector<Context*> context_list;
-  const int kNumTransactions = 3;
-
-  for (int i = 0; i < kNumTransactions; i++) {
-    context_list.push_back(new Context());
-    Context* c = context_list[i];
-
-    c->result = cache.http_cache()->CreateTransaction(&c->trans);
-    EXPECT_EQ(OK, c->result);
-  }
-
-  context_list[0]->result = context_list[0]->trans->Start(
-      &request0, &context_list[0]->callback, BoundNetLog());
-  context_list[1]->result = context_list[1]->trans->Start(
-      &request1, &context_list[1]->callback, BoundNetLog());
-  context_list[2]->result = context_list[2]->trans->Start(
-      &request2, &context_list[2]->callback, BoundNetLog());
-
-  // Just to make sure that everything is still pending.
-  MessageLoop::current()->RunAllPending();
-
-  // The first request should be creating the disk cache.
-  EXPECT_FALSE(context_list[0]->callback.have_result());
-
-  BlockCacheCreation(false);
-
-  MessageLoop::current()->RunAllPending();
-  EXPECT_EQ(3, cache.network_layer()->transaction_count());
-  EXPECT_EQ(3, cache.disk_cache()->create_count());
-
-  for (int i = 0; i < kNumTransactions; ++i) {
-    EXPECT_TRUE(context_list[i]->callback.have_result());
-    delete context_list[i];
-  }
-}
-
-// Tests that we can cancel requests that are queued waiting for the backend
-// to be initialized.
-TEST_F(HttpCacheTest, SimpleGET_WaitForBackend_CancelCreate) {
-  MockHttpCache cache(NULL);
-  cache.http_cache()->create_backend_fn_ = MockCreateBackend;
-  cache.http_cache()->set_type(MEMORY_CACHE);
-  BlockCacheCreation(true);
-
-  MockHttpRequest request0(kSimpleGET_Transaction);
-  MockHttpRequest request1(kTypicalGET_Transaction);
-  MockHttpRequest request2(kETagGET_Transaction);
-
-  std::vector<Context*> context_list;
-  const int kNumTransactions = 3;
-
-  for (int i = 0; i < kNumTransactions; i++) {
-    context_list.push_back(new Context());
-    Context* c = context_list[i];
-
-    c->result = cache.http_cache()->CreateTransaction(&c->trans);
-    EXPECT_EQ(OK, c->result);
-  }
-
-  context_list[0]->result = context_list[0]->trans->Start(
-      &request0, &context_list[0]->callback, BoundNetLog());
-  context_list[1]->result = context_list[1]->trans->Start(
-      &request1, &context_list[1]->callback, BoundNetLog());
-  context_list[2]->result = context_list[2]->trans->Start(
-      &request2, &context_list[2]->callback, BoundNetLog());
-
-  // Just to make sure that everything is still pending.
-  MessageLoop::current()->RunAllPending();
-
-  // The first request should be creating the disk cache.
-  EXPECT_FALSE(context_list[0]->callback.have_result());
-
-  // Cancel a request from the pending queue.
-  delete context_list[1];
-  context_list[1] = NULL;
-
-  // Cancel the request that is creating the entry.
-  delete context_list[0];
-  context_list[0] = NULL;
-
-  // Complete the last transaction.
-  BlockCacheCreation(false);
-
-  context_list[2]->result =
-      context_list[2]->callback.GetResult(context_list[2]->result);
-  ReadAndVerifyTransaction(context_list[2]->trans.get(), kETagGET_Transaction);
-
-  EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_EQ(1, cache.disk_cache()->create_count());
-
-  delete context_list[2];
-}
-
-}  // net namespace.
-
 TEST(HttpCache, CreateThenDestroy) {
   MockHttpCache cache;
 
@@ -1102,11 +1001,9 @@ TEST(HttpCache, CreateThenDestroy) {
 }
 
 TEST(HttpCache, GetBackend) {
-  // This will initialize a cache object with NULL backend.
-  MockHttpCache cache(NULL);
+  MockHttpCache cache(net::HttpCache::DefaultBackend::InMemory(0));
 
   // This will lazily initialize the backend.
-  cache.http_cache()->set_type(net::MEMORY_CACHE);
   EXPECT_TRUE(cache.http_cache()->GetBackend());
 }
 
@@ -1155,7 +1052,10 @@ TEST(HttpCache, SimpleGETNoDiskCache) {
 
 TEST(HttpCache, SimpleGETNoDiskCache2) {
   // This will initialize a cache object with NULL backend.
-  MockHttpCache cache(NULL);
+  MockBlockingBackendFactory* factory = new MockBlockingBackendFactory();
+  factory->set_fail(true);
+  factory->FinishCreation();  // We'll complete synchronously.
+  MockHttpCache cache(factory);
 
   // Read from the network, and don't use the cache.
   RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
@@ -1632,9 +1532,7 @@ TEST(HttpCache, SimpleGET_RacingReaders) {
 // See http://code.google.com/p/chromium/issues/detail?id=25588
 TEST(HttpCache, SimpleGET_DoomWithPending) {
   // We need simultaneous doomed / not_doomed entries so let's use a real cache.
-  disk_cache::Backend* disk_cache =
-      disk_cache::CreateInMemoryCacheBackend(1024 * 1024);
-  MockHttpCache cache(disk_cache);
+  MockHttpCache cache(net::HttpCache::DefaultBackend::InMemory(1024 * 1024));
 
   MockHttpRequest request(kSimpleGET_Transaction);
   MockHttpRequest writer_request(kSimpleGET_Transaction);
@@ -1919,7 +1817,8 @@ TEST(HttpCache, SimpleGET_AbandonedCacheRead) {
 // Tests that we can delete the HttpCache and deal with queued transactions
 // ("waiting for the backend" as opposed to Active or Doomed entries).
 TEST(HttpCache, SimpleGET_ManyWriters_DeleteCache) {
-  scoped_ptr<MockHttpCache> cache(new MockHttpCache(new MockDiskCacheNoCB()));
+  scoped_ptr<MockHttpCache> cache(new MockHttpCache(
+                                      new MockBackendNoCbFactory()));
 
   MockHttpRequest request(kSimpleGET_Transaction);
 
@@ -1950,6 +1849,106 @@ TEST(HttpCache, SimpleGET_ManyWriters_DeleteCache) {
   for (int i = 0; i < kNumTransactions; ++i) {
     delete context_list[i];
   }
+}
+
+// Tests that we queue requests when initializing the backend.
+TEST(HttpCache, SimpleGET_WaitForBackend) {
+  MockBlockingBackendFactory* factory = new MockBlockingBackendFactory();
+  MockHttpCache cache(factory);
+
+  MockHttpRequest request0(kSimpleGET_Transaction);
+  MockHttpRequest request1(kTypicalGET_Transaction);
+  MockHttpRequest request2(kETagGET_Transaction);
+
+  std::vector<Context*> context_list;
+  const int kNumTransactions = 3;
+
+  for (int i = 0; i < kNumTransactions; i++) {
+    context_list.push_back(new Context());
+    Context* c = context_list[i];
+
+    c->result = cache.http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(net::OK, c->result);
+  }
+
+  context_list[0]->result = context_list[0]->trans->Start(
+      &request0, &context_list[0]->callback, net::BoundNetLog());
+  context_list[1]->result = context_list[1]->trans->Start(
+      &request1, &context_list[1]->callback, net::BoundNetLog());
+  context_list[2]->result = context_list[2]->trans->Start(
+      &request2, &context_list[2]->callback, net::BoundNetLog());
+
+  // Just to make sure that everything is still pending.
+  MessageLoop::current()->RunAllPending();
+
+  // The first request should be creating the disk cache.
+  EXPECT_FALSE(context_list[0]->callback.have_result());
+
+  factory->FinishCreation();
+
+  MessageLoop::current()->RunAllPending();
+  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(3, cache.disk_cache()->create_count());
+
+  for (int i = 0; i < kNumTransactions; ++i) {
+    EXPECT_TRUE(context_list[i]->callback.have_result());
+    delete context_list[i];
+  }
+}
+
+// Tests that we can cancel requests that are queued waiting for the backend
+// to be initialized.
+TEST(HttpCache, SimpleGET_WaitForBackend_CancelCreate) {
+  MockBlockingBackendFactory* factory = new MockBlockingBackendFactory();
+  MockHttpCache cache(factory);
+
+  MockHttpRequest request0(kSimpleGET_Transaction);
+  MockHttpRequest request1(kTypicalGET_Transaction);
+  MockHttpRequest request2(kETagGET_Transaction);
+
+  std::vector<Context*> context_list;
+  const int kNumTransactions = 3;
+
+  for (int i = 0; i < kNumTransactions; i++) {
+    context_list.push_back(new Context());
+    Context* c = context_list[i];
+
+    c->result = cache.http_cache()->CreateTransaction(&c->trans);
+    EXPECT_EQ(net::OK, c->result);
+  }
+
+  context_list[0]->result = context_list[0]->trans->Start(
+      &request0, &context_list[0]->callback, net::BoundNetLog());
+  context_list[1]->result = context_list[1]->trans->Start(
+      &request1, &context_list[1]->callback, net::BoundNetLog());
+  context_list[2]->result = context_list[2]->trans->Start(
+      &request2, &context_list[2]->callback, net::BoundNetLog());
+
+  // Just to make sure that everything is still pending.
+  MessageLoop::current()->RunAllPending();
+
+  // The first request should be creating the disk cache.
+  EXPECT_FALSE(context_list[0]->callback.have_result());
+
+  // Cancel a request from the pending queue.
+  delete context_list[1];
+  context_list[1] = NULL;
+
+  // Cancel the request that is creating the entry.
+  delete context_list[0];
+  context_list[0] = NULL;
+
+  // Complete the last transaction.
+  factory->FinishCreation();
+
+  context_list[2]->result =
+      context_list[2]->callback.GetResult(context_list[2]->result);
+  ReadAndVerifyTransaction(context_list[2]->trans.get(), kETagGET_Transaction);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  delete context_list[2];
 }
 
 TEST(HttpCache, TypicalGET_ConditionalRequest) {
@@ -3546,9 +3545,7 @@ TEST(HttpCache, RangeGET_InvalidResponse3) {
 // Tests that we handle large range values properly.
 TEST(HttpCache, RangeGET_LargeValues) {
   // We need a real sparse cache for this test.
-  disk_cache::Backend* disk_cache =
-      disk_cache::CreateInMemoryCacheBackend(1024 * 1024);
-  MockHttpCache cache(disk_cache);
+  MockHttpCache cache(net::HttpCache::DefaultBackend::InMemory(1024 * 1024));
   cache.http_cache()->set_enable_range_support(true);
   std::string headers;
 
@@ -3580,7 +3577,11 @@ TEST(HttpCache, RangeGET_LargeValues) {
 // Tests that we don't crash with a range request if the disk cache was not
 // initialized properly.
 TEST(HttpCache, RangeGET_NoDiskCache) {
-  MockHttpCache cache(NULL);
+  MockBlockingBackendFactory* factory = new MockBlockingBackendFactory();
+  factory->set_fail(true);
+  factory->FinishCreation();  // We'll complete synchronously.
+  MockHttpCache cache(factory);
+
   cache.http_cache()->set_enable_range_support(true);
   AddMockTransaction(&kRangeGET_TransactionOK);
 
