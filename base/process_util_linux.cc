@@ -271,13 +271,15 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
   int pss_kb = 0;
   bool have_pss = false;
   if (file_util::ReadFileToString(stat_file, &smaps) && smaps.length() > 0) {
+    const std::string private_prefix = "Private_";
+    const std::string pss_prefix = "Pss";
     StringTokenizer tokenizer(smaps, ":\n");
+    StringPiece last_key_name;
     ParsingState state = KEY_NAME;
-    std::string last_key_name;
     while (tokenizer.GetNext()) {
       switch (state) {
         case KEY_NAME:
-          last_key_name = tokenizer.token();
+          last_key_name = tokenizer.token_piece();
           state = KEY_VALUE;
           break;
         case KEY_VALUE:
@@ -285,9 +287,9 @@ bool ProcessMetrics::GetWorkingSetKBytes(WorkingSetKBytes* ws_usage) const {
             NOTREACHED();
             return false;
           }
-          if (StartsWithASCII(last_key_name, "Private_", 1)) {
+          if (last_key_name.starts_with(private_prefix)) {
             private_kb += StringToInt(tokenizer.token());
-          } else if (StartsWithASCII(last_key_name, "Pss", 1)) {
+          } else if (last_key_name.starts_with(pss_prefix)) {
             have_pss = true;
             pss_kb += StringToInt(tokenizer.token());
           }
