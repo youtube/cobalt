@@ -43,6 +43,33 @@
       'regexp' : '.*\\.(cc|cpp|hpp)$',
       'language' : 'C++',
     },
+
+    # Files/paths to include.  Specify these before the excludes, since rules
+    # are in order.
+    {
+      'regexp' : '^CHROMIUM/(base|media|net|printing|chrome|webkit/glue|native_client)/',
+      'include' : 1,
+    },
+    # Don't include subversion or mercurial SCM dirs
+    {
+      'regexp' : '.*/(\\.svn|\\.hg)/',
+      'include' : 0,
+    },
+    # Don't include output dirs
+    {
+      'regexp' : '.*/(Debug|Release|sconsbuild|out|xcodebuild)/',
+      'include' : 0,
+    },
+    # Don't include third-party source
+    {
+      'regexp' : '.*/third_party/',
+      'include' : 0,
+    },
+    # We don't run the V8 test suite, so we don't care about V8 coverage.
+    {
+      'regexp' : '.*/v8/',
+      'include' : 0,
+    },
   ],
 
   # Paths to add source from
