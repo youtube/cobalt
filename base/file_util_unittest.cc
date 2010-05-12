@@ -387,6 +387,57 @@ TEST_F(FileUtilTest, FileAndDirectorySize) {
   EXPECT_EQ(size_f1 + size_f2 + 3, computed_size);
 }
 
+#if defined(OS_POSIX)
+TEST_F(FileUtilTest, RealPath) {
+  // Get the real test directory, in case some future change to the
+  // test setup makes the path to test_dir_ include a symlink.
+  FilePath real_test_dir;
+  ASSERT_TRUE(file_util::RealPath(test_dir_, &real_test_dir));
+
+  FilePath real_path;
+  ASSERT_TRUE(file_util::RealPath(real_test_dir, &real_path));
+  ASSERT_TRUE(real_test_dir == real_path);
+
+  // Link one file to another.
+  FilePath link_from = real_test_dir.Append(FPL("from_file"));
+  FilePath link_to = real_test_dir.Append(FPL("to_file"));
+  CreateTextFile(link_to, bogus_content);
+
+  ASSERT_EQ(0, symlink(link_to.value().c_str(), link_from.value().c_str()))
+    << "Failed to create file symlink.";
+
+  // Check that RealPath sees the link.
+  ASSERT_TRUE(file_util::RealPath(link_from, &real_path));
+  ASSERT_TRUE(link_to != link_from);
+  ASSERT_TRUE(link_to == real_path);
+
+
+  // Link to a directory.
+  link_from = real_test_dir.Append(FPL("from_dir"));
+  link_to = real_test_dir.Append(FPL("to_dir"));
+  file_util::CreateDirectory(link_to);
+
+  ASSERT_EQ(0, symlink(link_to.value().c_str(), link_from.value().c_str()))
+    << "Failed to create directory symlink.";
+
+  ASSERT_TRUE(file_util::RealPath(link_from, &real_path));
+  ASSERT_TRUE(link_to != link_from);
+  ASSERT_TRUE(link_to == real_path);
+
+
+  // Test that a loop in the links causes RealPath() to return false.
+  link_from = real_test_dir.Append(FPL("link_a"));
+  link_to = real_test_dir.Append(FPL("link_b"));
+  ASSERT_EQ(0, symlink(link_to.value().c_str(), link_from.value().c_str()))
+    << "Failed to create loop symlink a.";
+  ASSERT_EQ(0, symlink(link_from.value().c_str(), link_to.value().c_str()))
+    << "Failed to create loop symlink b.";
+
+  // Infinite loop!
+  ASSERT_FALSE(file_util::RealPath(link_from, &real_path));
+}
+#endif  // defined(OS_POSIX)
+
 TEST_F(FileUtilTest, DeleteNonExistent) {
   FilePath non_existent = test_dir_.AppendASCII("bogus_file_dne.foobar");
   ASSERT_FALSE(file_util::PathExists(non_existent));
