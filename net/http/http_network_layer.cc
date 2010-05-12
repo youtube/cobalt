@@ -140,6 +140,7 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kDisableCompression) {
       spdy::SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {
+      net::HttpNetworkTransaction::SetUseAlternateProtocols(true);
       // Except for the first element, the order is irrelevant.  First element
       // specifies the fallback in case nothing matches
       // (SSLClientSocket::kNextProtoNoOverlap).  Otherwise, the SSL library
