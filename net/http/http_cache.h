@@ -26,7 +26,6 @@
 #include "net/base/cache_type.h"
 #include "net/base/completion_callback.h"
 #include "net/http/http_transaction_factory.h"
-#include "testing/gtest/include/gtest/gtest_prod.h"
 
 class GURL;
 class MessageLoop;
@@ -68,45 +67,68 @@ class HttpCache : public HttpTransactionFactory,
     DISABLE
   };
 
-  // Initialize the cache from the directory where its data is stored. The
-  // disk cache is initialized lazily (by CreateTransaction) in this case. If
-  // |cache_size| is zero, a default value will be calculated automatically.
-  // The |cache_thread| is the thread where disk operations should take place.
+  // A BackendFactory creates a backend object to be used by the HttpCache.
+  class BackendFactory {
+   public:
+    virtual ~BackendFactory() {}
+
+    // The actual method to build the backend. Returns a net error code. If
+    // ERR_IO_PENDING is returned, the |callback| will be notified when the
+    // operation completes, and |backend| must remain valid until the
+    // notification arrives.
+    // The implementation must not access the factory object after invoking the
+    // |callback| because the object can be deleted from within the callback.
+    virtual int CreateBackend(disk_cache::Backend** backend,
+                              CompletionCallback* callback) = 0;
+  };
+
+  // A default backend factory for the common use cases.
+  class DefaultBackend : public BackendFactory {
+   public:
+    // |path| is the destination for any files used by the backend, and
+    // |cache_thread| is the thread where disk operations should take place. If
+    // |max_bytes| is  zero, a default value will be calculated automatically.
+    DefaultBackend(CacheType type, const FilePath& path, int max_bytes,
+                   MessageLoop* thread)
+        : type_(type), path_(path), max_bytes_(max_bytes), thread_(thread) {}
+
+    // Returns a factory for an in-memory cache.
+    static BackendFactory* InMemory(int max_bytes)  {
+      return new DefaultBackend(MEMORY_CACHE, FilePath(), max_bytes, NULL);
+    }
+
+    // BackendFactory implementation.
+    virtual int CreateBackend(disk_cache::Backend** backend,
+                              CompletionCallback* callback);
+
+   private:
+    CacheType type_;
+    const FilePath path_;
+    int max_bytes_;
+    MessageLoop* thread_;
+  };
+
+  // The disk cache is initialized lazily (by CreateTransaction) in this case.
+  // The  HttpCache takes ownership of the |backend_factory|.
   HttpCache(NetworkChangeNotifier* network_change_notifier,
-            HostResolver* host_resolver,
-            ProxyService* proxy_service,
+            HostResolver* host_resolver, ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
-            const FilePath& cache_dir,
-            MessageLoop* cache_thread,
-            int cache_size);
+            BackendFactory* backend_factory);
 
-  // Initialize the cache from the directory where its data is stored. The
-  // disk cache is initialized lazily (by CreateTransaction) in  this case. If
-  // |cache_size| is zero, a default value will be calculated automatically.
+  // The disk cache is initialized lazily (by CreateTransaction) in  this case.
   // Provide an existing HttpNetworkSession, the cache can construct a
   // network layer with a shared HttpNetworkSession in order for multiple
-  // network layers to share information (e.g. authenication data).
-  // The |cache_thread| is the thread where disk operations should take place.
-  HttpCache(HttpNetworkSession* session, const FilePath& cache_dir,
-            MessageLoop* cache_thread, int cache_size);
-
-  // Initialize using an in-memory cache. The cache is initialized lazily
-  // (by CreateTransaction) in this case. If |cache_size| is zero, a default
-  // value will be calculated automatically.
-  HttpCache(NetworkChangeNotifier* network_change_notifier,
-            HostResolver* host_resolver,
-            ProxyService* proxy_service,
-            SSLConfigService* ssl_config_service,
-            HttpAuthHandlerFactory* http_auth_handler_factory,
-            int cache_size);
+  // network layers to share information (e.g. authenication data). The
+  // HttpCache takes ownership of the |backend_factory|.
+  HttpCache(HttpNetworkSession* session, BackendFactory* backend_factory);
 
   // Initialize the cache from its component parts, which is useful for
-  // testing.  The lifetime of the network_layer and disk_cache are managed by
-  // the HttpCache and will be destroyed using |delete| when the HttpCache is
+  // testing.  The lifetime of the network_layer and backend_factory are managed
+  // by the HttpCache and will be destroyed using |delete| when the HttpCache is
   // destroyed.
   HttpCache(HttpTransactionFactory* network_layer,
-            disk_cache::Backend* disk_cache);
+            BackendFactory* backend_factory);
 
   HttpTransactionFactory* network_layer() { return network_layer_.get(); }
 
@@ -160,9 +182,6 @@ class HttpCache : public HttpTransactionFactory,
   void set_mode(Mode value) { mode_ = value; }
   Mode mode() { return mode_; }
 
-  void set_type(CacheType type) { type_ = type; }
-  CacheType type() { return type_; }
-
   // Close currently active sockets so that fresh page loads will not use any
   // recycled connections.  For sockets currently in use, they may not close
   // immediately, but they will not be reusable. This is for debugging.
@@ -185,9 +204,6 @@ class HttpCache : public HttpTransactionFactory,
   friend class ::ViewCacheHelper;
 
  private:
-  FRIEND_TEST(HttpCacheTest, SimpleGET_WaitForBackend);
-  FRIEND_TEST(HttpCacheTest, SimpleGET_WaitForBackend_CancelCreate);
-
   // Types --------------------------------------------------------------------
 
   class BackendCallback;
@@ -215,10 +231,6 @@ class HttpCache : public HttpTransactionFactory,
   typedef base::hash_map<std::string, ActiveEntry*> ActiveEntriesMap;
   typedef base::hash_map<std::string, PendingOp*> PendingOpsMap;
   typedef std::set<ActiveEntry*> ActiveEntriesSet;
-
-  typedef int (*CreateCacheBackendFn)(CacheType, const FilePath&, int,
-                                      bool, MessageLoop*, disk_cache::Backend**,
-                                      CompletionCallback*);
 
   // Methods ------------------------------------------------------------------
 
@@ -341,13 +353,11 @@ class HttpCache : public HttpTransactionFactory,
   // Variables ----------------------------------------------------------------
 
   // Used when lazily constructing the disk_cache_.
-  FilePath disk_cache_dir_;
-  MessageLoop* cache_thread_;
+  scoped_ptr<BackendFactory> backend_factory_;
   disk_cache::Backend* temp_backend_;
   bool building_backend_;
 
   Mode mode_;
-  CacheType type_;
 
   scoped_ptr<HttpTransactionFactory> network_layer_;
   scoped_ptr<disk_cache::Backend> disk_cache_;
@@ -364,13 +374,9 @@ class HttpCache : public HttpTransactionFactory,
   ScopedRunnableMethodFactory<HttpCache> task_factory_;
 
   bool enable_range_support_;
-  int cache_size_;
 
   typedef base::hash_map<std::string, int> PlaybackCacheMap;
   scoped_ptr<PlaybackCacheMap> playback_cache_map_;
-
-  // Used for unit tests.
-  CreateCacheBackendFn create_backend_fn_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpCache);
 };
