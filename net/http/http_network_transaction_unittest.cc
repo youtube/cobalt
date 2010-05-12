@@ -5216,10 +5216,9 @@ TEST_F(HttpNetworkTransactionTest,
   // Set up an initial SpdySession in the pool to reuse.
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(HostPortPair("www.google.com", 443),
-                                        session);
+                                        session, BoundNetLog());
   TCPSocketParams tcp_params("www.google.com", 443, MEDIUM, GURL(), false);
-  spdy_session->Connect(
-      "www.google.com:443", tcp_params, MEDIUM, BoundNetLog());
+  spdy_session->Connect("www.google.com:443", tcp_params, MEDIUM);
 
   trans.reset(new HttpNetworkTransaction(session));
 

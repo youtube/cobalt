@@ -1359,14 +1359,14 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
   scoped_refptr<SpdySession> spdy_session;
 
   if (spdy_pool->HasSession(endpoint_)) {
-    spdy_session = spdy_pool->Get(endpoint_, session_);
+    spdy_session = spdy_pool->Get(endpoint_, session_, net_log_);
   } else {
     // SPDY is negotiated using the TLS next protocol negotiation (NPN)
     // extension, so |connection_| must contain an SSLClientSocket.
     DCHECK(using_ssl_);
     CHECK(connection_->socket());
     spdy_session = spdy_pool->GetSpdySessionFromSSLSocket(
-        endpoint_, session_, connection_.release());
+        endpoint_, session_, connection_.release(), net_log_);
   }
 
   CHECK(spdy_session.get());
@@ -1379,8 +1379,7 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
       return error_code;
   }
   headers_valid_ = false;
-  spdy_stream_ = spdy_session->GetOrCreateStream(
-      *request_, upload_data, net_log_);
+  spdy_stream_ = spdy_session->GetOrCreateStream(*request_, upload_data);
   return spdy_stream_->SendRequest(upload_data, &response_, &io_callback_);
 }
 
