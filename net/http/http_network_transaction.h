@@ -42,6 +42,8 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   virtual ~HttpNetworkTransaction();
 
+  static void SetHostMappingRules(const std::string& rules);
+
   // Controls whether or not we use the Alternate-Protocol header.
   static void SetUseAlternateProtocols(bool value);
 
