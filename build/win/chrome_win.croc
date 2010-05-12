@@ -4,27 +4,8 @@
 {
   # List of rules, applied in order
   'rules' : [
-    # Files/paths to include.  Specify these before the excludes, since rules
-    # are in order.
-    {
-      'regexp' : '^CHROMIUM/(base|courgette|media|net|printing|chrome|v8|webkit/glue|native_client)/',
-      'include' : 1,
-    },
-    # Don't include subversion or mercurial SCM dirs
-    {
-      'regexp' : '.*/(\\.svn|\\.hg)/',
-      'include' : 0,
-    },
-    # Don't include output dirs
-    {
-      'regexp' : '.*/(Debug|Release|sconsbuild|xcodebuild)/',
-      'include' : 0,
-    },
-    # Don't include third-party source
-    {
-      'regexp' : '.*/third_party/',
-      'include' : 0,
-    },
+    # Specify inclusions before exclusions, since rules are in order.
+
     # Don't include posix or linux specific files
     {
       'regexp' : '.*(_|/)(linux|posix)(\\.|_)',
