@@ -187,7 +187,8 @@ void AdjustSocketBufferSizes(ClientSocket* socket) {
 bool SpdySession::use_ssl_ = true;
 
 SpdySession::SpdySession(const HostPortPair& host_port_pair,
-                         HttpNetworkSession* session)
+                         HttpNetworkSession* session,
+                         const BoundNetLog& net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           connect_callback_(this, &SpdySession::OnTCPConnect)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -211,7 +212,8 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
       streams_pushed_count_(0),
       streams_pushed_and_claimed_count_(0),
       streams_abandoned_count_(0),
-      in_session_pool_(true) {
+      in_session_pool_(true),
+      net_log_(net_log) {
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 
   spdy_framer_.set_visitor(this);
@@ -263,8 +265,7 @@ void SpdySession::InitializeWithSSLSocket(ClientSocketHandle* connection) {
 
 net::Error SpdySession::Connect(const std::string& group_name,
                                 const TCPSocketParams& destination,
-                                RequestPriority priority,
-                                const BoundNetLog& net_log) {
+                                RequestPriority priority) {
   DCHECK(priority >= SPDY_PRIORITY_HIGHEST && priority <= SPDY_PRIORITY_LOWEST);
 
   // If the connect process is started, let the caller continue.
@@ -278,7 +279,7 @@ net::Error SpdySession::Connect(const std::string& group_name,
 
   int rv = connection_->Init(group_name, destination, priority,
                              &connect_callback_, session_->tcp_socket_pool(),
-                             net_log);
+                             net_log_);
   DCHECK(rv <= 0);
 
   // If the connect is pending, we still return ok.  The APIs enqueue
@@ -291,8 +292,7 @@ net::Error SpdySession::Connect(const std::string& group_name,
 
 scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     const HttpRequestInfo& request,
-    const UploadDataStream* upload_data,
-    const BoundNetLog& log) {
+    const UploadDataStream* upload_data) {
   const GURL& url = request.url;
   const std::string& path = url.PathForRequest();
 
@@ -331,8 +331,8 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     DCHECK(!it->second);
     // Server will assign a stream id when the push stream arrives.  Use 0 for
     // now.
-    log.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM, NULL);
-    SpdyStream* stream = new SpdyStream(this, 0, true, log);
+    net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM, NULL);
+    SpdyStream* stream = new SpdyStream(this, 0, true, net_log_);
     stream->SetRequestInfo(request);
     stream->set_path(path);
     it->second = stream;
@@ -342,7 +342,7 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
   const spdy::SpdyStreamId stream_id = GetNewStreamId();
 
   // If we still don't have a stream, activate one now.
-  stream = new SpdyStream(this, stream_id, false, log);
+  stream = new SpdyStream(this, stream_id, false, net_log_);
   stream->SetRequestInfo(request);
   stream->set_priority(request.priority);
   stream->set_path(path);
