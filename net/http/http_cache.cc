@@ -33,6 +33,23 @@
 
 namespace net {
 
+int HttpCache::DefaultBackend::CreateBackend(disk_cache::Backend** backend,
+                                             CompletionCallback* callback) {
+  DCHECK_GE(max_bytes_, 0);
+  if (callback)
+    return disk_cache::CreateCacheBackend(type_, path_, max_bytes_, true,
+                                          thread_, backend, callback);
+
+  // This is just old code needed to support synchronous cache creation.
+  // TODO(rvargas): Remove this once all callers provide a callback.
+  if (type_ == MEMORY_CACHE) {
+    *backend = disk_cache::CreateInMemoryCacheBackend(max_bytes_);
+  } else {
+    *backend = disk_cache::CreateCacheBackend(path_, true, max_bytes_, type_);
+  }
+  return (*backend ? OK : ERR_FAILED);
+}
+
 //-----------------------------------------------------------------------------
 
 HttpCache::ActiveEntry::ActiveEntry(disk_cache::Entry* e)
@@ -215,78 +232,41 @@ void HttpCache::MetadataWriter::OnIOComplete(int result) {
 //-----------------------------------------------------------------------------
 
 HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
-                     HostResolver* host_resolver,
-                     ProxyService* proxy_service,
+                     HostResolver* host_resolver, ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
                      HttpAuthHandlerFactory* http_auth_handler_factory,
-                     const FilePath& cache_dir,
-                     MessageLoop* cache_thread,
-                     int cache_size)
-    : disk_cache_dir_(cache_dir),
-      cache_thread_(cache_thread),
+                     BackendFactory* backend_factory)
+    : backend_factory_(backend_factory),
       temp_backend_(NULL),
       building_backend_(false),
       mode_(NORMAL),
-      type_(DISK_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(
           network_change_notifier, host_resolver, proxy_service,
           ssl_config_service, http_auth_handler_factory)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      enable_range_support_(true),
-      cache_size_(cache_size),
-      create_backend_fn_(NULL) {
+      enable_range_support_(true) {
 }
 
 HttpCache::HttpCache(HttpNetworkSession* session,
-                     const FilePath& cache_dir,
-                     MessageLoop* cache_thread,
-                     int cache_size)
-    : disk_cache_dir_(cache_dir),
-      cache_thread_(cache_thread),
+                     BackendFactory* backend_factory)
+    : backend_factory_(backend_factory),
       temp_backend_(NULL),
       building_backend_(false),
       mode_(NORMAL),
-      type_(DISK_CACHE),
       network_layer_(HttpNetworkLayer::CreateFactory(session)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      enable_range_support_(true),
-      cache_size_(cache_size),
-      create_backend_fn_(NULL) {
-}
-
-HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
-                     HostResolver* host_resolver,
-                     ProxyService* proxy_service,
-                     SSLConfigService* ssl_config_service,
-                     HttpAuthHandlerFactory* http_auth_handler_factory,
-                     int cache_size)
-    : cache_thread_(NULL),
-      temp_backend_(NULL),
-      building_backend_(false),
-      mode_(NORMAL),
-      type_(MEMORY_CACHE),
-      network_layer_(HttpNetworkLayer::CreateFactory(
-          network_change_notifier, host_resolver, proxy_service,
-          ssl_config_service, http_auth_handler_factory)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      enable_range_support_(true),
-      cache_size_(cache_size),
-      create_backend_fn_(NULL) {
+      enable_range_support_(true) {
 }
 
 HttpCache::HttpCache(HttpTransactionFactory* network_layer,
-                     disk_cache::Backend* disk_cache)
-    : cache_thread_(NULL),
+                     BackendFactory* backend_factory)
+    : backend_factory_(backend_factory),
       temp_backend_(NULL),
       building_backend_(false),
       mode_(NORMAL),
-      type_(DISK_CACHE),
       network_layer_(network_layer),
-      disk_cache_(disk_cache),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
-      enable_range_support_(true),
-      cache_size_(0),
-      create_backend_fn_(NULL) {
+      enable_range_support_(true) {
 }
 
 HttpCache::~HttpCache() {
@@ -322,16 +302,11 @@ disk_cache::Backend* HttpCache::GetBackend() {
   if (disk_cache_.get())
     return disk_cache_.get();
 
-  DCHECK_GE(cache_size_, 0);
-  if (type_ == MEMORY_CACHE) {
-    // We may end up with no folder name and no cache if the initialization
-    // of the disk cache fails. We want to be sure that what we wanted to have
-    // was an in-memory cache.
-    disk_cache_.reset(disk_cache::CreateInMemoryCacheBackend(cache_size_));
-  } else if (!disk_cache_dir_.empty()) {
-    disk_cache_.reset(disk_cache::CreateCacheBackend(disk_cache_dir_, true,
-                                                     cache_size_, type_));
-    disk_cache_dir_ = FilePath();  // Reclaim memory.
+  if (backend_factory_.get()) {
+    disk_cache::Backend* backend;
+    if (OK == backend_factory_->CreateBackend(&backend, NULL))
+      disk_cache_.reset(backend);
+    backend_factory_.reset();  // Reclaim memory.
   }
   return disk_cache_.get();
 }
@@ -345,7 +320,6 @@ int HttpCache::GetBackend(disk_cache::Backend** backend,
     return OK;
   }
 
-  DCHECK_GE(cache_size_, 0);
   return CreateBackend(backend, callback);
 }
 
@@ -445,12 +419,9 @@ void HttpCache::CloseCurrentConnections() {
 
 int HttpCache::CreateBackend(disk_cache::Backend** backend,
                              CompletionCallback* callback) {
-  // We may end up with no folder name and no cache if the initialization
-  // of the disk cache fails.
-  if (type_ != MEMORY_CACHE && disk_cache_dir_.empty())
+  if (!backend_factory_.get())
     return ERR_FAILED;
 
-  DCHECK_GE(cache_size_, 0);
   building_backend_ = true;
 
   scoped_ptr<WorkItem> item(new WorkItem(WI_CREATE_BACKEND, NULL, callback,
@@ -471,18 +442,7 @@ int HttpCache::CreateBackend(disk_cache::Backend** backend,
   BackendCallback* my_callback = new BackendCallback(this, pending_op);
   pending_op->callback = my_callback;
 
-  // See if this is a unit test. TODO(rvargas): Cleanup this after removing the
-  // overloaded method.
-  int rv;
-  if (create_backend_fn_) {
-    rv = create_backend_fn_(type_, disk_cache_dir_, cache_size_, true,
-                            cache_thread_, &temp_backend_, my_callback);
-  } else {
-    rv = disk_cache::CreateCacheBackend(type_, disk_cache_dir_, cache_size_,
-                                        true, cache_thread_, &temp_backend_,
-                                        my_callback);
-  }
-
+  int rv = backend_factory_->CreateBackend(&temp_backend_, my_callback);
   if (rv != ERR_IO_PENDING) {
     pending_op->writer->ClearCallback();
     my_callback->Run(rv);
@@ -1060,15 +1020,14 @@ void HttpCache::OnBackendCreated(int result, PendingOp* pending_op) {
   WorkItemOperation op = item->operation();
   DCHECK_EQ(WI_CREATE_BACKEND, op);
 
-  if (type_ != MEMORY_CACHE)
-    disk_cache_dir_ = FilePath();  // Reclaim memory.
+  backend_factory_.reset();  // Reclaim memory.
 
   if (result == OK)
     disk_cache_.reset(temp_backend_);
 
   item->DoCallback(result, temp_backend_);
 
-  // Notify and all callers and delete all pending work items.
+  // Notify all callers and delete all pending work items.
   while (!pending_op->pending_queue.empty()) {
     scoped_ptr<WorkItem> pending_item(pending_op->pending_queue.front());
     pending_op->pending_queue.pop_front();
