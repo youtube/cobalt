@@ -15,6 +15,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/upload_data_stream.h"
@@ -41,8 +42,10 @@ class SpdySession : public base::RefCounted<SpdySession>,
  public:
   // Create a new SpdySession.
   // |host_port_pair| is the host/port that this session connects to.
-  // |session| is the HttpNetworkSession
-  SpdySession(const HostPortPair& host_port_pair, HttpNetworkSession* session);
+  // |session| is the HttpNetworkSession.  |net_log| is the NetLog that we log
+  // network events to.
+  SpdySession(const HostPortPair& host_port_pair, HttpNetworkSession* session,
+              const BoundNetLog& net_log);
 
   const HostPortPair& host_port_pair() const { return host_port_pair_; }
 
@@ -52,8 +55,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // immediately start using the SpdySession while it connects.
   net::Error Connect(const std::string& group_name,
                      const TCPSocketParams& destination,
-                     RequestPriority priority,
-                     const BoundNetLog& net_log);
+                     RequestPriority priority);
 
   // Get a stream for a given |request|.  In the typical case, this will involve
   // the creation of a new stream (and will send the SYN frame).  If the server
@@ -62,7 +64,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // X-Associated-Content.
   // Returns the new or existing stream.  Never returns NULL.
   scoped_refptr<SpdyStream> GetOrCreateStream(const HttpRequestInfo& request,
-      const UploadDataStream* upload_data, const BoundNetLog& log);
+      const UploadDataStream* upload_data);
 
   // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
   void InitializeWithSSLSocket(ClientSocketHandle* connection);
@@ -246,6 +248,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   int streams_abandoned_count_;
 
   bool in_session_pool_;  // True if the session is currently in the pool.
+
+  BoundNetLog net_log_;
 
   static bool use_ssl_;
 };
