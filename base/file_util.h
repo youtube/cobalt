@@ -279,6 +279,13 @@ bool IsDot(const FilePath& path);
 // Returns true if the given path's base name is "..".
 bool IsDotDot(const FilePath& path);
 
+#if defined(OS_POSIX)
+// Set |real_path| to |path| with symbolic links expanded.
+// Windows support (expanding junctions) comming soon:
+// http://crbug.com/13044
+bool RealPath(const FilePath& path, FilePath* real_path);
+#endif
+
 // Used to hold information about a given file path.  See GetFileInfo below.
 struct FileInfo {
   // The size of the file in bytes.  Undefined when is_directory is true.

@@ -14,6 +14,7 @@
 #include <string.h>
 #include <sys/errno.h>
 #include <sys/mman.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -733,6 +734,15 @@ void MemoryMappedFile::CloseHandles() {
 bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
                               const base::Time& cutoff_time) {
   return find_info.stat.st_mtime >= cutoff_time.ToTimeT();
+}
+
+bool RealPath(const FilePath& path, FilePath* real_path) {
+  FilePath::CharType buf[PATH_MAX];
+  if (!realpath(path.value().c_str(), buf))
+    return false;
+
+  *real_path = FilePath(buf);
+  return true;
 }
 
 #if !defined(OS_MACOSX)
