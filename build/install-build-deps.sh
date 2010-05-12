@@ -135,12 +135,13 @@ fi
 
 # Packages need for development
 dev_list="apache2 bison fakeroot flex g++ gperf libapache2-mod-php5
-          libasound2-dev libbz2-dev libcairo2-dev libdbus-glib-1-dev
-          libgconf2-dev libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev
-          libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev libpam0g-dev
-          libsqlite3-dev libxslt1-dev libxss-dev lighttpd mesa-common-dev
-          msttcorefonts patch perl php5-cgi pkg-config python python-dev rpm
-          subversion ttf-dejavu-core ttf-kochi-gothic ttf-kochi-mincho wdiff"
+          libasound2-dev libbz2-dev libcairo2-dev libcupsys2-dev
+          libdbus-glib-1-dev libgconf2-dev libgl1-mesa-dev libglu1-mesa-dev
+          libglib2.0-dev libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev
+          libpam0g-dev libsqlite3-dev libxslt1-dev libxss-dev lighttpd
+          mesa-common-dev msttcorefonts patch perl php5-cgi pkg-config python
+          python-dev rpm subversion ttf-dejavu-core ttf-kochi-gothic
+          ttf-kochi-mincho wdiff"
 
 # Full list of required run-time libraries
 lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
