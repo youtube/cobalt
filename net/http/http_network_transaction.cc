@@ -17,6 +17,7 @@
 #include "build/build_config.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/connection_type_histograms.h"
+#include "net/base/host_mapping_rules.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
@@ -48,6 +49,7 @@ namespace net {
 
 namespace {
 
+const HostMappingRules* g_host_mapping_rules = NULL;
 const std::string* g_next_protos = NULL;
 bool g_use_alternate_protocols = false;
 
@@ -194,16 +196,20 @@ void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
     return;
   }
 
-  if (alternate_protocols->HasAlternateProtocolFor(http_host_port_pair)) {
+  HostPortPair host_port(http_host_port_pair);
+  if (g_host_mapping_rules)
+    g_host_mapping_rules->RewriteHost(&host_port);
+
+  if (alternate_protocols->HasAlternateProtocolFor(host_port)) {
     const HttpAlternateProtocols::PortProtocolPair existing_alternate =
-        alternate_protocols->GetAlternateProtocolFor(http_host_port_pair);
+        alternate_protocols->GetAlternateProtocolFor(host_port);
     // If we think the alternate protocol is broken, don't change it.
     if (existing_alternate.protocol == HttpAlternateProtocols::BROKEN)
       return;
   }
 
   alternate_protocols->SetAlternateProtocolFor(
-      http_host_port_pair, port, HttpAlternateProtocols::NPN_SPDY_1);
+      host_port, port, HttpAlternateProtocols::NPN_SPDY_1);
 }
 
 class NetLogHttpRequestParameter : public NetLog::EventParameters {
@@ -299,6 +305,14 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
     ssl_config_.next_protos = *g_next_protos;
   if (!g_tls_intolerant_servers)
     g_tls_intolerant_servers = new std::set<std::string>;
+}
+
+// static
+void HttpNetworkTransaction::SetHostMappingRules(const std::string& rules) {
+  HostMappingRules* host_mapping_rules = new HostMappingRules();
+  host_mapping_rules->SetRulesFromString(rules);
+  delete g_host_mapping_rules;
+  g_host_mapping_rules = host_mapping_rules;
 }
 
 // static
@@ -724,6 +738,9 @@ int HttpNetworkTransaction::DoResolveProxy() {
   // |endpoint_| indicates the final destination endpoint.
   endpoint_ = HostPortPair(request_->url.HostNoBrackets(),
                            request_->url.EffectiveIntPort());
+
+  if (g_host_mapping_rules)
+    g_host_mapping_rules->RewriteHost(&endpoint_);
 
   GURL alternate_endpoint;
 
@@ -1232,12 +1249,8 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
     return OK;
   }
 
-  HostPortPair http_host_port_pair;
-  http_host_port_pair.host = request_->url.HostNoBrackets();
-  http_host_port_pair.port = request_->url.EffectiveIntPort();
-
   ProcessAlternateProtocol(*response_.headers,
-                           http_host_port_pair,
+                           endpoint_,
                            session_->mutable_alternate_protocols());
 
   int rv = HandleAuthChallenge();
