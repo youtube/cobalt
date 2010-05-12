@@ -68,19 +68,25 @@ class TestSuite {
     CommandLine::Reset();
   }
 
-  // Returns true if a string starts with FLAKY_.
-  static bool IsFlaky(const char* name) {
-    return strncmp(name, "FLAKY_", 6) == 0;
-  }
-
   // Returns true if the test is marked as flaky.
-  static bool FlakyTest(const testing::TestInfo& test) {
-    return IsFlaky(test.name()) || IsFlaky(test.test_case_name());
+  static bool IsMarkedFlaky(const testing::TestInfo& test) {
+    return strncmp(test.name(), "FLAKY_", 6) == 0;
   }
 
-  // Returns true if the test failed and is not marked as flaky.
-  static bool NonFlakyFailures(const testing::TestInfo& test) {
-    return test.should_run() && test.result()->Failed() && !FlakyTest(test);
+  // Returns true if the test is marked as failing.
+  static bool IsMarkedFailing(const testing::TestInfo& test) {
+    return strncmp(test.name(), "FAILS_", 6) == 0;
+  }
+
+  // Returns true if the test failure should be ignored.
+  static bool ShouldIgnoreFailure(const testing::TestInfo& test) {
+    return IsMarkedFlaky(test) || IsMarkedFailing(test);
+  }
+
+  // Returns true if the test failed and the failure shouldn't be ignored.
+  static bool NonIgnoredFailures(const testing::TestInfo& test) {
+    return test.should_run() && test.result()->Failed() &&
+        !ShouldIgnoreFailure(test);
   }
 
   // Returns the number of tests where the match function returns true.
@@ -124,16 +130,22 @@ class TestSuite {
     }
     int result = RUN_ALL_TESTS();
 
-    // Reset the result code if only flaky test failed.
-    if (result != 0 && GetTestCount(&TestSuite::NonFlakyFailures) == 0) {
+    // If there are failed tests, see if we should ignore the failures.
+    if (result != 0 && GetTestCount(&TestSuite::NonIgnoredFailures) == 0)
       result = 0;
-    }
 
     // Display the number of flaky tests.
-    int flaky_count = GetTestCount(&TestSuite::FlakyTest);
+    int flaky_count = GetTestCount(&TestSuite::IsMarkedFlaky);
     if (flaky_count) {
       printf("  YOU HAVE %d FLAKY %s\n\n", flaky_count,
              flaky_count == 1 ? "TEST" : "TESTS");
+    }
+
+    // Display the number of tests with ignored failures (FAILS).
+    int failing_count = GetTestCount(&TestSuite::IsMarkedFailing);
+    if (failing_count) {
+      printf("  YOU HAVE %d %s with ignored failures (FAILS prefix)\n\n",
+             failing_count, failing_count == 1 ? "test" : "tests");
     }
 
     // This MUST happen before Shutdown() since Shutdown() tears down
