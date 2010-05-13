@@ -37,8 +37,7 @@ class UploadDataStream;
 class SpdyStream : public base::RefCounted<SpdyStream> {
  public:
   // SpdyStream constructor
-  SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed,
-             const BoundNetLog& log);
+  SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed);
 
   // Ideally I'd use two abstract classes as interfaces for these two sections,
   // but since we're ref counted, I can't make both abstract classes inherit
@@ -89,6 +88,9 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
 
   int priority() const { return priority_; }
   void set_priority(int priority) { priority_ = priority; }
+
+  const BoundNetLog& net_log() const { return net_log_; }
+  void set_net_log(const BoundNetLog& log) { net_log_ = log; }
 
   const HttpResponseInfo* GetResponseInfo() const;
   const HttpRequestInfo* GetRequestInfo() const;

@@ -11,6 +11,7 @@
 #include <queue>
 #include <string>
 
+#include "base/linked_ptr.h"
 #include "base/ref_counted.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_states.h"
@@ -63,8 +64,10 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // might also not have initiated the stream yet, but indicated it will via
   // X-Associated-Content.
   // Returns the new or existing stream.  Never returns NULL.
-  scoped_refptr<SpdyStream> GetOrCreateStream(const HttpRequestInfo& request,
-      const UploadDataStream* upload_data);
+  scoped_refptr<SpdyStream> GetOrCreateStream(
+      const HttpRequestInfo& request,
+      const UploadDataStream* upload_data,
+      const BoundNetLog& stream_net_log);
 
   // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
   void InitializeWithSSLSocket(ClientSocketHandle* connection);
@@ -118,9 +121,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   // Control frame handlers.
   void OnSyn(const spdy::SpdySynStreamControlFrame& frame,
-             const spdy::SpdyHeaderBlock& headers);
+             const linked_ptr<spdy::SpdyHeaderBlock>& headers);
   void OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
-                  const spdy::SpdyHeaderBlock& headers);
+                  const linked_ptr<spdy::SpdyHeaderBlock>& headers);
   void OnFin(const spdy::SpdyRstStreamControlFrame& frame);
   void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
   void OnSettings(const spdy::SpdySettingsControlFrame& frame);

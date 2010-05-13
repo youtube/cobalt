@@ -12,8 +12,8 @@
 
 namespace net {
 
-SpdyStream::SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id,
-                       bool pushed, const BoundNetLog& log)
+SpdyStream::SpdyStream(
+    SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed)
     : stream_id_(stream_id),
       priority_(0),
       pushed_(pushed),
@@ -30,7 +30,6 @@ SpdyStream::SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id,
       user_buffer_(NULL),
       user_buffer_len_(0),
       cancelled_(false),
-      net_log_(log),
       send_bytes_(0),
       recv_bytes_(0),
       histograms_recorded_(false),
