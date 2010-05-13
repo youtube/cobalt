@@ -862,6 +862,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
     if (auth_identity_.source != HttpAuth::IDENT_SRC_PATH_LOOKUP)
       auth_cache_.Remove(auth_origin,
                          auth_handler_->realm(),
+                         auth_handler_->scheme(),
                          auth_identity_.username,
                          auth_identity_.password);
     auth_handler_ = NULL;
@@ -877,14 +878,11 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
     return ERR_TUNNEL_CONNECTION_FAILED;
   }
   if (auth_handler_->NeedsIdentity()) {
-    HttpAuthCache::Entry* entry = auth_cache_.LookupByRealm(
-        auth_origin, auth_handler_->realm());
+    // We only support basic authentication scheme now.
+    // TODO(ukai): Support other authentication scheme.
+    HttpAuthCache::Entry* entry =
+        auth_cache_.Lookup(auth_origin, auth_handler_->realm(), "basic");
     if (entry) {
-      if (entry->handler()->scheme() != "basic") {
-        // We only support basic authentication scheme now.
-        // TODO(ukai): Support other authentication scheme.
-        return ERR_TUNNEL_CONNECTION_FAILED;
-      }
       auth_identity_.source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
       auth_identity_.invalid = false;
       auth_identity_.username = entry->username();
