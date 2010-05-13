@@ -1877,6 +1877,7 @@ void HttpNetworkTransaction::InvalidateRejectedAuthFromCache(
   // since the entry in the cache may be newer than what we used last time.
   session_->auth_cache()->Remove(auth_origin,
                                  auth_handler_[target]->realm(),
+                                 auth_handler_[target]->scheme(),
                                  auth_identity_[target].username,
                                  auth_identity_[target].password);
 }
@@ -1937,31 +1938,16 @@ bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
   }
 
   // Check the auth cache for a realm entry.
-  HttpAuthCache::Entry* entry = session_->auth_cache()->LookupByRealm(
-      auth_origin, auth_handler_[target]->realm());
+  HttpAuthCache::Entry* entry =
+    session_->auth_cache()->Lookup(auth_origin, auth_handler_[target]->realm(),
+                                   auth_handler_[target]->scheme());
 
   if (entry) {
-    // Disallow re-using of identity if the scheme of the originating challenge
-    // does not match. This protects against the following situation:
-    // 1. Browser prompts user to sign into DIGEST realm="Foo".
-    // 2. Since the auth-scheme is not BASIC, the user is reasured that it
-    //    will not be sent over the wire in clear text. So they use their
-    //    most trusted password.
-    // 3. Next, the browser receives a challenge for BASIC realm="Foo". This
-    //    is the same realm that we have a cached identity for. However if
-    //    we use that identity, it would get sent over the wire in
-    //    clear text (which isn't what the user agreed to when entering it).
-    if (entry->handler()->scheme() == auth_handler_[target]->scheme()) {
-      auth_identity_[target].source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
-      auth_identity_[target].invalid = false;
-      auth_identity_[target].username = entry->username();
-      auth_identity_[target].password = entry->password();
-      return true;
-    }
-    LOG(WARNING) << "The scheme of realm " << auth_handler_[target]->realm()
-                 << " has changed from " << entry->handler()->scheme()
-                 << " to " << auth_handler_[target]->scheme();
-    // Fall through.
+    auth_identity_[target].source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
+    auth_identity_[target].invalid = false;
+    auth_identity_[target].username = entry->username();
+    auth_identity_[target].password = entry->password();
+    return true;
   }
 
   // Use default credentials (single sign on) if this is the first attempt
