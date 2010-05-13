@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -16,28 +16,28 @@
 
 namespace net {
 
-// TODO(eroman): Can we change the key from (origin, realm) to
-// (origin, realm, auth_scheme)?
-
 // HttpAuthCache stores HTTP authentication identities and challenge info.
-// For each realm the cache stores a HttpAuthCache::Entry, which holds:
-//   - the realm name
-//   - the origin server {scheme, host, port}
+// For each (origin, realm, scheme) triple the cache stores a
+// HttpAuthCache::Entry, which holds:
+//   - the origin server {protocol scheme, host, port}
 //   - the last identity used (username/password)
-//   - the last auth handler used
+//   - the last auth handler used (contains realm and authentication scheme)
 //   - the list of paths which used this realm
-// Entries can be looked up by either (origin, realm) or (origin, path).
+// Entries can be looked up by either (origin, realm, scheme) or (origin, path).
 class HttpAuthCache {
  public:
   class Entry;
 
-  // Find the realm entry on server |origin| for realm |realm|.
+  // Find the realm entry on server |origin| for realm |realm| and
+  // scheme |scheme|.
   //   |origin| - the {scheme, host, port} of the server.
   //   |realm|  - case sensitive realm string.
+  //   |scheme| - case sensitive authentication scheme, should be lower-case.
   //   returns  - the matched entry or NULL.
-  Entry* LookupByRealm(const GURL& origin, const std::string& realm);
+  Entry* Lookup(const GURL& origin, const std::string& realm,
+                const std::string& scheme);
 
-  // Find the realm entry on server |origin| whose protection space includes
+  // Find the entry on server |origin| whose protection space includes
   // |path|. This uses the assumption in RFC 2617 section 2 that deeper
   // paths lie in the same protection space.
   //   |origin| - the {scheme, host, port} of the server.
@@ -46,9 +46,10 @@ class HttpAuthCache {
   //   returns  - the matched entry or NULL.
   Entry* LookupByPath(const GURL& origin, const std::string& path);
 
-  // Add a realm entry on server |origin| for realm |handler->realm()|, If an
-  // entry for this realm already exists, update it rather than replace it --
-  // this  preserves the realm's paths list.
+  // Add an entry on server |origin| for realm |handler->realm()| and
+  // scheme |handler->scheme()|.  If an entry for this (realm,scheme)
+  // already exists, update it rather than replace it -- this  preserves the
+  // paths list.
   //   |origin|   - the {scheme, host, port} of the server.
   //   |handler|  - handler for the challenge.
   //   |username| - login information for the realm.
@@ -62,15 +63,17 @@ class HttpAuthCache {
              const std::wstring& password,
              const std::string& path);
 
-  // Remove realm entry on server |origin| for realm |realm| if one exists
-  // AND if the cached identity matches (|username|, |password|).
+  // Remove entry on server |origin| for realm |realm| and scheme |scheme|
+  // if one exists AND if the cached identity matches (|username|, |password|).
   //   |origin|   - the {scheme, host, port} of the server.
   //   |realm|    - case sensitive realm string.
+  //   |scheme|   - authentication scheme
   //   |username| - condition to match.
   //   |password| - condition to match.
   //   returns    - true if an entry was removed.
   bool Remove(const GURL& origin,
               const std::string& realm,
+              const std::string& scheme,
               const std::wstring& username,
               const std::wstring& password);
 
@@ -96,6 +99,11 @@ class HttpAuthCache::Entry {
   // The case-sensitive realm string of the challenge.
   const std::string realm() const {
     return handler_->realm();
+  }
+
+  // The authentication scheme string of the challenge
+  const std::string scheme() const {
+    return handler_->scheme();
   }
 
   // The handler for the challenge.
