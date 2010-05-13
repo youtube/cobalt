@@ -293,15 +293,21 @@ class ProxyResolverV8::Context {
     Context* context =
         static_cast<Context*>(v8::External::Cast(*args.Data())->Value());
 
-    context->current_request_net_log_.BeginEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS, NULL);
+    std::string result;
 
-    // We shouldn't be called with any arguments, but will not complain if
-    // we are.
-    std::string result = context->js_bindings_->MyIpAddress();
+    {
+      v8::Unlocker unlocker;
 
-    context->current_request_net_log_.EndEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS, NULL);
+      context->current_request_net_log_.BeginEvent(
+          NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS, NULL);
+
+      // We shouldn't be called with any arguments, but will not complain if
+      // we are.
+      result = context->js_bindings_->MyIpAddress();
+
+      context->current_request_net_log_.EndEvent(
+          NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS, NULL);
+    }
 
     if (result.empty())
       result = "127.0.0.1";
@@ -314,15 +320,21 @@ class ProxyResolverV8::Context {
     Context* context =
         static_cast<Context*>(v8::External::Cast(*args.Data())->Value());
 
-    context->current_request_net_log_.BeginEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX, NULL);
+    std::string result;
 
-    // We shouldn't be called with any arguments, but will not complain if
-    // we are.
-    std::string result = context->js_bindings_->MyIpAddressEx();
+    {
+      v8::Unlocker unlocker;
 
-    context->current_request_net_log_.EndEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX, NULL);
+      context->current_request_net_log_.BeginEvent(
+          NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX, NULL);
+
+      // We shouldn't be called with any arguments, but will not complain if
+      // we are.
+      context->js_bindings_->MyIpAddressEx();
+
+      context->current_request_net_log_.EndEvent(
+          NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX, NULL);
+    }
 
     return StdStringToV8String(result);
   }
@@ -337,13 +349,19 @@ class ProxyResolverV8::Context {
       return v8::Null();
     std::string host = V8StringToStdString(args[0]->ToString());
 
-    context->current_request_net_log_.BeginEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
+    std::string result;
 
-    std::string result = context->js_bindings_->DnsResolve(host);
+    {
+      v8::Unlocker unlocker;
 
-    context->current_request_net_log_.EndEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
+      context->current_request_net_log_.BeginEvent(
+          NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
+
+      result = context->js_bindings_->DnsResolve(host);
+
+      context->current_request_net_log_.EndEvent(
+          NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
+    }
 
     // DnsResolve() returns empty string on failure.
     return result.empty() ? v8::Null() : StdStringToV8String(result);
@@ -359,13 +377,19 @@ class ProxyResolverV8::Context {
       return v8::Undefined();
     std::string host = V8StringToStdString(args[0]->ToString());
 
-    context->current_request_net_log_.BeginEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX, NULL);
+    std::string result;
 
-    std::string result = context->js_bindings_->DnsResolveEx(host);
+    {
+      v8::Unlocker unlocker;
 
-    context->current_request_net_log_.EndEvent(
-        NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX, NULL);
+      context->current_request_net_log_.BeginEvent(
+          NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX, NULL);
+
+      result = context->js_bindings_->DnsResolveEx(host);
+
+      context->current_request_net_log_.EndEvent(
+          NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX, NULL);
+    }
 
     return StdStringToV8String(result);
   }
