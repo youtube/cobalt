@@ -135,13 +135,12 @@ fi
 
 # Packages need for development
 dev_list="apache2 bison fakeroot flex g++ gperf libapache2-mod-php5
-          libasound2-dev libbz2-dev libcairo2-dev libcupsys2-dev
-          libdbus-glib-1-dev libgconf2-dev libgl1-mesa-dev libglu1-mesa-dev
-          libglib2.0-dev libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev
-          libpam0g-dev libsqlite3-dev libxslt1-dev libxss-dev lighttpd
-          mesa-common-dev msttcorefonts patch perl php5-cgi pkg-config python
-          python-dev rpm subversion ttf-dejavu-core ttf-kochi-gothic
-          ttf-kochi-mincho wdiff"
+          libasound2-dev libbz2-dev libcairo2-dev libdbus-glib-1-dev
+          libgconf2-dev libgl1-mesa-dev libglu1-mesa-dev libglib2.0-dev
+          libgtk2.0-dev libjpeg62-dev libnspr4-dev libnss3-dev libpam0g-dev
+          libsqlite3-dev libxslt1-dev libxss-dev lighttpd mesa-common-dev
+          msttcorefonts patch perl php5-cgi pkg-config python python-dev rpm
+          subversion ttf-dejavu-core ttf-kochi-gothic ttf-kochi-mincho wdiff"
 
 # Full list of required run-time libraries
 lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
@@ -159,6 +158,14 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
           libxcursor1-dbg libxdamage1-dbg libxdmcp6-dbg libxext6-dbg
           libxfixes3-dbg libxi6-dbg libxinerama1-dbg libxrandr2-dbg
           libxrender1-dbg zlib1g-dbg"
+
+# CUPS package changed it's name from hardy to the next version. Include
+# proper package here depending on the system.
+if ! egrep -q 'Ubuntu (8\.04|8\.10)' /etc/issue; then
+  dev_list="${dev_list} libcupsys2-dev"
+else
+  dev_list="${dev_list} libcups2-dev"
+fi
 
 # Waits for the user to press 'Y' or 'N'. Either uppercase of lowercase is
 # accepted. Returns 0 for 'Y' and 1 for 'N'. If an optional parameter has
