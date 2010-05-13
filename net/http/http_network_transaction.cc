@@ -739,10 +739,22 @@ int HttpNetworkTransaction::DoResolveProxy() {
   endpoint_ = HostPortPair(request_->url.HostNoBrackets(),
                            request_->url.EffectiveIntPort());
 
-  if (g_host_mapping_rules)
-    g_host_mapping_rules->RewriteHost(&endpoint_);
+  // Extra URL we might be attempting to resolve to.
+  GURL alternate_endpoint_url;
 
-  GURL alternate_endpoint;
+  // Tracks whether we are using |request_->url| or |alternate_endpoint_url|.
+  const GURL *curr_endpoint_url = &request_->url;
+
+  if (g_host_mapping_rules && g_host_mapping_rules->RewriteHost(&endpoint_)) {
+    url_canon::Replacements<char> replacements;
+    const std::string port_str = IntToString(endpoint_.port);
+    replacements.SetPort(port_str.c_str(),
+                         url_parse::Component(0, port_str.size()));
+    replacements.SetHost(endpoint_.host.c_str(),
+                         url_parse::Component(0, endpoint_.host.size()));
+    alternate_endpoint_url = curr_endpoint_url->ReplaceComponents(replacements);
+    curr_endpoint_url = &alternate_endpoint_url;
+  }
 
   if (alternate_protocol_mode_ == kUnspecified) {
     const HttpAlternateProtocols& alternate_protocols =
@@ -762,7 +774,9 @@ int HttpNetworkTransaction::DoResolveProxy() {
         const std::string port_str = IntToString(endpoint_.port);
         replacements.SetPort(port_str.c_str(),
                              url_parse::Component(0, port_str.size()));
-        alternate_endpoint = request_->url.ReplaceComponents(replacements);
+        alternate_endpoint_url =
+            curr_endpoint_url->ReplaceComponents(replacements);
+        curr_endpoint_url = &alternate_endpoint_url;
       }
     }
   }
@@ -773,9 +787,7 @@ int HttpNetworkTransaction::DoResolveProxy() {
   }
 
   return session_->proxy_service()->ResolveProxy(
-      alternate_protocol_mode_ == kUsingAlternateProtocol ?
-      alternate_endpoint : request_->url,
-      &proxy_info_, &io_callback_, &pac_request_, net_log_);
+      *curr_endpoint_url, &proxy_info_, &io_callback_, &pac_request_, net_log_);
 }
 
 int HttpNetworkTransaction::DoResolveProxyComplete(int result) {
