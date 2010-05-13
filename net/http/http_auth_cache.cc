@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -60,13 +60,15 @@ struct IsEnclosedBy {
 namespace net {
 
 // Performance: O(n), where n is the number of realm entries.
-HttpAuthCache::Entry* HttpAuthCache::LookupByRealm(const GURL& origin,
-                                                   const std::string& realm) {
+HttpAuthCache::Entry* HttpAuthCache::Lookup(const GURL& origin,
+                                            const std::string& realm,
+                                            const std::string& scheme) {
   CheckOriginIsValid(origin);
 
   // Linear scan through the realm entries.
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
-    if (it->origin() == origin && it->realm() == realm)
+    if (it->origin() == origin && it->realm() == realm &&
+        it->scheme() == scheme)
       return &(*it);
   }
   return NULL; // No realm entry found.
@@ -103,7 +105,8 @@ HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
   CheckPathIsValid(path);
 
   // Check for existing entry (we will re-use it if present).
-  HttpAuthCache::Entry* entry = LookupByRealm(origin, handler->realm());
+  HttpAuthCache::Entry* entry = Lookup(origin, handler->realm(),
+                                       handler->scheme());
 
   if (!entry) {
     // Failsafe to prevent unbounded memory growth of the cache.
@@ -155,10 +158,12 @@ bool HttpAuthCache::Entry::HasEnclosingPath(const std::string& dir) {
 
 bool HttpAuthCache::Remove(const GURL& origin,
                            const std::string& realm,
+                           const std::string& scheme,
                            const std::wstring& username,
                            const std::wstring& password) {
   for (EntryList::iterator it = entries_.begin(); it != entries_.end(); ++it) {
-    if (it->origin() == origin && it->realm() == realm) {
+    if (it->origin() == origin && it->realm() == realm &&
+        it->scheme() == scheme) {
       if (username == it->username() && password == it->password()) {
         entries_.erase(it);
         return true;
