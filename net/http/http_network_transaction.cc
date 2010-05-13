@@ -1392,7 +1392,8 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
       return error_code;
   }
   headers_valid_ = false;
-  spdy_stream_ = spdy_session->GetOrCreateStream(*request_, upload_data);
+  spdy_stream_ = spdy_session->GetOrCreateStream(
+      *request_, upload_data, net_log_);
   return spdy_stream_->SendRequest(upload_data, &response_, &io_callback_);
 }
 
