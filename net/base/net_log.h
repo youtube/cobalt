@@ -102,21 +102,19 @@ class NetLog {
   //  |source| - The source that generated the event.
   //  |phase| - An optional parameter indicating whether this is the start/end
   //            of an action.
-  //  |extra_parameters| - Optional (may be NULL) parameters for this event.
-  //                       The specific subclass of EventParameters is defined
-  //                       by the contract for events of this |type|.
+  //  |params| - Optional (may be NULL) parameters for this event.
+  //             The specific subclass of EventParameters is defined
+  //             by the contract for events of this |type|.
   virtual void AddEntry(EventType type,
                         const base::TimeTicks& time,
                         const Source& source,
                         EventPhase phase,
-                        EventParameters* extra_parameters) = 0;
+                        EventParameters* params) = 0;
 
   // Returns a unique ID which can be used as a source ID.
   virtual uint32 NextID() = 0;
 
   // Returns true if more complicated messages should be sent to the log.
-  // TODO(eroman): This is a carry-over from refactoring; figure out
-  //               something better.
   virtual bool HasListener() const = 0;
 
   // Returns a C-String symbolic name for |event_type|.
