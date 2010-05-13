@@ -5,6 +5,7 @@
 #include "net/spdy/spdy_session.h"
 
 #include "base/basictypes.h"
+#include "base/linked_ptr.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/rand_util.h"
@@ -12,6 +13,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "base/values.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_log.h"
@@ -181,6 +183,36 @@ void AdjustSocketBufferSizes(ClientSocket* socket) {
   socket->SetSendBufferSize(kSocketBufferSize);
 }
 
+class NetLogSpdySynParameter : public NetLog::EventParameters {
+ public:
+  NetLogSpdySynParameter(const linked_ptr<spdy::SpdyHeaderBlock>& headers,
+                         spdy::SpdyControlFlags flags,
+                         spdy::SpdyStreamId id)
+      : headers_(headers), flags_(flags), id_(id) {}
+
+  Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    DictionaryValue* headers_dict = new DictionaryValue();
+    for (spdy::SpdyHeaderBlock::const_iterator it = headers_->begin();
+         it != headers_->end(); ++it) {
+      headers_dict->SetString(ASCIIToWide(it->first), it->second);
+    }
+    dict->SetInteger(L"flags", flags_);
+    dict->Set(L"headers", headers_dict);
+    dict->SetInteger(L"id", id_);
+    return dict;
+  }
+
+ private:
+  ~NetLogSpdySynParameter() {}
+
+  const linked_ptr<spdy::SpdyHeaderBlock> headers_;
+  spdy::SpdyControlFlags flags_;
+  spdy::SpdyStreamId id_;
+
+  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
+};
+
 }  // namespace
 
 // static
@@ -292,7 +324,8 @@ net::Error SpdySession::Connect(const std::string& group_name,
 
 scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     const HttpRequestInfo& request,
-    const UploadDataStream* upload_data) {
+    const UploadDataStream* upload_data,
+    const BoundNetLog& stream_net_log) {
   const GURL& url = request.url;
   const std::string& path = url.PathForRequest();
 
@@ -332,9 +365,10 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     // Server will assign a stream id when the push stream arrives.  Use 0 for
     // now.
     net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM, NULL);
-    SpdyStream* stream = new SpdyStream(this, 0, true, net_log_);
+    SpdyStream* stream = new SpdyStream(this, 0, true);
     stream->SetRequestInfo(request);
     stream->set_path(path);
+    stream->set_net_log(stream_net_log);
     it->second = stream;
     return it->second;
   }
@@ -342,10 +376,11 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
   const spdy::SpdyStreamId stream_id = GetNewStreamId();
 
   // If we still don't have a stream, activate one now.
-  stream = new SpdyStream(this, stream_id, false, net_log_);
+  stream = new SpdyStream(this, stream_id, false);
   stream->SetRequestInfo(request);
   stream->set_priority(request.priority);
   stream->set_path(path);
+  stream->set_net_log(stream_net_log);
   ActivateStream(stream);
 
   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyPriorityCount",
@@ -358,8 +393,8 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
          request.priority <= SPDY_PRIORITY_LOWEST);
 
   // Convert from HttpRequestHeaders to Spdy Headers.
-  spdy::SpdyHeaderBlock headers;
-  CreateSpdyHeadersFromHttpRequest(request, &headers);
+  linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
+  CreateSpdyHeadersFromHttpRequest(request, headers.get());
 
   spdy::SpdyControlFlags flags = spdy::CONTROL_FLAG_NONE;
   if (!request.upload_data || !upload_data->size())
@@ -368,7 +403,7 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
   // Create a SYN_STREAM packet and add to the output queue.
   scoped_ptr<spdy::SpdySynStreamControlFrame> syn_frame(
       spdy_framer_.CreateSynStream(stream_id, 0, request.priority, flags, false,
-                                   &headers));
+                                   headers.get()));
   QueueFrame(syn_frame.get(), request.priority, stream);
 
   static StatsCounter spdy_requests("spdy.requests");
@@ -378,7 +413,13 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
   streams_initiated_count_++;
 
   LOG(INFO) << "SPDY SYN_STREAM HEADERS ----------------------------------";
-  DumpSpdyHeaders(headers);
+  DumpSpdyHeaders(*headers);
+
+  if (stream_net_log.HasListener()) {
+    stream_net_log.AddEvent(
+        NetLog::TYPE_SPDY_STREAM_SYN_STREAM,
+        new NetLogSpdySynParameter(headers, flags, stream_id));
+  }
 
   return stream;
 }
@@ -922,7 +963,7 @@ bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
 }
 
 void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
-                        const spdy::SpdyHeaderBlock& headers) {
+                        const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
 
   LOG(INFO) << "Spdy SynStream for stream " << stream_id;
@@ -943,12 +984,12 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   LOG(INFO) << "SpdySession: Syn received for stream: " << stream_id;
 
   LOG(INFO) << "SPDY SYN RESPONSE HEADERS -----------------------";
-  DumpSpdyHeaders(headers);
+  DumpSpdyHeaders(*headers);
 
   // TODO(mbelshe): DCHECK that this is a GET method?
 
-  const std::string& path = ContainsKey(headers, "path") ?
-      headers.find("path")->second : "";
+  const std::string& path = ContainsKey(*headers, "path") ?
+      headers->find("path")->second : "";
 
   // Verify that the response had a URL for us.
   DCHECK(!path.empty());
@@ -972,8 +1013,8 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     CHECK_EQ(0u, stream->stream_id());
     stream->set_stream_id(stream_id);
   } else {
-    // TODO(mbelshe): can we figure out how to use a NetLog here?
-    stream = new SpdyStream(this, stream_id, true, BoundNetLog());
+    // TODO(willchan): can we figure out how to use a NetLog here?
+    stream = new SpdyStream(this, stream_id, true);
 
     // A new HttpResponseInfo object needs to be generated so the call to
     // OnResponseReceived below has something to fill in.
@@ -992,7 +1033,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
 
   stream->set_path(path);
 
-  if (!Respond(headers, stream))
+  if (!Respond(*headers, stream))
     return;
 
   LOG(INFO) << "Got pushed stream for " << stream->path();
@@ -1002,7 +1043,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
 }
 
 void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
-                             const spdy::SpdyHeaderBlock& headers) {
+                             const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
   LOG(INFO) << "Spdy SynReply for stream " << stream_id;
 
@@ -1014,14 +1055,14 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   }
 
   LOG(INFO) << "SPDY SYN_REPLY RESPONSE HEADERS for stream: " << stream_id;
-  DumpSpdyHeaders(headers);
+  DumpSpdyHeaders(*headers);
 
   // We record content declared as being pushed so that we don't
   // request a duplicate stream which is already scheduled to be
   // sent to us.
   spdy::SpdyHeaderBlock::const_iterator it;
-  it = headers.find("x-associated-content");
-  if (it != headers.end()) {
+  it = headers->find("x-associated-content");
+  if (it != headers->end()) {
     const std::string& content = it->second;
     std::string::size_type start = 0;
     std::string::size_type end = 0;
@@ -1048,14 +1089,23 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
 
-  Respond(headers, stream);
+  const BoundNetLog& log = stream->net_log();
+  if (log.HasListener()) {
+    log.AddEvent(
+        NetLog::TYPE_SPDY_STREAM_SYN_REPLY,
+        new NetLogSpdySynParameter(
+            headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
+            stream_id));
+  }
+
+  Respond(*headers, stream);
 }
 
 void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
-  spdy::SpdyHeaderBlock headers;
+  const linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
   uint32 type = frame->type();
   if (type == spdy::SYN_STREAM || type == spdy::SYN_REPLY) {
-    if (!spdy_framer_.ParseHeaderBlock(frame, &headers)) {
+    if (!spdy_framer_.ParseHeaderBlock(frame, headers.get())) {
       LOG(WARNING) << "Could not parse Spdy Control Frame Header";
       // TODO(mbelshe):  Error the session?
       return;
