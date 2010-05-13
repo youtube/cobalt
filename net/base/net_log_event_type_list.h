@@ -367,11 +367,29 @@ EVENT_TYPE(SPDY_TRANSACTION_READ_BODY)
 // SpdyStream
 // ------------------------------------------------------------------------
 
+// This event is sent for a SPDY SYN_STREAM.
+// The following parameters are attached:
+//   {
+//     "flags": <The control frame flags>
+//     "headers": <The list of header:value pairs>
+//     "id": <The stream id>
+//   }
+EVENT_TYPE(SPDY_STREAM_SYN_STREAM)
+
 // Measures the time taken to send headers on a stream.
 EVENT_TYPE(SPDY_STREAM_SEND_HEADERS)
 
 // Measures the time taken to send the body (e.g. a POST) on a stream.
 EVENT_TYPE(SPDY_STREAM_SEND_BODY)
+
+// This event is sent for a SPDY SYN_REPLY.
+// The following parameters are attached:
+//   {
+//     "flags": <The control frame flags>
+//     "headers": <The list of header:value pairs>
+//     "id": <The stream id>
+//   }
+EVENT_TYPE(SPDY_STREAM_SYN_REPLY)
 
 // Measures the time taken to read headers on a stream.
 EVENT_TYPE(SPDY_STREAM_READ_HEADERS)
