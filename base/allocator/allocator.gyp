@@ -57,7 +57,8 @@
         '<(tcmalloc_dir)/src/base/basictypes.h',
         '<(tcmalloc_dir)/src/base/commandlineflags.h',
         '<(tcmalloc_dir)/src/base/cycleclock.h',
-        '<(tcmalloc_dir)/src/base/dynamic_annotations.cc',
+        # We don't list dynamic_annotations.cc since its copy is already
+        # present in the dynamic_annotations target.
         '<(tcmalloc_dir)/src/base/dynamic_annotations.h',
         '<(tcmalloc_dir)/src/base/elfcore.h',
         '<(tcmalloc_dir)/src/base/googleinit.h',
@@ -241,6 +242,9 @@
         '<(tcmalloc_dir)/src/windows/preamble_patcher.cc',
         '<(tcmalloc_dir)/src/windows/preamble_patcher.h',
         '<(tcmalloc_dir)/src/windows/preamble_patcher_with_stub.cc',
+      ],
+      'dependencies': [
+        '../base.gyp:dynamic_annotations',
       ],
       'msvs_settings': {
         # TODO(sgk):  merge this with build/common.gypi settings

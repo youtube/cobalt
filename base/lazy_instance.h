@@ -37,7 +37,7 @@
 
 #include "base/atomicops.h"
 #include "base/basictypes.h"
-#include "base/dynamic_annotations.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 
 namespace base {
 
