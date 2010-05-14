@@ -29,7 +29,7 @@
             ],
           },
         }],
-        ['OS=="linux" and use_system_sqlite', {
+        ['(OS=="linux" or OS=="freebsd" or OS=="openbsd") and use_system_sqlite', {
           'type': 'settings',
           'direct_dependent_settings': {
             'cflags': [
@@ -226,7 +226,7 @@
     },
   ],
   'conditions': [
-    ['OS=="linux" and not use_system_sqlite', {
+    ['(OS=="linux" or OS=="freebsd" or OS=="openbsd") and not use_system_sqlite', {
       'targets': [
         {
           'target_name': 'sqlite_shell',
