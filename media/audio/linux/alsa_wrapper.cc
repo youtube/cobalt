@@ -67,6 +67,11 @@ int AlsaWrapper::PcmSetParams(snd_pcm_t* handle, snd_pcm_format_t format,
                             soft_resample, latency);
 }
 
+int AlsaWrapper::PcmGetParams(snd_pcm_t* handle, snd_pcm_uframes_t* buffer_size,
+                              snd_pcm_uframes_t* period_size) {
+  return snd_pcm_get_params(handle, buffer_size, period_size);
+}
+
 snd_pcm_sframes_t AlsaWrapper::PcmAvailUpdate(snd_pcm_t* handle) {
   return snd_pcm_avail_update(handle);
 }

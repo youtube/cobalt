@@ -44,6 +44,22 @@ size_t SeekableBuffer::Peek(uint8* data, size_t size) {
   return InternalRead(data, size, false);
 }
 
+bool SeekableBuffer::GetCurrentChunk(const uint8** data, size_t* size) const {
+  BufferQueue::iterator current_buffer = current_buffer_;
+  size_t current_buffer_offset = current_buffer_offset_;
+  // Advance position if we are in the end of the current buffer.
+  while (current_buffer != buffers_.end() &&
+         current_buffer_offset >= (*current_buffer)->GetDataSize()) {
+    ++current_buffer;
+    current_buffer_offset = 0;
+  }
+  if (current_buffer == buffers_.end())
+    return false;
+  *data = (*current_buffer)->GetData() + current_buffer_offset;
+  *size = (*current_buffer)->GetDataSize() - current_buffer_offset;
+  return true;
+}
+
 bool SeekableBuffer::Append(Buffer* buffer_in) {
   if (buffers_.empty() && buffer_in->GetTimestamp().InMicroseconds() > 0) {
     current_time_ = buffer_in->GetTimestamp();

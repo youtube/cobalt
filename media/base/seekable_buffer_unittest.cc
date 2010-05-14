@@ -222,6 +222,28 @@ TEST_F(SeekableBufferTest, SeekBackward) {
   }
 }
 
+TEST_F(SeekableBufferTest, GetCurrentChunk) {
+  const size_t kSeekSize = kWriteSize / 3;
+
+  scoped_refptr<media::DataBuffer> buffer = new media::DataBuffer(kWriteSize);
+  memcpy(buffer->GetWritableData(), data_, kWriteSize);
+  buffer->SetDataSize(kWriteSize);
+
+  const uint8* data;
+  size_t size;
+  EXPECT_FALSE(buffer_.GetCurrentChunk(&data, &size));
+
+  buffer_.Append(buffer.get());
+  EXPECT_TRUE(buffer_.GetCurrentChunk(&data, &size));
+  EXPECT_EQ(data, buffer->GetData());
+  EXPECT_EQ(size, buffer->GetDataSize());
+
+  buffer_.Seek(kSeekSize);
+  EXPECT_TRUE(buffer_.GetCurrentChunk(&data, &size));
+  EXPECT_EQ(data, buffer->GetData() + kSeekSize);
+  EXPECT_EQ(size, buffer->GetDataSize() - kSeekSize);
+}
+
 TEST_F(SeekableBufferTest, SeekForward) {
   size_t write_position = 0;
   size_t read_position = 0;
