@@ -4,13 +4,25 @@
 
 #include "base/process_util_unittest_mac.h"
 
-#import <Cocoa/Cocoa.h>
+#import <Foundation/Foundation.h>
+#include <CoreFoundation/CoreFoundation.h>
+
+#if !defined(ARCH_CPU_64_BITS)
+
+// In the 64-bit environment, the Objective-C 2.0 Runtime Reference states
+// that sizeof(anInstance) is constrained to 32 bits. That's not necessarily
+// "psychotically big" and in fact a 64-bit program is expected to be able to
+// successfully allocate an object that large, likely reserving a good deal of
+// swap space. The only way to test the behavior of memory exhaustion for
+// Objective-C allocation in this environment would be to loop over allocation
+// of these large objects, but that would slowly consume all available memory
+// and cause swap file proliferation. That's bad, so this behavior isn't
+// tested in the 64-bit environment.
 
 @interface PsychoticallyBigObjCObject : NSObject
 {
-  // On 32 bits, the compiler limits Objective C objects to < 2G in size, and on
-  // 64 bits, the ObjC2 Runtime Reference says that sizeof(anInstance) is
-  // constrained to 32 bits. Keep it < 2G for simplicity.
+  // In the 32-bit environment, the compiler limits Objective-C objects to
+  // < 2GB in size.
   int justUnder2Gigs_[(2U * 1024 * 1024 * 1024 - 1) / sizeof(int)];
 }
 
@@ -20,23 +32,28 @@
 
 @end
 
-
 namespace base {
-
-void* AllocateViaCFAllocatorSystemDefault(int32 size) {
-  return CFAllocatorAllocate(kCFAllocatorSystemDefault, size, 0);
-}
-
-void* AllocateViaCFAllocatorMalloc(int32 size) {
-  return CFAllocatorAllocate(kCFAllocatorMalloc, size, 0);
-}
-
-void* AllocateViaCFAllocatorMallocZone(int32 size) {
-  return CFAllocatorAllocate(kCFAllocatorMallocZone, size, 0);
-}
 
 void* AllocatePsychoticallyBigObjCObject() {
   return [[PsychoticallyBigObjCObject alloc] init];
+}
+
+}  // namespace base
+
+#endif  // ARCH_CPU_64_BITS
+
+namespace base {
+
+void* AllocateViaCFAllocatorSystemDefault(ssize_t size) {
+  return CFAllocatorAllocate(kCFAllocatorSystemDefault, size, 0);
+}
+
+void* AllocateViaCFAllocatorMalloc(ssize_t size) {
+  return CFAllocatorAllocate(kCFAllocatorMalloc, size, 0);
+}
+
+void* AllocateViaCFAllocatorMallocZone(ssize_t size) {
+  return CFAllocatorAllocate(kCFAllocatorMallocZone, size, 0);
 }
 
 }  // namespace base
