@@ -33,6 +33,8 @@ class AlsaWrapper {
                            snd_pcm_access_t access, unsigned int channels,
                            unsigned int rate, int soft_resample,
                            unsigned int latency);
+  virtual int PcmGetParams(snd_pcm_t* handle, snd_pcm_uframes_t* buffer_size,
+                           snd_pcm_uframes_t* period_size);
   virtual const char* PcmName(snd_pcm_t* handle);
   virtual snd_pcm_sframes_t PcmAvailUpdate(snd_pcm_t* handle);
   virtual snd_pcm_state_t PcmState(snd_pcm_t* handle);

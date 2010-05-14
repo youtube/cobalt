@@ -39,6 +39,10 @@
 #include "media/audio/audio_output.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
+namespace media {
+class SeekableBuffer;
+};  // namespace media
+
 class AlsaWrapper;
 class AudioManagerLinux;
 
@@ -94,7 +98,7 @@ class AlsaPcmOutputStream :
   FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_Negative);
   FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_StopStream);
   FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_Underrun);
-  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_UnfinishedPacket);
+  FRIEND_TEST(AlsaPcmOutputStreamTest, BufferPacket_FullBuffer);
   FRIEND_TEST(AlsaPcmOutputStreamTest, ConstructedState);
   FRIEND_TEST(AlsaPcmOutputStreamTest, LatencyFloor);
   FRIEND_TEST(AlsaPcmOutputStreamTest, OpenClose);
@@ -109,22 +113,6 @@ class AlsaPcmOutputStream :
   FRIEND_TEST(AlsaPcmOutputStreamTest, WritePacket_WriteFails);
 
   virtual ~AlsaPcmOutputStream();
-
-  // In-memory buffer to hold sound samples before pushing to the sound device.
-  // TODO(ajwong): There are now about 3 buffer/packet implementations. Factor
-  // them out.
-  struct Packet {
-    explicit Packet(uint32 new_capacity)
-        : capacity(new_capacity),
-          size(0),
-          used(0),
-          buffer(new char[capacity]) {
-    }
-    uint32 capacity;
-    uint32 size;
-    uint32 used;
-    scoped_array<char> buffer;
-  };
 
   // Flags indicating the state of the stream.
   enum InternalState {
@@ -144,13 +132,12 @@ class AlsaPcmOutputStream :
 
   // Functions to get another packet from the data source and write it into the
   // ALSA device.
-  void BufferPacket(Packet* packet);
-  void WritePacket(Packet* packet);
+  void BufferPacket();
+  void WritePacket();
   void WriteTask();
-  void ScheduleNextWrite(Packet* current_packet);
+  void ScheduleNextWrite();
 
   // Utility functions for talking with the ALSA API.
-  static uint32 FramesInPacket(const Packet& packet, uint32 bytes_per_frame);
   static uint32 FramesToMicros(uint32 frames, uint32 sample_rate);
   static uint32 FramesToMillis(uint32 frames, uint32 sample_rate);
   std::string FindDeviceForChannels(uint32 channels);
@@ -159,6 +146,7 @@ class AlsaPcmOutputStream :
                         uint32 latency);
   bool CloseDevice(snd_pcm_t* handle);
   snd_pcm_sframes_t GetAvailableFrames();
+  snd_pcm_sframes_t GetCurrentDelay();
 
   // Attempts to find the best matching linux audio device for the given number
   // of channels.  This function will set |device_name_| and |should_downmix_|.
@@ -227,8 +215,10 @@ class AlsaPcmOutputStream :
   std::string device_name_;
   bool should_downmix_;
   uint32 latency_micros_;
+  uint32 packet_size_;
   uint32 micros_per_packet_;
   uint32 bytes_per_output_frame_;
+  uint32 alsa_buffer_frames_;
 
   // Flag indicating the code should stop reading from the data source or
   // writing to the ALSA device.  This is set because the device has entered
@@ -246,7 +236,7 @@ class AlsaPcmOutputStream :
   // Handle to the actual PCM playback device.
   snd_pcm_t* playback_handle_;
 
-  scoped_ptr<Packet> packet_;
+  scoped_ptr<media::SeekableBuffer> buffer_;
   uint32 frames_per_packet_;
 
   // Used to check which message loop is allowed to call the public APIs.

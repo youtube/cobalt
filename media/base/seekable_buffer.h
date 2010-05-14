@@ -64,6 +64,13 @@ class SeekableBuffer {
   // number of bytes copied. Doesn't advance current position.
   size_t Peek(uint8* data, size_t size);
 
+  // Returns pointer to the current chunk of data that is being consumed.
+  // If there is no data left in the buffer false is returned, otherwise
+  // true is returned and |data| and |size| are updated. The returned
+  // |data| value becomes invalid when Read(), Append() or Seek()
+  // are called.
+  bool GetCurrentChunk(const uint8** data, size_t* size) const;
+
   // Appends |buffer_in| to this buffer. Returns false if forward_bytes() is
   // greater than or equals to forward_capacity(), true otherwise. The data
   // is added to the buffer in any case.
