@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -672,6 +672,26 @@ bool DictionaryValue::RemoveWithoutPathExpansion(const std::wstring& key,
 DictionaryValue* DictionaryValue::DeepCopyWithoutEmptyChildren() {
   Value* copy = CopyWithoutEmptyChildren(this);
   return copy ? static_cast<DictionaryValue*>(copy) : new DictionaryValue;
+}
+
+void DictionaryValue::MergeDictionary(const DictionaryValue* dictionary) {
+  for (DictionaryValue::key_iterator key(dictionary->begin_keys());
+       key != dictionary->end_keys(); ++key) {
+    Value* merge_value;
+    if (dictionary->GetWithoutPathExpansion(*key, &merge_value)) {
+      // Check whether we have to merge dictionaries.
+      if (merge_value->IsType(Value::TYPE_DICTIONARY)) {
+        DictionaryValue* sub_dict;
+        if (GetDictionaryWithoutPathExpansion(*key, &sub_dict)) {
+          sub_dict->MergeDictionary(
+              static_cast<const DictionaryValue*>(merge_value));
+          continue;
+        }
+      }
+      // All other cases: Make a copy and hook it up.
+      SetWithoutPathExpansion(*key, merge_value->DeepCopy());
+    }
+  }
 }
 
 ///////////////////// ListValue ////////////////////
