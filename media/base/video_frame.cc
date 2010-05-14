@@ -18,7 +18,7 @@ void VideoFrame::CreateFrame(VideoFrame::Format format,
   DCHECK(frame_out);
   bool alloc_worked = false;
   scoped_refptr<VideoFrame> frame =
-      new VideoFrame(format, width, height);
+      new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY, format, width, height);
   if (frame) {
     frame->SetTimestamp(timestamp);
     frame->SetDuration(duration);
@@ -49,7 +49,8 @@ void VideoFrame::CreateFrame(VideoFrame::Format format,
 
 // static
 void VideoFrame::CreateEmptyFrame(scoped_refptr<VideoFrame>* frame_out) {
-  *frame_out = new VideoFrame(VideoFrame::EMPTY, 0, 0);
+  *frame_out = new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY,
+                              VideoFrame::EMPTY, 0, 0);
 }
 
 // static
@@ -87,6 +88,26 @@ void VideoFrame::CreateBlackFrame(int width, int height,
   }
 
   // Success!
+  *frame_out = frame;
+}
+
+// static
+void VideoFrame::CreatePrivateFrame(VideoFrame::BufferType type,
+                                    VideoFrame::Format format,
+                                    size_t width,
+                                    size_t height,
+                                    base::TimeDelta timestamp,
+                                    base::TimeDelta duration,
+                                    void* private_buffer,
+                                    scoped_refptr<VideoFrame>* frame_out) {
+  DCHECK(frame_out);
+  scoped_refptr<VideoFrame> frame =
+      new VideoFrame(type, format, width, height);
+  if (frame) {
+    frame->SetTimestamp(timestamp);
+    frame->SetDuration(duration);
+    frame->private_buffer_ = private_buffer;
+  }
   *frame_out = frame;
 }
 
@@ -145,15 +166,18 @@ bool VideoFrame::AllocateYUV() {
   return false;
 }
 
-VideoFrame::VideoFrame(VideoFrame::Format format,
+VideoFrame::VideoFrame(VideoFrame::BufferType type,
+                       VideoFrame::Format format,
                        size_t width,
                        size_t height) {
+  type_ = type;
   format_ = format;
   width_ = width;
   height_ = height;
   planes_ = 0;
   memset(&strides_, 0, sizeof(strides_));
   memset(&data_, 0, sizeof(data_));
+  private_buffer_ = NULL;
 }
 
 VideoFrame::~VideoFrame() {

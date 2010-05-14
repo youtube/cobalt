@@ -61,7 +61,17 @@ class VideoFrame : public StreamSample {
   static void CreateBlackFrame(int width, int height,
                                scoped_refptr<VideoFrame>* frame_out);
 
-  virtual BufferType type() const { return TYPE_SYSTEM_MEMORY; }
+  // Creates a new frame of |type| with given parameters.
+  static void CreatePrivateFrame(VideoFrame::BufferType type,
+                                 VideoFrame::Format format,
+                                 size_t width,
+                                 size_t height,
+                                 base::TimeDelta timestamp,
+                                 base::TimeDelta duration,
+                                 void* private_buffer,
+                                 scoped_refptr<VideoFrame>* frame_out);
+
+  virtual BufferType type() const { return type_; }
 
   Format format() const { return format_; }
 
@@ -77,12 +87,15 @@ class VideoFrame : public StreamSample {
   // VideoFrame object and must not be freed by the caller.
   uint8* data(size_t plane) const { return data_[plane]; }
 
+  void* private_buffer() const { return private_buffer_; }
+
   // StreamSample interface.
   virtual bool IsEndOfStream() const;
 
  protected:
   // Clients must use the static CreateFrame() method to create a new frame.
-  VideoFrame(Format format,
+  VideoFrame(BufferType type,
+             Format format,
              size_t video_width,
              size_t video_height);
 
@@ -94,6 +107,9 @@ class VideoFrame : public StreamSample {
 
   // Frame format.
   Format format_;
+
+  // Buffer type.
+  BufferType type_;
 
   // Width and height of surface.
   size_t width_;
@@ -110,6 +126,9 @@ class VideoFrame : public StreamSample {
 
   // Array of data pointers to each plane.
   uint8* data_[kMaxPlanes];
+
+  // Private buffer pointer, can be used for EGLImage.
+  void* private_buffer_;
 
   DISALLOW_COPY_AND_ASSIGN(VideoFrame);
 };
