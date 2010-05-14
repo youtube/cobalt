@@ -18,6 +18,7 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_job.h"
 #include "net/url_request/url_request_job_manager.h"
+#include "net/url_request/url_request_netlog_params.h"
 
 using base::Time;
 using net::UploadData;
@@ -267,8 +268,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
 
   net_log_.BeginEvent(
       net::NetLog::TYPE_URL_REQUEST_START,
-      new net::NetLogStringParameter(
-          "url", original_url().possibly_invalid_spec()));
+      new URLRequestStartEventParameters(url_, method_, load_flags_));
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
