@@ -84,6 +84,8 @@
 #include "media/audio/audio_util.h"
 #include "media/audio/linux/alsa_wrapper.h"
 #include "media/audio/linux/audio_manager_linux.h"
+#include "media/base/data_buffer.h"
+#include "media/base/seekable_buffer.h"
 
 // Amount of time to wait if we've exhausted the data source.  This is to avoid
 // busy looping.
@@ -376,7 +378,8 @@ void AlsaPcmOutputStream::OpenTask(uint32 packet_size) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // Initialize the configuration variables.
-  frames_per_packet_ = packet_size / bytes_per_frame_;
+  packet_size_ = packet_size;
+  frames_per_packet_ = packet_size_ / bytes_per_frame_;
 
   // Try to open the device.
   micros_per_packet_ =
@@ -397,9 +400,22 @@ void AlsaPcmOutputStream::OpenTask(uint32 packet_size) {
   if (playback_handle_ == NULL) {
     stop_stream_ = true;
   } else {
-    packet_.reset(new Packet(packet_size));
-    if (should_downmix_) {
-      bytes_per_output_frame_ = 2 * bytes_per_sample_;
+    bytes_per_output_frame_ = should_downmix_ ? 2 * bytes_per_sample_ :
+        bytes_per_frame_;
+    uint32 output_packet_size = frames_per_packet_ * bytes_per_output_frame_;
+    buffer_.reset(new media::SeekableBuffer(0, output_packet_size));
+
+    // Get alsa buffer size.
+    snd_pcm_uframes_t buffer_size;
+    snd_pcm_uframes_t period_size;
+    int error = wrapper_->PcmGetParams(playback_handle_, &buffer_size,
+                                       &period_size);
+    if (error < 0) {
+      LOG(ERROR) << "Failed to get playback buffer size from ALSA: "
+                 << wrapper_->StrError(error);
+      alsa_buffer_frames_ = frames_per_packet_;
+    } else {
+      alsa_buffer_frames_ = buffer_size;
     }
   }
 }
@@ -431,17 +447,7 @@ void AlsaPcmOutputStream::StartTask() {
     return;
   }
 
-  // Do a best-effort pre-roll to fill the buffer.  Use integer rounding to find
-  // the maximum number of full packets that can fit into the buffer.
-  //
-  // TODO(ajwong): Handle EAGAIN.
-  const uint32 num_preroll = latency_micros_ / micros_per_packet_;
-  for (uint32 i = 0; i < num_preroll; ++i) {
-    BufferPacket(packet_.get());
-    WritePacket(packet_.get());
-  }
-
-  ScheduleNextWrite(packet_.get());
+  ScheduleNextWrite();
 }
 
 void AlsaPcmOutputStream::CloseTask() {
@@ -456,67 +462,51 @@ void AlsaPcmOutputStream::CloseTask() {
   playback_handle_ = NULL;
 
   // Release the buffer.
-  packet_.reset();
+  buffer_.reset();
 
   // Signal anything that might already be scheduled to stop.
   stop_stream_ = true;
 }
 
-void AlsaPcmOutputStream::BufferPacket(Packet* packet) {
+void AlsaPcmOutputStream::BufferPacket() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // If stopped, simulate a 0-lengthed packet.
   if (stop_stream_) {
-    packet->used = packet->size = 0;
+    buffer_->Clear();
     return;
   }
 
-  // Request more data if we don't have any cached.
-  if (packet->used >= packet->size) {
+  // Request more data if we have capacity.
+  if (buffer_->forward_capacity() > buffer_->forward_bytes()) {
     // Before making a request to source for data. We need to determine the
     // delay (in bytes) for the requested data to be played.
-    snd_pcm_sframes_t delay = 0;
+    snd_pcm_sframes_t delay = buffer_->forward_bytes() * bytes_per_frame_ /
+        bytes_per_output_frame_ + GetCurrentDelay() * bytes_per_output_frame_;
 
-    // Don't query ALSA's delay if we have underrun since it'll be jammed at
-    // some non-zero value and potentially even negative!
-    if (wrapper_->PcmState(playback_handle_) != SND_PCM_STATE_XRUN) {
-      int error = wrapper_->PcmDelay(playback_handle_, &delay);
-      if (error >= 0) {
-        // Convert frames to bytes, but watch out for those negatives!
-        delay = (delay < 0 ? 0 : delay) * bytes_per_output_frame_;
-      } else {
-        // Assume a delay of zero and attempt to recover the device.
-        delay = 0;
-        error = wrapper_->PcmRecover(playback_handle_,
-                                     error,
-                                     kPcmRecoverIsSilent);
-        if (error < 0) {
-          LOG(ERROR) << "Failed querying delay: " << wrapper_->StrError(error);
-        }
-      }
-    }
-
-    packet->used = 0;
-    packet->size = shared_data_.OnMoreData(this, packet->buffer.get(),
-                                           packet->capacity, delay);
-    CHECK(packet->size <= packet->capacity) << "Data source overran buffer.";
+    media::DataBuffer* packet = new media::DataBuffer(packet_size_);
+    size_t packet_size =
+        shared_data_.OnMoreData(this, packet->GetWritableData(),
+                                packet->GetBufferSize(), delay);
+    CHECK(packet_size <= packet->GetBufferSize()) <<
+        "Data source overran buffer.";
 
     // This should not happen, but incase it does, drop any trailing bytes
     // that aren't large enough to make a frame.  Without this, packet writing
     // may stall because the last few bytes in the packet may never get used by
     // WritePacket.
-    DCHECK(packet->size % bytes_per_frame_ == 0);
-    packet->size = (packet->size / bytes_per_frame_) * bytes_per_frame_;
+    DCHECK(packet_size % bytes_per_frame_ == 0);
+    packet_size = (packet_size / bytes_per_frame_) * bytes_per_frame_;
 
     if (should_downmix_) {
-      if (media::FoldChannels(packet->buffer.get(),
-                              packet->size,
+      if (media::FoldChannels(packet->GetWritableData(),
+                              packet_size,
                               channels_,
                               bytes_per_sample_,
                               shared_data_.volume())) {
         // Adjust packet size for downmix.
-        packet->size =
-            packet->size / bytes_per_frame_ * bytes_per_output_frame_;
+        packet_size =
+            packet_size / bytes_per_frame_ * bytes_per_output_frame_;
       } else {
         LOG(ERROR) << "Folding failed";
       }
@@ -526,59 +516,60 @@ void AlsaPcmOutputStream::BufferPacket(Packet* packet) {
       // Handle channel order for 5.0 audio.
       if (channels_ == 5) {
         if (bytes_per_sample_ == 1) {
-          Swizzle50Layout(reinterpret_cast<uint8*>(packet->buffer.get()),
-                          packet->size);
+          Swizzle50Layout(packet->GetWritableData(), packet_size);
         } else if (bytes_per_sample_ == 2) {
-          Swizzle50Layout(reinterpret_cast<int16*>(packet->buffer.get()),
-                          packet->size);
+          Swizzle50Layout(packet->GetWritableData(), packet_size);
         } else if (bytes_per_sample_ == 4) {
-          Swizzle50Layout(reinterpret_cast<int32*>(packet->buffer.get()),
-                          packet->size);
+          Swizzle50Layout(packet->GetWritableData(), packet_size);
         }
       }
 
       // Handle channel order for 5.1 audio.
       if (channels_ == 6) {
         if (bytes_per_sample_ == 1) {
-          Swizzle51Layout(reinterpret_cast<uint8*>(packet->buffer.get()),
-                          packet->size);
+          Swizzle51Layout(packet->GetWritableData(), packet_size);
         } else if (bytes_per_sample_ == 2) {
-          Swizzle51Layout(reinterpret_cast<int16*>(packet->buffer.get()),
-                          packet->size);
+          Swizzle51Layout(packet->GetWritableData(), packet_size);
         } else if (bytes_per_sample_ == 4) {
-          Swizzle51Layout(reinterpret_cast<int32*>(packet->buffer.get()),
-                          packet->size);
+          Swizzle51Layout(packet->GetWritableData(), packet_size);
         }
       }
 
-      media::AdjustVolume(packet->buffer.get(),
-                          packet->size,
+      media::AdjustVolume(packet->GetWritableData(),
+                          packet_size,
                           channels_,
                           bytes_per_sample_,
                           shared_data_.volume());
+
+      packet->SetDataSize(packet_size);
+
+      // Add the packet to the buffer.
+      buffer_->Append(packet);
     }
   }
 }
 
-void AlsaPcmOutputStream::WritePacket(Packet* packet) {
+void AlsaPcmOutputStream::WritePacket() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
-
-  CHECK(packet->size % bytes_per_output_frame_ == 0);
 
   // If the device is in error, just eat the bytes.
   if (stop_stream_) {
-    packet->used = packet->size;
+    buffer_->Clear();
     return;
   }
 
-  if (packet->used < packet->size) {
-    char* buffer_pos = packet->buffer.get() + packet->used;
-    snd_pcm_sframes_t frames = FramesInPacket(*packet, bytes_per_output_frame_);
+  CHECK_EQ(buffer_->forward_bytes() % bytes_per_output_frame_, 0u);
+
+  const uint8* buffer_data;
+  size_t buffer_size;
+  if (buffer_->GetCurrentChunk(&buffer_data, &buffer_size)) {
+    buffer_size = buffer_size - (buffer_size % bytes_per_output_frame_);
+    snd_pcm_sframes_t frames = buffer_size / bytes_per_output_frame_;
 
     DCHECK_GT(frames, 0);
 
     snd_pcm_sframes_t frames_written =
-        wrapper_->PcmWritei(playback_handle_, buffer_pos, frames);
+        wrapper_->PcmWritei(playback_handle_, buffer_data, frames);
     if (frames_written < 0) {
       // Attempt once to immediately recover from EINTR,
       // EPIPE (overrun/underrun), ESTRPIPE (stream suspended).  WritePacket
@@ -599,7 +590,14 @@ void AlsaPcmOutputStream::WritePacket(Packet* packet) {
         stop_stream_ = true;
       }
     } else {
-      packet->used += frames_written * bytes_per_output_frame_;
+      if (frames_written > frames) {
+        LOG(WARNING)
+            << "snd_pcm_writei() has written more frame that we asked.";
+        frames_written = frames;
+      }
+
+      // Seek forward in the buffer after we've written some data to ALSA.
+      buffer_->Seek(frames_written * bytes_per_output_frame_);
     }
   }
 }
@@ -611,25 +609,22 @@ void AlsaPcmOutputStream::WriteTask() {
     return;
   }
 
-  BufferPacket(packet_.get());
-  WritePacket(packet_.get());
+  BufferPacket();
+  WritePacket();
 
-  ScheduleNextWrite(packet_.get());
+  ScheduleNextWrite();
 }
 
-void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
+void AlsaPcmOutputStream::ScheduleNextWrite() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   if (stop_stream_) {
     return;
   }
 
-  // Calculate when we should have enough buffer for another packet of data.
-  // Make sure to take into consideration down-mixing.
-  uint32 frames_leftover =
-      FramesInPacket(*current_packet, bytes_per_output_frame_);
-  uint32 frames_avail_wanted =
-      (frames_leftover > 0) ? frames_leftover : frames_per_packet_;
+  // Next write is scheduled for the moment when half of the buffer is
+  // available.
+  uint32 frames_avail_wanted = alsa_buffer_frames_ / 2;
   uint32 available_frames = GetAvailableFrames();
   uint32 next_fill_time_ms = 0;
 
@@ -649,12 +644,9 @@ void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
   }
 
   // Avoid busy looping if the data source is exhausted.
-  if (current_packet->size == 0) {
+  if (buffer_->forward_bytes() == 0) {
     next_fill_time_ms = std::max(next_fill_time_ms, kNoDataSleepMilliseconds);
   }
-
-  // Wake up sooner than should be necessary to avoid stutter.
-  next_fill_time_ms /= 2;  // TODO(fbarchard): Remove this hack.
 
   // Only schedule more reads/writes if we are still in the playing state.
   if (shared_data_.state() == kIsPlaying) {
@@ -671,11 +663,6 @@ void AlsaPcmOutputStream::ScheduleNextWrite(Packet* current_packet) {
           next_fill_time_ms);
     }
   }
-}
-
-uint32 AlsaPcmOutputStream::FramesInPacket(const Packet& packet,
-                                           uint32 bytes_per_frame) {
-  return (packet.size - packet.used) / bytes_per_frame;
 }
 
 uint32 AlsaPcmOutputStream::FramesToMicros(uint32 frames, uint32 sample_rate) {
@@ -803,6 +790,29 @@ snd_pcm_sframes_t AlsaPcmOutputStream::GetAvailableFrames() {
   }
 
   return available_frames;
+}
+
+snd_pcm_sframes_t AlsaPcmOutputStream::GetCurrentDelay() {
+  snd_pcm_sframes_t delay = 0;
+
+  // Don't query ALSA's delay if we have underrun since it'll be jammed at
+  // some non-zero value and potentially even negative!
+  if (wrapper_->PcmState(playback_handle_) != SND_PCM_STATE_XRUN) {
+    int error = wrapper_->PcmDelay(playback_handle_, &delay);
+    if (error < 0) {
+      // Assume a delay of zero and attempt to recover the device.
+      delay = 0;
+      error = wrapper_->PcmRecover(playback_handle_,
+                                   error,
+                                   kPcmRecoverIsSilent);
+      if (error < 0) {
+        LOG(ERROR) << "Failed querying delay: " << wrapper_->StrError(error);
+      }
+    }
+    if (delay < 0)
+      delay = 0;
+  }
+  return delay;
 }
 
 snd_pcm_t* AlsaPcmOutputStream::AutoSelectDevice(unsigned int latency) {
