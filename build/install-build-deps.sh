@@ -161,7 +161,7 @@ dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
 
 # CUPS package changed it's name from hardy to the next version. Include
 # proper package here depending on the system.
-if ! egrep -q 'Ubuntu (8\.04|8\.10)' /etc/issue; then
+if egrep -q 'Ubuntu (8\.04|8\.10)' /etc/issue; then
   dev_list="${dev_list} libcupsys2-dev"
 else
   dev_list="${dev_list} libcups2-dev"
