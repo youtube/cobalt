@@ -257,7 +257,9 @@ EVENT_TYPE(SOCKET_POOL_SOCKET_ID)
 //
 // For the BEGIN phase, the following parameters are attached:
 //   {
-//      "url": <String of URL being loaded>
+//      "url": <String of URL being loaded>,
+//      "method": <The method ("POST" or "GET" or "HEAD" etc..)>,
+//      "load_flags": <Numeric value of the combined load flags>
 //   }
 //
 // For the END phase, if there was an error, the following parameters are
@@ -305,7 +307,7 @@ EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST)
 // This event is sent for a HTTP request.
 // The following parameters are attached:
 //   {
-//     "line": <The HTTP request line, CRLF terminated>
+//     "line": <The HTTP request line, CRLF terminated>,
 //     "headers": <The list of header:value pairs>
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST_HEADERS)
@@ -313,7 +315,7 @@ EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST_HEADERS)
 // This event is sent for a tunnel request.
 // The following parameters are attached:
 //   {
-//     "line": <The HTTP request line, CRLF terminated>
+//     "line": <The HTTP request line, CRLF terminated>,
 //     "headers": <The list of header:value pairs>
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_SEND_TUNNEL_HEADERS)
@@ -370,8 +372,8 @@ EVENT_TYPE(SPDY_TRANSACTION_READ_BODY)
 // This event is sent for a SPDY SYN_STREAM.
 // The following parameters are attached:
 //   {
-//     "flags": <The control frame flags>
-//     "headers": <The list of header:value pairs>
+//     "flags": <The control frame flags>,
+//     "headers": <The list of header:value pairs>,
 //     "id": <The stream id>
 //   }
 EVENT_TYPE(SPDY_STREAM_SYN_STREAM)
@@ -385,8 +387,8 @@ EVENT_TYPE(SPDY_STREAM_SEND_BODY)
 // This event is sent for a SPDY SYN_REPLY.
 // The following parameters are attached:
 //   {
-//     "flags": <The control frame flags>
-//     "headers": <The list of header:value pairs>
+//     "flags": <The control frame flags>,
+//     "headers": <The list of header:value pairs>,
 //     "id": <The stream id>
 //   }
 EVENT_TYPE(SPDY_STREAM_SYN_REPLY)
