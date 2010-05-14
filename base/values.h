@@ -312,6 +312,12 @@ class DictionaryValue : public Value {
   // the copy.  This never returns NULL, even if |this| itself is empty.
   DictionaryValue* DeepCopyWithoutEmptyChildren();
 
+  // Merge a given dictionary into this dictionary. This is done recursively,
+  // i.e. any subdictionaries will be merged as well. In case of key collisions,
+  // the passed in dictionary takes precedence and data already present will be
+  // replaced.
+  void MergeDictionary(const DictionaryValue* dictionary);
+
   // This class provides an iterator for the keys in the dictionary.
   // It can't be used to modify the dictionary.
   //
