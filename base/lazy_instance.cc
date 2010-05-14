@@ -6,9 +6,9 @@
 
 #include "base/at_exit.h"
 #include "base/atomicops.h"
-#include "base/dynamic_annotations.h"
 #include "base/basictypes.h"
 #include "base/platform_thread.h"
+#include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 
 namespace base {
 
