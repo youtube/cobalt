@@ -34,7 +34,6 @@ namespace net {
 // TODO(eroman): Make the DNS jobs emit into the NetLog.
 // TODO(eroman): Start a new Source each time URLRequest redirects
 //               (simpler to reason about each as a separate entity).
-// TODO(eroman): Add the URLRequest load flags to the start entry.
 
 class NetLog {
  public:
