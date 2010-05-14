@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -591,4 +591,49 @@ TEST(ValuesTest, RemoveEmptyChildren) {
     EXPECT_TRUE(inner->GetList(0, &inner2));
     EXPECT_EQ(1U, inner2->GetSize());
   }
+}
+
+TEST(ValuesTest, MergeDictionary) {
+  scoped_ptr<DictionaryValue> base(new DictionaryValue);
+  base->SetString(L"base_key", "base_key_value_base");
+  base->SetString(L"collide_key", "collide_key_value_base");
+  DictionaryValue* base_sub_dict = new DictionaryValue;
+  base_sub_dict->SetString(L"sub_base_key", "sub_base_key_value_base");
+  base_sub_dict->SetString(L"sub_collide_key", "sub_collide_key_value_base");
+  base->Set(L"sub_dict_key", base_sub_dict);
+
+  scoped_ptr<DictionaryValue> merge(new DictionaryValue);
+  merge->SetString(L"merge_key", "merge_key_value_merge");
+  merge->SetString(L"collide_key", "collide_key_value_merge");
+  DictionaryValue* merge_sub_dict = new DictionaryValue;
+  merge_sub_dict->SetString(L"sub_merge_key", "sub_merge_key_value_merge");
+  merge_sub_dict->SetString(L"sub_collide_key", "sub_collide_key_value_merge");
+  merge->Set(L"sub_dict_key", merge_sub_dict);
+
+  base->MergeDictionary(merge.get());
+
+  EXPECT_EQ(4U, base->size());
+  std::string base_key_value;
+  EXPECT_TRUE(base->GetString(L"base_key", &base_key_value));
+  EXPECT_EQ("base_key_value_base", base_key_value); // Base value preserved.
+  std::string collide_key_value;
+  EXPECT_TRUE(base->GetString(L"collide_key", &collide_key_value));
+  EXPECT_EQ("collide_key_value_merge", collide_key_value); // Replaced.
+  std::string merge_key_value;
+  EXPECT_TRUE(base->GetString(L"merge_key", &merge_key_value));
+  EXPECT_EQ("merge_key_value_merge", merge_key_value); // Merged in.
+
+  DictionaryValue* res_sub_dict;
+  EXPECT_TRUE(base->GetDictionary(L"sub_dict_key", &res_sub_dict));
+  EXPECT_EQ(3U, res_sub_dict->size());
+  std::string sub_base_key_value;
+  EXPECT_TRUE(res_sub_dict->GetString(L"sub_base_key", &sub_base_key_value));
+  EXPECT_EQ("sub_base_key_value_base", sub_base_key_value); // Preserved.
+  std::string sub_collide_key_value;
+  EXPECT_TRUE(res_sub_dict->GetString(L"sub_collide_key",
+                                      &sub_collide_key_value));
+  EXPECT_EQ("sub_collide_key_value_merge", sub_collide_key_value); // Replaced.
+  std::string sub_merge_key_value;
+  EXPECT_TRUE(res_sub_dict->GetString(L"sub_merge_key", &sub_merge_key_value));
+  EXPECT_EQ("sub_merge_key_value_merge", sub_merge_key_value); // Merged in.
 }
