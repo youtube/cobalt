@@ -630,7 +630,11 @@ TEST_F(OutOfMemoryTest, Posix_memalign) {
 #if defined(OS_MACOSX)
 
 // Since these allocation functions take a signed size, it's possible that
-// calling them just once won't be enough to exhaust memory.
+// calling them just once won't be enough to exhaust memory. In the 32-bit
+// environment, it's likely that these allocation attempts will fail because
+// not enough contiguous address space is availble. In the 64-bit environment,
+// it's likely that they'll fail because they would require a preposterous
+// amount of (virtual) memory.
 
 TEST_F(OutOfMemoryTest, CFAllocatorSystemDefault) {
   ASSERT_DEATH(while ((value_ =
@@ -647,11 +651,17 @@ TEST_F(OutOfMemoryTest, CFAllocatorMallocZone) {
       base::AllocateViaCFAllocatorMallocZone(signed_test_size_))) {}, "");
 }
 
+#if !defined(ARCH_CPU_64_BITS)
+
+// See process_util_unittest_mac.mm for an explanation of why this test isn't
+// run in the 64-bit environment.
+
 TEST_F(OutOfMemoryTest, PsychoticallyBigObjCObject) {
   ASSERT_DEATH(while ((value_ =
       base::AllocatePsychoticallyBigObjCObject())) {}, "");
 }
 
+#endif  // !ARCH_CPU_64_BITS
 #endif  // OS_MACOSX
 
 #endif  // !defined(OS_WIN)
