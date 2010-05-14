@@ -253,6 +253,7 @@ class NetLogHttpResponseParameter : public NetLog::EventParameters {
   Value* ToValue() const {
     DictionaryValue* dict = new DictionaryValue();
     ListValue* headers = new ListValue();
+    headers->Append(new StringValue(headers_->GetStatusLine()));
     void* iterator = NULL;
     std::string name;
     std::string value;
