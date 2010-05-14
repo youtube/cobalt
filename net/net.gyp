@@ -512,6 +512,8 @@
         'url_request/url_request_job_metrics.h',
         'url_request/url_request_job_tracker.cc',
         'url_request/url_request_job_tracker.h',
+        'url_request/url_request_netlog_params.cc',
+        'url_request/url_request_netlog_params.h',
         'url_request/url_request_redirect_job.cc',
         'url_request/url_request_redirect_job.h',
         'url_request/url_request_simple_job.cc',
