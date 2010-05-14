@@ -53,7 +53,7 @@
             '../v8/tools/gyp/v8.gyp:*',
           ],
         }],
-        ['OS=="mac" or OS=="linux" or OS=="freebsd"', {
+        ['OS=="mac" or OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
           'dependencies': [
             '../third_party/yasm/yasm.gyp:*#host',
            ],

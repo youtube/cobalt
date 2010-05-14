@@ -13,7 +13,7 @@
         'pkg-config': 'pkg-config'
       },
     }],
-    [ 'OS=="linux"', {
+    [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
       'variables': {
         # We use our own copy of libssl, although we still need to link against
         # the rest of NSS.
