@@ -41,7 +41,7 @@
         '../third_party/sqlite/sqlite.gyp:*',
         '../third_party/WebKit/WebKit/chromium/WebKit.gyp:*',
         '../third_party/zlib/zlib.gyp:*',
-        '../webkit/support/webkit_support_in_chromium.gyp:*',
+        '../webkit/support/webkit_support.gyp:*',
         '../webkit/webkit.gyp:*',
         'util/build_util.gyp:*',
         'temp_gyp/googleurl.gyp:*',
