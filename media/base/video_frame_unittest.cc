@@ -119,6 +119,8 @@ TEST(VideoFrame, CreateFrame) {
   EXPECT_FALSE(frame->IsDiscontinuous());
 
   // Test VideoFrame implementation.
+  EXPECT_EQ(media::VideoFrame::TYPE_SYSTEM_MEMORY, frame->type());
+  EXPECT_EQ(media::VideoFrame::YV12, frame->format());
   {
     SCOPED_TRACE("");
     InitializeYV12Frame(frame, 0.0f);
@@ -171,6 +173,26 @@ TEST(VideoFrame, CreateBlackFrame) {
     u_plane += frame->stride(VideoFrame::kUPlane);
     v_plane += frame->stride(VideoFrame::kVPlane);
   }
+}
+
+TEST(VideoFrame, CreatePrivateFrame) {
+  void* private_buffer = NULL;
+  const base::TimeDelta kTimestampA = base::TimeDelta::FromMicroseconds(1337);
+  const base::TimeDelta kDurationA = base::TimeDelta::FromMicroseconds(1667);
+
+  // Create an EGL Frame.
+  scoped_refptr<media::VideoFrame> frame;
+  VideoFrame::CreatePrivateFrame(media::VideoFrame::TYPE_EGL_IMAGE,
+                                 media::VideoFrame::RGBA, 0, 0,
+                                 kTimestampA, kDurationA,
+                                 private_buffer, &frame);
+  ASSERT_TRUE(frame);
+
+  // Test |frame| properties.
+  EXPECT_EQ(media::VideoFrame::TYPE_EGL_IMAGE, frame->type());
+  EXPECT_EQ(media::VideoFrame::RGBA, frame->format());
+  EXPECT_EQ(private_buffer, frame->private_buffer());
+  EXPECT_EQ(NULL, frame->data(VideoFrame::kYPlane));
 }
 
 }  // namespace media
