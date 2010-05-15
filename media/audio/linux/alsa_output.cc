@@ -255,6 +255,7 @@ AlsaPcmOutputStream::AlsaPcmOutputStream(const std::string& device_name,
       latency_micros_(0),
       micros_per_packet_(0),
       bytes_per_output_frame_(bytes_per_frame_),
+      alsa_buffer_frames_(0),
       stop_stream_(false),
       wrapper_(wrapper),
       manager_(manager),
@@ -447,7 +448,7 @@ void AlsaPcmOutputStream::StartTask() {
     return;
   }
 
-  ScheduleNextWrite();
+  ScheduleNextWrite(false);
 }
 
 void AlsaPcmOutputStream::CloseTask() {
@@ -468,14 +469,17 @@ void AlsaPcmOutputStream::CloseTask() {
   stop_stream_ = true;
 }
 
-void AlsaPcmOutputStream::BufferPacket() {
+void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   // If stopped, simulate a 0-lengthed packet.
   if (stop_stream_) {
     buffer_->Clear();
+    *source_exhausted = true;
     return;
   }
+
+  *source_exhausted = false;
 
   // Request more data if we have capacity.
   if (buffer_->forward_capacity() > buffer_->forward_bytes()) {
@@ -540,11 +544,14 @@ void AlsaPcmOutputStream::BufferPacket() {
                           channels_,
                           bytes_per_sample_,
                           shared_data_.volume());
+    }
 
+    if (packet_size > 0) {
       packet->SetDataSize(packet_size);
-
       // Add the packet to the buffer.
       buffer_->Append(packet);
+    } else {
+      *source_exhausted = true;
     }
   }
 }
@@ -609,13 +616,14 @@ void AlsaPcmOutputStream::WriteTask() {
     return;
   }
 
-  BufferPacket();
+  bool source_exhausted;
+  BufferPacket(&source_exhausted);
   WritePacket();
 
-  ScheduleNextWrite();
+  ScheduleNextWrite(source_exhausted);
 }
 
-void AlsaPcmOutputStream::ScheduleNextWrite() {
+void AlsaPcmOutputStream::ScheduleNextWrite(bool source_exhausted) {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
   if (stop_stream_) {
@@ -644,7 +652,7 @@ void AlsaPcmOutputStream::ScheduleNextWrite() {
   }
 
   // Avoid busy looping if the data source is exhausted.
-  if (buffer_->forward_bytes() == 0) {
+  if (source_exhausted) {
     next_fill_time_ms = std::max(next_fill_time_ms, kNoDataSleepMilliseconds);
   }
 

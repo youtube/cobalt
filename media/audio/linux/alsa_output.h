@@ -132,10 +132,10 @@ class AlsaPcmOutputStream :
 
   // Functions to get another packet from the data source and write it into the
   // ALSA device.
-  void BufferPacket();
+  void BufferPacket(bool* source_exhausted);
   void WritePacket();
   void WriteTask();
-  void ScheduleNextWrite();
+  void ScheduleNextWrite(bool source_exhausted);
 
   // Utility functions for talking with the ALSA API.
   static uint32 FramesToMicros(uint32 frames, uint32 sample_rate);

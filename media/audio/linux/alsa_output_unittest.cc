@@ -18,6 +18,7 @@ using testing::DoAll;
 using testing::Eq;
 using testing::InSequence;
 using testing::Invoke;
+using testing::InvokeWithoutArgs;
 using testing::Mock;
 using testing::MockFunction;
 using testing::Return;
@@ -237,8 +238,8 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
                            AlsaPcmOutputStream::kMinLatencyMicros))
       .WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmGetParams(_, _, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(kTestPacketSize),
-                      SetArgumentPointee<2>(kTestPacketSize / 2),
+      .WillOnce(DoAll(SetArgumentPointee<1>(kTestFramesPerPacket),
+                      SetArgumentPointee<2>(kTestFramesPerPacket / 2),
                       Return(0)));
 
   ASSERT_TRUE(test_stream_->Open(kMinLatencyPacketSize));
@@ -272,8 +273,8 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
               PcmSetParams(_, _, _, _, _, _, expected_micros))
       .WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmGetParams(_, _, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(kTestPacketSize),
-                      SetArgumentPointee<2>(kTestPacketSize / 2),
+      .WillOnce(DoAll(SetArgumentPointee<1>(kTestFramesPerPacket),
+                      SetArgumentPointee<2>(kTestFramesPerPacket / 2),
                       Return(0)));
 
   ASSERT_TRUE(test_stream_->Open(kOverMinLatencyPacketSize));
@@ -315,8 +316,8 @@ TEST_F(AlsaPcmOutputStreamTest, OpenClose) {
                            expected_micros))
       .WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmGetParams(kFakeHandle, _, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(kTestPacketSize),
-                      SetArgumentPointee<2>(kTestPacketSize/2),
+      .WillOnce(DoAll(SetArgumentPointee<1>(kTestFramesPerPacket),
+                      SetArgumentPointee<2>(kTestFramesPerPacket / 2),
                       Return(0)));
 
   // Open the stream.
@@ -414,8 +415,8 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmSetParams(_, _, _, _, _, _, _))
       .WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmGetParams(_, _, _))
-      .WillOnce(DoAll(SetArgumentPointee<1>(kTestPacketSize),
-                      SetArgumentPointee<2>(kTestPacketSize / 2),
+      .WillOnce(DoAll(SetArgumentPointee<1>(kTestFramesPerPacket),
+                      SetArgumentPointee<2>(kTestFramesPerPacket / 2),
                       Return(0)));
 
   // Open the stream.
@@ -428,11 +429,31 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmPrepare(kFakeHandle))
       .WillOnce(Return(0));
 
+  // Expect the pre-roll.
+  MockAudioSourceCallback mock_callback;
+  EXPECT_CALL(mock_alsa_wrapper_, PcmState(kFakeHandle))
+      .Times(2)
+      .WillRepeatedly(Return(SND_PCM_STATE_RUNNING));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmDelay(kFakeHandle, _))
+      .Times(2)
+      .WillRepeatedly(DoAll(SetArgumentPointee<1>(0), Return(0)));
+  EXPECT_CALL(mock_callback,
+              OnMoreData(test_stream_.get(), _, kTestPacketSize, 0))
+      .Times(2)
+      .WillOnce(Return(kTestPacketSize))
+      .WillOnce(Return(0));
+  EXPECT_CALL(mock_alsa_wrapper_, PcmWritei(kFakeHandle, _, _))
+       .WillOnce(Return(kTestFramesPerPacket));
+
   // Expect scheduling.
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(kFakeHandle))
-      .WillOnce(Return(1));
+      .Times(3)
+      .WillOnce(Return(kTestFramesPerPacket))  // Buffer is empty.
+      .WillOnce(Return(kTestFramesPerPacket))  // Buffer is empty.
+      .WillOnce(DoAll(InvokeWithoutArgs(&message_loop_,
+                                        &MessageLoop::QuitNow),
+                      Return(0)));  // Buffer is full.
 
-  MockAudioSourceCallback mock_callback;
   test_stream_->Start(&mock_callback);
   message_loop_.RunAllPending();
 
@@ -530,10 +551,13 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket) {
               OnMoreData(test_stream_.get(), _, _, kTestBytesPerFrame))
       .WillOnce(Return(10));
 
+  bool source_exhausted;
   test_stream_->shared_data_.set_source_callback(&mock_callback);
-  test_stream_->BufferPacket();
+  test_stream_->packet_size_ = kTestPacketSize;
+  test_stream_->BufferPacket(&source_exhausted);
 
   EXPECT_EQ(10u, test_stream_->buffer_->forward_bytes());
+  EXPECT_FALSE(source_exhausted);
 }
 
 TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Negative) {
@@ -550,10 +574,13 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Negative) {
               OnMoreData(test_stream_.get(), _, _, 0))
       .WillOnce(Return(10));
 
+  bool source_exhausted;
   test_stream_->shared_data_.set_source_callback(&mock_callback);
-  test_stream_->BufferPacket();
+  test_stream_->packet_size_ = kTestPacketSize;
+  test_stream_->BufferPacket(&source_exhausted);
 
   EXPECT_EQ(10u, test_stream_->buffer_->forward_bytes());
+  EXPECT_FALSE(source_exhausted);
 }
 
 TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Underrun) {
@@ -568,17 +595,23 @@ TEST_F(AlsaPcmOutputStreamTest, BufferPacket_Underrun) {
               OnMoreData(test_stream_.get(), _, _, 0))
       .WillOnce(Return(10));
 
+  bool source_exhausted;
   test_stream_->shared_data_.set_source_callback(&mock_callback);
-  test_stream_->BufferPacket();
+  test_stream_->packet_size_ = kTestPacketSize;
+  test_stream_->BufferPacket(&source_exhausted);
 
   EXPECT_EQ(10u, test_stream_->buffer_->forward_bytes());
+  EXPECT_FALSE(source_exhausted);
 }
 
 TEST_F(AlsaPcmOutputStreamTest, BufferPacket_FullBuffer) {
   InitBuffer();
   // No expectations set on the strict mock because nothing should be called.
-  test_stream_->BufferPacket();
+  bool source_exhausted;
+  test_stream_->packet_size_ = kTestPacketSize;
+  test_stream_->BufferPacket(&source_exhausted);
   EXPECT_EQ(kTestPacketSize, test_stream_->buffer_->forward_bytes());
+  EXPECT_FALSE(source_exhausted);
 }
 
 TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_DeviceSelect) {
@@ -705,8 +738,10 @@ TEST_F(AlsaPcmOutputStreamTest, AutoSelectDevice_HintFail) {
 TEST_F(AlsaPcmOutputStreamTest, BufferPacket_StopStream) {
   InitBuffer();
   test_stream_->stop_stream_ = true;
-  test_stream_->BufferPacket();
+  bool source_exhausted;
+  test_stream_->BufferPacket(&source_exhausted);
   EXPECT_EQ(0u, test_stream_->buffer_->forward_bytes());
+  EXPECT_TRUE(source_exhausted);
 }
 
 TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite) {
@@ -717,7 +752,7 @@ TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite) {
 
   EXPECT_CALL(mock_alsa_wrapper_, PcmAvailUpdate(_))
       .WillOnce(Return(10));
-  test_stream_->ScheduleNextWrite();
+  test_stream_->ScheduleNextWrite(false);
 
   test_stream_->shared_data_.TransitionTo(AlsaPcmOutputStream::kIsClosed);
 }
@@ -729,7 +764,7 @@ TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite_StopStream) {
   InitBuffer();
 
   test_stream_->stop_stream_ = true;
-  test_stream_->ScheduleNextWrite();
+  test_stream_->ScheduleNextWrite(true);
 
   // TODO(ajwong): Find a way to test whether or not another task has been
   // posted so we can verify that the Alsa code will indeed break the task
