@@ -899,6 +899,13 @@
           'Release_Base': {
             'variables': {
               'release_optimize%': '2',
+              # Binaries become big and gold is unable to perform GC
+              # and remove unused sections for some of test targets
+              # on 32 bit platform.
+              # (This is currently observed only in chromeos valgrind bots)
+              # The following flag is to disable --gc-sections linker
+              # option for these bots.
+              'no_gc_sections%': 0,
             },
             'cflags': [
               '-O>(release_optimize)',
@@ -910,9 +917,13 @@
               '-fdata-sections',
               '-ffunction-sections',
             ],
-            'ldflags': [
-              '-Wl,--gc-sections',
-            ],
+            'conditions' : [
+              ['no_gc_sections==0', {
+                'ldflags': [
+                  '-Wl,--gc-sections',
+                ],
+              }],
+            ]
           },
         },
         'variants': {
