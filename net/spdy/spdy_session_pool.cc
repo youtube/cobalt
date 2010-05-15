@@ -35,7 +35,7 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
 
   DCHECK(list);
   if (!spdy_session)
-    spdy_session = new SpdySession(host_port_pair, session, net_log.net_log());
+    spdy_session = new SpdySession(host_port_pair, session, net_log);
 
   DCHECK(spdy_session);
   list->push_back(spdy_session);
@@ -53,7 +53,7 @@ scoped_refptr<SpdySession> SpdySessionPool::GetSpdySessionFromSSLSocket(
     list = AddSessionList(host_port_pair);
   DCHECK(list->empty());
   scoped_refptr<SpdySession> spdy_session(
-      new SpdySession(host_port_pair, session, net_log.net_log()));
+      new SpdySession(host_port_pair, session, net_log));
   spdy_session->InitializeWithSSLSocket(connection);
   list->push_back(spdy_session);
   return spdy_session;
