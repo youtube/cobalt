@@ -1012,9 +1012,26 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     CHECK(stream->pushed());
     CHECK_EQ(0u, stream->stream_id());
     stream->set_stream_id(stream_id);
+    const BoundNetLog& log = stream->net_log();
+    if (log.HasListener()) {
+      log.AddEvent(
+          NetLog::TYPE_SPDY_STREAM_PUSHED_SYN_STREAM,
+          new NetLogSpdySynParameter(
+              headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
+              stream_id));
+    }
   } else {
-    // TODO(willchan): can we figure out how to use a NetLog here?
     stream = new SpdyStream(this, stream_id, true);
+
+    // TODO(willchan): Rename this event to SPDY_SESSION_PUSHED_SYN_STREAM once
+    // my other CL gets finished.
+    if (net_log_.HasListener()) {
+      net_log_.AddEvent(
+          NetLog::TYPE_SPDY_STREAM_PUSHED_SYN_STREAM,
+          new NetLogSpdySynParameter(
+              headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
+              stream_id));
+    }
 
     // A new HttpResponseInfo object needs to be generated so the call to
     // OnResponseReceived below has something to fill in.
