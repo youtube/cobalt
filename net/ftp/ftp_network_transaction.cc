@@ -706,10 +706,9 @@ int FtpNetworkTransaction::ProcessResponseUSER(
       next_state_ = STATE_CTRL_WRITE_PASS;
       break;
     case ERROR_CLASS_TRANSIENT_ERROR:
-      if (response.status_code == 421)
-        return Stop(ERR_FAILED);
-      break;
+      return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
+      response_.needs_auth = true;
       return Stop(ERR_FAILED);
     default:
       NOTREACHED();
@@ -739,18 +738,10 @@ int FtpNetworkTransaction::ProcessResponsePASS(
       next_state_ = STATE_CTRL_WRITE_ACCT;
       break;
     case ERROR_CLASS_TRANSIENT_ERROR:
-      if (response.status_code == 421) {
-        // TODO(ibrar): Retry here.
-      }
       return Stop(ERR_FAILED);
     case ERROR_CLASS_PERMANENT_ERROR:
-      if (response.status_code == 503) {
-        next_state_ = STATE_CTRL_WRITE_USER;
-      } else {
-        response_.needs_auth = true;
-        return Stop(ERR_FAILED);
-      }
-      break;
+      response_.needs_auth = true;
+      return Stop(ERR_FAILED);
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);

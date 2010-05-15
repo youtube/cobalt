@@ -1209,6 +1209,17 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailPass) {
                         ERR_FAILED);
 }
 
+// Regression test for http://crbug.com/38707.
+TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailPass503) {
+  FtpSocketDataProviderDirectoryListing ctrl_socket;
+  TransactionFailHelper(&ctrl_socket,
+                        "ftp://host",
+                        FtpSocketDataProvider::PRE_PASSWD,
+                        FtpSocketDataProvider::PRE_QUIT,
+                        "503 Bad sequence of commands\r\n",
+                        ERR_FAILED);
+}
+
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailSyst) {
   FtpSocketDataProviderDirectoryListing ctrl_socket;
   TransactionFailHelper(&ctrl_socket,
