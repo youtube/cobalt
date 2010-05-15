@@ -213,31 +213,6 @@ class NetLogSpdySynParameter : public NetLog::EventParameters {
   DISALLOW_COPY_AND_ASSIGN(NetLogSpdySynParameter);
 };
 
-class NetLogSpdySettingsParameter : public NetLog::EventParameters {
- public:
-  explicit NetLogSpdySettingsParameter(const spdy::SpdySettings& settings)
-      : settings_(settings) {}
-
-  Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    ListValue* settings = new ListValue();
-    for (spdy::SpdySettings::const_iterator it = settings_.begin();
-         it != settings_.end(); ++it) {
-      settings->Append(new StringValue(
-          StringPrintf("[%u:%u]", it->first.id(), it->second)));
-    }
-    dict->Set(L"settings", settings);
-    return dict;
-  }
-
- private:
-  ~NetLogSpdySettingsParameter() {}
-
-  const spdy::SpdySettings settings_;
-
-  DISALLOW_COPY_AND_ASSIGN(NetLogSpdySettingsParameter);
-};
-
 }  // namespace
 
 // static
@@ -245,7 +220,7 @@ bool SpdySession::use_ssl_ = true;
 
 SpdySession::SpdySession(const HostPortPair& host_port_pair,
                          HttpNetworkSession* session,
-                         NetLog* net_log)
+                         const BoundNetLog& net_log)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           connect_callback_(this, &SpdySession::OnTCPConnect)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
@@ -270,11 +245,7 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
       streams_pushed_and_claimed_count_(0),
       streams_abandoned_count_(0),
       in_session_pool_(true),
-      net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
-  net_log_.BeginEvent(
-      NetLog::TYPE_SPDY_SESSION,
-      new NetLogStringParameter("host_port", host_port_pair_.ToString()));
-
+      net_log_(net_log) {
   // TODO(mbelshe): consider randomization of the stream_hi_water_mark.
 
   spdy_framer_.set_visitor(this);
@@ -306,8 +277,6 @@ SpdySession::~SpdySession() {
   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsAbandonedPerSession",
       streams_abandoned_count_,
       0, 300, 50);
-
-  net_log_.EndEvent(NetLog::TYPE_SPDY_SESSION, NULL);
 }
 
 void SpdySession::InitializeWithSSLSocket(ClientSocketHandle* connection) {
@@ -551,6 +520,7 @@ void SpdySession::OnTCPConnect(int result) {
         socket, "" /* request_->url.HostNoBrackets() */ , ssl_config_);
     connection_->set_socket(socket);
     is_secure_ = true;
+    // TODO(willchan): Plumb NetLog into SPDY code.
     int status = connection_->socket()->Connect(&ssl_connect_callback_);
     if (status != ERR_IO_PENDING)
       OnSSLConnect(status);
@@ -1180,12 +1150,6 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
   CHECK_EQ(stream->stream_id(), stream_id);
   CHECK(!stream->cancelled());
-
-  const BoundNetLog& log = stream->net_log();
-  log.AddEvent(
-      NetLog::TYPE_SPDY_STREAM_RST_STREAM,
-      new NetLogIntegerParameter("status", frame.status()));
-
   if (frame.status() == 0) {
     stream->OnDataReceived(NULL, 0);
   } else {
@@ -1201,13 +1165,6 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
 void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {
   LOG(INFO) << "Spdy GOAWAY for session[" << this << "] for " <<
       host_port_pair().ToString();
-
-  net_log_.AddEvent(
-      NetLog::TYPE_SPDY_SESSION_GOAWAY,
-      new NetLogIntegerParameter(
-          "last_accepted_stream_id",
-          frame.last_accepted_stream_id()));
-
   RemoveFromPool();
 
   // TODO(willchan): Cancel any streams that are past the GoAway frame's
@@ -1224,10 +1181,6 @@ void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
     SpdySettingsStorage* settings_storage = session_->mutable_spdy_settings();
     settings_storage->Set(host_port_pair_, settings);
   }
-
-  net_log_.AddEvent(
-      NetLog::TYPE_SPDY_SESSION_RECV_SETTINGS,
-      new NetLogSpdySettingsParameter(settings));
 }
 
 void SpdySession::SendSettings() {
@@ -1235,10 +1188,6 @@ void SpdySession::SendSettings() {
   const spdy::SpdySettings& settings = settings_storage.Get(host_port_pair_);
   if (settings.empty())
     return;
-
-  net_log_.AddEvent(
-      NetLog::TYPE_SPDY_SESSION_SEND_SETTINGS,
-      new NetLogSpdySettingsParameter(settings));
 
   // Create the SETTINGS frame and send it.
   scoped_ptr<spdy::SpdySettingsControlFrame> settings_frame(

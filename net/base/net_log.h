@@ -59,7 +59,6 @@ class NetLog {
     SOURCE_INIT_PROXY_RESOLVER,
     SOURCE_CONNECT_JOB,
     SOURCE_SOCKET,
-    SOURCE_SPDY_SESSION,
   };
 
   // Identifies the entity that generated this log. The |id| field should
