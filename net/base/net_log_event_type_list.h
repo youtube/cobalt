@@ -378,6 +378,16 @@ EVENT_TYPE(SPDY_TRANSACTION_READ_BODY)
 //   }
 EVENT_TYPE(SPDY_STREAM_SYN_STREAM)
 
+// This event is sent for a SPDY SYN_STREAM pushed by the server, where a
+// URLRequest is already waiting for the stream.
+// The following parameters are attached:
+//   {
+//     "flags": <The control frame flags>
+//     "headers": <The list of header:value pairs>
+//     "id": <The stream id>
+//   }
+EVENT_TYPE(SPDY_STREAM_PUSHED_SYN_STREAM)
+
 // Measures the time taken to send headers on a stream.
 EVENT_TYPE(SPDY_STREAM_SEND_HEADERS)
 
