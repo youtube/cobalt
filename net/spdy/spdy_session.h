@@ -46,7 +46,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // |session| is the HttpNetworkSession.  |net_log| is the NetLog that we log
   // network events to.
   SpdySession(const HostPortPair& host_port_pair, HttpNetworkSession* session,
-              const BoundNetLog& net_log);
+              NetLog* net_log);
 
   const HostPortPair& host_port_pair() const { return host_port_pair_; }
 
