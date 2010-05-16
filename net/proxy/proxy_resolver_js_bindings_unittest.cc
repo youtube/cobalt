@@ -49,7 +49,7 @@ class MockHostResolverWithMultipleResults : public HostResolver {
     int rv = SystemHostResolverProc(ip_literal,
                                     ADDRESS_FAMILY_UNSPECIFIED,
                                     0,
-                                    &result);
+                                    &result, NULL);
     EXPECT_EQ(OK, rv);
     EXPECT_EQ(NULL, result.head()->ai_next);
     return result;

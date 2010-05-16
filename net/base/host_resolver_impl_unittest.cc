@@ -91,14 +91,15 @@ class CapturingHostResolverProc : public HostResolverProc {
   virtual int Resolve(const std::string& hostname,
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
-                      AddressList* addrlist) {
+                      AddressList* addrlist,
+                      int* os_error) {
     event_.Wait();
     {
       AutoLock l(lock_);
       capture_list_.push_back(CaptureEntry(hostname, address_family));
     }
     return ResolveUsingPrevious(hostname, address_family,
-                                host_resolver_flags, addrlist);
+                                host_resolver_flags, addrlist, os_error);
   }
 
   CaptureList GetCaptureList() const {
@@ -137,7 +138,8 @@ class EchoingHostResolverProc : public HostResolverProc {
   virtual int Resolve(const std::string& hostname,
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
-                      AddressList* addrlist) {
+                      AddressList* addrlist,
+                      int* os_error) {
     // Encode the request's hostname and address_family in the output address.
     std::string ip_literal = StringPrintf("192.%d.%d.%d",
         static_cast<int>(hostname.size()),
@@ -147,7 +149,7 @@ class EchoingHostResolverProc : public HostResolverProc {
     return SystemHostResolverProc(ip_literal,
                                   ADDRESS_FAMILY_UNSPECIFIED,
                                   host_resolver_flags,
-                                  addrlist);
+                                  addrlist, os_error);
   }
 };
 

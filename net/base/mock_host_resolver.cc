@@ -230,7 +230,8 @@ void RuleBasedHostResolverProc::AddSimulatedFailure(
 int RuleBasedHostResolverProc::Resolve(const std::string& host,
                                        AddressFamily address_family,
                                        HostResolverFlags host_resolver_flags,
-                                       AddressList* addrlist) {
+                                       AddressList* addrlist,
+                                       int* os_error) {
   RuleList::iterator r;
   for (r = rules_.begin(); r != rules_.end(); ++r) {
     bool matches_address_family =
@@ -259,7 +260,7 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
           return SystemHostResolverProc(effective_host,
                                         address_family,
                                         host_resolver_flags,
-                                        addrlist);
+                                        addrlist, os_error);
         case Rule::kResolverTypeIPV6Literal:
           return CreateIPv6Address(effective_host, r->canonical_name, addrlist);
         case Rule::kResolverTypeIPV4Literal:
@@ -271,7 +272,7 @@ int RuleBasedHostResolverProc::Resolve(const std::string& host,
     }
   }
   return ResolveUsingPrevious(host, address_family,
-                              host_resolver_flags, addrlist);
+                              host_resolver_flags, addrlist, os_error);
 }
 
 //-----------------------------------------------------------------------------
