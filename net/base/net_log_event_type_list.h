@@ -366,6 +366,44 @@ EVENT_TYPE(SPDY_TRANSACTION_READ_HEADERS)
 EVENT_TYPE(SPDY_TRANSACTION_READ_BODY)
 
 // ------------------------------------------------------------------------
+// SpdySession
+// ------------------------------------------------------------------------
+
+// The start/end of a SpdySession.
+EVENT_TYPE(SPDY_SESSION)
+
+// On sending a SPDY SETTINGS frame.
+// The following parameters are attached:
+//   {
+//     "settings": <The list of setting id:value pairs>
+//   }
+EVENT_TYPE(SPDY_SESSION_SEND_SETTINGS)
+
+// Receipt of a SPDY SETTINGS frame.
+// The following parameters are attached:
+//   {
+//     "settings": <The list of setting id:value pairs>
+//   }
+EVENT_TYPE(SPDY_SESSION_RECV_SETTINGS)
+
+// Receipt of a SPDY GOAWAY frame.
+// The following parameters are attached:
+//   {
+//     "last_accepted_stream_id": <Last stream id accepted by the server, duh>
+//   }
+EVENT_TYPE(SPDY_SESSION_GOAWAY)
+
+// This event is sent for a SPDY SYN_STREAM pushed by the server, but no
+// URLRequest has requested it yet.
+// The following parameters are attached:
+//   {
+//     "flags": <The control frame flags>
+//     "headers": <The list of header:value pairs>
+//     "id": <The stream id>
+//   }
+EVENT_TYPE(SPDY_SESSION_PUSHED_SYN_STREAM)
+
+// ------------------------------------------------------------------------
 // SpdyStream
 // ------------------------------------------------------------------------
 
@@ -411,6 +449,13 @@ EVENT_TYPE(SPDY_STREAM_READ_BODY)
 
 // Logs that a stream attached to a pushed stream.
 EVENT_TYPE(SPDY_STREAM_ADOPTED_PUSH_STREAM)
+
+// The receipt of a RST_STREAM
+// The following parameters are attached:
+//   {
+//     "status": <The reason for the RST_STREAM>
+//   }
+EVENT_TYPE(SPDY_STREAM_RST_STREAM)
 
 // ------------------------------------------------------------------------
 // HttpStreamParser
