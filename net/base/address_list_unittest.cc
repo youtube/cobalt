@@ -25,7 +25,7 @@ void CreateAddressList(const std::string& hostname,
   int rv = SystemHostResolverProc(hostname,
                                   net::ADDRESS_FAMILY_UNSPECIFIED,
                                   0,
-                                  addrlist);
+                                  addrlist, NULL);
   EXPECT_EQ(0, rv);
   addrlist->SetPort(port);
 }
