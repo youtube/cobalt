@@ -754,6 +754,15 @@ TEST_F(AlsaPcmOutputStreamTest, ScheduleNextWrite) {
       .WillOnce(Return(10));
   test_stream_->ScheduleNextWrite(false);
 
+  // TODO(sergeyu): Figure out how to check that the task has been added to the
+  // message loop.
+
+  // Cleanup the message queue. Currently ~MessageQueue() doesn't free pending
+  // tasks unless running on valgrind. The code below is needed to keep
+  // heapcheck happy.
+  test_stream_->stop_stream_ = true;
+  message_loop_.RunAllPending();
+
   test_stream_->shared_data_.TransitionTo(AlsaPcmOutputStream::kIsClosed);
 }
 
