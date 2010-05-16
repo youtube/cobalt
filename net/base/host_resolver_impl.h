@@ -150,8 +150,9 @@ class HostResolverImpl : public HostResolver,
   // Removes |job| from the outstanding jobs list.
   void RemoveOutstandingJob(Job* job);
 
-  // Callback for when |job| has completed with |error| and |addrlist|.
-  void OnJobComplete(Job* job, int error, const AddressList& addrlist);
+  // Callback for when |job| has completed with |net_error| and |addrlist|.
+  void OnJobComplete(Job* job, int net_error, int os_error,
+                     const AddressList& addrlist);
 
   // Called when a request has just been started.
   void OnStartRequest(const BoundNetLog& net_log,
@@ -162,7 +163,9 @@ class HostResolverImpl : public HostResolver,
   void OnFinishRequest(const BoundNetLog& net_log,
                        int request_id,
                        const RequestInfo& info,
-                       int error);
+                       int net_error,
+                       int os_error,
+                       bool was_from_cache);
 
   // Called when a request has been cancelled.
   void OnCancelRequest(const BoundNetLog& net_log,
