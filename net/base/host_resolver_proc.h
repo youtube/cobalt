@@ -27,11 +27,13 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
 
   // Resolves |host| to an address list, restricting the results to addresses
   // in |address_family|. If successful returns OK and fills |addrlist| with
-  // a list of socket addresses. Otherwise returns a network error code.
+  // a list of socket addresses. Otherwise returns a network error code, and
+  // fills |os_error| with a more specific error if it was non-NULL.
   virtual int Resolve(const std::string& host,
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
-                      AddressList* addrlist) = 0;
+                      AddressList* addrlist,
+                      int* os_error) = 0;
 
  protected:
   friend class base::RefCountedThreadSafe<HostResolverProc>;
@@ -42,7 +44,8 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
   int ResolveUsingPrevious(const std::string& host,
                            AddressFamily address_family,
                            HostResolverFlags host_resolver_flags,
-                           AddressList* addrlist);
+                           AddressList* addrlist,
+                           int* os_error);
 
  private:
   friend class HostResolverImpl;
@@ -77,11 +80,13 @@ class HostResolverProc : public base::RefCountedThreadSafe<HostResolverProc> {
 // Resolves |host| to an address list, using the system's default host resolver.
 // (i.e. this calls out to getaddrinfo()). If successful returns OK and fills
 // |addrlist| with a list of socket addresses. Otherwise returns a
-// network error code.
+// network error code, and fills |os_error| with a more specific errir if it
+// was non-NULL.
 int SystemHostResolverProc(const std::string& host,
                            AddressFamily address_family,
                            HostResolverFlags host_resolver_flags,
-                           AddressList* addrlist);
+                           AddressList* addrlist,
+                           int* os_error);
 
 }  // namespace net
 

@@ -4,8 +4,15 @@
 
 #include "net/base/host_resolver_impl.h"
 
+#if defined(OS_WIN)
+#include <Winsock2.h>
+#elif defined(OS_POSIX)
+#include <netdb.h>
+#endif
+
 #include <cmath>
 #include <deque>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -15,6 +22,7 @@
 #include "base/stl_util-inl.h"
 #include "base/string_util.h"
 #include "base/time.h"
+#include "base/values.h"
 #include "base/worker_pool.h"
 #include "net/base/address_list.h"
 #include "net/base/host_resolver_proc.h"
@@ -60,16 +68,104 @@ static int ResolveAddrInfo(HostResolverProc* resolver_proc,
                            const std::string& host,
                            AddressFamily address_family,
                            HostResolverFlags host_resolver_flags,
-                           AddressList* out) {
+                           AddressList* out,
+                           int* os_error) {
   if (resolver_proc) {
     // Use the custom procedure.
     return resolver_proc->Resolve(host, address_family,
-                                  host_resolver_flags, out);
+                                  host_resolver_flags, out, os_error);
   } else {
     // Use the system procedure (getaddrinfo).
     return SystemHostResolverProc(host, address_family,
-                                  host_resolver_flags, out);
+                                  host_resolver_flags, out, os_error);
   }
+}
+
+// Extra parameters to attach to the NetLog when the resolve failed.
+class HostResolveFailedParams : public NetLog::EventParameters {
+ public:
+  HostResolveFailedParams(int net_error, int os_error, bool was_from_cache)
+      : net_error_(net_error),
+        os_error_(os_error),
+        was_from_cache_(was_from_cache) {
+  }
+
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    dict->SetInteger(L"net_error", net_error_);
+    dict->SetBoolean(L"was_from_cache", was_from_cache_);
+
+    if (os_error_) {
+      dict->SetInteger(L"os_error", os_error_);
+#if defined(OS_POSIX)
+      dict->SetString(L"os_error_string", gai_strerror(os_error_));
+#elif defined(OS_WIN)
+      // Map the error code to a human-readable string.
+      LPWSTR error_string = NULL;
+      int size = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                               FORMAT_MESSAGE_FROM_SYSTEM,
+                               0,  // Use the internal message table.
+                               os_error_,
+                               0,  // Use default language.
+                               (LPWSTR)&error_string,
+                               0,  // Buffer size.
+                               0);  // Arguments (unused).
+      dict->SetString(L"os_error_string", error_string);
+      LocalFree(error_string);
+#endif
+    }
+
+    return dict;
+  }
+
+ private:
+  const int net_error_;
+  const int os_error_;
+  const bool was_from_cache_;
+};
+
+// Gets a list of the likely error codes that getaddrinfo() can return
+// (non-exhaustive). These are the error codes that we will track via
+// a histogram.
+std::vector<int> GetAllGetAddrinfoOSErrors() {
+  int os_errors[] = {
+#if defined(OS_POSIX)
+    EAI_ADDRFAMILY,
+    EAI_AGAIN,
+    EAI_BADFLAGS,
+    EAI_FAIL,
+    EAI_FAMILY,
+    EAI_MEMORY,
+    EAI_NODATA,
+    EAI_NONAME,
+    EAI_SERVICE,
+    EAI_SOCKTYPE,
+    EAI_SYSTEM,
+#elif defined(OS_WIN)
+    // See: http://msdn.microsoft.com/en-us/library/ms738520(VS.85).aspx
+    WSA_NOT_ENOUGH_MEMORY,
+    WSAEAFNOSUPPORT,
+    WSAEINVAL,
+    WSAESOCKTNOSUPPORT,
+    WSAHOST_NOT_FOUND,
+    WSANO_DATA,
+    WSANO_RECOVERY,
+    WSANOTINITIALISED,
+    WSATRY_AGAIN,
+    WSATYPE_NOT_FOUND,
+#endif
+  };
+
+  // Histogram enumerations require positive numbers.
+  std::vector<int> errors;
+  for (size_t i = 0; i < arraysize(os_errors); ++i) {
+    errors.push_back(std::abs(os_errors[i]));
+    // Also add N+1 for each error, so the bucket that contains our expected
+    // error is of size 1. That way if we get unexpected error codes, they
+    // won't fall into the same buckets as the expected ones.
+    errors.push_back(std::abs(os_errors[i]) + 1);
+  }
+  return errors;
 }
 
 //-----------------------------------------------------------------------------
@@ -167,6 +263,7 @@ class HostResolverImpl::Job
         origin_loop_(MessageLoop::current()),
         resolver_proc_(resolver->effective_resolver_proc()),
         error_(OK),
+        os_error_(0),
         had_non_speculative_request_(false) {
   }
 
@@ -273,7 +370,8 @@ class HostResolverImpl::Job
                              key_.hostname,
                              key_.address_family,
                              key_.host_resolver_flags,
-                             &results_);
+                             &results_,
+                             &os_error_);
 
     // The origin loop could go away while we are trying to post to it, so we
     // need to call its PostTask method inside a lock.  See ~HostResolver.
@@ -301,6 +399,11 @@ class HostResolverImpl::Job
       // requests.
     }
 
+    if (error_ != OK) {
+      UMA_HISTOGRAM_CUSTOM_ENUMERATION("Net.OSErrorsForGetAddrinfo",
+                                       std::abs(os_error_),
+                                       GetAllGetAddrinfoOSErrors());
+    }
 
     if (was_cancelled())
       return;
@@ -311,7 +414,7 @@ class HostResolverImpl::Job
     if (error_ == OK)
       results_.SetPort(requests_[0]->port());
 
-    resolver_->OnJobComplete(this, error_, results_);
+    resolver_->OnJobComplete(this, error_, os_error_, results_);
   }
 
   // Immutable. Can be read from either thread,
@@ -336,6 +439,7 @@ class HostResolverImpl::Job
 
   // Assigned on the worker thread, read on the origin thread.
   int error_;
+  int os_error_;
 
   // True if a non-speculative request was ever attached to this job
   // (regardless of whether or not it was later cancelled.
@@ -669,23 +773,26 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
     const HostCache::Entry* cache_entry = cache_->Lookup(
         key, base::TimeTicks::Now());
     if (cache_entry) {
-      int error = cache_entry->error;
-      if (error == OK)
+      int net_error = cache_entry->error;
+      if (net_error == OK)
         addresses->SetFrom(cache_entry->addrlist, info.port());
 
       // Update the net log and notify registered observers.
-      OnFinishRequest(net_log, request_id, info, error);
+      OnFinishRequest(net_log, request_id, info, net_error,
+                      0,  /* os_error (unknown since from cache) */
+                      true  /* was_from_cache */);
 
-      return error;
+      return net_error;
     }
   }
 
   // If no callback was specified, do a synchronous resolution.
   if (!callback) {
     AddressList addrlist;
+    int os_error = 0;
     int error = ResolveAddrInfo(
         effective_resolver_proc(), key.hostname, key.address_family,
-        key.host_resolver_flags, &addrlist);
+        key.host_resolver_flags, &addrlist, &os_error);
     if (error == OK) {
       addrlist.SetPort(info.port());
       *addresses = addrlist;
@@ -696,7 +803,8 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
       cache_->Set(key, error, addrlist, base::TimeTicks::Now());
 
     // Update the net log and notify registered observers.
-    OnFinishRequest(net_log, request_id, info, error);
+    OnFinishRequest(net_log, request_id, info, error, os_error,
+                    false /* was_from_cache */);
 
     return error;
   }
@@ -833,13 +941,14 @@ void HostResolverImpl::RemoveOutstandingJob(Job* job) {
 }
 
 void HostResolverImpl::OnJobComplete(Job* job,
-                                     int error,
+                                     int net_error,
+                                     int os_error,
                                      const AddressList& addrlist) {
   RemoveOutstandingJob(job);
 
   // Write result to the cache.
   if (cache_.get())
-    cache_->Set(job->key(), error, addrlist, base::TimeTicks::Now());
+    cache_->Set(job->key(), net_error, addrlist, base::TimeTicks::Now());
 
   // Make a note that we are executing within OnJobComplete() in case the
   // HostResolver is deleted by a callback invocation.
@@ -857,9 +966,10 @@ void HostResolverImpl::OnJobComplete(Job* job,
       DCHECK_EQ(job, req->job());
 
       // Update the net log and notify registered observers.
-      OnFinishRequest(req->net_log(), req->id(), req->info(), error);
+      OnFinishRequest(req->net_log(), req->id(), req->info(), net_error,
+                      os_error, false  /* was_from_cache */);
 
-      req->OnComplete(error, addrlist);
+      req->OnComplete(net_error, addrlist);
 
       // Check if the job was cancelled as a result of running the callback.
       // (Meaning that |this| was deleted).
@@ -888,17 +998,25 @@ void HostResolverImpl::OnStartRequest(const BoundNetLog& net_log,
 void HostResolverImpl::OnFinishRequest(const BoundNetLog& net_log,
                                        int request_id,
                                        const RequestInfo& info,
-                                       int error) {
+                                       int net_error,
+                                       int os_error,
+                                       bool was_from_cache) {
+  bool was_resolved = net_error == OK;
+
   // Notify the observers of the completion.
   if (!observers_.empty()) {
-    bool was_resolved = error == OK;
     for (ObserversList::iterator it = observers_.begin();
          it != observers_.end(); ++it) {
       (*it)->OnFinishResolutionWithStatus(request_id, was_resolved, info);
     }
   }
 
-  net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL, NULL);
+  // Log some extra parameters on failure.
+  scoped_refptr<NetLog::EventParameters> params;
+  if (!was_resolved)
+    params = new HostResolveFailedParams(net_error, os_error, was_from_cache);
+
+  net_log.EndEvent(NetLog::TYPE_HOST_RESOLVER_IMPL, params);
 }
 
 void HostResolverImpl::OnCancelRequest(const BoundNetLog& net_log,
@@ -1020,7 +1138,9 @@ int HostResolverImpl::EnqueueRequest(JobPool* pool, Request* req) {
     Request* r = req_evicted_from_queue.get();
     int error = ERR_HOST_RESOLVER_QUEUE_TOO_LARGE;
 
-    OnFinishRequest(r->net_log(), r->id(), r->info(), error);
+    OnFinishRequest(r->net_log(), r->id(), r->info(), error,
+                    0,  /* os_error (not applicable) */
+                    false  /* was_from_cache */);
 
     if (r == req)
       return error;
