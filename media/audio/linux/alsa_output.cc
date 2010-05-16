@@ -488,7 +488,8 @@ void AlsaPcmOutputStream::BufferPacket(bool* source_exhausted) {
     snd_pcm_sframes_t delay = buffer_->forward_bytes() * bytes_per_frame_ /
         bytes_per_output_frame_ + GetCurrentDelay() * bytes_per_output_frame_;
 
-    media::DataBuffer* packet = new media::DataBuffer(packet_size_);
+    scoped_refptr<media::DataBuffer> packet =
+        new media::DataBuffer(packet_size_);
     size_t packet_size =
         shared_data_.OnMoreData(this, packet->GetWritableData(),
                                 packet->GetBufferSize(), delay);
