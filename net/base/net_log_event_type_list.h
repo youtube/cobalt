@@ -26,6 +26,12 @@ EVENT_TYPE(REQUEST_ALIVE)
 // ------------------------------------------------------------------------
 
 // The start/end of a host resolve (DNS) request.
+// If an error occurred, the end phase will contain these parameters:
+//   {
+//     "net_error": <The net error code integer for the failure>,
+//     "os_error": <The exact error code integer that getaddrinfo() returned>,
+//     "was_from_cache": <True if the response was gotten from the cache>
+//   }
 EVENT_TYPE(HOST_RESOLVER_IMPL)
 
 // ------------------------------------------------------------------------

@@ -143,7 +143,7 @@ bool MockClientSocket::IsConnectedAndIdle() const {
 
 int MockClientSocket::GetPeerAddress(AddressList* address) const {
   return net::SystemHostResolverProc("localhost", ADDRESS_FAMILY_UNSPECIFIED,
-                                     0, address);
+                                     0, address, NULL);
 }
 
 void MockClientSocket::RunCallbackAsync(net::CompletionCallback* callback,
