@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -33,12 +33,9 @@ void AdjustVolume(Format* buf_out,
   }
 }
 
-// Channel order for AAC
-// From http://www.hydrogenaudio.org/forums/lofiversion/index.php/t40046.html
-
-static const int kChannel_C = 0;
-static const int kChannel_L = 1;
-static const int kChannel_R = 2;
+static const int kChannel_L = 0;
+static const int kChannel_R = 1;
+static const int kChannel_C = 2;
 
 template<class Fixed, int min_value, int max_value>
 static int AddChannel(int val,
