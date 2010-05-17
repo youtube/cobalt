@@ -133,7 +133,7 @@ class FFmpegDemuxer : public Demuxer,
   // MediaFilter implementation.
   virtual void Stop();
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
-  virtual void OnReceivedMessage(FilterMessage message);
+  virtual void OnAudioRendererDisabled();
 
   // Demuxer implementation.
   virtual void Initialize(DataSource* data_source, FilterCallback* callback);

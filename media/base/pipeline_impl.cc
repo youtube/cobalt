@@ -444,13 +444,12 @@ void PipelineImpl::SetNetworkActivity(bool network_activity) {
       NewRunnableMethod(this, &PipelineImpl::NotifyNetworkEventTask));
 }
 
-void PipelineImpl::BroadcastMessage(FilterMessage message) {
+void PipelineImpl::DisableAudioRenderer() {
   DCHECK(IsRunning());
 
-  // Broadcast the message on the message loop.
+  // Disable renderer on the message loop.
   message_loop_->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &PipelineImpl::BroadcastMessageTask,
-                        message));
+      NewRunnableMethod(this, &PipelineImpl::DisableAudioRendererTask));
 }
 
 void PipelineImpl::InsertRenderedMimeType(const std::string& major_mime_type) {
@@ -752,23 +751,19 @@ void PipelineImpl::NotifyNetworkEventTask() {
   }
 }
 
-void PipelineImpl::BroadcastMessageTask(FilterMessage message) {
+void PipelineImpl::DisableAudioRendererTask() {
   DCHECK_EQ(MessageLoop::current(), message_loop_);
 
-  // TODO(kylep): This is a horribly ugly hack, but we have no better way to
-  // log that audio is not and will not be working.
-  if (message == media::kMsgDisableAudio) {
-    // |rendered_mime_types_| is read through public methods so we need to lock
-    // this variable.
-    AutoLock auto_lock(lock_);
-    rendered_mime_types_.erase(mime_type::kMajorTypeAudio);
-  }
+  // |rendered_mime_types_| is read through public methods so we need to lock
+  // this variable.
+  AutoLock auto_lock(lock_);
+  rendered_mime_types_.erase(mime_type::kMajorTypeAudio);
 
-  // Broadcast the message to all filters.
+  // Notify all filters of disabled audio renderer.
   for (FilterVector::iterator iter = filters_.begin();
        iter != filters_.end();
        ++iter) {
-    (*iter)->OnReceivedMessage(message);
+    (*iter)->OnAudioRendererDisabled();
   }
 }
 

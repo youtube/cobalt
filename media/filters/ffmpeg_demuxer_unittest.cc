@@ -647,7 +647,7 @@ TEST_F(FFmpegDemuxerTest, DisableAudioStream) {
   }
 
   // Submit a "disable audio stream" message to the demuxer.
-  demuxer_->OnReceivedMessage(kMsgDisableAudio);
+  demuxer_->OnAudioRendererDisabled();
   message_loop_.RunAllPending();
 
   // Ignore all AVFreePacket() calls.  We check this via valgrind.
