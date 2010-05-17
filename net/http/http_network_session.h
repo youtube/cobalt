@@ -10,6 +10,7 @@
 #include "base/scoped_ptr.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/host_resolver.h"
+#include "net/base/network_change_notifier.h"
 #include "net/base/ssl_client_auth_cache.h"
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_alternate_protocols.h"
@@ -28,7 +29,9 @@ class NetworkChangeNotifier;
 class SpdySessionPool;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
-class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
+class HttpNetworkSession
+    : public base::RefCounted<HttpNetworkSession>,
+      public NetworkChangeNotifier::Observer {
  public:
   HttpNetworkSession(
       NetworkChangeNotifier* network_change_notifier,
@@ -36,8 +39,14 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
       ProxyService* proxy_service,
       ClientSocketFactory* client_socket_factory,
       SSLConfigService* ssl_config_service,
-      SpdySessionPool* spdy_session_pool,
       HttpAuthHandlerFactory* http_auth_handler_factory);
+
+  // NetworkChangeNotifier::Observer methods:
+  virtual void OnIPAddressChanged();
+
+  // Flushes cached data in the HttpNetworkSession.  Typically called on IP
+  // address change.
+  void Flush();
 
   HttpAuthCache* auth_cache() { return &auth_cache_; }
   SSLClientAuthCache* ssl_client_auth_cache() {
@@ -82,10 +91,6 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
     return http_auth_handler_factory_;
   }
 
-  // Replace the current socket pool with a new one.  This effectively
-  // abandons the current pool.  This is only used for debugging.
-  void ReplaceTCPSocketPool();
-
   static void set_max_sockets_per_group(int socket_count);
 
   static uint16 fixed_http_port();
@@ -105,15 +110,17 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
 
   ~HttpNetworkSession();
 
+  scoped_refptr<TCPClientSocketPool> CreateNewTCPSocketPool();
+
   HttpAuthCache auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
   NetworkChangeNotifier* const network_change_notifier_;
+  ClientSocketFactory* socket_factory_;
+  scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
   HTTPProxySocketPoolMap http_proxy_socket_pool_;
   SOCKSSocketPoolMap socks_socket_pool_;
-  ClientSocketFactory* socket_factory_;
-  scoped_refptr<HostResolver> host_resolver_;
   scoped_refptr<ProxyService> proxy_service_;
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
