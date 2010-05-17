@@ -152,7 +152,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetLoaded(bool loaded);
   virtual void SetNetworkActivity(bool network_activity);
   virtual void NotifyEnded();
-  virtual void BroadcastMessage(FilterMessage message);
+  virtual void DisableAudioRenderer();
 
   // Method called during initialization to insert a mime type into the
   // |rendered_mime_types_| set.
@@ -203,8 +203,8 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Carries out handling a notification of network event.
   void NotifyNetworkEventTask();
 
-  // Carries out message broadcasting on the message loop.
-  void BroadcastMessageTask(FilterMessage message);
+  // Carries out disabling the audio renderer.
+  void DisableAudioRendererTask();
 
   // Carries out advancing to the next filter during Play()/Pause()/Seek().
   void FilterStateTransitionTask();

@@ -283,11 +283,9 @@ void FFmpegDemuxer::Seek(base::TimeDelta time, FilterCallback* callback) {
       NewRunnableMethod(this, &FFmpegDemuxer::SeekTask, time, callback));
 }
 
-void FFmpegDemuxer::OnReceivedMessage(FilterMessage message) {
-  if (message == kMsgDisableAudio) {
-    message_loop()->PostTask(FROM_HERE,
-        NewRunnableMethod(this, &FFmpegDemuxer::DisableAudioStreamTask));
-  }
+void FFmpegDemuxer::OnAudioRendererDisabled() {
+  message_loop()->PostTask(FROM_HERE,
+      NewRunnableMethod(this, &FFmpegDemuxer::DisableAudioStreamTask));
 }
 
 void FFmpegDemuxer::Initialize(DataSource* data_source,
