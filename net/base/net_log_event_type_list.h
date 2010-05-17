@@ -258,8 +258,10 @@ EVENT_TYPE(SOCKET_POOL_SOCKET_ID)
 // URLRequest
 // ------------------------------------------------------------------------
 
-// Measures the time between URLRequest::Start() and
-// URLRequest::ResponseStarted().
+// Measures the time it took a URLRequestJob to start. For the most part this
+// corresponds with the time between URLRequest::Start() and
+// URLRequest::ResponseStarted(), however it is also repeated for every
+// redirect, and every intercepted job that handles the request.
 //
 // For the BEGIN phase, the following parameters are attached:
 //   {
@@ -273,7 +275,7 @@ EVENT_TYPE(SOCKET_POOL_SOCKET_ID)
 //   {
 //      "net_error": <Net error code of the failure>
 //   }
-EVENT_TYPE(URL_REQUEST_START)
+EVENT_TYPE(URL_REQUEST_START_JOB)
 
 // This event is sent once a URLRequest receives a redirect. The parameters
 // attached to the event are:
