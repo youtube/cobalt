@@ -294,22 +294,11 @@ bool CopyDirectory(const FilePath& from_path,
 }
 
 bool PathExists(const FilePath& path) {
-  stat_wrapper_t file_info;
-  return CallStat(path.value().c_str(), &file_info) == 0;
+  return access(path.value().c_str(), F_OK) == 0;
 }
 
 bool PathIsWritable(const FilePath& path) {
-  FilePath test_path(path);
-  stat_wrapper_t file_info;
-  if (CallStat(test_path.value().c_str(), &file_info) != 0)
-    return false;
-  if (S_IWOTH & file_info.st_mode)
-    return true;
-  if (getegid() == file_info.st_gid && (S_IWGRP & file_info.st_mode))
-    return true;
-  if (geteuid() == file_info.st_uid && (S_IWUSR & file_info.st_mode))
-    return true;
-  return false;
+  return access(path.value().c_str(), W_OK) == 0;
 }
 
 bool DirectoryExists(const FilePath& path) {
