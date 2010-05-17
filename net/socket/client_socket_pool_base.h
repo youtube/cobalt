@@ -39,7 +39,6 @@
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
-#include "net/base/network_change_notifier.h"
 #include "net/base/request_priority.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
@@ -124,8 +123,7 @@ namespace internal {
 // ClientSocketPoolBase instead.
 class ClientSocketPoolBaseHelper
     : public base::RefCounted<ClientSocketPoolBaseHelper>,
-      public ConnectJob::Delegate,
-      public NetworkChangeNotifier::Observer {
+      public ConnectJob::Delegate {
  public:
   class Request {
    public:
@@ -172,8 +170,7 @@ class ClientSocketPoolBaseHelper
       int max_sockets_per_group,
       base::TimeDelta unused_idle_socket_timeout,
       base::TimeDelta used_idle_socket_timeout,
-      ConnectJobFactory* connect_job_factory,
-      NetworkChangeNotifier* network_change_notifier);
+      ConnectJobFactory* connect_job_factory);
 
   // See ClientSocketPool::RequestSocket for documentation on this function.
   // ClientSocketPoolBaseHelper takes ownership of |request|, which must be
@@ -212,9 +209,6 @@ class ClientSocketPoolBaseHelper
 
   // ConnectJob::Delegate methods:
   virtual void OnConnectJobComplete(int result, ConnectJob* job);
-
-  // NetworkChangeNotifier::Observer methods:
-  virtual void OnIPAddressChanged();
 
   // For testing.
   bool may_have_stalled_group() const { return may_have_stalled_group_; }
@@ -439,8 +433,6 @@ class ClientSocketPoolBaseHelper
 
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
 
-  NetworkChangeNotifier* const network_change_notifier_;
-
   // TODO(vandebo) Remove when backup jobs move to TCPClientSocketPool
   bool backup_jobs_enabled_;
 
@@ -507,14 +499,12 @@ class ClientSocketPoolBase {
       const std::string& name,
       base::TimeDelta unused_idle_socket_timeout,
       base::TimeDelta used_idle_socket_timeout,
-      ConnectJobFactory* connect_job_factory,
-      NetworkChangeNotifier* network_change_notifier)
+      ConnectJobFactory* connect_job_factory)
       : name_(name),
         helper_(new internal::ClientSocketPoolBaseHelper(
           max_sockets, max_sockets_per_group,
           unused_idle_socket_timeout, used_idle_socket_timeout,
-          new ConnectJobFactoryAdaptor(connect_job_factory),
-          network_change_notifier)) {}
+          new ConnectJobFactoryAdaptor(connect_job_factory))) {}
 
   virtual ~ClientSocketPoolBase() {}
 
