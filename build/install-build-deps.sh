@@ -328,7 +328,7 @@ if [ "$(uname -m)" = "x86_64" ]; then
   echo "First, installing the limited existing 32-bit support..."
   cmp_list="ia32-libs lib32asound2-dev lib32readline5-dev lib32stdc++6 lib32z1
             lib32z1-dev libc6-dev-i386 libc6-i386 g++-multilib"
-  apt-get install $cmp_list
+  sudo apt-get install $cmp_list
 
   tmp=/tmp/install-32bit.$$
   trap 'rm -rf "${tmp}"' EXIT INT TERM QUIT
@@ -346,11 +346,11 @@ EOF
 
   # Download 32bit packages
   echo "Computing list of available 32bit packages..."
-  apt-get -c="${tmp}/apt/apt.conf" update
+  sudo apt-get -c="${tmp}/apt/apt.conf" update
 
   echo "Downloading available 32bit packages..."
-  apt-get -c="${tmp}/apt/apt.conf" \
-          --yes --download-only --force-yes --reinstall  install \
+  sudo apt-get -c="${tmp}/apt/apt.conf" \
+          --yes --download-only --force-yes --reinstall install \
           ${lib_list} ${dbg_list}
 
   # Open packages, remove everything that is not a library, move the
