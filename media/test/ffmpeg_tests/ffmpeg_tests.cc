@@ -215,6 +215,8 @@ int main(int argc, const char** argv) {
   }
 
   codec_context->flags2 |= CODEC_FLAG2_FAST;
+  codec_context->error_concealment = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
+  codec_context->error_recognition = FF_ER_CAREFUL;
 
   // Initialize threaded decode.
   if (target_codec == CODEC_TYPE_VIDEO && video_threads > 0) {
