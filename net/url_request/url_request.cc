@@ -267,7 +267,7 @@ void URLRequest::StartJob(URLRequestJob* job) {
   DCHECK(!job_);
 
   net_log_.BeginEvent(
-      net::NetLog::TYPE_URL_REQUEST_START,
+      net::NetLog::TYPE_URL_REQUEST_START_JOB,
       new URLRequestStartEventParameters(url_, method_, load_flags_));
 
   job_ = job;
@@ -374,13 +374,10 @@ void URLRequest::ReceivedRedirect(const GURL& location, bool* defer_redirect) {
 }
 
 void URLRequest::ResponseStarted() {
-  if (!status_.is_success()) {
-    net_log_.EndEvent(
-        net::NetLog::TYPE_URL_REQUEST_START,
-        new net::NetLogIntegerParameter("net_error", status_.os_error()));
-  } else {
-    net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START, NULL);
-  }
+  scoped_refptr<net::NetLog::EventParameters> params;
+  if (!status_.is_success())
+    params = new net::NetLogIntegerParameter("net_error", status_.os_error());
+  net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START_JOB, params);
 
   URLRequestJob* job = GetJobManager()->MaybeInterceptResponse(this);
   if (job) {
@@ -425,6 +422,10 @@ void URLRequest::ContinueDespiteLastError() {
 
 void URLRequest::PrepareToRestart() {
   DCHECK(job_);
+
+  // Close the current URL_REQUEST_START_JOB, since we will be starting a new
+  // one.
+  net_log_.EndEvent(net::NetLog::TYPE_URL_REQUEST_START_JOB, NULL);
 
   job_->Kill();
   OrphanJob();
