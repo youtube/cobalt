@@ -685,6 +685,7 @@
         'http/http_cache_unittest.cc',
         'http/http_chunked_decoder_unittest.cc',
         'http/http_network_layer_unittest.cc',
+        'http/http_network_session_unittest.cc',
         'http/http_network_transaction_unittest.cc',
         'http/http_request_headers_unittest.cc',
         'http/http_response_headers_unittest.cc',

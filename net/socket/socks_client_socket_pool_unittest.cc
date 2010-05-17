@@ -10,7 +10,6 @@
 #include "base/compiler_specific.h"
 #include "base/time.h"
 #include "net/base/mock_host_resolver.h"
-#include "net/base/mock_network_change_notifier.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/client_socket_factory.h"
@@ -83,10 +82,9 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
 
   MockTCPClientSocketPool(int max_sockets, int max_sockets_per_group,
                           const std::string& name,
-                          ClientSocketFactory* socket_factory,
-                          NetworkChangeNotifier* network_change_notifier)
+                          ClientSocketFactory* socket_factory)
       : TCPClientSocketPool(max_sockets, max_sockets_per_group, name,
-                            NULL, NULL, network_change_notifier),
+                            NULL, NULL),
         client_socket_factory_(socket_factory),
         release_count_(0),
         cancel_count_(0) {}
@@ -171,13 +169,13 @@ class SOCKSClientSocketPoolTest : public ClientSocketPoolTest {
             HostPortPair("proxy", 80), MEDIUM, GURL(), false),
         tcp_socket_pool_(new MockTCPClientSocketPool(
             kMaxSockets, kMaxSocketsPerGroup, "MockTCP",
-            &tcp_client_socket_factory_, &tcp_notifier_)),
+            &tcp_client_socket_factory_)),
         ignored_socket_params_(ignored_tcp_socket_params_, true,
                                HostPortPair("host", 80),
                                MEDIUM, GURL()),
         pool_(new SOCKSClientSocketPool(
             kMaxSockets, kMaxSocketsPerGroup, "SOCKSUnitTest", NULL,
-            tcp_socket_pool_.get(), &socks_notifier_)) {
+            tcp_socket_pool_.get())) {
   }
 
   int StartRequest(const std::string& group_name, RequestPriority priority) {
@@ -187,11 +185,9 @@ class SOCKSClientSocketPoolTest : public ClientSocketPoolTest {
 
   TCPSocketParams ignored_tcp_socket_params_;
   MockClientSocketFactory tcp_client_socket_factory_;
-  MockNetworkChangeNotifier tcp_notifier_;
   scoped_refptr<MockTCPClientSocketPool> tcp_socket_pool_;
 
   SOCKSSocketParams ignored_socket_params_;
-  MockNetworkChangeNotifier socks_notifier_;
   scoped_refptr<SOCKSClientSocketPool> pool_;
 };
 

@@ -411,7 +411,7 @@ void HttpCache::CloseCurrentConnections() {
     session->tcp_socket_pool()->CloseIdleSockets();
     if (session->spdy_session_pool())
       session->spdy_session_pool()->CloseAllSessions();
-    session->ReplaceTCPSocketPool();
+    session->Flush();
   }
 }
 
