@@ -45,10 +45,15 @@ namespace net {
 //=====================+==========================================+
 
 
+//static
+bool HttpAuthHandlerDigest::fixed_cnonce_ = false;
+
 // static
 std::string HttpAuthHandlerDigest::GenerateNonce() {
   // This is how mozilla generates their cnonce -- a 16 digit hex string.
   static const char domain[] = "0123456789abcdef";
+  if (fixed_cnonce_)
+    return std::string(domain);
   std::string cnonce;
   cnonce.reserve(16);
   for (int i = 0; i < 16; ++i)
