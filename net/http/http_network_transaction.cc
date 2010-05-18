@@ -1145,7 +1145,8 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
       result = HandleCertificateRequest(result);
       if (result == OK)
         return result;
-    } else if (result == ERR_SSL_DECOMPRESSION_FAILURE_ALERT &&
+    } else if ((result == ERR_SSL_DECOMPRESSION_FAILURE_ALERT ||
+                result == ERR_SSL_BAD_RECORD_MAC_ALERT ) &&
                ssl_config_.tls1_enabled) {
       // Some buggy servers select DEFLATE compression when offered and then
       // fail to ever decompress anything. They will send a fatal alert telling
@@ -1670,9 +1671,11 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
     case ERR_SSL_PROTOCOL_ERROR:
     case ERR_SSL_VERSION_OR_CIPHER_MISMATCH:
     case ERR_SSL_DECOMPRESSION_FAILURE_ALERT:
+    case ERR_SSL_BAD_RECORD_MAC_ALERT:
       if (ssl_config_.tls1_enabled) {
-        // This could be a TLS-intolerant server or an SSL 3.0 server that
-        // chose a TLS-only cipher suite.  Turn off TLS 1.0 and retry.
+        // This could be a TLS-intolerant server, an SSL 3.0 server that
+        // chose a TLS-only cipher suite or a server with buggy DEFLATE
+        // support. Turn off TLS 1.0, DEFLATE support and retry.
         g_tls_intolerant_servers->insert(GetHostAndPort(request_->url));
         ResetConnectionAndRequestForResend();
         error = OK;
