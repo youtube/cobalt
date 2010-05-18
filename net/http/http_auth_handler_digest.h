@@ -46,6 +46,7 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
  private:
   FRIEND_TEST(HttpAuthHandlerDigestTest, ParseChallenge);
   FRIEND_TEST(HttpAuthHandlerDigestTest, AssembleCredentials);
+  FRIEND_TEST(HttpNetworkTransactionTest, DigestPreAuthNonceCount);
 
   // Possible values for the "algorithm" property.
   enum DigestAlgorithm {
@@ -109,6 +110,11 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
                                   const std::string& cnonce,
                                   int nonce_count) const;
 
+  // Forces cnonce to be the same each time. This is used for unit tests.
+  static void SetFixedCnonce(bool fixed_cnonce) {
+    fixed_cnonce_ = fixed_cnonce;
+  }
+
   // Information parsed from the challenge.
   std::string nonce_;
   std::string domain_;
@@ -118,6 +124,9 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
   int qop_; // Bitfield of QualityOfProtection
 
   int nonce_count_;
+
+  // Forces the cnonce to be the same each time, for unit tests.
+  static bool fixed_cnonce_;
 };
 
 }  // namespace net
