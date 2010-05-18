@@ -88,6 +88,7 @@
         'base/listen_socket.cc',
         'base/listen_socket.h',
         'base/load_flags.h',
+        'base/load_flags_list.h',
         'base/load_states.h',
         'base/mapped_host_resolver.cc',
         'base/mapped_host_resolver.h',
