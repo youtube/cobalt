@@ -20,6 +20,7 @@
 #include "base/basictypes.h"
 #include "base/file_path.h"
 #include "base/hash_tables.h"
+#include "base/message_loop_proxy.h"
 #include "base/scoped_ptr.h"
 #include "base/task.h"
 #include "base/weak_ptr.h"
@@ -28,7 +29,6 @@
 #include "net/http/http_transaction_factory.h"
 
 class GURL;
-class MessageLoop;
 class ViewCacheHelper;
 
 namespace disk_cache {
@@ -89,7 +89,7 @@ class HttpCache : public HttpTransactionFactory,
     // |cache_thread| is the thread where disk operations should take place. If
     // |max_bytes| is  zero, a default value will be calculated automatically.
     DefaultBackend(CacheType type, const FilePath& path, int max_bytes,
-                   MessageLoop* thread)
+                   base::MessageLoopProxy* thread)
         : type_(type), path_(path), max_bytes_(max_bytes), thread_(thread) {}
 
     // Returns a factory for an in-memory cache.
@@ -105,7 +105,7 @@ class HttpCache : public HttpTransactionFactory,
     CacheType type_;
     const FilePath path_;
     int max_bytes_;
-    MessageLoop* thread_;
+    scoped_refptr<base::MessageLoopProxy> thread_;
   };
 
   // The disk cache is initialized lazily (by CreateTransaction) in this case.
