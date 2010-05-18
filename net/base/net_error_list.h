@@ -152,6 +152,9 @@ NET_ERROR(WINSOCK_UNEXPECTED_WRITTEN_BYTES, -124)
 // it supports it.
 NET_ERROR(SSL_DECOMPRESSION_FAILURE_ALERT, -125)
 
+// An SSL peer sent us a fatal bad_record_mac alert. This has been observed
+// from servers with buggy DEFLATE support.
+NET_ERROR(SSL_BAD_RECORD_MAC_ALERT, -126)
 
 // Certificate error codes
 //
