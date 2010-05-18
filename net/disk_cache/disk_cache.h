@@ -17,7 +17,10 @@
 #include "net/base/completion_callback.h"
 
 class FilePath;
-class MessageLoop;
+
+namespace base {
+class MessageLoopProxy;
+}
 
 namespace net {
 class IOBuffer;
@@ -66,8 +69,8 @@ Backend* CreateInMemoryCacheBackend(int max_bytes);
 // The pointer to receive the |backend| must remain valid until the operation
 // completes (the callback is notified).
 int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
-                       bool force, MessageLoop* thread, Backend** backend,
-                       CompletionCallback* callback);
+                       bool force, base::MessageLoopProxy* thread,
+                       Backend** backend, CompletionCallback* callback);
 
 // The root interface for a disk cache instance.
 class Backend {

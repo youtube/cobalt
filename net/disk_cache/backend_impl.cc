@@ -174,8 +174,8 @@ Backend* CreateCacheBackend(const FilePath& full_path, bool force,
 }
 
 int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
-                       bool force, MessageLoop* thread, Backend** backend,
-                       CompletionCallback* callback) {
+                       bool force, base::MessageLoopProxy* thread,
+                       Backend** backend, CompletionCallback* callback) {
   if (type == net::MEMORY_CACHE)
     *backend = CreateInMemoryCacheBackend(max_bytes);
   else
