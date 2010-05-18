@@ -17,10 +17,16 @@ struct HostPortPair {
 
   // TODO(willchan): Define a functor instead.
   // Comparator function so this can be placed in a std::map.
+  // TODO(jar): Violation of style guide, and should be removed.
   bool operator<(const HostPortPair& other) const {
     if (port != other.port)
       return port < other.port;
     return host < other.host;
+  }
+
+  // Equality test of contents. (Probably another violation of style guide).
+  bool Equals(const HostPortPair& other) const {
+    return host == other.host && port == other.port;
   }
 
   // ToString() will convert the HostPortPair to "host:port".  If |host| is an
