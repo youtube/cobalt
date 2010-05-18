@@ -536,8 +536,10 @@ int X509Certificate::Verify(const std::string& hostname,
   CERT_CHAIN_PARA chain_para;
   memset(&chain_para, 0, sizeof(chain_para));
   chain_para.cbSize = sizeof(chain_para);
-  // TODO(wtc): Do we still need to request szOID_SERVER_GATED_CRYPTO or
-  // szOID_SGC_NETSCAPE today?
+  // ExtendedKeyUsage.
+  // We still need to request szOID_SERVER_GATED_CRYPTO and szOID_SGC_NETSCAPE
+  // today because some certificate chains need them.  IE also requests these
+  // two usages.
   static const LPSTR usage[] = {
     szOID_PKIX_KP_SERVER_AUTH,
     szOID_SERVER_GATED_CRYPTO,
@@ -558,6 +560,9 @@ int X509Certificate::Verify(const std::string& hostname,
     flags &= ~VERIFY_EV_CERT;
   }
   PCCERT_CHAIN_CONTEXT chain_context;
+  // IE passes a non-NULL pTime argument that specifies the current system
+  // time.  IE passes CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT as the
+  // chain_flags argument.
   if (!CertGetCertificateChain(
            NULL,  // default chain engine, HCCE_CURRENT_USER
            cert_handle_,
