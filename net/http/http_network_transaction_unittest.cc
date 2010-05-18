@@ -22,6 +22,7 @@
 #include "net/base/ssl_info.h"
 #include "net/base/test_completion_callback.h"
 #include "net/base/upload_data.h"
+#include "net/http/http_auth_handler_digest.h"
 #include "net/http/http_auth_handler_ntlm.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
@@ -2991,6 +2992,141 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthCacheAndPreauth) {
     EXPECT_FALSE(response == NULL);
     EXPECT_TRUE(response->auth_challenge.get() == NULL);
     EXPECT_EQ(100, response->headers->GetContentLength());
+  }
+}
+
+// Tests that nonce count increments when multiple auth attempts
+// are started with the same nonce.
+TEST_F(HttpNetworkTransactionTest, DigestPreAuthNonceCount) {
+  SessionDependencies session_deps;
+  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  HttpAuthHandlerDigest::SetFixedCnonce(true);
+
+  // Transaction 1: authenticate (foo, bar) on MyRealm1
+  {
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+    HttpRequestInfo request;
+    request.method = "GET";
+    request.url = GURL("http://www.google.com/x/y/z");
+    request.load_flags = 0;
+
+    MockWrite data_writes1[] = {
+      MockWrite("GET /x/y/z HTTP/1.1\r\n"
+                "Host: www.google.com\r\n"
+                "Connection: keep-alive\r\n\r\n"),
+    };
+
+    MockRead data_reads1[] = {
+      MockRead("HTTP/1.0 401 Unauthorized\r\n"),
+      MockRead("WWW-Authenticate: Digest realm=\"digestive\", nonce=\"OU812\", "
+               "algorithm=MD5, qop=\"auth\"\r\n\r\n"),
+      MockRead(false, OK),
+    };
+
+    // Resend with authorization (username=foo, password=bar)
+    MockWrite data_writes2[] = {
+      MockWrite("GET /x/y/z HTTP/1.1\r\n"
+                "Host: www.google.com\r\n"
+                "Connection: keep-alive\r\n"
+                "Authorization: Digest username=\"foo\", realm=\"digestive\", "
+                "nonce=\"OU812\", uri=\"/x/y/z\", algorithm=MD5, "
+                "response=\"03ffbcd30add722589c1de345d7a927f\", qop=auth, "
+                "nc=00000001, cnonce=\"0123456789abcdef\"\r\n\r\n"),
+    };
+
+    // Sever accepts the authorization.
+    MockRead data_reads2[] = {
+      MockRead("HTTP/1.0 200 OK\r\n"),
+      MockRead(false, OK),
+    };
+
+    StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                   data_writes1, arraysize(data_writes1));
+    StaticSocketDataProvider data2(data_reads2, arraysize(data_reads2),
+                                   data_writes2, arraysize(data_writes2));
+    session_deps.socket_factory.AddSocketDataProvider(&data1);
+    session_deps.socket_factory.AddSocketDataProvider(&data2);
+
+    TestCompletionCallback callback1;
+
+    int rv = trans->Start(&request, &callback1, BoundNetLog());
+    EXPECT_EQ(ERR_IO_PENDING, rv);
+
+    rv = callback1.WaitForResult();
+    EXPECT_EQ(OK, rv);
+
+    const HttpResponseInfo* response = trans->GetResponseInfo();
+    ASSERT_FALSE(response == NULL);
+
+    // The password prompt info should have been set in
+    // response->auth_challenge.
+    ASSERT_FALSE(response->auth_challenge.get() == NULL);
+
+    EXPECT_EQ(L"www.google.com:80", response->auth_challenge->host_and_port);
+    EXPECT_EQ(L"digestive", response->auth_challenge->realm);
+    EXPECT_EQ(L"digest", response->auth_challenge->scheme);
+
+    TestCompletionCallback callback2;
+
+    rv = trans->RestartWithAuth(L"foo", L"bar", &callback2);
+    EXPECT_EQ(ERR_IO_PENDING, rv);
+
+    rv = callback2.WaitForResult();
+    EXPECT_EQ(OK, rv);
+
+    response = trans->GetResponseInfo();
+    ASSERT_FALSE(response == NULL);
+    EXPECT_TRUE(response->auth_challenge.get() == NULL);
+  }
+
+  // ------------------------------------------------------------------------
+
+  // Transaction 2: Request another resource in digestive's protection space.
+  // This will preemptively add an Authorization header which should have an
+  // "nc" value of 2 (as compared to 1 in the first use.
+  {
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+    HttpRequestInfo request;
+    request.method = "GET";
+    // Note that Transaction 1 was at /x/y/z, so this is in the same
+    // protection space as digest.
+    request.url = GURL("http://www.google.com/x/y/a/b");
+    request.load_flags = 0;
+
+    MockWrite data_writes1[] = {
+      MockWrite("GET /x/y/a/b HTTP/1.1\r\n"
+                "Host: www.google.com\r\n"
+                "Connection: keep-alive\r\n"
+                "Authorization: Digest username=\"foo\", realm=\"digestive\", "
+                "nonce=\"OU812\", uri=\"/x/y/a/b\", algorithm=MD5, "
+                "response=\"d6f9a2c07d1c5df7b89379dca1269b35\", qop=auth, "
+                "nc=00000002, cnonce=\"0123456789abcdef\"\r\n\r\n"),
+    };
+
+    // Sever accepts the authorization.
+    MockRead data_reads1[] = {
+      MockRead("HTTP/1.0 200 OK\r\n"),
+      MockRead("Content-Length: 100\r\n\r\n"),
+      MockRead(false, OK),
+    };
+
+    StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
+                                   data_writes1, arraysize(data_writes1));
+    session_deps.socket_factory.AddSocketDataProvider(&data1);
+
+    TestCompletionCallback callback1;
+
+    int rv = trans->Start(&request, &callback1, BoundNetLog());
+    EXPECT_EQ(ERR_IO_PENDING, rv);
+
+    rv = callback1.WaitForResult();
+    EXPECT_EQ(OK, rv);
+
+    const HttpResponseInfo* response = trans->GetResponseInfo();
+    ASSERT_FALSE(response == NULL);
+    EXPECT_TRUE(response->auth_challenge.get() == NULL);
   }
 }
 
