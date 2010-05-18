@@ -413,9 +413,9 @@ class GConfSettingGetterImplKDE
  public:
   explicit GConfSettingGetterImplKDE(base::EnvVarGetter* env_var_getter)
       : inotify_fd_(-1), notify_delegate_(NULL), indirect_manual_(false),
-        auto_no_pac_(false), reversed_exception_(false), file_loop_(NULL) {
-    // We don't save the env var getter for later use since we don't own it.
-    // Instead we use it here and save the result we actually care about.
+        auto_no_pac_(false), reversed_exception_(false),
+        env_var_getter_(env_var_getter), file_loop_(NULL) {
+    // Derive the location of the kde config dir from the environment.
     std::string home;
     if (env_var_getter->GetEnv("KDE_HOME", &home) && !home.empty()) {
       // $KDE_HOME is set. Use it unconditionally.
@@ -578,6 +578,17 @@ class GConfSettingGetterImplKDE
     string_table_[prefix + "host"] = value;
   }
 
+  void AddHostList(std::string key, std::string value) {
+    std::vector<std::string> tokens;
+    StringTokenizer tk(value, ",");
+    while (tk.GetNext()) {
+      std::string token = tk.token();
+      if (!token.empty())
+        tokens.push_back(token);
+    }
+    strings_table_[key] = tokens;
+  }
+
   void AddKDESetting(const std::string& key, const std::string& value) {
     // The astute reader may notice that there is no mention of SOCKS
     // here. That's because KDE handles socks is a strange way, and we
@@ -622,14 +633,7 @@ class GConfSettingGetterImplKDE
       // will return 0, which we count as false.
       reversed_exception_ = value == "true" || StringToInt(value);
     } else if (key == "NoProxyFor") {
-      std::vector<std::string> exceptions;
-      StringTokenizer tk(value, ",");
-      while (tk.GetNext()) {
-        std::string token = tk.token();
-        if (!token.empty())
-          exceptions.push_back(token);
-      }
-      strings_table_["/system/http_proxy/ignore_hosts"] = exceptions;
+      AddHostList("/system/http_proxy/ignore_hosts", value);
     } else if (key == "AuthMode") {
       // Check for authentication, just so we can warn.
       int mode = StringToInt(value);
@@ -643,17 +647,25 @@ class GConfSettingGetterImplKDE
   }
 
   void ResolveIndirect(std::string key) {
-    // We can't save the environment variable getter that was passed
-    // when this object was constructed, but this setting is likely
-    // to be pretty unusual and the actual values it would return can
-    // be tested without using it. So we just use getenv() here.
     string_map_type::iterator it = string_table_.find(key);
     if (it != string_table_.end()) {
-      char* value = getenv(it->second.c_str());
-      if (value)
+      std::string value;
+      if (env_var_getter_->GetEnv(it->second.c_str(), &value))
         it->second = value;
       else
         string_table_.erase(it);
+    }
+  }
+
+  void ResolveIndirectList(std::string key) {
+    strings_map_type::iterator it = strings_table_.find(key);
+    if (it != strings_table_.end()) {
+      std::string value;
+      if (!it->second.empty() &&
+          env_var_getter_->GetEnv(it->second[0].c_str(), &value))
+        AddHostList(key, value);
+      else
+        strings_table_.erase(it);
     }
   }
 
@@ -666,6 +678,7 @@ class GConfSettingGetterImplKDE
       ResolveIndirect("/system/http_proxy/host");
       ResolveIndirect("/system/proxy/secure_host");
       ResolveIndirect("/system/proxy/ftp_host");
+      ResolveIndirectList("/system/http_proxy/ignore_hosts");
     }
     if (auto_no_pac_) {
       // Remove the PAC URL; we're not supposed to use it.
@@ -833,6 +846,10 @@ class GConfSettingGetterImplKDE
   bool indirect_manual_;
   bool auto_no_pac_;
   bool reversed_exception_;
+  // We don't own |env_var_getter_|.  It's safe to hold a pointer to it, since
+  // both it and us are owned by ProxyConfigServiceLinux::Delegate, and have the
+  // same lifetime.
+  base::EnvVarGetter* env_var_getter_;
 
   // We cache these settings whenever we re-read the kioslaverc file.
   string_map_type string_table_;
