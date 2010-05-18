@@ -191,6 +191,8 @@ int MapNSPRError(PRErrorCode err) {
       return ERR_SSL_PROTOCOL_ERROR;
     case SSL_ERROR_DECOMPRESSION_FAILURE_ALERT:
       return ERR_SSL_DECOMPRESSION_FAILURE_ALERT;
+    case SSL_ERROR_BAD_MAC_ALERT:
+      return ERR_SSL_BAD_RECORD_MAC_ALERT;
 
     default: {
       if (IS_SSL_ERROR(err)) {
