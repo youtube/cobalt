@@ -154,7 +154,9 @@ static void ConvertAudioF32ToS32(void* buffer, int buffer_size) {
   }
 }
 
-void FFmpegAudioDecoder::DoDecode(Buffer* input) {
+void FFmpegAudioDecoder::DoDecode(Buffer* input, Task* done_cb) {
+  AutoTaskRunner done_runner(done_cb);
+
   // Due to FFmpeg API changes we no longer have const read-only pointers.
   AVPacket packet;
   av_init_packet(&packet);
@@ -183,7 +185,6 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
               << input->GetDuration().InMicroseconds() << " us"
               << " , packet size: "
               << input->GetDataSize() << " bytes";
-    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
     return;
   }
 
@@ -214,7 +215,6 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
     }
 
     EnqueueResult(result_buffer);
-    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
     return;
   }
 
@@ -225,7 +225,6 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
       input->GetTimestamp() != StreamSample::kInvalidTimestamp &&
       input->GetDuration() != StreamSample::kInvalidTimestamp) {
     estimated_next_timestamp_ = input->GetTimestamp() + input->GetDuration();
-    DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
     return;
   }
 
@@ -239,7 +238,6 @@ void FFmpegAudioDecoder::DoDecode(Buffer* input) {
     result_buffer->SetDuration(input->GetDuration());
     EnqueueResult(result_buffer);
   }
-  DecoderBase<AudioDecoder, Buffer>::OnDecodeComplete();
 }
 
 base::TimeDelta FFmpegAudioDecoder::CalculateDuration(size_t size) {
