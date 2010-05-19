@@ -47,6 +47,13 @@ class TCPClientSocketLibevent : public ClientSocket {
   virtual bool SetSendBufferSize(int32 size);
 
  private:
+  // State machine for connecting the socket.
+  enum ConnectState {
+    CONNECT_STATE_CONNECT,
+    CONNECT_STATE_CONNECT_COMPLETE,
+    CONNECT_STATE_NONE,
+  };
+
   class ReadWatcher : public MessageLoopForIO::Watcher {
    public:
     explicit ReadWatcher(TCPClientSocketLibevent* socket) : socket_(socket) {}
@@ -75,7 +82,7 @@ class TCPClientSocketLibevent : public ClientSocket {
     virtual void OnFileCanReadWithoutBlocking(int /* fd */) {}
 
     virtual void OnFileCanWriteWithoutBlocking(int /* fd */) {
-      if (socket_->waiting_connect_) {
+      if (socket_->waiting_connect()) {
         socket_->DidCompleteConnect();
       } else if (socket_->write_callback_) {
         socket_->DidCompleteWrite();
@@ -88,8 +95,15 @@ class TCPClientSocketLibevent : public ClientSocket {
     DISALLOW_COPY_AND_ASSIGN(WriteWatcher);
   };
 
-  // Performs the actual connect().  Returns a net error code.
+  // State machine used by Connect().
+  int DoConnectLoop(int result);
   int DoConnect();
+  int DoConnectComplete(int result);
+
+  // Helper used by Disconnect(), which disconnects minus the logging and
+  // resetting of current_ai_.
+  void DoDisconnect();
+
 
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
@@ -97,6 +111,12 @@ class TCPClientSocketLibevent : public ClientSocket {
   void DidCompleteWrite();
   void DidCompleteConnect();
 
+  // Returns true if a Connect() is in progress.
+  bool waiting_connect() const {
+    return next_connect_state_ != CONNECT_STATE_NONE;
+  }
+
+  // Returns the OS error code (or 0 on success).
   int CreateSocket(const struct addrinfo* ai);
 
   int socket_;
@@ -106,9 +126,6 @@ class TCPClientSocketLibevent : public ClientSocket {
 
   // Where we are in above list, or NULL if all addrinfos have been tried.
   const struct addrinfo* current_ai_;
-
-  // Whether we're currently waiting for connect() to complete
-  bool waiting_connect_;
 
   // The socket's libevent wrappers
   MessageLoopForIO::FileDescriptorWatcher read_socket_watcher_;
@@ -131,6 +148,9 @@ class TCPClientSocketLibevent : public ClientSocket {
 
   // External callback; called when write is complete.
   CompletionCallback* write_callback_;
+
+  // The next state for the Connect() state machine.
+  ConnectState next_connect_state_;
 
   BoundNetLog net_log_;
 
