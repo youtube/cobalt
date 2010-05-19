@@ -159,6 +159,8 @@ bool ContentsEqual(const FilePath& filename1,
 bool TextContentsEqual(const FilePath& filename1, const FilePath& filename2);
 
 // Read the file at |path| into |contents|, returning true on success.
+// |contents| may be NULL, in which case this function is useful for its
+// side effect of priming the disk cache.
 // Useful for unit tests.
 bool ReadFileToString(const FilePath& path, std::string* contents);
 

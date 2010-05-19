@@ -186,7 +186,8 @@ bool ReadFileToString(const FilePath& path, std::string* contents) {
   char buf[1 << 16];
   size_t len;
   while ((len = fread(buf, 1, sizeof(buf), file)) > 0) {
-    contents->append(buf, len);
+    if (contents)
+      contents->append(buf, len);
   }
   CloseFile(file);
 
