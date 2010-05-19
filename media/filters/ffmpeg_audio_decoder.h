@@ -29,7 +29,7 @@ class FFmpegAudioDecoder : public DecoderBase<AudioDecoder, Buffer> {
 
   virtual void DoSeek(base::TimeDelta time, Task* done_cb);
 
-  virtual void DoDecode(Buffer* input);
+  virtual void DoDecode(Buffer* input, Task* done_cb);
 
  private:
   friend class FilterFactoryImpl0<FFmpegAudioDecoder>;
