@@ -6,6 +6,7 @@
 #define NET_SOCKET_TCP_CLIENT_SOCKET_LIBEVENT_H_
 
 #include "base/message_loop.h"
+#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/base/address_list.h"
@@ -20,7 +21,7 @@ namespace net {
 class BoundNetLog;
 
 // A client socket that uses TCP as the transport layer.
-class TCPClientSocketLibevent : public ClientSocket {
+class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
  public:
   // The IP address(es) and port number to connect to.  The TCP socket will try
   // each IP address in the list until it succeeds in establishing a

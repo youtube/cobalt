@@ -292,6 +292,8 @@ TCPClientSocketWin::~TCPClientSocketWin() {
 }
 
 int TCPClientSocketWin::Connect(CompletionCallback* callback) {
+  DCHECK(CalledOnValidThread());
+
   // If already connected, then just return OK.
   if (socket_ != INVALID_SOCKET)
     return OK;
@@ -368,6 +370,8 @@ int TCPClientSocketWin::DoConnect() {
 }
 
 void TCPClientSocketWin::Disconnect() {
+  DCHECK(CalledOnValidThread());
+
   if (socket_ == INVALID_SOCKET)
     return;
 
@@ -406,6 +410,8 @@ void TCPClientSocketWin::Disconnect() {
 }
 
 bool TCPClientSocketWin::IsConnected() const {
+  DCHECK(CalledOnValidThread());
+
   if (socket_ == INVALID_SOCKET || waiting_connect_)
     return false;
 
@@ -421,6 +427,8 @@ bool TCPClientSocketWin::IsConnected() const {
 }
 
 bool TCPClientSocketWin::IsConnectedAndIdle() const {
+  DCHECK(CalledOnValidThread());
+
   if (socket_ == INVALID_SOCKET || waiting_connect_)
     return false;
 
@@ -437,6 +445,7 @@ bool TCPClientSocketWin::IsConnectedAndIdle() const {
 }
 
 int TCPClientSocketWin::GetPeerAddress(AddressList* address) const {
+  DCHECK(CalledOnValidThread());
   DCHECK(address);
   if (!current_ai_)
     return ERR_FAILED;
@@ -447,6 +456,7 @@ int TCPClientSocketWin::GetPeerAddress(AddressList* address) const {
 int TCPClientSocketWin::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionCallback* callback) {
+  DCHECK(CalledOnValidThread());
   DCHECK_NE(socket_, INVALID_SOCKET);
   DCHECK(!waiting_read_);
   DCHECK(!read_callback_);
@@ -496,6 +506,7 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
 int TCPClientSocketWin::Write(IOBuffer* buf,
                               int buf_len,
                               CompletionCallback* callback) {
+  DCHECK(CalledOnValidThread());
   DCHECK_NE(socket_, INVALID_SOCKET);
   DCHECK(!waiting_write_);
   DCHECK(!write_callback_);
@@ -546,6 +557,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
 }
 
 bool TCPClientSocketWin::SetReceiveBufferSize(int32 size) {
+  DCHECK(CalledOnValidThread());
   int rv = setsockopt(socket_, SOL_SOCKET, SO_RCVBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
   DCHECK(!rv) << "Could not set socket receive buffer size: " << GetLastError();
@@ -553,6 +565,7 @@ bool TCPClientSocketWin::SetReceiveBufferSize(int32 size) {
 }
 
 bool TCPClientSocketWin::SetSendBufferSize(int32 size) {
+  DCHECK(CalledOnValidThread());
   int rv = setsockopt(socket_, SOL_SOCKET, SO_SNDBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
   DCHECK(!rv) << "Could not set socket send buffer size: " << GetLastError();
