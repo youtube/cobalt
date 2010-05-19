@@ -17,12 +17,12 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if defined(OS_LINUX)
-#include <dlfcn.h>
 #include <errno.h>
 #include <malloc.h>
 #include <glib.h>
 #endif
 #if defined(OS_POSIX)
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
@@ -617,15 +617,27 @@ TEST_F(OutOfMemoryTest, ViaSharedLibraries) {
   // libraries as well as for our code.
   ASSERT_DEATH(value_ = g_try_malloc(test_size_), "");
 }
-
-
-TEST_F(OutOfMemoryTest, Posix_memalign) {
-  // Grab the return value of posix_memalign to silence a compiler warning
-  // about unused return values. We don't actually care about the return
-  // value, since we're asserting death.
-  ASSERT_DEATH(EXPECT_EQ(ENOMEM, posix_memalign(&value_, 8, test_size_)), "");
-}
 #endif  // OS_LINUX
+
+#if defined(OS_POSIX)
+TEST_F(OutOfMemoryTest, Posix_memalign) {
+  typedef int (*memalign_t)(void **, size_t, size_t);
+#if defined(OS_MACOSX)
+  // posix_memalign only exists on >= 10.6. Use dlsym to grab it at runtime
+  // because it may not be present in the SDK used for compilation.
+  memalign_t memalign =
+      reinterpret_cast<memalign_t>(dlsym(RTLD_DEFAULT, "posix_memalign"));
+#else
+  memalign_t memalign = posix_memalign;
+#endif  // OS_*
+  if (memalign) {
+    // Grab the return value of posix_memalign to silence a compiler warning
+    // about unused return values. We don't actually care about the return
+    // value, since we're asserting death.
+    ASSERT_DEATH(EXPECT_EQ(ENOMEM, memalign(&value_, 8, test_size_)), "");
+  }
+}
+#endif  // OS_POSIX
 
 #if defined(OS_MACOSX)
 
