@@ -9,6 +9,9 @@
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h>
+#if defined(OS_POSIX)
+#include <netinet/in.h>
+#endif
 
 #include "base/eintr_wrapper.h"
 #include "base/message_loop.h"
