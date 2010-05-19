@@ -244,7 +244,7 @@
         '<(tcmalloc_dir)/src/windows/preamble_patcher_with_stub.cc',
       ],
       'dependencies': [
-        '../base.gyp:dynamic_annotations',
+        '../third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
       'msvs_settings': {
         # TODO(sgk):  merge this with build/common.gypi settings
