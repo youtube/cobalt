@@ -71,6 +71,8 @@
           'event_trace_controller_win.h',
           'event_trace_provider_win.cc',
           'event_trace_provider_win.h',
+          'event_synthesis_gtk.cc',
+          'event_synthesis_gtk.h',
           'file_path.cc',
           'file_path.h',
           'file_util.cc',
