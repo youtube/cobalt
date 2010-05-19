@@ -87,7 +87,7 @@ int main(int argc, const char** argv) {
   }
 
   // Default flags that match Chrome defaults.
-  int video_threads = 2;
+  int video_threads = 3;
   int verbose_level = AV_LOG_FATAL;
   int max_frames = 0;
   int max_loops = 0;

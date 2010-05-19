@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,11 @@ namespace switches {
 const char kAlsaDevice[] = "alsa-device";
 #endif
 
+// Enable hardware decoding using OpenMax API.
+// In practice this is for ChromeOS ARM.
 const char kEnableOpenMax[] = "enable-openmax";
+
+// Set number of threads to use for video decoding.
+const char kVideoThreads[] = "video-threads";
 
 }  // namespace switches
