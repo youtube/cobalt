@@ -14,6 +14,7 @@
 #endif
 
 #include "base/eintr_wrapper.h"
+#include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "base/trace_event.h"
@@ -101,26 +102,6 @@ int MapConnectError(int os_error) {
   }
 }
 
-// Given os_error, an errno from a connect() attempt, returns true if
-// connect() should be retried with another address.
-bool ShouldTryNextAddress(int os_error) {
-  switch (os_error) {
-    case EADDRNOTAVAIL:
-    case EAFNOSUPPORT:
-    case ECONNREFUSED:
-    case ECONNRESET:
-    case EACCES:
-    case EPERM:
-    case ENETUNREACH:
-    case EHOSTUNREACH:
-    case ENETDOWN:
-    case ETIMEDOUT:
-      return true;
-    default:
-      return false;
-  }
-}
-
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -129,12 +110,12 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(const AddressList& addresses,
                                                  net::NetLog* net_log)
     : socket_(kInvalidSocket),
       addresses_(addresses),
-      current_ai_(addresses_.head()),
-      waiting_connect_(false),
+      current_ai_(NULL),
       read_watcher_(this),
       write_watcher_(this),
       read_callback_(NULL),
       write_callback_(NULL),
+      next_connect_state_(CONNECT_STATE_NONE),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
 }
 
@@ -148,95 +129,125 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
   if (socket_ != kInvalidSocket)
     return OK;
 
-  DCHECK(!waiting_connect_);
-
-  TRACE_EVENT_BEGIN("socket.connect", this, "");
+  DCHECK(!waiting_connect());
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT, NULL);
 
-  int rv = DoConnect();
+  // We will try to connect to each address in addresses_. Start with the
+  // first one in the list.
+  next_connect_state_ = CONNECT_STATE_CONNECT;
+  current_ai_ = addresses_.head();
 
+  int rv = DoConnectLoop(OK);
   if (rv == ERR_IO_PENDING) {
     // Synchronous operation not supported.
     DCHECK(callback);
-
-    waiting_connect_ = true;
     write_callback_ = callback;
   } else {
-    TRACE_EVENT_END("socket.connect", this, "");
     net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
   }
 
   return rv;
 }
 
+int TCPClientSocketLibevent::DoConnectLoop(int result) {
+  DCHECK_NE(next_connect_state_, CONNECT_STATE_NONE);
+
+  int rv = result;
+  do {
+    ConnectState state = next_connect_state_;
+    next_connect_state_ = CONNECT_STATE_NONE;
+    switch (state) {
+      case CONNECT_STATE_CONNECT:
+        DCHECK_EQ(OK, rv);
+        rv = DoConnect();
+        break;
+      case CONNECT_STATE_CONNECT_COMPLETE:
+        rv = DoConnectComplete(rv);
+        break;
+      default:
+        LOG(DFATAL) << "bad state";
+        rv = ERR_UNEXPECTED;
+        break;
+    }
+  } while (rv != ERR_IO_PENDING && next_connect_state_ != CONNECT_STATE_NONE);
+
+  return rv;
+}
+
 int TCPClientSocketLibevent::DoConnect() {
-  while (true) {
-    DCHECK(current_ai_);
+  DCHECK(current_ai_);
 
-    int rv = CreateSocket(current_ai_);
-    if (rv != OK)
-      return rv;
+  next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
-    if (!HANDLE_EINTR(connect(socket_, current_ai_->ai_addr,
-                              static_cast<int>(current_ai_->ai_addrlen)))) {
-      // Connected without waiting!
-      return OK;
-    }
+  // Create a non-blocking socket.
+  int os_error = CreateSocket(current_ai_);
+  if (os_error)
+    return MapPosixError(os_error);
 
-    int os_error = errno;
-    if (os_error == EINPROGRESS)
-      break;
-
-    close(socket_);
-    socket_ = kInvalidSocket;
-
-    if (current_ai_->ai_next && ShouldTryNextAddress(os_error)) {
-      // connect() can fail synchronously for an address even on a
-      // non-blocking socket.  As an example, this can happen when there is
-      // no route to the host.  Retry using the next address in the list.
-      current_ai_ = current_ai_->ai_next;
-    } else {
-      DLOG(INFO) << "connect failed: " << os_error;
-      return MapConnectError(os_error);
-    }
+  // Connect the socket.
+  if (!HANDLE_EINTR(connect(socket_, current_ai_->ai_addr,
+                            static_cast<int>(current_ai_->ai_addrlen)))) {
+    // Connected without waiting!
+    return OK;
   }
 
-  // Initialize write_socket_watcher_ and link it to our MessagePump.
-  // POLLOUT is set if the connection is established.
-  // POLLIN is set if the connection fails.
+  // Check if the connect() failed synchronously.
+  os_error = errno;
+  if (os_error != EINPROGRESS)
+    return MapPosixError(os_error);
+
+  // Otherwise the connect() is going to complete asynchronously, so watch
+  // for its completion.
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_WRITE, &write_socket_watcher_,
           &write_watcher_)) {
     DLOG(INFO) << "WatchFileDescriptor failed: " << errno;
-    close(socket_);
-    socket_ = kInvalidSocket;
     return MapPosixError(errno);
   }
 
   return ERR_IO_PENDING;
 }
 
+int TCPClientSocketLibevent::DoConnectComplete(int result) {
+  write_socket_watcher_.StopWatchingFileDescriptor();
+
+  if (result == OK)
+    return OK;  // Done!
+
+  // Close whatever partially connected socket we currently have.
+  DoDisconnect();
+
+  // Try to fall back to the next address in the list.
+  if (current_ai_->ai_next) {
+    next_connect_state_ = CONNECT_STATE_CONNECT;
+    current_ai_ = current_ai_->ai_next;
+    return OK;
+  }
+
+  // Otherwise there is nothing to fall back to, so give up.
+  return result;
+}
+
 void TCPClientSocketLibevent::Disconnect() {
+  DoDisconnect();
+  current_ai_ = NULL;
+}
+
+void TCPClientSocketLibevent::DoDisconnect() {
   if (socket_ == kInvalidSocket)
     return;
-
-  TRACE_EVENT_INSTANT("socket.disconnect", this, "");
 
   bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
   ok = write_socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
-  close(socket_);
+  HANDLE_EINTR(close(socket_));
   socket_ = kInvalidSocket;
-  waiting_connect_ = false;
-
-  // Reset for next time.
-  current_ai_ = addresses_.head();
 }
 
 bool TCPClientSocketLibevent::IsConnected() const {
-  if (socket_ == kInvalidSocket || waiting_connect_)
+  if (socket_ == kInvalidSocket || waiting_connect())
     return false;
 
   // Check if connection is alive.
@@ -251,7 +262,7 @@ bool TCPClientSocketLibevent::IsConnected() const {
 }
 
 bool TCPClientSocketLibevent::IsConnectedAndIdle() const {
-  if (socket_ == kInvalidSocket || waiting_connect_)
+  if (socket_ == kInvalidSocket || waiting_connect())
     return false;
 
   // Check if connection is alive and we haven't received any data
@@ -270,7 +281,7 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
                                   int buf_len,
                                   CompletionCallback* callback) {
   DCHECK_NE(kInvalidSocket, socket_);
-  DCHECK(!waiting_connect_);
+  DCHECK(!waiting_connect());
   DCHECK(!read_callback_);
   // Synchronous operation not supported
   DCHECK(callback);
@@ -306,7 +317,7 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
                                    int buf_len,
                                    CompletionCallback* callback) {
   DCHECK_NE(kInvalidSocket, socket_);
-  DCHECK(!waiting_connect_);
+  DCHECK(!waiting_connect());
   DCHECK(!write_callback_);
   // Synchronous operation not supported
   DCHECK(callback);
@@ -329,7 +340,6 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
     DLOG(INFO) << "WatchFileDescriptor failed on write, errno " << errno;
     return MapPosixError(errno);
   }
-
 
   write_buf_ = buf;
   write_buf_len_ = buf_len;
@@ -357,10 +367,10 @@ bool TCPClientSocketLibevent::SetSendBufferSize(int32 size) {
 int TCPClientSocketLibevent::CreateSocket(const addrinfo* ai) {
   socket_ = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
   if (socket_ == kInvalidSocket)
-    return MapPosixError(errno);
+    return errno;
 
   if (SetNonBlocking(socket_)) {
-    const int err = MapPosixError(errno);
+    const int err = errno;
     close(socket_);
     socket_ = kInvalidSocket;
     return err;
@@ -370,7 +380,7 @@ int TCPClientSocketLibevent::CreateSocket(const addrinfo* ai) {
   // tcp_client_socket_win.cc after searching for "NODELAY".
   DisableNagle(socket_);  // If DisableNagle fails, we don't care.
 
-  return OK;
+  return 0;
 }
 
 void TCPClientSocketLibevent::DoReadCallback(int rv) {
@@ -394,36 +404,24 @@ void TCPClientSocketLibevent::DoWriteCallback(int rv) {
 }
 
 void TCPClientSocketLibevent::DidCompleteConnect() {
-  int result = ERR_UNEXPECTED;
+  DCHECK_EQ(next_connect_state_, CONNECT_STATE_CONNECT_COMPLETE);
 
-  // Check to see if connect succeeded
+  // Get the error that connect() completed with.
   int os_error = 0;
   socklen_t len = sizeof(os_error);
   if (getsockopt(socket_, SOL_SOCKET, SO_ERROR, &os_error, &len) < 0)
     os_error = errno;
 
+  // TODO(eroman): Is this check really necessary?
   if (os_error == EINPROGRESS || os_error == EALREADY) {
     NOTREACHED();  // This indicates a bug in libevent or our code.
-    result = ERR_IO_PENDING;
-  } else if (current_ai_->ai_next && ShouldTryNextAddress(os_error)) {
-    // This address failed, try next one in list.
-    const addrinfo* next = current_ai_->ai_next;
-    Disconnect();
-    current_ai_ = next;
-    TRACE_EVENT_END("socket.connect", this, "");
-    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
-    result = Connect(write_callback_);
-  } else {
-    result = MapConnectError(os_error);
-    bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
-    DCHECK(ok);
-    waiting_connect_ = false;
-    TRACE_EVENT_END("socket.connect", this, "");
-    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+    return;
   }
 
-  if (result != ERR_IO_PENDING) {
-    DoWriteCallback(result);
+  int rv = DoConnectLoop(MapConnectError(os_error));
+  if (rv != ERR_IO_PENDING) {
+    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+    DoWriteCallback(rv);
   }
 }
 
