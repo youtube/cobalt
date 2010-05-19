@@ -357,7 +357,33 @@ namespace {
 
 bool g_oom_killer_enabled;
 
-// === C malloc/calloc/valloc/realloc ===
+// === C malloc/calloc/valloc/realloc/posix_memalign ===
+
+// The extended version of malloc_zone_t from the 10.6 SDK's <malloc/malloc.h>,
+// included here to allow for compilation in 10.5. (10.5 has version 3 zone
+// allocators, while 10.6 has version 6 allocators.)
+struct ChromeMallocZone {
+  void* reserved1;
+  void* reserved2;
+  size_t (*size)(struct _malloc_zone_t* zone, const void* ptr);
+  void* (*malloc)(struct _malloc_zone_t* zone, size_t size);
+  void* (*calloc)(struct _malloc_zone_t* zone, size_t num_items, size_t size);
+  void* (*valloc)(struct _malloc_zone_t* zone, size_t size);
+  void (*free)(struct _malloc_zone_t* zone, void* ptr);
+  void* (*realloc)(struct _malloc_zone_t* zone, void* ptr, size_t size);
+  void (*destroy)(struct _malloc_zone_t* zone);
+  const char* zone_name;
+  unsigned (*batch_malloc)(struct _malloc_zone_t* zone, size_t size,
+                           void** results, unsigned num_requested);
+  void (*batch_free)(struct _malloc_zone_t* zone, void** to_be_freed,
+                     unsigned num_to_be_freed);
+  struct malloc_introspection_t* introspect;
+  unsigned version;
+  void* (*memalign)(struct _malloc_zone_t* zone, size_t alignment,
+                    size_t size);  // version >= 5
+  void (*free_definite_size)(struct _malloc_zone_t* zone, void* ptr,
+                             size_t size);  // version >= 6
+};
 
 typedef void* (*malloc_type)(struct _malloc_zone_t* zone,
                              size_t size);
@@ -369,16 +395,20 @@ typedef void* (*valloc_type)(struct _malloc_zone_t* zone,
 typedef void* (*realloc_type)(struct _malloc_zone_t* zone,
                               void* ptr,
                               size_t size);
+typedef void* (*memalign_type)(struct _malloc_zone_t* zone,
+                               size_t alignment,
+                               size_t size);
 
 malloc_type g_old_malloc;
 calloc_type g_old_calloc;
 valloc_type g_old_valloc;
 realloc_type g_old_realloc;
+memalign_type g_old_memalign;
 
 void* oom_killer_malloc(struct _malloc_zone_t* zone,
                         size_t size) {
   void* result = g_old_malloc(zone, size);
-  if (size && !result)
+  if (!result && size)
     DebugUtil::BreakDebugger();
   return result;
 }
@@ -387,7 +417,7 @@ void* oom_killer_calloc(struct _malloc_zone_t* zone,
                         size_t num_items,
                         size_t size) {
   void* result = g_old_calloc(zone, num_items, size);
-  if (num_items && size && !result)
+  if (!result && num_items && size)
     DebugUtil::BreakDebugger();
   return result;
 }
@@ -395,7 +425,7 @@ void* oom_killer_calloc(struct _malloc_zone_t* zone,
 void* oom_killer_valloc(struct _malloc_zone_t* zone,
                         size_t size) {
   void* result = g_old_valloc(zone, size);
-  if (size && !result)
+  if (!result && size)
     DebugUtil::BreakDebugger();
   return result;
 }
@@ -404,8 +434,22 @@ void* oom_killer_realloc(struct _malloc_zone_t* zone,
                          void* ptr,
                          size_t size) {
   void* result = g_old_realloc(zone, ptr, size);
-  if (size && !result)
+  if (!result && size)
     DebugUtil::BreakDebugger();
+  return result;
+}
+
+void* oom_killer_memalign(struct _malloc_zone_t* zone,
+                          size_t alignment,
+                          size_t size) {
+  void* result = g_old_memalign(zone, alignment, size);
+  // Only die if posix_memalign would have returned ENOMEM, since there are
+  // other reasons why NULL might be returned (see
+  // http://opensource.apple.com/source/Libc/Libc-583/gen/malloc.c ).
+  if (!result && size && alignment >= sizeof(void*)
+      && (alignment & (alignment - 1)) == 0) {
+    DebugUtil::BreakDebugger();
+  }
   return result;
 }
 
@@ -502,7 +546,7 @@ void EnableTerminationOnOutOfMemory() {
 
   g_oom_killer_enabled = true;
 
-  // === C malloc/calloc/valloc/realloc ===
+  // === C malloc/calloc/valloc/realloc/posix_memalign ===
 
   // This approach is not perfect, as requests for amounts of memory larger than
   // MALLOC_ABSOLUTE_MAX_SIZE (currently SIZE_T_MAX - (2 * PAGE_SIZE)) will
@@ -511,8 +555,8 @@ void EnableTerminationOnOutOfMemory() {
   // Unfortunately, it's the best we can do. Also note that this does not affect
   // allocations from non-default zones.
 
-  CHECK(!g_old_malloc && !g_old_calloc && !g_old_valloc && !g_old_realloc)
-      << "Old allocators unexpectedly non-null";
+  CHECK(!g_old_malloc && !g_old_calloc && !g_old_valloc && !g_old_realloc &&
+        !g_old_memalign) << "Old allocators unexpectedly non-null";
 
   int32 major;
   int32 minor;
@@ -520,7 +564,8 @@ void EnableTerminationOnOutOfMemory() {
   SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
   bool zone_allocators_protected = ((major == 10 && minor > 6) || major > 10);
 
-  malloc_zone_t* default_zone = malloc_default_zone();
+  ChromeMallocZone* default_zone =
+      reinterpret_cast<ChromeMallocZone*>(malloc_default_zone());
 
   vm_address_t page_start = NULL;
   vm_size_t len = 0;
@@ -545,9 +590,33 @@ void EnableTerminationOnOutOfMemory() {
   default_zone->valloc = oom_killer_valloc;
   default_zone->realloc = oom_killer_realloc;
 
+  if (default_zone->version >= 5) {
+    g_old_memalign = default_zone->memalign;
+    if (g_old_memalign)
+      default_zone->memalign = oom_killer_memalign;
+  }
+
   if (zone_allocators_protected) {
     mprotect(reinterpret_cast<void*>(page_start), len, PROT_READ);
   }
+
+  // === C malloc_zone_batch_malloc ===
+
+  // batch_malloc is omitted because the default malloc zone's implementation
+  // only supports batch_malloc for "tiny" allocations from the free list. It
+  // will fail for allocations larger than "tiny", and will only allocate as
+  // many blocks as it's able to from the free list. These factors mean that it
+  // can return less than the requested memory even in a non-out-of-memory
+  // situation. There's no good way to detect whether a batch_malloc failure is
+  // due to these other factors, or due to genuine memory or address space
+  // exhaustion. The fact that it only allocates space from the "tiny" free list
+  // means that it's likely that a failure will not be due to memory exhaustion.
+  // Similarly, these constraints on batch_malloc mean that callers must always
+  // be expecting to receive less memory than was requested, even in situations
+  // where memory pressure is not a concern. Finally, the only public interface
+  // to batch_malloc is malloc_zone_batch_malloc, which is specific to the
+  // system's malloc implementation. It's unlikely that anyone's even heard of
+  // it.
 
   // === C++ operator new ===
 
