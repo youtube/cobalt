@@ -1,11 +1,11 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Defines all the "media" command-line switches.
 
-#ifndef MEDIA_BASE_SWITCHES_H_
-#define MEDIA_BASE_SWITCHES_H_
+#ifndef MEDIA_BASE_MEDIA_SWITCHES_H_
+#define MEDIA_BASE_MEDIA_SWITCHES_H_
 
 #include "build/build_config.h"
 
@@ -16,7 +16,9 @@ extern const char kAlsaDevice[];
 #endif
 
 extern const char kEnableOpenMax[];
+extern const char kVideoThreads[];
+
 
 }  // namespace switches
 
-#endif  // MEDIA_BASE_SWITCHES_H_
+#endif  // MEDIA_BASE_MEDIA_SWITCHES_H_
