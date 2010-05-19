@@ -231,7 +231,7 @@ bool ProcessMetrics::GetMemoryBytes(size_t* private_bytes,
     *shared_bytes = 0;
   return true;
 }
-  
+
 void ProcessMetrics::GetCommittedKBytes(CommittedKBytes* usage) const {
 }
 
@@ -418,9 +418,33 @@ void oom_killer_new() {
 // === Core Foundation CFAllocators ===
 
 // This is the real structure of a CFAllocatorRef behind the scenes. See
-// http://opensource.apple.com/source/CF/CF-550/CFBase.c for details.
+// http://opensource.apple.com/source/CF/CF-476.19/CFBase.c (10.5.8) and
+// http://opensource.apple.com/source/CF/CF-550/CFBase.c (10.6) for details.
+struct ChromeCFRuntimeBase {
+  uintptr_t _cfisa;
+  uint8_t _cfinfo[4];
+#if __LP64__
+  uint32_t _rc;
+#endif
+};
+
 struct ChromeCFAllocator {
-  _malloc_zone_t fake_malloc_zone;
+  ChromeCFRuntimeBase cf_runtime_base;
+  size_t (*size)(struct _malloc_zone_t* zone, const void* ptr);
+  void* (*malloc)(struct _malloc_zone_t* zone, size_t size);
+  void* (*calloc)(struct _malloc_zone_t* zone, size_t num_items, size_t size);
+  void* (*valloc)(struct _malloc_zone_t* zone, size_t size);
+  void (*free)(struct _malloc_zone_t* zone, void* ptr);
+  void* (*realloc)(struct _malloc_zone_t* zone, void* ptr, size_t size);
+  void (*destroy)(struct _malloc_zone_t* zone);
+  const char* zone_name;
+  unsigned (*batch_malloc)(struct _malloc_zone_t* zone, size_t size,
+                           void** results, unsigned num_requested);
+  void (*batch_free)(struct _malloc_zone_t* zone, void** to_be_freed,
+                     unsigned num_to_be_freed);
+  struct malloc_introspection_t* introspect;
+  void* reserved5;
+
   void* allocator;
   CFAllocatorContext context;
 };
