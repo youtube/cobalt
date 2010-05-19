@@ -294,7 +294,7 @@ TEST(X509CertificateTest, PaypalNullCertParsing) {
   // Either the system crypto library should correctly report a certificate
   // name mismatch, or our certificate blacklist should cause us to report an
   // invalid certificate.
-#if defined(OS_LINUX) || defined(OS_WIN)
+#if !defined(OS_MACOSX)
   EXPECT_NE(0, verify_result.cert_status &
             (CERT_STATUS_COMMON_NAME_INVALID | CERT_STATUS_INVALID));
 #endif

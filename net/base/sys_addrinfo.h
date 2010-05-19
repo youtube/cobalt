@@ -20,5 +20,6 @@
 #include <ws2tcpip.h>
 #elif defined(OS_POSIX)
 #include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #endif
-

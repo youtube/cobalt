@@ -25,6 +25,7 @@
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #endif
 
