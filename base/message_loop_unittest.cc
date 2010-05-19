@@ -1421,7 +1421,8 @@ TEST(MessageLoopTest, RecursiveSupport1) {
 }
 
 #if defined(OS_WIN)
-TEST(MessageLoopTest, RecursiveDenial2) {
+// This test occasionally hangs http://crbug.com/44567
+TEST(MessageLoopTest, DISABLED_RecursiveDenial2) {
   RunTest_RecursiveDenial2(MessageLoop::TYPE_DEFAULT);
   RunTest_RecursiveDenial2(MessageLoop::TYPE_UI);
   RunTest_RecursiveDenial2(MessageLoop::TYPE_IO);
