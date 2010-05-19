@@ -371,7 +371,7 @@
       },
       'dependencies': [
         '../third_party/modp_b64/modp_b64.gyp:modp_b64',
-        'dynamic_annotations',
+        'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations',
       ],
       # TODO(gregoryd): direct_dependent_settings should be shared with the
       #  64-bit target, but it doesn't work due to a bug in gyp
@@ -574,43 +574,10 @@
         'version.h',
       ],
     },
-    {
-      'target_name': 'dynamic_annotations',
-      'type': '<(library)',
-      'msvs_guid': 'EF3AD1A1-5FA6-4B70-9CCC-F5AE4C6D0892',
-      'include_dirs': [
-        '..',
-      ],
-      'sources': [
-        'third_party/dynamic_annotations/dynamic_annotations.c',
-        'third_party/dynamic_annotations/dynamic_annotations.h',
-      ],
-    },
   ],
   'conditions': [
     [ 'OS == "win"', {
       'targets': [
-        {
-          'target_name': 'dynamic_annotations_win64',
-          'type': '<(library)',
-          'msvs_guid': 'E8055455-0065-427B-9461-34A16FAD1973',
-          # We can't use dynamic_annotations target for win64 build since it is
-          # a 32-bit library.
-          # TODO(gregoryd): merge with dynamic_annotations when
-          # the win32/64 targets are merged.
-          'include_dirs': [
-              '..',
-          ],
-          'sources': [
-            'third_party/dynamic_annotations/dynamic_annotations.c',
-            'third_party/dynamic_annotations/dynamic_annotations.h',
-          ],
-          'configurations': {
-            'Common_Base': {
-              'msvs_target_platform': 'x64',
-            },
-          },
-        },
         {
           'target_name': 'base_nacl_win64',
           'type': '<(library)',
@@ -619,7 +586,7 @@
             'base_target': 1,
           },
           'dependencies': [
-            'dynamic_annotations_win64',
+            'third_party/dynamic_annotations/dynamic_annotations.gyp:dynamic_annotations_win64',
           ],
           # TODO(gregoryd): direct_dependent_settings should be shared with the
           # 32-bit target, but it doesn't work due to a bug in gyp
