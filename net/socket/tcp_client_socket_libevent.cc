@@ -125,6 +125,8 @@ TCPClientSocketLibevent::~TCPClientSocketLibevent() {
 }
 
 int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
+  DCHECK(CalledOnValidThread());
+
   // If already connected, then just return OK.
   if (socket_ != kInvalidSocket)
     return OK;
@@ -230,6 +232,8 @@ int TCPClientSocketLibevent::DoConnectComplete(int result) {
 }
 
 void TCPClientSocketLibevent::Disconnect() {
+  DCHECK(CalledOnValidThread());
+
   DoDisconnect();
   current_ai_ = NULL;
 }
@@ -247,6 +251,8 @@ void TCPClientSocketLibevent::DoDisconnect() {
 }
 
 bool TCPClientSocketLibevent::IsConnected() const {
+  DCHECK(CalledOnValidThread());
+
   if (socket_ == kInvalidSocket || waiting_connect())
     return false;
 
@@ -262,6 +268,8 @@ bool TCPClientSocketLibevent::IsConnected() const {
 }
 
 bool TCPClientSocketLibevent::IsConnectedAndIdle() const {
+  DCHECK(CalledOnValidThread());
+
   if (socket_ == kInvalidSocket || waiting_connect())
     return false;
 
@@ -280,6 +288,7 @@ bool TCPClientSocketLibevent::IsConnectedAndIdle() const {
 int TCPClientSocketLibevent::Read(IOBuffer* buf,
                                   int buf_len,
                                   CompletionCallback* callback) {
+  DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!waiting_connect());
   DCHECK(!read_callback_);
@@ -316,6 +325,7 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
 int TCPClientSocketLibevent::Write(IOBuffer* buf,
                                    int buf_len,
                                    CompletionCallback* callback) {
+  DCHECK(CalledOnValidThread());
   DCHECK_NE(kInvalidSocket, socket_);
   DCHECK(!waiting_connect());
   DCHECK(!write_callback_);
@@ -348,6 +358,7 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
 }
 
 bool TCPClientSocketLibevent::SetReceiveBufferSize(int32 size) {
+  DCHECK(CalledOnValidThread());
   int rv = setsockopt(socket_, SOL_SOCKET, SO_RCVBUF,
       reinterpret_cast<const char*>(&size),
       sizeof(size));
@@ -356,6 +367,7 @@ bool TCPClientSocketLibevent::SetReceiveBufferSize(int32 size) {
 }
 
 bool TCPClientSocketLibevent::SetSendBufferSize(int32 size) {
+  DCHECK(CalledOnValidThread());
   int rv = setsockopt(socket_, SOL_SOCKET, SO_SNDBUF,
       reinterpret_cast<const char*>(&size),
       sizeof(size));
@@ -475,6 +487,7 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
 }
 
 int TCPClientSocketLibevent::GetPeerAddress(AddressList* address) const {
+  DCHECK(CalledOnValidThread());
   DCHECK(address);
   if (!current_ai_)
     return ERR_UNEXPECTED;
