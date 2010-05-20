@@ -15,6 +15,7 @@
 #include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth_cache.h"
 #include "net/proxy/proxy_service.h"
+#include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socks_client_socket_pool.h"
 #include "net/socket/tcp_client_socket_pool.h"
 #include "net/spdy/spdy_settings_storage.h"
@@ -109,6 +110,10 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
   NetworkChangeNotifier* const network_change_notifier_;
+  scoped_refptr<ClientSocketPoolHistograms> tcp_pool_histograms_;
+  scoped_refptr<ClientSocketPoolHistograms> http_proxy_pool_histograms_;
+  scoped_refptr<ClientSocketPoolHistograms> tcp_for_socks_pool_histograms_;
+  scoped_refptr<ClientSocketPoolHistograms> socks_pool_histograms_;
   scoped_refptr<TCPClientSocketPool> tcp_socket_pool_;
   HTTPProxySocketPoolMap http_proxy_socket_pool_;
   SOCKSSocketPoolMap socks_socket_pool_;
