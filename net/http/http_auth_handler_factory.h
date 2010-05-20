@@ -27,13 +27,12 @@ class HttpAuthHandlerFactory {
 
   // Sets an URL security manager.  HttpAuthHandlerFactory doesn't own the URL
   // security manager, and the URL security manager should outlive this object.
-  void set_url_security_manager(
-      const URLSecurityManager* url_security_manager) {
+  void set_url_security_manager(URLSecurityManager* url_security_manager) {
     url_security_manager_ = url_security_manager;
   }
 
   // Retrieves the associated URL security manager.
-  const URLSecurityManager* url_security_manager() const {
+  URLSecurityManager* url_security_manager() {
     return url_security_manager_;
   }
 
@@ -104,7 +103,7 @@ class HttpAuthHandlerFactory {
 
  private:
   // The URL security manager
-  const URLSecurityManager* url_security_manager_;
+  URLSecurityManager* url_security_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpAuthHandlerFactory);
 };
@@ -118,7 +117,7 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
 
   // Sets an URL security manager into the factory associated with |scheme|.
   void SetURLSecurityManager(const std::string& scheme,
-                             const URLSecurityManager* url_security_manager);
+                             URLSecurityManager* url_security_manager);
 
   // Registers a |factory| that will be used for a particular HTTP
   // authentication scheme such as Basic, Digest, or Negotiate.
