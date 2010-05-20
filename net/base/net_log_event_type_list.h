@@ -123,8 +123,36 @@ EVENT_TYPE(WAITING_FOR_SINGLE_PROXY_RESOLVER_THREAD)
 // ClientSocket
 // ------------------------------------------------------------------------
 
-// The start/end of a TCP connect().
+// The start/end of a TCP connect(). This corresponds with a call to
+// TCPClientSocket::Connect().
+//
+// The START event contains these parameters:
+//
+//   {
+//     "addresses": <List of network address strings>
+//   }
+//
+// And the END event will contain the following parameters on failure:
+//
+//   {
+//     "net_error": <Net integer error code>
+//   }
 EVENT_TYPE(TCP_CONNECT)
+
+// Nested within TCP_CONNECT, there may be multiple attempts to connect
+// to the individual addresses. The START event will describe the
+// address the attempt is for:
+//
+//   {
+//     "address": <String of the network address>
+//   }
+//
+// And the END event will contain the system error code if it failed:
+//
+//   {
+//     "os_error": <Integer error code the operating system returned>
+//   }
+EVENT_TYPE(TCP_CONNECT_ATTEMPT)
 
 // Marks the destruction of a TCP socket.
 EVENT_TYPE(TCP_SOCKET_DONE)
