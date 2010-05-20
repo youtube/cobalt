@@ -11,9 +11,6 @@
 #include "base/compiler_specific.h"
 #include "base/singleton.h"
 
-// Used with URLProtocol.
-typedef int64 offset_t;
-
 // Include FFmpeg header files.
 extern "C" {
 // Temporarily disable possible loss of data warning.
