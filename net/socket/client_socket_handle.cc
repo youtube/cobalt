@@ -9,6 +9,7 @@
 #include "base/logging.h"
 #include "net/base/net_errors.h"
 #include "net/socket/client_socket_pool.h"
+#include "net/socket/client_socket_pool_histograms.h"
 
 namespace net {
 
@@ -75,40 +76,21 @@ void ClientSocketHandle::HandleInitCompletion(int result) {
   }
   setup_time_ = base::TimeTicks::Now() - init_time_;
 
-  // TODO(vandebo): bug 43375: The strings passed to HISTOGRAM macros should NOT
-  // vary, as the macro snapshots the name into a static.  I've temporarilly
-  // made this code use statics so that the HISTOGRAM macro will not DCHECK (and
-  // this also makes the current semantics a tiny bit more clear).
-  static std::string metric = "Net." + pool_->name() + "SocketType";
-  UMA_HISTOGRAM_ENUMERATION(metric, reuse_type(), NUM_TYPES);
+  scoped_refptr<ClientSocketPoolHistograms> histograms = pool_->histograms();
+  histograms->AddSocketType(reuse_type());
   switch (reuse_type()) {
-    case ClientSocketHandle::UNUSED: {
-      static std::string metric = "Net." + pool_->name() + "SocketRequestTime";
-      UMA_HISTOGRAM_CLIPPED_TIMES(metric, setup_time(),
-                                  base::TimeDelta::FromMilliseconds(1),
-                                  base::TimeDelta::FromMinutes(10), 100);
+    case ClientSocketHandle::UNUSED:
+      histograms->AddRequestTime(setup_time());
       break;
-    }
-    case ClientSocketHandle::UNUSED_IDLE: {
-      static std::string metric = "Net." + pool_->name() +
-          "SocketIdleTimeBeforeNextUse_UnusedSocket";
-      UMA_HISTOGRAM_CUSTOM_TIMES(metric, idle_time(),
-                                 base::TimeDelta::FromMilliseconds(1),
-                                 base::TimeDelta::FromMinutes(6), 100);
+    case ClientSocketHandle::UNUSED_IDLE:
+      histograms->AddUnusedIdleTime(idle_time());
       break;
-    }
-    case ClientSocketHandle::REUSED_IDLE: {
-      static std::string metric = "Net." + pool_->name() +
-          "SocketIdleTimeBeforeNextUse_ReusedSocket";
-      UMA_HISTOGRAM_CUSTOM_TIMES(metric, idle_time(),
-                                 base::TimeDelta::FromMilliseconds(1),
-                                 base::TimeDelta::FromMinutes(6), 100);
+    case ClientSocketHandle::REUSED_IDLE:
+      histograms->AddReusedIdleTime(idle_time());
       break;
-    }
-    default: {
+    default:
       NOTREACHED();
       break;
-    }
   }
 }
 

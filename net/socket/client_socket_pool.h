@@ -19,6 +19,7 @@ namespace net {
 
 class ClientSocket;
 class ClientSocketHandle;
+class ClientSocketPoolHistograms;
 
 // A ClientSocketPool is used to restrict the number of sockets open at a time.
 // It also maintains a list of idle persistent sockets.
@@ -86,8 +87,9 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   // Returns the maximum amount of time to wait before retrying a connect.
   static const int kMaxConnectRetryIntervalMs = 250;
 
-  // The name of this pool, i.e. TCP, SOCKS.
-  virtual const std::string& name() const = 0;
+  // The set of histograms specific to this pool.  We can't use the standard
+  // UMA_HISTOGRAM_* macros because they are callsite static.
+  virtual scoped_refptr<ClientSocketPoolHistograms> histograms() const = 0;
 
  protected:
   ClientSocketPool() {}

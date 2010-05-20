@@ -35,8 +35,6 @@ uint16 g_fixed_https_port = 0;
 
 }  // namespace
 
-// TODO(vandebo) when we've completely converted to pools, the base TCP
-// pool name should get changed to TCP instead of Transport.
 HttpNetworkSession::HttpNetworkSession(
     NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
@@ -46,8 +44,15 @@ HttpNetworkSession::HttpNetworkSession(
     SpdySessionPool* spdy_session_pool,
     HttpAuthHandlerFactory* http_auth_handler_factory)
     : network_change_notifier_(network_change_notifier),
+      // TODO(vandebo) when we've completely converted to pools, the base TCP
+      // pool name should get changed to TCP instead of Transport.
+      tcp_pool_histograms_(new ClientSocketPoolHistograms("Transport")),
+      http_proxy_pool_histograms_(new ClientSocketPoolHistograms("HTTPProxy")),
+      tcp_for_socks_pool_histograms_(
+          new ClientSocketPoolHistograms("TCPforSOCKS")),
+      socks_pool_histograms_(new ClientSocketPoolHistograms("SOCK")),
       tcp_socket_pool_(new TCPClientSocketPool(
-          g_max_sockets, g_max_sockets_per_group, "Transport",
+          g_max_sockets, g_max_sockets_per_group, tcp_pool_histograms_,
           host_resolver, client_socket_factory, network_change_notifier_)),
       socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
@@ -75,7 +80,7 @@ HttpNetworkSession::GetSocketPoolForHTTPProxy(const HostPortPair& http_proxy) {
               http_proxy,
               new TCPClientSocketPool(
                   g_max_sockets_per_proxy_server, g_max_sockets_per_group,
-                  "HTTPProxy", host_resolver_, socket_factory_,
+                  http_proxy_pool_histograms_, host_resolver_, socket_factory_,
                   network_change_notifier_)));
 
   return ret.first->second;
@@ -94,11 +99,11 @@ HttpNetworkSession::GetSocketPoolForSOCKSProxy(
               socks_proxy,
               new SOCKSClientSocketPool(
                   g_max_sockets_per_proxy_server, g_max_sockets_per_group,
-                  "SOCKS", host_resolver_,
+                  socks_pool_histograms_, host_resolver_,
                   new TCPClientSocketPool(g_max_sockets_per_proxy_server,
                                           g_max_sockets_per_group,
-                                          "TCPForSOCKS", host_resolver_,
-                                          socket_factory_,
+                                          tcp_for_socks_pool_histograms_,
+                                          host_resolver_, socket_factory_,
                                           network_change_notifier_),
                   network_change_notifier_)));
 
@@ -133,12 +138,10 @@ void HttpNetworkSession::set_fixed_https_port(uint16 port) {
   g_fixed_https_port = port;
 }
 
-// TODO(vandebo) when we've completely converted to pools, the base TCP
-// pool name should get changed to TCP instead of Transport.
 void HttpNetworkSession::ReplaceTCPSocketPool() {
   tcp_socket_pool_ = new TCPClientSocketPool(g_max_sockets,
                                              g_max_sockets_per_group,
-                                             "Transport",
+                                             tcp_pool_histograms_,
                                              host_resolver_,
                                              socket_factory_,
                                              network_change_notifier_);

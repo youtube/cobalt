@@ -15,6 +15,7 @@
 #include "net/base/host_resolver.h"
 #include "net/proxy/proxy_server.h"
 #include "net/socket/client_socket_pool_base.h"
+#include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/client_socket_pool.h"
 #include "net/socket/tcp_client_socket_pool.h"
 
@@ -107,7 +108,7 @@ class SOCKSClientSocketPool : public ClientSocketPool {
   SOCKSClientSocketPool(
       int max_sockets,
       int max_sockets_per_group,
-      const std::string& name,
+      const scoped_refptr<ClientSocketPoolHistograms>& histograms,
       const scoped_refptr<HostResolver>& host_resolver,
       const scoped_refptr<TCPClientSocketPool>& tcp_pool,
       NetworkChangeNotifier* network_change_notifier);
@@ -141,7 +142,9 @@ class SOCKSClientSocketPool : public ClientSocketPool {
     return base_.ConnectionTimeout();
   }
 
-  virtual const std::string& name() const { return base_.name(); };
+  virtual scoped_refptr<ClientSocketPoolHistograms> histograms() const {
+    return base_.histograms();
+  };
 
  protected:
   virtual ~SOCKSClientSocketPool();

@@ -17,6 +17,7 @@
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
+#include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -282,11 +283,11 @@ class TestClientSocketPool : public ClientSocketPool {
   TestClientSocketPool(
       int max_sockets,
       int max_sockets_per_group,
-      const std::string& name,
+      const scoped_refptr<ClientSocketPoolHistograms>& histograms,
       base::TimeDelta unused_idle_socket_timeout,
       base::TimeDelta used_idle_socket_timeout,
       TestClientSocketPoolBase::ConnectJobFactory* connect_job_factory)
-      : base_(max_sockets, max_sockets_per_group, name,
+      : base_(max_sockets, max_sockets_per_group, histograms,
               unused_idle_socket_timeout, used_idle_socket_timeout,
               connect_job_factory, NULL) {}
 
@@ -332,7 +333,9 @@ class TestClientSocketPool : public ClientSocketPool {
     return base_.ConnectionTimeout();
   }
 
-  virtual const std::string& name() const { return base_.name(); }
+  virtual scoped_refptr<ClientSocketPoolHistograms> histograms() const {
+    return base_.histograms();
+  }
 
   const TestClientSocketPoolBase* base() const { return &base_; }
 
@@ -400,7 +403,8 @@ class TestConnectJobDelegate : public ConnectJob::Delegate {
 
 class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
  protected:
-  ClientSocketPoolBaseTest() {}
+  ClientSocketPoolBaseTest()
+      : histograms_(new ClientSocketPoolHistograms("ClientSocketPoolTest")) {}
 
   void CreatePool(int max_sockets, int max_sockets_per_group) {
     CreatePoolWithIdleTimeouts(
@@ -418,7 +422,7 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
     connect_job_factory_ = new TestConnectJobFactory(&client_socket_factory_);
     pool_ = new TestClientSocketPool(max_sockets,
                                      max_sockets_per_group,
-                                     "IdleTimeoutTestPool",
+                                     histograms_,
                                      unused_idle_socket_timeout,
                                      used_idle_socket_timeout,
                                      connect_job_factory_);
@@ -451,6 +455,7 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
   MockClientSocketFactory client_socket_factory_;
   TestConnectJobFactory* connect_job_factory_;
   scoped_refptr<TestClientSocketPool> pool_;
+  scoped_refptr<ClientSocketPoolHistograms> histograms_;
 };
 
 // Helper function which explicitly specifies the template parameters, since
@@ -1506,7 +1511,7 @@ TEST_F(ClientSocketPoolBaseTest, SocketLimitReleasingSockets) {
               InitHandle(req_b[i]->handle(), "b", LOWEST, req_b[i].get(), pool_,
                          BoundNetLog()));
   }
-  
+
   // Make 4 pending requests, 2 per group.
 
   for (int i = 2; i < 4; ++i) {
