@@ -35,61 +35,31 @@ uint16 g_fixed_https_port = 0;
 
 }  // namespace
 
+// TODO(vandebo) when we've completely converted to pools, the base TCP
+// pool name should get changed to TCP instead of Transport.
 HttpNetworkSession::HttpNetworkSession(
     NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     ClientSocketFactory* client_socket_factory,
     SSLConfigService* ssl_config_service,
+    SpdySessionPool* spdy_session_pool,
     HttpAuthHandlerFactory* http_auth_handler_factory)
     : network_change_notifier_(network_change_notifier),
+      tcp_socket_pool_(new TCPClientSocketPool(
+          g_max_sockets, g_max_sockets_per_group, "Transport",
+          host_resolver, client_socket_factory, network_change_notifier_)),
       socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
-      tcp_socket_pool_(CreateNewTCPSocketPool()),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
-      spdy_session_pool_(new SpdySessionPool),
+      spdy_session_pool_(spdy_session_pool),
       http_auth_handler_factory_(http_auth_handler_factory) {
   DCHECK(proxy_service);
   DCHECK(ssl_config_service);
-
-  if (network_change_notifier_)
-    network_change_notifier_->AddObserver(this);
 }
 
 HttpNetworkSession::~HttpNetworkSession() {
-  if (network_change_notifier_)
-    network_change_notifier_->RemoveObserver(this);
-}
-
-void HttpNetworkSession::OnIPAddressChanged() {
-  Flush();
-}
-
-void HttpNetworkSession::Flush() {
-  // TODO(willchan): Flush |host_resolver_|.
-  tcp_socket_pool()->CloseIdleSockets();
-  tcp_socket_pool_ = CreateNewTCPSocketPool();
-  for (HTTPProxySocketPoolMap::iterator it = http_proxy_socket_pool_.begin();
-       it != http_proxy_socket_pool_.end(); ++it)
-    it->second->CloseIdleSockets();
-  http_proxy_socket_pool_.clear();
-  for (SOCKSSocketPoolMap::iterator it = socks_socket_pool_.begin();
-       it != socks_socket_pool_.end(); ++it)
-    it->second->CloseIdleSockets();
-  socks_socket_pool_.clear();
-  spdy_session_pool_ = new SpdySessionPool;
-}
-
-scoped_refptr<TCPClientSocketPool>
-HttpNetworkSession::CreateNewTCPSocketPool() {
-  // TODO(vandebo) when we've completely converted to pools, the base TCP
-  // pool name should get changed to TCP instead of Transport.
-  return new TCPClientSocketPool(g_max_sockets,
-                                 g_max_sockets_per_group,
-                                 "Transport",
-                                 host_resolver_,
-                                 socket_factory_);
 }
 
 const scoped_refptr<TCPClientSocketPool>&
@@ -105,7 +75,8 @@ HttpNetworkSession::GetSocketPoolForHTTPProxy(const HostPortPair& http_proxy) {
               http_proxy,
               new TCPClientSocketPool(
                   g_max_sockets_per_proxy_server, g_max_sockets_per_group,
-                  "HTTPProxy", host_resolver_, socket_factory_)));
+                  "HTTPProxy", host_resolver_, socket_factory_,
+                  network_change_notifier_)));
 
   return ret.first->second;
 }
@@ -127,7 +98,9 @@ HttpNetworkSession::GetSocketPoolForSOCKSProxy(
                   new TCPClientSocketPool(g_max_sockets_per_proxy_server,
                                           g_max_sockets_per_group,
                                           "TCPForSOCKS", host_resolver_,
-                                          socket_factory_))));
+                                          socket_factory_,
+                                          network_change_notifier_),
+                  network_change_notifier_)));
 
   return ret.first->second;
 }
@@ -158,6 +131,17 @@ uint16 HttpNetworkSession::fixed_https_port() {
 // static
 void HttpNetworkSession::set_fixed_https_port(uint16 port) {
   g_fixed_https_port = port;
+}
+
+// TODO(vandebo) when we've completely converted to pools, the base TCP
+// pool name should get changed to TCP instead of Transport.
+void HttpNetworkSession::ReplaceTCPSocketPool() {
+  tcp_socket_pool_ = new TCPClientSocketPool(g_max_sockets,
+                                             g_max_sockets_per_group,
+                                             "Transport",
+                                             host_resolver_,
+                                             socket_factory_,
+                                             network_change_notifier_);
 }
 
 }  //  namespace net
