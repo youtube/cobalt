@@ -13,7 +13,7 @@ URLSecurityManagerWhitelist::URLSecurityManagerWhitelist(
 }
 
 bool URLSecurityManagerWhitelist::CanUseDefaultCredentials(
-    const GURL& auth_origin) const {
+    const GURL& auth_origin) {
   if (whitelist_.get())
     return whitelist_->IsValid(auth_origin, HttpAuth::AUTH_SERVER);
   return false;
