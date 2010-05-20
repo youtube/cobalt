@@ -103,7 +103,7 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::string challenge(tests[i].challenge);
 
-    scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest;
+    scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest(1);
     HttpAuth::ChallengeTokenizer tok(challenge.begin(), challenge.end());
     bool ok = digest->ParseChallenge(&tok);
 
@@ -251,7 +251,7 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
   };
   GURL origin("http://www.example.com");
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest;
+    scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest(1);
     std::string challenge = tests[i].challenge;
     HttpAuth::ChallengeTokenizer tok(challenge.begin(), challenge.end());
     EXPECT_TRUE(digest->InitFromChallenge(&tok, HttpAuth::AUTH_SERVER, origin));

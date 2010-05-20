@@ -729,7 +729,11 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
     HttpAuth::ChallengeTokenizer* challenge,
     HttpAuth::Target target,
     const GURL& origin,
+    CreateReason reason,
+    int digest_nonce_count,
     scoped_refptr<HttpAuthHandler>* handler) {
+  if (reason == CREATE_PREEMPTIVE)
+    return ERR_UNSUPPORTED_AUTH_SCHEME;
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   // NOTE: Default credentials are not supported for the portable implementation

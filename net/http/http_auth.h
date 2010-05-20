@@ -106,8 +106,14 @@ class HttpAuth {
    public:
     ChallengeTokenizer(std::string::const_iterator begin,
                        std::string::const_iterator end)
-        : props_(begin, end, ','), valid_(true), expect_base64_token_(false) {
+        : props_(begin, end, ','), valid_(true), begin_(begin), end_(end),
+          expect_base64_token_(false) {
       Init(begin, end);
+    }
+
+    // Get the original text.
+    std::string challenge_text() const {
+      return std::string(begin_, end_);
     }
 
     // Get the auth scheme of the challenge.
@@ -163,6 +169,9 @@ class HttpAuth {
 
     HttpUtil::ValuesIterator props_;
     bool valid_;
+
+    std::string::const_iterator begin_;
+    std::string::const_iterator end_;
 
     std::string::const_iterator scheme_begin_;
     std::string::const_iterator scheme_end_;

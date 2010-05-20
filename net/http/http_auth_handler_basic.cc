@@ -77,6 +77,8 @@ int HttpAuthHandlerBasic::Factory::CreateAuthHandler(
     HttpAuth::ChallengeTokenizer* challenge,
     HttpAuth::Target target,
     const GURL& origin,
+    CreateReason reason,
+    int digest_nonce_count,
     scoped_refptr<HttpAuthHandler>* handler) {
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
