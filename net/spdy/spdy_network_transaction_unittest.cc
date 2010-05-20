@@ -86,6 +86,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
+                                session_deps->spdy_session_pool,
                                 session_deps->http_auth_handler_factory.get());
 }
 

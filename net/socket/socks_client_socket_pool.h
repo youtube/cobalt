@@ -109,7 +109,8 @@ class SOCKSClientSocketPool : public ClientSocketPool {
       int max_sockets_per_group,
       const std::string& name,
       const scoped_refptr<HostResolver>& host_resolver,
-      const scoped_refptr<TCPClientSocketPool>& tcp_pool);
+      const scoped_refptr<TCPClientSocketPool>& tcp_pool,
+      NetworkChangeNotifier* network_change_notifier);
 
   // ClientSocketPool methods:
   virtual int RequestSocket(const std::string& group_name,
