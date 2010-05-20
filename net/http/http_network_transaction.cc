@@ -26,6 +26,7 @@
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_handler.h"
+#include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_chunked_decoder.h"
 #include "net/http/http_network_session.h"
@@ -445,8 +446,12 @@ void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
       break;
     default:
       session_->auth_cache()->Add(
-          AuthOrigin(target), auth_handler_[target],
-          auth_identity_[target].username, auth_identity_[target].password,
+          AuthOrigin(target),
+          auth_handler_[target]->realm(),
+          auth_handler_[target]->scheme(),
+          auth_handler_[target]->challenge(),
+          auth_identity_[target].username,
+          auth_identity_[target].password,
           AuthPath(target));
       break;
   }
@@ -1911,26 +1916,27 @@ bool HttpNetworkTransaction::SelectPreemptiveAuth(HttpAuth::Target target) {
   // is expected to be fast. LookupByPath() is fast in the common case, since
   // the number of http auth cache entries is expected to be very small.
   // (For most users in fact, it will be 0.)
-
   HttpAuthCache::Entry* entry = session_->auth_cache()->LookupByPath(
       AuthOrigin(target), AuthPath(target));
+  if (!entry)
+    return false;
 
-  // We don't support preemptive authentication for connection-based
-  // authentication schemes because they can't reuse entry->handler().
-  // Hopefully we can remove this limitation in the future.
-  if (entry && !entry->handler()->is_connection_based()) {
-    auth_identity_[target].source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
-    auth_identity_[target].invalid = false;
-    auth_identity_[target].username = entry->username();
-    auth_identity_[target].password = entry->password();
-    auth_handler_[target] = entry->handler();
-    return true;
-  }
+  // Try to create a handler using the previous auth challenge.
+  scoped_refptr<HttpAuthHandler> handler_preemptive;
+  int rv_create = session_->http_auth_handler_factory()->
+      CreatePreemptiveAuthHandlerFromString(
+          entry->auth_challenge(), target, AuthOrigin(target),
+          entry->IncrementNonceCount(), &handler_preemptive);
+  if (rv_create != OK)
+    return false;
 
-  // TODO(cbentzel): Preemptively use default credentials if they have worked
-  // for the origin/path in the past to save a round trip.
-
-  return false;
+  // Set the state
+  auth_identity_[target].source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
+  auth_identity_[target].invalid = false;
+  auth_identity_[target].username = entry->username();
+  auth_identity_[target].password = entry->password();
+  auth_handler_[target] = handler_preemptive;
+  return true;
 }
 
 bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
