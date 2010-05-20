@@ -22,7 +22,7 @@ namespace net {
 
 HttpAuthHandlerNTLM::HttpAuthHandlerNTLM(
     SSPILibrary* sspi_library, ULONG max_token_length,
-    const URLSecurityManager* url_security_manager)
+    URLSecurityManager* url_security_manager)
     : auth_sspi_(sspi_library, "NTLM", NTLMSP_NAME, max_token_length),
       url_security_manager_(url_security_manager) {
 }

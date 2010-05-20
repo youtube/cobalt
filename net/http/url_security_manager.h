@@ -27,7 +27,7 @@ class URLSecurityManager {
 
   // Returns true if we can send the default credentials to the server at
   // |auth_origin| for HTTP NTLM or Negotiate authentication.
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const = 0;
+  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) = 0;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(URLSecurityManager);
@@ -39,7 +39,7 @@ class URLSecurityManagerWhitelist : public URLSecurityManager {
   explicit URLSecurityManagerWhitelist(HttpAuthFilter* whitelist);
 
   // URLSecurityManager methods.
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const;
+  virtual bool CanUseDefaultCredentials(const GURL& auth_origin);
 
  private:
   scoped_ptr<HttpAuthFilter> whitelist_;

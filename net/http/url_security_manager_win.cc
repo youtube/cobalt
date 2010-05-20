@@ -29,7 +29,7 @@ class URLSecurityManagerWin : public URLSecurityManager {
   URLSecurityManagerWin();
 
   // URLSecurityManager methods:
-  virtual bool CanUseDefaultCredentials(const GURL& auth_origin) const;
+  virtual bool CanUseDefaultCredentials(const GURL& auth_origin);
 
  private:
   ScopedComPtr<IInternetSecurityManager> security_manager_;
@@ -38,18 +38,19 @@ class URLSecurityManagerWin : public URLSecurityManager {
 };
 
 URLSecurityManagerWin::URLSecurityManagerWin() {
-  HRESULT hr = CoInternetCreateSecurityManager(NULL,
-                                               security_manager_.Receive(),
-                                               NULL);
-  DCHECK(SUCCEEDED(hr));
 }
 
 
 bool URLSecurityManagerWin::CanUseDefaultCredentials(
-    const GURL& auth_origin) const {
+    const GURL& auth_origin) {
   if (!security_manager_) {
-    NOTREACHED();  // The code in the constructor failed.
-    return false;
+    HRESULT hr = CoInternetCreateSecurityManager(NULL,
+                                                 security_manager_.Receive(),
+                                                 NULL);
+    if (FAILED(hr) || !security_manager_) {
+      LOG(ERROR) << "Unable to create the Windows Security Manager instance";
+      return false;
+    }
   }
 
   std::wstring url_w = ASCIIToWide(auth_origin.spec());
