@@ -18,6 +18,7 @@ bool HttpAuthHandler::InitFromChallenge(
   score_ = -1;
   properties_ = -1;
 
+  auth_challenge_ = challenge->challenge_text();
   bool ok = Init(challenge);
 
   // Init() is expected to set the scheme, realm, score, and properties.  The

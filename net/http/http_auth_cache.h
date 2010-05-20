@@ -10,7 +10,6 @@
 
 #include "base/ref_counted.h"
 #include "googleurl/src/gurl.h"
-#include "net/http/http_auth_handler.h"
 // This is needed for the FRIEND_TEST() macro.
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -51,14 +50,17 @@ class HttpAuthCache {
   // already exists, update it rather than replace it -- this  preserves the
   // paths list.
   //   |origin|   - the {scheme, host, port} of the server.
-  //   |handler|  - handler for the challenge.
+  //   |realm|    - the auth realm for the challenge.
+  //   |scheme|   - the authentication scheme for the challenge.
   //   |username| - login information for the realm.
   //   |password| - login information for the realm.
   //   |path|     - absolute path for a resource contained in the protection
   //                space; this will be added to the list of known paths.
   //   returns    - the entry that was just added/updated.
   Entry* Add(const GURL& origin,
-             HttpAuthHandler* handler,
+             const std::string& realm,
+             const std::string& scheme,
+             const std::string& auth_challenge,
              const std::wstring& username,
              const std::wstring& password,
              const std::string& path);
@@ -98,27 +100,31 @@ class HttpAuthCache::Entry {
 
   // The case-sensitive realm string of the challenge.
   const std::string realm() const {
-    return handler_->realm();
+    return realm_;
   }
 
   // The authentication scheme string of the challenge
   const std::string scheme() const {
-    return handler_->scheme();
+    return scheme_;
   }
 
-  // The handler for the challenge.
-  HttpAuthHandler* handler() const {
-    return handler_.get();
+  // The authentication challenge.
+  const std::string auth_challenge() const {
+    return auth_challenge_;
   }
 
   // The login username.
-  const std::wstring& username() const {
+  const std::wstring username() const {
     return username_;
   }
 
   // The login password.
-  const std::wstring& password() const {
+  const std::wstring password() const {
     return password_;
+  }
+
+  int IncrementNonceCount() {
+    return ++nonce_count_;
   }
 
  private:
@@ -137,13 +143,15 @@ class HttpAuthCache::Entry {
 
   // |origin_| contains the {scheme, host, port} of the server.
   GURL origin_;
+  std::string realm_;
+  std::string scheme_;
 
   // Identity.
+  std::string auth_challenge_;
   std::wstring username_;
   std::wstring password_;
 
-  // Auth handler for the challenge.
-  scoped_refptr<HttpAuthHandler> handler_;
+  int nonce_count_;
 
   // List of paths that define the realm's protection space.
   typedef std::list<std::string> PathList;

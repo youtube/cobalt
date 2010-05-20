@@ -74,8 +74,10 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
     HttpAuth::ChallengeTokenizer* challenge,
     HttpAuth::Target target,
     const GURL& origin,
+    CreateReason reason,
+    int digest_nonce_count,
     scoped_refptr<HttpAuthHandler>* handler) {
-  if (is_unsupported_)
+  if (is_unsupported_ || reason == CREATE_PREEMPTIVE)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
   if (max_token_length_ == 0) {
     int rv = DetermineMaxTokenLength(sspi_library_, NTLMSP_NAME,

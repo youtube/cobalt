@@ -24,6 +24,8 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
     virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
                                   HttpAuth::Target target,
                                   const GURL& origin,
+                                  CreateReason reason,
+                                  int digest_nonce_count,
                                   scoped_refptr<HttpAuthHandler>* handler);
   };
 
@@ -39,7 +41,6 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
 
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) {
-    nonce_count_ = 0;
     return ParseChallenge(challenge);
   }
 
@@ -69,6 +70,8 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
     QOP_AUTH = 1 << 0,
     QOP_AUTH_INT = 1 << 1,
   };
+
+  explicit HttpAuthHandlerDigest(int nonce_count) : nonce_count_(nonce_count) {}
 
   ~HttpAuthHandlerDigest() {}
 

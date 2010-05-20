@@ -42,6 +42,11 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
     return realm_;
   }
 
+  // The challenge which was issued when creating the handler.
+  const std::string challenge() const {
+    return auth_challenge_;
+  }
+
   // Numeric rank based on the challenge's security level. Higher
   // numbers are better. Used by HttpAuth::ChooseBestChallenge().
   int score() const {
@@ -142,6 +147,9 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
 
   // The realm.  Used by "basic" and "digest".
   std::string realm_;
+
+  // The auth challenge.
+  std::string auth_challenge_;
 
   // The {scheme, host, port} for the authentication target.  Used by "ntlm"
   // and "negotiate" to construct the service principal name.
