@@ -18,9 +18,11 @@
 #include "base/message_loop.h"
 #include "base/string_util.h"
 #include "base/trace_event.h"
+#include "base/values.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
+#include "net/base/net_util.h"
 #if defined(USE_SYSTEM_LIBEVENT)
 #include <event.h>
 #else
@@ -31,16 +33,31 @@ namespace net {
 
 namespace {
 
-const int kInvalidSocket = -1;
+// TODO(eroman): Move this to shared location, so it can be used by
+//               TCPClientSocketWin.
+class AddressListNetLogParam : public NetLog::EventParameters {
+ public:
+  explicit AddressListNetLogParam(const AddressList& addresses)
+      : addresses_(addresses) {}
 
-// Return 0 on success, -1 on failure.
-// Too small a function to bother putting in a library?
-int SetNonBlocking(int fd) {
-  int flags = fcntl(fd, F_GETFL, 0);
-  if (-1 == flags)
-    return flags;
-  return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-}
+  virtual Value* ToValue() const {
+    DictionaryValue* dict = new DictionaryValue();
+    ListValue* list = new ListValue();
+
+    for (const addrinfo* head = addresses_.head();
+         head != NULL ; head = head->ai_next) {
+      list->Append(Value::CreateStringValue(NetAddressToString(head)));
+    }
+
+    dict->Set(L"addresses", list);
+    return dict;
+  }
+
+ private:
+  AddressList addresses_;
+};
+
+const int kInvalidSocket = -1;
 
 // DisableNagle turns off buffering in the kernel. By default, TCP sockets will
 // wait up to 200ms for more data to complete a packet before transmitting.
@@ -116,6 +133,7 @@ TCPClientSocketLibevent::TCPClientSocketLibevent(const AddressList& addresses,
       read_callback_(NULL),
       write_callback_(NULL),
       next_connect_state_(CONNECT_STATE_NONE),
+      connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
 }
 
@@ -133,7 +151,8 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
 
   DCHECK(!waiting_connect());
 
-  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT,
+                      new AddressListNetLogParam(addresses_));
 
   // We will try to connect to each address in addresses_. Start with the
   // first one in the list.
@@ -146,7 +165,7 @@ int TCPClientSocketLibevent::Connect(CompletionCallback* callback) {
     DCHECK(callback);
     write_callback_ = callback;
   } else {
-    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+    LogConnectCompletion(rv);
   }
 
   return rv;
@@ -180,12 +199,18 @@ int TCPClientSocketLibevent::DoConnectLoop(int result) {
 int TCPClientSocketLibevent::DoConnect() {
   DCHECK(current_ai_);
 
+  DCHECK_EQ(0, connect_os_error_);
+
+  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
+                      new NetLogStringParameter(
+                          "address", NetAddressToString(current_ai_)));
+
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
   // Create a non-blocking socket.
-  int os_error = CreateSocket(current_ai_);
-  if (os_error)
-    return MapPosixError(os_error);
+  connect_os_error_ = CreateSocket(current_ai_);
+  if (connect_os_error_)
+    return MapPosixError(connect_os_error_);
 
   // Connect the socket.
   if (!HANDLE_EINTR(connect(socket_, current_ai_->ai_addr,
@@ -195,23 +220,32 @@ int TCPClientSocketLibevent::DoConnect() {
   }
 
   // Check if the connect() failed synchronously.
-  os_error = errno;
-  if (os_error != EINPROGRESS)
-    return MapPosixError(os_error);
+  connect_os_error_ = errno;
+  if (connect_os_error_ != EINPROGRESS)
+    return MapPosixError(connect_os_error_);
 
   // Otherwise the connect() is going to complete asynchronously, so watch
   // for its completion.
   if (!MessageLoopForIO::current()->WatchFileDescriptor(
           socket_, true, MessageLoopForIO::WATCH_WRITE, &write_socket_watcher_,
           &write_watcher_)) {
-    DLOG(INFO) << "WatchFileDescriptor failed: " << errno;
-    return MapPosixError(errno);
+    connect_os_error_ = errno;
+    DLOG(INFO) << "WatchFileDescriptor failed: " << connect_os_error_;
+    return MapPosixError(connect_os_error_);
   }
 
   return ERR_IO_PENDING;
 }
 
 int TCPClientSocketLibevent::DoConnectComplete(int result) {
+  int os_error = connect_os_error_;
+  connect_os_error_ = 0;
+
+  scoped_refptr<NetLog::EventParameters> params;
+  if (result != OK)
+    params = new NetLogIntegerParameter("os_error", os_error);
+  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT, params);
+
   write_socket_watcher_.StopWatchingFileDescriptor();
 
   if (result == OK)
@@ -395,6 +429,13 @@ int TCPClientSocketLibevent::CreateSocket(const addrinfo* ai) {
   return 0;
 }
 
+void TCPClientSocketLibevent::LogConnectCompletion(int net_error) {
+  scoped_refptr<NetLog::EventParameters> params;
+  if (net_error != OK)
+    params = new NetLogIntegerParameter("net_error", net_error);
+  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, params);
+}
+
 void TCPClientSocketLibevent::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(read_callback_);
@@ -430,9 +471,10 @@ void TCPClientSocketLibevent::DidCompleteConnect() {
     return;
   }
 
+  connect_os_error_ = os_error;
   int rv = DoConnectLoop(MapConnectError(os_error));
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+    LogConnectCompletion(rv);
     DoWriteCallback(rv);
   }
 }
