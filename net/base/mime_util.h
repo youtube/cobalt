@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -50,11 +50,25 @@ bool MatchesMimeType(const std::string &mime_type_pattern,
 bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs);
 
 // Parses a codec string, populating |codecs_out| with the prefix of each codec
-// in the string |codecs_in|. For example, passed "aaa.b.c,dd.eee", |codecs_out|
-// will contain {"aaa", "dd"}.
+// in the string |codecs_in|. For example, passed "aaa.b.c,dd.eee", if
+// |strip| == true |codecs_out| will contain {"aaa", "dd"}, if |strip| == false
+// |codecs_out| will contain {"aaa.b.c", "dd.eee"}.
 // See http://www.ietf.org/rfc/rfc4281.txt.
 void ParseCodecString(const std::string& codecs,
-                      std::vector<std::string>* codecs_out);
+                      std::vector<std::string>* codecs_out,
+                      bool strip);
+
+// Check to see if a particular MIME type is in our list which only supports a
+// certain subset of codecs.
+bool IsStrictMediaMimeType(const std::string& mime_type);
+
+// Check to see if a particular MIME type is in our list which only supports a
+// certain subset of codecs. Returns true if and only if all codecs are
+// supported for that specific MIME type, false otherwise. If this returns
+// false you will still need to check if the media MIME tpyes and codecs are
+// supported.
+bool IsSupportedStrictMediaMimeType(const std::string& mime_type,
+    const std::vector<std::string>& codecs);
 
 }  // namespace net
 

@@ -1,7 +1,8 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <map>
 #include <string>
 
 #include "net/base/mime_util.h"
@@ -41,7 +42,12 @@ class MimeUtil : public PlatformMimeUtil {
   bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs) const;
 
   void ParseCodecString(const std::string& codecs,
-                        std::vector<std::string>* codecs_out);
+                        std::vector<std::string>* codecs_out,
+                        bool strip);
+
+  bool IsStrictMediaMimeType(const std::string& mime_type) const;
+  bool IsSupportedStrictMediaMimeType(const std::string& mime_type,
+      const std::vector<std::string>& codecs) const;
 
  private:
   friend struct DefaultSingletonTraits<MimeUtil>;
@@ -59,6 +65,9 @@ class MimeUtil : public PlatformMimeUtil {
   MimeMappings javascript_map_;
   MimeMappings view_source_map_;
   MimeMappings codecs_map_;
+
+  typedef std::map<std::string, base::hash_set<std::string> > StrictMappings;
+  StrictMappings strict_format_map_;
 };  // class MimeUtil
 
 struct MimeInfo {
@@ -78,6 +87,8 @@ static const MimeInfo primary_mappings[] = {
   { "audio/mp3", "mp3" },
   { "video/ogg", "ogv,ogm" },
   { "audio/ogg", "ogg,oga" },
+  { "video/webm", "webm" },
+  { "audio/webm", "webm" },
   { "application/xhtml+xml", "xhtml,xht" },
   { "application/x-chrome-extension", "crx" }
 };
@@ -188,6 +199,8 @@ static const char* const supported_media_types[] = {
   "video/ogg",
   "audio/ogg",
   "application/ogg",
+  "video/webm",
+  "audio/webm",
 
 #if defined(GOOGLE_CHROME_BUILD) || defined(USE_PROPRIETARY_CODECS)
   // MPEG-4.
@@ -214,6 +227,7 @@ static const char* const supported_media_codecs[] = {
 #endif
   "theora",
   "vorbis",
+  "vp8"
 };
 
 // Note: does not include javascript types list (see supported_javascript_types)
@@ -277,6 +291,16 @@ static const char* const view_source_types[] = {
   "image/svg+xml"
 };
 
+struct MediaFormatStrict {
+  const char* mime_type;
+  const char* codecs_list;
+};
+
+static const MediaFormatStrict format_codec_mappings[] = {
+  { "video/webm", "vorbis,vp8,vp8.0" },
+  { "audio/webm", "vorbis" }
+};
+
 void MimeUtil::InitializeMimeTypeMaps() {
   for (size_t i = 0; i < arraysize(supported_image_types); ++i)
     image_map_.insert(supported_image_types[i]);
@@ -301,6 +325,19 @@ void MimeUtil::InitializeMimeTypeMaps() {
 
   for (size_t i = 0; i < arraysize(supported_media_codecs); ++i)
     codecs_map_.insert(supported_media_codecs[i]);
+
+  // Initialize the strict supported media types.
+  for (size_t i = 0; i < arraysize(format_codec_mappings); ++i) {
+    std::vector<std::string> mime_type_codecs;
+    ParseCodecString(format_codec_mappings[i].codecs_list,
+                     &mime_type_codecs,
+                     false);
+
+    MimeMappings codecs;
+    for (size_t j = 0; j < mime_type_codecs.size(); ++j)
+      codecs.insert(mime_type_codecs[j]);
+    strict_format_map_[format_codec_mappings[i].mime_type] = codecs;
+  }
 }
 
 bool MimeUtil::IsSupportedImageMimeType(const char* mime_type) const {
@@ -378,12 +415,16 @@ bool MimeUtil::AreSupportedMediaCodecs(
 }
 
 void MimeUtil::ParseCodecString(const std::string& codecs,
-                                std::vector<std::string>* codecs_out) {
+                                std::vector<std::string>* codecs_out,
+                                bool strip) {
   std::string no_quote_codecs;
   TrimString(codecs, "\"", &no_quote_codecs);
   SplitString(no_quote_codecs, ',', codecs_out);
 
-  // Truncate each string at the '.'
+  if (!strip)
+    return;
+
+  // Strip everything past the first '.'
   for (std::vector<std::string>::iterator it = codecs_out->begin();
        it != codecs_out->end();
        ++it) {
@@ -391,6 +432,28 @@ void MimeUtil::ParseCodecString(const std::string& codecs,
     if (found != std::string::npos)
       it->resize(found);
   }
+}
+
+bool MimeUtil::IsStrictMediaMimeType(const std::string& mime_type) const {
+  if (strict_format_map_.find(mime_type) == strict_format_map_.end())
+    return false;
+  return true;
+}
+
+bool MimeUtil::IsSupportedStrictMediaMimeType(const std::string& mime_type,
+    const std::vector<std::string>& codecs) const {
+  StrictMappings::const_iterator it = strict_format_map_.find(mime_type);
+
+  if (it == strict_format_map_.end())
+    return false;
+
+  const MimeMappings strict_codecs_map = it->second;
+  for (size_t i = 0; i < codecs.size(); ++i) {
+    if (strict_codecs_map.find(codecs[i]) == strict_codecs_map.end()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -448,9 +511,19 @@ bool AreSupportedMediaCodecs(const std::vector<std::string>& codecs) {
   return GetMimeUtil()->AreSupportedMediaCodecs(codecs);
 }
 
+bool IsStrictMediaMimeType(const std::string& mime_type) {
+  return GetMimeUtil()->IsStrictMediaMimeType(mime_type);
+}
+
+bool IsSupportedStrictMediaMimeType(const std::string& mime_type,
+                                    const std::vector<std::string>& codecs) {
+  return GetMimeUtil()->IsSupportedStrictMediaMimeType(mime_type, codecs);
+}
+
 void ParseCodecString(const std::string& codecs,
-                      std::vector<std::string>* codecs_out) {
-  GetMimeUtil()->ParseCodecString(codecs, codecs_out);
+                      std::vector<std::string>* codecs_out,
+                      const bool strip) {
+  GetMimeUtil()->ParseCodecString(codecs, codecs_out, strip);
 }
 
 }  // namespace net
