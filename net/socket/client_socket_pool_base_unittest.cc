@@ -26,7 +26,7 @@ namespace {
 
 const int kDefaultMaxSockets = 4;
 const int kDefaultMaxSocketsPerGroup = 2;
-const RequestPriority kDefaultPriority = MEDIUM;
+const net::RequestPriority kDefaultPriority = MEDIUM;
 
 typedef const void* TestSocketParams;
 typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
@@ -288,7 +288,7 @@ class TestClientSocketPool : public ClientSocketPool {
       TestClientSocketPoolBase::ConnectJobFactory* connect_job_factory)
       : base_(max_sockets, max_sockets_per_group, name,
               unused_idle_socket_timeout, used_idle_socket_timeout,
-              connect_job_factory) {}
+              connect_job_factory, NULL) {}
 
   virtual int RequestSocket(
       const std::string& group_name,
