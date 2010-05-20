@@ -435,6 +435,8 @@
         'socket/client_socket_pool.h',
         'socket/client_socket_pool_base.cc',
         'socket/client_socket_pool_base.h',
+        'socket/client_socket_pool_histograms.cc',
+        'socket/client_socket_pool_histograms.h',
         'socket/socket.h',
         'socket/socks5_client_socket.cc',
         'socket/socks5_client_socket.h',

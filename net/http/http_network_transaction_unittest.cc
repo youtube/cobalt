@@ -238,8 +238,7 @@ template<typename EmulatedClientSocketPool>
 class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
  public:
   CaptureGroupNameSocketPool(HttpNetworkSession* session)
-      : EmulatedClientSocketPool(0, 0, "CaptureGroupNameTestPool",
-                                 session->host_resolver(), NULL,
+      : EmulatedClientSocketPool(0, 0, NULL, session->host_resolver(), NULL,
                                  NULL) {}
   const std::string last_group_name_received() const {
     return last_group_name_;
