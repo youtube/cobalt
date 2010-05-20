@@ -504,12 +504,12 @@ class ClientSocketPoolBase {
   ClientSocketPoolBase(
       int max_sockets,
       int max_sockets_per_group,
-      const std::string& name,
+      const scoped_refptr<ClientSocketPoolHistograms>& histograms,
       base::TimeDelta unused_idle_socket_timeout,
       base::TimeDelta used_idle_socket_timeout,
       ConnectJobFactory* connect_job_factory,
       NetworkChangeNotifier* network_change_notifier)
-      : name_(name),
+      : histograms_(histograms),
         helper_(new internal::ClientSocketPoolBaseHelper(
           max_sockets, max_sockets_per_group,
           unused_idle_socket_timeout, used_idle_socket_timeout,
@@ -576,7 +576,9 @@ class ClientSocketPoolBase {
     return helper_->ConnectionTimeout();
   }
 
-  const std::string& name() const { return name_; }
+  scoped_refptr<ClientSocketPoolHistograms> histograms() const {
+    return histograms_;
+  }
 
   void enable_backup_jobs() { helper_->enable_backup_jobs(); };
 
@@ -614,8 +616,8 @@ class ClientSocketPoolBase {
     const scoped_ptr<ConnectJobFactory> connect_job_factory_;
   };
 
-  // Name of this pool.
-  const std::string name_;
+  // Histograms for the pool
+  const scoped_refptr<ClientSocketPoolHistograms> histograms_;
 
   // One might ask why ClientSocketPoolBaseHelper is also refcounted if its
   // containing ClientSocketPool is already refcounted.  The reason is because
