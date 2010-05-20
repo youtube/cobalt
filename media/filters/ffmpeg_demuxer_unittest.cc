@@ -79,6 +79,7 @@ class FFmpegDemuxerTest : public testing::Test {
 
     // Initialize FFmpeg fixtures.
     memset(&format_context_, 0, sizeof(format_context_));
+    memset(&input_format_, 0, sizeof(input_format_));
     memset(&streams_, 0, sizeof(streams_));
     memset(&codecs_, 0, sizeof(codecs_));
 
@@ -95,6 +96,9 @@ class FFmpegDemuxerTest : public testing::Test {
     codecs_[AV_STREAM_AUDIO].codec_id = CODEC_ID_VORBIS;
     codecs_[AV_STREAM_AUDIO].channels = kChannels;
     codecs_[AV_STREAM_AUDIO].sample_rate = kSampleRate;
+
+    input_format_.name = "foo";
+    format_context_.iformat = &input_format_;
 
     // Initialize AVStream and AVFormatContext structures.  We set the time base
     // of the streams such that duration is reported in microseconds.
@@ -162,6 +166,7 @@ class FFmpegDemuxerTest : public testing::Test {
 
   // FFmpeg fixtures.
   AVFormatContext format_context_;
+  AVInputFormat input_format_;
   AVCodecContext codecs_[AV_STREAM_MAX];
   AVStream streams_[AV_STREAM_MAX];
   MockFFmpeg mock_ffmpeg_;
