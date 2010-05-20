@@ -61,7 +61,7 @@ HttpAuthHandlerRegistryFactory::~HttpAuthHandlerRegistryFactory() {
 
 void HttpAuthHandlerRegistryFactory::SetURLSecurityManager(
     const std::string& scheme,
-    const URLSecurityManager* security_manager) {
+    URLSecurityManager* security_manager) {
   HttpAuthHandlerFactory* factory = GetSchemeFactory(scheme);
   if (factory)
     factory->set_url_security_manager(security_manager);
