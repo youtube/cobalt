@@ -118,10 +118,17 @@ TEST(MimeUtilTest, ParseCodecString) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::vector<std::string> codecs_out;
-    net::ParseCodecString(tests[i].original, &codecs_out);
+    net::ParseCodecString(tests[i].original, &codecs_out, true);
     EXPECT_EQ(tests[i].expected_size, codecs_out.size());
     for (size_t j = 0; j < tests[i].expected_size; ++j) {
       EXPECT_EQ(tests[i].results[j], codecs_out[j]);
     }
   }
+
+  // Test without stripping the codec type.
+  std::vector<std::string> codecs_out;
+  net::ParseCodecString("avc1.42E01E, mp4a.40.2", &codecs_out, false);
+  EXPECT_EQ(2u, codecs_out.size());
+  EXPECT_STREQ("avc1.42E01E", codecs_out[0].c_str());
+  EXPECT_STREQ("mp4a.40.2", codecs_out[1].c_str());
 }
