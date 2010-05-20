@@ -81,11 +81,10 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
 #if defined(OS_WIN)
   HttpAuthHandlerNegotiate(SSPILibrary* sspi_library, ULONG max_token_length,
-                           const URLSecurityManager* url_security_manager,
+                           URLSecurityManager* url_security_manager,
                            bool disable_cname_lookup, bool use_port);
 #else
-  explicit HttpAuthHandlerNegotiate(
-      const URLSecurityManager* url_security_manager);
+  explicit HttpAuthHandlerNegotiate(URLSecurityManager* url_security_manager);
 #endif
 
   virtual bool NeedsIdentity();
@@ -134,7 +133,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   std::wstring spn_;
 #endif
 
-  const URLSecurityManager* url_security_manager_;
+  URLSecurityManager* url_security_manager_;
 };
 
 }  // namespace net

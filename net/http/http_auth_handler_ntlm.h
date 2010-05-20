@@ -101,7 +101,7 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
 #endif
 #if defined(NTLM_SSPI)
   HttpAuthHandlerNTLM(SSPILibrary* sspi_library, ULONG max_token_length,
-                      const URLSecurityManager* url_security_manager);
+                      URLSecurityManager* url_security_manager);
 #endif
 
   virtual bool NeedsIdentity();
@@ -171,7 +171,7 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
   std::string auth_data_;
 
 #if defined(NTLM_SSPI)
-  const URLSecurityManager* url_security_manager_;
+  URLSecurityManager* url_security_manager_;
 #endif
 };
 
