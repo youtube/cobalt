@@ -105,7 +105,6 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
   // resetting of current_ai_.
   void DoDisconnect();
 
-
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
   void DidCompleteRead();
@@ -119,6 +118,9 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
 
   // Returns the OS error code (or 0 on success).
   int CreateSocket(const struct addrinfo* ai);
+
+  // Helper to add a TCP_CONNECT (end) event to the NetLog.
+  void LogConnectCompletion(int net_error);
 
   int socket_;
 
@@ -152,6 +154,9 @@ class TCPClientSocketLibevent : public ClientSocket, NonThreadSafe {
 
   // The next state for the Connect() state machine.
   ConnectState next_connect_state_;
+
+  // The OS error that CONNECT_STATE_CONNECT last completed with.
+  int connect_os_error_;
 
   BoundNetLog net_log_;
 

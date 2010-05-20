@@ -1185,7 +1185,7 @@ int SetNonBlocking(int fd) {
 #elif defined(OS_POSIX)
   int flags = fcntl(fd, F_GETFL, 0);
   if (-1 == flags)
-    flags = 0;
+    return flags;
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 #endif
 }
