@@ -18,6 +18,7 @@
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
+#include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
@@ -540,15 +541,23 @@ int SocketStream::DoWriteTunnelHeaders() {
     std::string authorization_headers;
 
     if (!auth_handler_.get()) {
-      // First attempt.  Find auth from the proxy address.
+      // Do preemptive authentication.
       HttpAuthCache::Entry* entry = auth_cache_.LookupByPath(
           ProxyAuthOrigin(), std::string());
-      if (entry && !entry->handler()->is_connection_based()) {
-        auth_identity_.source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
-        auth_identity_.invalid = false;
-        auth_identity_.username = entry->username();
-        auth_identity_.password = entry->password();
-        auth_handler_ = entry->handler();
+      if (entry) {
+        scoped_refptr<HttpAuthHandler> handler_preemptive;
+        int rv_create = http_auth_handler_factory_->
+            CreatePreemptiveAuthHandlerFromString(
+                entry->auth_challenge(), HttpAuth::AUTH_PROXY,
+                ProxyAuthOrigin(), entry->IncrementNonceCount(),
+                &handler_preemptive);
+        if (rv_create == OK) {
+          auth_identity_.source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
+          auth_identity_.invalid = false;
+          auth_identity_.username = entry->username();
+          auth_identity_.password = entry->password();
+          auth_handler_ = handler_preemptive;
+        }
       }
     }
 
@@ -881,7 +890,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
     // We only support basic authentication scheme now.
     // TODO(ukai): Support other authentication scheme.
     HttpAuthCache::Entry* entry =
-        auth_cache_.Lookup(auth_origin, auth_handler_->realm(), "basic");
+      auth_cache_.Lookup(auth_origin, auth_handler_->realm(), "basic");
     if (entry) {
       auth_identity_.source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
       auth_identity_.invalid = false;
@@ -905,8 +914,12 @@ void SocketStream::DoAuthRequired() {
 
 void SocketStream::DoRestartWithAuth() {
   DCHECK_EQ(next_state_, STATE_AUTH_REQUIRED);
-  auth_cache_.Add(ProxyAuthOrigin(), auth_handler_,
-                  auth_identity_.username, auth_identity_.password,
+  auth_cache_.Add(ProxyAuthOrigin(),
+                  auth_handler_->realm(),
+                  auth_handler_->scheme(),
+                  auth_handler_->challenge(),
+                  auth_identity_.username,
+                  auth_identity_.password,
                   std::string());
 
   tunnel_request_headers_ = NULL;

@@ -19,6 +19,8 @@ class MockHttpAuthHandlerFactory : public HttpAuthHandlerFactory {
   virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
                                 HttpAuth::Target target,
                                 const GURL& origin,
+                                CreateReason reason,
+                                int nonce_count,
                                 scoped_refptr<HttpAuthHandler>* handler) {
     *handler = NULL;
     return return_code_;

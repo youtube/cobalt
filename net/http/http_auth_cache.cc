@@ -97,7 +97,9 @@ HttpAuthCache::Entry* HttpAuthCache::LookupByPath(const GURL& origin,
 }
 
 HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
-                                         HttpAuthHandler* handler,
+                                         const std::string& realm,
+                                         const std::string& scheme,
+                                         const std::string& auth_challenge,
                                          const std::wstring& username,
                                          const std::wstring& password,
                                          const std::string& path) {
@@ -105,9 +107,7 @@ HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
   CheckPathIsValid(path);
 
   // Check for existing entry (we will re-use it if present).
-  HttpAuthCache::Entry* entry = Lookup(origin, handler->realm(),
-                                       handler->scheme());
-
+  HttpAuthCache::Entry* entry = Lookup(origin, realm, scheme);
   if (!entry) {
     // Failsafe to prevent unbounded memory growth of the cache.
     if (entries_.size() >= kMaxNumRealmEntries) {
@@ -118,11 +118,17 @@ HttpAuthCache::Entry* HttpAuthCache::Add(const GURL& origin,
     entries_.push_front(Entry());
     entry = &entries_.front();
     entry->origin_ = origin;
+    entry->realm_ = realm;
+    entry->scheme_ = scheme;
   }
+  DCHECK_EQ(origin, entry->origin_);
+  DCHECK_EQ(realm, entry->realm_);
+  DCHECK_EQ(scheme, entry->scheme_);
 
+  entry->auth_challenge_ = auth_challenge;
   entry->username_ = username;
   entry->password_ = password;
-  entry->handler_ = handler;
+  entry->nonce_count_ = 1;
   entry->AddPath(path);
 
   return entry;
