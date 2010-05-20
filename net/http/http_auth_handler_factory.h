@@ -37,6 +37,11 @@ class HttpAuthHandlerFactory {
     return url_security_manager_;
   }
 
+  enum CreateReason {
+    CREATE_CHALLENGE,  // Create a handler in response to a challenge.
+    CREATE_PREEMPTIVE,    // Create a handler preemptively.
+  };
+
   // Creates an HttpAuthHandler object based on the authentication
   // challenge specified by |*challenge|. |challenge| must point to a valid
   // non-NULL tokenizer.
@@ -50,6 +55,13 @@ class HttpAuthHandlerFactory {
   // If |*challenge| is improperly formed, |*handler| is set to NULL and
   // ERR_INVALID_RESPONSE is returned.
   //
+  // |create_reason| indicates why the handler is being created. This is used
+  // since NTLM and Negotiate schemes do not support preemptive creation.
+  //
+  // |digest_nonce_count| is specifically intended for the Digest authentication
+  // scheme, and indicates the number of handlers generated for a particular
+  // server nonce challenge.
+  //
   // For the NTLM and Negotiate handlers:
   // If |origin| does not match the authentication method's filters for
   // the specified |target|, ERR_INVALID_AUTH_CREDENTIALS is returned.
@@ -59,6 +71,8 @@ class HttpAuthHandlerFactory {
   virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
                                 HttpAuth::Target target,
                                 const GURL& origin,
+                                CreateReason create_reason,
+                                int digest_nonce_count,
                                 scoped_refptr<HttpAuthHandler>* handler) = 0;
 
   // Creates an HTTP authentication handler based on the authentication
@@ -70,6 +84,18 @@ class HttpAuthHandlerFactory {
                                   HttpAuth::Target target,
                                   const GURL& origin,
                                   scoped_refptr<HttpAuthHandler>* handler);
+
+  // Creates an HTTP authentication handler based on the authentication
+  // challenge string |challenge|.
+  // This is a convenience function which creates a ChallengeTokenizer for
+  // |challenge| and calls |CreateAuthHandler|. See |CreateAuthHandler| for
+  // more details on return values.
+  int CreatePreemptiveAuthHandlerFromString(
+      const std::string& challenge,
+      HttpAuth::Target target,
+      const GURL& origin,
+      int digest_nonce_count,
+      scoped_refptr<HttpAuthHandler>* handler);
 
   // Creates a standard HttpAuthHandlerRegistryFactory. The caller is
   // responsible for deleting the factory.
@@ -117,6 +143,8 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
   virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
                                 HttpAuth::Target target,
                                 const GURL& origin,
+                                CreateReason reason,
+                                int digest_nonce_count,
                                 scoped_refptr<HttpAuthHandler>* handler);
 
  private:

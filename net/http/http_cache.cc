@@ -29,6 +29,7 @@
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_response_info.h"
+#include "net/http/http_util.h"
 #include "net/spdy/spdy_session_pool.h"
 
 namespace net {

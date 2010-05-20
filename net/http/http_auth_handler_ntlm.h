@@ -44,6 +44,8 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
     virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
                                   HttpAuth::Target target,
                                   const GURL& origin,
+                                  CreateReason reason,
+                                  int digest_nonce_count,
                                   scoped_refptr<HttpAuthHandler>* handler);
 #if defined(NTLM_SSPI)
     // Set the SSPILibrary to use. Typically the only callers which need to

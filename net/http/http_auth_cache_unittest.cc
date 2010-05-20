@@ -5,6 +5,7 @@
 #include "base/string_util.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_cache.h"
+#include "net/http/http_auth_handler.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -61,23 +62,28 @@ TEST(HttpAuthCacheTest, Basic) {
 
   scoped_refptr<HttpAuthHandler> realm1_handler =
       new MockAuthHandler("basic", "Realm1", HttpAuth::AUTH_SERVER);
-  cache.Add(origin, realm1_handler, L"realm1-user", L"realm1-password",
+  cache.Add(origin, realm1_handler->realm(), realm1_handler->scheme(),
+            "Basic realm=Realm1", L"realm1-user", L"realm1-password",
             "/foo/bar/index.html");
 
   scoped_refptr<HttpAuthHandler> realm2_handler =
       new MockAuthHandler("basic", "Realm2", HttpAuth::AUTH_SERVER);
-  cache.Add(origin, realm2_handler, L"realm2-user", L"realm2-password",
+  cache.Add(origin, realm2_handler->realm(), realm2_handler->scheme(),
+            "Basic realm=Realm2", L"realm2-user", L"realm2-password",
             "/foo2/index.html");
 
   scoped_refptr<HttpAuthHandler> realm3_basic_handler =
       new MockAuthHandler("basic", "Realm3", HttpAuth::AUTH_PROXY);
-  cache.Add(origin, realm3_basic_handler, L"realm3-basic-user",
-            L"realm3-basic-password", "");
+  cache.Add(origin, realm3_basic_handler->realm(),
+            realm3_basic_handler->scheme(), "Basic realm=Realm3",
+            L"realm3-basic-user", L"realm3-basic-password", "");
 
   scoped_refptr<HttpAuthHandler> realm3_digest_handler =
       new MockAuthHandler("digest", "Realm3", HttpAuth::AUTH_PROXY);
-  cache.Add(origin, realm3_digest_handler, L"realm3-digest-user",
-            L"realm3-digest-password", "/baz/index.html");
+  cache.Add(origin, realm3_digest_handler->realm(),
+            realm3_digest_handler->scheme(), "Digest realm=Realm3",
+            L"realm3-digest-user", L"realm3-digest-password",
+            "/baz/index.html");
 
   // There is no Realm4
   entry = cache.Lookup(origin, "Realm4", "basic");
@@ -94,23 +100,29 @@ TEST(HttpAuthCacheTest, Basic) {
 
   // Valid lookup by origin, realm, scheme.
   entry = cache.Lookup(GURL("http://www.google.com:80"), "Realm3", "basic");
-  EXPECT_FALSE(NULL == entry);
-  EXPECT_TRUE(entry->handler() == realm3_basic_handler.get());
+  ASSERT_FALSE(NULL == entry);
+  EXPECT_EQ("basic", entry->scheme());
+  EXPECT_EQ("Realm3", entry->realm());
+  EXPECT_EQ("Basic realm=Realm3", entry->auth_challenge());
   EXPECT_EQ(L"realm3-basic-user", entry->username());
   EXPECT_EQ(L"realm3-basic-password", entry->password());
 
   // Valid lookup by origin, realm, scheme when there's a duplicate
   // origin, realm in the cache
   entry = cache.Lookup(GURL("http://www.google.com:80"), "Realm3", "digest");
-  EXPECT_FALSE(NULL == entry);
-  EXPECT_TRUE(entry->handler() == realm3_digest_handler.get());
+  ASSERT_FALSE(NULL == entry);
+  EXPECT_EQ("digest", entry->scheme());
+  EXPECT_EQ("Realm3", entry->realm());
+  EXPECT_EQ("Digest realm=Realm3", entry->auth_challenge());
   EXPECT_EQ(L"realm3-digest-user", entry->username());
   EXPECT_EQ(L"realm3-digest-password", entry->password());
 
   // Valid lookup by realm.
   entry = cache.Lookup(origin, "Realm2", "basic");
-  EXPECT_FALSE(NULL == entry);
-  EXPECT_TRUE(entry->handler() == realm2_handler.get());
+  ASSERT_FALSE(NULL == entry);
+  EXPECT_EQ("basic", entry->scheme());
+  EXPECT_EQ("Realm2", entry->realm());
+  EXPECT_EQ("Basic realm=Realm2", entry->auth_challenge());
   EXPECT_EQ(L"realm2-user", entry->username());
   EXPECT_EQ(L"realm2-password", entry->password());
 
@@ -148,10 +160,21 @@ TEST(HttpAuthCacheTest, Basic) {
   entry = cache.LookupByPath(origin, "/baz");
   EXPECT_FALSE(realm3_digest_entry == entry);
 
+  // Confirm we find the same realm, different auth scheme by path lookup
+  HttpAuthCache::Entry* realm3DigestEntry =
+      cache.Lookup(origin, "Realm3", "digest");
+  EXPECT_FALSE(NULL == realm3DigestEntry);
+  entry = cache.LookupByPath(origin, "/baz/index.html");
+  EXPECT_TRUE(realm3DigestEntry == entry);
+  entry = cache.LookupByPath(origin, "/baz/");
+  EXPECT_TRUE(realm3DigestEntry == entry);
+  entry = cache.LookupByPath(origin, "/baz");
+  EXPECT_FALSE(realm3DigestEntry == entry);
+
   // Lookup using empty path (may be used for proxy).
   entry = cache.LookupByPath(origin, "");
   EXPECT_FALSE(NULL == entry);
-  EXPECT_TRUE(entry->handler() == realm3_basic_handler.get());
+  EXPECT_EQ("basic", entry->scheme());
   EXPECT_EQ("Realm3", entry->realm());
 }
 
@@ -192,14 +215,18 @@ TEST(HttpAuthCacheTest, AddPath) {
 TEST(HttpAuthCacheTest, AddToExistingEntry) {
   HttpAuthCache cache;
   GURL origin("http://www.foobar.com:70");
+  const std::string auth_challenge = "Basic realm=MyRealm";
 
   scoped_refptr<HttpAuthHandler> handler =
       new MockAuthHandler("basic", "MyRealm", HttpAuth::AUTH_SERVER);
 
   HttpAuthCache::Entry* orig_entry = cache.Add(
-      origin, handler, L"user1", L"password1", "/x/y/z/");
-  cache.Add(origin, handler, L"user2", L"password2", "/z/y/x/");
-  cache.Add(origin, handler, L"user3", L"password3", "/z/y");
+      origin, handler->realm(), handler->scheme(), auth_challenge,
+      L"user1", L"password1", "/x/y/z/");
+  cache.Add(origin, handler->realm(), handler->scheme(), auth_challenge,
+            L"user2", L"password2", "/z/y/x/");
+  cache.Add(origin, handler->realm(), handler->scheme(), auth_challenge,
+            L"user3", L"password3", "/z/y");
 
   HttpAuthCache::Entry* entry = cache.Lookup(origin, "MyRealm", "basic");
 
@@ -228,10 +255,16 @@ TEST(HttpAuthCacheTest, Remove) {
       new MockAuthHandler("digest", "Realm3", HttpAuth::AUTH_SERVER);
 
   HttpAuthCache cache;
-  cache.Add(origin, realm1_handler, L"alice", L"123", "/");
-  cache.Add(origin, realm2_handler, L"bob", L"princess", "/");
-  cache.Add(origin, realm3_basic_handler, L"admin", L"password", "/");
-  cache.Add(origin, realm3_digest_handler, L"root", L"wilecoyote", "/");
+  cache.Add(origin, realm1_handler->realm(), realm1_handler->scheme(),
+            "basic realm=Realm1", L"alice", L"123", "/");
+  cache.Add(origin, realm2_handler->realm(), realm2_handler->scheme(),
+            "basic realm=Realm2", L"bob", L"princess", "/");
+  cache.Add(origin, realm3_basic_handler->realm(),
+            realm3_basic_handler->scheme(), "basic realm=Realm3", L"admin",
+            L"password", "/");
+  cache.Add(origin, realm3_digest_handler->realm(),
+            realm3_digest_handler->scheme(), "digest realm=Realm3", L"root",
+            L"wilecoyote", "/");
 
   // Fails, because there is no realm "Realm4".
   EXPECT_FALSE(cache.Remove(origin, "Realm4", "basic", L"alice", L"123"));
@@ -259,11 +292,13 @@ TEST(HttpAuthCacheTest, Remove) {
   EXPECT_TRUE(cache.Remove(origin, "Realm3", "digest", L"root", L"wilecoyote"));
 
   // Succeed as above, but when entries were added in opposite order
-  cache.Add(origin, realm3_digest_handler, L"root", L"wilecoyote", "/");
+  cache.Add(origin, realm3_digest_handler->realm(),
+            realm3_digest_handler->scheme(), "digest realm=Realm3", L"root",
+            L"wilecoyote", "/");
   EXPECT_TRUE(cache.Remove(origin, "Realm3", "basic", L"admin", L"password"));
 
-  // Make sure that removing one entry still leaves the other available
-  // for lookup
+  // Make sure that removing one entry still leaves the other available for
+  // lookup.
   HttpAuthCache::Entry* entry = cache.Lookup(origin, "Realm3", "digest");
   EXPECT_FALSE(NULL == entry);
 }
@@ -291,12 +326,13 @@ class HttpAuthCacheEvictionTest : public testing::Test {
         "basic",
         GenerateRealm(realm_i), HttpAuth::AUTH_SERVER);
     std::string path = GeneratePath(realm_i, path_i);
-    cache_.Add(origin_, handler, L"username", L"password", path);
+    cache_.Add(origin_, handler->realm(), handler->scheme(),
+               handler->challenge(), L"username", L"password", path);
   }
 
   void CheckRealmExistence(int realm_i, bool exists) {
     const HttpAuthCache::Entry* entry =
-      cache_.Lookup(origin_, GenerateRealm(realm_i), "basic");
+        cache_.Lookup(origin_, GenerateRealm(realm_i), "basic");
     if (exists) {
       EXPECT_FALSE(entry == NULL);
       EXPECT_EQ(GenerateRealm(realm_i), entry->realm());

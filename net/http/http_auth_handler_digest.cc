@@ -94,12 +94,6 @@ int HttpAuthHandlerDigest::GenerateAuthToken(
   // Generate a random client nonce.
   std::string cnonce = GenerateNonce();
 
-  // The nonce-count should be incremented after re-use per the spec.
-  // This may not be possible when there are multiple connections to the
-  // server though:
-  // https://bugzilla.mozilla.org/show_bug.cgi?id=114451
-  int nonce_count = ++nonce_count_;
-
   // Extract the request method and path -- the meaning of 'path' is overloaded
   // in certain cases, to be a hostname.
   std::string method;
@@ -110,7 +104,7 @@ int HttpAuthHandlerDigest::GenerateAuthToken(
                                     // TODO(eroman): is this the right encoding?
                                     WideToUTF8(username),
                                     WideToUTF8(password),
-                                    cnonce, nonce_count);
+                                    cnonce, nonce_count_);
   return OK;
 }
 
@@ -310,10 +304,13 @@ int HttpAuthHandlerDigest::Factory::CreateAuthHandler(
     HttpAuth::ChallengeTokenizer* challenge,
     HttpAuth::Target target,
     const GURL& origin,
+    CreateReason reason,
+    int digest_nonce_count,
     scoped_refptr<HttpAuthHandler>* handler) {
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
-  scoped_refptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerDigest());
+  scoped_refptr<HttpAuthHandler> tmp_handler(
+      new HttpAuthHandlerDigest(digest_nonce_count));
   if (!tmp_handler->InitFromChallenge(challenge, target, origin))
     return ERR_INVALID_RESPONSE;
   handler->swap(tmp_handler);
