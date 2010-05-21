@@ -97,24 +97,6 @@ int MapConnectError(int os_error) {
   }
 }
 
-// Given os_error, a WSAGetLastError() error code from a connect() attempt,
-// returns true if connect() should be retried with another address.
-bool ShouldTryNextAddress(int os_error) {
-  switch (os_error) {
-    case WSAEADDRNOTAVAIL:
-    case WSAEAFNOSUPPORT:
-    case WSAECONNREFUSED:
-    case WSAEACCES:
-    case WSAENETUNREACH:
-    case WSAEHOSTUNREACH:
-    case WSAENETDOWN:
-    case WSAETIMEDOUT:
-      return true;
-    default:
-      return false;
-  }
-}
-
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -250,7 +232,7 @@ void TCPClientSocketWin::Core::ReadDelegate::OnObjectSignaled(
     HANDLE object) {
   DCHECK_EQ(object, core_->read_overlapped_.hEvent);
   if (core_->socket_) {
-    if (core_->socket_->waiting_connect_) {
+    if (core_->socket_->waiting_connect()) {
       core_->socket_->DidCompleteConnect();
     } else {
       core_->socket_->DidCompleteRead();
@@ -275,12 +257,12 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
                                        net::NetLog* net_log)
     : socket_(INVALID_SOCKET),
       addresses_(addresses),
-      current_ai_(addresses_.head()),
-      waiting_connect_(false),
+      current_ai_(NULL),
       waiting_read_(false),
       waiting_write_(false),
       read_callback_(NULL),
       write_callback_(NULL),
+      next_connect_state_(CONNECT_STATE_NONE),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
   EnsureWinsockInit();
 }
@@ -302,19 +284,44 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT, NULL);
 
-  int rv = DoConnect();
+  // We will try to connect to each address in addresses_. Start with the
+  // first one in the list.
+  next_connect_state_ = CONNECT_STATE_CONNECT;
+  current_ai_ = addresses_.head();
 
+  int rv = DoConnectLoop(OK);
   if (rv == ERR_IO_PENDING) {
     // Synchronous operation not supported.
     DCHECK(callback);
-
-    waiting_connect_ = true;
     read_callback_ = callback;
   } else {
-    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
-    if (rv == OK)
-      UpdateConnectionTypeHistograms(CONNECTION_ANY);
+    LogConnectCompletion(rv);
   }
+
+  return rv;
+}
+
+int TCPClientSocketWin::DoConnectLoop(int result) {
+  DCHECK_NE(next_connect_state_, CONNECT_STATE_NONE);
+
+  int rv = result;
+  do {
+    ConnectState state = next_connect_state_;
+    next_connect_state_ = CONNECT_STATE_NONE;
+    switch (state) {
+      case CONNECT_STATE_CONNECT:
+        DCHECK_EQ(OK, rv);
+        rv = DoConnect();
+        break;
+      case CONNECT_STATE_CONNECT_COMPLETE:
+        rv = DoConnectComplete(rv);
+        break;
+      default:
+        LOG(DFATAL) << "bad state";
+        rv = ERR_UNEXPECTED;
+        break;
+    }
+  } while (rv != ERR_IO_PENDING && next_connect_state_ != CONNECT_STATE_NONE);
 
   return rv;
 }
@@ -322,6 +329,8 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
 int TCPClientSocketWin::DoConnect() {
   const struct addrinfo* ai = current_ai_;
   DCHECK(ai);
+
+  next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
   int rv = CreateSocket(ai);
   if (rv != OK)
@@ -365,7 +374,30 @@ int TCPClientSocketWin::DoConnect() {
   return ERR_IO_PENDING;
 }
 
+int TCPClientSocketWin::DoConnectComplete(int result) {
+  if (result == OK)
+    return OK;  // Done!
+
+  // Close whatever partially connected socket we currently have.
+  DoDisconnect();
+
+  // Try to fall back to the next address in the list.
+  if (current_ai_->ai_next) {
+    next_connect_state_ = CONNECT_STATE_CONNECT;
+    current_ai_ = current_ai_->ai_next;
+    return OK;
+  }
+
+  // Otherwise there is nothing to fall back to, so give up.
+  return result;
+}
+
 void TCPClientSocketWin::Disconnect() {
+  DoDisconnect();
+  current_ai_ = NULL;
+}
+
+void TCPClientSocketWin::DoDisconnect() {
   DCHECK(CalledOnValidThread());
 
   if (socket_ == INVALID_SOCKET)
@@ -384,10 +416,7 @@ void TCPClientSocketWin::Disconnect() {
   closesocket(socket_);
   socket_ = INVALID_SOCKET;
 
-  // Reset for next time.
-  current_ai_ = addresses_.head();
-
-  if (waiting_connect_) {
+  if (waiting_connect()) {
     // We closed the socket, so this notification will never come.
     // From MSDN' WSAEventSelect documentation:
     // "Closing a socket with closesocket also cancels the association and
@@ -397,7 +426,6 @@ void TCPClientSocketWin::Disconnect() {
 
   waiting_read_ = false;
   waiting_write_ = false;
-  waiting_connect_ = false;
 
   core_->Detach();
   core_ = NULL;
@@ -406,7 +434,7 @@ void TCPClientSocketWin::Disconnect() {
 bool TCPClientSocketWin::IsConnected() const {
   DCHECK(CalledOnValidThread());
 
-  if (socket_ == INVALID_SOCKET || waiting_connect_)
+  if (socket_ == INVALID_SOCKET || waiting_connect())
     return false;
 
   // Check if connection is alive.
@@ -423,7 +451,7 @@ bool TCPClientSocketWin::IsConnected() const {
 bool TCPClientSocketWin::IsConnectedAndIdle() const {
   DCHECK(CalledOnValidThread());
 
-  if (socket_ == INVALID_SOCKET || waiting_connect_)
+  if (socket_ == INVALID_SOCKET || waiting_connect())
     return false;
 
   // Check if connection is alive and we haven't received any data
@@ -619,6 +647,12 @@ int TCPClientSocketWin::CreateSocket(const struct addrinfo* ai) {
   return OK;
 }
 
+void TCPClientSocketWin::LogConnectCompletion(int net_error) {
+  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+  if (net_error == OK)
+    UpdateConnectionTypeHistograms(CONNECTION_ANY);
+}
+
 void TCPClientSocketWin::DoReadCallback(int rv) {
   DCHECK_NE(rv, ERR_IO_PENDING);
   DCHECK(read_callback_);
@@ -646,10 +680,8 @@ void TCPClientSocketWin::DoWriteCallback(int rv) {
 }
 
 void TCPClientSocketWin::DidCompleteConnect() {
-  DCHECK(waiting_connect_);
+  DCHECK_EQ(next_connect_state_, CONNECT_STATE_CONNECT_COMPLETE);
   int result;
-
-  waiting_connect_ = false;
 
   WSANETWORKEVENTS events;
   int rv = WSAEnumNetworkEvents(socket_, core_->read_overlapped_.hEvent,
@@ -658,28 +690,16 @@ void TCPClientSocketWin::DidCompleteConnect() {
     NOTREACHED();
     result = MapWinsockError(WSAGetLastError());
   } else if (events.lNetworkEvents & FD_CONNECT) {
-    int os_error = events.iErrorCode[FD_CONNECT_BIT];
-    if (current_ai_->ai_next && ShouldTryNextAddress(os_error)) {
-      // Try using the next address.
-      const struct addrinfo* next = current_ai_->ai_next;
-      Disconnect();
-      current_ai_ = next;
-      net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
-      result = Connect(read_callback_);
-    } else {
-      result = MapConnectError(os_error);
-      net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
-    }
+    result = MapConnectError(events.iErrorCode[FD_CONNECT_BIT]);
   } else {
     NOTREACHED();
     result = ERR_UNEXPECTED;
-    net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
   }
 
-  if (result != ERR_IO_PENDING) {
-    if (result == OK)
-      UpdateConnectionTypeHistograms(CONNECTION_ANY);
-    DoReadCallback(result);
+  rv = DoConnectLoop(result);
+  if (rv != ERR_IO_PENDING) {
+    LogConnectCompletion(rv);
+    DoReadCallback(rv);
   }
 }
 
