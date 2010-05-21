@@ -1,4 +1,4 @@
-# Copyright (c) 2010 The Chromium Authors. All rights reserved.
+# Copyright (c) 2009 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -178,7 +178,7 @@
 
         'allocator_shim.cc',
         'generic_allocators.cc',
-        'win_allocator.cc',
+        'win_allocator.cc',        
       ],
       # sources! means that these are not compiled directly.
       'sources!': [
@@ -224,6 +224,7 @@
         '<(tcmalloc_dir)/src/stacktrace_libunwind-inl.h',
         '<(tcmalloc_dir)/src/stacktrace_powerpc-inl.h',
         '<(tcmalloc_dir)/src/stacktrace_win32-inl.h',
+        '<(tcmalloc_dir)/src/stacktrace_with_context.cc',
         '<(tcmalloc_dir)/src/stacktrace_x86-inl.h',
         '<(tcmalloc_dir)/src/stacktrace_x86_64-inl.h',
         '<(tcmalloc_dir)/src/tcmalloc_guard.h',
@@ -283,7 +284,6 @@
             '<(tcmalloc_dir)/src/base/vdso_support.h',
             '<(tcmalloc_dir)/src/maybe_threads.cc',
             '<(tcmalloc_dir)/src/maybe_threads.h',
-            '<(tcmalloc_dir)/src/stacktrace_with_context.cc',
             '<(tcmalloc_dir)/src/symbolize.h',
             '<(tcmalloc_dir)/src/system-alloc.cc',
             '<(tcmalloc_dir)/src/system-alloc.h',
@@ -339,24 +339,6 @@
               '-Wl,-u_Z21InitialMallocHook_NewPKvj,-u_Z22InitialMallocHook_MMapPKvS0_jiiix,-u_Z22InitialMallocHook_SbrkPKvi',
               '-Wl,-u_Z21InitialMallocHook_NewPKvm,-u_Z22InitialMallocHook_MMapPKvS0_miiil,-u_Z22InitialMallocHook_SbrkPKvl',
           ]},
-          'conditions': [
-            # In 64 bit mode, use libunwind to get stacktraces in TCMalloc if we
-            # don't have the frame pointer.
-            # gcc will disable the frame pointer for O2 optimized 64 bit build.
-            [ 'target_arch=="x64"', {
-              'configurations': {
-                'Release_Base': {
-                  'defines': [
-                    'NO_FRAME_POINTER',
-                    'HAVE_LIBUNWIND_H=1',
-                  ],
-                },
-              },
-              'dependencies': [
-                '../../third_party/libunwind/libunwind.gyp:libunwind',
-              ],
-            }],
-          ],
         }],
         [ 'linux_use_debugallocation==1', {
           'sources!': [
