@@ -22,6 +22,8 @@ class SSLInfo;
 //
 class SSLClientSocket : public ClientSocket {
  public:
+  SSLClientSocket() : was_npn_negotiated_(false) {
+  }
   // Next Protocol Negotiation (NPN) allows a TLS client and server to come to
   // an agreement about the application level protocol to speak over a
   // connection.
@@ -68,6 +70,18 @@ class SSLClientSocket : public ClientSocket {
       return kProtoUnknown;
     }
   }
+
+  virtual bool wasNpnNegotiated() const {
+    return was_npn_negotiated_;
+  }
+
+  virtual bool setWasNpnNegotiated(bool negotiated) {
+    return was_npn_negotiated_ = negotiated;
+  }
+
+ private:
+  // True if NPN was responded to, independent of selecting SPDY or HTTP.
+  bool was_npn_negotiated_;
 };
 
 }  // namespace net

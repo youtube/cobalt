@@ -35,6 +35,9 @@ class HttpResponseInfo {
   // True if the request was fetched over a SPDY channel.
   bool was_fetched_via_spdy;
 
+  // True if the npn was negotiated for this request.
+  bool was_npn_negotiated;
+
   // True if the request was fetched via an explicit proxy.  The proxy could
   // be any type of proxy, HTTP or SOCKS.  Note, we do not know if a
   // transparent proxy may have been involved.

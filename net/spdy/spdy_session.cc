@@ -967,6 +967,11 @@ bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
     GetSSLInfo(&response.ssl_info);
     response.request_time = stream->GetRequestTime();
     response.vary_data.Init(*stream->GetRequestInfo(), *response.headers);
+    if (is_secure_) {
+      SSLClientSocket* ssl_socket =
+          reinterpret_cast<SSLClientSocket*>(connection_->socket());
+      response.was_npn_negotiated = ssl_socket->wasNpnNegotiated();
+    }
     rv = stream->OnResponseReceived(response);
   } else {
     rv = ERR_INVALID_RESPONSE;
