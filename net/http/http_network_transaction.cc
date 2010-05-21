@@ -911,6 +911,11 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   // trying to reuse a keep-alive connection.
   reused_socket_ = connection_->is_reused();
   if (reused_socket_) {
+    if (using_ssl_) {
+      SSLClientSocket* ssl_socket =
+          reinterpret_cast<SSLClientSocket*>(connection_->socket());
+      response_.was_npn_negotiated = ssl_socket->wasNpnNegotiated();
+    }
     next_state_ = STATE_SEND_REQUEST;
   } else {
     // Now we have a TCP connected socket.  Perform other connection setup as
@@ -962,9 +967,15 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
   // here, then we know that we called SSL_ImportFD.
   if (result == OK || IsCertificateError(result))
     status = ssl_socket->GetNextProto(&proto);
-  using_spdy_ = (status == SSLClientSocket::kNextProtoNegotiated &&
-                 SSLClientSocket::NextProtoFromString(proto) ==
-                 SSLClientSocket::kProtoSPDY1);
+
+  if (status == SSLClientSocket::kNextProtoNegotiated) {
+    ssl_socket->setWasNpnNegotiated(true);
+    response_.was_npn_negotiated = true;
+    if (SSLClientSocket::NextProtoFromString(proto) ==
+        SSLClientSocket::kProtoSPDY1) {
+          using_spdy_ = true;
+    }
+  }
 
   if (alternate_protocol_mode_ == kUsingAlternateProtocol &&
       alternate_protocol_ == HttpAlternateProtocols::NPN_SPDY_1 &&
@@ -1130,7 +1141,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
       if (result == OK)
         return result;
     } else if ((result == ERR_SSL_DECOMPRESSION_FAILURE_ALERT ||
-                result == ERR_SSL_BAD_RECORD_MAC_ALERT ) &&
+                result == ERR_SSL_BAD_RECORD_MAC_ALERT) &&
                ssl_config_.tls1_enabled) {
       // Some buggy servers select DEFLATE compression when offered and then
       // fail to ever decompress anything. They will send a fatal alert telling
