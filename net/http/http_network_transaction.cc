@@ -841,6 +841,8 @@ int HttpNetworkTransaction::DoInitConnection() {
     endpoint_.port = session_->fixed_http_port();
   }
 
+  response_.was_fetched_via_proxy = !proxy_info_.is_direct();
+
   // Check first if we have a spdy session for this group.  If so, then go
   // straight to using that.
   if (session_->spdy_session_pool()->HasSession(endpoint_)) {
