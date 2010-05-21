@@ -17,6 +17,7 @@ class FilePath;
 
 class FileVersionInfo {
  public:
+  virtual ~FileVersionInfo() {}
 #if defined(OS_WIN) || defined(OS_MACOSX)
   // Creates a FileVersionInfo for the specified path. Returns NULL if something
   // goes wrong (typically the file does not exit or cannot be opened). The
