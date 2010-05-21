@@ -299,6 +299,15 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   // Contains IO performance measurement when profiling is enabled.
   scoped_ptr<URLRequestJobMetrics> metrics_;
 
+  // The number of bytes read before passing to the filter.
+  int prefilter_bytes_read_;
+  // The number of bytes read after passing through the filter.
+  int postfilter_bytes_read_;
+  // True when (we believe) the content in this URLRequest was compressible.
+  bool is_compressible_content_;
+  // True when the content in this URLRequest was compressed.
+  bool is_compressed_;
+
  private:
   // Size of filter input buffers used by this class.
   static const int kFilterBufSize;
@@ -323,6 +332,8 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
 
   // Record packet arrival times for possible use in histograms.
   void UpdatePacketReadTimes();
+
+  void RecordCompressionHistograms();
 
   // Indicates that the job is done producing data, either it has completed
   // all the data or an error has been encountered. Set exclusively by
