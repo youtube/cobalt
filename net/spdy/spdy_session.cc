@@ -269,6 +269,8 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
       streams_pushed_count_(0),
       streams_pushed_and_claimed_count_(0),
       streams_abandoned_count_(0),
+      sent_settings_(false),
+      received_settings_(false),
       in_session_pool_(true),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SPDY_SESSION)) {
   net_log_.BeginEvent(
@@ -293,19 +295,7 @@ SpdySession::~SpdySession() {
     connection_->socket()->Disconnect();
   }
 
-  // Record per-session histograms here.
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsPerSession",
-      streams_initiated_count_,
-      0, 300, 50);
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsPushedPerSession",
-      streams_pushed_count_,
-      0, 300, 50);
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsPushedAndClaimedPerSession",
-      streams_pushed_and_claimed_count_,
-      0, 300, 50);
-  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsAbandonedPerSession",
-      streams_abandoned_count_,
-      0, 300, 50);
+  RecordHistograms();
 
   net_log_.EndEvent(NetLog::TYPE_SPDY_SESSION, NULL);
 }
@@ -1240,6 +1230,8 @@ void SpdySession::OnSettings(const spdy::SpdySettingsControlFrame& frame) {
     settings_storage->Set(host_port_pair_, settings);
   }
 
+  received_settings_ = true;
+
   net_log_.AddEvent(
       NetLog::TYPE_SPDY_SESSION_RECV_SETTINGS,
       new NetLogSpdySettingsParameter(settings));
@@ -1258,7 +1250,59 @@ void SpdySession::SendSettings() {
   // Create the SETTINGS frame and send it.
   scoped_ptr<spdy::SpdySettingsControlFrame> settings_frame(
       spdy_framer_.CreateSettings(settings));
+  sent_settings_ = true;
   QueueFrame(settings_frame.get(), 0, NULL);
+}
+
+void SpdySession::RecordHistograms() {
+  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsPerSession",
+                              streams_initiated_count_,
+                              0, 300, 50);
+  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsPushedPerSession",
+                              streams_pushed_count_,
+                              0, 300, 50);
+  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsPushedAndClaimedPerSession",
+                              streams_pushed_and_claimed_count_,
+                              0, 300, 50);
+  UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyStreamsAbandonedPerSession",
+                              streams_abandoned_count_,
+                              0, 300, 50);
+  UMA_HISTOGRAM_ENUMERATION("Net.SpdySettingsSent",
+                            sent_settings_ ? 1 : 0, 2);
+  UMA_HISTOGRAM_ENUMERATION("Net.SpdySettingsReceived",
+                            received_settings_ ? 1 : 0, 2);
+
+  if (received_settings_) {
+    // Enumerate the saved settings, and set histograms for it.
+    const SpdySettingsStorage& settings_storage = session_->spdy_settings();
+    const spdy::SpdySettings& settings = settings_storage.Get(host_port_pair_);
+    if (settings.empty()) {
+      NOTREACHED();  // If we lost our settings already, something is wrong!
+      return;
+    }
+
+    spdy::SpdySettings::const_iterator it;
+    for (it = settings.begin(); it != settings.end(); ++it) {
+      const spdy::SpdySetting setting = *it;
+      switch (setting.first.id()) {
+        case spdy::SETTINGS_CURRENT_CWND:
+          UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsCwnd",
+                                      setting.second,
+                                      1, 200, 100);
+          break;
+        case spdy::SETTINGS_ROUND_TRIP_TIME:
+          UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsRTT",
+                                      setting.second,
+                                      1, 1200, 100);
+          break;
+        case spdy::SETTINGS_DOWNLOAD_RETRANS_RATE:
+          UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdySettingsRetransRate",
+                                      setting.second,
+                                      1, 100, 50);
+          break;
+      }
+    }
+  }
 }
 
 }  // namespace net
