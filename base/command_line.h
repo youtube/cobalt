@@ -148,6 +148,9 @@ class CommandLine {
   const std::vector<std::string>& argv() const {
     return argv_;
   }
+  // Try to match the same result as command_line_string() would get you
+  // on windows.
+  std::string command_line_string() const;
 #endif
 
   // Returns the program part of the command line string (the first item).
