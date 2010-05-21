@@ -17,7 +17,6 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
-#include "base/trace_event.h"
 #include "base/values.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
@@ -330,10 +329,8 @@ int TCPClientSocketLibevent::Read(IOBuffer* buf,
   DCHECK(callback);
   DCHECK_GT(buf_len, 0);
 
-  TRACE_EVENT_BEGIN("socket.read", this, "");
   int nread = HANDLE_EINTR(read(socket_, buf->data(), buf_len));
   if (nread >= 0) {
-    TRACE_EVENT_END("socket.read", this, StringPrintf("%d bytes", nread));
     net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
                       new NetLogIntegerParameter("num_bytes", nread));
     return nread;
@@ -367,10 +364,8 @@ int TCPClientSocketLibevent::Write(IOBuffer* buf,
   DCHECK(callback);
   DCHECK_GT(buf_len, 0);
 
-  TRACE_EVENT_BEGIN("socket.write", this, "");
   int nwrite = HANDLE_EINTR(write(socket_, buf->data(), buf_len));
   if (nwrite >= 0) {
-    TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", nwrite));
     net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_SENT,
                       new NetLogIntegerParameter("num_bytes", nwrite));
     return nwrite;
@@ -486,8 +481,6 @@ void TCPClientSocketLibevent::DidCompleteRead() {
 
   int result;
   if (bytes_transferred >= 0) {
-    TRACE_EVENT_END("socket.read", this,
-                    StringPrintf("%d bytes", bytes_transferred));
     result = bytes_transferred;
     net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_RECEIVED,
                       new NetLogIntegerParameter("num_bytes", result));
@@ -512,8 +505,6 @@ void TCPClientSocketLibevent::DidCompleteWrite() {
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
-    TRACE_EVENT_END("socket.write", this,
-                    StringPrintf("%d bytes", bytes_transferred));
     net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_SENT,
                       new NetLogIntegerParameter("num_bytes", result));
   } else {
