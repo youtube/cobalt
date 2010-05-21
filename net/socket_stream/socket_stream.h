@@ -318,6 +318,8 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   int write_buf_size_;
   PendingDataQueue pending_write_bufs_;
 
+  bool closing_;
+
   scoped_ptr<SocketStreamMetrics> metrics_;
 
   DISALLOW_COPY_AND_ASSIGN(SocketStream);
