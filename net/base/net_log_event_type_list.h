@@ -129,7 +129,7 @@ EVENT_TYPE(WAITING_FOR_SINGLE_PROXY_RESOLVER_THREAD)
 // The START event contains these parameters:
 //
 //   {
-//     "addresses": <List of network address strings>
+//     "address_list": <List of network address strings>
 //   }
 //
 // And the END event will contain the following parameters on failure:
