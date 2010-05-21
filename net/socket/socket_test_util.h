@@ -235,11 +235,13 @@ class DynamicSocketDataProvider : public SocketDataProvider {
 struct SSLSocketDataProvider {
   SSLSocketDataProvider(bool async, int result)
       : connect(async, result),
-        next_proto_status(SSLClientSocket::kNextProtoUnsupported) { }
+        next_proto_status(SSLClientSocket::kNextProtoUnsupported),
+        was_npn_negotiated(false) { }
 
   MockConnect connect;
   SSLClientSocket::NextProtoStatus next_proto_status;
   std::string next_proto;
+  bool was_npn_negotiated;
 };
 
 // A DataProvider where the client must write a request before the reads (e.g.
@@ -512,6 +514,7 @@ class MockSSLClientSocket : public MockClientSocket {
   // SSLClientSocket methods:
   virtual void GetSSLInfo(net::SSLInfo* ssl_info);
   virtual NextProtoStatus GetNextProto(std::string* proto);
+  virtual bool wasNpnNegotiated() const;
 
   // This MockSocket does not implement the manual async IO feature.
   virtual void OnReadComplete(const MockRead& data) { NOTIMPLEMENTED(); }

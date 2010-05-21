@@ -4868,6 +4868,8 @@ TEST_F(HttpNetworkTransactionTest, HonorAlternateProtocolHeader) {
   ASSERT_TRUE(response != NULL);
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_FALSE(response->was_fetched_via_spdy);
+  EXPECT_FALSE(response->was_npn_negotiated);
 
   std::string response_data;
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
@@ -5084,6 +5086,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
   ssl.next_proto = "spdy/1";
+  ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   MockWrite spdy_writes[] = {
@@ -5134,6 +5137,8 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   ASSERT_TRUE(response != NULL);
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  EXPECT_TRUE(response->was_npn_negotiated);
 
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello!", response_data);
@@ -5213,6 +5218,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
   ssl.next_proto = "spdy/1";
+  ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   MockWrite spdy_writes[] = {
@@ -5253,6 +5259,8 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   ASSERT_TRUE(response != NULL);
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_FALSE(response->was_fetched_via_spdy);
+  EXPECT_FALSE(response->was_npn_negotiated);
 
   std::string response_data;
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
@@ -5268,6 +5276,8 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   ASSERT_TRUE(response != NULL);
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  EXPECT_TRUE(response->was_npn_negotiated);
 
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello!", response_data);
@@ -5307,7 +5317,10 @@ TEST_F(HttpNetworkTransactionTest,
   SSLSocketDataProvider ssl(true, OK);
   ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
   ssl.next_proto = "spdy/1";
+  ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+  // Make sure we use ssl for spdy here.
+  SpdySession::SetSSLMode(true);
 
   MockWrite spdy_writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
@@ -5354,7 +5367,6 @@ TEST_F(HttpNetworkTransactionTest,
                                         session, BoundNetLog());
   TCPSocketParams tcp_params("www.google.com", 443, MEDIUM, GURL(), false);
   spdy_session->Connect("www.google.com:443", tcp_params, MEDIUM);
-
   trans.reset(new HttpNetworkTransaction(session));
 
   rv = trans->Start(&request, &callback, BoundNetLog());
@@ -5365,6 +5377,8 @@ TEST_F(HttpNetworkTransactionTest,
   ASSERT_TRUE(response != NULL);
   ASSERT_TRUE(response->headers != NULL);
   EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  EXPECT_TRUE(response->was_npn_negotiated);
 
   ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
   EXPECT_EQ("hello!", response_data);
@@ -5681,4 +5695,63 @@ TEST_F(HttpNetworkTransactionTest,
   EXPECT_EQ("ok.", response_data);
 }
 
+// This tests the case that a request is issued via http instead of spdy after
+// npn is negotiated.
+TEST_F(HttpNetworkTransactionTest, NpnWithHttpOverSSL) {
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpNetworkTransaction::SetNextProtos("\x08http/1.1\x07http1.1");
+  SessionDependencies session_deps;
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  request.load_flags = 0;
+
+  MockWrite data_writes[] = {
+    MockWrite("GET / HTTP/1.1\r\n"
+              "Host: www.google.com\r\n"
+              "Connection: keep-alive\r\n\r\n"),
+  };
+
+  MockRead data_reads[] = {
+    MockRead("HTTP/1.1 200 OK\r\n"),
+    MockRead("Alternate-Protocol: 443:npn-spdy/1\r\n\r\n"),
+    MockRead("hello world"),
+    MockRead(false, OK),
+  };
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "http/1.1";
+
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  StaticSocketDataProvider data(data_reads, arraysize(data_reads),
+                                data_writes, arraysize(data_writes));
+  session_deps.socket_factory.AddSocketDataProvider(&data);
+
+  TestCompletionCallback callback;
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  ASSERT_TRUE(response != NULL);
+  ASSERT_TRUE(response->headers != NULL);
+  EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+
+  std::string response_data;
+  ASSERT_EQ(OK, ReadTransaction(trans.get(), &response_data));
+  EXPECT_EQ("hello world", response_data);
+
+  EXPECT_FALSE(response->was_fetched_via_spdy);
+  EXPECT_TRUE(response->was_npn_negotiated);
+
+  HttpNetworkTransaction::SetNextProtos("");
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+}
 }  // namespace net

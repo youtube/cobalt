@@ -4,6 +4,7 @@
 
 #include "net/http/http_network_layer.h"
 
+#include "base/field_trial.h"
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "net/http/http_network_session.h"
@@ -122,7 +123,27 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
 void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kDisableSSL[] = "no-ssl";
   static const char kDisableCompression[] = "no-compress";
+
+  // We want an A/B experiment between SPDY enabled and SPDY disabled,
+  // but only for pages where SPDY *could have been* negotiated.  To do
+  // this, we use NPN, but prevent it from negotiating SPDY.  If the
+  // server negotiates HTTP, rather than SPDY, today that will only happen
+  // on servers that installed NPN (and could have done SPDY).  But this is
+  // a bit of a hack, as this correlation between NPN and SPDY is not
+  // really guaranteed.
   static const char kEnableNPN[] = "npn";
+  static const char kEnableNpnHttpOnly[] = "npn-http";
+
+  // Except for the first element, the order is irrelevant.  First element
+  // specifies the fallback in case nothing matches
+  // (SSLClientSocket::kNextProtoNoOverlap).  Otherwise, the SSL library
+  // will choose the first overlapping protocol in the server's list, since
+  // it presumedly has a better understanding of which protocol we should
+  // use, therefore the rest of the ordering here is not important.
+  static const char kNpnProtosFull[] =
+      "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy";
+  // No spdy specified.
+  static const char kNpnProtosHttpOnly[] = "\x08http/1.1\x07http1.1";
 
   std::vector<std::string> spdy_options;
   SplitString(mode, ',', &spdy_options);
@@ -133,22 +154,17 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   for (std::vector<std::string>::iterator it = spdy_options.begin();
        it != spdy_options.end(); ++it) {
     const std::string& option = *it;
-
-    // Disable SSL
     if (option == kDisableSSL) {
-      SpdySession::SetSSLMode(false);
+      SpdySession::SetSSLMode(false);  // Disable SSL
     } else if (option == kDisableCompression) {
       spdy::SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {
-      net::HttpNetworkTransaction::SetUseAlternateProtocols(true);
-      // Except for the first element, the order is irrelevant.  First element
-      // specifies the fallback in case nothing matches
-      // (SSLClientSocket::kNextProtoNoOverlap).  Otherwise, the SSL library
-      // will choose the first overlapping protocol in the server's list, since
-      // it presumedly has a better understanding of which protocol we should
-      // use, therefore the rest of the ordering here is not important.
-      HttpNetworkTransaction::SetNextProtos(
-          "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+      HttpNetworkTransaction::SetUseAlternateProtocols(true);
+      HttpNetworkTransaction::SetNextProtos(kNpnProtosFull);
+      force_spdy_ = false;
+    } else if (option == kEnableNpnHttpOnly) {
+      HttpNetworkTransaction::SetUseAlternateProtocols(true);
+      HttpNetworkTransaction::SetNextProtos(kNpnProtosHttpOnly);
       force_spdy_ = false;
     } else if (option.empty() && it == spdy_options.begin()) {
       continue;

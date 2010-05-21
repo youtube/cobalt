@@ -376,6 +376,12 @@ class URLRequest {
     return response_info_.was_fetched_via_spdy;
   }
 
+  // Returns true if the URLRequest was delivered after NPN is negotiated,
+  // using either SPDY or HTTP.
+  bool was_npn_negotiated() const {
+    return response_info_.was_npn_negotiated;
+  }
+
   // Get all response headers, as a HttpResponseHeaders object.  See comments
   // in HttpResponseHeaders class as to the format of the data.
   net::HttpResponseHeaders* response_headers() const;
