@@ -10,10 +10,12 @@
 #include "base/stats_counters.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
+#include "net/base/address_list_net_log_param.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
-#include "net/base/net_log.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
+#include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/base/winsock_init.h"
 
@@ -263,6 +265,7 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       read_callback_(NULL),
       write_callback_(NULL),
       next_connect_state_(CONNECT_STATE_NONE),
+      connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
   EnsureWinsockInit();
 }
@@ -282,7 +285,8 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
   static StatsCounter connects("tcp.connect");
   connects.Increment();
 
-  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT,
+                      new AddressListNetLogParam(addresses_));
 
   // We will try to connect to each address in addresses_. Start with the
   // first one in the list.
@@ -329,12 +333,17 @@ int TCPClientSocketWin::DoConnectLoop(int result) {
 int TCPClientSocketWin::DoConnect() {
   const struct addrinfo* ai = current_ai_;
   DCHECK(ai);
+  DCHECK_EQ(0, connect_os_error_);
+
+  net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
+                      new NetLogStringParameter(
+                          "address", NetAddressToString(current_ai_)));
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 
-  int rv = CreateSocket(ai);
-  if (rv != OK)
-    return rv;
+  connect_os_error_ = CreateSocket(ai);
+  if (connect_os_error_ != 0)
+    return MapWinsockError(connect_os_error_);
 
   DCHECK(!core_);
   core_ = new Core(this);
@@ -366,6 +375,7 @@ int TCPClientSocketWin::DoConnect() {
     int os_error = WSAGetLastError();
     if (os_error != WSAEWOULDBLOCK) {
       LOG(ERROR) << "connect failed: " << os_error;
+      connect_os_error_ = os_error;
       return MapConnectError(os_error);
     }
   }
@@ -375,6 +385,14 @@ int TCPClientSocketWin::DoConnect() {
 }
 
 int TCPClientSocketWin::DoConnectComplete(int result) {
+  // Log the end of this attempt (and any OS error it threw).
+  int os_error = connect_os_error_;
+  connect_os_error_ = 0;
+  scoped_refptr<NetLog::EventParameters> params;
+  if (result != OK)
+    params = new NetLogIntegerParameter("os_error", os_error);
+  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT, params);
+
   if (result == OK)
     return OK;  // Done!
 
@@ -595,7 +613,7 @@ int TCPClientSocketWin::CreateSocket(const struct addrinfo* ai) {
   if (socket_ == INVALID_SOCKET) {
     int os_error = WSAGetLastError();
     LOG(ERROR) << "WSASocket failed: " << os_error;
-    return MapWinsockError(os_error);
+    return os_error;
   }
 
   // Increase the socket buffer sizes from the default sizes for WinXP.  In
@@ -644,11 +662,15 @@ int TCPClientSocketWin::CreateSocket(const struct addrinfo* ai) {
       reinterpret_cast<const char*>(&kDisableNagle), sizeof(kDisableNagle));
   DCHECK(!rv) << "Could not disable nagle";
 
-  return OK;
+  // Disregard any failure in disabling nagle.
+  return 0;
 }
 
 void TCPClientSocketWin::LogConnectCompletion(int net_error) {
-  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
+  scoped_refptr<NetLog::EventParameters> params;
+  if (net_error != OK)
+    params = new NetLogIntegerParameter("net_error", net_error);
+  net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, params);
   if (net_error == OK)
     UpdateConnectionTypeHistograms(CONNECTION_ANY);
 }
@@ -686,16 +708,20 @@ void TCPClientSocketWin::DidCompleteConnect() {
   WSANETWORKEVENTS events;
   int rv = WSAEnumNetworkEvents(socket_, core_->read_overlapped_.hEvent,
                                 &events);
+  int os_error = 0;
   if (rv == SOCKET_ERROR) {
     NOTREACHED();
-    result = MapWinsockError(WSAGetLastError());
+    os_error = WSAGetLastError();
+    result = MapWinsockError(os_error);
   } else if (events.lNetworkEvents & FD_CONNECT) {
-    result = MapConnectError(events.iErrorCode[FD_CONNECT_BIT]);
+    os_error = events.iErrorCode[FD_CONNECT_BIT];
+    result = MapConnectError(os_error);
   } else {
     NOTREACHED();
     result = ERR_UNEXPECTED;
   }
 
+  connect_os_error_ = os_error;
   rv = DoConnectLoop(result);
   if (rv != ERR_IO_PENDING) {
     LogConnectCompletion(rv);
