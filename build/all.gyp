@@ -1,4 +1,4 @@
-# Copyright (c) 2009 The Chromium Authors. All rights reserved.
+# Copyright (c) 2010 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -82,6 +82,13 @@
             '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
             '../net/third_party/nss/nss.gyp:*',
+          ],
+          'conditions': [
+            ['target_arch=="x64"', {
+              'dependencies': [
+                '../third_party/libunwind/libunwind.gyp:*',
+              ],
+            }],
           ],
         }],
         ['OS=="win"', {
