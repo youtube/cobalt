@@ -45,12 +45,34 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
   virtual bool SetSendBufferSize(int32 size);
 
  private:
+  // State machine for connecting the socket.
+  enum ConnectState {
+    CONNECT_STATE_CONNECT,
+    CONNECT_STATE_CONNECT_COMPLETE,
+    CONNECT_STATE_NONE,
+  };
+
   class Core;
 
-  // Performs the actual connect().  Returns a net error code.
+  // State machine used by Connect().
+  int DoConnectLoop(int result);
   int DoConnect();
+  int DoConnectComplete(int result);
+
+  // Helper used by Disconnect(), which disconnects minus the logging and
+  // resetting of current_ai_.
+  void DoDisconnect();
+
+  // Returns true if a Connect() is in progress.
+  bool waiting_connect() const {
+    return next_connect_state_ != CONNECT_STATE_NONE;
+  }
 
   int CreateSocket(const struct addrinfo* ai);
+
+  // Called after Connect() has completed with |net_error|.
+  void LogConnectCompletion(int net_error);
+
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
   void DidCompleteConnect();
@@ -66,7 +88,6 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
   const struct addrinfo* current_ai_;
 
   // The various states that the socket could be in.
-  bool waiting_connect_;
   bool waiting_read_;
   bool waiting_write_;
 
@@ -80,6 +101,9 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
 
   // External callback; called when write is complete.
   CompletionCallback* write_callback_;
+
+  // The next state for the Connect() state machine.
+  ConnectState next_connect_state_;
 
   BoundNetLog net_log_;
 
