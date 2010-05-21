@@ -17,7 +17,7 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/string_util.h"
-#include "base/values.h"
+#include "net/base/address_list_net_log_param.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -31,30 +31,6 @@
 namespace net {
 
 namespace {
-
-// TODO(eroman): Move this to shared location, so it can be used by
-//               TCPClientSocketWin.
-class AddressListNetLogParam : public NetLog::EventParameters {
- public:
-  explicit AddressListNetLogParam(const AddressList& addresses)
-      : addresses_(addresses) {}
-
-  virtual Value* ToValue() const {
-    DictionaryValue* dict = new DictionaryValue();
-    ListValue* list = new ListValue();
-
-    for (const addrinfo* head = addresses_.head();
-         head != NULL ; head = head->ai_next) {
-      list->Append(Value::CreateStringValue(NetAddressToString(head)));
-    }
-
-    dict->Set(L"addresses", list);
-    return dict;
-  }
-
- private:
-  AddressList addresses_;
-};
 
 const int kInvalidSocket = -1;
 
@@ -237,9 +213,9 @@ int TCPClientSocketLibevent::DoConnect() {
 }
 
 int TCPClientSocketLibevent::DoConnectComplete(int result) {
+  // Log the end of this attempt (and any OS error it threw).
   int os_error = connect_os_error_;
   connect_os_error_ = 0;
-
   scoped_refptr<NetLog::EventParameters> params;
   if (result != OK)
     params = new NetLogIntegerParameter("os_error", os_error);

@@ -24,6 +24,8 @@
         'base/address_family.h',
         'base/address_list.cc',
         'base/address_list.h',
+        'base/address_list_net_log_param.cc',
+        'base/address_list_net_log_param.h',
         'base/auth.h',
         'base/cache_type.h',
         'base/capturing_net_log.cc',
