@@ -68,6 +68,7 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
     return next_connect_state_ != CONNECT_STATE_NONE;
   }
 
+  // Returns the OS error code (or 0 on success).
   int CreateSocket(const struct addrinfo* ai);
 
   // Called after Connect() has completed with |net_error|.
@@ -104,6 +105,9 @@ class TCPClientSocketWin : public ClientSocket, NonThreadSafe {
 
   // The next state for the Connect() state machine.
   ConnectState next_connect_state_;
+
+  // The OS error that CONNECT_STATE_CONNECT last completed with.
+  int connect_os_error_;
 
   BoundNetLog net_log_;
 
