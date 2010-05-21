@@ -179,6 +179,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   void GetSSLInfo(SSLInfo* ssl_info);
 
+  void RecordHistograms();
+
   // Callbacks for the Spdy session.
   CompletionCallbackImpl<SpdySession> connect_callback_;
   CompletionCallbackImpl<SpdySession> ssl_connect_callback_;
@@ -249,6 +251,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
   int streams_pushed_count_;
   int streams_pushed_and_claimed_count_;
   int streams_abandoned_count_;
+  bool sent_settings_;      // Did this session send settings when it started.
+  bool received_settings_;  // Did this session receive at least one settings
+                            // frame.
 
   bool in_session_pool_;  // True if the session is currently in the pool.
 
