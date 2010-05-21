@@ -9,6 +9,7 @@
 #include "net/base/auth.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
+#include "net/base/mime_util.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
 #include "net/url_request/url_request.h"
@@ -24,6 +25,10 @@ const int URLRequestJob::kFilterBufSize = 32 * 1024;
 
 URLRequestJob::URLRequestJob(URLRequest* request)
     : request_(request),
+      prefilter_bytes_read_(0),
+      postfilter_bytes_read_(0),
+      is_compressible_content_(false),
+      is_compressed_(false),
       done_(false),
       filter_needs_more_output_space_(false),
       read_buffer_(NULL),
@@ -416,14 +421,28 @@ void URLRequestJob::NotifyHeadersComplete() {
   }
 
   has_handled_response_ = true;
-  if (request_->status().is_success())
+  if (request_->status().is_success()) {
     SetupFilter();
+
+    // Check if this content appears to be compressible.
+    std::string mime_type;
+    if (GetMimeType(&mime_type) &&
+        (net::IsSupportedJavascriptMimeType(mime_type.c_str()) ||
+        net::IsSupportedNonImageMimeType(mime_type.c_str()))) {
+      is_compressible_content_ = true;
+    }
+  }
 
   if (!filter_.get()) {
     std::string content_length;
     request_->GetResponseHeaderByName("content-length", &content_length);
     if (!content_length.empty())
       expected_content_size_ = StringToInt64(content_length);
+  } else {
+    // Chrome today only sends "Accept-Encoding" for compression schemes.
+    // So, if there is a filter on the response, we know that the content
+    // was compressed.
+    is_compressed_ = true;
   }
 
   request_->ResponseStarted();
@@ -463,15 +482,19 @@ void URLRequestJob::NotifyReadComplete(int bytes_read) {
   // survival until we can get out of this method.
   scoped_refptr<URLRequestJob> self_preservation = this;
 
+  prefilter_bytes_read_ += bytes_read;
   if (filter_.get()) {
     // Tell the filter that it has more data
     FilteredDataRead(bytes_read);
 
     // Filter the data.
     int filter_bytes_read = 0;
-    if (ReadFilteredData(&filter_bytes_read))
+    if (ReadFilteredData(&filter_bytes_read)) {
+      postfilter_bytes_read_ += filter_bytes_read;
       request_->delegate()->OnReadCompleted(request_, filter_bytes_read);
+    }
   } else {
+    postfilter_bytes_read_ += bytes_read;
     request_->delegate()->OnReadCompleted(request_, bytes_read);
   }
 }
@@ -481,6 +504,8 @@ void URLRequestJob::NotifyDone(const URLRequestStatus &status) {
   if (done_)
     return;
   done_ = true;
+
+  RecordCompressionHistograms();
 
   if (is_profiling() && metrics_->total_bytes_read_ > 0) {
     // There are valid IO statistics. Fill in other fields of metrics for
@@ -745,5 +770,76 @@ void URLRequestJob::RecordPacketStats(StatisticSelector statistic) const {
     default:
       NOTREACHED();
       return;
+  }
+}
+
+// The common type of histogram we use for all compression-tracking histograms.
+#define COMPRESSION_HISTOGRAM(name, sample) \
+    do { \
+      UMA_HISTOGRAM_CUSTOM_COUNTS("Net.Compress." name, sample, \
+                                  500, 1000000, 100); \
+    } while(0)
+
+void URLRequestJob::RecordCompressionHistograms() {
+  if (IsCachedContent() ||          // Don't record cached content
+      !GetStatus().is_success() ||  // Don't record failed content
+      !is_compressible_content_ ||  // Only record compressible content
+      !prefilter_bytes_read_)       // Zero-byte responses aren't useful.
+    return;
+
+  // Miniature requests aren't really compressible.  Don't count them.
+  const int kMinSize = 16;
+  if (prefilter_bytes_read_ < kMinSize)
+    return;
+
+  // Only record for http or https urls.
+  bool is_http = request_->url().SchemeIs("http");
+  bool is_https = request_->url().SchemeIs("https");
+  if (!is_http && !is_https)
+    return;
+
+  const net::HttpResponseInfo& response = request_->response_info_;
+  int compressed_B = prefilter_bytes_read_;
+  int decompressed_B = postfilter_bytes_read_;
+
+  // We want to record how often downloaded resources are compressed.
+  // But, we recognize that different protocols may have different
+  // properties.  So, for each request, we'll put it into one of 3
+  // groups:
+  //      a) SSL resources
+  //         Proxies cannot tamper with compression headers with SSL.
+  //      b) Non-SSL, loaded-via-proxy resources
+  //         In this case, we know a proxy might have interfered.
+  //      c) Non-SSL, loaded-without-proxy resources
+  //         In this case, we know there was no explicit proxy.  However,
+  //         it is possible that a transparent proxy was still interfering.
+  //
+  // For each group, we record the same 3 histograms.
+
+  if (is_https) {
+    if (is_compressed_) {
+      COMPRESSION_HISTOGRAM("SSL.BytesBeforeCompression", compressed_B);
+      COMPRESSION_HISTOGRAM("SSL.BytesAfterCompression", decompressed_B);
+    } else {
+      COMPRESSION_HISTOGRAM("SSL.ShouldHaveBeenCompressed", decompressed_B);
+    }
+    return;
+  }
+
+  if (response.was_fetched_via_proxy) {
+    if (is_compressed_) {
+      COMPRESSION_HISTOGRAM("Proxy.BytesBeforeCompression", compressed_B);
+      COMPRESSION_HISTOGRAM("Proxy.BytesAfterCompression", decompressed_B);
+    } else {
+      COMPRESSION_HISTOGRAM("Proxy.ShouldHaveBeenCompressed", decompressed_B);
+    }
+    return;
+  }
+
+  if (is_compressed_) {
+    COMPRESSION_HISTOGRAM("NoProxy.BytesBeforeCompression", compressed_B);
+    COMPRESSION_HISTOGRAM("NoProxy.BytesAfterCompression", decompressed_B);
+  } else {
+    COMPRESSION_HISTOGRAM("NoProxy.ShouldHaveBeenCompressed", decompressed_B);
   }
 }
