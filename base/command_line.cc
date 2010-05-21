@@ -303,6 +303,11 @@ std::wstring CommandLine::program() const {
 }
 #endif
 
+#if defined(OS_POSIX)
+std::string CommandLine::command_line_string() const {
+  return JoinString(argv_, ' ');
+}
+#endif
 
 // static
 std::wstring CommandLine::PrefixedSwitchString(
