@@ -6,7 +6,6 @@
 
 #include "base/compiler_specific.h"
 #include "base/histogram.h"
-#include "base/trace_event.h"
 #include "net/base/io_buffer.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
@@ -128,47 +127,39 @@ int HttpStreamParser::DoLoop(int result) {
   do {
     switch (io_state_) {
       case STATE_SENDING_HEADERS:
-        TRACE_EVENT_BEGIN("http.write_headers", request_, request_->url.spec());
         if (result < 0)
           can_do_more = false;
         else
           result = DoSendHeaders(result);
-        TRACE_EVENT_END("http.write_headers", request_, request_->url.spec());
         break;
       case STATE_SENDING_BODY:
-        TRACE_EVENT_BEGIN("http.write_body", request_, request_->url.spec());
         if (result < 0)
           can_do_more = false;
         else
           result = DoSendBody(result);
-        TRACE_EVENT_END("http.write_body", request_, request_->url.spec());
         break;
       case STATE_REQUEST_SENT:
         DCHECK(result != ERR_IO_PENDING);
         can_do_more = false;
         break;
       case STATE_READ_HEADERS:
-        TRACE_EVENT_BEGIN("http.read_headers", request_, request_->url.spec());
         net_log_.BeginEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS, NULL);
         result = DoReadHeaders();
         break;
       case STATE_READ_HEADERS_COMPLETE:
         result = DoReadHeadersComplete(result);
         net_log_.EndEvent(NetLog::TYPE_HTTP_STREAM_PARSER_READ_HEADERS, NULL);
-        TRACE_EVENT_END("http.read_headers", request_, request_->url.spec());
         break;
       case STATE_BODY_PENDING:
         DCHECK(result != ERR_IO_PENDING);
         can_do_more = false;
         break;
       case STATE_READ_BODY:
-        TRACE_EVENT_BEGIN("http.read_body", request_, request_->url.spec());
         result = DoReadBody();
         // DoReadBodyComplete handles error conditions.
         break;
       case STATE_READ_BODY_COMPLETE:
         result = DoReadBodyComplete(result);
-        TRACE_EVENT_END("http.read_body", request_, request_->url.spec());
         break;
       case STATE_DONE:
         DCHECK(result != ERR_IO_PENDING);
