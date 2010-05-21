@@ -59,6 +59,7 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
       current_write_buf_(NULL),
       write_buf_offset_(0),
       write_buf_size_(0),
+      closing_(false),
       metrics_(new SocketStreamMetrics(url)) {
   DCHECK(MessageLoop::current()) <<
       "The current MessageLoop must exist";
@@ -175,9 +176,7 @@ void SocketStream::Close() {
   // of AddRef() and Release() in Connect() and Finish(), respectively.
   if (next_state_ == STATE_NONE)
     return;
-  if (socket_.get() && socket_->IsConnected())
-    socket_->Disconnect();
-  next_state_ = STATE_CLOSE;
+  closing_ = true;
   // Close asynchronously, so that delegate won't be called
   // back before returning Close().
   MessageLoop::current()->PostTask(
@@ -215,6 +214,8 @@ void SocketStream::DetachDelegate() {
     return;
   delegate_ = NULL;
   net_log_.AddEvent(NetLog::TYPE_CANCELLED, NULL);
+  // We don't need to send pending data when client detach the delegate.
+  pending_write_bufs_.clear();
   Close();
 }
 
@@ -807,6 +808,15 @@ int SocketStream::DoReadWrite(int result) {
   if (!socket_.get() || !socket_->IsConnected()) {
     next_state_ = STATE_CLOSE;
     return ERR_CONNECTION_CLOSED;
+  }
+
+  // If client has requested close(), and there's nothing to write, then
+  // let's close the socket.
+  // We don't care about receiving data after the socket is closed.
+  if (closing_ && !write_buf_ && pending_write_bufs_.empty()) {
+    socket_->Disconnect();
+    next_state_ = STATE_CLOSE;
+    return OK;
   }
 
   next_state_ = STATE_READ_WRITE;
