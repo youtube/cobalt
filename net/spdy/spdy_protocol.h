@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -130,7 +130,7 @@ enum SpdyControlType {
 enum SpdyDataFlags {
   DATA_FLAG_NONE = 0,
   DATA_FLAG_FIN = 1,
-  DATA_FLAG_COMPRESSED = 2  // TODO(mbelshe): remove me.
+  DATA_FLAG_COMPRESSED = 2
 };
 
 // Flags on control packets
@@ -157,7 +157,9 @@ enum SpdySettingsIds {
   SETTINGS_DOWNLOAD_BANDWIDTH = 0x2,
   SETTINGS_ROUND_TRIP_TIME = 0x3,
   SETTINGS_MAX_CONCURRENT_STREAMS = 0x4,
-  SETTINGS_CURRENT_CWND = 0x5
+  SETTINGS_CURRENT_CWND = 0x5,
+  // Downstream byte retransmission rate in percentage.
+  SETTINGS_DOWNLOAD_RETRANS_RATE = 0x6
 };
 
 // Status codes, as used in control frames (primarily RST_STREAM).
@@ -351,6 +353,10 @@ class SpdyDataFrame : public SpdyFrame {
   // Returns the size of the SpdyFrameBlock structure.
   // Note: this is not the size of the SpdyDataFrame class.
   static size_t size() { return SpdyFrame::size(); }
+
+  const char* payload() const {
+    return reinterpret_cast<const char*>(frame_) + size();
+  }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(SpdyDataFrame);
