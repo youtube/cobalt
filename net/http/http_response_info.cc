@@ -41,7 +41,10 @@ enum {
   // This bit is set if the response was received via SPDY.
   RESPONSE_INFO_WAS_SPDY = 1 << 13,
 
-  // This bit is set if the response was received via SPDY.
+  // This bit is set if the request has NPN negotiated.
+  RESPONSE_INFO_WAS_NPN = 1 << 14,
+
+  // This bit is set if the request was fetched via an explicit proxy.
   RESPONSE_INFO_WAS_PROXY = 1 << 15,
 
   // TODO(darin): Add other bits to indicate alternate request methods.
@@ -51,6 +54,7 @@ enum {
 HttpResponseInfo::HttpResponseInfo()
     : was_cached(false),
       was_fetched_via_spdy(false),
+      was_npn_negotiated(false),
       was_fetched_via_proxy(false) {
 }
 
@@ -113,6 +117,8 @@ bool HttpResponseInfo::InitFromPickle(const Pickle& pickle,
 
   was_fetched_via_spdy = (flags & RESPONSE_INFO_WAS_SPDY) != 0;
 
+  was_npn_negotiated = (flags & RESPONSE_INFO_WAS_NPN) != 0;
+
   was_fetched_via_proxy = (flags & RESPONSE_INFO_WAS_PROXY) != 0;
 
   *response_truncated = (flags & RESPONSE_INFO_TRUNCATED) ? true : false;
@@ -136,6 +142,8 @@ void HttpResponseInfo::Persist(Pickle* pickle,
     flags |= RESPONSE_INFO_TRUNCATED;
   if (was_fetched_via_spdy)
     flags |= RESPONSE_INFO_WAS_SPDY;
+  if (was_npn_negotiated)
+    flags |= RESPONSE_INFO_WAS_NPN;
   if (was_fetched_via_proxy)
     flags |= RESPONSE_INFO_WAS_PROXY;
 

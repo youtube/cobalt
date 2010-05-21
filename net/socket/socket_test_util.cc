@@ -389,6 +389,10 @@ SSLClientSocket::NextProtoStatus MockSSLClientSocket::GetNextProto(
   return data_->next_proto_status;
 }
 
+bool MockSSLClientSocket::wasNpnNegotiated() const {
+  return data_->was_npn_negotiated;
+}
+
 MockRead StaticSocketDataProvider::GetNextRead() {
   DCHECK(!at_read_eof());
   reads_[read_index_].time_stamp = base::Time::Now();
