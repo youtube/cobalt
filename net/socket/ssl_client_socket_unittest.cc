@@ -83,11 +83,8 @@ TEST_F(SSLClientSocketTest, Connect) {
   EXPECT_FALSE(sock->IsConnected());
 
   rv = sock->Connect(&callback);
-  // TODO(eroman): re-enable this once the logging for
-  // TCPClientSocketLibevent is in sync with TCPClientSocketWin.
-  // http://crbug.com/44488
-  // EXPECT_TRUE(net::LogContainsBeginEvent(
-  //     log.entries(), 2, net::NetLog::TYPE_SSL_CONNECT));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 4, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
@@ -130,11 +127,8 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
   EXPECT_FALSE(sock->IsConnected());
 
   rv = sock->Connect(&callback);
-  // TODO(eroman): re-enable this once the logging for
-  // TCPClientSocketLibevent is in sync with TCPClientSocketWin.
-  // http://crbug.com/44488
-  // EXPECT_TRUE(net::LogContainsBeginEvent(
-  //     log.entries(), 2, net::NetLog::TYPE_SSL_CONNECT));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 4, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
@@ -179,11 +173,8 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
 
   rv = sock->Connect(&callback);
 
-  // TODO(eroman): re-enable this once the logging for
-  // TCPClientSocketLibevent is in sync with TCPClientSocketWin.
-  // http://crbug.com/44488
-  // EXPECT_TRUE(net::LogContainsBeginEvent(
-  //     log.entries(), 2, net::NetLog::TYPE_SSL_CONNECT));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      log.entries(), 4, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::ERR_CERT_COMMON_NAME_INVALID) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
