@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -112,6 +112,9 @@ class TestSpdyVisitor : public SpdyFramerVisitorInterface  {
 
 }  // namespace spdy
 
+using spdy::SpdyControlFlags;
+using spdy::SpdyControlFrame;
+using spdy::SpdyDataFrame;
 using spdy::SpdyFrame;
 using spdy::SpdyFrameBuilder;
 using spdy::SpdyFramer;
@@ -119,11 +122,13 @@ using spdy::SpdyHeaderBlock;
 using spdy::SpdySynStreamControlFrame;
 using spdy::kControlFlagMask;
 using spdy::CONTROL_FLAG_NONE;
+using spdy::DATA_FLAG_COMPRESSED;
+using spdy::DATA_FLAG_FIN;
 using spdy::SYN_STREAM;
 using spdy::test::FramerSetEnableCompressionHelper;
 using spdy::test::TestSpdyVisitor;
 
-namespace {
+namespace spdy {
 
 class SpdyFramerTest : public PlatformTest {
  public:
@@ -251,10 +256,10 @@ TEST_F(SpdyFramerTest, BasicCompression) {
   EXPECT_LE(frame2->length(), frame1->length());
 
   // Decompress the first frame
-  scoped_ptr<SpdyFrame> frame3(framer.DecompressFrame(frame1.get()));
+  scoped_ptr<SpdyFrame> frame3(framer.DecompressFrame(*frame1.get()));
 
   // Decompress the second frame
-  scoped_ptr<SpdyFrame> frame4(framer.DecompressFrame(frame2.get()));
+  scoped_ptr<SpdyFrame> frame4(framer.DecompressFrame(*frame2.get()));
 
   // Expect frames 3 & 4 to be the same.
   EXPECT_EQ(0,
@@ -278,7 +283,7 @@ TEST_F(SpdyFramerTest, DecompressUncompressedFrame) {
                                     &headers));
 
   // Decompress the frame
-  scoped_ptr<SpdyFrame> frame2(framer.DecompressFrame(frame1.get()));
+  scoped_ptr<SpdyFrame> frame2(framer.DecompressFrame(*frame1.get()));
 
   EXPECT_EQ(NULL, frame2.get());
 }
@@ -411,6 +416,151 @@ TEST_F(SpdyFramerTest, FinOnSynReplyFrame) {
   EXPECT_EQ(0, visitor.fin_frame_count_);
   EXPECT_EQ(1, visitor.fin_flag_count_);
   EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
+}
+
+// Basic compression & decompression
+TEST_F(SpdyFramerTest, DataCompression) {
+  SpdyFramer send_framer;
+  SpdyFramer recv_framer;
+
+  FramerSetEnableCompressionHelper(&send_framer, true);
+  FramerSetEnableCompressionHelper(&recv_framer, true);
+
+  // Mix up some SYNs and DATA frames since they use different compressors.
+  const char kHeader1[] = "header1";
+  const char kHeader2[] = "header2";
+  const char kHeader3[] = "header3";
+  const char kValue1[] = "value1";
+  const char kValue2[] = "value2";
+  const char kValue3[] = "value3";
+
+  // SYN_STREAM #1
+  SpdyHeaderBlock block;
+  block[kHeader1] = kValue1;
+  block[kHeader2] = kValue2;
+  SpdyControlFlags flags(CONTROL_FLAG_NONE);
+  scoped_ptr<spdy::SpdyFrame> syn_frame_1(
+      send_framer.CreateSynStream(1, 0, 0, flags, true, &block));
+  EXPECT_TRUE(syn_frame_1.get() != NULL);
+
+  // DATA #1
+  const char bytes[] = "this is a test test test test test!";
+  scoped_ptr<SpdyFrame> data_frame_1(
+      send_framer.CreateDataFrame(1, bytes, arraysize(bytes),
+                                  DATA_FLAG_COMPRESSED));
+  EXPECT_TRUE(data_frame_1.get() != NULL);
+
+  // SYN_STREAM #2
+  block[kHeader3] = kValue3;
+  scoped_ptr<SpdyFrame> syn_frame_2(
+      send_framer.CreateSynStream(3, 0, 0, flags, true, &block));
+  EXPECT_TRUE(syn_frame_2.get() != NULL);
+
+  // DATA #2
+  scoped_ptr<SpdyFrame> data_frame_2(
+      send_framer.CreateDataFrame(3, bytes, arraysize(bytes),
+                                  DATA_FLAG_COMPRESSED));
+  EXPECT_TRUE(data_frame_2.get() != NULL);
+
+  // Now start decompressing
+  scoped_ptr<SpdyFrame> decompressed;
+  SpdyControlFrame* control_frame;
+  SpdyDataFrame* data_frame;
+  SpdyHeaderBlock decompressed_headers;
+
+  decompressed.reset(recv_framer.DuplicateFrame(*syn_frame_1.get()));
+  EXPECT_TRUE(decompressed.get() != NULL);
+  EXPECT_TRUE(decompressed->is_control_frame());
+  control_frame = reinterpret_cast<SpdyControlFrame*>(decompressed.get());
+  EXPECT_EQ(SYN_STREAM, control_frame->type());
+  EXPECT_TRUE(recv_framer.ParseHeaderBlock(
+      control_frame, &decompressed_headers));
+  EXPECT_EQ(2u, decompressed_headers.size());
+  EXPECT_EQ(SYN_STREAM, control_frame->type());
+  EXPECT_EQ(kValue1, decompressed_headers[kHeader1]);
+  EXPECT_EQ(kValue2, decompressed_headers[kHeader2]);
+
+  decompressed.reset(recv_framer.DecompressFrame(*data_frame_1.get()));
+  EXPECT_TRUE(decompressed.get() != NULL);
+  EXPECT_FALSE(decompressed->is_control_frame());
+  data_frame = reinterpret_cast<SpdyDataFrame*>(decompressed.get());
+  EXPECT_EQ(arraysize(bytes), data_frame->length());
+  EXPECT_EQ(0, memcmp(data_frame->payload(), bytes, data_frame->length()));
+
+  decompressed.reset(recv_framer.DuplicateFrame(*syn_frame_2.get()));
+  EXPECT_TRUE(decompressed.get() != NULL);
+  EXPECT_TRUE(decompressed->is_control_frame());
+  control_frame = reinterpret_cast<SpdyControlFrame*>(decompressed.get());
+  EXPECT_EQ(control_frame->type(), SYN_STREAM);
+  decompressed_headers.clear();
+  EXPECT_TRUE(recv_framer.ParseHeaderBlock(
+      control_frame, &decompressed_headers));
+  EXPECT_EQ(3u, decompressed_headers.size());
+  EXPECT_EQ(SYN_STREAM, control_frame->type());
+  EXPECT_EQ(kValue1, decompressed_headers[kHeader1]);
+  EXPECT_EQ(kValue2, decompressed_headers[kHeader2]);
+  EXPECT_EQ(kValue3, decompressed_headers[kHeader3]);
+
+  decompressed.reset(recv_framer.DecompressFrame(*data_frame_2.get()));
+  EXPECT_TRUE(decompressed.get() != NULL);
+  EXPECT_FALSE(decompressed->is_control_frame());
+  data_frame = reinterpret_cast<SpdyDataFrame*>(decompressed.get());
+  EXPECT_EQ(arraysize(bytes), data_frame->length());
+  EXPECT_EQ(0, memcmp(data_frame->payload(), bytes, data_frame->length()));
+
+  // We didn't close these streams, so the compressors should be active.
+  EXPECT_EQ(2, send_framer.num_stream_compressors());
+  EXPECT_EQ(0, send_framer.num_stream_decompressors());
+  EXPECT_EQ(0, recv_framer.num_stream_compressors());
+  EXPECT_EQ(2, recv_framer.num_stream_decompressors());
+}
+
+// Verify we don't leak when we leave streams unclosed
+TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
+  SpdyFramer send_framer;
+
+  FramerSetEnableCompressionHelper(&send_framer, true);
+
+  const char kHeader1[] = "header1";
+  const char kHeader2[] = "header2";
+  const char kValue1[] = "value1";
+  const char kValue2[] = "value2";
+
+  SpdyHeaderBlock block;
+  block[kHeader1] = kValue1;
+  block[kHeader2] = kValue2;
+  SpdyControlFlags flags(CONTROL_FLAG_NONE);
+  scoped_ptr<spdy::SpdyFrame> syn_frame(
+      send_framer.CreateSynStream(1, 0, 0, flags, true, &block));
+  EXPECT_TRUE(syn_frame.get() != NULL);
+
+  const char bytes[] = "this is a test test test test test!";
+  scoped_ptr<SpdyFrame> send_frame(
+      send_framer.CreateDataFrame(1, bytes, arraysize(bytes),
+                                  DATA_FLAG_FIN | DATA_FLAG_COMPRESSED));
+  EXPECT_TRUE(send_frame.get() != NULL);
+
+  // Run the inputs through the framer.
+  TestSpdyVisitor visitor;
+  const unsigned char* data;
+  data = reinterpret_cast<const unsigned char*>(syn_frame->data());
+  visitor.SimulateInFramer(data, syn_frame->length() + SpdyFrame::size());
+  data = reinterpret_cast<const unsigned char*>(send_frame->data());
+  visitor.SimulateInFramer(data, send_frame->length() + SpdyFrame::size());
+
+  EXPECT_EQ(0, visitor.error_count_);
+  EXPECT_EQ(1, visitor.syn_frame_count_);
+  EXPECT_EQ(0, visitor.syn_reply_frame_count_);
+  EXPECT_EQ(arraysize(bytes), static_cast<unsigned>(visitor.data_bytes_));
+  EXPECT_EQ(0, visitor.fin_frame_count_);
+  EXPECT_EQ(0, visitor.fin_flag_count_);
+  EXPECT_EQ(1, visitor.zero_length_data_frame_count_);
+
+  // We closed the streams, so all compressors should be down.
+  EXPECT_EQ(0, visitor.framer_.num_stream_compressors());
+  EXPECT_EQ(0, visitor.framer_.num_stream_decompressors());
+  EXPECT_EQ(0, send_framer.num_stream_compressors());
+  EXPECT_EQ(0, send_framer.num_stream_decompressors());
 }
 
 }  // namespace
