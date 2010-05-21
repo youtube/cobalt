@@ -10,7 +10,6 @@
 #include "base/stats_counters.h"
 #include "base/string_util.h"
 #include "base/sys_info.h"
-#include "base/trace_event.h"
 #include "net/base/connection_type_histograms.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
@@ -301,8 +300,6 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
   static StatsCounter connects("tcp.connect");
   connects.Increment();
 
-  TRACE_EVENT_BEGIN("socket.connect", this, "");
-
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT, NULL);
 
   int rv = DoConnect();
@@ -314,7 +311,6 @@ int TCPClientSocketWin::Connect(CompletionCallback* callback) {
     waiting_connect_ = true;
     read_callback_ = callback;
   } else {
-    TRACE_EVENT_END("socket.connect", this, "");
     net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
     if (rv == OK)
       UpdateConnectionTypeHistograms(CONNECTION_ANY);
@@ -374,8 +370,6 @@ void TCPClientSocketWin::Disconnect() {
 
   if (socket_ == INVALID_SOCKET)
     return;
-
-  TRACE_EVENT_INSTANT("socket.disconnect", this, "");
 
   // Note: don't use CancelIo to cancel pending IO because it doesn't work
   // when there is a Winsock layered service provider.
@@ -467,7 +461,6 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
   core_->read_buffer_.len = buf_len;
   core_->read_buffer_.buf = buf->data();
 
-  TRACE_EVENT_BEGIN("socket.read", this, "");
   // TODO(wtc): Remove the CHECK after enough testing.
   CHECK_EQ(WAIT_TIMEOUT,
            WaitForSingleObject(core_->read_overlapped_.hEvent, 0));
@@ -476,8 +469,6 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
                    &core_->read_overlapped_, NULL);
   if (rv == 0) {
     if (ResetEventIfSignaled(core_->read_overlapped_.hEvent)) {
-      TRACE_EVENT_END("socket.read", this, StringPrintf("%d bytes", num));
-
       // Because of how WSARecv fills memory when used asynchronously, Purify
       // isn't able to detect that it's been initialized, so it scans for 0xcd
       // in the buffer and reports UMRs (uninitialized memory reads) for those
@@ -520,7 +511,6 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   core_->write_buffer_.buf = buf->data();
   core_->write_buffer_length_ = buf_len;
 
-  TRACE_EVENT_BEGIN("socket.write", this, "");
   // TODO(wtc): Remove the CHECK after enough testing.
   CHECK_EQ(WAIT_TIMEOUT,
            WaitForSingleObject(core_->write_overlapped_.hEvent, 0));
@@ -537,7 +527,6 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
                    << " bytes, but " << rv << " bytes reported.";
         return ERR_WINSOCK_UNEXPECTED_WRITTEN_BYTES;
       }
-      TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", rv));
       static StatsCounter write_bytes("tcp.write_bytes");
       write_bytes.Add(rv);
       net_log_.AddEvent(NetLog::TYPE_SOCKET_BYTES_SENT,
@@ -675,18 +664,15 @@ void TCPClientSocketWin::DidCompleteConnect() {
       const struct addrinfo* next = current_ai_->ai_next;
       Disconnect();
       current_ai_ = next;
-      TRACE_EVENT_END("socket.connect", this, "");
       net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
       result = Connect(read_callback_);
     } else {
       result = MapConnectError(os_error);
-      TRACE_EVENT_END("socket.connect", this, "");
       net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
     }
   } else {
     NOTREACHED();
     result = ERR_UNEXPECTED;
-    TRACE_EVENT_END("socket.connect", this, "");
     net_log_.EndEvent(NetLog::TYPE_TCP_CONNECT, NULL);
   }
 
@@ -703,7 +689,6 @@ void TCPClientSocketWin::DidCompleteRead() {
   BOOL ok = WSAGetOverlappedResult(socket_, &core_->read_overlapped_,
                                    &num_bytes, FALSE, &flags);
   WSAResetEvent(core_->read_overlapped_.hEvent);
-  TRACE_EVENT_END("socket.read", this, StringPrintf("%d bytes", num_bytes));
   waiting_read_ = false;
   core_->read_iobuffer_ = NULL;
   if (ok) {
@@ -720,7 +705,6 @@ void TCPClientSocketWin::DidCompleteWrite() {
   BOOL ok = WSAGetOverlappedResult(socket_, &core_->write_overlapped_,
                                    &num_bytes, FALSE, &flags);
   WSAResetEvent(core_->write_overlapped_.hEvent);
-  TRACE_EVENT_END("socket.write", this, StringPrintf("%d bytes", num_bytes));
   waiting_write_ = false;
   int rv;
   if (!ok) {
