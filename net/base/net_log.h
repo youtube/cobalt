@@ -53,13 +53,9 @@ class NetLog {
 
   // The "source" identifies the entity that generated the log message.
   enum SourceType {
-    SOURCE_NONE,
-    SOURCE_URL_REQUEST,
-    SOURCE_SOCKET_STREAM,
-    SOURCE_INIT_PROXY_RESOLVER,
-    SOURCE_CONNECT_JOB,
-    SOURCE_SOCKET,
-    SOURCE_SPDY_SESSION,
+#define SOURCE_TYPE(label) SOURCE_ ## label,
+#include "net/base/net_log_source_type_list.h"
+#undef SOURCE_TYPE
   };
 
   // Identifies the entity that generated this log. The |id| field should
