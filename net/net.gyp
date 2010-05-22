@@ -107,6 +107,7 @@
         'base/net_log.cc',
         'base/net_log.h',
         'base/net_log_event_type_list.h',
+        'base/net_log_source_type_list.h',
         'base/net_module.cc',
         'base/net_module.h',
         'base/net_util.cc',
