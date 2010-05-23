@@ -239,8 +239,8 @@ FilePath GetHomeDir();
 bool CreateTemporaryFile(FilePath* path);
 
 // Create and open a temporary file.  File is opened for read/write.
-// The full path is placed in |path|, and the function returns true if
-// was successful in creating and opening the file.
+// The full path is placed in |path|.
+// Returns a handle to the opened file or NULL if an error occured.
 FILE* CreateAndOpenTemporaryFile(FilePath* path);
 // Like above but for shmem files.  Only useful for POSIX.
 FILE* CreateAndOpenTemporaryShmemFile(FilePath* path);
