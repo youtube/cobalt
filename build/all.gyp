@@ -72,7 +72,7 @@
           'conditions': [
             ['branding=="Chrome"', {
               'dependencies': [
-                '../chrome/installer/installer.gyp:linux_packages_<(channel)',
+                '../chrome/chrome.gyp:linux_packages_<(channel)',
               ],
             }],
           ],
@@ -211,8 +211,10 @@
           'dependencies': [
             '../app/app.gyp:app_unittests',
             '../chrome/chrome.gyp:browser_tests',
+            '../chrome/chrome.gyp:installer_util_unittests',
             '../chrome/chrome.gyp:interactive_ui_tests',
             '../chrome/chrome.gyp:memory_test',
+            '../chrome/chrome.gyp:mini_installer_test',
             '../chrome/chrome.gyp:nacl_ui_tests',
             '../chrome/chrome.gyp:notifier_unit_tests',
             '../chrome/chrome.gyp:page_cycler_tests',
@@ -224,8 +226,6 @@
             '../chrome/chrome.gyp:ui_tests',
             '../chrome/chrome.gyp:unit_tests',
             '../chrome/chrome.gyp:url_fetch_test',
-            '../chrome/installer/installer.gyp:installer_util_unittests',
-            '../chrome/installer/installer.gyp:mini_installer_test',
             # mini_installer_tests depends on mini_installer. This should be
             # defined in installer.gyp.
             '../chrome/installer/mini_installer.gyp:mini_installer',
