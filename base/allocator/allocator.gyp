@@ -57,7 +57,7 @@
         '<(tcmalloc_dir)/src/base/basictypes.h',
         '<(tcmalloc_dir)/src/base/commandlineflags.h',
         '<(tcmalloc_dir)/src/base/cycleclock.h',
-        # We don't list dynamic_annotations.c since its copy is already
+        # We don't list dynamic_annotations.cc since its copy is already
         # present in the dynamic_annotations target.
         '<(tcmalloc_dir)/src/base/dynamic_annotations.h',
         '<(tcmalloc_dir)/src/base/elfcore.h',
