@@ -313,8 +313,6 @@
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
             '../chrome/browser/chromeos/text_input/text_input.gyp:candidate_window',
-            '../third_party/chromeos_login_manager/chromeos_login_manager/chromeos_login_manager.gyp:session',
-            '../third_party/chromeos_login_manager/chromeos_login_manager/chromeos_login_manager.gyp:emit_login_prompt_ready',
           ],
         },
       ],  # targets
