@@ -129,8 +129,11 @@ class CommandLine {
   // Get the number of switches in this process.
   size_t GetSwitchCount() const { return switches_.size(); }
 
+  // The type of map for parsed-out switch key and values.
+  typedef std::map<std::string, StringType> SwitchMap;
+
   // Get a copy of all switches, along with their values
-  std::map<std::string, StringType> GetSwitches() const {
+  SwitchMap GetSwitches() const {
     return switches_;
   }
 
@@ -232,7 +235,7 @@ class CommandLine {
                        StringType* switch_value);
 
   // Parsed-out values.
-  std::map<std::string, StringType> switches_;
+  SwitchMap switches_;
 
   // Non-switch command-line arguments.
   std::vector<StringType> loose_values_;
