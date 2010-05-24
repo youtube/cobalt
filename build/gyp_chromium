@@ -79,7 +79,9 @@ if __name__ == '__main__':
   # violation of the rule causes Xcode to misbehave badly.
   # TODO(mark): Find and kill remaining circular dependencies, and remove this
   # option.  http://crbug.com/35878.
-  if sys.platform not in ('darwin', 'linux2'):
+  # TODO(tc): Fix circular dependencies in ChromiumOS then add linux2 to the
+  # list.
+  if sys.platform not in ('darwin',):
     args.append('--no-circular-check')
 
   # If CHROMIUM_GYP_SYNTAX_CHECK is set to 1, it will invoke gyp with --check
