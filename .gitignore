@@ -10,6 +10,7 @@
 *.vcproj
 *.xcodeproj
 *~
+.*.sw?
 .metadata
 .project
 .cproject
