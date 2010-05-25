@@ -337,6 +337,28 @@ EVENT_TYPE(HTTP_CACHE_WAITING)
 // HttpNetworkTransaction
 // ------------------------------------------------------------------------
 
+// Measures the time taken to send the tunnel request to the server.
+EVENT_TYPE(HTTP_TRANSACTION_TUNNEL_SEND_REQUEST)
+
+// This event is sent for a tunnel request.
+// The following parameters are attached:
+//   {
+//     "line": <The HTTP request line, CRLF terminated>,
+//     "headers": <The list of header:value pairs>
+//   }
+EVENT_TYPE(HTTP_TRANSACTION_SEND_TUNNEL_HEADERS)
+
+// Measures the time to read the tunnel response headers from the server.
+EVENT_TYPE(HTTP_TRANSACTION_TUNNEL_READ_HEADERS)
+
+// This event is sent on receipt of the HTTP response headers to a tunnel
+// request.
+// The following parameters are attached:
+//   {
+//     "headers": <The list of header:value pairs>
+//   }
+EVENT_TYPE(HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS)
+
 // Measures the time taken to send the request to the server.
 EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST)
 
@@ -348,14 +370,6 @@ EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST)
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_SEND_REQUEST_HEADERS)
 
-// This event is sent for a tunnel request.
-// The following parameters are attached:
-//   {
-//     "line": <The HTTP request line, CRLF terminated>,
-//     "headers": <The list of header:value pairs>
-//   }
-EVENT_TYPE(HTTP_TRANSACTION_SEND_TUNNEL_HEADERS)
-
 // Measures the time to read HTTP response headers from the server.
 EVENT_TYPE(HTTP_TRANSACTION_READ_HEADERS)
 
@@ -365,14 +379,6 @@ EVENT_TYPE(HTTP_TRANSACTION_READ_HEADERS)
 //     "headers": <The list of header:value pairs>
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_READ_RESPONSE_HEADERS)
-
-// This event is sent on receipt of the HTTP response headers to a tunnel
-// request.
-// The following parameters are attached:
-//   {
-//     "headers": <The list of header:value pairs>
-//   }
-EVENT_TYPE(HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS)
 
 // Measures the time to resolve the canonical name for HTTP Negotiate
 // authentication scheme.
