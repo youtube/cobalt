@@ -508,7 +508,7 @@ int TCPClientSocketWin::Read(IOBuffer* buf,
   core_->read_buffer_.buf = buf->data();
 
   // TODO(wtc): Remove the CHECK after enough testing.
-  CHECK_EQ(WAIT_TIMEOUT,
+  CHECK_EQ(static_cast<DWORD>(WAIT_TIMEOUT),
            WaitForSingleObject(core_->read_overlapped_.hEvent, 0));
   DWORD num, flags = 0;
   int rv = WSARecv(socket_, &core_->read_buffer_, 1, &num, &flags,
@@ -558,7 +558,7 @@ int TCPClientSocketWin::Write(IOBuffer* buf,
   core_->write_buffer_length_ = buf_len;
 
   // TODO(wtc): Remove the CHECK after enough testing.
-  CHECK_EQ(WAIT_TIMEOUT,
+  CHECK_EQ(static_cast<DWORD>(WAIT_TIMEOUT),
            WaitForSingleObject(core_->write_overlapped_.hEvent, 0));
   DWORD num;
   int rv = WSASend(socket_, &core_->write_buffer_, 1, &num, 0,
