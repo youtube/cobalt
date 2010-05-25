@@ -1375,14 +1375,17 @@ TEST(MessageLoopTest, PostDelayedTask_SharedTimer_SubPump) {
 }
 #endif
 
-// TODO(darin): re-enable these tests once MessageLoop supports them again.
-TEST(MessageLoopTest, DISABLED_EnsureTaskDeletion) {
+// TODO(darin): MessageLoop does not support deleting all tasks in the
+// destructor.
+TEST(MessageLoopTest, FAILS_EnsureTaskDeletion) {
   RunTest_EnsureTaskDeletion(MessageLoop::TYPE_DEFAULT);
   RunTest_EnsureTaskDeletion(MessageLoop::TYPE_UI);
   RunTest_EnsureTaskDeletion(MessageLoop::TYPE_IO);
 }
 
-TEST(MessageLoopTest, DISABLED_EnsureTaskDeletion_Chain) {
+// TODO(darin): MessageLoop does not support deleting all tasks in the
+// destructor.
+TEST(MessageLoopTest, FAILS_EnsureTaskDeletion_Chain) {
   RunTest_EnsureTaskDeletion_Chain(MessageLoop::TYPE_DEFAULT);
   RunTest_EnsureTaskDeletion_Chain(MessageLoop::TYPE_UI);
   RunTest_EnsureTaskDeletion_Chain(MessageLoop::TYPE_IO);
