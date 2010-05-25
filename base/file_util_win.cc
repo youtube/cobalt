@@ -656,15 +656,11 @@ int ReadFile(const FilePath& filename, char* data, int size) {
   if (file == INVALID_HANDLE_VALUE)
     return -1;
 
-  int ret_value;
   DWORD read;
-  if (::ReadFile(file, data, size, &read, NULL) && read == size) {
-    ret_value = static_cast<int>(read);
-  } else {
-    ret_value = -1;
-  }
-
-  return ret_value;
+  if (::ReadFile(file, data, size, &read, NULL) &&
+      static_cast<int>(read) == size)
+    return read;
+  return -1;
 }
 
 int WriteFile(const FilePath& filename, const char* data, int size) {
@@ -684,8 +680,8 @@ int WriteFile(const FilePath& filename, const char* data, int size) {
 
   DWORD written;
   BOOL result = ::WriteFile(file, data, size, &written, NULL);
-  if (result && written == size)
-    return static_cast<int>(written);
+  if (result && static_cast<int>(written) == size)
+    return written;
 
   if (!result) {
     // WriteFile failed.
