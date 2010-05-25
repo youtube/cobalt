@@ -716,6 +716,7 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   EXPECT_CALL(*demuxer, SignalReadCompleted(512));
   EXPECT_CALL(*demuxer, WaitForRead())
       .WillOnce(Return(512));
+  EXPECT_CALL(host_, SetCurrentReadPosition(512));
 
   // Second read.
   EXPECT_CALL(*data_source_, GetSize(_))
@@ -725,6 +726,7 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   EXPECT_CALL(*demuxer, SignalReadCompleted(512));
   EXPECT_CALL(*demuxer, WaitForRead())
       .WillOnce(Return(512));
+  EXPECT_CALL(host_, SetCurrentReadPosition(1024));
 
   // Third read will fail because it exceeds the file size.
   EXPECT_CALL(*data_source_, GetSize(_))
