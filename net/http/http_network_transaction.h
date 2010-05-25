@@ -83,6 +83,10 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_RESOLVE_PROXY_COMPLETE,
     STATE_INIT_CONNECTION,
     STATE_INIT_CONNECTION_COMPLETE,
+    STATE_TUNNEL_SEND_REQUEST,
+    STATE_TUNNEL_SEND_REQUEST_COMPLETE,
+    STATE_TUNNEL_READ_HEADERS,
+    STATE_TUNNEL_READ_HEADERS_COMPLETE,
     STATE_SSL_CONNECT,
     STATE_SSL_CONNECT_COMPLETE,
     STATE_SEND_REQUEST,
@@ -124,6 +128,10 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoResolveProxyComplete(int result);
   int DoInitConnection();
   int DoInitConnectionComplete(int result);
+  int DoTunnelSendRequest();
+  int DoTunnelSendRequestComplete(int result);
+  int DoTunnelReadHeaders();
+  int DoTunnelReadHeadersComplete(int result);
   int DoSSLConnect();
   int DoSSLConnectComplete(int result);
   int DoSendRequest();
@@ -211,6 +219,9 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Resets the members of the transaction so it can be restarted.
   void ResetStateForRestart();
 
+  // Clear the state used to setup the tunnel.
+  void ClearTunnelState();
+
   // Returns true if we should try to add a Proxy-Authorization header
   bool ShouldApplyProxyAuth() const;
 
@@ -229,7 +240,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Handles HTTP status code 401 or 407.
   // HandleAuthChallenge() returns a network error code, or OK on success.
   // May update |pending_auth_target_| or |response_.auth_challenge|.
-  int HandleAuthChallenge();
+  int HandleAuthChallenge(bool establishing_tunnel);
 
   // Populates response_.auth_challenge with the challenge information, so that
   // URLRequestHttpJob can prompt for a username/password.
@@ -321,13 +332,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   bool logged_response_time;
 
   bool using_ssl_;     // True if handling a HTTPS request
-
-  // True while establishing a tunnel.  This allows the HTTP CONNECT
-  // request/response to reuse the STATE_SEND_REQUEST,
-  // STATE_SEND_REQUEST_COMPLETE, STATE_READ_HEADERS, and
-  // STATE_READ_HEADERS_COMPLETE states and allows us to tell them apart from
-  // the real request/response of the transaction.
-  bool establishing_tunnel_;
 
   // True if this network transaction is using SPDY instead of HTTP.
   bool using_spdy_;

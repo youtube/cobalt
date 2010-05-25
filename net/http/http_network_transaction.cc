@@ -292,7 +292,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       headers_valid_(false),
       logged_response_time(false),
       using_ssl_(false),
-      establishing_tunnel_(false),
       using_spdy_(false),
       alternate_protocol_mode_(
           g_use_alternate_protocols ? kUnspecified :
@@ -480,7 +479,11 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
   if (keep_alive && connection_->socket()->IsConnectedAndIdle()) {
     // We should call connection_->set_idle_time(), but this doesn't occur
     // often enough to be worth the trouble.
-    next_state_ = STATE_SEND_REQUEST;
+    if (using_ssl_ && proxy_info_.is_http() &&
+        ssl_connect_start_time_.is_null())
+      next_state_ = STATE_TUNNEL_SEND_REQUEST;
+    else
+      next_state_ = STATE_SEND_REQUEST;
     connection_->set_is_reused(true);
     reused_socket_ = true;
   } else {
@@ -507,25 +510,25 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
     next_state = STATE_SPDY_READ_BODY;
   } else {
     DCHECK(!spdy_stream_.get());
-    scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
-    DCHECK(headers.get());
     next_state = STATE_READ_BODY;
 
     if (!connection_->is_initialized())
       return 0;  // connection_->has been reset.  Treat like EOF.
+  }
 
-    if (establishing_tunnel_) {
-      // We're trying to read the body of the response but we're still trying
-      // to establish an SSL tunnel through the proxy.  We can't read these
-      // bytes when establishing a tunnel because they might be controlled by
-      // an active network attacker.  We don't worry about this for HTTP
-      // because an active network attacker can already control HTTP sessions.
-      // We reach this case when the user cancels a 407 proxy auth prompt.
-      // See http://crbug.com/8473.
-      DCHECK_EQ(407, headers->response_code());
-      LogBlockedTunnelResponse(headers->response_code());
-      return ERR_TUNNEL_CONNECTION_FAILED;
-    }
+  scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
+  DCHECK(headers.get());
+  if (headers->response_code() == 407) {
+    // We're trying to read the body of the response but we're still trying
+    // to establish an SSL tunnel through the proxy.  We can't read these
+    // bytes when establishing a tunnel because they might be controlled by
+    // an active network attacker.  We don't worry about this for HTTP
+    // because an active network attacker can already control HTTP sessions.
+    // We reach this case when the user cancels a 407 proxy auth prompt.
+    // See http://crbug.com/8473.
+    DCHECK(proxy_info_.is_http());
+    LogBlockedTunnelResponse(headers->response_code());
+    return ERR_TUNNEL_CONNECTION_FAILED;
   }
 
   read_buf_ = buf;
@@ -551,6 +554,9 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
       return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
     case STATE_INIT_CONNECTION_COMPLETE:
       return connection_->GetLoadState();
+    case STATE_TUNNEL_SEND_REQUEST_COMPLETE:
+    case STATE_TUNNEL_READ_HEADERS_COMPLETE:
+      return LOAD_STATE_ESTABLISHING_PROXY_TUNNEL;
     case STATE_SEND_REQUEST_COMPLETE:
       return LOAD_STATE_SENDING_REQUEST;
     case STATE_READ_HEADERS_COMPLETE:
@@ -619,6 +625,28 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_INIT_CONNECTION_COMPLETE:
         rv = DoInitConnectionComplete(rv);
+        break;
+      case STATE_TUNNEL_SEND_REQUEST:
+        DCHECK_EQ(OK, rv);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_SEND_REQUEST,
+            NULL);
+        rv = DoTunnelSendRequest();
+        break;
+      case STATE_TUNNEL_SEND_REQUEST_COMPLETE:
+        rv = DoTunnelSendRequestComplete(rv);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_SEND_REQUEST,
+            NULL);
+        break;
+      case STATE_TUNNEL_READ_HEADERS:
+        DCHECK_EQ(OK, rv);
+        net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_READ_HEADERS,
+            NULL);
+        rv = DoTunnelReadHeaders();
+        break;
+      case STATE_TUNNEL_READ_HEADERS_COMPLETE:
+        rv = DoTunnelReadHeadersComplete(rv);
+        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_READ_HEADERS,
+            NULL);
         break;
       case STATE_SSL_CONNECT:
         DCHECK_EQ(OK, rv);
@@ -921,16 +949,135 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     // Now we have a TCP connected socket.  Perform other connection setup as
     // needed.
     UpdateConnectionTypeHistograms(CONNECTION_HTTP);
-    if (using_ssl_ && (proxy_info_.is_direct() || proxy_info_.is_socks())) {
-      next_state_ = STATE_SSL_CONNECT;
+    if (using_ssl_) {
+      if (proxy_info_.is_direct() || proxy_info_.is_socks())
+        next_state_ = STATE_SSL_CONNECT;
+      else
+        next_state_ = STATE_TUNNEL_SEND_REQUEST;
     } else {
       next_state_ = STATE_SEND_REQUEST;
-      if (using_ssl_)
-        establishing_tunnel_ = true;
     }
   }
 
   return OK;
+}
+
+void HttpNetworkTransaction::ClearTunnelState() {
+  http_stream_.reset();
+  request_headers_.clear();
+  response_ = HttpResponseInfo();
+  headers_valid_ = false;
+}
+
+int HttpNetworkTransaction::DoTunnelSendRequest() {
+  next_state_ = STATE_TUNNEL_SEND_REQUEST_COMPLETE;
+
+  // This is constructed lazily (instead of within our Start method), so that
+  // we have proxy info available.
+  if (request_headers_.empty()) {
+    // Figure out if we can/should add Proxy-Authentication headers.
+    bool have_proxy_auth =
+        HaveAuth(HttpAuth::AUTH_PROXY) ||
+        SelectPreemptiveAuth(HttpAuth::AUTH_PROXY);
+
+    std::string request_line;
+    HttpRequestHeaders request_headers;
+    HttpRequestHeaders authorization_headers;
+
+    // TODO(wtc): If BuildAuthorizationHeader fails (returns an authorization
+    // header with no credentials), we should return an error to prevent
+    // entering an infinite auth restart loop.  See http://crbug.com/21050.
+    if (have_proxy_auth)
+      AddAuthorizationHeader(HttpAuth::AUTH_PROXY, &authorization_headers);
+
+    BuildTunnelRequest(request_, authorization_headers, endpoint_,
+                       &request_line, &request_headers);
+    if (net_log_.HasListener()) {
+      net_log_.AddEvent(
+          NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
+          new NetLogHttpRequestParameter(
+              request_line, request_headers));
+    }
+    request_headers_ = request_line + request_headers.ToString();
+  }
+
+  http_stream_.reset(new HttpBasicStream(connection_.get(), net_log_));
+
+  return http_stream_->SendRequest(request_, request_headers_, NULL, &response_,
+                                   &io_callback_);
+}
+
+int HttpNetworkTransaction::DoTunnelSendRequestComplete(int result) {
+  if (result < 0)
+    return result;
+
+  next_state_ = STATE_TUNNEL_READ_HEADERS;
+  return OK;
+}
+
+int HttpNetworkTransaction::DoTunnelReadHeaders() {
+  next_state_ = STATE_TUNNEL_READ_HEADERS_COMPLETE;
+
+  return http_stream_->ReadResponseHeaders(&io_callback_);
+}
+
+int HttpNetworkTransaction::DoTunnelReadHeadersComplete(int result) {
+  if (result < 0) {
+    if (result == ERR_CONNECTION_CLOSED)
+      result = ERR_TUNNEL_CONNECTION_FAILED;
+    ClearTunnelState();
+    return result;
+  }
+
+  // Require the "HTTP/1.x" status line for SSL CONNECT.
+  if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
+    ClearTunnelState();
+    return ERR_TUNNEL_CONNECTION_FAILED;
+  }
+
+  if (net_log_.HasListener()) {
+    net_log_.AddEvent(
+        NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
+        new NetLogHttpResponseParameter(response_.headers));
+  }
+
+  int rv = result;
+  switch (response_.headers->response_code()) {
+    case 200:  // OK
+      if (http_stream_->IsMoreDataBuffered()) {
+        // The proxy sent extraneous data after the headers.
+        rv = ERR_TUNNEL_CONNECTION_FAILED;
+      } else {
+        next_state_ = STATE_SSL_CONNECT;
+        rv = OK;
+      }
+      break;
+
+      // We aren't able to CONNECT to the remote host through the proxy.  We
+      // need to be very suspicious about the response because an active network
+      // attacker can force us into this state by masquerading as the proxy.
+      // The only safe thing to do here is to fail the connection because our
+      // client is expecting an SSL protected response.
+      // See http://crbug.com/7338.
+    case 407:  // Proxy Authentication Required
+      // We need this status code to allow proxy authentication.  Our
+      // authentication code is smart enough to avoid being tricked by an
+      // active network attacker.
+      headers_valid_ = true;
+      return HandleAuthChallenge(true);
+
+    default:
+      // For all other status codes, we conservatively fail the CONNECT
+      // request.
+      // We lose something by doing this.  We have seen proxy 403, 404, and
+      // 501 response bodies that contain a useful error message.  For
+      // example, Squid uses a 404 response to report the DNS error: "The
+      // domain name does not exist."
+      LogBlockedTunnelResponse(response_.headers->response_code());
+      rv = ERR_TUNNEL_CONNECTION_FAILED;
+  }
+  ClearTunnelState();
+  return rv;
 }
 
 int HttpNetworkTransaction::DoSSLConnect() {
@@ -1031,7 +1178,7 @@ int HttpNetworkTransaction::DoSendRequest() {
   next_state_ = STATE_SEND_REQUEST_COMPLETE;
 
   UploadDataStream* request_body = NULL;
-  if (!establishing_tunnel_ && request_->upload_data) {
+  if (request_->upload_data) {
     int error_code;
     request_body = UploadDataStream::Create(request_->upload_data, &error_code);
     if (!request_body)
@@ -1064,27 +1211,15 @@ int HttpNetworkTransaction::DoSendRequest() {
     if (have_server_auth)
       AddAuthorizationHeader(HttpAuth::AUTH_SERVER, &authorization_headers);
 
-    if (establishing_tunnel_) {
-      BuildTunnelRequest(request_, authorization_headers, endpoint_,
-                         &request_line, &request_headers);
-      if (net_log_.HasListener()) {
-        net_log_.AddEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
-            new NetLogHttpRequestParameter(
-                request_line, request_headers));
-      }
-    } else {
-      BuildRequestHeaders(request_, authorization_headers, request_body,
-                          !using_ssl_ && proxy_info_.is_http(), &request_line,
-                          &request_headers);
-      if (net_log_.HasListener()) {
-        net_log_.AddEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
-            new NetLogHttpRequestParameter(
-                request_line, request_headers));
-      }
+    BuildRequestHeaders(request_, authorization_headers, request_body,
+                        !using_ssl_ && proxy_info_.is_http(), &request_line,
+                        &request_headers);
+    if (net_log_.HasListener()) {
+      net_log_.AddEvent(
+          NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
+          new NetLogHttpRequestParameter(
+              request_line, request_headers));
     }
-
     request_headers_ = request_line + request_headers.ToString();
   }
 
@@ -1111,11 +1246,6 @@ int HttpNetworkTransaction::DoReadHeaders() {
 }
 
 int HttpNetworkTransaction::HandleConnectionClosedBeforeEndOfHeaders() {
-  if (establishing_tunnel_) {
-    // The connection was closed before the tunnel could be established.
-    return ERR_TUNNEL_CONNECTION_FAILED;
-  }
-
   if (!response_.headers) {
     // The connection was closed before any data was sent. Likely an error
     // rather than empty HTTP/0.9 response.
@@ -1184,67 +1314,17 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   }
 
   if (net_log_.HasListener()) {
-    if (establishing_tunnel_) {
-      net_log_.AddEvent(
-          NetLog::TYPE_HTTP_TRANSACTION_READ_TUNNEL_RESPONSE_HEADERS,
-          new NetLogHttpResponseParameter(response_.headers));
-    } else {
-      net_log_.AddEvent(
-          NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
-          new NetLogHttpResponseParameter(response_.headers));
-    }
+    net_log_.AddEvent(
+        NetLog::TYPE_HTTP_TRANSACTION_READ_RESPONSE_HEADERS,
+        new NetLogHttpResponseParameter(response_.headers));
   }
 
   if (response_.headers->GetParsedHttpVersion() < HttpVersion(1, 0)) {
-    // Require the "HTTP/1.x" status line for SSL CONNECT.
-    if (establishing_tunnel_)
-      return ERR_TUNNEL_CONNECTION_FAILED;
-
     // HTTP/0.9 doesn't support the PUT method, so lack of response headers
     // indicates a buggy server.  See:
     // https://bugzilla.mozilla.org/show_bug.cgi?id=193921
     if (request_->method == "PUT")
       return ERR_METHOD_NOT_SUPPORTED;
-  }
-
-  if (establishing_tunnel_) {
-    switch (response_.headers->response_code()) {
-      case 200:  // OK
-        if (http_stream_->IsMoreDataBuffered()) {
-          // The proxy sent extraneous data after the headers.
-          return ERR_TUNNEL_CONNECTION_FAILED;
-        }
-        next_state_ = STATE_SSL_CONNECT;
-        // Reset for the real request and response headers.
-        request_headers_.clear();
-        http_stream_.reset(NULL);
-        headers_valid_ = false;
-        establishing_tunnel_ = false;
-        // TODO(mbelshe): We should put in a test case to trip this code path.
-        response_ = HttpResponseInfo();
-        return OK;
-
-        // We aren't able to CONNECT to the remote host through the proxy.  We
-        // need to be very suspicious about the response because an active
-        // network attacker can force us into this state by masquerading as the
-        // proxy. The only safe thing to do here is to fail the connection
-        // because our client is expecting an SSL protected response.
-        // See http://crbug.com/7338.
-      case 407:  // Proxy Authentication Required
-        // We need this status code to allow proxy authentication.  Our
-        // authentication code is smart enough to avoid being tricked by an
-        // active network attacker.
-        break;
-      default:
-        // For all other status codes, we conservatively fail the CONNECT
-        // request.
-        // We lose something by doing this.  We have seen proxy 403, 404, and
-        // 501 response bodies that contain a useful error message.  For
-        // example, Squid uses a 404 response to report the DNS error: "The
-        // domain name does not exist."
-        LogBlockedTunnelResponse(response_.headers->response_code());
-        return ERR_TUNNEL_CONNECTION_FAILED;
-    }
   }
 
   // Check for an intermediate 100 Continue response.  An origin server is
@@ -1262,11 +1342,11 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
                            endpoint_,
                            session_->mutable_alternate_protocols());
 
-  int rv = HandleAuthChallenge();
+  int rv = HandleAuthChallenge(false);
   if (rv != OK)
     return rv;
 
-  if (using_ssl_ && !establishing_tunnel_) {
+  if (using_ssl_) {
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_->socket());
     ssl_socket->GetSSLInfo(&response_.ssl_info);
@@ -1305,9 +1385,6 @@ int HttpNetworkTransaction::DoReadBody() {
 
 int HttpNetworkTransaction::DoReadBodyComplete(int result) {
   // We are done with the Read call.
-  DCHECK(!establishing_tunnel_) <<
-      "We should never read a response body of a tunnel.";
-
   bool done = false, keep_alive = false;
   if (result <= 0)
     done = true;
@@ -1721,8 +1798,7 @@ bool HttpNetworkTransaction::ShouldResendRequest(int error) const {
   // NOTE: we resend a request only if we reused a keep-alive connection.
   // This automatically prevents an infinite resend loop because we'll run
   // out of the cached keep-alive connections eventually.
-  if (establishing_tunnel_ ||
-      !connection_->ShouldResendFailedRequest(error) ||
+  if (!connection_->ShouldResendFailedRequest(error) ||
       GetResponseHeaders()) {  // We have received some response headers.
     return false;
   }
@@ -1801,12 +1877,11 @@ int HttpNetworkTransaction::ReconsiderProxyAfterError(int error) {
 }
 
 bool HttpNetworkTransaction::ShouldApplyProxyAuth() const {
-  return (!using_ssl_ && proxy_info_.is_http()) || establishing_tunnel_;
+  return !using_ssl_ && proxy_info_.is_http();
 }
 
 bool HttpNetworkTransaction::ShouldApplyServerAuth() const {
-  return !establishing_tunnel_ &&
-      !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA);
+  return !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA);
 }
 
 void HttpNetworkTransaction::AddAuthorizationHeader(
@@ -2007,7 +2082,7 @@ std::string HttpNetworkTransaction::AuthChallengeLogMessage() const {
   return msg;
 }
 
-int HttpNetworkTransaction::HandleAuthChallenge() {
+int HttpNetworkTransaction::HandleAuthChallenge(bool establishing_tunnel) {
   scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
   DCHECK(headers);
 
@@ -2050,7 +2125,7 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
   }
 
   if (!auth_handler_[target]) {
-    if (establishing_tunnel_) {
+    if (establishing_tunnel) {
       LOG(ERROR) << "Can't perform auth to the " << AuthTargetString(target)
                  << " " << auth_origin << " when establishing a tunnel"
                  << AuthChallengeLogMessage();
