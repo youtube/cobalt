@@ -26,9 +26,9 @@ int g_max_sockets = 256;
 int g_max_sockets_per_group = 6;
 
 // The max number of sockets to allow per proxy server.  This applies both to
-// http and SOCKS proxies.  See http://crbug.com/12066 for details about proxy
-// server connection limits.
-int g_max_sockets_per_proxy_server = 15;
+// http and SOCKS proxies.  See http://crbug.com/12066 and
+// http://crbug.com/44501 for details about proxy server connection limits.
+int g_max_sockets_per_proxy_server = 32;
 
 uint16 g_fixed_http_port = 0;
 uint16 g_fixed_https_port = 0;
