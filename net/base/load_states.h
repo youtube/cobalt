@@ -29,6 +29,10 @@ enum LoadState {
   // host before deciding what proxy to use.
   LOAD_STATE_RESOLVING_PROXY_FOR_URL,
 
+  // This state indicates that we're in the process of establishing a tunnel
+  // through the proxy server.
+  LOAD_STATE_ESTABLISHING_PROXY_TUNNEL,
+
   // This state corresponds to a resource load that is blocked waiting for a
   // host name to be resolved.  This could either indicate resolution of the
   // origin server corresponding to the resource or to the host name of a proxy
