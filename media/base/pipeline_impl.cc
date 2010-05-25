@@ -77,7 +77,8 @@ PipelineImpl::PipelineImpl(MessageLoop* message_loop)
       clock_(&base::Time::Now),
       waiting_for_clock_update_(false),
       state_(kCreated),
-      remaining_transitions_(0) {
+      remaining_transitions_(0),
+      current_bytes_(0) {
   ResetState();
 }
 
@@ -220,24 +221,32 @@ base::TimeDelta PipelineImpl::GetCurrentTime() const {
   return elapsed;
 }
 
-base::TimeDelta PipelineImpl::GetBufferedTime() const {
+
+base::TimeDelta PipelineImpl::GetBufferedTime() {
+  DCHECK(buffered_bytes_ >= current_bytes_);
   AutoLock auto_lock(lock_);
 
   // If buffered time was set, we report that value directly.
   if (buffered_time_.ToInternalValue() > 0)
     return buffered_time_;
 
-  // If buffered time was not set, we use duration and buffered bytes to
-  // estimate the buffered time.
-  // TODO(hclam): The estimation is based on linear interpolation which is
-  // not accurate enough. We should find a better way to estimate the value.
-  if (total_bytes_ == 0)
+  if (total_bytes_ == 0 || current_bytes_ == 0)
     return base::TimeDelta();
 
-  double ratio = static_cast<double>(buffered_bytes_);
-  ratio /= total_bytes_;
+  // If buffered time was not set, we use current time, current bytes, and
+  // buffered bytes to estimate the buffered time.
+  double current_time = static_cast<double>(current_bytes_) / total_bytes_ *
+                        duration_.InMilliseconds();
+  double rate = current_time / current_bytes_;
+  double buffered_time = rate * (buffered_bytes_ - current_bytes_) +
+                         current_time;
+
+  // Only print the max buffered time for smooth buffering.
+  if (buffered_time > max_buffered_time_)
+    max_buffered_time_ = buffered_time;
+
   return base::TimeDelta::FromMilliseconds(
-      static_cast<int64>(duration_.InMilliseconds() * ratio));
+      static_cast<int64>(max_buffered_time_));
 }
 
 base::TimeDelta PipelineImpl::GetMediaDuration() const {
@@ -276,6 +285,16 @@ bool PipelineImpl::IsLoaded() const {
 PipelineError PipelineImpl::GetError() const {
   AutoLock auto_lock(lock_);
   return error_;
+}
+
+void PipelineImpl::SetCurrentReadPosition(int64 offset) {
+  AutoLock auto_lock(lock_);
+  current_bytes_ = offset;
+}
+
+int64 PipelineImpl::GetCurrentReadPosition() {
+  AutoLock auto_lock(lock_);
+  return current_bytes_;
 }
 
 void PipelineImpl::SetPipelineEndedCallback(PipelineCallback* ended_callback) {

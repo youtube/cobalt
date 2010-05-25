@@ -488,7 +488,7 @@ TEST_F(PipelineImplTest, Properties) {
             pipeline_->GetMediaDuration().ToInternalValue());
   EXPECT_EQ(kTotalBytes, pipeline_->GetTotalBytes());
   EXPECT_EQ(kBufferedBytes, pipeline_->GetBufferedBytes());
-  EXPECT_EQ(kDuration.ToInternalValue(),
+  EXPECT_EQ(0,
             pipeline_->GetBufferedTime().ToInternalValue());
 }
 

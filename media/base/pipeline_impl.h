@@ -79,7 +79,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual float GetVolume() const;
   virtual void SetVolume(float volume);
   virtual base::TimeDelta GetCurrentTime() const;
-  virtual base::TimeDelta GetBufferedTime() const;
+  virtual base::TimeDelta GetBufferedTime();
   virtual base::TimeDelta GetMediaDuration() const;
   virtual int64 GetBufferedBytes() const;
   virtual int64 GetTotalBytes() const;
@@ -153,6 +153,8 @@ class PipelineImpl : public Pipeline, public FilterHost {
   virtual void SetNetworkActivity(bool network_activity);
   virtual void NotifyEnded();
   virtual void DisableAudioRenderer();
+  virtual void SetCurrentReadPosition(int64 offset);
+  virtual int64 GetCurrentReadPosition();
 
   // Method called during initialization to insert a mime type into the
   // |rendered_mime_types_| set.
@@ -356,6 +358,15 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // For kSeeking we need to remember where we're seeking between filter
   // replies.
   base::TimeDelta seek_timestamp_;
+
+  // For GetCurrentBytes()/SetCurrentBytes() we need to know what byte we are
+  // currently reading.
+  int64 current_bytes_;
+
+  // Keep track of the maximum buffered position so the buffering appears
+  // smooth.
+  // TODO(vrk): This is a hack.
+  double max_buffered_time_;
 
   // Filter factory as passed in by Start().
   scoped_refptr<FilterFactory> filter_factory_;

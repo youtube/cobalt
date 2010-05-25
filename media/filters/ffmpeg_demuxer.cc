@@ -335,6 +335,9 @@ int FFmpegDemuxer::Read(int size, uint8* data) {
     return AVERROR_IO;
   }
   read_position_ += last_read_bytes;
+
+  host()->SetCurrentReadPosition(read_position_);
+
   return last_read_bytes;
 }
 

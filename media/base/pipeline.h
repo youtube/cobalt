@@ -129,7 +129,7 @@ class Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Get the approximate amount of playable data buffered so far in micro-
   // seconds.
-  virtual base::TimeDelta GetBufferedTime() const = 0;
+  virtual base::TimeDelta GetBufferedTime() = 0;
 
   // Get the duration of the media in microseconds.  If the duration has not
   // been determined yet, then returns 0.
