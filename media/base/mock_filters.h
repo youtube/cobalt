@@ -18,6 +18,7 @@
 #include "base/callback.h"
 #include "media/base/factory.h"
 #include "media/base/filters.h"
+#include "media/base/video_frame.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace media {
@@ -170,7 +171,7 @@ class MockVideoDecoder : public VideoDecoder {
   MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
                                 FilterCallback* callback));
   MOCK_METHOD0(media_format, const MediaFormat&());
-  MOCK_METHOD1(Read, void(Callback1<VideoFrame*>::Type* read_callback));
+  MOCK_METHOD1(FillThisBuffer, void(scoped_refptr<VideoFrame>));
 
  protected:
   virtual ~MockVideoDecoder() {}
@@ -193,7 +194,12 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD2(Initialize, void(DemuxerStream* stream,
                                 FilterCallback* callback));
   MOCK_METHOD0(media_format, const MediaFormat&());
-  MOCK_METHOD1(Read, void(Callback1<Buffer*>::Type* read_callback));
+  MOCK_METHOD1(FillThisBuffer, void(scoped_refptr<Buffer>));
+
+  // change to public to allow unittest for access;
+  FillBufferDoneCallback* fill_buffer_done_callback() {
+    return AudioDecoder::fill_buffer_done_callback();
+  }
 
  protected:
   virtual ~MockAudioDecoder() {}

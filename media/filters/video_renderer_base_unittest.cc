@@ -48,7 +48,7 @@ class VideoRendererBaseTest : public ::testing::Test {
     renderer_->set_host(&host_);
 
     // Queue all reads from the decoder.
-    EXPECT_CALL(*decoder_, Read(NotNull()))
+    EXPECT_CALL(*decoder_, FillThisBuffer(_))
         .WillRepeatedly(Invoke(this, &VideoRendererBaseTest::EnqueueCallback));
 
     // Sets the essential media format keys for this decoder.
@@ -61,7 +61,7 @@ class VideoRendererBaseTest : public ::testing::Test {
   }
 
   virtual ~VideoRendererBaseTest() {
-    STLDeleteElements(&read_queue_);
+    read_queue_.clear();
 
     // Expect a call into the subclass.
     EXPECT_CALL(*renderer_, OnStop());
@@ -79,12 +79,12 @@ class VideoRendererBaseTest : public ::testing::Test {
   StrictMock<MockFilterCallback> callback_;
   MediaFormat decoder_media_format_;
 
-  // Receives asynchronous read requests sent to |decoder_|.
-  std::deque<Callback1<VideoFrame*>::Type*> read_queue_;
+  // Receives all the buffers that renderer had provided to |decoder_|.
+  std::deque<scoped_refptr<VideoFrame> > read_queue_;
 
  private:
-  void EnqueueCallback(Callback1<VideoFrame*>::Type* callback) {
-    read_queue_.push_back(callback);
+  void EnqueueCallback(scoped_refptr<VideoFrame> frame) {
+    read_queue_.push_back(frame);
   }
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBaseTest);
@@ -191,8 +191,7 @@ TEST_F(VideoRendererBaseTest, Initialize_Successful) {
     scoped_refptr<VideoFrame> frame;
     VideoFrame::CreateFrame(VideoFrame::RGB32, kWidth, kHeight, kZero,
                             kZero, &frame);
-    read_queue_.front()->Run(frame);
-    delete read_queue_.front();
+    decoder_->fill_buffer_done_callback()->Run(frame);
     read_queue_.pop_front();
   }
 }
