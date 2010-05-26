@@ -9,7 +9,9 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
+#include "base/ref_counted.h"
 #include "media/audio/audio_output.h"
+#include "media/base/data_buffer.h"
 
 //////////////////////////////////////////////////////////////////////////////
 // SineWaveAudioSource implementation.
@@ -51,39 +53,15 @@ void SineWaveAudioSource::OnError(AudioOutputStream* stream, int code) {
 // PushSource implementation.
 
 PushSource::PushSource()
-    : buffered_bytes_(0),
-      front_buffer_consumed_(0) {
+    : buffer_(0, 0) {
 }
 
-PushSource::~PushSource() {
-  CleanUp();
-}
+PushSource::~PushSource() { }
 
 uint32 PushSource::OnMoreData(AudioOutputStream* stream, void* dest,
                               uint32 max_size, uint32 pending_bytes) {
-  uint32 copied = 0;
-  while (copied < max_size) {
-    AutoLock auto_lock(lock_);
-
-    // Under lock processing in this scope.
-    if (!packets_.size())
-      break;
-    Packet packet = packets_.front();
-    uint32 size = std::min(max_size - copied,
-                           packet.size - front_buffer_consumed_);
-    memcpy(static_cast<char*>(dest) + copied,
-           packet.buffer + front_buffer_consumed_,
-           size);
-    front_buffer_consumed_ += size;
-    buffered_bytes_ -= size;
-    copied += size;
-    if (front_buffer_consumed_ == packet.size) {
-      delete [] packet.buffer;
-      packets_.pop_front();
-      front_buffer_consumed_ = 0;
-    }
-  }
-  return copied;
+  AutoLock auto_lock(buffer_lock_);
+  return buffer_.Read(static_cast<uint8*>(dest), max_size);
 }
 
 void PushSource::OnClose(AudioOutputStream* stream) {
@@ -100,18 +78,14 @@ bool PushSource::Write(const void *data, uint32 len) {
     NOTREACHED();
     return false;
   }
-  Packet packet = { new char[len], len };
-  memcpy(packet.buffer, data, packet.size);
-  // Under lock processing here.
-  AutoLock auto_lock(lock_);
-  packets_.push_back(packet);
-  buffered_bytes_ += len;
+  AutoLock auto_lock(buffer_lock_);
+  buffer_.Append(static_cast<const uint8*>(data), len);
   return true;
 }
 
 uint32 PushSource::UnProcessedBytes() {
-  AutoLock auto_lock(lock_);
-  return buffered_bytes_;
+  AutoLock auto_lock(buffer_lock_);
+  return buffer_.forward_bytes();
 }
 
 void PushSource::ClearAll() {
@@ -120,12 +94,6 @@ void PushSource::ClearAll() {
 }
 
 void PushSource::CleanUp() {
-  AutoLock auto_lock(lock_);
-  PacketList::const_iterator it;
-  for (it = packets_.begin(); it != packets_.end(); ++it) {
-    delete [] it->buffer;
-  }
-  packets_.clear();
-  buffered_bytes_ = 0;
-  front_buffer_consumed_ = 0;
+  AutoLock auto_lock(buffer_lock_);
+  buffer_.Clear();
 }

@@ -291,6 +291,9 @@ TEST_F(SeekableBufferTest, AllMethods) {
 
 
 TEST_F(SeekableBufferTest, GetTime) {
+  const base::TimeDelta kInvalidTimestamp =
+      media::StreamSample::kInvalidTimestamp;
+
   const struct {
     int64 first_time_useconds;
     int64 duration_useconds;
@@ -298,15 +301,15 @@ TEST_F(SeekableBufferTest, GetTime) {
     int64 expected_time;
   } tests[] = {
     // Timestamps of 0 are treated as garbage.
-    { 0, 1000000, 0, 0 },
-    { 0, 4000000, 0, 0 },
-    { 0, 8000000, 0, 0 },
-    { 0, 1000000, 4, 0 },
-    { 0, 4000000, 4, 0 },
-    { 0, 8000000, 4, 0 },
-    { 0, 1000000, kWriteSize, 0 },
-    { 0, 4000000, kWriteSize, 0 },
-    { 0, 8000000, kWriteSize, 0 },
+    { 0, 1000000, 0, kInvalidTimestamp.ToInternalValue() },
+    { 0, 4000000, 0, kInvalidTimestamp.ToInternalValue() },
+    { 0, 8000000, 0, kInvalidTimestamp.ToInternalValue() },
+    { 0, 1000000, 4, kInvalidTimestamp.ToInternalValue() },
+    { 0, 4000000, 4, kInvalidTimestamp.ToInternalValue() },
+    { 0, 8000000, 4, kInvalidTimestamp.ToInternalValue() },
+    { 0, 1000000, kWriteSize, kInvalidTimestamp.ToInternalValue() },
+    { 0, 4000000, kWriteSize, kInvalidTimestamp.ToInternalValue() },
+    { 0, 8000000, kWriteSize, kInvalidTimestamp.ToInternalValue() },
     { 5, 1000000, 0, 5 },
     { 5, 4000000, 0, 5 },
     { 5, 8000000, 0, 5 },
@@ -317,6 +320,10 @@ TEST_F(SeekableBufferTest, GetTime) {
     { 5, 4000000, kWriteSize, 4000005 },
     { 5, 8000000, kWriteSize, 8000005 },
   };
+
+  // current_time() must initially return kInvalidTimestamp.
+  EXPECT_EQ(kInvalidTimestamp.ToInternalValue(),
+            buffer_.current_time().ToInternalValue());
 
   scoped_refptr<media::DataBuffer> buffer = new media::DataBuffer(kWriteSize);
   memcpy(buffer->GetWritableData(), data_, kWriteSize);
