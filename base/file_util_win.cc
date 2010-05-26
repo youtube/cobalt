@@ -431,15 +431,6 @@ bool TaskbarUnpinShortcutLink(const wchar_t* shortcut) {
   return result > 32;
 }
 
-bool IsDirectoryEmpty(const std::wstring& dir_path) {
-  FileEnumerator files(FilePath(dir_path), false,
-    static_cast<FileEnumerator::FILE_TYPE>(
-        FileEnumerator::FILES | FileEnumerator::DIRECTORIES));
-  if (files.Next().value().empty())
-    return true;
-  return false;
-}
-
 bool GetTempDir(FilePath* path) {
   wchar_t temp_path[MAX_PATH + 1];
   DWORD path_len = ::GetTempPath(MAX_PATH, temp_path);
