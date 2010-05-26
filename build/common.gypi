@@ -554,12 +554,6 @@
           # We use "POSIX" to refer to all non-Windows operating systems.
           ['OS=="win"', {
             'sources/': [ ['exclude', '_posix\\.cc$'] ],
-            # turn on warnings for signed/unsigned mismatch on chromium code.
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'AdditionalOptions': ['/we4389'],
-              },
-            },
           }],
           # Though Skia is conceptually shared by Linux and Windows,
           # the only _skia files in our tree are Linux-specific.
