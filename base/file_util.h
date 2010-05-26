@@ -212,16 +212,16 @@ bool TaskbarPinShortcutLink(const wchar_t* shortcut);
 // already be pinned to the taskbar.
 bool TaskbarUnpinShortcutLink(const wchar_t* shortcut);
 
-// Return true if the given directory is empty
-bool IsDirectoryEmpty(const std::wstring& dir_path);
-
 // Copy from_path to to_path recursively and then delete from_path recursively.
 // Returns true if all operations succeed.
 // This function simulates Move(), but unlike Move() it works across volumes.
 // This fuction is not transactional.
 bool CopyAndDeleteDirectory(const FilePath& from_path,
                             const FilePath& to_path);
-#endif
+#endif  // defined(OS_WIN)
+
+// Return true if the given directory is empty
+bool IsDirectoryEmpty(const FilePath& dir_path);
 
 // Get the temporary directory provided by the system.
 bool GetTempDir(FilePath* path);
