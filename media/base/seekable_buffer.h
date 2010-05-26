@@ -111,9 +111,9 @@ class SeekableBuffer {
   // value calculated based on the timestamp of the current buffer. If
   // timestamp for the current buffer is set to 0 or the data was added with
   // Append(const uint*, size_t), then returns value that corresponds to the
-  // last position in a buffer that had timestamp set. 0 is returned if no
-  // buffers we read from had timestamp set.
-  // TODO(sergeyu): Use StreamSample::kInvalidTimestamp here.
+  // last position in a buffer that had timestamp set.
+  // StreamSample::kInvalidTimestamp is returned if no buffers we read
+  // from had timestamp set.
   base::TimeDelta current_time() const { return current_time_; }
 
  private:
