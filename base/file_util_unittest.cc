@@ -1622,4 +1622,20 @@ TEST_F(FileUtilTest, LastModified) {
   ASSERT_TRUE(file_info.last_modified == modification_time);
 }
 
+TEST_F(FileUtilTest, IsDirectoryEmpty) {
+  FilePath empty_dir = test_dir_.Append(FILE_PATH_LITERAL("EmptyDir"));
+
+  ASSERT_FALSE(file_util::PathExists(empty_dir));
+
+  ASSERT_TRUE(file_util::CreateDirectory(empty_dir));
+
+  EXPECT_TRUE(file_util::IsDirectoryEmpty(empty_dir));
+
+  FilePath foo(empty_dir.Append(FILE_PATH_LITERAL("foo.txt")));
+  std::string bar("baz");
+  ASSERT_TRUE(file_util::WriteFile(foo, bar.c_str(), bar.length()));
+
+  EXPECT_FALSE(file_util::IsDirectoryEmpty(empty_dir));
+}
+
 }  // namespace
