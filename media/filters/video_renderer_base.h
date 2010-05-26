@@ -82,8 +82,9 @@ class VideoRendererBase : public VideoRenderer,
   virtual void OnFrameAvailable() = 0;
 
  private:
-  // Read complete callback from video decoder and decrements |pending_reads_|.
-  void OnReadComplete(VideoFrame* frame);
+  // Callback from video decoder to deliver decoded video frames and decrements
+  // |pending_reads_|.
+  void OnFillBufferDone(scoped_refptr<VideoFrame> frame);
 
   // Helper method that schedules an asynchronous read from the decoder and
   // increments |pending_reads_|.

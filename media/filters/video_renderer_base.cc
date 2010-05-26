@@ -146,6 +146,8 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   decoder_ = decoder;
   scoped_ptr<FilterCallback> c(callback);
 
+  decoder_->set_fill_buffer_done_callback(
+      NewCallback(this, &VideoRendererBase::OnFillBufferDone));
   // Notify the pipeline of the video dimensions.
   if (!ParseMediaFormat(decoder->media_format(), &width_, &height_,
                         &uses_egl_image_)) {
@@ -312,7 +314,7 @@ void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
   *frame_out = current_frame_;
 }
 
-void VideoRendererBase::OnReadComplete(VideoFrame* frame) {
+void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
   AutoLock auto_lock(lock_);
 
   // TODO(ajwong): Work around cause we don't synchronize on stop. Correct
@@ -367,7 +369,11 @@ void VideoRendererBase::ScheduleRead_Locked() {
   DCHECK_NE(kEnded, state_);
   DCHECK_LT(pending_reads_, kMaxFrames);
   ++pending_reads_;
-  decoder_->Read(NewCallback(this, &VideoRendererBase::OnReadComplete));
+  // TODO(jiesun): We use dummy buffer to feed decoder to let decoder to
+  // provide buffer pools. In the future, we may want to implement real
+  // buffer pool to recycle buffers.
+  scoped_refptr<VideoFrame> video_frame;
+  decoder_->FillThisBuffer(video_frame);
 }
 
 base::TimeDelta VideoRendererBase::CalculateSleepDuration(
