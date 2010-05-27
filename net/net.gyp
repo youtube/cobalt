@@ -733,6 +733,7 @@
         'spdy/spdy_test_util.h',
         'url_request/url_request_unittest.cc',
         'url_request/url_request_unittest.h',
+        'url_request/view_cache_helper_unittest.cc',
         'websockets/websocket_handshake_draft75_unittest.cc',
         'websockets/websocket_handshake_unittest.cc',
         'websockets/websocket_job_unittest.cc',
