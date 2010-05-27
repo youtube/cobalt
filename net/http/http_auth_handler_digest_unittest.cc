@@ -254,7 +254,8 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
     scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest(1);
     std::string challenge = tests[i].challenge;
     HttpAuth::ChallengeTokenizer tok(challenge.begin(), challenge.end());
-    EXPECT_TRUE(digest->InitFromChallenge(&tok, HttpAuth::AUTH_SERVER, origin));
+    EXPECT_TRUE(digest->InitFromChallenge(&tok, HttpAuth::AUTH_SERVER, origin,
+                                          BoundNetLog()));
 
     std::string creds = digest->AssembleCredentials(tests[i].req_method,
                                                     tests[i].req_path,

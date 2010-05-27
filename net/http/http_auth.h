@@ -11,6 +11,7 @@ template <class T> class scoped_refptr;
 
 namespace net {
 
+class BoundNetLog;
 class HttpAuthHandler;
 class HttpAuthHandlerFactory;
 class HttpResponseHeaders;
@@ -93,6 +94,7 @@ class HttpAuth {
       const HttpResponseHeaders* headers,
       Target target,
       const GURL& origin,
+      const BoundNetLog& net_log,
       scoped_refptr<HttpAuthHandler>* handler);
 
   // ChallengeTokenizer breaks up a challenge string into the the auth scheme

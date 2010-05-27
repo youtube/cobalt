@@ -19,10 +19,11 @@ int HttpAuthHandlerFactory::CreateAuthHandlerFromString(
     const std::string& challenge,
     HttpAuth::Target target,
     const GURL& origin,
+    const BoundNetLog& net_log,
     scoped_refptr<HttpAuthHandler>* handler) {
   HttpAuth::ChallengeTokenizer props(challenge.begin(), challenge.end());
   return CreateAuthHandler(&props, target, origin, CREATE_CHALLENGE, 1,
-                           handler);
+                           net_log, handler);
 }
 
 int HttpAuthHandlerFactory::CreatePreemptiveAuthHandlerFromString(
@@ -30,10 +31,11 @@ int HttpAuthHandlerFactory::CreatePreemptiveAuthHandlerFromString(
     HttpAuth::Target target,
     const GURL& origin,
     int digest_nonce_count,
+    const BoundNetLog& net_log,
     scoped_refptr<HttpAuthHandler>* handler) {
   HttpAuth::ChallengeTokenizer props(challenge.begin(), challenge.end());
   return CreateAuthHandler(&props, target, origin, CREATE_PREEMPTIVE,
-                           digest_nonce_count, handler);
+                           digest_nonce_count, net_log, handler);
 }
 
 // static
@@ -87,6 +89,7 @@ int HttpAuthHandlerRegistryFactory::CreateAuthHandler(
     const GURL& origin,
     CreateReason reason,
     int digest_nonce_count,
+    const BoundNetLog& net_log,
     scoped_refptr<HttpAuthHandler>* handler) {
   if (!challenge->valid()) {
     *handler = NULL;
@@ -100,7 +103,7 @@ int HttpAuthHandlerRegistryFactory::CreateAuthHandler(
   }
   DCHECK(it->second);
   return it->second->CreateAuthHandler(challenge, target, origin, reason,
-                                       digest_nonce_count, handler);
+                                       digest_nonce_count, net_log, handler);
 }
 
 HttpAuthHandlerFactory* HttpAuthHandlerRegistryFactory::GetSchemeFactory(
