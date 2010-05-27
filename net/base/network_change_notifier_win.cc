@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,7 +51,7 @@ NetworkChangeNotifierWin::Impl::~Impl() {
 void NetworkChangeNotifierWin::Impl::WatchForAddressChange() {
   HANDLE handle = NULL;
   DWORD ret = NotifyAddrChange(&handle, &addr_overlapped_);
-  CHECK_EQ(ERROR_IO_PENDING, ret);
+  CHECK(ret == ERROR_IO_PENDING);
   addr_watcher_.StartWatching(addr_overlapped_.hEvent, this);
 }
 
