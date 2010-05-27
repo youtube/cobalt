@@ -23,6 +23,7 @@ class HttpAuthHandlerBasic : public HttpAuthHandler {
                                   const GURL& origin,
                                   CreateReason reason,
                                   int digest_nonce_count,
+                                  const BoundNetLog& net_log,
                                   scoped_refptr<HttpAuthHandler>* handler);
   };
 

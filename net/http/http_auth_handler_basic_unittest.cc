@@ -30,7 +30,7 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
     std::string challenge = "Basic realm=\"Atlantis\"";
     scoped_refptr<HttpAuthHandler> basic = new HttpAuthHandlerBasic;
     EXPECT_EQ(OK, factory.CreateAuthHandlerFromString(
-        challenge, HttpAuth::AUTH_SERVER, origin, &basic));
+        challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(), &basic));
     std::string credentials;
     int rv = basic->GenerateAuthToken(tests[i].username,
                                       tests[i].password,
@@ -69,7 +69,7 @@ TEST(HttpAuthHandlerBasicTest, InitFromChallenge) {
     std::string challenge = tests[i].challenge;
     scoped_refptr<HttpAuthHandler> basic = new HttpAuthHandlerBasic;
     int rv = factory.CreateAuthHandlerFromString(
-        challenge, HttpAuth::AUTH_SERVER, origin, &basic);
+        challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(), &basic);
     EXPECT_EQ(tests[i].expected_rv, rv);
     if (rv == OK)
       EXPECT_EQ(tests[i].expected_realm, basic->realm());

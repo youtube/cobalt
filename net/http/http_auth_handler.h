@@ -9,11 +9,11 @@
 
 #include "base/ref_counted.h"
 #include "net/base/completion_callback.h"
+#include "net/base/net_log.h"
 #include "net/http/http_auth.h"
 
 namespace net {
 
-class BoundNetLog;
 class HostResolver;
 class ProxyInfo;
 struct HttpRequestInfo;
@@ -30,7 +30,8 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // for later use, and are not part of the initial challenge.
   bool InitFromChallenge(HttpAuth::ChallengeTokenizer* challenge,
                          HttpAuth::Target target,
-                         const GURL& origin);
+                         const GURL& origin,
+                         const BoundNetLog& net_log);
 
   // Lowercase name of the auth scheme
   const std::string& scheme() const {
@@ -121,8 +122,7 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
   // SPN.
   // The return value is a net error code.
   virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   CompletionCallback* callback,
-                                   const BoundNetLog& net_log);
+                                   CompletionCallback* callback);
 
  protected:
   enum Property {
@@ -164,6 +164,8 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
 
   // A bitmask of the properties of the authentication scheme.
   int properties_;
+
+  BoundNetLog net_log_;
 };
 
 }  // namespace net

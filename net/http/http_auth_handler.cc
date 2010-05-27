@@ -12,11 +12,13 @@ namespace net {
 bool HttpAuthHandler::InitFromChallenge(
     HttpAuth::ChallengeTokenizer* challenge,
     HttpAuth::Target target,
-    const GURL& origin) {
+    const GURL& origin,
+    const BoundNetLog& net_log) {
   origin_ = origin;
   target_ = target;
   score_ = -1;
   properties_ = -1;
+  net_log_ = net_log;
 
   auth_challenge_ = challenge->challenge_text();
   bool ok = Init(challenge);
@@ -31,8 +33,7 @@ bool HttpAuthHandler::InitFromChallenge(
 }
 
 int HttpAuthHandler::ResolveCanonicalName(net::HostResolver* host_resolver,
-                                          CompletionCallback* callback,
-                                          const BoundNetLog& net_log) {
+                                          CompletionCallback* callback) {
   NOTREACHED();
   LOG(ERROR) << ErrorToString(ERR_NOT_IMPLEMENTED);
   return ERR_NOT_IMPLEMENTED;

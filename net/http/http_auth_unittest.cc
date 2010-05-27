@@ -90,6 +90,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
                                   headers.get(),
                                   HttpAuth::AUTH_SERVER,
                                   origin,
+                                  BoundNetLog(),
                                   &handler);
 
     if (handler) {
@@ -147,6 +148,7 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
                                   headers.get(),
                                   HttpAuth::AUTH_SERVER,
                                   origin,
+                                  BoundNetLog(),
                                   &handler);
 
     EXPECT_TRUE(handler != NULL);

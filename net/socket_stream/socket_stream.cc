@@ -551,7 +551,7 @@ int SocketStream::DoWriteTunnelHeaders() {
             CreatePreemptiveAuthHandlerFromString(
                 entry->auth_challenge(), HttpAuth::AUTH_PROXY,
                 ProxyAuthOrigin(), entry->IncrementNonceCount(),
-                &handler_preemptive);
+                net_log_, &handler_preemptive);
         if (rv_create == OK) {
           auth_identity_.source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
           auth_identity_.invalid = false;
@@ -891,7 +891,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
   auth_identity_.invalid = true;
   HttpAuth::ChooseBestChallenge(http_auth_handler_factory_, headers,
                                 HttpAuth::AUTH_PROXY,
-                                auth_origin, &auth_handler_);
+                                auth_origin, net_log_, &auth_handler_);
   if (!auth_handler_) {
     LOG(ERROR) << "Can't perform auth to the proxy " << auth_origin;
     return ERR_TUNNEL_CONNECTION_FAILED;
