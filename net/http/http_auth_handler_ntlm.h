@@ -46,6 +46,7 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
                                   const GURL& origin,
                                   CreateReason reason,
                                   int digest_nonce_count,
+                                  const BoundNetLog& net_log,
                                   scoped_refptr<HttpAuthHandler>* handler);
 #if defined(NTLM_SSPI)
     // Set the SSPILibrary to use. Typically the only callers which need to
