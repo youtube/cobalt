@@ -29,7 +29,6 @@
 #include "net/http/http_transaction_factory.h"
 
 class GURL;
-class ViewCacheHelper;
 
 namespace disk_cache {
 class Backend;
@@ -47,6 +46,7 @@ class IOBuffer;
 class NetworkChangeNotifier;
 class ProxyService;
 class SSLConfigService;
+class ViewCacheHelper;
 
 class HttpCache : public HttpTransactionFactory,
                   public base::SupportsWeakPtr<HttpCache> {
@@ -204,7 +204,7 @@ class HttpCache : public HttpTransactionFactory,
     // Must remain at the end of the enum.
     kNumCacheEntryDataIndices
   };
-  friend class ::ViewCacheHelper;
+  friend class ViewCacheHelper;
 
  private:
   // Types --------------------------------------------------------------------
