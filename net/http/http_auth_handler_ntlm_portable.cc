@@ -731,6 +731,7 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
     const GURL& origin,
     CreateReason reason,
     int digest_nonce_count,
+    const BoundNetLog& net_log,
     scoped_refptr<HttpAuthHandler>* handler) {
   if (reason == CREATE_PREEMPTIVE)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
@@ -739,7 +740,7 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
   // NOTE: Default credentials are not supported for the portable implementation
   // of NTLM.
   scoped_refptr<HttpAuthHandler> tmp_handler(new HttpAuthHandlerNTLM);
-  if (!tmp_handler->InitFromChallenge(challenge, target, origin))
+  if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
     return ERR_INVALID_RESPONSE;
   handler->swap(tmp_handler);
   return OK;

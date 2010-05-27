@@ -21,6 +21,7 @@ class MockHttpAuthHandlerFactory : public HttpAuthHandlerFactory {
                                 const GURL& origin,
                                 CreateReason reason,
                                 int nonce_count,
+                                const BoundNetLog& net_log,
                                 scoped_refptr<HttpAuthHandler>* handler) {
     *handler = NULL;
     return return_code_;
@@ -50,39 +51,42 @@ TEST(HttpAuthHandlerFactoryTest, RegistryFactory) {
   // No schemes should be supported in the beginning.
   EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME,
             registry_factory.CreateAuthHandlerFromString(
-                "Basic", HttpAuth::AUTH_SERVER, gurl, &handler));
+                "Basic", HttpAuth::AUTH_SERVER, gurl, BoundNetLog(), &handler));
 
   // Test what happens with a single scheme.
   registry_factory.RegisterSchemeFactory("Basic", mock_factory_basic);
   EXPECT_EQ(kBasicReturnCode,
             registry_factory.CreateAuthHandlerFromString(
-                "Basic", HttpAuth::AUTH_SERVER, gurl, &handler));
+                "Basic", HttpAuth::AUTH_SERVER, gurl, BoundNetLog(), &handler));
   EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME,
             registry_factory.CreateAuthHandlerFromString(
-                "Digest", HttpAuth::AUTH_SERVER, gurl, &handler));
+                "Digest", HttpAuth::AUTH_SERVER, gurl, BoundNetLog(),
+                &handler));
 
   // Test multiple schemes
   registry_factory.RegisterSchemeFactory("Digest", mock_factory_digest);
   EXPECT_EQ(kBasicReturnCode,
             registry_factory.CreateAuthHandlerFromString(
-                "Basic", HttpAuth::AUTH_SERVER, gurl, &handler));
+                "Basic", HttpAuth::AUTH_SERVER, gurl, BoundNetLog(), &handler));
   EXPECT_EQ(kDigestReturnCode,
             registry_factory.CreateAuthHandlerFromString(
-                "Digest", HttpAuth::AUTH_SERVER, gurl, &handler));
+                "Digest", HttpAuth::AUTH_SERVER, gurl, BoundNetLog(),
+                &handler));
 
   // Test case-insensitivity
   EXPECT_EQ(kBasicReturnCode,
             registry_factory.CreateAuthHandlerFromString(
-                "basic", HttpAuth::AUTH_SERVER, gurl, &handler));
+                "basic", HttpAuth::AUTH_SERVER, gurl, BoundNetLog(), &handler));
 
   // Test replacement of existing auth scheme
   registry_factory.RegisterSchemeFactory("Digest", mock_factory_digest_replace);
   EXPECT_EQ(kBasicReturnCode,
             registry_factory.CreateAuthHandlerFromString(
-                "Basic", HttpAuth::AUTH_SERVER, gurl, &handler));
+                "Basic", HttpAuth::AUTH_SERVER, gurl, BoundNetLog(), &handler));
   EXPECT_EQ(kDigestReturnCodeReplace,
             registry_factory.CreateAuthHandlerFromString(
-                "Digest", HttpAuth::AUTH_SERVER, gurl, &handler));
+                "Digest", HttpAuth::AUTH_SERVER, gurl, BoundNetLog(),
+                &handler));
 }
 
 TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
@@ -97,6 +101,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         "Basic realm=\"FooBar\"",
         HttpAuth::AUTH_SERVER,
         server_origin,
+        BoundNetLog(),
         &handler);
     EXPECT_EQ(OK, rv);
     EXPECT_FALSE(handler.get() == NULL);
@@ -112,6 +117,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         "UNSUPPORTED realm=\"FooBar\"",
         HttpAuth::AUTH_SERVER,
         server_origin,
+        BoundNetLog(),
         &handler);
     EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME, rv);
     EXPECT_TRUE(handler.get() == NULL);
@@ -122,6 +128,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         "Digest realm=\"FooBar\", nonce=\"xyz\"",
         HttpAuth::AUTH_PROXY,
         proxy_origin,
+        BoundNetLog(),
         &handler);
     EXPECT_EQ(OK, rv);
     EXPECT_FALSE(handler.get() == NULL);
@@ -137,6 +144,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         "NTLM",
         HttpAuth::AUTH_SERVER,
         server_origin,
+        BoundNetLog(),
         &handler);
     EXPECT_EQ(OK, rv);
     ASSERT_FALSE(handler.get() == NULL);
@@ -153,6 +161,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         "Negotiate",
         HttpAuth::AUTH_SERVER,
         server_origin,
+        BoundNetLog(),
         &handler);
     EXPECT_EQ(OK, rv);
     EXPECT_FALSE(handler.get() == NULL);
@@ -169,6 +178,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
         "Negotiate",
         HttpAuth::AUTH_SERVER,
         server_origin,
+        BoundNetLog(),
         &handler);
     EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME, rv);
     EXPECT_TRUE(handler.get() == NULL);

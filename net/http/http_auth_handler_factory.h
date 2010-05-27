@@ -16,6 +16,7 @@ class GURL;
 
 namespace net {
 
+class BoundNetLog;
 class HttpAuthHandler;
 class HttpAuthHandlerRegistryFactory;
 
@@ -72,6 +73,7 @@ class HttpAuthHandlerFactory {
                                 const GURL& origin,
                                 CreateReason create_reason,
                                 int digest_nonce_count,
+                                const BoundNetLog& net_log,
                                 scoped_refptr<HttpAuthHandler>* handler) = 0;
 
   // Creates an HTTP authentication handler based on the authentication
@@ -82,6 +84,7 @@ class HttpAuthHandlerFactory {
   int CreateAuthHandlerFromString(const std::string& challenge,
                                   HttpAuth::Target target,
                                   const GURL& origin,
+                                  const BoundNetLog& net_log,
                                   scoped_refptr<HttpAuthHandler>* handler);
 
   // Creates an HTTP authentication handler based on the authentication
@@ -94,6 +97,7 @@ class HttpAuthHandlerFactory {
       HttpAuth::Target target,
       const GURL& origin,
       int digest_nonce_count,
+      const BoundNetLog& net_log,
       scoped_refptr<HttpAuthHandler>* handler);
 
   // Creates a standard HttpAuthHandlerRegistryFactory. The caller is
@@ -144,6 +148,7 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
                                 const GURL& origin,
                                 CreateReason reason,
                                 int digest_nonce_count,
+                                const BoundNetLog& net_log,
                                 scoped_refptr<HttpAuthHandler>* handler);
 
  private:

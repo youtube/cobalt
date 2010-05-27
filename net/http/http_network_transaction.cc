@@ -1361,7 +1361,7 @@ int HttpNetworkTransaction::DoResolveCanonicalName() {
   DCHECK(auth_handler);
   next_state_ = STATE_RESOLVE_CANONICAL_NAME_COMPLETE;
   return auth_handler->ResolveCanonicalName(session_->host_resolver(),
-                                            &io_callback_, net_log_);
+                                            &io_callback_);
 }
 
 int HttpNetworkTransaction::DoResolveCanonicalNameComplete(int result) {
@@ -1991,7 +1991,7 @@ bool HttpNetworkTransaction::SelectPreemptiveAuth(HttpAuth::Target target) {
   int rv_create = session_->http_auth_handler_factory()->
       CreatePreemptiveAuthHandlerFromString(
           entry->auth_challenge(), target, AuthOrigin(target),
-          entry->IncrementNonceCount(), &handler_preemptive);
+          entry->IncrementNonceCount(), net_log_, &handler_preemptive);
   if (rv_create != OK)
     return false;
 
@@ -2120,8 +2120,8 @@ int HttpNetworkTransaction::HandleAuthChallenge(bool establishing_tunnel) {
       !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA)) {
     // Find the best authentication challenge that we support.
     HttpAuth::ChooseBestChallenge(session_->http_auth_handler_factory(),
-                                  headers, target,
-                                  auth_origin, &auth_handler_[target]);
+                                  headers, target, auth_origin, net_log_,
+                                  &auth_handler_[target]);
   }
 
   if (!auth_handler_[target]) {

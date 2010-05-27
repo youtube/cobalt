@@ -55,6 +55,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                   const GURL& origin,
                                   CreateReason reason,
                                   int digest_nonce_count,
+                                  const BoundNetLog& net_log,
                                   scoped_refptr<HttpAuthHandler>* handler);
 
 #if defined(OS_WIN)
@@ -106,8 +107,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                        std::string* auth_token);
 
   virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   CompletionCallback* callback,
-                                   const BoundNetLog& net_log);
+                                   CompletionCallback* callback);
 
 #if defined(OS_WIN)
   // These are public for unit tests
