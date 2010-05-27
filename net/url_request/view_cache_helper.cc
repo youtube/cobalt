@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,7 @@
 #include "base/string_util.h"
 #include "net/base/escape.h"
 #include "net/base/io_buffer.h"
+#include "net/base/net_errors.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_response_headers.h"
@@ -19,7 +20,9 @@
 #define VIEW_CACHE_TAIL \
   "</table></body></html>"
 
-static void HexDump(const char *buf, size_t buf_len, std::string* result) {
+namespace {
+
+void HexDump(const char *buf, size_t buf_len, std::string* result) {
   const size_t kMaxRows = 16;
   int offset = 0;
 
@@ -56,8 +59,8 @@ static void HexDump(const char *buf, size_t buf_len, std::string* result) {
   }
 }
 
-static std::string FormatEntryInfo(disk_cache::Entry* entry,
-                                   const std::string& url_prefix) {
+std::string FormatEntryInfo(disk_cache::Entry* entry,
+                            const std::string& url_prefix) {
   std::string key = entry->GetKey();
   GURL url = GURL(url_prefix + key);
   std::string row =
@@ -66,117 +69,271 @@ static std::string FormatEntryInfo(disk_cache::Entry* entry,
   return row;
 }
 
-static std::string FormatEntryDetails(disk_cache::Entry* entry,
-                                      int num_entry_data_indices) {
-  std::string result = EscapeForHTML(entry->GetKey());
+}  // namespace.
 
-  net::HttpResponseInfo response;
-  bool truncated;
-  if (net::HttpCache::ReadResponseInfo(entry, &response, &truncated) &&
-      response.headers) {
-    if (truncated)
-      result.append("<pre>RESPONSE_INFO_TRUNCATED</pre>");
+namespace net {
 
-    result.append("<hr><pre>");
-    result.append(EscapeForHTML(response.headers->GetStatusLine()));
-    result.push_back('\n');
+ViewCacheHelper::~ViewCacheHelper() {
+  if (entry_)
+    entry_->Close();
 
-    void* iter = NULL;
-    std::string name, value;
-    while (response.headers->EnumerateHeaderLines(&iter, &name, &value)) {
-      result.append(EscapeForHTML(name));
-      result.append(": ");
-      result.append(EscapeForHTML(value));
-      result.push_back('\n');
-    }
-    result.append("</pre>");
-  }
-
-  for (int i = 0; i < num_entry_data_indices; ++i) {
-    result.append("<hr><pre>");
-
-    int data_size = entry->GetDataSize(i);
-
-    if (data_size) {
-      scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(data_size);
-      if (entry->ReadData(i, 0, buffer, data_size, NULL) == data_size)
-        HexDump(buffer->data(), data_size, &result);
-    }
-
-    result.append("</pre>");
-  }
-
-  return result;
+  // Cancel any pending entry callback.
+  entry_callback_->Cancel();
 }
 
-static disk_cache::Backend* GetDiskCache(URLRequestContext* context) {
-  if (!context)
-    return NULL;
+int ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
+                                      URLRequestContext* context,
+                                      std::string* out,
+                                      CompletionCallback* callback) {
+  return GetInfoHTML(key, context, std::string(), out, callback);
+}
 
-  if (!context->http_transaction_factory())
-    return NULL;
+int ViewCacheHelper::GetContentsHTML(URLRequestContext* context,
+                                     const std::string& url_prefix,
+                                     std::string* out,
+                                     CompletionCallback* callback) {
+  return GetInfoHTML(std::string(), context, url_prefix, out, callback);
+}
 
-  net::HttpCache* http_cache = context->http_transaction_factory()->GetCache();
+//-----------------------------------------------------------------------------
+
+int ViewCacheHelper::GetInfoHTML(const std::string& key,
+                                 URLRequestContext* context,
+                                 const std::string& url_prefix,
+                                 std::string* out,
+                                 CompletionCallback* callback) {
+  DCHECK(!callback_);
+  DCHECK(context);
+  key_ = key;
+  context_ = context;
+  url_prefix_ = url_prefix;
+  data_ = out;
+  next_state_ = STATE_GET_BACKEND;
+  int rv = DoLoop(OK);
+
+  if (rv == ERR_IO_PENDING)
+    callback_ = callback;
+
+  return rv;
+}
+
+void ViewCacheHelper::DoCallback(int rv) {
+  DCHECK_NE(ERR_IO_PENDING, rv);
+  DCHECK(callback_);
+
+  CompletionCallback* c = callback_;
+  callback_ = NULL;
+  c->Run(rv);
+}
+
+void ViewCacheHelper::HandleResult(int rv) {
+  DCHECK_NE(ERR_IO_PENDING, rv);
+  DCHECK_NE(ERR_FAILED, rv);
+  context_ = NULL;
+  if (callback_)
+    DoCallback(rv);
+}
+
+int ViewCacheHelper::DoLoop(int result) {
+  DCHECK(next_state_ != STATE_NONE);
+
+  int rv = result;
+  do {
+    State state = next_state_;
+    next_state_ = STATE_NONE;
+    switch (state) {
+      case STATE_GET_BACKEND:
+        DCHECK_EQ(OK, rv);
+        rv = DoGetBackend();
+        break;
+      case STATE_GET_BACKEND_COMPLETE:
+        rv = DoGetBackendComplete(rv);
+        break;
+      case STATE_OPEN_NEXT_ENTRY:
+        DCHECK_EQ(OK, rv);
+        rv = DoOpenNextEntry();
+        break;
+      case STATE_OPEN_NEXT_ENTRY_COMPLETE:
+        rv = DoOpenNextEntryComplete(rv);
+        break;
+      case STATE_OPEN_ENTRY:
+        DCHECK_EQ(OK, rv);
+        rv = DoOpenEntry();
+        break;
+      case STATE_OPEN_ENTRY_COMPLETE:
+        rv = DoOpenEntryComplete(rv);
+        break;
+      case STATE_READ_RESPONSE:
+        DCHECK_EQ(OK, rv);
+        rv = DoReadResponse();
+        break;
+      case STATE_READ_RESPONSE_COMPLETE:
+        rv = DoReadResponseComplete(rv);
+        break;
+      case STATE_READ_DATA:
+        DCHECK_EQ(OK, rv);
+        rv = DoReadData();
+        break;
+      case STATE_READ_DATA_COMPLETE:
+        rv = DoReadDataComplete(rv);
+        break;
+
+      default:
+        NOTREACHED() << "bad state";
+        rv = ERR_FAILED;
+        break;
+    }
+  } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
+
+  if (rv != ERR_IO_PENDING)
+    HandleResult(rv);
+
+  return rv;
+}
+
+int ViewCacheHelper::DoGetBackend() {
+  next_state_ = STATE_GET_BACKEND_COMPLETE;
+
+  if (!context_->http_transaction_factory())
+    return ERR_FAILED;
+
+  net::HttpCache* http_cache = context_->http_transaction_factory()->GetCache();
   if (!http_cache)
-    return NULL;
+    return ERR_FAILED;
 
-  return http_cache->GetBackend();
+  return http_cache->GetBackend(&disk_cache_, &cache_callback_);
 }
 
-static std::string FormatStatistics(disk_cache::Backend* disk_cache) {
-  std::vector<std::pair<std::string, std::string> > stats;
-  disk_cache->GetStats(&stats);
-  std::string result;
-
-  for (size_t index = 0; index < stats.size(); index++) {
-    result.append(stats[index].first);
-    result.append(": ");
-    result.append(stats[index].second);
-    result.append("<br/>\n");
+int ViewCacheHelper::DoGetBackendComplete(int result) {
+  if (result == ERR_FAILED) {
+    data_->append("no disk cache");
+    return OK;
   }
 
-  return result;
+  DCHECK_EQ(OK, result);
+  if (key_.empty()) {
+    data_->assign(VIEW_CACHE_HEAD);
+    DCHECK(!iter_);
+    next_state_ = STATE_OPEN_NEXT_ENTRY;
+    return OK;
+  }
+
+  next_state_ = STATE_OPEN_ENTRY;
+  return OK;
 }
 
-// static
-void ViewCacheHelper::GetEntryInfoHTML(const std::string& key,
-                                       URLRequestContext* context,
-                                       const std::string& url_prefix,
-                                       std::string* data) {
-  disk_cache::Backend* disk_cache = GetDiskCache(context);
-  if (!disk_cache) {
-    data->assign("no disk cache");
-    return;
+int ViewCacheHelper::DoOpenNextEntry() {
+  next_state_ = STATE_OPEN_NEXT_ENTRY_COMPLETE;
+  return disk_cache_->OpenNextEntry(&iter_, &entry_, &cache_callback_);
+}
+
+int ViewCacheHelper::DoOpenNextEntryComplete(int result) {
+  if (result == ERR_FAILED) {
+    data_->append(VIEW_CACHE_TAIL);
+    return OK;
   }
 
-  if (key.empty()) {
-    data->assign(VIEW_CACHE_HEAD);
-    void* iter = NULL;
-    disk_cache::Entry* entry;
-    while (disk_cache->OpenNextEntry(&iter, &entry)) {
-      data->append(FormatEntryInfo(entry, url_prefix));
-      entry->Close();
+  DCHECK_EQ(OK, result);
+  data_->append(FormatEntryInfo(entry_, url_prefix_));
+  entry_->Close();
+  entry_ = NULL;
+
+  next_state_ = STATE_OPEN_NEXT_ENTRY;
+  return OK;
+}
+
+int ViewCacheHelper::DoOpenEntry() {
+  next_state_ = STATE_OPEN_ENTRY_COMPLETE;
+  return disk_cache_->OpenEntry(key_, &entry_, &cache_callback_);
+}
+
+int ViewCacheHelper::DoOpenEntryComplete(int result) {
+  if (result == ERR_FAILED) {
+    data_->append("no matching cache entry for: " + EscapeForHTML(key_));
+    return OK;
+  }
+
+  data_->assign(VIEW_CACHE_HEAD);
+  data_->append(EscapeForHTML(entry_->GetKey()));
+  next_state_ = STATE_READ_RESPONSE;
+  return OK;
+}
+
+int ViewCacheHelper::DoReadResponse() {
+  next_state_ = STATE_READ_RESPONSE_COMPLETE;
+  buf_len_ = entry_->GetDataSize(0);
+  entry_callback_->AddRef();
+  if (!buf_len_)
+    return buf_len_;
+
+  buf_ = new net::IOBuffer(buf_len_);
+  return entry_->ReadData(0, 0, buf_, buf_len_, entry_callback_);
+}
+
+int ViewCacheHelper::DoReadResponseComplete(int result) {
+  entry_callback_->Release();
+  if (result && result == buf_len_) {
+    net::HttpResponseInfo response;
+    bool truncated;
+    if (net::HttpCache::ParseResponseInfo(buf_->data(), buf_len_, &response,
+                                          &truncated) &&
+        response.headers) {
+      if (truncated)
+        data_->append("<pre>RESPONSE_INFO_TRUNCATED</pre>");
+
+      data_->append("<hr><pre>");
+      data_->append(EscapeForHTML(response.headers->GetStatusLine()));
+      data_->push_back('\n');
+
+      void* iter = NULL;
+      std::string name, value;
+      while (response.headers->EnumerateHeaderLines(&iter, &name, &value)) {
+        data_->append(EscapeForHTML(name));
+        data_->append(": ");
+        data_->append(EscapeForHTML(value));
+        data_->push_back('\n');
+      }
+      data_->append("</pre>");
     }
-    data->append(VIEW_CACHE_TAIL);
+  }
+
+  index_ = 0;
+  next_state_ = STATE_READ_DATA;
+  return OK;
+}
+
+int ViewCacheHelper::DoReadData() {
+  data_->append("<hr><pre>");
+
+  next_state_ = STATE_READ_DATA_COMPLETE;
+  buf_len_ = entry_->GetDataSize(index_);
+  entry_callback_->AddRef();
+  if (!buf_len_)
+    return buf_len_;
+
+  buf_ = new net::IOBuffer(buf_len_);
+  return entry_->ReadData(index_, 0, buf_, buf_len_, entry_callback_);
+}
+
+int ViewCacheHelper::DoReadDataComplete(int result) {
+  entry_callback_->Release();
+  if (result && result == buf_len_) {
+    HexDump(buf_->data(), buf_len_, data_);
+  }
+  data_->append("</pre>");
+  index_++;
+  if (index_ < net::HttpCache::kNumCacheEntryDataIndices) {
+    next_state_ = STATE_READ_DATA;
   } else {
-    disk_cache::Entry* entry;
-    if (disk_cache->OpenEntry(key, &entry)) {
-      data->assign(FormatEntryDetails(
-          entry, net::HttpCache::kNumCacheEntryDataIndices));
-      entry->Close();
-    } else {
-      data->assign("no matching cache entry for: " + EscapeForHTML(key));
-    }
+    data_->append(VIEW_CACHE_TAIL);
+    entry_->Close();
+    entry_ = NULL;
   }
+  return OK;
 }
 
-// static
-void ViewCacheHelper::GetStatisticsHTML(URLRequestContext* context,
-                                        std::string* data) {
-  disk_cache::Backend* disk_cache = GetDiskCache(context);
-  if (!disk_cache) {
-    data->append("no disk cache");
-    return;
-  }
-  data->append(FormatStatistics(disk_cache));
+void ViewCacheHelper::OnIOComplete(int result) {
+  DoLoop(result);
 }
+
+}  // namespace net.
