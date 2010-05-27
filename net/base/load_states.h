@@ -44,6 +44,10 @@ enum LoadState {
   // requests that reuse a keep-alive connection skip this state.
   LOAD_STATE_CONNECTING,
 
+  // This state corresponds to a resource load that is blocked waiting for the
+  // SSL handshake to complete.
+  LOAD_STATE_SSL_HANDSHAKE,
+
   // This state corresponds to a resource load that is blocked waiting to
   // completely upload a request to a server.  In the case of a HTTP POST
   // request, this state includes the period of time during which the message
