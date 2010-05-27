@@ -145,6 +145,9 @@ class HttpCache : public HttpTransactionFactory,
   // receives the |backend| must remain valid until the operation completes.
   int GetBackend(disk_cache::Backend** backend, CompletionCallback* callback);
 
+  // Returns the current backend (can be NULL).
+  disk_cache::Backend* GetCurrentBackend();
+
   // HttpTransactionFactory implementation:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans);
   virtual HttpCache* GetCache();
