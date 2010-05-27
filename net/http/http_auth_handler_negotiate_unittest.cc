@@ -29,7 +29,8 @@ void CreateHandler(bool disable_cname_lookup, bool include_port,
   std::string challenge = "Negotiate";
   HttpAuth::ChallengeTokenizer props(challenge.begin(), challenge.end());
   GURL gurl(url_string);
-  (*handler)->InitFromChallenge(&props, HttpAuth::AUTH_SERVER, gurl);
+  (*handler)->InitFromChallenge(&props, HttpAuth::AUTH_SERVER, gurl,
+                                BoundNetLog());
 }
 
 }  // namespace
@@ -69,8 +70,7 @@ TEST(HttpAuthHandlerNegotiateTest, CnameSync) {
   mock_resolver->rules()->AddIPv4Rule("alias", "10.0.0.2",
                                       "canonical.example.com");
   TestCompletionCallback callback;
-  EXPECT_EQ(OK, auth_handler->ResolveCanonicalName(mock_resolver, &callback,
-                                                   BoundNetLog()));
+  EXPECT_EQ(OK, auth_handler->ResolveCanonicalName(mock_resolver, &callback));
   EXPECT_EQ(L"HTTP/canonical.example.com", auth_handler->spn());
 }
 
@@ -86,8 +86,7 @@ TEST(HttpAuthHandlerNegotiateTest, CnameAsync) {
                                       "canonical.example.com");
   TestCompletionCallback callback;
   EXPECT_EQ(ERR_IO_PENDING, auth_handler->ResolveCanonicalName(mock_resolver,
-                                                               &callback,
-                                                               BoundNetLog()));
+                                                               &callback));
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_EQ(L"HTTP/canonical.example.com", auth_handler->spn());
 }

@@ -306,12 +306,13 @@ int HttpAuthHandlerDigest::Factory::CreateAuthHandler(
     const GURL& origin,
     CreateReason reason,
     int digest_nonce_count,
+    const BoundNetLog& net_log,
     scoped_refptr<HttpAuthHandler>* handler) {
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
   scoped_refptr<HttpAuthHandler> tmp_handler(
       new HttpAuthHandlerDigest(digest_nonce_count));
-  if (!tmp_handler->InitFromChallenge(challenge, target, origin))
+  if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))
     return ERR_INVALID_RESPONSE;
   handler->swap(tmp_handler);
   return OK;

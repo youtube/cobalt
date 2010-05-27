@@ -5428,8 +5428,7 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
   }
 
   virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   CompletionCallback* callback,
-                                   const BoundNetLog& net_log) {
+                                   CompletionCallback* callback) {
     EXPECT_NE(RESOLVE_TESTED, resolve_);
     int rv = OK;
     switch (resolve_) {
@@ -5503,6 +5502,7 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
                                   const GURL& origin,
                                   CreateReason reason,
                                   int nonce_count,
+                                  const BoundNetLog& net_log,
                                   scoped_refptr<HttpAuthHandler>* handler) {
       *handler = mock_handler_;
       return OK;
