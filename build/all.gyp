@@ -191,7 +191,6 @@
             '../base/base.gyp:base_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
             '../chrome/chrome.gyp:notifier_unit_tests',
-            '../chrome/chrome.gyp:sync_unit_tests',
             '../net/net.gyp:net_unittests',
             '../ipc/ipc.gyp:ipc_tests',
             '../media/media.gyp:media_unittests',
