@@ -483,6 +483,41 @@ bool TrimString(const std::string& input,
   return TrimStringT(input, trim_chars, TRIM_ALL, output) != TRIM_NONE;
 }
 
+void TruncateUTF8ToByteSize(const std::string& input,
+                            const size_t byte_size,
+                            std::string* output) {
+  if (byte_size > input.length()) {
+    *output = input;
+    return;
+  }
+
+  int32 truncation_length = static_cast<int32>(byte_size);
+  int32 char_index = truncation_length - 1;
+  const char* cstr = input.c_str();
+
+  // Using CBU8, we will move backwards from the truncation point
+  // to the beginning of the string looking for a valid UTF8
+  // character.  Once a full UTF8 character is found, we will
+  // truncate the string to the end of that character.
+  while (char_index >= 0) {
+    int32 prev = char_index;
+    uint32 code_point = 0;
+    CBU8_NEXT(cstr, char_index, truncation_length, code_point);
+    if (!base::IsValidCharacter(code_point) ||
+        !base::IsValidCodepoint(code_point)) {
+      char_index = prev - 1;
+    } else {
+      break;
+    }
+  }
+
+  DCHECK(output != NULL);
+  if (char_index >= 0 )
+    *output = input.substr(0, char_index);
+  else
+    output->clear();
+}
+
 TrimPositions TrimWhitespace(const std::wstring& input,
                              TrimPositions positions,
                              std::wstring* output) {

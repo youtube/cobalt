@@ -164,6 +164,12 @@ bool TrimString(const std::string& input,
                 const char trim_chars[],
                 std::string* output);
 
+// Truncates a string to the nearest UTF-8 character that will leave
+// the string less than or equal to the specified byte size.
+void TruncateUTF8ToByteSize(const std::string& input,
+                            const size_t byte_size,
+                            std::string* output);
+
 // Trims any whitespace from either end of the input string.  Returns where
 // whitespace was found.
 // The non-wide version has two functions:
