@@ -334,10 +334,12 @@
       'dependencies': [
         '../base/base.gyp:base',
         '../third_party/openmax/openmax.gyp:il',
+        # TODO(wjia): remove ffmpeg
+        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
       ],
       'sources': [
-        'omx/omx_codec.cc',
-        'omx/omx_codec.h',
+        'filters/omx_video_decode_engine.cc',
+        'filters/omx_video_decode_engine.cc',
         'omx/omx_configurator.cc',
         'omx/omx_configurator.h',
       ],
