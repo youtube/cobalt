@@ -18,7 +18,7 @@
 #endif
 #endif
 #if USE_SSE
-#include <emmintrin.h>
+#include <xmmintrin.h>
 #endif
 
 namespace media {
