@@ -53,7 +53,8 @@ class NetworkChangeNotifierLinux
   // Stops watching the netlink file descriptor.
   void StopWatching();
 
-  ObserverList<Observer, true> observers_;
+  // http://crbug.com/36890.
+  ObserverList<Observer, false> observers_;
 
   int netlink_fd_;  // This is the netlink socket descriptor.
   MessageLoopForIO* loop_;
