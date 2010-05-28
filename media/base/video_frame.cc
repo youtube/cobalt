@@ -130,6 +130,8 @@ bool VideoFrame::AllocateRGB(size_t bytes_per_pixel) {
   return (NULL != data_[VideoFrame::kRGBPlane]);
 }
 
+static const int kFramePadBytes = 15;  // allows faster SIMD YUV convert
+
 bool VideoFrame::AllocateYUV() {
   DCHECK(format_ == VideoFrame::YV12 ||
          format_ == VideoFrame::YV16);
@@ -150,7 +152,7 @@ bool VideoFrame::AllocateYUV() {
   if (format_ == VideoFrame::YV12) {
     uv_bytes /= 2;
   }
-  uint8* data = new uint8[y_bytes + (uv_bytes * 2)];
+  uint8* data = new uint8[y_bytes + (uv_bytes * 2) + kFramePadBytes];
   if (data) {
     planes_ = VideoFrame::kNumYUVPlanes;
     COMPILE_ASSERT(0 == VideoFrame::kYPlane, y_plane_data_must_be_index_0);
