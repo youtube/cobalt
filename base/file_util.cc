@@ -76,33 +76,6 @@ void InsertBeforeExtension(FilePath* path, const FilePath::StringType& suffix) {
   value.insert(last_dot, suffix);
 }
 
-void ReplaceExtension(FilePath* path, const FilePath::StringType& extension) {
-  FilePath::StringType clean_extension;
-  // If the new extension is "" or ".", then we will just remove the current
-  // extension.
-  if (!extension.empty() &&
-      extension != FilePath::StringType(&kExtensionSeparator, 1)) {
-    if (extension[0] != kExtensionSeparator)
-      clean_extension.append(&kExtensionSeparator, 1);
-    clean_extension.append(extension);
-  }
-
-  FilePath::StringType& value =
-      const_cast<FilePath::StringType&>(path->value());
-  const FilePath::StringType::size_type last_dot =
-      value.rfind(kExtensionSeparator);
-  const FilePath::StringType::size_type last_separator =
-      value.find_last_of(FilePath::StringType(FilePath::kSeparators));
-
-  // Erase the current extension, if any.
-  if ((last_dot > last_separator ||
-      last_separator == FilePath::StringType::npos) &&
-      last_dot != FilePath::StringType::npos)
-    value.erase(last_dot);
-
-  value.append(clean_extension);
-}
-
 bool ContentsEqual(const FilePath& filename1, const FilePath& filename2) {
   // We open the file in binary format even if they are text files because
   // we are just comparing that bytes are exactly same in both files and not
