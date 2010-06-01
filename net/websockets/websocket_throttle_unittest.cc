@@ -195,7 +195,7 @@ TEST_F(WebSocketThrottleTest, Throttle) {
 
   // Receive partial response on w1, still connecting.
   DLOG(INFO) << "socket1 1";
-  static const char kHeader[] = "HTTP/1.1 101 Web Socket Protocol\r\n";
+  static const char kHeader[] = "HTTP/1.1 101 WebSocket Protocol\r\n";
   w1->OnReceivedData(s1.get(), kHeader, sizeof(kHeader) - 1);
   EXPECT_FALSE(callback_s2.have_result());
   EXPECT_FALSE(callback_s3.have_result());
@@ -208,9 +208,10 @@ TEST_F(WebSocketThrottleTest, Throttle) {
   static const char kHeader2[] =
       "Upgrade: WebSocket\r\n"
       "Connection: Upgrade\r\n"
-      "WebSocket-Origin: http://www.google.com\r\n"
-      "WebSocket-Location: ws://websocket.chromium.org\r\n"
-      "\r\n";
+      "Sec-WebSocket-Origin: http://www.google.com\r\n"
+      "Sec-WebSocket-Location: ws://websocket.chromium.org\r\n"
+      "\r\n"
+      "8jKS'y:G*Co,Wxa-";
   w1->OnReceivedData(s1.get(), kHeader2, sizeof(kHeader2) - 1);
   MessageLoopForIO::current()->RunAllPending();
   // Now, w1 is open.

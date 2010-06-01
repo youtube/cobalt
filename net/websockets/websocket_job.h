@@ -16,6 +16,9 @@ class GURL;
 
 namespace net {
 
+class DrainableIOBuffer;
+class WebSocketFrameHandler;
+
 // WebSocket protocol specific job on SocketStream.
 // It captures WebSocket handshake message and handles cookie operations.
 // Chrome security policy doesn't allow renderer process (except dev tools)
@@ -29,7 +32,8 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
     INITIALIZED = -1,
     CONNECTING = 0,
     OPEN = 1,
-    CLOSED = 2,
+    CLOSING = 2,
+    CLOSED = 3,
   };
   static void EnsureInit();
 
@@ -83,6 +87,8 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
   void Wakeup();
   void DoCallback();
 
+  void SendPending();
+
   SocketStream::Delegate* delegate_;
   State state_;
   bool waiting_;
@@ -101,6 +107,10 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
 
   CompletionCallbackImpl<WebSocketJob> can_get_cookies_callback_;
   CompletionCallbackImpl<WebSocketJob> can_set_cookie_callback_;
+
+  scoped_ptr<WebSocketFrameHandler> send_frame_handler_;
+  scoped_refptr<DrainableIOBuffer> current_buffer_;
+  scoped_ptr<WebSocketFrameHandler> receive_frame_handler_;
 
   DISALLOW_COPY_AND_ASSIGN(WebSocketJob);
 };
