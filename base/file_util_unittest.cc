@@ -1397,50 +1397,6 @@ TEST_F(FileUtilTest, DetectDirectoryTest) {
   EXPECT_TRUE(file_util::Delete(test_root, true));
 }
 
-static const struct ReplaceExtensionCase {
-  std::wstring file_name;
-  FilePath::StringType extension;
-  std::wstring result;
-} kReplaceExtension[] = {
-  {L"", FILE_PATH_LITERAL(""), L""},
-  {L"", FILE_PATH_LITERAL("txt"), L".txt"},
-  {L".", FILE_PATH_LITERAL("txt"), L".txt"},
-  {L".", FILE_PATH_LITERAL(""), L""},
-  {L"foo.dll", FILE_PATH_LITERAL("txt"), L"foo.txt"},
-  {L"foo.dll", FILE_PATH_LITERAL(".txt"), L"foo.txt"},
-  {L"foo", FILE_PATH_LITERAL("txt"), L"foo.txt"},
-  {L"foo", FILE_PATH_LITERAL(".txt"), L"foo.txt"},
-  {L"foo.baz.dll", FILE_PATH_LITERAL("txt"), L"foo.baz.txt"},
-  {L"foo.baz.dll", FILE_PATH_LITERAL(".txt"), L"foo.baz.txt"},
-  {L"foo.dll", FILE_PATH_LITERAL(""), L"foo"},
-  {L"foo.dll", FILE_PATH_LITERAL("."), L"foo"},
-  {L"foo", FILE_PATH_LITERAL(""), L"foo"},
-  {L"foo", FILE_PATH_LITERAL("."), L"foo"},
-  {L"foo.baz.dll", FILE_PATH_LITERAL(""), L"foo.baz"},
-  {L"foo.baz.dll", FILE_PATH_LITERAL("."), L"foo.baz"},
-};
-
-TEST_F(FileUtilTest, ReplaceExtensionTest) {
-  for (unsigned int i = 0; i < arraysize(kReplaceExtension); ++i) {
-    FilePath path = FilePath::FromWStringHack(kReplaceExtension[i].file_name);
-    file_util::ReplaceExtension(&path, kReplaceExtension[i].extension);
-    EXPECT_EQ(kReplaceExtension[i].result, path.ToWStringHack());
-  }
-}
-
-// Make sure ReplaceExtension doesn't replace an extension that occurs as one of
-// the directory names of the path.
-TEST_F(FileUtilTest, ReplaceExtensionTestWithPathSeparators) {
-  FilePath path;
-  path = path.Append(FILE_PATH_LITERAL("foo.bar"));
-  path = path.Append(FILE_PATH_LITERAL("foo"));
-  // '/foo.bar/foo' with extension '.baz'
-  FilePath result_path = path;
-  file_util::ReplaceExtension(&result_path, FILE_PATH_LITERAL(".baz"));
-  EXPECT_EQ(path.value() + FILE_PATH_LITERAL(".baz"),
-            result_path.value());
-}
-
 TEST_F(FileUtilTest, FileEnumeratorTest) {
   // Test an empty directory.
   file_util::FileEnumerator f0(test_dir_, true, FILES_AND_DIRECTORIES);
