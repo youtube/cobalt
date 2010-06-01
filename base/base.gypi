@@ -91,6 +91,7 @@
           'foundation_utils_mac.h',
           'global_descriptors_posix.cc',
           'global_descriptors_posix.h',
+          'gtest_prod_util.h',
           'hash_tables.h',
           'histogram.cc',
           'histogram.h',
