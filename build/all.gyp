@@ -19,6 +19,7 @@
         '../ipc/ipc.gyp:*',
         '../media/media.gyp:*',
         '../net/net.gyp:*',
+        '../net/third_party/nss/ssl.gyp:*',
         '../printing/printing.gyp:*',
         '../sdch/sdch.gyp:*',
         '../skia/skia.gyp:*',
@@ -58,6 +59,11 @@
             '../third_party/yasm/yasm.gyp:*#host',
            ],
         }],
+        ['OS=="mac" or OS=="win"', {
+          'dependencies': [
+            '../third_party/nss/nss.gyp:*',
+           ],
+        }],
         ['OS=="mac"', {
           'dependencies': [
             '../third_party/ocmock/ocmock.gyp:*',
@@ -81,7 +87,6 @@
           'dependencies': [
             '../tools/gtk_clipboard_dump/gtk_clipboard_dump.gyp:*',
             '../tools/xdisplaycheck/xdisplaycheck.gyp:*',
-            '../net/third_party/nss/nss.gyp:*',
           ],
         }],
         ['OS=="win"', {
