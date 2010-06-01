@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -119,7 +119,7 @@ HttpCache::Transaction::Transaction(HttpCache* cache, bool enable_range_support)
           write_headers_callback_(new CancelableCompletionCallback<Transaction>(
               this, &Transaction::OnIOComplete))) {
   COMPILE_ASSERT(HttpCache::Transaction::kNumValidationHeaders ==
-                 ARRAYSIZE_UNSAFE(kValidationHeaders),
+                 arraysize(kValidationHeaders),
                  Invalid_number_of_validation_headers);
 }
 
@@ -1244,7 +1244,7 @@ void HttpCache::Transaction::SetRequest(const BoundNetLog& net_log,
 
   // Check for conditionalization headers which may correspond with a
   // cache validation request.
-  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kValidationHeaders); ++i) {
+  for (size_t i = 0; i < arraysize(kValidationHeaders); ++i) {
     const ValidationHeaderInfo& info = kValidationHeaders[i];
     std::string validation_value;
     if (request_->extra_headers.GetHeader(
@@ -1407,7 +1407,7 @@ int HttpCache::Transaction::BeginExternallyConditionalizedRequest() {
   DCHECK_EQ(UPDATE, mode_);
   DCHECK(external_validation_.initialized);
 
-  for (size_t i = 0;  i < ARRAYSIZE_UNSAFE(kValidationHeaders); i++) {
+  for (size_t i = 0;  i < arraysize(kValidationHeaders); i++) {
     if (external_validation_.values[i].empty())
       continue;
     // Retrieve either the cached response's "etag" or "last-modified" header.
