@@ -174,9 +174,16 @@ bool WebSocketJob::SendData(const char* data, int len) {
         send_frame_handler_->AppendData(data, len);
         // If current buffer is sending now, this data will be sent in
         // SendPending() after current data was sent.
+        // Do not buffer sending data for now.  Since
+        // WebCore::SocketStreamHandle controls traffic to keep number of
+        // pending bytes less than max_pending_send_allowed, so when sending
+        // larger message than max_pending_send_allowed should not be buffered.
+        // If we don't call OnSentData, WebCore::SocketStreamHandle would stop
+        // sending more data when pending data reaches max_pending_send_allowed.
+        // TODO(ukai): Fix this to support compression for larger message.
         int err = 0;
         if (!send_frame_handler_->GetCurrentBuffer() &&
-            (err = send_frame_handler_->UpdateCurrentBuffer()) > 0) {
+            (err = send_frame_handler_->UpdateCurrentBuffer(false)) > 0) {
           current_buffer_ = new DrainableIOBuffer(
               send_frame_handler_->GetCurrentBuffer(),
               send_frame_handler_->GetCurrentBufferSize());
@@ -278,7 +285,9 @@ void WebSocketJob::OnReceivedData(
   }
   std::string received_data;
   receive_frame_handler_->AppendData(data, len);
-  while (receive_frame_handler_->UpdateCurrentBuffer() > 0) {
+  // Don't buffer receiving data for now.
+  // TODO(ukai): fix performance of WebSocketFrameHandler.
+  while (receive_frame_handler_->UpdateCurrentBuffer(false) > 0) {
     received_data +=
         std::string(receive_frame_handler_->GetCurrentBuffer()->data(),
                     receive_frame_handler_->GetCurrentBufferSize());
@@ -496,7 +505,9 @@ void WebSocketJob::SaveNextCookie() {
           kResponseKeySize,
           handshake_response_.size() - handshake_response_header_length_ -
           kResponseKeySize);
-      while (receive_frame_handler_->UpdateCurrentBuffer() > 0) {
+      // Don't buffer receiving data for now.
+      // TODO(ukai): fix performance of WebSocketFrameHandler.
+      while (receive_frame_handler_->UpdateCurrentBuffer(false) > 0) {
         received_data +=
             std::string(receive_frame_handler_->GetCurrentBuffer()->data(),
                         receive_frame_handler_->GetCurrentBufferSize());
@@ -596,7 +607,8 @@ void WebSocketJob::SendPending() {
   if (current_buffer_)
     return;
   // Current buffer is done.  Try next buffer if any.
-  if (send_frame_handler_->UpdateCurrentBuffer() <= 0) {
+  // Don't buffer sending data. See comment on case OPEN in SendData().
+  if (send_frame_handler_->UpdateCurrentBuffer(false) <= 0) {
     // No more data to send.
     if (state_ == CLOSING)
       socket_->Close();
