@@ -28,7 +28,7 @@ if [ "${MACH_O_TYPE}" = "mh_execute" ] || \
   # Strip everything (no special flags).  No-op.
   true
 elif [ "${MACH_O_TYPE}" = "mh_dylib" ] || \
-       "${MACH_O_TYPE}" = "mh_bundle" ]; then
+     [ "${MACH_O_TYPE}" = "mh_bundle" ]; then
   # Strip debugging symbols and local symbols
   FLAGS[${#FLAGS[@]}]=-S
   FLAGS[${#FLAGS[@]}]=-x
