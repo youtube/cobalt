@@ -210,6 +210,16 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   // Returns true if two OSCertHandles refer to identical certificates.
   static bool IsSameOSCert(OSCertHandle a, OSCertHandle b);
 
+  // Creates an OS certificate handle from the BER-encoded representation.
+  // Returns NULL on failure.
+  static OSCertHandle CreateOSCertHandleFromBytes(const char* data,
+                                                  int length);
+
+  // Duplicates (or adds a reference to) an OS certificate handle.
+  static OSCertHandle DupOSCertHandle(OSCertHandle cert_handle);
+
+  // Frees (or releases a reference to) an OS certificate handle.
+  static void FreeOSCertHandle(OSCertHandle cert_handle);
 
  private:
   friend class base::RefCountedThreadSafe<X509Certificate>;
@@ -253,17 +263,6 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
   void Initialize();
 
   bool VerifyEV() const;
-
-  // Creates an OS certificate handle from the BER-encoded representation.
-  // Returns NULL on failure.
-  static OSCertHandle CreateOSCertHandleFromBytes(const char* data,
-                                                  int length);
-
-  // Duplicates (or adds a reference to) an OS certificate handle.
-  static OSCertHandle DupOSCertHandle(OSCertHandle cert_handle);
-
-  // Frees (or releases a reference to) an OS certificate handle.
-  static void FreeOSCertHandle(OSCertHandle cert_handle);
 
   // Calculates the SHA-1 fingerprint of the certificate.  Returns an empty
   // (all zero) fingerprint on failure.

@@ -165,10 +165,8 @@ class SSLClientSocketNSS : public SSLClientSocket {
   BoundNetLog net_log_;
 
 #if defined(OS_WIN)
-  // A CryptoAPI in-memory certificate store.  We use it for two purposes:
-  // 1. Import server certificates into this store so that we can verify and
-  //    display the certificates using CryptoAPI.
-  // 2. Copy client certificates from the "MY" system certificate store into
+  // A CryptoAPI in-memory certificate store.  We use it for one purpose:
+  // 1. Copy client certificates from the "MY" system certificate store into
   //    this store so that we can close the system store when we finish
   //    searching for client certificates.
   static HCERTSTORE cert_store_;
