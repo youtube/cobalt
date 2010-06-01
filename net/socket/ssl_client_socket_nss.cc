@@ -318,7 +318,7 @@ int SSLClientSocketNSS::Init() {
   EnsureNSSSSLInit();
   if (!NSS_IsInitialized())
     return ERR_UNEXPECTED;
-#if !defined(OS_WIN)
+#if !defined(OS_MACOSX) && !defined(OS_WIN)
   // We must call EnsureOCSPInit() here, on the IO thread, to get the IO loop
   // by MessageLoopForIO::current().
   // X509Certificate::Verify() runs on a worker thread of CertVerifier.
@@ -663,16 +663,12 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
   if (server_cert_ == NULL) {
     server_cert_nss_ = SSL_PeerCertificate(nss_fd_);
     if (server_cert_nss_) {
-#if defined(OS_WIN)
-      // TODO(wtc): close cert_store_ at shutdown.
-      if (!cert_store_)
-        cert_store_ = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL);
-
+#if defined(OS_MACOSX) || defined(OS_WIN)
       // Get each of the intermediate certificates in the server's chain.
       // These will be added to the server's X509Certificate object, making
       // them available to X509Certificate::Verify() for chain building.
       X509Certificate::OSCertHandles intermediate_ca_certs;
-      PCCERT_CONTEXT cert_context = NULL;
+      X509Certificate::OSCertHandle cert_handle = NULL;
       CERTCertList* cert_list = CERT_GetCertChainFromCert(
           server_cert_nss_, PR_Now(), certUsageSSLCA);
       if (cert_list) {
@@ -681,6 +677,7 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
              node = CERT_LIST_NEXT(node)) {
           if (node->cert == server_cert_nss_)
             continue;
+#if defined(OS_WIN)
           // Work around http://crbug.com/43538 by not importing the
           // problematic COMODO EV SGC CA certificate.  CryptoAPI will
           // download a good certificate for that CA, issued by COMODO
@@ -688,35 +685,27 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
           // certificate.
           if (IsProblematicComodoEVCACert(*node->cert))
             continue;
-          cert_context = NULL;
-          BOOL ok = CertAddEncodedCertificateToStore(
-              cert_store_,
-              X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-              node->cert->derCert.data,
-              node->cert->derCert.len,
-              CERT_STORE_ADD_USE_EXISTING,
-              &cert_context);
-          DCHECK(ok);
-          intermediate_ca_certs.push_back(cert_context);
+#endif
+          cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
+              reinterpret_cast<char*>(node->cert->derCert.data),
+              node->cert->derCert.len);
+          DCHECK(cert_handle);
+          intermediate_ca_certs.push_back(cert_handle);
         }
         CERT_DestroyCertList(cert_list);
       }
 
       // Finally create the X509Certificate object.
-      BOOL ok = CertAddEncodedCertificateToStore(
-          cert_store_,
-          X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-          server_cert_nss_->derCert.data,
-          server_cert_nss_->derCert.len,
-          CERT_STORE_ADD_USE_EXISTING,
-          &cert_context);
-      DCHECK(ok);
+      cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
+          reinterpret_cast<char*>(server_cert_nss_->derCert.data),
+          server_cert_nss_->derCert.len);
+      DCHECK(cert_handle);
       server_cert_ = X509Certificate::CreateFromHandle(
-          cert_context,
+          cert_handle,
           X509Certificate::SOURCE_FROM_NETWORK,
           intermediate_ca_certs);
       for (size_t i = 0; i < intermediate_ca_certs.size(); ++i)
-        CertFreeCertificateContext(intermediate_ca_certs[i]);
+        X509Certificate::FreeOSCertHandle(intermediate_ca_certs[i]);
 #else
       server_cert_ = X509Certificate::CreateFromHandle(
           CERT_DupCertificate(server_cert_nss_),
@@ -1215,6 +1204,10 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
 
   PCCERT_CHAIN_CONTEXT chain_context = NULL;
 
+  // TODO(wtc): close cert_store_ at shutdown.
+  if (!cert_store_)
+    cert_store_ = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL);
+
   for (;;) {
     // Find a certificate chain.
     chain_context = CertFindChainInStore(my_cert_store,
@@ -1255,6 +1248,11 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
   // Tell NSS to suspend the client authentication.  We will then abort the
   // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   return SECWouldBlock;
+#elif defined(OS_MACOSX)
+  // TODO(wtc): see http://crbug.com/45369.
+  // Not implemented.  Send no client certificate.
+  PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
+  return SECFailure;
 #else
   CERTCertificate* cert = NULL;
   SECKEYPrivateKey* privkey = NULL;
