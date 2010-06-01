@@ -1152,7 +1152,7 @@
           ['_mac_bundle', {
             'xcode_settings': {'OTHER_LDFLAGS': ['-Wl,-ObjC']},
           }],
-          ['_type=="executable" or _type=="shared_library"', {
+          ['_type=="executable" or _type=="shared_library" or _type=="loadable_module"', {
             'target_conditions': [
               ['mac_real_dsym == 1', {
                 # To get a real .dSYM bundle produced by dsymutil, set the
@@ -1166,14 +1166,14 @@
                       'DEPLOYMENT_POSTPROCESSING': 'YES',
                       'STRIP_INSTALLED_PRODUCT': 'YES',
                       'target_conditions': [
-                        ['_type=="shared_library"', {
+                        ['_type=="shared_library" or _type=="loadable_module"', {
                           # The Xcode default is to strip debugging symbols
                           # only (-S).  Local symbols should be stripped as
                           # well, which will be handled by -x.  Xcode will
                           # continue to insert -S when stripping even when
                           # additional flags are added with STRIPFLAGS.
                           'STRIPFLAGS': '-x',
-                        }],  # _type=="shared_library"
+                        }],  # _type=="shared_library" or _type=="loadable_module"'
                       ],  # target_conditions
                     },  # xcode_settings
                   },  # configuration "Release"
@@ -1196,7 +1196,7 @@
                 ],  # postbuilds
               }],  # mac_real_dsym
             ],  # target_conditions
-          }],  # _type=="executable" or _type=="shared_library"
+          }],  # _type=="executable" or _type=="shared_library" or _type=="loadable_module"
         ],  # target_conditions
       },  # target_defaults
     }],  # OS=="mac"
