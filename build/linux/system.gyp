@@ -76,7 +76,7 @@
           'conditions': [
             ['use_system_ssl==0', {
               'dependencies': [
-                '../../net/third_party/nss/nss.gyp:ssl',
+                '../../net/third_party/nss/ssl.gyp:ssl',
                 '../../third_party/zlib/zlib.gyp:zlib',
               ],
               'direct_dependent_settings': {

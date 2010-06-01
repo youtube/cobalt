@@ -175,12 +175,20 @@
       ],
       'conditions': [
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
-          'dependencies': [
-            '../build/linux/system.gyp:gconf',
-            '../build/linux/system.gyp:gdk',
-            '../build/linux/system.gyp:nss',
-          ],
-        }],
+            'dependencies': [
+              '../build/linux/system.gyp:gconf',
+              '../build/linux/system.gyp:gdk',
+              '../build/linux/system.gyp:nss',
+            ],
+          },
+          {  # else: OS is not in the above list
+            'sources!': [
+              'base/cert_database_nss.cc',
+              'base/keygen_handler_nss.cc',
+              'base/x509_certificate_nss.cc',
+            ],
+          },
+        ],
         [ 'OS == "win"', {
             'dependencies': [
               # For nss_memio.{c,h}, which require only NSPR.
@@ -194,22 +202,10 @@
             ],
           },
         ],
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
-          },
-          {  # else: OS is not in the above list
-            'sources!': [
-              'base/cert_database_nss.cc',
-              'base/keygen_handler_nss.cc',
-              'base/x509_certificate_nss.cc',
-            ],
-          },
-        ],
         [ 'OS == "mac"', {
-            'sources!': [
-              # TODO(wtc): Remove nss_memio.{c,h} when http://crbug.com/30689
-              # is fixed.
-              'base/nss_memio.c',
-              'base/nss_memio.h',
+            'dependencies': [
+              # For nss_memio.{c,h}, which require only NSPR.
+              '../third_party/nss/nss.gyp:nspr',
             ],
             'link_settings': {
               'libraries': [
@@ -552,12 +548,23 @@
           ],
         }],
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
-          'dependencies': [
-            '../build/linux/system.gyp:gconf',
-            '../build/linux/system.gyp:gdk',
-            '../build/linux/system.gyp:nss',
-          ],
-        }],
+            'sources!': [
+              'socket/ssl_client_socket_nss_factory.cc',
+              'socket/ssl_client_socket_nss_factory.h',
+            ],
+            'dependencies': [
+              '../build/linux/system.gyp:gconf',
+              '../build/linux/system.gyp:gdk',
+              '../build/linux/system.gyp:nss',
+            ],
+          },
+          {  # else: OS is not in the above list
+            'sources!': [
+              'ocsp/nss_ocsp.cc',
+              'ocsp/nss_ocsp.h',
+            ],
+          },
+        ],
         [ 'OS == "win"', {
             'sources!': [
               'http/http_auth_handler_ntlm_portable.cc',
@@ -565,7 +572,7 @@
             ],
             'dependencies': [
               '../third_party/nss/nss.gyp:nss',
-              'third_party/nss/nss.gyp:ssl',
+              'third_party/nss/ssl.gyp:ssl',
               'tld_cleanup',
             ],
             'link_settings': {
@@ -577,26 +584,13 @@
           {  # else: OS != "win"
             'sources!': [
               'proxy/proxy_resolver_winhttp.cc',
-              'socket/ssl_client_socket_nss_factory.cc',
-              'socket/ssl_client_socket_nss_factory.h',
-            ],
-          },
-        ],
-        [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
-          },
-          {  # else: OS != "linux"
-            'sources!': [
-              'ocsp/nss_ocsp.cc',
-              'ocsp/nss_ocsp.h',
             ],
           },
         ],
         [ 'OS == "mac"', {
-            'sources!': [
-              # TODO(wtc): Remove ssl_client_socket_nss.{cc,h} when
-              # http://crbug.com/30689 is fixed.
-              'socket/ssl_client_socket_nss.cc',
-              'socket/ssl_client_socket_nss.h',
+            'dependencies': [
+              '../third_party/nss/nss.gyp:nss',
+              'third_party/nss/ssl.gyp:ssl',
             ],
             'link_settings': {
               'libraries': [
