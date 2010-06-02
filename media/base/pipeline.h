@@ -22,10 +22,8 @@ namespace media {
 
 // Error definitions for pipeline.  All codes indicate an error except:
 // PIPELINE_OK indicates the pipeline is running normally.
-// PIPELINE_STOPPING is used internally when Pipeline::Stop() is called.
 enum PipelineError {
   PIPELINE_OK,
-  PIPELINE_STOPPING,
   PIPELINE_ERROR_URL_NOT_FOUND,
   PIPELINE_ERROR_NETWORK,
   PIPELINE_ERROR_DECODE,

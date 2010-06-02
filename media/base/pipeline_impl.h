@@ -46,9 +46,13 @@ namespace media {
 //         `-------------> [ Ended ] ---------------------'
 //
 //                  SetError()
-//   [ Any State ] -------------> [ Error ]
-//         |          Stop()
-//         '--------------------> [ Stopped ]
+//   [ Any State ] -------------> [ Stopping (for each filter)]
+//         | Stop()                             |
+//         V                                    V
+//   [ Stopping (for each filter) ]         [ Error ]
+//         |
+//         V
+//   [ Stopped ]
 //
 // Initialization is a series of state transitions from "Created" through each
 // filter initialization state.  When all filter initialization states have
@@ -115,6 +119,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
     kStarting,
     kStarted,
     kEnded,
+    kStopping,
     kStopped,
     kError,
   };
@@ -131,9 +136,18 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Helper method to tell whether we are in the state of initializing.
   bool IsPipelineInitializing();
 
-  // Returns true if the given state is one that transitions to the started
-  // state.
-  static bool StateTransitionsToStarted(State state);
+  // Helper method to tell whether we are stopped or in error.
+  bool IsPipelineStopped();
+
+  // Helper method to execute callback from Start() and reset
+  // |filter_factory_|. Called when initialization completes
+  // normally or when pipeline is stopped or error occurs during
+  // initialization.
+  void FinishInitialization();
+
+  // Returns true if the given state is one that transitions to a new state
+  // after iterating through each filter.
+  static bool TransientState(State state);
 
   // Given the current state, returns the next state.
   static State FindNextState(State current);
@@ -166,7 +180,8 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Callback executed by filters upon completing initialization.
   void OnFilterInitialize();
 
-  // Callback executed by filters upon completing Play(), Pause() or Seek().
+  // Callback executed by filters upon completing Play(), Pause(), Seek(),
+  // or Stop().
   void OnFilterStateTransition();
 
   // The following "task" methods correspond to the public methods, but these
@@ -182,8 +197,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // initialization.
   void InitializeTask();
 
-  // Stops and destroys all filters, placing the pipeline in the kStopped state
-  // and setting the error code to PIPELINE_STOPPED.
+  // Stops and destroys all filters, placing the pipeline in the kStopped state.
   void StopTask(PipelineCallback* stop_callback);
 
   // Carries out stopping and destroying all filters, placing the pipeline in
@@ -210,6 +224,12 @@ class PipelineImpl : public Pipeline, public FilterHost {
 
   // Carries out advancing to the next filter during Play()/Pause()/Seek().
   void FilterStateTransitionTask();
+
+  // Carries out stopping filter threads, deleting filters, running
+  // appropriate callbacks, and setting the appropriate pipeline state
+  // depending on whether we performing Stop() or SetError().
+  // Called after all filters have been stopped.
+  void FinishDestroyingFiltersTask();
 
   // Internal methods used in the implementation of the pipeline thread.  All
   // of these methods are only called on the pipeline thread.
@@ -273,9 +293,8 @@ class PipelineImpl : public Pipeline, public FilterHost {
   template <class Filter>
   void GetFilter(scoped_refptr<Filter>* filter_out) const;
 
-  // Stops every filters, filter host and filter thread and releases all
-  // references to them.
-  void DestroyFilters();
+  // Kicks off stopping filters. Called by StopTask() and ErrorChangedTask().
+  void StartDestroyingFilters();
 
   // Message loop used to execute pipeline tasks.
   MessageLoop* message_loop_;

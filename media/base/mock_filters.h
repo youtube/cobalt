@@ -95,7 +95,7 @@ class MockDataSource : public DataSource {
   MockDataSource() {}
 
   // MediaFilter implementation.
-  MOCK_METHOD0(Stop, void());
+  MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
@@ -121,7 +121,7 @@ class MockDemuxer : public Demuxer {
   MockDemuxer() {}
 
   // MediaFilter implementation.
-  MOCK_METHOD0(Stop, void());
+  MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
@@ -162,7 +162,7 @@ class MockVideoDecoder : public VideoDecoder {
   MockVideoDecoder() {}
 
   // MediaFilter implementation.
-  MOCK_METHOD0(Stop, void());
+  MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
@@ -185,7 +185,7 @@ class MockAudioDecoder : public AudioDecoder {
   MockAudioDecoder() {}
 
   // MediaFilter implementation.
-  MOCK_METHOD0(Stop, void());
+  MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
@@ -213,7 +213,7 @@ class MockVideoRenderer : public VideoRenderer {
   MockVideoRenderer() {}
 
   // MediaFilter implementation.
-  MOCK_METHOD0(Stop, void());
+  MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
@@ -235,7 +235,7 @@ class MockAudioRenderer : public AudioRenderer {
   MockAudioRenderer() {}
 
   // MediaFilter implementation.
-  MOCK_METHOD0(Stop, void());
+  MOCK_METHOD1(Stop, void(FilterCallback* callback));
   MOCK_METHOD1(SetPlaybackRate, void(float playback_rate));
   MOCK_METHOD2(Seek, void(base::TimeDelta time, FilterCallback* callback));
   MOCK_METHOD0(OnAudioRendererDisabled, void());
@@ -328,6 +328,11 @@ void RunFilterCallback(::testing::Unused, FilterCallback* callback);
 // of the provided filter.  Can be used when mocking the Initialize() and Seek()
 // methods.
 void DestroyFilterCallback(::testing::Unused, FilterCallback* callback);
+
+// Helper gmock function that immediately executes and destroys the
+// FilterCallback on behalf of the provided filter.  Can be used when mocking
+// the Stop() method.
+void RunStopFilterCallback(FilterCallback* callback);
 
 // Helper gmock action that calls SetError() on behalf of the provided filter.
 ACTION_P2(SetError, filter, error) {
