@@ -546,6 +546,11 @@ void EnableTerminationOnOutOfMemory() {
 
   g_oom_killer_enabled = true;
 
+  int32 os_major;
+  int32 os_minor;
+  int32 os_bugfix;
+  SysInfo::OperatingSystemVersionNumbers(&os_major, &os_minor, &os_bugfix);
+
   // === C malloc/calloc/valloc/realloc/posix_memalign ===
 
   // This approach is not perfect, as requests for amounts of memory larger than
@@ -558,11 +563,9 @@ void EnableTerminationOnOutOfMemory() {
   CHECK(!g_old_malloc && !g_old_calloc && !g_old_valloc && !g_old_realloc &&
         !g_old_memalign) << "Old allocators unexpectedly non-null";
 
-  int32 major;
-  int32 minor;
-  int32 bugfix;
-  SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
-  bool zone_allocators_protected = ((major == 10 && minor > 6) || major > 10);
+  // See http://trac.webkit.org/changeset/53362/trunk/WebKitTools/DumpRenderTree/mac
+  bool zone_allocators_protected =
+      ((os_major == 10 && os_minor > 6) || os_major > 10);
 
   ChromeMallocZone* default_zone =
       reinterpret_cast<ChromeMallocZone*>(malloc_default_zone());
@@ -570,7 +573,6 @@ void EnableTerminationOnOutOfMemory() {
   vm_address_t page_start = NULL;
   vm_size_t len = 0;
   if (zone_allocators_protected) {
-    // See http://trac.webkit.org/changeset/53362/trunk/WebKitTools/DumpRenderTree/mac
     page_start = reinterpret_cast<vm_address_t>(default_zone) &
         static_cast<vm_size_t>(~(getpagesize() - 1));
     len = reinterpret_cast<vm_address_t>(default_zone) -
@@ -634,26 +636,34 @@ void EnableTerminationOnOutOfMemory() {
         !g_old_cfallocator_malloc_zone)
       << "Old allocators unexpectedly non-null";
 
-  ChromeCFAllocatorRef allocator = const_cast<ChromeCFAllocatorRef>(
-      reinterpret_cast<const ChromeCFAllocator*>(kCFAllocatorSystemDefault));
-  g_old_cfallocator_system_default = allocator->context.allocate;
-  CHECK(g_old_cfallocator_system_default)
-      << "Failed to get kCFAllocatorSystemDefault allocation function.";
-  allocator->context.allocate = oom_killer_cfallocator_system_default;
+  bool cf_allocator_internals_known =
+      (os_major == 10 && (os_minor == 5 || os_minor == 6));
 
-  allocator = const_cast<ChromeCFAllocatorRef>(
-      reinterpret_cast<const ChromeCFAllocator*>(kCFAllocatorMalloc));
-  g_old_cfallocator_malloc = allocator->context.allocate;
-  CHECK(g_old_cfallocator_malloc)
-      << "Failed to get kCFAllocatorMalloc allocation function.";
-  allocator->context.allocate = oom_killer_cfallocator_malloc;
+  if (cf_allocator_internals_known) {
+    ChromeCFAllocatorRef allocator = const_cast<ChromeCFAllocatorRef>(
+        reinterpret_cast<const ChromeCFAllocator*>(kCFAllocatorSystemDefault));
+    g_old_cfallocator_system_default = allocator->context.allocate;
+    CHECK(g_old_cfallocator_system_default)
+        << "Failed to get kCFAllocatorSystemDefault allocation function.";
+    allocator->context.allocate = oom_killer_cfallocator_system_default;
 
-  allocator = const_cast<ChromeCFAllocatorRef>(
-      reinterpret_cast<const ChromeCFAllocator*>(kCFAllocatorMallocZone));
-  g_old_cfallocator_malloc_zone = allocator->context.allocate;
-  CHECK(g_old_cfallocator_malloc_zone)
-      << "Failed to get kCFAllocatorMallocZone allocation function.";
-  allocator->context.allocate = oom_killer_cfallocator_malloc_zone;
+    allocator = const_cast<ChromeCFAllocatorRef>(
+        reinterpret_cast<const ChromeCFAllocator*>(kCFAllocatorMalloc));
+    g_old_cfallocator_malloc = allocator->context.allocate;
+    CHECK(g_old_cfallocator_malloc)
+        << "Failed to get kCFAllocatorMalloc allocation function.";
+    allocator->context.allocate = oom_killer_cfallocator_malloc;
+
+    allocator = const_cast<ChromeCFAllocatorRef>(
+        reinterpret_cast<const ChromeCFAllocator*>(kCFAllocatorMallocZone));
+    g_old_cfallocator_malloc_zone = allocator->context.allocate;
+    CHECK(g_old_cfallocator_malloc_zone)
+        << "Failed to get kCFAllocatorMallocZone allocation function.";
+    allocator->context.allocate = oom_killer_cfallocator_malloc_zone;
+  } else {
+    NSLog(@"Internals of CFAllocator not known; out-of-memory failures via "
+        "CFAllocator will not result in termination. http://crbug.com/45650");
+  }
 
   // === Cocoa NSObject allocation ===
 
