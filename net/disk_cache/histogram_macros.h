@@ -36,8 +36,8 @@
     do { \
       static scoped_refptr<Histogram> counter; \
       if (!counter || name != counter->histogram_name()) \
-        counter = Histogram::FactoryGet(name, min, max, bucket_count, \
-                                        Histogram::kUmaTargetedHistogramFlag); \
+        counter = Histogram::FactoryTimeGet(name, min, max, bucket_count, \
+                      Histogram::kUmaTargetedHistogramFlag); \
       counter->AddTime(sample); \
     } while (0)
 
