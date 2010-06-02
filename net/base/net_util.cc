@@ -774,11 +774,12 @@ std::wstring FormatViewSourceUrl(const GURL& url,
 
 namespace net {
 
-const FormatUrlType kFormatUrlOmitNothing          = 0;
-const FormatUrlType kFormatUrlOmitUsernamePassword = 1 << 0;
-const FormatUrlType kFormatUrlOmitHTTP             = 1 << 1;
+const FormatUrlType kFormatUrlOmitNothing                     = 0;
+const FormatUrlType kFormatUrlOmitUsernamePassword            = 1 << 0;
+const FormatUrlType kFormatUrlOmitHTTP                        = 1 << 1;
+const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname = 1 << 2;
 const FormatUrlType kFormatUrlOmitAll = kFormatUrlOmitUsernamePassword |
-                                        kFormatUrlOmitHTTP;
+    kFormatUrlOmitHTTP | kFormatUrlOmitTrailingSlashOnBareHostname;
 
 std::set<int> explicitly_allowed_ports;
 
@@ -1441,21 +1442,17 @@ std::wstring FormatUrl(const GURL& url,
                                                   true),
       std::back_inserter(url_string));
 
-  const wchar_t* const kHTTP = L"http://";
-  const char* const kFTP = "ftp.";
-  const size_t kHTTPSize = std::wstring(kHTTP).size();
-  // The omnibox treats ftp.foo.com as ftp://foo.com. This means that if we
-  // trimmed http off a string that starts with http://ftp and the user tried to
-  // reload the page the user would end up with a scheme of ftp://. For example,
-  // 'http://ftp.foo.com' -> 'ftp.foo.com' -> 'ftp://foo.com'. For this reason
-  // don't strip http off url's whose scheme is http and the host starts with
-  // 'ftp.'.
+  const wchar_t kHTTP[] = L"http://";
+  const char kFTP[] = "ftp.";
+  // URLFixerUpper::FixupURL() treats "ftp.foo.com" as ftp://ftp.foo.com.  This
+  // means that if we trim "http://" off a URL whose host starts with "ftp." and
+  // the user inputs this into any field subject to fixup (which is basically
+  // all input fields), the meaning would be changed.  (In fact, often the
+  // formatted URL is directly pre-filled into an input field.)  For this reason
+  // we avoid stripping "http://" in this case.
   bool omit_http =
-      ((format_types & kFormatUrlOmitHTTP) != 0 &&
-       url_string == kHTTP && (!parsed.host.is_valid() ||
-                               (parsed.host.is_nonempty() &&
-                                spec.compare(parsed.host.begin,
-                                             std::string(kFTP).size(), kFTP))));
+      (format_types & kFormatUrlOmitHTTP) && (url_string == kHTTP) &&
+      (url.host().compare(0, arraysize(kFTP) - 1, kFTP) != 0);
 
   new_parsed->scheme = parsed.scheme;
 
@@ -1522,8 +1519,11 @@ std::wstring FormatUrl(const GURL& url,
   }
 
   // Path and query both get the same general unescape & convert treatment.
-  AppendFormattedComponent(spec, parsed.path, unescape_rules, &url_string,
-                           &new_parsed->path, offset_for_adjustment);
+  if (!(format_types & kFormatUrlOmitTrailingSlashOnBareHostname) ||
+      !CanStripTrailingSlash(url)) {
+    AppendFormattedComponent(spec, parsed.path, unescape_rules, &url_string,
+                             &new_parsed->path, offset_for_adjustment);
+  }
   if (parsed.query.is_valid())
     url_string.push_back('?');
   AppendFormattedComponent(spec, parsed.query, unescape_rules, &url_string,
@@ -1561,6 +1561,7 @@ std::wstring FormatUrl(const GURL& url,
 
   // If we need to strip out http do it after the fact. This way we don't need
   // to worry about how offset_for_adjustment is interpreted.
+  const size_t kHTTPSize = arraysize(kHTTP) - 1;
   if (omit_http && !url_string.compare(0, kHTTPSize, kHTTP)) {
     url_string = url_string.substr(kHTTPSize);
     if (*offset_for_adjustment != std::wstring::npos) {
@@ -1580,6 +1581,13 @@ std::wstring FormatUrl(const GURL& url,
   }
 
   return url_string;
+}
+
+bool CanStripTrailingSlash(const GURL& url) {
+  // Omit the path only for standard, non-file URLs with nothing but "/" after
+  // the hostname.
+  return url.IsStandard() && !url.SchemeIsFile() && !url.has_query() &&
+      !url.has_ref() && url.path() == "/";
 }
 
 GURL SimplifyUrlForRequest(const GURL& url) {
