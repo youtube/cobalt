@@ -18,19 +18,19 @@ ClientSocketPoolHistograms::ClientSocketPoolHistograms(
       ClientSocketHandle::NUM_TYPES, ClientSocketHandle::NUM_TYPES + 1,
       Histogram::kUmaTargetedHistogramFlag);
   // UMA_HISTOGRAM_CUSTOM_TIMES
-  request_time_ = Histogram::FactoryGet(
+  request_time_ = Histogram::FactoryTimeGet(
       "Net.SocketRequestTime_" + pool_name,
       base::TimeDelta::FromMilliseconds(1),
       base::TimeDelta::FromMinutes(10),
       100, Histogram::kUmaTargetedHistogramFlag);
   // UMA_HISTOGRAM_CUSTOM_TIMES
-  unused_idle_time_ = Histogram::FactoryGet(
+  unused_idle_time_ = Histogram::FactoryTimeGet(
       "Net.SocketIdleTimeBeforeNextUse_UnusedSocket_" + pool_name,
       base::TimeDelta::FromMilliseconds(1),
       base::TimeDelta::FromMinutes(6),
       100, Histogram::kUmaTargetedHistogramFlag);
   // UMA_HISTOGRAM_CUSTOM_TIMES
-  reused_idle_time_ = Histogram::FactoryGet(
+  reused_idle_time_ = Histogram::FactoryTimeGet(
       "Net.SocketIdleTimeBeforeNextUse_ReusedSocket_" + pool_name,
       base::TimeDelta::FromMilliseconds(1),
       base::TimeDelta::FromMinutes(6),
