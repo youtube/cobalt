@@ -1400,6 +1400,30 @@ TEST(NetUtilTest, FormatUrl) {
      "http://ftp.google.com/", L"en", net::kFormatUrlOmitHTTP,
      UnescapeRule::NORMAL, L"http://ftp.google.com/",
      7},
+
+    // -------- omit trailing lash on bare hostname --------
+    {"omit slash when it's the entire path",
+     "http://www.google.com/", L"en",
+     net::kFormatUrlOmitTrailingSlashOnBareHostname, UnescapeRule::NORMAL,
+     L"http://www.google.com", 7},
+    {"omit slash when there's a ref",
+     "http://www.google.com/#ref", L"en",
+     net::kFormatUrlOmitTrailingSlashOnBareHostname, UnescapeRule::NORMAL,
+     L"http://www.google.com/#ref", 7},
+    {"omit slash when there's a query",
+     "http://www.google.com/?", L"en",
+     net::kFormatUrlOmitTrailingSlashOnBareHostname, UnescapeRule::NORMAL,
+     L"http://www.google.com/?", 7},
+    {"omit slash when it's not the entire path",
+     "http://www.google.com/foo", L"en",
+     net::kFormatUrlOmitTrailingSlashOnBareHostname, UnescapeRule::NORMAL,
+     L"http://www.google.com/foo", 7},
+    {"omit slash for nonstandard URLs",
+     "data:/", L"en", net::kFormatUrlOmitTrailingSlashOnBareHostname,
+     UnescapeRule::NORMAL, L"data:/", 5},
+    {"omit slash for file URLs",
+     "file:///", L"en", net::kFormatUrlOmitTrailingSlashOnBareHostname,
+     UnescapeRule::NORMAL, L"file:///", 7},
   };
 
   for (size_t i = 0; i < arraysize(tests); ++i) {

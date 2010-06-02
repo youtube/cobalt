@@ -49,6 +49,10 @@ extern const FormatUrlType kFormatUrlOmitUsernamePassword;
 // If the scheme is 'http://', it's removed.
 extern const FormatUrlType kFormatUrlOmitHTTP;
 
+// Omits the path if it is just a slash and there is no query or ref.  This is
+// meaningful for non-file "standard" URLs.
+extern const FormatUrlType kFormatUrlOmitTrailingSlashOnBareHostname;
+
 // Convenience for omitting all unecessary types.
 extern const FormatUrlType kFormatUrlOmitAll;
 
@@ -293,12 +297,18 @@ std::wstring FormatUrl(const GURL& url,
                        size_t* prefix_end,
                        size_t* offset_for_adjustment);
 
-// This is a convenience for FormatUrl with
-// format_types=kFormatUrlOmitUsernamePassword and unescape=SPACES.
+// This is a convenience function for FormatUrl() with
+// format_types = kFormatUrlOmitAll and unescape = SPACES.  This is the typical
+// set of flags for "URLs to display to the user".  You should be cautious about
+// using this for URLs which will be parsed or sent to other applications.
 inline std::wstring FormatUrl(const GURL& url, const std::wstring& languages) {
-  return FormatUrl(url, languages, kFormatUrlOmitUsernamePassword,
-                   UnescapeRule::SPACES, NULL, NULL, NULL);
+  return FormatUrl(url, languages, kFormatUrlOmitAll, UnescapeRule::SPACES,
+                   NULL, NULL, NULL);
 }
+
+// Returns whether FormatUrl() would strip a trailing slash from |url|, given a
+// format flag including kFormatUrlOmitTrailingSlashOnBareHostname.
+bool CanStripTrailingSlash(const GURL& url);
 
 // Strip the portions of |url| that aren't core to the network request.
 //   - user name / password
