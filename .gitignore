@@ -56,8 +56,7 @@
 /third_party/chromeos_text_input
 /third_party/cros
 /third_party/cygwin
-/third_party/ffmpeg/binaries
-/third_party/ffmpeg/source/patched-ffmpeg-mt
+/third_party/ffmpeg
 /third_party/forge
 /third_party/googlemac
 /third_party/gles2_conform
