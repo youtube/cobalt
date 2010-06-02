@@ -1428,6 +1428,12 @@ size_t Tokenize(const std::string& str,
   return TokenizeT(str, delimiters, tokens);
 }
 
+size_t Tokenize(const base::StringPiece& str,
+                const base::StringPiece& delimiters,
+                std::vector<base::StringPiece>* tokens) {
+  return TokenizeT(str, delimiters, tokens);
+}
+
 template<typename STR>
 static STR JoinStringT(const std::vector<STR>& parts,
                        typename STR::value_type sep) {
