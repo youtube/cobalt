@@ -601,6 +601,9 @@ size_t Tokenize(const string16& str,
 size_t Tokenize(const std::string& str,
                 const std::string& delimiters,
                 std::vector<std::string>* tokens);
+size_t Tokenize(const base::StringPiece& str,
+                const base::StringPiece& delimiters,
+                std::vector<base::StringPiece>* tokens);
 
 // Does the opposite of SplitString().
 std::wstring JoinString(const std::vector<std::wstring>& parts, wchar_t s);
