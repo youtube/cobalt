@@ -1492,14 +1492,12 @@ std::wstring FormatUrl(const GURL& url,
   } else {
     AppendFormattedComponent(spec, parsed.username, unescape_rules, &url_string,
                              &new_parsed->username, offset_for_adjustment);
-    if (parsed.password.is_valid()) {
+    if (parsed.password.is_valid())
       url_string.push_back(':');
-    }
     AppendFormattedComponent(spec, parsed.password, unescape_rules, &url_string,
                              &new_parsed->password, offset_for_adjustment);
-    if (parsed.username.is_valid() || parsed.password.is_valid()) {
+    if (parsed.username.is_valid() || parsed.password.is_valid())
       url_string.push_back('@');
-    }
   }
   if (prefix_end)
     *prefix_end = static_cast<size_t>(url_string.length());
