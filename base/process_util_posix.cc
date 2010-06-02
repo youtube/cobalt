@@ -510,6 +510,13 @@ bool LaunchApp(
     RestoreDefaultExceptionHandler();
 #endif
 
+    // The previous signal handlers are likely to be meaningless in the child's
+    // context so we reset them to the defaults for now. http://crbug.com/44953
+    // These signal handlers are setup in browser_main.cc:BrowserMain
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGHUP, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+
 #if 0
     // When debugging it can be helpful to check that we really aren't making
     // any hidden calls to malloc.
