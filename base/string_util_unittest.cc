@@ -1247,96 +1247,105 @@ TEST(StringUtilTest, SplitString) {
 }
 
 // Test for Tokenize
-TEST(StringUtilTest, Tokenize) {
-  std::vector<std::string> r;
+template <typename STR>
+void TokenizeTest() {
+  std::vector<STR> r;
   size_t size;
 
-  size = Tokenize("This is a string", " ", &r);
+  size = Tokenize(STR("This is a string"), STR(" "), &r);
   EXPECT_EQ(4U, size);
   ASSERT_EQ(4U, r.size());
-  EXPECT_EQ(r[0], "This");
-  EXPECT_EQ(r[1], "is");
-  EXPECT_EQ(r[2], "a");
-  EXPECT_EQ(r[3], "string");
+  EXPECT_EQ(r[0], STR("This"));
+  EXPECT_EQ(r[1], STR("is"));
+  EXPECT_EQ(r[2], STR("a"));
+  EXPECT_EQ(r[3], STR("string"));
   r.clear();
 
-  size = Tokenize("one,two,three", ",", &r);
+  size = Tokenize(STR("one,two,three"), STR(","), &r);
   EXPECT_EQ(3U, size);
   ASSERT_EQ(3U, r.size());
-  EXPECT_EQ(r[0], "one");
-  EXPECT_EQ(r[1], "two");
-  EXPECT_EQ(r[2], "three");
+  EXPECT_EQ(r[0], STR("one"));
+  EXPECT_EQ(r[1], STR("two"));
+  EXPECT_EQ(r[2], STR("three"));
   r.clear();
 
-  size = Tokenize("one,two:three;four", ",:", &r);
+  size = Tokenize(STR("one,two:three;four"), STR(",:"), &r);
   EXPECT_EQ(3U, size);
   ASSERT_EQ(3U, r.size());
-  EXPECT_EQ(r[0], "one");
-  EXPECT_EQ(r[1], "two");
-  EXPECT_EQ(r[2], "three;four");
+  EXPECT_EQ(r[0], STR("one"));
+  EXPECT_EQ(r[1], STR("two"));
+  EXPECT_EQ(r[2], STR("three;four"));
   r.clear();
 
-  size = Tokenize("one,two:three;four", ";,:", &r);
+  size = Tokenize(STR("one,two:three;four"), STR(";,:"), &r);
   EXPECT_EQ(4U, size);
   ASSERT_EQ(4U, r.size());
-  EXPECT_EQ(r[0], "one");
-  EXPECT_EQ(r[1], "two");
-  EXPECT_EQ(r[2], "three");
-  EXPECT_EQ(r[3], "four");
+  EXPECT_EQ(r[0], STR("one"));
+  EXPECT_EQ(r[1], STR("two"));
+  EXPECT_EQ(r[2], STR("three"));
+  EXPECT_EQ(r[3], STR("four"));
   r.clear();
 
-  size = Tokenize("one, two, three", ",", &r);
+  size = Tokenize(STR("one, two, three"), STR(","), &r);
   EXPECT_EQ(3U, size);
   ASSERT_EQ(3U, r.size());
-  EXPECT_EQ(r[0], "one");
-  EXPECT_EQ(r[1], " two");
-  EXPECT_EQ(r[2], " three");
+  EXPECT_EQ(r[0], STR("one"));
+  EXPECT_EQ(r[1], STR(" two"));
+  EXPECT_EQ(r[2], STR(" three"));
   r.clear();
 
-  size = Tokenize("one, two, three, ", ",", &r);
+  size = Tokenize(STR("one, two, three, "), STR(","), &r);
   EXPECT_EQ(4U, size);
   ASSERT_EQ(4U, r.size());
-  EXPECT_EQ(r[0], "one");
-  EXPECT_EQ(r[1], " two");
-  EXPECT_EQ(r[2], " three");
-  EXPECT_EQ(r[3], " ");
+  EXPECT_EQ(r[0], STR("one"));
+  EXPECT_EQ(r[1], STR(" two"));
+  EXPECT_EQ(r[2], STR(" three"));
+  EXPECT_EQ(r[3], STR(" "));
   r.clear();
 
-  size = Tokenize("one, two, three,", ",", &r);
+  size = Tokenize(STR("one, two, three,"), STR(","), &r);
   EXPECT_EQ(3U, size);
   ASSERT_EQ(3U, r.size());
-  EXPECT_EQ(r[0], "one");
-  EXPECT_EQ(r[1], " two");
-  EXPECT_EQ(r[2], " three");
+  EXPECT_EQ(r[0], STR("one"));
+  EXPECT_EQ(r[1], STR(" two"));
+  EXPECT_EQ(r[2], STR(" three"));
   r.clear();
 
-  size = Tokenize("", ",", &r);
+  size = Tokenize(STR(""), STR(","), &r);
   EXPECT_EQ(0U, size);
   ASSERT_EQ(0U, r.size());
   r.clear();
 
-  size = Tokenize(",", ",", &r);
+  size = Tokenize(STR(","), STR(","), &r);
   EXPECT_EQ(0U, size);
   ASSERT_EQ(0U, r.size());
   r.clear();
 
-  size = Tokenize(",;:.", ".:;,", &r);
+  size = Tokenize(STR(",;:."), STR(".:;,"), &r);
   EXPECT_EQ(0U, size);
   ASSERT_EQ(0U, r.size());
   r.clear();
 
-  size = Tokenize("\t\ta\t", "\t", &r);
+  size = Tokenize(STR("\t\ta\t"), STR("\t"), &r);
   EXPECT_EQ(1U, size);
   ASSERT_EQ(1U, r.size());
-  EXPECT_EQ(r[0], "a");
+  EXPECT_EQ(r[0], STR("a"));
   r.clear();
 
-  size = Tokenize("\ta\t\nb\tcc", "\n", &r);
+  size = Tokenize(STR("\ta\t\nb\tcc"), STR("\n"), &r);
   EXPECT_EQ(2U, size);
   ASSERT_EQ(2U, r.size());
-  EXPECT_EQ(r[0], "\ta\t");
-  EXPECT_EQ(r[1], "b\tcc");
+  EXPECT_EQ(r[0], STR("\ta\t"));
+  EXPECT_EQ(r[1], STR("b\tcc"));
   r.clear();
+}
+
+TEST(StringUtilTest, TokenizeStdString) {
+  TokenizeTest<std::string>();
+}
+
+TEST(StringUtilTest, TokenizeStringPiece) {
+  TokenizeTest<base::StringPiece>();
 }
 
 // Test for JoinString
