@@ -6,28 +6,158 @@
 
 #include "base/compiler_specific.h"
 #include "base/logging.h"
+#include "base/lock.h"
 #include "base/message_loop.h"
+#include "base/waitable_event.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 
 namespace net {
 
+// SyncHostResolverBridge::Core ----------------------------------------------
+
+class SyncHostResolverBridge::Core
+    : public base::RefCountedThreadSafe<SyncHostResolverBridge::Core> {
+ public:
+  Core(HostResolver* resolver, MessageLoop* host_resolver_loop);
+
+  int ResolveSynchronously(const HostResolver::RequestInfo& info,
+                           AddressList* addresses);
+
+  // Returns true if Shutdown() has been called.
+  bool HasShutdown() const {
+    AutoLock l(lock_);
+    return HasShutdownLocked();
+  }
+
+  // Called on |host_resolver_loop_|.
+  void Shutdown();
+
+ private:
+  friend class base::RefCountedThreadSafe<SyncHostResolverBridge::Core>;
+
+  bool HasShutdownLocked() const {
+    return has_shutdown_;
+  }
+
+  // Called on |host_resolver_loop_|.
+  void StartResolve(const HostResolver::RequestInfo& info,
+                    AddressList* addresses);
+
+  // Called on |host_resolver_loop_|.
+  void OnResolveCompletion(int result);
+
+  // Not called on |host_resolver_loop_|.
+  int WaitForResolveCompletion();
+
+  const scoped_refptr<HostResolver> host_resolver_;
+  MessageLoop* const host_resolver_loop_;
+  net::CompletionCallbackImpl<Core> callback_;
+  // The result from the current request (set on |host_resolver_loop_|).
+  int err_;
+  // The currently outstanding request to |host_resolver_|, or NULL.
+  HostResolver::RequestHandle outstanding_request_;
+
+  // Event to notify completion of resolve request.  We always Signal() on
+  // |host_resolver_loop_| and Wait() on a different thread.
+  base::WaitableEvent event_;
+
+  // True if Shutdown() has been called. Must hold |lock_| to access it.
+  bool has_shutdown_;
+
+  // Mutex to guard accesses to |has_shutdown_|.
+  mutable Lock lock_;
+
+  DISALLOW_COPY_AND_ASSIGN(Core);
+};
+
+SyncHostResolverBridge::Core::Core(HostResolver* host_resolver,
+                                   MessageLoop* host_resolver_loop)
+    : host_resolver_(host_resolver),
+      host_resolver_loop_(host_resolver_loop),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          callback_(this, &Core::OnResolveCompletion)),
+      err_(0),
+      outstanding_request_(NULL),
+      event_(true, false),
+      has_shutdown_(false) {}
+
+int SyncHostResolverBridge::Core::ResolveSynchronously(
+    const HostResolver::RequestInfo& info,
+    net::AddressList* addresses) {
+  // Otherwise start an async resolve on the resolver's thread.
+  host_resolver_loop_->PostTask(
+      FROM_HERE,
+      NewRunnableMethod(this, &Core::StartResolve,
+                        info, addresses));
+
+  return WaitForResolveCompletion();
+}
+
+void SyncHostResolverBridge::Core::StartResolve(
+    const HostResolver::RequestInfo& info,
+    net::AddressList* addresses) {
+  DCHECK_EQ(MessageLoop::current(), host_resolver_loop_);
+  DCHECK(!outstanding_request_);
+
+  if (HasShutdown())
+    return;
+
+  int error = host_resolver_->Resolve(
+      info, addresses, &callback_, &outstanding_request_, BoundNetLog());
+  if (error != ERR_IO_PENDING)
+    OnResolveCompletion(error);  // Completed synchronously.
+}
+
+void SyncHostResolverBridge::Core::OnResolveCompletion(int result) {
+  DCHECK_EQ(MessageLoop::current(), host_resolver_loop_);
+  err_ = result;
+  outstanding_request_ = NULL;
+  event_.Signal();
+}
+
+int SyncHostResolverBridge::Core::WaitForResolveCompletion() {
+  DCHECK_NE(MessageLoop::current(), host_resolver_loop_);
+  event_.Wait();
+
+  {
+    AutoLock l(lock_);
+    if (HasShutdownLocked())
+      return ERR_ABORTED;
+    event_.Reset();
+  }
+
+  return err_;
+}
+
+void SyncHostResolverBridge::Core::Shutdown() {
+  DCHECK_EQ(MessageLoop::current(), host_resolver_loop_);
+
+  if (outstanding_request_) {
+    host_resolver_->CancelRequest(outstanding_request_);
+    outstanding_request_ = NULL;
+  }
+
+  {
+    AutoLock l(lock_);
+    has_shutdown_ = true;
+  }
+
+  // Wake up the PAC thread in case it was waiting for resolve completion.
+  event_.Signal();
+}
+
 // SyncHostResolverBridge -----------------------------------------------------
 
 SyncHostResolverBridge::SyncHostResolverBridge(HostResolver* host_resolver,
                                                MessageLoop* host_resolver_loop)
-    : host_resolver_(host_resolver),
-      host_resolver_loop_(host_resolver_loop),
-      event_(true, false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &SyncHostResolverBridge::OnResolveCompletion)),
-      outstanding_request_(NULL),
-      has_shutdown_(false) {
+    : host_resolver_loop_(host_resolver_loop),
+      core_(new Core(host_resolver, host_resolver_loop)) {
   DCHECK(host_resolver_loop_);
 }
 
 SyncHostResolverBridge::~SyncHostResolverBridge() {
-  DCHECK(HasShutdown());
+  DCHECK(core_->HasShutdown());
 }
 
 int SyncHostResolverBridge::Resolve(const RequestInfo& info,
@@ -38,23 +168,7 @@ int SyncHostResolverBridge::Resolve(const RequestInfo& info,
   DCHECK(!callback);
   DCHECK(!out_req);
 
-  // Otherwise start an async resolve on the resolver's thread.
-  host_resolver_loop_->PostTask(
-      FROM_HERE,
-      NewRunnableMethod(this, &SyncHostResolverBridge::StartResolve,
-                        info, addresses));
-
-  // Wait for the resolve to complete in the resolver's thread.
-  event_.Wait();
-
-  {
-    AutoLock l(lock_);
-    if (has_shutdown_)
-      return ERR_ABORTED;
-    event_.Reset();
-  }
-
-  return err_;
+  return core_->ResolveSynchronously(info, addresses);
 }
 
 void SyncHostResolverBridge::CancelRequest(RequestHandle req) {
@@ -71,38 +185,7 @@ void SyncHostResolverBridge::RemoveObserver(Observer* observer) {
 
 void SyncHostResolverBridge::Shutdown() {
   DCHECK_EQ(MessageLoop::current(), host_resolver_loop_);
-
-  if (outstanding_request_) {
-    host_resolver_->CancelRequest(outstanding_request_);
-    outstanding_request_ = NULL;
-  }
-
-  AutoLock l(lock_);
-  has_shutdown_ = true;
-
-  // Wake up the PAC thread in case it was waiting for resolve completion.
-  event_.Signal();
-}
-
-void SyncHostResolverBridge::StartResolve(const HostResolver::RequestInfo& info,
-                                          net::AddressList* addresses) {
-  DCHECK_EQ(host_resolver_loop_, MessageLoop::current());
-  DCHECK(!outstanding_request_);
-
-  if (HasShutdown())
-    return;
-
-  int error = host_resolver_->Resolve(
-      info, addresses, &callback_, &outstanding_request_, BoundNetLog());
-  if (error != ERR_IO_PENDING)
-    OnResolveCompletion(error);  // Completed synchronously.
-}
-
-void SyncHostResolverBridge::OnResolveCompletion(int result) {
-  DCHECK_EQ(host_resolver_loop_, MessageLoop::current());
-  err_ = result;
-  outstanding_request_ = NULL;
-  event_.Signal();
+  core_->Shutdown();
 }
 
 // SingleThreadedProxyResolverUsingBridgedHostResolver -----------------------

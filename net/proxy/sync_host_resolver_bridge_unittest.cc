@@ -5,6 +5,7 @@
 #include "net/proxy/sync_host_resolver_bridge.h"
 
 #include "base/thread.h"
+#include "base/waitable_event.h"
 #include "net/base/address_list.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -116,16 +117,20 @@ class SyncProxyResolver : public ProxyResolver {
 // network stack.
 class IOThread : public base::Thread {
  public:
-  explicit IOThread(HostResolver* async_resolver)
-      : base::Thread("IO-thread"), async_resolver_(async_resolver) {
-  }
+  IOThread() : base::Thread("IO-thread") {}
 
   virtual ~IOThread() {
     Stop();
   }
 
+  const scoped_refptr<BlockableHostResolver>& async_resolver() {
+    return async_resolver_;
+  }
+
  protected:
   virtual void Init() {
+    async_resolver_ = new BlockableHostResolver();
+
     // Create a synchronous host resolver that operates the async host
     // resolver on THIS thread.
     scoped_refptr<SyncHostResolverBridge> sync_resolver =
@@ -149,10 +154,19 @@ class IOThread : public base::Thread {
 
     // Delete the single threaded proxy resolver.
     proxy_resolver_.reset();
+
+    // During the teardown sequence of the single threaded proxy resolver,
+    // the outstanding host resolve should have been cancelled.
+    EXPECT_TRUE(async_resolver_->was_request_cancelled());
+
+    async_resolver_ = NULL;
   }
 
  private:
-  HostResolver* async_resolver_;
+  // This (async) host resolver will outlive the thread that is operating it
+  // synchronously.
+  scoped_refptr<BlockableHostResolver> async_resolver_;
+
   scoped_ptr<ProxyResolver> proxy_resolver_;
 
   // Data for the outstanding request to the single threaded proxy resolver.
@@ -165,35 +179,21 @@ class IOThread : public base::Thread {
 // is outstanding on the SyncHostResolverBridge.
 // This is a regression test for http://crbug.com/41244.
 TEST(SingleThreadedProxyResolverWithBridgedHostResolverTest, ShutdownDeadlock) {
-  // This (async) host resolver will outlive the thread that is operating it
-  // synchronously.
-  scoped_refptr<BlockableHostResolver> host_resolver =
-      new BlockableHostResolver();
+  IOThread io_thread;
+  base::Thread::Options options;
+  options.message_loop_type = MessageLoop::TYPE_IO;
+  ASSERT_TRUE(io_thread.StartWithOptions(options));
 
-  {
-    IOThread io_thread(host_resolver.get());
-    base::Thread::Options options;
-    options.message_loop_type = MessageLoop::TYPE_IO;
-    ASSERT_TRUE(io_thread.StartWithOptions(options));
+  io_thread.async_resolver()->WaitUntilRequestIsReceived();
 
-    // Wait until the host resolver receives a request (this means that the
-    // PAC thread is now blocked, waiting for the async response from the
-    // host resolver.
-    host_resolver->WaitUntilRequestIsReceived();
-
-    // Now upon exitting this scope, the IOThread is destroyed -- this will
-    // stop the IOThread, which will in turn delete the
-    // SingleThreadedProxyResolver, which in turn will stop its internal
-    // PAC thread (which is currently blocked waiting on the host resolve which
-    // is running on IOThread).
-  }
-
-  // During the teardown sequence of the single threaded proxy resolver,
-  // the outstanding host resolve should have been cancelled.
-  EXPECT_TRUE(host_resolver->was_request_cancelled());
+  // Now upon exitting this scope, the IOThread is destroyed -- this will
+  // stop the IOThread, which will in turn delete the
+  // SingleThreadedProxyResolver, which in turn will stop its internal
+  // PAC thread (which is currently blocked waiting on the host resolve which
+  // is running on IOThread).  The IOThread::Cleanup() will verify that after
+  // the PAC thread is stopped, it cancels the request on the HostResolver.
 }
 
 }  // namespace
 
 }  // namespace net
-
