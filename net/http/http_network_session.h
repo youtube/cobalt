@@ -38,7 +38,8 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
       ClientSocketFactory* client_socket_factory,
       SSLConfigService* ssl_config_service,
       SpdySessionPool* spdy_session_pool,
-      HttpAuthHandlerFactory* http_auth_handler_factory);
+      HttpAuthHandlerFactory* http_auth_handler_factory,
+      NetLog* net_log);
 
   HttpAuthCache* auth_cache() { return &auth_cache_; }
   SSLClientAuthCache* ssl_client_auth_cache() {
@@ -123,6 +124,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
+  NetLog* net_log_;
   SpdySettingsStorage spdy_settings_;
 };
 

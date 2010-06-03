@@ -41,7 +41,7 @@ class SOCKSSocketParams {
 
   const TCPSocketParams& tcp_params() const { return tcp_params_; }
   const HostResolver::RequestInfo& destination() const { return destination_; }
-  bool is_socks_v5() const { return socks_v5_; };
+  bool is_socks_v5() const { return socks_v5_; }
 
  private:
   // The tcp connection must point toward the proxy server.
@@ -61,7 +61,7 @@ class SOCKSConnectJob : public ConnectJob {
                   const scoped_refptr<TCPClientSocketPool>& tcp_pool,
                   const scoped_refptr<HostResolver> &host_resolver,
                   Delegate* delegate,
-                  const BoundNetLog& net_log);
+                  NetLog* net_log);
   virtual ~SOCKSConnectJob();
 
   // ConnectJob methods.
@@ -111,7 +111,8 @@ class SOCKSClientSocketPool : public ClientSocketPool {
       const scoped_refptr<ClientSocketPoolHistograms>& histograms,
       const scoped_refptr<HostResolver>& host_resolver,
       const scoped_refptr<TCPClientSocketPool>& tcp_pool,
-      NetworkChangeNotifier* network_change_notifier);
+      NetworkChangeNotifier* network_change_notifier,
+      NetLog* net_log);
 
   // ClientSocketPool methods:
   virtual int RequestSocket(const std::string& group_name,
@@ -155,9 +156,11 @@ class SOCKSClientSocketPool : public ClientSocketPool {
   class SOCKSConnectJobFactory : public PoolBase::ConnectJobFactory {
    public:
     SOCKSConnectJobFactory(const scoped_refptr<TCPClientSocketPool>& tcp_pool,
-                           HostResolver* host_resolver)
+                           HostResolver* host_resolver,
+                           NetLog* net_log)
         : tcp_pool_(tcp_pool),
-          host_resolver_(host_resolver) {}
+          host_resolver_(host_resolver),
+          net_log_(net_log) {}
 
     virtual ~SOCKSConnectJobFactory() {}
 
@@ -165,14 +168,14 @@ class SOCKSClientSocketPool : public ClientSocketPool {
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const PoolBase::Request& request,
-        ConnectJob::Delegate* delegate,
-        const BoundNetLog& net_log) const;
+        ConnectJob::Delegate* delegate) const;
 
     virtual base::TimeDelta ConnectionTimeout() const;
 
    private:
     const scoped_refptr<TCPClientSocketPool> tcp_pool_;
     const scoped_refptr<HostResolver> host_resolver_;
+    NetLog* net_log_;
 
     DISALLOW_COPY_AND_ASSIGN(SOCKSConnectJobFactory);
   };

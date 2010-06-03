@@ -236,6 +236,7 @@ HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
                      HostResolver* host_resolver, ProxyService* proxy_service,
                      SSLConfigService* ssl_config_service,
                      HttpAuthHandlerFactory* http_auth_handler_factory,
+                     NetLog* net_log,
                      BackendFactory* backend_factory)
     : backend_factory_(backend_factory),
       temp_backend_(NULL),
@@ -243,7 +244,8 @@ HttpCache::HttpCache(NetworkChangeNotifier* network_change_notifier,
       mode_(NORMAL),
       network_layer_(HttpNetworkLayer::CreateFactory(
           network_change_notifier, host_resolver, proxy_service,
-          ssl_config_service, http_auth_handler_factory)),
+          ssl_config_service, http_auth_handler_factory,
+          net_log)),
       ALLOW_THIS_IN_INITIALIZER_LIST(task_factory_(this)),
       enable_range_support_(true) {
 }

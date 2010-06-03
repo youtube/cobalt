@@ -267,12 +267,13 @@ TCPClientSocketWin::TCPClientSocketWin(const AddressList& addresses,
       next_connect_state_(CONNECT_STATE_NONE),
       connect_os_error_(0),
       net_log_(BoundNetLog::Make(net_log, NetLog::SOURCE_SOCKET)) {
+  net_log_.BeginEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
   EnsureWinsockInit();
 }
 
 TCPClientSocketWin::~TCPClientSocketWin() {
   Disconnect();
-  net_log_.AddEvent(NetLog::TYPE_TCP_SOCKET_DONE, NULL);
+  net_log_.EndEvent(NetLog::TYPE_SOCKET_ALIVE, NULL);
 }
 
 int TCPClientSocketWin::Connect(CompletionCallback* callback) {
