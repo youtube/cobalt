@@ -57,6 +57,7 @@ preload-cache.patch
 safe-tolower.patch
 sqlite-poison.patch
 fts2.patch
+fts3.patch
 icu-regexp.patch
 attach-integer.patch
 
@@ -68,6 +69,7 @@ patch -p0 < ../sqlite/preload-cache.patch
 patch -p0 < ../sqlite/safe-tolower.patch
 patch -p0 < ../sqlite/sqlite-poison.patch
 patch -p0 < ../sqlite/fts2.patch
+patch -p0 < ../sqlite/fts3.patch
 patch -p0 < ../sqlite/icu-regexp.patch
 patch -p0 < ../sqlite/attach-integer.patch
 
@@ -102,7 +104,7 @@ Chris Evans <cevans@google.com>, Oct 1, 2009
 
 --------------------------------------------
 
-As of Dec 16, 2009, these are our changes from sqlite_vendor:
+As of May 07, 2010, these are our changes from sqlite_vendor:
 
  - A fix for a crash passing an integer expression to ATTACH / DETACH. See
  attach-integer.patch
@@ -111,6 +113,7 @@ As of Dec 16, 2009, these are our changes from sqlite_vendor:
  - A large number of fts2 robustness fixes against corrupt data in its metadata
    tables.
  - fts2.c disables fts2_tokenizer().
+ - fts3.c disables fts3_tokenizer().
  - sqlite3Poison() in src/btree.c.
  - Tweak to SQLITE_EXTENSION_INIT* in sqlite3ext.h.
    - That implied a change in src/test_autoext.c for testing.
@@ -141,8 +144,8 @@ Changes from Chrome:
    issue we get because we're using fts2 instead of fts3.
  - shell_icu_win.c and shell_icu_linux.c are Chrome-specific files used to load
    our ICU data.  shell.c has been modifed to call into these files.
- - fts2_icu.c has a critical bug. U8_NEXT is used over a UTF-16 string. It's
-   rep$ by U16_NEXT (jungshik)
+ - fts2_icu.c and fts3_icu.c have a critical bug. U8_NEXT is used over
+   a UTF-16 string. It's rep$ by U16_NEXT (jungshik)
  - Added a new function sqlite3Preload we use to prime the database cache. It
    allows much faster performance by reading the file in one contiguous
    operation rather than bringing it in organically, which involves a lot of
