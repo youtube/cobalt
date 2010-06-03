@@ -18,6 +18,8 @@ namespace net {
 
 class DrainableIOBuffer;
 class WebSocketFrameHandler;
+class WebSocketHandshakeRequestHandler;
+class WebSocketHandshakeResponseHandler;
 
 // WebSocket protocol specific job on SocketStream.
 // It captures WebSocket handshake message and handles cookie operations.
@@ -95,13 +97,11 @@ class WebSocketJob : public SocketStreamJob, public SocketStream::Delegate {
   AddressList addresses_;
   CompletionCallback* callback_;  // for throttling.
 
-  std::string original_handshake_request_;
-  int original_handshake_request_header_length_;
-  std::string handshake_request_;
+  scoped_ptr<WebSocketHandshakeRequestHandler> handshake_request_;
+  scoped_ptr<WebSocketHandshakeResponseHandler> handshake_response_;
+
   size_t handshake_request_sent_;
 
-  std::string handshake_response_;
-  int handshake_response_header_length_;
   std::vector<std::string> response_cookies_;
   size_t response_cookies_save_index_;
 
