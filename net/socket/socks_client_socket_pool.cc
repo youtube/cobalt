@@ -26,13 +26,15 @@ SOCKSConnectJob::SOCKSConnectJob(
     const scoped_refptr<TCPClientSocketPool>& tcp_pool,
     const scoped_refptr<HostResolver>& host_resolver,
     Delegate* delegate,
-    const BoundNetLog& net_log)
-    : ConnectJob(group_name, timeout_duration, delegate, net_log),
+    NetLog* net_log)
+    : ConnectJob(group_name, timeout_duration, delegate,
+                 BoundNetLog::Make(net_log, NetLog::SOURCE_CONNECT_JOB)),
       socks_params_(socks_params),
       tcp_pool_(tcp_pool),
       resolver_(host_resolver),
       ALLOW_THIS_IN_INITIALIZER_LIST(
-          callback_(this, &SOCKSConnectJob::OnIOComplete)) {}
+          callback_(this, &SOCKSConnectJob::OnIOComplete)) {
+}
 
 SOCKSConnectJob::~SOCKSConnectJob() {
   // We don't worry about cancelling the tcp socket since the destructor in
@@ -144,10 +146,9 @@ int SOCKSConnectJob::DoSOCKSConnectComplete(int result) {
 ConnectJob* SOCKSClientSocketPool::SOCKSConnectJobFactory::NewConnectJob(
     const std::string& group_name,
     const PoolBase::Request& request,
-    ConnectJob::Delegate* delegate,
-    const BoundNetLog& net_log) const {
+    ConnectJob::Delegate* delegate) const {
   return new SOCKSConnectJob(group_name, request.params(), ConnectionTimeout(),
-                             tcp_pool_, host_resolver_, delegate, net_log);
+                             tcp_pool_, host_resolver_, delegate, net_log_);
 }
 
 base::TimeDelta
@@ -162,11 +163,12 @@ SOCKSClientSocketPool::SOCKSClientSocketPool(
     const scoped_refptr<ClientSocketPoolHistograms>& histograms,
     const scoped_refptr<HostResolver>& host_resolver,
     const scoped_refptr<TCPClientSocketPool>& tcp_pool,
-    NetworkChangeNotifier* network_change_notifier)
+    NetworkChangeNotifier* network_change_notifier,
+    NetLog* net_log)
     : base_(max_sockets, max_sockets_per_group, histograms,
             base::TimeDelta::FromSeconds(kUnusedIdleSocketTimeout),
             base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout),
-            new SOCKSConnectJobFactory(tcp_pool, host_resolver),
+            new SOCKSConnectJobFactory(tcp_pool, host_resolver, net_log),
             network_change_notifier) {}
 
 SOCKSClientSocketPool::~SOCKSClientSocketPool() {}

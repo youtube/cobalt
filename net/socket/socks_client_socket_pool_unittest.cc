@@ -87,7 +87,7 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
       ClientSocketFactory* socket_factory,
       NetworkChangeNotifier* network_change_notifier)
       : TCPClientSocketPool(max_sockets, max_sockets_per_group, histograms,
-                            NULL, NULL, network_change_notifier),
+                            NULL, NULL, network_change_notifier, NULL),
         client_socket_factory_(socket_factory),
         release_count_(0),
         cancel_count_(0) {}
@@ -180,7 +180,7 @@ class SOCKSClientSocketPoolTest : public ClientSocketPoolTest {
         socks_histograms_(new ClientSocketPoolHistograms("SOCKSUnitTest")),
         pool_(new SOCKSClientSocketPool(
             kMaxSockets, kMaxSocketsPerGroup, socks_histograms_, NULL,
-            tcp_socket_pool_, &socks_notifier_)) {
+            tcp_socket_pool_, &socks_notifier_, NULL)) {
   }
 
   int StartRequest(const std::string& group_name, RequestPriority priority) {

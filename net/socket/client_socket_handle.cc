@@ -33,6 +33,7 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
   if (socket_.get()) {
     // Because of http://crbug.com/37810 we may not have a pool, but have
     // just a raw socket.
+    socket_->NetLog().EndEvent(NetLog::TYPE_SOCKET_IN_USE, NULL);
     if (pool_)
       // If we've still got a socket, release it back to the ClientSocketPool so
       // it can be deleted or reused.
@@ -92,6 +93,15 @@ void ClientSocketHandle::HandleInitCompletion(int result) {
       NOTREACHED();
       break;
   }
+
+  // Broadcast that the socket has been acquired.
+  // TODO(eroman): This logging is not complete, in particular set_socket() and
+  // release() socket. It ends up working though, since those methods are being
+  // used to layer sockets (and the destination sources are the same).
+  DCHECK(socket_.get());
+  socket_->NetLog().BeginEvent(
+      NetLog::TYPE_SOCKET_IN_USE,
+      new NetLogSourceParameter("source_dependency", requesting_source_));
 }
 
 }  // namespace net

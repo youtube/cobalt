@@ -16,6 +16,7 @@
 
 #include <list>
 #include <set>
+#include <string>
 
 #include "base/basictypes.h"
 #include "base/file_path.h"
@@ -43,6 +44,7 @@ class HttpNetworkSession;
 struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
+class NetLog;
 class NetworkChangeNotifier;
 class ProxyService;
 class SSLConfigService;
@@ -114,6 +116,7 @@ class HttpCache : public HttpTransactionFactory,
             HostResolver* host_resolver, ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
+            NetLog* net_log,
             BackendFactory* backend_factory);
 
   // The disk cache is initialized lazily (by CreateTransaction) in  this case.

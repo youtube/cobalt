@@ -102,12 +102,11 @@ TEST_F(TCPClientSocketTest, Connect) {
 
   int rv = sock_->Connect(&callback);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      net_log_.entries(), 0, net::NetLog::TYPE_TCP_CONNECT));
+      net_log_.entries(), 0, net::NetLog::TYPE_SOCKET_ALIVE));
+  EXPECT_TRUE(net::LogContainsBeginEvent(
+      net_log_.entries(), 1, net::NetLog::TYPE_TCP_CONNECT));
   if (rv != OK) {
     ASSERT_EQ(rv, ERR_IO_PENDING);
-    EXPECT_FALSE(net::LogContainsEndEvent(
-        net_log_.entries(), -1, net::NetLog::TYPE_TCP_CONNECT));
-
     rv = callback.WaitForResult();
     EXPECT_EQ(rv, OK);
   }
