@@ -107,7 +107,7 @@ void SpdySessionPool::RemoveSessionList(const HostPortPair& host_port_pair) {
   }
 }
 
-void SpdySessionPool::CloseAllSessions() {
+void SpdySessionPool::RemoveAllSessions(bool close) {
   while (sessions_.size()) {
     SpdySessionList* list = sessions_.begin()->second;
     DCHECK(list);
@@ -115,7 +115,8 @@ void SpdySessionPool::CloseAllSessions() {
     while (list->size()) {
       scoped_refptr<SpdySession> session = list->front();
       list->pop_front();
-      session->CloseAllStreams(net::ERR_ABORTED);
+      if (close)
+        session->CloseAllStreams(net::ERR_ABORTED);
     }
     delete list;
   }
