@@ -54,7 +54,7 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   bool HasSession(const HostPortPair& host_port_pair)const;
 
   // Close all Spdy Sessions; used for debugging.
-  void CloseAllSessions();
+  void CloseAllSessions() { RemoveAllSessions(true); }
 
   // Removes a SpdySession from the SpdySessionPool.
   void Remove(const scoped_refptr<SpdySession>& session);
@@ -62,6 +62,7 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
  private:
   friend class base::RefCounted<SpdySessionPool>;
   friend class SpdySessionPoolPeer;  // For testing.
+  friend class SpdyNetworkTransactionTest;  // For testing.
 
   typedef std::list<scoped_refptr<SpdySession> > SpdySessionList;
   typedef std::map<HostPortPair, SpdySessionList*> SpdySessionsMap;
@@ -74,6 +75,8 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   const SpdySessionList* GetSessionList(
       const HostPortPair& host_port_pair) const;
   void RemoveSessionList(const HostPortPair& host_port_pair);
+  void ClearSessions() { RemoveAllSessions(false); }
+  void RemoveAllSessions(bool close);
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;
