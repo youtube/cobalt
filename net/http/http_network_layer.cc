@@ -25,13 +25,15 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service,
-    HttpAuthHandlerFactory* http_auth_handler_factory) {
+    HttpAuthHandlerFactory* http_auth_handler_factory,
+    NetLog* net_log) {
   DCHECK(proxy_service);
 
   return new HttpNetworkLayer(ClientSocketFactory::GetDefaultFactory(),
                               network_change_notifier,
                               host_resolver, proxy_service, ssl_config_service,
-                              http_auth_handler_factory);
+                              http_auth_handler_factory,
+                              net_log);
 }
 
 // static
@@ -51,7 +53,8 @@ HttpNetworkLayer::HttpNetworkLayer(
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service,
-    HttpAuthHandlerFactory* http_auth_handler_factory)
+    HttpAuthHandlerFactory* http_auth_handler_factory,
+    NetLog* net_log)
     : socket_factory_(socket_factory),
       network_change_notifier_(network_change_notifier),
       host_resolver_(host_resolver),
@@ -60,6 +63,7 @@ HttpNetworkLayer::HttpNetworkLayer(
       session_(NULL),
       spdy_session_pool_(NULL),
       http_auth_handler_factory_(http_auth_handler_factory),
+      net_log_(net_log),
       suspended_(false) {
   DCHECK(proxy_service_);
   DCHECK(ssl_config_service_.get());
@@ -72,6 +76,7 @@ HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
       session_(session),
       spdy_session_pool_(session->spdy_session_pool()),
       http_auth_handler_factory_(NULL),
+      net_log_(NULL),
       suspended_(false) {
   DCHECK(session_.get());
 }
@@ -108,13 +113,15 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
     session_ = new HttpNetworkSession(
         network_change_notifier_, host_resolver_, proxy_service_,
         socket_factory_, ssl_config_service_, spdy_pool,
-        http_auth_handler_factory_);
+        http_auth_handler_factory_,
+        net_log_);
     // These were just temps for lazy-initializing HttpNetworkSession.
     network_change_notifier_ = NULL;
     host_resolver_ = NULL;
     proxy_service_ = NULL;
     socket_factory_ = NULL;
     http_auth_handler_factory_ = NULL;
+    net_log_ = NULL;
   }
   return session_;
 }

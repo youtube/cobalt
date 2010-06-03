@@ -97,4 +97,15 @@ Value* NetLogStringParameter::ToValue() const {
   return dict;
 }
 
+Value* NetLogSourceParameter::ToValue() const {
+  DictionaryValue* dict = new DictionaryValue();
+
+  DictionaryValue* source_dict = new DictionaryValue();
+  source_dict->SetInteger(L"type", static_cast<int>(value_.type));
+  source_dict->SetInteger(L"id", static_cast<int>(value_.id));
+
+  dict->Set(ASCIIToWide(name_), source_dict);
+  return dict;
+}
+
 }  // namespace net

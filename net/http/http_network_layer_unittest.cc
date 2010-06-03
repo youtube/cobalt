@@ -18,7 +18,7 @@ class HttpNetworkLayerTest : public PlatformTest {
 TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
   net::HttpNetworkLayer factory(
       NULL, NULL, new net::MockHostResolver, net::ProxyService::CreateNull(),
-      new net::SSLConfigServiceDefaults, NULL);
+      new net::SSLConfigServiceDefaults, NULL, NULL);
 
   scoped_ptr<net::HttpTransaction> trans;
   int rv = factory.CreateTransaction(&trans);
@@ -29,7 +29,7 @@ TEST_F(HttpNetworkLayerTest, CreateAndDestroy) {
 TEST_F(HttpNetworkLayerTest, Suspend) {
   net::HttpNetworkLayer factory(
       NULL, NULL, new net::MockHostResolver, net::ProxyService::CreateNull(),
-      new net::SSLConfigServiceDefaults, NULL);
+      new net::SSLConfigServiceDefaults, NULL, NULL);
 
   scoped_ptr<net::HttpTransaction> trans;
   int rv = factory.CreateTransaction(&trans);
@@ -71,7 +71,7 @@ TEST_F(HttpNetworkLayerTest, GET) {
                                 new net::MockHostResolver,
                                 net::ProxyService::CreateNull(),
                                 new net::SSLConfigServiceDefaults,
-                                NULL);
+                                NULL, NULL);
 
   TestCompletionCallback callback;
 

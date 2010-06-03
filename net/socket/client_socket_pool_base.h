@@ -91,13 +91,16 @@ class ConnectJob {
   virtual LoadState GetLoadState() const = 0;
 
  protected:
-  void set_socket(ClientSocket* socket) { socket_.reset(socket); }
+  void set_socket(ClientSocket* socket);
   ClientSocket* socket() { return socket_.get(); }
   void NotifyDelegateOfCompletion(int rv);
   void ResetTimer(base::TimeDelta remainingTime);
 
  private:
   virtual int ConnectInternal() = 0;
+
+  void LogConnectStart();
+  void LogConnectCompletion(int net_error);
 
   // Alerts the delegate that the ConnectJob has timed out.
   void OnTimeout();
@@ -158,8 +161,7 @@ class ClientSocketPoolBaseHelper
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const Request& request,
-        ConnectJob::Delegate* delegate,
-        const BoundNetLog& net_log) const = 0;
+        ConnectJob::Delegate* delegate) const = 0;
 
     virtual base::TimeDelta ConnectionTimeout() const = 0;
 
@@ -231,7 +233,7 @@ class ClientSocketPoolBaseHelper
     return connect_job_factory_->ConnectionTimeout();
   }
 
-  void enable_backup_jobs() { backup_jobs_enabled_ = true; };
+  void enable_backup_jobs() { backup_jobs_enabled_ = true; }
 
  private:
   friend class base::RefCounted<ClientSocketPoolBaseHelper>;
@@ -387,6 +389,9 @@ class ClientSocketPoolBaseHelper
   int RequestSocketInternal(const std::string& group_name,
                             const Request* request);
 
+  static void LogBoundConnectJobToRequest(
+      const NetLog::Source& connect_job_source, const Request* request);
+
   // Set a timer to create a backup socket if it takes too long to create one.
   void StartBackupSocketTimer(const std::string& group_name);
 
@@ -486,8 +491,7 @@ class ClientSocketPoolBase {
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const Request& request,
-        ConnectJob::Delegate* delegate,
-        const BoundNetLog& net_log) const = 0;
+        ConnectJob::Delegate* delegate) const = 0;
 
     virtual base::TimeDelta ConnectionTimeout() const = 0;
 
@@ -580,7 +584,7 @@ class ClientSocketPoolBase {
     return histograms_;
   }
 
-  void enable_backup_jobs() { helper_->enable_backup_jobs(); };
+  void enable_backup_jobs() { helper_->enable_backup_jobs(); }
 
  private:
   // This adaptor class exists to bridge the
@@ -602,11 +606,10 @@ class ClientSocketPoolBase {
     virtual ConnectJob* NewConnectJob(
         const std::string& group_name,
         const internal::ClientSocketPoolBaseHelper::Request& request,
-        ConnectJob::Delegate* delegate,
-        const BoundNetLog& net_log) const {
+        ConnectJob::Delegate* delegate) const {
       const Request* casted_request = static_cast<const Request*>(&request);
       return connect_job_factory_->NewConnectJob(
-          group_name, *casted_request, delegate, net_log);
+          group_name, *casted_request, delegate);
     }
 
     virtual base::TimeDelta ConnectionTimeout() const {

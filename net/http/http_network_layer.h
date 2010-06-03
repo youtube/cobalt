@@ -17,6 +17,7 @@ class ClientSocketFactory;
 class HostResolver;
 class HttpAuthHandlerFactory;
 class HttpNetworkSession;
+class NetLog;
 class NetworkChangeNotifier;
 class ProxyInfo;
 class ProxyService;
@@ -31,7 +32,8 @@ class HttpNetworkLayer : public HttpTransactionFactory {
                    NetworkChangeNotifier* network_change_notifier,
                    HostResolver* host_resolver, ProxyService* proxy_service,
                    SSLConfigService* ssl_config_service,
-                   HttpAuthHandlerFactory* http_auth_handler_factory);
+                   HttpAuthHandlerFactory* http_auth_handler_factory,
+                   NetLog* net_log);
   // Construct a HttpNetworkLayer with an existing HttpNetworkSession which
   // contains a valid ProxyService.
   explicit HttpNetworkLayer(HttpNetworkSession* session);
@@ -44,7 +46,8 @@ class HttpNetworkLayer : public HttpTransactionFactory {
       HostResolver* host_resolver,
       ProxyService* proxy_service,
       SSLConfigService* ssl_config_service,
-      HttpAuthHandlerFactory* http_auth_handler_factory);
+      HttpAuthHandlerFactory* http_auth_handler_factory,
+      NetLog* net_log);
   // Create a transaction factory that instantiate a network layer over an
   // existing network session. Network session contains some valuable
   // information (e.g. authentication data) that we want to share across
@@ -85,6 +88,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
 
   HttpAuthHandlerFactory* http_auth_handler_factory_;
+  NetLog* net_log_;
 
   bool suspended_;
   static bool force_spdy_;

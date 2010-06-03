@@ -114,7 +114,8 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
                                 session_deps->spdy_session_pool,
-                                session_deps->http_auth_handler_factory.get());
+                                session_deps->http_auth_handler_factory.get(),
+                                NULL);
 }
 
 class HttpNetworkTransactionTest : public PlatformTest {
@@ -237,9 +238,9 @@ std::string MockGetHostName() {
 template<typename EmulatedClientSocketPool>
 class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
  public:
-  CaptureGroupNameSocketPool(HttpNetworkSession* session)
+  explicit CaptureGroupNameSocketPool(HttpNetworkSession* session)
       : EmulatedClientSocketPool(0, 0, NULL, session->host_resolver(), NULL,
-                                 NULL) {}
+                                 NULL, NULL) {}
   const std::string last_group_name_received() const {
     return last_group_name_;
   }
@@ -5589,7 +5590,7 @@ TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
 
 class TLSDecompressionFailureSocketDataProvider : public SocketDataProvider {
  public:
-  TLSDecompressionFailureSocketDataProvider(bool fail_all)
+  explicit TLSDecompressionFailureSocketDataProvider(bool fail_all)
       : fail_all_(fail_all) {
   }
 
