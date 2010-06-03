@@ -32,7 +32,7 @@ class NetworkChangeNotifier;
 // request at a time is to create a SingleRequestHostResolver wrapper around
 // HostResolver (which will automatically cancel the single request when it
 // goes out of scope).
-class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
+class HostResolver : public base::RefCounted<HostResolver> {
  public:
   // The parameters for doing a Resolve(). |hostname| and |port| are required,
   // the rest are optional (and have reasonable defaults).
@@ -179,7 +179,7 @@ class HostResolver : public base::RefCountedThreadSafe<HostResolver> {
   virtual HostResolverImpl* GetAsHostResolverImpl() { return NULL; }
 
  protected:
-  friend class base::RefCountedThreadSafe<HostResolver>;
+  friend class base::RefCounted<HostResolver>;
 
   HostResolver() { }
 

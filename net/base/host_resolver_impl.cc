@@ -755,6 +755,8 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
                               CompletionCallback* callback,
                               RequestHandle* out_req,
                               const BoundNetLog& net_log) {
+  DCHECK(CalledOnValidThread());
+
   if (shutdown_)
     return ERR_UNEXPECTED;
 
@@ -840,6 +842,7 @@ int HostResolverImpl::Resolve(const RequestInfo& info,
 // See OnJobComplete(Job*) for why it is important not to clean out
 // cancelled requests from Job::requests_.
 void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
+  DCHECK(CalledOnValidThread());
   if (shutdown_) {
     // TODO(eroman): temp hack for: http://crbug.com/18373
     // Because we destroy outstanding requests during Shutdown(),
@@ -869,10 +872,12 @@ void HostResolverImpl::CancelRequest(RequestHandle req_handle) {
 }
 
 void HostResolverImpl::AddObserver(HostResolver::Observer* observer) {
+  DCHECK(CalledOnValidThread());
   observers_.push_back(observer);
 }
 
 void HostResolverImpl::RemoveObserver(HostResolver::Observer* observer) {
+  DCHECK(CalledOnValidThread());
   ObserversList::iterator it =
       std::find(observers_.begin(), observers_.end(), observer);
 
@@ -883,18 +888,21 @@ void HostResolverImpl::RemoveObserver(HostResolver::Observer* observer) {
 }
 
 void HostResolverImpl::SetDefaultAddressFamily(AddressFamily address_family) {
+  DCHECK(CalledOnValidThread());
   ipv6_probe_monitoring_ = false;
   DiscardIPv6ProbeJob();
   default_address_family_ = address_family;
 }
 
 void HostResolverImpl::ProbeIPv6Support() {
+  DCHECK(CalledOnValidThread());
   DCHECK(!ipv6_probe_monitoring_);
   ipv6_probe_monitoring_ = true;
   OnIPAddressChanged();  // Give initial setup call.
 }
 
 void HostResolverImpl::Shutdown() {
+  DCHECK(CalledOnValidThread());
   shutdown_ = true;
 
   // Cancel the outstanding jobs.
@@ -907,6 +915,7 @@ void HostResolverImpl::Shutdown() {
 void HostResolverImpl::SetPoolConstraints(JobPoolIndex pool_index,
                                           size_t max_outstanding_jobs,
                                           size_t max_pending_requests) {
+  DCHECK(CalledOnValidThread());
   CHECK_GE(pool_index, 0);
   CHECK_LT(pool_index, POOL_COUNT);
   CHECK(jobs_.empty()) << "Can only set constraints during setup";
