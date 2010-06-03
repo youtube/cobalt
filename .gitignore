@@ -62,6 +62,7 @@
 /third_party/gles2_conform
 /third_party/hunspell
 /third_party/icu
+/third_party/libjingle/source
 /third_party/libvpx
 /third_party/lighttpd
 /third_party/mingw-w64
