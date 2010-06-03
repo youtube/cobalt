@@ -342,6 +342,10 @@ void ClientSocketPoolBaseHelper::OnBackupSocketTimerFired(
 
 void ClientSocketPoolBaseHelper::CancelRequest(
     const std::string& group_name, const ClientSocketHandle* handle) {
+  // Running callbacks can cause the last outside reference to be released.
+  // Hold onto a reference.
+  scoped_refptr<ClientSocketPoolBaseHelper> ref_holder(this);
+
   CHECK(ContainsKey(group_map_, group_name));
 
   Group& group = group_map_[group_name];
@@ -480,6 +484,10 @@ void ClientSocketPoolBaseHelper::DecrementIdleCount() {
 
 void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
                                                  ClientSocket* socket) {
+  // Running callbacks can cause the last outside reference to be released.
+  // Hold onto a reference.
+  scoped_refptr<ClientSocketPoolBaseHelper> ref_holder(this);
+
   GroupMap::iterator i = group_map_.find(group_name);
   CHECK(i != group_map_.end());
 
@@ -573,6 +581,10 @@ int ClientSocketPoolBaseHelper::FindTopStalledGroup(Group** group,
 
 void ClientSocketPoolBaseHelper::OnConnectJobComplete(
     int result, ConnectJob* job) {
+  // Running callbacks can cause the last outside reference to be released.
+  // Hold onto a reference.
+  scoped_refptr<ClientSocketPoolBaseHelper> ref_holder(this);
+
   DCHECK_NE(ERR_IO_PENDING, result);
   const std::string group_name = job->group_name();
   GroupMap::iterator group_it = group_map_.find(group_name);
@@ -618,6 +630,7 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
 }
 
 void ClientSocketPoolBaseHelper::OnIPAddressChanged() {
+  CancelAllConnectJobs();
   CloseIdleSockets();
 }
 
