@@ -1635,6 +1635,31 @@ TEST_F(ClientSocketPoolBaseTest, ReleasedSocketReleasesToo) {
   EXPECT_EQ(OK, request.WaitForResult());
 }
 
+// http://crbug.com/44724 regression test.
+// We start releasing the pool when we flush on network change.  When that
+// happens, the only active references are in the ClientSocketHandles.  When a
+// ConnectJob completes and calls back into the last ClientSocketHandle, that
+// callback can release the last reference and delete the pool.  After the
+// callback finishes, we go back to the stack frame within the now-deleted pool.
+// Executing any code that refers to members of the now-deleted pool can cause
+// crashes.
+TEST_F(ClientSocketPoolBaseTest, CallbackThatReleasesPool) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingFailingJob);
+
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle, "a", kDefaultPriority,
+                       &callback, pool_, BoundNetLog()));
+
+  // Simulate flushing the pool.
+  pool_ = NULL;
+
+  // We'll call back into this now.
+  callback.WaitForResult();
+}
+
 }  // namespace
 
 }  // namespace net
