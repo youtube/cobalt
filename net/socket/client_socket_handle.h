@@ -14,6 +14,7 @@
 #include "net/base/completion_callback.h"
 #include "net/base/load_states.h"
 #include "net/base/net_errors.h"
+#include "net/base/net_log.h"
 #include "net/base/request_priority.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_pool.h"
@@ -144,6 +145,8 @@ class ClientSocketHandle {
   base::TimeTicks init_time_;
   base::TimeDelta setup_time_;
 
+  NetLog::Source requesting_source_;
+
   DISALLOW_COPY_AND_ASSIGN(ClientSocketHandle);
 };
 
@@ -155,6 +158,8 @@ int ClientSocketHandle::Init(const std::string& group_name,
                              CompletionCallback* callback,
                              const scoped_refptr<PoolType>& pool,
                              const BoundNetLog& net_log) {
+  requesting_source_ = net_log.source();
+
   CHECK(!group_name.empty());
   // Note that this will result in a link error if the SocketParams has not been
   // registered for the PoolType via REGISTER_SOCKET_PARAMS_FOR_POOL (defined in

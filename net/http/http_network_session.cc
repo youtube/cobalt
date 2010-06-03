@@ -42,7 +42,8 @@ HttpNetworkSession::HttpNetworkSession(
     ClientSocketFactory* client_socket_factory,
     SSLConfigService* ssl_config_service,
     SpdySessionPool* spdy_session_pool,
-    HttpAuthHandlerFactory* http_auth_handler_factory)
+    HttpAuthHandlerFactory* http_auth_handler_factory,
+    NetLog* net_log)
     : network_change_notifier_(network_change_notifier),
       // TODO(vandebo) when we've completely converted to pools, the base TCP
       // pool name should get changed to TCP instead of Transport.
@@ -53,13 +54,15 @@ HttpNetworkSession::HttpNetworkSession(
       socks_pool_histograms_(new ClientSocketPoolHistograms("SOCK")),
       tcp_socket_pool_(new TCPClientSocketPool(
           g_max_sockets, g_max_sockets_per_group, tcp_pool_histograms_,
-          host_resolver, client_socket_factory, network_change_notifier_)),
+          host_resolver, client_socket_factory, network_change_notifier_,
+          net_log)),
       socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
       spdy_session_pool_(spdy_session_pool),
-      http_auth_handler_factory_(http_auth_handler_factory) {
+      http_auth_handler_factory_(http_auth_handler_factory),
+      net_log_(net_log) {
   DCHECK(proxy_service);
   DCHECK(ssl_config_service);
 }
@@ -81,7 +84,8 @@ HttpNetworkSession::GetSocketPoolForHTTPProxy(const HostPortPair& http_proxy) {
               new TCPClientSocketPool(
                   g_max_sockets_per_proxy_server, g_max_sockets_per_group,
                   http_proxy_pool_histograms_, host_resolver_, socket_factory_,
-                  network_change_notifier_)));
+                  network_change_notifier_,
+                  net_log_)));
 
   return ret.first->second;
 }
@@ -104,8 +108,9 @@ HttpNetworkSession::GetSocketPoolForSOCKSProxy(
                                           g_max_sockets_per_group,
                                           tcp_for_socks_pool_histograms_,
                                           host_resolver_, socket_factory_,
-                                          network_change_notifier_),
-                  network_change_notifier_)));
+                                          network_change_notifier_,
+                                          net_log_),
+                  network_change_notifier_, net_log_)));
 
   return ret.first->second;
 }
@@ -144,7 +149,8 @@ void HttpNetworkSession::ReplaceTCPSocketPool() {
                                              tcp_pool_histograms_,
                                              host_resolver_,
                                              socket_factory_,
-                                             network_change_notifier_);
+                                             network_change_notifier_,
+                                             net_log_);
 }
 
 }  //  namespace net

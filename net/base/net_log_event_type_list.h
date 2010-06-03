@@ -13,12 +13,7 @@
 // log context around it.)
 EVENT_TYPE(CANCELLED)
 
-// TODO(eroman): remove the remaining consumers of this.
-EVENT_TYPE(TODO_STRING)
-
 // Marks the creation/destruction of a request (URLRequest or SocketStream).
-// In the begin phase of this event, the message will contain a string which
-// is the URL.
 EVENT_TYPE(REQUEST_ALIVE)
 
 // ------------------------------------------------------------------------
@@ -154,8 +149,18 @@ EVENT_TYPE(TCP_CONNECT)
 //   }
 EVENT_TYPE(TCP_CONNECT_ATTEMPT)
 
-// Marks the destruction of a TCP socket.
-EVENT_TYPE(TCP_SOCKET_DONE)
+// Marks the begin/end of a socket (TCP/SOCKS/SSL).
+EVENT_TYPE(SOCKET_ALIVE)
+
+// This event is logged to the socket stream whenever the socket is
+// acquired/released via a ClientSocketHandle.
+//
+// The BEGIN phase contains the following parameters:
+//
+//   {
+//     "source_dependency": <Source identifier for the controlling entity>
+//   }
+EVENT_TYPE(SOCKET_IN_USE)
 
 // The start/end of a SOCKS connect().
 EVENT_TYPE(SOCKS_CONNECT)
@@ -228,6 +233,23 @@ EVENT_TYPE(SOCKET_BYTES_RECEIVED)
 // The start/end of a ConnectJob.
 EVENT_TYPE(SOCKET_POOL_CONNECT_JOB)
 
+// The start/end of the ConnectJob::Connect().
+//
+// The BEGIN phase has these parameters:
+//
+//   {
+//     "group_name": <The group name for the socket request.>
+//   }
+EVENT_TYPE(SOCKET_POOL_CONNECT_JOB_CONNECT)
+
+// This event is logged whenever the ConnectJob gets a new socket
+// association. The event parameters point to that socket:
+//
+//   {
+//     "source_dependency": <The source identifier for the new socket.>
+//   }
+EVENT_TYPE(CONNECT_JOB_SET_SOCKET)
+
 // Whether the connect job timed out.
 EVENT_TYPE(SOCKET_POOL_CONNECT_JOB_TIMED_OUT)
 
@@ -262,25 +284,23 @@ EVENT_TYPE(TCP_CLIENT_SOCKET_POOL_REQUESTED_SOCKET)
 // A backup socket is created due to slow connect
 EVENT_TYPE(SOCKET_BACKUP_CREATED)
 
-// A backup socket is created due to slow connect
-EVENT_TYPE(SOCKET_BACKUP_TIMER_EXTENDED)
-
-// Identifies the NetLog::Source() for a ConnectJob.  The begin event
-// is sent to the request that triggered the ConnectJob, the end event
-// is sent to the request that received the connected socket.  Because of
-// late binding, they may not be the same. Therefore the ID for the
-// ConnectJob NetLog is sent in both events. The event parameters are:
+// This event is sent when a connect job is eventually bound to a request
+// (because of late binding and socket backup jobs, we don't assign the job to
+// a request until it has completed).
+//
+// The event parameters are:
 //   {
-//      "source_id": <ID of the connect job that was bound to this source>
+//      "source_dependency": <Source identifer for the connect job we are
+//                            bound to>
 //   }
-EVENT_TYPE(SOCKET_POOL_CONNECT_JOB_ID)
+EVENT_TYPE(SOCKET_POOL_BOUND_TO_CONNECT_JOB)
 
 // Identifies the NetLog::Source() for the Socket assigned to the pending
 // request. The event parameters are:
 //   {
-//      "source_id": <ID of the socket that was bound to this source>
+//      "source_dependency": <Source identifier for the socket we acquired>
 //   }
-EVENT_TYPE(SOCKET_POOL_SOCKET_ID)
+EVENT_TYPE(SOCKET_POOL_BOUND_TO_SOCKET)
 
 // ------------------------------------------------------------------------
 // URLRequest
