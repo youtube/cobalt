@@ -53,7 +53,7 @@ class NetLog {
 
   // The "source" identifies the entity that generated the log message.
   enum SourceType {
-#define SOURCE_TYPE(label) SOURCE_ ## label,
+#define SOURCE_TYPE(label, value) SOURCE_ ## label = value,
 #include "net/base/net_log_source_type_list.h"
 #undef SOURCE_TYPE
   };
@@ -204,6 +204,25 @@ class NetLogIntegerParameter : public NetLog::EventParameters {
  private:
   const char* name_;
   const int value_;
+};
+
+// NetLogSourceParameter is a subclass of EventParameters that encapsulates a
+// single NetLog::Source parameter.
+class NetLogSourceParameter : public NetLog::EventParameters {
+ public:
+  // |name| must be a string literal.
+  NetLogSourceParameter(const char* name, const NetLog::Source& value)
+      : name_(name), value_(value) {}
+
+  const NetLog::Source& value() const {
+    return value_;
+  }
+
+  virtual Value* ToValue() const;
+
+ private:
+  const char* name_;
+  const NetLog::Source value_;
 };
 
 }  // namespace net

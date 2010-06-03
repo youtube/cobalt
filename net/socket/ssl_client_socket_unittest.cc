@@ -84,7 +84,7 @@ TEST_F(SSLClientSocketTest, Connect) {
 
   rv = sock->Connect(&callback);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_SSL_CONNECT));
+      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
@@ -128,7 +128,7 @@ TEST_F(SSLClientSocketTest, ConnectExpired) {
 
   rv = sock->Connect(&callback);
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_SSL_CONNECT));
+      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::OK) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
@@ -174,7 +174,7 @@ TEST_F(SSLClientSocketTest, ConnectMismatched) {
   rv = sock->Connect(&callback);
 
   EXPECT_TRUE(net::LogContainsBeginEvent(
-      log.entries(), 4, net::NetLog::TYPE_SSL_CONNECT));
+      log.entries(), 5, net::NetLog::TYPE_SSL_CONNECT));
   if (rv != net::ERR_CERT_COMMON_NAME_INVALID) {
     ASSERT_EQ(net::ERR_IO_PENDING, rv);
     EXPECT_FALSE(sock->IsConnected());
