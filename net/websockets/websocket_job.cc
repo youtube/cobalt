@@ -15,12 +15,10 @@
 #include "net/http/http_util.h"
 #include "net/url_request/url_request_context.h"
 #include "net/websockets/websocket_frame_handler.h"
+#include "net/websockets/websocket_handshake_handler.h"
 #include "net/websockets/websocket_throttle.h"
 
 namespace {
-
-const size_t kRequestKey3Size = 8U;
-const size_t kResponseKeySize = 16U;
 
 // lower-case header names.
 const char* const kCookieHeaders[] = {
@@ -46,83 +44,6 @@ class WebSocketJobInitSingleton {
   }
 };
 
-void ParseHandshakeMessage(
-    const char* handshake_message, int len,
-    std::string* status_line,
-    std::string* header) {
-  size_t i = base::StringPiece(handshake_message, len).find_first_of("\r\n");
-  if (i == base::StringPiece::npos) {
-    *status_line = std::string(handshake_message, len);
-    *header = "";
-    return;
-  }
-  *status_line = std::string(handshake_message, i + 2);
-  *header = std::string(handshake_message + i + 2, len - i - 2);
-}
-
-void FetchResponseCookies(
-    const char* handshake_message, int len,
-    std::vector<std::string>* response_cookies) {
-  std::string handshake_response(handshake_message, len);
-  net::HttpUtil::HeadersIterator iter(handshake_response.begin(),
-                                      handshake_response.end(), "\r\n");
-  while (iter.GetNext()) {
-    for (size_t i = 0; i < arraysize(kSetCookieHeaders); i++) {
-      if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
-                               kSetCookieHeaders[i])) {
-        response_cookies->push_back(iter.values());
-      }
-    }
-  }
-}
-
-bool GetHeaderName(std::string::const_iterator line_begin,
-                   std::string::const_iterator line_end,
-                   std::string::const_iterator* name_begin,
-                   std::string::const_iterator* name_end) {
-  std::string::const_iterator colon = std::find(line_begin, line_end, ':');
-  if (colon == line_end) {
-    return false;
-  }
-  *name_begin = line_begin;
-  *name_end = colon;
-  if (*name_begin == *name_end || net::HttpUtil::IsLWS(**name_begin))
-    return false;
-  net::HttpUtil::TrimLWS(name_begin, name_end);
-  return true;
-}
-
-// Similar to HttpUtil::StripHeaders, but it preserves malformed headers, that
-// is, lines that are not formatted as "<name>: <value>\r\n".
-std::string FilterHeaders(
-    const std::string& headers,
-    const char* const headers_to_remove[],
-    size_t headers_to_remove_len) {
-  std::string filtered_headers;
-
-  StringTokenizer lines(headers.begin(), headers.end(), "\r\n");
-  while (lines.GetNext()) {
-    std::string::const_iterator line_begin = lines.token_begin();
-    std::string::const_iterator line_end = lines.token_end();
-    std::string::const_iterator name_begin;
-    std::string::const_iterator name_end;
-    bool should_remove = false;
-    if (GetHeaderName(line_begin, line_end, &name_begin, &name_end)) {
-      for (size_t i = 0; i < headers_to_remove_len; ++i) {
-        if (LowerCaseEqualsASCII(name_begin, name_end, headers_to_remove[i])) {
-          should_remove = true;
-          break;
-        }
-      }
-    }
-    if (!should_remove) {
-      filtered_headers.append(line_begin, line_end);
-      filtered_headers.append("\r\n");
-    }
-  }
-  return filtered_headers;
-}
-
 }  // anonymous namespace
 
 namespace net {
@@ -137,8 +58,9 @@ WebSocketJob::WebSocketJob(SocketStream::Delegate* delegate)
       state_(INITIALIZED),
       waiting_(false),
       callback_(NULL),
+      handshake_request_(new WebSocketHandshakeRequestHandler),
+      handshake_response_(new WebSocketHandshakeResponseHandler),
       handshake_request_sent_(0),
-      handshake_response_header_length_(0),
       response_cookies_save_index_(0),
       ALLOW_THIS_IN_INITIALIZER_LIST(can_get_cookies_callback_(
           this, &WebSocketJob::OnCanGetCookiesCompleted)),
@@ -330,22 +252,12 @@ void WebSocketJob::OnError(const SocketStream* socket, int error) {
 
 bool WebSocketJob::SendHandshakeRequest(const char* data, int len) {
   DCHECK_EQ(state_, CONNECTING);
-  if (!handshake_request_.empty()) {
-    // if we're already sending handshake message, don't send any more data
-    // until handshake is completed.
+  if (!handshake_request_->ParseRequest(data, len))
     return false;
-  }
-  original_handshake_request_.append(data, len);
-  original_handshake_request_header_length_ =
-      HttpUtil::LocateEndOfHeaders(original_handshake_request_.data(),
-                                   original_handshake_request_.size(), 0);
-  if (original_handshake_request_header_length_ > 0 &&
-      original_handshake_request_header_length_ + kRequestKey3Size <=
-      original_handshake_request_.size()) {
-    // handshake message is completed.
-    AddCookieHeaderAndSend();
-  }
-  // Just buffered in original_handshake_request_.
+
+  // handshake message is completed.
+  AddCookieHeaderAndSend();
+  // Just buffered in |handshake_request_|.
   return true;
 }
 
@@ -367,19 +279,8 @@ void WebSocketJob::AddCookieHeaderAndSend() {
 
 void WebSocketJob::OnCanGetCookiesCompleted(int policy) {
   if (socket_ && delegate_ && state_ == CONNECTING) {
-    std::string handshake_request_status_line;
-    std::string handshake_request_header;
-    ParseHandshakeMessage(original_handshake_request_.data(),
-                          original_handshake_request_header_length_,
-                          &handshake_request_status_line,
-                          &handshake_request_header);
-
-    // Remove cookie headers.  We should not send out malformed headers, so
-    // use HttpUtil::StripHeaders() instead of FilterHeaders().
-    handshake_request_header = HttpUtil::StripHeaders(
-        handshake_request_header,
+    handshake_request_->RemoveHeaders(
         kCookieHeaders, arraysize(kCookieHeaders));
-
     if (policy == OK) {
       // Add cookies, including HttpOnly cookies.
       if (socket_->context()->cookie_store()) {
@@ -388,34 +289,15 @@ void WebSocketJob::OnCanGetCookiesCompleted(int policy) {
         std::string cookie =
             socket_->context()->cookie_store()->GetCookiesWithOptions(
                 GetURLForCookies(), cookie_options);
-        if (!cookie.empty()) {
-          HttpUtil::AppendHeaderIfMissing("Cookie", cookie,
-                                          &handshake_request_header);
-        }
+        if (!cookie.empty())
+          handshake_request_->AppendHeaderIfMissing("Cookie", cookie);
       }
     }
 
-    // draft-hixie-thewebsocketprotocol-76 or later will send /key3/
-    // after handshake request header.
-    // Assumes WebKit doesn't send any data after handshake request message
-    // until handshake is finished.
-    // Thus, additional_data is part of handshake message, and not in part
-    // of websocket frame stream.
-    DCHECK_EQ(kRequestKey3Size,
-              original_handshake_request_.size() -
-              original_handshake_request_header_length_);
-    std::string additional_data =
-      std::string(original_handshake_request_.data() +
-                  original_handshake_request_header_length_,
-                  original_handshake_request_.size() -
-                  original_handshake_request_header_length_);
-    handshake_request_ =
-        handshake_request_status_line + handshake_request_header + "\r\n" +
-        additional_data;
-
+    const std::string& handshake_request = handshake_request_->GetRawRequest();
     handshake_request_sent_ = 0;
-    socket_->SendData(handshake_request_.data(),
-                      handshake_request_.size());
+    socket_->SendData(handshake_request.data(),
+                      handshake_request.size());
   }
   Release();  // Balance AddRef taken in AddCookieHeaderAndSend
 }
@@ -424,50 +306,51 @@ void WebSocketJob::OnSentHandshakeRequest(
     SocketStream* socket, int amount_sent) {
   DCHECK_EQ(state_, CONNECTING);
   handshake_request_sent_ += amount_sent;
-  DCHECK_LE(handshake_request_sent_, handshake_request_.size());
-  if (handshake_request_sent_ >= handshake_request_.size()) {
+  DCHECK_LE(handshake_request_sent_, handshake_request_->raw_length());
+  if (handshake_request_sent_ >= handshake_request_->raw_length()) {
     // handshake request has been sent.
     // notify original size of handshake request to delegate.
     if (delegate_)
-      delegate_->OnSentData(socket, original_handshake_request_.size());
+      delegate_->OnSentData(
+          socket,
+          handshake_request_->original_length());
+    handshake_request_.reset();
   }
 }
 
 void WebSocketJob::OnReceivedHandshakeResponse(
     SocketStream* socket, const char* data, int len) {
   DCHECK_EQ(state_, CONNECTING);
-  // Check if response is already full received before appending new data
-  // to |handshake_response_|
-  if (handshake_response_header_length_ > 0 &&
-      handshake_response_header_length_ + kResponseKeySize
-      <= handshake_response_.size()) {
-    // already started cookies processing.
-    handshake_response_.append(data, len);
+  if (handshake_response_->HasResponse()) {
+    // If we already has handshake response, received data should be frame
+    // data, not handshake message.
+    receive_frame_handler_->AppendData(data, len);
     return;
   }
-  handshake_response_.append(data, len);
-  handshake_response_header_length_ = HttpUtil::LocateEndOfHeaders(
-      handshake_response_.data(),
-      handshake_response_.size(), 0);
-  if (handshake_response_header_length_ > 0 &&
-      handshake_response_header_length_ + kResponseKeySize
-      <= handshake_response_.size()) {
-    // handshake message is completed.
-    SaveCookiesAndNotifyHeaderComplete();
+
+  size_t response_length = handshake_response_->ParseRawResponse(data, len);
+  if (!handshake_response_->HasResponse()) {
+    // not yet. we need more data.
+    return;
   }
+  // handshake message is completed.
+  if (len - response_length > 0) {
+    // If we received extra data, it should be frame data.
+    receive_frame_handler_->AppendData(data + response_length,
+                                       len - response_length);
+  }
+  SaveCookiesAndNotifyHeaderComplete();
 }
 
 void WebSocketJob::SaveCookiesAndNotifyHeaderComplete() {
   // handshake message is completed.
-  DCHECK(handshake_response_.data());
-  DCHECK_GT(handshake_response_header_length_, 0);
+  DCHECK(handshake_response_->HasResponse());
 
   response_cookies_.clear();
   response_cookies_save_index_ = 0;
 
-  FetchResponseCookies(handshake_response_.data(),
-                       handshake_response_header_length_,
-                       &response_cookies_);
+  handshake_response_->GetHeaders(
+      kSetCookieHeaders, arraysize(kSetCookieHeaders), &response_cookies_);
 
   // Now, loop over the response cookies, and attempt to persist each.
   SaveNextCookie();
@@ -478,47 +361,26 @@ void WebSocketJob::SaveNextCookie() {
     response_cookies_.clear();
     response_cookies_save_index_ = 0;
 
-    std::string handshake_response_status_line;
-    std::string handshake_response_header;
-    ParseHandshakeMessage(handshake_response_.data(),
-                          handshake_response_header_length_,
-                          &handshake_response_status_line,
-                          &handshake_response_header);
     // Remove cookie headers, with malformed headers preserved.
     // Actual handshake should be done in WebKit.
-    std::string filtered_handshake_response_header =
-        FilterHeaders(handshake_response_header,
-                      kSetCookieHeaders, arraysize(kSetCookieHeaders));
-    std::string response_key =
-        std::string(handshake_response_.data() +
-                    handshake_response_header_length_,
-                    kResponseKeySize);
-    std::string received_data =
-        handshake_response_status_line +
-        filtered_handshake_response_header +
-        "\r\n" +
-        response_key;
-    if (handshake_response_header_length_ + kResponseKeySize
-        < handshake_response_.size()) {
-      receive_frame_handler_->AppendData(
-          handshake_response_.data() + handshake_response_header_length_ +
-          kResponseKeySize,
-          handshake_response_.size() - handshake_response_header_length_ -
-          kResponseKeySize);
-      // Don't buffer receiving data for now.
-      // TODO(ukai): fix performance of WebSocketFrameHandler.
-      while (receive_frame_handler_->UpdateCurrentBuffer(false) > 0) {
-        received_data +=
-            std::string(receive_frame_handler_->GetCurrentBuffer()->data(),
-                        receive_frame_handler_->GetCurrentBufferSize());
-        receive_frame_handler_->ReleaseCurrentBuffer();
-      }
+    handshake_response_->RemoveHeaders(
+        kSetCookieHeaders, arraysize(kSetCookieHeaders));
+    std::string received_data = handshake_response_->GetResponse();
+    // Don't buffer receiving data for now.
+    // TODO(ukai): fix performance of WebSocketFrameHandler.
+    while (receive_frame_handler_->UpdateCurrentBuffer(false) > 0) {
+      received_data +=
+          std::string(receive_frame_handler_->GetCurrentBuffer()->data(),
+                      receive_frame_handler_->GetCurrentBufferSize());
+      receive_frame_handler_->ReleaseCurrentBuffer();
     }
 
     state_ = OPEN;
     if (delegate_)
       delegate_->OnReceivedData(
           socket_, received_data.data(), received_data.size());
+
+    handshake_response_.reset();
 
     Singleton<WebSocketThrottle>::get()->RemoveFromQueue(this);
     Singleton<WebSocketThrottle>::get()->WakeupSocketIfNecessary();
