@@ -28,6 +28,10 @@
 #include <gtk/gtk.h>
 #endif
 
+// A command-line flag that makes a test failure always result in a non-zero
+// process exit code.
+const char kStrictFailureHandling[] = "strict_failure_handling";
+
 // Match function used by the GetTestCount method.
 typedef bool (*TestMatch)(const testing::TestInfo&);
 
@@ -80,6 +84,8 @@ class TestSuite {
 
   // Returns true if the test failure should be ignored.
   static bool ShouldIgnoreFailure(const testing::TestInfo& test) {
+    if (CommandLine::ForCurrentProcess()->HasSwitch(kStrictFailureHandling))
+      return false;
     return IsMarkedFlaky(test) || IsMarkedFailing(test);
   }
 
