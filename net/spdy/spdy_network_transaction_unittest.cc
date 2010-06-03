@@ -469,8 +469,10 @@ class SpdyNetworkTransactionTest : public PlatformTest {
       return out;
 
     out.rv = callback.WaitForResult();
-    if (out.rv != OK)
+    if (out.rv != OK) {
+      session->spdy_session_pool()->ClearSessions();
       return out;
+    }
 
     const HttpResponseInfo* response = trans->GetResponseInfo();
     EXPECT_TRUE(response->headers != NULL);
