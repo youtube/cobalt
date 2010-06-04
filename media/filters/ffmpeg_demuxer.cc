@@ -117,7 +117,7 @@ base::TimeDelta FFmpegDemuxerStream::EnqueuePacket(AVPacket* packet) {
   }
 
   // Convert if the packet if there is bitstream filter.
-  if (bitstream_converter_.get() &&
+  if (packet->data && bitstream_converter_.get() &&
       !bitstream_converter_->ConvertPacket(packet)) {
     LOG(ERROR) << "Format converstion failed.";
   }
