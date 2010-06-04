@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -183,7 +183,7 @@ class SharedMemory {
   SharedMemoryLock   lock_;
 #endif
 
-  DISALLOW_EVIL_CONSTRUCTORS(SharedMemory);
+  DISALLOW_COPY_AND_ASSIGN(SharedMemory);
 };
 
 // A helper class that acquires the shared memory lock while
@@ -201,7 +201,7 @@ class SharedMemoryAutoLock {
 
  private:
   SharedMemory* shared_memory_;
-  DISALLOW_EVIL_CONSTRUCTORS(SharedMemoryAutoLock);
+  DISALLOW_COPY_AND_ASSIGN(SharedMemoryAutoLock);
 };
 
 }  // namespace base
