@@ -19,13 +19,13 @@
 #include "net/base/net_log.h"
 #include "net/base/nss_memio.h"
 #include "net/base/ssl_config_service.h"
+#include "net/base/x509_certificate.h"
 #include "net/socket/ssl_client_socket.h"
 
 namespace net {
 
 class BoundNetLog;
 class CertVerifier;
-class X509Certificate;
 
 // An SSL client socket implemented with Mozilla NSS.
 class SSLClientSocketNSS : public SSLClientSocket {
@@ -65,6 +65,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
   int InitializeSSLOptions();
 
   void InvalidateSessionIfBadCertificate();
+#if defined(OS_MACOSX) || defined(OS_WIN)
+  // Creates an OS certificate from a DER-encoded certificate.
+  static X509Certificate::OSCertHandle CreateOSCert(const SECItem& der_cert);
+#endif
   X509Certificate* UpdateServerCert();
   void CheckSecureRenegotiation() const;
   void DoReadCallback(int result);
@@ -165,8 +169,10 @@ class SSLClientSocketNSS : public SSLClientSocket {
   BoundNetLog net_log_;
 
 #if defined(OS_WIN)
-  // A CryptoAPI in-memory certificate store.  We use it for one purpose:
-  // 1. Copy client certificates from the "MY" system certificate store into
+  // A CryptoAPI in-memory certificate store.  We use it for two purposes:
+  // 1. Import server certificates into this store so that we can verify and
+  //    display the certificates using CryptoAPI.
+  // 2. Copy client certificates from the "MY" system certificate store into
   //    this store so that we can close the system store when we finish
   //    searching for client certificates.
   static HCERTSTORE cert_store_;
