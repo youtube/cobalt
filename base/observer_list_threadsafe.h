@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -195,7 +195,7 @@ class ObserverListThreadSafe
   Lock list_lock_;  // Protects the observer_lists_.
   ObserversListMap observer_lists_;
 
-  DISALLOW_EVIL_CONSTRUCTORS(ObserverListThreadSafe);
+  DISALLOW_COPY_AND_ASSIGN(ObserverListThreadSafe);
 };
 
 #endif  // BASE_OBSERVER_LIST_THREADSAFE_H_
