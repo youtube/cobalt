@@ -323,6 +323,8 @@
         'http/http_auth_filter.cc',
         'http/http_auth_filter.h',
         'http/http_auth_filter_win.h',
+        'http/http_auth_gssapi_posix.cc',
+        'http/http_auth_gssapi_posix.h',
         'http/http_auth_handler.cc',
         'http/http_auth_handler.h',
         'http/http_auth_handler_basic.cc',
@@ -679,6 +681,7 @@
         'http/http_alternate_protocols_unittest.cc',
         'http/http_auth_cache_unittest.cc',
         'http/http_auth_filter_unittest.cc',
+        'http/http_auth_gssapi_posix_unittest.cc',
         'http/http_auth_handler_basic_unittest.cc',
         'http/http_auth_handler_digest_unittest.cc',
         'http/http_auth_handler_factory_unittest.cc',
@@ -760,6 +763,9 @@
           ],
         }],
         [ 'OS == "win"', {
+            'sources!': [
+              'http/http_auth_gssapi_posix_unittest.cc',
+            ],
             # This is needed to trigger the dll copy step on windows.
             # TODO(mark): Specifying this here shouldn't be necessary.
             'dependencies': [
