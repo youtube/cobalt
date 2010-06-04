@@ -656,6 +656,29 @@ bool SSLClientSocketNSS::SetSendBufferSize(int32 size) {
   return transport_->SetSendBufferSize(size);
 }
 
+#if defined(OS_WIN)
+// static
+X509Certificate::OSCertHandle SSLClientSocketNSS::CreateOSCert(
+    const SECItem& der_cert) {
+  // TODO(wtc): close cert_store_ at shutdown.
+  if (!cert_store_)
+    cert_store_ = CertOpenStore(CERT_STORE_PROV_MEMORY, 0, NULL, 0, NULL);
+
+  X509Certificate::OSCertHandle cert_handle = NULL;
+  BOOL ok = CertAddEncodedCertificateToStore(
+      cert_store_, X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+      der_cert.data, der_cert.len, CERT_STORE_ADD_USE_EXISTING, &cert_handle);
+  return ok ? cert_handle : NULL;
+}
+#elif defined(OS_MACOSX)
+// static
+X509Certificate::OSCertHandle SSLClientSocketNSS::CreateOSCert(
+    const SECItem& der_cert) {
+  return X509Certificate::CreateOSCertHandleFromBytes(
+      reinterpret_cast<char*>(der_cert.data), der_cert.len);
+}
+#endif
+
 X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
   // We set the server_cert_ from OwnAuthCertHandler(), but this handler
   // does not necessarily get called if we are continuing a cached SSL
@@ -686,9 +709,7 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
           if (IsProblematicComodoEVCACert(*node->cert))
             continue;
 #endif
-          cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
-              reinterpret_cast<char*>(node->cert->derCert.data),
-              node->cert->derCert.len);
+          cert_handle = CreateOSCert(node->cert->derCert);
           DCHECK(cert_handle);
           intermediate_ca_certs.push_back(cert_handle);
         }
@@ -696,9 +717,7 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
       }
 
       // Finally create the X509Certificate object.
-      cert_handle = X509Certificate::CreateOSCertHandleFromBytes(
-          reinterpret_cast<char*>(server_cert_nss_->derCert.data),
-          server_cert_nss_->derCert.len);
+      cert_handle = CreateOSCert(server_cert_nss_->derCert);
       DCHECK(cert_handle);
       server_cert_ = X509Certificate::CreateFromHandle(
           cert_handle,
