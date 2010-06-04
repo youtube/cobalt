@@ -61,6 +61,7 @@
 /third_party/googlemac
 /third_party/gles2_conform
 /third_party/hunspell
+/third_party/hunspell_dictionaries
 /third_party/icu
 /third_party/libjingle/source
 /third_party/libvpx
