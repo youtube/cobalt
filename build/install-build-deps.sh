@@ -133,6 +133,9 @@ if [ "x$(id -u)" != x0 ]; then
   echo
 fi
 
+# Packages needed for chromeos only
+chromeos_dev_list="libpulse-dev"
+
 # Packages need for development
 dev_list="apache2 bison fakeroot flex g++ gperf libapache2-mod-php5
           libasound2-dev libbz2-dev libcairo2-dev libdbus-glib-1-dev
@@ -141,7 +144,10 @@ dev_list="apache2 bison fakeroot flex g++ gperf libapache2-mod-php5
           libsqlite3-dev libxslt1-dev libxss-dev lighttpd mesa-common-dev
           msttcorefonts patch perl php5-cgi pkg-config python python-dev rpm
           subversion ttf-dejavu-core ttf-kochi-gothic ttf-kochi-mincho wdiff
-          libcurl4-gnutls-dev"
+          libcurl4-gnutls-dev $chromeos_dev_list"
+
+# Run-time libraries required by chromeos only
+chromeos_lib_list="libpulse0"
 
 # Full list of required run-time libraries
 lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
@@ -149,7 +155,7 @@ lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
           libnss3-1d libpango1.0-0 libpcre3 libpixman-1-0 libpng12-0 libstdc++6
           libsqlite3-0 libx11-6 libxau6 libxcb1 libxcomposite1
           libxcursor1 libxdamage1 libxdmcp6 libxext6 libxfixes3 libxi6
-          libxinerama1 libxrandr2 libxrender1 zlib1g"
+          libxinerama1 libxrandr2 libxrender1 zlib1g $chromeos_lib_list"
 
 # Debugging symbols for all of the run-time libraries
 dbg_list="libatk1.0-dbg libc6-dbg libcairo2-dbg
