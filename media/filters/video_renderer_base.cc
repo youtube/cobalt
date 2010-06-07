@@ -10,8 +10,8 @@
 
 namespace media {
 
-// Limit our read ahead to three frames.  One frame is typically in flux at all
-// times, as in frame n is discarded at the top of ThreadMain() while frame
+// Limit our read ahead to at least 3 frames.  One frame is typically in flux at
+// all times, as in frame n is discarded at the top of ThreadMain() while frame
 // (n + kMaxFrames) is being asynchronously fetched.  The remaining two frames
 // allow us to advance the current frame as well as read the timestamp of the
 // following frame for more accurate timing.
@@ -20,7 +20,10 @@ namespace media {
 // at the expense of memory (~0.5MB and ~1.3MB per frame for 480p and 720p
 // resolutions, respectively).  This can help on lower-end systems if there are
 // difficult sections in the movie and decoding slows down.
-static const size_t kMaxFrames = 3;
+//
+// Set to 4 because some vendor's driver doesn't allow buffer count to go below
+// preset limit, e.g., EGLImage path.
+static const size_t kMaxFrames = 4;
 
 // This equates to ~16.67 fps, which is just slow enough to be tolerable when
 // our video renderer is ahead of the audio playback.
@@ -134,6 +137,17 @@ void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
   frames_.clear();
   for (size_t i = 0; i < kMaxFrames; ++i) {
     ScheduleRead_Locked();
+  }
+
+  // TODO(wjia): This would be removed if "Paint" thread allows renderer to
+  // allocate EGL images before filters are in playing state.
+  if (uses_egl_image_) {
+    state_ = kPaused;
+    VideoFrame::CreateBlackFrame(width_, height_, &current_frame_);
+    DCHECK(current_frame_);
+    OnFrameAvailable();
+    seek_callback_->Run();
+    seek_callback_.reset();
   }
 }
 
@@ -251,6 +265,10 @@ void VideoRendererBase::ThreadMain() {
       if (!frames_.empty() && !frames_.front()->IsEndOfStream()) {
         DCHECK_EQ(current_frame_, frames_.front());
         frames_.pop_front();
+        if (uses_egl_image_ &&
+            media::VideoFrame::TYPE_EGL_IMAGE == current_frame_->type()) {
+          decoder_->FillThisBuffer(current_frame_);
+        }
         ScheduleRead_Locked();
       }
 
@@ -269,6 +287,7 @@ void VideoRendererBase::ThreadMain() {
       // If the new front frame is end of stream, we've officially ended.
       if (frames_.front()->IsEndOfStream()) {
         state_ = kEnded;
+        LOG(INFO) << "Video render gets EOS";
         host()->NotifyEnded();
         continue;
       }
@@ -330,6 +349,9 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
 
   // Enqueue the frame.
   frames_.push_back(frame);
+  if (uses_egl_image_ &&
+      media::VideoFrame::TYPE_EGL_IMAGE != current_frame_->type())
+    current_frame_ = frame;
   DCHECK_LE(frames_.size(), kMaxFrames);
   frame_available_.Signal();
 
