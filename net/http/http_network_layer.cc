@@ -109,7 +109,7 @@ void HttpNetworkLayer::Suspend(bool suspend) {
 HttpNetworkSession* HttpNetworkLayer::GetSession() {
   if (!session_) {
     DCHECK(proxy_service_);
-    SpdySessionPool* spdy_pool = new SpdySessionPool;
+    SpdySessionPool* spdy_pool = new SpdySessionPool(network_change_notifier_);
     session_ = new HttpNetworkSession(
         network_change_notifier_, host_resolver_, proxy_service_,
         socket_factory_, ssl_config_service_, spdy_pool,

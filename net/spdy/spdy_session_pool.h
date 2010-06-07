@@ -13,19 +13,23 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/base/host_port_pair.h"
+#include "net/base/network_change_notifier.h"
 
 namespace net {
 
+class BoundNetLog;
 class ClientSocketHandle;
 class HttpNetworkSession;
-class BoundNetLog;
+class NetworkChangeNotifier;
 class SpdySession;
 
 // This is a very simple pool for open SpdySessions.
 // TODO(mbelshe): Make this production ready.
-class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
+class SpdySessionPool
+    : public base::RefCounted<SpdySessionPool>,
+      public NetworkChangeNotifier::Observer {
  public:
-  SpdySessionPool();
+  explicit SpdySessionPool(NetworkChangeNotifier* notifier);
 
   // Either returns an existing SpdySession or creates a new SpdySession for
   // use.
@@ -59,6 +63,13 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   // Removes a SpdySession from the SpdySessionPool.
   void Remove(const scoped_refptr<SpdySession>& session);
 
+  // NetworkChangeNotifier::Observer methods:
+
+  // We flush all idle sessions and release references to the active ones so
+  // they won't get re-used.  The active ones will either complete successfully
+  // or error out due to the IP address change.
+  virtual void OnIPAddressChanged() { ClearSessions(); }
+
  private:
   friend class base::RefCounted<SpdySessionPool>;
   friend class SpdySessionPoolPeer;  // For testing.
@@ -75,11 +86,17 @@ class SpdySessionPool : public base::RefCounted<SpdySessionPool> {
   const SpdySessionList* GetSessionList(
       const HostPortPair& host_port_pair) const;
   void RemoveSessionList(const HostPortPair& host_port_pair);
+  // Releases the SpdySessionPool reference to all sessions.  Will result in all
+  // idle sessions being deleted, and the active sessions from being reused, so
+  // they will be deleted once all active streams belonging to that session go
+  // away.
   void ClearSessions() { RemoveAllSessions(false); }
   void RemoveAllSessions(bool close);
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;
+
+  NetworkChangeNotifier* const network_change_notifier_;
 
   static int g_max_sessions_per_domain;
 
