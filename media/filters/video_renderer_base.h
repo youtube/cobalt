@@ -81,6 +81,10 @@ class VideoRendererBase : public VideoRenderer,
   // class executes on.
   virtual void OnFrameAvailable() = 0;
 
+  virtual VideoDecoder* GetDecoder() {
+    return decoder_.get();
+  }
+
  private:
   // Callback from video decoder to deliver decoded video frames and decrements
   // |pending_reads_|.
