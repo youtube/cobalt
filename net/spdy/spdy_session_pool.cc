@@ -14,9 +14,17 @@ static const size_t kMaxSessionsPerDomain = 1;
 
 int SpdySessionPool::g_max_sessions_per_domain = kMaxSessionsPerDomain;
 
-SpdySessionPool::SpdySessionPool() {}
+SpdySessionPool::SpdySessionPool(NetworkChangeNotifier* notifier)
+    : network_change_notifier_(notifier) {
+  if (network_change_notifier_)
+    network_change_notifier_->AddObserver(this);
+}
+
 SpdySessionPool::~SpdySessionPool() {
   CloseAllSessions();
+
+  if (network_change_notifier_)
+    network_change_notifier_->RemoveObserver(this);
 }
 
 scoped_refptr<SpdySession> SpdySessionPool::Get(

@@ -53,7 +53,7 @@ class SessionDependencies {
         proxy_service(CreateNullProxyService()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool) {}
+        spdy_session_pool(new SpdySessionPool(NULL)) {}
 
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
@@ -61,7 +61,7 @@ class SessionDependencies {
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool) {}
+        spdy_session_pool(new SpdySessionPool(NULL)) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
