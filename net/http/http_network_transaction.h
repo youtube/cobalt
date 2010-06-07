@@ -294,7 +294,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   // auth_handler encapsulates the logic for the particular auth-scheme.
   // This includes the challenge's parameters. If NULL, then there is no
   // associated auth handler.
-  scoped_refptr<HttpAuthHandler> auth_handler_[2];
+  scoped_ptr<HttpAuthHandler> auth_handler_[2];
 
   // auth_identity_ holds the (username/password) that should be used by
   // the auth_handler_ to generate credentials. This identity can come from

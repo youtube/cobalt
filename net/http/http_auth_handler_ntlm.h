@@ -47,7 +47,7 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
                                   CreateReason reason,
                                   int digest_nonce_count,
                                   const BoundNetLog& net_log,
-                                  scoped_refptr<HttpAuthHandler>* handler);
+                                  scoped_ptr<HttpAuthHandler>* handler);
 #if defined(NTLM_SSPI)
     // Set the SSPILibrary to use. Typically the only callers which need to
     // use this are unit tests which pass in a mocked-out version of the

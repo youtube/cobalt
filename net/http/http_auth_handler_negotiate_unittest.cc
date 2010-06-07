@@ -22,10 +22,10 @@ namespace {
 void CreateHandler(bool disable_cname_lookup, bool include_port,
                    const std::string& url_string,
                    SSPILibrary* sspi_library,
-                   scoped_refptr<HttpAuthHandlerNegotiate>* handler) {
-  *handler = new HttpAuthHandlerNegotiate(sspi_library, 50, NULL,
-                                          disable_cname_lookup,
-                                          include_port);
+                   scoped_ptr<HttpAuthHandlerNegotiate>* handler) {
+  handler->reset(new HttpAuthHandlerNegotiate(sspi_library, 50, NULL,
+                                              disable_cname_lookup,
+                                              include_port));
   std::string challenge = "Negotiate";
   HttpAuth::ChallengeTokenizer props(challenge.begin(), challenge.end());
   GURL gurl(url_string);
@@ -37,7 +37,7 @@ void CreateHandler(bool disable_cname_lookup, bool include_port,
 
 TEST(HttpAuthHandlerNegotiateTest, DisableCname) {
   MockSSPILibrary mock_library;
-  scoped_refptr<HttpAuthHandlerNegotiate> auth_handler;
+  scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(true, false, "http://alias:500", &mock_library, &auth_handler);
   EXPECT_FALSE(auth_handler->NeedsCanonicalName());
   EXPECT_EQ(L"HTTP/alias", auth_handler->spn());
@@ -45,7 +45,7 @@ TEST(HttpAuthHandlerNegotiateTest, DisableCname) {
 
 TEST(HttpAuthHandlerNegotiateTest, DisableCnameStandardPort) {
   MockSSPILibrary mock_library;
-  scoped_refptr<HttpAuthHandlerNegotiate> auth_handler;
+  scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(true, true, "http://alias:80", &mock_library, &auth_handler);
   EXPECT_FALSE(auth_handler->NeedsCanonicalName());
   EXPECT_EQ(L"HTTP/alias", auth_handler->spn());
@@ -53,7 +53,7 @@ TEST(HttpAuthHandlerNegotiateTest, DisableCnameStandardPort) {
 
 TEST(HttpAuthHandlerNegotiateTest, DisableCnameNonstandardPort) {
   MockSSPILibrary mock_library;
-  scoped_refptr<HttpAuthHandlerNegotiate> auth_handler;
+  scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(true, true, "http://alias:500", &mock_library, &auth_handler);
   EXPECT_FALSE(auth_handler->NeedsCanonicalName());
   EXPECT_EQ(L"HTTP/alias:500", auth_handler->spn());
@@ -61,7 +61,7 @@ TEST(HttpAuthHandlerNegotiateTest, DisableCnameNonstandardPort) {
 
 TEST(HttpAuthHandlerNegotiateTest, CnameSync) {
   MockSSPILibrary mock_library;
-  scoped_refptr<HttpAuthHandlerNegotiate> auth_handler;
+  scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(false, false, "http://alias:500", &mock_library, &auth_handler);
   EXPECT_TRUE(auth_handler->NeedsCanonicalName());
   MockHostResolver* mock_resolver = new MockHostResolver();
@@ -76,7 +76,7 @@ TEST(HttpAuthHandlerNegotiateTest, CnameSync) {
 
 TEST(HttpAuthHandlerNegotiateTest, CnameAsync) {
   MockSSPILibrary mock_library;
-  scoped_refptr<HttpAuthHandlerNegotiate> auth_handler;
+  scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
   CreateHandler(false, false, "http://alias:500", &mock_library, &auth_handler);
   EXPECT_TRUE(auth_handler->NeedsCanonicalName());
   MockHostResolver* mock_resolver = new MockHostResolver();
