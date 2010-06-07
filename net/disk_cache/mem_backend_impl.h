@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -94,7 +94,7 @@ class MemBackendImpl : public Backend {
   int32 max_size_;        // Maximum data size for this instance.
   int32 current_size_;
 
-  DISALLOW_EVIL_CONSTRUCTORS(MemBackendImpl);
+  DISALLOW_COPY_AND_ASSIGN(MemBackendImpl);
 };
 
 }  // namespace disk_cache
