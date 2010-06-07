@@ -29,7 +29,6 @@
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_settings_storage.h"
 #include "net/spdy/spdy_stream.h"
-#include "net/tools/dump_cache/url_to_filename_encoder.h"
 
 namespace {
 
