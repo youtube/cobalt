@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -82,6 +82,10 @@ const  int64 kint64max  = (( int64) GG_LONGLONG(0x7FFFFFFFFFFFFFFF));
   void operator=(const TypeName&)
 
 // An older, deprecated, politically incorrect name for the above.
+// NOTE: The usage of this macro was baned from our code base, but some
+// third_party libraries are yet using it.
+// TODO(tfarina): Figure out how to fix the usage of this macro in the
+// third_party libraries and get rid of it.
 #define DISALLOW_EVIL_CONSTRUCTORS(TypeName) DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 // A macro to disallow all the implicit constructors, namely the
