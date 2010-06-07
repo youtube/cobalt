@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -80,7 +80,7 @@ class BlockFiles {
   FRIEND_TEST(DiskCacheTest, BlockFiles_ZeroSizeFile);
   FRIEND_TEST(DiskCacheTest, BlockFiles_InvalidFile);
 
-  DISALLOW_EVIL_CONSTRUCTORS(BlockFiles);
+  DISALLOW_COPY_AND_ASSIGN(BlockFiles);
 };
 
 }  // namespace disk_cache

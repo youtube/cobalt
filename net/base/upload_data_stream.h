@@ -83,7 +83,7 @@ class UploadDataStream {
   // Whether there is no data left to read.
   bool eof_;
 
-  DISALLOW_EVIL_CONSTRUCTORS(UploadDataStream);
+  DISALLOW_COPY_AND_ASSIGN(UploadDataStream);
 };
 
 }  // namespace net
