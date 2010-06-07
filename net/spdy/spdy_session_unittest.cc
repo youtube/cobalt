@@ -40,7 +40,7 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
-        spdy_session_pool(new SpdySessionPool) {
+        spdy_session_pool(new SpdySessionPool(NULL)) {
   }
 
   scoped_refptr<MockHostResolverBase> host_resolver;
