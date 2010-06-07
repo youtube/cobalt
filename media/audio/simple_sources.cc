@@ -60,7 +60,6 @@ PushSource::~PushSource() { }
 
 uint32 PushSource::OnMoreData(AudioOutputStream* stream, void* dest,
                               uint32 max_size, uint32 pending_bytes) {
-  AutoLock auto_lock(buffer_lock_);
   return buffer_.Read(static_cast<uint8*>(dest), max_size);
 }
 
@@ -78,13 +77,11 @@ bool PushSource::Write(const void *data, uint32 len) {
     NOTREACHED();
     return false;
   }
-  AutoLock auto_lock(buffer_lock_);
   buffer_.Append(static_cast<const uint8*>(data), len);
   return true;
 }
 
 uint32 PushSource::UnProcessedBytes() {
-  AutoLock auto_lock(buffer_lock_);
   return buffer_.forward_bytes();
 }
 
@@ -94,6 +91,5 @@ void PushSource::ClearAll() {
 }
 
 void PushSource::CleanUp() {
-  AutoLock auto_lock(buffer_lock_);
   buffer_.Clear();
 }
