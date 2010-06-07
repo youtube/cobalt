@@ -93,6 +93,7 @@ class ClientSocketHandle {
   void set_is_reused(bool is_reused) { is_reused_ = is_reused; }
   void set_socket(ClientSocket* s) { socket_.reset(s); }
   void set_idle_time(base::TimeDelta idle_time) { idle_time_ = idle_time; }
+  void set_pool_id(int id) { pool_id_ = id; }
 
   // These may only be used if is_initialized() is true.
   const std::string& group_name() const { return group_name_; }
@@ -142,6 +143,7 @@ class ClientSocketHandle {
   CompletionCallbackImpl<ClientSocketHandle> callback_;
   CompletionCallback* user_callback_;
   base::TimeDelta idle_time_;
+  int pool_id_;  // See ClientSocketPool::ReleaseSocket() for an explanation.
   base::TimeTicks init_time_;
   base::TimeDelta setup_time_;
 

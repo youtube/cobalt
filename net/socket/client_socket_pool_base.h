@@ -188,8 +188,12 @@ class ClientSocketPoolBaseHelper
 
   // See ClientSocketPool::ReleaseSocket for documentation on this function.
   void ReleaseSocket(const std::string& group_name,
-                     ClientSocket* socket);
+                     ClientSocket* socket,
+                     int id);
 
+  // See ClientSocketPool::Flush for documentation on this function.
+  void Flush();
+  
   // See ClientSocketPool::CloseIdleSockets for documentation on this function.
   void CloseIdleSockets();
 
@@ -216,7 +220,7 @@ class ClientSocketPoolBaseHelper
   virtual void OnConnectJobComplete(int result, ConnectJob* job);
 
   // NetworkChangeNotifier::Observer methods:
-  virtual void OnIPAddressChanged();
+  virtual void OnIPAddressChanged() { Flush(); }
 
   // For testing.
   bool may_have_stalled_group() const { return may_have_stalled_group_; }
@@ -335,7 +339,8 @@ class ClientSocketPoolBaseHelper
   void DecrementIdleCount();
 
   // Called via PostTask by ReleaseSocket.
-  void DoReleaseSocket(const std::string& group_name, ClientSocket* socket);
+  void DoReleaseSocket(
+      const std::string& group_name, ClientSocket* socket, int id);
 
   // Scans the group map for groups which have an available socket slot and
   // at least one pending request. Returns number of groups found, and if found
@@ -451,6 +456,11 @@ class ClientSocketPoolBaseHelper
 
   // A factory to pin the backup_job tasks.
   ScopedRunnableMethodFactory<ClientSocketPoolBaseHelper> method_factory_;
+
+  // A unique id for the pool.  It gets incremented every time we Flush() the
+  // pool.  This is so that when sockets get released back to the pool, we can
+  // make sure that they are discarded rather than reused.
+  int pool_generation_number_;
 };
 
 }  // namespace internal
@@ -542,8 +552,8 @@ class ClientSocketPoolBase {
     return helper_->CancelRequest(group_name, handle);
   }
 
-  void ReleaseSocket(const std::string& group_name, ClientSocket* socket) {
-    return helper_->ReleaseSocket(group_name, socket);
+  void ReleaseSocket(const std::string& group_name, ClientSocket* socket, int id) {
+    return helper_->ReleaseSocket(group_name, socket, id);
   }
 
   void CloseIdleSockets() { return helper_->CloseIdleSockets(); }
@@ -585,6 +595,8 @@ class ClientSocketPoolBase {
   }
 
   void enable_backup_jobs() { helper_->enable_backup_jobs(); }
+
+  void Flush() { helper_->Flush(); }
 
  private:
   // This adaptor class exists to bridge the

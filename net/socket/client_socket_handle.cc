@@ -37,7 +37,7 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
     if (pool_)
       // If we've still got a socket, release it back to the ClientSocketPool so
       // it can be deleted or reused.
-      pool_->ReleaseSocket(group_name_, release_socket());
+      pool_->ReleaseSocket(group_name_, release_socket(), pool_id_);
   } else if (cancel) {
     // If we did not get initialized yet, so we've got a socket request pending.
     // Cancel it.
@@ -50,6 +50,7 @@ void ClientSocketHandle::ResetInternal(bool cancel) {
   idle_time_ = base::TimeDelta();
   init_time_ = base::TimeTicks();
   setup_time_ = base::TimeDelta();
+  pool_id_ = -1;
 }
 
 LoadState ClientSocketHandle::GetLoadState() const {
@@ -75,6 +76,7 @@ void ClientSocketHandle::HandleInitCompletion(int result) {
     ResetInternal(false);  // The request failed, so there's nothing to cancel.
     return;
   }
+  CHECK_NE(-1, pool_id_) << "Pool should have set |pool_id_| to a valid value.";
   setup_time_ = base::TimeTicks::Now() - init_time_;
 
   scoped_refptr<ClientSocketPoolHistograms> histograms = pool_->histograms();

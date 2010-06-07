@@ -67,9 +67,19 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   // Called to release a socket once the socket is no longer needed.  If the
   // socket still has an established connection, then it will be added to the
   // set of idle sockets to be used to satisfy future RequestSocket calls.
-  // Otherwise, the ClientSocket is destroyed.
+  // Otherwise, the ClientSocket is destroyed.  |id| is used to differentiate
+  // between updated versions of the same pool instance.  The pool's id will
+  // change when it flushes, so it can use this |id| to discard sockets with
+  // mismatched ids.
   virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket) = 0;
+                             ClientSocket* socket,
+                             int id) = 0;
+
+  // This flushes all state from the ClientSocketPool.  This means that all
+  // idle and connecting sockets are discarded.  Active sockets being
+  // held by ClientSocketPool clients will be discarded when released back to
+  // the pool.
+  virtual void Flush() = 0;
 
   // Called to close any idle connections held by the connection manager.
   virtual void CloseIdleSockets() = 0;
