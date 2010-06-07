@@ -310,8 +310,13 @@ class TestClientSocketPool : public ClientSocketPool {
 
   virtual void ReleaseSocket(
       const std::string& group_name,
-      ClientSocket* socket) {
-    base_.ReleaseSocket(group_name, socket);
+      ClientSocket* socket,
+      int id) {
+    base_.ReleaseSocket(group_name, socket, id);
+  }
+
+  virtual void Flush() {
+    base_.Flush();
   }
 
   virtual void CloseIdleSockets() {
@@ -1658,6 +1663,30 @@ TEST_F(ClientSocketPoolBaseTest, CallbackThatReleasesPool) {
 
   // We'll call back into this now.
   callback.WaitForResult();
+}
+
+TEST_F(ClientSocketPoolBaseTest, DoNotReuseSocketAfterFlush) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle, "a", kDefaultPriority,
+                       &callback, pool_, BoundNetLog()));
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(ClientSocketHandle::UNUSED, handle.reuse_type());
+
+  pool_->Flush();
+
+  handle.Reset();
+  MessageLoop::current()->RunAllPending();
+
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle, "a", kDefaultPriority,
+                       &callback, pool_, BoundNetLog()));
+  EXPECT_EQ(OK, callback.WaitForResult());
+  EXPECT_EQ(ClientSocketHandle::UNUSED, handle.reuse_type());
 }
 
 }  // namespace
