@@ -77,7 +77,7 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
     CreateReason reason,
     int digest_nonce_count,
     const BoundNetLog& net_log,
-    scoped_refptr<HttpAuthHandler>* handler) {
+    scoped_ptr<HttpAuthHandler>* handler) {
   if (is_unsupported_ || reason == CREATE_PREEMPTIVE)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
   if (max_token_length_ == 0) {
@@ -90,7 +90,7 @@ int HttpAuthHandlerNTLM::Factory::CreateAuthHandler(
   }
   // TODO(cbentzel): Move towards model of parsing in the factory
   //                 method and only constructing when valid.
-  scoped_refptr<HttpAuthHandler> tmp_handler(
+  scoped_ptr<HttpAuthHandler> tmp_handler(
       new HttpAuthHandlerNTLM(sspi_library_, max_token_length_,
                               url_security_manager()));
   if (!tmp_handler->InitFromChallenge(challenge, target, origin, net_log))

@@ -85,7 +85,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
                 headers_with_status_line.c_str(),
                 headers_with_status_line.length())));
 
-    scoped_refptr<HttpAuthHandler> handler;
+    scoped_ptr<HttpAuthHandler> handler;
     HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(),
                                   headers.get(),
                                   HttpAuth::AUTH_SERVER,
@@ -93,7 +93,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
                                   BoundNetLog(),
                                   &handler);
 
-    if (handler) {
+    if (handler.get()) {
       EXPECT_STREQ(tests[i].challenge_scheme, handler->scheme().c_str());
       EXPECT_STREQ(tests[i].challenge_realm, handler->realm().c_str());
     } else {
@@ -129,9 +129,9 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
   };
   GURL origin("http://www.example.com");
 
-  scoped_refptr<HttpAuthHandler> handler;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
       HttpAuthHandlerFactory::CreateDefault());
+  scoped_ptr<HttpAuthHandler> handler;
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     // Make a HttpResponseHeaders object.
@@ -143,22 +143,22 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
                 headers_with_status_line.c_str(),
                 headers_with_status_line.length())));
 
-    scoped_refptr<HttpAuthHandler> old_handler = handler;
+    // possibly_deleted_old_handler may point to deleted memory
+    // after ChooseBestChallenge has been called, and should not
+    // be dereferenced.
+    HttpAuthHandler* possibly_deleted_old_handler = handler.get();
     HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(),
                                   headers.get(),
                                   HttpAuth::AUTH_SERVER,
                                   origin,
                                   BoundNetLog(),
                                   &handler);
-
     EXPECT_TRUE(handler != NULL);
     // Since NTLM is connection-based, we should continue to use the existing
     // handler rather than creating a new one.
     if (i != 0)
-      EXPECT_EQ(old_handler, handler);
-
+      EXPECT_EQ(possibly_deleted_old_handler, handler.get());
     ASSERT_NE(reinterpret_cast<net::HttpAuthHandler *>(NULL), handler.get());
-
     EXPECT_STREQ(tests[i].challenge_realm, handler->realm().c_str());
   }
 }

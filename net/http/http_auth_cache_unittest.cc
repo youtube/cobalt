@@ -60,26 +60,26 @@ TEST(HttpAuthCacheTest, Basic) {
 
   // Add cache entries for 3 realms: "Realm1", "Realm2", "Realm3"
 
-  scoped_refptr<HttpAuthHandler> realm1_handler =
-      new MockAuthHandler("basic", "Realm1", HttpAuth::AUTH_SERVER);
+  scoped_ptr<HttpAuthHandler> realm1_handler(
+      new MockAuthHandler("basic", "Realm1", HttpAuth::AUTH_SERVER));
   cache.Add(origin, realm1_handler->realm(), realm1_handler->scheme(),
             "Basic realm=Realm1", L"realm1-user", L"realm1-password",
             "/foo/bar/index.html");
 
-  scoped_refptr<HttpAuthHandler> realm2_handler =
-      new MockAuthHandler("basic", "Realm2", HttpAuth::AUTH_SERVER);
+  scoped_ptr<HttpAuthHandler> realm2_handler(
+      new MockAuthHandler("basic", "Realm2", HttpAuth::AUTH_SERVER));
   cache.Add(origin, realm2_handler->realm(), realm2_handler->scheme(),
             "Basic realm=Realm2", L"realm2-user", L"realm2-password",
             "/foo2/index.html");
 
-  scoped_refptr<HttpAuthHandler> realm3_basic_handler =
-      new MockAuthHandler("basic", "Realm3", HttpAuth::AUTH_PROXY);
+  scoped_ptr<HttpAuthHandler> realm3_basic_handler(
+      new MockAuthHandler("basic", "Realm3", HttpAuth::AUTH_PROXY));
   cache.Add(origin, realm3_basic_handler->realm(),
             realm3_basic_handler->scheme(), "Basic realm=Realm3",
             L"realm3-basic-user", L"realm3-basic-password", "");
 
-  scoped_refptr<HttpAuthHandler> realm3_digest_handler =
-      new MockAuthHandler("digest", "Realm3", HttpAuth::AUTH_PROXY);
+  scoped_ptr<HttpAuthHandler> realm3_digest_handler(
+      new MockAuthHandler("digest", "Realm3", HttpAuth::AUTH_PROXY));
   cache.Add(origin, realm3_digest_handler->realm(),
             realm3_digest_handler->scheme(), "Digest realm=Realm3",
             L"realm3-digest-user", L"realm3-digest-password",
@@ -217,8 +217,8 @@ TEST(HttpAuthCacheTest, AddToExistingEntry) {
   GURL origin("http://www.foobar.com:70");
   const std::string auth_challenge = "Basic realm=MyRealm";
 
-  scoped_refptr<HttpAuthHandler> handler =
-      new MockAuthHandler("basic", "MyRealm", HttpAuth::AUTH_SERVER);
+  scoped_ptr<HttpAuthHandler> handler(
+      new MockAuthHandler("basic", "MyRealm", HttpAuth::AUTH_SERVER));
 
   HttpAuthCache::Entry* orig_entry = cache.Add(
       origin, handler->realm(), handler->scheme(), auth_challenge,
@@ -242,17 +242,17 @@ TEST(HttpAuthCacheTest, AddToExistingEntry) {
 TEST(HttpAuthCacheTest, Remove) {
   GURL origin("http://foobar2.com");
 
-  scoped_refptr<HttpAuthHandler> realm1_handler =
-      new MockAuthHandler("basic", "Realm1", HttpAuth::AUTH_SERVER);
+  scoped_ptr<HttpAuthHandler> realm1_handler(
+      new MockAuthHandler("basic", "Realm1", HttpAuth::AUTH_SERVER));
 
-  scoped_refptr<HttpAuthHandler> realm2_handler =
-      new MockAuthHandler("basic", "Realm2", HttpAuth::AUTH_SERVER);
+  scoped_ptr<HttpAuthHandler> realm2_handler(
+      new MockAuthHandler("basic", "Realm2", HttpAuth::AUTH_SERVER));
 
-  scoped_refptr<HttpAuthHandler> realm3_basic_handler =
-      new MockAuthHandler("basic", "Realm3", HttpAuth::AUTH_SERVER);
+  scoped_ptr<HttpAuthHandler> realm3_basic_handler(
+      new MockAuthHandler("basic", "Realm3", HttpAuth::AUTH_SERVER));
 
-  scoped_refptr<HttpAuthHandler> realm3_digest_handler =
-      new MockAuthHandler("digest", "Realm3", HttpAuth::AUTH_SERVER);
+  scoped_ptr<HttpAuthHandler> realm3_digest_handler(
+      new MockAuthHandler("digest", "Realm3", HttpAuth::AUTH_SERVER));
 
   HttpAuthCache cache;
   cache.Add(origin, realm1_handler->realm(), realm1_handler->scheme(),
@@ -322,12 +322,8 @@ class HttpAuthCacheEvictionTest : public testing::Test {
   }
 
   void AddPathToRealm(int realm_i, int path_i) {
-    scoped_refptr<HttpAuthHandler> handler = new MockAuthHandler(
-        "basic",
-        GenerateRealm(realm_i), HttpAuth::AUTH_SERVER);
-    std::string path = GeneratePath(realm_i, path_i);
-    cache_.Add(origin_, handler->realm(), handler->scheme(),
-               handler->challenge(), L"username", L"password", path);
+    cache_.Add(origin_, GenerateRealm(realm_i), "basic", "",
+               L"username", L"password", GeneratePath(realm_i, path_i));
   }
 
   void CheckRealmExistence(int realm_i, bool exists) {

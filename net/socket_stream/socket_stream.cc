@@ -190,7 +190,7 @@ void SocketStream::RestartWithAuth(
       "The current MessageLoop must exist";
   DCHECK_EQ(MessageLoop::TYPE_IO, MessageLoop::current()->type()) <<
       "The current MessageLoop must be TYPE_IO";
-  DCHECK(auth_handler_);
+  DCHECK(auth_handler_.get());
   if (!socket_.get()) {
     LOG(ERROR) << "Socket is closed before restarting with auth.";
     return;
@@ -546,7 +546,7 @@ int SocketStream::DoWriteTunnelHeaders() {
       HttpAuthCache::Entry* entry = auth_cache_.LookupByPath(
           ProxyAuthOrigin(), std::string());
       if (entry) {
-        scoped_refptr<HttpAuthHandler> handler_preemptive;
+        scoped_ptr<HttpAuthHandler> handler_preemptive;
         int rv_create = http_auth_handler_factory_->
             CreatePreemptiveAuthHandlerFromString(
                 entry->auth_challenge(), HttpAuth::AUTH_PROXY,
@@ -557,7 +557,7 @@ int SocketStream::DoWriteTunnelHeaders() {
           auth_identity_.invalid = false;
           auth_identity_.username = entry->username();
           auth_identity_.password = entry->password();
-          auth_handler_ = handler_preemptive;
+          auth_handler_.swap(handler_preemptive);
         }
       }
     }
@@ -884,7 +884,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
                          auth_handler_->scheme(),
                          auth_identity_.username,
                          auth_identity_.password);
-    auth_handler_ = NULL;
+    auth_handler_.reset();
     auth_identity_ = HttpAuth::Identity();
   }
 
@@ -892,7 +892,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
   HttpAuth::ChooseBestChallenge(http_auth_handler_factory_, headers,
                                 HttpAuth::AUTH_PROXY,
                                 auth_origin, net_log_, &auth_handler_);
-  if (!auth_handler_) {
+  if (!auth_handler_.get()) {
     LOG(ERROR) << "Can't perform auth to the proxy " << auth_origin;
     return ERR_TUNNEL_CONNECTION_FAILED;
   }

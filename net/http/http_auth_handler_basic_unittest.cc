@@ -28,7 +28,7 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
   HttpAuthHandlerBasic::Factory factory;
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::string challenge = "Basic realm=\"Atlantis\"";
-    scoped_refptr<HttpAuthHandler> basic = new HttpAuthHandlerBasic;
+    scoped_ptr<HttpAuthHandler> basic;
     EXPECT_EQ(OK, factory.CreateAuthHandlerFromString(
         challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(), &basic));
     std::string credentials;
@@ -67,7 +67,7 @@ TEST(HttpAuthHandlerBasicTest, InitFromChallenge) {
   GURL origin("http://www.example.com");
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
     std::string challenge = tests[i].challenge;
-    scoped_refptr<HttpAuthHandler> basic = new HttpAuthHandlerBasic;
+    scoped_ptr<HttpAuthHandler> basic;
     int rv = factory.CreateAuthHandlerFromString(
         challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(), &basic);
     EXPECT_EQ(tests[i].expected_rv, rv);

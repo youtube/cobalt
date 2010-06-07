@@ -25,12 +25,12 @@ void HttpAuth::ChooseBestChallenge(
     Target target,
     const GURL& origin,
     const BoundNetLog& net_log,
-    scoped_refptr<HttpAuthHandler>* handler) {
+    scoped_ptr<HttpAuthHandler>* handler) {
   DCHECK(http_auth_handler_factory);
 
   // A connection-based authentication scheme must continue to use the
   // existing handler object in |*handler|.
-  if (*handler && (*handler)->is_connection_based()) {
+  if (handler->get() && (*handler)->is_connection_based()) {
     const std::string header_name = GetChallengeHeaderName(target);
     std::string challenge;
     void* iter = NULL;
@@ -43,12 +43,12 @@ void HttpAuth::ChooseBestChallenge(
   }
 
   // Choose the challenge whose authentication handler gives the maximum score.
-  scoped_refptr<HttpAuthHandler> best;
+  scoped_ptr<HttpAuthHandler> best;
   const std::string header_name = GetChallengeHeaderName(target);
   std::string cur_challenge;
   void* iter = NULL;
   while (headers->EnumerateHeader(&iter, header_name, &cur_challenge)) {
-    scoped_refptr<HttpAuthHandler> cur;
+    scoped_ptr<HttpAuthHandler> cur;
     int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
         cur_challenge, target, origin, net_log, &cur);
     if (rv != OK) {
@@ -56,7 +56,7 @@ void HttpAuth::ChooseBestChallenge(
                    << ErrorToString(rv) << " Challenge: " << cur_challenge;
       continue;
     }
-    if (cur && (!best || best->score() < cur->score()))
+    if (cur.get() && (!best.get() || best->score() < cur->score()))
       best.swap(cur);
   }
   handler->swap(best);
