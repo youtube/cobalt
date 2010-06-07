@@ -74,7 +74,7 @@ class HttpAuthHandlerFactory {
                                 CreateReason create_reason,
                                 int digest_nonce_count,
                                 const BoundNetLog& net_log,
-                                scoped_refptr<HttpAuthHandler>* handler) = 0;
+                                scoped_ptr<HttpAuthHandler>* handler) = 0;
 
   // Creates an HTTP authentication handler based on the authentication
   // challenge string |challenge|.
@@ -85,7 +85,7 @@ class HttpAuthHandlerFactory {
                                   HttpAuth::Target target,
                                   const GURL& origin,
                                   const BoundNetLog& net_log,
-                                  scoped_refptr<HttpAuthHandler>* handler);
+                                  scoped_ptr<HttpAuthHandler>* handler);
 
   // Creates an HTTP authentication handler based on the authentication
   // challenge string |challenge|.
@@ -98,7 +98,7 @@ class HttpAuthHandlerFactory {
       const GURL& origin,
       int digest_nonce_count,
       const BoundNetLog& net_log,
-      scoped_refptr<HttpAuthHandler>* handler);
+      scoped_ptr<HttpAuthHandler>* handler);
 
   // Creates a standard HttpAuthHandlerRegistryFactory. The caller is
   // responsible for deleting the factory.
@@ -149,7 +149,7 @@ class HttpAuthHandlerRegistryFactory : public HttpAuthHandlerFactory {
                                 CreateReason reason,
                                 int digest_nonce_count,
                                 const BoundNetLog& net_log,
-                                scoped_refptr<HttpAuthHandler>* handler);
+                                scoped_ptr<HttpAuthHandler>* handler);
 
  private:
   typedef std::map<std::string, HttpAuthHandlerFactory*> FactoryMap;
