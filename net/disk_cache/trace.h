@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,7 +36,7 @@ class TraceObject : public base::RefCounted<TraceObject> {
   ~TraceObject() {
     DestroyTrace();
   }
-  DISALLOW_EVIL_CONSTRUCTORS(TraceObject);
+  DISALLOW_COPY_AND_ASSIGN(TraceObject);
 };
 
 // Traces to the internal buffer.

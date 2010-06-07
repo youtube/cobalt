@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -159,7 +159,7 @@ class MemEntryImpl : public Entry {
   MemBackendImpl* backend_;   // Back pointer to the cache.
   bool doomed_;               // True if this entry was removed from the cache.
 
-  DISALLOW_EVIL_CONSTRUCTORS(MemEntryImpl);
+  DISALLOW_COPY_AND_ASSIGN(MemEntryImpl);
 };
 
 }  // namespace disk_cache
