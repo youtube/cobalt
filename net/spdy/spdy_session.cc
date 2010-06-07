@@ -937,17 +937,22 @@ void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                     const char* data,
                                     size_t len) {
   LOG(INFO) << "Spdy data for stream " << stream_id << ", " << len << " bytes";
-  bool valid_stream = IsStreamActive(stream_id);
-  if (!valid_stream) {
+  
+  if (!IsStreamActive(stream_id)) {
     // NOTE:  it may just be that the stream was cancelled.
     LOG(WARNING) << "Received data frame for invalid stream " << stream_id;
     return;
   }
 
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
+
+  // Note that calling OnDataReceived() on |stream| will potentially invoke a
+  // user callback, after which the state of |stream| and |this| may be altered.
+  // http://crbug.com/44800 had a bug where the stream gets deactivated in this
+  // callback.
   bool success = stream->OnDataReceived(data, len);
   // |len| == 0 implies a closed stream.
-  if (!success || !len)
+  if ((!success || !len) && IsStreamActive(stream_id))
     DeactivateStream(stream_id);
 }
 
