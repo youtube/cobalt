@@ -21,7 +21,6 @@
         '../net/net.gyp:*',
         '../net/third_party/nss/ssl.gyp:*',
         '../printing/printing.gyp:*',
-        '../remoting/chromoting.gyp:*',
         '../sdch/sdch.gyp:*',
         '../skia/skia.gyp:*',
         '../testing/gmock.gyp:*',
