@@ -106,6 +106,7 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
         AddressList(), net_log.net_log());
     MockConnectJob* job = new MockConnectJob(socket, handle, callback);
     job_list_.push_back(job);
+    handle->set_pool_id(1);
     return job->Connect();
   }
 
@@ -121,7 +122,9 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
   }
 
   virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket) {
+                             ClientSocket* socket,
+                             int id) {
+    EXPECT_EQ(1, id);
     release_count_++;
     delete socket;
   }

@@ -142,7 +142,8 @@ ClientSocketPoolBaseHelper::ClientSocketPoolBaseHelper(
       connect_job_factory_(connect_job_factory),
       network_change_notifier_(network_change_notifier),
       backup_jobs_enabled_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+      ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
+      pool_generation_number_(0) {
   DCHECK_LE(0, max_sockets_per_group);
   DCHECK_LE(max_sockets_per_group, max_sockets);
 
@@ -370,7 +371,8 @@ void ClientSocketPoolBaseHelper::CancelRequest(
 }
 
 void ClientSocketPoolBaseHelper::ReleaseSocket(const std::string& group_name,
-                                               ClientSocket* socket) {
+                                               ClientSocket* socket,
+                                               int id) {
   Group& group = group_map_[group_name];
   group.num_releasing_sockets++;
   num_releasing_sockets_++;
@@ -379,7 +381,7 @@ void ClientSocketPoolBaseHelper::ReleaseSocket(const std::string& group_name,
   // another to begin doing work.  This also avoids nasty recursion issues.
   // NOTE: We cannot refer to the handle argument after this method returns.
   MessageLoop::current()->PostTask(FROM_HERE, NewRunnableMethod(
-      this, &ClientSocketPoolBaseHelper::DoReleaseSocket, group_name, socket));
+      this, &ClientSocketPoolBaseHelper::DoReleaseSocket, group_name, socket, id));
 }
 
 void ClientSocketPoolBaseHelper::CloseIdleSockets() {
@@ -483,7 +485,8 @@ void ClientSocketPoolBaseHelper::DecrementIdleCount() {
 }
 
 void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
-                                                 ClientSocket* socket) {
+                                                 ClientSocket* socket,
+                                                 int id) {
   // Running callbacks can cause the last outside reference to be released.
   // Hold onto a reference.
   scoped_refptr<ClientSocketPoolBaseHelper> ref_holder(this);
@@ -505,7 +508,8 @@ void ClientSocketPoolBaseHelper::DoReleaseSocket(const std::string& group_name,
   CHECK_GT(num_releasing_sockets_, 0);
   num_releasing_sockets_--;
 
-  const bool can_reuse = socket->IsConnectedAndIdle();
+  const bool can_reuse = socket->IsConnectedAndIdle() &&
+      id == pool_generation_number_;
   if (can_reuse) {
     AddIdleSocket(socket, true /* used socket */, &group);
   } else {
@@ -629,7 +633,8 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
   }
 }
 
-void ClientSocketPoolBaseHelper::OnIPAddressChanged() {
+void ClientSocketPoolBaseHelper::Flush() {
+  pool_generation_number_++;
   CancelAllConnectJobs();
   CloseIdleSockets();
 }
@@ -712,6 +717,7 @@ void ClientSocketPoolBaseHelper::HandOutSocket(
   handle->set_socket(socket);
   handle->set_is_reused(reused);
   handle->set_idle_time(idle_time);
+  handle->set_pool_id(pool_generation_number_);
 
   if (reused) {
     net_log.AddEvent(

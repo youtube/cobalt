@@ -195,8 +195,13 @@ void SOCKSClientSocketPool::CancelRequest(
 
 void SOCKSClientSocketPool::ReleaseSocket(
     const std::string& group_name,
-    ClientSocket* socket) {
-  base_.ReleaseSocket(group_name, socket);
+    ClientSocket* socket,
+    int id) {
+  base_.ReleaseSocket(group_name, socket, id);
+}
+
+void SOCKSClientSocketPool::Flush() {
+  base_.Flush();
 }
 
 void SOCKSClientSocketPool::CloseIdleSockets() {
