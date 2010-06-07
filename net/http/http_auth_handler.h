@@ -7,7 +7,6 @@
 
 #include <string>
 
-#include "base/ref_counted.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
 #include "net/http/http_auth.h"
@@ -21,8 +20,10 @@ struct HttpRequestInfo;
 // HttpAuthHandler is the interface for the authentication schemes
 // (basic, digest, NTLM, Negotiate).
 // HttpAuthHandler objects are typically created by an HttpAuthHandlerFactory.
-class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
+class HttpAuthHandler {
  public:
+  virtual ~HttpAuthHandler() {}
+
   // Initializes the handler using a challenge issued by a server.
   // |challenge| must be non-NULL and have already tokenized the
   // authentication scheme, but none of the tokens occuring after the
@@ -129,10 +130,6 @@ class HttpAuthHandler : public base::RefCounted<HttpAuthHandler> {
     ENCRYPTS_IDENTITY = 1 << 0,
     IS_CONNECTION_BASED = 1 << 1,
   };
-
-  friend class base::RefCounted<HttpAuthHandler>;
-
-  virtual ~HttpAuthHandler() { }
 
   // Initializes the handler using a challenge issued by a server.
   // |challenge| must be non-NULL and have already tokenized the

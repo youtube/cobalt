@@ -5401,8 +5401,13 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
     RESOLVE_TESTED,
   };
 
-  MockAuthHandlerCanonical() : resolve_(RESOLVE_INIT), user_callback_(NULL) {}
-  virtual ~MockAuthHandlerCanonical() {}
+  MockAuthHandlerCanonical()
+      : resolve_(RESOLVE_INIT), user_callback_(NULL),
+        ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+  }
+
+  virtual ~MockAuthHandlerCanonical() {
+  }
 
   void SetResolveExpectation(Resolve resolve) {
     EXPECT_EQ(RESOLVE_INIT, resolve_);
@@ -5441,9 +5446,8 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
         rv = ERR_IO_PENDING;
         user_callback_ = callback;
         MessageLoop::current()->PostTask(
-            FROM_HERE,
-            NewRunnableMethod(
-                this, &MockAuthHandlerCanonical::OnResolveCanonicalName));
+            FROM_HERE, method_factory_.NewRunnableMethod(
+                &MockAuthHandlerCanonical::OnResolveCanonicalName));
         break;
       default:
         NOTREACHED();
@@ -5491,11 +5495,8 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
     Factory() {}
     virtual ~Factory() {}
 
-    void set_mock_handler(MockAuthHandlerCanonical* mock_handler) {
-      mock_handler_ = mock_handler;
-    }
-    MockAuthHandlerCanonical* mock_handler() const {
-      return mock_handler_.get();
+    void set_mock_handler(HttpAuthHandler* handler) {
+      handler_.reset(handler);
     }
 
     virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
@@ -5504,33 +5505,36 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
                                   CreateReason reason,
                                   int nonce_count,
                                   const BoundNetLog& net_log,
-                                  scoped_refptr<HttpAuthHandler>* handler) {
-      *handler = mock_handler_;
+                                  scoped_ptr<HttpAuthHandler>* handler) {
+      if (!handler_.get())
+        return ERR_UNEXPECTED;
+      handler->swap(handler_);
       return OK;
     }
 
    private:
-    scoped_refptr<MockAuthHandlerCanonical> mock_handler_;
+    scoped_ptr<HttpAuthHandler> handler_;
   };
 
  private:
   Resolve resolve_;
   CompletionCallback* user_callback_;
+  ScopedRunnableMethodFactory<MockAuthHandlerCanonical> method_factory_;
 };
 
 // Tests that ResolveCanonicalName is handled correctly by the
 // HttpNetworkTransaction.
 TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
   SessionDependencies session_deps;
-  scoped_refptr<MockAuthHandlerCanonical> auth_handler(
-      new MockAuthHandlerCanonical());
-  auth_handler->Init(NULL);
   MockAuthHandlerCanonical::Factory* auth_factory(
       new MockAuthHandlerCanonical::Factory());
-  auth_factory->set_mock_handler(auth_handler);
   session_deps.http_auth_handler_factory.reset(auth_factory);
 
   for (int i = 0; i < 2; ++i) {
+    MockAuthHandlerCanonical* auth_handler(new MockAuthHandlerCanonical());
+    auth_handler->Init(NULL);
+    auth_factory->set_mock_handler(auth_handler);
+
     scoped_ptr<HttpTransaction> trans(
         new HttpNetworkTransaction(CreateSession(&session_deps)));
 

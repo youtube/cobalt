@@ -5,6 +5,7 @@
 #ifndef NET_HTTP_HTTP_AUTH_H_
 #define NET_HTTP_HTTP_AUTH_H_
 
+#include "base/scoped_ptr.h"
 #include "net/http/http_util.h"
 
 template <class T> class scoped_refptr;
@@ -95,7 +96,7 @@ class HttpAuth {
       Target target,
       const GURL& origin,
       const BoundNetLog& net_log,
-      scoped_refptr<HttpAuthHandler>* handler);
+      scoped_ptr<HttpAuthHandler>* handler);
 
   // ChallengeTokenizer breaks up a challenge string into the the auth scheme
   // and parameter list, according to RFC 2617 Sec 1.2:
