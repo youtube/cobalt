@@ -143,14 +143,4 @@ void HttpNetworkSession::set_fixed_https_port(uint16 port) {
   g_fixed_https_port = port;
 }
 
-void HttpNetworkSession::ReplaceTCPSocketPool() {
-  tcp_socket_pool_ = new TCPClientSocketPool(g_max_sockets,
-                                             g_max_sockets_per_group,
-                                             tcp_pool_histograms_,
-                                             host_resolver_,
-                                             socket_factory_,
-                                             network_change_notifier_,
-                                             net_log_);
-}
-
 }  //  namespace net
