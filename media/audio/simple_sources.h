@@ -56,10 +56,11 @@ class PushAudioOutput {
 // A fairly basic class to connect a push model provider PushAudioOutput to
 // a pull model provider AudioSourceCallback. Fundamentally it manages a series
 // of audio buffers and is unaware of the actual audio format.
+// Note that the PushSource is not thread safe and user need to provide locking.
 class PushSource : public AudioOutputStream::AudioSourceCallback,
                    public PushAudioOutput {
  public:
-  explicit PushSource();
+  PushSource();
   virtual ~PushSource();
 
   // Write one buffer.
@@ -82,8 +83,6 @@ class PushSource : public AudioOutputStream::AudioSourceCallback,
   void CleanUp();
 
   media::SeekableBuffer buffer_;
-  // Serialize access to |buffer_| using this lock.
-  Lock buffer_lock_;
 };
 
 #endif  // MEDIA_AUDIO_SIMPLE_SOURCES_H_

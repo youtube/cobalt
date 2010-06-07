@@ -21,6 +21,8 @@
       ],
       'msvs_guid': '6AE76406-B03B-11DD-94B1-80B556D89593',
       'sources': [
+        'audio/audio_controller.cc',
+        'audio/audio_controller.h',
         'audio/audio_output.h',
         'audio/audio_util.cc',
         'audio/audio_util.h',
@@ -180,6 +182,7 @@
         '../third_party/openmax/omx_stub.cc',
       ],
       'sources': [
+        'audio/audio_controller_unittest.cc',
         'audio/audio_util_unittest.cc',
         'audio/linux/alsa_output_unittest.cc',
         'audio/mac/audio_output_mac_unittest.cc',
