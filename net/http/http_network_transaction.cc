@@ -1598,6 +1598,18 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
+
+  static bool use_conn_impact_histogram(
+      FieldTrialList::Find("ConnCountImpact") &&
+      !FieldTrialList::Find("ConnCountImpact")->group_name().empty());
+  if (use_conn_impact_histogram) {
+    UMA_HISTOGRAM_CLIPPED_TIMES(
+        FieldTrial::MakeName("Net.Transaction_Connected_New",
+            "ConnCountImpact"),
+        total_duration,
+        base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
+        100);
+    }
   }
 
   // Currently, non-zero priority requests are frame or sub-frame resource
