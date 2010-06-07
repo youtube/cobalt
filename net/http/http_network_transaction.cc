@@ -1362,11 +1362,10 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
 }
 
 int HttpNetworkTransaction::DoResolveCanonicalName() {
-  HttpAuthHandler* auth_handler = auth_handler_[pending_auth_target_];
-  DCHECK(auth_handler);
+  DCHECK(auth_handler_[pending_auth_target_].get());
   next_state_ = STATE_RESOLVE_CANONICAL_NAME_COMPLETE;
-  return auth_handler->ResolveCanonicalName(session_->host_resolver(),
-                                            &io_callback_);
+  return auth_handler_[pending_auth_target_]->
+      ResolveCanonicalName(session_->host_resolver(), &io_callback_);
 }
 
 int HttpNetworkTransaction::DoResolveCanonicalNameComplete(int result) {
@@ -1992,7 +1991,7 @@ bool HttpNetworkTransaction::SelectPreemptiveAuth(HttpAuth::Target target) {
     return false;
 
   // Try to create a handler using the previous auth challenge.
-  scoped_refptr<HttpAuthHandler> handler_preemptive;
+  scoped_ptr<HttpAuthHandler> handler_preemptive;
   int rv_create = session_->http_auth_handler_factory()->
       CreatePreemptiveAuthHandlerFromString(
           entry->auth_challenge(), target, AuthOrigin(target),
@@ -2005,14 +2004,14 @@ bool HttpNetworkTransaction::SelectPreemptiveAuth(HttpAuth::Target target) {
   auth_identity_[target].invalid = false;
   auth_identity_[target].username = entry->username();
   auth_identity_[target].password = entry->password();
-  auth_handler_[target] = handler_preemptive;
+  auth_handler_[target].swap(handler_preemptive);
   return true;
 }
 
 bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
     HttpAuth::Target target,
     const GURL& auth_origin) {
-  DCHECK(auth_handler_[target]);
+  DCHECK(auth_handler_[target].get());
   DCHECK(auth_identity_[target].invalid);
 
   // Try to use the username/password encoded into the URL first.
@@ -2115,7 +2114,7 @@ int HttpNetworkTransaction::HandleAuthChallenge(bool establishing_tunnel) {
   // See http://crbug.com/21015.
   if (HaveAuth(target) && auth_handler_[target]->IsFinalRound()) {
     InvalidateRejectedAuthFromCache(target, auth_origin);
-    auth_handler_[target] = NULL;
+    auth_handler_[target].reset();
     auth_identity_[target] = HttpAuth::Identity();
   }
 
@@ -2129,7 +2128,7 @@ int HttpNetworkTransaction::HandleAuthChallenge(bool establishing_tunnel) {
                                   &auth_handler_[target]);
   }
 
-  if (!auth_handler_[target]) {
+  if (!auth_handler_[target].get()) {
     if (establishing_tunnel) {
       LOG(ERROR) << "Can't perform auth to the " << AuthTargetString(target)
                  << " " << auth_origin << " when establishing a tunnel"

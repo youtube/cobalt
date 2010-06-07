@@ -5,6 +5,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "base/basictypes.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_auth_handler_digest.h"
 
 namespace net {
@@ -100,14 +101,25 @@ TEST(HttpAuthHandlerDigestTest, ParseChallenge) {
     }
   };
 
+  GURL origin("http://www.example.com");
+  scoped_ptr<HttpAuthHandlerDigest::Factory> factory(
+      new HttpAuthHandlerDigest::Factory());
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    std::string challenge(tests[i].challenge);
-
-    scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest(1);
-    HttpAuth::ChallengeTokenizer tok(challenge.begin(), challenge.end());
-    bool ok = digest->ParseChallenge(&tok);
-
-    EXPECT_EQ(tests[i].parsed_success, ok);
+    scoped_ptr<HttpAuthHandler> handler;
+    int rv = factory->CreateAuthHandlerFromString(tests[i].challenge,
+                                                  HttpAuth::AUTH_SERVER,
+                                                  origin,
+                                                  BoundNetLog(),
+                                                  &handler);
+    if (tests[i].parsed_success) {
+      EXPECT_EQ(OK, rv);
+    } else {
+      EXPECT_NE(OK, rv);
+      continue;
+    }
+    ASSERT_TRUE(handler != NULL);
+    HttpAuthHandlerDigest* digest =
+        static_cast<HttpAuthHandlerDigest*>(handler.get());
     EXPECT_STREQ(tests[i].parsed_realm, digest->realm_.c_str());
     EXPECT_STREQ(tests[i].parsed_nonce, digest->nonce_.c_str());
     EXPECT_STREQ(tests[i].parsed_domain, digest->domain_.c_str());
@@ -250,13 +262,20 @@ TEST(HttpAuthHandlerDigestTest, AssembleCredentials) {
     }
   };
   GURL origin("http://www.example.com");
+  scoped_ptr<HttpAuthHandlerDigest::Factory> factory(
+      new HttpAuthHandlerDigest::Factory());
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    scoped_refptr<HttpAuthHandlerDigest> digest = new HttpAuthHandlerDigest(1);
-    std::string challenge = tests[i].challenge;
-    HttpAuth::ChallengeTokenizer tok(challenge.begin(), challenge.end());
-    EXPECT_TRUE(digest->InitFromChallenge(&tok, HttpAuth::AUTH_SERVER, origin,
-                                          BoundNetLog()));
+    scoped_ptr<HttpAuthHandler> handler;
+    int rv = factory->CreateAuthHandlerFromString(tests[i].challenge,
+                                                  HttpAuth::AUTH_SERVER,
+                                                  origin,
+                                                  BoundNetLog(),
+                                                  &handler);
+    EXPECT_EQ(OK, rv);
+    ASSERT_TRUE(handler != NULL);
 
+    HttpAuthHandlerDigest* digest =
+        static_cast<HttpAuthHandlerDigest*>(handler.get());
     std::string creds = digest->AssembleCredentials(tests[i].req_method,
                                                     tests[i].req_path,
                                                     tests[i].username,

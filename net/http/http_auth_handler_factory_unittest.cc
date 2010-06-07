@@ -22,8 +22,8 @@ class MockHttpAuthHandlerFactory : public HttpAuthHandlerFactory {
                                 CreateReason reason,
                                 int nonce_count,
                                 const BoundNetLog& net_log,
-                                scoped_refptr<HttpAuthHandler>* handler) {
-    *handler = NULL;
+                                scoped_ptr<HttpAuthHandler>* handler) {
+    handler->reset();
     return return_code_;
   }
 
@@ -46,7 +46,7 @@ TEST(HttpAuthHandlerFactoryTest, RegistryFactory) {
   MockHttpAuthHandlerFactory* mock_factory_digest_replace =
       new MockHttpAuthHandlerFactory(kDigestReturnCodeReplace);
 
-  scoped_refptr<HttpAuthHandler> handler;
+  scoped_ptr<HttpAuthHandler> handler;
 
   // No schemes should be supported in the beginning.
   EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME,
@@ -96,7 +96,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
   GURL server_origin("http://www.example.com");
   GURL proxy_origin("http://cache.example.com:3128");
   {
-    scoped_refptr<HttpAuthHandler> handler;
+    scoped_ptr<HttpAuthHandler> handler;
     int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
         "Basic realm=\"FooBar\"",
         HttpAuth::AUTH_SERVER,
@@ -112,7 +112,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
     EXPECT_FALSE(handler->is_connection_based());
   }
   {
-    scoped_refptr<HttpAuthHandler> handler;
+    scoped_ptr<HttpAuthHandler> handler;
     int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
         "UNSUPPORTED realm=\"FooBar\"",
         HttpAuth::AUTH_SERVER,
@@ -123,7 +123,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
     EXPECT_TRUE(handler.get() == NULL);
   }
   {
-    scoped_refptr<HttpAuthHandler> handler;
+    scoped_ptr<HttpAuthHandler> handler;
     int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
         "Digest realm=\"FooBar\", nonce=\"xyz\"",
         HttpAuth::AUTH_PROXY,
@@ -139,7 +139,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
     EXPECT_FALSE(handler->is_connection_based());
   }
   {
-    scoped_refptr<HttpAuthHandler> handler;
+    scoped_ptr<HttpAuthHandler> handler;
     int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
         "NTLM",
         HttpAuth::AUTH_SERVER,
@@ -156,7 +156,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
   }
 #if defined(OS_WIN)
   {
-    scoped_refptr<HttpAuthHandler> handler;
+    scoped_ptr<HttpAuthHandler> handler;
     int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
         "Negotiate",
         HttpAuth::AUTH_SERVER,
@@ -173,7 +173,7 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
   }
 #else  // !defined(OS_WIN)
   {
-    scoped_refptr<HttpAuthHandler> handler;
+    scoped_ptr<HttpAuthHandler> handler;
     int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
         "Negotiate",
         HttpAuth::AUTH_SERVER,

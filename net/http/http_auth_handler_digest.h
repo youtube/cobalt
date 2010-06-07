@@ -27,7 +27,7 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
                                   CreateReason reason,
                                   int digest_nonce_count,
                                   const BoundNetLog& net_log,
-                                  scoped_refptr<HttpAuthHandler>* handler);
+                                  scoped_ptr<HttpAuthHandler>* handler);
   };
 
   virtual int GenerateAuthToken(const std::wstring& username,

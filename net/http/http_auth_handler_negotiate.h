@@ -56,7 +56,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                   CreateReason reason,
                                   int digest_nonce_count,
                                   const BoundNetLog& net_log,
-                                  scoped_refptr<HttpAuthHandler>* handler);
+                                  scoped_ptr<HttpAuthHandler>* handler);
 
 #if defined(OS_WIN)
     // Set the SSPILibrary to use. Typically the only callers which need to
@@ -87,6 +87,8 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 #else
   explicit HttpAuthHandlerNegotiate(URLSecurityManager* url_security_manager);
 #endif
+
+  virtual ~HttpAuthHandlerNegotiate();
 
   virtual bool NeedsIdentity();
 
@@ -119,8 +121,6 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
 
  private:
-  ~HttpAuthHandlerNegotiate();
-
 #if defined(OS_WIN)
   void OnResolveCanonicalName(int result);
   HttpAuthSSPI auth_sspi_;

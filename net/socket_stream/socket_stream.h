@@ -280,7 +280,7 @@ class SocketStream : public base::RefCountedThreadSafe<SocketStream> {
   ProxyInfo proxy_info_;
 
   HttpAuthCache auth_cache_;
-  scoped_refptr<HttpAuthHandler> auth_handler_;
+  scoped_ptr<HttpAuthHandler> auth_handler_;
   HttpAuth::Identity auth_identity_;
   scoped_refptr<AuthChallengeInfo> auth_info_;
 
