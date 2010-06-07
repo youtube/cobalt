@@ -93,6 +93,7 @@ class URLRequestTestJob : public URLRequestJob {
   virtual void Kill();
   virtual bool GetMimeType(std::string* mime_type) const;
   virtual void GetResponseInfo(net::HttpResponseInfo* info);
+  virtual int GetResponseCode() const;
   virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
 
  protected:

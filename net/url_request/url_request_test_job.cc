@@ -183,6 +183,12 @@ void URLRequestTestJob::GetResponseInfo(net::HttpResponseInfo* info) {
     info->headers = response_headers_;
 }
 
+int URLRequestTestJob::GetResponseCode() const {
+  if (response_headers_)
+    return response_headers_->response_code();
+  return -1;
+}
+
 bool URLRequestTestJob::IsRedirectResponse(GURL* location,
                                            int* http_status_code) {
   if (!response_headers_)
