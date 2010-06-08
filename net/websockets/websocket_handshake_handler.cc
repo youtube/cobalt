@@ -4,6 +4,8 @@
 
 #include "net/websockets/websocket_handshake_handler.h"
 
+#include "base/md5.h"
+#include "base/string_piece.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_util.h"
@@ -23,8 +25,11 @@ void ParseHandshakeHeader(
     *headers = "";
     return;
   }
+  // |status_line| includes \r\n.
   *status_line = std::string(handshake_message, i + 2);
-  *headers = std::string(handshake_message + i + 2, len - i - 2);
+  // |handshake_message| includes tailing \r\n\r\n.
+  // |headers| doesn't include 2nd \r\n.
+  *headers = std::string(handshake_message + i + 2, len - (i + 2) - 2);
 }
 
 void FetchHeaders(const std::string& headers,
@@ -89,6 +94,38 @@ std::string FilterHeaders(
   return filtered_headers;
 }
 
+// Gets a key number for |key_name| in |headers| and appends the number to
+// |challenge|.
+// The key number (/part_N/) is extracted as step 4.-8. in
+// 5.2. Sending the server's opening handshake of
+// http://www.ietf.org/id/draft-ietf-hybi-thewebsocketprotocol-00.txt
+void GetKeyNumber(net::HttpRequestHeaders* headers, const char* key_name,
+                  std::string* challenge) {
+  std::string key;
+  headers->GetHeader(key_name, &key);
+  headers->RemoveHeader(key_name);
+
+  uint32 key_number = 0;
+  uint32 spaces = 0;
+  for (size_t i = 0; i < key.size(); ++i) {
+    if (isdigit(key[i]))
+      key_number = key_number * 10 + key[i] - '0';
+    else if (key[i] == ' ')
+      ++spaces;
+  }
+  // spaces should not be zero in valid handshake request.
+  if (spaces == 0)
+    return;
+  key_number /= spaces;
+
+  char part[4];
+  for (int i = 0; i < 4; i++) {
+    part[3 - i] = key_number & 0xFF;
+    key_number >>= 8;
+  }
+  challenge->append(part, 4);
+}
+
 }  // anonymous namespace
 
 namespace net {
@@ -145,19 +182,28 @@ void WebSocketHandshakeRequestHandler::RemoveHeaders(
       headers_, headers_to_remove, headers_to_remove_len);
 }
 
-const HttpRequestInfo& WebSocketHandshakeRequestHandler::GetRequestInfo(
-    const GURL& url) {
-  NOTIMPLEMENTED();
-  // TODO(ukai): implement for Spdy support.  Rest is incomplete.
-  request_info_.url = url;
-  // TODO(ukai): method should be built from |request_status_line_|.
-  request_info_.method = "GET";
+HttpRequestInfo WebSocketHandshakeRequestHandler::GetRequestInfo(
+    const GURL& url, std::string* challenge) {
+  HttpRequestInfo request_info;
+  request_info.url = url;
+  base::StringPiece method = status_line_.data();
+  size_t method_end = base::StringPiece(
+      status_line_.data(), status_line_.size()).find_first_of(" ");
+  if (method_end != base::StringPiece::npos)
+    request_info.method = std::string(status_line_.data(), method_end);
 
-  request_info_.extra_headers.Clear();
-  request_info_.extra_headers.AddHeadersFromString(headers_);
-  // TODO(ukai): eliminate unnecessary headers, such as Sec-WebSocket-Key1
-  // and Sec-WebSocket-Key2.
-  return request_info_;
+  request_info.extra_headers.Clear();
+  request_info.extra_headers.AddHeadersFromString(headers_);
+
+  request_info.extra_headers.RemoveHeader("Upgrade");
+  request_info.extra_headers.RemoveHeader("Connection");
+
+  challenge->clear();
+  GetKeyNumber(&request_info.extra_headers, "Sec-WebSocket-Key1", challenge);
+  GetKeyNumber(&request_info.extra_headers, "Sec-WebSocket-Key2", challenge);
+  challenge->append(key3_);
+
+  return request_info;
 }
 
 std::string WebSocketHandshakeRequestHandler::GetRawRequest() {
@@ -172,11 +218,6 @@ std::string WebSocketHandshakeRequestHandler::GetRawRequest() {
 size_t WebSocketHandshakeRequestHandler::raw_length() const {
   DCHECK_GT(raw_length_, 0);
   return raw_length_;
-}
-
-std::string WebSocketHandshakeRequestHandler::GetChallenge() const {
-  NOTIMPLEMENTED();
-  return "";
 }
 
 WebSocketHandshakeResponseHandler::WebSocketHandshakeResponseHandler()
@@ -219,25 +260,29 @@ bool WebSocketHandshakeResponseHandler::HasResponse() const {
 
 bool WebSocketHandshakeResponseHandler::ParseResponseInfo(
     const HttpResponseInfo& response_info,
-    WebSocketHandshakeRequestHandler* request_handler) {
-  NOTIMPLEMENTED();
-  // TODO(ukai): implement for Spdy support.  Rest is incomplete.
-  response_info_ = response_info;
-
-  if (!response_info_.headers.get())
+    const std::string& challenge) {
+  if (!response_info.headers.get())
     return false;
 
   std::string response_message;
-  response_message = response_info_.headers->GetStatusLine();
+  response_message = response_info.headers->GetStatusLine();
   response_message += "\r\n";
+  response_message += "Upgrade: WebSocket\r\n";
+  response_message += "Connection: Upgrade\r\n";
   void* iter = NULL;
   std::string name;
   std::string value;
-  while (response_info_.headers->EnumerateHeaderLines(&iter, &name, &value)) {
+  while (response_info.headers->EnumerateHeaderLines(&iter, &name, &value)) {
     response_message += name + ": " + value + "\r\n";
   }
-  // TODO(ukai): generate response key from request_handler->GetChallenge()
-  // and add it to |response_message|.
+  response_message += "\r\n";
+
+  MD5Digest digest;
+  MD5Sum(challenge.data(), challenge.size(), &digest);
+
+  const char* digest_data = reinterpret_cast<char*>(digest.a);
+  response_message.append(digest_data, sizeof(digest.a));
+
   return ParseRawResponse(response_message.data(),
                           response_message.size()) == response_message.size();
 }
