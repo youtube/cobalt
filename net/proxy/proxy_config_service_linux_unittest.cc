@@ -873,8 +873,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       GURL(),                     // pac_url
       ProxyRulesExpectation::Single(
           "www.google.com:80",
-          // TODO(eroman): 127.0.0.1/8 is unsupported, so it was dropped
-          "*.google.com,*foo.com:99,1.2.3.4:22"),
+          "*.google.com,*foo.com:99,1.2.3.4:22,127.0.0.1/8"),
     },
   };
 
