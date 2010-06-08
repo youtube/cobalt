@@ -125,6 +125,11 @@
             '../chrome/browser/chromeos/text_input/text_input.gyp:*',
           ],
         }],
+        ['chromoting==1', {
+          'dependencies': [
+            '../remoting/chromoting.gyp:*',
+          ],
+        }],
       ],
     },
   ],
