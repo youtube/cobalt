@@ -43,18 +43,15 @@ class WebSocketHandshakeRequestHandler {
                      size_t headers_to_remove_len);
 
   // Gets request info to open WebSocket connection.
-  const HttpRequestInfo& GetRequestInfo(const GURL& url);
+  // Also, full challange data in |challenge|.
+  HttpRequestInfo GetRequestInfo(const GURL& url, std::string* challenge);
   // Gets WebSocket handshake raw request message to open WebSocket
   // connection.
   std::string GetRawRequest();
   // Calling raw_length is valid only after GetRawRquest() call.
   size_t raw_length() const;
 
-  std::string GetChallenge() const;
-
  private:
-  HttpRequestInfo request_info_;
-
   std::string status_line_;
   std::string headers_;
   std::string key3_;
@@ -81,7 +78,7 @@ class WebSocketHandshakeResponseHandler {
   bool HasResponse() const;
   // Parses WebSocket handshake response info given as HttpResponseInfo.
   bool ParseResponseInfo(const HttpResponseInfo& response_info,
-                         WebSocketHandshakeRequestHandler* request_handler);
+                         const std::string& challenge);
 
   // Gets the headers value.
   void GetHeaders(const char* const headers_to_get[],
@@ -95,7 +92,6 @@ class WebSocketHandshakeResponseHandler {
   std::string GetResponse();
 
  private:
-  HttpResponseInfo response_info_;
   std::string original_;
   int original_header_length_;
   std::string status_line_;
