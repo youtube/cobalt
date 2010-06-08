@@ -107,26 +107,14 @@ class RuleBasedHostResolverProc : public HostResolverProc {
                                AddressFamily address_family,
                                const std::string& replacement);
 
-  // Same as AddRule(), but the replacement is expected to be an IPV4 literal.
-  // This can be used in place of AddRule() to bypass the system's host
-  // resolver. |ipv4_literal| must be an IPv4 literal, typically taking the form
-  // of "[0-255].[0-255].[0-255].[0-255]".
+  // Same as AddRule(), but the replacement is expected to be an IPv4 or IPv6
+  // literal. This can be used in place of AddRule() to bypass the system's
+  // host resolver (the address list will be constructed manually).
   // If |canonical-name| is non-empty, it is copied to the resulting AddressList
   // but does not impact DNS resolution.
-  void AddIPv4Rule(const std::string& host_pattern,
-                   const std::string& ipv4_literal,
-                   const std::string& canonical_name);
-
-  // Same as AddRule(), but |ipv6_literal| is expected to be an IPV6 literal,
-  // without enclosing brackets. You should use this in place of AddRule(),
-  // since the system's host resolver may not support IPv6 literals on all
-  // systems. This variant constructs the socket address directly so it will
-  // always work.
-  // If |canonical-name| is non-empty, it is copied to the resulting AddressList
-  // but does not impact DNS resolution.
-  void AddIPv6Rule(const std::string& host_pattern,
-                   const std::string& ipv6_literal,
-                   const std::string& canonical_name);
+  void AddIPLiteralRule(const std::string& host_pattern,
+                        const std::string& ip_literal,
+                        const std::string& canonical_name);
 
   void AddRuleWithLatency(const std::string& host_pattern,
                           const std::string& replacement,

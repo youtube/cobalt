@@ -431,6 +431,17 @@ void AppendLanguagesToOutputs(const wchar_t* languages,
   actual->append(languages);
 }
 
+// Helper to strignize an IP number (used to define expectations).
+std::string DumpIPNumber(const net::IPAddressNumber& v) {
+  std::string out;
+  for (size_t i = 0; i < v.size(); ++i) {
+    if (i != 0)
+      out.append(",");
+    out.append(IntToString(static_cast<int>(v[i])));
+  }
+  return out;
+}
+
 }  // anonymous namespace
 
 TEST(NetUtilTest, FileURLConversion) {
@@ -1786,4 +1797,165 @@ TEST(NetUtilTest, GetHostOrSpecFromURL) {
             net::GetHostOrSpecFromURL(GURL("http://example.com./test")));
   EXPECT_EQ("file:///tmp/test.html",
             net::GetHostOrSpecFromURL(GURL("file:///tmp/test.html")));
+}
+
+// Test that invalid IP literals fail to parse.
+TEST(NetUtilTest, ParseIPLiteralToNumber_FailParse) {
+  net::IPAddressNumber number;
+
+  EXPECT_FALSE(net::ParseIPLiteralToNumber("bad value", &number));
+  EXPECT_FALSE(net::ParseIPLiteralToNumber("bad:value", &number));
+  EXPECT_FALSE(net::ParseIPLiteralToNumber("", &number));
+  EXPECT_FALSE(net::ParseIPLiteralToNumber("192.168.0.1:30", &number));
+  EXPECT_FALSE(net::ParseIPLiteralToNumber("  192.168.0.1  ", &number));
+  EXPECT_FALSE(net::ParseIPLiteralToNumber("[::1]", &number));
+}
+
+// Test parsing an IPv4 literal.
+TEST(NetUtilTest, ParseIPLiteralToNumber_IPv4) {
+  net::IPAddressNumber number;
+  EXPECT_TRUE(net::ParseIPLiteralToNumber("192.168.0.1", &number));
+  EXPECT_EQ("192,168,0,1", DumpIPNumber(number));
+}
+
+// Test parsing an IPv6 literal.
+TEST(NetUtilTest, ParseIPLiteralToNumber_IPv6) {
+  net::IPAddressNumber number;
+  EXPECT_TRUE(net::ParseIPLiteralToNumber("1:abcd::3:4:ff", &number));
+  EXPECT_EQ("0,1,171,205,0,0,0,0,0,0,0,3,0,4,0,255", DumpIPNumber(number));
+}
+
+// Test mapping an IPv4 address to an IPv6 address.
+TEST(NetUtilTest, ConvertIPv4NumberToIPv6Number) {
+  net::IPAddressNumber ipv4_number;
+  EXPECT_TRUE(net::ParseIPLiteralToNumber("192.168.0.1", &ipv4_number));
+
+  net::IPAddressNumber ipv6_number =
+      net::ConvertIPv4NumberToIPv6Number(ipv4_number);
+
+  // ::ffff:192.168.1.1
+  EXPECT_EQ("0,0,0,0,0,0,0,0,0,0,255,255,192,168,0,1",
+            DumpIPNumber(ipv6_number));
+}
+
+// Test parsing invalid CIDR notation literals.
+TEST(NetUtilTest, ParseCIDRBlock_Invalid) {
+  const char* bad_literals[] = {
+      "foobar",
+      "",
+      "192.168.0.1",
+      "::1",
+      "/",
+      "/1",
+      "1",
+      "192.168.1.1/-1",
+      "192.168.1.1/33",
+      "::1/-3",
+      "a::3/129",
+      "::1/x",
+      "192.168.0.1//11"
+  };
+
+  for (size_t i = 0; i < arraysize(bad_literals); ++i) {
+    net::IPAddressNumber ip_number;
+    size_t prefix_length_in_bits;
+
+    EXPECT_FALSE(net::ParseCIDRBlock(bad_literals[i],
+                                     &ip_number,
+                                     &prefix_length_in_bits));
+  }
+}
+
+// Test parsing a valid CIDR notation literal.
+TEST(NetUtilTest, ParseCIDRBlock_Valid) {
+  net::IPAddressNumber ip_number;
+  size_t prefix_length_in_bits;
+
+  EXPECT_TRUE(net::ParseCIDRBlock("192.168.0.1/11",
+                                  &ip_number,
+                                  &prefix_length_in_bits));
+
+  EXPECT_EQ("192,168,0,1", DumpIPNumber(ip_number));
+  EXPECT_EQ(11u, prefix_length_in_bits);
+}
+
+TEST(NetUtilTest, IPNumberMatchesPrefix) {
+  struct {
+    const char* cidr_literal;
+    const char* ip_literal;
+    bool expected_to_match;
+  } tests[] = {
+    // IPv4 prefix with IPv4 inputs.
+    {
+      "10.10.1.32/27",
+      "10.10.1.44",
+      true
+    },
+    {
+      "10.10.1.32/27",
+      "10.10.1.90",
+      false
+    },
+    {
+      "10.10.1.32/27",
+      "10.10.1.90",
+      false
+    },
+
+    // IPv6 prefix with IPv6 inputs.
+    {
+      "2001:db8::/32",
+      "2001:DB8:3:4::5",
+      true
+    },
+    {
+      "2001:db8::/32",
+      "2001:c8::",
+      false
+    },
+
+    // IPv6 prefix with IPv4 inputs.
+    {
+      "2001:db8::/33",
+      "192.168.0.1",
+      false
+    },
+    {
+      "::ffff:192.168.0.1/112",
+      "192.168.33.77",
+      true
+    },
+
+    // IPv4 prefix with IPv6 inputs.
+    {
+      "10.11.33.44/16",
+      "::ffff:0a0b:89",
+      true
+    },
+    {
+      "10.11.33.44/16",
+      "::ffff:10.12.33.44",
+      false
+    },
+  };
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    SCOPED_TRACE(StringPrintf("Test[%" PRIuS "]: %s, %s", i,
+                              tests[i].cidr_literal,
+                              tests[i].ip_literal));
+
+    net::IPAddressNumber ip_number;
+    EXPECT_TRUE(net::ParseIPLiteralToNumber(tests[i].ip_literal, &ip_number));
+
+    net::IPAddressNumber ip_prefix;
+    size_t prefix_length_in_bits;
+
+    EXPECT_TRUE(net::ParseCIDRBlock(tests[i].cidr_literal,
+                                    &ip_prefix,
+                                    &prefix_length_in_bits));
+
+    EXPECT_EQ(tests[i].expected_to_match,
+              net::IPNumberMatchesPrefix(ip_number,
+                                         ip_prefix,
+                                         prefix_length_in_bits));
+  }
 }
