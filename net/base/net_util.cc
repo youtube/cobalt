@@ -1081,7 +1081,7 @@ FilePath GetSuggestedFilename(const GURL& url,
   }
 
   const std::string filename_from_cd = GetFileNameFromCD(content_disposition,
-                                                          referrer_charset);
+                                                         referrer_charset);
 #if defined(OS_WIN)
   FilePath::StringType filename = UTF8ToWide(filename_from_cd);
 #elif defined(OS_POSIX)
@@ -1102,10 +1102,17 @@ FilePath GetSuggestedFilename(const GURL& url,
       const std::string unescaped_url_filename = UnescapeURLComponent(
           url.ExtractFileName(),
           UnescapeRule::SPACES | UnescapeRule::URL_SPECIAL_CHARS);
+
+      // The URL should be escaped UTF-8, but may not be.
+      std::string decoded_filename;
+      bool ignore;
+      DecodeWord(unescaped_url_filename, referrer_charset, &ignore,
+                 &decoded_filename);
+
 #if defined(OS_WIN)
-      filename = UTF8ToWide(unescaped_url_filename);
+      filename = UTF8ToWide(decoded_filename);
 #elif defined(OS_POSIX)
-      filename = unescaped_url_filename;
+      filename = decoded_filename;
 #endif
     }
   }
