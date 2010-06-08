@@ -53,6 +53,7 @@
 #include "grit/net_resources.h"
 #include "googleurl/src/gurl.h"
 #include "googleurl/src/url_canon.h"
+#include "googleurl/src/url_canon_ip.h"
 #include "googleurl/src/url_parse.h"
 #include "net/base/dns_util.h"
 #include "net/base/escape.h"
@@ -1750,6 +1751,119 @@ bool IPv6Supported() {
   NOTIMPLEMENTED();
   return true;
 #endif  // defined(various platforms)
+}
+
+bool ParseIPLiteralToNumber(const std::string& ip_literal,
+                            IPAddressNumber* ip_number) {
+  // |ip_literal| could be either a IPv4 or an IPv6 literal. If it contains
+  // a colon however, it must be an IPv6 address.
+  if (ip_literal.find(':') != std::string::npos) {
+    // GURL expects IPv6 hostnames to be surrounded with brackets.
+    std::string host_brackets = "[" + ip_literal + "]";
+    url_parse::Component host_comp(0, host_brackets.size());
+
+    // Try parsing the hostname as an IPv6 literal.
+    ip_number->resize(16);  // 128 bits.
+    return url_canon::IPv6AddressToNumber(host_brackets.data(),
+                                          host_comp,
+                                          &(*ip_number)[0]);
+  }
+
+  // Otherwise the string is an IPv4 address.
+  ip_number->resize(4);  // 32 bits.
+  url_parse::Component host_comp(0, ip_literal.size());
+  int num_components;
+  url_canon::CanonHostInfo::Family family = url_canon::IPv4AddressToNumber(
+      ip_literal.data(), host_comp, &(*ip_number)[0], &num_components);
+  return family == url_canon::CanonHostInfo::IPV4;
+}
+
+IPAddressNumber ConvertIPv4NumberToIPv6Number(
+    const IPAddressNumber& ipv4_number) {
+  DCHECK(ipv4_number.size() == 4);
+
+  // IPv4-mapped addresses are formed by:
+  // <80 bits of zeros>  + <16 bits of ones> + <32-bit IPv4 address>.
+  IPAddressNumber ipv6_number;
+  ipv6_number.reserve(16);
+  ipv6_number.insert(ipv6_number.end(), 10, 0);
+  ipv6_number.push_back(0xFF);
+  ipv6_number.push_back(0xFF);
+  ipv6_number.insert(ipv6_number.end(), ipv4_number.begin(), ipv4_number.end());
+  return ipv6_number;
+}
+
+bool ParseCIDRBlock(const std::string& cidr_literal,
+                    IPAddressNumber* ip_number,
+                    size_t* prefix_length_in_bits) {
+  // We expect CIDR notation to match one of these two templates:
+  //   <IPv4-literal> "/" <number of bits>
+  //   <IPv6-literal> "/" <number of bits>
+
+  std::vector<std::string> parts;
+  SplitString(cidr_literal, '/', &parts);
+  if (parts.size() != 2)
+    return false;
+
+  // Parse the IP address.
+  if (!ParseIPLiteralToNumber(parts[0], ip_number))
+    return false;
+
+  // Parse the prefix length.
+  int number_of_bits = -1;
+  if (!StringToInt(parts[1], &number_of_bits))
+    return false;
+
+  // Make sure the prefix length is in a valid range.
+  if (number_of_bits < 0 ||
+      number_of_bits > static_cast<int>(ip_number->size() * 8))
+    return false;
+
+  *prefix_length_in_bits = static_cast<size_t>(number_of_bits);
+  return true;
+}
+
+bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
+                           const IPAddressNumber& ip_prefix,
+                           size_t prefix_length_in_bits) {
+  // Both the input IP address and the prefix IP address should be
+  // either IPv4 or IPv6.
+  DCHECK(ip_number.size() == 4 || ip_number.size() == 16);
+  DCHECK(ip_prefix.size() == 4 || ip_prefix.size() == 16);
+
+  DCHECK_LE(prefix_length_in_bits, ip_prefix.size() * 8);
+
+  // In case we have an IPv6 / IPv4 mismatch, convert the IPv4 addresses to
+  // IPv6 addresses in order to do the comparison.
+  if (ip_number.size() != ip_prefix.size()) {
+    if (ip_number.size() == 4) {
+      return IPNumberMatchesPrefix(ConvertIPv4NumberToIPv6Number(ip_number),
+                                   ip_prefix, prefix_length_in_bits);
+    }
+    return IPNumberMatchesPrefix(ip_number,
+                                 ConvertIPv4NumberToIPv6Number(ip_prefix),
+                                 96 + prefix_length_in_bits);
+  }
+
+  // Otherwise we are comparing two IPv4 addresses, or two IPv6 addresses.
+  // Compare all the bytes that fall entirely within the prefix.
+  int num_entire_bytes_in_prefix = prefix_length_in_bits / 8;
+  for (int i = 0; i < num_entire_bytes_in_prefix; ++i) {
+    if (ip_number[i] != ip_prefix[i])
+      return false;
+  }
+
+  // In case the prefix was not a multiple of 8, there will be 1 byte
+  // which is only partially masked.
+  int remaining_bits = prefix_length_in_bits % 8;
+  if (remaining_bits != 0) {
+    unsigned char mask = 0xFF << (8 - remaining_bits);
+    int i = num_entire_bytes_in_prefix;
+    if ((ip_number[i] & mask) != (ip_prefix[i] & mask))
+      return false;
+  }
+
+  return true;
 }
 
 }  // namespace net
