@@ -5,7 +5,9 @@
 #ifndef BASE_MESSAGE_PUMP_LIBEVENT_H_
 #define BASE_MESSAGE_PUMP_LIBEVENT_H_
 
+#include "base/basictypes.h"
 #include "base/message_pump.h"
+#include "base/observer_list.h"
 #include "base/time.h"
 
 // Declare structs we need from libevent.h rather than including it
@@ -18,33 +20,19 @@ namespace base {
 // TODO(dkegel): add support for background file IO somehow
 class MessagePumpLibevent : public MessagePump {
  public:
+  class IOObserver {
+   public:
+    IOObserver() {}
 
-  // Object returned by WatchFileDescriptor to manage further watching.
-  class FileDescriptorWatcher {
-    public:
-     FileDescriptorWatcher();
-     ~FileDescriptorWatcher();  // Implicitly calls StopWatchingFileDescriptor.
+    // An IOObserver is an object that receives IO notifications from the
+    // MessagePump.
+    //
+    // NOTE: An IOObserver implementation should be extremely fast!
+    virtual void WillProcessIOEvent() = 0;
+    virtual void DidProcessIOEvent() = 0;
 
-     // NOTE: These methods aren't called StartWatching()/StopWatching() to
-     // avoid confusion with the win32 ObjectWatcher class.
-
-     // Stop watching the FD, always safe to call.  No-op if there's nothing
-     // to do.
-     bool StopWatchingFileDescriptor();
-
-    private:
-     // Called by MessagePumpLibevent, ownership of |e| is transferred to this
-     // object.
-     void Init(event* e, bool is_persistent);
-
-     // Used by MessagePumpLibevent to take ownership of event_.
-     event *ReleaseEvent();
-     friend class MessagePumpLibevent;
-
-    private:
-     bool is_persistent_;  // false if this event is one-shot.
-     event* event_;
-     DISALLOW_COPY_AND_ASSIGN(FileDescriptorWatcher);
+   protected:
+    virtual ~IOObserver() {}
   };
 
   // Used with WatchFileDescptor to asynchronously monitor the I/O readiness of
@@ -56,6 +44,45 @@ class MessagePumpLibevent : public MessagePump {
     // without blocking
     virtual void OnFileCanReadWithoutBlocking(int fd) = 0;
     virtual void OnFileCanWriteWithoutBlocking(int fd) = 0;
+  };
+
+  // Object returned by WatchFileDescriptor to manage further watching.
+  class FileDescriptorWatcher {
+   public:
+    FileDescriptorWatcher();
+    ~FileDescriptorWatcher();  // Implicitly calls StopWatchingFileDescriptor.
+
+    // NOTE: These methods aren't called StartWatching()/StopWatching() to
+    // avoid confusion with the win32 ObjectWatcher class.
+
+    // Stop watching the FD, always safe to call.  No-op if there's nothing
+    // to do.
+    bool StopWatchingFileDescriptor();
+
+   private:
+    friend class MessagePumpLibevent;
+
+    // Called by MessagePumpLibevent, ownership of |e| is transferred to this
+    // object.
+    void Init(event* e, bool is_persistent);
+
+    // Used by MessagePumpLibevent to take ownership of event_.
+    event *ReleaseEvent();
+
+    void set_pump(MessagePumpLibevent* pump) { pump_ = pump; }
+    MessagePumpLibevent* pump() { return pump_; }
+
+    void set_watcher(Watcher* watcher) { watcher_ = watcher; }
+
+    void OnFileCanReadWithoutBlocking(int fd, MessagePumpLibevent* pump);
+    void OnFileCanWriteWithoutBlocking(int fd, MessagePumpLibevent* pump);
+
+    bool is_persistent_;  // false if this event is one-shot.
+    event* event_;
+    MessagePumpLibevent* pump_;
+    Watcher* watcher_;
+
+    DISALLOW_COPY_AND_ASSIGN(FileDescriptorWatcher);
   };
 
   MessagePumpLibevent();
@@ -84,6 +111,9 @@ class MessagePumpLibevent : public MessagePump {
                            FileDescriptorWatcher *controller,
                            Watcher *delegate);
 
+  void AddIOObserver(IOObserver* obs);
+  void RemoveIOObserver(IOObserver* obs);
+
   // MessagePump methods:
   virtual void Run(Delegate* delegate);
   virtual void Quit();
@@ -91,6 +121,8 @@ class MessagePumpLibevent : public MessagePump {
   virtual void ScheduleDelayedWork(const Time& delayed_work_time);
 
  private:
+  void WillProcessIOEvent();
+  void DidProcessIOEvent();
 
   // Risky part of constructor.  Returns true on success.
   bool Init();
@@ -121,6 +153,8 @@ class MessagePumpLibevent : public MessagePump {
   int wakeup_pipe_out_;
   // ... libevent wrapper for read end
   event* wakeup_event_;
+
+  ObserverList<IOObserver> io_observers_;
 
   DISALLOW_COPY_AND_ASSIGN(MessagePumpLibevent);
 };
