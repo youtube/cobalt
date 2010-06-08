@@ -497,9 +497,11 @@ bool MessagePumpForIO::WaitForIOCompletion(DWORD timeout, IOHandler* filter) {
       // Save this item for later
       completed_io_.push_back(item);
     } else {
-      DCHECK(item.context->handler == item.handler);
+      DCHECK_EQ(item.context->handler, item.handler);
+      WillProcessIOEvent();
       item.handler->OnIOCompleted(item.context, item.bytes_transfered,
                                   item.error);
+      DidProcessIOEvent();
     }
   } else {
     // The handler must be gone by now, just cleanup the mess.
@@ -549,6 +551,22 @@ bool MessagePumpForIO::MatchCompletedIOItem(IOHandler* filter, IOItem* item) {
     }
   }
   return false;
+}
+
+void MessagePumpForIO::AddIOObserver(IOObserver *obs) {
+  io_observers_.AddObserver(obs);
+}
+
+void MessagePumpForIO::RemoveIOObserver(IOObserver *obs) {
+  io_observers_.RemoveObserver(obs);
+}
+
+void MessagePumpForIO::WillProcessIOEvent() {
+  FOR_EACH_OBSERVER(IOObserver, io_observers_, WillProcessIOEvent());
+}
+
+void MessagePumpForIO::DidProcessIOEvent() {
+  FOR_EACH_OBSERVER(IOObserver, io_observers_, DidProcessIOEvent());
 }
 
 }  // namespace base

@@ -9,6 +9,7 @@
 
 #include <list>
 
+#include "base/basictypes.h"
 #include "base/lock.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
@@ -23,7 +24,7 @@ namespace base {
 class MessagePumpWin : public MessagePump {
  public:
   // An Observer is an object that receives global notifications from the
-  // MessageLoop.
+  // UI MessageLoop.
   //
   // NOTE: An Observer implementation should be extremely fast!
   //
@@ -283,6 +284,21 @@ class MessagePumpForIO : public MessagePumpWin {
                                DWORD error) = 0;
   };
 
+  // An IOObserver is an object that receives IO notifications from the
+  // MessagePump.
+  //
+  // NOTE: An IOObserver implementation should be extremely fast!
+  class IOObserver {
+   public:
+    IOObserver() {}
+
+    virtual void WillProcessIOEvent() = 0;
+    virtual void DidProcessIOEvent() = 0;
+
+   protected:
+    virtual ~IOObserver() {}
+  };
+
   // The extended context that should be used as the base structure on every
   // overlapped IO operation. |handler| must be set to the registered IOHandler
   // for the given file when the operation is started, and it can be set to NULL
@@ -320,6 +336,9 @@ class MessagePumpForIO : public MessagePumpWin {
   // caller is willing to allow pausing regular task dispatching on this thread.
   bool WaitForIOCompletion(DWORD timeout, IOHandler* filter);
 
+  void AddIOObserver(IOObserver* obs);
+  void RemoveIOObserver(IOObserver* obs);
+
  private:
   struct IOItem {
     IOHandler* handler;
@@ -333,12 +352,16 @@ class MessagePumpForIO : public MessagePumpWin {
   bool MatchCompletedIOItem(IOHandler* filter, IOItem* item);
   bool GetIOItem(DWORD timeout, IOItem* item);
   bool ProcessInternalIOItem(const IOItem& item);
+  void WillProcessIOEvent();
+  void DidProcessIOEvent();
 
   // The completion port associated with this thread.
   ScopedHandle port_;
   // This list will be empty almost always. It stores IO completions that have
   // not been delivered yet because somebody was doing cleanup.
   std::list<IOItem> completed_io_;
+
+  ObserverList<IOObserver> io_observers_;
 };
 
 }  // namespace base

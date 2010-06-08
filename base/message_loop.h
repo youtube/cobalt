@@ -8,6 +8,7 @@
 #include <queue>
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/histogram.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
@@ -58,6 +59,24 @@
 //
 class MessageLoop : public base::MessagePump::Delegate {
  public:
+  // A TaskObserver is an object that receives task notifications from the
+  // MessageLoop.
+  //
+  // NOTE: A TaskObserver implementation should be extremely fast!
+  class TaskObserver {
+   public:
+    TaskObserver() {}
+
+    // This method is called before processing a task.
+    virtual void WillProcessTask(base::TimeTicks birth_time) = 0;
+
+    // This method is called after processing a task.
+    virtual void DidProcessTask() = 0;
+
+   protected:
+    virtual ~TaskObserver() {}
+  };
+
   static void EnableHistogrammer(bool enable_histogrammer);
 
   // A DestructionObserver is notified when the current MessageLoop is being
@@ -255,9 +274,14 @@ class MessageLoop : public base::MessagePump::Delegate {
   // Returns true if we are currently running a nested message loop.
   bool IsNested();
 
+  // These functions can only be called on the same thread that |this| is
+  // running on.
+  void AddTaskObserver(TaskObserver* task_observer);
+  void RemoveTaskObserver(TaskObserver* task_observer);
+
 #if defined(OS_WIN)
   typedef base::MessagePumpWin::Dispatcher Dispatcher;
-  typedef base::MessagePumpWin::Observer Observer;
+  typedef base::MessagePumpForUI::Observer Observer;
 #elif !defined(OS_MACOSX)
   typedef base::MessagePumpForUI::Dispatcher Dispatcher;
   typedef base::MessagePumpForUI::Observer Observer;
@@ -433,6 +457,8 @@ class MessageLoop : public base::MessagePump::Delegate {
   // The next sequence number to use for delayed tasks.
   int next_sequence_num_;
 
+  ObserverList<TaskObserver> task_observers_;
+
   DISALLOW_COPY_AND_ASSIGN(MessageLoop);
 };
 
@@ -456,10 +482,8 @@ class MessageLoopForUI : public MessageLoop {
   }
 
 #if defined(OS_WIN)
-  void WillProcessMessage(const MSG& message);
   void DidProcessMessage(const MSG& message);
-  void PumpOutPendingPaintMessages();
-#endif
+#endif  // defined(OS_WIN)
 
 #if !defined(OS_MACOSX)
   // Please see message_pump_win/message_pump_glib for definitions of these
@@ -473,7 +497,7 @@ class MessageLoopForUI : public MessageLoop {
   base::MessagePumpForUI* pump_ui() {
     return static_cast<base::MessagePumpForUI*>(pump_.get());
   }
-#endif  // defined(OS_MACOSX)
+#endif  // !defined(OS_MACOSX)
 };
 
 // Do not add any member variables to MessageLoopForUI!  This is important b/c
@@ -491,6 +515,24 @@ COMPILE_ASSERT(sizeof(MessageLoop) == sizeof(MessageLoopForUI),
 //
 class MessageLoopForIO : public MessageLoop {
  public:
+#if defined(OS_WIN)
+  typedef base::MessagePumpForIO::IOHandler IOHandler;
+  typedef base::MessagePumpForIO::IOContext IOContext;
+  typedef base::MessagePumpForIO::IOObserver IOObserver;
+#elif defined(OS_POSIX)
+  typedef base::MessagePumpLibevent::Watcher Watcher;
+  typedef base::MessagePumpLibevent::FileDescriptorWatcher
+      FileDescriptorWatcher;
+  typedef base::MessagePumpLibevent::IOObserver IOObserver;
+
+  enum Mode {
+    WATCH_READ = base::MessagePumpLibevent::WATCH_READ,
+    WATCH_WRITE = base::MessagePumpLibevent::WATCH_WRITE,
+    WATCH_READ_WRITE = base::MessagePumpLibevent::WATCH_READ_WRITE
+  };
+
+#endif
+
   MessageLoopForIO() : MessageLoop(TYPE_IO) {
   }
 
@@ -501,10 +543,15 @@ class MessageLoopForIO : public MessageLoop {
     return static_cast<MessageLoopForIO*>(loop);
   }
 
-#if defined(OS_WIN)
-  typedef base::MessagePumpForIO::IOHandler IOHandler;
-  typedef base::MessagePumpForIO::IOContext IOContext;
+  void AddIOObserver(IOObserver* io_observer) {
+    pump_io()->AddIOObserver(io_observer);
+  }
 
+  void RemoveIOObserver(IOObserver* io_observer) {
+    pump_io()->RemoveIOObserver(io_observer);
+  }
+
+#if defined(OS_WIN)
   // Please see MessagePumpWin for definitions of these methods.
   void RegisterIOHandler(HANDLE file_handle, IOHandler* handler);
   bool WaitForIOCompletion(DWORD timeout, IOHandler* filter);
@@ -516,22 +563,17 @@ class MessageLoopForIO : public MessageLoop {
   }
 
 #elif defined(OS_POSIX)
-  typedef base::MessagePumpLibevent::Watcher Watcher;
-  typedef base::MessagePumpLibevent::FileDescriptorWatcher
-      FileDescriptorWatcher;
-
-  enum Mode {
-    WATCH_READ = base::MessagePumpLibevent::WATCH_READ,
-    WATCH_WRITE = base::MessagePumpLibevent::WATCH_WRITE,
-    WATCH_READ_WRITE = base::MessagePumpLibevent::WATCH_READ_WRITE
-  };
-
   // Please see MessagePumpLibevent for definition.
   bool WatchFileDescriptor(int fd,
                            bool persistent,
                            Mode mode,
                            FileDescriptorWatcher *controller,
                            Watcher *delegate);
+
+ private:
+  base::MessagePumpLibevent* pump_io() {
+    return static_cast<base::MessagePumpLibevent*>(pump_.get());
+  }
 #endif  // defined(OS_POSIX)
 };
 
