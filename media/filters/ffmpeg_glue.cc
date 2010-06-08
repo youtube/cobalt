@@ -34,7 +34,11 @@ int ReadContext(URLContext* h, unsigned char* buf, int size) {
   return result;
 }
 
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(52, 68, 0)
+int WriteContext(URLContext* h, const unsigned char* buf, int size) {
+#else
 int WriteContext(URLContext* h, unsigned char* buf, int size) {
+#endif
   // We don't support writing.
   return AVERROR_IO;
 }
