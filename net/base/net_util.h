@@ -13,6 +13,7 @@
 
 #include <string>
 #include <set>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/string16.h"
@@ -321,6 +322,51 @@ void SetExplicitlyAllowedPorts(const std::wstring& allowed_ports);
 // IPv6 socket.
 // TODO(jar): Make test more in-depth as needed.
 bool IPv6Supported();
+
+// IPAddressNumber is used to represent an IP address's numeric value as an
+// array of bytes, from most significant to least significant. This is the
+// network byte ordering.
+//
+// IPv4 addresses will have length 4, whereas IPv6 address will have length 16.
+typedef std::vector<unsigned char> IPAddressNumber;
+
+// Parses an IP address literal (either IPv4 or IPv6) to its numeric value.
+// Returns true on success and fills |ip_number| with the numeric value.
+bool ParseIPLiteralToNumber(const std::string& ip_literal,
+                            IPAddressNumber* ip_number);
+
+// Converts an IPv4 address to an IPv4-mapped IPv6 address.
+// For example 192.168.0.1 would be converted to ::ffff:192.168.0.1.
+IPAddressNumber ConvertIPv4NumberToIPv6Number(
+    const IPAddressNumber& ipv4_number);
+
+// Parses an IP block specifier from CIDR notation to an
+// (IP address, prefix length) pair. Returns true on success and fills
+// |*ip_number| with the numeric value of the IP address and sets
+// |*prefix_length_in_bits| with the length of the prefix.
+//
+// CIDR notation literals can use either IPv4 or IPv6 literals. Some examples:
+//
+//    10.10.3.1/20
+//    a:b:c::/46
+//    ::1/128
+bool ParseCIDRBlock(const std::string& cidr_literal,
+                    IPAddressNumber* ip_number,
+                    size_t* prefix_length_in_bits);
+
+// Compares an IP address to see if it falls within the specified IP block.
+// Returns true if it does, false otherwise.
+//
+// The IP block is given by (|ip_prefix|, |prefix_length_in_bits|) -- any
+// IP address whose |prefix_length_in_bits| most significant bits match
+// |ip_prefix| will be matched.
+//
+// In cases when an IPv4 address is being compared to an IPv6 address prefix
+// and vice versa, the IPv4 addresses will be converted to IPv4-mapped
+// (IPv6) addresses.
+bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
+                           const IPAddressNumber& ip_prefix,
+                           size_t prefix_length_in_bits);
 
 }  // namespace net
 
