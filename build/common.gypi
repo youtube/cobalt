@@ -235,6 +235,9 @@
     # (Note: this is ignored for official builds.)
     'linux_use_seccomp_sandbox%': 0,
 
+    # Set to 1 to link against libgnome-keyring instead of using dlopen().
+    'linux_link_gnome_keyring%': 0,
+
     # Set to select the Title Case versions of strings in GRD files.
     'use_titlecase_in_grd_files%': 0,
 
