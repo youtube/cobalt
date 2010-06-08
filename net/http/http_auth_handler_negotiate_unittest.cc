@@ -67,8 +67,8 @@ TEST(HttpAuthHandlerNegotiateTest, CnameSync) {
   MockHostResolver* mock_resolver = new MockHostResolver();
   scoped_refptr<HostResolver> scoped_resolver(mock_resolver);
   mock_resolver->set_synchronous_mode(true);
-  mock_resolver->rules()->AddIPv4Rule("alias", "10.0.0.2",
-                                      "canonical.example.com");
+  mock_resolver->rules()->AddIPLiteralRule("alias", "10.0.0.2",
+                                           "canonical.example.com");
   TestCompletionCallback callback;
   EXPECT_EQ(OK, auth_handler->ResolveCanonicalName(mock_resolver, &callback));
   EXPECT_EQ(L"HTTP/canonical.example.com", auth_handler->spn());
@@ -82,8 +82,8 @@ TEST(HttpAuthHandlerNegotiateTest, CnameAsync) {
   MockHostResolver* mock_resolver = new MockHostResolver();
   scoped_refptr<HostResolver> scoped_resolver(mock_resolver);
   mock_resolver->set_synchronous_mode(false);
-  mock_resolver->rules()->AddIPv4Rule("alias", "10.0.0.2",
-                                      "canonical.example.com");
+  mock_resolver->rules()->AddIPLiteralRule("alias", "10.0.0.2",
+                                           "canonical.example.com");
   TestCompletionCallback callback;
   EXPECT_EQ(ERR_IO_PENDING, auth_handler->ResolveCanonicalName(mock_resolver,
                                                                &callback));

@@ -281,6 +281,34 @@ TEST(ProxyBypassRulesTest, BypassLocalNames) {
   }
 }
 
+TEST(ProxyBypassRulesTest, ParseAndMatchCIDR_IPv4) {
+  ProxyBypassRules rules;
+  rules.ParseFromString("192.168.1.1/16");
+  ASSERT_EQ(1u, rules.rules().size());
+  EXPECT_EQ("192.168.1.1/16", rules.rules()[0]->ToString());
+
+  EXPECT_TRUE(rules.Matches(GURL("http://192.168.1.1")));
+  EXPECT_TRUE(rules.Matches(GURL("ftp://192.168.4.4")));
+  EXPECT_TRUE(rules.Matches(GURL("https://192.168.0.0:81")));
+  EXPECT_TRUE(rules.Matches(GURL("http://[::ffff:192.168.11.11]")));
+
+  EXPECT_FALSE(rules.Matches(GURL("http://foobar.com")));
+  EXPECT_FALSE(rules.Matches(GURL("http://192.169.1.1")));
+  EXPECT_FALSE(rules.Matches(GURL("http://xxx.192.168.1.1")));
+  EXPECT_FALSE(rules.Matches(GURL("http://192.168.1.1.xx")));
+}
+
+TEST(ProxyBypassRulesTest, ParseAndMatchCIDR_IPv6) {
+  ProxyBypassRules rules;
+  rules.ParseFromString("a:b:c:d::/48");
+  ASSERT_EQ(1u, rules.rules().size());
+  EXPECT_EQ("a:b:c:d::/48", rules.rules()[0]->ToString());
+
+  EXPECT_TRUE(rules.Matches(GURL("http://[A:b:C:9::]")));
+  EXPECT_FALSE(rules.Matches(GURL("http://foobar.com")));
+  EXPECT_FALSE(rules.Matches(GURL("http://192.169.1.1")));
+}
+
 }  // namespace
 
 }  // namespace net
