@@ -213,7 +213,7 @@ bool VideoRendererBase::HasEnded() {
 
 // PlatformThread::Delegate implementation.
 void VideoRendererBase::ThreadMain() {
-  PlatformThread::SetName("VideoThread");
+  PlatformThread::SetName("CrVideoRenderer");
   for (;;) {
     // State and playback rate to assume for this iteration of the loop.
     State state;
