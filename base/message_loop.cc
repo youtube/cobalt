@@ -149,16 +149,6 @@ void MessageLoop::RemoveDestructionObserver(DestructionObserver *obs) {
   destruction_observers_.RemoveObserver(obs);
 }
 
-void MessageLoop::AddTaskObserver(TaskObserver *obs) {
-  DCHECK_EQ(this, current());
-  task_observers_.AddObserver(obs);
-}
-
-void MessageLoop::RemoveTaskObserver(TaskObserver *obs) {
-  DCHECK_EQ(this, current());
-  task_observers_.RemoveObserver(obs);
-}
-
 void MessageLoop::Run() {
   AutoRunState save_state(this);
   RunHandler();
@@ -335,10 +325,7 @@ void MessageLoop::RunTask(Task* task) {
   nestable_tasks_allowed_ = false;
 
   HistogramEvent(kTaskRunEvent);
-  FOR_EACH_OBSERVER(TaskObserver, task_observers_,
-                    WillProcessTask(task->tracked_birth_time()));
   task->Run();
-  FOR_EACH_OBSERVER(TaskObserver, task_observers_, DidProcessTask());
   delete task;
 
   nestable_tasks_allowed_ = true;
@@ -597,9 +584,16 @@ const LinearHistogram::DescriptionPair MessageLoop::event_descriptions_[] = {
 // MessageLoopForUI
 
 #if defined(OS_WIN)
+void MessageLoopForUI::WillProcessMessage(const MSG& message) {
+  pump_win()->WillProcessMessage(message);
+}
 void MessageLoopForUI::DidProcessMessage(const MSG& message) {
   pump_win()->DidProcessMessage(message);
 }
+void MessageLoopForUI::PumpOutPendingPaintMessages() {
+  pump_ui()->PumpOutPendingPaintMessages();
+}
+
 #endif  // defined(OS_WIN)
 
 #if !defined(OS_MACOSX)
