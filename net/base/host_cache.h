@@ -8,6 +8,7 @@
 #include <map>
 #include <string>
 
+#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/time.h"
 #include "net/base/address_family.h"
@@ -17,7 +18,7 @@
 namespace net {
 
 // Cache used by HostResolver to map hostnames to their resolved result.
-class HostCache {
+class HostCache : public NonThreadSafe {
  public:
   // Stores the latest address list that was looked up for a hostname.
   struct Entry : public base::RefCounted<Entry> {
@@ -92,37 +93,21 @@ class HostCache {
              const AddressList addrlist,
              base::TimeTicks now);
 
-  // Empties the cache.
-  void clear() {
-    entries_.clear();
-  }
-
-  // Returns true if this HostCache can contain no entries.
-  bool caching_is_disabled() const {
-    return max_entries_ == 0;
-  }
+  // Empties the cache
+  void clear();
 
   // Returns the number of entries in the cache.
-  size_t size() const {
-    return entries_.size();
-  }
+  size_t size() const;
 
-  size_t max_entries() const {
-    return max_entries_;
-  }
+  // Following are used by net_internals UI.
+  size_t max_entries() const;
 
-  base::TimeDelta success_entry_ttl() const {
-    return success_entry_ttl_;
-  }
+  base::TimeDelta success_entry_ttl() const;
 
-  base::TimeDelta failure_entry_ttl() const {
-    return failure_entry_ttl_;
-  }
+  base::TimeDelta failure_entry_ttl() const;
 
   // Note that this map may contain expired entries.
-  const EntryMap& entries() const {
-    return entries_;
-  }
+  const EntryMap& entries() const;
 
  private:
   FRIEND_TEST(HostCacheTest, Compact);
@@ -134,6 +119,11 @@ class HostCache {
   // Prunes entries from the cache to bring it below max entry bound. Entries
   // matching |pinned_entry| will NOT be pruned.
   void Compact(base::TimeTicks now, const Entry* pinned_entry);
+
+  // Returns true if this HostCache can contain no entries.
+  bool caching_is_disabled() const {
+    return max_entries_ == 0;
+  }
 
   // Bound on total size of the cache.
   size_t max_entries_;
