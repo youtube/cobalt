@@ -195,4 +195,24 @@ TEST(VideoFrame, CreatePrivateFrame) {
   EXPECT_EQ(NULL, frame->data(VideoFrame::kYPlane));
 }
 
+TEST(VideoFram, CreateExternalFrame) {
+  scoped_array<uint8> memory(new uint8[1]);
+
+  scoped_refptr<media::VideoFrame> frame;
+  uint8* data[3] = {memory.get(), NULL, NULL};
+  int strides[3] = {1, 0, 0};
+  VideoFrame::CreateFrameExternal(media::VideoFrame::RGB32, 0, 0,
+                                  data, strides,
+                                  base::TimeDelta(), base::TimeDelta(), &frame);
+  ASSERT_TRUE(frame);
+
+  // Test frame properties.
+  EXPECT_EQ(1, frame->stride(VideoFrame::kRGBPlane));
+  EXPECT_EQ(memory.get(), frame->data(VideoFrame::kRGBPlane));
+
+  // Delete |memory| and then |frame|.
+  memory.reset();
+  frame = NULL;
+}
+
 }  // namespace media
