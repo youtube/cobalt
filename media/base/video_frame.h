@@ -52,6 +52,18 @@ class VideoFrame : public StreamSample {
                           base::TimeDelta duration,
                           scoped_refptr<VideoFrame>* frame_out);
 
+  // Creates a new frame with given parameters. Buffers for the frame are
+  // provided externally. Reference to the buffers and strides are copied
+  // from |data| and |strides| respectively.
+  static void CreateFrameExternal(Format format,
+                                  size_t width,
+                                  size_t height,
+                                  uint8* const data[kMaxPlanes],
+                                  const int32 strides[kMaxPlanes],
+                                  base::TimeDelta timestamp,
+                                  base::TimeDelta duration,
+                                  scoped_refptr<VideoFrame>* frame_out);
+
   // Creates a frame with format equals to VideoFrame::EMPTY, width, height
   // timestamp and duration are all 0.
   static void CreateEmptyFrame(scoped_refptr<VideoFrame>* frame_out);
@@ -126,6 +138,10 @@ class VideoFrame : public StreamSample {
 
   // Array of data pointers to each plane.
   uint8* data_[kMaxPlanes];
+
+  // True of memory referenced by |data_| is provided externally and shouldn't
+  // be deleted.
+  bool external_memory_;
 
   // Private buffer pointer, can be used for EGLImage.
   void* private_buffer_;
