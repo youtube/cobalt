@@ -435,7 +435,7 @@
             }],
             ['player_x11_renderer == "gl"', {
               'dependencies': [
-                '../gpu/gpu.gyp:gl_libs',
+                '../app/app.gyp:app_base',
               ],
               'sources': [
                 'tools/player_x11/gl_video_renderer.cc',
