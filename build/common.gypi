@@ -1221,6 +1221,7 @@
         ],
         'msvs_system_include_dirs': [
           '<(DEPTH)/third_party/platformsdk_win7/files/Include',
+          '<(DEPTH)/third_party/directxsdk/files/Include',
           '$(VSInstallDir)/VC/atlmfc/include',
         ],
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
@@ -1243,8 +1244,10 @@
           },
           'VCLibrarianTool': {
             'AdditionalOptions': ['/ignore:4221'],
-            'AdditionalLibraryDirectories':
-              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
+            'AdditionalLibraryDirectories': [
+              '<(DEPTH)/third_party/platformsdk_win7/files/Lib',
+              '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
+            ],
           },
           'VCLinkerTool': {
             'AdditionalDependencies': [
@@ -1256,8 +1259,10 @@
               'psapi.lib',
               'dbghelp.lib',
             ],
-            'AdditionalLibraryDirectories':
-              ['<(DEPTH)/third_party/platformsdk_win7/files/Lib'],
+            'AdditionalLibraryDirectories': [
+              '<(DEPTH)/third_party/platformsdk_win7/files/Lib',
+              '<(DEPTH)/third_party/directxsdk/files/Lib/x86',
+            ],
             'GenerateDebugInformation': 'true',
             'MapFileName': '$(OutDir)\\$(TargetName).map',
             'ImportLibrary': '$(OutDir)\\lib\\$(TargetName).lib',
