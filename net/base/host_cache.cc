@@ -35,6 +35,7 @@ HostCache::~HostCache() {
 
 const HostCache::Entry* HostCache::Lookup(const Key& key,
                                           base::TimeTicks now) const {
+  DCHECK(CalledOnValidThread());
   if (caching_is_disabled())
     return NULL;
 
@@ -53,6 +54,7 @@ HostCache::Entry* HostCache::Set(const Key& key,
                                  int error,
                                  const AddressList addrlist,
                                  base::TimeTicks now) {
+  DCHECK(CalledOnValidThread());
   if (caching_is_disabled())
     return NULL;
 
@@ -77,6 +79,37 @@ HostCache::Entry* HostCache::Set(const Key& key,
     entry->expiration = expiration;
     return entry.get();
   }
+}
+
+void HostCache::clear() {
+  DCHECK(CalledOnValidThread());
+  entries_.clear();
+}
+
+size_t HostCache::size() const {
+  DCHECK(CalledOnValidThread());
+  return entries_.size();
+}
+
+size_t HostCache::max_entries() const {
+  DCHECK(CalledOnValidThread());
+  return max_entries_;
+}
+
+base::TimeDelta HostCache::success_entry_ttl() const {
+  DCHECK(CalledOnValidThread());
+  return success_entry_ttl_;
+}
+
+base::TimeDelta HostCache::failure_entry_ttl() const {
+  DCHECK(CalledOnValidThread());
+  return failure_entry_ttl_;
+}
+
+// Note that this map may contain expired entries.
+const HostCache::EntryMap& HostCache::entries() const {
+  DCHECK(CalledOnValidThread());
+  return entries_;
 }
 
 // static
