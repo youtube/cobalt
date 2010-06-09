@@ -261,6 +261,7 @@
             '../chrome_frame/chrome_frame.gyp:npchrome_frame',
             # Only build OSMesa on buildbots. It builds a software GL renderer
             # that can be used where native GL is not available.
+            '../third_party/angle/src/build_angle.gyp:*',
             '../third_party/mesa/mesa.gyp:osmesa',
           ],
         },
