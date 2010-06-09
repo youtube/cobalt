@@ -281,12 +281,13 @@ bool IsDot(const FilePath& path);
 // Returns true if the given path's base name is "..".
 bool IsDotDot(const FilePath& path);
 
-#if defined(OS_POSIX)
-// Set |real_path| to |path| with symbolic links expanded.
-// Windows support (expanding junctions) comming soon:
-// http://crbug.com/13044
-bool RealPath(const FilePath& path, FilePath* real_path);
-#endif
+// Sets |real_path| to |path| with symbolic links and junctions expanded.
+// On windows, make sure the path starts with a lettered drive.
+// |path| must reference a file.  Function will fail if |path| points to
+// a directory or to a nonexistent path.  On windows, this function will
+// fail if |path| is a junction or symlink that points to an empty file,
+// or if |real_path| would be longer than MAX_PATH characters.
+bool NormalizeFilePath(const FilePath& path, FilePath* real_path);
 
 // Used to hold information about a given file path.  See GetFileInfo below.
 struct FileInfo {
