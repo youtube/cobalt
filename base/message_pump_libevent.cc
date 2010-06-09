@@ -7,10 +7,9 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include "eintr_wrapper.h"
 #include "base/auto_reset.h"
-#include "base/eintr_wrapper.h"
 #include "base/logging.h"
-#include "base/observer_list.h"
 #include "base/scoped_nsautorelease_pool.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
@@ -51,9 +50,7 @@ static int SetNonBlocking(int fd) {
 
 MessagePumpLibevent::FileDescriptorWatcher::FileDescriptorWatcher()
     : is_persistent_(false),
-      event_(NULL),
-      pump_(NULL),
-      watcher_(NULL) {
+      event_(NULL) {
 }
 
 MessagePumpLibevent::FileDescriptorWatcher::~FileDescriptorWatcher() {
@@ -85,23 +82,7 @@ bool MessagePumpLibevent::FileDescriptorWatcher::StopWatchingFileDescriptor() {
   // event_del() is a no-op if the event isn't active.
   int rv = event_del(e);
   delete e;
-  pump_ = NULL;
-  watcher_ = NULL;
   return (rv == 0);
-}
-
-void MessagePumpLibevent::FileDescriptorWatcher::OnFileCanReadWithoutBlocking(
-    int fd, MessagePumpLibevent* pump) {
-  pump->WillProcessIOEvent();
-  watcher_->OnFileCanReadWithoutBlocking(fd);
-  pump->DidProcessIOEvent();
-}
-
-void MessagePumpLibevent::FileDescriptorWatcher::OnFileCanWriteWithoutBlocking(
-    int fd, MessagePumpLibevent* pump) {
-  pump->WillProcessIOEvent();
-  watcher_->OnFileCanWriteWithoutBlocking(fd);
-  pump->DidProcessIOEvent();
 }
 
 // Called if a byte is received on the wakeup pipe.
@@ -161,9 +142,9 @@ MessagePumpLibevent::~MessagePumpLibevent() {
   event_del(wakeup_event_);
   delete wakeup_event_;
   if (wakeup_pipe_in_ >= 0)
-    HANDLE_EINTR(close(wakeup_pipe_in_));
+    close(wakeup_pipe_in_);
   if (wakeup_pipe_out_ >= 0)
-    HANDLE_EINTR(close(wakeup_pipe_out_));
+    close(wakeup_pipe_out_);
   event_base_free(event_base_);
 }
 
@@ -209,7 +190,7 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
   }
 
   // Set current interest mask and message pump for this event.
-  event_set(evt.get(), fd, event_mask, OnLibeventNotification, controller);
+  event_set(evt.get(), fd, event_mask, OnLibeventNotification, delegate);
 
   // Tell libevent which message pump this socket will belong to when we add it.
   if (event_base_set(event_base_, evt.get()) != 0) {
@@ -223,25 +204,19 @@ bool MessagePumpLibevent::WatchFileDescriptor(int fd,
 
   // Transfer ownership of evt to controller.
   controller->Init(evt.release(), persistent);
-
-  controller->set_watcher(delegate);
-  controller->set_pump(this);
-
   return true;
 }
 
+
 void MessagePumpLibevent::OnLibeventNotification(int fd, short flags,
                                                  void* context) {
-  FileDescriptorWatcher* controller =
-      static_cast<FileDescriptorWatcher*>(context);
-
-  MessagePumpLibevent* pump = controller->pump();
+  Watcher* watcher = static_cast<Watcher*>(context);
 
   if (flags & EV_WRITE) {
-    controller->OnFileCanWriteWithoutBlocking(fd, pump);
+    watcher->OnFileCanWriteWithoutBlocking(fd);
   }
   if (flags & EV_READ) {
-    controller->OnFileCanReadWithoutBlocking(fd, pump);
+    watcher->OnFileCanReadWithoutBlocking(fd);
   }
 }
 
@@ -327,22 +302,6 @@ void MessagePumpLibevent::ScheduleDelayedWork(const Time& delayed_work_time) {
   // only be called on the same thread as Run, so we only need to update our
   // record of how long to sleep when we do sleep.
   delayed_work_time_ = delayed_work_time;
-}
-
-void MessagePumpLibevent::AddIOObserver(IOObserver *obs) {
-  io_observers_.AddObserver(obs);
-}
-
-void MessagePumpLibevent::RemoveIOObserver(IOObserver *obs) {
-  io_observers_.RemoveObserver(obs);
-}
-
-void MessagePumpLibevent::WillProcessIOEvent() {
-  FOR_EACH_OBSERVER(IOObserver, io_observers_, WillProcessIOEvent());
-}
-
-void MessagePumpLibevent::DidProcessIOEvent() {
-  FOR_EACH_OBSERVER(IOObserver, io_observers_, DidProcessIOEvent());
 }
 
 }  // namespace base
