@@ -88,8 +88,9 @@
                   # out of $(pkg-config --cflags nss) and GYP include paths
                   # come after cflags on the command line. So we have these
                   # bodges:
-                  '-I../net/third_party/nss/ssl',  # for scons
-                  '-Inet/third_party/nss/ssl',     # for make
+                  '-I../net/third_party/nss/ssl',               # for scons
+                  '-Inet/third_party/nss/ssl',                  # for make
+                  '-IWebKit/chromium/net/third_party/nss/ssl',  # for make in webkit
                   '<!@(<(pkg-config) --cflags nss)',
                 ],
               },
