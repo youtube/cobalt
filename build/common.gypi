@@ -255,9 +255,6 @@
 
     # Enable new NPDevice API.
     'enable_new_npdevice_api%': 0,
-    
-    # Enable OpenGL ES.
-    'enable_gles%': 0,
 
     # Enable EGLImage support in OpenMAX
     'enable_eglimage%': 0,
@@ -441,11 +438,6 @@
       ['enable_gpu==1', {
         'defines': [
           'ENABLE_GPU=1',
-        ],
-      }],
-      ['enable_gles==1', {
-        'defines': [
-          'ENABLE_GLES=1',
         ],
       }],
       ['enable_eglimage==1', {
