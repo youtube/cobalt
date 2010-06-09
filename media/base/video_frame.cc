@@ -47,6 +47,29 @@ void VideoFrame::CreateFrame(VideoFrame::Format format,
   *frame_out = alloc_worked ? frame : NULL;
 }
 
+void VideoFrame::CreateFrameExternal(VideoFrame::Format format,
+                                     size_t width,
+                                     size_t height,
+                                     uint8* const data[kMaxPlanes],
+                                     const int32 strides[kMaxPlanes],
+                                     base::TimeDelta timestamp,
+                                     base::TimeDelta duration,
+                                     scoped_refptr<VideoFrame>* frame_out) {
+  DCHECK(frame_out);
+  scoped_refptr<VideoFrame> frame =
+      new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY, format, width, height);
+  if (frame) {
+    frame->SetTimestamp(timestamp);
+    frame->SetDuration(duration);
+    frame->external_memory_ = true;
+    for (size_t i = 0; i < kMaxPlanes; ++i) {
+      frame->data_[i] = data[i];
+      frame->strides_[i] = strides[i];
+    }
+  }
+  *frame_out = frame;
+}
+
 // static
 void VideoFrame::CreateEmptyFrame(scoped_refptr<VideoFrame>* frame_out) {
   *frame_out = new VideoFrame(VideoFrame::TYPE_SYSTEM_MEMORY,
@@ -179,6 +202,7 @@ VideoFrame::VideoFrame(VideoFrame::BufferType type,
   planes_ = 0;
   memset(&strides_, 0, sizeof(strides_));
   memset(&data_, 0, sizeof(data_));
+  external_memory_ = false;
   private_buffer_ = NULL;
 }
 
@@ -186,7 +210,8 @@ VideoFrame::~VideoFrame() {
   // In multi-plane allocations, only a single block of memory is allocated
   // on the heap, and other |data| pointers point inside the same, single block
   // so just delete index 0.
-  delete[] data_[0];
+  if (!external_memory_)
+    delete[] data_[0];
 }
 
 bool VideoFrame::IsEndOfStream() const {
