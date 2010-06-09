@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/eintr_wrapper.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/platform_thread.h"
 #include "base/ref_counted.h"
+#include "base/task.h"
 #include "base/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -1455,6 +1457,70 @@ TEST(MessageLoopTest, NonNestableDelayedInNestedLoop) {
   RunTest_NonNestableInNestedLoop(MessageLoop::TYPE_IO, true);
 }
 
+class DummyTask : public Task {
+ public:
+  DummyTask(int num_tasks) : num_tasks_(num_tasks) {}
+
+  virtual void Run() {
+    if (num_tasks_ > 1) {
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          new DummyTask(num_tasks_ - 1));
+    } else {
+      MessageLoop::current()->Quit();
+    }
+  }
+
+ private:
+  const int num_tasks_;
+};
+
+class DummyTaskObserver : public MessageLoop::TaskObserver {
+ public:
+  DummyTaskObserver(int num_tasks)
+      : num_tasks_started_(0),
+        num_tasks_processed_(0),
+        num_tasks_(num_tasks) {}
+
+  virtual ~DummyTaskObserver() {}
+
+  virtual void WillProcessTask(base::TimeTicks /* birth_time */) {
+    num_tasks_started_++;
+    EXPECT_LE(num_tasks_started_, num_tasks_);
+    EXPECT_EQ(num_tasks_started_, num_tasks_processed_ + 1);
+  }
+
+  virtual void DidProcessTask() {
+    num_tasks_processed_++;
+    EXPECT_LE(num_tasks_started_, num_tasks_);
+    EXPECT_EQ(num_tasks_started_, num_tasks_processed_);
+  }
+
+  int num_tasks_started() const { return num_tasks_started_; }
+  int num_tasks_processed() const { return num_tasks_processed_; }
+
+ private:
+  int num_tasks_started_;
+  int num_tasks_processed_;
+  const int num_tasks_;
+
+  DISALLOW_COPY_AND_ASSIGN(DummyTaskObserver);
+};
+
+TEST(MessageLoopTest, TaskObserver) {
+  const int kNumTasks = 6;
+  DummyTaskObserver observer(kNumTasks);
+
+  MessageLoop loop;
+  loop.AddTaskObserver(&observer);
+  loop.PostTask(FROM_HERE, new DummyTask(kNumTasks));
+  loop.Run();
+  loop.RemoveTaskObserver(&observer);
+
+  EXPECT_EQ(kNumTasks, observer.num_tasks_started());
+  EXPECT_EQ(kNumTasks, observer.num_tasks_processed());
+}
+
 #if defined(OS_WIN)
 TEST(MessageLoopTest, Dispatcher) {
   // This test requires a UI loop
@@ -1479,8 +1545,7 @@ TEST(MessageLoopTest, WaitForIO) {
 
 namespace {
 
-class QuitDelegate : public
-    base::MessagePumpLibevent::Watcher {
+class QuitDelegate : public base::MessagePumpLibevent::Watcher {
  public:
   virtual void OnFileCanWriteWithoutBlocking(int fd) {
     MessageLoop::current()->Quit();
@@ -1489,8 +1554,6 @@ class QuitDelegate : public
     MessageLoop::current()->Quit();
   }
 };
-
-}  // namespace
 
 TEST(MessageLoopTest, DISABLED_FileDescriptorWatcherOutlivesMessageLoop) {
   // Simulate a MessageLoop that dies before an FileDescriptorWatcher.
@@ -1518,8 +1581,8 @@ TEST(MessageLoopTest, DISABLED_FileDescriptorWatcherOutlivesMessageLoop) {
       // and don't run the message loop, just destroy it.
     }
   }
-  close(pipefds[0]);
-  close(pipefds[1]);
+  HANDLE_EINTR(close(pipefds[0]));
+  HANDLE_EINTR(close(pipefds[1]));
 }
 
 TEST(MessageLoopTest, FileDescriptorWatcherDoubleStop) {
@@ -1541,8 +1604,10 @@ TEST(MessageLoopTest, FileDescriptorWatcherDoubleStop) {
       controller.StopWatchingFileDescriptor();
     }
   }
-  close(pipefds[0]);
-  close(pipefds[1]);
+  HANDLE_EINTR(close(pipefds[0]));
+  HANDLE_EINTR(close(pipefds[1]));
 }
+
+}  // namespace
 
 #endif  // defined(OS_POSIX)
