@@ -4,6 +4,8 @@
 
 #include "net/http/http_auth_gssapi_posix.h"
 
+#include <limits>
+
 #include "base/base64.h"
 #include "base/file_path.h"
 #include "base/logging.h"
@@ -208,20 +210,32 @@ std::string DisplayCode(GSSAPILibrary* gssapi_lib,
                         gssapi::OM_uint32 status,
                         gssapi::OM_uint32 status_code_type) {
   const int kMaxDisplayIterations = 8;
+  const size_t kMaxMsgLength = 4096;
   // msg_ctx needs to be outside the loop because it is invoked multiple times.
   gssapi::OM_uint32 msg_ctx = 0;
   std::string rv = StringPrintf("(0x%08X)", status);
 
   // This loop should continue iterating until msg_ctx is 0 after the first
   // iteration. To be cautious and prevent an infinite loop, it stops after
-  // a finite number of iterations as well.
-  for (int i = 0; i < kMaxDisplayIterations; ++i) {
+  // a finite number of iterations as well. As an added sanity check, no
+  // individual message may exceed |kMaxMsgLength|, and the final result
+  // will not exceed |kMaxMsgLength|*2-1.
+  for (int i = 0; i < kMaxDisplayIterations && rv.size() < kMaxMsgLength;
+      ++i) {
     gssapi::OM_uint32 min_stat;
     gssapi::gss_buffer_desc_struct msg = GSS_C_EMPTY_BUFFER;
-    gssapi_lib->display_status(&min_stat, status, status_code_type,
-                               GSS_C_NULL_OID,
-                               &msg_ctx, &msg);
-    rv += StringPrintf(" %s", static_cast<char *>(msg.value));
+    gssapi::OM_uint32 maj_stat =
+        gssapi_lib->display_status(&min_stat, status, status_code_type,
+                                   GSS_C_NULL_OID, &msg_ctx, &msg);
+    if (maj_stat == GSS_S_COMPLETE) {
+      int msg_len = (msg.length > kMaxMsgLength) ?
+          static_cast<int>(kMaxMsgLength) :
+          static_cast<int>(msg.length);
+      if (msg_len > 0 && msg.value != NULL) {
+        rv += StringPrintf(" %.*s", msg_len,
+                           static_cast<char *>(msg.value));
+      }
+    }
     gssapi_lib->release_buffer(&min_stat, &msg);
     if (!msg_ctx)
       break;
