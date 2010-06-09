@@ -6,6 +6,7 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
+#include <winioctl.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <tchar.h>
@@ -21,6 +22,7 @@
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/platform_thread.h"
+#include "base/scoped_handle.h"
 #include "base/time.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -30,6 +32,81 @@
 #define FPL(x) FILE_PATH_LITERAL(x)
 
 namespace {
+
+// To test that file_util::Normalize FilePath() deals with NTFS reparse points
+// correctly, we need functions to create and delete reparse points.
+#if defined(OS_WIN)
+typedef struct _REPARSE_DATA_BUFFER {
+  ULONG  ReparseTag;
+  USHORT  ReparseDataLength;
+  USHORT  Reserved;
+  union {
+    struct {
+      USHORT SubstituteNameOffset;
+      USHORT SubstituteNameLength;
+      USHORT PrintNameOffset;
+      USHORT PrintNameLength;
+      ULONG Flags;
+      WCHAR PathBuffer[1];
+    } SymbolicLinkReparseBuffer;
+    struct {
+      USHORT SubstituteNameOffset;
+      USHORT SubstituteNameLength;
+      USHORT PrintNameOffset;
+      USHORT PrintNameLength;
+      WCHAR PathBuffer[1];
+    } MountPointReparseBuffer;
+    struct {
+      UCHAR DataBuffer[1];
+    } GenericReparseBuffer;
+  };
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+
+// Sets a reparse point. |source| will now point to |target|. Returns true if
+// the call succeeds, false otherwise.
+bool SetReparsePoint(HANDLE source, const FilePath& target_path) {
+  std::wstring kPathPrefix = L"\\??\\";
+  std::wstring target_str;
+  // The juction will not work if the target path does not start with \??\ .
+  if (kPathPrefix != target_path.value().substr(0, kPathPrefix.size()))
+    target_str += kPathPrefix;
+  target_str += target_path.value();
+  const wchar_t* target = target_str.c_str();
+  USHORT size_target = static_cast<USHORT>(wcslen(target)) * sizeof(target[0]);
+  char buffer[2000] = {0};
+  DWORD returned;
+
+  REPARSE_DATA_BUFFER* data = reinterpret_cast<REPARSE_DATA_BUFFER*>(buffer);
+
+  data->ReparseTag = 0xa0000003;
+  memcpy(data->MountPointReparseBuffer.PathBuffer, target, size_target + 2);
+
+  data->MountPointReparseBuffer.SubstituteNameLength = size_target;
+  data->MountPointReparseBuffer.PrintNameOffset = size_target + 2;
+  data->ReparseDataLength = size_target + 4 + 8;
+
+  int data_size = data->ReparseDataLength + 8;
+
+  if (!DeviceIoControl(source, FSCTL_SET_REPARSE_POINT, &buffer, data_size,
+                       NULL, 0, &returned, NULL)) {
+    return false;
+  }
+  return true;
+}
+
+// Delete the reparse point referenced by |source|. Returns true if the call
+// succeeds, false otherwise.
+bool DeleteReparsePoint(HANDLE source) {
+  DWORD returned;
+  REPARSE_DATA_BUFFER data = {0};
+  data.ReparseTag = 0xa0000003;
+  if (!DeviceIoControl(source, FSCTL_DELETE_REPARSE_POINT, &data, 8, NULL, 0,
+                       &returned, NULL)) {
+    return false;
+  }
+  return true;
+}
+#endif
 
 const wchar_t bogus_content[] = L"I'm cannon fodder.";
 
@@ -387,54 +464,230 @@ TEST_F(FileUtilTest, FileAndDirectorySize) {
   EXPECT_EQ(size_f1 + size_f2 + 3, computed_size);
 }
 
-#if defined(OS_POSIX)
-TEST_F(FileUtilTest, RealPath) {
-  // Get the real test directory, in case some future change to the
-  // test setup makes the path to test_dir_ include a symlink.
-  FilePath real_test_dir;
-  ASSERT_TRUE(file_util::RealPath(test_dir_, &real_test_dir));
+TEST_F(FileUtilTest, NormalizeFilePathBasic) {
+  // Create a directory under the test dir.  Because we create it,
+  // we know it is not a link.
+  FilePath file_a_path = test_dir_.Append(FPL("file_a"));
+  FilePath dir_path = test_dir_.Append(FPL("dir"));
+  FilePath file_b_path = dir_path.Append(FPL("file_b"));
+  file_util::CreateDirectory(dir_path);
 
-  FilePath real_path;
-  ASSERT_TRUE(file_util::RealPath(real_test_dir, &real_path));
-  ASSERT_TRUE(real_test_dir == real_path);
+  FilePath normalized_file_a_path, normalized_file_b_path;
+  ASSERT_FALSE(file_util::PathExists(file_a_path));
+  ASSERT_FALSE(file_util::NormalizeFilePath(file_a_path,
+                                            &normalized_file_a_path))
+    << "NormalizeFilePath() should fail on nonexistant paths.";
+
+  CreateTextFile(file_a_path, bogus_content);
+  ASSERT_TRUE(file_util::PathExists(file_a_path));
+  ASSERT_TRUE(file_util::NormalizeFilePath(file_a_path,
+                                           &normalized_file_a_path));
+
+  CreateTextFile(file_b_path, bogus_content);
+  ASSERT_TRUE(file_util::PathExists(file_b_path));
+  ASSERT_TRUE(file_util::NormalizeFilePath(file_b_path,
+                                           &normalized_file_b_path));
+
+  // Beacuse this test created |dir_path|, we know it is not a link
+  // or junction.  So, the real path of the directory holding file a
+  // must be the parent of the path holding file b.
+  ASSERT_TRUE(normalized_file_a_path.DirName()
+      .IsParent(normalized_file_b_path.DirName()));
+}
+
+#if defined(OS_WIN)
+
+TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
+  // Build the following directory structure:
+  //
+  // test_dir_
+  // |-> base_a
+  // |   |-> sub_a
+  // |       |-> file.txt
+  // |       |-> long_name___... (Very long name.)
+  // |           |-> sub_long
+  // |              |-> deep.txt
+  // |-> base_b
+  //     |-> to_sub_a (reparse point to test_dir_\base_a\sub_a)
+  //     |-> to_base_b (reparse point to test_dir_\base_b)
+  //     |-> to_sub_long (reparse point to test_dir_\sub_a\long_name_\sub_long)
+
+  FilePath base_a = test_dir_.Append(FPL("base_a"));
+  ASSERT_TRUE(file_util::CreateDirectory(base_a));
+
+  FilePath sub_a = base_a.Append(FPL("sub_a"));
+  ASSERT_TRUE(file_util::CreateDirectory(sub_a));
+
+  FilePath file_txt = sub_a.Append(FPL("file.txt"));
+  CreateTextFile(file_txt, bogus_content);
+
+  // Want a directory whose name is long enough to make the path to the file
+  // inside just under MAX_PATH chars.  This will be used to test that when
+  // a junction expands to a path over MAX_PATH chars in length,
+  // NormalizeFilePath() fails without crashing.
+  FilePath sub_long_rel(FPL("sub_long"));
+  FilePath deep_txt(FPL("deep.txt"));
+
+  int target_length = MAX_PATH;
+  target_length -= (sub_a.value().length() + 1);  // +1 for the sepperator '\'.
+  target_length -= (sub_long_rel.Append(deep_txt).value().length() + 1);
+  // Without making the path a bit shorter, CreateDirectory() fails.  
+  // the resulting path is still long enough to hit the failing case in
+  // NormalizePath().
+  const int kCreateDirLimit = 4;
+  target_length -= kCreateDirLimit;
+  FilePath::StringType long_name_str = FPL("long_name_");
+  long_name_str.resize(target_length, '_');
+
+  FilePath long_name = sub_a.Append(FilePath(long_name_str));
+  FilePath deep_file = long_name.Append(sub_long_rel).Append(deep_txt);
+  ASSERT_EQ(MAX_PATH - kCreateDirLimit, deep_file.value().length());
+
+  FilePath sub_long = deep_file.DirName();
+  ASSERT_TRUE(file_util::CreateDirectory(sub_long));
+  CreateTextFile(deep_file, bogus_content);
+
+  FilePath base_b = test_dir_.Append(FPL("base_b"));
+  ASSERT_TRUE(file_util::CreateDirectory(base_b));
+
+  FilePath to_sub_a = base_b.Append(FPL("to_sub_a"));
+  ASSERT_TRUE(file_util::CreateDirectory(to_sub_a));
+  ScopedHandle reparse_to_sub_a(
+      ::CreateFile(to_sub_a.value().c_str(),
+                   FILE_ALL_ACCESS,
+                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                   NULL,
+                   OPEN_EXISTING,
+                   FILE_FLAG_BACKUP_SEMANTICS,  // Needed to open a directory.
+                   NULL));
+  ASSERT_NE(INVALID_HANDLE_VALUE, reparse_to_sub_a.Get());
+  ASSERT_TRUE(SetReparsePoint(reparse_to_sub_a, sub_a));
+
+  FilePath to_base_b = base_b.Append(FPL("to_base_b"));
+  ASSERT_TRUE(file_util::CreateDirectory(to_base_b));
+  ScopedHandle reparse_to_base_b(
+      ::CreateFile(to_base_b.value().c_str(),
+                   FILE_ALL_ACCESS,
+                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                   NULL,
+                   OPEN_EXISTING,
+                   FILE_FLAG_BACKUP_SEMANTICS,  // Needed to open a directory.
+                   NULL));
+  ASSERT_NE(INVALID_HANDLE_VALUE, reparse_to_base_b.Get());
+  ASSERT_TRUE(SetReparsePoint(reparse_to_base_b, base_b));
+
+  FilePath to_sub_long = base_b.Append(FPL("to_sub_long"));
+  ASSERT_TRUE(file_util::CreateDirectory(to_sub_long));
+  ScopedHandle reparse_to_sub_long(
+      ::CreateFile(to_sub_long.value().c_str(),
+                   FILE_ALL_ACCESS,
+                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                   NULL,
+                   OPEN_EXISTING,
+                   FILE_FLAG_BACKUP_SEMANTICS,  // Needed to open a directory.
+                   NULL));
+  ASSERT_NE(INVALID_HANDLE_VALUE, reparse_to_sub_long.Get());
+  ASSERT_TRUE(SetReparsePoint(reparse_to_sub_long, sub_long));
+
+  // Normalize a junction free path: base_a\sub_a\file.txt .
+  FilePath normalized_path;
+  ASSERT_TRUE(file_util::NormalizeFilePath(file_txt, &normalized_path));
+  ASSERT_STREQ(file_txt.value().c_str(), normalized_path.value().c_str());
+
+  // Check that the path base_b\to_sub_a\file.txt can be normalized to exclude
+  // the junction to_sub_a.
+  ASSERT_TRUE(file_util::NormalizeFilePath(to_sub_a.Append(FPL("file.txt")),
+                                           &normalized_path));
+  ASSERT_STREQ(file_txt.value().c_str(), normalized_path.value().c_str());
+
+  // Check that the path base_b\to_base_b\to_base_b\to_sub_a\file.txt can be
+  // normalized to exclude junctions to_base_b and to_sub_a .
+  ASSERT_TRUE(file_util::NormalizeFilePath(base_b.Append(FPL("to_base_b"))
+                                                 .Append(FPL("to_base_b"))
+                                                 .Append(FPL("to_sub_a"))
+                                                 .Append(FPL("file.txt")),
+                                           &normalized_path));
+  ASSERT_STREQ(file_txt.value().c_str(), normalized_path.value().c_str());
+
+  // A long enough path will cause NormalizeFilePath() to fail.  Make a long
+  // path using to_base_b many times, and check that paths long enough to fail
+  // do not cause a crash.
+  FilePath long_path = base_b;
+  const int kLengthLimit = MAX_PATH + 200;
+  while (long_path.value().length() <= kLengthLimit) {
+    long_path = long_path.Append(FPL("to_base_b"));
+  }
+  long_path = long_path.Append(FPL("to_sub_a"))
+                       .Append(FPL("file.txt"));
+
+  ASSERT_FALSE(file_util::NormalizeFilePath(long_path, &normalized_path));
+
+  // Normalizing the junction to deep.txt should fail, because the expanded
+  // path to deep.txt is longer than MAX_PATH.
+  ASSERT_FALSE(file_util::NormalizeFilePath(to_sub_long.Append(deep_txt),
+                                            &normalized_path));
+
+  // Delete the reparse points, and see that NormalizeFilePath() fails
+  // to traverse them.
+  ASSERT_TRUE(DeleteReparsePoint(reparse_to_sub_a));
+  ASSERT_TRUE(DeleteReparsePoint(reparse_to_base_b));
+  ASSERT_TRUE(DeleteReparsePoint(reparse_to_sub_long));
+
+  ASSERT_FALSE(file_util::NormalizeFilePath(to_sub_a.Append(FPL("file.txt")),
+                                            &normalized_path));
+}
+
+#endif  // defined(OS_WIN)
+
+// The following test of NormalizeFilePath() require that we create a symlink.
+// This can not be done on windows before vista.  On vista, creating a symlink
+// requires privilege "SeCreateSymbolicLinkPrivilege".
+// TODO(skerner): Investigate the possibility of giving base_unittests the
+// privileges required to create a symlink.
+#if defined(OS_POSIX)
+
+bool MakeSymlink(const FilePath& link_to, const FilePath& link_from) {
+  return (symlink(link_to.value().c_str(), link_from.value().c_str()) == 0);
+}
+
+TEST_F(FileUtilTest, NormalizeFilePathSymlinks) {
+  FilePath normalized_path;
 
   // Link one file to another.
-  FilePath link_from = real_test_dir.Append(FPL("from_file"));
-  FilePath link_to = real_test_dir.Append(FPL("to_file"));
+  FilePath link_from = test_dir_.Append(FPL("from_file"));
+  FilePath link_to = test_dir_.Append(FPL("to_file"));
   CreateTextFile(link_to, bogus_content);
 
-  ASSERT_EQ(0, symlink(link_to.value().c_str(), link_from.value().c_str()))
+  ASSERT_TRUE(MakeSymlink(link_to, link_from))
     << "Failed to create file symlink.";
 
-  // Check that RealPath sees the link.
-  ASSERT_TRUE(file_util::RealPath(link_from, &real_path));
+  // Check that NormalizeFilePath sees the link.
+  ASSERT_TRUE(file_util::NormalizeFilePath(link_from, &normalized_path));
   ASSERT_TRUE(link_to != link_from);
-  ASSERT_TRUE(link_to == real_path);
-
+  ASSERT_EQ(link_to.BaseName().value(), normalized_path.BaseName().value());
+  ASSERT_EQ(link_to.BaseName().value(), normalized_path.BaseName().value());
 
   // Link to a directory.
-  link_from = real_test_dir.Append(FPL("from_dir"));
-  link_to = real_test_dir.Append(FPL("to_dir"));
+  link_from = test_dir_.Append(FPL("from_dir"));
+  link_to = test_dir_.Append(FPL("to_dir"));
   file_util::CreateDirectory(link_to);
 
-  ASSERT_EQ(0, symlink(link_to.value().c_str(), link_from.value().c_str()))
+  ASSERT_TRUE(MakeSymlink(link_to, link_from))
     << "Failed to create directory symlink.";
 
-  ASSERT_TRUE(file_util::RealPath(link_from, &real_path));
-  ASSERT_TRUE(link_to != link_from);
-  ASSERT_TRUE(link_to == real_path);
+  ASSERT_FALSE(file_util::NormalizeFilePath(link_from, &normalized_path))
+    << "Links to directories should return false.";
 
-
-  // Test that a loop in the links causes RealPath() to return false.
-  link_from = real_test_dir.Append(FPL("link_a"));
-  link_to = real_test_dir.Append(FPL("link_b"));
-  ASSERT_EQ(0, symlink(link_to.value().c_str(), link_from.value().c_str()))
+  // Test that a loop in the links causes NormalizeFilePath() to return false.
+  link_from = test_dir_.Append(FPL("link_a"));
+  link_to = test_dir_.Append(FPL("link_b"));
+  ASSERT_TRUE(MakeSymlink(link_to, link_from))
     << "Failed to create loop symlink a.";
-  ASSERT_EQ(0, symlink(link_from.value().c_str(), link_to.value().c_str()))
+  ASSERT_TRUE(MakeSymlink(link_from, link_to))
     << "Failed to create loop symlink b.";
 
   // Infinite loop!
-  ASSERT_FALSE(file_util::RealPath(link_from, &real_path));
+  ASSERT_FALSE(file_util::NormalizeFilePath(link_from, &normalized_path));
 }
 #endif  // defined(OS_POSIX)
 

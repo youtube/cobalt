@@ -44,6 +44,20 @@
 
 namespace file_util {
 
+namespace {
+
+// Helper for NormalizeFilePath(), defined below.
+bool RealPath(const FilePath& path, FilePath* real_path) {
+  FilePath::CharType buf[PATH_MAX];
+  if (!realpath(path.value().c_str(), buf))
+    return false;
+
+  *real_path = FilePath(buf);
+  return true;
+}
+
+}  // namespace
+
 #if defined(OS_OPENBSD) || defined(OS_FREEBSD) || \
     (defined(OS_MACOSX) && \
      MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5)
@@ -726,12 +740,19 @@ bool HasFileBeenModifiedSince(const FileEnumerator::FindInfo& find_info,
   return find_info.stat.st_mtime >= cutoff_time.ToTimeT();
 }
 
-bool RealPath(const FilePath& path, FilePath* real_path) {
-  FilePath::CharType buf[PATH_MAX];
-  if (!realpath(path.value().c_str(), buf))
+bool NormalizeFilePath(const FilePath& path, FilePath* normalized_path) {
+  FilePath real_path_result;
+  if (!RealPath(path, &real_path_result))
     return false;
 
-  *real_path = FilePath(buf);
+  // To be consistant with windows, fail if |real_path_result| is a
+  // directory.
+  stat_wrapper_t file_info;
+  if (CallStat(real_path_result.value().c_str(), &file_info) != 0 ||
+      S_ISDIR(file_info.st_mode))
+    return false;
+
+  *normalized_path = real_path_result;
   return true;
 }
 
