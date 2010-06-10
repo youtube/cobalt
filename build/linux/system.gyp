@@ -258,32 +258,36 @@
     {
       'target_name': 'gnome-keyring',
       'type': 'settings',
-      'direct_dependent_settings': {
-        'cflags': [
-          '<!@(<(pkg-config) --cflags gnome-keyring-1)',
-        ],
-        'conditions': [
-          ['linux_link_gnome_keyring==0', {
-            'defines': ['DLOPEN_GNOME_KEYRING'],
-          }],
-        ],
-      },
       'conditions': [
-        ['linux_link_gnome_keyring!=0', {
-          'link_settings': {
-            'ldflags': [
-              '<!@(<(pkg-config) --libs-only-L --libs-only-other gnome-keyring-1)',
+        ['chromeos==0', {
+          'direct_dependent_settings': {
+            'cflags': [
+              '<!@(<(pkg-config) --cflags gnome-keyring-1)',
             ],
-            'libraries': [
-              '<!@(<(pkg-config) --libs-only-l gnome-keyring-1)',
-            ],
-          },
-        }, {
-          'link_settings': {
-            'libraries': [
-              '-ldl',
+            'conditions': [
+              ['linux_link_gnome_keyring==0', {
+                'defines': ['DLOPEN_GNOME_KEYRING'],
+              }],
             ],
           },
+          'conditions': [
+            ['linux_link_gnome_keyring!=0', {
+              'link_settings': {
+                'ldflags': [
+                  '<!@(<(pkg-config) --libs-only-L --libs-only-other gnome-keyring-1)',
+                ],
+                'libraries': [
+                  '<!@(<(pkg-config) --libs-only-l gnome-keyring-1)',
+                ],
+              },
+            }, {
+              'link_settings': {
+                'libraries': [
+                  '-ldl',
+                ],
+              },
+            }],
+          ],
         }],
       ],
     },
