@@ -406,6 +406,7 @@ TEST_F(FileUtilTest, GetDirectoryFromPath) {
 }
 #endif
 
+// Flaky, http://crbug.com/46246
 TEST_F(FileUtilTest, FLAKY_CountFilesCreatedAfter) {
   // Create old file (that we don't want to count)
   FilePath old_file_name = test_dir_.Append(FILE_PATH_LITERAL("Old File.txt"));
