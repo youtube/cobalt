@@ -85,11 +85,11 @@ std::string HttpAuthHandlerDigest::AlgorithmToString(int algorithm) {
   }
 }
 
-int HttpAuthHandlerDigest::GenerateAuthToken(
-    const std::wstring& username,
-    const std::wstring& password,
+int HttpAuthHandlerDigest::GenerateAuthTokenImpl(
+    const std::wstring* username,
+    const std::wstring* password,
     const HttpRequestInfo* request,
-    const ProxyInfo* proxy,
+    CompletionCallback* callback,
     std::string* auth_token) {
   // Generate a random client nonce.
   std::string cnonce = GenerateNonce();
@@ -98,32 +98,21 @@ int HttpAuthHandlerDigest::GenerateAuthToken(
   // in certain cases, to be a hostname.
   std::string method;
   std::string path;
-  GetRequestMethodAndPath(request, proxy, &method, &path);
+  GetRequestMethodAndPath(request, &method, &path);
 
   *auth_token = AssembleCredentials(method, path,
                                     // TODO(eroman): is this the right encoding?
-                                    WideToUTF8(username),
-                                    WideToUTF8(password),
+                                    WideToUTF8(*username),
+                                    WideToUTF8(*password),
                                     cnonce, nonce_count_);
   return OK;
 }
 
-int HttpAuthHandlerDigest::GenerateDefaultAuthToken(
-    const HttpRequestInfo* request,
-    const ProxyInfo* proxy,
-    std::string* auth_token) {
-  NOTREACHED();
-  LOG(ERROR) << ErrorToString(ERR_NOT_IMPLEMENTED);
-  return ERR_NOT_IMPLEMENTED;
-}
-
 void HttpAuthHandlerDigest::GetRequestMethodAndPath(
     const HttpRequestInfo* request,
-    const ProxyInfo* proxy,
     std::string* method,
     std::string* path) const {
   DCHECK(request);
-  DCHECK(proxy);
 
   const GURL& url = request->url;
 

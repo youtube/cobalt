@@ -47,19 +47,6 @@ bool HttpAuthHandlerNTLM::AllowsDefaultCredentials() {
   return url_security_manager_->CanUseDefaultCredentials(origin_);
 }
 
-int HttpAuthHandlerNTLM::GenerateDefaultAuthToken(
-    const HttpRequestInfo* request,
-    const ProxyInfo* proxy,
-    std::string* auth_token) {
-  return auth_sspi_.GenerateAuthToken(
-      NULL,  // username
-      NULL,  // password
-      CreateSPN(origin_),
-      request,
-      proxy,
-      auth_token);
-}
-
 HttpAuthHandlerNTLM::Factory::Factory()
     : max_token_length_(0),
       first_creation_(true),

@@ -32,6 +32,19 @@ bool HttpAuthHandler::InitFromChallenge(
   return ok;
 }
 
+int HttpAuthHandler::GenerateAuthToken(const std::wstring* username,
+                                       const std::wstring* password,
+                                       const HttpRequestInfo* request,
+                                       CompletionCallback* callback,
+                                       std::string* auth_token) {
+  // TODO(cbentzel): Enforce non-NULL callback+auth_token.
+  DCHECK(request);
+  DCHECK((username == NULL) == (password == NULL));
+  DCHECK(username != NULL || AllowsDefaultCredentials());
+  return GenerateAuthTokenImpl(username, password, request, callback,
+                               auth_token);
+}
+
 int HttpAuthHandler::ResolveCanonicalName(net::HostResolver* host_resolver,
                                           CompletionCallback* callback) {
   NOTREACHED();

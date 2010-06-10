@@ -96,7 +96,6 @@ class HttpAuthSSPI {
                         const std::wstring* password,
                         const std::wstring& spn,
                         const HttpRequestInfo* request,
-                        const ProxyInfo* proxy,
                         std::string* auth_token);
 
  private:

@@ -111,20 +111,16 @@ class HttpAuthHandlerNTLM : public HttpAuthHandler {
 
   virtual bool AllowsDefaultCredentials();
 
-  virtual int GenerateAuthToken(const std::wstring& username,
-                                const std::wstring& password,
-                                const HttpRequestInfo* request,
-                                const ProxyInfo* proxy,
-                                std::string* auth_token);
-
-  virtual int GenerateDefaultAuthToken(const HttpRequestInfo* request,
-                                       const ProxyInfo* proxy,
-                                       std::string* auth_token);
-
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* tok) {
     return ParseChallenge(tok);
   }
+
+  virtual int GenerateAuthTokenImpl(const std::wstring* username,
+                                    const std::wstring* password,
+                                    const HttpRequestInfo* request,
+                                    CompletionCallback* callback,
+                                    std::string* auth_token);
 
   // This function acquires a credentials handle in the SSPI implementation.
   // It does nothing in the portable implementation.
