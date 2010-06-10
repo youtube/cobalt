@@ -19,6 +19,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/http/http_auth_handler_factory.h"
+#include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "net/socket/client_socket_factory.h"
@@ -567,11 +568,12 @@ int SocketStream::DoWriteTunnelHeaders() {
     // TODO(ukai): Add support other authentication scheme.
     if (auth_handler_.get() && auth_handler_->scheme() == "basic") {
       std::string auth_token;
+      HttpRequestInfo request_info;
       int rv = auth_handler_->GenerateAuthToken(
-          auth_identity_.username,
-          auth_identity_.password,
+          &auth_identity_.username,
+          &auth_identity_.password,
+          &request_info,
           NULL,
-          &proxy_info_,
           &auth_token);
       // TODO(cbentzel): Should do something different if credentials
       // can't be generated. In this case, only Basic is allowed which
