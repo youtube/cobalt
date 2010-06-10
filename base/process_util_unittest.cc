@@ -459,12 +459,11 @@ TEST_F(ProcessUtilTest, GetAppOutputRestricted) {
   EXPECT_TRUE(base::GetAppOutputRestricted(CommandLine(argv), &output, 100));
   EXPECT_STREQ("", output.c_str());
 
-  // On failure, should not touch |output|. As above, but for |false|.
   argv[2] = "exit 1";  // equivalent to "false"
-  output = "abc";
+  output = "before";
   EXPECT_FALSE(base::GetAppOutputRestricted(CommandLine(argv),
-                                      &output, 100));
-  EXPECT_STREQ("abc", output.c_str());
+                                            &output, 100));
+  EXPECT_STREQ("", output.c_str());
 
   // Amount of output exactly equal to space allowed.
   argv[2] = "echo 123456789";  // (the sh built-in doesn't take "-n")
