@@ -14,19 +14,21 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 
-namespace {
+namespace net {
 
-gssapi::gss_OID_desc LOCAL_GSS_C_NT_HOSTBASED_SERVICE_VAL = {
+gss_OID_desc CHROME_GSS_C_NT_HOSTBASED_SERVICE_X_VAL = {
+  6,
+  const_cast<char *>("\x2b\x06\x01\x05\x06\x02")
+};
+gss_OID_desc CHROME_GSS_C_NT_HOSTBASED_SERVICE_VAL = {
   10,
   const_cast<char *>("\x2a\x86\x48\x86\xf7\x12\x01\x02\x01\x04")
 };
 
-gssapi::gss_OID LOCAL_GSS_C_NT_HOSTBASED_SERVICE =
-    &LOCAL_GSS_C_NT_HOSTBASED_SERVICE_VAL;
-
-}  // namespace
-
-namespace net {
+gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X =
+    &CHROME_GSS_C_NT_HOSTBASED_SERVICE_X_VAL;
+gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE =
+    &CHROME_GSS_C_NT_HOSTBASED_SERVICE_VAL;
 
 GSSAPISharedLibrary::GSSAPISharedLibrary()
     : initialized_(false),
@@ -111,56 +113,56 @@ bool GSSAPISharedLibrary::BindMethods() {
   return true;
 }
 
-gssapi::OM_uint32 GSSAPISharedLibrary::import_name(
-    gssapi::OM_uint32* minor_status,
-    const gssapi::gss_buffer_t input_name_buffer,
-    const gssapi::gss_OID input_name_type,
-    gssapi::gss_name_t* output_name) {
+OM_uint32 GSSAPISharedLibrary::import_name(
+    OM_uint32* minor_status,
+    const gss_buffer_t input_name_buffer,
+    const gss_OID input_name_type,
+    gss_name_t* output_name) {
   DCHECK(initialized_);
   return import_name_(minor_status, input_name_buffer, input_name_type,
                       output_name);
 }
 
-gssapi::OM_uint32 GSSAPISharedLibrary::release_name(
-    gssapi::OM_uint32* minor_status,
-    gssapi::gss_name_t* input_name) {
+OM_uint32 GSSAPISharedLibrary::release_name(
+    OM_uint32* minor_status,
+    gss_name_t* input_name) {
   DCHECK(initialized_);
   return release_name_(minor_status, input_name);
 }
 
-gssapi::OM_uint32 GSSAPISharedLibrary::release_buffer(
-    gssapi::OM_uint32* minor_status,
-    gssapi::gss_buffer_t buffer) {
+OM_uint32 GSSAPISharedLibrary::release_buffer(
+    OM_uint32* minor_status,
+    gss_buffer_t buffer) {
   DCHECK(initialized_);
   return release_buffer_(minor_status, buffer);
 }
 
-gssapi::OM_uint32 GSSAPISharedLibrary::display_status(
-    gssapi::OM_uint32* minor_status,
-    gssapi::OM_uint32 status_value,
+OM_uint32 GSSAPISharedLibrary::display_status(
+    OM_uint32* minor_status,
+    OM_uint32 status_value,
     int status_type,
-    const gssapi::gss_OID mech_type,
-    gssapi::OM_uint32* message_context,
-    gssapi::gss_buffer_t status_string) {
+    const gss_OID mech_type,
+    OM_uint32* message_context,
+    gss_buffer_t status_string) {
   DCHECK(initialized_);
   return display_status_(minor_status, status_value, status_type, mech_type,
                          message_context, status_string);
 }
 
-gssapi::OM_uint32 GSSAPISharedLibrary::init_sec_context(
-    gssapi::OM_uint32* minor_status,
-    const gssapi::gss_cred_id_t initiator_cred_handle,
-    gssapi::gss_ctx_id_t* context_handle,
-    const gssapi::gss_name_t target_name,
-    const gssapi::gss_OID mech_type,
-    gssapi::OM_uint32 req_flags,
-    gssapi::OM_uint32 time_req,
-    const gssapi::gss_channel_bindings_t input_chan_bindings,
-    const gssapi::gss_buffer_t input_token,
-    gssapi::gss_OID* actual_mech_type,
-    gssapi::gss_buffer_t output_token,
-    gssapi::OM_uint32* ret_flags,
-    gssapi::OM_uint32* time_rec) {
+OM_uint32 GSSAPISharedLibrary::init_sec_context(
+    OM_uint32* minor_status,
+    const gss_cred_id_t initiator_cred_handle,
+    gss_ctx_id_t* context_handle,
+    const gss_name_t target_name,
+    const gss_OID mech_type,
+    OM_uint32 req_flags,
+    OM_uint32 time_req,
+    const gss_channel_bindings_t input_chan_bindings,
+    const gss_buffer_t input_token,
+    gss_OID* actual_mech_type,
+    gss_buffer_t output_token,
+    OM_uint32* ret_flags,
+    OM_uint32* time_rec) {
   DCHECK(initialized_);
   return init_sec_context_(minor_status,
                            initiator_cred_handle,
@@ -177,13 +179,13 @@ gssapi::OM_uint32 GSSAPISharedLibrary::init_sec_context(
                            time_rec);
 }
 
-gssapi::OM_uint32 GSSAPISharedLibrary::wrap_size_limit(
-    gssapi::OM_uint32* minor_status,
-    const gssapi::gss_ctx_id_t context_handle,
+OM_uint32 GSSAPISharedLibrary::wrap_size_limit(
+    OM_uint32* minor_status,
+    const gss_ctx_id_t context_handle,
     int conf_req_flag,
-    gssapi::gss_qop_t qop_req,
-    gssapi::OM_uint32 req_output_size,
-    gssapi::OM_uint32* max_input_size) {
+    gss_qop_t qop_req,
+    OM_uint32 req_output_size,
+    OM_uint32* max_input_size) {
   DCHECK(initialized_);
   return wrap_size_limit_(minor_status,
                           context_handle,
@@ -199,20 +201,20 @@ GSSAPILibrary* GSSAPILibrary::GetDefault() {
 
 namespace {
 
-std::string DisplayStatus(gssapi::OM_uint32 major_status,
-                          gssapi::OM_uint32 minor_status) {
+std::string DisplayStatus(OM_uint32 major_status,
+                          OM_uint32 minor_status) {
   if (major_status == GSS_S_COMPLETE)
     return "OK";
   return StringPrintf("0x%08x 0x%08x", major_status, minor_status);
 }
 
 std::string DisplayCode(GSSAPILibrary* gssapi_lib,
-                        gssapi::OM_uint32 status,
-                        gssapi::OM_uint32 status_code_type) {
+                        OM_uint32 status,
+                        OM_uint32 status_code_type) {
   const int kMaxDisplayIterations = 8;
   const size_t kMaxMsgLength = 4096;
   // msg_ctx needs to be outside the loop because it is invoked multiple times.
-  gssapi::OM_uint32 msg_ctx = 0;
+  OM_uint32 msg_ctx = 0;
   std::string rv = StringPrintf("(0x%08X)", status);
 
   // This loop should continue iterating until msg_ctx is 0 after the first
@@ -222,9 +224,9 @@ std::string DisplayCode(GSSAPILibrary* gssapi_lib,
   // will not exceed |kMaxMsgLength|*2-1.
   for (int i = 0; i < kMaxDisplayIterations && rv.size() < kMaxMsgLength;
       ++i) {
-    gssapi::OM_uint32 min_stat;
-    gssapi::gss_buffer_desc_struct msg = GSS_C_EMPTY_BUFFER;
-    gssapi::OM_uint32 maj_stat =
+    OM_uint32 min_stat;
+    gss_buffer_desc_struct msg = GSS_C_EMPTY_BUFFER;
+    OM_uint32 maj_stat =
         gssapi_lib->display_status(&min_stat, status, status_code_type,
                                    GSS_C_NULL_OID, &msg_ctx, &msg);
     if (maj_stat == GSS_S_COMPLETE) {
@@ -244,8 +246,8 @@ std::string DisplayCode(GSSAPILibrary* gssapi_lib,
 }
 
 std::string DisplayExtendedStatus(GSSAPILibrary* gssapi_lib,
-                                  gssapi::OM_uint32 major_status,
-                                  gssapi::OM_uint32 minor_status) {
+                                  OM_uint32 major_status,
+                                  OM_uint32 minor_status) {
   if (major_status == GSS_S_COMPLETE)
     return "OK";
   std::string major = DisplayCode(gssapi_lib, major_status, GSS_C_GSS_CODE);
@@ -253,10 +255,10 @@ std::string DisplayExtendedStatus(GSSAPILibrary* gssapi_lib,
   return StringPrintf("Major: %s | Minor: %s", major.c_str(), minor.c_str());
 }
 
-// ScopedName releases a gssapi::gss_name_t when it goes out of scope.
+// ScopedName releases a gss_name_t when it goes out of scope.
 class ScopedName {
  public:
-  ScopedName(gssapi::gss_name_t name,
+  ScopedName(gss_name_t name,
              GSSAPILibrary* gssapi_lib)
       : name_(name),
         gssapi_lib_(gssapi_lib) {
@@ -265,8 +267,8 @@ class ScopedName {
 
   ~ScopedName() {
     if (name_ != GSS_C_NO_NAME) {
-      gssapi::OM_uint32 minor_status = 0;
-      gssapi::OM_uint32 major_status =
+      OM_uint32 minor_status = 0;
+      OM_uint32 major_status =
           gssapi_lib_->release_name(&minor_status, &name_);
       if (major_status != GSS_S_COMPLETE) {
         LOG(WARNING) << "Problem releasing name. "
@@ -277,16 +279,16 @@ class ScopedName {
   }
 
  private:
-  gssapi::gss_name_t name_;
+  gss_name_t name_;
   GSSAPILibrary* gssapi_lib_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedName);
 };
 
-// ScopedBuffer releases a gssapi::gss_buffer_t when it goes out of scope.
+// ScopedBuffer releases a gss_buffer_t when it goes out of scope.
 class ScopedBuffer {
  public:
-  ScopedBuffer(gssapi::gss_buffer_t buffer,
+  ScopedBuffer(gss_buffer_t buffer,
                GSSAPILibrary* gssapi_lib)
       : buffer_(buffer),
         gssapi_lib_(gssapi_lib) {
@@ -295,8 +297,8 @@ class ScopedBuffer {
 
   ~ScopedBuffer() {
     if (buffer_ != GSS_C_NO_BUFFER) {
-      gssapi::OM_uint32 minor_status = 0;
-      gssapi::OM_uint32 major_status =
+      OM_uint32 minor_status = 0;
+      OM_uint32 major_status =
           gssapi_lib_->release_buffer(&minor_status, buffer_);
       if (major_status != GSS_S_COMPLETE) {
         LOG(WARNING) << "Problem releasing buffer. "
@@ -307,7 +309,7 @@ class ScopedBuffer {
   }
 
  private:
-  gssapi::gss_buffer_t buffer_;
+  gss_buffer_t buffer_;
   GSSAPILibrary* gssapi_lib_;
 
   DISALLOW_COPY_AND_ASSIGN(ScopedBuffer);
@@ -315,9 +317,9 @@ class ScopedBuffer {
 
 }  // namespace
 
-  HttpAuthGSSAPI::HttpAuthGSSAPI(GSSAPILibrary* library,
-                                 const std::string& scheme,
-                                 gssapi::gss_OID gss_oid)
+HttpAuthGSSAPI::HttpAuthGSSAPI(GSSAPILibrary* library,
+                               const std::string& scheme,
+                               gss_OID gss_oid)
     : scheme_(scheme),
       gss_oid_(gss_oid),
       library_(library),
@@ -375,10 +377,10 @@ int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
       return rv;
   }
 
-  gssapi::gss_buffer_desc input_token = GSS_C_EMPTY_BUFFER;
+  gss_buffer_desc input_token = GSS_C_EMPTY_BUFFER;
   input_token.length = decoded_server_auth_token_.length();
   input_token.value = const_cast<char *>(decoded_server_auth_token_.data());
-  gssapi::gss_buffer_desc output_token = GSS_C_EMPTY_BUFFER;
+  gss_buffer_desc output_token = GSS_C_EMPTY_BUFFER;
   int rv = GetNextSecurityToken(spn, &input_token, &output_token);
   if (rv != OK)
     return rv;
@@ -388,7 +390,7 @@ int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
                            output_token.length);
   std::string encode_output;
   bool ok = base::Base64Encode(encode_input, &encode_output);
-  gssapi::OM_uint32 minor_status = 0;
+  OM_uint32 minor_status = 0;
   library_->release_buffer(&minor_status, &output_token);
   if (!ok)
     return ERR_UNEXPECTED;
@@ -410,22 +412,22 @@ int HttpAuthGSSAPI::OnFirstRound(const std::wstring* username,
 }
 
 int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
-                                         gssapi::gss_buffer_t in_token,
-                                         gssapi::gss_buffer_t out_token) {
+                                         gss_buffer_t in_token,
+                                         gss_buffer_t out_token) {
   // Create a name for the principal
   // TODO(cbentzel): Should this be username@spn? What about domain?
   // TODO(cbentzel): Just do this on the first pass?
   const GURL spn_url(WideToASCII(spn));
   std::string spn_principal = GetHostAndPort(spn_url);
-  gssapi::gss_buffer_desc spn_buffer = GSS_C_EMPTY_BUFFER;
+  gss_buffer_desc spn_buffer = GSS_C_EMPTY_BUFFER;
   spn_buffer.value = const_cast<char *>(spn_principal.data());
   spn_buffer.length = spn_principal.size() + 1;
-  gssapi::OM_uint32 minor_status = 0;
-  gssapi::gss_name_t principal_name;
-  gssapi::OM_uint32 major_status = library_->import_name(
+  OM_uint32 minor_status = 0;
+  gss_name_t principal_name;
+  OM_uint32 major_status = library_->import_name(
       &minor_status,
       &spn_buffer,
-      LOCAL_GSS_C_NT_HOSTBASED_SERVICE,
+      CHROME_GSS_C_NT_HOSTBASED_SERVICE,
       &principal_name);
   if (major_status != GSS_S_COMPLETE) {
     LOG(WARNING) << "Problem importing name. "
@@ -437,7 +439,7 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
   ScopedName scoped_name(principal_name, library_);
 
   // Create a security context.
-  gssapi::OM_uint32 req_flags = 0;
+  OM_uint32 req_flags = 0;
   major_status = library_->init_sec_context(
       &minor_status,
       GSS_C_NO_CREDENTIAL,
