@@ -13,19 +13,18 @@
 
 namespace net {
 
-int HttpAuthHandlerNTLM::GenerateAuthToken(
-    const std::wstring& username,
-    const std::wstring& password,
+int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
+    const std::wstring* username,
+    const std::wstring* password,
     const HttpRequestInfo* request,
-    const ProxyInfo* proxy,
+    CompletionCallback* callback,
     std::string* auth_token) {
 #if defined(NTLM_SSPI)
   return auth_sspi_.GenerateAuthToken(
-      &username,
-      &password,
+      username,
+      password,
       CreateSPN(origin_),
       request,
-      proxy,
       auth_token);
 #else  // !defined(NTLM_SSPI)
   // TODO(wtc): See if we can use char* instead of void* for in_buf and
@@ -40,16 +39,16 @@ int HttpAuthHandlerNTLM::GenerateAuthToken(
   // components.
   std::wstring domain;
   std::wstring user;
-  size_t backslash_idx = username.find(L'\\');
+  size_t backslash_idx = username->find(L'\\');
   if (backslash_idx == std::wstring::npos) {
-    user = username;
+    user = *username;
   } else {
-    domain = username.substr(0, backslash_idx);
-    user = username.substr(backslash_idx + 1);
+    domain = username->substr(0, backslash_idx);
+    user = username->substr(backslash_idx + 1);
   }
   domain_ = WideToUTF16(domain);
   username_ = WideToUTF16(user);
-  password_ = WideToUTF16(password);
+  password_ = WideToUTF16(*password);
 
   // Initial challenge.
   if (auth_data_.empty()) {

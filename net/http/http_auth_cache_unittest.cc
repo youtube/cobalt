@@ -25,26 +25,20 @@ class MockAuthHandler : public HttpAuthHandler {
     properties_ = 0;
   }
 
-  virtual int GenerateAuthToken(const std::wstring&,
-                                const std::wstring&,
-                                const HttpRequestInfo*,
-                                const ProxyInfo*,
-                                std::string* auth_token) {
-    *auth_token = "mock-credentials";
-    return OK;
-  }
-
-  virtual int GenerateDefaultAuthToken(const HttpRequestInfo*,
-                                       const ProxyInfo*,
-                                       std::string* auth_token) {
-    *auth_token = "mock-credentials";
-    return OK;
-  }
-
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) {
     return false;  // Unused.
   }
+
+  virtual int GenerateAuthTokenImpl(const std::wstring*,
+                                    const std::wstring*,
+                                    const HttpRequestInfo*,
+                                    CompletionCallback* callback,
+                                    std::string* auth_token) {
+    *auth_token = "mock-credentials";
+    return OK;
+  }
+
 
  private:
   ~MockAuthHandler() {}

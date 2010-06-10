@@ -1905,18 +1905,16 @@ void HttpNetworkTransaction::AddAuthorizationHeader(
   DCHECK(HaveAuth(target));
 
   // Add a Authorization/Proxy-Authorization header line.
-  std::string auth_token;
-  int rv;
-  if (auth_identity_[target].source ==
-      HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS) {
-    rv = auth_handler_[target]->GenerateDefaultAuthToken(
-        request_, &proxy_info_, &auth_token);
-  } else {
-    rv = auth_handler_[target]->GenerateAuthToken(
-        auth_identity_[target].username,
-        auth_identity_[target].password,
-        request_, &proxy_info_, &auth_token);
+  const std::wstring* username = NULL;
+  const std::wstring* password = NULL;
+  const HttpAuth::Identity& identity = auth_identity_[target];
+  if (identity.source != HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS) {
+    username = &identity.username;
+    password = &identity.password;
   }
+  std::string auth_token;
+  int rv = auth_handler_[target]->GenerateAuthToken(
+      username, password, request_, NULL, &auth_token);
   if (rv == OK) {
     authorization_headers->SetHeader(
         HttpAuth::GetAuthorizationHeaderName(target), auth_token);
