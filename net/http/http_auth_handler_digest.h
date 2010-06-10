@@ -30,20 +30,16 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
                                   scoped_ptr<HttpAuthHandler>* handler);
   };
 
-  virtual int GenerateAuthToken(const std::wstring& username,
-                                const std::wstring& password,
-                                const HttpRequestInfo* request,
-                                const ProxyInfo* proxy,
-                                std::string* auth_token);
-
-  virtual int GenerateDefaultAuthToken(const HttpRequestInfo* request,
-                                       const ProxyInfo* proxy,
-                                       std::string* auth_token);
-
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) {
     return ParseChallenge(challenge);
   }
+
+  virtual int GenerateAuthTokenImpl(const std::wstring* username,
+                                    const std::wstring* password,
+                                    const HttpRequestInfo* request,
+                                    CompletionCallback* callback,
+                                    std::string* auth_token);
 
  private:
   FRIEND_TEST(HttpAuthHandlerDigestTest, ParseChallenge);
@@ -94,7 +90,6 @@ class HttpAuthHandlerDigest : public HttpAuthHandler {
   // Extract the method and path of the request, as needed by
   // the 'A2' production. (path may be a hostname for proxy).
   void GetRequestMethodAndPath(const HttpRequestInfo* request,
-                               const ProxyInfo* proxy,
                                std::string* method,
                                std::string* path) const;
 

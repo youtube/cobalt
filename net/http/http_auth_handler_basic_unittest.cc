@@ -7,6 +7,7 @@
 #include "base/basictypes.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_auth_handler_basic.h"
+#include "net/http/http_request_info.h"
 
 namespace net {
 
@@ -32,11 +33,11 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
     EXPECT_EQ(OK, factory.CreateAuthHandlerFromString(
         challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(), &basic));
     std::string credentials;
-    int rv = basic->GenerateAuthToken(tests[i].username,
-                                      tests[i].password,
-                                      NULL,
-                                      NULL,
-                                      &credentials);
+    std::wstring username(tests[i].username);
+    std::wstring password(tests[i].password);
+    HttpRequestInfo request_info;
+    int rv = basic->GenerateAuthToken(
+        &username, &password, &request_info, NULL, &credentials);
     EXPECT_EQ(OK, rv);
     EXPECT_STREQ(tests[i].expected_credentials, credentials.c_str());
   }

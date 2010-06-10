@@ -98,16 +98,6 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
   virtual bool NeedsCanonicalName();
 
-  virtual int GenerateAuthToken(const std::wstring& username,
-                                const std::wstring& password,
-                                const HttpRequestInfo* request,
-                                const ProxyInfo* proxy,
-                                std::string* auth_token);
-
-  virtual int GenerateDefaultAuthToken(const HttpRequestInfo* request,
-                                       const ProxyInfo* proxy,
-                                       std::string* auth_token);
-
   virtual int ResolveCanonicalName(HostResolver* host_resolver,
                                    CompletionCallback* callback);
 
@@ -119,6 +109,12 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
+
+  virtual int GenerateAuthTokenImpl(const std::wstring* username,
+                                    const std::wstring* password,
+                                    const HttpRequestInfo* request,
+                                    CompletionCallback* callback,
+                                    std::string* auth_token);
 
  private:
 #if defined(OS_WIN)

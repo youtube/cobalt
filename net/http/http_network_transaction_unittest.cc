@@ -5456,38 +5456,6 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
     return rv;
   }
 
-  void OnResolveCanonicalName() {
-    EXPECT_EQ(RESOLVE_ASYNC, resolve_);
-    EXPECT_TRUE(user_callback_ != NULL);
-    resolve_ = RESOLVE_TESTED;
-    CompletionCallback* callback = user_callback_;
-    user_callback_ = NULL;
-    callback->Run(OK);
-  }
-
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) {
-    scheme_ = "mock";
-    score_ = 1;
-    properties_ = 0;
-    return true;
-  }
-
-  virtual int GenerateAuthToken(const std::wstring& username,
-                                const std::wstring& password,
-                                const HttpRequestInfo* request,
-                                const ProxyInfo* proxy,
-                                std::string* auth_token) {
-    auth_token->assign("Mock AUTH myserver.example.com");
-    return OK;
-  }
-
-  virtual int GenerateDefaultAuthToken(const HttpRequestInfo* request,
-                                       const ProxyInfo* proxy,
-                                       std::string* auth_token) {
-    auth_token->assign("Mock DEFAULT_AUTH myserver.example.com");
-    return OK;
-  }
-
   // The Factory class simply returns the same handler each time
   // CreateAuthHandler is called.
   class Factory : public HttpAuthHandlerFactory {
@@ -5516,7 +5484,36 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
     scoped_ptr<HttpAuthHandler> handler_;
   };
 
+ protected:
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) {
+    scheme_ = "mock";
+    score_ = 1;
+    properties_ = 0;
+    return true;
+  }
+
+  virtual int GenerateAuthTokenImpl(const std::wstring* username,
+                                    const std::wstring* password,
+                                    const HttpRequestInfo* request,
+                                    CompletionCallback* callback,
+                                    std::string* auth_token) {
+    if (username == NULL)
+      auth_token->assign("Mock DEFAULT_AUTH myserver.example.com");
+    else
+      auth_token->assign("Mock AUTH myserver.example.com");
+    return OK;
+  }
+
  private:
+  void OnResolveCanonicalName() {
+    EXPECT_EQ(RESOLVE_ASYNC, resolve_);
+    EXPECT_TRUE(user_callback_ != NULL);
+    resolve_ = RESOLVE_TESTED;
+    CompletionCallback* callback = user_callback_;
+    user_callback_ = NULL;
+    callback->Run(OK);
+  }
+
   Resolve resolve_;
   CompletionCallback* user_callback_;
   ScopedRunnableMethodFactory<MockAuthHandlerCanonical> method_factory_;
@@ -5532,7 +5529,12 @@ TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
 
   for (int i = 0; i < 2; ++i) {
     MockAuthHandlerCanonical* auth_handler(new MockAuthHandlerCanonical());
-    auth_handler->Init(NULL);
+    std::string auth_challenge = "Mock";
+    GURL origin("http://www.example.com");
+    HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
+                                          auth_challenge.end());
+    auth_handler->InitFromChallenge(&tokenizer, HttpAuth::AUTH_SERVER,
+                                    origin, BoundNetLog());
     auth_factory->set_mock_handler(auth_handler);
 
     scoped_ptr<HttpTransaction> trans(
