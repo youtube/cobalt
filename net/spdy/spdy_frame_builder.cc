@@ -148,7 +148,7 @@ char* SpdyFrameBuilder::BeginWriteData(uint16 length) {
     "There can only be one variable buffer in a SpdyFrameBuilder";
 
   if (!WriteUInt16(length))
-    return false;
+    return NULL;
 
   char *data_ptr = BeginWrite(length);
   if (!data_ptr)
