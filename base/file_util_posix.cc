@@ -74,9 +74,9 @@ static int CallStat(const char *path, stat_wrapper_t *sb) {
 
 
 #if defined(GOOGLE_CHROME_BUILD)
-static const char* kTempFileName = "com.google.chrome.XXXXXX";
+static const char* kTempFileName = ".com.google.chrome.XXXXXX";
 #else
-static const char* kTempFileName = "org.chromium.XXXXXX";
+static const char* kTempFileName = ".org.chromium.XXXXXX";
 #endif
 
 bool AbsolutePath(FilePath* path) {
@@ -174,7 +174,6 @@ bool Delete(const FilePath& path, bool recursive) {
     directories.pop();
     success = (rmdir(dir.value().c_str()) == 0);
   }
-
   return success;
 }
 
