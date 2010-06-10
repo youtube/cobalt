@@ -382,6 +382,11 @@ class URLRequest {
     return response_info_.was_npn_negotiated;
   }
 
+  // Returns true if the URLRequest was delivered through a proxy.
+  bool was_fetched_via_proxy() const {
+    return response_info_.was_fetched_via_proxy;
+  }
+
   // Get all response headers, as a HttpResponseHeaders object.  See comments
   // in HttpResponseHeaders class as to the format of the data.
   net::HttpResponseHeaders* response_headers() const;
