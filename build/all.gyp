@@ -103,7 +103,7 @@
             '../chrome_frame/chrome_frame.gyp:*',
             '../courgette/courgette.gyp:*',
             '../gears/gears.gyp:*',
-            # '../rlz/rlz.gyp:*',  // temporary, back with open source rlz
+            '../rlz/rlz.gyp:*',
             '../sandbox/sandbox.gyp:*',
             '../third_party/bsdiff/bsdiff.gyp:*',
             '../third_party/bspatch/bspatch.gyp:*',
