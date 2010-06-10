@@ -406,7 +406,7 @@ TEST_F(FileUtilTest, GetDirectoryFromPath) {
 }
 #endif
 
-TEST_F(FileUtilTest, CountFilesCreatedAfter) {
+TEST_F(FileUtilTest, FLAKY_CountFilesCreatedAfter) {
   // Create old file (that we don't want to count)
   FilePath old_file_name = test_dir_.Append(FILE_PATH_LITERAL("Old File.txt"));
   CreateTextFile(old_file_name, L"Just call me Mr. Creakybits");
@@ -531,7 +531,7 @@ TEST_F(FileUtilTest, NormalizeFilePathReparsePoints) {
   int target_length = MAX_PATH;
   target_length -= (sub_a.value().length() + 1);  // +1 for the sepperator '\'.
   target_length -= (sub_long_rel.Append(deep_txt).value().length() + 1);
-  // Without making the path a bit shorter, CreateDirectory() fails.  
+  // Without making the path a bit shorter, CreateDirectory() fails.
   // the resulting path is still long enough to hit the failing case in
   // NormalizePath().
   const int kCreateDirLimit = 4;
