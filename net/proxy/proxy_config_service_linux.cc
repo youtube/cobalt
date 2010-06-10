@@ -433,21 +433,35 @@ class GConfSettingGetterImplKDE
         kde_config_dir_ = KDEHomeToConfigPath(kde_path);
       } else {
         // Some distributions patch KDE4 to use .kde4 instead of .kde, so that
-        // both can be installed side-by-side. They will probably continue to
-        // use .kde4, even when they no longer provide KDE3, for backwards-
-        // compatibility. So if there is a .kde4 directory, use that instead of
-        // .kde for the proxy config.
+        // both can be installed side-by-side. Sadly they don't all do this, and
+        // they don't always do this: some distributions have started switching
+        // back as well. So if there is a .kde4 directory, check the timestamps
+        // of the config directories within and use the newest one.
         // Note that we should currently be running in the UI thread, because in
         // the gconf version, that is the only thread that can access the proxy
         // settings (a gconf restriction). As noted below, the initial read of
         // the proxy settings will be done in this thread anyway, so we check
         // for .kde4 here in this thread as well.
+        FilePath kde3_path = FilePath(home).Append(".kde");
+        FilePath kde3_config = KDEHomeToConfigPath(kde3_path);
         FilePath kde4_path = FilePath(home).Append(".kde4");
+        FilePath kde4_config = KDEHomeToConfigPath(kde4_path);
+        bool use_kde4 = false;
         if (file_util::DirectoryExists(kde4_path)) {
+          file_util::FileInfo kde3_info;
+          file_util::FileInfo kde4_info;
+          if (file_util::GetFileInfo(kde4_config, &kde4_info)) {
+            if (file_util::GetFileInfo(kde3_config, &kde3_info)) {
+              use_kde4 = kde4_info.last_modified >= kde3_info.last_modified;
+            } else {
+              use_kde4 = true;
+            }
+          }
+        }
+        if (use_kde4) {
           kde_config_dir_ = KDEHomeToConfigPath(kde4_path);
         } else {
-          FilePath kde_path = FilePath(home).Append(".kde");
-          kde_config_dir_ = KDEHomeToConfigPath(kde_path);
+          kde_config_dir_ = KDEHomeToConfigPath(kde3_path);
         }
       }
     }
