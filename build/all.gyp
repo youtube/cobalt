@@ -246,7 +246,7 @@
             '../media/media.gyp:media_unittests',
             '../printing/printing.gyp:printing_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
-            '../webkit/webkit.gyp:npapi_layout_test_plugin',
+            '../webkit/support/webkit_support.gyp:npapi_layout_test_plugin',
             # TODO(nsylvain) ui_tests.exe depends on test_shell_common.
             # This should:
             # 1) not be the case. OR.
