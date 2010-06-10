@@ -1309,6 +1309,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
   }
 
   // Now create .kde4 and put a kioslaverc in the config directory.
+  // Note that its timestamp will be at least as new as the .kde one.
   file_util::CreateDirectory(kde4_config_);
   file_util::WriteFile(kioslaverc4_, slaverc4.c_str(), slaverc4.length());
   CHECK(file_util::PathExists(kioslaverc4_));
@@ -1344,6 +1345,23 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
     env_getter->values.DESKTOP_SESSION = "kde4";
     env_getter->values.HOME = user_home_.value().c_str();
     env_getter->values.KDE_HOME = kde_home_.value().c_str();
+    SynchConfigGetter sync_config_getter(
+        new ProxyConfigServiceLinux(env_getter));
+    ProxyConfig config;
+    sync_config_getter.SetupAndInitialFetch();
+    sync_config_getter.SyncGetProxyConfig(&config);
+    EXPECT_TRUE(config.auto_detect());
+    EXPECT_EQ(GURL(), config.pac_url());
+  }
+
+  // Finally, make the .kde4 config directory older than the .kde directory
+  // and make sure we then use .kde instead of .kde4 since it's newer.
+  file_util::SetLastModifiedTime(kde4_config_, base::Time());
+
+  { SCOPED_TRACE("KDE4, very old .kde4 directory present, use .kde");
+    MockEnvVarGetter* env_getter = new MockEnvVarGetter;
+    env_getter->values.DESKTOP_SESSION = "kde4";
+    env_getter->values.HOME = user_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
         new ProxyConfigServiceLinux(env_getter));
     ProxyConfig config;
