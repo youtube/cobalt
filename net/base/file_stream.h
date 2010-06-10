@@ -120,6 +120,15 @@ class FileStream {
   //   platform with this call.
   int64 Truncate(int64 bytes);
 
+  // Forces out a filesystem sync on this file to make sure that the file was
+  // written out to disk and is not currently sitting in the buffer. This does
+  // not have to be called, it just forces one to happen at the time of
+  // calling.
+  //
+  /// Returns an error code if the operation could not be performed.
+  //
+  // This method should not be called if the stream was opened READ_ONLY.
+  int Flush();
  private:
   class AsyncContext;
   friend class AsyncContext;
