@@ -735,7 +735,6 @@ int64 TimeValToMicroseconds(const struct timeval& tv) {
 // specify the path of the application, and |envp| will be used as the
 // environment. Redirects stderr to /dev/null. Returns true on success
 // (application launched and exited cleanly, with exit code indicating success).
-// |output| is modified only when the function finished successfully.
 static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
                                  std::string* output, size_t max_output,
                                  bool do_search_path) {
@@ -807,8 +806,8 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
         // write to the pipe).
         close(pipe_fd[1]);
 
+        output->clear();
         char buffer[256];
-        std::string output_buf;
         size_t output_buf_left = max_output;
         ssize_t bytes_read = 1;  // A lie to properly handle |max_output == 0|
                                  // case in the logic below.
@@ -818,7 +817,7 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
                                     std::min(output_buf_left, sizeof(buffer))));
           if (bytes_read <= 0)
             break;
-          output_buf.append(buffer, bytes_read);
+          output->append(buffer, bytes_read);
           output_buf_left -= static_cast<size_t>(bytes_read);
         }
         close(pipe_fd[0]);
@@ -834,7 +833,6 @@ static bool GetAppOutputInternal(const CommandLine& cl, char* const envp[],
             return false;
         }
 
-        output->swap(output_buf);
         return true;
       }
   }
