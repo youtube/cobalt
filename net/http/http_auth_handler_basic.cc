@@ -41,30 +41,21 @@ bool HttpAuthHandlerBasic::Init(HttpAuth::ChallengeTokenizer* challenge) {
   return challenge->valid();
 }
 
-int HttpAuthHandlerBasic::GenerateAuthToken(
-    const std::wstring& username,
-    const std::wstring& password,
+int HttpAuthHandlerBasic::GenerateAuthTokenImpl(
+    const std::wstring* username,
+    const std::wstring* password,
     const HttpRequestInfo*,
-    const ProxyInfo*,
+    CompletionCallback*,
     std::string* auth_token) {
   // TODO(eroman): is this the right encoding of username/password?
   std::string base64_username_password;
-  if (!base::Base64Encode(WideToUTF8(username) + ":" + WideToUTF8(password),
+  if (!base::Base64Encode(WideToUTF8(*username) + ":" + WideToUTF8(*password),
                           &base64_username_password)) {
     LOG(ERROR) << "Unexpected problem Base64 encoding.";
     return ERR_UNEXPECTED;
   }
   *auth_token = "Basic " + base64_username_password;
   return OK;
-}
-
-int HttpAuthHandlerBasic::GenerateDefaultAuthToken(
-    const HttpRequestInfo* request,
-    const ProxyInfo* proxy,
-    std::string* auth_token) {
-  NOTREACHED();
-  LOG(ERROR) << ErrorToString(ERR_NOT_IMPLEMENTED);
-  return ERR_NOT_IMPLEMENTED;
 }
 
 HttpAuthHandlerBasic::Factory::Factory() {

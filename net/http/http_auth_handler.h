@@ -34,6 +34,30 @@ class HttpAuthHandler {
                          const GURL& origin,
                          const BoundNetLog& net_log);
 
+  // Generates an authentication token, potentially asynchronously.
+  //
+  // When |username| and |password| are NULL, the default credentials for
+  // the currently logged in user are used. |AllowsDefaultCredentials()| MUST be
+  // true in this case.
+  //
+  // |request|, |callback|, and |auth_token| must be non-NULL.
+  //
+  // The return value is a net error code.
+  // If |OK| is returned, |*auth_token| is filled in with an authentication
+  // token which can be inserted in the HTTP request.
+  // If |ERR_IO_PENDING| is returned, |*auth_token| will be filled in
+  // asynchronously and |callback| will be invoked. The lifetime of
+  // |request|, |callback|, and |auth_token| must last until |callback| is
+  // invoked, but |username| and |password| are only used during the initial
+  // call.
+  // Otherwise, there was a problem generating a token synchronously, and the
+  // value of |*auth_token| is unspecified.
+  int GenerateAuthToken(const std::wstring* username,
+                        const std::wstring* password,
+                        const HttpRequestInfo* request,
+                        CompletionCallback* callback,
+                        std::string* auth_token);
+
   // Lowercase name of the auth scheme
   const std::string& scheme() const {
     return scheme_;
@@ -96,28 +120,6 @@ class HttpAuthHandler {
   // name when constructing the Kerberos SPN.
   virtual bool NeedsCanonicalName() { return false; }
 
-  // TODO(cbentzel): Separate providing credentials from generating the
-  // authentication token in the API.
-
-  // Generates an authentication token.
-  // The return value is an error code. If the code is not |OK|, the value of
-  // |*auth_token| is unspecified.
-  // |auth_token| is a return value and must be non-NULL.
-  virtual int GenerateAuthToken(const std::wstring& username,
-                                const std::wstring& password,
-                                const HttpRequestInfo* request,
-                                const ProxyInfo* proxy,
-                                std::string* auth_token) = 0;
-
-  // Generates an authentication token using default credentials.
-  // The return value is an error code. If the code is not |OK|, the value of
-  // |*auth_token| is unspecified.
-  // |auth_token| is a return value and must be non-NULL.
-  // This should only be called if |SupportsDefaultCredentials| returns true.
-  virtual int GenerateDefaultAuthToken(const HttpRequestInfo* request,
-                                       const ProxyInfo* proxy,
-                                       std::string* auth_token) = 0;
-
   // Resolves the canonical name for the |origin_| host. The canonical
   // name is used by the Negotiate scheme to generate a valid Kerberos
   // SPN.
@@ -138,6 +140,15 @@ class HttpAuthHandler {
   // Implementations are expcted to initialize the following members:
   // scheme_, realm_, score_, properties_
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) = 0;
+
+  // |GenerateAuthTokenImpl()} is the auth-scheme specific implementation
+  // of generating the next auth token. Callers sohuld use |GenerateAuthToken()|
+  // which will in turn call |GenerateAuthTokenImpl()|
+  virtual int GenerateAuthTokenImpl(const std::wstring* username,
+                                    const std::wstring* password,
+                                    const HttpRequestInfo* request,
+                                    CompletionCallback* callback,
+                                    std::string* auth_token) = 0;
 
   // The lowercase auth-scheme {"basic", "digest", "ntlm", "negotiate"}
   std::string scheme_;

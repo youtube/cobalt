@@ -290,6 +290,8 @@ class HttpNetworkTransaction : public HttpTransaction {
   // The following three auth members are arrays of size two -- index 0 is
   // for the proxy server, and index 1 is for the origin server.
   // Use the enum HttpAuth::Target to index into them.
+  // TODO(cbentzel): Just use explicit proxy_auth_handler_ and
+  // server_auth_handler_ and move identity into the handler directly.
 
   // auth_handler encapsulates the logic for the particular auth-scheme.
   // This includes the challenge's parameters. If NULL, then there is no
