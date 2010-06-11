@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -51,6 +51,10 @@ class SparseControl {
   // sparse data, or can be used to do it, it updates the relevant information
   // on disk and returns net::OK. Otherwise it returns a net error code.
   int Init();
+
+  // Performs a quick test to see if the entry is sparse or not, without
+  // generating disk IO (so the answer provided is only a best effort).
+  bool CouldBeSparse() const;
 
   // Performs an actual sparse read or write operation for this entry. |op| is
   // the operation to perform, |offset| is the desired sparse offset, |buf| and

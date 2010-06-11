@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -34,8 +34,8 @@ class PartialData {
  public:
   PartialData()
       : range_present_(false), final_range_(false), sparse_entry_(true),
-        truncated_(false) {}
-  ~PartialData() {}
+        truncated_(false), core_(NULL), callback_(NULL) {}
+  ~PartialData();
 
   // Performs initialization of the object by examining the request |headers|
   // and verifying that we can process the requested range. Returns true if
@@ -51,14 +51,19 @@ class PartialData {
   // provided to SetHeaders().
   void RestoreHeaders(HttpRequestHeaders* headers) const;
 
+  // Starts the checks to perform a cache validation. Returns 0 when there is no
+  // need to perform more operations because we reached the end of the request
+  // (so 0 bytes should be actually returned to the user), a positive number to
+  // indicate that PrepareCacheValidation should be called, or an appropriate
+  // error code. If this method returns ERR_IO_PENDING, the |callback| will be
+  // notified when the result is ready.
+  int ShouldValidateCache(disk_cache::Entry* entry,
+                          CompletionCallback* callback);
+
   // Builds the required |headers| to perform the proper cache validation for
-  // the next range to be fetched. Returns 0 when there is no need to perform
-  // more operations because we reached the end of the request (so 0 bytes
-  // should be actually returned to the user), a positive number to indicate
-  // that |headers| should be used to validate the cache, or an appropriate
-  // error code.
-  int PrepareCacheValidation(disk_cache::Entry* entry,
-                             HttpRequestHeaders* headers);
+  // the next range to be fetched.
+  void PrepareCacheValidation(disk_cache::Entry* entry,
+                              HttpRequestHeaders* headers);
 
   // Returns true if the current range is stored in the cache.
   bool IsCurrentRangeCached() const;
@@ -107,6 +112,13 @@ class PartialData {
   void OnNetworkReadCompleted(int result);
 
  private:
+  class Core;
+  // Returns the length to use when scanning the cache.
+  int GetNextRangeLen();
+
+  // Completion routine for our callback.
+  void GetAvailableRangeCompleted(int result, int64 start);
+
   int64 current_range_start_;
   int64 cached_start_;
   int64 resource_size_;
@@ -118,6 +130,8 @@ class PartialData {
   bool final_range_;
   bool sparse_entry_;
   bool truncated_;  // We have an incomplete 200 stored.
+  Core* core_;
+  CompletionCallback* callback_;
 
   DISALLOW_COPY_AND_ASSIGN(PartialData);
 };

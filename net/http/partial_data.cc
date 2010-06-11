@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,6 +36,79 @@ void AddRangeHeader(int64 start, int64 end, HttpRequestHeaders* headers) {
 
 }  // namespace
 
+// A core object that can be detached from the Partialdata object at destruction
+// so that asynchronous operations cleanup can be performed.
+class PartialData::Core {
+ public:
+  // Build a new core object. Lifetime management is automatic.
+  static Core* CreateCore(PartialData* owner) {
+    return new Core(owner);
+  }
+
+  // Wrapper for Entry::GetAvailableRange. If this method returns ERR_IO_PENDING
+  // PartialData::GetAvailableRangeCompleted() will be invoked on the owner
+  // object when finished (unless Cancel() is called first).
+  int GetAvailableRange(disk_cache::Entry* entry, int64 offset, int len,
+                        int64* start);
+
+  // Cancels a pending operation. It is a mistake to call this method if there
+  // is no operation in progress; in fact, there will be no object to do so.
+  void Cancel();
+
+ private:
+  explicit Core(PartialData* owner);
+  ~Core();
+
+  // Pending io completion routine.
+  void OnIOComplete(int result);
+
+  PartialData* owner_;
+  int64 start_;
+  net::CompletionCallbackImpl<Core> callback_;
+  DISALLOW_COPY_AND_ASSIGN(Core);
+};
+
+PartialData::Core::Core(PartialData* owner)
+    : owner_(owner),
+      ALLOW_THIS_IN_INITIALIZER_LIST(callback_(this, &Core::OnIOComplete)) {
+  DCHECK(!owner_->core_);
+  owner_->core_ = this;
+}
+
+PartialData::Core::~Core() {
+  if (owner_)
+    owner_->core_ = NULL;
+}
+
+void PartialData::Core::Cancel() {
+  DCHECK(owner_);
+  owner_ = NULL;
+}
+
+int PartialData::Core::GetAvailableRange(disk_cache::Entry* entry, int64 offset,
+                                         int len, int64* start) {
+  int rv = entry->GetAvailableRange(offset, len, &start_, &callback_);
+  if (rv != net::ERR_IO_PENDING) {
+    // The callback will not be invoked. Lets cleanup.
+    *start = start_;
+    delete this;
+  }
+  return rv;
+}
+
+void PartialData::Core::OnIOComplete(int result) {
+  if (owner_)
+    owner_->GetAvailableRangeCompleted(result, start_);
+  delete this;
+}
+
+// -----------------------------------------------------------------------------
+
+PartialData::~PartialData() {
+  if (core_)
+    core_->Cancel();
+}
+
 bool PartialData::Init(const HttpRequestHeaders& headers) {
   std::string range_header;
   if (!headers.GetHeader(HttpRequestHeaders::kRange, &range_header))
@@ -70,25 +143,25 @@ void PartialData::RestoreHeaders(HttpRequestHeaders* headers) const {
     AddRangeHeader(current_range_start_, end, headers);
 }
 
-int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
-                                        HttpRequestHeaders* headers) {
-  DCHECK(current_range_start_ >= 0);
+int PartialData::ShouldValidateCache(disk_cache::Entry* entry,
+                                     CompletionCallback* callback) {
+  DCHECK_GE(current_range_start_, 0);
 
   // Scan the disk cache for the first cached portion within this range.
-  int64 range_len =
-      byte_range_.HasLastBytePosition() ?
-      byte_range_.last_byte_position() - current_range_start_ + 1 :
-      kint32max;
-  if (range_len > kint32max)
-    range_len = kint32max;
-  int len = static_cast<int32>(range_len);
+  int len = GetNextRangeLen();
   if (!len)
     return 0;
-  range_present_ = false;
 
   if (sparse_entry_) {
-    cached_min_len_ = entry->GetAvailableRange(current_range_start_, len,
-                                               &cached_start_);
+    DCHECK(!callback_);
+    Core* core = Core::CreateCore(this);
+    cached_min_len_ = core->GetAvailableRange(entry, current_range_start_, len,
+                                              &cached_start_);
+
+    if (cached_min_len_ == ERR_IO_PENDING) {
+      callback_ = callback;
+      return ERR_IO_PENDING;
+    }
   } else if (truncated_) {
     if (!current_range_start_) {
       // Update the cached range only the first time.
@@ -100,10 +173,21 @@ int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
     cached_start_ = current_range_start_;
   }
 
-  if (cached_min_len_ < 0) {
-    DCHECK(cached_min_len_ != ERR_IO_PENDING);
+  if (cached_min_len_ < 0)
     return cached_min_len_;
-  }
+
+  // Return a positive number to indicate success (versus error or finished).
+  return 1;
+}
+
+void PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
+                                         HttpRequestHeaders* headers) {
+  DCHECK_GE(current_range_start_, 0);
+  DCHECK_GE(cached_min_len_, 0);
+
+  int len = GetNextRangeLen();
+  DCHECK_NE(0, len);
+  range_present_ = false;
 
   headers->CopyFrom(extra_headers_);
 
@@ -125,9 +209,6 @@ int PartialData::PrepareCacheValidation(disk_cache::Entry* entry,
     // This range is not in the cache.
     AddRangeHeader(current_range_start_, cached_start_ - 1, headers);
   }
-
-  // Return a positive number to indicate success (versus error or finished).
-  return 1;
 }
 
 bool PartialData::IsCurrentRangeCached() const {
@@ -177,11 +258,7 @@ bool PartialData::UpdateFromStoredHeaders(const HttpResponseHeaders* headers,
   resource_size_ = length_value;
 
   // Make sure that this is really a sparse entry.
-  int64 n;
-  if (ERR_CACHE_OPERATION_NOT_SUPPORTED == entry->GetAvailableRange(0, 5, &n))
-    return false;
-
-  return true;
+  return entry->CouldBeSparse();
 }
 
 bool PartialData::IsRequestedRangeOK() {
@@ -332,13 +409,37 @@ void PartialData::OnCacheReadCompleted(int result) {
   if (result > 0) {
     current_range_start_ += result;
     cached_min_len_ -= result;
-    DCHECK(cached_min_len_ >= 0);
+    DCHECK_GE(cached_min_len_, 0);
   }
 }
 
 void PartialData::OnNetworkReadCompleted(int result) {
   if (result > 0)
     current_range_start_ += result;
+}
+
+int PartialData::GetNextRangeLen() {
+  int64 range_len =
+      byte_range_.HasLastBytePosition() ?
+      byte_range_.last_byte_position() - current_range_start_ + 1 :
+      kint32max;
+  if (range_len > kint32max)
+    range_len = kint32max;
+  return static_cast<int32>(range_len);
+}
+
+void PartialData::GetAvailableRangeCompleted(int result, int64 start) {
+  DCHECK(callback_);
+  DCHECK_NE(ERR_IO_PENDING, result);
+
+  cached_start_ = start;
+  cached_min_len_ = result;
+  if (result >= 0)
+    result = 1;  // Return success, go ahead and validate the entry.
+
+  CompletionCallback* cb = callback_;
+  callback_ = NULL;
+  cb->Run(result);
 }
 
 }  // namespace net
