@@ -591,7 +591,11 @@ class MockHttpCache {
     return static_cast<MockNetworkLayer*>(http_cache_.network_layer());
   }
   MockDiskCache* disk_cache() {
-    return static_cast<MockDiskCache*>(http_cache_.GetBackend());
+    TestCompletionCallback cb;
+    disk_cache::Backend* backend;
+    int rv = http_cache_.GetBackend(&backend, &cb);
+    rv = cb.GetResult(rv);
+    return (rv == net::OK) ? static_cast<MockDiskCache*>(backend) : NULL;
   }
 
   // Helper function for reading response info from the disk cache.
@@ -1018,8 +1022,11 @@ TEST(HttpCache, CreateThenDestroy) {
 TEST(HttpCache, GetBackend) {
   MockHttpCache cache(net::HttpCache::DefaultBackend::InMemory(0));
 
+  disk_cache::Backend* backend;
+  TestCompletionCallback cb;
   // This will lazily initialize the backend.
-  EXPECT_TRUE(cache.http_cache()->GetBackend());
+  int rv = cache.http_cache()->GetBackend(&backend, &cb);
+  EXPECT_EQ(net::OK, cb.GetResult(rv));
 }
 
 TEST(HttpCache, SimpleGET) {
@@ -1076,7 +1083,7 @@ TEST(HttpCache, SimpleGETNoDiskCache2) {
   RunTransactionTest(cache.http_cache(), kSimpleGET_Transaction);
 
   EXPECT_EQ(1, cache.network_layer()->transaction_count());
-  EXPECT_FALSE(cache.http_cache()->GetBackend());
+  EXPECT_FALSE(cache.http_cache()->GetCurrentBackend());
 }
 
 TEST(HttpCache, SimpleGETWithDiskFailures) {
