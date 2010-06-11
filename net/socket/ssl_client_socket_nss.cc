@@ -1268,36 +1268,10 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
   // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
   return SECWouldBlock;
 #elif defined(OS_MACOSX)
-  if (that->ssl_config_.send_client_cert) {
-    // TODO(wtc): SSLClientSocketNSS can't do SSL client authentication using
-    // CDSA/CSSM yet (http://crbug.com/45369), so client_cert must be NULL.
-    DCHECK(!that->ssl_config_.client_cert);
-    // Send no client certificate.
-    return SECFailure;
-  }
-
-  that->client_certs_.clear();
-
-  // First, get the cert issuer names allowed by the server.
-  std::vector<CertPrincipal> valid_issuers;
-  int n = ca_names->nnames;
-  for (int i = 0; i < n; i++) {
-    // Parse each name into a CertPrincipal object.
-    CertPrincipal p;
-    if (p.ParseDistinguishedName(ca_names->names[i].data,
-                                 ca_names->names[i].len)) {
-      valid_issuers.push_back(p);
-    }
-  }
-
-  // Now get the available client certs whose issuers are allowed by the server.
-  X509Certificate::GetSSLClientCertificates(that->hostname_,
-                                            valid_issuers,
-                                            &that->client_certs_);
-
-  // Tell NSS to suspend the client authentication.  We will then abort the
-  // handshake by returning ERR_SSL_CLIENT_AUTH_CERT_NEEDED.
-  return SECWouldBlock;
+  // TODO(wtc): see http://crbug.com/45369.
+  // Not implemented.  Send no client certificate.
+  PORT_SetError(PR_NOT_IMPLEMENTED_ERROR);
+  return SECFailure;
 #else
   CERTCertificate* cert = NULL;
   SECKEYPrivateKey* privkey = NULL;
