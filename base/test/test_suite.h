@@ -82,6 +82,13 @@ class TestSuite {
     return strncmp(test.name(), "FAILS_", 6) == 0;
   }
 
+  // Returns true if the test is marked as "MAYBE_".
+  // When using different prefixes depending on platform, we use MAYBE_ and
+  // preprocessor directives to replace MAYBE_ with the target prefix.
+  static bool IsMarkedMaybe(const testing::TestInfo& test) {
+    return strncmp(test.name(), "MAYBE_", 6) == 0;
+  }
+
   // Returns true if the test failure should be ignored.
   static bool ShouldIgnoreFailure(const testing::TestInfo& test) {
     if (CommandLine::ForCurrentProcess()->HasSwitch(kStrictFailureHandling))
@@ -117,6 +124,12 @@ class TestSuite {
     testing::TestEventListeners& listeners =
         testing::UnitTest::GetInstance()->listeners();
     listeners.Append(new TestIsolationEnforcer);
+  }
+
+  void CatchMaybeTests() {
+    testing::TestEventListeners& listeners =
+        testing::UnitTest::GetInstance()->listeners();
+    listeners.Append(new MaybeTestDisabler);
   }
 
   // Don't add additional code to this method.  Instead add it to
@@ -165,6 +178,16 @@ class TestSuite {
   }
 
  protected:
+  class MaybeTestDisabler : public testing::EmptyTestEventListener {
+   public:
+    virtual void OnTestStart(const testing::TestInfo& test_info) {
+      ASSERT_FALSE(TestSuite::IsMarkedMaybe(test_info))
+          << "Probably the OS #ifdefs don't include all of the necessary "
+             "platforms.\nPlease ensure that no tests have the MAYBE_ prefix "
+             "after the code is preprocessed.";
+    }
+  };
+
   // By default fatal log messages (e.g. from DCHECKs) result in error dialogs
   // which gum up buildbots. Use a minimalistic assert handler which just
   // terminates the process.
@@ -227,6 +250,8 @@ class TestSuite {
     // will be done only on process exit.
     base::EnsureNSSInit();
 #endif  // defined(USE_NSS)
+
+    CatchMaybeTests();
   }
 
   virtual void Shutdown() {
