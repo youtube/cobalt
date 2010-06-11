@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -389,6 +389,15 @@ int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
 int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
                                  CompletionCallback* callback) {
   return GetAvailableRange(offset, len, start);
+}
+
+bool EntryImpl::CouldBeSparse() const {
+  if (sparse_.get())
+    return true;
+
+  scoped_ptr<SparseControl> sparse;
+  sparse.reset(new SparseControl(const_cast<EntryImpl*>(this)));
+  return sparse->CouldBeSparse();
 }
 
 void EntryImpl::CancelSparseIO() {

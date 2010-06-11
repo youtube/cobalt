@@ -450,9 +450,12 @@ int HttpCache::Transaction::DoLoop(int result) {
       case STATE_ADD_TO_ENTRY_COMPLETE:
         rv = DoAddToEntryComplete(rv);
         break;
-      case STATE_PARTIAL_CACHE_VALIDATION:
+      case STATE_START_PARTIAL_CACHE_VALIDATION:
         DCHECK_EQ(OK, rv);
-        rv = DoPartialCacheValidation();
+        rv = DoStartPartialCacheValidation();
+        break;
+      case STATE_COMPLETE_PARTIAL_CACHE_VALIDATION:
+        rv = DoCompletePartialCacheValidation(rv);
         break;
       case STATE_UPDATE_CACHED_RESPONSE:
         DCHECK_EQ(OK, rv);
@@ -841,14 +844,16 @@ int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   return OK;
 }
 
-int HttpCache::Transaction::DoPartialCacheValidation() {
+int HttpCache::Transaction::DoStartPartialCacheValidation() {
   if (mode_ == NONE)
     return OK;
 
-  int rv = partial_->PrepareCacheValidation(entry_->disk_entry,
-                                            &custom_request_->extra_headers);
+  next_state_ = STATE_COMPLETE_PARTIAL_CACHE_VALIDATION;
+  return partial_->ShouldValidateCache(entry_->disk_entry, &io_callback_);
+}
 
-  if (!rv) {
+int HttpCache::Transaction::DoCompletePartialCacheValidation(int result) {
+  if (!result) {
     // This is the end of the request.
     if (mode_ & WRITE) {
       DoneWritingToEntry(true);
@@ -856,13 +861,14 @@ int HttpCache::Transaction::DoPartialCacheValidation() {
       cache_->DoneReadingFromEntry(entry_, this);
       entry_ = NULL;
     }
-    return rv;
+    return result;
   }
 
-  if (rv < 0) {
-    DCHECK(rv != ERR_IO_PENDING);
-    return rv;
-  }
+  if (result < 0)
+    return result;
+
+  partial_->PrepareCacheValidation(entry_->disk_entry,
+                                   &custom_request_->extra_headers);
 
   if (reading_ && partial_->IsCurrentRangeCached()) {
     next_state_ = STATE_CACHE_READ_DATA;
@@ -1399,7 +1405,7 @@ int HttpCache::Transaction::ValidateEntryHeadersAndContinue(
     invalid_range_ = true;
   }
 
-  next_state_ = STATE_PARTIAL_CACHE_VALIDATION;
+  next_state_ = STATE_START_PARTIAL_CACHE_VALIDATION;
   return OK;
 }
 
@@ -1782,7 +1788,7 @@ int HttpCache::Transaction::DoPartialNetworkReadCompleted(int result) {
   if (result == 0) {
     // We need to move on to the next range.
     network_trans_.reset();
-    next_state_ = STATE_PARTIAL_CACHE_VALIDATION;
+    next_state_ = STATE_START_PARTIAL_CACHE_VALIDATION;
   }
   return result;
 }
@@ -1792,7 +1798,7 @@ int HttpCache::Transaction::DoPartialCacheReadCompleted(int result) {
 
   if (result == 0 && mode_ == READ_WRITE) {
     // We need to move on to the next range.
-    next_state_ = STATE_PARTIAL_CACHE_VALIDATION;
+    next_state_ = STATE_START_PARTIAL_CACHE_VALIDATION;
   }
   return result;
 }

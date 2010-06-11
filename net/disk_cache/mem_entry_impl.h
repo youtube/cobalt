@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -70,6 +70,7 @@ class MemEntryImpl : public Entry {
   virtual int GetAvailableRange(int64 offset, int len, int64* start);
   virtual int GetAvailableRange(int64 offset, int len, int64* start,
                                 CompletionCallback* callback);
+  virtual bool CouldBeSparse() const;
   virtual void CancelSparseIO() {}
   virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
 
