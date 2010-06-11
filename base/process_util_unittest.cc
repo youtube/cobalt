@@ -42,6 +42,22 @@ const wchar_t* const kProcessName = L"base_unittests.exe";
 const wchar_t* const kProcessName = L"base_unittests";
 #endif  // defined(OS_WIN)
 
+// Sleeps until file filename is created.
+void WaitToDie(const char* filename) {
+  FILE *fp;
+  do {
+    PlatformThread::Sleep(10);
+    fp = fopen(filename, "r");
+  } while (!fp);
+  fclose(fp);
+}
+
+// Signals children they should die now.
+void SignalChildren(const char* filename) {
+  FILE *fp = fopen(filename, "w");
+  fclose(fp);
+}
+
 }  // namespace
 
 class ProcessUtilTest : public MultiProcessTest {
@@ -58,22 +74,13 @@ MULTIPROCESS_TEST_MAIN(SimpleChildProcess) {
 
 TEST_F(ProcessUtilTest, SpawnChild) {
   base::ProcessHandle handle = this->SpawnChild(L"SimpleChildProcess");
-
   ASSERT_NE(base::kNullProcessHandle, handle);
   EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
   base::CloseProcessHandle(handle);
 }
 
 MULTIPROCESS_TEST_MAIN(SlowChildProcess) {
-  // Sleep until file "SlowChildProcess.die" is created.
-  FILE *fp;
-  do {
-    PlatformThread::Sleep(100);
-    fp = fopen("SlowChildProcess.die", "r");
-  } while (!fp);
-  fclose(fp);
-  remove("SlowChildProcess.die");
-  exit(0);
+  WaitToDie("SlowChildProcess.die");
   return 0;
 }
 
@@ -81,10 +88,10 @@ TEST_F(ProcessUtilTest, KillSlowChild) {
   remove("SlowChildProcess.die");
   base::ProcessHandle handle = this->SpawnChild(L"SlowChildProcess");
   ASSERT_NE(base::kNullProcessHandle, handle);
-  FILE *fp = fopen("SlowChildProcess.die", "w");
-  fclose(fp);
+  SignalChildren("SlowChildProcess.die");
   EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
   base::CloseProcessHandle(handle);
+  remove("SlowChildProcess.die");
 }
 
 TEST_F(ProcessUtilTest, DidProcessCrash) {
@@ -96,12 +103,12 @@ TEST_F(ProcessUtilTest, DidProcessCrash) {
   EXPECT_FALSE(base::DidProcessCrash(&child_exited, handle));
   EXPECT_FALSE(child_exited);
 
-  FILE *fp = fopen("SlowChildProcess.die", "w");
-  fclose(fp);
+  SignalChildren("SlowChildProcess.die");
   EXPECT_TRUE(base::WaitForSingleProcess(handle, 5000));
 
   EXPECT_FALSE(base::DidProcessCrash(&child_exited, handle));
   base::CloseProcessHandle(handle);
+  remove("SlowChildProcess.die");
 }
 
 // Ensure that the priority of a process is restored correctly after

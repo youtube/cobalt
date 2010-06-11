@@ -327,6 +327,8 @@ bool CleanupProcesses(const std::wstring& executable_name,
 // false.
 class ProcessIterator {
  public:
+  typedef std::list<ProcessEntry> ProcessEntries;
+
   explicit ProcessIterator(const ProcessFilter* filter);
   virtual ~ProcessIterator();
 
@@ -338,7 +340,7 @@ class ProcessIterator {
   const ProcessEntry* NextProcessEntry();
 
   // Takes a snapshot of all the ProcessEntry found.
-  std::list<ProcessEntry> Snapshot();
+  ProcessEntries Snapshot();
 
  protected:
   virtual bool IncludeEntry();
