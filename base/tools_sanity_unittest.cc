@@ -101,7 +101,7 @@ TEST(ToolsSanityTest, SingleElementDeletedWithBraces) {
 }
 
 // A data race detector should report an error in this test.
-TEST(ToolsSanityTest, DataRace) {
+TEST(ToolsSanityTest, MAYBE_DataRace) {
   bool shared = false;
   PlatformThreadHandle a;
   PlatformThreadHandle b;
