@@ -216,6 +216,13 @@ class MockDiskEntry : public disk_cache::Entry,
   }
 
   virtual int GetAvailableRange(int64 offset, int len, int64* start) {
+    NOTREACHED();
+    return net::ERR_NOT_IMPLEMENTED;
+  }
+
+  virtual int GetAvailableRange(int64 offset, int len, int64* start,
+                                net::CompletionCallback* callback) {
+    DCHECK(callback);
     if (!sparse_ || busy_)
       return net::ERR_CACHE_OPERATION_NOT_SUPPORTED;
     if (offset < 0)
@@ -244,12 +251,15 @@ class MockDiskEntry : public disk_cache::Entry,
         count++;
       }
     }
-    return count;
+    if (GetEffectiveTestMode(test_mode_) & TEST_MODE_SYNC_CACHE_WRITE)
+      return count;
+
+    CallbackLater(callback, count);
+    return net::ERR_IO_PENDING;
   }
 
-  virtual int GetAvailableRange(int64 offset, int len, int64* start,
-                                net::CompletionCallback* callback) {
-    return net::ERR_NOT_IMPLEMENTED;
+  virtual bool CouldBeSparse() const {
+    return sparse_;
   }
 
   virtual void CancelSparseIO() { cancel_ = true; }
@@ -448,6 +458,7 @@ class MockDiskCache : public disk_cache::Backend {
   }
 
   virtual bool DoomEntry(const std::string& key) {
+    NOTREACHED();
     return false;
   }
 
@@ -468,6 +479,7 @@ class MockDiskCache : public disk_cache::Backend {
   }
 
   virtual bool DoomAllEntries() {
+    NOTREACHED();
     return false;
   }
 
@@ -477,6 +489,7 @@ class MockDiskCache : public disk_cache::Backend {
 
   virtual bool DoomEntriesBetween(const Time initial_time,
                                   const Time end_time) {
+    NOTREACHED();
     return false;
   }
 
@@ -487,6 +500,7 @@ class MockDiskCache : public disk_cache::Backend {
   }
 
   virtual bool DoomEntriesSince(const Time initial_time) {
+    NOTREACHED();
     return false;
   }
 
@@ -496,6 +510,7 @@ class MockDiskCache : public disk_cache::Backend {
   }
 
   virtual bool OpenNextEntry(void** iter, disk_cache::Entry** next_entry) {
+    NOTREACHED();
     return false;
   }
 
@@ -3534,8 +3549,11 @@ TEST(HttpCache, RangeGET_InvalidResponse3) {
   // Verify that we cached the first response but not the second one.
   disk_cache::Entry* en;
   ASSERT_TRUE(cache.OpenBackendEntry(kRangeGET_TransactionOK.url, &en));
+
   int64 cached_start = 0;
-  EXPECT_EQ(10, en->GetAvailableRange(40, 20, &cached_start));
+  TestCompletionCallback cb;
+  int rv = en->GetAvailableRange(40, 20, &cached_start, &cb);
+  EXPECT_EQ(10, cb.GetResult(rv));
   EXPECT_EQ(50, cached_start);
   en->Close();
 

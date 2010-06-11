@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2009-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -164,6 +164,16 @@ int SparseControl::Init() {
   if (rv == net::OK)
     init_ = true;
   return rv;
+}
+
+bool SparseControl::CouldBeSparse() const {
+  DCHECK(!init_);
+
+  if (entry_->GetDataSize(kSparseData))
+    return false;
+
+  // We don't verify the data, just see if it could be there.
+  return (entry_->GetDataSize(kSparseIndex) != 0);
 }
 
 int SparseControl::StartIO(SparseOperation op, int64 offset, net::IOBuffer* buf,
