@@ -467,16 +467,6 @@
                   },
                 },
               ],
-              [ 'OS == "linux"', {
-                'link_settings': {
-                  'libraries': [
-                    # We need rt for clock_gettime().
-                    '-lrt',
-                    # For 'native_library_linux.cc'
-                    '-ldl',
-                  ],
-                },
-              }],
             ],
             'defines': [
               'USE_SYMBOLIZE',
@@ -557,6 +547,16 @@
             },
           },
         ],
+        [ 'OS == "linux"', {
+          'link_settings': {
+             'libraries': [
+             # We need rt for clock_gettime().
+             '-lrt',
+             # For 'native_library_linux.cc'
+             '-ldl',
+           ],
+         },
+        }],
         [ 'OS == "mac"', {
           'link_settings': {
             'libraries': [
@@ -643,6 +643,16 @@
                 '../build/linux/system.gyp:gtk',
               ],
             },],
+            ['OS == "linux"', {
+              'link_settings': {
+                'libraries': [
+                  # We need rt for clock_gettime().
+                  '-lrt',
+                  # For 'native_library_linux.cc'
+                  '-ldl',
+                ],
+              },
+            }],
             [ 'OS == "mac" or OS == "win"', {
                 'dependencies': [
                   '../third_party/nss/nss.gyp:nss',
