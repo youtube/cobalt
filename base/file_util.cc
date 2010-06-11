@@ -268,6 +268,24 @@ int64 ComputeDirectorySize(const FilePath& root_path) {
   return running_size;
 }
 
+int64 ComputeFilesSize(const FilePath& directory,
+                       const FilePath::StringType& pattern) {
+  int64 running_size = 0;
+  FileEnumerator file_iter(directory, false, FileEnumerator::FILES, pattern);
+  for (FilePath current = file_iter.Next(); !current.empty();
+       current = file_iter.Next()) {
+    FileEnumerator::FindInfo info;
+    file_iter.GetFindInfo(&info);
+#if defined(OS_WIN)
+    LARGE_INTEGER li = { info.nFileSizeLow, info.nFileSizeHigh };
+    running_size += li.QuadPart;
+#else
+    running_size += info.stat.st_size;
+#endif
+  }
+  return running_size;
+}
+
 ///////////////////////////////////////////////
 // MemoryMappedFile
 

@@ -82,6 +82,15 @@ int CountFilesCreatedAfter(const FilePath& path,
 // particularly speedy in any platform.
 int64 ComputeDirectorySize(const FilePath& root_path);
 
+// Returns the total number of bytes used by all files matching the provided
+// |pattern|, on this |directory| (without recursion). If the path does not
+// exist the function returns 0.
+//
+// This function is implemented using the FileEnumerator class so it is not
+// particularly speedy in any platform.
+int64 ComputeFilesSize(const FilePath& directory,
+                       const FilePath::StringType& pattern);
+
 // Deletes the given path, whether it's a file or a directory.
 // If it's a directory, it's perfectly happy to delete all of the
 // directory's contents.  Passing true to recursive deletes

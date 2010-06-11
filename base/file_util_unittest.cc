@@ -463,6 +463,12 @@ TEST_F(FileUtilTest, FileAndDirectorySize) {
 
   int64 computed_size = file_util::ComputeDirectorySize(test_dir_);
   EXPECT_EQ(size_f1 + size_f2 + 3, computed_size);
+
+  computed_size = file_util::ComputeFilesSize(test_dir_, FPL("The file*"));
+  EXPECT_EQ(size_f1, computed_size);
+
+  computed_size = file_util::ComputeFilesSize(test_dir_, FPL("bla*"));
+  EXPECT_EQ(0, computed_size);
 }
 
 TEST_F(FileUtilTest, NormalizeFilePathBasic) {
