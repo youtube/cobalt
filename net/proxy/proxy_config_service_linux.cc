@@ -582,7 +582,7 @@ class GConfSettingGetterImplKDE
     return kde_home.Append("share").Append("config");
   }
 
-  void AddProxy(std::string prefix, std::string value) {
+  void AddProxy(const std::string& prefix, const std::string& value) {
     if (value.empty() || value.substr(0, 3) == "//:")
       // No proxy.
       return;
@@ -592,7 +592,7 @@ class GConfSettingGetterImplKDE
     string_table_[prefix + "host"] = value;
   }
 
-  void AddHostList(std::string key, std::string value) {
+  void AddHostList(const std::string& key, const std::string& value) {
     std::vector<std::string> tokens;
     StringTokenizer tk(value, ",");
     while (tk.GetNext()) {
@@ -645,7 +645,7 @@ class GConfSettingGetterImplKDE
       // We count "true" or any nonzero number as true, otherwise false.
       // Note that if the value is not actually numeric StringToInt()
       // will return 0, which we count as false.
-      reversed_exception_ = value == "true" || StringToInt(value);
+      reversed_exception_ = (value == "true" || StringToInt(value));
     } else if (key == "NoProxyFor") {
       AddHostList("/system/http_proxy/ignore_hosts", value);
     } else if (key == "AuthMode") {
@@ -660,7 +660,7 @@ class GConfSettingGetterImplKDE
     }
   }
 
-  void ResolveIndirect(std::string key) {
+  void ResolveIndirect(const std::string& key) {
     string_map_type::iterator it = string_table_.find(key);
     if (it != string_table_.end()) {
       std::string value;
@@ -671,7 +671,7 @@ class GConfSettingGetterImplKDE
     }
   }
 
-  void ResolveIndirectList(std::string key) {
+  void ResolveIndirectList(const std::string& key) {
     strings_map_type::iterator it = strings_table_.find(key);
     if (it != strings_table_.end()) {
       std::string value;
@@ -1012,13 +1012,13 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
 
   // Now the bypass list.
   std::vector<std::string> ignore_hosts_list;
-  gconf_getter_->GetStringList("/system/http_proxy/ignore_hosts",
-                               &ignore_hosts_list);
-
   config->proxy_rules().bypass_rules.Clear();
-  for (size_t i = 0; i < ignore_hosts_list.size(); ++i)
-    config->proxy_rules().bypass_rules.AddRuleFromString(ignore_hosts_list[i]);
-
+  if (gconf_getter_->GetStringList("/system/http_proxy/ignore_hosts",
+                                   &ignore_hosts_list)) {
+    std::vector<std::string>::const_iterator it(ignore_hosts_list.begin());
+    for (; it != ignore_hosts_list.end(); ++it)
+      config->proxy_rules().bypass_rules.AddRuleFromString(*it);
+  }
   // Note that there are no settings with semantics corresponding to
   // bypass of local names.
 
