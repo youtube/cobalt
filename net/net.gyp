@@ -446,12 +446,10 @@
         'socket/ssl_client_socket.h',
         'socket/ssl_client_socket_mac.cc',
         'socket/ssl_client_socket_mac.h',
-        'socket/ssl_client_socket_mac_factory.cc',
-        'socket/ssl_client_socket_mac_factory.h',
-        'socket/ssl_client_socket_nss.cc',
-        'socket/ssl_client_socket_nss.h',
         'socket/ssl_client_socket_nss_factory.cc',
         'socket/ssl_client_socket_nss_factory.h',
+        'socket/ssl_client_socket_nss.cc',
+        'socket/ssl_client_socket_nss.h',
         'socket/ssl_client_socket_win.cc',
         'socket/ssl_client_socket_win.h',
         'socket/tcp_client_socket.h',
@@ -554,6 +552,10 @@
           ],
         }],
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+            'sources!': [
+              'socket/ssl_client_socket_nss_factory.cc',
+              'socket/ssl_client_socket_nss_factory.h',
+            ],
             'dependencies': [
               '../build/linux/system.gyp:gconf',
               '../build/linux/system.gyp:gdk',
@@ -586,8 +588,6 @@
           {  # else: OS != "win"
             'sources!': [
               'proxy/proxy_resolver_winhttp.cc',
-              'socket/ssl_client_socket_nss_factory.cc',
-              'socket/ssl_client_socket_nss_factory.h',
             ],
           },
         ],
@@ -602,12 +602,6 @@
                 '$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
               ]
             },
-          },
-          {  # else: OS != "mac"
-            'sources!': [
-              'socket/ssl_client_socket_mac_factory.cc',
-              'socket/ssl_client_socket_mac_factory.h',
-            ],
           },
         ],
       ],
