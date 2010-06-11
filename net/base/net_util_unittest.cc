@@ -1060,6 +1060,23 @@ TEST(NetUtilTest, GetSuggestedFilename) {
     "",
     L"",
     L"test"},
+    // The filename encoding is specified by the referrer charset.
+    {"http://example.com/V%FDvojov%E1%20psychologie.doc",
+     "",
+     "iso-8859-1",
+     L"",
+     L"V\u00fdvojov\u00e1 psychologie.doc"},
+    // The filename encoding doesn't match the referrer charset, the
+    // system charset, or UTF-8.
+    // TODO(jshin): we need to handle this case.
+#if 0
+    {"http://example.com/V%FDvojov%E1%20psychologie.doc",
+     "",
+     "utf-8",
+     L"",
+     L"V\u00fdvojov\u00e1 psychologie.doc",
+    },
+#endif
   };
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
 #if defined(OS_WIN)
