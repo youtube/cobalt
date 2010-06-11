@@ -12,6 +12,7 @@
 #include "net/socket/ssl_client_socket_nss.h"
 #elif defined(OS_MACOSX)
 #include "net/socket/ssl_client_socket_mac.h"
+#include "net/socket/ssl_client_socket_nss.h"
 #endif
 #include "net/socket/tcp_client_socket.h"
 
@@ -28,7 +29,13 @@ SSLClientSocket* DefaultSSLClientSocketFactory(
 #elif defined(USE_NSS)
   return new SSLClientSocketNSS(transport_socket, hostname, ssl_config);
 #elif defined(OS_MACOSX)
-  return new SSLClientSocketMac(transport_socket, hostname, ssl_config);
+  // TODO(wtc): SSLClientSocketNSS can't do SSL client authentication using
+  // Mac OS X CDSA/CSSM yet (http://crbug.com/45369), so fall back on
+  // SSLClientSocketMac.
+  if (ssl_config.client_cert)
+    return new SSLClientSocketMac(transport_socket, hostname, ssl_config);
+
+  return new SSLClientSocketNSS(transport_socket, hostname, ssl_config);
 #else
   NOTIMPLEMENTED();
   return NULL;
