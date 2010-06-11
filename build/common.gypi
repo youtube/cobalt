@@ -112,8 +112,8 @@
       # On Linux, we build with sse2 for Chromium builds.
       'disable_sse2%': 0,
 
-      # Chromoting compilation is enabled by default. Set to 0 to disable.
-      'chromoting%': 1,
+      # Remoting compilation is enabled by default. Set to 0 to disable.
+      'remoting%': 1,
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -132,7 +132,7 @@
     'arm_neon%': '<(arm_neon)',
     'sysroot%': '<(sysroot)',
     'disable_sse2%': '<(disable_sse2)',
-    'chromoting%': '<(chromoting)',
+    'remoting%': '<(remoting)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -410,8 +410,8 @@
       ['chromeos==1', {
         'defines': ['OS_CHROMEOS=1'],
       }],
-      ['chromoting==1', {
-        'defines': ['ENABLE_CHROMOTING=1'],
+      ['remoting==1', {
+        'defines': ['ENABLE_REMOTING=1'],
       }],
       ['proprietary_codecs==1', {
         'defines': ['USE_PROPRIETARY_CODECS'],
