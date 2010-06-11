@@ -1555,12 +1555,9 @@ class QuitDelegate : public base::MessagePumpLibevent::Watcher {
   }
 };
 
-TEST(MessageLoopTest, DISABLED_FileDescriptorWatcherOutlivesMessageLoop) {
+TEST(MessageLoopTest, FileDescriptorWatcherOutlivesMessageLoop) {
   // Simulate a MessageLoop that dies before an FileDescriptorWatcher.
   // This could happen when people use the Singleton pattern or atexit.
-  // This is disabled for now because it fails (valgrind shows
-  // invalid reads), and it's not clear any code relies on this...
-  // TODO(dkegel): enable if it turns out we rely on this
 
   // Create a file descriptor.  Doesn't need to be readable or writable,
   // as we don't need to actually get any notifications.
