@@ -13,6 +13,8 @@
     # whether warnings are treated as errors.
     'chromium_code%': 0,
 
+    'internal_pdf%': 0,
+
     # Variables expected to be overriden on the GYP command line (-D) or by
     # ~/.gyp/include.gypi.
 
