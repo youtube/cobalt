@@ -43,8 +43,8 @@ bool ProcessIterator::IncludeEntry() {
   return !filter_ || filter_->Includes(entry_);
 }
 
-std::list<ProcessEntry> ProcessIterator::Snapshot() {
-  std::list<ProcessEntry> found;
+ProcessIterator::ProcessEntries ProcessIterator::Snapshot() {
+  ProcessEntries found;
   while (const ProcessEntry* process_entry = NextProcessEntry()) {
     found.push_back(*process_entry);
   }
