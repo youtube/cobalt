@@ -41,7 +41,7 @@ class VideoRendererBase : public VideoRenderer,
   // MediaFilter implementation.
   virtual void Play(FilterCallback* callback);
   virtual void Pause(FilterCallback* callback);
-  virtual void Stop();
+  virtual void Stop(FilterCallback* callback);
   virtual void SetPlaybackRate(float playback_rate);
   virtual void Seek(base::TimeDelta time, FilterCallback* callback);
 

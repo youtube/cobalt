@@ -65,7 +65,9 @@ class VideoRendererBaseTest : public ::testing::Test {
 
     // Expect a call into the subclass.
     EXPECT_CALL(*renderer_, OnStop());
-    renderer_->Stop();
+    EXPECT_CALL(callback_, OnFilterCallback());
+    EXPECT_CALL(callback_, OnCallbackDestroyed());
+    renderer_->Stop(callback_.NewCallback());
   }
 
  protected:

@@ -265,10 +265,10 @@ void FFmpegDemuxer::PostDemuxTask() {
       NewRunnableMethod(this, &FFmpegDemuxer::DemuxTask));
 }
 
-void FFmpegDemuxer::Stop() {
+void FFmpegDemuxer::Stop(FilterCallback* callback) {
   // Post a task to notify the streams to stop as well.
   message_loop()->PostTask(FROM_HERE,
-      NewRunnableMethod(this, &FFmpegDemuxer::StopTask));
+      NewRunnableMethod(this, &FFmpegDemuxer::StopTask, callback));
 
   // Then wakes up the thread from reading.
   SignalReadCompleted(DataSource::kReadError);
@@ -561,11 +561,15 @@ void FFmpegDemuxer::DemuxTask() {
   }
 }
 
-void FFmpegDemuxer::StopTask() {
+void FFmpegDemuxer::StopTask(FilterCallback* callback) {
   DCHECK_EQ(MessageLoop::current(), message_loop());
   StreamVector::iterator iter;
   for (iter = streams_.begin(); iter != streams_.end(); ++iter) {
     (*iter)->Stop();
+  }
+  if (callback) {
+    callback->Run();
+    delete callback;
   }
 }
 
