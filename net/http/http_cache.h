@@ -135,6 +135,12 @@ class HttpCache : public HttpTransactionFactory,
 
   HttpTransactionFactory* network_layer() { return network_layer_.get(); }
 
+  // Returns the cache backend for this HttpCache instance. If the backend
+  // is not initialized yet, this method will initialize it. If the return
+  // value is NULL then the backend cannot be initialized.
+  // This method is deprecated.
+  disk_cache::Backend* GetBackend();
+
   // Retrieves the cache backend for this HttpCache instance. If the backend
   // is not initialized yet, this method will initialize it. The return value is
   // a network error code, and it could be ERR_IO_PENDING, in which case the
@@ -150,6 +156,21 @@ class HttpCache : public HttpTransactionFactory,
   virtual HttpCache* GetCache();
   virtual HttpNetworkSession* GetSession();
   virtual void Suspend(bool suspend);
+
+  // Helper function for reading response info from the disk cache.  If the
+  // cache doesn't have the whole resource *|request_truncated| is set to true.
+  // NOTE: This method is deprecated.
+  static bool ReadResponseInfo(disk_cache::Entry* disk_entry,
+                               HttpResponseInfo* response_info,
+                               bool* response_truncated);
+
+  // Helper function for writing response info into the disk cache.  If the
+  // cache doesn't have the whole resource |request_truncated| should be true.
+  // NOTE: This method is deprecated.
+  static bool WriteResponseInfo(disk_cache::Entry* disk_entry,
+                                const HttpResponseInfo* response_info,
+                                bool skip_transient_headers,
+                                bool response_truncated);
 
   // Given a header data blob, convert it to a response info object.
   static bool ParseResponseInfo(const char* data, int len,

@@ -37,8 +37,18 @@ namespace net {
 int HttpCache::DefaultBackend::CreateBackend(disk_cache::Backend** backend,
                                              CompletionCallback* callback) {
   DCHECK_GE(max_bytes_, 0);
-  return disk_cache::CreateCacheBackend(type_, path_, max_bytes_, true,
-                                        thread_, backend, callback);
+  if (callback)
+    return disk_cache::CreateCacheBackend(type_, path_, max_bytes_, true,
+                                          thread_, backend, callback);
+
+  // This is just old code needed to support synchronous cache creation.
+  // TODO(rvargas): Remove this once all callers provide a callback.
+  if (type_ == MEMORY_CACHE) {
+    *backend = disk_cache::CreateInMemoryCacheBackend(max_bytes_);
+  } else {
+    *backend = disk_cache::CreateCacheBackend(path_, true, max_bytes_, type_);
+  }
+  return (*backend ? OK : ERR_FAILED);
 }
 
 //-----------------------------------------------------------------------------
@@ -291,6 +301,19 @@ HttpCache::~HttpCache() {
   }
 }
 
+disk_cache::Backend* HttpCache::GetBackend() {
+  if (disk_cache_.get())
+    return disk_cache_.get();
+
+  if (backend_factory_.get()) {
+    disk_cache::Backend* backend;
+    if (OK == backend_factory_->CreateBackend(&backend, NULL))
+      disk_cache_.reset(backend);
+    backend_factory_.reset();  // Reclaim memory.
+  }
+  return disk_cache_.get();
+}
+
 int HttpCache::GetBackend(disk_cache::Backend** backend,
                           CompletionCallback* callback) {
   DCHECK(callback != NULL);
@@ -331,6 +354,40 @@ void HttpCache::Suspend(bool suspend) {
 }
 
 // static
+bool HttpCache::ReadResponseInfo(disk_cache::Entry* disk_entry,
+                                 HttpResponseInfo* response_info,
+                                 bool* response_truncated) {
+  int size = disk_entry->GetDataSize(kResponseInfoIndex);
+
+  scoped_refptr<IOBuffer> buffer = new IOBuffer(size);
+  int rv = disk_entry->ReadData(kResponseInfoIndex, 0, buffer, size, NULL);
+  if (rv != size) {
+    DLOG(ERROR) << "ReadData failed: " << rv;
+    return false;
+  }
+
+  return ParseResponseInfo(buffer->data(), size, response_info,
+                           response_truncated);
+}
+
+// static
+bool HttpCache::WriteResponseInfo(disk_cache::Entry* disk_entry,
+                                  const HttpResponseInfo* response_info,
+                                  bool skip_transient_headers,
+                                  bool response_truncated) {
+  Pickle pickle;
+  response_info->Persist(
+      &pickle, skip_transient_headers, response_truncated);
+
+  scoped_refptr<WrappedIOBuffer> data = new WrappedIOBuffer(
+      reinterpret_cast<const char*>(pickle.data()));
+  int len = static_cast<int>(pickle.size());
+
+  return disk_entry->WriteData(kResponseInfoIndex, 0, data, len, NULL,
+                               true) == len;
+}
+
+// static
 bool HttpCache::ParseResponseInfo(const char* data, int len,
                                   HttpResponseInfo* response_info,
                                   bool* response_truncated) {
@@ -344,10 +401,7 @@ void HttpCache::WriteMetadata(const GURL& url,
   if (!buf_len)
     return;
 
-  // Do lazy initialization of disk cache if needed.
-  if (!disk_cache_.get())
-    CreateBackend(NULL, NULL);  // We don't care about the result.
-
+  GetBackend();
   HttpCache::Transaction* trans =
       new HttpCache::Transaction(this, enable_range_support_);
   MetadataWriter* writer = new MetadataWriter(trans);
