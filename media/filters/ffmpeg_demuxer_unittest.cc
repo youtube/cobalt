@@ -117,7 +117,9 @@ class FFmpegDemuxerTest : public testing::Test {
 
   virtual ~FFmpegDemuxerTest() {
     // Call Stop() to shut down internal threads.
-    demuxer_->Stop();
+    EXPECT_CALL(callback_, OnFilterCallback());
+    EXPECT_CALL(callback_, OnCallbackDestroyed());
+    demuxer_->Stop(callback_.NewCallback());
 
     // Finish up any remaining tasks.
     message_loop_.RunAllPending();
@@ -623,7 +625,9 @@ TEST_F(FFmpegDemuxerTest, Stop) {
   ASSERT_TRUE(audio);
 
   // Stop the demuxer.
-  demuxer_->Stop();
+  EXPECT_CALL(callback_, OnFilterCallback());
+  EXPECT_CALL(callback_, OnCallbackDestroyed());
+  demuxer_->Stop(callback_.NewCallback());
 
   // Expect all calls in sequence.
   InSequence s;
@@ -732,9 +736,6 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   EXPECT_CALL(*data_source_, GetSize(_))
       .WillOnce(DoAll(SetArgumentPointee<0>(1024), Return(true)));
 
-  // This read complete signal is generated when demuxer is stopped.
-  EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
-
   // First read.
   EXPECT_EQ(512, demuxer->Read(512, kBuffer));
   int64 position;
@@ -749,7 +750,12 @@ TEST_F(FFmpegDemuxerTest, ProtocolRead) {
   // Third read will get an end-of-file error.
   EXPECT_EQ(AVERROR_EOF, demuxer->Read(512, kBuffer));
 
-  demuxer->Stop();
+  // This read complete signal is generated when demuxer is stopped.
+  EXPECT_CALL(*demuxer, SignalReadCompleted(DataSource::kReadError));
+  EXPECT_CALL(callback_, OnFilterCallback());
+  EXPECT_CALL(callback_, OnCallbackDestroyed());
+  demuxer->Stop(callback_.NewCallback());
+  message_loop_.RunAllPending();
 }
 
 TEST_F(FFmpegDemuxerTest, ProtocolGetSetPosition) {

@@ -99,7 +99,7 @@ void VideoRendererBase::Pause(FilterCallback* callback) {
   }
 }
 
-void VideoRendererBase::Stop() {
+void VideoRendererBase::Stop(FilterCallback* callback) {
   AutoLock auto_lock(lock_);
   state_ = kStopped;
 
@@ -118,6 +118,11 @@ void VideoRendererBase::Stop() {
       PlatformThread::Join(thread_);
     }
     thread_ = kNullThreadHandle;
+  }
+
+  if (callback) {
+    callback->Run();
+    delete callback;
   }
 }
 

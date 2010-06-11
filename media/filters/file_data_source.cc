@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,7 @@ FileDataSource::FileDataSource()
 }
 
 FileDataSource::~FileDataSource() {
-  Stop();
+  DCHECK(!file_);
 }
 
 void FileDataSource::Initialize(const std::string& url,
@@ -48,12 +48,16 @@ void FileDataSource::Initialize(const std::string& url,
   callback->Run();
 }
 
-void FileDataSource::Stop() {
+void FileDataSource::Stop(FilterCallback* callback) {
   AutoLock l(lock_);
   if (file_) {
     file_util::CloseFile(file_);
     file_ = NULL;
     file_size_ = 0;
+  }
+  if (callback) {
+    callback->Run();
+    delete callback;
   }
 }
 

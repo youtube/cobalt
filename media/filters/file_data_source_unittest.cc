@@ -65,6 +65,10 @@ TEST(FileDataSourceTest, OpenFile) {
   scoped_refptr<FileDataSource> filter = new FileDataSource();
   filter->set_host(&host);
   filter->Initialize(TestFileURL(), callback.NewCallback());
+
+  EXPECT_CALL(callback, OnFilterCallback());
+  EXPECT_CALL(callback, OnCallbackDestroyed());
+  filter->Stop(callback.NewCallback());
 }
 
 // Use the mock filter host to directly call the Read and GetPosition methods.
@@ -99,6 +103,10 @@ TEST(FileDataSourceTest, ReadData) {
   filter->Read(5, 10, ten_bytes,
                NewCallback(&handler, &ReadCallbackHandler::ReadCallback));
   EXPECT_EQ('5', ten_bytes[0]);
+
+  EXPECT_CALL(callback, OnFilterCallback());
+  EXPECT_CALL(callback, OnCallbackDestroyed());
+  filter->Stop(callback.NewCallback());
 }
 
 // Test that FileDataSource does nothing on Seek().
@@ -110,6 +118,10 @@ TEST(FileDataSourceTest, Seek) {
 
   scoped_refptr<FileDataSource> filter = new FileDataSource();
   filter->Seek(kZero, callback.NewCallback());
+
+  EXPECT_CALL(callback, OnFilterCallback());
+  EXPECT_CALL(callback, OnCallbackDestroyed());
+  filter->Stop(callback.NewCallback());
 }
 
 }  // namespace media
