@@ -43,7 +43,7 @@
 /Makefile
 /native_client
 /out
-/rlz/binaries
+/rlz
 /sconsbuild
 /sdch/open-vcdiff
 /testing/gtest
