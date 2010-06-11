@@ -331,6 +331,16 @@ class Entry {
   virtual int GetAvailableRange(int64 offset, int len, int64* start,
                                 CompletionCallback* callback) = 0;
 
+  // Returns true if this entry could be a sparse entry or false otherwise. This
+  // is a quick test that may return true even if the entry is not really
+  // sparse. This method doesn't modify the state of this entry (it will not
+  // create sparse tracking data). GetAvailableRange or ReadSparseData can be
+  // used to perfom a definitive test of wether an existing entry is sparse or
+  // not, but that method may modify the current state of the entry (making it
+  // sparse, for instance). The purpose of this method is to test an existing
+  // entry, but without generating actual IO to perform a thorough check.
+  virtual bool CouldBeSparse() const = 0;
+
   // Cancels any pending sparse IO operation (if any). The completion callback
   // of the operation in question will still be called when the operation
   // finishes, but the operation will finish sooner when this method is used.

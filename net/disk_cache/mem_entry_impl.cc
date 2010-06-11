@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -310,6 +310,11 @@ int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
 int MemEntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
                                     CompletionCallback* callback) {
   return GetAvailableRange(offset, len, start);
+}
+
+bool MemEntryImpl::CouldBeSparse() const {
+  DCHECK_EQ(kParentEntry, type());
+  return (children_.get() != NULL);
 }
 
 int MemEntryImpl::ReadyForSparseIO(
