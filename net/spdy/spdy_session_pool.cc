@@ -86,7 +86,9 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
 SpdySessionPool::SpdySessionList*
     SpdySessionPool::AddSessionList(const HostPortPair& host_port_pair) {
   DCHECK(sessions_.find(host_port_pair) == sessions_.end());
-  return sessions_[host_port_pair] = new SpdySessionList();
+  SpdySessionPool::SpdySessionList* list = new SpdySessionList();
+  sessions_[host_port_pair] = list;
+  return list;
 }
 
 SpdySessionPool::SpdySessionList*
