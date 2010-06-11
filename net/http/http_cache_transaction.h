@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -127,7 +127,8 @@ class HttpCache::Transaction : public HttpTransaction {
     STATE_DOOM_ENTRY_COMPLETE,
     STATE_ADD_TO_ENTRY,
     STATE_ADD_TO_ENTRY_COMPLETE,
-    STATE_PARTIAL_CACHE_VALIDATION,
+    STATE_START_PARTIAL_CACHE_VALIDATION,
+    STATE_COMPLETE_PARTIAL_CACHE_VALIDATION,
     STATE_UPDATE_CACHED_RESPONSE,
     STATE_UPDATE_CACHED_RESPONSE_COMPLETE,
     STATE_OVERWRITE_CACHED_RESPONSE,
@@ -180,7 +181,8 @@ class HttpCache::Transaction : public HttpTransaction {
   int DoDoomEntryComplete(int result);
   int DoAddToEntry();
   int DoAddToEntryComplete(int result);
-  int DoPartialCacheValidation();
+  int DoStartPartialCacheValidation();
+  int DoCompletePartialCacheValidation(int result);
   int DoUpdateCachedResponse();
   int DoUpdateCachedResponseComplete(int result);
   int DoOverwriteCachedResponse();

@@ -39,6 +39,7 @@ class DiskCacheEntryTest : public DiskCacheTestWithCache {
   void BasicSparseIO(bool async);
   void HugeSparseIO(bool async);
   void GetAvailableRange();
+  void CouldBeSparse();
   void DoomSparseEntry();
   void PartialSparseEntry();
 };
@@ -1061,6 +1062,53 @@ TEST_F(DiskCacheEntryTest, MemoryOnlyGetAvailableRange) {
   SetMemoryOnlyMode();
   InitCache();
   GetAvailableRange();
+}
+
+void DiskCacheEntryTest::CouldBeSparse() {
+  std::string key("the first key");
+  disk_cache::Entry* entry;
+  ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+
+  const int kSize = 16 * 1024;
+  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
+  CacheTestFillBuffer(buf->data(), kSize, false);
+
+  // Write at offset 0x20F0000 (33 MB - 64 KB).
+  EXPECT_EQ(kSize, entry->WriteSparseData(0x20F0000, buf, kSize, NULL));
+
+  EXPECT_TRUE(entry->CouldBeSparse());
+  entry->Close();
+
+  ASSERT_EQ(net::OK, OpenEntry(key, &entry));
+  EXPECT_TRUE(entry->CouldBeSparse());
+  entry->Close();
+
+  // Now verify a regular entry.
+  key.assign("another key");
+  ASSERT_EQ(net::OK, CreateEntry(key, &entry));
+  EXPECT_FALSE(entry->CouldBeSparse());
+
+  EXPECT_EQ(kSize, entry->WriteData(0, 0, buf, kSize, NULL, false));
+  EXPECT_EQ(kSize, entry->WriteData(1, 0, buf, kSize, NULL, false));
+  EXPECT_EQ(kSize, entry->WriteData(2, 0, buf, kSize, NULL, false));
+
+  EXPECT_FALSE(entry->CouldBeSparse());
+  entry->Close();
+
+  ASSERT_EQ(net::OK, OpenEntry(key, &entry));
+  EXPECT_FALSE(entry->CouldBeSparse());
+  entry->Close();
+}
+
+TEST_F(DiskCacheEntryTest, CouldBeSparse) {
+  InitCache();
+  CouldBeSparse();
+}
+
+TEST_F(DiskCacheEntryTest, MemoryCouldBeSparse) {
+  SetMemoryOnlyMode();
+  InitCache();
+  CouldBeSparse();
 }
 
 TEST_F(DiskCacheEntryTest, MemoryOnlyMisalignedSparseIO) {
