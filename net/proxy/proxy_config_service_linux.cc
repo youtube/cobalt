@@ -417,11 +417,11 @@ class GConfSettingGetterImplKDE
         env_var_getter_(env_var_getter), file_loop_(NULL) {
     // Derive the location of the kde config dir from the environment.
     std::string home;
-    if (env_var_getter->GetEnv("KDE_HOME", &home) && !home.empty()) {
-      // $KDE_HOME is set. Use it unconditionally.
+    if (env_var_getter->GetEnv("KDEHOME", &home) && !home.empty()) {
+      // $KDEHOME is set. Use it unconditionally.
       kde_config_dir_ = KDEHomeToConfigPath(FilePath(home));
     } else {
-      // $KDE_HOME is unset. Try to figure out what to use. This seems to be
+      // $KDEHOME is unset. Try to figure out what to use. This seems to be
       // the common case on most distributions.
       if (!env_var_getter->GetEnv("HOME", &home))
         // User has no $HOME? Give up. Later we'll report the failure.
