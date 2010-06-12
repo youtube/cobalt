@@ -30,7 +30,7 @@ struct EnvVarValues {
   // The strange capitalization is so that the field matches the
   // environment variable name exactly.
   const char *DESKTOP_SESSION, *HOME,
-      *KDE_HOME, *KDE_SESSION_VERSION,
+      *KDEHOME, *KDE_SESSION_VERSION,
       *auto_proxy, *all_proxy,
       *http_proxy, *https_proxy, *ftp_proxy,
       *SOCKS_SERVER, *SOCKS_VERSION,
@@ -84,7 +84,7 @@ class MockEnvVarGetter : public base::EnvVarGetter {
 #define ENTRY(x) table.settings[#x] = &values.x
     ENTRY(DESKTOP_SESSION);
     ENTRY(HOME);
-    ENTRY(KDE_HOME);
+    ENTRY(KDEHOME);
     ENTRY(KDE_SESSION_VERSION);
     ENTRY(auto_proxy);
     ENTRY(all_proxy);
@@ -624,7 +624,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         NULL,  // all_proxy
@@ -644,7 +644,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         "",    // auto_proxy
         NULL,  // all_proxy
@@ -664,7 +664,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         "http://wpad/wpad.dat",  // auto_proxy
         NULL,  // all_proxy
@@ -684,7 +684,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         "wpad.dat",  // auto_proxy
         NULL,  // all_proxy
@@ -704,7 +704,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "www.google.com",  // all_proxy
@@ -726,7 +726,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "www.google.com:99",  // all_proxy
@@ -748,7 +748,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "http://www.google.com:99",  // all_proxy
@@ -770,7 +770,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         NULL,  // all_proxy
@@ -794,7 +794,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "",  // all_proxy
@@ -816,7 +816,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "",  // all_proxy
@@ -838,7 +838,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "",  // all_proxy
@@ -860,7 +860,7 @@ TEST_F(ProxyConfigServiceLinuxTest, BasicEnvTest) {
       { // Input.
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         "www.google.com",  // all_proxy
@@ -1235,7 +1235,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
       {  // env_values
         NULL,  // DESKTOP_SESSION
         NULL,  // HOME
-        NULL,  // KDE_HOME
+        NULL,  // KDEHOME
         NULL,  // KDE_SESSION_VERSION
         NULL,  // auto_proxy
         NULL,  // all_proxy
@@ -1264,7 +1264,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     env_getter->values = tests[i].env_values;
     // Force the KDE getter to be used and tell it where the test is.
     env_getter->values.DESKTOP_SESSION = "kde4";
-    env_getter->values.KDE_HOME = kde_home_.value().c_str();
+    env_getter->values.KDEHOME = kde_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
         new ProxyConfigServiceLinux(env_getter));
     ProxyConfig config;
@@ -1340,11 +1340,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEHomePicker) {
     EXPECT_EQ(GURL(), config.pac_url());
   }
 
-  { SCOPED_TRACE("KDE4, .kde4 directory present, KDE_HOME set to .kde");
+  { SCOPED_TRACE("KDE4, .kde4 directory present, KDEHOME set to .kde");
     MockEnvVarGetter* env_getter = new MockEnvVarGetter;
     env_getter->values.DESKTOP_SESSION = "kde4";
     env_getter->values.HOME = user_home_.value().c_str();
-    env_getter->values.KDE_HOME = kde_home_.value().c_str();
+    env_getter->values.KDEHOME = kde_home_.value().c_str();
     SynchConfigGetter sync_config_getter(
         new ProxyConfigServiceLinux(env_getter));
     ProxyConfig config;
