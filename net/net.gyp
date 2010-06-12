@@ -197,6 +197,9 @@
             ],
           },
           {  # else: OS != "win"
+            'dependencies': [
+              '../third_party/libevent/libevent.gyp:libevent',
+            ],
             'sources!': [
               'base/winsock_init.cc',
             ],
@@ -584,6 +587,9 @@
             },
           },
           {  # else: OS != "win"
+            'dependencies': [
+              '../third_party/libevent/libevent.gyp:libevent',
+            ],
             'sources!': [
               'proxy/proxy_resolver_winhttp.cc',
               'socket/ssl_client_socket_nss_factory.cc',
