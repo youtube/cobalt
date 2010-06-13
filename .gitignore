@@ -25,6 +25,7 @@
 /chrome/browser/autofill/internal
 /chrome/browser/renderer_host/translate
 /chrome/installer/linux
+/chrome/installer/mac/internal
 /chrome/personalization/
 /chrome/test/data/firefox2_profile/searchplugins
 /chrome/test/data/firefox2_searchplugins
