@@ -290,7 +290,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       connection_(new ClientSocketHandle),
       reused_socket_(false),
       headers_valid_(false),
-      logged_response_time(false),
+      logged_response_time_(false),
       using_ssl_(false),
       using_spdy_(false),
       alternate_protocol_mode_(
@@ -857,6 +857,7 @@ int HttpNetworkTransaction::DoInitConnection() {
   // straight to using that.
   if (session_->spdy_session_pool()->HasSession(endpoint_)) {
     using_spdy_ = true;
+    reused_socket_ = true;
     return OK;
   }
 
@@ -1305,10 +1306,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   // After we call RestartWithAuth a new response_time will be recorded, and
   // we need to be cautious about incorrectly logging the duration across the
   // authentication activity.
-  if (!logged_response_time) {
-    LogTransactionConnectedMetrics();
-    logged_response_time = true;
-  }
+  LogTransactionConnectedMetrics();
 
   if (result == ERR_CONNECTION_CLOSED) {
     // For now, if we get at least some data, we do the best we can to make
@@ -1504,6 +1502,9 @@ int HttpNetworkTransaction::DoSpdyReadHeadersComplete(int result) {
   // TODO(willchan): Flesh out the support for HTTP authentication here.
   if (result == OK)
     headers_valid_ = true;
+
+  LogTransactionConnectedMetrics();
+
   return result;
 }
 
@@ -1583,7 +1584,12 @@ void HttpNetworkTransaction::LogIOErrorMetrics(
   }
 }
 
-void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
+void HttpNetworkTransaction::LogTransactionConnectedMetrics() {
+  if (logged_response_time_)
+    return;
+
+  logged_response_time_ = true;
+
   base::TimeDelta total_duration = response_.response_time - start_time_;
 
   UMA_HISTOGRAM_CLIPPED_TIMES(
@@ -1609,6 +1615,22 @@ void HttpNetworkTransaction::LogTransactionConnectedMetrics() const {
         total_duration,
         base::TimeDelta::FromMilliseconds(1), base::TimeDelta::FromMinutes(10),
         100);
+    }
+  }
+
+  static bool use_spdy_histogram(FieldTrialList::Find("SpdyImpact") &&
+      !FieldTrialList::Find("SpdyImpact")->group_name().empty());
+  if (use_spdy_histogram && response_.was_npn_negotiated) {
+    UMA_HISTOGRAM_CLIPPED_TIMES(
+      FieldTrial::MakeName("Net.Transaction_Connected_Under_10", "SpdyImpact"),
+        total_duration, base::TimeDelta::FromMilliseconds(1),
+        base::TimeDelta::FromMinutes(10), 100);
+
+    if (!reused_socket_) {
+      UMA_HISTOGRAM_CLIPPED_TIMES(
+          FieldTrial::MakeName("Net.Transaction_Connected_New", "SpdyImpact"),
+          total_duration, base::TimeDelta::FromMilliseconds(1),
+          base::TimeDelta::FromMinutes(10), 100);
     }
   }
 
