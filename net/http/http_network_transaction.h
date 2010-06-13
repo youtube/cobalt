@@ -155,7 +155,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   static void LogHttpConnectedMetrics(const ClientSocketHandle& handle);
 
   // Record histogram of time until first byte of header is received.
-  void LogTransactionConnectedMetrics() const;
+  void LogTransactionConnectedMetrics();
 
   // Record histogram of latency (durations until last byte received).
   void LogTransactionMetrics() const;
@@ -331,7 +331,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   // True if we've logged the time of the first response byte.  Used to
   // prevent logging across authentication activity where we see multiple
   // responses.
-  bool logged_response_time;
+  bool logged_response_time_;
 
   bool using_ssl_;     // True if handling a HTTPS request
 
