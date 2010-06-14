@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -80,8 +80,15 @@ class URLRequestFileJob::AsyncResolver :
 URLRequestJob* URLRequestFileJob::Factory(
     URLRequest* request, const std::string& scheme) {
   FilePath file_path;
+
+  // We need to decide whether to create URLRequestFileJob for file access or
+  // URLRequestFileDirJob for directory access. To avoid accessing the
+  // filesystem, we only look at the path string here.
+  // The code in the URLRequestFileJob::Start() method discovers that a path,
+  // which doesn't end with a slash, should really be treated as a directory,
+  // and it then redirects to the URLRequestFileDirJob.
   if (net::FileURLToFilePath(request->url(), &file_path) &&
-      file_util::EnsureEndsWithSeparator(&file_path) &&
+      file_util::EndsWithSeparator(file_path) &&
       file_path.IsAbsolute())
     return new URLRequestFileDirJob(request, file_path);
 
@@ -219,15 +226,20 @@ void URLRequestFileJob::DidResolve(
   if (!request_)
     return;
 
+  is_directory_ = file_info.is_directory;
+
   int rv = net::OK;
-  // We use URLRequestFileJob to handle valid and invalid files as well as
-  // invalid directories. For a directory to be invalid, it must either not
-  // exist, or be "\" on Windows. (Windows resolves "\" to "C:\", thus
-  // reporting it as existent.) On POSIX, we don't count any existent
-  // directory as invalid.
-  if (!exists || file_info.is_directory) {
+  // We use URLRequestFileJob to handle files as well as directories without
+  // trailing slash.
+  // If a directory does not exist, we return ERR_FILE_NOT_FOUND. Otherwise,
+  // we will append trailing slash and redirect to FileDirJob.
+  // A special case is "\" on Windows. We should resolve as invalid.
+  // However, Windows resolves "\" to "C:\", thus reports it as existent.
+  // So what happens is we append it with trailing slash and redirect it to
+  // FileDirJob where it is resolved as invalid.
+  if (!exists) {
     rv = net::ERR_FILE_NOT_FOUND;
-  } else {
+  } else if (!is_directory_) {
     int flags = base::PLATFORM_FILE_OPEN |
                 base::PLATFORM_FILE_READ |
                 base::PLATFORM_FILE_ASYNC;
@@ -280,6 +292,19 @@ void URLRequestFileJob::DidRead(int result) {
 
 bool URLRequestFileJob::IsRedirectResponse(GURL* location,
                                            int* http_status_code) {
+  if (is_directory_) {
+    // This happens when we discovered the file is a directory, so needs a
+    // slash at the end of the path.
+    std::string new_path = request_->url().path();
+    new_path.push_back('/');
+    GURL::Replacements replacements;
+    replacements.SetPathStr(new_path);
+
+    *location = request_->url().ReplaceComponents(replacements);
+    *http_status_code = 301;  // simulate a permanent redirect
+    return true;
+  }
+
 #if defined(OS_WIN)
   // Follow a Windows shortcut.
   // We just resolve .lnk file, ignore others.

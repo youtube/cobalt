@@ -25,7 +25,6 @@ class URLRequestFileDirJob
   virtual bool ReadRawData(net::IOBuffer* buf, int buf_size, int *bytes_read);
   virtual bool GetMimeType(std::string* mime_type) const;
   virtual bool GetCharset(std::string* charset);
-  virtual bool IsRedirectResponse(GURL* location, int* http_status_code);
 
   // DirectoryLister::DirectoryListerDelegate methods:
   virtual void OnListFile(const file_util::FileEnumerator::FindInfo& data);
