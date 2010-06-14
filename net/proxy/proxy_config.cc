@@ -17,11 +17,20 @@ bool ProxyConfig::ProxyRules::Equals(const ProxyRules& other) const {
          proxy_for_https == other.proxy_for_https &&
          proxy_for_ftp == other.proxy_for_ftp &&
          socks_proxy == other.socks_proxy &&
-         bypass_rules.Equals(other.bypass_rules);
+         bypass_rules.Equals(other.bypass_rules) &&
+         reverse_bypass == other.reverse_bypass;
 }
 
 void ProxyConfig::ProxyRules::Apply(const GURL& url, ProxyInfo* result) {
-  if (empty() || bypass_rules.Matches(url)) {
+  if (empty()) {
+    result->UseDirect();
+    return;
+  }
+
+  bool bypass_proxy = bypass_rules.Matches(url);
+  if (reverse_bypass)
+    bypass_proxy = !bypass_proxy;
+  if (bypass_proxy) {
     result->UseDirect();
     return;
   }
@@ -216,7 +225,10 @@ std::ostream& operator<<(std::ostream& out, const net::ProxyConfig& config) {
       break;
   }
 
-  out << "  Bypass list: ";
+  if (config.proxy_rules().reverse_bypass)
+    out << "  Only use proxy for: ";
+  else
+    out << "  Bypass list: ";
   if (config.proxy_rules().bypass_rules.rules().empty()) {
     out << "[None]";
   } else {

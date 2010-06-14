@@ -41,7 +41,7 @@ class ProxyConfig {
 
     // Note that the default of TYPE_NO_RULES results in direct connections
     // being made when using this ProxyConfig.
-    ProxyRules() : type(TYPE_NO_RULES) {}
+    ProxyRules() : reverse_bypass(false), type(TYPE_NO_RULES) {}
 
     bool empty() const {
       return type == TYPE_NO_RULES;
@@ -80,6 +80,9 @@ class ProxyConfig {
 
     // Exceptions for when not to use a proxy.
     ProxyBypassRules bypass_rules;
+
+    // Reverse the meaning of |bypass_rules|.
+    bool reverse_bypass;
 
     Type type;
 
