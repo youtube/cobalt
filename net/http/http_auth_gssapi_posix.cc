@@ -38,7 +38,8 @@ GSSAPISharedLibrary::GSSAPISharedLibrary()
       release_buffer_(NULL),
       display_status_(NULL),
       init_sec_context_(NULL),
-      wrap_size_limit_(NULL) {
+      wrap_size_limit_(NULL),
+      delete_sec_context_(NULL) {
 }
 
 GSSAPISharedLibrary::~GSSAPISharedLibrary() {
@@ -56,16 +57,14 @@ bool GSSAPISharedLibrary::Init() {
 
 bool GSSAPISharedLibrary::InitImpl() {
   DCHECK(!initialized_);
-  gssapi_library_ = LoadSharedObject();
+  gssapi_library_ = LoadSharedLibrary();
   if (gssapi_library_ == NULL)
-    return false;
-  if (!BindMethods())
     return false;
   initialized_ = true;
   return true;
 }
 
-base::NativeLibrary GSSAPISharedLibrary::LoadSharedObject() {
+base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
   static const char* kLibraryNames[] = {
 #if defined(OS_MACOSX)
     "libgssapi_krb5.dylib"  // MIT Kerberos
@@ -81,37 +80,45 @@ base::NativeLibrary GSSAPISharedLibrary::LoadSharedObject() {
     const char* library_name = kLibraryNames[i];
     FilePath file_path(library_name);
     base::NativeLibrary lib = base::LoadNativeLibrary(file_path);
-    if (lib)
+    // Only return this library if we can bind the functions we need.
+    if (lib && BindMethods(lib))
       return lib;
   }
+  LOG(WARNING) << "Unable to find a compatible GSSAPI library";
   return NULL;
 }
 
-template <typename T>
-bool FindAndBind(base::NativeLibrary library, const char* name, T* t) {
-  void* func = base::GetFunctionPointerFromNativeLibrary(library, name);
-  if (func == NULL)
-    return false;
-  *t = reinterpret_cast<T>(func);
+#define BIND(lib, x) \
+  gss_##x##_type x = reinterpret_cast<gss_##x##_type>( \
+      base::GetFunctionPointerFromNativeLibrary(lib, "gss_" #x)); \
+  if (x == NULL) { \
+    LOG(WARNING) << "Unable to bind function \"" << "gss_" #x << "\""; \
+    return false; \
+  }
+
+bool GSSAPISharedLibrary::BindMethods(base::NativeLibrary lib) {
+  DCHECK(lib != NULL);
+
+  BIND(lib, import_name)
+  BIND(lib, release_name)
+  BIND(lib, release_buffer)
+  BIND(lib, display_status)
+  BIND(lib, init_sec_context)
+  BIND(lib, wrap_size_limit)
+  BIND(lib, delete_sec_context)
+
+  import_name_ = import_name;
+  release_name_ = release_name;
+  release_buffer_ = release_buffer;
+  display_status_ = display_status;
+  init_sec_context_ = init_sec_context;
+  wrap_size_limit_ = wrap_size_limit;
+  delete_sec_context_ = delete_sec_context;
+
   return true;
 }
 
-bool GSSAPISharedLibrary::BindMethods() {
-  DCHECK(gssapi_library_ != NULL);
-  if (!FindAndBind(gssapi_library_, "gss_import_name", &import_name_))
-    return false;
-  if (!FindAndBind(gssapi_library_, "gss_release_name", &release_name_))
-    return false;
-  if (!FindAndBind(gssapi_library_, "gss_release_buffer", &release_buffer_))
-    return false;
-  if (!FindAndBind(gssapi_library_, "gss_display_status", &display_status_))
-    return false;
-  if (!FindAndBind(gssapi_library_, "gss_init_sec_context", &init_sec_context_))
-    return false;
-  if (!FindAndBind(gssapi_library_, "gss_wrap_size_limit", &wrap_size_limit_))
-    return false;
-  return true;
-}
+#undef BIND
 
 OM_uint32 GSSAPISharedLibrary::import_name(
     OM_uint32* minor_status,
@@ -195,6 +202,20 @@ OM_uint32 GSSAPISharedLibrary::wrap_size_limit(
                           max_input_size);
 }
 
+OM_uint32 GSSAPISharedLibrary::delete_sec_context(
+    OM_uint32* minor_status,
+    gss_ctx_id_t* context_handle,
+    gss_buffer_t output_token) {
+  // This is called from the owner class' destructor, even if
+  // Init() is not called, so we can't assume |initialized_|
+  // is set.
+  if (!initialized_)
+    return 0;
+  return delete_sec_context_(minor_status,
+                             context_handle,
+                             output_token);
+}
+
 GSSAPILibrary* GSSAPILibrary::GetDefault() {
   return Singleton<GSSAPISharedLibrary>::get();
 }
@@ -205,7 +226,7 @@ std::string DisplayStatus(OM_uint32 major_status,
                           OM_uint32 minor_status) {
   if (major_status == GSS_S_COMPLETE)
     return "OK";
-  return StringPrintf("0x%08x 0x%08x", major_status, minor_status);
+  return StringPrintf("0x%08X 0x%08X", major_status, minor_status);
 }
 
 std::string DisplayCode(GSSAPILibrary* gssapi_lib,
@@ -317,13 +338,34 @@ class ScopedBuffer {
 
 }  // namespace
 
+ScopedSecurityContext::ScopedSecurityContext(GSSAPILibrary* gssapi_lib)
+    : security_context_(GSS_C_NO_CONTEXT),
+      gssapi_lib_(gssapi_lib) {
+  DCHECK(gssapi_lib_);
+}
+
+ScopedSecurityContext::~ScopedSecurityContext() {
+  if (security_context_ != GSS_C_NO_CONTEXT) {
+    gss_buffer_desc output_token = GSS_C_EMPTY_BUFFER;
+    OM_uint32 minor_status = 0;
+    OM_uint32 major_status = gssapi_lib_->delete_sec_context(
+        &minor_status, &security_context_, &output_token);
+    if (major_status != GSS_S_COMPLETE) {
+      LOG(WARNING) << "Problem releasing security_context. "
+                   << DisplayStatus(major_status, minor_status);
+    }
+    security_context_ = GSS_C_NO_CONTEXT;
+  }
+}
+
 HttpAuthGSSAPI::HttpAuthGSSAPI(GSSAPILibrary* library,
                                const std::string& scheme,
                                gss_OID gss_oid)
     : scheme_(scheme),
       gss_oid_(gss_oid),
       library_(library),
-      sec_context_(NULL) {
+      scoped_sec_context_(library) {
+  DCHECK(library_);
 }
 
 HttpAuthGSSAPI::~HttpAuthGSSAPI() {
@@ -365,11 +407,14 @@ int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
                                       const std::wstring& spn,
                                       const HttpRequestInfo* request,
                                       const ProxyInfo* proxy,
-                                      std::string* out_credentials) {
+                                      std::string* auth_token) {
   DCHECK(library_);
   DCHECK((username == NULL) == (password == NULL));
 
-  library_->Init();
+  bool initialized = library_->Init();
+
+  if (!initialized)
+    return ERR_FAILED;
 
   if (!IsFinalRound()) {
     int rv = OnFirstRound(username, password);
@@ -381,6 +426,7 @@ int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
   input_token.length = decoded_server_auth_token_.length();
   input_token.value = const_cast<char *>(decoded_server_auth_token_.data());
   gss_buffer_desc output_token = GSS_C_EMPTY_BUFFER;
+  ScopedBuffer scoped_output_token(&output_token, library_);
   int rv = GetNextSecurityToken(spn, &input_token, &output_token);
   if (rv != OK)
     return rv;
@@ -390,11 +436,9 @@ int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
                            output_token.length);
   std::string encode_output;
   bool ok = base::Base64Encode(encode_input, &encode_output);
-  OM_uint32 minor_status = 0;
-  library_->release_buffer(&minor_status, &output_token);
   if (!ok)
     return ERR_UNEXPECTED;
-  *out_credentials = scheme_ + " " + encode_output;
+  *auth_token = scheme_ + " " + encode_output;
   return OK;
 }
 
@@ -420,7 +464,7 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
   const GURL spn_url(WideToASCII(spn));
   std::string spn_principal = GetHostAndPort(spn_url);
   gss_buffer_desc spn_buffer = GSS_C_EMPTY_BUFFER;
-  spn_buffer.value = const_cast<char *>(spn_principal.data());
+  spn_buffer.value = const_cast<char *>(spn_principal.c_str());
   spn_buffer.length = spn_principal.size() + 1;
   OM_uint32 minor_status = 0;
   gss_name_t principal_name;
@@ -430,20 +474,20 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
       CHROME_GSS_C_NT_HOSTBASED_SERVICE,
       &principal_name);
   if (major_status != GSS_S_COMPLETE) {
-    LOG(WARNING) << "Problem importing name. "
-                 << DisplayExtendedStatus(library_,
-                                          major_status,
-                                          minor_status);
+    LOG(ERROR) << "Problem importing name. "
+               << DisplayExtendedStatus(library_,
+                                        major_status,
+                                        minor_status);
     return ERR_UNEXPECTED;
   }
   ScopedName scoped_name(principal_name, library_);
 
-  // Create a security context.
+  // Continue creating a security context.
   OM_uint32 req_flags = 0;
   major_status = library_->init_sec_context(
       &minor_status,
       GSS_C_NO_CREDENTIAL,
-      &sec_context_,
+      scoped_sec_context_.receive(),
       principal_name,
       gss_oid_,
       req_flags,
@@ -456,14 +500,14 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
       NULL);
   if (major_status != GSS_S_COMPLETE &&
       major_status != GSS_S_CONTINUE_NEEDED) {
-    LOG(WARNING) << "Problem initializing context. "
-                 << DisplayExtendedStatus(library_,
-                                          major_status,
-                                          minor_status);
+    LOG(ERROR) << "Problem initializing context. "
+               << DisplayExtendedStatus(library_,
+                                        major_status,
+                                        minor_status);
     return ERR_UNEXPECTED;
   }
 
-  return (major_status != GSS_S_COMPLETE) ? ERR_IO_PENDING : OK;
+  return OK;
 }
 
 }  // namespace net
