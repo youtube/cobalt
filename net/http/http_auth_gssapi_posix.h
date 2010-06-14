@@ -33,6 +33,8 @@ class GSSAPILibrary {
   virtual ~GSSAPILibrary() {}
 
   // Initializes the library, including any necessary dynamic libraries.
+  // This is done separately from construction (which happens at startup time)
+  // in order to delay work until the class is actually needed.
   virtual bool Init() = 0;
 
   // These methods match the ones in the GSSAPI library.
@@ -75,6 +77,10 @@ class GSSAPILibrary {
       gss_qop_t qop_req,
       OM_uint32 req_output_size,
       OM_uint32* max_input_size) = 0;
+  virtual OM_uint32 delete_sec_context(
+      OM_uint32* minor_status,
+      gss_ctx_id_t* context_handle,
+      gss_buffer_t output_token) = 0;
 
   // Get the default GSSPILibrary instance. The object returned is a singleton
   // instance, and the caller should not delete it.
@@ -128,13 +134,20 @@ class GSSAPISharedLibrary : public GSSAPILibrary {
       gss_qop_t qop_req,
       OM_uint32 req_output_size,
       OM_uint32* max_input_size);
+  virtual OM_uint32 delete_sec_context(
+      OM_uint32* minor_status,
+      gss_ctx_id_t* context_handle,
+      gss_buffer_t output_token);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup);
 
   bool InitImpl();
-  static base::NativeLibrary LoadSharedObject();
-  bool BindMethods();
+  // Finds a usable dynamic library for GSSAPI and loads it.  The criteria are:
+  //   1. The library must exist.
+  //   2. The library must export the functions we need.
+  base::NativeLibrary LoadSharedLibrary();
+  bool BindMethods(base::NativeLibrary lib);
 
   bool initialized_;
 
@@ -148,7 +161,25 @@ class GSSAPISharedLibrary : public GSSAPILibrary {
   gss_display_status_type display_status_;
   gss_init_sec_context_type init_sec_context_;
   gss_wrap_size_limit_type wrap_size_limit_;
+  gss_delete_sec_context_type delete_sec_context_;
 };
+
+// ScopedSecurityContext releases a gss_ctx_id_t when it goes out of
+// scope.
+class ScopedSecurityContext {
+ public:
+  ScopedSecurityContext(GSSAPILibrary* gssapi_lib);
+  ~ScopedSecurityContext();
+
+  gss_ctx_id_t* receive() { return &security_context_; }
+
+ private:
+  gss_ctx_id_t security_context_;
+  GSSAPILibrary* gssapi_lib_;
+
+  DISALLOW_COPY_AND_ASSIGN(ScopedSecurityContext);
+};
+
 
 // TODO(cbentzel): Share code with HttpAuthSSPI.
 class HttpAuthGSSAPI {
@@ -176,7 +207,7 @@ class HttpAuthGSSAPI {
                         const std::wstring& spn,
                         const HttpRequestInfo* request,
                         const ProxyInfo* proxy,
-                        std::string* out_credentials);
+                        std::string* auth_token);
 
  private:
   int OnFirstRound(const std::wstring* username,
@@ -191,7 +222,7 @@ class HttpAuthGSSAPI {
   gss_OID gss_oid_;
   GSSAPILibrary* library_;
   std::string decoded_server_auth_token_;
-  gss_ctx_id_t sec_context_;
+  ScopedSecurityContext scoped_sec_context_;
 };
 
 }  // namespace net
