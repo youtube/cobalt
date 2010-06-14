@@ -414,7 +414,7 @@ int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
   bool initialized = library_->Init();
 
   if (!initialized)
-    return ERR_FAILED;
+    return ERR_UNSUPPORTED_AUTH_SCHEME;
 
   if (!IsFinalRound()) {
     int rv = OnFirstRound(username, password);
