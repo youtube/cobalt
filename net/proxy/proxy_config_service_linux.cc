@@ -350,6 +350,11 @@ class GConfSettingGetterImplGConf
     return true;
   }
 
+  virtual bool BypassListIsReversed() {
+    // This is a KDE-specific setting.
+    return false;
+  }
+
  private:
   // Logs and frees a glib error. Returns false if there was no error
   // (error is NULL).
@@ -413,7 +418,7 @@ class GConfSettingGetterImplKDE
  public:
   explicit GConfSettingGetterImplKDE(base::EnvVarGetter* env_var_getter)
       : inotify_fd_(-1), notify_delegate_(NULL), indirect_manual_(false),
-        auto_no_pac_(false), reversed_exception_(false),
+        auto_no_pac_(false), reversed_bypass_list_(false),
         env_var_getter_(env_var_getter), file_loop_(NULL) {
     // Derive the location of the kde config dir from the environment.
     std::string home;
@@ -569,13 +574,17 @@ class GConfSettingGetterImplKDE
     return true;
   }
 
+  virtual bool BypassListIsReversed() {
+    return reversed_bypass_list_;
+  }
+
  private:
   void ResetCachedSettings() {
     string_table_.clear();
     strings_table_.clear();
     indirect_manual_ = false;
     auto_no_pac_ = false;
-    reversed_exception_ = false;
+    reversed_bypass_list_ = false;
   }
 
   FilePath KDEHomeToConfigPath(const FilePath& kde_home) {
@@ -645,7 +654,7 @@ class GConfSettingGetterImplKDE
       // We count "true" or any nonzero number as true, otherwise false.
       // Note that if the value is not actually numeric StringToInt()
       // will return 0, which we count as false.
-      reversed_exception_ = (value == "true" || StringToInt(value));
+      reversed_bypass_list_ = (value == "true" || StringToInt(value));
     } else if (key == "NoProxyFor") {
       AddHostList("/system/http_proxy/ignore_hosts", value);
     } else if (key == "AuthMode") {
@@ -697,14 +706,6 @@ class GConfSettingGetterImplKDE
     if (auto_no_pac_) {
       // Remove the PAC URL; we're not supposed to use it.
       string_table_.erase("/system/proxy/autoconfig_url");
-    }
-    if (reversed_exception_) {
-      // We don't actually support this setting. (It means to use the proxy
-      // *only* for the exception list, rather than everything but them.)
-      // Nevertheless we can do better than *exactly the opposite* of the
-      // desired behavior by clearing the exception list and warning.
-      strings_table_.erase("/system/http_proxy/ignore_hosts");
-      LOG(WARNING) << "KDE reversed proxy exception list not supported";
     }
   }
 
@@ -859,7 +860,7 @@ class GConfSettingGetterImplKDE
   FilePath kde_config_dir_;
   bool indirect_manual_;
   bool auto_no_pac_;
-  bool reversed_exception_;
+  bool reversed_bypass_list_;
   // We don't own |env_var_getter_|.  It's safe to hold a pointer to it, since
   // both it and us are owned by ProxyConfigServiceLinux::Delegate, and have the
   // same lifetime.
@@ -1021,6 +1022,9 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   }
   // Note that there are no settings with semantics corresponding to
   // bypass of local names.
+
+  // KDE allows one to reverse the bypass rules.
+  config->proxy_rules().reverse_bypass = gconf_getter_->BypassListIsReversed();
 
   return true;
 }
