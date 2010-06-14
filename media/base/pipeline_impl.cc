@@ -221,10 +221,12 @@ base::TimeDelta PipelineImpl::GetCurrentTime() const {
   return elapsed;
 }
 
-
 base::TimeDelta PipelineImpl::GetBufferedTime() {
-  DCHECK(buffered_bytes_ >= current_bytes_);
   AutoLock auto_lock(lock_);
+
+  // If media is fully loaded, then return duration.
+  if (loaded_)
+    return duration_;
 
   // If buffered time was set, we report that value directly.
   if (buffered_time_.ToInternalValue() > 0)
@@ -238,15 +240,18 @@ base::TimeDelta PipelineImpl::GetBufferedTime() {
   double current_time = static_cast<double>(current_bytes_) / total_bytes_ *
                         duration_.InMilliseconds();
   double rate = current_time / current_bytes_;
-  double buffered_time = rate * (buffered_bytes_ - current_bytes_) +
-                         current_time;
+  DCHECK_GE(buffered_bytes_, current_bytes_);
+  base::TimeDelta buffered_time = base::TimeDelta::FromMilliseconds(
+      static_cast<int64>(rate * (buffered_bytes_ - current_bytes_) +
+                         current_time));
+
+  // Cap approximated buffered time at the length of the video.
+  buffered_time = std::min(buffered_time, duration_);
 
   // Only print the max buffered time for smooth buffering.
-  if (buffered_time > max_buffered_time_)
-    max_buffered_time_ = buffered_time;
+  max_buffered_time_ = std::max(buffered_time, max_buffered_time_);
 
-  return base::TimeDelta::FromMilliseconds(
-      static_cast<int64>(max_buffered_time_));
+  return max_buffered_time_;
 }
 
 base::TimeDelta PipelineImpl::GetMediaDuration() const {
