@@ -18,6 +18,7 @@
 #include "media/base/clock_impl.h"
 #include "media/base/filter_host.h"
 #include "media/base/pipeline.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace media {
 
@@ -385,7 +386,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   // Keep track of the maximum buffered position so the buffering appears
   // smooth.
   // TODO(vrk): This is a hack.
-  double max_buffered_time_;
+  base::TimeDelta max_buffered_time_;
 
   // Filter factory as passed in by Start().
   scoped_refptr<FilterFactory> filter_factory_;
@@ -412,6 +413,7 @@ class PipelineImpl : public Pipeline, public FilterHost {
   typedef std::vector<base::Thread*> FilterThreadVector;
   FilterThreadVector filter_threads_;
 
+  FRIEND_TEST(PipelineImplTest, GetBufferedTime);
   DISALLOW_COPY_AND_ASSIGN(PipelineImpl);
 };
 

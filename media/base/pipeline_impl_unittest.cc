@@ -502,6 +502,42 @@ TEST_F(PipelineImplTest, Properties) {
             pipeline_->GetBufferedTime().ToInternalValue());
 }
 
+TEST_F(PipelineImplTest, GetBufferedTime) {
+  CreateVideoStream();
+  MockDemuxerStreamVector streams;
+  streams.push_back(video_stream());
+
+  InitializeDataSource();
+  const base::TimeDelta kDuration = base::TimeDelta::FromSeconds(100);
+  InitializeDemuxer(&streams, kDuration);
+  InitializeVideoDecoder(video_stream());
+  InitializeVideoRenderer();
+
+  InitializePipeline();
+  EXPECT_TRUE(pipeline_->IsInitialized());
+  EXPECT_EQ(PIPELINE_OK, pipeline_->GetError());
+
+  // If media is loaded, we should return duration of media.
+  pipeline_->SetLoaded(true);
+  EXPECT_EQ(kDuration.ToInternalValue(),
+            pipeline_->GetBufferedTime().ToInternalValue());
+  pipeline_->SetLoaded(false);
+
+  // Buffered time is 0 if no bytes are buffered or read.
+  pipeline_->SetBufferedBytes(0);
+  EXPECT_EQ(0, pipeline_->GetBufferedTime().ToInternalValue());
+  pipeline_->SetBufferedBytes(kBufferedBytes);
+
+  pipeline_->SetCurrentReadPosition(0);
+  EXPECT_EQ(0, pipeline_->GetBufferedTime().ToInternalValue());
+
+  // We should return buffered_time_ if it is set and valid.
+  const base::TimeDelta buffered = base::TimeDelta::FromSeconds(10);
+  pipeline_->SetBufferedTime(buffered);
+  EXPECT_EQ(buffered.ToInternalValue(),
+            pipeline_->GetBufferedTime().ToInternalValue());
+}
+
 TEST_F(PipelineImplTest, DisableAudioRenderer) {
   CreateAudioStream();
   CreateVideoStream();
