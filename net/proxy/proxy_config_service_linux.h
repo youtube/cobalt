@@ -76,6 +76,10 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     virtual bool GetStringList(const char* key,
                                std::vector<std::string>* result) = 0;
 
+    // Returns true if the bypass list should be interpreted as a proxy
+    // whitelist rather than blacklist. (This is KDE-specific.)
+    virtual bool BypassListIsReversed() = 0;
+
    private:
     DISALLOW_COPY_AND_ASSIGN(GConfSettingGetter);
   };

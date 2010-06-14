@@ -213,6 +213,10 @@ class MockGConfSettingGetter
     return !result->empty();
   }
 
+  virtual bool BypassListIsReversed() {
+    return false;
+  }
+
   // Intentionally public, for convenience when setting up a test.
   GConfValues values;
 
@@ -1077,11 +1081,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      ProxyRulesExpectation::PerScheme(
+      ProxyRulesExpectation::PerSchemeWithBypassReversed(
           "www.google.com:80",  // http
           "",                   // https
           "",                   // ftp
-          ""),                  // bypass rules
+          "*.google.com"),      // bypass rules
     },
 
     {
@@ -1094,11 +1098,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       false,                                   // auto_detect
       GURL(),                                  // pac_url
-      ProxyRulesExpectation::PerScheme(
+      ProxyRulesExpectation::PerSchemeWithBypassReversed(
           "www.google.com:80",  // http
           "",                   // https
           "",                   // ftp
-          ""),                  // bypass rules
+          "*.google.com"),      // bypass rules
     },
 
     {

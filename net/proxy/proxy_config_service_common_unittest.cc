@@ -77,20 +77,27 @@ std::string FlattenProxyBypass(const ProxyBypassRules& bypass_rules) {
     failed = true;
   }
 
+  if (rules.reverse_bypass != reverse_bypass) {
+    failure_details << "Bad reverse_bypass. Expected: " << reverse_bypass
+                    << " but got: " << rules.reverse_bypass;
+    failed = true;
+  }
+
   return failed ? failure_details : ::testing::AssertionSuccess();
 }
 
 // static
 ProxyRulesExpectation ProxyRulesExpectation::Empty() {
   return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_NO_RULES,
-                               "", "", "", "", "", "");
+                               "", "", "", "", "", "", false);
 }
 
 // static
 ProxyRulesExpectation ProxyRulesExpectation::EmptyWithBypass(
     const char* flattened_bypass_rules) {
   return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_NO_RULES,
-                               "", "", "", "", "", flattened_bypass_rules);
+                               "", "", "", "", "", flattened_bypass_rules,
+                               false);
 }
 
 // static
@@ -99,7 +106,7 @@ ProxyRulesExpectation ProxyRulesExpectation::Single(
     const char* flattened_bypass_rules) {
   return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_SINGLE_PROXY,
                                single_proxy, "", "", "", "",
-                               flattened_bypass_rules);
+                               flattened_bypass_rules, false);
 }
 
 // static
@@ -110,7 +117,7 @@ ProxyRulesExpectation ProxyRulesExpectation::PerScheme(
     const char* flattened_bypass_rules) {
   return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
                                "", proxy_http, proxy_https, proxy_ftp, "",
-                               flattened_bypass_rules);
+                               flattened_bypass_rules, false);
 }
 
 // static
@@ -122,7 +129,18 @@ ProxyRulesExpectation ProxyRulesExpectation::PerSchemeWithSocks(
     const char* flattened_bypass_rules) {
   return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
                                "", proxy_http, proxy_https, proxy_ftp,
-                               socks_proxy, flattened_bypass_rules);
+                               socks_proxy, flattened_bypass_rules, false);
+}
+
+// static
+ProxyRulesExpectation ProxyRulesExpectation::PerSchemeWithBypassReversed(
+    const char* proxy_http,
+    const char* proxy_https,
+    const char* proxy_ftp,
+    const char* flattened_bypass_rules) {
+  return ProxyRulesExpectation(ProxyConfig::ProxyRules::TYPE_PROXY_PER_SCHEME,
+                               "", proxy_http, proxy_https, proxy_ftp, "",
+                               flattened_bypass_rules, true);
 }
 
 }  // namespace net
