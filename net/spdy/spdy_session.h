@@ -31,6 +31,7 @@
 
 namespace net {
 
+class SpdyHttpStream;
 class SpdyStream;
 class HttpNetworkSession;
 struct HttpRequestInfo;
@@ -64,7 +65,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // might also not have initiated the stream yet, but indicated it will via
   // X-Associated-Content.
   // Returns the new or existing stream.  Never returns NULL.
-  scoped_refptr<SpdyStream> GetOrCreateStream(
+  scoped_refptr<SpdyHttpStream> GetOrCreateStream(
       const HttpRequestInfo& request,
       const UploadDataStream* upload_data,
       const BoundNetLog& stream_net_log);
@@ -106,8 +107,10 @@ class SpdySession : public base::RefCounted<SpdySession>,
   };
 
   typedef std::map<int, scoped_refptr<SpdyStream> > ActiveStreamMap;
-  typedef std::list<scoped_refptr<SpdyStream> > ActiveStreamList;
-  typedef std::map<std::string, scoped_refptr<SpdyStream> > PendingStreamMap;
+  // Only HTTP push a stream.
+  typedef std::list<scoped_refptr<SpdyHttpStream> > ActivePushedStreamList;
+  typedef std::map<std::string, scoped_refptr<SpdyHttpStream> >
+      PendingStreamMap;
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
   virtual ~SpdySession();
@@ -170,7 +173,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Check if we have a pending pushed-stream for this url
   // Returns the stream if found (and returns it from the pending
   // list), returns NULL otherwise.
-  scoped_refptr<SpdyStream> GetPushStream(const std::string& url);
+  scoped_refptr<SpdyHttpStream> GetPushStream(const std::string& url);
 
   // Creates an HttpResponseInfo instance, and calls OnResponseReceived().
   // Returns true if successful.
@@ -218,7 +221,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   ActiveStreamMap active_streams_;
   // List of all the streams that have already started to be pushed by the
   // server, but do not have consumers yet.
-  ActiveStreamList pushed_streams_;
+  ActivePushedStreamList pushed_streams_;
   // List of streams declared in X-Associated-Content headers, but do not have
   // consumers yet.
   // The key is a string representing the path of the URI being pushed.
