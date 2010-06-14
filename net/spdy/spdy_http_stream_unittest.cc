@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "net/spdy/spdy_stream.h"
+#include "net/spdy/spdy_http_stream.h"
 #include "base/ref_counted.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
@@ -82,9 +82,9 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 NULL);
 }
 
-class SpdyStreamTest : public testing::Test {
+class SpdyHttpStreamTest : public testing::Test {
  protected:
-  SpdyStreamTest()
+  SpdyHttpStreamTest()
       : session_(CreateSession(&session_deps_)),
         pool_peer_(session_->spdy_session_pool()) {}
 
@@ -106,7 +106,7 @@ class SpdyStreamTest : public testing::Test {
 };
 
 // Needs fixing, see http://crbug.com/28622
-TEST_F(SpdyStreamTest, SendRequest) {
+TEST_F(SpdyHttpStreamTest, SendRequest) {
   scoped_refptr<SpdySession> session(CreateSpdySession());
   HttpRequestInfo request;
   request.method = "GET";
@@ -114,9 +114,10 @@ TEST_F(SpdyStreamTest, SendRequest) {
   TestCompletionCallback callback;
   HttpResponseInfo response;
 
-  scoped_refptr<SpdyStream> stream(new SpdyStream(session, 1, false));
+  scoped_refptr<SpdyHttpStream> stream(new SpdyHttpStream(session, 1, false));
   stream->SetRequestInfo(request);
-  EXPECT_EQ(ERR_IO_PENDING, stream->SendRequest(NULL, &response, &callback));
+  EXPECT_EQ(ERR_IO_PENDING,
+            stream->SendRequest(NULL, &response, &callback));
 
   // Need to manually remove the spdy session since normally it gets removed on
   // socket close/error, but we aren't communicating over a socket here.

@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/message_loop.h"
+#include "base/singleton.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
 #include "net/spdy/spdy_session.h"
@@ -17,24 +18,17 @@ SpdyStream::SpdyStream(
     : stream_id_(stream_id),
       priority_(0),
       pushed_(pushed),
-      download_finished_(false),
       metrics_(Singleton<BandwidthMetrics>::get()),
       session_(session),
       request_time_(base::Time::Now()),
       response_(NULL),
-      request_body_stream_(NULL),
       response_complete_(false),
       io_state_(STATE_NONE),
       response_status_(OK),
-      user_callback_(NULL),
-      user_buffer_(NULL),
-      user_buffer_len_(0),
       cancelled_(false),
       send_bytes_(0),
       recv_bytes_(0),
-      histograms_recorded_(false),
-      buffered_read_callback_pending_(false),
-      more_read_data_pending_(false) {}
+      histograms_recorded_(false) {}
 
 SpdyStream::~SpdyStream() {
   DLOG(INFO) << "Deleting SpdyStream for stream " << stream_id_;
@@ -48,13 +42,6 @@ SpdyStream::~SpdyStream() {
     // we've cancelled or closed the stream and set the stream_id to 0.
     DCHECK(response_complete_);
   }
-}
-
-uint64 SpdyStream::GetUploadProgress() const {
-  if (!request_body_stream_.get())
-    return 0;
-
-  return request_body_stream_->position();
 }
 
 const HttpResponseInfo* SpdyStream::GetResponseInfo() const {
@@ -90,72 +77,97 @@ void SpdyStream::SetRequestTime(base::Time t) {
     response_->request_time = request_time_;
 }
 
-int SpdyStream::ReadResponseHeaders(CompletionCallback* callback) {
-  // Note: The SpdyStream may have already received the response headers, so
-  //       this call may complete synchronously.
-  CHECK(callback);
-  CHECK_EQ(STATE_NONE, io_state_);
-  CHECK(!cancelled_);
+int SpdyStream::DoOnResponseReceived(const HttpResponseInfo& response) {
+  int rv = OK;
 
-  // The SYN_REPLY has already been received.
-  if (response_->headers)
-    return OK;
+  metrics_.StartStream();
 
-  io_state_ = STATE_READ_HEADERS;
-  CHECK(!user_callback_);
-  user_callback_ = callback;
-  return ERR_IO_PENDING;
-}
+  CHECK(!response_->headers);
 
-int SpdyStream::ReadResponseBody(
-    IOBuffer* buf, int buf_len, CompletionCallback* callback) {
-  DCHECK_EQ(io_state_, STATE_NONE);
-  CHECK(buf);
-  CHECK(buf_len);
-  CHECK(callback);
-  CHECK(!cancelled_);
+  *response_ = response;  // TODO(mbelshe): avoid copy.
+  DCHECK(response_->headers);
 
-  // If we have data buffered, complete the IO immediately.
-  if (response_body_.size()) {
-    int bytes_read = 0;
-    while (response_body_.size() && buf_len > 0) {
-      scoped_refptr<IOBufferWithSize> data = response_body_.front();
-      const int bytes_to_copy = std::min(buf_len, data->size());
-      memcpy(&(buf->data()[bytes_read]), data->data(), bytes_to_copy);
-      buf_len -= bytes_to_copy;
-      if (bytes_to_copy == data->size()) {
-        response_body_.pop_front();
-      } else {
-        const int bytes_remaining = data->size() - bytes_to_copy;
-        IOBufferWithSize* new_buffer = new IOBufferWithSize(bytes_remaining);
-        memcpy(new_buffer->data(), &(data->data()[bytes_to_copy]),
-               bytes_remaining);
-        response_body_.pop_front();
-        response_body_.push_front(new_buffer);
-      }
-      bytes_read += bytes_to_copy;
-    }
-    if (bytes_read > 0)
-      recv_bytes_ += bytes_read;
-    return bytes_read;
-  } else if (response_complete_) {
-    return response_status_;
+  recv_first_byte_time_ = base::TimeTicks::Now();
+
+  if (io_state_ == STATE_NONE) {
+    CHECK(pushed_);
+    io_state_ = STATE_READ_HEADERS;
+  } else if (io_state_ == STATE_READ_HEADERS_COMPLETE) {
+    // This SpdyStream could be in this state in both true and false pushed_
+    // conditions.
+    // The false pushed_ condition (client request) will always go through
+    // this state.
+    // The true pushed_condition (server push) can be in this state when the
+    // client requests an X-Associated-Content piece of content prior
+    // to when the server push happens.
+  } else {
+    // We're not expecting a response while in this state.  Error!
+    rv = ERR_SPDY_PROTOCOL_ERROR;
   }
 
-  CHECK(!user_callback_);
-  CHECK(!user_buffer_);
-  CHECK_EQ(0, user_buffer_len_);
+  rv = DoLoop(rv);
 
-  user_callback_ = callback;
-  user_buffer_ = buf;
-  user_buffer_len_ = buf_len;
-  return ERR_IO_PENDING;
+  return rv;
 }
 
-int SpdyStream::SendRequest(UploadDataStream* upload_data,
-                            HttpResponseInfo* response,
-                            CompletionCallback* callback) {
-  CHECK(callback);
+bool SpdyStream::DoOnDataReceived(const char* data, int length) {
+  DCHECK_GE(length, 0);
+  LOG(INFO) << "SpdyStream: Data (" << length << " bytes) received for "
+            << stream_id_;
+
+  CHECK(!response_complete_);
+
+  // If we don't have a response, then the SYN_REPLY did not come through.
+  // We cannot pass data up to the caller unless the reply headers have been
+  // received.
+  if (!response_->headers) {
+    OnClose(ERR_SYN_REPLY_NOT_RECEIVED);
+    return false;
+  }
+
+  // A zero-length read means that the stream is being closed.
+  if (!length) {
+    metrics_.StopStream();
+    OnClose(net::OK);
+    UpdateHistograms();
+    return true;
+  }
+
+  // Track our bandwidth.
+  metrics_.RecordBytes(length);
+  recv_bytes_ += length;
+  recv_last_byte_time_ = base::TimeTicks::Now();
+
+  return true;
+}
+
+void SpdyStream::DoOnWriteComplete(int status) {
+  // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
+  // should discontinue the DoLoop.
+
+  // It is possible that this stream was closed while we had a write pending.
+  if (response_complete_)
+    return;
+
+  if (status > 0)
+    send_bytes_ += status;
+
+  DoLoop(status);
+}
+
+void SpdyStream::DoOnClose(int status) {
+  response_complete_ = true;
+  response_status_ = status;
+  stream_id_ = 0;
+}
+
+void SpdyStream::DoCancel() {
+  cancelled_ = true;
+  session_->CancelStream(stream_id_);
+}
+
+int SpdyStream::DoSendRequest(UploadDataStream* upload_data,
+                              HttpResponseInfo* response) {
   CHECK(!cancelled_);
   CHECK(response);
 
@@ -196,130 +208,20 @@ int SpdyStream::SendRequest(UploadDataStream* upload_data,
       io_state_ = STATE_READ_HEADERS;
     }
   }
-  int result = DoLoop(OK);
-  if (result == ERR_IO_PENDING) {
-    CHECK(!user_callback_);
-    user_callback_ = callback;
-  }
-  return result;
+  return DoLoop(OK);
 }
 
-void SpdyStream::Cancel() {
-  cancelled_ = true;
-  user_callback_ = NULL;
+int SpdyStream::DoReadResponseHeaders() {
+  CHECK_EQ(STATE_NONE, io_state_);
+  CHECK(!cancelled_);
 
-  session_->CancelStream(stream_id_);
-}
+  // The SYN_REPLY has already been received.
+  if (response_->headers)
+    return OK;
 
-int SpdyStream::OnResponseReceived(const HttpResponseInfo& response) {
-  int rv = OK;
-
-  metrics_.StartStream();
-
-  CHECK(!response_->headers);
-
-  *response_ = response;  // TODO(mbelshe): avoid copy.
-  DCHECK(response_->headers);
-
-  recv_first_byte_time_ = base::TimeTicks::Now();
-
-  if (io_state_ == STATE_NONE) {
-    CHECK(pushed_);
-    io_state_ = STATE_READ_HEADERS;
-  } else if (io_state_ == STATE_READ_HEADERS_COMPLETE) {
-    // This SpdyStream could be in this state in both true and false pushed_
-    // conditions.
-    // The false pushed_ condition (client request) will always go through
-    // this state.
-    // The true pushed_condition (server push) can be in this state when the
-    // client requests an X-Associated-Content piece of content prior
-    // to when the server push happens.
-  } else {
-    // We're not expecting a response while in this state.  Error!
-    rv = ERR_SPDY_PROTOCOL_ERROR;
-  }
-
-  rv = DoLoop(rv);
-
-  if (user_callback_)
-    DoCallback(rv);
-
-  return rv;
-}
-
-bool SpdyStream::OnDataReceived(const char* data, int length) {
-  DCHECK_GE(length, 0);
-  LOG(INFO) << "SpdyStream: Data (" << length << " bytes) received for "
-            << stream_id_;
-
-  CHECK(!response_complete_);
-
-  // If we don't have a response, then the SYN_REPLY did not come through.
-  // We cannot pass data up to the caller unless the reply headers have been
-  // received.
-  if (!response_->headers) {
-    OnClose(ERR_SYN_REPLY_NOT_RECEIVED);
-    return false;
-  }
-
-  // A zero-length read means that the stream is being closed.
-  if (!length) {
-    metrics_.StopStream();
-    download_finished_ = true;
-    response_complete_ = true;
-
-    // We need to complete any pending buffered read now.
-    DoBufferedReadCallback();
-
-    OnClose(net::OK);
-    return true;
-  }
-
-  // Track our bandwidth.
-  metrics_.RecordBytes(length);
-  recv_bytes_ += length;
-  recv_last_byte_time_ = base::TimeTicks::Now();
-
-  // Save the received data.
-  IOBufferWithSize* io_buffer = new IOBufferWithSize(length);
-  memcpy(io_buffer->data(), data, length);
-  response_body_.push_back(io_buffer);
-
-  // Note that data may be received for a SpdyStream prior to the user calling
-  // ReadResponseBody(), therefore user_buffer_ may be NULL.  This may often
-  // happen for server initiated streams.
-  if (user_buffer_) {
-    // Handing small chunks of data to the caller creates measurable overhead.
-    // We buffer data in short time-spans and send a single read notification.
-    ScheduleBufferedReadCallback();
-  }
-
-  return true;
-}
-
-void SpdyStream::OnWriteComplete(int status) {
-  // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
-  // should discontinue the DoLoop.
-
-  // It is possible that this stream was closed while we had a write pending.
-  if (response_complete_)
-    return;
-
-  if (status > 0)
-    send_bytes_ += status;
-
-  DoLoop(status);
-}
-
-void SpdyStream::OnClose(int status) {
-  response_complete_ = true;
-  response_status_ = status;
-  stream_id_ = 0;
-
-  if (user_callback_)
-    DoCallback(status);
-
-  UpdateHistograms();
+  io_state_ = STATE_READ_HEADERS;
+  // Q: do we need to run DoLoop here?
+  return ERR_IO_PENDING;
 }
 
 int SpdyStream::DoLoop(int result) {
@@ -378,74 +280,6 @@ int SpdyStream::DoLoop(int result) {
   } while (result != ERR_IO_PENDING && io_state_ != STATE_NONE);
 
   return result;
-}
-
-void SpdyStream::ScheduleBufferedReadCallback() {
-  // If there is already a scheduled DoBufferedReadCallback, don't issue
-  // another one.  Mark that we have received more data and return.
-  if (buffered_read_callback_pending_) {
-    more_read_data_pending_ = true;
-    return;
-  }
-
-  more_read_data_pending_ = false;
-  buffered_read_callback_pending_ = true;
-  const int kBufferTimeMs = 1;
-  MessageLoop::current()->PostDelayedTask(FROM_HERE, NewRunnableMethod(
-    this, &SpdyStream::DoBufferedReadCallback), kBufferTimeMs);
-}
-
-// Checks to see if we should wait for more buffered data before notifying
-// the caller.  Returns true if we should wait, false otherwise.
-bool SpdyStream::ShouldWaitForMoreBufferedData() const {
-  // If the response is complete, there is no point in waiting.
-  if (response_complete_)
-    return false;
-
-  int bytes_buffered = 0;
-  std::list<scoped_refptr<IOBufferWithSize> >::const_iterator it;
-  for (it = response_body_.begin();
-       it != response_body_.end() && bytes_buffered < user_buffer_len_;
-       ++it)
-    bytes_buffered += (*it)->size();
-
-  return bytes_buffered < user_buffer_len_;
-}
-
-void SpdyStream::DoBufferedReadCallback() {
-  buffered_read_callback_pending_ = false;
-
-  // If the transaction is cancelled or errored out, we don't need to complete
-  // the read.
-  if (response_status_ != OK || cancelled_)
-    return;
-
-  // When more_read_data_pending_ is true, it means that more data has
-  // arrived since we started waiting.  Wait a little longer and continue
-  // to buffer.
-  if (more_read_data_pending_ && ShouldWaitForMoreBufferedData()) {
-    ScheduleBufferedReadCallback();
-    return;
-  }
-
-  int rv = 0;
-  if (user_buffer_) {
-    rv = ReadResponseBody(user_buffer_, user_buffer_len_, user_callback_);
-    CHECK_NE(rv, ERR_IO_PENDING);
-    user_buffer_ = NULL;
-    user_buffer_len_ = 0;
-    DoCallback(rv);
-  }
-}
-
-void SpdyStream::DoCallback(int rv) {
-  CHECK_NE(rv, ERR_IO_PENDING);
-  CHECK(user_callback_);
-
-  // Since Run may result in being called back, clear user_callback_ in advance.
-  CompletionCallback* c = user_callback_;
-  user_callback_ = NULL;
-  c->Run(rv);
 }
 
 int SpdyStream::DoSendHeaders() {
