@@ -31,10 +31,10 @@ namespace net {
 
 class ClientSocketFactory;
 class ClientSocketHandle;
-class SpdyStream;
 class HttpNetworkSession;
 class HttpRequestHeaders;
 class HttpStream;
+class SpdyHttpStream;
 
 class HttpNetworkTransaction : public HttpTransaction {
  public:
@@ -322,7 +322,7 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   scoped_ptr<ClientSocketHandle> connection_;
   scoped_ptr<HttpStream> http_stream_;
-  scoped_refptr<SpdyStream> spdy_stream_;
+  scoped_refptr<SpdyHttpStream> spdy_stream_;
   bool reused_socket_;
 
   // True if we've validated the headers that the stream parser has returned.

@@ -6,29 +6,25 @@
 #define NET_SPDY_SPDY_STREAM_H_
 
 #include <string>
-#include <list>
 
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
-#include "base/singleton.h"
 #include "net/base/bandwidth_metrics.h"
-#include "net/base/completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_log.h"
 #include "net/http/http_request_info.h"
-#include "net/spdy/spdy_framer.h"
 #include "net/spdy/spdy_protocol.h"
 
 namespace net {
 
 class HttpResponseInfo;
 class SpdySession;
-class UploadData;
 class UploadDataStream;
 
 // The SpdyStream is used by the SpdySession to represent each stream known
-// on the SpdySession.
+// on the SpdySession.  This class provides interfaces for SpdySession to use
+// and base implementations for the interfaces.
 // Streams can be created either by the client or by the server.  When they
 // are initiated by the client, both the SpdySession and client object (such as
 // a SpdyNetworkTransaction) will maintain a reference to the stream.  When
@@ -39,45 +35,8 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // SpdyStream constructor
   SpdyStream(SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed);
 
-  // Ideally I'd use two abstract classes as interfaces for these two sections,
-  // but since we're ref counted, I can't make both abstract classes inherit
-  // from RefCounted or we'll have two separate ref counts for the same object.
-  // TODO(willchan): Consider using linked_ptr here orcreating proxy wrappers
-  // for SpdyStream to provide the appropriate interface.
-
-  // ===================================================
-  // Interface for [Http|Spdy]NetworkTransaction to use.
-
-  // Sends the request.  If |upload_data| is non-NULL, sends that in the request
-  // body.  |callback| is used when this completes asynchronously.  Note that
-  // the actual SYN_STREAM packet will have already been sent by this point.
-  // Also note that SpdyStream takes ownership of |upload_data|.
-  int SendRequest(UploadDataStream* upload_data,
-                  HttpResponseInfo* response,
-                  CompletionCallback* callback);
-
-  // Reads the response headers.  Returns a net error code.
-  int ReadResponseHeaders(CompletionCallback* callback);
-
-  // Reads the response body.  Returns a net error code or the number of bytes
-  // read.
-  int ReadResponseBody(
-      IOBuffer* buf, int buf_len, CompletionCallback* callback);
-
-  // Cancels the stream.  Note that this does not immediately cause deletion of
-  // the stream.  This function is used to cancel any callbacks from being
-  // invoked.  TODO(willchan): It should also free up any memory associated with
-  // the stream, such as IOBuffers.
-  void Cancel();
-
-  // Returns the number of bytes uploaded.
-  uint64 GetUploadProgress() const;
-
   // Is this stream a pushed stream from the server.
   bool pushed() const { return pushed_; }
-
-  // =================================
-  // Interface for SpdySession to use.
 
   spdy::SpdyStreamId stream_id() const { return stream_id_; }
   void set_stream_id(spdy::SpdyStreamId stream_id) { stream_id_ = stream_id; }
@@ -102,7 +61,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // received for this stream.  |path| is the path of the URL for a server
   // initiated stream, otherwise is empty.
   // Returns a status code.
-  int OnResponseReceived(const HttpResponseInfo& response);
+  virtual int OnResponseReceived(const HttpResponseInfo& response) = 0;
 
   // Called by the SpdySession when response data has been received for this
   // stream.  This callback may be called multiple times as data arrives
@@ -112,28 +71,63 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // |length| is the number of bytes received or an error.
   //         A zero-length count does not indicate end-of-stream.
   // Returns true on success and false on error.
-  bool OnDataReceived(const char* buffer, int bytes);
+  virtual bool OnDataReceived(const char* buffer, int bytes) = 0;
 
   // Called by the SpdySession when a write has completed.  This callback
   // will be called multiple times for each write which completes.  Writes
   // include the SYN_STREAM write and also DATA frame writes.
   // |result| is the number of bytes written or a net error code.
-  void OnWriteComplete(int status);
+  virtual void OnWriteComplete(int status) = 0;
 
   // Called by the SpdySession when the request is finished.  This callback
   // will always be called at the end of the request and signals to the
   // stream that the stream has no more network events.  No further callbacks
   // to the stream will be made after this call.
   // |status| is an error code or OK.
-  void OnClose(int status);
+  virtual void OnClose(int status) = 0;
 
+  virtual void Cancel() = 0;
   bool cancelled() const { return cancelled_; }
 
   void SetPushResponse(HttpResponseInfo* response_info);
 
- private:
+ protected:
   friend class base::RefCounted<SpdyStream>;
+  virtual ~SpdyStream();
 
+  int DoOnResponseReceived(const HttpResponseInfo& response);
+  bool DoOnDataReceived(const char* buffer,int bytes);
+  void DoOnWriteComplete(int status);
+  void DoOnClose(int status);
+
+  void DoCancel();
+
+  // Sends the request.  If |upload_data| is non-NULL, sends that in the
+  // request body.  Note that the actual SYN_STREAM packet will have already
+  // been sent by this point.
+  // Note that SpdyStream takes ownership of |upload_data|.
+  // TODO(ukai): move out HTTP-specific thing to SpdyHttpStream.
+  int DoSendRequest(UploadDataStream* upload_data,
+                    HttpResponseInfo* response_info);
+
+  // Reads response headers. If the SpdyStream have already received
+  // the response headers, return OK and response headers filled in
+  // |response_info| given in SendRequest.
+  // Otherwise, return ERR_IO_PENDING.
+  int DoReadResponseHeaders();
+
+  const UploadDataStream* request_body_stream() const {
+    return request_body_stream_.get();
+  }
+
+  bool is_idle() const { return io_state_ == STATE_NONE; }
+  bool response_complete() const { return response_complete_; }
+  void set_response_complete(bool response_complete) {
+    response_complete_ = response_complete;
+  }
+  int response_status() const { return response_status_; }
+
+ private:
   enum State {
     STATE_NONE,
     STATE_SEND_HEADERS,
@@ -147,17 +141,8 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
     STATE_DONE
   };
 
-  ~SpdyStream();
-
   // Try to make progress sending/receiving the request/response.
   int DoLoop(int result);
-
-  // Call the user callback.
-  void DoCallback(int rv);
-
-  void ScheduleBufferedReadCallback();
-  void DoBufferedReadCallback();
-  bool ShouldWaitForMoreBufferedData() const;
 
   // The implementations of each state of the state machine.
   int DoSendHeaders();
@@ -177,10 +162,6 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   std::string path_;
   int priority_;
   const bool pushed_;
-  // We buffer the response body as it arrives asynchronously from the stream.
-  // TODO(mbelshe):  is this infinite buffering?
-  std::list<scoped_refptr<IOBufferWithSize> > response_body_;
-  bool download_finished_;
   ScopedBandwidthMetrics metrics_;
 
   scoped_refptr<SpdySession> session_;
@@ -213,12 +194,6 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // Not valid until response_complete_ is true.
   int response_status_;
 
-  CompletionCallback* user_callback_;
-
-  // User provided buffer for the ReadResponseBody() response.
-  scoped_refptr<IOBuffer> user_buffer_;
-  int user_buffer_len_;
-
   bool cancelled_;
 
   BoundNetLog net_log_;
@@ -229,12 +204,6 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   int send_bytes_;
   int recv_bytes_;
   bool histograms_recorded_;
-
-  // Is there a scheduled read callback pending.
-  bool buffered_read_callback_pending_;
-  // Has more data been received from the network during the wait for the
-  // scheduled read callback.
-  bool more_read_data_pending_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyStream);
 };
