@@ -24,6 +24,9 @@ const int kInvalidSocket = -1;
 
 NetworkChangeNotifierLinux::NetworkChangeNotifierLinux()
     : netlink_fd_(kInvalidSocket),
+#if defined(OS_CHROMEOS)
+      ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
+#endif
       loop_(MessageLoopForIO::current()) {
   netlink_fd_ = InitializeNetlinkSocket();
   if (netlink_fd_ < 0) {
@@ -61,8 +64,23 @@ void NetworkChangeNotifierLinux::ListenForNotifications() {
   char buf[4096];
   int rv = ReadNotificationMessage(buf, arraysize(buf));
   while (rv > 0 ) {
-    if (HandleNetlinkMessage(buf, rv))
-      FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
+    if (HandleNetlinkMessage(buf, rv)) {
+      LOG(INFO) << "Detected IP address changes.";
+
+#if defined(OS_CHROMEOS)
+      // TODO(zelidrag): chromium-os:3996 - introduced artificial delay to
+      // work around the issue of proxy initialization before name resolving
+      // is functional in ChromeOS. This should be removed once this bug
+      // is properly fixed.
+      MessageLoop::current()->PostDelayedTask(
+          FROM_HERE,
+          factory_.NewRunnableMethod(
+              &NetworkChangeNotifierLinux::NotifyObserversIPAddressChanged),
+          500);
+#else
+      NotifyObserversIPAddressChanged();
+#endif
+    }
     rv = ReadNotificationMessage(buf, arraysize(buf));
   }
 
@@ -72,6 +90,10 @@ void NetworkChangeNotifierLinux::ListenForNotifications() {
         this);
     LOG_IF(ERROR, !rv) << "Failed to watch netlink socket: " << netlink_fd_;
   }
+}
+
+void NetworkChangeNotifierLinux::NotifyObserversIPAddressChanged() {
+  FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
 }
 
 int NetworkChangeNotifierLinux::ReadNotificationMessage(char* buf, size_t len) {
