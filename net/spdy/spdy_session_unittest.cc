@@ -12,6 +12,7 @@
 #include "net/http/http_response_info.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/socket_test_util.h"
+#include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_stream.h"
@@ -169,7 +170,7 @@ class StreamCanceler {
     STATE_DONE
   };
 
-  explicit StreamCanceler(const scoped_refptr<SpdyStream>& stream)
+  explicit StreamCanceler(const scoped_refptr<SpdyHttpStream>& stream)
       : stream_(stream),
         ALLOW_THIS_IN_INITIALIZER_LIST(
             callback_(this, &StreamCanceler::OnIOComplete)),
@@ -214,7 +215,7 @@ class StreamCanceler {
     }
   }
 
-  const scoped_refptr<SpdyStream> stream_;
+  const scoped_refptr<SpdyHttpStream> stream_;
   CompletionCallbackImpl<StreamCanceler> callback_;
   scoped_refptr<IOBufferWithSize> buf_;
   State state_;
@@ -260,7 +261,7 @@ TEST_F(SpdySessionTest, CancelStreamOnClose) {
   HttpRequestInfo request;
   request.url = GURL("http://www.google.com");
 
-  scoped_refptr<SpdyStream> stream =
+  scoped_refptr<SpdyHttpStream> stream =
       session->GetOrCreateStream(request, NULL, BoundNetLog());
   TCPSocketParams tcp_params(kTestHost, kTestPort, MEDIUM, GURL(), false);
   int rv = session->Connect(kTestHost, tcp_params, MEDIUM);
@@ -331,9 +332,9 @@ TEST_F(SpdySessionTest, GetPushStream) {
 
   // No push streams should exist in the beginning.
   std::string test_push_path = "/foo.js";
-  scoped_refptr<SpdyStream> first_stream = session->GetPushStream(
+  scoped_refptr<SpdyHttpStream> first_stream = session->GetPushStream(
       test_push_path);
-  EXPECT_EQ(static_cast<SpdyStream*>(NULL), first_stream.get());
+  EXPECT_EQ(static_cast<SpdyHttpStream*>(NULL), first_stream.get());
 
   // Read in the data which contains a server-issued SYN_STREAM.
   TCPSocketParams tcp_params(test_host_port_pair, MEDIUM, GURL(), false);
@@ -342,14 +343,14 @@ TEST_F(SpdySessionTest, GetPushStream) {
   MessageLoop::current()->RunAllPending();
 
   // An unpushed path should not work.
-  scoped_refptr<SpdyStream> unpushed_stream = session->GetPushStream(
+  scoped_refptr<SpdyHttpStream> unpushed_stream = session->GetPushStream(
       "/unpushed_path");
-  EXPECT_EQ(static_cast<SpdyStream*>(NULL), unpushed_stream.get());
+  EXPECT_EQ(static_cast<SpdyHttpStream*>(NULL), unpushed_stream.get());
 
   // The pushed path should be found.
-  scoped_refptr<SpdyStream> second_stream = session->GetPushStream(
+  scoped_refptr<SpdyHttpStream> second_stream = session->GetPushStream(
       test_push_path);
-  ASSERT_NE(static_cast<SpdyStream*>(NULL), second_stream.get());
+  ASSERT_NE(static_cast<SpdyHttpStream*>(NULL), second_stream.get());
   EXPECT_EQ(test_push_path, second_stream->path());
   EXPECT_EQ(2U, second_stream->stream_id());
   EXPECT_EQ(0, second_stream->priority());

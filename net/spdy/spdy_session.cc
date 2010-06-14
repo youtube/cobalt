@@ -26,6 +26,7 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_frame_builder.h"
+#include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_settings_storage.h"
 #include "net/spdy/spdy_stream.h"
@@ -342,18 +343,19 @@ net::Error SpdySession::Connect(const std::string& group_name,
   return static_cast<net::Error>(rv);
 }
 
-scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
+scoped_refptr<SpdyHttpStream> SpdySession::GetOrCreateStream(
     const HttpRequestInfo& request,
     const UploadDataStream* upload_data,
     const BoundNetLog& stream_net_log) {
   const GURL& url = request.url;
   const std::string& path = url.PathForRequest();
 
-  scoped_refptr<SpdyStream> stream;
+  scoped_refptr<SpdyHttpStream> stream;
 
   // Check if we have a push stream for this path.
   if (request.method == "GET") {
-    stream = GetPushStream(path);
+    // Only HTTP will push a stream.
+    scoped_refptr<SpdyHttpStream> stream = GetPushStream(path);
     if (stream) {
       DCHECK(streams_pushed_and_claimed_count_ < streams_pushed_count_);
       // Update the request time
@@ -385,18 +387,18 @@ scoped_refptr<SpdyStream> SpdySession::GetOrCreateStream(
     // Server will assign a stream id when the push stream arrives.  Use 0 for
     // now.
     net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM, NULL);
-    SpdyStream* stream = new SpdyStream(this, 0, true);
+    stream = new SpdyHttpStream(this, 0, true);
     stream->SetRequestInfo(request);
     stream->set_path(path);
     stream->set_net_log(stream_net_log);
     it->second = stream;
-    return it->second;
+    return stream;
   }
 
   const spdy::SpdyStreamId stream_id = GetNewStreamId();
 
   // If we still don't have a stream, activate one now.
-  stream = new SpdyStream(this, stream_id, false);
+  stream = new SpdyHttpStream(this, stream_id, false);
   stream->SetRequestInfo(request);
   stream->set_priority(request.priority);
   stream->set_path(path);
@@ -878,9 +880,9 @@ void SpdySession::DeactivateStream(spdy::SpdyStreamId id) {
   DCHECK(IsStreamActive(id));
 
   // Verify it is not on the pushed_streams_ list.
-  ActiveStreamList::iterator it;
+  ActivePushedStreamList::iterator it;
   for (it = pushed_streams_.begin(); it != pushed_streams_.end(); ++it) {
-    scoped_refptr<SpdyStream> curr = *it;
+    scoped_refptr<SpdyHttpStream> curr = *it;
     if (id == curr->stream_id()) {
       pushed_streams_.erase(it);
       break;
@@ -897,15 +899,16 @@ void SpdySession::RemoveFromPool() {
   }
 }
 
-scoped_refptr<SpdyStream> SpdySession::GetPushStream(const std::string& path) {
+scoped_refptr<SpdyHttpStream> SpdySession::GetPushStream(
+    const std::string& path) {
   static StatsCounter used_push_streams("spdy.claimed_push_streams");
 
   LOG(INFO) << "Looking for push stream: " << path;
 
-  scoped_refptr<SpdyStream> stream;
+  scoped_refptr<SpdyHttpStream> stream;
 
   // We just walk a linear list here.
-  ActiveStreamList::iterator it;
+  ActivePushedStreamList::iterator it;
   for (it = pushed_streams_.begin(); it != pushed_streams_.end(); ++it) {
     stream = *it;
     if (path == stream->path()) {
@@ -937,7 +940,7 @@ void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                     const char* data,
                                     size_t len) {
   LOG(INFO) << "Spdy data for stream " << stream_id << ", " << len << " bytes";
-  
+
   if (!IsStreamActive(stream_id)) {
     // NOTE:  it may just be that the stream was cancelled.
     LOG(WARNING) << "Received data frame for invalid stream " << stream_id;
@@ -1027,7 +1030,8 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
     return;
   }
 
-  scoped_refptr<SpdyStream> stream;
+  // Only HTTP push a stream.
+  scoped_refptr<SpdyHttpStream> stream;
 
   // Check if we already have a delegate awaiting this stream.
   PendingStreamMap::iterator it;
@@ -1050,7 +1054,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
               stream_id));
     }
   } else {
-    stream = new SpdyStream(this, stream_id, true);
+    stream = new SpdyHttpStream(this, stream_id, true);
 
     if (net_log_.HasListener()) {
       net_log_.AddEvent(
