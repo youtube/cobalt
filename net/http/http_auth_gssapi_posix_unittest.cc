@@ -4,6 +4,7 @@
 
 #include "net/http/http_auth_gssapi_posix.h"
 
+#include "base/logging.h"
 #include "base/native_library.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -13,13 +14,9 @@ TEST(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup) {
   // TODO(ahendrickson): Manipulate the libraries and paths to test each of the
   // libraries we expect, and also whether or not they have the interface
   // functions we want.
-  base::NativeLibrary lib = GSSAPISharedLibrary::LoadSharedObject();
-  bool has_library = (lib != NULL);
-  if (has_library) {
-    base::UnloadNativeLibrary(lib);
-  }
   GSSAPILibrary* gssapi = GSSAPILibrary::GetDefault();
-  EXPECT_EQ(has_library, gssapi->Init());
+  DCHECK(gssapi);
+  gssapi->Init();
 }
 
 }  // namespace net
