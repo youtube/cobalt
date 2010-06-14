@@ -10,6 +10,10 @@
 #include "base/observer_list.h"
 #include "net/base/network_change_notifier.h"
 
+#if defined(OS_CHROMEOS)
+#include "base/task.h"
+#endif
+
 namespace net {
 
 class NetworkChangeNotifierLinux
@@ -53,10 +57,17 @@ class NetworkChangeNotifierLinux
   // Stops watching the netlink file descriptor.
   void StopWatching();
 
+  void NotifyObserversIPAddressChanged();
+
   // http://crbug.com/36890.
   ObserverList<Observer, false> observers_;
 
   int netlink_fd_;  // This is the netlink socket descriptor.
+
+#if defined(OS_CHROMEOS)
+  ScopedRunnableMethodFactory<NetworkChangeNotifierLinux> factory_;
+#endif
+
   MessageLoopForIO* loop_;
   MessageLoopForIO::FileDescriptorWatcher netlink_watcher_;
 
