@@ -6,6 +6,7 @@
 
 #include "net/proxy/proxy_config.h"
 #include "net/proxy/proxy_config_service_common_unittest.h"
+#include "net/proxy/proxy_info.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -79,6 +80,18 @@ TEST(ProxyConfigTest, Equals) {
   EXPECT_FALSE(config2.Equals(config1));
 
   config1.proxy_rules().bypass_rules.AddRuleFromString("*.google.com");
+
+  EXPECT_TRUE(config1.Equals(config2));
+  EXPECT_TRUE(config2.Equals(config1));
+
+  // Test |ProxyConfig::proxy_rules.reverse_bypass|.
+
+  config2.proxy_rules().reverse_bypass = true;
+
+  EXPECT_FALSE(config1.Equals(config2));
+  EXPECT_FALSE(config2.Equals(config1));
+
+  config1.proxy_rules().reverse_bypass = true;
 
   EXPECT_TRUE(config1.Equals(config2));
   EXPECT_TRUE(config2.Equals(config1));
@@ -348,6 +361,28 @@ TEST(ProxyConfigTest, ToString) {
               "  Bypass list: [None]",
               ProxyConfigToString(config));
   }
+
+  // Manual proxy with bypass list + bypass local, list reversed.
+  {
+    ProxyConfig config;
+    config.set_auto_detect(false);
+    config.proxy_rules().ParseFromString("http://single-proxy:81");
+    config.proxy_rules().bypass_rules.AddRuleFromString("google.com");
+    config.proxy_rules().bypass_rules.AddRuleFromString("bypass2.net:1730");
+    config.proxy_rules().bypass_rules.AddRuleToBypassLocal();
+    config.proxy_rules().reverse_bypass = true;
+
+    EXPECT_EQ("Automatic settings:\n"
+              "  Auto-detect: No\n"
+              "  Custom PAC script: [None]\n"
+              "Manual settings:\n"
+              "  Proxy server: single-proxy:81\n"
+              "  Only use proxy for: \n"
+              "    google.com\n"
+              "    bypass2.net:1730\n"
+              "    <local>",
+              ProxyConfigToString(config));
+  }
 }
 
 TEST(ProxyConfigTest, MayRequirePACResolver) {
@@ -369,6 +404,32 @@ TEST(ProxyConfigTest, MayRequirePACResolver) {
     ProxyConfig config;
     config.set_pac_url(GURL("notvalid"));
     EXPECT_FALSE(config.MayRequirePACResolver());
+  }
+}
+
+TEST(ProxyConfigTest, ReversedBypassList) {
+  {
+    ProxyConfig config;
+    config.set_auto_detect(false);
+    config.proxy_rules().ParseFromString("http://single-proxy:81");
+    config.proxy_rules().bypass_rules.AddRuleFromString("google.com");
+    config.proxy_rules().bypass_rules.AddRuleFromString("bypass2.net:1730");
+    config.proxy_rules().bypass_rules.AddRuleToBypassLocal();
+    config.proxy_rules().reverse_bypass = true;
+
+    ProxyInfo info[3];
+    GURL url0("http://google.com");
+    GURL url1("http://www.webkit.com");
+    GURL url2("http://bypass2.net:1730");
+
+    config.proxy_rules().Apply(url0, &info[0]);
+    EXPECT_EQ("single-proxy:81", info[0].proxy_server().ToURI());
+
+    config.proxy_rules().Apply(url1, &info[1]);
+    EXPECT_TRUE(info[1].is_direct());
+
+    config.proxy_rules().Apply(url2, &info[2]);
+    EXPECT_EQ("single-proxy:81", info[2].proxy_server().ToURI());
   }
 }
 

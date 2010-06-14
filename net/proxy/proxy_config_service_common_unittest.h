@@ -27,14 +27,16 @@ struct ProxyRulesExpectation {
                         const char* proxy_for_https,
                         const char* proxy_for_ftp,
                         const char* socks_proxy,
-                        const char* flattened_bypass_rules)
+                        const char* flattened_bypass_rules,
+                        bool reverse_bypass)
     : type(type),
       single_proxy(single_proxy),
       proxy_for_http(proxy_for_http),
       proxy_for_https(proxy_for_https),
       proxy_for_ftp(proxy_for_ftp),
       socks_proxy(socks_proxy),
-      flattened_bypass_rules(flattened_bypass_rules) {
+      flattened_bypass_rules(flattened_bypass_rules),
+      reverse_bypass(reverse_bypass) {
   }
 
 
@@ -71,6 +73,13 @@ struct ProxyRulesExpectation {
       const char* socks_proxy,
       const char* flattened_bypass_rules);
 
+  // Same as PerScheme, but with the bypass rules reversed
+  static ProxyRulesExpectation PerSchemeWithBypassReversed(
+      const char* proxy_http,
+      const char* proxy_https,
+      const char* proxy_ftp,
+      const char* flattened_bypass_rules);
+
   ProxyConfig::ProxyRules::Type type;
   const char* single_proxy;
   const char* proxy_for_http;
@@ -78,6 +87,7 @@ struct ProxyRulesExpectation {
   const char* proxy_for_ftp;
   const char* socks_proxy;
   const char* flattened_bypass_rules;
+  bool reverse_bypass;
 };
 
 }  // namespace net
