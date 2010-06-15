@@ -82,6 +82,16 @@ bool PathProviderPosix(int key, FilePath* result) {
           return true;
         }
       }
+      // In a case of WebKit-only checkout, executable files are put into
+      // WebKit/out/{Debug|Release}, and we should return WebKit/WebKit/chromium
+      // for DIR_SOURCE_ROOT.
+      if (PathService::Get(base::DIR_EXE, &path)) {
+        path = path.DirName().DirName().Append("WebKit/chromium");
+        if (file_util::PathExists(path.Append("base/base_paths_posix.cc"))) {
+          *result = path;
+          return true;
+        }
+      }
       // If that failed (maybe the build output is symlinked to a different
       // drive) try assuming the current directory is the source root.
       if (file_util::GetCurrentDirectory(&path) &&
