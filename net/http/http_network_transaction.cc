@@ -1220,12 +1220,17 @@ int HttpNetworkTransaction::DoSendRequest() {
     BuildRequestHeaders(request_, authorization_headers, request_body,
                         !using_ssl_ && proxy_info_.is_http(), &request_line,
                         &request_headers);
+
+    if (session_->network_delegate())
+      session_->network_delegate()->OnSendHttpRequest(&request_headers);
+
     if (net_log_.HasListener()) {
       net_log_.AddEvent(
           NetLog::TYPE_HTTP_TRANSACTION_SEND_REQUEST_HEADERS,
           new NetLogHttpRequestParameter(
               request_line, request_headers));
     }
+
     request_headers_ = request_line + request_headers.ToString();
   }
 

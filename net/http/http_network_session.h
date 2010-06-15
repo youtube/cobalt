@@ -14,6 +14,8 @@
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth_cache.h"
+#include "net/http/http_network_delegate.h"
+#include "net/http/http_network_transaction.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socks_client_socket_pool.h"
@@ -24,6 +26,7 @@ namespace net {
 
 class ClientSocketFactory;
 class HttpAuthHandlerFactory;
+class HttpNetworkDelegate;
 class HttpNetworkSessionPeer;
 class NetworkChangeNotifier;
 class SpdySessionPool;
@@ -39,6 +42,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
       SSLConfigService* ssl_config_service,
       SpdySessionPool* spdy_session_pool,
       HttpAuthHandlerFactory* http_auth_handler_factory,
+      HttpNetworkDelegate* network_delegate,
       NetLog* net_log);
 
   HttpAuthCache* auth_cache() { return &auth_cache_; }
@@ -83,6 +87,9 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   HttpAuthHandlerFactory* http_auth_handler_factory() {
     return http_auth_handler_factory_;
   }
+  HttpNetworkDelegate* network_delegate() {
+    return network_delegate_;
+  }
 
   static void set_max_sockets_per_group(int socket_count);
 
@@ -120,6 +127,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   scoped_refptr<SSLConfigService> ssl_config_service_;
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
   HttpAuthHandlerFactory* http_auth_handler_factory_;
+  HttpNetworkDelegate* const network_delegate_;
   NetLog* net_log_;
   SpdySettingsStorage spdy_settings_;
 };

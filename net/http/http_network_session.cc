@@ -43,6 +43,7 @@ HttpNetworkSession::HttpNetworkSession(
     SSLConfigService* ssl_config_service,
     SpdySessionPool* spdy_session_pool,
     HttpAuthHandlerFactory* http_auth_handler_factory,
+    HttpNetworkDelegate* network_delegate,
     NetLog* net_log)
     : network_change_notifier_(network_change_notifier),
       // TODO(vandebo) when we've completely converted to pools, the base TCP
@@ -62,6 +63,7 @@ HttpNetworkSession::HttpNetworkSession(
       ssl_config_service_(ssl_config_service),
       spdy_session_pool_(spdy_session_pool),
       http_auth_handler_factory_(http_auth_handler_factory),
+      network_delegate_(network_delegate),
       net_log_(net_log) {
   DCHECK(proxy_service);
   DCHECK(ssl_config_service);
