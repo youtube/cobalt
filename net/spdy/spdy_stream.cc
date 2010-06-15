@@ -33,15 +33,10 @@ SpdyStream::SpdyStream(
 SpdyStream::~SpdyStream() {
   DLOG(INFO) << "Deleting SpdyStream for stream " << stream_id_;
 
-  // TODO(willchan): We're still calling CancelStream() too many times, because
-  // inactive pending/pushed streams will still have stream_id_ set.
-  if (stream_id_) {
-    session_->CancelStream(stream_id_);
-  } else {
-    // When the stream_id_ is 0, we expect that it is because
-    // we've cancelled or closed the stream and set the stream_id to 0.
+  // When the stream_id_ is 0, we expect that it is because
+  // we've cancelled or closed the stream and set the stream_id to 0.
+  if (!stream_id_)
     DCHECK(response_complete_);
-  }
 }
 
 const HttpResponseInfo* SpdyStream::GetResponseInfo() const {
@@ -121,14 +116,15 @@ bool SpdyStream::DoOnDataReceived(const char* data, int length) {
   // We cannot pass data up to the caller unless the reply headers have been
   // received.
   if (!response_->headers) {
-    OnClose(ERR_SYN_REPLY_NOT_RECEIVED);
+    session_->CloseStream(stream_id_, ERR_SYN_REPLY_NOT_RECEIVED);
     return false;
   }
 
   // A zero-length read means that the stream is being closed.
   if (!length) {
     metrics_.StopStream();
-    OnClose(net::OK);
+    scoped_refptr<SpdyStream> self(this);
+    session_->CloseStream(stream_id_, net::OK);
     UpdateHistograms();
     return true;
   }
@@ -163,7 +159,7 @@ void SpdyStream::DoOnClose(int status) {
 
 void SpdyStream::DoCancel() {
   cancelled_ = true;
-  session_->CancelStream(stream_id_);
+  session_->CloseStream(stream_id_, ERR_ABORTED);
 }
 
 int SpdyStream::DoSendRequest(UploadDataStream* upload_data,
