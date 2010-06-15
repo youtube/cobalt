@@ -24,6 +24,7 @@ namespace net {
 class CookiePolicy;
 class FtpTransactionFactory;
 class HttpAuthHandlerFactory;
+class HttpNetworkDelegate;
 class HttpTransactionFactory;
 class SocketStream;
 }
@@ -38,6 +39,7 @@ class URLRequestContext
         http_transaction_factory_(NULL),
         ftp_transaction_factory_(NULL),
         http_auth_handler_factory_(NULL),
+        network_delegate_(NULL),
         cookie_policy_(NULL),
         transport_security_state_(NULL) {
   }
@@ -138,6 +140,7 @@ class URLRequestContext
   net::HttpTransactionFactory* http_transaction_factory_;
   net::FtpTransactionFactory* ftp_transaction_factory_;
   net::HttpAuthHandlerFactory* http_auth_handler_factory_;
+  net::HttpNetworkDelegate* network_delegate_;
   scoped_refptr<net::CookieStore> cookie_store_;
   net::CookiePolicy* cookie_policy_;
   scoped_refptr<net::TransportSecurityState> transport_security_state_;
