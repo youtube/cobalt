@@ -75,8 +75,7 @@ class HttpNetworkSessionPeer {
 
 // Helper to manage the lifetimes of the dependencies for a
 // HttpNetworkTransaction.
-class SessionDependencies {
- public:
+struct SessionDependencies {
   // Default set of dependencies -- "null" proxy service.
   SessionDependencies()
       : host_resolver(new MockHostResolver),
@@ -115,6 +114,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->ssl_config_service,
                                 session_deps->spdy_session_pool,
                                 session_deps->http_auth_handler_factory.get(),
+                                NULL,
                                 NULL);
 }
 
