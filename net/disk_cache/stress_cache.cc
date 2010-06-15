@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -24,6 +24,8 @@
 #include "base/process_util.h"
 #include "base/string_util.h"
 #include "base/thread.h"
+#include "net/base/net_errors.h"
+#include "net/base/test_completion_callback.h"
 #include "net/base/io_buffer.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache.h"
@@ -77,11 +79,20 @@ int MasterCode() {
 void StressTheCache(int iteration) {
   int cache_size = 0x800000;  // 8MB
   FilePath path = GetCacheFilePath().AppendASCII("_stress");
-  disk_cache::BackendImpl* cache = new disk_cache::BackendImpl(path);
-  cache->SetFlags(disk_cache::kNoLoadProtection | disk_cache::kNoRandom);
-  cache->SetMaxSize(cache_size);
-  cache->SetType(net::DISK_CACHE);
-  if (!cache->Init()) {
+
+  base::Thread cache_thread("CacheThread");
+  if (!cache_thread.StartWithOptions(
+          base::Thread::Options(MessageLoop::TYPE_IO, 0)))
+    return;
+
+  TestCompletionCallback cb;
+  disk_cache::Backend* cache;
+  int rv = disk_cache::BackendImpl::CreateBackend(
+               path, false, cache_size, net::DISK_CACHE,
+               disk_cache::kNoLoadProtection | disk_cache::kNoRandom,
+               cache_thread.message_loop_proxy(), &cache, &cb);
+
+  if (cb.GetResult(rv) != net::OK) {
     printf("Unable to initialize cache.\n");
     return;
   }
@@ -111,12 +122,15 @@ void StressTheCache(int iteration) {
     if (entries[slot])
       entries[slot]->Close();
 
-    if (!cache->OpenEntry(keys[key], &entries[slot]))
-      CHECK(cache->CreateEntry(keys[key], &entries[slot]));
+    rv = cache->OpenEntry(keys[key], &entries[slot], &cb);
+    if (cb.GetResult(rv) != net::OK) {
+      rv = cache->CreateEntry(keys[key], &entries[slot], &cb);
+      CHECK_EQ(net::OK, cb.GetResult(rv));
+    }
 
     base::snprintf(buffer->data(), kSize, "%d %d", iteration, i);
-    CHECK_EQ(kSize,
-             entries[slot]->WriteData(0, 0, buffer, kSize, NULL, false));
+    rv = entries[slot]->WriteData(0, 0, buffer, kSize, &cb, false);
+    CHECK_EQ(kSize, cb.GetResult(rv));
 
     if (rand() % 100 > 80) {
       key = rand() % kNumKeys;
