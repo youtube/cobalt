@@ -235,6 +235,7 @@
           'sys_string_conversions_mac.mm',
           'sys_string_conversions_win.cc',
           'task.h',
+          'template_util.h',
           'thread.cc',
           'thread.h',
           'thread_collision_warner.cc',

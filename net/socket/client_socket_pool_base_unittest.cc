@@ -30,7 +30,7 @@ const int kDefaultMaxSockets = 4;
 const int kDefaultMaxSocketsPerGroup = 2;
 const net::RequestPriority kDefaultPriority = MEDIUM;
 
-typedef const void* TestSocketParams;
+struct TestSocketParams {};
 typedef ClientSocketPoolBase<TestSocketParams> TestClientSocketPoolBase;
 
 class MockClientSocket : public ClientSocket {
@@ -299,8 +299,10 @@ class TestClientSocketPool : public ClientSocketPool {
       ClientSocketHandle* handle,
       CompletionCallback* callback,
       const BoundNetLog& net_log) {
+    const TestSocketParams* casted_socket_params =
+        static_cast<const TestSocketParams*>(params);
     return base_.RequestSocket(
-        group_name, params, priority, handle, callback, net_log);
+        group_name, *casted_socket_params, priority, handle, callback, net_log);
   }
 
   virtual void CancelRequest(
@@ -438,8 +440,9 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
 
   int StartRequest(const std::string& group_name,
                    net::RequestPriority priority) {
+    TestSocketParams params;
     return StartRequestUsingPool<TestClientSocketPool, TestSocketParams>(
-        pool_, group_name, priority, NULL);
+        pool_, group_name, priority, params);
   }
 
   virtual void TearDown() {
@@ -474,8 +477,9 @@ int InitHandle(ClientSocketHandle* handle,
                CompletionCallback* callback,
                const scoped_refptr<TestClientSocketPool>& pool,
                const BoundNetLog& net_log) {
+  TestSocketParams params;
   return handle->Init<TestSocketParams, TestClientSocketPool>(
-      group_name, NULL, priority, callback, pool, net_log);
+      group_name, params, priority, callback, pool, net_log);
 }
 
 // Even though a timeout is specified, it doesn't time out on a synchronous
@@ -483,8 +487,9 @@ int InitHandle(ClientSocketHandle* handle,
 TEST_F(ClientSocketPoolBaseTest, ConnectJob_NoTimeoutOnSynchronousCompletion) {
   TestConnectJobDelegate delegate;
   ClientSocketHandle ignored;
+  TestSocketParams params;
   TestClientSocketPoolBase::Request request(
-      &ignored, NULL, kDefaultPriority, NULL, BoundNetLog());
+      &ignored, NULL, kDefaultPriority, params, BoundNetLog());
   scoped_ptr<TestConnectJob> job(
       new TestConnectJob(TestConnectJob::kMockJob,
                          "a",
@@ -501,8 +506,9 @@ TEST_F(ClientSocketPoolBaseTest, ConnectJob_TimedOut) {
   ClientSocketHandle ignored;
   CapturingNetLog log(CapturingNetLog::kUnbounded);
 
+  TestSocketParams params;
   TestClientSocketPoolBase::Request request(
-      &ignored, NULL, kDefaultPriority, NULL, BoundNetLog());
+      &ignored, NULL, kDefaultPriority, params, BoundNetLog());
   // Deleted by TestConnectJobDelegate.
   TestConnectJob* job =
       new TestConnectJob(TestConnectJob::kMockPendingJob,
