@@ -3,7 +3,10 @@
 # found in the LICENSE file.
 
 {
-  'targets' : [ 
+  'variables': {
+    'chromium_code': 1,
+  },
+  'targets' : [
     {
       'target_name': 'image_diff',
       'type': 'executable',
