@@ -166,6 +166,10 @@
     'mac_sdk%': '10.5',
     'mac_deployment_target%': '10.5',
 
+    # Turn on -Wextra on chromium code during Mac compile.
+    # TODO(mark,tvl): drop this and turn it always on when it works.
+    'chromium_mac_wextra%': 0,
+
     # Set to 1 to enable code coverage.  In addition to build changes
     # (e.g. extra CFLAGS), also creates a new target in the src/chrome
     # project file called "coverage".
@@ -521,7 +525,7 @@
           [ 'OS=="mac"', {
             'xcode_settings': {
               'GCC_TREAT_WARNINGS_AS_ERRORS': 'NO',
-              'WARNING_CFLAGS!': ['-Wall'],
+              'WARNING_CFLAGS!': ['-Wall', '-Wextra'],
             },
           }],
         ],
@@ -1147,6 +1151,16 @@
             ['chromium_mac_pch', {'GCC_PRECOMPILE_PREFIX_HEADER': 'YES'},
                                  {'GCC_PRECOMPILE_PREFIX_HEADER': 'NO'}
             ],
+            ['chromium_mac_wextra', {
+              'WARNING_CFLAGS': [
+                '-Wextra',
+                # Don't warn about unused function params.  Used everywhere.
+                '-Wno-unused-parameter',
+                # Don't warn about the "struct foo f = {0};" initialization
+                # pattern.
+                '-Wno-missing-field-initializers',
+              ]
+            }],
           ],
         },
         'target_conditions': [
