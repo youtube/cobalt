@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -20,6 +20,7 @@
 #include "net/disk_cache/errors.h"
 #include "net/disk_cache/hash.h"
 #include "net/disk_cache/file.h"
+#include "net/disk_cache/mem_backend_impl.h"
 
 // This has to be defined before including histogram_macros.h from this file.
 #define NET_DISK_CACHE_BACKEND_IMPL_CC_
@@ -167,20 +168,18 @@ void SetFieldTrialInfo(int size_group) {
 
 namespace disk_cache {
 
-Backend* CreateCacheBackend(const FilePath& full_path, bool force,
-                            int max_bytes, net::CacheType type) {
-  // Create a backend without extra flags.
-  return BackendImpl::CreateBackend(full_path, force, max_bytes, type, kNone);
-}
-
 int CreateCacheBackend(net::CacheType type, const FilePath& path, int max_bytes,
                        bool force, base::MessageLoopProxy* thread,
                        Backend** backend, CompletionCallback* callback) {
-  if (type == net::MEMORY_CACHE)
-    *backend = CreateInMemoryCacheBackend(max_bytes);
-  else
-    *backend = BackendImpl::CreateBackend(path, force, max_bytes, type, kNone);
-  return *backend ? net::OK : net::ERR_FAILED;
+  DCHECK(callback);
+  if (type == net::MEMORY_CACHE) {
+    *backend = MemBackendImpl::CreateBackend(max_bytes);
+    return *backend ? net::OK : net::ERR_FAILED;
+  }
+  DCHECK(thread);
+
+  return BackendImpl::CreateBackend(path, force, max_bytes, type, kNone, thread,
+                                    backend, callback);
 }
 
 // Returns the preferred maximum number of bytes for the cache given the
@@ -224,35 +223,42 @@ int PreferedCacheSize(int64 available) {
 // desired path) cannot be created.
 //
 // Static.
-Backend* BackendImpl::CreateBackend(const FilePath& full_path, bool force,
-                                    int max_bytes, net::CacheType type,
-                                    BackendFlags flags) {
-  BackendImpl* cache = new BackendImpl(full_path);
+int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
+                               int max_bytes, net::CacheType type,
+                               uint32 flags, base::MessageLoopProxy* thread,
+                               Backend** backend,
+                               CompletionCallback* callback) {
+  BackendImpl* cache = new BackendImpl(full_path, thread);
   cache->SetMaxSize(max_bytes);
   cache->SetType(type);
   cache->SetFlags(flags);
-  if (cache->Init())
-    return cache;
+  if (cache->Init()) {
+    *backend = cache;
+    return net::OK;
+  }
 
+  *backend = NULL;
   delete cache;
   if (!force)
-    return NULL;
+    return net::ERR_FAILED;
 
   if (!DelayedCacheCleanup(full_path))
-    return NULL;
+    return net::ERR_FAILED;
 
   // The worker thread will start deleting files soon, but the original folder
   // is not there anymore... let's create a new set of files.
-  cache = new BackendImpl(full_path);
+  cache = new BackendImpl(full_path, thread);
   cache->SetMaxSize(max_bytes);
   cache->SetType(type);
   cache->SetFlags(flags);
-  if (cache->Init())
-    return cache;
+  if (cache->Init()) {
+    *backend = cache;
+    return net::OK;
+  }
 
   delete cache;
   LOG(ERROR) << "Unable to create cache";
-  return NULL;
+  return net::ERR_FAILED;
 }
 
 bool BackendImpl::Init() {

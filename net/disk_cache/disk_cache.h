@@ -32,27 +32,6 @@ class Entry;
 class Backend;
 typedef net::CompletionCallback CompletionCallback;
 
-// Returns an instance of the Backend. path points to a folder where
-// the cached data will be stored. This cache instance must be the only object
-// that will be reading or writing files to that folder. The returned object
-// should be deleted when not needed anymore. If force is true, and there is
-// a problem with the cache initialization, the files will be deleted and a
-// new set will be created. max_bytes is the maximum size the cache can grow to.
-// If zero is passed in as max_bytes, the cache will determine the value to use
-// based on the available disk space. The returned pointer can be NULL if a
-// fatal error is found.
-// Note: This function is deprecated.
-Backend* CreateCacheBackend(const FilePath& path, bool force,
-                            int max_bytes, net::CacheType type);
-
-// Returns an instance of a Backend implemented only in memory. The returned
-// object should be deleted when not needed anymore. max_bytes is the maximum
-// size the cache can grow to. If zero is passed in as max_bytes, the cache will
-// determine the value to use based on the available memory. The returned
-// pointer can be NULL if a fatal error is found.
-// Note: This function is deprecated.
-Backend* CreateInMemoryCacheBackend(int max_bytes);
-
 // Returns an instance of a Backend of the given |type|. |path| points to a
 // folder where the cached data will be stored (if appropriate). This cache
 // instance must be the only object that will be reading or writing files to

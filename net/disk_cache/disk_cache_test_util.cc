@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,7 @@
 
 #include "base/logging.h"
 #include "base/file_util.h"
+#include "base/message_loop_proxy.h"
 #include "base/path_service.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/cache_util.h"
@@ -77,7 +78,8 @@ bool DeleteCache(const FilePath& path) {
 }
 
 bool CheckCacheIntegrity(const FilePath& path, bool new_eviction) {
-  scoped_ptr<disk_cache::BackendImpl> cache(new disk_cache::BackendImpl(path));
+  scoped_ptr<disk_cache::BackendImpl> cache(new disk_cache::BackendImpl(
+      path, base::MessageLoopProxy::CreateForCurrentThread()));
   if (!cache.get())
     return false;
   if (new_eviction)
