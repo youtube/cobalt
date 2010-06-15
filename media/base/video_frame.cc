@@ -38,6 +38,9 @@ void VideoFrame::CreateFrame(VideoFrame::Format format,
       case VideoFrame::YV16:
         alloc_worked = frame->AllocateYUV();
         break;
+      case VideoFrame::ASCII:
+        alloc_worked = frame->AllocateRGB(1u);
+        break;
       default:
         NOTREACHED();
         alloc_worked = false;

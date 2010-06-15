@@ -34,6 +34,7 @@ class VideoFrame : public StreamSample {
     YV12,        // 12bpp YVU planar 1x1 Y, 2x2 VU samples
     YV16,        // 16bpp YVU planar 1x1 Y, 2x1 VU samples
     EMPTY,       // An empty frame.
+    ASCII,       // A frame with ASCII content. For testing only.
   };
 
   enum BufferType {
