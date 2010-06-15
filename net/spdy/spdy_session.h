@@ -78,8 +78,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   int WriteStreamData(spdy::SpdyStreamId stream_id, net::IOBuffer* data,
                       int len);
 
-  // Cancel a stream.
-  bool CancelStream(spdy::SpdyStreamId stream_id);
+  // Close a stream.
+  void CloseStream(spdy::SpdyStreamId stream_id, int status);
 
   // Check if a stream is active.
   bool IsStreamActive(spdy::SpdyStreamId stream_id) const;
@@ -88,8 +88,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // status, such as "resolving host", "connecting", etc.
   LoadState GetLoadState() const;
 
-  // Closes all open streams.  Used as part of shutdown.
-  void CloseAllStreams(net::Error code);
+  // Closes all streams.  Used as part of shutdown.
+  void CloseAllStreams(net::Error status);
 
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
@@ -165,7 +165,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   // Track active streams in the active stream list.
   void ActivateStream(SpdyStream* stream);
-  void DeactivateStream(spdy::SpdyStreamId id);
+  void DeleteStream(spdy::SpdyStreamId id, int status);
 
   // Removes this session from the session pool.
   void RemoveFromPool();
