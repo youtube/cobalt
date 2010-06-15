@@ -38,7 +38,7 @@ void DiskCacheTestWithCache::InitCache() {
 
 void DiskCacheTestWithCache::InitMemoryCache() {
   if (!implementation_) {
-    cache_ = disk_cache::CreateInMemoryCacheBackend(size_);
+    cache_ = disk_cache::MemBackendImpl::CreateBackend(size_);
     return;
   }
 
@@ -57,19 +57,30 @@ void DiskCacheTestWithCache::InitDiskCache() {
   if (first_cleanup_)
     ASSERT_TRUE(DeleteCache(path));
 
+  if (!cache_thread_.IsRunning()) {
+    EXPECT_TRUE(cache_thread_.StartWithOptions(
+                    base::Thread::Options(MessageLoop::TYPE_IO, 0)));
+  }
+  ASSERT_TRUE(cache_thread_.message_loop() != NULL);
+
   if (implementation_)
     return InitDiskCacheImpl(path);
 
-  cache_ = disk_cache::BackendImpl::CreateBackend(path, force_creation_, size_,
-                                                  net::DISK_CACHE,
-                                                  disk_cache::kNoRandom);
+  TestCompletionCallback cb;
+  int rv = disk_cache::BackendImpl::CreateBackend(
+               path, force_creation_, size_, net::DISK_CACHE,
+               disk_cache::kNoRandom, cache_thread_.message_loop_proxy(),
+               &cache_, &cb);
+  ASSERT_EQ(net::OK, cb.GetResult(rv));
 }
 
 void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
   if (mask_)
-    cache_impl_ = new disk_cache::BackendImpl(path, mask_);
+    cache_impl_ = new disk_cache::BackendImpl(
+                      path, mask_, cache_thread_.message_loop_proxy());
   else
-    cache_impl_ = new disk_cache::BackendImpl(path);
+    cache_impl_ = new disk_cache::BackendImpl(
+                      path, cache_thread_.message_loop_proxy());
 
   cache_ = cache_impl_;
   ASSERT_TRUE(NULL != cache_);
@@ -87,6 +98,8 @@ void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
 void DiskCacheTestWithCache::TearDown() {
   MessageLoop::current()->RunAllPending();
   delete cache_;
+  if (cache_thread_.IsRunning())
+    cache_thread_.Stop();
 
   if (!memory_only_ && integrity_) {
     FilePath path = GetCacheFilePath();

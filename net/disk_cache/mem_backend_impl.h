@@ -23,6 +23,13 @@ class MemBackendImpl : public Backend {
   MemBackendImpl() : max_size_(0), current_size_(0) {}
   ~MemBackendImpl();
 
+  // Returns an instance of a Backend implemented only in memory. The returned
+  // object should be deleted when not needed anymore. max_bytes is the maximum
+  // size the cache can grow to. If zero is passed in as max_bytes, the cache
+  // will determine the value to use based on the available memory. The returned
+  // pointer can be NULL if a fatal error is found.
+  static Backend* CreateBackend(int max_bytes);
+
   // Performs general initialization for this current instance of the cache.
   bool Init();
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -28,7 +28,8 @@ int LowWaterAdjust(int high_water) {
 
 namespace disk_cache {
 
-Backend* CreateInMemoryCacheBackend(int max_bytes) {
+// Static.
+Backend* MemBackendImpl::CreateBackend(int max_bytes) {
   MemBackendImpl* cache = new MemBackendImpl();
   cache->SetMaxSize(max_bytes);
   if (cache->Init())
@@ -38,8 +39,6 @@ Backend* CreateInMemoryCacheBackend(int max_bytes) {
   LOG(ERROR) << "Unable to create cache";
   return NULL;
 }
-
-// ------------------------------------------------------------------------
 
 bool MemBackendImpl::Init() {
   if (max_size_)
