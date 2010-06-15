@@ -481,20 +481,12 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   return ERR_IO_PENDING;
 }
 
-bool SpdySession::CancelStream(spdy::SpdyStreamId stream_id) {
-  LOG(INFO) << "Cancelling stream " << stream_id;
-  if (!IsStreamActive(stream_id))
-    return false;
-
+void SpdySession::CloseStream(spdy::SpdyStreamId stream_id, int status) {
+  LOG(INFO) << "Closing stream " << stream_id << " with status " << status;
   // TODO(mbelshe): We should send a RST_STREAM control frame here
   //                so that the server can cancel a large send.
 
-  // TODO(mbelshe): Write a method for tearing down a stream
-  //                that cleans it out of the active list, the pending list,
-  //                etc.
-  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
-  DeactivateStream(stream_id);
-  return true;
+  DeleteStream(stream_id, status);
 }
 
 bool SpdySession::IsStreamActive(spdy::SpdyStreamId stream_id) const {
@@ -789,41 +781,38 @@ void SpdySession::WriteSocket() {
   }
 }
 
-void SpdySession::CloseAllStreams(net::Error code) {
+void SpdySession::CloseAllStreams(net::Error status) {
   LOG(INFO) << "Closing all SPDY Streams for " << host_port_pair().ToString();
 
   static StatsCounter abandoned_streams("spdy.abandoned_streams");
   static StatsCounter abandoned_push_streams("spdy.abandoned_push_streams");
 
-  if (active_streams_.size()) {
+  if (!active_streams_.empty())
     abandoned_streams.Add(active_streams_.size());
-
-    // Create a copy of the list, since aborting streams can invalidate
-    // our list.
-    SpdyStream** list = new SpdyStream*[active_streams_.size()];
-    ActiveStreamMap::const_iterator it;
-    int index = 0;
-    for (it = active_streams_.begin(); it != active_streams_.end(); ++it)
-      list[index++] = it->second;
-
-    // Issue the aborts.
-    for (--index; index >= 0; index--) {
-      LOG(ERROR) << "ABANDONED (stream_id=" << list[index]->stream_id()
-                 << "): " << list[index]->path();
-      list[index]->OnClose(code);
-    }
-
-    // Clear out anything pending.
-    active_streams_.clear();
-
-    delete[] list;
-  }
-
-  if (pushed_streams_.size()) {
+  if (!pushed_streams_.empty()) {
     streams_abandoned_count_ += pushed_streams_.size();
     abandoned_push_streams.Add(pushed_streams_.size());
-    pushed_streams_.clear();
   }
+
+  while (!active_streams_.empty()) {
+    ActiveStreamMap::iterator it = active_streams_.begin();
+    const scoped_refptr<SpdyStream>& stream = it->second;
+    DCHECK(stream);
+    LOG(ERROR) << "ABANDONED (stream_id=" << stream->stream_id()
+      << "): " << stream->path();
+    DeleteStream(stream->stream_id(), status);
+  }
+
+  // TODO(erikchen): ideally stream->OnClose() is only ever called by
+  // DeleteStream, but pending streams fall into their own category for now.
+  PendingStreamMap::iterator it;
+  for (it = pending_streams_.begin(); it != pending_streams_.end(); ++it)
+  {
+    const scoped_refptr<SpdyStream>& stream = it->second;
+    if (stream)
+      stream->OnClose(ERR_ABORTED);
+  }
+  pending_streams_.clear();
 
   // We also need to drain the queue.
   while (queue_.size())
@@ -876,10 +865,8 @@ void SpdySession::ActivateStream(SpdyStream* stream) {
   active_streams_[id] = stream;
 }
 
-void SpdySession::DeactivateStream(spdy::SpdyStreamId id) {
-  DCHECK(IsStreamActive(id));
-
-  // Verify it is not on the pushed_streams_ list.
+void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
+  // Remove the stream from pushed_streams_ and active_streams_.
   ActivePushedStreamList::iterator it;
   for (it = pushed_streams_.begin(); it != pushed_streams_.end(); ++it) {
     scoped_refptr<SpdyHttpStream> curr = *it;
@@ -889,7 +876,15 @@ void SpdySession::DeactivateStream(spdy::SpdyStreamId id) {
     }
   }
 
-  active_streams_.erase(id);
+  // The stream should still exist.
+  ActiveStreamMap::iterator it2 = active_streams_.find(id);
+  DCHECK(it2 != active_streams_.end());
+
+  // If this is an active stream, call the callback.
+  const scoped_refptr<SpdyStream>& stream = it2->second;
+  if (stream)
+    stream->OnClose(status);
+  active_streams_.erase(it2);
 }
 
 void SpdySession::RemoveFromPool() {
@@ -948,15 +943,7 @@ void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
   }
 
   scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
-
-  // Note that calling OnDataReceived() on |stream| will potentially invoke a
-  // user callback, after which the state of |stream| and |this| may be altered.
-  // http://crbug.com/44800 had a bug where the stream gets deactivated in this
-  // callback.
-  bool success = stream->OnDataReceived(data, len);
-  // |len| == 0 implies a closed stream.
-  if ((!success || !len) && IsStreamActive(stream_id))
-    DeactivateStream(stream_id);
+  stream->OnDataReceived(data, len);
 }
 
 bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
@@ -987,8 +974,7 @@ bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
   if (rv < 0) {
     DCHECK_NE(rv, ERR_IO_PENDING);
     const spdy::SpdyStreamId stream_id = stream->stream_id();
-    stream->OnClose(rv);
-    DeactivateStream(stream_id);
+    DeleteStream(stream_id, rv);
     return false;
   }
   return true;
@@ -1210,10 +1196,8 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
     LOG(ERROR) << "Spdy stream closed: " << frame.status();
     // TODO(mbelshe): Map from Spdy-protocol errors to something sensical.
     //                For now, it doesn't matter much - it is a protocol error.
-    stream->OnClose(ERR_FAILED);
+    DeleteStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
   }
-
-  DeactivateStream(stream_id);
 }
 
 void SpdySession::OnGoAway(const spdy::SpdyGoAwayControlFrame& frame) {

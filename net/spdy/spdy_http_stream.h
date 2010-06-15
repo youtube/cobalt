@@ -48,10 +48,7 @@ class SpdyHttpStream : public SpdyStream {
   int ReadResponseBody(
       IOBuffer* buf, int buf_len, CompletionCallback* callback);
 
-  // Cancels the stream.  Note that this does not immediately cause deletion of
-  // the stream.  This function is used to cancel any callbacks from being
-  // invoked.  TODO(willchan): It should also free up any memory associated with
-  // the stream, such as IOBuffers.
+  // Cancels any callbacks from being invoked and deletes the stream.
   void Cancel();
 
   // Returns the number of bytes uploaded.
