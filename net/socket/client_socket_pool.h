@@ -9,7 +9,9 @@
 #include <map>
 #include <string>
 
+#include "base/basictypes.h"
 #include "base/ref_counted.h"
+#include "base/template_util.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_resolver.h"
 #include "net/base/load_states.h"
@@ -119,16 +121,25 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
 // will provide a definition of CheckIsValidSocketParamsForPool for the
 // ClientSocketPool subtype and SocketParams pair.  Trying to use a SocketParams
 // type that has not been registered with the corresponding ClientSocketPool
-// subtype will result in a link time error stating that
-// CheckIsValidSocketParamsForPool with those template parameters is undefined.
+// subtype will result in a compile-time error.
 template <typename PoolType, typename SocketParams>
-void CheckIsValidSocketParamsForPool();
+struct SocketParamTraits : public base::false_type {
+};
+
+template <typename PoolType, typename SocketParams>
+void CheckIsValidSocketParamsForPool() {
+  COMPILE_ASSERT(!base::is_pointer<SocketParams>::value,
+                 socket_params_cannot_be_pointer);
+  COMPILE_ASSERT((SocketParamTraits<PoolType, SocketParams>::value),
+                 invalid_socket_params_for_pool);
+}
 
 // Provides an empty definition for CheckIsValidSocketParamsForPool() which
 // should be optimized out by the compiler.
-#define REGISTER_SOCKET_PARAMS_FOR_POOL(pool_type, socket_params)         \
-template<>                                                                \
-inline void CheckIsValidSocketParamsForPool<pool_type, socket_params>() {}
+#define REGISTER_SOCKET_PARAMS_FOR_POOL(pool_type, socket_params)             \
+template<>                                                                    \
+struct SocketParamTraits<pool_type, socket_params> : public base::true_type { \
+}
 
 }  // namespace net
 

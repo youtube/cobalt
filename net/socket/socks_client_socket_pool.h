@@ -188,7 +188,7 @@ class SOCKSClientSocketPool : public ClientSocketPool {
   DISALLOW_COPY_AND_ASSIGN(SOCKSClientSocketPool);
 };
 
-REGISTER_SOCKET_PARAMS_FOR_POOL(SOCKSClientSocketPool, SOCKSSocketParams)
+REGISTER_SOCKET_PARAMS_FOR_POOL(SOCKSClientSocketPool, SOCKSSocketParams);
 
 }  // namespace net
 
