@@ -105,12 +105,22 @@ bool PathProviderWin(int key, FilePath* result) {
         return false;
       cur = FilePath(system_buffer);
       break;
-    case base::DIR_SOURCE_ROOT:
+    case base::DIR_SOURCE_ROOT: {
+      FilePath executableDir;
       // On Windows, unit tests execute two levels deep from the source root.
       // For example:  chrome/{Debug|Release}/ui_tests.exe
-      PathService::Get(base::DIR_EXE, &cur);
-      cur = cur.DirName().DirName();
+      PathService::Get(base::DIR_EXE, &executableDir);
+      cur = executableDir.DirName().DirName();
+      FilePath checkedPath =
+          cur.Append(FILE_PATH_LITERAL("base/base_paths_win.cc"));
+      if (!file_util::PathExists(checkedPath)) {
+        // Check for WebKit-only checkout. Executable files are put into
+        // WebKit/WebKit/chromium/{Debug|Relese}, and we should return
+        // WebKit/WebKit/chromium.
+        cur = executableDir.DirName();
+      }
       break;
+    }
     default:
       return false;
   }
