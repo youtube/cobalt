@@ -26,6 +26,7 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service,
     HttpAuthHandlerFactory* http_auth_handler_factory,
+    HttpNetworkDelegate* network_delegate,
     NetLog* net_log) {
   DCHECK(proxy_service);
 
@@ -33,6 +34,7 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
                               network_change_notifier,
                               host_resolver, proxy_service, ssl_config_service,
                               http_auth_handler_factory,
+                              network_delegate,
                               net_log);
 }
 
@@ -54,6 +56,7 @@ HttpNetworkLayer::HttpNetworkLayer(
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service,
     HttpAuthHandlerFactory* http_auth_handler_factory,
+    HttpNetworkDelegate* network_delegate,
     NetLog* net_log)
     : socket_factory_(socket_factory),
       network_change_notifier_(network_change_notifier),
@@ -63,6 +66,7 @@ HttpNetworkLayer::HttpNetworkLayer(
       session_(NULL),
       spdy_session_pool_(NULL),
       http_auth_handler_factory_(http_auth_handler_factory),
+      network_delegate_(network_delegate),
       net_log_(net_log),
       suspended_(false) {
   DCHECK(proxy_service_);
@@ -76,6 +80,7 @@ HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
       session_(session),
       spdy_session_pool_(session->spdy_session_pool()),
       http_auth_handler_factory_(NULL),
+      network_delegate_(NULL),
       net_log_(NULL),
       suspended_(false) {
   DCHECK(session_.get());
@@ -114,6 +119,7 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
         network_change_notifier_, host_resolver_, proxy_service_,
         socket_factory_, ssl_config_service_, spdy_pool,
         http_auth_handler_factory_,
+        network_delegate_,
         net_log_);
     // These were just temps for lazy-initializing HttpNetworkSession.
     network_change_notifier_ = NULL;
@@ -122,6 +128,7 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
     socket_factory_ = NULL;
     http_auth_handler_factory_ = NULL;
     net_log_ = NULL;
+    network_delegate_ = NULL;
   }
   return session_;
 }

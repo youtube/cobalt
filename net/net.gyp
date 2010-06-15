@@ -355,6 +355,7 @@
         'http/http_cache_transaction.h',
         'http/http_chunked_decoder.cc',
         'http/http_chunked_decoder.h',
+        'http/http_network_delegate.h',
         'http/http_network_layer.cc',
         'http/http_network_layer.h',
         'http/http_network_session.cc',

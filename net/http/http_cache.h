@@ -40,6 +40,7 @@ namespace net {
 
 class HostResolver;
 class HttpAuthHandlerFactory;
+class HttpNetworkDelegate;
 class HttpNetworkSession;
 struct HttpRequestInfo;
 class HttpResponseInfo;
@@ -116,6 +117,7 @@ class HttpCache : public HttpTransactionFactory,
             HostResolver* host_resolver, ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
+            HttpNetworkDelegate* network_delegate,
             NetLog* net_log,
             BackendFactory* backend_factory);
 

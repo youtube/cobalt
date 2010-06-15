@@ -16,6 +16,7 @@ namespace net {
 class ClientSocketFactory;
 class HostResolver;
 class HttpAuthHandlerFactory;
+class HttpNetworkDelegate;
 class HttpNetworkSession;
 class NetLog;
 class NetworkChangeNotifier;
@@ -33,6 +34,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
                    HostResolver* host_resolver, ProxyService* proxy_service,
                    SSLConfigService* ssl_config_service,
                    HttpAuthHandlerFactory* http_auth_handler_factory,
+                   HttpNetworkDelegate* network_delegate,
                    NetLog* net_log);
   // Construct a HttpNetworkLayer with an existing HttpNetworkSession which
   // contains a valid ProxyService.
@@ -47,6 +49,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
       ProxyService* proxy_service,
       SSLConfigService* ssl_config_service,
       HttpAuthHandlerFactory* http_auth_handler_factory,
+      HttpNetworkDelegate* network_delegate,
       NetLog* net_log);
   // Create a transaction factory that instantiate a network layer over an
   // existing network session. Network session contains some valuable
@@ -88,6 +91,7 @@ class HttpNetworkLayer : public HttpTransactionFactory {
   scoped_refptr<SpdySessionPool> spdy_session_pool_;
 
   HttpAuthHandlerFactory* http_auth_handler_factory_;
+  HttpNetworkDelegate* network_delegate_;
   NetLog* net_log_;
 
   bool suspended_;
