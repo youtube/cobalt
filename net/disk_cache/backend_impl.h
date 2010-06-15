@@ -1,4 +1,4 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -35,14 +35,15 @@ enum BackendFlags {
 class BackendImpl : public Backend {
   friend class Eviction;
  public:
-  explicit BackendImpl(const FilePath& path)
+  BackendImpl(const FilePath& path, base::MessageLoopProxy* cache_thread)
       : path_(path), block_files_(path), mask_(0), max_size_(0),
         cache_type_(net::DISK_CACHE), uma_report_(0), user_flags_(0),
         init_(false), restarted_(false), unit_test_(false), read_only_(false),
         new_eviction_(false), first_timer_(true),
         ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {}
   // mask can be used to limit the usable size of the hash table, for testing.
-  BackendImpl(const FilePath& path, uint32 mask)
+  BackendImpl(const FilePath& path, uint32 mask,
+              base::MessageLoopProxy* cache_thread)
       : path_(path), block_files_(path), mask_(mask), max_size_(0),
         cache_type_(net::DISK_CACHE), uma_report_(0), user_flags_(kMask),
         init_(false), restarted_(false), unit_test_(false), read_only_(false),
@@ -52,9 +53,10 @@ class BackendImpl : public Backend {
 
   // Returns a new backend with the desired flags. See the declaration of
   // CreateCacheBackend().
-  static Backend* CreateBackend(const FilePath& full_path, bool force,
-                                int max_bytes, net::CacheType type,
-                                BackendFlags flags);
+  static int CreateBackend(const FilePath& full_path, bool force,
+                           int max_bytes, net::CacheType type,
+                           uint32 flags, base::MessageLoopProxy* thread,
+                           Backend** backend, CompletionCallback* callback);
 
   // Performs general initialization for this current instance of the cache.
   bool Init();
