@@ -1578,10 +1578,8 @@ TEST(MessageLoopTest, FileDescriptorWatcherOutlivesMessageLoop) {
       // and don't run the message loop, just destroy it.
     }
   }
-  if (HANDLE_EINTR(close(pipefds[0])) < 0)
-    PLOG(WARNING) << "close";
-  if (HANDLE_EINTR(close(pipefds[1])) < 0)
-    PLOG(WARNING) << "close";
+  HANDLE_EINTR(close(pipefds[0]));
+  HANDLE_EINTR(close(pipefds[1]));
 }
 
 TEST(MessageLoopTest, FileDescriptorWatcherDoubleStop) {
@@ -1603,10 +1601,8 @@ TEST(MessageLoopTest, FileDescriptorWatcherDoubleStop) {
       controller.StopWatchingFileDescriptor();
     }
   }
-  if (HANDLE_EINTR(close(pipefds[0])) < 0)
-    PLOG(WARNING) << "close";
-  if (HANDLE_EINTR(close(pipefds[1])) < 0)
-    PLOG(WARNING) << "close";
+  HANDLE_EINTR(close(pipefds[0]));
+  HANDLE_EINTR(close(pipefds[1]));
 }
 
 }  // namespace
