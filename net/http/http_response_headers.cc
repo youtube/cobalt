@@ -137,7 +137,7 @@ void HttpResponseHeaders::Persist(Pickle* pickle, PersistOptions options) {
 
     // Locate the start of the next header.
     size_t k = i;
-    while (++k < parsed_.size() && parsed_[k].is_continuation());
+    while (++k < parsed_.size() && parsed_[k].is_continuation()) {}
     --k;
 
     std::string header_name(parsed_[i].name_begin, parsed_[i].name_end);
@@ -177,7 +177,7 @@ void HttpResponseHeaders::Update(const HttpResponseHeaders& new_headers) {
 
     // Locate the start of the next header.
     size_t k = i;
-    while (++k < new_parsed.size() && new_parsed[k].is_continuation());
+    while (++k < new_parsed.size() && new_parsed[k].is_continuation()) {}
     --k;
 
     const std::string::const_iterator& name_begin = new_parsed[i].name_begin;
@@ -208,7 +208,7 @@ void HttpResponseHeaders::MergeWithHeaders(const std::string& raw_headers,
 
     // Locate the start of the next header.
     size_t k = i;
-    while (++k < parsed_.size() && parsed_[k].is_continuation());
+    while (++k < parsed_.size() && parsed_[k].is_continuation()) {}
     --k;
 
     std::string name(parsed_[i].name_begin, parsed_[i].name_end);
