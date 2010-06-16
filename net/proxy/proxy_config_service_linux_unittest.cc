@@ -316,11 +316,7 @@ class SynchConfigGetter {
   int get_config_result_;  // Return value from GetProxyConfig().
 };
 
-template <>
-struct RunnableMethodTraits<SynchConfigGetter> {
-  void RetainCallee(SynchConfigGetter*) {}
-  void ReleaseCallee(SynchConfigGetter*) {}
-};
+DISABLE_RUNNABLE_METHOD_REFCOUNT(SynchConfigGetter);
 
 namespace net {
 
