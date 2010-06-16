@@ -35,6 +35,7 @@
 #if defined(OS_POSIX)
 #include "base/eintr_wrapper.h"
 #include "base/file_descriptor_posix.h"
+#include "base/logging.h"
 #endif
 
 namespace base {
@@ -377,7 +378,8 @@ class ScopedFDClose {
  public:
   inline void operator()(int* x) const {
     if (x && *x >= 0) {
-      HANDLE_EINTR(close(*x));
+      if (HANDLE_EINTR(close(*x)) < 0)
+        PLOG(ERROR) << "close";
     }
   }
 };
