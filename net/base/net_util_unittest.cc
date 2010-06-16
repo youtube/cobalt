@@ -373,7 +373,7 @@ struct UrlTestData {
 // Returns an addrinfo for the given 32-bit address (IPv4.)
 // The result lives in static storage, so don't delete it.
 // |bytes| should be an array of length 4.
-const struct addrinfo* GetIPv4Address(const uint8* bytes) {
+const struct addrinfo* GetIPv4Address(const uint8* bytes, int port) {
   static struct addrinfo static_ai;
   static struct sockaddr_in static_addr4;
 
@@ -386,7 +386,7 @@ const struct addrinfo* GetIPv4Address(const uint8* bytes) {
 
   struct sockaddr_in* addr4 = &static_addr4;
   memset(addr4, 0, sizeof(static_addr4));
-  addr4->sin_port = htons(80);
+  addr4->sin_port = htons(port);
   addr4->sin_family = ai->ai_family;
   memcpy(&addr4->sin_addr, bytes, 4);
 
@@ -397,7 +397,7 @@ const struct addrinfo* GetIPv4Address(const uint8* bytes) {
 // Returns a addrinfo for the given 128-bit address (IPv6.)
 // The result lives in static storage, so don't delete it.
 // |bytes| should be an array of length 16.
-const struct addrinfo* GetIPv6Address(const uint8* bytes) {
+const struct addrinfo* GetIPv6Address(const uint8* bytes, int port) {
   static struct addrinfo static_ai;
   static struct sockaddr_in6 static_addr6;
 
@@ -410,14 +410,13 @@ const struct addrinfo* GetIPv6Address(const uint8* bytes) {
 
   struct sockaddr_in6* addr6 = &static_addr6;
   memset(addr6, 0, sizeof(static_addr6));
-  addr6->sin6_port = htons(80);
+  addr6->sin6_port = htons(port);
   addr6->sin6_family = ai->ai_family;
   memcpy(&addr6->sin6_addr, bytes, 16);
 
   ai->ai_addr = (sockaddr*)addr6;
   return ai;
 }
-
 
 // A helper for IDN*{Fast,Slow}.
 // Append "::<language list>" to |expected| and |actual| to make it
@@ -1260,7 +1259,7 @@ TEST(NetUtilTest, NetAddressToString_IPv4) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    const addrinfo* ai = GetIPv4Address(tests[i].addr);
+    const addrinfo* ai = GetIPv4Address(tests[i].addr, 80);
     std::string result = net::NetAddressToString(ai);
     EXPECT_EQ(std::string(tests[i].result), result);
   }
@@ -1277,13 +1276,33 @@ TEST(NetUtilTest, NetAddressToString_IPv6) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
-    const addrinfo* ai = GetIPv6Address(tests[i].addr);
+    const addrinfo* ai = GetIPv6Address(tests[i].addr, 80);
     std::string result = net::NetAddressToString(ai);
     // Allow NetAddressToString() to fail, in case the system doesn't
     // support IPv6.
     if (!result.empty())
       EXPECT_EQ(std::string(tests[i].result), result);
   }
+}
+
+TEST(NetUtilTest, NetAddressToStringWithPort_IPv4) {
+  uint8 addr[] = {127, 0, 0, 1};
+  const addrinfo* ai = GetIPv4Address(addr, 166);
+  std::string result = net::NetAddressToStringWithPort(ai);
+  EXPECT_EQ("127.0.0.1:166", result);
+}
+
+TEST(NetUtilTest, NetAddressToStringWithPort_IPv6) {
+  uint8 addr[] = {
+      0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0xFE, 0xDC, 0xBA,
+      0x98, 0x76, 0x54, 0x32, 0x10
+  };
+  const addrinfo* ai = GetIPv6Address(addr, 361);
+  std::string result = net::NetAddressToStringWithPort(ai);
+
+  // May fail on systems that don't support IPv6.
+  if (!result.empty())
+    EXPECT_EQ("[fedc:ba98:7654:3210:fedc:ba98:7654:3210]:361", result);
 }
 
 TEST(NetUtilTest, GetHostName) {
