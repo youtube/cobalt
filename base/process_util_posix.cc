@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -158,6 +158,15 @@ bool KillProcess(ProcessHandle process_id, int exit_code, bool wait) {
       if (pid == process_id) {
         exited = true;
         break;
+      }
+      if (pid == -1) {
+        if (errno == ECHILD) {
+          // The wait may fail with ECHILD if another process also waited for
+          // the same pid, causing the process state to get cleaned up.
+          exited = true;
+          break;
+        }
+        DPLOG(ERROR) << "Error waiting for process " << process_id;
       }
 
       sleep(1);
