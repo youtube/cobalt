@@ -80,9 +80,12 @@ base::NativeLibrary GSSAPISharedLibrary::LoadSharedLibrary() {
     const char* library_name = kLibraryNames[i];
     FilePath file_path(library_name);
     base::NativeLibrary lib = base::LoadNativeLibrary(file_path);
-    // Only return this library if we can bind the functions we need.
-    if (lib && BindMethods(lib))
-      return lib;
+    if (lib) {
+      // Only return this library if we can bind the functions we need.
+      if (BindMethods(lib))
+        return lib;
+      base::UnloadNativeLibrary(lib);
+    }
   }
   LOG(WARNING) << "Unable to find a compatible GSSAPI library";
   return NULL;
@@ -511,4 +514,3 @@ int HttpAuthGSSAPI::GetNextSecurityToken(const std::wstring& spn,
 }
 
 }  // namespace net
-
