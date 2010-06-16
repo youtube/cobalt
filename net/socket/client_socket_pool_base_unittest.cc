@@ -186,11 +186,10 @@ class TestConnectJob : public ConnectJob {
         waiting_success_ = true;
         return ERR_IO_PENDING;
       case kMockAdvancingLoadStateJob:
-        MessageLoop::current()->PostDelayedTask(
+        MessageLoop::current()->PostTask(
             FROM_HERE,
             method_factory_.NewRunnableMethod(
-                &TestConnectJob::AdvanceLoadState, load_state_),
-            2);
+                &TestConnectJob::AdvanceLoadState, load_state_));
         return ERR_IO_PENDING;
       default:
         NOTREACHED();
@@ -1472,7 +1471,7 @@ TEST_F(ClientSocketPoolBaseTest, PendingJobCompletionOrder) {
   EXPECT_EQ(&req3, request_order_[2]);
 }
 
-TEST_F(ClientSocketPoolBaseTest, DISABLED_LoadState) {
+TEST_F(ClientSocketPoolBaseTest, LoadState) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
   connect_job_factory_->set_job_type(
       TestConnectJob::kMockAdvancingLoadStateJob);
