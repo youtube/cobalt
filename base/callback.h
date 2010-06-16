@@ -125,7 +125,7 @@ struct Callback0 {
 };
 
 template <class T>
-Callback0::Type* NewCallback(T* object, void (T::*method)()) {
+typename Callback0::Type* NewCallback(T* object, void (T::*method)()) {
   return new CallbackImpl<T, void (T::*)(), Tuple0 >(object, method);
 }
 
