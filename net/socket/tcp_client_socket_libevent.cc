@@ -179,7 +179,7 @@ int TCPClientSocketLibevent::DoConnect() {
 
   net_log_.BeginEvent(NetLog::TYPE_TCP_CONNECT_ATTEMPT,
                       new NetLogStringParameter(
-                          "address", NetAddressToString(current_ai_)));
+                          "address", NetAddressToStringWithPort(current_ai_)));
 
   next_connect_state_ = CONNECT_STATE_CONNECT_COMPLETE;
 

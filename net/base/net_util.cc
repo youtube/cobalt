@@ -1294,6 +1294,21 @@ std::string NetAddressToString(const struct addrinfo* net_address) {
   return std::string(buffer);
 }
 
+std::string NetAddressToStringWithPort(const struct addrinfo* net_address) {
+  std::string ip_address_string = NetAddressToString(net_address);
+  if (ip_address_string.empty())
+    return std::string();  // Failed.
+
+  int port = GetPortFromAddrinfo(net_address);
+
+  if (ip_address_string.find(':') != std::string::npos) {
+    // Surround with square brackets to avoid ambiguity.
+    return StringPrintf("[%s]:%d", ip_address_string.c_str(), port);
+  }
+
+  return StringPrintf("%s:%d", ip_address_string.c_str(), port);
+}
+
 std::string GetHostName() {
 #if defined(OS_WIN)
   EnsureWinsockInit();
@@ -1880,6 +1895,32 @@ bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
   }
 
   return true;
+}
+
+// Returns the port field of the sockaddr in |info|.
+uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info) {
+  DCHECK(info);
+  if (info->ai_family == AF_INET) {
+    DCHECK_EQ(sizeof(sockaddr_in), info->ai_addrlen);
+    struct sockaddr_in* sockaddr =
+        reinterpret_cast<struct sockaddr_in*>(info->ai_addr);
+    return &sockaddr->sin_port;
+  } else if (info->ai_family == AF_INET6) {
+    DCHECK_EQ(sizeof(sockaddr_in6), info->ai_addrlen);
+    struct sockaddr_in6* sockaddr =
+        reinterpret_cast<struct sockaddr_in6*>(info->ai_addr);
+    return &sockaddr->sin6_port;
+  } else {
+    NOTREACHED();
+    return NULL;
+  }
+}
+
+int GetPortFromAddrinfo(const struct addrinfo* info) {
+  uint16* port_field = GetPortFieldFromAddrinfo(info);
+  if (!port_field)
+    return -1;
+  return ntohs(*port_field);
 }
 
 }  // namespace net
