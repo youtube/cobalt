@@ -680,7 +680,7 @@ class SetArgumentPointeeAction {
 
   template <typename Result, typename ArgumentTuple>
   void Perform(const ArgumentTuple& args) const {
-    CompileAssertTypesEqual<void, Result>();
+    // CompileAssertTypesEqual<void, Result>();
     *::std::tr1::get<N>(args) = value_;
   }
 
