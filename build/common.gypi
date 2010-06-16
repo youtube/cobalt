@@ -229,14 +229,11 @@
     # Set this to true to enable SELinux support.
     'selinux%': 0,
 
-    # Set this to true when building with Clang.
-    'clang%': 1,
-
     # Strip the binary after dumping symbols.
     'linux_strip_binary%': 0,
 
-    # Disable TCMalloc.  It uses variable length arrays which aren't in C++.
-    'linux_use_tcmalloc%': 0,
+    # Enable TCMalloc.
+    'linux_use_tcmalloc%': 1,
 
     # Disable TCMalloc's debugallocation.
     'linux_use_debugallocation%': 0,
@@ -813,11 +810,6 @@
           '-Wno-unused-parameter',
           # Don't warn about the "struct foo f = {0};" initialization pattern.
           '-Wno-missing-field-initializers',
-          # Don't warn about unused variables, due to a common pattern:
-          #   scoped_deleter_of_some_sort unused_variable(&thing_to_delete);
-          '-Wno-unused-variable',
-          # gtest confuses clang.
-          '-Wno-bool-conversions',
           '-D_FILE_OFFSET_BITS=64',
           # Don't export any symbols (for example, to plugins we dlopen()).
           # Note: this is *required* to make some plugins work.

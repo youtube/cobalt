@@ -114,7 +114,6 @@ class AlsaPcmOutputStream :
 
   virtual ~AlsaPcmOutputStream();
 
- public:  // clang workaround
   // Flags indicating the state of the stream.
   enum InternalState {
     kInError = 0,
@@ -124,7 +123,6 @@ class AlsaPcmOutputStream :
     kIsStopped,
     kIsClosed
   };
- private:
   friend std::ostream& operator<<(std::ostream& os, InternalState);
 
   // Various tasks that complete actions started in the public API.
