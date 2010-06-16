@@ -615,7 +615,7 @@
         },
       ],
     }],
-    [ 'OS == "linux" and target_arch=="x64" and internal_pdf', {
+    [ 'OS == "linux" and internal_pdf', {
       'targets': [
         {
           'target_name': 'base_fpic',
