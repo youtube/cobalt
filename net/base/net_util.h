@@ -95,6 +95,10 @@ std::string GetHostAndOptionalPort(const GURL& url);
 // Returns empty string on failure.
 std::string NetAddressToString(const struct addrinfo* net_address);
 
+// Same as NetAddressToString, but additionally includes the port number. For
+// example: "192.168.0.1:99" or "[::1]:80".
+std::string NetAddressToStringWithPort(const struct addrinfo* net_address);
+
 // Returns the hostname of the current system. Returns empty string on failure.
 std::string GetHostName();
 
@@ -367,6 +371,12 @@ bool ParseCIDRBlock(const std::string& cidr_literal,
 bool IPNumberMatchesPrefix(const IPAddressNumber& ip_number,
                            const IPAddressNumber& ip_prefix,
                            size_t prefix_length_in_bits);
+
+// Returns the port field of the sockaddr in |info|.
+uint16* GetPortFieldFromAddrinfo(const struct addrinfo* info);
+
+// Returns the value of |info's| port (in host byte ordering).
+int GetPortFromAddrinfo(const struct addrinfo* info);
 
 }  // namespace net
 

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "base/logging.h"
+#include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 
 namespace net {
@@ -71,28 +72,9 @@ void FreeMyAddrinfo(struct addrinfo* info) {
     FreeMyAddrinfo(next);
 }
 
-// Returns the address to port field in |info|.
-uint16* GetPortField(const struct addrinfo* info) {
-  DCHECK(info);
-  if (info->ai_family == AF_INET) {
-    DCHECK_EQ(sizeof(sockaddr_in), info->ai_addrlen);
-    struct sockaddr_in* sockaddr =
-        reinterpret_cast<struct sockaddr_in*>(info->ai_addr);
-    return &sockaddr->sin_port;
-  } else if (info->ai_family == AF_INET6) {
-    DCHECK_EQ(sizeof(sockaddr_in6), info->ai_addrlen);
-    struct sockaddr_in6* sockaddr =
-        reinterpret_cast<struct sockaddr_in6*>(info->ai_addr);
-    return &sockaddr->sin6_port;
-  } else {
-    NOTREACHED();
-    return NULL;
-  }
-}
-
 // Assign the port for all addresses in the list.
 void SetPortRecursive(struct addrinfo* info, int port) {
-  uint16* port_field = GetPortField(info);
+  uint16* port_field = GetPortFieldFromAddrinfo(info);
   if (port_field)
     *port_field = htons(port);
 
@@ -135,11 +117,7 @@ void AddressList::SetPort(int port) {
 }
 
 int AddressList::GetPort() const {
-  uint16* port_field = GetPortField(data_->head);
-  if (!port_field)
-    return -1;
-
-  return ntohs(*port_field);
+  return GetPortFromAddrinfo(data_->head);
 }
 
 bool AddressList::GetCanonicalName(std::string* canonical_name) const {
