@@ -256,7 +256,8 @@ void TCPClientSocketLibevent::DoDisconnect() {
   DCHECK(ok);
   ok = write_socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
-  HANDLE_EINTR(close(socket_));
+  if (HANDLE_EINTR(close(socket_)) < 0)
+    PLOG(WARNING) << "close";
   socket_ = kInvalidSocket;
 }
 

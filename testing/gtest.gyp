@@ -69,10 +69,12 @@
             # must be instructed that RTTI is disabled here, and for any
             # direct dependents that might include gtest headers.
             'GTEST_HAS_RTTI=0',
+            'GTEST_USE_OWN_TR1_TUPLE=1',
           ],
           'direct_dependent_settings': {
             'defines': [
               'GTEST_HAS_RTTI=0',
+              'GTEST_USE_OWN_TR1_TUPLE=1',
             ],
           },
         }],
