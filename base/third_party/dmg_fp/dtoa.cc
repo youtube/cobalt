@@ -3863,7 +3863,7 @@ dtoa
 					if (dval(&u) > 0.5 + dval(&eps))
 						goto bump_up;
 					else if (dval(&u) < 0.5 - dval(&eps)) {
-						while(*--s == '0');
+						while(*--s == '0') {}
 						s++;
 						goto ret1;
 						}
@@ -4176,7 +4176,7 @@ dtoa
 #ifdef Honor_FLT_ROUNDS
  trimzeros:
 #endif
-		while(*--s == '0');
+		while(*--s == '0') {}
 		s++;
 		}
  ret:
