@@ -876,9 +876,10 @@ void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
     }
   }
 
-  // The stream should still exist.
+  // The stream might have been deleted.
   ActiveStreamMap::iterator it2 = active_streams_.find(id);
-  DCHECK(it2 != active_streams_.end());
+  if (it2 == active_streams_.end())
+    return;
 
   // If this is an active stream, call the callback.
   const scoped_refptr<SpdyStream>& stream = it2->second;
