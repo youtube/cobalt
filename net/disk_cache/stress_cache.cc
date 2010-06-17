@@ -134,7 +134,8 @@ void StressTheCache(int iteration) {
 
     if (rand() % 100 > 80) {
       key = rand() % kNumKeys;
-      cache->DoomEntry(keys[key]);
+      rv = cache->DoomEntry(keys[key], &cb);
+      cb.GetResult(rv);
     }
 
     if (!(i % 100))

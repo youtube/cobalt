@@ -374,8 +374,11 @@ bool SparseControl::OpenChild() {
   }
 
   // Se if we are tracking this child.
-  bool child_present = ChildPresent();
-  if (!child_present || !entry_->backend_->OpenEntry(key, &child_))
+  if (!ChildPresent())
+    return ContinueWithoutChild(key);
+
+  child_ = entry_->backend_->OpenEntryImpl(key);
+  if (!child_)
     return ContinueWithoutChild(key);
 
   EntryImpl* child = static_cast<EntryImpl*>(child_);
@@ -398,7 +401,7 @@ bool SparseControl::OpenChild() {
 
   if (child_data_.header.last_block_len < 0 ||
       child_data_.header.last_block_len > kBlockSize) {
-    // Make sure this values are always within range.
+    // Make sure these values are always within range.
     child_data_.header.last_block_len = 0;
     child_data_.header.last_block = -1;
   }
@@ -444,7 +447,8 @@ bool SparseControl::ContinueWithoutChild(const std::string& key) {
   if (kGetRangeOperation == operation_)
     return true;
 
-  if (!entry_->backend_->CreateEntry(key, &child_)) {
+  child_ = entry_->backend_->CreateEntryImpl(key);
+  if (!child_) {
     child_ = NULL;
     result_ = net::ERR_CACHE_READ_FAILURE;
     return false;

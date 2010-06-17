@@ -215,11 +215,6 @@ class MockDiskEntry : public disk_cache::Entry,
     return net::ERR_IO_PENDING;
   }
 
-  virtual int GetAvailableRange(int64 offset, int len, int64* start) {
-    NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
-  }
-
   virtual int GetAvailableRange(int64 offset, int len, int64* start,
                                 net::CompletionCallback* callback) {
     DCHECK(callback);
@@ -383,11 +378,6 @@ class MockDiskCache : public disk_cache::Backend {
     return static_cast<int32>(entries_.size());
   }
 
-  virtual bool OpenEntry(const std::string& key, disk_cache::Entry** entry) {
-    NOTREACHED();
-    return false;
-  }
-
   virtual int OpenEntry(const std::string& key, disk_cache::Entry** entry,
                         net::CompletionCallback* callback) {
     DCHECK(callback);
@@ -417,11 +407,6 @@ class MockDiskCache : public disk_cache::Backend {
 
     CallbackLater(callback, net::OK);
     return net::ERR_IO_PENDING;
-  }
-
-  virtual bool CreateEntry(const std::string& key, disk_cache::Entry** entry) {
-    NOTREACHED();
-    return false;
   }
 
   virtual int CreateEntry(const std::string& key, disk_cache::Entry** entry,
@@ -457,11 +442,6 @@ class MockDiskCache : public disk_cache::Backend {
     return net::ERR_IO_PENDING;
   }
 
-  virtual bool DoomEntry(const std::string& key) {
-    NOTREACHED();
-    return false;
-  }
-
   virtual int DoomEntry(const std::string& key,
                         net::CompletionCallback* callback) {
     DCHECK(callback);
@@ -478,19 +458,8 @@ class MockDiskCache : public disk_cache::Backend {
     return net::ERR_IO_PENDING;
   }
 
-  virtual bool DoomAllEntries() {
-    NOTREACHED();
-    return false;
-  }
-
   virtual int DoomAllEntries(net::CompletionCallback* callback) {
     return net::ERR_NOT_IMPLEMENTED;
-  }
-
-  virtual bool DoomEntriesBetween(const Time initial_time,
-                                  const Time end_time) {
-    NOTREACHED();
-    return false;
   }
 
   virtual int DoomEntriesBetween(const base::Time initial_time,
@@ -499,19 +468,9 @@ class MockDiskCache : public disk_cache::Backend {
     return net::ERR_NOT_IMPLEMENTED;
   }
 
-  virtual bool DoomEntriesSince(const Time initial_time) {
-    NOTREACHED();
-    return false;
-  }
-
   virtual int DoomEntriesSince(const base::Time initial_time,
                                net::CompletionCallback* callback) {
     return net::ERR_NOT_IMPLEMENTED;
-  }
-
-  virtual bool OpenNextEntry(void** iter, disk_cache::Entry** next_entry) {
-    NOTREACHED();
-    return false;
   }
 
   virtual int OpenNextEntry(void** iter, disk_cache::Entry** next_entry,

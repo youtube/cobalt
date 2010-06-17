@@ -1046,7 +1046,7 @@ void DiskCacheBackendTest::BackendTransaction(const std::wstring& name,
 
   std::string key("the first key");
   disk_cache::Entry* entry1;
-  ASSERT_FALSE(cache_->OpenEntry(key, &entry1));
+  ASSERT_NE(net::OK, OpenEntry(key, &entry1));
 
   int actual = cache_->GetEntryCount();
   if (num_entries != actual) {
