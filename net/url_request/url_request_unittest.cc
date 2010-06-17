@@ -795,21 +795,6 @@ TEST_F(URLRequestTest, InvalidUrlTest) {
   }
 }
 
-// This test is disabled because it fails on some computers due to proxies
-// returning a page in response to this request rather than reporting failure.
-TEST_F(URLRequestTest, DISABLED_DnsFailureTest) {
-  TestDelegate d;
-  {
-    URLRequest r(GURL("http://thisisnotavalidurl0123456789foo.com/"), &d);
-
-    r.Start();
-    EXPECT_TRUE(r.is_pending());
-
-    MessageLoop::current()->Run();
-    EXPECT_TRUE(d.request_failed());
-  }
-}
-
 TEST_F(URLRequestTestHTTP, ResponseHeadersTest) {
   ASSERT_TRUE(NULL != server_.get());
   TestDelegate d;
