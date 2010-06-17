@@ -37,10 +37,11 @@ int HttpAuthHandler::GenerateAuthToken(const std::wstring* username,
                                        const HttpRequestInfo* request,
                                        CompletionCallback* callback,
                                        std::string* auth_token) {
-  // TODO(cbentzel): Enforce non-NULL callback+auth_token.
+  // TODO(cbentzel): Enforce non-NULL callback after cleaning up SocketStream.
   DCHECK(request);
   DCHECK((username == NULL) == (password == NULL));
   DCHECK(username != NULL || AllowsDefaultCredentials());
+  DCHECK(auth_token != NULL);
   return GenerateAuthTokenImpl(username, password, request, callback,
                                auth_token);
 }

@@ -573,19 +573,18 @@ int SocketStream::DoWriteTunnelHeaders() {
     // HttpRequestInfo.
     // TODO(ukai): Add support other authentication scheme.
     if (auth_handler_.get() && auth_handler_->scheme() == "basic") {
-      std::string auth_token;
       HttpRequestInfo request_info;
+      std::string auth_token;
       int rv = auth_handler_->GenerateAuthToken(
           &auth_identity_.username,
           &auth_identity_.password,
           &request_info,
           NULL,
           &auth_token);
-      // TODO(cbentzel): Should do something different if credentials
-      // can't be generated. In this case, only Basic is allowed which
-      // should only fail if Base64 encoding fails.
+      // TODO(cbentzel): Support async auth handlers.
+      DCHECK_NE(ERR_IO_PENDING, rv);
       if (rv != OK)
-        auth_token = std::string();
+        return rv;
       authorization_headers.append(
           HttpAuth::GetAuthorizationHeaderName(HttpAuth::AUTH_PROXY) +
           ": " + auth_token + "\r\n");

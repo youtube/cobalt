@@ -29,6 +29,7 @@ class HttpAuth {
     // in an array, so start from 0.
     AUTH_PROXY = 0,
     AUTH_SERVER = 1,
+    AUTH_NUM_TARGETS = 2,
   };
 
   // Describes where the identity used for authentication came from.

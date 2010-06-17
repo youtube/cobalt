@@ -353,9 +353,10 @@ int HttpNetworkTransaction::RestartIgnoringLastError(
     // TODO(wtc): Should we update any of the connection histograms that we
     // update in DoSSLConnectComplete if |result| is OK?
     if (using_spdy_) {
+      // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
       next_state_ = STATE_SPDY_SEND_REQUEST;
     } else {
-      next_state_ = STATE_SEND_REQUEST;
+      next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
     }
   } else {
     connection_->socket()->Disconnect();
@@ -481,9 +482,9 @@ void HttpNetworkTransaction::DidDrainBodyForAuthRestart(bool keep_alive) {
     // often enough to be worth the trouble.
     if (using_ssl_ && proxy_info_.is_http() &&
         ssl_connect_start_time_.is_null())
-      next_state_ = STATE_TUNNEL_SEND_REQUEST;
+      next_state_ = STATE_TUNNEL_GENERATE_AUTH_TOKEN;
     else
-      next_state_ = STATE_SEND_REQUEST;
+      next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
     connection_->set_is_reused(true);
     reused_socket_ = true;
   } else {
@@ -554,11 +555,14 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
       return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
     case STATE_INIT_CONNECTION_COMPLETE:
       return connection_->GetLoadState();
+    case STATE_TUNNEL_GENERATE_AUTH_TOKEN_COMPLETE:
     case STATE_TUNNEL_SEND_REQUEST_COMPLETE:
     case STATE_TUNNEL_READ_HEADERS_COMPLETE:
       return LOAD_STATE_ESTABLISHING_PROXY_TUNNEL;
     case STATE_SSL_CONNECT_COMPLETE:
       return LOAD_STATE_SSL_HANDSHAKE;
+    case STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE:
+    case STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE:
     case STATE_SEND_REQUEST_COMPLETE:
     case STATE_SPDY_SEND_REQUEST_COMPLETE:
       return LOAD_STATE_SENDING_REQUEST;
@@ -631,6 +635,13 @@ int HttpNetworkTransaction::DoLoop(int result) {
       case STATE_INIT_CONNECTION_COMPLETE:
         rv = DoInitConnectionComplete(rv);
         break;
+      case STATE_TUNNEL_GENERATE_AUTH_TOKEN:
+        DCHECK_EQ(OK, rv);
+        rv = DoTunnelGenerateAuthToken();
+        break;
+      case STATE_TUNNEL_GENERATE_AUTH_TOKEN_COMPLETE:
+        rv = DoTunnelGenerateAuthTokenComplete(rv);
+        break;
       case STATE_TUNNEL_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_TUNNEL_SEND_REQUEST,
@@ -659,6 +670,20 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_SSL_CONNECT_COMPLETE:
         rv = DoSSLConnectComplete(rv);
+        break;
+      case STATE_GENERATE_PROXY_AUTH_TOKEN:
+        DCHECK_EQ(OK, rv);
+        rv = DoGenerateProxyAuthToken();
+        break;
+      case STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE:
+        rv = DoGenerateProxyAuthTokenComplete(rv);
+        break;
+      case STATE_GENERATE_SERVER_AUTH_TOKEN:
+        DCHECK_EQ(OK, rv);
+        rv = DoGenerateServerAuthToken();
+        break;
+      case STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE:
+        rv = DoGenerateServerAuthTokenComplete(rv);
         break;
       case STATE_SEND_REQUEST:
         DCHECK_EQ(OK, rv);
@@ -934,6 +959,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
 
   if (using_spdy_) {
     DCHECK(!connection_->is_initialized());
+    // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
     next_state_ = STATE_SPDY_SEND_REQUEST;
     return OK;
   }
@@ -950,7 +976,7 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
           reinterpret_cast<SSLClientSocket*>(connection_->socket());
       response_.was_npn_negotiated = ssl_socket->wasNpnNegotiated();
     }
-    next_state_ = STATE_SEND_REQUEST;
+    next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
   } else {
     // Now we have a TCP connected socket.  Perform other connection setup as
     // needed.
@@ -959,9 +985,9 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
       if (proxy_info_.is_direct() || proxy_info_.is_socks())
         next_state_ = STATE_SSL_CONNECT;
       else
-        next_state_ = STATE_TUNNEL_SEND_REQUEST;
+        next_state_ = STATE_TUNNEL_GENERATE_AUTH_TOKEN;
     } else {
-      next_state_ = STATE_SEND_REQUEST;
+      next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
     }
   }
 
@@ -975,27 +1001,29 @@ void HttpNetworkTransaction::ClearTunnelState() {
   headers_valid_ = false;
 }
 
+int HttpNetworkTransaction::DoTunnelGenerateAuthToken() {
+  next_state_ = STATE_TUNNEL_GENERATE_AUTH_TOKEN_COMPLETE;
+  return MaybeGenerateAuthToken(HttpAuth::AUTH_PROXY);
+}
+
+int HttpNetworkTransaction::DoTunnelGenerateAuthTokenComplete(int rv) {
+  DCHECK_NE(ERR_IO_PENDING, rv);
+  if (rv == OK)
+    next_state_ = STATE_TUNNEL_SEND_REQUEST;
+  return rv;
+}
+
 int HttpNetworkTransaction::DoTunnelSendRequest() {
   next_state_ = STATE_TUNNEL_SEND_REQUEST_COMPLETE;
 
   // This is constructed lazily (instead of within our Start method), so that
   // we have proxy info available.
   if (request_headers_.empty()) {
-    // Figure out if we can/should add Proxy-Authentication headers.
-    bool have_proxy_auth =
-        HaveAuth(HttpAuth::AUTH_PROXY) ||
-        SelectPreemptiveAuth(HttpAuth::AUTH_PROXY);
-
+    HttpRequestHeaders authorization_headers;
+    if (HaveAuth(HttpAuth::AUTH_PROXY))
+      AddAuthorizationHeader(HttpAuth::AUTH_PROXY, &authorization_headers);
     std::string request_line;
     HttpRequestHeaders request_headers;
-    HttpRequestHeaders authorization_headers;
-
-    // TODO(wtc): If BuildAuthorizationHeader fails (returns an authorization
-    // header with no credentials), we should return an error to prevent
-    // entering an infinite auth restart loop.  See http://crbug.com/21050.
-    if (have_proxy_auth)
-      AddAuthorizationHeader(HttpAuth::AUTH_PROXY, &authorization_headers);
-
     BuildTunnelRequest(request_, authorization_headers, endpoint_,
                        &request_line, &request_headers);
     if (net_log_.HasListener()) {
@@ -1162,6 +1190,7 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
                                  100);
 
       UpdateConnectionTypeHistograms(CONNECTION_SPDY);
+      // TODO(cbentzel): Add auth support to spdy. See http://crbug.com/46620
       next_state_ = STATE_SPDY_SEND_REQUEST;
     } else {
       UMA_HISTOGRAM_CUSTOM_TIMES("Net.SSL_Connection_Latency",
@@ -1170,7 +1199,7 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
                                  base::TimeDelta::FromMinutes(10),
                                  100);
 
-      next_state_ = STATE_SEND_REQUEST;
+      next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
     }
   } else if (result == ERR_SSL_CLIENT_AUTH_CERT_NEEDED) {
     result = HandleCertificateRequest(result);
@@ -1178,6 +1207,34 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
     result = HandleSSLHandshakeError(result);
   }
   return result;
+}
+
+int HttpNetworkTransaction::DoGenerateProxyAuthToken() {
+  next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE;
+  if (!ShouldApplyProxyAuth())
+    return OK;
+  return MaybeGenerateAuthToken(HttpAuth::AUTH_PROXY);
+}
+
+int HttpNetworkTransaction::DoGenerateProxyAuthTokenComplete(int rv) {
+  DCHECK_NE(ERR_IO_PENDING, rv);
+  if (rv == OK)
+    next_state_ = STATE_GENERATE_SERVER_AUTH_TOKEN;
+  return rv;
+}
+
+int HttpNetworkTransaction::DoGenerateServerAuthToken() {
+  next_state_ = STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE;
+  if (!ShouldApplyServerAuth())
+    return OK;
+  return MaybeGenerateAuthToken(HttpAuth::AUTH_SERVER);
+}
+
+int HttpNetworkTransaction::DoGenerateServerAuthTokenComplete(int rv) {
+  DCHECK_NE(ERR_IO_PENDING, rv);
+  if (rv == OK)
+    next_state_ = STATE_SEND_REQUEST;
+  return rv;
 }
 
 int HttpNetworkTransaction::DoSendRequest() {
@@ -1196,27 +1253,17 @@ int HttpNetworkTransaction::DoSendRequest() {
   if (request_headers_.empty()) {
     // Figure out if we can/should add Proxy-Authentication & Authentication
     // headers.
-    bool have_proxy_auth =
-        ShouldApplyProxyAuth() &&
-        (HaveAuth(HttpAuth::AUTH_PROXY) ||
-         SelectPreemptiveAuth(HttpAuth::AUTH_PROXY));
-    bool have_server_auth =
-        ShouldApplyServerAuth() &&
-        (HaveAuth(HttpAuth::AUTH_SERVER) ||
-         SelectPreemptiveAuth(HttpAuth::AUTH_SERVER));
-
-    std::string request_line;
-    HttpRequestHeaders request_headers;
     HttpRequestHeaders authorization_headers;
-
-    // TODO(wtc): If BuildAuthorizationHeader fails (returns an authorization
-    // header with no credentials), we should return an error to prevent
-    // entering an infinite auth restart loop.  See http://crbug.com/21050.
+    bool have_proxy_auth = (ShouldApplyProxyAuth() &&
+                            HaveAuth(HttpAuth::AUTH_PROXY));
+    bool have_server_auth = (ShouldApplyServerAuth() &&
+                             HaveAuth(HttpAuth::AUTH_SERVER));
     if (have_proxy_auth)
       AddAuthorizationHeader(HttpAuth::AUTH_PROXY, &authorization_headers);
     if (have_server_auth)
       AddAuthorizationHeader(HttpAuth::AUTH_SERVER, &authorization_headers);
-
+    std::string request_line;
+    HttpRequestHeaders request_headers;
     BuildRequestHeaders(request_, authorization_headers, request_body,
                         !using_ssl_ && proxy_info_.is_http(), &request_line,
                         &request_headers);
@@ -1244,15 +1291,12 @@ int HttpNetworkTransaction::DoSendRequest() {
 int HttpNetworkTransaction::DoSendRequestComplete(int result) {
   if (result < 0)
     return HandleIOError(result);
-
   next_state_ = STATE_READ_HEADERS;
-
   return OK;
 }
 
 int HttpNetworkTransaction::DoReadHeaders() {
   next_state_ = STATE_READ_HEADERS_COMPLETE;
-
   return http_stream_->ReadResponseHeaders(&io_callback_);
 }
 
@@ -1927,11 +1971,10 @@ bool HttpNetworkTransaction::ShouldApplyServerAuth() const {
   return !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA);
 }
 
-void HttpNetworkTransaction::AddAuthorizationHeader(
-    HttpAuth::Target target, HttpRequestHeaders* authorization_headers) const {
-  DCHECK(HaveAuth(target));
-
-  // Add a Authorization/Proxy-Authorization header line.
+int HttpNetworkTransaction::MaybeGenerateAuthToken(HttpAuth::Target target) {
+  bool needs_auth = HaveAuth(target) || SelectPreemptiveAuth(target);
+  if (!needs_auth)
+    return OK;
   const std::wstring* username = NULL;
   const std::wstring* password = NULL;
   const HttpAuth::Identity& identity = auth_identity_[target];
@@ -1939,17 +1982,19 @@ void HttpNetworkTransaction::AddAuthorizationHeader(
     username = &identity.username;
     password = &identity.password;
   }
-  std::string auth_token;
-  int rv = auth_handler_[target]->GenerateAuthToken(
-      username, password, request_, NULL, &auth_token);
-  if (rv == OK) {
-    authorization_headers->SetHeader(
-        HttpAuth::GetAuthorizationHeaderName(target), auth_token);
-  }
+  DCHECK(auth_token_[target].empty());
+  return auth_handler_[target]->GenerateAuthToken(
+      username, password, request_, &io_callback_, &auth_token_[target]);
+}
 
-  // TODO(cbentzel): Evict username and password from cache on non-OK return?
-  // TODO(cbentzel): Never use this scheme again if
-  //                 ERR_UNSUPPORTED_AUTH_SCHEME is returned.
+void HttpNetworkTransaction::AddAuthorizationHeader(
+    HttpAuth::Target target, HttpRequestHeaders* authorization_headers) {
+  DCHECK(HaveAuth(target));
+  DCHECK(!auth_token_[target].empty());
+  authorization_headers->SetHeader(
+      HttpAuth::GetAuthorizationHeaderName(target),
+      auth_token_[target]);
+  auth_token_[target].clear();
 }
 
 GURL HttpNetworkTransaction::AuthOrigin(HttpAuth::Target target) const {
