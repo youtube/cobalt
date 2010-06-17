@@ -486,14 +486,16 @@ bool TrimString(const std::string& input,
 void TruncateUTF8ToByteSize(const std::string& input,
                             const size_t byte_size,
                             std::string* output) {
+  DCHECK(output);
   if (byte_size > input.length()) {
     *output = input;
     return;
   }
-
+  DCHECK_LE(byte_size, static_cast<uint32>(kint32max));
+  // Note: This cast is necessary because CBU8_NEXT uses int32s.
   int32 truncation_length = static_cast<int32>(byte_size);
   int32 char_index = truncation_length - 1;
-  const char* cstr = input.c_str();
+  const char* data = input.data();
 
   // Using CBU8, we will move backwards from the truncation point
   // to the beginning of the string looking for a valid UTF8
@@ -502,7 +504,7 @@ void TruncateUTF8ToByteSize(const std::string& input,
   while (char_index >= 0) {
     int32 prev = char_index;
     uint32 code_point = 0;
-    CBU8_NEXT(cstr, char_index, truncation_length, code_point);
+    CBU8_NEXT(data, char_index, truncation_length, code_point);
     if (!base::IsValidCharacter(code_point) ||
         !base::IsValidCodepoint(code_point)) {
       char_index = prev - 1;
@@ -511,7 +513,6 @@ void TruncateUTF8ToByteSize(const std::string& input,
     }
   }
 
-  DCHECK(output != NULL);
   if (char_index >= 0 )
     *output = input.substr(0, char_index);
   else
