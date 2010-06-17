@@ -214,17 +214,21 @@ class TestConnectJob : public ConnectJob {
     return result;
   }
 
+  // This function helps simulate the progress of load states on a ConnectJob.
+  // Each time it is called it advances the load state and posts a task to be
+  // called again.  It stops at the last connecting load state (the one
+  // before LOAD_STATE_SENDING_REQUEST).
   void AdvanceLoadState(LoadState state) {
     int tmp = state;
     tmp++;
-    state = static_cast<LoadState>(tmp);
-    set_load_state(state);
-    // Post a delayed task so RunAllPending() won't run it.
-    MessageLoop::current()->PostDelayedTask(
-        FROM_HERE,
-        method_factory_.NewRunnableMethod(&TestConnectJob::AdvanceLoadState,
-                                          state),
-        1 /* 1ms delay */);
+    if (tmp < LOAD_STATE_SENDING_REQUEST) {
+      state = static_cast<LoadState>(tmp);
+      set_load_state(state);
+      MessageLoop::current()->PostTask(
+          FROM_HERE,
+          method_factory_.NewRunnableMethod(&TestConnectJob::AdvanceLoadState,
+                                            state));
+    }
   }
 
   bool waiting_success_;
@@ -1488,8 +1492,8 @@ TEST_F(ClientSocketPoolBaseTest, LoadState) {
   rv = InitHandle(req2.handle(), "a", kDefaultPriority, &req2, pool_,
                   BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
-  EXPECT_EQ(LOAD_STATE_WAITING_FOR_CACHE, req1.handle()->GetLoadState());
-  EXPECT_EQ(LOAD_STATE_WAITING_FOR_CACHE, req2.handle()->GetLoadState());
+  EXPECT_NE(LOAD_STATE_IDLE, req1.handle()->GetLoadState());
+  EXPECT_NE(LOAD_STATE_IDLE, req2.handle()->GetLoadState());
 }
 
 TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
