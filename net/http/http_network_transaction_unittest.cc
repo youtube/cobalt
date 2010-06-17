@@ -5388,10 +5388,8 @@ TEST_F(HttpNetworkTransactionTest,
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
 
-// MockAuthHandlerCanonical is used by the ResolveCanonicalName
-// HttpNetworkTransaction unit test below. Callers set up expectations for
-// whether the canonical name needs to be resolved.
-class MockAuthHandlerCanonical : public HttpAuthHandler {
+// MockAuthHandler is used in tests to reliably trigger edge cases.
+class MockAuthHandler : public HttpAuthHandler {
  public:
   enum Resolve {
     RESOLVE_INIT,
@@ -5401,22 +5399,18 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
     RESOLVE_TESTED,
   };
 
-  MockAuthHandlerCanonical()
+  MockAuthHandler()
       : resolve_(RESOLVE_INIT), user_callback_(NULL),
-        ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)) {
+        ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
+        generate_async_(false), generate_rv_(OK), auth_token_(NULL) {
   }
 
-  virtual ~MockAuthHandlerCanonical() {
+  virtual ~MockAuthHandler() {
   }
 
   void SetResolveExpectation(Resolve resolve) {
     EXPECT_EQ(RESOLVE_INIT, resolve_);
     resolve_ = resolve;
-  }
-
-  void ResetResolveExpectation() {
-    EXPECT_EQ(RESOLVE_TESTED, resolve_);
-    resolve_ = RESOLVE_INIT;
   }
 
   virtual bool NeedsCanonicalName() {
@@ -5447,13 +5441,18 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
         user_callback_ = callback;
         MessageLoop::current()->PostTask(
             FROM_HERE, method_factory_.NewRunnableMethod(
-                &MockAuthHandlerCanonical::OnResolveCanonicalName));
+                &MockAuthHandler::OnResolveCanonicalName));
         break;
       default:
         NOTREACHED();
         break;
     }
     return rv;
+  }
+
+  void SetGenerateExpectation(bool async, int rv) {
+    generate_async_ = async;
+    generate_rv_ = rv;
   }
 
   // The Factory class simply returns the same handler each time
@@ -5463,8 +5462,9 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
     Factory() {}
     virtual ~Factory() {}
 
-    void set_mock_handler(HttpAuthHandler* handler) {
-      handler_.reset(handler);
+    void set_mock_handler(HttpAuthHandler* handler, HttpAuth::Target target) {
+      EXPECT_TRUE(handlers_[target].get() == NULL);
+      handlers_[target].reset(handler);
     }
 
     virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
@@ -5474,14 +5474,14 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
                                   int nonce_count,
                                   const BoundNetLog& net_log,
                                   scoped_ptr<HttpAuthHandler>* handler) {
-      if (!handler_.get())
+      if (!handlers_[target].get())
         return ERR_UNEXPECTED;
-      handler->swap(handler_);
+      handler->swap(handlers_[target]);
       return OK;
     }
 
    private:
-    scoped_ptr<HttpAuthHandler> handler_;
+    scoped_ptr<HttpAuthHandler> handlers_[HttpAuth::AUTH_NUM_TARGETS];
   };
 
  protected:
@@ -5497,11 +5497,20 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
                                     const HttpRequestInfo* request,
                                     CompletionCallback* callback,
                                     std::string* auth_token) {
-    if (username == NULL)
-      auth_token->assign("Mock DEFAULT_AUTH myserver.example.com");
-    else
-      auth_token->assign("Mock AUTH myserver.example.com");
-    return OK;
+    if (generate_async_) {
+      EXPECT_TRUE(user_callback_ == NULL);
+      EXPECT_TRUE(auth_token_ == NULL);
+      user_callback_ = callback;
+      auth_token_ = auth_token;
+      MessageLoop::current()->PostTask(
+          FROM_HERE, method_factory_.NewRunnableMethod(
+              &MockAuthHandler::OnGenerateAuthToken));
+      return ERR_IO_PENDING;
+    } else {
+      if (generate_rv_ == OK)
+        *auth_token = "auth_token";
+      return generate_rv_;
+    }
   }
 
  private:
@@ -5514,39 +5523,51 @@ class MockAuthHandlerCanonical : public HttpAuthHandler {
     callback->Run(OK);
   }
 
+  void OnGenerateAuthToken() {
+    EXPECT_EQ(true, generate_async_);
+    EXPECT_TRUE(user_callback_ != NULL);
+    if (generate_rv_ == OK)
+      *auth_token_ = "auth_token";
+    auth_token_ = NULL;
+    CompletionCallback* callback = user_callback_;
+    user_callback_ = NULL;
+    callback->Run(generate_rv_);
+  }
+
   Resolve resolve_;
   CompletionCallback* user_callback_;
-  ScopedRunnableMethodFactory<MockAuthHandlerCanonical> method_factory_;
+  ScopedRunnableMethodFactory<MockAuthHandler> method_factory_;
+  bool generate_async_;
+  int generate_rv_;
+  std::string* auth_token_;
 };
 
 // Tests that ResolveCanonicalName is handled correctly by the
 // HttpNetworkTransaction.
 TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
   SessionDependencies session_deps;
-  MockAuthHandlerCanonical::Factory* auth_factory(
-      new MockAuthHandlerCanonical::Factory());
+  MockAuthHandler::Factory* auth_factory(new MockAuthHandler::Factory());
   session_deps.http_auth_handler_factory.reset(auth_factory);
 
   for (int i = 0; i < 2; ++i) {
-    MockAuthHandlerCanonical* auth_handler(new MockAuthHandlerCanonical());
+    MockAuthHandler* auth_handler(new MockAuthHandler());
     std::string auth_challenge = "Mock";
     GURL origin("http://www.example.com");
     HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
                                           auth_challenge.end());
     auth_handler->InitFromChallenge(&tokenizer, HttpAuth::AUTH_SERVER,
                                     origin, BoundNetLog());
-    auth_factory->set_mock_handler(auth_handler);
+    auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
 
     scoped_ptr<HttpTransaction> trans(
         new HttpNetworkTransaction(CreateSession(&session_deps)));
 
     // Set up expectations for this pass of the test. Many of the EXPECT calls
-    // are contained inside the MockAuthHandlerCanonical codebase in response to
+    // are contained inside the MockAuthHandler codebase in response to
     // the expectations.
-    MockAuthHandlerCanonical::Resolve resolve =
-        (i == 0) ?
-        MockAuthHandlerCanonical::RESOLVE_SYNC :
-        MockAuthHandlerCanonical::RESOLVE_ASYNC;
+    MockAuthHandler::Resolve resolve = ((i == 0) ?
+                                        MockAuthHandler::RESOLVE_SYNC :
+                                        MockAuthHandler::RESOLVE_ASYNC);
     auth_handler->SetResolveExpectation(resolve);
     HttpRequestInfo request;
     request.method = "GET";
@@ -5590,7 +5611,418 @@ TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
     EXPECT_EQ(L"myserver:80", response->auth_challenge->host_and_port);
     EXPECT_EQ(L"", response->auth_challenge->realm);
     EXPECT_EQ(L"mock", response->auth_challenge->scheme);
-    auth_handler->ResetResolveExpectation();
+  }
+}
+
+// GenerateAuthToken is a mighty big test.
+// It tests all permutation of GenerateAuthToken behavior:
+//   - Synchronous and Asynchronous completion.
+//   - OK or error on completion.
+//   - Direct connection, non-authenticating proxy, and authenticating proxy.
+//   - HTTP or HTTPS backend (to include proxy tunneling).
+//   - Non-authenticating and authenticating backend.
+//
+// In all, there are 44 reasonable permuations (for example, if there are
+// problems generating an auth token for an authenticating proxy, we don't
+// need to test all permutations of the backend server).
+//
+// The test proceeds by going over each of the configuration cases, and
+// potentially running up to three rounds in each of the tests. The TestConfig
+// specifies both the configuration for the test as well as the expectations
+// for the results.
+TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
+  const char* kServer = "http://www.example.com";
+  const char* kSecureServer = "https://www.example.com";
+  const char* kProxy = "myproxy:70";
+  const int kAuthErr = ERR_INVALID_AUTH_CREDENTIALS;
+
+  enum AuthTiming {
+    AUTH_NONE,
+    AUTH_SYNC,
+    AUTH_ASYNC,
+  };
+
+  const MockWrite kGet(
+      "GET / HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Connection: keep-alive\r\n\r\n");
+  const MockWrite kGetProxy(
+      "GET http://www.example.com/ HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Proxy-Connection: keep-alive\r\n\r\n");
+  const MockWrite kGetAuth(
+      "GET / HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Connection: keep-alive\r\n"
+      "Authorization: auth_token\r\n\r\n");
+  const MockWrite kGetProxyAuth(
+      "GET http://www.example.com/ HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Proxy-Connection: keep-alive\r\n"
+      "Proxy-Authorization: auth_token\r\n\r\n");
+  const MockWrite kGetAuthThroughProxy(
+      "GET http://www.example.com/ HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Proxy-Connection: keep-alive\r\n"
+      "Authorization: auth_token\r\n\r\n");
+  const MockWrite kGetAuthWithProxyAuth(
+      "GET http://www.example.com/ HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Proxy-Connection: keep-alive\r\n"
+      "Proxy-Authorization: auth_token\r\n"
+      "Authorization: auth_token\r\n\r\n");
+  const MockWrite kConnect(
+      "CONNECT www.example.com:443 HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Proxy-Connection: keep-alive\r\n\r\n");
+  const MockWrite kConnectProxyAuth(
+      "CONNECT www.example.com:443 HTTP/1.1\r\n"
+      "Host: www.example.com\r\n"
+      "Proxy-Connection: keep-alive\r\n"
+      "Proxy-Authorization: auth_token\r\n\r\n");
+
+  const MockRead kSuccess(
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Type: text/html; charset=iso-8859-1\r\n"
+      "Content-Length: 3\r\n\r\n"
+      "Yes");
+  const MockRead kFailure(
+      "Should not be called.");
+  const MockRead kServerChallenge(
+      "HTTP/1.1 401 Unauthorized\r\n"
+      "WWW-Authenticate: Mock realm=server\r\n"
+      "Content-Type: text/html; charset=iso-8859-1\r\n"
+      "Content-Length: 14\r\n\r\n"
+      "Unauthorized\r\n");
+  const MockRead kProxyChallenge(
+      "HTTP/1.1 407 Unauthorized\r\n"
+      "Proxy-Authenticate: Mock realm=proxy\r\n"
+      "Proxy-Connection: close\r\n"
+      "Content-Type: text/html; charset=iso-8859-1\r\n"
+      "Content-Length: 14\r\n\r\n"
+      "Unauthorized\r\n");
+  const MockRead kProxyConnected(
+      "HTTP/1.1 200 Connection Established\r\n\r\n");
+
+  // NOTE(cbentzel): I wanted TestReadWriteRound to be a simple struct with
+  // no constructors, but the C++ compiler on Windows warns about
+  // unspecified data in compound literals. So, moved to using constructors,
+  // and TestRound's created with the default constructor should not be used.
+  struct TestRound {
+    TestRound()
+        : expected_rv(ERR_UNEXPECTED),
+          extra_write(NULL),
+          extra_read(NULL) {
+    }
+    TestRound(const MockWrite& write_arg, const MockRead& read_arg,
+              int expected_rv_arg)
+        : write(write_arg),
+          read(read_arg),
+          expected_rv(expected_rv_arg),
+          extra_write(NULL),
+          extra_read(NULL) {
+    }
+    TestRound(const MockWrite& write_arg, const MockRead& read_arg,
+              int expected_rv_arg, const MockWrite* extra_write_arg,
+              const MockWrite* extra_read_arg)
+        : write(write_arg),
+          read(read_arg),
+          expected_rv(expected_rv_arg),
+          extra_write(extra_write_arg),
+          extra_read(extra_read_arg) {
+    }
+    MockWrite write;
+    MockRead read;
+    int expected_rv;
+    const MockWrite* extra_write;
+    const MockRead* extra_read;
+  };
+
+  static const int kNoSSL = 500;
+
+  struct TestConfig {
+    const char* proxy_url;
+    AuthTiming proxy_auth_timing;
+    int proxy_auth_rv;
+    const char* server_url;
+    AuthTiming server_auth_timing;
+    int server_auth_rv;
+    int num_auth_rounds;
+    int first_ssl_round;
+    TestRound rounds[3];
+  } test_configs[] = {
+    // Non-authenticating HTTP server with a direct connection.
+    { NULL, AUTH_NONE, OK, kServer, AUTH_NONE, OK, 1, kNoSSL,
+      { TestRound(kGet, kSuccess, OK)}},
+    // Authenticating HTTP server with a direct connection.
+    { NULL, AUTH_NONE, OK, kServer, AUTH_SYNC, OK, 2, kNoSSL,
+      { TestRound(kGet, kServerChallenge, OK),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { NULL, AUTH_NONE, OK, kServer, AUTH_SYNC, kAuthErr, 2, kNoSSL,
+      { TestRound(kGet, kServerChallenge, OK),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+    { NULL, AUTH_NONE, OK, kServer, AUTH_ASYNC, OK, 2, kNoSSL,
+      { TestRound(kGet, kServerChallenge, OK),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { NULL, AUTH_NONE, OK, kServer, AUTH_ASYNC, kAuthErr, 2, kNoSSL,
+      { TestRound(kGet, kServerChallenge, OK),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+    // Non-authenticating HTTP server through a non-authenticating proxy.
+    { kProxy, AUTH_NONE, OK, kServer, AUTH_NONE, OK, 1, kNoSSL,
+      { TestRound(kGetProxy, kSuccess, OK)}},
+    // Authenticating HTTP server through a non-authenticating proxy.
+    { kProxy, AUTH_NONE, OK, kServer, AUTH_SYNC, OK, 2, kNoSSL,
+      { TestRound(kGetProxy, kServerChallenge, OK),
+        TestRound(kGetAuthThroughProxy, kSuccess, OK)}},
+    { kProxy, AUTH_NONE, OK, kServer, AUTH_SYNC, kAuthErr, 2, kNoSSL,
+      { TestRound(kGetProxy, kServerChallenge, OK),
+        TestRound(kGetAuthThroughProxy, kFailure, kAuthErr)}},
+    { kProxy, AUTH_NONE, OK, kServer, AUTH_ASYNC, OK, 2, kNoSSL,
+      { TestRound(kGetProxy, kServerChallenge, OK),
+        TestRound(kGetAuthThroughProxy, kSuccess, OK)}},
+    { kProxy, AUTH_NONE, OK, kServer, AUTH_ASYNC, kAuthErr, 2, kNoSSL,
+      { TestRound(kGetProxy, kServerChallenge, OK),
+        TestRound(kGetAuthThroughProxy, kFailure, kAuthErr)}},
+    // Non-authenticating HTTP server through an authenticating proxy.
+    { kProxy, AUTH_SYNC, OK, kServer, AUTH_NONE, OK, 2, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kSuccess, OK)}},
+    { kProxy, AUTH_SYNC, kAuthErr, kServer, AUTH_NONE, OK, 2, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kFailure, kAuthErr)}},
+    { kProxy, AUTH_ASYNC, OK, kServer, AUTH_NONE, OK, 2, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kSuccess, OK)}},
+    { kProxy, AUTH_ASYNC, kAuthErr, kServer, AUTH_NONE, OK, 2, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kFailure, kAuthErr)}},
+    // Authenticating HTTP server through an authenticating proxy.
+    { kProxy, AUTH_SYNC, OK, kServer, AUTH_SYNC, OK, 3, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kServerChallenge, OK),
+        TestRound(kGetAuthWithProxyAuth, kSuccess, OK)}},
+    { kProxy, AUTH_SYNC, OK, kServer, AUTH_SYNC, kAuthErr, 3, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kServerChallenge, OK),
+        TestRound(kGetAuthWithProxyAuth, kFailure, kAuthErr)}},
+    { kProxy, AUTH_ASYNC, OK, kServer, AUTH_SYNC, OK, 3, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kServerChallenge, OK),
+        TestRound(kGetAuthWithProxyAuth, kSuccess, OK)}},
+    { kProxy, AUTH_ASYNC, OK, kServer, AUTH_SYNC, kAuthErr, 3, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kServerChallenge, OK),
+        TestRound(kGetAuthWithProxyAuth, kFailure, kAuthErr)}},
+    { kProxy, AUTH_SYNC, OK, kServer, AUTH_ASYNC, OK, 3, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kServerChallenge, OK),
+        TestRound(kGetAuthWithProxyAuth, kSuccess, OK)}},
+    { kProxy, AUTH_SYNC, OK, kServer, AUTH_ASYNC, kAuthErr, 3, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kServerChallenge, OK),
+        TestRound(kGetAuthWithProxyAuth, kFailure, kAuthErr)}},
+    { kProxy, AUTH_ASYNC, OK, kServer, AUTH_ASYNC, OK, 3, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kServerChallenge, OK),
+        TestRound(kGetAuthWithProxyAuth, kSuccess, OK)}},
+    { kProxy, AUTH_ASYNC, OK, kServer, AUTH_ASYNC, kAuthErr, 3, kNoSSL,
+      { TestRound(kGetProxy, kProxyChallenge, OK),
+        TestRound(kGetProxyAuth, kServerChallenge, OK),
+        TestRound(kGetAuthWithProxyAuth, kFailure, kAuthErr)}},
+    // Non-authenticating HTTPS server with a direct connection.
+    { NULL, AUTH_NONE, OK, kSecureServer, AUTH_NONE, OK, 1, 0,
+      { TestRound(kGet, kSuccess, OK)}},
+    // Authenticating HTTPS server with a direct connection.
+    { NULL, AUTH_NONE, OK, kSecureServer, AUTH_SYNC, OK, 2, 0,
+      { TestRound(kGet, kServerChallenge, OK),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { NULL, AUTH_NONE, OK, kSecureServer, AUTH_SYNC, kAuthErr, 2, 0,
+      { TestRound(kGet, kServerChallenge, OK),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+    { NULL, AUTH_NONE, OK, kSecureServer, AUTH_ASYNC, OK, 2, 0,
+      { TestRound(kGet, kServerChallenge, OK),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { NULL, AUTH_NONE, OK, kSecureServer, AUTH_ASYNC, kAuthErr, 2, 0,
+      { TestRound(kGet, kServerChallenge, OK),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+    // Non-authenticating HTTPS server with a non-authenticating proxy.
+    { kProxy, AUTH_NONE, OK, kSecureServer, AUTH_NONE, OK, 1, 0,
+      { TestRound(kConnect, kProxyConnected, OK, &kGet, &kSuccess)}},
+    // Authenticating HTTPS server through a non-authenticating proxy.
+    { kProxy, AUTH_NONE, OK, kSecureServer, AUTH_SYNC, OK, 2, 0,
+      { TestRound(kConnect, kProxyConnected, OK, &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { kProxy, AUTH_NONE, OK, kSecureServer, AUTH_SYNC, kAuthErr, 2, 0,
+      { TestRound(kConnect, kProxyConnected, OK, &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+    { kProxy, AUTH_NONE, OK, kSecureServer, AUTH_ASYNC, OK, 2, 0,
+      { TestRound(kConnect, kProxyConnected, OK, &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { kProxy, AUTH_NONE, OK, kSecureServer, AUTH_ASYNC, kAuthErr, 2, 0,
+      { TestRound(kConnect, kProxyConnected, OK, &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+    // Non-Authenticating HTTPS server through an authenticating proxy.
+    { kProxy, AUTH_SYNC, OK, kSecureServer, AUTH_NONE, OK, 2, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK, &kGet, &kSuccess)}},
+    { kProxy, AUTH_SYNC, kAuthErr, kSecureServer, AUTH_NONE, OK, 2, kNoSSL,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kFailure, kAuthErr)}},
+    { kProxy, AUTH_ASYNC, OK, kSecureServer, AUTH_NONE, OK, 2, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK, &kGet, &kSuccess)}},
+    { kProxy, AUTH_ASYNC, kAuthErr, kSecureServer, AUTH_NONE, OK, 2, kNoSSL,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kFailure, kAuthErr)}},
+    // Authenticating HTTPS server through an authenticating proxy.
+    { kProxy, AUTH_SYNC, OK, kSecureServer, AUTH_SYNC, OK, 3, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK,
+                  &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { kProxy, AUTH_SYNC, OK, kSecureServer, AUTH_SYNC, kAuthErr, 3, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK,
+                  &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+    { kProxy, AUTH_ASYNC, OK, kSecureServer, AUTH_SYNC, OK, 3, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK,
+                  &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { kProxy, AUTH_ASYNC, OK, kSecureServer, AUTH_SYNC, kAuthErr, 3, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK,
+                  &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+    { kProxy, AUTH_SYNC, OK, kSecureServer, AUTH_ASYNC, OK, 3, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK,
+                  &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { kProxy, AUTH_SYNC, OK, kSecureServer, AUTH_ASYNC, kAuthErr, 3, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK,
+                  &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+    { kProxy, AUTH_ASYNC, OK, kSecureServer, AUTH_ASYNC, OK, 3, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK,
+                  &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kSuccess, OK)}},
+    { kProxy, AUTH_ASYNC, OK, kSecureServer, AUTH_ASYNC, kAuthErr, 3, 1,
+      { TestRound(kConnect, kProxyChallenge, OK),
+        TestRound(kConnectProxyAuth, kProxyConnected, OK,
+                  &kGet, &kServerChallenge),
+        TestRound(kGetAuth, kFailure, kAuthErr)}},
+  };
+
+  SessionDependencies session_deps;
+  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  MockAuthHandler::Factory* auth_factory(new MockAuthHandler::Factory());
+  session_deps.http_auth_handler_factory.reset(auth_factory);
+
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_configs); ++i) {
+    const TestConfig& test_config = test_configs[i];
+    if (test_config.proxy_auth_timing != AUTH_NONE) {
+      MockAuthHandler* auth_handler(new MockAuthHandler());
+      std::string auth_challenge = "Mock realm=proxy";
+      GURL origin(test_config.proxy_url);
+      HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
+                                             auth_challenge.end());
+      auth_handler->InitFromChallenge(&tokenizer, HttpAuth::AUTH_PROXY,
+                                      origin, BoundNetLog());
+      auth_handler->SetGenerateExpectation(
+          test_config.proxy_auth_timing == AUTH_ASYNC,
+          test_config.proxy_auth_rv);
+      auth_handler->SetResolveExpectation(MockAuthHandler::RESOLVE_SKIP);
+      auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_PROXY);
+    }
+    if (test_config.server_auth_timing != AUTH_NONE) {
+      MockAuthHandler* auth_handler(new MockAuthHandler());
+      std::string auth_challenge = "Mock realm=server";
+      GURL origin(test_config.server_url);
+      HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
+                                             auth_challenge.end());
+      auth_handler->InitFromChallenge(&tokenizer, HttpAuth::AUTH_SERVER,
+                                      origin, BoundNetLog());
+      auth_handler->SetGenerateExpectation(
+          test_config.server_auth_timing == AUTH_ASYNC,
+          test_config.server_auth_rv);
+      auth_handler->SetResolveExpectation(MockAuthHandler::RESOLVE_SKIP);
+      auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
+    }
+    if (test_config.proxy_url) {
+      session_deps.proxy_service =
+          CreateFixedProxyService(test_config.proxy_url);
+    } else {
+      session_deps.proxy_service = ProxyService::CreateNull();
+    }
+
+    HttpRequestInfo request;
+    request.method = "GET";
+    request.url = GURL(test_config.server_url);
+    request.load_flags = 0;
+
+    scoped_ptr<HttpTransaction> trans(
+        new HttpNetworkTransaction(CreateSession(&session_deps)));
+
+    for (int round = 0; round < test_config.num_auth_rounds; ++round) {
+      const TestRound& read_write_round = test_config.rounds[round];
+
+      // Set up expected reads and writes.
+      MockRead reads[2];
+      reads[0] = read_write_round.read;
+      size_t length_reads = 1;
+      if (read_write_round.extra_read) {
+        reads[1] = *read_write_round.extra_read;
+        length_reads = 2;
+      }
+
+      MockWrite writes[2];
+      writes[0] = read_write_round.write;
+      size_t length_writes = 1;
+      if (read_write_round.extra_write) {
+        writes[1] = *read_write_round.extra_write;
+        length_writes = 2;
+      }
+      StaticSocketDataProvider data_provider(
+          reads, length_reads, writes, length_writes);
+      session_deps.socket_factory.AddSocketDataProvider(&data_provider);
+
+      // Add an SSL sequence if necessary.
+      SSLSocketDataProvider ssl_socket_data_provider(false, OK);
+      if (round >= test_config.first_ssl_round)
+        session_deps.socket_factory.AddSSLSocketDataProvider(
+            &ssl_socket_data_provider);
+
+      // Start or restart the transaction.
+      TestCompletionCallback callback;
+      int rv;
+      if (round == 0) {
+        rv = trans->Start(&request, &callback, BoundNetLog());
+      } else {
+        rv = trans->RestartWithAuth(L"foo", L"bar", &callback);
+      }
+      if (rv == ERR_IO_PENDING)
+        rv = callback.WaitForResult();
+
+      // Compare results with expected data.
+      EXPECT_EQ(read_write_round.expected_rv, rv);
+      const HttpResponseInfo* response = trans->GetResponseInfo();
+      if (read_write_round.expected_rv == OK) {
+        EXPECT_FALSE(response == NULL);
+      } else {
+        EXPECT_TRUE(response == NULL);
+        EXPECT_EQ(round + 1, test_config.num_auth_rounds);
+        continue;
+      }
+      if (round + 1 < test_config.num_auth_rounds) {
+        EXPECT_FALSE(response->auth_challenge.get() == NULL);
+      } else {
+        EXPECT_TRUE(response->auth_challenge.get() == NULL);
+      }
+    }
   }
 }
 

@@ -32,14 +32,14 @@ TEST(HttpAuthHandlerBasicTest, GenerateAuthToken) {
     scoped_ptr<HttpAuthHandler> basic;
     EXPECT_EQ(OK, factory.CreateAuthHandlerFromString(
         challenge, HttpAuth::AUTH_SERVER, origin, BoundNetLog(), &basic));
-    std::string credentials;
     std::wstring username(tests[i].username);
     std::wstring password(tests[i].password);
     HttpRequestInfo request_info;
-    int rv = basic->GenerateAuthToken(
-        &username, &password, &request_info, NULL, &credentials);
+    std::string auth_token;
+    int rv = basic->GenerateAuthToken(&username, &password, &request_info,
+                                      NULL, &auth_token);
     EXPECT_EQ(OK, rv);
-    EXPECT_STREQ(tests[i].expected_credentials, credentials.c_str());
+    EXPECT_STREQ(tests[i].expected_credentials, auth_token.c_str());
   }
 }
 
