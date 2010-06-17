@@ -106,6 +106,7 @@ bool WebSocketJob::SendData(const char* data, int len) {
         int err = 0;
         if (!send_frame_handler_->GetCurrentBuffer() &&
             (err = send_frame_handler_->UpdateCurrentBuffer(false)) > 0) {
+          DCHECK(!current_buffer_);
           current_buffer_ = new DrainableIOBuffer(
               send_frame_handler_->GetCurrentBuffer(),
               send_frame_handler_->GetCurrentBufferSize());
@@ -172,17 +173,23 @@ int WebSocketJob::OnStartOpenConnection(
 
 void WebSocketJob::OnConnected(
     SocketStream* socket, int max_pending_send_allowed) {
+  DCHECK_EQ(CONNECTING, state_);
   if (delegate_)
     delegate_->OnConnected(socket, max_pending_send_allowed);
 }
 
 void WebSocketJob::OnSentData(SocketStream* socket, int amount_sent) {
+  DCHECK_NE(INITIALIZED, state_);
+  if (state_ == CLOSED)
+    return;
   if (state_ == CONNECTING) {
     OnSentHandshakeRequest(socket, amount_sent);
     return;
   }
   if (delegate_) {
+    DCHECK(state_ == OPEN || state_ == CLOSING);
     DCHECK_GT(amount_sent, 0);
+    DCHECK(current_buffer_);
     current_buffer_->DidConsume(amount_sent);
     if (current_buffer_->BytesRemaining() > 0)
       return;
@@ -201,10 +208,14 @@ void WebSocketJob::OnSentData(SocketStream* socket, int amount_sent) {
 
 void WebSocketJob::OnReceivedData(
     SocketStream* socket, const char* data, int len) {
+  DCHECK_NE(INITIALIZED, state_);
+  if (state_ == CLOSED)
+    return;
   if (state_ == CONNECTING) {
     OnReceivedHandshakeResponse(socket, data, len);
     return;
   }
+  DCHECK(state_ == OPEN || state_ == CLOSING);
   std::string received_data;
   receive_frame_handler_->AppendData(data, len);
   // Don't buffer receiving data for now.
