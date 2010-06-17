@@ -83,12 +83,18 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_RESOLVE_PROXY_COMPLETE,
     STATE_INIT_CONNECTION,
     STATE_INIT_CONNECTION_COMPLETE,
+    STATE_TUNNEL_GENERATE_AUTH_TOKEN,
+    STATE_TUNNEL_GENERATE_AUTH_TOKEN_COMPLETE,
     STATE_TUNNEL_SEND_REQUEST,
     STATE_TUNNEL_SEND_REQUEST_COMPLETE,
     STATE_TUNNEL_READ_HEADERS,
     STATE_TUNNEL_READ_HEADERS_COMPLETE,
     STATE_SSL_CONNECT,
     STATE_SSL_CONNECT_COMPLETE,
+    STATE_GENERATE_PROXY_AUTH_TOKEN,
+    STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE,
+    STATE_GENERATE_SERVER_AUTH_TOKEN,
+    STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE,
     STATE_SEND_REQUEST,
     STATE_SEND_REQUEST_COMPLETE,
     STATE_READ_HEADERS,
@@ -128,12 +134,18 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoResolveProxyComplete(int result);
   int DoInitConnection();
   int DoInitConnectionComplete(int result);
+  int DoTunnelGenerateAuthToken();
+  int DoTunnelGenerateAuthTokenComplete(int result);
   int DoTunnelSendRequest();
   int DoTunnelSendRequestComplete(int result);
   int DoTunnelReadHeaders();
   int DoTunnelReadHeadersComplete(int result);
   int DoSSLConnect();
   int DoSSLConnectComplete(int result);
+  int DoGenerateProxyAuthToken();
+  int DoGenerateProxyAuthTokenComplete(int result);
+  int DoGenerateServerAuthToken();
+  int DoGenerateServerAuthTokenComplete(int result);
   int DoSendRequest();
   int DoSendRequestComplete(int result);
   int DoReadHeaders();
@@ -231,7 +243,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Adds either the proxy auth header, or the origin server auth header,
   // as specified by |target|.
   void AddAuthorizationHeader(
-      HttpAuth::Target target, HttpRequestHeaders* authorization_headers) const;
+      HttpAuth::Target target, HttpRequestHeaders* authorization_headers);
 
   // Returns a log message for all the response headers related to the auth
   // challenge.
@@ -279,6 +291,12 @@ class HttpNetworkTransaction : public HttpTransaction {
   // For proxy authentication the path is always empty string.
   std::string AuthPath(HttpAuth::Target target) const;
 
+  // Generate an authentication token for |target| if necessary. The return
+  // value is a net error code. |OK| will be returned both in the case that
+  // a token is correctly generated synchronously, as well as when no tokens
+  // were necessary.
+  int MaybeGenerateAuthToken(HttpAuth::Target target);
+
   void MarkBrokenAlternateProtocolAndFallback();
 
   // Returns a string representation of a HttpAuth::Target value that can be
@@ -287,21 +305,19 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   static bool g_ignore_certificate_errors;
 
-  // The following three auth members are arrays of size two -- index 0 is
-  // for the proxy server, and index 1 is for the origin server.
-  // Use the enum HttpAuth::Target to index into them.
-  // TODO(cbentzel): Just use explicit proxy_auth_handler_ and
-  // server_auth_handler_ and move identity into the handler directly.
-
-  // auth_handler encapsulates the logic for the particular auth-scheme.
+  // |auth_handler_| encapsulates the logic for the particular auth-scheme.
   // This includes the challenge's parameters. If NULL, then there is no
   // associated auth handler.
-  scoped_ptr<HttpAuthHandler> auth_handler_[2];
+  scoped_ptr<HttpAuthHandler> auth_handler_[HttpAuth::AUTH_NUM_TARGETS];
 
-  // auth_identity_ holds the (username/password) that should be used by
-  // the auth_handler_ to generate credentials. This identity can come from
+  // |auth_identity_| holds the (username/password) that should be used by
+  // the |auth_handler_| to generate credentials. This identity can come from
   // a number of places (url, cache, prompt).
-  HttpAuth::Identity auth_identity_[2];
+  HttpAuth::Identity auth_identity_[HttpAuth::AUTH_NUM_TARGETS];
+
+  // |auth_token_| contains the opaque string to pass to the proxy or
+  // server to authenticate the client.
+  std::string auth_token_[HttpAuth::AUTH_NUM_TARGETS];
 
   // Whether this transaction is waiting for proxy auth, server auth, or is
   // not waiting for any auth at all. |pending_auth_target_| is read and
