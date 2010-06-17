@@ -1,10 +1,10 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // There are three classes involved here.  There's NetworkChangeNotifierMac,
 // which is the Mac specific implementation of NetworkChangeNotifier.  It is the
-// class with which clients can register themselves as network change 
+// class with which clients can register themselves as network change
 // observers.  There's NetworkChangeNotifierThread, which is a base::Thread
 // subclass of MessageLoop::TYPE_UI (since it needs a CFRunLoop) that contains
 // the NetworkChangeNotifierImpl.  NetworkChangeNotifierImpl is the object
@@ -232,9 +232,27 @@ NetworkChangeNotifierMac::NetworkChangeNotifierMac()
       kNotifierThreadInitializationDelayMS);
 }
 
-NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {}
+void NetworkChangeNotifierMac::OnIPAddressChanged() {
+  DCHECK(CalledOnValidThread());
+  FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
+}
+
+void NetworkChangeNotifierMac::AddObserver(Observer* observer) {
+  DCHECK(CalledOnValidThread());
+  observers_.AddObserver(observer);
+}
+
+void NetworkChangeNotifierMac::RemoveObserver(Observer* observer) {
+  DCHECK(CalledOnValidThread());
+  observers_.RemoveObserver(observer);
+}
+
+NetworkChangeNotifierMac::~NetworkChangeNotifierMac() {
+  DCHECK(CalledOnValidThread());
+}
 
 void NetworkChangeNotifierMac::InitializeNotifierThread(MessageLoop* loop) {
+  DCHECK(CalledOnValidThread());
   notifier_thread_.reset(new NetworkChangeNotifierThread(loop, this));
   base::Thread::Options thread_options;
   thread_options.message_loop_type = MessageLoop::TYPE_UI;
