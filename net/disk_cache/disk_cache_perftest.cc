@@ -66,7 +66,9 @@ int TimeWrite(int num_entries, disk_cache::Backend* cache,
     entries->push_back(entry);
 
     disk_cache::Entry* cache_entry;
-    if (!cache->CreateEntry(entry.key, &cache_entry))
+    TestCompletionCallback cb;
+    int rv = cache->CreateEntry(entry.key, &cache_entry, &cb);
+    if (net::OK != cb.GetResult(rv))
       break;
     int ret = cache_entry->WriteData(0, 0, buffer1, kSize1, &callback, false);
     if (net::ERR_IO_PENDING == ret)
@@ -112,7 +114,9 @@ int TimeRead(int num_entries, disk_cache::Backend* cache,
 
   for (int i = 0; i < num_entries; i++) {
     disk_cache::Entry* cache_entry;
-    if (!cache->OpenEntry(entries[i].key, &cache_entry))
+    TestCompletionCallback cb;
+    int rv = cache->OpenEntry(entries[i].key, &cache_entry, &cb);
+    if (net::OK != cb.GetResult(rv))
       break;
     int ret = cache_entry->ReadData(0, 0, buffer1, kSize1, &callback);
     if (net::ERR_IO_PENDING == ret)
