@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -39,28 +39,43 @@ NetworkChangeNotifierLinux::NetworkChangeNotifierLinux()
 }
 
 NetworkChangeNotifierLinux::~NetworkChangeNotifierLinux() {
+  DCHECK(CalledOnValidThread());
   StopWatching();
 
   if (loop_)
     loop_->RemoveDestructionObserver(this);
 }
 
+void NetworkChangeNotifierLinux::AddObserver(Observer* observer) {
+  DCHECK(CalledOnValidThread());
+  observers_.AddObserver(observer);
+}
+
+void NetworkChangeNotifierLinux::RemoveObserver(Observer* observer) {
+  DCHECK(CalledOnValidThread());
+  observers_.RemoveObserver(observer);
+}
+
 void NetworkChangeNotifierLinux::OnFileCanReadWithoutBlocking(int fd) {
+  DCHECK(CalledOnValidThread());
   DCHECK_EQ(fd, netlink_fd_);
 
   ListenForNotifications();
 }
 
 void NetworkChangeNotifierLinux::OnFileCanWriteWithoutBlocking(int /* fd */) {
+  DCHECK(CalledOnValidThread());
   NOTREACHED();
 }
 
 void NetworkChangeNotifierLinux::WillDestroyCurrentMessageLoop() {
+  DCHECK(CalledOnValidThread());
   StopWatching();
   loop_ = NULL;
 }
 
 void NetworkChangeNotifierLinux::ListenForNotifications() {
+  DCHECK(CalledOnValidThread());
   char buf[4096];
   int rv = ReadNotificationMessage(buf, arraysize(buf));
   while (rv > 0 ) {
@@ -97,6 +112,7 @@ void NetworkChangeNotifierLinux::NotifyObserversIPAddressChanged() {
 }
 
 int NetworkChangeNotifierLinux::ReadNotificationMessage(char* buf, size_t len) {
+  DCHECK(CalledOnValidThread());
   DCHECK_NE(len, 0u);
   DCHECK(buf);
 
@@ -116,6 +132,7 @@ int NetworkChangeNotifierLinux::ReadNotificationMessage(char* buf, size_t len) {
 }
 
 void NetworkChangeNotifierLinux::StopWatching() {
+  DCHECK(CalledOnValidThread());
   if (netlink_fd_ != kInvalidSocket) {
     if (HANDLE_EINTR(close(netlink_fd_)) != 0)
       PLOG(ERROR) << "Failed to close socket";
