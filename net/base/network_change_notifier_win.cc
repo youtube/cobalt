@@ -66,7 +66,23 @@ NetworkChangeNotifierWin::NetworkChangeNotifierWin()
     : impl_(new Impl(ALLOW_THIS_IN_INITIALIZER_LIST(this))) {
   impl_->WatchForAddressChange();
 }
+void NetworkChangeNotifierWin::OnIPAddressChanged() {
+  DCHECK(CalledOnValidThread());
+  FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
+}
 
-NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {}
+void NetworkChangeNotifierWin::AddObserver(Observer* observer) {
+  DCHECK(CalledOnValidThread());
+  observers_.AddObserver(observer);
+}
+
+void NetworkChangeNotifierWin::RemoveObserver(Observer* observer) {
+  DCHECK(CalledOnValidThread());
+  observers_.RemoveObserver(observer);
+}
+
+NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
+  DCHECK(CalledOnValidThread());
+}
 
 }  // namespace net
