@@ -45,7 +45,7 @@ HostCache* CreateDefaultCache() {
   HostCache* cache = new HostCache(
       kMaxHostCacheEntries,
       base::TimeDelta::FromMinutes(1),
-      base::TimeDelta::FromMinutes(1));
+      base::TimeDelta::FromSeconds(0));  // Disable caching of failed DNS.
 
   return cache;
 }
