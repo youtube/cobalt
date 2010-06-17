@@ -366,9 +366,9 @@ int32 BackendImpl::GetEntryCount() const {
   return not_deleted;
 }
 
-bool BackendImpl::OpenEntry(const std::string& key, Entry** entry) {
+EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
   if (disabled_)
-    return false;
+    return NULL;
 
   TimeTicks start = TimeTicks::Now();
   uint32 hash = Hash(key);
@@ -376,23 +376,27 @@ bool BackendImpl::OpenEntry(const std::string& key, Entry** entry) {
   EntryImpl* cache_entry = MatchEntry(key, hash, false);
   if (!cache_entry) {
     stats_.OnEvent(Stats::OPEN_MISS);
-    return false;
+    return NULL;
   }
 
   if (ENTRY_NORMAL != cache_entry->entry()->Data()->state) {
     // The entry was already evicted.
     cache_entry->Release();
     stats_.OnEvent(Stats::OPEN_MISS);
-    return false;
+    return NULL;
   }
 
   eviction_.OnOpenEntry(cache_entry);
-  DCHECK(entry);
-  *entry = cache_entry;
 
   CACHE_UMA(AGE_MS, "OpenTime", GetSizeGroup(), start);
   stats_.OnEvent(Stats::OPEN_HIT);
-  return true;
+  return cache_entry;
+}
+
+bool BackendImpl::OpenEntry(const std::string& key, Entry** entry) {
+  DCHECK(entry);
+  *entry = OpenEntryImpl(key);
+  return (*entry) ? true : false;
 }
 
 int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
@@ -403,12 +407,9 @@ int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
   return net::ERR_FAILED;
 }
 
-bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
+EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
   if (disabled_ || key.empty())
-    return false;
-
-  DCHECK(entry);
-  *entry = NULL;
+    return NULL;
 
   TimeTicks start = TimeTicks::Now();
   uint32 hash = Hash(key);
@@ -420,12 +421,12 @@ bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
     // a hash conflict.
     EntryImpl* old_entry = MatchEntry(key, hash, false);
     if (old_entry)
-      return ResurrectEntry(old_entry, entry);
+      return ResurrectEntry(old_entry);
 
     EntryImpl* parent_entry = MatchEntry(key, hash, true);
     if (!parent_entry) {
       NOTREACHED();
-      return false;
+      return NULL;
     }
     parent.swap(&parent_entry);
   }
@@ -441,7 +442,7 @@ bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
   if (!block_files_.CreateBlock(BLOCK_256, num_blocks, &entry_address)) {
     LOG(ERROR) << "Create entry failed " << key.c_str();
     stats_.OnEvent(Stats::CREATE_ERROR);
-    return false;
+    return NULL;
   }
 
   Addr node_address(0);
@@ -449,7 +450,7 @@ bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
     block_files_.DeleteBlock(entry_address, false);
     LOG(ERROR) << "Create entry failed " << key.c_str();
     stats_.OnEvent(Stats::CREATE_ERROR);
-    return false;
+    return NULL;
   }
 
   scoped_refptr<EntryImpl> cache_entry(new EntryImpl(this, entry_address));
@@ -460,7 +461,7 @@ bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
     block_files_.DeleteBlock(node_address, false);
     LOG(ERROR) << "Create entry failed " << key.c_str();
     stats_.OnEvent(Stats::CREATE_ERROR);
-    return false;
+    return NULL;
   }
 
   // We are not failing the operation; let's add this to the map.
@@ -477,12 +478,16 @@ bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
   if (!parent.get())
     data_->table[hash & mask_] = entry_address.value();
 
-  cache_entry.swap(reinterpret_cast<EntryImpl**>(entry));
-
   CACHE_UMA(AGE_MS, "CreateTime", GetSizeGroup(), start);
   stats_.OnEvent(Stats::CREATE_HIT);
   Trace("create entry hit ");
-  return true;
+  return cache_entry.release();
+}
+
+bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
+  DCHECK(entry);
+  *entry = CreateEntryImpl(key);
+  return (*entry) ? true : false;
 }
 
 int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
@@ -1422,23 +1427,22 @@ EntryImpl* BackendImpl::GetEnumeratedEntry(CacheRankingsBlock* next,
   return entry;
 }
 
-bool BackendImpl::ResurrectEntry(EntryImpl* deleted_entry, Entry** entry) {
+EntryImpl* BackendImpl::ResurrectEntry(EntryImpl* deleted_entry) {
   if (ENTRY_NORMAL == deleted_entry->entry()->Data()->state) {
     deleted_entry->Release();
     stats_.OnEvent(Stats::CREATE_MISS);
     Trace("create entry miss ");
-    return false;
+    return NULL;
   }
 
   // We are attempting to create an entry and found out that the entry was
   // previously deleted.
 
   eviction_.OnCreateEntry(deleted_entry);
-  *entry = deleted_entry;
 
   stats_.OnEvent(Stats::CREATE_HIT);
   Trace("Resurrect entry hit ");
-  return true;
+  return deleted_entry;
 }
 
 void BackendImpl::DestroyInvalidEntry(EntryImpl* entry) {

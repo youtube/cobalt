@@ -63,25 +63,17 @@ class BackendImpl : public Backend {
 
   // Backend interface.
   virtual int32 GetEntryCount() const;
-  virtual bool OpenEntry(const std::string& key, Entry** entry);
   virtual int OpenEntry(const std::string& key, Entry** entry,
                         CompletionCallback* callback);
-  virtual bool CreateEntry(const std::string& key, Entry** entry);
   virtual int CreateEntry(const std::string& key, Entry** entry,
                           CompletionCallback* callback);
-  virtual bool DoomEntry(const std::string& key);
   virtual int DoomEntry(const std::string& key, CompletionCallback* callback);
-  virtual bool DoomAllEntries();
   virtual int DoomAllEntries(CompletionCallback* callback);
-  virtual bool DoomEntriesBetween(const base::Time initial_time,
-                                  const base::Time end_time);
   virtual int DoomEntriesBetween(const base::Time initial_time,
                                  const base::Time end_time,
                                  CompletionCallback* callback);
-  virtual bool DoomEntriesSince(const base::Time initial_time);
   virtual int DoomEntriesSince(const base::Time initial_time,
                                CompletionCallback* callback);
-  virtual bool OpenNextEntry(void** iter, Entry** next_entry);
   virtual int OpenNextEntry(void** iter, Entry** next_entry,
                             CompletionCallback* callback);
   virtual void EndEnumeration(void** iter);
@@ -208,6 +200,20 @@ class BackendImpl : public Backend {
   // Same bahavior as OpenNextEntry but walks the list from back to front.
   bool OpenPrevEntry(void** iter, Entry** prev_entry);
 
+  // Old Backend interface.
+  bool OpenEntry(const std::string& key, Entry** entry);
+  bool CreateEntry(const std::string& key, Entry** entry);
+  bool DoomEntry(const std::string& key);
+  bool DoomAllEntries();
+  bool DoomEntriesBetween(const base::Time initial_time,
+                          const base::Time end_time);
+  bool DoomEntriesSince(const base::Time initial_time);
+  bool OpenNextEntry(void** iter, Entry** next_entry);
+
+  // Open or create an entry for the given |key|.
+  EntryImpl* OpenEntryImpl(const std::string& key);
+  EntryImpl* CreateEntryImpl(const std::string& key);
+
  private:
   typedef base::hash_map<CacheAddr, EntryImpl*> EntriesMap;
 
@@ -244,7 +250,7 @@ class BackendImpl : public Backend {
   EntryImpl* GetEnumeratedEntry(CacheRankingsBlock* next, bool to_evict);
 
   // Re-opens an entry that was previously deleted.
-  bool ResurrectEntry(EntryImpl* deleted_entry, Entry** entry);
+  EntryImpl* ResurrectEntry(EntryImpl* deleted_entry);
 
   void DestroyInvalidEntry(EntryImpl* entry);
   void DestroyInvalidEntryFromEnumeration(EntryImpl* entry);
