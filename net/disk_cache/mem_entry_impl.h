@@ -67,7 +67,6 @@ class MemEntryImpl : public Entry {
                              net::CompletionCallback* completion_callback);
   virtual int WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
                               net::CompletionCallback* completion_callback);
-  virtual int GetAvailableRange(int64 offset, int len, int64* start);
   virtual int GetAvailableRange(int64 offset, int len, int64* start,
                                 CompletionCallback* callback);
   virtual bool CouldBeSparse() const;
@@ -112,6 +111,9 @@ class MemEntryImpl : public Entry {
   };
 
   ~MemEntryImpl();
+
+  // Old Entry interface.
+  int GetAvailableRange(int64 offset, int len, int64* start);
 
   // Grows and cleans up the data buffer.
   void PrepareTarget(int index, int offset, int buf_len);
