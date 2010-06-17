@@ -430,8 +430,6 @@ int SocketStream::DoResolveProxy() {
 }
 
 int SocketStream::DoResolveProxyComplete(int result) {
-  next_state_ = STATE_RESOLVE_HOST;
-
   pac_request_ = NULL;
   if (result != OK) {
     LOG(ERROR) << "Failed to resolve proxy: " << result;
@@ -455,12 +453,20 @@ int SocketStream::DoResolveProxyComplete(int result) {
     }
   }
 
+  if (proxy_info_.is_empty()) {
+    // No proxies/direct to choose from. This happens when we don't support any
+    // of the proxies in the returned list.
+    return ERR_NO_SUPPORTED_PROXIES;
+  }
+
+  next_state_ = STATE_RESOLVE_HOST;
   return OK;
 }
 
 int SocketStream::DoResolveHost() {
   next_state_ = STATE_RESOLVE_HOST_COMPLETE;
 
+  DCHECK(!proxy_info_.is_empty());
   if (proxy_info_.is_direct())
     proxy_mode_ = kDirectConnection;
   else if (proxy_info_.proxy_server().is_socks())
@@ -697,6 +703,7 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
       result = HandleAuthChallenge(headers.get());
       if (result == ERR_PROXY_AUTH_REQUESTED &&
           auth_handler_.get() && delegate_) {
+        DCHECK(!proxy_info_.is_empty());
         auth_info_ = new AuthChallengeInfo;
         auth_info_->is_proxy = true;
         auth_info_->host_and_port =
@@ -726,6 +733,7 @@ int SocketStream::DoSOCKSConnect() {
   HostResolver::RequestInfo req_info(url_.HostNoBrackets(),
                                      url_.EffectiveIntPort());
 
+  DCHECK(!proxy_info_.is_empty());
   if (proxy_info_.proxy_server().scheme() == ProxyServer::SCHEME_SOCKS5)
     s = new SOCKS5ClientSocket(s, req_info);
   else
@@ -868,6 +876,7 @@ int SocketStream::DoReadWrite(int result) {
 }
 
 GURL SocketStream::ProxyAuthOrigin() const {
+  DCHECK(!proxy_info_.is_empty());
   return GURL("http://" + proxy_info_.proxy_server().host_and_port());
 }
 
