@@ -1411,23 +1411,6 @@ TEST(NetUtilTest, FormatUrl) {
     */
     // Disabled: the resultant URL becomes "...user%253A:%2540passwd...".
 
-    // -------- view-source: --------
-    {"view-source",
-     "view-source:http://xn--qcka1pmc.jp/", L"ja", default_format_type,
-     UnescapeRule::NORMAL, L"view-source:http://\x30B0\x30FC\x30B0\x30EB.jp/",
-     12 + 7},
-
-    {"view-source of view-source",
-     "view-source:view-source:http://xn--qcka1pmc.jp/", L"ja",
-     default_format_type, UnescapeRule::NORMAL,
-     L"view-source:view-source:http://xn--qcka1pmc.jp/", 12},
-
-    // view-source should not omit http.
-    {"view-source omit http",
-     "view-source:http://a.b/c", L"en", net::kFormatUrlOmitAll,
-     UnescapeRule::NORMAL, L"view-source:http://a.b/c",
-     19},
-
     // -------- omit http: --------
     {"omit http with user name",
      "http://user@example.com/foo", L"", net::kFormatUrlOmitAll,
@@ -1448,7 +1431,7 @@ TEST(NetUtilTest, FormatUrl) {
      UnescapeRule::NORMAL, L"http://ftp.google.com/",
      7},
 
-    // -------- omit trailing lash on bare hostname --------
+    // -------- omit trailing slash on bare hostname --------
     {"omit slash when it's the entire path",
      "http://www.google.com/", L"en",
      net::kFormatUrlOmitTrailingSlashOnBareHostname, UnescapeRule::NORMAL,
@@ -1471,6 +1454,32 @@ TEST(NetUtilTest, FormatUrl) {
     {"omit slash for file URLs",
      "file:///", L"en", net::kFormatUrlOmitTrailingSlashOnBareHostname,
      UnescapeRule::NORMAL, L"file:///", 7},
+
+    // -------- view-source: --------
+    {"view-source",
+     "view-source:http://xn--qcka1pmc.jp/", L"ja", default_format_type,
+     UnescapeRule::NORMAL, L"view-source:http://\x30B0\x30FC\x30B0\x30EB.jp/",
+     19},
+
+    {"view-source of view-source",
+     "view-source:view-source:http://xn--qcka1pmc.jp/", L"ja",
+     default_format_type, UnescapeRule::NORMAL,
+     L"view-source:view-source:http://xn--qcka1pmc.jp/", 12},
+
+    // view-source should omit http and trailing slash where non-view-source
+    // would.
+    {"view-source omit http",
+     "view-source:http://a.b/c", L"en", net::kFormatUrlOmitAll,
+     UnescapeRule::NORMAL, L"view-source:a.b/c",
+     12},
+    {"view-source omit http starts with ftp.",
+     "view-source:http://ftp.b/c", L"en", net::kFormatUrlOmitAll,
+     UnescapeRule::NORMAL, L"view-source:http://ftp.b/c",
+     19},
+    {"view-source omit slash when it's the entire path",
+     "view-source:http://a.b/", L"en", net::kFormatUrlOmitAll,
+     UnescapeRule::NORMAL, L"view-source:a.b",
+     12},
   };
 
   for (size_t i = 0; i < arraysize(tests); ++i) {
