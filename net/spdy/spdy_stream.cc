@@ -7,6 +7,8 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/singleton.h"
+#include "net/http/http_request_info.h"
+#include "net/http/http_response_info.h"
 #include "net/spdy/spdy_session.h"
 
 namespace net {
@@ -18,9 +20,8 @@ SpdyStream::SpdyStream(
       pushed_(pushed),
       metrics_(Singleton<BandwidthMetrics>::get()),
       session_(session),
-      delegate_(NULL),
       request_time_(base::Time::Now()),
-      response_(new spdy::SpdyHeaderBlock),
+      response_(NULL),
       response_complete_(false),
       io_state_(STATE_NONE),
       response_status_(OK),
@@ -38,36 +39,23 @@ SpdyStream::~SpdyStream() {
     DCHECK(response_complete_);
 }
 
-void SpdyStream::SetDelegate(Delegate* delegate) {
-  CHECK(delegate);
-  delegate_ = delegate;
-
-  if (!response_->empty()) {
-    // The stream already got response.
-    delegate_->OnResponseReceived(*response_, response_time_, OK);
-  }
-
-  std::vector<scoped_refptr<IOBufferWithSize> > buffers;
-  buffers.swap(pending_buffers_);
-  for (size_t i = 0; i < buffers.size(); ++i) {
-    if (delegate_)
-      delegate_->OnDataReceived(buffers[i]->data(), buffers[i]->size());
-  }
+const HttpResponseInfo* SpdyStream::GetResponseInfo() const {
+  return response_;
 }
 
-void SpdyStream::DetachDelegate() {
-  delegate_ = NULL;
-  if (!cancelled())
-    Cancel();
+void SpdyStream::SetPushResponse(HttpResponseInfo* response_info) {
+  DCHECK(!response_);
+  DCHECK(!push_response_.get());
+  push_response_.reset(response_info);
+  response_ = response_info;
 }
 
-const linked_ptr<spdy::SpdyHeaderBlock>& SpdyStream::spdy_headers() const {
-  return request_;
+const HttpRequestInfo* SpdyStream::GetRequestInfo() const {
+  return &request_;
 }
 
-void SpdyStream::set_spdy_headers(
-    const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
-  request_ = headers;
+void SpdyStream::SetRequestInfo(const HttpRequestInfo& request) {
+  request_ = request;
 }
 
 base::Time SpdyStream::GetRequestTime() const {
@@ -76,20 +64,25 @@ base::Time SpdyStream::GetRequestTime() const {
 
 void SpdyStream::SetRequestTime(base::Time t) {
   request_time_ = t;
+
+  // This should only get called in the case of a request occuring
+  // during server push that has already begun but hasn't finished,
+  // so we set the response's request time to be the actual one
+  if (response_)
+    response_->request_time = request_time_;
 }
 
-int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
+int SpdyStream::DoOnResponseReceived(const HttpResponseInfo& response) {
   int rv = OK;
-  LOG(INFO) << "OnResponseReceived";
 
   metrics_.StartStream();
 
-  DCHECK(response_->empty());
-  *response_ = response;  // TODO(ukai): avoid copy.
-  DCHECK(!response_->empty());
+  CHECK(!response_->headers);
+
+  *response_ = response;  // TODO(mbelshe): avoid copy.
+  DCHECK(response_->headers);
 
   recv_first_byte_time_ = base::TimeTicks::Now();
-  response_time_ = base::Time::Now();
 
   if (io_state_ == STATE_NONE) {
     CHECK(pushed_);
@@ -108,15 +101,11 @@ int SpdyStream::OnResponseReceived(const spdy::SpdyHeaderBlock& response) {
   }
 
   rv = DoLoop(rv);
-  if (delegate_)
-    rv = delegate_->OnResponseReceived(*response_, response_time_, rv);
-  // if delegate_ is not yet attached, we'll return response when delegate
-  // gets attached to the stream.
 
   return rv;
 }
 
-void SpdyStream::OnDataReceived(const char* data, int length) {
+bool SpdyStream::DoOnDataReceived(const char* data, int length) {
   DCHECK_GE(length, 0);
   LOG(INFO) << "SpdyStream: Data (" << length << " bytes) received for "
             << stream_id_;
@@ -126,9 +115,9 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
   // If we don't have a response, then the SYN_REPLY did not come through.
   // We cannot pass data up to the caller unless the reply headers have been
   // received.
-  if (response_->empty()) {
+  if (!response_->headers) {
     session_->CloseStream(stream_id_, ERR_SYN_REPLY_NOT_RECEIVED);
-    return;
+    return false;
   }
 
   // A zero-length read means that the stream is being closed.
@@ -137,7 +126,7 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
     scoped_refptr<SpdyStream> self(this);
     session_->CloseStream(stream_id_, net::OK);
     UpdateHistograms();
-    return;
+    return true;
   }
 
   // Track our bandwidth.
@@ -145,19 +134,10 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
   recv_bytes_ += length;
   recv_last_byte_time_ = base::TimeTicks::Now();
 
-  if (!delegate_) {
-    // It should be valid for this to happen in the server push case.
-    // We'll return received data when delegate gets attached to the stream.
-    IOBufferWithSize* buf = new IOBufferWithSize(length);
-    memcpy(buf->data(), data, length);
-    pending_buffers_.push_back(buf);
-    return;
-  }
-
-  delegate_->OnDataReceived(data, length);
+  return true;
 }
 
-void SpdyStream::OnWriteComplete(int status) {
+void SpdyStream::DoOnWriteComplete(int status) {
   // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
   // should discontinue the DoLoop.
 
@@ -171,35 +151,45 @@ void SpdyStream::OnWriteComplete(int status) {
   DoLoop(status);
 }
 
-void SpdyStream::OnClose(int status) {
+void SpdyStream::DoOnClose(int status) {
   response_complete_ = true;
   response_status_ = status;
   stream_id_ = 0;
-  Delegate* delegate = delegate_;
-  delegate_ = NULL;
-  if (delegate)
-    delegate->OnClose(status);
 }
 
-void SpdyStream::Cancel() {
+void SpdyStream::DoCancel() {
   cancelled_ = true;
   session_->CloseStream(stream_id_, ERR_ABORTED);
 }
 
-int SpdyStream::DoSendRequest(bool has_upload_data) {
+int SpdyStream::DoSendRequest(UploadDataStream* upload_data,
+                              HttpResponseInfo* response) {
   CHECK(!cancelled_);
+  CHECK(response);
 
-  if (!pushed_) {
-    spdy::SpdyControlFlags flags = spdy::CONTROL_FLAG_NONE;
-    if (!has_upload_data)
-      flags = spdy::CONTROL_FLAG_FIN;
+  // SendRequest can be called in two cases.
+  //
+  // a) A client initiated request. In this case, response_ should be NULL
+  //    to start with.
+  // b) A client request which matches a response that the server has already
+  //    pushed. In this case, the value of |*push_response_| is copied over to
+  //    the new response object |*response|. |push_response_| is cleared
+  //    and |*push_response_| is deleted, and |response_| is reset to
+  //    |response|.
+  if (push_response_.get()) {
+    *response = *push_response_;
+    push_response_.reset(NULL);
+    response_ = NULL;
+  }
 
-    CHECK(request_.get());
-    int result = session_->WriteSynStream(
-        stream_id_, static_cast<RequestPriority>(priority_), flags,
-        request_);
-    if (result != ERR_IO_PENDING)
-      return result;
+  DCHECK_EQ(static_cast<HttpResponseInfo*>(NULL), response_);
+  response_ = response;
+
+  if (upload_data) {
+    if (upload_data->size())
+      request_body_stream_.reset(upload_data);
+    else
+      delete upload_data;
   }
 
   send_time_ = base::TimeTicks::Now();
@@ -208,7 +198,7 @@ int SpdyStream::DoSendRequest(bool has_upload_data) {
   if (!pushed_)
     io_state_ = STATE_SEND_HEADERS;
   else {
-    if (!response_->empty()) {
+    if (response_->headers) {
       io_state_ = STATE_READ_BODY;
     } else {
       io_state_ = STATE_READ_HEADERS;
@@ -222,20 +212,12 @@ int SpdyStream::DoReadResponseHeaders() {
   CHECK(!cancelled_);
 
   // The SYN_REPLY has already been received.
-  if (!response_->empty())
+  if (response_->headers)
     return OK;
 
   io_state_ = STATE_READ_HEADERS;
   // Q: do we need to run DoLoop here?
   return ERR_IO_PENDING;
-}
-
-int SpdyStream::WriteStreamData(IOBuffer* data, int length) {
-  return session_->WriteStreamData(stream_id_, data, length);
-}
-
-bool SpdyStream::GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated) {
-  return session_->GetSSLInfo(ssl_info, was_npn_negotiated);
 }
 
 int SpdyStream::DoLoop(int result) {
@@ -313,11 +295,8 @@ int SpdyStream::DoSendHeadersComplete(int result) {
 
   CHECK_GT(result, 0);
 
-  if (!delegate_)
-    return ERR_UNEXPECTED;
-
   // There is no body, skip that state.
-  if (delegate_->OnSendHeadersComplete(result)) {
+  if (!request_body_stream_.get()) {
     io_state_ = STATE_READ_HEADERS;
     return OK;
   }
@@ -335,9 +314,12 @@ int SpdyStream::DoSendBody() {
   // the number of bytes in the frame that were written, only consume the
   // data portion, of course.
   io_state_ = STATE_SEND_BODY_COMPLETE;
-  if (!delegate_)
-    return ERR_UNEXPECTED;
-  return delegate_->OnSendBody();
+  int buf_len = static_cast<int>(request_body_stream_->buf_len());
+  if (!buf_len)
+    return OK;
+  return session_->WriteStreamData(stream_id_,
+                                   request_body_stream_->buf(),
+                                   buf_len);
 }
 
 int SpdyStream::DoSendBodyComplete(int result) {
@@ -346,10 +328,9 @@ int SpdyStream::DoSendBodyComplete(int result) {
 
   CHECK_NE(result, 0);
 
-  if (!delegate_)
-    return ERR_UNEXPECTED;
+  request_body_stream_->DidConsume(result);
 
-  if (!delegate_->OnSendBodyComplete(result))
+  if (!request_body_stream_->eof())
     io_state_ = STATE_SEND_BODY;
   else
     io_state_ = STATE_READ_HEADERS;
@@ -359,7 +340,7 @@ int SpdyStream::DoSendBodyComplete(int result) {
 
 int SpdyStream::DoReadHeaders() {
   io_state_ = STATE_READ_HEADERS_COMPLETE;
-  return !response_->empty() ? OK : ERR_IO_PENDING;
+  return response_->headers ? OK : ERR_IO_PENDING;
 }
 
 int SpdyStream::DoReadHeadersComplete(int result) {
