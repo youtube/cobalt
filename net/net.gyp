@@ -169,6 +169,8 @@
         'base/x509_cert_types.cc',
         'base/x509_cert_types.h',
         'base/x509_cert_types_mac.cc',
+        'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
+        'third_party/mozilla_security_manager/nsKeygenHandler.h',
       ],
       'export_dependent_settings': [
         '../base/base.gyp:base',
@@ -186,6 +188,8 @@
               'base/cert_database_nss.cc',
               'base/keygen_handler_nss.cc',
               'base/x509_certificate_nss.cc',
+              'third_party/mozilla_security_manager/nsKeygenHandler.cpp',
+              'third_party/mozilla_security_manager/nsKeygenHandler.h',
             ],
           },
         ],
