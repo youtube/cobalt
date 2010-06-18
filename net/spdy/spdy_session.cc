@@ -882,10 +882,10 @@ void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
     return;
 
   // If this is an active stream, call the callback.
-  const scoped_refptr<SpdyStream>& stream = it2->second;
+  const scoped_refptr<SpdyStream> stream(it2->second);
+  active_streams_.erase(it2);
   if (stream)
     stream->OnClose(status);
-  active_streams_.erase(it2);
 }
 
 void SpdySession::RemoveFromPool() {
