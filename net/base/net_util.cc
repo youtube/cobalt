@@ -747,8 +747,6 @@ std::wstring FormatViewSourceUrl(const GURL& url,
   const wchar_t* const kWideViewSource = L"view-source:";
   const size_t kViewSourceLengthPlus1 = 12;
 
-  // 'view-source' requires http, so don't strip it.
-  format_types &= ~net::kFormatUrlOmitHTTP;
   GURL real_url(url.possibly_invalid_spec().substr(kViewSourceLengthPlus1));
   size_t temp_offset = (*offset_for_adjustment == std::wstring::npos) ?
       std::wstring::npos : (*offset_for_adjustment - kViewSourceLengthPlus1);
@@ -1452,8 +1450,8 @@ std::wstring FormatUrl(const GURL& url,
   // Special handling for view-source:.  Don't use chrome::kViewSourceScheme
   // because this library shouldn't depend on chrome.
   const char* const kViewSource = "view-source";
+  // Reject "view-source:view-source:..." to avoid deep recursion.
   const char* const kViewSourceTwice = "view-source:view-source:";
-  // Rejects view-source:view-source:... to avoid deep recursive call.
   if (url.SchemeIs(kViewSource) &&
       !StartsWithASCII(url.possibly_invalid_spec(), kViewSourceTwice, false)) {
     return FormatViewSourceUrl(url, languages, format_types,
