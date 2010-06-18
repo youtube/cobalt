@@ -306,9 +306,9 @@ TEST(ProxyResolverV8Test, UnhandledException) {
   EXPECT_EQ(3, bindings->errors_line_number[0]);
 }
 
-// TODO(eroman): This test fails right now, since the parsing of
-// host/port doesn't check for non-ascii characters. http://crbug.com/46608
-TEST(ProxyResolverV8Test, FAILS_ReturnUnicode) {
+// TODO(eroman): This test is disabed right now, since the parsing of
+// host/port doesn't check for non-ascii characters.
+TEST(ProxyResolverV8Test, DISABLED_ReturnUnicode) {
   ProxyResolverV8WithMockBindings resolver;
   int result = resolver.SetPacScriptFromDisk("return_unicode.js");
   EXPECT_EQ(OK, result);
