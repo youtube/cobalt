@@ -12,7 +12,6 @@
       'target_name': 'media',
       'type': '<(library)',
       'dependencies': [
-        'omx_wrapper',
         '../base/base.gyp:base',
         '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
       ],
@@ -117,10 +116,6 @@
         'filters/file_data_source.h',
         'filters/null_audio_renderer.cc',
         'filters/null_audio_renderer.h',
-        'filters/omx_video_decode_engine.cc',
-        'filters/omx_video_decode_engine.h',
-        'filters/omx_video_decoder.cc',
-        'filters/omx_video_decoder.h',
         'filters/video_decode_engine.h',
         'filters/video_renderer_base.cc',
         'filters/video_renderer_base.h',
@@ -152,6 +147,17 @@
             'audio/openbsd/audio_manager_openbsd.cc',
             'audio/openbsd/audio_manager_openbsd.h',
           ],
+        }],
+        ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+          'sources': [
+            'filters/omx_video_decode_engine.cc',
+            'filters/omx_video_decode_engine.h',
+            'filters/omx_video_decoder.cc',
+            'filters/omx_video_decoder.h',
+          ],
+          'dependencies': [
+            'omx_wrapper',
+          ]
         }],
         ['OS=="mac"', {
           'link_settings': {
@@ -214,7 +220,6 @@
         'filters/video_renderer_base_unittest.cc',
         'omx/mock_omx.cc',
         'omx/mock_omx.h',
-        'omx/omx_codec_unittest.cc',
       ],
       'conditions': [
         ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
@@ -224,6 +229,9 @@
             #   ../base/test_suite.h
             #   gtk/gtk.h
             '../build/linux/system.gyp:gtk',
+          ],
+          'sources': [
+            'omx/omx_codec_unittest.cc',
           ],
           'conditions': [
             ['linux_use_tcmalloc==1', {
@@ -289,66 +297,6 @@
         'tools/qt_faststart/qt_faststart.c'
       ],
     },
-    {
-      'target_name': 'omx_test',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-        '../third_party/openmax/openmax.gyp:il',
-      ],
-      'sources': [
-        'tools/omx_test/color_space_util.cc',
-        'tools/omx_test/color_space_util.h',
-        'tools/omx_test/file_reader_util.cc',
-        'tools/omx_test/file_reader_util.h',
-        'tools/omx_test/file_sink.cc',
-        'tools/omx_test/file_sink.h',
-        'tools/omx_test/omx_test.cc',
-      ],
-    },
-    {
-      'target_name': 'omx_unittests',
-      'type': 'executable',
-      'dependencies': [
-        'media',
-        'omx_wrapper',
-        '../base/base.gyp:base',
-        '../base/base.gyp:base_i18n',
-        '../testing/gtest.gyp:gtest',
-      ],
-      'conditions': [
-        ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
-          'dependencies': [
-            '../build/linux/system.gyp:gtk',
-          ],
-        }],
-      ],
-      'sources': [
-        'omx/omx_unittest.cc',
-        'omx/run_all_unittests.cc',
-      ],
-    },
-    {
-      'target_name': 'omx_wrapper',
-      'type': '<(library)',
-      'dependencies': [
-        '../base/base.gyp:base',
-        '../third_party/openmax/openmax.gyp:il',
-        # TODO(wjia): remove ffmpeg
-        '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-      ],
-      'sources': [
-        'filters/omx_video_decode_engine.cc',
-        'filters/omx_video_decode_engine.cc',
-        'omx/omx_configurator.cc',
-        'omx/omx_configurator.h',
-      ],
-      'hard_dependency': 1,
-      'export_dependent_settings': [
-        '../third_party/openmax/openmax.gyp:il',
-      ],
-    },
   ],
   'conditions': [
     ['OS=="win"', {
@@ -390,6 +338,66 @@
     }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
       'targets': [
+        {
+          'target_name': 'omx_test',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+            '../third_party/openmax/openmax.gyp:il',
+          ],
+          'sources': [
+            'tools/omx_test/color_space_util.cc',
+            'tools/omx_test/color_space_util.h',
+            'tools/omx_test/file_reader_util.cc',
+            'tools/omx_test/file_reader_util.h',
+            'tools/omx_test/file_sink.cc',
+            'tools/omx_test/file_sink.h',
+            'tools/omx_test/omx_test.cc',
+          ],
+        },
+        {
+          'target_name': 'omx_unittests',
+          'type': 'executable',
+          'dependencies': [
+            'media',
+            'omx_wrapper',
+            '../base/base.gyp:base',
+            '../base/base.gyp:base_i18n',
+            '../testing/gtest.gyp:gtest',
+          ],
+          'conditions': [
+            ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+              'dependencies': [
+                '../build/linux/system.gyp:gtk',
+              ],
+            }],
+          ],
+          'sources': [
+            'omx/omx_unittest.cc',
+            'omx/run_all_unittests.cc',
+          ],
+        },
+        {
+          'target_name': 'omx_wrapper',
+          'type': '<(library)',
+          'dependencies': [
+            '../base/base.gyp:base',
+            '../third_party/openmax/openmax.gyp:il',
+            # TODO(wjia): remove ffmpeg
+            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
+          ],
+          'sources': [
+            'filters/omx_video_decode_engine.cc',
+            'filters/omx_video_decode_engine.cc',
+            'omx/omx_configurator.cc',
+            'omx/omx_configurator.h',
+          ],
+          'hard_dependency': 1,
+          'export_dependent_settings': [
+            '../third_party/openmax/openmax.gyp:il',
+          ],
+        },
         {
           'target_name': 'player_x11',
           'type': 'executable',
