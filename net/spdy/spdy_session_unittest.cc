@@ -179,7 +179,7 @@ static const uint8 kPush[] = {
 
 }  // namespace
 
-TEST_F(SpdySessionTest, GetActivePushStream) {
+TEST_F(SpdySessionTest, GetPushStream) {
   SpdySessionTest::TurnOffCompression();
 
   SessionDependencies session_deps;
@@ -216,9 +216,9 @@ TEST_F(SpdySessionTest, GetActivePushStream) {
 
   // No push streams should exist in the beginning.
   std::string test_push_path = "/foo.js";
-  scoped_refptr<SpdyStream> first_stream = session->GetActivePushStream(
+  scoped_refptr<SpdyHttpStream> first_stream = session->GetPushStream(
       test_push_path);
-  EXPECT_EQ(static_cast<SpdyStream*>(NULL), first_stream.get());
+  EXPECT_EQ(static_cast<SpdyHttpStream*>(NULL), first_stream.get());
 
   // Read in the data which contains a server-issued SYN_STREAM.
   TCPSocketParams tcp_params(test_host_port_pair, MEDIUM, GURL(), false);
@@ -227,14 +227,14 @@ TEST_F(SpdySessionTest, GetActivePushStream) {
   MessageLoop::current()->RunAllPending();
 
   // An unpushed path should not work.
-  scoped_refptr<SpdyStream> unpushed_stream = session->GetActivePushStream(
+  scoped_refptr<SpdyHttpStream> unpushed_stream = session->GetPushStream(
       "/unpushed_path");
-  EXPECT_EQ(static_cast<SpdyStream*>(NULL), unpushed_stream.get());
+  EXPECT_EQ(static_cast<SpdyHttpStream*>(NULL), unpushed_stream.get());
 
   // The pushed path should be found.
-  scoped_refptr<SpdyStream> second_stream = session->GetActivePushStream(
+  scoped_refptr<SpdyHttpStream> second_stream = session->GetPushStream(
       test_push_path);
-  ASSERT_NE(static_cast<SpdyStream*>(NULL), second_stream.get());
+  ASSERT_NE(static_cast<SpdyHttpStream*>(NULL), second_stream.get());
   EXPECT_EQ(test_push_path, second_stream->path());
   EXPECT_EQ(2U, second_stream->stream_id());
   EXPECT_EQ(0, second_stream->priority());

@@ -4,10 +4,8 @@
 
 #include "net/spdy/spdy_http_stream.h"
 #include "base/ref_counted.h"
-#include "base/time.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_log.h"
 #include "net/base/ssl_config_service.h"
 #include "net/base/ssl_config_service_defaults.h"
 #include "net/base/test_completion_callback.h"
@@ -117,13 +115,10 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   TestCompletionCallback callback;
   HttpResponseInfo response;
 
-  scoped_refptr<SpdyStream> stream(
-      session->CreateStream(request.url, HIGHEST, BoundNetLog()));
-
-  scoped_refptr<SpdyHttpStream> http_stream(new SpdyHttpStream(stream.get()));
-  http_stream->InitializeRequest(request, base::Time::Now(), NULL);
+  scoped_refptr<SpdyHttpStream> stream(new SpdyHttpStream(session, 1, false));
+  stream->SetRequestInfo(request);
   EXPECT_EQ(ERR_IO_PENDING,
-            http_stream->SendRequest(&response, &callback));
+            stream->SendRequest(NULL, &response, &callback));
 
   // Need to manually remove the spdy session since normally it gets removed on
   // socket close/error, but we aren't communicating over a socket here.
