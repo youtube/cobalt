@@ -566,3 +566,13 @@ EVENT_TYPE(SOCKS5_HANDSHAKE_WRITE)
 
 // The time spent waiting for the response to the CONNECT request.
 EVENT_TYPE(SOCKS5_HANDSHAKE_READ)
+
+// ------------------------------------------------------------------------
+// HTTP Authentication
+// ------------------------------------------------------------------------
+
+// The time spent authenticating to the proxy.
+EVENT_TYPE(AUTH_PROXY)
+
+// The time spent authentication to the server.
+EVENT_TYPE(AUTH_SERVER)
