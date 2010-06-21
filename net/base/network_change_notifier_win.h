@@ -13,10 +13,12 @@
 
 namespace net {
 
+class NetLog;
+
 class NetworkChangeNotifierWin : public NetworkChangeNotifier,
                                  public NonThreadSafe {
  public:
-  NetworkChangeNotifierWin();
+  explicit NetworkChangeNotifierWin(NetLog* net_log);
 
   // Called by NetworkChangeNotifierWin::Impl.
   void OnIPAddressChanged();
@@ -34,6 +36,7 @@ class NetworkChangeNotifierWin : public NetworkChangeNotifier,
   // true so we assert that all observers have been removed.
   ObserverList<Observer, false> observers_;
   scoped_ptr<Impl> impl_;
+  NetLog* const net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierWin);
 };
