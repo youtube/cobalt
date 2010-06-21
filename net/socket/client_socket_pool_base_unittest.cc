@@ -423,7 +423,8 @@ class ClientSocketPoolBaseTest : public ClientSocketPoolTest {
     CreatePoolWithIdleTimeouts(
         max_sockets,
         max_sockets_per_group,
-        base::TimeDelta::FromSeconds(kUnusedIdleSocketTimeout),
+        base::TimeDelta::FromSeconds(
+            ClientSocketPool::unused_idle_socket_timeout()),
         base::TimeDelta::FromSeconds(kUsedIdleSocketTimeout));
   }
 
