@@ -193,7 +193,7 @@ class ClientSocketPoolBaseHelper
 
   // See ClientSocketPool::Flush for documentation on this function.
   void Flush();
-  
+
   // See ClientSocketPool::CloseIdleSockets for documentation on this function.
   void CloseIdleSockets();
 
@@ -450,11 +450,11 @@ class ClientSocketPoolBaseHelper
   // selecting the highest priority request across *all* groups.
   //
   // |may_have_stalled_group_| is not conclusive, since when we cancel pending
-  // requests, we may reach the situation where we have the maximum number of 
+  // requests, we may reach the situation where we have the maximum number of
   // sockets, but no request is stalled because of the global socket limit
   // (although some requests may be blocked on the socket per group limit).
   // We don't strictly maintain |may_have_stalled_group_|, since that would
-  // require a linear search through all groups in |group_map_| to see if one 
+  // require a linear search through all groups in |group_map_| to see if one
   // of them is stalled.
   bool may_have_stalled_group_;
 
@@ -476,11 +476,6 @@ class ClientSocketPoolBaseHelper
 
 }  // namespace internal
 
-// The maximum duration, in seconds, to keep unused idle persistent sockets
-// alive.
-// TODO(willchan): Change this timeout after getting histogram data on how
-// long it should be.
-static const int kUnusedIdleSocketTimeout = 10;
 // The maximum duration, in seconds, to keep used idle persistent sockets alive.
 static const int kUsedIdleSocketTimeout = 300;  // 5 minutes
 
@@ -563,7 +558,8 @@ class ClientSocketPoolBase {
     return helper_->CancelRequest(group_name, handle);
   }
 
-  void ReleaseSocket(const std::string& group_name, ClientSocket* socket, int id) {
+  void ReleaseSocket(const std::string& group_name, ClientSocket* socket,
+                     int id) {
     return helper_->ReleaseSocket(group_name, socket, id);
   }
 

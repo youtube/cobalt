@@ -11,6 +11,7 @@
 
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
+#include "base/time.h"
 #include "base/template_util.h"
 #include "net/base/completion_callback.h"
 #include "net/base/host_resolver.h"
@@ -102,6 +103,9 @@ class ClientSocketPool : public base::RefCounted<ClientSocketPool> {
   // The set of histograms specific to this pool.  We can't use the standard
   // UMA_HISTOGRAM_* macros because they are callsite static.
   virtual scoped_refptr<ClientSocketPoolHistograms> histograms() const = 0;
+
+  static int unused_idle_socket_timeout();
+  static void set_unused_idle_socket_timeout(int timeout);
 
  protected:
   ClientSocketPool() {}
