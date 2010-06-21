@@ -31,7 +31,6 @@
 #include "base/message_loop.h"
 #include "base/scoped_cftyperef.h"
 #include "base/thread.h"
-#include "net/base/net_log.h"
 
 namespace net {
 
@@ -219,10 +218,9 @@ void NetworkChangeNotifierThread::Init() {
 
 }  // namespace
 
-NetworkChangeNotifierMac::NetworkChangeNotifierMac(NetLog* net_log)
+NetworkChangeNotifierMac::NetworkChangeNotifierMac()
     : notifier_thread_(NULL),
-      method_factory_(this),
-      net_log_(net_log) {
+      method_factory_(this) {
   // TODO(willchan): Look to see if there's a better signal for when it's ok to
   // initialize this, rather than just delaying it by a fixed time.
   const int kNotifierThreadInitializationDelayMS = 1000;
@@ -236,10 +234,6 @@ NetworkChangeNotifierMac::NetworkChangeNotifierMac(NetLog* net_log)
 
 void NetworkChangeNotifierMac::OnIPAddressChanged() {
   DCHECK(CalledOnValidThread());
-  BoundNetLog net_log =
-      BoundNetLog::Make(net_log_, NetLog::SOURCE_NETWORK_CHANGE_NOTIFIER);
-  // TODO(willchan): Add the network change information into an EventParameter.
-  net_log.AddEvent(NetLog::TYPE_NETWORK_IP_ADDRESS_CHANGED, NULL);
   FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
 }
 
