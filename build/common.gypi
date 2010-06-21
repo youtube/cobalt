@@ -55,6 +55,14 @@
         # value at this level of nesting so it's available for the
         # toolkit_views test below.
         'chromeos%': '0',
+
+        # To do a shared build on linux we need to be able to choose between
+        # type static_library and shared_library. We default to doing a static
+        # build but you can override this with "gyp -Dlibrary=shared_library"
+        # or you can add the following line (without the #) to
+        # ~/.gyp/include.gypi {'variables': {'library': 'shared_library'}}
+        # to compile as shared by default
+        'library%': 'static_library',
       },
 
       # Set default value of toolkit_views on for Windows and Chrome OS.
@@ -114,6 +122,15 @@
 
       # Remoting compilation is enabled by default. Set to 0 to disable.
       'remoting%': 1,
+
+      'library%': '<(library)',
+
+      # Variable 'component' is for cases where we would like to build some
+      # components as dynamic shared libraries but still need variable
+      # 'library' for static libraries.
+      # By default, component is set to whatever library is set to and
+      # it can be overriden by the GYP command line or by ~/.gyp/include.gypi.
+      'component%': '<(library)',
     },
 
     # Define branding and buildtype on the basis of their settings within the
@@ -133,6 +150,8 @@
     'sysroot%': '<(sysroot)',
     'disable_sse2%': '<(disable_sse2)',
     'remoting%': '<(remoting)',
+    'library%': '<(library)',
+    'component%': '<(component)',
 
     # The release channel that this build targets. This is used to restrict
     # channel-specific build options, like which installer packages to create.
@@ -182,15 +201,7 @@
     #  'win_use_allocator_shim': 0,
     #  'win_release_RuntimeLibrary': 2
     # to ~/.gyp/include.gypi, gclient runhooks --force, and do a release build.
-    'win_use_allocator_shim%': 1, # 0 = shim allocator via libcmt; 1 = msvcrt
-
-    # To do a shared build on linux we need to be able to choose between type
-    # static_library and shared_library. We default to doing a static build
-    # but you can override this with "gyp -Dlibrary=shared_library" or you
-    # can add the following line (without the #) to ~/.gyp/include.gypi
-    # {'variables': {'library': 'shared_library'}}
-    # to compile as shared by default
-    'library%': 'static_library',
+    'win_use_allocator_shim%': 1, # 1 = shim allocator via libcmt; 0 = msvcrt
 
     # Whether usage of OpenMAX is enabled.
     'enable_openmax%': 0,
@@ -326,6 +337,10 @@
       # It is on by default on VS 2008 and off on VS 2005.
       ['OS=="win"', {
         'conditions': [
+          ['component=="shared_library"', {
+            'win_use_allocator_shim%': 0,
+          }],
+        
           ['MSVS_VERSION=="2005"', {
             'msvs_multi_core_compile%': 0,
           },{
@@ -385,9 +400,6 @@
       # See http://msdn.microsoft.com/en-us/library/aa652360(VS.71).aspx
       'win_release_Optimization%': '2', # 2 = /Os
       'win_debug_Optimization%': '0',   # 0 = /Od
-      # See http://msdn.microsoft.com/en-us/library/aa652367(VS.71).aspx
-      'win_release_RuntimeLibrary%': '0', # 0 = /MT (nondebug static)
-      'win_debug_RuntimeLibrary%': '1',   # 1 = /MTd (debug static)
       # See http://msdn.microsoft.com/en-us/library/8wtf2dfz(VS.71).aspx
       'win_debug_RuntimeChecks%': '3',    # 3 = all checks enabled, 0 = off
       # See http://msdn.microsoft.com/en-us/library/47238hez(VS.71).aspx
@@ -397,6 +409,18 @@
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
       'release_valgrind_build%': 0,
+
+      'conditions': [
+        ['OS=="win" and component=="shared_library"', {
+          # See http://msdn.microsoft.com/en-us/library/aa652367.aspx
+          'win_release_RuntimeLibrary%': '2', # 2 = /MT (nondebug DLL)
+          'win_debug_RuntimeLibrary%': '3',   # 3 = /MTd (debug DLL)
+        }, {
+          # See http://msdn.microsoft.com/en-us/library/aa652367.aspx
+          'win_release_RuntimeLibrary%': '0', # 0 = /MT (nondebug static)
+          'win_debug_RuntimeLibrary%': '1',   # 1 = /MTd (debug static)
+        }],
+      ],
     },
     'conditions': [
       ['branding=="Chrome"', {
@@ -711,13 +735,6 @@
           }],
           ['win_use_allocator_shim==0', {
             'defines': ['NO_TCMALLOC'],
-          }],
-          ['win_release_RuntimeLibrary==2', {
-            # Visual C++ 2008 barfs when building anything with /MD (msvcrt):
-            #  VC\include\typeinfo(139) : warning C4275: non dll-interface
-            #  class 'stdext::exception' used as base for dll-interface
-            #  class 'std::bad_cast'
-            'msvs_disabled_warnings': [4275],
           }],
           ['OS=="linux"', {
             'cflags': [
@@ -1220,7 +1237,6 @@
           'WINVER=0x0600',
           'WIN32',
           '_WINDOWS',
-          '_HAS_EXCEPTIONS=0',
           'NOMINMAX',
           '_CRT_RAND_S',
           'CERT_CHAIN_PARA_HAS_EXTRA_FIELDS',
@@ -1228,6 +1244,14 @@
           '_SECURE_ATL',
           '_HAS_TR1=0',
         ],
+        'conditions': [
+          ['component=="static_library"', {
+            'defines': [
+              '_HAS_EXCEPTIONS=0',
+            ],
+          }],
+        ],
+        
         'msvs_system_include_dirs': [
           '<(DEPTH)/third_party/platformsdk_win7/files/Include',
           '<(DEPTH)/third_party/directxsdk/files/Include',
@@ -1238,7 +1262,6 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'MinimalRebuild': 'false',
-            'ExceptionHandling': '0',
             'BufferSecurityCheck': 'true',
             'EnableFunctionLevelLinking': 'true',
             'RuntimeTypeInfo': 'false',
@@ -1248,6 +1271,12 @@
             'conditions': [
               [ 'msvs_multi_core_compile', {
                 'AdditionalOptions': ['/MP'],
+              }],
+              
+              ['component=="shared_library"', {
+                'ExceptionHandling': '1',  # /EHsc
+              }, {
+                'ExceptionHandling': '0',
               }],
             ],
           },
