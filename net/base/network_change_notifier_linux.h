@@ -17,13 +17,15 @@
 
 namespace net {
 
+class NetLog;
+
 class NetworkChangeNotifierLinux
     : public NetworkChangeNotifier,
       public NonThreadSafe,
       public MessageLoopForIO::Watcher,
       public MessageLoop::DestructionObserver {
  public:
-  NetworkChangeNotifierLinux();
+  explicit NetworkChangeNotifierLinux(NetLog* net_log);
 
   // NetworkChangeNotifier methods:
   virtual void AddObserver(Observer* observer);
@@ -64,6 +66,8 @@ class NetworkChangeNotifierLinux
 
   MessageLoopForIO* loop_;
   MessageLoopForIO::FileDescriptorWatcher netlink_watcher_;
+
+  NetLog* const net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierLinux);
 };

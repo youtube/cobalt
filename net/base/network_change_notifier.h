@@ -9,6 +9,8 @@
 
 namespace net {
 
+class NetLog;
+
 // NetworkChangeNotifier monitors the system for network changes, and notifies
 // observers on those events.
 class NetworkChangeNotifier {
@@ -40,7 +42,8 @@ class NetworkChangeNotifier {
   virtual void RemoveObserver(Observer* observer) = 0;
 
   // This will create the platform specific default NetworkChangeNotifier.
-  static NetworkChangeNotifier* CreateDefaultNetworkChangeNotifier();
+  static NetworkChangeNotifier* CreateDefaultNetworkChangeNotifier(
+      NetLog* net_log);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifier);
