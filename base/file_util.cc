@@ -358,7 +358,7 @@ void AppendToPath(std::wstring* path, const std::wstring& new_ending) {
     return;  // Don't crash in this function in release builds.
   }
 
-  if (!EndsWithSeparator(*path))
+  if (!EndsWithSeparator(FilePath(*path)))
     path->push_back(FilePath::kSeparators[0]);
   path->append(new_ending);
 }
@@ -373,9 +373,6 @@ bool CopyDirectory(const std::wstring& from_path, const std::wstring& to_path,
 bool Delete(const std::wstring& path, bool recursive) {
   return Delete(FilePath::FromWStringHack(path), recursive);
 }
-bool EndsWithSeparator(const std::wstring& path) {
-  return EndsWithSeparator(FilePath::FromWStringHack(path));
-}
 std::wstring GetFileExtensionFromPath(const std::wstring& path) {
   FilePath::StringType extension =
       GetFileExtensionFromPath(FilePath::FromWStringHack(path));
@@ -386,7 +383,7 @@ std::wstring GetFileExtensionFromPath(const std::wstring& path) {
 #endif
 }
 std::wstring GetFilenameFromPath(const std::wstring& path) {
-  if (path.empty() || EndsWithSeparator(path))
+  if (path.empty() || EndsWithSeparator(FilePath::FromWStringHack(path)))
     return std::wstring();
 
   return FilePath::FromWStringHack(path).BaseName().ToWStringHack();
