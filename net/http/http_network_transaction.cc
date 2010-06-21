@@ -711,8 +711,8 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_RESOLVE_CANONICAL_NAME_COMPLETE:
         rv = DoResolveCanonicalNameComplete(rv);
-        net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME,
-                          NULL);
+        net_log_.EndEvent(
+            NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME, NULL);
         break;
       case STATE_READ_BODY:
         DCHECK_EQ(OK, rv);

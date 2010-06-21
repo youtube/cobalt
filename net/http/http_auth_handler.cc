@@ -9,6 +9,16 @@
 
 namespace net {
 
+HttpAuthHandler::HttpAuthHandler()
+    : score_(-1),
+      target_(HttpAuth::AUTH_NONE),
+      properties_(-1),
+      original_callback_(NULL),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          wrapper_callback_(
+              this, &HttpAuthHandler::OnGenerateAuthTokenComplete)) {
+}
+
 bool HttpAuthHandler::InitFromChallenge(
     HttpAuth::ChallengeTokenizer* challenge,
     HttpAuth::Target target,
@@ -32,6 +42,22 @@ bool HttpAuthHandler::InitFromChallenge(
   return ok;
 }
 
+namespace {
+
+NetLog::EventType EventTypeFromAuthTarget(HttpAuth::Target target) {
+  switch (target) {
+    case HttpAuth::AUTH_PROXY:
+      return NetLog::TYPE_AUTH_PROXY;
+    case HttpAuth::AUTH_SERVER:
+      return NetLog::TYPE_AUTH_SERVER;
+    default:
+      NOTREACHED();
+      return NetLog::TYPE_CANCELLED;
+  }
+}
+
+}  // namespace
+
 int HttpAuthHandler::GenerateAuthToken(const std::wstring* username,
                                        const std::wstring* password,
                                        const HttpRequestInfo* request,
@@ -42,8 +68,26 @@ int HttpAuthHandler::GenerateAuthToken(const std::wstring* username,
   DCHECK((username == NULL) == (password == NULL));
   DCHECK(username != NULL || AllowsDefaultCredentials());
   DCHECK(auth_token != NULL);
-  return GenerateAuthTokenImpl(username, password, request, callback,
-                               auth_token);
+  DCHECK(original_callback_ == NULL);
+  original_callback_ = callback;
+  net_log_.BeginEvent(EventTypeFromAuthTarget(target_), NULL);
+  int rv = GenerateAuthTokenImpl(username, password, request,
+                                 &wrapper_callback_, auth_token);
+  if (rv != ERR_IO_PENDING)
+    FinishGenerateAuthToken();
+  return rv;
+}
+
+void HttpAuthHandler::OnGenerateAuthTokenComplete(int rv) {
+  CompletionCallback* callback = original_callback_;
+  FinishGenerateAuthToken();
+  if (callback)
+    callback->Run(rv);
+}
+
+void HttpAuthHandler::FinishGenerateAuthToken() {
+  net_log_.EndEvent(EventTypeFromAuthTarget(target_), NULL);
+  original_callback_ = NULL;
 }
 
 int HttpAuthHandler::ResolveCanonicalName(net::HostResolver* host_resolver,

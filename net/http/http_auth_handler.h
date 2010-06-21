@@ -22,6 +22,7 @@ struct HttpRequestInfo;
 // HttpAuthHandler objects are typically created by an HttpAuthHandlerFactory.
 class HttpAuthHandler {
  public:
+  HttpAuthHandler();
   virtual ~HttpAuthHandler() {}
 
   // Initializes the handler using a challenge issued by a server.
@@ -174,6 +175,13 @@ class HttpAuthHandler {
   int properties_;
 
   BoundNetLog net_log_;
+
+ private:
+  void OnGenerateAuthTokenComplete(int rv);
+  void FinishGenerateAuthToken();
+
+  CompletionCallback* original_callback_;
+  CompletionCallbackImpl<HttpAuthHandler> wrapper_callback_;
 };
 
 }  // namespace net

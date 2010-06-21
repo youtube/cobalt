@@ -707,6 +707,7 @@
         'http/http_auth_handler_mock.cc',
         'http/http_auth_handler_mock.h',
         'http/http_auth_handler_negotiate_unittest.cc',
+        'http/http_auth_handler_unittest.cc',
         'http/http_auth_sspi_win_unittest.cc',
         'http/http_auth_unittest.cc',
         'http/http_byte_range_unittest.cc',
