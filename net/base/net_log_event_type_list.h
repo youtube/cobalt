@@ -567,11 +567,6 @@ EVENT_TYPE(SOCKS5_HANDSHAKE_WRITE)
 // The time spent waiting for the response to the CONNECT request.
 EVENT_TYPE(SOCKS5_HANDSHAKE_READ)
 
-// --------------------------------------------------------------------------
-// NetworkChangeNotifier
-// --------------------------------------------------------------------------
-EVENT_TYPE(NETWORK_IP_ADDRESS_CHANGED)
-
 // ------------------------------------------------------------------------
 // HTTP Authentication
 // ------------------------------------------------------------------------

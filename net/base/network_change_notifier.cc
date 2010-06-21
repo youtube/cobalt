@@ -16,13 +16,13 @@ namespace net {
 
 // static
 NetworkChangeNotifier*
-NetworkChangeNotifier::CreateDefaultNetworkChangeNotifier(NetLog* net_log) {
+NetworkChangeNotifier::CreateDefaultNetworkChangeNotifier() {
 #if defined(OS_WIN)
-  return new NetworkChangeNotifierWin(net_log);
+  return new NetworkChangeNotifierWin();
 #elif defined(OS_LINUX)
-  return new NetworkChangeNotifierLinux(net_log);
+  return new NetworkChangeNotifierLinux();
 #elif defined(OS_MACOSX)
-  return new NetworkChangeNotifierMac(net_log);
+  return new NetworkChangeNotifierMac();
 #else
   NOTIMPLEMENTED();
   return NULL;

@@ -12,7 +12,6 @@
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/object_watcher.h"
-#include "net/base/net_log.h"
 
 namespace net {
 
@@ -63,16 +62,12 @@ void NetworkChangeNotifierWin::Impl::OnObjectSignaled(HANDLE object) {
   WatchForAddressChange();
 }
 
-NetworkChangeNotifierWin::NetworkChangeNotifierWin(NetLog* net_log)
-    : impl_(new Impl(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
-      net_log_(net_log) {
+NetworkChangeNotifierWin::NetworkChangeNotifierWin()
+    : impl_(new Impl(ALLOW_THIS_IN_INITIALIZER_LIST(this))) {
   impl_->WatchForAddressChange();
 }
 void NetworkChangeNotifierWin::OnIPAddressChanged() {
   DCHECK(CalledOnValidThread());
-  BoundNetLog net_log =
-      BoundNetLog::Make(net_log_, NetLog::SOURCE_NETWORK_CHANGE_NOTIFIER);
-  net_log.AddEvent(NetLog::TYPE_NETWORK_IP_ADDRESS_CHANGED, NULL);
   FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
 }
 
