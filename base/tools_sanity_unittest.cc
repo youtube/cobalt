@@ -75,7 +75,6 @@ TEST(ToolsSanityTest, AccessesToMallocMemory) {
   // This test may corrupt memory if not run under Valgrind.
   if (!RunningOnValgrind())
     return;
-  printf("HERE!\n");
   char *foo = reinterpret_cast<char*>(malloc(10));
   MakeSomeErrors(foo, 10);
   free(foo);

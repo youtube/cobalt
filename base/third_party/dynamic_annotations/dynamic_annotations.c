@@ -123,13 +123,11 @@ void AnnotateFlushState(const char *file, int line){}
 
 static int GetRunningOnValgrind(void) {
 #ifdef RUNNING_ON_VALGRIND
-  printf("RUNNING_ON_VALGRIND: %d\n", RUNNING_ON_VALGRIND);
   if (RUNNING_ON_VALGRIND) return 1;
 #endif
 
 #ifndef _MSC_VER
   char *running_on_valgrind_str = getenv("RUNNING_ON_VALGRIND");
-  printf("env[RUNNING_ON_VALGRIND]=\"%s\"\n", running_on_valgrind_str);
   if (running_on_valgrind_str) {
     return strcmp(running_on_valgrind_str, "0") != 0;
   }
