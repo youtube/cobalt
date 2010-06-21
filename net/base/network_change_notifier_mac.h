@@ -20,12 +20,10 @@ class Thread;
 
 namespace net {
 
-class NetLog;
-
 class NetworkChangeNotifierMac : public NetworkChangeNotifier,
                                  public NonThreadSafe {
  public:
-  explicit NetworkChangeNotifierMac(NetLog* net_log);
+  NetworkChangeNotifierMac();
 
   void OnIPAddressChanged();
 
@@ -53,8 +51,6 @@ class NetworkChangeNotifierMac : public NetworkChangeNotifier,
 
   // Used to initialize the notifier thread.
   ScopedRunnableMethodFactory<NetworkChangeNotifierMac> method_factory_;
-
-  NetLog* const net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierMac);
 };

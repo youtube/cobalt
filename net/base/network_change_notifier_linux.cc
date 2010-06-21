@@ -12,7 +12,6 @@
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "net/base/net_errors.h"
-#include "net/base/net_log.h"
 #include "net/base/network_change_notifier_netlink_linux.h"
 
 namespace net {
@@ -23,13 +22,12 @@ const int kInvalidSocket = -1;
 
 }  // namespace
 
-NetworkChangeNotifierLinux::NetworkChangeNotifierLinux(NetLog* net_log)
+NetworkChangeNotifierLinux::NetworkChangeNotifierLinux()
     : netlink_fd_(kInvalidSocket),
 #if defined(OS_CHROMEOS)
       ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)),
 #endif
-      loop_(MessageLoopForIO::current()),
-      net_log_(net_log) {
+      loop_(MessageLoopForIO::current()) {
   netlink_fd_ = InitializeNetlinkSocket();
   if (netlink_fd_ < 0) {
     netlink_fd_ = kInvalidSocket;
@@ -110,10 +108,6 @@ void NetworkChangeNotifierLinux::ListenForNotifications() {
 }
 
 void NetworkChangeNotifierLinux::NotifyObserversIPAddressChanged() {
-  BoundNetLog net_log =
-      BoundNetLog::Make(net_log_, NetLog::SOURCE_NETWORK_CHANGE_NOTIFIER);
-  // TODO(willchan): Add the netlink information into an EventParameter.
-  net_log.AddEvent(NetLog::TYPE_NETWORK_IP_ADDRESS_CHANGED, NULL);
   FOR_EACH_OBSERVER(Observer, observers_, OnIPAddressChanged());
 }
 
