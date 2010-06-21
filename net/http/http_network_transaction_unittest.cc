@@ -23,6 +23,7 @@
 #include "net/base/test_completion_callback.h"
 #include "net/base/upload_data.h"
 #include "net/http/http_auth_handler_digest.h"
+#include "net/http/http_auth_handler_mock.h"
 #include "net/http/http_auth_handler_ntlm.h"
 #include "net/http/http_basic_stream.h"
 #include "net/http/http_network_session.h"
@@ -5388,169 +5389,16 @@ TEST_F(HttpNetworkTransactionTest,
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
 
-// MockAuthHandler is used in tests to reliably trigger edge cases.
-class MockAuthHandler : public HttpAuthHandler {
- public:
-  enum Resolve {
-    RESOLVE_INIT,
-    RESOLVE_SKIP,
-    RESOLVE_SYNC,
-    RESOLVE_ASYNC,
-    RESOLVE_TESTED,
-  };
-
-  MockAuthHandler()
-      : resolve_(RESOLVE_INIT), user_callback_(NULL),
-        ALLOW_THIS_IN_INITIALIZER_LIST(method_factory_(this)),
-        generate_async_(false), generate_rv_(OK), auth_token_(NULL) {
-  }
-
-  virtual ~MockAuthHandler() {
-  }
-
-  void SetResolveExpectation(Resolve resolve) {
-    EXPECT_EQ(RESOLVE_INIT, resolve_);
-    resolve_ = resolve;
-  }
-
-  virtual bool NeedsCanonicalName() {
-    switch (resolve_) {
-      case RESOLVE_SYNC:
-      case RESOLVE_ASYNC:
-        return true;
-      case RESOLVE_SKIP:
-        resolve_ = RESOLVE_TESTED;
-        return false;
-      default:
-        NOTREACHED();
-        return false;
-    }
-  }
-
-  virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   CompletionCallback* callback) {
-    EXPECT_NE(RESOLVE_TESTED, resolve_);
-    int rv = OK;
-    switch (resolve_) {
-      case RESOLVE_SYNC:
-        resolve_ = RESOLVE_TESTED;
-        break;
-      case RESOLVE_ASYNC:
-        EXPECT_TRUE(user_callback_ == NULL);
-        rv = ERR_IO_PENDING;
-        user_callback_ = callback;
-        MessageLoop::current()->PostTask(
-            FROM_HERE, method_factory_.NewRunnableMethod(
-                &MockAuthHandler::OnResolveCanonicalName));
-        break;
-      default:
-        NOTREACHED();
-        break;
-    }
-    return rv;
-  }
-
-  void SetGenerateExpectation(bool async, int rv) {
-    generate_async_ = async;
-    generate_rv_ = rv;
-  }
-
-  // The Factory class simply returns the same handler each time
-  // CreateAuthHandler is called.
-  class Factory : public HttpAuthHandlerFactory {
-   public:
-    Factory() {}
-    virtual ~Factory() {}
-
-    void set_mock_handler(HttpAuthHandler* handler, HttpAuth::Target target) {
-      EXPECT_TRUE(handlers_[target].get() == NULL);
-      handlers_[target].reset(handler);
-    }
-
-    virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
-                                  HttpAuth::Target target,
-                                  const GURL& origin,
-                                  CreateReason reason,
-                                  int nonce_count,
-                                  const BoundNetLog& net_log,
-                                  scoped_ptr<HttpAuthHandler>* handler) {
-      if (!handlers_[target].get())
-        return ERR_UNEXPECTED;
-      handler->swap(handlers_[target]);
-      return OK;
-    }
-
-   private:
-    scoped_ptr<HttpAuthHandler> handlers_[HttpAuth::AUTH_NUM_TARGETS];
-  };
-
- protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) {
-    scheme_ = "mock";
-    score_ = 1;
-    properties_ = 0;
-    return true;
-  }
-
-  virtual int GenerateAuthTokenImpl(const std::wstring* username,
-                                    const std::wstring* password,
-                                    const HttpRequestInfo* request,
-                                    CompletionCallback* callback,
-                                    std::string* auth_token) {
-    if (generate_async_) {
-      EXPECT_TRUE(user_callback_ == NULL);
-      EXPECT_TRUE(auth_token_ == NULL);
-      user_callback_ = callback;
-      auth_token_ = auth_token;
-      MessageLoop::current()->PostTask(
-          FROM_HERE, method_factory_.NewRunnableMethod(
-              &MockAuthHandler::OnGenerateAuthToken));
-      return ERR_IO_PENDING;
-    } else {
-      if (generate_rv_ == OK)
-        *auth_token = "auth_token";
-      return generate_rv_;
-    }
-  }
-
- private:
-  void OnResolveCanonicalName() {
-    EXPECT_EQ(RESOLVE_ASYNC, resolve_);
-    EXPECT_TRUE(user_callback_ != NULL);
-    resolve_ = RESOLVE_TESTED;
-    CompletionCallback* callback = user_callback_;
-    user_callback_ = NULL;
-    callback->Run(OK);
-  }
-
-  void OnGenerateAuthToken() {
-    EXPECT_EQ(true, generate_async_);
-    EXPECT_TRUE(user_callback_ != NULL);
-    if (generate_rv_ == OK)
-      *auth_token_ = "auth_token";
-    auth_token_ = NULL;
-    CompletionCallback* callback = user_callback_;
-    user_callback_ = NULL;
-    callback->Run(generate_rv_);
-  }
-
-  Resolve resolve_;
-  CompletionCallback* user_callback_;
-  ScopedRunnableMethodFactory<MockAuthHandler> method_factory_;
-  bool generate_async_;
-  int generate_rv_;
-  std::string* auth_token_;
-};
-
 // Tests that ResolveCanonicalName is handled correctly by the
 // HttpNetworkTransaction.
 TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
   SessionDependencies session_deps;
-  MockAuthHandler::Factory* auth_factory(new MockAuthHandler::Factory());
+  HttpAuthHandlerMock::Factory* auth_factory(
+      new HttpAuthHandlerMock::Factory());
   session_deps.http_auth_handler_factory.reset(auth_factory);
 
   for (int i = 0; i < 2; ++i) {
-    MockAuthHandler* auth_handler(new MockAuthHandler());
+    HttpAuthHandlerMock* auth_handler(new HttpAuthHandlerMock());
     std::string auth_challenge = "Mock";
     GURL origin("http://www.example.com");
     HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
@@ -5563,11 +5411,11 @@ TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
         new HttpNetworkTransaction(CreateSession(&session_deps)));
 
     // Set up expectations for this pass of the test. Many of the EXPECT calls
-    // are contained inside the MockAuthHandler codebase in response to
+    // are contained inside the HttpAuthHandlerMock codebase in response to
     // the expectations.
-    MockAuthHandler::Resolve resolve = ((i == 0) ?
-                                        MockAuthHandler::RESOLVE_SYNC :
-                                        MockAuthHandler::RESOLVE_ASYNC);
+    HttpAuthHandlerMock::Resolve resolve = ((i == 0) ?
+                                            HttpAuthHandlerMock::RESOLVE_SYNC :
+                                            HttpAuthHandlerMock::RESOLVE_ASYNC);
     auth_handler->SetResolveExpectation(resolve);
     HttpRequestInfo request;
     request.method = "GET";
@@ -5919,13 +5767,14 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
 
   SessionDependencies session_deps;
   scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
-  MockAuthHandler::Factory* auth_factory(new MockAuthHandler::Factory());
+  HttpAuthHandlerMock::Factory* auth_factory(
+      new HttpAuthHandlerMock::Factory());
   session_deps.http_auth_handler_factory.reset(auth_factory);
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_configs); ++i) {
     const TestConfig& test_config = test_configs[i];
     if (test_config.proxy_auth_timing != AUTH_NONE) {
-      MockAuthHandler* auth_handler(new MockAuthHandler());
+      HttpAuthHandlerMock* auth_handler(new HttpAuthHandlerMock());
       std::string auth_challenge = "Mock realm=proxy";
       GURL origin(test_config.proxy_url);
       HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
@@ -5935,11 +5784,11 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       auth_handler->SetGenerateExpectation(
           test_config.proxy_auth_timing == AUTH_ASYNC,
           test_config.proxy_auth_rv);
-      auth_handler->SetResolveExpectation(MockAuthHandler::RESOLVE_SKIP);
+      auth_handler->SetResolveExpectation(HttpAuthHandlerMock::RESOLVE_SKIP);
       auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_PROXY);
     }
     if (test_config.server_auth_timing != AUTH_NONE) {
-      MockAuthHandler* auth_handler(new MockAuthHandler());
+      HttpAuthHandlerMock* auth_handler(new HttpAuthHandlerMock());
       std::string auth_challenge = "Mock realm=server";
       GURL origin(test_config.server_url);
       HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
@@ -5949,7 +5798,7 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       auth_handler->SetGenerateExpectation(
           test_config.server_auth_timing == AUTH_ASYNC,
           test_config.server_auth_rv);
-      auth_handler->SetResolveExpectation(MockAuthHandler::RESOLVE_SKIP);
+      auth_handler->SetResolveExpectation(HttpAuthHandlerMock::RESOLVE_SKIP);
       auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
     }
     if (test_config.proxy_url) {
