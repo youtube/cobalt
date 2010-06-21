@@ -122,7 +122,7 @@
         }],
         ['chromeos==1', {
           'dependencies': [
-            '../chrome/browser/chromeos/text_input/text_input.gyp:*',
+            '../chrome/browser/chromeos/input_method/candidate_window.gyp:*',
           ],
         }],
         ['remoting==1', {
@@ -328,7 +328,7 @@
             '../remoting/remoting.gyp:remoting_unittests',
             '../third_party/cacheinvalidation/cacheinvalidation.gyp:cacheinvalidation_unittests',
             'temp_gyp/googleurl.gyp:googleurl_unittests',
-            '../chrome/browser/chromeos/text_input/text_input.gyp:candidate_window',
+            '../chrome/browser/chromeos/input_method/candidate_window.gyp:candidate_window',
           ],
         },
       ],  # targets
