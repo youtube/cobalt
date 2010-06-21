@@ -440,6 +440,7 @@
         'socket/client_socket_handle.cc',
         'socket/client_socket_handle.h',
         'socket/client_socket_pool.h',
+        'socket/client_socket_pool.cc',
         'socket/client_socket_pool_base.cc',
         'socket/client_socket_pool_base.h',
         'socket/client_socket_pool_histograms.cc',
