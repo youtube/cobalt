@@ -1258,7 +1258,7 @@
           '$(VSInstallDir)/VC/atlmfc/include',
         ],
         'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
-        'msvs_disabled_warnings': [4396, 4503, 4819],
+        'msvs_disabled_warnings': [4351, 4396, 4503, 4819],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'MinimalRebuild': 'false',
