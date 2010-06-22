@@ -7,10 +7,12 @@
 #include "base/logging.h"
 #include "base/string_util.h"
 #include "googleurl/src/gurl.h"
+#include "net/base/host_cache.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/proxy/proxy_info.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
+#include "net/proxy/proxy_resolver_request_context.h"
 #include "net/proxy/proxy_resolver_script.h"
 #include "v8/include/v8.h"
 
@@ -214,8 +216,8 @@ class ProxyResolverV8::Context {
     return OK;
   }
 
-  void SetCurrentRequestNetLog(const BoundNetLog& net_log) {
-    current_request_net_log_ = net_log;
+  void SetCurrentRequestContext(ProxyResolverRequestContext* context) {
+    js_bindings_->set_current_request_context(context);
   }
 
   void PurgeMemory() {
@@ -298,15 +300,19 @@ class ProxyResolverV8::Context {
     {
       v8::Unlocker unlocker;
 
-      context->current_request_net_log_.BeginEvent(
-          NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS, NULL);
+      LogEventToCurrentRequest(context,
+                               NetLog::PHASE_BEGIN,
+                               NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS,
+                               NULL);
 
       // We shouldn't be called with any arguments, but will not complain if
       // we are.
       result = context->js_bindings_->MyIpAddress();
 
-      context->current_request_net_log_.EndEvent(
-          NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS, NULL);
+      LogEventToCurrentRequest(context,
+                               NetLog::PHASE_END,
+                               NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS,
+                               NULL);
     }
 
     if (result.empty())
@@ -325,15 +331,19 @@ class ProxyResolverV8::Context {
     {
       v8::Unlocker unlocker;
 
-      context->current_request_net_log_.BeginEvent(
-          NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX, NULL);
+      LogEventToCurrentRequest(context,
+                               NetLog::PHASE_BEGIN,
+                               NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX,
+                               NULL);
 
       // We shouldn't be called with any arguments, but will not complain if
       // we are.
       context->js_bindings_->MyIpAddressEx();
 
-      context->current_request_net_log_.EndEvent(
-          NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX, NULL);
+      LogEventToCurrentRequest(context,
+                               NetLog::PHASE_END,
+                               NetLog::TYPE_PROXY_RESOLVER_V8_MY_IP_ADDRESS_EX,
+                               NULL);
     }
 
     return StdStringToV8String(result);
@@ -354,13 +364,17 @@ class ProxyResolverV8::Context {
     {
       v8::Unlocker unlocker;
 
-      context->current_request_net_log_.BeginEvent(
-          NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
+      LogEventToCurrentRequest(context,
+                               NetLog::PHASE_BEGIN,
+                               NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE,
+                               NULL);
 
       result = context->js_bindings_->DnsResolve(host);
 
-      context->current_request_net_log_.EndEvent(
-          NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE, NULL);
+      LogEventToCurrentRequest(context,
+                               NetLog::PHASE_END,
+                               NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE,
+                               NULL);
     }
 
     // DnsResolve() returns empty string on failure.
@@ -382,20 +396,33 @@ class ProxyResolverV8::Context {
     {
       v8::Unlocker unlocker;
 
-      context->current_request_net_log_.BeginEvent(
-          NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX, NULL);
+      LogEventToCurrentRequest(context,
+                               NetLog::PHASE_BEGIN,
+                               NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX,
+                               NULL);
 
       result = context->js_bindings_->DnsResolveEx(host);
 
-      context->current_request_net_log_.EndEvent(
-          NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX, NULL);
+      LogEventToCurrentRequest(context,
+                               NetLog::PHASE_END,
+                               NetLog::TYPE_PROXY_RESOLVER_V8_DNS_RESOLVE_EX,
+                               NULL);
     }
 
     return StdStringToV8String(result);
   }
 
+  static void LogEventToCurrentRequest(Context* context,
+                                       NetLog::EventPhase phase,
+                                       NetLog::EventType type,
+                                       NetLog::EventParameters* params) {
+    if (context->js_bindings_->current_request_context()) {
+      context->js_bindings_->current_request_context()->net_log->AddEntry(
+          type, phase, params);
+    }
+  }
+
   ProxyResolverJSBindings* js_bindings_;
-  BoundNetLog current_request_net_log_;
   v8::Persistent<v8::External> v8_this_;
   v8::Persistent<v8::Context> v8_context_;
 };
@@ -420,10 +447,24 @@ int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
   if (!context_.get())
     return ERR_FAILED;
 
+  // Associate some short-lived context with this request. This context will be
+  // available to any of the javascript "bindings" that are subsequently invoked
+  // from the javascript.
+  //
+  // In particular, we create a HostCache that is aggressive about caching
+  // failed DNS resolves.
+  HostCache host_cache(
+      50,
+      base::TimeDelta::FromMinutes(5),
+      base::TimeDelta::FromMinutes(5));
+
+  ProxyResolverRequestContext request_context(
+      &query_url, &net_log, &host_cache);
+
   // Otherwise call into V8.
-  context_->SetCurrentRequestNetLog(net_log);
+  context_->SetCurrentRequestContext(&request_context);
   int rv = context_->ResolveProxy(query_url, results);
-  context_->SetCurrentRequestNetLog(BoundNetLog());
+  context_->SetCurrentRequestContext(NULL);
 
   return rv;
 }
