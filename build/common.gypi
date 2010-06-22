@@ -275,6 +275,10 @@
     # Enable EGLImage support in OpenMAX
     'enable_eglimage%': 0,
 
+    # Enable a variable used elsewhere throughout the GYP files to determine
+    # whether to compile in the sources for the GPU plugin / process.
+    'enable_gpu%': 1,
+
     'conditions': [
       ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
         # This will set gcc_version to XY if you are running gcc X.Y.*.
@@ -358,15 +362,6 @@
           # Native Client loader for 64-bit Windows.
           'NACL_WIN64',
         ],
-      }],
-      # Compute based on OS and target architecture whether the GPU
-      # plugin / process is supported.
-      [ 'OS=="win" or (OS=="linux" and target_arch!="arm") or OS=="mac"', {
-        # Enable a variable used elsewhere throughout the GYP files to determine
-        # whether to compile in the sources for the GPU plugin / process.
-        'enable_gpu%': 1,
-      }, {  # GPU plugin not supported
-        'enable_gpu%': 0,
       }],
     ],
 
