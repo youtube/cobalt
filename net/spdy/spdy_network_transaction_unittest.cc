@@ -415,6 +415,7 @@ class SpdyNetworkTransactionTest : public PlatformTest {
   virtual void SetUp() {
     // By default, all tests turn off compression.
     EnableCompression(false);
+    google_get_request_initialized_ = false;
   }
 
   virtual void TearDown() {
@@ -495,6 +496,20 @@ class SpdyNetworkTransactionTest : public PlatformTest {
                                              int expected_status);
 
   void ConnectStatusHelper(const MockRead& status);
+
+  const HttpRequestInfo& CreateGetRequest() {
+    if (!google_get_request_initialized_) {
+      google_get_request_.method = "GET";
+      google_get_request_.url = GURL("http://www.google.com/");
+      google_get_request_.load_flags = 0;
+      google_get_request_initialized_ = true;
+    }
+    return google_get_request_;
+  }
+
+ private:
+  bool google_get_request_initialized_;
+  HttpRequestInfo google_get_request_;
 };
 
 //-----------------------------------------------------------------------------
@@ -521,14 +536,11 @@ TEST_F(SpdyNetworkTransactionTest, Get) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(),
+  TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                  data.get(),
                                                   BoundNetLog());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
@@ -661,13 +673,10 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithoutSynReply) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads), NULL, 0));
-  TransactionHelperResult out = TransactionHelper(request, data.get(),
+  TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                  data.get(),
                                                   BoundNetLog());
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
 }
@@ -689,11 +698,6 @@ TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
-
   // We disable SSL for this test.
   SpdySession::SetSSLMode(false);
 
@@ -707,7 +711,7 @@ TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, BoundNetLog());
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
   trans.reset();  // Cancel the transaction.
 
@@ -810,14 +814,11 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeaders) {
       MockRead(true, 0, 0)  // EOF
     };
 
-    HttpRequestInfo request;
-    request.method = "GET";
-    request.url = GURL("http://www.google.com/");
-    request.load_flags = 0;
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(),
+    TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                    data.get(),
                                                     BoundNetLog());
     EXPECT_EQ(OK, out.rv);
     EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
@@ -954,14 +955,10 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
       MockRead(true, 0, 0)  // EOF
     };
 
-    HttpRequestInfo request;
-    request.method = "GET";
-    request.url = GURL("http://www.google.com/");
-    request.load_flags = 0;
-
     // Attach the headers to the request.
     int header_count = test_cases[i].num_headers[0];
 
+    HttpRequestInfo request = CreateGetRequest();
     for (int ct = 0; ct < header_count; ct++) {
       const char* header_key = test_cases[i].extra_headers[0][ct * 2];
       const char* header_value = test_cases[i].extra_headers[0][ct * 2 + 1];
@@ -971,7 +968,8 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(),
+    TransactionHelperResult out = TransactionHelper(request,
+                                                    data.get(),
                                                     BoundNetLog());
     EXPECT_EQ(OK, out.rv) << i;
     EXPECT_EQ("HTTP/1.1 200 OK", out.status_line) << i;
@@ -1062,14 +1060,11 @@ TEST_F(SpdyNetworkTransactionTest, InvalidSynReply) {
       MockRead(true, 0, 0)  // EOF
     };
 
-    HttpRequestInfo request;
-    request.method = "GET";
-    request.url = GURL("http://www.google.com/");
-    request.load_flags = 0;
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(),
+    TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                    data.get(),
                                                     BoundNetLog());
     EXPECT_EQ(ERR_INVALID_RESPONSE, out.rv);
   }
@@ -1110,14 +1105,11 @@ TEST_F(SpdyNetworkTransactionTest, CorruptFrameSessionError) {
       MockRead(true, 0, 0)  // EOF
     };
 
-    HttpRequestInfo request;
-    request.method = "GET";
-    request.url = GURL("http://www.google.com/");
-    request.load_flags = 0;
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(),
+    TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                    data.get(),
                                                     BoundNetLog());
     EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, out.rv);
   }
@@ -1456,14 +1448,11 @@ TEST_F(SpdyNetworkTransactionTest, WriteError) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(2, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(),
+  TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                  data.get(),
                                                   BoundNetLog());
   EXPECT_EQ(ERR_FAILED, out.rv);
   data->Reset();
@@ -1484,14 +1473,11 @@ TEST_F(SpdyNetworkTransactionTest, PartialWrite) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(kChunks, reads, arraysize(reads),
                             writes.get(), kChunks));
-  TransactionHelperResult out = TransactionHelper(request, data.get(),
+  TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                  data.get(),
                                                   BoundNetLog());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
@@ -1521,14 +1507,11 @@ TEST_F(SpdyNetworkTransactionTest, ConnectFailure) {
       MockRead(true, 0, 0)  // EOF
     };
 
-    HttpRequestInfo request;
-    request.method = "GET";
-    request.url = GURL("http://www.google.com/");
-    request.load_flags = 0;
     scoped_refptr<DelayedSocketData> data(
         new DelayedSocketData(connects[index], 1, reads, arraysize(reads),
                               writes, arraysize(writes)));
-    TransactionHelperResult out = TransactionHelper(request, data.get(),
+    TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                    data.get(),
                                                     BoundNetLog());
     EXPECT_EQ(connects[index].result, out.rv);
   }
@@ -1554,14 +1537,11 @@ TEST_F(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
   // For this test, we turn on the normal compression.
   EnableCompression(true);
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(),
+  TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                  data.get(),
                                                   BoundNetLog());
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
   data->Reset();
@@ -1586,14 +1566,11 @@ TEST_F(SpdyNetworkTransactionTest, NetLog) {
 
   net::CapturingBoundNetLog log(net::CapturingNetLog::kUnbounded);
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(),
+  TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                  data.get(),
                                                   log.bound());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
@@ -1669,10 +1646,6 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
@@ -1693,7 +1666,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, BoundNetLog());
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -1775,10 +1748,6 @@ TEST_F(SpdyNetworkTransactionTest, Buffering) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
@@ -1799,7 +1768,7 @@ TEST_F(SpdyNetworkTransactionTest, Buffering) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, BoundNetLog());
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -1892,10 +1861,6 @@ TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
@@ -1916,7 +1881,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, BoundNetLog());
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -1997,10 +1962,6 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
@@ -2021,7 +1982,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, BoundNetLog());
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -2093,10 +2054,6 @@ TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
@@ -2116,7 +2073,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
 
   TestCompletionCallback callback;
 
-  int rv = trans->Start(&request, &callback, BoundNetLog());
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
   out.rv = callback.WaitForResult();
@@ -2229,19 +2186,12 @@ TEST_F(SpdyNetworkTransactionTest, SettingsSaved) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
-
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelperWithSession(request,
-                                                             data.get(),
-                                                             BoundNetLog(),
-                                                             &session_deps,
-                                                             session.get());
+  TransactionHelperResult out = TransactionHelperWithSession(
+      CreateGetRequest(), data.get(), BoundNetLog(),
+      &session_deps, session.get());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
@@ -2346,19 +2296,12 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
-
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(2, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelperWithSession(request,
-                                                             data.get(),
-                                                             BoundNetLog(),
-                                                             &session_deps,
-                                                             session.get());
+  TransactionHelperResult out = TransactionHelperWithSession(
+      CreateGetRequest(), data.get(), BoundNetLog(),
+      &session_deps, session.get());
   EXPECT_EQ(OK, out.rv);
   EXPECT_EQ("HTTP/1.1 200 OK", out.status_line);
   EXPECT_EQ("hello!", out.response_data);
@@ -2397,14 +2340,11 @@ TEST_F(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
     MockRead(true, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
-  TransactionHelperResult out = TransactionHelper(request, data.get(),
+  TransactionHelperResult out = TransactionHelper(CreateGetRequest(),
+                                                  data.get(),
                                                   BoundNetLog());
   EXPECT_EQ(ERR_CONNECTION_CLOSED, out.rv);
 }
@@ -2421,10 +2361,6 @@ TEST_F(SpdyNetworkTransactionTest, CloseWithActiveStream) {
     MockRead(false, 0, 0)  // EOF
   };
 
-  HttpRequestInfo request;
-  request.method = "GET";
-  request.url = GURL("http://www.google.com/");
-  request.load_flags = 0;
   scoped_refptr<DelayedSocketData> data(
       new DelayedSocketData(1, reads, arraysize(reads),
                             writes, arraysize(writes)));
@@ -2443,7 +2379,7 @@ TEST_F(SpdyNetworkTransactionTest, CloseWithActiveStream) {
 
   TestCompletionCallback callback;
 
-  out.rv = trans->Start(&request, &callback, log);
+  out.rv = trans->Start(&CreateGetRequest(), &callback, log);
   EXPECT_EQ(out.rv, ERR_IO_PENDING);
   out.rv = callback.WaitForResult();
   EXPECT_EQ(out.rv, OK);
