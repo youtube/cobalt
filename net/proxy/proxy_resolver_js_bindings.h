@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef NET_PROXY_PROXY_JS_BINDINGS_H
-#define NET_PROXY_PROXY_JS_BINDINGS_H
+#ifndef NET_PROXY_PROXY_RESOLVER_JS_BINDINGS_H_
+#define NET_PROXY_PROXY_RESOLVER_JS_BINDINGS_H_
 
 #include <string>
 
@@ -12,10 +12,13 @@ class MessageLoop;
 namespace net {
 
 class HostResolver;
+struct ProxyResolverRequestContext;
 
 // Interface for the javascript bindings.
 class ProxyResolverJSBindings {
  public:
+  ProxyResolverJSBindings() : current_request_context_(NULL) {}
+
   virtual ~ProxyResolverJSBindings() {}
 
   // Handler for "alert(message)"
@@ -50,8 +53,22 @@ class ProxyResolverJSBindings {
   //
   // Note that |host_resolver| will be used in sync mode mode.
   static ProxyResolverJSBindings* CreateDefault(HostResolver* host_resolver);
+
+  // Sets details about the currently executing FindProxyForURL() request.
+  void set_current_request_context(
+      ProxyResolverRequestContext* current_request_context) {
+    current_request_context_ = current_request_context;
+  }
+
+  // Retrieves details about the currently executing FindProxyForURL() request.
+  ProxyResolverRequestContext* current_request_context() {
+    return current_request_context_;
+  }
+
+ private:
+  ProxyResolverRequestContext* current_request_context_;
 };
 
 }  // namespace net
 
-#endif  // NET_PROXY_PROXY_JS_BINDINGS_H
+#endif  // NET_PROXY_PROXY_RESOLVER_JS_BINDINGS_H_
