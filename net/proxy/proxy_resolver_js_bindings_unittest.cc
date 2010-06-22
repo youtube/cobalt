@@ -10,6 +10,7 @@
 #include "net/base/net_util.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
+#include "net/proxy/proxy_resolver_request_context.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -76,6 +77,33 @@ class MockHostResolverWithMultipleResults : public HostResolver {
 
     return concatenated;
   }
+};
+
+class MockFailingHostResolver : public HostResolver {
+ public:
+  MockFailingHostResolver() : count_(0) {}
+
+  // HostResolver methods:
+  virtual int Resolve(const RequestInfo& info,
+                      AddressList* addresses,
+                      CompletionCallback* callback,
+                      RequestHandle* out_req,
+                      const BoundNetLog& net_log) {
+    count_++;
+    return ERR_NAME_NOT_RESOLVED;
+  }
+
+  virtual void CancelRequest(RequestHandle req) {}
+  virtual void AddObserver(Observer* observer) {}
+  virtual void RemoveObserver(Observer* observer) {}
+  virtual void Shutdown() {}
+
+  // Returns the number of times Resolve() has been called.
+  int count() const { return count_; }
+  void ResetCount() { count_ = 0; }
+
+ private:
+  int count_;
 };
 
 TEST(ProxyResolverJSBindingsTest, DnsResolve) {
@@ -184,6 +212,53 @@ TEST(ProxyResolverJSBindingsTest, ExFunctionsReturnList) {
 
   EXPECT_EQ("192.168.1.1;172.22.34.1;200.100.1.2",
             bindings->DnsResolveEx("FOO"));
+}
+
+TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
+  scoped_refptr<MockFailingHostResolver> host_resolver(
+      new MockFailingHostResolver);
+
+  // Get a hold of a DefaultJSBindings* (it is a hidden impl class).
+  scoped_ptr<ProxyResolverJSBindings> bindings(
+      ProxyResolverJSBindings::CreateDefault(host_resolver));
+
+  // Call DnsResolve() 4 times for the same hostname -- this should issue
+  // 4 separate calls to the underlying host resolver, since there is no
+  // current request context.
+  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_EQ(4, host_resolver->count());
+
+  host_resolver->ResetCount();
+
+  // Now setup a per-request context, and try the same experiment -- we
+  // expect the underlying host resolver to receive only 1 request this time,
+  // since it will service the others from the per-request DNS cache.
+  HostCache cache(50,
+                  base::TimeDelta::FromMinutes(10),
+                  base::TimeDelta::FromMinutes(10));
+  ProxyResolverRequestContext context(NULL, NULL, &cache);
+  bindings->set_current_request_context(&context);
+
+  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_EQ(1, host_resolver->count());
+
+  host_resolver->ResetCount();
+
+  // The "Ex" version shares this same cache, however since the flags
+  // are different it won't reuse this particular entry.
+  EXPECT_EQ("", bindings->DnsResolveEx("foo"));
+  EXPECT_EQ(1, host_resolver->count());
+  EXPECT_EQ("", bindings->DnsResolveEx("foo"));
+  EXPECT_EQ("", bindings->DnsResolveEx("foo"));
+  EXPECT_EQ(1, host_resolver->count());
+
+  bindings->set_current_request_context(NULL);
 }
 
 }  // namespace
