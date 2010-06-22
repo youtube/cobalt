@@ -59,6 +59,12 @@ AudioManagerLinux::AudioManagerLinux()
 }
 
 AudioManagerLinux::~AudioManagerLinux() {
+  // Make sure we stop the thread first. If we let the default destructor to
+  // destruct the members, we may destroy audio streams before stopping the
+  // thread, resulting an unexpected behavior.
+  // This way we make sure activities of the audio streams are all stopped
+  // before we destroy them.
+  audio_thread_.Stop();
   active_streams_.clear();
 }
 
