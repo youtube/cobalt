@@ -52,7 +52,7 @@ const HostCache::Entry* HostCache::Lookup(const Key& key,
 
 HostCache::Entry* HostCache::Set(const Key& key,
                                  int error,
-                                 const AddressList addrlist,
+                                 const AddressList& addrlist,
                                  base::TimeTicks now) {
   DCHECK(CalledOnValidThread());
   if (caching_is_disabled())

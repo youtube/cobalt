@@ -90,7 +90,7 @@ class HostCache : public NonThreadSafe {
   // timestamp.
   Entry* Set(const Key& key,
              int error,
-             const AddressList addrlist,
+             const AddressList& addrlist,
              base::TimeTicks now);
 
   // Empties the cache
