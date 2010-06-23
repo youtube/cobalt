@@ -358,6 +358,8 @@
       }],
       ['base_extra_target', {
         'sources': [
+          'crypto/capi_util.cc',
+          'crypto/capi_util.h',
           'crypto/cssm_init.cc',
           'crypto/cssm_init.h',
           'crypto/encryptor.h',
@@ -484,6 +486,8 @@
                 'base_drag_source.cc',
                 'base_drop_target.cc',
                 'cpu.cc',
+                'crypto/capi_util.h',
+                'crypto/capi_util.cc',
                 'debug_on_start.cc',
                 'event_recorder.cc',
                 'file_version_info.cc',
