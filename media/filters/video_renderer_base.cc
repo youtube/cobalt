@@ -41,7 +41,6 @@ static const int kIdleMilliseconds = 10;
 VideoRendererBase::VideoRendererBase()
     : width_(0),
       height_(0),
-      uses_egl_image_(false),
       frame_available_(&lock_),
       state_(kUninitialized),
       thread_(kNullThreadHandle),
@@ -55,24 +54,36 @@ VideoRendererBase::~VideoRendererBase() {
 }
 
 // static
-bool VideoRendererBase::ParseMediaFormat(const MediaFormat& media_format,
-                                         int* width_out, int* height_out,
-                                         bool* uses_egl_image_out) {
+bool VideoRendererBase::ParseMediaFormat(
+    const MediaFormat& media_format,
+    VideoFrame::SurfaceType* surface_type_out,
+    VideoFrame::Format* surface_format_out,
+    int* width_out, int* height_out) {
   std::string mime_type;
   if (!media_format.GetAsString(MediaFormat::kMimeType, &mime_type))
     return false;
-  if (mime_type.compare(mime_type::kUncompressedVideo) != 0 &&
-      mime_type.compare(mime_type::kUncompressedVideoEglImage) != 0)
+  if (mime_type.compare(mime_type::kUncompressedVideo) != 0)
     return false;
 
-  if (mime_type.compare(mime_type::kUncompressedVideoEglImage) == 0)
-    *uses_egl_image_out = true;
-  else
-    *uses_egl_image_out = false;
-  if (!media_format.GetAsInteger(MediaFormat::kWidth, width_out))
+  int surface_type;
+  if (!media_format.GetAsInteger(MediaFormat::kSurfaceType, &surface_type))
     return false;
-  if (!media_format.GetAsInteger(MediaFormat::kHeight, height_out))
+  if (surface_type_out)
+    *surface_type_out = static_cast<VideoFrame::SurfaceType>(surface_type);
+
+  int surface_format;
+  if (!media_format.GetAsInteger(MediaFormat::kSurfaceFormat, &surface_format))
     return false;
+  if (surface_format_out)
+    *surface_format_out = static_cast<VideoFrame::Format>(surface_format);
+
+  int width, height;
+  if (!media_format.GetAsInteger(MediaFormat::kWidth, &width))
+    return false;
+  if (!media_format.GetAsInteger(MediaFormat::kHeight, &height))
+    return false;
+  if (width_out) *width_out = width;
+  if (height_out) *height_out = height;
   return true;
 }
 
@@ -146,7 +157,7 @@ void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
 
   // TODO(wjia): This would be removed if "Paint" thread allows renderer to
   // allocate EGL images before filters are in playing state.
-  if (uses_egl_image_) {
+  if (uses_egl_image()) {
     state_ = kPaused;
     VideoFrame::CreateBlackFrame(width_, height_, &current_frame_);
     DCHECK(current_frame_);
@@ -168,8 +179,10 @@ void VideoRendererBase::Initialize(VideoDecoder* decoder,
   decoder_->set_fill_buffer_done_callback(
       NewCallback(this, &VideoRendererBase::OnFillBufferDone));
   // Notify the pipeline of the video dimensions.
-  if (!ParseMediaFormat(decoder->media_format(), &width_, &height_,
-                        &uses_egl_image_)) {
+  if (!ParseMediaFormat(decoder->media_format(),
+                        &surface_type_,
+                        &surface_format_,
+                        &width_, &height_)) {
     host()->SetError(PIPELINE_ERROR_INITIALIZATION_FAILED);
     callback->Run();
     return;
@@ -270,7 +283,7 @@ void VideoRendererBase::ThreadMain() {
       if (!frames_.empty() && !frames_.front()->IsEndOfStream()) {
         DCHECK_EQ(current_frame_, frames_.front());
         frames_.pop_front();
-        if (uses_egl_image_ &&
+        if (uses_egl_image() &&
             media::VideoFrame::TYPE_EGL_IMAGE == current_frame_->type()) {
           decoder_->FillThisBuffer(current_frame_);
         }
@@ -354,7 +367,7 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
 
   // Enqueue the frame.
   frames_.push_back(frame);
-  if (uses_egl_image_ &&
+  if (uses_egl_image() &&
       media::VideoFrame::TYPE_EGL_IMAGE != current_frame_->type())
     current_frame_ = frame;
   DCHECK_LE(frames_.size(), kMaxFrames);

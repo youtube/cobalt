@@ -54,6 +54,10 @@ class VideoRendererBaseTest : public ::testing::Test {
     // Sets the essential media format keys for this decoder.
     decoder_media_format_.SetAsString(MediaFormat::kMimeType,
                                       mime_type::kUncompressedVideo);
+    decoder_media_format_.SetAsInteger(MediaFormat::kSurfaceType,
+                                       VideoFrame::TYPE_SYSTEM_MEMORY);
+    decoder_media_format_.SetAsInteger(MediaFormat::kSurfaceFormat,
+                                       VideoFrame::YV12);
     decoder_media_format_.SetAsInteger(MediaFormat::kWidth, kWidth);
     decoder_media_format_.SetAsInteger(MediaFormat::kHeight, kHeight);
     EXPECT_CALL(*decoder_, media_format())
