@@ -102,13 +102,8 @@ TextDirection GetTextDirectionForLocale(const char* locale_name) {
   return (layout_dir != ULOC_LAYOUT_RTL) ? LEFT_TO_RIGHT : RIGHT_TO_LEFT;
 }
 
-TextDirection GetFirstStrongCharacterDirection(const std::wstring& text) {
-#if defined(WCHAR_T_IS_UTF32)
-  string16 text_utf16 = WideToUTF16(text);
-  const UChar* string = text_utf16.c_str();
-#else
+TextDirection GetFirstStrongCharacterDirection(const string16& text) {
   const UChar* string = text.c_str();
-#endif
   size_t length = text.length();
   size_t position = 0;
   while (position < length) {
@@ -136,8 +131,14 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text) {
   return LEFT_TO_RIGHT;
 }
 
-bool AdjustStringForLocaleDirection(const std::wstring& text,
-                                    std::wstring* localized_text) {
+#if defined(WCHAR_T_IS_UTF32)
+TextDirection GetFirstStrongCharacterDirection(const std::wstring& text) {
+  return GetFirstStrongCharacterDirection(WideToUTF16(text));
+}
+#endif
+
+bool AdjustStringForLocaleDirection(const string16& text,
+                                    string16* localized_text) {
   if (!IsRTL() || text.empty())
     return false;
 
@@ -153,13 +154,21 @@ bool AdjustStringForLocaleDirection(const std::wstring& text,
   return true;
 }
 
-bool StringContainsStrongRTLChars(const std::wstring& text) {
 #if defined(WCHAR_T_IS_UTF32)
-  string16 text_utf16 = WideToUTF16(text);
-  const UChar* string = text_utf16.c_str();
-#else
-  const UChar* string = text.c_str();
+bool AdjustStringForLocaleDirection(const std::wstring& text,
+                                    std::wstring* localized_text) {
+  string16 out;
+  if (AdjustStringForLocaleDirection(WideToUTF16(text), &out)) {
+    // We should only touch the output on success.
+    *localized_text = UTF16ToWide(out);
+    return true;
+  }
+  return false;
+}
 #endif
+
+bool StringContainsStrongRTLChars(const string16& text) {
+  const UChar* string = text.c_str();
   size_t length = text.length();
   size_t position = 0;
   while (position < length) {
@@ -179,6 +188,24 @@ bool StringContainsStrongRTLChars(const std::wstring& text) {
   return false;
 }
 
+#if defined(WCHAR_T_IS_UTF32)
+bool StringContainsStrongRTLChars(const std::wstring& text) {
+  return StringContainsStrongRTLChars(WideToUTF16(text));
+}
+#endif
+
+void WrapStringWithLTRFormatting(string16* text) {
+  if (text->empty())
+    return;
+
+  // Inserting an LRE (Left-To-Right Embedding) mark as the first character.
+  text->insert(0, 1, kLeftToRightEmbeddingMark);
+
+  // Inserting a PDF (Pop Directional Formatting) mark as the last character.
+  text->push_back(kPopDirectionalFormatting);
+}
+
+#if defined(WCHAR_T_IS_UTF32)
 void WrapStringWithLTRFormatting(std::wstring* text) {
   if (text->empty())
     return;
@@ -189,7 +216,20 @@ void WrapStringWithLTRFormatting(std::wstring* text) {
   // Inserting a PDF (Pop Directional Formatting) mark as the last character.
   text->push_back(static_cast<wchar_t>(kPopDirectionalFormatting));
 }
+#endif
 
+void WrapStringWithRTLFormatting(string16* text) {
+  if (text->empty())
+    return;
+
+  // Inserting an RLE (Right-To-Left Embedding) mark as the first character.
+  text->insert(0, 1, kRightToLeftEmbeddingMark);
+
+  // Inserting a PDF (Pop Directional Formatting) mark as the last character.
+  text->push_back(kPopDirectionalFormatting);
+}
+
+#if defined(WCHAR_T_IS_UTF32)
 void WrapStringWithRTLFormatting(std::wstring* text) {
   if (text->empty())
     return;
@@ -200,6 +240,7 @@ void WrapStringWithRTLFormatting(std::wstring* text) {
   // Inserting a PDF (Pop Directional Formatting) mark as the last character.
   text->push_back(static_cast<wchar_t>(kPopDirectionalFormatting));
 }
+#endif
 
 void WrapPathWithLTRFormatting(const FilePath& path,
                                string16* rtl_safe_path) {

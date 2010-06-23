@@ -6,6 +6,7 @@
 #define BASE_I18N_RTL_H_
 
 #include "base/string16.h"
+#include "build/build_config.h"
 
 class FilePath;
 
@@ -56,7 +57,10 @@ TextDirection GetTextDirectionForLocale(const char* locale_name);
 // character types L, LRE, LRO, R, AL, RLE, and RLO are considered as strong
 // directionality characters. Please refer to http://unicode.org/reports/tr9/
 // for more information.
+TextDirection GetFirstStrongCharacterDirection(const string16& text);
+#if defined(WCHAR_T_IS_UTF32)
 TextDirection GetFirstStrongCharacterDirection(const std::wstring& text);
+#endif
 
 // Given the string in |text|, this function creates a copy of the string with
 // the appropriate Unicode formatting marks that mark the string direction
@@ -72,6 +76,15 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text);
 // string is always treated as a right-to-left string. This is done by
 // inserting certain Unicode formatting marks into the returned string.
 //
+// TODO(brettw) bug 47194: This funciton is confusing. If it does no adjustment
+// becuase the current locale is not RTL, it will do nothing and return false.
+// This means you have to check the return value in many cases which doesn't
+// make sense. This should be cleaned up and probably just take a single
+// argument that's a pointer to a string that it modifies as necessary. In the
+// meantime, the recommended usage is to use the same arg as input & output,
+// which will work without extra checks:
+//   AdjustStringForLocaleDirection(text, &text);
+//
 // TODO(idana) bug# 1206120: this function adjusts the string in question only
 // if the current locale is right-to-left. The function does not take care of
 // the opposite case (an RTL string displayed in an LTR context) since
@@ -80,23 +93,36 @@ TextDirection GetFirstStrongCharacterDirection(const std::wstring& text);
 // installed. Since the English version of Windows doesn't have right-to-left
 // language support installed by default, inserting the direction Unicode mark
 // results in Windows displaying squares.
+bool AdjustStringForLocaleDirection(const string16& text,
+                                    string16* localized_text);
+#if defined(WCHAR_T_IS_UTF32)
 bool AdjustStringForLocaleDirection(const std::wstring& text,
                                     std::wstring* localized_text);
+#endif
 
 // Returns true if the string contains at least one character with strong right
 // to left directionality; that is, a character with either R or AL Unicode
 // BiDi character type.
+bool StringContainsStrongRTLChars(const string16& text);
+#if defined(WCHAR_T_IS_UTF32)
 bool StringContainsStrongRTLChars(const std::wstring& text);
+#endif
 
 // Wraps a string with an LRE-PDF pair which essentialy marks the string as a
 // Left-To-Right string. Doing this is useful in order to make sure LTR
 // strings are rendered properly in an RTL context.
+void WrapStringWithLTRFormatting(string16* text);
+#if defined(WCHAR_T_IS_UTF32)
 void WrapStringWithLTRFormatting(std::wstring* text);
+#endif
 
 // Wraps a string with an RLE-PDF pair which essentialy marks the string as a
 // Right-To-Left string. Doing this is useful in order to make sure RTL
 // strings are rendered properly in an LTR context.
+void WrapStringWithRTLFormatting(string16* text);
+#if defined(WCHAR_T_IS_UTF32)
 void WrapStringWithRTLFormatting(std::wstring* text);
+#endif
 
 // Wraps file path to get it to display correctly in RTL UI. All filepaths
 // should be passed through this function before display in UI for RTL locales.
@@ -116,6 +142,7 @@ std::wstring GetDisplayStringInLTRDirectionality(std::wstring* text);
 // semantic effect. They can be deleted so they might not always appear in a
 // pair.
 const string16 StripWrappingBidiControlCharacters(const string16& text);
+
 }  // namespace i18n
 }  // namespace base
 
