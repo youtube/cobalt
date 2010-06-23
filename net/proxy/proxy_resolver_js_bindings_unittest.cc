@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/scoped_ptr.h"
+#include "base/string_util.h"
 #include "net/base/address_list.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
@@ -113,18 +114,21 @@ TEST(ProxyResolverJSBindingsTest, DnsResolve) {
   scoped_ptr<ProxyResolverJSBindings> bindings(
       ProxyResolverJSBindings::CreateDefault(host_resolver));
 
+  std::string ip_address;
+
   // Empty string is not considered a valid host (even though on some systems
   // requesting this will resolve to localhost).
   host_resolver->rules()->AddSimulatedFailure("");
-  EXPECT_EQ("", bindings->DnsResolve(""));
+  EXPECT_FALSE(bindings->DnsResolve("", &ip_address));
 
   // Should call through to the HostResolver.
   host_resolver->rules()->AddRule("google.com", "192.168.1.1");
-  EXPECT_EQ("192.168.1.1", bindings->DnsResolve("google.com"));
+  EXPECT_TRUE(bindings->DnsResolve("google.com", &ip_address));
+  EXPECT_EQ("192.168.1.1", ip_address);
 
   // Resolve failures should give empty string.
   host_resolver->rules()->AddSimulatedFailure("fail");
-  EXPECT_EQ("", bindings->DnsResolve("fail"));
+  EXPECT_FALSE(bindings->DnsResolve("fail", &ip_address));
 
   // TODO(eroman): would be nice to have an IPV6 test here too, but that
   // won't work on all systems.
@@ -137,7 +141,8 @@ TEST(ProxyResolverJSBindingsTest, MyIpAddress) {
 
   // Our IP address is always going to be 127.0.0.1, since we are using a
   // mock host resolver.
-  std::string my_ip_address = bindings->MyIpAddress();
+  std::string my_ip_address;
+  EXPECT_TRUE(bindings->MyIpAddress(&my_ip_address));
 
   EXPECT_EQ("127.0.0.1", my_ip_address);
 }
@@ -186,14 +191,25 @@ TEST(ProxyResolverJSBindingsTest, RestrictAddressFamily) {
                                        BoundNetLog()));
   EXPECT_EQ("192.168.1.1", NetAddressToString(address_list.head()));
 
+  std::string ip_address;
   // Now the actual test.
-  EXPECT_EQ("192.168.1.2", bindings->MyIpAddress());       // IPv4 restricted.
-  EXPECT_EQ("192.168.1.1", bindings->DnsResolve("foo"));   // IPv4 restricted.
-  EXPECT_EQ("192.168.1.2", bindings->DnsResolve("foo2"));  // IPv4 restricted.
+  EXPECT_TRUE(bindings->MyIpAddress(&ip_address));
+  EXPECT_EQ("192.168.1.2", ip_address);  // IPv4 restricted.
 
-  EXPECT_EQ("192.168.2.2", bindings->MyIpAddressEx());       // Unrestricted.
-  EXPECT_EQ("192.168.2.1", bindings->DnsResolveEx("foo"));   // Unrestricted.
-  EXPECT_EQ("192.168.2.2", bindings->DnsResolveEx("foo2"));  // Unrestricted.
+  EXPECT_TRUE(bindings->DnsResolve("foo", &ip_address));
+  EXPECT_EQ("192.168.1.1", ip_address);  // IPv4 restricted.
+
+  EXPECT_TRUE(bindings->DnsResolve("foo2", &ip_address));
+  EXPECT_EQ("192.168.1.2", ip_address);  // IPv4 restricted.
+
+  EXPECT_TRUE(bindings->MyIpAddressEx(&ip_address));
+  EXPECT_EQ("192.168.2.2", ip_address);  // Unrestricted.
+
+  EXPECT_TRUE(bindings->DnsResolveEx("foo", &ip_address));
+  EXPECT_EQ("192.168.2.1", ip_address);  // Unrestricted.
+
+  EXPECT_TRUE(bindings->DnsResolveEx("foo2", &ip_address));
+  EXPECT_EQ("192.168.2.2", ip_address);  // Unrestricted.
 }
 
 // Test that myIpAddressEx() and dnsResolveEx() both return a semi-colon
@@ -207,11 +223,13 @@ TEST(ProxyResolverJSBindingsTest, ExFunctionsReturnList) {
   scoped_ptr<ProxyResolverJSBindings> bindings(
       ProxyResolverJSBindings::CreateDefault(host_resolver));
 
-  EXPECT_EQ("192.168.1.1;172.22.34.1;200.100.1.2",
-            bindings->MyIpAddressEx());
+  std::string ip_addresses;
 
-  EXPECT_EQ("192.168.1.1;172.22.34.1;200.100.1.2",
-            bindings->DnsResolveEx("FOO"));
+  EXPECT_TRUE(bindings->MyIpAddressEx(&ip_addresses));
+  EXPECT_EQ("192.168.1.1;172.22.34.1;200.100.1.2", ip_addresses);
+
+  EXPECT_TRUE(bindings->DnsResolveEx("FOO", &ip_addresses));
+  EXPECT_EQ("192.168.1.1;172.22.34.1;200.100.1.2", ip_addresses);
 }
 
 TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
@@ -222,13 +240,15 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
   scoped_ptr<ProxyResolverJSBindings> bindings(
       ProxyResolverJSBindings::CreateDefault(host_resolver));
 
+  std::string ip_address;
+
   // Call DnsResolve() 4 times for the same hostname -- this should issue
   // 4 separate calls to the underlying host resolver, since there is no
   // current request context.
-  EXPECT_EQ("", bindings->DnsResolve("foo"));
-  EXPECT_EQ("", bindings->DnsResolve("foo"));
-  EXPECT_EQ("", bindings->DnsResolve("foo"));
-  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_FALSE(bindings->DnsResolve("foo", &ip_address));
+  EXPECT_FALSE(bindings->DnsResolve("foo", &ip_address));
+  EXPECT_FALSE(bindings->DnsResolve("foo", &ip_address));
+  EXPECT_FALSE(bindings->DnsResolve("foo", &ip_address));
   EXPECT_EQ(4, host_resolver->count());
 
   host_resolver->ResetCount();
@@ -242,20 +262,20 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
   ProxyResolverRequestContext context(NULL, NULL, &cache);
   bindings->set_current_request_context(&context);
 
-  EXPECT_EQ("", bindings->DnsResolve("foo"));
-  EXPECT_EQ("", bindings->DnsResolve("foo"));
-  EXPECT_EQ("", bindings->DnsResolve("foo"));
-  EXPECT_EQ("", bindings->DnsResolve("foo"));
+  EXPECT_FALSE(bindings->DnsResolve("foo", &ip_address));
+  EXPECT_FALSE(bindings->DnsResolve("foo", &ip_address));
+  EXPECT_FALSE(bindings->DnsResolve("foo", &ip_address));
+  EXPECT_FALSE(bindings->DnsResolve("foo", &ip_address));
   EXPECT_EQ(1, host_resolver->count());
 
   host_resolver->ResetCount();
 
   // The "Ex" version shares this same cache, however since the flags
   // are different it won't reuse this particular entry.
-  EXPECT_EQ("", bindings->DnsResolveEx("foo"));
+  EXPECT_FALSE(bindings->DnsResolveEx("foo", &ip_address));
   EXPECT_EQ(1, host_resolver->count());
-  EXPECT_EQ("", bindings->DnsResolveEx("foo"));
-  EXPECT_EQ("", bindings->DnsResolveEx("foo"));
+  EXPECT_FALSE(bindings->DnsResolveEx("foo", &ip_address));
+  EXPECT_FALSE(bindings->DnsResolveEx("foo", &ip_address));
   EXPECT_EQ(1, host_resolver->count());
 
   bindings->set_current_request_context(NULL);
