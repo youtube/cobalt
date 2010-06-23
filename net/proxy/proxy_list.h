@@ -40,11 +40,12 @@ class ProxyList {
   // this if !IsEmpty().
   const ProxyServer& Get() const;
 
-  // Set the list by parsing the pac result |pac_string|.
+  // Sets the list by parsing the pac result |pac_string|.
   // Some examples for |pac_string|:
   //   "DIRECT"
   //   "PROXY foopy1"
   //   "PROXY foopy1; SOCKS4 foopy2:1188"
+  // Does a best-effort parse, and silently discards any errors.
   void SetFromPacString(const std::string& pac_string);
 
   // Returns a PAC-style semicolon-separated list of valid proxy servers.
