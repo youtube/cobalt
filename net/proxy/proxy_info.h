@@ -22,22 +22,22 @@ class ProxyInfo {
   ProxyInfo();
   // Default copy-constructor and assignment operator are OK!
 
-  // Use the same proxy server as the given |proxy_info|.
+  // Uses the same proxy server as the given |proxy_info|.
   void Use(const ProxyInfo& proxy_info);
 
-  // Use a direct connection.
+  // Uses a direct connection.
   void UseDirect();
 
-  // Use a specific proxy server, of the form:
+  // Uses a specific proxy server, of the form:
   //   proxy-uri = [<scheme> "://"] <hostname> [":" <port>]
   // This may optionally be a semi-colon delimited list of <proxy-uri>.
   // It is OK to have LWS between entries.
   void UseNamedProxy(const std::string& proxy_uri_list);
 
-  // Set the proxy list to a single entry, |proxy_server|.
+  // Sets the proxy list to a single entry, |proxy_server|.
   void UseProxyServer(const ProxyServer& proxy_server);
 
-  // Parse from the given PAC result.
+  // Parses from the given PAC result.
   void UsePacString(const std::string& pac_string) {
     proxy_list_.SetFromPacString(pac_string);
   }
@@ -88,7 +88,7 @@ class ProxyInfo {
     proxy_list_.DeprioritizeBadProxies(proxy_retry_info);
   }
 
-  // Delete any entry which doesn't have one of the specified proxy schemes.
+  // Deletes any entry which doesn't have one of the specified proxy schemes.
   void RemoveProxiesWithoutScheme(int scheme_bit_field) {
     proxy_list_.RemoveProxiesWithoutScheme(scheme_bit_field);
   }
