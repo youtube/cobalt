@@ -169,4 +169,10 @@ std::string HttpAuth::GetAuthorizationHeaderName(Target target) {
   }
 }
 
+// static
+std::string HttpAuth::GetAuthTargetString(
+    HttpAuth::Target target) {
+  return target == HttpAuth::AUTH_PROXY ? "proxy" : "server";
+}
+
 }  // namespace net

@@ -327,6 +327,8 @@
         'http/http_auth.h',
         'http/http_auth_cache.cc',
         'http/http_auth_cache.h',
+        'http/http_auth_controller.cc',
+        'http/http_auth_controller.h',
         'http/http_auth_filter.cc',
         'http/http_auth_filter.h',
         'http/http_auth_filter_win.h',
