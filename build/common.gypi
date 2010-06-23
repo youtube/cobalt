@@ -584,11 +584,6 @@
               },
             },
           }],
-          # Though Skia is conceptually shared by Linux and Windows,
-          # the only _skia files in our tree are Linux-specific.
-          ['OS!="linux" and OS!="freebsd" and OS!="openbsd"', {
-            'sources/': [ ['exclude', '_skia\\.cc$'] ],
-          }],
           ['chromeos!=1', {
             'sources/': [ ['exclude', '_chromeos\\.cc$'] ]
           }],
