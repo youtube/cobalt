@@ -5,6 +5,7 @@
 #include "net/proxy/proxy_resolver_js_bindings.h"
 
 #include "base/logging.h"
+#include "base/string_util.h"
 #include "net/base/address_list.h"
 #include "net/base/host_cache.h"
 #include "net/base/host_resolver.h"
@@ -24,25 +25,31 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
       : host_resolver_(host_resolver) {}
 
   // Handler for "alert(message)".
-  virtual void Alert(const std::string& message) {
+  virtual void Alert(const string16& message) {
     LOG(INFO) << "PAC-alert: " << message;
   }
 
-  // Handler for "myIpAddress()". Returns empty string on failure.
+  // Handler for "myIpAddress()".
   // TODO(eroman): Perhaps enumerate the interfaces directly, using
   // getifaddrs().
-  virtual std::string MyIpAddress() {
-    // DnsResolve("") returns "", so no need to check for failure.
-    return DnsResolve(GetHostName());
+  virtual bool MyIpAddress(std::string* first_ip_address) {
+    std::string my_hostname = GetHostName();
+    if (my_hostname.empty())
+      return false;
+    return DnsResolve(my_hostname, first_ip_address);
   }
 
-  // Handler for "myIpAddressEx()". Returns empty string on failure.
-  virtual std::string MyIpAddressEx() {
-    return DnsResolveEx(GetHostName());
+  // Handler for "myIpAddressEx()".
+  virtual bool MyIpAddressEx(std::string* ip_address_list) {
+    std::string my_hostname = GetHostName();
+    if (my_hostname.empty())
+      return false;
+    return DnsResolveEx(my_hostname, ip_address_list);
   }
 
-  // Handler for "dnsResolve(host)". Returns empty string on failure.
-  virtual std::string DnsResolve(const std::string& host) {
+  // Handler for "dnsResolve(host)".
+  virtual bool DnsResolve(const std::string& host,
+                          std::string* first_ip_address) {
     // Do a sync resolve of the hostname.
     // Disable IPv6 results. We do this because the PAC specification isn't
     // really IPv6 friendly, and Internet Explorer also restricts to IPv4.
@@ -55,26 +62,31 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
 
     int result = DnsResolveHelper(info, &address_list);
     if (result != OK)
-      return std::string();  // Failed.
+      return false;
 
     // TODO(eroman): Is this check really needed? Can I remove it?
     if (!address_list.head())
-      return std::string();
+      return false;
 
     // There may be multiple results; we will just use the first one.
     // This returns empty string on failure.
-    return NetAddressToString(address_list.head());
+    *first_ip_address = net::NetAddressToString(address_list.head());
+    if (first_ip_address->empty())
+      return false;
+
+    return true;
   }
 
-  // Handler for "dnsResolveEx(host)". Returns empty string on failure.
-  virtual std::string DnsResolveEx(const std::string& host) {
+  // Handler for "dnsResolveEx(host)".
+  virtual bool DnsResolveEx(const std::string& host,
+                            std::string* ip_address_list) {
     // Do a sync resolve of the hostname.
     HostResolver::RequestInfo info(host, 80);  // Port doesn't matter.
     AddressList address_list;
     int result = DnsResolveHelper(info, &address_list);
 
     if (result != OK)
-      return std::string();  // Failed.
+      return false;
 
     // Stringify all of the addresses in the address list, separated
     // by semicolons.
@@ -83,15 +95,19 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     while (current_address) {
       if (!address_list_str.empty())
         address_list_str += ";";
-      address_list_str += NetAddressToString(current_address);
+      const std::string address_string = NetAddressToString(current_address);
+      if (address_string.empty())
+        return false;
+      address_list_str += address_string;
       current_address = current_address->ai_next;
     }
 
-    return address_list_str;
+    *ip_address_list = address_list_str;
+    return true;
   }
 
   // Handler for when an error is encountered. |line_number| may be -1.
-  virtual void OnError(int line_number, const std::string& message) {
+  virtual void OnError(int line_number, const string16& message) {
     if (line_number == -1)
       LOG(INFO) << "PAC-error: " << message;
     else

@@ -7,6 +7,8 @@
 
 #include <string>
 
+#include "base/string16.h"
+
 class MessageLoop;
 
 namespace net {
@@ -22,29 +24,35 @@ class ProxyResolverJSBindings {
   virtual ~ProxyResolverJSBindings() {}
 
   // Handler for "alert(message)"
-  virtual void Alert(const std::string& message) = 0;
+  virtual void Alert(const string16& message) = 0;
 
-  // Handler for "myIpAddress()". Returns empty string on failure.
-  virtual std::string MyIpAddress() = 0;
+  // Handler for "myIpAddress()". Returns true on success and fills
+  // |*first_ip_address| with the result.
+  virtual bool MyIpAddress(std::string* first_ip_address) = 0;
 
-  // Handler for "myIpAddressEx()". Returns empty string on failure.
+  // Handler for "myIpAddressEx()". Returns true on success and fills
+  // |*ip_address_list| with the result.
   //
   // This is a Microsoft extension to PAC for IPv6, see:
   // http://blogs.msdn.com/wndp/articles/IPV6_PAC_Extensions_v0_9.aspx
-  virtual std::string MyIpAddressEx() = 0;
+  virtual bool MyIpAddressEx(std::string* ip_address_list) = 0;
 
-  // Handler for "dnsResolve(host)". Returns empty string on failure.
-  virtual std::string DnsResolve(const std::string& host) = 0;
+  // Handler for "dnsResolve(host)". Returns true on success and fills
+  // |*first_ip_address| with the result.
+  virtual bool DnsResolve(const std::string& host,
+                          std::string* first_ip_address) = 0;
 
-  // Handler for "dnsResolveEx(host)". Returns empty string on failure.
+  // Handler for "dnsResolveEx(host)". Returns true on success and fills
+  // |*ip_address_list| with the result.
   //
   // This is a Microsoft extension to PAC for IPv6, see:
   // http://blogs.msdn.com/wndp/articles/IPV6_PAC_Extensions_v0_9.aspx
-  virtual std::string DnsResolveEx(const std::string& host) = 0;
+  virtual bool DnsResolveEx(const std::string& host,
+                            std::string* ip_address_list) = 0;
 
   // Handler for when an error is encountered. |line_number| may be -1
   // if a line number is not applicable to this error.
-  virtual void OnError(int line_number, const std::string& error) = 0;
+  virtual void OnError(int line_number, const string16& error) = 0;
 
   // Creates a default javascript bindings implementation that will:
   //   - Send script error messages to LOG(INFO)

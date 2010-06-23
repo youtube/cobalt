@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 #include "base/file_util.h"
-#include "base/string_util.h"
 #include "base/path_service.h"
+#include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_errors.h"
@@ -23,36 +24,41 @@ class MockJSBindings : public ProxyResolverJSBindings {
  public:
   MockJSBindings() : my_ip_address_count(0), my_ip_address_ex_count(0) {}
 
-  virtual void Alert(const std::string& message) {
+  virtual void Alert(const string16& message) {
     LOG(INFO) << "PAC-alert: " << message;  // Helpful when debugging.
-    alerts.push_back(message);
+    alerts.push_back(UTF16ToUTF8(message));
   }
 
-  virtual std::string MyIpAddress() {
+  virtual bool MyIpAddress(std::string* ip_address) {
     my_ip_address_count++;
-    return my_ip_address_result;
+    *ip_address = my_ip_address_result;
+    return !my_ip_address_result.empty();
   }
 
-  virtual std::string MyIpAddressEx() {
+  virtual bool MyIpAddressEx(std::string* ip_address_list) {
     my_ip_address_ex_count++;
-    return my_ip_address_ex_result;
+    *ip_address_list = my_ip_address_ex_result;
+    return !my_ip_address_ex_result.empty();
   }
 
-  virtual std::string DnsResolve(const std::string& host) {
+  virtual bool DnsResolve(const std::string& host, std::string* ip_address) {
     dns_resolves.push_back(host);
-    return dns_resolve_result;
+    *ip_address = dns_resolve_result;
+    return !dns_resolve_result.empty();
   }
 
-  virtual std::string DnsResolveEx(const std::string& host) {
+  virtual bool DnsResolveEx(const std::string& host,
+                            std::string* ip_address_list) {
     dns_resolves_ex.push_back(host);
-    return dns_resolve_ex_result;
+    *ip_address_list = dns_resolve_ex_result;
+    return !dns_resolve_ex_result.empty();
   }
 
-  virtual void OnError(int line_number, const std::string& message) {
+  virtual void OnError(int line_number, const string16& message) {
     // Helpful when debugging.
     LOG(INFO) << "PAC-error: [" << line_number << "] " << message;
 
-    errors.push_back(message);
+    errors.push_back(UTF16ToUTF8(message));
     errors_line_number.push_back(line_number);
   }
 
@@ -306,9 +312,7 @@ TEST(ProxyResolverV8Test, UnhandledException) {
   EXPECT_EQ(3, bindings->errors_line_number[0]);
 }
 
-// TODO(eroman): This test fails right now, since the parsing of
-// host/port doesn't check for non-ascii characters. http://crbug.com/46608
-TEST(ProxyResolverV8Test, FAILS_ReturnUnicode) {
+TEST(ProxyResolverV8Test, ReturnUnicode) {
   ProxyResolverV8WithMockBindings resolver;
   int result = resolver.SetPacScriptFromDisk("return_unicode.js");
   EXPECT_EQ(OK, result);
@@ -318,7 +322,7 @@ TEST(ProxyResolverV8Test, FAILS_ReturnUnicode) {
                                    BoundNetLog());
 
   // The result from this resolve was unparseable, because it
-  // wasn't ascii.
+  // wasn't ASCII.
   EXPECT_EQ(ERR_PAC_SCRIPT_FAILED, result);
 }
 
