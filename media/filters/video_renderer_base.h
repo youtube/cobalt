@@ -20,6 +20,7 @@
 #include "base/condition_variable.h"
 #include "base/lock.h"
 #include "media/base/filters.h"
+#include "media/base/video_frame.h"
 
 namespace media {
 
@@ -31,12 +32,15 @@ class VideoRendererBase : public VideoRenderer,
   VideoRendererBase();
   virtual ~VideoRendererBase();
 
-  // Helper method for subclasses to parse out video-related information from
-  // a MediaFormat.  Returns true if |width_out|, |height_out| and
-  // |uses_egl_image_out| were assigned.
-  static bool ParseMediaFormat(const MediaFormat& media_format,
-                               int* width_out, int* height_out,
-                               bool* uses_egl_image_out);
+  // Helper method to parse out video-related information from a MediaFormat.
+  // Returns true all the required parameters are existent in |media_format|.
+  // |surface_type_out|, |surface_format_out|, |width_out|, |height_out| can
+  // be NULL where the result is not needed.
+  static bool ParseMediaFormat(
+      const MediaFormat& media_format,
+      VideoFrame::SurfaceType* surface_type_out,
+      VideoFrame::Format* surface_format_out,
+      int* width_out, int* height_out);
 
   // MediaFilter implementation.
   virtual void Play(FilterCallback* callback);
@@ -85,6 +89,16 @@ class VideoRendererBase : public VideoRenderer,
     return decoder_.get();
   }
 
+  int width() { return width_; }
+  int height() { return height_; }
+  VideoFrame::Format surface_format() { return surface_format_; }
+  VideoFrame::SurfaceType surface_type() { return surface_type_; }
+
+  // TODO(jiesun): move this to gles_video_render.cc.
+  inline bool uses_egl_image() {
+    return surface_type_ == media::VideoFrame::TYPE_EGL_IMAGE;
+  }
+
  private:
   // Callback from video decoder to deliver decoded video frames and decrements
   // |pending_reads_|.
@@ -108,13 +122,10 @@ class VideoRendererBase : public VideoRenderer,
 
   scoped_refptr<VideoDecoder> decoder_;
 
-  // TODO(wjia): can we move this to at least protected? Seems all derived
-  // classes have width_, height_, uses_egl_image_ and same logic to
-  // calculate those values.
-  // Video dimensions parsed from the decoder's media format.
   int width_;
   int height_;
-  bool uses_egl_image_;
+  VideoFrame::Format surface_format_;
+  VideoFrame::SurfaceType surface_type_;
 
   // Queue of incoming frames as well as the current frame since the last time
   // OnFrameAvailable() was called.

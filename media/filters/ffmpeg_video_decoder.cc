@@ -56,13 +56,6 @@ void FFmpegVideoDecoder::DoInitialize(DemuxerStream* demuxer_stream,
     return;
   }
 
-  // Only set kMimeType when derived class has not done so.
-  if (!media_format_.Contains(MediaFormat::kMimeType))
-    media_format_.SetAsString(MediaFormat::kMimeType,
-                              mime_type::kUncompressedVideo);
-  media_format_.SetAsInteger(MediaFormat::kWidth, width_);
-  media_format_.SetAsInteger(MediaFormat::kHeight, height_);
-
   decode_engine_->Initialize(
       message_loop(),
       av_stream,
@@ -78,6 +71,18 @@ void FFmpegVideoDecoder::OnInitializeComplete(bool* success, Task* done_cb) {
   AutoTaskRunner done_runner(done_cb);
 
   *success = decode_engine_->state() == VideoDecodeEngine::kNormal;
+  if (*success) {
+    media_format_.SetAsString(MediaFormat::kMimeType,
+                              mime_type::kUncompressedVideo);
+    media_format_.SetAsInteger(MediaFormat::kWidth, width_);
+    media_format_.SetAsInteger(MediaFormat::kHeight, height_);
+    media_format_.SetAsInteger(
+        MediaFormat::kSurfaceType,
+        static_cast<int>(VideoFrame::TYPE_SYSTEM_MEMORY));
+    media_format_.SetAsInteger(
+        MediaFormat::kSurfaceFormat,
+        static_cast<int>(decode_engine_->GetSurfaceFormat()));
+  }
 }
 
 void FFmpegVideoDecoder::DoSeek(base::TimeDelta time, Task* done_cb) {

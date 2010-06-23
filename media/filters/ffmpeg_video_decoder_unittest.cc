@@ -255,6 +255,8 @@ TEST_F(FFmpegVideoDecoderTest, Initialize_Successful) {
                       WithArg<4>(InvokeRunnable())));
   EXPECT_CALL(*engine_, state())
       .WillOnce(Return(VideoDecodeEngine::kNormal));
+  EXPECT_CALL(*engine_, GetSurfaceFormat())
+      .WillOnce(Return(VideoFrame::YV12));
 
   EXPECT_CALL(callback_, OnFilterCallback());
   EXPECT_CALL(callback_, OnCallbackDestroyed());

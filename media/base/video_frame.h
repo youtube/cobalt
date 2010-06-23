@@ -37,7 +37,7 @@ class VideoFrame : public StreamSample {
     ASCII,       // A frame with ASCII content. For testing only.
   };
 
-  enum BufferType {
+  enum SurfaceType {
     TYPE_SYSTEM_MEMORY,
     TYPE_OMX_BUFFER_HEAD,
     TYPE_EGL_IMAGE,
@@ -75,7 +75,7 @@ class VideoFrame : public StreamSample {
                                scoped_refptr<VideoFrame>* frame_out);
 
   // Creates a new frame of |type| with given parameters.
-  static void CreatePrivateFrame(VideoFrame::BufferType type,
+  static void CreatePrivateFrame(VideoFrame::SurfaceType type,
                                  VideoFrame::Format format,
                                  size_t width,
                                  size_t height,
@@ -84,7 +84,7 @@ class VideoFrame : public StreamSample {
                                  void* private_buffer,
                                  scoped_refptr<VideoFrame>* frame_out);
 
-  virtual BufferType type() const { return type_; }
+  virtual SurfaceType type() const { return type_; }
 
   Format format() const { return format_; }
 
@@ -107,7 +107,7 @@ class VideoFrame : public StreamSample {
 
  protected:
   // Clients must use the static CreateFrame() method to create a new frame.
-  VideoFrame(BufferType type,
+  VideoFrame(SurfaceType type,
              Format format,
              size_t video_width,
              size_t video_height);
@@ -121,8 +121,8 @@ class VideoFrame : public StreamSample {
   // Frame format.
   Format format_;
 
-  // Buffer type.
-  BufferType type_;
+  // Surface type.
+  SurfaceType type_;
 
   // Width and height of surface.
   size_t width_;
