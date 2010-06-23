@@ -160,10 +160,14 @@ MessagePumpLibevent::~MessagePumpLibevent() {
   DCHECK(event_base_);
   event_del(wakeup_event_);
   delete wakeup_event_;
-  if (wakeup_pipe_in_ >= 0)
-    HANDLE_EINTR(close(wakeup_pipe_in_));
-  if (wakeup_pipe_out_ >= 0)
-    HANDLE_EINTR(close(wakeup_pipe_out_));
+  if (wakeup_pipe_in_ >= 0) {
+    if (HANDLE_EINTR(close(wakeup_pipe_in_)) < 0)
+      PLOG(ERROR) << "close";
+  }
+  if (wakeup_pipe_out_ >= 0) {
+    if (HANDLE_EINTR(close(wakeup_pipe_out_)) < 0)
+      PLOG(ERROR) << "close";
+  }
   event_base_free(event_base_);
 }
 
