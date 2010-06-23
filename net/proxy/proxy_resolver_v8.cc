@@ -501,8 +501,7 @@ int ProxyResolverV8::GetProxyForURL(const GURL& query_url,
       base::TimeDelta::FromMinutes(5),
       base::TimeDelta::FromMinutes(5));
 
-  ProxyResolverRequestContext request_context(
-      &query_url, &net_log, &host_cache);
+  ProxyResolverRequestContext request_context(&net_log, &host_cache);
 
   // Otherwise call into V8.
   context_->SetCurrentRequestContext(&request_context);
