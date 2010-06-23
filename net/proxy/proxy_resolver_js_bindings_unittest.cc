@@ -259,7 +259,7 @@ TEST(ProxyResolverJSBindingsTest, PerRequestDNSCache) {
   HostCache cache(50,
                   base::TimeDelta::FromMinutes(10),
                   base::TimeDelta::FromMinutes(10));
-  ProxyResolverRequestContext context(NULL, NULL, &cache);
+  ProxyResolverRequestContext context(NULL, &cache);
   bindings->set_current_request_context(&context);
 
   EXPECT_FALSE(bindings->DnsResolve("foo", &ip_address));
