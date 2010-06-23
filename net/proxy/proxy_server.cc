@@ -144,6 +144,7 @@ ProxyServer ProxyServer::FromPacString(const std::string& pac_string) {
   return FromPacString(pac_string.begin(), pac_string.end());
 }
 
+// static
 ProxyServer ProxyServer::FromPacString(std::string::const_iterator begin,
                                        std::string::const_iterator end) {
   // Trim the leading/trailing whitespace.
