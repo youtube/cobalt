@@ -64,10 +64,6 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
     if (result != OK)
       return false;
 
-    // TODO(eroman): Is this check really needed? Can I remove it?
-    if (!address_list.head())
-      return false;
-
     // There may be multiple results; we will just use the first one.
     // This returns empty string on failure.
     *first_ip_address = net::NetAddressToString(address_list.head());
