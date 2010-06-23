@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -9,6 +9,7 @@
 #include "base/file_path.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "base/scoped_ptr.h"
 
 // Enable timing code by turning on TESTING macro.
 //#define TESTING 1
@@ -64,8 +65,17 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
     media::FILE_LIBAVUTIL
   };
   HMODULE libs[arraysize(path_keys)] = {NULL};
+
+  // Limit the DLL search path so we don't load dependencies from the system
+  // path.  Refer to http://crbug.com/35857
+  scoped_array<wchar_t> previous_dll_directory(new wchar_t[MAX_PATH]);
+  if (!GetDllDirectory(MAX_PATH, previous_dll_directory.get())) {
+    previous_dll_directory.reset();
+  }
+  SetDllDirectory(base_path.value().c_str());
+
   for (size_t i = 0; i < arraysize(path_keys); ++i) {
-    FilePath path = base_path.Append(GetDLLName(path_keys[i]));
+    FilePath path(GetDLLName(path_keys[i]));
 #ifdef TESTING
     double dll_loadtime_start = GetTime();
 #endif
@@ -81,6 +91,8 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
     OutputDebugStringW(outputbuf.c_str());
 #endif
   }
+
+  SetDllDirectory(previous_dll_directory.get());
 
   // Check that we loaded all libraries successfully.  We only need to check the
   // last array element because the loop above will break without initializing
