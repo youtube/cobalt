@@ -6,7 +6,9 @@
 
 #include "base/logging.h"
 #include "base/string_util.h"
+#include "base/utf_string_conversions.h"
 #include "googleurl/src/gurl.h"
+#include "googleurl/src/url_canon.h"
 #include "net/base/host_cache.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
@@ -109,13 +111,30 @@ bool GetHostnameArgument(const v8::Arguments& args, std::string* hostname) {
 
   const string16 hostname_utf16 = V8StringToUTF16(args[0]->ToString());
 
-  // TODO(eroman): Convert international domain names to punycode. Right
-  //               now we fail if the hostname isn't entered in ASCII.
-  //               crbug.com/47234
-  if (!IsStringASCII(hostname_utf16))
+  // If the hostname is already in ASCII, simply return it as is.
+  if (IsStringASCII(hostname_utf16)) {
+    *hostname = UTF16ToASCII(hostname_utf16);
+    return true;
+  }
+
+  // Otherwise try to convert it from IDN to punycode.
+  const int kInitialBufferSize = 256;
+  url_canon::RawCanonOutputT<char16, kInitialBufferSize> punycode_output;
+  if (!url_canon::IDNToASCII(hostname_utf16.data(),
+                             hostname_utf16.length(),
+                             &punycode_output)) {
     return false;
-  *hostname = UTF16ToASCII(hostname_utf16);
-  return true;
+  }
+
+  // |punycode_output| should now be ASCII; convert it to a std::string.
+  // (We could use UTF16ToASCII() instead, but that requires an extra string
+  // copy. Since ASCII is a subset of UTF8 the following is equivalent).
+  bool success = UTF16ToUTF8(punycode_output.data(),
+                             punycode_output.length(),
+                             hostname);
+  DCHECK(success);
+  DCHECK(IsStringASCII(*hostname));
+  return success;
 }
 
 }  // namespace
