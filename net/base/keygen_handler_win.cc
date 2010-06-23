@@ -16,6 +16,7 @@
 
 #include "base/base64.h"
 #include "base/basictypes.h"
+#include "base/crypto/capi_util.h"
 #include "base/logging.h"
 #include "base/string_piece.h"
 #include "base/string_util.h"
@@ -250,8 +251,9 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
 
     // Only create new key containers, so that existing key containers are not
     // overwritten.
-    ok = CryptAcquireContext(&prov, new_key_id.c_str(), NULL, PROV_RSA_FULL,
-                             CRYPT_SILENT | CRYPT_NEWKEYSET);
+    ok = base::CryptAcquireContextLocked(&prov, new_key_id.c_str(), NULL,
+                                         PROV_RSA_FULL,
+                                         CRYPT_SILENT | CRYPT_NEWKEYSET);
 
     if (ok || GetLastError() != NTE_BAD_KEYSET)
       break;
@@ -301,8 +303,9 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     prov = NULL;
     if (!stores_key_) {
       // Fully destroys any of the keys that were created and releases prov.
-      CryptAcquireContext(&prov, new_key_id.c_str(), NULL, PROV_RSA_FULL,
-                          CRYPT_SILENT | CRYPT_DELETEKEYSET);
+      base::CryptAcquireContextLocked(&prov, new_key_id.c_str(), NULL,
+                                      PROV_RSA_FULL,
+                                      CRYPT_SILENT | CRYPT_DELETEKEYSET);
     }
   }
 
