@@ -16,15 +16,12 @@ class BoundNetLog;
 struct ProxyResolverRequestContext {
   // All of these pointers are expected to remain valid for duration of
   // this instance's lifetime.
-  ProxyResolverRequestContext(const GURL* query_url,
-                              const BoundNetLog* net_log,
+  ProxyResolverRequestContext(const BoundNetLog* net_log,
                               HostCache* host_cache)
-    : query_url(query_url),
-      net_log(net_log),
+    : net_log(net_log),
       host_cache(host_cache) {
   }
 
-  const GURL* query_url;
   const BoundNetLog* net_log;
   HostCache* host_cache;
 };
