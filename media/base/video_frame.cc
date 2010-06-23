@@ -118,7 +118,7 @@ void VideoFrame::CreateBlackFrame(int width, int height,
 }
 
 // static
-void VideoFrame::CreatePrivateFrame(VideoFrame::BufferType type,
+void VideoFrame::CreatePrivateFrame(VideoFrame::SurfaceType type,
                                     VideoFrame::Format format,
                                     size_t width,
                                     size_t height,
@@ -194,7 +194,7 @@ bool VideoFrame::AllocateYUV() {
   return false;
 }
 
-VideoFrame::VideoFrame(VideoFrame::BufferType type,
+VideoFrame::VideoFrame(VideoFrame::SurfaceType type,
                        VideoFrame::Format format,
                        size_t width,
                        size_t height) {
