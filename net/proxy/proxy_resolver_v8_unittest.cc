@@ -548,5 +548,29 @@ TEST(ProxyResolverV8Test, DNSResolutionFailure) {
   EXPECT_EQ("success:80", proxy_info.proxy_server().ToURI());
 }
 
+TEST(ProxyResolverV8Test, DNSResolutionOfInternationDomainName) {
+  ProxyResolverV8WithMockBindings resolver;
+  int result = resolver.SetPacScriptFromDisk("international_domain_names.js");
+  EXPECT_EQ(OK, result);
+
+  // Execute FindProxyForURL().
+  ProxyInfo proxy_info;
+  result = resolver.GetProxyForURL(kQueryUrl, &proxy_info, NULL, NULL,
+                                   BoundNetLog());
+
+  EXPECT_EQ(OK, result);
+  EXPECT_TRUE(proxy_info.is_direct());
+
+  // Check that the international domain name was converted to punycode
+  // before passing it onto the bindings layer.
+  MockJSBindings* bindings = resolver.mock_js_bindings();
+
+  ASSERT_EQ(1u, bindings->dns_resolves.size());
+  EXPECT_EQ("xn--bcher-kva.ch", bindings->dns_resolves[0]);
+
+  ASSERT_EQ(1u, bindings->dns_resolves_ex.size());
+  EXPECT_EQ("xn--bcher-kva.ch", bindings->dns_resolves_ex[0]);
+}
+
 }  // namespace
 }  // namespace net
