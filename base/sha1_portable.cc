@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,8 +10,6 @@ namespace base {
 
 // Implementation of SHA-1. Only handles data in byte-sized blocks,
 // which simplifies the code a fair bit.
-
-// This file also contains an HMAC implementation using SHA-1
 
 // Identifier names follow notation in FIPS PUB 180-3, where you'll
 // also find a description of the algorithm:
@@ -28,7 +26,8 @@ namespace base {
 // to reuse the instance of sha, call sha.Init();
 
 // TODO(jhawkins): Replace this implementation with a per-platform
-// implementation using each platform's crypto library.
+// implementation using each platform's crypto library.  See
+// http://crbug.com/47218
 
 class SecureHashAlgorithm {
  public:
@@ -90,11 +89,11 @@ static inline uint32 K(uint32 t) {
   }
 }
 
-static inline void swapends(uint32& t) {
-  t = ((t & 0xff000000) >> 24) |
-      ((t & 0xff0000) >> 8) |
-      ((t & 0xff00) << 8) |
-      ((t & 0xff) << 24);
+static inline void swapends(uint32* t) {
+  *t = ((*t & 0xff000000) >> 24) |
+       ((*t & 0xff0000) >> 8) |
+       ((*t & 0xff00) << 8) |
+       ((*t & 0xff) << 24);
 }
 
 const int SecureHashAlgorithm::kDigestSizeBytes = 20;
@@ -114,7 +113,7 @@ void SecureHashAlgorithm::Final() {
   Process();
 
   for (int t = 0; t < 5; ++t)
-    swapends(H[t]);
+    swapends(&H[t]);
 }
 
 void SecureHashAlgorithm::Update(const void* data, size_t nbytes) {
@@ -157,7 +156,7 @@ void SecureHashAlgorithm::Process() {
   // W and M are in a union, so no need to memcpy.
   // memcpy(W, M, sizeof(M));
   for (t = 0; t < 16; ++t)
-    swapends(W[t]);
+    swapends(&W[t]);
 
   // b.
   for (t = 16; t < 80; ++t)
