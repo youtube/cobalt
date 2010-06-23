@@ -78,10 +78,6 @@ class HttpAuth {
   // (either Authorization or Proxy-Authorization).
   static std::string GetAuthorizationHeaderName(Target target);
 
-  // Returns a string representation of a Target value that can be used in log
-  // messages.
-  static std::string GetAuthTargetString(Target target);
-
   // Iterate through the challenge headers, and pick the best one that
   // we support. Obtains the implementation class for handling the challenge,
   // and passes it back in |*handler|. If the existing handler in |*handler|
