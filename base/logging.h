@@ -99,7 +99,7 @@
 // no error dialog for severity ERROR or below in normal mode.
 //
 // There is also the special severity of DFATAL, which logs FATAL in
-// debug mode, ERROR_REPORT in normal mode.
+// debug mode, ERROR in normal mode.
 
 namespace logging {
 
@@ -194,9 +194,9 @@ const LogSeverity LOG_ERROR_REPORT = 3;
 const LogSeverity LOG_FATAL = 4;
 const LogSeverity LOG_NUM_SEVERITIES = 5;
 
-// LOG_DFATAL_LEVEL is LOG_FATAL in debug mode, ERROR_REPORT in normal mode
+// LOG_DFATAL_LEVEL is LOG_FATAL in debug mode, ERROR in normal mode
 #ifdef NDEBUG
-const LogSeverity LOG_DFATAL_LEVEL = LOG_ERROR_REPORT;
+const LogSeverity LOG_DFATAL_LEVEL = LOG_ERROR;
 #else
 const LogSeverity LOG_DFATAL_LEVEL = LOG_FATAL;
 #endif
