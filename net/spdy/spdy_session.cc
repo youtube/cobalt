@@ -300,7 +300,8 @@ SpdySession::~SpdySession() {
   net_log_.EndEvent(NetLog::TYPE_SPDY_SESSION, NULL);
 }
 
-void SpdySession::InitializeWithSSLSocket(ClientSocketHandle* connection) {
+net::Error SpdySession::InitializeWithSSLSocket(
+    ClientSocketHandle* connection) {
   static StatsCounter spdy_sessions("spdy.sessions");
   spdy_sessions.Increment();
 
@@ -313,7 +314,10 @@ void SpdySession::InitializeWithSSLSocket(ClientSocketHandle* connection) {
   // This is a newly initialized session that no client should have a handle to
   // yet, so there's no need to start writing data as in OnTCPConnect(), but we
   // should start reading data.
-  ReadSocket();
+  net::Error error = ReadSocket();
+  if (error == ERR_IO_PENDING)
+    return OK;
+  return error;
 }
 
 net::Error SpdySession::Connect(const std::string& group_name,
@@ -347,6 +351,7 @@ scoped_refptr<SpdyHttpStream> SpdySession::GetOrCreateStream(
     const HttpRequestInfo& request,
     const UploadDataStream* upload_data,
     const BoundNetLog& stream_net_log) {
+  CHECK_NE(state_, CLOSED);
   const GURL& url = request.url;
   const std::string& path = url.PathForRequest();
 
@@ -666,13 +671,13 @@ void SpdySession::OnWriteComplete(int result) {
   }
 }
 
-void SpdySession::ReadSocket() {
+net::Error SpdySession::ReadSocket() {
   if (read_pending_)
-    return;
+    return OK;
 
   if (state_ == CLOSED) {
     NOTREACHED();
-    return;
+    return ERR_UNEXPECTED;
   }
 
   CHECK(connection_.get());
@@ -684,11 +689,11 @@ void SpdySession::ReadSocket() {
     case 0:
       // Socket is closed!
       CloseSessionOnError(ERR_CONNECTION_CLOSED);
-      return;
+      return ERR_CONNECTION_CLOSED;
     case net::ERR_IO_PENDING:
       // Waiting for data.  Nothing to do now.
       read_pending_ = true;
-      return;
+      return ERR_IO_PENDING;
     default:
       // Data was read, process it.
       // Schedule the work through the message loop to avoid recursive
@@ -698,6 +703,7 @@ void SpdySession::ReadSocket() {
           this, &SpdySession::OnReadComplete, bytes_read));
       break;
   }
+  return OK;
 }
 
 void SpdySession::WriteSocketLater() {

@@ -6042,4 +6042,53 @@ TEST_F(HttpNetworkTransactionTest, NpnWithHttpOverSSL) {
   HttpNetworkTransaction::SetNextProtos("");
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
+
+TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
+  // Simulate the SSL handshake completing with an NPN negotiation
+  // followed by an immediate server closing of the socket.
+  // Fix crash:  http://crbug.com/46369
+  HttpNetworkTransaction::SetUseAlternateProtocols(true);
+  HttpNetworkTransaction::SetNextProtos(
+      "\x08http/1.1\x07http1.1\x06spdy/1\x04spdy");
+  SessionDependencies session_deps;
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("https://www.google.com/");
+  request.load_flags = 0;
+
+  SSLSocketDataProvider ssl(true, OK);
+  ssl.next_proto_status = SSLClientSocket::kNextProtoNegotiated;
+  ssl.next_proto = "spdy/1";
+  ssl.was_npn_negotiated = true;
+  session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
+
+  MockWrite spdy_writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  MockRead spdy_reads[] = {
+    MockRead(false, 0, 0)   // Not async - return 0 immediately.
+  };
+
+  scoped_refptr<DelayedSocketData> spdy_data(
+      new DelayedSocketData(
+          0,  // don't wait in this case, immediate hangup.
+          spdy_reads, arraysize(spdy_reads),
+          spdy_writes, arraysize(spdy_writes)));
+  session_deps.socket_factory.AddSocketDataProvider(spdy_data);
+
+  TestCompletionCallback callback;
+
+  scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
+  scoped_ptr<HttpNetworkTransaction> trans(new HttpNetworkTransaction(session));
+
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(ERR_CONNECTION_CLOSED, callback.WaitForResult());
+
+  HttpNetworkTransaction::SetNextProtos("");
+  HttpNetworkTransaction::SetUseAlternateProtocols(false);
+}
 }  // namespace net

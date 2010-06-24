@@ -71,7 +71,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
       const BoundNetLog& stream_net_log);
 
   // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
-  void InitializeWithSSLSocket(ClientSocketHandle* connection);
+  // Returns OK on success, or an error on failure.
+  net::Error InitializeWithSSLSocket(ClientSocketHandle* connection);
 
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
@@ -141,7 +142,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
   void SendSettings();
 
   // Start reading from the socket.
-  void ReadSocket();
+  // Returns OK on success, or an error on failure.
+  net::Error ReadSocket();
 
   // Write current data to the socket.
   void WriteSocketLater();
