@@ -9,8 +9,10 @@
 
 #include "base/basictypes.h"
 #include "base/ref_counted.h"
+#include "base/task.h"
 #include "net/base/completion_callback.h"
 #include "net/base/net_log.h"
+#include "net/http/http_request_info.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_stream.h"
 
@@ -23,21 +25,29 @@ class UploadData;
 class UploadDataStream;
 
 // The SpdyHttpStream is a HTTP-specific type of stream known to a SpdySession.
-class SpdyHttpStream : public SpdyStream {
+class SpdyHttpStream : public SpdyStream::Delegate {
  public:
   // SpdyHttpStream constructor
-  SpdyHttpStream(
-      SpdySession* session, spdy::SpdyStreamId stream_id, bool pushed);
+  explicit SpdyHttpStream(const scoped_refptr<SpdyStream>& stream);
+  virtual ~SpdyHttpStream();
+
+  SpdyStream* stream() { return stream_.get(); }
+
+  // Initialize request.  Must be called before calling SendRequest().
+  // SpdyHttpStream takes ownership of |upload_data|. |upload_data| may be NULL.
+  void InitializeRequest(const HttpRequestInfo& request_info,
+                         base::Time request_time,
+                         UploadDataStream* upload_data);
+
+  const HttpResponseInfo* GetResponseInfo() const;
 
   // ===================================================
   // Interface for [Http|Spdy]NetworkTransaction to use.
 
-  // Sends the request.  If |upload_data| is non-NULL, sends that in the request
-  // body.  |callback| is used when this completes asynchronously.  Note that
-  // the actual SYN_STREAM packet will have already been sent by this point.
-  // Also note that SpdyStream takes ownership of |upload_data|.
-  int SendRequest(UploadDataStream* upload_data,
-                  HttpResponseInfo* response,
+  // Sends the request.
+  // |callback| is used when this completes asynchronously.
+  // The actual SYN_STREAM packet will be sent if the stream is non-pushed.
+  int SendRequest(HttpResponseInfo* response,
                   CompletionCallback* callback);
 
   // Reads the response headers.  Returns a net error code.
@@ -55,24 +65,25 @@ class SpdyHttpStream : public SpdyStream {
   uint64 GetUploadProgress() const;
 
   // ===================================================
-  // Interface for SpdySession to use.
+  // SpdyStream::Delegate.
+
+  virtual bool OnSendHeadersComplete(int status);
+  virtual int OnSendBody();
+  virtual bool OnSendBodyComplete(int status);
 
   // Called by the SpdySession when a response (e.g. a SYN_REPLY) has been
   // received for this stream.
   // SpdyHttpSession calls back |callback| set by SendRequest or
   // ReadResponseHeaders.
-  virtual int OnResponseReceived(const HttpResponseInfo& response);
+  virtual int OnResponseReceived(const spdy::SpdyHeaderBlock& response,
+                                 base::Time response_time,
+                                 int status);
 
   // Called by the SpdySession when response data has been received for this
   // stream.  This callback may be called multiple times as data arrives
   // from the network, and will never be called prior to OnResponseReceived.
   // SpdyHttpSession schedule to call back |callback| set by ReadResponseBody.
-  virtual bool OnDataReceived(const char* buffer, int bytes);
-
-  // Called by the SpdySession when a write has completed.  This callback
-  // will be called multiple times for each write which completes.  Writes
-  // include the SYN_STREAM write and also DATA frame writes.
-  virtual void OnWriteComplete(int status);
+  virtual void OnDataReceived(const char* buffer, int bytes);
 
   // Called by the SpdySession when the request is finished.  This callback
   // will always be called at the end of the request and signals to the
@@ -83,15 +94,29 @@ class SpdyHttpStream : public SpdyStream {
   virtual void OnClose(int status);
 
  private:
-  friend class base::RefCounted<SpdyHttpStream>;
-  virtual ~SpdyHttpStream();
-
   // Call the user callback.
   void DoCallback(int rv);
 
   void ScheduleBufferedReadCallback();
-  void DoBufferedReadCallback();
+
+  // Returns true if the callback is invoked.
+  bool DoBufferedReadCallback();
   bool ShouldWaitForMoreBufferedData() const;
+
+  ScopedRunnableMethodFactory<SpdyHttpStream> read_callback_factory_;
+  const scoped_refptr<SpdyStream> stream_;
+
+  // The request to send.
+  HttpRequestInfo request_info_;
+
+  scoped_ptr<UploadDataStream> request_body_stream_;
+
+  // |response_info_| is the HTTP response data object which is filled in
+  // when a SYN_REPLY comes in for the stream.
+  // It is not owned by this stream object, or point to |push_response_info_|.
+  HttpResponseInfo* response_info_;
+
+  scoped_ptr<HttpResponseInfo> push_response_info_;
 
   bool download_finished_;
 

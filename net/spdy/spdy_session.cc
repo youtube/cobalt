@@ -19,14 +19,10 @@
 #include "net/base/net_log.h"
 #include "net/base/net_util.h"
 #include "net/http/http_network_session.h"
-#include "net/http/http_request_info.h"
-#include "net/http/http_response_headers.h"
-#include "net/http/http_response_info.h"
 #include "net/socket/client_socket.h"
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/ssl_client_socket.h"
 #include "net/spdy/spdy_frame_builder.h"
-#include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_settings_storage.h"
 #include "net/spdy/spdy_stream.h"
@@ -65,112 +61,6 @@ const int kReadBufferSize = 2 * 1024;
 #else
 const int kReadBufferSize = 8 * 1024;
 #endif
-
-// Convert a SpdyHeaderBlock into an HttpResponseInfo.
-// |headers| input parameter with the SpdyHeaderBlock.
-// |info| output parameter for the HttpResponseInfo.
-// Returns true if successfully converted.  False if there was a failure
-// or if the SpdyHeaderBlock was invalid.
-bool SpdyHeadersToHttpResponse(const spdy::SpdyHeaderBlock& headers,
-                               HttpResponseInfo* response) {
-  std::string version;
-  std::string status;
-
-  // The "status" and "version" headers are required.
-  spdy::SpdyHeaderBlock::const_iterator it;
-  it = headers.find("status");
-  if (it == headers.end()) {
-    LOG(ERROR) << "SpdyHeaderBlock without status header.";
-    return false;
-  }
-  status = it->second;
-
-  // Grab the version.  If not provided by the server,
-  it = headers.find("version");
-  if (it == headers.end()) {
-    LOG(ERROR) << "SpdyHeaderBlock without version header.";
-    return false;
-  }
-  version = it->second;
-
-  response->response_time = base::Time::Now();
-
-  std::string raw_headers(version);
-  raw_headers.push_back(' ');
-  raw_headers.append(status);
-  raw_headers.push_back('\0');
-  for (it = headers.begin(); it != headers.end(); ++it) {
-    // For each value, if the server sends a NUL-separated
-    // list of values, we separate that back out into
-    // individual headers for each value in the list.
-    // e.g.
-    //    Set-Cookie "foo\0bar"
-    // becomes
-    //    Set-Cookie: foo\0
-    //    Set-Cookie: bar\0
-    std::string value = it->second;
-    size_t start = 0;
-    size_t end = 0;
-    do {
-      end = value.find('\0', start);
-      std::string tval;
-      if (end != value.npos)
-        tval = value.substr(start, (end - start));
-      else
-        tval = value.substr(start);
-      raw_headers.append(it->first);
-      raw_headers.push_back(':');
-      raw_headers.append(tval);
-      raw_headers.push_back('\0');
-      start = end + 1;
-    } while (end != value.npos);
-  }
-
-  response->headers = new HttpResponseHeaders(raw_headers);
-  response->was_fetched_via_spdy = true;
-  return true;
-}
-
-// Create a SpdyHeaderBlock for a Spdy SYN_STREAM Frame from
-// a HttpRequestInfo block.
-void CreateSpdyHeadersFromHttpRequest(
-    const HttpRequestInfo& info, spdy::SpdyHeaderBlock* headers) {
-  // TODO(willchan): It's not really necessary to convert from
-  // HttpRequestHeaders to spdy::SpdyHeaderBlock.
-
-  static const char kHttpProtocolVersion[] = "HTTP/1.1";
-
-  HttpRequestHeaders::Iterator it(info.extra_headers);
-
-  while (it.GetNext()) {
-    std::string name = StringToLowerASCII(it.name());
-    if (headers->find(name) == headers->end()) {
-      (*headers)[name] = it.value();
-    } else {
-      std::string new_value = (*headers)[name];
-      new_value.append(1, '\0');  // +=() doesn't append 0's
-      new_value += it.value();
-      (*headers)[name] = new_value;
-    }
-  }
-
-  // TODO(mbelshe): Add Proxy headers here. (See http_network_transaction.cc)
-  // TODO(mbelshe): Add authentication headers here.
-
-  (*headers)["method"] = info.method;
-  (*headers)["url"] = info.url.spec();
-  (*headers)["version"] = kHttpProtocolVersion;
-  if (!info.referrer.is_empty())
-    (*headers)["referer"] = info.referrer.spec();
-
-  // Honor load flags that impact proxy caches.
-  if (info.load_flags & LOAD_BYPASS_CACHE) {
-    (*headers)["pragma"] = "no-cache";
-    (*headers)["cache-control"] = "no-cache";
-  } else if (info.load_flags & LOAD_VALIDATE_CACHE) {
-    (*headers)["cache-control"] = "max-age=0";
-  }
-}
 
 void AdjustSocketBufferSizes(ClientSocket* socket) {
   // Adjust socket buffer sizes.
@@ -347,43 +237,21 @@ net::Error SpdySession::Connect(const std::string& group_name,
   return static_cast<net::Error>(rv);
 }
 
-scoped_refptr<SpdyHttpStream> SpdySession::GetOrCreateStream(
-    const HttpRequestInfo& request,
-    const UploadDataStream* upload_data,
+scoped_refptr<SpdyStream> SpdySession::GetPushStream(
+    const GURL& url,
     const BoundNetLog& stream_net_log) {
   CHECK_NE(state_, CLOSED);
-  const GURL& url = request.url;
   const std::string& path = url.PathForRequest();
 
-  scoped_refptr<SpdyHttpStream> stream;
-
-  // Check if we have a push stream for this path.
-  if (request.method == "GET") {
-    // Only HTTP will push a stream.
-    scoped_refptr<SpdyHttpStream> stream = GetPushStream(path);
-    if (stream) {
-      DCHECK(streams_pushed_and_claimed_count_ < streams_pushed_count_);
-      // Update the request time
-      stream->SetRequestTime(base::Time::Now());
-      // Change the request info, updating the response's request time too
-      stream->SetRequestInfo(request);
-      const HttpResponseInfo* response = stream->GetResponseInfo();
-      if (response && response->headers->HasHeader("vary")) {
-        // TODO(ahendrickson) -- What is the right thing to do if the server
-        // pushes data with a vary field?
-        void* iter = NULL;
-        std::string value;
-        response->headers->EnumerateHeader(&iter, "vary", &value);
-        LOG(ERROR) << "SpdyStream: "
-                   << "Received pushed stream ID " << stream->stream_id()
-                   << "with vary field value '" << value << "'";
-      }
-      streams_pushed_and_claimed_count_++;
-      return stream;
-    }
+  scoped_refptr<SpdyStream> stream = GetActivePushStream(path);
+  if (stream) {
+    DCHECK(streams_pushed_and_claimed_count_ < streams_pushed_count_);
+    streams_pushed_and_claimed_count_++;
+    return stream;
   }
 
   // Check if we have a pending push stream for this url.
+  // Note that we shouldn't have a pushed stream for non-GET method.
   PendingStreamMap::iterator it;
   it = pending_streams_.find(path);
   if (it != pending_streams_.end()) {
@@ -392,63 +260,73 @@ scoped_refptr<SpdyHttpStream> SpdySession::GetOrCreateStream(
     // Server will assign a stream id when the push stream arrives.  Use 0 for
     // now.
     net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM, NULL);
-    stream = new SpdyHttpStream(this, 0, true);
-    stream->SetRequestInfo(request);
+    stream = new SpdyStream(this, 0, true);
     stream->set_path(path);
     stream->set_net_log(stream_net_log);
     it->second = stream;
     return stream;
   }
+  return NULL;
+}
+
+const scoped_refptr<SpdyStream>& SpdySession::CreateStream(
+    const GURL& url,
+    RequestPriority priority,
+    const BoundNetLog& stream_net_log) {
+  const std::string& path = url.PathForRequest();
 
   const spdy::SpdyStreamId stream_id = GetNewStreamId();
 
-  // If we still don't have a stream, activate one now.
-  stream = new SpdyHttpStream(this, stream_id, false);
-  stream->SetRequestInfo(request);
-  stream->set_priority(request.priority);
+  scoped_refptr<SpdyStream> stream(new SpdyStream(this, stream_id, false));
+
+  stream->set_priority(priority);
   stream->set_path(path);
   stream->set_net_log(stream_net_log);
   ActivateStream(stream);
 
   UMA_HISTOGRAM_CUSTOM_COUNTS("Net.SpdyPriorityCount",
-      static_cast<int>(request.priority), 0, 10, 11);
+      static_cast<int>(priority), 0, 10, 11);
 
   LOG(INFO) << "SpdyStream: Creating stream " << stream_id << " for " << url;
-
   // TODO(mbelshe): Optimize memory allocations
-  DCHECK(request.priority >= SPDY_PRIORITY_HIGHEST &&
-         request.priority <= SPDY_PRIORITY_LOWEST);
+  DCHECK(priority >= SPDY_PRIORITY_HIGHEST &&
+         priority <= SPDY_PRIORITY_LOWEST);
 
-  // Convert from HttpRequestHeaders to Spdy Headers.
-  linked_ptr<spdy::SpdyHeaderBlock> headers(new spdy::SpdyHeaderBlock);
-  CreateSpdyHeadersFromHttpRequest(request, headers.get());
+  DCHECK_EQ(active_streams_[stream_id].get(), stream.get());
+  return active_streams_[stream_id];
+}
 
-  spdy::SpdyControlFlags flags = spdy::CONTROL_FLAG_NONE;
-  if (!request.upload_data || !upload_data->size())
-    flags = spdy::CONTROL_FLAG_FIN;
+int SpdySession::WriteSynStream(
+    spdy::SpdyStreamId stream_id,
+    RequestPriority priority,
+    spdy::SpdyControlFlags flags,
+    const linked_ptr<spdy::SpdyHeaderBlock>& headers) {
+  // Find our stream
+  if (!IsStreamActive(stream_id))
+    return ERR_INVALID_SPDY_STREAM;
+  const scoped_refptr<SpdyStream>& stream = active_streams_[stream_id];
+  CHECK_EQ(stream->stream_id(), stream_id);
 
-  // Create a SYN_STREAM packet and add to the output queue.
   scoped_ptr<spdy::SpdySynStreamControlFrame> syn_frame(
-      spdy_framer_.CreateSynStream(stream_id, 0, request.priority, flags, false,
+      spdy_framer_.CreateSynStream(stream_id, 0, priority, flags, false,
                                    headers.get()));
-  QueueFrame(syn_frame.get(), request.priority, stream);
+  QueueFrame(syn_frame.get(), priority, stream);
 
   static StatsCounter spdy_requests("spdy.requests");
   spdy_requests.Increment();
-
-  LOG(INFO) << "FETCHING: " << request.url.spec();
   streams_initiated_count_++;
 
   LOG(INFO) << "SPDY SYN_STREAM HEADERS ----------------------------------";
   DumpSpdyHeaders(*headers);
 
-  if (stream_net_log.HasListener()) {
-    stream_net_log.AddEvent(
+  const BoundNetLog& log = stream->net_log();
+  if (log.HasListener()) {
+    log.AddEvent(
         NetLog::TYPE_SPDY_STREAM_SYN_STREAM,
         new NetLogSpdySynParameter(headers, flags, stream_id));
   }
 
-  return stream;
+  return ERR_IO_PENDING;
 }
 
 int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
@@ -637,7 +515,6 @@ void SpdySession::OnWriteComplete(int result) {
 
     // We only notify the stream when we've fully written the pending frame.
     if (!in_flight_write_.buffer()->BytesRemaining()) {
-      scoped_refptr<SpdyStream> stream = in_flight_write_.stream();
       if (stream) {
         // Report the number of bytes written to the caller, but exclude the
         // frame size overhead.  NOTE: if this frame was compressed the
@@ -875,7 +752,7 @@ void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
   // Remove the stream from pushed_streams_ and active_streams_.
   ActivePushedStreamList::iterator it;
   for (it = pushed_streams_.begin(); it != pushed_streams_.end(); ++it) {
-    scoped_refptr<SpdyHttpStream> curr = *it;
+    scoped_refptr<SpdyStream> curr = *it;
     if (id == curr->stream_id()) {
       pushed_streams_.erase(it);
       break;
@@ -901,13 +778,13 @@ void SpdySession::RemoveFromPool() {
   }
 }
 
-scoped_refptr<SpdyHttpStream> SpdySession::GetPushStream(
+scoped_refptr<SpdyStream> SpdySession::GetActivePushStream(
     const std::string& path) {
   static StatsCounter used_push_streams("spdy.claimed_push_streams");
 
   LOG(INFO) << "Looking for push stream: " << path;
 
-  scoped_refptr<SpdyHttpStream> stream;
+  scoped_refptr<SpdyStream> stream;
 
   // We just walk a linear list here.
   ActivePushedStreamList::iterator it;
@@ -925,12 +802,15 @@ scoped_refptr<SpdyHttpStream> SpdySession::GetPushStream(
   return NULL;
 }
 
-void SpdySession::GetSSLInfo(SSLInfo* ssl_info) {
+bool SpdySession::GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated) {
   if (is_secure_) {
     SSLClientSocket* ssl_socket =
         reinterpret_cast<SSLClientSocket*>(connection_->socket());
     ssl_socket->GetSSLInfo(ssl_info);
+    *was_npn_negotiated = ssl_socket->wasNpnNegotiated();
+    return true;
   }
+  return false;
 }
 
 void SpdySession::OnError(spdy::SpdyFramer* framer) {
@@ -955,29 +835,9 @@ void SpdySession::OnStreamFrameData(spdy::SpdyStreamId stream_id,
 
 bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
                           const scoped_refptr<SpdyStream> stream) {
-  // TODO(mbelshe): For now we convert from our nice hash map back
-  // to a string of headers; this is because the HttpResponseInfo
-  // is a bit rigid for its http (non-spdy) design.
-  HttpResponseInfo response;
-  // TODO(ahendrickson): This is recorded after the entire SYN_STREAM control
-  // frame has been received and processed.  Move to framer?
-  response.response_time = base::Time::Now();
   int rv = OK;
 
-  if (SpdyHeadersToHttpResponse(headers, &response)) {
-    GetSSLInfo(&response.ssl_info);
-    response.request_time = stream->GetRequestTime();
-    response.vary_data.Init(*stream->GetRequestInfo(), *response.headers);
-    if (is_secure_) {
-      SSLClientSocket* ssl_socket =
-          reinterpret_cast<SSLClientSocket*>(connection_->socket());
-      response.was_npn_negotiated = ssl_socket->wasNpnNegotiated();
-    }
-    rv = stream->OnResponseReceived(response);
-  } else {
-    rv = ERR_INVALID_RESPONSE;
-  }
-
+  rv = stream->OnResponseReceived(headers);
   if (rv < 0) {
     DCHECK_NE(rv, ERR_IO_PENDING);
     const spdy::SpdyStreamId stream_id = stream->stream_id();
@@ -1024,7 +884,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
   }
 
   // Only HTTP push a stream.
-  scoped_refptr<SpdyHttpStream> stream;
+  scoped_refptr<SpdyStream> stream;
 
   // Check if we already have a delegate awaiting this stream.
   PendingStreamMap::iterator it;
@@ -1047,7 +907,7 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
               stream_id));
     }
   } else {
-    stream = new SpdyHttpStream(this, stream_id, true);
+    stream = new SpdyStream(this, stream_id, true);
 
     if (net_log_.HasListener()) {
       net_log_.AddEvent(
@@ -1056,15 +916,6 @@ void SpdySession::OnSyn(const spdy::SpdySynStreamControlFrame& frame,
               headers, static_cast<spdy::SpdyControlFlags>(frame.flags()),
               stream_id));
     }
-
-    // A new HttpResponseInfo object needs to be generated so the call to
-    // OnResponseReceived below has something to fill in.
-    // When a SpdyNetworkTransaction is created for this resource, the
-    // response_info is copied over and this version is destroyed.
-    //
-    // TODO(cbentzel): Minimize allocations and copies of HttpResponseInfo
-    // object. Should it just be part of SpdyStream?
-    stream->SetPushResponse(new HttpResponseInfo());
   }
 
   pushed_streams_.push_back(stream);
