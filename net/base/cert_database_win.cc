@@ -8,73 +8,10 @@
 #include <wincrypt.h>
 #pragma comment(lib, "crypt32.lib")
 
-#include "base/logging.h"
-#include "base/string_util.h"
-#include "net/base/keygen_handler.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
 
 namespace net {
-
-namespace {
-
-// Returns an encoded version of SubjectPublicKeyInfo from |cert| that is
-// compatible with KeygenHandler::Cache. If the cert cannot be converted, an
-// empty string is returned.
-std::string GetSubjectPublicKeyInfo(const X509Certificate* cert) {
-  DCHECK(cert);
-
-  std::string result;
-  if (!cert->os_cert_handle() || !cert->os_cert_handle()->pCertInfo)
-    return result;
-
-  BOOL ok;
-  DWORD size = 0;
-  PCERT_PUBLIC_KEY_INFO key_info =
-      &(cert->os_cert_handle()->pCertInfo->SubjectPublicKeyInfo);
-  ok = CryptEncodeObject(X509_ASN_ENCODING, X509_PUBLIC_KEY_INFO, key_info,
-                         NULL, &size);
-  if (!ok)
-    return result;
-
-  ok = CryptEncodeObject(X509_ASN_ENCODING, X509_PUBLIC_KEY_INFO, key_info,
-                         reinterpret_cast<BYTE*>(WriteInto(&result, size + 1)),
-                         &size);
-  if (!ok) {
-    result.clear();
-    return result;
-  }
-
-  // Per MSDN, the resultant structure may be smaller than the original size
-  // supplied, so shrink to the actual size output.
-  result.resize(size);
-
-  return result;
-}
-
-// Returns true if |cert| was successfully modified to reference |location| to
-// obtain the associated private key.
-bool LinkCertToPrivateKey(X509Certificate* cert,
-                          KeygenHandler::KeyLocation location) {
-  DCHECK(cert);
-
-  CRYPT_KEY_PROV_INFO prov_info = { 0 };
-  prov_info.pwszContainerName =
-      const_cast<LPWSTR>(location.container_name.c_str());
-  prov_info.pwszProvName =
-      const_cast<LPWSTR>(location.provider_name.c_str());
-
-  // Implicit by it being from KeygenHandler, which only supports RSA keys.
-  prov_info.dwProvType = PROV_RSA_FULL;
-  prov_info.dwKeySpec = AT_KEYEXCHANGE;
-
-  BOOL ok = CertSetCertificateContextProperty(cert->os_cert_handle(),
-                                              CERT_KEY_PROV_INFO_PROP_ID, 0,
-                                              &prov_info);
-  return ok != FALSE;
-}
-
-}  // namespace
 
 CertDatabase::CertDatabase() {
 }
@@ -85,12 +22,9 @@ int CertDatabase::CheckUserCert(X509Certificate* cert) {
   if (cert->HasExpired())
     return ERR_CERT_DATE_INVALID;
 
-  std::string encoded_info = GetSubjectPublicKeyInfo(cert);
-  KeygenHandler::Cache* cache = KeygenHandler::Cache::GetInstance();
-  KeygenHandler::KeyLocation location;
-
-  if (encoded_info.empty() || !cache->Find(encoded_info, &location) ||
-      !LinkCertToPrivateKey(cert, location))
+  // TODO(rsleevi): Should CRYPT_FIND_SILENT_KEYSET_FLAG be specified? A UI
+  // may be shown here / this call may block.
+  if (!CryptFindCertificateKeyProvInfo(cert->os_cert_handle(), 0, NULL))
     return ERR_NO_PRIVATE_KEY_FOR_CERT;
 
   return OK;

@@ -24,31 +24,6 @@
 
 namespace net {
 
-bool EncodeAndAppendType(LPCSTR type, const void* to_encode,
-                         std::vector<BYTE>* output) {
-  BOOL ok;
-  DWORD size = 0;
-  ok = CryptEncodeObject(X509_ASN_ENCODING, type, to_encode, NULL, &size);
-  DCHECK(ok);
-  if (!ok)
-    return false;
-
-  std::vector<BYTE>::size_type old_size = output->size();
-  output->resize(old_size + size);
-
-  ok = CryptEncodeObject(X509_ASN_ENCODING, type, to_encode,
-                         &(*output)[old_size], &size);
-  DCHECK(ok);
-  if (!ok)
-    return false;
-
-  // Sometimes the initial call to CryptEncodeObject gave a generous estimate
-  // of the size, so shrink back to what was actually used.
-  output->resize(old_size + size);
-
-  return true;
-}
-
 // Assigns the contents of a CERT_PUBLIC_KEY_INFO structure for the signing
 // key in |prov| to |output|. Returns true if encoding was successful.
 bool GetSubjectPublicKeyInfo(HCRYPTPROV prov, std::vector<BYTE>* output) {
@@ -78,18 +53,6 @@ bool GetSubjectPublicKeyInfo(HCRYPTPROV prov, std::vector<BYTE>* output) {
   output->resize(size);
 
   return true;
-}
-
-// Appends a DER SubjectPublicKeyInfo structure for the signing key in |prov|
-// to |output|.
-// Returns true if encoding was successful.
-bool EncodeSubjectPublicKeyInfo(HCRYPTPROV prov, std::vector<BYTE>* output) {
-  std::vector<BYTE> public_key_info;
-  if (!GetSubjectPublicKeyInfo(prov, &public_key_info))
-    return false;
-
-  return EncodeAndAppendType(X509_PUBLIC_KEY_INFO, &public_key_info[0],
-                             output);
 }
 
 // Generates a DER encoded SignedPublicKeyAndChallenge structure from the
@@ -167,62 +130,6 @@ std::wstring GetNewKeyContainerId() {
   return result;
 }
 
-void StoreKeyLocationInCache(HCRYPTPROV prov) {
-  BOOL ok;
-  DWORD size = 0;
-
-  // Though it is known the container and provider name, as they are supplied
-  // during GenKeyAndSignChallenge, explicitly resolving them via
-  // CryptGetProvParam ensures that any defaults (such as provider name being
-  // NULL) or any CSP modifications to the container name are properly
-  // reflected.
-
-  // Find the container name. Though the MSDN documentation states it will
-  // return the exact same value as supplied when the provider was aquired, it
-  // also notes the return type will be CHAR, /not/ WCHAR.
-  ok = CryptGetProvParam(prov, PP_CONTAINER, NULL, &size, 0);
-  if (!ok)
-    return;
-
-  std::vector<BYTE> buffer(size);
-  ok = CryptGetProvParam(prov, PP_CONTAINER, &buffer[0], &size, 0);
-  if (!ok)
-    return;
-
-  KeygenHandler::KeyLocation key_location;
-  UTF8ToWide(reinterpret_cast<char*>(&buffer[0]), size,
-             &key_location.container_name);
-
-  // Get the provider name. This will always resolve, even if NULL (indicating
-  // the default provider) was supplied to the CryptAcquireContext.
-  size = 0;
-  ok = CryptGetProvParam(prov, PP_NAME, NULL, &size, 0);
-  if (!ok)
-    return;
-
-  buffer.resize(size);
-  ok = CryptGetProvParam(prov, PP_NAME, &buffer[0], &size, 0);
-  if (!ok)
-    return;
-
-  UTF8ToWide(reinterpret_cast<char*>(&buffer[0]), size,
-             &key_location.provider_name);
-
-  std::vector<BYTE> public_key_info;
-  if (!EncodeSubjectPublicKeyInfo(prov, &public_key_info))
-    return;
-
-  KeygenHandler::Cache* cache = KeygenHandler::Cache::GetInstance();
-  cache->Insert(std::string(public_key_info.begin(), public_key_info.end()),
-                key_location);
-}
-
-bool KeygenHandler::KeyLocation::Equals(
-    const KeygenHandler::KeyLocation& location) const {
-  return container_name == location.container_name &&
-         provider_name == location.provider_name;
-}
-
 std::string KeygenHandler::GenKeyAndSignChallenge() {
   std::string result;
 
@@ -282,8 +189,6 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     is_success = false;
     goto failure;
   }
-
-  StoreKeyLocationInCache(prov);
 
  failure:
   if (!is_success) {
