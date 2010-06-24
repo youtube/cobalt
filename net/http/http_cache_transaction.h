@@ -9,6 +9,7 @@
 #define NET_HTTP_HTTP_CACHE_TRANSACTION_H_
 
 #include "net/base/net_log.h"
+#include "base/time.h"
 #include "net/http/http_cache.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_transaction.h"
@@ -312,6 +313,7 @@ class HttpCache::Transaction : public HttpTransaction {
   ValidationHeaders external_validation_;
   base::WeakPtr<HttpCache> cache_;
   HttpCache::ActiveEntry* entry_;
+  base::TimeTicks entry_lock_waiting_since_;
   HttpCache::ActiveEntry* new_entry_;
   scoped_ptr<HttpTransaction> network_trans_;
   CompletionCallback* callback_;  // Consumer's callback.
