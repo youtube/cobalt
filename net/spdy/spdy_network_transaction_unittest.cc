@@ -19,6 +19,7 @@
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/socket/socket_test_util.h"
 #include "net/spdy/spdy_framer.h"
+#include "net/spdy/spdy_http_stream.h"
 #include "net/spdy/spdy_protocol.h"
 #include "net/spdy/spdy_test_util.h"
 #include "testing/platform_test.h"
@@ -717,6 +718,75 @@ TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
 
   // Flush the MessageLoop while the SessionDependencies (in particular, the
   // MockClientSocketFactory) are still alive.
+  MessageLoop::current()->RunAllPending();
+}
+
+class DeleteSessionCallback : public CallbackRunner< Tuple1<int> > {
+ public:
+  explicit DeleteSessionCallback(SpdyNetworkTransaction* trans1) :
+      trans(trans1) {}
+
+  // We kill the transaction, which deletes the session and stream. However, the
+  // memory is still accessible, so we also have to zero out the memory of the
+  // stream. This is not a well defined operation, and can cause failures.
+  virtual void RunWithParams(const Tuple1<int>& params) {
+    delete trans;
+  }
+
+ private:
+  const SpdyNetworkTransaction* trans;
+};
+
+// Verify that the client can correctly deal with the user callback deleting the
+// transaction. Failures will usually be valgrind errors. See
+// http://crbug.com/46925
+TEST_F(SpdyNetworkTransactionTest, DeleteSessionOnReadCallback) {
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn), 1),
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply), 2),
+    MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
+    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
+             arraysize(kGetBodyFrame), 4),
+    MockRead(true, 0, 0, 5),  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  SessionDependencies session_deps;
+  SpdyNetworkTransaction * trans =
+      new SpdyNetworkTransaction(CreateSession(&session_deps));
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  session_deps.socket_factory.AddSocketDataProvider(data);
+
+  // Start the transaction with basic parameters.
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+
+  // Setup a user callback which will delete the session, and clear out the
+  // memory holding the stream object. Note that the callback deletes trans.
+  DeleteSessionCallback callback2(trans);
+  const int kSize = 3000;
+  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
+  rv = trans->Read(buf, kSize, &callback2);
+  ASSERT_EQ(ERR_IO_PENDING, rv);
+  data->CompleteRead();
+
+  // Finish running rest of tasks.
   MessageLoop::current()->RunAllPending();
 }
 

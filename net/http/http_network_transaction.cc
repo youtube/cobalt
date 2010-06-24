@@ -463,10 +463,10 @@ int HttpNetworkTransaction::Read(IOBuffer* buf, int buf_len,
   // Are we using SPDY or HTTP?
   if (using_spdy_) {
     DCHECK(!http_stream_.get());
-    DCHECK(spdy_stream_->GetResponseInfo()->headers);
+    DCHECK(spdy_http_stream_->GetResponseInfo()->headers);
     next_state = STATE_SPDY_READ_BODY;
   } else {
-    DCHECK(!spdy_stream_.get());
+    DCHECK(!spdy_http_stream_.get());
     next_state = STATE_READ_BODY;
 
     if (!connection_->is_initialized())
@@ -549,8 +549,8 @@ HttpNetworkTransaction::~HttpNetworkTransaction() {
   if (pac_request_)
     session_->proxy_service()->CancelPacRequest(pac_request_);
 
-  if (spdy_stream_.get())
-    spdy_stream_->Cancel();
+  if (spdy_http_stream_.get())
+    spdy_http_stream_->Cancel();
 }
 
 void HttpNetworkTransaction::DoCallback(int rv) {
@@ -1470,7 +1470,7 @@ int HttpNetworkTransaction::DoDrainBodyForAuthRestartComplete(int result) {
 
 int HttpNetworkTransaction::DoSpdySendRequest() {
   next_state_ = STATE_SPDY_SEND_REQUEST_COMPLETE;
-  CHECK(!spdy_stream_.get());
+  CHECK(!spdy_http_stream_.get());
 
   // First we get a SPDY session.  Theoretically, we've just negotiated one, but
   // if one already exists, then screw it, use the existing one!  Otherwise,
@@ -1503,9 +1503,25 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
       return error_code;
   }
   headers_valid_ = false;
-  spdy_stream_ = spdy_session->GetOrCreateStream(
-      *request_, upload_data, net_log_);
-  return spdy_stream_->SendRequest(upload_data, &response_, &io_callback_);
+  scoped_refptr<SpdyStream> spdy_stream;
+  if (request_->method == "GET")
+    spdy_stream = spdy_session->GetPushStream(request_->url, net_log_);
+  if (spdy_stream.get()) {
+    DCHECK(spdy_stream->pushed());
+    CHECK(spdy_stream->GetDelegate() == NULL);
+    spdy_http_stream_.reset(new SpdyHttpStream(spdy_stream));
+    spdy_http_stream_->InitializeRequest(*request_, base::Time::Now(), NULL);
+  } else {
+    spdy_stream = spdy_session->CreateStream(request_->url,
+                                             request_->priority,
+                                             net_log_);
+    DCHECK(!spdy_stream->pushed());
+    CHECK(spdy_stream->GetDelegate() == NULL);
+    spdy_http_stream_.reset(new SpdyHttpStream(spdy_stream));
+    spdy_http_stream_->InitializeRequest(
+        *request_, base::Time::Now(), upload_data);
+  }
+  return spdy_http_stream_->SendRequest(&response_, &io_callback_);
 }
 
 int HttpNetworkTransaction::DoSpdySendRequestComplete(int result) {
@@ -1518,7 +1534,7 @@ int HttpNetworkTransaction::DoSpdySendRequestComplete(int result) {
 
 int HttpNetworkTransaction::DoSpdyReadHeaders() {
   next_state_ = STATE_SPDY_READ_HEADERS_COMPLETE;
-  return spdy_stream_->ReadResponseHeaders(&io_callback_);
+  return spdy_http_stream_->ReadResponseHeaders(&io_callback_);
 }
 
 int HttpNetworkTransaction::DoSpdyReadHeadersComplete(int result) {
@@ -1534,7 +1550,7 @@ int HttpNetworkTransaction::DoSpdyReadHeadersComplete(int result) {
 int HttpNetworkTransaction::DoSpdyReadBody() {
   next_state_ = STATE_SPDY_READ_BODY_COMPLETE;
 
-  return spdy_stream_->ReadResponseBody(
+  return spdy_http_stream_->ReadResponseBody(
       read_buf_, read_buf_len_, &io_callback_);
 }
 
@@ -1543,7 +1559,7 @@ int HttpNetworkTransaction::DoSpdyReadBodyComplete(int result) {
   read_buf_len_ = 0;
 
   if (result <= 0)
-    spdy_stream_ = NULL;
+    spdy_http_stream_.reset() ;
 
   return result;
 }
