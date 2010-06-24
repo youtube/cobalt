@@ -13,6 +13,7 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/base/host_port_pair.h"
+#include "net/base/net_errors.h"
 #include "net/base/network_change_notifier.h"
 
 namespace net {
@@ -47,11 +48,14 @@ class SpdySessionPool
   // calling Get() first to use an existing SpdySession so we don't get
   // multiple SpdySessions per domain.  Note that ownership of |connection| is
   // transferred from the caller to the SpdySession.
-  scoped_refptr<SpdySession> GetSpdySessionFromSSLSocket(
+  // Returns OK on success, and the |spdy_session| will be provided.
+  // Returns an error on failure, and |spdy_session| will be NULL.
+  net::Error GetSpdySessionFromSSLSocket(
       const HostPortPair& host_port_pair,
       HttpNetworkSession* session,
       ClientSocketHandle* connection,
-      const BoundNetLog& net_log);
+      const BoundNetLog& net_log,
+      scoped_refptr<SpdySession>& spdy_session);
 
   // TODO(willchan): Consider renaming to HasReusableSession, since perhaps we
   // should be creating a new session.

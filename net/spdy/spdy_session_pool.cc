@@ -51,20 +51,22 @@ scoped_refptr<SpdySession> SpdySessionPool::Get(
   return spdy_session;
 }
 
-scoped_refptr<SpdySession> SpdySessionPool::GetSpdySessionFromSSLSocket(
+net::Error SpdySessionPool::GetSpdySessionFromSSLSocket(
     const HostPortPair& host_port_pair,
     HttpNetworkSession* session,
     ClientSocketHandle* connection,
-    const BoundNetLog& net_log) {
+    const BoundNetLog& net_log,
+    scoped_refptr<SpdySession>& spdy_session) {
+  // Create the SPDY session and add it to the pool.
+  spdy_session = (new SpdySession(host_port_pair, session, net_log.net_log()));
   SpdySessionList* list = GetSessionList(host_port_pair);
   if (!list)
     list = AddSessionList(host_port_pair);
   DCHECK(list->empty());
-  scoped_refptr<SpdySession> spdy_session(
-      new SpdySession(host_port_pair, session, net_log.net_log()));
-  spdy_session->InitializeWithSSLSocket(connection);
   list->push_back(spdy_session);
-  return spdy_session;
+
+  // Now we can initialize the session with the SSL socket.
+  return spdy_session->InitializeWithSSLSocket(connection);
 }
 
 bool SpdySessionPool::HasSession(const HostPortPair& host_port_pair) const {
