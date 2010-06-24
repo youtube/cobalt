@@ -123,7 +123,6 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
   SECItem signedItem;
   CERTPublicKeyAndChallenge pkac;
   void *keyGenParams;
-  pkac.challenge.data = NULL;
   bool isSuccess = true;  // Set to false as soon as a step fails.
 
   std::string result_blob;  // the result.
@@ -208,13 +207,9 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
 
   // Set up the PublicKeyAndChallenge data structure, then DER encode it.
   pkac.spki = spkiItem;
+  pkac.challenge.type = siBuffer;
   pkac.challenge.len = challenge.length();
-  pkac.challenge.data = (unsigned char *)strdup(challenge.c_str());
-  if (!pkac.challenge.data) {
-    LOG(ERROR) << "Out of memory while making a copy of challenge data";
-    isSuccess = false;
-    goto failure;
-  }
+  pkac.challenge.data = (unsigned char *)challenge.data();
   sec_rv = DER_Encode(arena, &pkacItem, CERTPublicKeyAndChallengeTemplate,
                       &pkac);
   if (SECSuccess != sec_rv) {
@@ -274,9 +269,6 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
   }
   if (slot != NULL) {
     PK11_FreeSlot(slot);
-  }
-  if (pkac.challenge.data) {
-    free(pkac.challenge.data);
   }
 
   return (isSuccess ? result_blob : std::string());
