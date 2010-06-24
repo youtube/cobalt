@@ -20,8 +20,6 @@ int CertDatabase::CheckUserCert(X509Certificate* cert) {
     return ERR_CERT_INVALID;
   if (cert->HasExpired())
     return ERR_CERT_DATE_INVALID;
-  if (!cert->SupportsSSLClientAuth())
-    return ERR_CERT_INVALID;
 
   // Verify the Keychain already has the corresponding private key:
   SecIdentityRef identity = NULL;
