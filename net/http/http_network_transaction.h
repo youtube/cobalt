@@ -20,6 +20,7 @@
 #include "net/base/ssl_config_service.h"
 #include "net/http/http_alternate_protocols.h"
 #include "net/http/http_auth.h"
+#include "net/http/http_auth_controller.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_response_info.h"
 #include "net/http/http_transaction.h"
@@ -240,84 +241,24 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Returns true if we should try to add an Authorization header.
   bool ShouldApplyServerAuth() const;
 
-  // Adds either the proxy auth header, or the origin server auth header,
-  // as specified by |target|.
-  void AddAuthorizationHeader(
-      HttpAuth::Target target, HttpRequestHeaders* authorization_headers);
-
-  // Returns a log message for all the response headers related to the auth
-  // challenge.
-  std::string AuthChallengeLogMessage() const;
-
   // Handles HTTP status code 401 or 407.
   // HandleAuthChallenge() returns a network error code, or OK on success.
   // May update |pending_auth_target_| or |response_.auth_challenge|.
   int HandleAuthChallenge(bool establishing_tunnel);
 
-  // Populates response_.auth_challenge with the challenge information, so that
-  // URLRequestHttpJob can prompt for a username/password.
-  void PopulateAuthChallenge(HttpAuth::Target target,
-                             const GURL& auth_origin);
-
-  // Invalidates any auth cache entries after authentication has failed.
-  // The identity that was rejected is auth_identity_[target].
-  void InvalidateRejectedAuthFromCache(HttpAuth::Target target,
-                                       const GURL& auth_origin);
-
-  // Sets auth_identity_[target] to the next identity that the transaction
-  // should try. It chooses candidates by searching the auth cache
-  // and the URL for a username:password. Returns true if an identity
-  // was found.
-  bool SelectNextAuthIdentityToTry(HttpAuth::Target target,
-                                   const GURL& auth_origin);
-
-  // Searches the auth cache for an entry that encompasses the request's path.
-  // If such an entry is found, updates auth_identity_[target] and
-  // auth_handler_[target] with the cache entry's data and returns true.
-  bool SelectPreemptiveAuth(HttpAuth::Target target);
-
   bool HaveAuth(HttpAuth::Target target) const {
-    return auth_handler_[target].get() && !auth_identity_[target].invalid;
+    return auth_controllers_[target].get() &&
+         auth_controllers_[target]->HaveAuth();
   }
 
-  // Get the {scheme, host, port} for the authentication target
-  GURL AuthOrigin(HttpAuth::Target target) const;
-
-  // Same as AuthOrigin(), but will return an invalid GURL if the target is
-  // invalid.
-  GURL PossiblyInvalidAuthOrigin(HttpAuth::Target target) const;
-
-  // Get the absolute path of the resource needing authentication.
-  // For proxy authentication the path is always empty string.
-  std::string AuthPath(HttpAuth::Target target) const;
-
-  // Generate an authentication token for |target| if necessary. The return
-  // value is a net error code. |OK| will be returned both in the case that
-  // a token is correctly generated synchronously, as well as when no tokens
-  // were necessary.
-  int MaybeGenerateAuthToken(HttpAuth::Target target);
+  // Get the {scheme, host, path, port} for the authentication target
+  GURL AuthURL(HttpAuth::Target target) const;
 
   void MarkBrokenAlternateProtocolAndFallback();
 
-  // Returns a string representation of a HttpAuth::Target value that can be
-  // used in log messages.
-  static std::string AuthTargetString(HttpAuth::Target target);
-
   static bool g_ignore_certificate_errors;
 
-  // |auth_handler_| encapsulates the logic for the particular auth-scheme.
-  // This includes the challenge's parameters. If NULL, then there is no
-  // associated auth handler.
-  scoped_ptr<HttpAuthHandler> auth_handler_[HttpAuth::AUTH_NUM_TARGETS];
-
-  // |auth_identity_| holds the (username/password) that should be used by
-  // the |auth_handler_| to generate credentials. This identity can come from
-  // a number of places (url, cache, prompt).
-  HttpAuth::Identity auth_identity_[HttpAuth::AUTH_NUM_TARGETS];
-
-  // |auth_token_| contains the opaque string to pass to the proxy or
-  // server to authenticate the client.
-  std::string auth_token_[HttpAuth::AUTH_NUM_TARGETS];
+  scoped_ptr<HttpAuthController> auth_controllers_[HttpAuth::AUTH_NUM_TARGETS];
 
   // Whether this transaction is waiting for proxy auth, server auth, or is
   // not waiting for any auth at all. |pending_auth_target_| is read and
@@ -358,15 +299,6 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   // Only valid if |alternate_protocol_mode_| == kUsingAlternateProtocol.
   HttpAlternateProtocols::Protocol alternate_protocol_;
-
-  // True if we've used the username/password embedded in the URL.  This
-  // makes sure we use the embedded identity only once for the transaction,
-  // preventing an infinite auth restart loop.
-  bool embedded_identity_used_;
-
-  // True if default credentials have already been tried for this transaction
-  // in response to an HTTP authentication challenge.
-  bool default_credentials_used_;
 
   SSLConfig ssl_config_;
 
