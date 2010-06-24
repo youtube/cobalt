@@ -542,9 +542,19 @@ uint64 HttpNetworkTransaction::GetUploadProgress() const {
 
 HttpNetworkTransaction::~HttpNetworkTransaction() {
   // If we still have an open socket, then make sure to disconnect it so it
-  // won't call us back and we don't try to reuse it later on.
-  if (connection_.get() && connection_->is_initialized())
-    connection_->socket()->Disconnect();
+  // won't call us back and we don't try to reuse it later on. However,
+  // don't close the socket if we should keep the connection alive.
+  if (connection_.get() && connection_->is_initialized()) {
+    // The STATE_NONE check guarantees there are no pending socket IOs that
+    // could try to call this object back after it is deleted.
+    bool keep_alive = next_state_ == STATE_NONE &&
+                      http_stream_.get() &&
+                      http_stream_->IsResponseBodyComplete() &&
+                      http_stream_->CanFindEndOfResponse() &&
+                      GetResponseHeaders()->IsKeepAlive();
+    if (!keep_alive)
+      connection_->socket()->Disconnect();
+  }
 
   if (pac_request_)
     session_->proxy_service()->CancelPacRequest(pac_request_);
