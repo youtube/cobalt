@@ -90,6 +90,9 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   spdy::SpdyStreamId stream_id() const { return stream_id_; }
   void set_stream_id(spdy::SpdyStreamId stream_id) { stream_id_ = stream_id; }
 
+  bool syn_reply_received() const { return syn_reply_received_; }
+  void set_syn_reply_received() { syn_reply_received_ = true; }
+
   // For pushed streams, we track a path to identify them.
   const std::string& path() const { return path_; }
   void set_path(const std::string& path) { path_ = path; }
@@ -196,6 +199,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   int priority_;
   const bool pushed_;
   ScopedBandwidthMetrics metrics_;
+  bool syn_reply_received_;
 
   scoped_refptr<SpdySession> session_;
 

@@ -682,6 +682,56 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithoutSynReply) {
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
 }
 
+// Test that the transaction doesn't crash when we get two replies on the same
+// stream ID. See http://crbug.com/45639.
+TEST_F(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
+  SessionDependencies session_deps;
+  HttpNetworkSession* session = CreateSession(&session_deps);
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn)),
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply)),
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply)),
+    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
+             arraysize(kGetBodyFrame)),
+    MockRead(true, 0, 0)  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+  scoped_refptr<DelayedSocketData> data(
+      new DelayedSocketData(1, reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  session_deps.socket_factory.AddSocketDataProvider(data.get());
+
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(session));
+
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  EXPECT_EQ(OK, rv);
+
+  const HttpResponseInfo* response = trans->GetResponseInfo();
+  EXPECT_TRUE(response->headers != NULL);
+  EXPECT_TRUE(response->was_fetched_via_spdy);
+  std::string response_data;
+  rv = ReadTransaction(trans.get(), &response_data);
+  EXPECT_EQ(ERR_SPDY_PROTOCOL_ERROR, rv);
+}
+
 TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
   MockWrite writes[] = {
     MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
