@@ -111,30 +111,25 @@ void VideoRendererBase::Pause(FilterCallback* callback) {
 }
 
 void VideoRendererBase::Stop(FilterCallback* callback) {
-  AutoLock auto_lock(lock_);
-  state_ = kStopped;
+  {
+    AutoLock auto_lock(lock_);
+    state_ = kStopped;
 
-  // Signal the subclass we're stopping.
-  // TODO(scherkus): do we trust subclasses not to do something silly while
-  // we're holding the lock?
-  OnStop();
-
-  // Clean up our thread if present.
-  if (thread_) {
-    // Signal the thread since it's possible to get stopped with the video
-    // thread waiting for a read to complete.
-    frame_available_.Signal();
-    {
-      AutoUnlock auto_unlock(lock_);
-      PlatformThread::Join(thread_);
+    // Clean up our thread if present.
+    if (thread_) {
+      // Signal the thread since it's possible to get stopped with the video
+      // thread waiting for a read to complete.
+      frame_available_.Signal();
+      {
+        AutoUnlock auto_unlock(lock_);
+        PlatformThread::Join(thread_);
+      }
+      thread_ = kNullThreadHandle;
     }
-    thread_ = kNullThreadHandle;
-  }
 
-  if (callback) {
-    callback->Run();
-    delete callback;
   }
+  // Signal the subclass we're stopping.
+  OnStop(callback);
 }
 
 void VideoRendererBase::SetPlaybackRate(float playback_rate) {
@@ -153,17 +148,6 @@ void VideoRendererBase::Seek(base::TimeDelta time, FilterCallback* callback) {
   frames_.clear();
   for (size_t i = 0; i < kMaxFrames; ++i) {
     ScheduleRead_Locked();
-  }
-
-  // TODO(wjia): This would be removed if "Paint" thread allows renderer to
-  // allocate EGL images before filters are in playing state.
-  if (uses_egl_image()) {
-    state_ = kPaused;
-    VideoFrame::CreateBlackFrame(width_, height_, &current_frame_);
-    DCHECK(current_frame_);
-    OnFrameAvailable();
-    seek_callback_->Run();
-    seek_callback_.reset();
   }
 }
 
@@ -283,6 +267,9 @@ void VideoRendererBase::ThreadMain() {
       if (!frames_.empty() && !frames_.front()->IsEndOfStream()) {
         DCHECK_EQ(current_frame_, frames_.front());
         frames_.pop_front();
+        // TODO(wjia): Make sure |current_frame_| is not used by renderer any
+        // more. Could use fence or delay recycle by one frame. But both have
+        // problems.
         if (uses_egl_image() &&
             media::VideoFrame::TYPE_EGL_IMAGE == current_frame_->type()) {
           decoder_->FillThisBuffer(current_frame_);
@@ -344,6 +331,11 @@ void VideoRendererBase::ThreadMain() {
 
 void VideoRendererBase::GetCurrentFrame(scoped_refptr<VideoFrame>* frame_out) {
   AutoLock auto_lock(lock_);
+
+  if (state_ == kStopped) {
+    VideoFrame::CreateBlackFrame(width_, height_, frame_out);
+    return;
+  }
   // We should have initialized and have the current frame.
   DCHECK(state_ == kPaused || state_ == kSeeking || state_ == kPlaying ||
          state_ == kEnded);
@@ -367,9 +359,6 @@ void VideoRendererBase::OnFillBufferDone(scoped_refptr<VideoFrame> frame) {
 
   // Enqueue the frame.
   frames_.push_back(frame);
-  if (uses_egl_image() &&
-      media::VideoFrame::TYPE_EGL_IMAGE != current_frame_->type())
-    current_frame_ = frame;
   DCHECK_LE(frames_.size(), kMaxFrames);
   frame_available_.Signal();
 

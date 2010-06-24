@@ -4,6 +4,7 @@
 
 #include "base/callback.h"
 #include "base/stl_util-inl.h"
+#include "media/base/callback.h"
 #include "media/base/data_buffer.h"
 #include "media/base/mock_filter_host.h"
 #include "media/base/mock_filters.h"
@@ -21,6 +22,9 @@ using ::testing::ReturnRef;
 using ::testing::StrictMock;
 
 namespace media {
+ACTION(OnStop) {
+  AutoCallbackRunner auto_runner(arg0);
+}
 
 // Mocked subclass of VideoRendererBase for testing purposes.
 class MockVideoRendererBase : public VideoRendererBase {
@@ -30,7 +34,7 @@ class MockVideoRendererBase : public VideoRendererBase {
 
   // VideoRendererBase implementation.
   MOCK_METHOD1(OnInitialize, bool(VideoDecoder* decoder));
-  MOCK_METHOD0(OnStop, void());
+  MOCK_METHOD1(OnStop, void(FilterCallback* callback));
   MOCK_METHOD0(OnFrameAvailable, void());
 
   // Used for verifying check points during tests.
@@ -68,7 +72,9 @@ class VideoRendererBaseTest : public ::testing::Test {
     read_queue_.clear();
 
     // Expect a call into the subclass.
-    EXPECT_CALL(*renderer_, OnStop());
+    EXPECT_CALL(*renderer_, OnStop(NotNull()))
+        .WillOnce(DoAll(OnStop(), Return()))
+        .RetiresOnSaturation();
     EXPECT_CALL(callback_, OnFilterCallback());
     EXPECT_CALL(callback_, OnCallbackDestroyed());
     renderer_->Stop(callback_.NewCallback());
