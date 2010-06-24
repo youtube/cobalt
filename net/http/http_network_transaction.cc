@@ -1515,8 +1515,10 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
     // extension, so |connection_| must contain an SSLClientSocket.
     DCHECK(using_ssl_);
     CHECK(connection_->socket());
-    spdy_session = spdy_pool->GetSpdySessionFromSSLSocket(
-        endpoint_, session_, connection_.release(), net_log_);
+    int error = spdy_pool->GetSpdySessionFromSSLSocket(
+        endpoint_, session_, connection_.release(), net_log_, spdy_session);
+    if (error != OK)
+      return error;
   }
 
   CHECK(spdy_session.get());
