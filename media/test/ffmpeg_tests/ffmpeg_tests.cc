@@ -30,8 +30,14 @@
 #endif
 
 #if defined(OS_WIN)
+
+// Enable to build with exception handler
+//#define ENABLE_WINDOWS_EXCEPTIONS 1
+
+#ifdef ENABLE_WINDOWS_EXCEPTIONS
 // warning: disable warning about exception handler.
 #pragma warning(disable:4509)
+#endif
 
 // Thread priorities to make benchmark more stable.
 
@@ -101,7 +107,7 @@ int main(int argc, const char** argv) {
   bool hash_md5 = false;
 
   std::ostream* log_out = &std::cout;
-#if defined(OS_WIN)
+#if defined(ENABLE_WINDOWS_EXCEPTIONS)
   // Catch exceptions so this tool can be used in automated testing.
   __try {
 #endif
@@ -475,7 +481,7 @@ int main(int argc, const char** argv) {
              << " " << in_path << std::endl;
   }
 #endif  // SHOW_VERBOSE
-#if defined(OS_WIN)
+#if defined(ENABLE_WINDOWS_EXCEPTIONS)
   } __except(EXCEPTION_EXECUTE_HANDLER) {
     *log_out << "  Exception:" << std::setw(11) << GetExceptionCode()
              << " " << in_path << std::endl;
