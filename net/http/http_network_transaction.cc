@@ -296,8 +296,6 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       alternate_protocol_mode_(
           g_use_alternate_protocols ? kUnspecified :
           kDoNotUseAlternateProtocol),
-      embedded_identity_used_(false),
-      default_credentials_used_(false),
       read_buf_len_(0),
       next_state_(STATE_NONE) {
   session->ssl_config_service()->GetSSLConfig(&ssl_config_);
@@ -397,19 +395,9 @@ int HttpNetworkTransaction::RestartWithAuth(
     NOTREACHED();
     return ERR_UNEXPECTED;
   }
-
   pending_auth_target_ = HttpAuth::AUTH_NONE;
 
-  DCHECK(auth_identity_[target].invalid ||
-         (username.empty() && password.empty()));
-
-  if (auth_identity_[target].invalid) {
-    // Update the username/password.
-    auth_identity_[target].source = HttpAuth::IDENT_SRC_EXTERNAL;
-    auth_identity_[target].invalid = false;
-    auth_identity_[target].username = username;
-    auth_identity_[target].password = password;
-  }
+  auth_controllers_[target]->ResetAuth(username, password);
 
   PrepareForAuthRestart(target);
 
@@ -423,38 +411,6 @@ int HttpNetworkTransaction::RestartWithAuth(
 
 void HttpNetworkTransaction::PrepareForAuthRestart(HttpAuth::Target target) {
   DCHECK(HaveAuth(target));
-  DCHECK(auth_identity_[target].source != HttpAuth::IDENT_SRC_PATH_LOOKUP);
-
-  // Add the auth entry to the cache before restarting. We don't know whether
-  // the identity is valid yet, but if it is valid we want other transactions
-  // to know about it. If an entry for (origin, handler->realm()) already
-  // exists, we update it.
-  //
-  // If auth_identity_[target].source is HttpAuth::IDENT_SRC_NONE or
-  // HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS, auth_identity_[target] contains
-  // no identity because identity is not required yet or we're using default
-  // credentials.
-  //
-  // TODO(wtc): For NTLM_SSPI, we add the same auth entry to the cache in
-  // round 1 and round 2, which is redundant but correct.  It would be nice
-  // to add an auth entry to the cache only once, preferrably in round 1.
-  // See http://crbug.com/21015.
-  switch (auth_identity_[target].source) {
-    case HttpAuth::IDENT_SRC_NONE:
-    case HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS:
-      break;
-    default:
-      session_->auth_cache()->Add(
-          AuthOrigin(target),
-          auth_handler_[target]->realm(),
-          auth_handler_[target]->scheme(),
-          auth_handler_[target]->challenge(),
-          auth_identity_[target].username,
-          auth_identity_[target].password,
-          AuthPath(target));
-      break;
-  }
-
   bool keep_alive = false;
   // Even if the server says the connection is keep-alive, we have to be
   // able to find the end of each response in order to reuse the connection.
@@ -856,6 +812,16 @@ int HttpNetworkTransaction::DoInitConnection() {
   DCHECK(!connection_->is_initialized());
   DCHECK(proxy_info_.proxy_server().is_valid());
 
+  // Now that the proxy server has been resolved, create the auth_controllers_.
+  for (int i = 0; i < HttpAuth::AUTH_NUM_TARGETS; i++) {
+    HttpAuth::Target target = static_cast<HttpAuth::Target>(i);
+    if (!auth_controllers_[target].get())
+      auth_controllers_[target].reset(new HttpAuthController(target,
+                                                             AuthURL(target),
+                                                             session_,
+                                                             net_log_));
+  }
+
   next_state_ = STATE_INIT_CONNECTION_COMPLETE;
 
   using_ssl_ = request_->url.SchemeIs("https") ||
@@ -1003,7 +969,8 @@ void HttpNetworkTransaction::ClearTunnelState() {
 
 int HttpNetworkTransaction::DoTunnelGenerateAuthToken() {
   next_state_ = STATE_TUNNEL_GENERATE_AUTH_TOKEN_COMPLETE;
-  return MaybeGenerateAuthToken(HttpAuth::AUTH_PROXY);
+  return auth_controllers_[HttpAuth::AUTH_PROXY]->MaybeGenerateAuthToken(
+      request_, &io_callback_);
 }
 
 int HttpNetworkTransaction::DoTunnelGenerateAuthTokenComplete(int rv) {
@@ -1021,7 +988,8 @@ int HttpNetworkTransaction::DoTunnelSendRequest() {
   if (request_headers_.empty()) {
     HttpRequestHeaders authorization_headers;
     if (HaveAuth(HttpAuth::AUTH_PROXY))
-      AddAuthorizationHeader(HttpAuth::AUTH_PROXY, &authorization_headers);
+      auth_controllers_[HttpAuth::AUTH_PROXY]->AddAuthorizationHeader(
+          &authorization_headers);
     std::string request_line;
     HttpRequestHeaders request_headers;
     BuildTunnelRequest(request_, authorization_headers, endpoint_,
@@ -1213,7 +1181,8 @@ int HttpNetworkTransaction::DoGenerateProxyAuthToken() {
   next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE;
   if (!ShouldApplyProxyAuth())
     return OK;
-  return MaybeGenerateAuthToken(HttpAuth::AUTH_PROXY);
+  return auth_controllers_[HttpAuth::AUTH_PROXY]->MaybeGenerateAuthToken(
+      request_, &io_callback_);
 }
 
 int HttpNetworkTransaction::DoGenerateProxyAuthTokenComplete(int rv) {
@@ -1227,7 +1196,8 @@ int HttpNetworkTransaction::DoGenerateServerAuthToken() {
   next_state_ = STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE;
   if (!ShouldApplyServerAuth())
     return OK;
-  return MaybeGenerateAuthToken(HttpAuth::AUTH_SERVER);
+  return auth_controllers_[HttpAuth::AUTH_SERVER]->MaybeGenerateAuthToken(
+      request_, &io_callback_);
 }
 
 int HttpNetworkTransaction::DoGenerateServerAuthTokenComplete(int rv) {
@@ -1259,9 +1229,11 @@ int HttpNetworkTransaction::DoSendRequest() {
     bool have_server_auth = (ShouldApplyServerAuth() &&
                              HaveAuth(HttpAuth::AUTH_SERVER));
     if (have_proxy_auth)
-      AddAuthorizationHeader(HttpAuth::AUTH_PROXY, &authorization_headers);
+      auth_controllers_[HttpAuth::AUTH_PROXY]->AddAuthorizationHeader(
+          &authorization_headers);
     if (have_server_auth)
-      AddAuthorizationHeader(HttpAuth::AUTH_SERVER, &authorization_headers);
+      auth_controllers_[HttpAuth::AUTH_SERVER]->AddAuthorizationHeader(
+          &authorization_headers);
     std::string request_line;
     HttpRequestHeaders request_headers;
     BuildRequestHeaders(request_, authorization_headers, request_body,
@@ -1409,10 +1381,10 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
 }
 
 int HttpNetworkTransaction::DoResolveCanonicalName() {
-  DCHECK(auth_handler_[pending_auth_target_].get());
+  DCHECK(auth_controllers_[pending_auth_target_].get());
   next_state_ = STATE_RESOLVE_CANONICAL_NAME_COMPLETE;
-  return auth_handler_[pending_auth_target_]->
-      ResolveCanonicalName(session_->host_resolver(), &io_callback_);
+  return auth_controllers_[pending_auth_target_]->ResolveCanonicalName(
+      &io_callback_);
 }
 
 int HttpNetworkTransaction::DoResolveCanonicalNameComplete(int result) {
@@ -1973,203 +1945,6 @@ bool HttpNetworkTransaction::ShouldApplyServerAuth() const {
   return !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA);
 }
 
-int HttpNetworkTransaction::MaybeGenerateAuthToken(HttpAuth::Target target) {
-  bool needs_auth = HaveAuth(target) || SelectPreemptiveAuth(target);
-  if (!needs_auth)
-    return OK;
-  const std::wstring* username = NULL;
-  const std::wstring* password = NULL;
-  const HttpAuth::Identity& identity = auth_identity_[target];
-  if (identity.source != HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS) {
-    username = &identity.username;
-    password = &identity.password;
-  }
-  DCHECK(auth_token_[target].empty());
-  return auth_handler_[target]->GenerateAuthToken(
-      username, password, request_, &io_callback_, &auth_token_[target]);
-}
-
-void HttpNetworkTransaction::AddAuthorizationHeader(
-    HttpAuth::Target target, HttpRequestHeaders* authorization_headers) {
-  DCHECK(HaveAuth(target));
-  DCHECK(!auth_token_[target].empty());
-  authorization_headers->SetHeader(
-      HttpAuth::GetAuthorizationHeaderName(target),
-      auth_token_[target]);
-  auth_token_[target].clear();
-}
-
-GURL HttpNetworkTransaction::AuthOrigin(HttpAuth::Target target) const {
-  GURL origin = PossiblyInvalidAuthOrigin(target);
-  DCHECK(origin.is_valid());
-  return origin;
-}
-
-GURL HttpNetworkTransaction::PossiblyInvalidAuthOrigin(
-    HttpAuth::Target target) const {
-  switch (target) {
-    case HttpAuth::AUTH_PROXY:
-      if (!proxy_info_.proxy_server().is_valid() ||
-          proxy_info_.proxy_server().is_direct()) {
-        return GURL();  // There is no proxy server.
-      }
-      return GURL("http://" + proxy_info_.proxy_server().host_and_port());
-    case HttpAuth::AUTH_SERVER:
-      return request_->url.GetOrigin();
-    default:
-     return GURL();
-  }
-}
-
-std::string HttpNetworkTransaction::AuthPath(HttpAuth::Target target)
-    const {
-  // Proxy authentication realms apply to all paths. So we will use
-  // empty string in place of an absolute path.
-  return target == HttpAuth::AUTH_PROXY ?
-      std::string() : request_->url.path();
-}
-
-// static
-std::string HttpNetworkTransaction::AuthTargetString(
-    HttpAuth::Target target) {
-  return target == HttpAuth::AUTH_PROXY ? "proxy" : "server";
-}
-
-void HttpNetworkTransaction::InvalidateRejectedAuthFromCache(
-    HttpAuth::Target target,
-    const GURL& auth_origin) {
-  DCHECK(HaveAuth(target));
-
-  // TODO(eroman): this short-circuit can be relaxed. If the realm of
-  // the preemptively used auth entry matches the realm of the subsequent
-  // challenge, then we can invalidate the preemptively used entry.
-  // Otherwise as-is we may send the failed credentials one extra time.
-  if (auth_identity_[target].source == HttpAuth::IDENT_SRC_PATH_LOOKUP)
-    return;
-
-  // Clear the cache entry for the identity we just failed on.
-  // Note: we require the username/password to match before invalidating
-  // since the entry in the cache may be newer than what we used last time.
-  session_->auth_cache()->Remove(auth_origin,
-                                 auth_handler_[target]->realm(),
-                                 auth_handler_[target]->scheme(),
-                                 auth_identity_[target].username,
-                                 auth_identity_[target].password);
-}
-
-bool HttpNetworkTransaction::SelectPreemptiveAuth(HttpAuth::Target target) {
-  DCHECK(!HaveAuth(target));
-
-  // Don't do preemptive authorization if the URL contains a username/password,
-  // since we must first be challenged in order to use the URL's identity.
-  if (request_->url.has_username())
-    return false;
-
-  // SelectPreemptiveAuth() is on the critical path for each request, so it
-  // is expected to be fast. LookupByPath() is fast in the common case, since
-  // the number of http auth cache entries is expected to be very small.
-  // (For most users in fact, it will be 0.)
-  HttpAuthCache::Entry* entry = session_->auth_cache()->LookupByPath(
-      AuthOrigin(target), AuthPath(target));
-  if (!entry)
-    return false;
-
-  // Try to create a handler using the previous auth challenge.
-  scoped_ptr<HttpAuthHandler> handler_preemptive;
-  int rv_create = session_->http_auth_handler_factory()->
-      CreatePreemptiveAuthHandlerFromString(
-          entry->auth_challenge(), target, AuthOrigin(target),
-          entry->IncrementNonceCount(), net_log_, &handler_preemptive);
-  if (rv_create != OK)
-    return false;
-
-  // Set the state
-  auth_identity_[target].source = HttpAuth::IDENT_SRC_PATH_LOOKUP;
-  auth_identity_[target].invalid = false;
-  auth_identity_[target].username = entry->username();
-  auth_identity_[target].password = entry->password();
-  auth_handler_[target].swap(handler_preemptive);
-  return true;
-}
-
-bool HttpNetworkTransaction::SelectNextAuthIdentityToTry(
-    HttpAuth::Target target,
-    const GURL& auth_origin) {
-  DCHECK(auth_handler_[target].get());
-  DCHECK(auth_identity_[target].invalid);
-
-  // Try to use the username/password encoded into the URL first.
-  if (target == HttpAuth::AUTH_SERVER && request_->url.has_username() &&
-      !embedded_identity_used_) {
-    auth_identity_[target].source = HttpAuth::IDENT_SRC_URL;
-    auth_identity_[target].invalid = false;
-    // Extract the username:password from the URL.
-    GetIdentityFromURL(request_->url,
-                       &auth_identity_[target].username,
-                       &auth_identity_[target].password);
-    embedded_identity_used_ = true;
-    // TODO(eroman): If the password is blank, should we also try combining
-    // with a password from the cache?
-    return true;
-  }
-
-  // Check the auth cache for a realm entry.
-  HttpAuthCache::Entry* entry =
-    session_->auth_cache()->Lookup(auth_origin, auth_handler_[target]->realm(),
-                                   auth_handler_[target]->scheme());
-
-  if (entry) {
-    auth_identity_[target].source = HttpAuth::IDENT_SRC_REALM_LOOKUP;
-    auth_identity_[target].invalid = false;
-    auth_identity_[target].username = entry->username();
-    auth_identity_[target].password = entry->password();
-    return true;
-  }
-
-  // Use default credentials (single sign on) if this is the first attempt
-  // at identity.  Do not allow multiple times as it will infinite loop.
-  // We use default credentials after checking the auth cache so that if
-  // single sign-on doesn't work, we won't try default credentials for future
-  // transactions.
-  if (!default_credentials_used_ &&
-      auth_handler_[target]->AllowsDefaultCredentials()) {
-    auth_identity_[target].source = HttpAuth::IDENT_SRC_DEFAULT_CREDENTIALS;
-    auth_identity_[target].invalid = false;
-    default_credentials_used_ = true;
-    return true;
-  }
-
-  return false;
-}
-
-std::string HttpNetworkTransaction::AuthChallengeLogMessage() const {
-  std::string msg;
-  std::string header_val;
-  void* iter = NULL;
-  scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
-  while (headers->EnumerateHeader(&iter, "proxy-authenticate", &header_val)) {
-    msg.append("\n  Has header Proxy-Authenticate: ");
-    msg.append(header_val);
-  }
-
-  iter = NULL;
-  while (headers->EnumerateHeader(&iter, "www-authenticate", &header_val)) {
-    msg.append("\n  Has header WWW-Authenticate: ");
-    msg.append(header_val);
-  }
-
-  // RFC 4559 requires that a proxy indicate its support of NTLM/Negotiate
-  // authentication with a "Proxy-Support: Session-Based-Authentication"
-  // response header.
-  iter = NULL;
-  while (headers->EnumerateHeader(&iter, "proxy-support", &header_val)) {
-    msg.append("\n  Has header Proxy-Support: ");
-    msg.append(header_val);
-  }
-
-  return msg;
-}
-
 int HttpNetworkTransaction::HandleAuthChallenge(bool establishing_tunnel) {
   scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
   DCHECK(headers);
@@ -2179,99 +1954,41 @@ int HttpNetworkTransaction::HandleAuthChallenge(bool establishing_tunnel) {
     return OK;
   HttpAuth::Target target = status == 407 ?
                             HttpAuth::AUTH_PROXY : HttpAuth::AUTH_SERVER;
-  GURL auth_origin = PossiblyInvalidAuthOrigin(target);
-
-  LOG(INFO) << "The " << AuthTargetString(target) << " "
-            << auth_origin << " requested auth"
-            << AuthChallengeLogMessage();
-
   if (target == HttpAuth::AUTH_PROXY && proxy_info_.is_direct())
     return ERR_UNEXPECTED_PROXY_AUTH;
-  DCHECK(auth_origin.is_valid());
 
-  // The auth we tried just failed, hence it can't be valid. Remove it from
-  // the cache so it won't be used again.
-  // TODO(wtc): IsFinalRound is not the right condition.  In a multi-round
-  // auth sequence, the server may fail the auth in round 1 if our first
-  // authorization header is broken.  We should inspect response_.headers to
-  // determine if the server already failed the auth or wants us to continue.
-  // See http://crbug.com/21015.
-  if (HaveAuth(target) && auth_handler_[target]->IsFinalRound()) {
-    InvalidateRejectedAuthFromCache(target, auth_origin);
-    auth_handler_[target].reset();
-    auth_identity_[target] = HttpAuth::Identity();
+  int rv = auth_controllers_[target]->HandleAuthChallenge(headers,
+                                                          request_->load_flags,
+                                                          establishing_tunnel);
+  if (auth_controllers_[target]->HaveAuthHandler())
+      pending_auth_target_ = target;
+
+  scoped_refptr<AuthChallengeInfo> auth_info =
+      auth_controllers_[target]->auth_info();
+  if (auth_info.get())
+      response_.auth_challenge = auth_info;
+
+  if (rv == ERR_AUTH_NEEDS_CANONICAL_NAME) {
+      next_state_ = STATE_RESOLVE_CANONICAL_NAME;
+      rv = OK;
   }
 
-  auth_identity_[target].invalid = true;
-
-  if (target != HttpAuth::AUTH_SERVER ||
-      !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA)) {
-    // Find the best authentication challenge that we support.
-    HttpAuth::ChooseBestChallenge(session_->http_auth_handler_factory(),
-                                  headers, target, auth_origin, net_log_,
-                                  &auth_handler_[target]);
-  }
-
-  if (!auth_handler_[target].get()) {
-    if (establishing_tunnel) {
-      LOG(ERROR) << "Can't perform auth to the " << AuthTargetString(target)
-                 << " " << auth_origin << " when establishing a tunnel"
-                 << AuthChallengeLogMessage();
-
-      // We are establishing a tunnel, we can't show the error page because an
-      // active network attacker could control its contents.  Instead, we just
-      // fail to establish the tunnel.
-      DCHECK(target == HttpAuth::AUTH_PROXY);
-      return ERR_PROXY_AUTH_REQUESTED;
-    }
-    // We found no supported challenge -- let the transaction continue
-    // so we end up displaying the error page.
-    return OK;
-  }
-
-  if (auth_handler_[target]->NeedsIdentity()) {
-    // Pick a new auth identity to try, by looking to the URL and auth cache.
-    // If an identity to try is found, it is saved to auth_identity_[target].
-    SelectNextAuthIdentityToTry(target, auth_origin);
-  } else {
-    // Proceed with the existing identity or a null identity.
-    //
-    // TODO(wtc): Add a safeguard against infinite transaction restarts, if
-    // the server keeps returning "NTLM".
-    auth_identity_[target].invalid = false;
-  }
-
-  // Make a note that we are waiting for auth. This variable is inspected
-  // when the client calls RestartWithAuth() to pick up where we left off.
-  pending_auth_target_ = target;
-
-  if (auth_identity_[target].invalid) {
-    // We have exhausted all identity possibilities, all we can do now is
-    // pass the challenge information back to the client.
-    PopulateAuthChallenge(target, auth_origin);
-  }
-
-  // SPN determination (for Negotiate) requires a DNS lookup to find the
-  // canonical name. This needs to be done asynchronously to prevent blocking
-  // the IO thread.
-  if (auth_handler_[target]->NeedsCanonicalName())
-    next_state_ = STATE_RESOLVE_CANONICAL_NAME;
-
-  return OK;
+  return rv;
 }
 
-void HttpNetworkTransaction::PopulateAuthChallenge(HttpAuth::Target target,
-                                                   const GURL& auth_origin) {
-  // Populates response_.auth_challenge with the authentication challenge info.
-  // This info is consumed by URLRequestHttpJob::GetAuthChallengeInfo().
-
-  AuthChallengeInfo* auth_info = new AuthChallengeInfo;
-  auth_info->is_proxy = target == HttpAuth::AUTH_PROXY;
-  auth_info->host_and_port = ASCIIToWide(GetHostAndPort(auth_origin));
-  auth_info->scheme = ASCIIToWide(auth_handler_[target]->scheme());
-  // TODO(eroman): decode realm according to RFC 2047.
-  auth_info->realm = ASCIIToWide(auth_handler_[target]->realm());
-  response_.auth_challenge = auth_info;
+GURL HttpNetworkTransaction::AuthURL(HttpAuth::Target target) const {
+  switch (target) {
+    case HttpAuth::AUTH_PROXY:
+      if (!proxy_info_.proxy_server().is_valid() ||
+          proxy_info_.proxy_server().is_direct()) {
+        return GURL();  // There is no proxy server.
+      }
+      return GURL("http://" + proxy_info_.proxy_server().host_and_port());
+    case HttpAuth::AUTH_SERVER:
+      return request_->url;
+    default:
+     return GURL();
+  }
 }
 
 void HttpNetworkTransaction::MarkBrokenAlternateProtocolAndFallback() {
