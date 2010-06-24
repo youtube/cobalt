@@ -279,7 +279,7 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   scoped_ptr<ClientSocketHandle> connection_;
   scoped_ptr<HttpStream> http_stream_;
-  scoped_refptr<SpdyHttpStream> spdy_stream_;
+  scoped_ptr<SpdyHttpStream> spdy_http_stream_;
   bool reused_socket_;
 
   // True if we've validated the headers that the stream parser has returned.
