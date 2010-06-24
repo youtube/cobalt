@@ -93,12 +93,6 @@ static OSStatus SignData(CSSM_DATA data,
                          SecKeyRef private_key,
                          CSSM_DATA* signature);
 
-
-bool KeygenHandler::KeyLocation::Equals(
-    const KeygenHandler::KeyLocation& location) const {
-  return keychain_path == location.keychain_path;
-}
-
 std::string KeygenHandler::GenKeyAndSignChallenge() {
   std::string result;
   OSStatus err;
