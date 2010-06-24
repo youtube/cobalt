@@ -11,11 +11,6 @@ namespace psm = mozilla_security_manager;
 
 namespace net {
 
-bool KeygenHandler::KeyLocation::Equals(
-    const net::KeygenHandler::KeyLocation& location) const {
-  return slot_name == location.slot_name;
-}
-
 std::string KeygenHandler::GenKeyAndSignChallenge() {
   return psm::GenKeyAndSignChallenge(key_size_in_bits_, challenge_,
                                      stores_key_);
