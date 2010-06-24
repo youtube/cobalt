@@ -50,7 +50,6 @@
 #include "base/nss_util_internal.h"
 #include "base/nss_util.h"
 #include "base/logging.h"
-#include "net/base/keygen_handler.h"
 
 namespace {
 
@@ -85,16 +84,6 @@ DERTemplate CERTPublicKeyAndChallengeTemplate[] = {
     offsetof(CERTPublicKeyAndChallenge, challenge), },
   { 0, }
 };
-
-void StoreKeyLocationInCache(const SECItem& public_key_info,
-                             PK11SlotInfo *slot) {
-  net::KeygenHandler::Cache* cache = net::KeygenHandler::Cache::GetInstance();
-  net::KeygenHandler::KeyLocation key_location;
-  const char* slot_name = PK11_GetSlotName(slot);
-  key_location.slot_name.assign(slot_name);
-  cache->Insert(std::string(reinterpret_cast<char*>(public_key_info.data),
-                public_key_info.len), key_location);
-}
 
 }  // namespace
 
@@ -235,8 +224,6 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
     isSuccess = false;
     goto failure;
   }
-
-  StoreKeyLocationInCache(spkiItem, slot);
 
  failure:
   if (!isSuccess) {

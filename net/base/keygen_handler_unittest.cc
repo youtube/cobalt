@@ -15,20 +15,6 @@ namespace net {
 
 namespace {
 
-KeygenHandler::KeyLocation ValidKeyLocation() {
-  KeygenHandler::KeyLocation result;
-#if defined(OS_WIN)
-  result.container_name = L"Unit tests";
-  result.provider_name = L"Test Provider";
-#elif defined(OS_MACOSX)
-  result.keychain_path = "/Users/tests/test.chain";
-#elif defined(USE_NSS)
-  result.slot_name = "Sample slot";
-#endif
-
-  return result;
-}
-
 class KeygenHandlerTest : public ::testing::Test {
  public:
   KeygenHandlerTest() {}
@@ -76,34 +62,6 @@ TEST_F(KeygenHandlerTest, FLAKY_SmokeTest) {
   //
   // The value of |spkac| can be ASN.1-parsed with:
   //    openssl asn1parse -inform DER
-}
-
-TEST_F(KeygenHandlerTest, Cache) {
-  KeygenHandler::Cache* cache = KeygenHandler::Cache::GetInstance();
-  KeygenHandler::KeyLocation location1;
-  KeygenHandler::KeyLocation location2;
-
-  std::string key1("abcd");
-  cache->Insert(key1, location1);
-
-  // The cache should have stored location1 at key1.
-  EXPECT_TRUE(cache->Find(key1, &location2));
-
-  // The cache should have retrieved it into location2, and their equality
-  // should be reflexive.
-  EXPECT_TRUE(location1.Equals(location2));
-  EXPECT_TRUE(location2.Equals(location1));
-
-  location2 = ValidKeyLocation();
-  KeygenHandler::KeyLocation location3 = ValidKeyLocation();
-  EXPECT_FALSE(location1.Equals(location2));
-
-  // The cache should miss for an unregistered key.
-  std::string key2("def");
-  EXPECT_FALSE(cache->Find(key2, &location2));
-
-  // A cache miss should leave the original location unmolested.
-  EXPECT_TRUE(location2.Equals(location3));
 }
 
 }  // namespace
