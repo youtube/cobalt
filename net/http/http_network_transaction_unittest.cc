@@ -790,6 +790,60 @@ TEST_F(HttpNetworkTransactionTest, NonKeepAliveConnectionEOF) {
   EXPECT_EQ(ERR_EMPTY_RESPONSE, out.rv);
 }
 
+// Test that we correctly reuse a keep-alive connection after receiving a 304.
+TEST_F(HttpNetworkTransactionTest, KeepAliveAfter304) {
+  SessionDependencies session_deps;
+  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.foo.com/");
+  request.load_flags = 0;
+
+  MockRead data1_reads[] = {
+    MockRead("HTTP/1.1 304 Not Modified\r\n\r\n"),
+    MockRead("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n"),
+    MockRead("hello"),
+  };
+  StaticSocketDataProvider data1(data1_reads, arraysize(data1_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data1);
+
+  MockRead data2_reads[] = {
+    MockRead(false, ERR_UNEXPECTED),  // Should not be reached.
+  };
+  StaticSocketDataProvider data2(data2_reads, arraysize(data2_reads), NULL, 0);
+  session_deps.socket_factory.AddSocketDataProvider(&data2);
+
+  for (int i = 0; i < 2; ++i) {
+    TestCompletionCallback callback;
+
+    scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
+
+    int rv = trans->Start(&request, &callback, BoundNetLog());
+    EXPECT_EQ(ERR_IO_PENDING, rv);
+
+    rv = callback.WaitForResult();
+    EXPECT_EQ(OK, rv);
+
+    const HttpResponseInfo* response = trans->GetResponseInfo();
+    EXPECT_TRUE(response != NULL);
+
+    EXPECT_TRUE(response->headers != NULL);
+    if (i == 0) {
+      EXPECT_EQ("HTTP/1.1 304 Not Modified",
+                response->headers->GetStatusLine());
+      // We intentionally don't read the response in this case, to reflect how
+      // HttpCache::Transaction uses HttpNetworkTransaction.
+    } else {
+      EXPECT_EQ("HTTP/1.1 200 OK", response->headers->GetStatusLine());
+      std::string response_data;
+      rv = ReadTransaction(trans.get(), &response_data);
+      EXPECT_EQ(OK, rv);
+      EXPECT_EQ("hello", response_data);
+    }
+  }
+}
+
 // Test the request-challenge-retry sequence for basic auth.
 // (basic auth is the easiest to mock, because it has no randomness).
 TEST_F(HttpNetworkTransactionTest, BasicAuth) {
