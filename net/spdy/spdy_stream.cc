@@ -17,6 +17,7 @@ SpdyStream::SpdyStream(
       priority_(0),
       pushed_(pushed),
       metrics_(Singleton<BandwidthMetrics>::get()),
+      syn_reply_received_(false),
       session_(session),
       delegate_(NULL),
       request_time_(base::Time::Now()),
