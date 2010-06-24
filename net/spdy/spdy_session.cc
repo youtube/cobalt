@@ -949,6 +949,17 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
   LOG(INFO) << "SPDY SYN_REPLY RESPONSE HEADERS for stream: " << stream_id;
   DumpSpdyHeaders(*headers);
 
+  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
+  CHECK_EQ(stream->stream_id(), stream_id);
+  CHECK(!stream->cancelled());
+
+  if (stream->syn_reply_received()) {
+    LOG(WARNING) << "Received duplicate SYN_REPLY for stream " << stream_id;
+    CloseStream(stream->stream_id(), ERR_SPDY_PROTOCOL_ERROR);
+    return;
+  }
+  stream->set_syn_reply_received();
+
   // We record content declared as being pushed so that we don't
   // request a duplicate stream which is already scheduled to be
   // sent to us.
@@ -976,10 +987,6 @@ void SpdySession::OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
       start = end + 2;
     } while (start < content.length());
   }
-
-  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
-  CHECK_EQ(stream->stream_id(), stream_id);
-  CHECK(!stream->cancelled());
 
   const BoundNetLog& log = stream->net_log();
   if (log.HasListener()) {
