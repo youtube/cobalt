@@ -2700,7 +2700,7 @@ TEST(HttpCache, RangeGET_OK) {
                                  &headers);
 
   Verify206Response(headers, 40, 49);
-  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
@@ -2714,7 +2714,7 @@ TEST(HttpCache, RangeGET_OK) {
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   Verify206Response(headers, 30, 39);
-  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(2, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
@@ -2727,7 +2727,7 @@ TEST(HttpCache, RangeGET_OK) {
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   Verify206Response(headers, 20, 59);
-  EXPECT_EQ(5, cache.network_layer()->transaction_count());
+  EXPECT_EQ(4, cache.network_layer()->transaction_count());
   EXPECT_EQ(3, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
@@ -2757,7 +2757,7 @@ TEST(HttpCache, RangeGET_SyncOK) {
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   Verify206Response(headers, 40, 49);
-  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
   EXPECT_EQ(0, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
@@ -2770,7 +2770,7 @@ TEST(HttpCache, RangeGET_SyncOK) {
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   Verify206Response(headers, 30, 39);
-  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
@@ -2783,8 +2783,83 @@ TEST(HttpCache, RangeGET_SyncOK) {
   RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   Verify206Response(headers, 20, 59);
-  EXPECT_EQ(5, cache.network_layer()->transaction_count());
+  EXPECT_EQ(4, cache.network_layer()->transaction_count());
   EXPECT_EQ(2, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&transaction);
+}
+
+// Tests that we don't revalidate an entry unless we are required to do so.
+TEST(HttpCache, RangeGET_Revalidate1) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  std::string headers;
+
+  // Write to the cache (40-49).
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.response_headers =
+      "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+      "Expires: Wed, 7 Sep 2033 21:46:42 GMT\n"  // Should never expire.
+      "ETag: \"foo\"\n"
+      "Accept-Ranges: bytes\n"
+      "Content-Length: 10\n";
+  AddMockTransaction(&transaction);
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  Verify206Response(headers, 40, 49);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Read from the cache (40-49).
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+  Verify206Response(headers, 40, 49);
+
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Read again forcing the revalidation.
+  transaction.load_flags |= net::LOAD_VALIDATE_CACHE;
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  Verify206Response(headers, 40, 49);
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  RemoveMockTransaction(&transaction);
+}
+
+// Checks that we revalidate an entry when the headers say so.
+TEST(HttpCache, RangeGET_Revalidate2) {
+  MockHttpCache cache;
+  cache.http_cache()->set_enable_range_support(true);
+  std::string headers;
+
+  // Write to the cache (40-49).
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.response_headers =
+      "Last-Modified: Sat, 18 Apr 2009 01:10:43 GMT\n"
+      "Expires: Sat, 18 Apr 2009 01:10:43 GMT\n"  // Expired.
+      "ETag: \"foo\"\n"
+      "Accept-Ranges: bytes\n"
+      "Content-Length: 10\n";
+  AddMockTransaction(&transaction);
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+
+  Verify206Response(headers, 40, 49);
+  EXPECT_EQ(1, cache.network_layer()->transaction_count());
+  EXPECT_EQ(0, cache.disk_cache()->open_count());
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
+
+  // Read from the cache (40-49).
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
+  Verify206Response(headers, 40, 49);
+
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
+  EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
 
   RemoveMockTransaction(&transaction);
@@ -2809,8 +2884,9 @@ TEST(HttpCache, RangeGET_304) {
   // Read from the cache (40-49).
   RangeTransactionServer handler;
   handler.set_not_modified(true);
-  RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
-                                 &headers);
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.load_flags |= net::LOAD_VALIDATE_CACHE;
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   Verify206Response(headers, 40, 49);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
@@ -2839,8 +2915,9 @@ TEST(HttpCache, RangeGET_ModifiedResult) {
   // Attempt to read from the cache (40-49).
   RangeTransactionServer handler;
   handler.set_modified(true);
-  RunTransactionTestWithResponse(cache.http_cache(), kRangeGET_TransactionOK,
-                                 &headers);
+  MockTransaction transaction(kRangeGET_TransactionOK);
+  transaction.load_flags |= net::LOAD_VALIDATE_CACHE;
+  RunTransactionTestWithResponse(cache.http_cache(), transaction, &headers);
 
   Verify206Response(headers, 40, 49);
   EXPECT_EQ(2, cache.network_layer()->transaction_count());
@@ -3014,6 +3091,7 @@ TEST(HttpCache, GET_Previous206_NotModified) {
 
   // Read from the cache (0-9), write and read from cache (10 - 79),
   MockTransaction transaction2(kRangeGET_TransactionOK);
+  transaction2.load_flags |= net::LOAD_VALIDATE_CACHE;
   transaction2.request_headers = "Foo: bar\r\n" EXTRA_HEADER;
   transaction2.data = "rg: 00-09 rg: 10-19 rg: 20-29 rg: 30-39 rg: 40-49 "
                       "rg: 50-59 rg: 60-69 rg: 70-79 ";
@@ -3052,6 +3130,7 @@ TEST(HttpCache, GET_Previous206_NewContent) {
   // real server will answer with 200.
   MockTransaction transaction2(kRangeGET_TransactionOK);
   transaction2.request_headers = EXTRA_HEADER;
+  transaction2.load_flags |= net::LOAD_VALIDATE_CACHE;
   transaction2.data = "rg: 40-49 ";
   RangeTransactionServer handler;
   handler.set_modified(true);
@@ -3324,6 +3403,7 @@ TEST(HttpCache, RangeGET_Cancel2) {
 
   RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
   MockHttpRequest request(kRangeGET_TransactionOK);
+  request.load_flags |= net::LOAD_VALIDATE_CACHE;
 
   Context* c = new Context();
   int rv = cache.http_cache()->CreateTransaction(&c->trans);
@@ -3354,7 +3434,7 @@ TEST(HttpCache, RangeGET_Cancel2) {
 
   RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
 
-  EXPECT_EQ(3, cache.network_layer()->transaction_count());
+  EXPECT_EQ(2, cache.network_layer()->transaction_count());
   EXPECT_EQ(1, cache.disk_cache()->open_count());
   EXPECT_EQ(1, cache.disk_cache()->create_count());
   RemoveMockTransaction(&kRangeGET_TransactionOK);
@@ -3369,6 +3449,7 @@ TEST(HttpCache, RangeGET_Cancel3) {
 
   RunTransactionTest(cache.http_cache(), kRangeGET_TransactionOK);
   MockHttpRequest request(kRangeGET_TransactionOK);
+  request.load_flags |= net::LOAD_VALIDATE_CACHE;
 
   Context* c = new Context();
   int rv = cache.http_cache()->CreateTransaction(&c->trans);
@@ -3606,6 +3687,7 @@ TEST(HttpCache, RangeGET_FastFlakyServer) {
   MockTransaction transaction(kRangeGET_TransactionOK);
   transaction.request_headers = "Range: bytes = 40-\r\n" EXTRA_HEADER;
   transaction.test_mode = TEST_MODE_SYNC_NET_START;
+  transaction.load_flags |= net::LOAD_VALIDATE_CACHE;
   AddMockTransaction(&transaction);
 
   // Write to the cache.
