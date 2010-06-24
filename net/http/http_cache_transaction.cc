@@ -808,11 +808,16 @@ int HttpCache::Transaction::DoAddToEntry() {
   cache_pending_ = true;
   next_state_ = STATE_ADD_TO_ENTRY_COMPLETE;
   net_log_.BeginEvent(NetLog::TYPE_HTTP_CACHE_WAITING, NULL);
+  DCHECK(entry_lock_waiting_since_.is_null());
+  entry_lock_waiting_since_ = base::TimeTicks::Now();
   return cache_->AddTransactionToEntry(new_entry_, this);
 }
 
 int HttpCache::Transaction::DoAddToEntryComplete(int result) {
   net_log_.EndEvent(NetLog::TYPE_HTTP_CACHE_WAITING, NULL);
+  UMA_HISTOGRAM_TIMES("HttpCache.EntryLockWait",
+                      base::TimeTicks::Now() - entry_lock_waiting_since_);
+  entry_lock_waiting_since_ = base::TimeTicks();
   DCHECK(new_entry_);
   cache_pending_ = false;
 
