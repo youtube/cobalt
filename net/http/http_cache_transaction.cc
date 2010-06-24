@@ -1346,10 +1346,22 @@ int HttpCache::Transaction::BeginCacheRead() {
 int HttpCache::Transaction::BeginCacheValidation() {
   DCHECK(mode_ == READ_WRITE);
 
-  if ((effective_load_flags_ & LOAD_PREFERRING_CACHE ||
-       !RequiresValidation()) && !partial_.get()) {
+  bool skip_validation = effective_load_flags_ & LOAD_PREFERRING_CACHE ||
+                         !RequiresValidation();
+
+  if (partial_.get() && !partial_->IsCurrentRangeCached())
+    skip_validation = false;
+
+  if (skip_validation) {
+    if (partial_.get()) {
+      // We are going to return the saved response headers to the caller, so
+      // we may need to adjust them first.
+      next_state_ = STATE_PARTIAL_HEADERS_RECEIVED;
+      return OK;
+    }
     cache_->ConvertWriterToReader(entry_);
     mode_ = READ;
+
     if (entry_ && entry_->disk_entry->GetDataSize(kMetadataIndex))
       next_state_ = STATE_CACHE_READ_METADATA;
   } else {
