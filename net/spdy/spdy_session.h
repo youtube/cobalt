@@ -31,11 +31,8 @@
 
 namespace net {
 
-class SpdyHttpStream;
 class SpdyStream;
 class HttpNetworkSession;
-struct HttpRequestInfo;
-class HttpResponseInfo;
 class BoundNetLog;
 class SSLInfo;
 
@@ -59,20 +56,32 @@ class SpdySession : public base::RefCounted<SpdySession>,
                      const TCPSocketParams& destination,
                      RequestPriority priority);
 
-  // Get a stream for a given |request|.  In the typical case, this will involve
-  // the creation of a new stream (and will send the SYN frame).  If the server
-  // initiates a stream, it might already exist for a given path.  The server
-  // might also not have initiated the stream yet, but indicated it will via
-  // X-Associated-Content.
-  // Returns the new or existing stream.  Never returns NULL.
-  scoped_refptr<SpdyHttpStream> GetOrCreateStream(
-      const HttpRequestInfo& request,
-      const UploadDataStream* upload_data,
+  // Get a pushed stream for a given |url|.
+  // If the server initiates a stream, it might already exist for a given path.
+  // The server might also not have initiated the stream yet, but indicated it
+  // will via X-Associated-Content.
+  // Returns existing stream or NULL.
+  scoped_refptr<SpdyStream> GetPushStream(
+      const GURL& url,
+      const BoundNetLog& stream_net_log);
+
+  // Create a new stream for a given |url|.
+  // Returns the new stream.  Never returns NULL.
+  const scoped_refptr<SpdyStream>& CreateStream(
+      const GURL& url,
+      RequestPriority priority,
       const BoundNetLog& stream_net_log);
 
   // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
   // Returns OK on success, or an error on failure.
   net::Error InitializeWithSSLSocket(ClientSocketHandle* connection);
+
+  // Send the SYN frame for |stream_id|.
+  int WriteSynStream(
+      spdy::SpdyStreamId stream_id,
+      RequestPriority priority,
+      spdy::SpdyControlFlags flags,
+      const linked_ptr<spdy::SpdyHeaderBlock>& headers);
 
   // Write a data frame to the stream.
   // Used to create and queue a data frame for the given stream.
@@ -92,13 +101,16 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Closes all streams.  Used as part of shutdown.
   void CloseAllStreams(net::Error status);
 
+  // Fills SSL info in |ssl_info| and returns true when SSL is in use.
+  bool GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated);
+
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
   static bool SSLMode() { return use_ssl_; }
 
  private:
   friend class base::RefCounted<SpdySession>;
-  FRIEND_TEST(SpdySessionTest, GetPushStream);
+  FRIEND_TEST(SpdySessionTest, GetActivePushStream);
 
   enum State {
     IDLE,
@@ -109,9 +121,8 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   typedef std::map<int, scoped_refptr<SpdyStream> > ActiveStreamMap;
   // Only HTTP push a stream.
-  typedef std::list<scoped_refptr<SpdyHttpStream> > ActivePushedStreamList;
-  typedef std::map<std::string, scoped_refptr<SpdyHttpStream> >
-      PendingStreamMap;
+  typedef std::list<scoped_refptr<SpdyStream> > ActivePushedStreamList;
+  typedef std::map<std::string, scoped_refptr<SpdyStream> > PendingStreamMap;
   typedef std::priority_queue<SpdyIOBuffer> OutputQueue;
 
   virtual ~SpdySession();
@@ -175,14 +186,12 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Check if we have a pending pushed-stream for this url
   // Returns the stream if found (and returns it from the pending
   // list), returns NULL otherwise.
-  scoped_refptr<SpdyHttpStream> GetPushStream(const std::string& url);
+  scoped_refptr<SpdyStream> GetActivePushStream(const std::string& url);
 
-  // Creates an HttpResponseInfo instance, and calls OnResponseReceived().
+  // Calls OnResponseReceived().
   // Returns true if successful.
   bool Respond(const spdy::SpdyHeaderBlock& headers,
                const scoped_refptr<SpdyStream> stream);
-
-  void GetSSLInfo(SSLInfo* ssl_info);
 
   void RecordHistograms();
 
