@@ -464,32 +464,38 @@ TEST(X509CertificateTest, Policy) {
 
 #if defined(OS_MACOSX) || defined(OS_WIN)
 TEST(X509CertificateTest, IntermediateCertificates) {
-  X509Certificate::OSCertHandle handle1, handle2, handle3, handle4;
+  scoped_refptr<X509Certificate> webkit_cert =
+      X509Certificate::CreateFromBytes(
+          reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
 
+  scoped_refptr<X509Certificate> thawte_cert =
+      X509Certificate::CreateFromBytes(
+          reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der));
+
+  scoped_refptr<X509Certificate> paypal_cert =
+      X509Certificate::CreateFromBytes(
+          reinterpret_cast<const char*>(paypal_null_der),
+          sizeof(paypal_null_der));
+
+  X509Certificate::OSCertHandle google_handle;
   // Create object with no intermediates:
-  handle1 = X509Certificate::CreateOSCertHandleFromBytes(
+  google_handle = X509Certificate::CreateOSCertHandleFromBytes(
       reinterpret_cast<const char*>(google_der), sizeof(google_der));
   X509Certificate::OSCertHandles intermediates1;
   scoped_refptr<X509Certificate> cert1;
-  cert1 = X509Certificate::CreateFromHandle(handle1,
-      X509Certificate::SOURCE_FROM_NETWORK,
-      intermediates1);
+  cert1 = X509Certificate::CreateFromHandle(
+      google_handle, X509Certificate::SOURCE_FROM_NETWORK, intermediates1);
   EXPECT_TRUE(cert1->HasIntermediateCertificates(intermediates1));
-  handle2 = X509Certificate::CreateOSCertHandleFromBytes(
-      reinterpret_cast<const char*>(webkit_der), sizeof(webkit_der));
-  EXPECT_FALSE(cert1->HasIntermediateCertificate(handle2));
+  EXPECT_FALSE(cert1->HasIntermediateCertificate(
+      webkit_cert->os_cert_handle()));
 
   // Create object with 2 intermediates:
-  handle1 = X509Certificate::CreateOSCertHandleFromBytes(
-      reinterpret_cast<const char*>(google_der), sizeof(google_der));
   X509Certificate::OSCertHandles intermediates2;
-  handle3 = X509Certificate::CreateOSCertHandleFromBytes(
-      reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der));
-  intermediates2.push_back(handle2);
-  intermediates2.push_back(handle3);
+  intermediates2.push_back(webkit_cert->os_cert_handle());
+  intermediates2.push_back(thawte_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert2;
   cert2 = X509Certificate::CreateFromHandle(
-      X509Certificate::DupOSCertHandle(handle1),
+      X509Certificate::DupOSCertHandle(google_handle),
       X509Certificate::SOURCE_FROM_NETWORK,
       intermediates2);
 
@@ -497,20 +503,19 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   EXPECT_NE(cert1, cert2);
 
   // Verify it has all the intermediates:
-  EXPECT_TRUE(cert2->HasIntermediateCertificate(handle2));
-  EXPECT_TRUE(cert2->HasIntermediateCertificate(handle3));
-  handle4 = X509Certificate::CreateOSCertHandleFromBytes(
-      reinterpret_cast<const char*>(paypal_null_der), sizeof(paypal_null_der));
-  EXPECT_FALSE(cert2->HasIntermediateCertificate(handle4));
+  EXPECT_TRUE(cert2->HasIntermediateCertificate(
+      webkit_cert->os_cert_handle()));
+  EXPECT_TRUE(cert2->HasIntermediateCertificate(
+      thawte_cert->os_cert_handle()));
+  EXPECT_FALSE(cert2->HasIntermediateCertificate(
+      paypal_cert->os_cert_handle()));
 
   // Create object with 1 intermediate:
-  handle3 = X509Certificate::CreateOSCertHandleFromBytes(
-      reinterpret_cast<const char*>(thawte_der), sizeof(thawte_der));
   X509Certificate::OSCertHandles intermediates3;
-  intermediates2.push_back(handle3);
+  intermediates2.push_back(thawte_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert3;
   cert3 = X509Certificate::CreateFromHandle(
-      X509Certificate::DupOSCertHandle(handle1),
+      X509Certificate::DupOSCertHandle(google_handle),
       X509Certificate::SOURCE_FROM_NETWORK,
       intermediates3);
 
