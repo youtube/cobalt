@@ -47,6 +47,12 @@ namespace mozilla_security_manager {
 #define DEFAULT_RSA_KEYGEN_PE 65537L
 #define DEFAULT_RSA_KEYGEN_ALG SEC_OID_PKCS1_MD5_WITH_RSA_ENCRYPTION
 
+// Generates the key pair and the cert request (SPKAC), and returns a
+// base64-encoded string suitable for use as the form value of <keygen>.
+// Parameters:
+//   key_size_in_bits: key size in bits (usually 2048)
+//   challenge: challenge string sent by server
+//   stores_key: should the generated key pair be stored persistently?
 std::string GenKeyAndSignChallenge(int key_size_in_bits,
                                    const std::string& challenge,
                                    bool stores_key);
