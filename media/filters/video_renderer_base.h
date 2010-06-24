@@ -68,10 +68,11 @@ class VideoRendererBase : public VideoRenderer,
   // output surfaces.  Implementors should NOT call InitializationComplete().
   virtual bool OnInitialize(VideoDecoder* decoder) = 0;
 
-  // Subclass interface.  Called before any other stopping actions takes place.
+  // Subclass interface.  Called after all other stopping actions take place.
   //
-  // Implementors should perform any necessary cleanup before returning.
-  virtual void OnStop() = 0;
+  // Implementors should perform any necessary cleanup before calling the
+  // callback.
+  virtual void OnStop(FilterCallback* callback) = 0;
 
   // Subclass interface.  Called when a new frame is ready for display, which
   // can be accessed via GetCurrentFrame().
