@@ -7,37 +7,34 @@
 
 #include "base/basictypes.h"
 #include "base/message_loop.h"
-#include "base/non_thread_safe.h"
-#include "base/observer_list.h"
+#include "base/scoped_ptr.h"
 #include "net/base/network_change_notifier.h"
 
-#if defined(OS_CHROMEOS)
-#include "base/task.h"
-#endif
+namespace base {
+class Thread;
+}
 
 namespace net {
 
-class NetworkChangeNotifierLinux
-    : public NetworkChangeNotifier,
-      public NonThreadSafe,
-      public MessageLoopForIO::Watcher,
-      public MessageLoop::DestructionObserver {
+class NetworkChangeNotifierLinux : public MessageLoop::DestructionObserver,
+                                   public MessageLoopForIO::Watcher,
+                                   public NetworkChangeNotifier {
  public:
   NetworkChangeNotifierLinux();
 
-  // NetworkChangeNotifier methods:
-  virtual void AddObserver(Observer* observer);
-  virtual void RemoveObserver(Observer* observer);
+ private:
+  virtual ~NetworkChangeNotifierLinux();
 
-  // MessageLoopForIO::Watcher methods:
+  // MessageLoop::DestructionObserver:
+  virtual void WillDestroyCurrentMessageLoop();
+
+  // MessageLoopForIO::Watcher:
   virtual void OnFileCanReadWithoutBlocking(int fd);
   virtual void OnFileCanWriteWithoutBlocking(int /* fd */);
 
-  // MessageLoop::DestructionObserver methods:
-  virtual void WillDestroyCurrentMessageLoop();
-
- private:
-  virtual ~NetworkChangeNotifierLinux();
+  // Called on the notifier thread to initialize the notification
+  // implementation.
+  void Init();
 
   // Starts listening for netlink messages.  Also handles the messages if there
   // are any available on the netlink socket.
@@ -48,21 +45,14 @@ class NetworkChangeNotifierLinux
   // recv() would block.  Otherwise, it returns a net error code.
   int ReadNotificationMessage(char* buf, size_t len);
 
-  // Stops watching the netlink file descriptor.
-  void StopWatching();
+  // The thread used to listen for notifications.  This relays the notification
+  // to the registered observers without posting back to the thread the object
+  // was created on.
+  scoped_ptr<base::Thread> notifier_thread_;
 
-  void NotifyObserversIPAddressChanged();
+  // The netlink socket descriptor.
+  int netlink_fd_;
 
-  // http://crbug.com/36890.
-  ObserverList<Observer, false> observers_;
-
-  int netlink_fd_;  // This is the netlink socket descriptor.
-
-#if defined(OS_CHROMEOS)
-  ScopedRunnableMethodFactory<NetworkChangeNotifierLinux> factory_;
-#endif
-
-  MessageLoopForIO* loop_;
   MessageLoopForIO::FileDescriptorWatcher netlink_watcher_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierLinux);

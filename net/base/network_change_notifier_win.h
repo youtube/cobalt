@@ -5,35 +5,30 @@
 #ifndef NET_BASE_NETWORK_CHANGE_NOTIFIER_WIN_H_
 #define NET_BASE_NETWORK_CHANGE_NOTIFIER_WIN_H_
 
+#include <windows.h>
+
 #include "base/basictypes.h"
-#include "base/non_thread_safe.h"
 #include "base/object_watcher.h"
-#include "base/observer_list.h"
 #include "net/base/network_change_notifier.h"
 
 namespace net {
 
 class NetworkChangeNotifierWin : public NetworkChangeNotifier,
-                                 public NonThreadSafe {
+                                 public base::ObjectWatcher::Delegate {
  public:
   NetworkChangeNotifierWin();
 
-  // Called by NetworkChangeNotifierWin::Impl.
-  void OnIPAddressChanged();
-
-  // NetworkChangeNotifier methods:
-  virtual void AddObserver(Observer* observer);
-  virtual void RemoveObserver(Observer* observer);
-
  private:
-  class Impl;
-
   virtual ~NetworkChangeNotifierWin();
 
-  // TODO(willchan): Fix the URLRequestContextGetter leaks and flip the false to
-  // true so we assert that all observers have been removed.
-  ObserverList<Observer, false> observers_;
-  scoped_ptr<Impl> impl_;
+  // ObjectWatcher::Delegate methods:
+  virtual void OnObjectSignaled(HANDLE object);
+
+  // Begins listening for a single subsequent address change.
+  void WatchForAddressChange();
+
+  base::ObjectWatcher addr_watcher_;
+  OVERLAPPED addr_overlapped_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkChangeNotifierWin);
 };

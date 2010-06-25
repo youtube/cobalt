@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,17 +14,14 @@ static const size_t kMaxSessionsPerDomain = 1;
 
 int SpdySessionPool::g_max_sessions_per_domain = kMaxSessionsPerDomain;
 
-SpdySessionPool::SpdySessionPool(NetworkChangeNotifier* notifier)
-    : network_change_notifier_(notifier) {
-  if (network_change_notifier_)
-    network_change_notifier_->AddObserver(this);
+SpdySessionPool::SpdySessionPool() {
+  NetworkChangeNotifier::AddObserver(this);
 }
 
 SpdySessionPool::~SpdySessionPool() {
   CloseAllSessions();
 
-  if (network_change_notifier_)
-    network_change_notifier_->RemoveObserver(this);
+  NetworkChangeNotifier::RemoveObserver(this);
 }
 
 scoped_refptr<SpdySession> SpdySessionPool::Get(
@@ -83,6 +80,10 @@ void SpdySessionPool::Remove(const scoped_refptr<SpdySession>& session) {
   list->remove(session);
   if (list->empty())
     RemoveSessionList(session->host_port_pair());
+}
+
+void SpdySessionPool::OnIPAddressChanged() {
+  ClearSessions();
 }
 
 SpdySessionPool::SpdySessionList*

@@ -10,7 +10,6 @@
 #include "base/compiler_specific.h"
 #include "base/time.h"
 #include "net/base/mock_host_resolver.h"
-#include "net/base/mock_network_change_notifier.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/socket/client_socket_factory.h"
@@ -82,12 +81,13 @@ class MockTCPClientSocketPool : public TCPClientSocketPool {
     DISALLOW_COPY_AND_ASSIGN(MockConnectJob);
   };
 
-  MockTCPClientSocketPool(int max_sockets, int max_sockets_per_group,
+  MockTCPClientSocketPool(
+      int max_sockets,
+      int max_sockets_per_group,
       const scoped_refptr<ClientSocketPoolHistograms>& histograms,
-      ClientSocketFactory* socket_factory,
-      NetworkChangeNotifier* network_change_notifier)
+      ClientSocketFactory* socket_factory)
       : TCPClientSocketPool(max_sockets, max_sockets_per_group, histograms,
-                            NULL, NULL, network_change_notifier, NULL),
+                            NULL, NULL, NULL),
         client_socket_factory_(socket_factory),
         release_count_(0),
         cancel_count_(0) {}
@@ -174,16 +174,13 @@ class SOCKSClientSocketPoolTest : public ClientSocketPoolTest {
       : ignored_tcp_socket_params_(
             HostPortPair("proxy", 80), MEDIUM, GURL(), false),
         tcp_histograms_(new ClientSocketPoolHistograms("MockTCP")),
-        tcp_socket_pool_(new MockTCPClientSocketPool(
-            kMaxSockets, kMaxSocketsPerGroup, tcp_histograms_,
-            &tcp_client_socket_factory_, &tcp_notifier_)),
+        tcp_socket_pool_(new MockTCPClientSocketPool(kMaxSockets,
+            kMaxSocketsPerGroup, tcp_histograms_, &tcp_client_socket_factory_)),
         ignored_socket_params_(ignored_tcp_socket_params_, true,
-                               HostPortPair("host", 80),
-                               MEDIUM, GURL()),
+                               HostPortPair("host", 80), MEDIUM, GURL()),
         socks_histograms_(new ClientSocketPoolHistograms("SOCKSUnitTest")),
-        pool_(new SOCKSClientSocketPool(
-            kMaxSockets, kMaxSocketsPerGroup, socks_histograms_, NULL,
-            tcp_socket_pool_, &socks_notifier_, NULL)) {
+        pool_(new SOCKSClientSocketPool(kMaxSockets, kMaxSocketsPerGroup,
+            socks_histograms_, NULL, tcp_socket_pool_, NULL)) {
   }
 
   int StartRequest(const std::string& group_name, RequestPriority priority) {
@@ -194,12 +191,10 @@ class SOCKSClientSocketPoolTest : public ClientSocketPoolTest {
   TCPSocketParams ignored_tcp_socket_params_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_histograms_;
   MockClientSocketFactory tcp_client_socket_factory_;
-  MockNetworkChangeNotifier tcp_notifier_;
   scoped_refptr<MockTCPClientSocketPool> tcp_socket_pool_;
 
   SOCKSSocketParams ignored_socket_params_;
   scoped_refptr<ClientSocketPoolHistograms> socks_histograms_;
-  MockNetworkChangeNotifier socks_notifier_;
   scoped_refptr<SOCKSClientSocketPool> pool_;
 };
 
