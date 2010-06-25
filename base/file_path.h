@@ -304,6 +304,11 @@ class FilePath {
   void WriteToPickle(Pickle* pickle);
   bool ReadFromPickle(Pickle* pickle, void** iter);
 
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+  // Normalize all path separators to backslash.
+  FilePath NormalizeWindowsPathSeparators() const;
+#endif
+
   // Compare two strings in the same way the file system does.
   // Note that these always ignore case, even on file systems that are case-
   // sensitive. If case-sensitive comparison is ever needed, add corresponding

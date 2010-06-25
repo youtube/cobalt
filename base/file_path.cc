@@ -1124,3 +1124,12 @@ bool FilePath::ReferencesParent() const {
   return false;
 }
 
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+FilePath FilePath::NormalizeWindowsPathSeparators() const {
+  StringType copy = path_;
+  for (size_t i = 1; i < arraysize(kSeparators); ++i) {
+    std::replace(copy.begin(), copy.end(), kSeparators[i], kSeparators[0]);
+  }
+  return FilePath(copy);
+}
+#endif
