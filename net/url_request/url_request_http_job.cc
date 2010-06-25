@@ -902,7 +902,7 @@ void URLRequestHttpJob::ProcessStrictTransportSecurityHeader() {
       continue;
     }
 
-    net::HTTPSProberDelegate* delegate =
+    HTTPSProberDelegate* delegate =
         new HTTPSProberDelegate(request_info_.url.host(), max_age,
                                 include_subdomains,
                                 ctx->transport_security_state());
