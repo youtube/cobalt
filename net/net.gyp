@@ -590,11 +590,6 @@
               'third_party/nss/ssl.gyp:ssl',
               'tld_cleanup',
             ],
-            'link_settings': {
-              'libraries': [
-                '-lIphlpapi.lib',
-              ],
-            },
           },
           {  # else: OS != "win"
             'dependencies': [
@@ -662,9 +657,9 @@
         'base/mapped_host_resolver_unittest.cc',
         'base/mime_sniffer_unittest.cc',
         'base/mime_util_unittest.cc',
-        'base/mock_network_change_notifier.h',
         'base/net_log_unittest.h',
         'base/net_test_constants.h',
+        'base/net_test_suite.h',
         'base/net_util_unittest.cc',
         'base/registry_controlled_domain_unittest.cc',
         'base/run_all_unittests.cc',

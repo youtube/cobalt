@@ -83,7 +83,7 @@ struct SessionDependencies {
         proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool(NULL)) {}
+        spdy_session_pool(new SpdySessionPool()) {}
 
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
@@ -91,7 +91,7 @@ struct SessionDependencies {
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool(NULL)) {}
+        spdy_session_pool(new SpdySessionPool()) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
@@ -108,8 +108,7 @@ ProxyService* CreateFixedProxyService(const std::string& proxy) {
 }
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
-  return new HttpNetworkSession(NULL,
-                                session_deps->host_resolver,
+  return new HttpNetworkSession(session_deps->host_resolver,
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,
@@ -241,7 +240,8 @@ class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
  public:
   explicit CaptureGroupNameSocketPool(HttpNetworkSession* session)
       : EmulatedClientSocketPool(0, 0, NULL, session->host_resolver(), NULL,
-                                 NULL, NULL) {}
+                                 NULL) {
+  }
   const std::string last_group_name_received() const {
     return last_group_name_;
   }
@@ -5249,11 +5249,9 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
 
   CapturingProxyResolver* capturing_proxy_resolver =
       new CapturingProxyResolver();
-  SessionDependencies session_deps(
-      new ProxyService(new ProxyConfigServiceFixed(proxy_config),
-                       capturing_proxy_resolver,
-                       NULL,
-                       NULL));
+  SessionDependencies session_deps(new ProxyService(
+      new ProxyConfigServiceFixed(proxy_config), capturing_proxy_resolver,
+      NULL));
 
   HttpRequestInfo request;
   request.method = "GET";
