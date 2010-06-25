@@ -36,7 +36,6 @@ uint16 g_fixed_https_port = 0;
 }  // namespace
 
 HttpNetworkSession::HttpNetworkSession(
-    NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     ClientSocketFactory* client_socket_factory,
@@ -45,18 +44,16 @@ HttpNetworkSession::HttpNetworkSession(
     HttpAuthHandlerFactory* http_auth_handler_factory,
     HttpNetworkDelegate* network_delegate,
     NetLog* net_log)
-    : network_change_notifier_(network_change_notifier),
       // TODO(vandebo) when we've completely converted to pools, the base TCP
       // pool name should get changed to TCP instead of Transport.
-      tcp_pool_histograms_(new ClientSocketPoolHistograms("Transport")),
+    : tcp_pool_histograms_(new ClientSocketPoolHistograms("Transport")),
       http_proxy_pool_histograms_(new ClientSocketPoolHistograms("HTTPProxy")),
       tcp_for_socks_pool_histograms_(
           new ClientSocketPoolHistograms("TCPforSOCKS")),
       socks_pool_histograms_(new ClientSocketPoolHistograms("SOCK")),
-      tcp_socket_pool_(new TCPClientSocketPool(
-          g_max_sockets, g_max_sockets_per_group, tcp_pool_histograms_,
-          host_resolver, client_socket_factory, network_change_notifier_,
-          net_log)),
+      tcp_socket_pool_(new TCPClientSocketPool(g_max_sockets,
+          g_max_sockets_per_group, tcp_pool_histograms_, host_resolver,
+          client_socket_factory, net_log)),
       socket_factory_(client_socket_factory),
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
@@ -80,14 +77,10 @@ HttpNetworkSession::GetSocketPoolForHTTPProxy(const HostPortPair& http_proxy) {
     return it->second;
 
   std::pair<HTTPProxySocketPoolMap::iterator, bool> ret =
-      http_proxy_socket_pool_.insert(
-          std::make_pair(
-              http_proxy,
-              new TCPClientSocketPool(
-                  g_max_sockets_per_proxy_server, g_max_sockets_per_group,
-                  http_proxy_pool_histograms_, host_resolver_, socket_factory_,
-                  network_change_notifier_,
-                  net_log_)));
+      http_proxy_socket_pool_.insert(std::make_pair(http_proxy,
+          new TCPClientSocketPool(g_max_sockets_per_proxy_server,
+              g_max_sockets_per_group, http_proxy_pool_histograms_,
+              host_resolver_, socket_factory_, net_log_)));
 
   return ret.first->second;
 }
@@ -99,20 +92,14 @@ HttpNetworkSession::GetSocketPoolForSOCKSProxy(
   if (it != socks_socket_pool_.end())
     return it->second;
 
-  std::pair<SOCKSSocketPoolMap::iterator, bool> ret =
-      socks_socket_pool_.insert(
-          std::make_pair(
-              socks_proxy,
-              new SOCKSClientSocketPool(
-                  g_max_sockets_per_proxy_server, g_max_sockets_per_group,
-                  socks_pool_histograms_, host_resolver_,
-                  new TCPClientSocketPool(g_max_sockets_per_proxy_server,
-                                          g_max_sockets_per_group,
-                                          tcp_for_socks_pool_histograms_,
-                                          host_resolver_, socket_factory_,
-                                          network_change_notifier_,
-                                          net_log_),
-                  network_change_notifier_, net_log_)));
+  std::pair<SOCKSSocketPoolMap::iterator, bool> ret = socks_socket_pool_.insert(
+      std::make_pair(socks_proxy, new SOCKSClientSocketPool(
+          g_max_sockets_per_proxy_server, g_max_sockets_per_group,
+          socks_pool_histograms_, host_resolver_,
+          new TCPClientSocketPool(g_max_sockets_per_proxy_server,
+              g_max_sockets_per_group, tcp_for_socks_pool_histograms_,
+              host_resolver_, socket_factory_, net_log_),
+          net_log_)));
 
   return ret.first->second;
 }

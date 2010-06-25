@@ -55,7 +55,7 @@ class SessionDependencies {
         proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool(NULL)) {
+        spdy_session_pool(new SpdySessionPool()) {
     // Note: The CancelledTransaction test does cleanup by running all tasks
     // in the message loop (RunAllPending).  Unfortunately, that doesn't clean
     // up tasks on the host resolver thread; and TCPConnectJob is currently
@@ -71,7 +71,7 @@ class SessionDependencies {
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool(NULL)) {}
+        spdy_session_pool(new SpdySessionPool()) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
@@ -82,8 +82,7 @@ class SessionDependencies {
 };
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
-  return new HttpNetworkSession(NULL,
-                                session_deps->host_resolver,
+  return new HttpNetworkSession(session_deps->host_resolver,
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,

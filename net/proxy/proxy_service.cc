@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -200,7 +200,6 @@ class ProxyService::PacRequest
 
 ProxyService::ProxyService(ProxyConfigService* config_service,
                            ProxyResolver* resolver,
-                           NetworkChangeNotifier* network_change_notifier,
                            NetLog* net_log)
     : config_service_(config_service),
       resolver_(resolver),
@@ -208,11 +207,8 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
       should_use_proxy_resolver_(false),
       ALLOW_THIS_IN_INITIALIZER_LIST(init_proxy_resolver_callback_(
           this, &ProxyService::OnInitProxyResolverComplete)),
-      net_log_(net_log),
-      network_change_notifier_(network_change_notifier) {
-  // Register to receive network change notifications.
-  if (network_change_notifier_)
-    network_change_notifier_->AddObserver(this);
+      net_log_(net_log) {
+  NetworkChangeNotifier::AddObserver(this);
 }
 
 // static
@@ -220,7 +216,6 @@ ProxyService* ProxyService::Create(
     ProxyConfigService* proxy_config_service,
     bool use_v8_resolver,
     URLRequestContext* url_request_context,
-    NetworkChangeNotifier* network_change_notifier,
     NetLog* net_log,
     MessageLoop* io_loop) {
   ProxyResolver* proxy_resolver = NULL;
@@ -249,9 +244,8 @@ ProxyService* ProxyService::Create(
         new SingleThreadedProxyResolver(CreateNonV8ProxyResolver());
   }
 
-  ProxyService* proxy_service = new ProxyService(
-      proxy_config_service, proxy_resolver, network_change_notifier,
-      net_log);
+  ProxyService* proxy_service =
+      new ProxyService(proxy_config_service, proxy_resolver, net_log);
 
   if (proxy_resolver->expects_pac_bytes()) {
     // Configure PAC script downloads to be issued using |url_request_context|.
@@ -265,16 +259,13 @@ ProxyService* ProxyService::Create(
 
 // static
 ProxyService* ProxyService::CreateFixed(const ProxyConfig& pc) {
-  return Create(new ProxyConfigServiceFixed(pc), false, NULL, NULL,
-                NULL, NULL);
+  return Create(new ProxyConfigServiceFixed(pc), false, NULL, NULL, NULL);
 }
 
 // static
 ProxyService* ProxyService::CreateNull() {
   // Use a configuration fetcher and proxy resolver which always fail.
-  return new ProxyService(new ProxyConfigServiceNull,
-                          new ProxyResolverNull,
-                          NULL,
+  return new ProxyService(new ProxyConfigServiceNull, new ProxyResolverNull,
                           NULL);
 }
 
@@ -341,9 +332,7 @@ int ProxyService::TryToCompleteSynchronously(const GURL& url,
 }
 
 ProxyService::~ProxyService() {
-  // Unregister to receive network change notifications.
-  if (network_change_notifier_)
-    network_change_notifier_->RemoveObserver(this);
+  NetworkChangeNotifier::RemoveObserver(this);
 
   // Cancel any inprogress requests.
   for (PendingRequests::iterator it = pending_requests_.begin();
@@ -675,8 +664,6 @@ void ProxyService::UpdateConfigIfOld(const BoundNetLog& net_log) {
 
 
 void ProxyService::OnIPAddressChanged() {
-  DCHECK(network_change_notifier_);
-
   // Mark the current configuration as being un-initialized.
   //
   // This will force us to re-fetch the configuration (and re-run all of
