@@ -80,6 +80,9 @@ class TransportSecurityState :
     // This function may not block and may be called with internal locks held.
     // Thus it must not reenter the TransportSecurityState object.
     virtual void StateIsDirty(TransportSecurityState* state) = 0;
+
+   protected:
+    virtual ~Delegate() {}
   };
 
   void SetDelegate(Delegate*);

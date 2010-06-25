@@ -55,6 +55,9 @@ class MessageLoopProxy
 
  protected:
   friend struct MessageLoopProxyTraits;
+
+  virtual ~MessageLoopProxy() { }
+
   // Called when the proxy is about to be deleted. Subclasses can override this
   // to provide deletion on specific threads.
   virtual void OnDestruct() {
