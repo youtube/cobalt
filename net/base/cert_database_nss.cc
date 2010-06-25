@@ -70,9 +70,13 @@ int CertDatabase::AddUserCert(X509Certificate* cert_obj) {
   }
   nickname = username + "'s " + ca_name + " ID";
 
-  slot = PK11_ImportCertForKey(cert,
-                               const_cast<char*>(nickname.c_str()),
-                               NULL);
+  {
+    base::AutoNSSWriteLock lock;
+    slot = PK11_ImportCertForKey(cert,
+                                 const_cast<char*>(nickname.c_str()),
+                                 NULL);
+  }
+
   if (!slot) {
     LOG(ERROR) << "Couldn't import user certificate.";
     return ERR_ADD_USER_CERT_FAILED;

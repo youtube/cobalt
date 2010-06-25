@@ -41,6 +41,7 @@
 #include "net/third_party/mozilla_security_manager/nsKeygenHandler.h"
 
 #include <pk11pub.h>
+#include <prerror.h>   // PR_GetError()
 #include <secmod.h>
 #include <secder.h>    // DER_Encode()
 #include <cryptohi.h>  // SEC_DerSignData()
@@ -152,13 +153,16 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
   }
 
   LOG(INFO) << "Creating key pair...";
-  privateKey = PK11_GenerateKeyPair(slot,
-                                    keyGenMechanism,
-                                    keyGenParams,
-                                    &publicKey,
-                                    PR_TRUE,  // isPermanent?
-                                    PR_TRUE,  // isSensitive?
-                                    NULL);
+  {
+    base::AutoNSSWriteLock lock;
+    privateKey = PK11_GenerateKeyPair(slot,
+                                      keyGenMechanism,
+                                      keyGenParams,
+                                      &publicKey,
+                                      PR_TRUE,  // isPermanent?
+                                      PR_TRUE,  // isSensitive?
+                                      NULL);
+  }
   LOG(INFO) << "done.";
 
   if (!privateKey) {
@@ -227,7 +231,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
 
  failure:
   if (!isSuccess) {
-    LOG(ERROR) << "SSL Keygen failed!";
+    LOG(ERROR) << "SSL Keygen failed! (NSS error code " << PR_GetError() << ")";
   } else {
     LOG(INFO) << "SSL Keygen succeeded!";
   }
@@ -237,6 +241,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
     // On successful keygen we need to keep the private key, of course,
     // or we won't be able to use the client certificate.
     if (!isSuccess || !stores_key) {
+      base::AutoNSSWriteLock lock;
       PK11_DestroyTokenObject(privateKey->pkcs11Slot, privateKey->pkcs11ID);
     }
     SECKEY_DestroyPrivateKey(privateKey);
@@ -244,6 +249,7 @@ std::string GenKeyAndSignChallenge(int key_size_in_bits,
 
   if (publicKey) {
     if (!isSuccess || !stores_key) {
+      base::AutoNSSWriteLock lock;
       PK11_DestroyTokenObject(publicKey->pkcs11Slot, publicKey->pkcs11ID);
     }
     SECKEY_DestroyPublicKey(publicKey);
