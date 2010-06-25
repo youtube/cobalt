@@ -99,8 +99,8 @@ void NetworkChangeNotifierLinux::ListenForNotifications() {
       // is functional in ChromeOS. This should be removed once this bug
       // is properly fixed.
       const int kObserverNotificationDelayMS = 500;
-      MessageLoop::current()->PostDelayedTask(FROM_HERE, NewRunnableMethod(
-          this, &NetworkChangeNotifier::NotifyObserversOfIPAddressChange),
+      MessageLoop::current()->PostDelayedTask(FROM_HERE, NewRunnableFunction(
+          &NetworkChangeNotifier::NotifyObserversOfIPAddressChange),
           kObserverNotificationDelayMS);
 #else
       NotifyObserversOfIPAddressChange();
