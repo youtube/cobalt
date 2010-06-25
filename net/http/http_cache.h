@@ -46,7 +46,6 @@ struct HttpRequestInfo;
 class HttpResponseInfo;
 class IOBuffer;
 class NetLog;
-class NetworkChangeNotifier;
 class ProxyService;
 class SSLConfigService;
 class ViewCacheHelper;
@@ -113,8 +112,8 @@ class HttpCache : public HttpTransactionFactory,
 
   // The disk cache is initialized lazily (by CreateTransaction) in this case.
   // The  HttpCache takes ownership of the |backend_factory|.
-  HttpCache(NetworkChangeNotifier* network_change_notifier,
-            HostResolver* host_resolver, ProxyService* proxy_service,
+  HttpCache(HostResolver* host_resolver,
+            ProxyService* proxy_service,
             SSLConfigService* ssl_config_service,
             HttpAuthHandlerFactory* http_auth_handler_factory,
             HttpNetworkDelegate* network_delegate,

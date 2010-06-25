@@ -13,7 +13,6 @@
 #include "net/base/address_list.h"
 #include "net/base/completion_callback.h"
 #include "net/base/mock_host_resolver.h"
-#include "net/base/mock_network_change_notifier.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_log_unittest.h"
 #include "net/base/net_util.h"
@@ -39,11 +38,7 @@ HostCache* CreateDefaultCache() {
 static const size_t kMaxJobs = 10u;
 
 HostResolverImpl* CreateHostResolverImpl(HostResolverProc* resolver_proc) {
-  return new HostResolverImpl(
-      resolver_proc,
-      CreateDefaultCache(),
-      NULL,  // network_change_notifier
-      kMaxJobs);
+  return new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs);
 }
 
 // Helper to create a HostResolver::RequestInfo.
@@ -748,7 +743,7 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
 
   // Turn off caching for this host resolver.
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, NULL, NULL, kMaxJobs));
+      new HostResolverImpl(resolver_proc, NULL, kMaxJobs));
 
   // The class will receive callbacks for when each resolve completes. It
   // checks that the right things happened.
@@ -1044,11 +1039,8 @@ TEST_F(HostResolverImplTest, CancellationObserver) {
 
 // Test that IP address changes flush the cache.
 TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
-  MockNetworkChangeNotifier mock_network_change_notifier;
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(NULL, CreateDefaultCache(),
-                           &mock_network_change_notifier,
-                           kMaxJobs));
+      new HostResolverImpl(NULL, CreateDefaultCache(), kMaxJobs));
 
   AddressList addrlist;
 
@@ -1066,7 +1058,8 @@ TEST_F(HostResolverImplTest, FlushCacheOnIPAddressChange) {
   ASSERT_EQ(OK, rv);  // Should complete synchronously.
 
   // Flush cache by triggering an IP address change.
-  mock_network_change_notifier.NotifyIPAddressChange();
+  NetworkChangeNotifier::NotifyObserversOfIPAddressChangeForTests();
+  MessageLoop::current()->RunAllPending();  // Notification happens async.
 
   // Resolve "host1" again -- this time it won't be served from cache, so it
   // will complete asynchronously.
@@ -1084,8 +1077,7 @@ TEST_F(HostResolverImplTest, HigherPriorityRequestsStartedFirst) {
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   size_t kMaxJobs = 1u;
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache(),
-                           NULL, kMaxJobs));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs));
 
   CapturingObserver observer;
   host_resolver->AddObserver(&observer);
@@ -1169,8 +1161,7 @@ TEST_F(HostResolverImplTest, CancelPendingRequest) {
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxJobs = 1u;
   scoped_refptr<HostResolver> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache(),
-                           NULL, kMaxJobs));
+      new HostResolverImpl(resolver_proc, CreateDefaultCache(), kMaxJobs));
 
   // Note that at this point the CapturingHostResolverProc is blocked, so any
   // requests we make will not complete.
@@ -1231,9 +1222,8 @@ TEST_F(HostResolverImplTest, QueueOverflow) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
-  scoped_refptr<HostResolverImpl> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache(),
-                           NULL, kMaxOutstandingJobs));
+  scoped_refptr<HostResolverImpl> host_resolver(new HostResolverImpl(
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs));
 
   // Only allow up to 3 requests to be enqueued at a time.
   const size_t kMaxPendingRequests = 3u;
@@ -1310,9 +1300,8 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv4) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
-  scoped_refptr<HostResolverImpl> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache(),
-                           NULL, kMaxOutstandingJobs));
+  scoped_refptr<HostResolverImpl> host_resolver(new HostResolverImpl(
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
 
@@ -1379,9 +1368,8 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_IPv6) {
 
   // This HostResolverImpl will only allow 1 outstanding resolve at a time.
   const size_t kMaxOutstandingJobs = 1u;
-  scoped_refptr<HostResolverImpl> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache(),
-                           NULL, kMaxOutstandingJobs));
+  scoped_refptr<HostResolverImpl> host_resolver(new HostResolverImpl(
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV6);
 
@@ -1446,9 +1434,8 @@ TEST_F(HostResolverImplTest, SetDefaultAddressFamily_Synchronous) {
       new CapturingHostResolverProc(new EchoingHostResolverProc);
 
   const size_t kMaxOutstandingJobs = 10u;
-  scoped_refptr<HostResolverImpl> host_resolver(
-      new HostResolverImpl(resolver_proc, CreateDefaultCache(),
-                           NULL, kMaxOutstandingJobs));
+  scoped_refptr<HostResolverImpl> host_resolver(new HostResolverImpl(
+      resolver_proc, CreateDefaultCache(), kMaxOutstandingJobs));
 
   host_resolver->SetDefaultAddressFamily(ADDRESS_FAMILY_IPV4);
 

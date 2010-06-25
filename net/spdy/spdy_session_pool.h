@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -21,7 +21,6 @@ namespace net {
 class BoundNetLog;
 class ClientSocketHandle;
 class HttpNetworkSession;
-class NetworkChangeNotifier;
 class SpdySession;
 
 // This is a very simple pool for open SpdySessions.
@@ -30,7 +29,7 @@ class SpdySessionPool
     : public base::RefCounted<SpdySessionPool>,
       public NetworkChangeNotifier::Observer {
  public:
-  explicit SpdySessionPool(NetworkChangeNotifier* notifier);
+  SpdySessionPool();
 
   // Either returns an existing SpdySession or creates a new SpdySession for
   // use.
@@ -72,7 +71,7 @@ class SpdySessionPool
   // We flush all idle sessions and release references to the active ones so
   // they won't get re-used.  The active ones will either complete successfully
   // or error out due to the IP address change.
-  virtual void OnIPAddressChanged() { ClearSessions(); }
+  virtual void OnIPAddressChanged();
 
  private:
   friend class base::RefCounted<SpdySessionPool>;
@@ -99,8 +98,6 @@ class SpdySessionPool
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;
-
-  NetworkChangeNotifier* const network_change_notifier_;
 
   static int g_max_sessions_per_domain;
 

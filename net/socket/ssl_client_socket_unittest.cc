@@ -26,7 +26,7 @@ const net::SSLConfig kDefaultSSLConfig;
 class SSLClientSocketTest : public PlatformTest {
  public:
   SSLClientSocketTest()
-    : resolver_(net::CreateSystemHostResolver(NULL)),
+      : resolver_(net::CreateSystemHostResolver()),
         socket_factory_(net::ClientSocketFactory::GetDefaultFactory()) {
   }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -36,13 +36,10 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
                      public NetworkChangeNotifier::Observer {
  public:
   // The instance takes ownership of |config_service| and |resolver|.
-  // If |network_change_notifier| is non-NULL, the proxy service will register
-  // with it to detect when the network setup has changed. This is used to
-  // decide when to re-configure the proxy discovery.
   // |net_log| is a possibly NULL destination to send log events to. It must
   // remain alive for the lifetime of this ProxyService.
-  ProxyService(ProxyConfigService* config_service, ProxyResolver* resolver,
-               NetworkChangeNotifier* network_change_notifier,
+  ProxyService(ProxyConfigService* config_service,
+               ProxyResolver* resolver,
                NetLog* net_log);
 
   // Used internally to handle PAC queries.
@@ -143,8 +140,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   // |url_request_context| is only used when use_v8_resolver is true:
   // it specifies the URL request context that will be used if a PAC
   // script needs to be fetched.
-  // |network_change_notifier| may be NULL. Otherwise it will be used to
-  // signal the ProxyService when the network setup has changed.
   // |io_loop| points to the IO thread's message loop. It is only used
   // when pc is NULL.
   // ##########################################################################
@@ -156,7 +151,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
       ProxyConfigService* proxy_config_service,
       bool use_v8_resolver,
       URLRequestContext* url_request_context,
-      NetworkChangeNotifier* network_change_notifier,
       NetLog* net_log,
       MessageLoop* io_loop);
 
@@ -244,7 +238,8 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
                               int result_code,
                               const BoundNetLog& net_log);
 
-  // NetworkChangeNotifier::Observer methods:
+  // NetworkChangeNotifier::Observer
+  // When this is called, we re-fetch PAC scripts and re-run WPAD.
   virtual void OnIPAddressChanged();
 
   scoped_ptr<ProxyConfigService> config_service_;
@@ -287,10 +282,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   // sent to.
   NetLog* net_log_;
 
-  // The (possibly NULL) network change notifier that we use to decide when
-  // to refetch PAC scripts or re-run WPAD.
-  NetworkChangeNotifier* const network_change_notifier_;
-
   DISALLOW_COPY_AND_ASSIGN(ProxyService);
 };
 
@@ -301,9 +292,12 @@ class SyncProxyServiceHelper
   SyncProxyServiceHelper(MessageLoop* io_message_loop,
                          ProxyService* proxy_service);
 
-  int ResolveProxy(const GURL& url, ProxyInfo* proxy_info, const BoundNetLog& net_log);
+  int ResolveProxy(const GURL& url,
+                   ProxyInfo* proxy_info,
+                   const BoundNetLog& net_log);
   int ReconsiderProxyAfterError(const GURL& url,
-                                ProxyInfo* proxy_info, const BoundNetLog& net_log);
+                                ProxyInfo* proxy_info,
+                                const BoundNetLog& net_log);
 
  private:
   friend class base::RefCountedThreadSafe<SyncProxyServiceHelper>;

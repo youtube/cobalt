@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -25,6 +25,8 @@ class NetTestSuite : public TestSuite {
   // TestSuite::Initialize().  TestSuite::Initialize() performs some global
   // initialization that can only be done once.
   void InitializeTestThread() {
+    network_change_notifier_.reset(net::NetworkChangeNotifier::CreateMock());
+
     host_resolver_proc_ = new net::RuleBasedHostResolverProc(NULL);
     scoped_host_resolver_proc_.Init(host_resolver_proc_.get());
     // In case any attempts are made to resolve host names, force them all to
@@ -44,6 +46,7 @@ class NetTestSuite : public TestSuite {
   }
 
  private:
+  scoped_ptr<net::NetworkChangeNotifier> network_change_notifier_;
   scoped_ptr<MessageLoop> message_loop_;
   scoped_refptr<net::RuleBasedHostResolverProc> host_resolver_proc_;
   net::ScopedDefaultHostResolverProc scoped_host_resolver_proc_;

@@ -29,7 +29,6 @@
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
-#include "net/base/network_change_notifier.h"
 
 #if defined(OS_WIN)
 #include "net/base/winsock_init.h"
@@ -52,14 +51,13 @@ HostCache* CreateDefaultCache() {
 
 }  // anonymous namespace
 
-HostResolver* CreateSystemHostResolver(
-    NetworkChangeNotifier* network_change_notifier) {
+HostResolver* CreateSystemHostResolver() {
   // Maximum of 50 concurrent threads.
   // TODO(eroman): Adjust this, do some A/B experiments.
   static const size_t kMaxJobs = 50u;
 
-  HostResolverImpl* resolver = new HostResolverImpl(
-      NULL, CreateDefaultCache(), network_change_notifier, kMaxJobs);
+  HostResolverImpl* resolver =
+      new HostResolverImpl(NULL, CreateDefaultCache(), kMaxJobs);
 
   return resolver;
 }
@@ -704,7 +702,6 @@ class HostResolverImpl::JobPool {
 HostResolverImpl::HostResolverImpl(
     HostResolverProc* resolver_proc,
     HostCache* cache,
-    NetworkChangeNotifier* network_change_notifier,
     size_t max_jobs)
     : cache_(cache),
       max_jobs_(max_jobs),
@@ -713,7 +710,6 @@ HostResolverImpl::HostResolverImpl(
       resolver_proc_(resolver_proc),
       default_address_family_(ADDRESS_FAMILY_UNSPECIFIED),
       shutdown_(false),
-      network_change_notifier_(network_change_notifier),
       ipv6_probe_monitoring_(false) {
   DCHECK_GT(max_jobs, 0u);
 
@@ -724,8 +720,7 @@ HostResolverImpl::HostResolverImpl(
 #if defined(OS_WIN)
   EnsureWinsockInit();
 #endif
-  if (network_change_notifier_)
-    network_change_notifier_->AddObserver(this);
+  NetworkChangeNotifier::AddObserver(this);
 }
 
 HostResolverImpl::~HostResolverImpl() {
@@ -740,8 +735,7 @@ HostResolverImpl::~HostResolverImpl() {
   if (cur_completing_job_)
     cur_completing_job_->Cancel();
 
-  if (network_change_notifier_)
-    network_change_notifier_->RemoveObserver(this);
+  NetworkChangeNotifier::RemoveObserver(this);
 
   // Delete the job pools.
   for (size_t i = 0u; i < arraysize(job_pools_); ++i)
