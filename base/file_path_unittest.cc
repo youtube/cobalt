@@ -661,7 +661,7 @@ TEST_F(FilePathTest, EqualityTest) {
 #if defined(FILE_PATH_USES_WIN_SEPARATORS)
     { { FPL("\\foo\\bar"),    FPL("\\foo\\bar") },        true},
     { { FPL("\\foo/bar"),     FPL("\\foo/bar") },         true},
-    { { FPL("\\foo/bar"),     FPL("\\foo\bar") },         false},
+    { { FPL("\\foo/bar"),     FPL("\\foo\\bar") },        false},
     { { FPL("\\"),            FPL("\\") },                true},
     { { FPL("\\"),            FPL("/") },                 false},
     { { FPL(""),              FPL("\\") },                false},
@@ -1004,3 +1004,47 @@ TEST_F(FilePathTest, ReferencesParent) {
               "i: " << i << ", input: " << input.value();
   }
 }
+
+#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+TEST_F(FilePathTest, NormalizeWindowsPathSeparators) {
+  const struct UnaryTestData cases[] = {
+    { FPL("foo/bar"), FPL("foo\\bar") },
+    { FPL("foo/bar\\betz"), FPL("foo\\bar\\betz") },
+    { FPL("foo\\bar"), FPL("foo\\bar") },
+    { FPL("foo\\bar/betz"), FPL("foo\\bar\\betz") },
+    { FPL("foo"), FPL("foo") },
+    // Trailing slashes don't automatically get stripped.  That's what
+    // StripTrailingSeparators() is for.
+    { FPL("foo\\"), FPL("foo\\") },
+    { FPL("foo/"), FPL("foo\\") },
+    { FPL("foo/bar\\"), FPL("foo\\bar\\") },
+    { FPL("foo\\bar/"), FPL("foo\\bar\\") },
+    { FPL("foo/bar/"), FPL("foo\\bar\\") },
+    { FPL("foo\\bar\\"), FPL("foo\\bar\\") },
+    { FPL("\\foo/bar"), FPL("\\foo\\bar") },
+    { FPL("/foo\\bar"), FPL("\\foo\\bar") },
+    { FPL("c:/foo/bar/"), FPL("c:\\foo\\bar\\") },
+    { FPL("/foo/bar/"), FPL("\\foo\\bar\\") },
+    { FPL("\\foo\\bar\\"), FPL("\\foo\\bar\\") },
+    { FPL("c:\\foo/bar"), FPL("c:\\foo\\bar") },
+    { FPL("//foo\\bar\\"), FPL("\\\\foo\\bar\\") },
+    { FPL("\\\\foo\\bar\\"), FPL("\\\\foo\\bar\\") },
+    { FPL("//foo\\bar\\"), FPL("\\\\foo\\bar\\") },
+    // This method does not normalize the number of path separators.
+    { FPL("foo\\\\bar"), FPL("foo\\\\bar") },
+    { FPL("foo//bar"), FPL("foo\\\\bar") },
+    { FPL("foo/\\bar"), FPL("foo\\\\bar") },
+    { FPL("foo\\/bar"), FPL("foo\\\\bar") },
+    { FPL("///foo\\\\bar"), FPL("\\\\\\foo\\\\bar") },
+    { FPL("foo//bar///"), FPL("foo\\\\bar\\\\\\") },
+    { FPL("foo/\\bar/\\"), FPL("foo\\\\bar\\\\") },
+    { FPL("/\\foo\\/bar"), FPL("\\\\foo\\\\bar") },
+  };
+  for (size_t i = 0; i < arraysize(cases); ++i) {
+    FilePath input(cases[i].input);
+    FilePath observed = input.NormalizeWindowsPathSeparators();
+    EXPECT_EQ(FilePath::StringType(cases[i].expected), observed.value()) <<
+              "i: " << i << ", input: " << input.value();
+  }
+}
+#endif
