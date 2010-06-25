@@ -100,7 +100,7 @@ void NetworkChangeNotifierLinux::ListenForNotifications() {
       // is properly fixed.
       const int kObserverNotificationDelayMS = 500;
       MessageLoop::current()->PostDelayedTask(FROM_HERE, NewRunnableMethod(
-          &NetworkChangeNotifier::NotifyObserversOfIPAddressChange),
+          this, &NetworkChangeNotifier::NotifyObserversOfIPAddressChange),
           kObserverNotificationDelayMS);
 #else
       NotifyObserversOfIPAddressChange();
