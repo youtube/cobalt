@@ -21,7 +21,6 @@ namespace net {
 
 // static
 HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
-    NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service,
@@ -31,7 +30,6 @@ HttpTransactionFactory* HttpNetworkLayer::CreateFactory(
   DCHECK(proxy_service);
 
   return new HttpNetworkLayer(ClientSocketFactory::GetDefaultFactory(),
-                              network_change_notifier,
                               host_resolver, proxy_service, ssl_config_service,
                               http_auth_handler_factory,
                               network_delegate,
@@ -51,7 +49,6 @@ bool HttpNetworkLayer::force_spdy_ = false;
 
 HttpNetworkLayer::HttpNetworkLayer(
     ClientSocketFactory* socket_factory,
-    NetworkChangeNotifier* network_change_notifier,
     HostResolver* host_resolver,
     ProxyService* proxy_service,
     SSLConfigService* ssl_config_service,
@@ -59,7 +56,6 @@ HttpNetworkLayer::HttpNetworkLayer(
     HttpNetworkDelegate* network_delegate,
     NetLog* net_log)
     : socket_factory_(socket_factory),
-      network_change_notifier_(network_change_notifier),
       host_resolver_(host_resolver),
       proxy_service_(proxy_service),
       ssl_config_service_(ssl_config_service),
@@ -75,7 +71,6 @@ HttpNetworkLayer::HttpNetworkLayer(
 
 HttpNetworkLayer::HttpNetworkLayer(HttpNetworkSession* session)
     : socket_factory_(ClientSocketFactory::GetDefaultFactory()),
-      network_change_notifier_(NULL),
       ssl_config_service_(NULL),
       session_(session),
       spdy_session_pool_(session->spdy_session_pool()),
@@ -114,15 +109,11 @@ void HttpNetworkLayer::Suspend(bool suspend) {
 HttpNetworkSession* HttpNetworkLayer::GetSession() {
   if (!session_) {
     DCHECK(proxy_service_);
-    SpdySessionPool* spdy_pool = new SpdySessionPool(network_change_notifier_);
-    session_ = new HttpNetworkSession(
-        network_change_notifier_, host_resolver_, proxy_service_,
+    SpdySessionPool* spdy_pool = new SpdySessionPool();
+    session_ = new HttpNetworkSession(host_resolver_, proxy_service_,
         socket_factory_, ssl_config_service_, spdy_pool,
-        http_auth_handler_factory_,
-        network_delegate_,
-        net_log_);
+        http_auth_handler_factory_, network_delegate_, net_log_);
     // These were just temps for lazy-initializing HttpNetworkSession.
-    network_change_notifier_ = NULL;
     host_resolver_ = NULL;
     proxy_service_ = NULL;
     socket_factory_ = NULL;

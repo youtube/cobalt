@@ -28,14 +28,12 @@ class ClientSocketFactory;
 class HttpAuthHandlerFactory;
 class HttpNetworkDelegate;
 class HttpNetworkSessionPeer;
-class NetworkChangeNotifier;
 class SpdySessionPool;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
 class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
  public:
   HttpNetworkSession(
-      NetworkChangeNotifier* network_change_notifier,
       HostResolver* host_resolver,
       ProxyService* proxy_service,
       ClientSocketFactory* client_socket_factory,
@@ -113,7 +111,6 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   HttpAuthCache auth_cache_;
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
-  NetworkChangeNotifier* const network_change_notifier_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> http_proxy_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_for_socks_pool_histograms_;

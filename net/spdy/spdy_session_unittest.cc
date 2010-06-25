@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -41,7 +41,7 @@ class SessionDependencies {
       : host_resolver(new MockHostResolver),
         proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
-        spdy_session_pool(new SpdySessionPool(NULL)) {
+        spdy_session_pool(new SpdySessionPool()) {
   }
 
   scoped_refptr<MockHostResolverBase> host_resolver;
@@ -52,8 +52,7 @@ class SessionDependencies {
 };
 
 HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
-  return new HttpNetworkSession(NULL,
-                                session_deps->host_resolver,
+  return new HttpNetworkSession(session_deps->host_resolver,
                                 session_deps->proxy_service,
                                 &session_deps->socket_factory,
                                 session_deps->ssl_config_service,

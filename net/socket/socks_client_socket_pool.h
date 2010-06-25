@@ -111,7 +111,6 @@ class SOCKSClientSocketPool : public ClientSocketPool {
       const scoped_refptr<ClientSocketPoolHistograms>& histograms,
       const scoped_refptr<HostResolver>& host_resolver,
       const scoped_refptr<TCPClientSocketPool>& tcp_pool,
-      NetworkChangeNotifier* network_change_notifier,
       NetLog* net_log);
 
   // ClientSocketPool methods:

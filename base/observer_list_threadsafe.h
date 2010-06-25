@@ -28,7 +28,7 @@
 //    * Observers can register for notifications from any thread.
 //      Callbacks to the observer will occur on the same thread where
 //      the observer initially called AddObserver() from.
-//    * Any thread may trigger a notification via NOTIFY_OBSERVERS.
+//    * Any thread may trigger a notification via Notify().
 //    * Observers can remove themselves from the observer list inside
 //      of a callback.
 //    * If one thread is notifying observers concurrently with an observer
