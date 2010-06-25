@@ -770,6 +770,7 @@
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
             'dependencies': [
               '../build/linux/system.gyp:gtk',
+              '../build/linux/system.gyp:nss',
             ],
             'sources!': [
               'base/sdch_filter_unittest.cc',
