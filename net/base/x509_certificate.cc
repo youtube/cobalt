@@ -141,8 +141,6 @@ X509Certificate* X509Certificate::CreateFromHandle(
         (cached_cert->source_ == source &&
          cached_cert->HasIntermediateCertificates(intermediates))) {
       // Return the certificate with the same fingerprint from our cache.
-      // But we own the input OSCertHandle, which makes it our job to free it.
-      FreeOSCertHandle(cert_handle);
       DHISTOGRAM_COUNTS("X509CertificateReuseCount", 1);
       return cached_cert;
     }
@@ -163,15 +161,17 @@ X509Certificate* X509Certificate::CreateFromBytes(const char* data,
   if (!cert_handle)
     return NULL;
 
-  return CreateFromHandle(cert_handle,
-                          SOURCE_LONE_CERT_IMPORT,
-                          OSCertHandles());
+  X509Certificate* cert = CreateFromHandle(cert_handle,
+                                           SOURCE_LONE_CERT_IMPORT,
+                                           OSCertHandles());
+  FreeOSCertHandle(cert_handle);
+  return cert;
 }
 
 X509Certificate::X509Certificate(OSCertHandle cert_handle,
                                  Source source,
                                  const OSCertHandles& intermediates)
-    : cert_handle_(cert_handle),
+    : cert_handle_(DupOSCertHandle(cert_handle)),
       source_(source) {
 #if defined(OS_MACOSX) || defined(OS_WIN)
   // Copy/retain the intermediate cert handles.

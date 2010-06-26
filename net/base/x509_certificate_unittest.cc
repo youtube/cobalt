@@ -372,6 +372,7 @@ TEST(X509CertificateTest, Cache) {
   scoped_refptr<X509Certificate> cert1 = X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_LONE_CERT_IMPORT,
       X509Certificate::OSCertHandles());
+  X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   // Add a certificate from the same source (SOURCE_LONE_CERT_IMPORT).  This
   // should return the cached certificate (cert1).
@@ -380,6 +381,7 @@ TEST(X509CertificateTest, Cache) {
   scoped_refptr<X509Certificate> cert2 = X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_LONE_CERT_IMPORT,
       X509Certificate::OSCertHandles());
+  X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   EXPECT_EQ(cert1, cert2);
 
@@ -390,6 +392,7 @@ TEST(X509CertificateTest, Cache) {
   scoped_refptr<X509Certificate> cert3 = X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
       X509Certificate::OSCertHandles());
+  X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   EXPECT_NE(cert1, cert3);
 
@@ -400,6 +403,7 @@ TEST(X509CertificateTest, Cache) {
   scoped_refptr<X509Certificate> cert4 = X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
       X509Certificate::OSCertHandles());
+  X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   EXPECT_EQ(cert3, cert4);
 
@@ -408,6 +412,7 @@ TEST(X509CertificateTest, Cache) {
   scoped_refptr<X509Certificate> cert5 = X509Certificate::CreateFromHandle(
       google_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
       X509Certificate::OSCertHandles());
+  X509Certificate::FreeOSCertHandle(google_cert_handle);
 
   EXPECT_EQ(cert3, cert5);
 }
@@ -495,9 +500,7 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   intermediates2.push_back(thawte_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert2;
   cert2 = X509Certificate::CreateFromHandle(
-      X509Certificate::DupOSCertHandle(google_handle),
-      X509Certificate::SOURCE_FROM_NETWORK,
-      intermediates2);
+      google_handle, X509Certificate::SOURCE_FROM_NETWORK, intermediates2);
 
   // The cache should have stored cert2 'cause it has more intermediates:
   EXPECT_NE(cert1, cert2);
@@ -515,12 +518,13 @@ TEST(X509CertificateTest, IntermediateCertificates) {
   intermediates2.push_back(thawte_cert->os_cert_handle());
   scoped_refptr<X509Certificate> cert3;
   cert3 = X509Certificate::CreateFromHandle(
-      X509Certificate::DupOSCertHandle(google_handle),
-      X509Certificate::SOURCE_FROM_NETWORK,
-      intermediates3);
+      google_handle, X509Certificate::SOURCE_FROM_NETWORK, intermediates3);
 
   // The cache should have returned cert2 'cause it has more intermediates:
   EXPECT_EQ(cert3, cert2);
+
+  // Cleanup
+  X509Certificate::FreeOSCertHandle(google_handle);
 }
 #endif
 

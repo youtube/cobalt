@@ -735,7 +735,6 @@ bool X509Certificate::IsIssuedBy(
   for (int i = 0; i < n; ++i) {
     SecCertificateRef cert_handle = reinterpret_cast<SecCertificateRef>(
         const_cast<void*>(CFArrayGetValueAtIndex(cert_chain, i)));
-    CFRetain(cert_handle);
     scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
         cert_handle,
         X509Certificate::SOURCE_LONE_CERT_IMPORT,
@@ -795,6 +794,7 @@ bool X509Certificate::GetSSLClientCertificates (
     err = SecIdentityCopyCertificate(identity, &cert_handle);
     if (err != noErr)
       continue;
+    scoped_cftyperef<SecCertificateRef> scoped_cert_handle(cert_handle);
 
     scoped_refptr<X509Certificate> cert(
         CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT,
