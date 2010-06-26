@@ -723,11 +723,12 @@ X509Certificate *SSLClientSocketNSS::UpdateServerCert() {
           cert_handle,
           X509Certificate::SOURCE_FROM_NETWORK,
           intermediate_ca_certs);
+      X509Certificate::FreeOSCertHandle(cert_handle);
       for (size_t i = 0; i < intermediate_ca_certs.size(); ++i)
         X509Certificate::FreeOSCertHandle(intermediate_ca_certs[i]);
 #else
       server_cert_ = X509Certificate::CreateFromHandle(
-          CERT_DupCertificate(server_cert_nss_),
+          server_cert_nss_,
           X509Certificate::SOURCE_FROM_NETWORK,
           X509Certificate::OSCertHandles());
 #endif
@@ -1257,7 +1258,8 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
     }
     scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
         cert_context2, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-        net::X509Certificate::OSCertHandles());
+        X509Certificate::OSCertHandles());
+    X509Certificate::FreeOSCertHandle(cert_context2);
     that->client_certs_.push_back(cert);
   }
 
@@ -1342,6 +1344,7 @@ SECStatus SSLClientSocketNSS::ClientAuthHandler(
               cert, X509Certificate::SOURCE_LONE_CERT_IMPORT,
               net::X509Certificate::OSCertHandles());
           that->client_certs_.push_back(x509_cert);
+          CERT_DestroyCertificate(cert);
           SECKEY_DestroyPrivateKey(privkey);
           continue;
         }
