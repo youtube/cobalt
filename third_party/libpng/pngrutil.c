@@ -1,8 +1,8 @@
 
 /* pngrutil.c - utilities to read a PNG file
  *
- * Last changed in libpng 1.2.43 [February 25, 2010]
- * Copyright (c) 1998-2009 Glenn Randers-Pehrson
+ * Last changed in libpng 1.2.44 [June 26, 2010]
+ * Copyright (c) 1998-2010 Glenn Randers-Pehrson
  * (Version 0.96 Copyright (c) 1996, 1997 Andreas Dilger)
  * (Version 0.88 Copyright (c) 1995, 1996 Guy Eric Schalnat, Group 42, Inc.)
  *
@@ -271,12 +271,14 @@ png_inflate(png_structp png_ptr, const png_byte *data, png_size_t size,
        * buffer if available.
        */
       {
-         char *msg, umsg[52];
+         PNG_CONST char *msg;
 	 if (png_ptr->zstream.msg != 0)
 	    msg = png_ptr->zstream.msg;
 	 else
 	 {
 #if defined(PNG_STDIO_SUPPORTED) && !defined(_WIN32_WCE)
+      char umsg[52];
+
 	    switch (ret)
 	    {
 	 case Z_BUF_ERROR:
@@ -341,8 +343,10 @@ png_decompress_chunk(png_structp png_ptr, int comp_type,
       if (png_ptr->user_chunk_malloc_max &&
           (prefix_size + expanded_size >= png_ptr->user_chunk_malloc_max - 1))
 #else
+#ifdef PNG_USER_CHUNK_MALLOC_MAX
       if ((PNG_USER_CHUNK_MALLOC_MAX > 0) &&
           prefix_size + expanded_size >= PNG_USER_CHUNK_MALLOC_MAX - 1)
+#endif
 #endif
          png_warning(png_ptr, "Exceeded size limit while expanding chunk");
 
@@ -351,7 +355,11 @@ png_decompress_chunk(png_structp png_ptr, int comp_type,
        * and we have nothing to do - the code will exit through the
        * error case below.
        */
-      else if (expanded_size > 0)
+#if defined(PNG_SET_CHUNK_MALLOC_LIMIT_SUPPORTED) || \
+    defined(PNG_USER_CHUNK_MALLOC_MAX)
+      else
+#endif
+      if (expanded_size > 0
       {
          /* Success (maybe) - really uncompress the chunk. */
 	 png_size_t new_size = 0;
@@ -385,10 +393,11 @@ png_decompress_chunk(png_structp png_ptr, int comp_type,
 
    else /* if (comp_type != PNG_COMPRESSION_TYPE_BASE) */
    {
+#if defined(PNG_STDIO_SUPPORTED) && !defined(_WIN32_WCE)
       char umsg[50];
 
-#if defined(PNG_STDIO_SUPPORTED) && !defined(_WIN32_WCE)
-      png_snprintf(umsg, sizeof umsg, "Unknown zTXt compression type %d", comp_type);
+      png_snprintf(umsg, sizeof umsg, "Unknown zTXt compression type %d",
+          comp_type);
       png_warning(png_ptr, umsg);
 #else
       png_warning(png_ptr, "Unknown zTXt compression type");
@@ -907,9 +916,11 @@ png_handle_cHRM(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
                green_x, green_y, blue_x, blue_y);
 #else
             fprintf(stderr, "wx=%ld, wy=%ld, rx=%ld, ry=%ld\n",
-               int_x_white, int_y_white, int_x_red, int_y_red);
+               (long)int_x_white, (long)int_y_white,
+               (long)int_x_red, (long)int_y_red);
             fprintf(stderr, "gx=%ld, gy=%ld, bx=%ld, by=%ld\n",
-               int_x_green, int_y_green, int_x_blue, int_y_blue);
+               (long)int_x_green, (long)int_y_green,
+               (long)int_x_blue, (long)int_y_blue);
 #endif
 #endif /* PNG_CONSOLE_IO_SUPPORTED */
          }
@@ -1807,6 +1818,7 @@ png_handle_sCAL(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
    if (png_ptr->chunkdata == NULL)
    {
       png_warning(png_ptr, "Out of memory while processing sCAL chunk");
+      png_crc_finish(png_ptr, length);
       return;
    }
    slength = (png_size_t)length;
@@ -1828,6 +1840,8 @@ png_handle_sCAL(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
    if (*vp)
    {
       png_warning(png_ptr, "malformed width string in sCAL chunk");
+      png_free(png_ptr, png_ptr->chunkdata);
+      png_ptr->chunkdata = NULL;
       return;
    }
 #else
@@ -1849,8 +1863,7 @@ png_handle_sCAL(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
    if (png_ptr->chunkdata + slength < ep)
    {
       png_warning(png_ptr, "Truncated sCAL chunk");
-#if defined(PNG_FIXED_POINT_SUPPORTED) && \
-    !defined(PNG_FLOATING_POINT_SUPPORTED)
+#if defined(PNG_FIXED_POINT_SUPPORTED) && !defined(PNG_FLOATING_POINT_SUPPORTED)
       png_free(png_ptr, swidth);
 #endif
       png_free(png_ptr, png_ptr->chunkdata);
@@ -1863,6 +1876,11 @@ png_handle_sCAL(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
    if (*vp)
    {
       png_warning(png_ptr, "malformed height string in sCAL chunk");
+      png_free(png_ptr, png_ptr->chunkdata);
+      png_ptr->chunkdata = NULL;
+#if defined(PNG_FIXED_POINT_SUPPORTED) && !defined(PNG_FLOATING_POINT_SUPPORTED)
+      png_free(png_ptr, swidth);
+#endif
       return;
    }
 #else
@@ -1871,6 +1889,11 @@ png_handle_sCAL(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
    if (sheight == NULL)
    {
       png_warning(png_ptr, "Out of memory while processing sCAL chunk height");
+      png_free(png_ptr, png_ptr->chunkdata);
+      png_ptr->chunkdata = NULL;
+#if defined(PNG_FIXED_POINT_SUPPORTED) && !defined(PNG_FLOATING_POINT_SUPPORTED)
+      png_free(png_ptr, swidth);
+#endif
       return;
    }
    png_memcpy(sheight, ep, (png_size_t)png_strlen(ep));
