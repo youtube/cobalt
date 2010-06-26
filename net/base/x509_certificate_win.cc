@@ -482,8 +482,11 @@ X509Certificate* X509Certificate::CreateFromPickle(const Pickle& pickle,
       NULL, reinterpret_cast<const void **>(&cert_handle)))
     return NULL;
 
-  return CreateFromHandle(cert_handle, SOURCE_LONE_CERT_IMPORT,
-                          OSCertHandles());
+  X509Certificate* cert = CreateFromHandle(cert_handle,
+                                           SOURCE_LONE_CERT_IMPORT,
+                                           OSCertHandles());
+  FreeOSCertHandle(cert_handle);
+  return cert;
 }
 
 void X509Certificate::Persist(Pickle* pickle) {

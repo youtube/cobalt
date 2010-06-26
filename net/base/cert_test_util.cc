@@ -55,9 +55,12 @@ X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
     return NULL;
   }
 
-  return X509Certificate::CreateFromHandle(cert,
+  X509Certificate* result = X509Certificate::CreateFromHandle(
+      cert,
       X509Certificate::SOURCE_LONE_CERT_IMPORT,
       X509Certificate::OSCertHandles());
+  CERT_DestroyCertificate(cert);
+  return result;
 }
 #endif
 
@@ -89,7 +92,7 @@ X509Certificate* LoadTemporaryRootCert(const FilePath& filename) {
 
   SecCertificateRef cert_ref = static_cast<SecCertificateRef>(
       const_cast<void*>(CFArrayGetValueAtIndex(cert_array, 0)));
-  CFRetain(cert_ref);
+
   return X509Certificate::CreateFromHandle(cert_ref,
       X509Certificate::SOURCE_LONE_CERT_IMPORT,
       X509Certificate::OSCertHandles());

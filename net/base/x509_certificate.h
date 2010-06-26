@@ -82,13 +82,11 @@ class X509Certificate : public base::RefCountedThreadSafe<X509Certificate> {
     VERIFY_EV_CERT = 1 << 1,
   };
 
-  // Create an X509Certificate from a handle to the certificate object
-  // in the underlying crypto library. This is a transfer of ownership;
-  // X509Certificate will properly dispose of |cert_handle| for you.
-  // |source| specifies where |cert_handle| comes from.  Given two
-  // certificate handles for the same certificate, our certificate cache
-  // prefers the handle from the network because our HTTP cache isn't
-  // caching the corresponding intermediate CA certificates yet
+  // Create an X509Certificate from a handle to the certificate object in the
+  // underlying crypto library. |source| specifies where |cert_handle| comes
+  // from.  Given two certificate handles for the same certificate, our
+  // certificate cache prefers the handle from the network because our HTTP
+  // cache isn't caching the corresponding intermediate CA certificates yet
   // (http://crbug.com/7065).
   // The list of intermediate certificates is ignored under NSS (i.e. Linux.)
   // The returned pointer must be stored in a scoped_refptr<X509Certificate>.

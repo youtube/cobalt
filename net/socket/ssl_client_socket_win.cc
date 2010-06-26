@@ -415,8 +415,9 @@ void SSLClientSocketWin::GetSSLCertRequestInfo(
     }
     scoped_refptr<X509Certificate> cert = X509Certificate::CreateFromHandle(
         cert_context2, X509Certificate::SOURCE_LONE_CERT_IMPORT,
-        net::X509Certificate::OSCertHandles());
+        X509Certificate::OSCertHandles());
     cert_request_info->client_certs.push_back(cert);
+    CertFreeCertificateContext(cert_context2);
   }
 
   FreeContextBuffer(issuer_list.aIssuers);
@@ -1307,15 +1308,15 @@ int SSLClientSocketWin::DidCompleteHandshake() {
                                     server_cert_handle)) {
     // We already verified the server certificate.  Either it is good or the
     // user has accepted the certificate error.
-    CertFreeCertificateContext(server_cert_handle);
     DidCompleteRenegotiation();
   } else {
     server_cert_ = X509Certificate::CreateFromHandle(
         server_cert_handle, X509Certificate::SOURCE_FROM_NETWORK,
-        net::X509Certificate::OSCertHandles());
+        X509Certificate::OSCertHandles());
 
     next_state_ = STATE_VERIFY_CERT;
   }
+  CertFreeCertificateContext(server_cert_handle);
   return OK;
 }
 
