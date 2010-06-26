@@ -114,7 +114,9 @@ class ConcurrencyTestTask : public Task {
 
 // We asynchronously generate the keys so as not to hang up the IO thread. This
 // test tries to catch concurrency problems in the keygen implementation.
-TEST_F(KeygenHandlerTest, ConcurrencyTest) {
+//
+// Disabled because it crashes on Chrome OS. See http://crbug.com/47587
+TEST_F(KeygenHandlerTest, DISABLED_ConcurrencyTest) {
   const int NUM_HANDLERS = 5;
   base::WaitableEvent* events[NUM_HANDLERS] = { NULL };
   std::string results[NUM_HANDLERS];
