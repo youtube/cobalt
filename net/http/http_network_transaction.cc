@@ -155,11 +155,6 @@ void BuildTunnelRequest(const HttpRequestInfo* request_info,
 void ProcessAlternateProtocol(const HttpResponseHeaders& headers,
                               const HostPortPair& http_host_port_pair,
                               HttpAlternateProtocols* alternate_protocols) {
-  if (!g_next_protos || g_next_protos->empty()) {
-    // This implies that NPN is not supported.  We don't currently support any
-    // alternate protocols that don't use NPN.
-    return;
-  }
 
   std::string alternate_protocol_str;
   if (!headers.EnumerateHeader(NULL, HttpAlternateProtocols::kHeader,
@@ -763,10 +758,11 @@ int HttpNetworkTransaction::DoResolveProxy() {
     curr_endpoint_url = &alternate_endpoint_url;
   }
 
-  if (alternate_protocol_mode_ == kUnspecified) {
-    const HttpAlternateProtocols& alternate_protocols =
-        session_->alternate_protocols();
-    if (alternate_protocols.HasAlternateProtocolFor(endpoint_)) {
+  const HttpAlternateProtocols& alternate_protocols =
+      session_->alternate_protocols();
+  if (alternate_protocols.HasAlternateProtocolFor(endpoint_)) {
+    response_.was_alternate_protocol_available = true;
+    if (alternate_protocol_mode_ == kUnspecified) {
       HttpAlternateProtocols::PortProtocolPair alternate =
           alternate_protocols.GetAlternateProtocolFor(endpoint_);
       if (alternate.protocol != HttpAlternateProtocols::BROKEN) {

@@ -371,7 +371,8 @@ class URLRequest {
   // Indicate if this response was fetched from disk cache.
   bool was_cached() const { return response_info_.was_cached; }
 
-  // Returns true if the URLRequest was delivered with SPDY.
+  // True if response could use alternate protocol. However, browser will
+  // ingore the alternate protocol if spdy is not enabled.
   bool was_fetched_via_spdy() const {
     return response_info_.was_fetched_via_spdy;
   }
@@ -380,6 +381,12 @@ class URLRequest {
   // using either SPDY or HTTP.
   bool was_npn_negotiated() const {
     return response_info_.was_npn_negotiated;
+  }
+
+  // Returns true if the URLRequest was delivered when the alertnate protocol
+  // is available.
+  bool was_alternate_protocol_available() const {
+    return response_info_.was_alternate_protocol_available;
   }
 
   // Returns true if the URLRequest was delivered through a proxy.
