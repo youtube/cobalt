@@ -109,8 +109,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   void SetRequestTime(base::Time t);
 
   // Called by the SpdySession when a response (e.g. a SYN_REPLY) has been
-  // received for this stream.  |path| is the path of the URL for a server
-  // initiated stream, otherwise is empty.
+  // received for this stream.
   // Returns a status code.
   int OnResponseReceived(const spdy::SpdyHeaderBlock& response);
 
@@ -120,7 +119,7 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   // |buffer| contains the data received.  The stream must copy any data
   //          from this buffer before returning from this callback.
   // |length| is the number of bytes received or an error.
-  //         A zero-length count does not indicate end-of-stream.
+  //          A length of zero indicates end-of-stream.
   void OnDataReceived(const char* buffer, int bytes);
 
   // Called by the SpdySession when a write has completed.  This callback
@@ -159,6 +158,20 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   bool is_idle() const { return io_state_ == STATE_NONE; }
   bool response_complete() const { return response_complete_; }
   int response_status() const { return response_status_; }
+
+  // If this function returns true, then the spdy_session is guaranteeing that
+  // this spdy_stream has been removed from active_streams.
+  bool half_closed_client_side() const { return half_closed_client_side_; }
+
+  bool half_closed_server_side() const { return half_closed_server_side_; }
+  bool half_closed_both_sides() const {
+    return half_closed_client_side_ && half_closed_server_side_;
+  }
+
+  // These two functions should only ever be called by spdy_session, and should
+  // only be called once.
+  void HalfCloseClientSide() { half_closed_client_side_ = true; }
+  void HalfCloseServerSide() { half_closed_server_side_ = true; }
 
  private:
   enum State {
@@ -235,6 +248,8 @@ class SpdyStream : public base::RefCounted<SpdyStream> {
   bool histograms_recorded_;
   // Data received before delegate is attached.
   std::vector<scoped_refptr<IOBufferWithSize> > pending_buffers_;
+  bool half_closed_client_side_;
+  bool half_closed_server_side_;
 
   DISALLOW_COPY_AND_ASSIGN(SpdyStream);
 };
