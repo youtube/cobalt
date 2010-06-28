@@ -5150,14 +5150,12 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
-  MockWrite spdy_writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite spdy_writes[] = { CreateMockWrite(req.get()) };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead spdy_reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
     MockRead(true, 0, 0),
@@ -5281,20 +5279,20 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   MockWrite spdy_writes[] = {
     MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n\r\n"),  // 0
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),  // 3
+    CreateMockWrite(req.get())  // 3
   };
 
   const char kCONNECTResponse[] = "HTTP/1.1 200 Connected\r\n\r\n";
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead spdy_reads[] = {
     MockRead(true, kCONNECTResponse, arraysize(kCONNECTResponse) - 1, 1),  // 1
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),  // 2, 4
-             arraysize(kGetSynReply), 4),
+    CreateMockRead(resp.get(), 4),  // 2, 4
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),  // 5
              arraysize(kGetBodyFrame), 4),
     MockRead(true, 0, 0, 4),  // 6
@@ -5382,14 +5380,12 @@ TEST_F(HttpNetworkTransactionTest,
   // Make sure we use ssl for spdy here.
   SpdySession::SetSSLMode(true);
 
-  MockWrite spdy_writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite spdy_writes[] = { CreateMockWrite(req.get()) };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead spdy_reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
     MockRead(true, 0, 0),
@@ -6123,10 +6119,8 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
   ssl.was_npn_negotiated = true;
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
-  MockWrite spdy_writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite spdy_writes[] = { CreateMockWrite(req.get()) };
 
   MockRead spdy_reads[] = {
     MockRead(false, 0, 0)   // Not async - return 0 immediately.
