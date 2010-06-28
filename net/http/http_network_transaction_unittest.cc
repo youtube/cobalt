@@ -1864,8 +1864,9 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
 
   MockRead data_reads1[] = {
     MockRead("HTTP/1.1 401 Access Denied\r\n"),
-    // Negotiate and NTLM are often requested together.  We only support NTLM.
-    MockRead("WWW-Authenticate: Negotiate\r\n"),
+    // Negotiate and NTLM are often requested together.  However, we only want
+    // to test NTLM. Since Negotiate is preferred over NTLM, we have to skip
+    // the header that requests Negotiate for this test.
     MockRead("WWW-Authenticate: NTLM\r\n"),
     MockRead("Connection: close\r\n"),
     MockRead("Content-Length: 42\r\n"),
@@ -1944,9 +1945,10 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
   EXPECT_FALSE(trans->IsReadyToRestartForAuth());
 
   const HttpResponseInfo* response = trans->GetResponseInfo();
-  EXPECT_FALSE(response == NULL);
+  ASSERT_FALSE(response == NULL);
 
-  // The password prompt info should have been set in response->auth_challenge.
+  // The password prompt info should have been set in
+  // response->auth_challenge.
   EXPECT_FALSE(response->auth_challenge.get() == NULL);
 
   EXPECT_EQ(L"172.22.68.17:80", response->auth_challenge->host_and_port);
@@ -1962,6 +1964,8 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth1) {
   EXPECT_EQ(OK, rv);
 
   response = trans->GetResponseInfo();
+  ASSERT_FALSE(response == NULL);
+
   EXPECT_TRUE(response->auth_challenge.get() == NULL);
   EXPECT_EQ(13, response->headers->GetContentLength());
 }
@@ -1987,8 +1991,9 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
 
   MockRead data_reads1[] = {
     MockRead("HTTP/1.1 401 Access Denied\r\n"),
-    // Negotiate and NTLM are often requested together.  We only support NTLM.
-    MockRead("WWW-Authenticate: Negotiate\r\n"),
+    // Negotiate and NTLM are often requested together.  However, we only want
+    // to test NTLM. Since Negotiate is preferred over NTLM, we have to skip
+    // the header that requests Negotiate for this test.
     MockRead("WWW-Authenticate: NTLM\r\n"),
     MockRead("Connection: close\r\n"),
     MockRead("Content-Length: 42\r\n"),
@@ -2037,7 +2042,6 @@ TEST_F(HttpNetworkTransactionTest, NTLMAuth2) {
 
     // Wrong password.
     MockRead("HTTP/1.1 401 Access Denied\r\n"),
-    MockRead("WWW-Authenticate: Negotiate\r\n"),
     MockRead("WWW-Authenticate: NTLM\r\n"),
     MockRead("Connection: close\r\n"),
     MockRead("Content-Length: 42\r\n"),
