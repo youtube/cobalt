@@ -256,6 +256,9 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   void MarkBrokenAlternateProtocolAndFallback();
 
+  // Debug helper.
+  static std::string DescribeState(State state);
+
   static bool g_ignore_certificate_errors;
 
   scoped_ptr<HttpAuthController> auth_controllers_[HttpAuth::AUTH_NUM_TARGETS];
