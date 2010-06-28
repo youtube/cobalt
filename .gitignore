@@ -26,6 +26,7 @@
 /chrome/browser/renderer_host/translate
 /chrome/installer/linux
 /chrome/installer/mac/internal
+/chrome/installer/mac/third_party/xz/xz
 /chrome/personalization/
 /chrome/test/data/firefox2_profile/searchplugins
 /chrome/test/data/firefox2_searchplugins
