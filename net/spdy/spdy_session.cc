@@ -153,6 +153,7 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
       write_pending_(false),
       delayed_write_pending_(false),
       is_secure_(false),
+      certificate_error_code_(OK),
       error_(OK),
       state_(IDLE),
       streams_initiated_count_(0),
@@ -191,7 +192,8 @@ SpdySession::~SpdySession() {
 }
 
 net::Error SpdySession::InitializeWithSSLSocket(
-    ClientSocketHandle* connection) {
+    ClientSocketHandle* connection,
+    int certificate_error_code) {
   static StatsCounter spdy_sessions("spdy.sessions");
   spdy_sessions.Increment();
 
@@ -200,6 +202,7 @@ net::Error SpdySession::InitializeWithSSLSocket(
   state_ = CONNECTED;
   connection_.reset(connection);
   is_secure_ = true;  // |connection| contains an SSLClientSocket.
+  certificate_error_code_ = certificate_error_code;
 
   // This is a newly initialized session that no client should have a handle to
   // yet, so there's no need to start writing data as in OnTCPConnect(), but we
@@ -237,17 +240,30 @@ net::Error SpdySession::Connect(const std::string& group_name,
   return static_cast<net::Error>(rv);
 }
 
-scoped_refptr<SpdyStream> SpdySession::GetPushStream(
+int SpdySession::GetPushStream(
     const GURL& url,
+    scoped_refptr<SpdyStream>* stream,
     const BoundNetLog& stream_net_log) {
   CHECK_NE(state_, CLOSED);
+
+  *stream = NULL;
+
+  // Don't allow access to secure push streams over an unauthenticated, but
+  // encrypted SSL socket.
+  if (is_secure_ && certificate_error_code_ != OK &&
+      (url.SchemeIs("https") || url.SchemeIs("wss"))) {
+    LOG(DFATAL) << "Tried to get pushed spdy stream for secure content over an "
+                << "unauthenticated session.";
+    return certificate_error_code_;
+  }
+
   const std::string& path = url.PathForRequest();
 
-  scoped_refptr<SpdyStream> stream = GetActivePushStream(path);
-  if (stream) {
+  *stream = GetActivePushStream(path);
+  if (stream->get()) {
     DCHECK(streams_pushed_and_claimed_count_ < streams_pushed_count_);
     streams_pushed_and_claimed_count_++;
-    return stream;
+    return OK;
   }
 
   // Check if we have a pending push stream for this url.
@@ -260,24 +276,35 @@ scoped_refptr<SpdyStream> SpdySession::GetPushStream(
     // Server will assign a stream id when the push stream arrives.  Use 0 for
     // now.
     net_log_.AddEvent(NetLog::TYPE_SPDY_STREAM_ADOPTED_PUSH_STREAM, NULL);
-    stream = new SpdyStream(this, 0, true);
-    stream->set_path(path);
-    stream->set_net_log(stream_net_log);
-    it->second = stream;
-    return stream;
+    *stream = new SpdyStream(this, 0, true);
+    (*stream)->set_path(path);
+    (*stream)->set_net_log(stream_net_log);
+    it->second = *stream;
+    return OK;
   }
-  return NULL;
+  return OK;
 }
 
-const scoped_refptr<SpdyStream>& SpdySession::CreateStream(
+int SpdySession::CreateStream(
     const GURL& url,
     RequestPriority priority,
+    scoped_refptr<SpdyStream>* spdy_stream,
     const BoundNetLog& stream_net_log) {
+  // Make sure that we don't try to send https/wss over an unauthenticated, but
+  // encrypted SSL socket.
+  if (is_secure_ && certificate_error_code_ != OK &&
+      (url.SchemeIs("https") || url.SchemeIs("wss"))) {
+    LOG(DFATAL) << "Tried to create spdy stream for secure content over an "
+                << "unauthenticated session.";
+    return certificate_error_code_;
+  }
+
   const std::string& path = url.PathForRequest();
 
   const spdy::SpdyStreamId stream_id = GetNewStreamId();
 
-  scoped_refptr<SpdyStream> stream(new SpdyStream(this, stream_id, false));
+  *spdy_stream = new SpdyStream(this, stream_id, false);
+  const scoped_refptr<SpdyStream>& stream = *spdy_stream;
 
   stream->set_priority(priority);
   stream->set_path(path);
@@ -293,7 +320,7 @@ const scoped_refptr<SpdyStream>& SpdySession::CreateStream(
          priority <= SPDY_PRIORITY_LOWEST);
 
   DCHECK_EQ(active_streams_[stream_id].get(), stream.get());
-  return active_streams_[stream_id];
+  return OK;
 }
 
 int SpdySession::WriteSynStream(
