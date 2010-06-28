@@ -59,22 +59,25 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Get a pushed stream for a given |url|.
   // If the server initiates a stream, it might already exist for a given path.
   // The server might also not have initiated the stream yet, but indicated it
-  // will via X-Associated-Content.
-  // Returns existing stream or NULL.
-  scoped_refptr<SpdyStream> GetPushStream(
+  // will via X-Associated-Content.  Writes the stream out to |spdy_stream|.
+  // Returns a net error code.
+  int GetPushStream(
       const GURL& url,
+      scoped_refptr<SpdyStream>* spdy_stream,
       const BoundNetLog& stream_net_log);
 
-  // Create a new stream for a given |url|.
-  // Returns the new stream.  Never returns NULL.
-  const scoped_refptr<SpdyStream>& CreateStream(
+  // Create a new stream for a given |url|.  Writes it out to |spdy_stream|.
+  // Returns a net error code.
+  int CreateStream(
       const GURL& url,
       RequestPriority priority,
+      scoped_refptr<SpdyStream>* spdy_stream,
       const BoundNetLog& stream_net_log);
 
   // Used by SpdySessionPool to initialize with a pre-existing SSL socket.
   // Returns OK on success, or an error on failure.
-  net::Error InitializeWithSSLSocket(ClientSocketHandle* connection);
+  net::Error InitializeWithSSLSocket(ClientSocketHandle* connection,
+                                     int certificate_error_code);
 
   // Send the SYN frame for |stream_id|.
   int WriteSynStream(
@@ -250,6 +253,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   // Flag if we're using an SSL connection for this SpdySession.
   bool is_secure_;
+
+  // Certificate error code when using a secure connection.
+  int certificate_error_code_;
 
   // Spdy Frame state.
   spdy::SpdyFramer spdy_framer_;

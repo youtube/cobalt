@@ -295,6 +295,9 @@ class HttpNetworkTransaction : public HttpTransaction {
   // True if this network transaction is using SPDY instead of HTTP.
   bool using_spdy_;
 
+  // The certificate error while using SPDY over SSL for insecure URLs.
+  int spdy_certificate_error_;
+
   AlternateProtocolMode alternate_protocol_mode_;
 
   // Only valid if |alternate_protocol_mode_| == kUsingAlternateProtocol.
