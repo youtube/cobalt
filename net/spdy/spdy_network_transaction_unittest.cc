@@ -28,21 +28,6 @@
 
 namespace net {
 
-// NOTE: In GCC, on a Mac, this can't be in an anonymous namespace!
-// This struct holds information used to construct spdy control and data frames.
-struct SpdyHeaderInfo {
-  int kind;
-  spdy::SpdyStreamId id;
-  spdy::SpdyStreamId assoc_id;
-  int priority;
-  spdy::SpdyControlFlags control_flags;
-  bool compressed;
-  int status;
-  const char* data;
-  uint32 data_length;
-  spdy::SpdyDataFlags data_flags;
-};
-
 namespace {
 
 // Helper to manage the lifetimes of the dependencies for a
@@ -90,322 +75,6 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->http_auth_handler_factory.get(),
                                 NULL,
                                 NULL);
-}
-
-// Chop a frame into an array of MockWrites.
-// |data| is the frame to chop.
-// |length| is the length of the frame to chop.
-// |num_chunks| is the number of chunks to create.
-MockWrite* ChopFrame(const char* data, int length, int num_chunks) {
-  MockWrite* chunks = new MockWrite[num_chunks];
-  int chunk_size = length / num_chunks;
-  for (int index = 0; index < num_chunks; index++) {
-    const char* ptr = data + (index * chunk_size);
-    if (index == num_chunks - 1)
-      chunk_size += length % chunk_size;  // The last chunk takes the remainder.
-    chunks[index] = MockWrite(true, ptr, chunk_size);
-  }
-  return chunks;
-}
-
-// ----------------------------------------------------------------------------
-
-// Adds headers and values to a map.
-// |extra_headers| is an array of { name, value } pairs, arranged as strings
-// where the even entries are the header names, and the odd entries are the
-// header values.
-// |headers| gets filled in from |extra_headers|.
-void AppendHeadersToSpdyFrame(const char* const extra_headers[],
-                              int extra_header_count,
-                              spdy::SpdyHeaderBlock* headers) {
-  std::string this_header;
-  std::string this_value;
-
-  if (!extra_header_count)
-    return;
-
-  // Sanity check: Non-NULL header list.
-  DCHECK(NULL != extra_headers) << "NULL header value pair list";
-  // Sanity check: Non-NULL header map.
-  DCHECK(NULL != headers) << "NULL header map";
-  // Copy in the headers.
-  for (int i = 0; i < extra_header_count; i++) {
-    // Sanity check: Non-empty header.
-    DCHECK_NE('\0', *extra_headers[i * 2]) << "Empty header value pair";
-    this_header = extra_headers[i * 2];
-    std::string::size_type header_len = this_header.length();
-    if (!header_len)
-      continue;
-    this_value = extra_headers[1 + (i * 2)];
-    std::string new_value;
-    if (headers->find(this_header) != headers->end()) {
-      // More than one entry in the header.
-      // Don't add the header again, just the append to the value,
-      // separated by a NULL character.
-
-      // Adjust the value.
-      new_value = (*headers)[this_header];
-      // Put in a NULL separator.
-      new_value.append(1, '\0');
-      // Append the new value.
-      new_value += this_value;
-    } else {
-      // Not a duplicate, just write the value.
-      new_value = this_value;
-    }
-    (*headers)[this_header] = new_value;
-  }
-}
-
-// Writes |str| of the given |len| to the buffer pointed to by |buffer_handle|.
-// Uses a template so buffer_handle can be a char* or an unsigned char*.
-// Updates the |*buffer_handle| pointer by |len|
-// Returns the number of bytes written into *|buffer_handle|
-template<class T>
-int AppendToBuffer(const void* str,
-                   int len,
-                   T** buffer_handle,
-                   int* buffer_len_remaining) {
-  if (len <= 0)
-    return 0;
-  DCHECK(NULL != buffer_handle) << "NULL buffer handle";
-  DCHECK(NULL != *buffer_handle) << "NULL pointer";
-  DCHECK(NULL != buffer_len_remaining)
-      << "NULL buffer remainder length pointer";
-  DCHECK_GE(*buffer_len_remaining, len) << "Insufficient buffer size";
-  memcpy(*buffer_handle, str, len);
-  *buffer_handle += len;
-  *buffer_len_remaining -= len;
-  return len;
-}
-
-// Writes |val| to a location of size |len|, in big-endian format.
-// in the buffer pointed to by |buffer_handle|.
-// Updates the |*buffer_handle| pointer by |len|
-// Returns the number of bytes written
-int AppendToBuffer(int val,
-                   int len,
-                   unsigned char** buffer_handle,
-                   int* buffer_len_remaining) {
-  if (len <= 0)
-    return 0;
-  DCHECK((size_t) len <= sizeof(len)) << "Data length too long for data type";
-  DCHECK(NULL != buffer_handle) << "NULL buffer handle";
-  DCHECK(NULL != *buffer_handle) << "NULL pointer";
-  DCHECK(NULL != buffer_len_remaining)
-      << "NULL buffer remainder length pointer";
-  DCHECK_GE(*buffer_len_remaining, len) << "Insufficient buffer size";
-  for (int i = 0; i < len; i++) {
-    int shift = (8 * (len - (i + 1)));
-    unsigned char val_chunk = (val >> shift) & 0x0FF;
-    *(*buffer_handle)++ = val_chunk;
-    *buffer_len_remaining += 1;
-  }
-  return len;
-}
-
-// Construct a SPDY packet.
-// |head| is the start of the packet, up to but not including
-// the header value pairs.
-// |extra_headers| are the extra header-value pairs, which typically
-// will vary the most between calls.
-// |tail| is any (relatively constant) header-value pairs to add.
-// |buffer| is the buffer we're filling in.
-// Returns a SpdFrame.
-spdy::SpdyFrame* ConstructSpdyPacket(const SpdyHeaderInfo* header_info,
-                                     const char* const extra_headers[],
-                                     int extra_header_count,
-                                     const char* const tail[],
-                                     int tail_header_count) {
-  spdy::SpdyFramer framer;
-  spdy::SpdyHeaderBlock headers;
-  // Copy in the extra headers to our map.
-  AppendHeadersToSpdyFrame(extra_headers, extra_header_count, &headers);
-  // Copy in the tail headers to our map.
-  if (tail && tail_header_count)
-    AppendHeadersToSpdyFrame(tail, tail_header_count, &headers);
-  spdy::SpdyFrame* frame = NULL;
-  switch (header_info->kind) {
-    case spdy::SYN_STREAM:
-      frame = framer.CreateSynStream(header_info->id, header_info->assoc_id,
-                                     header_info->priority,
-                                     header_info->control_flags,
-                                     header_info->compressed, &headers);
-      break;
-    case spdy::SYN_REPLY:
-      frame = framer.CreateSynReply(header_info->id, header_info->control_flags,
-                                    header_info->compressed, &headers);
-      break;
-    case spdy::RST_STREAM:
-      frame = framer.CreateRstStream(header_info->id, header_info->status);
-      break;
-    default:
-      frame = framer.CreateDataFrame(header_info->id, header_info->data,
-                                     header_info->data_length,
-                                     header_info->data_flags);
-      break;
-  }
-  return frame;
-}
-
-// Construct an expected SPDY reply string.
-// |extra_headers| are the extra header-value pairs, which typically
-// will vary the most between calls.
-// |buffer| is the buffer we're filling in.
-// Returns the number of bytes written into |buffer|.
-int ConstructSpdyReply(const char* const extra_headers[],
-                       int extra_header_count,
-                       char* buffer,
-                       int buffer_length) {
-  int packet_size = 0;
-  int header_count = 0;
-  char* buffer_write = buffer;
-  int buffer_left = buffer_length;
-  spdy::SpdyHeaderBlock headers;
-  if (!buffer || !buffer_length)
-    return 0;
-  // Copy in the extra headers.
-  AppendHeadersToSpdyFrame(extra_headers, extra_header_count, &headers);
-  header_count = headers.size();
-  // The iterator gets us the list of header/value pairs in sorted order.
-  spdy::SpdyHeaderBlock::iterator next = headers.begin();
-  spdy::SpdyHeaderBlock::iterator last = headers.end();
-  for ( ; next != last; ++next) {
-    // Write the header.
-    int value_len, current_len, offset;
-    const char* header_string = next->first.c_str();
-    packet_size += AppendToBuffer(header_string,
-                                  next->first.length(),
-                                  &buffer_write,
-                                  &buffer_left);
-    packet_size += AppendToBuffer(": ",
-                                  strlen(": "),
-                                  &buffer_write,
-                                  &buffer_left);
-    // Write the value(s).
-    const char* value_string = next->second.c_str();
-    // Check if it's split among two or more values.
-    value_len = next->second.length();
-    current_len = strlen(value_string);
-    offset = 0;
-    // Handle the first N-1 values.
-    while (current_len < value_len) {
-      // Finish this line -- write the current value.
-      packet_size += AppendToBuffer(value_string + offset,
-                                    current_len - offset,
-                                    &buffer_write,
-                                    &buffer_left);
-      packet_size += AppendToBuffer("\n",
-                                    strlen("\n"),
-                                    &buffer_write,
-                                    &buffer_left);
-      // Advance to next value.
-      offset = current_len + 1;
-      current_len += 1 + strlen(value_string + offset);
-      // Start another line -- add the header again.
-      packet_size += AppendToBuffer(header_string,
-                                    next->first.length(),
-                                    &buffer_write,
-                                    &buffer_left);
-      packet_size += AppendToBuffer(": ",
-                                    strlen(": "),
-                                    &buffer_write,
-                                    &buffer_left);
-    }
-    EXPECT_EQ(value_len, current_len);
-    // Copy the last (or only) value.
-    packet_size += AppendToBuffer(value_string + offset,
-                                  value_len - offset,
-                                  &buffer_write,
-                                  &buffer_left);
-    packet_size += AppendToBuffer("\n",
-                                  strlen("\n"),
-                                  &buffer_write,
-                                  &buffer_left);
-  }
-  return packet_size;
-}
-
-// Construct an expected SPDY SETTINGS frame.
-// |settings| are the settings to set.
-// Returns the constructed frame.  The caller takes ownership of the frame.
-spdy::SpdyFrame* ConstructSpdySettings(spdy::SpdySettings settings) {
-  spdy::SpdyFramer framer;
-  return framer.CreateSettings(settings);
-}
-
-// Construct a single SPDY header entry, for validation.
-// |extra_headers| are the extra header-value pairs.
-// |buffer| is the buffer we're filling in.
-// |index| is the index of the header we want.
-// Returns the number of bytes written into |buffer|.
-int ConstructSpdyHeader(const char* const extra_headers[],
-                        int extra_header_count,
-                        char* buffer,
-                        int buffer_length,
-                        int index) {
-  const char* this_header = NULL;
-  const char* this_value = NULL;
-  if (!buffer || !buffer_length)
-    return 0;
-  *buffer = '\0';
-  // Sanity check: Non-empty header list.
-  DCHECK(NULL != extra_headers) << "NULL extra headers pointer";
-  // Sanity check: Index out of range.
-  DCHECK((index >= 0) && (index < extra_header_count))
-      << "Index " << index
-      << " out of range [0, " << extra_header_count << ")";
-  this_header = extra_headers[index * 2];
-  // Sanity check: Non-empty header.
-  if (!*this_header)
-    return 0;
-  std::string::size_type header_len = strlen(this_header);
-  if (!header_len)
-    return 0;
-  this_value = extra_headers[1 + (index * 2)];
-  // Sanity check: Non-empty value.
-  if (!*this_value)
-    this_value = "";
-  int n = base::snprintf(buffer,
-                         buffer_length,
-                         "%s: %s\r\n",
-                         this_header,
-                         this_value);
-  return n;
-}
-
-// Constructs a standard SPDY GET packet.
-// |extra_headers| are the extra header-value pairs, which typically
-// will vary the most between calls.
-// Returns a SpdFrame.
-spdy::SpdyFrame* ConstructSpdyGet(const char* const extra_headers[],
-                                  int extra_header_count) {
-  SpdyHeaderInfo SynStartHeader = {
-    spdy::SYN_STREAM,             // Kind = Syn
-    1,                            // Stream ID
-    0,                            // Associated stream ID
-    3,                            // Priority
-    spdy::CONTROL_FLAG_FIN,       // Control Flags
-    false,                        // Compressed
-    200,                          // Status
-    NULL,                         // Data
-    0,                            // Length
-    spdy::DATA_FLAG_NONE          // Data Flags
-  };
-  static const char* const kStandardGetHeaders[] = {
-    "method",
-    "GET",
-    "url",
-    "http://www.google.com/",
-    "version",
-    "HTTP/1.1"
-  };
-  return ConstructSpdyPacket(
-      &SynStartHeader,
-      extra_headers,
-      extra_header_count,
-      kStandardGetHeaders,
-      arraysize(kStandardGetHeaders) / 2);
 }
 
 }  // namespace
@@ -523,14 +192,13 @@ TEST_F(SpdyNetworkTransactionTest, Constructor) {
 }
 
 TEST_F(SpdyNetworkTransactionTest, Get) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  // Construct the request.
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
     MockRead(true, 0, 0)  // EOF
@@ -590,7 +258,7 @@ TEST_F(SpdyNetworkTransactionTest, EmptyPost) {
     0x01, 0x00, 0x00, 0x4a,                                      // flags, len
     0x00, 0x00, 0x00, 0x01,                                      // stream id
     0x00, 0x00, 0x00, 0x00,                                      // associated
-    0xc0, 0x00, 0x00, 0x03,                                      // 4 headers
+    0xc0, 0x00, 0x00, 0x03,                                      // 3 headers
     0x00, 0x06, 'm', 'e', 't', 'h', 'o', 'd',
     0x00, 0x04, 'P', 'O', 'S', 'T',
     0x00, 0x03, 'u', 'r', 'l',
@@ -690,16 +358,13 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
   // We disable SSL for this test.
   SpdySession::SetSSLMode(false);
 
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
+    CreateMockRead(resp.get()),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
     MockRead(true, 0, 0)  // EOF
@@ -732,15 +397,16 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
 }
 
 TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
+  // Construct the request.
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
+    CreateMockWrite(req.get()),
     MockRead(true, 0, 0)  // EOF
   };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     // This following read isn't used by the test, except during the
     // RunAllPending() call at the end since the SpdySession survives the
     // SpdyNetworkTransaction and still tries to continue Read()'ing.  Any
@@ -790,14 +456,12 @@ class DeleteSessionCallback : public CallbackRunner< Tuple1<int> > {
 // transaction. Failures will usually be valgrind errors. See
 // http://crbug.com/46925
 TEST_F(SpdyNetworkTransactionTest, DeleteSessionOnReadCallback) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn), 1),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply), 2),
+    CreateMockRead(resp.get(), 2),
     MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame), 4),
@@ -920,10 +584,8 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeaders) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
-    MockWrite writes[] = {
-      MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-                arraysize(kGetSyn)),
-    };
+    scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+    MockWrite writes[] = { CreateMockWrite(req.get()) };
 
     MockRead reads[] = {
       MockRead(true, reinterpret_cast<const char*>(test_cases[i].syn_reply),
@@ -964,10 +626,10 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
     spdy::SYN_REPLY,                              // Syn Reply
     1,                                            // Stream ID
     0,                                            // Associated Stream ID
-    3,                                            // Priority
+    SPDY_PRIORITY_LOWEST,                         // Priority
     spdy::CONTROL_FLAG_NONE,                      // Control Flags
     false,                                        // Compressed
-    200,                                          // Status
+    spdy::INVALID,                                // Status
     NULL,                                         // Data
     0,                                            // Data Length
     spdy::DATA_FLAG_NONE                          // Data Flags
@@ -1050,10 +712,7 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
                        test_cases[i].num_headers[0]));
 
     MockWrite writes[] = {
-      MockWrite(
-          true,
-          frame_req->data(),
-          frame_req->length() + spdy::SpdyFrame::size()),
+      CreateMockWrite(frame_req.get()),
     };
 
     // Construct the reply.
@@ -1065,9 +724,7 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
                           0));
 
     MockRead reads[] = {
-      MockRead(true,
-               frame_reply->data(),
-               frame_reply->length() + spdy::SpdyFrame::size()),
+      CreateMockRead(frame_reply.get()),
       MockRead(true,
                reinterpret_cast<const char*>(kGetBodyFrame),
                arraysize(kGetBodyFrame)),
@@ -1120,10 +777,10 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
 
     // Construct the expected header reply string.
     char reply_buffer[256] = "";
-    ConstructSpdyReply(test_cases[i].extra_headers[1],
-                       test_cases[i].num_headers[1],
-                       reply_buffer,
-                       256);
+    ConstructSpdyReplyString(test_cases[i].extra_headers[1],
+                             test_cases[i].num_headers[1],
+                             reply_buffer,
+                             256);
 
     EXPECT_EQ(std::string(reply_buffer), lines) << i;
   }
@@ -1165,9 +822,9 @@ TEST_F(SpdyNetworkTransactionTest, InvalidSynReply) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
+    scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
     MockWrite writes[] = {
-      MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-                arraysize(kGetSyn)),
+      CreateMockWrite(req.get()),
       MockWrite(true, 0, 0)  // EOF
     };
 
@@ -1210,9 +867,9 @@ TEST_F(SpdyNetworkTransactionTest, CorruptFrameSessionError) {
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
+    scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
     MockWrite writes[] = {
-      MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-                arraysize(kGetSyn)),
+      CreateMockWrite(req.get()),
       MockWrite(true, 0, 0)  // EOF
     };
 
@@ -1397,10 +1054,8 @@ TEST_F(SpdyNetworkTransactionTest, ServerPush) {
   const char syn_body_data2[] = "hello my darling hello my baby";
   const char* syn_body_data = NULL;
 
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
   // This array is for request before and after push is received.  The push
   // body is only one 'packet', to allow the initial transaction to read all
@@ -1551,17 +1206,18 @@ TEST_F(SpdyNetworkTransactionTest, ServerPush) {
 
 // Test that we shutdown correctly on write errors.
 TEST_F(SpdyNetworkTransactionTest, WriteError) {
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   MockWrite writes[] = {
     // We'll write 10 bytes successfully
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn), 10),
+    MockWrite(true, req->data(), 10),
     // Followed by ERROR!
     MockWrite(true, ERR_FAILED),
     MockWrite(true, 0, 0)  // EOF
   };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get(), 2),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
     MockRead(true, 0, 0)  // EOF
@@ -1580,13 +1236,13 @@ TEST_F(SpdyNetworkTransactionTest, WriteError) {
 // Test that partial writes work.
 TEST_F(SpdyNetworkTransactionTest, PartialWrite) {
   // Chop the SYN_STREAM frame into 5 chunks.
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   const int kChunks = 5;
-  scoped_array<MockWrite> writes(ChopFrame(
-      reinterpret_cast<const char*>(kGetSyn), arraysize(kGetSyn), kChunks));
+  scoped_array<MockWrite> writes(ChopFrame(req.get(), kChunks));
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
     MockRead(true, 0, 0)  // EOF
@@ -1612,15 +1268,15 @@ TEST_F(SpdyNetworkTransactionTest, ConnectFailure) {
   };
 
   for (size_t index = 0; index < arraysize(connects); ++index) {
+    scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
     MockWrite writes[] = {
-      MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-                arraysize(kGetSyn)),
+      CreateMockWrite(req.get()),
       MockWrite(true, 0, 0)  // EOF
     };
 
+    scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
     MockRead reads[] = {
-      MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-               arraysize(kGetSynReply)),
+      CreateMockRead(resp.get()),
       MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
                arraysize(kGetBodyFrame)),
       MockRead(true, 0, 0)  // EOF
@@ -1645,9 +1301,9 @@ TEST_F(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
     MockWrite(true, 0, 0)  // EOF
   };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
     MockRead(true, 0, 0)  // EOF
@@ -1670,14 +1326,12 @@ TEST_F(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
 
 // Test that the NetLog contains good data for a simple GET request.
 TEST_F(SpdyNetworkTransactionTest, NetLog) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
     MockRead(true, 0, 0)  // EOF
@@ -1733,10 +1387,8 @@ TEST_F(SpdyNetworkTransactionTest, NetLog) {
 // on the network, but issued a Read for only 5 of those bytes) that the data
 // flow still works correctly.
 TEST_F(SpdyNetworkTransactionTest, BufferFull) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
   static const unsigned char kCombinedDataFrames[] = {
     0x00, 0x00, 0x00, 0x01,                                      // header
@@ -1753,9 +1405,9 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
     'd',
   };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, ERR_IO_PENDING),  // Force a pause
     MockRead(true, reinterpret_cast<const char*>(kCombinedDataFrames),
              arraysize(kCombinedDataFrames)),
@@ -1837,10 +1489,8 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
 // at the same time, ensure that we don't notify a read completion for
 // each data frame individually.
 TEST_F(SpdyNetworkTransactionTest, Buffering) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
   // 4 data frames in a single read.
   static const unsigned char kCombinedDataFrames[] = {
@@ -1858,9 +1508,9 @@ TEST_F(SpdyNetworkTransactionTest, Buffering) {
     'm', 'e', 's', 's', 'a', 'g', 'e',
   };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, ERR_IO_PENDING),  // Force a pause
     MockRead(true, reinterpret_cast<const char*>(kCombinedDataFrames),
              arraysize(kCombinedDataFrames)),
@@ -1941,10 +1591,8 @@ TEST_F(SpdyNetworkTransactionTest, Buffering) {
 
 // Verify the case where we buffer data but read it after it has been buffered.
 TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
   // The Syn Reply and all data frames in a single read.
   static const unsigned char kCombinedFrames[] = {
@@ -2050,10 +1698,8 @@ TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
 
 // Verify the case where we buffer data and close the connection.
 TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
   // All data frames in a single read.
   static const unsigned char kCombinedFrames[] = {
@@ -2072,9 +1718,9 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
     // NOTE: We didn't FIN the stream.
   };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, ERR_IO_PENDING),  // Force a wait
     MockRead(true, reinterpret_cast<const char*>(kCombinedFrames),
              arraysize(kCombinedFrames)),
@@ -2152,10 +1798,8 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
 
 // Verify the case where we buffer data and cancel the transaction.
 TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
   static const unsigned char kDataFrame[] = {
     0x00, 0x00, 0x00, 0x01,                                      // header
@@ -2164,9 +1808,9 @@ TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
     // NOTE: We didn't FIN the stream.
   };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-             arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(true, ERR_IO_PENDING),  // Force a wait
     MockRead(true, reinterpret_cast<const char*>(kDataFrame),
              arraysize(kDataFrame)),
@@ -2235,10 +1879,10 @@ TEST_F(SpdyNetworkTransactionTest, SettingsSaved) {
     spdy::SYN_REPLY,                              // Syn Reply
     1,                                            // Stream ID
     0,                                            // Associated Stream ID
-    3,                                            // Priority
+    SPDY_PRIORITY_LOWEST,                         // Priority
     spdy::CONTROL_FLAG_NONE,                      // Control Flags
     false,                                        // Compressed
-    200,                                          // Status
+    spdy::INVALID,                                // Status
     NULL,                                         // Data
     0,                                            // Data Length
     spdy::DATA_FLAG_NONE                          // Data Flags
@@ -2257,10 +1901,7 @@ TEST_F(SpdyNetworkTransactionTest, SettingsSaved) {
 
   // Construct the request.
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-
-  MockWrite writes[] = {
-    MockWrite(true, req->data(), req->length() + spdy::SpdyFrame::size()),
-  };
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
   // Construct the reply.
   scoped_ptr<spdy::SpdyFrame> reply(
@@ -2297,11 +1938,10 @@ TEST_F(SpdyNetworkTransactionTest, SettingsSaved) {
   }
 
   MockRead reads[] = {
-    MockRead(true, reply->data(), reply->length() + spdy::SpdyFrame::size()),
+    CreateMockRead(reply.get()),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
-    MockRead(true, settings_frame->data(),
-             settings_frame->length() + spdy::SpdyFrame::size()),
+    CreateMockRead(settings_frame.get()),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -2344,10 +1984,10 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
     spdy::SYN_REPLY,                              // Syn Reply
     1,                                            // Stream ID
     0,                                            // Associated Stream ID
-    3,                                            // Priority
+    SPDY_PRIORITY_LOWEST,                         // Priority
     spdy::CONTROL_FLAG_NONE,                      // Control Flags
     false,                                        // Compressed
-    200,                                          // Status
+    spdy::INVALID,                                // Status
     NULL,                                         // Data
     0,                                            // Data Length
     spdy::DATA_FLAG_NONE                          // Data Flags
@@ -2395,9 +2035,8 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
 
   MockWrite writes[] = {
-    MockWrite(true, settings_frame->data(),
-              settings_frame->length() + spdy::SpdyFrame::size()),
-    MockWrite(true, req->data(), req->length() + spdy::SpdyFrame::size()),
+    CreateMockWrite(settings_frame.get()),
+    CreateMockWrite(req.get()),
   };
 
   // Construct the reply.
@@ -2409,7 +2048,7 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
                         0));
 
   MockRead reads[] = {
-    MockRead(true, reply->data(), reply->length() + spdy::SpdyFrame::size()),
+    CreateMockRead(reply.get()),
     MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
              arraysize(kGetBodyFrame)),
     MockRead(true, 0, 0)  // EOF
@@ -2448,10 +2087,8 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
 }
 
 TEST_F(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
   MockRead reads[] = {
     MockRead(true, reinterpret_cast<const char*>(kGoAway),
@@ -2469,14 +2106,12 @@ TEST_F(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
 }
 
 TEST_F(SpdyNetworkTransactionTest, CloseWithActiveStream) {
-  MockWrite writes[] = {
-    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
-              arraysize(kGetSyn)),
-  };
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(req.get()) };
 
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
-              arraysize(kGetSynReply)),
+    CreateMockRead(resp.get()),
     MockRead(false, 0, 0)  // EOF
   };
 
