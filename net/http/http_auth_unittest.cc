@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "testing/gtest/include/gtest/gtest.h"
+#include <string>
 
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/string_util.h"
+#include "net/base/net_errors.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_filter.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
 
@@ -60,15 +62,11 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
       "WWW-Authenticate: Negotiate\n"
       "WWW-Authenticate: NTLM\n",
 
-      // Negotiate is not currently support on non-Windows platforms, so
-      // the choice varies depending on platform.
-#if defined(OS_WIN)
+      // TODO(ahendrickson): This may be flaky on Linux and OSX as it
+      // relies on being able to load one of the known .so files
+      // for gssapi.
       "negotiate",
       "",
-#else
-      "ntlm",
-      "",
-#endif
     }
   };
   GURL origin("http://www.example.com");
@@ -103,7 +101,7 @@ TEST(HttpAuthTest, ChooseBestChallenge) {
   }
 }
 
-TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
+TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedNTLM) {
   static const struct {
     const char* headers;
     const char* challenge_realm;
@@ -159,6 +157,65 @@ TEST(HttpAuthTest, ChooseBestChallengeConnectionBased) {
     if (i != 0)
       EXPECT_EQ(possibly_deleted_old_handler, handler.get());
     ASSERT_NE(reinterpret_cast<net::HttpAuthHandler *>(NULL), handler.get());
+    EXPECT_STREQ(tests[i].challenge_realm, handler->realm().c_str());
+  }
+}
+
+TEST(HttpAuthTest, ChooseBestChallengeConnectionBasedNegotiate) {
+  static const struct {
+    const char* headers;
+    const char* challenge_realm;
+  } tests[] = {
+    {
+      "WWW-Authenticate: Negotiate\r\n",
+
+      "",
+    },
+    {
+      "WWW-Authenticate: Negotiate "
+      "TlRMTVNTUAACAAAADAAMADgAAAAFgokCTroKF1e/DRcAAAAAAAAAALo"
+      "AugBEAAAABQEoCgAAAA9HAE8ATwBHAEwARQACAAwARwBPAE8ARwBMAE"
+      "UAAQAaAEEASwBFAEUAUwBBAFIAQQAtAEMATwBSAFAABAAeAGMAbwByA"
+      "HAALgBnAG8AbwBnAGwAZQAuAGMAbwBtAAMAQABhAGsAZQBlAHMAYQBy"
+      "AGEALQBjAG8AcgBwAC4AYQBkAC4AYwBvAHIAcAAuAGcAbwBvAGcAbAB"
+      "lAC4AYwBvAG0ABQAeAGMAbwByAHAALgBnAG8AbwBnAGwAZQAuAGMAbw"
+      "BtAAAAAAA=\r\n",
+
+      // Realm is empty.
+      "",
+    }
+  };
+  GURL origin("http://www.example.com");
+  scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory(
+      HttpAuthHandlerFactory::CreateDefault());
+
+  scoped_ptr<HttpAuthHandler> handler;
+  for (size_t i = 0; i < ARRAYSIZE_UNSAFE(tests); ++i) {
+    // Make a HttpResponseHeaders object.
+    std::string headers_with_status_line("HTTP/1.1 401 Unauthorized\n");
+    headers_with_status_line += tests[i].headers;
+    scoped_refptr<net::HttpResponseHeaders> headers(
+        new net::HttpResponseHeaders(
+            net::HttpUtil::AssembleRawHeaders(
+                headers_with_status_line.c_str(),
+                headers_with_status_line.length())));
+
+    HttpAuthHandler* old_handler = handler.get();
+    HttpAuth::ChooseBestChallenge(http_auth_handler_factory.get(),
+                                  headers.get(),
+                                  HttpAuth::AUTH_SERVER,
+                                  origin,
+                                  BoundNetLog(),
+                                  &handler);
+
+    EXPECT_TRUE(handler != NULL);
+    // Since Negotiate is connection-based, we should continue to use the
+    // existing handler rather than creating a new one.
+    if (i != 0)
+      EXPECT_EQ(old_handler, handler.get());
+
+    ASSERT_NE(reinterpret_cast<net::HttpAuthHandler *>(NULL), handler.get());
+
     EXPECT_STREQ(tests[i].challenge_realm, handler->realm().c_str());
   }
 }
