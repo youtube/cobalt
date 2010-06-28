@@ -197,6 +197,7 @@ lock_cache(void)
 static void
 ssl_DestroySID(sslSessionID *sid)
 {
+    int i;
     SSL_TRC(8, ("SSL: destroy sid: sid=0x%x cached=%d", sid, sid->cached));
     PORT_Assert((sid->references == 0));
 
@@ -215,6 +216,9 @@ ssl_DestroySID(sslSessionID *sid)
 
     if ( sid->peerCert ) {
 	CERT_DestroyCertificate(sid->peerCert);
+    }
+    for (i = 0; i < MAX_PEER_CERT_CHAIN_SIZE && sid->peerCertChain[i]; i++) {
+	CERT_DestroyCertificate(sid->peerCertChain[i]);
     }
     if ( sid->localCert ) {
 	CERT_DestroyCertificate(sid->localCert);
