@@ -53,17 +53,19 @@ net::Error SpdySessionPool::GetSpdySessionFromSSLSocket(
     HttpNetworkSession* session,
     ClientSocketHandle* connection,
     const BoundNetLog& net_log,
-    scoped_refptr<SpdySession>& spdy_session) {
+    int certificate_error_code,
+    scoped_refptr<SpdySession>* spdy_session) {
   // Create the SPDY session and add it to the pool.
-  spdy_session = (new SpdySession(host_port_pair, session, net_log.net_log()));
+  *spdy_session = new SpdySession(host_port_pair, session, net_log.net_log());
   SpdySessionList* list = GetSessionList(host_port_pair);
   if (!list)
     list = AddSessionList(host_port_pair);
   DCHECK(list->empty());
-  list->push_back(spdy_session);
+  list->push_back(*spdy_session);
 
   // Now we can initialize the session with the SSL socket.
-  return spdy_session->InitializeWithSSLSocket(connection);
+  return (*spdy_session)->InitializeWithSSLSocket(connection,
+                                                  certificate_error_code);
 }
 
 bool SpdySessionPool::HasSession(const HostPortPair& host_port_pair) const {
