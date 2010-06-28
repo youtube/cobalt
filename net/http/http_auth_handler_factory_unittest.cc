@@ -154,7 +154,6 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
     EXPECT_TRUE(handler->encrypts_identity());
     EXPECT_TRUE(handler->is_connection_based());
   }
-#if defined(OS_WIN)
   {
     scoped_ptr<HttpAuthHandler> handler;
     int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
@@ -171,19 +170,6 @@ TEST(HttpAuthHandlerFactoryTest, DefaultFactory) {
     EXPECT_TRUE(handler->encrypts_identity());
     EXPECT_TRUE(handler->is_connection_based());
   }
-#else  // !defined(OS_WIN)
-  {
-    scoped_ptr<HttpAuthHandler> handler;
-    int rv = http_auth_handler_factory->CreateAuthHandlerFromString(
-        "Negotiate",
-        HttpAuth::AUTH_SERVER,
-        server_origin,
-        BoundNetLog(),
-        &handler);
-    EXPECT_EQ(ERR_UNSUPPORTED_AUTH_SCHEME, rv);
-    EXPECT_TRUE(handler.get() == NULL);
-  }
-#endif  // !defined(OS_WIN)
 }
 
 }  // namespace net

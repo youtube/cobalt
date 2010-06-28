@@ -19,10 +19,10 @@ class GURL;
 namespace net {
 
 class HttpRequestInfo;
-class ProxyInfo;
 
 extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE_X;
 extern gss_OID CHROME_GSS_C_NT_HOSTBASED_SERVICE;
+extern gss_OID CHROME_GSS_KRB5_MECH_OID_DESC;
 
 // GSSAPILibrary is introduced so unit tests can mock the calls to the GSSAPI
 // library. The default implementation attempts to load one of the standard
@@ -49,6 +49,11 @@ class GSSAPILibrary {
   virtual OM_uint32 release_buffer(
       OM_uint32* minor_status,
       gss_buffer_t buffer) = 0;
+  virtual OM_uint32 display_name(
+      OM_uint32* minor_status,
+      const gss_name_t input_name,
+      gss_buffer_t output_name_buffer,
+      gss_OID* output_name_type) = 0;
   virtual OM_uint32 display_status(
       OM_uint32* minor_status,
       OM_uint32 status_value,
@@ -81,6 +86,16 @@ class GSSAPILibrary {
       OM_uint32* minor_status,
       gss_ctx_id_t* context_handle,
       gss_buffer_t output_token) = 0;
+  virtual OM_uint32 inquire_context(
+      OM_uint32* minor_status,
+      const gss_ctx_id_t context_handle,
+      gss_name_t* src_name,
+      gss_name_t* targ_name,
+      OM_uint32* lifetime_rec,
+      gss_OID* mech_type,
+      OM_uint32* ctx_flags,
+      int* locally_initiated,
+      int* open) = 0;
 
   // Get the default GSSPILibrary instance. The object returned is a singleton
   // instance, and the caller should not delete it.
@@ -106,6 +121,11 @@ class GSSAPISharedLibrary : public GSSAPILibrary {
   virtual OM_uint32 release_buffer(
       OM_uint32* minor_status,
       gss_buffer_t buffer);
+  virtual OM_uint32 display_name(
+      OM_uint32* minor_status,
+      const gss_name_t input_name,
+      gss_buffer_t output_name_buffer,
+      gss_OID* output_name_type);
   virtual OM_uint32 display_status(
       OM_uint32* minor_status,
       OM_uint32 status_value,
@@ -138,6 +158,16 @@ class GSSAPISharedLibrary : public GSSAPILibrary {
       OM_uint32* minor_status,
       gss_ctx_id_t* context_handle,
       gss_buffer_t output_token);
+  virtual OM_uint32 inquire_context(
+      OM_uint32* minor_status,
+      const gss_ctx_id_t context_handle,
+      gss_name_t* src_name,
+      gss_name_t* targ_name,
+      OM_uint32* lifetime_rec,
+      gss_OID* mech_type,
+      OM_uint32* ctx_flags,
+      int* locally_initiated,
+      int* open);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpAuthGSSAPIPOSIXTest, GSSAPIStartup);
@@ -158,10 +188,12 @@ class GSSAPISharedLibrary : public GSSAPILibrary {
   gss_import_name_type import_name_;
   gss_release_name_type release_name_;
   gss_release_buffer_type release_buffer_;
+  gss_display_name_type display_name_;
   gss_display_status_type display_status_;
   gss_init_sec_context_type init_sec_context_;
   gss_wrap_size_limit_type wrap_size_limit_;
   gss_delete_sec_context_type delete_sec_context_;
+  gss_inquire_context_type inquire_context_;
 };
 
 // ScopedSecurityContext releases a gss_ctx_id_t when it goes out of
@@ -171,6 +203,7 @@ class ScopedSecurityContext {
   ScopedSecurityContext(GSSAPILibrary* gssapi_lib);
   ~ScopedSecurityContext();
 
+  const gss_ctx_id_t get() const { return security_context_; }
   gss_ctx_id_t* receive() { return &security_context_; }
 
  private:
@@ -181,13 +214,15 @@ class ScopedSecurityContext {
 };
 
 
-// TODO(cbentzel): Share code with HttpAuthSSPI.
+// TODO(ahendrickson): Share code with HttpAuthSSPI.
 class HttpAuthGSSAPI {
  public:
   HttpAuthGSSAPI(GSSAPILibrary* library,
                  const std::string& scheme,
                  const gss_OID gss_oid);
   ~HttpAuthGSSAPI();
+
+  bool Init();
 
   bool NeedsIdentity() const;
   bool IsFinalRound() const;
@@ -206,7 +241,6 @@ class HttpAuthGSSAPI {
                         const std::wstring* password,
                         const std::wstring& spn,
                         const HttpRequestInfo* request,
-                        const ProxyInfo* proxy,
                         std::string* auth_token);
 
  private:

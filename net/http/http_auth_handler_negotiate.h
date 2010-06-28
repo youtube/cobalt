@@ -5,9 +5,9 @@
 #ifndef NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_
 #define NET_HTTP_HTTP_AUTH_HANDLER_NEGOTIATE_H_
 
-#include "build/build_config.h"
-
 #include <string>
+
+#include "build/build_config.h"
 
 #include "net/base/address_list.h"
 #include "net/http/http_auth_handler.h"
@@ -15,6 +15,10 @@
 
 #if defined(OS_WIN)
 #include "net/http/http_auth_sspi_win.h"
+#endif
+
+#if defined(OS_POSIX)
+#include "net/http/http_auth_gssapi_posix.h"
 #endif
 
 namespace net {
@@ -78,14 +82,22 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
     bool is_unsupported_;
     SSPILibrary* sspi_library_;
 #endif  // defined(OS_WIN)
+
+#if defined(OS_POSIX)
+    GSSAPILibrary* gssapi_library_;
+#endif
   };
 
 #if defined(OS_WIN)
   HttpAuthHandlerNegotiate(SSPILibrary* sspi_library, ULONG max_token_length,
                            URLSecurityManager* url_security_manager,
                            bool disable_cname_lookup, bool use_port);
-#else
-  explicit HttpAuthHandlerNegotiate(URLSecurityManager* url_security_manager);
+#endif
+
+#if defined(OS_POSIX)
+  HttpAuthHandlerNegotiate(GSSAPILibrary* gssapi_library,
+                           URLSecurityManager* url_security_manager,
+                           bool disable_cname_lookup, bool use_port);
 #endif
 
   virtual ~HttpAuthHandlerNegotiate();
@@ -101,11 +113,9 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   virtual int ResolveCanonicalName(HostResolver* host_resolver,
                                    CompletionCallback* callback);
 
-#if defined(OS_WIN)
   // These are public for unit tests
   std::wstring CreateSPN(const AddressList& address_list, const GURL& orign);
   const std::wstring& spn() const { return spn_; }
-#endif  // defined(OS_WIN)
 
  protected:
   virtual bool Init(HttpAuth::ChallengeTokenizer* challenge);
@@ -117,9 +127,16 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                     std::string* auth_token);
 
  private:
-#if defined(OS_WIN)
   void OnResolveCanonicalName(int result);
+
+#if defined(OS_WIN)
   HttpAuthSSPI auth_sspi_;
+#endif
+
+#if defined(OS_POSIX)
+  HttpAuthGSSAPI auth_gssapi_;
+#endif
+
   AddressList address_list_;
   scoped_ptr<SingleRequestHostResolver> single_resolve_;
   CompletionCallback* user_callback_;
@@ -127,8 +144,6 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   bool disable_cname_lookup_;
   bool use_port_;
   std::wstring spn_;
-#endif
-
   URLSecurityManager* url_security_manager_;
 };
 

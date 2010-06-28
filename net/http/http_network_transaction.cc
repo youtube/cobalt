@@ -1,5 +1,5 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.  Use
+// of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_network_transaction.h"
@@ -2048,5 +2048,54 @@ void HttpNetworkTransaction::MarkBrokenAlternateProtocolAndFallback() {
   connection_->Reset();
   next_state_ = STATE_INIT_CONNECTION;
 }
+
+#define STATE_CASE(s)  case s: \
+                         description = StringPrintf("%s (0x%08X)", #s, s); \
+                         break
+
+std::string HttpNetworkTransaction::DescribeState(State state) {
+  std::string description;
+  switch (state) {
+    STATE_CASE(STATE_RESOLVE_PROXY);
+    STATE_CASE(STATE_RESOLVE_PROXY_COMPLETE);
+    STATE_CASE(STATE_INIT_CONNECTION);
+    STATE_CASE(STATE_INIT_CONNECTION_COMPLETE);
+    STATE_CASE(STATE_TUNNEL_GENERATE_AUTH_TOKEN);
+    STATE_CASE(STATE_TUNNEL_GENERATE_AUTH_TOKEN_COMPLETE);
+    STATE_CASE(STATE_TUNNEL_SEND_REQUEST);
+    STATE_CASE(STATE_TUNNEL_SEND_REQUEST_COMPLETE);
+    STATE_CASE(STATE_TUNNEL_READ_HEADERS);
+    STATE_CASE(STATE_TUNNEL_READ_HEADERS_COMPLETE);
+    STATE_CASE(STATE_SSL_CONNECT);
+    STATE_CASE(STATE_SSL_CONNECT_COMPLETE);
+    STATE_CASE(STATE_GENERATE_PROXY_AUTH_TOKEN);
+    STATE_CASE(STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE);
+    STATE_CASE(STATE_GENERATE_SERVER_AUTH_TOKEN);
+    STATE_CASE(STATE_GENERATE_SERVER_AUTH_TOKEN_COMPLETE);
+    STATE_CASE(STATE_SEND_REQUEST);
+    STATE_CASE(STATE_SEND_REQUEST_COMPLETE);
+    STATE_CASE(STATE_READ_HEADERS);
+    STATE_CASE(STATE_READ_HEADERS_COMPLETE);
+    STATE_CASE(STATE_RESOLVE_CANONICAL_NAME);
+    STATE_CASE(STATE_RESOLVE_CANONICAL_NAME_COMPLETE);
+    STATE_CASE(STATE_READ_BODY);
+    STATE_CASE(STATE_READ_BODY_COMPLETE);
+    STATE_CASE(STATE_DRAIN_BODY_FOR_AUTH_RESTART);
+    STATE_CASE(STATE_DRAIN_BODY_FOR_AUTH_RESTART_COMPLETE);
+    STATE_CASE(STATE_SPDY_SEND_REQUEST);
+    STATE_CASE(STATE_SPDY_SEND_REQUEST_COMPLETE);
+    STATE_CASE(STATE_SPDY_READ_HEADERS);
+    STATE_CASE(STATE_SPDY_READ_HEADERS_COMPLETE);
+    STATE_CASE(STATE_SPDY_READ_BODY);
+    STATE_CASE(STATE_SPDY_READ_BODY_COMPLETE);
+    STATE_CASE(STATE_NONE);
+    default:
+      description = StringPrintf("Unknown state 0x%08X (%u)", state, state);
+      break;
+  }
+  return description;
+}
+
+#undef STATE_CASE
 
 }  // namespace net
