@@ -507,6 +507,10 @@ class SpdyNetworkTransactionTest : public PlatformTest {
     return google_get_request_;
   }
 
+  SpdyStream* GetSpdyStream(SpdyNetworkTransaction* trans) {
+    return trans->stream_->stream();
+  }
+
  private:
   bool google_get_request_initialized_;
   HttpRequestInfo google_get_request_;
@@ -681,6 +685,73 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithoutSynReply) {
   EXPECT_EQ(ERR_SYN_REPLY_NOT_RECEIVED, out.rv);
 }
 
+class CloseStreamCallback : public CallbackRunner< Tuple1<int> > {
+ public:
+  explicit CloseStreamCallback(SpdyStream* stream)
+      : stream_(stream) {}
+
+  // This callback should occur immediately after the SpdyStream has been
+  // closed. We check that the stream has been marked half closed from the
+  // client side.
+  virtual void RunWithParams(const Tuple1<int>& params) {
+    EXPECT_TRUE(stream_->half_closed_client_side());
+  }
+
+ private:
+  const SpdyStream* stream_;
+};
+
+// Test that spdy_session marks a stream as half closed immediately upon closing
+// the stream.
+TEST_F(SpdyNetworkTransactionTest, StreamHalfClosedClientSide) {
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn), 1),
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply), 2),
+    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
+             arraysize(kGetBodyFrame), 3),
+    MockRead(true, 0, 0, 4),  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  SessionDependencies session_deps;
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(CreateSession(&session_deps)));
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  session_deps.socket_factory.AddSocketDataProvider(data);
+
+  // Start the transaction with basic parameters.
+  TestCompletionCallback callback;
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+
+  SpdyStream* stream = GetSpdyStream(trans.get());
+
+  // Setup a user callback which will check that the half closed flag is marked
+  // immediately after the stream is closed.
+  CloseStreamCallback callback2(stream);
+  const int kSize = 3000;
+  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
+  rv = trans->Read(buf, kSize, &callback2);
+
+  // Finish running rest of tasks.
+  MessageLoop::current()->RunAllPending();
+}
+
 // Test that the transaction doesn't crash when we get two replies on the same
 // stream ID. See http://crbug.com/45639.
 TEST_F(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
@@ -769,6 +840,97 @@ TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
   // MockClientSocketFactory) are still alive.
   MessageLoop::current()->RunAllPending();
 }
+// The client upon cancellation tries to send a RST_STREAM frame. The mock
+// socket causes the TCP write to return zero. This test checks that the client
+// tries to queue up the RST_STREAM frame again.
+TEST_F(SpdyNetworkTransactionTest, SocketWriteReturnsZero) {
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn), 1),
+    MockWrite(true, 0, 0, 3),
+    MockWrite(true, reinterpret_cast<const char*>(kGetRst),
+              arraysize(kGetRst), 4),
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply), 2),
+    MockRead(true, 0, 0, 5)  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  SessionDependencies session_deps;
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(CreateSession(&session_deps)));
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  session_deps.socket_factory.AddSocketDataProvider(data);
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  trans.reset();  // Cancel the transaction.
+
+  // Finish running rest of tasks.
+  MessageLoop::current()->RunAllPending();
+  EXPECT_TRUE(data->at_write_eof()) << "Write count: " << data->write_count()
+      << ". Write index: " << data->write_index() << ".";
+}
+
+
+// Verify that the client sends a Rst Frame upon cancelling the stream.
+TEST_F(SpdyNetworkTransactionTest, CancelledTransactionSendRst) {
+  MockWrite writes[] = {
+    MockWrite(true, reinterpret_cast<const char*>(kGetSyn),
+              arraysize(kGetSyn), 1),
+    MockWrite(true, reinterpret_cast<const char*>(kGetRst),
+              arraysize(kGetRst), 3),
+  };
+
+  MockRead reads[] = {
+    MockRead(true, reinterpret_cast<const char*>(kGetSynReply),
+             arraysize(kGetSynReply), 2),
+    MockRead(true, 0, 0, 4)  // EOF
+  };
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("http://www.google.com/");
+  request.load_flags = 0;
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  SessionDependencies session_deps;
+  scoped_ptr<SpdyNetworkTransaction> trans(
+      new SpdyNetworkTransaction(CreateSession(&session_deps)));
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  session_deps.socket_factory.AddSocketDataProvider(data);
+
+  TestCompletionCallback callback;
+
+  int rv = trans->Start(&request, &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+  trans.reset();  // Cancel the transaction.
+
+  // Finish running rest of tasks.
+  MessageLoop::current()->RunAllPending();
+  EXPECT_TRUE(data->at_write_eof()) << "Write count: " << data->write_count()
+      << ". Write index: " << data->write_index() << ".";
+}
 
 class DeleteSessionCallback : public CallbackRunner< Tuple1<int> > {
  public:
@@ -813,7 +975,7 @@ TEST_F(SpdyNetworkTransactionTest, DeleteSessionOnReadCallback) {
   SpdySession::SetSSLMode(false);
 
   SessionDependencies session_deps;
-  SpdyNetworkTransaction * trans =
+  SpdyNetworkTransaction* trans =
       new SpdyNetworkTransaction(CreateSession(&session_deps));
   scoped_refptr<OrderedSocketData> data(
       new OrderedSocketData(reads, arraysize(reads),
