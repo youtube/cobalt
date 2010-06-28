@@ -72,6 +72,7 @@
 #endif
 
 static void      ssl3_CleanupPeerCerts(sslSocket *ss);
+static void      ssl3_CopyPeerCertsFromSID(sslSocket *ss, sslSessionID *sid);
 static PK11SymKey *ssl3_GenerateRSAPMS(sslSocket *ss, ssl3CipherSpec *spec,
                                        PK11SlotInfo * serverKeySlot);
 static SECStatus ssl3_DeriveMasterSecret(sslSocket *ss, PK11SymKey *pms);
@@ -5136,6 +5137,7 @@ ssl3_HandleServerHello(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
 	/* copy the peer cert from the SID */
 	if (sid->peerCert != NULL) {
 	    ss->sec.peerCert = CERT_DupCertificate(sid->peerCert);
+	    ssl3_CopyPeerCertsFromSID(ss, sid);
 	}
 
 
@@ -6378,6 +6380,7 @@ compression_found:
 	ss->sec.ci.sid = sid;
 	if (sid->peerCert != NULL) {
 	    ss->sec.peerCert = CERT_DupCertificate(sid->peerCert);
+	    ssl3_CopyPeerCertsFromSID(ss, sid);
 	}
 
 	/*
@@ -7746,6 +7749,38 @@ ssl3_CleanupPeerCerts(sslSocket *ss)
     ss->ssl3.peerCertChain = NULL;
 }
 
+static void
+ssl3_CopyPeerCertsFromSID(sslSocket *ss, sslSessionID *sid)
+{
+    PRArenaPool *arena;
+    ssl3CertNode *certs = NULL;
+    int i;
+
+    if (!sid->peerCertChain[0])
+	return;
+    PORT_Assert(!ss->ssl3.peerCertArena);
+    PORT_Assert(!ss->ssl3.peerCertChain);
+    ss->ssl3.peerCertArena = arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+    for (i = 0; i < MAX_PEER_CERT_CHAIN_SIZE && sid->peerCertChain[i]; i++) {
+	ssl3CertNode *c = PORT_ArenaNew(arena, ssl3CertNode);
+	c->cert = CERT_DupCertificate(sid->peerCertChain[i]);
+	c->next = certs;
+	certs = c;
+    }
+    ss->ssl3.peerCertChain = certs;
+}
+
+static void
+ssl3_CopyPeerCertsToSID(ssl3CertNode *certs, sslSessionID *sid)
+{
+    int i = 0;
+    ssl3CertNode *c = certs;
+    for (; i < MAX_PEER_CERT_CHAIN_SIZE && c; i++, c = c->next) {
+	PORT_Assert(!sid->peerCertChain[i]);
+	sid->peerCertChain[i] = CERT_DupCertificate(c->cert);
+    }
+}
+
 /* Called from ssl3_HandleHandshakeMessage() when it has deciphered a complete
  * ssl3 Certificate message.
  * Caller must hold Handshake and RecvBuf locks.
@@ -7932,6 +7967,7 @@ ssl3_HandleCertificate(sslSocket *ss, SSL3Opaque *b, PRUint32 length)
     }
 
     ss->sec.ci.sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
+    ssl3_CopyPeerCertsToSID(certs, ss->sec.ci.sid);
 
     if (!ss->sec.isServer) {
 	/* set the server authentication and key exchange types and sizes
@@ -8103,6 +8139,8 @@ ssl3_RestartHandshakeAfterServerCert(sslSocket *ss)
     if (ss->handshake != NULL) {
 	ss->handshake = ssl_GatherRecord1stHandshake;
 	ss->sec.ci.sid->peerCert = CERT_DupCertificate(ss->sec.peerCert);
+	ssl3_CopyPeerCertsToSID((ssl3CertNode *)ss->ssl3.peerCertChain,
+				ss->sec.ci.sid);
 
 	ssl_GetRecvBufLock(ss);
 	if (ss->ssl3.hs.msgState.buf != NULL) {
