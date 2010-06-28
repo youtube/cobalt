@@ -116,8 +116,10 @@ TEST_F(SpdyHttpStreamTest, SendRequest) {
   TestCompletionCallback callback;
   HttpResponseInfo response;
 
-  scoped_refptr<SpdyStream> stream(
-      session->CreateStream(request.url, HIGHEST, BoundNetLog()));
+  scoped_refptr<SpdyStream> stream;
+  ASSERT_EQ(
+      OK,
+      session->CreateStream(request.url, HIGHEST, &stream, BoundNetLog()));
 
   scoped_ptr<SpdyHttpStream> http_stream(new SpdyHttpStream(stream.get()));
   http_stream->InitializeRequest(request, base::Time::Now(), NULL);

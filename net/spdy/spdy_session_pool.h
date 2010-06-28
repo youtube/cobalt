@@ -47,6 +47,8 @@ class SpdySessionPool
   // calling Get() first to use an existing SpdySession so we don't get
   // multiple SpdySessions per domain.  Note that ownership of |connection| is
   // transferred from the caller to the SpdySession.
+  // |certificate_error_code| is used to indicate the certificate error
+  // encountered when connecting the SSL socket.  OK means there was no error.
   // Returns OK on success, and the |spdy_session| will be provided.
   // Returns an error on failure, and |spdy_session| will be NULL.
   net::Error GetSpdySessionFromSSLSocket(
@@ -54,7 +56,8 @@ class SpdySessionPool
       HttpNetworkSession* session,
       ClientSocketHandle* connection,
       const BoundNetLog& net_log,
-      scoped_refptr<SpdySession>& spdy_session);
+      int certificate_error_code,
+      scoped_refptr<SpdySession>* spdy_session);
 
   // TODO(willchan): Consider renaming to HasReusableSession, since perhaps we
   // should be creating a new session.
