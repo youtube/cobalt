@@ -288,6 +288,7 @@ HttpNetworkTransaction::HttpNetworkTransaction(HttpNetworkSession* session)
       logged_response_time_(false),
       using_ssl_(false),
       using_spdy_(false),
+      spdy_certificate_error_(OK),
       alternate_protocol_mode_(
           g_use_alternate_protocols ? kUnspecified :
           kDoNotUseAlternateProtocol),
@@ -1142,12 +1143,18 @@ int HttpNetworkTransaction::DoSSLConnectComplete(int result) {
   }
 
   if (IsCertificateError(result)) {
-    result = HandleCertificateError(result);
-    if (result == OK && !connection_->socket()->IsConnectedAndIdle()) {
-      connection_->socket()->Disconnect();
-      connection_->Reset();
-      next_state_ = STATE_INIT_CONNECTION;
-      return result;
+    if (using_spdy_ && request_->url.SchemeIs("http")) {
+      // We ignore certificate errors for http over spdy.
+      spdy_certificate_error_ = result;
+      result = OK;
+    } else {
+      result = HandleCertificateError(result);
+      if (result == OK && !connection_->socket()->IsConnectedAndIdle()) {
+        connection_->socket()->Disconnect();
+        connection_->Reset();
+        next_state_ = STATE_INIT_CONNECTION;
+        return result;
+      }
     }
   }
 
@@ -1494,7 +1501,8 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
     DCHECK(using_ssl_);
     CHECK(connection_->socket());
     int error = spdy_pool->GetSpdySessionFromSSLSocket(
-        endpoint_, session_, connection_.release(), net_log_, spdy_session);
+        endpoint_, session_, connection_.release(), net_log_,
+        spdy_certificate_error_, &spdy_session);
     if (error != OK)
       return error;
   }
@@ -1510,17 +1518,24 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
   }
   headers_valid_ = false;
   scoped_refptr<SpdyStream> spdy_stream;
-  if (request_->method == "GET")
-    spdy_stream = spdy_session->GetPushStream(request_->url, net_log_);
+  if (request_->method == "GET") {
+    int error =
+        spdy_session->GetPushStream(request_->url, &spdy_stream, net_log_);
+    if (error != OK)
+      return error;
+  }
   if (spdy_stream.get()) {
     DCHECK(spdy_stream->pushed());
     CHECK(spdy_stream->GetDelegate() == NULL);
     spdy_http_stream_.reset(new SpdyHttpStream(spdy_stream));
     spdy_http_stream_->InitializeRequest(*request_, base::Time::Now(), NULL);
   } else {
-    spdy_stream = spdy_session->CreateStream(request_->url,
-                                             request_->priority,
-                                             net_log_);
+    int error = spdy_session->CreateStream(request_->url,
+                                           request_->priority,
+                                           &spdy_stream,
+                                           net_log_);
+    if (error != OK)
+      return error;
     DCHECK(!spdy_stream->pushed());
     CHECK(spdy_stream->GetDelegate() == NULL);
     spdy_http_stream_.reset(new SpdyHttpStream(spdy_stream));
