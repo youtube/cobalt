@@ -12,6 +12,7 @@
 *~
 .*.sw?
 .cproject
+.gdbinit
 .DS_Store
 .metadata
 .project
