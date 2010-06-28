@@ -569,10 +569,13 @@ typedef enum {	never_cached,
 		invalid_cache		/* no longer in any cache. */
 } Cached;
 
+#define MAX_PEER_CERT_CHAIN_SIZE 8
+
 struct sslSessionIDStr {
     sslSessionID *        next;   /* chain used for client sockets, only */
 
     CERTCertificate *     peerCert;
+    CERTCertificate *     peerCertChain[MAX_PEER_CERT_CHAIN_SIZE];
     const char *          peerID;     /* client only */
     const char *          urlSvrName; /* client only */
     CERTCertificate *     localCert;
