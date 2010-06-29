@@ -388,10 +388,6 @@ void MessageLoop::ReloadWorkQueue() {
 
 bool MessageLoop::DeletePendingTasks() {
   bool did_work = !work_queue_.empty();
-#if defined(OS_POSIX)
-  LOG(INFO) << "MessageLoop::DeletePendingTasks(): RUNNING_ON_VALGRIND="
-            << RUNNING_ON_VALGRIND;
-#endif
   while (!work_queue_.empty()) {
     PendingTask pending_task = work_queue_.front();
     work_queue_.pop();
