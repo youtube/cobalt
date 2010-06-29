@@ -98,6 +98,8 @@ void InitializeClock() {
 // static
 const int64 Time::kTimeTToMicrosecondsOffset = GG_INT64_C(11644473600000000);
 
+bool Time::high_resolution_timer_enabled_ = false;
+
 // static
 Time Time::Now() {
   if (initial_time == 0)
@@ -148,18 +150,31 @@ FILETIME Time::ToFileTime() const {
 }
 
 // static
-bool Time::UseHighResolutionTimer(bool use) {
-  // TODO(mbelshe): Make sure that switching the system timer resolution
-  // doesn't break Timer firing order etc. An example test would be to have
-  // two threads. One would have a bunch of timers, and another would turn the
-  // high resolution timer on and off.
+void Time::EnableHighResolutionTimer(bool enable) {
+  // Test for single-threaded access.
+  static PlatformThreadId my_thread = PlatformThread::CurrentId();
+  DCHECK(PlatformThread::CurrentId() == my_thread);
 
+  if (high_resolution_timer_enabled_ == enable)
+    return;
+
+  high_resolution_timer_enabled_ = enable;
+}
+
+// static
+bool Time::ActivateHighResolutionTimer(bool activate) {
+  if (!high_resolution_timer_enabled_)
+    return false;
+
+  // Using anything other than 1ms makes timers granular
+  // to that interval.
+  const int kMinTimerIntervalMs = 1;
   MMRESULT result;
-  if (use)
-    result = timeBeginPeriod(1);
+  if (activate)
+    result = timeBeginPeriod(kMinTimerIntervalMs);
   else
-    result = timeEndPeriod(1);
-  return (result == TIMERR_NOERROR);
+    result = timeEndPeriod(kMinTimerIntervalMs);
+  return result == TIMERR_NOERROR;
 }
 
 // static

@@ -287,6 +287,20 @@ class MessageLoop : public base::MessagePump::Delegate {
   typedef base::MessagePumpForUI::Observer Observer;
 #endif
 
+  // Returns true if the message loop has high resolution timers enabled.
+  // Provided for testing.
+  bool high_resolution_timers_enabled() {
+#if defined(OS_WIN)
+    return !high_resolution_timer_expiration_.is_null();
+#else
+    return true;
+#endif
+  }
+
+  // When we go into high resolution timer mode, we will stay in hi-res mode
+  // for at least 1s.
+  static const int kHighResolutionTimerModeLeaseTimeMs = 1000;
+
   //----------------------------------------------------------------------------
  protected:
   struct RunState {
@@ -453,6 +467,10 @@ class MessageLoop : public base::MessagePump::Delegate {
   Lock incoming_queue_lock_;
 
   RunState* state_;
+
+#if defined(OS_WIN)
+  base::TimeTicks high_resolution_timer_expiration_;
+#endif
 
   // The next sequence number to use for delayed tasks.
   int next_sequence_num_;

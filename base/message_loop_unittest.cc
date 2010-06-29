@@ -1539,6 +1539,35 @@ TEST(MessageLoopTest, IOHandler) {
 TEST(MessageLoopTest, WaitForIO) {
   RunTest_WaitForIO();
 }
+
+TEST(MessageLoopTest, HighResolutionTimer) {
+  MessageLoop loop;
+
+  const int kFastTimerMs = 5;
+  const int kSlowTimerMs = 100;
+
+  EXPECT_EQ(false, loop.high_resolution_timers_enabled());
+
+  // Post a fast task to enable the high resolution timers.
+  loop.PostDelayedTask(FROM_HERE, new DummyTask(1), kFastTimerMs);
+  loop.Run();
+  EXPECT_EQ(true, loop.high_resolution_timers_enabled());
+
+  // Post a slow task and verify high resolution timers
+  // are still enabled.
+  loop.PostDelayedTask(FROM_HERE, new DummyTask(1), kSlowTimerMs);
+  loop.Run();
+  EXPECT_EQ(true, loop.high_resolution_timers_enabled());
+
+  // Wait for a while so that high-resolution mode elapses.
+  Sleep(MessageLoop::kHighResolutionTimerModeLeaseTimeMs);
+
+  // Post a slow task to disable the high resolution timers.
+  loop.PostDelayedTask(FROM_HERE, new DummyTask(1), kSlowTimerMs);
+  loop.Run();
+  EXPECT_EQ(false, loop.high_resolution_timers_enabled());
+}
+
 #endif  // defined(OS_WIN)
 
 #if defined(OS_POSIX)
