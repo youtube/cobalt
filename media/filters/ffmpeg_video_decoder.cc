@@ -85,6 +85,10 @@ void FFmpegVideoDecoder::OnInitializeComplete(bool* success, Task* done_cb) {
   }
 }
 
+void FFmpegVideoDecoder::DoStop(Task* done_cb) {
+  decode_engine_->Stop(done_cb);
+}
+
 void FFmpegVideoDecoder::DoSeek(base::TimeDelta time, Task* done_cb) {
   // Everything in the presentation time queue is invalid, clear the queue.
   while (!pts_heap_.IsEmpty())
@@ -182,6 +186,12 @@ void FFmpegVideoDecoder::OnDecodeComplete(
 void FFmpegVideoDecoder::OnEmptyBufferDone(scoped_refptr<Buffer> buffer) {
   // Currently we just ignore the returned buffer.
   DecoderBase<VideoDecoder, VideoFrame>::OnDecodeComplete();
+}
+
+void FFmpegVideoDecoder::FillThisBuffer(scoped_refptr<VideoFrame> frame) {
+  DecoderBase<VideoDecoder, VideoFrame>::FillThisBuffer(frame);
+  // Notify decode engine the available of new frame.
+  decode_engine_->FillThisBuffer(frame);
 }
 
 void FFmpegVideoDecoder::EnqueueVideoFrame(
