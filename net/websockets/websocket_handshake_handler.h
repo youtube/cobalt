@@ -19,6 +19,7 @@
 #include "base/ref_counted.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_info.h"
+#include "net/spdy/spdy_framer.h"
 
 namespace net {
 
@@ -43,8 +44,13 @@ class WebSocketHandshakeRequestHandler {
                      size_t headers_to_remove_len);
 
   // Gets request info to open WebSocket connection.
-  // Also, full challange data in |challenge|.
+  // Also, fill challange data in |challenge|.
   HttpRequestInfo GetRequestInfo(const GURL& url, std::string* challenge);
+  // Gets request as SpdyHeaderBlock.
+  // Also, fill challenge data in |challenge|.
+  bool GetRequestHeaderBlock(const GURL& url,
+                             spdy::SpdyHeaderBlock* headers,
+                             std::string* challenge);
   // Gets WebSocket handshake raw request message to open WebSocket
   // connection.
   std::string GetRawRequest();
@@ -79,6 +85,9 @@ class WebSocketHandshakeResponseHandler {
   // Parses WebSocket handshake response info given as HttpResponseInfo.
   bool ParseResponseInfo(const HttpResponseInfo& response_info,
                          const std::string& challenge);
+  // Parses WebSocket handshake response as SpdyHeaderBlock.
+  bool ParseResponseHeaderBlock(const spdy::SpdyHeaderBlock& headers,
+                                const std::string& challenge);
 
   // Gets the headers value.
   void GetHeaders(const char* const headers_to_get[],
