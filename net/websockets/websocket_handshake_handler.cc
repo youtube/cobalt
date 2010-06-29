@@ -94,24 +94,21 @@ std::string FilterHeaders(
   return filtered_headers;
 }
 
-// Gets a key number for |key_name| in |headers| and appends the number to
-// |challenge|.
+// Gets a key number from |key| and appends the number to |challenge|.
 // The key number (/part_N/) is extracted as step 4.-8. in
 // 5.2. Sending the server's opening handshake of
 // http://www.ietf.org/id/draft-ietf-hybi-thewebsocketprotocol-00.txt
-void GetKeyNumber(net::HttpRequestHeaders* headers, const char* key_name,
-                  std::string* challenge) {
-  std::string key;
-  headers->GetHeader(key_name, &key);
-  headers->RemoveHeader(key_name);
-
+void GetKeyNumber(const std::string& key, std::string* challenge) {
   uint32 key_number = 0;
   uint32 spaces = 0;
   for (size_t i = 0; i < key.size(); ++i) {
-    if (isdigit(key[i]))
+    if (isdigit(key[i])) {
+      // key_number should not overflow. (it comes from
+      // WebCore/websockets/WebSocketHandshake.cpp).
       key_number = key_number * 10 + key[i] - '0';
-    else if (key[i] == ' ')
+    } else if (key[i] == ' ') {
       ++spaces;
+    }
   }
   // spaces should not be zero in valid handshake request.
   if (spaces == 0)
@@ -199,11 +196,67 @@ HttpRequestInfo WebSocketHandshakeRequestHandler::GetRequestInfo(
   request_info.extra_headers.RemoveHeader("Connection");
 
   challenge->clear();
-  GetKeyNumber(&request_info.extra_headers, "Sec-WebSocket-Key1", challenge);
-  GetKeyNumber(&request_info.extra_headers, "Sec-WebSocket-Key2", challenge);
+  std::string key;
+  request_info.extra_headers.GetHeader("Sec-WebSocket-Key1", &key);
+  request_info.extra_headers.RemoveHeader("Sec-WebSocket-Key1");
+  GetKeyNumber(key, challenge);
+
+  request_info.extra_headers.GetHeader("Sec-WebSocket-Key2", &key);
+  request_info.extra_headers.RemoveHeader("Sec-WebSocket-Key2");
+  GetKeyNumber(key, challenge);
+
   challenge->append(key3_);
 
   return request_info;
+}
+
+bool WebSocketHandshakeRequestHandler::GetRequestHeaderBlock(
+    const GURL& url, spdy::SpdyHeaderBlock* headers, std::string* challenge) {
+  // We don't set "method" and "version".  These are fixed value in WebSocket
+  // protocol.
+  (*headers)["url"] = url.spec();
+
+  std::string key1;
+  std::string key2;
+  HttpUtil::HeadersIterator iter(headers_.begin(), headers_.end(), "\r\n");
+  while (iter.GetNext()) {
+    if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
+                             "connection")) {
+      // Ignore "Connection" header.
+      continue;
+    } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
+                                    "upgrade")) {
+      // Ignore "Upgrade" header.
+      continue;
+    } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
+                                    "sec-websocket-key1")) {
+      // Use only for generating challenge.
+      key1 = iter.values();
+      continue;
+    } else if (LowerCaseEqualsASCII(iter.name_begin(), iter.name_end(),
+                                    "sec-websocket-key2")) {
+      // Use only for generating challenge.
+      key2 = iter.values();
+      continue;
+    }
+    // Others should be sent out to |headers|.
+    std::string name = StringToLowerASCII(iter.name());
+    spdy::SpdyHeaderBlock::iterator found = headers->find(name);
+    if (found == headers->end()) {
+      (*headers)[name] = iter.values();
+    } else {
+      // For now, websocket doesn't use multiple headers, but follows to http.
+      found->second.append(1, '\0');  // +=() doesn't append 0's
+      found->second.append(iter.values());
+    }
+  }
+
+  challenge->clear();
+  GetKeyNumber(key1, challenge);
+  GetKeyNumber(key2, challenge);
+  challenge->append(key3_);
+
+  return true;
 }
 
 std::string WebSocketHandshakeRequestHandler::GetRawRequest() {
@@ -274,6 +327,45 @@ bool WebSocketHandshakeResponseHandler::ParseResponseInfo(
   std::string value;
   while (response_info.headers->EnumerateHeaderLines(&iter, &name, &value)) {
     response_message += name + ": " + value + "\r\n";
+  }
+  response_message += "\r\n";
+
+  MD5Digest digest;
+  MD5Sum(challenge.data(), challenge.size(), &digest);
+
+  const char* digest_data = reinterpret_cast<char*>(digest.a);
+  response_message.append(digest_data, sizeof(digest.a));
+
+  return ParseRawResponse(response_message.data(),
+                          response_message.size()) == response_message.size();
+}
+
+bool WebSocketHandshakeResponseHandler::ParseResponseHeaderBlock(
+    const spdy::SpdyHeaderBlock& headers,
+    const std::string& challenge) {
+  std::string response_message;
+  response_message = "HTTP/1.1 101 WebSocket Protocol Handshake\r\n";
+  response_message += "Upgrade: WebSocket\r\n";
+  response_message += "Connection: Upgrade\r\n";
+  for (spdy::SpdyHeaderBlock::const_iterator iter = headers.begin();
+       iter != headers.end();
+       ++iter) {
+    // For each value, if the server sends a NUL-separated list of values,
+    // we separate that back out into individual headers for each value
+    // in the list.
+    const std::string& value = iter->second;
+    size_t start = 0;
+    size_t end = 0;
+    do {
+      end = value.find('\0', start);
+      std::string tval;
+      if (end != std::string::npos)
+        tval = value.substr(start, (end - start));
+      else
+        tval = value.substr(start);
+      response_message += iter->first + ": " + tval + "\r\n";
+      start = end + 1;
+    } while (end != std::string::npos);
   }
   response_message += "\r\n";
 
