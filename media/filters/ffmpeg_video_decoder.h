@@ -29,11 +29,13 @@ class FFmpegVideoDecoder : public DecoderBase<VideoDecoder, VideoFrame> {
  protected:
   virtual void DoInitialize(DemuxerStream* demuxer_stream, bool* success,
                             Task* done_cb);
+  virtual void DoStop(Task* done_cb);
   virtual void DoSeek(base::TimeDelta time, Task* done_cb);
   virtual void DoDecode(Buffer* input);
 
  protected:
   virtual void OnEmptyBufferDone(scoped_refptr<Buffer> buffer);
+  virtual void FillThisBuffer(scoped_refptr<VideoFrame> frame);
 
  private:
   friend class FilterFactoryImpl1<FFmpegVideoDecoder, VideoDecodeEngine*>;
