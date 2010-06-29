@@ -56,6 +56,8 @@ class MockVideoDecodeEngine : public VideoDecodeEngine {
                                 Task* done_cb));
   MOCK_METHOD1(EmptyThisBuffer, void(scoped_refptr<Buffer> buffer));
   MOCK_METHOD1(FillThisBuffer, void(scoped_refptr<VideoFrame> buffer));
+  MOCK_METHOD1(Stop, void(Task* done_cb));
+  MOCK_METHOD1(Pause, void(Task* done_cb));
   MOCK_METHOD1(Flush, void(Task* done_cb));
   MOCK_CONST_METHOD0(state, State());
   MOCK_CONST_METHOD0(GetSurfaceFormat, VideoFrame::Format());
@@ -139,6 +141,8 @@ class FFmpegVideoDecoderTest : public testing::Test {
     // Call Stop() to shut down internal threads.
     EXPECT_CALL(callback_, OnFilterCallback());
     EXPECT_CALL(callback_, OnCallbackDestroyed());
+    EXPECT_CALL(*engine_, Stop(_))
+        .WillOnce(WithArg<0>(InvokeRunnable()));
     decoder_->Stop(callback_.NewCallback());
 
     // Finish up any remaining tasks.
