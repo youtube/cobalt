@@ -282,9 +282,35 @@ void MessageLoop::PostTask_Helper(
   if (delay_ms > 0) {
     pending_task.delayed_run_time =
         Time::Now() + TimeDelta::FromMilliseconds(delay_ms);
+
+#if defined(OS_WIN)
+    if (high_resolution_timer_expiration_.is_null()) {
+      // Windows timers are granular to 15.6ms.  If we only set high-res
+      // timers for those under 15.6ms, then a 18ms timer ticks at ~32ms,
+      // which as a percentage is pretty inaccurate.  So enable high
+      // res timers for any timer which is within 2x of the granularity.
+      // This is a tradeoff between accuracy and power management.
+      bool needs_high_res_timers =
+          delay_ms < (2 * Time::kMinLowResolutionThresholdMs);
+      if (needs_high_res_timers) {
+        Time::ActivateHighResolutionTimer(true);
+        high_resolution_timer_expiration_ = base::TimeTicks::Now() +
+            TimeDelta::FromMilliseconds(kHighResolutionTimerModeLeaseTimeMs);
+      }
+    }
+#endif
   } else {
     DCHECK_EQ(delay_ms, 0) << "delay should not be negative";
   }
+
+#if defined(OS_WIN)
+  if (!high_resolution_timer_expiration_.is_null()) {
+    if (base::TimeTicks::Now() > high_resolution_timer_expiration_) {
+      Time::ActivateHighResolutionTimer(false);
+      high_resolution_timer_expiration_ = base::TimeTicks();
+    }
+  }
+#endif
 
   // Warning: Don't try to short-circuit, and handle this thread's tasks more
   // directly, as it could starve handling of foreign threads.  Put every task

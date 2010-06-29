@@ -229,8 +229,7 @@ class TestSuite {
 #if defined(OS_WIN)
     // Make sure we run with high resolution timer to minimize differences
     // between production code and test code.
-    bool result = base::Time::UseHighResolutionTimer(true);
-    CHECK(result);
+    base::Time::EnableHighResolutionTimer(true);
 #endif  // defined(OS_WIN)
 
     // In some cases, we do not want to see standard error dialogs.
