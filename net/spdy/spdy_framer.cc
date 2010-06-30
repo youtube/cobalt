@@ -477,6 +477,8 @@ bool SpdyFramer::ParseHeaderBlock(const SpdyFrame* frame,
         break;
       if (!builder.ReadString(&iter, &value))
         break;
+      if (!name.size() || !value.size())
+        return false;
       if (block->find(name) == block->end()) {
         (*block)[name] = value;
       } else {
