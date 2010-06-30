@@ -428,7 +428,15 @@ static bool CreateTemporaryDirInDirImpl(const FilePath& base_dir,
 
 bool CreateTemporaryDirInDir(const FilePath& base_dir,
                              const FilePath::StringType& prefix,
-                             FilePath* new_dir) {
+                             FilePath* new_dir,
+                             bool loosen_permissions) {
+  // To understand crbug/35198, the ability to call this
+  // this function on windows while giving loose permissions
+  // to the resulting directory has been temporarily added.
+  // It should not be posible to call this function with
+  // loosen_permissions == true on non-windows plarforms.
+  CHECK(!loosen_permissions);
+
   FilePath::StringType mkdtemp_template = prefix;
   mkdtemp_template.append(FILE_PATH_LITERAL("XXXXXX"));
   return CreateTemporaryDirInDirImpl(base_dir, mkdtemp_template, new_dir);
