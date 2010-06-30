@@ -66,21 +66,16 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
   };
   HMODULE libs[arraysize(path_keys)] = {NULL};
 
-  // Limit the DLL search path so we don't load dependencies from the system
-  // path.  Refer to http://crbug.com/35857
-  scoped_array<wchar_t> previous_dll_directory(new wchar_t[MAX_PATH]);
-  if (!GetDllDirectory(MAX_PATH, previous_dll_directory.get())) {
-    previous_dll_directory.reset();
-  }
-  SetDllDirectory(base_path.value().c_str());
-
   for (size_t i = 0; i < arraysize(path_keys); ++i) {
-    FilePath path(GetDLLName(path_keys[i]));
+    FilePath path = base_path.Append(GetDLLName(path_keys[i]));
 #ifdef TESTING
     double dll_loadtime_start = GetTime();
 #endif
+
+    // Use alternate DLL search path so we don't load dependencies from the
+    // system path.  Refer to http://crbug.com/35857
     const wchar_t* cpath = path.value().c_str();
-    libs[i] = LoadLibrary(cpath);
+    libs[i] = LoadLibraryEx(cpath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
     if (!libs[i])
       break;
 #ifdef TESTING
@@ -91,8 +86,6 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
     OutputDebugStringW(outputbuf.c_str());
 #endif
   }
-
-  SetDllDirectory(previous_dll_directory.get());
 
   // Check that we loaded all libraries successfully.  We only need to check the
   // last array element because the loop above will break without initializing
