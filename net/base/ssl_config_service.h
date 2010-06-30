@@ -84,6 +84,14 @@ class SSLConfigService : public base::RefCountedThreadSafe<SSLConfigService> {
   // May not be thread-safe, should only be called on the IO thread.
   virtual void GetSSLConfig(SSLConfig* config) = 0;
 
+  // Returns true if the given hostname is known to be 'strict'. This means
+  // that we will require the renegotiation extension and will always use TLS
+  // (no SSLv3 fallback).
+  //
+  // If you wish to add an element to this list, file a bug at
+  // http://crbug.com and email the link to agl AT chromium DOT org.
+  static bool IsKnownStrictTLSServer(const std::string& hostname);
+
  protected:
   friend class base::RefCountedThreadSafe<SSLConfigService>;
 
