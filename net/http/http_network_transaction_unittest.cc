@@ -5154,10 +5154,10 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   MockWrite spdy_writes[] = { CreateMockWrite(req.get()) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
+  scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame());
   MockRead spdy_reads[] = {
     CreateMockRead(resp.get()),
-    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
-             arraysize(kGetBodyFrame)),
+    CreateMockRead(data.get()),
     MockRead(true, 0, 0),
   };
 
@@ -5290,11 +5290,11 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   const char kCONNECTResponse[] = "HTTP/1.1 200 Connected\r\n\r\n";
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
+  scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame());
   MockRead spdy_reads[] = {
     MockRead(true, kCONNECTResponse, arraysize(kCONNECTResponse) - 1, 1),  // 1
     CreateMockRead(resp.get(), 4),  // 2, 4
-    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),  // 5
-             arraysize(kGetBodyFrame), 4),
+    CreateMockRead(data.get(), 4),  // 5
     MockRead(true, 0, 0, 4),  // 6
   };
 
@@ -5384,10 +5384,10 @@ TEST_F(HttpNetworkTransactionTest,
   MockWrite spdy_writes[] = { CreateMockWrite(req.get()) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
+  scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame());
   MockRead spdy_reads[] = {
     CreateMockRead(resp.get()),
-    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame),
-             arraysize(kGetBodyFrame)),
+    CreateMockRead(data.get()),
     MockRead(true, 0, 0),
   };
 
