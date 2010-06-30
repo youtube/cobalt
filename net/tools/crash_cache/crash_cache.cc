@@ -118,6 +118,14 @@ bool CreateTargetFolder(const FilePath& path, RankCrashes action,
   return file_util::CreateDirectory(*full_path);
 }
 
+// Makes sure that any pending task is processed.
+void FlushQueue(disk_cache::Backend* cache) {
+  TestCompletionCallback cb;
+  int rv =
+      reinterpret_cast<disk_cache::BackendImpl*>(cache)->FlushQueueForTest(&cb);
+  cb.GetResult(rv);  // Ignore the result;
+}
+
 // Generates the files for an empty and one item cache.
 int SimpleInsert(const FilePath& path, RankCrashes action,
                  base::Thread* cache_thread) {
@@ -142,6 +150,7 @@ int SimpleInsert(const FilePath& path, RankCrashes action,
     return GENERIC;
 
   entry->Close();
+  FlushQueue(cache);
 
   DCHECK(action <= disk_cache::INSERT_ONE_3);
   g_rankings_crash = action;
@@ -162,7 +171,8 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
 
   TestCompletionCallback cb;
   disk_cache::Backend* cache;
-  int rv = disk_cache::CreateCacheBackend(net::DISK_CACHE, path, 0, false,
+  // Use a simple LRU for eviction.
+  int rv = disk_cache::CreateCacheBackend(net::MEDIA_CACHE, path, 0, false,
                                           cache_thread->message_loop_proxy(),
                                           &cache, &cb);
   if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
@@ -174,6 +184,7 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
     return GENERIC;
 
   entry->Close();
+  FlushQueue(cache);
 
   if (action >= disk_cache::REMOVE_TAIL_1) {
     rv = cache->CreateEntry("some other key", &entry, &cb);
@@ -181,6 +192,7 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
       return GENERIC;
 
     entry->Close();
+    FlushQueue(cache);
   }
 
   rv = cache->OpenEntry(kCrashEntryName, &entry, &cb);
@@ -190,6 +202,7 @@ int SimpleRemove(const FilePath& path, RankCrashes action,
   g_rankings_crash = action;
   entry->Doom();
   entry->Close();
+  FlushQueue(cache);
 
   return NOT_REACHED;
 }
@@ -201,7 +214,8 @@ int HeadRemove(const FilePath& path, RankCrashes action,
 
   TestCompletionCallback cb;
   disk_cache::Backend* cache;
-  int rv = disk_cache::CreateCacheBackend(net::DISK_CACHE, path, 0, false,
+  // Use a simple LRU for eviction.
+  int rv = disk_cache::CreateCacheBackend(net::MEDIA_CACHE, path, 0, false,
                                           cache_thread->message_loop_proxy(),
                                           &cache, &cb);
   if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
@@ -213,11 +227,13 @@ int HeadRemove(const FilePath& path, RankCrashes action,
     return GENERIC;
 
   entry->Close();
+  FlushQueue(cache);
   rv = cache->CreateEntry(kCrashEntryName, &entry, &cb);
   if (cb.GetResult(rv) != net::OK)
     return GENERIC;
 
   entry->Close();
+  FlushQueue(cache);
 
   rv = cache->OpenEntry(kCrashEntryName, &entry, &cb);
   if (cb.GetResult(rv) != net::OK)
@@ -226,6 +242,7 @@ int HeadRemove(const FilePath& path, RankCrashes action,
   g_rankings_crash = action;
   entry->Doom();
   entry->Close();
+  FlushQueue(cache);
 
   return NOT_REACHED;
 }
@@ -241,14 +258,14 @@ int LoadOperations(const FilePath& path, RankCrashes action,
   if (!cache || !cache->SetMaxSize(0x100000))
     return GENERIC;
 
-  if (!cache->Init() || cache->GetEntryCount())
+  TestCompletionCallback cb;
+  int rv = cache->Init(&cb);
+  if (cb.GetResult(rv) != net::OK || cache->GetEntryCount())
     return GENERIC;
 
   int seed = static_cast<int>(Time::Now().ToInternalValue());
   srand(seed);
 
-  TestCompletionCallback cb;
-  int rv;
   disk_cache::Entry* entry;
   for (int i = 0; i < 100; i++) {
     std::string key = GenerateKey(true);
@@ -256,11 +273,13 @@ int LoadOperations(const FilePath& path, RankCrashes action,
     if (cb.GetResult(rv) != net::OK)
       return GENERIC;
     entry->Close();
+    FlushQueue(cache);
     if (50 == i && action >= disk_cache::REMOVE_LOAD_1) {
       rv = cache->CreateEntry(kCrashEntryName, &entry, &cb);
       if (cb.GetResult(rv) != net::OK)
         return GENERIC;
       entry->Close();
+      FlushQueue(cache);
     }
   }
 
@@ -280,6 +299,7 @@ int LoadOperations(const FilePath& path, RankCrashes action,
 
   entry->Doom();
   entry->Close();
+  FlushQueue(cache);
 
   return NOT_REACHED;
 }
