@@ -1,5 +1,5 @@
-// Copyright (c) 2010 The Chromium Authors. All rights reserved.  Use
-// of this source code is governed by a BSD-style license that can be
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "net/http/http_network_transaction.h"
@@ -1312,7 +1312,8 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
         return result;
     } else if ((result == ERR_SSL_DECOMPRESSION_FAILURE_ALERT ||
                 result == ERR_SSL_BAD_RECORD_MAC_ALERT) &&
-               ssl_config_.tls1_enabled) {
+               ssl_config_.tls1_enabled &&
+               !SSLConfigService::IsKnownStrictTLSServer(request_->url.host())){
       // Some buggy servers select DEFLATE compression when offered and then
       // fail to ever decompress anything. They will send a fatal alert telling
       // us this. Normally we would pick this up during the handshake because
@@ -1842,7 +1843,8 @@ int HttpNetworkTransaction::HandleSSLHandshakeError(int error) {
     case ERR_SSL_VERSION_OR_CIPHER_MISMATCH:
     case ERR_SSL_DECOMPRESSION_FAILURE_ALERT:
     case ERR_SSL_BAD_RECORD_MAC_ALERT:
-      if (ssl_config_.tls1_enabled) {
+      if (ssl_config_.tls1_enabled &&
+          !SSLConfigService::IsKnownStrictTLSServer(request_->url.host())) {
         // This could be a TLS-intolerant server, an SSL 3.0 server that
         // chose a TLS-only cipher suite or a server with buggy DEFLATE
         // support. Turn off TLS 1.0, DEFLATE support and retry.
