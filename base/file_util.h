@@ -267,8 +267,7 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
 // new directory does not have the same name as an existing directory.
 bool CreateTemporaryDirInDir(const FilePath& base_dir,
                              const FilePath::StringType& prefix,
-                             FilePath* new_dir,
-                             bool lossen_permissions);
+                             FilePath* new_dir);
 
 // Create a new directory under TempPath. If prefix is provided, the new
 // directory name is in the format of prefixyyyy.
