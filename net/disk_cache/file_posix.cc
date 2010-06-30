@@ -193,6 +193,9 @@ void InFlightIO::PostRead(disk_cache::File *file, void* buf, size_t buf_len,
   io_list_.insert(operation.get());
   file->AddRef();  // Balanced on InvokeCallback()
 
+  if (!callback_thread_)
+      callback_thread_ = MessageLoop::current();
+
   WorkerPool::PostTask(FROM_HERE,
                        NewRunnableMethod(operation.get(), &BackgroundIO::Read),
                        true);
@@ -207,6 +210,9 @@ void InFlightIO::PostWrite(disk_cache::File* file, const void* buf,
   io_list_.insert(operation.get());
   file->AddRef();  // Balanced on InvokeCallback()
 
+  if (!callback_thread_)
+    callback_thread_ = MessageLoop::current();
+
   WorkerPool::PostTask(FROM_HERE,
                        NewRunnableMethod(operation.get(), &BackgroundIO::Write,
                                          delete_buffer),
@@ -219,6 +225,8 @@ void InFlightIO::WaitForPendingIO() {
     IOList::iterator it = io_list_.begin();
     InvokeCallback(*it, true);
   }
+  // Unit tests can use different threads.
+  callback_thread_ = NULL;
 }
 
 // Runs on a worker thread.
@@ -372,8 +380,9 @@ size_t File::GetLength() {
 
 // Static.
 void File::WaitForPendingIO(int* num_pending_io) {
-  if (*num_pending_io)
-    Singleton<InFlightIO>::get()->WaitForPendingIO();
+  // We may be running unit tests so we should allow InFlightIO to reset the
+  // message loop.
+  Singleton<InFlightIO>::get()->WaitForPendingIO();
 }
 
 }  // namespace disk_cache
