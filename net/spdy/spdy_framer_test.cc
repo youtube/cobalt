@@ -234,6 +234,34 @@ TEST_F(SpdyFramerTest, MultiValueHeader) {
   EXPECT_EQ(value, new_headers.find("name")->second);
 }
 
+TEST_F(SpdyFramerTest, ZeroLengthHeader) {
+  SpdyHeaderBlock header1;
+  SpdyHeaderBlock header2;
+  SpdyHeaderBlock header3;
+
+  header1[""] = "value2";
+  header2["name3"] = "";
+  header3[""] = "";
+
+  SpdyFramer framer;
+  SpdyHeaderBlock parsed_headers;
+
+  scoped_ptr<SpdySynStreamControlFrame> frame1(
+      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true, &header1));
+  EXPECT_TRUE(frame1.get() != NULL);
+  EXPECT_FALSE(framer.ParseHeaderBlock(frame1.get(), &parsed_headers));
+
+  scoped_ptr<SpdySynStreamControlFrame> frame2(
+      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true, &header2));
+  EXPECT_TRUE(frame2.get() != NULL);
+  EXPECT_FALSE(framer.ParseHeaderBlock(frame2.get(), &parsed_headers));
+
+  scoped_ptr<SpdySynStreamControlFrame> frame3(
+      framer.CreateSynStream(1, 0, 1, CONTROL_FLAG_NONE, true, &header3));
+  EXPECT_TRUE(frame3.get() != NULL);
+  EXPECT_FALSE(framer.ParseHeaderBlock(frame3.get(), &parsed_headers));
+}
+
 TEST_F(SpdyFramerTest, BasicCompression) {
   SpdyHeaderBlock headers;
   headers["server"] = "SpdyServer 1.0";
