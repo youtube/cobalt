@@ -46,9 +46,9 @@ install_gold() {
     return
   fi
 
-  BINUTILS=binutils-2.20
+  BINUTILS=binutils-2.20.1
   BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/$BINUTILS.tar.bz2
-  BINUTILS_SHA1=747e7b4d94bce46587236dc5f428e5b412a590dc
+  BINUTILS_SHA1=fd2ba806e6f3a55cee453cb25c86991b26a75dee
 
   test -f $BINUTILS.tar.bz2 || wget $BINUTILS_URL
   if test "`sha1sum $BINUTILS.tar.bz2|cut -d' ' -f1`" != "$BINUTILS_SHA1"
@@ -57,47 +57,8 @@ install_gold() {
     exit 1
   fi
 
-  cat > binutils-fix.patch <<__EOF__
---- binutils-2.20/gold/output.cc.orig	2009-11-17 17:40:49.000000000 -0800
-+++ binutils-2.20/gold/output.cc	2009-11-17 18:27:21.000000000 -0800
-@@ -22,6 +22,10 @@
- 
- #include "gold.h"
- 
-+#if !defined(__STDC_FORMAT_MACROS)
-+#define __STDC_FORMAT_MACROS
-+#endif
-+
- #include <cstdlib>
- #include <cstring>
- #include <cerrno>
-@@ -29,6 +33,7 @@
- #include <unistd.h>
- #include <sys/mman.h>
- #include <sys/stat.h>
-+#include <inttypes.h>
- #include <algorithm>
- #include "libiberty.h"
- 
-@@ -3505,11 +3510,11 @@
- 		  Output_section* os = (*p)->output_section();
- 		  if (os == NULL)
- 		    gold_error(_("dot moves backward in linker script "
--				 "from 0x%llx to 0x%llx"),
-+				 "from 0x%"PRIx64" to 0x%"PRIx64),
- 			       addr + (off - startoff), (*p)->address());
- 		  else
- 		    gold_error(_("address of section '%s' moves backward "
--				 "from 0x%llx to 0x%llx"),
-+				 "from 0x%"PRIx64" to 0x%"PRIx64),
- 			       os->name(), addr + (off - startoff),
- 			       (*p)->address());
- 		}
-__EOF__
-
   tar -xjvf $BINUTILS.tar.bz2
   cd $BINUTILS
-  patch -p1 < ../binutils-fix.patch
   ./configure --prefix=/usr/local/gold --enable-gold
   make -j3
   if sudo make install
@@ -273,11 +234,13 @@ fi
 
 # Some operating systems already ship gold (on recent Debian and
 # Ubuntu you can do "apt-get install binutils-gold" to get it), but
-# older releases didn't.  So install from source if it isn't the
-# default linker.
+# older releases didn't.  Additionally, gold 2.20 (included in Ubuntu
+# Lucid) makes binaries that just segfault.
+# So install from source if we don't have a good version.
 
 case `ld --version` in
-*gold*2.2*) ;;
+*gold*2.20.1*) ;;
+*gold*2.2[1-9]*) ;;
 * )
   if test "$do_inst_gold" = ""
   then
@@ -290,8 +253,8 @@ case `ld --version` in
   fi
   if test "$do_inst_gold" = "1"
   then
-    # If the system provides gold, just install it.
-    if apt-cache show binutils-gold >/dev/null; then
+    # If the system provides a good version of gold, just install it.
+    if apt-cache show binutils-gold | grep -Eq 'Version: 2.2(0.1|[1-9]*)'; then
       echo "Installing binutils-gold. Backing up ld as ld.single."
       sudo apt-get install binutils-gold
     else
