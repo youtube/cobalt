@@ -1569,8 +1569,7 @@ TEST_F(FileUtilTest, CreateNewTemporaryDirInDirTest) {
   ASSERT_TRUE(file_util::CreateTemporaryDirInDir(
                   test_dir_,
                   FILE_PATH_LITERAL("CreateNewTemporaryDirInDirTest"),
-                  &new_dir,
-                  false));
+                  &new_dir));
   EXPECT_TRUE(file_util::PathExists(new_dir));
   EXPECT_TRUE(test_dir_.IsParent(new_dir));
   EXPECT_TRUE(file_util::Delete(new_dir, false));
