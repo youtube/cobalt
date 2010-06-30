@@ -36,9 +36,12 @@ bool SSLConfigService::IsKnownStrictTLSServer(const std::string& hostname) {
       "www.google.com",
       "mail.google.com",
       "www.gmail.com",
-      "gmail.com",
       "docs.google.com",
       "clients1.google.com",
+
+      // Removed until we update the XMPP servers with the renegotiation
+      // extension.
+      // "gmail.com",
   };
 
   for (size_t i = 0; i < arraysize(kStrictServers); i++) {
