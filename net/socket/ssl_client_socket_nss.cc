@@ -193,6 +193,8 @@ int MapNSPRError(PRErrorCode err) {
       return ERR_SSL_DECOMPRESSION_FAILURE_ALERT;
     case SSL_ERROR_BAD_MAC_ALERT:
       return ERR_SSL_BAD_RECORD_MAC_ALERT;
+    case SSL_ERROR_UNSAFE_NEGOTIATION:
+      return ERR_SSL_UNSAFE_NEGOTIATION;
 
     default: {
       if (IS_SSL_ERROR(err)) {
@@ -460,19 +462,24 @@ int SSLClientSocketNSS::InitializeSSLOptions() {
 #endif
 
 #ifdef SSL_ENABLE_RENEGOTIATION
-  // We allow servers to request renegotiation. Since we're a client,
-  // prohibiting this is rather a waste of time. Only servers are in a position
-  // to prevent renegotiation attacks.
-  // http://extendedsubset.com/?p=8
-  //
-  // This should be changed when NSS 3.12.6 comes out with support for the
-  // renegotiation info extension.
-  // http://code.google.com/p/chromium/issues/detail?id=31647
-  rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
-                     SSL_RENEGOTIATE_UNRESTRICTED);
+  if (SSLConfigService::IsKnownStrictTLSServer(hostname_)) {
+    rv = SSL_OptionSet(nss_fd_, SSL_REQUIRE_SAFE_NEGOTIATION, PR_TRUE);
+    if (rv != SECSuccess)
+       LOG(INFO) << "SSL_REQUIRE_SAFE_NEGOTIATION failed.";
+    rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
+                       SSL_RENEGOTIATE_REQUIRES_XTN);
+  } else {
+    // We allow servers to request renegotiation. Since we're a client,
+    // prohibiting this is rather a waste of time. Only servers are in a
+    // position to prevent renegotiation attacks.
+    // http://extendedsubset.com/?p=8
+
+    rv = SSL_OptionSet(nss_fd_, SSL_ENABLE_RENEGOTIATION,
+                       SSL_RENEGOTIATE_UNRESTRICTED);
+  }
   if (rv != SECSuccess)
      LOG(INFO) << "SSL_ENABLE_RENEGOTIATION failed.";
-#endif
+#endif  // SSL_ENABLE_RENEGOTIATION
 
 #ifdef SSL_NEXT_PROTO_NEGOTIATED
   if (!ssl_config_.next_protos.empty()) {
