@@ -15,6 +15,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/condition_variable.h"
+#include "base/histogram.h"
 #include "base/logging.h"
 #include "base/message_loop.h"
 #include "base/singleton.h"
@@ -598,6 +599,8 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
                                 const char** http_response_headers,
                                 const char** http_response_data,
                                 PRUint32* http_response_data_len) {
+  base::Time start_time, end_time;
+
   LOG(INFO) << "OCSP try send and receive";
   DCHECK(!MessageLoop::current());
   OCSPRequestSession* req = reinterpret_cast<OCSPRequestSession*>(request);
@@ -611,9 +614,18 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
     NOTREACHED();
     goto failed;
   }
+
+  start_time = base::Time::Now();
   req->Start();
   if (!req->Wait())
     goto failed;
+  end_time = base::Time::Now();
+
+  if (req->http_request_method() == "POST") {
+    UMA_HISTOGRAM_TIMES("Net.OCSPRequestTimeMs", end_time - start_time);
+  } else if (req->http_request_method() == "GET") {
+    UMA_HISTOGRAM_TIMES("Net.CRLRequestTimeMs", end_time - start_time);
+  }
 
   // If the response code is -1, the request failed and there is no response.
   if (req->http_response_code() == static_cast<PRUint16>(-1))
