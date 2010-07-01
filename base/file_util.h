@@ -265,8 +265,13 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
 // Create a directory within another directory.
 // Extra characters will be appended to |name_tmpl| to ensure that the
 // new directory does not have the same name as an existing directory.
+// If |loosen_permissions| is true, the new directory will be readable
+// and writable to all users on windows.  It is ignored on other platforms.
+// |loosen_permissions| exists to allow debugging of crbug/35198, and will
+// be removed when the issue is understood.
 bool CreateTemporaryDirInDir(const FilePath& base_dir,
                              const FilePath::StringType& prefix,
+                             bool loosen_permissions,
                              FilePath* new_dir);
 
 // Create a new directory under TempPath. If prefix is provided, the new
