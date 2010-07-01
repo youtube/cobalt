@@ -9,6 +9,7 @@
 #include <Security/Security.h>
 
 #include "base/base64.h"
+#include "base/crypto/cssm_init.h"
 #include "base/logging.h"
 #include "base/scoped_cftyperef.h"
 
@@ -111,14 +112,18 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     CFDataRef key_data = NULL;
     err = SecKeychainItemExport(public_key, kSecFormatBSAFE, 0, NULL,
                                 &key_data);
-    if (err)
+    if (err) {
+      base::LogCSSMError("SecKeychainItemExpor", err);
       goto failure;
+    }
     scoped_cftyperef<CFDataRef> scoped_key_data(key_data);
 
     // Create an ASN.1 encoder.
     err = SecAsn1CoderCreate(&coder);
-    if (err)
+    if (err) {
+      base::LogCSSMError("SecAsn1CoderCreate", err);
       goto failure;
+    }
 
     // Fill in and DER-encode the PublicKeyAndChallenge:
     SignedPublicKeyAndChallenge spkac;
@@ -135,8 +140,10 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     CSSM_DATA encoded;
     err = SecAsn1EncodeItem(coder, &spkac.pkac,
                             kPublicKeyAndChallengeTemplate, &encoded);
-    if (err)
+    if (err) {
+      base::LogCSSMError("SecAsn1EncodeItem", err);
       goto failure;
+    }
 
     // Compute a signature of the result:
     err = SignData(encoded, private_key, &signature);
@@ -151,8 +158,10 @@ std::string KeygenHandler::GenKeyAndSignChallenge() {
     // DER-encode the entire SignedPublicKeyAndChallenge:
     err = SecAsn1EncodeItem(coder, &spkac,
                             kSignedPublicKeyAndChallengeTemplate, &encoded);
-    if (err)
+    if (err) {
+      base::LogCSSMError("SecAsn1EncodeItem", err);
       goto failure;
+    }
 
     // Base64 encode the result.
     std::string input(reinterpret_cast<char*>(encoded.Data), encoded.Length);
@@ -192,10 +201,12 @@ static OSStatus CreateRSAKeyPair(int size_in_bits,
   OSStatus err;
   SecKeychainRef keychain;
   err = SecKeychainCopyDefault(&keychain);
-  if (err)
+  if (err) {
+    base::LogCSSMError("SecKeychainCopyDefault", err);
     return err;
+  }
   scoped_cftyperef<SecKeychainRef> scoped_keychain(keychain);
-  return SecKeyCreatePair(
+  err = SecKeyCreatePair(
       keychain,
       CSSM_ALGID_RSA,
       size_in_bits,
@@ -209,6 +220,9 @@ static OSStatus CreateRSAKeyPair(int size_in_bits,
           CSSM_KEYATTR_SENSITIVE,
       NULL,
       out_pub_key, out_priv_key);
+  if (err)
+    base::LogCSSMError("SecKeyCreatePair", err);
+  return err;
 }
 
 static OSStatus CreateSignatureContext(SecKeyRef key,
@@ -220,24 +234,33 @@ static OSStatus CreateSignatureContext(SecKeyRef key,
                              CSSM_ACL_AUTHORIZATION_SIGN,
                              kSecCredentialTypeDefault,
                              &credentials);
-  if (err)
-      return err;
+  if (err) {
+    base::LogCSSMError("SecKeyGetCredentials", err);
+    return err;
+  }
 
   CSSM_CSP_HANDLE csp_handle = 0;
   err = SecKeyGetCSPHandle(key, &csp_handle);
-  if (err)
+  if (err) {
+    base::LogCSSMError("SecKeyGetCSPHandle", err);
     return err;
+  }
 
   const CSSM_KEY* cssm_key = NULL;
   err = SecKeyGetCSSMKey(key, &cssm_key);
-  if (err)
+  if (err) {
+    base::LogCSSMError("SecKeyGetCSSMKey", err);
     return err;
+  }
 
-  return CSSM_CSP_CreateSignatureContext(csp_handle,
-                                         algorithm,
-                                         credentials,
-                                         cssm_key,
-                                         out_cc_handle);
+  err = CSSM_CSP_CreateSignatureContext(csp_handle,
+                                        algorithm,
+                                        credentials,
+                                        cssm_key,
+                                        out_cc_handle);
+  if (err)
+    base::LogCSSMError("CSSM_CSP_CreateSignatureContext", err);
+  return err;
 }
 
 static OSStatus SignData(CSSM_DATA data,
@@ -247,9 +270,13 @@ static OSStatus SignData(CSSM_DATA data,
   OSStatus err = CreateSignatureContext(private_key,
                                         CSSM_ALGID_MD5WithRSA,
                                         &cc_handle);
-  if (err)
+  if (err) {
+    base::LogCSSMError("CreateSignatureContext", err);
     return err;
+  }
   err = CSSM_SignData(cc_handle, &data, 1, CSSM_ALGID_NONE, signature);
+  if (err)
+    base::LogCSSMError("CSSM_SignData", err);
   CSSM_DeleteContext(cc_handle);
   return err;
 }
