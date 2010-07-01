@@ -194,13 +194,13 @@ TEST_F(SpdyNetworkTransactionTest, Constructor) {
 TEST_F(SpdyNetworkTransactionTest, Get) {
   // Construct the request.
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
-    CreateMockRead(body.get()),
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -229,14 +229,14 @@ TEST_F(SpdyNetworkTransactionTest, Post) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockWrite writes[] = {
-    CreateMockWrite(req.get()),
-    CreateMockWrite(body.get()),  // POST upload frame
+    CreateMockWrite(*req),
+    CreateMockWrite(*body),  // POST upload frame
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
-    CreateMockRead(body.get()),
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -263,14 +263,14 @@ TEST_F(SpdyNetworkTransactionTest, EmptyPost) {
   // Set the FIN bit since there will be no body.
   req->set_flags(spdy::CONTROL_FLAG_FIN);
   MockWrite writes[] = {
-    CreateMockWrite(req.get()),
+    CreateMockWrite(*req),
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
-    CreateMockRead(body.get()),
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -298,14 +298,14 @@ TEST_F(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyPost(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
     MockWrite writes[] = {
-    CreateMockWrite(req.get(), 2),
-    CreateMockWrite(body.get(), 3),  // POST upload frame
+    CreateMockWrite(*req.get(), 2),
+    CreateMockWrite(*body.get(), 3),  // POST upload frame
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyPostSynReply(NULL, 0));
   MockRead reads[] = {
-    CreateMockRead(resp.get(), 2),
-    CreateMockRead(body.get(), 3),
+    CreateMockRead(*resp.get(), 2),
+    CreateMockRead(*body.get(), 3),
     MockRead(false, 0, 0)  // EOF
   };
 
@@ -321,7 +321,7 @@ TEST_F(SpdyNetworkTransactionTest, PostWithEarlySynReply) {
 TEST_F(SpdyNetworkTransactionTest, ResponseWithoutSynReply) {
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(body.get()),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -343,14 +343,14 @@ TEST_F(SpdyNetworkTransactionTest, ResponseWithTwoSynReplies) {
   SpdySession::SetSSLMode(false);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
-    CreateMockRead(resp.get()),
-    CreateMockRead(body.get()),
+    CreateMockRead(*resp),
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -384,13 +384,13 @@ TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
   // Construct the request.
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   MockWrite writes[] = {
-    CreateMockWrite(req.get()),
+    CreateMockWrite(*req),
     MockRead(true, 0, 0)  // EOF
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
+    CreateMockRead(*resp),
     // This following read isn't used by the test, except during the
     // RunAllPending() call at the end since the SpdySession survives the
     // SpdyNetworkTransaction and still tries to continue Read()'ing.  Any
@@ -441,14 +441,14 @@ class DeleteSessionCallback : public CallbackRunner< Tuple1<int> > {
 // http://crbug.com/46925
 TEST_F(SpdyNetworkTransactionTest, DeleteSessionOnReadCallback) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(resp.get(), 2),
+    CreateMockRead(*resp.get(), 2),
     MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
-    CreateMockRead(body.get(), 4),
+    CreateMockRead(*body.get(), 4),
     MockRead(true, 0, 0, 5),  // EOF
   };
 
@@ -490,77 +490,39 @@ TEST_F(SpdyNetworkTransactionTest, DeleteSessionOnReadCallback) {
 // Verify that various SynReply headers parse correctly through the
 // HTTP layer.
 TEST_F(SpdyNetworkTransactionTest, SynReplyHeaders) {
-  // This uses a multi-valued cookie header.
-  static const unsigned char syn_reply1[] = {
-    0x80, 0x01, 0x00, 0x02,
-    0x00, 0x00, 0x00, 0x4c,
-    0x00, 0x00, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x04,
-    0x00, 0x06, 'c', 'o', 'o', 'k', 'i', 'e',
-    0x00, 0x09, 'v', 'a', 'l', '1', '\0',
-                'v', 'a', 'l', '2',
-    0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
-    0x00, 0x03, '2', '0', '0',
-    0x00, 0x03, 'u', 'r', 'l',
-    0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
-    0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-    0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
-  };
-
-  // This is the minimalist set of headers.
-  static const unsigned char syn_reply2[] = {
-    0x80, 0x01, 0x00, 0x02,
-    0x00, 0x00, 0x00, 0x39,
-    0x00, 0x00, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x04,
-    0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
-    0x00, 0x03, '2', '0', '0',
-    0x00, 0x03, 'u', 'r', 'l',
-    0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
-    0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-    0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
-  };
-
-  // Headers with a comma separated list.
-  static const unsigned char syn_reply3[] = {
-    0x80, 0x01, 0x00, 0x02,
-    0x00, 0x00, 0x00, 0x4c,
-    0x00, 0x00, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x04,
-    0x00, 0x06, 'c', 'o', 'o', 'k', 'i', 'e',
-    0x00, 0x09, 'v', 'a', 'l', '1', ',', 'v', 'a', 'l', '2',
-    0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
-    0x00, 0x03, '2', '0', '0',
-    0x00, 0x03, 'u', 'r', 'l',
-    0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
-    0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-    0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
-  };
-
-  struct SynReplyTests {
-    const unsigned char* syn_reply;
-    int syn_reply_length;
+  struct SynReplyHeadersTests {
+    int num_headers;
+    const char* extra_headers[5];
     const char* expected_headers;
   } test_cases[] = {
-    // Test the case of a multi-valued cookie.  When the value is delimited
-    // with NUL characters, it needs to be unfolded into multiple headers.
-    { syn_reply1, sizeof(syn_reply1),
+    // This uses a multi-valued cookie header.
+    { 2,
+      { "cookie", "val1",
+        "cookie", "val2",  // will get appended separated by NULL
+        NULL
+      },
       "cookie: val1\n"
       "cookie: val2\n"
+      "hello: bye\n"
       "status: 200\n"
       "url: /index.php\n"
       "version: HTTP/1.1\n"
     },
-    // This is the simplest set of headers possible.
-    { syn_reply2, sizeof(syn_reply2),
+    // This is the minimalist set of headers.
+    { 0,
+      { NULL },
+      "hello: bye\n"
       "status: 200\n"
       "url: /index.php\n"
       "version: HTTP/1.1\n"
     },
-    // Test that a comma delimited list is NOT interpreted as a multi-value
-    // name/value pair.  The comma-separated list is just a single value.
-    { syn_reply3, sizeof(syn_reply3),
+    // Headers with a comma separated list.
+    { 1,
+      { "cookie", "val1,val2",
+        NULL
+      },
       "cookie: val1,val2\n"
+      "hello: bye\n"
       "status: 200\n"
       "url: /index.php\n"
       "version: HTTP/1.1\n"
@@ -569,13 +531,15 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeaders) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
     scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-    MockWrite writes[] = { CreateMockWrite(req.get()) };
+    MockWrite writes[] = { CreateMockWrite(*req) };
 
+    scoped_ptr<spdy::SpdyFrame> resp(
+        ConstructSpdyGetSynReply(test_cases[i].extra_headers,
+                                 test_cases[i].num_headers));
     scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
     MockRead reads[] = {
-      MockRead(true, reinterpret_cast<const char*>(test_cases[i].syn_reply),
-               test_cases[i].syn_reply_length),
-      CreateMockRead(body.get()),
+      CreateMockRead(*resp),
+      CreateMockRead(*body),
       MockRead(true, 0, 0)  // EOF
     };
 
@@ -696,7 +660,7 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
                        test_cases[i].num_headers[0]));
 
     MockWrite writes[] = {
-      CreateMockWrite(frame_req.get()),
+      CreateMockWrite(*frame_req),
     };
 
     // Construct the reply.
@@ -709,8 +673,8 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
 
     scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
     MockRead reads[] = {
-      CreateMockRead(frame_reply.get()),
-      CreateMockRead(body.get()),
+      CreateMockRead(*frame_reply),
+      CreateMockRead(*body),
       MockRead(true, 0, 0)  // EOF
     };
 
@@ -771,51 +735,57 @@ TEST_F(SpdyNetworkTransactionTest, SynReplyHeadersVary) {
 
 // Verify that we don't crash on invalid SynReply responses.
 TEST_F(SpdyNetworkTransactionTest, InvalidSynReply) {
-  static const unsigned char kSynReplyMissingStatus[] = {
-    0x80, 0x01, 0x00, 0x02,
-    0x00, 0x00, 0x00, 0x3f,
-    0x00, 0x00, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x04,
-    0x00, 0x06, 'c', 'o', 'o', 'k', 'i', 'e',
-    0x00, 0x09, 'v', 'a', 'l', '1', '\0',
-                'v', 'a', 'l', '2',
-    0x00, 0x03, 'u', 'r', 'l',
-    0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
-    0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-    0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
+  const SpdyHeaderInfo kSynStartHeader = {
+    spdy::SYN_REPLY,              // Kind = SynReply
+    1,                            // Stream ID
+    0,                            // Associated stream ID
+    SPDY_PRIORITY_LOWEST,         // Priority
+    spdy::CONTROL_FLAG_NONE,      // Control Flags
+    false,                        // Compressed
+    spdy::INVALID,                // Status
+    NULL,                         // Data
+    0,                            // Length
+    spdy::DATA_FLAG_NONE          // Data Flags
   };
 
-  static const unsigned char kSynReplyMissingVersion[] = {
-    0x80, 0x01, 0x00, 0x02,
-    0x00, 0x00, 0x00, 0x26,
-    0x00, 0x00, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x04,
-    0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
-    0x00, 0x03, '2', '0', '0',
-    0x00, 0x03, 'u', 'r', 'l',
-    0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
-  };
-
-  struct SynReplyTests {
-    const unsigned char* syn_reply;
-    int syn_reply_length;
+  struct InvalidSynReplyTests {
+    int num_headers;
+    const char* headers[10];
   } test_cases[] = {
-    { kSynReplyMissingStatus, arraysize(kSynReplyMissingStatus) },
-    { kSynReplyMissingVersion, arraysize(kSynReplyMissingVersion) }
+    // SYN_REPLY missing status header
+    { 4,
+      { "cookie", "val1",
+        "cookie", "val2",
+        "url", "/index.php",
+        "version", "HTTP/1.1",
+        NULL
+      },
+    },
+    // SYN_REPLY missing version header
+    { 2,
+      { "status", "200",
+        "url", "/index.php",
+        NULL
+      },
+    },
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
     scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
     MockWrite writes[] = {
-      CreateMockWrite(req.get()),
+      CreateMockWrite(*req),
       MockWrite(true, 0, 0)  // EOF
     };
 
+    scoped_ptr<spdy::SpdyFrame> resp(
+        ConstructSpdyPacket(kSynStartHeader,
+                            NULL, 0,
+                            test_cases[i].headers,
+                            test_cases[i].num_headers));
     scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
     MockRead reads[] = {
-      MockRead(true, reinterpret_cast<const char*>(test_cases[i].syn_reply),
-               test_cases[i].syn_reply_length),
-      CreateMockRead(body.get()),
+      CreateMockRead(*resp),
+      CreateMockRead(*body),
       MockRead(true, 0, 0)  // EOF
     };
 
@@ -831,36 +801,28 @@ TEST_F(SpdyNetworkTransactionTest, InvalidSynReply) {
 
 // Verify that we don't crash on some corrupt frames.
 TEST_F(SpdyNetworkTransactionTest, CorruptFrameSessionError) {
-  static const unsigned char kSynReplyMassiveLength[] = {
-    0x80, 0x01, 0x00, 0x02,
-    0x0f, 0x11, 0x11, 0x26,   // This is the length field with a big number
-    0x00, 0x00, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x04,
-    0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
-    0x00, 0x03, '2', '0', '0',
-    0x00, 0x03, 'u', 'r', 'l',
-    0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
-  };
+  // This is the length field with a big number
+  scoped_ptr<spdy::SpdyFrame> syn_reply_massive_length(
+      ConstructSpdyGetSynReply(NULL, 0));
+  syn_reply_massive_length->set_length(0x111126);
 
   struct SynReplyTests {
-    const unsigned char* syn_reply;
-    int syn_reply_length;
+    const spdy::SpdyFrame* syn_reply;
   } test_cases[] = {
-    { kSynReplyMassiveLength, arraysize(kSynReplyMassiveLength) }
+    { syn_reply_massive_length.get(), },
   };
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_cases); ++i) {
     scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
     MockWrite writes[] = {
-      CreateMockWrite(req.get()),
+      CreateMockWrite(*req),
       MockWrite(true, 0, 0)  // EOF
     };
 
     scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
     MockRead reads[] = {
-      MockRead(true, reinterpret_cast<const char*>(test_cases[i].syn_reply),
-               test_cases[i].syn_reply_length),
-      CreateMockRead(body.get()),
+      CreateMockRead(*test_cases[i].syn_reply),
+      CreateMockRead(*body),
       MockRead(true, 0, 0)  // EOF
     };
 
@@ -980,100 +942,77 @@ static void MakeRequest(scoped_refptr<HttpNetworkSession> session,
 }
 
 TEST_F(SpdyNetworkTransactionTest, ServerPush) {
-  // Reply with the X-Associated-Content header.
-  static const unsigned char syn_reply[] = {
-    0x80, 0x01, 0x00, 0x02,
-    0x00, 0x00, 0x00, 0x71,
-    0x00, 0x00, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x04,
-    0x00, 0x14, 'x', '-', 'a', 's', 's', 'o', 'c', 'i', 'a', 't',
-                'e', 'd', '-', 'c', 'o', 'n', 't', 'e', 'n', 't',
-    0x00, 0x20, '1', '?', '?', 'h', 't', 't', 'p', ':', '/', '/', 'w', 'w',
-                'w', '.', 'g', 'o', 'o', 'g', 'l', 'e', '.', 'c', 'o', 'm',
-                '/', 'f', 'o', 'o', '.', 'd', 'a', 't',
-    0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
-    0x00, 0x03, '2', '0', '0',
-    0x00, 0x03, 'u', 'r', 'l',
-    0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
-    0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-    0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
-  };
+  spdy::SpdyFramer framer;
 
-  // Syn for the X-Associated-Content (foo.dat)
-  static const unsigned char syn_push[] = {
-    0x80, 0x01, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x4b,
-    0x00, 0x00, 0x00, 0x02,
-    0x00, 0x00, 0x00, 0x00,  // TODO(mbelshe): use new server push protocol.
-    0x00, 0x00, 0x00, 0x04,
-    0x00, 0x04, 'p', 'a', 't', 'h',
-    0x00, 0x08, '/', 'f', 'o', 'o', '.', 'd', 'a', 't',
-    0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
-    0x00, 0x03, '2', '0', '0',
-    0x00, 0x03, 'u', 'r', 'l',
-    0x00, 0x08, '/', 'f', 'o', 'o', '.', 'd', 'a', 't',
-    0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-    0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
+  // Reply with the X-Associated-Content header.
+  const char* const kSynReplyHeaders[] = {
+      "x-associated-content", "1??http://www.google.com/foo.dat",
   };
+  scoped_ptr<spdy::SpdyFrame> syn_reply(
+      ConstructSpdyGetSynReply(kSynReplyHeaders, 1));
+
+  const char* const kSynPushHeaders[] = {
+      "path", "/foo.dat",
+      "status", "200",
+      "url", "/foo.dat",
+      "version", "HTTP/1.1",
+  };
+  spdy::SpdyHeaderBlock headers;
+  AppendHeadersToSpdyFrame(kSynPushHeaders, 4, &headers);
+  scoped_ptr<spdy::SpdyFrame> syn_push(
+      framer.CreateSynStream(2,  // Stream ID
+                             0,  // Associated stream ID
+                             SPDY_PRIORITY_LOWEST,
+                             spdy::CONTROL_FLAG_NONE,
+                             false,
+                             &headers));
 
   // Body for stream 2
-  static const unsigned char kPushBodyFrame[] = {
-    0x00, 0x00, 0x00, 0x02,                                      // header, ID
-    0x01, 0x00, 0x00, 0x05,                                      // FIN, length
-    'h', 'e', 'l', 'l', 'o',                                     // "hello"
-  };
-
-  static const unsigned char kPushBodyFrame1[] = {
-    0x00, 0x00, 0x00, 0x02,                                      // header, ID
-    0x01, 0x00, 0x00, 0x1E,                                      // FIN, length
-    'h', 'e', 'l', 'l', 'o',                                     // "hello"
-  };
-
-  static const char kPushBodyFrame2[] = " my darling";
-  static const char kPushBodyFrame3[] = " hello";
-  static const char kPushBodyFrame4[] = " my baby";
-
   const char syn_body_data1[] = "hello";
   const char syn_body_data2[] = "hello my darling hello my baby";
   const char* syn_body_data = NULL;
 
+  scoped_ptr<spdy::SpdyFrame> push_body_frame(
+    framer.CreateDataFrame(2, syn_body_data1, strlen(syn_body_data1),
+                           spdy::DATA_FLAG_FIN));
+  scoped_ptr<spdy::SpdyFrame> push_body_frame1(
+    framer.CreateDataFrame(2, syn_body_data2, strlen(syn_body_data2),
+                           spdy::DATA_FLAG_FIN));
+
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   // This array is for request before and after push is received.  The push
   // body is only one 'packet', to allow the initial transaction to read all
   // the push data before .
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads1[] = {
-    MockRead(true, reinterpret_cast<const char*>(syn_reply),        // 0
-             arraysize(syn_reply), 2),
-    CreateMockRead(body.get(), 1),                                  // 1
+    CreateMockRead(*syn_reply.get(), 2),                            // 0
+    CreateMockRead(*body.get(), 1),                                 // 1
     MockRead(true, ERR_IO_PENDING, 4),  // Force a pause            // 2
-    MockRead(true, reinterpret_cast<const char*>(syn_push),         // 3
-             arraysize(syn_push), 5),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame),   // 4
-             arraysize(kPushBodyFrame), 6),
+    CreateMockRead(*syn_push.get(), 5),                             // 3
+    CreateMockRead(*push_body_frame.get(), 6),                      // 4
     MockRead(true, ERR_IO_PENDING, 7),  // Force a pause            // 5
     MockRead(true, 0, 0, 8)  // EOF                                 // 6
   };
 
   // This array is for request while push is being received.  It extends
   // the push body so we can 'interrupt' it.
+  scoped_array<MockRead> chopped_reads(
+      ChopReadFrame(*push_body_frame1.get(), 4));
+  chopped_reads[0].sequence_number = 5;
+  // Force a pause by skipping a sequence number.
+  chopped_reads[1].sequence_number = 7;
+  chopped_reads[2].sequence_number = 8;
+  chopped_reads[3].sequence_number = 9;
   MockRead reads2[] = {
-    MockRead(true, reinterpret_cast<const char*>(syn_reply),        // 0
-             arraysize(syn_reply), 2),
-    CreateMockRead(body.get(), 3),                                  // 1
-    MockRead(true, reinterpret_cast<const char*>(syn_push),         // 2
-             arraysize(syn_push), 4),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame1),  // 3
-             arraysize(kPushBodyFrame1), 5),
-    // Force a pause by skipping a sequence number.
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame2),  // 4
-             arraysize(kPushBodyFrame2) - 1, 7),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame3),  // 5
-             arraysize(kPushBodyFrame3) - 1, 8),
-    MockRead(true, reinterpret_cast<const char*>(kPushBodyFrame4),  // 6
-             arraysize(kPushBodyFrame4) - 1, 9),
+    CreateMockRead(*syn_reply.get(), 2),                            // 0
+    CreateMockRead(*body.get(), 3),                                 // 1
+    CreateMockRead(*syn_push.get(), 4),                             // 2
+    chopped_reads[0],                                               // 3
+    chopped_reads[1],                                               // 4
+    chopped_reads[2],                                               // 5
+    chopped_reads[3],                                               // 6
     MockRead(true, ERR_IO_PENDING, MockRead::STOPLOOP | 10),        // 7
     // So we can do a final CompleteRead(), which cleans up memory.
     MockRead(true, NULL, 0, 11)                                     // 8
@@ -1200,8 +1139,8 @@ TEST_F(SpdyNetworkTransactionTest, WriteError) {
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(resp.get(), 2),
-    CreateMockRead(body.get()),
+    CreateMockRead(*resp.get(), 2),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -1220,13 +1159,13 @@ TEST_F(SpdyNetworkTransactionTest, PartialWrite) {
   // Chop the SYN_STREAM frame into 5 chunks.
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   const int kChunks = 5;
-  scoped_array<MockWrite> writes(ChopFrame(req.get(), kChunks));
+  scoped_array<MockWrite> writes(ChopWriteFrame(*req.get(), kChunks));
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
-    CreateMockRead(body.get()),
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -1252,15 +1191,15 @@ TEST_F(SpdyNetworkTransactionTest, ConnectFailure) {
   for (size_t index = 0; index < arraysize(connects); ++index) {
     scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
     MockWrite writes[] = {
-      CreateMockWrite(req.get()),
+      CreateMockWrite(*req),
       MockWrite(true, 0, 0)  // EOF
     };
 
     scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
     scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
     MockRead reads[] = {
-      CreateMockRead(resp.get()),
-      CreateMockRead(body.get()),
+      CreateMockRead(*resp),
+      CreateMockRead(*body),
       MockRead(true, 0, 0)  // EOF
     };
 
@@ -1282,15 +1221,15 @@ TEST_F(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
 
   scoped_ptr<spdy::SpdyFrame> compressed(ConstructSpdyGet(NULL, 0, true));
   MockWrite writes[] = {
-    CreateMockWrite(compressed.get()),
+    CreateMockWrite(*compressed),
     MockWrite(true, 0, 0)  // EOF
   };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
-    CreateMockRead(body.get()),
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -1309,13 +1248,13 @@ TEST_F(SpdyNetworkTransactionTest, DecompressFailureOnSynReply) {
 // Test that the NetLog contains good data for a simple GET request.
 TEST_F(SpdyNetworkTransactionTest, NetLog) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
-    CreateMockRead(body.get()),
+    CreateMockRead(*resp),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -1370,7 +1309,7 @@ TEST_F(SpdyNetworkTransactionTest, NetLog) {
 // flow still works correctly.
 TEST_F(SpdyNetworkTransactionTest, BufferFull) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   static const unsigned char kCombinedDataFrames[] = {
     0x00, 0x00, 0x00, 0x01,                                      // header
@@ -1389,7 +1328,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
+    CreateMockRead(*resp),
     MockRead(true, ERR_IO_PENDING),  // Force a pause
     MockRead(true, reinterpret_cast<const char*>(kCombinedDataFrames),
              arraysize(kCombinedDataFrames)),
@@ -1472,7 +1411,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
 // each data frame individually.
 TEST_F(SpdyNetworkTransactionTest, Buffering) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   // 4 data frames in a single read.
   static const unsigned char kCombinedDataFrames[] = {
@@ -1492,7 +1431,7 @@ TEST_F(SpdyNetworkTransactionTest, Buffering) {
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
+    CreateMockRead(*resp),
     MockRead(true, ERR_IO_PENDING),  // Force a pause
     MockRead(true, reinterpret_cast<const char*>(kCombinedDataFrames),
              arraysize(kCombinedDataFrames)),
@@ -1574,7 +1513,7 @@ TEST_F(SpdyNetworkTransactionTest, Buffering) {
 // Verify the case where we buffer data but read it after it has been buffered.
 TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   // The Syn Reply and all data frames in a single read.
   static const unsigned char kCombinedFrames[] = {
@@ -1681,7 +1620,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
 // Verify the case where we buffer data and close the connection.
 TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   // All data frames in a single read.
   static const unsigned char kCombinedFrames[] = {
@@ -1702,7 +1641,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
+    CreateMockRead(*resp),
     MockRead(true, ERR_IO_PENDING),  // Force a wait
     MockRead(true, reinterpret_cast<const char*>(kCombinedFrames),
              arraysize(kCombinedFrames)),
@@ -1781,7 +1720,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
 // Verify the case where we buffer data and cancel the transaction.
 TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   static const unsigned char kDataFrame[] = {
     0x00, 0x00, 0x00, 0x01,                                      // header
@@ -1792,7 +1731,7 @@ TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
+    CreateMockRead(*resp),
     MockRead(true, ERR_IO_PENDING),  // Force a wait
     MockRead(true, reinterpret_cast<const char*>(kDataFrame),
              arraysize(kDataFrame)),
@@ -1883,7 +1822,7 @@ TEST_F(SpdyNetworkTransactionTest, SettingsSaved) {
 
   // Construct the request.
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   // Construct the reply.
   scoped_ptr<spdy::SpdyFrame> reply(
@@ -1921,9 +1860,9 @@ TEST_F(SpdyNetworkTransactionTest, SettingsSaved) {
 
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(reply.get()),
-    CreateMockRead(body.get()),
-    CreateMockRead(settings_frame.get()),
+    CreateMockRead(*reply),
+    CreateMockRead(*body),
+    CreateMockRead(*settings_frame),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -2017,8 +1956,8 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
 
   MockWrite writes[] = {
-    CreateMockWrite(settings_frame.get()),
-    CreateMockWrite(req.get()),
+    CreateMockWrite(*settings_frame),
+    CreateMockWrite(*req),
   };
 
   // Construct the reply.
@@ -2031,8 +1970,8 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
 
   scoped_ptr<spdy::SpdyFrame> body(ConstructSpdyBodyFrame());
   MockRead reads[] = {
-    CreateMockRead(reply.get()),
-    CreateMockRead(body.get()),
+    CreateMockRead(*reply),
+    CreateMockRead(*body),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -2070,11 +2009,11 @@ TEST_F(SpdyNetworkTransactionTest, SettingsPlayback) {
 
 TEST_F(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   scoped_ptr<spdy::SpdyFrame> go_away(ConstructSpdyGoAway());
   MockRead reads[] = {
-    CreateMockRead(go_away.get()),
+    CreateMockRead(*go_away),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -2089,11 +2028,11 @@ TEST_F(SpdyNetworkTransactionTest, GoAwayWithActiveStream) {
 
 TEST_F(SpdyNetworkTransactionTest, CloseWithActiveStream) {
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite writes[] = { CreateMockWrite(req.get()) };
+  MockWrite writes[] = { CreateMockWrite(*req) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
-    CreateMockRead(resp.get()),
+    CreateMockRead(*resp),
     MockRead(false, 0, 0)  // EOF
   };
 
