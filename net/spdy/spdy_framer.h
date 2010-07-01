@@ -163,6 +163,11 @@ class SpdyFramer {
   static SpdyGoAwayControlFrame* CreateGoAway(
       SpdyStreamId last_accepted_stream_id);
 
+  // Creates an instance of SpdyWindowUpdateControlFrame. The WINDOW_UPDATE
+  // frame is used to implement per stream flow control in SPDY.
+  static SpdyWindowUpdateControlFrame* CreateWindowUpdate(
+      SpdyStreamId stream_id, uint32 delta_window_size);
+
   // Creates an instance of SpdySettingsControlFrame. The SETTINGS frame is
   // used to communicate name/value pairs relevant to the communication channel.
   // TODO(mbelshe): add the name/value pairs!!
