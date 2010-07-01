@@ -156,9 +156,6 @@ NET_ERROR(SSL_DECOMPRESSION_FAILURE_ALERT, -125)
 // from servers with buggy DEFLATE support.
 NET_ERROR(SSL_BAD_RECORD_MAC_ALERT, -126)
 
-// The HTTP auth handler requires a DNS lookup to find the canonical name.
-NET_ERROR(AUTH_NEEDS_CANONICAL_NAME, -127)
-
 // A known TLS strict server didn't offer the renegotiation extension.
 NET_ERROR(SSL_UNSAFE_NEGOTIATION, -128)
 

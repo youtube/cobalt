@@ -614,7 +614,6 @@ bool HttpAuthGSSAPI::ParseChallenge(HttpAuth::ChallengeTokenizer* tok) {
 int HttpAuthGSSAPI::GenerateAuthToken(const std::wstring* username,
                                       const std::wstring* password,
                                       const std::wstring& spn,
-                                      const HttpRequestInfo* request,
                                       std::string* auth_token) {
   DCHECK((username == NULL) == (password == NULL));
 

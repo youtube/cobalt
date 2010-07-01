@@ -665,17 +665,6 @@ int HttpNetworkTransaction::DoLoop(int result) {
         rv = DoReadHeadersComplete(rv);
         net_log_.EndEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_HEADERS, NULL);
         break;
-      case STATE_RESOLVE_CANONICAL_NAME:
-        DCHECK_EQ(OK, rv);
-        net_log_.BeginEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME, NULL);
-        rv = DoResolveCanonicalName();
-        break;
-      case STATE_RESOLVE_CANONICAL_NAME_COMPLETE:
-        rv = DoResolveCanonicalNameComplete(rv);
-        net_log_.EndEvent(
-            NetLog::TYPE_HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME, NULL);
-        break;
       case STATE_READ_BODY:
         DCHECK_EQ(OK, rv);
         net_log_.BeginEvent(NetLog::TYPE_HTTP_TRANSACTION_READ_BODY, NULL);
@@ -1394,22 +1383,6 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
   return OK;
 }
 
-int HttpNetworkTransaction::DoResolveCanonicalName() {
-  DCHECK(auth_controllers_[pending_auth_target_].get());
-  next_state_ = STATE_RESOLVE_CANONICAL_NAME_COMPLETE;
-  return auth_controllers_[pending_auth_target_]->ResolveCanonicalName(
-      &io_callback_);
-}
-
-int HttpNetworkTransaction::DoResolveCanonicalNameComplete(int result) {
-  // The STATE_RESOLVE_CANONICAL_NAME state ends the Start sequence when the
-  // canonical name of the server needs to be determined. Normally
-  // DoReadHeadersComplete completes the sequence. The next state is
-  // intentionally not set as it should be STATE_NONE;
-  DCHECK_EQ(STATE_NONE, next_state_);
-  return result;
-}
-
 int HttpNetworkTransaction::DoReadBody() {
   DCHECK(read_buf_);
   DCHECK_GT(read_buf_len_, 0);
@@ -1581,7 +1554,7 @@ int HttpNetworkTransaction::DoSpdyReadBodyComplete(int result) {
   read_buf_len_ = 0;
 
   if (result <= 0)
-    spdy_http_stream_.reset() ;
+    spdy_http_stream_.reset();
 
   return result;
 }
@@ -2007,11 +1980,6 @@ int HttpNetworkTransaction::HandleAuthChallenge(bool establishing_tunnel) {
   if (auth_info.get())
       response_.auth_challenge = auth_info;
 
-  if (rv == ERR_AUTH_NEEDS_CANONICAL_NAME) {
-      next_state_ = STATE_RESOLVE_CANONICAL_NAME;
-      rv = OK;
-  }
-
   return rv;
 }
 
@@ -2078,8 +2046,6 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
     STATE_CASE(STATE_SEND_REQUEST_COMPLETE);
     STATE_CASE(STATE_READ_HEADERS);
     STATE_CASE(STATE_READ_HEADERS_COMPLETE);
-    STATE_CASE(STATE_RESOLVE_CANONICAL_NAME);
-    STATE_CASE(STATE_RESOLVE_CANONICAL_NAME_COMPLETE);
     STATE_CASE(STATE_READ_BODY);
     STATE_CASE(STATE_READ_BODY_COMPLETE);
     STATE_CASE(STATE_DRAIN_BODY_FOR_AUTH_RESTART);

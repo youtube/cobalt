@@ -43,13 +43,10 @@ class HttpAuthController {
   void AddAuthorizationHeader(HttpRequestHeaders* authorization_headers);
 
   // Checks for and handles HTTP status code 401 or 407.
-  // |HandleAuthChallenge()| returns OK on success,
-  // ERR_AUTH_NEEDS_CANONICAL_NAME if the handler needs the canonical name
-  // resolved, or a network error code. It may also populate |auth_info_|.
+  // |HandleAuthChallenge()| returns OK on success, or a network error code
+  // otherwise. It may also populate |auth_info_|.
   int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
                           int load_flags, bool establishing_tunnel);
-
-  int ResolveCanonicalName(CompletionCallback* callback);
 
   // Store the supplied credentials and prepare to restart the auth.
   void ResetAuth(const std::wstring& username, const std::wstring& password);

@@ -41,12 +41,12 @@ int MapAcquireCredentialsStatusToError(SECURITY_STATUS status,
   }
 }
 
-int AcquireCredentials(SSPILibrary* library,
-                       const SEC_WCHAR* package,
-                       const std::wstring& domain,
-                       const std::wstring& user,
-                       const std::wstring& password,
-                       CredHandle* cred) {
+int AcquireExplicitCredentials(SSPILibrary* library,
+                               const SEC_WCHAR* package,
+                               const std::wstring& domain,
+                               const std::wstring& user,
+                               const std::wstring& password,
+                               CredHandle* cred) {
   SEC_WINNT_AUTH_IDENTITY identity;
   identity.Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
   identity.User =
@@ -162,7 +162,6 @@ bool HttpAuthSSPI::ParseChallenge(HttpAuth::ChallengeTokenizer* tok) {
 int HttpAuthSSPI::GenerateAuthToken(const std::wstring* username,
                                     const std::wstring* password,
                                     const std::wstring& spn,
-                                    const HttpRequestInfo* request,
                                     std::string* auth_token) {
   DCHECK((username == NULL) == (password == NULL));
 
@@ -173,6 +172,7 @@ int HttpAuthSSPI::GenerateAuthToken(const std::wstring* username,
       return rv;
   }
 
+  DCHECK(SecIsValidHandle(&cred_));
   void* out_buf;
   int out_buf_len;
   int rv = GetNextSecurityToken(
@@ -202,13 +202,14 @@ int HttpAuthSSPI::GenerateAuthToken(const std::wstring* username,
 int HttpAuthSSPI::OnFirstRound(const std::wstring* username,
                                const std::wstring* password) {
   DCHECK((username == NULL) == (password == NULL));
+  DCHECK(!SecIsValidHandle(&cred_));
   int rv = OK;
   if (username) {
     std::wstring domain;
     std::wstring user;
     SplitDomainAndUser(*username, &domain, &user);
-    rv = AcquireCredentials(library_, security_package_, domain,
-                            user, *password, &cred_);
+    rv = AcquireExplicitCredentials(library_, security_package_, domain,
+                                    user, *password, &cred_);
     if (rv != OK)
       return rv;
   } else {

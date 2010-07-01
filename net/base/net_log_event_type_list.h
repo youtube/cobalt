@@ -400,10 +400,6 @@ EVENT_TYPE(HTTP_TRANSACTION_READ_HEADERS)
 //   }
 EVENT_TYPE(HTTP_TRANSACTION_READ_RESPONSE_HEADERS)
 
-// Measures the time to resolve the canonical name for HTTP Negotiate
-// authentication scheme.
-EVENT_TYPE(HTTP_TRANSACTION_RESOLVE_CANONICAL_NAME)
-
 // Measures the time to read the entity body from the server.
 EVENT_TYPE(HTTP_TRANSACTION_READ_BODY)
 
