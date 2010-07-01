@@ -103,7 +103,7 @@ class SyncProxyResolver : public ProxyResolver {
 
  private:
   virtual int SetPacScript(const GURL& pac_url,
-                           const std::string& bytes_utf8,
+                           const string16& pac_script,
                            CompletionCallback* callback) {
     NOTREACHED();
     return OK;
