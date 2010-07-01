@@ -115,11 +115,4 @@ void HttpAuthHandler::FinishGenerateAuthToken() {
   original_callback_ = NULL;
 }
 
-int HttpAuthHandler::ResolveCanonicalName(net::HostResolver* host_resolver,
-                                          CompletionCallback* callback) {
-  NOTREACHED();
-  LOG(ERROR) << ErrorToString(ERR_NOT_IMPLEMENTED);
-  return ERR_NOT_IMPLEMENTED;
-}
-
 }  // namespace net

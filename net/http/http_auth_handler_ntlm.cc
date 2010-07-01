@@ -24,7 +24,6 @@ int HttpAuthHandlerNTLM::GenerateAuthTokenImpl(
       username,
       password,
       CreateSPN(origin_),
-      request,
       auth_token);
 #else  // !defined(NTLM_SSPI)
   // TODO(wtc): See if we can use char* instead of void* for in_buf and

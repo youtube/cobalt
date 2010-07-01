@@ -118,18 +118,6 @@ class HttpAuthHandler {
   // TODO(cbentzel): Add a pointer to Firefox documentation about risk.
   virtual bool AllowsDefaultCredentials() { return false; }
 
-  // Returns whether the canonical DNS name for the origin host needs to be
-  // resolved. The Negotiate auth scheme typically uses the canonical DNS
-  // name when constructing the Kerberos SPN.
-  virtual bool NeedsCanonicalName() { return false; }
-
-  // Resolves the canonical name for the |origin_| host. The canonical
-  // name is used by the Negotiate scheme to generate a valid Kerberos
-  // SPN.
-  // The return value is a net error code.
-  virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   CompletionCallback* callback);
-
  protected:
   enum Property {
     ENCRYPTS_IDENTITY = 1 << 0,

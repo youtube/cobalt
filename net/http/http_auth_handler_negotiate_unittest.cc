@@ -7,6 +7,7 @@
 #include "net/base/mock_host_resolver.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
+#include "net/http/http_request_info.h"
 #if defined(OS_WIN)
 #include "net/http/mock_sspi_library_win.h"
 #endif
@@ -20,10 +21,20 @@ namespace net {
 namespace {
 
 void CreateHandler(bool disable_cname_lookup, bool include_port,
+                   bool synchronous_resolve_mode,
                    const std::string& url_string,
                    SSPILibrary* sspi_library,
                    scoped_ptr<HttpAuthHandlerNegotiate>* handler) {
+  // Create a MockHostResolver - this will be referenced by the
+  // handler (and be destroyed when the handler goes away since it holds
+  // the only reference).
+  MockHostResolver* mock_resolver = new MockHostResolver();
+  scoped_refptr<HostResolver> resolver(mock_resolver);
+  mock_resolver->set_synchronous_mode(synchronous_resolve_mode);
+  mock_resolver->rules()->AddIPLiteralRule("alias", "10.0.0.2",
+                                           "canonical.example.com");
   handler->reset(new HttpAuthHandlerNegotiate(sspi_library, 50, NULL,
+                                              mock_resolver,
                                               disable_cname_lookup,
                                               include_port));
   std::string challenge = "Negotiate";
@@ -38,55 +49,79 @@ void CreateHandler(bool disable_cname_lookup, bool include_port,
 TEST(HttpAuthHandlerNegotiateTest, DisableCname) {
   MockSSPILibrary mock_library;
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
-  CreateHandler(true, false, "http://alias:500", &mock_library, &auth_handler);
-  EXPECT_FALSE(auth_handler->NeedsCanonicalName());
+  CreateHandler(true, false, true, "http://alias:500",
+                &mock_library, &auth_handler);
+  TestCompletionCallback callback;
+  HttpRequestInfo request_info;
+  std::string token;
+  std::wstring username = L"foo";
+  std::wstring password = L"bar";
+  EXPECT_EQ(OK, auth_handler->GenerateAuthToken(&username, &password,
+                                                &request_info,
+                                                &callback, &token));
   EXPECT_EQ(L"HTTP/alias", auth_handler->spn());
 }
 
 TEST(HttpAuthHandlerNegotiateTest, DisableCnameStandardPort) {
   MockSSPILibrary mock_library;
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
-  CreateHandler(true, true, "http://alias:80", &mock_library, &auth_handler);
-  EXPECT_FALSE(auth_handler->NeedsCanonicalName());
+  CreateHandler(true, true, true,
+                "http://alias:80", &mock_library, &auth_handler);
+  TestCompletionCallback callback;
+  HttpRequestInfo request_info;
+  std::string token;
+  std::wstring username = L"foo";
+  std::wstring password = L"bar";
+  EXPECT_EQ(OK, auth_handler->GenerateAuthToken(&username, &password,
+                                                &request_info,
+                                                &callback, &token));
   EXPECT_EQ(L"HTTP/alias", auth_handler->spn());
 }
 
 TEST(HttpAuthHandlerNegotiateTest, DisableCnameNonstandardPort) {
   MockSSPILibrary mock_library;
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
-  CreateHandler(true, true, "http://alias:500", &mock_library, &auth_handler);
-  EXPECT_FALSE(auth_handler->NeedsCanonicalName());
+  CreateHandler(true, true, true,
+                "http://alias:500", &mock_library, &auth_handler);
+  TestCompletionCallback callback;
+  HttpRequestInfo request_info;
+  std::string token;
+  std::wstring username = L"foo";
+  std::wstring password = L"bar";
+  EXPECT_EQ(OK, auth_handler->GenerateAuthToken(&username, &password,
+                                                &request_info,
+                                                &callback, &token));
   EXPECT_EQ(L"HTTP/alias:500", auth_handler->spn());
 }
 
 TEST(HttpAuthHandlerNegotiateTest, CnameSync) {
   MockSSPILibrary mock_library;
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
-  CreateHandler(false, false, "http://alias:500", &mock_library, &auth_handler);
-  EXPECT_TRUE(auth_handler->NeedsCanonicalName());
-  MockHostResolver* mock_resolver = new MockHostResolver();
-  scoped_refptr<HostResolver> scoped_resolver(mock_resolver);
-  mock_resolver->set_synchronous_mode(true);
-  mock_resolver->rules()->AddIPLiteralRule("alias", "10.0.0.2",
-                                           "canonical.example.com");
+  CreateHandler(false, false, true,
+                "http://alias:500", &mock_library, &auth_handler);
   TestCompletionCallback callback;
-  EXPECT_EQ(OK, auth_handler->ResolveCanonicalName(mock_resolver, &callback));
+  HttpRequestInfo request_info;
+  std::string token;
+  std::wstring username = L"foo";
+  std::wstring password = L"bar";
+  EXPECT_EQ(OK, auth_handler->GenerateAuthToken(&username, &password,
+                                                &request_info,
+                                                &callback, &token));
   EXPECT_EQ(L"HTTP/canonical.example.com", auth_handler->spn());
 }
 
 TEST(HttpAuthHandlerNegotiateTest, CnameAsync) {
   MockSSPILibrary mock_library;
   scoped_ptr<HttpAuthHandlerNegotiate> auth_handler;
-  CreateHandler(false, false, "http://alias:500", &mock_library, &auth_handler);
-  EXPECT_TRUE(auth_handler->NeedsCanonicalName());
-  MockHostResolver* mock_resolver = new MockHostResolver();
-  scoped_refptr<HostResolver> scoped_resolver(mock_resolver);
-  mock_resolver->set_synchronous_mode(false);
-  mock_resolver->rules()->AddIPLiteralRule("alias", "10.0.0.2",
-                                           "canonical.example.com");
+  CreateHandler(false, false, false,
+                "http://alias:500", &mock_library, &auth_handler);
   TestCompletionCallback callback;
-  EXPECT_EQ(ERR_IO_PENDING, auth_handler->ResolveCanonicalName(mock_resolver,
-                                                               &callback));
+  HttpRequestInfo request_info;
+  std::string token;
+  std::wstring username = L"foo";
+  std::wstring password = L"bar";
+  EXPECT_EQ(ERR_IO_PENDING, auth_handler->GenerateAuthToken(
+      &username, &password, &request_info, &callback, &token));
   EXPECT_EQ(OK, callback.WaitForResult());
   EXPECT_EQ(L"HTTP/canonical.example.com", auth_handler->spn());
 }
