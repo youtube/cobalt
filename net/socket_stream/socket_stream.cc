@@ -72,6 +72,7 @@ SocketStream::SocketStream(const GURL& url, Delegate* delegate)
 SocketStream::~SocketStream() {
   set_context(NULL);
   DCHECK(!delegate_);
+  DCHECK(!pac_request_);
 }
 
 SocketStream::UserData* SocketStream::GetUserData(
@@ -92,6 +93,11 @@ void SocketStream::set_context(URLRequestContext* context) {
   context_ = context;
 
   if (prev_context != context) {
+    if (prev_context && pac_request_) {
+      prev_context->proxy_service()->CancelPacRequest(pac_request_);
+      pac_request_ = NULL;
+    }
+
     net_log_.EndEvent(NetLog::TYPE_REQUEST_ALIVE, NULL);
     net_log_ = BoundNetLog();
 
