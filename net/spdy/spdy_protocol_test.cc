@@ -1,4 +1,4 @@
-// Copyright (c) 2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,10 +12,14 @@
 using spdy::CONTROL_FLAG_FIN;
 using spdy::CONTROL_FLAG_NONE;
 using spdy::GOAWAY;
+using spdy::HEADERS;
+using spdy::NOOP;
+using spdy::PING;
 using spdy::RST_STREAM;
 using spdy::SETTINGS;
 using spdy::SYN_REPLY;
 using spdy::SYN_STREAM;
+using spdy::WINDOW_UPDATE;
 using spdy::FlagsAndLength;
 using spdy::SpdyControlFrame;
 using spdy::SpdyControlType;
@@ -29,6 +33,7 @@ using spdy::SpdySettings;
 using spdy::SpdySettingsControlFrame;
 using spdy::SpdySynReplyControlFrame;
 using spdy::SpdySynStreamControlFrame;
+using spdy::SpdyWindowUpdateControlFrame;
 using spdy::SettingsFlagsAndId;
 using spdy::kLengthMask;
 using spdy::kSpdyProtocolVersion;
@@ -46,12 +51,17 @@ TEST(SpdyProtocolTest, ProtocolConstants) {
   EXPECT_EQ(16u, SpdyRstStreamControlFrame::size());
   EXPECT_EQ(12u, SpdyGoAwayControlFrame::size());
   EXPECT_EQ(12u, SpdySettingsControlFrame::size());
+  EXPECT_EQ(16u, SpdyWindowUpdateControlFrame::size());
   EXPECT_EQ(4u, sizeof(FlagsAndLength));
   EXPECT_EQ(1, SYN_STREAM);
   EXPECT_EQ(2, SYN_REPLY);
   EXPECT_EQ(3, RST_STREAM);
   EXPECT_EQ(4, SETTINGS);
+  EXPECT_EQ(5, NOOP);
+  EXPECT_EQ(6, PING);
   EXPECT_EQ(7, GOAWAY);
+  EXPECT_EQ(8, HEADERS);
+  EXPECT_EQ(9, WINDOW_UPDATE);
 }
 
 // Test some of the protocol helper functions
@@ -120,6 +130,14 @@ TEST(SpdyProtocolTest, ControlFrameStructs) {
   EXPECT_TRUE(goaway_frame->is_control_frame());
   EXPECT_EQ(GOAWAY, goaway_frame->type());
   EXPECT_EQ(123u, goaway_frame->last_accepted_stream_id());
+
+  scoped_ptr<SpdyWindowUpdateControlFrame> window_update_frame(
+      framer.CreateWindowUpdate(123, 456));
+  EXPECT_EQ(kSpdyProtocolVersion, window_update_frame->version());
+  EXPECT_TRUE(window_update_frame->is_control_frame());
+  EXPECT_EQ(WINDOW_UPDATE, window_update_frame->type());
+  EXPECT_EQ(123u, window_update_frame->stream_id());
+  EXPECT_EQ(456u, window_update_frame->delta_window_size());
 }
 
 TEST(SpdyProtocolTest, TestDataFrame) {

@@ -570,6 +570,21 @@ SpdyGoAwayControlFrame* SpdyFramer::CreateGoAway(
 }
 
 /* static */
+SpdyWindowUpdateControlFrame* SpdyFramer::CreateWindowUpdate(
+    SpdyStreamId stream_id,
+    uint32 delta_window_size) {
+  SpdyFrameBuilder frame;
+  frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
+  frame.WriteUInt16(WINDOW_UPDATE);
+  size_t window_update_size = SpdyWindowUpdateControlFrame::size() -
+      SpdyFrame::size();
+  frame.WriteUInt32(window_update_size);
+  frame.WriteUInt32(stream_id);
+  frame.WriteUInt32(delta_window_size);
+  return reinterpret_cast<SpdyWindowUpdateControlFrame*>(frame.take());
+}
+
+/* static */
 SpdySettingsControlFrame* SpdyFramer::CreateSettings(
     const SpdySettings& values) {
   SpdyFrameBuilder frame;
