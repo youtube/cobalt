@@ -32,7 +32,7 @@ class ProxyResolverWinHttp : public ProxyResolver {
  private:
   // ProxyResolver implementation:
   virtual int SetPacScript(const GURL& pac_url,
-                           const std::string& /*pac_bytes*/,
+                           const string16& /*pac_script*/,
                            CompletionCallback* /*callback*/);
   bool OpenWinHttpSession();
   void CloseWinHttpSession();

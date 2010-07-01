@@ -141,7 +141,7 @@ void ProxyResolverWinHttp::CancelRequest(RequestHandle request) {
 }
 
 int ProxyResolverWinHttp::SetPacScript(const GURL& pac_url,
-                                       const std::string& /*pac_bytes*/,
+                                       const string16& /*pac_script*/,
                                        CompletionCallback* /*callback*/) {
   pac_url_ = pac_url.is_valid() ? pac_url : GURL("http://wpad/wpad.dat");
   return OK;
