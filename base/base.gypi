@@ -9,9 +9,7 @@
       'base_extra_target': 0,
     },
     'target_conditions': [
-      # This part is shared between the targets defined below. Only files and
-      # settings relevant for building the Win64 target should be added here.
-      # All the rest should be added to the 'base' target below.
+      # This part is shared between the targets defined below.
       ['base_target==1', {
         'sources': [
           '../build/build_config.h',
@@ -93,6 +91,8 @@
           'global_descriptors_posix.cc',
           'global_descriptors_posix.h',
           'gtest_prod_util.h',
+          'gtk_util.cc',
+          'gtk_util.h',
           'hash_tables.h',
           'histogram.cc',
           'histogram.h',
@@ -319,6 +319,8 @@
           [ 'OS != "linux"', {
               'sources!': [
                 # Not automatically excluded by the *linux.cc rules.
+                'gtk_util.cc',
+                'gtk_util.h',
                 'linux_util.cc',
                 'setproctitle_linux.c',
                 'setproctitle_linux.h',
