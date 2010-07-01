@@ -325,6 +325,8 @@ static const struct filename_case {
 #endif
 };
 
+#if defined(OS_WIN)
+// This function is deprecated on non-Windows.
 TEST_F(FileUtilTest, GetFilenameFromPath) {
   for (unsigned int i = 0; i < arraysize(filename_cases); ++i) {
     const filename_case& value = filename_cases[i];
@@ -332,6 +334,7 @@ TEST_F(FileUtilTest, GetFilenameFromPath) {
     EXPECT_EQ(value.filename, result);
   }
 }
+#endif
 
 // Test finding the file type from a path name
 static const struct extension_case {
