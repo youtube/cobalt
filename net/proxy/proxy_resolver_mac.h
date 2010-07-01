@@ -32,7 +32,7 @@ class ProxyResolverMac : public ProxyResolver {
 
  private:
   virtual int SetPacScript(const GURL& pac_url,
-                           const std::string& /*pac_bytes*/,
+                           const string16& /*pac_script*/,
                            CompletionCallback* /*callback*/) {
     pac_url_ = pac_url;
     return OK;

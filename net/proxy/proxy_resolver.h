@@ -5,9 +5,8 @@
 #ifndef NET_PROXY_PROXY_RESOLVER_H_
 #define NET_PROXY_PROXY_RESOLVER_H_
 
-#include <string>
-
 #include "base/logging.h"
+#include "base/string16.h"
 #include "googleurl/src/gurl.h"
 #include "net/base/completion_callback.h"
 
@@ -55,14 +54,14 @@ class ProxyResolver {
   // Sets the PAC script backend to use for this proxy resolver (by URL).
   int SetPacScriptByUrl(const GURL& url, CompletionCallback* callback) {
     DCHECK(!expects_pac_bytes());
-    return SetPacScript(url, std::string(), callback);
+    return SetPacScript(url, string16(), callback);
   }
 
   // Sets the PAC script backend to use for this proxy resolver (by contents).
-  int SetPacScriptByData(const std::string& bytes_utf8,
+  int SetPacScriptByData(const string16& script,
                          CompletionCallback* callback) {
     DCHECK(expects_pac_bytes());
-    return SetPacScript(GURL(), bytes_utf8, callback);
+    return SetPacScript(GURL(), script, callback);
   }
 
   // TODO(eroman): Make this =0.
@@ -77,12 +76,12 @@ class ProxyResolver {
 
  private:
   // Called to set the PAC script backend to use. If |pac_url| is invalid,
-  // this is a request to use WPAD (auto detect). |bytes_utf8| may be empty if
+  // this is a request to use WPAD (auto detect). |pac_script| may be empty if
   // the fetch failed, or if the fetch returned no content.
   // Returns ERR_IO_PENDING in the case of asynchronous completion, and notifies
   // the result through |callback|.
   virtual int SetPacScript(const GURL& pac_url,
-                           const std::string& bytes_utf8,
+                           const string16& pac_script,
                            CompletionCallback* callback) = 0;
 
   const bool expects_pac_bytes_;
