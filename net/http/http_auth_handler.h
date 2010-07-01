@@ -11,6 +11,8 @@
 #include "net/base/net_log.h"
 #include "net/http/http_auth.h"
 
+class Histogram;
+
 namespace net {
 
 class HostResolver;
@@ -23,7 +25,7 @@ struct HttpRequestInfo;
 class HttpAuthHandler {
  public:
   HttpAuthHandler();
-  virtual ~HttpAuthHandler() {}
+  virtual ~HttpAuthHandler();
 
   // Initializes the handler using a challenge issued by a server.
   // |challenge| must be non-NULL and have already tokenized the
@@ -179,9 +181,13 @@ class HttpAuthHandler {
  private:
   void OnGenerateAuthTokenComplete(int rv);
   void FinishGenerateAuthToken();
+  static std::string GenerateHistogramNameFromScheme(const std::string& scheme);
 
   CompletionCallback* original_callback_;
   CompletionCallbackImpl<HttpAuthHandler> wrapper_callback_;
+  // When GenerateAuthToken was called.
+  base::TimeTicks generate_auth_token_start_;
+  scoped_refptr<Histogram> histogram_;
 };
 
 }  // namespace net
