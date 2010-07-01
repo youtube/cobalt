@@ -5151,13 +5151,13 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForNpnSpdy) {
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite spdy_writes[] = { CreateMockWrite(req.get()) };
+  MockWrite spdy_writes[] = { CreateMockWrite(*req) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame());
   MockRead spdy_reads[] = {
-    CreateMockRead(resp.get()),
-    CreateMockRead(data.get()),
+    CreateMockRead(*resp),
+    CreateMockRead(*data),
     MockRead(true, 0, 0),
   };
 
@@ -5284,7 +5284,7 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
     MockWrite("CONNECT www.google.com:443 HTTP/1.1\r\n"
               "Host: www.google.com\r\n"
               "Proxy-Connection: keep-alive\r\n\r\n"),  // 0
-    CreateMockWrite(req.get())  // 3
+    CreateMockWrite(*req)  // 3
   };
 
   const char kCONNECTResponse[] = "HTTP/1.1 200 Connected\r\n\r\n";
@@ -5293,8 +5293,8 @@ TEST_F(HttpNetworkTransactionTest, UseAlternateProtocolForTunneledNpnSpdy) {
   scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame());
   MockRead spdy_reads[] = {
     MockRead(true, kCONNECTResponse, arraysize(kCONNECTResponse) - 1, 1),  // 1
-    CreateMockRead(resp.get(), 4),  // 2, 4
-    CreateMockRead(data.get(), 4),  // 5
+    CreateMockRead(*resp.get(), 4),  // 2, 4
+    CreateMockRead(*data.get(), 4),  // 5
     MockRead(true, 0, 0, 4),  // 6
   };
 
@@ -5381,13 +5381,13 @@ TEST_F(HttpNetworkTransactionTest,
   SpdySession::SetSSLMode(true);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite spdy_writes[] = { CreateMockWrite(req.get()) };
+  MockWrite spdy_writes[] = { CreateMockWrite(*req) };
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   scoped_ptr<spdy::SpdyFrame> data(ConstructSpdyBodyFrame());
   MockRead spdy_reads[] = {
-    CreateMockRead(resp.get()),
-    CreateMockRead(data.get()),
+    CreateMockRead(*resp),
+    CreateMockRead(*data),
     MockRead(true, 0, 0),
   };
 
@@ -6047,7 +6047,7 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
   session_deps.socket_factory.AddSSLSocketDataProvider(&ssl);
 
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
-  MockWrite spdy_writes[] = { CreateMockWrite(req.get()) };
+  MockWrite spdy_writes[] = { CreateMockWrite(*req) };
 
   MockRead spdy_reads[] = {
     MockRead(false, 0, 0)   // Not async - return 0 immediately.
