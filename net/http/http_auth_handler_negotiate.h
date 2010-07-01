@@ -9,6 +9,7 @@
 
 #include "build/build_config.h"
 
+#include "build/build_config.h"
 #include "net/base/address_list.h"
 #include "net/http/http_auth_handler.h"
 #include "net/http/http_auth_handler_factory.h"
@@ -23,6 +24,7 @@
 
 namespace net {
 
+class HostResolver;
 class SingleRequestHostResolver;
 class URLSecurityManager;
 
@@ -54,6 +56,8 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
     bool use_port() const { return use_port_; }
     void set_use_port(bool use_port) { use_port_ = use_port; }
 
+    void set_host_resolver(HostResolver* host_resolver);
+
     virtual int CreateAuthHandler(HttpAuth::ChallengeTokenizer* challenge,
                                   HttpAuth::Target target,
                                   const GURL& origin,
@@ -76,6 +80,7 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
    private:
     bool disable_cname_lookup_;
     bool use_port_;
+    scoped_refptr<HostResolver> resolver_;
 #if defined(OS_WIN)
     ULONG max_token_length_;
     bool first_creation_;
@@ -91,12 +96,14 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
 #if defined(OS_WIN)
   HttpAuthHandlerNegotiate(SSPILibrary* sspi_library, ULONG max_token_length,
                            URLSecurityManager* url_security_manager,
+                           HostResolver* host_resolver,
                            bool disable_cname_lookup, bool use_port);
 #endif
 
 #if defined(OS_POSIX)
   HttpAuthHandlerNegotiate(GSSAPILibrary* gssapi_library,
                            URLSecurityManager* url_security_manager,
+                           HostResolver* host_resolver,
                            bool disable_cname_lookup, bool use_port);
 #endif
 
@@ -107,11 +114,6 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
   virtual bool IsFinalRound();
 
   virtual bool AllowsDefaultCredentials();
-
-  virtual bool NeedsCanonicalName();
-
-  virtual int ResolveCanonicalName(HostResolver* host_resolver,
-                                   CompletionCallback* callback);
 
   // These are public for unit tests
   std::wstring CreateSPN(const AddressList& address_list, const GURL& orign);
@@ -127,23 +129,54 @@ class HttpAuthHandlerNegotiate : public HttpAuthHandler {
                                     std::string* auth_token);
 
  private:
-  void OnResolveCanonicalName(int result);
+  enum State {
+    STATE_RESOLVE_CANONICAL_NAME,
+    STATE_RESOLVE_CANONICAL_NAME_COMPLETE,
+    STATE_GENERATE_AUTH_TOKEN,
+    STATE_GENERATE_AUTH_TOKEN_COMPLETE,
+    STATE_NONE,
+  };
+
+  void OnIOComplete(int result);
+  void DoCallback(int result);
+  int DoLoop(int result);
+
+  int DoResolveCanonicalName();
+  int DoResolveCanonicalNameComplete(int rv);
+  int DoGenerateAuthToken();
+  int DoGenerateAuthTokenComplete(int rv);
 
 #if defined(OS_WIN)
-  HttpAuthSSPI auth_sspi_;
+  // Members which are constant for lifetime of the handler.
+  HttpAuthSSPI auth_system_;
 #endif
 
 #if defined(OS_POSIX)
-  HttpAuthGSSAPI auth_gssapi_;
+  HttpAuthGSSAPI auth_system_;
 #endif
 
-  AddressList address_list_;
-  scoped_ptr<SingleRequestHostResolver> single_resolve_;
-  CompletionCallback* user_callback_;
-  CompletionCallbackImpl<HttpAuthHandlerNegotiate> resolve_cname_callback_;
   bool disable_cname_lookup_;
   bool use_port_;
+  CompletionCallbackImpl<HttpAuthHandlerNegotiate> io_callback_;
+  scoped_refptr<HostResolver> resolver_;
+
+  // Members which are needed for DNS lookup + SPN.
+  AddressList address_list_;
+  scoped_ptr<SingleRequestHostResolver> single_resolve_;
+
+  // Things which should be consistent after first call to GenerateAuthToken.
+  bool already_called_;
+  bool has_username_and_password_;
+  std::wstring username_;
+  std::wstring password_;
   std::wstring spn_;
+
+  // Things which vary each round.
+  CompletionCallback* user_callback_;
+  std::string* auth_token_;
+
+  State next_state_;
+
   URLSecurityManager* url_security_manager_;
 };
 

@@ -5444,79 +5444,6 @@ TEST_F(HttpNetworkTransactionTest,
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
 
-// Tests that ResolveCanonicalName is handled correctly by the
-// HttpNetworkTransaction.
-TEST_F(HttpNetworkTransactionTest, ResolveCanonicalName) {
-  SessionDependencies session_deps;
-  HttpAuthHandlerMock::Factory* auth_factory(
-      new HttpAuthHandlerMock::Factory());
-  session_deps.http_auth_handler_factory.reset(auth_factory);
-
-  for (int i = 0; i < 2; ++i) {
-    HttpAuthHandlerMock* auth_handler(new HttpAuthHandlerMock());
-    std::string auth_challenge = "Mock";
-    GURL origin("http://www.example.com");
-    HttpAuth::ChallengeTokenizer tokenizer(auth_challenge.begin(),
-                                          auth_challenge.end());
-    auth_handler->InitFromChallenge(&tokenizer, HttpAuth::AUTH_SERVER,
-                                    origin, BoundNetLog());
-    auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
-
-    scoped_ptr<HttpTransaction> trans(
-        new HttpNetworkTransaction(CreateSession(&session_deps)));
-
-    // Set up expectations for this pass of the test. Many of the EXPECT calls
-    // are contained inside the HttpAuthHandlerMock codebase in response to
-    // the expectations.
-    HttpAuthHandlerMock::Resolve resolve = ((i == 0) ?
-                                            HttpAuthHandlerMock::RESOLVE_SYNC :
-                                            HttpAuthHandlerMock::RESOLVE_ASYNC);
-    auth_handler->SetResolveExpectation(resolve);
-    HttpRequestInfo request;
-    request.method = "GET";
-    request.url = GURL("http://myserver/");
-    request.load_flags = 0;
-
-    MockWrite data_writes1[] = {
-      MockWrite("GET / HTTP/1.1\r\n"
-                "Host: myserver\r\n"
-                "Connection: keep-alive\r\n\r\n"),
-    };
-
-    MockRead data_reads1[] = {
-      MockRead("HTTP/1.1 401 Unauthorized\r\n"),
-      MockRead("WWW-Authenticate: Mock myserver.example.com\r\n"),
-      MockRead("Content-Type: text/html; charset=iso-8859-1\r\n"),
-      MockRead("Content-Length: 14\r\n\r\n"),
-      MockRead("Unauthorized\r\n"),
-    };
-
-    StaticSocketDataProvider data1(data_reads1, arraysize(data_reads1),
-                                   data_writes1, arraysize(data_writes1));
-    session_deps.socket_factory.AddSocketDataProvider(&data1);
-
-    TestCompletionCallback callback1;
-
-    int rv = trans->Start(&request, &callback1, BoundNetLog());
-    EXPECT_EQ(ERR_IO_PENDING, rv);
-
-    rv = callback1.WaitForResult();
-    EXPECT_EQ(OK, rv);
-
-    const HttpResponseInfo* response = trans->GetResponseInfo();
-    EXPECT_FALSE(response == NULL);
-
-    // The password prompt is set after the canonical name is resolved.
-    // If it isn't present or is incorrect, it indicates that the scheme
-    // did not complete correctly.
-    EXPECT_FALSE(response->auth_challenge.get() == NULL);
-
-    EXPECT_EQ(L"myserver:80", response->auth_challenge->host_and_port);
-    EXPECT_EQ(L"", response->auth_challenge->realm);
-    EXPECT_EQ(L"mock", response->auth_challenge->scheme);
-  }
-}
-
 // GenerateAuthToken is a mighty big test.
 // It tests all permutation of GenerateAuthToken behavior:
 //   - Synchronous and Asynchronous completion.
@@ -5828,6 +5755,8 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
 
   for (size_t i = 0; i < ARRAYSIZE_UNSAFE(test_configs); ++i) {
     const TestConfig& test_config = test_configs[i];
+
+    // Set up authentication handlers as necessary.
     if (test_config.proxy_auth_timing != AUTH_NONE) {
       HttpAuthHandlerMock* auth_handler(new HttpAuthHandlerMock());
       std::string auth_challenge = "Mock realm=proxy";
@@ -5839,7 +5768,6 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       auth_handler->SetGenerateExpectation(
           test_config.proxy_auth_timing == AUTH_ASYNC,
           test_config.proxy_auth_rv);
-      auth_handler->SetResolveExpectation(HttpAuthHandlerMock::RESOLVE_SKIP);
       auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_PROXY);
     }
     if (test_config.server_auth_timing != AUTH_NONE) {
@@ -5853,7 +5781,6 @@ TEST_F(HttpNetworkTransactionTest, GenerateAuthToken) {
       auth_handler->SetGenerateExpectation(
           test_config.server_auth_timing == AUTH_ASYNC,
           test_config.server_auth_rv);
-      auth_handler->SetResolveExpectation(HttpAuthHandlerMock::RESOLVE_SKIP);
       auth_factory->set_mock_handler(auth_handler, HttpAuth::AUTH_SERVER);
     }
     if (test_config.proxy_url) {
@@ -6145,4 +6072,5 @@ TEST_F(HttpNetworkTransactionTest, SpdyPostNPNServerHangup) {
   HttpNetworkTransaction::SetNextProtos("");
   HttpNetworkTransaction::SetUseAlternateProtocols(false);
 }
+
 }  // namespace net
