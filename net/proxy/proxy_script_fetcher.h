@@ -1,6 +1,6 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.  Use of this
-// source code is governed by a BSD-style license that can be found in the
-// LICENSE file.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 // ProxyScriptFetcher is an async interface for fetching a proxy auto config
 // script. It is specific to fetching a PAC script; enforces timeout, max-size,
@@ -9,8 +9,7 @@
 #ifndef NET_PROXY_PROXY_SCRIPT_FETCHER_H_
 #define NET_PROXY_PROXY_SCRIPT_FETCHER_H_
 
-#include <string>
-
+#include "base/string16.h"
 #include "net/base/completion_callback.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -25,8 +24,8 @@ class ProxyScriptFetcher {
   virtual ~ProxyScriptFetcher() {}
 
   // Downloads the given PAC URL, and invokes |callback| on completion.
-  // On success |callback| is executed with a result code of OK, and a
-  // string of the response bytes (as UTF8). On failure, the result bytes is
+  // On success |callback| is executed with a result code of OK, |*utf16_text|
+  // is filled with the response. On failure, the result text is
   // an empty string, and the result code is a network error. Some special
   // network errors that may occur are:
   //
@@ -39,7 +38,7 @@ class ProxyScriptFetcher {
   // deleting |this|), then no callback is invoked.
   //
   // Only one fetch is allowed to be outstanding at a time.
-  virtual int Fetch(const GURL& url, std::string* utf8_bytes,
+  virtual int Fetch(const GURL& url, string16* utf16_text,
                     CompletionCallback* callback) = 0;
 
   // Aborts the in-progress fetch (if any).

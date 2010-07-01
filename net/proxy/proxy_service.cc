@@ -69,7 +69,7 @@ class ProxyResolverNull : public ProxyResolver {
 
  private:
   virtual int SetPacScript(const GURL& /*pac_url*/,
-                           const std::string& /*pac_bytes*/,
+                           const string16& /*pac_script*/,
                            CompletionCallback* /*callback*/) {
     return ERR_NOT_IMPLEMENTED;
   }

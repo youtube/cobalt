@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/perftimer.h"
+#include "base/string_util.h"
 #include "net/base/mock_host_resolver.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_v8.h"
@@ -166,7 +167,7 @@ class PacPerfSuiteRunner {
     ASSERT_TRUE(ok);
 
     // Load the PAC script into the ProxyResolver.
-    int rv = resolver_->SetPacScriptByData(file_contents, NULL);
+    int rv = resolver_->SetPacScriptByData(ASCIIToUTF16(file_contents), NULL);
     EXPECT_EQ(net::OK, rv);
   }
 
