@@ -31,6 +31,7 @@
 #include <windows.h>
 #endif
 #if defined(OS_MACOSX)
+#include <malloc/malloc.h>
 #include "base/process_util_unittest_mac.h"
 #endif
 
@@ -646,6 +647,48 @@ TEST_F(OutOfMemoryTest, Posix_memalign) {
 #endif  // OS_POSIX
 
 #if defined(OS_MACOSX)
+
+// Purgeable zone tests (if it exists)
+
+TEST_F(OutOfMemoryTest, MallocPurgeable) {
+  malloc_zone_t* zone = base::GetPurgeableZone();
+  if (zone)
+    ASSERT_DEATH(value_ = malloc_zone_malloc(zone, test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, ReallocPurgeable) {
+  malloc_zone_t* zone = base::GetPurgeableZone();
+  if (zone)
+    ASSERT_DEATH(value_ = malloc_zone_realloc(zone, NULL, test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, CallocPurgeable) {
+  malloc_zone_t* zone = base::GetPurgeableZone();
+  if (zone)
+    ASSERT_DEATH(value_ = malloc_zone_calloc(zone, 1024, test_size_ / 1024L),
+                 "");
+}
+
+TEST_F(OutOfMemoryTest, VallocPurgeable) {
+  malloc_zone_t* zone = base::GetPurgeableZone();
+  if (zone)
+    ASSERT_DEATH(value_ = malloc_zone_valloc(zone, test_size_), "");
+}
+
+TEST_F(OutOfMemoryTest, PosixMemalignPurgeable) {
+  malloc_zone_t* zone = base::GetPurgeableZone();
+
+  typedef void* (*zone_memalign_t)(malloc_zone_t*, size_t, size_t);
+  // malloc_zone_memalign only exists on >= 10.6. Use dlsym to grab it at
+  // runtime because it may not be present in the SDK used for compilation.
+  zone_memalign_t zone_memalign =
+      reinterpret_cast<zone_memalign_t>(
+        dlsym(RTLD_DEFAULT, "malloc_zone_memalign"));
+
+  if (zone && zone_memalign) {
+    ASSERT_DEATH(value_ = zone_memalign(zone, 8, test_size_), "");
+  }
+}
 
 // Since these allocation functions take a signed size, it's possible that
 // calling them just once won't be enough to exhaust memory. In the 32-bit
