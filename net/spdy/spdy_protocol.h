@@ -103,6 +103,18 @@
 //  +----------------------------------+
 //  |X|  Last-accepted-stream-id       |
 //  +----------------------------------+
+//
+//  Control Frame: WINDOW_UPDATE
+//  +----------------------------------+
+//  |1|000000000000001|0000000000001001|
+//  +----------------------------------+
+//  | flags (8)  |  Length (24 bits)   | = 8
+//  +----------------------------------+
+//  |X|      Stream-ID (31 bits)       |
+//  +----------------------------------+
+//  |   Delta-Window-Size (32 bits)    |
+//  +----------------------------------+
+
 
 namespace spdy {
 
@@ -123,6 +135,7 @@ enum SpdyControlType {
   PING,
   GOAWAY,
   HEADERS,
+  WINDOW_UPDATE,
   NUM_CONTROL_FRAME_TYPES
 };
 
@@ -256,6 +269,12 @@ union SettingsFlagsAndId {
 struct SpdySettingsControlFrameBlock : SpdyFrameBlock {
   uint32 num_entries_;
   // Variable data here.
+};
+
+// A WINDOW_UPDATE Control Frame structure
+struct SpdyWindowUpdateControlFrameBlock : SpdyFrameBlock {
+  SpdyStreamId stream_id_;
+  uint32 delta_window_size_;
 };
 
 #pragma pack(pop)
@@ -592,6 +611,44 @@ class SpdySettingsControlFrame : public SpdyControlFrame {
     return static_cast<SpdySettingsControlFrameBlock*>(frame_);
   }
   DISALLOW_COPY_AND_ASSIGN(SpdySettingsControlFrame);
+};
+
+// A WINDOW_UPDATE frame.
+class SpdyWindowUpdateControlFrame : public SpdyControlFrame {
+ public:
+  SpdyWindowUpdateControlFrame() : SpdyControlFrame(size()) {}
+  SpdyWindowUpdateControlFrame(char* data, bool owns_buffer)
+      : SpdyControlFrame(data, owns_buffer) {}
+
+  SpdyStreamId stream_id() const {
+    return ntohl(block()->stream_id_) & kStreamIdMask;
+  }
+
+  void set_stream_id(SpdyStreamId id) {
+    mutable_block()->stream_id_ = htonl(id & kStreamIdMask);
+  }
+
+  uint32 delta_window_size() const {
+    return ntohl(block()->delta_window_size_);
+  }
+
+  void set_delta_window_size(uint32 delta_window_size) {
+    mutable_block()->delta_window_size_ = htonl(delta_window_size);
+  }
+
+  // Returns the size of the SpdyWindowUpdateControlFrameBlock structure.
+  // Note: this is not the size of the SpdyWindowUpdateControlFrame class.
+  static size_t size() { return sizeof(SpdyWindowUpdateControlFrameBlock); }
+
+ private:
+  const struct SpdyWindowUpdateControlFrameBlock* block() const {
+    return static_cast<SpdyWindowUpdateControlFrameBlock*>(frame_);
+  }
+  struct SpdyWindowUpdateControlFrameBlock* mutable_block() {
+    return static_cast<SpdyWindowUpdateControlFrameBlock*>(frame_);
+  }
+
+  DISALLOW_COPY_AND_ASSIGN(SpdyWindowUpdateControlFrame);
 };
 
 }  // namespace spdy
