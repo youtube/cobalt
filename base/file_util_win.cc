@@ -63,6 +63,56 @@ bool DevicePathToDriveLetterPath(const FilePath& device_path,
   return true;
 }
 
+// Build a security descriptor with the weakest possible file permissions.
+bool InitLooseSecurityDescriptor(SECURITY_ATTRIBUTES *sa,
+                                 SECURITY_DESCRIPTOR *sd) {
+  DWORD last_error;
+
+  if (!InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION)) {
+    last_error = GetLastError();
+    LOG(ERROR) << "InitializeSecurityDescriptor failed: GetLastError() = "
+               << last_error;
+    return false;
+  }
+
+  if (!SetSecurityDescriptorDacl(sd,
+                                 TRUE,  // bDaclPresent: Add one to |sd|.
+                                 NULL,  // pDacl: NULL means allow all access.
+                                 FALSE  // bDaclDefaulted: Not defaulted.
+                                 )) {
+    last_error = GetLastError();
+    LOG(ERROR) << "SetSecurityDescriptorDacl() failed: GetLastError() = "
+               << last_error;
+    return false;
+  }
+
+  if (!SetSecurityDescriptorGroup(sd,
+                                  NULL,  // pGroup: No no primary group.
+                                  FALSE  // bGroupDefaulted: Not defaulted.
+                                  )) {
+    last_error = GetLastError();
+    LOG(ERROR) << "SetSecurityDescriptorGroup() failed: GetLastError() = "
+               << last_error;
+    return false;
+  }
+
+  if (!SetSecurityDescriptorSacl(sd,
+                                 FALSE,  // bSaclPresent: No SACL.
+                                 NULL,
+                                 FALSE
+                                 )) {
+    last_error = GetLastError();
+    LOG(ERROR) << "SetSecurityDescriptorSacl() failed: GetLastError() = "
+               << last_error;
+    return false;
+  }
+
+  sa->nLength = sizeof(SECURITY_ATTRIBUTES);
+  sa->lpSecurityDescriptor = sd;
+  sa->bInheritHandle = TRUE;
+  return true;
+}
+
 }  // namespace
 
 std::wstring GetDirectoryFromPath(const std::wstring& path) {
@@ -550,7 +600,19 @@ bool CreateTemporaryFileInDir(const FilePath& dir,
 
 bool CreateTemporaryDirInDir(const FilePath& base_dir,
                              const FilePath::StringType& prefix,
+                             bool loosen_permissions,
                              FilePath* new_dir) {
+  SECURITY_ATTRIBUTES sa;
+  SECURITY_DESCRIPTOR sd;
+
+  LPSECURITY_ATTRIBUTES directory_security_attributes = NULL;
+  if (loosen_permissions) {
+    if (InitLooseSecurityDescriptor(&sa, &sd))
+      directory_security_attributes = &sa;
+    else
+      LOG(ERROR) << "Failed to init security attributes, fall back to NULL.";
+  }
+
   FilePath path_to_create;
   srand(static_cast<uint32>(time(NULL)));
 
@@ -565,7 +627,8 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
     new_dir_name.append(IntToWString(rand() % kint16max));
 
     path_to_create = path_to_create.Append(new_dir_name);
-    if (::CreateDirectory(path_to_create.value().c_str(), NULL))
+    if (::CreateDirectory(path_to_create.value().c_str(),
+                          directory_security_attributes))
       break;
     count++;
   }
@@ -575,6 +638,7 @@ bool CreateTemporaryDirInDir(const FilePath& base_dir,
   }
 
   *new_dir = path_to_create;
+
   return true;
 }
 
@@ -584,7 +648,10 @@ bool CreateNewTempDirectory(const FilePath::StringType& prefix,
   if (!GetTempDir(&system_temp_dir))
     return false;
 
-  return CreateTemporaryDirInDir(system_temp_dir, prefix, new_temp_path);
+  return CreateTemporaryDirInDir(system_temp_dir,
+                                 prefix,
+                                 false,
+                                 new_temp_path);
 }
 
 bool CreateDirectory(const FilePath& full_path) {
