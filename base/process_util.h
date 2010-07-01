@@ -17,6 +17,9 @@
 // kinfo_proc is defined in <sys/sysctl.h>, but this forward declaration
 // is sufficient for the vector<kinfo_proc> below.
 struct kinfo_proc;
+// malloc_zone_t is defined in <malloc/malloc.h>, but this forward declaration
+// is sufficient for GetPurgeableZone() below.
+typedef struct _malloc_zone_t malloc_zone_t;
 #include <mach/mach.h>
 #elif defined(OS_POSIX)
 #include <dirent.h>
@@ -565,6 +568,10 @@ void EnableTerminationOnHeapCorruption();
 // Turns on process termination if memory runs out. This is handled on Windows
 // inside RegisterInvalidParamHandler().
 void EnableTerminationOnOutOfMemory();
+#if defined(OS_MACOSX)
+// Exposed for testing.
+malloc_zone_t* GetPurgeableZone();
+#endif
 #endif
 
 #if defined(UNIT_TEST)

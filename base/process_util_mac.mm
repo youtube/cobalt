@@ -7,6 +7,7 @@
 
 #import <Cocoa/Cocoa.h>
 #include <crt_externs.h>
+#include <dlfcn.h>
 #include <mach/mach.h>
 #include <mach/mach_init.h>
 #include <mach/task.h>
@@ -405,6 +406,12 @@ valloc_type g_old_valloc;
 realloc_type g_old_realloc;
 memalign_type g_old_memalign;
 
+malloc_type g_old_malloc_purgeable;
+calloc_type g_old_calloc_purgeable;
+valloc_type g_old_valloc_purgeable;
+realloc_type g_old_realloc_purgeable;
+memalign_type g_old_memalign_purgeable;
+
 void* oom_killer_malloc(struct _malloc_zone_t* zone,
                         size_t size) {
   void* result = g_old_malloc(zone, size);
@@ -443,6 +450,54 @@ void* oom_killer_memalign(struct _malloc_zone_t* zone,
                           size_t alignment,
                           size_t size) {
   void* result = g_old_memalign(zone, alignment, size);
+  // Only die if posix_memalign would have returned ENOMEM, since there are
+  // other reasons why NULL might be returned (see
+  // http://opensource.apple.com/source/Libc/Libc-583/gen/malloc.c ).
+  if (!result && size && alignment >= sizeof(void*)
+      && (alignment & (alignment - 1)) == 0) {
+    DebugUtil::BreakDebugger();
+  }
+  return result;
+}
+
+void* oom_killer_malloc_purgeable(struct _malloc_zone_t* zone,
+                                  size_t size) {
+  void* result = g_old_malloc_purgeable(zone, size);
+  if (!result && size)
+    DebugUtil::BreakDebugger();
+  return result;
+}
+
+void* oom_killer_calloc_purgeable(struct _malloc_zone_t* zone,
+                                  size_t num_items,
+                                  size_t size) {
+  void* result = g_old_calloc_purgeable(zone, num_items, size);
+  if (!result && num_items && size)
+    DebugUtil::BreakDebugger();
+  return result;
+}
+
+void* oom_killer_valloc_purgeable(struct _malloc_zone_t* zone,
+                                  size_t size) {
+  void* result = g_old_valloc_purgeable(zone, size);
+  if (!result && size)
+    DebugUtil::BreakDebugger();
+  return result;
+}
+
+void* oom_killer_realloc_purgeable(struct _malloc_zone_t* zone,
+                                   void* ptr,
+                                   size_t size) {
+  void* result = g_old_realloc_purgeable(zone, ptr, size);
+  if (!result && size)
+    DebugUtil::BreakDebugger();
+  return result;
+}
+
+void* oom_killer_memalign_purgeable(struct _malloc_zone_t* zone,
+                                    size_t alignment,
+                                    size_t size) {
+  void* result = g_old_memalign_purgeable(zone, alignment, size);
   // Only die if posix_memalign would have returned ENOMEM, since there are
   // other reasons why NULL might be returned (see
   // http://opensource.apple.com/source/Libc/Libc-583/gen/malloc.c ).
@@ -540,6 +595,18 @@ id oom_killer_allocWithZone(id self, SEL _cmd, NSZone* zone)
 
 }  // namespace
 
+malloc_zone_t* GetPurgeableZone() {
+  // malloc_default_purgeable_zone only exists on >= 10.6. Use dlsym to grab it
+  // at runtime because it may not be present in the SDK used for compilation.
+  typedef malloc_zone_t* (*malloc_default_purgeable_zone_t)(void);
+  malloc_default_purgeable_zone_t malloc_purgeable_zone =
+      reinterpret_cast<malloc_default_purgeable_zone_t>(
+          dlsym(RTLD_DEFAULT, "malloc_default_purgeable_zone"));
+  if (malloc_purgeable_zone)
+    return malloc_purgeable_zone();
+  return NULL;
+}
+
 void EnableTerminationOnOutOfMemory() {
   if (g_oom_killer_enabled)
     return;
@@ -563,22 +630,42 @@ void EnableTerminationOnOutOfMemory() {
   CHECK(!g_old_malloc && !g_old_calloc && !g_old_valloc && !g_old_realloc &&
         !g_old_memalign) << "Old allocators unexpectedly non-null";
 
+  CHECK(!g_old_malloc_purgeable && !g_old_calloc_purgeable &&
+        !g_old_valloc_purgeable && !g_old_realloc_purgeable &&
+        !g_old_memalign_purgeable) << "Old allocators unexpectedly non-null";
+
   // See http://trac.webkit.org/changeset/53362/trunk/WebKitTools/DumpRenderTree/mac
   bool zone_allocators_protected =
       ((os_major == 10 && os_minor > 6) || os_major > 10);
 
   ChromeMallocZone* default_zone =
       reinterpret_cast<ChromeMallocZone*>(malloc_default_zone());
+  ChromeMallocZone* purgeable_zone =
+      reinterpret_cast<ChromeMallocZone*>(GetPurgeableZone());
 
-  vm_address_t page_start = NULL;
-  vm_size_t len = 0;
+  vm_address_t page_start_default = NULL;
+  vm_address_t page_start_purgeable = NULL;
+  vm_size_t len_default = 0;
+  vm_size_t len_purgeable = 0;
   if (zone_allocators_protected) {
-    page_start = reinterpret_cast<vm_address_t>(default_zone) &
+    page_start_default = reinterpret_cast<vm_address_t>(default_zone) &
         static_cast<vm_size_t>(~(getpagesize() - 1));
-    len = reinterpret_cast<vm_address_t>(default_zone) -
-        page_start + sizeof(malloc_zone_t);
-    mprotect(reinterpret_cast<void*>(page_start), len, PROT_READ | PROT_WRITE);
+    len_default = reinterpret_cast<vm_address_t>(default_zone) -
+        page_start_default + sizeof(ChromeMallocZone);
+    mprotect(reinterpret_cast<void*>(page_start_default), len_default,
+             PROT_READ | PROT_WRITE);
+
+    if (purgeable_zone) {
+      page_start_purgeable = reinterpret_cast<vm_address_t>(purgeable_zone) &
+          static_cast<vm_size_t>(~(getpagesize() - 1));
+      len_purgeable = reinterpret_cast<vm_address_t>(purgeable_zone) -
+          page_start_purgeable + sizeof(ChromeMallocZone);
+      mprotect(reinterpret_cast<void*>(page_start_purgeable), len_purgeable,
+               PROT_READ | PROT_WRITE);
+    }
   }
+
+  // Default zone
 
   g_old_malloc = default_zone->malloc;
   g_old_calloc = default_zone->calloc;
@@ -598,8 +685,36 @@ void EnableTerminationOnOutOfMemory() {
       default_zone->memalign = oom_killer_memalign;
   }
 
+  // Purgeable zone (if it exists)
+
+  if (purgeable_zone) {
+    g_old_malloc_purgeable = purgeable_zone->malloc;
+    g_old_calloc_purgeable = purgeable_zone->calloc;
+    g_old_valloc_purgeable = purgeable_zone->valloc;
+    g_old_realloc_purgeable = purgeable_zone->realloc;
+    CHECK(g_old_malloc_purgeable && g_old_calloc_purgeable &&
+          g_old_valloc_purgeable && g_old_realloc_purgeable)
+        << "Failed to get system allocation functions.";
+
+    purgeable_zone->malloc = oom_killer_malloc_purgeable;
+    purgeable_zone->calloc = oom_killer_calloc_purgeable;
+    purgeable_zone->valloc = oom_killer_valloc_purgeable;
+    purgeable_zone->realloc = oom_killer_realloc_purgeable;
+
+    if (purgeable_zone->version >= 5) {
+      g_old_memalign_purgeable = purgeable_zone->memalign;
+      if (g_old_memalign_purgeable)
+        purgeable_zone->memalign = oom_killer_memalign_purgeable;
+    }
+  }
+
   if (zone_allocators_protected) {
-    mprotect(reinterpret_cast<void*>(page_start), len, PROT_READ);
+    mprotect(reinterpret_cast<void*>(page_start_default), len_default,
+             PROT_READ);
+    if (purgeable_zone) {
+      mprotect(reinterpret_cast<void*>(page_start_purgeable), len_purgeable,
+               PROT_READ);
+    }
   }
 
   // === C malloc_zone_batch_malloc ===
