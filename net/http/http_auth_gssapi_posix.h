@@ -240,7 +240,6 @@ class HttpAuthGSSAPI {
   int GenerateAuthToken(const std::wstring* username,
                         const std::wstring* password,
                         const std::wstring& spn,
-                        const HttpRequestInfo* request,
                         std::string* auth_token);
 
  private:

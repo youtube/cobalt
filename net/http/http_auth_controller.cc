@@ -196,18 +196,7 @@ int HttpAuthController::HandleAuthChallenge(
     PopulateAuthChallenge();
   }
 
-  // SPN determination (for Negotiate) requires a DNS lookup to find the
-  // canonical name. This needs to be done asynchronously to prevent blocking
-  // the IO thread.
-  if (handler_->NeedsCanonicalName())
-    return ERR_AUTH_NEEDS_CANONICAL_NAME;
-
   return OK;
-}
-
-int HttpAuthController::ResolveCanonicalName(CompletionCallback* callback) {
-  DCHECK(handler_.get());
-  return handler_->ResolveCanonicalName(session_->host_resolver(), callback);
 }
 
 void HttpAuthController::ResetAuth(const std::wstring& username,
