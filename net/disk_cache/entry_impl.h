@@ -53,20 +53,6 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   virtual void CancelSparseIO();
   virtual int ReadyForSparseIO(net::CompletionCallback* completion_callback);
 
-  // Background implementation of the Entry interface.
-  void DoomImpl();
-  int ReadDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                   CompletionCallback* callback);
-  int WriteDataImpl(int index, int offset, net::IOBuffer* buf, int buf_len,
-                    CompletionCallback* callback, bool truncate);
-  int ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                         CompletionCallback* callback);
-  int WriteSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                          CompletionCallback* callback);
-  int GetAvailableRangeImpl(int64 offset, int len, int64* start);
-  void CancelSparseIOImpl();
-  int ReadyForSparseIOImpl(CompletionCallback* callback);
-
   inline CacheEntryBlock* entry() {
     return &entry_;
   }
@@ -200,7 +186,8 @@ class EntryImpl : public Entry, public base::RefCounted<EntryImpl> {
   scoped_array<char> user_buffers_[kNumStreams];  // Store user data.
   // Files to store external user data and key.
   scoped_refptr<File> files_[kNumStreams + 1];
-  mutable std::string key_;           // Copy of the key.
+  // Copy of the file used to store the key. We don't own this object.
+  mutable File* key_file_;
   int unreported_size_[kNumStreams];  // Bytes not reported yet to the backend.
   bool doomed_;               // True if this entry was removed from the cache.
   scoped_ptr<SparseControl> sparse_;  // Support for sparse entries.
