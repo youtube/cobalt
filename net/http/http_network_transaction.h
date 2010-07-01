@@ -12,7 +12,6 @@
 #include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/address_list.h"
-#include "net/base/host_resolver.h"
 #include "net/base/io_buffer.h"
 #include "net/base/load_flags.h"
 #include "net/base/load_states.h"
@@ -100,8 +99,6 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_SEND_REQUEST_COMPLETE,
     STATE_READ_HEADERS,
     STATE_READ_HEADERS_COMPLETE,
-    STATE_RESOLVE_CANONICAL_NAME,
-    STATE_RESOLVE_CANONICAL_NAME_COMPLETE,
     STATE_READ_BODY,
     STATE_READ_BODY_COMPLETE,
     STATE_DRAIN_BODY_FOR_AUTH_RESTART,
@@ -151,8 +148,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoSendRequestComplete(int result);
   int DoReadHeaders();
   int DoReadHeadersComplete(int result);
-  int DoResolveCanonicalName();
-  int DoResolveCanonicalNameComplete(int result);
   int DoReadBody();
   int DoReadBodyComplete(int result);
   int DoDrainBodyForAuthRestart();
