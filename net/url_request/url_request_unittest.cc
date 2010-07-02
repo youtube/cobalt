@@ -1265,7 +1265,7 @@ TEST_F(URLRequestTest, DoNotSendCookies) {
     EXPECT_TRUE(d.data_received().find("Cookie: CookieToNotSend=1")
                 == std::string::npos);
 
-    // LOAD_DO_NOT_SEND_COOKIES does not trigger OnGetCookiesBlocked.
+    // LOAD_DO_NOT_SEND_COOKIES does not trigger OnGetCookies.
     EXPECT_EQ(0, d.blocked_get_cookies_count());
     EXPECT_EQ(0, d.blocked_set_cookie_count());
   }
@@ -1288,6 +1288,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
 
     EXPECT_EQ(0, d.blocked_get_cookies_count());
     EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(1, d.set_cookie_count());
   }
 
   // Try to set-up another cookie and update the previous cookie.
@@ -1301,9 +1302,10 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
 
     MessageLoop::current()->Run();
 
-    // LOAD_DO_NOT_SAVE_COOKIES does not trigger OnSetCookieBlocked.
+    // LOAD_DO_NOT_SAVE_COOKIES does not trigger OnSetCookie.
     EXPECT_EQ(0, d.blocked_get_cookies_count());
     EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, d.set_cookie_count());
   }
 
   // Verify the cookies weren't saved or updated.
@@ -1321,6 +1323,7 @@ TEST_F(URLRequestTest, DoNotSaveCookies) {
 
     EXPECT_EQ(0, d.blocked_get_cookies_count());
     EXPECT_EQ(0, d.blocked_set_cookie_count());
+    EXPECT_EQ(0, d.set_cookie_count());
   }
 }
 
@@ -1578,7 +1581,7 @@ TEST_F(URLRequestTest, CancelTest_During_CookiePolicy) {
   MessageLoop::current()->RunAllPending();
 }
 
-TEST_F(URLRequestTest, CancelTest_During_OnGetCookiesBlocked) {
+TEST_F(URLRequestTest, CancelTest_During_OnGetCookies) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
@@ -1607,7 +1610,7 @@ TEST_F(URLRequestTest, CancelTest_During_OnGetCookiesBlocked) {
   context->set_cookie_policy(NULL);
 }
 
-TEST_F(URLRequestTest, CancelTest_During_OnSetCookieBlocked) {
+TEST_F(URLRequestTest, CancelTest_During_OnSetCookie) {
   scoped_refptr<HTTPTestServer> server =
       HTTPTestServer::CreateServer(L"", NULL);
   ASSERT_TRUE(NULL != server.get());
@@ -1630,9 +1633,9 @@ TEST_F(URLRequestTest, CancelTest_During_OnSetCookieBlocked) {
     EXPECT_EQ(URLRequestStatus::CANCELED, req.status().status());
 
     // Even though the response will contain 3 set-cookie headers, we expect
-    // only one to be blocked as that first one will cause OnSetCookieBlocked
-    // to be called, which will cancel the request.  Once canceled, it should
-    // not attempt to set further cookies.
+    // only one to be blocked as that first one will cause OnSetCookie to be
+    // called, which will cancel the request.  Once canceled, it should not
+    // attempt to set further cookies.
 
     EXPECT_EQ(0, d.blocked_get_cookies_count());
     EXPECT_EQ(1, d.blocked_set_cookie_count());
