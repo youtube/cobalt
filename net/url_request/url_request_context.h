@@ -112,20 +112,6 @@ class URLRequestContext
     referrer_charset_ = charset;
   }
 
-  // Called before adding cookies to requests. Returns true if cookie can
-  // be added to the request. The cookie might still be modified though.
-  virtual bool InterceptRequestCookies(const URLRequest* request,
-                                       const std::string& cookies) const {
-    return true;
-  }
-
-  // Called before adding cookies from respones to the cookie monster. Returns
-  // true if the cookie can be added. The cookie might still be modified though.
-  virtual bool InterceptResponseCookie(const URLRequest* request,
-                                       const std::string& cookie) const {
-    return true;
-  }
-
  protected:
   friend class base::RefCountedThreadSafe<URLRequestContext>;
 
