@@ -148,7 +148,7 @@ TEST_F(SpdyFramerTest, HeaderBlock) {
   EXPECT_TRUE(frame.get() != NULL);
 
   SpdyHeaderBlock new_headers;
-  framer.ParseHeaderBlock(frame.get(), &new_headers);
+  EXPECT_TRUE(framer.ParseHeaderBlock(frame.get(), &new_headers));
 
   EXPECT_EQ(headers.size(), new_headers.size());
   EXPECT_EQ(headers["alpha"], new_headers["alpha"]);
@@ -162,6 +162,7 @@ TEST_F(SpdyFramerTest, OutOfOrderHeaders) {
   frame.WriteUInt16(SYN_STREAM);
   frame.WriteUInt32(0);  // Placeholder for the length.
   frame.WriteUInt32(3);  // stream_id
+  frame.WriteUInt32(0);  // associated stream id
   frame.WriteUInt16(0);  // Priority.
 
   frame.WriteUInt16(2);  // Number of headers.
@@ -178,6 +179,51 @@ TEST_F(SpdyFramerTest, OutOfOrderHeaders) {
   SpdyFramer framer;
   FramerSetEnableCompressionHelper(&framer, false);
   EXPECT_TRUE(framer.ParseHeaderBlock(control_frame.get(), &new_headers));
+}
+
+TEST_F(SpdyFramerTest, WrongNumberOfHeaders) {
+  SpdyFrameBuilder frame1;
+  SpdyFrameBuilder frame2;
+
+  // a frame with smaller number of actual headers
+  frame1.WriteUInt16(kControlFlagMask | 1);
+  frame1.WriteUInt16(SYN_STREAM);
+  frame1.WriteUInt32(0);  // Placeholder for the length.
+  frame1.WriteUInt32(3);  // stream_id
+  frame1.WriteUInt32(0);  // associated stream id
+  frame1.WriteUInt16(0);  // Priority.
+
+  frame1.WriteUInt16(1);  // Wrong number of headers (underflow)
+  frame1.WriteString("gamma");
+  frame1.WriteString("gamma");
+  frame1.WriteString("alpha");
+  frame1.WriteString("alpha");
+  // write the length
+  frame1.WriteUInt32ToOffset(4, frame1.length() - SpdyFrame::size());
+
+  // a frame with larger number of actual headers
+  frame2.WriteUInt16(kControlFlagMask | 1);
+  frame2.WriteUInt16(SYN_STREAM);
+  frame2.WriteUInt32(0);  // Placeholder for the length.
+  frame2.WriteUInt32(3);  // stream_id
+  frame2.WriteUInt32(0);  // associated stream id
+  frame2.WriteUInt16(0);  // Priority.
+
+  frame2.WriteUInt16(100);  // Wrong number of headers (overflow)
+  frame2.WriteString("gamma");
+  frame2.WriteString("gamma");
+  frame2.WriteString("alpha");
+  frame2.WriteString("alpha");
+  // write the length
+  frame2.WriteUInt32ToOffset(4, frame2.length() - SpdyFrame::size());
+
+  SpdyHeaderBlock new_headers;
+  scoped_ptr<SpdyFrame> syn_frame1(frame1.take());
+  scoped_ptr<SpdyFrame> syn_frame2(frame2.take());
+  SpdyFramer framer;
+  FramerSetEnableCompressionHelper(&framer, false);
+  EXPECT_FALSE(framer.ParseHeaderBlock(syn_frame1.get(), &new_headers));
+  EXPECT_FALSE(framer.ParseHeaderBlock(syn_frame2.get(), &new_headers));
 }
 
 TEST_F(SpdyFramerTest, DuplicateHeader) {
@@ -217,7 +263,7 @@ TEST_F(SpdyFramerTest, MultiValueHeader) {
   frame.WriteUInt32(0);  // associated stream id
   frame.WriteUInt16(0);  // Priority.
 
-  frame.WriteUInt16(2);  // Number of headers.
+  frame.WriteUInt16(1);  // Number of headers.
   SpdyHeaderBlock::iterator it;
   frame.WriteString("name");
   std::string value("value1\0value2");
@@ -426,9 +472,8 @@ TEST_F(SpdyFramerTest, FinOnSynReplyFrame) {
     0x00, 0x02, 'v', 'v',
 
     0x80, 0x01, 0x00, 0x02,   // SYN REPLY Stream #1
-    0x01, 0x00, 0x00, 0x14,
+    0x01, 0x00, 0x00, 0x10,
     0x00, 0x00, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x01,
     0x00, 0x02, 'a', 'a',
     0x00, 0x02, 'b', 'b',
@@ -547,7 +592,7 @@ TEST_F(SpdyFramerTest, DataCompression) {
 TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
   SpdyFramer send_framer;
 
-  FramerSetEnableCompressionHelper(&send_framer, true);
+  FramerSetEnableCompressionHelper(&send_framer, false);
 
   const char kHeader1[] = "header1";
   const char kHeader2[] = "header2";
@@ -565,7 +610,7 @@ TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
   const char bytes[] = "this is a test test test test test!";
   scoped_ptr<SpdyFrame> send_frame(
       send_framer.CreateDataFrame(1, bytes, arraysize(bytes),
-                                  DATA_FLAG_FIN | DATA_FLAG_COMPRESSED));
+                                  DATA_FLAG_FIN));
   EXPECT_TRUE(send_frame.get() != NULL);
 
   // Run the inputs through the framer.
