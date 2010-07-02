@@ -465,17 +465,6 @@
                   'sources/': [ ['include', '_chromeos\\.cc$'] ]
                 },
               ],
-              [ 'linux_use_tcmalloc==0', {
-                  'defines': [
-                    'NO_TCMALLOC',
-                  ],
-                  'direct_dependent_settings': {
-                    'defines': [
-                      'NO_TCMALLOC',
-                    ],
-                  },
-                },
-              ],
             ],
             'defines': [
               'USE_SYMBOLIZE',
@@ -532,6 +521,17 @@
       'conditions': [
         [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
           'conditions': [
+            [ 'linux_use_tcmalloc==0', {
+                'defines': [
+                  'NO_TCMALLOC',
+                ],
+                'direct_dependent_settings': {
+                  'defines': [
+                    'NO_TCMALLOC',
+                  ],
+                },
+              },
+            ],
             [ 'linux_use_tcmalloc==1', {
                 'dependencies': [
                   'allocator/allocator.gyp:allocator',
