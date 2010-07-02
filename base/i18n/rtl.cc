@@ -14,7 +14,7 @@
 #include "unicode/uchar.h"
 #include "unicode/uscript.h"
 
-#if defined(TOOLKIT_GTK)
+#if defined(TOOLKIT_USES_GTK)
 #include <gtk/gtk.h>
 #endif
 
@@ -75,6 +75,15 @@ void SetICUDefaultLocale(const std::string& locale_string) {
   // it does not hurt to have it as a sanity check.
   DCHECK(U_SUCCESS(error_code));
   g_icu_text_direction = UNKNOWN_DIRECTION;
+
+  // If we use Views toolkit on top of GtkWidget, then we need to keep
+  // GtkWidget's default text direction consistent with ICU's text direction.
+  // Because in this case ICU's text direction will be used instead.
+  // See IsRTL() function below.
+#if defined(TOOLKIT_USES_GTK) && !defined(TOOLKIT_GTK)
+  gtk_widget_set_default_direction(
+      ICUIsRTL() ? GTK_TEXT_DIR_RTL : GTK_TEXT_DIR_LTR);
+#endif
 }
 
 bool IsRTL() {
