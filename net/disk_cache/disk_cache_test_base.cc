@@ -4,7 +4,6 @@
 
 #include "net/disk_cache/disk_cache_test_base.h"
 
-#include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
 #include "net/disk_cache/backend_impl.h"
 #include "net/disk_cache/disk_cache_test_util.h"
@@ -67,25 +66,21 @@ void DiskCacheTestWithCache::InitDiskCache() {
   if (implementation_)
     return InitDiskCacheImpl(path);
 
-  scoped_refptr<base::MessageLoopProxy> thread =
-      use_current_thread_ ? base::MessageLoopProxy::CreateForCurrentThread() :
-                            cache_thread_.message_loop_proxy();
-
   TestCompletionCallback cb;
   int rv = disk_cache::BackendImpl::CreateBackend(
                path, force_creation_, size_, net::DISK_CACHE,
-               disk_cache::kNoRandom, thread, &cache_, &cb);
+               disk_cache::kNoRandom, cache_thread_.message_loop_proxy(),
+               &cache_, &cb);
   ASSERT_EQ(net::OK, cb.GetResult(rv));
 }
 
 void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
-  scoped_refptr<base::MessageLoopProxy> thread =
-      use_current_thread_ ? base::MessageLoopProxy::CreateForCurrentThread() :
-                            cache_thread_.message_loop_proxy();
   if (mask_)
-    cache_impl_ = new disk_cache::BackendImpl(path, mask_, thread);
+    cache_impl_ = new disk_cache::BackendImpl(
+                      path, mask_, cache_thread_.message_loop_proxy());
   else
-    cache_impl_ = new disk_cache::BackendImpl(path, thread);
+    cache_impl_ = new disk_cache::BackendImpl(
+                      path, cache_thread_.message_loop_proxy());
 
   cache_ = cache_impl_;
   ASSERT_TRUE(NULL != cache_);
@@ -97,9 +92,7 @@ void DiskCacheTestWithCache::InitDiskCacheImpl(const FilePath& path) {
     cache_impl_->SetNewEviction();
 
   cache_impl_->SetFlags(disk_cache::kNoRandom);
-  TestCompletionCallback cb;
-  int rv = cache_impl_->Init(&cb);
-  ASSERT_EQ(net::OK, cb.GetResult(rv));
+  ASSERT_TRUE(cache_impl_->Init());
 }
 
 void DiskCacheTestWithCache::TearDown() {
@@ -119,9 +112,6 @@ void DiskCacheTestWithCache::TearDown() {
 // We are expected to leak memory when simulating crashes.
 void DiskCacheTestWithCache::SimulateCrash() {
   ASSERT_TRUE(implementation_ && !memory_only_);
-  TestCompletionCallback cb;
-  int rv = cache_impl_->FlushQueueForTest(&cb);
-  ASSERT_EQ(net::OK, cb.GetResult(rv));
   cache_impl_->ClearRefCountForTest();
 
   delete cache_impl_;
@@ -180,13 +170,4 @@ int DiskCacheTestWithCache::OpenNextEntry(void** iter,
   TestCompletionCallback cb;
   int rv = cache_->OpenNextEntry(iter, next_entry, &cb);
   return cb.GetResult(rv);
-}
-
-void DiskCacheTestWithCache::FlushQueueForTest() {
-  if (memory_only_ || !cache_impl_)
-    return;
-
-  TestCompletionCallback cb;
-  int rv = cache_impl_->FlushQueueForTest(&cb);
-  EXPECT_EQ(net::OK, cb.GetResult(rv));
 }
