@@ -470,7 +470,8 @@ bool SpdyFramer::ParseHeaderBlock(const SpdyFrame* frame,
   void* iter = NULL;
   uint16 num_headers;
   if (builder.ReadUInt16(&iter, &num_headers)) {
-    for (int index = 0; index < num_headers; ++index) {
+    int index = 0;
+    for ( ; index < num_headers; ++index) {
       std::string name;
       std::string value;
       if (!builder.ReadString(&iter, &name))
@@ -485,7 +486,8 @@ bool SpdyFramer::ParseHeaderBlock(const SpdyFrame* frame,
         return false;
       }
     }
-    return true;
+    return index == num_headers &&
+        iter == header_data + header_length;
   }
   return false;
 }
