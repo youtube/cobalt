@@ -599,11 +599,7 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
                                 const char** http_response_headers,
                                 const char** http_response_data,
                                 PRUint32* http_response_data_len) {
-  if (http_response_data_len) {
-    // We must always set an output value, even on failure.  The output value 0
-    // means the failure was unrelated to the acceptable response data length.
-    *http_response_data_len = 0;
-  }
+  base::Time start_time, end_time;
 
   LOG(INFO) << "OCSP try send and receive";
   DCHECK(!MessageLoop::current());
@@ -616,62 +612,24 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
     // We support blocking mode only, so this function shouldn't be called
     // again when req has stareted or finished.
     NOTREACHED();
-    PORT_SetError(SEC_ERROR_BAD_HTTP_RESPONSE);  // Simple approximation.
-    return SECFailure;
+    goto failed;
   }
 
-  const base::Time start_time = base::Time::Now();
+  start_time = base::Time::Now();
   req->Start();
-  if (!req->Wait() || req->http_response_code() == static_cast<PRUint16>(-1)) {
-    // If the response code is -1, the request failed and there is no response.
-    PORT_SetError(SEC_ERROR_BAD_HTTP_RESPONSE);  // Simple approximation.
-    return SECFailure;
-  }
-  const base::TimeDelta duration = base::Time::Now() - start_time;
+  if (!req->Wait())
+    goto failed;
+  end_time = base::Time::Now();
 
-  // We want to know if this was:
-  //   1) An OCSP request
-  //   2) A CRL request
-  //   3) A request for a missing intermediate certificate
-  // There's no sure way to do this, so we use heuristics like MIME type and
-  // URL.
-  const char* mime_type = req->http_response_content_type().c_str();
-  bool is_ocsp_resp =
-      strcasecmp(mime_type, "application/ocsp-response") == 0;
-  bool is_crl_resp = strcasecmp(mime_type, "application/x-pkcs7-crl") == 0 ||
-                     strcasecmp(mime_type, "application/x-x509-crl") == 0 ||
-                     strcasecmp(mime_type, "application/pkix-crl") == 0;
-  bool is_crt_resp =
-      strcasecmp(mime_type, "application/x-x509-ca-cert") == 0 ||
-      strcasecmp(mime_type, "application/x-x509-server-cert") == 0 ||
-      strcasecmp(mime_type, "application/pkix-cert") == 0 ||
-      strcasecmp(mime_type, "application/pkcs7-mime") == 0;
-  bool known_resp_type = is_crt_resp || is_crt_resp || is_ocsp_resp;
-
-  bool crl_in_url, crt_in_url, ocsp_in_url, have_url_hint;
-  if (!known_resp_type) {
-    const char* path = req->url().path().c_str();
-    const char* host = req->url().host().c_str();
-    crl_in_url = strcasestr(path, ".crl") != NULL;
-    crt_in_url = strcasestr(path, ".crt") != NULL ||
-                 strcasestr(path, ".p7c") != NULL ||
-                 strcasestr(path, ".cer") != NULL;
-    ocsp_in_url = strcasestr(host, "ocsp") != NULL;
-    have_url_hint = crl_in_url || crt_in_url || ocsp_in_url;
+  if (req->http_request_method() == "POST") {
+    UMA_HISTOGRAM_TIMES("Net.OCSPRequestTimeMs", end_time - start_time);
+  } else if (req->http_request_method() == "GET") {
+    UMA_HISTOGRAM_TIMES("Net.CRLRequestTimeMs", end_time - start_time);
   }
 
-  if (is_ocsp_resp ||
-      (!known_resp_type && (ocsp_in_url ||
-                            (!have_url_hint &&
-                             req->http_request_method() == "POST")))) {
-    UMA_HISTOGRAM_TIMES("Net.OCSPRequestTimeMs", duration);
-  } else if (is_crl_resp || (!known_resp_type && crl_in_url)) {
-    UMA_HISTOGRAM_TIMES("Net.CRLRequestTimeMs", duration);
-  } else if (is_crt_resp || (!known_resp_type && crt_in_url)) {
-    UMA_HISTOGRAM_TIMES("Net.CRTRequestTimeMs", duration);
-  } else {
-    UMA_HISTOGRAM_TIMES("Net.UnknownTypeRequestTimeMs", duration);
-  }
+  // If the response code is -1, the request failed and there is no response.
+  if (req->http_response_code() == static_cast<PRUint16>(-1))
+    goto failed;
 
   return OCSPSetResponse(
       req, http_response_code,
@@ -679,6 +637,15 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
       http_response_headers,
       http_response_data,
       http_response_data_len);
+
+ failed:
+  if (http_response_data_len) {
+    // We must always set an output value, even on failure.  The output value 0
+    // means the failure was unrelated to the acceptable response data length.
+    *http_response_data_len = 0;
+  }
+  PORT_SetError(SEC_ERROR_BAD_HTTP_RESPONSE);  // Simple approximation.
+  return SECFailure;
 }
 
 SECStatus OCSPFree(SEC_HTTP_REQUEST_SESSION request) {
