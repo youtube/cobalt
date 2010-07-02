@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2010 The Chromium Authors. All rights reserved.
+// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -224,7 +224,7 @@ bool Eviction::EvictEntry(CacheRankingsBlock* node, bool empty) {
 
   ReportTrimTimes(entry);
   if (empty || !new_eviction_) {
-    entry->DoomImpl();
+    entry->Doom();
   } else {
     entry->DeleteEntryData(false);
     EntryStore* info = entry->entry()->Data();
@@ -453,7 +453,7 @@ bool Eviction::RemoveDeletedNode(CacheRankingsBlock* node) {
   }
   bool doomed = (entry->entry()->Data()->state == ENTRY_DOOMED);
   entry->entry()->Data()->state = ENTRY_DOOMED;
-  entry->DoomImpl();
+  entry->Doom();
   entry->Release();
   return !doomed;
 }
