@@ -441,8 +441,9 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
     if (policy == net::ERR_ACCESS_DENIED) {
-      request_->delegate()->OnGetCookiesBlocked(request_);
+      request_->delegate()->OnGetCookies(request_, true);
     } else if (policy == net::OK && request_->context()->cookie_store()) {
+      request_->delegate()->OnGetCookies(request_, false);
       net::CookieOptions options;
       options.set_include_httponly();
       std::string cookies =
@@ -453,7 +454,7 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
             net::HttpRequestHeaders::kCookie, cookies);
       }
     }
-    // We may have been canceled within OnGetCookiesBlocked.
+    // We may have been canceled within OnGetCookies.
     if (GetStatus().is_success()) {
       StartTransaction();
     } else {
@@ -467,7 +468,10 @@ void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
   // If the request was destroyed, then there is no more work to do.
   if (request_ && request_->delegate()) {
     if (policy == net::ERR_ACCESS_DENIED) {
-      request_->delegate()->OnSetCookieBlocked(request_);
+      request_->delegate()->OnSetCookie(
+          request_,
+          response_cookies_[response_cookies_save_index_],
+          true);
     } else if ((policy == net::OK || policy == net::OK_FOR_SESSION_ONLY) &&
                request_->context()->cookie_store()) {
       // OK to save the current response cookie now.
@@ -478,9 +482,13 @@ void URLRequestHttpJob::OnCanSetCookieCompleted(int policy) {
       request_->context()->cookie_store()->SetCookieWithOptions(
           request_->url(), response_cookies_[response_cookies_save_index_],
           options);
+      request_->delegate()->OnSetCookie(
+          request_,
+          response_cookies_[response_cookies_save_index_],
+          false);
     }
     response_cookies_save_index_++;
-    // We may have been canceled within OnSetCookieBlocked.
+    // We may have been canceled within OnSetCookie.
     if (GetStatus().is_success()) {
       SaveNextCookie();
     } else {
