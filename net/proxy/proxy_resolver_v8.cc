@@ -141,7 +141,8 @@ class V8ExternalASCIIString : public v8::String::ExternalAsciiStringResource {
 // For small strings it is better to just make a copy, whereas for large
 // strings there are savings by sharing the storage. This number identifies
 // the cutoff length for when to start wrapping rather than creating copies.
-const size_t kMaxStringBytesForCopy = 256;
+// TODO(eroman): This is disabled because of crbug.com/48145.
+const size_t kMaxStringBytesForCopy = static_cast<size_t>(-1);
 
 // Converts a V8 String to a UTF16 string16.
 string16 V8StringToUTF16(v8::Handle<v8::String> s) {
