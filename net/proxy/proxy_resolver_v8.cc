@@ -141,8 +141,7 @@ class V8ExternalASCIIString : public v8::String::ExternalAsciiStringResource {
 // For small strings it is better to just make a copy, whereas for large
 // strings there are savings by sharing the storage. This number identifies
 // the cutoff length for when to start wrapping rather than creating copies.
-// TODO(eroman): This is disabled because of crbug.com/48145.
-const size_t kMaxStringBytesForCopy = static_cast<size_t>(-1);
+const size_t kMaxStringBytesForCopy = 256;
 
 // Converts a V8 String to a UTF16 string16.
 string16 V8StringToUTF16(v8::Handle<v8::String> s) {
@@ -246,6 +245,12 @@ class ProxyResolverV8::Context {
 
     v8_this_.Dispose();
     v8_context_.Dispose();
+
+    // Run the V8 garbage collector. We do this to be sure the
+    // ExternalStringResource objects we allocated get properly disposed.
+    // Otherwise when running the unit-tests they may get leaked.
+    // See crbug.com/48145.
+    PurgeMemory();
   }
 
   int ResolveProxy(const GURL& query_url, ProxyInfo* results) {
