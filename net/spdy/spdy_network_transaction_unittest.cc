@@ -1308,33 +1308,34 @@ TEST_F(SpdyNetworkTransactionTest, NetLog) {
 // on the network, but issued a Read for only 5 of those bytes) that the data
 // flow still works correctly.
 TEST_F(SpdyNetworkTransactionTest, BufferFull) {
+  spdy::SpdyFramer framer;
+
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   MockWrite writes[] = { CreateMockWrite(*req) };
 
-  static const unsigned char kCombinedDataFrames[] = {
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x06,                                      // length
-    'g', 'o', 'o', 'd', 'b', 'y',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x06,                                      // length
-    'e', ' ', 'w', 'o', 'r', 'l',
+  // 2 data frames in a single read.
+  scoped_ptr<spdy::SpdyFrame> data_frame_1(
+      framer.CreateDataFrame(1, "goodby", 6, spdy::DATA_FLAG_NONE));
+  scoped_ptr<spdy::SpdyFrame> data_frame_2(
+      framer.CreateDataFrame(1, "e worl", 6, spdy::DATA_FLAG_NONE));
+  const spdy::SpdyFrame* data_frames[2] = {
+    data_frame_1.get(),
+    data_frame_2.get(),
   };
-
-  static const unsigned char kLastFrame[] = {
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x01, 0x00, 0x00, 0x01,                                      // FIN, length
-    'd',
-  };
+  char combined_data_frames[100];
+  int combined_data_frames_len =
+      CombineFrames(data_frames, arraysize(data_frames),
+                    combined_data_frames, arraysize(combined_data_frames));
+  scoped_ptr<spdy::SpdyFrame> last_frame(
+      framer.CreateDataFrame(1, "d", 1, spdy::DATA_FLAG_FIN));
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
     CreateMockRead(*resp),
     MockRead(true, ERR_IO_PENDING),  // Force a pause
-    MockRead(true, reinterpret_cast<const char*>(kCombinedDataFrames),
-             arraysize(kCombinedDataFrames)),
+    MockRead(true, combined_data_frames, combined_data_frames_len),
     MockRead(true, ERR_IO_PENDING),  // Force a pause
-    MockRead(true, reinterpret_cast<const char*>(kLastFrame),
-             arraysize(kLastFrame)),
+    CreateMockRead(*last_frame),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -1410,31 +1411,32 @@ TEST_F(SpdyNetworkTransactionTest, BufferFull) {
 // at the same time, ensure that we don't notify a read completion for
 // each data frame individually.
 TEST_F(SpdyNetworkTransactionTest, Buffering) {
+  spdy::SpdyFramer framer;
+
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   MockWrite writes[] = { CreateMockWrite(*req) };
 
   // 4 data frames in a single read.
-  static const unsigned char kCombinedDataFrames[] = {
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x01, 0x00, 0x00, 0x07,                                      // FIN, length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
+  scoped_ptr<spdy::SpdyFrame> data_frame(
+      framer.CreateDataFrame(1, "message", 7, spdy::DATA_FLAG_NONE));
+  scoped_ptr<spdy::SpdyFrame> data_frame_fin(
+      framer.CreateDataFrame(1, "message", 7, spdy::DATA_FLAG_FIN));
+  const spdy::SpdyFrame* data_frames[4] = {
+    data_frame.get(),
+    data_frame.get(),
+    data_frame.get(),
+    data_frame_fin.get()
   };
+  char combined_data_frames[100];
+  int combined_data_frames_len =
+      CombineFrames(data_frames, arraysize(data_frames),
+                    combined_data_frames, arraysize(combined_data_frames));
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
     CreateMockRead(*resp),
     MockRead(true, ERR_IO_PENDING),  // Force a pause
-    MockRead(true, reinterpret_cast<const char*>(kCombinedDataFrames),
-             arraysize(kCombinedDataFrames)),
+    MockRead(true, combined_data_frames, combined_data_frames_len),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -1512,40 +1514,33 @@ TEST_F(SpdyNetworkTransactionTest, Buffering) {
 
 // Verify the case where we buffer data but read it after it has been buffered.
 TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
+  spdy::SpdyFramer framer;
+
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   MockWrite writes[] = { CreateMockWrite(*req) };
 
-  // The Syn Reply and all data frames in a single read.
-  static const unsigned char kCombinedFrames[] = {
-    0x80, 0x01, 0x00, 0x02,                                      // header
-    0x00, 0x00, 0x00, 0x45,
-    0x00, 0x00, 0x00, 0x01,
-    0x00, 0x00, 0x00, 0x04,                                      // 4 headers
-    0x00, 0x05, 'h', 'e', 'l', 'l', 'o',
-    0x00, 0x03, 'b', 'y', 'e',
-    0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
-    0x00, 0x03, '2', '0', '0',
-    0x00, 0x03, 'u', 'r', 'l',
-    0x00, 0x0a, '/', 'i', 'n', 'd', 'e', 'x', '.', 'p', 'h', 'p',
-    0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-    0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x01, 0x00, 0x00, 0x07,                                      // FIN, length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
+  // 5 data frames in a single read.
+  scoped_ptr<spdy::SpdyFrame> syn_reply(
+      ConstructSpdyGetSynReply(NULL, 0));
+  syn_reply->set_flags(spdy::CONTROL_FLAG_NONE);  // turn off FIN bit
+  scoped_ptr<spdy::SpdyFrame> data_frame(
+      framer.CreateDataFrame(1, "message", 7, spdy::DATA_FLAG_NONE));
+  scoped_ptr<spdy::SpdyFrame> data_frame_fin(
+      framer.CreateDataFrame(1, "message", 7, spdy::DATA_FLAG_FIN));
+  const spdy::SpdyFrame* frames[5] = {
+    syn_reply.get(),
+    data_frame.get(),
+    data_frame.get(),
+    data_frame.get(),
+    data_frame_fin.get()
   };
+  char combined_frames[200];
+  int combined_frames_len =
+      CombineFrames(frames, arraysize(frames),
+                    combined_frames, arraysize(combined_frames));
 
   MockRead reads[] = {
-    MockRead(true, reinterpret_cast<const char*>(kCombinedFrames),
-             arraysize(kCombinedFrames)),
+    MockRead(true, combined_frames, combined_frames_len),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -1619,32 +1614,30 @@ TEST_F(SpdyNetworkTransactionTest, BufferedAll) {
 
 // Verify the case where we buffer data and close the connection.
 TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
+  spdy::SpdyFramer framer;
+
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   MockWrite writes[] = { CreateMockWrite(*req) };
 
   // All data frames in a single read.
-  static const unsigned char kCombinedFrames[] = {
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    // NOTE: We didn't FIN the stream.
+  // NOTE: We don't FIN the stream.
+  scoped_ptr<spdy::SpdyFrame> data_frame(
+      framer.CreateDataFrame(1, "message", 7, spdy::DATA_FLAG_NONE));
+  const spdy::SpdyFrame* data_frames[4] = {
+    data_frame.get(),
+    data_frame.get(),
+    data_frame.get(),
+    data_frame.get()
   };
-
+  char combined_data_frames[100];
+  int combined_data_frames_len =
+      CombineFrames(data_frames, arraysize(data_frames),
+                    combined_data_frames, arraysize(combined_data_frames));
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
     CreateMockRead(*resp),
     MockRead(true, ERR_IO_PENDING),  // Force a wait
-    MockRead(true, reinterpret_cast<const char*>(kCombinedFrames),
-             arraysize(kCombinedFrames)),
+    MockRead(true, combined_data_frames, combined_data_frames_len),
     MockRead(true, 0, 0)  // EOF
   };
 
@@ -1719,22 +1712,20 @@ TEST_F(SpdyNetworkTransactionTest, BufferedClosed) {
 
 // Verify the case where we buffer data and cancel the transaction.
 TEST_F(SpdyNetworkTransactionTest, BufferedCancelled) {
+  spdy::SpdyFramer framer;
+
   scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
   MockWrite writes[] = { CreateMockWrite(*req) };
 
-  static const unsigned char kDataFrame[] = {
-    0x00, 0x00, 0x00, 0x01,                                      // header
-    0x00, 0x00, 0x00, 0x07,                                      // length
-    'm', 'e', 's', 's', 'a', 'g', 'e',
-    // NOTE: We didn't FIN the stream.
-  };
+  // NOTE: We don't FIN the stream.
+  scoped_ptr<spdy::SpdyFrame> data_frame(
+      framer.CreateDataFrame(1, "message", 7, spdy::DATA_FLAG_NONE));
 
   scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
   MockRead reads[] = {
     CreateMockRead(*resp),
     MockRead(true, ERR_IO_PENDING),  // Force a wait
-    MockRead(true, reinterpret_cast<const char*>(kDataFrame),
-             arraysize(kDataFrame)),
+    CreateMockRead(*data_frame),
     MockRead(true, 0, 0)  // EOF
   };
 
