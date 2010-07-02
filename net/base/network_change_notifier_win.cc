@@ -14,6 +14,7 @@ namespace net {
 NetworkChangeNotifierWin::NetworkChangeNotifierWin() {
   memset(&addr_overlapped_, 0, sizeof addr_overlapped_);
   addr_overlapped_.hEvent = WSACreateEvent();
+  WatchForAddressChange();
 }
 
 NetworkChangeNotifierWin::~NetworkChangeNotifierWin() {
