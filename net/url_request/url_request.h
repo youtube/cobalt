@@ -187,12 +187,18 @@ class URLRequest {
       request->Cancel();
     }
 
-    // Called when unable to get cookies due to policy.
-    virtual void OnGetCookiesBlocked(URLRequest* request) {
+    // Called when reading cookies. |blocked_by_policy| is true if access to
+    // cookies was denied due to content settings. This method will never be
+    // invoked when LOAD_DO_NOT_SEND_COOKIES is specified.
+    virtual void OnGetCookies(URLRequest* request, bool blocked_by_policy) {
     }
 
-    // Called when unable to set a cookie due to policy.
-    virtual void OnSetCookieBlocked(URLRequest* request) {
+    // Called when a cookie is set. |blocked_by_policy| is true if the cookie
+    // was rejected due to content settings. This method will never be invoked
+    // when LOAD_DO_NOT_SAVE_COOKIES is specified.
+    virtual void OnSetCookie(URLRequest* request,
+                             const std::string& cookie_line,
+                             bool blocked_by_policy) {
     }
 
     // After calling Start(), the delegate will receive an OnResponseStarted
