@@ -448,8 +448,7 @@ void URLRequestHttpJob::OnCanGetCookiesCompleted(int policy) {
       std::string cookies =
           request_->context()->cookie_store()->GetCookiesWithOptions(
               request_->url(), options);
-      if (request_->context()->InterceptRequestCookies(request_, cookies) &&
-          !cookies.empty()) {
+      if (!cookies.empty()) {
         request_info_.extra_headers.SetHeader(
             net::HttpRequestHeaders::kCookie, cookies);
       }
@@ -785,10 +784,8 @@ void URLRequestHttpJob::FetchResponseCookies(
   std::string value;
 
   void* iter = NULL;
-  while (response_info->headers->EnumerateHeader(&iter, name, &value)) {
-    if (request_->context()->InterceptResponseCookie(request_, value))
-      cookies->push_back(value);
-  }
+  while (response_info->headers->EnumerateHeader(&iter, name, &value))
+    cookies->push_back(value);
 }
 
 class HTTPSProberDelegate : public net::HTTPSProberDelegate {
