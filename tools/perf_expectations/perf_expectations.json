@@ -20,7 +20,7 @@
  "mac-release-10.6/intl1/times/t": {"delta": 480, "var": 110},
  "mac-release-10.6/intl2/times/t": {"delta": 300, "var": 60},
  "mac-release-10.6/morejs/times/t": {"delta": -40, "var": 50},
- "mac-release-10.6/moz/times/t": {"delta": 0, "var": 40},
+ "mac-release-10.6/moz/times/t": {"delta": 55, "var": 40},
  "mac-release-10.6/startup/times/t": {"delta": 10, "var": 8},
  "vista-release-dual-core/dhtml/times/t": {"delta": 10, "var": 20},
  "vista-release-dual-core/intl1/times/t": {"delta": 0, "var": 60},
