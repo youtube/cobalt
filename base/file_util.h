@@ -603,6 +603,15 @@ inline bool MakeFileUnreadable(const FilePath& path) {
 
 #endif  // UNIT_TEST
 
+#if defined(OS_WIN)
+  // Loads the file passed in as an image section and touches pages to avoid
+  // subsequent hard page faults during LoadLibrary. The size to be pre read
+  // is passed in. If it is 0 then the whole file is paged in. The step size
+  // which indicates the number of bytes to skip after every page touched is
+  // also passed in.
+  bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
+                    size_t step_size);
+#endif  // OS_WIN
 }  // namespace file_util
 
 // Deprecated functions have been moved to this separate header file,

@@ -14,6 +14,7 @@
 
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/pe_image.h"
 #include "base/scoped_comptr_win.h"
 #include "base/scoped_handle.h"
 #include "base/string_util.h"
@@ -1098,6 +1099,30 @@ bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
   }
   UnmapViewOfFile(file_view);
   return success;
+}
+
+bool PreReadImage(const wchar_t* file_path, size_t size_to_read,
+                  size_t step_size) {
+  HMODULE dll_module = LoadLibraryExW(
+      file_path,
+      NULL,
+      LOAD_WITH_ALTERED_SEARCH_PATH | DONT_RESOLVE_DLL_REFERENCES);
+
+  if (!dll_module)
+    return false;
+
+  PEImage pe_image(dll_module);
+  PIMAGE_NT_HEADERS nt_headers = pe_image.GetNTHeaders();
+  size_t actual_size_to_read = size_to_read ? size_to_read :
+                               nt_headers->OptionalHeader.SizeOfImage;
+  volatile uint8* touch = reinterpret_cast<uint8*>(dll_module);
+  size_t offset = 0;
+  while (offset < actual_size_to_read) {
+    uint8 unused = *(touch + offset);
+    offset += step_size;
+  }
+  FreeLibrary(dll_module);
+  return true;
 }
 
 }  // namespace file_util
