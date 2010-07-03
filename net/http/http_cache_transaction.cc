@@ -176,7 +176,7 @@ int HttpCache::Transaction::Start(const HttpRequestInfo* request,
   next_state_ = STATE_GET_BACKEND;
   int rv = DoLoop(OK);
 
-  // Setting this here allows us to check for the existance of a callback_ to
+  // Setting this here allows us to check for the existence of a callback_ to
   // determine if we are still inside Start.
   if (rv == ERR_IO_PENDING)
     callback_ = callback;
