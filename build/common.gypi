@@ -437,7 +437,7 @@
       }],
       ['fastbuild!=0', {
         'conditions': [
-          # Finally, for Windows, we simply turn on profiling.
+          # For Windows, we don't genererate debug information.
           ['OS=="win"', {
             'msvs_settings': {
               'VCLinkerTool': {
@@ -447,8 +447,10 @@
                 'DebugInformationFormat': '0',
               }
             }
-          }, { # else: OS != "win"
-            'cflags': [ '-g1' ],
+          }, { # else: OS != "win", generate less debug information.
+            'variables': {
+              'debug_extra_cflags': '-g1',
+            },
           }],
         ],  # conditions for fastbuild.
       }],  # fastbuild!=0
