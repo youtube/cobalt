@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -31,11 +31,6 @@ TEST_F(SysInfoTest, AmountOfFreeDiskSpace) {
 TEST_F(SysInfoTest, GetEnvVar) {
   // Every setup should have non-empty PATH...
   EXPECT_NE(base::SysInfo::GetEnvVar(L"PATH"), L"");
-}
-
-TEST_F(SysInfoTest, HasEnvVar) {
-  // Every setup should have PATH...
-  EXPECT_TRUE(base::SysInfo::HasEnvVar(L"PATH"));
 }
 
 #if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_CHROMEOS)
