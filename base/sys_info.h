@@ -30,10 +30,6 @@ class SysInfo {
   // or -1 on failure.
   static int64 AmountOfFreeDiskSpace(const FilePath& path);
 
-  // Return true if the given environment variable is defined.
-  // DEPRECATED in favor of EnvVarGetter in base/env_var.h.
-  static bool HasEnvVar(const wchar_t* var);
-
   // Return the value of the given environment variable
   // or an empty string if not defined.
   // DEPRECATED in favor of EnvVarGetter in base/env_var.h.

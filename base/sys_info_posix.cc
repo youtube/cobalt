@@ -1,4 +1,4 @@
-// Copyright (c) 2008 The Chromium Authors. All rights reserved.
+// Copyright (c) 2010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -44,12 +44,6 @@ int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
     return -1;
   }
   return static_cast<int64>(stats.f_bavail) * stats.f_frsize;
-}
-
-// static
-bool SysInfo::HasEnvVar(const wchar_t* var) {
-  std::string var_utf8 = WideToUTF8(std::wstring(var));
-  return getenv(var_utf8.c_str()) != NULL;
 }
 
 // static
