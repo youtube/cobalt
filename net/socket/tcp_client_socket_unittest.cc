@@ -33,7 +33,7 @@ class TCPClientSocketTest
   virtual void DidAccept(ListenSocket* server, ListenSocket* connection) {
     connected_sock_ = connection;
   }
-  virtual void DidRead(ListenSocket*, const std::string& s) {
+  virtual void DidRead(ListenSocket*, const char* str, int len) {
     // TODO(dkegel): this might not be long enough to tickle some bugs.
     connected_sock_->Send(kServerReply,
                           arraysize(kServerReply) - 1,
