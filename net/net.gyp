@@ -987,6 +987,21 @@
       ],
     },
     {
+      'target_name': 'http_listen_socket',
+      'type': '<(library)',
+      'dependencies': [
+        'net',
+        '../base/base.gyp:base',
+        '../testing/gtest.gyp:gtest',
+      ],
+      'msvs_guid': 'FCB894A4-CC6C-48C2-B495-52C80527E9BE',
+      'sources': [
+        'server/http_listen_socket.cc',
+        'server/http_listen_socket.h',
+        'server/http_server_request_info.h',
+      ],
+    },
+    {
       'target_name': 'hresolv',
       'type': 'executable',
       'dependencies': [
