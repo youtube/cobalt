@@ -106,8 +106,10 @@ TEST(WebSocketHandshakeResponseHandlerTest, SimpleResponse) {
       "\r\n"
       "8jKS'y:G*Co,Wxa-";
 
-  EXPECT_TRUE(handler.ParseRawResponse(kHandshakeResponseMessage,
-                                       strlen(kHandshakeResponseMessage)));
+  EXPECT_EQ(strlen(kHandshakeResponseMessage),
+            handler.ParseRawResponse(kHandshakeResponseMessage,
+                                     strlen(kHandshakeResponseMessage)));
+  EXPECT_TRUE(handler.HasResponse());
 
   handler.RemoveHeaders(kCookieHeaders, arraysize(kCookieHeaders));
 
@@ -129,8 +131,10 @@ TEST(WebSocketHandshakeResponseHandlerTest, ReplaceResponseCookies) {
       "\r\n"
       "8jKS'y:G*Co,Wxa-";
 
-  EXPECT_TRUE(handler.ParseRawResponse(kHandshakeResponseMessage,
-                                       strlen(kHandshakeResponseMessage)));
+  EXPECT_EQ(strlen(kHandshakeResponseMessage),
+            handler.ParseRawResponse(kHandshakeResponseMessage,
+                                     strlen(kHandshakeResponseMessage)));
+  EXPECT_TRUE(handler.HasResponse());
   std::vector<std::string> cookies;
   handler.GetHeaders(kSetCookieHeaders, arraysize(kSetCookieHeaders), &cookies);
   ASSERT_EQ(2U, cookies.size());
@@ -149,6 +153,26 @@ TEST(WebSocketHandshakeResponseHandlerTest, ReplaceResponseCookies) {
       "8jKS'y:G*Co,Wxa-";
 
   EXPECT_EQ(kHandshakeResponseExpectedMessage, handler.GetResponse());
+}
+
+TEST(WebSocketHandshakeResponseHandlerTest, BadResponse) {
+  WebSocketHandshakeResponseHandler handler;
+
+  static const char* kBadMessage = "\n\n\r\net-Location: w";
+  EXPECT_EQ(strlen(kBadMessage),
+            handler.ParseRawResponse(kBadMessage, strlen(kBadMessage)));
+  EXPECT_TRUE(handler.HasResponse());
+  EXPECT_EQ(kBadMessage, handler.GetResponse());
+}
+
+TEST(WebSocketHandshakeResponseHandlerTest, BadResponse2) {
+  WebSocketHandshakeResponseHandler handler;
+
+  static const char* kBadMessage = "\n\r\n\r\net-Location: w";
+  EXPECT_EQ(strlen(kBadMessage),
+            handler.ParseRawResponse(kBadMessage, strlen(kBadMessage)));
+  EXPECT_TRUE(handler.HasResponse());
+  EXPECT_EQ(kBadMessage, handler.GetResponse());
 }
 
 TEST(WebSocketHandshakeHandlerTest, HttpRequestResponse) {
