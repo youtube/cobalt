@@ -105,6 +105,7 @@ class WebSocketHandshakeResponseHandler {
   int original_header_length_;
   std::string status_line_;
   std::string headers_;
+  std::string header_separator_;
   std::string key_;
 
   DISALLOW_COPY_AND_ASSIGN(WebSocketHandshakeResponseHandler);

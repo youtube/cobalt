@@ -27,9 +27,15 @@ void ParseHandshakeHeader(
   }
   // |status_line| includes \r\n.
   *status_line = std::string(handshake_message, i + 2);
-  // |handshake_message| includes tailing \r\n\r\n.
-  // |headers| doesn't include 2nd \r\n.
-  *headers = std::string(handshake_message + i + 2, len - (i + 2) - 2);
+
+  int header_len = len - (i + 2) - 2;
+  if (header_len > 0) {
+    // |handshake_message| includes tailing \r\n\r\n.
+    // |headers| doesn't include 2nd \r\n.
+    *headers = std::string(handshake_message + i + 2, header_len);
+  } else {
+    *headers = "";
+  }
 }
 
 void FetchHeaders(const std::string& headers,
@@ -300,6 +306,10 @@ size_t WebSocketHandshakeResponseHandler::ParseRawResponse(
                        original_header_length_,
                        &status_line_,
                        &headers_);
+  int header_size = status_line_.size() + headers_.size();
+  DCHECK_GE(original_header_length_, header_size);
+  header_separator_ = std::string(original_.data() + header_size,
+                                  original_header_length_ - header_size);
   key_ = std::string(original_.data() + original_header_length_,
                      kResponseKeySize);
 
@@ -405,10 +415,10 @@ void WebSocketHandshakeResponseHandler::RemoveHeaders(
 std::string WebSocketHandshakeResponseHandler::GetResponse() {
   DCHECK(HasResponse());
   DCHECK(status_line_.size() > 0);
-  DCHECK(headers_.size() > 0);
+  // headers_ might be empty for wrong response from server.
   DCHECK_EQ(kResponseKeySize, key_.size());
 
-  return status_line_ + headers_ + "\r\n" + key_;
+  return status_line_ + headers_ + header_separator_ + key_;
 }
 
 }  // namespace net
