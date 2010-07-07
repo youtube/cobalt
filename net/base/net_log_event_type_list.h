@@ -572,3 +572,13 @@ EVENT_TYPE(AUTH_PROXY)
 
 // The time spent authentication to the server.
 EVENT_TYPE(AUTH_SERVER)
+
+// ------------------------------------------------------------------------
+// Global events
+// ------------------------------------------------------------------------
+// These are events which are not grouped by source id, as they have no
+// context.
+
+// This event is emitted whenever NetworkChangeNotifier determines that the
+// underlying network has changed.
+EVENT_TYPE(NETWORK_IP_ADDRESSSES_CHANGED)
