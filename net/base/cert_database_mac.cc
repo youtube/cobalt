@@ -6,6 +6,8 @@
 
 #include <Security/Security.h>
 
+#include "base/crypto/cssm_init.h"
+#include "base/lock.h"
 #include "base/logging.h"
 #include "net/base/net_errors.h"
 #include "net/base/x509_certificate.h"
@@ -39,7 +41,11 @@ int CertDatabase::CheckUserCert(X509Certificate* cert) {
 }
 
 int CertDatabase::AddUserCert(X509Certificate* cert) {
-  OSStatus err = SecCertificateAddToKeychain(cert->os_cert_handle(), NULL);
+  OSStatus err;
+  {
+    AutoLock locked(base::GetMacSecurityServicesLock());
+    err = SecCertificateAddToKeychain(cert->os_cert_handle(), NULL);
+  }
   switch (err) {
     case noErr:
     case errSecDuplicateItem:
