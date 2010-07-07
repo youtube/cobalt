@@ -10,6 +10,7 @@
 
 #include "base/base64.h"
 #include "base/crypto/cssm_init.h"
+#include "base/lock.h"
 #include "base/logging.h"
 #include "base/scoped_cftyperef.h"
 
@@ -206,20 +207,23 @@ static OSStatus CreateRSAKeyPair(int size_in_bits,
     return err;
   }
   scoped_cftyperef<SecKeychainRef> scoped_keychain(keychain);
-  err = SecKeyCreatePair(
-      keychain,
-      CSSM_ALGID_RSA,
-      size_in_bits,
-      0LL,
-      // public key usage and attributes:
-      CSSM_KEYUSE_ENCRYPT | CSSM_KEYUSE_VERIFY | CSSM_KEYUSE_WRAP,
-      CSSM_KEYATTR_EXTRACTABLE | CSSM_KEYATTR_PERMANENT,
-      // private key usage and attributes:
-      CSSM_KEYUSE_DECRYPT | CSSM_KEYUSE_SIGN | CSSM_KEYUSE_UNWRAP,
-      CSSM_KEYATTR_EXTRACTABLE | CSSM_KEYATTR_PERMANENT |
-          CSSM_KEYATTR_SENSITIVE,
-      NULL,
-      out_pub_key, out_priv_key);
+  {
+    AutoLock locked(base::GetMacSecurityServicesLock());
+    err = SecKeyCreatePair(
+        keychain,
+        CSSM_ALGID_RSA,
+        size_in_bits,
+        0LL,
+        // public key usage and attributes:
+        CSSM_KEYUSE_ENCRYPT | CSSM_KEYUSE_VERIFY | CSSM_KEYUSE_WRAP,
+        CSSM_KEYATTR_EXTRACTABLE | CSSM_KEYATTR_PERMANENT,
+        // private key usage and attributes:
+        CSSM_KEYUSE_DECRYPT | CSSM_KEYUSE_SIGN | CSSM_KEYUSE_UNWRAP,
+        CSSM_KEYATTR_EXTRACTABLE | CSSM_KEYATTR_PERMANENT |
+            CSSM_KEYATTR_SENSITIVE,
+        NULL,
+        out_pub_key, out_priv_key);
+  }
   if (err)
     base::LogCSSMError("SecKeyCreatePair", err);
   return err;
@@ -230,24 +234,33 @@ static OSStatus CreateSignatureContext(SecKeyRef key,
                                        CSSM_CC_HANDLE* out_cc_handle) {
   OSStatus err;
   const CSSM_ACCESS_CREDENTIALS* credentials = NULL;
-  err = SecKeyGetCredentials(key,
-                             CSSM_ACL_AUTHORIZATION_SIGN,
-                             kSecCredentialTypeDefault,
-                             &credentials);
+  {
+    AutoLock locked(base::GetMacSecurityServicesLock());
+    err = SecKeyGetCredentials(key,
+                               CSSM_ACL_AUTHORIZATION_SIGN,
+                               kSecCredentialTypeDefault,
+                               &credentials);
+  }
   if (err) {
     base::LogCSSMError("SecKeyGetCredentials", err);
     return err;
   }
 
   CSSM_CSP_HANDLE csp_handle = 0;
-  err = SecKeyGetCSPHandle(key, &csp_handle);
+  {
+    AutoLock locked(base::GetMacSecurityServicesLock());
+    err = SecKeyGetCSPHandle(key, &csp_handle);
+  }
   if (err) {
     base::LogCSSMError("SecKeyGetCSPHandle", err);
     return err;
   }
 
   const CSSM_KEY* cssm_key = NULL;
-  err = SecKeyGetCSSMKey(key, &cssm_key);
+  {
+    AutoLock locked(base::GetMacSecurityServicesLock());
+    err = SecKeyGetCSSMKey(key, &cssm_key);
+  }
   if (err) {
     base::LogCSSMError("SecKeyGetCSSMKey", err);
     return err;
