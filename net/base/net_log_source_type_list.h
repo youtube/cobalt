@@ -5,13 +5,13 @@
 // NOTE: No header guards are used, since this file is intended to be expanded
 // directly within a block where the SOURCE_TYPE macro is defined.
 
-SOURCE_TYPE(NONE, -1)
+// Used for global events which don't correspond to a particular entity.
+SOURCE_TYPE(NONE, 0)
+SOURCE_TYPE(URL_REQUEST, 1)
+SOURCE_TYPE(SOCKET_STREAM, 2)
+SOURCE_TYPE(INIT_PROXY_RESOLVER, 3)
+SOURCE_TYPE(CONNECT_JOB, 4)
+SOURCE_TYPE(SOCKET, 5)
+SOURCE_TYPE(SPDY_SESSION, 6)
 
-SOURCE_TYPE(URL_REQUEST, 0)
-SOURCE_TYPE(SOCKET_STREAM, 1)
-SOURCE_TYPE(INIT_PROXY_RESOLVER, 2)
-SOURCE_TYPE(CONNECT_JOB, 3)
-SOURCE_TYPE(SOCKET, 4)
-SOURCE_TYPE(SPDY_SESSION, 5)
-
-SOURCE_TYPE(COUNT, 6) // Always keep this as the last entry.
+SOURCE_TYPE(COUNT, 7) // Always keep this as the last entry.
