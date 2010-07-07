@@ -319,16 +319,15 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringTCPConnect) {
 
   pool_->CancelRequest("a", requests_[0]->handle());
   pool_->CancelRequest("a", requests_[1]->handle());
-  // Requests in the connect phase don't actually get cancelled.
-  EXPECT_EQ(0, tcp_socket_pool_->cancel_count());
+  EXPECT_EQ(1, tcp_socket_pool_->cancel_count());
 
   // Now wait for the TCP sockets to connect.
   MessageLoop::current()->RunAllPending();
 
   EXPECT_EQ(kRequestNotFound, GetOrderOfRequest(1));
   EXPECT_EQ(kRequestNotFound, GetOrderOfRequest(2));
-  EXPECT_EQ(0, tcp_socket_pool_->cancel_count());
-  EXPECT_EQ(2, pool_->IdleSocketCount());
+  EXPECT_EQ(1, tcp_socket_pool_->cancel_count());
+  EXPECT_EQ(1, pool_->IdleSocketCount());
 
   requests_[0]->handle()->Reset();
   requests_[1]->handle()->Reset();
@@ -355,8 +354,7 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringSOCKSConnect) {
   pool_->CancelRequest("a", requests_[0]->handle());
   pool_->CancelRequest("a", requests_[1]->handle());
   EXPECT_EQ(0, tcp_socket_pool_->cancel_count());
-  // Requests in the connect phase don't actually get cancelled.
-  EXPECT_EQ(0, tcp_socket_pool_->release_count());
+  EXPECT_EQ(1, tcp_socket_pool_->release_count());
 
   // Now wait for the async data to reach the SOCKS connect jobs.
   MessageLoop::current()->RunAllPending();
@@ -364,8 +362,8 @@ TEST_F(SOCKSClientSocketPoolTest, CancelDuringSOCKSConnect) {
   EXPECT_EQ(kRequestNotFound, GetOrderOfRequest(1));
   EXPECT_EQ(kRequestNotFound, GetOrderOfRequest(2));
   EXPECT_EQ(0, tcp_socket_pool_->cancel_count());
-  EXPECT_EQ(0, tcp_socket_pool_->release_count());
-  EXPECT_EQ(2, pool_->IdleSocketCount());
+  EXPECT_EQ(1, tcp_socket_pool_->release_count());
+  EXPECT_EQ(1, pool_->IdleSocketCount());
 
   requests_[0]->handle()->Reset();
   requests_[1]->handle()->Reset();
