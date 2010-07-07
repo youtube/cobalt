@@ -241,7 +241,6 @@
             # mini_installer_tests depends on mini_installer. This should be
             # defined in installer.gyp.
             '../chrome/installer/mini_installer.gyp:mini_installer',
-            '../chrome/installer/mini_installer.gyp:chrome_frame_mini_installer',
             '../courgette/courgette.gyp:courgette_unittests',
             '../gfx/gfx.gyp:gfx_unittests',
             '../gpu/gpu.gyp:gpu_unittests',
