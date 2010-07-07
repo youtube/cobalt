@@ -49,8 +49,12 @@ void FakeAudioOutputStream::GetVolume(double* volume) {
 }
 
 void FakeAudioOutputStream::Close() {
-  callback_->OnClose(this);
-  callback_ = NULL;
+  // Calls |callback_| only if it is valid. We don't have |callback_| if
+  // we have not yet started.
+  if (callback_) {
+    callback_->OnClose(this);
+    callback_ = NULL;
+  }
 
   if (last_fake_stream_)
     delete last_fake_stream_;
