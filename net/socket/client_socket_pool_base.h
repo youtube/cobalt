@@ -221,6 +221,9 @@ class ClientSocketPoolBaseHelper
   // NetworkChangeNotifier::Observer methods:
   virtual void OnIPAddressChanged();
 
+  // For testing.
+  bool may_have_stalled_group() const { return may_have_stalled_group_; }
+
   int NumConnectJobsInGroup(const std::string& group_name) const {
     return group_map_.find(group_name)->second.jobs.size();
   }
@@ -263,10 +266,16 @@ class ClientSocketPoolBaseHelper
 
   // A Group is allocated per group_name when there are idle sockets or pending
   // requests.  Otherwise, the Group object is removed from the map.
-  // |active_socket_count| tracks the number of sockets held by clients.
+  // |active_socket_count| tracks the number of sockets held by clients.  Of
+  // this number of sockets held by clients, some of them may be released soon,
+  // since ReleaseSocket() was called of them, but the DoReleaseSocket() task
+  // has not run yet for them.  |num_releasing_sockets| tracks these values,
+  // which is useful for not starting up new ConnectJobs when sockets may
+  // become available really soon.
   struct Group {
     Group()
         : active_socket_count(0),
+          num_releasing_sockets(0),
           backup_job(NULL),
           backup_task(NULL) {
     }
@@ -283,6 +292,10 @@ class ClientSocketPoolBaseHelper
     bool HasAvailableSocketSlot(int max_sockets_per_group) const {
       return active_socket_count + static_cast<int>(jobs.size()) <
           max_sockets_per_group;
+    }
+
+    bool HasReleasingSockets() const {
+      return num_releasing_sockets > 0;
     }
 
     RequestPriority TopPendingPriority() const {
@@ -304,6 +317,8 @@ class ClientSocketPoolBaseHelper
     std::set<const ConnectJob*> jobs;
     RequestQueue pending_requests;
     int active_socket_count;  // number of active sockets used by clients
+    // Number of sockets being released within one loop through the MessageLoop.
+    int num_releasing_sockets;
     // A backup job in case the connect for this group takes too long.
     ConnectJob* backup_job;
     CancelableTask* backup_task;
@@ -322,6 +337,10 @@ class ClientSocketPoolBaseHelper
   void IncrementIdleCount();
   void DecrementIdleCount();
 
+  // Called via PostTask by ReleaseSocket.
+  void DoReleaseSocket(
+      const std::string& group_name, ClientSocket* socket, int id);
+
   // Scans the group map for groups which have an available socket slot and
   // at least one pending request. Returns number of groups found, and if found
   // at least one, fills |group| and |group_name| with data of the stalled group
@@ -337,17 +356,15 @@ class ClientSocketPoolBaseHelper
   // Removes |job| from |connect_job_set_|.  Also updates |group| if non-NULL.
   void RemoveConnectJob(const ConnectJob* job, Group* group);
 
-  // Might delete the Group from |group_map_|.
-  // If |was_at_socket_limit|, will also check for idle sockets to assign
-  // to any stalled groups.
-  void OnAvailableSocketSlot(const std::string& group_name,
-                             bool was_at_socket_limit);
+  // Same as OnAvailableSocketSlot except it looks up the Group first to see if
+  // it's there.
+  void MaybeOnAvailableSocketSlot(const std::string& group_name);
 
-  // Process a pending socket request for a group.
-  // If |was_at_socket_limit|, will also check for idle sockets to assign
-  // to any stalled groups.
-  void ProcessPendingRequest(const std::string& group_name,
-                             bool was_at_socket_limit);
+  // Might delete the Group from |group_map_|.
+  void OnAvailableSocketSlot(const std::string& group_name, Group* group);
+
+  // Process a request from a group's pending_requests queue.
+  void ProcessPendingRequest(const std::string& group_name, Group* group);
 
   // Assigns |socket| to |handle| and updates |group|'s counters appropriately.
   void HandOutSocket(ClientSocket* socket,
@@ -367,6 +384,7 @@ class ClientSocketPoolBaseHelper
   void CancelAllConnectJobs();
 
   // Returns true if we can't create any more sockets due to the total limit.
+  // TODO(phajdan.jr): Also take idle sockets into account.
   bool ReachedMaxSocketsLimit() const;
 
   // This is the internal implementation of RequestSocket().  It differs in that
@@ -374,10 +392,6 @@ class ClientSocketPoolBaseHelper
   // |request|.
   int RequestSocketInternal(const std::string& group_name,
                             const Request* request);
-
-  // Assigns an idle socket for the group to the request.
-  // Returns |true| if an idle socket is available, false otherwise.
-  bool AssignIdleSocketToGroup(Group* group, const Request* request);
 
   static void LogBoundConnectJobToRequest(
       const NetLog::Source& connect_job_source, const Request* request);
@@ -395,13 +409,6 @@ class ClientSocketPoolBaseHelper
   // I'm not sure if we hit this situation often.
   void CloseOneIdleSocket();
 
-  // Checks if there are stalled socket groups that should be notified
-  // for possible wakeup.
-  void CheckForStalledSocketGroups();
-
-  // Returns true if we might have a stalled group.
-  bool MayHaveStalledGroups();
-
   GroupMap group_map_;
 
   // Timer used to periodically prune idle sockets that timed out or can't be
@@ -417,6 +424,9 @@ class ClientSocketPoolBaseHelper
   // Number of connected sockets we handed out across all groups.
   int handed_out_socket_count_;
 
+  // Number of sockets being released.
+  int num_releasing_sockets_;
+
   // The maximum total number of sockets. See ReachedMaxSocketsLimit.
   const int max_sockets_;
 
@@ -426,6 +436,26 @@ class ClientSocketPoolBaseHelper
   // The time to wait until closing idle sockets.
   const base::TimeDelta unused_idle_socket_timeout_;
   const base::TimeDelta used_idle_socket_timeout_;
+
+  // Until the maximum number of sockets limit is reached, a group can only
+  // have pending requests if it exceeds the "max sockets per group" limit.
+  //
+  // This means when a socket is released, the only pending requests that can
+  // be started next belong to the same group.
+  //
+  // However once the |max_sockets_| limit is reached, this stops being true:
+  // groups can now have pending requests without having first reached the
+  // |max_sockets_per_group_| limit. So choosing the next request involves
+  // selecting the highest priority request across *all* groups.
+  //
+  // |may_have_stalled_group_| is not conclusive, since when we cancel pending
+  // requests, we may reach the situation where we have the maximum number of
+  // sockets, but no request is stalled because of the global socket limit
+  // (although some requests may be blocked on the socket per group limit).
+  // We don't strictly maintain |may_have_stalled_group_|, since that would
+  // require a linear search through all groups in |group_map_| to see if one
+  // of them is stalled.
+  bool may_have_stalled_group_;
 
   const scoped_ptr<ConnectJobFactory> connect_job_factory_;
 
@@ -439,9 +469,6 @@ class ClientSocketPoolBaseHelper
   // pool.  This is so that when sockets get released back to the pool, we can
   // make sure that they are discarded rather than reused.
   int pool_generation_number_;
-
-  // The count of stalled groups the last time we checked.
-  int last_stalled_group_count_;
 };
 
 }  // namespace internal
@@ -548,6 +575,11 @@ class ClientSocketPoolBase {
     return helper_->OnConnectJobComplete(result, job);
   }
 
+  // For testing.
+  bool may_have_stalled_group() const {
+    return helper_->may_have_stalled_group();
+  }
+
   int NumConnectJobsInGroup(const std::string& group_name) const {
     return helper_->NumConnectJobsInGroup(group_name);
   }
@@ -604,10 +636,11 @@ class ClientSocketPoolBase {
   // Histograms for the pool
   const scoped_refptr<ClientSocketPoolHistograms> histograms_;
 
-  // The reason for reference counting here is because the operations on
-  // the ClientSocketPoolBaseHelper which release sockets can cause the
-  // ClientSocketPoolBase<T> reference to drop to zero.  While we're deep
-  // in cleanup code, we'll often hold a reference to |self|.
+  // One might ask why ClientSocketPoolBaseHelper is also refcounted if its
+  // containing ClientSocketPool is already refcounted.  The reason is because
+  // DoReleaseSocket() posts a task.  If ClientSocketPool gets deleted between
+  // the posting of the task and the execution, then we'll hit the DCHECK that
+  // |ClientSocketPoolBaseHelper::group_map_| is empty.
   scoped_refptr<internal::ClientSocketPoolBaseHelper> helper_;
 
   DISALLOW_COPY_AND_ASSIGN(ClientSocketPoolBase);
