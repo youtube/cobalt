@@ -7,7 +7,6 @@
 
 #include "base/scoped_ptr.h"
 #include "net/base/host_resolver.h"
-#include "net/proxy/single_threaded_proxy_resolver.h"
 
 class MessageLoop;
 
@@ -35,7 +34,7 @@ class SyncHostResolverBridge : public HostResolver {
   // The Shutdown() method should be called prior to destruction, from
   // |host_resolver_loop_|. It aborts any in progress synchronous resolves, to
   // prevent deadlocks from happening.
-  void Shutdown();
+  virtual void Shutdown();
 
  private:
   class Core;
@@ -43,22 +42,6 @@ class SyncHostResolverBridge : public HostResolver {
   MessageLoop* const host_resolver_loop_;
   scoped_refptr<Core> core_;
 };
-
-// Subclass of SingleThreadedProxyResolver that additionally calls
-// |bridged_host_resolver_->Shutdown()| during its destructor.
-class SingleThreadedProxyResolverUsingBridgedHostResolver
-    : public SingleThreadedProxyResolver {
- public:
-  SingleThreadedProxyResolverUsingBridgedHostResolver(
-      ProxyResolver* proxy_resolver,
-      SyncHostResolverBridge* bridged_host_resolver);
-
-  virtual ~SingleThreadedProxyResolverUsingBridgedHostResolver();
-
- private:
-  scoped_refptr<SyncHostResolverBridge> bridged_host_resolver_;
-};
-
 
 }  // namespace net
 
