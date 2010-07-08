@@ -15,7 +15,6 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/proxy/init_proxy_resolver.h"
-#include "net/proxy/multi_threaded_proxy_resolver.h"
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/proxy/proxy_script_fetcher.h"
 #if defined(OS_WIN)
@@ -30,6 +29,7 @@
 #include "net/proxy/proxy_resolver.h"
 #include "net/proxy/proxy_resolver_js_bindings.h"
 #include "net/proxy/proxy_resolver_v8.h"
+#include "net/proxy/single_threaded_proxy_resolver.h"
 #include "net/proxy/sync_host_resolver_bridge.h"
 #include "net/url_request/url_request_context.h"
 
@@ -72,55 +72,6 @@ class ProxyResolverNull : public ProxyResolver {
                            const string16& /*pac_script*/,
                            CompletionCallback* /*callback*/) {
     return ERR_NOT_IMPLEMENTED;
-  }
-};
-
-// This factory creates V8ProxyResolvers with appropriate javascript bindings.
-class ProxyResolverFactoryForV8 : public ProxyResolverFactory {
- public:
-  // Both |async_host_resolver| and |host_resolver_loop| must remain valid for
-  // duration of our lifetime.
-  ProxyResolverFactoryForV8(HostResolver* async_host_resolver,
-                            MessageLoop* host_resolver_loop)
-      : ProxyResolverFactory(true /*expects_pac_bytes*/),
-        async_host_resolver_(async_host_resolver),
-        host_resolver_loop_(host_resolver_loop) {
-  }
-
-  virtual ProxyResolver* CreateProxyResolver() {
-    // Create a synchronous host resolver wrapper that operates
-    // |async_host_resolver_| on |host_resolver_loop_|.
-    SyncHostResolverBridge* sync_host_resolver =
-        new SyncHostResolverBridge(async_host_resolver_, host_resolver_loop_);
-
-    ProxyResolverJSBindings* js_bindings =
-        ProxyResolverJSBindings::CreateDefault(sync_host_resolver);
-
-    // ProxyResolverV8 takes ownership of |js_bindings|.
-    return new ProxyResolverV8(js_bindings);
-  }
-
- private:
-  scoped_refptr<HostResolver> async_host_resolver_;
-  MessageLoop* host_resolver_loop_;
-};
-
-// Creates ProxyResolvers using a non-V8 implementation.
-class ProxyResolverFactoryForNonV8 : public ProxyResolverFactory {
- public:
-  ProxyResolverFactoryForNonV8()
-      : ProxyResolverFactory(false /*expects_pac_bytes*/) {}
-
-  virtual ProxyResolver* CreateProxyResolver() {
-#if defined(OS_WIN)
-    return new ProxyResolverWinHttp();
-#elif defined(OS_MACOSX)
-    return new ProxyResolverMac();
-#else
-    LOG(WARNING) << "PAC support disabled because there is no fallback "
-                    "non-V8 implementation";
-    return new ProxyResolverNull();
-#endif
   }
 };
 
@@ -267,21 +218,31 @@ ProxyService* ProxyService::Create(
     URLRequestContext* url_request_context,
     NetLog* net_log,
     MessageLoop* io_loop) {
+  ProxyResolver* proxy_resolver = NULL;
 
-  ProxyResolverFactory* sync_resolver_factory;
   if (use_v8_resolver) {
-    sync_resolver_factory =
-        new ProxyResolverFactoryForV8(
-            url_request_context->host_resolver(),
-            io_loop);
-  } else {
-    sync_resolver_factory = new ProxyResolverFactoryForNonV8();
-  }
+    // Use the IO thread's host resolver (but since it is not threadsafe,
+    // bridge requests from the PAC thread over to the IO thread).
+    SyncHostResolverBridge* sync_host_resolver =
+        new SyncHostResolverBridge(url_request_context->host_resolver(),
+                                   io_loop);
 
-  const size_t kMaxNumResolverThreads = 1u;
-  ProxyResolver* proxy_resolver =
-      new MultiThreadedProxyResolver(sync_resolver_factory,
-                                     kMaxNumResolverThreads);
+    // Send javascript errors and alerts to LOG(INFO).
+    ProxyResolverJSBindings* js_bindings =
+        ProxyResolverJSBindings::CreateDefault(sync_host_resolver);
+
+    // Wrap the (synchronous) ProxyResolver implementation in a single-threaded
+    // asynchronous resolver. This version of SingleThreadedProxyResolver
+    // additionally aborts any synchronous host resolves to avoid deadlock
+    // during shutdown.
+    proxy_resolver =
+        new SingleThreadedProxyResolverUsingBridgedHostResolver(
+            new ProxyResolverV8(js_bindings),
+            sync_host_resolver);
+  } else {
+    proxy_resolver =
+        new SingleThreadedProxyResolver(CreateNonV8ProxyResolver());
+  }
 
   ProxyService* proxy_service =
       new ProxyService(proxy_config_service, proxy_resolver, net_log);
@@ -595,6 +556,19 @@ ProxyConfigService* ProxyService::CreateSystemProxyConfigService(
   LOG(WARNING) << "Failed to choose a system proxy settings fetcher "
                   "for this platform.";
   return new ProxyConfigServiceNull();
+#endif
+}
+
+// static
+ProxyResolver* ProxyService::CreateNonV8ProxyResolver() {
+#if defined(OS_WIN)
+  return new ProxyResolverWinHttp();
+#elif defined(OS_MACOSX)
+  return new ProxyResolverMac();
+#else
+  LOG(WARNING) << "PAC support disabled because there is no fallback "
+                  "non-V8 implementation";
+  return new ProxyResolverNull();
 #endif
 }
 
