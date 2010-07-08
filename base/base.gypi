@@ -305,9 +305,7 @@
         'conditions': [
           [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"', {
               'sources/': [
-                ['exclude', '/xdg_user_dirs/'],
                 ['exclude', '/xdg_[^/]*\\.cc$'],
-                ['exclude', '_nss\.cc$'],
               ],
               'sources!': [
                 'atomicops_internals_x86_gcc.cc',
@@ -337,12 +335,6 @@
               'sources/': [ ['exclude', '_openbsd\\.cc$'] ],
             },
           ],
-          [ 'OS != "mac"', {
-              'sources!': [
-                'crypto/cssm_init.cc',
-                'crypto/cssm_init.h',
-              ],
-          },],
           [ 'OS == "win"', {
               'include_dirs': [
                 '<(DEPTH)/third_party/wtl/include',
@@ -360,7 +352,7 @@
           },],
         ],
       }],
-      ['base_extra_target', {
+      ['base_extra_target==1', {
         'sources': [
           'crypto/capi_util.cc',
           'crypto/capi_util.h',
@@ -472,6 +464,21 @@
             'cflags': [
               '-Wno-write-strings',
             ],
+          },],
+          # TODO(wtc): can this become the 'else' clause of the conditional
+          # above?  Can we define USE_SYMBOLIZE and use -Wno-write-strings on
+          # Solaris?
+          [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"', {
+              'sources/': [
+                ['exclude', '/xdg_user_dirs/'],
+                ['exclude', '_nss\.cc$'],
+              ],
+          }],
+          [ 'OS != "mac"', {
+              'sources!': [
+                'crypto/cssm_init.cc',
+                'crypto/cssm_init.h',
+              ],
           },],
           [ 'OS != "win"', {
               'sources!': [
