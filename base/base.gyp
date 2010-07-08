@@ -76,6 +76,7 @@
         'data_pack_unittest.cc',
         'debug_util_unittest.cc',
         'dir_reader_posix_unittest.cc',
+	'env_var_unittest.cc',
         'event_trace_consumer_win_unittest.cc',
         'event_trace_controller_win_unittest.cc',
         'event_trace_provider_win_unittest.cc',
