@@ -183,7 +183,8 @@ enum SpdyStatusCodes {
   REFUSED_STREAM = 3,
   UNSUPPORTED_VERSION = 4,
   CANCEL = 5,
-  INTERNAL_ERROR = 6
+  INTERNAL_ERROR = 6,
+  NUM_STATUS_CODES = 7
 };
 
 // A SPDY stream id is a 31 bit entity.
@@ -534,8 +535,12 @@ class SpdyRstStreamControlFrame : public SpdyControlFrame {
     mutable_block()->stream_id_ = htonl(id & kStreamIdMask);
   }
 
-  uint32 status() const { return ntohl(block()->status_); }
-  void set_status(uint32 status) { mutable_block()->status_ = htonl(status); }
+  SpdyStatusCodes status() const {
+    return static_cast<SpdyStatusCodes>(ntohl(block()->status_));
+  }
+  void set_status(SpdyStatusCodes status) {
+    mutable_block()->status_ = htonl(static_cast<uint32>(status));
+  }
 
   // Returns the size of the SpdyRstStreamControlFrameBlock structure.
   // Note: this is not the size of the SpdyRstStreamControlFrame class.

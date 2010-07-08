@@ -111,7 +111,7 @@ size_t SpdyFramer::BytesSafeToRead() const {
     case SPDY_RESET:
       return 0;
     case SPDY_READING_COMMON_HEADER:
-      DCHECK(current_frame_len_ < SpdyFrame::size());
+      DCHECK_LT(current_frame_len_, SpdyFrame::size());
       return SpdyFrame::size() - current_frame_len_;
     case SPDY_INTERPRET_CONTROL_FRAME_COMMON_HEADER:
       return 0;
@@ -208,7 +208,7 @@ size_t SpdyFramer::ProcessInput(const char* data, size_t len) {
 size_t SpdyFramer::ProcessCommonHeader(const char* data, size_t len) {
   // This should only be called when we're in the SPDY_READING_COMMON_HEADER
   // state.
-  DCHECK(state_ == SPDY_READING_COMMON_HEADER);
+  DCHECK_EQ(state_, SPDY_READING_COMMON_HEADER);
 
   int original_len = len;
   SpdyFrame current_frame(current_frame_buffer_, false);
@@ -422,7 +422,7 @@ size_t SpdyFramer::ProcessDataFramePayload(const char* data, size_t len) {
 }
 
 void SpdyFramer::ExpandControlFrameBuffer(size_t size) {
-  DCHECK(size < kControlFrameBufferMaxSize);
+  DCHECK_LT(size, kControlFrameBufferMaxSize);
   if (size < current_frame_capacity_)
     return;
 
@@ -517,6 +517,10 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
     SpdyControlFlags flags, bool compressed, SpdyHeaderBlock* headers) {
   SpdyFrameBuilder frame;
 
+  DCHECK_GT(stream_id, static_cast<SpdyStreamId>(0));
+  DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
+  DCHECK_EQ(0u, associated_stream_id & ~kStreamIdMask);
+
   frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
   frame.WriteUInt16(SYN_STREAM);
   frame.WriteUInt32(0);  // Placeholder for the length and flags
@@ -527,15 +531,18 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
   frame.WriteUInt16(headers->size());  // Number of headers.
   SpdyHeaderBlock::iterator it;
   for (it = headers->begin(); it != headers->end(); ++it) {
-    frame.WriteString(it->first);
-    frame.WriteString(it->second);
+    bool wrote_header;
+    wrote_header = frame.WriteString(it->first);
+    wrote_header &= frame.WriteString(it->second);
+    DCHECK(wrote_header);
   }
 
   // Write the length and flags.
   size_t length = frame.length() - SpdyFrame::size();
-  DCHECK(length < static_cast<size_t>(kLengthMask));
+  DCHECK_EQ(0u, length & ~static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
   flags_length.length_ = htonl(static_cast<uint32>(length));
+  DCHECK_EQ(0, flags & ~kControlFlagsMask);
   flags_length.flags_[0] = flags;
   frame.WriteBytesToOffset(4, &flags_length, sizeof(flags_length));
 
@@ -549,7 +556,12 @@ SpdySynStreamControlFrame* SpdyFramer::CreateSynStream(
 
 /* static */
 SpdyRstStreamControlFrame* SpdyFramer::CreateRstStream(SpdyStreamId stream_id,
-                                                       int status) {
+                                                       SpdyStatusCodes status) {
+  DCHECK_GT(stream_id, 0u);
+  DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
+  DCHECK_NE(status, INVALID);
+  DCHECK_LT(status, NUM_STATUS_CODES);
+
   SpdyFrameBuilder frame;
   frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
   frame.WriteUInt16(RST_STREAM);
@@ -562,6 +574,8 @@ SpdyRstStreamControlFrame* SpdyFramer::CreateRstStream(SpdyStreamId stream_id,
 /* static */
 SpdyGoAwayControlFrame* SpdyFramer::CreateGoAway(
     SpdyStreamId last_accepted_stream_id) {
+  DCHECK_EQ(0u, last_accepted_stream_id & ~kStreamIdMask);
+
   SpdyFrameBuilder frame;
   frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
   frame.WriteUInt16(GOAWAY);
@@ -575,6 +589,11 @@ SpdyGoAwayControlFrame* SpdyFramer::CreateGoAway(
 SpdyWindowUpdateControlFrame* SpdyFramer::CreateWindowUpdate(
     SpdyStreamId stream_id,
     uint32 delta_window_size) {
+  DCHECK_GT(stream_id, 0u);
+  DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
+  DCHECK_GT(delta_window_size, 0u);
+  DCHECK_LE(delta_window_size, 0x80000000u);  // 2^31
+
   SpdyFrameBuilder frame;
   frame.WriteUInt16(kControlFlagMask | kSpdyProtocolVersion);
   frame.WriteUInt16(WINDOW_UPDATE);
@@ -607,6 +626,8 @@ SpdySettingsControlFrame* SpdyFramer::CreateSettings(
 
 SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(SpdyStreamId stream_id,
     SpdyControlFlags flags, bool compressed, SpdyHeaderBlock* headers) {
+  DCHECK_GT(stream_id, 0u);
+  DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
 
   SpdyFrameBuilder frame;
 
@@ -619,15 +640,18 @@ SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(SpdyStreamId stream_id,
   frame.WriteUInt16(headers->size());  // Number of headers.
   SpdyHeaderBlock::iterator it;
   for (it = headers->begin(); it != headers->end(); ++it) {
-    frame.WriteString(it->first);
-    frame.WriteString(it->second);
+    bool wrote_header;
+    wrote_header = frame.WriteString(it->first);
+    wrote_header &= frame.WriteString(it->second);
+    DCHECK(wrote_header);
   }
 
   // Write the length and flags.
   size_t length = frame.length() - SpdyFrame::size();
-  DCHECK(length < static_cast<size_t>(kLengthMask));
+  DCHECK_EQ(0u, length & ~static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
   flags_length.length_ = htonl(static_cast<uint32>(length));
+  DCHECK_EQ(0, flags & ~kControlFlagsMask);
   flags_length.flags_[0] = flags;
   frame.WriteBytesToOffset(4, &flags_length, sizeof(flags_length));
 
@@ -641,14 +665,17 @@ SpdySynReplyControlFrame* SpdyFramer::CreateSynReply(SpdyStreamId stream_id,
 
 SpdyDataFrame* SpdyFramer::CreateDataFrame(SpdyStreamId stream_id,
                                            const char* data,
-                                           uint32 len, uint32 flags) {
+                                           uint32 len, SpdyDataFlags flags) {
   SpdyFrameBuilder frame;
 
+  DCHECK_GT(stream_id, 0u);
+  DCHECK_EQ(0u, stream_id & ~kStreamIdMask);
   frame.WriteUInt32(stream_id);
 
-  DCHECK(len < static_cast<size_t>(kLengthMask));
+  DCHECK_EQ(0u, len & ~static_cast<size_t>(kLengthMask));
   FlagsAndLength flags_length;
   flags_length.length_ = htonl(len);
+  DCHECK_EQ(0, flags & ~kDataFlagsMask);
   flags_length.flags_[0] = flags;
   frame.WriteBytes(&flags_length, sizeof(flags_length));
 
