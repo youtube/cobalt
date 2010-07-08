@@ -292,6 +292,8 @@ static const struct InsertBeforeExtensionCase {
 #endif
 };
 
+#if defined(OS_WIN)
+// This function has been deprecated on non-Windows.
 TEST_F(FileUtilTest, InsertBeforeExtensionTest) {
   for (unsigned int i = 0; i < arraysize(kInsertBeforeExtension); ++i) {
     FilePath path(kInsertBeforeExtension[i].path);
@@ -299,6 +301,7 @@ TEST_F(FileUtilTest, InsertBeforeExtensionTest) {
     EXPECT_EQ(kInsertBeforeExtension[i].result, path.value());
   }
 }
+#endif
 
 static const struct filename_case {
   const wchar_t* path;
@@ -363,6 +366,8 @@ static const struct extension_case {
 #endif
 };
 
+#if defined(OS_WIN)
+// This function has been deprecated on non-Windows.
 TEST_F(FileUtilTest, GetFileExtensionFromPath) {
   for (unsigned int i = 0; i < arraysize(extension_cases); ++i) {
     const extension_case& ext = extension_cases[i];
@@ -370,6 +375,7 @@ TEST_F(FileUtilTest, GetFileExtensionFromPath) {
     EXPECT_EQ(ext.extension, fext);
   }
 }
+#endif
 
 // Test finding the directory component of a path
 static const struct dir_case {
