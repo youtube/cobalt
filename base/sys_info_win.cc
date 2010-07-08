@@ -48,17 +48,6 @@ int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
 }
 
 // static
-std::wstring SysInfo::GetEnvVar(const wchar_t* var) {
-  DWORD value_length = GetEnvironmentVariable(var, NULL, 0);
-  if (value_length == 0) {
-    return L"";
-  }
-  scoped_array<wchar_t> value(new wchar_t[value_length]);
-  GetEnvironmentVariable(var, value.get(), value_length);
-  return std::wstring(value.get());
-}
-
-// static
 std::string SysInfo::OperatingSystemName() {
   return "Windows NT";
 }
