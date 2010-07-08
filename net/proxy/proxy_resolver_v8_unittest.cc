@@ -62,8 +62,6 @@ class MockJSBindings : public ProxyResolverJSBindings {
     errors_line_number.push_back(line_number);
   }
 
-  virtual void Shutdown() {}
-
   // Mock values to return.
   std::string my_ip_address_result;
   std::string my_ip_address_ex_result;
