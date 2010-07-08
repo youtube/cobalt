@@ -177,6 +177,9 @@ class HostResolver : public base::RefCounted<HostResolver> {
   // additional functionality on the about:net-internals page.
   virtual HostResolverImpl* GetAsHostResolverImpl() { return NULL; }
 
+  // Does additional cleanup prior to destruction.
+  virtual void Shutdown() {}
+
  protected:
   friend class base::RefCounted<HostResolver>;
 
