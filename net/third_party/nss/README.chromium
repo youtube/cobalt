@@ -24,5 +24,9 @@ Patches:
     patches/renegoscsv.patch
     https://bugzilla.mozilla.org/show_bug.cgi?id=549042
 
+  * Cache the peer's intermediate CA certificates in session ID, so that
+    they're available when we resume a session.
+    patches/cachecerts.patch
+
 The ssl/bodge directory contains files taken from the NSS repo that we required
 for building libssl outside of its usual build environment.
