@@ -334,9 +334,6 @@ int FtpNetworkTransaction::ProcessCtrlResponse() {
     case COMMAND_LIST:
       rv = ProcessResponseLIST(response);
       break;
-    case COMMAND_MDTM:
-      rv = ProcessResponseMDTM(response);
-      break;
     case COMMAND_QUIT:
       rv = ProcessResponseQUIT(response);
       break;
@@ -551,10 +548,6 @@ int FtpNetworkTransaction::DoLoop(int result) {
       case STATE_CTRL_WRITE_LIST:
         DCHECK(rv == OK);
         rv = DoCtrlWriteLIST();
-        break;
-      case STATE_CTRL_WRITE_MDTM:
-        DCHECK(rv == OK);
-        rv = DoCtrlWriteMDTM();
         break;
       case STATE_CTRL_WRITE_QUIT:
         DCHECK(rv == OK);
@@ -1005,12 +998,24 @@ int FtpNetworkTransaction::ProcessResponseSIZE(
     case ERROR_CLASS_TRANSIENT_ERROR:
       break;
     case ERROR_CLASS_PERMANENT_ERROR:
+      // It's possible that SIZE failed because the path is a directory.
+      if (response.status_code == 550 &&
+          resource_type_ == RESOURCE_TYPE_UNKNOWN) {
+        resource_type_ = RESOURCE_TYPE_DIRECTORY;
+      } else if (resource_type_ != RESOURCE_TYPE_DIRECTORY) {
+        return Stop(ERR_FAILED);
+      }
       break;
     default:
       NOTREACHED();
       return Stop(ERR_UNEXPECTED);
   }
-  next_state_ = STATE_CTRL_WRITE_MDTM;
+
+  if (resource_type_ == RESOURCE_TYPE_DIRECTORY)
+    next_state_ = STATE_CTRL_WRITE_CWD;
+  else
+    next_state_ = STATE_CTRL_WRITE_RETR;
+
   return OK;
 }
 
@@ -1061,36 +1066,6 @@ int FtpNetworkTransaction::ProcessResponseRETR(
   }
   return OK;
 }
-
-// MDMT command
-int FtpNetworkTransaction::DoCtrlWriteMDTM() {
-  std::string command = "MDTM " + GetRequestPathForFtpCommand(false);
-  next_state_ = STATE_CTRL_READ;
-  return SendFtpCommand(command, COMMAND_MDTM);
-}
-
-int FtpNetworkTransaction::ProcessResponseMDTM(
-    const FtpCtrlResponse& response) {
-  switch (GetErrorClass(response.status_code)) {
-    case ERROR_CLASS_INITIATED:
-      return Stop(ERR_FAILED);
-    case ERROR_CLASS_OK:
-      next_state_ = STATE_CTRL_WRITE_RETR;
-      break;
-    case ERROR_CLASS_INFO_NEEDED:
-      return Stop(ERR_FAILED);
-    case ERROR_CLASS_TRANSIENT_ERROR:
-      return Stop(ERR_FAILED);
-    case ERROR_CLASS_PERMANENT_ERROR:
-      next_state_ = STATE_CTRL_WRITE_RETR;
-      break;
-    default:
-      NOTREACHED();
-      return Stop(ERR_UNEXPECTED);
-  }
-  return OK;
-}
-
 
 // CWD command
 int FtpNetworkTransaction::DoCtrlWriteCWD() {
@@ -1226,11 +1201,7 @@ int FtpNetworkTransaction::DoDataConnect() {
 
 int FtpNetworkTransaction::DoDataConnectComplete(int result) {
   RecordDataConnectionError(result);
-  if (resource_type_ == RESOURCE_TYPE_DIRECTORY) {
-    next_state_ = STATE_CTRL_WRITE_CWD;
-  } else {
-    next_state_ = STATE_CTRL_WRITE_SIZE;
-  }
+  next_state_ = STATE_CTRL_WRITE_SIZE;
   return OK;
 }
 
