@@ -108,7 +108,7 @@ dev_list="apache2 bison fakeroot flex g++ gperf libapache2-mod-php5
           ttf-kochi-mincho wdiff libcurl4-gnutls-dev $chromeos_dev_list"
 
 # Run-time libraries required by chromeos only
-chromeos_lib_list="libpulse0"
+chromeos_lib_list="libpulse0 libbz2-1.0 libcurl4-gnutls-dev"
 
 # Full list of required run-time libraries
 lib_list="libatk1.0-0 libc6 libasound2 libcairo2 libdbus-glib-1-2 libexpat1
@@ -340,19 +340,44 @@ EOF
       tar zCfx dpkg data.tar.gz
       tar zCfx dpkg/DEBIAN control.tar.gz
 
-      # Rename package, change architecture, remove dependencies
-      sed -i -e "s/\(Package:.*\)/\1-ia32/"       \
-             -e "s/\(Architecture:\).*/\1 amd64/" \
-             -e "s/\(Depends:\).*/\1 ia32-libs/"  \
-             -e "/Recommends/d"                   \
-             -e "/Conflicts/d"                    \
-          dpkg/DEBIAN/control
+      # Create a posix extended regular expression fragment that will
+      # recognize the includes which have changed. Should be rare,
+      # will almost always be empty.
+      includes=`sed -n -e "s/^[0-9a-z]*  //g" \
+                       -e "\,usr/include/,p" dpkg/DEBIAN/md5sums |
+                  xargs -n 1 -I FILE /bin/sh -c \
+                    "cmp -s dpkg/FILE /FILE || echo FILE" |
+                  tr "\n" "|" |
+                  sed -e "s,|$,,"`
 
-      # Only keep files that live in "lib" directories
-      sed -i -e "/\/lib64\//d" -e "/\/.?bin\//d" \
-             -e "s,\([ /]lib\)/,\132/g,;t1;d;:1" \
-             -e "s,^/usr/lib32/debug\(.*/lib32\),/usr/lib/debug\1," \
-          dpkg/DEBIAN/md5sums
+      # If empty, set it to not match anything.
+      test -z "$includes" && includes="^//"
+
+      # Turn the conflicts into an extended RE for removal from the
+      # Provides line.
+      conflicts=`sed -n -e "/Conflicts/s/Conflicts: *//;T;s/, */|/g;p" \
+                   dpkg/DEBIAN/control`
+
+      # Rename package, change architecture, remove conflicts and dependencies
+      sed -r -i                              \
+          -e "/Package/s/$/-ia32/"           \
+          -e "/Architecture/s/:.*$/: amd64/" \
+          -e "/Depends/s/:.*/: ia32-libs/"   \
+          -e "/Provides/s/($conflicts)(, *)?//g;T1;s/, *$//;:1"   \
+          -e "/Recommends/d"                 \
+          -e "/Conflicts/d"                  \
+        dpkg/DEBIAN/control
+
+      # Only keep files that live in "lib" directories or the includes
+      # that have changed.
+      sed -r -i                                                               \
+          -e "/\/lib64\//d" -e "/\/.?bin\//d"                                 \
+          -e "\,$includes,s,[ /]include/,&32/,g;s,include/32/,include32/,g"   \
+          -e "s, lib/, lib32/,g"                                              \
+          -e "s,/lib/,/lib32/,g"                                              \
+          -e "t;d"                                                            \
+          -e "\,^/usr/lib32/debug\(.*/lib32\),s,^/usr/lib32/debug,/usr/lib/debug," \
+        dpkg/DEBIAN/md5sums
 
       # Re-run ldconfig after installation/removal
       { echo "#!/bin/sh"; echo "[ \"x\$1\" = xconfigure ]&&ldconfig||:"; } \
@@ -366,12 +391,17 @@ EOF
                        -name postinst -o -name postrm ")" -o -print |
         xargs -r rm -rf
 
-      # Remove any files/dirs that live outside of "lib" directories
-      find dpkg -mindepth 1 "(" -name DEBIAN -o -name lib ")" -prune -o \
-                -print | tac | xargs -r -n 1 sh -c \
-                "rm \$0 2>/dev/null || rmdir \$0 2>/dev/null || : "
+      # Remove any files/dirs that live outside of "lib" directories,
+      # or are not in our list of changed includes.
+      find dpkg -mindepth 1 -regextype posix-extended \
+          "(" -name DEBIAN -o -name lib -o -regex "dpkg/($includes)" ")" \
+          -prune -o -print | tac |
+        xargs -r -n 1 sh -c "rm \$0 2>/dev/null || rmdir \$0 2>/dev/null || : "
       find dpkg -name lib64 -o -name bin -o -name "?bin" |
         tac | xargs -r rm -rf
+
+      # Remove any symbolic links that were broken by the above steps.
+      find -L dpkg -type l -print | tac | xargs -r rm -rf
 
       # Rename lib to lib32, but keep debug symbols in /usr/lib/debug/usr/lib32
       # That is where gdb looks for them.
@@ -382,6 +412,9 @@ EOF
                -e s,/usr/lib32/debug\\\\\(.*/lib32\\\\\),/usr/lib/debug\\\\1,);
           mkdir -p \"\${i%/*}\";
           mv \"\${0}\" \"\${i}\""
+
+      # Rename include to include32.
+      [ -d "dpkg/usr/include" ] && mv "dpkg/usr/include" "dpkg/usr/include32"
 
       # Prune any empty directories
       find dpkg -type d | tac | xargs -r -n 1 rmdir 2>/dev/null || :
