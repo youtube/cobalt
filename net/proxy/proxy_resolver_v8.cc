@@ -640,10 +640,6 @@ void ProxyResolverV8::PurgeMemory() {
   context_->PurgeMemory();
 }
 
-void ProxyResolverV8::Shutdown() {
-  js_bindings_->Shutdown();
-}
-
 int ProxyResolverV8::SetPacScript(const GURL& /*url*/,
                                   const string16& pac_script,
                                   CompletionCallback* /*callback*/) {
