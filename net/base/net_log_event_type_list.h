@@ -110,18 +110,9 @@ EVENT_TYPE(PROXY_RESOLVER_V8_DNS_RESOLVE)
 // Measures the time taken to execute the "dnsResolveEx()" javascript binding.
 EVENT_TYPE(PROXY_RESOLVER_V8_DNS_RESOLVE_EX)
 
-// Measures the time that a proxy resolve request was stalled waiting for a
+// Measures the time that a proxy resolve request was stalled waiting for the
 // proxy resolver thread to free-up.
-EVENT_TYPE(WAITING_FOR_PROXY_RESOLVER_THREAD)
-
-// This event is emitted just before a PAC request is bound to a thread. It
-// contains these parameters:
-//
-//   {
-//     "thread_number": <Identifier for the PAC thread that is going to
-//                       run this request>
-//   }
-EVENT_TYPE(SUBMITTED_TO_RESOLVER_THREAD)
+EVENT_TYPE(WAITING_FOR_SINGLE_PROXY_RESOLVER_THREAD)
 
 // ------------------------------------------------------------------------
 // ClientSocket
