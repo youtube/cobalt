@@ -126,7 +126,7 @@ void ChildrenDeleter::DeleteChildren() {
     return Release();
   }
   std::string child_name = GenerateChildName(name_, signature_, child_id);
-  backend_->SyncDoomEntry(child_name);
+  backend_->DoomEntry(child_name);
   children_map_.Set(child_id, false);
 
   // Post a task to delete the next child.
@@ -373,7 +373,7 @@ bool SparseControl::OpenChild() {
     CloseChild();
   }
 
-  // See if we are tracking this child.
+  // Se if we are tracking this child.
   if (!ChildPresent())
     return ContinueWithoutChild(key);
 
@@ -418,7 +418,7 @@ void SparseControl::CloseChild() {
                              NULL, false);
   if (rv != sizeof(child_data_))
     DLOG(ERROR) << "Failed to save child data";
-  child_->Release();
+  child_->Close();
   child_ = NULL;
 }
 
@@ -430,8 +430,8 @@ std::string SparseControl::GenerateChildKey() {
 // We are deleting the child because something went wrong.
 bool SparseControl::KillChildAndContinue(const std::string& key, bool fatal) {
   SetChildBit(false);
-  child_->DoomImpl();
-  child_->Release();
+  child_->Doom();
+  child_->Close();
   child_ = NULL;
   if (fatal) {
     result_ = net::ERR_CACHE_READ_FAILURE;
@@ -617,12 +617,12 @@ bool SparseControl::DoChildIO() {
   int rv = 0;
   switch (operation_) {
     case kReadOperation:
-      rv = child_->ReadDataImpl(kSparseData, child_offset_, user_buf_,
-                                child_len_, callback);
+      rv = child_->ReadData(kSparseData, child_offset_, user_buf_, child_len_,
+                            callback);
       break;
     case kWriteOperation:
-      rv = child_->WriteDataImpl(kSparseData, child_offset_, user_buf_,
-                                 child_len_, callback, false);
+      rv = child_->WriteData(kSparseData, child_offset_, user_buf_, child_len_,
+                             callback, false);
       break;
     case kGetRangeOperation:
       rv = DoGetAvailableRange();
