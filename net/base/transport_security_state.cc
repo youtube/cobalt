@@ -391,20 +391,20 @@ bool TransportSecurityState::isPreloadedSTS(
     uint8 length;
     bool include_subdomains;
     char dns_name[30];
-  } preloadedSTS[] = {
+  } kPreloadedSTS[] = {
     {16, false, "\003www\006paypal\003com"},
     {16, false, "\003www\006elanex\003biz"},
+    {12, true,  "\006jottit\003com"},
   };
-  static const size_t numPreloadedSTS =
-      sizeof(preloadedSTS) / sizeof(preloadedSTS[0]);
+  static const size_t kNumPreloadedSTS = ARRAYSIZE_UNSAFE(kPreloadedSTS);
 
   for (size_t i = 0; canonicalised_host[i]; i += canonicalised_host[i] + 1) {
-    for (size_t j = 0; j < numPreloadedSTS; j++) {
-      if (preloadedSTS[j].length == canonicalised_host.size() + 1 - i &&
-          (preloadedSTS[j].include_subdomains || i == 0) &&
-          memcmp(preloadedSTS[j].dns_name, &canonicalised_host[i],
-                 preloadedSTS[j].length) == 0) {
-        *include_subdomains = preloadedSTS[j].include_subdomains;
+    for (size_t j = 0; j < kNumPreloadedSTS; j++) {
+      if (kPreloadedSTS[j].length == canonicalised_host.size() + 1 - i &&
+          (kPreloadedSTS[j].include_subdomains || i == 0) &&
+          memcmp(kPreloadedSTS[j].dns_name, &canonicalised_host[i],
+                 kPreloadedSTS[j].length) == 0) {
+        *include_subdomains = kPreloadedSTS[j].include_subdomains;
         return true;
       }
     }
