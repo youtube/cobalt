@@ -7,6 +7,7 @@
 #include "base/path_service.h"
 #include "base/platform_thread.h"
 #include "base/string_util.h"
+#include "base/thread.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 #include "net/base/test_completion_callback.h"
@@ -253,9 +254,8 @@ TEST_F(DiskCacheBackendTest, ExternalFiles) {
   EXPECT_EQ(0, memcmp(buffer1->data(), buffer2->data(), kSize));
 }
 
-// Tests that we deal with file-level pending operations at destruction time.
 TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
-  TestCompletionCallback cb;
+  TestCompletionCallback callback;
 
   {
     FilePath path = GetCacheFilePath();
@@ -267,74 +267,27 @@ TEST_F(DiskCacheTest, ShutdownWithPendingIO) {
     disk_cache::Backend* cache;
     int rv = disk_cache::BackendImpl::CreateBackend(
                  path, false, 0, net::DISK_CACHE, disk_cache::kNoRandom,
-                 base::MessageLoopProxy::CreateForCurrentThread(), &cache, &cb);
-    ASSERT_EQ(net::OK, cb.GetResult(rv));
+                 cache_thread.message_loop_proxy(), &cache, &callback);
+    ASSERT_EQ(net::OK, callback.GetResult(rv));
 
-    disk_cache::EntryImpl* entry;
-    rv = cache->CreateEntry("some key",
-                            reinterpret_cast<disk_cache::Entry**>(&entry), &cb);
-    ASSERT_EQ(net::OK, cb.GetResult(rv));
+    disk_cache::Entry* entry;
+    rv = cache->CreateEntry("some key", &entry, &callback);
+    ASSERT_EQ(net::OK, callback.GetResult(rv));
 
     const int kSize = 25000;
     scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
     CacheTestFillBuffer(buffer->data(), kSize, false);
 
     for (int i = 0; i < 10 * 1024 * 1024; i += 64 * 1024) {
-      // We are using the current thread as the cache thread because we want to
-      // be able to call directly this method to make sure that the OS (instead
-      // of us switching thread) is returning IO pending.
-      rv = entry->WriteDataImpl(0, i, buffer, kSize, &cb, false);
+      int rv = entry->WriteData(0, i, buffer, kSize, &callback, false);
       if (rv == net::ERR_IO_PENDING)
         break;
       EXPECT_EQ(kSize, rv);
     }
 
-    // Don't call Close() to avoid going through the queue or we'll deadlock
-    // waiting for the operation to finish.
-    entry->Release();
-
-    // The cache destructor will see one pending operation here.
-    delete cache;
-
-    if (rv == net::ERR_IO_PENDING) {
-      EXPECT_TRUE(cb.have_result());
-    }
-  }
-
-  MessageLoop::current()->RunAllPending();
-}
-
-// Tests that we deal with background-thread pending operations.
-TEST_F(DiskCacheTest, ShutdownWithPendingIO2) {
-  TestCompletionCallback cb;
-
-  {
-    FilePath path = GetCacheFilePath();
-    ASSERT_TRUE(DeleteCache(path));
-    base::Thread cache_thread("CacheThread");
-    ASSERT_TRUE(cache_thread.StartWithOptions(
-                    base::Thread::Options(MessageLoop::TYPE_IO, 0)));
-
-    disk_cache::Backend* cache;
-    int rv = disk_cache::BackendImpl::CreateBackend(
-                 path, false, 0, net::DISK_CACHE, disk_cache::kNoRandom,
-                 cache_thread.message_loop_proxy(), &cache, &cb);
-    ASSERT_EQ(net::OK, cb.GetResult(rv));
-
-    disk_cache::Entry* entry;
-    rv = cache->CreateEntry("some key", &entry, &cb);
-    ASSERT_EQ(net::OK, cb.GetResult(rv));
-
-    const int kSize = 25000;
-    scoped_refptr<net::IOBuffer> buffer = new net::IOBuffer(kSize);
-    CacheTestFillBuffer(buffer->data(), kSize, false);
-
-    rv = entry->WriteData(0, 0, buffer, kSize, &cb, false);
-    EXPECT_EQ(net::ERR_IO_PENDING, rv);
-
     entry->Close();
 
-    // The cache destructor will see two pending operations here.
+    // The cache destructor will see one pending operation here.
     delete cache;
   }
 
@@ -391,7 +344,6 @@ void DiskCacheBackendTest::BackendSetSize() {
   EXPECT_EQ(cache_size * 3 / 4, entry->WriteData(0, 0, buffer,
                 cache_size * 3 / 4, NULL, false));
   entry->Close();
-  FlushQueueForTest();
 
   SetMaxSize(cache_size);
 
@@ -402,12 +354,10 @@ void DiskCacheBackendTest::BackendSetSize() {
                                               NULL, false)) << "trim the cache";
   entry->Close();
 
-  // On a slow system we may end up evicting everything not currently in use.
+  EXPECT_NE(net::OK, OpenEntry(first, &entry));
   ASSERT_EQ(net::OK, OpenEntry(second, &entry));
   EXPECT_EQ(cache_size / 10, entry->GetDataSize(0));
   entry->Close();
-
-  EXPECT_NE(net::OK, OpenEntry(first, &entry));
 }
 
 TEST_F(DiskCacheBackendTest, SetSize) {
@@ -452,7 +402,6 @@ void DiskCacheBackendTest::BackendLoad() {
     entries[i]->Doom();
     entries[i]->Close();
   }
-  FlushQueueForTest();
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
 
@@ -676,7 +625,6 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry() {
   EXPECT_EQ(2, cache_->GetEntryCount());
   SetMaxSize(kSize);
   entry->Close();  // Trim the cache.
-  FlushQueueForTest();
 
   // If we evicted the entry in less than 20mS, we have one entry in the cache;
   // if it took more than that, we posted a task and we'll delete the second
@@ -737,7 +685,6 @@ void DiskCacheBackendTest::BackendTrimInvalidEntry2() {
   }
 
   entry->Close();  // Trim the cache.
-  FlushQueueForTest();
 
   // We may abort the eviction before cleaning up everything.
   MessageLoop::current()->RunAllPending();
@@ -1312,7 +1259,7 @@ void DiskCacheBackendTest::BackendInvalidRankings() {
   EXPECT_EQ(2, cache_->GetEntryCount());
 
   EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry));
-  FlushQueueForTest();  // Allow the restart to finish.
+  MessageLoop::current()->RunAllPending();
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
 
@@ -1363,8 +1310,7 @@ void DiskCacheBackendTest::BackendDisable() {
   EXPECT_NE(net::OK, CreateEntry("Something new", &entry2));
 
   entry1->Close();
-  FlushQueueForTest();  // Flushing the Close posts a task to restart the cache.
-  FlushQueueForTest();  // This one actually allows that task to complete.
+  MessageLoop::current()->RunAllPending();
 
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
@@ -1419,7 +1365,7 @@ void DiskCacheBackendTest::BackendDisable2() {
     ASSERT_LT(count, 9);
   };
 
-  FlushQueueForTest();
+  MessageLoop::current()->RunAllPending();
   EXPECT_EQ(0, cache_->GetEntryCount());
 }
 
@@ -1468,7 +1414,7 @@ void DiskCacheBackendTest::BackendDisable3() {
   entry1->Close();
 
   EXPECT_NE(net::OK, OpenNextEntry(&iter, &entry2));
-  FlushQueueForTest();
+  MessageLoop::current()->RunAllPending();
 
   ASSERT_EQ(net::OK, CreateEntry("Something new", &entry2));
   entry2->Close();
@@ -1536,8 +1482,7 @@ void DiskCacheBackendTest::BackendDisable4() {
   entry1->Close();
   entry2->Close();
   entry3->Close();
-  FlushQueueForTest();  // Flushing the Close posts a task to restart the cache.
-  FlushQueueForTest();  // This one actually allows that task to complete.
+  MessageLoop::current()->RunAllPending();
 
   EXPECT_EQ(0, cache_->GetEntryCount());
 }

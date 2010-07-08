@@ -89,6 +89,7 @@ EntryImpl::EntryImpl(BackendImpl* backend, Addr address)
   for (int i = 0; i < kNumStreams; i++) {
     unreported_size_[i] = 0;
   }
+  key_file_ = NULL;
 }
 
 // When an entry is deleted from the cache, we clean up all the data associated
@@ -130,7 +131,7 @@ EntryImpl::~EntryImpl() {
   backend_->CacheEntryDestroyed(entry_.address());
 }
 
-void EntryImpl::DoomImpl() {
+void EntryImpl::Doom() {
   if (doomed_)
     return;
 
@@ -138,12 +139,8 @@ void EntryImpl::DoomImpl() {
   backend_->InternalDoomEntry(this);
 }
 
-void EntryImpl::Doom() {
-  backend_->background_queue()->DoomEntryImpl(this);
-}
-
 void EntryImpl::Close() {
-  backend_->background_queue()->CloseEntryImpl(this);
+  Release();
 }
 
 std::string EntryImpl::GetKey() const {
@@ -151,26 +148,26 @@ std::string EntryImpl::GetKey() const {
   if (entry->Data()->key_len <= kMaxInternalKeyLength)
     return std::string(entry->Data()->key);
 
-  // We keep a copy of the key so that we can always return it, even if the
-  // backend is disabled.
-  if (!key_.empty())
-    return key_;
-
   Addr address(entry->Data()->long_key);
   DCHECK(address.is_initialized());
   size_t offset = 0;
   if (address.is_block_file())
     offset = address.start_block() * address.BlockSize() + kBlockHeaderSize;
 
-  COMPILE_ASSERT(kNumStreams == kKeyFileIndex, invalid_key_index);
-  File* key_file = const_cast<EntryImpl*>(this)->GetBackingFile(address,
-                                                                kKeyFileIndex);
+  if (!key_file_) {
+    // We keep a copy of the file needed to access the key so that we can
+    // always return this object's key, even if the backend is disabled.
+    COMPILE_ASSERT(kNumStreams == kKeyFileIndex, invalid_key_index);
+    key_file_ = const_cast<EntryImpl*>(this)->GetBackingFile(address,
+                                                             kKeyFileIndex);
+  }
 
-  if (!key_file ||
-      !key_file->Read(WriteInto(&key_, entry->Data()->key_len + 1),
-                      entry->Data()->key_len + 1, offset))
-    key_.clear();
-  return key_;
+  std::string key;
+  if (!key_file_ ||
+      !key_file_->Read(WriteInto(&key, entry->Data()->key_len + 1),
+                       entry->Data()->key_len + 1, offset))
+    key.clear();
+  return key;
 }
 
 Time EntryImpl::GetLastUsed() const {
@@ -191,8 +188,8 @@ int32 EntryImpl::GetDataSize(int index) const {
   return entry->Data()->data_size[index];
 }
 
-int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
-                            int buf_len, CompletionCallback* callback) {
+int EntryImpl::ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
+                        net::CompletionCallback* completion_callback) {
   DCHECK(node_.Data()->dirty);
   if (index < 0 || index >= kNumStreams)
     return net::ERR_INVALID_ARGUMENT;
@@ -236,8 +233,8 @@ int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
                    kBlockHeaderSize;
 
   SyncCallback* io_callback = NULL;
-  if (callback)
-    io_callback = new SyncCallback(this, buf, callback);
+  if (completion_callback)
+    io_callback = new SyncCallback(this, buf, completion_callback);
 
   bool completed;
   if (!file->Read(buf->data(), buf_len, file_offset, io_callback, &completed)) {
@@ -250,33 +247,12 @@ int EntryImpl::ReadDataImpl(int index, int offset, net::IOBuffer* buf,
     io_callback->Discard();
 
   ReportIOTime(kRead, start);
-  return (completed || !callback) ? buf_len : net::ERR_IO_PENDING;
+  return (completed || !completion_callback) ? buf_len : net::ERR_IO_PENDING;
 }
 
-int EntryImpl::ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                        net::CompletionCallback* callback) {
-  if (!callback)
-    return ReadDataImpl(index, offset, buf, buf_len, callback);
-
-  DCHECK(node_.Data()->dirty);
-  if (index < 0 || index >= kNumStreams)
-    return net::ERR_INVALID_ARGUMENT;
-
-  int entry_size = entry_.Data()->data_size[index];
-  if (offset >= entry_size || offset < 0 || !buf_len)
-    return 0;
-
-  if (buf_len < 0)
-    return net::ERR_INVALID_ARGUMENT;
-
-  backend_->background_queue()->ReadData(this, index, offset, buf, buf_len,
-                                         callback);
-  return net::ERR_IO_PENDING;
-}
-
-int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
-                             int buf_len, CompletionCallback* callback,
-                             bool truncate) {
+int EntryImpl::WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
+                         net::CompletionCallback* completion_callback,
+                         bool truncate) {
   DCHECK(node_.Data()->dirty);
   if (index < 0 || index >= kNumStreams)
     return net::ERR_INVALID_ARGUMENT;
@@ -286,7 +262,7 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
 
   int max_file_size = backend_->MaxFileSize();
 
-  // offset or buf_len could be negative numbers.
+  // offset of buf_len could be negative numbers.
   if (offset > max_file_size || buf_len > max_file_size ||
       offset + buf_len > max_file_size) {
     int size = offset + buf_len;
@@ -356,8 +332,8 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
     return 0;
 
   SyncCallback* io_callback = NULL;
-  if (callback)
-    io_callback = new SyncCallback(this, buf, callback);
+  if (completion_callback)
+    io_callback = new SyncCallback(this, buf, completion_callback);
 
   bool completed;
   if (!file->Write(buf->data(), buf_len, file_offset, io_callback,
@@ -371,28 +347,11 @@ int EntryImpl::WriteDataImpl(int index, int offset, net::IOBuffer* buf,
     io_callback->Discard();
 
   ReportIOTime(kWrite, start);
-  return (completed || !callback) ? buf_len : net::ERR_IO_PENDING;
+  return (completed || !completion_callback) ? buf_len : net::ERR_IO_PENDING;
 }
 
-int EntryImpl::WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
-                         CompletionCallback* callback, bool truncate) {
-  if (!callback)
-    return WriteDataImpl(index, offset, buf, buf_len, callback, truncate);
-
-  DCHECK(node_.Data()->dirty);
-  if (index < 0 || index >= kNumStreams)
-    return net::ERR_INVALID_ARGUMENT;
-
-  if (offset < 0 || buf_len < 0)
-    return net::ERR_INVALID_ARGUMENT;
-
-  backend_->background_queue()->WriteData(this, index, offset, buf, buf_len,
-                                          truncate, callback);
-  return net::ERR_IO_PENDING;
-}
-
-int EntryImpl::ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
-                                  CompletionCallback* callback) {
+int EntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
+                              net::CompletionCallback* completion_callback) {
   DCHECK(node_.Data()->dirty);
   int result = InitSparseData();
   if (net::OK != result)
@@ -400,23 +359,13 @@ int EntryImpl::ReadSparseDataImpl(int64 offset, net::IOBuffer* buf, int buf_len,
 
   TimeTicks start = TimeTicks::Now();
   result = sparse_->StartIO(SparseControl::kReadOperation, offset, buf, buf_len,
-                            callback);
+                            completion_callback);
   ReportIOTime(kSparseRead, start);
   return result;
 }
 
-int EntryImpl::ReadSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                              net::CompletionCallback* callback) {
-  if (!callback)
-    return ReadSparseDataImpl(offset, buf, buf_len, callback);
-
-  backend_->background_queue()->ReadSparseData(this, offset, buf, buf_len,
-                                               callback);
-  return net::ERR_IO_PENDING;
-}
-
-int EntryImpl::WriteSparseDataImpl(int64 offset, net::IOBuffer* buf,
-                                   int buf_len, CompletionCallback* callback) {
+int EntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
+                               net::CompletionCallback* completion_callback) {
   DCHECK(node_.Data()->dirty);
   int result = InitSparseData();
   if (net::OK != result)
@@ -424,23 +373,9 @@ int EntryImpl::WriteSparseDataImpl(int64 offset, net::IOBuffer* buf,
 
   TimeTicks start = TimeTicks::Now();
   result = sparse_->StartIO(SparseControl::kWriteOperation, offset, buf,
-                            buf_len, callback);
+                            buf_len, completion_callback);
   ReportIOTime(kSparseWrite, start);
   return result;
-}
-
-int EntryImpl::WriteSparseData(int64 offset, net::IOBuffer* buf, int buf_len,
-                               net::CompletionCallback* callback) {
-  if (!callback)
-    return WriteSparseDataImpl(offset, buf, buf_len, callback);
-
-  backend_->background_queue()->WriteSparseData(this, offset, buf, buf_len,
-                                                callback);
-  return net::ERR_IO_PENDING;
-}
-
-int EntryImpl::GetAvailableRangeImpl(int64 offset, int len, int64* start) {
-  return GetAvailableRange(offset, len, start);
 }
 
 int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
@@ -453,9 +388,7 @@ int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start) {
 
 int EntryImpl::GetAvailableRange(int64 offset, int len, int64* start,
                                  CompletionCallback* callback) {
-  backend_->background_queue()->GetAvailableRange(this, offset, len, start,
-                                                  callback);
-  return net::ERR_IO_PENDING;
+  return GetAvailableRange(offset, len, start);
 }
 
 bool EntryImpl::CouldBeSparse() const {
@@ -468,26 +401,17 @@ bool EntryImpl::CouldBeSparse() const {
 }
 
 void EntryImpl::CancelSparseIO() {
-  backend_->background_queue()->CancelSparseIO(this);
-}
-
-void EntryImpl::CancelSparseIOImpl() {
   if (!sparse_.get())
     return;
 
   sparse_->CancelIO();
 }
 
-int EntryImpl::ReadyForSparseIOImpl(CompletionCallback* callback) {
-  return sparse_->ReadyToUse(callback);
-}
-
-int EntryImpl::ReadyForSparseIO(net::CompletionCallback* callback) {
+int EntryImpl::ReadyForSparseIO(net::CompletionCallback* completion_callback) {
   if (!sparse_.get())
     return net::OK;
 
-  backend_->background_queue()->ReadyForSparseIO(this, callback);
-  return net::ERR_IO_PENDING;
+  return sparse_->ReadyToUse(completion_callback);
 }
 
 // ------------------------------------------------------------------------
@@ -518,20 +442,19 @@ bool EntryImpl::CreateEntry(Addr node_address, const std::string& key,
       return false;
 
     entry_store->long_key = address.value();
-    File* key_file = GetBackingFile(address, kKeyFileIndex);
-    key_ = key;
+    key_file_ = GetBackingFile(address, kKeyFileIndex);
 
     size_t offset = 0;
     if (address.is_block_file())
       offset = address.start_block() * address.BlockSize() + kBlockHeaderSize;
 
-    if (!key_file || !key_file->Write(key.data(), key.size(), offset)) {
+    if (!key_file_ || !key_file_->Write(key.data(), key.size(), offset)) {
       DeleteData(address, kKeyFileIndex);
       return false;
     }
 
     if (address.is_separate_file())
-      key_file->SetLength(key.size() + 1);
+      key_file_->SetLength(key.size() + 1);
   } else {
     memcpy(entry_store->key, key.data(), key.size());
     entry_store->key[key.size()] = '\0';
