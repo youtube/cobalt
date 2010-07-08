@@ -89,22 +89,51 @@ class ProxyBypassRules {
   // Adds a rule given by the string |raw|. The format of |raw| can be any of
   // the following:
   //
-  //   [ <scheme> "://" ] <hostname_pattern> [ ":" <port> ]
-  //   "." <hostname_suffix_pattern> [ ":" <port> ]
-  //   [ <scheme> "://" ] <ip_literal> [ ":" <port> ]
-  //   "<local>"
+  // (1) [ URL_SCHEME "://" ] HOSTNAME_PATTERN [ ":" <port> ]
   //
-  // Note that <ip_literal> can be either an IPv4 literal, or an IPv6 literal
-  // but if it is an IPv6 literal it MUST be surrounded by square brackets,
-  // as in "[::1]".
+  //   Match all hostnames that match the pattern HOSTNAME_PATTERN.
   //
-  // Also note that "<local>" means to bypass all local hostnames. (See
-  // AddRuleToBypassLocal() for details).
+  //   Examples:
+  //     "foobar.com", "*foobar.com", "*.foobar.com", "*foobar.com:99",
+  //     "https://x.*.y.com:99"
+  //
+  // (2) "." HOSTNAME_SUFFIX_PATTERN [ ":" PORT ]
+  //
+  //   Match a particular domain suffix.
+  //
+  //   Examples:
+  //     ".google.com", ".com", "http://.google.com"
+  //
+  // (3) [ SCHEME "://" ] IP_LITERAL [ ":" PORT ]
+  //
+  //   Match URLs which are IP address literals.
+  //
+  //   Conceptually this is the similar to (1), but with special cases
+  //   to handle IP literal canonicalization. For example matching
+  //   on "[0:0:0::1]" would be the same as matching on "[::1]" since
+  //   the IPv6 canonicalization is done internally.
+  //
+  //   Examples:
+  //     "127.0.1", "[0:0::1]", "[::1]", "http://[::1]:99"
+  //
+  // (4)  IP_LITERAL "/" PREFIX_LENGHT_IN_BITS
+  //
+  //   Match any URL that is to an IP literal that falls between the
+  //   given range. IP range is specified using CIDR notation.
+  //
+  //   Examples:
+  //     "192.168.1.1/16", "fefe:13::abc/33".
+  //
+  // (5)  "<local>"
+  //
+  //   Match local addresses. The meaning of "<local>" is whether the
+  //   host matches one of: "127.0.0.1", "::1", "localhost".
+  //
+  // See the unit-tests for more examples.
   //
   // Returns true if the rule was successfully added.
   //
   // TODO(eroman): support IPv6 literals without brackets.
-  // TODO(eroman): support CIDR-style IP masks. (http://crbug.com/9835).
   //
   bool AddRuleFromString(const std::string& raw);
 
