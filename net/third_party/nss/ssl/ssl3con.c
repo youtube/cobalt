@@ -8489,7 +8489,7 @@ ssl3_HandleFinished(sslSocket *ss, SSL3Opaque *b, PRUint32 length,
 	if (!isServer) {
 	    rv = ssl3_SendNextProto(ss);
 	    if (rv != SECSuccess) {
-		goto xmit_loser;        /* err code was set. */
+		goto xmit_loser;	/* err code was set. */
 	    }
 	}
 
