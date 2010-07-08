@@ -74,6 +74,10 @@ class ProxyResolver {
   // no-op implementation.
   virtual void PurgeMemory() {}
 
+  // Optional shutdown code to be run before destruction. This is only used
+  // by the multithreaded runner to signal cleanup from origin thread
+  virtual void Shutdown() {}
+
  private:
   // Called to set the PAC script backend to use. If |pac_url| is invalid,
   // this is a request to use WPAD (auto detect). |pac_script| may be empty if
