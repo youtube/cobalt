@@ -1007,6 +1007,16 @@
                   '-msse2',
                 ],
               }],
+              # Install packages have started cropping up with
+              # different headers between the 32-bit and 64-bit
+              # versions, so we have to shadow those differences off
+              # and make sure a 32-bit-on-64-bit build picks up the
+              # right files.
+              ['host_arch!="ia32"', {
+                'include_dirs+': [
+                  '/usr/include32',
+                ],
+              }],
             ],
             # -mmmx allows mmintrin.h to be used for mmx intrinsics.
             # video playback is mmx and sse2 optimized.
