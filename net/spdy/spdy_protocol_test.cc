@@ -31,6 +31,7 @@ using spdy::SpdyGoAwayControlFrame;
 using spdy::SpdyRstStreamControlFrame;
 using spdy::SpdySettings;
 using spdy::SpdySettingsControlFrame;
+using spdy::SpdyStatusCodes;
 using spdy::SpdySynReplyControlFrame;
 using spdy::SpdySynStreamControlFrame;
 using spdy::SpdyWindowUpdateControlFrame;
@@ -114,14 +115,14 @@ TEST(SpdyProtocolTest, ControlFrameStructs) {
   EXPECT_EQ(0, syn_reply->flags());
 
   scoped_ptr<SpdyRstStreamControlFrame> rst_frame(
-      framer.CreateRstStream(123, 444));
+      framer.CreateRstStream(123, spdy::PROTOCOL_ERROR));
   EXPECT_EQ(kSpdyProtocolVersion, rst_frame->version());
   EXPECT_TRUE(rst_frame->is_control_frame());
   EXPECT_EQ(RST_STREAM, rst_frame->type());
   EXPECT_EQ(123u, rst_frame->stream_id());
-  EXPECT_EQ(444u, rst_frame->status());
-  rst_frame->set_status(555);
-  EXPECT_EQ(555u, rst_frame->status());
+  EXPECT_EQ(spdy::PROTOCOL_ERROR, rst_frame->status());
+  rst_frame->set_status(spdy::INVALID_STREAM);
+  EXPECT_EQ(spdy::INVALID_STREAM, rst_frame->status());
   EXPECT_EQ(0, rst_frame->flags());
 
   scoped_ptr<SpdyGoAwayControlFrame> goaway_frame(

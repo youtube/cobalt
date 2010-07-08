@@ -154,7 +154,7 @@ class SpdyFramer {
                                              SpdyHeaderBlock* headers);
 
   static SpdyRstStreamControlFrame* CreateRstStream(SpdyStreamId stream_id,
-                                                    int status);
+                                                    SpdyStatusCodes status);
 
   // Creates an instance of SpdyGoAwayControlFrame. The GOAWAY frame is used
   // prior to the shutting down of the TCP connection, and includes the
@@ -197,7 +197,7 @@ class SpdyFramer {
   //    To create a compressed frame, enable DATA_FLAG_COMPRESSED.
   //    To mark this frame as the last data frame, enable DATA_FLAG_FIN.
   SpdyDataFrame* CreateDataFrame(SpdyStreamId stream_id, const char* data,
-                                 uint32 len, uint32 flags);
+                                 uint32 len, SpdyDataFlags flags);
 
   static SpdyControlFrame* CreateNopFrame();
 
