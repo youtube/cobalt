@@ -28,11 +28,6 @@ TEST_F(SysInfoTest, AmountOfFreeDiskSpace) {
             << tmp_path.value();
 }
 
-TEST_F(SysInfoTest, GetEnvVar) {
-  // Every setup should have non-empty PATH...
-  EXPECT_NE(base::SysInfo::GetEnvVar(L"PATH"), L"");
-}
-
 #if defined(OS_WIN) || defined(OS_MACOSX) || defined(OS_CHROMEOS)
 TEST_F(SysInfoTest, OperatingSystemVersionNumbers) {
   int32 os_major_version = -1;
