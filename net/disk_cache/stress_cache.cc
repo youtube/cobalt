@@ -140,6 +140,7 @@ void StressTheCache(int iteration) {
 
     if (!(i % 100))
       printf("Entries: %d    \r", i);
+    MessageLoop::current()->RunAllPending();
   }
 }
 
