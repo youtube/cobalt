@@ -15,6 +15,32 @@ namespace spdy {
 
 namespace test {
 
+std::string HexDump(const unsigned char* data, int length) {
+  static const char kHexChars[] = "0123456789ABCDEF";
+  static const int kColumns = 4;
+
+  std::string hex;
+  for (const unsigned char* row = data; length > 0;
+       row += kColumns, length -= kColumns) {
+    for (const unsigned char *p = row; p < row + 4; ++p) {
+      if (p < row + length) {
+        hex += kHexChars[(*p & 0xf0) >> 4];
+        hex += kHexChars[*p & 0x0f];
+        hex += ' ';
+      } else {
+        hex += "   ";
+      }
+    }
+    hex = hex + ' ';
+
+    for (const unsigned char *p = row; p < row + 4 && p < row + length; ++p)
+      hex += (*p >= 0x20 && *p <= 0x7f) ? (*p) : '.';
+
+    hex = hex + '\n';
+  }
+  return hex;
+}
+
 void FramerSetEnableCompressionHelper(SpdyFramer* framer, bool compress) {
   framer->set_enable_compression(compress);
 }
@@ -126,6 +152,7 @@ using spdy::DATA_FLAG_COMPRESSED;
 using spdy::DATA_FLAG_FIN;
 using spdy::SYN_STREAM;
 using spdy::test::FramerSetEnableCompressionHelper;
+using spdy::test::HexDump;
 using spdy::test::TestSpdyVisitor;
 
 namespace spdy {
@@ -133,6 +160,25 @@ namespace spdy {
 class SpdyFramerTest : public PlatformTest {
  public:
   virtual void TearDown() {}
+
+ protected:
+  void CompareFrame(const std::string& description,
+                    const SpdyFrame& actual,
+                    const unsigned char* expected,
+                    const int expected_len) {
+    int frame_len = actual.length() + SpdyFrame::size();
+    std::string actual_str(actual.data(), frame_len);
+    std::string expected_str(reinterpret_cast<const char*>(expected),
+                             expected_len);
+    if (actual_str != expected_str) {
+      ADD_FAILURE()
+          << "Frame: " << description << "\n"
+          << "Expected:\n" << HexDump(expected, expected_len) << "\n"
+          << "Actual:\n" + HexDump(
+              reinterpret_cast<const unsigned char*>(
+                  actual.data()), frame_len) << "\n";
+    }
+  }
 };
 
 // Test that we can encode and decode a SpdyHeaderBlock.
@@ -636,5 +682,474 @@ TEST_F(SpdyFramerTest, UnclosedStreamDataCompressors) {
   EXPECT_EQ(0, send_framer.num_stream_decompressors());
 }
 
-}  // namespace
+TEST_F(SpdyFramerTest, CreateDataFrame) {
+  SpdyFramer framer;
 
+  {
+    const char kDescription[] = "'hello' data frame, no FIN";
+    const unsigned char kFrameData[] = {
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x05,
+      'h', 'e', 'l', 'l',
+      'o'
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateDataFrame(
+        1, "hello", 5, DATA_FLAG_NONE));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "Data frame with negative data byte, no FIN";
+    const unsigned char kFrameData[] = {
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x01,
+      0xff
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateDataFrame(
+        1, "\xff", 1, DATA_FLAG_NONE));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "'hello' data frame, with FIN";
+    const unsigned char kFrameData[] = {
+      0x00, 0x00, 0x00, 0x01,
+      0x01, 0x00, 0x00, 0x05,
+      'h', 'e', 'l', 'l',
+      'o'
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateDataFrame(
+        1, "hello", 5, DATA_FLAG_FIN));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "Empty data frame";
+    const unsigned char kFrameData[] = {
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x00,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateDataFrame(
+        1, "", 0, DATA_FLAG_NONE));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "Data frame with max stream ID";
+    const unsigned char kFrameData[] = {
+      0x7f, 0xff, 0xff, 0xff,
+      0x01, 0x00, 0x00, 0x05,
+      'h', 'e', 'l', 'l',
+      'o'
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateDataFrame(
+        0x7fffffff, "hello", 5, DATA_FLAG_FIN));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreateSynStreamUncompressed) {
+  SpdyFramer framer;
+  FramerSetEnableCompressionHelper(&framer, false);
+
+  {
+    const char kDescription[] = "SYN_STREAM frame, lowest pri, no FIN";
+
+    SpdyHeaderBlock headers;
+    headers["bar"] = "foo";
+    headers["foo"] = "bar";
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x20,
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x00,
+      0xC0, 0x00, 0x00, 0x02,
+      0x00, 0x03, 'b',  'a',
+      'r',  0x00, 0x03, 'f',
+      'o',  'o',  0x00, 0x03,
+      'f',  'o',  'o',  0x00,
+      0x03, 'b',  'a',  'r'
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSynStream(
+        1, 0, SPDY_PRIORITY_LOWEST, CONTROL_FLAG_NONE,
+        false, &headers));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] =
+        "SYN_STREAM frame with a 0-length header name, highest pri, FIN, "
+        "max stream ID";
+
+    SpdyHeaderBlock headers;
+    headers[""] = "foo";
+    headers["foo"] = "bar";
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x01,
+      0x01, 0x00, 0x00, 0x1D,
+      0x7f, 0xff, 0xff, 0xff,
+      0x7f, 0xff, 0xff, 0xff,
+      0x00, 0x00, 0x00, 0x02,
+      0x00, 0x00, 0x00, 0x03,
+      'f',  'o',  'o',  0x00,
+      0x03, 'f',  'o',  'o',
+      0x00, 0x03, 'b',  'a',
+      'r'
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSynStream(
+        0x7fffffff, 0x7fffffff, SPDY_PRIORITY_HIGHEST, CONTROL_FLAG_FIN,
+        false, &headers));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] =
+        "SYN_STREAM frame with a 0-length header val, highest pri, FIN, "
+        "max stream ID";
+
+    SpdyHeaderBlock headers;
+    headers["bar"] = "foo";
+    headers["foo"] = "";
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x01,
+      0x01, 0x00, 0x00, 0x1D,
+      0x7f, 0xff, 0xff, 0xff,
+      0x7f, 0xff, 0xff, 0xff,
+      0x00, 0x00, 0x00, 0x02,
+      0x00, 0x03, 'b',  'a',
+      'r',  0x00, 0x03, 'f',
+      'o',  'o',  0x00, 0x03,
+      'f',  'o',  'o',  0x00,
+      0x00
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSynStream(
+        0x7fffffff, 0x7fffffff, SPDY_PRIORITY_HIGHEST, CONTROL_FLAG_FIN,
+        false, &headers));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreateSynStreamCompressed) {
+  SpdyFramer framer;
+  FramerSetEnableCompressionHelper(&framer, true);
+
+  {
+    const char kDescription[] =
+        "SYN_STREAM frame, lowest pri, no FIN";
+
+    SpdyHeaderBlock headers;
+    headers["bar"] = "foo";
+    headers["foo"] = "bar";
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x25,
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x00,
+      0xC0, 0x00, 0x38, 0xea,
+      0xdf, 0xa2, 0x51, 0xb2,
+      0x62, 0x60, 0x62, 0x60,
+      0x4e, 0x4a, 0x2c, 0x62,
+      0x60, 0x4e, 0xcb, 0xcf,
+      0x87, 0x12, 0x40, 0x2e,
+      0x00, 0x00, 0x00, 0xff,
+      0xff
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSynStream(
+        1, 0, SPDY_PRIORITY_LOWEST, CONTROL_FLAG_NONE,
+        true, &headers));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreateSynReplyUncompressed) {
+  SpdyFramer framer;
+  FramerSetEnableCompressionHelper(&framer, false);
+
+  {
+    const char kDescription[] = "SYN_REPLY frame, no FIN";
+
+    SpdyHeaderBlock headers;
+    headers["bar"] = "foo";
+    headers["foo"] = "bar";
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x02,
+      0x00, 0x00, 0x00, 0x1C,
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x02,
+      0x00, 0x03, 'b',  'a',
+      'r',  0x00, 0x03, 'f',
+      'o',  'o',  0x00, 0x03,
+      'f',  'o',  'o',  0x00,
+      0x03, 'b',  'a',  'r'
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSynReply(
+        1, CONTROL_FLAG_NONE, false, &headers));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] =
+        "SYN_REPLY frame with a 0-length header name, FIN, max stream ID";
+
+    SpdyHeaderBlock headers;
+    headers[""] = "foo";
+    headers["foo"] = "bar";
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x02,
+      0x01, 0x00, 0x00, 0x19,
+      0x7f, 0xff, 0xff, 0xff,
+      0x00, 0x00, 0x00, 0x02,
+      0x00, 0x00, 0x00, 0x03,
+      'f',  'o',  'o',  0x00,
+      0x03, 'f',  'o',  'o',
+      0x00, 0x03, 'b',  'a',
+      'r'
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSynReply(
+        0x7fffffff, CONTROL_FLAG_FIN, false, &headers));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] =
+        "SYN_REPLY frame with a 0-length header val, FIN, max stream ID";
+
+    SpdyHeaderBlock headers;
+    headers["bar"] = "foo";
+    headers["foo"] = "";
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x02,
+      0x01, 0x00, 0x00, 0x19,
+      0x7f, 0xff, 0xff, 0xff,
+      0x00, 0x00, 0x00, 0x02,
+      0x00, 0x03, 'b',  'a',
+      'r',  0x00, 0x03, 'f',
+      'o',  'o',  0x00, 0x03,
+      'f',  'o',  'o',  0x00,
+      0x00
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSynReply(
+        0x7fffffff, CONTROL_FLAG_FIN, false, &headers));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreateSynReplyCompressed) {
+  SpdyFramer framer;
+  FramerSetEnableCompressionHelper(&framer, true);
+
+  {
+    const char kDescription[] = "SYN_REPLY frame, no FIN";
+
+    SpdyHeaderBlock headers;
+    headers["bar"] = "foo";
+    headers["foo"] = "bar";
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x02,
+      0x00, 0x00, 0x00, 0x21,
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x38, 0xea,
+      0xdf, 0xa2, 0x51, 0xb2,
+      0x62, 0x60, 0x62, 0x60,
+      0x4e, 0x4a, 0x2c, 0x62,
+      0x60, 0x4e, 0xcb, 0xcf,
+      0x87, 0x12, 0x40, 0x2e,
+      0x00, 0x00, 0x00, 0xff,
+      0xff
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSynReply(
+        1, CONTROL_FLAG_NONE, true, &headers));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreateRstStream) {
+  SpdyFramer framer;
+
+  {
+    const char kDescription[] = "RST_STREAM frame";
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x03,
+      0x00, 0x00, 0x00, 0x08,
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x01,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateRstStream(1, PROTOCOL_ERROR));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "RST_STREAM frame with max stream ID";
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x03,
+      0x00, 0x00, 0x00, 0x08,
+      0x7f, 0xff, 0xff, 0xff,
+      0x00, 0x00, 0x00, 0x01,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateRstStream(0x7FFFFFFF,
+                                                       PROTOCOL_ERROR));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "RST_STREAM frame with max status code";
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x03,
+      0x00, 0x00, 0x00, 0x08,
+      0x7f, 0xff, 0xff, 0xff,
+      0x00, 0x00, 0x00, 0x06,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateRstStream(0x7FFFFFFF,
+                                                       INTERNAL_ERROR));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreateSettings) {
+  SpdyFramer framer;
+
+  {
+    const char kDescription[] = "Basic SETTINGS frame";
+
+    SpdySettings settings;
+    settings.push_back(SpdySetting(0x00000000, 0x00000000));
+    settings.push_back(SpdySetting(0xffffffff, 0x00000001));
+    settings.push_back(SpdySetting(0xff000001, 0x00000002));
+
+    // Duplicates allowed
+    settings.push_back(SpdySetting(0x01000002, 0x00000003));
+    settings.push_back(SpdySetting(0x01000002, 0x00000003));
+
+    settings.push_back(SpdySetting(0x01000003, 0x000000ff));
+    settings.push_back(SpdySetting(0x01000004, 0xff000001));
+    settings.push_back(SpdySetting(0x01000004, 0xffffffff));
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x04,
+      0x00, 0x00, 0x00, 0x44,
+      0x00, 0x00, 0x00, 0x08,
+      0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+      0xff, 0xff, 0xff, 0xff,
+      0x00, 0x00, 0x00, 0x01,
+      0xff, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x02,
+      0x01, 0x00, 0x00, 0x02,
+      0x00, 0x00, 0x00, 0x03,
+      0x01, 0x00, 0x00, 0x02,
+      0x00, 0x00, 0x00, 0x03,
+      0x01, 0x00, 0x00, 0x03,
+      0x00, 0x00, 0x00, 0xff,
+      0x01, 0x00, 0x00, 0x04,
+      0xff, 0x00, 0x00, 0x01,
+      0x01, 0x00, 0x00, 0x04,
+      0xff, 0xff, 0xff, 0xff,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSettings(settings));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "Empty SETTINGS frame";
+
+    SpdySettings settings;
+
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x04,
+      0x00, 0x00, 0x00, 0x04,
+      0x00, 0x00, 0x00, 0x00,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateSettings(settings));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreateNopFrame) {
+  SpdyFramer framer;
+
+  {
+    const char kDescription[] = "NOOP frame";
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x05,
+      0x00, 0x00, 0x00, 0x00,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateNopFrame());
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreateGoAway) {
+  SpdyFramer framer;
+
+  {
+    const char kDescription[] = "GOAWAY frame";
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x07,
+      0x00, 0x00, 0x00, 0x04,
+      0x00, 0x00, 0x00, 0x00,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateGoAway(0));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "GOAWAY frame with max stream ID";
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x07,
+      0x00, 0x00, 0x00, 0x04,
+      0x7f, 0xff, 0xff, 0xff,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateGoAway(0x7FFFFFFF));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+TEST_F(SpdyFramerTest, CreateWindowUpdate) {
+  SpdyFramer framer;
+
+  {
+    const char kDescription[] = "WINDOW_UPDATE frame";
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x09,
+      0x00, 0x00, 0x00, 0x08,
+      0x00, 0x00, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x01,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateWindowUpdate(1, 1));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "WINDOW_UPDATE frame with max stream ID";
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x09,
+      0x00, 0x00, 0x00, 0x08,
+      0x7f, 0xff, 0xff, 0xff,
+      0x00, 0x00, 0x00, 0x01,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateWindowUpdate(0x7FFFFFFF, 1));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+
+  {
+    const char kDescription[] = "WINDOW_UPDATE frame with max window delta";
+    const unsigned char kFrameData[] = {
+      0x80, 0x01, 0x00, 0x09,
+      0x00, 0x00, 0x00, 0x08,
+      0x00, 0x00, 0x00, 0x01,
+      0x80, 0x00, 0x00, 0x00,
+    };
+    scoped_ptr<SpdyFrame> frame(framer.CreateWindowUpdate(1, 0x80000000));
+    CompareFrame(kDescription, *frame, kFrameData, arraysize(kFrameData));
+  }
+}
+
+}  // namespace
