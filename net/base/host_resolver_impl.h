@@ -99,7 +99,7 @@ class HostResolverImpl : public HostResolver,
   virtual HostResolverImpl* GetAsHostResolverImpl() { return this; }
 
   // TODO(eroman): hack for http://crbug.com/15513
-  virtual void Shutdown();
+  void Shutdown();
 
   // Returns the cache this resolver uses, or NULL if caching is disabled.
   HostCache* cache() { return cache_.get(); }
