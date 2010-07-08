@@ -47,17 +47,6 @@ int64 SysInfo::AmountOfFreeDiskSpace(const FilePath& path) {
 }
 
 // static
-std::wstring SysInfo::GetEnvVar(const wchar_t* var) {
-  std::string var_utf8 = WideToUTF8(std::wstring(var));
-  char* value = getenv(var_utf8.c_str());
-  if (!value) {
-    return std::wstring();
-  } else {
-    return UTF8ToWide(value);
-  }
-}
-
-// static
 std::string SysInfo::OperatingSystemName() {
   utsname info;
   if (uname(&info) < 0) {
