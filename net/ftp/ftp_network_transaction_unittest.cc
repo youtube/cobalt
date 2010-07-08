@@ -39,12 +39,9 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
     PRE_EPSV,
     PRE_PASV,
     PRE_SIZE,
-    PRE_MDTM,
     PRE_MLSD,
     PRE_LIST,
     PRE_RETR,
-    PRE_EPSV2,
-    PRE_PASV2,
     PRE_CWD,
     PRE_QUIT,
     PRE_NOPASV,
@@ -83,16 +80,6 @@ class FtpSocketDataProvider : public DynamicSocketDataProvider {
       case PRE_EPSV:
         return Verify("EPSV\r\n", data, PRE_SIZE,
                       "227 Entering Extended Passive Mode (|||31744|)\r\n");
-      case PRE_EPSV2:
-        return Verify("EPSV\r\n", data, PRE_CWD,
-                      "227 Entering Extended Passive Mode (|||31744|)\r\n");
-      case PRE_PASV:
-        return Verify("PASV\r\n", data, PRE_SIZE,
-                      "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
-      case PRE_PASV2:
-        // Parser should also accept format without parentheses.
-        return Verify("PASV\r\n", data, PRE_CWD,
-                      "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
       case PRE_NOPASV:
         return Verify("PASV\r\n", data, PRE_QUIT,
                       "500 not going to happen\r\n");
@@ -195,14 +182,8 @@ class FtpSocketDataProviderDirectoryListing : public FtpSocketDataProvider {
       return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_SIZE:
-        return Verify("SIZE /\r\n", data, PRE_MDTM,
+        return Verify("SIZE /\r\n", data, PRE_CWD,
                       "550 I can only retrieve regular files\r\n");
-      case PRE_MDTM:
-        return Verify("MDTM /\r\n", data, PRE_RETR,
-                      "213 20070221112533\r\n");
-      case PRE_RETR:
-        return Verify("RETR /\r\n", data, PRE_EPSV2,
-                      "550 Can't download directory\r\n");
       case PRE_CWD:
         return Verify("CWD /\r\n", data, PRE_MLSD, "200 OK\r\n");
       case PRE_MLSD:
@@ -233,9 +214,9 @@ class FtpSocketDataProviderDirectoryListingWithPasvFallback
       case PRE_EPSV:
         return Verify("EPSV\r\n", data, PRE_PASV,
                       "500 no EPSV for you\r\n");
-      case PRE_RETR:
-        return Verify("RETR /\r\n", data, PRE_PASV2,
-                      "550 Can't download directory\r\n");
+      case PRE_PASV:
+        return Verify("PASV\r\n", data, PRE_SIZE,
+                      "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
       default:
         return FtpSocketDataProviderDirectoryListing::OnWrite(data);
     }
@@ -244,36 +225,6 @@ class FtpSocketDataProviderDirectoryListingWithPasvFallback
  private:
   DISALLOW_COPY_AND_ASSIGN(
       FtpSocketDataProviderDirectoryListingWithPasvFallback);
-};
-
-class FtpSocketDataProviderDirectoryListingWithTypecode
-    : public FtpSocketDataProvider {
- public:
-  FtpSocketDataProviderDirectoryListingWithTypecode() {
-  }
-
-  virtual MockWriteResult OnWrite(const std::string& data) {
-    if (InjectFault())
-      return MockWriteResult(true, data.length());
-    switch (state()) {
-      case PRE_EPSV:
-        return Verify("EPSV\r\n", data, PRE_CWD,
-                      "227 Entering Passive Mode (|||31744|)\r\n");
-      case PRE_CWD:
-        return Verify("CWD /\r\n", data, PRE_MLSD, "200 OK\r\n");
-      case PRE_MLSD:
-        return Verify("MLSD\r\n", data, PRE_QUIT,
-                      "150 Accepted data connection\r\n"
-                      "226 MLSD complete\r\n");
-      case PRE_LIST:
-        return Verify("LIST\r\n", data, PRE_QUIT, "200 OK\r\n");
-      default:
-        return FtpSocketDataProvider::OnWrite(data);
-    }
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderDirectoryListingWithTypecode);
 };
 
 class FtpSocketDataProviderVMSDirectoryListing : public FtpSocketDataProvider {
@@ -290,15 +241,14 @@ class FtpSocketDataProviderVMSDirectoryListing : public FtpSocketDataProvider {
       case PRE_PWD:
         return Verify("PWD\r\n", data, PRE_TYPE,
                       "257 \"ANONYMOUS_ROOT:[000000]\"\r\n");
+      case PRE_EPSV:
+        return Verify("EPSV\r\n", data, PRE_PASV, "500 Invalid command\r\n");
+      case PRE_PASV:
+        return Verify("PASV\r\n", data, PRE_SIZE,
+                      "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
       case PRE_SIZE:
-        return Verify("SIZE ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_MDTM,
+        return Verify("SIZE ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_CWD,
                       "550 I can only retrieve regular files\r\n");
-      case PRE_MDTM:
-        return Verify("MDTM ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_RETR,
-                      "213 20070221112533\r\n");
-      case PRE_RETR:
-        return Verify("RETR ANONYMOUS_ROOT:[000000]dir\r\n", data, PRE_EPSV2,
-                      "550 Can't download directory\r\n");
       case PRE_CWD:
         return Verify("CWD ANONYMOUS_ROOT:[dir]\r\n", data, PRE_MLSD,
                       "200 OK\r\n");
@@ -333,15 +283,12 @@ class FtpSocketDataProviderVMSDirectoryListingRootDirectory
       case PRE_EPSV:
         return Verify("EPSV\r\n", data, PRE_PASV,
                       "500 EPSV command unknown\r\n");
+      case PRE_PASV:
+        return Verify("PASV\r\n", data, PRE_SIZE,
+                      "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
       case PRE_SIZE:
-        return Verify("SIZE ANONYMOUS_ROOT\r\n", data, PRE_MDTM,
+        return Verify("SIZE ANONYMOUS_ROOT\r\n", data, PRE_CWD,
                       "550 I can only retrieve regular files\r\n");
-      case PRE_MDTM:
-        return Verify("MDTM ANONYMOUS_ROOT\r\n", data, PRE_RETR,
-                      "213 20070221112533\r\n");
-      case PRE_RETR:
-        return Verify("RETR ANONYMOUS_ROOT\r\n", data, PRE_PASV2,
-                      "550 Can't download directory\r\n");
       case PRE_CWD:
         return Verify("CWD ANONYMOUS_ROOT:[000000]\r\n", data, PRE_MLSD,
                       "200 OK\r\n");
@@ -369,11 +316,8 @@ class FtpSocketDataProviderFileDownload : public FtpSocketDataProvider {
       return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_SIZE:
-        return Verify("SIZE /file\r\n", data, PRE_MDTM,
+        return Verify("SIZE /file\r\n", data, PRE_RETR,
                       "213 18\r\n");
-      case PRE_MDTM:
-        return Verify("MDTM /file\r\n", data, PRE_RETR,
-                      "213 20070221112533\r\n");
       case PRE_RETR:
         return Verify("RETR /file\r\n", data, PRE_QUIT, "200 OK\r\n");
       default:
@@ -398,6 +342,9 @@ class FtpSocketDataProviderFileDownloadWithPasvFallback
       case PRE_EPSV:
         return Verify("EPSV\r\n", data, PRE_PASV,
                       "500 No can do\r\n");
+      case PRE_PASV:
+        return Verify("PASV\r\n", data, PRE_SIZE,
+                      "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
       default:
         return FtpSocketDataProviderFileDownload::OnWrite(data);
     }
@@ -421,12 +368,15 @@ class FtpSocketDataProviderVMSFileDownload : public FtpSocketDataProvider {
       case PRE_PWD:
         return Verify("PWD\r\n", data, PRE_TYPE,
                       "257 \"ANONYMOUS_ROOT:[000000]\"\r\n");
+      case PRE_EPSV:
+        return Verify("EPSV\r\n", data, PRE_PASV,
+                      "500 EPSV command unknown\r\n");
+      case PRE_PASV:
+        return Verify("PASV\r\n", data, PRE_SIZE,
+                      "227 Entering Passive Mode 127,0,0,1,123,456\r\n");
       case PRE_SIZE:
-        return Verify("SIZE ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_MDTM,
+        return Verify("SIZE ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_RETR,
                       "213 18\r\n");
-      case PRE_MDTM:
-        return Verify("MDTM ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_RETR,
-                      "213 20070221112533\r\n");
       case PRE_RETR:
         return Verify("RETR ANONYMOUS_ROOT:[000000]file\r\n", data, PRE_QUIT,
                       "200 OK\r\n");
@@ -439,7 +389,7 @@ class FtpSocketDataProviderVMSFileDownload : public FtpSocketDataProvider {
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderVMSFileDownload);
 };
 
-class FtpSocketDataProviderEscaping : public FtpSocketDataProvider {
+class FtpSocketDataProviderEscaping : public FtpSocketDataProviderFileDownload {
  public:
   FtpSocketDataProviderEscaping() {
   }
@@ -449,16 +399,13 @@ class FtpSocketDataProviderEscaping : public FtpSocketDataProvider {
       return MockWriteResult(true, data.length());
     switch (state()) {
       case PRE_SIZE:
-        return Verify("SIZE / !\"#$%y\200\201\r\n", data, PRE_MDTM,
+        return Verify("SIZE / !\"#$%y\200\201\r\n", data, PRE_RETR,
                       "213 18\r\n");
-      case PRE_MDTM:
-        return Verify("MDTM / !\"#$%y\200\201\r\n", data, PRE_RETR,
-                      "213 20070221112533\r\n");
       case PRE_RETR:
         return Verify("RETR / !\"#$%y\200\201\r\n", data, PRE_QUIT,
                       "200 OK\r\n");
       default:
-        return FtpSocketDataProvider::OnWrite(data);
+        return FtpSocketDataProviderFileDownload::OnWrite(data);
     }
   }
 
@@ -536,28 +483,6 @@ class FtpSocketDataProviderFileDownloadInvalidResponse
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderFileDownloadInvalidResponse);
-};
-
-class FtpSocketDataProviderFileDownloadRetrFail
-    : public FtpSocketDataProviderFileDownload {
- public:
-  FtpSocketDataProviderFileDownloadRetrFail() {
-  }
-
-  virtual MockWriteResult OnWrite(const std::string& data) {
-    if (InjectFault())
-      return MockWriteResult(true, data.length());
-    switch (state()) {
-      case PRE_CWD:
-        return Verify("CWD /file\r\n", data, PRE_QUIT,
-                      "550 file is a directory\r\n");
-      default:
-        return FtpSocketDataProviderFileDownload::OnWrite(data);
-    }
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(FtpSocketDataProviderFileDownloadRetrFail);
 };
 
 class FtpSocketDataProviderEvilEpsv : public FtpSocketDataProviderFileDownload {
@@ -817,7 +742,7 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionWithPasvFallback) {
 }
 
 TEST_F(FtpNetworkTransactionTest, DirectoryTransactionWithTypecode) {
-  FtpSocketDataProviderDirectoryListingWithTypecode ctrl_socket;
+  FtpSocketDataProviderDirectoryListing ctrl_socket;
   ExecuteTransaction(&ctrl_socket, "ftp://host;type=d", OK);
 
   EXPECT_TRUE(transaction_.GetResponseInfo()->is_directory_listing);
@@ -1177,7 +1102,7 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionBigSize) {
   // Pass a valid, but large file size. The transaction should not fail.
   FtpSocketDataProviderEvilSize ctrl_socket(
       "213 3204427776\r\n",
-      FtpSocketDataProvider::PRE_MDTM);
+      FtpSocketDataProvider::PRE_RETR);
   ExecuteTransaction(&ctrl_socket, "ftp://host/file", OK);
   EXPECT_EQ(3204427776LL,
             transaction_.GetResponseInfo()->expected_content_size);
@@ -1257,36 +1182,6 @@ TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailEpsv) {
                         FtpSocketDataProvider::PRE_EPSV,
                         FtpSocketDataProvider::PRE_NOPASV,
                         "500 failed epsv\r\n",
-                        ERR_FTP_PASV_COMMAND_FAILED);
-}
-
-TEST_F(FtpNetworkTransactionTest, DirectoryTransactionMalformedMdtm) {
-  FtpSocketDataProviderDirectoryListing ctrl_socket;
-  TransactionFailHelper(&ctrl_socket,
-                        "ftp://host",
-                        FtpSocketDataProvider::PRE_MDTM,
-                        FtpSocketDataProvider::PRE_RETR,
-                        "213 foobar\r\n",
-                        OK);
-}
-
-TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailMdtm) {
-  FtpSocketDataProviderDirectoryListing ctrl_socket;
-  TransactionFailHelper(&ctrl_socket,
-                        "ftp://host",
-                        FtpSocketDataProvider::PRE_MDTM,
-                        FtpSocketDataProvider::PRE_RETR,
-                        "500 failed mdtm\r\n",
-                        OK);
-}
-
-TEST_F(FtpNetworkTransactionTest, DirectoryTransactionFailEpsv2) {
-  FtpSocketDataProviderDirectoryListing ctrl_socket;
-  TransactionFailHelper(&ctrl_socket,
-                        "ftp://host",
-                        FtpSocketDataProvider::PRE_EPSV2,
-                        FtpSocketDataProvider::PRE_NOPASV,
-                        "500 failed epsv2\r\n",
                         ERR_FTP_PASV_COMMAND_FAILED);
 }
 
@@ -1390,18 +1285,8 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailEpsv) {
                         ERR_FTP_PASV_COMMAND_FAILED);
 }
 
-TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailMdtm) {
-  FtpSocketDataProviderFileDownload ctrl_socket;
-  TransactionFailHelper(&ctrl_socket,
-                        "ftp://host/file",
-                        FtpSocketDataProvider::PRE_MDTM,
-                        FtpSocketDataProvider::PRE_RETR,
-                        "500 failed mdtm\r\n",
-                        OK);
-}
-
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailRetr) {
-  FtpSocketDataProviderFileDownloadRetrFail ctrl_socket;
+  FtpSocketDataProviderFileDownload ctrl_socket;
   TransactionFailHelper(&ctrl_socket,
                         "ftp://host/file",
                         FtpSocketDataProvider::PRE_RETR,
@@ -1411,13 +1296,13 @@ TEST_F(FtpNetworkTransactionTest, DownloadTransactionFailRetr) {
 }
 
 TEST_F(FtpNetworkTransactionTest, DownloadTransactionFileNotFound) {
-  FtpSocketDataProviderFileDownloadRetrFail ctrl_socket;
+  FtpSocketDataProviderFileDownload ctrl_socket;
   TransactionFailHelper(&ctrl_socket,
-                        "ftp://host/file",
-                        FtpSocketDataProvider::PRE_RETR,
-                        FtpSocketDataProvider::PRE_EPSV2,
-                        "550 cannot open file\r\n",
-                        ERR_FILE_NOT_FOUND);
+                        "ftp://host/file;type=i",
+                        FtpSocketDataProvider::PRE_SIZE,
+                        FtpSocketDataProvider::PRE_QUIT,
+                        "550 File Not Found\r\n",
+                        ERR_FAILED);
 }
 
 // Test for http://crbug.com/38845.
