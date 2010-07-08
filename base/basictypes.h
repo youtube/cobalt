@@ -360,5 +360,4 @@ namespace base {
 enum LinkerInitialized { LINKER_INITIALIZED };
 }  // base
 
-
 #endif  // BASE_BASICTYPES_H_
