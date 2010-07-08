@@ -89,7 +89,8 @@ class Image {
   // Creates the image from the given filename on disk, and returns true on
   // success.
   bool CreateFromFilename(const char* filename) {
-    FILE* f = file_util::OpenFile(std::string(filename), "rb");
+    FilePath path = FilePath::FromWStringHack(ASCIIToWide(filename));
+    FILE* f = file_util::OpenFile(path, "rb");
     if (!f)
       return false;
 
@@ -311,7 +312,8 @@ int DiffImages(const char* file1, const char* file2, const char* out_file) {
   gfx::PNGCodec::Encode(diff_image.data(), gfx::PNGCodec::FORMAT_RGBA,
                         diff_image.w(), diff_image.h(), diff_image.w() * 4,
                         false, &png_encoding);
-  if (file_util::WriteFile(UTF8ToWide(out_file),
+  FilePath out_path = FilePath::FromWStringHack(ASCIIToWide(out_file));
+  if (file_util::WriteFile(out_path,
       reinterpret_cast<char*>(&png_encoding.front()), png_encoding.size()) < 0)
     return kStatusError;
 
