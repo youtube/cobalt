@@ -137,6 +137,17 @@ class ProxyBypassRules {
   //
   bool AddRuleFromString(const std::string& raw);
 
+  // This is a variant of AddFromString, which interprets hostname patterns as
+  // suffix tests rather than hostname tests (so "google.com" would actually
+  // match "*google.com"). This is used for KDE which interprets every rule as
+  // a suffix test. It is less flexible, since with the suffix matching format
+  // you can't match an individual host.
+  //
+  // Returns true if the rule was successfully added.
+  //
+  // NOTE: Use AddRuleFromString() unless you truly need this behavior.
+  bool AddRuleFromStringUsingSuffixMatching(const std::string& raw);
+
   // Removes all the rules.
   void Clear();
 
