@@ -220,6 +220,10 @@ class MockGConfSettingGetter
     return false;
   }
 
+  virtual bool MatchHostsUsingSuffixMatching() {
+    return false;
+  }
+
   // Intentionally public, for convenience when setting up a test.
   GConfValues values;
 
@@ -1041,7 +1045,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       // Input.
       "[Proxy Settings]\nProxyType=1\nhttpProxy=www.google.com\n"
-          "NoProxyFor=*.google.com\n",
+          "NoProxyFor=.google.com\n",
       {},                                      // env_values
 
       false,                                   // auto_detect
@@ -1058,7 +1062,7 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
 
       // Input.
       "[Proxy Settings]\nProxyType=1\nhttpProxy=www.google.com\n"
-          "NoProxyFor=*.google.com,*.kde.org\n",
+          "NoProxyFor=.google.com,.kde.org\n",
       {},                                      // env_values
 
       false,                                   // auto_detect
@@ -1071,11 +1075,11 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     },
 
     {
-      TEST_DESC("Ignore bypass list with ReversedException"),
+      TEST_DESC("Correctly parse bypass list with ReversedException"),
 
       // Input.
       "[Proxy Settings]\nProxyType=1\nhttpProxy=www.google.com\n"
-          "NoProxyFor=*.google.com\nReversedException=true\n",
+          "NoProxyFor=.google.com\nReversedException=true\n",
       {},                                      // env_values
 
       false,                                   // auto_detect
@@ -1088,11 +1092,28 @@ TEST_F(ProxyConfigServiceLinuxTest, KDEConfigParser) {
     },
 
     {
+      TEST_DESC("Treat all hostname patterns as wildcard patterns"),
+
+      // Input.
+      "[Proxy Settings]\nProxyType=1\nhttpProxy=www.google.com\n"
+          "NoProxyFor=google.com,kde.org,<local>\n",
+      {},                                      // env_values
+
+      false,                                   // auto_detect
+      GURL(),                                  // pac_url
+      ProxyRulesExpectation::PerScheme(
+          "www.google.com:80",              // http
+          "",                               // https
+          "",                               // ftp
+          "*google.com,*kde.org,<local>"),  // bypass rules
+    },
+
+    {
       TEST_DESC("Allow trailing whitespace after boolean value"),
 
       // Input.
       "[Proxy Settings]\nProxyType=1\nhttpProxy=www.google.com\n"
-          "NoProxyFor=*.google.com\nReversedException=true  \n",
+          "NoProxyFor=.google.com\nReversedException=true  \n",
       {},                                      // env_values
 
       false,                                   // auto_detect
