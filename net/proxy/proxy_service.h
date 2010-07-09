@@ -181,10 +181,6 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
 
   ~ProxyService();
 
-  // Creates a proxy resolver appropriate for this platform that doesn't rely
-  // on V8.
-  static ProxyResolver* CreateNonV8ProxyResolver();
-
   // Identifies the proxy configuration.
   ProxyConfig::ID config_id() const { return config_.id(); }
 

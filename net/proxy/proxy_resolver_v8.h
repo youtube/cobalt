@@ -50,6 +50,7 @@ class ProxyResolverV8 : public ProxyResolver {
                              const BoundNetLog& net_log);
   virtual void CancelRequest(RequestHandle request);
   virtual void PurgeMemory();
+  virtual void Shutdown();
 
   ProxyResolverJSBindings* js_bindings() const { return js_bindings_.get(); }
 
