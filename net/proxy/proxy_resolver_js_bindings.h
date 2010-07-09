@@ -54,6 +54,9 @@ class ProxyResolverJSBindings {
   // if a line number is not applicable to this error.
   virtual void OnError(int line_number, const string16& error) = 0;
 
+  // Called before the thread running the proxy resolver is stopped.
+  virtual void Shutdown() = 0;
+
   // Creates a default javascript bindings implementation that will:
   //   - Send script error messages to LOG(INFO)
   //   - Send script alert()s to LOG(INFO)
