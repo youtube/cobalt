@@ -188,19 +188,4 @@ void SyncHostResolverBridge::Shutdown() {
   core_->Shutdown();
 }
 
-// SingleThreadedProxyResolverUsingBridgedHostResolver -----------------------
-
-SingleThreadedProxyResolverUsingBridgedHostResolver::
-SingleThreadedProxyResolverUsingBridgedHostResolver(
-    ProxyResolver* proxy_resolver,
-    SyncHostResolverBridge* bridged_host_resolver)
-    : SingleThreadedProxyResolver(proxy_resolver),
-      bridged_host_resolver_(bridged_host_resolver) {
-}
-
-SingleThreadedProxyResolverUsingBridgedHostResolver::
-~SingleThreadedProxyResolverUsingBridgedHostResolver() {
-  bridged_host_resolver_->Shutdown();
-}
-
 }  // namespace net

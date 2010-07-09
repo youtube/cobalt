@@ -110,8 +110,12 @@ class DefaultJSBindings : public ProxyResolverJSBindings {
       LOG(INFO) << "PAC-error: " << "line: " << line_number << ": " << message;
   }
 
+  virtual void Shutdown() {
+    host_resolver_->Shutdown();
+  }
+
  private:
-  // Helper to execute a syncrhonous DNS resolve, using the per-request
+  // Helper to execute a synchronous DNS resolve, using the per-request
   // DNS cache if there is one.
   int DnsResolveHelper(const HostResolver::RequestInfo& info,
                        AddressList* address_list) {
