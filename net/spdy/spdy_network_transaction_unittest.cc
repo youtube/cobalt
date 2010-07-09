@@ -801,7 +801,7 @@ TEST_F(SpdyNetworkTransactionTest, InvalidSynReply) {
 
 // Verify that we don't crash on some corrupt frames.
 // TODO(eroman): Renable this test, see http://crbug.com/48588
-TEST_F(SpdyNetworkTransactionTest, FAILS_CorruptFrameSessionError) {
+TEST_F(SpdyNetworkTransactionTest, DISABLED_CorruptFrameSessionError) {
   // This is the length field with a big number
   scoped_ptr<spdy::SpdyFrame> syn_reply_massive_length(
       ConstructSpdyGetSynReply(NULL, 0));
