@@ -354,7 +354,7 @@ class URLRequestJob : public base::RefCountedThreadSafe<URLRequestJob>,
   // processing the filtered data, we return the data in the caller's buffer.
   // While the async IO is in progress, we save the user buffer here, and
   // when the IO completes, we fill this in.
-  net::IOBuffer *read_buffer_;
+  scoped_refptr<net::IOBuffer> read_buffer_;
   int read_buffer_len_;
 
   // Used by HandleResponseIfNecessary to track whether we've sent the

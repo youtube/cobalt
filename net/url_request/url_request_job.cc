@@ -31,7 +31,6 @@ URLRequestJob::URLRequestJob(URLRequest* request)
       is_compressed_(false),
       done_(false),
       filter_needs_more_output_space_(false),
-      read_buffer_(NULL),
       read_buffer_len_(0),
       has_handled_response_(false),
       expected_content_size_(-1),
@@ -199,7 +198,7 @@ void URLRequestJob::StopCaching() {
   // Nothing to do here.
 }
 
-bool URLRequestJob::ReadRawDataForFilter(int *bytes_read) {
+bool URLRequestJob::ReadRawDataForFilter(int* bytes_read) {
   bool rv = false;
 
   DCHECK(bytes_read);
@@ -233,7 +232,7 @@ void URLRequestJob::FilteredDataRead(int bytes_read) {
   filter_->FlushStreamBuffer(bytes_read);
 }
 
-bool URLRequestJob::ReadFilteredData(int *bytes_read) {
+bool URLRequestJob::ReadFilteredData(int* bytes_read) {
   DCHECK(filter_.get());  // don't add data if there is no filter
   DCHECK(read_buffer_ != NULL);  // we need to have a buffer to fill
   DCHECK_GT(read_buffer_len_, 0);  // sanity check
@@ -330,8 +329,7 @@ bool URLRequestJob::ReadFilteredData(int *bytes_read) {
 
   if (rv) {
     // When we successfully finished a read, we no longer need to
-    // save the caller's buffers.  For debugging purposes, we clear
-    // them out.
+    // save the caller's buffers. Release our reference.
     read_buffer_ = NULL;
     read_buffer_len_ = 0;
   }
