@@ -487,7 +487,7 @@ class URLRequest {
   //
   // If a read error occurs, Read returns false and the request->status
   // will be set to an error.
-  bool Read(net::IOBuffer* buf, int max_bytes, int *bytes_read);
+  bool Read(net::IOBuffer* buf, int max_bytes, int* bytes_read);
 
   // If this request is being cached by the HTTP cache, stop subsequent caching.
   // Note that this method has no effect on other (simultaneous or not) requests
@@ -581,7 +581,7 @@ class URLRequest {
 
   // Restarting involves replacing the current job with a new one such as what
   // happens when following a HTTP redirect.
-  void RestartWithJob(URLRequestJob *job);
+  void RestartWithJob(URLRequestJob* job);
   void PrepareToRestart();
 
   // Detaches the job from this request in preparation for this object going

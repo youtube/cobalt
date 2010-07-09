@@ -339,7 +339,7 @@ void URLRequest::DoCancel(int os_error, const net::SSLInfo& ssl_info) {
   // about being called recursively.
 }
 
-bool URLRequest::Read(net::IOBuffer* dest, int dest_size, int *bytes_read) {
+bool URLRequest::Read(net::IOBuffer* dest, int dest_size, int* bytes_read) {
   DCHECK(job_);
   DCHECK(bytes_read);
   DCHECK(!job_->is_done());
