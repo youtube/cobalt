@@ -402,16 +402,6 @@ void UpOneDirectory(std::wstring* dir) {
   if (directory.value() != FilePath::kCurrentDirectory)
     *dir = directory.ToWStringHack();
 }
-void UpOneDirectoryOrEmpty(std::wstring* dir) {
-  FilePath path = FilePath::FromWStringHack(*dir);
-  FilePath directory = path.DirName();
-  // If there is no separator, we will get back kCurrentDirectory.
-  // In this case, clear dir.
-  if (directory == path || directory.value() == FilePath::kCurrentDirectory)
-    dir->clear();
-  else
-    *dir = directory.ToWStringHack();
-}
 int WriteFile(const std::wstring& filename, const char* data, int size) {
   return WriteFile(FilePath::FromWStringHack(filename), data, size);
 }
