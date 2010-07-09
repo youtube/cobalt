@@ -1482,6 +1482,8 @@ int HttpNetworkTransaction::DoSpdySendRequest() {
   }
 
   CHECK(spdy_session.get());
+  if(spdy_session->IsClosed())
+    return ERR_CONNECTION_CLOSED;
 
   UploadDataStream* upload_data = NULL;
   if (request_->upload_data) {
