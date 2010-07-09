@@ -178,6 +178,8 @@ SpdySession::SpdySession(const HostPortPair& host_port_pair,
 }
 
 SpdySession::~SpdySession() {
+  state_ = CLOSED;
+
   // Cleanup all the streams.
   CloseAllStreams(net::ERR_ABORTED);
 
@@ -763,8 +765,8 @@ void SpdySession::CloseSessionOnError(net::Error err) {
   if (state_ != CLOSED) {
     state_ = CLOSED;
     error_ = err;
-    CloseAllStreams(err);
     RemoveFromPool();
+    CloseAllStreams(err);
   }
 }
 

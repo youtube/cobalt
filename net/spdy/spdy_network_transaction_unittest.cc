@@ -420,14 +420,93 @@ TEST_F(SpdyNetworkTransactionTest, CancelledTransaction) {
   MessageLoop::current()->RunAllPending();
 }
 
+class StartTransactionCallback : public CallbackRunner< Tuple1<int> > {
+ public:
+  explicit StartTransactionCallback(
+      const scoped_refptr<HttpNetworkSession>& session)
+      : session_(session) {}
+
+  // We try to start another transaction, which should succeed.
+  virtual void RunWithParams(const Tuple1<int>& params) {
+    scoped_ptr<HttpTransaction> trans(new SpdyNetworkTransaction(session_));
+    TestCompletionCallback callback;
+    HttpRequestInfo request;
+    request.method = "GET";
+    request.url = GURL("http://www.google.com/");
+    request.load_flags = 0;
+    int rv = trans->Start(&request, &callback, BoundNetLog());
+    EXPECT_EQ(ERR_IO_PENDING, rv);
+  }
+
+ private:
+  const scoped_refptr<HttpNetworkSession>& session_;
+};
+
+// Verify that the client can correctly deal with the user callback attempting
+// to start another transaction on a session that is closing down. See
+// http://crbug.com/47455
+TEST_F(SpdyNetworkTransactionTest, StartTransactionOnReadCallback) {
+  scoped_ptr<spdy::SpdyFrame> req(ConstructSpdyGet(NULL, 0));
+  MockWrite writes[] = { CreateMockWrite(*req) };
+  MockWrite writes2[] = { CreateMockWrite(*req) };
+
+  // The indicated length of this packet is longer than its actual length. When
+  // the session receives an empty packet after this one, it shuts down the
+  // session, and calls the read callback with the incomplete data.
+  const uint8 kGetBodyFrame2[] = {
+    0x00, 0x00, 0x00, 0x01,
+    0x01, 0x00, 0x00, 0x07,
+    'h', 'e', 'l', 'l', 'o', '!',
+  };
+
+  scoped_ptr<spdy::SpdyFrame> resp(ConstructSpdyGetSynReply(NULL, 0));
+  MockRead reads[] = {
+    CreateMockRead(*resp, 2),
+    MockRead(true, ERR_IO_PENDING, 3),  // Force a pause
+    MockRead(true, reinterpret_cast<const char*>(kGetBodyFrame2),
+             arraysize(kGetBodyFrame2), 4),
+    MockRead(true, 0, 0, 5),  // EOF
+  };
+  MockRead reads2[] = {
+    CreateMockRead(*resp, 2),
+    MockRead(true, 0, 0, 3),  // EOF
+  };
+
+  // We disable SSL for this test.
+  SpdySession::SetSSLMode(false);
+
+  SessionDependencies session_deps;
+  scoped_refptr<HttpNetworkSession> session = CreateSession(&session_deps);
+  scoped_ptr<HttpTransaction> trans(new SpdyNetworkTransaction(session));
+  scoped_refptr<OrderedSocketData> data(
+      new OrderedSocketData(reads, arraysize(reads),
+                            writes, arraysize(writes)));
+  scoped_refptr<OrderedSocketData> data2(
+      new OrderedSocketData(reads2, arraysize(reads2),
+                            writes2, arraysize(writes2)));
+  session_deps.socket_factory.AddSocketDataProvider(data);
+  session_deps.socket_factory.AddSocketDataProvider(data2);
+
+  // Start the transaction with basic parameters.
+  TestCompletionCallback callback;
+  int rv = trans->Start(&CreateGetRequest(), &callback, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  rv = callback.WaitForResult();
+
+  StartTransactionCallback callback2(session);
+  const int kSize = 3000;
+  scoped_refptr<net::IOBuffer> buf = new net::IOBuffer(kSize);
+  rv = trans->Read(buf, kSize, &callback2);
+  data->CompleteRead();
+  data2->CompleteRead();
+}
+
 class DeleteSessionCallback : public CallbackRunner< Tuple1<int> > {
  public:
   explicit DeleteSessionCallback(SpdyNetworkTransaction* trans1) :
       trans(trans1) {}
 
-  // We kill the transaction, which deletes the session and stream. However, the
-  // memory is still accessible, so we also have to zero out the memory of the
-  // stream. This is not a well defined operation, and can cause failures.
+  // We kill the transaction, which deletes the session and stream.
   virtual void RunWithParams(const Tuple1<int>& params) {
     delete trans;
   }

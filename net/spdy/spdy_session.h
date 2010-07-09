@@ -101,15 +101,21 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // status, such as "resolving host", "connecting", etc.
   LoadState GetLoadState() const;
 
-  // Closes all streams.  Used as part of shutdown.
-  void CloseAllStreams(net::Error status);
-
   // Fills SSL info in |ssl_info| and returns true when SSL is in use.
   bool GetSSLInfo(SSLInfo* ssl_info, bool* was_npn_negotiated);
 
   // Enable or disable SSL.
   static void SetSSLMode(bool enable) { use_ssl_ = enable; }
   static bool SSLMode() { return use_ssl_; }
+
+  // If session is closed, no new streams/transactions should be created.
+  bool IsClosed() const { return state_ == CLOSED; }
+
+  // Closes this session.  This will close all active streams and mark
+  // the session as permanently closed.
+  // |err| should not be OK; this function is intended to be called on
+  // error.
+  void CloseSessionOnError(net::Error err);
 
  private:
   friend class base::RefCounted<SpdySession>;
@@ -173,12 +179,6 @@ class SpdySession : public base::RefCounted<SpdySession>,
   void QueueFrame(spdy::SpdyFrame* frame, spdy::SpdyPriority priority,
                   SpdyStream* stream);
 
-  // Closes this session.  This will close all active streams and mark
-  // the session as permanently closed.
-  // |err| should not be OK; this function is intended to be called on
-  // error.
-  void CloseSessionOnError(net::Error err);
-
   // Track active streams in the active stream list.
   void ActivateStream(SpdyStream* stream);
   void DeleteStream(spdy::SpdyStreamId id, int status);
@@ -197,6 +197,9 @@ class SpdySession : public base::RefCounted<SpdySession>,
                const scoped_refptr<SpdyStream> stream);
 
   void RecordHistograms();
+
+  // Closes all streams.  Used as part of shutdown.
+  void CloseAllStreams(net::Error status);
 
   // Callbacks for the Spdy session.
   CompletionCallbackImpl<SpdySession> connect_callback_;
