@@ -64,7 +64,7 @@ class SpdySessionPool
   bool HasSession(const HostPortPair& host_port_pair)const;
 
   // Close all Spdy Sessions; used for debugging.
-  void CloseAllSessions() { RemoveAllSessions(true); }
+  void CloseAllSessions();
 
   // Removes a SpdySession from the SpdySessionPool.
   void Remove(const scoped_refptr<SpdySession>& session);
@@ -96,8 +96,7 @@ class SpdySessionPool
   // idle sessions being deleted, and the active sessions from being reused, so
   // they will be deleted once all active streams belonging to that session go
   // away.
-  void ClearSessions() { RemoveAllSessions(false); }
-  void RemoveAllSessions(bool close);
+  void ClearSessions();
 
   // This is our weak session pool - one session per domain.
   SpdySessionsMap sessions_;
