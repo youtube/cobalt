@@ -174,6 +174,11 @@ bool ProxyBypassRules::AddRuleFromString(const std::string& raw) {
   return AddRuleFromStringInternalWithLogging(raw, false);
 }
 
+bool ProxyBypassRules::AddRuleFromStringUsingSuffixMatching(
+    const std::string& raw) {
+  return AddRuleFromStringInternalWithLogging(raw, true);
+}
+
 void ProxyBypassRules::Clear() {
   rules_.clear();
 }
