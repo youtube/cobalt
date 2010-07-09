@@ -451,7 +451,7 @@
           'version.h',
         ],
         'conditions': [
-          [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd"', {
+          [ 'OS == "linux" or OS == "freebsd" or OS == "openbsd" or OS == "solaris"', {
             'conditions': [
               [ 'chromeos==1', {
                   'sources/': [ ['include', '_chromeos\\.cc$'] ]
@@ -464,11 +464,7 @@
             'cflags': [
               '-Wno-write-strings',
             ],
-          },],
-          # TODO(wtc): can this become the 'else' clause of the conditional
-          # above?  Can we define USE_SYMBOLIZE and use -Wno-write-strings on
-          # Solaris?
-          [ 'OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"', {
+          }, {  # OS != "linux" and OS != "freebsd" and OS != "openbsd" and OS != "solaris"
               'sources/': [
                 ['exclude', '/xdg_user_dirs/'],
                 ['exclude', '_nss\.cc$'],
