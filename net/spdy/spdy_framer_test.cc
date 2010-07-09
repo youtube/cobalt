@@ -15,7 +15,8 @@ namespace spdy {
 
 namespace test {
 
-std::string HexDump(const unsigned char* data, int length) {
+std::string HexDumpWithMarks(const unsigned char* data, int length,
+                             const bool* marks, int mark_length) {
   static const char kHexChars[] = "0123456789ABCDEF";
   static const int kColumns = 4;
 
@@ -24,14 +25,17 @@ std::string HexDump(const unsigned char* data, int length) {
        row += kColumns, length -= kColumns) {
     for (const unsigned char *p = row; p < row + 4; ++p) {
       if (p < row + length) {
+        const bool mark =
+            (marks && (p - data) < mark_length && marks[p - data]);
+        hex += mark ? '*' : ' ';
         hex += kHexChars[(*p & 0xf0) >> 4];
         hex += kHexChars[*p & 0x0f];
-        hex += ' ';
+        hex += mark ? '*' : ' ';
       } else {
-        hex += "   ";
+        hex += "    ";
       }
     }
-    hex = hex + ' ';
+    hex = hex + "  ";
 
     for (const unsigned char *p = row; p < row + 4 && p < row + length; ++p)
       hex += (*p >= 0x20 && *p <= 0x7f) ? (*p) : '.';
@@ -39,6 +43,37 @@ std::string HexDump(const unsigned char* data, int length) {
     hex = hex + '\n';
   }
   return hex;
+}
+
+void CompareCharArraysWithHexError(
+    const std::string& description,
+    const unsigned char* actual,
+    const int actual_len,
+    const unsigned char* expected,
+    const int expected_len) {
+  const int min_len = actual_len > expected_len ? expected_len : actual_len;
+  const int max_len = actual_len > expected_len ? actual_len : expected_len;
+  scoped_array<bool> marks(new bool[max_len]);
+  bool identical = (actual_len == expected_len);
+  for (int i = 0; i < min_len; ++i) {
+    if (actual[i] != expected[i]) {
+      marks[i] = true;
+      identical = false;
+    } else {
+      marks[i] = false;
+    }
+  }
+  for (int i = min_len; i < max_len; ++i) {
+    marks[i] = true;
+  }
+  if (identical) return;
+  ADD_FAILURE()
+      << "Description:\n"
+      << description
+      << "\n\nExpected:\n"
+      << HexDumpWithMarks(expected, expected_len, marks.get(), max_len)
+      << "\nActual:\n"
+      << HexDumpWithMarks(actual, actual_len, marks.get(), max_len);
 }
 
 void FramerSetEnableCompressionHelper(SpdyFramer* framer, bool compress) {
@@ -151,8 +186,8 @@ using spdy::CONTROL_FLAG_NONE;
 using spdy::DATA_FLAG_COMPRESSED;
 using spdy::DATA_FLAG_FIN;
 using spdy::SYN_STREAM;
+using spdy::test::CompareCharArraysWithHexError;
 using spdy::test::FramerSetEnableCompressionHelper;
-using spdy::test::HexDump;
 using spdy::test::TestSpdyVisitor;
 
 namespace spdy {
@@ -163,21 +198,14 @@ class SpdyFramerTest : public PlatformTest {
 
  protected:
   void CompareFrame(const std::string& description,
-                    const SpdyFrame& actual,
+                    const SpdyFrame& actual_frame,
                     const unsigned char* expected,
                     const int expected_len) {
-    int frame_len = actual.length() + SpdyFrame::size();
-    std::string actual_str(actual.data(), frame_len);
-    std::string expected_str(reinterpret_cast<const char*>(expected),
-                             expected_len);
-    if (actual_str != expected_str) {
-      ADD_FAILURE()
-          << "Frame: " << description << "\n"
-          << "Expected:\n" << HexDump(expected, expected_len) << "\n"
-          << "Actual:\n" + HexDump(
-              reinterpret_cast<const unsigned char*>(
-                  actual.data()), frame_len) << "\n";
-    }
+    const unsigned char* actual =
+        reinterpret_cast<const unsigned char*>(actual_frame.data());
+    int actual_len = actual_frame.length() + SpdyFrame::size();
+    CompareCharArraysWithHexError(
+        description, actual, actual_len, expected, expected_len);
   }
 };
 
