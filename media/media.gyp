@@ -334,6 +334,25 @@
             '_CRT_SECURE_NO_WARNINGS=1',
           ],
         },
+        {
+          'target_name': 'mfplayer',
+          'type': 'executable',
+          'dependencies': [
+          ],
+          'include_dirs': [
+            '..',
+          ],
+          'sources': [
+            'tools/mfplayer/mfplayer.h',
+            'tools/mfplayer/mfplayer.cc',    
+            'tools/mfplayer/mf_playback_main.cc',
+          ],
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'SubSystem': '1',         # Set /SUBSYSTEM:CONSOLE
+            },
+          },
+        },
       ],
     }],
     ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
