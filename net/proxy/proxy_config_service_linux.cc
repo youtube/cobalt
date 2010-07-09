@@ -355,6 +355,10 @@ class GConfSettingGetterImplGConf
     return false;
   }
 
+  virtual bool MatchHostsUsingSuffixMatching() {
+    return false;
+  }
+
  private:
   // Logs and frees a glib error. Returns false if there was no error
   // (error is NULL).
@@ -578,6 +582,10 @@ class GConfSettingGetterImplKDE
     return reversed_bypass_list_;
   }
 
+  virtual bool MatchHostsUsingSuffixMatching() {
+    return true;
+  }
+
  private:
   void ResetCachedSettings() {
     string_table_.clear();
@@ -603,7 +611,7 @@ class GConfSettingGetterImplKDE
 
   void AddHostList(const std::string& key, const std::string& value) {
     std::vector<std::string> tokens;
-    StringTokenizer tk(value, ",");
+    StringTokenizer tk(value, ", ");
     while (tk.GetNext()) {
       std::string token = tk.token();
       if (!token.empty())
@@ -1017,11 +1025,18 @@ bool ProxyConfigServiceLinux::Delegate::GetConfigFromGConf(
   if (gconf_getter_->GetStringList("/system/http_proxy/ignore_hosts",
                                    &ignore_hosts_list)) {
     std::vector<std::string>::const_iterator it(ignore_hosts_list.begin());
-    for (; it != ignore_hosts_list.end(); ++it)
-      config->proxy_rules().bypass_rules.AddRuleFromString(*it);
+    for (; it != ignore_hosts_list.end(); ++it) {
+      if (gconf_getter_->MatchHostsUsingSuffixMatching()) {
+        config->proxy_rules().bypass_rules.
+            AddRuleFromStringUsingSuffixMatching(*it);
+      } else {
+        config->proxy_rules().bypass_rules.AddRuleFromString(*it);
+      }
+    }
   }
   // Note that there are no settings with semantics corresponding to
-  // bypass of local names.
+  // bypass of local names in GNOME. In KDE, "<local>" is supported
+  // as a hostname rule.
 
   // KDE allows one to reverse the bypass rules.
   config->proxy_rules().reverse_bypass = gconf_getter_->BypassListIsReversed();

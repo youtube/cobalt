@@ -80,6 +80,10 @@ class ProxyConfigServiceLinux : public ProxyConfigService {
     // whitelist rather than blacklist. (This is KDE-specific.)
     virtual bool BypassListIsReversed() = 0;
 
+    // Returns true if the bypass rules should be interpreted as
+    // suffix-matching rules.
+    virtual bool MatchHostsUsingSuffixMatching() = 0;
+
    private:
     DISALLOW_COPY_AND_ASSIGN(GConfSettingGetter);
   };
