@@ -17,15 +17,6 @@
 #ifdef TESTING
 #include "base/string_util.h"
 #include "base/time.h"
-
-namespace {
-// Fetch current time as milliseconds.
-// Return as double for high duration and precision.
-// TODO(fbarchard): integrate into base/time.h
-static inline double GetTime() {
-  return base::TimeTicks::HighResNow().ToInternalValue() * (1.0 / 1000.0);
-}
-}
 #endif
 
 namespace media {
@@ -69,7 +60,7 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
   for (size_t i = 0; i < arraysize(path_keys); ++i) {
     FilePath path = base_path.Append(GetDLLName(path_keys[i]));
 #ifdef TESTING
-    double dll_loadtime_start = GetTime();
+    base::TimeTicks dll_loadtime_start = base::TimeTicks::HighResNow();
 #endif
 
     // Use alternate DLL search path so we don't load dependencies from the
@@ -79,9 +70,9 @@ bool InitializeMediaLibrary(const FilePath& base_path) {
     if (!libs[i])
       break;
 #ifdef TESTING
-    double dll_loadtime_end = GetTime();
+    base::TimeTicks dll_loadtime_end = base::TimeTicks::HighResNow();
     std::wstring outputbuf = StringPrintf(L"DLL loadtime %5.2f ms, %ls\n",
-        dll_loadtime_end - dll_loadtime_start,
+        (dll_loadtime_end - dll_loadtime_start).InMillisecondsF(),
         cpath);
     OutputDebugStringW(outputbuf.c_str());
 #endif
