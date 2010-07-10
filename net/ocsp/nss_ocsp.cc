@@ -651,13 +651,13 @@ SECStatus OCSPTrySendAndReceive(SEC_HTTP_REQUEST_SESSION request,
   bool crl_in_url = false, crt_in_url = false, ocsp_in_url = false,
        have_url_hint = false;
   if (!known_resp_type) {
-    const char* path = req->url().path().c_str();
-    const char* host = req->url().host().c_str();
-    crl_in_url = strcasestr(path, ".crl") != NULL;
-    crt_in_url = strcasestr(path, ".crt") != NULL ||
-                 strcasestr(path, ".p7c") != NULL ||
-                 strcasestr(path, ".cer") != NULL;
-    ocsp_in_url = strcasestr(host, "ocsp") != NULL;
+    const std::string path = req->url().path();
+    const std::string host = req->url().host();
+    crl_in_url = strcasestr(path.c_str(), ".crl") != NULL;
+    crt_in_url = strcasestr(path.c_str(), ".crt") != NULL ||
+                 strcasestr(path.c_str(), ".p7c") != NULL ||
+                 strcasestr(path.c_str(), ".cer") != NULL;
+    ocsp_in_url = strcasestr(host.c_str(), "ocsp") != NULL;
     have_url_hint = crl_in_url || crt_in_url || ocsp_in_url;
   }
 
