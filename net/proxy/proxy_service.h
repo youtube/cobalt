@@ -137,6 +137,22 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   // the proxy settings change. We take ownership of |proxy_config_service|.
   // Iff |use_v8_resolver| is true, then the V8 implementation is
   // used.
+  //
+  // |num_pac_threads| specifies the maximum number of threads to use for
+  // executing PAC scripts. Threads are created lazily on demand.
+  // If |0| is specified, then a default number of threads will be selected.
+  //
+  // Having more threads avoids stalling proxy resolve requests when the
+  // PAC script takes a while to run. This is particularly a problem when PAC
+  // scripts do synchronous DNS resolutions, since that can take on the order
+  // of seconds.
+  //
+  // However, the disadvantages of using more than 1 thread are:
+  //   (a) can cause compatibility issues for scripts that rely on side effects
+  //       between runs (such scripts should not be common though).
+  //   (b) increases the memory used by proxy resolving, as each thread will
+  //       duplicate its own script context.
+
   // |url_request_context| is only used when use_v8_resolver is true:
   // it specifies the URL request context that will be used if a PAC
   // script needs to be fetched.
@@ -150,6 +166,7 @@ class ProxyService : public base::RefCountedThreadSafe<ProxyService>,
   static ProxyService* Create(
       ProxyConfigService* proxy_config_service,
       bool use_v8_resolver,
+      size_t num_pac_threads,
       URLRequestContext* url_request_context,
       NetLog* net_log,
       MessageLoop* io_loop);
