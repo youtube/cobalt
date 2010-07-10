@@ -318,9 +318,15 @@ void ClientSocketPoolBaseHelper::OnBackupSocketTimerFired(
 
   CHECK(group.backup_job);
 
+  // If there are no more jobs pending, there is no work to do.
+  // If we've done our cleanups correctly, this should not happen.
+  if (group.jobs.empty()) {
+    NOTREACHED();
+    return;
+  }
+
   // If our backup job is waiting on DNS, or if we can't create any sockets
   // right now due to limits, just reset the timer.
-  CHECK(group.jobs.size());
   if (ReachedMaxSocketsLimit() ||
       !group.HasAvailableSocketSlot(max_sockets_per_group_) ||
       (*group.jobs.begin())->GetLoadState() == LOAD_STATE_RESOLVING_HOST) {
@@ -598,10 +604,6 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
   CHECK(group_it != group_map_.end());
   Group& group = group_it->second;
 
-  // We've had a connect on the socket; discard any pending backup job
-  // for this group and kill the pending task.
-  group.CleanupBackupJob();
-
   scoped_ptr<ClientSocket> socket(job->ReleaseSocket());
 
   BoundNetLog job_log = job->net_log();
@@ -646,18 +648,22 @@ void ClientSocketPoolBaseHelper::Flush() {
   CloseIdleSockets();
 }
 
-void ClientSocketPoolBaseHelper::RemoveConnectJob(const ConnectJob *job,
+void ClientSocketPoolBaseHelper::RemoveConnectJob(const ConnectJob* job,
                                                   Group* group) {
   CHECK_GT(connecting_socket_count_, 0);
   connecting_socket_count_--;
 
+  DCHECK(group);
+  DCHECK(ContainsKey(group->jobs, job));
+  group->jobs.erase(job);
+
+  // If we've got no more jobs for this group, then we no longer need a
+  // backup job either.
+  if (group->jobs.empty())
+    group->CleanupBackupJob();
+
   DCHECK(job);
   delete job;
-
-  if (group) {
-    DCHECK(ContainsKey(group->jobs, job));
-    group->jobs.erase(job);
-  }
 }
 
 void ClientSocketPoolBaseHelper::MaybeOnAvailableSocketSlot(
