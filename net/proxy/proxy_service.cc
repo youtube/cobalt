@@ -39,6 +39,7 @@ using base::TimeTicks;
 namespace net {
 
 static const size_t kMaxNumNetLogEntries = 100;
+static const size_t kDefaultNumPacThreads = 4;
 
 // Config getter that fails every time.
 class ProxyConfigServiceNull : public ProxyConfigService {
@@ -264,9 +265,12 @@ ProxyService::ProxyService(ProxyConfigService* config_service,
 ProxyService* ProxyService::Create(
     ProxyConfigService* proxy_config_service,
     bool use_v8_resolver,
+    size_t num_pac_threads,
     URLRequestContext* url_request_context,
     NetLog* net_log,
     MessageLoop* io_loop) {
+  if (num_pac_threads == 0)
+    num_pac_threads = kDefaultNumPacThreads;
 
   ProxyResolverFactory* sync_resolver_factory;
   if (use_v8_resolver) {
@@ -278,10 +282,8 @@ ProxyService* ProxyService::Create(
     sync_resolver_factory = new ProxyResolverFactoryForNonV8();
   }
 
-  const size_t kMaxNumResolverThreads = 1u;
   ProxyResolver* proxy_resolver =
-      new MultiThreadedProxyResolver(sync_resolver_factory,
-                                     kMaxNumResolverThreads);
+      new MultiThreadedProxyResolver(sync_resolver_factory, num_pac_threads);
 
   ProxyService* proxy_service =
       new ProxyService(proxy_config_service, proxy_resolver, net_log);
@@ -298,7 +300,9 @@ ProxyService* ProxyService::Create(
 
 // static
 ProxyService* ProxyService::CreateFixed(const ProxyConfig& pc) {
-  return Create(new ProxyConfigServiceFixed(pc), false, NULL, NULL, NULL);
+  // TODO(eroman): This isn't quite right, won't work if |pc| specifies
+  //               a PAC script.
+  return Create(new ProxyConfigServiceFixed(pc), false, 0, NULL, NULL, NULL);
 }
 
 // static
