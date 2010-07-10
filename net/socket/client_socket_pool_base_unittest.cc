@@ -1784,6 +1784,45 @@ TEST_F(ClientSocketPoolBaseTest, DoNotReuseSocketAfterFlush) {
   EXPECT_EQ(ClientSocketHandle::UNUSED, handle.reuse_type());
 }
 
+// Cancel a pending socket request while we're at max sockets,
+// and verify that the backup socket firing doesn't cause a crash.
+TEST_F(ClientSocketPoolBaseTest, BackupSocketCancelAtMaxSockets) {
+  // Max 4 sockets globally, max 4 sockets per group.
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
+  pool_->EnableBackupJobs();
+
+  // Create the first socket and set to ERR_IO_PENDING.  This creates a
+  // backup job.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  ClientSocketHandle handle;
+  TestCompletionCallback callback;
+  EXPECT_EQ(
+      ERR_IO_PENDING,
+      InitHandle(
+          &handle, "bar", kDefaultPriority, &callback, pool_, BoundNetLog()));
+
+  // Start (MaxSockets - 1) connected sockets to reach max sockets.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
+  ClientSocketHandle handles[kDefaultMaxSockets];
+  for (int i = 1; i < kDefaultMaxSockets; ++i) {
+    TestCompletionCallback callback;
+    EXPECT_EQ(OK,
+              InitHandle(&handles[i], "bar", kDefaultPriority,
+                         &callback, pool_, BoundNetLog()));
+  }
+
+  MessageLoop::current()->RunAllPending();
+
+  // Cancel the pending request.
+  handle.Reset();
+
+  // Wait for the backup timer to fire (add some slop to ensure it fires)
+  PlatformThread::Sleep(ClientSocketPool::kMaxConnectRetryIntervalMs / 2 * 3);
+
+  MessageLoop::current()->RunAllPending();
+  EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
+}
+
 }  // namespace
 
 }  // namespace net
