@@ -128,6 +128,7 @@ HttpNetworkSession* HttpNetworkLayer::GetSession() {
 void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   static const char kDisableSSL[] = "no-ssl";
   static const char kDisableCompression[] = "no-compress";
+  static const char kDisableAltProtocols[] = "no-alt-protocols";
 
   // We want an A/B experiment between SPDY enabled and SPDY disabled,
   // but only for pages where SPDY *could have been* negotiated.  To do
@@ -156,6 +157,8 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
   // Force spdy mode (use SpdyNetworkTransaction for all http requests).
   force_spdy_ = true;
 
+  bool use_alt_protocols = true;
+
   for (std::vector<std::string>::iterator it = spdy_options.begin();
        it != spdy_options.end(); ++it) {
     const std::string& option = *it;
@@ -164,13 +167,16 @@ void HttpNetworkLayer::EnableSpdy(const std::string& mode) {
     } else if (option == kDisableCompression) {
       spdy::SpdyFramer::set_enable_compression_default(false);
     } else if (option == kEnableNPN) {
-      HttpNetworkTransaction::SetUseAlternateProtocols(true);
+      HttpNetworkTransaction::SetUseAlternateProtocols(use_alt_protocols);
       HttpNetworkTransaction::SetNextProtos(kNpnProtosFull);
       force_spdy_ = false;
     } else if (option == kEnableNpnHttpOnly) {
-      HttpNetworkTransaction::SetUseAlternateProtocols(true);
+      HttpNetworkTransaction::SetUseAlternateProtocols(use_alt_protocols);
       HttpNetworkTransaction::SetNextProtos(kNpnProtosHttpOnly);
       force_spdy_ = false;
+    } else if (option == kDisableAltProtocols) {
+      use_alt_protocols = false;
+      HttpNetworkTransaction::SetUseAlternateProtocols(false);
     } else if (option.empty() && it == spdy_options.begin()) {
       continue;
     } else {
