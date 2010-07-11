@@ -772,58 +772,6 @@ TEST_F(ClientSocketPoolBaseTest, TotalLimitCountsConnectingSockets) {
   EXPECT_EQ(kIndexOutOfBounds, GetOrderOfRequest(6));
 }
 
-// Inside ClientSocketPoolBase we have a may_have_stalled_group flag,
-// which tells it to use more expensive, but accurate, group selection
-// algorithm. Make sure it doesn't get stuck in the "on" state.
-TEST_F(ClientSocketPoolBaseTest, MayHaveStalledGroupReset) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  EXPECT_FALSE(pool_->base()->may_have_stalled_group());
-
-  // Reach group socket limit.
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("a", kDefaultPriority));
-  EXPECT_FALSE(pool_->base()->may_have_stalled_group());
-
-  // Reach total limit, but don't request more sockets.
-  EXPECT_EQ(OK, StartRequest("b", kDefaultPriority));
-  EXPECT_EQ(OK, StartRequest("b", kDefaultPriority));
-  EXPECT_FALSE(pool_->base()->may_have_stalled_group());
-
-  // Request one more socket while we are at the maximum sockets limit.
-  // This should flip the may_have_stalled_group flag.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kDefaultPriority));
-  EXPECT_TRUE(pool_->base()->may_have_stalled_group());
-
-  // After releasing first connection for "a", we're still at the
-  // maximum sockets limit, but every group's pending queue is empty,
-  // so we reset the flag.
-  EXPECT_TRUE(ReleaseOneConnection(NO_KEEP_ALIVE));
-  EXPECT_FALSE(pool_->base()->may_have_stalled_group());
-
-  // Requesting additional socket while at the total limit should
-  // flip the flag back to "on".
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kDefaultPriority));
-  EXPECT_TRUE(pool_->base()->may_have_stalled_group());
-
-  // We'll request one more socket to verify that we don't reset the flag
-  // too eagerly.
-  EXPECT_EQ(ERR_IO_PENDING, StartRequest("d", kDefaultPriority));
-  EXPECT_TRUE(pool_->base()->may_have_stalled_group());
-
-  // We're at the maximum socket limit, and still have one request pending
-  // for "d". Flag should be "on".
-  EXPECT_TRUE(ReleaseOneConnection(NO_KEEP_ALIVE));
-  EXPECT_TRUE(pool_->base()->may_have_stalled_group());
-
-  // Now every group's pending queue should be empty again.
-  EXPECT_TRUE(ReleaseOneConnection(NO_KEEP_ALIVE));
-  EXPECT_FALSE(pool_->base()->may_have_stalled_group());
-
-  ReleaseAllConnections(NO_KEEP_ALIVE);
-  EXPECT_FALSE(pool_->base()->may_have_stalled_group());
-}
-
 TEST_F(ClientSocketPoolBaseTest, CorrectlyCountStalledGroups) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSockets);
   connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
@@ -876,56 +824,117 @@ TEST_F(ClientSocketPoolBaseTest, StallAndThenCancelAndTriggerAvailableSocket) {
     handles[i].Reset();
 }
 
-TEST_F(ClientSocketPoolBaseTest, CloseIdleSocketAtSocketLimit) {
+TEST_F(ClientSocketPoolBaseTest, CancelStalledSocketAtSocketLimit) {
   CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
   connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
 
-  for (int i = 0; i < kDefaultMaxSockets; ++i) {
-    ClientSocketHandle handle;
+  {
+    ClientSocketHandle handles[kDefaultMaxSockets];
+    TestCompletionCallback callbacks[kDefaultMaxSockets];
+    for (int i = 0; i < kDefaultMaxSockets; ++i) {
+      EXPECT_EQ(OK,
+                InitHandle(&handles[i], IntToString(i), kDefaultPriority,
+                           &callbacks[i], pool_, BoundNetLog()));
+    }
+
+    // Force a stalled group.
+    ClientSocketHandle stalled_handle;
     TestCompletionCallback callback;
-    EXPECT_EQ(OK,
-              InitHandle(&handle, IntToString(i), kDefaultPriority, &callback,
+    EXPECT_EQ(ERR_IO_PENDING,
+              InitHandle(&stalled_handle, "foo", kDefaultPriority, &callback,
                          pool_, BoundNetLog()));
+
+    // Cancel the stalled request.
+    stalled_handle.Reset();
+
+    EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
+    EXPECT_EQ(0, pool_->IdleSocketCount());
+
+    // Dropping out of scope will close all handles and return them to idle.
   }
-
-  // Stall a group
-  ClientSocketHandle handle;
-  TestCompletionCallback callback;
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(&handle, "foo", kDefaultPriority, &callback, pool_,
-                       BoundNetLog()));
-
-  // Cancel the stalled request.
-  handle.Reset();
-
-  // Flush all the DoReleaseSocket tasks.
-  MessageLoop::current()->RunAllPending();
 
   EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
   EXPECT_EQ(kDefaultMaxSockets, pool_->IdleSocketCount());
+}
 
-  for (int i = 0; i < kDefaultMaxSockets; ++i) {
-    ClientSocketHandle handle;
+TEST_F(ClientSocketPoolBaseTest, CancelPendingSocketAtSocketLimit) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+
+  {
+    ClientSocketHandle handles[kDefaultMaxSockets];
+    for (int i = 0; i < kDefaultMaxSockets; ++i) {
+      TestCompletionCallback callback;
+      EXPECT_EQ(ERR_IO_PENDING,
+                InitHandle(&handles[i], IntToString(i), kDefaultPriority,
+                           &callback, pool_, BoundNetLog()));
+    }
+
+    // Force a stalled group.
+    connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+    ClientSocketHandle stalled_handle;
     TestCompletionCallback callback;
-    EXPECT_EQ(OK,
-              InitHandle(&handle, StringPrintf("Take 2: %d", i),
-                         kDefaultPriority, &callback, pool_, BoundNetLog()));
+    EXPECT_EQ(ERR_IO_PENDING,
+              InitHandle(&stalled_handle, "foo", kDefaultPriority, &callback,
+                         pool_, BoundNetLog()));
+
+    // Since it is stalled, it should have no connect jobs.
+    EXPECT_EQ(0, pool_->NumConnectJobsInGroup("foo"));
+
+    // Cancel the stalled request.
+    handles[0].Reset();
+
+    MessageLoop::current()->RunAllPending();
+
+    // Now we should have a connect job.
+    EXPECT_EQ(1, pool_->NumConnectJobsInGroup("foo"));
+
+    // The stalled socket should connect.
+    EXPECT_EQ(OK, callback.WaitForResult());
+
+    EXPECT_EQ(kDefaultMaxSockets + 1,
+              client_socket_factory_.allocation_count());
+    EXPECT_EQ(0, pool_->IdleSocketCount());
+    EXPECT_EQ(0, pool_->NumConnectJobsInGroup("foo"));
+
+    // Dropping out of scope will close all handles and return them to idle.
   }
 
-  EXPECT_EQ(2 * kDefaultMaxSockets, client_socket_factory_.allocation_count());
-  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(1, pool_->IdleSocketCount());
+}
 
-  // Before the next round of DoReleaseSocket tasks run, we will hit the
-  // socket limit.
+TEST_F(ClientSocketPoolBaseTest, WaitForStalledSocketAtSocketLimit) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
 
-  EXPECT_EQ(ERR_IO_PENDING,
-            InitHandle(&handle, "foo", kDefaultPriority, &callback, pool_,
-                       BoundNetLog()));
+  ClientSocketHandle stalled_handle;
+  TestCompletionCallback callback;
+  {
+    ClientSocketHandle handles[kDefaultMaxSockets];
+    for (int i = 0; i < kDefaultMaxSockets; ++i) {
+      TestCompletionCallback callback;
+      EXPECT_EQ(OK,
+                InitHandle(&handles[i], StringPrintf("Take 2: %d", i),
+                           kDefaultPriority, &callback, pool_, BoundNetLog()));
+    }
+
+    EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
+    EXPECT_EQ(0, pool_->IdleSocketCount());
+
+    // Now we will hit the socket limit.
+    EXPECT_EQ(ERR_IO_PENDING,
+              InitHandle(&stalled_handle, "foo", kDefaultPriority, &callback,
+                         pool_, BoundNetLog()));
+
+    // Dropping out of scope will close all handles and return them to idle.
+  }
 
   // But if we wait for it, the released idle sockets will be closed in
   // preference of the waiting request.
-
   EXPECT_EQ(OK, callback.WaitForResult());
+
+  EXPECT_EQ(kDefaultMaxSockets + 1, client_socket_factory_.allocation_count());
+  EXPECT_EQ(3, pool_->IdleSocketCount());
 }
 
 // Regression test for http://crbug.com/40952.
@@ -1279,11 +1288,11 @@ TEST_F(ClientSocketPoolBaseTest, GroupWithPendingRequestsIsNotEmpty) {
   // Create a stalled group with high priorities.
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kHighPriority));
   EXPECT_EQ(ERR_IO_PENDING, StartRequest("c", kHighPriority));
-  EXPECT_TRUE(pool_->base()->may_have_stalled_group());
 
-  // Release the first two sockets from "a", which will make room
-  // for requests from "c". After that "a" will have no active sockets
-  // and one pending request.
+  // Release the first two sockets from "a".  Because this is a keepalive,
+  // the first release will unblock the pending request for "a".  The
+  // second release will unblock a request for "c", becaue it is the next
+  // high priority socket.
   EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
   EXPECT_TRUE(ReleaseOneConnection(KEEP_ALIVE));
 
@@ -1291,6 +1300,8 @@ TEST_F(ClientSocketPoolBaseTest, GroupWithPendingRequestsIsNotEmpty) {
   // we were hitting a CHECK here.
   EXPECT_EQ(0, pool_->IdleSocketCountInGroup("a"));
   pool_->CloseIdleSockets();
+
+  MessageLoop::current()->RunAllPending();  // Run the released socket wakeups
 }
 
 TEST_F(ClientSocketPoolBaseTest, BasicAsynchronous) {
@@ -1391,7 +1402,7 @@ TEST_F(ClientSocketPoolBaseTest, CancelRequestLimitsJobs) {
   EXPECT_EQ(kDefaultMaxSocketsPerGroup, pool_->NumConnectJobsInGroup("a"));
 
   requests_[0]->handle()->Reset();
-  EXPECT_EQ(kDefaultMaxSocketsPerGroup - 1, pool_->NumConnectJobsInGroup("a"));
+  EXPECT_EQ(kDefaultMaxSocketsPerGroup, pool_->NumConnectJobsInGroup("a"));
 }
 
 // When requests and ConnectJobs are not coupled, the request will get serviced
@@ -1424,7 +1435,7 @@ TEST_F(ClientSocketPoolBaseTest, ReleaseSockets) {
   // Both Requests 2 and 3 are pending.  We release socket 1 which should
   // service request 2.  Request 3 should still be waiting.
   req1.handle()->Reset();
-  MessageLoop::current()->RunAllPending();  // Run the DoReleaseSocket()
+  MessageLoop::current()->RunAllPending();  // Run the released socket wakeups
   ASSERT_TRUE(req2.handle()->socket());
   EXPECT_EQ(OK, req2.WaitForResult());
   EXPECT_FALSE(req3.handle()->socket());
@@ -1710,31 +1721,6 @@ class TestReleasingSocketRequest : public CallbackRunner< Tuple1<int> > {
   TestCompletionCallback callback2_;
 };
 
-// This test covers the case where, within the same DoReleaseSocket() callback,
-// we release the just acquired socket and start up a new request.  See bug
-// 36871 for details.
-TEST_F(ClientSocketPoolBaseTest, ReleasedSocketReleasesToo) {
-  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
-
-  connect_job_factory_->set_job_type(TestConnectJob::kMockJob);
-
-  // Complete one request and release the socket.
-  ClientSocketHandle handle;
-  TestCompletionCallback callback;
-  EXPECT_EQ(OK, InitHandle(&handle, "a", kDefaultPriority, &callback, pool_,
-                           BoundNetLog()));
-  handle.Reset();
-
-  // Before the DoReleaseSocket() task has run, start up a
-  // TestReleasingSocketRequest.  This one will be ERR_IO_PENDING since
-  // num_releasing_sockets > 0 and there was no idle socket to use yet.
-  TestReleasingSocketRequest request(pool_.get());
-  EXPECT_EQ(ERR_IO_PENDING, InitHandle(request.handle(), "a", kDefaultPriority,
-                                       &request, pool_, BoundNetLog()));
-
-  EXPECT_EQ(OK, request.WaitForResult());
-}
-
 // http://crbug.com/44724 regression test.
 // We start releasing the pool when we flush on network change.  When that
 // happens, the only active references are in the ClientSocketHandles.  When a
@@ -1821,6 +1807,160 @@ TEST_F(ClientSocketPoolBaseTest, BackupSocketCancelAtMaxSockets) {
 
   MessageLoop::current()->RunAllPending();
   EXPECT_EQ(kDefaultMaxSockets, client_socket_factory_.allocation_count());
+}
+
+// Test delayed socket binding for the case where we have two connects,
+// and while one is waiting on a connect, the other frees up.
+// The socket waiting on a connect should switch immediately to the freed
+// up socket.
+TEST_F(ClientSocketPoolBaseTest, DelayedSocketBindingWaitingForConnect) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  ClientSocketHandle handle1;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle1, "a", kDefaultPriority,
+                       &callback, pool_, BoundNetLog()));
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // No idle sockets, no pending jobs.
+  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(0, pool_->NumConnectJobsInGroup("a"));
+
+  // Create a second socket to the same host, but this one will wait.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  ClientSocketHandle handle2;
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle2, "a", kDefaultPriority,
+                       &callback, pool_, BoundNetLog()));
+  // No idle sockets, and one connecting job.
+  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // Return the first handle to the pool.  This will initiate the delayed
+  // binding.
+  handle1.Reset();
+
+  MessageLoop::current()->RunAllPending();
+
+  // Still no idle sockets, still one pending connect job.
+  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // The second socket connected, even though it was a Waiting Job.
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // And we can see there is still one job waiting.
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // Finally, signal the waiting Connect.
+  client_socket_factory_.SignalJobs();
+  EXPECT_EQ(0, pool_->NumConnectJobsInGroup("a"));
+
+  MessageLoop::current()->RunAllPending();
+}
+
+// Test delayed socket binding when a group is at capacity and one
+// of the group's sockets frees up.
+TEST_F(ClientSocketPoolBaseTest, DelayedSocketBindingAtGroupCapacity) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  ClientSocketHandle handle1;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle1, "a", kDefaultPriority,
+                       &callback, pool_, BoundNetLog()));
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // No idle sockets, no pending jobs.
+  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(0, pool_->NumConnectJobsInGroup("a"));
+
+  // Create a second socket to the same host, but this one will wait.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  ClientSocketHandle handle2;
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle2, "a", kDefaultPriority,
+                       &callback, pool_, BoundNetLog()));
+  // No idle sockets, and one connecting job.
+  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // Return the first handle to the pool.  This will initiate the delayed
+  // binding.
+  handle1.Reset();
+
+  MessageLoop::current()->RunAllPending();
+
+  // Still no idle sockets, still one pending connect job.
+  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // The second socket connected, even though it was a Waiting Job.
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // And we can see there is still one job waiting.
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // Finally, signal the waiting Connect.
+  client_socket_factory_.SignalJobs();
+  EXPECT_EQ(0, pool_->NumConnectJobsInGroup("a"));
+
+  MessageLoop::current()->RunAllPending();
+}
+
+// Test out the case where we have one socket connected, one
+// connecting, when the first socket finishes and goes idle.
+// Although the second connection is pending, th second request
+// should complete, by taking the first socket's idle socket.
+TEST_F(ClientSocketPoolBaseTest, DelayedSocketBindingAtStall) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockPendingJob);
+
+  ClientSocketHandle handle1;
+  TestCompletionCallback callback;
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle1, "a", kDefaultPriority,
+                       &callback, pool_, BoundNetLog()));
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // No idle sockets, no pending jobs.
+  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(0, pool_->NumConnectJobsInGroup("a"));
+
+  // Create a second socket to the same host, but this one will wait.
+  connect_job_factory_->set_job_type(TestConnectJob::kMockWaitingJob);
+  ClientSocketHandle handle2;
+  EXPECT_EQ(ERR_IO_PENDING,
+            InitHandle(&handle2, "a", kDefaultPriority,
+                       &callback, pool_, BoundNetLog()));
+  // No idle sockets, and one connecting job.
+  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // Return the first handle to the pool.  This will initiate the delayed
+  // binding.
+  handle1.Reset();
+
+  MessageLoop::current()->RunAllPending();
+
+  // Still no idle sockets, still one pending connect job.
+  EXPECT_EQ(0, pool_->IdleSocketCount());
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // The second socket connected, even though it was a Waiting Job.
+  EXPECT_EQ(OK, callback.WaitForResult());
+
+  // And we can see there is still one job waiting.
+  EXPECT_EQ(1, pool_->NumConnectJobsInGroup("a"));
+
+  // Finally, signal the waiting Connect.
+  client_socket_factory_.SignalJobs();
+  EXPECT_EQ(0, pool_->NumConnectJobsInGroup("a"));
+
+  MessageLoop::current()->RunAllPending();
 }
 
 }  // namespace
