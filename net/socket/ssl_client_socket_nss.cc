@@ -60,6 +60,7 @@
 #include <pk11pub.h>
 
 #include "base/compiler_specific.h"
+#include "base/histogram.h"
 #include "base/logging.h"
 #include "base/nss_util.h"
 #include "base/singleton.h"
@@ -70,6 +71,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 #include "net/base/sys_addrinfo.h"
 #include "net/ocsp/nss_ocsp.h"
@@ -788,6 +790,19 @@ void SSLClientSocketNSS::GetSSLInfo(SSLInfo* ssl_info) {
   ssl_info->cert_status = server_cert_verify_result_.cert_status;
   DCHECK(server_cert_ != NULL);
   ssl_info->cert = server_cert_;
+
+  PRBool peer_supports_renego_ext;
+  ok = SSL_HandshakeNegotiatedExtension(nss_fd_, ssl_renegotiation_info_xtn,
+                                        &peer_supports_renego_ext);
+  if (ok == SECSuccess) {
+    if (!peer_supports_renego_ext)
+      ssl_info->connection_status |= SSL_CONNECTION_NO_RENEGOTIATION_EXTENSION;
+    UMA_HISTOGRAM_ENUMERATION("Net.RenegotiationExtensionSupported",
+                              (int)peer_supports_renego_ext, 2);
+  }
+
+  if (ssl_config_.ssl3_fallback)
+    ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
 
   LeaveFunction("");
 }
