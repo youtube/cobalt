@@ -569,7 +569,7 @@ class ClientSocketPoolTest : public testing::Test {
   int StartRequestUsingPool(const scoped_refptr<PoolType>& socket_pool,
                             const std::string& group_name,
                             RequestPriority priority,
-                            const SocketParams& socket_params) {
+                            const scoped_refptr<SocketParams>& socket_params) {
     DCHECK(socket_pool.get());
     TestSocketRequest* request = new TestSocketRequest(&request_order_,
                                                        &completion_count_);

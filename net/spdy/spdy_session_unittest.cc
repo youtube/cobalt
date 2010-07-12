@@ -138,7 +138,8 @@ TEST_F(SpdySessionTest, GoAway) {
           test_host_port_pair, http_session.get(), BoundNetLog());
   EXPECT_TRUE(spdy_session_pool->HasSession(test_host_port_pair));
 
-  TCPSocketParams tcp_params(kTestHost, kTestPort, MEDIUM, GURL(), false);
+  scoped_refptr<TCPSocketParams> tcp_params =
+      new TCPSocketParams(kTestHost, kTestPort, MEDIUM, GURL(), false);
   int rv = session->Connect(kTestHost, tcp_params, MEDIUM);
   ASSERT_EQ(OK, rv);
 
@@ -220,7 +221,8 @@ TEST_F(SpdySessionTest, GetActivePushStream) {
   EXPECT_EQ(static_cast<SpdyStream*>(NULL), first_stream.get());
 
   // Read in the data which contains a server-issued SYN_STREAM.
-  TCPSocketParams tcp_params(test_host_port_pair, MEDIUM, GURL(), false);
+  scoped_refptr<TCPSocketParams> tcp_params =
+      new TCPSocketParams(test_host_port_pair, MEDIUM, GURL(), false);
   int rv = session->Connect(kTestHost, tcp_params, MEDIUM);
   ASSERT_EQ(OK, rv);
   MessageLoop::current()->RunAllPending();
