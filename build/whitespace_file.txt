@@ -2,18 +2,3 @@ This file is used for making non-code changes to trigger buildbot cycles. Make
 any modification below this line.
 ================================================================================
        
-There once was a Man from Nantucket
-who kept all his cash in a bucket.
-But his daughter named Nan,
-liked her red painted frying pan.
-
-И неимущим и богатым
-Мы в равной степени нужны
-
-A flea and a fly in a flue
-Were caught, so what could they do?
-Said the fly, "Let us flee."
-"Let us fly," said the flea.
-So they flew through a flaw in the flue.
-
-Brooks Was Here.
