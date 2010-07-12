@@ -24,6 +24,7 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/client_socket_handle.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/socket/tcp_client_socket_pool.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace net {
@@ -597,6 +598,61 @@ class ClientSocketPoolTest : public testing::Test {
   ScopedVector<TestSocketRequest> requests_;
   std::vector<TestSocketRequest*> request_order_;
   size_t completion_count_;
+};
+
+class MockTCPClientSocketPool : public TCPClientSocketPool {
+ public:
+  class MockConnectJob {
+   public:
+    MockConnectJob(ClientSocket* socket, ClientSocketHandle* handle,
+                   CompletionCallback* callback);
+
+    int Connect();
+    bool CancelHandle(const ClientSocketHandle* handle);
+
+   private:
+    void OnConnect(int rv);
+
+    scoped_ptr<ClientSocket> socket_;
+    ClientSocketHandle* handle_;
+    CompletionCallback* user_callback_;
+    CompletionCallbackImpl<MockConnectJob> connect_callback_;
+
+    DISALLOW_COPY_AND_ASSIGN(MockConnectJob);
+  };
+
+  MockTCPClientSocketPool(
+      int max_sockets,
+      int max_sockets_per_group,
+      const scoped_refptr<ClientSocketPoolHistograms>& histograms,
+      ClientSocketFactory* socket_factory);
+
+  int release_count() { return release_count_; };
+  int cancel_count() { return cancel_count_; };
+
+  // TCPClientSocketPool methods.
+  virtual int RequestSocket(const std::string& group_name,
+                            const void* socket_params,
+                            RequestPriority priority,
+                            ClientSocketHandle* handle,
+                            CompletionCallback* callback,
+                            const BoundNetLog& net_log);
+
+  virtual void CancelRequest(const std::string& group_name,
+                             const ClientSocketHandle* handle);
+  virtual void ReleaseSocket(const std::string& group_name,
+                             ClientSocket* socket, int id);
+
+ protected:
+  virtual ~MockTCPClientSocketPool();
+
+ private:
+  ClientSocketFactory* client_socket_factory_;
+  int release_count_;
+  int cancel_count_;
+  ScopedVector<MockConnectJob> job_list_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockTCPClientSocketPool);
 };
 
 // Constants for a successful SOCKS v5 handshake.

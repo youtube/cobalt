@@ -83,8 +83,6 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_RESOLVE_PROXY_COMPLETE,
     STATE_INIT_CONNECTION,
     STATE_INIT_CONNECTION_COMPLETE,
-    STATE_TUNNEL_CONNECT,
-    STATE_TUNNEL_CONNECT_COMPLETE,
     STATE_TUNNEL_RESTART_WITH_AUTH,
     STATE_SSL_CONNECT,
     STATE_SSL_CONNECT_COMPLETE,
@@ -129,8 +127,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoResolveProxyComplete(int result);
   int DoInitConnection();
   int DoInitConnectionComplete(int result);
-  int DoTunnelConnect();
-  int DoTunnelConnectComplete(int result);
   int DoTunnelRestartWithAuth();
   int DoSSLConnect();
   int DoSSLConnectComplete(int result);
@@ -230,7 +226,7 @@ class HttpNetworkTransaction : public HttpTransaction {
   // Handles HTTP status code 401 or 407.
   // HandleAuthChallenge() returns a network error code, or OK on success.
   // May update |pending_auth_target_| or |response_.auth_challenge|.
-  int HandleAuthChallenge(bool establishing_tunnel);
+  int HandleAuthChallenge();
 
   bool HaveAuth(HttpAuth::Target target) const {
     return auth_controllers_[target].get() &&
@@ -247,7 +243,8 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   static bool g_ignore_certificate_errors;
 
-  scoped_ptr<HttpAuthController> auth_controllers_[HttpAuth::AUTH_NUM_TARGETS];
+  scoped_refptr<HttpAuthController>
+      auth_controllers_[HttpAuth::AUTH_NUM_TARGETS];
 
   // Whether this transaction is waiting for proxy auth, server auth, or is
   // not waiting for any auth at all. |pending_auth_target_| is read and
@@ -317,10 +314,6 @@ class HttpNetworkTransaction : public HttpTransaction {
   // The hostname and port of the endpoint.  This is not necessarily the one
   // specified by the URL, due to Alternate-Protocol or fixed testing ports.
   HostPortPair endpoint_;
-
-  // Stores login and password between |RestartWithAuth|
-  // and |DoTunnelRestartWithAuth|.
-  HttpAuth::Identity tunnel_credentials_;
 
   // True when the tunnel is in the process of being established - we can't
   // read from the socket until the tunnel is done.

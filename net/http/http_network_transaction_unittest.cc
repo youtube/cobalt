@@ -64,7 +64,7 @@ class HttpNetworkSessionPeer {
 
   void SetSocketPoolForHTTPProxy(
       const HostPortPair& http_proxy,
-      const scoped_refptr<TCPClientSocketPool>& pool) {
+      const scoped_refptr<HttpProxyClientSocketPool>& pool) {
     session_->http_proxy_socket_pool_[http_proxy] = pool;
   }
 
@@ -286,6 +286,8 @@ class CaptureGroupNameSocketPool : public EmulatedClientSocketPool {
 
 typedef CaptureGroupNameSocketPool<TCPClientSocketPool>
 CaptureGroupNameTCPSocketPool;
+typedef CaptureGroupNameSocketPool<HttpProxyClientSocketPool>
+CaptureGroupNameHttpProxySocketPool;
 typedef CaptureGroupNameSocketPool<SOCKSClientSocketPool>
 CaptureGroupNameSOCKSSocketPool;
 
@@ -1401,6 +1403,13 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
   EXPECT_EQ(L"myproxy:70", response->auth_challenge->host_and_port);
   EXPECT_EQ(L"MyRealm1", response->auth_challenge->realm);
   EXPECT_EQ(L"basic", response->auth_challenge->scheme);
+
+  // Cleanup the transaction so that the sockets are destroyed before the
+  // net log goes out of scope.
+  trans.reset();
+
+  // We also need to run the message queue for the socket releases to complete.
+  MessageLoop::current()->RunAllPending();
 }
 
 // Test that we don't read the response body when we fail to establish a tunnel,
@@ -4081,8 +4090,8 @@ TEST_F(HttpNetworkTransactionTest, GroupNameForHTTPProxyConnections) {
 
     HttpNetworkSessionPeer peer(session);
 
-    scoped_refptr<CaptureGroupNameTCPSocketPool> http_proxy_pool(
-        new CaptureGroupNameTCPSocketPool(session.get()));
+    scoped_refptr<CaptureGroupNameHttpProxySocketPool> http_proxy_pool(
+        new CaptureGroupNameHttpProxySocketPool(session.get()));
     peer.SetSocketPoolForHTTPProxy(
         HostPortPair("http_proxy", 80), http_proxy_pool);
 

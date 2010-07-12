@@ -23,7 +23,7 @@ class HttpNetworkSession;
 class HttpRequestHeaders;
 struct HttpRequestInfo;
 
-class HttpAuthController {
+class HttpAuthController : public base::RefCounted<HttpAuthController> {
  public:
   // The arguments are self explanatory except possibly for |auth_url|, which
   // should be both the auth target and auth path in a single url argument.
@@ -35,38 +35,44 @@ class HttpAuthController {
   // value is a net error code. |OK| will be returned both in the case that
   // a token is correctly generated synchronously, as well as when no tokens
   // were necessary.
-  int MaybeGenerateAuthToken(const HttpRequestInfo* request,
-                             CompletionCallback* callback);
+  virtual int MaybeGenerateAuthToken(const HttpRequestInfo* request,
+                                     CompletionCallback* callback);
 
   // Adds either the proxy auth header, or the origin server auth header,
   // as specified by |target_|.
-  void AddAuthorizationHeader(HttpRequestHeaders* authorization_headers);
+  virtual void AddAuthorizationHeader(
+      HttpRequestHeaders* authorization_headers);
 
   // Checks for and handles HTTP status code 401 or 407.
   // |HandleAuthChallenge()| returns OK on success, or a network error code
   // otherwise. It may also populate |auth_info_|.
-  int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
-                          bool do_not_send_server_auth,
-                          bool establishing_tunnel);
+  virtual int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
+                                  bool do_not_send_server_auth,
+                                  bool establishing_tunnel);
 
   // Store the supplied credentials and prepare to restart the auth.
-  void ResetAuth(const std::wstring& username, const std::wstring& password);
+  virtual void ResetAuth(const std::wstring& username,
+                         const std::wstring& password);
 
-  bool HaveAuthHandler() const {
+  virtual bool HaveAuthHandler() const {
     return handler_.get() != NULL;
   }
 
-  bool HaveAuth() const {
+  virtual bool HaveAuth() const {
     return handler_.get() && !identity_.invalid;
   }
 
-  scoped_refptr<AuthChallengeInfo> auth_info() {
+  virtual scoped_refptr<AuthChallengeInfo> auth_info() {
     return auth_info_;
   }
 
   void set_net_log(const BoundNetLog& net_log) {
     net_log_ = net_log;
   }
+
+ protected:  // So that we can mock this object.
+  friend class base::RefCounted<HttpAuthController>;
+  virtual ~HttpAuthController();
 
  private:
   // Searches the auth cache for an entry that encompasses the request's path.

@@ -54,6 +54,12 @@ class ClientSocketHandle {
   // This method returns ERR_IO_PENDING if it cannot complete synchronously, in
   // which case the consumer will be notified of completion via |callback|.
   //
+  // If the pool was not able to reuse an existing socket, the new socket
+  // may report a recoverable error.  In this case, the return value will
+  // indicate an error and the socket member will be set.  If it is determined
+  // that the error is not recoverable, the Disconnect method should be used
+  // on the socket, so that it does not get reused.
+  //
   // Init may be called multiple times.
   //
   // Profiling information for the request is saved to |net_log| if non-NULL.
