@@ -14,13 +14,28 @@
 
 namespace net {
 
+HttpProxySocketParams::HttpProxySocketParams(
+    const scoped_refptr<TCPSocketParams>& proxy_server,
+    const GURL& request_url,
+    HostPortPair endpoint,
+    scoped_refptr<HttpAuthController> auth_controller,
+    bool tunnel)
+    : tcp_params_(proxy_server),
+      request_url_(request_url),
+      endpoint_(endpoint),
+      auth_controller_(auth_controller),
+      tunnel_(tunnel) {
+}
+
+HttpProxySocketParams::~HttpProxySocketParams() {}
+
 // HttpProxyConnectJobs will time out after this many seconds.  Note this is on
 // top of the timeout for the transport socket.
 static const int kHttpProxyConnectJobTimeoutInSeconds = 30;
 
 HttpProxyConnectJob::HttpProxyConnectJob(
     const std::string& group_name,
-    const HttpProxySocketParams& params,
+    const scoped_refptr<HttpProxySocketParams>& params,
     const base::TimeDelta& timeout_duration,
     const scoped_refptr<TCPClientSocketPool>& tcp_pool,
     const scoped_refptr<HostResolver>& host_resolver,
@@ -97,9 +112,10 @@ int HttpProxyConnectJob::DoLoop(int result) {
 int HttpProxyConnectJob::DoTCPConnect() {
   next_state_ = kStateTCPConnectComplete;
   tcp_socket_handle_.reset(new ClientSocketHandle());
-  return tcp_socket_handle_->Init(group_name(), params_.tcp_params(),
-                                  params_.tcp_params().destination().priority(),
-                                  &callback_, tcp_pool_, net_log());
+  return tcp_socket_handle_->Init(
+      group_name(), params_->tcp_params(),
+      params_->tcp_params()->destination().priority(), &callback_, tcp_pool_,
+      net_log());
 }
 
 int HttpProxyConnectJob::DoTCPConnectComplete(int result) {
@@ -120,10 +136,10 @@ int HttpProxyConnectJob::DoHttpProxyConnect() {
 
   // Add a HttpProxy connection on top of the tcp socket.
   socket_.reset(new HttpProxyClientSocket(tcp_socket_handle_.release(),
-                                          params_.request_url(),
-                                          params_.endpoint(),
-                                          params_.auth_controller(),
-                                          params_.tunnel()));
+                                          params_->request_url(),
+                                          params_->endpoint(),
+                                          params_->auth_controller(),
+                                          params_->tunnel()));
   return socket_->Connect(&callback_);
 }
 
@@ -174,8 +190,8 @@ int HttpProxyClientSocketPool::RequestSocket(const std::string& group_name,
                                              ClientSocketHandle* handle,
                                              CompletionCallback* callback,
                                              const BoundNetLog& net_log) {
-  const HttpProxySocketParams* casted_socket_params =
-      static_cast<const HttpProxySocketParams*>(socket_params);
+  const scoped_refptr<HttpProxySocketParams>* casted_socket_params =
+      static_cast<const scoped_refptr<HttpProxySocketParams>*>(socket_params);
 
   return base_.RequestSocket(group_name, *casted_socket_params, priority,
                              handle, callback, net_log);

@@ -215,9 +215,10 @@ net::Error SpdySession::InitializeWithSSLSocket(
   return error;
 }
 
-net::Error SpdySession::Connect(const std::string& group_name,
-                                const TCPSocketParams& destination,
-                                RequestPriority priority) {
+net::Error SpdySession::Connect(
+    const std::string& group_name,
+    const scoped_refptr<TCPSocketParams>& destination,
+    RequestPriority priority) {
   DCHECK(priority >= SPDY_PRIORITY_HIGHEST && priority <= SPDY_PRIORITY_LOWEST);
 
   // If the connect process is started, let the caller continue.

@@ -137,9 +137,10 @@ struct SocketParamTraits : public base::false_type {
 
 template <typename PoolType, typename SocketParams>
 void CheckIsValidSocketParamsForPool() {
-  COMPILE_ASSERT(!base::is_pointer<SocketParams>::value,
+  COMPILE_ASSERT(!base::is_pointer<scoped_refptr<SocketParams> >::value,
                  socket_params_cannot_be_pointer);
-  COMPILE_ASSERT((SocketParamTraits<PoolType, SocketParams>::value),
+  COMPILE_ASSERT((SocketParamTraits<PoolType,
+                                    scoped_refptr<SocketParams> >::value),
                  invalid_socket_params_for_pool);
 }
 
@@ -147,7 +148,8 @@ void CheckIsValidSocketParamsForPool() {
 // should be optimized out by the compiler.
 #define REGISTER_SOCKET_PARAMS_FOR_POOL(pool_type, socket_params)             \
 template<>                                                                    \
-struct SocketParamTraits<pool_type, socket_params> : public base::true_type { \
+struct SocketParamTraits<pool_type, scoped_refptr<socket_params> >            \
+    : public base::true_type {                                                \
 }
 
 }  // namespace net
