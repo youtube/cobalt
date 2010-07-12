@@ -111,8 +111,9 @@ NET_ERROR(SSL_VERSION_OR_CIPHER_MISMATCH, -113)
 // The server requested a renegotiation (rehandshake).
 NET_ERROR(SSL_RENEGOTIATION_REQUESTED, -114)
 
-// The proxy requested authentication (for tunnel establishment).
-NET_ERROR(PROXY_AUTH_REQUESTED, -115)
+// The proxy requested authentication (for tunnel establishment) with an
+// unsupported method.
+NET_ERROR(PROXY_AUTH_UNSUPPORTED, -115)
 
 // During SSL renegotiation (rehandshake), the server sent a certificate with
 // an error.
@@ -156,8 +157,14 @@ NET_ERROR(SSL_DECOMPRESSION_FAILURE_ALERT, -125)
 // from servers with buggy DEFLATE support.
 NET_ERROR(SSL_BAD_RECORD_MAC_ALERT, -126)
 
+// The proxy requested authentication (for tunnel establishment).
+NET_ERROR(PROXY_AUTH_REQUESTED, -127)
+
 // A known TLS strict server didn't offer the renegotiation extension.
 NET_ERROR(SSL_UNSAFE_NEGOTIATION, -128)
+
+// The socket needs a fresh connection in order to proceed.
+NET_ERROR(RETRY_CONNECTION, -129)
 
 // Certificate error codes
 //

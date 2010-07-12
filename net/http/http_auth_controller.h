@@ -46,7 +46,8 @@ class HttpAuthController {
   // |HandleAuthChallenge()| returns OK on success, or a network error code
   // otherwise. It may also populate |auth_info_|.
   int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
-                          int load_flags, bool establishing_tunnel);
+                          bool do_not_send_server_auth,
+                          bool establishing_tunnel);
 
   // Store the supplied credentials and prepare to restart the auth.
   void ResetAuth(const std::wstring& username, const std::wstring& password);
@@ -61,6 +62,10 @@ class HttpAuthController {
 
   scoped_refptr<AuthChallengeInfo> auth_info() {
     return auth_info_;
+  }
+
+  void set_net_log(const BoundNetLog& net_log) {
+    net_log_ = net_log;
   }
 
  private:
