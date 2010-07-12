@@ -118,11 +118,18 @@ TEST(TimeTicks, Deltas) {
 }
 
 TEST(TimeTicks, HighResNow) {
+#if defined(OS_WIN)
+  Time::ActivateHighResolutionTimer(true);
+#endif
+
   TimeTicks ticks_start = TimeTicks::HighResNow();
   PlatformThread::Sleep(10);
   TimeTicks ticks_stop = TimeTicks::HighResNow();
   TimeDelta delta = ticks_stop - ticks_start;
-  EXPECT_GE(delta.InMicroseconds(), 9000);
+
+  // In high res mode, we should be accurate to within 1.5x our
+  // best granularity.  On windows, that is 1ms, so use 1.5ms.
+  EXPECT_GE(delta.InMicroseconds(), 8500);
 }
 
 TEST(TimeDelta, FromAndIn) {
