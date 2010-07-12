@@ -91,8 +91,16 @@ class SpdySession : public base::RefCounted<SpdySession>,
   int WriteStreamData(spdy::SpdyStreamId stream_id, net::IOBuffer* data,
                       int len);
 
-  // Close a stream.
-  void CloseStream(spdy::SpdyStreamId stream_id, int status);
+  // This marks the stream as half closed from the client side, and removes it
+  // from the active_streams_ map.
+  void CloseStream(spdy::SpdyStreamId id, int status);
+  // This is identical to CloseStream, except it also sends a Rst stream frame.
+  void CloseStreamAndSendRst(spdy::SpdyStreamId stream_id, int status);
+
+  // Half close a stream.
+  void HalfCloseStreamClientSide(spdy::SpdyStreamId stream_id, int status);
+  void HalfCloseStreamServerSide(spdy::SpdyStreamId stream_id, int status);
+
 
   // Check if a stream is active.
   bool IsStreamActive(spdy::SpdyStreamId stream_id) const;
@@ -148,7 +156,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
              const linked_ptr<spdy::SpdyHeaderBlock>& headers);
   void OnSynReply(const spdy::SpdySynReplyControlFrame& frame,
                   const linked_ptr<spdy::SpdyHeaderBlock>& headers);
-  void OnFin(const spdy::SpdyRstStreamControlFrame& frame);
+  void OnRst(const spdy::SpdyRstStreamControlFrame& frame);
   void OnGoAway(const spdy::SpdyGoAwayControlFrame& frame);
   void OnSettings(const spdy::SpdySettingsControlFrame& frame);
 
@@ -181,7 +189,6 @@ class SpdySession : public base::RefCounted<SpdySession>,
 
   // Track active streams in the active stream list.
   void ActivateStream(SpdyStream* stream);
-  void DeleteStream(spdy::SpdyStreamId id, int status);
 
   // Removes this session from the session pool.
   void RemoveFromPool();
@@ -273,7 +280,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   int streams_initiated_count_;
   int streams_pushed_count_;
   int streams_pushed_and_claimed_count_;
-  int streams_abandoned_count_;
+  int streams_abandoned_count_;  // # of streams that were pushed & abandoned.
   bool sent_settings_;      // Did this session send settings when it started.
   bool received_settings_;  // Did this session receive at least one settings
                             // frame.
