@@ -232,7 +232,7 @@ net::Error SpdySession::Connect(const std::string& group_name,
   int rv = connection_->Init(group_name, destination, priority,
                              &connect_callback_, session_->tcp_socket_pool(),
                              net_log_);
-  DCHECK(rv <= 0);
+  DCHECK_LE(rv, 0);
 
   // If the connect is pending, we still return ok.  The APIs enqueue
   // work until after the connect completes asynchronously later.
@@ -370,11 +370,21 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   const int kMaxSpdyFrameChunkSize = (2 * kMss) - spdy::SpdyFrame::size();
 
   // Find our stream
-  DCHECK(IsStreamActive(stream_id));
-  scoped_refptr<SpdyStream> stream = active_streams_[stream_id];
-  CHECK_EQ(stream->stream_id(), stream_id);
-  if (!stream)
+  ActiveStreamMap::const_iterator it = active_streams_.find(stream_id);
+  if (it == active_streams_.end()) {
+    LOG(DFATAL) << "Attempting to write to stream " << stream_id
+                << ", which does not exist!";
     return ERR_INVALID_SPDY_STREAM;
+  }
+
+  const scoped_refptr<SpdyStream>& stream = it->second;
+  if (!stream) {
+    LOG(DFATAL) << "Attempting to write to stream " << stream_id
+                << ", which does not exist!";
+    return ERR_INVALID_SPDY_STREAM;
+  }
+
+  CHECK_EQ(stream->stream_id(), stream_id);
 
   // TODO(mbelshe):  Setting of the FIN is assuming that the caller will pass
   //                 all data to write in a single chunk.  Is this always true?
@@ -393,12 +403,20 @@ int SpdySession::WriteStreamData(spdy::SpdyStreamId stream_id,
   return ERR_IO_PENDING;
 }
 
-void SpdySession::CloseStream(spdy::SpdyStreamId stream_id, int status) {
-  LOG(INFO) << "Closing stream " << stream_id << " with status " << status;
-  // TODO(mbelshe): We should send a RST_STREAM control frame here
-  //                so that the server can cancel a large send.
+void SpdySession::CloseStreamAndSendRst(spdy::SpdyStreamId stream_id,
+                                        int status) {
+  LOG(INFO) << "Closing stream " << stream_id << " with status " << status
+            << " and sending RST_STREAM frame.";
 
-  DeleteStream(stream_id, status);
+  DCHECK(IsStreamActive(stream_id));
+  const scoped_refptr<SpdyStream>& stream = active_streams_[stream_id];
+  // We send a RST_STREAM control frame here so that the server can cancel a
+  // large send.
+  scoped_ptr<spdy::SpdyRstStreamControlFrame> rst_frame(
+      spdy_framer_.CreateRstStream(stream_id, spdy::CANCEL));
+  QueueFrame(rst_frame.get(), stream->priority(), stream);
+
+  CloseStream(stream_id, status);
 }
 
 bool SpdySession::IsStreamActive(spdy::SpdyStreamId stream_id) const {
@@ -525,7 +543,6 @@ void SpdySession::OnReadComplete(int bytes_read) {
 void SpdySession::OnWriteComplete(int result) {
   DCHECK(write_pending_);
   DCHECK(in_flight_write_.size());
-  DCHECK_NE(result, 0);  // This shouldn't happen for write.
 
   write_pending_ = false;
 
@@ -545,15 +562,17 @@ void SpdySession::OnWriteComplete(int result) {
     // We only notify the stream when we've fully written the pending frame.
     if (!in_flight_write_.buffer()->BytesRemaining()) {
       if (stream) {
+        // If we finished writing all the data from the buffer, it should not be
+        // the case that we wrote nothing.
+        DCHECK_NE(result, 0);
+
         // Report the number of bytes written to the caller, but exclude the
         // frame size overhead.  NOTE: if this frame was compressed the
         // reported bytes written is the compressed size, not the original
         // size.
-        if (result > 0) {
-          result = in_flight_write_.buffer()->size();
-          DCHECK_GT(result, static_cast<int>(spdy::SpdyFrame::size()));
-          result -= static_cast<int>(spdy::SpdyFrame::size());
-        }
+        result = in_flight_write_.buffer()->size();
+        DCHECK_GT(result, static_cast<int>(spdy::SpdyFrame::size()));
+        result -= static_cast<int>(spdy::SpdyFrame::size());
 
         // It is possible that the stream was cancelled while we were writing
         // to the socket.
@@ -712,11 +731,11 @@ void SpdySession::CloseAllStreams(net::Error status) {
     DCHECK(stream);
     LOG(ERROR) << "ABANDONED (stream_id=" << stream->stream_id()
       << "): " << stream->path();
-    DeleteStream(stream->stream_id(), status);
+    CloseStream(stream->stream_id(), status);
   }
 
   // TODO(erikchen): ideally stream->OnClose() is only ever called by
-  // DeleteStream, but pending streams fall into their own category for now.
+  // CloseStream, but pending streams fall into their own category for now.
   PendingStreamMap::iterator it;
   for (it = pending_streams_.begin(); it != pending_streams_.end(); ++it)
   {
@@ -777,7 +796,7 @@ void SpdySession::ActivateStream(SpdyStream* stream) {
   active_streams_[id] = stream;
 }
 
-void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
+void SpdySession::CloseStream(spdy::SpdyStreamId id, int status) {
   // Remove the stream from pushed_streams_ and active_streams_.
   ActivePushedStreamList::iterator it;
   for (it = pushed_streams_.begin(); it != pushed_streams_.end(); ++it) {
@@ -796,8 +815,13 @@ void SpdySession::DeleteStream(spdy::SpdyStreamId id, int status) {
   // If this is an active stream, call the callback.
   const scoped_refptr<SpdyStream> stream(it2->second);
   active_streams_.erase(it2);
-  if (stream)
+  if (stream) {
+    // This is the only place that should set the half_closed flag on the
+    // stream, and it should only be done once.
+    DCHECK(!stream->half_closed_client_side());
+    stream->HalfCloseClientSide();
     stream->OnClose(status);
+  }
 }
 
 void SpdySession::RemoveFromPool() {
@@ -870,7 +894,7 @@ bool SpdySession::Respond(const spdy::SpdyHeaderBlock& headers,
   if (rv < 0) {
     DCHECK_NE(rv, ERR_IO_PENDING);
     const spdy::SpdyStreamId stream_id = stream->stream_id();
-    DeleteStream(stream_id, rv);
+    CloseStream(stream_id, rv);
     return false;
   }
   return true;
@@ -1049,7 +1073,7 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
           *reinterpret_cast<const spdy::SpdySettingsControlFrame*>(frame));
       break;
     case spdy::RST_STREAM:
-      OnFin(*reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
+      OnRst(*reinterpret_cast<const spdy::SpdyRstStreamControlFrame*>(frame));
       break;
     case spdy::SYN_STREAM:
       OnSyn(*reinterpret_cast<const spdy::SpdySynStreamControlFrame*>(frame),
@@ -1065,7 +1089,7 @@ void SpdySession::OnControl(const spdy::SpdyControlFrame* frame) {
   }
 }
 
-void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
+void SpdySession::OnRst(const spdy::SpdyRstStreamControlFrame& frame) {
   spdy::SpdyStreamId stream_id = frame.stream_id();
   LOG(INFO) << "Spdy Fin for stream " << stream_id;
 
@@ -1090,7 +1114,7 @@ void SpdySession::OnFin(const spdy::SpdyRstStreamControlFrame& frame) {
     LOG(ERROR) << "Spdy stream closed: " << frame.status();
     // TODO(mbelshe): Map from Spdy-protocol errors to something sensical.
     //                For now, it doesn't matter much - it is a protocol error.
-    DeleteStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
+    CloseStream(stream_id, ERR_SPDY_PROTOCOL_ERROR);
   }
 }
 
