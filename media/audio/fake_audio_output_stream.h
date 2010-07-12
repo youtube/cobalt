@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "base/scoped_ptr.h"
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 
 class FakeAudioOutputStream : public AudioOutputStream {
  public:

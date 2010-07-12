@@ -36,7 +36,7 @@
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/thread.h"
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace media {

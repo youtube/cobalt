@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "base/basictypes.h"
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 #include "media/audio/simple_sources.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -51,10 +51,11 @@ TEST(MacAudioTest, SineWaveAudio16MonoTest) {
 TEST(MacAudioTest, PCMWaveStreamGetAndClose) {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   ASSERT_TRUE(NULL != audio_man);
-  if (!audio_man->HasAudioDevices())
+  if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas =
-      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 2, 8000, 16);
+      audio_man->MakeAudioOutputStream(AudioManager::AUDIO_PCM_LINEAR, 2,
+                                       8000, 16);
   ASSERT_TRUE(NULL != oas);
   oas->Close();
 }
@@ -63,10 +64,11 @@ TEST(MacAudioTest, PCMWaveStreamGetAndClose) {
 TEST(MacAudioTest, PCMWaveStreamOpenAndClose) {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   ASSERT_TRUE(NULL != audio_man);
-  if (!audio_man->HasAudioDevices())
+  if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas =
-      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 2, 8000, 16);
+      audio_man->MakeAudioOutputStream(AudioManager::AUDIO_PCM_LINEAR, 2,
+                                       8000, 16);
   ASSERT_TRUE(NULL != oas);
   EXPECT_TRUE(oas->Open(1024));
   oas->Close();
@@ -79,10 +81,10 @@ TEST(MacAudioTest, PCMWaveStreamOpenAndClose) {
 TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   ASSERT_TRUE(NULL != audio_man);
-  if (!audio_man->HasAudioDevices())
+  if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas =
-  audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
+  audio_man->MakeAudioOutputStream(AudioManager::AUDIO_PCM_LINEAR, 1,
                              AudioManager::kAudioCDSampleRate, 16);
   ASSERT_TRUE(NULL != oas);
 
@@ -112,10 +114,10 @@ TEST(MacAudioTest, PCMWaveStreamPlay200HzTone44KssMono) {
 TEST(MacAudioTest, PCMWaveStreamPlay200HzTone22KssMono) {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   ASSERT_TRUE(NULL != audio_man);
-  if (!audio_man->HasAudioDevices())
+  if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas =
-  audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
+  audio_man->MakeAudioOutputStream(AudioManager::AUDIO_PCM_LINEAR, 1,
                              AudioManager::kAudioCDSampleRate/2, 16);
   ASSERT_TRUE(NULL != oas);
 
@@ -139,10 +141,10 @@ static void ClearBuffer(AudioOutputStream* strea, void* dest,
 TEST(MacAudioTest, PCMWaveStreamPendingBytes) {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   ASSERT_TRUE(NULL != audio_man);
-  if (!audio_man->HasAudioDevices())
+  if (!audio_man->HasAudioOutputDevices())
     return;
   AudioOutputStream* oas =
-      audio_man->MakeAudioStream(AudioManager::AUDIO_PCM_LINEAR, 1,
+      audio_man->MakeAudioOutputStream(AudioManager::AUDIO_PCM_LINEAR, 1,
                                  AudioManager::kAudioCDSampleRate, 16);
   ASSERT_TRUE(NULL != oas);
 

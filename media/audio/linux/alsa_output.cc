@@ -339,7 +339,7 @@ void AlsaPcmOutputStream::Close() {
   // Signal to the manager that we're closed and can be removed.  Since
   // we just posted a CloseTask to the message loop, we won't be deleted
   // immediately, but it will happen soon afterwards.
-  manager()->ReleaseStream(this);
+  manager()->ReleaseOutputStream(this);
 }
 
 void AlsaPcmOutputStream::Start(AudioSourceCallback* callback) {

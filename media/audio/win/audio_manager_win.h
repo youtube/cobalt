@@ -8,7 +8,7 @@
 #include <windows.h>
 
 #include "base/basictypes.h"
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 
 class PCMWaveOutAudioOutputStream;
 
@@ -19,16 +19,16 @@ class AudioManagerWin : public AudioManager {
  public:
   AudioManagerWin() {}
   // Implementation of AudioManager.
-  virtual bool HasAudioDevices();
-  virtual AudioOutputStream* MakeAudioStream(Format format, int channels,
-                                             int sample_rate,
-                                             char bits_per_sample);
+  virtual bool HasAudioOutputDevices();
+  virtual AudioOutputStream* MakeAudioOutputStream(Format format, int channels,
+                                                   int sample_rate,
+                                                   char bits_per_sample);
   virtual void MuteAll();
   virtual void UnMuteAll();
 
   // Windows-only methods to free a stream created in MakeAudioStream. These
   // are called internally by the audio stream when it has been closed.
-  void ReleaseStream(PCMWaveOutAudioOutputStream* stream);
+  void ReleaseOutputStream(PCMWaveOutAudioOutputStream* stream);
 
  private:
   friend void DestroyAudioManagerWin(void *);

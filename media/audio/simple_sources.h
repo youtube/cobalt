@@ -8,7 +8,7 @@
 #include <list>
 
 #include "base/lock.h"
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 #include "media/base/seekable_buffer.h"
 
 // An audio source that produces a pure sinusoidal tone.
