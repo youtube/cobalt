@@ -28,9 +28,7 @@ SpdyStream::SpdyStream(
       cancelled_(false),
       send_bytes_(0),
       recv_bytes_(0),
-      histograms_recorded_(false),
-      half_closed_client_side_(false),
-      half_closed_server_side_(false) {}
+      histograms_recorded_(false) {}
 
 SpdyStream::~SpdyStream() {
   DLOG(INFO) << "Deleting SpdyStream for stream " << stream_id_;
@@ -60,8 +58,8 @@ void SpdyStream::SetDelegate(Delegate* delegate) {
 
 void SpdyStream::DetachDelegate() {
   delegate_ = NULL;
-  if (!half_closed_client_side())
-    session_->CloseStream(stream_id_, ERR_ABORTED);
+  if (!cancelled())
+    Cancel();
 }
 
 const linked_ptr<spdy::SpdyHeaderBlock>& SpdyStream::spdy_headers() const {
@@ -131,7 +129,6 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
   // received.
   if (response_->empty()) {
     session_->CloseStream(stream_id_, ERR_SYN_REPLY_NOT_RECEIVED);
-    // TODO(erikchen): We should close the session here.
     return;
   }
 
@@ -162,13 +159,11 @@ void SpdyStream::OnDataReceived(const char* data, int length) {
 }
 
 void SpdyStream::OnWriteComplete(int status) {
-  // Behavior for status==0 is undefined, and should never happen. This should
-  // have already been checked prior to calling this function.
-  DCHECK_NE(status, 0);
+  // TODO(mbelshe): Check for cancellation here.  If we're cancelled, we
+  // should discontinue the DoLoop.
 
-  // It is possible that this stream was closed or cancelled while we had a
-  // write pending.
-  if (response_complete_ || cancelled_)
+  // It is possible that this stream was closed while we had a write pending.
+  if (response_complete_)
     return;
 
   if (status > 0)
@@ -189,8 +184,7 @@ void SpdyStream::OnClose(int status) {
 
 void SpdyStream::Cancel() {
   cancelled_ = true;
-  if (!half_closed_client_side())
-    session_->CloseStreamAndSendRst(stream_id_, ERR_ABORTED);
+  session_->CloseStream(stream_id_, ERR_ABORTED);
 }
 
 int SpdyStream::DoSendRequest(bool has_upload_data) {
