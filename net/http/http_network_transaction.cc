@@ -22,6 +22,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_util.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/base/ssl_connection_status_flags.h"
 #include "net/base/upload_data_stream.h"
 #include "net/http/http_auth.h"
 #include "net/http/http_auth_handler.h"
@@ -1084,8 +1085,12 @@ int HttpNetworkTransaction::DoSSLConnect() {
   if (ContainsKey(*g_tls_intolerant_servers, GetHostAndPort(request_->url))) {
     LOG(WARNING) << "Falling back to SSLv3 because host is TLS intolerant: "
                  << GetHostAndPort(request_->url);
+    ssl_config_.ssl3_fallback = true;
     ssl_config_.tls1_enabled = false;
   }
+
+  UMA_HISTOGRAM_ENUMERATION("Net.ConnectionUsedSSLv3Fallback",
+                            (int) ssl_config_.ssl3_fallback, 2);
 
   if (request_->load_flags & LOAD_VERIFY_EV_CERT)
     ssl_config_.verify_ev_cert = true;
