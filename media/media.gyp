@@ -20,7 +20,7 @@
       ],
       'msvs_guid': '6AE76406-B03B-11DD-94B1-80B556D89593',
       'sources': [
-        'audio/audio_output.h',
+        'audio/audio_io.h',
         'audio/audio_output_controller.cc',
         'audio/audio_output_controller.h',
         'audio/audio_util.cc',
@@ -42,7 +42,7 @@
         'audio/simple_sources.cc',
         'audio/simple_sources.h',
         'audio/win/audio_manager_win.h',
-        'audio/win/audio_output_win.cc',
+        'audio/win/audio_manager_win.cc',
         'audio/win/waveout_output_win.cc',
         'audio/win/waveout_output_win.h',
         'base/buffers.cc',

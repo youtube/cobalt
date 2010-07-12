@@ -8,7 +8,7 @@
 #include <AudioToolbox/AudioQueue.h>
 #include <AudioToolbox/AudioFormat.h>
 
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 
 #include "base/basictypes.h"
 

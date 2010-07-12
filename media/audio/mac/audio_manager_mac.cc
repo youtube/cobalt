@@ -9,7 +9,7 @@
 #include "media/audio/mac/audio_manager_mac.h"
 #include "media/audio/mac/audio_output_mac.h"
 
-bool AudioManagerMac::HasAudioDevices() {
+bool AudioManagerMac::HasAudioOutputDevices() {
   AudioDeviceID output_device_id = kAudioObjectUnknown;
   AudioObjectPropertyAddress property_address = {
     kAudioHardwarePropertyDefaultOutputDevice,  // mSelector
@@ -27,9 +27,11 @@ bool AudioManagerMac::HasAudioDevices() {
          output_device_id != kAudioObjectUnknown;
 }
 
-AudioOutputStream* AudioManagerMac::MakeAudioStream(Format format, int channels,
-                                                    int sample_rate,
-                                                    char bits_per_sample) {
+AudioOutputStream* AudioManagerMac::MakeAudioOutputStream(
+    Format format,
+    int channels,
+    int sample_rate,
+    char bits_per_sample) {
   if (format == AUDIO_MOCK)
     return FakeAudioOutputStream::MakeFakeStream();
   else if (format != AUDIO_PCM_LINEAR)
@@ -47,7 +49,8 @@ void AudioManagerMac::UnMuteAll() {
 }
 
 // Called by the stream when it has been released by calling Close().
-void AudioManagerMac::ReleaseStream(PCMQueueOutAudioOutputStream* stream) {
+void AudioManagerMac::ReleaseOutputStream(
+    PCMQueueOutAudioOutputStream* stream) {
   delete stream;
 }
 

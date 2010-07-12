@@ -33,7 +33,7 @@ bool AudioRendererImpl::IsMediaFormatSupported(
   int channels;
   int sample_rate;
   int sample_bits;
-  return AudioManager::GetAudioManager()->HasAudioDevices() &&
+  return AudioManager::GetAudioManager()->HasAudioOutputDevices() &&
       ParseMediaFormat(media_format, &channels, &sample_rate, &sample_bits);
 }
 
@@ -88,7 +88,7 @@ bool AudioRendererImpl::OnInitialize(const MediaFormat& media_format) {
   bytes_per_second_ = sample_rate * channels * sample_bits / 8;
 
   // Create our audio stream.
-  stream_ = AudioManager::GetAudioManager()->MakeAudioStream(
+  stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStream(
       AudioManager::AUDIO_PCM_LINEAR, channels, sample_rate, sample_bits);
   if (!stream_)
     return false;

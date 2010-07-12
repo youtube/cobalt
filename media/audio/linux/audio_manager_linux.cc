@@ -19,15 +19,16 @@ AudioManagerLinux* g_audio_manager = NULL;
 }  // namespace
 
 // Implementation of AudioManager.
-bool AudioManagerLinux::HasAudioDevices() {
+bool AudioManagerLinux::HasAudioOutputDevices() {
   // TODO(ajwong): Make this actually query audio devices.
   return true;
 }
 
-AudioOutputStream* AudioManagerLinux::MakeAudioStream(Format format,
-                                                      int channels,
-                                                      int sample_rate,
-                                                      char bits_per_sample) {
+AudioOutputStream* AudioManagerLinux::MakeAudioOutputStream(
+    Format format,
+    int channels,
+    int sample_rate,
+    char bits_per_sample) {
   // Early return for testing hook.  Do this before checking for
   // |initialized_|.
   if (format == AudioManager::AUDIO_MOCK) {
@@ -81,7 +82,7 @@ void AudioManagerLinux::UnMuteAll() {
   NOTIMPLEMENTED();
 }
 
-void AudioManagerLinux::ReleaseStream(AlsaPcmOutputStream* stream) {
+void AudioManagerLinux::ReleaseOutputStream(AlsaPcmOutputStream* stream) {
   if (stream) {
     AutoLock l(lock_);
     active_streams_.erase(stream);

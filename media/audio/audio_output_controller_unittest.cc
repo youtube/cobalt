@@ -55,10 +55,10 @@ class MockAudioOutputControllerSyncReader
   DISALLOW_COPY_AND_ASSIGN(MockAudioOutputControllerSyncReader);
 };
 
-static bool HasAudioDevices() {
+static bool HasAudioOutputDevices() {
   AudioManager* audio_man = AudioManager::GetAudioManager();
   CHECK(audio_man);
-  return audio_man->HasAudioDevices();
+  return audio_man->HasAudioOutputDevices();
 }
 
 static bool IsRunningHeadless() {
@@ -75,7 +75,7 @@ ACTION_P3(SignalEvent, event, count, limit) {
 }
 
 TEST(AudioOutputControllerTest, CreateAndClose) {
-  if (!HasAudioDevices() || IsRunningHeadless())
+  if (!HasAudioOutputDevices() || IsRunningHeadless())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -95,7 +95,7 @@ TEST(AudioOutputControllerTest, CreateAndClose) {
 }
 
 TEST(AudioOutputControllerTest, PlayAndClose) {
-  if (!HasAudioDevices() || IsRunningHeadless())
+  if (!HasAudioOutputDevices() || IsRunningHeadless())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -140,7 +140,7 @@ TEST(AudioOutputControllerTest, PlayAndClose) {
 }
 
 TEST(AudioOutputControllerTest, PlayPauseClose) {
-  if (!HasAudioDevices() || IsRunningHeadless())
+  if (!HasAudioOutputDevices() || IsRunningHeadless())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;
@@ -196,7 +196,7 @@ TEST(AudioOutputControllerTest, PlayPauseClose) {
 }
 
 TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
-  if (!HasAudioDevices() || IsRunningHeadless())
+  if (!HasAudioOutputDevices() || IsRunningHeadless())
     return;
 
   // Create an audio device with a very large hardware buffer size.
@@ -214,7 +214,7 @@ TEST(AudioOutputControllerTest, HardwareBufferTooLarge) {
 }
 
 TEST(AudioOutputControllerTest, CloseTwice) {
-  if (!HasAudioDevices() || IsRunningHeadless())
+  if (!HasAudioOutputDevices() || IsRunningHeadless())
     return;
 
   MockAudioOutputControllerEventHandler event_handler;

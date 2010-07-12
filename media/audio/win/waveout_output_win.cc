@@ -10,7 +10,7 @@
 
 #include "base/basictypes.h"
 #include "base/logging.h"
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 #include "media/audio/audio_util.h"
 #include "media/audio/win/audio_manager_win.h"
 
@@ -209,7 +209,7 @@ void PCMWaveOutAudioOutputStream::Close() {
   // Tell the audio manager that we have been released. This can result in
   // the manager destroying us in-place so this needs to be the last thing
   // we do on this function.
-  manager_->ReleaseStream(this);
+  manager_->ReleaseOutputStream(this);
 }
 
 void PCMWaveOutAudioOutputStream::SetVolume(double volume) {
