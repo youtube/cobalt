@@ -126,7 +126,7 @@ void HttpAuthController::AddAuthorizationHeader(
 
 int HttpAuthController::HandleAuthChallenge(
     scoped_refptr<HttpResponseHeaders> headers,
-    int load_flags,
+    bool do_not_send_server_auth,
     bool establishing_tunnel) {
   DCHECK(headers);
   DCHECK(auth_origin_.is_valid());
@@ -150,8 +150,7 @@ int HttpAuthController::HandleAuthChallenge(
 
   identity_.invalid = true;
 
-  if (target_ != HttpAuth::AUTH_SERVER ||
-      !(load_flags & LOAD_DO_NOT_SEND_AUTH_DATA)) {
+  if (target_ != HttpAuth::AUTH_SERVER || !do_not_send_server_auth) {
     // Find the best authentication challenge that we support.
     HttpAuth::ChooseBestChallenge(session_->http_auth_handler_factory(),
                                   headers, target_, auth_origin_, net_log_,
@@ -169,7 +168,7 @@ int HttpAuthController::HandleAuthChallenge(
       // active network attacker could control its contents.  Instead, we just
       // fail to establish the tunnel.
       DCHECK(target_ == HttpAuth::AUTH_PROXY);
-      return ERR_PROXY_AUTH_REQUESTED;
+      return ERR_PROXY_AUTH_UNSUPPORTED;
     }
     // We found no supported challenge -- let the transaction continue
     // so we end up displaying the error page.

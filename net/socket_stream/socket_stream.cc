@@ -706,7 +706,7 @@ int SocketStream::DoReadTunnelHeadersComplete(int result) {
       return OK;
     case 407:  // Proxy Authentication Required.
       result = HandleAuthChallenge(headers.get());
-      if (result == ERR_PROXY_AUTH_REQUESTED &&
+      if (result == ERR_PROXY_AUTH_UNSUPPORTED &&
           auth_handler_.get() && delegate_) {
         DCHECK(!proxy_info_.is_empty());
         auth_info_ = new AuthChallengeInfo;
@@ -924,7 +924,7 @@ int SocketStream::HandleAuthChallenge(const HttpResponseHeaders* headers) {
       auth_identity_.password = entry->password();
       // Restart with auth info.
     }
-    return ERR_PROXY_AUTH_REQUESTED;
+    return ERR_PROXY_AUTH_UNSUPPORTED;
   } else {
     auth_identity_.invalid = false;
   }
