@@ -32,6 +32,7 @@ class ScopedNativeLibrary {
 
  private:
   base::NativeLibrary library_;
+  DISALLOW_COPY_AND_ASSIGN(ScopedNativeLibrary);
 };
 
 }  // namespace base
