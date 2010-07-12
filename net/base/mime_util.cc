@@ -138,6 +138,11 @@ static const char* FindMimeType(const MimeInfo* mappings,
 
 bool MimeUtil::GetMimeTypeFromExtension(const FilePath::StringType& ext,
                                         string* result) const {
+  // Avoids crash when unable to handle a long file path. See crbug.com/48733.
+  const unsigned kMaxFilePathSize = 65536;
+  if (ext.length() > kMaxFilePathSize)
+    return false;
+
   // We implement the same algorithm as Mozilla for mapping a file extension to
   // a mime type.  That is, we first check a hard-coded list (that cannot be
   // overridden), and then if not found there, we defer to the system registry.
