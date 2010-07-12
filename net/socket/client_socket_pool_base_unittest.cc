@@ -117,6 +117,10 @@ class TestConnectJob : public ConnectJob {
     kMockAdvancingLoadStateJob,
   };
 
+  // The kMockPendingJob uses a slight delay before allowing the connect
+  // to complete.
+  static const int kPendingConnectDelay = 2;
+
   TestConnectJob(JobType job_type,
                  const std::string& group_name,
                  const TestClientSocketPoolBase::Request& request,
@@ -169,7 +173,7 @@ class TestConnectJob : public ConnectJob {
                 &TestConnectJob::DoConnect,
                 true /* successful */,
                 true /* async */),
-            2);
+            kPendingConnectDelay);
         return ERR_IO_PENDING;
       case kMockPendingFailingJob:
         set_load_state(LOAD_STATE_CONNECTING);
@@ -883,6 +887,9 @@ TEST_F(ClientSocketPoolBaseTest, CancelPendingSocketAtSocketLimit) {
 
     // Cancel the stalled request.
     handles[0].Reset();
+
+    // Wait for the pending job to be guaranteed to complete.
+    PlatformThread::Sleep(TestConnectJob::kPendingConnectDelay * 2);
 
     MessageLoop::current()->RunAllPending();
 
