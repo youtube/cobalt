@@ -18,6 +18,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/net_log.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 
 // Welcome to Mac SSL. We've been waiting for you.
@@ -652,6 +653,9 @@ void SSLClientSocketMac::GetSSLInfo(SSLInfo* ssl_info) {
   OSStatus status = SSLGetNegotiatedCipher(ssl_context_, &suite);
   if (!status)
     ssl_info->security_bits = KeySizeOfCipherSuite(suite);
+
+  if (ssl_config_.ssl3_fallback)
+    ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
 }
 
 void SSLClientSocketMac::GetSSLCertRequestInfo(

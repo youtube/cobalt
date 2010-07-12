@@ -17,6 +17,7 @@
 #include "net/base/net_log.h"
 #include "net/base/net_errors.h"
 #include "net/base/ssl_cert_request_info.h"
+#include "net/base/ssl_connection_status_flags.h"
 #include "net/base/ssl_info.h"
 
 #pragma comment(lib, "secur32.lib")
@@ -335,6 +336,8 @@ SSLClientSocketWin::~SSLClientSocketWin() {
 }
 
 void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
+  ssl_info->Reset();
+
   if (!server_cert_)
     return;
 
@@ -349,6 +352,9 @@ void SSLClientSocketWin::GetSSLInfo(SSLInfo* ssl_info) {
     // normalized.
     ssl_info->security_bits = connection_info.dwCipherStrength;
   }
+
+  if (ssl_config_.ssl3_fallback)
+    ssl_info->connection_status |= SSL_CONNECTION_SSL3_FALLBACK;
 }
 
 void SSLClientSocketWin::GetSSLCertRequestInfo(
