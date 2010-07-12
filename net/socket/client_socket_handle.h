@@ -66,7 +66,7 @@ class ClientSocketHandle {
   //
   template <typename SocketParams, typename PoolType>
   int Init(const std::string& group_name,
-           const SocketParams& socket_params,
+           const scoped_refptr<SocketParams>& socket_params,
            RequestPriority priority,
            CompletionCallback* callback,
            const scoped_refptr<PoolType>& pool,
@@ -161,7 +161,7 @@ class ClientSocketHandle {
 // Template function implementation:
 template <typename SocketParams, typename PoolType>
 int ClientSocketHandle::Init(const std::string& group_name,
-                             const SocketParams& socket_params,
+                             const scoped_refptr<SocketParams>& socket_params,
                              RequestPriority priority,
                              CompletionCallback* callback,
                              const scoped_refptr<PoolType>& pool,
@@ -169,9 +169,9 @@ int ClientSocketHandle::Init(const std::string& group_name,
   requesting_source_ = net_log.source();
 
   CHECK(!group_name.empty());
-  // Note that this will result in a link error if the SocketParams has not been
-  // registered for the PoolType via REGISTER_SOCKET_PARAMS_FOR_POOL (defined in
-  // client_socket_pool.h).
+  // Note that this will result in a compile error if the SocketParams has not
+  // been registered for the PoolType via REGISTER_SOCKET_PARAMS_FOR_POOL
+  // (defined in client_socket_pool.h).
   CheckIsValidSocketParamsForPool<PoolType, SocketParams>();
   ResetInternal(true);
   pool_ = pool;

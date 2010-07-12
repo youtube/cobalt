@@ -5434,7 +5434,8 @@ TEST_F(HttpNetworkTransactionTest,
   scoped_refptr<SpdySession> spdy_session =
       session->spdy_session_pool()->Get(HostPortPair("www.google.com", 443),
                                         session, BoundNetLog());
-  TCPSocketParams tcp_params("www.google.com", 443, MEDIUM, GURL(), false);
+  scoped_refptr<TCPSocketParams> tcp_params =
+      new TCPSocketParams("www.google.com", 443, MEDIUM, GURL(), false);
   spdy_session->Connect("www.google.com:443", tcp_params, MEDIUM);
   trans.reset(new HttpNetworkTransaction(session));
 

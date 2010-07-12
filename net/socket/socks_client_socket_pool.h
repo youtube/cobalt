@@ -9,6 +9,7 @@
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
+#include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/host_port_pair.h"
@@ -24,28 +25,24 @@ namespace net {
 class ClientSocketFactory;
 class ConnectJobFactory;
 
-class SOCKSSocketParams {
+class SOCKSSocketParams : public base::RefCounted<SOCKSSocketParams> {
  public:
-  SOCKSSocketParams(const TCPSocketParams& proxy_server, bool socks_v5,
-                    const HostPortPair& host_port_pair,
-                    RequestPriority priority, const GURL& referrer)
-      : tcp_params_(proxy_server),
-        destination_(host_port_pair.host, host_port_pair.port),
-        socks_v5_(socks_v5) {
-    // The referrer is used by the DNS prefetch system to correlate resolutions
-    // with the page that triggered them. It doesn't impact the actual addresses
-    // that we resolve to.
-    destination_.set_referrer(referrer);
-    destination_.set_priority(priority);
-  }
+  SOCKSSocketParams(const scoped_refptr<TCPSocketParams>& proxy_server,
+                    bool socks_v5, const HostPortPair& host_port_pair,
+                    RequestPriority priority, const GURL& referrer);
 
-  const TCPSocketParams& tcp_params() const { return tcp_params_; }
+  const scoped_refptr<TCPSocketParams>& tcp_params() const {
+    return tcp_params_;
+  }
   const HostResolver::RequestInfo& destination() const { return destination_; }
   bool is_socks_v5() const { return socks_v5_; }
 
  private:
+  friend class base::RefCounted<SOCKSSocketParams>;
+  ~SOCKSSocketParams();
+
   // The tcp connection must point toward the proxy server.
-  const TCPSocketParams tcp_params_;
+  const scoped_refptr<TCPSocketParams> tcp_params_;
   // This is the HTTP destination.
   HostResolver::RequestInfo destination_;
   const bool socks_v5_;
@@ -56,7 +53,7 @@ class SOCKSSocketParams {
 class SOCKSConnectJob : public ConnectJob {
  public:
   SOCKSConnectJob(const std::string& group_name,
-                  const SOCKSSocketParams& params,
+                  const scoped_refptr<SOCKSSocketParams>& params,
                   const base::TimeDelta& timeout_duration,
                   const scoped_refptr<TCPClientSocketPool>& tcp_pool,
                   const scoped_refptr<HostResolver> &host_resolver,
@@ -91,7 +88,7 @@ class SOCKSConnectJob : public ConnectJob {
   int DoSOCKSConnect();
   int DoSOCKSConnectComplete(int result);
 
-  SOCKSSocketParams socks_params_;
+  scoped_refptr<SOCKSSocketParams> socks_params_;
   const scoped_refptr<TCPClientSocketPool> tcp_pool_;
   const scoped_refptr<HostResolver> resolver_;
 

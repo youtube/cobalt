@@ -84,16 +84,18 @@ class MockHttpAuthController : public HttpAuthController {
 class HttpProxyClientSocketPoolTest : public ClientSocketPoolTest {
  protected:
   HttpProxyClientSocketPoolTest()
-      : ignored_tcp_socket_params_(
-            HostPortPair("proxy", 80), MEDIUM, GURL(), false),
+      : ignored_tcp_socket_params_(new TCPSocketParams(
+            HostPortPair("proxy", 80), MEDIUM, GURL(), false)),
         tcp_histograms_(new ClientSocketPoolHistograms("MockTCP")),
         tcp_socket_pool_(new MockTCPClientSocketPool(kMaxSockets,
             kMaxSocketsPerGroup, tcp_histograms_, &tcp_client_socket_factory_)),
-        notunnel_socket_params_(ignored_tcp_socket_params_, GURL("http://host"),
-                                HostPortPair("host", 80), NULL, false),
+        notunnel_socket_params_(new HttpProxySocketParams(
+              ignored_tcp_socket_params_, GURL("http://host"),
+              HostPortPair("host", 80), NULL, false)),
         auth_controller_(new MockHttpAuthController),
-        tunnel_socket_params_(ignored_tcp_socket_params_, GURL("http://host"),
-                              HostPortPair("host", 80), auth_controller_, true),
+        tunnel_socket_params_(new HttpProxySocketParams(
+              ignored_tcp_socket_params_, GURL("http://host"),
+              HostPortPair("host", 80), auth_controller_, true)),
         http_proxy_histograms_(
             new ClientSocketPoolHistograms("HttpProxyUnitTest")),
         pool_(new HttpProxyClientSocketPool(kMaxSockets, kMaxSocketsPerGroup,
@@ -105,14 +107,14 @@ class HttpProxyClientSocketPoolTest : public ClientSocketPoolTest {
         pool_, group_name, priority, tunnel_socket_params_);
   }
 
-  TCPSocketParams ignored_tcp_socket_params_;
+  scoped_refptr<TCPSocketParams> ignored_tcp_socket_params_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_histograms_;
   MockClientSocketFactory tcp_client_socket_factory_;
   scoped_refptr<MockTCPClientSocketPool> tcp_socket_pool_;
 
-  HttpProxySocketParams notunnel_socket_params_;
+  scoped_refptr<HttpProxySocketParams> notunnel_socket_params_;
   scoped_refptr<MockHttpAuthController> auth_controller_;
-  HttpProxySocketParams tunnel_socket_params_;
+  scoped_refptr<HttpProxySocketParams> tunnel_socket_params_;
   scoped_refptr<ClientSocketPoolHistograms> http_proxy_histograms_;
   scoped_refptr<HttpProxyClientSocketPool> pool_;
 };
