@@ -83,12 +83,9 @@ class HttpNetworkTransaction : public HttpTransaction {
     STATE_RESOLVE_PROXY_COMPLETE,
     STATE_INIT_CONNECTION,
     STATE_INIT_CONNECTION_COMPLETE,
-    STATE_TUNNEL_GENERATE_AUTH_TOKEN,
-    STATE_TUNNEL_GENERATE_AUTH_TOKEN_COMPLETE,
-    STATE_TUNNEL_SEND_REQUEST,
-    STATE_TUNNEL_SEND_REQUEST_COMPLETE,
-    STATE_TUNNEL_READ_HEADERS,
-    STATE_TUNNEL_READ_HEADERS_COMPLETE,
+    STATE_TUNNEL_CONNECT,
+    STATE_TUNNEL_CONNECT_COMPLETE,
+    STATE_TUNNEL_RESTART_WITH_AUTH,
     STATE_SSL_CONNECT,
     STATE_SSL_CONNECT_COMPLETE,
     STATE_GENERATE_PROXY_AUTH_TOKEN,
@@ -132,12 +129,9 @@ class HttpNetworkTransaction : public HttpTransaction {
   int DoResolveProxyComplete(int result);
   int DoInitConnection();
   int DoInitConnectionComplete(int result);
-  int DoTunnelGenerateAuthToken();
-  int DoTunnelGenerateAuthTokenComplete(int result);
-  int DoTunnelSendRequest();
-  int DoTunnelSendRequestComplete(int result);
-  int DoTunnelReadHeaders();
-  int DoTunnelReadHeadersComplete(int result);
+  int DoTunnelConnect();
+  int DoTunnelConnectComplete(int result);
+  int DoTunnelRestartWithAuth();
   int DoSSLConnect();
   int DoSSLConnectComplete(int result);
   int DoGenerateProxyAuthToken();
@@ -226,9 +220,6 @@ class HttpNetworkTransaction : public HttpTransaction {
 
   // Resets the members of the transaction so it can be restarted.
   void ResetStateForRestart();
-
-  // Clear the state used to setup the tunnel.
-  void ClearTunnelState();
 
   // Returns true if we should try to add a Proxy-Authorization header
   bool ShouldApplyProxyAuth() const;
@@ -326,6 +317,14 @@ class HttpNetworkTransaction : public HttpTransaction {
   // The hostname and port of the endpoint.  This is not necessarily the one
   // specified by the URL, due to Alternate-Protocol or fixed testing ports.
   HostPortPair endpoint_;
+
+  // Stores login and password between |RestartWithAuth|
+  // and |DoTunnelRestartWithAuth|.
+  HttpAuth::Identity tunnel_credentials_;
+
+  // True when the tunnel is in the process of being established - we can't
+  // read from the socket until the tunnel is done.
+  bool establishing_tunnel_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpNetworkTransaction);
 };
