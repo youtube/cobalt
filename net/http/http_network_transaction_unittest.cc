@@ -83,7 +83,8 @@ struct SessionDependencies {
         proxy_service(ProxyService::CreateNull()),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool()) {}
+        spdy_session_pool(new SpdySessionPool()),
+        net_log(NULL) {}
 
   // Custom proxy service dependency.
   explicit SessionDependencies(ProxyService* proxy_service)
@@ -91,7 +92,8 @@ struct SessionDependencies {
         proxy_service(proxy_service),
         ssl_config_service(new SSLConfigServiceDefaults),
         http_auth_handler_factory(HttpAuthHandlerFactory::CreateDefault()),
-        spdy_session_pool(new SpdySessionPool()) {}
+        spdy_session_pool(new SpdySessionPool()),
+        net_log(NULL) {}
 
   scoped_refptr<MockHostResolverBase> host_resolver;
   scoped_refptr<ProxyService> proxy_service;
@@ -99,6 +101,7 @@ struct SessionDependencies {
   MockClientSocketFactory socket_factory;
   scoped_ptr<HttpAuthHandlerFactory> http_auth_handler_factory;
   scoped_refptr<SpdySessionPool> spdy_session_pool;
+  NetLog* net_log;
 };
 
 ProxyService* CreateFixedProxyService(const std::string& proxy) {
@@ -115,7 +118,7 @@ HttpNetworkSession* CreateSession(SessionDependencies* session_deps) {
                                 session_deps->spdy_session_pool,
                                 session_deps->http_auth_handler_factory.get(),
                                 NULL,
-                                NULL);
+                                session_deps->net_log);
 }
 
 class HttpNetworkTransactionTest : public PlatformTest {
@@ -1297,6 +1300,8 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthKeepAliveImpatientServer) {
 TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
   // Configure against proxy server "myproxy:70".
   SessionDependencies session_deps(CreateFixedProxyService("myproxy:70"));
+  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
+  session_deps.net_log = log.bound().net_log();
   scoped_refptr<HttpNetworkSession> session(CreateSession(&session_deps));
 
   scoped_ptr<HttpTransaction> trans(new HttpNetworkTransaction(session));
@@ -1345,7 +1350,6 @@ TEST_F(HttpNetworkTransactionTest, BasicAuthProxyKeepAlive) {
 
   TestCompletionCallback callback1;
 
-  CapturingBoundNetLog log(CapturingNetLog::kUnbounded);
   int rv = trans->Start(&request, &callback1, log.bound());
   EXPECT_EQ(ERR_IO_PENDING, rv);
 
@@ -1636,7 +1640,7 @@ TEST_F(HttpNetworkTransactionTest, ConnectStatus406) {
 TEST_F(HttpNetworkTransactionTest, ConnectStatus407) {
   ConnectStatusHelperWithExpectedStatus(
       MockRead("HTTP/1.1 407 Proxy Authentication Required\r\n"),
-      ERR_PROXY_AUTH_REQUESTED);
+      ERR_PROXY_AUTH_UNSUPPORTED);
 }
 
 TEST_F(HttpNetworkTransactionTest, ConnectStatus408) {
