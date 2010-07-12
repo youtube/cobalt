@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/http/http_transaction_factory.h"
@@ -24,7 +25,7 @@ class ProxyService;
 class SpdySessionPool;
 class SSLConfigService;
 
-class HttpNetworkLayer : public HttpTransactionFactory {
+class HttpNetworkLayer : public HttpTransactionFactory, public NonThreadSafe {
  public:
   // |socket_factory|, |proxy_service| and |host_resolver| must remain valid for
   // the lifetime of HttpNetworkLayer.
