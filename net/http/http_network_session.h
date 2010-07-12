@@ -16,6 +16,7 @@
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_network_delegate.h"
 #include "net/http/http_network_transaction.h"
+#include "net/http/http_proxy_client_socket_pool.h"
 #include "net/proxy/proxy_service.h"
 #include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socks_client_socket_pool.h"
@@ -71,7 +72,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   const scoped_refptr<SOCKSClientSocketPool>& GetSocketPoolForSOCKSProxy(
       const HostPortPair& socks_proxy);
 
-  const scoped_refptr<TCPClientSocketPool>& GetSocketPoolForHTTPProxy(
+  const scoped_refptr<HttpProxyClientSocketPool>& GetSocketPoolForHTTPProxy(
       const HostPortPair& http_proxy);
 
   // SSL sockets come from the socket_factory().
@@ -98,7 +99,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   static void set_fixed_https_port(uint16 port);
 
  private:
-  typedef std::map<HostPortPair, scoped_refptr<TCPClientSocketPool> >
+  typedef std::map<HostPortPair, scoped_refptr<HttpProxyClientSocketPool> >
       HTTPProxySocketPoolMap;
   typedef std::map<HostPortPair, scoped_refptr<SOCKSClientSocketPool> >
       SOCKSSocketPoolMap;
@@ -112,6 +113,7 @@ class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
   SSLClientAuthCache ssl_client_auth_cache_;
   HttpAlternateProtocols alternate_protocols_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_pool_histograms_;
+  scoped_refptr<ClientSocketPoolHistograms> tcp_for_http_proxy_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> http_proxy_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_for_socks_pool_histograms_;
   scoped_refptr<ClientSocketPoolHistograms> socks_pool_histograms_;

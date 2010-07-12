@@ -62,6 +62,8 @@ HttpAuthController::HttpAuthController(
       net_log_(net_log) {
 }
 
+HttpAuthController::~HttpAuthController() {}
+
 int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
                                                CompletionCallback* callback) {
   bool needs_auth = HaveAuth() || SelectPreemptiveAuth();

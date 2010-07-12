@@ -257,6 +257,11 @@ int ClientSocketPoolBaseHelper::RequestSocketInternal(
     group.jobs.insert(job);
   } else {
     LogBoundConnectJobToRequest(connect_job->net_log().source(), request);
+    ClientSocket* error_socket = connect_job->ReleaseSocket();
+    if (error_socket) {
+      HandOutSocket(error_socket, false /* not reused */, handle,
+                    base::TimeDelta(), &group, request->net_log());
+    }
     if (group.IsEmpty())
       group_map_.erase(group_name);
   }
@@ -605,16 +610,24 @@ void ClientSocketPoolBaseHelper::OnConnectJobComplete(
       OnAvailableSocketSlot(group_name, MayHaveStalledGroups());
     }
   } else {
-    DCHECK(!socket.get());
+    // If we got a socket, it must contain error information so pass that
+    // up so that the caller can retrieve it.
+    bool handed_out_socket = false;
     if (!group.pending_requests.empty()) {
       scoped_ptr<const Request> r(RemoveRequestFromQueue(
           group.pending_requests.begin(), &group.pending_requests));
       LogBoundConnectJobToRequest(job_log.source(), r.get());
+      if (socket.get()) {
+        handed_out_socket = true;
+        HandOutSocket(socket.release(), false /* unused socket */, r->handle(),
+                      base::TimeDelta(), &group, r->net_log());
+      }
       r->net_log().EndEvent(NetLog::TYPE_SOCKET_POOL,
                             new NetLogIntegerParameter("net_error", result));
       r->callback()->Run(result);
     }
-    OnAvailableSocketSlot(group_name, MayHaveStalledGroups());
+    if (!handed_out_socket)
+      OnAvailableSocketSlot(group_name, MayHaveStalledGroups());
   }
 }
 

@@ -5,6 +5,7 @@
 #include "net/socket/socket_test_util.h"
 
 #include <algorithm>
+#include <vector>
 
 #include "base/basictypes.h"
 #include "base/compiler_specific.h"
@@ -13,6 +14,7 @@
 #include "net/base/address_family.h"
 #include "net/base/host_resolver_proc.h"
 #include "net/base/ssl_info.h"
+#include "net/socket/client_socket_pool_histograms.h"
 #include "net/socket/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -743,6 +745,99 @@ void ClientSocketPoolTest::ReleaseAllConnections(KeepAlive keep_alive) {
     released_one = ReleaseOneConnection(keep_alive);
   } while (released_one);
 }
+
+MockTCPClientSocketPool::MockConnectJob::MockConnectJob(
+    ClientSocket* socket,
+    ClientSocketHandle* handle,
+    CompletionCallback* callback)
+    : socket_(socket),
+      handle_(handle),
+      user_callback_(callback),
+      ALLOW_THIS_IN_INITIALIZER_LIST(
+          connect_callback_(this, &MockConnectJob::OnConnect)) {
+}
+
+int MockTCPClientSocketPool::MockConnectJob::Connect() {
+  int rv = socket_->Connect(&connect_callback_);
+  if (rv == OK) {
+    user_callback_ = NULL;
+    OnConnect(OK);
+  }
+  return rv;
+}
+
+bool MockTCPClientSocketPool::MockConnectJob::CancelHandle(
+    const ClientSocketHandle* handle) {
+  if (handle != handle_)
+    return false;
+  socket_.reset();
+  handle_ = NULL;
+  user_callback_ = NULL;
+  return true;
+}
+
+void MockTCPClientSocketPool::MockConnectJob::OnConnect(int rv) {
+  if (!socket_.get())
+    return;
+  if (rv == OK)
+    handle_->set_socket(socket_.release());
+  else
+    socket_.reset();
+
+  handle_ = NULL;
+
+  if (user_callback_) {
+    CompletionCallback* callback = user_callback_;
+    user_callback_ = NULL;
+    callback->Run(rv);
+  }
+}
+
+MockTCPClientSocketPool::MockTCPClientSocketPool(
+    int max_sockets,
+    int max_sockets_per_group,
+    const scoped_refptr<ClientSocketPoolHistograms>& histograms,
+    ClientSocketFactory* socket_factory)
+    : TCPClientSocketPool(max_sockets, max_sockets_per_group, histograms,
+                          NULL, NULL, NULL),
+      client_socket_factory_(socket_factory),
+      release_count_(0),
+      cancel_count_(0) {
+}
+
+int MockTCPClientSocketPool::RequestSocket(const std::string& group_name,
+                                           const void* socket_params,
+                                           RequestPriority priority,
+                                           ClientSocketHandle* handle,
+                                           CompletionCallback* callback,
+                                           const BoundNetLog& net_log) {
+  ClientSocket* socket = client_socket_factory_->CreateTCPClientSocket(
+      AddressList(), net_log.net_log());
+  MockConnectJob* job = new MockConnectJob(socket, handle, callback);
+  job_list_.push_back(job);
+  handle->set_pool_id(1);
+  return job->Connect();
+}
+
+void MockTCPClientSocketPool::CancelRequest(const std::string& group_name,
+                                            const ClientSocketHandle* handle) {
+  std::vector<MockConnectJob*>::iterator i;
+  for (i = job_list_.begin(); i != job_list_.end(); ++i) {
+    if ((*i)->CancelHandle(handle)) {
+      cancel_count_++;
+      break;
+    }
+  }
+}
+
+void MockTCPClientSocketPool::ReleaseSocket(const std::string& group_name,
+                                            ClientSocket* socket, int id) {
+  EXPECT_EQ(1, id);
+  release_count_++;
+  delete socket;
+}
+
+MockTCPClientSocketPool::~MockTCPClientSocketPool() {}
 
 const char kSOCKS5GreetRequest[] = { 0x05, 0x01, 0x00 };
 const int kSOCKS5GreetRequestLength = arraysize(kSOCKS5GreetRequest);
