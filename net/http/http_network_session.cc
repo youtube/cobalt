@@ -47,6 +47,8 @@ HttpNetworkSession::HttpNetworkSession(
       // TODO(vandebo) when we've completely converted to pools, the base TCP
       // pool name should get changed to TCP instead of Transport.
     : tcp_pool_histograms_(new ClientSocketPoolHistograms("Transport")),
+      tcp_for_http_proxy_pool_histograms_(
+          new ClientSocketPoolHistograms("TCPforHTTPProxy")),
       http_proxy_pool_histograms_(new ClientSocketPoolHistograms("HTTPProxy")),
       tcp_for_socks_pool_histograms_(
           new ClientSocketPoolHistograms("TCPforSOCKS")),
@@ -69,7 +71,7 @@ HttpNetworkSession::HttpNetworkSession(
 HttpNetworkSession::~HttpNetworkSession() {
 }
 
-const scoped_refptr<TCPClientSocketPool>&
+const scoped_refptr<HttpProxyClientSocketPool>&
 HttpNetworkSession::GetSocketPoolForHTTPProxy(const HostPortPair& http_proxy) {
   HTTPProxySocketPoolMap::const_iterator it =
       http_proxy_socket_pool_.find(http_proxy);
@@ -77,10 +79,17 @@ HttpNetworkSession::GetSocketPoolForHTTPProxy(const HostPortPair& http_proxy) {
     return it->second;
 
   std::pair<HTTPProxySocketPoolMap::iterator, bool> ret =
-      http_proxy_socket_pool_.insert(std::make_pair(http_proxy,
-          new TCPClientSocketPool(g_max_sockets_per_proxy_server,
-              g_max_sockets_per_group, http_proxy_pool_histograms_,
-              host_resolver_, socket_factory_, net_log_)));
+      http_proxy_socket_pool_.insert(
+          std::make_pair(
+              http_proxy,
+              new HttpProxyClientSocketPool(
+                  g_max_sockets_per_proxy_server, g_max_sockets_per_group,
+                  http_proxy_pool_histograms_, host_resolver_,
+                  new TCPClientSocketPool(
+                      g_max_sockets_per_proxy_server, g_max_sockets_per_group,
+                      tcp_for_http_proxy_pool_histograms_, host_resolver_,
+                      socket_factory_, net_log_),
+                  net_log_)));
 
   return ret.first->second;
 }
