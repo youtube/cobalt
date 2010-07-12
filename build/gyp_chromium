@@ -15,7 +15,7 @@ import sys
 script_dir = os.path.dirname(__file__)
 chrome_src = os.path.normpath(os.path.join(script_dir, os.pardir))
 
-sys.path.append(os.path.join(chrome_src, 'tools', 'gyp', 'pylib'))
+sys.path.insert(0, os.path.join(chrome_src, 'tools', 'gyp', 'pylib'))
 import gyp
 
 def additional_include_files(args=[]):
