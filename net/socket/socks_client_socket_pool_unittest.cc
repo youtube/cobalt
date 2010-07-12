@@ -4,8 +4,6 @@
 
 #include "net/socket/socks_client_socket_pool.h"
 
-#include <vector>
-
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/time.h"
@@ -24,122 +22,6 @@ namespace {
 
 const int kMaxSockets = 32;
 const int kMaxSocketsPerGroup = 6;
-
-class MockTCPClientSocketPool : public TCPClientSocketPool {
- public:
-  class MockConnectJob {
-   public:
-    MockConnectJob(ClientSocket* socket, ClientSocketHandle* handle,
-                   CompletionCallback* callback)
-        : socket_(socket),
-          handle_(handle),
-          user_callback_(callback),
-          ALLOW_THIS_IN_INITIALIZER_LIST(
-              connect_callback_(this, &MockConnectJob::OnConnect)) {}
-
-    int Connect() {
-      int rv = socket_->Connect(&connect_callback_);
-      if (rv == OK) {
-        user_callback_ = NULL;
-        OnConnect(OK);
-      }
-      return rv;
-    }
-
-    bool CancelHandle(const ClientSocketHandle* handle) {
-      if (handle != handle_)
-        return false;
-      socket_.reset();
-      handle_ = NULL;
-      user_callback_ = NULL;
-      return true;
-    }
-
-   private:
-    void OnConnect(int rv) {
-      if (!socket_.get())
-        return;
-      if (rv == OK)
-        handle_->set_socket(socket_.release());
-      else
-        socket_.reset();
-
-      handle_ = NULL;
-
-      if (user_callback_) {
-        CompletionCallback* callback = user_callback_;
-        user_callback_ = NULL;
-        callback->Run(rv);
-      }
-    }
-
-    scoped_ptr<ClientSocket> socket_;
-    ClientSocketHandle* handle_;
-    CompletionCallback* user_callback_;
-    CompletionCallbackImpl<MockConnectJob> connect_callback_;
-
-    DISALLOW_COPY_AND_ASSIGN(MockConnectJob);
-  };
-
-  MockTCPClientSocketPool(
-      int max_sockets,
-      int max_sockets_per_group,
-      const scoped_refptr<ClientSocketPoolHistograms>& histograms,
-      ClientSocketFactory* socket_factory)
-      : TCPClientSocketPool(max_sockets, max_sockets_per_group, histograms,
-                            NULL, NULL, NULL),
-        client_socket_factory_(socket_factory),
-        release_count_(0),
-        cancel_count_(0) {}
-
-  int release_count() { return release_count_; };
-  int cancel_count() { return cancel_count_; };
-
-  // TCPClientSocketPool methods.
-  virtual int RequestSocket(const std::string& group_name,
-                            const void* socket_params,
-                            RequestPriority priority,
-                            ClientSocketHandle* handle,
-                            CompletionCallback* callback,
-                            const BoundNetLog& net_log) {
-    ClientSocket* socket = client_socket_factory_->CreateTCPClientSocket(
-        AddressList(), net_log.net_log());
-    MockConnectJob* job = new MockConnectJob(socket, handle, callback);
-    job_list_.push_back(job);
-    handle->set_pool_id(1);
-    return job->Connect();
-  }
-
-  virtual void CancelRequest(const std::string& group_name,
-                             const ClientSocketHandle* handle) {
-    std::vector<MockConnectJob*>::iterator i;
-    for (i = job_list_.begin(); i != job_list_.end(); ++i) {
-      if ((*i)->CancelHandle(handle)) {
-        cancel_count_++;
-        break;
-      }
-    }
-  }
-
-  virtual void ReleaseSocket(const std::string& group_name,
-                             ClientSocket* socket,
-                             int id) {
-    EXPECT_EQ(1, id);
-    release_count_++;
-    delete socket;
-  }
-
- protected:
-  virtual ~MockTCPClientSocketPool() {}
-
- private:
-  ClientSocketFactory* client_socket_factory_;
-  int release_count_;
-  int cancel_count_;
-  ScopedVector<MockConnectJob> job_list_;
-
-  DISALLOW_COPY_AND_ASSIGN(MockTCPClientSocketPool);
-};
 
 class SOCKSClientSocketPoolTest : public ClientSocketPoolTest {
  protected:

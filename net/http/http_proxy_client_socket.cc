@@ -50,7 +50,8 @@ void BuildTunnelRequest(const HttpRequestInfo* request_info,
 
 HttpProxyClientSocket::HttpProxyClientSocket(
     ClientSocketHandle* transport_socket, const GURL& request_url,
-    const HostPortPair& endpoint, HttpAuthController* auth, bool tunnel)
+    const HostPortPair& endpoint, const scoped_refptr<HttpAuthController>& auth,
+    bool tunnel)
     : ALLOW_THIS_IN_INITIALIZER_LIST(
           io_callback_(this, &HttpProxyClientSocket::OnIOComplete)),
       next_state_(STATE_NONE),
@@ -92,13 +93,9 @@ int HttpProxyClientSocket::Connect(CompletionCallback* callback) {
   return rv;
 }
 
-int HttpProxyClientSocket::RestartWithAuth(const std::wstring& username,
-                                           const std::wstring& password,
-                                           CompletionCallback* callback) {
+int HttpProxyClientSocket::RestartWithAuth(CompletionCallback* callback) {
   DCHECK_EQ(STATE_NONE, next_state_);
   DCHECK(!user_callback_);
-
-  auth_->ResetAuth(username, password);
 
   int rv = PrepareForAuthRestart();
   if (rv != OK)
@@ -111,6 +108,9 @@ int HttpProxyClientSocket::RestartWithAuth(const std::wstring& username,
 }
 
 int HttpProxyClientSocket::PrepareForAuthRestart() {
+  if (!response_.headers.get())
+    return ERR_CONNECTION_RESET;
+
   bool keep_alive = false;
   if (response_.headers->IsKeepAlive() &&
       http_stream_->CanFindEndOfResponse()) {
@@ -128,12 +128,13 @@ int HttpProxyClientSocket::PrepareForAuthRestart() {
 }
 
 int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
+  int rc = OK;
   if (keep_alive && transport_->socket()->IsConnectedAndIdle()) {
     next_state_ = STATE_GENERATE_AUTH_TOKEN;
     transport_->set_is_reused(true);
   } else {
     transport_->socket()->Disconnect();
-    return ERR_RETRY_CONNECTION;
+    rc = ERR_RETRY_CONNECTION;
   }
 
   // Reset the other member variables.
@@ -141,7 +142,7 @@ int HttpProxyClientSocket::DidDrainBodyForAuthRestart(bool keep_alive) {
   http_stream_.reset();
   request_headers_.clear();
   response_ = HttpResponseInfo();
-  return OK;
+  return rc;
 }
 
 void HttpProxyClientSocket::LogBlockedTunnelResponse(int response_code) const {
