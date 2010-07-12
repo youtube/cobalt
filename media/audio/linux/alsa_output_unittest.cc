@@ -70,14 +70,15 @@ class MockAudioSourceCallback : public AudioOutputStream::AudioSourceCallback {
 class MockAudioManagerLinux : public AudioManagerLinux {
  public:
   MOCK_METHOD0(Init, void());
-  MOCK_METHOD0(HasAudioDevices, bool());
-  MOCK_METHOD4(MakeAudioStream, AudioOutputStream*(Format format, int channels,
-                                                   int sample_rate,
-                                                   char bits_per_sample));
+  MOCK_METHOD0(HasAudioOutputDevices, bool());
+  MOCK_METHOD4(MakeAudioOutputStream, AudioOutputStream*(Format format,
+                                                         int channels,
+                                                         int sample_rate,
+                                                         char bits_per_sample));
   MOCK_METHOD0(MuteAll, void());
   MOCK_METHOD0(UnMuteAll, void());
 
-  MOCK_METHOD1(ReleaseStream, void(AlsaPcmOutputStream* stream));
+  MOCK_METHOD1(ReleaseOutputStream, void(AlsaPcmOutputStream* stream));
 };
 
 class AlsaPcmOutputStreamTest : public testing::Test {
@@ -249,7 +250,7 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle)).WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
       .WillOnce(Return(kTestDeviceName));
-  EXPECT_CALL(mock_manager_, ReleaseStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 
@@ -285,7 +286,7 @@ TEST_F(AlsaPcmOutputStreamTest, LatencyFloor) {
       .WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
       .WillOnce(Return(kTestDeviceName));
-  EXPECT_CALL(mock_manager_, ReleaseStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 
@@ -336,7 +337,7 @@ TEST_F(AlsaPcmOutputStreamTest, OpenClose) {
       .WillOnce(Return(0));
   EXPECT_CALL(mock_alsa_wrapper_, PcmName(kFakeHandle))
       .WillOnce(Return(kTestDeviceName));
-  EXPECT_CALL(mock_manager_, ReleaseStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 
@@ -366,7 +367,7 @@ TEST_F(AlsaPcmOutputStreamTest, PcmOpenFailed) {
   EXPECT_FALSE(test_stream_->buffer_.get());
 
   // Close the stream since we opened it to make destruction happy.
-  EXPECT_CALL(mock_manager_, ReleaseStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 }
@@ -400,7 +401,7 @@ TEST_F(AlsaPcmOutputStreamTest, PcmSetParamsFailed) {
   EXPECT_FALSE(test_stream_->buffer_.get());
 
   // Close the stream since we opened it to make destruction happy.
-  EXPECT_CALL(mock_manager_, ReleaseStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
   test_stream_->Close();
   message_loop_.RunAllPending();
 }
@@ -457,7 +458,7 @@ TEST_F(AlsaPcmOutputStreamTest, StartStop) {
   test_stream_->Start(&mock_callback);
   message_loop_.RunAllPending();
 
-  EXPECT_CALL(mock_manager_, ReleaseStream(test_stream_.get()));
+  EXPECT_CALL(mock_manager_, ReleaseOutputStream(test_stream_.get()));
   EXPECT_CALL(mock_callback, OnClose(test_stream_.get()));
   EXPECT_CALL(mock_alsa_wrapper_, PcmClose(kFakeHandle))
       .WillOnce(Return(0));

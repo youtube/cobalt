@@ -10,7 +10,7 @@
 #include "base/scoped_ptr.h"
 #include "base/thread.h"
 #include "base/time.h"
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 #include "media/audio/simple_sources.h"
 
 // An AudioOutputController controls an AudioOutputStream and provides data

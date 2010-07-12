@@ -10,7 +10,7 @@
 
 #include "base/basictypes.h"
 #include "base/scoped_handle_win.h"
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 
 class AudioManagerWin;
 

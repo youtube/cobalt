@@ -163,7 +163,7 @@ void AudioOutputController::DoCreate(AudioManager::Format format, int channels,
   DCHECK_EQ(kEmpty, state_);
 
   // Create the stream in the first place.
-  stream_ = AudioManager::GetAudioManager()->MakeAudioStream(
+  stream_ = AudioManager::GetAudioManager()->MakeAudioOutputStream(
       format, channels, sample_rate, bits_per_sample);
 
   if (!stream_) {

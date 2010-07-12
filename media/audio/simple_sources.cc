@@ -10,7 +10,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/ref_counted.h"
-#include "media/audio/audio_output.h"
+#include "media/audio/audio_io.h"
 #include "media/base/data_buffer.h"
 
 //////////////////////////////////////////////////////////////////////////////

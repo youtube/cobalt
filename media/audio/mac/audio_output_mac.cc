@@ -143,7 +143,7 @@ void PCMQueueOutAudioOutputStream::Close() {
   }
   // Inform the audio manager that we have been closed. This can cause our
   // destruction.
-  manager_->ReleaseStream(this);
+  manager_->ReleaseOutputStream(this);
 }
 
 void PCMQueueOutAudioOutputStream::Stop() {
