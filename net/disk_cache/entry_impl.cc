@@ -209,6 +209,7 @@ int EntryImpl::ReadData(int index, int offset, net::IOBuffer* buf, int buf_len,
   UpdateRank(false);
 
   backend_->OnEvent(Stats::READ_DATA);
+  backend_->OnRead(buf_len);
 
   if (user_buffers_[index].get()) {
     // Complete the operation locally.
@@ -302,6 +303,7 @@ int EntryImpl::WriteData(int index, int offset, net::IOBuffer* buf, int buf_len,
   UpdateRank(true);
 
   backend_->OnEvent(Stats::WRITE_DATA);
+  backend_->OnWrite(buf_len);
 
   if (user_buffers_[index].get()) {
     // Complete the operation locally.
@@ -460,6 +462,7 @@ bool EntryImpl::CreateEntry(Addr node_address, const std::string& key,
     entry_store->key[key.size()] = '\0';
   }
   backend_->ModifyStorageSize(0, static_cast<int32>(key.size()));
+  CACHE_UMA(COUNTS, "KeySize", 0, static_cast<int32>(key.size()));
   node->dirty = backend_->GetCurrentEntryId();
   Log("Create Entry ");
   return true;
