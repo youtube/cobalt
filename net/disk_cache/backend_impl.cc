@@ -273,6 +273,7 @@ bool BackendImpl::Init() {
   }
 
   num_refs_ = num_pending_io_ = max_refs_ = 0;
+  entry_count_ = byte_count_ = 0;
 
   if (!restarted_) {
     trace_object_ = TraceObject::GetTraceObject();
@@ -387,6 +388,7 @@ EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
   }
 
   eviction_.OnOpenEntry(cache_entry);
+  entry_count_++;
 
   CACHE_UMA(AGE_MS, "OpenTime", GetSizeGroup(), start);
   stats_.OnEvent(Stats::OPEN_HIT);
@@ -475,6 +477,7 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
 
   IncreaseNumEntries();
   eviction_.OnCreateEntry(cache_entry);
+  entry_count_++;
   if (!parent.get())
     data_->table[hash & mask_] = entry_address.value();
 
@@ -902,9 +905,16 @@ void BackendImpl::FirstEviction() {
   Time create_time = Time::FromInternalValue(data_->header.create_time);
   CACHE_UMA(AGE, "FillupAge", 0, create_time);
 
-  int64 use_hours = stats_.GetCounter(Stats::TIMER) / 120;
-  CACHE_UMA(HOURS, "FillupTime", 0, static_cast<int>(use_hours));
+  int64 use_time = stats_.GetCounter(Stats::TIMER);
+  CACHE_UMA(HOURS, "FillupTime", 0, static_cast<int>(use_time / 120));
   CACHE_UMA(PERCENTAGE, "FirstHitRatio", 0, stats_.GetHitRatio());
+
+  if (!use_time)
+    use_time = 1;
+  CACHE_UMA(COUNTS_10000, "FirstEntryAccessRate", 0,
+            static_cast<int>(data_->header.num_entries / use_time));
+  CACHE_UMA(COUNTS, "FirstByteIORate", 0,
+            static_cast<int>((data_->header.num_bytes / 1024) / use_time));
 
   int avg_size = data_->header.num_bytes / GetEntryCount();
   CACHE_UMA(COUNTS, "FirstEntrySize", 0, avg_size);
@@ -954,6 +964,18 @@ void BackendImpl::OnEvent(Stats::Counters an_event) {
   stats_.OnEvent(an_event);
 }
 
+void BackendImpl::OnRead(int32 bytes) {
+  DCHECK_GE(bytes, 0);
+  byte_count_ += bytes;
+  if (byte_count_ < 0)
+    byte_count_ = kint32max;
+}
+
+void BackendImpl::OnWrite(int32 bytes) {
+  // We use the same implementation as OnRead... just log the number of bytes.
+  OnRead(bytes);
+}
+
 void BackendImpl::OnStatsTimer() {
   stats_.OnEvent(Stats::TIMER);
   int64 time = stats_.GetCounter(Stats::TIMER);
@@ -971,6 +993,11 @@ void BackendImpl::OnStatsTimer() {
   }
 
   CACHE_UMA(COUNTS, "NumberOfReferences", 0, num_refs_);
+
+  CACHE_UMA(COUNTS_10000, "EntryAccessRate", 0, entry_count_);
+  CACHE_UMA(COUNTS, "ByteIORate", 0, byte_count_ / 1024);
+  entry_count_ = 0;
+  byte_count_ = 0;
 
   if (!data_)
     first_timer_ = false;
@@ -1439,6 +1466,7 @@ EntryImpl* BackendImpl::ResurrectEntry(EntryImpl* deleted_entry) {
   // previously deleted.
 
   eviction_.OnCreateEntry(deleted_entry);
+  entry_count_++;
 
   stats_.OnEvent(Stats::CREATE_HIT);
   Trace("Resurrect entry hit ");
@@ -1584,6 +1612,9 @@ void BackendImpl::ReportStats() {
 
   int avg_size = data_->header.num_bytes / GetEntryCount();
   CACHE_UMA(COUNTS, "EntrySize", 0, avg_size);
+
+  CACHE_UMA(PERCENTAGE, "IndexLoad", 0,
+            data_->header.num_entries * 100 / (mask_ + 1));
 
   int large_entries_bytes = stats_.GetLargeEntriesSize();
   int large_ratio = large_entries_bytes * 100 / data_->header.num_bytes;

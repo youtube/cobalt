@@ -171,6 +171,10 @@ class BackendImpl : public Backend {
   // Called when an interesting event should be logged (counted).
   void OnEvent(Stats::Counters an_event);
 
+  // Keeps track of paylod access (doesn't include metadata).
+  void OnRead(int bytes);
+  void OnWrite(int bytes);
+
   // Timer callback to calculate usage statistics.
   void OnStatsTimer();
 
@@ -295,6 +299,8 @@ class BackendImpl : public Backend {
   int num_refs_;  // Number of referenced cache entries.
   int max_refs_;  // Max number of referenced cache entries.
   int num_pending_io_;  // Number of pending IO operations.
+  int entry_count_;  // Number of entries accessed lately.
+  int byte_count_;  // Number of bytes read/written lately.
   net::CacheType cache_type_;
   int uma_report_;  // Controls transmision of UMA data.
   uint32 user_flags_;  // Flags set by the user.
