@@ -115,6 +115,8 @@ class TestConnectJob : public ConnectJob {
     kMockPendingFailingJob,
     kMockWaitingJob,
     kMockAdvancingLoadStateJob,
+    kMockRecoverableJob,
+    kMockPendingRecoverableJob,
   };
 
   // The kMockPendingJob uses a slight delay before allowing the connect
@@ -136,7 +138,7 @@ class TestConnectJob : public ConnectJob {
         load_state_(LOAD_STATE_IDLE) {}
 
   void Signal() {
-    DoConnect(waiting_success_, true /* async */);
+    DoConnect(waiting_success_, true /* async */, false /* recoverable */);
   }
 
   virtual LoadState GetLoadState() const { return load_state_; }
@@ -150,9 +152,11 @@ class TestConnectJob : public ConnectJob {
     set_socket(new MockClientSocket());
     switch (job_type_) {
       case kMockJob:
-        return DoConnect(true /* successful */, false /* sync */);
+        return DoConnect(true /* successful */, false /* sync */,
+                         false /* recoverable */);
       case kMockFailingJob:
-        return DoConnect(false /* error */, false /* sync */);
+        return DoConnect(false /* error */, false /* sync */,
+                         false /* recoverable */);
       case kMockPendingJob:
         set_load_state(LOAD_STATE_CONNECTING);
 
@@ -172,7 +176,8 @@ class TestConnectJob : public ConnectJob {
             method_factory_.NewRunnableMethod(
                 &TestConnectJob::DoConnect,
                 true /* successful */,
-                true /* async */),
+                true /* async */,
+                false /* recoverable */),
             kPendingConnectDelay);
         return ERR_IO_PENDING;
       case kMockPendingFailingJob:
@@ -182,7 +187,8 @@ class TestConnectJob : public ConnectJob {
             method_factory_.NewRunnableMethod(
                 &TestConnectJob::DoConnect,
                 false /* error */,
-                true  /* async */),
+                true  /* async */,
+                false /* recoverable */),
             2);
         return ERR_IO_PENDING;
       case kMockWaitingJob:
@@ -195,6 +201,20 @@ class TestConnectJob : public ConnectJob {
             method_factory_.NewRunnableMethod(
                 &TestConnectJob::AdvanceLoadState, load_state_));
         return ERR_IO_PENDING;
+      case kMockRecoverableJob:
+        return DoConnect(false /* error */, false /* sync */,
+                         true /* recoverable */);
+      case kMockPendingRecoverableJob:
+        set_load_state(LOAD_STATE_CONNECTING);
+        MessageLoop::current()->PostDelayedTask(
+            FROM_HERE,
+            method_factory_.NewRunnableMethod(
+                &TestConnectJob::DoConnect,
+                false /* error */,
+                true  /* async */,
+                true  /* recoverable */),
+            2);
+        return ERR_IO_PENDING;
       default:
         NOTREACHED();
         set_socket(NULL);
@@ -204,12 +224,14 @@ class TestConnectJob : public ConnectJob {
 
   void set_load_state(LoadState load_state) { load_state_ = load_state; }
 
-  int DoConnect(bool succeed, bool was_async) {
-    int result = ERR_CONNECTION_FAILED;
+  int DoConnect(bool succeed, bool was_async, bool recoverable) {
+    int result = OK;
     if (succeed) {
-      result = OK;
       socket()->Connect(NULL);
+    } else if (recoverable) {
+      result = ERR_PROXY_AUTH_REQUESTED;
     } else {
+      result = ERR_CONNECTION_FAILED;
       set_socket(NULL);
     }
 
@@ -583,6 +605,7 @@ TEST_F(ClientSocketPoolBaseTest, InitConnectionFailure) {
   EXPECT_EQ(ERR_CONNECTION_FAILED,
             InitHandle(req.handle(), "a", kDefaultPriority, &req, pool_,
                        log.bound()));
+  EXPECT_FALSE(req.handle()->socket());
 
   EXPECT_EQ(3u, log.entries().size());
   EXPECT_TRUE(LogContainsBeginEvent(
@@ -1514,6 +1537,35 @@ TEST_F(ClientSocketPoolBaseTest, LoadState) {
   EXPECT_NE(LOAD_STATE_IDLE, req1.handle()->GetLoadState());
   EXPECT_NE(LOAD_STATE_IDLE, req2.handle()->GetLoadState());
 }
+
+TEST_F(ClientSocketPoolBaseTest, Recoverable) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+  connect_job_factory_->set_job_type(TestConnectJob::kMockRecoverableJob);
+
+  TestSocketRequest req(&request_order_, &completion_count_);
+  EXPECT_EQ(ERR_PROXY_AUTH_REQUESTED, InitHandle(req.handle(), "a",
+                                                 kDefaultPriority, &req, pool_,
+                                                 BoundNetLog()));
+  EXPECT_TRUE(req.handle()->is_initialized());
+  EXPECT_TRUE(req.handle()->socket());
+  req.handle()->Reset();
+}
+
+TEST_F(ClientSocketPoolBaseTest, AsyncRecoverable) {
+  CreatePool(kDefaultMaxSockets, kDefaultMaxSocketsPerGroup);
+
+  connect_job_factory_->set_job_type(
+      TestConnectJob::kMockPendingRecoverableJob);
+  TestSocketRequest req(&request_order_, &completion_count_);
+  int rv = InitHandle(req.handle(), "a", LOWEST, &req, pool_, BoundNetLog());
+  EXPECT_EQ(ERR_IO_PENDING, rv);
+  EXPECT_EQ(LOAD_STATE_CONNECTING, pool_->GetLoadState("a", req.handle()));
+  EXPECT_EQ(ERR_PROXY_AUTH_REQUESTED, req.WaitForResult());
+  EXPECT_TRUE(req.handle()->is_initialized());
+  EXPECT_TRUE(req.handle()->socket());
+  req.handle()->Reset();
+}
+
 
 TEST_F(ClientSocketPoolBaseTest, CleanupTimedOutIdleSockets) {
   CreatePoolWithIdleTimeouts(

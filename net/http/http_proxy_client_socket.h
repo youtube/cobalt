@@ -29,28 +29,24 @@ class IOBuffer;;
 
 class HttpProxyClientSocket : public ClientSocket {
  public:
-  // Takes ownership of |auth| and the |transport_socket|, which should
-  // already be connected by the time Connect() is called.  If tunnel is true
-  // then on Connect() this socket will establish an Http tunnel.
+  // Takes ownership of |transport_socket|, which should already be connected
+  // by the time Connect() is called.  If tunnel is true then on Connect()
+  // this socket will establish an Http tunnel.
   HttpProxyClientSocket(ClientSocketHandle* transport_socket,
                         const GURL& request_url, const HostPortPair& endpoint,
-                        HttpAuthController* auth, bool tunnel);
+                        const scoped_refptr<HttpAuthController>& auth,
+                        bool tunnel);
 
   // On destruction Disconnect() is called.
   virtual ~HttpProxyClientSocket();
 
   // If Connect (or its callback) returns PROXY_AUTH_REQUESTED, then
-  // credentials can be provided by calling RestartWithAuth.
-  int RestartWithAuth(const std::wstring& username,
-                      const std::wstring& password,
-                      CompletionCallback* callback);
+  // credentials should be added to the HttpAuthController before calling
+  // RestartWithAuth.
+  int RestartWithAuth(CompletionCallback* callback);
 
   const HttpResponseInfo* GetResponseInfo() const {
       return response_.headers ? &response_ : NULL;
-  }
-
-  HttpAuthController* TakeAuthController() {
-    return auth_.release();
   }
 
   // ClientSocket methods:
@@ -128,7 +124,7 @@ class HttpProxyClientSocket : public ClientSocket {
   scoped_ptr<HttpStream> http_stream_;
   HttpRequestInfo request_;
   HttpResponseInfo response_;
-  scoped_ptr<HttpAuthController> auth_;
+  const scoped_refptr<HttpAuthController> auth_;
 
   // The hostname and port of the endpoint.  This is not necessarily the one
   // specified by the URL, due to Alternate-Protocol or fixed testing ports.

@@ -31,6 +31,7 @@
 #include "net/http/http_net_log_params.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_proxy_client_socket.h"
+#include "net/http/http_proxy_client_socket_pool.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_request_info.h"
 #include "net/http/http_response_headers.h"
@@ -309,15 +310,13 @@ int HttpNetworkTransaction::RestartWithAuth(
   }
   pending_auth_target_ = HttpAuth::AUTH_NONE;
 
+  auth_controllers_[target]->ResetAuth(username, password);
+
   if (target == HttpAuth::AUTH_PROXY && using_ssl_ && proxy_info_.is_http()) {
     DCHECK(establishing_tunnel_);
     ResetStateForRestart();
-    tunnel_credentials_.username = username;
-    tunnel_credentials_.password = password;
-    tunnel_credentials_.invalid = false;
     next_state_ = STATE_TUNNEL_RESTART_WITH_AUTH;
   } else {
-    auth_controllers_[target]->ResetAuth(username, password);
     PrepareForAuthRestart(target);
   }
 
@@ -432,8 +431,6 @@ LoadState HttpNetworkTransaction::GetLoadState() const {
       return LOAD_STATE_RESOLVING_PROXY_FOR_URL;
     case STATE_INIT_CONNECTION_COMPLETE:
       return connection_->GetLoadState();
-    case STATE_TUNNEL_CONNECT_COMPLETE:
-      return LOAD_STATE_ESTABLISHING_PROXY_TUNNEL;
     case STATE_SSL_CONNECT_COMPLETE:
       return LOAD_STATE_SSL_HANDSHAKE;
     case STATE_GENERATE_PROXY_AUTH_TOKEN_COMPLETE:
@@ -519,13 +516,6 @@ int HttpNetworkTransaction::DoLoop(int result) {
         break;
       case STATE_INIT_CONNECTION_COMPLETE:
         rv = DoInitConnectionComplete(rv);
-        break;
-      case STATE_TUNNEL_CONNECT:
-        DCHECK_EQ(OK, rv);
-        rv = DoTunnelConnect();
-        break;
-      case STATE_TUNNEL_CONNECT_COMPLETE:
-        rv = DoTunnelConnectComplete(rv);
         break;
       case STATE_TUNNEL_RESTART_WITH_AUTH:
         DCHECK_EQ(OK, rv);
@@ -717,10 +707,9 @@ int HttpNetworkTransaction::DoInitConnection() {
   for (int i = 0; i < HttpAuth::AUTH_NUM_TARGETS; i++) {
     HttpAuth::Target target = static_cast<HttpAuth::Target>(i);
     if (!auth_controllers_[target].get())
-      auth_controllers_[target].reset(new HttpAuthController(target,
-                                                             AuthURL(target),
-                                                             session_,
-                                                             net_log_));
+      auth_controllers_[target] = new HttpAuthController(target,
+                                                         AuthURL(target),
+                                                         session_, net_log_);
   }
 
   next_state_ = STATE_INIT_CONNECTION_COMPLETE;
@@ -795,10 +784,22 @@ int HttpNetworkTransaction::DoInitConnection() {
           &io_callback_,
           session_->GetSocketPoolForSOCKSProxy(proxy_host_port_pair), net_log_);
     } else {
-      rv = connection_->Init(
-          connection_group, tcp_params, request_->priority,
-          &io_callback_,
-          session_->GetSocketPoolForHTTPProxy(proxy_host_port_pair), net_log_);
+      DCHECK(proxy_info_.is_http());
+      scoped_refptr<HttpAuthController> http_proxy_auth;
+      if (using_ssl_) {
+        http_proxy_auth = auth_controllers_[HttpAuth::AUTH_PROXY];
+        establishing_tunnel_ = true;
+      }
+
+      HttpProxySocketParams http_proxy_params(tcp_params, request_->url,
+                                              endpoint_, http_proxy_auth,
+                                              using_ssl_);
+
+      rv = connection_->Init(connection_group, http_proxy_params,
+                             request_->priority, &io_callback_,
+                             session_->GetSocketPoolForHTTPProxy(
+                                 proxy_host_port_pair),
+                             net_log_);
     }
   } else {
     TCPSocketParams tcp_params(endpoint_, request_->priority,
@@ -813,6 +814,29 @@ int HttpNetworkTransaction::DoInitConnection() {
 
 int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   if (result < 0) {
+    if (result == ERR_RETRY_CONNECTION) {
+      DCHECK(establishing_tunnel_);
+      next_state_ = STATE_INIT_CONNECTION;
+      connection_->socket()->Disconnect();
+      connection_->Reset();
+      return OK;
+    }
+
+    if (result == ERR_PROXY_AUTH_REQUESTED) {
+      DCHECK(establishing_tunnel_);
+      HttpProxyClientSocket* tunnel_socket =
+          static_cast<HttpProxyClientSocket*>(connection_->socket());
+      DCHECK(tunnel_socket);
+      DCHECK(!tunnel_socket->IsConnected());
+      const HttpResponseInfo* auth_response = tunnel_socket->GetResponseInfo();
+
+      response_.headers = auth_response->headers;
+      headers_valid_ = true;
+      response_.auth_challenge = auth_response->auth_challenge;
+      pending_auth_target_ = HttpAuth::AUTH_PROXY;
+      return OK;
+    }
+
     if (alternate_protocol_mode_ == kUsingAlternateProtocol) {
       // Mark the alternate protocol as broken and fallback.
       MarkBrokenAlternateProtocolAndFallback();
@@ -823,6 +847,10 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
   }
 
   DCHECK_EQ(OK, result);
+  if (establishing_tunnel_) {
+    DCHECK(connection_->socket()->IsConnected());
+    establishing_tunnel_ = false;
+  }
 
   if (using_spdy_) {
     DCHECK(!connection_->is_initialized());
@@ -848,74 +876,21 @@ int HttpNetworkTransaction::DoInitConnectionComplete(int result) {
     // Now we have a TCP connected socket.  Perform other connection setup as
     // needed.
     UpdateConnectionTypeHistograms(CONNECTION_HTTP);
-    if (using_ssl_) {
-      if (proxy_info_.is_direct() || proxy_info_.is_socks())
-        next_state_ = STATE_SSL_CONNECT;
-      else
-        next_state_ = STATE_TUNNEL_CONNECT;
-    } else {
+    if (using_ssl_)
+      next_state_ = STATE_SSL_CONNECT;
+    else
       next_state_ = STATE_GENERATE_PROXY_AUTH_TOKEN;
-    }
   }
 
   return OK;
 }
 
-int HttpNetworkTransaction::DoTunnelConnect() {
-  next_state_ = STATE_TUNNEL_CONNECT_COMPLETE;
-  establishing_tunnel_ = true;
-
-  // Add a tunnel socket on top of our existing transport socket.
-  ClientSocket* socket = connection_->release_socket();
-  ClientSocketHandle* transport_socket_handle = new ClientSocketHandle();
-  transport_socket_handle->set_socket(socket);
-  socket = new HttpProxyClientSocket(transport_socket_handle, request_->url,
-      endpoint_, auth_controllers_[HttpAuth::AUTH_PROXY].release(), true);
-  connection_->set_socket(socket);
-  return connection_->socket()->Connect(&io_callback_);
-}
-
-int HttpNetworkTransaction::DoTunnelConnectComplete(int result) {
-  if (result == OK) {
-    next_state_ = STATE_SSL_CONNECT;
-    establishing_tunnel_ = false;
-  }
-
-  if (result == ERR_RETRY_CONNECTION) {
-    HttpProxyClientSocket* tunnel_socket =
-      reinterpret_cast<HttpProxyClientSocket*>(connection_->socket());
-    auth_controllers_[HttpAuth::AUTH_PROXY].reset(
-        tunnel_socket->TakeAuthController());
-    next_state_ = STATE_INIT_CONNECTION;
-    connection_->socket()->Disconnect();
-    connection_->Reset();
-    result = OK;
-  } else if (result == ERR_PROXY_AUTH_REQUESTED) {
-    HttpProxyClientSocket* tunnel_socket =
-      reinterpret_cast<HttpProxyClientSocket*>(connection_->socket());
-    const HttpResponseInfo* auth_response = tunnel_socket->GetResponseInfo();
-
-    response_.headers = auth_response->headers;
-    headers_valid_ = true;
-    response_.auth_challenge = auth_response->auth_challenge;
-    pending_auth_target_ = HttpAuth::AUTH_PROXY;
-    result = OK;
-  }
-  return result;
-}
-
 int HttpNetworkTransaction::DoTunnelRestartWithAuth() {
-  DCHECK(establishing_tunnel_);
-  DCHECK(!tunnel_credentials_.invalid);
-  next_state_ = STATE_TUNNEL_CONNECT_COMPLETE;
-
+  next_state_ = STATE_INIT_CONNECTION_COMPLETE;
   HttpProxyClientSocket* tunnel_socket =
     reinterpret_cast<HttpProxyClientSocket*>(connection_->socket());
-  tunnel_credentials_.invalid = true;
 
-  return tunnel_socket->RestartWithAuth(tunnel_credentials_.username,
-                                        tunnel_credentials_.password,
-                                        &io_callback_);
+  return tunnel_socket->RestartWithAuth(&io_callback_);
 }
 
 int HttpNetworkTransaction::DoSSLConnect() {
@@ -1212,7 +1187,7 @@ int HttpNetworkTransaction::DoReadHeadersComplete(int result) {
                            endpoint_,
                            session_->mutable_alternate_protocols());
 
-  int rv = HandleAuthChallenge(false);
+  int rv = HandleAuthChallenge();
   if (rv != OK)
     return rv;
 
@@ -1795,7 +1770,7 @@ bool HttpNetworkTransaction::ShouldApplyServerAuth() const {
   return !(request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA);
 }
 
-int HttpNetworkTransaction::HandleAuthChallenge(bool establishing_tunnel) {
+int HttpNetworkTransaction::HandleAuthChallenge() {
   scoped_refptr<HttpResponseHeaders> headers = GetResponseHeaders();
   DCHECK(headers);
 
@@ -1808,8 +1783,7 @@ int HttpNetworkTransaction::HandleAuthChallenge(bool establishing_tunnel) {
     return ERR_UNEXPECTED_PROXY_AUTH;
 
   int rv = auth_controllers_[target]->HandleAuthChallenge(
-      headers, (request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA) != 0,
-      establishing_tunnel);
+      headers, (request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA) != 0, false);
   if (auth_controllers_[target]->HaveAuthHandler())
       pending_auth_target_ = target;
 
@@ -1868,8 +1842,6 @@ std::string HttpNetworkTransaction::DescribeState(State state) {
     STATE_CASE(STATE_RESOLVE_PROXY_COMPLETE);
     STATE_CASE(STATE_INIT_CONNECTION);
     STATE_CASE(STATE_INIT_CONNECTION_COMPLETE);
-    STATE_CASE(STATE_TUNNEL_CONNECT);
-    STATE_CASE(STATE_TUNNEL_CONNECT_COMPLETE);
     STATE_CASE(STATE_TUNNEL_RESTART_WITH_AUTH);
     STATE_CASE(STATE_SSL_CONNECT);
     STATE_CASE(STATE_SSL_CONNECT_COMPLETE);
