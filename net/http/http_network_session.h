@@ -6,6 +6,7 @@
 #define NET_HTTP_HTTP_NETWORK_SESSION_H_
 
 #include <map>
+#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "net/base/host_port_pair.h"
@@ -32,7 +33,8 @@ class HttpNetworkSessionPeer;
 class SpdySessionPool;
 
 // This class holds session objects used by HttpNetworkTransaction objects.
-class HttpNetworkSession : public base::RefCounted<HttpNetworkSession> {
+class HttpNetworkSession : public base::RefCounted<HttpNetworkSession>,
+                           public NonThreadSafe {
  public:
   HttpNetworkSession(
       HostResolver* host_resolver,

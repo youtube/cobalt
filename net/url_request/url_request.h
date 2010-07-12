@@ -13,6 +13,7 @@
 #include "base/linked_list.h"
 #include "base/linked_ptr.h"
 #include "base/logging.h"
+#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "googleurl/src/gurl.h"
@@ -54,7 +55,7 @@ typedef std::vector<std::string> ResponseCookies;
 //
 // NOTE: All usage of all instances of this class should be on the same thread.
 //
-class URLRequest {
+class URLRequest : public NonThreadSafe {
  public:
   // Derive from this class and add your own data members to associate extra
   // information with a URLRequest. Use GetUserData(key) and SetUserData()

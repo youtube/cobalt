@@ -10,6 +10,7 @@
 #ifndef NET_URL_REQUEST_URL_REQUEST_CONTEXT_H_
 #define NET_URL_REQUEST_URL_REQUEST_CONTEXT_H_
 
+#include "base/non_thread_safe.h"
 #include "base/ref_counted.h"
 #include "base/string_util.h"
 #include "net/base/cookie_store.h"
@@ -32,7 +33,8 @@ class URLRequest;
 
 // Subclass to provide application-specific context for URLRequest instances.
 class URLRequestContext
-    : public base::RefCountedThreadSafe<URLRequestContext> {
+    : public base::RefCountedThreadSafe<URLRequestContext>,
+      public NonThreadSafe {
  public:
   URLRequestContext()
       : net_log_(NULL),
