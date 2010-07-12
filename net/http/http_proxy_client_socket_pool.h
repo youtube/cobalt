@@ -8,6 +8,7 @@
 #include <string>
 
 #include "base/basictypes.h"
+#include "base/ref_counted.h"
 #include "base/scoped_ptr.h"
 #include "base/time.h"
 #include "net/base/host_port_pair.h"
@@ -24,20 +25,16 @@ class ClientSocketFactory;
 class ConnectJobFactory;
 class HttpAuthController;
 
-class HttpProxySocketParams {
+class HttpProxySocketParams : public base::RefCounted<HttpProxySocketParams> {
  public:
-  HttpProxySocketParams(const TCPSocketParams& proxy_server,
+  HttpProxySocketParams(const scoped_refptr<TCPSocketParams>& proxy_server,
                         const GURL& request_url, HostPortPair endpoint,
                         scoped_refptr<HttpAuthController> auth_controller,
-                        bool tunnel)
-      : tcp_params_(proxy_server),
-        request_url_(request_url),
-        endpoint_(endpoint),
-        auth_controller_(auth_controller),
-        tunnel_(tunnel) {
-  }
+                        bool tunnel);
 
-  const TCPSocketParams& tcp_params() const { return tcp_params_; }
+  const scoped_refptr<TCPSocketParams>& tcp_params() const {
+    return tcp_params_;
+  }
   const GURL& request_url() const { return request_url_; }
   const HostPortPair& endpoint() const { return endpoint_; }
   const scoped_refptr<HttpAuthController>& auth_controller() const {
@@ -46,7 +43,10 @@ class HttpProxySocketParams {
   bool tunnel() const { return tunnel_; }
 
  private:
-  const TCPSocketParams tcp_params_;
+  friend class base::RefCounted<HttpProxySocketParams>;
+  ~HttpProxySocketParams();
+
+  const scoped_refptr<TCPSocketParams> tcp_params_;
   const GURL request_url_;
   const HostPortPair endpoint_;
   const scoped_refptr<HttpAuthController> auth_controller_;
@@ -58,7 +58,7 @@ class HttpProxySocketParams {
 class HttpProxyConnectJob : public ConnectJob {
  public:
   HttpProxyConnectJob(const std::string& group_name,
-                      const HttpProxySocketParams& params,
+                      const scoped_refptr<HttpProxySocketParams>& params,
                       const base::TimeDelta& timeout_duration,
                       const scoped_refptr<TCPClientSocketPool>& tcp_pool,
                       const scoped_refptr<HostResolver> &host_resolver,
@@ -97,7 +97,7 @@ class HttpProxyConnectJob : public ConnectJob {
   int DoHttpProxyConnect();
   int DoHttpProxyConnectComplete(int result);
 
-  HttpProxySocketParams params_;
+  scoped_refptr<HttpProxySocketParams> params_;
   const scoped_refptr<TCPClientSocketPool> tcp_pool_;
   const scoped_refptr<HostResolver> resolver_;
 

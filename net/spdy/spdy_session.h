@@ -53,7 +53,7 @@ class SpdySession : public base::RefCounted<SpdySession>,
   // Note that this call does not wait for the connect to complete. Callers can
   // immediately start using the SpdySession while it connects.
   net::Error Connect(const std::string& group_name,
-                     const TCPSocketParams& destination,
+                     const scoped_refptr<TCPSocketParams>& destination,
                      RequestPriority priority);
 
   // Get a pushed stream for a given |url|.

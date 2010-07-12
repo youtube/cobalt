@@ -759,8 +759,9 @@ int HttpNetworkTransaction::DoInitConnection() {
     HostPortPair proxy_host_port_pair(proxy_server.HostNoBrackets(),
                                       proxy_server.port());
 
-    TCPSocketParams tcp_params(proxy_host_port_pair, request_->priority,
-                               request_->referrer, disable_resolver_cache);
+    scoped_refptr<TCPSocketParams> tcp_params =
+        new TCPSocketParams(proxy_host_port_pair, request_->priority,
+                            request_->referrer, disable_resolver_cache);
 
     if (proxy_info_.is_socks()) {
       const char* socks_version;
@@ -776,8 +777,9 @@ int HttpNetworkTransaction::DoInitConnection() {
       connection_group =
           StringPrintf("socks%s/%s", socks_version, connection_group.c_str());
 
-      SOCKSSocketParams socks_params(tcp_params, socks_v5, endpoint_,
-                                     request_->priority, request_->referrer);
+      scoped_refptr<SOCKSSocketParams> socks_params =
+          new SOCKSSocketParams(tcp_params, socks_v5, endpoint_,
+                                request_->priority, request_->referrer);
 
       rv = connection_->Init(
           connection_group, socks_params, request_->priority,
@@ -791,9 +793,9 @@ int HttpNetworkTransaction::DoInitConnection() {
         establishing_tunnel_ = true;
       }
 
-      HttpProxySocketParams http_proxy_params(tcp_params, request_->url,
-                                              endpoint_, http_proxy_auth,
-                                              using_ssl_);
+      scoped_refptr<HttpProxySocketParams> http_proxy_params =
+          new HttpProxySocketParams(tcp_params, request_->url, endpoint_,
+                                    http_proxy_auth, using_ssl_);
 
       rv = connection_->Init(connection_group, http_proxy_params,
                              request_->priority, &io_callback_,
@@ -802,8 +804,9 @@ int HttpNetworkTransaction::DoInitConnection() {
                              net_log_);
     }
   } else {
-    TCPSocketParams tcp_params(endpoint_, request_->priority,
-                               request_->referrer, disable_resolver_cache);
+    scoped_refptr<TCPSocketParams> tcp_params =
+        new TCPSocketParams(endpoint_, request_->priority, request_->referrer,
+                            disable_resolver_cache);
     rv = connection_->Init(connection_group, tcp_params, request_->priority,
                            &io_callback_, session_->tcp_socket_pool(),
                            net_log_);

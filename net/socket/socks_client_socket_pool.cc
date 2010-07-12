@@ -15,13 +15,31 @@
 
 namespace net {
 
+SOCKSSocketParams::SOCKSSocketParams(
+    const scoped_refptr<TCPSocketParams>& proxy_server,
+    bool socks_v5,
+    const HostPortPair& host_port_pair,
+    RequestPriority priority,
+    const GURL& referrer)
+    : tcp_params_(proxy_server),
+      destination_(host_port_pair.host, host_port_pair.port),
+      socks_v5_(socks_v5) {
+  // The referrer is used by the DNS prefetch system to correlate resolutions
+  // with the page that triggered them. It doesn't impact the actual addresses
+  // that we resolve to.
+  destination_.set_referrer(referrer);
+  destination_.set_priority(priority);
+}
+
+SOCKSSocketParams::~SOCKSSocketParams() {}
+
 // SOCKSConnectJobs will time out after this many seconds.  Note this is on
 // top of the timeout for the transport socket.
 static const int kSOCKSConnectJobTimeoutInSeconds = 30;
 
 SOCKSConnectJob::SOCKSConnectJob(
     const std::string& group_name,
-    const SOCKSSocketParams& socks_params,
+    const scoped_refptr<SOCKSSocketParams>& socks_params,
     const base::TimeDelta& timeout_duration,
     const scoped_refptr<TCPClientSocketPool>& tcp_pool,
     const scoped_refptr<HostResolver>& host_resolver,
@@ -101,8 +119,8 @@ int SOCKSConnectJob::DoLoop(int result) {
 int SOCKSConnectJob::DoTCPConnect() {
   next_state_ = kStateTCPConnectComplete;
   tcp_socket_handle_.reset(new ClientSocketHandle());
-  return tcp_socket_handle_->Init(group_name(), socks_params_.tcp_params(),
-                                  socks_params_.destination().priority(),
+  return tcp_socket_handle_->Init(group_name(), socks_params_->tcp_params(),
+                                  socks_params_->destination().priority(),
                                   &callback_, tcp_pool_, net_log());
 }
 
@@ -122,12 +140,12 @@ int SOCKSConnectJob::DoSOCKSConnect() {
   next_state_ = kStateSOCKSConnectComplete;
 
   // Add a SOCKS connection on top of the tcp socket.
-  if (socks_params_.is_socks_v5()) {
+  if (socks_params_->is_socks_v5()) {
     socket_.reset(new SOCKS5ClientSocket(tcp_socket_handle_.release(),
-                                         socks_params_.destination()));
+                                         socks_params_->destination()));
   } else {
     socket_.reset(new SOCKSClientSocket(tcp_socket_handle_.release(),
-                                        socks_params_.destination(),
+                                        socks_params_->destination(),
                                         resolver_));
   }
   return socket_->Connect(&callback_);
@@ -173,30 +191,26 @@ SOCKSClientSocketPool::SOCKSClientSocketPool(
 
 SOCKSClientSocketPool::~SOCKSClientSocketPool() {}
 
-int SOCKSClientSocketPool::RequestSocket(
-    const std::string& group_name,
-    const void* socket_params,
-    RequestPriority priority,
-    ClientSocketHandle* handle,
-    CompletionCallback* callback,
-    const BoundNetLog& net_log) {
-  const SOCKSSocketParams* casted_socket_params =
-      static_cast<const SOCKSSocketParams*>(socket_params);
+int SOCKSClientSocketPool::RequestSocket(const std::string& group_name,
+                                         const void* socket_params,
+                                         RequestPriority priority,
+                                         ClientSocketHandle* handle,
+                                         CompletionCallback* callback,
+                                         const BoundNetLog& net_log) {
+  const scoped_refptr<SOCKSSocketParams>* casted_socket_params =
+      static_cast<const scoped_refptr<SOCKSSocketParams>*>(socket_params);
 
   return base_.RequestSocket(group_name, *casted_socket_params, priority,
                              handle, callback, net_log);
 }
 
-void SOCKSClientSocketPool::CancelRequest(
-    const std::string& group_name,
-    const ClientSocketHandle* handle) {
+void SOCKSClientSocketPool::CancelRequest(const std::string& group_name,
+                                          const ClientSocketHandle* handle) {
   base_.CancelRequest(group_name, handle);
 }
 
-void SOCKSClientSocketPool::ReleaseSocket(
-    const std::string& group_name,
-    ClientSocket* socket,
-    int id) {
+void SOCKSClientSocketPool::ReleaseSocket(const std::string& group_name,
+                                          ClientSocket* socket, int id) {
   base_.ReleaseSocket(group_name, socket, id);
 }
 

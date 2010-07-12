@@ -53,13 +53,14 @@ class SOCKSClientSocketPoolTest : public ClientSocketPoolTest {
   };
 
   SOCKSClientSocketPoolTest()
-      : ignored_tcp_socket_params_(
-            HostPortPair("proxy", 80), MEDIUM, GURL(), false),
+      : ignored_tcp_socket_params_(new TCPSocketParams(
+            HostPortPair("proxy", 80), MEDIUM, GURL(), false)),
         tcp_histograms_(new ClientSocketPoolHistograms("MockTCP")),
         tcp_socket_pool_(new MockTCPClientSocketPool(kMaxSockets,
             kMaxSocketsPerGroup, tcp_histograms_, &tcp_client_socket_factory_)),
-        ignored_socket_params_(ignored_tcp_socket_params_, true,
-                               HostPortPair("host", 80), MEDIUM, GURL()),
+        ignored_socket_params_(new SOCKSSocketParams(
+            ignored_tcp_socket_params_, true, HostPortPair("host", 80), MEDIUM,
+            GURL())),
         socks_histograms_(new ClientSocketPoolHistograms("SOCKSUnitTest")),
         pool_(new SOCKSClientSocketPool(kMaxSockets, kMaxSocketsPerGroup,
             socks_histograms_, NULL, tcp_socket_pool_, NULL)) {
@@ -70,12 +71,12 @@ class SOCKSClientSocketPoolTest : public ClientSocketPoolTest {
         pool_, group_name, priority, ignored_socket_params_);
   }
 
-  TCPSocketParams ignored_tcp_socket_params_;
+  scoped_refptr<TCPSocketParams> ignored_tcp_socket_params_;
   scoped_refptr<ClientSocketPoolHistograms> tcp_histograms_;
   MockClientSocketFactory tcp_client_socket_factory_;
   scoped_refptr<MockTCPClientSocketPool> tcp_socket_pool_;
 
-  SOCKSSocketParams ignored_socket_params_;
+  scoped_refptr<SOCKSSocketParams> ignored_socket_params_;
   scoped_refptr<ClientSocketPoolHistograms> socks_histograms_;
   scoped_refptr<SOCKSClientSocketPool> pool_;
 };

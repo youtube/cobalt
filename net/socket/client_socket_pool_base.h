@@ -457,16 +457,16 @@ class ClientSocketPoolBase {
     Request(ClientSocketHandle* handle,
             CompletionCallback* callback,
             RequestPriority priority,
-            const SocketParams& params,
+            const scoped_refptr<SocketParams>& params,
             const BoundNetLog& net_log)
         : internal::ClientSocketPoolBaseHelper::Request(
             handle, callback, priority, net_log),
           params_(params) {}
 
-    const SocketParams& params() const { return params_; }
+    const scoped_refptr<SocketParams>& params() const { return params_; }
 
    private:
-    SocketParams params_;
+    scoped_refptr<SocketParams> params_;
   };
 
   class ConnectJobFactory {
@@ -512,7 +512,7 @@ class ClientSocketPoolBase {
   // ClientSocketPoolBaseHelper::RequestSocket().  Note that the memory
   // ownership is transferred in the asynchronous (ERR_IO_PENDING) case.
   int RequestSocket(const std::string& group_name,
-                    const SocketParams& params,
+                    const scoped_refptr<SocketParams>& params,
                     RequestPriority priority,
                     ClientSocketHandle* handle,
                     CompletionCallback* callback,
