@@ -99,20 +99,14 @@ TEST_F(SpdySessionTest, SpdyIOBuffer) {
   }
 }
 
-static const unsigned char kGoAway[] = {
-  0x80, 0x01, 0x00, 0x07,  // header
-  0x00, 0x00, 0x00, 0x04,  // flags, len
-  0x00, 0x00, 0x00, 0x00,  // last-accepted-stream-id
-};
-
 TEST_F(SpdySessionTest, GoAway) {
   SessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockConnect connect_data(false, OK);
+  scoped_ptr<spdy::SpdyFrame> goaway(ConstructSpdyGoAway());
   MockRead reads[] = {
-    MockRead(false, reinterpret_cast<const char*>(kGoAway),
-             arraysize(kGoAway)),
+    CreateMockRead(*goaway),
     MockRead(false, 0, 0)  // EOF
   };
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
@@ -160,35 +154,24 @@ TEST_F(SpdySessionTest, GoAway) {
   session2 = NULL;
 }
 
-// kPush is a server-issued SYN_STREAM with stream id 2, and
-// associated stream id 1. It also includes 3 headers of path,
-// status, and HTTP version.
-static const uint8 kPush[] = {
-  0x80, 0x01, 0x00, 0x01,  // SYN_STREAM for SPDY v1.
-  0x00, 0x00, 0x00, 0x3b,  // No flags 59 bytes after this 8 byte header.
-  0x00, 0x00, 0x00, 0x02,  // Stream ID of 2
-  0x00, 0x00, 0x00, 0x01,  // Associate Stream ID of 1
-  0x00, 0x00, 0x00, 0x03,  // Priority 0, 3 name/value pairs in block below.
-  0x00, 0x04, 'p', 'a', 't', 'h',
-  0x00, 0x07, '/', 'f', 'o', 'o', '.', 'j', 's',
-  0x00, 0x06, 's', 't', 'a', 't', 'u', 's',
-  0x00, 0x03, '2', '0', '0',
-  0x00, 0x07, 'v', 'e', 'r', 's', 'i', 'o', 'n',
-  0x00, 0x08, 'H', 'T', 'T', 'P', '/', '1', '.', '1',
-};
-
 }  // namespace
 
 TEST_F(SpdySessionTest, GetActivePushStream) {
+  spdy::SpdyFramer framer;
   SpdySessionTest::TurnOffCompression();
 
   SessionDependencies session_deps;
   session_deps.host_resolver->set_synchronous_mode(true);
 
   MockConnect connect_data(false, OK);
+  spdy::SpdyHeaderBlock headers;
+  headers["path"] = "/foo.js";
+  headers["status"] = "200";
+  headers["version"] = "HTTP/1.1";
+  scoped_ptr<spdy::SpdyFrame> push_syn(framer.CreateSynStream(
+      2, 1, 0, spdy::CONTROL_FLAG_NONE, false, &headers));
   MockRead reads[] = {
-    MockRead(false, reinterpret_cast<const char*>(kPush),
-             arraysize(kPush)),
+    CreateMockRead(*push_syn),
     MockRead(true, ERR_IO_PENDING, 0)  // EOF
   };
   StaticSocketDataProvider data(reads, arraysize(reads), NULL, 0);
