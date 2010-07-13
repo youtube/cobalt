@@ -358,6 +358,20 @@ OSStatus CopyCertChain(SecCertificateRef cert_handle,
   return SecTrustGetResult(trust, &status, out_cert_chain, &status_chain);
 }
 
+// Returns true if |purpose| is listed as allowed in |usage|. This
+// function also considers the "Any" purpose. If the attribute is
+// present and empty, we return false.
+bool ExtendedKeyUsageAllows(const CE_ExtendedKeyUsage* usage,
+                            const CSSM_OID* purpose) {
+  for (unsigned p = 0; p < usage->numPurposes; ++p) {
+    if (CSSMOIDEqual(&usage->purposes[p], purpose))
+      return true;
+    if (CSSMOIDEqual(&usage->purposes[p], &CSSMOID_ExtendedKeyUsageAny))
+      return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 void X509Certificate::Initialize() {
@@ -699,25 +713,38 @@ bool X509Certificate::SupportsSSLClientAuth() const {
   CSSMFields fields;
   if (GetCertFields(cert_handle_, &fields) != noErr)
     return false;
+
+  // Gather the extensions we care about. We do not support
+  // CSSMOID_NetscapeCertType on OS X.
+  const CE_ExtendedKeyUsage* ext_key_usage = NULL;
+  const CE_KeyUsage* key_usage = NULL;
   for (unsigned f = 0; f < fields.num_of_fields; ++f) {
     const CSSM_FIELD& field = fields.fields[f];
     const CSSM_X509_EXTENSION* ext =
         reinterpret_cast<const CSSM_X509_EXTENSION*>(field.FieldValue.Data);
-    if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_ExtendedKeyUsage)) {
-      const CE_ExtendedKeyUsage* usage =
+    if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_KeyUsage)) {
+      key_usage = reinterpret_cast<const CE_KeyUsage*>(ext->value.parsedValue);
+    } else if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_ExtendedKeyUsage)) {
+      ext_key_usage =
           reinterpret_cast<const CE_ExtendedKeyUsage*>(ext->value.parsedValue);
-      for (unsigned p = 0; p < usage->numPurposes; ++p) {
-        if (CSSMOIDEqual(&usage->purposes[p], &CSSMOID_ClientAuth))
-          return true;
-      }
-    } else if (CSSMOIDEqual(&field.FieldOid, &CSSMOID_NetscapeCertType)) {
-      uint16_t flags =
-          *reinterpret_cast<const uint16_t*>(ext->value.parsedValue);
-      if (flags & CE_NCT_SSL_Client)
-        return true;
     }
   }
-  return false;
+
+  // RFC5280 says to take the intersection of the two extensions.
+  //
+  // Our underlying crypto libraries don't expose
+  // ClientCertificateType, so for now we will not support fixed
+  // Diffie-Hellman mechanisms. For rsa_sign, we need the
+  // digitalSignature bit.
+  //
+  // In particular, if a key has the nonRepudiation bit and not the
+  // digitalSignature one, we will not offer it to the user.
+  if (key_usage && !((*key_usage) & CE_KU_DigitalSignature))
+    return false;
+  if (ext_key_usage && !ExtendedKeyUsageAllows(ext_key_usage,
+                                               &CSSMOID_ClientAuth))
+    return false;
+  return true;
 }
 
 bool X509Certificate::IsIssuedBy(
