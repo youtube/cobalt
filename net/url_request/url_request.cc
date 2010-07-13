@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2009 The Chromium Authors. All rights reserved.
+// Copyright (c) 20010 The Chromium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -268,7 +268,8 @@ void URLRequest::StartJob(URLRequestJob* job) {
 
   net_log_.BeginEvent(
       net::NetLog::TYPE_URL_REQUEST_START_JOB,
-      new URLRequestStartEventParameters(url_, method_, load_flags_));
+      new URLRequestStartEventParameters(
+          url_, method_, load_flags_, priority_));
 
   job_ = job;
   job_->SetExtraRequestHeaders(extra_request_headers_);
