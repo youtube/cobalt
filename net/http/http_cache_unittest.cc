@@ -369,9 +369,7 @@ class MockDiskCache : public disk_cache::Backend {
   }
 
   ~MockDiskCache() {
-    EntryMap::iterator it = entries_.begin();
-    for (; it != entries_.end(); ++it)
-      it->second->Release();
+    ReleaseAll();
   }
 
   virtual int32 GetEntryCount() const {
@@ -495,6 +493,13 @@ class MockDiskCache : public disk_cache::Backend {
 
   // Return entries that fail some of their requests.
   void set_soft_failures(bool value) { soft_failures_ = value; }
+
+  void ReleaseAll() {
+    EntryMap::iterator it = entries_.begin();
+    for (; it != entries_.end(); ++it)
+      it->second->Release();
+    entries_.clear();
+  }
 
  private:
   typedef base::hash_map<std::string, MockDiskEntry*> EntryMap;
@@ -1718,6 +1723,29 @@ TEST(HttpCache, SimpleGET_ManyWriters_CancelCreate) {
   for (int i = 1; i < kNumTransactions; ++i) {
     delete context_list[i];
   }
+}
+
+// Tests that we can cancel a single request to open a disk cache entry.
+TEST(HttpCache, SimpleGET_CancelCreate) {
+  MockHttpCache cache;
+
+  MockHttpRequest request(kSimpleGET_Transaction);
+
+  Context* c = new Context();
+
+  c->result = cache.http_cache()->CreateTransaction(&c->trans);
+  EXPECT_EQ(net::OK, c->result);
+
+  c->result = c->trans->Start(&request, &c->callback, net::BoundNetLog());
+  EXPECT_EQ(net::ERR_IO_PENDING, c->result);
+
+  // Release the reference that the mock disk cache keeps for this entry, so
+  // that we test that the http cache handles the cancelation correctly.
+  cache.disk_cache()->ReleaseAll();
+  delete c;
+
+  MessageLoop::current()->RunAllPending();
+  EXPECT_EQ(1, cache.disk_cache()->create_count());
 }
 
 // Tests that we delete/create entries even if multiple requests are queued.
