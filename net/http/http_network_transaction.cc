@@ -709,7 +709,7 @@ int HttpNetworkTransaction::DoInitConnection() {
     if (!auth_controllers_[target].get())
       auth_controllers_[target] = new HttpAuthController(target,
                                                          AuthURL(target),
-                                                         session_, net_log_);
+                                                         session_);
   }
 
   next_state_ = STATE_INIT_CONNECTION_COMPLETE;
@@ -1006,7 +1006,7 @@ int HttpNetworkTransaction::DoGenerateProxyAuthToken() {
   if (!ShouldApplyProxyAuth())
     return OK;
   return auth_controllers_[HttpAuth::AUTH_PROXY]->MaybeGenerateAuthToken(
-      request_, &io_callback_);
+      request_, &io_callback_, net_log_);
 }
 
 int HttpNetworkTransaction::DoGenerateProxyAuthTokenComplete(int rv) {
@@ -1021,7 +1021,7 @@ int HttpNetworkTransaction::DoGenerateServerAuthToken() {
   if (!ShouldApplyServerAuth())
     return OK;
   return auth_controllers_[HttpAuth::AUTH_SERVER]->MaybeGenerateAuthToken(
-      request_, &io_callback_);
+      request_, &io_callback_, net_log_);
 }
 
 int HttpNetworkTransaction::DoGenerateServerAuthTokenComplete(int rv) {
@@ -1786,7 +1786,8 @@ int HttpNetworkTransaction::HandleAuthChallenge() {
     return ERR_UNEXPECTED_PROXY_AUTH;
 
   int rv = auth_controllers_[target]->HandleAuthChallenge(
-      headers, (request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA) != 0, false);
+      headers, (request_->load_flags & LOAD_DO_NOT_SEND_AUTH_DATA) != 0, false,
+      net_log_);
   if (auth_controllers_[target]->HaveAuthHandler())
       pending_auth_target_ = target;
 

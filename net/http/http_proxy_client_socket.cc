@@ -57,13 +57,11 @@ HttpProxyClientSocket::HttpProxyClientSocket(
       next_state_(STATE_NONE),
       user_callback_(NULL),
       transport_(transport_socket),
-      tunnel_(tunnel),
-      auth_(auth),
       endpoint_(endpoint),
+      auth_(auth),
+      tunnel_(tunnel),
       net_log_(transport_socket->socket()->NetLog()) {
   DCHECK_EQ(tunnel, auth != NULL);
-  if (tunnel)
-    auth->set_net_log(net_log_);
   // Synthesize the bits of a request that we actually use.
   request_.url = request_url;
   request_.method = "GET";
@@ -286,7 +284,7 @@ int HttpProxyClientSocket::DoLoop(int last_io_result) {
 
 int HttpProxyClientSocket::DoGenerateAuthToken() {
   next_state_ = STATE_GENERATE_AUTH_TOKEN_COMPLETE;
-  return auth_->MaybeGenerateAuthToken(&request_, &io_callback_);
+  return auth_->MaybeGenerateAuthToken(&request_, &io_callback_, net_log_);
 }
 
 int HttpProxyClientSocket::DoGenerateAuthTokenComplete(int result) {
@@ -411,7 +409,7 @@ int HttpProxyClientSocket::DoDrainBodyComplete(int result) {
 int HttpProxyClientSocket::HandleAuthChallenge() {
   DCHECK(response_.headers);
 
-  int rv = auth_->HandleAuthChallenge(response_.headers, false, true);
+  int rv = auth_->HandleAuthChallenge(response_.headers, false, true, net_log_);
   response_.auth_challenge = auth_->auth_info();
   if (rv == OK)
     return ERR_PROXY_AUTH_REQUESTED;
