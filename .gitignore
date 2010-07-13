@@ -103,4 +103,5 @@
 /webkit/data/test_shell/plugins
 /webkit/data/xbm_decoder
 /xcodebuild
+/x86-generic_out/
 SConstruct
