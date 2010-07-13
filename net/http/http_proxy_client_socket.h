@@ -114,25 +114,24 @@ class HttpProxyClientSocket : public ClientSocket {
   // Stores the callback to the layer above, called on completing Connect().
   CompletionCallback* user_callback_;
 
-  // Stores the underlying socket.
-  scoped_ptr<ClientSocketHandle> transport_;
-
-  bool tunnel_;
-
-  std::string request_headers_;
-
-  scoped_ptr<HttpStream> http_stream_;
   HttpRequestInfo request_;
   HttpResponseInfo response_;
-  const scoped_refptr<HttpAuthController> auth_;
+
+  scoped_ptr<HttpStream> http_stream_;
+  scoped_refptr<IOBuffer> drain_buf_;
+
+  // Stores the underlying socket.
+  const scoped_ptr<ClientSocketHandle> transport_;
 
   // The hostname and port of the endpoint.  This is not necessarily the one
   // specified by the URL, due to Alternate-Protocol or fixed testing ports.
-  HostPortPair endpoint_;
+  const HostPortPair endpoint_;
+  scoped_refptr<HttpAuthController> auth_;
+  const bool tunnel_;
 
-  scoped_refptr<IOBuffer> drain_buf_;
+  std::string request_headers_;
 
-  BoundNetLog net_log_;
+  const BoundNetLog net_log_;
 
   DISALLOW_COPY_AND_ASSIGN(HttpProxyClientSocket);
 };

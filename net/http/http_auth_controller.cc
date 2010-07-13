@@ -50,23 +50,22 @@ std::string AuthChallengeLogMessage(HttpResponseHeaders* headers) {
 HttpAuthController::HttpAuthController(
     HttpAuth::Target target,
     const GURL& auth_url,
-    scoped_refptr<HttpNetworkSession> session,
-    const BoundNetLog& net_log)
+    scoped_refptr<HttpNetworkSession> session)
     : target_(target),
       auth_url_(auth_url),
       auth_origin_(auth_url.GetOrigin()),
       auth_path_(HttpAuth::AUTH_PROXY ? std::string() : auth_url.path()),
       embedded_identity_used_(false),
       default_credentials_used_(false),
-      session_(session),
-      net_log_(net_log) {
+      session_(session) {
 }
 
 HttpAuthController::~HttpAuthController() {}
 
 int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
-                                               CompletionCallback* callback) {
-  bool needs_auth = HaveAuth() || SelectPreemptiveAuth();
+                                               CompletionCallback* callback,
+                                               const BoundNetLog& net_log) {
+  bool needs_auth = HaveAuth() || SelectPreemptiveAuth(net_log);
   if (!needs_auth)
     return OK;
   const std::wstring* username = NULL;
@@ -80,7 +79,7 @@ int HttpAuthController::MaybeGenerateAuthToken(const HttpRequestInfo* request,
                                      &auth_token_);
 }
 
-bool HttpAuthController::SelectPreemptiveAuth() {
+bool HttpAuthController::SelectPreemptiveAuth(const BoundNetLog& net_log) {
   DCHECK(!HaveAuth());
   DCHECK(identity_.invalid);
 
@@ -104,7 +103,7 @@ bool HttpAuthController::SelectPreemptiveAuth() {
       CreatePreemptiveAuthHandlerFromString(entry->auth_challenge(), target_,
                                             auth_origin_,
                                             entry->IncrementNonceCount(),
-                                            net_log_, &handler_preemptive);
+                                            net_log, &handler_preemptive);
   if (rv_create != OK)
     return false;
 
@@ -129,7 +128,8 @@ void HttpAuthController::AddAuthorizationHeader(
 int HttpAuthController::HandleAuthChallenge(
     scoped_refptr<HttpResponseHeaders> headers,
     bool do_not_send_server_auth,
-    bool establishing_tunnel) {
+    bool establishing_tunnel,
+    const BoundNetLog& net_log) {
   DCHECK(headers);
   DCHECK(auth_origin_.is_valid());
 
@@ -155,7 +155,7 @@ int HttpAuthController::HandleAuthChallenge(
   if (target_ != HttpAuth::AUTH_SERVER || !do_not_send_server_auth) {
     // Find the best authentication challenge that we support.
     HttpAuth::ChooseBestChallenge(session_->http_auth_handler_factory(),
-                                  headers, target_, auth_origin_, net_log_,
+                                  headers, target_, auth_origin_, net_log,
                                   &handler_);
   }
 

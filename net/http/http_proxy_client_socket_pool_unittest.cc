@@ -38,8 +38,7 @@ class MockHttpAuthController : public HttpAuthController {
  public:
   MockHttpAuthController()
       : HttpAuthController(HttpAuth::AUTH_PROXY, GURL(),
-                           scoped_refptr<HttpNetworkSession>(NULL),
-                           BoundNetLog()),
+                           scoped_refptr<HttpNetworkSession>(NULL)),
         data_(NULL),
         data_index_(0),
         data_count_(0) {
@@ -53,7 +52,8 @@ class MockHttpAuthController : public HttpAuthController {
 
   // HttpAuthController methods.
   virtual int MaybeGenerateAuthToken(const HttpRequestInfo* request,
-                                     CompletionCallback* callback) {
+                                     CompletionCallback* callback,
+                                     const BoundNetLog& net_log) {
     return OK;
   }
   virtual void AddAuthorizationHeader(
@@ -62,7 +62,8 @@ class MockHttpAuthController : public HttpAuthController {
   }
   virtual int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
                                   bool do_not_send_server_auth,
-                                  bool establishing_tunnel) {
+                                  bool establishing_tunnel,
+                                  const BoundNetLog& net_log) {
     return OK;
   }
   virtual bool HaveAuthHandler() const { return HaveAuth(); }
