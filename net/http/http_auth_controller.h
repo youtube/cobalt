@@ -19,6 +19,7 @@ namespace net {
 
 class AuthChallengeInfo;
 class HostResolver;
+class HttpAuthHandler;
 class HttpNetworkSession;
 class HttpRequestHeaders;
 struct HttpRequestInfo;
@@ -28,15 +29,15 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
   // The arguments are self explanatory except possibly for |auth_url|, which
   // should be both the auth target and auth path in a single url argument.
   HttpAuthController(HttpAuth::Target target, const GURL& auth_url,
-                     scoped_refptr<HttpNetworkSession> session,
-                     const BoundNetLog& net_log);
+                     scoped_refptr<HttpNetworkSession> session);
 
   // Generate an authentication token for |target| if necessary. The return
   // value is a net error code. |OK| will be returned both in the case that
   // a token is correctly generated synchronously, as well as when no tokens
   // were necessary.
   virtual int MaybeGenerateAuthToken(const HttpRequestInfo* request,
-                                     CompletionCallback* callback);
+                                     CompletionCallback* callback,
+                                     const BoundNetLog& net_log);
 
   // Adds either the proxy auth header, or the origin server auth header,
   // as specified by |target_|.
@@ -48,7 +49,8 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
   // otherwise. It may also populate |auth_info_|.
   virtual int HandleAuthChallenge(scoped_refptr<HttpResponseHeaders> headers,
                                   bool do_not_send_server_auth,
-                                  bool establishing_tunnel);
+                                  bool establishing_tunnel,
+                                  const BoundNetLog& net_log);
 
   // Store the supplied credentials and prepare to restart the auth.
   virtual void ResetAuth(const std::wstring& username,
@@ -66,10 +68,6 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
     return auth_info_;
   }
 
-  void set_net_log(const BoundNetLog& net_log) {
-    net_log_ = net_log;
-  }
-
  protected:  // So that we can mock this object.
   friend class base::RefCounted<HttpAuthController>;
   virtual ~HttpAuthController();
@@ -78,7 +76,7 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
   // Searches the auth cache for an entry that encompasses the request's path.
   // If such an entry is found, updates |identity_| and |handler_| with the
   // cache entry's data and returns true.
-  bool SelectPreemptiveAuth();
+  bool SelectPreemptiveAuth(const BoundNetLog& net_log);
 
   // Invalidates any auth cache entries after authentication has failed.
   // The identity that was rejected is |identity_|.
@@ -133,8 +131,6 @@ class HttpAuthController : public base::RefCounted<HttpAuthController> {
   bool default_credentials_used_;
 
   scoped_refptr<HttpNetworkSession> session_;
-
-  BoundNetLog net_log_;
 };
 
 }  // namespace net
