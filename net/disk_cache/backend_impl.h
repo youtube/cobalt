@@ -13,6 +13,7 @@
 #include "net/disk_cache/block_files.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/disk_cache/eviction.h"
+#include "net/disk_cache/in_flight_backend_io.h"
 #include "net/disk_cache/rankings.h"
 #include "net/disk_cache/stats.h"
 #include "net/disk_cache/trace.h"
@@ -36,18 +37,20 @@ class BackendImpl : public Backend {
   friend class Eviction;
  public:
   BackendImpl(const FilePath& path, base::MessageLoopProxy* cache_thread)
-      : path_(path), block_files_(path), mask_(0), max_size_(0),
+      : ALLOW_THIS_IN_INITIALIZER_LIST(background_queue_(this, cache_thread)),
+        path_(path), block_files_(path), mask_(0), max_size_(0),
         cache_type_(net::DISK_CACHE), uma_report_(0), user_flags_(0),
         init_(false), restarted_(false), unit_test_(false), read_only_(false),
-        new_eviction_(false), first_timer_(true),
+        new_eviction_(false), first_timer_(true), done_(true, false),
         ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {}
   // mask can be used to limit the usable size of the hash table, for testing.
   BackendImpl(const FilePath& path, uint32 mask,
               base::MessageLoopProxy* cache_thread)
-      : path_(path), block_files_(path), mask_(mask), max_size_(0),
+      : ALLOW_THIS_IN_INITIALIZER_LIST(background_queue_(this, cache_thread)),
+        path_(path), block_files_(path), mask_(mask), max_size_(0),
         cache_type_(net::DISK_CACHE), uma_report_(0), user_flags_(kMask),
         init_(false), restarted_(false), unit_test_(false), read_only_(false),
-        new_eviction_(false), first_timer_(true),
+        new_eviction_(false), first_timer_(true), done_(true, false),
         ALLOW_THIS_IN_INITIALIZER_LIST(factory_(this)) {}
   ~BackendImpl();
 
@@ -59,7 +62,12 @@ class BackendImpl : public Backend {
                            Backend** backend, CompletionCallback* callback);
 
   // Performs general initialization for this current instance of the cache.
-  bool Init();
+  bool Init();  // Deprecated.
+  int Init(CompletionCallback* callback);
+  int SyncInit();
+
+  // Performs final cleanup on destruction.
+  void CleanupCache();
 
   // Backend interface.
   virtual int32 GetEntryCount() const;
@@ -79,6 +87,17 @@ class BackendImpl : public Backend {
   virtual void EndEnumeration(void** iter);
   virtual void GetStats(StatsItems* stats);
 
+  // Synchronous implementation of the asynchronous interface.
+  int SyncOpenEntry(const std::string& key, Entry** entry);
+  int SyncCreateEntry(const std::string& key, Entry** entry);
+  int SyncDoomEntry(const std::string& key);
+  int SyncDoomAllEntries();
+  int SyncDoomEntriesBetween(const base::Time initial_time,
+                             const base::Time end_time);
+  int SyncDoomEntriesSince(const base::Time initial_time);
+  int SyncOpenNextEntry(void** iter, Entry** next_entry);
+  void SyncEndEnumeration(void* iter);
+
   // Sets the maximum size for the total amount of data stored by this instance.
   bool SetMaxSize(int max_bytes);
 
@@ -90,6 +109,10 @@ class BackendImpl : public Backend {
 
   // Returns the actual file used to store a given (non-external) address.
   MappedFile* File(Addr address);
+
+  InFlightBackendIO* background_queue() {
+    return &background_queue_;
+  }
 
   // Creates an external storage file.
   bool CreateExternalFile(Addr* address);
@@ -197,12 +220,17 @@ class BackendImpl : public Backend {
   // Clears the counter of references to test handling of corruptions.
   void ClearRefCountForTest();
 
+  // Sends a dummy operation through the operation queue, for unit tests.
+  int FlushQueueForTest(CompletionCallback* callback);
+
   // Peforms a simple self-check, and returns the number of dirty items
   // or an error code (negative value).
   int SelfCheck();
 
   // Same bahavior as OpenNextEntry but walks the list from back to front.
-  bool OpenPrevEntry(void** iter, Entry** prev_entry);
+  int OpenPrevEntry(void** iter, Entry** prev_entry,
+                    CompletionCallback* callback);
+  int SyncOpenPrevEntry(void** iter, Entry** prev_entry);
 
   // Old Backend interface.
   bool OpenEntry(const std::string& key, Entry** entry);
@@ -212,11 +240,12 @@ class BackendImpl : public Backend {
   bool DoomEntriesBetween(const base::Time initial_time,
                           const base::Time end_time);
   bool DoomEntriesSince(const base::Time initial_time);
-  bool OpenNextEntry(void** iter, Entry** next_entry);
 
-  // Open or create an entry for the given |key|.
+  // Open or create an entry for the given |key| or |iter|.
   EntryImpl* OpenEntryImpl(const std::string& key);
   EntryImpl* CreateEntryImpl(const std::string& key);
+  EntryImpl* OpenNextEntryImpl(void** iter);
+  EntryImpl* OpenPrevEntryImpl(void** iter);
 
  private:
   typedef base::hash_map<CacheAddr, EntryImpl*> EntriesMap;
@@ -240,7 +269,7 @@ class BackendImpl : public Backend {
   EntryImpl* MatchEntry(const std::string& key, uint32 hash, bool find_parent);
 
   // Opens the next or previous entry on a cache iteration.
-  bool OpenFollowingEntry(bool forward, void** iter, Entry** next_entry);
+  EntryImpl* OpenFollowingEntry(bool forward, void** iter);
 
   // Opens the next or previous entry on a single list. If successfull,
   // |from_entry| will be updated to point to the new entry, otherwise it will
@@ -287,6 +316,7 @@ class BackendImpl : public Backend {
   // Part of the self test. Returns false if the entry is corrupt.
   bool CheckEntry(EntryImpl* cache_entry);
 
+  InFlightBackendIO background_queue_;  // The controller of pending operations.
   scoped_refptr<MappedFile> index_;  // The main cache index.
   FilePath path_;  // Path to the folder used as backing storage.
   Index* data_;  // Pointer to the index data.
@@ -314,6 +344,7 @@ class BackendImpl : public Backend {
 
   Stats stats_;  // Usage statistcs.
   base::RepeatingTimer<BackendImpl> timer_;  // Usage timer.
+  base::WaitableEvent done_;  // Signals the end of background work.
   scoped_refptr<TraceObject> trace_object_;  // Inits internal tracing.
   ScopedRunnableMethodFactory<BackendImpl> factory_;
 

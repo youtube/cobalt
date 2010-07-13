@@ -902,6 +902,7 @@ void HttpCache::OnIOComplete(int result, PendingOp* pending_op) {
       if (op == WI_CREATE_ENTRY)
         pending_op->disk_entry->Doom();
       pending_op->disk_entry->Close();
+      pending_op->disk_entry = NULL;
       fail_requests = true;
     }
   }

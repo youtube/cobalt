@@ -162,6 +162,106 @@ void SetFieldTrialInfo(int size_group) {
   trial1->AppendGroup(group1, FieldTrial::kAllRemainingProbability);
 }
 
+// ------------------------------------------------------------------------
+
+// This class takes care of building an instance of the backend.
+class CacheCreator {
+ public:
+  CacheCreator(const FilePath& path, bool force, int max_bytes,
+               net::CacheType type, uint32 flags,
+               base::MessageLoopProxy* thread, disk_cache::Backend** backend,
+               net::CompletionCallback* callback)
+      : path_(path), force_(force), retry_(false), max_bytes_(max_bytes),
+        type_(type), flags_(flags), thread_(thread), backend_(backend),
+        callback_(callback), cache_(NULL),
+        ALLOW_THIS_IN_INITIALIZER_LIST(
+            my_callback_(this, &CacheCreator::OnIOComplete)) {
+  }
+  ~CacheCreator() {}
+
+  // Creates the backend.
+  int Run();
+
+  // Callback implementation.
+  void OnIOComplete(int result);
+
+ private:
+  void DoCallback(int result);
+
+  const FilePath& path_;
+  bool force_;
+  bool retry_;
+  int max_bytes_;
+  net::CacheType type_;
+  uint32 flags_;
+  scoped_refptr<base::MessageLoopProxy> thread_;
+  disk_cache::Backend** backend_;
+  net::CompletionCallback* callback_;
+  disk_cache::BackendImpl* cache_;
+  net::CompletionCallbackImpl<CacheCreator> my_callback_;
+
+  DISALLOW_COPY_AND_ASSIGN(CacheCreator);
+};
+
+int CacheCreator::Run() {
+  cache_ = new disk_cache::BackendImpl(path_, thread_);
+  cache_->SetMaxSize(max_bytes_);
+  cache_->SetType(type_);
+  cache_->SetFlags(flags_);
+  int rv = cache_->Init(&my_callback_);
+  DCHECK_EQ(net::ERR_IO_PENDING, rv);
+  return rv;
+}
+
+void CacheCreator::OnIOComplete(int result) {
+  if (result == net::OK || !force_ || retry_)
+    return DoCallback(result);
+
+  // This is a failure and we are supposed to try again, so delete the object,
+  // delete all the files, and try again.
+  retry_ = true;
+  delete cache_;
+  cache_ = NULL;
+  if (!DelayedCacheCleanup(path_))
+    return DoCallback(result);
+
+  // The worker thread will start deleting files soon, but the original folder
+  // is not there anymore... let's create a new set of files.
+  int rv = Run();
+  DCHECK_EQ(net::ERR_IO_PENDING, rv);
+}
+
+void CacheCreator::DoCallback(int result) {
+  DCHECK_NE(net::ERR_IO_PENDING, result);
+  if (result == net::OK) {
+    *backend_ = cache_;
+  } else {
+    LOG(ERROR) << "Unable to create cache";
+    *backend_ = NULL;
+    delete cache_;
+  }
+  callback_->Run(result);
+  delete this;
+}
+
+// ------------------------------------------------------------------------
+
+// A task to perform final cleanup on the background thread.
+class FinalCleanup : public Task {
+ public:
+  explicit FinalCleanup(disk_cache::BackendImpl* backend) : backend_(backend) {}
+  ~FinalCleanup() {}
+
+  virtual void Run();
+ private:
+  disk_cache::BackendImpl* backend_;
+  DISALLOW_EVIL_CONSTRUCTORS(FinalCleanup);
+};
+
+void FinalCleanup::Run() {
+  backend_->CleanupCache();
+}
+
 }  // namespace
 
 // ------------------------------------------------------------------------
@@ -228,36 +328,16 @@ int BackendImpl::CreateBackend(const FilePath& full_path, bool force,
                                uint32 flags, base::MessageLoopProxy* thread,
                                Backend** backend,
                                CompletionCallback* callback) {
-  BackendImpl* cache = new BackendImpl(full_path, thread);
-  cache->SetMaxSize(max_bytes);
-  cache->SetType(type);
-  cache->SetFlags(flags);
-  if (cache->Init()) {
-    *backend = cache;
+  CacheCreator* creator = new CacheCreator(full_path, force, max_bytes, type,
+                                           flags, thread, backend, callback);
+  // This object will self-destroy when finished.
+  return creator->Run();
+}
+
+int BackendImpl::SyncInit() {
+  if (Init())
     return net::OK;
-  }
 
-  *backend = NULL;
-  delete cache;
-  if (!force)
-    return net::ERR_FAILED;
-
-  if (!DelayedCacheCleanup(full_path))
-    return net::ERR_FAILED;
-
-  // The worker thread will start deleting files soon, but the original folder
-  // is not there anymore... let's create a new set of files.
-  cache = new BackendImpl(full_path, thread);
-  cache->SetMaxSize(max_bytes);
-  cache->SetType(type);
-  cache->SetFlags(flags);
-  if (cache->Init()) {
-    *backend = cache;
-    return net::OK;
-  }
-
-  delete cache;
-  LOG(ERROR) << "Unable to create cache";
   return net::ERR_FAILED;
 }
 
@@ -305,7 +385,7 @@ bool BackendImpl::Init() {
 
   // We don't care if the value overflows. The only thing we care about is that
   // the id cannot be zero, because that value is used as "not dirty".
-  // Increasing the value once per second gives us many years before a we start
+  // Increasing the value once per second gives us many years before we start
   // having collisions.
   data_->header.this_id++;
   if (!data_->header.this_id)
@@ -336,18 +416,36 @@ bool BackendImpl::Init() {
   return !disabled_;
 }
 
+int BackendImpl::Init(CompletionCallback* callback) {
+  background_queue_.Init(callback);
+  return net::ERR_IO_PENDING;
+}
+
 BackendImpl::~BackendImpl() {
-  Trace("Backend destructor");
-  if (!init_)
-    return;
+  background_queue_.WaitForPendingIO();
 
-  if (data_)
-    data_->header.crash = 0;
+  if (background_queue_.BackgroundIsCurrentThread()) {
+    // Unit tests may use the same thread for everything.
+    CleanupCache();
+  } else {
+    background_queue_.background_thread()->PostTask(FROM_HERE,
+                                                    new FinalCleanup(this));
+    done_.Wait();
+  }
+}
 
-  timer_.Stop();
+void BackendImpl::CleanupCache() {
+  Trace("Backend Cleanup");
+  if (init_) {
+    if (data_)
+      data_->header.crash = 0;
 
-  File::WaitForPendingIO(&num_pending_io_);
-  DCHECK(!num_refs_);
+    timer_.Stop();
+    File::WaitForPendingIO(&num_pending_io_);
+    DCHECK(!num_refs_);
+  }
+  factory_.RevokeAll();
+  done_.Signal();
 }
 
 // ------------------------------------------------------------------------
@@ -395,18 +493,17 @@ EntryImpl* BackendImpl::OpenEntryImpl(const std::string& key) {
   return cache_entry;
 }
 
-bool BackendImpl::OpenEntry(const std::string& key, Entry** entry) {
+int BackendImpl::SyncOpenEntry(const std::string& key, Entry** entry) {
   DCHECK(entry);
   *entry = OpenEntryImpl(key);
-  return (*entry) ? true : false;
+  return (*entry) ? net::OK : net::ERR_FAILED;
 }
 
 int BackendImpl::OpenEntry(const std::string& key, Entry** entry,
                            CompletionCallback* callback) {
-  if (OpenEntry(key, entry))
-    return net::OK;
-
-  return net::ERR_FAILED;
+  DCHECK(callback);
+  background_queue_.OpenEntry(key, entry, callback);
+  return net::ERR_IO_PENDING;
 }
 
 EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
@@ -487,15 +584,21 @@ EntryImpl* BackendImpl::CreateEntryImpl(const std::string& key) {
   return cache_entry.release();
 }
 
-bool BackendImpl::CreateEntry(const std::string& key, Entry** entry) {
+int BackendImpl::SyncCreateEntry(const std::string& key, Entry** entry) {
   DCHECK(entry);
   *entry = CreateEntryImpl(key);
-  return (*entry) ? true : false;
+  return (*entry) ? net::OK : net::ERR_FAILED;
 }
 
 int BackendImpl::CreateEntry(const std::string& key, Entry** entry,
                              CompletionCallback* callback) {
-  if (CreateEntry(key, entry))
+  DCHECK(callback);
+  background_queue_.CreateEntry(key, entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::SyncDoomEntry(const std::string& key) {
+  if (DoomEntry(key))
     return net::OK;
 
   return net::ERR_FAILED;
@@ -505,21 +608,24 @@ bool BackendImpl::DoomEntry(const std::string& key) {
   if (disabled_)
     return false;
 
-  Entry* entry;
-  if (!OpenEntry(key, &entry))
+  EntryImpl* entry = OpenEntryImpl(key);
+  if (!entry)
     return false;
 
-  // Note that you'd think you could just pass &entry_impl to OpenEntry,
-  // but that triggers strict aliasing problems with gcc.
-  EntryImpl* entry_impl = reinterpret_cast<EntryImpl*>(entry);
-  entry_impl->Doom();
-  entry_impl->Release();
+  entry->DoomImpl();
+  entry->Release();
   return true;
 }
 
 int BackendImpl::DoomEntry(const std::string& key,
                            CompletionCallback* callback) {
-  if (DoomEntry(key))
+  DCHECK(callback);
+  background_queue_.DoomEntry(key, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::SyncDoomAllEntries() {
+  if (DoomAllEntries())
     return net::OK;
 
   return net::ERR_FAILED;
@@ -541,7 +647,14 @@ bool BackendImpl::DoomAllEntries() {
 }
 
 int BackendImpl::DoomAllEntries(CompletionCallback* callback) {
-  if (DoomAllEntries())
+  DCHECK(callback);
+  background_queue_.DoomAllEntries(callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::SyncDoomEntriesBetween(const base::Time initial_time,
+                                        const base::Time end_time) {
+  if (DoomEntriesBetween(initial_time, end_time))
     return net::OK;
 
   return net::ERR_FAILED;
@@ -557,27 +670,27 @@ bool BackendImpl::DoomEntriesBetween(const Time initial_time,
   if (disabled_)
     return false;
 
-  Entry* node, *next;
+  EntryImpl* node;
   void* iter = NULL;
-  if (!OpenNextEntry(&iter, &next))
+  EntryImpl* next = OpenNextEntryImpl(&iter);
+  if (!next)
     return true;
 
   while (next) {
     node = next;
-    if (!OpenNextEntry(&iter, &next))
-      next = NULL;
+    next = OpenNextEntryImpl(&iter);
 
     if (node->GetLastUsed() >= initial_time &&
         node->GetLastUsed() < end_time) {
-      node->Doom();
+      node->DoomImpl();
     } else if (node->GetLastUsed() < initial_time) {
       if (next)
-        next->Close();
+        next->Release();
       next = NULL;
-      EndEnumeration(&iter);
+      SyncEndEnumeration(iter);
     }
 
-    node->Close();
+    node->Release();
   }
 
   return true;
@@ -586,59 +699,72 @@ bool BackendImpl::DoomEntriesBetween(const Time initial_time,
 int BackendImpl::DoomEntriesBetween(const base::Time initial_time,
                                     const base::Time end_time,
                                     CompletionCallback* callback) {
-  if (DoomEntriesBetween(initial_time, end_time))
-    return net::OK;
-
-  return net::ERR_FAILED;
+  DCHECK(callback);
+  background_queue_.DoomEntriesBetween(initial_time, end_time, callback);
+  return net::ERR_IO_PENDING;
 }
 
-// We use OpenNextEntry to retrieve elements from the cache, until we get
-// entries that are too old.
-bool BackendImpl::DoomEntriesSince(const Time initial_time) {
-  if (disabled_)
-    return false;
-
-  for (;;) {
-    Entry* entry;
-    void* iter = NULL;
-    if (!OpenNextEntry(&iter, &entry))
-      return true;
-
-    if (initial_time > entry->GetLastUsed()) {
-      entry->Close();
-      EndEnumeration(&iter);
-      return true;
-    }
-
-    entry->Doom();
-    entry->Close();
-    EndEnumeration(&iter);  // Dooming the entry invalidates the iterator.
-  }
-}
-
-int BackendImpl::DoomEntriesSince(const base::Time initial_time,
-                                  CompletionCallback* callback) {
+int BackendImpl::SyncDoomEntriesSince(const base::Time initial_time) {
   if (DoomEntriesSince(initial_time))
     return net::OK;
 
   return net::ERR_FAILED;
 }
 
-bool BackendImpl::OpenNextEntry(void** iter, Entry** next_entry) {
-  return OpenFollowingEntry(true, iter, next_entry);
+// We use OpenNextEntryImpl to retrieve elements from the cache, until we get
+// entries that are too old.
+bool BackendImpl::DoomEntriesSince(const Time initial_time) {
+  if (disabled_)
+    return false;
+
+  for (;;) {
+    void* iter = NULL;
+    EntryImpl* entry = OpenNextEntryImpl(&iter);
+    if (!entry)
+      return true;
+
+    if (initial_time > entry->GetLastUsed()) {
+      entry->Release();
+      SyncEndEnumeration(iter);
+      return true;
+    }
+
+    entry->DoomImpl();
+    entry->Release();
+    SyncEndEnumeration(iter);  // Dooming the entry invalidates the iterator.
+  }
+}
+
+int BackendImpl::DoomEntriesSince(const base::Time initial_time,
+                                  CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.DoomEntriesSince(initial_time, callback);
+  return net::ERR_IO_PENDING;
+}
+
+int BackendImpl::SyncOpenNextEntry(void** iter, Entry** next_entry) {
+  *next_entry = OpenNextEntryImpl(iter);
+  return (*next_entry) ? net::OK : net::ERR_FAILED;
+}
+
+EntryImpl* BackendImpl::OpenNextEntryImpl(void** iter) {
+  return OpenFollowingEntry(true, iter);
 }
 
 int BackendImpl::OpenNextEntry(void** iter, Entry** next_entry,
                                CompletionCallback* callback) {
-  if (OpenNextEntry(iter, next_entry))
-    return net::OK;
+  DCHECK(callback);
+  background_queue_.OpenNextEntry(iter, next_entry, callback);
+  return net::ERR_IO_PENDING;
+}
 
-  return net::ERR_FAILED;
+void BackendImpl::SyncEndEnumeration(void* iter) {
+  scoped_ptr<Rankings::Iterator> iterator(
+      reinterpret_cast<Rankings::Iterator*>(iter));
 }
 
 void BackendImpl::EndEnumeration(void** iter) {
-  scoped_ptr<Rankings::Iterator> iterator(
-      reinterpret_cast<Rankings::Iterator*>(*iter));
+  background_queue_.EndEnumeration(*iter);
   *iter = NULL;
 }
 
@@ -1043,6 +1169,11 @@ void BackendImpl::ClearRefCountForTest() {
   num_refs_ = 0;
 }
 
+int BackendImpl::FlushQueueForTest(CompletionCallback* callback) {
+  background_queue_.FlushQueue(callback);
+  return net::ERR_IO_PENDING;
+}
+
 int BackendImpl::SelfCheck() {
   if (!init_) {
     LOG(ERROR) << "Init failed";
@@ -1063,8 +1194,20 @@ int BackendImpl::SelfCheck() {
   return CheckAllEntries();
 }
 
-bool BackendImpl::OpenPrevEntry(void** iter, Entry** prev_entry) {
-  return OpenFollowingEntry(false, iter, prev_entry);
+int BackendImpl::SyncOpenPrevEntry(void** iter, Entry** prev_entry) {
+  *prev_entry = OpenPrevEntryImpl(iter);
+  return (*prev_entry) ? net::OK : net::ERR_FAILED;
+}
+
+int BackendImpl::OpenPrevEntry(void** iter, Entry** prev_entry,
+                               CompletionCallback* callback) {
+  DCHECK(callback);
+  background_queue_.OpenPrevEntry(iter, prev_entry, callback);
+  return net::ERR_IO_PENDING;
+}
+
+EntryImpl* BackendImpl::OpenPrevEntryImpl(void** iter) {
+  return OpenFollowingEntry(false, iter);
 }
 
 // ------------------------------------------------------------------------
@@ -1178,7 +1321,7 @@ void BackendImpl::RestartCache() {
   // trying to re-enable the cache.
   if (unit_test_)
     init_ = true;  // Let the destructor do proper cleanup.
-  else if (Init())
+  else if (SyncInit())
     stats_.SetCounter(Stats::FATAL_ERROR, errors + 1);
 }
 
@@ -1328,14 +1471,11 @@ EntryImpl* BackendImpl::MatchEntry(const std::string& key, uint32 hash,
 }
 
 // This is the actual implementation for OpenNextEntry and OpenPrevEntry.
-bool BackendImpl::OpenFollowingEntry(bool forward, void** iter,
-                                     Entry** next_entry) {
+EntryImpl* BackendImpl::OpenFollowingEntry(bool forward, void** iter) {
   if (disabled_)
-    return false;
+    return NULL;
 
   DCHECK(iter);
-  DCHECK(next_entry);
-  *next_entry = NULL;
 
   const int kListsToSearch = 3;
   scoped_refptr<EntryImpl> entries[kListsToSearch];
@@ -1355,7 +1495,7 @@ bool BackendImpl::OpenFollowingEntry(bool forward, void** iter,
       entries[i].swap(&temp);  // The entry was already addref'd.
     }
     if (!ret)
-      return false;
+      return NULL;
   } else {
     // Get the next entry from the last list, and the actual entries for the
     // elements on the other lists.
@@ -1391,18 +1531,19 @@ bool BackendImpl::OpenFollowingEntry(bool forward, void** iter,
   }
 
   if (newest < 0 || oldest < 0)
-    return false;
+    return NULL;
 
+  EntryImpl* next_entry;
   if (forward) {
-    entries[newest].swap(reinterpret_cast<EntryImpl**>(next_entry));
+    next_entry = entries[newest].release();
     iterator->list = static_cast<Rankings::List>(newest);
   } else {
-    entries[oldest].swap(reinterpret_cast<EntryImpl**>(next_entry));
+    next_entry = entries[oldest].release();
     iterator->list = static_cast<Rankings::List>(oldest);
   }
 
   *iter = iterator.release();
-  return true;
+  return next_entry;
 }
 
 bool BackendImpl::OpenFollowingEntryFromList(bool forward, Rankings::List list,
@@ -1450,6 +1591,9 @@ EntryImpl* BackendImpl::GetEnumeratedEntry(CacheRankingsBlock* next,
     entry->Release();
     return NULL;
   }
+
+  // Make sure that we save the key for later.
+  entry->GetKey();
 
   return entry;
 }
