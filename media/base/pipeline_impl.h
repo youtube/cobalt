@@ -13,6 +13,7 @@
 
 #include "base/message_loop.h"
 #include "base/ref_counted.h"
+#include "base/scoped_ptr.h"
 #include "base/thread.h"
 #include "base/time.h"
 #include "media/base/clock_impl.h"
