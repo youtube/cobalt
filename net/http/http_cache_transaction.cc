@@ -314,11 +314,14 @@ const HttpResponseInfo* HttpCache::Transaction::GetResponseInfo() const {
 }
 
 LoadState HttpCache::Transaction::GetLoadState() const {
-  if (network_trans_.get())
-    return network_trans_->GetLoadState();
-  if (entry_ || !request_)
-    return LOAD_STATE_IDLE;
-  return LOAD_STATE_WAITING_FOR_CACHE;
+  LoadState state = GetWriterLoadState();
+  if (state != LOAD_STATE_WAITING_FOR_CACHE)
+    return state;
+
+  if (cache_)
+    return cache_->GetLoadStateForPendingTransaction(this);
+
+  return LOAD_STATE_IDLE;
 }
 
 uint64 HttpCache::Transaction::GetUploadProgress() const {
@@ -364,6 +367,14 @@ bool HttpCache::Transaction::AddTruncatedFlag() {
   next_state_ = STATE_CACHE_WRITE_TRUNCATED_RESPONSE;
   DoLoop(OK);
   return true;
+}
+
+LoadState HttpCache::Transaction::GetWriterLoadState() const {
+  if (network_trans_.get())
+    return network_trans_->GetLoadState();
+  if (entry_ || !request_)
+    return LOAD_STATE_IDLE;
+  return LOAD_STATE_WAITING_FOR_CACHE;
 }
 
 //-----------------------------------------------------------------------------
