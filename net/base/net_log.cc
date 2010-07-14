@@ -4,7 +4,6 @@
 
 #include "net/base/net_log.h"
 #include "base/string_util.h"
-#include "base/time.h"
 #include "base/values.h"
 
 namespace net {

@@ -9,10 +9,11 @@
 #include <string>
 
 #include "base/basictypes.h"
-#include "base/lock.h"
+#include "base/histogram.h"
 #include "base/message_pump.h"
 #include "base/observer_list.h"
 #include "base/ref_counted.h"
+#include "base/scoped_ptr.h"
 #include "base/task.h"
 
 #if defined(OS_WIN)
@@ -25,8 +26,6 @@
 #include "base/message_pump_glib.h"
 #endif
 #endif
-
-class Histogram;
 
 // A MessageLoop is used to process events for a particular thread.  There is
 // at most one MessageLoop instance per thread.
@@ -427,6 +426,9 @@ class MessageLoop : public base::MessagePump::Delegate {
   // done in a specific MessageLoop instance (i.e., specific thread).
   // If message_histogram_ is NULL, this is a no-op.
   void HistogramEvent(int event);
+
+  static const LinearHistogram::DescriptionPair event_descriptions_[];
+  static bool enable_histogrammer_;
 
   Type type_;
 
